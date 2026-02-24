@@ -1,58 +1,105 @@
-# About Driv‑en
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Driv‑en</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            line-height: 1.6;
+        }
 
-## Our Purpose
-Driv‑en exists to bring clarity, accountability, and operational control to industries where work happens in the field, not behind a desk. Contractors, pipeline teams, and industrial operators rely on workflows that must be simple, reliable, and audit‑ready. Driv‑en delivers that with a modular platform built for real‑world operations.
+        .logo {
+            width: 180px;
+            display: block;
+            margin: 0 auto 30px auto;
+        }
 
-## What We Do
-We unify equipment, safety, projects, and pipeline workflows into one platform. Each module is designed to stand alone or work together, giving teams the flexibility to start small and scale as they grow.
+        h1, h2 {
+            text-align: center;
+            margin-top: 40px;
+        }
 
-Driv‑en helps organizations:
-- Reduce paperwork  
-- Improve safety compliance  
-- Track equipment and maintenance  
-- Standardize project reporting  
-- Maintain audit‑ready documentation  
-- Gain real‑time visibility across operations  
+        ul {
+            margin-left: 20px;
+        }
 
-## Why Driv‑en Was Built
-Most operational teams are forced to choose between overly complex software or scattered spreadsheets. Neither option works in the field.
+        footer {
+            margin-top: 60px;
+            text-align: center;
+            font-size: 14px;
+            color: #777;
+        }
+    </style>
+</head>
 
-Driv‑en was built to solve that problem with:
-- Clean, modular workflows  
-- Field‑friendly design  
-- Clear documentation  
-- Reliable data capture  
-- A platform that adapts to the way teams actually work  
+<body>
 
-## Our Approach
-We focus on operational clarity. Every module, form, and workflow is designed to be:
-- Easy to use  
-- Fast to complete  
-- Consistent across teams  
-- Audit‑friendly  
-- Configurable without complexity  
+    <!-- Correct logo path for your repo structure -->
+    <img src="/driv-en/logo.png" alt="Driv‑en Logo" class="logo">
 
-## Founder Story
-Driv‑en was created by Jackie Blood, a founder and operational architect with deep experience in safety, compliance, and field execution. After years of developing policies and procedures for contractors and industrial clients, Jackie saw the need for a platform that was both powerful and practical.
+    <h1>About Driv‑en</h1>
 
-Driv‑en reflects that philosophy:  
+    <h2>Our Purpose</h2>
+    <p>
+        Driv‑en exists to bring clarity, accountability, and operational control to industries where work happens in the field, not behind a desk. Contractors, pipeline teams, and industrial operators rely on workflows that must be simple, reliable, and audit‑ready. Driv‑en delivers that with a modular platform built for real‑world operations.
+    </p>
 
-**simple where it should be, structured where it must be, and reliable everywhere it matters.**
+    <h2>What We Do</h2>
+    <p>We unify equipment, safety, projects, and pipeline workflows into one platform. Each module is designed to stand alone or work together, giving teams the flexibility to start small and scale as they grow.</p>
 
-## Who We Serve
-Driv‑en supports organizations across operational industries, including:
-- Construction contractors  
-- Pipeline and energy companies  
-- Industrial maintenance teams  
-- Safety departments  
-- Equipment managers  
-- Field operations leaders  
+    <p>Driv‑en helps organizations:</p>
+    <ul>
+        <li>Reduce paperwork</li>
+        <li>Improve safety compliance</li>
+        <li>Track equipment and maintenance</li>
+        <li>Standardize project reporting</li>
+        <li>Maintain audit‑ready documentation</li>
+        <li>Gain real‑time visibility across operations</li>
+    </ul>
 
-## What Makes Us Different
-- Modular platform — enable only what you need  
-- Built for field usability  
-- Clear, audit‑ready documentation  
-- Real‑time dashboards  
-- Designed with operational logic, not software theory  
-- Created by someone who has lived the work, not just observed it  
+    <h2>Why Driv‑en Was Built</h2>
+    <p>
+        Most operational teams are forced to choose between overly complex software or scattered spreadsheets. Neither option works in the field. Driv‑en was built to solve that problem with clean, modular workflows, field‑friendly design, clear documentation, reliable data capture, and a platform that adapts to the way teams actually work.
+    </p>
 
+    <h2>Our Approach</h2>
+    <p>
+        We focus on operational clarity. Every module, form, and workflow is designed to be easy to use, fast to complete, consistent across teams, audit‑friendly, and configurable without complexity.
+    </p>
+
+    <h2>Founder Story</h2>
+    <p>
+        Driv‑en was created by Jackie Blood, a founder and operational architect with deep experience in safety, compliance, and field execution. After years of developing policies and procedures for contractors and industrial clients, Jackie saw the need for a platform that was both powerful and practical.
+    </p>
+
+    <h2>Who We Serve</h2>
+    <ul>
+        <li>Construction contractors</li>
+        <li>Pipeline and energy companies</li>
+        <li>Industrial maintenance teams</li>
+        <li>Safety departments</li>
+        <li>Equipment managers</li>
+        <li>Field operations leaders</li>
+    </ul>
+
+    <h2>What Makes Us Different</h2>
+    <ul>
+        <li>Modular platform — enable only what you need</li>
+        <li>Built for field usability</li>
+        <li>Clear, audit‑ready documentation</li>
+        <li>Real‑time dashboards</li>
+        <li>Designed with operational logic, not software theory</li>
+        <li>Created by someone who has lived the work</li>
+    </ul>
+
+    <footer>
+        © Driv‑en — All Rights Reserved
+    </footer>
+
+</body>
+</html>
