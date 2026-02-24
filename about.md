@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>About Driv‑en</title>
+
+    <!-- Favicon (correct path for your repo structure) -->
+    <link rel="icon" type="image/png" href="/driv-en/favicon.png">
+
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -11,6 +15,7 @@
             margin: 0 auto;
             padding: 40px 20px;
             line-height: 1.6;
+            color: #222;
         }
 
         .logo {
@@ -39,7 +44,7 @@
 
 <body>
 
-    <!-- Correct logo path for your repo structure -->
+    <!-- Correct logo path -->
     <img src="/driv-en/logo.png" alt="Driv‑en Logo" class="logo">
 
     <h1>About Driv‑en</h1>
@@ -50,7 +55,9 @@
     </p>
 
     <h2>What We Do</h2>
-    <p>We unify equipment, safety, projects, and pipeline workflows into one platform. Each module is designed to stand alone or work together, giving teams the flexibility to start small and scale as they grow.</p>
+    <p>
+        We unify equipment, safety, projects, and pipeline workflows into one platform. Each module is designed to stand alone or work together, giving teams the flexibility to start small and scale as they grow.
+    </p>
 
     <p>Driv‑en helps organizations:</p>
     <ul>
@@ -98,7 +105,7 @@
     </ul>
 
     <footer>
-        © Driv‑en — All Rights Reserved
+        © 2026 Digital Safety Inspection, LLC — Driv‑en is a Digital Safety Inspection, LLC platform.
     </footer>
 
 </body>
