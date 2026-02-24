@@ -33,9 +33,10 @@ We focus on operational clarity. Every module, form, and workflow is designed to
 - Configurable without complexity  
 
 ## Founder Story
-Driv‑en was created by Jackie Blood, a founder and operational architect with deep experience in safety, compliance, and field execution. After years of building systems for contractors and industrial clients, Jackie saw the need for a platform that was both powerful and practical.
+Driv‑en was created by Jackie Blood, a founder and operational architect with deep experience in safety, compliance, and field execution. After years of developing policies and procedures for contractors and industrial clients, Jackie saw the need for a platform that was both powerful and practical.
 
 Driv‑en reflects that philosophy:  
+
 **simple where it should be, structured where it must be, and reliable everywhere it matters.**
 
 ## Who We Serve
