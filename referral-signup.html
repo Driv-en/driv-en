@@ -14,7 +14,6 @@
             color: #222;
         }
 
-        /* Sticky Nav */
         header {
             position: sticky;
             top: 0;
@@ -39,7 +38,6 @@
             color: #ffcc00;
         }
 
-        /* Logo */
         .logo-container {
             padding: 20px 24px 0 24px;
         }
@@ -49,7 +47,6 @@
             height: auto;
         }
 
-        /* PAGE TITLE BAR */
         .page-title-bar {
             background: #000;
             color: white;
@@ -72,7 +69,6 @@
             margin-right: auto;
         }
 
-        /* FORM CONTAINER */
         .form-section {
             max-width: 600px;
             margin: 50px auto;
@@ -95,29 +91,41 @@
             font-size: 16px;
         }
 
-        input {
+        input, button, a.button-link {
             width: 100%;
-            padding: 12px;
+            padding: 14px;
             margin-bottom: 20px;
-            border: 1px solid #ccc;
             border-radius: 6px;
             font-size: 16px;
         }
 
+        input {
+            border: 1px solid #ccc;
+        }
+
         button {
-            width: 100%;
-            padding: 14px;
             background: #ffcc00;
             color: #111;
             border: none;
-            border-radius: 6px;
-            font-size: 18px;
             cursor: pointer;
             font-weight: 600;
         }
 
         button:hover {
             background: #e6b800;
+        }
+
+        a.button-link {
+            display: block;
+            text-align: center;
+            background: #111;
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        #step2 {
+            display: none;
         }
 
         #message {
@@ -127,15 +135,6 @@
             font-weight: bold;
         }
 
-        .success {
-            color: #1a7f1a;
-        }
-
-        .error {
-            color: #a30000;
-        }
-
-        /* Footer */
         footer {
             text-align: center;
             padding: 30px;
@@ -149,82 +148,104 @@
 
 <body>
 
-    <!-- Nav -->
-    <header>
-        <nav>
-            <a href="index.html">Home</a>
-            <a href="about.html">About</a>
-            <a href="modules.html">Modules</a>
-            <a href="equipment.html">Equipment</a>
-            <a href="safety.html">Safety</a>
-            <a href="project.html">Project</a>
-        </nav>
-    </header>
+<header>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="about.html">About</a>
+        <a href="modules.html">Modules</a>
+        <a href="equipment.html">Equipment</a>
+        <a href="safety.html">Safety</a>
+        <a href="project.html">Project</a>
+    </nav>
+</header>
 
-    <!-- Logo -->
-    <div class="logo-container">
-        <img src="logo.png" alt="Driv-en Logo" />
-    </div>
+<div class="logo-container">
+    <img src="logo.png" alt="Driv-en Logo" />
+</div>
 
-    <!-- PAGE TITLE BAR -->
-    <div class="page-title-bar">
-        <h1>Become a Driv-en Referral Partner</h1>
-        <p>
-            Earn commissions by helping contractors and field teams discover a platform built for real-world performance.  
-            A completed W‑9 is required for commission eligibility, for all U.S. persons.
-        </p>
-    </div>
+<div class="page-title-bar">
+    <h1>Become a Driv-en Referral Partner</h1>
+    <p>
+        Earn commissions by helping contractors and field teams discover a platform built for real-world performance.  
+        A completed W‑9 is required for commission eligibility, for all U.S. persons.
+    </p>
+</div>
 
-    <!-- Referral Form -->
-    <div class="form-section">
+<div class="form-section">
+
+    <!-- STEP 1 -->
+    <div id="step1">
         <h2>Submit Your Information</h2>
 
-        <form id="referralForm">
-            <label>Name</label>
-            <input type="text" id="name" required>
+        <label>Name</label>
+        <input type="text" id="name" required>
 
-            <label>Email</label>
-            <input type="email" id="email" required>
+        <label>Email</label>
+        <input type="email" id="email" required>
 
-            <label>Phone</label>
-            <input type="text" id="phone" required>
+        <label>Phone</label>
+        <input type="text" id="phone" required>
 
-            <button type="submit">Continue</button>
-        </form>
+        <button onclick="goToStep2()">Continue</button>
+    </div>
+
+    <!-- STEP 2 -->
+    <div id="step2">
+        <h2>Complete Your W‑9</h2>
+
+        <a class="button-link" href="https://www.irs.gov/pub/irs-pdf/fw9.pdf" target="_blank">
+            Open Fillable W‑9 Form
+        </a>
+
+        <label>Upload Completed W‑9 (PDF)</label>
+        <input type="file" id="w9file" accept="application/pdf" required>
+
+        <button onclick="submitReferral()">Submit Referral Partner Application</button>
 
         <div id="message"></div>
     </div>
 
-    <!-- Footer -->
-    <footer>
-        © 2026 Digital Safety Inspection, LLC. Driv-en is a Digital Safety Inspection, LLC platform.
-    </footer>
+</div>
 
-    <script>
-        document.getElementById("referralForm").addEventListener("submit", async function(e) {
-            e.preventDefault();
+<footer>
+    © 2026 Digital Safety Inspection, LLC. Driv-en is a Digital Safety Inspection, LLC platform.
+</footer>
 
-            const payload = {
-                name: document.getElementById("name").value,
-                email: document.getElementById("email").value,
-                phone: document.getElementById("phone").value
-            };
+<script>
+function goToStep2() {
+    document.getElementById("step1").style.display = "none";
+    document.getElementById("step2").style.display = "block";
+}
 
-            const response = await fetch("https://airtable-form-handler.jblood.workers.dev", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
+async function submitReferral() {
+    const name = document.getElementById("name").value;
+    const email = document.getElementById("email").value;
+    const phone = document.getElementById("phone").value;
+    const w9file = document.getElementById("w9file").files[0];
 
-            const messageBox = document.getElementById("message");
+    if (!w9file) {
+        document.getElementById("message").innerHTML = "<span style='color:red;'>Please upload your completed W‑9.</span>";
+        return;
+    }
 
-            if (response.ok) {
-                messageBox.innerHTML = "<div class='success'>Information received. Next step: complete your I‑9.</div>";
-            } else {
-                messageBox.innerHTML = "<div class='error'>Error submitting your information.</div>";
-            }
-        });
-    </script>
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("email", email);
+    formData.append("phone", phone);
+    formData.append("w9", w9file);
+
+    const response = await fetch("https://airtable-form-handler.jblood.workers.dev", {
+        method: "POST",
+        body: formData
+    });
+
+    if (response.ok) {
+        document.getElementById("message").innerHTML = "<span style='color:green;'>Referral Partner Application Submitted!</span>";
+    } else {
+        document.getElementById("message").innerHTML = "<span style='color:red;'>Submission failed.</span>";
+    }
+}
+</script>
 
 </body>
 </html>
