@@ -143,6 +143,13 @@
             margin-top: 40px;
             font-size: 15px;
         }
+
+        .error {
+            color: red;
+            margin-bottom: 15px;
+            text-align: center;
+            font-weight: bold;
+        }
     </style>
 </head>
 
@@ -177,14 +184,16 @@
     <div id="step1">
         <h2>Submit Your Information</h2>
 
+        <div id="step1-error" class="error" style="display:none;"></div>
+
         <label>Name</label>
-        <input type="text" id="name" required>
+        <input type="text" id="name">
 
         <label>Email</label>
-        <input type="email" id="email" required>
+        <input type="email" id="email">
 
         <label>Phone</label>
-        <input type="text" id="phone" required>
+        <input type="text" id="phone">
 
         <button onclick="goToStep2()">Continue</button>
     </div>
@@ -193,12 +202,17 @@
     <div id="step2">
         <h2>Complete Your W‑9</h2>
 
+        <p style="margin-bottom: 10px;">
+            Please click “Open Fillable W‑9 Form” to download the IRS W‑9.  
+            Complete the form, save it to your computer, and then upload the PDF below.
+        </p>
+
         <a class="button-link" href="https://www.irs.gov/pub/irs-pdf/fw9.pdf" target="_blank">
             Open Fillable W‑9 Form
         </a>
 
         <label>Upload Completed W‑9 (PDF)</label>
-        <input type="file" id="w9file" accept="application/pdf" required>
+        <input type="file" id="w9file" accept="application/pdf">
 
         <button onclick="submitReferral()">Submit Referral Partner Application</button>
 
@@ -213,14 +227,28 @@
 
 <script>
 function goToStep2() {
+    const name = document.getElementById("name").value.trim();
+    const email = document.getElementById("email").value.trim();
+    const phone = document.getElementById("phone").value.trim();
+
+    const errorBox = document.getElementById("step1-error");
+
+    if (!name || !email || !phone) {
+        errorBox.style.display = "block";
+        errorBox.innerHTML = "Please enter your Name, Email, and Phone before continuing.";
+        return;
+    }
+
+    errorBox.style.display = "none";
+
     document.getElementById("step1").style.display = "none";
     document.getElementById("step2").style.display = "block";
 }
 
 async function submitReferral() {
-    const name = document.getElementById("name").value;
-    const email = document.getElementById("email").value;
-    const phone = document.getElementById("phone").value;
+    const name = document.getElementById("name").value.trim();
+    const email = document.getElementById("email").value.trim();
+    const phone = document.getElementById("phone").value.trim();
     const w9file = document.getElementById("w9file").files[0];
 
     if (!w9file) {
@@ -241,6 +269,14 @@ async function submitReferral() {
 
     if (response.ok) {
         document.getElementById("message").innerHTML = "<span style='color:green;'>Referral Partner Application Submitted!</span>";
+
+        // Reset Step 1 fields
+        document.getElementById("name").value = "";
+        document.getElementById("email").value = "";
+        document.getElementById("phone").value = "";
+
+        // Reset W‑9 upload field
+        document.getElementById("w9file").value = "";
     } else {
         document.getElementById("message").innerHTML = "<span style='color:red;'>Submission failed.</span>";
     }
