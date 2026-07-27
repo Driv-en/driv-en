@@ -6,6 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/png" href="/favicon.png" />
 
+  <!-- SheetJS for XLSX parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -18,7 +21,6 @@
       min-height: 100vh;
     }
 
-    /* Sticky header */
     header {
       position: sticky;
       top: 0;
@@ -83,7 +85,7 @@
       color: #e5e7eb;
     }
 
-    input[type="text"] {
+    input[type="text"], input[type="file"] {
       padding: 10px;
       border-radius: 6px;
       border: 1px solid #374151;
@@ -92,7 +94,7 @@
       font-size: 14px;
     }
 
-    input[type="text"]::placeholder {
+    input::placeholder {
       color: #6b7280;
     }
 
@@ -139,6 +141,24 @@
       color: #bbf7d0;
     }
 
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+      font-size: 13px;
+    }
+
+    table th, table td {
+      border: 1px solid #374151;
+      padding: 8px;
+      text-align: left;
+    }
+
+    table th {
+      background: #1f2937;
+      color: #e5e7eb;
+    }
+
     footer {
       padding: 16px;
       text-align: center;
@@ -172,6 +192,7 @@
       or any entity you perform work for. You can add more clients later.
     </p>
 
+    <!-- SINGLE ENTRY -->
     <div class="card">
       <h3 style="margin-top:0;font-size:16px;">Add a Client</h3>
 
@@ -186,63 +207,140 @@
       </div>
 
       <div class="footer-actions">
-        <button class="btn-secondary" id="btnCancel">Cancel</button>
-        <button class="btn-primary" id="btnNext">Continue</button>
+        <button class="btn-secondary" id="btnCancelSingle">Cancel</button>
+        <button class="btn-primary" id="btnNextSingle">Save & Continue</button>
       </div>
 
-      <div class="status-bar" id="statusBar"></div>
+      <div class="status-bar" id="statusSingle"></div>
+    </div>
+
+    <!-- BULK UPLOAD -->
+    <div class="card">
+      <h3 style="margin-top:0;font-size:16px;">Bulk Upload Clients</h3>
+
+      <p style="margin-top:-4px;margin-bottom:12px;">
+        Download the Excel template, fill in your client list, then upload it here.
+      </p>
+
+      <a href="/templates/Client-Mass-Upload-v1.0.xlsx"
+         style="color:#22c55e;font-size:14px;text-decoration:none;"
+         download>
+        Download Client-Mass-Upload-v1.0.xlsx
+      </a>
+
+      <div class="form-group" style="margin-top:16px;">
+        <label for="bulkFile">Upload Completed Template</label>
+        <input type="file" id="bulkFile" accept=".xlsx" />
+      </div>
+
+      <button class="btn-primary" id="btnProcessBulk">Process Upload</button>
+
+      <div class="status-bar" id="statusBulk"></div>
+
+      <div id="bulkPreview"></div>
     </div>
   </main>
 
-  <!-- FOOTER -->
   <footer>
     © 2026 Digital Safety Inspection, LLC.
     <span class="footer-line-2">Driv-en is a Digital Safety Inspection, LLC platform.</span>
   </footer>
 
   <script>
-    const btnNext = document.getElementById("btnNext");
-    const btnCancel = document.getElementById("btnCancel");
-    const statusBar = document.getElementById("statusBar");
+    // ---------------------------
+    // SINGLE ENTRY LOGIC
+    // ---------------------------
+    const btnNextSingle = document.getElementById("btnNextSingle");
+    const btnCancelSingle = document.getElementById("btnCancelSingle");
+    const statusSingle = document.getElementById("statusSingle");
 
-    function setStatus(msg, type = "info") {
-      statusBar.textContent = msg;
-      statusBar.classList.remove("error", "success");
-      if (type === "error") statusBar.classList.add("error");
-      if (type === "success") statusBar.classList.add("success");
+    function setStatusSingle(msg, type = "info") {
+      statusSingle.textContent = msg;
+      statusSingle.classList.remove("error", "success");
+      if (type === "error") statusSingle.classList.add("error");
+      if (type === "success") statusSingle.classList.add("success");
     }
 
-    btnNext.addEventListener("click", () => {
+    btnNextSingle.addEventListener("click", () => {
       const name = document.getElementById("clientName").value.trim();
       const location = document.getElementById("clientLocation").value.trim();
 
-      if (!name) {
-        setStatus("Please enter a client name.", "error");
-        return;
-      }
+      if (!name) return setStatusSingle("Please enter a client name.", "error");
+      if (!location) return setStatusSingle("Please enter a client location or facility.", "error");
 
-      if (!location) {
-        setStatus("Please enter a client location or facility.", "error");
-        return;
-      }
-
-      // Store client
       const clients = JSON.parse(localStorage.getItem("driven_clients") || "[]");
       clients.push({ name, location });
       localStorage.setItem("driven_clients", JSON.stringify(clients));
 
-      setStatus("Saving client…", "success");
+      setStatusSingle("Client saved!", "success");
 
       setTimeout(() => {
         window.location.href = "/onboarding-projects.html";
       }, 600);
     });
 
-    btnCancel.addEventListener("click", () => {
+    btnCancelSingle.addEventListener("click", () => {
       window.location.href = "/dashboard.html";
     });
 
-    setStatus("Enter your first client to continue.");
+    // ---------------------------
+    // BULK UPLOAD LOGIC
+    // ---------------------------
+    const btnProcessBulk = document.getElementById("btnProcessBulk");
+    const statusBulk = document.getElementById("statusBulk");
+    const bulkPreview = document.getElementById("bulkPreview");
+
+    function setStatusBulk(msg, type = "info") {
+      statusBulk.textContent = msg;
+      statusBulk.classList.remove("error", "success");
+      if (type === "error") statusBulk.classList.add("error");
+      if (type === "success") statusBulk.classList.add("success");
+    }
+
+    btnProcessBulk.addEventListener("click", () => {
+      const fileInput = document.getElementById("bulkFile");
+      const file = fileInput.files[0];
+
+      if (!file) {
+        setStatusBulk("Please select an Excel file to upload.", "error");
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+
+        const rows = XLSX.utils.sheet_to_json(sheet);
+
+        if (rows.length === 0) {
+          setStatusBulk("The uploaded file contains no rows.", "error");
+          return;
+        }
+
+        // Store in localStorage
+        localStorage.setItem("driven_clients_bulk", JSON.stringify(rows));
+
+        // Build preview table
+        let html = "<table><thead><tr><th>Client Name</th><th>Location / Facility</th></tr></thead><tbody>";
+
+        rows.forEach(r => {
+          html += `<tr><td>${r["Client Name"] || ""}</td><td>${r["Client Location / Facility"] || ""}</td></tr>`;
+        });
+
+        html += "</tbody></table>";
+
+        bulkPreview.innerHTML = html;
+
+        setStatusBulk(`Uploaded ${rows.length} clients successfully.`, "success");
+      };
+
+      reader.readAsArrayBuffer(file);
+    });
   </script>
 </body>
 </html>
