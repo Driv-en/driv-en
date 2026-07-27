@@ -18,7 +18,11 @@
       flex-direction: column;
     }
 
+    /* Sticky header on desktop + mobile */
     header {
+      position: sticky;
+      top: 0;
+      z-index: 200;
       padding: 16px 24px;
       border-bottom: 1px solid #1f2937;
       background: #020617;
@@ -41,6 +45,20 @@
       color: #9ca3af;
     }
 
+    /* Progress bar */
+    #progressBarContainer {
+      width: 100%;
+      height: 6px;
+      background: #1f2937;
+    }
+
+    #progressBar {
+      height: 6px;
+      width: 0%;
+      background: #22c55e;
+      transition: width 0.3s ease;
+    }
+
     main {
       flex: 1;
       max-width: 900px;
@@ -59,6 +77,13 @@
       margin-bottom: 16px;
     }
 
+    /* Desktop wider columns */
+    @media (min-width: 1024px) {
+      .steps-grid {
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      }
+    }
+
     .steps-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -73,6 +98,26 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
+      position: relative;
+    }
+
+    /* Color bars */
+    .step-status-bar {
+      height: 6px;
+      border-radius: 4px;
+      margin-bottom: 8px;
+    }
+
+    .status-ready {
+      background: #16a34a;
+    }
+
+    .status-locked {
+      background: #b91c1c;
+    }
+
+    .status-notready {
+      background: #facc15;
     }
 
     .step-header {
@@ -103,14 +148,14 @@
 
     .badge-notready {
       background: #3f1f1f;
-      border-color: #b91c1c;
-      color: #fecaca;
+      border-color: #b45309;
+      color: #fcd34d;
     }
 
     .badge-locked {
-      background: #111827;
-      border-color: #4b5563;
-      color: #9ca3af;
+      background: #3f1f1f;
+      border-color: #b91c1c;
+      color: #fecaca;
     }
 
     .step-body {
@@ -123,14 +168,20 @@
       color: #6b7280;
     }
 
+    .assigned-to {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-top: 4px;
+    }
+
     .step-actions {
       margin-top: 8px;
       display: flex;
       justify-content: flex-end;
     }
 
-    .step-actions button,
-    .step-actions a {
+    .step-actions a,
+    .step-actions button {
       font-size: 12px;
       border-radius: 6px;
       padding: 6px 10px;
@@ -153,6 +204,26 @@
       cursor: not-allowed;
     }
 
+    /* Tooltip */
+    .tooltip {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      background: #1f2937;
+      color: #e5e7eb;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      border: 1px solid #374151;
+    }
+
+    .step-card:hover .tooltip {
+      opacity: 1;
+    }
+
     footer {
       padding: 16px 24px;
       text-align: center;
@@ -169,6 +240,7 @@
     }
   </style>
 </head>
+
 <body>
   <header>
     <div class="title-block">
@@ -178,150 +250,165 @@
     <img src="/logo.png" alt="DRIV‑EN Logo" class="logo" />
   </header>
 
+  <div id="progressBarContainer">
+    <div id="progressBar"></div>
+  </div>
+
   <main>
     <h2>Onboarding Dashboard</h2>
     <p>
-      Each step shows whether it is ready, waiting on prerequisites, or locked.
-      Admin completes Key Personnel first, then Key Personnel and teams complete the remaining steps.
+      Each step shows readiness, prerequisites, assigned personnel, and completion status.
     </p>
 
     <div class="steps-grid">
-      <!-- 1. Key Personnel (Admin) -->
+
+      <!-- STEP TEMPLATE EXAMPLE -->
+      <!-- I will generate all 8 steps below -->
+
+      <!-- 1. Key Personnel -->
       <div class="step-card" id="step1">
+        <div class="step-status-bar" id="statusbar1"></div>
         <div class="step-header">
           <div class="step-title">1. Key Personnel Upload (Admin)</div>
           <span class="badge" id="badge1"></span>
         </div>
         <div class="step-body">
           Upload Project Managers, Equipment Managers, HR/Payroll, Safety, and other key roles.
-          This populates the Employee table with the people who will perform later uploads.
         </div>
-        <div class="step-prereq" id="prereq1">
-          Prerequisites: None. This must be completed first.
-        </div>
+        <div class="assigned-to">Assigned to: Admin</div>
+        <div class="step-prereq">Prerequisites: None</div>
         <div class="step-actions">
           <a id="link1" href="/onboarding-key-personnel.html" class="btn-primary">Open Key Personnel Upload</a>
         </div>
+        <div class="tooltip">This step must be completed first.</div>
       </div>
 
-      <!-- 2. Employee Upload -->
+      <!-- 2. Employees -->
       <div class="step-card" id="step2">
+        <div class="step-status-bar" id="statusbar2"></div>
         <div class="step-header">
           <div class="step-title">2. Employee Upload</div>
           <span class="badge" id="badge2"></span>
         </div>
         <div class="step-body">
-          HR/Payroll uploads the full employee list. This can be done any time after Key Personnel.
+          HR/Payroll uploads the full employee list.
         </div>
-        <div class="step-prereq" id="prereq2">
-          Prerequisites: Key Personnel Upload complete.
-        </div>
+        <div class="assigned-to">Assigned to: HR / Payroll</div>
+        <div class="step-prereq">Prerequisites: Step 1</div>
         <div class="step-actions">
           <a id="link2" href="/onboarding-employees.html" class="btn-primary">Open Employee Upload</a>
         </div>
+        <div class="tooltip">Employees must exist before Projects can be uploaded.</div>
       </div>
 
-      <!-- 3. Client Upload -->
+      <!-- 3. Clients -->
       <div class="step-card" id="step3">
+        <div class="step-status-bar" id="statusbar3"></div>
         <div class="step-header">
           <div class="step-title">3. Client Upload</div>
           <span class="badge" id="badge3"></span>
         </div>
         <div class="step-body">
-          Upload the clients your business works with. Can be completed in any order after Key Personnel.
+          Upload the clients your business works with.
         </div>
-        <div class="step-prereq" id="prereq3">
-          Prerequisites: Key Personnel Upload complete.
-        </div>
+        <div class="assigned-to">Assigned to: Project Managers</div>
+        <div class="step-prereq">Prerequisites: Step 1</div>
         <div class="step-actions">
           <a id="link3" href="/onboarding-clients.html" class="btn-primary">Open Client Upload</a>
         </div>
+        <div class="tooltip">Clients must exist before Projects can be uploaded.</div>
       </div>
 
-      <!-- 4. Division Upload -->
+      <!-- 4. Divisions -->
       <div class="step-card" id="step4">
+        <div class="step-status-bar" id="statusbar4"></div>
         <div class="step-header">
           <div class="step-title">4. Division Upload</div>
           <span class="badge" id="badge4"></span>
         </div>
         <div class="step-body">
-          Upload your divisions or business units. Can be completed in any order after Key Personnel.
+          Upload your divisions or business units.
         </div>
-        <div class="step-prereq" id="prereq4">
-          Prerequisites: Key Personnel Upload complete.
-        </div>
+        <div class="assigned-to">Assigned to: Admin</div>
+        <div class="step-prereq">Prerequisites: Step 1</div>
         <div class="step-actions">
           <a id="link4" href="/onboarding-divisions.html" class="btn-primary">Open Division Upload</a>
         </div>
+        <div class="tooltip">Divisions must exist before Projects can be uploaded.</div>
       </div>
 
-      <!-- 5. Project Type Upload -->
+      <!-- 5. Project Types -->
       <div class="step-card" id="step5">
+        <div class="step-status-bar" id="statusbar5"></div>
         <div class="step-header">
           <div class="step-title">5. Project Type Upload</div>
           <span class="badge" id="badge5"></span>
         </div>
         <div class="step-body">
-          Upload the types of projects your business performs. Can be completed in any order after Key Personnel.
+          Upload the types of projects your business performs.
         </div>
-        <div class="step-prereq" id="prereq5">
-          Prerequisites: Key Personnel Upload complete.
-        </div>
+        <div class="assigned-to">Assigned to: Admin</div>
+        <div class="step-prereq">Prerequisites: Step 1</div>
         <div class="step-actions">
           <a id="link5" href="/onboarding-project-types.html" class="btn-primary">Open Project Type Upload</a>
         </div>
+        <div class="tooltip">Project Types must exist before Projects can be uploaded.</div>
       </div>
 
-      <!-- 6. Project Upload -->
+      <!-- 6. Projects -->
       <div class="step-card" id="step6">
+        <div class="step-status-bar" id="statusbar6"></div>
         <div class="step-header">
           <div class="step-title">6. Project Upload</div>
           <span class="badge" id="badge6"></span>
         </div>
         <div class="step-body">
-          Project Managers upload projects. This step depends on Employees, Clients, Divisions, and Project Types.
+          Project Managers upload projects.
         </div>
-        <div class="step-prereq" id="prereq6">
-          Prerequisites: Employee, Client, Division, and Project Type uploads complete.
-        </div>
+        <div class="assigned-to">Assigned to: Project Managers</div>
+        <div class="step-prereq">Prerequisites: Steps 2–5</div>
         <div class="step-actions">
           <a id="link6" href="/onboarding-projects.html" class="btn-disabled">Project Upload Locked</a>
         </div>
+        <div class="tooltip">Projects require Employees, Clients, Divisions, and Project Types.</div>
       </div>
 
-      <!-- 7. Equipment Upload -->
+      <!-- 7. Equipment -->
       <div class="step-card" id="step7">
+        <div class="step-status-bar" id="statusbar7"></div>
         <div class="step-header">
           <div class="step-title">7. Equipment Upload</div>
           <span class="badge" id="badge7"></span>
         </div>
         <div class="step-body">
-          Equipment Managers upload equipment and assign it to projects. This step depends on Project Upload.
+          Equipment Managers upload equipment and assign it to projects.
         </div>
-        <div class="step-prereq" id="prereq7">
-          Prerequisites: Project Upload complete.
-        </div>
+        <div class="assigned-to">Assigned to: Equipment Managers</div>
+        <div class="step-prereq">Prerequisites: Step 6</div>
         <div class="step-actions">
           <a id="link7" href="/onboarding-equipment.html" class="btn-disabled">Equipment Upload Locked</a>
         </div>
+        <div class="tooltip">Equipment requires Projects to exist first.</div>
       </div>
 
-      <!-- 8. PM Module Auto-Generation -->
+      <!-- 8. PM Module -->
       <div class="step-card" id="step8">
+        <div class="step-status-bar" id="statusbar8"></div>
         <div class="step-header">
           <div class="step-title">8. PM Module Auto‑Generation</div>
           <span class="badge" id="badge8"></span>
         </div>
         <div class="step-body">
-          Once equipment is loaded, the PM module can generate PM Families, Templates, Schedules, and Completion records.
+          Generate PM Families, Templates, Schedules, and Completion records.
         </div>
-        <div class="step-prereq" id="prereq8">
-          Prerequisites: Equipment Upload complete.
-        </div>
+        <div class="assigned-to">Assigned to: Admin</div>
+        <div class="step-prereq">Prerequisites: Step 7</div>
         <div class="step-actions">
           <button id="link8" class="btn-disabled">PM Module Locked</button>
         </div>
+        <div class="tooltip">PM Module requires Equipment to be uploaded.</div>
       </div>
+
     </div>
   </main>
 
@@ -331,10 +418,6 @@
   </footer>
 
   <script>
-    // In v1.0, completion flags can be set by each upload page using localStorage.
-    // Example from an upload page when it successfully completes:
-    // localStorage.setItem("driven_step1_complete", "true");
-
     function isComplete(key) {
       return localStorage.getItem(key) === "true";
     }
@@ -346,6 +429,14 @@
       if (status === "notready") badge.classList.add("badge-notready");
       if (status === "locked") badge.classList.add("badge-locked");
       badge.textContent = text;
+    }
+
+    function setStatusBar(step, state) {
+      const bar = document.getElementById("statusbar" + step);
+      bar.className = "step-status-bar";
+      if (state === "ready") bar.classList.add("status-ready");
+      if (state === "locked") bar.classList.add("status-locked");
+      if (state === "notready") bar.classList.add("status-notready");
     }
 
     function lockLink(step, lockedText) {
@@ -366,98 +457,35 @@
       link.onclick = null;
     }
 
-    function updateDashboard() {
-      const step1 = isComplete("driven_step1_complete"); // Key Personnel
-      const step2 = isComplete("driven_step2_complete"); // Employees
-      const step3 = isComplete("driven_step3_complete"); // Clients
-      const step4 = isComplete("driven_step4_complete"); // Divisions
-      const step5 = isComplete("driven_step5_complete"); // Project Types
-      const step6 = isComplete("driven_step6_complete"); // Projects
-      const step7 = isComplete("driven_step7_complete"); // Equipment
-      const step8 = isComplete("driven_step8_complete"); // PM Module
-
-      // 1. Key Personnel
-      if (step1) {
-        setBadge(1, "ready", "Complete");
-      } else {
-        setBadge(1, "notready", "Required First");
-      }
-
-      // 2–5 can be done in any order after #1
-      ["2","3","4","5"].forEach(s => {
-        const num = parseInt(s, 10);
-        if (!step1) {
-          setBadge(num, "locked", "Waiting on Step 1");
-          lockLink(num, "Locked – Complete Step 1 First");
-        } else {
-          if (isComplete("driven_step" + num + "_complete")) {
-            setBadge(num, "ready", "Complete");
-          } else {
-            setBadge(num, "notready", "Ready");
-          }
-          unlockLink(num, "Open Upload");
-        }
-      });
-
-      // 6. Project Upload depends on 2,3,4,5
-      const prereq6Met = step2 && step3 && step4 && step5;
-      if (!prereq6Met) {
-        setBadge(6, "locked", "Waiting on Steps 2–5");
-        lockLink(6, "Project Upload Locked");
-        document.getElementById("prereq6").textContent =
-          "Prerequisites: Employee, Client, Division, and Project Type uploads must all be complete.";
-      } else {
-        if (step6) {
-          setBadge(6, "ready", "Complete");
-        } else {
-          setBadge(6, "notready", "Ready");
-        }
-        unlockLink(6, "Open Project Upload");
-      }
-
-      // 7. Equipment Upload depends on 6
-      const prereq7Met = step6;
-      if (!prereq7Met) {
-        setBadge(7, "locked", "Waiting on Step 6");
-        lockLink(7, "Equipment Upload Locked");
-        document.getElementById("prereq7").textContent =
-          "Prerequisites: Project Upload must be complete.";
-      } else {
-        if (step7) {
-          setBadge(7, "ready", "Complete");
-        } else {
-          setBadge(7, "notready", "Ready");
-        }
-        unlockLink(7, "Open Equipment Upload");
-      }
-
-      // 8. PM Module depends on 7
-      const prereq8Met = step7;
-      const link8 = document.getElementById("link8");
-      if (!prereq8Met) {
-        setBadge(8, "locked", "Waiting on Step 7");
-        link8.classList.remove("btn-primary");
-        link8.classList.add("btn-disabled");
-        link8.textContent = "PM Module Locked";
-        link8.onclick = function(e) { e.preventDefault(); };
-        document.getElementById("prereq8").textContent =
-          "Prerequisites: Equipment Upload must be complete.";
-      } else {
-        if (step8) {
-          setBadge(8, "ready", "Complete");
-          link8.classList.remove("btn-disabled");
-          link8.classList.add("btn-primary");
-          link8.textContent = "PM Module Complete";
-        } else {
-          setBadge(8, "notready", "Ready");
-          link8.classList.remove("btn-disabled");
-          link8.classList.add("btn-primary");
-          link8.textContent = "Run PM Module Auto‑Generation";
-        }
-      }
+    function updateProgressBar() {
+      const steps = [
+        isComplete("driven_step1_complete"),
+        isComplete("driven_step2_complete"),
+        isComplete("driven_step3_complete"),
+        isComplete("driven_step4_complete"),
+        isComplete("driven_step5_complete"),
+        isComplete("driven_step6_complete"),
+        isComplete("driven_step7_complete"),
+        isComplete("driven_step8_complete")
+      ];
+      const completed = steps.filter(s => s).length;
+      const percent = (completed / 8) * 100;
+      document.getElementById("progressBar").style.width = percent + "%";
     }
 
-    updateDashboard();
-  </script>
-</body>
-</html>
+    function updateDashboard() {
+      const step1 = isComplete("driven_step1_complete");
+      const step2 = isComplete("driven_step2_complete");
+      const step3 = isComplete("driven_step3_complete");
+      const step4 = isComplete("driven_step4_complete");
+      const step5 = isComplete("driven_step5_complete");
+      const step6 = isComplete("driven_step6_complete");
+      const step7 = isComplete("driven_step7_complete");
+      const step8 = isComplete("driven_step8_complete");
+
+      // Step 1
+      if (step1) {
+        setBadge(1, "ready", "Complete");
+        setStatusBar(1, "ready");
+      } else {
+        setBadge(1, "notready", "Required First");
