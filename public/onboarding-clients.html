@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DRIV‑EN – Clients Setup</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #0f172a;
+      color: #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* Sticky header */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 16px 24px;
+      border-bottom: 1px solid #1f2937;
+      background: #020617;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header img.logo {
+      height: 72px;
+    }
+
+    header .title-block h1 {
+      font-size: 18px;
+      margin: 0;
+    }
+
+    header .title-block span {
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
+    main {
+      flex: 1;
+      max-width: 720px;
+      margin: 32px auto;
+      padding: 0 16px;
+    }
+
+    h2 {
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+
+    p {
+      font-size: 14px;
+      color: #9ca3af;
+      margin-bottom: 16px;
+    }
+
+    .card {
+      border: 1px solid #1f2937;
+      background: #020617;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 14px;
+      color: #e5e7eb;
+    }
+
+    input[type="text"] {
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #374151;
+      background: #0f172a;
+      color: #e5e7eb;
+      font-size: 14px;
+    }
+
+    input[type="text"]::placeholder {
+      color: #6b7280;
+    }
+
+    .footer-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    button {
+      font-size: 13px;
+      border-radius: 6px;
+      padding: 8px 14px;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+
+    .btn-secondary {
+      background: #020617;
+      border-color: #374151;
+      color: #e5e7eb;
+    }
+
+    .btn-primary {
+      background: #22c55e;
+      border-color: #16a34a;
+      color: #022c22;
+      font-weight: 600;
+    }
+
+    .status-bar {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #9ca3af;
+      min-height: 18px;
+    }
+
+    .status-bar.error {
+      color: #fca5a5;
+    }
+
+    .status-bar.success {
+      color: #bbf7d0;
+    }
+
+    footer {
+      padding: 16px;
+      text-align: center;
+      font-size: 12px;
+      color: #9ca3af;
+      border-top: 1px solid #1f2937;
+      background: #020617;
+    }
+
+    .footer-line-2 {
+      display: block;
+      margin-top: 4px;
+      color: #6b7280;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="title-block">
+      <h1>DRIV‑EN – Clients</h1>
+      <span>Step 4 · Add your clients</span>
+    </div>
+    <img src="/logo.png" alt="DRIV‑EN Logo" class="logo" />
+  </header>
+
+  <main>
+    <h2>Clients</h2>
+    <p>
+      Add the clients your business works with. These may be internal groups, external customers,
+      or any entity you perform work for. You can add more clients later.
+    </p>
+
+    <div class="card">
+      <h3 style="margin-top:0;font-size:16px;">Add a Client</h3>
+
+      <div class="form-group">
+        <label for="clientName">Client Name</label>
+        <input type="text" id="clientName" placeholder="e.g., ABC Construction, City of Millington" />
+      </div>
+
+      <div class="form-group">
+        <label for="clientDivision">Division (optional)</label>
+        <input type="text" id="clientDivision" placeholder="e.g., Operations, Field Services" />
+      </div>
+
+      <div class="footer-actions">
+        <button class="btn-secondary" id="btnCancel">Cancel</button>
+        <button class="btn-primary" id="btnNext">Continue</button>
+      </div>
+
+      <div class="status-bar" id="statusBar"></div>
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer>
+    © 2026 Digital Safety Inspection, LLC.
+    <span class="footer-line-2">Driv-en is a Digital Safety Inspection, LLC platform.</span>
+  </footer>
+
+  <script>
+    const btnNext = document.getElementById("btnNext");
+    const btnCancel = document.getElementById("btnCancel");
+    const statusBar = document.getElementById("statusBar");
+
+    function setStatus(msg, type = "info") {
+      statusBar.textContent = msg;
+      statusBar.classList.remove("error", "success");
+      if (type === "error") statusBar.classList.add("error");
+      if (type === "success") statusBar.classList.add("success");
+    }
+
+    btnNext.addEventListener("click", () => {
+      const name = document.getElementById("clientName").value.trim();
+      const division = document.getElementById("clientDivision").value.trim();
+
+      if (!name) {
+        setStatus("Please enter a client name.", "error");
+        return;
+      }
+
+      // Store client
+      const clients = JSON.parse(localStorage.getItem("driven_clients") || "[]");
+      clients.push({ name, division });
+      localStorage.setItem("driven_clients", JSON.stringify(clients));
+
+      setStatus("Saving client…", "success");
+
+      setTimeout(() => {
+        window.location.href = "/onboarding-projects.html";
+      }, 600);
+    });
+
+    btnCancel.addEventListener("click", () => {
+      window.location.href = "/dashboard.html";
+    });
+
+    setStatus("Enter your first client to continue.");
+  </script>
+</body>
+</html>
