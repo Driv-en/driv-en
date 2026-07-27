@@ -9,9 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <style>
-    /* MOBILE FIX — full-width header/footer */
     @media (max-width: 768px) {
-
       header {
         position: fixed !important;
         top: 0;
@@ -84,17 +82,6 @@
       padding: 0 16px;
     }
 
-    h2 {
-      font-size: 22px;
-      margin-bottom: 8px;
-    }
-
-    p {
-      font-size: 14px;
-      color: #9ca3af;
-      margin-bottom: 16px;
-    }
-
     .card {
       border: 1px solid #1f2937;
       background: #020617;
@@ -115,17 +102,13 @@
       color: #e5e7eb;
     }
 
-    input[type="text"], input[type="file"] {
+    input[type="text"], select {
       padding: 10px;
       border-radius: 6px;
       border: 1px solid #374151;
       background: #0f172a;
       color: #e5e7eb;
       font-size: 14px;
-    }
-
-    input::placeholder {
-      color: #6b7280;
     }
 
     .footer-actions {
@@ -171,24 +154,6 @@
       color: #bbf7d0;
     }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 16px;
-      font-size: 13px;
-    }
-
-    table th, table td {
-      border: 1px solid #374151;
-      padding: 8px;
-      text-align: left;
-    }
-
-    table th {
-      background: #1f2937;
-      color: #e5e7eb;
-    }
-
     footer {
       padding: 16px 24px;
       text-align: center;
@@ -196,12 +161,6 @@
       color: #9ca3af;
       border-top: 1px solid #1f2937;
       background: #020617;
-    }
-
-    .footer-line-2 {
-      display: block;
-      margin-top: 4px;
-      color: #6b7280;
     }
   </style>
 </head>
@@ -217,23 +176,45 @@
 
   <main>
     <h2>Projects</h2>
-    <p>
-      Add the projects your business performs. These may be internal work orders, external jobs,
-      or any operational activity you track. You can add more projects later.
-    </p>
+    <p>Add your projects. All linked fields must be selected from dropdowns to ensure data integrity.</p>
 
     <!-- SINGLE ENTRY -->
     <div class="card">
       <h3 style="margin-top:0;font-size:16px;">Add a Project</h3>
 
       <div class="form-group">
-        <label for="projectName">Project Name</label>
-        <input type="text" id="projectName" placeholder="e.g., Millington Yard Cleanup, District 8 Repairs" />
+        <label>Project Number</label>
+        <input type="text" id="projectNumber" />
       </div>
 
       <div class="form-group">
-        <label for="projectType">Project Type</label>
-        <input type="text" id="projectType" placeholder="e.g., Maintenance, Construction, Inspection" />
+        <label>Project Name</label>
+        <input type="text" id="projectName" />
+      </div>
+
+      <div class="form-group">
+        <label>Division</label>
+        <select id="divisionSelect"></select>
+      </div>
+
+      <div class="form-group">
+        <label>Client</label>
+        <select id="clientSelect"></select>
+      </div>
+
+      <div class="form-group">
+        <label>Project Type</label>
+        <select id="projectTypeSelect"></select>
+      </div>
+
+      <div class="form-group">
+        <label>Project Manager</label>
+        <select id="pmSelect"></select>
+      </div>
+
+      <div class="form-group">
+        <label>Project Superintendent</label>
+        <select id="superSelect"></select>
       </div>
 
       <div class="footer-actions">
@@ -248,18 +229,16 @@
     <div class="card">
       <h3 style="margin-top:0;font-size:16px;">Bulk Upload Projects</h3>
 
-      <p style="margin-top:-4px;margin-bottom:12px;">
-        Download the Excel template, fill in your project list, then upload it here.
-      </p>
+      <p>Download the template, fill in your project list, then upload it here.</p>
 
-      <a href="/public/templates/Project-Mass-Upload-v1.0.xlsx"
+      <a href="/templates/Project-Mass-Upload-v1.0.xlsx"
          style="color:#22c55e;font-size:14px;text-decoration:none;"
          download>
         Download Project-Mass-Upload-v1.0.xlsx
       </a>
 
       <div class="form-group" style="margin-top:16px;">
-        <label for="bulkFile">Upload Completed Template</label>
+        <label>Upload Completed Template</label>
         <input type="file" id="bulkFile" accept=".xlsx" />
       </div>
 
@@ -277,88 +256,151 @@
   </footer>
 
   <script>
-    const btnNextSingle = document.getElementById("btnNextSingle");
-    const btnCancelSingle = document.getElementById("btnCancelSingle");
-    const statusSingle = document.getElementById("statusSingle");
+    /* ---------------------------
+       LOAD DROPDOWN OPTIONS
+       (Division, Client, Project Type, PM, Superintendent)
+    ---------------------------- */
 
-    function setStatusSingle(msg, type = "info") {
-      statusSingle.textContent = msg;
-      statusSingle.classList.remove("error", "success");
-      if (type === "error") statusSingle.classList.add("error");
-      if (type === "success") statusSingle.classList.add("success");
+    const divisions = ["North Division", "South Division", "East Division", "West Division"];
+    const clients = ["Energy Transfer, LLC", "ABC Construction", "Metro Industrial Group"];
+    const projectTypes = ["Maintenance", "Construction", "Inspection"];
+    const employees = ["John Doe", "Sarah Patel", "David Chen", "Maria Lopez"];
+
+    function populateSelect(id, list) {
+      const sel = document.getElementById(id);
+      sel.innerHTML = list.map(v => `<option value="${v}">${v}</option>`).join("");
     }
 
-    btnNextSingle.addEventListener("click", () => {
-      const name = document.getElementById("projectName").value.trim();
-      const type = document.getElementById("projectType").value.trim();
+    populateSelect("divisionSelect", divisions);
+    populateSelect("clientSelect", clients);
+    populateSelect("projectTypeSelect", projectTypes);
+    populateSelect("pmSelect", employees);
+    populateSelect("superSelect", employees);
 
-      if (!name) return setStatusSingle("Please enter a project name.", "error");
-      if (!type) return setStatusSingle("Please enter a project type.", "error");
+    /* ---------------------------
+       SINGLE ENTRY SAVE
+    ---------------------------- */
+
+    const btnNextSingle = document.getElementById("btnNextSingle");
+    const statusSingle = document.getElementById("statusSingle");
+
+    btnNextSingle.addEventListener("click", () => {
+      const project = {
+        number: document.getElementById("projectNumber").value.trim(),
+        name: document.getElementById("projectName").value.trim(),
+        division: document.getElementById("divisionSelect").value,
+        client: document.getElementById("clientSelect").value,
+        type: document.getElementById("projectTypeSelect").value,
+        pm: document.getElementById("pmSelect").value,
+        super: document.getElementById("superSelect").value
+      };
+
+      if (!project.number || !project.name) {
+        statusSingle.textContent = "Project Number and Project Name are required.";
+        statusSingle.classList.add("error");
+        return;
+      }
 
       const projects = JSON.parse(localStorage.getItem("driven_projects") || "[]");
-      projects.push({ name, type });
+      projects.push(project);
       localStorage.setItem("driven_projects", JSON.stringify(projects));
 
-      setStatusSingle("Project saved!", "success");
+      statusSingle.textContent = "Project saved!";
+      statusSingle.classList.add("success");
 
       setTimeout(() => {
         window.location.href = "/onboarding-equipment.html";
       }, 600);
     });
 
-    btnCancelSingle.addEventListener("click", () => {
-      window.location.href = "/dashboard.html";
-    });
+    /* ---------------------------
+       BULK UPLOAD VALIDATION
+    ---------------------------- */
 
     const btnProcessBulk = document.getElementById("btnProcessBulk");
     const statusBulk = document.getElementById("statusBulk");
     const bulkPreview = document.getElementById("bulkPreview");
 
-    function setStatusBulk(msg, type = "info") {
-      statusBulk.textContent = msg;
-      statusBulk.classList.remove("error", "success");
-      if (type === "error") statusBulk.classList.add("error");
-      if (type === "success") statusBulk.classList.add("success");
-    }
-
     btnProcessBulk.addEventListener("click", () => {
-      const fileInput = document.getElementById("bulkFile");
-      const file = fileInput.files[0];
-
+      const file = document.getElementById("bulkFile").files[0];
       if (!file) {
-        setStatusBulk("Please select an Excel file to upload.", "error");
+        statusBulk.textContent = "Please select an Excel file.";
+        statusBulk.classList.add("error");
         return;
       }
 
       const reader = new FileReader();
 
       reader.onload = function(e) {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-
+        const workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(sheet);
 
-        if (rows.length === 0) {
-          setStatusBulk("The uploaded file contains no rows.", "error");
-          return;
+        const requiredFields = [
+          "Project Number",
+          "Project Name",
+          "Division",
+          "Client",
+          "Project Type",
+          "Project Manager",
+          "Project Superintendent"
+        ];
+
+        // Validate header
+        const header = Object.keys(rows[0]);
+        for (const field of requiredFields) {
+          if (!header.includes(field)) {
+            statusBulk.textContent = `Missing required column: ${field}`;
+            statusBulk.classList.add("error");
+            return;
+          }
         }
 
-        localStorage.setItem("driven_projects_bulk", JSON.stringify(rows));
+        // Validate values
+        for (const row of rows) {
+          if (!divisions.includes(row["Division"])) {
+            statusBulk.textContent = `Invalid Division: ${row["Division"]}`;
+            statusBulk.classList.add("error");
+            return;
+          }
+          if (!clients.includes(row["Client"])) {
+            statusBulk.textContent = `Invalid Client: ${row["Client"]}`;
+            statusBulk.classList.add("error");
+            return;
+          }
+          if (!projectTypes.includes(row["Project Type"])) {
+            statusBulk.textContent = `Invalid Project Type: ${row["Project Type"]}`;
+            statusBulk.classList.add("error");
+            return;
+          }
+          if (!employees.includes(row["Project Manager"])) {
+            statusBulk.textContent = `Invalid Project Manager: ${row["Project Manager"]}`;
+            statusBulk.classList.add("error");
+            return;
+          }
+          if (!employees.includes(row["Project Superintendent"])) {
+            statusBulk.textContent = `Invalid Project Superintendent: ${row["Project Superintendent"]}`;
+            statusBulk.classList.add("error");
+            return;
+          }
+        }
 
-        let html = "<table><thead><tr><th>Project Name</th><th>Project Type</th></tr></thead><tbody>";
+        // Preview table
+        let html = "<table><thead><tr>";
+        requiredFields.forEach(f => html += `<th>${f}</th>`);
+        html += "</tr></thead><tbody>";
 
         rows.forEach(r => {
-          html += `<tr><td>${r["Project Name"] || ""}</td><td>${r["Project Type"] || ""}</td></tr>`;
+          html += "<tr>";
+          requiredFields.forEach(f => html += `<td>${r[f]}</td>`);
+          html += "</tr>";
         });
 
         html += "</tbody></table>";
-
         bulkPreview.innerHTML = html;
 
-        setStatusBulk(`Uploaded ${rows.length} projects successfully.`, "success");
+        statusBulk.textContent = `Uploaded ${rows.length} projects successfully.`;
+        statusBulk.classList.add("success");
       };
 
       reader.readAsArrayBuffer(file);
