@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin • Equipment | Driv-en</title>
+
+    <link rel="stylesheet" href="/frontend/css/layout.css">
+    <link rel="stylesheet" href="/frontend/css/form.css">
+
+    <style>
+        .admin-header {
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .admin-header h1 {
+            margin: 0;
+        }
+
+        .btn-primary {
+            padding: 10px 16px;
+            background: #1a1a1a;
+            color: #fff;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .btn-primary:hover {
+            background: #333;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 24px;
+        }
+
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            font-weight: 700;
+        }
+
+        .action-link {
+            color: #1a1a1a;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .action-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header Include -->
+    <div id="header-container"></div>
+    <script>
+        fetch('/frontend/includes/header.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('header-container').innerHTML = h);
+    </script>
+
+    <div class="container">
+
+        <div class="admin-header">
+            <h1 class="page-title">Admin • Equipment</h1>
+            <a class="btn-primary" href="/frontend/equipment/create.html">+ New Equipment</a>
+        </div>
+
+        <table id="equipmentTable">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Division</th>
+                    <th>Status</th>
+                    <th style="width: 120px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Dynamic rows load here -->
+            </tbody>
+        </table>
+
+    </div>
+
+    <!-- Footer Include -->
+    <div id="footer-container"></div>
+    <script>
+        fetch('/frontend/includes/footer.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('footer-container').innerHTML = h);
+    </script>
+
+    <script>
+        async function loadEquipment() {
+            try {
+                const res = await fetch('/api/equipment');
+                if (!res.ok) throw new Error('Failed to load equipment');
+
+                const equipment = await res.json();
+                const tbody = document.querySelector('#equipmentTable tbody');
+
+                tbody.innerHTML = '';
+
+                equipment.forEach(eq => {
+                    const tr = document.createElement('tr');
+
+                    tr.innerHTML = `
+                        <td>${eq.name}</td>
+                        <td>${eq.typeName || '—'}</td>
+                        <td>${eq.divisionName || '—'}</td>
+                        <td>${eq.status}</td>
+                        <td>
+                            <a class="action-link" href="/frontend/equipment/detail.html?id=${eq.id}">View</a>
+                            &nbsp;|&nbsp;
+                            <a class="action-link" href="/frontend/equipment/edit.html?id=${eq.id}">Edit</a>
+                        </td>
+                    `;
+
+                    tbody.appendChild(tr);
+                });
+
+            } catch (err) {
+                alert('Unable to load equipment.');
+            }
+        }
+
+        loadEquipment();
+    </script>
+
+</body>
+</html>
