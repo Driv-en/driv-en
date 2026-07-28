@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PM Detail | Driv-en</title>
+
+    <link rel="stylesheet" href="/frontend/css/layout.css">
+    <link rel="stylesheet" href="/frontend/css/form.css">
+
+    <style>
+        .detail-section {
+            margin-bottom: 32px;
+        }
+
+        .detail-label {
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .detail-value {
+            font-size: 16px;
+            margin-bottom: 14px;
+        }
+
+        .task-list {
+            margin-top: 20px;
+            padding-left: 20px;
+        }
+
+        .task-item {
+            margin-bottom: 10px;
+            font-size: 15px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 18px;
+            background: #1a1a1a;
+            color: #fff;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .back-link:hover {
+            background: #333;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header Include -->
+    <div id="header-container"></div>
+    <script>
+        fetch('/frontend/includes/header.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('header-container').innerHTML = h);
+    </script>
+
+    <div class="container">
+        <h1 class="page-title">PM Detail</h1>
+
+        <div id="pmDetail">
+            <!-- Dynamic PM detail loads here -->
+        </div>
+
+        <a class="back-link" href="/frontend/pm/index.html">Back to PMs</a>
+    </div>
+
+    <!-- Footer Include -->
+    <div id="footer-container"></div>
+    <script>
+        fetch('/frontend/includes/footer.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('footer-container').innerHTML = h);
+    </script>
+
+    <script>
+        function getParam(name) {
+            const url = new URL(window.location.href);
+            return url.searchParams.get(name);
+        }
+
+        async function loadPMDetail() {
+            const id = getParam('id');
+            if (!id) {
+                document.getElementById('pmDetail').innerHTML =
+                    '<div class="section">Invalid PM ID.</div>';
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/pm/${id}`);
+                if (!res.ok) throw new Error('Failed to load PM');
+
+                const pm = await res.json();
+                const container = document.getElementById('pmDetail');
+
+                let tasksHtml = '';
+                if (pm.tasks && pm.tasks.length > 0) {
+                    tasksHtml = pm.tasks.map(t => `
+                        <li class="task-item">${t.description}</li>
+                    `).join('');
+                } else {
+                    tasksHtml = '<li class="task-item">No tasks found.</li>';
+                }
+
+                container.innerHTML = `
+                    <div class="section detail-section">
+                        <div class="detail-label">PM Template</div>
+                        <div class="detail-value">${pm.templateName}</div>
+
+                        <div class="detail-label">Equipment</div>
+                        <div class="detail-value">${pm.equipmentName || 'N/A'}</div>
+
+                        <div class="detail-label">Interval</div>
+                        <div class="detail-value">${pm.interval || 'N/A'}</div>
+
+                        <div class="detail-label">Meter Type</div>
+                        <div class="detail-value">${pm.meterType || 'N/A'}</div>
+
+                        <div class="detail-label">Tasks</div>
+                        <ul class="task-list">${tasksHtml}</ul>
+                    </div>
+                `;
+            } catch (err) {
+                document.getElementById('pmDetail').innerHTML =
+                    '<div class="section">Unable to load PM details.</div>';
+            }
+        }
+
+        loadPMDetail();
+    </script>
+
+</body>
+</html>
