@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projects | Driv-en</title>
+
+    <link rel="stylesheet" href="/frontend/css/layout.css">
+    <link rel="stylesheet" href="/frontend/css/form.css">
+
+    <style>
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+            margin-top: 24px;
+        }
+
+        .project-card {
+            background: #fff;
+            padding: 24px;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            transition: transform 0.2s ease;
+        }
+
+        .project-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .project-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .project-meta {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 16px;
+        }
+
+        .project-card a {
+            display: inline-block;
+            padding: 10px 18px;
+            background: #00c853;
+            color: #fff;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .project-card a:hover {
+            background: #00b34a;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header Include -->
+    <div id="header-container"></div>
+    <script>
+        fetch('/frontend/includes/header.html')
+            .then(res => res.text())
+            .then(html => document.getElementById('header-container').innerHTML = html);
+    </script>
+
+    <div class="container">
+        <h1 class="page-title">Projects</h1>
+
+        <div class="projects-grid" id="projectsGrid">
+            <!-- Dynamically loaded projects will appear here -->
+        </div>
+    </div>
+
+    <!-- Footer Include -->
+    <div id="footer-container"></div>
+    <script>
+        fetch('/frontend/includes/footer.html')
+            .then(res => res.text())
+            .then(html => document.getElementById('footer-container').innerHTML = html);
+    </script>
+
+    <script>
+        async function loadProjects() {
+            try {
+                const res = await fetch('/api/projects');
+                if (!res.ok) throw new Error('Failed to load projects');
+
+                const projects = await res.json();
+                const grid = document.getElementById('projectsGrid');
+
+                projects.forEach(p => {
+                    const card = document.createElement('div');
+                    card.className = 'project-card';
+
+                    card.innerHTML = `
+                        <div class="project-title">${p.name}</div>
+                        <div class="project-meta">Division: ${p.divisionName || 'N/A'}</div>
+                        <a href="/frontend/projects/detail.html?id=${p.id}">Open</a>
+                    `;
+
+                    grid.appendChild(card);
+                });
+
+            } catch (err) {
+                document.getElementById('projectsGrid').innerHTML =
+                    '<div class="section">Unable to load projects.</div>';
+            }
+        }
+
+        loadProjects();
+    </script>
+
+</body>
+</html>
