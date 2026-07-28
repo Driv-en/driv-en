@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register | Driv-en</title>
+
+    <link rel="stylesheet" href="/frontend/css/layout.css">
+    <link rel="stylesheet" href="/frontend/css/form.css">
+
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #f5f5f5;
+        }
+
+        .register-box {
+            background: #fff;
+            padding: 32px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            width: 360px;
+        }
+
+        .register-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            font-weight: 700;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 12px;
+            background: #1a1a1a;
+            color: #fff;
+            border-radius: 4px;
+            font-weight: 600;
+            text-align: center;
+            display: block;
+            text-decoration: none;
+            margin-top: 12px;
+        }
+
+        .btn-primary:hover {
+            background: #333;
+        }
+
+        .error {
+            color: #c00;
+            margin-top: 12px;
+            text-align: center;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="register-box">
+        <div class="register-title">Create Your Account</div>
+
+        <div class="form-group">
+            <label class="form-label">First Name</label>
+            <input id="firstName" type="text" class="form-input">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Last Name</label>
+            <input id="lastName" type="text" class="form-input">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Email</label>
+            <input id="email" type="email" class="form-input">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Password</label>
+            <input id="password" type="password" class="form-input">
+        </div>
+
+        <a class="btn-primary" href="#" onclick="register(event)">Register</a>
+
+        <div id="errorBox" class="error">Unable to register. Check your information.</div>
+    </div>
+
+    <script>
+        async function register(event) {
+            event.preventDefault();
+
+            const firstName = document.getElementById('firstName').value.trim();
+            const lastName = document.getElementById('lastName').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const errorBox = document.getElementById('errorBox');
+
+            errorBox.style.display = 'none';
+
+            try {
+                const res = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ firstName, lastName, email, password })
+                });
+
+                if (!res.ok) throw new Error('Registration failed');
+
+                const data = await res.json();
+
+                if (data.role === 'admin') {
+                    window.location.href = '/frontend/admin/index.html';
+                } else {
+                    window.location.href = '/frontend/customers/index.html';
+                }
+
+            } catch (err) {
+                errorBox.style.display = 'block';
+            }
+        }
+    </script>
+
+</body>
+</html>
