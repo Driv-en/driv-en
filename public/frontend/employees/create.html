@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Employee | Driv-en</title>
+
+    <link rel="stylesheet" href="/frontend/css/layout.css">
+    <link rel="stylesheet" href="/frontend/css/form.css">
+</head>
+
+<body>
+
+    <!-- Header Include -->
+    <div id="header-container"></div>
+    <script>
+        fetch('/frontend/includes/header.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('header-container').innerHTML = h);
+    </script>
+
+    <div class="container">
+        <h1 class="page-title">Create Employee</h1>
+
+        <form id="createEmployeeForm" class="section">
+
+            <div class="form-inline">
+                <div class="form-group">
+                    <label for="firstName">First Name</label>
+                    <input id="firstName" name="firstName" type="text" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="lastName">Last Name</label>
+                    <input id="lastName" name="lastName" type="text" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="role">Role</label>
+                <select id="role" name="role" required></select>
+            </div>
+
+            <div class="form-group">
+                <label for="division">Division</label>
+                <select id="division" name="division"></select>
+            </div>
+
+            <div class="form-inline">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input id="email" name="email" type="email">
+                </div>
+
+                <div class="form-group">
+                    <label for="phone">Phone</label>
+                    <input id="phone" name="phone" type="text">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="status">Status</label>
+                <select id="status" name="status">
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn-primary">Create Employee</button>
+        </form>
+
+        <a class="back-link" href="/frontend/employees/index.html">Back to Employees</a>
+    </div>
+
+    <!-- Footer Include -->
+    <div id="footer-container"></div>
+    <script>
+        fetch('/frontend/includes/footer.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('footer-container').innerHTML = h);
+    </script>
+
+    <script>
+        async function loadSelectOptions() {
+            try {
+                const [roleRes, divRes] = await Promise.all([
+                    fetch('/api/roles'),
+                    fetch('/api/divisions')
+                ]);
+
+                const roles = await roleRes.json();
+                const divisions = await divRes.json();
+
+                const roleSelect = document.getElementById('role');
+                const divisionSelect = document.getElementById('division');
+
+                roles.forEach(r => {
+                    const opt = document.createElement('option');
+                    opt.value = r.id;
+                    opt.textContent = r.name;
+                    roleSelect.appendChild(opt);
+                });
+
+                divisions.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d.id;
+                    opt.textContent = d.name;
+                    divisionSelect.appendChild(opt);
+                });
+
+            } catch (err) {
+                alert('Unable to load form options.');
+            }
+        }
+
+        async function submitForm(e) {
+            e.preventDefault();
+
+            const form = document.getElementById('createEmployeeForm');
+            const data = Object.fromEntries(new FormData(form));
+
+            try {
+                const res = await fetch('/api/employees', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!res.ok) throw new Error('Failed to create employee');
+
+                window.location.href = '/frontend/employees/index.html';
+
+            } catch (err) {
+                alert('Unable to create employee.');
+            }
+        }
+
+        loadSelectOptions();
+        document.getElementById('createEmployeeForm').addEventListener('submit', submitForm);
+    </script>
+
+</body>
+</html>
