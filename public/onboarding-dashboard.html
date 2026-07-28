@@ -18,7 +18,6 @@
       flex-direction: column;
     }
 
-    /* Sticky header on all devices */
     header {
       position: sticky;
       top: 0;
@@ -45,7 +44,6 @@
       color: #9ca3af;
     }
 
-    /* Progress bar */
     #progressBarContainer {
       width: 100%;
       height: 6px;
@@ -89,7 +87,6 @@
       gap: 16px;
     }
 
-    /* Desktop: 3 columns */
     @media (min-width: 1024px) {
       .steps-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -106,7 +103,6 @@
       gap: 8px;
     }
 
-    /* Color bars */
     .step-status-bar {
       height: 6px;
       border-radius: 4px;
@@ -256,7 +252,6 @@
 
     <div class="steps-grid">
 
-      <!-- 1. Key Personnel -->
       <div class="step-card" id="step1">
         <div class="step-status-bar" id="statusbar1"></div>
         <div class="step-header">
@@ -273,7 +268,6 @@
         </div>
       </div>
 
-      <!-- 2. Employees -->
       <div class="step-card" id="step2">
         <div class="step-status-bar" id="statusbar2"></div>
         <div class="step-header">
@@ -290,7 +284,6 @@
         </div>
       </div>
 
-      <!-- 3. Clients -->
       <div class="step-card" id="step3">
         <div class="step-status-bar" id="statusbar3"></div>
         <div class="step-header">
@@ -307,7 +300,6 @@
         </div>
       </div>
 
-      <!-- 4. Divisions -->
       <div class="step-card" id="step4">
         <div class="step-status-bar" id="statusbar4"></div>
         <div class="step-header">
@@ -324,7 +316,6 @@
         </div>
       </div>
 
-      <!-- 5. Project Types -->
       <div class="step-card" id="step5">
         <div class="step-status-bar" id="statusbar5"></div>
         <div class="step-header">
@@ -341,7 +332,6 @@
         </div>
       </div>
 
-      <!-- 6. Projects -->
       <div class="step-card" id="step6">
         <div class="step-status-bar" id="statusbar6"></div>
         <div class="step-header">
@@ -358,7 +348,6 @@
         </div>
       </div>
 
-      <!-- 7. Equipment -->
       <div class="step-card" id="step7">
         <div class="step-status-bar" id="statusbar7"></div>
         <div class="step-header">
@@ -375,7 +364,6 @@
         </div>
       </div>
 
-      <!-- 8. PM Module -->
       <div class="step-card" id="step8">
         <div class="step-status-bar" id="statusbar8"></div>
         <div class="step-header">
@@ -401,9 +389,8 @@
   </footer>
 
   <script>
-    const EMPLOYEE_API_URL = "https://employees-api.jblood.workers.dev/employees";
+    const EMPLOYEE_API_URL = "https://employees-api.driv-en.workers.dev/employees";
 
-    // Completion flags still come from each onboarding page via localStorage
     function isComplete(key) {
       return localStorage.getItem(key) === "true";
     }
@@ -474,21 +461,16 @@
         )
         .map(emp => emp["Employee Name"]);
 
-      if (names.length === 0) {
-        // Keep generic label if no names yet
-        return;
-      }
+      if (names.length === 0) return;
 
       el.textContent = "Assigned to: " + names.join(", ");
     }
 
     function applyAssignments(employees) {
-      // Admin is conceptual; we keep "Assigned to: Admin" for admin steps.
       setAssignedNames("HR / Payroll", "assigned2", employees);
       setAssignedNames("Project Manager", "assigned3", employees);
       setAssignedNames("Project Manager", "assigned6", employees);
       setAssignedNames("Equipment Manager", "assigned7", employees);
-      // Safety, Superintendent, etc. can be wired later for future steps.
     }
 
     function updateDashboard(employees) {
@@ -501,10 +483,8 @@
       const step7 = isComplete("driven_step7_complete");
       const step8 = isComplete("driven_step8_complete");
 
-      // Auto-assign names based on roles
       applyAssignments(employees);
 
-      // Step 1
       if (step1) {
         setBadge(1, "ready", "Complete");
         setStatusBar(1, "ready");
@@ -513,7 +493,6 @@
         setStatusBar(1, "notready");
       }
 
-      // Steps 2–5: can be done in any order after Step 1
       ["2","3","4","5"].forEach(s => {
         const num = parseInt(s, 10);
         const complete = isComplete("driven_step" + num + "_complete");
@@ -533,7 +512,6 @@
         }
       });
 
-      // Step 6: depends on 2–5
       const prereq6Met = step2 && step3 && step4 && step5;
       if (!prereq6Met) {
         setBadge(6, "locked", "Waiting on Steps 2–5");
@@ -552,7 +530,6 @@
         unlockLink(6, "Open Project Upload");
       }
 
-      // Step 7: depends on 6
       const prereq7Met = step6;
       if (!prereq7Met) {
         setBadge(7, "locked", "Waiting on Step 6");
@@ -571,7 +548,6 @@
         unlockLink(7, "Open Equipment Upload");
       }
 
-      // Step 8: depends on 7
       const prereq8Met = step7;
       const link8 = document.getElementById("link8");
       if (!prereq8Met) {
@@ -607,16 +583,13 @@
       const errorEl = document.getElementById("errorMessage");
       try {
         const res = await fetch(EMPLOYEE_API_URL, { method: "GET" });
-        if (!res.ok) {
-          throw new Error("HTTP " + res.status);
-        }
+        if (!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
         updateDashboard(Array.isArray(data) ? data : []);
       } catch (err) {
         errorEl.style.display = "block";
         errorEl.textContent =
           "Unable to load Key Personnel from employees API. Onboarding assignments may be generic until connectivity is restored.";
-        // Fallback: run dashboard with empty employee list
         updateDashboard([]);
       }
     }
