@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer • Inspections | Driv-en</title>
+
+    <link rel="stylesheet" href="/frontend/css/layout.css">
+    <link rel="stylesheet" href="/frontend/css/form.css">
+
+    <style>
+        .customer-header {
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .customer-header h1 {
+            margin: 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 24px;
+        }
+
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            font-weight: 700;
+        }
+
+        .action-link {
+            color: #1a1a1a;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .action-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header Include -->
+    <div id="header-container"></div>
+    <script>
+        fetch('/frontend/includes/header.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('header-container').innerHTML = h);
+    </script>
+
+    <div class="container">
+
+        <div class="customer-header">
+            <h1 class="page-title">Customer • Inspections</h1>
+        </div>
+
+        <table id="inspectionTable">
+            <thead>
+                <tr>
+                    <th>Equipment</th>
+                    <th>Inspector</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th style="width: 120px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Dynamic rows load here -->
+            </tbody>
+        </table>
+
+    </div>
+
+    <!-- Footer Include -->
+    <div id="footer-container"></div>
+    <script>
+        fetch('/frontend/includes/footer.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('footer-container').innerHTML = h);
+    </script>
+
+    <script>
+        async function loadInspections() {
+            try {
+                const res = await fetch('/api/customer/inspections');
+                if (!res.ok) throw new Error('Failed to load customer inspections');
+
+                const inspections = await res.json();
+                const tbody = document.querySelector('#inspectionTable tbody');
+
+                tbody.innerHTML = '';
+
+                inspections.forEach(ins => {
+                    const tr = document.createElement('tr');
+
+                    tr.innerHTML = `
+                        <td>${ins.equipmentName || '—'}</td>
+                        <td>${ins.inspectorName || '—'}</td>
+                        <td>${ins.status}</td>
+                        <td>${ins.date || '—'}</td>
+                        <td>
+                            <a class="action-link" href="/frontend/customers/inspections/detail.html?id=${ins.id}">
+                                View
+                            </a>
+                        </td>
+                    `;
+
+                    tbody.appendChild(tr);
+                });
+
+            } catch (err) {
+                alert('Unable to load inspections.');
+            }
+        }
+
+        loadInspections();
+    </script>
+
+</body>
+</html>
