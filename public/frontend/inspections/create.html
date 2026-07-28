@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Inspection | Driv-en</title>
+
+    <link rel="stylesheet" href="/frontend/css/layout.css">
+    <link rel="stylesheet" href="/frontend/css/form.css">
+</head>
+
+<body>
+
+    <!-- Header Include -->
+    <div id="header-container"></div>
+    <script>
+        fetch('/frontend/includes/header.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('header-container').innerHTML = h);
+    </script>
+
+    <div class="container">
+        <h1 class="page-title">Create Inspection</h1>
+
+        <form id="createInspectionForm" class="section">
+
+            <div class="form-group">
+                <label for="templateName">Template Name</label>
+                <input id="templateName" name="templateName" type="text" required>
+            </div>
+
+            <div class="form-group">
+                <label for="equipment">Equipment</label>
+                <select id="equipment" name="equipment" required></select>
+            </div>
+
+            <div class="form-group">
+                <label for="inspector">Inspector</label>
+                <select id="inspector" name="inspector"></select>
+            </div>
+
+            <div class="form-group">
+                <label for="status">Status</label>
+                <select id="status" name="status">
+                    <option value="Scheduled">Scheduled</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="items">Inspection Items (one per line)</label>
+                <textarea id="items" name="items" rows="6" placeholder="Check fluid levels&#10;Inspect tires&#10;Verify safety equipment"></textarea>
+            </div>
+
+            <button type="submit" class="btn-primary">Create Inspection</button>
+        </form>
+
+        <a class="back-link" href="/frontend/inspections/index.html">Back to Inspections</a>
+    </div>
+
+    <!-- Footer Include -->
+    <div id="footer-container"></div>
+    <script>
+        fetch('/frontend/includes/footer.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('footer-container').innerHTML = h);
+    </script>
+
+    <script>
+        async function loadSelectOptions() {
+            try {
+                const [equipRes, empRes] = await Promise.all([
+                    fetch('/api/equipment'),
+                    fetch('/api/employees')
+                ]);
+
+                const equipment = await equipRes.json();
+                const employees = await empRes.json();
+
+                const equipmentSelect = document.getElementById('equipment');
+                const inspectorSelect = document.getElementById('inspector');
+
+                equipment.forEach(eq => {
+                    const opt = document.createElement('option');
+                    opt.value = eq.id;
+                    opt.textContent = eq.name;
+                    equipmentSelect.appendChild(opt);
+                });
+
+                employees.forEach(emp => {
+                    const opt = document.createElement('option');
+                    opt.value = emp.id;
+                    opt.textContent = `${emp.firstName} ${emp.lastName}`;
+                    inspectorSelect.appendChild(opt);
+                });
+
+            } catch (err) {
+                alert('Unable to load form options.');
+            }
+        }
+
+        async function submitForm(e) {
+            e.preventDefault();
+
+            const form = document.getElementById('createInspectionForm');
+            const data = Object.fromEntries(new FormData(form));
+
+            // Convert items textarea → array
+            data.items = data.items
+                ? data.items.split('\n').map(i => i.trim()).filter(i => i.length > 0)
+                : [];
+
+            try {
+                const res = await fetch('/api/inspections', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!res.ok) throw new Error('Failed to create inspection');
+
+                window.location.href = '/frontend/inspections/index.html';
+
+            } catch (err) {
+                alert('Unable to create inspection.');
+            }
+        }
+
+        loadSelectOptions();
+        document.getElementById('createInspectionForm').addEventListener('submit', submitForm);
+    </script>
+
+</body>
+</html>
