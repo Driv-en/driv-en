@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Work Order | Driv-en</title>
+
+    <link rel="stylesheet" href="/frontend/css/layout.css">
+    <link rel="stylesheet" href="/frontend/css/form.css">
+</head>
+
+<body>
+
+    <!-- Header Include -->
+    <div id="header-container"></div>
+    <script>
+        fetch('/frontend/includes/header.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('header-container').innerHTML = h);
+    </script>
+
+    <div class="container">
+        <h1 class="page-title">Edit Work Order</h1>
+
+        <form id="editWorkOrderForm" class="section">
+
+            <div class="form-group">
+                <label for="title">Title</label>
+                <input id="title" name="title" type="text" required>
+            </div>
+
+            <div class="form-group">
+                <label for="equipment">Equipment</label>
+                <select id="equipment" name="equipment" required></select>
+            </div>
+
+            <div class="form-group">
+                <label for="assignedTo">Assigned To</label>
+                <select id="assignedTo" name="assignedTo"></select>
+            </div>
+
+            <div class="form-group">
+                <label for="status">Status</label>
+                <select id="status" name="status">
+                    <option value="Open">Open</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="tasks">Tasks (one per line)</label>
+                <textarea id="tasks" name="tasks" rows="6"></textarea>
+            </div>
+
+            <button type="submit" class="btn-primary">Save Changes</button>
+        </form>
+
+        <a class="back-link" href="/frontend/work-orders/index.html">Back to Work Orders</a>
+    </div>
+
+    <!-- Footer Include -->
+    <div id="footer-container"></div>
+    <script>
+        fetch('/frontend/includes/footer.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('footer-container').innerHTML = h);
+    </script>
+
+    <script>
+        function getParam(name) {
+            const url = new URL(window.location.href);
+            return url.searchParams.get(name);
+        }
+
+        async function loadSelectOptions() {
+            try {
+                const [equipRes, empRes] = await Promise.all([
+                    fetch('/api/equipment'),
+                    fetch('/api/employees')
+                ]);
+
+                const equipment = await equipRes.json();
+                const employees = await empRes.json();
+
+                const equipmentSelect = document.getElementById('equipment');
+                const assignedSelect = document.getElementById('assignedTo');
+
+                equipment.forEach(eq => {
+                    const opt = document.createElement('option');
+                    opt.value = eq.id;
+                    opt.textContent = eq.name;
+                    equipmentSelect.appendChild(opt);
+                });
+
+                employees.forEach(emp => {
+                    const opt = document.createElement('option');
+                    opt.value = emp.id;
+                    opt.textContent = `${emp.firstName} ${emp.lastName}`;
+                    assignedSelect.appendChild(opt);
+                });
+
+            } catch (err) {
+                alert('Unable to load form options.');
+            }
+        }
+
+        async function loadWorkOrder() {
+            const id = getParam('id');
+            if (!id) {
+                alert('Invalid work order ID.');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/work-orders/${id}`);
+                if (!res.ok) throw new Error('Failed to load work order');
+
+                const wo = await res.json();
+
+                document.getElementById('title').value = wo.title || '';
+                document.getElementById('equipment').value = wo.equipmentId || '';
+                document.getElementById('assignedTo').value = wo.assignedToId || '';
+                document.getElementById('status').value = wo.status || '';
+
+                // Convert tasks array → textarea
+                document.getElementById('tasks').value = wo.tasks
+                    ? wo.tasks.map(t => t.description).join('\n')
+                    : '';
+
+            } catch (err) {
+                alert('Unable to load work order.');
+            }
+        }
+
+        async function submitForm(e) {
+            e.preventDefault();
+
+            const id = getParam('id');
+            const form = document.getElementById('editWorkOrderForm');
+            const data = Object.fromEntries(new FormData(form));
+
+            // Convert tasks textarea → array
+            data.tasks = data.tasks
+                ? data.tasks.split('\n').map(t => t.trim()).filter(t => t.length > 0)
+                : [];
+
+            try {
+                const res = await fetch(`/api/work-orders/${id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!res.ok) throw new Error('Failed to update work order');
+
+                window.location.href = '/frontend/work-orders/index.html';
+
+            } catch (err) {
+                alert('Unable to update work order.');
+            }
+        }
+
+        loadSelectOptions().then(loadWorkOrder);
+        document.getElementById('editWorkOrderForm').addEventListener('submit', submitForm);
+    </script>
+
+</body>
+</html>
