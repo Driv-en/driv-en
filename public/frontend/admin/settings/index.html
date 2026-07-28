@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin • Settings | Driv-en</title>
+
+    <link rel="stylesheet" href="/frontend/css/layout.css">
+    <link rel="stylesheet" href="/frontend/css/form.css">
+
+    <style>
+        .settings-section {
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 24px;
+            border-radius: 6px;
+            margin-top: 24px;
+        }
+
+        .settings-row {
+            margin-bottom: 20px;
+        }
+
+        .settings-label {
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .btn-primary {
+            padding: 10px 16px;
+            background: #1a1a1a;
+            color: #fff;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .btn-primary:hover {
+            background: #333;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header Include -->
+    <div id="header-container"></div>
+    <script>
+        fetch('/frontend/includes/header.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('header-container').innerHTML = h);
+    </script>
+
+    <div class="container">
+        <h1 class="page-title">Admin • Settings</h1>
+
+        <div class="settings-section">
+
+            <div class="settings-row">
+                <div class="settings-label">Platform Version</div>
+                <div>Driv-en v1.0</div>
+            </div>
+
+            <div class="settings-row">
+                <div class="settings-label">Environment</div>
+                <div>Production</div>
+            </div>
+
+            <div class="settings-row">
+                <div class="settings-label">Last Deployment</div>
+                <div id="deployDate">—</div>
+            </div>
+
+            <div class="settings-row">
+                <div class="settings-label">System Health</div>
+                <div id="systemHealth">Checking…</div>
+            </div>
+
+        </div>
+
+        <div style="margin-top: 24px;">
+            <a class="btn-primary" href="/frontend/admin/index.html">Back to Admin</a>
+        </div>
+    </div>
+
+    <!-- Footer Include -->
+    <div id="footer-container"></div>
+    <script>
+        fetch('/frontend/includes/footer.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('footer-container').innerHTML = h);
+    </script>
+
+    <script>
+        async function loadSettings() {
+            try {
+                const res = await fetch('/api/system/health');
+                if (!res.ok) throw new Error('Failed to load system health');
+
+                const data = await res.json();
+
+                document.getElementById('deployDate').textContent =
+                    data.lastDeployment || '—';
+
+                document.getElementById('systemHealth').textContent =
+                    data.status || 'Unknown';
+
+            } catch (err) {
+                document.getElementById('systemHealth').textContent =
+                    'Unable to retrieve system health.';
+            }
+        }
+
+        loadSettings();
+    </script>
+
+</body>
+</html>
