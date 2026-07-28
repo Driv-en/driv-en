@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Inspection | Driv-en</title>
+
+    <link rel="stylesheet" href="/frontend/css/layout.css">
+    <link rel="stylesheet" href="/frontend/css/form.css">
+</head>
+
+<body>
+
+    <!-- Header Include -->
+    <div id="header-container"></div>
+    <script>
+        fetch('/frontend/includes/header.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('header-container').innerHTML = h);
+    </script>
+
+    <div class="container">
+        <h1 class="page-title">Edit Inspection</h1>
+
+        <form id="editInspectionForm" class="section">
+
+            <div class="form-group">
+                <label for="templateName">Template Name</label>
+                <input id="templateName" name="templateName" type="text" required>
+            </div>
+
+            <div class="form-group">
+                <label for="equipment">Equipment</label>
+                <select id="equipment" name="equipment" required></select>
+            </div>
+
+            <div class="form-group">
+                <label for="inspector">Inspector</label>
+                <select id="inspector" name="inspector"></select>
+            </div>
+
+            <div class="form-group">
+                <label for="status">Status</label>
+                <select id="status" name="status">
+                    <option value="Scheduled">Scheduled</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="items">Inspection Items (one per line)</label>
+                <textarea id="items" name="items" rows="6"></textarea>
+            </div>
+
+            <button type="submit" class="btn-primary">Save Changes</button>
+        </form>
+
+        <a class="back-link" href="/frontend/inspections/index.html">Back to Inspections</a>
+    </div>
+
+    <!-- Footer Include -->
+    <div id="footer-container"></div>
+    <script>
+        fetch('/frontend/includes/footer.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('footer-container').innerHTML = h);
+    </script>
+
+    <script>
+        function getParam(name) {
+            const url = new URL(window.location.href);
+            return url.searchParams.get(name);
+        }
+
+        async function loadSelectOptions() {
+            try {
+                const [equipRes, empRes] = await Promise.all([
+                    fetch('/api/equipment'),
+                    fetch('/api/employees')
+                ]);
+
+                const equipment = await equipRes.json();
+                const employees = await empRes.json();
+
+                const equipmentSelect = document.getElementById('equipment');
+                const inspectorSelect = document.getElementById('inspector');
+
+                equipment.forEach(eq => {
+                    const opt = document.createElement('option');
+                    opt.value = eq.id;
+                    opt.textContent = eq.name;
+                    equipmentSelect.appendChild(opt);
+                });
+
+                employees.forEach(emp => {
+                    const opt = document.createElement('option');
+                    opt.value = emp.id;
+                    opt.textContent = `${emp.firstName} ${emp.lastName}`;
+                    inspectorSelect.appendChild(opt);
+                });
+
+            } catch (err) {
+                alert('Unable to load form options.');
+            }
+        }
+
+        async function loadInspection() {
+            const id = getParam('id');
+            if (!id) {
+                alert('Invalid inspection ID.');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/inspections/${id}`);
+                if (!res.ok) throw new Error('Failed to load inspection');
+
+                const ins = await res.json();
+
+                document.getElementById('templateName').value = ins.templateName || '';
+                document.getElementById('equipment').value = ins.equipmentId || '';
+                document.getElementById('inspector').value = ins.inspectorId || '';
+                document.getElementById('status').value = ins.status || '';
+
+                // Convert items array → textarea
+                document.getElementById('items').value = ins.items
+                    ? ins.items.map(i => i.description).join('\n')
+                    : '';
+
+            } catch (err) {
+                alert('Unable to load inspection.');
+            }
+        }
+
+        async function submitForm(e) {
+            e.preventDefault();
+
+            const id = getParam('id');
+            const form = document.getElementById('editInspectionForm');
+            const data = Object.fromEntries(new FormData(form));
+
+            // Convert items textarea → array
+            data.items = data.items
+                ? data.items.split('\n').map(i => i.trim()).filter(i => i.length > 0)
+                : [];
+
+            try {
+                const res = await fetch(`/api/inspections/${id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!res.ok) throw new Error('Failed to update inspection');
+
+                window.location.href = '/frontend/inspections/index.html';
+
+            } catch (err) {
+                alert('Unable to update inspection.');
+            }
+        }
+
+        loadSelectOptions().then(loadInspection);
+        document.getElementById('editInspectionForm').addEventListener('submit', submitForm);
+    </script>
+
+</body>
+</html>
