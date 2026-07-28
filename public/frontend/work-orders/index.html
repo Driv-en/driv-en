@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work Orders | Driv-en</title>
+
+    <link rel="stylesheet" href="/frontend/css/layout.css">
+    <link rel="stylesheet" href="/frontend/css/form.css">
+
+    <style>
+        .wo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+            margin-top: 24px;
+        }
+
+        .wo-card {
+            background: #fff;
+            padding: 24px;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            transition: transform 0.2s ease;
+        }
+
+        .wo-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .wo-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .wo-meta {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 16px;
+        }
+
+        .wo-card a {
+            display: inline-block;
+            padding: 10px 18px;
+            background: #00c853;
+            color: #fff;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .wo-card a:hover {
+            background: #00b34a;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header Include -->
+    <div id="header-container"></div>
+    <script>
+        fetch('/frontend/includes/header.html')
+            .then(res => res.text())
+            .then(html => document.getElementById('header-container').innerHTML = html);
+    </script>
+
+    <div class="container">
+        <h1 class="page-title">Work Orders</h1>
+
+        <div class="wo-grid" id="woGrid">
+            <!-- Work order cards load dynamically -->
+        </div>
+    </div>
+
+    <!-- Footer Include -->
+    <div id="footer-container"></div>
+    <script>
+        fetch('/frontend/includes/footer.html')
+            .then(res => res.text())
+            .then(html => document.getElementById('footer-container').innerHTML = html);
+    </script>
+
+    <script>
+        async function loadWorkOrders() {
+            try {
+                const res = await fetch('/api/work-orders');
+                if (!res.ok) throw new Error('Failed to load work orders');
+
+                const items = await res.json();
+                const grid = document.getElementById('woGrid');
+
+                items.forEach(wo => {
+                    const card = document.createElement('div');
+                    card.className = 'wo-card';
+
+                    card.innerHTML = `
+                        <div class="wo-title">${wo.title}</div>
+                        <div class="wo-meta">Equipment: ${wo.equipmentName || 'N/A'}</div>
+                        <div class="wo-meta">Status: ${wo.status || 'N/A'}</div>
+                        <a href="/frontend/work-orders/detail.html?id=${wo.id}">Open</a>
+                    `;
+
+                    grid.appendChild(card);
+                });
+
+            } catch (err) {
+                document.getElementById('woGrid').innerHTML =
+                    '<div class="section">Unable to load work orders.</div>';
+            }
+        }
+
+        loadWorkOrders();
+    </script>
+
+</body>
+</html>
