@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inspection Detail | Driv-en</title>
+
+    <link rel="stylesheet" href="/frontend/css/layout.css">
+    <link rel="stylesheet" href="/frontend/css/form.css">
+
+    <style>
+        .detail-section {
+            margin-bottom: 32px;
+        }
+
+        .detail-label {
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .detail-value {
+            font-size: 16px;
+            margin-bottom: 14px;
+        }
+
+        .item-list {
+            margin-top: 20px;
+            padding-left: 20px;
+        }
+
+        .item {
+            margin-bottom: 10px;
+            font-size: 15px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 18px;
+            background: #1a1a1a;
+            color: #fff;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .back-link:hover {
+            background: #333;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header Include -->
+    <div id="header-container"></div>
+    <script>
+        fetch('/frontend/includes/header.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('header-container').innerHTML = h);
+    </script>
+
+    <div class="container">
+        <h1 class="page-title">Inspection Detail</h1>
+
+        <div id="inspectionDetail">
+            <!-- Dynamic inspection detail loads here -->
+        </div>
+
+        <a class="back-link" href="/frontend/inspections/index.html">Back to Inspections</a>
+    </div>
+
+    <!-- Footer Include -->
+    <div id="footer-container"></div>
+    <script>
+        fetch('/frontend/includes/footer.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('footer-container').innerHTML = h);
+    </script>
+
+    <script>
+        function getParam(name) {
+            const url = new URL(window.location.href);
+            return url.searchParams.get(name);
+        }
+
+        async function loadInspectionDetail() {
+            const id = getParam('id');
+            if (!id) {
+                document.getElementById('inspectionDetail').innerHTML =
+                    '<div class="section">Invalid inspection ID.</div>';
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/inspections/${id}`);
+                if (!res.ok) throw new Error('Failed to load inspection');
+
+                const ins = await res.json();
+                const container = document.getElementById('inspectionDetail');
+
+                let itemsHtml = '';
+                if (ins.items && ins.items.length > 0) {
+                    itemsHtml = ins.items.map(i => `
+                        <li class="item">${i.description}</li>
+                    `).join('');
+                } else {
+                    itemsHtml = '<li class="item">No inspection items found.</li>';
+                }
+
+                container.innerHTML = `
+                    <div class="section detail-section">
+                        <div class="detail-label">Inspection Template</div>
+                        <div class="detail-value">${ins.templateName}</div>
+
+                        <div class="detail-label">Equipment</div>
+                        <div class="detail-value">${ins.equipmentName || 'N/A'}</div>
+
+                        <div class="detail-label">Inspector</div>
+                        <div class="detail-value">${ins.inspectorName || 'N/A'}</div>
+
+                        <div class="detail-label">Status</div>
+                        <div class="detail-value">${ins.status || 'N/A'}</div>
+
+                        <div class="detail-label">Inspection Items</div>
+                        <ul class="item-list">${itemsHtml}</ul>
+                    </div>
+                `;
+            } catch (err) {
+                document.getElementById('inspectionDetail').innerHTML =
+                    '<div class="section">Unable to load inspection details.</div>';
+            }
+        }
+
+        loadInspectionDetail();
+    </script>
+
+</body>
+</html>
