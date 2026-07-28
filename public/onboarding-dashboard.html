@@ -89,7 +89,7 @@
       gap: 16px;
     }
 
-    /* Desktop: 3 columns, wider cards */
+    /* Desktop: 3 columns */
     @media (min-width: 1024px) {
       .steps-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -223,6 +223,13 @@
       margin-top: 4px;
       color: #6b7280;
     }
+
+    #errorMessage {
+      font-size: 12px;
+      color: #fecaca;
+      padding: 4px 24px 0;
+      display: none;
+    }
   </style>
 </head>
 
@@ -239,11 +246,12 @@
     <div id="progressBar"></div>
   </div>
   <div id="progressText">Onboarding completion: 0%</div>
+  <div id="errorMessage"></div>
 
   <main>
     <h2>Onboarding Dashboard</h2>
     <p>
-      Each step shows readiness, prerequisites, and who is assigned. Admin can assign Key Personnel per step.
+      Each step shows readiness, prerequisites, and who is assigned. Key Personnel are defined in the Employee table.
     </p>
 
     <div class="steps-grid">
@@ -258,7 +266,7 @@
         <div class="step-body">
           Upload Project Managers, Equipment Managers, HR/Payroll, Safety, and other key roles.
         </div>
-        <div class="assigned-to" id="assigned1">Assigned to: Admin (to be configured)</div>
+        <div class="assigned-to" id="assigned1">Assigned to: Admin</div>
         <div class="step-prereq">Prerequisites: None</div>
         <div class="step-actions">
           <a id="link1" href="/onboarding-key-personnel.html" class="btn-primary">Open Key Personnel Upload</a>
@@ -275,7 +283,7 @@
         <div class="step-body">
           HR/Payroll uploads the full employee list.
         </div>
-        <div class="assigned-to" id="assigned2">Assigned to: HR / Payroll (to be configured)</div>
+        <div class="assigned-to" id="assigned2">Assigned to: HR / Payroll</div>
         <div class="step-prereq">Prerequisites: Step 1</div>
         <div class="step-actions">
           <a id="link2" href="/onboarding-employees.html" class="btn-primary">Open Employee Upload</a>
@@ -292,7 +300,7 @@
         <div class="step-body">
           Upload the clients your business works with.
         </div>
-        <div class="assigned-to" id="assigned3">Assigned to: Project Managers (to be configured)</div>
+        <div class="assigned-to" id="assigned3">Assigned to: Project Managers</div>
         <div class="step-prereq">Prerequisites: Step 1</div>
         <div class="step-actions">
           <a id="link3" href="/onboarding-clients.html" class="btn-primary">Open Client Upload</a>
@@ -309,7 +317,7 @@
         <div class="step-body">
           Upload your divisions or business units.
         </div>
-        <div class="assigned-to" id="assigned4">Assigned to: Admin (to be configured)</div>
+        <div class="assigned-to" id="assigned4">Assigned to: Admin</div>
         <div class="step-prereq">Prerequisites: Step 1</div>
         <div class="step-actions">
           <a id="link4" href="/onboarding-divisions.html" class="btn-primary">Open Division Upload</a>
@@ -326,7 +334,7 @@
         <div class="step-body">
           Upload the types of projects your business performs.
         </div>
-        <div class="assigned-to" id="assigned5">Assigned to: Admin (to be configured)</div>
+        <div class="assigned-to" id="assigned5">Assigned to: Admin</div>
         <div class="step-prereq">Prerequisites: Step 1</div>
         <div class="step-actions">
           <a id="link5" href="/onboarding-project-types.html" class="btn-primary">Open Project Type Upload</a>
@@ -343,7 +351,7 @@
         <div class="step-body">
           Project Managers upload projects.
         </div>
-        <div class="assigned-to" id="assigned6">Assigned to: Project Managers (to be configured)</div>
+        <div class="assigned-to" id="assigned6">Assigned to: Project Managers</div>
         <div class="step-prereq" id="prereq6">Prerequisites: Steps 2–5</div>
         <div class="step-actions">
           <a id="link6" href="/onboarding-projects.html" class="btn-disabled">Project Upload Locked</a>
@@ -360,7 +368,7 @@
         <div class="step-body">
           Equipment Managers upload equipment and assign it to projects.
         </div>
-        <div class="assigned-to" id="assigned7">Assigned to: Equipment Managers (to be configured)</div>
+        <div class="assigned-to" id="assigned7">Assigned to: Equipment Managers</div>
         <div class="step-prereq" id="prereq7">Prerequisites: Step 6</div>
         <div class="step-actions">
           <a id="link7" href="/onboarding-equipment.html" class="btn-disabled">Equipment Upload Locked</a>
@@ -377,7 +385,7 @@
         <div class="step-body">
           Generate PM Families, Templates, Schedules, and Completion records.
         </div>
-        <div class="assigned-to" id="assigned8">Assigned to: Admin (to be configured)</div>
+        <div class="assigned-to" id="assigned8">Assigned to: Admin</div>
         <div class="step-prereq" id="prereq8">Prerequisites: Step 7</div>
         <div class="step-actions">
           <button id="link8" class="btn-disabled">PM Module Locked</button>
@@ -393,9 +401,9 @@
   </footer>
 
   <script>
-    // Completion flags are set by each upload page:
-    // localStorage.setItem("driven_stepX_complete", "true");
+    const EMPLOYEE_API_URL = "https://employees-api.jblood.workers.dev/employees";
 
+    // Completion flags still come from each onboarding page via localStorage
     function isComplete(key) {
       return localStorage.getItem(key) === "true";
     }
@@ -453,7 +461,37 @@
         "Onboarding completion: " + percent + "%";
     }
 
-    function updateDashboard() {
+    function setAssignedNames(role, elementId, employees) {
+      const el = document.getElementById(elementId);
+      if (!el) return;
+
+      const names = employees
+        .filter(emp =>
+          emp["Status"] === "Active" &&
+          emp["Is Key Personnel"] === true &&
+          Array.isArray(emp["Key Personnel Roles"]) &&
+          emp["Key Personnel Roles"].includes(role)
+        )
+        .map(emp => emp["Employee Name"]);
+
+      if (names.length === 0) {
+        // Keep generic label if no names yet
+        return;
+      }
+
+      el.textContent = "Assigned to: " + names.join(", ");
+    }
+
+    function applyAssignments(employees) {
+      // Admin is conceptual; we keep "Assigned to: Admin" for admin steps.
+      setAssignedNames("HR / Payroll", "assigned2", employees);
+      setAssignedNames("Project Manager", "assigned3", employees);
+      setAssignedNames("Project Manager", "assigned6", employees);
+      setAssignedNames("Equipment Manager", "assigned7", employees);
+      // Safety, Superintendent, etc. can be wired later for future steps.
+    }
+
+    function updateDashboard(employees) {
       const step1 = isComplete("driven_step1_complete");
       const step2 = isComplete("driven_step2_complete");
       const step3 = isComplete("driven_step3_complete");
@@ -462,6 +500,9 @@
       const step6 = isComplete("driven_step6_complete");
       const step7 = isComplete("driven_step7_complete");
       const step8 = isComplete("driven_step8_complete");
+
+      // Auto-assign names based on roles
+      applyAssignments(employees);
 
       // Step 1
       if (step1) {
@@ -562,21 +603,25 @@
       updateProgressBar();
     }
 
-    // Optional: Admin can later set assigned names via localStorage, e.g.:
-    // localStorage.setItem("driven_assigned_step6", "PM: Jane Doe, PM: John Smith");
-    function loadAssigned() {
-      for (let i = 1; i <= 8; i++) {
-        const key = "driven_assigned_step" + i;
-        const val = localStorage.getItem(key);
-        if (val) {
-          const el = document.getElementById("assigned" + i);
-          if (el) el.textContent = "Assigned to: " + val;
+    async function loadEmployeesAndInit() {
+      const errorEl = document.getElementById("errorMessage");
+      try {
+        const res = await fetch(EMPLOYEE_API_URL, { method: "GET" });
+        if (!res.ok) {
+          throw new Error("HTTP " + res.status);
         }
+        const data = await res.json();
+        updateDashboard(Array.isArray(data) ? data : []);
+      } catch (err) {
+        errorEl.style.display = "block";
+        errorEl.textContent =
+          "Unable to load Key Personnel from employees API. Onboarding assignments may be generic until connectivity is restored.";
+        // Fallback: run dashboard with empty employee list
+        updateDashboard([]);
       }
     }
 
-    loadAssigned();
-    updateDashboard();
+    loadEmployeesAndInit();
   </script>
 </body>
 </html>
