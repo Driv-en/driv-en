@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin • Project Detail | Driv-en</title>
+
+    <link rel="stylesheet" href="/frontend/css/layout.css">
+    <link rel="stylesheet" href="/frontend/css/form.css">
+
+    <style>
+        .detail-section {
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 24px;
+            border-radius: 6px;
+            margin-top: 24px;
+        }
+
+        .detail-row {
+            margin-bottom: 16px;
+        }
+
+        .detail-label {
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .btn-row {
+            margin-top: 24px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-primary {
+            padding: 10px 16px;
+            background: #1a1a1a;
+            color: #fff;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .btn-secondary {
+            padding: 10px 16px;
+            background: #e0e0e0;
+            color: #000;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .btn-primary:hover {
+            background: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d5d5d5;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header Include -->
+    <div id="header-container"></div>
+    <script>
+        fetch('/frontend/includes/header.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('header-container').innerHTML = h);
+    </script>
+
+    <div class="container">
+        <h1 class="page-title">Admin • Project Detail</h1>
+
+        <div id="detailContainer" class="detail-section">
+            <!-- Dynamic content loads here -->
+        </div>
+
+        <div class="btn-row">
+            <a id="editBtn" class="btn-primary">Edit</a>
+            <a class="btn-secondary" href="/frontend/admin/projects/index.html">Back</a>
+        </div>
+    </div>
+
+    <!-- Footer Include -->
+    <div id="footer-container"></div>
+    <script>
+        fetch('/frontend/includes/footer.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('footer-container').innerHTML = h);
+    </script>
+
+    <script>
+        function getParam(name) {
+            const url = new URL(window.location.href);
+            return url.searchParams.get(name);
+        }
+
+        async function loadProject() {
+            const id = getParam('id');
+            if (!id) {
+                alert('Invalid project ID.');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/projects/${id}`);
+                if (!res.ok) throw new Error('Failed to load project');
+
+                const p = await res.json();
+                const container = document.getElementById('detailContainer');
+
+                container.innerHTML = `
+                    <div class="detail-row">
+                        <div class="detail-label">Name</div>
+                        <div>${p.name}</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <div class="detail-label">Division</div>
+                        <div>${p.divisionName || '—'}</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <div class="detail-label">Project Type</div>
+                        <div>${p.projectTypeName || '—'}</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <div class="detail-label">Status</div>
+                        <div>${p.status}</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <div class="detail-label">Description</div>
+                        <div>${p.description || '—'}</div>
+                    </div>
+                `;
+
+                document.getElementById('editBtn').href =
+                    `/frontend/projects/edit.html?id=${p.id}`;
+
+            } catch (err) {
+                alert('Unable to load project.');
+            }
+        }
+
+        loadProject();
+    </script>
+
+</body>
+</html>
