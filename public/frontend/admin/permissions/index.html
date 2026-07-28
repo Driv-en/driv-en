@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin • Permissions | Driv-en</title>
+
+    <link rel="stylesheet" href="/frontend/css/layout.css">
+    <link rel="stylesheet" href="/frontend/css/form.css">
+
+    <style>
+        .permissions-section {
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 24px;
+            border-radius: 6px;
+            margin-top: 24px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            font-weight: 700;
+        }
+
+        .role-name {
+            font-weight: 700;
+            font-size: 18px;
+            margin-top: 24px;
+        }
+
+        .btn-secondary {
+            padding: 10px 16px;
+            background: #e0e0e0;
+            color: #000;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 24px;
+            display: inline-block;
+        }
+
+        .btn-secondary:hover {
+            background: #d5d5d5;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header Include -->
+    <div id="header-container"></div>
+    <script>
+        fetch('/frontend/includes/header.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('header-container').innerHTML = h);
+    </script>
+
+    <div class="container">
+        <h1 class="page-title">Admin • Permissions</h1>
+
+        <div id="permissionsContainer" class="permissions-section">
+            <!-- Dynamic role + permission tables load here -->
+        </div>
+
+        <a class="btn-secondary" href="/frontend/admin/index.html">Back to Admin</a>
+    </div>
+
+    <!-- Footer Include -->
+    <div id="footer-container"></div>
+    <script>
+        fetch('/frontend/includes/footer.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('footer-container').innerHTML = h);
+    </script>
+
+    <script>
+        async function loadPermissions() {
+            try {
+                const res = await fetch('/api/roles');
+                if (!res.ok) throw new Error('Failed to load roles');
+
+                const roles = await res.json();
+                const container = document.getElementById('permissionsContainer');
+
+                container.innerHTML = '';
+
+                roles.forEach(role => {
+                    const section = document.createElement('div');
+
+                    section.innerHTML = `
+                        <div class="role-name">${role.name}</div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Permission</th>
+                                    <th>Allowed</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${
+                                    role.permissions && role.permissions.length > 0
+                                        ? role.permissions.map(p => `
+                                            <tr>
+                                                <td>${p.name}</td>
+                                                <td>${p.allowed ? 'Yes' : 'No'}</td>
+                                            </tr>
+                                        `).join('')
+                                        : `<tr><td colspan="2">No permissions assigned.</td></tr>`
+                                }
+                            </tbody>
+                        </table>
+                    `;
+
+                    container.appendChild(section);
+                });
+
+            } catch (err) {
+                document.getElementById('permissionsContainer').innerHTML =
+                    '<p>Unable to load permissions.</p>';
+            }
+        }
+
+        loadPermissions();
+    </script>
+
+</body>
+</html>
