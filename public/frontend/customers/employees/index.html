@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer • Employees | Driv-en</title>
+
+    <link rel="stylesheet" href="/frontend/css/layout.css">
+    <link rel="stylesheet" href="/frontend/css/form.css">
+
+    <style>
+        .customer-header {
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .customer-header h1 {
+            margin: 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 24px;
+        }
+
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            font-weight: 700;
+        }
+
+        .action-link {
+            color: #1a1a1a;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .action-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header Include -->
+    <div id="header-container"></div>
+    <script>
+        fetch('/frontend/includes/header.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('header-container').innerHTML = h);
+    </script>
+
+    <div class="container">
+
+        <div class="customer-header">
+            <h1 class="page-title">Customer • Employees</h1>
+        </div>
+
+        <table id="employeesTable">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Role</th>
+                    <th>Division</th>
+                    <th>Status</th>
+                    <th style="width: 120px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Dynamic rows load here -->
+            </tbody>
+        </table>
+
+    </div>
+
+    <!-- Footer Include -->
+    <div id="footer-container"></div>
+    <script>
+        fetch('/frontend/includes/footer.html')
+            .then(r => r.text())
+            .then(h => document.getElementById('footer-container').innerHTML = h);
+    </script>
+
+    <script>
+        async function loadEmployees() {
+            try {
+                const res = await fetch('/api/customer/employees');
+                if (!res.ok) throw new Error('Failed to load customer employees');
+
+                const employees = await res.json();
+                const tbody = document.querySelector('#employeesTable tbody');
+
+                tbody.innerHTML = '';
+
+                employees.forEach(emp => {
+                    const tr = document.createElement('tr');
+
+                    tr.innerHTML = `
+                        <td>${emp.firstName} ${emp.lastName}</td>
+                        <td>${emp.roleName || '—'}</td>
+                        <td>${emp.divisionName || '—'}</td>
+                        <td>${emp.status}</td>
+                        <td>
+                            <a class="action-link" href="/frontend/customers/employees/detail.html?id=${emp.id}">
+                                View
+                            </a>
+                        </td>
+                    `;
+
+                    tbody.appendChild(tr);
+                });
+
+            } catch (err) {
+                alert('Unable to load employees.');
+            }
+        }
+
+        loadEmployees();
+    </script>
+
+</body>
+</html>
