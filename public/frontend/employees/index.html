@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employees | Driv-en</title>
+
+    <link rel="stylesheet" href="/frontend/css/layout.css">
+    <link rel="stylesheet" href="/frontend/css/form.css">
+
+    <style>
+        .employee-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+            margin-top: 24px;
+        }
+
+        .employee-card {
+            background: #fff;
+            padding: 24px;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            transition: transform 0.2s ease;
+        }
+
+        .employee-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .employee-name {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .employee-meta {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 16px;
+        }
+
+        .employee-card a {
+            display: inline-block;
+            padding: 10px 18px;
+            background: #00c853;
+            color: #fff;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .employee-card a:hover {
+            background: #00b34a;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header Include -->
+    <div id="header-container"></div>
+    <script>
+        fetch('/frontend/includes/header.html')
+            .then(res => res.text())
+            .then(html => document.getElementById('header-container').innerHTML = html);
+    </script>
+
+    <div class="container">
+        <h1 class="page-title">Employees</h1>
+
+        <div class="employee-grid" id="employeeGrid">
+            <!-- Employee cards load dynamically -->
+        </div>
+    </div>
+
+    <!-- Footer Include -->
+    <div id="footer-container"></div>
+    <script>
+        fetch('/frontend/includes/footer.html')
+            .then(res => res.text())
+            .then(html => document.getElementById('footer-container').innerHTML = html);
+    </script>
+
+    <script>
+        async function loadEmployees() {
+            try {
+                const res = await fetch('/api/employees');
+                if (!res.ok) throw new Error('Failed to load employees');
+
+                const employees = await res.json();
+                const grid = document.getElementById('employeeGrid');
+
+                employees.forEach(emp => {
+                    const card = document.createElement('div');
+                    card.className = 'employee-card';
+
+                    card.innerHTML = `
+                        <div class="employee-name">${emp.firstName} ${emp.lastName}</div>
+                        <div class="employee-meta">Role: ${emp.roleName || 'N/A'}</div>
+                        <div class="employee-meta">Division: ${emp.divisionName || 'N/A'}</div>
+                        <a href="/frontend/employees/detail.html?id=${emp.id}">Open</a>
+                    `;
+
+                    grid.appendChild(card);
+                });
+
+            } catch (err) {
+                document.getElementById('employeeGrid').innerHTML =
+                    '<div class="section">Unable to load employees.</div>';
+            }
+        }
+
+        loadEmployees();
+    </script>
+
+</body>
+</html>
