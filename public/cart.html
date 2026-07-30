@@ -71,10 +71,11 @@
     }
 
     .module-row {
-      display: flex;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: 1fr 120px 120px;
       padding: 10px 0;
       border-bottom: 1px solid #1f2937;
+      column-gap: 12px;
     }
 
     .module-row:last-child {
@@ -86,10 +87,30 @@
       font-weight: 600;
     }
 
-    .module-price {
+    .module-price,
+    .bundle-price {
       font-size: 15px;
       font-weight: 600;
+      text-align: right;
+    }
+
+    .module-price {
+      color: #e5e7eb;
+    }
+
+    .bundle-price {
       color: #22c55e;
+    }
+
+    .savings-line {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: #022c22;
+      border: 1px solid #22c55e;
+      font-size: 14px;
+      color: #bbf7d0;
+      font-weight: 600;
     }
 
     .totals {
@@ -194,6 +215,8 @@
 
     <div class="card" id="cartList"></div>
 
+    <div id="savingsLine" class="savings-line" style="display:none;"></div>
+
     <div class="card totals">
       <div><strong>Subtotal:</strong> <span id="subtotal">$0</span></div>
       <div><strong>Tax (Texas 8.25%):</strong> <span id="tax">$0</span></div>
@@ -221,6 +244,7 @@
     const taxEl = document.getElementById("tax");
     const totalEl = document.getElementById("total");
     const annualTotalEl = document.getElementById("annualTotal");
+    const savingsLine = document.getElementById("savingsLine");
     const gfBanner = document.getElementById("grandfatheredBanner");
     const gfDate = document.getElementById("gfDate");
 
@@ -245,14 +269,17 @@
 
     const BUNDLES = {
       operations: {
+        name: "Operations Bundle",
         modules: ["pm", "inspections"],
         price: 499
       },
       fullEquipment: {
+        name: "Full Equipment Bundle",
         modules: ["pm", "inspections", "workorders"],
         price: 529
       },
       complete: {
+        name: "Complete Platform Bundle",
         modules: ["pm", "inspections", "workorders", "fuel", "transfers"],
         price: 599
       }
@@ -297,52 +324,57 @@
       }
 
       const rows = [];
+      let moduleTotal = 0;
       let subtotal = 0;
 
       const bundle = detectBundle(selections);
 
-      function addRow(name, price) {
+      function addRow(name, modulePrice, bundlePrice) {
         rows.push(`
           <div class="module-row">
             <div class="module-name">${name}</div>
-            <div class="module-price">$${price}/month</div>
+            <div class="module-price">$${modulePrice}</div>
+            <div class="bundle-price">${bundlePrice !== null ? `$${bundlePrice}` : "-"}</div>
           </div>
         `);
       }
 
-      addRow("Equipment Management (Required)", PRICES.equipment);
+      // Always include Equipment Management in moduleTotal
+      moduleTotal += PRICES.equipment;
 
+      // Add module rows
+      addRow("Equipment Management (Required)", PRICES.equipment, bundle ? bundle.price : null);
+
+      if (selections.pm) {
+        moduleTotal += PRICES.pm;
+        addRow("Preventative Maintenance", PRICES.pm, null);
+      }
+      if (selections.inspections) {
+        moduleTotal += PRICES.inspections;
+        addRow("Equipment Inspections", PRICES.inspections, null);
+      }
+      if (selections.workorders) {
+        moduleTotal += PRICES.workorders;
+        addRow("Work Orders", PRICES.workorders, null);
+      }
+      if (selections.fuel) {
+        moduleTotal += PRICES.fuel;
+        addRow("Fuel Usage Tracking", PRICES.fuel, null);
+      }
+      if (selections.transfers) {
+        moduleTotal += PRICES.transfers;
+        addRow("Equipment Transfer Tracking", PRICES.transfers, null);
+      }
+
+      // Apply bundle pricing
       if (bundle) {
-        addRow(bundle.modules.length === 2 ? "Operations Bundle" :
-               bundle.modules.length === 3 ? "Full Equipment Bundle" :
-               "Complete Platform Bundle",
-               bundle.price);
-
-        subtotal = PRICES.equipment + bundle.price;
-
+        subtotal = bundle.price;
+        const savings = moduleTotal - bundle.price;
+        savingsLine.style.display = "block";
+        savingsLine.textContent = `You saved $${savings} by choosing the ${bundle.name}.`;
       } else {
-        if (selections.pm) {
-          addRow("Preventative Maintenance", PRICES.pm);
-          subtotal += PRICES.pm;
-        }
-        if (selections.inspections) {
-          addRow("Equipment Inspections", PRICES.inspections);
-          subtotal += PRICES.inspections;
-        }
-        if (selections.workorders) {
-          addRow("Work Orders", PRICES.workorders);
-          subtotal += PRICES.workorders;
-        }
-        if (selections.fuel) {
-          addRow("Fuel Usage Tracking", PRICES.fuel);
-          subtotal += PRICES.fuel;
-        }
-        if (selections.transfers) {
-          addRow("Equipment Transfer Tracking", PRICES.transfers);
-          subtotal += PRICES.transfers;
-        }
-
-        subtotal += PRICES.equipment;
+        subtotal = moduleTotal;
+        savingsLine.style.display = "none";
       }
 
       cartList.innerHTML = rows.join("");
