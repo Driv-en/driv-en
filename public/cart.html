@@ -18,7 +18,6 @@
       min-height: 100vh;
     }
 
-    /* Sticky header */
     header {
       position: sticky;
       top: 0;
@@ -196,8 +195,10 @@
     <div class="card" id="cartList"></div>
 
     <div class="card totals">
-      <div><strong>Monthly Total:</strong> <span id="monthlyTotal">$0</span></div>
-      <div><strong>Annual Total (10% off):</strong> <span id="annualTotal">$0</span></div>
+      <div><strong>Subtotal:</strong> <span id="subtotal">$0</span></div>
+      <div><strong>Tax (Texas 8.25%):</strong> <span id="tax">$0</span></div>
+      <div><strong>Total:</strong> <span id="total">$0</span></div>
+      <div style="margin-top:12px;"><strong>Annual Total (10% off, tax applied at checkout):</strong> <span id="annualTotal">$0</span></div>
     </div>
 
     <div class="footer-actions">
@@ -216,7 +217,9 @@
   <script>
     const statusBar = document.getElementById("statusBar");
     const cartList = document.getElementById("cartList");
-    const monthlyTotalEl = document.getElementById("monthlyTotal");
+    const subtotalEl = document.getElementById("subtotal");
+    const taxEl = document.getElementById("tax");
+    const totalEl = document.getElementById("total");
     const annualTotalEl = document.getElementById("annualTotal");
     const gfBanner = document.getElementById("grandfatheredBanner");
     const gfDate = document.getElementById("gfDate");
@@ -238,12 +241,6 @@
       workorders: 149,
       fuel: 49,
       transfers: 79
-    };
-
-    const BUNDLES = {
-      operations: 499,
-      fullEquipment: 529,
-      complete: 599
     };
 
     async function loadCustomerPlan() {
@@ -269,8 +266,13 @@
     function renderCart() {
       const selections = JSON.parse(localStorage.getItem("driven_modules") || "{}");
 
+      if (!selections || Object.keys(selections).length === 0) {
+        window.location.href = "/module-selection.html";
+        return;
+      }
+
       const rows = [];
-      let monthlyTotal = 0;
+      let subtotal = 0;
 
       function addRow(name, price) {
         rows.push(`
@@ -279,7 +281,7 @@
             <div class="module-price">$${price}/month</div>
           </div>
         `);
-        monthlyTotal += price;
+        subtotal += price;
       }
 
       addRow("Equipment Management (Required)", PRICES.equipment);
@@ -292,8 +294,14 @@
 
       cartList.innerHTML = rows.join("");
 
-      monthlyTotalEl.textContent = `$${monthlyTotal}`;
-      annualTotalEl.textContent = `$${(monthlyTotal * 12 * 0.9).toFixed(2)}`;
+      subtotalEl.textContent = `$${subtotal}`;
+
+      const tax = subtotal * 0.0825;
+      taxEl.textContent = `$${tax.toFixed(2)}`;
+
+      totalEl.textContent = `$${(subtotal + tax).toFixed(2)}`;
+
+      annualTotalEl.textContent = `$${(subtotal * 12 * 0.9).toFixed(2)}`;
     }
 
     btnBack.addEventListener("click", () => {
