@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DRIV‑EN – Shopping Cart</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #0f172a;
+      color: #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* Sticky header */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 16px 24px;
+      border-bottom: 1px solid #1f2937;
+      background: #020617;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header img.logo {
+      height: 72px;
+    }
+
+    header .title-block h1 {
+      font-size: 18px;
+      margin: 0;
+    }
+
+    header .title-block span {
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
+    main {
+      flex: 1;
+      max-width: 900px;
+      margin: 32px auto;
+      padding: 0 16px;
+    }
+
+    h2 {
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+
+    p {
+      font-size: 14px;
+      color: #9ca3af;
+      margin-bottom: 16px;
+    }
+
+    .card {
+      border: 1px solid #1f2937;
+      background: #020617;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+
+    .module-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #1f2937;
+    }
+
+    .module-row:last-child {
+      border-bottom: none;
+    }
+
+    .module-name {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .module-price {
+      font-size: 15px;
+      font-weight: 600;
+      color: #22c55e;
+    }
+
+    .totals {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #1f2937;
+    }
+
+    .totals div {
+      margin-top: 6px;
+      font-size: 15px;
+    }
+
+    .grandfathered-banner {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      border: 1px solid #22c55e;
+      background: #022c22;
+      font-size: 13px;
+      color: #bbf7d0;
+    }
+
+    .footer-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 20px;
+    }
+
+    button {
+      font-size: 13px;
+      border-radius: 6px;
+      padding: 10px 16px;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+
+    .btn-secondary {
+      background: #020617;
+      border-color: #374151;
+      color: #e5e7eb;
+    }
+
+    .btn-primary {
+      background: #22c55e;
+      border-color: #16a34a;
+      color: #022c22;
+      font-weight: 600;
+    }
+
+    .status-bar {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #9ca3af;
+      min-height: 18px;
+    }
+
+    .status-bar.error {
+      color: #f97373;
+    }
+
+    .status-bar.success {
+      color: #4ade80;
+    }
+
+    footer {
+      padding: 16px;
+      text-align: center;
+      font-size: 12px;
+      color: #9ca3af;
+      border-top: 1px solid #1f2937;
+      background: #020617;
+    }
+
+    .footer-line-2 {
+      display: block;
+      margin-top: 4px;
+      color: #6b7280;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="title-block">
+      <h1>DRIV‑EN – Shopping Cart</h1>
+      <span>Step 2 · Review your selections</span>
+    </div>
+    <img src="/logo.png" alt="DRIV‑EN Logo" class="logo" />
+  </header>
+
+  <main>
+    <h2>Your Selected Modules</h2>
+    <p>Review your selections below. You can proceed to checkout or go back to make changes.</p>
+
+    <div id="grandfatheredBanner" class="grandfathered-banner" style="display:none;">
+      <strong>Grandfathered 2026 Base Plan</strong>
+      Your base plan (Equipment Management + Equipment Inspections without extraction engine) is free until
+      <span id="gfDate">12/31/2026</span>.
+    </div>
+
+    <div class="card" id="cartList"></div>
+
+    <div class="card totals">
+      <div><strong>Monthly Total:</strong> <span id="monthlyTotal">$0</span></div>
+      <div><strong>Annual Total (10% off):</strong> <span id="annualTotal">$0</span></div>
+    </div>
+
+    <div class="footer-actions">
+      <button class="btn-secondary" id="btnBack">Back</button>
+      <button class="btn-primary" id="btnCheckout">Proceed to Checkout</button>
+    </div>
+
+    <div class="status-bar" id="statusBar"></div>
+  </main>
+
+  <footer>
+    © 2026 Digital Safety Inspection, LLC.
+    <span class="footer-line-2">Driv-en is a Digital Safety Inspection, LLC platform.</span>
+  </footer>
+
+  <script>
+    const statusBar = document.getElementById("statusBar");
+    const cartList = document.getElementById("cartList");
+    const monthlyTotalEl = document.getElementById("monthlyTotal");
+    const annualTotalEl = document.getElementById("annualTotal");
+    const gfBanner = document.getElementById("grandfatheredBanner");
+    const gfDate = document.getElementById("gfDate");
+
+    const btnBack = document.getElementById("btnBack");
+    const btnCheckout = document.getElementById("btnCheckout");
+
+    function setStatus(msg, type = "info") {
+      statusBar.textContent = msg;
+      statusBar.classList.remove("error", "success");
+      if (type === "error") statusBar.classList.add("error");
+      if (type === "success") statusBar.classList.add("success");
+    }
+
+    const PRICES = {
+      equipment: 149,
+      pm: 299,
+      inspections: 199,
+      workorders: 149,
+      fuel: 49,
+      transfers: 79
+    };
+
+    const BUNDLES = {
+      operations: 499,
+      fullEquipment: 529,
+      complete: 599
+    };
+
+    async function loadCustomerPlan() {
+      try {
+        const response = await fetch("/api/customer/modules", {
+          method: "GET",
+          headers: { "Content-Type": "application/json" }
+        });
+
+        if (!response.ok) throw new Error("Failed to load customer plan.");
+
+        const data = await response.json();
+
+        if (data.isGrandfathered) {
+          gfBanner.style.display = "block";
+          gfDate.textContent = data.freeUntil || "12/31/2026";
+        }
+      } catch (err) {
+        setStatus("Error loading customer plan: " + err.message, "error");
+      }
+    }
+
+    function renderCart() {
+      const selections = JSON.parse(localStorage.getItem("driven_modules") || "{}");
+
+      const rows = [];
+      let monthlyTotal = 0;
+
+      function addRow(name, price) {
+        rows.push(`
+          <div class="module-row">
+            <div class="module-name">${name}</div>
+            <div class="module-price">$${price}/month</div>
+          </div>
+        `);
+        monthlyTotal += price;
+      }
+
+      addRow("Equipment Management (Required)", PRICES.equipment);
+
+      if (selections.pm) addRow("Preventative Maintenance", PRICES.pm);
+      if (selections.inspections) addRow("Equipment Inspections", PRICES.inspections);
+      if (selections.workorders) addRow("Work Orders", PRICES.workorders);
+      if (selections.fuel) addRow("Fuel Usage Tracking", PRICES.fuel);
+      if (selections.transfers) addRow("Equipment Transfer Tracking", PRICES.transfers);
+
+      cartList.innerHTML = rows.join("");
+
+      monthlyTotalEl.textContent = `$${monthlyTotal}`;
+      annualTotalEl.textContent = `$${(monthlyTotal * 12 * 0.9).toFixed(2)}`;
+    }
+
+    btnBack.addEventListener("click", () => {
+      window.location.href = "/module-selection.html";
+    });
+
+    btnCheckout.addEventListener("click", async () => {
+      setStatus("Preparing checkout…", "success");
+
+      const selections = JSON.parse(localStorage.getItem("driven_modules") || "{}");
+
+      try {
+        const response = await fetch("/api/cart/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ selections })
+        });
+
+        if (!response.ok) throw new Error("Checkout failed.");
+
+        const data = await response.json();
+
+        if (data.paymentUrl) {
+          window.location.href = data.paymentUrl;
+        } else {
+          throw new Error("Missing payment URL.");
+        }
+      } catch (err) {
+        setStatus("Error: " + err.message, "error");
+      }
+    });
+
+    setStatus("Loading your cart…");
+    loadCustomerPlan();
+    renderCart();
+    setStatus("Review your selections.");
+  </script>
+</body>
+</html>
