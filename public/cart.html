@@ -87,18 +87,17 @@
       font-weight: 600;
     }
 
-    .module-price,
-    .bundle-price {
+    .module-price {
       font-size: 15px;
       font-weight: 600;
       text-align: right;
-    }
-
-    .module-price {
       color: #e5e7eb;
     }
 
     .bundle-price {
+      font-size: 15px;
+      font-weight: 600;
+      text-align: right;
       color: #22c55e;
     }
 
@@ -221,7 +220,7 @@
       <div><strong>Subtotal:</strong> <span id="subtotal">$0</span></div>
       <div><strong>Tax (Texas 8.25%):</strong> <span id="tax">$0</span></div>
       <div><strong>Total:</strong> <span id="total">$0</span></div>
-      <div style="margin-top:12px;"><strong>Annual Total (10% off, tax applied at checkout):</strong> <span id="annualTotal">$0</span></div>
+      <div style="margin-top:12px;"><strong>Annual Total (10% off, tax included):</strong> <span id="annualTotal">$0</span></div>
     </div>
 
     <div class="footer-actions">
@@ -339,11 +338,9 @@
         `);
       }
 
-      // Always include Equipment Management in moduleTotal
+      // MODULE ROWS (module-only pricing)
       moduleTotal += PRICES.equipment;
-
-      // Add module rows
-      addRow("Equipment Management (Required)", PRICES.equipment, bundle ? bundle.price : null);
+      addRow("Equipment Management (Required)", PRICES.equipment, null);
 
       if (selections.pm) {
         moduleTotal += PRICES.pm;
@@ -366,9 +363,18 @@
         addRow("Equipment Transfer Tracking", PRICES.transfers, null);
       }
 
-      // Apply bundle pricing
+      // BUNDLE ROW BELOW MODULES
       if (bundle) {
+        rows.push(`
+          <div class="module-row">
+            <div class="module-name">${bundle.name}</div>
+            <div class="module-price">-</div>
+            <div class="bundle-price">$${bundle.price}</div>
+          </div>
+        `);
+
         subtotal = bundle.price;
+
         const savings = moduleTotal - bundle.price;
         savingsLine.style.display = "block";
         savingsLine.textContent = `You saved $${savings} by choosing the ${bundle.name}.`;
@@ -379,14 +385,18 @@
 
       cartList.innerHTML = rows.join("");
 
-      subtotalEl.textContent = `$${subtotal}`;
-
-      const tax = subtotal * 0.0825;
+      // TAX (Texas)
+      const taxRate = 0.0825;
+      const tax = subtotal * taxRate;
       taxEl.textContent = `$${tax.toFixed(2)}`;
 
-      totalEl.textContent = `$${(subtotal + tax).toFixed(2)}`;
+      // TOTAL
+      const total = subtotal + tax;
+      totalEl.textContent = `$${total.toFixed(2)}`;
 
-      annualTotalEl.textContent = `$${(subtotal * 12 * 0.9).toFixed(2)}`;
+      // ANNUAL PRICE: (subtotal * 0.9) * 1.0825  → discount first, then tax
+      const annual = (subtotal * 0.9) * 1.0825;
+      annualTotalEl.textContent = `$${annual.toFixed(2)}`;
     }
 
     btnBack.addEventListener("click", () => {
