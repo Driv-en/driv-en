@@ -112,6 +112,12 @@
       font-size: 13px;
     }
 
+    .form-field input.error,
+    .form-field select.error {
+      border-color: #ef4444;
+      background: #1e293b;
+    }
+
     .module-row {
       display: grid;
       grid-template-columns: 1fr 120px 120px;
@@ -156,20 +162,19 @@
       font-weight: 600;
     }
 
-    .totals {
-      margin-top: 16px;
-      padding-top: 12px;
-      border-top: 1px solid #1f2937;
+    .totals-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
     }
 
-    .totals-section-title {
-      font-size: 14px;
-      font-weight: 600;
-      margin-top: 8px;
-      margin-bottom: 4px;
+    .totals-column h4 {
+      margin: 0 0 8px 0;
+      font-size: 16px;
+      font-weight: 700;
     }
 
-    .totals div {
+    .totals-column div {
       margin-top: 4px;
       font-size: 15px;
     }
@@ -280,6 +285,10 @@
       .extended-price {
         text-align: right;
         padding-top: 0;
+      }
+
+      .totals-grid {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -435,15 +444,21 @@
 
     <!-- Totals -->
     <div class="card totals">
-      <div class="totals-section-title">Monthly (with tax)</div>
-      <div><strong>Monthly Subtotal:</strong> <span id="subtotalMonthly">$0</span></div>
-      <div><strong>Monthly Tax (8.25%):</strong> <span id="taxMonthly">$0</span></div>
-      <div><strong>Monthly Total:</strong> <span id="totalMonthly">$0</span></div>
+      <div class="totals-grid">
+        <div class="totals-column">
+          <h4>Monthly (with tax)</h4>
+          <div><strong>Monthly Subtotal:</strong> <span id="subtotalMonthly">$0</span></div>
+          <div><strong>Monthly Tax (8.25%):</strong> <span id="taxMonthly">$0</span></div>
+          <div><strong>Monthly Total:</strong> <span id="totalMonthly">$0</span></div>
+        </div>
 
-      <div class="totals-section-title" style="margin-top:12px;">Annual (10% off, with tax)</div>
-      <div><strong>Annual Subtotal:</strong> <span id="subtotalAnnual">$0</span></div>
-      <div><strong>Annual Tax (8.25%):</strong> <span id="taxAnnual">$0</span></div>
-      <div><strong>Annual Total:</strong> <span id="totalAnnual">$0</span></div>
+        <div class="totals-column">
+          <h4>Annual (10% off, with tax)</h4>
+          <div><strong>Annual Subtotal:</strong> <span id="subtotalAnnual">$0</span></div>
+          <div><strong>Annual Tax (8.25%):</strong> <span id="taxAnnual">$0</span></div>
+          <div><strong>Annual Total:</strong> <span id="totalAnnual">$0</span></div>
+        </div>
+      </div>
     </div>
 
     <!-- Buttons -->
@@ -645,23 +660,85 @@
       window.print();
     });
 
+    function clearFieldErrors() {
+      const fields = [
+        "companyName",
+        "contactName",
+        "phone",
+        "email",
+        "street",
+        "city",
+        "state",
+        "zip"
+      ];
+      fields.forEach(id => {
+        const el = document.getElementById(id);
+        el.classList.remove("error");
+      });
+    }
+
+    function markMissingFields(missingIds) {
+      missingIds.forEach(id => {
+        const el = document.getElementById(id);
+        el.classList.add("error");
+      });
+      if (missingIds.length > 0) {
+        const first = document.getElementById(missingIds[0]);
+        first.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+
     document.getElementById("btnConfirm").addEventListener("click", () => {
-      const companyName = document.getElementById("companyName").value;
-      const contactName = document.getElementById("contactName").value;
-      const phone = document.getElementById("phone").value;
-      const email = document.getElementById("email").value;
-      const street = document.getElementById("street").value;
-      const city = document.getElementById("city").value;
-      const state = document.getElementById("state").value;
-      const zip = document.getElementById("zip").value;
-      const po = document.getElementById("poNumber").value || "(none)";
+      clearFieldErrors();
+
+      const companyName = document.getElementById("companyName").value.trim();
+      const contactName = document.getElementById("contactName").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const street = document.getElementById("street").value.trim();
+      const city = document.getElementById("city").value.trim();
+      const state = document.getElementById("state").value.trim();
+      const zip = document.getElementById("zip").value.trim();
+      const poRaw = document.getElementById("poNumber").value.trim();
       const billingCycle = billingAnnual.checked ? "Annual (10% off)" : "Monthly";
 
-      if (!companyName || !contactName || !phone || !email || !street || !city || !state || !zip) {
+      const missing = [];
+      if (!companyName) missing.push("companyName");
+      if (!contactName) missing.push("contactName");
+      if (!phone) missing.push("phone");
+      if (!email) missing.push("email");
+      if (!street) missing.push("street");
+      if (!city) missing.push("city");
+      if (!state) missing.push("state");
+      if (!zip) missing.push("zip");
+
+      if (missing.length > 0) {
         statusBar.textContent = "Please complete all required Customer Information fields.";
+        statusBar.classList.remove("success");
+        markMissingFields(missing);
+        return;
+      }
+
+      const billingConfirmMessage =
+        billingCycle === "Monthly"
+          ? "You selected Monthly Billing. Continue?"
+          : "You selected Annual Billing (10% off). Continue?";
+
+      if (!confirm(billingConfirmMessage)) {
+        statusBar.textContent = "Order confirmation cancelled.";
         statusBar.classList.remove("success");
         return;
       }
+
+      if (!poRaw) {
+        if (!confirm("You did not enter a PO Number. Continue without a PO?")) {
+          statusBar.textContent = "Order confirmation cancelled.";
+          statusBar.classList.remove("success");
+          return;
+        }
+      }
+
+      const po = poRaw || "(none)";
 
       statusBar.textContent =
         `Order confirmed. Billing: ${billingCycle}. PO: ${po}. ` +
