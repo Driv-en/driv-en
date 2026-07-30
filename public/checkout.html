@@ -125,6 +125,7 @@
 
     .footer-actions {
       display: flex;
+      flex-wrap: wrap;
       justify-content: flex-end;
       gap: 8px;
       margin-top: 20px;
@@ -192,10 +193,27 @@
     <h2>Order Summary</h2>
     <p>Review your selections below. When you're ready, confirm your order.</p>
 
+    <!-- PO Number -->
+    <div class="card">
+      <label for="poNumber" style="font-size:14px; color:#e5e7eb; font-weight:600;">
+        Purchase Order (PO) Number <span style="color:#9ca3af;">(optional)</span>
+      </label>
+      <input id="poNumber" type="text" placeholder="Enter PO Number"
+        style="margin-top:8px; width:100%; padding:10px; border-radius:6px; border:1px solid #374151; background:#0f172a; color:#e5e7eb;">
+    </div>
+
+    <!-- Order Number -->
+    <div class="card">
+      <strong>Order Number:</strong>
+      <span id="orderNumber" style="margin-left:6px;"></span>
+    </div>
+
+    <!-- Module List -->
     <div class="card" id="checkoutList"></div>
 
     <div id="savingsLine" class="savings-line" style="display:none;"></div>
 
+    <!-- Totals -->
     <div class="card totals">
       <div><strong>Subtotal:</strong> <span id="subtotal">$0</span></div>
       <div><strong>Tax (Texas 8.25%):</strong> <span id="tax">$0</span></div>
@@ -203,9 +221,11 @@
       <div style="margin-top:12px;"><strong>Annual Total (10% off, tax added at activation):</strong> <span id="annualTotal">$0</span></div>
     </div>
 
+    <!-- Buttons -->
     <div class="footer-actions">
       <button class="btn-secondary" id="btnBackCart">Back to Cart</button>
       <button class="btn-secondary" id="btnBackModules">Back to Module Selection</button>
+      <button class="btn-secondary" id="btnPrint">Print</button>
       <button class="btn-primary" id="btnConfirm">Confirm Order</button>
     </div>
 
@@ -252,6 +272,15 @@
         price: 599
       }
     };
+
+    function generateOrderNumber() {
+      const date = new Date();
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      const rand = String(Math.floor(Math.random() * 90000) + 10000);
+      return `DRN-${y}${m}${d}-${rand}`;
+    }
 
     function detectBundle(selections) {
       const active = ["equipment"];
@@ -354,6 +383,8 @@
       annualTotalEl.textContent = `$${annual.toFixed(2)}`;
     }
 
+    document.getElementById("orderNumber").textContent = generateOrderNumber();
+
     document.getElementById("btnBackCart").addEventListener("click", () => {
       window.location.href = "cart.html";
     });
@@ -362,8 +393,13 @@
       window.location.href = "module-selection.html";
     });
 
+    document.getElementById("btnPrint").addEventListener("click", () => {
+      window.print();
+    });
+
     document.getElementById("btnConfirm").addEventListener("click", () => {
-      statusBar.textContent = "Order confirmed. (Payment will be added later.)";
+      const po = document.getElementById("poNumber").value || "(none)";
+      statusBar.textContent = `Order confirmed. PO: ${po}. (Payment will be added later.)`;
       statusBar.classList.add("success");
     });
 
