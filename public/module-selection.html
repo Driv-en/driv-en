@@ -248,8 +248,25 @@
 
     .bundle-note {
       font-size: 12px;
+      color: #e5e7eb;
+      margin-top: 12px;
+      line-height: 1.6;
+    }
+
+    .bundle-note .bundle-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #e5e7eb;
+    }
+
+    .bundle-note .bundle-item {
+      margin-left: 12px;
+      margin-top: 6px;
+    }
+
+    .bundle-note .bundle-item span {
       color: #9ca3af;
-      margin-top: 8px;
+      font-size: 12px;
     }
   </style>
 </head>
@@ -279,10 +296,24 @@
       Equipment Management is required. Other modules are optional and may be billed monthly or annually
       (annual billing receives a 10% discount).
     </div>
+
     <div class="bundle-note">
-      Operations Bundle — $449/month (Equipment Management + Preventative Maintenance + Equipment Inspections) ·
-      Full Equipment Bundle — $499/month (Equipment Management + Preventative Maintenance + Equipment Inspections + Work Orders) ·
-      Complete Platform Bundle — $599/month (all modules).
+      <div class="bundle-title">Bundle Pricing</div>
+
+      <div class="bundle-item">
+        Operations Bundle — $449/month<br>
+        <span>Equipment Management + Preventative Maintenance + Equipment Inspections</span>
+      </div>
+
+      <div class="bundle-item">
+        Full Equipment Bundle — $499/month<br>
+        <span>Equipment Management + Preventative Maintenance + Equipment Inspections + Work Orders</span>
+      </div>
+
+      <div class="bundle-item">
+        Complete Platform Bundle — $599/month<br>
+        <span>All modules included</span>
+      </div>
     </div>
 
     <div class="layout">
@@ -346,7 +377,7 @@
 
             <div class="module-item">
               <label for="modFuel">Fuel Usage Tracking</label>
-              <div class="module-price">$99/month</div>
+              <div class="module-price">$49/month</div>
               <div class="module-desc">
                 Monitor fuel consumption, cost, and efficiency across your fleet. Automatically update meter
                 readings and equipment status. Fuel data enhances PM scheduling when Preventative Maintenance
@@ -495,96 +526,4 @@
   </footer>
 
   <script>
-    const btnContinue = document.getElementById("btnContinue");
-    const btnCancel = document.getElementById("btnCancel");
-    const statusBar = document.getElementById("statusBar");
-    const planBanner = document.getElementById("planBanner");
-    const planBannerTitle = document.getElementById("planBannerTitle");
-    const planBannerText = document.getElementById("planBannerText");
-
-    function setStatus(msg, type = "info") {
-      statusBar.textContent = msg;
-      statusBar.classList.remove("error", "success");
-      if (type === "error") statusBar.classList.add("error");
-      if (type === "success") statusBar.classList.add("success");
-    }
-
-    async function loadCustomerPlan() {
-      try {
-        const response = await fetch("/api/customer/modules", {
-          method: "GET",
-          headers: { "Content-Type": "application/json" }
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to load customer modules.");
-        }
-
-        const data = await response.json();
-        // Expected shape:
-        // {
-        //   isGrandfathered: true/false,
-        //   freeUntil: "2026-12-31",
-        //   baseModules: ["Equipment Management", "Equipment Inspections"]
-        // }
-
-        if (data.isGrandfathered) {
-          planBanner.style.display = "block";
-          planBannerTitle.textContent = "Grandfathered 2026 Base Plan";
-          planBannerText.textContent =
-            "Your base plan (Equipment Management + Equipment Inspections without extraction engine) " +
-            "is free until " + (data.freeUntil || "12/31/2026") +
-            ". You can still select additional modules here for billing.";
-
-          if (Array.isArray(data.baseModules) && data.baseModules.includes("Equipment Inspections")) {
-            const inspectionsCheckbox = document.getElementById("modInspections");
-            if (inspectionsCheckbox) inspectionsCheckbox.checked = true;
-          }
-        }
-
-        setStatus("Choose the modules you want to activate.");
-      } catch (err) {
-        setStatus("Error loading customer plan: " + err.message, "error");
-      }
-    }
-
-    btnContinue.addEventListener("click", () => {
-      setStatus("Saving your selections…", "success");
-
-      const selections = {
-        equipment: true, // required
-        pm: document.getElementById("modPM").checked,
-        inspections: document.getElementById("modInspections").checked,
-        workorders: document.getElementById("modWorkOrders").checked,
-        fuel: document.getElementById("modFuel").checked,
-        transfers: document.getElementById("modTransfers").checked
-      };
-
-      const notify = {
-        training: document.getElementById("notifyTraining").checked,
-        projects: document.getElementById("notifyProjects").checked,
-        receiving: document.getElementById("notifyReceiving").checked,
-        incidents: document.getElementById("notifyIncidents").checked,
-        jsa: document.getElementById("notifyJSA").checked,
-        loto: document.getElementById("notifyLOTO").checked,
-        hazcom: document.getElementById("notifyHAZCOM").checked,
-        hazard: document.getElementById("notifyHazard").checked
-      };
-
-      localStorage.setItem("driven_modules", JSON.stringify(selections));
-      localStorage.setItem("driven_notify", JSON.stringify(notify));
-
-      setTimeout(() => {
-        window.location.href = "/onboarding-start.html";
-      }, 600);
-    });
-
-    btnCancel.addEventListener("click", () => {
-      window.location.href = "/dashboard.html";
-    });
-
-    setStatus("Loading your plan…");
-    loadCustomerPlan();
-  </script>
-</body>
-</html>
+    const btnContinue = document.getElementById("
