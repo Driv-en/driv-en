@@ -269,17 +269,17 @@
     const BUNDLES = {
       operations: {
         name: "Operations Bundle",
-        modules: ["pm", "inspections"],
+        modules: ["equipment", "pm", "inspections"],
         price: 499
       },
       fullEquipment: {
         name: "Full Equipment Bundle",
-        modules: ["pm", "inspections", "workorders"],
+        modules: ["equipment", "pm", "inspections", "workorders"],
         price: 529
       },
       complete: {
         name: "Complete Platform Bundle",
-        modules: ["pm", "inspections", "workorders", "fuel", "transfers"],
+        modules: ["equipment", "pm", "inspections", "workorders", "fuel", "transfers"],
         price: 599
       }
     };
@@ -323,10 +323,11 @@
       }
 
       const rows = [];
-      let unitTotal = 0;      // sum of unit prices (for savings)
-      let chargeTotal = 0;    // sum of extended prices (what we actually bill)
+      let unitTotal = 0;
+      let chargeTotal = 0;
 
       const bundle = detectBundle(selections);
+      const bundleModules = bundle ? new Set(bundle.modules) : new Set();
 
       function addRow(name, unitPrice, extendedPrice) {
         rows.push(`
@@ -338,15 +339,11 @@
         `);
       }
 
-      // Equipment Management is always required
+      // Equipment Management (included in ALL bundles)
       unitTotal += PRICES.equipment;
-
-      // Determine which modules are in the bundle
-      const bundleModules = bundle ? new Set(bundle.modules) : new Set();
-
-      // Equipment Management is NOT part of any bundle → always charged
-      addRow("Equipment Management (Required)", PRICES.equipment, PRICES.equipment);
-      chargeTotal += PRICES.equipment;
+      const emBundled = bundleModules.has("equipment");
+      addRow("Equipment Management (Required)", PRICES.equipment, emBundled ? null : PRICES.equipment);
+      if (!emBundled) chargeTotal += PRICES.equipment;
 
       // PM
       if (selections.pm) {
@@ -388,7 +385,7 @@
         if (!isBundled) chargeTotal += PRICES.transfers;
       }
 
-      // Bundle row (extended column shows bundle price)
+      // Bundle row
       if (bundle) {
         addRow(bundle.name, "-", bundle.price);
         chargeTotal += bundle.price;
@@ -402,20 +399,20 @@
 
       cartList.innerHTML = rows.join("");
 
-      // SUBTOTAL (monthly, based on extended prices)
+      // SUBTOTAL
       const subtotal = chargeTotal;
       subtotalEl.textContent = `$${subtotal.toFixed(2)}`;
 
-      // TAX (Texas, monthly)
+      // TAX (Texas)
       const taxRate = 0.0825;
       const tax = subtotal * taxRate;
       taxEl.textContent = `$${tax.toFixed(2)}`;
 
-      // TOTAL (monthly)
+      // TOTAL
       const total = subtotal + tax;
       totalEl.textContent = `$${total.toFixed(2)}`;
 
-      // ANNUAL TOTAL: discounted monthly * 12, tax added at checkout
+      // ANNUAL (discounted monthly * 12, tax added at checkout)
       const annual = subtotal * 0.9 * 12;
       annualTotalEl.textContent = `$${annual.toFixed(2)}`;
     }
