@@ -113,6 +113,13 @@
       line-height: 1.45;
     }
 
+    .module-price {
+      font-size: 13px;
+      color: #e5e7eb;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
     .module-item input {
       transform: scale(1.2);
       cursor: pointer;
@@ -238,6 +245,12 @@
       color: #9ca3af;
       margin-top: 6px;
     }
+
+    .bundle-note {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-top: 8px;
+    }
   </style>
 </head>
 
@@ -262,8 +275,14 @@
       <span id="planBannerText"></span>
     </div>
 
-    <div class="pricing-note" id="pricingNote">
-      Equipment Management is required. Other modules are optional and may be billed monthly or annually.
+    <div class="pricing-note">
+      Equipment Management is required. Other modules are optional and may be billed monthly or annually
+      (annual billing receives a 10% discount).
+    </div>
+    <div class="bundle-note">
+      Operations Bundle — $449/month (Equipment Management + Preventative Maintenance + Equipment Inspections) ·
+      Full Equipment Bundle — $499/month (Equipment Management + Preventative Maintenance + Equipment Inspections + Work Orders) ·
+      Complete Platform Bundle — $599/month (all modules).
     </div>
 
     <div class="layout">
@@ -278,45 +297,84 @@
             <!-- REQUIRED MODULE -->
             <div class="module-item">
               <label for="modEquipment">Equipment Management (Required)</label>
+              <div class="module-price">$149/month</div>
               <div class="module-desc">
-                Core equipment tracking for your entire operation. Manage units, locations, condition,
-                specifications, and operational status. Includes DRIV‑EN’s extraction engine, which retrieves
-                manufacturer‑specific details such as part numbers, fluid types, capacities, and maintenance
-                intervals based on each unit’s configuration. Intelligent automation assists with data
-                extraction, configuration mapping, and provides dashboards for every employee role, showing
-                the inspections, maintenance, and equipment activity relevant to their responsibilities.
+                The foundation of your fleet operations. Track unit details, locations, meter readings, and
+                operational status with a clean, intuitive interface. When selected alone, Equipment Management
+                provides essential manual tracking. Add additional modules to unlock automation, intelligence,
+                and full operational visibility.
               </div>
               <input type="checkbox" id="modEquipment" checked disabled />
             </div>
 
             <div class="module-item">
               <label for="modPM">Preventative Maintenance</label>
+              <div class="module-price">$299/month</div>
               <div class="module-desc">
-                DRIV‑EN PM supports everything from crew trucks and light‑duty equipment to heavy machinery,
-                batch plants, and production equipment used in manufacturing facilities. Auto‑generate PM
-                schedules, track intervals, record completions, and maintain compliance across all equipment
-                categories.
+                Transform your maintenance program with automated PM schedules and manufacturer‑accurate templates.
+                DRIV‑EN’s extraction engine reads equipment manuals, manufacturer documentation, and configuration
+                details to identify part numbers, fluid types, capacities, intervals, and safety requirements.
+                Technicians complete PMs through guided workflows, photo capture, meter entry, and digital reporting.
+                All PM activity updates Equipment Management automatically.
               </div>
               <input type="checkbox" id="modPM" />
             </div>
 
             <div class="module-item">
               <label for="modInspections">Equipment Inspections</label>
+              <div class="module-price">$199/month</div>
               <div class="module-desc">
-                Inspection templates are automatically tailored to each unit based on equipment type,
-                configuration, safety requirements, and operational characteristics. Only fields relevant to
-                that specific unit appear for the operator or authorized personnel.
+                Ensure safety and compliance with inspection templates tailored to each unit. Templates adapt to
+                equipment type, configuration, and operational requirements. If Preventative Maintenance is active,
+                inspections incorporate manufacturer safety items retrieved by the extraction engine. Completed
+                inspections update Equipment Management and trigger safety alerts when needed.
               </div>
               <input type="checkbox" id="modInspections" />
             </div>
 
             <div class="module-item">
               <label for="modWorkOrders">Work Orders</label>
+              <div class="module-price">$149/month</div>
               <div class="module-desc">
-                Create work orders, assign authorized personnel, track progress, and close tasks with full
-                documentation and equipment linkage.
+                Manage repairs, diagnostics, and non‑PM maintenance tasks with structured work orders. Assign
+                personnel, track progress, capture photos and notes, and close tasks with full documentation.
+                Work Orders integrate seamlessly with Equipment Management and can be triggered by inspections,
+                PM completions, or manual entry.
               </div>
               <input type="checkbox" id="modWorkOrders" />
+            </div>
+
+            <div class="module-item">
+              <label for="modFuel">Fuel Usage Tracking</label>
+              <div class="module-price">$99/month</div>
+              <div class="module-desc">
+                Monitor fuel consumption, cost, and efficiency across your fleet. Automatically update meter
+                readings and equipment status. Fuel data enhances PM scheduling when Preventative Maintenance
+                is active and provides valuable insights into operating costs.
+              </div>
+              <input type="checkbox" id="modFuel" />
+            </div>
+
+            <div class="module-item">
+              <label for="modTransfers">Equipment Transfer Tracking</label>
+              <div class="module-price">$79/month</div>
+              <div class="module-desc">
+                Track equipment movement between projects, yards, shops, and divisions. Transfers automatically
+                update Equipment Management and adjust PM and inspection schedules based on where each unit is
+                operating. Maintain a complete movement history for every asset.
+              </div>
+              <input type="checkbox" id="modTransfers" />
+            </div>
+
+            <div class="module-item">
+              <label>About the Extraction Engine</label>
+              <div class="module-desc">
+                DRIV‑EN’s extraction engine analyzes equipment manuals, manufacturer documentation, and configuration
+                details to retrieve part numbers, fluid types, capacities, maintenance intervals, safety requirements,
+                and operational specifications. This intelligence powers automated PM templates, inspection templates,
+                and equipment configuration profiles. The extraction engine is included with Preventative Maintenance
+                and optionally used by Equipment Inspections.
+              </div>
             </div>
 
           </div>
@@ -478,7 +536,6 @@
             "is free until " + (data.freeUntil || "12/31/2026") +
             ". You can still select additional modules here for billing.";
 
-          // Optionally pre-check inspections if part of baseModules
           if (Array.isArray(data.baseModules) && data.baseModules.includes("Equipment Inspections")) {
             const inspectionsCheckbox = document.getElementById("modInspections");
             if (inspectionsCheckbox) inspectionsCheckbox.checked = true;
@@ -498,7 +555,9 @@
         equipment: true, // required
         pm: document.getElementById("modPM").checked,
         inspections: document.getElementById("modInspections").checked,
-        workorders: document.getElementById("modWorkOrders").checked
+        workorders: document.getElementById("modWorkOrders").checked,
+        fuel: document.getElementById("modFuel").checked,
+        transfers: document.getElementById("modTransfers").checked
       };
 
       const notify = {
@@ -524,7 +583,6 @@
       window.location.href = "/dashboard.html";
     });
 
-    // Initial status + plan load
     setStatus("Loading your plan…");
     loadCustomerPlan();
   </script>
