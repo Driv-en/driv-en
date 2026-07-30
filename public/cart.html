@@ -123,16 +123,6 @@
       font-size: 15px;
     }
 
-    .grandfathered-banner {
-      margin-top: 12px;
-      padding: 10px 12px;
-      border-radius: 6px;
-      border: 1px solid #22c55e;
-      background: #022c22;
-      font-size: 13px;
-      color: #bbf7d0;
-    }
-
     .footer-actions {
       display: flex;
       justify-content: flex-end;
@@ -206,12 +196,6 @@
     <h2>Your Selected Modules</h2>
     <p>Review your selections below. You can proceed to checkout or go back to make changes.</p>
 
-    <div id="grandfatheredBanner" class="grandfathered-banner" style="display:none;">
-      <strong>Grandfathered 2026 Base Plan</strong>
-      Your base plan (Equipment Management + Equipment Inspections without extraction engine) is free until
-      <span id="gfDate">12/31/2026</span>.
-    </div>
-
     <div class="card" id="cartList"></div>
 
     <div id="savingsLine" class="savings-line" style="display:none;"></div>
@@ -244,65 +228,33 @@
     const totalEl = document.getElementById("total");
     const annualTotalEl = document.getElementById("annualTotal");
     const savingsLine = document.getElementById("savingsLine");
-    const gfBanner = document.getElementById("grandfatheredBanner");
-    const gfDate = document.getElementById("gfDate");
-
-    const btnBack = document.getElementById("btnBack");
-    const btnCheckout = document.getElementById("btnCheckout");
-
-    function setStatus(msg, type = "info") {
-      statusBar.textContent = msg;
-      statusBar.classList.remove("error", "success");
-      if (type === "error") statusBar.classList.add("error");
-      if (type === "success") statusBar.classList.add("success");
-    }
 
     const PRICES = {
-      equipment: 149,
-      pm: 299,
-      inspections: 199,
-      workorders: 149,
-      fuel: 49,
-      transfers: 79
+      modEquipment: 149,
+      modPM: 299,
+      modInspections: 199,
+      modWorkOrders: 149,
+      modFuel: 49,
+      modTransfers: 79
     };
 
     const BUNDLES = {
       operations: {
         name: "Operations Bundle",
-        modules: ["equipment", "pm", "inspections"],
+        modules: ["modEquipment", "modPM", "modInspections"],
         price: 499
       },
       fullEquipment: {
         name: "Full Equipment Bundle",
-        modules: ["equipment", "pm", "inspections", "workorders"],
+        modules: ["modEquipment", "modPM", "modInspections", "modWorkOrders"],
         price: 529
       },
       complete: {
         name: "Complete Platform Bundle",
-        modules: ["equipment", "pm", "inspections", "workorders", "fuel", "transfers"],
+        modules: ["modEquipment", "modPM", "modInspections", "modWorkOrders", "modFuel", "modTransfers"],
         price: 599
       }
     };
-
-    async function loadCustomerPlan() {
-      try {
-        const response = await fetch("/api/customer/modules", {
-          method: "GET",
-          headers: { "Content-Type": "application/json" }
-        });
-
-        if (!response.ok) throw new Error("Failed to load customer plan.");
-
-        const data = await response.json();
-
-        if (data.isGrandfathered) {
-          gfBanner.style.display = "block";
-          gfDate.textContent = data.freeUntil || "12/31/2026";
-        }
-      } catch (err) {
-        setStatus("Error loading customer plan: " + err.message, "error");
-      }
-    }
 
     function detectBundle(selections) {
       const active = Object.keys(selections).filter(k => selections[k]);
@@ -316,11 +268,6 @@
 
     function renderCart() {
       const selections = JSON.parse(localStorage.getItem("driven_modules") || "{}");
-
-      if (!selections || Object.keys(selections).length === 0) {
-        window.location.href = "/module-selection.html";
-        return;
-      }
 
       const rows = [];
       let unitTotal = 0;
@@ -339,53 +286,22 @@
         `);
       }
 
-      // Equipment Management (included in ALL bundles)
-      unitTotal += PRICES.equipment;
-      const emBundled = bundleModules.has("equipment");
-      addRow("Equipment Management (Required)", PRICES.equipment, emBundled ? null : PRICES.equipment);
-      if (!emBundled) chargeTotal += PRICES.equipment;
+      for (const key of Object.keys(PRICES)) {
+        if (!selections[key]) continue;
 
-      // PM
-      if (selections.pm) {
-        unitTotal += PRICES.pm;
-        const isBundled = bundleModules.has("pm");
-        addRow("Preventative Maintenance", PRICES.pm, isBundled ? null : PRICES.pm);
-        if (!isBundled) chargeTotal += PRICES.pm;
+        const unitPrice = PRICES[key];
+        const isBundled = bundleModules.has(key);
+        unitTotal += unitPrice;
+
+        addRow(
+          document.querySelector(`label[for="${key}"]`)?.innerText || key,
+          unitPrice,
+          isBundled ? null : unitPrice
+        );
+
+        if (!isBundled) chargeTotal += unitPrice;
       }
 
-      // Inspections
-      if (selections.inspections) {
-        unitTotal += PRICES.inspections;
-        const isBundled = bundleModules.has("inspections");
-        addRow("Equipment Inspections", PRICES.inspections, isBundled ? null : PRICES.inspections);
-        if (!isBundled) chargeTotal += PRICES.inspections;
-      }
-
-      // Work Orders
-      if (selections.workorders) {
-        unitTotal += PRICES.workorders;
-        const isBundled = bundleModules.has("workorders");
-        addRow("Work Orders", PRICES.workorders, isBundled ? null : PRICES.workorders);
-        if (!isBundled) chargeTotal += PRICES.workorders;
-      }
-
-      // Fuel
-      if (selections.fuel) {
-        unitTotal += PRICES.fuel;
-        const isBundled = bundleModules.has("fuel");
-        addRow("Fuel Usage Tracking", PRICES.fuel, isBundled ? null : PRICES.fuel);
-        if (!isBundled) chargeTotal += PRICES.fuel;
-      }
-
-      // Transfers
-      if (selections.transfers) {
-        unitTotal += PRICES.transfers;
-        const isBundled = bundleModules.has("transfers");
-        addRow("Equipment Transfer Tracking", PRICES.transfers, isBundled ? null : PRICES.transfers);
-        if (!isBundled) chargeTotal += PRICES.transfers;
-      }
-
-      // Bundle row
       if (bundle) {
         addRow(bundle.name, "-", bundle.price);
         chargeTotal += bundle.price;
@@ -393,64 +309,32 @@
         const savings = unitTotal - chargeTotal;
         savingsLine.style.display = "block";
         savingsLine.textContent = `You saved $${savings} by choosing the ${bundle.name}.`;
-      } else {
-        savingsLine.style.display = "none";
       }
 
       cartList.innerHTML = rows.join("");
 
-      // SUBTOTAL
       const subtotal = chargeTotal;
       subtotalEl.textContent = `$${subtotal.toFixed(2)}`;
 
-      // TAX (Texas)
-      const taxRate = 0.0825;
-      const tax = subtotal * taxRate;
+      const tax = subtotal * 0.0825;
       taxEl.textContent = `$${tax.toFixed(2)}`;
 
-      // TOTAL
       const total = subtotal + tax;
       totalEl.textContent = `$${total.toFixed(2)}`;
 
-      // ANNUAL (discounted monthly * 12, tax added at checkout)
       const annual = subtotal * 0.9 * 12;
       annualTotalEl.textContent = `$${annual.toFixed(2)}`;
     }
 
-    btnBack.addEventListener("click", () => {
+    document.getElementById("btnBack").addEventListener("click", () => {
       window.location.href = "/module-selection.html";
     });
 
-    btnCheckout.addEventListener("click", async () => {
-      setStatus("Preparing checkout…", "success");
-
-      const selections = JSON.parse(localStorage.getItem("driven_modules") || "{}");
-
-      try {
-        const response = await fetch("/api/cart/submit", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ selections })
-        });
-
-        if (!response.ok) throw new Error("Checkout failed.");
-
-        const data = await response.json();
-
-        if (data.paymentUrl) {
-          window.location.href = data.paymentUrl;
-        } else {
-          throw new Error("Missing payment URL.");
-        }
-      } catch (err) {
-        setStatus("Error: " + err.message, "error");
-      }
+    document.getElementById("btnCheckout").addEventListener("click", () => {
+      alert("Checkout not implemented yet.");
     });
 
-    setStatus("Loading your cart…");
-    loadCustomerPlan();
     renderCart();
-    setStatus("Review your selections.");
   </script>
 </body>
 </html>
