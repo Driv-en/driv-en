@@ -243,6 +243,21 @@
       transfers: 79
     };
 
+    const BUNDLES = {
+      operations: {
+        modules: ["pm", "inspections"],
+        price: 499
+      },
+      fullEquipment: {
+        modules: ["pm", "inspections", "workorders"],
+        price: 529
+      },
+      complete: {
+        modules: ["pm", "inspections", "workorders", "fuel", "transfers"],
+        price: 599
+      }
+    };
+
     async function loadCustomerPlan() {
       try {
         const response = await fetch("/api/customer/modules", {
@@ -263,6 +278,16 @@
       }
     }
 
+    function detectBundle(selections) {
+      const active = Object.keys(selections).filter(k => selections[k]);
+
+      if (BUNDLES.complete.modules.every(m => active.includes(m))) return BUNDLES.complete;
+      if (BUNDLES.fullEquipment.modules.every(m => active.includes(m))) return BUNDLES.fullEquipment;
+      if (BUNDLES.operations.modules.every(m => active.includes(m))) return BUNDLES.operations;
+
+      return null;
+    }
+
     function renderCart() {
       const selections = JSON.parse(localStorage.getItem("driven_modules") || "{}");
 
@@ -274,6 +299,8 @@
       const rows = [];
       let subtotal = 0;
 
+      const bundle = detectBundle(selections);
+
       function addRow(name, price) {
         rows.push(`
           <div class="module-row">
@@ -281,16 +308,42 @@
             <div class="module-price">$${price}/month</div>
           </div>
         `);
-        subtotal += price;
       }
 
       addRow("Equipment Management (Required)", PRICES.equipment);
 
-      if (selections.pm) addRow("Preventative Maintenance", PRICES.pm);
-      if (selections.inspections) addRow("Equipment Inspections", PRICES.inspections);
-      if (selections.workorders) addRow("Work Orders", PRICES.workorders);
-      if (selections.fuel) addRow("Fuel Usage Tracking", PRICES.fuel);
-      if (selections.transfers) addRow("Equipment Transfer Tracking", PRICES.transfers);
+      if (bundle) {
+        addRow(bundle.modules.length === 2 ? "Operations Bundle" :
+               bundle.modules.length === 3 ? "Full Equipment Bundle" :
+               "Complete Platform Bundle",
+               bundle.price);
+
+        subtotal = PRICES.equipment + bundle.price;
+
+      } else {
+        if (selections.pm) {
+          addRow("Preventative Maintenance", PRICES.pm);
+          subtotal += PRICES.pm;
+        }
+        if (selections.inspections) {
+          addRow("Equipment Inspections", PRICES.inspections);
+          subtotal += PRICES.inspections;
+        }
+        if (selections.workorders) {
+          addRow("Work Orders", PRICES.workorders);
+          subtotal += PRICES.workorders;
+        }
+        if (selections.fuel) {
+          addRow("Fuel Usage Tracking", PRICES.fuel);
+          subtotal += PRICES.fuel;
+        }
+        if (selections.transfers) {
+          addRow("Equipment Transfer Tracking", PRICES.transfers);
+          subtotal += PRICES.transfers;
+        }
+
+        subtotal += PRICES.equipment;
+      }
 
       cartList.innerHTML = rows.join("");
 
