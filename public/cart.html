@@ -87,14 +87,14 @@
       font-weight: 600;
     }
 
-    .module-price {
+    .unit-price {
       font-size: 15px;
       font-weight: 600;
       text-align: right;
       color: #e5e7eb;
     }
 
-    .bundle-price {
+    .extended-price {
       font-size: 15px;
       font-weight: 600;
       text-align: right;
@@ -323,69 +323,87 @@
       }
 
       const rows = [];
-      let moduleTotal = 0;
-      let subtotal = 0;
+      let unitTotal = 0;      // sum of unit prices (for savings)
+      let chargeTotal = 0;    // sum of extended prices (what we actually bill)
 
       const bundle = detectBundle(selections);
 
-      function addRow(name, modulePrice, bundlePrice) {
+      function addRow(name, unitPrice, extendedPrice) {
         rows.push(`
           <div class="module-row">
             <div class="module-name">${name}</div>
-            <div class="module-price">$${modulePrice}</div>
-            <div class="bundle-price">${bundlePrice !== null ? `$${bundlePrice}` : "-"}</div>
+            <div class="unit-price">$${unitPrice}</div>
+            <div class="extended-price">${extendedPrice !== null ? `$${extendedPrice}` : "-"}</div>
           </div>
         `);
       }
 
-      // MODULE ROWS (module-only pricing)
-      moduleTotal += PRICES.equipment;
-      addRow("Equipment Management (Required)", PRICES.equipment, null);
+      // Equipment Management is always required
+      unitTotal += PRICES.equipment;
 
+      // Determine which modules are in the bundle
+      const bundleModules = bundle ? new Set(bundle.modules) : new Set();
+
+      // Equipment Management is NOT part of any bundle → always charged
+      addRow("Equipment Management (Required)", PRICES.equipment, PRICES.equipment);
+      chargeTotal += PRICES.equipment;
+
+      // PM
       if (selections.pm) {
-        moduleTotal += PRICES.pm;
-        addRow("Preventative Maintenance", PRICES.pm, null);
+        unitTotal += PRICES.pm;
+        const isBundled = bundleModules.has("pm");
+        addRow("Preventative Maintenance", PRICES.pm, isBundled ? null : PRICES.pm);
+        if (!isBundled) chargeTotal += PRICES.pm;
       }
+
+      // Inspections
       if (selections.inspections) {
-        moduleTotal += PRICES.inspections;
-        addRow("Equipment Inspections", PRICES.inspections, null);
+        unitTotal += PRICES.inspections;
+        const isBundled = bundleModules.has("inspections");
+        addRow("Equipment Inspections", PRICES.inspections, isBundled ? null : PRICES.inspections);
+        if (!isBundled) chargeTotal += PRICES.inspections;
       }
+
+      // Work Orders
       if (selections.workorders) {
-        moduleTotal += PRICES.workorders;
-        addRow("Work Orders", PRICES.workorders, null);
+        unitTotal += PRICES.workorders;
+        const isBundled = bundleModules.has("workorders");
+        addRow("Work Orders", PRICES.workorders, isBundled ? null : PRICES.workorders);
+        if (!isBundled) chargeTotal += PRICES.workorders;
       }
+
+      // Fuel
       if (selections.fuel) {
-        moduleTotal += PRICES.fuel;
-        addRow("Fuel Usage Tracking", PRICES.fuel, null);
+        unitTotal += PRICES.fuel;
+        const isBundled = bundleModules.has("fuel");
+        addRow("Fuel Usage Tracking", PRICES.fuel, isBundled ? null : PRICES.fuel);
+        if (!isBundled) chargeTotal += PRICES.fuel;
       }
+
+      // Transfers
       if (selections.transfers) {
-        moduleTotal += PRICES.transfers;
-        addRow("Equipment Transfer Tracking", PRICES.transfers, null);
+        unitTotal += PRICES.transfers;
+        const isBundled = bundleModules.has("transfers");
+        addRow("Equipment Transfer Tracking", PRICES.transfers, isBundled ? null : PRICES.transfers);
+        if (!isBundled) chargeTotal += PRICES.transfers;
       }
 
-      // BUNDLE ROW BELOW MODULES
+      // Bundle row (extended column shows bundle price)
       if (bundle) {
-        rows.push(`
-          <div class="module-row">
-            <div class="module-name">${bundle.name}</div>
-            <div class="module-price">-</div>
-            <div class="bundle-price">$${bundle.price}</div>
-          </div>
-        `);
+        addRow(bundle.name, "-", bundle.price);
+        chargeTotal += bundle.price;
 
-        subtotal = bundle.price;
-
-        const savings = moduleTotal - bundle.price;
+        const savings = unitTotal - chargeTotal;
         savingsLine.style.display = "block";
         savingsLine.textContent = `You saved $${savings} by choosing the ${bundle.name}.`;
       } else {
-        subtotal = moduleTotal;
         savingsLine.style.display = "none";
       }
 
       cartList.innerHTML = rows.join("");
 
-      // SUBTOTAL (monthly)
+      // SUBTOTAL (monthly, based on extended prices)
+      const subtotal = chargeTotal;
       subtotalEl.textContent = `$${subtotal.toFixed(2)}`;
 
       // TAX (Texas, monthly)
