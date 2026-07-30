@@ -229,35 +229,47 @@
     const annualTotalEl = document.getElementById("annualTotal");
     const savingsLine = document.getElementById("savingsLine");
 
+    function setStatus(msg, type = "info") {
+      statusBar.textContent = msg;
+      statusBar.classList.remove("error", "success");
+      if (type === "error") statusBar.classList.add("error");
+      if (type === "success") statusBar.classList.add("success");
+    }
+
     const PRICES = {
-      modEquipment: 149,
-      modPM: 299,
-      modInspections: 199,
-      modWorkOrders: 149,
-      modFuel: 49,
-      modTransfers: 79
+      equipment: 149,
+      pm: 299,
+      inspections: 199,
+      workorders: 149,
+      fuel: 49,
+      transfers: 79
     };
 
     const BUNDLES = {
       operations: {
         name: "Operations Bundle",
-        modules: ["modEquipment", "modPM", "modInspections"],
+        modules: ["equipment", "pm", "inspections"],
         price: 499
       },
       fullEquipment: {
         name: "Full Equipment Bundle",
-        modules: ["modEquipment", "modPM", "modInspections", "modWorkOrders"],
+        modules: ["equipment", "pm", "inspections", "workorders"],
         price: 529
       },
       complete: {
         name: "Complete Platform Bundle",
-        modules: ["modEquipment", "modPM", "modInspections", "modWorkOrders", "modFuel", "modTransfers"],
+        modules: ["equipment", "pm", "inspections", "workorders", "fuel", "transfers"],
         price: 599
       }
     };
 
     function detectBundle(selections) {
-      const active = Object.keys(selections).filter(k => selections[k]);
+      const active = ["equipment"]; // EM is always active/required
+      if (selections.pm) active.push("pm");
+      if (selections.inspections) active.push("inspections");
+      if (selections.workorders) active.push("workorders");
+      if (selections.fuel) active.push("fuel");
+      if (selections.transfers) active.push("transfers");
 
       if (BUNDLES.complete.modules.every(m => active.includes(m))) return BUNDLES.complete;
       if (BUNDLES.fullEquipment.modules.every(m => active.includes(m))) return BUNDLES.fullEquipment;
@@ -286,22 +298,53 @@
         `);
       }
 
-      for (const key of Object.keys(PRICES)) {
-        if (!selections[key]) continue;
+      // Equipment Management (Required, included in all bundles)
+      unitTotal += PRICES.equipment;
+      const emBundled = bundleModules.has("equipment");
+      addRow("Equipment Management (Required)", PRICES.equipment, emBundled ? null : PRICES.equipment);
+      if (!emBundled) chargeTotal += PRICES.equipment;
 
-        const unitPrice = PRICES[key];
-        const isBundled = bundleModules.has(key);
-        unitTotal += unitPrice;
-
-        addRow(
-          document.querySelector(`label[for="${key}"]`)?.innerText || key,
-          unitPrice,
-          isBundled ? null : unitPrice
-        );
-
-        if (!isBundled) chargeTotal += unitPrice;
+      // Preventative Maintenance
+      if (selections.pm) {
+        unitTotal += PRICES.pm;
+        const isBundled = bundleModules.has("pm");
+        addRow("Preventative Maintenance", PRICES.pm, isBundled ? null : PRICES.pm);
+        if (!isBundled) chargeTotal += PRICES.pm;
       }
 
+      // Equipment Inspections
+      if (selections.inspections) {
+        unitTotal += PRICES.inspections;
+        const isBundled = bundleModules.has("inspections");
+        addRow("Equipment Inspections", PRICES.inspections, isBundled ? null : PRICES.inspections);
+        if (!isBundled) chargeTotal += PRICES.inspections;
+      }
+
+      // Work Orders
+      if (selections.workorders) {
+        unitTotal += PRICES.workorders;
+        const isBundled = bundleModules.has("workorders");
+        addRow("Work Orders", PRICES.workorders, isBundled ? null : PRICES.workorders);
+        if (!isBundled) chargeTotal += PRICES.workorders;
+      }
+
+      // Fuel Usage Tracking
+      if (selections.fuel) {
+        unitTotal += PRICES.fuel;
+        const isBundled = bundleModules.has("fuel");
+        addRow("Fuel Usage Tracking", PRICES.fuel, isBundled ? null : PRICES.fuel);
+        if (!isBundled) chargeTotal += PRICES.fuel;
+      }
+
+      // Equipment Transfer Tracking
+      if (selections.transfers) {
+        unitTotal += PRICES.transfers;
+        const isBundled = bundleModules.has("transfers");
+        addRow("Equipment Transfer Tracking", PRICES.transfers, isBundled ? null : PRICES.transfers);
+        if (!isBundled) chargeTotal += PRICES.transfers;
+      }
+
+      // Bundle row
       if (bundle) {
         addRow(bundle.name, "-", bundle.price);
         chargeTotal += bundle.price;
@@ -309,6 +352,8 @@
         const savings = unitTotal - chargeTotal;
         savingsLine.style.display = "block";
         savingsLine.textContent = `You saved $${savings} by choosing the ${bundle.name}.`;
+      } else {
+        savingsLine.style.display = "none";
       }
 
       cartList.innerHTML = rows.join("");
@@ -316,7 +361,8 @@
       const subtotal = chargeTotal;
       subtotalEl.textContent = `$${subtotal.toFixed(2)}`;
 
-      const tax = subtotal * 0.0825;
+      const taxRate = 0.0825;
+      const tax = subtotal * taxRate;
       taxEl.textContent = `$${tax.toFixed(2)}`;
 
       const total = subtotal + tax;
@@ -334,6 +380,7 @@
       alert("Checkout not implemented yet.");
     });
 
+    setStatus("Review your selections.");
     renderCart();
   </script>
 </body>
