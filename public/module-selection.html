@@ -545,32 +545,17 @@
     window.location.href = "/";
   });
 
-  // ⭐ Bundle checkbox IDs
-const bundleIds = ["bundleOperations", "bundleFull", "bundleComplete"];
-
-// ⭐ Modules
-const modPM = document.getElementById("modPM");
-const modIns = document.getElementById("modInspections");
-const modWO = document.getElementById("modWorkOrders");
-const modFuel = document.getElementById("modFuel");
-const modTransfers = document.getElementById("modTransfers");
-const modExtraction = document.getElementById("modExtraction");
-
-let bundleActive = false;
-let activeBundle = null;
-
-function clearOtherBundles(selectedId) {
-  bundleIds.forEach(id => {
-    if (id !== selectedId) {
-      document.getElementById(id).checked = false;
-    }
-  });
-}
+  // ⭐ Modules
+  const modPM = document.getElementById("modPM");
+  const modIns = document.getElementById("modInspections");
+  const modWO = document.getElementById("modWorkOrders");
+  const modFuel = document.getElementById("modFuel");
+  const modTransfers = document.getElementById("modTransfers");
+  const modExtraction = document.getElementById("modExtraction");
 
   // ⭐ Bundle Activated Banner
   function showBundleBanner() {
     if (!bundleActive) {
-      statusBar.textContent = "";
       statusBar.style.display = "none";
       return;
     }
@@ -581,164 +566,23 @@ function clearOtherBundles(selectedId) {
 
   // ⭐ Extraction Engine rules
   function updateExtractionRules() {
-    const pm = document.getElementById("modPM").checked;
-    const ins = document.getElementById("modInspections").checked;
-    const extraction = document.getElementById("modExtraction");
+    if (bundleActive) return;
 
-    if (!extraction) return;
-
-    const priceBox = extraction.parentElement.querySelector(".module-price");
-
-    if (bundleActive) {
-      extraction.checked = true;
-      extraction.disabled = true;
-      priceBox.innerHTML = `<span class="included-badge">Included in Bundle</span>`;
-      return;
-    }
-
-    // Reset price
-    priceBox.textContent = "$149/month";
-
-    if (pm || ins) {
-      extraction.disabled = false;
+    if (modPM.checked || modIns.checked) {
+      modExtraction.disabled = false;
     } else {
-      extraction.checked = false;
-      extraction.disabled = true;
+      modExtraction.checked = false;
+      modExtraction.disabled = true;
     }
   }
 
-  function applyBundle(bundleId) {
-  // Reset all modules first
-  [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
-    el.checked = false;
-    el.disabled = false;
-  });
-
-  bundleActive = true;
-
-  if (bundleId === "bundleOperations") {
-    activeBundle = "Operations Bundle";
-
-    modPM.checked = true; modPM.disabled = true;
-    modIns.checked = true; modIns.disabled = true;
-    modExtraction.checked = true; modExtraction.disabled = true;
-  }
-
-  if (bundleId === "bundleFull") {
-    activeBundle = "Full Equipment Bundle";
-
-    modPM.checked = true; modPM.disabled = true;
-    modIns.checked = true; modIns.disabled = true;
-    modWO.checked = true; modWO.disabled = true;
-    modExtraction.checked = true; modExtraction.disabled = true;
-  }
-
-  if (bundleId === "bundleComplete") {
-    activeBundle = "Complete Platform Bundle";
-
-    modPM.checked = true; modPM.disabled = true;
-    modIns.checked = true; modIns.disabled = true;
-    modWO.checked = true; modWO.disabled = true;
-    modFuel.checked = true; modFuel.disabled = true;
-    modTransfers.checked = true; modTransfers.disabled = true;
-    modExtraction.checked = true; modExtraction.disabled = true;
-  }
-
-  showBundleBanner();
-}
-
-function uncheckBundleIfModuleChanged() {
-  if (!bundleActive) return;
-
-  // If ANY module included in the bundle is unchecked → remove bundle
-  const opsBroken = activeBundle === "Operations Bundle" &&
-                    (!modPM.checked || !modIns.checked);
-
-  const fullBroken = activeBundle === "Full Equipment Bundle" &&
-                     (!modPM.checked || !modIns.checked || !modWO.checked);
-
-  const completeBroken = activeBundle === "Complete Platform Bundle" &&
-                         (!modPM.checked || !modIns.checked || !modWO.checked ||
-                          !modFuel.checked || !modTransfers.checked);
-
-  if (opsBroken || fullBroken || completeBroken) {
-    // Uncheck all bundle checkboxes
-    bundleIds.forEach(id => document.getElementById(id).checked = false);
-
-    // Reset bundle state
-    bundleActive = false;
-    activeBundle = null;
-
-    // Re-enable all modules
-    [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
-      el.disabled = false;
-    });
-
-    // Reapply extraction rules
-    updateExtractionRules();
-    showBundleBanner();
-  }
-}
-
- bundleIds.forEach(id => {
-  document.getElementById(id).addEventListener("change", (e) => {
-    clearOtherBundles(id);
-
-    if (e.target.checked) {
-      applyBundle(id);
-    } else {
-      // Unchecking bundle resets everything
-      bundleActive = false;
-      activeBundle = null;
-
-      [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
-        el.disabled = false;
-        el.checked = false;
-      });
-
-      updateExtractionRules();
-      showBundleBanner();
-    }
-  });
-});
-
- [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
-  el.addEventListener("change", () => {
-    uncheckBundleIfModuleChanged();
-    updateExtractionRules();
-  });
-});
-
-function updateExtractionRules() {
-  if (bundleActive) return;
-
-  if (modPM.checked || modIns.checked) {
-    modExtraction.disabled = false;
-  } else {
-    modExtraction.checked = false;
-    modExtraction.disabled = true;
-  }
-}
-
- function showBundleBanner() {
-  if (!bundleActive) {
-    statusBar.style.display = "none";
-    return;
-  }
-
-  statusBar.style.display = "block";
-  statusBar.textContent = `Bundle Activated: ${activeBundle}`;
-}
- 
-  // ⭐ Bundle detection
+  // ⭐ Bundle detection (no bundle checkboxes yet)
   function detectBundle() {
-    const pm = document.getElementById("modPM").checked;
-    const ins = document.getElementById("modInspections").checked;
-    const wo = document.getElementById("modWorkOrders").checked;
-    const fuel = document.getElementById("modFuel").checked;
-    const transfers = document.getElementById("modTransfers").checked;
-
-    const extraction = document.getElementById("modExtraction");
+    const pm = modPM.checked;
+    const ins = modIns.checked;
+    const wo = modWO.checked;
+    const fuel = modFuel.checked;
+    const transfers = modTransfers.checked;
 
     bundleActive = false;
     activeBundle = null;
@@ -762,18 +606,14 @@ function updateExtractionRules() {
     }
 
     // Extraction Engine auto-select
-    if (extraction) {
-      if (bundleActive) {
-        extraction.checked = true;
-        extraction.disabled = true;
-      } else {
-        extraction.disabled = !(pm || ins);
-        if (!pm && !ins) extraction.checked = false;
-      }
+    if (bundleActive) {
+      modExtraction.checked = true;
+      modExtraction.disabled = true;
+    } else {
+      updateExtractionRules();
     }
 
     showBundleBanner();
-    updateExtractionRules();
   }
 
   // ⭐ Restore previous selections ONLY when returning from cart
@@ -781,7 +621,6 @@ function updateExtractionRules() {
     const fromCart = document.referrer.includes("cart.html");
 
     if (!fromCart) {
-      // First load — do NOT restore anything
       detectBundle();
       updateExtractionRules();
       return;
@@ -789,12 +628,12 @@ function updateExtractionRules() {
 
     const saved = JSON.parse(localStorage.getItem("driven_modules") || "{}");
 
-    document.getElementById("modPM").checked = saved.pm || false;
-    document.getElementById("modInspections").checked = saved.inspections || false;
-    document.getElementById("modWorkOrders").checked = saved.workorders || false;
-    document.getElementById("modFuel").checked = saved.fuel || false;
-    document.getElementById("modTransfers").checked = saved.transfers || false;
-    document.getElementById("modExtraction").checked = saved.extraction || false;
+    modPM.checked = saved.pm || false;
+    modIns.checked = saved.inspections || false;
+    modWO.checked = saved.workorders || false;
+    modFuel.checked = saved.fuel || false;
+    modTransfers.checked = saved.transfers || false;
+    modExtraction.checked = saved.extraction || false;
 
     detectBundle();
     updateExtractionRules();
@@ -805,12 +644,12 @@ function updateExtractionRules() {
     detectBundle();
 
     const selections = {
-      pm: document.getElementById("modPM").checked,
-      inspections: document.getElementById("modInspections").checked,
-      workorders: document.getElementById("modWorkOrders").checked,
-      fuel: document.getElementById("modFuel").checked,
-      transfers: document.getElementById("modTransfers").checked,
-      extraction: document.getElementById("modExtraction").checked,
+      pm: modPM.checked,
+      inspections: modIns.checked,
+      workorders: modWO.checked,
+      fuel: modFuel.checked,
+      transfers: modTransfers.checked,
+      extraction: modExtraction.checked,
       bundle: activeBundle
     };
 
