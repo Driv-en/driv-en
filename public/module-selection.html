@@ -525,17 +525,145 @@
     const btnCancel = document.getElementById("btnCancel");
     const statusBar = document.getElementById("statusBar");
 
+    let bundleActive = false;
+    let activeBundle = null;
+
     btnCancel.addEventListener("click", () => {
       window.location.href = "/";
     });
 
+    // Extraction Engine rules
+    function updateExtractionRules() {
+      const pm = document.getElementById("modPM").checked;
+      const ins = document.getElementById("modInspections").checked;
+      const extraction = document.getElementById("modExtraction");
+
+      if (bundleActive) {
+        extraction.checked = true;
+        extraction.disabled = true;
+        return;
+      }
+
+      if (pm || ins) {
+        extraction.disabled = false;
+      } else {
+        extraction.checked = false;
+        extraction.disabled = true;
+      }
+    }
+
+    // Bundle detection
+    function detectBundle() {
+      const pm = document.getElementById("modPM").checked;
+      const ins = document.getElementById("modInspections").checked;
+      const wo = document.getElementById("modWorkOrders").checked;
+      const fuel = document.getElementById("modFuel").checked;
+      const transfers = document.getElementById("modTransfers").checked;
+
+      bundleActive = false;
+      activeBundle = null;
+
+      if (pm && ins && !wo && !fuel && !transfers) {
+        bundleActive = true;
+        activeBundle = "operations";
+      }
+
+      if (pm && ins && wo && !fuel && !transfers) {
+        bundleActive = true;
+        activeBundle = "fullEquipment";
+      }
+
+      if (pm && ins && wo && fuel && transfers) {
+        bundleActive = true;
+        activeBundle = "completePlatform";
+      }
+
+      updateExtractionRules();
+    }
+
+    // Build ordered module list
+    function buildModuleOrder() {
+      const modules = [];
+
+      modules.push("Equipment Management");
+
+      if (document.getElementById("modPM").checked) {
+        modules.push("Preventative Maintenance");
+      }
+
+      if (document.getElementById("modInspections").checked) {
+        modules.push("Equipment Inspections");
+      }
+
+      if (document.getElementById("modExtraction").checked) {
+        modules.push("Extraction Engine");
+      }
+
+      if (document.getElementById("modWorkOrders").checked) {
+        modules.push("Work Orders");
+      }
+
+      if (document.getElementById("modFuel").checked) {
+        modules.push("Fuel Usage Tracking");
+      }
+
+      if (document.getElementById("modTransfers").checked) {
+        modules.push("Equipment Transfer Tracking");
+      }
+
+      if (bundleActive) {
+        if (activeBundle === "operations") modules.push("Operations Bundle");
+        if (activeBundle === "fullEquipment") modules.push("Full Equipment Bundle");
+        if (activeBundle === "completePlatform") modules.push("Complete Platform Bundle");
+      }
+
+      return modules;
+    }
+
+    // Pricing logic
+    function calculatePricing() {
+      let unitTotal = 149;
+      let chargeTotal = 149;
+
+      const pm = document.getElementById("modPM").checked;
+      const ins = document.getElementById("modInspections").checked;
+      const wo = document.getElementById("modWorkOrders").checked;
+      const fuel = document.getElementById("modFuel").checked;
+      const transfers = document.getElementById("modTransfers").checked;
+      const extraction = document.getElementById("modExtraction").checked;
+
+      if (pm) unitTotal += 299;
+      if (ins) unitTotal += 199;
+      if (wo) unitTotal += 149;
+      if (fuel) unitTotal += 49;
+      if (transfers) unitTotal += 79;
+
+      if (extraction) unitTotal += 149;
+
+      if (bundleActive) {
+        if (activeBundle === "operations") chargeTotal = 499;
+        if (activeBundle === "fullEquipment") chargeTotal = 529;
+        if (activeBundle === "completePlatform") chargeTotal = 599;
+      }
+
+      const savings = unitTotal - chargeTotal;
+
+      return { unitTotal, chargeTotal, savings };
+    }
+
+    // Continue button
     btnContinue.addEventListener("click", () => {
+      detectBundle();
+
       const selections = {
         pm: document.getElementById("modPM").checked,
         inspections: document.getElementById("modInspections").checked,
         workorders: document.getElementById("modWorkOrders").checked,
         fuel: document.getElementById("modFuel").checked,
-        transfers: document.getElementById("modTransfers").checked
+        transfers: document.getElementById("modTransfers").checked,
+        extraction: document.getElementById("modExtraction").checked,
+        bundle: activeBundle,
+        orderedModules: buildModuleOrder()
       };
 
       localStorage.setItem("driven_modules", JSON.stringify(selections));
