@@ -537,14 +537,6 @@
   const btnCancel = document.getElementById("btnCancel");
   const statusBar = document.getElementById("statusBar");
 
-  let bundleActive = false;
-  let activeBundle = null;
-
-  // Cancel button
-  btnCancel.addEventListener("click", () => {
-    window.location.href = "/";
-  });
-
   // ⭐ Modules
   const modPM = document.getElementById("modPM");
   const modIns = document.getElementById("modInspections");
@@ -553,7 +545,22 @@
   const modTransfers = document.getElementById("modTransfers");
   const modExtraction = document.getElementById("modExtraction");
 
-  // ⭐ Bundle Activated Banner
+  // ⭐ Bundle checkboxes
+  const bundleOps = document.getElementById("bundleOperations");
+  const bundleFull = document.getElementById("bundleFull");
+  const bundleComplete = document.getElementById("bundleComplete");
+
+  const bundleIds = ["bundleOperations", "bundleFull", "bundleComplete"];
+
+  let bundleActive = false;
+  let activeBundle = null;
+
+  // ⭐ Cancel button
+  btnCancel.addEventListener("click", () => {
+    window.location.href = "/";
+  });
+
+  // ⭐ Show bundle banner
   function showBundleBanner() {
     if (!bundleActive) {
       statusBar.style.display = "none";
@@ -564,7 +571,7 @@
     statusBar.textContent = `Bundle Activated: ${activeBundle}`;
   }
 
-  // ⭐ Extraction Engine rules
+  // ⭐ Extraction Engine rules (when no bundle)
   function updateExtractionRules() {
     if (bundleActive) return;
 
@@ -576,52 +583,127 @@
     }
   }
 
-  // ⭐ Bundle detection (no bundle checkboxes yet)
-  function detectBundle() {
-    const pm = modPM.checked;
-    const ins = modIns.checked;
-    const wo = modWO.checked;
-    const fuel = modFuel.checked;
-    const transfers = modTransfers.checked;
+  // ⭐ Clear other bundles
+  function clearOtherBundles(selectedId) {
+    bundleIds.forEach(id => {
+      if (id !== selectedId) {
+        document.getElementById(id).checked = false;
+      }
+    });
+  }
 
-    bundleActive = false;
-    activeBundle = null;
+  // ⭐ Apply bundle selection
+  function applyBundle(bundleId) {
+    // Reset all modules first
+    [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
+      el.checked = false;
+      el.disabled = false;
+    });
 
-    // Operations Bundle
-    if (pm && ins && !wo && !fuel && !transfers) {
-      bundleActive = true;
+    bundleActive = true;
+
+    if (bundleId === "bundleOperations") {
       activeBundle = "Operations Bundle";
+
+      modPM.checked = true; modPM.disabled = true;
+      modIns.checked = true; modIns.disabled = true;
+      modExtraction.checked = true; modExtraction.disabled = true;
     }
 
-    // Full Equipment Bundle
-    if (pm && ins && wo && !fuel && !transfers) {
-      bundleActive = true;
+    if (bundleId === "bundleFull") {
       activeBundle = "Full Equipment Bundle";
+
+      modPM.checked = true; modPM.disabled = true;
+      modIns.checked = true; modIns.disabled = true;
+      modWO.checked = true; modWO.disabled = true;
+      modExtraction.checked = true; modExtraction.disabled = true;
     }
 
-    // Complete Platform Bundle
-    if (pm && ins && wo && fuel && transfers) {
-      bundleActive = true;
+    if (bundleId === "bundleComplete") {
       activeBundle = "Complete Platform Bundle";
-    }
 
-    // Extraction Engine auto-select
-    if (bundleActive) {
-      modExtraction.checked = true;
-      modExtraction.disabled = true;
-    } else {
-      updateExtractionRules();
+      modPM.checked = true; modPM.disabled = true;
+      modIns.checked = true; modIns.disabled = true;
+      modWO.checked = true; modWO.disabled = true;
+      modFuel.checked = true; modFuel.disabled = true;
+      modTransfers.checked = true; modTransfers.disabled = true;
+      modExtraction.checked = true; modExtraction.disabled = true;
     }
 
     showBundleBanner();
   }
+
+  // ⭐ Uncheck bundle if user unchecks a module included in it
+  function uncheckBundleIfModuleChanged() {
+    if (!bundleActive) return;
+
+    const opsBroken =
+      activeBundle === "Operations Bundle" &&
+      (!modPM.checked || !modIns.checked);
+
+    const fullBroken =
+      activeBundle === "Full Equipment Bundle" &&
+      (!modPM.checked || !modIns.checked || !modWO.checked);
+
+    const completeBroken =
+      activeBundle === "Complete Platform Bundle" &&
+      (!modPM.checked || !modIns.checked || !modWO.checked ||
+       !modFuel.checked || !modTransfers.checked);
+
+    if (opsBroken || fullBroken || completeBroken) {
+      bundleOps.checked = false;
+      bundleFull.checked = false;
+      bundleComplete.checked = false;
+
+      bundleActive = false;
+      activeBundle = null;
+
+      [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
+        el.disabled = false;
+      });
+
+      updateExtractionRules();
+      showBundleBanner();
+    }
+  }
+
+  // ⭐ Bundle checkbox listeners
+  bundleIds.forEach(id => {
+    const el = document.getElementById(id);
+
+    el.addEventListener("change", (e) => {
+      clearOtherBundles(id);
+
+      if (e.target.checked) {
+        applyBundle(id);
+      } else {
+        bundleActive = false;
+        activeBundle = null;
+
+        [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
+          el.disabled = false;
+          el.checked = false;
+        });
+
+        updateExtractionRules();
+        showBundleBanner();
+      }
+    });
+  });
+
+  // ⭐ Module listeners (to uncheck bundle if user unchecks a module)
+  [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
+    el.addEventListener("change", () => {
+      uncheckBundleIfModuleChanged();
+      updateExtractionRules();
+    });
+  });
 
   // ⭐ Restore previous selections ONLY when returning from cart
   window.addEventListener("DOMContentLoaded", () => {
     const fromCart = document.referrer.includes("cart.html");
 
     if (!fromCart) {
-      detectBundle();
       updateExtractionRules();
       return;
     }
@@ -635,14 +717,11 @@
     modTransfers.checked = saved.transfers || false;
     modExtraction.checked = saved.extraction || false;
 
-    detectBundle();
     updateExtractionRules();
   });
 
   // ⭐ Continue button
   btnContinue.addEventListener("click", () => {
-    detectBundle();
-
     const selections = {
       pm: modPM.checked,
       inspections: modIns.checked,
@@ -658,5 +737,6 @@
     window.location.href = "/public/cart.html";
   });
 </script>
+
 </body>
 </html>
