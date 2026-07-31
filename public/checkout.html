@@ -292,11 +292,7 @@
       }
     }
 
-    /* ============================
-       PRINT MODE FIXES
-       ============================ */
     @media print {
-
       header {
         position: static !important;
         top: auto !important;
@@ -346,7 +342,6 @@
     <h2>Order Summary</h2>
     <p>Review your selections below. When you're ready, complete the required information and confirm your order.</p>
 
-    <!-- Customer Information -->
     <div class="card">
       <h3>Customer Information</h3>
       <div class="form-row">
@@ -443,7 +438,6 @@
       </div>
     </div>
 
-    <!-- PO Number -->
     <div class="card">
       <label for="poNumber" style="font-size:14px; color:#e5e7eb; font-weight:600;">
         Purchase Order (PO) Number <span style="color:#9ca3af;">(optional)</span>
@@ -452,7 +446,6 @@
         style="margin-top:8px; width:100%; padding:10px; border-radius:6px; border:1px solid #374151; background:#0f172a; color:#e5e7eb; box-sizing:border-box;">
     </div>
 
-    <!-- Billing Cycle -->
     <div class="card">
       <h3>Billing Cycle</h3>
       <div class="billing-options">
@@ -470,51 +463,38 @@
       </div>
     </div>
 
-    <!-- Order Number -->
     <div class="card">
       <strong>Order Number:</strong>
       <span id="orderNumber" style="margin-left:6px;"></span>
     </div>
 
-    <!-- Module List -->
     <div class="card" id="checkoutList"></div>
 
-    <!-- Totals -->
     <div class="card totals">
- <div class="card totals">
-  <div class="totals-grid">
+      <div class="totals-grid">
 
-    <!-- Monthly Column -->
-    <div class="totals-column">
-      <h4>Monthly (with tax)</h4>
-      <div><strong>Monthly Subtotal:</strong> <span id="subtotalMonthly">$0</span></div>
-      <div><strong>Monthly Tax (8.25%):</strong> <span id="taxMonthly">$0</span></div>
-      <div><strong>Monthly Total:</strong> <span id="totalMonthly">$0</span></div>
+        <div class="totals-column">
+          <h4>Monthly (with tax)</h4>
+          <div><strong>Monthly Subtotal:</strong> <span id="subtotalMonthly">$0</span></div>
+          <div><strong>Monthly Tax (8.25%):</strong> <span id="taxMonthly">$0</span></div>
+          <div><strong>Monthly Total:</strong> <span id="totalMonthly">$0</span></div>
 
-      <!-- Monthly Savings Box -->
-      <div id="monthlySavingsBox" class="savings-line" style="margin-top:12px;">
-        <!-- Filled by JS -->
+          <div id="monthlySavingsBox" class="savings-line" style="margin-top:12px;">
+          </div>
+        </div>
+
+        <div class="totals-column">
+          <h4>Annual (10% off, with tax)</h4>
+          <div><strong>Annual Subtotal:</strong> <span id="subtotalAnnual">$0</span></div>
+          <div><strong>Annual Tax (8.25%):</strong> <span id="taxAnnual">$0</span></div>
+          <div><strong>Annual Total:</strong> <span id="totalAnnual">$0</span></div>
+
+          <div id="annualSavingsBox" class="savings-line" style="margin-top:12px;">
+          </div>
+        </div>
+
       </div>
     </div>
-
-    <!-- Annual Column -->
-    <div class="totals-column">
-      <h4>Annual (10% off, with tax)</h4>
-      <div><strong>Annual Subtotal:</strong> <span id="subtotalAnnual">$0</span></div>
-      <div><strong>Annual Tax (8.25%):</strong> <span id="taxAnnual">$0</span></div>
-      <div><strong>Annual Total:</strong> <span id="totalAnnual">$0</span></div>
-
-      <!-- Annual Savings Box -->
-      <div id="annualSavingsBox" class="savings-line" style="margin-top:12px;">
-        <!-- Filled by JS -->
-      </div>
-    </div>
-
-  </div>
-</div>
-
-
-    <!-- Buttons -->
     <div class="footer-actions">
       <button class="btn-secondary" id="btnBackCart">Back to Cart</button>
       <button class="btn-secondary" id="btnBackModules">Back to Module Selection</button>
@@ -529,7 +509,8 @@
     © 2026 Digital Safety Inspection, LLC.
     <span class="footer-line-2">Driv-en is a Digital Safety Inspection, LLC platform.</span>
   </footer>
-   <script>
+
+  <script>
     const checkoutList = document.getElementById("checkoutList");
     const subtotalMonthlyEl = document.getElementById("subtotalMonthly");
     const taxMonthlyEl = document.getElementById("taxMonthly");
@@ -537,7 +518,8 @@
     const subtotalAnnualEl = document.getElementById("subtotalAnnual");
     const taxAnnualEl = document.getElementById("taxAnnual");
     const totalAnnualEl = document.getElementById("totalAnnual");
-    const savingsLine = document.getElementById("savingsLine");
+    const monthlySavingsBox = document.getElementById("monthlySavingsBox");
+    const annualSavingsBox = document.getElementById("annualSavingsBox");
     const statusBar = document.getElementById("statusBar");
     const billingNote = document.getElementById("billingNote");
     const billingMonthly = document.getElementById("billingMonthly");
@@ -657,19 +639,19 @@
       if (bundle) {
         addRow(bundle.name, "-", bundle.price);
         chargeTotal += bundle.price;
-
-const savings = unitTotal - chargeTotal;
-savingsLine.style.display = "block";
-
-const isAnnual = billingAnnual.checked;
-
-}
-
-      } else {
-        savingsLine.style.display = "none";
       }
 
       checkoutList.innerHTML = rows.join("");
+
+      const savings = unitTotal - chargeTotal;
+      const monthlySavings = savings;
+      const annualSavings = savings * 12 * 0.9;
+
+      monthlySavingsBox.textContent =
+        `Monthly Savings: $${monthlySavings.toFixed(2)}`;
+
+      annualSavingsBox.textContent =
+        `Annual Savings: $${annualSavings.toFixed(2)} (includes 10% annual discount)`;
 
       const monthlySubtotal = chargeTotal;
       const monthlyTax = monthlySubtotal * 0.0825;
@@ -715,7 +697,6 @@ const isAnnual = billingAnnual.checked;
     document.getElementById("btnPrint").addEventListener("click", () => {
       window.print();
     });
-
     function clearFieldErrors() {
       const fields = [
         "companyName",
