@@ -220,175 +220,146 @@
     <span class="footer-line-2">Driv-en is a Digital Safety Inspection, LLC platform.</span>
   </footer>
 
-  <script>
-    const statusBar = document.getElementById("statusBar");
-    const cartList = document.getElementById("cartList");
-    const subtotalEl = document.getElementById("subtotal");
-    const taxEl = document.getElementById("tax");
-    const totalEl = document.getElementById("total");
-    const annualTotalEl = document.getElementById("annualTotal");
-    const savingsLine = document.getElementById("savingsLine");
+<script>
+  const statusBar = document.getElementById("statusBar");
+  const cartList = document.getElementById("cartList");
+  const subtotalEl = document.getElementById("subtotal");
+  const taxEl = document.getElementById("tax");
+  const totalEl = document.getElementById("total");
+  const annualTotalEl = document.getElementById("annualTotal");
+  const savingsLine = document.getElementById("savingsLine");
 
-    const PRICES = {
-      equipment: 149,
-      pm: 299,
-      inspections: 199,
-      extraction: 149,
-      workorders: 149,
-      fuel: 49,
-      transfers: 79
-    };
+  // ⭐ Prices
+  const PRICES = {
+    equipment: 149,
+    pm: 299,
+    inspections: 199,
+    extraction: 149,
+    workorders: 149,
+    fuel: 49,
+    transfers: 79
+  };
 
-    const BUNDLES = {
-      operations: {
-        name: "Operations Bundle",
-        modules: ["equipment", "pm", "inspections", "extraction"],
-        price: 499
-      },
-      fullEquipment: {
-        name: "Full Equipment Bundle",
-        modules: ["equipment", "pm", "inspections", "workorders", "extraction"],
-        price: 529
-      },
-      complete: {
-        name: "Complete Platform Bundle",
-        modules: ["equipment", "pm", "inspections", "workorders", "fuel", "transfers", "extraction"],
-        price: 599
+  // ⭐ Bundle definitions
+  const BUNDLES = {
+    "Operations Bundle": {
+      modules: ["equipment", "pm", "inspections", "extraction"],
+      price: 499
+    },
+    "Full Equipment Bundle": {
+      modules: ["equipment", "pm", "inspections", "workorders", "extraction"],
+      price: 529
+    },
+    "Complete Platform Bundle": {
+      modules: ["equipment", "pm", "inspections", "workorders", "fuel", "transfers", "extraction"],
+      price: 599
+    }
+  };
+
+  // ⭐ Convert module-selection names → cart keys
+  const MODULE_MAP = {
+    pm: "Preventative Maintenance",
+    inspections: "Equipment Inspections",
+    workorders: "Work Orders",
+    fuel: "Fuel Usage Tracking",
+    transfers: "Equipment Transfer Tracking",
+    extraction: "Extraction Engine",
+    equipment: "Equipment Management"
+  };
+
+  // ⭐ Render cart
+  function renderCart() {
+    const selections = JSON.parse(localStorage.getItem("driven_modules") || "{}");
+
+    const rows = [];
+    let unitTotal = 0;
+    let chargeTotal = 0;
+
+    const bundleName = selections.bundle || null;
+    const bundle = bundleName ? BUNDLES[bundleName] : null;
+    const bundleModules = bundle ? new Set(bundle.modules) : new Set();
+
+    // ⭐ Always include Equipment Management
+    const selectedModules = ["equipment"];
+
+    if (selections.pm) selectedModules.push("pm");
+    if (selections.inspections) selectedModules.push("inspections");
+    if (selections.workorders) selectedModules.push("workorders");
+    if (selections.fuel) selectedModules.push("fuel");
+    if (selections.transfers) selectedModules.push("transfers");
+    if (selections.extraction) selectedModules.push("extraction");
+
+    // ⭐ Build rows
+    selectedModules.forEach(key => {
+      const name = MODULE_MAP[key];
+      const price = PRICES[key];
+
+      unitTotal += price;
+
+      const isBundled = bundleModules.has(key);
+
+      rows.push(`
+        <div class="module-row">
+          <div class="module-name">${name}</div>
+          <div class="unit-price">$${price}</div>
+          <div class="extended-price">${isBundled ? "-" : `$${price}`}</div>
+        </div>
+      `);
+
+      if (!isBundled) {
+        chargeTotal += price;
       }
-    };
+    });
 
-function detectBundle() {
-  const pm = document.getElementById("modPM").checked;
-  const ins = document.getElementById("modInspections").checked;
-  const wo = document.getElementById("modWorkOrders").checked;
-  const fuel = document.getElementById("modFuel").checked;
-  const transfers = document.getElementById("modTransfers").checked;
-  const extraction = document.getElementById("modExtraction");
+    // ⭐ Add bundle row if bundle selected
+    if (bundle) {
+      rows.push(`
+        <div class="module-row bundle-row">
+          <div class="module-name">${bundleName}</div>
+          <div class="unit-price">-</div>
+          <div class="extended-price">$${bundle.price}</div>
+        </div>
+      `);
 
-  bundleActive = false;
-  activeBundle = null;
+      chargeTotal += bundle.price;
 
-  // Operations Bundle
-  if (pm && ins && !wo && !fuel && !transfers) {
-    bundleActive = true;
-    activeBundle = "operations";
-  }
-
-  // Full Equipment Bundle
-  if (pm && ins && wo && !fuel && !transfers) {
-    bundleActive = true;
-    activeBundle = "fullEquipment";
-  }
-
-  // Complete Platform Bundle
-  if (pm && ins && wo && fuel && transfers) {
-    bundleActive = true;
-    activeBundle = "completePlatform";
-  }
-
-  // Auto-select Extraction Engine when bundle is active
-  if (bundleActive) {
-    extraction.checked = true;
-    extraction.disabled = true;
-  } else {
-    // Only enable if PM or Inspections selected
-    extraction.disabled = !(pm || ins);
-    if (!pm && !ins) extraction.checked = false;
-  }
-}
-
-
-    function renderCart() {
-      const selections = JSON.parse(localStorage.getItem("driven_modules") || "{}");
-
-      const rows = [];
-      let unitTotal = 0;
-      let chargeTotal = 0;
-
-      const bundle = detectBundle(selections);
-      const bundleModules = bundle ? new Set(bundle.modules) : new Set();
-
-      function addRow(name, unitPrice, extendedPrice) {
-        rows.push(`
-          <div class="module-row">
-            <div class="module-name">${name}</div>
-            <div class="unit-price">${unitPrice !== "-" ? `$${unitPrice}` : "-"}</div>
-            <div class="extended-price">${extendedPrice !== null ? `$${extendedPrice}` : "-"}</div>
-          </div>
-        `);
-      }
-
-      // ORDERED MODULE DISPLAY
-      const ordered = selections.orderedModules || [];
-
-      ordered.forEach(mod => {
-        let key = "";
-        let price = 0;
-
-        if (mod === "Equipment Management") {
-          key = "equipment"; price = PRICES.equipment;
-        } else if (mod === "Preventative Maintenance") {
-          key = "pm"; price = PRICES.pm;
-        } else if (mod === "Equipment Inspections") {
-          key = "inspections"; price = PRICES.inspections;
-        } else if (mod === "Extraction Engine") {
-          key = "extraction"; price = PRICES.extraction;
-        } else if (mod === "Work Orders") {
-          key = "workorders"; price = PRICES.workorders;
-        } else if (mod === "Fuel Usage Tracking") {
-          key = "fuel"; price = PRICES.fuel;
-        } else if (mod === "Equipment Transfer Tracking") {
-          key = "transfers"; price = PRICES.transfers;
-        } else {
-          // Bundle rows
-          addRow(mod, "-", bundle.price);
-          chargeTotal += bundle.price;
-          return;
-        }
-
-        unitTotal += price;
-
-        const isBundled = bundleModules.has(key);
-        addRow(mod, price, isBundled ? null : price);
-
-        if (!isBundled) chargeTotal += price;
-      });
-
-      // Savings line
-      if (bundle) {
-        const savings = unitTotal - chargeTotal;
-        savingsLine.style.display = "block";
-        savingsLine.textContent = `You saved $${savings} by choosing the ${bundle.name}.`;
-      } else {
-        savingsLine.style.display = "none";
-      }
-
-      cartList.innerHTML = rows.join("");
-
-      const subtotal = chargeTotal;
-      subtotalEl.textContent = `$${subtotal.toFixed(2)}`;
-
-      const taxRate = 0.0825;
-      const tax = subtotal * taxRate;
-      taxEl.textContent = `$${tax.toFixed(2)}`;
-
-      const total = subtotal + tax;
-      totalEl.textContent = `$${total.toFixed(2)}`;
-
-      const annual = subtotal * 0.9 * 12;
-      annualTotalEl.textContent = `$${annual.toFixed(2)}`;
+      const savings = unitTotal - chargeTotal;
+      savingsLine.style.display = "block";
+      savingsLine.textContent = `You saved $${savings} with the ${bundleName}.`;
+    } else {
+      savingsLine.style.display = "none";
     }
 
-    document.getElementById("btnBack").addEventListener("click", () => {
-      window.location.href = "module-selection.html";
-    });
+    cartList.innerHTML = rows.join("");
 
-    document.getElementById("btnCheckout").addEventListener("click", () => {
-      window.location.href = "checkout.html";
-    });
+    // ⭐ Totals
+    const subtotal = chargeTotal;
+    subtotalEl.textContent = `$${subtotal.toFixed(2)}`;
 
-    statusBar.textContent = "Review your selections.";
-    renderCart();
-  </script>
+    const taxRate = 0.0825;
+    const tax = subtotal * taxRate;
+    taxEl.textContent = `$${tax.toFixed(2)}`;
+
+    const total = subtotal + tax;
+    totalEl.textContent = `$${total.toFixed(2)}`;
+
+    const annual = subtotal * 0.9 * 12;
+    annualTotalEl.textContent = `$${annual.toFixed(2)}`;
+  }
+
+  // ⭐ Back button
+  document.getElementById("btnBack").addEventListener("click", () => {
+    window.location.href = "module-selection.html";
+  });
+
+  // ⭐ Checkout button
+  document.getElementById("btnCheckout").addEventListener("click", () => {
+    window.location.href = "checkout.html";
+  });
+
+  statusBar.textContent = "Review your selections.";
+  renderCart();
+</script>
+
 </body>
 </html>
