@@ -257,22 +257,46 @@
       }
     };
 
-    function detectBundle(selections) {
-      const active = ["equipment"];
+function detectBundle() {
+  const pm = document.getElementById("modPM").checked;
+  const ins = document.getElementById("modInspections").checked;
+  const wo = document.getElementById("modWorkOrders").checked;
+  const fuel = document.getElementById("modFuel").checked;
+  const transfers = document.getElementById("modTransfers").checked;
+  const extraction = document.getElementById("modExtraction");
 
-      if (selections.pm) active.push("pm");
-      if (selections.inspections) active.push("inspections");
-      if (selections.extraction) active.push("extraction");
-      if (selections.workorders) active.push("workorders");
-      if (selections.fuel) active.push("fuel");
-      if (selections.transfers) active.push("transfers");
+  bundleActive = false;
+  activeBundle = null;
 
-      if (BUNDLES.complete.modules.every(m => active.includes(m))) return BUNDLES.complete;
-      if (BUNDLES.fullEquipment.modules.every(m => active.includes(m))) return BUNDLES.fullEquipment;
-      if (BUNDLES.operations.modules.every(m => active.includes(m))) return BUNDLES.operations;
+  // Operations Bundle
+  if (pm && ins && !wo && !fuel && !transfers) {
+    bundleActive = true;
+    activeBundle = "operations";
+  }
 
-      return null;
-    }
+  // Full Equipment Bundle
+  if (pm && ins && wo && !fuel && !transfers) {
+    bundleActive = true;
+    activeBundle = "fullEquipment";
+  }
+
+  // Complete Platform Bundle
+  if (pm && ins && wo && fuel && transfers) {
+    bundleActive = true;
+    activeBundle = "completePlatform";
+  }
+
+  // Auto-select Extraction Engine when bundle is active
+  if (bundleActive) {
+    extraction.checked = true;
+    extraction.disabled = true;
+  } else {
+    // Only enable if PM or Inspections selected
+    extraction.disabled = !(pm || ins);
+    if (!pm && !ins) extraction.checked = false;
+  }
+}
+
 
     function renderCart() {
       const selections = JSON.parse(localStorage.getItem("driven_modules") || "{}");
