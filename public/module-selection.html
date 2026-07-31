@@ -407,7 +407,7 @@
 
           </div>
 
-          <div class="footer-actions">
+            <div class="footer-actions">
             <button class="btn-secondary" id="btnCancel">Cancel</button>
             <button class="btn-primary" id="btnContinue">Continue</button>
           </div>
@@ -532,17 +532,34 @@
       window.location.href = "/";
     });
 
-    // Extraction Engine rules
+    // ⭐ Bundle Activated Banner
+    function showBundleBanner() {
+      if (!bundleActive) {
+        statusBar.textContent = "";
+        statusBar.style.display = "none";
+        return;
+      }
+
+      statusBar.style.display = "block";
+      statusBar.textContent = `Bundle Activated: ${activeBundle.replace(/([A-Z])/g, ' $1')}`;
+    }
+
+    // ⭐ Extraction Engine rules
     function updateExtractionRules() {
       const pm = document.getElementById("modPM").checked;
       const ins = document.getElementById("modInspections").checked;
       const extraction = document.getElementById("modExtraction");
 
+      if (!extraction) return;
+
       if (bundleActive) {
         extraction.checked = true;
         extraction.disabled = true;
+        extraction.parentElement.querySelector(".module-price").innerHTML = `<span class="included-badge">Included in Bundle</span>`;
         return;
       }
+
+      extraction.parentElement.querySelector(".module-price").textContent = "$149/month";
 
       if (pm || ins) {
         extraction.disabled = false;
@@ -552,7 +569,7 @@
       }
     }
 
-    // Bundle detection
+    // ⭐ Bundle detection
     function detectBundle() {
       const pm = document.getElementById("modPM").checked;
       const ins = document.getElementById("modInspections").checked;
@@ -560,98 +577,58 @@
       const fuel = document.getElementById("modFuel").checked;
       const transfers = document.getElementById("modTransfers").checked;
 
+      const extraction = document.getElementById("modExtraction");
+
       bundleActive = false;
       activeBundle = null;
 
       if (pm && ins && !wo && !fuel && !transfers) {
         bundleActive = true;
-        activeBundle = "operations";
+        activeBundle = "Operations Bundle";
       }
 
       if (pm && ins && wo && !fuel && !transfers) {
         bundleActive = true;
-        activeBundle = "fullEquipment";
+        activeBundle = "Full Equipment Bundle";
       }
 
       if (pm && ins && wo && fuel && transfers) {
         bundleActive = true;
-        activeBundle = "completePlatform";
+        activeBundle = "Complete Platform Bundle";
       }
 
+      if (extraction) {
+        if (bundleActive) {
+          extraction.checked = true;
+          extraction.disabled = true;
+        } else {
+          extraction.disabled = !(pm || ins);
+          if (!pm && !ins) extraction.checked = false;
+        }
+      }
+
+      showBundleBanner();
       updateExtractionRules();
     }
 
-    // Build ordered module list
-    function buildModuleOrder() {
-      const modules = [];
+    // ⭐ Restore previous selections
+    window.addEventListener("DOMContentLoaded", () => {
+      const saved = JSON.parse(localStorage.getItem("driven_modules") || "{}");
 
-      modules.push("Equipment Management");
+      if (!saved) return;
 
-      if (document.getElementById("modPM").checked) {
-        modules.push("Preventative Maintenance");
-      }
+      document.getElementById("modPM").checked = saved.pm || false;
+      document.getElementById("modInspections").checked = saved.inspections || false;
+      document.getElementById("modWorkOrders").checked = saved.workorders || false;
+      document.getElementById("modFuel").checked = saved.fuel || false;
+      document.getElementById("modTransfers").checked = saved.transfers || false;
+      document.getElementById("modExtraction").checked = saved.extraction || false;
 
-      if (document.getElementById("modInspections").checked) {
-        modules.push("Equipment Inspections");
-      }
+      detectBundle();
+      updateExtractionRules();
+    });
 
-      if (document.getElementById("modExtraction").checked) {
-        modules.push("Extraction Engine");
-      }
-
-      if (document.getElementById("modWorkOrders").checked) {
-        modules.push("Work Orders");
-      }
-
-      if (document.getElementById("modFuel").checked) {
-        modules.push("Fuel Usage Tracking");
-      }
-
-      if (document.getElementById("modTransfers").checked) {
-        modules.push("Equipment Transfer Tracking");
-      }
-
-      if (bundleActive) {
-        if (activeBundle === "operations") modules.push("Operations Bundle");
-        if (activeBundle === "fullEquipment") modules.push("Full Equipment Bundle");
-        if (activeBundle === "completePlatform") modules.push("Complete Platform Bundle");
-      }
-
-      return modules;
-    }
-
-    // Pricing logic
-    function calculatePricing() {
-      let unitTotal = 149;
-      let chargeTotal = 149;
-
-      const pm = document.getElementById("modPM").checked;
-      const ins = document.getElementById("modInspections").checked;
-      const wo = document.getElementById("modWorkOrders").checked;
-      const fuel = document.getElementById("modFuel").checked;
-      const transfers = document.getElementById("modTransfers").checked;
-      const extraction = document.getElementById("modExtraction").checked;
-
-      if (pm) unitTotal += 299;
-      if (ins) unitTotal += 199;
-      if (wo) unitTotal += 149;
-      if (fuel) unitTotal += 49;
-      if (transfers) unitTotal += 79;
-
-      if (extraction) unitTotal += 149;
-
-      if (bundleActive) {
-        if (activeBundle === "operations") chargeTotal = 499;
-        if (activeBundle === "fullEquipment") chargeTotal = 529;
-        if (activeBundle === "completePlatform") chargeTotal = 599;
-      }
-
-      const savings = unitTotal - chargeTotal;
-
-      return { unitTotal, chargeTotal, savings };
-    }
-
-    // Continue button
+    // ⭐ Continue button
     btnContinue.addEventListener("click", () => {
       detectBundle();
 
@@ -662,30 +639,13 @@
         fuel: document.getElementById("modFuel").checked,
         transfers: document.getElementById("modTransfers").checked,
         extraction: document.getElementById("modExtraction").checked,
-        bundle: activeBundle,
-        orderedModules: buildModuleOrder()
+        bundle: activeBundle
       };
 
       localStorage.setItem("driven_modules", JSON.stringify(selections));
 
       window.location.href = "/public/cart.html";
-// Restore previous selections when returning from cart
-window.addEventListener("DOMContentLoaded", () => {
-  const saved = JSON.parse(localStorage.getItem("driven_modules") || "{}");
-
-  if (!saved) return;
-
-  document.getElementById("modPM").checked = saved.pm || false;
-  document.getElementById("modInspections").checked = saved.inspections || false;
-  document.getElementById("modWorkOrders").checked = saved.workorders || false;
-  document.getElementById("modFuel").checked = saved.fuel || false;
-  document.getElementById("modTransfers").checked = saved.transfers || false;
-  document.getElementById("modExtraction").checked = saved.extraction || false;
-
-  detectBundle();
-  updateExtractionRules();
-});
-
+    });
   </script>
 </body>
 </html>
