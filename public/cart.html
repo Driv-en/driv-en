@@ -256,15 +256,15 @@
     }
   };
 
-  // ⭐ Convert module-selection names → cart keys
+  // ⭐ Convert module-selection keys → display names
   const MODULE_MAP = {
+    equipment: "Equipment Management",
     pm: "Preventative Maintenance",
     inspections: "Equipment Inspections",
+    extraction: "Extraction Engine",
     workorders: "Work Orders",
     fuel: "Fuel Usage Tracking",
-    transfers: "Equipment Transfer Tracking",
-    extraction: "Extraction Engine",
-    equipment: "Equipment Management"
+    transfers: "Equipment Transfer Tracking"
   };
 
   // ⭐ Render cart
@@ -279,8 +279,10 @@
     const bundle = bundleName ? BUNDLES[bundleName] : null;
     const bundleModules = bundle ? new Set(bundle.modules) : new Set();
 
-    // ⭐ Always include Equipment Management
-    const selectedModules = ["equipment"];
+    // ⭐ Build selected modules list
+    const selectedModules = [];
+
+    selectedModules.push("equipment"); // always included
 
     if (selections.pm) selectedModules.push("pm");
     if (selections.inspections) selectedModules.push("inspections");
@@ -289,29 +291,35 @@
     if (selections.transfers) selectedModules.push("transfers");
     if (selections.extraction) selectedModules.push("extraction");
 
-    // ⭐ Build rows
+    // ⭐ Separate bundle modules and extra modules
+    const bundleModuleList = [];
+    const extraModuleList = [];
+
     selectedModules.forEach(key => {
+      if (bundleModules.has(key)) {
+        bundleModuleList.push(key);
+      } else {
+        extraModuleList.push(key);
+      }
+    });
+
+    // ⭐ Render bundle modules first
+    bundleModuleList.forEach(key => {
       const name = MODULE_MAP[key];
       const price = PRICES[key];
 
       unitTotal += price;
 
-      const isBundled = bundleModules.has(key);
-
       rows.push(`
         <div class="module-row">
           <div class="module-name">${name}</div>
           <div class="unit-price">$${price}</div>
-          <div class="extended-price">${isBundled ? "-" : `$${price}`}</div>
+          <div class="extended-price">-</div>
         </div>
       `);
-
-      if (!isBundled) {
-        chargeTotal += price;
-      }
     });
 
-    // ⭐ Add bundle row if bundle selected
+    // ⭐ Render bundle row (after bundle modules)
     if (bundle) {
       rows.push(`
         <div class="module-row bundle-row">
@@ -322,7 +330,27 @@
       `);
 
       chargeTotal += bundle.price;
+    }
 
+    // ⭐ Render extra modules AFTER bundle
+    extraModuleList.forEach(key => {
+      const name = MODULE_MAP[key];
+      const price = PRICES[key];
+
+      unitTotal += price;
+      chargeTotal += price;
+
+      rows.push(`
+        <div class="module-row">
+          <div class="module-name">${name}</div>
+          <div class="unit-price">$${price}</div>
+          <div class="extended-price">$${price}</div>
+        </div>
+      `);
+    });
+
+    // ⭐ Savings line
+    if (bundle) {
       const savings = unitTotal - chargeTotal;
       savingsLine.style.display = "block";
       savingsLine.textContent = `You saved $${savings} with the ${bundleName}.`;
@@ -360,6 +388,7 @@
   statusBar.textContent = "Review your selections.";
   renderCart();
 </script>
+
 
 </body>
 </html>
