@@ -510,290 +510,301 @@
     <span class="footer-line-2">Driv-en is a Digital Safety Inspection, LLC platform.</span>
   </footer>
 
-  <script>
-    const checkoutList = document.getElementById("checkoutList");
-    const subtotalMonthlyEl = document.getElementById("subtotalMonthly");
-    const taxMonthlyEl = document.getElementById("taxMonthly");
-    const totalMonthlyEl = document.getElementById("totalMonthly");
-    const subtotalAnnualEl = document.getElementById("subtotalAnnual");
-    const taxAnnualEl = document.getElementById("taxAnnual");
-    const totalAnnualEl = document.getElementById("totalAnnual");
-    const monthlySavingsBox = document.getElementById("monthlySavingsBox");
-    const annualSavingsBox = document.getElementById("annualSavingsBox");
-    const statusBar = document.getElementById("statusBar");
-    const billingNote = document.getElementById("billingNote");
-    const billingMonthly = document.getElementById("billingMonthly");
-    const billingAnnual = document.getElementById("billingAnnual");
+<script>
+  const checkoutList = document.getElementById("checkoutList");
+  const subtotalMonthlyEl = document.getElementById("subtotalMonthly");
+  const taxMonthlyEl = document.getElementById("taxMonthly");
+  const totalMonthlyEl = document.getElementById("totalMonthly");
+  const subtotalAnnualEl = document.getElementById("subtotalAnnual");
+  const taxAnnualEl = document.getElementById("taxAnnual");
+  const totalAnnualEl = document.getElementById("totalAnnual");
+  const monthlySavingsBox = document.getElementById("monthlySavingsBox");
+  const annualSavingsBox = document.getElementById("annualSavingsBox");
+  const statusBar = document.getElementById("statusBar");
+  const billingNote = document.getElementById("billingNote");
+  const billingMonthly = document.getElementById("billingMonthly");
+  const billingAnnual = document.getElementById("billingAnnual");
 
-    const PRICES = {
-      equipment: 149,
-      pm: 299,
-      inspections: 199,
-      workorders: 149,
-      fuel: 49,
-      transfers: 79
-    };
+  // ⭐ Prices
+  const PRICES = {
+    equipment: 149,
+    pm: 299,
+    inspections: 199,
+    extraction: 149,
+    workorders: 149,
+    fuel: 49,
+    transfers: 79
+  };
 
-    const BUNDLES = {
-      operations: {
-        name: "Operations Bundle",
-        modules: ["equipment", "pm", "inspections"],
-        price: 499
-      },
-      fullEquipment: {
-        name: "Full Equipment Bundle",
-        modules: ["equipment", "pm", "inspections", "workorders"],
-        price: 529
-      },
-      complete: {
-        name: "Complete Platform Bundle",
-        modules: ["equipment", "pm", "inspections", "workorders", "fuel", "transfers"],
-        price: 599
+  // ⭐ Bundle definitions (including extraction)
+  const BUNDLES = {
+    "Operations Bundle": {
+      modules: ["equipment", "pm", "inspections", "extraction"],
+      price: 499
+    },
+    "Full Equipment Bundle": {
+      modules: ["equipment", "pm", "inspections", "workorders", "extraction"],
+      price: 529
+    },
+    "Complete Platform Bundle": {
+      modules: ["equipment", "pm", "inspections", "workorders", "fuel", "transfers", "extraction"],
+      price: 599
+    }
+  };
+
+  // ⭐ Convert module-selection keys → display names
+  const MODULE_MAP = {
+    equipment: "Equipment Management (Required)",
+    pm: "Preventative Maintenance",
+    inspections: "Equipment Inspections",
+    extraction: "Extraction Engine",
+    workorders: "Work Orders",
+    fuel: "Fuel Usage Tracking",
+    transfers: "Equipment Transfer Tracking"
+  };
+
+  function generateOrderNumber() {
+    const date = new Date();
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    const rand = String(Math.floor(Math.random() * 90000) + 10000);
+    return `DRN-${y}${m}${d}-${rand}`;
+  }
+
+  // ⭐ Render checkout (same grouping logic as cart)
+  function renderCheckout() {
+    const selections = JSON.parse(localStorage.getItem("driven_modules") || "{}");
+
+    const rows = [];
+    let unitTotal = 0;
+    let chargeTotal = 0;
+
+    const bundleName = selections.bundle || null;
+    const bundle = bundleName ? BUNDLES[bundleName] : null;
+    const bundleModules = bundle ? new Set(bundle.modules) : new Set();
+
+    // ⭐ Build selected modules list
+    const selectedModules = ["equipment"]; // always included
+
+    if (selections.pm) selectedModules.push("pm");
+    if (selections.inspections) selectedModules.push("inspections");
+    if (selections.workorders) selectedModules.push("workorders");
+    if (selections.fuel) selectedModules.push("fuel");
+    if (selections.transfers) selectedModules.push("transfers");
+    if (selections.extraction) selectedModules.push("extraction");
+
+    // ⭐ Separate bundle modules and extra modules
+    const bundleModuleList = [];
+    const extraModuleList = [];
+
+    selectedModules.forEach(key => {
+      if (bundleModules.has(key)) {
+        bundleModuleList.push(key);
+      } else {
+        extraModuleList.push(key);
       }
-    };
+    });
 
-    function generateOrderNumber() {
-      const date = new Date();
-      const y = date.getFullYear();
-      const m = String(date.getMonth() + 1).padStart(2, "0");
-      const d = String(date.getDate()).padStart(2, "0");
-      const rand = String(Math.floor(Math.random() * 90000) + 10000);
-      return `DRN-${y}${m}${d}-${rand}`;
-    }
+    // ⭐ Render bundle modules first (with Included badge)
+    bundleModuleList.forEach(key => {
+      const name = MODULE_MAP[key];
+      const price = PRICES[key];
 
-    function detectBundle(selections) {
-      const active = ["equipment"];
-      if (selections.pm) active.push("pm");
-      if (selections.inspections) active.push("inspections");
-      if (selections.workorders) active.push("workorders");
-      if (selections.fuel) active.push("fuel");
-      if (selections.transfers) active.push("transfers");
+      unitTotal += price;
 
-      if (BUNDLES.complete.modules.every(m => active.includes(m))) return BUNDLES.complete;
-      if (BUNDLES.fullEquipment.modules.every(m => active.includes(m))) return BUNDLES.fullEquipment;
-      if (BUNDLES.operations.modules.every(m => active.includes(m))) return BUNDLES.operations;
-
-      return null;
-    }
-
-    function renderCheckout() {
-      const selections = JSON.parse(localStorage.getItem("driven_modules") || "{}");
-
-      const rows = [];
-      let unitTotal = 0;
-      let chargeTotal = 0;
-
-      const bundle = detectBundle(selections);
-      const bundleModules = bundle ? new Set(bundle.modules) : new Set();
-
-      function addRow(name, unitPrice, extendedPrice) {
-        rows.push(`
-          <div class="module-row">
-            <div class="module-name">${name}</div>
-            <div class="unit-price">$${unitPrice}</div>
-            <div class="extended-price">${extendedPrice !== null ? `$${extendedPrice}` : "-"}</div>
+      rows.push(`
+        <div class="module-row">
+          <div class="module-name">
+            ${name}
+            <span class="included-badge" style="
+              background:#e8f5e9;
+              border:1px solid #4caf50;
+              padding:2px 6px;
+              margin-left:8px;
+              border-radius:4px;
+              font-size:12px;
+              color:#2e7d32;
+            ">Included in Bundle</span>
           </div>
-        `);
-      }
+          <div class="unit-price">$${price}</div>
+          <div class="extended-price">-</div>
+        </div>
+      `);
+    });
 
-      unitTotal += PRICES.equipment;
-      const emBundled = bundleModules.has("equipment");
-      addRow("Equipment Management (Required)", PRICES.equipment, emBundled ? null : PRICES.equipment);
-      if (!emBundled) chargeTotal += PRICES.equipment;
+    // ⭐ Render bundle row (after bundle modules)
+    if (bundle) {
+      rows.push(`
+        <div class="module-row bundle-row">
+          <div class="module-name">${bundleName}</div>
+          <div class="unit-price">-</div>
+          <div class="extended-price">$${bundle.price}</div>
+        </div>
+      `);
 
-      if (selections.pm) {
-        unitTotal += PRICES.pm;
-        const isBundled = bundleModules.has("pm");
-        addRow("Preventative Maintenance", PRICES.pm, isBundled ? null : PRICES.pm);
-        if (!isBundled) chargeTotal += PRICES.pm;
-      }
-
-      if (selections.inspections) {
-        unitTotal += PRICES.inspections;
-        const isBundled = bundleModules.has("inspections");
-        addRow("Equipment Inspections", PRICES.inspections, isBundled ? null : PRICES.inspections);
-        if (!isBundled) chargeTotal += PRICES.inspections;
-      }
-
-      if (selections.workorders) {
-        unitTotal += PRICES.workorders;
-        const isBundled = bundleModules.has("workorders");
-        addRow("Work Orders", PRICES.workorders, isBundled ? null : PRICES.workorders);
-        if (!isBundled) chargeTotal += PRICES.workorders;
-      }
-
-      if (selections.fuel) {
-        unitTotal += PRICES.fuel;
-        const isBundled = bundleModules.has("fuel");
-        addRow("Fuel Usage Tracking", PRICES.fuel, isBundled ? null : PRICES.fuel);
-        if (!isBundled) chargeTotal += PRICES.fuel;
-      }
-
-      if (selections.transfers) {
-        unitTotal += PRICES.transfers;
-        const isBundled = bundleModules.has("transfers");
-        addRow("Equipment Transfer Tracking", PRICES.transfers, isBundled ? null : PRICES.transfers);
-        if (!isBundled) chargeTotal += PRICES.transfers;
-      }
-
-      if (bundle) {
-        addRow(bundle.name, "-", bundle.price);
-        chargeTotal += bundle.price;
-      }
-
-      checkoutList.innerHTML = rows.join("");
-
-// Correct savings calculations
-const savings = unitTotal - chargeTotal;
-const monthlySavings = savings;
-
-// Annual savings = (unitTotal * 12) - (chargeTotal * 12 * 0.9)
-const annualNoDiscount = unitTotal * 12;
-const annualWithDiscount = chargeTotal * 12 * 0.9;
-const annualSavings = annualNoDiscount - annualWithDiscount;
-
-// Update savings boxes
-monthlySavingsBox.textContent =
-  `Monthly Savings: $${monthlySavings.toFixed(2)}`;
-
-annualSavingsBox.textContent =
-  `Annual Savings: $${annualSavings.toFixed(2)}`;
-
-// Monthly totals
-const monthlySubtotal = chargeTotal;
-const monthlyTax = monthlySubtotal * 0.0825;
-const monthlyTotal = monthlySubtotal + monthlyTax;
-
-subtotalMonthlyEl.textContent = `$${monthlySubtotal.toFixed(2)}`;
-taxMonthlyEl.textContent = `$${monthlyTax.toFixed(2)}`;
-totalMonthlyEl.textContent = `$${monthlyTotal.toFixed(2)}`;
-
-// Annual totals (with 10% discount)
-const annualSubtotal = chargeTotal * 12 * 0.9;
-const annualTax = annualSubtotal * 0.0825;
-const annualTotal = annualSubtotal + annualTax;
-
-subtotalAnnualEl.textContent = `$${annualSubtotal.toFixed(2)}`;
-taxAnnualEl.textContent = `$${annualTax.toFixed(2)}`;
-totalAnnualEl.textContent = `$${annualTotal.toFixed(2)}`;
-
+      chargeTotal += bundle.price;
     }
 
-    document.getElementById("orderNumber").textContent = generateOrderNumber();
+    // ⭐ Render extra modules AFTER bundle
+    extraModuleList.forEach(key => {
+      const name = MODULE_MAP[key];
+      const price = PRICES[key];
 
-    billingMonthly.addEventListener("change", () => {
-      if (billingMonthly.checked) {
-        billingNote.textContent = "Selected billing: Monthly";
-        localStorage.setItem("driven_billing_cycle", "monthly");
-      }
+      unitTotal += price;
+      chargeTotal += price;
+
+      rows.push(`
+        <div class="module-row">
+          <div class="module-name">${name}</div>
+          <div class="unit-price">$${price}</div>
+          <div class="extended-price">$${price}</div>
+        </div>
+      `);
     });
 
-    billingAnnual.addEventListener("change", () => {
-      if (billingAnnual.checked) {
-        billingNote.textContent = "Selected billing: Annual (10% off)";
-        localStorage.setItem("driven_billing_cycle", "annual");
-      }
-    });
+    checkoutList.innerHTML = rows.join("");
 
-    document.getElementById("btnBackCart").addEventListener("click", () => {
-      window.location.href = "cart.html";
-    });
+    // ⭐ Savings
+    const savings = unitTotal - chargeTotal;
+    const monthlySavings = savings;
 
-    document.getElementById("btnBackModules").addEventListener("click", () => {
-      window.location.href = "module-selection.html";
-    });
+    const annualNoDiscount = unitTotal * 12;
+    const annualWithDiscount = chargeTotal * 12 * 0.9;
+    const annualSavings = annualNoDiscount - annualWithDiscount;
 
-    document.getElementById("btnPrint").addEventListener("click", () => {
-      window.print();
+    monthlySavingsBox.textContent = `Monthly Savings: $${monthlySavings.toFixed(2)}`;
+    annualSavingsBox.textContent = `Annual Savings: $${annualSavings.toFixed(2)}`;
+
+    // ⭐ Monthly totals
+    const monthlySubtotal = chargeTotal;
+    const monthlyTax = monthlySubtotal * 0.0825;
+    const monthlyTotal = monthlySubtotal + monthlyTax;
+
+    subtotalMonthlyEl.textContent = `$${monthlySubtotal.toFixed(2)}`;
+    taxMonthlyEl.textContent = `$${monthlyTax.toFixed(2)}`;
+    totalMonthlyEl.textContent = `$${monthlyTotal.toFixed(2)}`;
+
+    // ⭐ Annual totals (with 10% discount)
+    const annualSubtotal = chargeTotal * 12 * 0.9;
+    const annualTax = annualSubtotal * 0.0825;
+    const annualTotal = annualSubtotal + annualTax;
+
+    subtotalAnnualEl.textContent = `$${annualSubtotal.toFixed(2)}`;
+    taxAnnualEl.textContent = `$${annualTax.toFixed(2)}`;
+    totalAnnualEl.textContent = `$${annualTotal.toFixed(2)}`;
+  }
+
+  // ⭐ Order number
+  document.getElementById("orderNumber").textContent = generateOrderNumber();
+
+  // ⭐ Billing selection
+  billingMonthly.addEventListener("change", () => {
+    if (billingMonthly.checked) {
+      billingNote.textContent = "Selected billing: Monthly";
+      localStorage.setItem("driven_billing_cycle", "monthly");
+    }
+  });
+
+  billingAnnual.addEventListener("change", () => {
+    if (billingAnnual.checked) {
+      billingNote.textContent = "Selected billing: Annual (10% off)";
+      localStorage.setItem("driven_billing_cycle", "annual");
+    }
+  });
+
+  // ⭐ Navigation buttons
+  document.getElementById("btnBackCart").addEventListener("click", () => {
+    window.location.href = "cart.html";
+  });
+
+  document.getElementById("btnBackModules").addEventListener("click", () => {
+    window.location.href = "module-selection.html";
+  });
+
+  document.getElementById("btnPrint").addEventListener("click", () => {
+    window.print();
+  });
+
+  // ⭐ Required field validation
+  function clearFieldErrors() {
+    ["companyName","contactName","phone","email","street","city","state","zip"].forEach(id => {
+      document.getElementById(id).classList.remove("error");
     });
-    function clearFieldErrors() {
-      const fields = [
-        "companyName",
-        "contactName",
-        "phone",
-        "email",
-        "street",
-        "city",
-        "state",
-        "zip"
-      ];
-      fields.forEach(id => {
-        const el = document.getElementById(id);
-        el.classList.remove("error");
-      });
+  }
+
+  function markMissingFields(missingIds) {
+    missingIds.forEach(id => {
+      document.getElementById(id).classList.add("error");
+    });
+    if (missingIds.length > 0) {
+      document.getElementById(missingIds[0]).scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
+
+  // ⭐ Confirm order
+  document.getElementById("btnConfirm").addEventListener("click", () => {
+    clearFieldErrors();
+
+    const companyName = document.getElementById("companyName").value.trim();
+    const contactName = document.getElementById("contactName").value.trim();
+    const phone = document.getElementById("phone").value.trim();
+    const email = document.getElementById("email").value.trim();
+    const street = document.getElementById("street").value.trim();
+    const city = document.getElementById("city").value.trim();
+    const state = document.getElementById("state").value.trim();
+    const zip = document.getElementById("zip").value.trim();
+    const poRaw = document.getElementById("poNumber").value.trim();
+    const billingCycle = billingAnnual.checked ? "Annual (10% off)" : "Monthly";
+
+    const missing = [];
+    if (!companyName) missing.push("companyName");
+    if (!contactName) missing.push("contactName");
+    if (!phone) missing.push("phone");
+    if (!email) missing.push("email");
+    if (!street) missing.push("street");
+    if (!city) missing.push("city");
+    if (!state) missing.push("state");
+    if (!zip) missing.push("zip");
+
+    if (missing.length > 0) {
+      statusBar.textContent = "Please complete all required Customer Information fields.";
+      statusBar.classList.remove("success");
+      markMissingFields(missing);
+      return;
     }
 
-    function markMissingFields(missingIds) {
-      missingIds.forEach(id => {
-        const el = document.getElementById(id);
-        el.classList.add("error");
-      });
-      if (missingIds.length > 0) {
-        const first = document.getElementById(missingIds[0]);
-        first.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
+    const billingConfirmMessage =
+      billingCycle === "Monthly"
+        ? "You selected Monthly Billing. Continue?"
+        : "You selected Annual Billing (10% off). Continue?";
+
+    if (!confirm(billingConfirmMessage)) {
+      statusBar.textContent = "Order confirmation cancelled.";
+      statusBar.classList.remove("success");
+      return;
     }
 
-    document.getElementById("btnConfirm").addEventListener("click", () => {
-      clearFieldErrors();
-
-      const companyName = document.getElementById("companyName").value.trim();
-      const contactName = document.getElementById("contactName").value.trim();
-      const phone = document.getElementById("phone").value.trim();
-      const email = document.getElementById("email").value.trim();
-      const street = document.getElementById("street").value.trim();
-      const city = document.getElementById("city").value.trim();
-      const state = document.getElementById("state").value.trim();
-      const zip = document.getElementById("zip").value.trim();
-      const poRaw = document.getElementById("poNumber").value.trim();
-      const billingCycle = billingAnnual.checked ? "Annual (10% off)" : "Monthly";
-
-      const missing = [];
-      if (!companyName) missing.push("companyName");
-      if (!contactName) missing.push("contactName");
-      if (!phone) missing.push("phone");
-      if (!email) missing.push("email");
-      if (!street) missing.push("street");
-      if (!city) missing.push("city");
-      if (!state) missing.push("state");
-      if (!zip) missing.push("zip");
-
-      if (missing.length > 0) {
-        statusBar.textContent = "Please complete all required Customer Information fields.";
-        statusBar.classList.remove("success");
-        markMissingFields(missing);
-        return;
-      }
-
-      const billingConfirmMessage =
-        billingCycle === "Monthly"
-          ? "You selected Monthly Billing. Continue?"
-          : "You selected Annual Billing (10% off). Continue?";
-
-      if (!confirm(billingConfirmMessage)) {
+    if (!poRaw) {
+      if (!confirm("You did not enter a PO Number. Continue without a PO?")) {
         statusBar.textContent = "Order confirmation cancelled.";
         statusBar.classList.remove("success");
         return;
       }
+    }
 
-      if (!poRaw) {
-        if (!confirm("You did not enter a PO Number. Continue without a PO?")) {
-          statusBar.textContent = "Order confirmation cancelled.";
-          statusBar.classList.remove("success");
-          return;
-        }
-      }
+    const po = poRaw || "(none)";
 
-      const po = poRaw || "(none)";
+    statusBar.textContent =
+      `Order confirmed. Billing: ${billingCycle}. PO: ${po}. ` +
+      `Customer: ${companyName}, ${street}, ${city}, ${state} ${zip}. ` +
+      `Admin: ${contactName}, ${phone}, ${email}. (Payment will be added later.)`;
+    statusBar.classList.add("success");
+  });
 
-      statusBar.textContent =
-        `Order confirmed. Billing: ${billingCycle}. PO: ${po}. ` +
-        `Customer: ${companyName}, ${street}, ${city}, ${state} ${zip}. ` +
-        `Admin: ${contactName}, ${phone}, ${email}. (Payment will be added later.)`;
-      statusBar.classList.add("success");
-    });
+  // ⭐ Render checkout
+  renderCheckout();
+</script>
 
-    renderCheckout();
-  </script>
 </body>
 </html>
