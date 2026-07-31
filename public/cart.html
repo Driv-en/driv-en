@@ -233,6 +233,7 @@
       equipment: 149,
       pm: 299,
       inspections: 199,
+      extraction: 149,
       workorders: 149,
       fuel: 49,
       transfers: 79
@@ -241,25 +242,27 @@
     const BUNDLES = {
       operations: {
         name: "Operations Bundle",
-        modules: ["equipment", "pm", "inspections"],
+        modules: ["equipment", "pm", "inspections", "extraction"],
         price: 499
       },
       fullEquipment: {
         name: "Full Equipment Bundle",
-        modules: ["equipment", "pm", "inspections", "workorders"],
+        modules: ["equipment", "pm", "inspections", "workorders", "extraction"],
         price: 529
       },
       complete: {
         name: "Complete Platform Bundle",
-        modules: ["equipment", "pm", "inspections", "workorders", "fuel", "transfers"],
+        modules: ["equipment", "pm", "inspections", "workorders", "fuel", "transfers", "extraction"],
         price: 599
       }
     };
 
     function detectBundle(selections) {
       const active = ["equipment"];
+
       if (selections.pm) active.push("pm");
       if (selections.inspections) active.push("inspections");
+      if (selections.extraction) active.push("extraction");
       if (selections.workorders) active.push("workorders");
       if (selections.fuel) active.push("fuel");
       if (selections.transfers) active.push("transfers");
@@ -285,56 +288,50 @@
         rows.push(`
           <div class="module-row">
             <div class="module-name">${name}</div>
-            <div class="unit-price">$${unitPrice}</div>
+            <div class="unit-price">${unitPrice !== "-" ? `$${unitPrice}` : "-"}</div>
             <div class="extended-price">${extendedPrice !== null ? `$${extendedPrice}` : "-"}</div>
           </div>
         `);
       }
 
-      unitTotal += PRICES.equipment;
-      const emBundled = bundleModules.has("equipment");
-      addRow("Equipment Management (Required)", PRICES.equipment, emBundled ? null : PRICES.equipment);
-      if (!emBundled) chargeTotal += PRICES.equipment;
+      // ORDERED MODULE DISPLAY
+      const ordered = selections.orderedModules || [];
 
-      if (selections.pm) {
-        unitTotal += PRICES.pm;
-        const isBundled = bundleModules.has("pm");
-        addRow("Preventative Maintenance", PRICES.pm, isBundled ? null : PRICES.pm);
-        if (!isBundled) chargeTotal += PRICES.pm;
-      }
+      ordered.forEach(mod => {
+        let key = "";
+        let price = 0;
 
-      if (selections.inspections) {
-        unitTotal += PRICES.inspections;
-        const isBundled = bundleModules.has("inspections");
-        addRow("Equipment Inspections", PRICES.inspections, isBundled ? null : PRICES.inspections);
-        if (!isBundled) chargeTotal += PRICES.inspections;
-      }
+        if (mod === "Equipment Management") {
+          key = "equipment"; price = PRICES.equipment;
+        } else if (mod === "Preventative Maintenance") {
+          key = "pm"; price = PRICES.pm;
+        } else if (mod === "Equipment Inspections") {
+          key = "inspections"; price = PRICES.inspections;
+        } else if (mod === "Extraction Engine") {
+          key = "extraction"; price = PRICES.extraction;
+        } else if (mod === "Work Orders") {
+          key = "workorders"; price = PRICES.workorders;
+        } else if (mod === "Fuel Usage Tracking") {
+          key = "fuel"; price = PRICES.fuel;
+        } else if (mod === "Equipment Transfer Tracking") {
+          key = "transfers"; price = PRICES.transfers;
+        } else {
+          // Bundle rows
+          addRow(mod, "-", bundle.price);
+          chargeTotal += bundle.price;
+          return;
+        }
 
-      if (selections.workorders) {
-        unitTotal += PRICES.workorders;
-        const isBundled = bundleModules.has("workorders");
-        addRow("Work Orders", PRICES.workorders, isBundled ? null : PRICES.workorders);
-        if (!isBundled) chargeTotal += PRICES.workorders;
-      }
+        unitTotal += price;
 
-      if (selections.fuel) {
-        unitTotal += PRICES.fuel;
-        const isBundled = bundleModules.has("fuel");
-        addRow("Fuel Usage Tracking", PRICES.fuel, isBundled ? null : PRICES.fuel);
-        if (!isBundled) chargeTotal += PRICES.fuel;
-      }
+        const isBundled = bundleModules.has(key);
+        addRow(mod, price, isBundled ? null : price);
 
-      if (selections.transfers) {
-        unitTotal += PRICES.transfers;
-        const isBundled = bundleModules.has("transfers");
-        addRow("Equipment Transfer Tracking", PRICES.transfers, isBundled ? null : PRICES.transfers);
-        if (!isBundled) chargeTotal += PRICES.transfers;
-      }
+        if (!isBundled) chargeTotal += price;
+      });
 
+      // Savings line
       if (bundle) {
-        addRow(bundle.name, "-", bundle.price);
-        chargeTotal += bundle.price;
-
         const savings = unitTotal - chargeTotal;
         savingsLine.style.display = "block";
         savingsLine.textContent = `You saved $${savings} by choosing the ${bundle.name}.`;
