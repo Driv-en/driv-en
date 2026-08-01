@@ -324,7 +324,7 @@
   </style>
 
   <!-- ⭐ JS -->
-  <script>
+<script>
     const kpError = document.getElementById("kpError");
     const kpSuccess = document.getElementById("kpSuccess");
     const kpNextStep = document.getElementById("kpNextStep");
@@ -430,7 +430,7 @@
       kpTableContainer.innerHTML = table;
     }
 
-    /* Save & Continue */
+    /* ⭐ Save & Continue — UPDATED WITH CLOUDFLARE WORKER TRIGGER */
     document.getElementById("btnCompleteStep").addEventListener("click", () => {
       if (keyPersonnel.length === 0) {
         stepStatus.style.color = "#f87171";
@@ -443,11 +443,33 @@
       const updatedEmployees = existingEmployees.concat(keyPersonnel);
       localStorage.setItem("driven_employees", JSON.stringify(updatedEmployees));
 
+      /* Mark Step 1 complete */
       localStorage.setItem("driven_step1_complete", "true");
 
+      /* ⭐ Customer-facing message */
       stepStatus.style.color = "#22c55e";
-      stepStatus.textContent = "Step 1 complete. You may return to the dashboard.";
+      stepStatus.textContent =
+        "Step 1 complete. Driv-en will now email each Key Personnel with their login credentials and onboarding instructions.";
+
+      /* ⭐ Trigger Cloudflare Worker to create accounts + send emails */
+      fetch("/api/onboarding/key-personnel/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: localStorage.getItem("driven_customer_id"),
+          subscriptionId: localStorage.getItem("driven_subscription_id"),
+          activationCode: localStorage.getItem("driven_activation_code"),
+          keyPersonnel: keyPersonnel
+        })
+      })
+      .then(response => {
+        console.log("Key Personnel onboarding trigger sent:", response.status);
+      })
+      .catch(error => {
+        console.error("Error sending Key Personnel trigger:", error);
+      });
     });
-  </script>
+</script>
+
 </body>
 </html>
