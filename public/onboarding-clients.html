@@ -87,12 +87,6 @@
       font-size: 14px;
     }
 
-    .form-row {
-      margin-bottom: 15px;
-      display: flex;
-      flex-direction: column;
-    }
-
     .text-input {
       background: #0f172a;
       border: 1px solid #374151;
@@ -100,6 +94,7 @@
       color: #e5e7eb;
       padding: 10px;
       font-size: 14px;
+      width: 100%;
     }
 
     .textarea-input {
@@ -111,6 +106,7 @@
       font-size: 14px;
       height: 140px;
       resize: vertical;
+      width: 100%;
     }
 
     .btn-primary {
@@ -193,6 +189,52 @@
       margin-top: 4px;
       color: #6b7280;
     }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.75);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+    }
+
+    .modal {
+      background: #1e293b;
+      padding: 24px;
+      border-radius: 10px;
+      width: 420px;
+      max-width: 90%;
+      text-align: center;
+      border: 1px solid #334155;
+    }
+
+    .modal h3 {
+      margin-top: 0;
+      font-size: 20px;
+      color: #e5e7eb;
+    }
+
+    .modal p {
+      font-size: 14px;
+      color: #cbd5e1;
+      margin-bottom: 20px;
+    }
+
+    .modal button {
+      background: #2563eb;
+      color: white;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 15px;
+      border: none;
+      cursor: pointer;
+    }
   </style>
 </head>
 
@@ -214,6 +256,17 @@
       <img src="/logo.png" alt="DRIV‑EN Logo" class="driven-logo">
     </div>
   </header>
+
+  <!-- MODAL -->
+  <div id="lockModal" class="modal-overlay">
+    <div class="modal">
+      <h3>Step Locked</h3>
+      <p id="lockMessage">
+        This step is locked until Admin marks the previous step complete.
+      </p>
+      <button onclick="closeModal()">Return to Dashboard</button>
+    </div>
+  </div>
 
   <main class="main-container">
 
@@ -272,6 +325,23 @@
       document.getElementById("customerLogo").src = customerLogo;
     }
 
+    /* Prerequisite + Admin Unlock Logic */
+    const stepUnlocked = localStorage.getItem("driven_unlock_clients") === "true";
+
+    function showModal(message) {
+      document.getElementById("lockMessage").textContent = message;
+      document.getElementById("lockModal").style.display = "flex";
+    }
+
+    function closeModal() {
+      window.location.href = "onboarding-dashboard.html";
+    }
+
+    if (!stepUnlocked) {
+      showModal("Admin has not unlocked this step yet.");
+    }
+
+    /* Client Storage */
     let clients = JSON.parse(localStorage.getItem("driven_clients") || "[]");
 
     const csvStatus = document.getElementById("csvStatus");
