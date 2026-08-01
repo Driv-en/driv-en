@@ -102,6 +102,17 @@
       font-size: 14px;
     }
 
+    .textarea-input {
+      background: #0f172a;
+      border: 1px solid #374151;
+      border-radius: 6px;
+      color: #e5e7eb;
+      padding: 10px;
+      font-size: 14px;
+      height: 140px;
+      resize: vertical;
+    }
+
     .btn-primary {
       background: #2563eb;
       color: white;
@@ -208,66 +219,34 @@
 
     <!-- INTRO -->
     <section class="card">
-      <h2>Clients (Corporate Level)</h2>
+      <h2>Client Upload</h2>
       <p class="card-subtitle">
-        Add the clients your business works with at the <strong>corporate level</strong> — the main company or owner.
-        This is <strong>not</strong> where you enter project locations or satellite offices.  
-        When the Project module is available and purchased, you will add project-level locations under each Client.
+        Upload your corporate‑level client list. You may upload a CSV file or paste rows directly from Excel or Google Sheets.<br><br>
+        Only corporate‑level information is collected here. Project‑level locations and contacts will be added later if the Project module is purchased.
       </p>
     </section>
 
-    <!-- ADD SINGLE CLIENT -->
+    <!-- UPLOAD CSV -->
     <section class="card">
-      <h2>Add a Client</h2>
-
-      <div class="form-row">
-        <label>Client Name (required)</label>
-        <input type="text" id="clientName" class="text-input">
-      </div>
-
-      <div class="form-row">
-        <label>Address (optional)</label>
-        <input type="text" id="clientAddress" class="text-input">
-      </div>
-
-      <div class="form-row">
-        <label>City (optional)</label>
-        <input type="text" id="clientCity" class="text-input">
-      </div>
-
-      <div class="form-row">
-        <label>State (optional)</label>
-        <input type="text" id="clientState" class="text-input">
-      </div>
-
-      <div class="form-row">
-        <label>Zip (optional)</label>
-        <input type="text" id="clientZip" class="text-input">
-      </div>
-
-      <div class="form-row">
-        <label>Corporate Office Phone (optional)</label>
-        <input type="text" id="clientPhone" class="text-input">
-      </div>
-
-      <button id="btnAddClient" class="btn-primary">Add Client</button>
-
-      <div id="singleStatus" class="status-message"></div>
+      <h2>Upload CSV File</h2>
+      <input type="file" id="csvFile" accept=".csv" class="text-input">
+      <button id="btnUploadCSV" class="btn-primary">Process CSV File</button>
+      <div id="csvStatus" class="status-message"></div>
     </section>
 
-    <!-- BULK UPLOAD -->
+    <!-- PASTE ROWS -->
     <section class="card">
-      <h2>Bulk Upload Clients</h2>
-      <p class="card-subtitle">
-        Upload a CSV or Excel file containing your corporate-level clients.
-      </p>
+      <h2>Paste Rows from Spreadsheet</h2>
+      <textarea id="pasteArea" class="textarea-input" placeholder="Paste rows here..."></textarea>
+      <button id="btnParsePaste" class="btn-primary">Parse Pasted Data</button>
+      <div id="pasteStatus" class="status-message"></div>
+    </section>
 
-      <input type="file" id="bulkFile" accept=".xlsx,.csv" class="text-input">
-
-      <button id="btnProcessBulk" class="btn-primary">Process Upload</button>
-
-      <div id="bulkStatus" class="status-message"></div>
-      <div id="bulkPreview"></div>
+    <!-- PREVIEW -->
+    <section class="card">
+      <h2>Preview Clients</h2>
+      <p class="card-subtitle">Only required Driv‑en fields are shown.</p>
+      <div id="previewTable"></div>
     </section>
 
     <!-- ACTIONS -->
@@ -293,103 +272,131 @@
       document.getElementById("customerLogo").src = customerLogo;
     }
 
-    const singleStatus = document.getElementById("singleStatus");
-    const bulkStatus = document.getElementById("bulkStatus");
-    const bulkPreview = document.getElementById("bulkPreview");
-    const continueStatus = document.getElementById("continueStatus");
-
     let clients = JSON.parse(localStorage.getItem("driven_clients") || "[]");
 
-    /* Add Single Client */
-    document.getElementById("btnAddClient").addEventListener("click", () => {
-      singleStatus.textContent = "";
-      singleStatus.className = "status-message";
+    const csvStatus = document.getElementById("csvStatus");
+    const pasteStatus = document.getElementById("pasteStatus");
+    const previewTable = document.getElementById("previewTable");
+    const continueStatus = document.getElementById("continueStatus");
 
-      const name = document.getElementById("clientName").value.trim();
-      const address = document.getElementById("clientAddress").value.trim();
-      const city = document.getElementById("clientCity").value.trim();
-      const state = document.getElementById("clientState").value.trim();
-      const zip = document.getElementById("clientZip").value.trim();
-      const phone = document.getElementById("clientPhone").value.trim();
-
-      if (!name) {
-        singleStatus.textContent = "Client Name is required.";
-        singleStatus.classList.add("status-error");
+    function renderPreview() {
+      if (clients.length === 0) {
+        previewTable.innerHTML = "<p>No clients added yet.</p>";
         return;
       }
 
-      clients.push({ name, address, city, state, zip, phone });
-      localStorage.setItem("driven_clients", JSON.stringify(clients));
+      let html = "<table><thead><tr>";
+      html += "<th>Client Name</th><th>Address</th><th>City</th><th>State</th><th>Zip Code</th><th>Phone</th>";
+      html += "</tr></thead><tbody>";
 
-      singleStatus.textContent = "Client added.";
-      singleStatus.classList.add("status-success");
+      clients.forEach(c => {
+        html += `<tr>
+          <td>${c.name || ""}</td>
+          <td>${c.address || ""}</td>
+          <td>${c.city || ""}</td>
+          <td>${c.state || ""}</td>
+          <td>${c.zip || ""}</td>
+          <td>${c.phone || ""}</td>
+        </tr>`;
+      });
 
-      document.getElementById("clientName").value = "";
-      document.getElementById("clientAddress").value = "";
-      document.getElementById("clientCity").value = "";
-      document.getElementById("clientState").value = "";
-      document.getElementById("clientZip").value = "";
-      document.getElementById("clientPhone").value = "";
-    });
+      html += "</tbody></table>";
+      previewTable.innerHTML = html;
+    }
 
-    /* Bulk Upload */
-    document.getElementById("btnProcessBulk").addEventListener("click", () => {
-      bulkStatus.textContent = "";
-      bulkStatus.className = "status-message";
+    /* CSV Upload */
+    document.getElementById("btnUploadCSV").addEventListener("click", () => {
+      csvStatus.textContent = "";
+      csvStatus.className = "status-message";
 
-      const file = document.getElementById("bulkFile").files[0];
+      const file = document.getElementById("csvFile").files[0];
       if (!file) {
-        bulkStatus.textContent = "Please select a file.";
-        bulkStatus.classList.add("status-error");
+        csvStatus.textContent = "Please select a CSV file.";
+        csvStatus.classList.add("status-error");
         return;
       }
 
       const reader = new FileReader();
       reader.onload = function(e) {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet);
+        const text = e.target.result;
+        const rows = text.split("\n").map(r => r.split(","));
 
-        if (rows.length === 0) {
-          bulkStatus.textContent = "No rows found in file.";
-          bulkStatus.classList.add("status-error");
+        const header = rows[0].map(h => h.trim());
+        const requiredHeader = ["Client Name", "Address", "City", "State", "Zip Code", "Phone"];
+
+        if (header.length < 6 || header.some((h, i) => h !== requiredHeader[i])) {
+          csvStatus.textContent = "CSV headers must be: Client Name, Address, City, State, Zip Code, Phone";
+          csvStatus.classList.add("status-error");
           return;
         }
 
-        rows.forEach(r => {
-          clients.push({
-            name: r["Client Name"] || "",
-            address: r["Address"] || "",
-            city: r["City"] || "",
-            state: r["State"] || "",
-            zip: r["Zip"] || "",
-            phone: r["Corporate Office Phone"] || ""
-          });
+        rows.slice(1).forEach(r => {
+          if (r.length >= 1 && r[0].trim() !== "") {
+            clients.push({
+              name: r[0].trim(),
+              address: r[1]?.trim() || "",
+              city: r[2]?.trim() || "",
+              state: r[3]?.trim() || "",
+              zip: r[4]?.trim() || "",
+              phone: r[5]?.trim() || ""
+            });
+          }
         });
 
         localStorage.setItem("driven_clients", JSON.stringify(clients));
 
-        let html = "<table><thead><tr><th>Client Name</th><th>Address</th><th>City</th><th>State</th><th>Zip</th><th>Corporate Office Phone</th></tr></thead><tbody>";
-        rows.forEach(r => {
-          html += `<tr>
-            <td>${r["Client Name"] || ""}</td>
-            <td>${r["Address"] || ""}</td>
-            <td>${r["City"] || ""}</td>
-            <td>${r["State"] || ""}</td>
-            <td>${r["Zip"] || ""}</td>
-            <td>${r["Corporate Office Phone"] || ""}</td>
-          </tr>`;
-        });
-        html += "</tbody></table>";
+        csvStatus.textContent = "CSV processed successfully.";
+        csvStatus.classList.add("status-success");
 
-        bulkPreview.innerHTML = html;
-
-        bulkStatus.textContent = `Uploaded ${rows.length} clients.`;
-        bulkStatus.classList.add("status-success");
+        renderPreview();
       };
 
-      reader.readAsArrayBuffer(file);
+      reader.readAsText(file);
+    });
+
+    /* Parse Pasted Data */
+    document.getElementById("btnParsePaste").addEventListener("click", () => {
+      pasteStatus.textContent = "";
+      pasteStatus.className = "status-message";
+
+      const text = document.getElementById("pasteArea").value.trim();
+      if (!text) {
+        pasteStatus.textContent = "Paste rows from your spreadsheet first.";
+        pasteStatus.classList.add("status-error");
+        return;
+      }
+
+      const lines = text.split("\n");
+      const rows = lines.map(l => l.split("\t"));
+
+      const header = rows[0].map(h => h.trim());
+      const requiredHeader = ["Client Name", "Address", "City", "State", "Zip Code", "Phone"];
+
+      if (header.length < 6 || header.some((h, i) => h !== requiredHeader[i])) {
+        pasteStatus.textContent = "Pasted data headers must be: Client Name, Address, City, State, Zip Code, Phone";
+        pasteStatus.classList.add("status-error");
+        return;
+      }
+
+      rows.slice(1).forEach(r => {
+        if (r.length >= 1 && r[0].trim() !== "") {
+          clients.push({
+            name: r[0].trim(),
+            address: r[1]?.trim() || "",
+            city: r[2]?.trim() || "",
+            state: r[3]?.trim() || "",
+            zip: r[4]?.trim() || "",
+            phone: r[5]?.trim() || ""
+          });
+        }
+      });
+
+      localStorage.setItem("driven_clients", JSON.stringify(clients));
+
+      pasteStatus.textContent = "Pasted data processed successfully.";
+      pasteStatus.classList.add("status-success");
+
+      renderPreview();
     });
 
     /* Save & Continue */
@@ -412,6 +419,8 @@
         window.location.href = "onboarding-divisions.html";
       }, 800);
     });
+
+    renderPreview();
   </script>
 
 </body>
