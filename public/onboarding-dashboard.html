@@ -434,188 +434,352 @@
     <span class="footer-line-2">Driv‑en is a Digital Safety Inspection, LLC platform.</span>
   </footer>
 
-  <script>
-    /* Load customer logo */
-    const customerLogo = localStorage.getItem("driven_customer_logo");
-    if (customerLogo) {
-      document.getElementById("customerLogo").src = customerLogo;
+<script>
+/* ======================================================
+   DRIV‑EN v1.0 — Onboarding Dashboard Script (FULL)
+   ====================================================== */
+
+/* -----------------------------
+   Load customer logo
+----------------------------- */
+const customerLogo = localStorage.getItem("driven_customer_logo");
+if (customerLogo) {
+  document.getElementById("customerLogo").src = customerLogo;
+}
+
+/* -----------------------------
+   Modal System (Unified)
+----------------------------- */
+function showModal(title, message) {
+  document.getElementById("modalTitle").textContent = title;
+  document.getElementById("modalMessage").textContent = message;
+  document.getElementById("lockModal").style.display = "flex";
+}
+
+function closeModal() {
+  document.getElementById("lockModal").style.display = "none";
+}
+
+/* -----------------------------
+   Status Helpers
+----------------------------- */
+function setStatus(step, status, message) {
+  const pill = document.getElementById(`status-pill-${step}`);
+  const text = document.getElementById(`status-text-${step}`);
+  const msg = document.getElementById(`message-${step}`);
+
+  pill.className = "status-pill";
+  if (status === "not_started") pill.classList.add("status-not-started");
+  if (status === "in_progress") pill.classList.add("status-in-progress");
+  if (status === "completed") pill.classList.add("status-completed");
+  if (status === "blocked") pill.classList.add("status-blocked");
+  if (status === "unlocked") pill.classList.add("status-unlocked");
+
+  pill.textContent = {
+    not_started: "Not Started",
+    in_progress: "In Progress",
+    completed: "Completed",
+    blocked: "Blocked",
+    unlocked: "Unlocked"
+  }[status] || "Not Started";
+
+  text.textContent = message || "";
+  msg.textContent = "";
+}
+
+function setMessage(step, message) {
+  const msg = document.getElementById(`message-${step}`);
+  msg.textContent = message || "";
+}
+
+function setProgress(step, count) {
+  const el = document.getElementById(`progress-${step}`);
+  if (!el) return;
+  el.innerHTML = `<strong>Progress:</strong> ${count} records`;
+}
+
+/* -----------------------------
+   Prerequisite Enforcement
+----------------------------- */
+function prereqsComplete(step) {
+  const prereqs = {
+    projects: [
+      "driven_unlock_clients",
+      "driven_unlock_divisions",
+      "driven_unlock_project_types",
+      "driven_unlock_key_personnel",
+      "driven_unlock_employees"
+    ],
+    equipment: [
+      "driven_unlock_projects",
+      "driven_unlock_key_personnel",
+      "driven_unlock_employees"
+    ]
+  };
+
+  if (!prereqs[step]) return true;
+
+  return prereqs[step].every(flag => localStorage.getItem(flag) === "true");
+}
+
+/* ======================================================
+   UNLOCK LOGIC — ALL STEPS
+   ====================================================== */
+
+/* ---------- CLIENTS ---------- */
+function unlockClientsStep() {
+  localStorage.setItem("driven_unlock_clients", "true");
+
+  const btn = document.getElementById("btnClients");
+  btn.textContent = "Clients Upload Ready";
+  btn.style.backgroundColor = "#2E8B57";
+  btn.style.color = "#FFFFFF";
+
+  setStatus("clients", "unlocked", "Clients step unlocked.");
+  showModal("Clients Step Unlocked", "Assigned personnel have been notified.");
+}
+
+function openClientsUpload() {
+  if (localStorage.getItem("driven_unlock_clients") === "true") {
+    window.location.href = "onboarding-clients.html";
+    return;
+  }
+  showModal("Step Locked", "This step is locked until the Admin unlocks it from the Admin Dashboard.");
+}
+
+/* ---------- DIVISIONS ---------- */
+function unlockDivisionsStep() {
+  localStorage.setItem("driven_unlock_divisions", "true");
+
+  const btn = document.getElementById("btnDivisions");
+  btn.textContent = "Divisions Upload Ready";
+  btn.style.backgroundColor = "#2E8B57";
+  btn.style.color = "#FFFFFF";
+
+  setStatus("divisions", "unlocked", "Divisions step unlocked.");
+  showModal("Divisions Step Unlocked", "Assigned personnel have been notified.");
+}
+
+function openDivisionsUpload() {
+  if (localStorage.getItem("driven_unlock_divisions") === "true") {
+    window.location.href = "onboarding-divisions.html";
+    return;
+  }
+  showModal("Step Locked", "This step is locked until the Admin unlocks it from the Admin Dashboard.");
+}
+
+/* ---------- PROJECT TYPES ---------- */
+function unlockProjectTypesStep() {
+  localStorage.setItem("driven_unlock_project_types", "true");
+
+  const btn = document.getElementById("btnProjectTypes");
+  btn.textContent = "Project Types Upload Ready";
+  btn.style.backgroundColor = "#2E8B57";
+  btn.style.color = "#FFFFFF";
+
+  setStatus("project_types", "unlocked", "Project Types step unlocked.");
+  showModal("Project Types Step Unlocked", "Assigned personnel have been notified.");
+}
+
+function openProjectTypesUpload() {
+  if (localStorage.getItem("driven_unlock_project_types") === "true") {
+    window.location.href = "onboarding-project-types.html";
+    return;
+  }
+  showModal("Step Locked", "This step is locked until the Admin unlocks it from the Admin Dashboard.");
+}
+
+/* ---------- KEY PERSONNEL ---------- */
+function unlockKeyPersonnelStep() {
+  localStorage.setItem("driven_unlock_key_personnel", "true");
+
+  const btn = document.getElementById("btnKeyPersonnel");
+  btn.textContent = "Key Personnel Upload Ready";
+  btn.style.backgroundColor = "#2E8B57";
+  btn.style.color = "#FFFFFF";
+
+  setStatus("key_personnel", "unlocked", "Key Personnel step unlocked.");
+  showModal("Key Personnel Step Unlocked", "Assigned personnel have been notified.");
+}
+
+function openKeyPersonnelUpload() {
+  if (localStorage.getItem("driven_unlock_key_personnel") === "true") {
+    window.location.href = "onboarding-key-personnel.html";
+    return;
+  }
+  showModal("Step Locked", "This step is locked until the Admin unlocks it from the Admin Dashboard.");
+}
+
+/* ---------- EMPLOYEES ---------- */
+function unlockEmployeesStep() {
+  localStorage.setItem("driven_unlock_employees", "true");
+
+  const btn = document.getElementById("btnEmployees");
+  btn.textContent = "Employees Upload Ready";
+  btn.style.backgroundColor = "#2E8B57";
+  btn.style.color = "#FFFFFF";
+
+  setStatus("employees", "unlocked", "Employees step unlocked.");
+  showModal("Employees Step Unlocked", "Assigned personnel have been notified.");
+}
+
+function openEmployeesUpload() {
+  if (localStorage.getItem("driven_unlock_employees") === "true") {
+    window.location.href = "onboarding-employees.html";
+    return;
+  }
+  showModal("Step Locked", "This step is locked until the Admin unlocks it from the Admin Dashboard.");
+}
+
+/* ---------- PROJECTS (Prereqs Required) ---------- */
+function unlockProjectsStep() {
+  if (!prereqsComplete("projects")) {
+    showModal("Prerequisites Not Complete", "Clients, Divisions, Project Types, Key Personnel, and Employees must be unlocked first.");
+    return;
+  }
+
+  localStorage.setItem("driven_unlock_projects", "true");
+
+  const btn = document.getElementById("btnProjects");
+  btn.textContent = "Projects Setup Ready";
+  btn.style.backgroundColor = "#2E8B57";
+  btn.style.color = "#FFFFFF";
+
+  setStatus("projects", "unlocked", "Projects step unlocked.");
+  showModal("Projects Step Unlocked", "Assigned personnel have been notified.");
+}
+
+function openProjectsUpload() {
+  if (!prereqsComplete("projects")) {
+    showModal("Prerequisites Not Complete", "Clients, Divisions, Project Types, Key Personnel, and Employees must be unlocked first.");
+    return;
+  }
+
+  if (localStorage.getItem("driven_unlock_projects") === "true") {
+    window.location.href = "onboarding-projects.html";
+    return;
+  }
+
+  showModal("Step Locked", "This step is locked until the Admin unlocks it from the Admin Dashboard.");
+}
+
+/* ---------- EQUIPMENT (Prereqs Required) ---------- */
+function unlockEquipmentStep() {
+  if (!prereqsComplete("equipment")) {
+    showModal("Prerequisites Not Complete", "Projects, Key Personnel, and Employees must be unlocked first.");
+    return;
+  }
+
+  localStorage.setItem("driven_unlock_equipment", "true");
+
+  const btn = document.getElementById("btnEquipment");
+  btn.textContent = "Equipment Setup Ready";
+  btn.style.backgroundColor = "#2E8B57";
+  btn.style.color = "#FFFFFF";
+
+  setStatus("equipment", "unlocked", "Equipment step unlocked.");
+  showModal("Equipment Step Unlocked", "Assigned personnel have been notified.");
+}
+
+function openEquipmentUpload() {
+  if (!prereqsComplete("equipment")) {
+    showModal("Prerequisites Not Complete", "Projects, Key Personnel, and Employees must be unlocked first.");
+    return;
+  }
+
+  if (localStorage.getItem("driven_unlock_equipment") === "true") {
+    window.location.href = "onboarding-equipment.html";
+    return;
+  }
+
+  showModal("Step Locked", "This step is locked until the Admin unlocks it from the Admin Dashboard.");
+}
+
+/* -----------------------------
+   Dashboard Initialization
+----------------------------- */
+function initDashboard() {
+  const clients = JSON.parse(localStorage.getItem("driven_clients") || "[]");
+  const divisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
+  const projectTypes = JSON.parse(localStorage.getItem("driven_project_types") || "[]");
+  const employees = JSON.parse(localStorage.getItem("driven_employees") || "[]");
+  const projects = JSON.parse(localStorage.getItem("driven_projects") || "[]");
+  const equipment = JSON.parse(localStorage.getItem("driven_equipment") || "[]");
+
+  setProgress("clients", clients.length);
+  setProgress("divisions", divisions.length);
+  setProgress("project_types", projectTypes.length);
+  setProgress("employees", employees.length);
+  setProgress("projects", projects.length);
+  setProgress("equipment", equipment.length);
+
+  ["clients", "divisions", "project_types", "employees"].forEach(step => {
+    const unlocked = localStorage.getItem(`driven_unlock_${step}`) === "true";
+    const count = {
+      clients: clients.length,
+      divisions: divisions.length,
+      project_types: projectTypes.length,
+      employees: employees.length
+    }[step];
+
+    if (count === 0 && !unlocked) {
+      setStatus(step, "not_started", "No records uploaded yet.");
+      setMessage(step, "Assign this step to Key Personnel and unlock it when ready.");
+    } else if (count > 0 && !unlocked) {
+      setStatus(step, "in_progress", "Records uploaded, but step not marked complete.");
+      setMessage(step, "Review progress and unlock when complete.");
+    } else if (unlocked) {
+      setStatus(step, "completed", "Step marked complete and unlocked.");
+      setMessage(step, "Assigned personnel may continue refining data.");
     }
+  });
 
-    /* Modal */
-    function showModal(message) {
-      document.getElementById("lockMessage").textContent = message;
-      document.getElementById("lockModal").style.display = "flex";
-    }
+  const projectsUnlocked = localStorage.getItem("driven_unlock_projects") === "true";
+  const foundationCompleteForProjects =
+    localStorage.getItem("driven_unlock_clients") === "true" &&
+    localStorage.getItem("driven_unlock_divisions") === "true" &&
+    localStorage.getItem("driven_unlock_project_types") === "true" &&
+    localStorage.getItem("driven_unlock_key_personnel") === "true" &&
+    localStorage.getItem("driven_unlock_employees") === "true";
 
-    function closeModal() {
-      document.getElementById("lockModal").style.display = "none";
-    }
+  if (!foundationCompleteForProjects) {
+    setStatus("projects", "blocked", "Projects are blocked until all prerequisites are complete.");
+    setMessage("projects", "Unlock Clients, Divisions, Project Types, Key Personnel, and Employees first.");
+  } else if (projects.length === 0 && !projectsUnlocked) {
+    setStatus("projects", "not_started", "Prerequisites complete. Unlock Projects when ready.");
+    setMessage("projects", "Unlock this step to allow Project uploads.");
+  } else if (projects.length > 0 && !projectsUnlocked) {
+    setStatus("projects", "in_progress", "Projects uploaded, but step not marked complete.");
+    setMessage("projects", "Review coverage and unlock when complete.");
+  } else if (projectsUnlocked) {
+    setStatus("projects", "completed", "Projects marked complete and unlocked.");
+    setMessage("projects", "Equipment managers may proceed once Equipment is unlocked.");
+  }
 
-    /* Status helpers */
-    function setStatus(step, status, message) {
-      const pill = document.getElementById(`status-pill-${step}`);
-      const text = document.getElementById(`status-text-${step}`);
-      const msg = document.getElementById(`message-${step}`);
+  const equipmentUnlocked = localStorage.getItem("driven_unlock_equipment") === "true";
+  const foundationCompleteForEquipment =
+    localStorage.getItem("driven_unlock_projects") === "true" &&
+    localStorage.getItem("driven_unlock_key_personnel") === "true" &&
+    localStorage.getItem("driven_unlock_employees") === "true";
 
-      pill.className = "status-pill";
-      if (status === "not_started") pill.classList.add("status-not-started");
-      if (status === "in_progress") pill.classList.add("status-in-progress");
-      if (status === "completed") pill.classList.add("status-completed");
-      if (status === "blocked") pill.classList.add("status-blocked");
-      if (status === "unlocked") pill.classList.add("status-unlocked");
+  if (!foundationCompleteForEquipment) {
+    setStatus("equipment", "blocked", "Equipment is blocked until Projects, Key Personnel, and Employees are complete.");
+    setMessage("equipment", "Unlock all prerequisite steps before allowing Equipment uploads.");
+  } else if (equipment.length === 0 && !equipmentUnlocked) {
+    setStatus("equipment", "not_started", "Prerequisites complete. Unlock Equipment when ready.");
+    setMessage("equipment", "Unlock this step to allow Equipment uploads.");
+  } else if (equipment.length > 0 && !equipmentUnlocked) {
+    setStatus("equipment", "in_progress", "Equipment uploaded, but step not marked complete.");
+    setMessage("equipment", "Review coverage and unlock when complete.");
+  } else if (equipmentUnlocked) {
+    setStatus("equipment", "completed", "Equipment marked complete and unlocked.");
+    setMessage("equipment", "PM schedules and logic can now be generated.");
+  }
+}
 
-      pill.textContent = {
-        not_started: "Not Started",
-        in_progress: "In Progress",
-        completed: "Completed",
-        blocked: "Blocked",
-        unlocked: "Unlocked"
-      }[status] || "Not Started";
+initDashboard();
+</script>
 
-      text.textContent = message || "";
-      msg.textContent = "";
-    }
-
-    function setMessage(step, message) {
-      const msg = document.getElementById(`message-${step}`);
-      msg.textContent = message || "";
-    }
-
-    function setProgress(step, count) {
-      const el = document.getElementById(`progress-${step}`);
-      if (!el) return;
-      el.innerHTML = `<strong>Progress:</strong> ${count} records`;
-    }
-
-    /* Unlock logic */
-    function unlockStep(step) {
-      localStorage.setItem(`driven_unlock_${step}`, "true");
-      setStatus(step, "unlocked", "Step unlocked. Assigned personnel can now perform uploads.");
-      setMessage(step, "");
-      initDashboard();
-    }
-
-    /* Routing logic */
-    function goToStep(step) {
-      const unlocked = localStorage.getItem(`driven_unlock_${step}`) === "true";
-
-      if (!unlocked) {
-        const msg = step === "projects"
-          ? "Projects are locked until Clients, Divisions, and Project Types are complete."
-          : step === "equipment"
-          ? "Equipment is locked until Clients, Divisions, Project Types, and Projects are complete."
-          : "This step is locked until you unlock it from the Admin Dashboard.";
-        showModal(msg);
-        return;
-      }
-
-      const map = {
-        clients: "onboarding-clients.html",
-        divisions: "onboarding-divisions.html",
-        project_types: "onboarding-project-types.html",
-        employees: "onboarding-employees.html",
-        projects: "onboarding-projects.html",
-        equipment: "onboarding-equipment.html"
-      };
-
-      const target = map[step];
-      if (target) window.location.href = target;
-    }
-
-    /* Info messages */
-    function showInfo(step) {
-      const messages = {
-        clients: "Clients define the companies you work for at the corporate level.",
-        divisions: "Divisions represent major business units or operating segments.",
-        project_types: "Project Types define the categories of work you perform.",
-        employees: "Employees are assigned to projects, equipment, and roles.",
-        projects: "Projects represent specific jobs or locations.",
-        equipment: "Equipment is the core asset set for PM, inspections, and operations."
-      };
-      showModal(messages[step] || "This step is part of your onboarding sequence.");
-    }
-
-    /* Initialize dashboard */
-    function initDashboard() {
-      const clients = JSON.parse(localStorage.getItem("driven_clients") || "[]");
-      const divisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
-      const projectTypes = JSON.parse(localStorage.getItem("driven_project_types") || "[]");
-      const employees = JSON.parse(localStorage.getItem("driven_employees") || "[]");
-      const projects = JSON.parse(localStorage.getItem("driven_projects") || "[]");
-      const equipment = JSON.parse(localStorage.getItem("driven_equipment") || "[]");
-
-      setProgress("clients", clients.length);
-      setProgress("divisions", divisions.length);
-      setProgress("project_types", projectTypes.length);
-      setProgress("employees", employees.length);
-      setProgress("projects", projects.length);
-      setProgress("equipment", equipment.length);
-
-      ["clients", "divisions", "project_types", "employees"].forEach(step => {
-        const unlocked = localStorage.getItem(`driven_unlock_${step}`) === "true";
-        const count = {
-          clients: clients.length,
-          divisions: divisions.length,
-          project_types: projectTypes.length,
-          employees: employees.length
-        }[step];
-
-        if (count === 0 && !unlocked) {
-          setStatus(step, "not_started", "No records uploaded yet.");
-          setMessage(step, "You may assign this step to Key Personnel and unlock it when you are ready.");
-        } else if (count > 0 && !unlocked) {
-          setStatus(step, "in_progress", "Records have been uploaded, but the step is not marked complete.");
-          setMessage(step, "Review progress and unlock this step when it is complete enough for your company.");
-        } else if (unlocked) {
-          setStatus(step, "completed", "Step marked complete and unlocked.");
-          setMessage(step, "Assigned personnel can continue to refine data as needed.");
-        }
-      });
-
-      const projectsUnlocked = localStorage.getItem("driven_unlock_projects") === "true";
-      const foundationCompleteForProjects =
-        localStorage.getItem("driven_unlock_clients") === "true" &&
-        localStorage.getItem("driven_unlock_divisions") === "true" &&
-        localStorage.getItem("driven_unlock_project_types") === "true";
-
-      if (!foundationCompleteForProjects) {
-        setStatus("projects", "blocked", "Projects are blocked until Clients, Divisions, and Project Types are complete.");
-        setMessage("projects", "Unlock Clients, Divisions, and Project Types before allowing Project uploads.");
-      } else if (projects.length === 0 && !projectsUnlocked) {
-        setStatus("projects", "not_started", "Prerequisites complete. Projects can be unlocked when you are ready.");
-        setMessage("projects", "Unlock this step to allow Project Management to upload projects.");
-      } else if (projects.length > 0 && !projectsUnlocked) {
-        setStatus("projects", "in_progress", "Projects have been uploaded, but the step is not marked complete.");
-        setMessage("projects", "Review project coverage and unlock this step when it is complete enough.");
-      } else if (projectsUnlocked) {
-        setStatus("projects", "completed", "Projects marked complete and unlocked.");
-        setMessage("projects", "Equipment managers can proceed once Equipment is unlocked.");
-      }
-
-      const equipmentUnlocked = localStorage.getItem("driven_unlock_equipment") === "true";
-      const foundationCompleteForEquipment =
-        localStorage.getItem("driven_unlock_clients") === "true" &&
-        localStorage.getItem("driven_unlock_divisions") === "true" &&
-        localStorage.getItem("driven_unlock_project_types") === "true" &&
-        localStorage.getItem("driven_unlock_projects") === "true";
-
-      if (!foundationCompleteForEquipment) {
-        setStatus("equipment", "blocked", "Equipment is blocked until Clients, Divisions, Project Types, and Projects are complete.");
-        setMessage("equipment", "Unlock all prerequisite steps before allowing Equipment uploads.");
-      } else if (equipment.length === 0 && !equipmentUnlocked) {
-        setStatus("equipment", "not_started", "Prerequisites complete. Equipment can be unlocked when you are ready.");
-        setMessage("equipment", "Unlock this step to allow Equipment Management to upload equipment.");
-      } else if (equipment.length > 0 && !equipmentUnlocked) {
-        setStatus("equipment", "in_progress", "Equipment has been uploaded, but the step is not marked complete.");
-        setMessage("equipment", "Review equipment coverage and unlock this step when it is complete enough.");
-      } else if (equipmentUnlocked) {
-        setStatus("equipment", "completed", "Equipment marked complete and unlocked.");
-        setMessage("equipment", "Downstream PM logic and schedules can now be generated by Workers.");
-      }
-    }
-
-    initDashboard();
-  </script>
 
 </body>
 </html>
