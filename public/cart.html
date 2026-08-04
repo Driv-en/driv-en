@@ -223,20 +223,11 @@
 <script>
   const statusBar = document.getElementById("statusBar");
   const cartList = document.getElementById("cartList");
-
-  // Monthly totals
-  const subtotalMonthlyEl = document.getElementById("subtotalMonthly");
-  const taxMonthlyEl = document.getElementById("taxMonthly");
-  const totalMonthlyEl = document.getElementById("totalMonthly");
-
-  // Annual totals
-  const subtotalAnnualEl = document.getElementById("subtotalAnnual");
-  const taxAnnualEl = document.getElementById("taxAnnual");
-  const totalAnnualEl = document.getElementById("totalAnnual");
-
-  // Savings boxes
-  const monthlySavingsBox = document.getElementById("monthlySavingsBox");
-  const annualSavingsBox = document.getElementById("annualSavingsBox");
+  const subtotalEl = document.getElementById("subtotal");
+  const taxEl = document.getElementById("tax");
+  const totalEl = document.getElementById("total");
+  const annualTotalEl = document.getElementById("annualTotal");
+  const savingsLine = document.getElementById("savingsLine");
 
   // Prices
   const PRICES = {
@@ -364,43 +355,38 @@
 
     cartList.innerHTML = rows.join("");
 
-    // Savings (same logic as Checkout)
-    const monthlySavings = unitTotal - chargeTotal;
-    const annualNoDiscount = unitTotal * 12;
-    const annualWithDiscount = chargeTotal * 12 * 0.9;
-    const annualSavings = annualNoDiscount - annualWithDiscount;
+    // Savings
+    if (bundle) {
+      const savings = unitTotal - chargeTotal;
+      savingsLine.style.display = "block";
+      savingsLine.textContent = `You saved $${savings} with the ${bundleName}.`;
+    } else {
+      savingsLine.style.display = "none";
+    }
 
-    monthlySavingsBox.textContent = `Monthly Savings: $${monthlySavings.toFixed(2)}`;
-    annualSavingsBox.textContent = `Annual Savings: $${annualSavings.toFixed(2)}`;
+    // Monthly totals (Texas 8.25% tax)
+    const subtotal = chargeTotal;
+    const taxRate = 0.0825;
+    const tax = subtotal * taxRate;
+    const total = subtotal + tax;
 
-    // Monthly totals
-    const monthlySubtotal = chargeTotal;
-    const monthlyTax = monthlySubtotal * 0.0825;
-    const monthlyTotal = monthlySubtotal + monthlyTax;
+    subtotalEl.textContent = `$${subtotal.toFixed(2)}`;
+    taxEl.textContent = `$${tax.toFixed(2)}`;
+    totalEl.textContent = `$${total.toFixed(2)}`;
 
-    subtotalMonthlyEl.textContent = `$${monthlySubtotal.toFixed(2)}`;
-    taxMonthlyEl.textContent = `$${monthlyTax.toFixed(2)}`;
-    totalMonthlyEl.textContent = `$${monthlyTotal.toFixed(2)}`;
-
-    // Annual totals
-    const annualSubtotal = chargeTotal * 12 * 0.9;
-    const annualTax = annualSubtotal * 0.0825;
-    const annualTotal = annualSubtotal + annualTax;
-
-    subtotalAnnualEl.textContent = `$${annualSubtotal.toFixed(2)}`;
-    taxAnnualEl.textContent = `$${annualTax.toFixed(2)}`;
-    totalAnnualEl.textContent = `$${annualTotal.toFixed(2)}`;
+    // Annual total (10% off, tax added at checkout → no tax here)
+    const annualSubtotal = subtotal * 0.9 * 12;
+    annualTotalEl.textContent = `$${annualSubtotal.toFixed(2)}`;
 
     // Store payload for Checkout
     localStorage.setItem("driven_checkout_payload", JSON.stringify({
       modules: selectedModules,
       bundle: bundleName,
-      monthlySubtotal,
-      monthlyTax,
-      monthlyTotal,
+      monthlySubtotal: subtotal,
+      monthlyTax: tax,
+      monthlyTotal: total,
       annualSubtotal,
-      annualTax,
-      annualTotal
+      annualTotal: annualSubtotal
     }));
   }
 
