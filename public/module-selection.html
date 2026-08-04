@@ -520,241 +520,220 @@
     <span class="footer-line-2">Driv-en is a Digital Safety Inspection, LLC platform.</span>
   </footer>
 
-  <script>
-    const btnContinue = document.getElementById("btnContinue");
-    const btnCancel = document.getElementById("btnCancel");
-    const statusBar = document.getElementById("statusBar");
+<script>
+  const btnContinue = document.getElementById("btnContinue");
+  const btnCancel = document.getElementById("btnCancel");
+  const statusBar = document.getElementById("statusBar");
 
-    // Modules
-    const modPM = document.getElementById("modPM");
-    const modIns = document.getElementById("modInspections");
-    const modWO = document.getElementById("modWorkOrders");
-    const modFuel = document.getElementById("modFuel");
-    const modTransfers = document.getElementById("modTransfers");
-    const modExtraction = document.getElementById("modExtraction");
+  // Modules
+  const modPM = document.getElementById("modPM");
+  const modIns = document.getElementById("modInspections");
+  const modWO = document.getElementById("modWorkOrders");
+  const modFuel = document.getElementById("modFuel");
+  const modTransfers = document.getElementById("modTransfers");
+  const modExtraction = document.getElementById("modExtraction");
 
-    // Bundle checkboxes
-    const bundleOps = document.getElementById("bundleOperations");
-    const bundleFull = document.getElementById("bundleFull");
-    const bundleComplete = document.getElementById("bundleComplete");
-    const bundleIds = ["bundleOperations", "bundleFull", "bundleComplete"];
+  // Bundle checkboxes
+  const bundleOps = document.getElementById("bundleOperations");
+  const bundleFull = document.getElementById("bundleFull");
+  const bundleComplete = document.getElementById("bundleComplete");
+  const bundleIds = ["bundleOperations", "bundleFull", "bundleComplete"];
 
-    let bundleActive = false;
-    let activeBundle = null;
+  let bundleActive = false;
+  let activeBundle = null;
 
-    // Cancel button
-    btnCancel.addEventListener("click", () => {
-      window.location.href = "/";
+  // Cancel button
+  btnCancel.addEventListener("click", () => {
+    window.location.href = "/";
+  });
+
+  // Show bundle banner
+  function showBundleBanner() {
+    if (!bundleActive) {
+      statusBar.style.display = "none";
+      return;
+    }
+    statusBar.style.display = "block";
+    statusBar.textContent = `Bundle Activated: ${activeBundle}`;
+  }
+
+  // Extraction Engine rules (when no bundle)
+  function updateExtractionRules() {
+    if (bundleActive) return;
+    if (modPM.checked || modIns.checked) {
+      modExtraction.disabled = false;
+    } else {
+      modExtraction.checked = false;
+      modExtraction.disabled = true;
+    }
+  }
+
+  // Clear other bundles
+  function clearOtherBundles(selectedId) {
+    bundleIds.forEach(id => {
+      if (id !== selectedId) {
+        document.getElementById(id).checked = false;
+      }
+    });
+  }
+
+  // Apply bundle selection
+  function applyBundle(bundleId) {
+    // Reset all modules first
+    [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
+      el.checked = false;
+      el.disabled = false;
     });
 
-    // Show bundle banner
-    function showBundleBanner() {
-      if (!bundleActive) {
-        statusBar.style.display = "none";
-        return;
-      }
-      statusBar.style.display = "block";
-      statusBar.textContent = `Bundle Activated: ${activeBundle}`;
+    bundleActive = true;
+
+    if (bundleId === "bundleOperations") {
+      activeBundle = "Operations Bundle";
+      modPM.checked = true; modPM.disabled = true;
+      modIns.checked = true; modIns.disabled = true;
+      modExtraction.checked = true; modExtraction.disabled = true;
     }
 
-    // Extraction Engine rules (when no bundle)
-    function updateExtractionRules() {
-      if (bundleActive) return;
-      if (modPM.checked || modIns.checked) {
-        modExtraction.disabled = false;
-      } else {
-        modExtraction.checked = false;
-        modExtraction.disabled = true;
-      }
+    if (bundleId === "bundleFull") {
+      activeBundle = "Full Equipment Bundle";
+      modPM.checked = true; modPM.disabled = true;
+      modIns.checked = true; modIns.disabled = true;
+      modWO.checked = true; modWO.disabled = true;
+      modExtraction.checked = true; modExtraction.disabled = true;
     }
 
-    // Clear other bundles
-    function clearOtherBundles(selectedId) {
-      bundleIds.forEach(id => {
-        if (id !== selectedId) {
-          document.getElementById(id).checked = false;
-        }
-      });
+    if (bundleId === "bundleComplete") {
+      activeBundle = "Complete Platform Bundle";
+      modPM.checked = true; modPM.disabled = true;
+      modIns.checked = true; modIns.disabled = true;
+      modWO.checked = true; modWO.disabled = true;
+      modFuel.checked = true; modFuel.disabled = true;
+      modTransfers.checked = true; modTransfers.disabled = true;
+      modExtraction.checked = true; modExtraction.disabled = true;
     }
 
-    // Apply bundle selection
-    function applyBundle(bundleId) {
-      // Reset all modules first
+    showBundleBanner();
+  }
+
+  // Uncheck bundle if user unchecks a module included in it
+  function uncheckBundleIfModuleChanged() {
+    if (!bundleActive) return;
+
+    const opsBroken =
+      activeBundle === "Operations Bundle" &&
+      (!modPM.checked || !modIns.checked);
+
+    const fullBroken =
+      activeBundle === "Full Equipment Bundle" &&
+      (!modPM.checked || !modIns.checked || !modWO.checked);
+
+    const completeBroken =
+      activeBundle === "Complete Platform Bundle" &&
+      (!modPM.checked || !modIns.checked || !modWO.checked ||
+       !modFuel.checked || !modTransfers.checked);
+
+    if (opsBroken || fullBroken || completeBroken) {
+      bundleOps.checked = false;
+      bundleFull.checked = false;
+      bundleComplete.checked = false;
+
+      bundleActive = false;
+      activeBundle = null;
+
       [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
-        el.checked = false;
         el.disabled = false;
       });
 
-      bundleActive = true;
-
-      if (bundleId === "bundleOperations") {
-        activeBundle = "Operations Bundle";
-        modPM.checked = true;
-        modPM.disabled = true;
-        modIns.checked = true;
-        modIns.disabled = true;
-        modExtraction.checked = true;
-        modExtraction.disabled = true;
-      }
-
-      if (bundleId === "bundleFull") {
-        activeBundle = "Full Equipment Bundle";
-        modPM.checked = true;
-        modPM.disabled = true;
-        modIns.checked = true;
-        modIns.disabled = true;
-        modWO.checked = true;
-        modWO.disabled = true;
-        modExtraction.checked = true;
-        modExtraction.disabled = true;
-      }
-
-      if (bundleId === "bundleComplete") {
-        activeBundle = "Complete Platform Bundle";
-        modPM.checked = true;
-        modPM.disabled = true;
-        modIns.checked = true;
-        modIns.disabled = true;
-        modWO.checked = true;
-        modWO.disabled = true;
-        modFuel.checked = true;
-        modFuel.disabled = true;
-        modTransfers.checked = true;
-        modTransfers.disabled = true;
-        modExtraction.checked = true;
-        modExtraction.disabled = true;
-      }
-
+      updateExtractionRules();
       showBundleBanner();
     }
+  }
 
-    // Uncheck bundle if user unchecks a module included in it
-    function uncheckBundleIfModuleChanged() {
-      if (!bundleActive) return;
-
-      const opsBroken =
-        activeBundle === "Operations Bundle" &&
-        (!modPM.checked || !modIns.checked);
-
-      const fullBroken =
-        activeBundle === "Full Equipment Bundle" &&
-        (!modPM.checked || !modIns.checked || !modWO.checked);
-
-      const completeBroken =
-        activeBundle === "Complete Platform Bundle" &&
-        (!modPM.checked || !modIns.checked || !modWO.checked || !modFuel.checked || !modTransfers.checked);
-
-      if (opsBroken || fullBroken || completeBroken) {
-        bundleOps.checked = false;
-        bundleFull.checked = false;
-        bundleComplete.checked = false;
+  // Bundle checkbox listeners
+  bundleIds.forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener("change", (e) => {
+      clearOtherBundles(id);
+      if (e.target.checked) {
+        applyBundle(id);
+      } else {
         bundleActive = false;
         activeBundle = null;
 
         [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
           el.disabled = false;
+          el.checked = false;
         });
 
         updateExtractionRules();
         showBundleBanner();
       }
-    }
-
-    // Bundle checkbox listeners
-    bundleIds.forEach(id => {
-      const el = document.getElementById(id);
-      el.addEventListener("change", (e) => {
-        clearOtherBundles(id);
-        if (e.target.checked) {
-          applyBundle(id);
-        } else {
-          bundleActive = false;
-          activeBundle = null;
-          [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
-            el.disabled = false;
-            el.checked = false;
-          });
-          updateExtractionRules();
-          showBundleBanner();
-        }
-      });
     });
+  });
 
-    // Module listeners (to uncheck bundle if user unchecks a module)
-    [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
-      el.addEventListener("change", () => {
-        uncheckBundleIfModuleChanged();
-        updateExtractionRules();
-      });
-    });
-
-    // Restore previous selections ONLY when returning from cart
-    window.addEventListener("DOMContentLoaded", () => {
-      const fromCart = document.referrer.includes("cart.html");
-      if (!fromCart) {
-        updateExtractionRules();
-        return;
-      }
-
-      const saved = JSON.parse(localStorage.getItem("driven_modules") || "{}");
-
-      // Restore modules
-      modPM.checked = saved.pm || false;
-      modIns.checked = saved.inspections || false;
-      modWO.checked = saved.workorders || false;
-      modFuel.checked = saved.fuel || false;
-      modTransfers.checked = saved.transfers || false;
-      modExtraction.checked = saved.extraction || false;
-
-      // Restore bundle checkbox + bundle behavior
-      if (saved.bundle === "Operations Bundle") {
-        bundleOps.checked = true;
-        applyBundle("bundleOperations");
-      }
-      if (saved.bundle === "Full Equipment Bundle") {
-        bundleFull.checked = true;
-        applyBundle("bundleFull");
-      }
-      if (saved.bundle === "Complete Platform Bundle") {
-        bundleComplete.checked = true;
-        applyBundle("bundleComplete");
-      }
-
+  // Module listeners (to uncheck bundle if user unchecks a module)
+  [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
+    el.addEventListener("change", () => {
+      uncheckBundleIfModuleChanged();
       updateExtractionRules();
     });
+  });
 
-    // Continue button — TEST MODE: simulate purchase and go straight to Key Personnel
-    btnContinue.addEventListener("click", () => {
-      const selections = {
-        pm: modPM.checked,
-        inspections: modIns.checked,
-        workorders: modWO.checked,
-        fuel: modFuel.checked,
-        transfers: modTransfers.checked,
-        extraction: modExtraction.checked,
-        bundle: activeBundle
-      };
+  // Restore previous selections ONLY when returning from cart
+  window.addEventListener("DOMContentLoaded", () => {
+    const fromCart = document.referrer.includes("cart.html");
+    if (!fromCart) {
+      updateExtractionRules();
+      return;
+    }
 
-      // Store original selection object (for future cart/Stripe integration)
-      localStorage.setItem("driven_modules", JSON.stringify(selections));
+    const saved = JSON.parse(localStorage.getItem("driven_modules") || "{}");
 
-      // ALSO store an array of purchased module names for onboarding
-      const purchasedModules = ["Equipment Management"];
+    modPM.checked = saved.pm || false;
+    modIns.checked = saved.inspections || false;
+    modWO.checked = saved.workorders || false;
+    modFuel.checked = saved.fuel || false;
+    modTransfers.checked = saved.transfers || false;
+    modExtraction.checked = saved.extraction || false;
 
-      if (modPM.checked) purchasedModules.push("Preventative Maintenance");
-      if (modIns.checked) purchasedModules.push("Equipment Inspections");
-      if (modWO.checked) purchasedModules.push("Work Orders");
-      if (modFuel.checked) purchasedModules.push("Fuel Usage Tracking");
-      if (modTransfers.checked) purchasedModules.push("Equipment Transfer Tracking");
+    if (saved.bundle === "Operations Bundle") {
+      bundleOps.checked = true;
+      applyBundle("bundleOperations");
+    }
+    if (saved.bundle === "Full Equipment Bundle") {
+      bundleFull.checked = true;
+      applyBundle("bundleFull");
+    }
+    if (saved.bundle === "Complete Platform Bundle") {
+      bundleComplete.checked = true;
+      applyBundle("bundleComplete");
+    }
 
-      // Extraction Engine is intelligence, not a customer-facing operational module,
-      // so we don't include it in the six operational module names list.
+    updateExtractionRules();
+  });
 
-      localStorage.setItem("driven_modules_list", JSON.stringify(purchasedModules));
+  /* ---------------------------------------------------------
+     CONTINUE BUTTON — CORRECTED FOR ONBOARDING TESTING
+     Key Personnel expects driven_modules to be an ARRAY.
+     --------------------------------------------------------- */
+  btnContinue.addEventListener("click", () => {
 
-      // TEST: go directly to Key Personnel onboarding
-      window.location.href = "/public/onboarding-key-personnel.html";
-    });
-  </script>
+    // Build array of purchased module names
+    const purchasedModules = ["Equipment Management"];
+
+    if (modPM.checked) purchasedModules.push("Preventative Maintenance");
+    if (modIns.checked) purchasedModules.push("Equipment Inspections");
+    if (modWO.checked) purchasedModules.push("Work Orders");
+    if (modFuel.checked) purchasedModules.push("Fuel Usage Tracking");
+    if (modTransfers.checked) purchasedModules.push("Equipment Transfer Tracking");
+
+    // Store ARRAY for Key Personnel onboarding
+    localStorage.setItem("driven_modules", JSON.stringify(purchasedModules));
+
+    // Redirect directly to Key Personnel
+    window.location.href = "/public/onboarding-key-personnel.html";
+  });
+</script>
+
 </body>
 </html>
