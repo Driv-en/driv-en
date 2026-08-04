@@ -533,7 +533,7 @@
   const modTransfers = document.getElementById("modTransfers");
   const modExtraction = document.getElementById("modExtraction");
 
-  // Bundle checkboxes
+  // Bundles
   const bundleOps = document.getElementById("bundleOperations");
   const bundleFull = document.getElementById("bundleFull");
   const bundleComplete = document.getElementById("bundleComplete");
@@ -579,7 +579,6 @@
 
   // Apply bundle selection
   function applyBundle(bundleId) {
-    // Reset all modules first
     [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
       el.checked = false;
       el.disabled = false;
@@ -671,7 +670,7 @@
     });
   });
 
-  // Module listeners (to uncheck bundle if user unchecks a module)
+  // Module listeners
   [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
     el.addEventListener("change", () => {
       uncheckBundleIfModuleChanged();
@@ -712,26 +711,36 @@
     updateExtractionRules();
   });
 
-  /* ---------------------------------------------------------
-     CONTINUE BUTTON — CORRECTED FOR ONBOARDING TESTING
-     Key Personnel expects driven_modules to be an ARRAY.
-     --------------------------------------------------------- */
+  // Continue → CART (correct flow)
   btnContinue.addEventListener("click", () => {
 
-    // Build array of purchased module names
-    const purchasedModules = ["Equipment Management"];
+    // Build selection object for backend + checkout
+    const selections = {
+      pm: modPM.checked,
+      inspections: modIns.checked,
+      workorders: modWO.checked,
+      fuel: modFuel.checked,
+      transfers: modTransfers.checked,
+      extraction: modExtraction.checked,
+      bundle: activeBundle
+    };
 
-    if (modPM.checked) purchasedModules.push("Preventative Maintenance");
-    if (modIns.checked) purchasedModules.push("Equipment Inspections");
-    if (modWO.checked) purchasedModules.push("Work Orders");
-    if (modFuel.checked) purchasedModules.push("Fuel Usage Tracking");
-    if (modTransfers.checked) purchasedModules.push("Equipment Transfer Tracking");
+    localStorage.setItem("driven_modules", JSON.stringify(selections));
 
-    // Store ARRAY for Key Personnel onboarding
-    localStorage.setItem("driven_modules", JSON.stringify(purchasedModules));
+    // Build ordered module names for Cart display
+    const orderedModules = [];
 
-    // Redirect directly to Key Personnel
-    window.location.href = "/public/onboarding-key-personnel.html";
+    if (modPM.checked) orderedModules.push("Preventative Maintenance");
+    if (modIns.checked) orderedModules.push("Equipment Inspections");
+    if (modWO.checked) orderedModules.push("Work Orders");
+    if (modFuel.checked) orderedModules.push("Fuel Usage Tracking");
+    if (modTransfers.checked) orderedModules.push("Equipment Transfer Tracking");
+    if (modExtraction.checked) orderedModules.push("Extraction Engine");
+
+    localStorage.setItem("driven_ordered_modules", JSON.stringify(orderedModules));
+
+    // Redirect to CART (correct flow)
+    window.location.href = "/public/cart.html";
   });
 </script>
 
