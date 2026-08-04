@@ -223,13 +223,22 @@
 <script>
   const statusBar = document.getElementById("statusBar");
   const cartList = document.getElementById("cartList");
-  const subtotalEl = document.getElementById("subtotal");
-  const taxEl = document.getElementById("tax");
-  const totalEl = document.getElementById("total");
-  const annualTotalEl = document.getElementById("annualTotal");
-  const savingsLine = document.getElementById("savingsLine");
 
-  // ⭐ Prices
+  // Monthly totals
+  const subtotalMonthlyEl = document.getElementById("subtotalMonthly");
+  const taxMonthlyEl = document.getElementById("taxMonthly");
+  const totalMonthlyEl = document.getElementById("totalMonthly");
+
+  // Annual totals
+  const subtotalAnnualEl = document.getElementById("subtotalAnnual");
+  const taxAnnualEl = document.getElementById("taxAnnual");
+  const totalAnnualEl = document.getElementById("totalAnnual");
+
+  // Savings boxes
+  const monthlySavingsBox = document.getElementById("monthlySavingsBox");
+  const annualSavingsBox = document.getElementById("annualSavingsBox");
+
+  // Prices
   const PRICES = {
     equipment: 149,
     pm: 299,
@@ -240,7 +249,7 @@
     transfers: 79
   };
 
-  // ⭐ Bundle definitions
+  // Bundles
   const BUNDLES = {
     "Operations Bundle": {
       modules: ["equipment", "pm", "inspections", "extraction"],
@@ -256,7 +265,7 @@
     }
   };
 
-  // ⭐ Convert module-selection keys → display names
+  // Display names
   const MODULE_MAP = {
     equipment: "Equipment Management",
     pm: "Preventative Maintenance",
@@ -267,7 +276,6 @@
     transfers: "Equipment Transfer Tracking"
   };
 
-  // ⭐ Render cart
   function renderCart() {
     const selections = JSON.parse(localStorage.getItem("driven_modules") || "{}");
 
@@ -279,12 +287,8 @@
     const bundle = bundleName ? BUNDLES[bundleName] : null;
     const bundleModules = bundle ? new Set(bundle.modules) : new Set();
 
-    // ⭐ Build selected modules list
-    const selectedModules = [];
-
-    // Equipment Management is always included
-    selectedModules.push("equipment");
-
+    // Selected modules (Equipment always included)
+    const selectedModules = ["equipment"];
     if (selections.pm) selectedModules.push("pm");
     if (selections.inspections) selectedModules.push("inspections");
     if (selections.workorders) selectedModules.push("workorders");
@@ -292,7 +296,7 @@
     if (selections.transfers) selectedModules.push("transfers");
     if (selections.extraction) selectedModules.push("extraction");
 
-    // ⭐ Separate bundle modules and extra modules
+    // Separate bundle vs extra
     const bundleModuleList = [];
     const extraModuleList = [];
 
@@ -304,11 +308,10 @@
       }
     });
 
-    // ⭐ Render bundle modules first (with Included badge)
+    // Bundle modules
     bundleModuleList.forEach(key => {
       const name = MODULE_MAP[key];
       const price = PRICES[key];
-
       unitTotal += price;
 
       rows.push(`
@@ -331,7 +334,7 @@
       `);
     });
 
-    // ⭐ Render bundle row (after bundle modules)
+    // Bundle row
     if (bundle) {
       rows.push(`
         <div class="module-row bundle-row">
@@ -340,15 +343,13 @@
           <div class="extended-price">$${bundle.price}</div>
         </div>
       `);
-
       chargeTotal += bundle.price;
     }
 
-    // ⭐ Render extra modules AFTER bundle
+    // Extra modules
     extraModuleList.forEach(key => {
       const name = MODULE_MAP[key];
       const price = PRICES[key];
-
       unitTotal += price;
       chargeTotal += price;
 
@@ -363,58 +364,50 @@
 
     cartList.innerHTML = rows.join("");
 
-    // ⭐ Totals (Monthly)
-    const subtotal = chargeTotal;
-    const taxRate = 0.0825; // Texas
-    const tax = subtotal * taxRate;
-    const total = subtotal + tax;
+    // Savings (same logic as Checkout)
+    const monthlySavings = unitTotal - chargeTotal;
+    const annualNoDiscount = unitTotal * 12;
+    const annualWithDiscount = chargeTotal * 12 * 0.9;
+    const annualSavings = annualNoDiscount - annualWithDiscount;
 
-    subtotalEl.textContent = `$${subtotal.toFixed(2)}`;
-    taxEl.textContent = `$${tax.toFixed(2)}`;
-    totalEl.textContent = `$${total.toFixed(2)}`;
+    monthlySavingsBox.textContent = `Monthly Savings: $${monthlySavings.toFixed(2)}`;
+    annualSavingsBox.textContent = `Annual Savings: $${annualSavings.toFixed(2)}`;
 
-    // ⭐ Annual Total (10% discount, 12 months, with tax)
-    const annualSubtotal = subtotal * 0.9 * 12;
-    const annualTax = annualSubtotal * taxRate;
+    // Monthly totals
+    const monthlySubtotal = chargeTotal;
+    const monthlyTax = monthlySubtotal * 0.0825;
+    const monthlyTotal = monthlySubtotal + monthlyTax;
+
+    subtotalMonthlyEl.textContent = `$${monthlySubtotal.toFixed(2)}`;
+    taxMonthlyEl.textContent = `$${monthlyTax.toFixed(2)}`;
+    totalMonthlyEl.textContent = `$${monthlyTotal.toFixed(2)}`;
+
+    // Annual totals
+    const annualSubtotal = chargeTotal * 12 * 0.9;
+    const annualTax = annualSubtotal * 0.0825;
     const annualTotal = annualSubtotal + annualTax;
-    annualTotalEl.textContent = `$${annualTotal.toFixed(2)}`;
 
-    // ⭐ Savings + monthly vs annual message
-    if (bundle) {
-      const savings = unitTotal - chargeTotal;
-      savingsLine.style.display = "block";
-      savingsLine.textContent =
-        `Monthly total (with Texas tax): $${total.toFixed(2)} · ` +
-        `Annual total (Best Value, with Texas tax): $${annualTotal.toFixed(2)} · ` +
-        `You saved $${savings} with the ${bundleName}.`;
-    } else {
-      savingsLine.style.display = "block";
-      savingsLine.textContent =
-        `Monthly total (with Texas tax): $${total.toFixed(2)} · ` +
-        `Annual total (Best Value, with Texas tax): $${annualTotal.toFixed(2)}.`;
-    }
+    subtotalAnnualEl.textContent = `$${annualSubtotal.toFixed(2)}`;
+    taxAnnualEl.textContent = `$${annualTax.toFixed(2)}`;
+    totalAnnualEl.textContent = `$${annualTotal.toFixed(2)}`;
 
-    // ⭐ Store checkout payload for Checkout page
-    const checkoutPayload = {
+    // Store payload for Checkout
+    localStorage.setItem("driven_checkout_payload", JSON.stringify({
       modules: selectedModules,
       bundle: bundleName,
-      monthlySubtotal: subtotal,
-      monthlyTax: tax,
-      monthlyTotal: total,
-      annualSubtotal: annualSubtotal,
-      annualTax: annualTax,
-      annualTotal: annualTotal
-    };
-
-    localStorage.setItem("driven_checkout_payload", JSON.stringify(checkoutPayload));
+      monthlySubtotal,
+      monthlyTax,
+      monthlyTotal,
+      annualSubtotal,
+      annualTax,
+      annualTotal
+    }));
   }
 
-  // ⭐ Back button
   document.getElementById("btnBack").addEventListener("click", () => {
     window.location.href = "module-selection.html";
   });
 
-  // ⭐ Checkout button
   document.getElementById("btnCheckout").addEventListener("click", () => {
     window.location.href = "checkout.html";
   });
