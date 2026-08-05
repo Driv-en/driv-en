@@ -54,17 +54,6 @@
       width: 100%;
     }
 
-    h2 {
-      font-size: 22px;
-      margin-bottom: 8px;
-    }
-
-    p {
-      font-size: 14px;
-      color: #9ca3af;
-      margin-bottom: 16px;
-    }
-
     .card {
       border: 1px solid #1f2937;
       background: #020617;
@@ -112,8 +101,7 @@
       font-size: 13px;
     }
 
-    .form-field input.error,
-    .form-field select.error {
+    .form-field input.error {
       border-color: #ef4444;
       background: #1e293b;
     }
@@ -124,12 +112,7 @@
       padding: 10px 0;
       border-bottom: 1px solid #1f2937;
       column-gap: 12px;
-      box-sizing: border-box;
       width: 100%;
-    }
-
-    .module-row:last-child {
-      border-bottom: none;
     }
 
     .module-name {
@@ -141,7 +124,6 @@
       font-size: 15px;
       font-weight: 600;
       text-align: right;
-      color: #e5e7eb;
     }
 
     .extended-price {
@@ -162,9 +144,29 @@
       font-weight: 600;
     }
 
+    .status-bar {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #ef4444;
+      min-height: 18px;
+    }
+
+    .status-bar.success {
+      color: #4ade80;
+    }
+
+    #billing-address-element,
+    #card-element {
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid #374151;
+      background: #0f172a;
+      color: #e5e7eb;
+      margin-bottom: 10px;
+    }
+
     .footer-actions {
       display: flex;
-      flex-wrap: wrap;
       justify-content: flex-end;
       gap: 8px;
       margin-top: 20px;
@@ -191,21 +193,6 @@
       font-weight: 600;
     }
 
-    .status-bar {
-      margin-top: 12px;
-      font-size: 12px;
-      color: #9ca3af;
-      min-height: 18px;
-    }
-
-    .status-bar.error {
-      color: #ef4444;
-    }
-
-    .status-bar.success {
-      color: #4ade80;
-    }
-
     footer {
       padding: 16px;
       text-align: center;
@@ -213,7 +200,6 @@
       color: #9ca3af;
       border-top: 1px solid #1f2937;
       background: #020617;
-      box-sizing: border-box;
       width: 100%;
     }
 
@@ -221,69 +207,6 @@
       display: block;
       margin-top: 4px;
       color: #6b7280;
-    }
-
-    #billing-address-element,
-    #card-element {
-      padding: 8px 10px;
-      border-radius: 6px;
-      border: 1px solid #374151;
-      background: #0f172a;
-      color: #e5e7eb;
-      box-sizing: border-box;
-      font-size: 13px;
-      margin-bottom: 10px;
-    }
-
-    @media (max-width: 600px) {
-      header img.logo {
-        height: 48px;
-      }
-      main {
-        padding: 0 12px;
-      }
-      .card {
-        padding: 16px;
-      }
-      .form-row {
-        grid-template-columns: 1fr;
-      }
-      .module-row {
-        grid-template-columns: minmax(0, 60%) 1fr 1fr;
-      }
-      .module-name {
-        word-break: break-word;
-      }
-      .extended-price {
-        text-align: right;
-        padding-top: 0;
-      }
-    }
-
-    @media print {
-      header {
-        position: static !important;
-        background: #ffffff !important;
-        border-bottom: 1px solid #000000 !important;
-      }
-      body,
-      main,
-      .card,
-      footer {
-        background: #ffffff !important;
-        color: #000000 !important;
-      }
-      .card {
-        border-color: #000000 !important;
-      }
-      .extended-price {
-        color: #000000 !important;
-      }
-      .savings-line {
-        background: #ffffff !important;
-        border-color: #000000 !important;
-        color: #000000 !important;
-      }
     }
   </style>
 
@@ -293,15 +216,15 @@
 <body>
   <!-- HEADER -->
   <header>
-    <img class="logo" src="/logo.png" alt="DRIV‑EN Logo" />
     <div class="title-block">
       <h1>DRIV‑EN – Checkout</h1>
       <span>Step 3 · Confirm your order</span>
     </div>
+    <img class="logo" src="/logo.png" alt="DRIV‑EN Logo" />
   </header>
 
   <main>
-    <!-- ORDER NUMBER + PO -->
+    <!-- ORDER DETAILS -->
     <div class="card">
       <h3>Order Details</h3>
       <div class="form-row">
@@ -316,11 +239,34 @@
       </div>
     </div>
 
-    <!-- MODULES SELECTED -->
+    <!-- MODULES + TOTALS -->
     <div class="card">
       <h3>Modules Selected</h3>
       <div id="modulesList"></div>
+
       <div class="savings-line" id="invoiceSavingsBox"></div>
+
+      <div class="form-row">
+        <div class="form-field">
+          <label>Billing Period</label>
+          <input id="invoicePeriod" type="text" readonly />
+        </div>
+        <div class="form-field">
+          <label>Subtotal</label>
+          <input id="invoiceSubtotal" type="text" readonly />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-field">
+          <label>Tax</label>
+          <input id="invoiceTax" type="text" readonly />
+        </div>
+        <div class="form-field">
+          <label>Total</label>
+          <input id="invoiceTotal" type="text" readonly />
+        </div>
+      </div>
     </div>
 
     <!-- VALIDATION BANNER -->
@@ -329,6 +275,7 @@
     <!-- CUSTOMER INFORMATION -->
     <div class="card">
       <h3>Customer Information</h3>
+
       <div class="form-row">
         <div class="form-field">
           <label>Company Name *</label>
@@ -387,7 +334,7 @@
 
       <div id="billing-address-element"></div>
       <div id="card-element"></div>
-      <div id="card-errors" class="status-bar error"></div>
+      <div id="card-errors" class="status-bar"></div>
     </div>
 
     <!-- SUCCESS BANNER -->
@@ -456,6 +403,7 @@
       transfers: "Equipment Transfer Tracking"
     };
 
+    // MODULE RENDERING + TOTALS
     function renderModules() {
       const payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
       const selections = JSON.parse(localStorage.getItem("driven_modules") || "{}");
@@ -506,12 +454,28 @@
 
       document.getElementById("modulesList").innerHTML = html;
 
+      // Billing period + totals
+      const periodLabel =
+        payload.billingPeriod === "annual"
+          ? "Annual (10% discount applied)"
+          : "Monthly";
+
+      document.getElementById("invoicePeriod").value = periodLabel;
+
+      const subtotal = Number(payload.invoiceSubtotal || 0);
+      const tax = Number(payload.invoiceTax || 0);
+      const total = Number(payload.invoiceTotal || 0);
+
+      document.getElementById("invoiceSubtotal").value = `$${subtotal.toFixed(2)}`;
+      document.getElementById("invoiceTax").value = `$${tax.toFixed(2)}`;
+      document.getElementById("invoiceTotal").value = `$${total.toFixed(2)}`;
+
+      // Savings
       let savingsNumber = 0;
       if (payload.billingPeriod === "monthly") {
         savingsNumber = sumUnitPrices - chargeTotal;
       } else {
         const annualUnitTotal = sumUnitPrices * 12;
-        const subtotal = Number(payload.invoiceSubtotal || 0);
         savingsNumber = annualUnitTotal - subtotal;
       }
       if (savingsNumber < 0) savingsNumber = 0;
@@ -519,6 +483,7 @@
       document.getElementById("invoiceSavingsBox").textContent =
         `Total Savings: $${savingsNumber.toFixed(2)}`;
     }
+
     renderModules();
 
     // NAVIGATION
@@ -559,12 +524,10 @@
       });
 
       const banner = document.getElementById("statusBanner");
-      banner.classList.remove("error");
       banner.style.display = "none";
 
       if (!valid) {
         banner.textContent = "Please complete all required fields.";
-        banner.classList.add("error");
         banner.style.display = "block";
         window.scrollTo({ top: 0, behavior: "smooth" });
         if (firstMissing) firstMissing.focus();
@@ -586,9 +549,7 @@
       const response = await fetch("/create-payment-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          // include metadata if needed
-        })
+        body: JSON.stringify({})
       });
 
       const data = await response.json();
@@ -596,9 +557,7 @@
 
       elements = stripe.elements({ clientSecret });
 
-      billingAddressElement = elements.create("address", {
-        mode: "billing"
-      });
+      billingAddressElement = elements.create("address", { mode: "billing" });
       billingAddressElement.mount("#billing-address-element");
 
       cardElement = elements.create("payment");
@@ -606,9 +565,8 @@
     }
 
     initStripe().catch(err => {
-      console.error("Stripe initialization error:", err);
       document.getElementById("card-errors").textContent =
-        "Unable to initialize payment form. Please try again later.";
+        "Unable to initialize payment form.";
     });
 
     // CONFIRM & PAY
@@ -631,15 +589,8 @@
         billingPeriod: payload.billingPeriod,
         invoiceSubtotal: Number(payload.invoiceSubtotal || 0),
         invoiceTax: Number(payload.invoiceTax || 0),
-        invoiceTotal: Number(payload.invoiceTotal || 0),
-        totalSavings: Number(
-          document
-            .getElementById("invoiceSavingsBox")
-            .textContent.replace(/[^\d.-]/g, "")
-        ) || 0
+        invoiceTotal: Number(payload.invoiceTotal || 0)
       };
-
-      console.log("Order data (pre-payment):", orderData);
 
       document.getElementById("card-errors").textContent = "";
       const statusSuccess = document.getElementById("statusSuccess");
@@ -662,7 +613,6 @@
         statusSuccess.innerHTML =
           'Order confirmed. Thank you for choosing <img src="/logo.png" alt="DRIV‑EN Logo" style="height:80px;vertical-align:middle;">';
       } catch (err) {
-        console.error("Payment confirmation error:", err);
         document.getElementById("card-errors").textContent =
           "An unexpected error occurred while processing your payment.";
       }
