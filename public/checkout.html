@@ -90,14 +90,12 @@
       font-weight: 600;
     }
 
-    .form-field input,
-    .form-field select {
+    .form-field input {
       padding: 8px 10px;
       border-radius: 6px;
       border: 1px solid #374151;
       background: #0f172a;
       color: #e5e7eb;
-      box-sizing: border-box;
       font-size: 13px;
     }
 
@@ -112,7 +110,6 @@
       padding: 10px 0;
       border-bottom: 1px solid #1f2937;
       column-gap: 12px;
-      width: 100%;
     }
 
     .module-name {
@@ -208,13 +205,45 @@
       margin-top: 4px;
       color: #6b7280;
     }
+
+    @media print {
+      header {
+        position: relative !important;
+        top: 0 !important;
+        background: #ffffff !important;
+        border-bottom: 1px solid #000000 !important;
+        padding-top: 0 !important;
+        margin-top: 0 !important;
+      }
+
+      body,
+      main,
+      .card,
+      footer {
+        background: #ffffff !important;
+        color: #000000 !important;
+      }
+
+      .card {
+        border-color: #000000 !important;
+      }
+
+      .extended-price {
+        color: #000000 !important;
+      }
+
+      .savings-line {
+        background: #ffffff !important;
+        border-color: #000000 !important;
+        color: #000000 !important;
+      }
+    }
   </style>
 
   <script src="https://js.stripe.com/v3/"></script>
 </head>
 
 <body>
-  <!-- HEADER -->
   <header>
     <div class="title-block">
       <h1>DRIV‑EN – Checkout</h1>
@@ -224,7 +253,6 @@
   </header>
 
   <main>
-    <!-- ORDER DETAILS -->
     <div class="card">
       <h3>Order Details</h3>
       <div class="form-row">
@@ -239,7 +267,6 @@
       </div>
     </div>
 
-    <!-- MODULES + TOTALS -->
     <div class="card">
       <h3>Modules Selected</h3>
       <div id="modulesList"></div>
@@ -269,10 +296,8 @@
       </div>
     </div>
 
-    <!-- VALIDATION BANNER -->
     <div id="statusBanner" class="status-bar"></div>
 
-    <!-- CUSTOMER INFORMATION -->
     <div class="card">
       <h3>Customer Information</h3>
 
@@ -321,7 +346,6 @@
       </div>
     </div>
 
-    <!-- BILLING INFORMATION -->
     <div class="card">
       <h3>Billing Information & Payment</h3>
 
@@ -337,10 +361,8 @@
       <div id="card-errors" class="status-bar"></div>
     </div>
 
-    <!-- SUCCESS BANNER -->
     <div id="statusSuccess" class="status-bar success"></div>
 
-    <!-- BUTTONS -->
     <div class="footer-actions">
       <button class="btn-secondary" id="btnBackModules">Back to Modules</button>
       <button class="btn-secondary" id="btnBackCart">Back to Cart</button>
@@ -349,14 +371,12 @@
     </div>
   </main>
 
-  <!-- FOOTER -->
   <footer>
     © 2026 Digital Safety Inspection, LLC.
     <span class="footer-line-2">Driv-en is a Digital Safety Inspection, LLC platform.</span>
   </footer>
 
   <script>
-    // ORDER NUMBER
     function generateOrderNumber() {
       const date = new Date();
       const y = date.getFullYear();
@@ -367,7 +387,6 @@
     }
     document.getElementById("orderNumber").value = generateOrderNumber();
 
-    // PRICING
     const PRICES = {
       equipment: 149,
       pm: 299,
@@ -403,7 +422,6 @@
       transfers: "Equipment Transfer Tracking"
     };
 
-    // MODULE RENDERING + TOTALS
     function renderModules() {
       const payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
       const selections = JSON.parse(localStorage.getItem("driven_modules") || "{}");
@@ -454,7 +472,6 @@
 
       document.getElementById("modulesList").innerHTML = html;
 
-      // Billing period + totals
       const periodLabel =
         payload.billingPeriod === "annual"
           ? "Annual (10% discount applied)"
@@ -470,7 +487,6 @@
       document.getElementById("invoiceTax").value = `$${tax.toFixed(2)}`;
       document.getElementById("invoiceTotal").value = `$${total.toFixed(2)}`;
 
-      // Savings
       let savingsNumber = 0;
       if (payload.billingPeriod === "monthly") {
         savingsNumber = sumUnitPrices - chargeTotal;
@@ -486,7 +502,6 @@
 
     renderModules();
 
-    // NAVIGATION
     document.getElementById("btnBackCart").onclick = () => {
       window.location.href = "cart.html";
     };
@@ -497,7 +512,6 @@
       window.print();
     };
 
-    // VALIDATION
     function validateForm() {
       const fields = [
         "companyName",
@@ -529,14 +543,17 @@
       if (!valid) {
         banner.textContent = "Please complete all required fields.";
         banner.style.display = "block";
-        window.scrollTo({ top: 0, behavior: "smooth" });
+
+        document.querySelector('.card:nth-of-type(3)').scrollIntoView({
+          behavior: "smooth"
+        });
+
         if (firstMissing) firstMissing.focus();
       }
 
       return valid;
     }
 
-    // STRIPE
     let stripe;
     let elements;
     let cardElement;
@@ -544,7 +561,7 @@
     let clientSecret;
 
     async function initStripe() {
-      stripe = Stripe("pk_test_YOUR_PUBLISHABLE_KEY_HERE"); // replace with real key
+      stripe = Stripe("pk_test_YOUR_PUBLISHABLE_KEY_HERE");
 
       const response = await fetch("/create-payment-intent", {
         method: "POST",
@@ -569,7 +586,6 @@
         "Unable to initialize payment form.";
     });
 
-    // CONFIRM & PAY
     document.getElementById("btnConfirm").addEventListener("click", async () => {
       if (!validateForm()) return;
 
