@@ -530,49 +530,15 @@
 
     const bundleName = payload.bundle || selections.bundle || null;
     const bundle = bundleName ? BUNDLES[bundleName] : null;
-    const bundleModules = bundle ? new Set(bundle.modules) : new Set();
 
-    const bundleModuleList = [];
-    const extraModuleList = [];
+    let sumUnitPrices = 0;
 
+    // Always show unit prices for all modules
     selectedModules.forEach(key => {
-      if (bundleModules.has(key)) {
-        bundleModuleList.push(key);
-      } else {
-        extraModuleList.push(key);
-      }
-    });
-
-    // Modules included in bundle: show name + badge, no unit/extended price
-    bundleModuleList.forEach(key => {
-      const name = MODULE_MAP[key];
-      rows.push(`
-        <div class="module-row">
-          <div class="module-name">
-            ${name}
-            <span class="bundle-badge">Included in Bundle</span>
-          </div>
-          <div class="unit-price">-</div>
-          <div class="extended-price">-</div>
-        </div>
-      `);
-    });
-
-    // Bundle row itself (if any)
-    if (bundle) {
-      rows.push(`
-        <div class="module-row">
-          <div class="module-name">${bundleName}</div>
-          <div class="unit-price">-</div>
-          <div class="extended-price">$${bundle.price}</div>
-        </div>
-      `);
-    }
-
-    // Extra modules not in bundle: show normal unit + extended price
-    extraModuleList.forEach(key => {
       const name = MODULE_MAP[key];
       const price = PRICES[key];
+      sumUnitPrices += price;
+
       rows.push(`
         <div class="module-row">
           <div class="module-name">${name}</div>
@@ -582,9 +548,20 @@
       `);
     });
 
+    // Bundle row (if any)
+    if (bundle) {
+      rows.push(`
+        <div class="module-row">
+          <div class="module-name">${bundleName}</div>
+          <div class="unit-price">Bundle</div>
+          <div class="extended-price">$${bundle.price}</div>
+        </div>
+      `);
+    }
+
     checkoutList.innerHTML = rows.join("");
 
-    // Totals
+    // Totals from payload
     const periodLabel =
       payload.billingPeriod === "annual"
         ? "Annual (10% off)"
@@ -600,15 +577,12 @@
     invoiceTax.textContent = `$${tax.toFixed(2)}`;
     invoiceTotal.textContent = `$${total.toFixed(2)}`;
 
-    // Savings (safe handling)
-    let rawSavings =
-      payload.billingPeriod === "annual"
-        ? payload.annualSavings
-        : payload.monthlySavings;
-
-    let savingsNumber = Number(rawSavings);
-    if (!isFinite(savingsNumber)) {
-      savingsNumber = 0;
+    // Savings: compute from unit prices vs invoice subtotal when bundle exists
+    let savingsNumber = 0;
+    if (bundle) {
+      // what it would have cost at unit prices minus what invoice shows
+      savingsNumber = sumUnitPrices - subtotal;
+      if (savingsNumber < 0) savingsNumber = 0;
     }
 
     invoiceSavingsBox.textContent = `Total Savings: $${savingsNumber.toFixed(2)}`;
@@ -679,9 +653,7 @@
       invoiceTax: Number(payload.invoiceTax || 0),
       invoiceTotal: Number(payload.invoiceTotal || 0),
       totalSavings: Number(
-        payload.billingPeriod === "annual"
-          ? payload.annualSavings
-          : payload.monthlySavings
+        document.getElementById("invoiceSavingsBox").textContent.replace(/[^\d.-]/g, "")
       ) || 0
     };
 
@@ -691,7 +663,6 @@
     statusBar.classList.add("success");
   });
 </script>
-
 
 </body>
 </html>
