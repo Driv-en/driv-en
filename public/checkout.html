@@ -240,7 +240,7 @@
     }
   </style>
 
-  <script src="https://js.stripe.com/v3/"></script>
+  <script src="https://js.stripe.com/v3"></script>
 </head>
 
 <body>
@@ -286,7 +286,8 @@
 
       <div class="form-row">
         <div class="form-field">
-          <label>Tax (Texas-based businesses)</label>
+          <label>Tax</label>
+          <span style="font-size:12px;color:#9ca3af;">Calculated after entering company address. Texas businesses are subject to sales tax.</span>
           <input id="invoiceTax" type="text" readonly />
         </div>
         <div class="form-field">
@@ -480,8 +481,15 @@
       document.getElementById("invoicePeriod").value = periodLabel;
 
       const subtotal = Number(payload.invoiceSubtotal || 0);
-      const tax = Number(payload.invoiceTax || 0);
-      const total = Number(payload.invoiceTotal || 0);
+
+      // LIVE TEXAS TAX LOGIC
+      const state = document.getElementById("state").value.trim().toUpperCase();
+      let tax = 0;
+      if (state === "TX") {
+        tax = subtotal * 0.0825;
+      }
+
+      const total = subtotal + tax;
 
       document.getElementById("invoiceSubtotal").value = `$${subtotal.toFixed(2)}`;
       document.getElementById("invoiceTax").value = `$${tax.toFixed(2)}`;
@@ -501,6 +509,11 @@
     }
 
     renderModules();
+
+    // LIVE TAX UPDATE ON ADDRESS INPUT
+    ["street", "city", "state", "zip"].forEach(id => {
+      document.getElementById(id).addEventListener("input", renderModules);
+    });
 
     document.getElementById("btnBackCart").onclick = () => {
       window.location.href = "cart.html";
@@ -591,6 +604,14 @@
 
       const payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
 
+      const subtotal = Number(payload.invoiceSubtotal || 0);
+      const state = document.getElementById("state").value.trim().toUpperCase();
+      let tax = 0;
+      if (state === "TX") {
+        tax = subtotal * 0.0825;
+      }
+      const total = subtotal + tax;
+
       const orderData = {
         orderNumber: document.getElementById("orderNumber").value,
         companyName: document.getElementById("companyName").value.trim(),
@@ -603,9 +624,9 @@
         zip: document.getElementById("zip").value.trim(),
         poNumber: document.getElementById("poNumber").value.trim(),
         billingPeriod: payload.billingPeriod,
-        invoiceSubtotal: Number(payload.invoiceSubtotal || 0),
-        invoiceTax: Number(payload.invoiceTax || 0),
-        invoiceTotal: Number(payload.invoiceTotal || 0)
+        invoiceSubtotal: subtotal,
+        invoiceTax: tax,
+        invoiceTotal: total
       };
 
       document.getElementById("card-errors").textContent = "";
