@@ -3,678 +3,658 @@
 <head>
   <meta charset="UTF-8" />
   <title>DRIV‑EN – Checkout</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" type="image/png" href="/favicon.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Stripe.js -->
+  <script src="https://js.stripe.com/v3/"></script>
 
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       margin: 0;
       padding: 0;
-      background: #0f172a;
-      color: #e5e7eb;
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-      overflow-x: hidden;
+      background: #f3f4f6;
+      color: #111827;
     }
 
-    header {
-      position: sticky;
-      top: 0;
-      z-index: 50;
-      padding: 16px 24px;
-      border-bottom: 1px solid #1f2937;
-      background: #020617;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    .page {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 24px 16px 48px;
     }
 
-    header img.logo {
-      height: 88px;
+    h1, h2, h3 {
+      margin: 0 0 12px;
+      font-weight: 600;
     }
 
-    header .title-block h1 {
-      font-size: 18px;
-      margin: 0;
-    }
-
-    header .title-block span {
-      font-size: 12px;
-      color: #9ca3af;
-    }
-
-    main {
-      flex: 1;
-      max-width: 900px;
-      margin: 32px auto;
-      padding: 0 16px;
-      box-sizing: border-box;
-      width: 100%;
-    }
-
-    h2 {
-      font-size: 22px;
-      margin-bottom: 8px;
-    }
-
-    p {
-      font-size: 14px;
-      color: #9ca3af;
+    .order-header {
       margin-bottom: 16px;
     }
 
+    .order-header-line {
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .order-header-line span.label {
+      font-weight: 600;
+    }
+
     .card {
-      border: 1px solid #1f2937;
-      background: #020617;
+      background: #ffffff;
+      border: 1px solid #d1d5db;
       border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 24px;
-      overflow: hidden;
-      box-sizing: border-box;
-      width: 100%;
+      padding: 16px 20px;
+      margin-bottom: 16px;
     }
 
-    .card h3 {
-      margin-top: 0;
-      margin-bottom: 12px;
+    .card-gray {
+      background: #f9fafb;
+      border: 1px solid #d1d5db;
+    }
+
+    .card-title {
       font-size: 16px;
-    }
-
-    .form-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      font-weight: 600;
       margin-bottom: 12px;
     }
 
-    .form-field {
+    .field-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .field {
+      flex: 1;
+      min-width: 180px;
       display: flex;
       flex-direction: column;
-      gap: 4px;
     }
 
-    .form-field label {
+    .field label {
       font-size: 13px;
-      color: #e5e7eb;
-      font-weight: 600;
+      font-weight: 500;
+      margin-bottom: 4px;
     }
 
-    .form-field input,
-    .form-field select {
+    .field input,
+    .field select {
       padding: 8px 10px;
-      border-radius: 6px;
-      border: 1px solid #374151;
-      background: #0f172a;
-      color: #e5e7eb;
-      box-sizing: border-box;
-      font-size: 13px;
-    }
-
-    .form-field input.error,
-    .form-field select.error {
-      border-color: #ef4444;
-      background: #1e293b;
-    }
-
-    .module-row {
-      display: grid;
-      grid-template-columns: 1fr 120px 120px;
-      padding: 10px 0;
-      border-bottom: 1px solid #1f2937;
-      column-gap: 12px;
-      box-sizing: border-box;
-      width: 100%;
-    }
-
-    .module-row:last-child {
-      border-bottom: none;
-    }
-
-    .module-name {
-      font-size: 15px;
-      font-weight: 600;
-    }
-
-    .unit-price {
-      font-size: 15px;
-      font-weight: 600;
-      text-align: right;
-      color: #e5e7eb;
-    }
-
-    .extended-price {
-      font-size: 15px;
-      font-weight: 600;
-      text-align: right;
-      color: #22c55e;
-    }
-
-    .bundle-badge {
-      display: inline-block;
-      margin-left: 8px;
-      padding: 2px 6px;
       border-radius: 4px;
-      font-size: 12px;
-      background: #e8f5e9;
-      border: 1px solid #4caf50;
-      color: #2e7d32;
+      border: 1px solid #d1d5db;
+      font-size: 14px;
     }
 
-    .savings-line {
-      margin-top: 12px;
+    .field input.error,
+    .field select.error {
+      border-color: #b91c1c;
+    }
+
+    .status-banner {
+      display: none;
+      margin-bottom: 12px;
       padding: 10px 12px;
       border-radius: 6px;
-      background: #022c22;
-      border: 1px solid #22c55e;
       font-size: 14px;
-      color: #bbf7d0;
       font-weight: 600;
     }
 
-    .footer-actions {
+    .status-banner.error {
+      display: block;
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .status-banner.success {
+      display: block;
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .status-banner-icon {
+      margin-right: 6px;
+    }
+
+    .modules-list {
+      font-size: 14px;
+    }
+
+    .modules-row {
       display: flex;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-      gap: 8px;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .modules-row span.name {
+      font-weight: 500;
+    }
+
+    .modules-row span.price {
+      font-weight: 500;
+    }
+
+    .totals-row {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      font-size: 14px;
+    }
+
+    .totals-row span.label {
+      font-weight: 600;
+    }
+
+    .totals-row span.value {
+      font-weight: 600;
+    }
+
+    .buttons-row {
       margin-top: 20px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
     }
 
     button {
-      font-size: 13px;
-      border-radius: 6px;
       padding: 10px 16px;
+      border-radius: 6px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
       cursor: pointer;
-      border: 1px solid transparent;
     }
 
     .btn-secondary {
-      background: #020617;
-      border-color: #374151;
-      color: #e5e7eb;
+      background: #e5e7eb;
+      color: #111827;
     }
 
     .btn-primary {
-      background: #22c55e;
-      border-color: #16a34a;
-      color: #022c22;
-      font-weight: 600;
+      background: #2563eb;
+      color: #ffffff;
     }
 
-    .status-bar {
-      margin-top: 12px;
-      font-size: 12px;
-      color: #9ca3af;
-      min-height: 18px;
+    .logo-inline {
+      height: 80px;
+      vertical-align: middle;
     }
 
-    .status-bar.success {
-      color: #4ade80;
+    #card-element,
+    #billing-address-element {
+      padding: 10px 12px;
+      border-radius: 6px;
+      border: 1px solid #d1d5db;
+      background: #ffffff;
+      margin-bottom: 10px;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      font-size: 13px;
     }
 
     footer {
-      padding: 16px;
       text-align: center;
-      font-size: 12px;
-      color: #9ca3af;
-      border-top: 1px solid #1f2937;
-      background: #020617;
-      box-sizing: border-box;
-      width: 100%;
+      padding: 20px 0;
+      font-size: 14px;
+      color: #374151;
     }
 
     .footer-line-2 {
       display: block;
       margin-top: 4px;
-      color: #6b7280;
+      font-size: 13px;
+      color: #4b5563;
     }
 
-    @media (max-width: 600px) {
-      header img.logo {
-        height: 48px;
-      }
-      main {
-        padding: 0 12px;
-      }
-      .card {
-        padding: 16px;
-      }
-      .form-row {
-        grid-template-columns: 1fr;
-      }
-      .module-row {
-        grid-template-columns: minmax(0, 60%) 1fr 1fr;
-      }
-      .module-name {
-        word-break: break-word;
-      }
-      .extended-price {
-        text-align: right;
-        padding-top: 0;
-      }
-    }
-
-    @media print {
-      header {
-        position: static !important;
-        background: #ffffff !important;
-        border-bottom: 1px solid #000000 !important;
-      }
-      body,
-      main,
-      .card,
-      footer {
-        background: #ffffff !important;
-        color: #000000 !important;
-      }
-      .card {
-        border-color: #000000 !important;
-      }
-      .extended-price {
-        color: #000000 !important;
-      }
-      .savings-line {
-        background: #ffffff !important;
-        border-color: #000000 !important;
-        color: #000000 !important;
+    @media (max-width: 640px) {
+      .page {
+        padding: 16px 12px 32px;
       }
     }
   </style>
 </head>
-
 <body>
-
-<header>
-  <div class="title-block">
-    <h1>DRIV‑EN – Checkout</h1>
-    <span>Step 3 · Confirm your order</span>
-  </div>
-  <img src="/logo.png" alt="DRIV‑EN Logo" class="logo" />
-</header>
-
-<main>
-
-  <h2>Order Summary</h2>
-  <p>Review your selections below. When you're ready, complete the required information and confirm your order.</p>
-
-  <!-- CUSTOMER INFORMATION -->
-  <div class="card">
-    <h3>Customer Information</h3>
-
-    <div class="form-row">
-      <div class="form-field">
-        <label for="companyName">Company (Customer) Name</label>
-        <input id="companyName" type="text" required />
+  <div class="page">
+    <!-- ORDER HEADER -->
+    <div class="order-header">
+      <div class="order-header-line">
+        <span class="label">Order Number:</span>
+        <span id="orderNumber"></span>
       </div>
-      <div class="form-field">
-        <label for="contactName">Contact Name (Admin)</label>
-        <input id="contactName" type="text" required />
+      <div class="order-header-line">
+        <span class="label">Purchase Order (optional):</span>
+        <input id="poNumber" type="text"
+               style="width: 260px; padding: 6px 8px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 13px;" />
       </div>
     </div>
 
-    <div class="form-row">
-      <div class="form-field">
-        <label for="phone">Phone</label>
-        <input id="phone" type="tel" required />
-      </div>
-      <div class="form-field">
-        <label for="email">Email</label>
-        <input id="email" type="email" required />
-      </div>
-    </div>
+    <!-- MODULES SELECTED CARD -->
+    <div class="card card-gray">
+      <div class="card-title">Modules Selected & Pricing Summary</div>
+      <div class="modules-list" id="modulesList"></div>
 
-    <div class="form-row">
-      <div class="form-field">
-        <label for="street">Street Address</label>
-        <input id="street" type="text" required />
+      <div class="totals-row">
+        <span class="label">Billing Period:</span>
+        <span class="value" id="invoicePeriod"></span>
       </div>
-      <div class="form-field">
-        <label for="city">City</label>
-        <input id="city" type="text" required />
+      <div class="totals-row">
+        <span class="label">Subtotal:</span>
+        <span class="value" id="invoiceSubtotal"></span>
       </div>
-    </div>
-
-    <div class="form-row">
-      <div class="form-field">
-        <label for="state">State</label>
-        <select id="state" required>
-          <option value="">Select state</option>
-          <option value="AL">Alabama</option>
-          <option value="AK">Alaska</option>
-          <option value="AZ">Arizona</option>
-          <option value="AR">Arkansas</option>
-          <option value="CA">California</option>
-          <option value="CO">Colorado</option>
-          <option value="CT">Connecticut</option>
-          <option value="DE">Delaware</option>
-          <option value="FL">Florida</option>
-          <option value="GA">Georgia</option>
-          <option value="HI">Hawaii</option>
-          <option value="ID">Idaho</option>
-          <option value="IL">Illinois</option>
-          <option value="IN">Indiana</option>
-          <option value="IA">Iowa</option>
-          <option value="KS">Kansas</option>
-          <option value="KY">Kentucky</option>
-          <option value="LA">Louisiana</option>
-          <option value="ME">Maine</option>
-          <option value="MD">Maryland</option>
-          <option value="MA">Massachusetts</option>
-          <option value="MI">Michigan</option>
-          <option value="MN">Minnesota</option>
-          <option value="MS">Mississippi</option>
-          <option value="MO">Missouri</option>
-          <option value="MT">Montana</option>
-          <option value="NE">Nebraska</option>
-          <option value="NV">Nevada</option>
-          <option value="NH">New Hampshire</option>
-          <option value="NJ">New Jersey</option>
-          <option value="NM">New Mexico</option>
-          <option value="NY">New York</option>
-          <option value="NC">North Carolina</option>
-          <option value="ND">North Dakota</option>
-          <option value="OH">Ohio</option>
-          <option value="OK">Oklahoma</option>
-          <option value="OR">Oregon</option>
-          <option value="PA">Pennsylvania</option>
-          <option value="RI">Rhode Island</option>
-          <option value="SC">South Carolina</option>
-          <option value="SD">South Dakota</option>
-          <option value="TN">Tennessee</option>
-          <option value="TX">Texas</option>
-          <option value="UT">Utah</option>
-          <option value="VT">Vermont</option>
-          <option value="VA">Virginia</option>
-          <option value="WA">Washington</option>
-          <option value="WV">West Virginia</option>
-          <option value="WI">Wisconsin</option>
-          <option value="WY">Wyoming</option>
-        </select>
+      <div class="totals-row">
+        <span class="label">Tax:</span>
+        <span class="value" id="invoiceTax"></span>
       </div>
-
-      <div class="form-field">
-        <label for="zip">Zip Code</label>
-        <input id="zip" type="text" required />
+      <div class="totals-row">
+        <span class="label">Total:</span>
+        <span class="value" id="invoiceTotal"></span>
+      </div>
+      <div class="totals-row">
+        <span class="label">Total Savings:</span>
+        <span class="value" id="invoiceSavingsBox"></span>
       </div>
     </div>
-  </div>
 
-  <!-- PO NUMBER -->
-  <div class="card">
-    <label for="poNumber" style="font-size:14px; color:#e5e7eb; font-weight:600;">
-      Purchase Order (PO) Number <span style="color:#9ca3af;">(optional)</span>
-    </label>
-    <input id="poNumber" type="text" placeholder="Enter PO Number"
-           style="margin-top:8px; width:100%; padding:10px; border-radius:6px; border:1px solid #374151; background:#0f172a; color:#e5e7eb; box-sizing:border-box;">
-  </div>
+    <!-- VALIDATION BANNER (ABOVE CUSTOMER INFO) -->
+    <div id="statusBanner" class="status-banner">
+      <span class="status-banner-icon">⚠</span>
+      <span id="statusBannerText"></span>
+    </div>
 
-  <!-- ORDER NUMBER -->
-  <div class="card">
-    <strong>Order Number:</strong>
-    <span id="orderNumber" style="margin-left:6px;"></span>
-  </div>
-
-  <!-- MODULE LIST -->
-  <div class="card">
-    <h3>Modules Selected</h3>
-    <div id="checkoutList"></div>
-  </div>
-
-  <!-- INVOICE TOTALS -->
-  <div class="card">
-    <h3>Invoice Total</h3>
-    <div><strong>Billing Period:</strong> <span id="invoicePeriod"></span></div>
-    <div><strong>Subtotal:</strong> <span id="invoiceSubtotal">$0</span></div>
-    <div><strong>Tax (8.25%):</strong> <span id="invoiceTax">$0</span></div>
-    <div><strong>Total:</strong> <span id="invoiceTotal">$0</span></div>
-  </div>
-
-  <!-- SAVINGS BOX -->
-  <div id="invoiceSavingsBox" class="savings-line"></div>
-
-  <!-- BUTTONS -->
-  <div class="footer-actions">
-    <button class="btn-secondary" id="btnBackCart">Back to Cart</button>
-    <button class="btn-secondary" id="btnBackModules">Back to Module Selection</button>
-    <button class="btn-secondary" id="btnPrint">Print</button>
-    <button class="btn-primary" id="btnConfirm">Confirm Order</button>
-  </div>
-
-  <div class="status-bar" id="statusBar"></div>
-
-</main>
-
-<footer>
-  © 2026 Digital Safety Inspection, LLC.
-  <span class="footer-line-2">Driv-en is a Digital Safety Inspection, LLC platform.</span>
-</footer>
-
-<script>
-  const checkoutList = document.getElementById("checkoutList");
-  const invoicePeriod = document.getElementById("invoicePeriod");
-  const invoiceSubtotal = document.getElementById("invoiceSubtotal");
-  const invoiceTax = document.getElementById("invoiceTax");
-  const invoiceTotal = document.getElementById("invoiceTotal");
-  const invoiceSavingsBox = document.getElementById("invoiceSavingsBox");
-  const statusBar = document.getElementById("statusBar");
-
-  const companyNameEl = document.getElementById("companyName");
-  const contactNameEl = document.getElementById("contactName");
-  const phoneEl = document.getElementById("phone");
-  const emailEl = document.getElementById("email");
-  const streetEl = document.getElementById("street");
-  const cityEl = document.getElementById("city");
-  const stateEl = document.getElementById("state");
-  const zipEl = document.getElementById("zip");
-  const poNumberEl = document.getElementById("poNumber");
-
-  const PRICES = {
-    equipment: 149,
-    pm: 299,
-    inspections: 199,
-    extraction: 149,
-    workorders: 149,
-    fuel: 49,
-    transfers: 79
-  };
-
-  const BUNDLES = {
-    "Operations Bundle": {
-      modules: ["equipment", "pm", "inspections", "extraction"],
-      price: 499
-    },
-    "Full Equipment Bundle": {
-      modules: ["equipment", "pm", "inspections", "workorders", "extraction"],
-      price: 529
-    },
-    "Complete Platform Bundle": {
-      modules: ["equipment", "pm", "inspections", "workorders", "fuel", "transfers", "extraction"],
-      price: 599
-    }
-  };
-
-  const MODULE_MAP = {
-    equipment: "Equipment Management (Required)",
-    pm: "Preventative Maintenance",
-    inspections: "Equipment Inspections",
-    extraction: "Extraction Engine",
-    workorders: "Work Orders",
-    fuel: "Fuel Usage Tracking",
-    transfers: "Equipment Transfer Tracking"
-  };
-
-  function generateOrderNumber() {
-    const date = new Date();
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
-    const rand = String(Math.floor(Math.random() * 90000) + 10000);
-    return `DRN-${y}${m}${d}-${rand}`;
-  }
-
-  document.getElementById("orderNumber").textContent = generateOrderNumber();
-
-  function renderCheckout() {
-    const payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
-    const selections = JSON.parse(localStorage.getItem("driven_modules") || "{}");
-
-    const rows = [];
-    const selectedModules = ["equipment"];
-    if (selections.pm) selectedModules.push("pm");
-    if (selections.inspections) selectedModules.push("inspections");
-    if (selections.workorders) selectedModules.push("workorders");
-    if (selections.fuel) selectedModules.push("fuel");
-    if (selections.transfers) selectedModules.push("transfers");
-    if (selections.extraction) selectedModules.push("extraction");
-
-    const bundleName = payload.bundle || selections.bundle || null;
-    const bundle = bundleName ? BUNDLES[bundleName] : null;
-    const bundleModules = bundle ? new Set(bundle.modules) : new Set();
-
-    let sumUnitPrices = 0;
-    let chargeTotal = 0;
-
-    selectedModules.forEach(key => {
-      const name = MODULE_MAP[key];
-      const price = PRICES[key];
-      sumUnitPrices += price;
-
-      const extended = bundleModules.has(key) ? "-" : `$${price}`;
-      if (!bundleModules.has(key)) chargeTotal += price;
-
-      rows.push(`
-        <div class="module-row">
-          <div class="module-name">${name}</div>
-          <div class="unit-price">$${price}</div>
-          <div class="extended-price">${extended}</div>
+    <!-- CUSTOMER INFORMATION CARD -->
+    <div class="card">
+      <div class="card-title">Customer Information</div>
+      <div class="field-row">
+        <div class="field">
+          <label for="companyName">Company Name *</label>
+          <input id="companyName" type="text" />
         </div>
-      `);
-    });
-
-    if (bundle) {
-      chargeTotal = bundle.price;
-      rows.push(`
-        <div class="module-row">
-          <div class="module-name">${bundleName}</div>
-          <div class="unit-price">Bundle</div>
-          <div class="extended-price">$${bundle.price}</div>
+        <div class="field">
+          <label for="contactName">Contact Name *</label>
+          <input id="contactName" type="text" />
         </div>
-      `);
-    }
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="phone">Phone *</label>
+          <input id="phone" type="text" />
+        </div>
+        <div class="field">
+          <label for="email">Email *</label>
+          <input id="email" type="email" />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="street">Street *</label>
+          <input id="street" type="text" />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="city">City *</label>
+          <input id="city" type="text" />
+        </div>
+        <div class="field">
+          <label for="state">State *</label>
+          <input id="state" type="text" />
+        </div>
+        <div class="field">
+          <label for="zip">Zip *</label>
+          <input id="zip" type="text" />
+        </div>
+      </div>
+    </div>
 
-    checkoutList.innerHTML = rows.join("");
+    <!-- BILLING INFORMATION (STRIPE ELEMENTS) -->
+    <div class="card">
+      <div class="card-title">Billing Information & Payment</div>
 
-    invoicePeriod.textContent =
-      payload.billingPeriod === "annual"
-        ? "Annual (10% off)"
-        : "Monthly";
+      <div class="checkbox-row">
+        <input type="checkbox" id="billingSameAsCompany" checked />
+        <label for="billingSameAsCompany">Billing address is the same as company address</label>
+      </div>
 
-    const subtotal = Number(payload.invoiceSubtotal || 0);
-    const tax = Number(payload.invoiceTax || 0);
-    const total = Number(payload.invoiceTotal || 0);
+      <div id="billing-address-element"></div>
+      <div id="card-element"></div>
+      <div id="card-errors" style="color:#b91c1c; font-size:13px; margin-top:4px;"></div>
+    </div>
 
-    invoiceSubtotal.textContent = `$${subtotal.toFixed(2)}`;
-    invoiceTax.textContent = `$${tax.toFixed(2)}`;
-    invoiceTotal.textContent = `$${total.toFixed(2)}`;
+    <!-- SUCCESS BANNER -->
+    <div id="statusSuccess" class="status-banner">
+      <span id="statusSuccessText"></span>
+    </div>
 
-    let savingsNumber = 0;
+    <!-- BUTTONS -->
+    <div class="buttons-row">
+      <button type="button" class="btn-secondary" id="btnBackModules">Back to Modules</button>
+      <button type="button" class="btn-secondary" id="btnBackCart">Back to Cart</button>
+      <button type="button" class="btn-secondary" id="btnPrint">Print</button>
+      <button type="button" class="btn-primary" id="btnConfirm">Confirm & Pay</button>
+    </div>
+  </div>
 
-    if (payload.billingPeriod === "monthly") {
-      savingsNumber = sumUnitPrices - chargeTotal;
-    } else {
-      const annualUnitTotal = sumUnitPrices * 12;
-      savingsNumber = annualUnitTotal - subtotal;
-    }
+  <!-- OFFICIAL FOOTER -->
+  <footer>
+    © 2026 Digital Safety Inspection, LLC.
+    <span class="footer-line-2">Driv-en is a Digital Safety Inspection, LLC platform.</span>
+  </footer>
 
-    if (savingsNumber < 0) savingsNumber = 0;
+  <script>
+    // DOM refs
+    const modulesListEl = document.getElementById("modulesList");
+    const invoicePeriodEl = document.getElementById("invoicePeriod");
+    const invoiceSubtotalEl = document.getElementById("invoiceSubtotal");
+    const invoiceTaxEl = document.getElementById("invoiceTax");
+    const invoiceTotalEl = document.getElementById("invoiceTotal");
+    const invoiceSavingsBoxEl = document.getElementById("invoiceSavingsBox");
 
-    invoiceSavingsBox.textContent = `Total Savings: $${savingsNumber.toFixed(2)}`;
-  }
+    const statusBanner = document.getElementById("statusBanner");
+    const statusBannerText = document.getElementById("statusBannerText");
+    const statusSuccess = document.getElementById("statusSuccess");
+    const statusSuccessText = document.getElementById("statusSuccessText");
 
-  renderCheckout();
+    const companyNameEl = document.getElementById("companyName");
+    const contactNameEl = document.getElementById("contactName");
+    const phoneEl = document.getElementById("phone");
+    const emailEl = document.getElementById("email");
+    const streetEl = document.getElementById("street");
+    const cityEl = document.getElementById("city");
+    const stateEl = document.getElementById("state");
+    const zipEl = document.getElementById("zip");
+    const poNumberEl = document.getElementById("poNumber");
 
-  document.getElementById("btnBackCart").addEventListener("click", () => {
-    window.location.href = "cart.html";
-  });
-
-  document.getElementById("btnBackModules").addEventListener("click", () => {
-    window.location.href = "module-selection.html";
-  });
-
-  document.getElementById("btnPrint").addEventListener("click", () => {
-    window.print();
-  });
-
-  function validateForm() {
-    let valid = true;
-    const requiredFields = [
-      companyNameEl,
-      contactNameEl,
-      phoneEl,
-      emailEl,
-      streetEl,
-      cityEl,
-      stateEl,
-      zipEl
-    ];
-
-    requiredFields.forEach(field => {
-      field.classList.remove("error");
-      if (!field.value || field.value.trim() === "") {
-        field.classList.add("error");
-        valid = false;
-      }
-    });
-
-    if (!valid) {
-      statusBar.textContent = "Please complete all required fields.";
-      statusBar.style.fontSize = "16px";
-      statusBar.style.fontWeight = "600";
-
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-
-    return valid;
-  }
-
-  document.getElementById("btnConfirm").addEventListener("click", () => {
-    if (!validateForm()) return;
-
-    const payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
-
-    const orderData = {
-      orderNumber: document.getElementById("orderNumber").textContent,
-      companyName: companyNameEl.value.trim(),
-      contactName: contactNameEl.value.trim(),
-      phone: phoneEl.value.trim(),
-      email: emailEl.value.trim(),
-      street: streetEl.value.trim(),
-      city: cityEl.value.trim(),
-      state: stateEl.value,
-      zip: zipEl.value.trim(),
-      poNumber: poNumberEl.value.trim(),
-      billingPeriod: payload.billingPeriod,
-      invoiceSubtotal: Number(payload.invoiceSubtotal || 0),
-      invoiceTax: Number(payload.invoiceTax || 0),
-      invoiceTotal: Number(payload.invoiceTotal || 0),
-      totalSavings: Number(
-        document.getElementById("invoiceSavingsBox").textContent.replace(/[^\d.-]/g, "")
-      ) || 0
+    const PRICES = {
+      equipment: 149,
+      pm: 299,
+      inspections: 199,
+      extraction: 149,
+      workorders: 149,
+      fuel: 49,
+      transfers: 79
     };
 
-    console.log("Order confirmed:", orderData);
+    const BUNDLES = {
+      "Operations Bundle": {
+        modules: ["equipment", "pm", "inspections", "extraction"],
+        price: 499
+      },
+      "Full Equipment Bundle": {
+        modules: ["equipment", "pm", "inspections", "workorders", "extraction"],
+        price: 529
+      },
+      "Complete Platform Bundle": {
+        modules: ["equipment", "pm", "inspections", "workorders", "fuel", "transfers", "extraction"],
+        price: 599
+      }
+    };
 
-    statusBar.innerHTML =
-      `Order confirmed. Thank you for choosing <img src="/logo.png" style="height:80px; vertical-align:middle;">`;
+    const MODULE_MAP = {
+      equipment: "Equipment Management (Required)",
+      pm: "Preventative Maintenance",
+      inspections: "Equipment Inspections",
+      extraction: "Extraction Engine",
+      workorders: "Work Orders",
+      fuel: "Fuel Usage Tracking",
+      transfers: "Equipment Transfer Tracking"
+    };
 
-    statusBar.style.fontSize = "16px";
-    statusBar.style.fontWeight = "600";
-    statusBar.classList.add("success");
+    function generateOrderNumber() {
+      const date = new Date();
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      const rand = String(Math.floor(Math.random() * 90000) + 10000);
+      return `DRN-${y}${m}${d}-${rand}`;
+    }
 
-    // ⭐ DO NOT scroll on success
-  });
-</script>
+    document.getElementById("orderNumber").textContent = generateOrderNumber();
 
+    function renderModulesAndTotals() {
+      const payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
+      const selections = JSON.parse(localStorage.getItem("driven_modules") || "{}");
+
+      const rows = [];
+      const selectedModules = ["equipment"];
+      if (selections.pm) selectedModules.push("pm");
+      if (selections.inspections) selectedModules.push("inspections");
+      if (selections.workorders) selectedModules.push("workorders");
+      if (selections.fuel) selectedModules.push("fuel");
+      if (selections.transfers) selectedModules.push("transfers");
+      if (selections.extraction) selectedModules.push("extraction");
+
+      const bundleName = payload.bundle || selections.bundle || null;
+      const bundle = bundleName ? BUNDLES[bundleName] : null;
+      const bundleModules = bundle ? new Set(bundle.modules) : new Set();
+
+      let sumUnitPrices = 0;
+      let chargeTotal = 0;
+
+      selectedModules.forEach(key => {
+        const name = MODULE_MAP[key];
+        const price = PRICES[key];
+        sumUnitPrices += price;
+
+        const extended = bundleModules.has(key) ? "-" : `$${price}`;
+        if (!bundleModules.has(key)) chargeTotal += price;
+
+        rows.push(`
+          <div class="modules-row">
+            <span class="name">${name}</span>
+            <span class="price">${extended}</span>
+          </div>
+        `);
+      });
+
+      if (bundle) {
+        chargeTotal = bundle.price;
+        rows.push(`
+          <div class="modules-row">
+            <span class="name">${bundleName}</span>
+            <span class="price">$${bundle.price}</span>
+          </div>
+        `);
+      }
+
+      modulesListEl.innerHTML = rows.join("");
+
+      invoicePeriodEl.textContent =
+        payload.billingPeriod === "annual"
+          ? "Annual (10% off)"
+          : "Monthly";
+
+      const subtotal = Number(payload.invoiceSubtotal || 0);
+      const tax = Number(payload.invoiceTax || 0);
+      const total = Number(payload.invoiceTotal || 0);
+
+      invoiceSubtotalEl.textContent = `$${subtotal.toFixed(2)}`;
+      invoiceTaxEl.textContent = `$${tax.toFixed(2)}`;
+      invoiceTotalEl.textContent = `$${total.toFixed(2)}`;
+
+      let savingsNumber = 0;
+
+      if (payload.billingPeriod === "monthly") {
+        savingsNumber = sumUnitPrices - chargeTotal;
+      } else {
+        const annualUnitTotal = sumUnitPrices * 12;
+        savingsNumber = annualUnitTotal - subtotal;
+      }
+
+      if (savingsNumber < 0) savingsNumber = 0;
+
+      invoiceSavingsBoxEl.textContent = `$${savingsNumber.toFixed(2)}`;
+    }
+
+    renderModulesAndTotals();
+
+    // NAV BUTTONS
+    document.getElementById("btnBackCart").addEventListener("click", () => {
+      window.location.href = "cart.html";
+    });
+
+    document.getElementById("btnBackModules").addEventListener("click", () => {
+      window.location.href = "module-selection.html";
+    });
+
+    document.getElementById("btnPrint").addEventListener("click", () => {
+      window.print();
+    });
+
+    // VALIDATION
+    function validateForm() {
+      let valid = true;
+      statusBanner.classList.remove("error");
+      statusBanner.style.display = "none";
+      statusBannerText.textContent = "";
+
+      statusSuccess.classList.remove("success");
+      statusSuccess.style.display = "none";
+      statusSuccessText.textContent = "";
+
+      const requiredFields = [
+        companyNameEl,
+        contactNameEl,
+        phoneEl,
+        emailEl,
+        streetEl,
+        cityEl,
+        stateEl,
+        zipEl
+      ];
+
+      requiredFields.forEach(field => {
+        field.classList.remove("error");
+      });
+
+      let firstMissing = null;
+
+      requiredFields.forEach(field => {
+        if (!field.value || field.value.trim() === "") {
+          field.classList.add("error");
+          valid = false;
+          if (!firstMissing) firstMissing = field;
+        }
+      });
+
+      if (!valid) {
+        statusBannerText.textContent = "Please complete all required fields.";
+        statusBanner.classList.add("error");
+        statusBanner.style.display = "block";
+
+        window.scrollTo({ top: 0, behavior: "smooth" });
+
+        if (firstMissing) {
+          firstMissing.focus();
+        }
+      }
+
+      return valid;
+    }
+
+    // STRIPE ELEMENTS SETUP (skeleton)
+    let stripe;
+    let elements;
+    let cardElement;
+    let billingAddressElement;
+    let clientSecret;
+
+    async function initializeStripe() {
+      stripe = Stripe("pk_test_YOUR_PUBLISHABLE_KEY_HERE"); // replace with real key
+
+      const response = await fetch("/create-payment-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          // send metadata if needed (order number, modules, etc.)
+        })
+      });
+
+      const data = await response.json();
+      clientSecret = data.clientSecret;
+
+      elements = stripe.elements({ clientSecret });
+
+      billingAddressElement = elements.create("address", {
+        mode: "billing"
+      });
+      billingAddressElement.mount("#billing-address-element");
+
+      cardElement = elements.create("payment");
+      cardElement.mount("#card-element");
+    }
+
+    initializeStripe().catch(err => {
+      console.error("Stripe initialization error:", err);
+      document.getElementById("card-errors").textContent =
+        "Unable to initialize payment form. Please try again later.";
+    });
+
+    // CONFIRM & PAY
+    document.getElementById("btnConfirm").addEventListener("click", async () => {
+      if (!validateForm()) return;
+
+      const payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
+
+      const orderData = {
+        orderNumber: document.getElementById("orderNumber").textContent,
+        companyName: companyNameEl.value.trim(),
+        contactName: contactNameEl.value.trim(),
+        phone: phoneEl.value.trim(),
+        email: emailEl.value.trim(),
+        street: streetEl.value.trim(),
+        city: cityEl.value.trim(),
+        state: stateEl.value.trim(),
+        zip: zipEl.value.trim(),
+        poNumber: poNumberEl.value.trim(),
+        billingPeriod: payload.billingPeriod,
+        invoiceSubtotal: Number(payload.invoiceSubtotal || 0),
+        invoiceTax: Number(payload.invoiceTax || 0),
+        invoiceTotal: Number(payload.invoiceTotal || 0),
+        totalSavings: Number(
+          invoiceSavingsBoxEl.textContent.replace(/[^\d.-]/g, "")
+        ) || 0
+      };
+
+      console.log("Order data (pre-payment):", orderData);
+
+      document.getElementById("card-errors").textContent = "";
+
+      try {
+        const { error } = await stripe.confirmPayment({
+          elements,
+          confirmParams: {
+            // return_url can be set if you want redirect after payment
+            // return_url: "https://www.driv-en.com/public/onboarding-start.html",
+          }
+        });
+
+        if (error) {
+          document.getElementById("card-errors").textContent =
+            error.message || "Payment error.";
+          return;
+        }
+
+        // Stripe webhook will handle payment_intent.succeeded / checkout.session.completed
+
+        statusSuccessText.innerHTML =
+          `Order confirmed. Thank you for choosing <img src="/logo.png" class="logo-inline">`;
+        statusSuccess.classList.add("success");
+        statusSuccess.style.display = "block";
+
+        // No scroll on success
+      } catch (err) {
+        console.error("Payment confirmation error:", err);
+        document.getElementById("card-errors").textContent =
+          "An unexpected error occurred while processing your payment.";
+      }
+    });
+  </script>
 </body>
 </html>
