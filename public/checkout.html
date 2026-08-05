@@ -584,25 +584,39 @@
 
     checkoutList.innerHTML = rows.join("");
 
-    invoicePeriod.textContent =
+    // Totals
+    const periodLabel =
       payload.billingPeriod === "annual"
         ? "Annual (10% off)"
         : "Monthly";
 
-    invoiceSubtotal.textContent = `$${payload.invoiceSubtotal.toFixed(2)}`;
-    invoiceTax.textContent = `$${payload.invoiceTax.toFixed(2)}`;
-    invoiceTotal.textContent = `$${payload.invoiceTotal.toFixed(2)}`;
+    invoicePeriod.textContent = periodLabel;
 
-    const savings =
+    const subtotal = Number(payload.invoiceSubtotal || 0);
+    const tax = Number(payload.invoiceTax || 0);
+    const total = Number(payload.invoiceTotal || 0);
+
+    invoiceSubtotal.textContent = `$${subtotal.toFixed(2)}`;
+    invoiceTax.textContent = `$${tax.toFixed(2)}`;
+    invoiceTotal.textContent = `$${total.toFixed(2)}`;
+
+    // Savings (safe handling)
+    let rawSavings =
       payload.billingPeriod === "annual"
         ? payload.annualSavings
         : payload.monthlySavings;
 
-    invoiceSavingsBox.textContent = `Total Savings: $${savings.toFixed(2)}`;
+    let savingsNumber = Number(rawSavings);
+    if (!isFinite(savingsNumber)) {
+      savingsNumber = 0;
+    }
+
+    invoiceSavingsBox.textContent = `Total Savings: $${savingsNumber.toFixed(2)}`;
   }
 
   renderCheckout();
 
+  // Navigation buttons
   document.getElementById("btnBackCart").addEventListener("click", () => {
     window.location.href = "cart.html";
   });
@@ -661,13 +675,14 @@
       zip: zipEl.value.trim(),
       poNumber: poNumberEl.value.trim(),
       billingPeriod: payload.billingPeriod,
-      invoiceSubtotal: payload.invoiceSubtotal,
-      invoiceTax: payload.invoiceTax,
-      invoiceTotal: payload.invoiceTotal,
-      totalSavings:
+      invoiceSubtotal: Number(payload.invoiceSubtotal || 0),
+      invoiceTax: Number(payload.invoiceTax || 0),
+      invoiceTotal: Number(payload.invoiceTotal || 0),
+      totalSavings: Number(
         payload.billingPeriod === "annual"
           ? payload.annualSavings
           : payload.monthlySavings
+      ) || 0
     };
 
     console.log("Order confirmed:", orderData);
@@ -676,6 +691,7 @@
     statusBar.classList.add("success");
   });
 </script>
+
 
 </body>
 </html>
