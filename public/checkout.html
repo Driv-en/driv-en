@@ -530,20 +530,23 @@
 
     const bundleName = payload.bundle || selections.bundle || null;
     const bundle = bundleName ? BUNDLES[bundleName] : null;
+    const bundleModules = bundle ? new Set(bundle.modules) : new Set();
 
     let sumUnitPrices = 0;
 
-    // Always show unit prices for all modules
+    // ALWAYS show unit prices
     selectedModules.forEach(key => {
       const name = MODULE_MAP[key];
       const price = PRICES[key];
       sumUnitPrices += price;
 
+      const extended = bundleModules.has(key) ? "-" : `$${price}`;
+
       rows.push(`
         <div class="module-row">
           <div class="module-name">${name}</div>
           <div class="unit-price">$${price}</div>
-          <div class="extended-price">$${price}</div>
+          <div class="extended-price">${extended}</div>
         </div>
       `);
     });
@@ -562,12 +565,10 @@
     checkoutList.innerHTML = rows.join("");
 
     // Totals from payload
-    const periodLabel =
+    invoicePeriod.textContent =
       payload.billingPeriod === "annual"
         ? "Annual (10% off)"
         : "Monthly";
-
-    invoicePeriod.textContent = periodLabel;
 
     const subtotal = Number(payload.invoiceSubtotal || 0);
     const tax = Number(payload.invoiceTax || 0);
@@ -577,13 +578,9 @@
     invoiceTax.textContent = `$${tax.toFixed(2)}`;
     invoiceTotal.textContent = `$${total.toFixed(2)}`;
 
-    // Savings: compute from unit prices vs invoice subtotal when bundle exists
-    let savingsNumber = 0;
-    if (bundle) {
-      // what it would have cost at unit prices minus what invoice shows
-      savingsNumber = sumUnitPrices - subtotal;
-      if (savingsNumber < 0) savingsNumber = 0;
-    }
+    // Savings: unit total minus subtotal
+    let savingsNumber = sumUnitPrices - subtotal;
+    if (savingsNumber < 0) savingsNumber = 0;
 
     invoiceSavingsBox.textContent = `Total Savings: $${savingsNumber.toFixed(2)}`;
   }
@@ -649,9 +646,9 @@
       zip: zipEl.value.trim(),
       poNumber: poNumberEl.value.trim(),
       billingPeriod: payload.billingPeriod,
-      invoiceSubtotal: Number(payload.invoiceSubtotal || 0),
-      invoiceTax: Number(payload.invoiceTax || 0),
-      invoiceTotal: Number(payload.invoiceTotal || 0),
+      invoiceSubtotal: subtotal,
+      invoiceTax: tax,
+      invoiceTotal: total,
       totalSavings: Number(
         document.getElementById("invoiceSavingsBox").textContent.replace(/[^\d.-]/g, "")
       ) || 0
