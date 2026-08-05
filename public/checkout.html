@@ -495,7 +495,7 @@
   };
 
   const MODULE_MAP = {
-    equipment: "Equipment Management",
+    equipment: "Equipment Management (Required)",
     pm: "Preventative Maintenance",
     inspections: "Equipment Inspections",
     extraction: "Extraction Engine",
@@ -535,7 +535,6 @@
     let sumUnitPrices = 0;
     let chargeTotal = 0;
 
-    // ALWAYS show unit prices
     selectedModules.forEach(key => {
       const name = MODULE_MAP[key];
       const price = PRICES[key];
@@ -553,7 +552,6 @@
       `);
     });
 
-    // Bundle row (if any)
     if (bundle) {
       chargeTotal = bundle.price;
       rows.push(`
@@ -567,7 +565,6 @@
 
     checkoutList.innerHTML = rows.join("");
 
-    // Totals from payload
     invoicePeriod.textContent =
       payload.billingPeriod === "annual"
         ? "Annual (10% off)"
@@ -581,13 +578,11 @@
     invoiceTax.textContent = `$${tax.toFixed(2)}`;
     invoiceTotal.textContent = `$${total.toFixed(2)}`;
 
-    // ⭐ Correct savings logic
     let savingsNumber = 0;
 
     if (payload.billingPeriod === "monthly") {
       savingsNumber = sumUnitPrices - chargeTotal;
     } else {
-      // Annual savings ALWAYS computed, bundle or not
       const annualUnitTotal = sumUnitPrices * 12;
       savingsNumber = annualUnitTotal - subtotal;
     }
@@ -599,7 +594,6 @@
 
   renderCheckout();
 
-  // Navigation buttons
   document.getElementById("btnBackCart").addEventListener("click", () => {
     window.location.href = "cart.html";
   });
@@ -635,7 +629,10 @@
 
     if (!valid) {
       statusBar.textContent = "Please complete all required fields.";
-      statusBar.classList.remove("success");
+      statusBar.style.fontSize = "16px";
+      statusBar.style.fontWeight = "600";
+
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
     return valid;
@@ -668,8 +665,12 @@
 
     console.log("Order confirmed:", orderData);
 
-    statusBar.textContent = "Order confirmed. Thank you for choosing DRIV‑EN.";
+    statusBar.innerHTML = `Order confirmed. Thank you for choosing <img src="/logo.png" style="height:20px; vertical-align:middle;">`;
+    statusBar.style.fontSize = "16px";
+    statusBar.style.fontWeight = "600";
     statusBar.classList.add("success");
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
   });
 </script>
 
