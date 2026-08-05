@@ -3,410 +3,424 @@
 <head>
   <meta charset="UTF-8" />
   <title>DRIV‑EN – Checkout</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <!-- Stripe.js -->
-  <script src="https://js.stripe.com/v3/"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
 
   <style>
-    :root {
-      --bg-page: #f3f4f6;
-      --bg-card: #ffffff;
-      --bg-card-gray: #f9fafb;
-      --border-card: #d1d5db;
-      --text-main: #111827;
-      --text-muted: #4b5563;
-      --text-footer: #374151;
-      --accent-primary: #2563eb;
-      --accent-secondary: #e5e7eb;
-      --status-error-bg: #fee2e2;
-      --status-error-text: #b91c1c;
-      --status-success-bg: #dcfce7;
-      --status-success-text: #166534;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       margin: 0;
       padding: 0;
-      background: var(--bg-page);
-      color: var(--text-main);
+      background: #0f172a;
+      color: #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      overflow-x: hidden;
     }
 
-    .page {
-      max-width: 960px;
-      margin: 0 auto;
-      padding: 24px 16px 48px;
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 16px 24px;
+      border-bottom: 1px solid #1f2937;
+      background: #020617;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
-    h1, h2, h3 {
-      margin: 0 0 12px;
-      font-weight: 600;
+    header img.logo {
+      height: 88px;
     }
 
-    .page-title {
+    header .title-block h1 {
+      font-size: 18px;
+      margin: 0;
+    }
+
+    header .title-block span {
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
+    main {
+      flex: 1;
+      max-width: 900px;
+      margin: 32px auto;
+      padding: 0 16px;
+      box-sizing: border-box;
+      width: 100%;
+    }
+
+    h2 {
       font-size: 22px;
-      font-weight: 600;
-      margin-bottom: 16px;
-    }
-
-    .order-header {
-      margin-bottom: 16px;
-    }
-
-    .order-header-line {
       margin-bottom: 8px;
+    }
+
+    p {
       font-size: 14px;
-    }
-
-    .order-header-line span.label {
-      font-weight: 600;
-    }
-
-    .order-header-line input {
-      margin-left: 8px;
+      color: #9ca3af;
+      margin-bottom: 16px;
     }
 
     .card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-card);
+      border: 1px solid #1f2937;
+      background: #020617;
       border-radius: 8px;
-      padding: 16px 20px;
-      margin-bottom: 16px;
+      padding: 20px;
+      margin-bottom: 24px;
+      overflow: hidden;
+      box-sizing: border-box;
+      width: 100%;
     }
 
-    .card-gray {
-      background: var(--bg-card-gray);
-      border: 1px solid var(--border-card);
-    }
-
-    .card-title {
+    .card h3 {
+      margin-top: 0;
+      margin-bottom: 12px;
       font-size: 16px;
-      font-weight: 600;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
       margin-bottom: 12px;
     }
 
-    .field-row {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 10px;
-      flex-wrap: wrap;
-    }
-
-    .field {
-      flex: 1;
-      min-width: 180px;
+    .form-field {
       display: flex;
       flex-direction: column;
+      gap: 4px;
     }
 
-    .field label {
+    .form-field label {
       font-size: 13px;
-      font-weight: 500;
-      margin-bottom: 4px;
+      color: #e5e7eb;
+      font-weight: 600;
     }
 
-    .field input,
-    .field select {
+    .form-field input,
+    .form-field select {
       padding: 8px 10px;
-      border-radius: 4px;
-      border: 1px solid var(--border-card);
-      font-size: 14px;
+      border-radius: 6px;
+      border: 1px solid #374151;
+      background: #0f172a;
+      color: #e5e7eb;
+      box-sizing: border-box;
+      font-size: 13px;
     }
 
-    .field input.error,
-    .field select.error {
-      border-color: var(--status-error-text);
+    .form-field input.error,
+    .form-field select.error {
+      border-color: #ef4444;
+      background: #1e293b;
     }
 
-    .status-banner {
-      display: none;
-      margin-bottom: 12px;
+    .module-row {
+      display: grid;
+      grid-template-columns: 1fr 120px 120px;
+      padding: 10px 0;
+      border-bottom: 1px solid #1f2937;
+      column-gap: 12px;
+      box-sizing: border-box;
+      width: 100%;
+    }
+
+    .module-row:last-child {
+      border-bottom: none;
+    }
+
+    .module-name {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .unit-price {
+      font-size: 15px;
+      font-weight: 600;
+      text-align: right;
+      color: #e5e7eb;
+    }
+
+    .extended-price {
+      font-size: 15px;
+      font-weight: 600;
+      text-align: right;
+      color: #22c55e;
+    }
+
+    .savings-line {
+      margin-top: 12px;
       padding: 10px 12px;
       border-radius: 6px;
+      background: #022c22;
+      border: 1px solid #22c55e;
       font-size: 14px;
+      color: #bbf7d0;
       font-weight: 600;
     }
 
-    .status-banner.error {
-      display: block;
-      background: var(--status-error-bg);
-      color: var(--status-error-text);
-    }
-
-    .status-banner.success {
-      display: block;
-      background: var(--status-success-bg);
-      color: var(--status-success-text);
-    }
-
-    .status-banner-icon {
-      margin-right: 6px;
-    }
-
-    .modules-list {
-      font-size: 14px;
-    }
-
-    .modules-row {
+    .footer-actions {
       display: flex;
-      justify-content: space-between;
-      margin-bottom: 4px;
-    }
-
-    .modules-row span.name {
-      font-weight: 500;
-    }
-
-    .modules-row span.price {
-      font-weight: 500;
-    }
-
-    .totals-row {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 8px;
-      font-size: 14px;
-    }
-
-    .totals-row span.label {
-      font-weight: 600;
-    }
-
-    .totals-row span.value {
-      font-weight: 600;
-    }
-
-    .buttons-row {
-      margin-top: 20px;
-      display: flex;
-      gap: 10px;
       flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 20px;
     }
 
     button {
-      padding: 10px 16px;
+      font-size: 13px;
       border-radius: 6px;
-      border: none;
-      font-size: 14px;
-      font-weight: 600;
+      padding: 10px 16px;
       cursor: pointer;
+      border: 1px solid transparent;
     }
 
     .btn-secondary {
-      background: var(--accent-secondary);
-      color: var(--text-main);
+      background: #020617;
+      border-color: #374151;
+      color: #e5e7eb;
     }
 
     .btn-primary {
-      background: var(--accent-primary);
-      color: #ffffff;
+      background: #22c55e;
+      border-color: #16a34a;
+      color: #022c22;
+      font-weight: 600;
     }
 
-    .logo-inline {
-      height: 80px;
-      vertical-align: middle;
+    .status-bar {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #9ca3af;
+      min-height: 18px;
     }
 
-    #card-element,
-    #billing-address-element {
-      padding: 10px 12px;
-      border-radius: 6px;
-      border: 1px solid var(--border-card);
-      background: #ffffff;
-      margin-bottom: 10px;
+    .status-bar.error {
+      color: #ef4444;
     }
 
-    .checkbox-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 10px;
-      font-size: 13px;
+    .status-bar.success {
+      color: #4ade80;
     }
 
     footer {
+      padding: 16px;
       text-align: center;
-      padding: 20px 0;
-      font-size: 14px;
-      color: var(--text-footer);
-      background: #f9fafb;
-      border-top: 1px solid #e5e7eb;
+      font-size: 12px;
+      color: #9ca3af;
+      border-top: 1px solid #1f2937;
+      background: #020617;
+      box-sizing: border-box;
+      width: 100%;
     }
 
     .footer-line-2 {
       display: block;
       margin-top: 4px;
-      font-size: 13px;
-      color: var(--text-muted);
+      color: #6b7280;
     }
 
-    @media (max-width: 640px) {
-      .page {
-        padding: 16px 12px 32px;
+    #billing-address-element,
+    #card-element {
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid #374151;
+      background: #0f172a;
+      color: #e5e7eb;
+      box-sizing: border-box;
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+
+    @media (max-width: 600px) {
+      header img.logo {
+        height: 48px;
+      }
+      main {
+        padding: 0 12px;
+      }
+      .card {
+        padding: 16px;
+      }
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+      .module-row {
+        grid-template-columns: minmax(0, 60%) 1fr 1fr;
+      }
+      .module-name {
+        word-break: break-word;
+      }
+      .extended-price {
+        text-align: right;
+        padding-top: 0;
+      }
+    }
+
+    @media print {
+      header {
+        position: static !important;
+        background: #ffffff !important;
+        border-bottom: 1px solid #000000 !important;
+      }
+      body,
+      main,
+      .card,
+      footer {
+        background: #ffffff !important;
+        color: #000000 !important;
+      }
+      .card {
+        border-color: #000000 !important;
+      }
+      .extended-price {
+        color: #000000 !important;
+      }
+      .savings-line {
+        background: #ffffff !important;
+        border-color: #000000 !important;
+        color: #000000 !important;
       }
     }
   </style>
+
+  <script src="https://js.stripe.com/v3/"></script>
 </head>
+
 <body>
-  <div class="page">
-    <div class="page-title">Checkout</div>
-
-    <!-- ORDER HEADER -->
-    <div class="order-header">
-      <div class="order-header-line">
-        <span class="label">Order Number:</span>
-        <span id="orderNumber"></span>
-      </div>
-      <div class="order-header-line">
-        <span class="label">Purchase Order (optional):</span>
-        <input id="poNumber" type="text"
-               style="width: 260px; padding: 6px 8px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 13px;" />
-      </div>
+  <!-- HEADER -->
+  <header>
+    <img class="logo" src="/logo.png" alt="DRIV‑EN Logo" />
+    <div class="title-block">
+      <h1>DRIV‑EN – Checkout</h1>
+      <span>Step 3 · Confirm your order</span>
     </div>
+  </header>
 
-    <!-- MODULES SELECTED CARD -->
-    <div class="card card-gray">
-      <div class="card-title">Modules Selected & Pricing Summary</div>
-      <div class="modules-list" id="modulesList"></div>
-
-      <div class="totals-row">
-        <span class="label">Billing Period:</span>
-        <span class="value" id="invoicePeriod"></span>
-      </div>
-      <div class="totals-row">
-        <span class="label">Subtotal:</span>
-        <span class="value" id="invoiceSubtotal"></span>
-      </div>
-      <div class="totals-row">
-        <span class="label">Tax:</span>
-        <span class="value" id="invoiceTax"></span>
-      </div>
-      <div class="totals-row">
-        <span class="label">Total:</span>
-        <span class="value" id="invoiceTotal"></span>
-      </div>
-      <div class="totals-row">
-        <span class="label">Total Savings:</span>
-        <span class="value" id="invoiceSavingsBox"></span>
-      </div>
-    </div>
-
-    <!-- VALIDATION BANNER (ABOVE CUSTOMER INFO) -->
-    <div id="statusBanner" class="status-banner">
-      <span class="status-banner-icon">⚠</span>
-      <span id="statusBannerText"></span>
-    </div>
-
-    <!-- CUSTOMER INFORMATION CARD -->
+  <main>
+    <!-- ORDER NUMBER + PO -->
     <div class="card">
-      <div class="card-title">Customer Information</div>
-      <div class="field-row">
-        <div class="field">
-          <label for="companyName">Company Name *</label>
+      <h3>Order Details</h3>
+      <div class="form-row">
+        <div class="form-field">
+          <label>Order Number</label>
+          <input id="orderNumber" type="text" readonly />
+        </div>
+        <div class="form-field">
+          <label>Purchase Order (optional)</label>
+          <input id="poNumber" type="text" />
+        </div>
+      </div>
+    </div>
+
+    <!-- MODULES SELECTED -->
+    <div class="card">
+      <h3>Modules Selected</h3>
+      <div id="modulesList"></div>
+      <div class="savings-line" id="invoiceSavingsBox"></div>
+    </div>
+
+    <!-- VALIDATION BANNER -->
+    <div id="statusBanner" class="status-bar"></div>
+
+    <!-- CUSTOMER INFORMATION -->
+    <div class="card">
+      <h3>Customer Information</h3>
+      <div class="form-row">
+        <div class="form-field">
+          <label>Company Name *</label>
           <input id="companyName" type="text" />
         </div>
-        <div class="field">
-          <label for="contactName">Contact Name *</label>
+        <div class="form-field">
+          <label>Contact Name *</label>
           <input id="contactName" type="text" />
         </div>
       </div>
-      <div class="field-row">
-        <div class="field">
-          <label for="phone">Phone *</label>
+
+      <div class="form-row">
+        <div class="form-field">
+          <label>Phone *</label>
           <input id="phone" type="text" />
         </div>
-        <div class="field">
-          <label for="email">Email *</label>
+        <div class="form-field">
+          <label>Email *</label>
           <input id="email" type="email" />
         </div>
       </div>
-      <div class="field-row">
-        <div class="field">
-          <label for="street">Street *</label>
+
+      <div class="form-row">
+        <div class="form-field">
+          <label>Street *</label>
           <input id="street" type="text" />
         </div>
       </div>
-      <div class="field-row">
-        <div class="field">
-          <label for="city">City *</label>
+
+      <div class="form-row">
+        <div class="form-field">
+          <label>City *</label>
           <input id="city" type="text" />
         </div>
-        <div class="field">
-          <label for="state">State *</label>
+        <div class="form-field">
+          <label>State *</label>
           <input id="state" type="text" />
         </div>
-        <div class="field">
-          <label for="zip">Zip *</label>
+        <div class="form-field">
+          <label>Zip *</label>
           <input id="zip" type="text" />
         </div>
       </div>
     </div>
 
-    <!-- BILLING INFORMATION (STRIPE ELEMENTS) -->
+    <!-- BILLING INFORMATION -->
     <div class="card">
-      <div class="card-title">Billing Information & Payment</div>
+      <h3>Billing Information & Payment</h3>
 
-      <div class="checkbox-row">
-        <input type="checkbox" id="billingSameAsCompany" checked />
-        <label for="billingSameAsCompany">Billing address is the same as company address</label>
+      <div class="form-field">
+        <label>
+          <input type="checkbox" id="billingSameAsCompany" checked />
+          Billing address is the same as company address
+        </label>
       </div>
 
       <div id="billing-address-element"></div>
       <div id="card-element"></div>
-      <div id="card-errors" style="color:#b91c1c; font-size:13px; margin-top:4px;"></div>
+      <div id="card-errors" class="status-bar error"></div>
     </div>
 
     <!-- SUCCESS BANNER -->
-    <div id="statusSuccess" class="status-banner">
-      <span id="statusSuccessText"></span>
-    </div>
+    <div id="statusSuccess" class="status-bar success"></div>
 
     <!-- BUTTONS -->
-    <div class="buttons-row">
-      <button type="button" class="btn-secondary" id="btnBackModules">Back to Modules</button>
-      <button type="button" class="btn-secondary" id="btnBackCart">Back to Cart</button>
-      <button type="button" class="btn-secondary" id="btnPrint">Print</button>
-      <button type="button" class="btn-primary" id="btnConfirm">Confirm & Pay</button>
+    <div class="footer-actions">
+      <button class="btn-secondary" id="btnBackModules">Back to Modules</button>
+      <button class="btn-secondary" id="btnBackCart">Back to Cart</button>
+      <button class="btn-secondary" id="btnPrint">Print</button>
+      <button class="btn-primary" id="btnConfirm">Confirm & Pay</button>
     </div>
-  </div>
+  </main>
 
-  <!-- OFFICIAL FOOTER -->
+  <!-- FOOTER -->
   <footer>
     © 2026 Digital Safety Inspection, LLC.
     <span class="footer-line-2">Driv-en is a Digital Safety Inspection, LLC platform.</span>
   </footer>
 
   <script>
-    // DOM refs
-    const modulesListEl = document.getElementById("modulesList");
-    const invoicePeriodEl = document.getElementById("invoicePeriod");
-    const invoiceSubtotalEl = document.getElementById("invoiceSubtotal");
-    const invoiceTaxEl = document.getElementById("invoiceTax");
-    const invoiceTotalEl = document.getElementById("invoiceTotal");
-    const invoiceSavingsBoxEl = document.getElementById("invoiceSavingsBox");
+    // ORDER NUMBER
+    function generateOrderNumber() {
+      const date = new Date();
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      const rand = String(Math.floor(Math.random() * 90000) + 10000);
+      return `DRN-${y}${m}${d}-${rand}`;
+    }
+    document.getElementById("orderNumber").value = generateOrderNumber();
 
-    const statusBanner = document.getElementById("statusBanner");
-    const statusBannerText = document.getElementById("statusBannerText");
-    const statusSuccess = document.getElementById("statusSuccess");
-    const statusSuccessText = document.getElementById("statusSuccessText");
-
-    const companyNameEl = document.getElementById("companyName");
-    const contactNameEl = document.getElementById("contactName");
-    const phoneEl = document.getElementById("phone");
-    const emailEl = document.getElementById("email");
-    const streetEl = document.getElementById("street");
-    const cityEl = document.getElementById("city");
-    const stateEl = document.getElementById("state");
-    const zipEl = document.getElementById("zip");
-    const poNumberEl = document.getElementById("poNumber");
-    const billingSameAsCompanyEl = document.getElementById("billingSameAsCompany");
-
-    // Pricing
+    // PRICING
     const PRICES = {
       equipment: 149,
       pm: 299,
@@ -442,22 +456,10 @@
       transfers: "Equipment Transfer Tracking"
     };
 
-    function generateOrderNumber() {
-      const date = new Date();
-      const y = date.getFullYear();
-      const m = String(date.getMonth() + 1).padStart(2, "0");
-      const d = String(date.getDate()).padStart(2, "0");
-      const rand = String(Math.floor(Math.random() * 90000) + 10000);
-      return `DRN-${y}${m}${d}-${rand}`;
-    }
-
-    document.getElementById("orderNumber").textContent = generateOrderNumber();
-
-    function renderModulesAndTotals() {
+    function renderModules() {
       const payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
       const selections = JSON.parse(localStorage.getItem("driven_modules") || "{}");
 
-      const rows = [];
       const selectedModules = ["equipment"];
       if (selections.pm) selectedModules.push("pm");
       if (selections.inspections) selectedModules.push("inspections");
@@ -472,6 +474,7 @@
 
       let sumUnitPrices = 0;
       let chargeTotal = 0;
+      let html = "";
 
       selectedModules.forEach(key => {
         const name = MODULE_MAP[key];
@@ -481,134 +484,110 @@
         const extended = bundleModules.has(key) ? "-" : `$${price}`;
         if (!bundleModules.has(key)) chargeTotal += price;
 
-        rows.push(`
-          <div class="modules-row">
-            <span class="name">${name}</span>
-            <span class="price">${extended}</span>
+        html += `
+          <div class="module-row">
+            <div class="module-name">${name}</div>
+            <div class="unit-price">$${price}</div>
+            <div class="extended-price">${extended}</div>
           </div>
-        `);
+        `;
       });
 
       if (bundle) {
         chargeTotal = bundle.price;
-        rows.push(`
-          <div class="modules-row">
-            <span class="name">${bundleName}</span>
-            <span class="price">$${bundle.price}</span>
+        html += `
+          <div class="module-row">
+            <div class="module-name">${bundleName}</div>
+            <div class="unit-price">Bundle</div>
+            <div class="extended-price">$${bundle.price}</div>
           </div>
-        `);
+        `;
       }
 
-      modulesListEl.innerHTML = rows.join("");
-
-      invoicePeriodEl.textContent =
-        payload.billingPeriod === "annual"
-          ? "Annual (10% off)"
-          : "Monthly";
-
-      const subtotal = Number(payload.invoiceSubtotal || 0);
-      const tax = Number(payload.invoiceTax || 0);
-      const total = Number(payload.invoiceTotal || 0);
-
-      invoiceSubtotalEl.textContent = `$${subtotal.toFixed(2)}`;
-      invoiceTaxEl.textContent = `$${tax.toFixed(2)}`;
-      invoiceTotalEl.textContent = `$${total.toFixed(2)}`;
+      document.getElementById("modulesList").innerHTML = html;
 
       let savingsNumber = 0;
-
       if (payload.billingPeriod === "monthly") {
         savingsNumber = sumUnitPrices - chargeTotal;
       } else {
         const annualUnitTotal = sumUnitPrices * 12;
+        const subtotal = Number(payload.invoiceSubtotal || 0);
         savingsNumber = annualUnitTotal - subtotal;
       }
-
       if (savingsNumber < 0) savingsNumber = 0;
 
-      invoiceSavingsBoxEl.textContent = `$${savingsNumber.toFixed(2)}`;
+      document.getElementById("invoiceSavingsBox").textContent =
+        `Total Savings: $${savingsNumber.toFixed(2)}`;
     }
+    renderModules();
 
-    renderModulesAndTotals();
-
-    // Navigation
-    document.getElementById("btnBackCart").addEventListener("click", () => {
+    // NAVIGATION
+    document.getElementById("btnBackCart").onclick = () => {
       window.location.href = "cart.html";
-    });
-
-    document.getElementById("btnBackModules").addEventListener("click", () => {
+    };
+    document.getElementById("btnBackModules").onclick = () => {
       window.location.href = "module-selection.html";
-    });
-
-    document.getElementById("btnPrint").addEventListener("click", () => {
+    };
+    document.getElementById("btnPrint").onclick = () => {
       window.print();
-    });
+    };
 
-    // Validation
+    // VALIDATION
     function validateForm() {
-      let valid = true;
-      statusBanner.classList.remove("error");
-      statusBanner.style.display = "none";
-      statusBannerText.textContent = "";
-
-      statusSuccess.classList.remove("success");
-      statusSuccess.style.display = "none";
-      statusSuccessText.textContent = "";
-
-      const requiredFields = [
-        companyNameEl,
-        contactNameEl,
-        phoneEl,
-        emailEl,
-        streetEl,
-        cityEl,
-        stateEl,
-        zipEl
+      const fields = [
+        "companyName",
+        "contactName",
+        "phone",
+        "email",
+        "street",
+        "city",
+        "state",
+        "zip"
       ];
 
-      requiredFields.forEach(field => {
-        field.classList.remove("error");
-      });
-
       let firstMissing = null;
+      let valid = true;
 
-      requiredFields.forEach(field => {
-        if (!field.value || field.value.trim() === "") {
-          field.classList.add("error");
+      fields.forEach(id => {
+        const el = document.getElementById(id);
+        el.classList.remove("error");
+        if (!el.value.trim()) {
+          el.classList.add("error");
           valid = false;
-          if (!firstMissing) firstMissing = field;
+          if (!firstMissing) firstMissing = el;
         }
       });
+
+      const banner = document.getElementById("statusBanner");
+      banner.classList.remove("error");
+      banner.style.display = "none";
 
       if (!valid) {
-        statusBannerText.textContent = "Please complete all required fields.";
-        statusBanner.classList.add("error");
-        statusBanner.style.display = "block";
-
+        banner.textContent = "Please complete all required fields.";
+        banner.classList.add("error");
+        banner.style.display = "block";
         window.scrollTo({ top: 0, behavior: "smooth" });
-
-        if (firstMissing) {
-          firstMissing.focus();
-        }
+        if (firstMissing) firstMissing.focus();
       }
 
       return valid;
     }
 
-    // Stripe Elements setup
+    // STRIPE
     let stripe;
     let elements;
     let cardElement;
     let billingAddressElement;
     let clientSecret;
 
-    async function initializeStripe() {
+    async function initStripe() {
       stripe = Stripe("pk_test_YOUR_PUBLISHABLE_KEY_HERE"); // replace with real key
 
       const response = await fetch("/create-payment-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          // send metadata if needed (order number, modules, etc.)
+          // include metadata if needed
         })
       });
 
@@ -626,47 +605,50 @@
       cardElement.mount("#card-element");
     }
 
-    initializeStripe().catch(err => {
+    initStripe().catch(err => {
       console.error("Stripe initialization error:", err);
       document.getElementById("card-errors").textContent =
         "Unable to initialize payment form. Please try again later.";
     });
 
-    // Confirm & Pay
+    // CONFIRM & PAY
     document.getElementById("btnConfirm").addEventListener("click", async () => {
       if (!validateForm()) return;
 
       const payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
 
       const orderData = {
-        orderNumber: document.getElementById("orderNumber").textContent,
-        companyName: companyNameEl.value.trim(),
-        contactName: contactNameEl.value.trim(),
-        phone: phoneEl.value.trim(),
-        email: emailEl.value.trim(),
-        street: streetEl.value.trim(),
-        city: cityEl.value.trim(),
-        state: stateEl.value.trim(),
-        zip: zipEl.value.trim(),
-        poNumber: poNumberEl.value.trim(),
+        orderNumber: document.getElementById("orderNumber").value,
+        companyName: document.getElementById("companyName").value.trim(),
+        contactName: document.getElementById("contactName").value.trim(),
+        phone: document.getElementById("phone").value.trim(),
+        email: document.getElementById("email").value.trim(),
+        street: document.getElementById("street").value.trim(),
+        city: document.getElementById("city").value.trim(),
+        state: document.getElementById("state").value.trim(),
+        zip: document.getElementById("zip").value.trim(),
+        poNumber: document.getElementById("poNumber").value.trim(),
         billingPeriod: payload.billingPeriod,
         invoiceSubtotal: Number(payload.invoiceSubtotal || 0),
         invoiceTax: Number(payload.invoiceTax || 0),
         invoiceTotal: Number(payload.invoiceTotal || 0),
         totalSavings: Number(
-          invoiceSavingsBoxEl.textContent.replace(/[^\d.-]/g, "")
+          document
+            .getElementById("invoiceSavingsBox")
+            .textContent.replace(/[^\d.-]/g, "")
         ) || 0
       };
 
       console.log("Order data (pre-payment):", orderData);
 
       document.getElementById("card-errors").textContent = "";
+      const statusSuccess = document.getElementById("statusSuccess");
+      statusSuccess.textContent = "";
 
       try {
         const { error } = await stripe.confirmPayment({
           elements,
           confirmParams: {
-            // return_url can be set if you want redirect after payment
             // return_url: "https://www.driv-en.com/public/onboarding-start.html",
           }
         });
@@ -677,10 +659,8 @@
           return;
         }
 
-        statusSuccessText.innerHTML =
-          `Order confirmed. Thank you for choosing <img src="/logo.png" class="logo-inline">`;
-        statusSuccess.classList.add("success");
-        statusSuccess.style.display = "block";
+        statusSuccess.innerHTML =
+          'Order confirmed. Thank you for choosing <img src="/logo.png" alt="DRIV‑EN Logo" style="height:80px;vertical-align:middle;">';
       } catch (err) {
         console.error("Payment confirmation error:", err);
         document.getElementById("card-errors").textContent =
