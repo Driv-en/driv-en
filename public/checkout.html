@@ -151,6 +151,17 @@
       color: #22c55e;
     }
 
+    .bundle-badge {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      background: #e8f5e9;
+      border: 1px solid #4caf50;
+      color: #2e7d32;
+    }
+
     .savings-line {
       margin-top: 12px;
       padding: 10px 12px;
@@ -405,7 +416,10 @@
   </div>
 
   <!-- MODULE LIST -->
-  <div class="card" id="checkoutList"></div>
+  <div class="card">
+    <h3>Modules Selected</h3>
+    <div id="checkoutList"></div>
+  </div>
 
   <!-- INVOICE TOTALS -->
   <div class="card">
@@ -465,6 +479,21 @@
     transfers: 79
   };
 
+  const BUNDLES = {
+    "Operations Bundle": {
+      modules: ["equipment", "pm", "inspections", "extraction"],
+      price: 499
+    },
+    "Full Equipment Bundle": {
+      modules: ["equipment", "pm", "inspections", "workorders", "extraction"],
+      price: 529
+    },
+    "Complete Platform Bundle": {
+      modules: ["equipment", "pm", "inspections", "workorders", "fuel", "transfers", "extraction"],
+      price: 599
+    }
+  };
+
   const MODULE_MAP = {
     equipment: "Equipment Management (Required)",
     pm: "Preventative Maintenance",
@@ -499,7 +528,49 @@
     if (selections.transfers) selectedModules.push("transfers");
     if (selections.extraction) selectedModules.push("extraction");
 
+    const bundleName = payload.bundle || selections.bundle || null;
+    const bundle = bundleName ? BUNDLES[bundleName] : null;
+    const bundleModules = bundle ? new Set(bundle.modules) : new Set();
+
+    const bundleModuleList = [];
+    const extraModuleList = [];
+
     selectedModules.forEach(key => {
+      if (bundleModules.has(key)) {
+        bundleModuleList.push(key);
+      } else {
+        extraModuleList.push(key);
+      }
+    });
+
+    // Modules included in bundle: show name + badge, no unit/extended price
+    bundleModuleList.forEach(key => {
+      const name = MODULE_MAP[key];
+      rows.push(`
+        <div class="module-row">
+          <div class="module-name">
+            ${name}
+            <span class="bundle-badge">Included in Bundle</span>
+          </div>
+          <div class="unit-price">-</div>
+          <div class="extended-price">-</div>
+        </div>
+      `);
+    });
+
+    // Bundle row itself (if any)
+    if (bundle) {
+      rows.push(`
+        <div class="module-row">
+          <div class="module-name">${bundleName}</div>
+          <div class="unit-price">-</div>
+          <div class="extended-price">$${bundle.price}</div>
+        </div>
+      `);
+    }
+
+    // Extra modules not in bundle: show normal unit + extended price
+    extraModuleList.forEach(key => {
       const name = MODULE_MAP[key];
       const price = PRICES[key];
       rows.push(`
