@@ -45,7 +45,7 @@ header .title-block span {
 /* Sticky Green Bar */
 #headerLine {
   position: sticky;
-  top: 112px;
+  top: 104px;
   z-index: 99;
   height: 4px;
   width: 100%;
@@ -474,6 +474,7 @@ footer a:hover {
   <a href="/public/legal/refund.html">Refund Policy</a> |
   <a href="mailto:support@driv-en.com">Contact</a>
 </footer>
+  
 <script>
 // Buttons
 const btnContinue = document.getElementById("btnContinue");
@@ -509,19 +510,19 @@ function showSelectionBanner() {
     return;
   }
 
-  // Build live module list (NOT from localStorage)
-  const selected = ["Equipment Management"];
+  const modules = [];
 
-  if (modPM.checked) selected.push("Preventative Maintenance");
-  if (modIns.checked) selected.push("Equipment Inspections");
-  if (modWO.checked) selected.push("Work Orders");
-  if (modFuel.checked) selected.push("Fuel Usage Tracking");
-  if (modTransfers.checked) selected.push("Equipment Transfer Tracking");
-  if (modExtraction.checked) selected.push("Extraction Engine");
+  if (modPM.checked) modules.push("Preventative Maintenance");
+  if (modIns.checked) modules.push("Equipment Inspections");
+  if (modWO.checked) modules.push("Work Orders");
+  if (modFuel.checked) modules.push("Fuel Usage Tracking");
+  if (modTransfers.checked) modules.push("Equipment Transfer Tracking");
+  if (modExtraction.checked) modules.push("Extraction Engine");
 
-  if (activeBundle) selected.push(activeBundle);
+  banner.innerHTML =
+    `<strong>Selected: ${activeBundle}</strong><br>` +
+    `<span style="display:block; margin-left:20px;">${modules.join("<br>")}</span>`;
 
-  banner.textContent = "Selected: " + selected.join(", ");
   banner.style.display = "block";
 }
 
@@ -582,7 +583,6 @@ function applyBundle(bundleId) {
 function uncheckBundleIfModuleChanged() {
   if (!bundleActive) return;
 
-  // If any module is manually changed, break bundle
   const modules = [modPM, modIns, modWO, modFuel, modTransfers, modExtraction];
   const changed = modules.some(m => !m.disabled && !m.checked);
 
@@ -590,14 +590,13 @@ function uncheckBundleIfModuleChanged() {
     bundleActive = false;
     activeBundle = null;
 
-    // Uncheck bundles
     bundleIds.forEach(id => {
       document.getElementById(id).checked = false;
     });
 
-    // Re-enable modules
     modules.forEach(m => {
       m.disabled = false;
+      m.checked = false;   // FIXED — uncheck modules when bundle breaks
     });
 
     statusBar.textContent = "";
@@ -628,13 +627,12 @@ bundleIds.forEach(id => {
       clearOtherBundles(id);
       applyBundle(id);
     } else {
-      // User unchecks bundle manually
       bundleActive = false;
       activeBundle = null;
 
-      // Re-enable modules
       [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(m => {
         m.disabled = false;
+        m.checked = false;   // FIXED — uncheck modules when bundle unchecked
       });
 
       statusBar.textContent = "";
