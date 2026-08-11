@@ -45,7 +45,7 @@ header .title-block span {
 /* Sticky Green Bar */
 #headerLine {
   position: sticky;
-  top: 140px;
+  top: 112px;
   z-index: 99;
   height: 4px;
   width: 100%;
@@ -503,19 +503,30 @@ let activeBundle = null;
 ------------------------------ */
 function showSelectionBanner() {
   const banner = document.getElementById("selectionBanner");
-  const saved = JSON.parse(localStorage.getItem("selectedModules") || "[]");
 
   if (!bundleActive) {
     banner.style.display = "none";
     return;
   }
 
-  banner.textContent = "Selected: " + saved.join(", ");
+  // Build live module list (NOT from localStorage)
+  const selected = ["Equipment Management"];
+
+  if (modPM.checked) selected.push("Preventative Maintenance");
+  if (modIns.checked) selected.push("Equipment Inspections");
+  if (modWO.checked) selected.push("Work Orders");
+  if (modFuel.checked) selected.push("Fuel Usage Tracking");
+  if (modTransfers.checked) selected.push("Equipment Transfer Tracking");
+  if (modExtraction.checked) selected.push("Extraction Engine");
+
+  if (activeBundle) selected.push(activeBundle);
+
+  banner.textContent = "Selected: " + selected.join(", ");
   banner.style.display = "block";
 }
 
 /* -----------------------------
-   REQUIRED: CLEAR OTHER BUNDLES
+   CLEAR OTHER BUNDLES
 ------------------------------ */
 function clearOtherBundles(selectedId) {
   bundleIds.forEach(id => {
@@ -526,10 +537,16 @@ function clearOtherBundles(selectedId) {
 }
 
 /* -----------------------------
-   REQUIRED: APPLY BUNDLE LOGIC
+   APPLY BUNDLE LOGIC
 ------------------------------ */
 function applyBundle(bundleId) {
   bundleActive = true;
+
+  // Reset all modules first
+  [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(m => {
+    m.checked = false;
+    m.disabled = true;
+  });
 
   if (bundleId === "bundleOperations") {
     activeBundle = "Operations Bundle";
@@ -556,11 +573,6 @@ function applyBundle(bundleId) {
     modExtraction.checked = true;
   }
 
-  // Disable modules while bundle is active
-  [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(m => {
-    m.disabled = true;
-  });
-
   showSelectionBanner();
 }
 
@@ -570,27 +582,26 @@ function applyBundle(bundleId) {
 function uncheckBundleIfModuleChanged() {
   if (!bundleActive) return;
 
-  if (
-    (!modPM.disabled && !modPM.checked) ||
-    (!modIns.disabled && !modIns.checked) ||
-    (!modWO.disabled && !modWO.checked) ||
-    (!modFuel.disabled && !modFuel.checked) ||
-    (!modTransfers.disabled && !modTransfers.checked) ||
-    (!modExtraction.disabled && !modExtraction.checked)
-  ) {
+  // If any module is manually changed, break bundle
+  const modules = [modPM, modIns, modWO, modFuel, modTransfers, modExtraction];
+  const changed = modules.some(m => !m.disabled && !m.checked);
+
+  if (changed) {
     bundleActive = false;
     activeBundle = null;
 
+    // Uncheck bundles
     bundleIds.forEach(id => {
       document.getElementById(id).checked = false;
     });
 
-    statusBar.textContent = "";
-    document.getElementById("selectionBanner").style.display = "none";
-
-    [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(m => {
+    // Re-enable modules
+    modules.forEach(m => {
       m.disabled = false;
     });
+
+    statusBar.textContent = "";
+    document.getElementById("selectionBanner").style.display = "none";
 
     updateExtractionRules();
   }
@@ -603,6 +614,7 @@ function uncheckBundleIfModuleChanged() {
   el.addEventListener("change", () => {
     uncheckBundleIfModuleChanged();
     updateExtractionRules();
+    showSelectionBanner();
   });
 });
 
@@ -616,14 +628,17 @@ bundleIds.forEach(id => {
       clearOtherBundles(id);
       applyBundle(id);
     } else {
+      // User unchecks bundle manually
       bundleActive = false;
       activeBundle = null;
-      statusBar.textContent = "";
-      document.getElementById("selectionBanner").style.display = "none";
 
+      // Re-enable modules
       [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(m => {
         m.disabled = false;
       });
+
+      statusBar.textContent = "";
+      document.getElementById("selectionBanner").style.display = "none";
 
       updateExtractionRules();
     }
@@ -670,8 +685,6 @@ btnClear.addEventListener("click", () => {
   updateExtractionRules();
   statusBar.textContent = "";
   document.getElementById("selectionBanner").style.display = "none";
-
-  showSelectionBanner();
 });
 </script>
 
