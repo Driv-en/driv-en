@@ -45,7 +45,7 @@ header .title-block span {
 /* Sticky Green Bar */
 #headerLine {
   position: sticky;
-  top: 88px;
+  top: 140px;
   z-index: 99;
   height: 4px;
   width: 100%;
@@ -515,12 +515,61 @@ function showSelectionBanner() {
 }
 
 /* -----------------------------
+   REQUIRED: CLEAR OTHER BUNDLES
+------------------------------ */
+function clearOtherBundles(selectedId) {
+  bundleIds.forEach(id => {
+    if (id !== selectedId) {
+      document.getElementById(id).checked = false;
+    }
+  });
+}
+
+/* -----------------------------
+   REQUIRED: APPLY BUNDLE LOGIC
+------------------------------ */
+function applyBundle(bundleId) {
+  bundleActive = true;
+
+  if (bundleId === "bundleOperations") {
+    activeBundle = "Operations Bundle";
+    modPM.checked = true;
+    modIns.checked = true;
+    modExtraction.checked = true;
+  }
+
+  if (bundleId === "bundleFull") {
+    activeBundle = "Full Equipment Bundle";
+    modPM.checked = true;
+    modIns.checked = true;
+    modWO.checked = true;
+    modExtraction.checked = true;
+  }
+
+  if (bundleId === "bundleComplete") {
+    activeBundle = "Complete Platform Bundle";
+    modPM.checked = true;
+    modIns.checked = true;
+    modWO.checked = true;
+    modFuel.checked = true;
+    modTransfers.checked = true;
+    modExtraction.checked = true;
+  }
+
+  // Disable modules while bundle is active
+  [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(m => {
+    m.disabled = true;
+  });
+
+  showSelectionBanner();
+}
+
+/* -----------------------------
    BREAK BUNDLE IF MODULES CHANGE
 ------------------------------ */
 function uncheckBundleIfModuleChanged() {
   if (!bundleActive) return;
 
-  // If any module is changed manually, break the bundle
   if (
     (!modPM.disabled && !modPM.checked) ||
     (!modIns.disabled && !modIns.checked) ||
@@ -532,7 +581,6 @@ function uncheckBundleIfModuleChanged() {
     bundleActive = false;
     activeBundle = null;
 
-    // Clear bundle checkboxes
     bundleIds.forEach(id => {
       document.getElementById(id).checked = false;
     });
@@ -540,7 +588,6 @@ function uncheckBundleIfModuleChanged() {
     statusBar.textContent = "";
     document.getElementById("selectionBanner").style.display = "none";
 
-    // Re-enable modules
     [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(m => {
       m.disabled = false;
     });
@@ -569,13 +616,11 @@ bundleIds.forEach(id => {
       clearOtherBundles(id);
       applyBundle(id);
     } else {
-      // If user unchecks the bundle manually
       bundleActive = false;
       activeBundle = null;
       statusBar.textContent = "";
       document.getElementById("selectionBanner").style.display = "none";
 
-      // Re-enable modules
       [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(m => {
         m.disabled = false;
       });
@@ -610,31 +655,22 @@ btnContinue.addEventListener("click", () => {
    CLEAR MODULES
 ------------------------------ */
 btnClear.addEventListener("click", () => {
-  // Reset bundle state
   bundleActive = false;
   activeBundle = null;
 
-  // Uncheck all bundles
   bundleIds.forEach(id => {
     document.getElementById(id).checked = false;
   });
 
-  // Reset all modules
   [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
     el.checked = false;
     el.disabled = false;
   });
 
-  // Update extraction rules
   updateExtractionRules();
-
-  // Clear status bar
   statusBar.textContent = "";
-
-  // Hide banner
   document.getElementById("selectionBanner").style.display = "none";
 
-  // Ensure banner logic resets cleanly
   showSelectionBanner();
 });
 </script>
