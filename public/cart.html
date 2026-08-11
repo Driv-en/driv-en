@@ -281,7 +281,256 @@
   </footer>
 
   <script>
-    /* Your existing JS logic remains unchanged */
+    /* Your existing JS logic remains unchanged   const statusBar = document.getElementById("statusBar");
+  const cartList = document.getElementById("cartList");
+
+  const subtotalMonthlyEl = document.getElementById("subtotalMonthly");
+  const taxMonthlyEl = document.getElementById("taxMonthly");
+  const totalMonthlyEl = document.getElementById("totalMonthly");
+
+  const subtotalAnnualEl = document.getElementById("subtotalAnnual");
+  const taxAnnualEl = document.getElementById("taxAnnual");
+  const totalAnnualEl = document.getElementById("totalAnnual");
+
+  const monthlySavingsBox = document.getElementById("monthlySavingsBox");
+  const annualSavingsBox = document.getElementById("annualSavingsBox");
+
+  const invoiceAmountEl = document.getElementById("invoiceAmount");
+  const invoiceLabelEl = document.getElementById("invoiceLabel");
+
+  const billingRadios = document.querySelectorAll('input[name="billingPeriod"]');
+
+  const PRICES = {
+    equipment: 149,
+    pm: 299,
+    inspections: 199,
+    extraction: 149,
+    workorders: 149,
+    fuel: 49,
+    transfers: 79
+  };
+
+  const BUNDLES = {
+    "Operations Bundle": {
+      modules: ["equipment", "pm", "inspections", "extraction"],
+      price: 499
+    },
+    "Full Equipment Bundle": {
+      modules: ["equipment", "pm", "inspections", "workorders", "extraction"],
+      price: 529
+    },
+    "Complete Platform Bundle": {
+      modules: ["equipment", "pm", "inspections", "workorders", "fuel", "transfers", "extraction"],
+      price: 599
+    }
+  };
+
+  const MODULE_MAP = {
+    equipment: "Equipment Management",
+    pm: "Preventative Maintenance",
+    inspections: "Equipment Inspections",
+    extraction: "Extraction Engine",
+    workorders: "Work Orders",
+    fuel: "Fuel Usage Tracking",
+    transfers: "Equipment Transfer Tracking"
+  };
+
+  function renderCart() {
+    const selections = JSON.parse(localStorage.getItem("driven_modules") || "{}");
+
+    const rows = [];
+    let unitTotal = 0;
+    let chargeTotal = 0;
+
+    const bundleName = selections.bundle || null;
+    const bundle = bundleName ? BUNDLES[bundleName] : null;
+    const bundleModules = bundle ? new Set(bundle.modules) : new Set();
+
+    const selectedModules = ["equipment"];
+    if (selections.pm) selectedModules.push("pm");
+    if (selections.inspections) selectedModules.push("inspections");
+    if (selections.workorders) selectedModules.push("workorders");
+    if (selections.fuel) selectedModules.push("fuel");
+    if (selections.transfers) selectedModules.push("transfers");
+    if (selections.extraction) selectedModules.push("extraction");
+
+    const bundleModuleList = [];
+    const extraModuleList = [];
+
+    selectedModules.forEach(key => {
+      if (bundleModules.has(key)) {
+        bundleModuleList.push(key);
+      } else {
+        extraModuleList.push(key);
+      }
+    });
+
+    // Bundle-included modules
+    bundleModuleList.forEach(key => {
+      const name = MODULE_MAP[key];
+      const price = PRICES[key];
+      unitTotal += price;
+
+      rows.push(`
+        <div class="module-row">
+          <div class="module-name">
+            ${name}
+            <span class="included-badge" style="
+              background:#e8f5e9;
+              border:1px solid #4caf50;
+              padding:2px 6px;
+              margin-left:8px;
+              border-radius:4px;
+              font-size:12px;
+              color:#2e7d32;
+            ">Included in Bundle</span>
+          </div>
+          <div class="unit-price">$${price}</div>
+          <div class="extended-price">-</div>
+        </div>
+      `);
+    });
+
+    // Bundle row
+    if (bundle) {
+      rows.push(`
+        <div class="module-row bundle-row">
+          <div class="module-name">${bundleName}</div>
+          <div class="unit-price">-</div>
+          <div class="extended-price">$${bundle.price}</div>
+        </div>
+      `);
+      chargeTotal += bundle.price;
+    }
+
+    // Extra modules
+    extraModuleList.forEach(key => {
+      const name = MODULE_MAP[key];
+      const price = PRICES[key];
+      unitTotal += price;
+      chargeTotal += price;
+
+      rows.push(`
+        <div class="module-row">
+          <div class="module-name">${name}</div>
+          <div class="unit-price">$${price}</div>
+          <div class="extended-price">$${price}</div>
+        </div>
+      `);
+    });
+
+    cartList.innerHTML = rows.join("");
+
+    // Savings
+    const monthlySavings = unitTotal - chargeTotal;
+    const annualNoDiscount = unitTotal * 12;
+    const annualWithDiscount = chargeTotal * 12 * 0.9;
+    const annualSavings = annualNoDiscount - annualWithDiscount;
+
+    monthlySavingsBox.textContent = `Monthly savings: $${monthlySavings.toFixed(2)}`;
+    annualSavingsBox.textContent = `Annual savings: $${annualSavings.toFixed(2)}`;
+
+    // Monthly totals
+    const taxRate = 0.0825;
+    const monthlySubtotal = chargeTotal;
+    const monthlyTax = monthlySubtotal * taxRate;
+    const monthlyTotal = monthlySubtotal + monthlyTax;
+
+    subtotalMonthlyEl.textContent = `$${monthlySubtotal.toFixed(2)}`;
+    taxMonthlyEl.textContent = `$${monthlyTax.toFixed(2)}`;
+    totalMonthlyEl.textContent = `$${monthlyTotal.toFixed(2)}`;
+
+    // Annual totals
+    const annualSubtotal = chargeTotal * 12 * 0.9;
+    const annualTax = annualSubtotal * taxRate;
+    const annualTotal = annualSubtotal + annualTax;
+
+    subtotalAnnualEl.textContent = `$${annualSubtotal.toFixed(2)}`;
+    taxAnnualEl.textContent = `$${annualTax.toFixed(2)}`;
+    totalAnnualEl.textContent = `$${annualTotal.toFixed(2)}`;
+
+    // ⭐ Restore previously selected billing period
+    const checkoutPayload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
+    const previousPeriod = checkoutPayload.billingPeriod || "monthly";
+
+    // Set radio button
+    billingRadios.forEach(r => {
+      r.checked = (r.value === previousPeriod);
+    });
+
+    // Update invoice display
+    updateInvoiceDisplay(previousPeriod, { monthlyTotal, annualTotal });
+
+    // Store updated payload
+    localStorage.setItem("driven_checkout_payload", JSON.stringify({
+      modules: selectedModules,
+      bundle: bundleName,
+      monthlySubtotal,
+      monthlyTax,
+      monthlyTotal,
+      annualSubtotal,
+      annualTax,
+      annualTotal,
+      billingPeriod: previousPeriod,
+      invoiceSubtotal: previousPeriod === "monthly" ? monthlySubtotal : annualSubtotal,
+      invoiceTax: previousPeriod === "monthly" ? monthlyTax : annualTax,
+      invoiceTotal: previousPeriod === "monthly" ? monthlyTotal : annualTotal
+    }));
+  }
+
+  function updateInvoiceDisplay(period, totals) {
+    const { monthlyTotal, annualTotal } = totals;
+
+    if (period === "monthly") {
+      invoiceAmountEl.textContent = `$${monthlyTotal.toFixed(2)}`;
+      invoiceLabelEl.textContent = "(Monthly)";
+    } else {
+      invoiceAmountEl.textContent = `$${annualTotal.toFixed(2)}`;
+      invoiceLabelEl.textContent = "(Annual)";
+    }
+  }
+
+  billingRadios.forEach(radio => {
+    radio.addEventListener("change", () => {
+      const selections = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
+      const period = radio.value;
+
+      const monthlyTotal = selections.monthlyTotal || 0;
+      const annualTotal = selections.annualTotal || 0;
+
+      updateInvoiceDisplay(period, { monthlyTotal, annualTotal });
+
+      let invoiceSubtotal, invoiceTax, invoiceTotal;
+
+      if (period === "monthly") {
+        invoiceSubtotal = selections.monthlySubtotal;
+        invoiceTax = selections.monthlyTax;
+        invoiceTotal = selections.monthlyTotal;
+      } else {
+        invoiceSubtotal = selections.annualSubtotal;
+        invoiceTax = selections.annualTax;
+        invoiceTotal = selections.annualTotal;
+      }
+
+      selections.billingPeriod = period;
+      selections.invoiceSubtotal = invoiceSubtotal;
+      selections.invoiceTax = invoiceTax;
+      selections.invoiceTotal = invoiceTotal;
+
+      localStorage.setItem("driven_checkout_payload", JSON.stringify(selections));
+    });
+  });
+
+  document.getElementById("btnBack").addEventListener("click", () => {
+    window.location.href = "module-selection.html";
+  });
+
+  document.getElementById("btnCheckout").addEventListener("click", () => {
+    window.location.href = "checkout.html";
+  });
+
+  statusBar.textContent = "Review your selections.";
+  renderCart();*/
   </script>
 
 </body>
