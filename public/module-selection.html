@@ -72,7 +72,7 @@ main {
   font-weight:600;
 }
 
-/* Layout A */
+/* Layout */
 .layout {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -246,6 +246,29 @@ footer a:hover {
   You can adjust your active modules whenever your business needs change.
 </p>
 
+<div class="pricing-note">
+  Equipment Management is required. Other modules are optional and may be billed monthly or annually (annual billing receives a 10% discount).
+</div>
+
+<div class="bundle-note">
+  <div class="bundle-title">Bundle Pricing</div>
+
+  <div class="bundle-item">
+    <input type="checkbox" id="bundleOperations"> Operations Bundle — $499/month<br>
+    <span>Equipment Management + Preventative Maintenance + Equipment Inspections + Extraction Engine (Included)</span>
+  </div>
+
+  <div class="bundle-item">
+    <input type="checkbox" id="bundleFull"> Full Equipment Bundle — $529/month<br>
+    <span>Equipment Management + Preventative Maintenance + Equipment Inspections + Work Orders + Extraction Engine (Included)</span>
+  </div>
+
+  <div class="bundle-item">
+    <input type="checkbox" id="bundleComplete"> Complete Platform Bundle — $599/month<br>
+    <span>All modules included + Extraction Engine (Included)</span>
+  </div>
+</div>
+
 <div class="layout">
 
   <!-- LEFT COLUMN — MODULES -->
@@ -257,12 +280,15 @@ footer a:hover {
 
         <!-- Equipment Management -->
         <div class="module-item">
-          <label>Equipment Management (Required)</label>
+          <label for="modEquipment">Equipment Management (Required)</label>
           <div class="module-price">$149/month</div>
           <div class="module-desc">
-            The foundation of your fleet operations. Tracks unit details, locations, meter readings, operational status, and configuration profiles.
+            The foundation of your fleet operations. Track unit details, locations, meter readings, operational status, and configuration profiles.
+            Equipment Management is the core of DRIV‑EN and powers every other module.
+            When selected alone, it provides essential manual tracking.
+            When paired with PM, Inspections, Work Orders, Fuel, or Transfers, it becomes a fully automated operational system.
           </div>
-          <input type="checkbox" checked disabled />
+          <input type="checkbox" id="modEquipment" checked disabled />
         </div>
 
         <!-- PM -->
@@ -271,6 +297,8 @@ footer a:hover {
           <div class="module-price">$299/month</div>
           <div class="module-desc">
             Automated PM schedules, manufacturer‑accurate templates, and guided technician workflows.
+            DRIV‑EN’s extraction engine reads equipment manuals, manufacturer documentation, and configuration details to identify part numbers, fluid types, capacities, intervals, and safety requirements.
+            PM completions update Equipment Management automatically and generate full digital reports.
           </div>
           <input type="checkbox" id="modPM" />
         </div>
@@ -281,6 +309,9 @@ footer a:hover {
           <div class="module-price">$199/month</div>
           <div class="module-desc">
             Safety and compliance inspections tailored to each unit.
+            Templates adapt to equipment type, configuration, and operational requirements.
+            If Preventative Maintenance is active, inspections incorporate manufacturer safety items retrieved by the extraction engine.
+            Completed inspections update Equipment Management and trigger safety alerts when needed.
           </div>
           <input type="checkbox" id="modInspections" />
         </div>
@@ -290,7 +321,9 @@ footer a:hover {
           <label for="modWorkOrders">Work Orders</label>
           <div class="module-price">$149/month</div>
           <div class="module-desc">
-            Manage repairs, diagnostics, and non‑PM maintenance tasks.
+            Manage repairs, diagnostics, and non‑PM maintenance tasks with structured work orders.
+            Assign personnel, track progress, capture photos and notes, and close tasks with full documentation.
+            Work Orders integrate seamlessly with Equipment Management and can be triggered by inspections, PM completions, or manual entry.
           </div>
           <input type="checkbox" id="modWorkOrders" />
         </div>
@@ -301,6 +334,8 @@ footer a:hover {
           <div class="module-price">$49/month</div>
           <div class="module-desc">
             Monitor fuel consumption, cost, and efficiency across your fleet.
+            Automatically update meter readings and equipment status.
+            Fuel data enhances PM scheduling when Preventative Maintenance is active and provides valuable insights into operating costs.
           </div>
           <input type="checkbox" id="modFuel" />
         </div>
@@ -311,6 +346,8 @@ footer a:hover {
           <div class="module-price">$79/month</div>
           <div class="module-desc">
             Track equipment movement between projects, yards, shops, and divisions.
+            Transfers automatically update Equipment Management and adjust PM and inspection schedules based on where each unit is operating.
+            Maintain a complete movement history for every asset.
           </div>
           <input type="checkbox" id="modTransfers" />
         </div>
@@ -320,10 +357,11 @@ footer a:hover {
           <label for="modExtraction">Extraction Engine</label>
           <div class="module-price">$149/month</div>
           <div class="module-desc">
-            DRIV‑EN’s extraction engine analyzes equipment manuals and manufacturer documentation.
+            DRIV‑EN’s extraction engine analyzes equipment manuals, manufacturer documentation, and configuration details to retrieve part numbers, fluid types, capacities, maintenance intervals, safety requirements, and operational specifications.
+            This intelligence powers automated PM templates, inspection templates, and equipment configuration profiles.
             <br><br>
-            <strong>Requires PM or Inspections.</strong><br>
-            <strong>Included in all bundles.</strong>
+            <strong>Requires Preventative Maintenance or Equipment Inspections.</strong><br>
+            <strong>Included at no charge in all bundles.</strong>
           </div>
           <input type="checkbox" id="modExtraction" />
         </div>
@@ -337,6 +375,8 @@ footer a:hover {
       </div>
 
       <div class="status-bar" id="statusBar"></div>
+      <div id="savingsPreview" style="display:none;margin-top:10px;padding:10px;background:#fff8e1;border:1px solid #ffb300;border-radius:6px;font-weight:600;color:#795548;"></div>
+
     </div>
   </div>
 
@@ -348,7 +388,7 @@ footer a:hover {
       <div class="coming-item">
         <div class="coming-item-title">Safety Training & Certifications</div>
         <div class="coming-item-desc">
-          Includes equipment‑specific training, project‑required certifications, OSHA annual training, and other regulatory qualifications.
+          Includes equipment‑specific training, project‑required certifications, OSHA annual training, and other regulatory or company‑required qualifications.
         </div>
         <div class="coming-note">Learn more on our website and sign up to be notified when this module launches.</div>
       </div>
@@ -462,105 +502,19 @@ function showSelectionBanner() {
 }
 
 /* -----------------------------
-   CANCEL BUTTON
------------------------------- */
-btnCancel.addEventListener("click", () => {
-  window.location.href = "/";
-});
-
-/* -----------------------------
-   BUNDLE STATUS BAR
------------------------------- */
-function showBundleBanner() {
-  if (!bundleActive) {
-    statusBar.textContent = "";
-    return;
-  }
-  statusBar.textContent = `Bundle Activated: ${activeBundle}`;
-}
-
-/* -----------------------------
-   EXTRACTION ENGINE RULES
------------------------------- */
-function updateExtractionRules() {
-  if (bundleActive) return;
-
-  if (modPM.checked || modIns.checked) {
-    modExtraction.disabled = false;
-  } else {
-    modExtraction.checked = false;
-    modExtraction.disabled = true;
-  }
-}
-
-/* -----------------------------
-   CLEAR OTHER BUNDLES
------------------------------- */
-function clearOtherBundles(selectedId) {
-  bundleIds.forEach(id => {
-    if (id !== selectedId) document.getElementById(id).checked = false;
-  });
-}
-
-/* -----------------------------
-   APPLY BUNDLE
------------------------------- */
-function applyBundle(bundleId) {
-  // Reset all modules first
-  [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
-    el.checked = false;
-    el.disabled = false;
-  });
-
-  bundleActive = true;
-
-  if (bundleId === "bundleOperations") {
-    activeBundle = "Operations Bundle";
-    modPM.checked = true; modPM.disabled = true;
-    modIns.checked = true; modIns.disabled = true;
-    modExtraction.checked = true; modExtraction.disabled = true;
-  }
-
-  if (bundleId === "bundleFull") {
-    activeBundle = "Full Equipment Bundle";
-    modPM.checked = true; modPM.disabled = true;
-    modIns.checked = true; modIns.disabled = true;
-    modWO.checked = true; modWO.disabled = true;
-    modExtraction.checked = true; modExtraction.disabled = true;
-  }
-
-  if (bundleId === "bundleComplete") {
-    activeBundle = "Complete Platform Bundle";
-    modPM.checked = true; modPM.disabled = true;
-    modIns.checked = true; modIns.disabled = true;
-    modWO.checked = true; modWO.disabled = true;
-    modFuel.checked = true; modFuel.disabled = true;
-    modTransfers.checked = true; modTransfers.disabled = true;
-    modExtraction.checked = true; modExtraction.disabled = true;
-  }
-
-  const orderedModules = ["Equipment Management", activeBundle];
-  localStorage.setItem("driven_ordered_modules", JSON.stringify(orderedModules));
-
-  showSelectionBanner();
-  showBundleBanner();
-}
-
-/* -----------------------------
    BREAK BUNDLE IF MODULES CHANGE
 ------------------------------ */
 function uncheckBundleIfModuleChanged() {
   if (!bundleActive) return;
-  }
 
   // If any module is changed manually, break the bundle
   if (
-    !modPM.disabled && modPM.checked !== true ||
-    !modIns.disabled && modIns.checked !== true ||
-    !modWO.disabled && modWO.checked !== true ||
-    !modFuel.disabled && modFuel.checked !== true ||
-    !modTransfers.disabled && modTransfers.checked !== true ||
-    !modExtraction.disabled && modExtraction.checked !== true
+    (!modPM.disabled && !modPM.checked) ||
+    (!modIns.disabled && !modIns.checked) ||
+    (!modWO.disabled && !modWO.checked) ||
+    (!modFuel.disabled && !modFuel.checked) ||
+    (!modTransfers.disabled && !modTransfers.checked) ||
+    (!modExtraction.disabled && !modExtraction.checked)
   ) {
     bundleActive = false;
     activeBundle = null;
@@ -572,6 +526,13 @@ function uncheckBundleIfModuleChanged() {
 
     statusBar.textContent = "";
     document.getElementById("selectionBanner").style.display = "none";
+
+    // Re-enable modules
+    [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(m => {
+      m.disabled = false;
+    });
+
+    updateExtractionRules();
   }
 }
 
@@ -656,3 +617,4 @@ btnClear.addEventListener("click", () => {
 </main>
 </body>
 </html>
+
