@@ -509,284 +509,315 @@
   </div>
 </footer>
 
-  <script>
-    function generateOrderNumber() {
-      const date = new Date();
-      const y = date.getFullYear();
-      const m = String(date.getMonth() + 1).padStart(2, "0");
-      const d = String(date.getDate()).padStart(2, "0");
-      const rand = String(Math.floor(Math.random() * 90000) + 10000);
-      return `DRN-${y}${m}${d}-${rand}`;
+<script>
+/* ----------------------------------------------------
+   ORDER NUMBER GENERATION
+---------------------------------------------------- */
+function generateOrderNumber() {
+  const date = new Date();
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  const rand = String(Math.floor(Math.random() * 90000) + 10000);
+  return `DRN-${y}${m}${d}-${rand}`;
+}
+document.getElementById("orderNumber").value = generateOrderNumber();
+
+/* ----------------------------------------------------
+   MODULE + BUNDLE DEFINITIONS
+---------------------------------------------------- */
+const PRICES = {
+  equipment: 149,
+  pm: 299,
+  inspections: 199,
+  extraction: 149,
+  workorders: 149,
+  fuel: 49,
+  transfers: 79
+};
+
+const BUNDLES = {
+  "Operations Bundle": {
+    modules: ["equipment", "pm", "inspections", "extraction"],
+    price: 499
+  },
+  "Full Equipment Bundle": {
+    modules: ["equipment", "pm", "inspections", "workorders", "extraction"],
+    price: 529
+  },
+  "Complete Platform Bundle": {
+    modules: ["equipment", "pm", "inspections", "workorders", "fuel", "transfers", "extraction"],
+    price: 599
+  }
+};
+
+const MODULE_MAP = {
+  equipment: "Equipment Management",
+  pm: "Preventative Maintenance",
+  inspections: "Equipment Inspections",
+  extraction: "Extraction Engine",
+  workorders: "Work Orders",
+  fuel: "Fuel Usage Tracking",
+  transfers: "Equipment Transfer Tracking"
+};
+
+/* ----------------------------------------------------
+   RENDER MODULES (FULLY CORRECTED)
+---------------------------------------------------- */
+function renderModules() {
+  const payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
+
+  // Correct source of truth
+  const selectedModules = payload.modules || [];
+  const bundleName = payload.bundle || null;
+
+  const bundle = bundleName ? BUNDLES[bundleName] : null;
+  const bundleModules = bundle ? new Set(bundle.modules) : new Set();
+
+  let sumUnitPrices = 0;
+  let chargeTotal = 0;
+  let html = "";
+
+  // Render each selected module
+  selectedModules.forEach(key => {
+    const name = MODULE_MAP[key];
+    const price = PRICES[key];
+    sumUnitPrices += price;
+
+    const extended = bundleModules.has(key) ? "-" : `$${price}`;
+    if (!bundleModules.has(key)) chargeTotal += price;
+
+    html += `
+      <div class="module-row">
+        <div class="module-name">${name}</div>
+        <div class="unit-price">$${price}</div>
+        <div class="extended-price">${extended}</div>
+      </div>
+    `;
+  });
+
+  // Render bundle line if applicable
+  if (bundle) {
+    chargeTotal = bundle.price;
+    html += `
+      <div class="module-row">
+        <div class="module-name">${bundleName}</div>
+        <div class="unit-price">Bundle</div>
+        <div class="extended-price">$${bundle.price}</div>
+      </div>
+    `;
+  }
+
+  document.getElementById("modulesList").innerHTML = html;
+
+  /* ----------------------------------------------------
+     BILLING PERIOD
+  ---------------------------------------------------- */
+  const periodLabel =
+    payload.billingPeriod === "annual"
+      ? "Annual (10% discount applied)"
+      : "Monthly";
+
+  document.getElementById("invoicePeriod").value = periodLabel;
+
+  /* ----------------------------------------------------
+     SUBTOTAL (ALREADY CORRECT IN PAYLOAD)
+  ---------------------------------------------------- */
+  const subtotal = Number(payload.invoiceSubtotal || 0);
+
+  /* ----------------------------------------------------
+     LIVE TEXAS TAX LOGIC
+  ---------------------------------------------------- */
+  const state = document.getElementById("state").value.trim().toUpperCase();
+  let tax = 0;
+  if (state === "TX") {
+    tax = subtotal * 0.0825;
+  }
+
+  const total = subtotal + tax;
+
+  document.getElementById("invoiceSubtotal").value = `$${subtotal.toFixed(2)}`;
+  document.getElementById("invoiceTax").value = `$${tax.toFixed(2)}`;
+  document.getElementById("invoiceTotal").value = `$${total.toFixed(2)}`;
+
+  /* ----------------------------------------------------
+     SAVINGS CALCULATION
+  ---------------------------------------------------- */
+  let savingsNumber = 0;
+  if (payload.billingPeriod === "monthly") {
+    savingsNumber = sumUnitPrices - chargeTotal;
+  } else {
+    const annualUnitTotal = sumUnitPrices * 12;
+    savingsNumber = annualUnitTotal - subtotal;
+  }
+  if (savingsNumber < 0) savingsNumber = 0;
+
+  document.getElementById("invoiceSavingsBox").textContent =
+    `Total Savings: $${savingsNumber.toFixed(2)}`;
+}
+
+/* Initial render */
+renderModules();
+
+/* ----------------------------------------------------
+   LIVE TAX UPDATE ON ADDRESS INPUT
+---------------------------------------------------- */
+["street", "city", "state", "zip"].forEach(id => {
+  document.getElementById(id).addEventListener("input", renderModules);
+});
+
+/* ----------------------------------------------------
+   BUTTON LOGIC
+---------------------------------------------------- */
+document.getElementById("btnBackCart").onclick = () => {
+  window.location.href = "cart.html";
+};
+document.getElementById("btnBackModules").onclick = () => {
+  window.location.href = "module-selection.html";
+};
+document.getElementById("btnPrint").onclick = () => {
+  window.print();
+};
+
+/* ----------------------------------------------------
+   FORM VALIDATION
+---------------------------------------------------- */
+function validateForm() {
+  const fields = [
+    "companyName",
+    "contactName",
+    "phone",
+    "email",
+    "street",
+    "city",
+    "state",
+    "zip"
+  ];
+
+  let firstMissing = null;
+  let valid = true;
+
+  fields.forEach(id => {
+    const el = document.getElementById(id);
+    el.classList.remove("error");
+    if (!el.value.trim()) {
+      el.classList.add("error");
+      valid = false;
+      if (!firstMissing) firstMissing = el;
     }
-    document.getElementById("orderNumber").value = generateOrderNumber();
+  });
 
-    const PRICES = {
-      equipment: 149,
-      pm: 299,
-      inspections: 199,
-      extraction: 149,
-      workorders: 149,
-      fuel: 49,
-      transfers: 79
-    };
+  const banner = document.getElementById("statusBanner");
+  banner.style.display = "none";
 
-    const BUNDLES = {
-      "Operations Bundle": {
-        modules: ["equipment", "pm", "inspections", "extraction"],
-        price: 499
-      },
-      "Full Equipment Bundle": {
-        modules: ["equipment", "pm", "inspections", "workorders", "extraction"],
-        price: 529
-      },
-      "Complete Platform Bundle": {
-        modules: ["equipment", "pm", "inspections", "workorders", "fuel", "transfers", "extraction"],
-        price: 599
-      }
-    };
+  if (!valid) {
+    banner.textContent = "Please complete all required fields.";
+    banner.style.display = "block";
 
-    const MODULE_MAP = {
-      equipment: "Equipment Management",
-      pm: "Preventative Maintenance",
-      inspections: "Equipment Inspections",
-      extraction: "Extraction Engine",
-      workorders: "Work Orders",
-      fuel: "Fuel Usage Tracking",
-      transfers: "Equipment Transfer Tracking"
-    };
-
-    function renderModules() {
-      const payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
-      const selections = JSON.parse(localStorage.getItem("driven_modules") || "{}");
-
-      const selectedModules = ["equipment"];
-      if (selections.pm) selectedModules.push("pm");
-      if (selections.inspections) selectedModules.push("inspections");
-      if (selections.workorders) selectedModules.push("workorders");
-      if (selections.fuel) selectedModules.push("fuel");
-      if (selections.transfers) selectedModules.push("transfers");
-      if (selections.extraction) selectedModules.push("extraction");
-
-      const bundleName = payload.bundle || selections.bundle || null;
-      const bundle = bundleName ? BUNDLES[bundleName] : null;
-      const bundleModules = bundle ? new Set(bundle.modules) : new Set();
-
-      let sumUnitPrices = 0;
-      let chargeTotal = 0;
-      let html = "";
-
-      selectedModules.forEach(key => {
-        const name = MODULE_MAP[key];
-        const price = PRICES[key];
-        sumUnitPrices += price;
-
-        const extended = bundleModules.has(key) ? "-" : `$${price}`;
-        if (!bundleModules.has(key)) chargeTotal += price;
-
-        html += `
-          <div class="module-row">
-            <div class="module-name">${name}</div>
-            <div class="unit-price">$${price}</div>
-            <div class="extended-price">${extended}</div>
-          </div>
-        `;
-      });
-
-      if (bundle) {
-        chargeTotal = bundle.price;
-        html += `
-          <div class="module-row">
-            <div class="module-name">${bundleName}</div>
-            <div class="unit-price">Bundle</div>
-            <div class="extended-price">$${bundle.price}</div>
-          </div>
-        `;
-      }
-
-      document.getElementById("modulesList").innerHTML = html;
-
-      const periodLabel =
-        payload.billingPeriod === "annual"
-          ? "Annual (10% discount applied)"
-          : "Monthly";
-
-      document.getElementById("invoicePeriod").value = periodLabel;
-
-      const subtotal = Number(payload.invoiceSubtotal || 0);
-
-      // LIVE TEXAS TAX LOGIC
-      const state = document.getElementById("state").value.trim().toUpperCase();
-      let tax = 0;
-      if (state === "TX") {
-        tax = subtotal * 0.0825;
-      }
-
-      const total = subtotal + tax;
-
-      document.getElementById("invoiceSubtotal").value = `$${subtotal.toFixed(2)}`;
-      document.getElementById("invoiceTax").value = `$${tax.toFixed(2)}`;
-      document.getElementById("invoiceTotal").value = `$${total.toFixed(2)}`;
-
-      let savingsNumber = 0;
-      if (payload.billingPeriod === "monthly") {
-        savingsNumber = sumUnitPrices - chargeTotal;
-      } else {
-        const annualUnitTotal = sumUnitPrices * 12;
-        savingsNumber = annualUnitTotal - subtotal;
-      }
-      if (savingsNumber < 0) savingsNumber = 0;
-
-      document.getElementById("invoiceSavingsBox").textContent =
-        `Total Savings: $${savingsNumber.toFixed(2)}`;
-    }
-
-    renderModules();
-
-    // LIVE TAX UPDATE ON ADDRESS INPUT
-    ["street", "city", "state", "zip"].forEach(id => {
-      document.getElementById(id).addEventListener("input", renderModules);
+    document.querySelector('.card:nth-of-type(3)').scrollIntoView({
+      behavior: "smooth"
     });
 
-    document.getElementById("btnBackCart").onclick = () => {
-      window.location.href = "cart.html";
-    };
-    document.getElementById("btnBackModules").onclick = () => {
-      window.location.href = "module-selection.html";
-    };
-    document.getElementById("btnPrint").onclick = () => {
-      window.print();
-    };
+    if (firstMissing) firstMissing.focus();
+  }
 
-    function validateForm() {
-      const fields = [
-        "companyName",
-        "contactName",
-        "phone",
-        "email",
-        "street",
-        "city",
-        "state",
-        "zip"
-      ];
+  return valid;
+}
 
-      let firstMissing = null;
-      let valid = true;
+/* ----------------------------------------------------
+   STRIPE INITIALIZATION
+---------------------------------------------------- */
+let stripe;
+let elements;
+let cardElement;
+let billingAddressElement;
+let clientSecret;
 
-      fields.forEach(id => {
-        const el = document.getElementById(id);
-        el.classList.remove("error");
-        if (!el.value.trim()) {
-          el.classList.add("error");
-          valid = false;
-          if (!firstMissing) firstMissing = el;
-        }
-      });
+async function initStripe() {
+  stripe = Stripe("pk_test_YOUR_PUBLISHABLE_KEY_HERE");
 
-      const banner = document.getElementById("statusBanner");
-      banner.style.display = "none";
+  const response = await fetch("/create-payment-intent", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({})
+  });
 
-      if (!valid) {
-        banner.textContent = "Please complete all required fields.";
-        banner.style.display = "block";
+  const data = await response.json();
+  clientSecret = data.clientSecret;
 
-        document.querySelector('.card:nth-of-type(3)').scrollIntoView({
-          behavior: "smooth"
-        });
+  elements = stripe.elements({ clientSecret });
 
-        if (firstMissing) firstMissing.focus();
+  billingAddressElement = elements.create("address", { mode: "billing" });
+  billingAddressElement.mount("#billing-address-element");
+
+  cardElement = elements.create("payment");
+  cardElement.mount("#card-element");
+}
+
+initStripe().catch(err => {
+  document.getElementById("card-errors").textContent =
+    "Unable to initialize payment form.";
+});
+
+/* ----------------------------------------------------
+   CONFIRM PAYMENT
+---------------------------------------------------- */
+document.getElementById("btnConfirm").addEventListener("click", async () => {
+  if (!validateForm()) return;
+
+  const payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
+
+  const subtotal = Number(payload.invoiceSubtotal || 0);
+  const state = document.getElementById("state").value.trim().toUpperCase();
+  let tax = 0;
+  if (state === "TX") {
+    tax = subtotal * 0.0825;
+  }
+  const total = subtotal + tax;
+
+  const orderData = {
+    orderNumber: document.getElementById("orderNumber").value,
+    companyName: document.getElementById("companyName").value.trim(),
+    contactName: document.getElementById("contactName").value.trim(),
+    phone: document.getElementById("phone").value.trim(),
+    email: document.getElementById("email").value.trim(),
+    street: document.getElementById("street").value.trim(),
+    city: document.getElementById("city").value.trim(),
+    state: document.getElementById("state").value.trim(),
+    zip: document.getElementById("zip").value.trim(),
+    poNumber: document.getElementById("poNumber").value.trim(),
+    billingPeriod: payload.billingPeriod,
+    invoiceSubtotal: subtotal,
+    invoiceTax: tax,
+    invoiceTotal: total
+  };
+
+  document.getElementById("card-errors").textContent = "";
+  const statusSuccess = document.getElementById("statusSuccess");
+  statusSuccess.textContent = "";
+
+  try {
+    const { error } = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        // return_url: "https://www.driv-en.com/public/onboarding-start.html",
       }
+    });
 
-      return valid;
-    }
-
-    let stripe;
-    let elements;
-    let cardElement;
-    let billingAddressElement;
-    let clientSecret;
-
-    async function initStripe() {
-      stripe = Stripe("pk_test_YOUR_PUBLISHABLE_KEY_HERE");
-
-      const response = await fetch("/create-payment-intent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({})
-      });
-
-      const data = await response.json();
-      clientSecret = data.clientSecret;
-
-      elements = stripe.elements({ clientSecret });
-
-      billingAddressElement = elements.create("address", { mode: "billing" });
-      billingAddressElement.mount("#billing-address-element");
-
-      cardElement = elements.create("payment");
-      cardElement.mount("#card-element");
-    }
-
-    initStripe().catch(err => {
+    if (error) {
       document.getElementById("card-errors").textContent =
-        "Unable to initialize payment form.";
-    });
+        error.message || "Payment error.";
+      return;
+    }
 
-    document.getElementById("btnConfirm").addEventListener("click", async () => {
-      if (!validateForm()) return;
-
-      const payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
-
-      const subtotal = Number(payload.invoiceSubtotal || 0);
-      const state = document.getElementById("state").value.trim().toUpperCase();
-      let tax = 0;
-      if (state === "TX") {
-        tax = subtotal * 0.0825;
-      }
-      const total = subtotal + tax;
-
-      const orderData = {
-        orderNumber: document.getElementById("orderNumber").value,
-        companyName: document.getElementById("companyName").value.trim(),
-        contactName: document.getElementById("contactName").value.trim(),
-        phone: document.getElementById("phone").value.trim(),
-        email: document.getElementById("email").value.trim(),
-        street: document.getElementById("street").value.trim(),
-        city: document.getElementById("city").value.trim(),
-        state: document.getElementById("state").value.trim(),
-        zip: document.getElementById("zip").value.trim(),
-        poNumber: document.getElementById("poNumber").value.trim(),
-        billingPeriod: payload.billingPeriod,
-        invoiceSubtotal: subtotal,
-        invoiceTax: tax,
-        invoiceTotal: total
-      };
-
-      document.getElementById("card-errors").textContent = "";
-      const statusSuccess = document.getElementById("statusSuccess");
-      statusSuccess.textContent = "";
-
-      try {
-        const { error } = await stripe.confirmPayment({
-          elements,
-          confirmParams: {
-            // return_url: "https://www.driv-en.com/public/onboarding-start.html",
-          }
-        });
-
-        if (error) {
-          document.getElementById("card-errors").textContent =
-            error.message || "Payment error.";
-          return;
-        }
-
-        statusSuccess.innerHTML =
-          'Order confirmed. Thank you for choosing <img src="/logo.png" alt="DRIV‑EN Logo" style="height:80px;vertical-align:middle;">';
-      } catch (err) {
-        document.getElementById("card-errors").textContent =
-          "An unexpected error occurred while processing your payment.";
-      }
-    });
-  </script>
+    statusSuccess.innerHTML =
+      'Order confirmed. Thank you for choosing <img src="/logo.png" alt="DRIV‑EN Logo" style="height:80px;vertical-align:middle;">';
+  } catch (err) {
+    document.getElementById("card-errors").textContent =
+      "An unexpected error occurred while processing your payment.";
+  }
+});
+</script>
 
 </body>
 </html>
