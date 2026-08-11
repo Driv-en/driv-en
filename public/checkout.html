@@ -457,7 +457,82 @@
 </footer>
 
   <script>
-    /* Your existing JS logic remains unchanged — pulled directly from your file */
+ <script>
+document.addEventListener("DOMContentLoaded", () => {
+
+  /* -----------------------------
+     LOAD CART PAYLOAD
+  ------------------------------ */
+  const payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
+
+  const modules = payload.modules || [];
+  const bundle = payload.bundle || null;
+
+  const billingPeriod = payload.billingPeriod || "monthly";
+  const subtotal = billingPeriod === "monthly" ? payload.monthlySubtotal : payload.annualSubtotal;
+  const tax = billingPeriod === "monthly" ? payload.monthlyTax : payload.annualTax;
+  const total = billingPeriod === "monthly" ? payload.monthlyTotal : payload.annualTotal;
+
+  /* -----------------------------
+     GENERATE ORDER NUMBER
+  ------------------------------ */
+  const orderNumber = "DRN-" + Math.floor(100000 + Math.random() * 900000);
+
+  document.getElementById("orderNumber").textContent = orderNumber;
+
+  /* -----------------------------
+     RENDER MODULES
+  ------------------------------ */
+  const moduleListEl = document.getElementById("moduleList");
+
+  if (modules.length === 0) {
+    moduleListEl.innerHTML = "<div>No modules selected.</div>";
+  } else {
+    const rows = modules.map(m => `<div class="module-row"><div class="module-name">${m}</div></div>`);
+    moduleListEl.innerHTML = rows.join("");
+  }
+
+  /* -----------------------------
+     RENDER BUNDLE (IF ANY)
+  ------------------------------ */
+  const bundleEl = document.getElementById("bundleName");
+  bundleEl.textContent = bundle ? bundle : "None";
+
+  /* -----------------------------
+     RENDER BILLING PERIOD
+  ------------------------------ */
+  const billingEl = document.getElementById("billingPeriod");
+  billingEl.textContent = billingPeriod === "monthly" ? "Monthly" : "Annual (10% discount applied)";
+
+  /* -----------------------------
+     RENDER TOTALS
+  ------------------------------ */
+  document.getElementById("subtotal").textContent = `$${subtotal.toFixed(2)}`;
+  document.getElementById("tax").textContent = `$${tax.toFixed(2)}`;
+  document.getElementById("total").textContent = `$${total.toFixed(2)}`;
+
+  /* -----------------------------
+     BUTTONS
+  ------------------------------ */
+  document.getElementById("btnBackModules").addEventListener("click", () => {
+    window.location.href = "/public/module-selection.html";
+  });
+
+  document.getElementById("btnBackCart").addEventListener("click", () => {
+    window.location.href = "/public/cart.html";
+  });
+
+  document.getElementById("btnPrint").addEventListener("click", () => {
+    window.print();
+  });
+
+  document.getElementById("btnConfirmPay").addEventListener("click", () => {
+    alert("Stripe integration coming soon.");
+  });
+
+});
+</script>
+
   </script>
 
 </body>
