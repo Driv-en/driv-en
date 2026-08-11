@@ -31,7 +31,7 @@ header {
   align-items: center;
 }
 header img.logo {
-  height: 72px;
+  height: 88px;
 }
 header .title-block h1 {
   font-size: 18px;
@@ -45,7 +45,7 @@ header .title-block span {
 /* Sticky Green Bar */
 #headerLine {
   position: sticky;
-  top: 72px;
+  top: 88px;
   z-index: 99;
   height: 4px;
   width: 100%;
@@ -239,6 +239,7 @@ footer a:hover {
 
 <h2>Select the modules your business needs</h2>
 
+<!-- Green banner for bundle/module selection -->
 <div id="selectionBanner"></div>
 
 <p>
@@ -246,25 +247,37 @@ footer a:hover {
   You can adjust your active modules whenever your business needs change.
 </p>
 
+<!-- Pricing note + plan banner -->
 <div class="pricing-note">
+
+  <!-- Bundle activation banner (hidden until bundle is selected) -->
+  <div id="planBanner" class="plan-banner" style="display:none;">
+    <strong id="planBannerTitle"></strong>
+    <span id="planBannerText"></span>
+  </div>
+
   Equipment Management is required. Other modules are optional and may be billed monthly or annually (annual billing receives a 10% discount).
 </div>
 
+<!-- Bundle Pricing Section -->
 <div class="bundle-note">
   <div class="bundle-title">Bundle Pricing</div>
 
   <div class="bundle-item">
-    <input type="checkbox" id="bundleOperations"> Operations Bundle — $499/month<br>
+    <input type="checkbox" id="bundleOperations">
+    Operations Bundle — $499/month<br>
     <span>Equipment Management + Preventative Maintenance + Equipment Inspections + Extraction Engine (Included)</span>
   </div>
 
   <div class="bundle-item">
-    <input type="checkbox" id="bundleFull"> Full Equipment Bundle — $529/month<br>
+    <input type="checkbox" id="bundleFull">
+    Full Equipment Bundle — $529/month<br>
     <span>Equipment Management + Preventative Maintenance + Equipment Inspections + Work Orders + Extraction Engine (Included)</span>
   </div>
 
   <div class="bundle-item">
-    <input type="checkbox" id="bundleComplete"> Complete Platform Bundle — $599/month<br>
+    <input type="checkbox" id="bundleComplete">
+    Complete Platform Bundle — $599/month<br>
     <span>All modules included + Extraction Engine (Included)</span>
   </div>
 </div>
@@ -490,7 +503,7 @@ let activeBundle = null;
 ------------------------------ */
 function showSelectionBanner() {
   const banner = document.getElementById("selectionBanner");
-  const saved = JSON.parse(localStorage.getItem("driven_ordered_modules") || "[]");
+  const saved = JSON.parse(localStorage.getItem("selectedModules") || "[]");
 
   if (!bundleActive) {
     banner.style.display = "none";
@@ -589,7 +602,7 @@ btnContinue.addEventListener("click", () => {
     selected.push(activeBundle);
   }
 
-  localStorage.setItem("driven_ordered_modules", JSON.stringify(selected));
+  localStorage.setItem("selectedModules", JSON.stringify(selected));
   window.location.href = "/public/cart.html";
 });
 
@@ -597,23 +610,35 @@ btnContinue.addEventListener("click", () => {
    CLEAR MODULES
 ------------------------------ */
 btnClear.addEventListener("click", () => {
+  // Reset bundle state
   bundleActive = false;
   activeBundle = null;
 
+  // Uncheck all bundles
   bundleIds.forEach(id => {
     document.getElementById(id).checked = false;
   });
 
+  // Reset all modules
   [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
     el.checked = false;
     el.disabled = false;
   });
 
+  // Update extraction rules
   updateExtractionRules();
+
+  // Clear status bar
   statusBar.textContent = "";
+
+  // Hide banner
   document.getElementById("selectionBanner").style.display = "none";
+
+  // Ensure banner logic resets cleanly
+  showSelectionBanner();
 });
 </script>
+
 </main>
 </body>
 </html>
