@@ -280,7 +280,7 @@
     <a href="mailto:support@driv-en.com">Contact</a>
   </footer>
 
-  <script>
+<script>
   const statusBar = document.getElementById("statusBar");
   const cartList = document.getElementById("cartList");
 
@@ -336,7 +336,20 @@
   };
 
   function renderCart() {
-    const selections = JSON.parse(localStorage.getItem("selectedModules") || "{}");
+
+    /* ⭐ FIX #1 — Convert selectedModules array → cart object */
+    const raw = JSON.parse(localStorage.getItem("selectedModules") || "[]");
+
+    const selections = {
+      equipment: raw.includes("Equipment Management"),
+      pm: raw.includes("Preventative Maintenance"),
+      inspections: raw.includes("Equipment Inspections"),
+      workorders: raw.includes("Work Orders"),
+      fuel: raw.includes("Fuel Usage Tracking"),
+      transfers: raw.includes("Equipment Transfer Tracking"),
+      extraction: raw.includes("Extraction Engine"),
+      bundle: raw.find(x => x.includes("Bundle")) || null
+    };
 
     const rows = [];
     let unitTotal = 0;
@@ -346,7 +359,8 @@
     const bundle = bundleName ? BUNDLES[bundleName] : null;
     const bundleModules = bundle ? new Set(bundle.modules) : new Set();
 
-    const selectedModules = ["equipment"];
+    const selectedModules = [];
+    if (selections.equipment) selectedModules.push("equipment");
     if (selections.pm) selectedModules.push("pm");
     if (selections.inspections) selectedModules.push("inspections");
     if (selections.workorders) selectedModules.push("workorders");
@@ -449,19 +463,16 @@
     taxAnnualEl.textContent = `$${annualTax.toFixed(2)}`;
     totalAnnualEl.textContent = `$${annualTotal.toFixed(2)}`;
 
-    // ⭐ Restore previously selected billing period
+    // Restore previously selected billing period
     const checkoutPayload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
     const previousPeriod = checkoutPayload.billingPeriod || "monthly";
 
-    // Set radio button
     billingRadios.forEach(r => {
       r.checked = (r.value === previousPeriod);
     });
 
-    // Update invoice display
     updateInvoiceDisplay(previousPeriod, { monthlyTotal, annualTotal });
 
-    // Store updated payload
     localStorage.setItem("driven_checkout_payload", JSON.stringify({
       modules: selectedModules,
       bundle: bundleName,
@@ -531,7 +542,7 @@
 
   statusBar.textContent = "Review your selections.";
   renderCart();
-  </script>
+</script>
 
 </body>
 </html>
