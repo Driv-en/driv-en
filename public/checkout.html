@@ -46,12 +46,12 @@
     color: #9ca3af;
   }
 
-  /* Sticky Light Green Review Bar */
-  #statusBar {
+  /* Light Green Review Bar (sticky, but stable) */
+  #statusBar.review-bar {
     position: sticky;
     top: 88px;
     z-index: 95;
-    background: #86efac; /* matches DRIV‑EN checkmark tone */
+    background: #86efac;
     color: #022c22;
     padding: 10px 16px;
     font-size: 14px;
@@ -60,22 +60,21 @@
   }
 
   @media (max-width: 600px) {
-    #statusBar {
-      top: 72px; /* prevents drift on mobile */
+    #statusBar.review-bar {
+      top: 72px;
     }
   }
 
-  /* Sticky Dark Green Status Bar */
+  /* Other status bars (error/success) – NOT sticky */
   .status-bar {
-    position: sticky;
-    top: 128px;
-    z-index: 90;
+    position: static;
     background: #022c22;
     border-bottom: 2px solid #22c55e;
     color: #bbf7d0;
     padding: 10px 16px;
     font-size: 14px;
     font-weight: 600;
+    display: none; /* only shown when JS sets display:block */
   }
 
   main {
@@ -131,7 +130,7 @@
     background: #0f172a;
     color: #e5e7eb;
     font-size: 13px;
-    height: 40px; /* State dropdown height fix */
+    height: 40px;
   }
 
   .form-field input.error {
@@ -139,9 +138,25 @@
     background: #1e293b;
   }
 
-  /* Billing Period label spacing fix */
+  /* Savings box + spacing above Billing Period/Subtotal */
+  .savings-line {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: #022c22;
+    border: 1px solid #22c55e;
+    font-size: 14px;
+    color: #bbf7d0;
+    font-weight: 600;
+  }
+
+  .savings-line + .form-row {
+    margin-top: 16px; /* space between Total Savings and Billing Period/Subtotal */
+  }
+
+  /* Billing Period label spacing (mobile) */
   #invoicePeriod {
-    margin-top: 6px; /* moves label closer to box on mobile */
+    margin-top: 4px;
   }
 
   /* Desktop alignment: Billing Period + Subtotal */
@@ -160,17 +175,20 @@
     }
   }
 
+  /* Module rows – desktop */
   .module-row {
     display: grid;
     grid-template-columns: 1fr 120px 120px;
     padding: 10px 0;
     border-bottom: 1px solid #1f2937;
     column-gap: 12px;
+    align-items: center;
   }
 
   .module-name {
     font-size: 15px;
     font-weight: 600;
+    text-align: left;
   }
 
   .unit-price {
@@ -186,28 +204,22 @@
     color: #22c55e;
   }
 
-  /* Mobile fix: module rows no longer overflow */
+  /* Mobile: description left, unit + extended right aligned in columns */
   @media (max-width: 600px) {
     .module-row {
-      grid-template-columns: 1fr;
-      row-gap: 6px;
+      grid-template-columns: 1fr auto auto;
+      column-gap: 8px;
+      padding: 8px 0;
+    }
+
+    .module-name {
+      text-align: left;
     }
 
     .unit-price,
     .extended-price {
-      text-align: left;
+      text-align: right;
     }
-  }
-
-  .savings-line {
-    margin-top: 12px;
-    padding: 10px 12px;
-    border-radius: 6px;
-    background: #022c22;
-    border: 1px solid #22c55e;
-    font-size: 14px;
-    color: #bbf7d0;
-    font-weight: 600;
   }
 
   #billing-address-element,
@@ -265,7 +277,6 @@
     margin: 0 8px;
   }
 
-  /* Mobile Footer Centering Fix */
   @media (max-width: 600px) {
     footer {
       text-align: center;
@@ -314,7 +325,33 @@
       box-sizing: border-box;
     }
   }
+
+  /* Print: keep header at top of first page, no sticky bars */
+  @media print {
+    header {
+      position: static;
+      top: auto;
+    }
+
+    #statusBar.review-bar {
+      position: static;
+      top: auto;
+    }
+
+    .status-bar {
+      position: static;
+    }
+
+    body {
+      overflow: visible;
+    }
+
+    main {
+      margin: 0 auto;
+    }
+  }
 </style>
+
 
   <script src="https://js.stripe.com/v3"></script>
 </head>
@@ -332,9 +369,10 @@
 
   </header>
 
-<div id="statusBar" class="status-bar">
+<div id="statusBar" class="review-bar">
   Review your order and complete checkout.
 </div>
+
 
 <main>
 
@@ -390,6 +428,7 @@
     </div>
   </div>
 
+  <!-- This bar only appears on validation error (CSS default is display:none) -->
   <div id="statusBanner" class="status-bar"></div>
 
   <!-- Customer Info -->
@@ -420,14 +459,13 @@
       </div>
     </div>
 
+    <!-- Street + City on same row (desktop), stacked on mobile via CSS -->
     <div class="form-row">
       <div class="form-field">
         <label>Street *</label>
         <input id="street" type="text" />
       </div>
-    </div>
 
-    <div class="form-row">
       <div class="form-field">
         <label>City *</label>
         <input id="city" type="text" />
@@ -471,13 +509,14 @@
 
   <!-- Buttons -->
   <div class="footer-actions">
-    <button class="btn-secondary" id="btnBackModules">Back to Modules</button>
+    <button class="btn-secondary" id="btnBackModules">Back to Module Selection</button>
     <button class="btn-secondary" id="btnBackCart">Back to Cart</button>
     <button class="btn-secondary" id="btnPrint">Print</button>
     <button class="btn-primary" id="btnConfirm">Confirm & Pay</button>
   </div>
 
 </main>
+
 
   <!-- Updated Footer -->
 <footer>
