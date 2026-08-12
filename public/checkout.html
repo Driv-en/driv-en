@@ -32,8 +32,12 @@
     align-items: center;
   }
 
+  /* Responsive logo (still visually ~88px) */
   header img.logo {
-    height: 88px;
+    max-height: 88px;
+    height: auto;
+    width: auto;
+    display: block;
   }
 
   header .title-block h1 {
@@ -46,10 +50,10 @@
     color: #9ca3af;
   }
 
-  /* ✔ TRUE sticky green bar (Cart behavior) */
+  /* Sticky green bar — JS sets correct top value */
   #headerLine {
     position: sticky;
-    top: 88px;        /* matches header height */
+    top: 0; /* JS will override */
     z-index: 99;
     height: 4px;
     width: 100%;
@@ -61,8 +65,9 @@
     display: none !important;
   }
 
-  /* Other status bars (error/success) – NOT sticky */
+  /* Status bars (error/success) */
   .status-bar {
+    display: none;
     position: static;
     background: #022c22;
     border-bottom: 2px solid #22c55e;
@@ -70,7 +75,19 @@
     padding: 10px 16px;
     font-size: 14px;
     font-weight: 600;
-    display: none;
+  }
+
+  .status-bar.show {
+    display: block;
+  }
+
+  /* Error input styling */
+  input.error,
+  select.error,
+  textarea.error {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+    background: #1f0f0f;
   }
 
   main {
@@ -129,19 +146,16 @@
     height: 40px;
   }
 
-  /* ✔ State dropdown height corrected */
   #state {
     height: 58px !important;
     padding-top: 10px;
     padding-bottom: 8px;
   }
 
-  /* ✔ Total (USD) aligned with Tax */
   #invoiceTotal {
     margin-top: 35px !important;
   }
 
-  /* Savings box */
   .savings-line {
     margin-top: 12px;
     padding: 10px 12px;
@@ -157,7 +171,6 @@
     margin-top: 16px;
   }
 
-  /* Module rows – desktop */
   .module-row {
     display: grid;
     grid-template-columns: 1fr 120px 120px;
@@ -186,7 +199,6 @@
     color: #22c55e;
   }
 
-  /* Mobile module layout: description left, prices right aligned */
   @media (max-width: 600px) {
     .module-row {
       grid-template-columns: 1fr auto auto;
@@ -285,7 +297,6 @@
     }
   }
 
-  /* Mobile: single-column fields */
   @media (max-width: 600px) {
     main,
     .card {
@@ -308,7 +319,6 @@
     }
   }
 
-  /* Print: keep header at top of first page */
   @media print {
     header {
       position: static !important;
@@ -318,7 +328,7 @@
       border-bottom: 1px solid #000000 !important;
     }
 
-    .header-accent {
+    #headerLine {
       background: #000000 !important;
     }
 
@@ -375,25 +385,33 @@
   }
 </style>
 
+<script src="https://js.stripe.com/v3"></script>
 
+<!-- JS FIX: dynamic sticky bar offset -->
+<script>
+function updateHeaderLineTop() {
+  const header = document.querySelector('header');
+  const headerLine = document.getElementById('headerLine');
+  if (!header || !headerLine) return;
+  headerLine.style.top = `${header.offsetHeight}px`;
+}
+window.addEventListener('load', updateHeaderLineTop);
+window.addEventListener('resize', updateHeaderLineTop);
+</script>
 
-  <script src="https://js.stripe.com/v3"></script>
 </head>
 
 <body>
 
 <header>
-  <!-- ✔ Page title on the LEFT -->
   <div class="title-block">
     <h1>Step 3 – Confirm Your Order</h1>
     <span>Review your selections and complete checkout</span>
   </div>
 
-  <!-- ✔ Logo on the RIGHT -->
   <img class="logo" src="/logo.png" alt="DRIV‑EN Logo" />
 </header>
 
-<!-- ✔ Sticky green bar directly under header -->
 <div id="headerLine"></div>
 
 <div id="statusBar" class="review-bar">
