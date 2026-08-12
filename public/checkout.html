@@ -548,57 +548,80 @@ const MODULE_MAP = {
 };
 
 /* ----------------------------------------------------
-   RENDER MODULES (FULLY CORRECTED)
+   RENDER MODULES (SAFE DOM VERSION)
 ---------------------------------------------------- */
 function renderModules() {
   const payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
 
-  // Correct source of truth
   const selectedModules = payload.modules || [];
   const bundleName = payload.bundle || null;
-
   const bundle = bundleName ? BUNDLES[bundleName] : null;
   const bundleModules = bundle ? new Set(bundle.modules) : new Set();
 
   let sumUnitPrices = 0;
   let chargeTotal = 0;
-  let html = "";
 
-  // Render each selected module
+  const modulesList = document.getElementById("modulesList");
+  modulesList.innerHTML = ""; // clear safely
+
   selectedModules.forEach(key => {
     const name = MODULE_MAP[key];
     const price = PRICES[key];
     sumUnitPrices += price;
 
-    const extended = bundleModules.has(key) ? "-" : `$${price}`;
-    if (!bundleModules.has(key)) chargeTotal += price;
+    const row = document.createElement("div");
+    row.className = "module-row";
 
-    html += `
-      <div class="module-row">
-        <div class="module-name">${name}</div>
-        <div class="unit-price">$${price}</div>
-        <div class="extended-price">${extended}</div>
-      </div>
-    `;
+    const nameEl = document.createElement("div");
+    nameEl.className = "module-name";
+    nameEl.textContent = name;
+
+    const unitEl = document.createElement("div");
+    unitEl.className = "unit-price";
+    unitEl.textContent = `$${price}`;
+
+    const extendedEl = document.createElement("div");
+    extendedEl.className = "extended-price";
+
+    if (bundleModules.has(key)) {
+      extendedEl.textContent = "-";
+    } else {
+      extendedEl.textContent = `$${price}`;
+      chargeTotal += price;
+    }
+
+    row.appendChild(nameEl);
+    row.appendChild(unitEl);
+    row.appendChild(extendedEl);
+
+    modulesList.appendChild(row);
   });
 
-  // Render bundle line if applicable
   if (bundle) {
     chargeTotal = bundle.price;
-    html += `
-      <div class="module-row">
-        <div class="module-name">${bundleName}</div>
-        <div class="unit-price">Bundle</div>
-        <div class="extended-price">$${bundle.price}</div>
-      </div>
-    `;
+
+    const row = document.createElement("div");
+    row.className = "module-row";
+
+    const nameEl = document.createElement("div");
+    nameEl.className = "module-name";
+    nameEl.textContent = bundleName;
+
+    const unitEl = document.createElement("div");
+    unitEl.className = "unit-price";
+    unitEl.textContent = "Bundle";
+
+    const extendedEl = document.createElement("div");
+    extendedEl.className = "extended-price";
+    extendedEl.textContent = `$${bundle.price}`;
+
+    row.appendChild(nameEl);
+    row.appendChild(unitEl);
+    row.appendChild(extendedEl);
+
+    modulesList.appendChild(row);
   }
 
-  document.getElementById("modulesList").innerHTML = html;
-
-  /* ----------------------------------------------------
-     BILLING PERIOD
-  ---------------------------------------------------- */
   const periodLabel =
     payload.billingPeriod === "annual"
       ? "Annual (10% discount applied)"
@@ -606,19 +629,11 @@ function renderModules() {
 
   document.getElementById("invoicePeriod").value = periodLabel;
 
-  /* ----------------------------------------------------
-     SUBTOTAL (ALREADY CORRECT IN PAYLOAD)
-  ---------------------------------------------------- */
   const subtotal = Number(payload.invoiceSubtotal || 0);
 
-  /* ----------------------------------------------------
-     LIVE TEXAS TAX LOGIC
-  ---------------------------------------------------- */
   const state = document.getElementById("state").value.trim().toUpperCase();
   let tax = 0;
-  if (state === "TX") {
-    tax = subtotal * 0.0825;
-  }
+  if (state === "TX") tax = subtotal * 0.0825;
 
   const total = subtotal + tax;
 
@@ -626,9 +641,6 @@ function renderModules() {
   document.getElementById("invoiceTax").value = `$${tax.toFixed(2)}`;
   document.getElementById("invoiceTotal").value = `$${total.toFixed(2)}`;
 
-  /* ----------------------------------------------------
-     SAVINGS CALCULATION
-  ---------------------------------------------------- */
   let savingsNumber = 0;
   if (payload.billingPeriod === "monthly") {
     savingsNumber = sumUnitPrices - chargeTotal;
@@ -642,11 +654,10 @@ function renderModules() {
     `Total Savings: $${savingsNumber.toFixed(2)}`;
 }
 
-/* Initial render */
 renderModules();
 
 /* ----------------------------------------------------
-   LIVE TAX UPDATE ON ADDRESS INPUT
+   LIVE TAX UPDATE
 ---------------------------------------------------- */
 ["street", "city", "state", "zip"].forEach(id => {
   document.getElementById(id).addEventListener("input", renderModules);
@@ -694,6 +705,7 @@ function validateForm() {
   });
 
   const banner = document.getElementById("statusBanner");
+  banner.textContent = "";
   banner.style.display = "none";
 
   if (!valid) {
@@ -720,33 +732,39 @@ let billingAddressElement;
 let clientSecret;
 
 async function initStripe() {
-  stripe = Stripe("pk_test_YOUR_PUBLISHABLE_KEY_HERE");
+  try {
+    stripe = Stripe("pk_test_YOUR_PUBLISHABLE_KEY_HERE");
 
-  const response = await fetch("/create-payment-intent", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({})
-  });
+    const response = await fetch("/create-payment-intent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({})
+    });
 
-  const data = await response.json();
-  clientSecret = data.clientSecret;
+    if (!response.ok) throw new Error("Payment intent creation failed");
 
-  elements = stripe.elements({ clientSecret });
+    const data = await response.json();
+    if (!data.clientSecret) throw new Error("Missing clientSecret");
 
-  billingAddressElement = elements.create("address", { mode: "billing" });
-  billingAddressElement.mount("#billing-address-element");
+    clientSecret = data.clientSecret;
 
-  cardElement = elements.create("payment");
-  cardElement.mount("#card-element");
+    elements = stripe.elements({ clientSecret });
+
+    billingAddressElement = elements.create("address", { mode: "billing" });
+    billingAddressElement.mount("#billing-address-element");
+
+    cardElement = elements.create("payment");
+    cardElement.mount("#card-element");
+  } catch (err) {
+    document.getElementById("card-errors").textContent =
+      "Unable to initialize payment form.";
+  }
 }
 
-initStripe().catch(err => {
-  document.getElementById("card-errors").textContent =
-    "Unable to initialize payment form.";
-});
+initStripe();
 
 /* ----------------------------------------------------
-   CONFIRM PAYMENT
+   CONFIRM PAYMENT (SAFE DOM VERSION)
 ---------------------------------------------------- */
 document.getElementById("btnConfirm").addEventListener("click", async () => {
   if (!validateForm()) return;
@@ -756,9 +774,7 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
   const subtotal = Number(payload.invoiceSubtotal || 0);
   const state = document.getElementById("state").value.trim().toUpperCase();
   let tax = 0;
-  if (state === "TX") {
-    tax = subtotal * 0.0825;
-  }
+  if (state === "TX") tax = subtotal * 0.0825;
   const total = subtotal + tax;
 
   const orderData = {
@@ -785,9 +801,7 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
   try {
     const { error } = await stripe.confirmPayment({
       elements,
-      confirmParams: {
-        // return_url: "https://www.driv-en.com/public/onboarding-start.html",
-      }
+      confirmParams: {}
     });
 
     if (error) {
@@ -796,8 +810,15 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
       return;
     }
 
-    statusSuccess.innerHTML =
-      'Order confirmed. Thank you for choosing <img src="/logo.png" alt="DRIV‑EN Logo" style="height:80px;vertical-align:middle;">';
+    const img = document.createElement("img");
+    img.src = "/logo.png";
+    img.alt = "DRIV‑EN Logo";
+    img.style.height = "80px";
+    img.style.verticalAlign = "middle";
+
+    statusSuccess.textContent = "Order confirmed. Thank you for choosing ";
+    statusSuccess.appendChild(img);
+
   } catch (err) {
     document.getElementById("card-errors").textContent =
       "An unexpected error occurred while processing your payment.";
