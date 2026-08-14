@@ -909,9 +909,12 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
   const payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
 
   const subtotal = Number(payload.invoiceSubtotal || 0);
-  const state = document.getElementById("state").value.trim().toUpperCase();
+  const state = document.getElementById("state").value.trim();
   let tax = 0;
+
+  // FIXED: Your form uses full state names, not abbreviations
   if (state === "Texas") tax = subtotal * 0.0825;
+
   const total = subtotal + tax;
 
   const orderData = {
@@ -931,7 +934,7 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
     invoiceTotal: total
   };
 
-  // ⭐ ADDED: Extract Turnstile token
+  // ⭐ Extract Turnstile token
   const turnstileToken = document.querySelector('[name="cf-turnstile-response"]').value;
 
   document.getElementById("card-errors").textContent = "";
@@ -939,8 +942,7 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
   statusSuccess.textContent = "";
 
   try {
-
-    // ⭐ TEMPORARY STRIPE BYPASS — ALWAYS SUCCEEDS
+    // ⭐ TEMPORARY STRIPE BYPASS
     const error = null;
 
     if (error) {
@@ -958,7 +960,7 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
     statusSuccess.textContent = "Order confirmed. Thank you for choosing ";
     statusSuccess.appendChild(img);
 
-    // ⭐ ADDED: Send Turnstile token + orderData to Worker
+    // ⭐ THIS IS THE CRITICAL PART — Worker POST
     await fetch("https://checkout.driv-en.workers.dev", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
