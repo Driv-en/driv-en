@@ -386,6 +386,7 @@
   }
 </style>
 
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <script src="https://js.stripe.com/v3"></script>
 
 <!-- JS FIX: dynamic sticky bar offset -->
@@ -608,6 +609,7 @@ window.addEventListener('resize', updateHeaderLineTop);
     <button class="btn-secondary" id="btnBackModules">Back to Module Selection</button>
     <button class="btn-secondary" id="btnBackCart">Back to Cart</button>
     <button class="btn-secondary" id="btnPrint">Print</button>
+    <div class="cf-turnstile" data-sitekey="0x4AAAAAAEQLZ0tgWkwiVIg6"></div>
     <button class="btn-primary" id="btnConfirm">Confirm & Pay</button>
   </div>
 
@@ -929,6 +931,9 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
     invoiceTotal: total
   };
 
+  // ⭐ ADDED: Extract Turnstile token
+  const turnstileToken = document.querySelector('[name="cf-turnstile-response"]').value;
+
   document.getElementById("card-errors").textContent = "";
   const statusSuccess = document.getElementById("statusSuccess");
   statusSuccess.textContent = "";
@@ -954,11 +959,22 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
     statusSuccess.textContent = "Order confirmed. Thank you for choosing ";
     statusSuccess.appendChild(img);
 
+    // ⭐ ADDED: Send Turnstile token to Worker
+    await fetch("https://checkout.driv-en.workers.dev", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...orderData,
+        turnstileToken: turnstileToken
+      })
+    });
+
   } catch (err) {
     document.getElementById("card-errors").textContent =
       "An unexpected error occurred while processing your payment.";
   }
 });
+
 </script>
 
 </body>
