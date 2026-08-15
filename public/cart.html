@@ -275,22 +275,22 @@
         <div class="totals-column">
           <h4>Monthly</h4>
           <div><strong>Subtotal:</strong> <span id="subtotalMonthly">$0</span></div>
-          <div><strong>Tax (8.25%):</strong> <span id="taxMonthly">$0</span></div>
-          <div><strong>Total (USD):</strong> <span id="totalMonthly">$0</span></div>
           <div id="monthlySavingsBox" class="savings-line"></div>
         </div>
 
         <div class="totals-column">
           <h4>Annual (10% off)</h4>
           <div><strong>Subtotal:</strong> <span id="subtotalAnnual">$0</span></div>
-          <div><strong>Tax (8.25%):</strong> <span id="taxAnnual">$0</span></div>
-          <div><strong>Total (USD):</strong> <span id="totalAnnual">$0</span></div>
           <div id="annualSavingsBox" class="savings-line"></div>
         </div>
       </div>
 
+      <div style="margin-top:12px; font-size:13px; color:#9ca3af; font-style:italic;">
+        Taxes will be calculated at checkout based on your billing address.
+      </div>
+
       <div class="invoice-line">
-        <strong>Invoice Amount (USD):</strong> <span id="invoiceAmount">$0</span>
+        <strong>Invoice Amount (pre-tax, USD):</strong> <span id="invoiceAmount">$0</span>
         <span id="invoiceLabel" style="color:#9ca3af; margin-left:4px;">(Monthly)</span>
       </div>
     </div>
@@ -324,11 +324,9 @@
   const cartList = document.getElementById("cartList");
 
   const subtotalMonthlyEl = document.getElementById("subtotalMonthly");
-  const taxMonthlyEl = document.getElementById("taxMonthly");
   const totalMonthlyEl = document.getElementById("totalMonthly");
 
   const subtotalAnnualEl = document.getElementById("subtotalAnnual");
-  const taxAnnualEl = document.getElementById("taxAnnual");
   const totalAnnualEl = document.getElementById("totalAnnual");
 
   const monthlySavingsBox = document.getElementById("monthlySavingsBox");
@@ -483,24 +481,19 @@
     monthlySavingsBox.textContent = `Monthly savings: $${monthlySavings.toFixed(2)}`;
     annualSavingsBox.textContent = `Annual savings: $${annualSavings.toFixed(2)}`;
 
-    // Monthly totals
-    const taxRate = 0.0825;
+    // Monthly totals — tax is $0 on the cart; calculated at checkout
     const monthlySubtotal = chargeTotal;
-    const monthlyTax = monthlySubtotal * taxRate;
+    const monthlyTax = 0;
     const monthlyTotal = monthlySubtotal + monthlyTax;
 
     subtotalMonthlyEl.textContent = `$${monthlySubtotal.toFixed(2)}`;
-    taxMonthlyEl.textContent = `$${monthlyTax.toFixed(2)}`;
-    totalMonthlyEl.textContent = `$${monthlyTotal.toFixed(2)}`;
 
-    // Annual totals
+    // Annual totals — tax is $0 on the cart; calculated at checkout
     const annualSubtotal = chargeTotal * 12 * 0.9;
-    const annualTax = annualSubtotal * taxRate;
+    const annualTax = 0;
     const annualTotal = annualSubtotal + annualTax;
 
     subtotalAnnualEl.textContent = `$${annualSubtotal.toFixed(2)}`;
-    taxAnnualEl.textContent = `$${annualTax.toFixed(2)}`;
-    totalAnnualEl.textContent = `$${annualTotal.toFixed(2)}`;
 
     // Restore previously selected billing period
     const checkoutPayload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
@@ -523,7 +516,7 @@
       annualTotal,
       billingPeriod: previousPeriod,
       invoiceSubtotal: previousPeriod === "monthly" ? monthlySubtotal : annualSubtotal,
-      invoiceTax: previousPeriod === "monthly" ? monthlyTax : annualTax,
+      invoiceTax: 0,
       invoiceTotal: previousPeriod === "monthly" ? monthlyTotal : annualTotal
     }));
   }
@@ -554,11 +547,11 @@
 
       if (period === "monthly") {
         invoiceSubtotal = selections.monthlySubtotal;
-        invoiceTax = selections.monthlyTax;
+        invoiceTax = 0;
         invoiceTotal = selections.monthlyTotal;
       } else {
         invoiceSubtotal = selections.annualSubtotal;
-        invoiceTax = selections.annualTax;
+        invoiceTax = 0;
         invoiceTotal = selections.annualTotal;
       }
 
