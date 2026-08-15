@@ -499,24 +499,24 @@ window.addEventListener('resize', updateHeaderLineTop);
     <div class="form-row">
       <div class="form-field">
         <label>Company Name *</label>
-        <input id="companyName" type="text" />
+        <input id="companyName" name="companyName" type="text" required autocomplete="organization" />
       </div>
 
       <div class="form-field">
         <label>Contact Name *</label>
-        <input id="contactName" type="text" />
+        <input id="contactName" name="contactName" type="text" required autocomplete="name" />
       </div>
     </div>
 
     <div class="form-row">
       <div class="form-field">
         <label>Phone *</label>
-        <input id="phone" type="text" />
+        <input id="phone" name="phone" type="tel" required autocomplete="tel" />
       </div>
 
       <div class="form-field">
         <label>Email *</label>
-        <input id="email" type="email" />
+        <input id="email" name="email" type="email" required autocomplete="email" />
       </div>
     </div>
 
@@ -524,19 +524,19 @@ window.addEventListener('resize', updateHeaderLineTop);
     <div class="form-row">
       <div class="form-field">
         <label>Street *</label>
-        <input id="street" type="text" />
+        <input id="street" name="street" type="text" required autocomplete="address-line1" />
       </div>
 
       <div class="form-field">
         <label>City *</label>
-        <input id="city" type="text" />
+        <input id="city" name="city" type="text" required autocomplete="address-level2" />
       </div>
     </div>
 
     <div class="form-row">
       <div class="form-field">
         <label for="state">State *</label>
-        <select id="state" required>
+        <select id="state" name="state" required>
           <option value="">Select state</option>
           <option value="AL">Alabama</option>
           <option value="AK">Alaska</option>
@@ -593,7 +593,7 @@ window.addEventListener('resize', updateHeaderLineTop);
 
       <div class="form-field">
         <label>Zip *</label>
-        <input id="zip" type="text" />
+        <input id="zip" name="zip" type="text" required autocomplete="postal-code" inputmode="numeric" />
       </div>
     </div>
   </div>
@@ -839,8 +839,20 @@ function validateForm() {
     "zip"
   ];
 
+  const fieldLabels = {
+    companyName: "Company Name",
+    contactName: "Contact Name",
+    phone: "Phone",
+    email: "Email",
+    street: "Street",
+    city: "City",
+    state: "State",
+    zip: "Zip"
+  };
+
   let firstMissing = null;
   let valid = true;
+  const missingFields = [];
 
   fields.forEach(id => {
     const el = document.getElementById(id);
@@ -848,16 +860,26 @@ function validateForm() {
     if (!el.value.trim()) {
       el.classList.add("error");
       valid = false;
+      missingFields.push(fieldLabels[id]);
       if (!firstMissing) firstMissing = el;
     }
   });
+
+  // Email format validation
+  const emailEl = document.getElementById("email");
+  if (emailEl.value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailEl.value.trim())) {
+    emailEl.classList.add("error");
+    valid = false;
+    if (!missingFields.includes("Email")) missingFields.push("Email (invalid format)");
+    if (!firstMissing) firstMissing = emailEl;
+  }
 
   const banner = document.getElementById("statusBanner");
   banner.textContent = "";
   banner.classList.remove("show");
 
   if (!valid) {
-    banner.textContent = "Please complete all required fields.";
+    banner.textContent = "Please complete all required fields: " + missingFields.join(", ") + ".";
     banner.classList.add("show");
 
     document.querySelector('.card:nth-of-type(3)').scrollIntoView({
@@ -964,6 +986,10 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
     customerEmail: document.getElementById("email").value.trim(),
     customerPhone: document.getElementById("phone").value.trim(),
     billingAddress: document.getElementById("street").value.trim(),
+    city: document.getElementById("city").value.trim(),
+    state: document.getElementById("state").value.trim(),
+    zip: document.getElementById("zip").value.trim(),
+    contactName: document.getElementById("contactName").value.trim(),
     modulesSelected: modulesSelected,
     subscriptionType: payload.billingPeriod === "annual" ? "Annual" : "Monthly",
     accessPeriod: payload.billingPeriod === "annual" ? "12 months" : "1 month"
@@ -971,6 +997,24 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
 
   // ⭐ Extract Turnstile token
   const turnstileToken = document.querySelector('[name="cf-turnstile-response"]')?.value || "";
+
+  // ⭐ Guard: ensure ALL required customer fields are present before submitting
+  const missingFields = [];
+  if (!orderData.customerName) missingFields.push("Company Name");
+  if (!orderData.contactName) missingFields.push("Contact Name");
+  if (!orderData.customerPhone) missingFields.push("Phone");
+  if (!orderData.customerEmail) missingFields.push("Email");
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(orderData.customerEmail)) missingFields.push("Email (invalid format)");
+  if (!orderData.billingAddress) missingFields.push("Street");
+  if (!orderData.city) missingFields.push("City");
+  if (!orderData.state) missingFields.push("State");
+  if (!orderData.zip) missingFields.push("Zip");
+  if (missingFields.length) {
+    cardErrors.textContent = "Missing required field(s): " + missingFields.join(", ") + ". Please fill in all required fields and try again.";
+    cardErrors.classList.add("show");
+    statusSuccess.classList.remove("show");
+    return;
+  }
 
   if (!turnstileToken) {
     cardErrors.textContent =
