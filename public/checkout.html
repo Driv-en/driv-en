@@ -60,7 +60,7 @@
     background: #22c55e;
   }
 
-  /* DELETE the green “Review your order…” bar */
+  /* DELETE the green "Review your order…" bar */
   #statusBar {
     display: none !important;
   }
@@ -387,7 +387,7 @@
 </style>
 
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-<script src="https://js.stripe.com/v3"></script>
+<!-- <script src="https://js.stripe.com/v3"></script> -->
 
 <!-- JS FIX: dynamic sticky bar offset -->
 <script>
@@ -917,6 +917,10 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
 
   const total = subtotal + tax;
 
+  // Build modulesSelected array using full module names for the Worker
+  const selectedModuleKeys = payload.modules || [];
+  const modulesSelected = selectedModuleKeys.map(k => MODULE_MAP[k] || k);
+
   const orderData = {
     orderNumber: document.getElementById("orderNumber").value,
     companyName: document.getElementById("companyName").value.trim(),
@@ -931,11 +935,26 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
     billingPeriod: payload.billingPeriod,
     invoiceSubtotal: subtotal,
     invoiceTax: tax,
-    invoiceTotal: total
+    invoiceTotal: total,
+    // Worker-expected field names
+    orderId: document.getElementById("orderNumber").value,
+    customerName: document.getElementById("companyName").value.trim(),
+    customerEmail: document.getElementById("email").value.trim(),
+    customerPhone: document.getElementById("phone").value.trim(),
+    billingAddress: document.getElementById("street").value.trim(),
+    modulesSelected: modulesSelected,
+    subscriptionType: payload.billingPeriod === "annual" ? "Annual" : "Monthly",
+    accessPeriod: payload.billingPeriod === "annual" ? "12 months" : "1 month"
   };
 
   // ⭐ Extract Turnstile token
-  const turnstileToken = document.querySelector('[name="cf-turnstile-response"]').value;
+  const turnstileToken = document.querySelector('[name="cf-turnstile-response"]')?.value || "";
+
+  if (!turnstileToken) {
+    document.getElementById("card-errors").textContent =
+      "Please complete the verification checkbox before submitting.";
+    return;
+  }
 
   document.getElementById("card-errors").textContent = "";
   const statusSuccess = document.getElementById("statusSuccess");
@@ -961,7 +980,7 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
 document.getElementById("card-errors").textContent = "";
 statusSuccess.textContent = "Processing your order...";
 
-const response = await fetch("https://checkout.driv-en.workers.dev", {
+const response = await fetch("https://api.driv-en.com", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
