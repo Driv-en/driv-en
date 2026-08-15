@@ -81,6 +81,13 @@
     display: block;
   }
 
+  /* Error variant — red */
+  .status-bar.error {
+    background: #1f0f0f;
+    border-bottom: 2px solid #ef4444;
+    color: #fca5a5;
+  }
+
   /* Error input styling */
   input.error,
   select.error,
@@ -230,6 +237,8 @@
   .footer-actions {
     display: flex;
     justify-content: flex-end;
+    align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
     margin-top: 20px;
   }
@@ -240,6 +249,11 @@
     padding: 10px 16px;
     cursor: pointer;
     border: 1px solid transparent;
+  }
+
+  button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   .btn-secondary {
@@ -597,10 +611,10 @@ window.addEventListener('resize', updateHeaderLineTop);
 
     <div id="billing-address-element"></div>
     <div id="card-element"></div>
-    <div id="card-errors" class="status-bar"></div>
+    <div id="card-errors" class="status-bar error"></div>
   </div>
 
-  <div id="statusSuccess" class="status-bar success"></div>
+  <div id="statusSuccess" class="status-bar"></div>
 
   <!-- Buttons -->
   <div class="footer-actions">
@@ -840,11 +854,11 @@ function validateForm() {
 
   const banner = document.getElementById("statusBanner");
   banner.textContent = "";
-  banner.style.display = "none";
+  banner.classList.remove("show");
 
   if (!valid) {
     banner.textContent = "Please complete all required fields.";
-    banner.style.display = "block";
+    banner.classList.add("show");
 
     document.querySelector('.card:nth-of-type(3)').scrollIntoView({
       behavior: "smooth"
@@ -902,10 +916,18 @@ initStripe();
 
 /* ----------------------------------------------------
    CONFIRM PAYMENT (SAFE DOM VERSION)
+   FIX: status bars now use .show class so messages are visible.
+        Button is disabled during processing to prevent duplicates.
 ---------------------------------------------------- */
 document.getElementById("btnConfirm").addEventListener("click", async () => {
   if (!validateForm()) return;
 
+  // --- Element refs ---
+  const btnConfirm = document.getElementById("btnConfirm");
+  const cardErrors = document.getElementById("card-errors");
+  const statusSuccess = document.getElementById("statusSuccess");
+
+  // --- Build order data ---
   const payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
 
   const subtotal = Number(payload.invoiceSubtotal || 0);
@@ -951,24 +973,59 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
   const turnstileToken = document.querySelector('[name="cf-turnstile-response"]')?.value || "";
 
   if (!turnstileToken) {
-    document.getElementById("card-errors").textContent =
+    cardErrors.textContent =
       "Please complete the verification checkbox before submitting.";
+    cardErrors.classList.add("show");
+    statusSuccess.classList.remove("show");
     return;
   }
 
-  document.getElementById("card-errors").textContent = "";
-  const statusSuccess = document.getElementById("statusSuccess");
-  statusSuccess.textContent = "";
+  // --- Clear errors, show processing state ---
+  cardErrors.classList.remove("show");
+  cardErrors.textContent = "";
+  statusSuccess.classList.add("show");
+  statusSuccess.textContent = "Processing your order...";
+
+  // --- Disable button to prevent duplicate submissions ---
+  btnConfirm.disabled = true;
+  btnConfirm.textContent = "Processing...";
 
   try {
     // ⭐ TEMPORARY STRIPE BYPASS
     const error = null;
 
     if (error) {
-      document.getElementById("card-errors").textContent =
-        error.message || "Payment error.";
+      cardErrors.textContent = error.message || "Payment error.";
+      cardErrors.classList.add("show");
+      statusSuccess.classList.remove("show");
+      btnConfirm.disabled = false;
+      btnConfirm.textContent = "Confirm & Pay";
       return;
     }
+
+    const response = await fetch("https://api.driv-en.com", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...orderData,
+        turnstileToken: turnstileToken
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      cardErrors.textContent =
+        result.error || "Order failed to save. Please try again.";
+      cardErrors.classList.add("show");
+      statusSuccess.classList.remove("show");
+      btnConfirm.disabled = false;
+      btnConfirm.textContent = "Confirm & Pay";
+      return;
+    }
+
+    // --- Success ---
+    cardErrors.classList.remove("show");
 
     const img = document.createElement("img");
     img.src = "/logo.png";
@@ -976,36 +1033,21 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
     img.style.height = "80px";
     img.style.verticalAlign = "middle";
 
-// Show a processing state
-document.getElementById("card-errors").textContent = "";
-statusSuccess.textContent = "Processing your order...";
+    statusSuccess.textContent = "Order confirmed. Thank you for choosing ";
+    statusSuccess.appendChild(img);
 
-const response = await fetch("https://api.driv-en.com", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    ...orderData,
-    turnstileToken: turnstileToken
-  })
-});
+    btnConfirm.textContent = "✓ Order Confirmed";
 
-const result = await response.json();
-
-if (!response.ok || !result.success) {
-  document.getElementById("card-errors").textContent =
-    result.error || "Order failed to save. Please try again.";
-  statusSuccess.textContent = "";  // clear the processing message
-  return;
-}
-
-// Show success only if Worker confirms it saved
-statusSuccess.textContent = "Order confirmed. Thank you for choosing ";
-statusSuccess.appendChild(img);
-
+    // Clear cart so the order can't be accidentally re-submitted
+    localStorage.removeItem("driven_checkout_payload");
 
   } catch (err) {
-    document.getElementById("card-errors").textContent =
+    cardErrors.textContent =
       "An unexpected error occurred while processing your payment.";
+    cardErrors.classList.add("show");
+    statusSuccess.classList.remove("show");
+    btnConfirm.disabled = false;
+    btnConfirm.textContent = "Confirm & Pay";
   }
 });
 </script>
