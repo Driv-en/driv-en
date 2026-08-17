@@ -50,6 +50,9 @@ app.use((req, res, next) => {
 // Mount API
 app.use('/api', api);
 
+// Static files (root directory - for icons and other root assets)
+app.use(express.static(path.join(__dirname)));
+
 // Static files (frontend)
 app.use(express.static(path.join(__dirname, 'public')));
 
