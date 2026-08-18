@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>DRIV‑EN | Blank Test Page!</title>
+
+<!-- Correct CSS paths -->
+<link rel="stylesheet" href="/styles/header.css">
+<link rel="stylesheet" href="/styles/footer.css">
+
+<style>
+    .blank-content {
+        max-width: 900px;
+        margin: 120px auto 80px auto;
+        padding: 40px;
+        background: #f7f7f7;
+        border: 2px dashed #ccc;
+        text-align: center;
+        font-size: 20px;
+        color: #444;
+    }
+
+    /* Login icon: preferred approach uses the PNG as a mask so we can paint it any color (crisp edges).
+       Fallback uses CSS filters (invert + brighten) for older browsers. */
+    .login-icon-mask {
+        display: inline-block;
+        width: 64px;
+        height: 64px;
+        background-color: #fff; /* visible color on dark backgrounds */
+        -webkit-mask-image: url('/icons/driven-login-icon.png');
+        -webkit-mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        -webkit-mask-size: contain;
+        mask-image: url('/icons/driven-login-icon.png');
+        mask-repeat: no-repeat;
+        mask-position: center;
+        mask-size: contain;
+        vertical-align: middle;
+    }
+
+    /* Fallback: recolor the PNG directly. Works well for single-color icons with transparent background. */
+    .login-icon-fallback {
+        width: 64px;
+        height: auto;
+        filter: invert(1) brightness(200%);
+        -webkit-filter: invert(1) brightness(200%);
+        vertical-align: middle;
+        display: none; /* hidden by default; shown only when mask not supported */
+    }
+
+    /* If masks are not supported, hide the mask element and show the fallback image */
+    @supports not (mask-image: url('')) {
+        .login-icon-mask { display: none; }
+        .login-icon-fallback { display: inline-block; }
+    }
+</style>
+
+</head>
+
+<body>
+
+<div id="header"></div>
+
+<!-- Inline test display of the login icon so you can verify visibility on this page -->
+<div style="text-align:center; margin-top: 20px;">
+    <!-- Preferred (mask) element -->
+    <span class="login-icon-mask" aria-hidden="true" title="Login"></span>
+
+    <!-- Fallback for older browsers or in case masking fails -->
+    <img class="login-icon-fallback" src="/icons/driven-login-icon.png" alt="Login icon">
+</div>
+
+<div class="blank-content">
+    This is a blank test page.<br>
+    If the header and footer look correct here,<br>
+    they will look correct everywhere.
+</div>
+
+<div id="footer"></div>
+
+<script>
+async function loadComponent(id, file) {
+    try {
+        const el = document.getElementById(id);
+        const html = await fetch(file).then(r => r.text());
+        el.innerHTML = html;
+    } catch (e) {
+        console.error("Component failed:", id, file, e);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+    loadComponent("header", "/components/header.html");
+    await loadComponent("footer", "/components/footer.html");
+    const yearEl = document.getElementById('footer-year');
+    if (yearEl) yearEl.textContent = new Date().getFullYear();
+});
+</script>
+
+</body>
+</html>
