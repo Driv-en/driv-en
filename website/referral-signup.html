@@ -7,8 +7,10 @@
 <title>Referral Signup | Driv‑en</title>
 
 <!-- Favicon -->
-<link rel="icon" href="/favicon.png" type="image/png">
-<link rel="apple-touch-icon" sizes="180x180" href="/favicon.png">
+<link rel="icon" type="image/png" href="/favicon.png" sizes="48x48">
+<link rel="icon" type="image/png" href="/favicon-96.png" sizes="96x96">
+<link rel="icon" type="image/png" href="/favicon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="/favicon-180.png">
 <link rel="manifest" href="/manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 
@@ -280,93 +282,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const yearEl = document.getElementById('footer-year');
     if (yearEl) yearEl.textContent = new Date().getFullYear();
-
-    const hamburger = document.getElementById('drivenHamburger');
-    const mobileNav = document.getElementById('drivenMobileNav');
-
-    if (hamburger && mobileNav) {
-        hamburger.addEventListener('click', function() {
-            const isActive = this.classList.toggle('active');
-            mobileNav.classList.toggle('active', isActive);
-            this.setAttribute('aria-expanded', isActive);
-            mobileNav.setAttribute('aria-hidden', !isActive);
-        });
-    }
 });
 
-function goToStep2() {
-    const name = document.getElementById("name").value.trim();
-    const email = document.getElementById("email").value.trim();
-    const phone = document.getElementById("phone").value.trim();
 
-    const errorBox = document.getElementById("step1-error");
-
-    if (!name || !email || !phone) {
-        errorBox.style.display = "block";
-        errorBox.innerHTML = "Please enter your Name, Email, and Phone before continuing.";
-        return;
-    }
-
-    errorBox.style.display = "none";
-
-    document.getElementById("step1").style.display = "none";
-    document.getElementById("step2").style.display = "block";
-}
-
-async function submitReferral() {
-    const name = document.getElementById("name").value.trim();
-    const email = document.getElementById("email").value.trim();
-    const phone = document.getElementById("phone").value.trim();
-    const w9file = document.getElementById("w9file").files[0];
-
-    if (!w9file) {
-        document.getElementById("message").innerHTML = "<span style='color:red;'>Please upload your completed W‑9.</span>";
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = async function() {
-        const base64 = reader.result.split(',')[1];
-
-        try {
-            const response = await fetch("https://airtable-form-handler.jblood.workers.dev/", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name: name,
-                    email: email,
-                    phone: phone,
-                    w9: base64,
-                    w9name: w9file.name
-                })
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                document.getElementById("message").innerHTML =
-                    "<div style='background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:20px;margin-top:10px;'>" +
-                    "<h3 style='color:#15803d;margin:0 0 10px 0;'>✓ Submission Successful!</h3>" +
-                    "<p style='color:#166534;margin:0 0 12px 0;'>" + result.message + "</p>" +
-                    "<div style='background:#fff;border-radius:6px;padding:12px;margin-top:10px;font-size:14px;'>" +
-                    "<strong>Referral Code:</strong> " + result.referralCode + "<br>" +
-                    "<strong>Referral ID:</strong> #" + result.referralId + "<br>" +
-                    "<strong>Partner Status:</strong> " + result.partnerStatus + "<br>" +
-                    "<strong>W-9 File:</strong> " + result.w9FileName +
-                    "</div></div>";
-            } else {
-                document.getElementById("message").innerHTML =
-                    "<span style='color:red;'>" + (result.error || "Submission failed. Please try again.") + "</span>";
-            }
-        } catch (err) {
-            document.getElementById("message").innerHTML =
-                "<span style='color:red;'>An error occurred. Please try again.</span>";
-        }
-    };
-
-    reader.readAsDataURL(w9file);
-}
 </script>
 
+<script src="/components/nav.js"></script>
 </body>
 </html>
