@@ -1,11 +1,15 @@
 /* nav.js — shared mobile slide-in nav for all pages */
-document.addEventListener("DOMContentLoaded", function () {
+function initDrivenNav() {
     var hamburger = document.getElementById('drivenHamburger');
     var mobileNav = document.getElementById('drivenMobileNav');
     var overlay = document.getElementById('drivenNavOverlay');
     var closeBtn = document.getElementById('drivenNavClose');
 
-    if (!hamburger || !mobileNav) return;
+    if (!hamburger || !mobileNav) {
+        // Header not loaded yet — retry in 100ms
+        setTimeout(initDrivenNav, 100);
+        return;
+    }
 
     function openNav() {
         mobileNav.classList.add('active');
@@ -36,4 +40,6 @@ document.addEventListener("DOMContentLoaded", function () {
             closeNav();
         }
     });
-});
+}
+
+initDrivenNav();
