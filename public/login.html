@@ -329,20 +329,29 @@ document.addEventListener("DOMContentLoaded", async () => {
         const result = await response.json();
 
         if (!result.success) {
+            errorBanner.textContent = result.error || "Invalid credentials.";
             errorBanner.style.display = "block";
             email.classList.add("error");
             password.classList.add("error");
             return;
         }
 
-        switch (result.role) {
-            case "Technician": window.location.href = "/dashboard/tech"; break;
-            case "Operator": window.location.href = "/dashboard/operator"; break;
-            case "Foreman": window.location.href = "/dashboard/foreman"; break;
-            case "Manager": window.location.href = "/dashboard/manager"; break;
-            case "Admin": window.location.href = "/dashboard/admin"; break;
-            default: window.location.href = "/login";
+        // Force password change on first login
+        if (result.must_change_password) {
+            window.location.href = "/change-password";
+            return;
         }
+
+        // Redirect to role-based dashboard
+        const dashboards = {
+            "Admin": "/dashboard/admin",
+            "Project Manager": "/dashboard/project",
+            "Equipment Manager": "/dashboard/equipment",
+            "Mechanic": "/dashboard/mechanic",
+            "Employee": "/dashboard/employee"
+        };
+
+        window.location.href = dashboards[result.role] || "/dashboard";
     });
 </script>
 
