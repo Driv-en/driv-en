@@ -90,13 +90,22 @@
       display: flex;
       flex-direction: column;
     }
-    .text-input {
+    .form-row label {
+      margin-bottom: 4px;
+      font-size: 14px;
+      color: #e5e7eb;
+    }
+    .text-input, .select-input {
       background: #0f172a;
       border: 1px solid #374151;
       border-radius: 6px;
       color: #e5e7eb;
       padding: 10px;
       font-size: 14px;
+    }
+    .select-input option {
+      background: #0f172a;
+      color: #e5e7eb;
     }
     .hint {
       color: #9ca3af;
@@ -148,6 +157,11 @@
     }
     .btn-primary-large:hover {
       background: #1d4ed8;
+    }
+    .btn-primary-large:disabled {
+      background: #1e3a5f;
+      cursor: not-allowed;
+      opacity: 0.6;
     }
     .btn-secondary-large {
       background: #374151;
@@ -213,6 +227,16 @@
       display: block;
       margin-top: 4px;
     }
+    /* Role badge in assignments */
+    .role-badge {
+      display: inline-block;
+      background: #1e3a5f;
+      color: #93c5fd;
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-left: 6px;
+    }
   </style>
 </head>
 <body>
@@ -261,7 +285,7 @@
         <div class="responsibility-group-title">Company Information</div>
         <ul class="responsibility-list">
           <li>Upload Employees (basic employee records required for Work Orders and future Safety/Training modules).</li>
-          <li>Upload Divisions (your company’s internal structure used for equipment transfers and reporting).</li>
+          <li>Upload Divisions (your company's internal structure used for equipment transfers and reporting).</li>
         </ul>
       </div>
 
@@ -282,33 +306,57 @@
       </div>
     </section>
 
+    <!-- ADMIN INFO (for email CC) -->
+    <section class="card">
+      <h2>Administrator Information</h2>
+      <p class="card-subtitle">
+        Your name and email are used to personalize the notification emails sent to each Key Personnel (they will CC you).
+      </p>
+      <div class="form-row">
+        <label for="adminName">Administrator Name</label>
+        <input type="text" id="adminName" class="text-input" placeholder="Your full name">
+      </div>
+      <div class="form-row">
+        <label for="adminEmail">Administrator Email</label>
+        <input type="email" id="adminEmail" class="text-input" placeholder="you@company.com">
+      </div>
+    </section>
+
     <!-- KEY PERSONNEL ENTRY -->
     <section class="card">
       <h2>Add Key Personnel</h2>
 
       <div class="form-row">
-        <label>First Name</label>
+        <label for="firstName">First Name</label>
         <input type="text" id="firstName" class="text-input">
       </div>
       <div class="form-row">
-        <label>Middle Name</label>
+        <label for="middleName">Middle Name</label>
         <input type="text" id="middleName" class="text-input">
       </div>
       <div class="form-row">
-        <label>Last Name</label>
+        <label for="lastName">Last Name</label>
         <input type="text" id="lastName" class="text-input">
       </div>
       <div class="form-row">
-        <label>Suffix</label>
+        <label for="suffix">Suffix</label>
         <input type="text" id="suffix" class="text-input">
       </div>
       <div class="form-row">
-        <label>Email</label>
+        <label for="email">Email</label>
         <input type="email" id="email" class="text-input">
       </div>
       <div class="form-row">
-        <label>Phone</label>
+        <label for="phone">Phone</label>
         <input type="text" id="phone" class="text-input">
+      </div>
+
+      <div class="form-row">
+        <label for="roleSelect">Select a system role for this person</label>
+        <small class="hint">This determines which dashboard they land on after login. Roles can be adjusted later in User Management.</small>
+        <select id="roleSelect" class="select-input">
+          <option value="">Loading roles…</option>
+        </select>
       </div>
 
       <div class="form-row">
@@ -389,6 +437,7 @@
     const tasksTableContainer = document.getElementById("tasksTableContainer");
     const personnelTableContainer = document.getElementById("personnelTableContainer");
     const stepStatus = document.getElementById("stepStatus");
+    const roleSelect = document.getElementById("roleSelect");
 
     const TASKS = [
       "Employees",
@@ -415,6 +464,28 @@
     if (customerLogo) {
       document.getElementById("customerLogo").src = customerLogo;
     }
+
+    // ---------- Load roles from backend ----------
+    async function loadRoles() {
+      try {
+        const response = await fetch("/api/onboarding/roles");
+        const data = await response.json();
+        if (data.success && data.roles) {
+          roleSelect.innerHTML = '<option value="">— Select a role —</option>';
+          data.roles.forEach(role => {
+            const option = document.createElement("option");
+            option.value = role.id;
+            option.textContent = role.name;
+            roleSelect.appendChild(option);
+          });
+        } else {
+          roleSelect.innerHTML = '<option value="">No roles available</option>';
+        }
+      } catch (err) {
+        roleSelect.innerHTML = '<option value="">Failed to load roles</option>';
+      }
+    }
+    loadRoles();
 
     // Validation helpers
     function isValidEmail(email) {
@@ -465,10 +536,17 @@
       const suffix = document.getElementById("suffix").value.trim();
       const email = document.getElementById("email").value.trim();
       const phone = document.getElementById("phone").value.trim();
+      const roleId = roleSelect.value;
+      const roleName = roleSelect.options[roleSelect.selectedIndex]?.text || "";
       const selectedTasks = getSelectedTasks();
 
       if (!first || !last || !email || !phone || selectedTasks.length === 0) {
         kpError.textContent = "First Name, Last Name, Email, Phone, and at least one Task are required.";
+        return;
+      }
+
+      if (!roleId) {
+        kpError.textContent = "Please select a system role for this person.";
         return;
       }
 
@@ -497,6 +575,8 @@
         suffix: suffix,
         email: email,
         phone: phone,
+        roleId: roleId,
+        roleName: roleName,
         tasks: selectedTasks
       };
 
@@ -536,10 +616,11 @@
       document.getElementById("suffix").value = "";
       document.getElementById("email").value = "";
       document.getElementById("phone").value = "";
+      roleSelect.value = "";
       clearTaskCheckboxes();
 
       kpSuccess.textContent = "Key Personnel added.";
-      kpNextStep.textContent = "Enter the next person’s information and click Add Key Personnel again.";
+      kpNextStep.textContent = "Enter the next person's information and click Add Key Personnel again.";
 
       // Scroll to tables (Option C)
       tasksTableContainer.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -590,9 +671,11 @@
 
       const rows = names.map(name => {
         const tasks = assignments.personnel[name] || [];
+        const kp = keyPersonnel.find(k => k.name === name);
+        const roleBadge = kp ? `<span class="role-badge">${kp.roleName}</span>` : "";
         return `
           <tr>
-            <td>${name}</td>
+            <td>${name}${roleBadge}</td>
             <td>${tasks.length ? tasks.join(", ") : "—"}</td>
           </tr>
         `;
@@ -616,7 +699,7 @@
     }
 
     // Save & Continue
-    document.getElementById("btnCompleteStep").addEventListener("click", () => {
+    document.getElementById("btnCompleteStep").addEventListener("click", async () => {
       stepStatus.textContent = "";
       stepStatus.style.color = "#f87171";
 
@@ -634,13 +717,25 @@
 
       // Basic completeness check on each KP
       for (const kp of keyPersonnel) {
-        if (!kp.firstName || !kp.lastName || !kp.email || !kp.phone || !kp.tasks || kp.tasks.length === 0) {
-          stepStatus.textContent = "All Key Personnel entries must be complete before continuing.";
+        if (!kp.firstName || !kp.lastName || !kp.email || !kp.phone || !kp.tasks || kp.tasks.length === 0 || !kp.roleId) {
+          stepStatus.textContent = "All Key Personnel entries must be complete (including role) before continuing.";
           return;
         }
       }
 
-      // Merge into employees list
+      // Check admin info
+       const adminName = document.getElementById("adminName").value.trim();
+      const adminEmail = document.getElementById("adminEmail").value.trim();
+      if (!adminName || !adminEmail) {
+        stepStatus.textContent = "Please enter your Administrator Name and Email above.";
+        return;
+      }
+      if (!isValidEmail(adminEmail)) {
+        stepStatus.textContent = "Please enter a valid Administrator Email.";
+        return;
+      }
+
+      // Merge into employees list (localStorage)
       const existingEmployees = JSON.parse(localStorage.getItem("driven_employees") || "[]");
       const updatedEmployees = existingEmployees.concat(keyPersonnel);
       localStorage.setItem("driven_employees", JSON.stringify(updatedEmployees));
@@ -648,32 +743,50 @@
       // Mark step complete
       localStorage.setItem("driven_step1_complete", "true");
 
-      stepStatus.style.color = "#22c55e";
-      stepStatus.textContent = "Step 1 complete. Driv‑en will now email each Key Personnel with their login credentials and onboarding instructions.";
+      const btnComplete = document.getElementById("btnCompleteStep");
+      btnComplete.disabled = true;
+      btnComplete.textContent = "Saving…";
 
-      // Trigger backend onboarding event
-      fetch("/api/onboarding/key-personnel/complete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerId: localStorage.getItem("driven_customer_id"),
-          subscriptionId: localStorage.getItem("driven_subscription_id"),
-          activationCode: localStorage.getItem("driven_activation_code"),
-          keyPersonnel: keyPersonnel,
-          assignments: assignments
-        })
-      })
-      .then(response => {
-        console.log("Key Personnel onboarding trigger sent:", response.status);
-      })
-      .catch(error => {
-        console.error("Error sending Key Personnel trigger:", error);
-      });
+      try {
+        const response = await fetch("/api/onboarding/key-personnel/complete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            customerId: localStorage.getItem("driven_customer_id"),
+            subscriptionId: localStorage.getItem("driven_subscription_id"),
+            activationCode: localStorage.getItem("driven_activation_code"),
+            adminName: adminName,
+            adminEmail: adminEmail,
+            keyPersonnel: keyPersonnel,
+            assignments: assignments
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          stepStatus.style.color = "#22c55e";
+          stepStatus.textContent = `Step 1 complete. ${data.total} Key Personnel emailed with login credentials and onboarding instructions.`;
+          btnComplete.textContent = "Done";
+        } else {
+          stepStatus.style.color = "#f87171";
+          const failed = data.results ? data.results.filter(r => r.error).map(r => `${r.name}: ${r.error}`).join("; ") : "Unknown error";
+          stepStatus.textContent = `Partial completion. Some errors occurred: ${failed || data.error || "Unknown error"}`;
+          btnComplete.disabled = false;
+          btnComplete.textContent = "Save & Continue";
+        }
+      } catch (error) {
+        stepStatus.style.color = "#f87171";
+        stepStatus.textContent = `Error: ${error.message}. Your data was saved locally — you can retry.`;
+        btnComplete.disabled = false;
+        btnComplete.textContent = "Save & Continue";
+      }
     });
 
-    // Initial render (in case we later load from storage)
+    // Initial render
     renderTasksTable();
     renderPersonnelTable();
   </script>
 </body>
 </html>
+
