@@ -286,7 +286,22 @@ async function handleChangePassword(request, env) {
         "UPDATE users SET password_hash = ?, password_salt = ?, must_change_password = 0 WHERE email = ?"
     ).bind(hash, salt, session.email).run();
 
-    return json({ success: true });
+    // Issue a fresh session JWT with must_change_password: false
+    const newSessionToken = await signJWT(
+        {
+            sub: session.email,
+            email: session.email,
+            org_id: session.org_id,
+            role: session.role,
+            must_change_password: false
+        },
+        env.JWT_SECRET,
+        SESSION_LIFETIME
+    );
+
+    return json({ success: true }, 200, {
+        "Set-Cookie": buildCookie(COOKIE_SESSION, newSessionToken, SESSION_LIFETIME)
+    });
 }
 
 // ---------- GET /auth/session ----------
