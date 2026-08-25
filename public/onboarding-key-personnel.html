@@ -332,10 +332,10 @@
       </div>
 
       <div class="form-row">
-        <label for="roleSelect">Select a system role for this person</label>
-        <small class="hint">This determines which dashboard they land on after login. Roles can be adjusted later in User Management.</small>
+        <label for="roleSelect">Select a system role (optional)</label>
+        <small class="hint">This determines which dashboard they land on after login. Roles can be adjusted later in User Management. HR/Payroll will assign actual roles later.</small>
         <select id="roleSelect" class="select-input">
-          <option value="">Loading roles…</option>
+          <option value="">Select a role (optional)…</option>
         </select>
       </div>
 
@@ -446,7 +446,7 @@
         const response = await fetch("/api/onboarding/roles");
         const data = await response.json();
         if (data.success && data.roles) {
-          roleSelect.innerHTML = '<option value="">— Select a role —</option>';
+          roleSelect.innerHTML = '<option value="">Select a role (optional)…</option>';
           data.roles.forEach(role => {
             const option = document.createElement("option");
             option.value = role.id;
@@ -511,17 +511,15 @@
       const suffix = document.getElementById("suffix").value.trim();
       const email = document.getElementById("email").value.trim();
       const phone = document.getElementById("phone").value.trim();
-      const roleId = roleSelect.value;
-      const roleName = roleSelect.options[roleSelect.selectedIndex]?.text || "";
+
+      // Role is optional — HR/Payroll will assign actual roles later
+      const roleId = roleSelect.value || null;
+      const roleName = roleSelect.value ? (roleSelect.options[roleSelect.selectedIndex]?.text || "") : "";
+
       const selectedTasks = getSelectedTasks();
 
       if (!first || !last || !email || !phone || selectedTasks.length === 0) {
         kpError.textContent = "First Name, Last Name, Email, Phone, and at least one Task are required.";
-        return;
-      }
-
-      if (!roleId) {
-        kpError.textContent = "Please select a system role for this person.";
         return;
       }
 
@@ -647,7 +645,7 @@
       const rows = names.map(name => {
         const tasks = assignments.personnel[name] || [];
         const kp = keyPersonnel.find(k => k.name === name);
-        const roleBadge = kp ? `<span class="role-badge">${kp.roleName}</span>` : "";
+        const roleBadge = kp && kp.roleName ? `<span class="role-badge">${kp.roleName}</span>` : "";
         return `
           <tr>
             <td>${name}${roleBadge}</td>
@@ -690,10 +688,10 @@
         return;
       }
 
-      // Basic completeness check on each KP
+      // Basic completeness check on each KP (role is NOT required)
       for (const kp of keyPersonnel) {
-        if (!kp.firstName || !kp.lastName || !kp.email || !kp.phone || !kp.tasks || kp.tasks.length === 0 || !kp.roleId) {
-          stepStatus.textContent = "All Key Personnel entries must be complete (including role) before continuing.";
+        if (!kp.firstName || !kp.lastName || !kp.email || !kp.phone || !kp.tasks || kp.tasks.length === 0) {
+          stepStatus.textContent = "All Key Personnel entries must be complete (name, email, phone, and at least one task) before continuing.";
           return;
         }
       }
