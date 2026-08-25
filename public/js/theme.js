@@ -62,8 +62,8 @@
 
   // ---- Run on DOM ready ----
   document.addEventListener('DOMContentLoaded', function () {
-    injectPartial('header-placeholder', 'includes/header.html');
-    injectPartial('footer-placeholder', 'includes/footer.html');
+    injectPartial('header-placeholder', 'includes/header.html?v=' + Date.now());
+    injectPartial('footer-placeholder', 'includes/footer.html?v=' + Date.now());
 
     // Copyright runs after footer is injected (slight delay)
     setTimeout(setCopyright, 300);
