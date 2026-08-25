@@ -216,17 +216,6 @@
       font-size: 14px;
       color: var(--success);
     }
-
-    /* Role badge */
-    .role-badge {
-      display: inline-block;
-      background: var(--bg-input);
-      color: var(--text-muted);
-      font-size: 12px;
-      padding: 2px 8px;
-      border-radius: 4px;
-      margin-left: 6px;
-    }
   </style>
 </head>
 <body>
@@ -311,32 +300,12 @@
         <input type="text" id="firstName" class="text-input">
       </div>
       <div class="form-row">
-        <label for="middleName">Middle Name</label>
-        <input type="text" id="middleName" class="text-input">
-      </div>
-      <div class="form-row">
         <label for="lastName">Last Name</label>
         <input type="text" id="lastName" class="text-input">
       </div>
       <div class="form-row">
-        <label for="suffix">Suffix</label>
-        <input type="text" id="suffix" class="text-input">
-      </div>
-      <div class="form-row">
         <label for="email">Email</label>
         <input type="email" id="email" class="text-input">
-      </div>
-      <div class="form-row">
-        <label for="phone">Phone</label>
-        <input type="text" id="phone" class="text-input">
-      </div>
-
-      <div class="form-row">
-        <label for="roleSelect">Select a system role (optional)</label>
-        <small class="hint">This determines which dashboard they land on after login. Roles can be adjusted later in User Management. HR/Payroll will assign actual roles later.</small>
-        <select id="roleSelect" class="select-input">
-          <option value="">Select a role (optional)…</option>
-        </select>
       </div>
 
       <div class="form-row">
@@ -418,7 +387,6 @@
     const tasksTableContainer = document.getElementById("tasksTableContainer");
     const personnelTableContainer = document.getElementById("personnelTableContainer");
     const stepStatus = document.getElementById("stepStatus");
-    const roleSelect = document.getElementById("roleSelect");
 
     const TASKS = [
       "Employees",
@@ -440,35 +408,9 @@
       assignments.tasks[t] = [];
     });
 
-    // Load roles from backend
-    async function loadRoles() {
-      try {
-        const response = await fetch("/api/onboarding/roles");
-        const data = await response.json();
-        if (data.success && data.roles) {
-          roleSelect.innerHTML = '<option value="">Select a role (optional)…</option>';
-          data.roles.forEach(role => {
-            const option = document.createElement("option");
-            option.value = role.id;
-            option.textContent = role.name;
-            roleSelect.appendChild(option);
-          });
-        } else {
-          roleSelect.innerHTML = '<option value="">No roles available</option>';
-        }
-      } catch (err) {
-        roleSelect.innerHTML = '<option value="">Failed to load roles</option>';
-      }
-    }
-    loadRoles();
-
     // Validation helpers
     function isValidEmail(email) {
       return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    }
-
-    function isValidPhone(phone) {
-      return /^[0-9\-+\(\)\s]{7,}$/.test(phone);
     }
 
     function getSelectedTasks() {
@@ -506,20 +448,12 @@
       kpNextStep.textContent = "";
 
       const first = document.getElementById("firstName").value.trim();
-      const middle = document.getElementById("middleName").value.trim();
       const last = document.getElementById("lastName").value.trim();
-      const suffix = document.getElementById("suffix").value.trim();
       const email = document.getElementById("email").value.trim();
-      const phone = document.getElementById("phone").value.trim();
-
-      // Role is optional — HR/Payroll will assign actual roles later
-      const roleId = roleSelect.value || null;
-      const roleName = roleSelect.value ? (roleSelect.options[roleSelect.selectedIndex]?.text || "") : "";
-
       const selectedTasks = getSelectedTasks();
 
-      if (!first || !last || !email || !phone || selectedTasks.length === 0) {
-        kpError.textContent = "First Name, Last Name, Email, Phone, and at least one Task are required.";
+      if (!first || !last || !email || selectedTasks.length === 0) {
+        kpError.textContent = "First Name, Last Name, Email, and at least one Task are required.";
         return;
       }
 
@@ -528,28 +462,18 @@
         return;
       }
 
-      if (!isValidPhone(phone)) {
-        kpError.textContent = "Please enter a valid phone number.";
-        return;
-      }
-
       if (keyPersonnel.some(kp => kp.email.toLowerCase() === email.toLowerCase())) {
         kpError.textContent = "This email is already assigned to another Key Personnel.";
         return;
       }
 
-      const fullName = [first, middle, last, suffix].filter(x => x).join(" ");
+      const fullName = first + " " + last;
 
       const kp = {
         name: fullName,
         firstName: first,
-        middleName: middle,
         lastName: last,
-        suffix: suffix,
         email: email,
-        phone: phone,
-        roleId: roleId,
-        roleName: roleName,
         tasks: selectedTasks
       };
 
@@ -584,12 +508,8 @@
 
       // Clear form
       document.getElementById("firstName").value = "";
-      document.getElementById("middleName").value = "";
       document.getElementById("lastName").value = "";
-      document.getElementById("suffix").value = "";
       document.getElementById("email").value = "";
-      document.getElementById("phone").value = "";
-      roleSelect.value = "";
       clearTaskCheckboxes();
 
       kpSuccess.textContent = "Key Personnel added.";
@@ -644,11 +564,9 @@
 
       const rows = names.map(name => {
         const tasks = assignments.personnel[name] || [];
-        const kp = keyPersonnel.find(k => k.name === name);
-        const roleBadge = kp && kp.roleName ? `<span class="role-badge">${kp.roleName}</span>` : "";
         return `
           <tr>
-            <td>${name}${roleBadge}</td>
+            <td>${name}</td>
             <td>${tasks.length ? tasks.join(", ") : "—"}</td>
           </tr>
         `;
@@ -688,10 +606,10 @@
         return;
       }
 
-      // Basic completeness check on each KP (role is NOT required)
+      // Basic completeness check on each KP
       for (const kp of keyPersonnel) {
-        if (!kp.firstName || !kp.lastName || !kp.email || !kp.phone || !kp.tasks || kp.tasks.length === 0) {
-          stepStatus.textContent = "All Key Personnel entries must be complete (name, email, phone, and at least one task) before continuing.";
+        if (!kp.firstName || !kp.lastName || !kp.email || !kp.tasks || kp.tasks.length === 0) {
+          stepStatus.textContent = "All Key Personnel entries must be complete (name, email, and at least one task) before continuing.";
           return;
         }
       }
