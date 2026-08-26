@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>DRIV‑EN – Admin Onboarding Dashboard</title>
+  <link rel="icon" type="image/png" href="/icons/favicon.png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
@@ -51,9 +52,23 @@
     }
 
     .driven-logo {
-      max-height: 88px; /* your updated size */
+      max-height: 88px;
       display: block;
       margin-left: auto;
+    }
+
+    /* BACK LINK */
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: #93c5fd;
+      text-decoration: none;
+      margin-top: 6px;
+    }
+    .back-link:hover {
+      text-decoration: underline;
     }
 
     /* MAIN */
@@ -157,6 +172,39 @@
       cursor: default;
     }
 
+    /* KEY PERSONNEL LIST IN STEP 1 */
+    .kp-list {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #334155;
+    }
+    .kp-list-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #f1f5f9;
+      margin-bottom: 6px;
+    }
+    .kp-person {
+      font-size: 12px;
+      color: #cbd5e1;
+      margin-bottom: 4px;
+      padding: 4px 8px;
+      background: #1e293b;
+      border-radius: 4px;
+    }
+    .kp-person-name {
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+    .kp-person-tasks {
+      color: #94a3b8;
+      font-size: 11px;
+    }
+    .kp-loading {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
     /* FOOTER */
     .footer {
       text-align: center;
@@ -181,6 +229,7 @@
       <div class="title-block">
         <h1>Admin Onboarding Dashboard</h1>
         <div class="subtitle">Complete each step to unlock the next</div>
+        <a href="/public/dashboard/admin.html" class="back-link">&larr; Back to Admin Dashboard</a>
       </div>
     </div>
 
@@ -204,6 +253,10 @@
           <div id="status-step1" class="step-status">Checking…</div>
           <div class="step-body">
             Identify the key decision‑makers and operational leads who will receive DRIV‑EN access and upload necessary information.
+          </div>
+          <div id="kpListContainer" class="kp-list" style="display:none;">
+            <div class="kp-list-title">Assigned Key Personnel:</div>
+            <div id="kpListBody"></div>
           </div>
           <button id="btn-step1" class="btn-primary">Open Key Personnel</button>
         </div>
@@ -292,6 +345,30 @@
       const el = document.getElementById(id);
       el.className = "step-status " + statusClass;
       el.textContent = text;
+    }
+
+    /* Load key personnel assignments from API and display in Step 1 */
+    async function loadKeyPersonnel() {
+      const customerId = localStorage.getItem("driven_customer_id");
+      if (!customerId) return;
+
+      const container = document.getElementById("kpListContainer");
+      const body = document.getElementById("kpListBody");
+
+      try {
+        const response = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(customerId));
+        const data = await response.json();
+
+        if (data.success && data.keyPersonnel && data.keyPersonnel.length > 0) {
+          body.innerHTML = data.keyPersonnel.map(kp => {
+            const tasks = kp.roles.map(r => r.role).join(", ");
+            return '<div class="kp-person"><span class="kp-person-name">' + kp.name + '</span> <span class="kp-person-tasks">— ' + (tasks || "No tasks assigned") + '</span></div>';
+          }).join("");
+          container.style.display = "block";
+        }
+      } catch (e) {
+        // API not available — silently skip
+      }
     }
 
     function initDashboard() {
@@ -395,6 +472,9 @@
       btn5.onclick = () => window.location.href = "/public/onboarding-project-types.html";
       btn6.onclick = () => window.location.href = "/public/onboarding-projects.html";
       btn7.onclick = () => window.location.href = "/public/onboarding-equipment.html";
+
+      /* Load key personnel for Step 1 display */
+      loadKeyPersonnel();
     }
 
     document.addEventListener("DOMContentLoaded", initDashboard);
