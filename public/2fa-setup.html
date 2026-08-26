@@ -173,9 +173,14 @@
                 Each code can only be used once. Store them securely.
             </div>
         </div>
+        <button class="btn-primary" id="emailCodesBtn" style="margin-bottom:10px;background:#059669;">
+            Email Codes to Me
+        </button>
+        <div id="emailStatus" style="font-size:13px;text-align:center;margin-bottom:10px;display:none;"></div>
         <button class="btn-primary" onclick="window.location.href='/public/dashboard/admin.html'">
             Continue to Dashboard
         </button>
+
     </div>
 </div>
 
@@ -270,6 +275,39 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     setup2FA();
+
+            // Email backup codes button
+        document.getElementById("emailCodesBtn").addEventListener("click", async function() {
+            var btn = this;
+            var status = document.getElementById("emailStatus");
+            btn.disabled = true;
+            btn.textContent = "Sending...";
+            status.style.display = "none";
+            try {
+                var resp = await fetch("/auth/email-backup-codes", { method: "POST" });
+                var data = await resp.json();
+                if (data.success) {
+                    status.style.color = "#006600";
+                    status.textContent = data.message;
+                    status.style.display = "block";
+                    btn.textContent = "Email Codes to Me";
+                    btn.disabled = false;
+                } else {
+                    status.style.color = "#cc0000";
+                    status.textContent = data.error || "Failed to send email.";
+                    status.style.display = "block";
+                    btn.textContent = "Email Codes to Me";
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                status.style.color = "#cc0000";
+                status.textContent = "Failed to send email.";
+                status.style.display = "block";
+                btn.textContent = "Email Codes to Me";
+                btn.disabled = false;
+            }
+        });
+
 </script>
 </body>
 </html>
