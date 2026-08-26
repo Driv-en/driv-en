@@ -189,6 +189,7 @@
       border: 1px solid var(--border-table);
       padding: 8px;
       font-size: 14px;
+      vertical-align: top;
     }
     .kp-table th {
       background: var(--bg-table-th);
@@ -208,6 +209,33 @@
       .tables-grid {
         grid-template-columns: 1fr;
       }
+    }
+
+    /* Revoke checkboxes */
+    .revoke-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 3px;
+    }
+    .revoke-item input[type="checkbox"] {
+      accent-color: var(--error);
+    }
+    .revoke-all-label {
+      font-weight: 600;
+      margin-top: 4px;
+      border-top: 1px solid var(--border);
+      padding-top: 4px;
+    }
+    .pending-badge {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--bg-table-th);
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 4px;
     }
 
     /* Step status */
@@ -236,6 +264,9 @@
       <p class="card-subtitle">
         You may assign multiple people to the same task, and you may assign the same person to multiple tasks.
         These assignments determine who is responsible for completing your initial data uploads.
+      </p>
+      <p class="card-subtitle">
+        You can save at any time — all tasks do not need to be assigned. Come back later to add more people or revoke assignments.
       </p>
       <p class="card-subtitle">
         HR/Payroll will complete any remaining employee fields later.
@@ -280,6 +311,7 @@
       <h2>Administrator Information</h2>
       <p class="card-subtitle">
         Your name and email are used to personalize the notification emails sent to each Key Personnel (they will CC you).
+        Required only when adding new Key Personnel.
       </p>
       <div class="form-row">
         <label for="adminName">Administrator Name</label>
@@ -350,15 +382,16 @@
       <h2>Current Assignments</h2>
       <p class="card-subtitle">
         These employees will be added to your Employee list automatically. Assignments update each time you add a person.
+        To revoke an assignment, check the box next to the task in the Personnel table and click Save &amp; Continue — you will be asked to confirm.
       </p>
 
       <div class="tables-grid">
         <div>
-          <h3>Tasks → Personnel</h3>
+          <h3>Tasks &rarr; Personnel</h3>
           <div id="tasksTableContainer"></div>
         </div>
         <div>
-          <h3>Personnel → Tasks</h3>
+          <h3>Personnel &rarr; Tasks</h3>
           <div id="personnelTableContainer"></div>
         </div>
       </div>
@@ -397,7 +430,8 @@
       "Equipment"
     ];
 
-    let keyPersonnel = [];
+    let existingPersonnel = []; // loaded from API (already saved)
+    let keyPersonnel = [];       // added locally (not yet saved)
     let assignments = {
       tasks: {},
       personnel: {}
@@ -441,6 +475,60 @@
       });
     }
 
+    // Rebuild combined assignments from existing (API) + new (local) personnel
+    function rebuildAssignments() {
+      assignments = { tasks: {}, personnel: {} };
+      TASKS.forEach(t => { assignments.tasks[t] = []; });
+
+      // From existing personnel (API)
+      existingPersonnel.forEach(kp => {
+        const tasks = kp.roles.map(r => r.role);
+        assignments.personnel[kp.name] = tasks;
+        tasks.forEach(task => {
+          if (!assignments.tasks[task]) assignments.tasks[task] = [];
+          if (!assignments.tasks[task].includes(kp.name)) {
+            assignments.tasks[task].push(kp.name);
+          }
+        });
+      });
+
+      // From new keyPersonnel (local)
+      keyPersonnel.forEach(kp => {
+        if (!assignments.personnel[kp.name]) {
+          assignments.personnel[kp.name] = [];
+        }
+        kp.tasks.forEach(task => {
+          if (!assignments.personnel[kp.name].includes(task)) {
+            assignments.personnel[kp.name].push(task);
+          }
+          if (!assignments.tasks[task]) assignments.tasks[task] = [];
+          if (!assignments.tasks[task].includes(kp.name)) {
+            assignments.tasks[task].push(kp.name);
+          }
+        });
+      });
+    }
+
+    // Load existing key personnel from API on page open
+    async function loadExistingPersonnel() {
+      const customerId = localStorage.getItem("driven_customer_id");
+      if (!customerId) return;
+
+      try {
+        const response = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(customerId));
+        const data = await response.json();
+
+        if (data.success && data.keyPersonnel) {
+          existingPersonnel = data.keyPersonnel;
+          rebuildAssignments();
+          renderTasksTable();
+          renderPersonnelTable();
+        }
+      } catch (e) {
+        // API might not be available yet — OK for first-time use
+      }
+    }
+
     // Add Key Personnel
     document.getElementById("btnAddKP").addEventListener("click", () => {
       kpError.textContent = "";
@@ -462,8 +550,15 @@
         return;
       }
 
+      // Check against new (local) personnel
       if (keyPersonnel.some(kp => kp.email.toLowerCase() === email.toLowerCase())) {
         kpError.textContent = "This email is already assigned to another Key Personnel.";
+        return;
+      }
+
+      // Check against existing (API) personnel
+      if (existingPersonnel.some(kp => kp.email.toLowerCase() === email.toLowerCase())) {
+        kpError.textContent = "This person is already assigned. Use the revoke checkboxes below to modify their assignments.";
         return;
       }
 
@@ -478,28 +573,9 @@
       };
 
       keyPersonnel.push(kp);
+      rebuildAssignments();
 
-      // Update assignments: tasks → personnel
-      selectedTasks.forEach(task => {
-        if (!assignments.tasks[task]) {
-          assignments.tasks[task] = [];
-        }
-        if (!assignments.tasks[task].includes(fullName)) {
-          assignments.tasks[task].push(fullName);
-        }
-      });
-
-      // Update assignments: personnel → tasks
-      if (!assignments.personnel[fullName]) {
-        assignments.personnel[fullName] = [];
-      }
-      selectedTasks.forEach(task => {
-        if (!assignments.personnel[fullName].includes(task)) {
-          assignments.personnel[fullName].push(task);
-        }
-      });
-
-      // Persist assignments
+      // Persist to localStorage (for backward compat)
       localStorage.setItem("driven_key_personnel_assignments", JSON.stringify(assignments));
 
       // Render tables
@@ -512,7 +588,7 @@
       document.getElementById("email").value = "";
       clearTaskCheckboxes();
 
-      kpSuccess.textContent = "Key Personnel added.";
+      kpSuccess.textContent = "Key Personnel added. Click Save & Continue to save all assignments.";
       kpNextStep.textContent = "Enter the next person's information and click Add Key Personnel again.";
 
       // Scroll to tables
@@ -537,7 +613,7 @@
         `;
       }).join("");
 
-      const table = `
+      tasksTableContainer.innerHTML = `
         <table class="kp-table">
           <thead>
             <tr>
@@ -545,13 +621,9 @@
               <th>Assigned Personnel</th>
             </tr>
           </thead>
-          <tbody>
-            ${rows}
-          </tbody>
+          <tbody>${rows}</tbody>
         </table>
       `;
-
-      tasksTableContainer.innerHTML = table;
     }
 
     function renderPersonnelTable() {
@@ -564,29 +636,60 @@
 
       const rows = names.map(name => {
         const tasks = assignments.personnel[name] || [];
-        return `
-          <tr>
-            <td>${name}</td>
-            <td>${tasks.length ? tasks.join(", ") : "—"}</td>
-          </tr>
-        `;
+        const existing = existingPersonnel.find(ep => ep.name === name);
+
+        let tasksCell;
+        let revokeCell;
+
+        if (existing) {
+          // Existing personnel — show revoke checkboxes
+          tasksCell = tasks.join(", ");
+          const revokeItems = tasks.map(task =>
+            `<label class="revoke-item"><input type="checkbox" class="revoke-checkbox" data-employee-id="${existing.employeeId}" data-employee-name="${name}" data-role="${task}"> ${task}</label>`
+          ).join("");
+          revokeCell = revokeItems +
+            `<label class="revoke-item revoke-all-label"><input type="checkbox" class="revoke-all-checkbox" data-employee-id="${existing.employeeId}" data-employee-name="${name}"> Revoke All</label>`;
+        } else {
+          // New personnel — not yet saved
+          tasksCell = tasks.join(", ") + ' <span class="pending-badge">pending</span>';
+          revokeCell = '<span style="color:var(--text-muted);font-size:13px">Not yet saved</span>';
+        }
+
+        return `<tr><td>${name}</td><td>${tasksCell}</td><td>${revokeCell}</td></tr>`;
       }).join("");
 
-      const table = `
+      personnelTableContainer.innerHTML = `
         <table class="kp-table">
           <thead>
             <tr>
               <th>Personnel</th>
               <th>Tasks Assigned</th>
+              <th>Revoke</th>
             </tr>
           </thead>
-          <tbody>
-            ${rows}
-          </tbody>
+          <tbody>${rows}</tbody>
         </table>
       `;
 
-      personnelTableContainer.innerHTML = table;
+      // Event: "Revoke All" checks/unchecks all individual boxes for that person
+      document.querySelectorAll(".revoke-all-checkbox").forEach(cb => {
+        cb.addEventListener("change", function() {
+          const empId = this.dataset.employeeId;
+          const individualBoxes = document.querySelectorAll('.revoke-checkbox[data-employee-id="' + empId + '"]');
+          individualBoxes.forEach(box => { box.checked = this.checked; });
+        });
+      });
+
+      // Event: individual checkbox changes update "Revoke All" state
+      document.querySelectorAll(".revoke-checkbox").forEach(cb => {
+        cb.addEventListener("change", function() {
+          const empId = this.dataset.employeeId;
+          const allBox = document.querySelector('.revoke-all-checkbox[data-employee-id="' + empId + '"]');
+          const individualBoxes = document.querySelectorAll('.revoke-checkbox[data-employee-id="' + empId + '"]');
+          const allChecked = Array.from(individualBoxes).every(b => b.checked);
+          if (allBox) allBox.checked = allChecked;
+        });
+      });
     }
 
     // Save & Continue
@@ -594,86 +697,177 @@
       stepStatus.textContent = "";
       stepStatus.style.color = "var(--error)";
 
-      if (keyPersonnel.length === 0) {
+      // Check: at least one key personnel (existing or new)
+      if (existingPersonnel.length === 0 && keyPersonnel.length === 0) {
         stepStatus.textContent = "You must add at least one Key Personnel.";
         return;
       }
 
-      // Ensure all tasks have at least one assigned person
-      const missingTasks = TASKS.filter(task => !assignments.tasks[task] || assignments.tasks[task].length === 0);
-      if (missingTasks.length > 0) {
-        stepStatus.textContent = "Each onboarding task must have at least one assigned person.";
-        return;
-      }
+      // REMOVED: "all tasks must have at least one person" validation
+      // Admin can save with partial task coverage and come back later
 
-      // Basic completeness check on each KP
-      for (const kp of keyPersonnel) {
-        if (!kp.firstName || !kp.lastName || !kp.email || !kp.tasks || kp.tasks.length === 0) {
-          stepStatus.textContent = "All Key Personnel entries must be complete (name, email, and at least one task) before continuing.";
+      // Check admin info (only needed if adding new personnel)
+      let adminName = "";
+      let adminEmail = "";
+      if (keyPersonnel.length > 0) {
+        adminName = document.getElementById("adminName").value.trim();
+        adminEmail = document.getElementById("adminEmail").value.trim();
+        if (!adminName || !adminEmail) {
+          stepStatus.textContent = "Please enter your Administrator Name and Email above.";
+          return;
+        }
+        if (!isValidEmail(adminEmail)) {
+          stepStatus.textContent = "Please enter a valid Administrator Email.";
           return;
         }
       }
 
-      // Check admin info
-      const adminName = document.getElementById("adminName").value.trim();
-      const adminEmail = document.getElementById("adminEmail").value.trim();
-      if (!adminName || !adminEmail) {
-        stepStatus.textContent = "Please enter your Administrator Name and Email above.";
-        return;
-      }
-      if (!isValidEmail(adminEmail)) {
-        stepStatus.textContent = "Please enter a valid Administrator Email.";
+      // Check for pending revokes
+      const revokeAllChecked = document.querySelectorAll(".revoke-all-checkbox:checked");
+      const revokeIndividualChecked = document.querySelectorAll(".revoke-checkbox:checked");
+
+      const hasRevokes = revokeAllChecked.length > 0 || revokeIndividualChecked.length > 0;
+      const hasNewPersonnel = keyPersonnel.length > 0;
+
+      if (!hasRevokes && !hasNewPersonnel) {
+        stepStatus.textContent = "No changes to save. Add a new Key Personnel or check a revoke box to make changes.";
         return;
       }
 
-      // Merge into employees list (localStorage)
-      const existingEmployees = JSON.parse(localStorage.getItem("driven_employees") || "[]");
-      const updatedEmployees = existingEmployees.concat(keyPersonnel);
-      localStorage.setItem("driven_employees", JSON.stringify(updatedEmployees));
+      // Build confirmation for revokes
+      if (hasRevokes) {
+        const revokeList = [];
+        const processedEmpIds = new Set();
 
-      // Mark step complete
-      localStorage.setItem("driven_step1_complete", "true");
+        revokeAllChecked.forEach(cb => {
+          processedEmpIds.add(cb.dataset.employeeId);
+          revokeList.push("\u2022 Revoke ALL assignments for " + cb.dataset.employeeName);
+        });
+
+        revokeIndividualChecked.forEach(cb => {
+          if (!processedEmpIds.has(cb.dataset.employeeId)) {
+            revokeList.push("\u2022 Revoke " + cb.dataset.role + " from " + cb.dataset.employeeName);
+          }
+        });
+
+        const confirmed = confirm("Are you sure you want to revoke the following assignments?\n\n" + revokeList.join("\n") + "\n\nThis action cannot be undone.");
+        if (!confirmed) return;
+      }
 
       const btnComplete = document.getElementById("btnCompleteStep");
       btnComplete.disabled = true;
-      btnComplete.textContent = "Saving…";
+      btnComplete.textContent = "Saving\u2026";
 
-      try {
-        const response = await fetch("/api/onboarding/key-personnel/complete", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            customerId: localStorage.getItem("driven_customer_id"),
-            subscriptionId: localStorage.getItem("driven_subscription_id"),
-            activationCode: localStorage.getItem("driven_activation_code"),
-            adminName: adminName,
-            adminEmail: adminEmail,
-            keyPersonnel: keyPersonnel,
-            assignments: assignments
-          })
+      let successMessages = [];
+      let errorMessages = [];
+
+      // Process revokes
+      if (hasRevokes) {
+        const revokeByEmployee = {};
+
+        revokeAllChecked.forEach(cb => {
+          revokeByEmployee[cb.dataset.employeeId] = { revokeAll: true, employeeName: cb.dataset.employeeName };
         });
 
-        const data = await response.json();
+        revokeIndividualChecked.forEach(cb => {
+          if (!revokeByEmployee[cb.dataset.employeeId]) {
+            revokeByEmployee[cb.dataset.employeeId] = { revokeAll: false, roles: [], employeeName: cb.dataset.employeeName };
+          }
+          if (!revokeByEmployee[cb.dataset.employeeId].revokeAll) {
+            revokeByEmployee[cb.dataset.employeeId].roles.push(cb.dataset.role);
+          }
+        });
 
-        if (response.ok && data.success) {
-          stepStatus.style.color = "var(--success)";
-          stepStatus.textContent = `Step 1 complete. ${data.total} Key Personnel emailed with login credentials and onboarding instructions.`;
-          btnComplete.textContent = "Done";
-        } else {
-          const failed = data.results ? data.results.filter(r => r.error).map(r => `${r.name}: ${r.error}`).join("; ") : "Unknown error";
-          stepStatus.textContent = `Partial completion. Some errors occurred: ${failed || data.error || "Unknown error"}`;
-          btnComplete.disabled = false;
-          btnComplete.textContent = "Save & Continue";
+        for (const [empId, revoke] of Object.entries(revokeByEmployee)) {
+          try {
+            const response = await fetch("/api/onboarding/key-personnel/revoke", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                customerId: localStorage.getItem("driven_customer_id"),
+                employeeId: parseInt(empId),
+                revokeAll: revoke.revokeAll,
+                roles: revoke.roles
+              })
+            });
+            const data = await response.json();
+            if (data.success) {
+              successMessages.push("Revoked assignments for " + revoke.employeeName);
+            } else {
+              errorMessages.push("Revoke failed for " + revoke.employeeName + ": " + data.error);
+            }
+          } catch (e) {
+            errorMessages.push("Revoke failed for " + revoke.employeeName + ": " + e.message);
+          }
         }
-      } catch (error) {
+      }
+
+      // Process new personnel
+      if (hasNewPersonnel) {
+        // Merge into employees list (localStorage)
+        const existingEmployees = JSON.parse(localStorage.getItem("driven_employees") || "[]");
+        const updatedEmployees = existingEmployees.concat(keyPersonnel);
+        localStorage.setItem("driven_employees", JSON.stringify(updatedEmployees));
+
+        try {
+          const response = await fetch("/api/onboarding/key-personnel/complete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              customerId: localStorage.getItem("driven_customer_id"),
+              subscriptionId: localStorage.getItem("driven_subscription_id"),
+              activationCode: localStorage.getItem("driven_activation_code"),
+              adminName: adminName,
+              adminEmail: adminEmail,
+              keyPersonnel: keyPersonnel,
+              assignments: assignments
+            })
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data.success) {
+            successMessages.push("Step 1 complete. " + data.total + " Key Personnel emailed with login credentials and onboarding instructions.");
+          } else {
+            const failed = data.results ? data.results.filter(r => r.error).map(r => r.name + ": " + r.error).join("; ") : "Unknown error";
+            errorMessages.push("Partial completion: " + (failed || data.error || "Unknown error"));
+          }
+        } catch (error) {
+          errorMessages.push("Error: " + error.message);
+        }
+      }
+
+      // Reload existing personnel from API to reflect changes
+      await loadExistingPersonnel();
+
+      // Clear new personnel (they've been saved or there were none)
+      keyPersonnel = [];
+      rebuildAssignments();
+      renderTasksTable();
+      renderPersonnelTable();
+
+      // Clear form
+      document.getElementById("firstName").value = "";
+      document.getElementById("lastName").value = "";
+      document.getElementById("email").value = "";
+      clearTaskCheckboxes();
+
+      // Show results
+      btnComplete.disabled = false;
+      btnComplete.textContent = "Save & Continue";
+
+      if (errorMessages.length > 0) {
         stepStatus.style.color = "var(--error)";
-        stepStatus.textContent = `Error: ${error.message}. Your data was saved locally — you can retry.`;
-        btnComplete.disabled = false;
-        btnComplete.textContent = "Save & Continue";
+        stepStatus.textContent = errorMessages.join("; ");
+      } else {
+        stepStatus.style.color = "var(--success)";
+        stepStatus.textContent = successMessages.join(" ");
+        localStorage.setItem("driven_step1_complete", "true");
       }
     });
 
-    // Initial render
+    // Initialize on page load — fetch existing personnel, then render
+    loadExistingPersonnel();
     renderTasksTable();
     renderPersonnelTable();
   </script>
