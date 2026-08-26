@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRIV‑EN | Enable 2FA</title>
+<meta name="description" content="Enable two-factor authentication for your DRIV-EN account.">
+<link rel="icon" type="image/png" href="/icons/favicon.png" sizes="48x48">
+<link rel="icon" type="image/png" href="/icons/favicon-96.png" sizes="96x96">
+<link rel="icon" type="image/png" href="/icons/favicon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="/icons/favicon-180.png">
+<link rel="stylesheet" href="/styles/header.css?v=6">
+<link rel="stylesheet" href="/styles/footer.css?v=3">
+
+<style>
+    .twofa-section {
+        max-width: 420px;
+        margin: 40px auto 80px auto;
+        padding: 10px 24px;
+    }
+    .twofa-section h2 {
+        text-align: center;
+        margin-bottom: 8px;
+        font-size: 24px;
+        font-weight: 700;
+    }
+    .twofa-section p.subtitle {
+        text-align: center;
+        color: #555;
+        font-size: 14px;
+        margin-bottom: 24px;
+    }
+    .qr-container {
+        text-align: center;
+        margin: 20px 0;
+    }
+    .qr-container img {
+        max-width: 200px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 8px;
+        background: #fff;
+    }
+    .secret-display {
+        text-align: center;
+        font-family: monospace;
+        font-size: 14px;
+        background: #f1f5f9;
+        padding: 8px 12px;
+        border-radius: 6px;
+        margin: 12px 0;
+        word-break: break-all;
+    }
+    .instructions {
+        font-size: 14px;
+        color: #555;
+        line-height: 1.5;
+        margin: 16px 0;
+    }
+    .instructions ol {
+        padding-left: 20px;
+    }
+    .instructions li {
+        margin-bottom: 6px;
+    }
+    label {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 6px;
+        display: block;
+    }
+    input[type="text"] {
+        width: 100%;
+        padding: 10px;
+        box-sizing: border-box;
+        margin-bottom: 16px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font-size: 16px;
+        text-align: center;
+        letter-spacing: 4px;
+    }
+    .btn-primary {
+        width: 100%;
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        padding: 12px;
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+    .error-banner {
+        background: #ffdddd; color: #cc0000; padding: 10px;
+        border-radius: 6px; margin-bottom: 16px;
+        text-align: center; font-size: 14px; display: none;
+    }
+    .success-banner {
+        background: #ddffdd; color: #006600; padding: 10px;
+        border-radius: 6px; margin-bottom: 16px;
+        text-align: center; font-size: 14px; display: none;
+    }
+    .backup-codes {
+        background: #f8fafc; border: 1px solid #e2e8f0;
+        border-radius: 8px; padding: 16px; margin: 16px 0;
+    }
+    .backup-codes h3 {
+        font-size: 15px; margin: 0 0 8px 0;
+    }
+    .backup-codes-grid {
+        display: grid; grid-template-columns: 1fr 1fr;
+        gap: 4px; font-family: monospace; font-size: 14px;
+    }
+    .backup-warning {
+        font-size: 12px; color: #cc0000; margin-top: 8px;
+    }
+    .brand-driv { color: #8c8c8c; font-weight: bold; font-style: italic; letter-spacing: -1px; }
+    .brand-dash { color: #2da94f; font-weight: bold; font-style: italic; letter-spacing: -1px; }
+    .brand-en { color: #dc2626; font-weight: bold; font-style: italic; letter-spacing: -1px; }
+</style>
+</head>
+<body>
+<div id="header"></div>
+
+<div class="twofa-section">
+    <h2>Enable Two-Factor Authentication</h2>
+    <p class="subtitle"><span class="brand-driv">DRIV</span><span class="brand-dash">‑</span><span class="brand-en">EN</span></p>
+
+    <div id="error-banner" class="error-banner"></div>
+    <div id="success-banner" class="success-banner"></div>
+
+    <div id="setup-section">
+        <div class="instructions">
+            <ol>
+                <li>Install an authenticator app (Google Authenticator, Microsoft Authenticator, or Authy).</li>
+                <li>Scan the QR code below or enter the secret manually.</li>
+                <li>Enter the 6-digit code from your app to confirm.</li>
+            </ol>
+        </div>
+
+        <div class="qr-container" id="qr-container">
+            <p style="color:#666;">Loading QR code...</p>
+        </div>
+
+        <div class="secret-display" id="secret-display" style="display:none;"></div>
+
+        <form id="verify-form">
+            <label>Enter 6-digit verification code</label>
+            <input type="text" id="code" maxlength="6" placeholder="000000" required />
+            <button type="submit" class="btn-primary" id="verifyBtn">Enable 2FA</button>
+        </form>
+    </div>
+
+    <div id="success-section" style="display:none;">
+        <p style="font-size:14px;color:#006600;text-align:center;margin-bottom:16px;">
+            2FA is now enabled! Save these backup codes in a safe place.
+            Use them if you lose access to your authenticator app.
+        </p>
+        <div class="backup-codes">
+            <h3>Backup Codes</h3>
+            <div class="backup-codes-grid" id="backup-codes-grid"></div>
+            <div class="backup-warning">
+                Each code can only be used once. Store them securely.
+            </div>
+        </div>
+        <button class="btn-primary" onclick="window.location.href='/public/dashboard/admin.html'">
+            Continue to Dashboard
+        </button>
+    </div>
+</div>
+
+<div id="footer"></div>
+
+<script>
+async function loadComponent(id, file) {
+    try {
+        const el = document.getElementById(id);
+        const html = await fetch(file).then(r => r.text());
+        el.innerHTML = html;
+    } catch (e) { console.error("Component failed:", id, file, e); }
+}
+document.addEventListener("DOMContentLoaded", async () => {
+    await loadComponent("header", "/components/header.html");
+    await loadComponent("footer", "/components/footer.html");
+    const yearEl = document.getElementById('footer-year');
+    if (yearEl) yearEl.textContent = new Date().getFullYear();
+});
+</script>
+<script src="/components/nav.js?v=2"></script>
+
+<script>
+    const errorBanner = document.getElementById("error-banner");
+    const successBanner = document.getElementById("success-banner");
+
+    async function setup2FA() {
+        try {
+            const resp = await fetch("/auth/setup-2fa", { method: "POST" });
+            const data = await resp.json();
+
+            if (!data.success) {
+                errorBanner.textContent = data.error || "Failed to start 2FA setup.";
+                errorBanner.style.display = "block";
+                return;
+            }
+
+            // Show QR code using Google Charts API (works without external libs)
+            const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + encodeURIComponent(data.otpauthUri);
+            document.getElementById("qr-container").innerHTML =
+                '<img src="' + qrUrl + '" alt="QR Code for 2FA" />';
+
+            // Show secret for manual entry
+            const secretDisplay = document.getElementById("secret-display");
+            secretDisplay.textContent = "Secret: " + data.secret;
+            secretDisplay.style.display = "block";
+        } catch (e) {
+            errorBanner.textContent = "Failed to load 2FA setup.";
+            errorBanner.style.display = "block";
+        }
+    }
+
+    document.getElementById("verify-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        errorBanner.style.display = "none";
+
+        const code = document.getElementById("code").value.trim();
+        const verifyBtn = document.getElementById("verifyBtn");
+
+        verifyBtn.disabled = true;
+        verifyBtn.textContent = "Verifying...";
+
+        try {
+            const resp = await fetch("/auth/verify-2fa", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code: code })
+            });
+            const data = await resp.json();
+
+            if (data.success) {
+                document.getElementById("setup-section").style.display = "none";
+                document.getElementById("success-section").style.display = "block";
+
+                // Show backup codes
+                const grid = document.getElementById("backup-codes-grid");
+                if (data.backupCodes) {
+                    grid.innerHTML = data.backupCodes.map(c => "<div>" + c + "</div>").join("");
+                }
+            } else {
+                errorBanner.textContent = data.error || "Invalid code. Please try again.";
+                errorBanner.style.display = "block";
+                verifyBtn.disabled = false;
+                verifyBtn.textContent = "Enable 2FA";
+            }
+        } catch (e) {
+            errorBanner.textContent = "Failed to verify code.";
+            errorBanner.style.display = "block";
+            verifyBtn.disabled = false;
+            verifyBtn.textContent = "Enable 2FA";
+        }
+    });
+
+    setup2FA();
+</script>
+</body>
+</html>
