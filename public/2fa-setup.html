@@ -51,6 +51,12 @@
         margin: 12px 0;
         word-break: break-all;
     }
+    .secret-label {
+        font-size: 13px;
+        color: #555;
+        margin-top: 16px;
+        text-align: center;
+    }
     .instructions {
         font-size: 14px;
         color: #555;
@@ -135,7 +141,8 @@
         <div class="instructions">
             <ol>
                 <li>Install an authenticator app (Google Authenticator, Microsoft Authenticator, or Authy).</li>
-                <li>Scan the QR code below or enter the secret manually.</li>
+                <li><strong>Desktop:</strong> Scan the QR code below with your phone's camera.</li>
+                <li><strong>Mobile:</strong> Copy the secret key below and paste it into your authenticator app.</li>
                 <li>Enter the 6-digit code from your app to confirm.</li>
             </ol>
         </div>
@@ -144,6 +151,7 @@
             <p style="color:#666;">Loading QR code...</p>
         </div>
 
+        <div class="secret-label">Can't scan? Enter this key manually in your app:</div>
         <div class="secret-display" id="secret-display" style="display:none;"></div>
 
         <form id="verify-form">
@@ -202,17 +210,18 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (!data.success) {
                 errorBanner.textContent = data.error || "Failed to start 2FA setup.";
                 errorBanner.style.display = "block";
+                document.getElementById("qr-container").innerHTML = "";
                 return;
             }
 
-            // Show QR code using Google Charts API (works without external libs)
+            // Show QR code
             const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + encodeURIComponent(data.otpauthUri);
             document.getElementById("qr-container").innerHTML =
                 '<img src="' + qrUrl + '" alt="QR Code for 2FA" />';
 
             // Show secret for manual entry
             const secretDisplay = document.getElementById("secret-display");
-            secretDisplay.textContent = "Secret: " + data.secret;
+            secretDisplay.textContent = data.secret;
             secretDisplay.style.display = "block";
         } catch (e) {
             errorBanner.textContent = "Failed to load 2FA setup.";
@@ -242,7 +251,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 document.getElementById("setup-section").style.display = "none";
                 document.getElementById("success-section").style.display = "block";
 
-                // Show backup codes
                 const grid = document.getElementById("backup-codes-grid");
                 if (data.backupCodes) {
                     grid.innerHTML = data.backupCodes.map(c => "<div>" + c + "</div>").join("");
