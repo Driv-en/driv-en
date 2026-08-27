@@ -37,40 +37,41 @@
       font-family: system-ui, sans-serif;
     }
 
-    /* ===== HEADER ===== */
+    /* ===== HEADER (3 rows: logos, title, toggle+logout) ===== */
     .header {
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      align-items: center;
-      padding: 16px 20px 8px 20px;
       background: var(--bg-header);
       border-bottom: 1px solid var(--border);
       position: sticky;
       top: 0;
       z-index: 10;
     }
-    .header-left { display: flex; flex-direction: column; gap: 4px; }
-    .title-block h1 { margin: 0; font-size: 22px; font-weight: 600; color: var(--text); }
-
-    /* ===== CUSTOMER LOGO (center of header) ===== */
-    .customer-logo { max-height: 64px; max-width: 200px; display: block; margin: 0 auto; }
+    /* Row 1: Customer logo (left) | DRIV-EN logo (right) */
+    .header-row1 {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 20px 4px 20px;
+    }
+    .customer-logo { max-height: 64px; max-width: 200px; display: block; }
     .customer-logo-placeholder {
-      max-height: 48px; display: block; margin: 0 auto;
+      max-height: 48px; display: block;
       opacity: 0.4; border: 2px dashed var(--border); border-radius: 6px;
       padding: 8px 16px; font-size: 12px; color: var(--text-muted); text-align: center;
       line-height: 32px;
     }
-    .driven-logo { max-height: 64px; display: block; margin-left: auto; }
-
-    /* ===== HEADER ROW 2 (toggle, right-aligned) ===== */
+    .driven-logo { max-height: 64px; display: block; }
+    /* Row 2: Title centered */
     .header-row2 {
+      text-align: center;
+      padding: 4px 20px;
+    }
+    .header-row2 h1 { margin: 0; font-size: 22px; font-weight: 600; color: var(--text); }
+    /* Row 3: Toggle (left) | Logout (right) */
+    .header-row3 {
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
       align-items: center;
-      gap: 12px;
-      padding: 0 20px 12px 20px;
-      background: var(--bg-header);
-      border-bottom: 1px solid var(--border);
+      padding: 4px 20px 12px 20px;
     }
     .theme-toggle {
       background: var(--bg-card); border: 1px solid var(--border); border-radius: 50%;
@@ -118,6 +119,7 @@
       border-radius: 50%;
       transition: transform 200ms ease;
     }
+    /* When checked (dark mode), slider moves right and changes color */
     .theme-switch input:checked + .theme-slider {
       background: var(--primary);
     }
@@ -351,15 +353,12 @@
 
     /* ===== MOBILE RESPONSIVE ===== */
     @media (max-width: 800px) {
-      .header {
-        grid-template-columns: 1fr auto 1fr;
-        padding: 12px;
-        gap: 8px;
-      }
-      .title-block h1 { font-size: 18px; }
+      .header-row1 { padding: 10px 12px 4px 12px; }
       .customer-logo, .customer-logo-placeholder { max-height: 36px; max-width: 100px; }
       .customer-logo-placeholder { font-size: 10px; padding: 4px 8px; line-height: 28px; }
       .driven-logo { max-height: 48px; }
+      .header-row2 h1 { font-size: 18px; }
+      .header-row3 { padding: 4px 12px 10px 12px; }
       .greeting-bar { padding: 10px 12px 0 12px; }
       .greeting-text { font-size: 14px; }
       .main-container { padding: 0 12px; margin: 12px auto; }
@@ -370,7 +369,6 @@
       .theme-slider:before { height: 14px; width: 14px; left: 3px; bottom: 3px; }
       .theme-switch input:checked + .theme-slider:before { transform: translateX(16px); }
       .btn-logout { font-size: 12px; padding: 6px 10px; }
-      .header-row2 { padding: 0 12px 10px 12px; }
     }
   </style>
 </head>
@@ -378,34 +376,30 @@
 
   <!-- ===== HEADER ===== -->
   <header class="header">
-    <div class="header-left">
-      <div class="title-block">
-        <h1>Onboarding Dashboard</h1>
+    <!-- Row 1: Customer logo (left) | DRIV-EN logo (right) -->
+    <div class="header-row1">
+      <div id="customerLogoArea">
+        <div class="customer-logo-placeholder">No logo uploaded</div>
       </div>
+      <img src="/logo.png?v=2026" class="driven-logo" alt="DRIV‑EN Logo">
     </div>
-
-    <!-- Customer logo (center of header, loaded by JS) -->
-    <div id="customerLogoArea">
-      <div class="customer-logo-placeholder">No logo uploaded</div>
+    <!-- Row 2: Title centered -->
+    <div class="header-row2">
+      <h1>Onboarding Dashboard</h1>
     </div>
-
-    <!-- DRIV-EN logo (right side) -->
-    <img src="/logo.png?v=2026" class="driven-logo" alt="DRIV‑EN Logo">
+    <!-- Row 3: Toggle (left) | Logout (right) -->
+    <div class="header-row3">
+      <div class="theme-switch-wrapper" title="Toggle light/dark mode">
+        <span class="theme-switch-label" id="theme-label-light">Light Mode</span>
+        <label class="theme-switch">
+          <input type="checkbox" id="theme-checkbox" onchange="toggleTheme()">
+          <span class="theme-slider"></span>
+        </label>
+        <span class="theme-switch-label" id="theme-label-dark">Dark Mode</span>
+      </div>
+      <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
   </header>
-
-  <!-- ===== HEADER ROW 2 (toggle switch + logout, right-aligned) ===== -->
-  <div class="header-row2">
-    <!-- Theme toggle switch (slide left/right) with labels -->
-    <div class="theme-switch-wrapper" title="Toggle light/dark mode">
-      <span class="theme-switch-label" id="theme-label-light">Light Mode</span>
-      <label class="theme-switch">
-        <input type="checkbox" id="theme-checkbox" onchange="toggleTheme()">
-        <span class="theme-slider"></span>
-      </label>
-      <span class="theme-switch-label" id="theme-label-dark">Dark Mode</span>
-    </div>
-    <button class="btn-logout" onclick="logout()">Logout</button>
-  </div>
 
   <!-- ===== GREETING BAR (below header) ===== -->
   <div class="greeting-bar">
@@ -639,6 +633,10 @@
     /* ==========================================
        STEP DEFINITIONS
        Maps step number to its config
+       - task: the task name that must be assigned to access this step
+       - prereqs: array of step numbers that must be completed first
+       - url: the page URL to navigate to when step is opened
+       - adminOnly: if true, only the Admin can access this step
        ========================================== */
     var STEP_DEFS = {
       1: { name: "logo",          task: null,           prereqs: [],     url: null,                              adminOnly: true },
@@ -653,6 +651,8 @@
 
     /* ==========================================
        POPUP MANAGEMENT
+       Click to open, click X or overlay to close
+       (Not hover — works on mobile devices)
        ========================================== */
     function togglePopup(id) {
       var popup = document.getElementById(id);
@@ -672,6 +672,7 @@
 
     /* ==========================================
        STATUS HELPERS
+       Update badge text/class and button enabled/disabled
        ========================================== */
     function setStatus(id, statusClass, text) {
       var el = document.getElementById(id);
@@ -692,6 +693,7 @@
 
     /* ==========================================
        PREREQUISITE CHECK
+       Returns true if all prerequisites for a step are complete
        ========================================== */
     function checkPrereqs(stepNum) {
       var prereqs = STEP_DEFS[stepNum].prereqs;
@@ -700,16 +702,19 @@
 
     /* ==========================================
        UPDATE STEP STATUS
+       Determines what badge and button state to show
+       based on: admin status, assigned tasks, prerequisites, completion
        ========================================== */
     function updateStepStatus(stepNum) {
       var def = STEP_DEFS[stepNum];
       var statusId = "status-step" + stepNum;
 
+      // --- ADMIN-ONLY STEPS (Steps 1 and 2) ---
       if (def.adminOnly) {
         if (isAdmin) {
           if (stepCompletion[stepNum]) {
             setStatus(statusId, "completed", "Completed");
-            setButton(stepNum, stepNum === 2, def.url);
+            setButton(stepNum, stepNum === 2, def.url); // Step 2 always open for admin to manage
           } else {
             setStatus(statusId, "ready", "Ready");
             setButton(stepNum, stepNum === 2, def.url);
@@ -721,6 +726,7 @@
         return;
       }
 
+      // --- ADMIN (sees everything, subject to prerequisites) ---
       if (isAdmin) {
         if (stepCompletion[stepNum]) {
           setStatus(statusId, "completed", "Completed");
@@ -736,6 +742,7 @@
         return;
       }
 
+      // --- KEY PERSONNEL (only assigned tasks are accessible) ---
       var hasTask = assignedTasks.indexOf(def.task) !== -1;
 
       if (!hasTask) {
@@ -761,6 +768,7 @@
       setButton(stepNum, true, def.url);
     }
 
+    /* Update all 8 steps at once */
     function updateAllSteps() {
       for (var i = 1; i <= 8; i++) {
         updateStepStatus(i);
@@ -768,7 +776,8 @@
     }
 
     /* ==========================================
-       AUTH CHECK
+       AUTH CHECK — Uses shared /components/auth-check.js
+       Currently inactive during development.
        ========================================== */
     async function checkAuth() {
       try {
@@ -811,6 +820,9 @@
 
     /* ==========================================
        LOAD KEY PERSONNEL
+       - Determines if current user is Admin or Key Personnel
+       - Gets assigned tasks for key personnel
+       - Renders the key personnel list in Step 2
        ========================================== */
     async function loadKeyPersonnel() {
       var customerId = localStorage.getItem("driven_customer_id");
@@ -864,7 +876,7 @@
 
     /* ==========================================
        LOAD CUSTOMER LOGO
-       Fetches from D1 database (syncs across all devices)
+       Fetches from D1 database (syncs across all devices and employees)
        Falls back to localStorage if D1 fetch fails
        ========================================== */
     async function loadCustomerLogo() {
@@ -905,7 +917,7 @@
 
     /* ==========================================
        LOGO UPLOAD HANDLER
-       Saves to D1 database (syncs across all devices)
+       Saves to D1 database (syncs across all devices and employees)
        Also saves to localStorage as cache
        ========================================== */
     async function handleLogoUpload() {
@@ -954,18 +966,27 @@
 
     /* ==========================================
        INIT — Runs on page load
+       1. Check auth (redirect if not logged in)
+       2. Load session (greeting + user info)
+       3. Load customer logo (from D1)
+       4. Load key personnel (determines admin vs KP, assigned tasks)
        ========================================== */
     async function init() {
       var authenticated = await checkAuth();
       if (!authenticated) return;
 
-      await loadCustomerLogo();
+      // Load session FIRST (sets currentUser with email, first_name, org_id)
       await loadSession();
 
+      // Store customer ID from session
       if (currentUser && currentUser.org_id) {
         localStorage.setItem("driven_customer_id", currentUser.org_id);
       }
 
+      // Load logo (needs session for D1 fetch)
+      await loadCustomerLogo();
+
+      // Load key personnel (needs currentUser.email to determine admin vs KP)
       await loadKeyPersonnel();
 
       // Fallback: if loadKeyPersonnel failed to determine admin status,
@@ -977,12 +998,16 @@
       }
     }
 
+    // Auto-update footer year
     document.getElementById("footer-year").textContent = new Date().getFullYear();
+
+    // Initialize theme switch state on page load
     updateThemeSwitch();
+
     init();
   </script>
 
-  <!-- ===== AUTH CHECK (shared — currently inactive) ===== -->
+  <!-- ===== AUTH CHECK (shared — currently inactive, will protect page when enabled) ===== -->
   <script src="/components/auth-check.js"></script>
 </body>
 </html>
