@@ -6,12 +6,34 @@
   <link rel="icon" type="image/png" href="/icons/favicon.png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
+  <script>
+  (function() {
+    var saved = localStorage.getItem("driven-theme");
+    var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    var theme = saved || system;
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+  </script>
+
   <!-- ===== CSS STYLES ===== -->
   <style>
+    /* ===== THEME VARIABLES ===== */
+    :root[data-theme="light"] {
+      --bg-page: #f8fafc; --bg-card: #ffffff; --bg-header: #f1f5f9; --bg-step: #ffffff;
+      --text: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --border-input: #cbd5e1;
+      --primary: #2563eb; --primary-hover: #1d4ed8; --error: #dc2626; --success: #16a34a;
+    }
+    :root[data-theme="dark"] {
+      --bg-page: #0f172a; --bg-card: #1e293b; --bg-header: #1e293b; --bg-step: #0f172a;
+      --text: #e5e7eb; --text-muted: #94a3b8; --border: #334155; --border-input: #334155;
+      --primary: #2563eb; --primary-hover: #1d4ed8; --error: #ef4444; --success: #10b981;
+    }
+
     body {
       margin: 0;
-      background: #0f172a;
-      color: #e5e7eb;
+      background: var(--bg-page);
+      color: var(--text);
       font-family: system-ui, sans-serif;
     }
 
@@ -20,42 +42,94 @@
       display: grid;
       grid-template-columns: 1fr auto 1fr;
       align-items: center;
-      padding: 20px;
-      background: #1e293b;
-      border-bottom: 1px solid #334155;
+      padding: 16px 20px 8px 20px;
+      background: var(--bg-header);
+      border-bottom: 1px solid var(--border);
       position: sticky;
       top: 0;
       z-index: 10;
     }
     .header-left { display: flex; flex-direction: column; gap: 4px; }
-    .title-block h1 { margin: 0; font-size: 22px; font-weight: 600; color: #f1f5f9; }
+    .title-block h1 { margin: 0; font-size: 22px; font-weight: 600; color: var(--text); }
 
     /* ===== CUSTOMER LOGO (center of header) ===== */
-    .customer-logo { max-height: 48px; display: block; margin: 0 auto; }
+    .customer-logo { max-height: 64px; max-width: 200px; display: block; margin: 0 auto; }
     .customer-logo-placeholder {
       max-height: 48px; display: block; margin: 0 auto;
-      opacity: 0.4; border: 2px dashed #475569; border-radius: 6px;
-      padding: 8px 16px; font-size: 12px; color: #64748b; text-align: center;
+      opacity: 0.4; border: 2px dashed var(--border); border-radius: 6px;
+      padding: 8px 16px; font-size: 12px; color: var(--text-muted); text-align: center;
       line-height: 32px;
     }
-    .driven-logo { max-height: 88px; display: block; margin-left: auto; }
+    .driven-logo { max-height: 64px; display: block; margin-left: auto; }
 
-    /* ===== MOBILE RESPONSIVE ===== */
-    @media (max-width: 600px) {
-      .header {
-        grid-template-columns: 1fr auto;
-        padding: 12px;
-      }
-      .header-left { grid-column: 1; }
-      .customer-logo, .customer-logo-placeholder { max-height: 36px; }
-      .driven-logo { max-height: 44px; }
-      .title-block h1 { font-size: 18px; }
-      .greeting-bar { padding: 8px 12px 0 12px; }
-      .step-grid { grid-template-columns: 1fr; }
-      .main-container { padding: 0 12px; }
-      .admin-btn-sticky { font-size: 12px; padding: 6px 10px; }
+    /* ===== HEADER ROW 2 (toggle, right-aligned) ===== */
+    .header-row2 {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 12px;
+      padding: 0 20px 12px 20px;
+      background: var(--bg-header);
+      border-bottom: 1px solid var(--border);
+    }
+    .theme-toggle {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 50%;
+      width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 18px; color: var(--text);
+    }
+    .theme-toggle:hover { border-color: var(--primary); }
+
+    /* ===== THEME SLIDE SWITCH (left/right toggle with labels) ===== */
+    .theme-switch-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .theme-switch-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      transition: opacity 200ms ease;
+    }
+    .theme-switch-label.active {
+      color: var(--text);
+      font-weight: 600;
+    }
+    .theme-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+    .theme-switch input { opacity: 0; width: 0; height: 0; }
+    .theme-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--border);
+      border-radius: 24px;
+      transition: background 200ms ease;
+    }
+    .theme-slider:before {
+      content: "";
+      position: absolute;
+      height: 18px; width: 18px;
+      left: 3px; bottom: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 200ms ease;
+    }
+    .theme-switch input:checked + .theme-slider {
+      background: var(--primary);
+    }
+    .theme-switch input:checked + .theme-slider:before {
+      transform: translateX(20px);
     }
 
+    .btn-logout {
+      background: #b91c1c; border: 1px solid #dc2626; color: #fff;
+      padding: 8px 14px; border-radius: 6px; font-size: 13px; cursor: pointer;
+    }
+    .btn-logout:hover { background: #dc2626; }
 
     /* ===== GREETING BAR (below header) ===== */
     .greeting-bar {
@@ -68,8 +142,8 @@
       flex-wrap: wrap;
       gap: 10px;
     }
-    .greeting-text { font-size: 16px; color: #cbd5e1; font-weight: 500; }
-    .greeting-text strong { color: #f1f5f9; }
+    .greeting-text { font-size: 16px; color: var(--text-muted); font-weight: 500; }
+    .greeting-text strong { color: var(--text); }
 
     /* ===== STICKY ADMIN DASHBOARD BUTTON (only shown to Admin) ===== */
     .admin-btn-sticky {
@@ -93,14 +167,14 @@
 
     /* ===== CARD ===== */
     .card {
-      background: #1e293b;
-      border: 1px solid #334155;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
       border-radius: 8px;
       padding: 20px;
       margin-bottom: 20px;
     }
-    .card h2 { margin-top: 0; font-size: 18px; color: #f1f5f9; }
-    .card p { font-size: 13px; color: #cbd5e1; line-height: 1.4; margin: 6px 0 0; }
+    .card h2 { margin-top: 0; font-size: 18px; color: var(--text); }
+    .card p { font-size: 13px; color: var(--text-muted); line-height: 1.4; margin: 6px 0 0; }
 
     /* ===== STEP GRID (responsive grid of step cards) ===== */
     .step-grid {
@@ -112,8 +186,8 @@
 
     /* ===== STEP CARD (individual step block) ===== */
     .step-card {
-      background: #0f172a;
-      border: 1px solid #334155;
+      background: var(--bg-step);
+      border: 1px solid var(--border);
       border-radius: 8px;
       padding: 16px;
       display: flex;
@@ -131,7 +205,7 @@
     .step-title {
       font-size: 15px;
       font-weight: 600;
-      color: #f1f5f9;
+      color: var(--text);
       flex: 1;
     }
 
@@ -159,26 +233,26 @@
       position: absolute;
       top: 40px;
       right: 16px;
-      background: #1e293b;
-      border: 1px solid #475569;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
       border-radius: 8px;
       padding: 14px;
       font-size: 12px;
-      color: #cbd5e1;
+      color: var(--text-muted);
       line-height: 1.5;
       max-width: 280px;
       z-index: 20;
       box-shadow: 0 8px 24px rgba(0,0,0,0.4);
     }
     .info-popup.active { display: block; }
-    .info-popup strong { color: #f1f5f9; }
+    .info-popup strong { color: var(--text); }
     .info-popup-close {
       position: absolute;
       top: 6px;
       right: 8px;
       background: none;
       border: none;
-      color: #94a3b8;
+      color: var(--text-muted);
       font-size: 16px;
       cursor: pointer;
       padding: 2px 6px;
@@ -196,14 +270,14 @@
     .ready { background: #1e40af; border: 1px solid #2563eb; color: #dbeafe; }
     .locked-prereq { background: #7f1d1d; border: 1px solid #b91c1c; color: #fee2e2; }
     .not-assigned { background: #374151; border: 1px solid #4b5563; color: #9ca3af; }
-    .admin-only { background: #1e293b; border: 1px solid #475569; color: #94a3b8; }
+    .admin-only { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); }
 
-    .step-body { font-size: 13px; color: #cbd5e1; line-height: 1.4; }
+    .step-body { font-size: 13px; color: var(--text-muted); line-height: 1.4; }
 
     /* ===== BUTTONS ===== */
     .btn-primary {
-      background: #2563eb;
-      border: 1px solid #1d4ed8;
+      background: var(--primary);
+      border: 1px solid var(--primary-hover);
       color: #ffffff;
       padding: 8px 14px;
       border-radius: 6px;
@@ -211,17 +285,17 @@
       cursor: pointer;
       width: fit-content;
     }
-    .btn-primary:hover { background: #1d4ed8; }
-    .btn-primary:disabled { background: #475569; border-color: #475569; cursor: default; opacity: 0.5; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-primary:disabled { background: var(--border); border-color: var(--border); cursor: default; opacity: 0.5; }
 
     /* ===== KEY PERSONNEL LIST (in Step 2) ===== */
-    .kp-list { margin-top: 8px; padding-top: 8px; border-top: 1px solid #334155; }
-    .kp-list-title { font-size: 12px; font-weight: 600; color: #f1f5f9; margin-bottom: 6px; }
-    .kp-person { font-size: 12px; color: #cbd5e1; margin-bottom: 4px; padding: 4px 8px; background: #1e293b; border-radius: 4px; }
-    .kp-person-name { font-weight: 600; color: #e2e8f0; }
-    .kp-person-tasks { color: #94a3b8; font-size: 11px; }
+    .kp-list { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+    .kp-list-title { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    .kp-person { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; padding: 4px 8px; background: var(--bg-card); border-radius: 4px; }
+    .kp-person-name { font-weight: 600; color: var(--text); }
+    .kp-person-tasks { color: var(--text-muted); font-size: 11px; }
     .kp-person-email { color: #60a5fa; font-size: 11px; }
-    .kp-loading { font-size: 12px; color: #94a3b8; }
+    .kp-loading { font-size: 12px; color: var(--text-muted); }
 
     /* ===== LOGO UPLOAD AREA (in Step 1) ===== */
     .logo-upload-area {
@@ -233,34 +307,34 @@
     .logo-preview {
       width: 120px;
       height: 60px;
-      border: 2px dashed #475569;
+      border: 2px dashed var(--border);
       border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 11px;
-      color: #64748b;
+      color: var(--text-muted);
       overflow: hidden;
     }
     .logo-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
     .logo-upload-btn {
-      background: #2563eb;
-      border: 1px solid #1d4ed8;
+      background: var(--primary);
+      border: 1px solid var(--primary-hover);
       color: #fff;
       padding: 8px 14px;
       border-radius: 6px;
       font-size: 13px;
       cursor: pointer;
     }
-    .logo-upload-btn:hover { background: #1d4ed8; }
-    .logo-status { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+    .logo-upload-btn:hover { background: var(--primary-hover); }
+    .logo-status { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 
     /* ===== FOOTER ===== */
     .footer {
       text-align: center;
       padding: 20px;
       font-size: 12px;
-      color: #cbd5e1;
+      color: var(--text-muted);
       line-height: 1.4;
       margin-top: 40px;
     }
@@ -274,6 +348,30 @@
       z-index: 5;
     }
     .popup-overlay.active { display: block; }
+
+    /* ===== MOBILE RESPONSIVE ===== */
+    @media (max-width: 800px) {
+      .header {
+        grid-template-columns: 1fr auto 1fr;
+        padding: 12px;
+        gap: 8px;
+      }
+      .title-block h1 { font-size: 18px; }
+      .customer-logo, .customer-logo-placeholder { max-height: 36px; max-width: 100px; }
+      .customer-logo-placeholder { font-size: 10px; padding: 4px 8px; line-height: 28px; }
+      .driven-logo { max-height: 48px; }
+      .greeting-bar { padding: 10px 12px 0 12px; }
+      .greeting-text { font-size: 14px; }
+      .main-container { padding: 0 12px; margin: 12px auto; }
+      .step-grid { grid-template-columns: 1fr; }
+      .info-popup { max-width: 220px; right: 8px; }
+      .theme-switch-label { font-size: 10px; }
+      .theme-switch { width: 38px; height: 20px; }
+      .theme-slider:before { height: 14px; width: 14px; left: 3px; bottom: 3px; }
+      .theme-switch input:checked + .theme-slider:before { transform: translateX(16px); }
+      .btn-logout { font-size: 12px; padding: 6px 10px; }
+      .header-row2 { padding: 0 12px 10px 12px; }
+    }
   </style>
 </head>
 <body>
@@ -292,8 +390,22 @@
     </div>
 
     <!-- DRIV-EN logo (right side) -->
-        <img src="/logo.png?v=2026" class="driven-logo" alt="DRIV‑EN Logo">
+    <img src="/logo.png?v=2026" class="driven-logo" alt="DRIV‑EN Logo">
   </header>
+
+  <!-- ===== HEADER ROW 2 (toggle switch + logout, right-aligned) ===== -->
+  <div class="header-row2">
+    <!-- Theme toggle switch (slide left/right) with labels -->
+    <div class="theme-switch-wrapper" title="Toggle light/dark mode">
+      <span class="theme-switch-label" id="theme-label-light">Light Mode</span>
+      <label class="theme-switch">
+        <input type="checkbox" id="theme-checkbox" onchange="toggleTheme()">
+        <span class="theme-slider"></span>
+      </label>
+      <span class="theme-switch-label" id="theme-label-dark">Dark Mode</span>
+    </div>
+    <button class="btn-logout" onclick="logout()">Logout</button>
+  </div>
 
   <!-- ===== GREETING BAR (below header) ===== -->
   <div class="greeting-bar">
@@ -486,7 +598,36 @@
 
   <!-- ===== JAVASCRIPT ===== -->
   <script>
-    
+    /* ==========================================
+       THEME TOGGLE (slide switch with labels)
+       Reads/writes localStorage key "driven-theme"
+       Checkbox checked = dark mode, unchecked = light mode
+       ========================================== */
+    function toggleTheme() {
+      var current = document.documentElement.getAttribute("data-theme");
+      var newTheme = current === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", newTheme);
+      localStorage.setItem("driven-theme", newTheme);
+      updateThemeSwitch();
+    }
+    function updateThemeSwitch() {
+      var current = document.documentElement.getAttribute("data-theme");
+      var checkbox = document.getElementById("theme-checkbox");
+      var labelLight = document.getElementById("theme-label-light");
+      var labelDark = document.getElementById("theme-label-dark");
+      if (checkbox) checkbox.checked = (current === "dark");
+      if (labelLight) labelLight.classList.toggle("active", current === "light");
+      if (labelDark) labelDark.classList.toggle("active", current === "dark");
+    }
+
+    /* ==========================================
+       LOGOUT (same as admin dashboard)
+       ========================================== */
+    async function logout() {
+      await fetch("/auth/logout", { method: "POST" });
+      window.location.href = "/public/login.html";
+    }
+
     /* ==========================================
        STATE VARIABLES
        ========================================== */
@@ -498,10 +639,6 @@
     /* ==========================================
        STEP DEFINITIONS
        Maps step number to its config
-       - task: the task name that must be assigned to access this step
-       - prereqs: array of step numbers that must be completed first
-       - url: the page URL to navigate to when step is opened
-       - adminOnly: if true, only the Admin can access this step
        ========================================== */
     var STEP_DEFS = {
       1: { name: "logo",          task: null,           prereqs: [],     url: null,                              adminOnly: true },
@@ -516,8 +653,6 @@
 
     /* ==========================================
        POPUP MANAGEMENT
-       Click to open, click X or overlay to close
-       (Not hover — works on mobile devices)
        ========================================== */
     function togglePopup(id) {
       var popup = document.getElementById(id);
@@ -537,7 +672,6 @@
 
     /* ==========================================
        STATUS HELPERS
-       Update badge text/class and button enabled/disabled
        ========================================== */
     function setStatus(id, statusClass, text) {
       var el = document.getElementById(id);
@@ -558,7 +692,6 @@
 
     /* ==========================================
        PREREQUISITE CHECK
-       Returns true if all prerequisites for a step are complete
        ========================================== */
     function checkPrereqs(stepNum) {
       var prereqs = STEP_DEFS[stepNum].prereqs;
@@ -567,19 +700,16 @@
 
     /* ==========================================
        UPDATE STEP STATUS
-       Determines what badge and button state to show
-       based on: admin status, assigned tasks, prerequisites, completion
        ========================================== */
     function updateStepStatus(stepNum) {
       var def = STEP_DEFS[stepNum];
       var statusId = "status-step" + stepNum;
 
-      // --- ADMIN-ONLY STEPS (Steps 1 and 2) ---
       if (def.adminOnly) {
         if (isAdmin) {
           if (stepCompletion[stepNum]) {
             setStatus(statusId, "completed", "Completed");
-            setButton(stepNum, stepNum === 2, def.url); // Step 2 always open for admin to manage
+            setButton(stepNum, stepNum === 2, def.url);
           } else {
             setStatus(statusId, "ready", "Ready");
             setButton(stepNum, stepNum === 2, def.url);
@@ -591,7 +721,6 @@
         return;
       }
 
-      // --- ADMIN (sees everything, subject to prerequisites) ---
       if (isAdmin) {
         if (stepCompletion[stepNum]) {
           setStatus(statusId, "completed", "Completed");
@@ -607,7 +736,6 @@
         return;
       }
 
-      // --- KEY PERSONNEL (only assigned tasks are accessible) ---
       var hasTask = assignedTasks.indexOf(def.task) !== -1;
 
       if (!hasTask) {
@@ -633,7 +761,6 @@
       setButton(stepNum, true, def.url);
     }
 
-    /* Update all 8 steps at once */
     function updateAllSteps() {
       for (var i = 1; i <= 8; i++) {
         updateStepStatus(i);
@@ -641,19 +768,13 @@
     }
 
     /* ==========================================
-       AUTH CHECK — Uses shared /components/auth-check.js
-       Currently inactive during development.
-       When auth-check.js is enabled, unauthenticated
-       users will be redirected to login before this
-       code runs. The init() function below also checks
-       session to load user info for the greeting.
+       AUTH CHECK
        ========================================== */
     async function checkAuth() {
       try {
         var response = await fetch("/auth/session");
         var data = await response.json();
         if (!data.authenticated) {
-          // Not logged in — redirect to login page
           window.location.href = "/public/login.html";
           return false;
         }
@@ -690,9 +811,6 @@
 
     /* ==========================================
        LOAD KEY PERSONNEL
-       - Determines if current user is Admin or Key Personnel
-       - Gets assigned tasks for key personnel
-       - Renders the key personnel list in Step 2
        ========================================== */
     async function loadKeyPersonnel() {
       var customerId = localStorage.getItem("driven_customer_id");
@@ -706,23 +824,19 @@
         var data = await response.json();
 
         if (data.success && data.keyPersonnel) {
-          // Check if current user is in the key personnel list
           var myEmail = (currentUser && currentUser.email) ? currentUser.email.toLowerCase() : "";
           var myRecord = data.keyPersonnel.find(function(kp) {
             return kp.email && kp.email.toLowerCase() === myEmail;
           });
 
           if (myRecord) {
-            // Current user IS in key personnel list → Key Personnel
             isAdmin = false;
             assignedTasks = myRecord.roles.map(function(r) { return r.role; });
           } else {
-            // Current user is NOT in key personnel list → Admin
             isAdmin = true;
             document.getElementById("adminDashboardBtn").style.display = "inline-flex";
           }
 
-          // Render key personnel list in Step 2
           if (data.keyPersonnel.length > 0) {
             container.style.display = "block";
             body.innerHTML = data.keyPersonnel.map(function(kp) {
@@ -739,7 +853,6 @@
             body.innerHTML = '<div class="kp-loading">No key personnel assigned yet.</div>';
           }
 
-          // Step 2 is complete if at least 1 key personnel exists
           stepCompletion[2] = data.keyPersonnel.length > 0;
         }
       } catch (e) {
@@ -751,13 +864,32 @@
 
     /* ==========================================
        LOAD CUSTOMER LOGO
-       Currently from localStorage — will be moved to R2 storage later
+       Fetches from D1 database (syncs across all devices)
+       Falls back to localStorage if D1 fetch fails
        ========================================== */
-    function loadCustomerLogo() {
-      var logoUrl = localStorage.getItem("driven_customer_logo");
+    async function loadCustomerLogo() {
       var area = document.getElementById("customerLogoArea");
       var preview = document.getElementById("logoPreview");
 
+      try {
+        var logoRes = await fetch("/auth/get-logo");
+        var logoData = await logoRes.json();
+        if (logoData.success && logoData.logo) {
+          localStorage.setItem("driven_customer_logo", logoData.logo);
+          area.innerHTML = '<img src="' + logoData.logo + '" class="customer-logo" alt="Company Logo">';
+          if (preview) {
+            preview.innerHTML = '<img src="' + logoData.logo + '" alt="Logo preview">';
+            preview.style.border = "none";
+          }
+          stepCompletion[1] = true;
+          updateAllSteps();
+          return;
+        }
+      } catch (e) {
+        console.error("Logo fetch from D1 error:", e.message);
+      }
+
+      var logoUrl = localStorage.getItem("driven_customer_logo");
       if (logoUrl) {
         area.innerHTML = '<img src="' + logoUrl + '" class="customer-logo" alt="Company Logo">';
         if (preview) {
@@ -768,64 +900,89 @@
       } else {
         area.innerHTML = '<div class="customer-logo-placeholder">No logo uploaded</div>';
       }
+      updateAllSteps();
     }
 
     /* ==========================================
        LOGO UPLOAD HANDLER
-       Currently stores in localStorage — will be moved to R2 storage later
+       Saves to D1 database (syncs across all devices)
+       Also saves to localStorage as cache
        ========================================== */
-    function handleLogoUpload() {
+    async function handleLogoUpload() {
       var file = document.getElementById("logoFile").files[0];
       if (!file) return;
 
-      // Validate file size (max 500KB)
       if (file.size > 500000) {
         document.getElementById("logoStatus").textContent = "File too large. Max 500KB.";
-        document.getElementById("logoStatus").style.color = "#ef4444";
+        document.getElementById("logoStatus").style.color = "var(--error)";
         return;
       }
 
       var reader = new FileReader();
-      reader.onload = function(e) {
+      reader.onload = async function(e) {
         var dataUrl = e.target.result;
         localStorage.setItem("driven_customer_logo", dataUrl);
-        loadCustomerLogo();
-        document.getElementById("logoStatus").textContent = "Logo uploaded successfully.";
-        document.getElementById("logoStatus").style.color = "#10b981";
-        updateAllSteps();
+
+        try {
+          var saveRes = await fetch("/auth/save-logo", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ logo_data: dataUrl })
+          });
+          var saveData = await saveRes.json();
+          if (saveData.success) {
+            document.getElementById("logoStatus").textContent = "Logo uploaded and synced to all devices.";
+            document.getElementById("logoStatus").style.color = "var(--success)";
+          } else {
+            document.getElementById("logoStatus").textContent = "Logo saved locally but not synced: " + (saveData.error || "Unknown error");
+            document.getElementById("logoStatus").style.color = "var(--error)";
+          }
+        } catch (e) {
+          console.error("Logo save to D1 error:", e.message);
+          document.getElementById("logoStatus").textContent = "Logo saved locally but not synced to server.";
+          document.getElementById("logoStatus").style.color = "var(--error)";
+        }
+
+        await loadCustomerLogo();
       };
       reader.onerror = function() {
         document.getElementById("logoStatus").textContent = "Failed to read file.";
-        document.getElementById("logoStatus").style.color = "#ef4444";
+        document.getElementById("logoStatus").style.color = "var(--error)";
       };
       reader.readAsDataURL(file);
     }
 
     /* ==========================================
        INIT — Runs on page load
-       1. Check auth (redirect if not logged in)
-       2. Load customer logo
-       3. Load session (greeting)
-       4. Load key personnel (determines admin vs KP, assigned tasks)
        ========================================== */
     async function init() {
-      // Auth check first — redirect if not logged in
       var authenticated = await checkAuth();
       if (!authenticated) return;
 
-      loadCustomerLogo();
+      await loadCustomerLogo();
       await loadSession();
+
+      if (currentUser && currentUser.org_id) {
+        localStorage.setItem("driven_customer_id", currentUser.org_id);
+      }
+
       await loadKeyPersonnel();
+
+      // Fallback: if loadKeyPersonnel failed to determine admin status,
+      // default to admin=true so buttons work
+      if (!isAdmin && assignedTasks.length === 0) {
+        isAdmin = true;
+        document.getElementById("adminDashboardBtn").style.display = "inline-flex";
+        updateAllSteps();
+      }
     }
 
-    // Auto-update footer year
     document.getElementById("footer-year").textContent = new Date().getFullYear();
-
+    updateThemeSwitch();
     init();
   </script>
 
-
-  <!-- ===== AUTH CHECK (shared — currently inactive, will protect page when enabled) ===== -->
+  <!-- ===== AUTH CHECK (shared — currently inactive) ===== -->
   <script src="/components/auth-check.js"></script>
 </body>
 </html>
