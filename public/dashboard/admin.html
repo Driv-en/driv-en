@@ -53,7 +53,7 @@
     .title-block h1 { margin: 0; font-size: 22px; font-weight: 600; color: var(--text); }
     .subtitle { font-size: 13px; color: var(--text-muted); }
     .header-center { display: flex; align-items: center; justify-content: center; min-height: 48px; }
-    .customer-logo { max-height: 48px; max-width: 160px; display: block; margin: 0 auto; }
+    .customer-logo { max-height: 64px; max-width: 200px; display: block; margin: 0 auto; }
     .customer-logo-placeholder {
       max-height: 48px; display: block; margin: 0 auto;
       opacity: 0.4; border: 2px dashed var(--border); border-radius: 6px;
@@ -76,6 +76,54 @@
       cursor: pointer; font-size: 18px; color: var(--text);
     }
     .theme-toggle:hover { border-color: var(--primary); }
+
+    /* ===== THEME SLIDE SWITCH (left/right toggle with labels) ===== */
+    .theme-switch-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .theme-switch-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      transition: opacity 200ms ease;
+    }
+    .theme-switch-label.active {
+      color: var(--text);
+      font-weight: 600;
+    }
+    .theme-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+    .theme-switch input { opacity: 0; width: 0; height: 0; }
+    .theme-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--border);
+      border-radius: 24px;
+      transition: background 200ms ease;
+    }
+    .theme-slider:before {
+      content: "";
+      position: absolute;
+      height: 18px; width: 18px;
+      left: 3px; bottom: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 200ms ease;
+    }
+    /* When checked (dark mode), slider moves right and changes color */
+    .theme-switch input:checked + .theme-slider {
+      background: var(--primary);
+    }
+    .theme-switch input:checked + .theme-slider:before {
+      transform: translateX(20px);
+    }
+
     .btn-logout {
       background: #b91c1c; border: 1px solid #dc2626; color: #fff;
       padding: 8px 14px; border-radius: 6px; font-size: 13px; cursor: pointer;
@@ -154,6 +202,10 @@
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
       .main-container { padding: 0 12px; margin: 16px auto; }
       .theme-toggle { width: 32px; height: 32px; font-size: 16px; }
+      .theme-switch-label { font-size: 10px; }
+      .theme-switch { width: 38px; height: 20px; }
+      .theme-slider:before { height: 14px; width: 14px; left: 3px; bottom: 3px; }
+      .theme-switch input:checked + .theme-slider:before { transform: translateX(16px); }
       .btn-logout { font-size: 12px; padding: 6px 10px; }
     }
   </style>
@@ -185,11 +237,17 @@
           <img src="/logo.png?v=2026" class="driven-logo" alt="DRIV‑EN Logo">
         </div>
       </div>
-      <!-- Row 2: Toggle + Logout (right-aligned) -->
+      <!-- Row 2: Toggle switch + Logout (right-aligned) -->
       <div class="header-row2">
-        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">
-          <span id="theme-icon">🌙</span>
-        </button>
+        <!-- Theme toggle switch (slide left/right) with labels -->
+        <div class="theme-switch-wrapper" title="Toggle light/dark mode">
+          <span class="theme-switch-label" id="theme-label-light">Light Mode</span>
+          <label class="theme-switch">
+            <input type="checkbox" id="theme-checkbox" onchange="toggleTheme()">
+            <span class="theme-slider"></span>
+          </label>
+          <span class="theme-switch-label" id="theme-label-dark">Dark Mode</span>
+        </div>
         <button class="btn-logout" onclick="logout()">Logout</button>
       </div>
     </header>
@@ -265,18 +323,22 @@
 
   <!-- ===== JAVASCRIPT ===== -->
   <script>
-    /* ===== THEME TOGGLE ===== */
+    /* ===== THEME TOGGLE (slide switch with labels) ===== */
     function toggleTheme() {
       var current = document.documentElement.getAttribute("data-theme");
       var newTheme = current === "dark" ? "light" : "dark";
       document.documentElement.setAttribute("data-theme", newTheme);
       localStorage.setItem("driven-theme", newTheme);
-      updateThemeIcon();
+      updateThemeSwitch();
     }
-    function updateThemeIcon() {
+    function updateThemeSwitch() {
       var current = document.documentElement.getAttribute("data-theme");
-      var icon = document.getElementById("theme-icon");
-      if (icon) icon.textContent = current === "dark" ? "☀️" : "🌙";
+      var checkbox = document.getElementById("theme-checkbox");
+      var labelLight = document.getElementById("theme-label-light");
+      var labelDark = document.getElementById("theme-label-dark");
+      if (checkbox) checkbox.checked = (current === "dark");
+      if (labelLight) labelLight.classList.toggle("active", current === "light");
+      if (labelDark) labelDark.classList.toggle("active", current === "dark");
     }
 
     /* ===== SESSION CHECK ===== */
@@ -293,18 +355,37 @@
         // Store customer ID
         if (data.user.org_id) localStorage.setItem("driven_customer_id", data.user.org_id);
 
-        // Load customer logo from localStorage (same key as onboarding dashboard)
-        var logoUrl = localStorage.getItem("driven_customer_logo");
+        // Load customer logo from D1 database (syncs across all devices and employees)
+        // Falls back to localStorage if D1 fetch fails (backward compatibility)
         var logoArea = document.getElementById("customerLogoArea");
-        if (logoUrl) {
-          logoArea.innerHTML = '<img src="' + logoUrl + '" class="customer-logo" alt="Company Logo">';
+        try {
+          var logoRes = await fetch("/auth/get-logo");
+          var logoData = await logoRes.json();
+          if (logoData.success && logoData.logo) {
+            // Logo found in D1 — save to localStorage as cache
+            localStorage.setItem("driven_customer_logo", logoData.logo);
+            logoArea.innerHTML = '<img src="' + logoData.logo + '" class="customer-logo" alt="Company Logo">';
+          } else {
+            // No logo in D1 — check localStorage as fallback
+            var localLogo = localStorage.getItem("driven_customer_logo");
+            if (localLogo) {
+              logoArea.innerHTML = '<img src="' + localLogo + '" class="customer-logo" alt="Company Logo">';
+            }
+          }
+        } catch (e) {
+          console.error("Logo fetch error:", e.message);
+          // Fallback to localStorage if D1 fetch fails
+          var localLogo = localStorage.getItem("driven_customer_logo");
+          if (localLogo) {
+            logoArea.innerHTML = '<img src="' + localLogo + '" class="customer-logo" alt="Company Logo">';
+          }
         }
 
         // Footer year
         document.getElementById("footer-year").textContent = new Date().getFullYear();
 
-        // Theme icon
-        updateThemeIcon();
+        // Theme switch state
+        updateThemeSwitch();
 
         // Show dashboard
         document.getElementById("loading").style.display = "none";
