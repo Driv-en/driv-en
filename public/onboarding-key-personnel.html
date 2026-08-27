@@ -637,6 +637,8 @@
       const rows = names.map(name => {
         const tasks = assignments.personnel[name] || [];
         const existing = existingPersonnel.find(ep => ep.name === name);
+        const newPerson = keyPersonnel.find(kp => kp.name === name);
+        const email = existing ? existing.email : (newPerson ? newPerson.email : "");
 
         let tasksCell;
         let revokeCell;
@@ -655,7 +657,11 @@
           revokeCell = '<span style="color:var(--text-muted);font-size:13px">Not yet saved</span>';
         }
 
-        return `<tr><td>${name}</td><td>${tasksCell}</td><td>${revokeCell}</td></tr>`;
+        const emailCell = email
+          ? `<a href="mailto:${email}" style="color:var(--primary);text-decoration:underline;">${email}</a>`
+          : '—';
+
+        return `<tr><td>${name}</td><td>${emailCell}</td><td>${tasksCell}</td><td>${revokeCell}</td></tr>`;
       }).join("");
 
       personnelTableContainer.innerHTML = `
@@ -663,6 +669,7 @@
           <thead>
             <tr>
               <th>Personnel</th>
+              <th>Email</th>
               <th>Tasks Assigned</th>
               <th>Revoke</th>
             </tr>
@@ -691,6 +698,7 @@
         });
       });
     }
+
 
     // Save & Continue
     document.getElementById("btnCompleteStep").addEventListener("click", async () => {
