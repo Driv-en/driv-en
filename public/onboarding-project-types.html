@@ -4,14 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DRIV‑EN | Onboarding — Project Types</title>
-<meta name="description" content="Add project types to DRIV‑EN during onboarding.">
+<meta name="description" content="Add project types to DRIV‑EN during onboarding. Single entry or bulk upload via Excel/CSV.">
 <meta name="robots" content="noindex, nofollow">
 <link rel="canonical" href="https://www.driv-en.com/public/onboarding-project-types.html">
 <link rel="icon" type="image/png" href="/icons/favicon.png" sizes="48x48">
 <link rel="icon" type="image/png" href="/icons/favicon-96.png" sizes="96x96">
 <link rel="icon" type="image/png" href="/icons/favicon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" href="/icons/favicon-180.png">
-<link rel="stylesheet" href="/styles/dashboard.css?v=2">
+<link rel="stylesheet" href="/styles/dashboard.css?v=3">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 (function() {
   var saved = localStorage.getItem("driven-theme");
@@ -45,6 +46,17 @@
     .pt-empty { color: var(--text-muted); font-size: 14px; padding: 20px 0; }
     .pt-step-status { margin-top: 12px; font-size: 14px; color: var(--success); }
     .pt-count-badge { display: inline-block; background: var(--primary); color: #fff; font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 999px; margin-left: 8px; }
+    .pt-tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 2px solid var(--border); }
+    .pt-tab { padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; background: none; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -2px; }
+    .pt-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .pt-bulk-link { color: var(--primary); font-size: 14px; text-decoration: none; display: inline-block; margin-bottom: 12px; }
+    .pt-bulk-link:hover { text-decoration: underline; }
+    .pt-bulk-file-input { padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-size: 14px; width: 100%; max-width: 400px; margin-bottom: 12px; }
+    .pt-bulk-preview { margin-top: 12px; overflow-x: auto; }
+    .pt-bulk-preview table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .pt-bulk-preview th, .pt-bulk-preview td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+    .pt-bulk-preview th { background: var(--bg-header); color: var(--text); font-weight: 600; }
+    .pt-bulk-preview td { background: var(--bg-card); color: var(--text); }
     @media (max-width: 600px) { .pt-action-row { flex-direction: column; gap: 8px; } .pt-action-row .pt-btn-primary, .pt-action-row .pt-btn-secondary { width: 100%; } .pt-table { font-size: 12px; } .pt-table th, .pt-table td { padding: 6px 4px; } }
 </style>
 </head>
@@ -57,25 +69,52 @@
 <main class="dash-main">
   <div class="dash-card">
     <h2>Add Project Types <span class="pt-count-badge" id="ptCount">0</span></h2>
-    <p class="pt-subtitle">Add all project types that your organization uses. Project types are used when creating projects in the Project Management Suite to categorize work.</p>
+    <p class="pt-subtitle">Add all project types that your organization uses. Project types are used when creating projects to categorize work for scheduling and reporting.</p>
     <p class="pt-subtitle"><strong>Required:</strong> Project Type Name. That's all you need at this time.</p>
   </div>
   <div class="dash-card">
-    <h3>Add Project Type</h3>
-    <div class="pt-form-grid">
-      <div class="pt-form-field">
-        <label>Project Type Name<span class="pt-required-star">*</span></label>
-        <input type="text" id="ptName" class="dash-input" placeholder="e.g., New Build, Renovation, Maintenance, Emergency Repair">
-      </div>
+    <div class="pt-tabs">
+      <button class="pt-tab active" id="tabSingle" onclick="switchTab('single')">Single Entry</button>
+      <button class="pt-tab" id="tabBulk" onclick="switchTab('bulk')">Bulk Upload</button>
     </div>
-    <button id="btnAddPt" class="pt-btn-primary">Add Project Type</button>
-    <div id="ptError" class="pt-error"></div>
-    <div id="ptSuccess" class="pt-success"></div>
   </div>
-  <div class="dash-card">
-    <h3>Project Types Added</h3>
-    <p class="pt-subtitle">These project types will be saved when you click Save &amp; Continue. You can add as many as you need before saving.</p>
-    <div id="ptTableContainer"><p class="pt-empty">No project types added yet.</p></div>
+  <div id="tabContentSingle">
+    <div class="dash-card">
+      <h3>Add Project Type</h3>
+      <div class="pt-form-grid">
+        <div class="pt-form-field">
+          <label>Project Type Name<span class="pt-required-star">*</span></label>
+          <input type="text" id="ptName" class="dash-input" placeholder="e.g., New Build, Renovation, Maintenance, Emergency Repair">
+        </div>
+      </div>
+      <button id="btnAddPt" class="pt-btn-primary">Add Project Type</button>
+      <div id="ptError" class="pt-error"></div>
+      <div id="ptSuccess" class="pt-success"></div>
+    </div>
+    <div class="dash-card">
+      <h3>Project Types Added</h3>
+      <p class="pt-subtitle">These project types will be saved when you click Save &amp; Continue. You can add as many as you need before saving.</p>
+      <div id="ptTableContainer"><p class="pt-empty">No project types added yet.</p></div>
+    </div>
+  </div>
+  <div id="tabContentBulk" style="display:none;">
+    <div class="dash-card">
+      <h3>Bulk Upload Project Types</h3>
+      <p class="pt-subtitle">Download the Excel template, fill in your project type list, then upload it here. Project Type Name is required for every row. CSV files are also supported.</p>
+      <button onclick="downloadProjectTypeTemplate()" class="pt-bulk-link" style="cursor:pointer;border:none;font-size:14px;">⬇ Download Project-Type-Mass-Upload-v1.0.xlsx</button>
+      <div class="pt-form-field" style="max-width:400px;">
+        <label>Upload Completed Template</label>
+        <input type="file" id="bulkFile" accept=".xlsx,.csv" class="pt-bulk-file-input">
+      </div>
+      <button id="btnProcessBulk" class="pt-btn-primary">Process Upload</button>
+      <div id="statusBulk" class="pt-error"></div>
+      <div id="bulkPreview" class="pt-bulk-preview"></div>
+    </div>
+    <div class="dash-card">
+      <h3>Project Types from Bulk Upload</h3>
+      <p class="pt-subtitle">Review the uploaded project types below, then click Save &amp; Continue to save them all.</p>
+      <div id="bulkTableContainer"><p class="pt-empty">No project types uploaded yet.</p></div>
+    </div>
   </div>
   <div class="dash-card">
     <div class="pt-action-row">
@@ -94,6 +133,8 @@
     var ptTableContainer = document.getElementById("ptTableContainer");
     var ptStepStatus = document.getElementById("ptStepStatus");
     var ptCountEl = document.getElementById("ptCount");
+    var statusBulk = document.getElementById("statusBulk");
+    var bulkPreview = document.getElementById("bulkPreview");
     function updateCount() { ptCountEl.textContent = projectTypes.length; }
     function renderTable() {
       if (projectTypes.length === 0) { ptTableContainer.innerHTML = '<p class="pt-empty">No project types added yet.</p>'; return; }
@@ -103,6 +144,12 @@
       ptTableContainer.innerHTML = '<table class="pt-table"><thead><tr><th>#</th><th>Project Type Name</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table>';
     }
     window.removeProjectType = function(index) { projectTypes.splice(index, 1); renderTable(); updateCount(); ptSuccess.textContent = ""; ptError.textContent = ""; };
+    window.switchTab = function(tab) {
+      var tabSingle = document.getElementById("tabSingle"); var tabBulk = document.getElementById("tabBulk");
+      var contentSingle = document.getElementById("tabContentSingle"); var contentBulk = document.getElementById("tabContentBulk");
+      if (tab === "single") { tabSingle.classList.add("active"); tabBulk.classList.remove("active"); contentSingle.style.display = "block"; contentBulk.style.display = "none"; }
+      else { tabBulk.classList.add("active"); tabSingle.classList.remove("active"); contentBulk.style.display = "block"; contentSingle.style.display = "none"; }
+    };
     document.getElementById("btnAddPt").addEventListener("click", function() {
       ptError.textContent = ""; ptSuccess.textContent = "";
       var name = document.getElementById("ptName").value.trim();
@@ -113,6 +160,46 @@
       ptSuccess.textContent = "Project type added. Add another or click Save & Continue.";
     });
     document.getElementById("ptName").addEventListener("keydown", function(e) { if (e.key === "Enter") { e.preventDefault(); document.getElementById("btnAddPt").click(); } });
+    document.getElementById("btnProcessBulk").addEventListener("click", function() {
+      statusBulk.textContent = ""; statusBulk.className = "pt-error";
+      var file = document.getElementById("bulkFile").files[0];
+      if (!file) { statusBulk.textContent = "Please select an Excel or CSV file."; return; }
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var rows;
+        var isCsv = file.name.toLowerCase().endsWith(".csv");
+        if (isCsv) {
+          var text = e.target.result;
+          var lines = text.split(/\r?\n/).filter(function(l) { return l.trim() !== ""; });
+          if (lines.length < 2) { statusBulk.textContent = "The CSV file is empty or has no data rows."; return; }
+          var headers = parseCsvLine(lines[0]);
+          rows = lines.slice(1).map(function(line) { var values = parseCsvLine(line); var obj = {}; headers.forEach(function(h, i) { obj[h] = values[i] || ""; }); return obj; });
+        } else {
+          var workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+          var sheet = workbook.Sheets[workbook.SheetNames[0]];
+          rows = XLSX.utils.sheet_to_json(sheet);
+        }
+        if (rows.length === 0) { statusBulk.textContent = "The file is empty."; return; }
+        if (rows[0] && Object.values(rows[0])[0] && String(Object.values(rows[0])[0]).startsWith("INSTRUCTIONS")) { rows = rows.slice(1); }
+        if (rows.length === 0) { statusBulk.textContent = "No data rows found after instruction row."; return; }
+        var requiredField = "Project Type Name";
+        var header = Object.keys(rows[0]);
+        if (header.indexOf(requiredField) === -1) { statusBulk.textContent = "Missing required column: " + requiredField; return; }
+        for (var r = 0; r < rows.length; r++) { if (!rows[r][requiredField] || String(rows[r][requiredField]).trim() === "") { statusBulk.textContent = "Row " + (r + 2) + ": Project Type Name is required."; return; } }
+        var seenNames = {};
+        for (var d = 0; d < rows.length; d++) { var nm = String(rows[d][requiredField]).trim().toLowerCase(); if (seenNames[nm]) { statusBulk.textContent = "Duplicate project type: " + nm + " (rows " + seenNames[nm] + " and " + (d + 2) + ")."; return; } seenNames[nm] = (d + 2); }
+        var existingNames = projectTypes.map(function(pt) { return pt.name.toLowerCase(); });
+        for (var dd = 0; dd < rows.length; dd++) { var checkName = String(rows[dd][requiredField]).trim().toLowerCase(); if (existingNames.indexOf(checkName) !== -1) { statusBulk.textContent = "Row " + (dd + 2) + ': Project type "' + checkName + '" has already been added in this session.'; return; } }
+        var bulkProjectTypes = rows.map(function(row) { return { name: String(row[requiredField]).trim(), customerId: localStorage.getItem("driven_customer_id") || "" }; });
+        var html = "<table><thead><tr><th>Project Type Name</th></tr></thead><tbody>";
+        bulkProjectTypes.forEach(function(pt) { html += "<tr><td>" + pt.name + "</td></tr>"; });
+        html += "</tbody></table>";
+        bulkPreview.innerHTML = html;
+        projectTypes = projectTypes.concat(bulkProjectTypes); renderTable(); updateCount();
+        statusBulk.textContent = "Uploaded " + bulkProjectTypes.length + " project types. Review above and click Save & Continue."; statusBulk.className = "pt-success";
+      };
+      if (file.name.toLowerCase().endsWith(".csv")) { reader.readAsText(file); } else { reader.readAsArrayBuffer(file); }
+    });
     document.getElementById("btnSavePt").addEventListener("click", function() {
       ptStepStatus.textContent = ""; ptStepStatus.style.color = "var(--error)";
       if (projectTypes.length === 0) { ptStepStatus.textContent = "You must add at least one project type."; return; }
@@ -126,6 +213,26 @@
       var btnSave = document.getElementById("btnSavePt"); btnSave.disabled = true; btnSave.textContent = "Saved ✓";
       projectTypes = []; renderTable(); updateCount();
     });
+    function downloadProjectTypeTemplate() {
+      var ws = XLSX.utils.aoa_to_sheet([
+        ["INSTRUCTIONS: Delete this row before uploading. Only fill in the Project Type Name column."],
+        ["Project Type Name"]
+      ]);
+      ws["!cols"] = [{ wch: 60 }];
+      ws["!freeze"] = { ySplit: 2, xSplit: 0, topLeftCell: "A3", panes: [{ state: "frozen", ySplit: 2, xSplit: 0, topLeftCell: "A3", activePane: "bottomLeft" }] };
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Project Types");
+      XLSX.writeFile(wb, "Project-Type-Mass-Upload-v1.0.xlsx");
+    }
+    function parseCsvLine(line) {
+      var result = []; var current = ""; var inQuotes = false;
+      for (var i = 0; i < line.length; i++) {
+        var ch = line[i];
+        if (inQuotes) { if (ch === '"') { if (line[i + 1] === '"') { current += '"'; i++; } else { inQuotes = false; } } else { current += ch; } }
+        else { if (ch === '"') { inQuotes = true; } else if (ch === ",") { result.push(current.trim()); current = ""; } else { current += ch; } }
+      }
+      result.push(current.trim()); return result;
+    }
     document.addEventListener("dashSessionLoaded", function(e) { renderTable(); updateCount(); });
 </script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"aed8feab3b60404ba88ec92f026bbcd6","r":1}' crossorigin="anonymous"></script>
