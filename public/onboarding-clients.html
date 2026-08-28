@@ -1,497 +1,441 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>DRIV‑EN – Clients</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- ===== PAGE-SPECIFIC SEO ===== -->
+<title>DRIV‑EN | Onboarding — Clients</title>
+<meta name="description" content="Add clients to DRIV‑EN during onboarding.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://www.driv-en.com/public/onboarding-clients.html">
 
-  <style>
-    body {
-      margin: 0;
-      background: #0f172a;
-      color: #e5e7eb;
-      font-family: system-ui, sans-serif;
-    }
+<!-- Favicon -->
+<link rel="icon" type="image/png" href="/icons/favicon.png" sizes="48x48">
+<link rel="icon" type="image/png" href="/icons/favicon-96.png" sizes="96x96">
+<link rel="icon" type="image/png" href="/icons/favicon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="/icons/favicon-180.png">
 
-    /* HEADER */
-    .header {
-      position: sticky;
-      top: 0;
-      z-index: 1000;
-      background: #020617;
-      border-bottom: 1px solid #1f2937;
-      padding: 12px 20px;
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      align-items: center;
-    }
+<!-- ===== SHARED DASHBOARD CSS ===== -->
+<link rel="stylesheet" href="/styles/dashboard.css?v=1">
 
-    .header-left,
-    .header-center,
-    .header-right {
-      display: flex;
-      align-items: center;
-    }
+<!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
+<script>
+(function() {
+  var saved = localStorage.getItem("driven-theme");
+  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  var theme = saved || system;
+  document.documentElement.setAttribute("data-theme", theme);
+})();
+</script>
 
-    .header-center {
-      justify-content: center;
-    }
-
-    .header-right {
-      justify-content: flex-end;
-    }
-
-    .customer-logo,
-    .driven-logo {
-      height: 88px;
-      width: auto;
-    }
-
-    .title-block h1 {
-      margin: 0;
-      font-size: 22px;
-      color: #e5e7eb;
-    }
-
-    .subtitle {
-      font-size: 14px;
-      color: #9ca3af;
-    }
-
-    /* MAIN */
-    .main-container {
+<!-- ===== PAGE-SPECIFIC STYLES ===== -->
+<style>
+    /* ===== BACK BUTTON BAR ===== */
+    .cli-back-bar {
       max-width: 1100px;
       margin: 0 auto;
-      padding: 20px;
+      padding: 12px 20px 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
     }
-
-    .card {
-      background: #020617;
-      border: 1px solid #1f2937;
-      border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 20px;
+    .cli-back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #1e40af;
+      border: 1px solid #2563eb;
+      color: #dbeafe;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
     }
+    .cli-back-btn:hover { background: #1d4ed8; color: #fff; }
 
-    .card h2 {
-      margin-top: 0;
-      margin-bottom: 10px;
-      font-size: 20px;
-    }
-
-    .card-subtitle {
+    /* ===== CARD SUBTITLE ===== */
+    .cli-subtitle {
       margin: 4px 0 12px 0;
-      color: #9ca3af;
+      color: var(--text-muted);
       font-size: 14px;
+      line-height: 1.5;
     }
 
-    .text-input {
-      background: #0f172a;
-      border: 1px solid #374151;
-      border-radius: 6px;
-      color: #e5e7eb;
-      padding: 10px;
-      font-size: 14px;
-      width: 100%;
+    /* ===== FORM GRID ===== */
+    .cli-form-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+      max-width: 500px;
     }
-
-    .textarea-input {
-      background: #0f172a;
-      border: 1px solid #374151;
-      border-radius: 6px;
-      color: #e5e7eb;
-      padding: 10px;
-      font-size: 14px;
-      height: 140px;
-      resize: vertical;
-      width: 100%;
+    .cli-form-field {
+      display: flex;
+      flex-direction: column;
     }
+    .cli-form-field label {
+      margin-bottom: 4px;
+      font-size: 14px;
+      color: var(--text);
+      font-weight: 600;
+    }
+    .cli-required-star { color: var(--error); margin-left: 3px; }
 
-    .btn-primary {
-      background: #2563eb;
+    /* ===== BUTTONS ===== */
+    .cli-btn-primary {
+      background: var(--primary);
       color: white;
       padding: 10px 18px;
       border-radius: 6px;
       font-size: 15px;
-      border: none;
+      border: 1px solid var(--primary-hover);
       cursor: pointer;
       margin-top: 10px;
     }
+    .cli-btn-primary:hover { background: var(--primary-hover); }
+    .cli-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
-    .btn-primary:hover {
-      background: #1d4ed8;
-    }
-
-    .btn-secondary {
-      background: #374151;
-      color: white;
+    .cli-btn-secondary {
+      background: var(--bg-card);
+      color: var(--text);
       padding: 10px 18px;
       border-radius: 6px;
       font-size: 15px;
       text-decoration: none;
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--border);
+    }
+    .cli-btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* ===== ACTION ROW ===== */
+    .cli-action-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: nowrap;
+    }
+    .cli-action-row .cli-btn-primary,
+    .cli-action-row .cli-btn-secondary {
+      margin-top: 0;
+      box-sizing: border-box;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    .btn-secondary:hover {
-      background: #4b5563;
-    }
+    /* ===== MESSAGES ===== */
+    .cli-error { margin-top: 10px; color: var(--error); font-size: 14px; }
+    .cli-success { margin-top: 10px; color: var(--success); font-size: 14px; }
 
-    .status-message {
-      margin-top: 10px;
-      font-size: 14px;
-    }
-
-    .status-error {
-      color: #f87171;
-    }
-
-    .status-success {
-      color: #22c55e;
-    }
-
-    table {
+    /* ===== CLIENT TABLE ===== */
+    .cli-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 16px;
-      font-size: 14px;
+      margin-top: 12px;
     }
-
-    table th,
-    table td {
-      border: 1px solid #334155;
+    .cli-table th, .cli-table td {
+      border: 1px solid var(--border);
       padding: 8px;
+      font-size: 14px;
+      vertical-align: top;
     }
-
-    table th {
-      background: #1e293b;
-      color: #e5e7eb;
+    .cli-table th {
+      background: var(--bg-header);
+      color: var(--text);
       font-weight: 600;
+      text-align: left;
     }
+    .cli-table td { background: var(--bg-card); color: var(--text); }
 
-    table td {
-      background: #0f172a;
-      color: #e5e7eb;
-    }
-
-    footer {
-      text-align: center;
-      padding: 20px;
-      color: #9ca3af;
+    /* ===== EMPTY STATE ===== */
+    .cli-empty {
+      color: var(--text-muted);
       font-size: 14px;
-      border-top: 1px solid #1f2937;
-      background: #020617;
+      padding: 20px 0;
     }
 
-    .footer-line-2 {
-      display: block;
-      margin-top: 4px;
-      color: #6b7280;
-    }
-
-    /* MODAL */
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.75);
-      display: none;
-      justify-content: center;
-      align-items: center;
-      z-index: 2000;
-    }
-
-    .modal {
-      background: #1e293b;
-      padding: 24px;
-      border-radius: 10px;
-      width: 420px;
-      max-width: 90%;
-      text-align: center;
-      border: 1px solid #334155;
-    }
-
-    .modal h3 {
-      margin-top: 0;
-      font-size: 20px;
-      color: #e5e7eb;
-    }
-
-    .modal p {
+    /* ===== STEP STATUS ===== */
+    .cli-step-status {
+      margin-top: 12px;
       font-size: 14px;
-      color: #cbd5e1;
-      margin-bottom: 20px;
+      color: var(--success);
     }
 
-    .modal button {
-      background: #2563eb;
-      color: white;
-      padding: 10px 18px;
-      border-radius: 6px;
-      font-size: 15px;
-      border: none;
-      cursor: pointer;
+    /* ===== COUNT BADGE ===== */
+    .cli-count-badge {
+      display: inline-block;
+      background: var(--primary);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 999px;
+      margin-left: 8px;
     }
-  </style>
+
+    /* ===== MOBILE RESPONSIVE ===== */
+    @media (max-width: 600px) {
+      .cli-action-row { flex-direction: column; gap: 8px; }
+      .cli-action-row .cli-btn-primary,
+      .cli-action-row .cli-btn-secondary {
+        width: 100%;
+      }
+      .cli-table { font-size: 12px; }
+      .cli-table th, .cli-table td { padding: 6px 4px; }
+    }
+</style>
+
 </head>
 
-<body>
-  <!-- HEADER -->
-  <header class="header">
-    <div class="header-left">
-      <div class="title-block">
-        <h1>DRIV‑EN – Clients</h1>
-        <span class="subtitle">Step 1 · Add Corporate-Level Clients</span>
+<!-- Page title — appears in the dashboard header -->
+<body data-page-title="Onboarding — Clients">
+
+<!-- ===== SHARED DASHBOARD HEADER (auto-loaded by dashboard-common.js) ===== -->
+<div id="dashHeader"></div>
+
+<!-- ===== BACK BUTTON BAR ===== -->
+<div class="cli-back-bar">
+  <a href="/public/dashboard/admin.html" class="cli-back-btn">&larr; Admin Dashboard</a>
+  <a href="/public/onboarding-dashboard.html" class="cli-back-btn" style="background:#374151;border-color:#4b5563;color:#d1d5db;">&larr; Onboarding Dashboard</a>
+</div>
+
+<!-- ===== PAGE CONTENT ===== -->
+<main class="dash-main">
+
+  <!-- ===== INTRO ===== -->
+  <div class="dash-card">
+    <h2>Add Clients <span class="cli-count-badge" id="cliCount">0</span></h2>
+    <p class="cli-subtitle">
+      Add all clients that your organization works with. Clients will be used when creating
+      projects in the Project Management Suite.
+    </p>
+    <p class="cli-subtitle">
+      <strong>Required:</strong> Client Name. That's all you need at this time —
+      additional client details will be managed in the Project Management Suite.
+    </p>
+  </div>
+
+  <!-- ===== ADD CLIENT FORM ===== -->
+  <div class="dash-card">
+    <h3>Add Client</h3>
+
+    <div class="cli-form-grid">
+      <div class="cli-form-field">
+        <label>Client Name<span class="cli-required-star">*</span></label>
+        <input type="text" id="cliName" class="dash-input" placeholder="e.g., Acme Construction">
       </div>
     </div>
 
-    <div class="header-center">
-      <img id="customerLogo" class="customer-logo" alt="Customer Logo">
-    </div>
+    <button id="btnAddCli" class="cli-btn-primary">Add Client</button>
+    <div id="cliError" class="cli-error"></div>
+    <div id="cliSuccess" class="cli-success"></div>
+  </div>
 
-    <div class="header-right">
-      <img src="/logo.png" alt="DRIV‑EN Logo" class="driven-logo">
-    </div>
-  </header>
-
-  <!-- MODAL -->
-  <div id="lockModal" class="modal-overlay">
-    <div class="modal">
-      <h3>Step Locked</h3>
-      <p id="lockMessage">
-        This step is locked until Admin marks the previous step complete.
-      </p>
-      <button onclick="closeModal()">Return to Dashboard</button>
+  <!-- ===== CLIENT LIST ===== -->
+  <div class="dash-card">
+    <h3>Clients Added</h3>
+    <p class="cli-subtitle">
+      These clients will be saved when you click Save &amp; Continue. You can add as many as you need before saving.
+    </p>
+    <div id="cliTableContainer">
+      <p class="cli-empty">No clients added yet.</p>
     </div>
   </div>
 
-  <main class="main-container">
+  <!-- ===== ACTIONS ===== -->
+  <div class="dash-card">
+    <div class="cli-action-row">
+      <a href="/public/onboarding-dashboard.html" class="cli-btn-secondary">Return to Onboarding</a>
+      <button id="btnSaveCli" class="cli-btn-primary">Save &amp; Continue</button>
+    </div>
+    <div id="cliStepStatus" class="cli-step-status"></div>
+  </div>
 
-    <!-- INTRO -->
-    <section class="card">
-      <h2>Client Upload</h2>
-      <p class="card-subtitle">
-        Upload your corporate‑level client list. You may upload a CSV file or paste rows directly from Excel or Google Sheets.<br><br>
-        Only corporate‑level information is collected here. Project‑level locations and contacts will be added later if the Project module is purchased.
-      </p>
-    </section>
+</main>
 
-    <!-- UPLOAD CSV -->
-    <section class="card">
-      <h2>Upload CSV File</h2>
-      <input type="file" id="csvFile" accept=".csv" class="text-input">
-      <button id="btnUploadCSV" class="btn-primary">Process CSV File</button>
-      <div id="csvStatus" class="status-message"></div>
-    </section>
+<!-- ===== SHARED DASHBOARD JS (loads header, theme, logo, session) ===== -->
+<script src="/components/dashboard-common.js?v=1"></script>
 
-    <!-- PASTE ROWS -->
-    <section class="card">
-      <h2>Paste Rows from Spreadsheet</h2>
-      <textarea id="pasteArea" class="textarea-input" placeholder="Paste rows here..."></textarea>
-      <button id="btnParsePaste" class="btn-primary">Parse Pasted Data</button>
-      <div id="pasteStatus" class="status-message"></div>
-    </section>
+<!-- ===== AUTH CHECK (shared — currently inactive) ===== -->
+<script src="/components/auth-check.js"></script>
 
-    <!-- PREVIEW -->
-    <section class="card">
-      <h2>Preview Clients</h2>
-      <p class="card-subtitle">Only required Driv‑en fields are shown.</p>
-      <div id="previewTable"></div>
-    </section>
+<!-- ===== PAGE-SPECIFIC SCRIPT ===== -->
+<script>
+    /* ==========================================
+       ONBOARDING CLIENTS PAGE
+       ==========================================
+       What this page does:
+       1. Lets the admin add clients one at a time (client name only)
+       2. Shows a running list of clients added
+       3. Saves all clients to localStorage on "Save & Continue"
+       4. Updates the client count badge
 
-    <!-- ACTIONS -->
-    <section class="card">
-      <div style="display:flex;justify-content:space-between;">
-        <a href="onboarding-dashboard.html" class="btn-secondary">Return to Dashboard</a>
-        <button id="btnContinue" class="btn-primary">Save & Continue</button>
-      </div>
-      <div id="continueStatus" class="status-message"></div>
-    </section>
+       FUTURE ENHANCEMENTS (noted in daily report):
+       - Save to D1 database via API (currently localStorage only)
+       - Additional client details managed in Project Management Suite
+       - Mass upload via CSV
 
-  </main>
+       The "dashSessionLoaded" event fires when dashboard-common.js
+       has loaded the user session.
+       ========================================== */
 
-  <footer>
-    © 2026 Digital Safety Inspection, LLC.
-    <span class="footer-line-2">Driv‑en is a Digital Safety Inspection, LLC platform.</span>
-  </footer>
+    // ===== STATE =====
+    // Array of client objects added locally (not yet saved)
+    var clients = [];
 
-  <script>
-    /* Load customer logo */
-    const customerLogo = localStorage.getItem("driven_customer_logo");
-    if (customerLogo) {
-      document.getElementById("customerLogo").src = customerLogo;
+    // ===== DOM REFERENCES =====
+    var cliError = document.getElementById("cliError");
+    var cliSuccess = document.getElementById("cliSuccess");
+    var cliTableContainer = document.getElementById("cliTableContainer");
+    var cliStepStatus = document.getElementById("cliStepStatus");
+    var cliCountEl = document.getElementById("cliCount");
+
+    // ===== HELPER: Update the client count badge =====
+    function updateCount() {
+      cliCountEl.textContent = clients.length;
     }
 
-    /* Prerequisite + Admin Unlock Logic */
-    const stepUnlocked = localStorage.getItem("driven_unlock_clients") === "true";
-
-    function showModal(message) {
-      document.getElementById("lockMessage").textContent = message;
-      document.getElementById("lockModal").style.display = "flex";
-    }
-
-    function closeModal() {
-      window.location.href = "onboarding-dashboard.html";
-    }
-
-    if (!stepUnlocked) {
-      showModal("Admin has not unlocked this step yet.");
-    }
-
-    /* Client Storage */
-    let clients = JSON.parse(localStorage.getItem("driven_clients") || "[]");
-
-    const csvStatus = document.getElementById("csvStatus");
-    const pasteStatus = document.getElementById("pasteStatus");
-    const previewTable = document.getElementById("previewTable");
-    const continueStatus = document.getElementById("continueStatus");
-
-    function renderPreview() {
+    // ===== RENDER CLIENT TABLE =====
+    // Shows all clients added so far in a table
+    function renderTable() {
       if (clients.length === 0) {
-        previewTable.innerHTML = "<p>No clients added yet.</p>";
+        cliTableContainer.innerHTML = '<p class="cli-empty">No clients added yet.</p>';
         return;
       }
 
-      let html = "<table><thead><tr>";
-      html += "<th>Client Name</th><th>Address</th><th>City</th><th>State</th><th>Zip Code</th><th>Phone</th>";
-      html += "</tr></thead><tbody>";
+      var rows = clients.map(function(cli, index) {
+        return '<tr>' +
+          '<td>' + (index + 1) + '</td>' +
+          '<td>' + cli.name + '</td>' +
+          '<td><button class="cli-btn-secondary" style="padding:4px 10px;font-size:12px;height:auto;" onclick="removeClient(' + index + ')">Remove</button></td>' +
+          '</tr>';
+      }).join("");
 
-      clients.forEach(c => {
-        html += `<tr>
-          <td>${c.name || ""}</td>
-          <td>${c.address || ""}</td>
-          <td>${c.city || ""}</td>
-          <td>${c.state || ""}</td>
-          <td>${c.zip || ""}</td>
-          <td>${c.phone || ""}</td>
-        </tr>`;
-      });
-
-      html += "</tbody></table>";
-      previewTable.innerHTML = html;
+      cliTableContainer.innerHTML =
+        '<table class="cli-table"><thead><tr>' +
+        '<th>#</th><th>Client Name</th><th>Action</th>' +
+        '</tr></thead><tbody>' + rows + '</tbody></table>';
     }
 
-    /* CSV Upload */
-    document.getElementById("btnUploadCSV").addEventListener("click", () => {
-      csvStatus.textContent = "";
-      csvStatus.className = "status-message";
+    // ===== REMOVE CLIENT (by index) =====
+    // Called when the user clicks "Remove" on a row
+    window.removeClient = function(index) {
+      clients.splice(index, 1);
+      renderTable();
+      updateCount();
+      cliSuccess.textContent = "";
+      cliError.textContent = "";
+    };
 
-      const file = document.getElementById("csvFile").files[0];
-      if (!file) {
-        csvStatus.textContent = "Please select a CSV file.";
-        csvStatus.classList.add("status-error");
+    // ===== ADD CLIENT (button click) =====
+    document.getElementById("btnAddCli").addEventListener("click", function() {
+      cliError.textContent = "";
+      cliSuccess.textContent = "";
+
+      // Get form value
+      var name = document.getElementById("cliName").value.trim();
+
+      // Validate required field
+      if (!name) {
+        cliError.textContent = "Client Name is required.";
         return;
       }
 
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const text = e.target.result;
-        const rows = text.split("\n").map(r => r.split(","));
+      // Check for duplicate name (case-insensitive)
+      if (clients.some(function(cli) { return cli.name.toLowerCase() === name.toLowerCase(); })) {
+        cliError.textContent = "A client with this name has already been added.";
+        return;
+      }
 
-        const header = rows[0].map(h => h.trim());
-        const requiredHeader = ["Client Name", "Address", "City", "State", "Zip Code", "Phone"];
-
-        if (header.length < 6 || header.some((h, i) => h !== requiredHeader[i])) {
-          csvStatus.textContent = "CSV headers must be: Client Name, Address, City, State, Zip Code, Phone";
-          csvStatus.classList.add("status-error");
-          return;
-        }
-
-        rows.slice(1).forEach(r => {
-          if (r.length >= 1 && r[0].trim() !== "") {
-            clients.push({
-              name: r[0].trim(),
-              address: r[1]?.trim() || "",
-              city: r[2]?.trim() || "",
-              state: r[3]?.trim() || "",
-              zip: r[4]?.trim() || "",
-              phone: r[5]?.trim() || ""
-            });
-          }
-        });
-
-        localStorage.setItem("driven_clients", JSON.stringify(clients));
-
-        csvStatus.textContent = "CSV processed successfully.";
-        csvStatus.classList.add("status-success");
-
-        renderPreview();
+      // Build the client object
+      var cli = {
+        name: name,
+        customerId: localStorage.getItem("driven_customer_id") || ""
       };
 
-      reader.readAsText(file);
+      // Add to array
+      clients.push(cli);
+
+      // Update UI
+      renderTable();
+      updateCount();
+
+      // Clear the form
+      document.getElementById("cliName").value = "";
+
+      // Focus back to Client Name for quick entry of next client
+      document.getElementById("cliName").focus();
+
+      cliSuccess.textContent = "Client added. Add another or click Save & Continue.";
     });
 
-    /* Parse Pasted Data */
-    document.getElementById("btnParsePaste").addEventListener("click", () => {
-      pasteStatus.textContent = "";
-      pasteStatus.className = "status-message";
-
-      const text = document.getElementById("pasteArea").value.trim();
-      if (!text) {
-        pasteStatus.textContent = "Paste rows from your spreadsheet first.";
-        pasteStatus.classList.add("status-error");
-        return;
+    // ===== Allow pressing Enter in the input to add a client =====
+    document.getElementById("cliName").addEventListener("keydown", function(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        document.getElementById("btnAddCli").click();
       }
-
-      const lines = text.split("\n");
-      const rows = lines.map(l => l.split("\t"));
-
-      const header = rows[0].map(h => h.trim());
-      const requiredHeader = ["Client Name", "Address", "City", "State", "Zip Code", "Phone"];
-
-      if (header.length < 6 || header.some((h, i) => h !== requiredHeader[i])) {
-        pasteStatus.textContent = "Pasted data headers must be: Client Name, Address, City, State, Zip Code, Phone";
-        pasteStatus.classList.add("status-error");
-        return;
-      }
-
-      rows.slice(1).forEach(r => {
-        if (r.length >= 1 && r[0].trim() !== "") {
-          clients.push({
-            name: r[0].trim(),
-            address: r[1]?.trim() || "",
-            city: r[2]?.trim() || "",
-            state: r[3]?.trim() || "",
-            zip: r[4]?.trim() || "",
-            phone: r[5]?.trim() || ""
-          });
-        }
-      });
-
-      localStorage.setItem("driven_clients", JSON.stringify(clients));
-
-      pasteStatus.textContent = "Pasted data processed successfully.";
-      pasteStatus.classList.add("status-success");
-
-      renderPreview();
     });
 
-    /* Save & Continue */
-    document.getElementById("btnContinue").addEventListener("click", () => {
-      continueStatus.textContent = "";
-      continueStatus.className = "status-message";
+    // ===== SAVE & CONTINUE (button click) =====
+    document.getElementById("btnSaveCli").addEventListener("click", function() {
+      cliStepStatus.textContent = "";
+      cliStepStatus.style.color = "var(--error)";
 
+      // Check: at least one client
       if (clients.length === 0) {
-        continueStatus.textContent = "Add at least one client before continuing.";
-        continueStatus.classList.add("status-error");
+        cliStepStatus.textContent = "You must add at least one client.";
         return;
       }
 
-      localStorage.setItem("driven_step_clients_complete", "true");
+      // Save to localStorage (will be D1 API call in the future)
+      // Merge with any existing clients
+      var existing = JSON.parse(localStorage.getItem("driven_clients") || "[]");
+      var allClients = existing.concat(clients);
+      localStorage.setItem("driven_clients", JSON.stringify(allClients));
 
-      continueStatus.textContent = "Clients saved. Proceeding to Divisions...";
-      continueStatus.classList.add("status-success");
+      // Update the client count for the admin dashboard stats
+      localStorage.setItem("driven_client_count", allClients.length);
 
-      setTimeout(() => {
-        window.location.href = "onboarding-divisions.html";
-      }, 800);
+      // Mark step as complete
+      localStorage.setItem("driven_step4_complete", "true");
+
+      // Show success message
+      cliStepStatus.style.color = "var(--success)";
+      cliStepStatus.textContent = clients.length + " client(s) saved. Total clients: " + allClients.length + ".";
+
+      // Disable the save button
+      var btnSave = document.getElementById("btnSaveCli");
+      btnSave.disabled = true;
+      btnSave.textContent = "Saved ✓";
+
+      // Clear the local array (they've been saved to localStorage)
+      clients = [];
+      renderTable();
+      updateCount();
     });
 
-    renderPreview();
-  </script>
+    // ===== INIT — Runs after session loads =====
+    // Currently no session-specific logic needed for this page.
+    // The session is loaded by dashboard-common.js (for header, greeting, logo).
+    // In the future, this is where we would load existing clients from D1.
+    document.addEventListener("dashSessionLoaded", function(e) {
+      // Future: load existing clients from D1 API
+      // For now, just render the empty table
+      renderTable();
+      updateCount();
+    });
+</script>
 
+<!-- Cloudflare Web Analytics -->
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"aed8feab3b60404ba88ec92f026bbcd6","r":1}' crossorigin="anonymous"></script>
 </body>
 </html>
