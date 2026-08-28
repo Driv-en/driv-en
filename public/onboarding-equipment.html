@@ -3,16 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- ===== PAGE-SPECIFIC SEO ===== -->
 <title>DRIV‑EN | Onboarding — Equipment</title>
 <meta name="description" content="Add equipment and assets to DRIV‑EN during onboarding. Single entry or bulk upload via Excel.">
 <meta name="robots" content="noindex, nofollow">
 <link rel="canonical" href="https://www.driv-en.com/public/onboarding-equipment.html">
+
+<!-- Favicon -->
 <link rel="icon" type="image/png" href="/icons/favicon.png" sizes="48x48">
 <link rel="icon" type="image/png" href="/icons/favicon-96.png" sizes="96x96">
 <link rel="icon" type="image/png" href="/icons/favicon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" href="/icons/favicon-180.png">
-<link rel="stylesheet" href="/styles/dashboard.css?v=1">
+
+<!-- ===== SHARED DASHBOARD CSS ===== -->
+<link rel="stylesheet" href="/styles/dashboard.css?v=3">
+
+<!-- ===== EXCEL LIBRARY (for bulk upload) ===== -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
 <script>
 (function() {
   var saved = localStorage.getItem("driven-theme");
@@ -21,76 +31,314 @@
   document.documentElement.setAttribute("data-theme", theme);
 })();
 </script>
+
+<!-- ===== PAGE-SPECIFIC STYLES ===== -->
 <style>
-    .eq-back-bar { max-width: 1100px; margin: 0 auto; padding: 12px 20px 0 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-    .eq-back-btn { display: inline-flex; align-items: center; gap: 6px; background: #1e40af; border: 1px solid #2563eb; color: #dbeafe; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; }
+    /* ===== BACK BUTTON BAR ===== */
+    .eq-back-bar {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 12px 20px 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .eq-back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #1e40af;
+      border: 1px solid #2563eb;
+      color: #dbeafe;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+    }
     .eq-back-btn:hover { background: #1d4ed8; color: #fff; }
-    .eq-subtitle { margin: 4px 0 12px 0; color: var(--text-muted); font-size: 14px; line-height: 1.5; }
-    .eq-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 16px; margin-bottom: 16px; }
-    .eq-form-field { display: flex; flex-direction: column; }
-    .eq-form-field label { margin-bottom: 4px; font-size: 14px; color: var(--text); font-weight: 600; }
-    .eq-form-field .eq-hint { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    /* ===== CARD SUBTITLE ===== */
+    .eq-subtitle {
+      margin: 4px 0 12px 0;
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ===== FORM GRID ===== */
+    .eq-form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px 16px;
+      margin-bottom: 16px;
+    }
+    .eq-form-field {
+      display: flex;
+      flex-direction: column;
+    }
+    .eq-form-field label {
+      margin-bottom: 4px;
+      font-size: 14px;
+      color: var(--text);
+      font-weight: 600;
+    }
+    .eq-form-field .eq-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
     .eq-required-star { color: var(--error); margin-left: 3px; }
-    .eq-btn-primary { background: var(--primary); color: white; padding: 10px 18px; border-radius: 6px; font-size: 15px; border: 1px solid var(--primary-hover); cursor: pointer; margin-top: 10px; }
+
+    /* ===== BUTTONS ===== */
+    .eq-btn-primary {
+      background: var(--primary);
+      color: white;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 15px;
+      border: 1px solid var(--primary-hover);
+      cursor: pointer;
+      margin-top: 10px;
+    }
     .eq-btn-primary:hover { background: var(--primary-hover); }
     .eq-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-    .eq-btn-secondary { background: var(--bg-card); color: var(--text); padding: 10px 18px; border-radius: 6px; font-size: 15px; text-decoration: none; display: inline-flex; align-items: center; border: 1px solid var(--border); }
+
+    .eq-btn-secondary {
+      background: var(--bg-card);
+      color: var(--text);
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 15px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--border);
+    }
     .eq-btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
-    .eq-action-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: nowrap; }
-    .eq-action-row .eq-btn-primary, .eq-action-row .eq-btn-secondary { margin-top: 0; box-sizing: border-box; height: 42px; display: inline-flex; align-items: center; justify-content: center; }
+
+    /* ===== ACTION ROW ===== */
+    .eq-action-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: nowrap;
+    }
+    .eq-action-row .eq-btn-primary,
+    .eq-action-row .eq-btn-secondary {
+      margin-top: 0;
+      box-sizing: border-box;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ===== MESSAGES ===== */
     .eq-error { margin-top: 10px; color: var(--error); font-size: 14px; }
     .eq-success { margin-top: 10px; color: var(--success); font-size: 14px; }
-    .eq-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-    .eq-table th, .eq-table td { border: 1px solid var(--border); padding: 8px; font-size: 13px; vertical-align: top; }
-    .eq-table th { background: var(--bg-header); color: var(--text); font-weight: 600; text-align: left; }
+
+    /* ===== EQUIPMENT TABLE ===== */
+    .eq-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+    .eq-table th, .eq-table td {
+      border: 1px solid var(--border);
+      padding: 8px;
+      font-size: 13px;
+      vertical-align: top;
+    }
+    .eq-table th {
+      background: var(--bg-header);
+      color: var(--text);
+      font-weight: 600;
+      text-align: left;
+    }
     .eq-table td { background: var(--bg-card); color: var(--text); }
-    .eq-empty { color: var(--text-muted); font-size: 14px; padding: 20px 0; }
-    .eq-step-status { margin-top: 12px; font-size: 14px; color: var(--success); }
-    .eq-count-badge { display: inline-block; background: var(--primary); color: #fff; font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 999px; margin-left: 8px; }
-    .eq-prereq-warning { background: #7f1d1d; border: 1px solid #b91c1c; color: #fee2e2; padding: 14px 18px; border-radius: 8px; font-size: 14px; line-height: 1.5; margin-bottom: 16px; }
+
+    /* ===== EMPTY STATE ===== */
+    .eq-empty {
+      color: var(--text-muted);
+      font-size: 14px;
+      padding: 20px 0;
+    }
+
+    /* ===== STEP STATUS ===== */
+    .eq-step-status {
+      margin-top: 12px;
+      font-size: 14px;
+      color: var(--success);
+    }
+
+    /* ===== COUNT BADGE ===== */
+    .eq-count-badge {
+      display: inline-block;
+      background: var(--primary);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 999px;
+      margin-left: 8px;
+    }
+
+    /* ===== PREREQUISITE WARNING ===== */
+    .eq-prereq-warning {
+      background: #7f1d1d;
+      border: 1px solid #b91c1c;
+      color: #fee2e2;
+      padding: 14px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
     .eq-prereq-warning strong { color: #fff; }
-    .eq-tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 2px solid var(--border); }
-    .eq-tab { padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; background: none; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -2px; }
-    .eq-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
-    .eq-bulk-link { color: var(--primary); font-size: 14px; text-decoration: none; display: inline-block; margin-bottom: 12px; }
+
+    /* ===== TAB SWITCHER ===== */
+    .eq-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 16px;
+      border-bottom: 2px solid var(--border);
+    }
+    .eq-tab {
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+    }
+    .eq-tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    /* ===== BULK UPLOAD AREA ===== */
+    .eq-bulk-link {
+      color: var(--primary);
+      font-size: 14px;
+      text-decoration: none;
+      display: inline-block;
+      margin-bottom: 12px;
+    }
     .eq-bulk-link:hover { text-decoration: underline; }
-    .eq-bulk-file-input { padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-size: 14px; width: 100%; max-width: 400px; margin-bottom: 12px; }
-    .eq-bulk-preview { margin-top: 12px; overflow-x: auto; }
-    .eq-bulk-preview table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .eq-bulk-preview th, .eq-bulk-preview td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
-    .eq-bulk-preview th { background: var(--bg-header); color: var(--text); font-weight: 600; }
+
+    .eq-bulk-file-input {
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text);
+      font-size: 14px;
+      width: 100%;
+      max-width: 400px;
+      margin-bottom: 12px;
+    }
+
+    /* ===== BULK PREVIEW TABLE ===== */
+    .eq-bulk-preview {
+      margin-top: 12px;
+      overflow-x: auto;
+    }
+    .eq-bulk-preview table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .eq-bulk-preview th, .eq-bulk-preview td {
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      text-align: left;
+    }
+    .eq-bulk-preview th {
+      background: var(--bg-header);
+      color: var(--text);
+      font-weight: 600;
+    }
     .eq-bulk-preview td { background: var(--bg-card); color: var(--text); }
-    @media (max-width: 600px) { .eq-form-grid { grid-template-columns: 1fr; } .eq-action-row { flex-direction: column; gap: 8px; } .eq-action-row .eq-btn-primary, .eq-action-row .eq-btn-secondary { width: 100%; } .eq-table { font-size: 11px; } .eq-table th, .eq-table td { padding: 4px 3px; } }
+
+    /* ===== MOBILE RESPONSIVE ===== */
+    @media (max-width: 600px) {
+      .eq-form-grid { grid-template-columns: 1fr; }
+      .eq-action-row { flex-direction: column; gap: 8px; }
+      .eq-action-row .eq-btn-primary,
+      .eq-action-row .eq-btn-secondary {
+        width: 100%;
+      }
+      .eq-table { font-size: 11px; }
+      .eq-table th, .eq-table td { padding: 4px 3px; }
+    }
 </style>
+
 </head>
-<body data-page-title="Onboarding — Equipment">
+
+<!-- Page title — appears in the dashboard header -->
+<body data-page-title="Onboarding — Equipment" data-required-task="Equipment">
+
+<!-- ===== SHARED DASHBOARD HEADER (auto-loaded by dashboard-common.js) ===== -->
 <div id="dashHeader"></div>
+
+<!-- ===== BACK BUTTON BAR ===== -->
 <div class="eq-back-bar">
   <a href="/public/dashboard/admin.html" class="eq-back-btn">&larr; Admin Dashboard</a>
   <a href="/public/onboarding-dashboard.html" class="eq-back-btn" style="background:#374151;border-color:#4b5563;color:#d1d5db;">&larr; Onboarding Dashboard</a>
 </div>
+
+<!-- ===== PAGE CONTENT ===== -->
 <main class="dash-main">
+
+  <!-- ===== INTRO ===== -->
   <div class="dash-card">
     <h2>Add Equipment <span class="eq-count-badge" id="eqCount">0</span></h2>
-    <p class="eq-subtitle">Add equipment and assets that will be dispatched and maintained through DRIV‑EN. Each piece of equipment is assigned to a Project/Location so all equipment locations can be pulled up at any time.</p>
-    <p class="eq-subtitle"><strong>Required:</strong> Asset Number, Equipment Type, Current Meter Reading, and Current Project/Location.</p>
+    <p class="eq-subtitle">
+      Add equipment and assets that will be dispatched and maintained through DRIV‑EN.
+      Each piece of equipment is assigned to a Project/Location so all equipment locations
+      can be pulled up at any time.
+    </p>
+    <p class="eq-subtitle">
+      <strong>Required:</strong> Asset Number, Equipment Type, Current Meter Reading,
+      and Current Project/Location.
+    </p>
   </div>
+
+  <!-- ===== PREREQUISITE WARNING (shown if projects not done) ===== -->
   <div id="prereqWarning" class="eq-prereq-warning" style="display:none;">
     <strong>⚠ Prerequisite not met.</strong><br>
-    Equipment requires Projects (Step 7) to be completed first. Each piece of equipment is assigned to a project/location. Please complete the Projects step before adding equipment.
+    Equipment requires Projects (Step 7) to be completed first. Each piece of equipment is
+    assigned to a project/location. Please complete the Projects step before adding equipment.
     <br><br>
     <a href="/public/onboarding-projects.html" style="color:#fbbf24;text-decoration:underline;">Go to Projects (Step 7)</a>
   </div>
+
+  <!-- ===== MAIN CONTENT (hidden if prerequisites not met) ===== -->
   <div id="eqMainContent" style="display:none;">
+
+    <!-- ===== TAB SWITCHER ===== -->
     <div class="dash-card">
       <div class="eq-tabs">
         <button class="eq-tab active" id="tabSingle" onclick="switchTab('single')">Single Entry</button>
         <button class="eq-tab" id="tabBulk" onclick="switchTab('bulk')">Bulk Upload</button>
       </div>
     </div>
+
+    <!-- ===== SINGLE ENTRY TAB ===== -->
     <div id="tabContentSingle">
+
+      <!-- ===== ADD EQUIPMENT FORM ===== -->
       <div class="dash-card">
         <h3>Add Equipment</h3>
+
         <div class="eq-form-grid">
           <div class="eq-form-field">
             <label>Asset Number<span class="eq-required-star">*</span></label>
@@ -109,39 +357,73 @@
           </div>
           <div class="eq-form-field">
             <label>Current Project/Location<span class="eq-required-star">*</span></label>
-            <select id="eqProject" class="dash-input"><option value="">— Select Project —</option></select>
+            <select id="eqProject" class="dash-input">
+              <option value="">— Select Project —</option>
+            </select>
             <div class="eq-hint">Where this equipment is currently assigned</div>
           </div>
         </div>
+
         <button id="btnAddEq" class="eq-btn-primary">Add Equipment</button>
         <div id="eqError" class="eq-error"></div>
         <div id="eqSuccess" class="eq-success"></div>
       </div>
+
+      <!-- ===== EQUIPMENT LIST ===== -->
       <div class="dash-card">
         <h3>Equipment Added</h3>
-        <p class="eq-subtitle">These items will be saved when you click Save &amp; Continue. You can add as many as you need before saving.</p>
-        <div id="eqTableContainer"><p class="eq-empty">No equipment added yet.</p></div>
+        <p class="eq-subtitle">
+          These items will be saved when you click Save &amp; Continue. You can add as many as you need before saving.
+        </p>
+        <div id="eqTableContainer">
+          <p class="eq-empty">No equipment added yet.</p>
+        </div>
       </div>
-    </div>
+
+    </div><!-- /tabContentSingle -->
+
+    <!-- ===== BULK UPLOAD TAB ===== -->
     <div id="tabContentBulk" style="display:none;">
+
       <div class="dash-card">
         <h3>Bulk Upload Equipment</h3>
-        <p class="eq-subtitle">Download the Excel template, fill in your equipment list, then upload it here. All required fields must be filled. Project/Location must match a project from Step 7 exactly.</p>
-        <a href="/templates/Equipment-Mass-Upload-v1.0.xlsx" class="eq-bulk-link" download>⬇ Download Equipment-Mass-Upload-v1.0.xlsx</a>
+        <p class="eq-subtitle">
+          Download the Excel template, fill in your equipment list, then upload it here.
+          All required fields must be filled. Project/Location must match a project from Step 7 exactly.
+        </p>
+
+        <!-- Template download button — generates the Excel file in the browser using SheetJS -->
+        <button onclick="downloadEquipmentTemplate()" class="eq-bulk-link" style="cursor:pointer;border:none;font-size:14px;">
+          ⬇ Download Equipment-Mass-Upload-v1.0.xlsx
+        </button>
+
+        <!-- File input -->
         <div class="eq-form-field" style="max-width:400px;">
           <label>Upload Completed Template</label>
-          <input type="file" id="bulkFile" accept=".xlsx" class="eq-bulk-file-input">
+          <input type="file" id="bulkFile" accept=".xlsx,.csv" class="eq-bulk-file-input">
         </div>
+
         <button id="btnProcessBulk" class="eq-btn-primary">Process Upload</button>
         <div id="statusBulk" class="eq-error"></div>
+
+        <!-- Preview table after upload -->
         <div id="bulkPreview" class="eq-bulk-preview"></div>
       </div>
+
+      <!-- ===== BULK EQUIPMENT LIST ===== -->
       <div class="dash-card">
         <h3>Equipment from Bulk Upload</h3>
-        <p class="eq-subtitle">Review the uploaded equipment below, then click Save &amp; Continue to save them all.</p>
-        <div id="bulkTableContainer"><p class="eq-empty">No equipment uploaded yet.</p></div>
+        <p class="eq-subtitle">
+          Review the uploaded equipment below, then click Save &amp; Continue to save them all.
+        </p>
+        <div id="bulkTableContainer">
+          <p class="eq-empty">No equipment uploaded yet.</p>
+        </div>
       </div>
-    </div>
+
+    </div><!-- /tabContentBulk -->
+
+    <!-- ===== ACTIONS (shared — always visible) ===== -->
     <div class="dash-card">
       <div class="eq-action-row">
         <a href="/public/onboarding-dashboard.html" class="eq-btn-secondary">Return to Onboarding</a>
@@ -149,12 +431,53 @@
       </div>
       <div id="eqStepStatus" class="eq-step-status"></div>
     </div>
-  </div>
+
+  </div><!-- /eqMainContent -->
+
 </main>
-<script src="/components/dashboard-common.js?v=1"></script>
-<script src="/components/auth-check.js"></script>
+
+<!-- ===== SHARED DASHBOARD JS (loads header, theme, logo, session) ===== -->
+<script src="/components/dashboard-common.js?v=2"></script>
+
+<!-- ===== AUTH CHECK (shared — ACTIVE, enforces login + role + task checks) ===== -->
+<script src="/components/auth-check.js?v=2"></script>
+
+<!-- ===== PAGE-SPECIFIC SCRIPT ===== -->
 <script>
+    /* ==========================================
+       ONBOARDING EQUIPMENT PAGE
+       ==========================================
+       What this page does:
+       1. Checks that Projects (Step 7) are completed first
+       2. Loads the Project/Location dropdown from localStorage (saved by Step 7)
+       3. Single Entry tab: add equipment one at a time
+       4. Bulk Upload tab: upload an Excel or CSV file with multiple equipment
+       5. Required fields: Asset Number, Equipment Type, Current Meter Reading, Current Project/Location
+       6. Saves all equipment to localStorage on "Save & Continue"
+       7. Updates the equipment count badge
+
+       DROPDOWN DATA SOURCE:
+       - Project/Location → driven_projects (from Step 7)
+         Uses project name as the display value.
+
+       BULK UPLOAD:
+       Excel/CSV template must have columns: Asset Number, Equipment Type, Current Meter Reading, Current Project/Location.
+       Project/Location must match a project name from Step 7 exactly.
+       Instruction row (starting with "INSTRUCTIONS") is auto-detected and skipped.
+
+       FUTURE ENHANCEMENTS (noted in daily report):
+       - Save to D1 database via API (currently localStorage only)
+       - Additional fields: make, model, year, VIN/serial, fuel type, etc.
+       - Equipment type dropdown should pull from a predefined list or database
+
+       The "dashSessionLoaded" event fires when dashboard-common.js
+       has loaded the user session.
+       ========================================== */
+
+    // ===== STATE =====
     var equipment = [];
+
+    // ===== DOM REFERENCES =====
     var eqError = document.getElementById("eqError");
     var eqSuccess = document.getElementById("eqSuccess");
     var eqTableContainer = document.getElementById("eqTableContainer");
@@ -163,8 +486,12 @@
     var statusBulk = document.getElementById("statusBulk");
     var bulkPreview = document.getElementById("bulkPreview");
 
-    function updateCount() { eqCountEl.textContent = equipment.length; }
+    // ===== HELPER: Update the equipment count badge =====
+    function updateCount() {
+      eqCountEl.textContent = equipment.length;
+    }
 
+    // ===== HELPER: Populate the Project/Location dropdown =====
     function loadProjectDropdown() {
       var projects = JSON.parse(localStorage.getItem("driven_projects") || "[]");
       var sel = document.getElementById("eqProject");
@@ -177,30 +504,62 @@
       });
     }
 
+    // ===== CHECK PREREQUISITES =====
     function checkPrerequisites() {
       var projects = JSON.parse(localStorage.getItem("driven_projects") || "[]");
       return projects.length > 0;
     }
 
+    // ===== RENDER EQUIPMENT TABLE =====
     function renderTable() {
-      if (equipment.length === 0) { eqTableContainer.innerHTML = '<p class="eq-empty">No equipment added yet.</p>'; return; }
+      if (equipment.length === 0) {
+        eqTableContainer.innerHTML = '<p class="eq-empty">No equipment added yet.</p>';
+        return;
+      }
       var rows = equipment.map(function(eq, index) {
-        return '<tr><td>' + (index + 1) + '</td><td>' + eq.assetNumber + '</td><td>' + eq.type + '</td><td>' + eq.meter + '</td><td>' + eq.project + '</td><td><button class="eq-btn-secondary" style="padding:4px 10px;font-size:12px;height:auto;" onclick="removeEquipment(' + index + ')">Remove</button></td></tr>';
+        return '<tr>' +
+          '<td>' + (index + 1) + '</td>' +
+          '<td>' + eq.assetNumber + '</td>' +
+          '<td>' + eq.type + '</td>' +
+          '<td>' + eq.meter + '</td>' +
+          '<td>' + eq.project + '</td>' +
+          '<td><button class="eq-btn-secondary" style="padding:4px 10px;font-size:12px;height:auto;" onclick="removeEquipment(' + index + ')">Remove</button></td>' +
+          '</tr>';
       }).join("");
-      eqTableContainer.innerHTML = '<table class="eq-table"><thead><tr><th>#</th><th>Asset Number</th><th>Equipment Type</th><th>Meter Reading</th><th>Project/Location</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table>';
+      eqTableContainer.innerHTML =
+        '<table class="eq-table"><thead><tr>' +
+        '<th>#</th><th>Asset Number</th><th>Equipment Type</th><th>Meter Reading</th><th>Project/Location</th><th>Action</th>' +
+        '</tr></thead><tbody>' + rows + '</tbody></table>';
     }
 
-    window.removeEquipment = function(index) { equipment.splice(index, 1); renderTable(); updateCount(); eqSuccess.textContent = ""; eqError.textContent = ""; };
-
-    window.switchTab = function(tab) {
-      var ts = document.getElementById("tabSingle"), tb = document.getElementById("tabBulk");
-      var cs = document.getElementById("tabContentSingle"), cb = document.getElementById("tabContentBulk");
-      if (tab === "single") { ts.classList.add("active"); tb.classList.remove("active"); cs.style.display = "block"; cb.style.display = "none"; }
-      else { tb.classList.add("active"); ts.classList.remove("active"); cb.style.display = "block"; cs.style.display = "none"; }
+    // ===== REMOVE EQUIPMENT =====
+    window.removeEquipment = function(index) {
+      equipment.splice(index, 1);
+      renderTable();
+      updateCount();
+      eqSuccess.textContent = "";
+      eqError.textContent = "";
     };
 
+    // ===== TAB SWITCHER =====
+    window.switchTab = function(tab) {
+      var tabSingle = document.getElementById("tabSingle");
+      var tabBulk = document.getElementById("tabBulk");
+      var contentSingle = document.getElementById("tabContentSingle");
+      var contentBulk = document.getElementById("tabContentBulk");
+      if (tab === "single") {
+        tabSingle.classList.add("active"); tabBulk.classList.remove("active");
+        contentSingle.style.display = "block"; contentBulk.style.display = "none";
+      } else {
+        tabBulk.classList.add("active"); tabSingle.classList.remove("active");
+        contentBulk.style.display = "block"; contentSingle.style.display = "none";
+      }
+    };
+
+    // ===== ADD EQUIPMENT =====
     document.getElementById("btnAddEq").addEventListener("click", function() {
-      eqError.textContent = ""; eqSuccess.textContent = "";
+      eqError.textContent = "";
+      eqSuccess.textContent = "";
       var assetNumber = document.getElementById("eqAssetNumber").value.trim();
       var type = document.getElementById("eqType").value.trim();
       var meter = document.getElementById("eqMeter").value.trim();
@@ -211,67 +570,177 @@
       if (!project) { eqError.textContent = "Current Project/Location is required."; return; }
       var meterNum = parseFloat(meter);
       if (isNaN(meterNum) || meterNum < 0) { eqError.textContent = "Meter Reading must be a valid number (0 or higher)."; return; }
-      if (equipment.some(function(e) { return e.assetNumber.toLowerCase() === assetNumber.toLowerCase(); })) { eqError.textContent = "An equipment item with this Asset Number has already been added."; return; }
-      equipment.push({ assetNumber: assetNumber, type: type, meter: meterNum, project: project, customerId: localStorage.getItem("driven_customer_id") || "" });
-      renderTable(); updateCount();
-      document.getElementById("eqAssetNumber").value = ""; document.getElementById("eqType").value = ""; document.getElementById("eqMeter").value = ""; document.getElementById("eqProject").value = ""; document.getElementById("eqAssetNumber").focus();
+      if (equipment.some(function(e) { return e.assetNumber.toLowerCase() === assetNumber.toLowerCase(); })) {
+        eqError.textContent = "An equipment item with this Asset Number has already been added."; return;
+      }
+      var eq = {
+        assetNumber: assetNumber, type: type, meter: meterNum, project: project,
+        customerId: localStorage.getItem("driven_customer_id") || ""
+      };
+      equipment.push(eq);
+      renderTable();
+      updateCount();
+      document.getElementById("eqAssetNumber").value = "";
+      document.getElementById("eqType").value = "";
+      document.getElementById("eqMeter").value = "";
+      document.getElementById("eqProject").value = "";
+      document.getElementById("eqAssetNumber").focus();
       eqSuccess.textContent = "Equipment added. Add another or click Save & Continue.";
     });
 
+    // ===== BULK UPLOAD =====
     document.getElementById("btnProcessBulk").addEventListener("click", function() {
-      statusBulk.textContent = ""; statusBulk.className = "eq-error";
+      statusBulk.textContent = "";
+      statusBulk.className = "eq-error";
       var file = document.getElementById("bulkFile").files[0];
-      if (!file) { statusBulk.textContent = "Please select an Excel file."; return; }
+      if (!file) { statusBulk.textContent = "Please select an Excel or CSV file."; return; }
       var reader = new FileReader();
       reader.onload = function(e) {
-        var workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
-        var sheet = workbook.Sheets[workbook.SheetNames[0]];
-        var rows = XLSX.utils.sheet_to_json(sheet);
-        if (rows.length === 0) { statusBulk.textContent = "The Excel file is empty."; return; }
+        var rows;
+        var isCsv = file.name.toLowerCase().endsWith(".csv");
+        if (isCsv) {
+          var text = e.target.result;
+          var lines = text.split(/\r?\n/).filter(function(l) { return l.trim() !== ""; });
+          if (lines.length < 2) { statusBulk.textContent = "The CSV file is empty or has no data rows."; return; }
+          var headers = parseCsvLine(lines[0]);
+          rows = lines.slice(1).map(function(line) {
+            var values = parseCsvLine(line);
+            var obj = {};
+            headers.forEach(function(h, i) { obj[h] = values[i] || ""; });
+            return obj;
+          });
+        } else {
+          var workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+          var sheet = workbook.Sheets[workbook.SheetNames[0]];
+          rows = XLSX.utils.sheet_to_json(sheet);
+        }
+        if (rows.length === 0) { statusBulk.textContent = "The file is empty."; return; }
+        if (rows[0] && Object.values(rows[0])[0] && String(Object.values(rows[0])[0]).startsWith("INSTRUCTIONS")) {
+          rows = rows.slice(1);
+        }
+        if (rows.length === 0) { statusBulk.textContent = "No data rows found after instruction row."; return; }
         var requiredFields = ["Asset Number", "Equipment Type", "Current Meter Reading", "Current Project/Location"];
         var header = Object.keys(rows[0]);
-        for (var i = 0; i < requiredFields.length; i++) { if (header.indexOf(requiredFields[i]) === -1) { statusBulk.textContent = "Missing required column: " + requiredFields[i]; return; } }
+        for (var i = 0; i < requiredFields.length; i++) {
+          if (header.indexOf(requiredFields[i]) === -1) { statusBulk.textContent = "Missing required column: " + requiredFields[i]; return; }
+        }
         var validProjects = JSON.parse(localStorage.getItem("driven_projects") || "[]").map(function(p) { return p.name; });
         for (var r = 0; r < rows.length; r++) {
           var row = rows[r];
-          for (var f = 0; f < requiredFields.length; f++) { if (!row[requiredFields[f]] || String(row[requiredFields[f]]).trim() === "") { statusBulk.textContent = "Row " + (r + 2) + ": " + requiredFields[f] + " is required."; return; } }
+          for (var f = 0; f < requiredFields.length; f++) {
+            if (!row[requiredFields[f]] || String(row[requiredFields[f]]).trim() === "") {
+              statusBulk.textContent = "Row " + (r + 2) + ": " + requiredFields[f] + " is required."; return;
+            }
+          }
           var rowMeter = parseFloat(row["Current Meter Reading"]);
-          if (isNaN(rowMeter) || rowMeter < 0) { statusBulk.textContent = "Row " + (r + 2) + ": Current Meter Reading must be a valid number (0 or higher)."; return; }
+          if (isNaN(rowMeter) || rowMeter < 0) {
+            statusBulk.textContent = "Row " + (r + 2) + ": Current Meter Reading must be a valid number (0 or higher)."; return;
+          }
           var rowProject = String(row["Current Project/Location"]).trim();
-          if (validProjects.indexOf(rowProject) === -1) { statusBulk.textContent = "Row " + (r + 2) + ': Invalid Project/Location "' + rowProject + '". Must match a project from Step 7.'; return; }
+          if (validProjects.indexOf(rowProject) === -1) {
+            statusBulk.textContent = "Row " + (r + 2) + ': Invalid Project/Location "' + rowProject + '". Must match a project name from Step 7.'; return;
+          }
         }
         var seenAssets = {};
-        for (var d = 0; d < rows.length; d++) { var an = String(rows[d]["Asset Number"]).trim().toLowerCase(); if (seenAssets[an]) { statusBulk.textContent = "Duplicate Asset Number: " + an + " (rows " + seenAssets[an] + " and " + (d + 2) + ")."; return; } seenAssets[an] = (d + 2); }
+        for (var d = 0; d < rows.length; d++) {
+          var an = String(rows[d]["Asset Number"]).trim().toLowerCase();
+          if (seenAssets[an]) {
+            statusBulk.textContent = "Duplicate Asset Number in the upload: " + an + " (rows " + seenAssets[an] + " and " + (d + 2) + ")."; return;
+          }
+          seenAssets[an] = (d + 2);
+        }
         var existingAssets = equipment.map(function(e) { return e.assetNumber.toLowerCase(); });
-        for (var dd = 0; dd < rows.length; dd++) { var ca = String(rows[dd]["Asset Number"]).trim().toLowerCase(); if (existingAssets.indexOf(ca) !== -1) { statusBulk.textContent = "Row " + (dd + 2) + ': Asset "' + ca + '" already added.'; return; } }
-        var bulkEquipment = rows.map(function(row) { return { assetNumber: String(row["Asset Number"]).trim(), type: String(row["Equipment Type"]).trim(), meter: parseFloat(row["Current Meter Reading"]), project: String(row["Current Project/Location"]).trim(), customerId: localStorage.getItem("driven_customer_id") || "" }; });
-        var html = "<table><thead><tr>"; requiredFields.forEach(function(f) { html += "<th>" + f + "</th>"; }); html += "</tr></thead><tbody>";
-        bulkEquipment.forEach(function(eq) { html += "<tr><td>" + eq.assetNumber + "</td><td>" + eq.type + "</td><td>" + eq.meter + "</td><td>" + eq.project + "</td></tr>"; });
-        html += "</tbody></table>"; bulkPreview.innerHTML = html;
-        equipment = equipment.concat(bulkEquipment); renderTable(); updateCount();
-        statusBulk.textContent = "Uploaded " + bulkEquipment.length + " items. Review and click Save & Continue."; statusBulk.className = "eq-success";
+        for (var dd = 0; dd < rows.length; dd++) {
+          var checkAsset = String(rows[dd]["Asset Number"]).trim().toLowerCase();
+          if (existingAssets.indexOf(checkAsset) !== -1) {
+            statusBulk.textContent = "Row " + (dd + 2) + ': Asset Number "' + checkAsset + '" has already been added in this session.'; return;
+          }
+        }
+        var bulkEquipment = rows.map(function(row) {
+          return {
+            assetNumber: String(row["Asset Number"]).trim(),
+            type: String(row["Equipment Type"]).trim(),
+            meter: parseFloat(row["Current Meter Reading"]),
+            project: String(row["Current Project/Location"]).trim(),
+            customerId: localStorage.getItem("driven_customer_id") || ""
+          };
+        });
+        var html = "<table><thead><tr>";
+        requiredFields.forEach(function(f) { html += "<th>" + f + "</th>"; });
+        html += "</tr></thead><tbody>";
+        bulkEquipment.forEach(function(eq) {
+          html += "<tr><td>" + eq.assetNumber + "</td><td>" + eq.type + "</td><td>" + eq.meter + "</td><td>" + eq.project + "</td></tr>";
+        });
+        html += "</tbody></table>";
+        bulkPreview.innerHTML = html;
+        equipment = equipment.concat(bulkEquipment);
+        renderTable();
+        updateCount();
+        statusBulk.textContent = "Uploaded " + bulkEquipment.length + " equipment items. Review above and click Save & Continue.";
+        statusBulk.className = "eq-success";
       };
-      reader.readAsArrayBuffer(file);
+      if (file.name.toLowerCase().endsWith(".csv")) { reader.readAsText(file); } else { reader.readAsArrayBuffer(file); }
     });
 
+    // ===== SAVE & CONTINUE =====
     document.getElementById("btnSaveEq").addEventListener("click", function() {
-      eqStepStatus.textContent = ""; eqStepStatus.style.color = "var(--error)";
+      eqStepStatus.textContent = "";
+      eqStepStatus.style.color = "var(--error)";
       if (equipment.length === 0) { eqStepStatus.textContent = "You must add at least one equipment item."; return; }
       var existing = JSON.parse(localStorage.getItem("driven_equipment") || "[]");
       var allEquipment = existing.concat(equipment);
       localStorage.setItem("driven_equipment", JSON.stringify(allEquipment));
       localStorage.setItem("driven_equipment_count", allEquipment.length);
       localStorage.setItem("driven_step8_complete", "true");
-      eqStepStatus.style.color = "var(--success)"; eqStepStatus.textContent = equipment.length + " item(s) saved. Total: " + allEquipment.length + ".";
-      var btnSave = document.getElementById("btnSaveEq"); btnSave.disabled = true; btnSave.textContent = "Saved ✓";
-      equipment = []; renderTable(); updateCount();
+      eqStepStatus.style.color = "var(--success)";
+      eqStepStatus.textContent = equipment.length + " equipment item(s) saved. Total equipment: " + allEquipment.length + ".";
+      var btnSave = document.getElementById("btnSaveEq");
+      btnSave.disabled = true;
+      btnSave.textContent = "Saved ✓";
+      equipment = [];
+      renderTable();
+      updateCount();
     });
 
+    // ===== INIT =====
     document.addEventListener("dashSessionLoaded", function(e) {
-      if (!checkPrerequisites()) { document.getElementById("prereqWarning").style.display = "block"; document.getElementById("eqMainContent").style.display = "none"; }
-      else { loadProjectDropdown(); document.getElementById("eqMainContent").style.display = "block"; renderTable(); updateCount(); }
+      if (!checkPrerequisites()) {
+        document.getElementById("prereqWarning").style.display = "block";
+        document.getElementById("eqMainContent").style.display = "none";
+      } else {
+        loadProjectDropdown();
+        document.getElementById("eqMainContent").style.display = "block";
+        renderTable();
+        updateCount();
+      }
     });
+
+    // CSV line parser — handles quoted fields with commas
+    function parseCsvLine(line) {
+      var result = []; var current = ""; var inQuotes = false;
+      for (var i = 0; i < line.length; i++) {
+        var ch = line[i];
+        if (inQuotes) { if (ch === '"') { if (line[i + 1] === '"') { current += '"'; i++; } else { inQuotes = false; } } else { current += ch; } }
+        else { if (ch === '"') { inQuotes = true; } else if (ch === ",") { result.push(current.trim()); current = ""; } else { current += ch; } }
+      }
+      result.push(current.trim()); return result;
+    }
+
+    // ===== DOWNLOAD EQUIPMENT TEMPLATE =====
+    function downloadEquipmentTemplate() {
+      var ws = XLSX.utils.aoa_to_sheet([
+        ["INSTRUCTIONS: Delete this row before uploading. All 4 columns are required. Current Project/Location must match a project name from Step 7 (format: Project Name (Project Number))."],
+        ["Asset Number", "Equipment Type", "Current Meter Reading", "Current Project/Location"]
+      ]);
+      ws["!cols"] = [{ wch: 18 }, { wch: 20 }, { wch: 22 }, { wch: 30 }];
+      ws["!freeze"] = { ySplit: 2, xSplit: 0, topLeftCell: "A3", panes: [{ state: "frozen", ySplit: 2, xSplit: 0, topLeftCell: "A3", activePane: "bottomLeft" }] };
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Equipment");
+      XLSX.writeFile(wb, "Equipment-Mass-Upload-v1.0.xlsx");
+    }
 </script>
+
+<!-- Cloudflare Web Analytics -->
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"aed8feab3b60404ba88ec92f026bbcd6","r":1}' crossorigin="anonymous"></script>
 </body>
 </html>
