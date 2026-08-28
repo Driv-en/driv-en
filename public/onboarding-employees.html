@@ -6,7 +6,7 @@
 
 <!-- ===== PAGE-SPECIFIC SEO ===== -->
 <title>DRIV‑EN | Onboarding — Employees</title>
-<meta name="description" content="Add employees to DRIV‑EN during onboarding. Employee name and email are required.">
+<meta name="description" content="Add employees to DRIV‑EN during onboarding. Single entry or bulk upload via Excel.">
 <meta name="robots" content="noindex, nofollow">
 <link rel="canonical" href="https://www.driv-en.com/public/onboarding-employees.html">
 
@@ -18,6 +18,9 @@
 
 <!-- ===== SHARED DASHBOARD CSS ===== -->
 <link rel="stylesheet" href="/styles/dashboard.css?v=1">
+
+<!-- ===== EXCEL LIBRARY (for bulk upload) ===== -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
 <script>
@@ -148,7 +151,7 @@
     .emp-table th, .emp-table td {
       border: 1px solid var(--border);
       padding: 8px;
-      font-size: 14px;
+      font-size: 13px;
       vertical-align: top;
     }
     .emp-table th {
@@ -185,6 +188,73 @@
       margin-left: 8px;
     }
 
+    /* ===== TAB SWITCHER (Single vs Bulk) ===== */
+    .emp-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 16px;
+      border-bottom: 2px solid var(--border);
+    }
+    .emp-tab {
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+    }
+    .emp-tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    /* ===== BULK UPLOAD AREA ===== */
+    .emp-bulk-link {
+      color: var(--primary);
+      font-size: 14px;
+      text-decoration: none;
+      display: inline-block;
+      margin-bottom: 12px;
+    }
+    .emp-bulk-link:hover { text-decoration: underline; }
+
+    .emp-bulk-file-input {
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text);
+      font-size: 14px;
+      width: 100%;
+      max-width: 400px;
+      margin-bottom: 12px;
+    }
+
+    /* ===== BULK PREVIEW TABLE ===== */
+    .emp-bulk-preview {
+      margin-top: 12px;
+      overflow-x: auto;
+    }
+    .emp-bulk-preview table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .emp-bulk-preview th, .emp-bulk-preview td {
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      text-align: left;
+    }
+    .emp-bulk-preview th {
+      background: var(--bg-header);
+      color: var(--text);
+      font-weight: 600;
+    }
+    .emp-bulk-preview td { background: var(--bg-card); color: var(--text); }
+
     /* ===== MOBILE RESPONSIVE ===== */
     @media (max-width: 600px) {
       .emp-form-grid { grid-template-columns: 1fr; }
@@ -193,8 +263,8 @@
       .emp-action-row .emp-btn-secondary {
         width: 100%;
       }
-      .emp-table { font-size: 12px; }
-      .emp-table th, .emp-table td { padding: 6px 4px; }
+      .emp-table { font-size: 11px; }
+      .emp-table th, .emp-table td { padding: 4px 3px; }
     }
 </style>
 
@@ -223,86 +293,156 @@
       and fuel usage logs, perform work orders, or be tracked in DRIV‑EN.
     </p>
     <p class="emp-subtitle">
-      <strong>Required:</strong> First Name, Last Name, and Email. Email is used for login access to DRIV‑EN.
+      <strong>Required:</strong> First Name, Last Name, Email, Role, and Status.
+      Email is used for login access to DRIV‑EN.
     </p>
     <p class="emp-subtitle">
-      Phone, Division, Role, and Status are optional at this time — HR/Payroll will complete those fields later.
+      Phone and Division are optional at this time — HR/Payroll will complete those fields later.
       However, you may fill them in now if you have the information.
     </p>
   </div>
 
-  <!-- ===== ADD EMPLOYEE FORM ===== -->
+  <!-- ===== TAB SWITCHER ===== -->
   <div class="dash-card">
-    <h3>Add Employee</h3>
-
-    <div class="emp-form-grid">
-      <div class="emp-form-field">
-        <label>First Name<span class="emp-required-star">*</span></label>
-        <input type="text" id="empFirstName" class="dash-input">
-      </div>
-      <div class="emp-form-field">
-        <label>Middle Name</label>
-        <input type="text" id="empMiddleName" class="dash-input">
-      </div>
-      <div class="emp-form-field">
-        <label>Last Name<span class="emp-required-star">*</span></label>
-        <input type="text" id="empLastName" class="dash-input">
-      </div>
-      <div class="emp-form-field">
-        <label>Suffix</label>
-        <input type="text" id="empSuffix" class="dash-input" placeholder="Jr, Sr, III, etc.">
-      </div>
-      <div class="emp-form-field">
-        <label>Email<span class="emp-required-star">*</span></label>
-        <input type="email" id="empEmail" class="dash-input">
-      </div>
-      <div class="emp-form-field">
-        <label>Phone</label>
-        <input type="tel" id="empPhone" class="dash-input" placeholder="Optional">
-      </div>
-      <div class="emp-form-field">
-        <label>Division</label>
-        <input type="text" id="empDivision" class="dash-input" placeholder="Optional">
-      </div>
-      <div class="emp-form-field">
-        <label>Role</label>
-        <select id="empRole" class="dash-input">
-          <option value="">— Select (optional) —</option>
-          <option value="Admin">Admin</option>
-          <option value="Project Manager">Project Manager</option>
-          <option value="Equipment Manager">Equipment Manager</option>
-          <option value="Mechanic">Mechanic</option>
-          <option value="Employee">Employee</option>
-        </select>
-        <div class="emp-hint">Determines which dashboard they see</div>
-      </div>
-      <div class="emp-form-field">
-        <label>Status</label>
-        <select id="empStatus" class="dash-input">
-          <option value="Active">Active</option>
-          <option value="Inactive">Inactive</option>
-        </select>
-        <div class="emp-hint">Inactive = login revoked</div>
-      </div>
-    </div>
-
-    <button id="btnAddEmp" class="emp-btn-primary">Add Employee</button>
-    <div id="empError" class="emp-error"></div>
-    <div id="empSuccess" class="emp-success"></div>
-  </div>
-
-  <!-- ===== EMPLOYEE LIST ===== -->
-  <div class="dash-card">
-    <h3>Employees Added</h3>
-    <p class="emp-subtitle">
-      These employees will be saved when you click Save &amp; Continue. You can add as many as you need before saving.
-    </p>
-    <div id="empTableContainer">
-      <p class="emp-empty">No employees added yet.</p>
+    <div class="emp-tabs">
+      <button class="emp-tab active" id="tabSingle" onclick="switchTab('single')">Single Entry</button>
+      <button class="emp-tab" id="tabBulk" onclick="switchTab('bulk')">Bulk Upload</button>
     </div>
   </div>
 
-  <!-- ===== ACTIONS ===== -->
+  <!-- ===== SINGLE ENTRY TAB ===== -->
+  <div id="tabContentSingle">
+
+    <!-- ===== ADD EMPLOYEE FORM ===== -->
+    <div class="dash-card">
+      <h3>Add Employee</h3>
+
+      <div class="emp-form-grid">
+        <div class="emp-form-field">
+          <label>First Name<span class="emp-required-star">*</span></label>
+          <input type="text" id="empFirstName" class="dash-input">
+        </div>
+        <div class="emp-form-field">
+          <label>Middle Name</label>
+          <input type="text" id="empMiddleName" class="dash-input">
+        </div>
+        <div class="emp-form-field">
+          <label>Last Name<span class="emp-required-star">*</span></label>
+          <input type="text" id="empLastName" class="dash-input">
+        </div>
+        <div class="emp-form-field">
+          <label>Suffix</label>
+          <input type="text" id="empSuffix" class="dash-input" placeholder="Jr, Sr, III, etc.">
+        </div>
+        <div class="emp-form-field">
+          <label>Email<span class="emp-required-star">*</span></label>
+          <input type="email" id="empEmail" class="dash-input">
+        </div>
+        <div class="emp-form-field">
+          <label>Phone</label>
+          <input type="tel" id="empPhone" class="dash-input" placeholder="Optional">
+        </div>
+        <div class="emp-form-field">
+          <label>Division</label>
+          <select id="empDivision" class="dash-input">
+            <option value="">— None —</option>
+          </select>
+          <div class="emp-hint">Optional — pulls from Step 5 divisions</div>
+        </div>
+        <div class="emp-form-field">
+          <label>Role<span class="emp-required-star">*</span></label>
+          <select id="empRole" class="dash-input">
+            <option value="">— Select Role —</option>
+            <option value="Admin">Admin</option>
+            <option value="Project Manager">Project Manager</option>
+            <option value="Superintendent">Superintendent</option>
+            <option value="Foreman">Foreman</option>
+            <option value="Equipment Manager">Equipment Manager</option>
+            <option value="Mechanic">Mechanic</option>
+            <option value="Operator">Operator</option>
+            <option value="Driver">Driver</option>
+            <option value="Laborer">Laborer</option>
+            <option value="Safety Officer">Safety Officer</option>
+            <option value="Inspector">Inspector</option>
+            <option value="Clerk">Clerk</option>
+            <option value="Supervisor">Supervisor</option>
+            <option value="HR">HR</option>
+            <option value="Payroll">Payroll</option>
+            <option value="Employee">Employee</option>
+          </select>
+          <div class="emp-hint">Determines which dashboard they see</div>
+        </div>
+        <div class="emp-form-field">
+          <label>Status<span class="emp-required-star">*</span></label>
+          <select id="empStatus" class="dash-input">
+            <option value="">— Select Status —</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+          <div class="emp-hint">Inactive = login revoked</div>
+        </div>
+      </div>
+
+      <button id="btnAddEmp" class="emp-btn-primary">Add Employee</button>
+      <div id="empError" class="emp-error"></div>
+      <div id="empSuccess" class="emp-success"></div>
+    </div>
+
+    <!-- ===== EMPLOYEE LIST ===== -->
+    <div class="dash-card">
+      <h3>Employees Added</h3>
+      <p class="emp-subtitle">
+        These employees will be saved when you click Save &amp; Continue. You can add as many as you need before saving.
+      </p>
+      <div id="empTableContainer">
+        <p class="emp-empty">No employees added yet.</p>
+      </div>
+    </div>
+
+  </div><!-- /tabContentSingle -->
+
+  <!-- ===== BULK UPLOAD TAB ===== -->
+  <div id="tabContentBulk" style="display:none;">
+
+    <div class="dash-card">
+      <h3>Bulk Upload Employees</h3>
+      <p class="emp-subtitle">
+        Download the Excel template, fill in your employee list, then upload it here.
+        Role and Status are required for every row and must match the dropdown values exactly.
+      </p>
+
+      <!-- Template download link -->
+      <a href="/templates/Employee-Mass-Upload-v1.0.xlsx" class="emp-bulk-link" download>
+        ⬇ Download Employee-Mass-Upload-v1.0.xlsx
+      </a>
+
+      <!-- File input -->
+      <div class="emp-form-field" style="max-width:400px;">
+        <label>Upload Completed Template</label>
+        <input type="file" id="bulkFile" accept=".xlsx" class="emp-bulk-file-input">
+      </div>
+
+      <button id="btnProcessBulk" class="emp-btn-primary">Process Upload</button>
+      <div id="statusBulk" class="emp-error"></div>
+
+      <!-- Preview table after upload -->
+      <div id="bulkPreview" class="emp-bulk-preview"></div>
+    </div>
+
+    <!-- ===== BULK EMPLOYEE LIST ===== -->
+    <div class="dash-card">
+      <h3>Employees from Bulk Upload</h3>
+      <p class="emp-subtitle">
+        Review the uploaded employees below, then click Save &amp; Continue to save them all.
+      </p>
+      <div id="bulkTableContainer">
+        <p class="emp-empty">No employees uploaded yet.</p>
+      </div>
+    </div>
+
+  </div><!-- /tabContentBulk -->
+
+  <!-- ===== ACTIONS (shared — always visible) ===== -->
   <div class="dash-card">
     <div class="emp-action-row">
       <a href="/public/onboarding-dashboard.html" class="emp-btn-secondary">Return to Onboarding</a>
@@ -325,19 +465,26 @@
        ONBOARDING EMPLOYEES PAGE
        ==========================================
        What this page does:
-       1. Lets the admin add employees one at a time
-       2. Required fields: First Name, Last Name, Email
-       3. Optional fields: Middle Name, Suffix, Phone, Division, Role, Status
-       4. Shows a running list of employees added
-       5. Saves all employees to localStorage on "Save & Continue"
-       6. Updates the employee count badge
+       1. Lets the admin add employees one at a time (Single Entry tab)
+       2. Lets the admin upload many employees via Excel (Bulk Upload tab)
+       3. Required fields: First Name, Last Name, Email, Role, Status
+       4. Optional fields: Middle Name, Suffix, Phone, Division
+       5. Division dropdown pulls from localStorage (driven_divisions from Step 5)
+       6. Shows a running list of employees added
+       7. Saves all employees to localStorage on "Save & Continue"
+       8. Updates the employee count badge
 
-       FUTURE ENHANCEMENTS (noted in daily report):
-       - Mass upload via CSV
-       - Save to D1 database via API (currently localStorage only)
-       - Role determines which dashboard the employee sees
-       - Status: Inactive = login revoked (no access to DRIV‑EN)
-       - HR/Payroll will add additional fields after system is running
+       ROLE LIST:
+       All roles are hardcoded in the dropdown and in the validRoles array below.
+       FUTURE: Pull roles from the roles database via API instead of hardcoding.
+       Current roles: Admin, Project Manager, Superintendent, Foreman, Equipment Manager,
+       Mechanic, Operator, Driver, Laborer, Safety Officer, Inspector, Clerk,
+       Supervisor, HR, Payroll, Employee.
+
+       BULK UPLOAD:
+       Excel template must have columns: First Name, Middle Name, Last Name, Suffix,
+       Email, Phone, Division, Role, Status.
+       Role and Status must match the dropdown values exactly.
 
        The "dashSessionLoaded" event fires when dashboard-common.js
        has loaded the user session.
@@ -347,12 +494,26 @@
     // Array of employee objects added locally (not yet saved)
     var employees = [];
 
+    // ===== VALID ROLES (must match the <select> options above) =====
+    // FUTURE: Pull this list from the roles database via API
+    var validRoles = [
+      "Admin", "Project Manager", "Superintendent", "Foreman",
+      "Equipment Manager", "Mechanic", "Operator", "Driver",
+      "Laborer", "Safety Officer", "Inspector", "Clerk",
+      "Supervisor", "HR", "Payroll", "Employee"
+    ];
+
+    // ===== VALID STATUS VALUES =====
+    var validStatuses = ["Active", "Inactive"];
+
     // ===== DOM REFERENCES =====
     var empError = document.getElementById("empError");
     var empSuccess = document.getElementById("empSuccess");
     var empTableContainer = document.getElementById("empTableContainer");
     var empStepStatus = document.getElementById("empStepStatus");
     var empCountEl = document.getElementById("empCount");
+    var statusBulk = document.getElementById("statusBulk");
+    var bulkPreview = document.getElementById("bulkPreview");
 
     // ===== HELPER: Validate email format =====
     function isValidEmail(email) {
@@ -376,6 +537,24 @@
       return name;
     }
 
+    // ===== HELPER: Populate the Division dropdown from localStorage =====
+    // Pulls division names from driven_divisions (saved by Step 5)
+    function loadDivisionDropdown() {
+      var divisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
+      var sel = document.getElementById("empDivision");
+
+      // Keep the placeholder, clear the rest
+      sel.innerHTML = '<option value="">— None —</option>';
+
+      // Add each division name as an option
+      divisions.forEach(function(div) {
+        var opt = document.createElement("option");
+        opt.value = div.name;
+        opt.textContent = div.name;
+        sel.appendChild(opt);
+      });
+    }
+
     // ===== RENDER EMPLOYEE TABLE =====
     // Shows all employees added so far in a table
     function renderTable() {
@@ -392,7 +571,7 @@
           '<td>' + (emp.phone || '—') + '</td>' +
           '<td>' + (emp.division || '—') + '</td>' +
           '<td>' + (emp.role || '—') + '</td>' +
-          '<td>' + (emp.status || 'Active') + '</td>' +
+          '<td>' + (emp.status || '—') + '</td>' +
           '<td><button class="emp-btn-secondary" style="padding:4px 10px;font-size:12px;height:auto;" onclick="removeEmployee(' + index + ')">Remove</button></td>' +
           '</tr>';
       }).join("");
@@ -404,7 +583,6 @@
     }
 
     // ===== REMOVE EMPLOYEE (by index) =====
-    // Called when the user clicks "Remove" on a row
     window.removeEmployee = function(index) {
       employees.splice(index, 1);
       renderTable();
@@ -413,7 +591,27 @@
       empError.textContent = "";
     };
 
-    // ===== ADD EMPLOYEE (button click) =====
+    // ===== TAB SWITCHER (Single Entry vs Bulk Upload) =====
+    window.switchTab = function(tab) {
+      var tabSingle = document.getElementById("tabSingle");
+      var tabBulk = document.getElementById("tabBulk");
+      var contentSingle = document.getElementById("tabContentSingle");
+      var contentBulk = document.getElementById("tabContentBulk");
+
+      if (tab === "single") {
+        tabSingle.classList.add("active");
+        tabBulk.classList.remove("active");
+        contentSingle.style.display = "block";
+        contentBulk.style.display = "none";
+      } else {
+        tabBulk.classList.add("active");
+        tabSingle.classList.remove("active");
+        contentBulk.style.display = "block";
+        contentSingle.style.display = "none";
+      }
+    };
+
+    // ===== ADD EMPLOYEE (single entry button click) =====
     document.getElementById("btnAddEmp").addEventListener("click", function() {
       empError.textContent = "";
       empSuccess.textContent = "";
@@ -425,7 +623,7 @@
       var suffix = document.getElementById("empSuffix").value.trim();
       var email = document.getElementById("empEmail").value.trim();
       var phone = document.getElementById("empPhone").value.trim();
-      var division = document.getElementById("empDivision").value.trim();
+      var division = document.getElementById("empDivision").value;
       var role = document.getElementById("empRole").value;
       var status = document.getElementById("empStatus").value;
 
@@ -438,6 +636,18 @@
       // Validate email format
       if (!isValidEmail(email)) {
         empError.textContent = "Please enter a valid email address.";
+        return;
+      }
+
+      // Validate Role is selected (required)
+      if (!role) {
+        empError.textContent = "Role is required. Please select a role.";
+        return;
+      }
+
+      // Validate Status is selected (required)
+      if (!status) {
+        empError.textContent = "Status is required. Please select a status.";
         return;
       }
 
@@ -478,12 +688,192 @@
       document.getElementById("empPhone").value = "";
       document.getElementById("empDivision").value = "";
       document.getElementById("empRole").value = "";
-      document.getElementById("empStatus").value = "Active";
+      document.getElementById("empStatus").value = "";
 
       // Focus back to First Name for quick entry of next employee
       document.getElementById("empFirstName").focus();
 
       empSuccess.textContent = "Employee added. Add another or click Save & Continue.";
+    });
+
+    // ===== BULK UPLOAD (Process Excel file) =====
+    document.getElementById("btnProcessBulk").addEventListener("click", function() {
+      statusBulk.textContent = "";
+      statusBulk.className = "emp-error";
+
+      var file = document.getElementById("bulkFile").files[0];
+      if (!file) {
+        statusBulk.textContent = "Please select an Excel file.";
+        return;
+      }
+
+      // Read the Excel file
+      var reader = new FileReader();
+
+      reader.onload = function(e) {
+        // Parse the Excel file using the SheetJS library
+        var workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+        var sheet = workbook.Sheets[workbook.SheetNames[0]];
+        var rows = XLSX.utils.sheet_to_json(sheet);
+
+        // Check that the file has data
+        if (rows.length === 0) {
+          statusBulk.textContent = "The Excel file is empty.";
+          return;
+        }
+
+        // Required column headers in the Excel file
+        var requiredFields = [
+          "First Name",
+          "Last Name",
+          "Email",
+          "Role",
+          "Status"
+        ];
+
+        // Optional column headers (may or may not be present)
+        var optionalFields = [
+          "Middle Name",
+          "Suffix",
+          "Phone",
+          "Division"
+        ];
+
+        // Validate that all required columns exist
+        var header = Object.keys(rows[0]);
+        for (var i = 0; i < requiredFields.length; i++) {
+          if (header.indexOf(requiredFields[i]) === -1) {
+            statusBulk.textContent = "Missing required column: " + requiredFields[i];
+            return;
+          }
+        }
+
+        // Load valid divisions from localStorage (for validation if Division column exists)
+        var validDivisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]").map(function(d) { return d.name; });
+
+        // Validate each row
+        for (var r = 0; r < rows.length; r++) {
+          var row = rows[r];
+
+          // Check required fields are not empty
+          for (var f = 0; f < requiredFields.length; f++) {
+            if (!row[requiredFields[f]] || String(row[requiredFields[f]]).trim() === "") {
+              statusBulk.textContent = "Row " + (r + 2) + ": " + requiredFields[f] + " is required.";
+              return;
+            }
+          }
+
+          // Validate email format
+          var rowEmail = String(row["Email"]).trim();
+          if (!isValidEmail(rowEmail)) {
+            statusBulk.textContent = "Row " + (r + 2) + ': Invalid email address "' + rowEmail + '".';
+            return;
+          }
+
+          // Validate Role is a valid role
+          var rowRole = String(row["Role"]).trim();
+          if (validRoles.indexOf(rowRole) === -1) {
+            statusBulk.textContent = "Row " + (r + 2) + ': Invalid Role "' + rowRole + '". Must be one of: ' + validRoles.join(", ") + '.';
+            return;
+          }
+
+          // Validate Status is a valid status
+          var rowStatus = String(row["Status"]).trim();
+          if (validStatuses.indexOf(rowStatus) === -1) {
+            statusBulk.textContent = "Row " + (r + 2) + ': Invalid Status "' + rowStatus + '". Must be either "Active" or "Inactive".';
+            return;
+          }
+
+          // Validate Division if provided (must match a division from Step 5)
+          if (row["Division"] && String(row["Division"]).trim() !== "") {
+            var rowDiv = String(row["Division"]).trim();
+            if (validDivisions.length > 0 && validDivisions.indexOf(rowDiv) === -1) {
+              statusBulk.textContent = "Row " + (r + 2) + ': Invalid Division "' + rowDiv + '". Must match a division from Step 5, or leave blank.';
+              return;
+            }
+          }
+        }
+
+        // Check for duplicate emails within the upload
+        var seenEmails = {};
+        for (var d = 0; d < rows.length; d++) {
+          var em = String(rows[d]["Email"]).trim().toLowerCase();
+          if (seenEmails[em]) {
+            statusBulk.textContent = "Duplicate email found in the upload: " + em + " (rows " + seenEmails[em] + " and " + (d + 2) + ").";
+            return;
+          }
+          seenEmails[em] = (d + 2);
+        }
+
+        // Check for duplicate emails against already-added employees
+        var existingEmails = employees.map(function(emp) { return emp.email.toLowerCase(); });
+        for (var dd = 0; dd < rows.length; dd++) {
+          var checkEmail = String(rows[dd]["Email"]).trim().toLowerCase();
+          if (existingEmails.indexOf(checkEmail) !== -1) {
+            statusBulk.textContent = "Row " + (dd + 2) + ': Email "' + checkEmail + '" has already been added in this session.';
+            return;
+          }
+        }
+
+        // All validation passed — build employee objects
+        var bulkEmployees = rows.map(function(row) {
+          var first = String(row["First Name"]).trim();
+          var middle = row["Middle Name"] ? String(row["Middle Name"]).trim() : "";
+          var last = String(row["Last Name"]).trim();
+          var suffix = row["Suffix"] ? String(row["Suffix"]).trim() : "";
+          var email = String(row["Email"]).trim();
+          var phone = row["Phone"] ? String(row["Phone"]).trim() : "";
+          var division = row["Division"] ? String(row["Division"]).trim() : "";
+          var role = String(row["Role"]).trim();
+          var status = String(row["Status"]).trim();
+
+          return {
+            firstName: first,
+            middleName: middle,
+            lastName: last,
+            suffix: suffix,
+            fullName: buildFullName(first, middle, last, suffix),
+            email: email,
+            phone: phone,
+            division: division,
+            role: role,
+            status: status,
+            customerId: localStorage.getItem("driven_customer_id") || ""
+          };
+        });
+
+        // Show preview table
+        var allCols = requiredFields.concat(optionalFields);
+        var html = "<table><thead><tr>";
+        allCols.forEach(function(c) { html += "<th>" + c + "</th>"; });
+        html += "</tr></thead><tbody>";
+        bulkEmployees.forEach(function(emp) {
+          html += "<tr>";
+          html += "<td>" + emp.firstName + "</td>";
+          html += "<td>" + (emp.middleName || "") + "</td>";
+          html += "<td>" + emp.lastName + "</td>";
+          html += "<td>" + (emp.suffix || "") + "</td>";
+          html += "<td>" + emp.email + "</td>";
+          html += "<td>" + (emp.phone || "") + "</td>";
+          html += "<td>" + (emp.division || "") + "</td>";
+          html += "<td>" + emp.role + "</td>";
+          html += "<td>" + emp.status + "</td>";
+          html += "</tr>";
+        });
+        html += "</tbody></table>";
+        bulkPreview.innerHTML = html;
+
+        // Add bulk employees to the main employees array
+        employees = employees.concat(bulkEmployees);
+        renderTable();
+        updateCount();
+
+        // Show success message
+        statusBulk.textContent = "Uploaded " + bulkEmployees.length + " employees. Review above and click Save & Continue.";
+        statusBulk.className = "emp-success";
+      };
+
+      reader.readAsArrayBuffer(file);
     });
 
     // ===== SAVE & CONTINUE (button click) =====
@@ -525,12 +915,10 @@
     });
 
     // ===== INIT — Runs after session loads =====
-    // Currently no session-specific logic needed for this page.
-    // The session is loaded by dashboard-common.js (for header, greeting, logo).
-    // In the future, this is where we would load existing employees from D1.
     document.addEventListener("dashSessionLoaded", function(e) {
-      // Future: load existing employees from D1 API
-      // For now, just render the empty table
+      // Load the Division dropdown from localStorage (Step 5 data)
+      loadDivisionDropdown();
+      // Render the empty table
       renderTable();
       updateCount();
     });
