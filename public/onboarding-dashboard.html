@@ -404,8 +404,8 @@
   <!-- ===== GREETING BAR (below header) ===== -->
   <div class="greeting-bar">
     <div class="greeting-text" id="greetingText">Welcome</div>
-    <!-- Admin Dashboard button (only shown to Admin, hidden by default) -->
-    <a href="/public/dashboard/admin.html" class="admin-btn-sticky" id="adminDashboardBtn" style="display:none;">
+    <!-- Admin Dashboard button (always shown — admin is the only user during setup) -->
+    <a href="/public/dashboard/admin.html" class="admin-btn-sticky" id="adminDashboardBtn">
       &larr; Admin Dashboard
     </a>
   </div>
@@ -456,7 +456,7 @@
               Identify the key decision-makers and operational leads who will receive DRIV‑EN access and be responsible for uploading onboarding data. Only the Admin can assign key personnel.
             </div>
           </div>
-          <div id="status-step2" class="step-status admin-only">Admin Only</div>
+          <div id="status-step2" class="step-status ready">Ready</div>
           <div class="step-body">
             Assign key personnel and their onboarding responsibilities.
           </div>
@@ -465,7 +465,7 @@
             <div class="kp-list-title">Assigned Key Personnel:</div>
             <div id="kpListBody"></div>
           </div>
-          <button id="btn-step2" class="btn-primary">Open Key Personnel</button>
+          <button id="btn-step2" class="btn-primary" onclick="window.location.href='/public/onboarding-key-personnel.html'">Open Key Personnel</button>
         </div>
 
         <!-- ===== STEP 3 — EMPLOYEES (no prerequisites) ===== -->
@@ -483,7 +483,7 @@
           <div class="step-body">
             Add all employees. Employees are required for work orders, inspections, fuel logs, transfers, and other modules.
           </div>
-          <button id="btn-step3" class="btn-primary">Open Employees</button>
+          <button id="btn-step3" class="btn-primary" onclick="window.location.href='/public/onboarding-employees.html'">Open Employees</button>
         </div>
 
         <!-- ===== STEP 4 — CLIENTS (no prerequisites) ===== -->
@@ -501,7 +501,7 @@
           <div class="step-body">
             Add clients and customer organizations associated with your projects.
           </div>
-          <button id="btn-step4" class="btn-primary">Open Clients</button>
+          <button id="btn-step4" class="btn-primary" onclick="window.location.href='/public/onboarding-clients.html'">Open Clients</button>
         </div>
 
         <!-- ===== STEP 5 — DIVISIONS (no prerequisites) ===== -->
@@ -519,7 +519,7 @@
           <div class="step-body">
             Define internal divisions or business units used for reporting and tracking.
           </div>
-          <button id="btn-step5" class="btn-primary">Open Divisions</button>
+          <button id="btn-step5" class="btn-primary" onclick="window.location.href='/public/onboarding-divisions.html'">Open Divisions</button>
         </div>
 
         <!-- ===== STEP 6 — PROJECT TYPES (no prerequisites) ===== -->
@@ -537,7 +537,7 @@
           <div class="step-body">
             Configure project types that represent the kinds of work your organization performs.
           </div>
-          <button id="btn-step6" class="btn-primary">Open Project Types</button>
+          <button id="btn-step6" class="btn-primary" onclick="window.location.href='/public/onboarding-project-types.html'">Open Project Types</button>
         </div>
 
         <!-- ===== STEP 7 — PROJECTS (requires Steps 4, 5, 6) ===== -->
@@ -551,11 +551,11 @@
               Add active, recently completed, or upcoming projects. Each project references a Client, Division, and Project Type — those must be completed first. Even company-owned facilities (e.g., "Yard #1") should be assigned a project name so all equipment locations can be tracked.
             </div>
           </div>
-          <div id="status-step7" class="step-status locked-prereq">Prerequisites Required</div>
+          <div id="status-step7" class="step-status ready">Ready</div>
           <div class="step-body">
             Add projects. <strong>Requires:</strong> Steps 4, 5, and 6 must be completed first.
           </div>
-          <button id="btn-step7" class="btn-primary" disabled>Open Projects</button>
+          <button id="btn-step7" class="btn-primary" onclick="window.location.href='/public/onboarding-projects.html'">Open Projects</button>
         </div>
 
         <!-- ===== STEP 8 — EQUIPMENT (requires Step 7) ===== -->
@@ -569,11 +569,11 @@
               Add equipment and assets that will be dispatched and maintained through DRIV‑EN. Each piece of equipment is assigned to a Project/Location — Projects must be completed first. This ensures all equipment locations can be pulled up at any time.
             </div>
           </div>
-          <div id="status-step8" class="step-status locked-prereq">Prerequisites Required</div>
+          <div id="status-step8" class="step-status ready">Ready</div>
           <div class="step-body">
             Add equipment and assets. <strong>Requires:</strong> Step 7 (Projects) must be completed first.
           </div>
-          <button id="btn-step8" class="btn-primary" disabled>Open Equipment</button>
+          <button id="btn-step8" class="btn-primary" onclick="window.location.href='/public/onboarding-equipment.html'">Open Equipment</button>
         </div>
 
       </div>
@@ -623,33 +623,6 @@
     }
 
     /* ==========================================
-       STATE VARIABLES
-       ========================================== */
-    var currentUser = null;       // Logged-in user from /auth/session
-    var isAdmin = false;          // True if user is NOT in key personnel list
-    var assignedTasks = [];       // Tasks assigned to this user (if key personnel)
-    var stepCompletion = {};      // Which steps are marked complete
-
-    /* ==========================================
-       STEP DEFINITIONS
-       Maps step number to its config
-       - task: the task name that must be assigned to access this step
-       - prereqs: array of step numbers that must be completed first
-       - url: the page URL to navigate to when step is opened
-       - adminOnly: if true, only the Admin can access this step
-       ========================================== */
-    var STEP_DEFS = {
-      1: { name: "logo",          task: null,           prereqs: [],     url: null,                              adminOnly: true },
-      2: { name: "key-personnel", task: null,           prereqs: [],     url: "/public/onboarding-key-personnel.html", adminOnly: true },
-      3: { name: "employees",     task: "Employees",    prereqs: [],     url: "/public/onboarding-employees.html" },
-      4: { name: "clients",       task: "Clients",      prereqs: [],     url: "/public/onboarding-clients.html" },
-      5: { name: "divisions",     task: "Divisions",    prereqs: [],     url: "/public/onboarding-divisions.html" },
-      6: { name: "project-types", task: "Project Types", prereqs: [],    url: "/public/onboarding-project-types.html" },
-      7: { name: "projects",      task: "Projects",     prereqs: [4, 5, 6], url: "/public/onboarding-projects.html" },
-      8: { name: "equipment",     task: "Equipment",    prereqs: [7],    url: "/public/onboarding-equipment.html" }
-    };
-
-    /* ==========================================
        POPUP MANAGEMENT
        Click to open, click X or overlay to close
        (Not hover — works on mobile devices)
@@ -671,241 +644,36 @@
     }
 
     /* ==========================================
-       STATUS HELPERS
-       Update badge text/class and button enabled/disabled
-       ========================================== */
-    function setStatus(id, statusClass, text) {
-      var el = document.getElementById(id);
-      el.className = "step-status " + statusClass;
-      el.textContent = text;
-    }
-
-    function setButton(stepNum, enabled, url) {
-      var btn = document.getElementById("btn-step" + stepNum);
-      if (enabled && url) {
-        btn.disabled = false;
-        btn.onclick = function() { window.location.href = url; };
-      } else {
-        btn.disabled = true;
-        btn.onclick = null;
-      }
-    }
-
-    /* ==========================================
-       PREREQUISITE CHECK
-       Returns true if all prerequisites for a step are complete
-       ========================================== */
-    function checkPrereqs(stepNum) {
-      var prereqs = STEP_DEFS[stepNum].prereqs;
-      return prereqs.every(function(p) { return stepCompletion[p] === true; });
-    }
-
-    /* ==========================================
-       UPDATE STEP STATUS
-       Determines what badge and button state to show
-       based on: admin status, assigned tasks, prerequisites, completion
-       ========================================== */
-    function updateStepStatus(stepNum) {
-      var def = STEP_DEFS[stepNum];
-      var statusId = "status-step" + stepNum;
-
-      // --- ADMIN-ONLY STEPS (Steps 1 and 2) ---
-      if (def.adminOnly) {
-        if (isAdmin) {
-          if (stepCompletion[stepNum]) {
-            setStatus(statusId, "completed", "Completed");
-            setButton(stepNum, stepNum === 2, def.url); // Step 2 always open for admin to manage
-          } else {
-            setStatus(statusId, "ready", "Ready");
-            setButton(stepNum, stepNum === 2, def.url);
-          }
-        } else {
-          setStatus(statusId, "not-assigned", "Admin Only");
-          setButton(stepNum, false);
-        }
-        return;
-      }
-
-      // --- ADMIN (sees everything, subject to prerequisites) ---
-      if (isAdmin) {
-        if (stepCompletion[stepNum]) {
-          setStatus(statusId, "completed", "Completed");
-          setButton(stepNum, true, def.url);
-        } else if (def.prereqs.length > 0 && !checkPrereqs(stepNum)) {
-          var prereqNames = def.prereqs.map(function(p) { return "Step " + p; }).join(", ");
-          setStatus(statusId, "locked-prereq", "Requires " + prereqNames);
-          setButton(stepNum, false);
-        } else {
-          setStatus(statusId, "ready", "Ready");
-          setButton(stepNum, true, def.url);
-        }
-        return;
-      }
-
-      // --- KEY PERSONNEL (only assigned tasks are accessible) ---
-      var hasTask = assignedTasks.indexOf(def.task) !== -1;
-
-      if (!hasTask) {
-        setStatus(statusId, "not-assigned", "Not Assigned");
-        setButton(stepNum, false);
-        return;
-      }
-
-      if (stepCompletion[stepNum]) {
-        setStatus(statusId, "completed", "Completed");
-        setButton(stepNum, true, def.url);
-        return;
-      }
-
-      if (def.prereqs.length > 0 && !checkPrereqs(stepNum)) {
-        var prereqLabels = def.prereqs.map(function(p) { return "Step " + p; }).join(", ");
-        setStatus(statusId, "locked-prereq", "Requires " + prereqLabels);
-        setButton(stepNum, false);
-        return;
-      }
-
-      setStatus(statusId, "ready", "Ready");
-      setButton(stepNum, true, def.url);
-    }
-
-    /* Update all 8 steps at once */
-    function updateAllSteps() {
-      for (var i = 1; i <= 8; i++) {
-        updateStepStatus(i);
-      }
-    }
-
-    /* ==========================================
-       AUTH CHECK — Uses shared /components/auth-check.js
-       Currently inactive during development.
-       When auth-check.js is enabled, unauthenticated
-       users will be redirected to login before this
-       code runs. The init() function below also checks
-       session to load user info for the greeting.
-       ========================================== */
-    async function checkAuth() {
-      try {
-        var response = await fetch("/auth/session");
-        var data = await response.json();
-        if (!data.authenticated) {
-          // Not logged in — redirect to login page
-          window.location.href = "/public/login.html";
-          return false;
-        }
-        currentUser = data.user;
-        return true;
-      } catch (e) {
-        console.error("Auth check error:", e.message);
-        window.location.href = "/public/login.html";
-        return false;
-      }
-    }
-
-    /* ==========================================
-       LOAD SESSION — Get user info for greeting
-       ========================================== */
-    async function loadSession() {
-      try {
-        var response = await fetch("/auth/session");
-        var data = await response.json();
-        if (data.authenticated && data.user) {
-          currentUser = data.user;
-          var firstName = data.user.first_name || "";
-          var greeting = document.getElementById("greetingText");
-          if (firstName) {
-            greeting.innerHTML = "Welcome, <strong>" + firstName + "</strong>";
-          } else {
-            greeting.innerHTML = "Welcome";
-          }
-        }
-      } catch (e) {
-        console.error("Session load error:", e.message);
-      }
-    }
-
-    /* ==========================================
        LOAD KEY PERSONNEL
-       - Determines if current user is Admin or Key Personnel
-       - Gets assigned tasks for key personnel
-       - Renders the key personnel list in Step 2
-       - If anything fails, defaults to admin so buttons work
+       Fetches the KP list from the API and displays it in Step 2.
+       Matches the old working version — simple, no admin/KP gating.
        ========================================== */
     async function loadKeyPersonnel() {
       var customerId = localStorage.getItem("driven_customer_id");
-      if (!customerId) {
-        // No customer ID — default to admin so buttons work
-        isAdmin = true;
-        document.getElementById("adminDashboardBtn").style.display = "inline-flex";
-        updateAllSteps();
-        return;
-      }
+      if (!customerId) return;
 
       var container = document.getElementById("kpListContainer");
       var body = document.getElementById("kpListBody");
 
       try {
         var response = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(customerId));
-
-        // If the API returns a non-OK status, default to admin
-        if (!response.ok) {
-          console.error("KP API returned status:", response.status);
-          isAdmin = true;
-          document.getElementById("adminDashboardBtn").style.display = "inline-flex";
-          updateAllSteps();
-          return;
-        }
-
         var data = await response.json();
 
-        if (data.success && data.keyPersonnel) {
-          // Check if current user is in the key personnel list
-          var myEmail = (currentUser && currentUser.email) ? currentUser.email.toLowerCase() : "";
-          var myRecord = data.keyPersonnel.find(function(kp) {
-            return kp.email && kp.email.toLowerCase() === myEmail;
-          });
-
-          if (myRecord) {
-            // Current user IS in key personnel list → Key Personnel
-            isAdmin = false;
-            assignedTasks = myRecord.roles.map(function(r) { return r.role; });
-          } else {
-            // Current user is NOT in key personnel list → Admin
-            isAdmin = true;
-            document.getElementById("adminDashboardBtn").style.display = "inline-flex";
-          }
-
-          // Render key personnel list in Step 2
-          if (data.keyPersonnel.length > 0) {
-            container.style.display = "block";
-            body.innerHTML = data.keyPersonnel.map(function(kp) {
-              var tasks = kp.roles.map(function(r) { return r.role; }).join(", ");
-              var emailHtml = kp.email ? '<div class="kp-person-email">' + kp.email + '</div>' : "";
-              return '<div class="kp-person">' +
-                '<span class="kp-person-name">' + kp.name + '</span> ' +
-                '<span class="kp-person-tasks">— ' + (tasks || "No tasks assigned") + '</span>' +
-                emailHtml +
-                '</div>';
-            }).join("");
-          } else {
-            container.style.display = "block";
-            body.innerHTML = '<div class="kp-loading">No key personnel assigned yet.</div>';
-          }
-
-          // Step 2 is complete if at least 1 key personnel exists
-          stepCompletion[2] = data.keyPersonnel.length > 0;
-        } else {
-          // API returned success: false or no keyPersonnel field — default to admin
-          isAdmin = true;
-          document.getElementById("adminDashboardBtn").style.display = "inline-flex";
+        if (data.success && data.keyPersonnel && data.keyPersonnel.length > 0) {
+          body.innerHTML = data.keyPersonnel.map(function(kp) {
+            var tasks = kp.roles.map(function(r) { return r.role; }).join(", ");
+            var emailHtml = kp.email ? '<div class="kp-person-email">' + kp.email + '</div>' : "";
+            return '<div class="kp-person">' +
+              '<span class="kp-person-name">' + kp.name + '</span> ' +
+              '<span class="kp-person-tasks">— ' + (tasks || "No tasks assigned") + '</span>' +
+              emailHtml +
+              '</div>';
+          }).join("");
+          container.style.display = "block";
         }
       } catch (e) {
-        console.error("Key personnel load error:", e.message);
-        // Network error or JSON parse error — default to admin
-        isAdmin = true;
-        document.getElementById("adminDashboardBtn").style.display = "inline-flex";
+        // API not available — silently skip
       }
-
-      updateAllSteps();
     }
 
     /* ==========================================
@@ -929,8 +697,6 @@
             preview.innerHTML = '<img src="' + logoData.logo + '" alt="Logo preview">';
             preview.style.border = "none";
           }
-          stepCompletion[1] = true;
-          updateAllSteps();
           return;
         }
       } catch (e) {
@@ -945,11 +711,9 @@
           preview.innerHTML = '<img src="' + logoUrl + '" alt="Logo preview">';
           preview.style.border = "none";
         }
-        stepCompletion[1] = true;
       } else {
         area.innerHTML = '<div class="customer-logo-placeholder">No logo uploaded</div>';
       }
-      updateAllSteps();
     }
 
     /* ==========================================
@@ -1007,36 +771,41 @@
     }
 
     /* ==========================================
+       LOAD SESSION — Get user info for greeting and org_id
+       ========================================== */
+    async function loadSession() {
+      try {
+        var response = await fetch("/auth/session");
+        var data = await response.json();
+        if (data.authenticated && data.user) {
+          var firstName = data.user.first_name || "";
+          var greeting = document.getElementById("greetingText");
+          if (firstName) {
+            greeting.innerHTML = "Welcome, <strong>" + firstName + "</strong>";
+          } else {
+            greeting.innerHTML = "Welcome";
+          }
+          // Store customer ID from session
+          if (data.user.org_id) {
+            localStorage.setItem("driven_customer_id", data.user.org_id);
+          }
+        }
+      } catch (e) {
+        console.error("Session load error:", e.message);
+      }
+    }
+
+    /* ==========================================
        INIT — Runs on page load
-       1. Check auth (redirect if not logged in)
-       2. Load customer logo
-       3. Load session (greeting)
-       4. Load key personnel (determines admin vs KP, assigned tasks)
+       Matches the old working version's simple flow:
+       1. Load logo
+       2. Load session (greeting + org_id)
+       3. Load key personnel (display only — no gating)
        ========================================== */
     async function init() {
-      // Auth check first — redirect if not logged in
-      var authenticated = await checkAuth();
-      if (!authenticated) return;
-
       await loadCustomerLogo();
       await loadSession();
-
-      // If we have a customer ID from session, store it
-      if (currentUser && currentUser.org_id) {
-        localStorage.setItem("driven_customer_id", currentUser.org_id);
-      }
-
       await loadKeyPersonnel();
-
-      // Fallback: if loadKeyPersonnel failed to determine admin status,
-      // default to admin=true so buttons work
-      if (!isAdmin && assignedTasks.length === 0) {
-        // Check if KP API returned no data (error or empty)
-        // Default to admin so the admin-only buttons are enabled
-        isAdmin = true;
-        document.getElementById("adminDashboardBtn").style.display = "inline-flex";
-        updateAllSteps();
-      }
     }
 
     // Auto-update footer year
