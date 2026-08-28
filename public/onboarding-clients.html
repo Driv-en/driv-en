@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>DRIV‑EN | Onboarding — Clients</title>
 <meta name="description" content="Add clients to DRIV‑EN during onboarding. Single entry or bulk upload via Excel.">
 <meta name="robots" content="noindex, nofollow">
@@ -12,7 +11,7 @@
 <link rel="icon" type="image/png" href="/icons/favicon-96.png" sizes="96x96">
 <link rel="icon" type="image/png" href="/icons/favicon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" href="/icons/favicon-180.png">
-<link rel="stylesheet" href="/styles/dashboard.css?v=1">
+<link rel="stylesheet" href="/styles/dashboard.css?v=2">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 (function() {
@@ -61,7 +60,7 @@
     @media (max-width: 600px) { .cli-action-row { flex-direction: column; gap: 8px; } .cli-action-row .cli-btn-primary, .cli-action-row .cli-btn-secondary { width: 100%; } .cli-table { font-size: 12px; } .cli-table th, .cli-table td { padding: 6px 4px; } }
 </style>
 </head>
-<body data-page-title="Onboarding — Clients">
+<body data-page-title="Onboarding — Clients" data-required-task="Clients">
 <div id="dashHeader"></div>
 <div class="cli-back-bar">
   <a href="/public/dashboard/admin.html" class="cli-back-btn">&larr; Admin Dashboard</a>
@@ -102,7 +101,7 @@
     <div class="dash-card">
       <h3>Bulk Upload Clients</h3>
       <p class="cli-subtitle">Download the Excel template, fill in your client list, then upload it here. Client Name is required for every row.</p>
-      <a href="/templates/Client-Mass-Upload-v1.0.xlsx" class="cli-bulk-link" download>⬇ Download Client-Mass-Upload-v1.0.xlsx</a>
+      <button onclick="downloadClientTemplate()" class="cli-bulk-link" style="cursor:pointer;border:none;font-size:14px;">⬇ Download Client-Mass-Upload-v1.0.xlsx</button>
       <div class="cli-form-field" style="max-width:400px;">
         <label>Upload Completed Template</label>
         <input type="file" id="bulkFile" accept=".xlsx" class="cli-bulk-file-input">
@@ -125,8 +124,8 @@
     <div id="cliStepStatus" class="cli-step-status"></div>
   </div>
 </main>
-<script src="/components/dashboard-common.js?v=1"></script>
-<script src="/components/auth-check.js"></script>
+<script src="/components/dashboard-common.js?v=2"></script>
+<script src="/components/auth-check.js?v=2"></script>
 <script>
     var clients = [];
     var cliError = document.getElementById("cliError");
@@ -136,9 +135,7 @@
     var cliCountEl = document.getElementById("cliCount");
     var statusBulk = document.getElementById("statusBulk");
     var bulkPreview = document.getElementById("bulkPreview");
-
     function updateCount() { cliCountEl.textContent = clients.length; }
-
     function renderTable() {
       if (clients.length === 0) { cliTableContainer.innerHTML = '<p class="cli-empty">No clients added yet.</p>'; return; }
       var rows = clients.map(function(cli, index) {
@@ -146,29 +143,23 @@
       }).join("");
       cliTableContainer.innerHTML = '<table class="cli-table"><thead><tr><th>#</th><th>Client Name</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table>';
     }
-
     window.removeClient = function(index) { clients.splice(index, 1); renderTable(); updateCount(); cliSuccess.textContent = ""; cliError.textContent = ""; };
-
     window.switchTab = function(tab) {
-      var ts = document.getElementById("tabSingle"), tb = document.getElementById("tabBulk");
-      var cs = document.getElementById("tabContentSingle"), cb = document.getElementById("tabContentBulk");
-      if (tab === "single") { ts.classList.add("active"); tb.classList.remove("active"); cs.style.display = "block"; cb.style.display = "none"; }
-      else { tb.classList.add("active"); ts.classList.remove("active"); cb.style.display = "block"; cs.style.display = "none"; }
+      var tabSingle = document.getElementById("tabSingle"); var tabBulk = document.getElementById("tabBulk");
+      var contentSingle = document.getElementById("tabContentSingle"); var contentBulk = document.getElementById("tabContentBulk");
+      if (tab === "single") { tabSingle.classList.add("active"); tabBulk.classList.remove("active"); contentSingle.style.display = "block"; contentBulk.style.display = "none"; }
+      else { tabBulk.classList.add("active"); tabSingle.classList.remove("active"); contentBulk.style.display = "block"; contentSingle.style.display = "none"; }
     };
-
     document.getElementById("btnAddCli").addEventListener("click", function() {
       cliError.textContent = ""; cliSuccess.textContent = "";
       var name = document.getElementById("cliName").value.trim();
       if (!name) { cliError.textContent = "Client Name is required."; return; }
-      if (clients.some(function(c) { return c.name.toLowerCase() === name.toLowerCase(); })) { cliError.textContent = "A client with this name has already been added."; return; }
+      if (clients.some(function(cli) { return cli.name.toLowerCase() === name.toLowerCase(); })) { cliError.textContent = "A client with this name has already been added."; return; }
       clients.push({ name: name, customerId: localStorage.getItem("driven_customer_id") || "" });
-      renderTable(); updateCount();
-      document.getElementById("cliName").value = ""; document.getElementById("cliName").focus();
+      renderTable(); updateCount(); document.getElementById("cliName").value = ""; document.getElementById("cliName").focus();
       cliSuccess.textContent = "Client added. Add another or click Save & Continue.";
     });
-
     document.getElementById("cliName").addEventListener("keydown", function(e) { if (e.key === "Enter") { e.preventDefault(); document.getElementById("btnAddCli").click(); } });
-
     document.getElementById("btnProcessBulk").addEventListener("click", function() {
       statusBulk.textContent = ""; statusBulk.className = "cli-error";
       var file = document.getElementById("bulkFile").files[0];
@@ -182,32 +173,21 @@
         var requiredField = "Client Name";
         var header = Object.keys(rows[0]);
         if (header.indexOf(requiredField) === -1) { statusBulk.textContent = "Missing required column: " + requiredField; return; }
-        for (var r = 0; r < rows.length; r++) {
-          if (!rows[r][requiredField] || String(rows[r][requiredField]).trim() === "") { statusBulk.textContent = "Row " + (r + 2) + ": Client Name is required."; return; }
-        }
+        for (var r = 0; r < rows.length; r++) { var row = rows[r]; if (!row[requiredField] || String(row[requiredField]).trim() === "") { statusBulk.textContent = "Row " + (r + 2) + ": Client Name is required."; return; } }
         var seenNames = {};
-        for (var d = 0; d < rows.length; d++) {
-          var nm = String(rows[d][requiredField]).trim().toLowerCase();
-          if (seenNames[nm]) { statusBulk.textContent = "Duplicate client name: " + nm + " (rows " + seenNames[nm] + " and " + (d + 2) + ")."; return; }
-          seenNames[nm] = (d + 2);
-        }
+        for (var d = 0; d < rows.length; d++) { var nm = String(rows[d][requiredField]).trim().toLowerCase(); if (seenNames[nm]) { statusBulk.textContent = "Duplicate client name in the upload: " + nm + " (rows " + seenNames[nm] + " and " + (d + 2) + ")."; return; } seenNames[nm] = (d + 2); }
         var existingNames = clients.map(function(c) { return c.name.toLowerCase(); });
-        for (var dd = 0; dd < rows.length; dd++) {
-          var cn = String(rows[dd][requiredField]).trim().toLowerCase();
-          if (existingNames.indexOf(cn) !== -1) { statusBulk.textContent = "Row " + (dd + 2) + ': Client "' + cn + '" already added.'; return; }
-        }
+        for (var dd = 0; dd < rows.length; dd++) { var checkName = String(rows[dd][requiredField]).trim().toLowerCase(); if (existingNames.indexOf(checkName) !== -1) { statusBulk.textContent = "Row " + (dd + 2) + ': Client "' + checkName + '" has already been added in this session.'; return; } }
         var bulkClients = rows.map(function(row) { return { name: String(row[requiredField]).trim(), customerId: localStorage.getItem("driven_customer_id") || "" }; });
         var html = "<table><thead><tr><th>Client Name</th></tr></thead><tbody>";
         bulkClients.forEach(function(c) { html += "<tr><td>" + c.name + "</td></tr>"; });
         html += "</tbody></table>";
         bulkPreview.innerHTML = html;
         clients = clients.concat(bulkClients); renderTable(); updateCount();
-        statusBulk.textContent = "Uploaded " + bulkClients.length + " clients. Review and click Save & Continue.";
-        statusBulk.className = "cli-success";
+        statusBulk.textContent = "Uploaded " + bulkClients.length + " clients. Review above and click Save & Continue."; statusBulk.className = "cli-success";
       };
       reader.readAsArrayBuffer(file);
     });
-
     document.getElementById("btnSaveCli").addEventListener("click", function() {
       cliStepStatus.textContent = ""; cliStepStatus.style.color = "var(--error)";
       if (clients.length === 0) { cliStepStatus.textContent = "You must add at least one client."; return; }
@@ -217,11 +197,17 @@
       localStorage.setItem("driven_client_count", allClients.length);
       localStorage.setItem("driven_step4_complete", "true");
       cliStepStatus.style.color = "var(--success)";
-      cliStepStatus.textContent = clients.length + " client(s) saved. Total: " + allClients.length + ".";
+      cliStepStatus.textContent = clients.length + " client(s) saved. Total clients: " + allClients.length + ".";
       var btnSave = document.getElementById("btnSaveCli"); btnSave.disabled = true; btnSave.textContent = "Saved ✓";
       clients = []; renderTable(); updateCount();
     });
-
+    function downloadClientTemplate() {
+      var ws = XLSX.utils.aoa_to_sheet([ ["Client Name"], ["Sample Client 1"] ]);
+      ws["!cols"] = [{ wch: 40 }];
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Clients");
+      XLSX.writeFile(wb, "Client-Mass-Upload-v1.0.xlsx");
+    }
     document.addEventListener("dashSessionLoaded", function(e) { renderTable(); updateCount(); });
 </script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"aed8feab3b60404ba88ec92f026bbcd6","r":1}' crossorigin="anonymous"></script>
