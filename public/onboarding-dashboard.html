@@ -640,7 +640,7 @@
        ========================================== */
     var STEP_DEFS = {
       1: { name: "logo",          task: null,           prereqs: [],     url: null,                              adminOnly: true },
-      2: { name: "key-personnel", task: null,           prereqs: [],     url: "/public/onboarding-key-personnel.html", adminOnly: true },
+      2: { name: "key-personnel", task: null,           prereqs: [],     url: "/public/onboarding-key-personnel", adminOnly: true },
       3: { name: "employees",     task: "Employees",    prereqs: [],     url: "/public/onboarding-employees.html" },
       4: { name: "clients",       task: "Clients",      prereqs: [],     url: "/public/onboarding-clients.html" },
       5: { name: "divisions",     task: "Divisions",    prereqs: [],     url: "/public/onboarding-divisions.html" },
@@ -778,12 +778,17 @@
     /* ==========================================
        AUTH CHECK — Uses shared /components/auth-check.js
        Currently inactive during development.
+       When auth-check.js is enabled, unauthenticated
+       users will be redirected to login before this
+       code runs. The init() function below also checks
+       session to load user info for the greeting.
        ========================================== */
     async function checkAuth() {
       try {
         var response = await fetch("/auth/session");
         var data = await response.json();
         if (!data.authenticated) {
+          // Not logged in — redirect to login page
           window.location.href = "/public/login.html";
           return false;
         }
@@ -836,19 +841,23 @@
         var data = await response.json();
 
         if (data.success && data.keyPersonnel) {
+          // Check if current user is in the key personnel list
           var myEmail = (currentUser && currentUser.email) ? currentUser.email.toLowerCase() : "";
           var myRecord = data.keyPersonnel.find(function(kp) {
             return kp.email && kp.email.toLowerCase() === myEmail;
           });
 
           if (myRecord) {
+            // Current user IS in key personnel list → Key Personnel
             isAdmin = false;
             assignedTasks = myRecord.roles.map(function(r) { return r.role; });
           } else {
+            // Current user is NOT in key personnel list → Admin
             isAdmin = true;
             document.getElementById("adminDashboardBtn").style.display = "inline-flex";
           }
 
+          // Render key personnel list in Step 2
           if (data.keyPersonnel.length > 0) {
             container.style.display = "block";
             body.innerHTML = data.keyPersonnel.map(function(kp) {
@@ -865,6 +874,7 @@
             body.innerHTML = '<div class="kp-loading">No key personnel assigned yet.</div>';
           }
 
+          // Step 2 is complete if at least 1 key personnel exists
           stepCompletion[2] = data.keyPersonnel.length > 0;
         }
       } catch (e) {
@@ -883,10 +893,12 @@
       var area = document.getElementById("customerLogoArea");
       var preview = document.getElementById("logoPreview");
 
+      // Try fetching from D1 first
       try {
         var logoRes = await fetch("/auth/get-logo");
         var logoData = await logoRes.json();
         if (logoData.success && logoData.logo) {
+          // Logo found in D1 — save to localStorage as cache
           localStorage.setItem("driven_customer_logo", logoData.logo);
           area.innerHTML = '<img src="' + logoData.logo + '" class="customer-logo" alt="Company Logo">';
           if (preview) {
@@ -901,6 +913,7 @@
         console.error("Logo fetch from D1 error:", e.message);
       }
 
+      // Fallback: check localStorage
       var logoUrl = localStorage.getItem("driven_customer_logo");
       if (logoUrl) {
         area.innerHTML = '<img src="' + logoUrl + '" class="customer-logo" alt="Company Logo">';
@@ -924,6 +937,7 @@
       var file = document.getElementById("logoFile").files[0];
       if (!file) return;
 
+      // Validate file size (max 500KB)
       if (file.size > 500000) {
         document.getElementById("logoStatus").textContent = "File too large. Max 500KB.";
         document.getElementById("logoStatus").style.color = "var(--error)";
@@ -933,8 +947,11 @@
       var reader = new FileReader();
       reader.onload = async function(e) {
         var dataUrl = e.target.result;
+
+        // Save to localStorage as cache
         localStorage.setItem("driven_customer_logo", dataUrl);
 
+        // Save to D1 so all devices and employees see it
         try {
           var saveRes = await fetch("/auth/save-logo", {
             method: "POST",
@@ -955,6 +972,7 @@
           document.getElementById("logoStatus").style.color = "var(--error)";
         }
 
+        // Update the display
         await loadCustomerLogo();
       };
       reader.onerror = function() {
@@ -967,11 +985,13 @@
     /* ==========================================
        INIT — Runs on page load
        1. Check auth (redirect if not logged in)
-       2. Load session (greeting + user info)
-       3. Load customer logo (from D1)
+       2. Load session (greeting + currentUser)
+       3. Load customer logo
        4. Load key personnel (determines admin vs KP, assigned tasks)
+       5. Fallback: default to admin if KP API fails
        ========================================== */
     async function init() {
+      // Auth check first — redirect if not logged in
       var authenticated = await checkAuth();
       if (!authenticated) return;
 
@@ -990,8 +1010,9 @@
       await loadKeyPersonnel();
 
       // Fallback: if loadKeyPersonnel failed to determine admin status,
-      // default to admin=true so buttons work
+      // or if the KP API returned no data, default to admin=true so buttons work
       if (!isAdmin && assignedTasks.length === 0) {
+        console.log("KP API did not identify user as key personnel — defaulting to admin");
         isAdmin = true;
         document.getElementById("adminDashboardBtn").style.display = "inline-flex";
         updateAllSteps();
