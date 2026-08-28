@@ -1,443 +1,343 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>DRIV‑EN – Admin Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="robots" content="noindex, nofollow">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="/icons/favicon.png" sizes="48x48">
-  <link rel="icon" type="image/png" href="/icons/favicon-96.png" sizes="96x96">
-  <link rel="icon" type="image/png" href="/icons/favicon-192.png" sizes="192x192">
-  <link rel="apple-touch-icon" href="/icons/favicon-180.png">
+<!-- ===== PAGE-SPECIFIC SEO ===== -->
+<title>DRIV‑EN | Admin Dashboard</title>
+<meta name="description" content="DRIV‑EN admin dashboard — full access to all modules, settings, users, and operational data.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://www.driv-en.com/public/dashboard/admin.html">
 
-  <!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
-  <script>
-  (function() {
-    var saved = localStorage.getItem("driven-theme");
-    var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    var theme = saved || system;
-    document.documentElement.setAttribute("data-theme", theme);
-  })();
-  </script>
+<!-- Favicon -->
+<link rel="icon" type="image/png" href="/icons/favicon.png" sizes="48x48">
+<link rel="icon" type="image/png" href="/icons/favicon-96.png" sizes="96x96">
+<link rel="icon" type="image/png" href="/icons/favicon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="/icons/favicon-180.png">
 
-  <style>
-    /* ===== THEME VARIABLES ===== */
-    :root[data-theme="light"] {
-      --bg-page: #f8fafc; --bg-card: #ffffff; --bg-header: #f1f5f9; --bg-step: #ffffff;
-      --text: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --border-input: #cbd5e1;
-      --primary: #2563eb; --primary-hover: #1d4ed8; --error: #dc2626; --success: #16a34a;
-    }
-    :root[data-theme="dark"] {
-      --bg-page: #0f172a; --bg-card: #1e293b; --bg-header: #1e293b; --bg-step: #0f172a;
-      --text: #e5e7eb; --text-muted: #94a3b8; --border: #334155; --border-input: #334155;
-      --primary: #2563eb; --primary-hover: #1d4ed8; --error: #ef4444; --success: #10b981;
-    }
+<!-- ===== SHARED DASHBOARD CSS ===== -->
+<link rel="stylesheet" href="/styles/dashboard.css?v=1">
 
-    body { margin: 0; background: var(--bg-page); color: var(--text); font-family: system-ui, sans-serif; }
+<!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
+<script>
+(function() {
+  var saved = localStorage.getItem("driven-theme");
+  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  var theme = saved || system;
+  document.documentElement.setAttribute("data-theme", theme);
+})();
+</script>
 
-    /* ===== HEADER (3 rows: logos, title, toggle+logout) ===== */
-    .header {
-      background: var(--bg-header);
-      border-bottom: 1px solid var(--border);
-      position: sticky; top: 0; z-index: 10;
-    }
-    /* Row 1: Customer logo (left) | DRIV-EN logo (right) */
-    .header-row1 {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px 20px 4px 20px;
-    }
-    .customer-logo { max-height: 64px; max-width: 200px; display: block; }
-    .customer-logo-placeholder {
-      max-height: 48px; display: block;
-      opacity: 0.4; border: 2px dashed var(--border); border-radius: 6px;
-      padding: 8px 16px; font-size: 12px; color: var(--text-muted); text-align: center; line-height: 32px;
-    }
-    .driven-logo { max-height: 64px; display: block; }
-    /* Row 2: Title centered */
-    .header-row2 {
-      text-align: center;
-      padding: 4px 20px;
-    }
-    .header-row2 h1 { margin: 0; font-size: 22px; font-weight: 600; color: var(--text); }
-    .subtitle { font-size: 13px; color: var(--text-muted); }
-    /* Row 3: Toggle (left) | Logout (right) */
-    .header-row3 {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 4px 20px 12px 20px;
-    }
-    .theme-toggle {
-      background: var(--bg-card); border: 1px solid var(--border); border-radius: 50%;
-      width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
-      cursor: pointer; font-size: 18px; color: var(--text);
-    }
-    .theme-toggle:hover { border-color: var(--primary); }
-
-    /* ===== THEME SLIDE SWITCH (left/right toggle with labels) ===== */
-    .theme-switch-wrapper {
+<!-- ===== PAGE-SPECIFIC STYLES ===== -->
+<style>
+    /* ===== LOADING SCREEN ===== */
+    /* Shows while session is being verified, then hides */
+    .admin-loading {
       display: flex;
       align-items: center;
-      gap: 8px;
-    }
-    .theme-switch-label {
-      font-size: 12px;
+      justify-content: center;
+      height: 100vh;
+      font-size: 16px;
       color: var(--text-muted);
-      transition: opacity 200ms ease;
-    }
-    .theme-switch-label.active {
-      color: var(--text);
-      font-weight: 600;
-    }
-    .theme-switch {
-      position: relative;
-      display: inline-block;
-      width: 44px;
-      height: 24px;
-    }
-    .theme-switch input { opacity: 0; width: 0; height: 0; }
-    .theme-slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: var(--border);
-      border-radius: 24px;
-      transition: background 200ms ease;
-    }
-    .theme-slider:before {
-      content: "";
-      position: absolute;
-      height: 18px; width: 18px;
-      left: 3px; bottom: 3px;
-      background: #fff;
-      border-radius: 50%;
-      transition: transform 200ms ease;
-    }
-    /* When checked (dark mode), slider moves right and changes color */
-    .theme-switch input:checked + .theme-slider {
-      background: var(--primary);
-    }
-    .theme-switch input:checked + .theme-slider:before {
-      transform: translateX(20px);
     }
 
-    .btn-logout {
-      background: #b91c1c; border: 1px solid #dc2626; color: #fff;
-      padding: 8px 14px; border-radius: 6px; font-size: 13px; cursor: pointer;
+    /* ===== WELCOME BANNER ===== */
+    .admin-welcome {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 24px;
     }
-    .btn-logout:hover { background: #dc2626; }
+    .admin-welcome h2 { margin: 0 0 6px 0; font-size: 20px; color: var(--text); }
+    .admin-welcome p  { margin: 0; font-size: 14px; color: var(--text-muted); }
 
-    /* ===== MAIN ===== */
-    .main-container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
-
-    .welcome-banner {
-      background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
-      padding: 24px; margin-bottom: 24px;
-    }
-    .welcome-banner h2 { margin: 0 0 6px 0; font-size: 20px; color: var(--text); }
-    .welcome-banner p { margin: 0; font-size: 14px; color: var(--text-muted); }
-
-    /* ===== ONBOARDING CARD (lighter style so text is readable in both themes) ===== */
-    .onboarding-card {
+    /* ===== ONBOARDING CARD (hides when all steps complete) ===== */
+    .admin-onboarding {
       background: var(--bg-card);
       border: 1px solid var(--primary);
-      border-radius: 8px; padding: 24px; margin-bottom: 24px;
-      display: flex; align-items: center; justify-content: space-between; gap: 20px;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
     }
-    .onboarding-card-text h3 { margin: 0 0 6px 0; font-size: 18px; color: var(--text); }
-    .onboarding-card-text p { margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.4; }
-    .onboarding-card .status-badge {
+    .admin-onboarding-text h3 { margin: 0 0 6px 0; font-size: 18px; color: var(--text); }
+    .admin-onboarding-text p  { margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.4; }
+    .admin-onboarding .admin-badge {
       font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 999px;
       margin-top: 8px; display: inline-block;
     }
-    .btn-onboarding {
-      background: var(--primary); border: 1px solid var(--primary-hover); color: #fff;
-      padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;
+    .admin-btn-onboarding {
+      background: var(--primary);
+      border: 1px solid var(--primary-hover);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
     }
-    .btn-onboarding:hover { background: var(--primary-hover); }
+    .admin-btn-onboarding:hover { background: var(--primary-hover); }
 
-    /* ===== STATS ===== */
-    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-    .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; text-align: center; }
-    .stat-number { font-size: 32px; font-weight: 700; color: var(--text); }
-    .stat-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+    /* ===== STATS GRID (4 cards) ===== */
+    .admin-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .admin-stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+    }
+    .admin-stat-number { font-size: 32px; font-weight: 700; color: var(--text); }
+    .admin-stat-label  { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
 
-    /* ===== MODULES ===== */
-    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 20px; }
-    .card h3 { margin-top: 0; font-size: 18px; color: var(--text); }
-    .module-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
-    .module-card { background: var(--bg-step); border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 10px; cursor: pointer; transition: border-color 200ms ease; }
-    .module-card:hover { border-color: var(--primary); }
-    .module-title { font-size: 15px; font-weight: 600; color: var(--text); }
-    .module-body { font-size: 13px; color: var(--text-muted); line-height: 1.4; flex: 1; }
-    .module-link { font-size: 13px; color: var(--primary); font-weight: 500; }
+    /* ===== MODULE GRID (5 cards) ===== */
+    .admin-module-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+    .admin-module-card {
+      background: var(--bg-step);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      cursor: pointer;
+      transition: border-color 200ms ease;
+    }
+    .admin-module-card:hover { border-color: var(--primary); }
+    .admin-module-title { font-size: 15px; font-weight: 600; color: var(--text); }
+    .admin-module-body  { font-size: 13px; color: var(--text-muted); line-height: 1.4; flex: 1; }
+    .admin-module-link  { font-size: 13px; color: var(--primary); font-weight: 500; }
 
-    /* ===== FOOTER ===== */
-    .footer { text-align: center; padding: 20px; font-size: 12px; color: var(--text-muted); line-height: 1.4; margin-top: 40px; }
-    .footer-line-2 { display: block; }
-
-    /* ===== LOADING ===== */
-    .loading-screen { display: flex; align-items: center; justify-content: center; height: 100vh; font-size: 16px; color: var(--text-muted); }
+    /* ===== KP COUNT BADGE (inside onboarding card) ===== */
+    /* Shows the number of key personnel with assignments */
+    .admin-kp-count {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-step);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-top: 10px;
+    }
+    .admin-kp-count-number {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--primary);
+      line-height: 1;
+    }
+    .admin-kp-count-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.3;
+    }
 
     /* ===== MOBILE RESPONSIVE ===== */
     @media (max-width: 800px) {
-      .header-row1 { padding: 10px 12px 4px 12px; }
-      .driven-logo { max-height: 40px; }
-      .customer-logo, .customer-logo-placeholder { max-height: 36px; max-width: 100px; }
-      .customer-logo-placeholder { font-size: 10px; padding: 4px 8px; line-height: 28px; }
-      .header-row2 h1 { font-size: 18px; }
-      .subtitle { display: none; }
-      .header-row3 { padding: 4px 12px 10px 12px; }
-      .onboarding-card { flex-direction: column; text-align: center; }
-      .stats-grid { grid-template-columns: repeat(2, 1fr); }
-      .main-container { padding: 0 12px; margin: 16px auto; }
-      .theme-switch-label { font-size: 10px; }
-      .theme-switch { width: 38px; height: 20px; }
-      .theme-slider:before { height: 14px; width: 14px; left: 3px; bottom: 3px; }
-      .theme-switch input:checked + .theme-slider:before { transform: translateX(16px); }
-      .btn-logout { font-size: 12px; padding: 6px 10px; }
+      .admin-onboarding { flex-direction: column; text-align: center; }
+      .admin-stats { grid-template-columns: repeat(2, 1fr); }
     }
-  </style>
+</style>
+
 </head>
-<body>
 
-  <!-- ===== LOADING SCREEN ===== -->
-  <div id="loading" class="loading-screen">Checking session…</div>
+<!-- Page title — appears in the dashboard header -->
+<body data-page-title="Admin Dashboard">
 
-  <!-- ===== DASHBOARD ===== -->
-  <div id="dashboard" style="display:none;">
+<!-- ===== LOADING SCREEN (hides after session check) ===== -->
+<div id="adminLoading" class="admin-loading">Checking session…</div>
 
-    <!-- ===== HEADER ===== -->
-    <header class="header">
-      <!-- Row 1: Customer logo (left) | DRIV-EN logo (right) -->
-      <div class="header-row1">
-        <div id="customerLogoArea">
-          <div class="customer-logo-placeholder">No logo</div>
-        </div>
-        <img src="/logo.png?v=2026" class="driven-logo" alt="DRIV‑EN Logo">
-      </div>
-      <!-- Row 2: Title centered -->
-      <div class="header-row2">
-        <h1>Admin Dashboard</h1>
-        <div class="subtitle">Full-access system administrator</div>
-      </div>
-      <!-- Row 3: Toggle (left) | Logout (right) -->
-      <div class="header-row3">
-        <div class="theme-switch-wrapper" title="Toggle light/dark mode">
-          <span class="theme-switch-label" id="theme-label-light">Light Mode</span>
-          <label class="theme-switch">
-            <input type="checkbox" id="theme-checkbox" onchange="toggleTheme()">
-            <span class="theme-slider"></span>
-          </label>
-          <span class="theme-switch-label" id="theme-label-dark">Dark Mode</span>
-        </div>
-        <button class="btn-logout" onclick="logout()">Logout</button>
-      </div>
-    </header>
+<!-- ===== DASHBOARD (hidden until session verified) ===== -->
+<div id="adminDashboard" style="display:none;">
 
-    <!-- ===== MAIN ===== -->
-    <main class="main-container">
+  <!-- ===== SHARED DASHBOARD HEADER (auto-loaded by dashboard-common.js) ===== -->
+  <div id="dashHeader"></div>
 
-      <!-- ===== WELCOME BANNER ===== -->
-      <div class="welcome-banner">
-        <h2>Welcome, <span id="welcome-name"></span></h2>
-        <p>You have full access to all modules, settings, users, and operational data.</p>
-      </div>
+  <!-- ===== PAGE CONTENT ===== -->
+  <main class="dash-main">
 
-      <!-- ===== ONBOARDING CARD (hides when complete) ===== -->
-      <div class="onboarding-card" id="onboardingCard">
-        <div class="onboarding-card-text">
-          <h3>Onboarding Dashboard</h3>
-          <p>Complete the onboarding steps to set up your organization: company logo, key personnel, employees, clients, divisions, project types, projects, and equipment.</p>
-          <span class="status-badge" id="onboarding-status" style="background:var(--bg-card);border:1px solid var(--error);color:var(--error);">Not Started</span>
-        </div>
-        <button class="btn-onboarding" onclick="window.location.href='/public/onboarding-dashboard.html'">Open Onboarding</button>
-      </div>
+    <!-- ===== WELCOME BANNER ===== -->
+    <div class="admin-welcome">
+      <h2>Welcome, <span id="admin-welcome-name"></span></h2>
+      <p>You have full access to all modules, settings, users, and operational data.</p>
+    </div>
 
-      <!-- ===== STATS ===== -->
-      <div class="stats-grid">
-        <div class="stat-card"><div class="stat-number" id="stat-employees">0</div><div class="stat-label">Employees</div></div>
-        <div class="stat-card"><div class="stat-number" id="stat-projects">0</div><div class="stat-label">Projects</div></div>
-        <div class="stat-card"><div class="stat-number" id="stat-equipment">0</div><div class="stat-label">Equipment</div></div>
-        <div class="stat-card"><div class="stat-number" id="stat-clients">0</div><div class="stat-label">Clients</div></div>
-      </div>
+    <!-- ===== ONBOARDING CARD (hides when complete) ===== -->
+    <div class="admin-onboarding" id="adminOnboardingCard">
+      <div class="admin-onboarding-text">
+        <h3>Onboarding Dashboard</h3>
+        <p>Complete the onboarding steps to set up your organization: company logo, key personnel, employees, clients, divisions, project types, projects, and equipment.</p>
+        <span class="admin-badge" id="admin-onboarding-status" style="background:var(--bg-card);border:1px solid var(--error);color:var(--error);">Not Started</span>
 
-      <!-- ===== MODULES (Onboarding removed) ===== -->
-      <div class="card">
-        <h3>Modules</h3>
-        <div class="module-grid">
-          <div class="module-card" onclick="window.location.href='/public/dashboard/admin/users.html'">
-            <div class="module-title">User Management</div>
-            <div class="module-body">Manage employees, roles, permissions, and account access.</div>
-            <div class="module-link">Open →</div>
-          </div>
-          <div class="module-card" onclick="window.location.href='/public/dashboard/admin/projects.html'">
-            <div class="module-title">Projects</div>
-            <div class="module-body">View, create, and manage all projects across your organization.</div>
-            <div class="module-link">Open →</div>
-          </div>
-          <div class="module-card" onclick="window.location.href='/public/dashboard/admin/equipment.html'">
-            <div class="module-title">Equipment</div>
-            <div class="module-body">Manage fleet, assignments, PM schedules, and service history.</div>
-            <div class="module-link">Open →</div>
-          </div>
-          <div class="module-card" onclick="window.location.href='/public/dashboard/admin/safety.html'">
-            <div class="module-title">Safety</div>
-            <div class="module-body">Review safety forms, compliance documentation, and hazard reports.</div>
-            <div class="module-link">Open →</div>
-          </div>
-          <div class="module-card" onclick="window.location.href='/public/dashboard/admin/settings.html'">
-            <div class="module-title">Settings</div>
-            <div class="module-body">Configure company settings, divisions, project types, and integrations.</div>
-            <div class="module-link">Open →</div>
-          </div>
+        <!-- KP count badge — shows number of key personnel with assignments -->
+        <div class="admin-kp-count">
+          <span class="admin-kp-count-number" id="admin-kp-count">0</span>
+          <span class="admin-kp-count-label">Key Personnel<br>Assigned</span>
         </div>
       </div>
+      <button class="admin-btn-onboarding" onclick="window.location.href='/public/onboarding-dashboard.html'">Open Onboarding</button>
+    </div>
 
-    </main>
+    <!-- ===== STATS GRID ===== -->
+    <div class="admin-stats">
+      <div class="admin-stat-card"><div class="admin-stat-number" id="admin-stat-employees">0</div><div class="admin-stat-label">Employees</div></div>
+      <div class="admin-stat-card"><div class="admin-stat-number" id="admin-stat-projects">0</div><div class="admin-stat-label">Projects</div></div>
+      <div class="admin-stat-card"><div class="admin-stat-number" id="admin-stat-equipment">0</div><div class="admin-stat-label">Equipment</div></div>
+      <div class="admin-stat-card"><div class="admin-stat-number" id="admin-stat-clients">0</div><div class="admin-stat-label">Clients</div></div>
+    </div>
 
-    <!-- ===== FOOTER ===== -->
-    <footer class="footer">
-      © <span id="footer-year"></span> Digital Safety Inspection, LLC.
-      <span class="footer-line-2">Driv-en is a Digital Safety Inspection, LLC platform.</span>
-    </footer>
+    <!-- ===== MODULES ===== -->
+    <div class="dash-card">
+      <h3>Modules</h3>
+      <div class="admin-module-grid">
+        <div class="admin-module-card" onclick="window.location.href='/public/dashboard/admin/users.html'">
+          <div class="admin-module-title">User Management</div>
+          <div class="admin-module-body">Manage employees, roles, permissions, and account access.</div>
+          <div class="admin-module-link">Open →</div>
+        </div>
+        <div class="admin-module-card" onclick="window.location.href='/public/dashboard/admin/projects.html'">
+          <div class="admin-module-title">Projects</div>
+          <div class="admin-module-body">View, create, and manage all projects across your organization.</div>
+          <div class="admin-module-link">Open →</div>
+        </div>
+        <div class="admin-module-card" onclick="window.location.href='/public/dashboard/admin/equipment.html'">
+          <div class="admin-module-title">Equipment</div>
+          <div class="admin-module-body">Manage fleet, assignments, PM schedules, and service history.</div>
+          <div class="admin-module-link">Open →</div>
+        </div>
+        <div class="admin-module-card" onclick="window.location.href='/public/dashboard/admin/safety.html'">
+          <div class="admin-module-title">Safety</div>
+          <div class="admin-module-body">Review safety forms, compliance documentation, and hazard reports.</div>
+          <div class="admin-module-link">Open →</div>
+        </div>
+        <div class="admin-module-card" onclick="window.location.href='/public/dashboard/admin/settings.html'">
+          <div class="admin-module-title">Settings</div>
+          <div class="admin-module-body">Configure company settings, divisions, project types, and integrations.</div>
+          <div class="admin-module-link">Open →</div>
+        </div>
+      </div>
+    </div>
 
-  </div>
+  </main>
 
-  <!-- ===== JAVASCRIPT ===== -->
-  <script>
-    /* ===== THEME TOGGLE (slide switch with labels) ===== */
-    function toggleTheme() {
-      var current = document.documentElement.getAttribute("data-theme");
-      var newTheme = current === "dark" ? "light" : "dark";
-      document.documentElement.setAttribute("data-theme", newTheme);
-      localStorage.setItem("driven-theme", newTheme);
-      updateThemeSwitch();
-    }
-    function updateThemeSwitch() {
-      var current = document.documentElement.getAttribute("data-theme");
-      var checkbox = document.getElementById("theme-checkbox");
-      var labelLight = document.getElementById("theme-label-light");
-      var labelDark = document.getElementById("theme-label-dark");
-      if (checkbox) checkbox.checked = (current === "dark");
-      if (labelLight) labelLight.classList.toggle("active", current === "light");
-      if (labelDark) labelDark.classList.toggle("active", current === "dark");
-    }
+</div>
+<!-- ===== END DASHBOARD ===== -->
 
-    /* ===== SESSION CHECK ===== */
-    async function checkSession() {
+<!-- ===== SHARED DASHBOARD JS (loads header, theme, logo, session) ===== -->
+<script src="/components/dashboard-common.js?v=1"></script>
+
+<!-- ===== AUTH CHECK (shared — currently inactive) ===== -->
+<script src="/components/auth-check.js"></script>
+
+<!-- ===== PAGE-SPECIFIC SCRIPT ===== -->
+<script>
+    /* ==========================================
+       ADMIN DASHBOARD INIT
+       Runs after dashboard-common.js loads the session.
+       The "dashSessionLoaded" event fires when the user
+       session is available (user object, org_id, etc.)
+
+       What this script does:
+       1. Fills the welcome banner with the user's first name
+       2. Shows the dashboard (hides loading screen)
+       3. Checks onboarding status (localStorage + KP API)
+       4. Hides onboarding card if complete
+       5. Loads stats from localStorage (will be DB queries later)
+       ========================================== */
+    document.addEventListener("dashSessionLoaded", async function(e) {
+      // e.detail contains the user object from /auth/session
+      // e.detail.email, e.detail.first_name, e.detail.org_id
+
+      // 1. Fill welcome banner with first name
+      var firstName = (e.detail && e.detail.first_name) ? e.detail.first_name : (e.detail && e.detail.email) || "";
+      var welcomeEl = document.getElementById("admin-welcome-name");
+      if (welcomeEl) welcomeEl.textContent = firstName;
+
+      // 2. Show dashboard, hide loading screen
+      document.getElementById("adminLoading").style.display = "none";
+      document.getElementById("adminDashboard").style.display = "block";
+
+      // 3. Check onboarding status
+      // Checks localStorage flags AND fetches KP count from server
+      // for desktop/mobile consistency
+      var onboardingComplete = localStorage.getItem("driven_onboarding_complete") === "true";
+      var onboardingStarted = localStorage.getItem("driven_customer_logo") !== null ||
+                               localStorage.getItem("driven_kp_count") !== null;
+      var statusEl = document.getElementById("admin-onboarding-status");
+      var onboardingCard = document.getElementById("adminOnboardingCard");
+
+      // Fetch key personnel count from server
       try {
-        const res = await fetch("/auth/session");
-        const data = await res.json();
-        if (!data.authenticated) { window.location.href = "/public/login.html"; return; }
-
-        // Greeting — first_name from session
-        var firstName = data.user.first_name || data.user.email;
-        document.getElementById("welcome-name").textContent = firstName;
-
-        // Store customer ID
-        if (data.user.org_id) localStorage.setItem("driven_customer_id", data.user.org_id);
-
-        // Load customer logo from D1 database (syncs across all devices and employees)
-        // Falls back to localStorage if D1 fetch fails (backward compatibility)
-        var logoArea = document.getElementById("customerLogoArea");
-        try {
-          var logoRes = await fetch("/auth/get-logo");
-          var logoData = await logoRes.json();
-          if (logoData.success && logoData.logo) {
-            // Logo found in D1 — save to localStorage as cache
-            localStorage.setItem("driven_customer_logo", logoData.logo);
-            logoArea.innerHTML = '<img src="' + logoData.logo + '" class="customer-logo" alt="Company Logo">';
-          } else {
-            // No logo in D1 — check localStorage as fallback
-            var localLogo = localStorage.getItem("driven_customer_logo");
-            if (localLogo) {
-              logoArea.innerHTML = '<img src="' + localLogo + '" class="customer-logo" alt="Company Logo">';
-            }
-          }
-        } catch (e) {
-          console.error("Logo fetch error:", e.message);
-          // Fallback to localStorage if D1 fetch fails
-          var localLogo = localStorage.getItem("driven_customer_logo");
-          if (localLogo) {
-            logoArea.innerHTML = '<img src="' + localLogo + '" class="customer-logo" alt="Company Logo">';
+        var customerId = localStorage.getItem("driven_customer_id");
+        if (customerId) {
+          var kpRes = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(customerId));
+          var kpData = await kpRes.json();
+          if (kpData.success && kpData.keyPersonnel) {
+            localStorage.setItem("driven_kp_count", kpData.keyPersonnel.length);
+            if (kpData.keyPersonnel.length > 0) onboardingStarted = true;
+            // Update the KP count badge inside the onboarding card
+            var kpCountEl = document.getElementById("admin-kp-count");
+            if (kpCountEl) kpCountEl.textContent = kpData.keyPersonnel.length;
           }
         }
-
-        // Footer year
-        document.getElementById("footer-year").textContent = new Date().getFullYear();
-
-        // Theme switch state
-        updateThemeSwitch();
-
-        // Show dashboard
-        document.getElementById("loading").style.display = "none";
-        document.getElementById("dashboard").style.display = "block";
-
-        // Onboarding status — same logic on desktop and mobile
-        // Check both localStorage flags AND fetch from server for consistency
-        var onboardingComplete = localStorage.getItem("driven_onboarding_complete") === "true";
-        var onboardingStarted = localStorage.getItem("driven_customer_logo") !== null ||
-                                 localStorage.getItem("driven_kp_count") !== null;
-        var statusEl = document.getElementById("onboarding-status");
-        var onboardingCard = document.getElementById("onboardingCard");
-
-        // Also fetch key personnel count from server to ensure desktop/mobile consistency
-        try {
-          var customerId = localStorage.getItem("driven_customer_id");
-          if (customerId) {
-            var kpRes = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(customerId));
-            var kpData = await kpRes.json();
-            if (kpData.success && kpData.keyPersonnel) {
-              localStorage.setItem("driven_kp_count", kpData.keyPersonnel.length);
-              if (kpData.keyPersonnel.length > 0) onboardingStarted = true;
-            }
-          }
-        } catch (e) {
-          console.error("KP count fetch error:", e.message);
-        }
-
-        if (onboardingComplete) {
-          onboardingCard.style.display = "none";
-        } else if (onboardingStarted) {
-          statusEl.textContent = "In Progress";
-          statusEl.style.background = "var(--bg-card)";
-          statusEl.style.borderColor = "var(--primary)";
-          statusEl.style.color = "var(--primary)";
-        } else {
-          statusEl.textContent = "Not Started";
-          statusEl.style.background = "var(--bg-card)";
-          statusEl.style.borderColor = "var(--error)";
-          statusEl.style.color = "var(--error)";
-        }
-
-        // Stats (localStorage for now — will be database queries later)
-        document.getElementById("stat-employees").textContent = localStorage.getItem("driven_employee_count") || "0";
-        document.getElementById("stat-projects").textContent = localStorage.getItem("driven_project_count") || "0";
-        document.getElementById("stat-equipment").textContent = localStorage.getItem("driven_equipment_count") || "0";
-        document.getElementById("stat-clients").textContent = localStorage.getItem("driven_client_count") || "0";
-
       } catch (err) {
-        console.error("Session check failed:", err);
+        console.error("KP count fetch error:", err.message);
+      }
+
+      // 4. Update onboarding card display
+      if (onboardingComplete) {
+        // All onboarding steps complete — hide the card
+        onboardingCard.style.display = "none";
+      } else if (onboardingStarted) {
+        // Onboarding in progress — show "In Progress" badge
+        statusEl.textContent = "In Progress";
+        statusEl.style.background = "var(--bg-card)";
+        statusEl.style.borderColor = "var(--primary)";
+        statusEl.style.color = "var(--primary)";
+      } else {
+        // Onboarding not started — show "Not Started" badge
+        statusEl.textContent = "Not Started";
+        statusEl.style.background = "var(--bg-card)";
+        statusEl.style.borderColor = "var(--error)";
+        statusEl.style.color = "var(--error)";
+      }
+
+      // 5. Load stats from localStorage (will be database queries later)
+      document.getElementById("admin-stat-employees").textContent = localStorage.getItem("driven_employee_count") || "0";
+      document.getElementById("admin-stat-projects").textContent  = localStorage.getItem("driven_project_count") || "0";
+      document.getElementById("admin-stat-equipment").textContent  = localStorage.getItem("driven_equipment_count") || "0";
+      document.getElementById("admin-stat-clients").textContent   = localStorage.getItem("driven_client_count") || "0";
+    });
+
+    /* ==========================================
+       FALLBACK: If session fails to load (network error, etc.)
+       redirect to login page after 5 seconds
+       ========================================== */
+    setTimeout(function() {
+      if (document.getElementById("adminDashboard").style.display === "none") {
+        // Dashboard still hidden after 5 seconds — session likely failed
+        console.error("Session check timed out — redirecting to login");
         window.location.href = "/public/login.html";
       }
-    }
+    }, 5000);
+</script>
 
-    /* ===== LOGOUT ===== */
-    async function logout() {
-      await fetch("/auth/logout", { method: "POST" });
-      window.location.href = "/public/login.html";
-    }
-
-    /* ===== INIT ===== */
-    document.addEventListener("DOMContentLoaded", checkSession);
-  </script>
-
-  <!-- ===== AUTH CHECK (shared — currently inactive) ===== -->
-  <script src="/components/auth-check.js"></script>
+<!-- Cloudflare Web Analytics -->
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"aed8feab3b60404ba88ec92f026bbcd6","r":1}' crossorigin="anonymous"></script>
 </body>
 </html>
