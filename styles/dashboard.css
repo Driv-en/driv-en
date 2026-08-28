@@ -1,12 +1,27 @@
 /* ==========================================================================
    DRIV‑EN DASHBOARD CSS — Shared across all dashboard pages
    ==========================================================================
-   Last updated: August 28, 2026 (Session 3)
-   Changes: — Light gray steel background (#d1d5db)
-            — Sticky header fix (overflow-x moved from html to body only)
-            — #dashHeader container made sticky
-   Version: v3
+   This file is loaded by every dashboard page via:
+   <link rel="stylesheet" href="/styles/dashboard.css?v=1">
+
+   It contains:
+   - Base reset and layout
+   - Light/dark theme variables
+   - Dashboard header (3-row layout: logos, title, toggle+logout)
+   - Theme slide switch (Light Mode / Dark Mode)
+   - Common dashboard elements (cards, buttons, inputs, tables, badges)
+   - Mobile responsive rules
+
+   PAGE-SPECIFIC STYLES:
+   Do NOT add page-specific styles here. Add them in a <style> block
+   in the individual page's <head> section. Use the "page-" prefix
+   for page-specific class names to avoid conflicts.
+
+   VERSION:
+   Bump the ?v= number in the <link> tag when you change this file.
+   Example: dashboard.css?v=1 → dashboard.css?v=2
    ========================================================================== */
+
 
 /* ===== BASE RESET ===== */
 *, *::before, *::after {
@@ -38,7 +53,12 @@ input, textarea, button, select {
   font-family: inherit;
 }
 
-/* ===== THEME VARIABLES ===== */
+
+/* ===== THEME VARIABLES (light/dark mode) ===== */
+/* These variables are used by ALL dashboard pages.
+   The theme is set on the <html> element via data-theme="light" or "dark".
+   The theme toggle script in dashboard-common.js switches between them. */
+
 :root[data-theme="light"] {
   --bg-page:      #d1d5db;   /* Page background — light gray steel */
   --bg-card:      #ffffff;   /* Card background */
@@ -46,15 +66,18 @@ input, textarea, button, select {
   --bg-header:    #e5e7eb;   /* Header background */
   --bg-step:      #ffffff;   /* Step card background */
   --bg-hover:     #e5e7eb;   /* Hover background */
-  --text:         #1e293b;
-  --text-muted:   #64748b;
-  --border:       #cbd5e1;
-  --border-input: #94a3b8;
-  --primary:       #2563eb;
-  --primary-hover: #1d4ed8;
-  --error:         #dc2626;
-  --success:       #16a34a;
-  --warning:       #f59e0b;
+
+  --text:         #1e293b;   /* Primary text color */
+  --text-muted:   #64748b;   /* Secondary/muted text color */
+
+  --border:       #e2e8f0;   /* Border color */
+  --border-input: #cbd5e1;   /* Input border color */
+
+  --primary:       #2563eb;  /* Primary button/link color */
+  --primary-hover: #1d4ed8;  /* Primary button hover color */
+  --error:         #dc2626;  /* Error color (red) */
+  --success:       #16a34a;  /* Success color (green) */
+  --warning:       #f59e0b;  /* Warning color (amber) */
 }
 
 :root[data-theme="dark"] {
@@ -64,10 +87,13 @@ input, textarea, button, select {
   --bg-header:    #1e293b;
   --bg-step:      #0f172a;
   --bg-hover:     #334155;
+
   --text:         #e5e7eb;
   --text-muted:   #94a3b8;
+
   --border:       #334155;
   --border-input: #334155;
+
   --primary:       #2563eb;
   --primary-hover: #1d4ed8;
   --error:         #ef4444;
@@ -75,27 +101,40 @@ input, textarea, button, select {
   --warning:       #f59e0b;
 }
 
-/* ===== SHARED BRAND STYLES ===== */
+
+/* ===== SHARED BRAND STYLES (do not remove) ===== */
+/* These style the DRIV‑EN brand text: DRIV (gray) ‑ (green) EN (red) */
 .brand-driv { color: #8c8c8c; font-weight: bold; font-style: italic; letter-spacing: -1px; }
 .brand-dash { color: #2da94f; font-weight: bold; font-style: italic; letter-spacing: -1px; }
 .brand-en   { color: #dc2626; font-weight: bold; font-style: italic; letter-spacing: -1px; }
+
 .inline-logo { height: 3.75em; vertical-align: middle; display: inline-block; }
 
+
 /* ===== DASHBOARD HEADER (3-row layout) ===== */
+/* Row 1: Customer logo (left) | DRIV-EN logo (right)
+   Row 2: Page title (centered, set by JS from body data-page-title)
+   Row 3: Theme toggle slide switch (left) | Logout button (right) */
+
 .dash-header {
   background: var(--bg-header);
   border-bottom: 1px solid var(--border);
-  position: sticky;
+  position: sticky;      /* Sticks to top when scrolling */
   top: 0;
   z-index: 100;
 }
 
+/* The #dashHeader container div also needs to be sticky
+   because the header HTML is loaded inside it via fetch().
+   Without this, the sticky child (.dash-header) won't stick
+   because the parent div doesn't participate in the sticky context. */
 #dashHeader {
   position: sticky;
   top: 0;
   z-index: 100;
 }
 
+/* Row 1: Customer logo (left) | DRIV-EN logo (right) */
 .dash-header-row1 {
   display: flex;
   justify-content: space-between;
@@ -103,12 +142,14 @@ input, textarea, button, select {
   padding: 12px 20px 4px 20px;
 }
 
+/* Customer logo — loaded from D1 database by dashboard-common.js */
 .dash-customer-logo {
   max-height: 64px;
   max-width: 200px;
   display: block;
 }
 
+/* Placeholder shown when no logo has been uploaded yet */
 .dash-customer-logo-placeholder {
   max-height: 48px;
   display: block;
@@ -122,11 +163,14 @@ input, textarea, button, select {
   line-height: 32px;
 }
 
+/* DRIV-EN logo (right side of row 1) */
+/* Cache buster ?v=2026 — bump when logo image changes */
 .dash-driven-logo {
   max-height: 64px;
   display: block;
 }
 
+/* Row 2: Page title (centered) */
 .dash-header-row2 {
   text-align: center;
   padding: 4px 20px;
@@ -139,6 +183,7 @@ input, textarea, button, select {
   color: var(--text);
 }
 
+/* Row 3: Theme toggle (left) | Logout (right) */
 .dash-header-row3 {
   display: flex;
   justify-content: space-between;
@@ -146,7 +191,11 @@ input, textarea, button, select {
   padding: 4px 20px 12px 20px;
 }
 
-/* ===== THEME SLIDE SWITCH ===== */
+
+/* ===== THEME SLIDE SWITCH (Light Mode / Dark Mode) ===== */
+/* A slide toggle with text labels on each side.
+   Checkbox checked = dark mode, unchecked = light mode. */
+
 .dash-theme-wrapper {
   display: flex;
   align-items: center;
@@ -159,6 +208,7 @@ input, textarea, button, select {
   transition: opacity 200ms ease;
 }
 
+/* The label for the active theme is bold and full-color */
 .dash-theme-label.active {
   color: var(--text);
   font-weight: 600;
@@ -198,6 +248,7 @@ input, textarea, button, select {
   transition: transform 200ms ease;
 }
 
+/* When checked (dark mode), slider turns blue and knob moves right */
 .dash-theme-switch input:checked + .dash-theme-slider {
   background: var(--primary);
 }
@@ -205,6 +256,7 @@ input, textarea, button, select {
 .dash-theme-switch input:checked + .dash-theme-slider:before {
   transform: translateX(20px);
 }
+
 
 /* ===== LOGOUT BUTTON ===== */
 .dash-logout {
@@ -218,14 +270,23 @@ input, textarea, button, select {
 }
 .dash-logout:hover { background: #dc2626; }
 
+
 /* ===== CONTENT AREA ===== */
+/* Standard content container for dashboard pages.
+   Centers content with max-width and padding. */
 .dash-main {
   max-width: 1100px;
   margin: 20px auto;
   padding: 0 20px;
 }
 
-/* ===== GREETING BAR ===== */
+
+/* ===== GREETING BAR (optional — below header, above content) ===== */
+/* If a page wants a greeting bar, add:
+   <div class="dash-greeting-bar" id="dashGreetingBar">
+     <span id="dashGreetingText">Welcome</span>
+   </div>
+   dashboard-common.js will auto-fill it from the session. */
 .dash-greeting-bar {
   max-width: 1100px;
   margin: 0 auto;
@@ -244,7 +305,9 @@ input, textarea, button, select {
 }
 .dash-greeting-text strong { color: var(--text); }
 
+
 /* ===== COMMON CARDS ===== */
+/* Use .dash-card for any card-style container */
 .dash-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -272,7 +335,9 @@ input, textarea, button, select {
   margin: 6px 0 0;
 }
 
+
 /* ===== COMMON BUTTONS ===== */
+/* Primary button — blue, for main actions */
 .dash-btn {
   background: var(--primary);
   border: 1px solid var(--primary-hover);
@@ -287,6 +352,7 @@ input, textarea, button, select {
 }
 .dash-btn:hover { background: var(--primary-hover); }
 
+/* Danger button — red, for delete/remove actions */
 .dash-btn-danger {
   background: #b91c1c;
   border: 1px solid #dc2626;
@@ -299,6 +365,7 @@ input, textarea, button, select {
 }
 .dash-btn-danger:hover { background: #dc2626; }
 
+/* Secondary button — subtle, for cancel/back */
 .dash-btn-secondary {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -313,12 +380,14 @@ input, textarea, button, select {
 }
 .dash-btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
 
+/* Disabled button */
 .dash-btn:disabled,
 .dash-btn-danger:disabled,
 .dash-btn-secondary:disabled {
   opacity: 0.5;
   cursor: default;
 }
+
 
 /* ===== COMMON FORM INPUTS ===== */
 .dash-input {
@@ -343,6 +412,7 @@ input, textarea, button, select {
   margin-bottom: 6px;
   display: block;
 }
+
 
 /* ===== COMMON TABLES ===== */
 .dash-table {
@@ -370,6 +440,7 @@ input, textarea, button, select {
   background: var(--bg-hover);
 }
 
+
 /* ===== COMMON STATUS BADGES ===== */
 .dash-badge {
   font-size: 12px;
@@ -384,6 +455,7 @@ input, textarea, button, select {
 .dash-badge-warning { background: #78350f; border: 1px solid #d97706; color: #fef3c7; }
 .dash-badge-danger  { background: #7f1d1d; border: 1px solid #b91c1c; color: #fee2e2; }
 .dash-badge-muted   { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); }
+
 
 /* ===== UTILITY CLASSES ===== */
 .dash-text-center { text-align: center; }
@@ -400,6 +472,7 @@ input, textarea, button, select {
 .dash-gap-1 { gap: 8px; }
 .dash-gap-2 { gap: 16px; }
 .dash-hidden { display: none; }
+
 
 /* ===== MOBILE RESPONSIVE ===== */
 @media (max-width: 800px) {
