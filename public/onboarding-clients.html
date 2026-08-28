@@ -3,16 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- ===== PAGE-SPECIFIC SEO ===== -->
 <title>DRIV‑EN | Onboarding — Clients</title>
 <meta name="description" content="Add clients to DRIV‑EN during onboarding. Single entry or bulk upload via Excel.">
 <meta name="robots" content="noindex, nofollow">
 <link rel="canonical" href="https://www.driv-en.com/public/onboarding-clients.html">
+
+<!-- Favicon -->
 <link rel="icon" type="image/png" href="/icons/favicon.png" sizes="48x48">
 <link rel="icon" type="image/png" href="/icons/favicon-96.png" sizes="96x96">
 <link rel="icon" type="image/png" href="/icons/favicon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" href="/icons/favicon-180.png">
-<link rel="stylesheet" href="/styles/dashboard.css?v=2">
+
+<!-- ===== SHARED DASHBOARD CSS ===== -->
+<link rel="stylesheet" href="/styles/dashboard.css?v=3">
+
+<!-- ===== EXCEL LIBRARY (for bulk upload) ===== -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
 <script>
 (function() {
   var saved = localStorage.getItem("driven-theme");
@@ -21,101 +31,350 @@
   document.documentElement.setAttribute("data-theme", theme);
 })();
 </script>
+
+<!-- ===== PAGE-SPECIFIC STYLES ===== -->
 <style>
-    .cli-back-bar { max-width: 1100px; margin: 0 auto; padding: 12px 20px 0 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-    .cli-back-btn { display: inline-flex; align-items: center; gap: 6px; background: #1e40af; border: 1px solid #2563eb; color: #dbeafe; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; }
+    /* ===== BACK BUTTON BAR ===== */
+    .cli-back-bar {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 12px 20px 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .cli-back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #1e40af;
+      border: 1px solid #2563eb;
+      color: #dbeafe;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+    }
     .cli-back-btn:hover { background: #1d4ed8; color: #fff; }
-    .cli-subtitle { margin: 4px 0 12px 0; color: var(--text-muted); font-size: 14px; line-height: 1.5; }
-    .cli-form-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 16px; max-width: 500px; }
-    .cli-form-field { display: flex; flex-direction: column; }
-    .cli-form-field label { margin-bottom: 4px; font-size: 14px; color: var(--text); font-weight: 600; }
+
+    /* ===== CARD SUBTITLE ===== */
+    .cli-subtitle {
+      margin: 4px 0 12px 0;
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ===== FORM GRID ===== */
+    .cli-form-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+      max-width: 500px;
+    }
+    .cli-form-field {
+      display: flex;
+      flex-direction: column;
+    }
+    .cli-form-field label {
+      margin-bottom: 4px;
+      font-size: 14px;
+      color: var(--text);
+      font-weight: 600;
+    }
     .cli-required-star { color: var(--error); margin-left: 3px; }
-    .cli-btn-primary { background: var(--primary); color: white; padding: 10px 18px; border-radius: 6px; font-size: 15px; border: 1px solid var(--primary-hover); cursor: pointer; margin-top: 10px; }
+
+    /* ===== BUTTONS ===== */
+    .cli-btn-primary {
+      background: var(--primary);
+      color: white;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 15px;
+      border: 1px solid var(--primary-hover);
+      cursor: pointer;
+      margin-top: 10px;
+    }
     .cli-btn-primary:hover { background: var(--primary-hover); }
     .cli-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-    .cli-btn-secondary { background: var(--bg-card); color: var(--text); padding: 10px 18px; border-radius: 6px; font-size: 15px; text-decoration: none; display: inline-flex; align-items: center; border: 1px solid var(--border); }
+
+    .cli-btn-secondary {
+      background: var(--bg-card);
+      color: var(--text);
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 15px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--border);
+    }
     .cli-btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
-    .cli-action-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: nowrap; }
-    .cli-action-row .cli-btn-primary, .cli-action-row .cli-btn-secondary { margin-top: 0; box-sizing: border-box; height: 42px; display: inline-flex; align-items: center; justify-content: center; }
+
+    /* ===== ACTION ROW ===== */
+    .cli-action-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: nowrap;
+    }
+    .cli-action-row .cli-btn-primary,
+    .cli-action-row .cli-btn-secondary {
+      margin-top: 0;
+      box-sizing: border-box;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ===== MESSAGES ===== */
     .cli-error { margin-top: 10px; color: var(--error); font-size: 14px; }
     .cli-success { margin-top: 10px; color: var(--success); font-size: 14px; }
-    .cli-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-    .cli-table th, .cli-table td { border: 1px solid var(--border); padding: 8px; font-size: 14px; vertical-align: top; }
-    .cli-table th { background: var(--bg-header); color: var(--text); font-weight: 600; text-align: left; }
+
+    /* ===== CLIENT TABLE ===== */
+    .cli-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+    .cli-table th, .cli-table td {
+      border: 1px solid var(--border);
+      padding: 8px;
+      font-size: 14px;
+      vertical-align: top;
+    }
+    .cli-table th {
+      background: var(--bg-header);
+      color: var(--text);
+      font-weight: 600;
+      text-align: left;
+    }
     .cli-table td { background: var(--bg-card); color: var(--text); }
-    .cli-empty { color: var(--text-muted); font-size: 14px; padding: 20px 0; }
-    .cli-step-status { margin-top: 12px; font-size: 14px; color: var(--success); }
-    .cli-count-badge { display: inline-block; background: var(--primary); color: #fff; font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 999px; margin-left: 8px; }
-    .cli-tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 2px solid var(--border); }
-    .cli-tab { padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; background: none; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -2px; }
-    .cli-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
-    .cli-bulk-link { color: var(--primary); font-size: 14px; text-decoration: none; display: inline-block; margin-bottom: 12px; }
+
+    /* ===== EMPTY STATE ===== */
+    .cli-empty {
+      color: var(--text-muted);
+      font-size: 14px;
+      padding: 20px 0;
+    }
+
+    /* ===== STEP STATUS ===== */
+    .cli-step-status {
+      margin-top: 12px;
+      font-size: 14px;
+      color: var(--success);
+    }
+
+    /* ===== COUNT BADGE ===== */
+    .cli-count-badge {
+      display: inline-block;
+      background: var(--primary);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 999px;
+      margin-left: 8px;
+    }
+
+    /* ===== TAB SWITCHER (Single vs Bulk) ===== */
+    .cli-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 16px;
+      border-bottom: 2px solid var(--border);
+    }
+    .cli-tab {
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+    }
+    .cli-tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    /* ===== BULK UPLOAD AREA ===== */
+    .cli-bulk-link {
+      color: var(--primary);
+      font-size: 14px;
+      text-decoration: none;
+      display: inline-block;
+      margin-bottom: 12px;
+    }
     .cli-bulk-link:hover { text-decoration: underline; }
-    .cli-bulk-file-input { padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-size: 14px; width: 100%; max-width: 400px; margin-bottom: 12px; }
-    .cli-bulk-preview { margin-top: 12px; overflow-x: auto; }
-    .cli-bulk-preview table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .cli-bulk-preview th, .cli-bulk-preview td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
-    .cli-bulk-preview th { background: var(--bg-header); color: var(--text); font-weight: 600; }
+
+    .cli-bulk-file-input {
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text);
+      font-size: 14px;
+      width: 100%;
+      max-width: 400px;
+      margin-bottom: 12px;
+    }
+
+    /* ===== BULK PREVIEW TABLE ===== */
+    .cli-bulk-preview {
+      margin-top: 12px;
+      overflow-x: auto;
+    }
+    .cli-bulk-preview table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .cli-bulk-preview th, .cli-bulk-preview td {
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      text-align: left;
+    }
+    .cli-bulk-preview th {
+      background: var(--bg-header);
+      color: var(--text);
+      font-weight: 600;
+    }
     .cli-bulk-preview td { background: var(--bg-card); color: var(--text); }
-    @media (max-width: 600px) { .cli-action-row { flex-direction: column; gap: 8px; } .cli-action-row .cli-btn-primary, .cli-action-row .cli-btn-secondary { width: 100%; } .cli-table { font-size: 12px; } .cli-table th, .cli-table td { padding: 6px 4px; } }
+
+    /* ===== MOBILE RESPONSIVE ===== */
+    @media (max-width: 600px) {
+      .cli-action-row { flex-direction: column; gap: 8px; }
+      .cli-action-row .cli-btn-primary,
+      .cli-action-row .cli-btn-secondary {
+        width: 100%;
+      }
+      .cli-table { font-size: 12px; }
+      .cli-table th, .cli-table td { padding: 6px 4px; }
+    }
 </style>
+
 </head>
+
+<!-- Page title — appears in the dashboard header -->
 <body data-page-title="Onboarding — Clients" data-required-task="Clients">
+
+<!-- ===== SHARED DASHBOARD HEADER (auto-loaded by dashboard-common.js) ===== -->
 <div id="dashHeader"></div>
+
+<!-- ===== BACK BUTTON BAR ===== -->
 <div class="cli-back-bar">
   <a href="/public/dashboard/admin.html" class="cli-back-btn">&larr; Admin Dashboard</a>
   <a href="/public/onboarding-dashboard.html" class="cli-back-btn" style="background:#374151;border-color:#4b5563;color:#d1d5db;">&larr; Onboarding Dashboard</a>
 </div>
+
+<!-- ===== PAGE CONTENT ===== -->
 <main class="dash-main">
+
+  <!-- ===== INTRO ===== -->
   <div class="dash-card">
     <h2>Add Clients <span class="cli-count-badge" id="cliCount">0</span></h2>
-    <p class="cli-subtitle">Add all clients that your organization works with. Clients will be used when creating projects in the Project Management Suite.</p>
-    <p class="cli-subtitle"><strong>Required:</strong> Client Name. That's all you need at this time — additional client details will be managed in the Project Management Suite.</p>
+    <p class="cli-subtitle">
+      Add all clients that your organization works with. Clients will be used when creating
+      projects in the Project Management Suite.
+    </p>
+    <p class="cli-subtitle">
+      <strong>Required:</strong> Client Name. That's all you need at this time —
+      additional client details will be managed in the Project Management Suite.
+    </p>
   </div>
+
+  <!-- ===== TAB SWITCHER ===== -->
   <div class="dash-card">
     <div class="cli-tabs">
       <button class="cli-tab active" id="tabSingle" onclick="switchTab('single')">Single Entry</button>
       <button class="cli-tab" id="tabBulk" onclick="switchTab('bulk')">Bulk Upload</button>
     </div>
   </div>
+
+  <!-- ===== SINGLE ENTRY TAB ===== -->
   <div id="tabContentSingle">
+
+    <!-- ===== ADD CLIENT FORM ===== -->
     <div class="dash-card">
       <h3>Add Client</h3>
+
       <div class="cli-form-grid">
         <div class="cli-form-field">
           <label>Client Name<span class="cli-required-star">*</span></label>
           <input type="text" id="cliName" class="dash-input" placeholder="e.g., Acme Construction">
         </div>
       </div>
+
       <button id="btnAddCli" class="cli-btn-primary">Add Client</button>
       <div id="cliError" class="cli-error"></div>
       <div id="cliSuccess" class="cli-success"></div>
     </div>
+
+    <!-- ===== CLIENT LIST ===== -->
     <div class="dash-card">
       <h3>Clients Added</h3>
-      <p class="cli-subtitle">These clients will be saved when you click Save &amp; Continue. You can add as many as you need before saving.</p>
-      <div id="cliTableContainer"><p class="cli-empty">No clients added yet.</p></div>
+      <p class="cli-subtitle">
+        These clients will be saved when you click Save &amp; Continue. You can add as many as you need before saving.
+      </p>
+      <div id="cliTableContainer">
+        <p class="cli-empty">No clients added yet.</p>
+      </div>
     </div>
-  </div>
+
+  </div><!-- /tabContentSingle -->
+
+  <!-- ===== BULK UPLOAD TAB ===== -->
   <div id="tabContentBulk" style="display:none;">
+
     <div class="dash-card">
       <h3>Bulk Upload Clients</h3>
-      <p class="cli-subtitle">Download the Excel template, fill in your client list, then upload it here. Client Name is required for every row.</p>
-      <button onclick="downloadClientTemplate()" class="cli-bulk-link" style="cursor:pointer;border:none;font-size:14px;">⬇ Download Client-Mass-Upload-v1.0.xlsx</button>
+      <p class="cli-subtitle">
+        Download the Excel template, fill in your client list, then upload it here.
+        Client Name is required for every row.
+      </p>
+
+      <!-- Template download button — generates the Excel file in the browser using SheetJS -->
+      <button onclick="downloadClientTemplate()" class="cli-bulk-link" style="cursor:pointer;border:none;font-size:14px;">
+        ⬇ Download Client-Mass-Upload-v1.0.xlsx
+      </button>
+
+      <!-- File input -->
       <div class="cli-form-field" style="max-width:400px;">
         <label>Upload Completed Template</label>
-        <input type="file" id="bulkFile" accept=".xlsx" class="cli-bulk-file-input">
+        <input type="file" id="bulkFile" accept=".xlsx,.csv" class="cli-bulk-file-input">
       </div>
+
       <button id="btnProcessBulk" class="cli-btn-primary">Process Upload</button>
       <div id="statusBulk" class="cli-error"></div>
+
+      <!-- Preview table after upload -->
       <div id="bulkPreview" class="cli-bulk-preview"></div>
     </div>
+
+    <!-- ===== BULK CLIENT LIST ===== -->
     <div class="dash-card">
       <h3>Clients from Bulk Upload</h3>
-      <p class="cli-subtitle">Review the uploaded clients below, then click Save &amp; Continue to save them all.</p>
-      <div id="bulkTableContainer"><p class="cli-empty">No clients uploaded yet.</p></div>
+      <p class="cli-subtitle">
+        Review the uploaded clients below, then click Save &amp; Continue to save them all.
+      </p>
+      <div id="bulkTableContainer">
+        <p class="cli-empty">No clients uploaded yet.</p>
+      </div>
     </div>
-  </div>
+
+  </div><!-- /tabContentBulk -->
+
+  <!-- ===== ACTIONS (shared — always visible) ===== -->
   <div class="dash-card">
     <div class="cli-action-row">
       <a href="/public/onboarding-dashboard.html" class="cli-btn-secondary">Return to Onboarding</a>
@@ -123,11 +382,45 @@
     </div>
     <div id="cliStepStatus" class="cli-step-status"></div>
   </div>
+
 </main>
+
+<!-- ===== SHARED DASHBOARD JS (loads header, theme, logo, session) ===== -->
 <script src="/components/dashboard-common.js?v=2"></script>
+
+<!-- ===== AUTH CHECK (shared — ACTIVE, enforces login + role + task checks) ===== -->
 <script src="/components/auth-check.js?v=2"></script>
+
+<!-- ===== PAGE-SPECIFIC SCRIPT ===== -->
 <script>
+    /* ==========================================
+       ONBOARDING CLIENTS PAGE
+       ==========================================
+       What this page does:
+       1. Lets the admin add clients one at a time (Single Entry tab)
+       2. Lets the admin upload many clients via Excel or CSV (Bulk Upload tab)
+       3. Required field: Client Name
+       4. Shows a running list of clients added
+       5. Saves all clients to localStorage on "Save & Continue"
+       6. Updates the client count badge
+
+       BULK UPLOAD:
+       Excel/CSV template must have column: Client Name.
+       Duplicates (case-insensitive) are rejected.
+       Instruction row (starting with "INSTRUCTIONS") is auto-detected and skipped.
+
+       FUTURE ENHANCEMENTS (noted in daily report):
+       - Save to D1 database via API (currently localStorage only)
+       - Additional client details managed in Project Management Suite
+
+       The "dashSessionLoaded" event fires when dashboard-common.js
+       has loaded the user session.
+       ========================================== */
+
+    // ===== STATE =====
     var clients = [];
+
+    // ===== DOM REFERENCES =====
     var cliError = document.getElementById("cliError");
     var cliSuccess = document.getElementById("cliSuccess");
     var cliTableContainer = document.getElementById("cliTableContainer");
@@ -135,81 +428,291 @@
     var cliCountEl = document.getElementById("cliCount");
     var statusBulk = document.getElementById("statusBulk");
     var bulkPreview = document.getElementById("bulkPreview");
-    function updateCount() { cliCountEl.textContent = clients.length; }
-    function renderTable() {
-      if (clients.length === 0) { cliTableContainer.innerHTML = '<p class="cli-empty">No clients added yet.</p>'; return; }
-      var rows = clients.map(function(cli, index) {
-        return '<tr><td>' + (index + 1) + '</td><td>' + cli.name + '</td><td><button class="cli-btn-secondary" style="padding:4px 10px;font-size:12px;height:auto;" onclick="removeClient(' + index + ')">Remove</button></td></tr>';
-      }).join("");
-      cliTableContainer.innerHTML = '<table class="cli-table"><thead><tr><th>#</th><th>Client Name</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table>';
+
+    // ===== HELPER: Update the client count badge =====
+    function updateCount() {
+      cliCountEl.textContent = clients.length;
     }
-    window.removeClient = function(index) { clients.splice(index, 1); renderTable(); updateCount(); cliSuccess.textContent = ""; cliError.textContent = ""; };
-    window.switchTab = function(tab) {
-      var tabSingle = document.getElementById("tabSingle"); var tabBulk = document.getElementById("tabBulk");
-      var contentSingle = document.getElementById("tabContentSingle"); var contentBulk = document.getElementById("tabContentBulk");
-      if (tab === "single") { tabSingle.classList.add("active"); tabBulk.classList.remove("active"); contentSingle.style.display = "block"; contentBulk.style.display = "none"; }
-      else { tabBulk.classList.add("active"); tabSingle.classList.remove("active"); contentBulk.style.display = "block"; contentSingle.style.display = "none"; }
+
+    // ===== RENDER CLIENT TABLE =====
+    function renderTable() {
+      if (clients.length === 0) {
+        cliTableContainer.innerHTML = '<p class="cli-empty">No clients added yet.</p>';
+        return;
+      }
+
+      var rows = clients.map(function(cli, index) {
+        return '<tr>' +
+          '<td>' + (index + 1) + '</td>' +
+          '<td>' + cli.name + '</td>' +
+          '<td><button class="cli-btn-secondary" style="padding:4px 10px;font-size:12px;height:auto;" onclick="removeClient(' + index + ')">Remove</button></td>' +
+          '</tr>';
+      }).join("");
+
+      cliTableContainer.innerHTML =
+        '<table class="cli-table"><thead><tr>' +
+        '<th>#</th><th>Client Name</th><th>Action</th>' +
+        '</tr></thead><tbody>' + rows + '</tbody></table>';
+    }
+
+    // ===== REMOVE CLIENT (by index) =====
+    window.removeClient = function(index) {
+      clients.splice(index, 1);
+      renderTable();
+      updateCount();
+      cliSuccess.textContent = "";
+      cliError.textContent = "";
     };
+
+    // ===== TAB SWITCHER =====
+    window.switchTab = function(tab) {
+      var tabSingle = document.getElementById("tabSingle");
+      var tabBulk = document.getElementById("tabBulk");
+      var contentSingle = document.getElementById("tabContentSingle");
+      var contentBulk = document.getElementById("tabContentBulk");
+
+      if (tab === "single") {
+        tabSingle.classList.add("active");
+        tabBulk.classList.remove("active");
+        contentSingle.style.display = "block";
+        contentBulk.style.display = "none";
+      } else {
+        tabBulk.classList.add("active");
+        tabSingle.classList.remove("active");
+        contentBulk.style.display = "block";
+        contentSingle.style.display = "none";
+      }
+    };
+
+    // ===== ADD CLIENT (single entry button click) =====
     document.getElementById("btnAddCli").addEventListener("click", function() {
-      cliError.textContent = ""; cliSuccess.textContent = "";
+      cliError.textContent = "";
+      cliSuccess.textContent = "";
+
       var name = document.getElementById("cliName").value.trim();
-      if (!name) { cliError.textContent = "Client Name is required."; return; }
-      if (clients.some(function(cli) { return cli.name.toLowerCase() === name.toLowerCase(); })) { cliError.textContent = "A client with this name has already been added."; return; }
-      clients.push({ name: name, customerId: localStorage.getItem("driven_customer_id") || "" });
-      renderTable(); updateCount(); document.getElementById("cliName").value = ""; document.getElementById("cliName").focus();
+
+      if (!name) {
+        cliError.textContent = "Client Name is required.";
+        return;
+      }
+
+      if (clients.some(function(cli) { return cli.name.toLowerCase() === name.toLowerCase(); })) {
+        cliError.textContent = "A client with this name has already been added.";
+        return;
+      }
+
+      var cli = {
+        name: name,
+        customerId: localStorage.getItem("driven_customer_id") || ""
+      };
+
+      clients.push(cli);
+      renderTable();
+      updateCount();
+
+      document.getElementById("cliName").value = "";
+      document.getElementById("cliName").focus();
+
       cliSuccess.textContent = "Client added. Add another or click Save & Continue.";
     });
-    document.getElementById("cliName").addEventListener("keydown", function(e) { if (e.key === "Enter") { e.preventDefault(); document.getElementById("btnAddCli").click(); } });
+
+    // ===== Allow pressing Enter in the input to add a client =====
+    document.getElementById("cliName").addEventListener("keydown", function(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        document.getElementById("btnAddCli").click();
+      }
+    });
+
+    // ===== BULK UPLOAD (Process Excel or CSV file) =====
     document.getElementById("btnProcessBulk").addEventListener("click", function() {
-      statusBulk.textContent = ""; statusBulk.className = "cli-error";
+      statusBulk.textContent = "";
+      statusBulk.className = "cli-error";
+
       var file = document.getElementById("bulkFile").files[0];
-      if (!file) { statusBulk.textContent = "Please select an Excel file."; return; }
+      if (!file) {
+        statusBulk.textContent = "Please select an Excel or CSV file.";
+        return;
+      }
+
       var reader = new FileReader();
+
       reader.onload = function(e) {
-        var workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
-        var sheet = workbook.Sheets[workbook.SheetNames[0]];
-        var rows = XLSX.utils.sheet_to_json(sheet);
-        if (rows.length === 0) { statusBulk.textContent = "The Excel file is empty."; return; }
+        var rows;
+        var isCsv = file.name.toLowerCase().endsWith(".csv");
+
+        if (isCsv) {
+          // Parse CSV manually
+          var text = e.target.result;
+          var lines = text.split(/\r?\n/).filter(function(l) { return l.trim() !== ""; });
+          if (lines.length < 2) { statusBulk.textContent = "The CSV file is empty or has no data rows."; return; }
+          var headers = parseCsvLine(lines[0]);
+          rows = lines.slice(1).map(function(line) {
+            var values = parseCsvLine(line);
+            var obj = {};
+            headers.forEach(function(h, i) { obj[h] = values[i] || ""; });
+            return obj;
+          });
+        } else {
+          // Parse Excel
+          var workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+          var sheet = workbook.Sheets[workbook.SheetNames[0]];
+          rows = XLSX.utils.sheet_to_json(sheet);
+        }
+
+        if (rows.length === 0) {
+          statusBulk.textContent = "The file is empty.";
+          return;
+        }
+
+        // Skip instruction row if present (first cell starts with "INSTRUCTIONS")
+        if (rows[0] && Object.values(rows[0])[0] && String(Object.values(rows[0])[0]).startsWith("INSTRUCTIONS")) {
+          rows = rows.slice(1);
+        }
+        if (rows.length === 0) { statusBulk.textContent = "No data rows found after instruction row."; return; }
+
+        // Required column header
         var requiredField = "Client Name";
+
+        // Validate column exists
         var header = Object.keys(rows[0]);
-        if (header.indexOf(requiredField) === -1) { statusBulk.textContent = "Missing required column: " + requiredField; return; }
-        for (var r = 0; r < rows.length; r++) { var row = rows[r]; if (!row[requiredField] || String(row[requiredField]).trim() === "") { statusBulk.textContent = "Row " + (r + 2) + ": Client Name is required."; return; } }
+        if (header.indexOf(requiredField) === -1) {
+          statusBulk.textContent = "Missing required column: " + requiredField;
+          return;
+        }
+
+        // Validate each row
+        for (var r = 0; r < rows.length; r++) {
+          var row = rows[r];
+          if (!row[requiredField] || String(row[requiredField]).trim() === "") {
+            statusBulk.textContent = "Row " + (r + 2) + ": Client Name is required.";
+            return;
+          }
+        }
+
+        // Check for duplicates within the upload
         var seenNames = {};
-        for (var d = 0; d < rows.length; d++) { var nm = String(rows[d][requiredField]).trim().toLowerCase(); if (seenNames[nm]) { statusBulk.textContent = "Duplicate client name in the upload: " + nm + " (rows " + seenNames[nm] + " and " + (d + 2) + ")."; return; } seenNames[nm] = (d + 2); }
+        for (var d = 0; d < rows.length; d++) {
+          var nm = String(rows[d][requiredField]).trim().toLowerCase();
+          if (seenNames[nm]) {
+            statusBulk.textContent = "Duplicate client name in the upload: " + nm + " (rows " + seenNames[nm] + " and " + (d + 2) + ").";
+            return;
+          }
+          seenNames[nm] = (d + 2);
+        }
+
+        // Check for duplicates against already-added clients
         var existingNames = clients.map(function(c) { return c.name.toLowerCase(); });
-        for (var dd = 0; dd < rows.length; dd++) { var checkName = String(rows[dd][requiredField]).trim().toLowerCase(); if (existingNames.indexOf(checkName) !== -1) { statusBulk.textContent = "Row " + (dd + 2) + ': Client "' + checkName + '" has already been added in this session.'; return; } }
-        var bulkClients = rows.map(function(row) { return { name: String(row[requiredField]).trim(), customerId: localStorage.getItem("driven_customer_id") || "" }; });
+        for (var dd = 0; dd < rows.length; dd++) {
+          var checkName = String(rows[dd][requiredField]).trim().toLowerCase();
+          if (existingNames.indexOf(checkName) !== -1) {
+            statusBulk.textContent = "Row " + (dd + 2) + ': Client "' + checkName + '" has already been added in this session.';
+            return;
+          }
+        }
+
+        // All validation passed — build client objects
+        var bulkClients = rows.map(function(row) {
+          return {
+            name: String(row[requiredField]).trim(),
+            customerId: localStorage.getItem("driven_customer_id") || ""
+          };
+        });
+
+        // Show preview table
         var html = "<table><thead><tr><th>Client Name</th></tr></thead><tbody>";
-        bulkClients.forEach(function(c) { html += "<tr><td>" + c.name + "</td></tr>"; });
+        bulkClients.forEach(function(c) {
+          html += "<tr><td>" + c.name + "</td></tr>";
+        });
         html += "</tbody></table>";
         bulkPreview.innerHTML = html;
-        clients = clients.concat(bulkClients); renderTable(); updateCount();
-        statusBulk.textContent = "Uploaded " + bulkClients.length + " clients. Review above and click Save & Continue."; statusBulk.className = "cli-success";
+
+        // Add bulk clients to the main array
+        clients = clients.concat(bulkClients);
+        renderTable();
+        updateCount();
+
+        statusBulk.textContent = "Uploaded " + bulkClients.length + " clients. Review above and click Save & Continue.";
+        statusBulk.className = "cli-success";
       };
-      reader.readAsArrayBuffer(file);
+
+      if (file.name.toLowerCase().endsWith(".csv")) { reader.readAsText(file); } else { reader.readAsArrayBuffer(file); }
     });
+
+    // ===== SAVE & CONTINUE =====
     document.getElementById("btnSaveCli").addEventListener("click", function() {
-      cliStepStatus.textContent = ""; cliStepStatus.style.color = "var(--error)";
-      if (clients.length === 0) { cliStepStatus.textContent = "You must add at least one client."; return; }
+      cliStepStatus.textContent = "";
+      cliStepStatus.style.color = "var(--error)";
+
+      if (clients.length === 0) {
+        cliStepStatus.textContent = "You must add at least one client.";
+        return;
+      }
+
       var existing = JSON.parse(localStorage.getItem("driven_clients") || "[]");
       var allClients = existing.concat(clients);
       localStorage.setItem("driven_clients", JSON.stringify(allClients));
       localStorage.setItem("driven_client_count", allClients.length);
       localStorage.setItem("driven_step4_complete", "true");
+
       cliStepStatus.style.color = "var(--success)";
       cliStepStatus.textContent = clients.length + " client(s) saved. Total clients: " + allClients.length + ".";
-      var btnSave = document.getElementById("btnSaveCli"); btnSave.disabled = true; btnSave.textContent = "Saved ✓";
-      clients = []; renderTable(); updateCount();
+
+      var btnSave = document.getElementById("btnSaveCli");
+      btnSave.disabled = true;
+      btnSave.textContent = "Saved ✓";
+
+      clients = [];
+      renderTable();
+      updateCount();
     });
+
+    // ===== DOWNLOAD CLIENT TEMPLATE =====
+    // Generates the Excel template file in the browser using SheetJS (XLSX library).
+    // The template has:
+    //   Row 1: INSTRUCTIONS row (tells user to delete before uploading)
+    //   Row 2: Column header "Client Name" (frozen — always visible when scrolling)
+    //   No sample data rows (prevents accidental data entry)
     function downloadClientTemplate() {
-      var ws = XLSX.utils.aoa_to_sheet([ ["Client Name"], ["Sample Client 1"] ]);
-      ws["!cols"] = [{ wch: 40 }];
+      var ws = XLSX.utils.aoa_to_sheet([
+        ["INSTRUCTIONS: Delete this row before uploading. Only fill in the Client Name column."],
+        ["Client Name"]
+      ]);
+      ws["!cols"] = [{ wch: 60 }];
+      ws["!freeze"] = { ySplit: 2, xSplit: 0, topLeftCell: "A3", panes: [{ state: "frozen", ySplit: 2, xSplit: 0, topLeftCell: "A3", activePane: "bottomLeft" }] };
       var wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Clients");
       XLSX.writeFile(wb, "Client-Mass-Upload-v1.0.xlsx");
     }
-    document.addEventListener("dashSessionLoaded", function(e) { renderTable(); updateCount(); });
+
+    // CSV line parser — handles quoted fields with commas
+    function parseCsvLine(line) {
+      var result = [];
+      var current = "";
+      var inQuotes = false;
+      for (var i = 0; i < line.length; i++) {
+        var ch = line[i];
+        if (inQuotes) {
+          if (ch === '"') { if (line[i + 1] === '"') { current += '"'; i++; } else { inQuotes = false; } }
+          else { current += ch; }
+        } else {
+          if (ch === '"') { inQuotes = true; }
+          else if (ch === ",") { result.push(current.trim()); current = ""; }
+          else { current += ch; }
+        }
+      }
+      result.push(current.trim());
+      return result;
+    }
+
+    // ===== INIT =====
+    document.addEventListener("dashSessionLoaded", function(e) {
+      renderTable();
+      updateCount();
+    });
 </script>
+
+<!-- Cloudflare Web Analytics -->
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"aed8feab3b60404ba88ec92f026bbcd6","r":1}' crossorigin="anonymous"></script>
 </body>
 </html>
