@@ -4,14 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DRIV‑EN | Onboarding — Divisions</title>
-<meta name="description" content="Add divisions to DRIV‑EN during onboarding.">
+<meta name="description" content="Add divisions to DRIV‑EN during onboarding. Single entry or bulk upload via Excel/CSV.">
 <meta name="robots" content="noindex, nofollow">
 <link rel="canonical" href="https://www.driv-en.com/public/onboarding-divisions.html">
 <link rel="icon" type="image/png" href="/icons/favicon.png" sizes="48x48">
 <link rel="icon" type="image/png" href="/icons/favicon-96.png" sizes="96x96">
 <link rel="icon" type="image/png" href="/icons/favicon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" href="/icons/favicon-180.png">
-<link rel="stylesheet" href="/styles/dashboard.css?v=2">
+<link rel="stylesheet" href="/styles/dashboard.css?v=3">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 (function() {
   var saved = localStorage.getItem("driven-theme");
@@ -45,6 +46,17 @@
     .div-empty { color: var(--text-muted); font-size: 14px; padding: 20px 0; }
     .div-step-status { margin-top: 12px; font-size: 14px; color: var(--success); }
     .div-count-badge { display: inline-block; background: var(--primary); color: #fff; font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 999px; margin-left: 8px; }
+    .div-tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 2px solid var(--border); }
+    .div-tab { padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; background: none; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -2px; }
+    .div-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .div-bulk-link { color: var(--primary); font-size: 14px; text-decoration: none; display: inline-block; margin-bottom: 12px; }
+    .div-bulk-link:hover { text-decoration: underline; }
+    .div-bulk-file-input { padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-size: 14px; width: 100%; max-width: 400px; margin-bottom: 12px; }
+    .div-bulk-preview { margin-top: 12px; overflow-x: auto; }
+    .div-bulk-preview table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .div-bulk-preview th, .div-bulk-preview td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+    .div-bulk-preview th { background: var(--bg-header); color: var(--text); font-weight: 600; }
+    .div-bulk-preview td { background: var(--bg-card); color: var(--text); }
     @media (max-width: 600px) { .div-action-row { flex-direction: column; gap: 8px; } .div-action-row .div-btn-primary, .div-action-row .div-btn-secondary { width: 100%; } .div-table { font-size: 12px; } .div-table th, .div-table td { padding: 6px 4px; } }
 </style>
 </head>
@@ -61,21 +73,48 @@
     <p class="div-subtitle"><strong>Required:</strong> Division Name. That's all you need at this time.</p>
   </div>
   <div class="dash-card">
-    <h3>Add Division</h3>
-    <div class="div-form-grid">
-      <div class="div-form-field">
-        <label>Division Name<span class="div-required-star">*</span></label>
-        <input type="text" id="divName" class="dash-input" placeholder="e.g., Heavy Civil, Pipeline, Earthwork">
-      </div>
+    <div class="div-tabs">
+      <button class="div-tab active" id="tabSingle" onclick="switchTab('single')">Single Entry</button>
+      <button class="div-tab" id="tabBulk" onclick="switchTab('bulk')">Bulk Upload</button>
     </div>
-    <button id="btnAddDiv" class="div-btn-primary">Add Division</button>
-    <div id="divError" class="div-error"></div>
-    <div id="divSuccess" class="div-success"></div>
   </div>
-  <div class="dash-card">
-    <h3>Divisions Added</h3>
-    <p class="div-subtitle">These divisions will be saved when you click Save &amp; Continue. You can add as many as you need before saving.</p>
-    <div id="divTableContainer"><p class="div-empty">No divisions added yet.</p></div>
+  <div id="tabContentSingle">
+    <div class="dash-card">
+      <h3>Add Division</h3>
+      <div class="div-form-grid">
+        <div class="div-form-field">
+          <label>Division Name<span class="div-required-star">*</span></label>
+          <input type="text" id="divName" class="dash-input" placeholder="e.g., Heavy Civil, Pipeline, Earthwork">
+        </div>
+      </div>
+      <button id="btnAddDiv" class="div-btn-primary">Add Division</button>
+      <div id="divError" class="div-error"></div>
+      <div id="divSuccess" class="div-success"></div>
+    </div>
+    <div class="dash-card">
+      <h3>Divisions Added</h3>
+      <p class="div-subtitle">These divisions will be saved when you click Save &amp; Continue. You can add as many as you need before saving.</p>
+      <div id="divTableContainer"><p class="div-empty">No divisions added yet.</p></div>
+    </div>
+  </div>
+  <div id="tabContentBulk" style="display:none;">
+    <div class="dash-card">
+      <h3>Bulk Upload Divisions</h3>
+      <p class="div-subtitle">Download the Excel template, fill in your division list, then upload it here. Division Name is required for every row. CSV files are also supported.</p>
+      <button onclick="downloadDivisionTemplate()" class="div-bulk-link" style="cursor:pointer;border:none;font-size:14px;">⬇ Download Division-Mass-Upload-v1.0.xlsx</button>
+      <div class="div-form-field" style="max-width:400px;">
+        <label>Upload Completed Template</label>
+        <input type="file" id="bulkFile" accept=".xlsx,.csv" class="div-bulk-file-input">
+      </div>
+      <button id="btnProcessBulk" class="div-btn-primary">Process Upload</button>
+      <div id="statusBulk" class="div-error"></div>
+      <div id="bulkPreview" class="div-bulk-preview"></div>
+    </div>
+    <div class="dash-card">
+      <h3>Divisions from Bulk Upload</h3>
+      <p class="div-subtitle">Review the uploaded divisions below, then click Save &amp; Continue to save them all.</p>
+      <div id="bulkTableContainer"><p class="div-empty">No divisions uploaded yet.</p></div>
+    </div>
   </div>
   <div class="dash-card">
     <div class="div-action-row">
@@ -94,6 +133,8 @@
     var divTableContainer = document.getElementById("divTableContainer");
     var divStepStatus = document.getElementById("divStepStatus");
     var divCountEl = document.getElementById("divCount");
+    var statusBulk = document.getElementById("statusBulk");
+    var bulkPreview = document.getElementById("bulkPreview");
     function updateCount() { divCountEl.textContent = divisions.length; }
     function renderTable() {
       if (divisions.length === 0) { divTableContainer.innerHTML = '<p class="div-empty">No divisions added yet.</p>'; return; }
@@ -103,6 +144,12 @@
       divTableContainer.innerHTML = '<table class="div-table"><thead><tr><th>#</th><th>Division Name</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table>';
     }
     window.removeDivision = function(index) { divisions.splice(index, 1); renderTable(); updateCount(); divSuccess.textContent = ""; divError.textContent = ""; };
+    window.switchTab = function(tab) {
+      var tabSingle = document.getElementById("tabSingle"); var tabBulk = document.getElementById("tabBulk");
+      var contentSingle = document.getElementById("tabContentSingle"); var contentBulk = document.getElementById("tabContentBulk");
+      if (tab === "single") { tabSingle.classList.add("active"); tabBulk.classList.remove("active"); contentSingle.style.display = "block"; contentBulk.style.display = "none"; }
+      else { tabBulk.classList.add("active"); tabSingle.classList.remove("active"); contentBulk.style.display = "block"; contentSingle.style.display = "none"; }
+    };
     document.getElementById("btnAddDiv").addEventListener("click", function() {
       divError.textContent = ""; divSuccess.textContent = "";
       var name = document.getElementById("divName").value.trim();
@@ -113,6 +160,46 @@
       divSuccess.textContent = "Division added. Add another or click Save & Continue.";
     });
     document.getElementById("divName").addEventListener("keydown", function(e) { if (e.key === "Enter") { e.preventDefault(); document.getElementById("btnAddDiv").click(); } });
+    document.getElementById("btnProcessBulk").addEventListener("click", function() {
+      statusBulk.textContent = ""; statusBulk.className = "div-error";
+      var file = document.getElementById("bulkFile").files[0];
+      if (!file) { statusBulk.textContent = "Please select an Excel or CSV file."; return; }
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var rows;
+        var isCsv = file.name.toLowerCase().endsWith(".csv");
+        if (isCsv) {
+          var text = e.target.result;
+          var lines = text.split(/\r?\n/).filter(function(l) { return l.trim() !== ""; });
+          if (lines.length < 2) { statusBulk.textContent = "The CSV file is empty or has no data rows."; return; }
+          var headers = parseCsvLine(lines[0]);
+          rows = lines.slice(1).map(function(line) { var values = parseCsvLine(line); var obj = {}; headers.forEach(function(h, i) { obj[h] = values[i] || ""; }); return obj; });
+        } else {
+          var workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+          var sheet = workbook.Sheets[workbook.SheetNames[0]];
+          rows = XLSX.utils.sheet_to_json(sheet);
+        }
+        if (rows.length === 0) { statusBulk.textContent = "The file is empty."; return; }
+        if (rows[0] && Object.values(rows[0])[0] && String(Object.values(rows[0])[0]).startsWith("INSTRUCTIONS")) { rows = rows.slice(1); }
+        if (rows.length === 0) { statusBulk.textContent = "No data rows found after instruction row."; return; }
+        var requiredField = "Division Name";
+        var header = Object.keys(rows[0]);
+        if (header.indexOf(requiredField) === -1) { statusBulk.textContent = "Missing required column: " + requiredField; return; }
+        for (var r = 0; r < rows.length; r++) { if (!rows[r][requiredField] || String(rows[r][requiredField]).trim() === "") { statusBulk.textContent = "Row " + (r + 2) + ": Division Name is required."; return; } }
+        var seenNames = {};
+        for (var d = 0; d < rows.length; d++) { var nm = String(rows[d][requiredField]).trim().toLowerCase(); if (seenNames[nm]) { statusBulk.textContent = "Duplicate division name: " + nm + " (rows " + seenNames[nm] + " and " + (d + 2) + ")."; return; } seenNames[nm] = (d + 2); }
+        var existingNames = divisions.map(function(div) { return div.name.toLowerCase(); });
+        for (var dd = 0; dd < rows.length; dd++) { var checkName = String(rows[dd][requiredField]).trim().toLowerCase(); if (existingNames.indexOf(checkName) !== -1) { statusBulk.textContent = "Row " + (dd + 2) + ': Division "' + checkName + '" has already been added in this session.'; return; } }
+        var bulkDivisions = rows.map(function(row) { return { name: String(row[requiredField]).trim(), customerId: localStorage.getItem("driven_customer_id") || "" }; });
+        var html = "<table><thead><tr><th>Division Name</th></tr></thead><tbody>";
+        bulkDivisions.forEach(function(d) { html += "<tr><td>" + d.name + "</td></tr>"; });
+        html += "</tbody></table>";
+        bulkPreview.innerHTML = html;
+        divisions = divisions.concat(bulkDivisions); renderTable(); updateCount();
+        statusBulk.textContent = "Uploaded " + bulkDivisions.length + " divisions. Review above and click Save & Continue."; statusBulk.className = "div-success";
+      };
+      if (file.name.toLowerCase().endsWith(".csv")) { reader.readAsText(file); } else { reader.readAsArrayBuffer(file); }
+    });
     document.getElementById("btnSaveDiv").addEventListener("click", function() {
       divStepStatus.textContent = ""; divStepStatus.style.color = "var(--error)";
       if (divisions.length === 0) { divStepStatus.textContent = "You must add at least one division."; return; }
@@ -126,6 +213,26 @@
       var btnSave = document.getElementById("btnSaveDiv"); btnSave.disabled = true; btnSave.textContent = "Saved ✓";
       divisions = []; renderTable(); updateCount();
     });
+    function downloadDivisionTemplate() {
+      var ws = XLSX.utils.aoa_to_sheet([
+        ["INSTRUCTIONS: Delete this row before uploading. Only fill in the Division Name column."],
+        ["Division Name"]
+      ]);
+      ws["!cols"] = [{ wch: 60 }];
+      ws["!freeze"] = { ySplit: 2, xSplit: 0, topLeftCell: "A3", panes: [{ state: "frozen", ySplit: 2, xSplit: 0, topLeftCell: "A3", activePane: "bottomLeft" }] };
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Divisions");
+      XLSX.writeFile(wb, "Division-Mass-Upload-v1.0.xlsx");
+    }
+    function parseCsvLine(line) {
+      var result = []; var current = ""; var inQuotes = false;
+      for (var i = 0; i < line.length; i++) {
+        var ch = line[i];
+        if (inQuotes) { if (ch === '"') { if (line[i + 1] === '"') { current += '"'; i++; } else { inQuotes = false; } } else { current += ch; } }
+        else { if (ch === '"') { inQuotes = true; } else if (ch === ",") { result.push(current.trim()); current = ""; } else { current += ch; } }
+      }
+      result.push(current.trim()); return result;
+    }
     document.addEventListener("dashSessionLoaded", function(e) { renderTable(); updateCount(); });
 </script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"aed8feab3b60404ba88ec92f026bbcd6","r":1}' crossorigin="anonymous"></script>
