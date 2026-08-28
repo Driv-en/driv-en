@@ -1,23 +1,19 @@
 <!-- ==========================================================================
-     DRIV‑EN DASHBOARD TEMPLATE — INDUSTRIAL BACKGROUND TEST v2
+     DRIV-EN DASHBOARD TEMPLATE — INDUSTRIAL BACKGROUND TEST v2 (FIXED)
      ==========================================================================
-     This version uses VERY FAINT, SMALL, FAR-APART rivets to match the
-     subtle rivets in the DRIV-EN logo. The goal is a brushed steel sheet
-     with barely-visible rivets — not polka dots.
+     FIX: The previous v2 was showing plain gray because dashboard.css has
+     `body { background: var(--bg-page); }` which overrides background-image.
+     This version uses a SEPARATE fixed-position div (.industrial-bg) for the
+     brushed steel + rivets, so it doesn't fight with dashboard.css body styles.
 
-     Changes from v1:
-     - Rivets are now 8px circles (was 55px) — tiny, not large
-     - Rivets are spaced 180px apart (was 55px) — far apart, not a grid
-     - Rivet opacity is 0.12 (was 0.55) — barely visible
-     - Rivet colors are softer — light gray to transparent, no dark edges
-     - Scratches removed entirely (they added noise without value)
-     - Brushed metal gradient kept — this is what carries the "steel" look
-     - Noise texture kept but slightly stronger (0.10 opacity) to help
-       the metal feel
+     The .industrial-bg div is:
+     - position: fixed (covers entire viewport, stays in place on scroll)
+     - z-index: -2 (behind everything, including the body background)
+     - pointer-events: none (doesn't block clicks)
 
      TO REMOVE IF NOT APPROVED:
-     1. Delete the CSS between "INDUSTRIAL BACKGROUND v2 START" and "INDUSTRIAL BACKGROUND v2 END"
-     2. Delete the <div class="riveted-surface"></div> line
+     1. Delete the CSS between "INDUSTRIAL BACKGROUND v2 START" and "END"
+     2. Delete both <div> lines (.industrial-bg and .riveted-surface)
 
      LAST UPDATED: August 28, 2026 — Session 3 Checkpoint 3
      ========================================================================== -->
@@ -28,7 +24,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>DRIV‑EN | Background Test v2</title>
+<title>DRIV-EN | Background Test v2</title>
 <meta name="description" content="Test page v2 for industrial background with subtle rivets.">
 <meta name="robots" content="noindex, nofollow">
 
@@ -53,25 +49,35 @@
     /* ====================================================================
        INDUSTRIAL BACKGROUND v2 START — TEST CODE (remove if not approved)
        ====================================================================
-       Brushed steel gradient + faint noise + very subtle small rivets.
+       Uses a separate fixed div instead of body background to avoid
+       conflicts with dashboard.css body { background: var(--bg-page) }.
 
-       The rivets are designed to match the DRIV-EN logo's subtle rivets:
-       - 8px diameter (tiny)
-       - 180px apart (far apart — not a visible grid)
-       - 0.12 opacity (barely visible)
-       - Soft light-gray to transparent (no hard dark edges)
+       Two layers:
+       1. .industrial-bg — brushed steel gradient + faint noise (z-index: -2)
+       2. .riveted-surface — tiny subtle rivets (z-index: -1)
+
+       Both are fixed, full-viewport, non-interactive (pointer-events: none).
        ==================================================================== */
 
-    /* --- Light Mode: Brushed Steel Background --- */
-    :root[data-theme="light"] body,
+    /* Make the body background transparent so our fixed layers show through.
+       This overrides dashboard.css body { background: var(--bg-page) }. */
     body {
-      margin: 0;
-      min-height: 100vh;
+      background: transparent !important;
+    }
 
-      /* Base color — lighter gray */
+    /* --- Layer 1: Brushed Steel Background --- */
+    /* Fixed full-viewport div with the brushed metal gradient + noise.
+       Sits behind everything (z-index: -2). */
+    .industrial-bg {
+      position: fixed;
+      inset: 0;
+      z-index: -2;
+      pointer-events: none;
+
+      /* Base color */
       background-color: #c4c8cc;
 
-      /* Layer 1: brushed metal gradient (135 degrees, soft tones)
+      /* Layer 1: brushed metal gradient (135 degrees)
          Layer 2: faint SVG noise (200x200 tile, 10% opacity) */
       background-image:
         linear-gradient(135deg,
@@ -84,14 +90,11 @@
 
       background-size: cover, 200px 200px;
       background-blend-mode: overlay;
-
-      color: var(--text);
     }
 
-    /* --- Dark Mode: Darker Steel Background --- */
-    :root[data-theme="dark"] body {
+    /* --- Dark Mode: Darker Steel --- */
+    :root[data-theme="dark"] .industrial-bg {
       background-color: #1a1f2e;
-
       background-image:
         linear-gradient(135deg,
           #2a2f3e 0%,
@@ -100,56 +103,46 @@
           #151925 100%
         ),
         url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='noise'><feTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3'/></filter><rect width='200' height='200' filter='url(%23noise)' opacity='0.10'/></svg>");
-
       background-size: cover, 200px 200px;
       background-blend-mode: overlay;
     }
 
-    /* --- Subtle Rivets Overlay --- */
+    /* --- Layer 2: Subtle Rivets --- */
     /* Tiny 8px rivets spaced 180px apart at 12% opacity.
-       They should be barely visible — like the rivets in the DRIV-EN logo.
-       The radial gradient creates a small soft circle that fades to transparent. */
+       Barely visible — matches the subtle rivets in the DRIV-EN logo.
+       Sits above the steel background but behind all content (z-index: -1). */
     .riveted-surface {
       position: fixed;
       inset: 0;
+      z-index: -1;
       pointer-events: none;
-      z-index: 0;
 
-      /* Single layer: tiny soft rivets, 180px apart */
+      /* Tiny soft rivets — 8px circles, 180px apart */
       background-image:
         radial-gradient(circle 4px at center,
-          rgba(240, 240, 240, 0.7) 0%,
-          rgba(200, 200, 200, 0.4) 40%,
+          rgba(240, 240, 240, 0.8) 0%,
+          rgba(200, 200, 200, 0.5) 40%,
           transparent 75%
         );
 
-      background-size: 180px 180px;  /* rivet spacing — far apart */
-      background-position: 90px 90px; /* offset so rivets aren't at edges */
+      background-size: 180px 180px;
+      background-position: 90px 90px;
 
-      opacity: 0.12;  /* barely visible */
+      opacity: 0.12;
       mix-blend-mode: overlay;
     }
 
     /* --- Dark Mode Rivets --- */
-    /* Same tiny rivets but with slightly lighter color and screen blend
-       so they're visible against the dark background. */
     :root[data-theme="dark"] .riveted-surface {
       background-image:
         radial-gradient(circle 4px at center,
-          rgba(180, 190, 210, 0.7) 0%,
-          rgba(140, 150, 170, 0.4) 40%,
+          rgba(180, 190, 210, 0.8) 0%,
+          rgba(140, 150, 170, 0.5) 40%,
           transparent 75%
         );
-
       opacity: 0.15;
       mix-blend-mode: screen;
     }
-
-    /* --- Content z-index --- */
-    /* All content sits above the riveted-surface overlay. */
-    #dashHeader { z-index: 100; }
-    .dash-main { position: relative; z-index: 1; }
-    .dash-greeting-bar { position: relative; z-index: 1; }
 
     /* ====================================================================
        INDUSTRIAL BACKGROUND v2 END — TEST CODE
@@ -173,7 +166,12 @@
 
 <body data-page-title="Background Test v2">
 
-<!-- ===== INDUSTRIAL BACKGROUND OVERLAY (TEST v2 — remove if not approved) ===== -->
+<!-- ===== INDUSTRIAL BACKGROUND LAYERS (TEST v2 — remove if not approved) ===== -->
+
+<!-- Layer 1: Brushed steel gradient + noise (behind everything) -->
+<div class="industrial-bg"></div>
+
+<!-- Layer 2: Subtle rivets (above steel, behind content) -->
 <div class="riveted-surface"></div>
 
 <!-- ===== SHARED DASHBOARD HEADER ===== -->
@@ -188,10 +186,10 @@
 
   <!-- Info box -->
   <div class="page-info-box">
-    <strong>BACKGROUND TEST v2 — SUBTLE RIVETS.</strong> This version has tiny 8px rivets
-    spaced 180px apart at 12% opacity — designed to match the subtle rivets in the DRIV-EN logo.
-    They should be barely visible, like rivets on a distant steel wall. Toggle Light/Dark mode
-    in the header to see both modes.
+    <strong>BACKGROUND TEST v2 (FIXED) — SUBTLE RIVETS.</strong> This version uses separate
+    fixed-position layers for the brushed steel and rivets, so they can't be overridden by
+    dashboard.css. You should see a brushed steel gradient with tiny barely-visible rivets.
+    Toggle Light/Dark mode in the header to see both modes.
   </div>
 
   <!-- Demo card 1 -->
