@@ -1,24 +1,20 @@
 <!-- ==========================================================================
-     DRIV-EN DASHBOARD TEMPLATE — DIAMOND PLATE STEEL TEST v3
+     DRIV-EN DASHBOARD TEMPLATE — RIVETED STEEL IMAGE TEST v4
      ==========================================================================
-     This version creates a DIAMOND PLATE (treaded steel) pattern using
-     only CSS gradients — no image file needed.
+     This version uses the user's actual riveted-steel.png image as the
+     background. The image is served from /assets/riveted-steel.png.
 
-     FIX for previous failures:
-     - Previous versions used negative z-index on the background divs, which
-       hid them behind the body's opaque background color from dashboard.css.
-     - This version uses z-index: 0 (not negative) and forces body transparent
-       with !important, so the pattern is visible.
-     - All content gets position: relative + z-index: 1 to sit above it.
-
-     The diamond plate pattern uses 4 intersecting linear gradients:
-     - 2 at 45deg (white highlights on top-left edges)
-     - 2 at -45deg (dark shadows on bottom-right edges)
-     - Offset by half the tile size to create the diamond grid
+     How it works:
+     - body is forced transparent (overrides dashboard.css)
+     - A fixed full-viewport div (.steel-bg) at z-index: 0 displays the image
+     - The image tiles (background-repeat: repeat) to fill the screen
+     - A semi-transparent overlay darkens/lightens the image slightly so
+       content stays readable
+     - All content sits at z-index: 1+ to appear above the background
 
      TO REMOVE IF NOT APPROVED:
-     1. Delete CSS between "DIAMOND PLATE START" and "DIAMOND PLATE END"
-     2. Delete the <div class="diamond-plate"></div> line
+     1. Delete CSS between "STEEL BG START" and "STEEL BG END"
+     2. Delete the <div class="steel-bg"></div> and <div class="steel-overlay"></div> lines
 
      LAST UPDATED: August 28, 2026 — Session 3 Checkpoint 3
      ========================================================================== -->
@@ -29,8 +25,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>DRIV-EN | Diamond Plate Test v3</title>
-<meta name="description" content="Test page v3 for diamond plate steel background.">
+<title>DRIV-EN | Steel Background Test v4</title>
+<meta name="description" content="Test page v4 for riveted steel image background.">
 <meta name="robots" content="noindex, nofollow">
 
 <link rel="icon" type="image/png" href="/icons/favicon.png" sizes="48x48">
@@ -52,141 +48,72 @@
 <style>
 
     /* ====================================================================
-       DIAMOND PLATE START — TEST CODE (remove if not approved)
+       STEEL BG START — TEST CODE (remove if not approved)
        ====================================================================
-       Creates a treaded/diamond plate steel pattern using CSS gradients.
+       Uses the user's riveted-steel.png image as a tiling background.
 
-       How it works:
-       - 4 linear gradients at 45 and -45 degrees create intersecting
-         diagonal lines
-       - White lines (highlights) on the top-left edges of each diamond
-       - Dark lines (shadows) on the bottom-right edges
-       - The offset between highlight and shadow creates a 3D raised effect
-       - A faint noise texture on top adds metal realism
-       - All on a fixed div at z-index: 0, with body forced transparent
+       Three layers:
+       1. .steel-bg — the image, tiled across the full viewport (z-index: 0)
+       2. .steel-overlay — semi-transparent white/black to control brightness
+          and keep content readable (z-index: 0, above the image)
+       3. Content — all at z-index: 1+ (header, main, cards, etc.)
 
-       The pattern tile is 28px — small enough to look like real diamond
-       plate, large enough to be visible without straining.
+       The overlay is important: without it, the image may be too busy
+       or too dark for text readability. The overlay lightens it in light
+       mode and darkens it slightly in dark mode.
        ==================================================================== */
 
-    /* Force body transparent so the diamond plate div shows through.
-       !important overrides dashboard.css body { background: var(--bg-page) }. */
+    /* Force body transparent so the steel image shows through. */
     body {
       background: transparent !important;
     }
 
-    /* --- Diamond Plate Background Layer --- */
-    /* Fixed full-viewport div at z-index: 0 (NOT negative — that was the bug).
-       All content sits above it at z-index: 1+. */
-    .diamond-plate {
+    /* --- Layer 1: Steel Image --- */
+    /* Fixed full-viewport div with the riveted steel image tiled.
+       z-index: 0 — behind all content but visible because body is transparent. */
+    .steel-bg {
       position: fixed;
       inset: 0;
       z-index: 0;
       pointer-events: none;
 
-      /* Base steel color */
-      background-color: #b8bcc0;
-
-      /* Layer 1-4: Diamond plate pattern (highlights + shadows)
-         Layer 5: Faint noise texture for metal realism */
-      background-image:
-
-        /* Highlight on top-left edge of each diamond (45deg) */
-        linear-gradient(45deg,
-          rgba(255, 255, 255, 0.18) 0%,
-          rgba(255, 255, 255, 0.18) 25%,
-          transparent 25%,
-          transparent 100%
-        ),
-
-        /* Highlight on top-left edge (offset, -45deg) */
-        linear-gradient(-45deg,
-          rgba(255, 255, 255, 0.18) 0%,
-          rgba(255, 255, 255, 0.18) 25%,
-          transparent 25%,
-          transparent 100%
-        ),
-
-        /* Shadow on bottom-right edge of each diamond (45deg, offset) */
-        linear-gradient(45deg,
-          transparent 0%,
-          transparent 75%,
-          rgba(0, 0, 0, 0.12) 75%,
-          rgba(0, 0, 0, 0.12) 100%
-        ),
-
-        /* Shadow on bottom-right edge (-45deg, offset) */
-        linear-gradient(-45deg,
-          transparent 0%,
-          transparent 75%,
-          rgba(0, 0, 0, 0.12) 75%,
-          rgba(0, 0, 0, 0.12) 100%
-        ),
-
-        /* Faint noise texture (200x200 SVG, 8% opacity) */
-        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2'/></filter><rect width='200' height='200' filter='url(%23n)' opacity='0.08'/></svg>");
-
-      /* Diamond grid is 28px tiles; noise is 200px tiles */
-      background-size: 28px 28px, 28px 28px, 28px 28px, 28px 28px, 200px 200px;
-
-      /* Offset the shadow layers by half a tile to create the 3D effect */
-      background-position:
-        0 0,           /* highlight 45deg */
-        0 0,           /* highlight -45deg */
-        14px 14px,     /* shadow 45deg (offset half tile) */
-        14px 14px,     /* shadow -45deg (offset half tile) */
-        0 0;           /* noise */
+      /* The user's riveted steel image — tiled to fill the screen */
+      background-image: url("/assets/riveted-steel.png");
+      background-repeat: repeat;
+      background-size: auto;
     }
 
-    /* --- Dark Mode: Darker Diamond Plate --- */
-    :root[data-theme="dark"] .diamond-plate {
-      background-color: #1a1f2e;
+    /* --- Layer 2: Readability Overlay --- */
+    /* Semi-transparent overlay on top of the steel image to keep content
+       readable. In light mode, a white overlay lightens the steel. In dark
+       mode, a dark overlay darkens it further. */
+    .steel-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
 
-      background-image:
-        /* Highlights — lighter blue-gray on dark steel */
-        linear-gradient(45deg,
-          rgba(120, 130, 150, 0.25) 0%,
-          rgba(120, 130, 150, 0.25) 25%,
-          transparent 25%,
-          transparent 100%
-        ),
-        linear-gradient(-45deg,
-          rgba(120, 130, 150, 0.25) 0%,
-          rgba(120, 130, 150, 0.25) 25%,
-          transparent 25%,
-          transparent 100%
-        ),
+    /* Light mode overlay — white at 55% opacity to lighten the steel
+       so it's a subtle texture, not a dominant image */
+    :root[data-theme="light"] .steel-overlay {
+      background-color: rgba(255, 255, 255, 0.55);
+    }
 
-        /* Shadows — darker on dark steel */
-        linear-gradient(45deg,
-          transparent 0%,
-          transparent 75%,
-          rgba(0, 0, 0, 0.3) 75%,
-          rgba(0, 0, 0, 0.3) 100%
-        ),
-        linear-gradient(-45deg,
-          transparent 0%,
-          transparent 75%,
-          rgba(0, 0, 0, 0.3) 75%,
-          rgba(0, 0, 0, 0.3) 100%
-        ),
-
-        /* Noise */
-        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2'/></filter><rect width='200' height='200' filter='url(%23n)' opacity='0.08'/></svg>");
-
-      background-size: 28px 28px, 28px 28px, 28px 28px, 28px 28px, 200px 200px;
-      background-position: 0 0, 0 0, 14px 14px, 14px 14px, 0 0;
+    /* Dark mode overlay — dark blue-gray at 70% opacity so the steel
+       is barely visible behind dark cards */
+    :root[data-theme="dark"] .steel-overlay {
+      background-color: rgba(15, 23, 42, 0.70);
     }
 
     /* --- Content z-index --- */
-    /* All real content must sit ABOVE the diamond-plate layer (z-index: 0).
-       The header, main content, and greeting bar all get z-index: 1+. */
+    /* All real content sits ABOVE the steel background and overlay. */
     #dashHeader { position: relative; z-index: 100; }
     .dash-main { position: relative; z-index: 1; }
     .dash-greeting-bar { position: relative; z-index: 1; }
 
     /* ====================================================================
-       DIAMOND PLATE END — TEST CODE
+       STEEL BG END — TEST CODE
        ==================================================================== */
 
     /* ===== Demo content styles ===== */
@@ -205,12 +132,15 @@
 
 </head>
 
-<body data-page-title="Diamond Plate Test v3">
+<body data-page-title="Steel Background Test v4">
 
-<!-- ===== DIAMOND PLATE BACKGROUND (TEST v3 — remove if not approved) ===== -->
-<!-- Fixed full-viewport div with the diamond plate pattern.
-     z-index: 0 — behind all content but visible because body is transparent. -->
-<div class="diamond-plate"></div>
+<!-- ===== STEEL BACKGROUND LAYERS (TEST v4 — remove if not approved) ===== -->
+
+<!-- Layer 1: Riveted steel image (tiled, behind everything) -->
+<div class="steel-bg"></div>
+
+<!-- Layer 2: Readability overlay (lightens/darkens the steel) -->
+<div class="steel-overlay"></div>
 
 <!-- ===== SHARED DASHBOARD HEADER ===== -->
 <div id="dashHeader"></div>
@@ -224,18 +154,17 @@
 
   <!-- Info box -->
   <div class="page-info-box">
-    <strong>BACKGROUND TEST v3 — DIAMOND PLATE STEEL.</strong> This version creates a treaded
-    diamond plate pattern using only CSS gradients — no image file needed. The diamonds have
-    white highlights on their top-left edges and dark shadows on their bottom-right edges to
-    create a 3D raised effect. Toggle Light/Dark mode in the header to see both modes.
+    <strong>BACKGROUND TEST v4 — RIVETED STEEL IMAGE.</strong> This uses your actual
+    riveted-steel.png image as the background. A semi-transparent overlay sits on top
+    to keep content readable — 55% white in light mode, 70% dark in dark mode.
+    Toggle Light/Dark in the header to see how it looks in both modes.
   </div>
 
   <!-- Demo card 1 -->
   <div class="dash-card">
-    <h2>Diamond Plate Steel Test</h2>
-    <p>The background should look like treaded stainless steel flooring — the kind you see on
-    industrial walkways and tool boxes. Each diamond has a light edge and a dark edge for a 3D
-    raised look.</p>
+    <h2>Riveted Steel Background Test</h2>
+    <p>The background should show your riveted steel image, slightly faded so it doesn't
+    compete with the content. The cards sit on top with their normal white/dark background.</p>
     <button class="dash-btn" onclick="alert('Button clicked!')">Demo Button</button>
     <button class="dash-btn-secondary" style="margin-left: 8px;">Secondary Button</button>
   </div>
@@ -243,7 +172,7 @@
   <!-- Demo card 2 — table -->
   <div class="dash-card">
     <h3>Table Test</h3>
-    <p>This table tests readability against the diamond plate background.</p>
+    <p>This table tests readability against the steel background.</p>
     <table class="dash-table">
       <thead>
         <tr><th>Name</th><th>Role</th><th>Status</th></tr>
@@ -259,7 +188,7 @@
   <!-- Demo card 3 — form inputs -->
   <div class="dash-card">
     <h3>Form Input Test</h3>
-    <p>This tests form inputs against the diamond plate background.</p>
+    <p>This tests form inputs against the steel background.</p>
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 500px;">
       <div>
         <label class="dash-label">First Name</label>
