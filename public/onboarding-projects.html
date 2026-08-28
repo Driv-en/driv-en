@@ -1,342 +1,716 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>DRIV‑EN – Projects Setup</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" type="image/png" href="/favicon.png" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- ===== PAGE-SPECIFIC SEO ===== -->
+<title>DRIV‑EN | Onboarding — Projects</title>
+<meta name="description" content="Add projects to DRIV‑EN during onboarding. Single entry or bulk upload via Excel.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://www.driv-en.com/public/onboarding-projects.html">
 
-  <style>
-    @media (max-width: 768px) {
-      header {
-        position: fixed !important;
-        top: 0;
-        left: 0;
-        right: 0;
-        width: 100% !important;
-        padding: 16px !important;
-        margin: 0 !important;
-        box-sizing: border-box !important;
-      }
+<!-- Favicon -->
+<link rel="icon" type="image/png" href="/icons/favicon.png" sizes="48x48">
+<link rel="icon" type="image/png" href="/icons/favicon-96.png" sizes="96x96">
+<link rel="icon" type="image/png" href="/icons/favicon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="/icons/favicon-180.png">
 
-      footer {
-        position: fixed !important;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        width: 100% !important;
-        padding: 16px !important;
-        margin: 0 !important;
-        box-sizing: border-box !important;
-      }
+<!-- ===== SHARED DASHBOARD CSS ===== -->
+<link rel="stylesheet" href="/styles/dashboard.css?v=1">
 
-      main {
-        margin-top: 120px !important;
-        margin-bottom: 120px !important;
-      }
-    }
+<!-- ===== EXCEL LIBRARY (for bulk upload) ===== -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      margin: 0;
-      padding: 0;
-      background: #0f172a;
-      color: #e5e7eb;
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-    }
+<!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
+<script>
+(function() {
+  var saved = localStorage.getItem("driven-theme");
+  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  var theme = saved || system;
+  document.documentElement.setAttribute("data-theme", theme);
+})();
+</script>
 
-    header {
-      position: sticky;
-      top: 0;
-      z-index: 50;
-      padding: 16px 24px;
-      border-bottom: 1px solid #1f2937;
-      background: #020617;
+<!-- ===== PAGE-SPECIFIC STYLES ===== -->
+<style>
+    /* ===== BACK BUTTON BAR ===== */
+    .prj-back-bar {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 12px 20px 0 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .prj-back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #1e40af;
+      border: 1px solid #2563eb;
+      color: #dbeafe;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .prj-back-btn:hover { background: #1d4ed8; color: #fff; }
+
+    /* ===== CARD SUBTITLE ===== */
+    .prj-subtitle {
+      margin: 4px 0 12px 0;
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1.5;
     }
 
-    header img.logo {
-      height: 72px;
-    }
-
-    header .title-block h1 {
-      font-size: 18px;
-      margin: 0;
-    }
-
-    header .title-block span {
-      font-size: 12px;
-      color: #9ca3af;
-    }
-
-    main {
-      flex: 1;
-      max-width: 720px;
-      margin: 32px auto;
-      padding: 0 16px;
-    }
-
-    .card {
-      border: 1px solid #1f2937;
-      background: #020617;
-      border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 24px;
-    }
-
-    .form-group {
+    /* ===== FORM GRID ===== */
+    .prj-form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px 16px;
       margin-bottom: 16px;
+    }
+    .prj-form-field {
       display: flex;
       flex-direction: column;
-      gap: 6px;
     }
-
-    label {
+    .prj-form-field label {
+      margin-bottom: 4px;
       font-size: 14px;
-      color: #e5e7eb;
-    }
-
-    input[type="text"], select {
-      padding: 10px;
-      border-radius: 6px;
-      border: 1px solid #374151;
-      background: #0f172a;
-      color: #e5e7eb;
-      font-size: 14px;
-    }
-
-    .footer-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      margin-top: 16px;
-    }
-
-    button {
-      font-size: 13px;
-      border-radius: 6px;
-      padding: 8px 14px;
-      cursor: pointer;
-      border: 1px solid transparent;
-    }
-
-    .btn-secondary {
-      background: #020617;
-      border-color: #374151;
-      color: #e5e7eb;
-    }
-
-    .btn-primary {
-      background: #22c55e;
-      border-color: #16a34a;
-      color: #022c22;
+      color: var(--text);
       font-weight: 600;
     }
+    .prj-required-star { color: var(--error); margin-left: 3px; }
 
-    .status-bar {
+    /* ===== BUTTONS ===== */
+    .prj-btn-primary {
+      background: var(--primary);
+      color: white;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 15px;
+      border: 1px solid var(--primary-hover);
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .prj-btn-primary:hover { background: var(--primary-hover); }
+    .prj-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .prj-btn-secondary {
+      background: var(--bg-card);
+      color: var(--text);
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 15px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--border);
+    }
+    .prj-btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* ===== ACTION ROW ===== */
+    .prj-action-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: nowrap;
+    }
+    .prj-action-row .prj-btn-primary,
+    .prj-action-row .prj-btn-secondary {
+      margin-top: 0;
+      box-sizing: border-box;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ===== MESSAGES ===== */
+    .prj-error { margin-top: 10px; color: var(--error); font-size: 14px; }
+    .prj-success { margin-top: 10px; color: var(--success); font-size: 14px; }
+
+    /* ===== PROJECT TABLE ===== */
+    .prj-table {
+      width: 100%;
+      border-collapse: collapse;
       margin-top: 12px;
+    }
+    .prj-table th, .prj-table td {
+      border: 1px solid var(--border);
+      padding: 8px;
+      font-size: 13px;
+      vertical-align: top;
+    }
+    .prj-table th {
+      background: var(--bg-header);
+      color: var(--text);
+      font-weight: 600;
+      text-align: left;
+    }
+    .prj-table td { background: var(--bg-card); color: var(--text); }
+
+    /* ===== EMPTY STATE ===== */
+    .prj-empty {
+      color: var(--text-muted);
+      font-size: 14px;
+      padding: 20px 0;
+    }
+
+    /* ===== STEP STATUS ===== */
+    .prj-step-status {
+      margin-top: 12px;
+      font-size: 14px;
+      color: var(--success);
+    }
+
+    /* ===== COUNT BADGE ===== */
+    .prj-count-badge {
+      display: inline-block;
+      background: var(--primary);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 999px;
+      margin-left: 8px;
+    }
+
+    /* ===== BULK UPLOAD AREA ===== */
+    .prj-bulk-link {
+      color: var(--primary);
+      font-size: 14px;
+      text-decoration: none;
+      display: inline-block;
+      margin-bottom: 12px;
+    }
+    .prj-bulk-link:hover { text-decoration: underline; }
+
+    .prj-bulk-file-input {
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text);
+      font-size: 14px;
+      width: 100%;
+      max-width: 400px;
+      margin-bottom: 12px;
+    }
+
+    /* ===== PREREQUISITE WARNING ===== */
+    .prj-prereq-warning {
+      background: #7f1d1d;
+      border: 1px solid #b91c1c;
+      color: #fee2e2;
+      padding: 14px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+    .prj-prereq-warning strong { color: #fff; }
+
+    /* ===== TAB SWITCHER (Single vs Bulk) ===== */
+    .prj-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 16px;
+      border-bottom: 2px solid var(--border);
+    }
+    .prj-tab {
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+    }
+    .prj-tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    /* ===== BULK PREVIEW TABLE ===== */
+    .prj-bulk-preview {
+      margin-top: 12px;
+      overflow-x: auto;
+    }
+    .prj-bulk-preview table {
+      width: 100%;
+      border-collapse: collapse;
       font-size: 12px;
-      color: #9ca3af;
-      min-height: 18px;
     }
+    .prj-bulk-preview th, .prj-bulk-preview td {
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      text-align: left;
+    }
+    .prj-bulk-preview th {
+      background: var(--bg-header);
+      color: var(--text);
+      font-weight: 600;
+    }
+    .prj-bulk-preview td { background: var(--bg-card); color: var(--text); }
 
-    .status-bar.error {
-      color: #fca5a5;
+    /* ===== MOBILE RESPONSIVE ===== */
+    @media (max-width: 600px) {
+      .prj-form-grid { grid-template-columns: 1fr; }
+      .prj-action-row { flex-direction: column; gap: 8px; }
+      .prj-action-row .prj-btn-primary,
+      .prj-action-row .prj-btn-secondary {
+        width: 100%;
+      }
+      .prj-table { font-size: 11px; }
+      .prj-table th, .prj-table td { padding: 4px 3px; }
     }
+</style>
 
-    .status-bar.success {
-      color: #bbf7d0;
-    }
-
-    footer {
-      padding: 16px 24px;
-      text-align: center;
-      font-size: 12px;
-      color: #9ca3af;
-      border-top: 1px solid #1f2937;
-      background: #020617;
-    }
-  </style>
 </head>
 
-<body>
-  <header>
-    <div class="title-block">
-      <h1>DRIV‑EN – Projects</h1>
-      <span>Step 5 · Add your projects</span>
-    </div>
-    <img src="/logo.png" alt="DRIV‑EN Logo" class="logo" />
-  </header>
+<!-- Page title — appears in the dashboard header -->
+<body data-page-title="Onboarding — Projects">
 
-  <main>
-    <h2>Projects</h2>
-    <p>Add your projects. All linked fields must be selected from dropdowns to ensure data integrity.</p>
+<!-- ===== SHARED DASHBOARD HEADER (auto-loaded by dashboard-common.js) ===== -->
+<div id="dashHeader"></div>
 
-    <!-- SINGLE ENTRY -->
-    <div class="card">
-      <h3 style="margin-top:0;font-size:16px;">Add a Project</h3>
+<!-- ===== BACK BUTTON BAR ===== -->
+<div class="prj-back-bar">
+  <a href="/public/dashboard/admin.html" class="prj-back-btn">&larr; Admin Dashboard</a>
+  <a href="/public/onboarding-dashboard.html" class="prj-back-btn" style="background:#374151;border-color:#4b5563;color:#d1d5db;">&larr; Onboarding Dashboard</a>
+</div>
 
-      <div class="form-group">
-        <label>Project Number</label>
-        <input type="text" id="projectNumber" />
+<!-- ===== PAGE CONTENT ===== -->
+<main class="dash-main">
+
+  <!-- ===== INTRO ===== -->
+  <div class="dash-card">
+    <h2>Add Projects <span class="prj-count-badge" id="prjCount">0</span></h2>
+    <p class="prj-subtitle">
+      Add active, recently completed, or upcoming projects. Each project references a Client, Division,
+      Project Type, and personnel (Project Manager and Superintendent) — those must be added first.
+    </p>
+    <p class="prj-subtitle">
+      <strong>Required:</strong> Project Number, Project Name, Division, Client, Project Type,
+      Project Manager, and Project Superintendent.
+    </p>
+    <p class="prj-subtitle">
+      Even company-owned facilities (e.g., "Yard #1") should be added as a project so all equipment
+      locations can be tracked.
+    </p>
+  </div>
+
+  <!-- ===== PREREQUISITE WARNING (shown if previous steps not done) ===== -->
+  <div id="prereqWarning" class="prj-prereq-warning" style="display:none;">
+    <strong>⚠ Prerequisites not met.</strong><br>
+    Projects require Employees (Step 3), Clients (Step 4), Divisions (Step 5), and Project Types (Step 6)
+    to be completed first. Please complete those steps before adding projects.
+    <br><br>
+    <a href="/public/onboarding-dashboard.html" style="color:#fbbf24;text-decoration:underline;">Go to Onboarding Dashboard</a>
+  </div>
+
+  <!-- ===== MAIN CONTENT (hidden if prerequisites not met) ===== -->
+  <div id="prjMainContent" style="display:none;">
+
+    <!-- ===== TAB SWITCHER ===== -->
+    <div class="dash-card">
+      <div class="prj-tabs">
+        <button class="prj-tab active" id="tabSingle" onclick="switchTab('single')">Single Entry</button>
+        <button class="prj-tab" id="tabBulk" onclick="switchTab('bulk')">Bulk Upload</button>
       </div>
-
-      <div class="form-group">
-        <label>Project Name</label>
-        <input type="text" id="projectName" />
-      </div>
-
-      <div class="form-group">
-        <label>Division</label>
-        <select id="divisionSelect"></select>
-      </div>
-
-      <div class="form-group">
-        <label>Client</label>
-        <select id="clientSelect"></select>
-      </div>
-
-      <div class="form-group">
-        <label>Project Type</label>
-        <select id="projectTypeSelect"></select>
-      </div>
-
-      <div class="form-group">
-        <label>Project Manager</label>
-        <select id="pmSelect"></select>
-      </div>
-
-      <div class="form-group">
-        <label>Project Superintendent</label>
-        <select id="superSelect"></select>
-      </div>
-
-      <div class="footer-actions">
-        <button class="btn-secondary" id="btnCancelSingle">Cancel</button>
-        <button class="btn-primary" id="btnNextSingle">Save & Continue</button>
-      </div>
-
-      <div class="status-bar" id="statusSingle"></div>
     </div>
 
-    <!-- BULK UPLOAD -->
-    <div class="card">
-      <h3 style="margin-top:0;font-size:16px;">Bulk Upload Projects</h3>
+    <!-- ===== SINGLE ENTRY TAB ===== -->
+    <div id="tabContentSingle">
 
-      <p>Download the template, fill in your project list, then upload it here.</p>
+      <!-- ===== ADD PROJECT FORM ===== -->
+      <div class="dash-card">
+        <h3>Add a Project</h3>
 
-      <a href="/templates/Project-Mass-Upload-v1.0.xlsx"
-         style="color:#22c55e;font-size:14px;text-decoration:none;"
-         download>
-        Download Project-Mass-Upload-v1.0.xlsx
-      </a>
+        <div class="prj-form-grid">
+          <div class="prj-form-field">
+            <label>Project Number<span class="prj-required-star">*</span></label>
+            <input type="text" id="prjNumber" class="dash-input" placeholder="e.g., 2026-001">
+          </div>
+          <div class="prj-form-field">
+            <label>Project Name<span class="prj-required-star">*</span></label>
+            <input type="text" id="prjName" class="dash-input" placeholder="e.g., Pipeline Extension North">
+          </div>
+          <div class="prj-form-field">
+            <label>Division<span class="prj-required-star">*</span></label>
+            <select id="prjDivision" class="dash-input">
+              <option value="">— Select Division —</option>
+            </select>
+          </div>
+          <div class="prj-form-field">
+            <label>Client<span class="prj-required-star">*</span></label>
+            <select id="prjClient" class="dash-input">
+              <option value="">— Select Client —</option>
+            </select>
+          </div>
+          <div class="prj-form-field">
+            <label>Project Type<span class="prj-required-star">*</span></label>
+            <select id="prjType" class="dash-input">
+              <option value="">— Select Project Type —</option>
+            </select>
+          </div>
+          <div class="prj-form-field">
+            <label>Project Manager<span class="prj-required-star">*</span></label>
+            <select id="prjPM" class="dash-input">
+              <option value="">— Select Project Manager —</option>
+            </select>
+          </div>
+          <div class="prj-form-field">
+            <label>Project Superintendent<span class="prj-required-star">*</span></label>
+            <select id="prjSuper" class="dash-input">
+              <option value="">— Select Superintendent —</option>
+            </select>
+          </div>
+        </div>
 
-      <div class="form-group" style="margin-top:16px;">
-        <label>Upload Completed Template</label>
-        <input type="file" id="bulkFile" accept=".xlsx" />
+        <button id="btnAddPrj" class="prj-btn-primary">Add Project</button>
+        <div id="prjError" class="prj-error"></div>
+        <div id="prjSuccess" class="prj-success"></div>
       </div>
 
-      <button class="btn-primary" id="btnProcessBulk">Process Upload</button>
+      <!-- ===== PROJECT LIST ===== -->
+      <div class="dash-card">
+        <h3>Projects Added</h3>
+        <p class="prj-subtitle">
+          These projects will be saved when you click Save &amp; Continue. You can add as many as you need before saving.
+        </p>
+        <div id="prjTableContainer">
+          <p class="prj-empty">No projects added yet.</p>
+        </div>
+      </div>
 
-      <div class="status-bar" id="statusBulk"></div>
+    </div><!-- /tabContentSingle -->
 
-      <div id="bulkPreview"></div>
+    <!-- ===== BULK UPLOAD TAB ===== -->
+    <div id="tabContentBulk" style="display:none;">
+
+      <div class="dash-card">
+        <h3>Bulk Upload Projects</h3>
+        <p class="prj-subtitle">
+          Download the Excel template, fill in your project list, then upload it here.
+          All linked fields (Division, Client, Project Type, Project Manager, Superintendent) must
+          match exactly what was entered in previous onboarding steps.
+        </p>
+
+        <!-- Template download link -->
+        <a href="/templates/Project-Mass-Upload-v1.0.xlsx" class="prj-bulk-link" download>
+          ⬇ Download Project-Mass-Upload-v1.0.xlsx
+        </a>
+
+        <!-- File input -->
+        <div class="prj-form-field" style="max-width:400px;">
+          <label>Upload Completed Template</label>
+          <input type="file" id="bulkFile" accept=".xlsx" class="prj-bulk-file-input">
+        </div>
+
+        <button id="btnProcessBulk" class="prj-btn-primary">Process Upload</button>
+        <div id="statusBulk" class="prj-error"></div>
+
+        <!-- Preview table after upload -->
+        <div id="bulkPreview" class="prj-bulk-preview"></div>
+      </div>
+
+      <!-- ===== BULK PROJECT LIST ===== -->
+      <div class="dash-card">
+        <h3>Projects from Bulk Upload</h3>
+        <p class="prj-subtitle">
+          Review the uploaded projects below, then click Save &amp; Continue to save them all.
+        </p>
+        <div id="bulkTableContainer">
+          <p class="prj-empty">No projects uploaded yet.</p>
+        </div>
+      </div>
+
+    </div><!-- /tabContentBulk -->
+
+    <!-- ===== ACTIONS (shared — always visible) ===== -->
+    <div class="dash-card">
+      <div class="prj-action-row">
+        <a href="/public/onboarding-dashboard.html" class="prj-btn-secondary">Return to Onboarding</a>
+        <button id="btnSavePrj" class="prj-btn-primary">Save &amp; Continue</button>
+      </div>
+      <div id="prjStepStatus" class="prj-step-status"></div>
     </div>
-  </main>
 
-  <footer>
-    © 2026 Digital Safety Inspection, LLC.
-    <span class="footer-line-2">Driv-en is a Digital Safety Inspection, LLC platform.</span>
-  </footer>
+  </div><!-- /prjMainContent -->
 
-  <script>
-    /* ---------------------------
-       LOAD DROPDOWN OPTIONS
-       (Division, Client, Project Type, PM, Superintendent)
-    ---------------------------- */
+</main>
 
-    const divisions = ["North Division", "South Division", "East Division", "West Division"];
-    const clients = ["Energy Transfer, LLC", "ABC Construction", "Metro Industrial Group"];
-    const projectTypes = ["Maintenance", "Construction", "Inspection"];
-    const employees = ["John Doe", "Sarah Patel", "David Chen", "Maria Lopez"];
+<!-- ===== SHARED DASHBOARD JS (loads header, theme, logo, session) ===== -->
+<script src="/components/dashboard-common.js?v=1"></script>
 
-    function populateSelect(id, list) {
-      const sel = document.getElementById(id);
-      sel.innerHTML = list.map(v => `<option value="${v}">${v}</option>`).join("");
+<!-- ===== AUTH CHECK (shared — currently inactive) ===== -->
+<script src="/components/auth-check.js"></script>
+
+<!-- ===== PAGE-SPECIFIC SCRIPT ===== -->
+<script>
+    /* ==========================================
+       ONBOARDING PROJECTS PAGE
+       ==========================================
+       What this page does:
+       1. Checks that prerequisites are met (Employees, Clients, Divisions, Project Types)
+       2. Loads dropdown options from localStorage (saved by previous onboarding steps)
+       3. Single Entry tab: add projects one at a time
+       4. Bulk Upload tab: upload an Excel file with multiple projects
+       5. Saves all projects to localStorage on "Save & Continue"
+       6. Updates the project count badge
+
+       DROPDOWN DATA SOURCES (all from localStorage):
+       - Division  → driven_divisions (from Step 5)
+       - Client    → driven_clients (from Step 4)
+       - Project Type → driven_project_types (from Step 6)
+       - PM / Superintendent → driven_employees (from Step 3)
+
+       FUTURE ENHANCEMENTS (noted in daily report):
+       - Save to D1 database via API (currently localStorage only)
+       - Filter PM dropdown by role "Project Manager" only
+       - Filter Superintendent dropdown by role "Superintendent" only
+       - Need to add "Superintendent" as a role option in the Employees page
+
+       The "dashSessionLoaded" event fires when dashboard-common.js
+       has loaded the user session.
+       ========================================== */
+
+    // ===== STATE =====
+    // Array of project objects added locally (not yet saved)
+    var projects = [];
+
+    // ===== DOM REFERENCES =====
+    var prjError = document.getElementById("prjError");
+    var prjSuccess = document.getElementById("prjSuccess");
+    var prjTableContainer = document.getElementById("prjTableContainer");
+    var prjStepStatus = document.getElementById("prjStepStatus");
+    var prjCountEl = document.getElementById("prjCount");
+    var bulkTableContainer = document.getElementById("bulkTableContainer");
+    var statusBulk = document.getElementById("statusBulk");
+    var bulkPreview = document.getElementById("bulkPreview");
+
+    // ===== HELPER: Update the project count badge =====
+    function updateCount() {
+      prjCountEl.textContent = projects.length;
     }
 
-    populateSelect("divisionSelect", divisions);
-    populateSelect("clientSelect", clients);
-    populateSelect("projectTypeSelect", projectTypes);
-    populateSelect("pmSelect", employees);
-    populateSelect("superSelect", employees);
+    // ===== HELPER: Populate a <select> dropdown from an array of names =====
+    // selectId = the DOM id of the <select> element
+    // items = array of strings (names) to add as <option> elements
+    function populateSelect(selectId, items) {
+      var sel = document.getElementById(selectId);
+      // Keep the first <option> (the placeholder), clear the rest
+      sel.innerHTML = '<option value="">— Select —</option>';
+      items.forEach(function(item) {
+        var opt = document.createElement("option");
+        opt.value = item;
+        opt.textContent = item;
+        sel.appendChild(opt);
+      });
+    }
 
-    /* ---------------------------
-       SINGLE ENTRY SAVE
-    ---------------------------- */
+    // ===== CHECK PREREQUISITES =====
+    // Projects require: Employees, Clients, Divisions, Project Types
+    // Returns true if all are present in localStorage.
+    function checkPrerequisites() {
+      var employees = JSON.parse(localStorage.getItem("driven_employees") || "[]");
+      var clients = JSON.parse(localStorage.getItem("driven_clients") || "[]");
+      var divisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
+      var projectTypes = JSON.parse(localStorage.getItem("driven_project_types") || "[]");
 
-    const btnNextSingle = document.getElementById("btnNextSingle");
-    const statusSingle = document.getElementById("statusSingle");
+      return employees.length > 0 && clients.length > 0 && divisions.length > 0 && projectTypes.length > 0;
+    }
 
-    btnNextSingle.addEventListener("click", () => {
-      const project = {
-        number: document.getElementById("projectNumber").value.trim(),
-        name: document.getElementById("projectName").value.trim(),
-        division: document.getElementById("divisionSelect").value,
-        client: document.getElementById("clientSelect").value,
-        type: document.getElementById("projectTypeSelect").value,
-        pm: document.getElementById("pmSelect").value,
-        super: document.getElementById("superSelect").value
+    // ===== LOAD DROPDOWN OPTIONS FROM LOCALSTORAGE =====
+    // Pulls data saved by previous onboarding steps and fills the dropdowns.
+    function loadDropdowns() {
+      // --- Divisions (from Step 5) ---
+      var divisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
+      var divisionNames = divisions.map(function(d) { return d.name; });
+      populateSelect("prjDivision", divisionNames);
+
+      // --- Clients (from Step 4) ---
+      var clients = JSON.parse(localStorage.getItem("driven_clients") || "[]");
+      var clientNames = clients.map(function(c) { return c.name; });
+      populateSelect("prjClient", clientNames);
+
+      // --- Project Types (from Step 6) ---
+      var projectTypes = JSON.parse(localStorage.getItem("driven_project_types") || "[]");
+      var ptNames = projectTypes.map(function(pt) { return pt.name; });
+      populateSelect("prjType", ptNames);
+
+      // --- Employees (from Step 3) ---
+      // Used for both PM and Superintendent dropdowns.
+      // FUTURE: Filter by role (PM = role "Project Manager", Super = role "Superintendent")
+      var employees = JSON.parse(localStorage.getItem("driven_employees") || "[]");
+      var empNames = employees.map(function(e) { return e.fullName; });
+      populateSelect("prjPM", empNames);
+      populateSelect("prjSuper", empNames);
+    }
+
+    // ===== RENDER PROJECT TABLE (single entry list) =====
+    function renderTable() {
+      if (projects.length === 0) {
+        prjTableContainer.innerHTML = '<p class="prj-empty">No projects added yet.</p>';
+        return;
+      }
+
+      var rows = projects.map(function(prj, index) {
+        return '<tr>' +
+          '<td>' + (index + 1) + '</td>' +
+          '<td>' + prj.number + '</td>' +
+          '<td>' + prj.name + '</td>' +
+          '<td>' + prj.division + '</td>' +
+          '<td>' + prj.client + '</td>' +
+          '<td>' + prj.type + '</td>' +
+          '<td>' + prj.pm + '</td>' +
+          '<td>' + prj.super + '</td>' +
+          '<td><button class="prj-btn-secondary" style="padding:4px 10px;font-size:12px;height:auto;" onclick="removeProject(' + index + ')">Remove</button></td>' +
+          '</tr>';
+      }).join("");
+
+      prjTableContainer.innerHTML =
+        '<table class="prj-table"><thead><tr>' +
+        '<th>#</th><th>Number</th><th>Name</th><th>Division</th><th>Client</th><th>Type</th><th>PM</th><th>Superintendent</th><th>Action</th>' +
+        '</tr></thead><tbody>' + rows + '</tbody></table>';
+    }
+
+    // ===== REMOVE PROJECT (by index) =====
+    window.removeProject = function(index) {
+      projects.splice(index, 1);
+      renderTable();
+      updateCount();
+      prjSuccess.textContent = "";
+      prjError.textContent = "";
+    };
+
+    // ===== ADD PROJECT (single entry button click) =====
+    document.getElementById("btnAddPrj").addEventListener("click", function() {
+      prjError.textContent = "";
+      prjSuccess.textContent = "";
+
+      // Get form values
+      var number = document.getElementById("prjNumber").value.trim();
+      var name = document.getElementById("prjName").value.trim();
+      var division = document.getElementById("prjDivision").value;
+      var client = document.getElementById("prjClient").value;
+      var type = document.getElementById("prjType").value;
+      var pm = document.getElementById("prjPM").value;
+      var sup = document.getElementById("prjSuper").value;
+
+      // Validate required fields
+      if (!number || !name) {
+        prjError.textContent = "Project Number and Project Name are required.";
+        return;
+      }
+      if (!division || !client || !type) {
+        prjError.textContent = "Division, Client, and Project Type are required.";
+        return;
+      }
+      if (!pm || !sup) {
+        prjError.textContent = "Project Manager and Superintendent are required.";
+        return;
+      }
+
+      // Check for duplicate project number
+      if (projects.some(function(p) { return p.number.toLowerCase() === number.toLowerCase(); })) {
+        prjError.textContent = "A project with this number has already been added.";
+        return;
+      }
+
+      // Build the project object
+      var prj = {
+        number: number,
+        name: name,
+        division: division,
+        client: client,
+        type: type,
+        pm: pm,
+        super: sup,
+        customerId: localStorage.getItem("driven_customer_id") || ""
       };
 
-      if (!project.number || !project.name) {
-        statusSingle.textContent = "Project Number and Project Name are required.";
-        statusSingle.classList.add("error");
-        return;
-      }
+      // Add to array
+      projects.push(prj);
 
-      const projects = JSON.parse(localStorage.getItem("driven_projects") || "[]");
-      projects.push(project);
-      localStorage.setItem("driven_projects", JSON.stringify(projects));
+      // Update UI
+      renderTable();
+      updateCount();
 
-      statusSingle.textContent = "Project saved!";
-      statusSingle.classList.add("success");
+      // Clear the form
+      document.getElementById("prjNumber").value = "";
+      document.getElementById("prjName").value = "";
+      document.getElementById("prjDivision").value = "";
+      document.getElementById("prjClient").value = "";
+      document.getElementById("prjType").value = "";
+      document.getElementById("prjPM").value = "";
+      document.getElementById("prjSuper").value = "";
 
-      setTimeout(() => {
-        window.location.href = "/onboarding-equipment.html";
-      }, 600);
+      // Focus back to Project Number for quick entry
+      document.getElementById("prjNumber").focus();
+
+      prjSuccess.textContent = "Project added. Add another or click Save & Continue.";
     });
 
-    /* ---------------------------
-       BULK UPLOAD VALIDATION
-    ---------------------------- */
+    // ===== TAB SWITCHER (Single Entry vs Bulk Upload) =====
+    window.switchTab = function(tab) {
+      var tabSingle = document.getElementById("tabSingle");
+      var tabBulk = document.getElementById("tabBulk");
+      var contentSingle = document.getElementById("tabContentSingle");
+      var contentBulk = document.getElementById("tabContentBulk");
 
-    const btnProcessBulk = document.getElementById("btnProcessBulk");
-    const statusBulk = document.getElementById("statusBulk");
-    const bulkPreview = document.getElementById("bulkPreview");
+      if (tab === "single") {
+        tabSingle.classList.add("active");
+        tabBulk.classList.remove("active");
+        contentSingle.style.display = "block";
+        contentBulk.style.display = "none";
+      } else {
+        tabBulk.classList.add("active");
+        tabSingle.classList.remove("active");
+        contentBulk.style.display = "block";
+        contentSingle.style.display = "none";
+      }
+    };
 
-    btnProcessBulk.addEventListener("click", () => {
-      const file = document.getElementById("bulkFile").files[0];
+    // ===== BULK UPLOAD (Process Excel file) =====
+    document.getElementById("btnProcessBulk").addEventListener("click", function() {
+      statusBulk.textContent = "";
+      statusBulk.className = "prj-error";
+
+      var file = document.getElementById("bulkFile").files[0];
       if (!file) {
         statusBulk.textContent = "Please select an Excel file.";
-        statusBulk.classList.add("error");
         return;
       }
 
-      const reader = new FileReader();
+      // Read the Excel file
+      var reader = new FileReader();
 
       reader.onload = function(e) {
-        const workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet);
+        // Parse the Excel file using the SheetJS library
+        var workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+        var sheet = workbook.Sheets[workbook.SheetNames[0]];
+        var rows = XLSX.utils.sheet_to_json(sheet);
 
-        const requiredFields = [
+        // Check that the file has data
+        if (rows.length === 0) {
+          statusBulk.textContent = "The Excel file is empty.";
+          return;
+        }
+
+        // Required column headers in the Excel file
+        var requiredFields = [
           "Project Number",
           "Project Name",
           "Division",
@@ -346,65 +720,165 @@
           "Project Superintendent"
         ];
 
-        // Validate header
-        const header = Object.keys(rows[0]);
-        for (const field of requiredFields) {
-          if (!header.includes(field)) {
-            statusBulk.textContent = `Missing required column: ${field}`;
-            statusBulk.classList.add("error");
+        // Validate that all required columns exist
+        var header = Object.keys(rows[0]);
+        for (var i = 0; i < requiredFields.length; i++) {
+          if (header.indexOf(requiredFields[i]) === -1) {
+            statusBulk.textContent = "Missing required column: " + requiredFields[i];
             return;
           }
         }
 
-        // Validate values
-        for (const row of rows) {
-          if (!divisions.includes(row["Division"])) {
-            statusBulk.textContent = `Invalid Division: ${row["Division"]}`;
-            statusBulk.classList.add("error");
+        // Load valid values from localStorage for validation
+        var validDivisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]").map(function(d) { return d.name; });
+        var validClients = JSON.parse(localStorage.getItem("driven_clients") || "[]").map(function(c) { return c.name; });
+        var validTypes = JSON.parse(localStorage.getItem("driven_project_types") || "[]").map(function(pt) { return pt.name; });
+        var validEmployees = JSON.parse(localStorage.getItem("driven_employees") || "[]").map(function(emp) { return emp.fullName; });
+
+        // Validate each row
+        for (var r = 0; r < rows.length; r++) {
+          var row = rows[r];
+
+          // Check required fields are not empty
+          for (var f = 0; f < requiredFields.length; f++) {
+            if (!row[requiredFields[f]] || String(row[requiredFields[f]]).trim() === "") {
+              statusBulk.textContent = "Row " + (r + 2) + ": " + requiredFields[f] + " is required.";
+              return;
+            }
+          }
+
+          // Validate Division exists
+          if (validDivisions.indexOf(row["Division"]) === -1) {
+            statusBulk.textContent = "Row " + (r + 2) + ': Invalid Division "' + row["Division"] + '". Must match a division from Step 5.';
             return;
           }
-          if (!clients.includes(row["Client"])) {
-            statusBulk.textContent = `Invalid Client: ${row["Client"]}`;
-            statusBulk.classList.add("error");
+
+          // Validate Client exists
+          if (validClients.indexOf(row["Client"]) === -1) {
+            statusBulk.textContent = "Row " + (r + 2) + ': Invalid Client "' + row["Client"] + '". Must match a client from Step 4.';
             return;
           }
-          if (!projectTypes.includes(row["Project Type"])) {
-            statusBulk.textContent = `Invalid Project Type: ${row["Project Type"]}`;
-            statusBulk.classList.add("error");
+
+          // Validate Project Type exists
+          if (validTypes.indexOf(row["Project Type"]) === -1) {
+            statusBulk.textContent = "Row " + (r + 2) + ': Invalid Project Type "' + row["Project Type"] + '". Must match a type from Step 6.';
             return;
           }
-          if (!employees.includes(row["Project Manager"])) {
-            statusBulk.textContent = `Invalid Project Manager: ${row["Project Manager"]}`;
-            statusBulk.classList.add("error");
+
+          // Validate Project Manager is a known employee
+          if (validEmployees.indexOf(row["Project Manager"]) === -1) {
+            statusBulk.textContent = "Row " + (r + 2) + ': Invalid Project Manager "' + row["Project Manager"] + '". Must match an employee from Step 3.';
             return;
           }
-          if (!employees.includes(row["Project Superintendent"])) {
-            statusBulk.textContent = `Invalid Project Superintendent: ${row["Project Superintendent"]}`;
-            statusBulk.classList.add("error");
+
+          // Validate Superintendent is a known employee
+          if (validEmployees.indexOf(row["Project Superintendent"]) === -1) {
+            statusBulk.textContent = "Row " + (r + 2) + ': Invalid Project Superintendent "' + row["Project Superintendent"] + '". Must match an employee from Step 3.';
             return;
           }
         }
 
-        // Preview table
-        let html = "<table><thead><tr>";
-        requiredFields.forEach(f => html += `<th>${f}</th>`);
-        html += "</tr></thead><tbody>";
-
-        rows.forEach(r => {
-          html += "<tr>";
-          requiredFields.forEach(f => html += `<td>${r[f]}</td>`);
-          html += "</tr>";
+        // All validation passed — build project objects
+        var bulkProjects = rows.map(function(row) {
+          return {
+            number: String(row["Project Number"]).trim(),
+            name: String(row["Project Name"]).trim(),
+            division: row["Division"],
+            client: row["Client"],
+            type: row["Project Type"],
+            pm: row["Project Manager"],
+            super: row["Project Superintendent"],
+            customerId: localStorage.getItem("driven_customer_id") || ""
+          };
         });
 
+        // Show preview table
+        var html = "<table><thead><tr>";
+        requiredFields.forEach(function(f) { html += "<th>" + f + "</th>"; });
+        html += "</tr></thead><tbody>";
+        bulkProjects.forEach(function(p) {
+          html += "<tr>";
+          html += "<td>" + p.number + "</td>";
+          html += "<td>" + p.name + "</td>";
+          html += "<td>" + p.division + "</td>";
+          html += "<td>" + p.client + "</td>";
+          html += "<td>" + p.type + "</td>";
+          html += "<td>" + p.pm + "</td>";
+          html += "<td>" + p.super + "</td>";
+          html += "</tr>";
+        });
         html += "</tbody></table>";
         bulkPreview.innerHTML = html;
 
-        statusBulk.textContent = `Uploaded ${rows.length} projects successfully.`;
-        statusBulk.classList.add("success");
+        // Add bulk projects to the main projects array
+        projects = projects.concat(bulkProjects);
+        renderTable();
+        updateCount();
+
+        // Show success message
+        statusBulk.textContent = "Uploaded " + bulkProjects.length + " projects. Review above and click Save & Continue.";
+        statusBulk.className = "prj-success";
       };
 
       reader.readAsArrayBuffer(file);
     });
-  </script>
+
+    // ===== SAVE & CONTINUE (button click) =====
+    document.getElementById("btnSavePrj").addEventListener("click", function() {
+      prjStepStatus.textContent = "";
+      prjStepStatus.style.color = "var(--error)";
+
+      // Check: at least one project
+      if (projects.length === 0) {
+        prjStepStatus.textContent = "You must add at least one project.";
+        return;
+      }
+
+      // Save to localStorage (will be D1 API call in the future)
+      // Merge with any existing projects
+      var existing = JSON.parse(localStorage.getItem("driven_projects") || "[]");
+      var allProjects = existing.concat(projects);
+      localStorage.setItem("driven_projects", JSON.stringify(allProjects));
+
+      // Update the project count for the admin dashboard stats
+      localStorage.setItem("driven_project_count", allProjects.length);
+
+      // Mark step as complete
+      localStorage.setItem("driven_step7_complete", "true");
+
+      // Show success message
+      prjStepStatus.style.color = "var(--success)";
+      prjStepStatus.textContent = projects.length + " project(s) saved. Total projects: " + allProjects.length + ".";
+
+      // Disable the save button
+      var btnSave = document.getElementById("btnSavePrj");
+      btnSave.disabled = true;
+      btnSave.textContent = "Saved ✓";
+
+      // Clear the local array (they've been saved to localStorage)
+      projects = [];
+      renderTable();
+      updateCount();
+    });
+
+    // ===== INIT — Runs after session loads =====
+    document.addEventListener("dashSessionLoaded", function(e) {
+      // Check if prerequisites are met
+      if (!checkPrerequisites()) {
+        // Show warning, hide main content
+        document.getElementById("prereqWarning").style.display = "block";
+        document.getElementById("prjMainContent").style.display = "none";
+      } else {
+        // Prerequisites met — load dropdowns and show content
+        loadDropdowns();
+        document.getElementById("prjMainContent").style.display = "block";
+        renderTable();
+        updateCount();
+      }
+    });
+</script>
+
+<!-- Cloudflare Web Analytics -->
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"aed8feab3b60404ba88ec92f026bbcd6","r":1}' crossorigin="anonymous"></script>
 </body>
 </html>
