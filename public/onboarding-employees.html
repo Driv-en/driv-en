@@ -1,475 +1,542 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>DRIV‑EN – Employee Upload</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- ⭐ FAVICON -->
-  <link rel="icon" type="image/png" href="/favicon.png" />
+<!-- ===== PAGE-SPECIFIC SEO ===== -->
+<title>DRIV‑EN | Onboarding — Employees</title>
+<meta name="description" content="Add employees to DRIV‑EN during onboarding. Employee name and email are required.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://www.driv-en.com/public/onboarding-employees.html">
 
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-</head>
+<!-- Favicon -->
+<link rel="icon" type="image/png" href="/icons/favicon.png" sizes="48x48">
+<link rel="icon" type="image/png" href="/icons/favicon-96.png" sizes="96x96">
+<link rel="icon" type="image/png" href="/icons/favicon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="/icons/favicon-180.png">
 
-<body>
-  <!-- HEADER -->
-  <header class="header">
-    <div class="header-left">
-      <div class="title-block">
-        <h1>DRIV‑EN – Employee Upload</h1>
-        <span class="subtitle">Step 2 · Upload your employee roster</span>
-      </div>
-    </div>
+<!-- ===== SHARED DASHBOARD CSS ===== -->
+<link rel="stylesheet" href="/styles/dashboard.css?v=1">
 
-    <div class="header-center">
-      <img id="customerLogo" class="customer-logo" alt="Customer Logo">
-    </div>
+<!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
+<script>
+(function() {
+  var saved = localStorage.getItem("driven-theme");
+  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  var theme = saved || system;
+  document.documentElement.setAttribute("data-theme", theme);
+})();
+</script>
 
-    <div class="header-right">
-      <img src="/logo.png" alt="DRIV‑EN Logo" class="driven-logo">
-    </div>
-  </header>
-
-  <main class="main-container">
-
-    <!-- INTRO -->
-    <section class="card">
-      <h2>Employee Upload</h2>
-      <p class="card-subtitle">
-        Upload your full employee roster. You may upload a CSV file or paste rows directly from Excel or Google Sheets.
-      </p>
-    </section>
-
-    <!-- EXPLANATION: WHY REQUIRED -->
-    <section class="card">
-      <h2>Why These Fields Are Required</h2>
-      <p class="card-subtitle">
-        These fields ensure each employee can be identified, assigned correctly, and activated later by HR/Payroll.
-      </p>
-
-      <ul class="explanation-list">
-        <li><strong>Employee Name</strong> — Used across all modules for identification: inspections, PMs, safety, equipment, training, and messaging.</li>
-        <li><strong>Email</strong> — Required for login and future invitations. This becomes the employee’s Driv‑en credential.</li>
-        <li><strong>Phone</strong> — Used for field communication, safety alerts, equipment notifications, and supervisor contact.</li>
-        <li><strong>Division</strong> — Determines which part of the company the employee belongs to and how assignments route.</li>
-        <li><strong>Role</strong> — Controls what the employee can do inside Driv‑en. Permissions are tied to roles.</li>
-        <li><strong>Status (Active/Inactive)</strong> — Controls whether the employee can be invited or access Driv‑en.</li>
-      </ul>
-    </section>
-
-    <!-- EXPLANATION: WHEN ACCESS -->
-    <section class="card">
-      <h2>When Employees Receive Access</h2>
-      <p class="card-subtitle">
-        Employees uploaded during onboarding do not receive login invitations yet.
-      </p>
-
-      <p class="explanation-text">
-        After onboarding is complete, HR/Payroll will invite employees individually or in bulk from the HR/Payroll dashboard.  
-        General Employees will only see what they need for field operations:  
-        <strong>perform inspections, view their own past inspections, receive messages, and access future modules.</strong>
-      </p>
-    </section>
-
-    <!-- UPLOAD OPTIONS -->
-    <section class="card">
-      <h2>Upload Options</h2>
-
-      <!-- REQUIRED FIELDS BOX -->
-      <div class="required-fields">
-        <h3>Required Fields</h3>
-        <ul>
-          <li>Employee Name</li>
-          <li>Email</li>
-          <li>Phone</li>
-          <li>Division</li>
-          <li>Role</li>
-          <li>Status (Active/Inactive)</li>
-        </ul>
-      </div>
-
-      <div class="upload-section">
-        <h3>Upload CSV File</h3>
-        <input type="file" id="csvInput" accept=".csv" class="file-input">
-      </div>
-
-      <div class="upload-section">
-        <h3>Paste Rows from Spreadsheet</h3>
-        <textarea id="pasteArea" class="paste-area" placeholder="Paste rows here..."></textarea>
-        <button id="btnParsePaste" class="btn-primary-large">Parse Pasted Data</button>
-      </div>
-
-      <div id="uploadError" class="error-message"></div>
-    </section>
-
-    <!-- PREVIEW TABLE -->
-    <section class="card">
-      <h2>Preview Employees</h2>
-      <p class="card-subtitle">Only required Driv‑en fields are shown.</p>
-
-      <div id="previewContainer"></div>
-    </section>
-
-    <!-- ACTIONS -->
-    <section class="card">
-      <div class="action-row">
-        <a href="onboarding-dashboard.html" class="btn-secondary-large">Return to Dashboard</a>
-        <button id="btnCompleteStep" class="btn-primary-large">Save & Continue</button>
-      </div>
-      <div id="stepStatus" class="step-status"></div>
-    </section>
-
-  </main>
-
-  <footer class="footer">
-    © 2026 Digital Safety Inspection, LLC.
-    <span class="footer-line-2">Driv-en is a Digital Safety Inspection, LLC platform.</span>
-  </footer>
-
-  <!-- ⭐ DRIV‑EN STYLE -->
-  <style>
-    body {
-      margin: 0;
-      background: #0f172a;
-      color: #e5e7eb;
-      font-family: system-ui, sans-serif;
-    }
-
-    /* HEADER GRID */
-    .header {
-      position: sticky;
-      top: 0;
-      z-index: 1000;
-      background: #020617;
-      border-bottom: 1px solid #1f2937;
-      padding: 12px 20px;
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      align-items: center;
-    }
-
-    .header-left,
-    .header-center,
-    .header-right {
-      display: flex;
-      align-items: center;
-    }
-
-    .header-center {
-      justify-content: center;
-    }
-
-    .header-right {
-      justify-content: flex-end;
-    }
-
-    .customer-logo,
-    .driven-logo {
-      height: 88px;
-      width: auto;
-    }
-
-    .title-block h1 {
-      margin: 0;
-      font-size: 22px;
-      color: #e5e7eb;
-    }
-
-    .subtitle {
-      font-size: 14px;
-      color: #9ca3af;
-    }
-
-    .main-container {
+<!-- ===== PAGE-SPECIFIC STYLES ===== -->
+<style>
+    /* ===== BACK BUTTON BAR ===== */
+    .emp-back-bar {
       max-width: 1100px;
       margin: 0 auto;
-      padding: 20px;
+      padding: 12px 20px 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
     }
-
-    .card {
-      background: #020617;
-      border: 1px solid #1f2937;
-      border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 20px;
+    .emp-back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #1e40af;
+      border: 1px solid #2563eb;
+      color: #dbeafe;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
     }
+    .emp-back-btn:hover { background: #1d4ed8; color: #fff; }
 
-    .card h2 {
-      margin-top: 0;
-      margin-bottom: 10px;
-      font-size: 20px;
-    }
-
-    .card-subtitle {
+    /* ===== CARD SUBTITLE ===== */
+    .emp-subtitle {
       margin: 4px 0 12px 0;
-      color: #9ca3af;
-      font-size: 14px;
-    }
-
-    /* Explanation Sections */
-    .explanation-list {
-      color: #e5e7eb;
-      font-size: 14px;
-      padding-left: 20px;
-    }
-
-    .explanation-text {
-      color: #e5e7eb;
+      color: var(--text-muted);
       font-size: 14px;
       line-height: 1.5;
     }
 
-    /* Required Fields */
-    .required-fields {
-      margin-bottom: 20px;
-      padding: 12px;
-      background: #0f172a;
-      border: 1px solid #334155;
-      border-radius: 6px;
+    /* ===== FORM GRID ===== */
+    .emp-form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px 16px;
+      margin-bottom: 16px;
     }
-
-    .required-fields h3 {
-      margin: 0 0 8px 0;
-      font-size: 16px;
-      color: #e5e7eb;
+    .emp-form-field {
+      display: flex;
+      flex-direction: column;
     }
-
-    .required-fields ul {
-      margin: 0;
-      padding-left: 20px;
-      color: #9ca3af;
+    .emp-form-field label {
+      margin-bottom: 4px;
       font-size: 14px;
+      color: var(--text);
+      font-weight: 600;
     }
-
-    /* Upload */
-    .upload-section {
-      margin-bottom: 20px;
+    .emp-form-field .emp-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
     }
+    .emp-required-star { color: var(--error); margin-left: 3px; }
 
-    .file-input {
-      margin-top: 8px;
-    }
-
-    .paste-area {
-      width: 100%;
-      height: 140px;
-      background: #0f172a;
-      border: 1px solid #374151;
-      border-radius: 6px;
-      color: #e5e7eb;
-      padding: 10px;
-      font-size: 14px;
-      margin-top: 8px;
-      box-sizing: border-box;
-    }
-
-    .error-message {
-      margin-top: 10px;
-      color: #f87171;
-      font-size: 14px;
-    }
-
-    /* Buttons */
-    .btn-primary-large {
-      background: #2563eb;
+    /* ===== BUTTONS ===== */
+    .emp-btn-primary {
+      background: var(--primary);
       color: white;
       padding: 10px 18px;
       border-radius: 6px;
       font-size: 15px;
-      border: none;
+      border: 1px solid var(--primary-hover);
       cursor: pointer;
       margin-top: 10px;
     }
+    .emp-btn-primary:hover { background: var(--primary-hover); }
+    .emp-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
-    .btn-primary-large:hover {
-      background: #1d4ed8;
-    }
-
-    .btn-secondary-large {
-      background: #374151;
-      color: white;
+    .emp-btn-secondary {
+      background: var(--bg-card);
+      color: var(--text);
       padding: 10px 18px;
       border-radius: 6px;
       font-size: 15px;
       text-decoration: none;
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--border);
+    }
+    .emp-btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* ===== ACTION ROW ===== */
+    .emp-action-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: nowrap;
+    }
+    .emp-action-row .emp-btn-primary,
+    .emp-action-row .emp-btn-secondary {
+      margin-top: 0;
+      box-sizing: border-box;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    .btn-secondary-large:hover {
-      background: #4b5563;
-    }
+    /* ===== MESSAGES ===== */
+    .emp-error { margin-top: 10px; color: var(--error); font-size: 14px; }
+    .emp-success { margin-top: 10px; color: var(--success); font-size: 14px; }
 
-    /* Preview Table */
-    .preview-table {
+    /* ===== EMPLOYEE TABLE ===== */
+    .emp-table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 12px;
     }
-
-    .preview-table th,
-    .preview-table td {
-      border: 1px solid #334155;
+    .emp-table th, .emp-table td {
+      border: 1px solid var(--border);
       padding: 8px;
       font-size: 14px;
+      vertical-align: top;
     }
-
-    .preview-table th {
-      background: #1e293b;
-      color: #e5e7eb;
+    .emp-table th {
+      background: var(--bg-header);
+      color: var(--text);
       font-weight: 600;
+      text-align: left;
+    }
+    .emp-table td { background: var(--bg-card); color: var(--text); }
+
+    /* ===== EMPTY STATE ===== */
+    .emp-empty {
+      color: var(--text-muted);
+      font-size: 14px;
+      padding: 20px 0;
     }
 
-    .preview-table td {
-      background: #0f172a;
-      color: #e5e7eb;
-    }
-
-    /* Actions */
-    .action-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .step-status {
+    /* ===== STEP STATUS ===== */
+    .emp-step-status {
       margin-top: 12px;
       font-size: 14px;
-      color: #22c55e;
+      color: var(--success);
     }
 
-    /* Footer */
-    .footer {
-      text-align: center;
-      padding: 20px;
-      color: #9ca3af;
-      font-size: 14px;
-    }
-  </style>
-
-  <!-- ⭐ JS (CSV + Paste Parsing + Preview + Save) -->
-  <script>
-    const previewContainer = document.getElementById("previewContainer");
-    const uploadError = document.getElementById("uploadError");
-    const stepStatus = document.getElementById("stepStatus");
-
-    let employees = [];
-
-    /* Load customer logo */
-    const customerLogo = localStorage.getItem("driven_customer_logo");
-    if (customerLogo) {
-      document.getElementById("customerLogo").src = customerLogo;
+    /* ===== COUNT BADGE ===== */
+    .emp-count-badge {
+      display: inline-block;
+      background: var(--primary);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 999px;
+      margin-left: 8px;
     }
 
-    /* Required fields */
-    const REQUIRED_FIELDS = ["name", "email", "phone", "division", "role", "status"];
+    /* ===== MOBILE RESPONSIVE ===== */
+    @media (max-width: 600px) {
+      .emp-form-grid { grid-template-columns: 1fr; }
+      .emp-action-row { flex-direction: column; gap: 8px; }
+      .emp-action-row .emp-btn-primary,
+      .emp-action-row .emp-btn-secondary {
+        width: 100%;
+      }
+      .emp-table { font-size: 12px; }
+      .emp-table th, .emp-table td { padding: 6px 4px; }
+    }
+</style>
 
-    function renderPreview() {
+</head>
+
+<!-- Page title — appears in the dashboard header -->
+<body data-page-title="Onboarding — Employees">
+
+<!-- ===== SHARED DASHBOARD HEADER (auto-loaded by dashboard-common.js) ===== -->
+<div id="dashHeader"></div>
+
+<!-- ===== BACK BUTTON BAR ===== -->
+<div class="emp-back-bar">
+  <a href="/public/dashboard/admin.html" class="emp-back-btn">&larr; Admin Dashboard</a>
+  <a href="/public/onboarding-dashboard.html" class="emp-back-btn" style="background:#374151;border-color:#4b5563;color:#d1d5db;">&larr; Onboarding Dashboard</a>
+</div>
+
+<!-- ===== PAGE CONTENT ===== -->
+<main class="dash-main">
+
+  <!-- ===== INTRO ===== -->
+  <div class="dash-card">
+    <h2>Add Employees <span class="emp-count-badge" id="empCount">0</span></h2>
+    <p class="emp-subtitle">
+      Add all employees who will perform inspections, preventative maintenance, complete equipment transfers
+      and fuel usage logs, perform work orders, or be tracked in DRIV‑EN.
+    </p>
+    <p class="emp-subtitle">
+      <strong>Required:</strong> First Name, Last Name, and Email. Email is used for login access to DRIV‑EN.
+    </p>
+    <p class="emp-subtitle">
+      Phone, Division, Role, and Status are optional at this time — HR/Payroll will complete those fields later.
+      However, you may fill them in now if you have the information.
+    </p>
+  </div>
+
+  <!-- ===== ADD EMPLOYEE FORM ===== -->
+  <div class="dash-card">
+    <h3>Add Employee</h3>
+
+    <div class="emp-form-grid">
+      <div class="emp-form-field">
+        <label>First Name<span class="emp-required-star">*</span></label>
+        <input type="text" id="empFirstName" class="dash-input">
+      </div>
+      <div class="emp-form-field">
+        <label>Middle Name</label>
+        <input type="text" id="empMiddleName" class="dash-input">
+      </div>
+      <div class="emp-form-field">
+        <label>Last Name<span class="emp-required-star">*</span></label>
+        <input type="text" id="empLastName" class="dash-input">
+      </div>
+      <div class="emp-form-field">
+        <label>Suffix</label>
+        <input type="text" id="empSuffix" class="dash-input" placeholder="Jr, Sr, III, etc.">
+      </div>
+      <div class="emp-form-field">
+        <label>Email<span class="emp-required-star">*</span></label>
+        <input type="email" id="empEmail" class="dash-input">
+      </div>
+      <div class="emp-form-field">
+        <label>Phone</label>
+        <input type="tel" id="empPhone" class="dash-input" placeholder="Optional">
+      </div>
+      <div class="emp-form-field">
+        <label>Division</label>
+        <input type="text" id="empDivision" class="dash-input" placeholder="Optional">
+      </div>
+      <div class="emp-form-field">
+        <label>Role</label>
+        <select id="empRole" class="dash-input">
+          <option value="">— Select (optional) —</option>
+          <option value="Admin">Admin</option>
+          <option value="Project Manager">Project Manager</option>
+          <option value="Equipment Manager">Equipment Manager</option>
+          <option value="Mechanic">Mechanic</option>
+          <option value="Employee">Employee</option>
+        </select>
+        <div class="emp-hint">Determines which dashboard they see</div>
+      </div>
+      <div class="emp-form-field">
+        <label>Status</label>
+        <select id="empStatus" class="dash-input">
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+        <div class="emp-hint">Inactive = login revoked</div>
+      </div>
+    </div>
+
+    <button id="btnAddEmp" class="emp-btn-primary">Add Employee</button>
+    <div id="empError" class="emp-error"></div>
+    <div id="empSuccess" class="emp-success"></div>
+  </div>
+
+  <!-- ===== EMPLOYEE LIST ===== -->
+  <div class="dash-card">
+    <h3>Employees Added</h3>
+    <p class="emp-subtitle">
+      These employees will be saved when you click Save &amp; Continue. You can add as many as you need before saving.
+    </p>
+    <div id="empTableContainer">
+      <p class="emp-empty">No employees added yet.</p>
+    </div>
+  </div>
+
+  <!-- ===== ACTIONS ===== -->
+  <div class="dash-card">
+    <div class="emp-action-row">
+      <a href="/public/onboarding-dashboard.html" class="emp-btn-secondary">Return to Onboarding</a>
+      <button id="btnSaveEmp" class="emp-btn-primary">Save &amp; Continue</button>
+    </div>
+    <div id="empStepStatus" class="emp-step-status"></div>
+  </div>
+
+</main>
+
+<!-- ===== SHARED DASHBOARD JS (loads header, theme, logo, session) ===== -->
+<script src="/components/dashboard-common.js?v=1"></script>
+
+<!-- ===== AUTH CHECK (shared — currently inactive) ===== -->
+<script src="/components/auth-check.js"></script>
+
+<!-- ===== PAGE-SPECIFIC SCRIPT ===== -->
+<script>
+    /* ==========================================
+       ONBOARDING EMPLOYEES PAGE
+       ==========================================
+       What this page does:
+       1. Lets the admin add employees one at a time
+       2. Required fields: First Name, Last Name, Email
+       3. Optional fields: Middle Name, Suffix, Phone, Division, Role, Status
+       4. Shows a running list of employees added
+       5. Saves all employees to localStorage on "Save & Continue"
+       6. Updates the employee count badge
+
+       FUTURE ENHANCEMENTS (noted in daily report):
+       - Mass upload via CSV
+       - Save to D1 database via API (currently localStorage only)
+       - Role determines which dashboard the employee sees
+       - Status: Inactive = login revoked (no access to DRIV‑EN)
+       - HR/Payroll will add additional fields after system is running
+
+       The "dashSessionLoaded" event fires when dashboard-common.js
+       has loaded the user session.
+       ========================================== */
+
+    // ===== STATE =====
+    // Array of employee objects added locally (not yet saved)
+    var employees = [];
+
+    // ===== DOM REFERENCES =====
+    var empError = document.getElementById("empError");
+    var empSuccess = document.getElementById("empSuccess");
+    var empTableContainer = document.getElementById("empTableContainer");
+    var empStepStatus = document.getElementById("empStepStatus");
+    var empCountEl = document.getElementById("empCount");
+
+    // ===== HELPER: Validate email format =====
+    function isValidEmail(email) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+
+    // ===== HELPER: Update the employee count badge =====
+    function updateCount() {
+      empCountEl.textContent = employees.length;
+    }
+
+    // ===== HELPER: Build full name from parts =====
+    // Combines first, middle, last, suffix into one string
+    // Example: "John Michael Smith Jr."
+    function buildFullName(first, middle, last, suffix) {
+      var parts = [first, middle, last].filter(function(p) { return p && p.trim(); });
+      var name = parts.join(" ").trim();
+      if (suffix && suffix.trim()) {
+        name += " " + suffix.trim();
+      }
+      return name;
+    }
+
+    // ===== RENDER EMPLOYEE TABLE =====
+    // Shows all employees added so far in a table
+    function renderTable() {
       if (employees.length === 0) {
-        previewContainer.innerHTML = "<p>No employees loaded.</p>";
+        empTableContainer.innerHTML = '<p class="emp-empty">No employees added yet.</p>';
         return;
       }
 
-      const table = `
-        <table class="preview-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Phone</th>
-              <th>Division</th>
-              <th>Role</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${employees.map(emp => `
-              <tr>
-                <td>${emp.name}</td>
-                <td>${emp.email}</td>
-                <td>${emp.phone}</td>
-                <td>${emp.division}</td>
-                <td>${emp.role}</td>
-                <td>${emp.status}</td>
-              </tr>
-            `).join("")}
-          </tbody>
-        </table>
-      `;
+      var rows = employees.map(function(emp, index) {
+        return '<tr>' +
+          '<td>' + (index + 1) + '</td>' +
+          '<td>' + emp.fullName + '</td>' +
+          '<td>' + (emp.email || '—') + '</td>' +
+          '<td>' + (emp.phone || '—') + '</td>' +
+          '<td>' + (emp.division || '—') + '</td>' +
+          '<td>' + (emp.role || '—') + '</td>' +
+          '<td>' + (emp.status || 'Active') + '</td>' +
+          '<td><button class="emp-btn-secondary" style="padding:4px 10px;font-size:12px;height:auto;" onclick="removeEmployee(' + index + ')">Remove</button></td>' +
+          '</tr>';
+      }).join("");
 
-      previewContainer.innerHTML = table;
+      empTableContainer.innerHTML =
+        '<table class="emp-table"><thead><tr>' +
+        '<th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Division</th><th>Role</th><th>Status</th><th>Action</th>' +
+        '</tr></thead><tbody>' + rows + '</tbody></table>';
     }
 
-    /* CSV Upload */
-    document.getElementById("csvInput").addEventListener("change", (e) => {
-      uploadError.textContent = "";
-      const file = e.target.files[0];
-      if (!file) return;
+    // ===== REMOVE EMPLOYEE (by index) =====
+    // Called when the user clicks "Remove" on a row
+    window.removeEmployee = function(index) {
+      employees.splice(index, 1);
+      renderTable();
+      updateCount();
+      empSuccess.textContent = "";
+      empError.textContent = "";
+    };
 
-      const reader = new FileReader();
-      reader.onload = () => {
-        parseCSV(reader.result);
+    // ===== ADD EMPLOYEE (button click) =====
+    document.getElementById("btnAddEmp").addEventListener("click", function() {
+      empError.textContent = "";
+      empSuccess.textContent = "";
+
+      // Get form values
+      var first = document.getElementById("empFirstName").value.trim();
+      var middle = document.getElementById("empMiddleName").value.trim();
+      var last = document.getElementById("empLastName").value.trim();
+      var suffix = document.getElementById("empSuffix").value.trim();
+      var email = document.getElementById("empEmail").value.trim();
+      var phone = document.getElementById("empPhone").value.trim();
+      var division = document.getElementById("empDivision").value.trim();
+      var role = document.getElementById("empRole").value;
+      var status = document.getElementById("empStatus").value;
+
+      // Validate required fields
+      if (!first || !last || !email) {
+        empError.textContent = "First Name, Last Name, and Email are required.";
+        return;
+      }
+
+      // Validate email format
+      if (!isValidEmail(email)) {
+        empError.textContent = "Please enter a valid email address.";
+        return;
+      }
+
+      // Check for duplicate email
+      if (employees.some(function(emp) { return emp.email.toLowerCase() === email.toLowerCase(); })) {
+        empError.textContent = "An employee with this email has already been added.";
+        return;
+      }
+
+      // Build the employee object
+      var emp = {
+        firstName: first,
+        middleName: middle,
+        lastName: last,
+        suffix: suffix,
+        fullName: buildFullName(first, middle, last, suffix),
+        email: email,
+        phone: phone,
+        division: division,
+        role: role,
+        status: status,
+        customerId: localStorage.getItem("driven_customer_id") || ""
       };
-      reader.readAsText(file);
+
+      // Add to array
+      employees.push(emp);
+
+      // Update UI
+      renderTable();
+      updateCount();
+
+      // Clear the form
+      document.getElementById("empFirstName").value = "";
+      document.getElementById("empMiddleName").value = "";
+      document.getElementById("empLastName").value = "";
+      document.getElementById("empSuffix").value = "";
+      document.getElementById("empEmail").value = "";
+      document.getElementById("empPhone").value = "";
+      document.getElementById("empDivision").value = "";
+      document.getElementById("empRole").value = "";
+      document.getElementById("empStatus").value = "Active";
+
+      // Focus back to First Name for quick entry of next employee
+      document.getElementById("empFirstName").focus();
+
+      empSuccess.textContent = "Employee added. Add another or click Save & Continue.";
     });
 
-    function parseCSV(text) {
-      const rows = text.split("\n").map(r => r.trim()).filter(r => r.length > 0);
-      const header = rows[0].split(",").map(h => h.trim().toLowerCase());
+    // ===== SAVE & CONTINUE (button click) =====
+    document.getElementById("btnSaveEmp").addEventListener("click", function() {
+      empStepStatus.textContent = "";
+      empStepStatus.style.color = "var(--error)";
 
-      employees = rows.slice(1).map(row => {
-        const cols = row.split(",").map(c => c.trim());
-        const obj = {};
-
-        REQUIRED_FIELDS.forEach(field => {
-          const idx = header.indexOf(field);
-          obj[field] = idx >= 0 ? cols[idx] : "";
-        });
-
-        return obj;
-      });
-
-      renderPreview();
-    }
-
-    /* Paste Parsing */
-    document.getElementById("btnParsePaste").addEventListener("click", () => {
-      uploadError.textContent = "";
-      const text = document.getElementById("pasteArea").value.trim();
-      if (!text) {
-        uploadError.textContent = "Please paste rows before parsing.";
-        return;
-      }
-
-      const rows = text.split("\n").map(r => r.trim()).filter(r => r.length > 0);
-
-      employees = rows.map(row => {
-        const cols = row.split("\t").map(c => c.trim());
-        return {
-          name: cols[0] || "",
-          email: cols[1] || "",
-          phone: cols[2] || "",
-          division: cols[3] || "",
-          role: cols[4] || "",
-          status: cols[5] || ""
-        };
-      });
-
-      renderPreview();
-    });
-
-    /* Save & Continue */
-    document.getElementById("btnCompleteStep").addEventListener("click", () => {
+      // Check: at least one employee
       if (employees.length === 0) {
-        stepStatus.style.color = "#f87171";
-        stepStatus.textContent = "You must upload or paste at least one employee.";
+        empStepStatus.textContent = "You must add at least one employee.";
         return;
       }
 
-      localStorage.setItem("driven_employees", JSON.stringify(employees));
-      localStorage.setItem("driven_step2_complete", "true");
+      // Save to localStorage (will be D1 API call in the future)
+      // Merge with any existing employees
+      var existing = JSON.parse(localStorage.getItem("driven_employees") || "[]");
+      var allEmployees = existing.concat(employees);
+      localStorage.setItem("driven_employees", JSON.stringify(allEmployees));
 
-      stepStatus.style.color = "#22c55e";
-      stepStatus.textContent = "Step 2 complete. You may return to the dashboard.";
+      // Update the employee count for the admin dashboard stats
+      localStorage.setItem("driven_employee_count", allEmployees.length);
+
+      // Mark step as complete
+      localStorage.setItem("driven_step3_complete", "true");
+
+      // Show success message
+      empStepStatus.style.color = "var(--success)";
+      empStepStatus.textContent = employees.length + " employee(s) saved. Total employees: " + allEmployees.length + ".";
+
+      // Disable the save button
+      var btnSave = document.getElementById("btnSaveEmp");
+      btnSave.disabled = true;
+      btnSave.textContent = "Saved ✓";
+
+      // Clear the local array (they've been saved to localStorage)
+      employees = [];
+      renderTable();
+      updateCount();
     });
-  </script>
+
+    // ===== INIT — Runs after session loads =====
+    // Currently no session-specific logic needed for this page.
+    // The session is loaded by dashboard-common.js (for header, greeting, logo).
+    // In the future, this is where we would load existing employees from D1.
+    document.addEventListener("dashSessionLoaded", function(e) {
+      // Future: load existing employees from D1 API
+      // For now, just render the empty table
+      renderTable();
+      updateCount();
+    });
+</script>
+
+<!-- Cloudflare Web Analytics -->
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"aed8feab3b60404ba88ec92f026bbcd6","r":1}' crossorigin="anonymous"></script>
 </body>
 </html>
