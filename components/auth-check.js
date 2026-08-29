@@ -40,10 +40,21 @@
     // Store user info globally for other scripts to use
     window.drivenUser = data.user;
 
+    // ===== HIDE ADMIN-ONLY ELEMENTS FOR NON-ADMINS =====
+    // Any HTML element with class "driven-admin-only" is hidden if the
+    // current user is NOT an admin. This is used for back buttons
+    // (e.g., "Return to Admin Dashboard") that should only appear
+    // for admins. Key Personnel should not see admin navigation.
+    var userRole = (data.user && data.user.role) ? data.user.role : "";
+    if (userRole !== "Admin") {
+      document.querySelectorAll(".driven-admin-only").forEach(function(el) {
+        el.style.display = "none";
+      });
+    }
+
     // Check if this page requires a specific role
     var requiredRole = document.body.getAttribute("data-required-role");
     if (requiredRole) {
-      var userRole = (data.user && data.user.role) ? data.user.role : "";
       if (userRole !== requiredRole) {
         // User doesn't have the required role — redirect to no-access page
         window.location.href = "/public/no-access.html";
