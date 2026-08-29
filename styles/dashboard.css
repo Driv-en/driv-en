@@ -1,542 +1,71 @@
-/* ==========================================================================
-   DRIV‑EN DASHBOARD CSS — Shared across all dashboard pages
-   ==========================================================================
-   This file is loaded by every dashboard page via:
-   <link rel="stylesheet" href="/styles/dashboard.css?v=1">
-
-   It contains:
-   - Base reset and layout
-   - Light/dark theme variables
-   - Dashboard header (3-row layout: logos, title, toggle+logout)
-   - Theme slide switch (Light Mode / Dark Mode)
-   - Common dashboard elements (cards, buttons, inputs, tables, badges)
-   - Mobile responsive rules
-
-   PAGE-SPECIFIC STYLES:
-   Do NOT add page-specific styles here. Add them in a <style> block
-   in the individual page's <head> section. Use the "page-" prefix
-   for page-specific class names to avoid conflicts.
-
-   VERSION:
-  v4 — August 29, 2026: Added industrial diamond-plate steel background
-       (image-based, with readability overlay for light/dark modes).
-  Bump the ?v= number in the <link> tag when you change this file.
-  Example: dashboard.css?v=1 → dashboard.css?v=2
-  ========================================================================== */
-
-
-/* ===== BASE RESET ===== */
-*, *::before, *::after {
-  box-sizing: border-box;
-}
-
-html {
-  font-family: "Segoe UI", Arial, Helvetica, sans-serif;
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  overflow-x: hidden;  /* Moved from body to html so body doesn't become
-                           a scroll container, which would break position:sticky
-                           on #dashHeader. html handles horizontal overflow
-                           without interfering with sticky positioning. */
-}
-
-body {
-  font-family: "Segoe UI", Arial, Helvetica, sans-serif;
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  /* Do NOT put overflow-x: hidden here — it breaks position:sticky.
-     It's on html instead. */
-}
-
-body {
-  background: var(--bg-page);
-  color: var(--text);
-  transition: background 200ms ease, color 200ms ease;
-}
-
-input, textarea, button, select {
-  font-family: inherit;
-}
-
-
-/* ===== THEME VARIABLES (light/dark mode) ===== */
-/* These variables are used by ALL dashboard pages.
-   The theme is set on the <html> element via data-theme="light" or "dark".
-   The theme toggle script in dashboard-common.js switches between them. */
-
-:root[data-theme="light"] {
-  --bg-page:      #d1d5db;   /* Page background — light gray steel */
-  --bg-card:      #ffffff;   /* Card background */
-  --bg-input:     #ffffff;   /* Input field background */
-  --bg-header:    #e5e7eb;   /* Header background */
-  --bg-step:      #ffffff;   /* Step card background */
-  --bg-hover:     #e5e7eb;   /* Hover background */
-
-  --text:         #1e293b;   /* Primary text color */
-  --text-muted:   #64748b;   /* Secondary/muted text color */
-
-  --border:       #e2e8f0;   /* Border color */
-  --border-input: #cbd5e1;   /* Input border color */
-
-  --primary:       #2563eb;  /* Primary button/link color */
-  --primary-hover: #1d4ed8;  /* Primary button hover color */
-  --error:         #dc2626;  /* Error color (red) */
-  --success:       #16a34a;  /* Success color (green) */
-  --warning:       #f59e0b;  /* Warning color (amber) */
-}
-
-:root[data-theme="dark"] {
-  --bg-page:      #0f172a;
-  --bg-card:      #1e293b;
-  --bg-input:     #0f172a;
-  --bg-header:    #1e293b;
-  --bg-step:      #0f172a;
-  --bg-hover:     #334155;
-
-  --text:         #e5e7eb;
-  --text-muted:   #94a3b8;
-
-  --border:       #334155;
-  --border-input: #334155;
-
-  --primary:       #2563eb;
-  --primary-hover: #1d4ed8;
-  --error:         #ef4444;
-  --success:       #10b981;
-  --warning:       #f59e0b;
-}
-
-
-/* ===== INDUSTRIAL DIAMOND-PLATE BACKGROUND ===== */
-/* This creates the industrial steel look using the user's diamond-plate.png
-   image. It works in two layers:
-   1. .steel-bg — a fixed full-viewport div that tiles the image (z-index: 0)
-   2. .steel-overlay — a semi-transparent overlay that keeps content readable
-      (z-index: 0, rendered above the image via DOM order)
-
-   HOW IT WORKS:
-   - The body background is set to transparent so the fixed layers show through.
-   - Each dashboard page must include TWO divs right after <body>:
-       <div class="steel-bg"></div>
-       <div class="steel-overlay"></div>
-   - All page content (header, main, cards) must have position: relative and
-     z-index: 1 or higher so they sit above the background layers.
-   - The .steel-bg and .steel-overlay divs have pointer-events: none so they
-     never block clicks.
-
-   LIGHT MODE: The overlay is white at 55% opacity — the steel texture is
-   visible but subtle, and text remains fully readable.
-   DARK MODE: The overlay is dark blue-gray at 70% opacity — the steel is
-   barely visible behind the dark cards.
-
-   IMAGE: /assets/diamond-plate.png (tiled, background-size: auto)
-   If the image is missing, the body falls back to the --bg-page color. */
-
-/* Force the body transparent so the fixed background layers show through.
-   The --bg-page variable is kept as a fallback color on .steel-bg. */
-body {
-  background: transparent !important;
-}
-
-/* --- Layer 1: Diamond-plate steel image (tiled, behind everything) --- */
-.steel-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-color: var(--bg-page);  /* fallback if image is missing */
-  background-image: url("/assets/diamond-plate.png");
-  background-repeat: repeat;
-  background-size: auto;
-}
-
-/* --- Layer 2: Readability overlay (lightens/darkens the steel) --- */
-/* Sits on top of the steel image (same z-index: 0 but later in DOM order).
-   In light mode: white at 55% — subtle steel texture, readable text.
-   In dark mode: dark blue-gray at 70% — steel barely visible behind dark UI. */
-.steel-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-}
-
-:root[data-theme="light"] .steel-overlay {
-  background-color: rgba(255, 255, 255, 0.55);
-}
-
-:root[data-theme="dark"] .steel-overlay {
-  background-color: rgba(15, 23, 42, 0.70);
-}
-
-/* --- Content z-index: make sure all real content sits above the background --- */
-/* The header is sticky and needs a high z-index to stay above content. */
+/* DRIV-EN DASHBOARD CSS v4 — Shared across all dashboard pages */
+*, *::before, *::after { box-sizing: border-box; }
+html { font-family: "Segoe UI", Arial, Helvetica, sans-serif; margin: 0; padding: 0; width: 100%; overflow-x: hidden; }
+body { font-family: "Segoe UI", Arial, Helvetica, sans-serif; margin: 0; padding: 0; width: 100%; background: transparent !important; color: var(--text); transition: background 200ms ease, color 200ms ease; }
+input, textarea, button, select { font-family: inherit; }
+:root[data-theme="light"] { --bg-page: #d1d5db; --bg-card: #ffffff; --bg-input: #ffffff; --bg-header: #e5e7eb; --bg-step: #ffffff; --bg-hover: #e5e7eb; --text: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --border-input: #cbd5e1; --primary: #2563eb; --primary-hover: #1d4ed8; --error: #dc2626; --success: #16a34a; --warning: #f59e0b; }
+:root[data-theme="dark"] { --bg-page: #0f172a; --bg-card: #1e293b; --bg-input: #0f172a; --bg-header: #1e293b; --bg-step: #0f172a; --bg-hover: #334155; --text: #e5e7eb; --text-muted: #94a3b8; --border: #334155; --border-input: #334155; --primary: #2563eb; --primary-hover: #1d4ed8; --error: #ef4444; --success: #10b981; --warning: #f59e0b; }
+.steel-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; background-color: var(--bg-page); background-image: url("/assets/diamond-plate.png"); background-repeat: repeat; background-size: auto; }
+.steel-overlay { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+:root[data-theme="light"] .steel-overlay { background-color: rgba(255, 255, 255, 0.55); }
+:root[data-theme="dark"] .steel-overlay { background-color: rgba(15, 23, 42, 0.70); }
 #dashHeader { position: sticky; top: 0; z-index: 100; }
 .dash-main { position: relative; z-index: 1; }
 .dash-greeting-bar { position: relative; z-index: 1; }
-
-
-/* ===== SHARED BRAND STYLES (do not remove) ===== */
-/* These style the DRIV‑EN brand text: DRIV (gray) ‑ (green) EN (red) */
 .brand-driv { color: #8c8c8c; font-weight: bold; font-style: italic; letter-spacing: -1px; }
 .brand-dash { color: #2da94f; font-weight: bold; font-style: italic; letter-spacing: -1px; }
-.brand-en   { color: #dc2626; font-weight: bold; font-style: italic; letter-spacing: -1px; }
-
+.brand-en { color: #dc2626; font-weight: bold; font-style: italic; letter-spacing: -1px; }
 .inline-logo { height: 3.75em; vertical-align: middle; display: inline-block; }
-
-
-/* ===== DASHBOARD HEADER (3-row layout) ===== */
-/* Row 1: Customer logo (left) | DRIV-EN logo (right)
-   Row 2: Page title (centered, set by JS from body data-page-title)
-   Row 3: Theme toggle slide switch (left) | Logout button (right) */
-
-.dash-header {
-  background: var(--bg-header);
-  border-bottom: 1px solid var(--border);
-  position: sticky;      /* Sticks to top when scrolling */
-  top: 0;
-  z-index: 100;
-}
-
-/* The #dashHeader container div also needs to be sticky
-   because the header HTML is loaded inside it via fetch().
-   Without this, the sticky child (.dash-header) won't stick
-   because the parent div doesn't participate in the sticky context. */
-#dashHeader {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-/* Row 1: Customer logo (left) | DRIV-EN logo (right) */
-.dash-header-row1 {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 20px 4px 20px;
-}
-
-/* Customer logo — loaded from D1 database by dashboard-common.js */
-.dash-customer-logo {
-  max-height: 64px;
-  max-width: 200px;
-  display: block;
-}
-
-/* Placeholder shown when no logo has been uploaded yet */
-.dash-customer-logo-placeholder {
-  max-height: 48px;
-  display: block;
-  opacity: 0.4;
-  border: 2px dashed var(--border);
-  border-radius: 6px;
-  padding: 8px 16px;
-  font-size: 12px;
-  color: var(--text-muted);
-  text-align: center;
-  line-height: 32px;
-}
-
-/* DRIV-EN logo (right side of row 1) */
-/* Cache buster ?v=2026 — bump when logo image changes */
-.dash-driven-logo {
-  max-height: 64px;
-  display: block;
-}
-
-/* Row 2: Page title (centered) */
-.dash-header-row2 {
-  text-align: center;
-  padding: 4px 20px;
-}
-
-.dash-header-row2 h1 {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-/* Row 3: Theme toggle (left) | Logout (right) */
-.dash-header-row3 {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 4px 20px 12px 20px;
-}
-
-
-/* ===== THEME SLIDE SWITCH (Light Mode / Dark Mode) ===== */
-/* A slide toggle with text labels on each side.
-   Checkbox checked = dark mode, unchecked = light mode. */
-
-.dash-theme-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.dash-theme-label {
-  font-size: 12px;
-  color: var(--text-muted);
-  transition: opacity 200ms ease;
-}
-
-/* The label for the active theme is bold and full-color */
-.dash-theme-label.active {
-  color: var(--text);
-  font-weight: 600;
-}
-
-.dash-theme-switch {
-  position: relative;
-  display: inline-block;
-  width: 44px;
-  height: 24px;
-}
-
-.dash-theme-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.dash-theme-slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: var(--border);
-  border-radius: 24px;
-  transition: background 200ms ease;
-}
-
-.dash-theme-slider:before {
-  content: "";
-  position: absolute;
-  height: 18px;
-  width: 18px;
-  left: 3px;
-  bottom: 3px;
-  background: #fff;
-  border-radius: 50%;
-  transition: transform 200ms ease;
-}
-
-/* When checked (dark mode), slider turns blue and knob moves right */
-.dash-theme-switch input:checked + .dash-theme-slider {
-  background: var(--primary);
-}
-
-.dash-theme-switch input:checked + .dash-theme-slider:before {
-  transform: translateX(20px);
-}
-
-
-/* ===== LOGOUT BUTTON ===== */
-.dash-logout {
-  background: #b91c1c;
-  border: 1px solid #dc2626;
-  color: #fff;
-  padding: 8px 14px;
-  border-radius: 6px;
-  font-size: 13px;
-  cursor: pointer;
-}
+.dash-header { background: var(--bg-header); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+.dash-header-row1 { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px 4px 20px; }
+.dash-customer-logo { max-height: 64px; max-width: 200px; display: block; }
+.dash-customer-logo-placeholder { max-height: 48px; display: block; opacity: 0.4; border: 2px dashed var(--border); border-radius: 6px; padding: 8px 16px; font-size: 12px; color: var(--text-muted); text-align: center; line-height: 32px; }
+.dash-driven-logo { max-height: 64px; display: block; }
+.dash-header-row2 { text-align: center; padding: 4px 20px; }
+.dash-header-row2 h1 { margin: 0; font-size: 22px; font-weight: 600; color: var(--text); }
+.dash-header-row3 { display: flex; justify-content: space-between; align-items: center; padding: 4px 20px 12px 20px; }
+.dash-theme-wrapper { display: flex; align-items: center; gap: 8px; }
+.dash-theme-label { font-size: 12px; color: var(--text-muted); transition: opacity 200ms ease; }
+.dash-theme-label.active { color: var(--text); font-weight: 600; }
+.dash-theme-switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+.dash-theme-switch input { opacity: 0; width: 0; height: 0; }
+.dash-theme-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: var(--border); border-radius: 24px; transition: background 200ms ease; }
+.dash-theme-slider:before { content: ""; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: transform 200ms ease; }
+.dash-theme-switch input:checked + .dash-theme-slider { background: var(--primary); }
+.dash-theme-switch input:checked + .dash-theme-slider:before { transform: translateX(20px); }
+.dash-logout { background: #b91c1c; border: 1px solid #dc2626; color: #fff; padding: 8px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; }
 .dash-logout:hover { background: #dc2626; }
-
-
-/* ===== CONTENT AREA ===== */
-/* Standard content container for dashboard pages.
-   Centers content with max-width and padding. */
-.dash-main {
-  max-width: 1100px;
-  margin: 20px auto;
-  padding: 0 20px;
-}
-
-
-/* ===== GREETING BAR (optional — below header, above content) ===== */
-/* If a page wants a greeting bar, add:
-   <div class="dash-greeting-bar" id="dashGreetingBar">
-     <span id="dashGreetingText">Welcome</span>
-   </div>
-   dashboard-common.js will auto-fill it from the session. */
-.dash-greeting-bar {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 12px 20px 0 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.dash-greeting-text {
-  font-size: 16px;
-  color: var(--text-muted);
-  font-weight: 500;
-}
+.dash-main { max-width: 1100px; margin: 20px auto; padding: 0 20px; }
+.dash-greeting-bar { max-width: 1100px; margin: 0 auto; padding: 12px 20px 0 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+.dash-greeting-text { font-size: 16px; color: var(--text-muted); font-weight: 500; }
 .dash-greeting-text strong { color: var(--text); }
-
-
-/* ===== COMMON CARDS ===== */
-/* Use .dash-card for any card-style container */
-.dash-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 20px;
-}
-
-.dash-card h2 {
-  margin-top: 0;
-  font-size: 18px;
-  color: var(--text);
-}
-
-.dash-card h3 {
-  margin-top: 0;
-  font-size: 16px;
-  color: var(--text);
-}
-
-.dash-card p {
-  font-size: 14px;
-  color: var(--text-muted);
-  line-height: 1.5;
-  margin: 6px 0 0;
-}
-
-
-/* ===== COMMON BUTTONS ===== */
-/* Primary button — blue, for main actions */
-.dash-btn {
-  background: var(--primary);
-  border: 1px solid var(--primary-hover);
-  color: #ffffff;
-  padding: 10px 18px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-block;
-}
+.dash-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+.dash-card h2 { margin-top: 0; font-size: 18px; color: var(--text); }
+.dash-card h3 { margin-top: 0; font-size: 16px; color: var(--text); }
+.dash-card p { font-size: 14px; color: var(--text-muted); line-height: 1.5; margin: 6px 0 0; }
+.dash-btn { background: var(--primary); border: 1px solid var(--primary-hover); color: #ffffff; padding: 10px 18px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; display: inline-block; }
 .dash-btn:hover { background: var(--primary-hover); }
-
-/* Danger button — red, for delete/remove actions */
-.dash-btn-danger {
-  background: #b91c1c;
-  border: 1px solid #dc2626;
-  color: #fff;
-  padding: 10px 18px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-}
+.dash-btn-danger { background: #b91c1c; border: 1px solid #dc2626; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; }
 .dash-btn-danger:hover { background: #dc2626; }
-
-/* Secondary button — subtle, for cancel/back */
-.dash-btn-secondary {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 10px 18px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-block;
-}
+.dash-btn-secondary { background: var(--bg-card); border: 1px solid var(--border); color: var(--text); padding: 10px 18px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; display: inline-block; }
 .dash-btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
-
-/* Disabled button */
-.dash-btn:disabled,
-.dash-btn-danger:disabled,
-.dash-btn-secondary:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-
-/* ===== COMMON FORM INPUTS ===== */
-.dash-input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border-input);
-  border-radius: 6px;
-  font-size: 14px;
-  background: var(--bg-input);
-  color: var(--text);
-}
-.dash-input:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
-}
-
-.dash-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 6px;
-  display: block;
-}
-
-
-/* ===== COMMON TABLES ===== */
-.dash-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-.dash-table th {
-  text-align: left;
-  padding: 10px 12px;
-  background: var(--bg-header);
-  color: var(--text);
-  font-weight: 600;
-  border-bottom: 1px solid var(--border);
-}
-
-.dash-table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border);
-  color: var(--text);
-}
-
-.dash-table tr:hover td {
-  background: var(--bg-hover);
-}
-
-
-/* ===== COMMON STATUS BADGES ===== */
-.dash-badge {
-  font-size: 12px;
-  font-weight: 500;
-  padding: 4px 10px;
-  border-radius: 999px;
-  width: fit-content;
-  display: inline-block;
-}
+.dash-btn:disabled, .dash-btn-danger:disabled, .dash-btn-secondary:disabled { opacity: 0.5; cursor: default; }
+.dash-input { width: 100%; padding: 10px 12px; border: 1px solid var(--border-input); border-radius: 6px; font-size: 14px; background: var(--bg-input); color: var(--text); }
+.dash-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2); }
+.dash-label { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; display: block; }
+.dash-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.dash-table th { text-align: left; padding: 10px 12px; background: var(--bg-header); color: var(--text); font-weight: 600; border-bottom: 1px solid var(--border); }
+.dash-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+.dash-table tr:hover td { background: var(--bg-hover); }
+.dash-badge { font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 999px; width: fit-content; display: inline-block; }
 .dash-badge-success { background: #065f46; border: 1px solid #059669; color: #d1fae5; }
-.dash-badge-info    { background: #1e40af; border: 1px solid #2563eb; color: #dbeafe; }
+.dash-badge-info { background: #1e40af; border: 1px solid #2563eb; color: #dbeafe; }
 .dash-badge-warning { background: #78350f; border: 1px solid #d97706; color: #fef3c7; }
-.dash-badge-danger  { background: #7f1d1d; border: 1px solid #b91c1c; color: #fee2e2; }
-.dash-badge-muted   { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); }
-
-
-/* ===== UTILITY CLASSES ===== */
+.dash-badge-danger { background: #7f1d1d; border: 1px solid #b91c1c; color: #fee2e2; }
+.dash-badge-muted { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); }
 .dash-text-center { text-align: center; }
-.dash-text-right  { text-align: right; }
-.dash-text-muted  { color: var(--text-muted); }
+.dash-text-right { text-align: right; }
+.dash-text-muted { color: var(--text-muted); }
 .dash-mt-1 { margin-top: 8px; }
 .dash-mt-2 { margin-top: 16px; }
 .dash-mt-3 { margin-top: 24px; }
@@ -548,29 +77,4 @@ body {
 .dash-gap-1 { gap: 8px; }
 .dash-gap-2 { gap: 16px; }
 .dash-hidden { display: none; }
-
-
-/* ===== MOBILE RESPONSIVE ===== */
-@media (max-width: 800px) {
-  .dash-header-row1 { padding: 10px 12px 4px 12px; }
-  .dash-customer-logo, .dash-customer-logo-placeholder {
-    max-height: 36px;
-    max-width: 100px;
-  }
-  .dash-customer-logo-placeholder {
-    font-size: 10px;
-    padding: 4px 8px;
-    line-height: 28px;
-  }
-  .dash-driven-logo { max-height: 48px; }
-  .dash-header-row2 h1 { font-size: 18px; }
-  .dash-header-row3 { padding: 4px 12px 10px 12px; }
-  .dash-theme-label { font-size: 10px; }
-  .dash-theme-switch { width: 38px; height: 20px; }
-  .dash-theme-slider:before { height: 14px; width: 14px; left: 3px; bottom: 3px; }
-  .dash-theme-switch input:checked + .dash-theme-slider:before { transform: translateX(16px); }
-  .dash-logout { font-size: 12px; padding: 6px 10px; }
-  .dash-main { padding: 0 12px; margin: 12px auto; }
-  .dash-greeting-bar { padding: 10px 12px 0 12px; }
-  .dash-greeting-text { font-size: 14px; }
-}
+@media (max-width: 800px) { .dash-header-row1 { padding: 10px 12px 4px 12px; } .dash-customer-logo, .dash-customer-logo-placeholder { max-height: 36px; max-width: 100px; } .dash-customer-logo-placeholder { font-size: 10px; padding: 4px 8px; line-height: 28px; } .dash-driven-logo { max-height: 48px; } .dash-header-row2 h1 { font-size: 18px; } .dash-header-row3 { padding: 4px 12px 10px 12px; } .dash-theme-label { font-size: 10px; } .dash-theme-switch { width: 38px; height: 20px; } .dash-theme-slider:before { height: 14px; width: 14px; left: 3px; bottom: 3px; } .dash-theme-switch input:checked + .dash-theme-slider:before { transform: translateX(16px); } .dash-logout { font-size: 12px; padding: 6px 10px; } .dash-main { padding: 0 12px; margin: 12px auto; } .dash-greeting-bar { padding: 10px 12px 0 12px; } .dash-greeting-text { font-size: 14px; } }
