@@ -17,7 +17,7 @@
 <link rel="apple-touch-icon" href="/icons/favicon-180.png">
 
 <!-- ===== SHARED DASHBOARD CSS ===== -->
-<link rel="stylesheet" href="/styles/dashboard.css?v=3">
+<link rel="stylesheet" href="/styles/dashboard.css?v=4">
 
 <!-- ===== EXCEL LIBRARY (for bulk upload) ===== -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -268,12 +268,16 @@
 <!-- Page title — appears in the dashboard header -->
 <body data-page-title="Onboarding — Clients" data-required-task="Clients">
 
+<!-- ===== INDUSTRIAL DIAMOND-PLATE BACKGROUND (do not remove) ===== -->
+<div class="steel-bg"></div>
+<div class="steel-overlay"></div>
+
 <!-- ===== SHARED DASHBOARD HEADER (auto-loaded by dashboard-common.js) ===== -->
 <div id="dashHeader"></div>
 
 <!-- ===== BACK BUTTON BAR ===== -->
 <div class="cli-back-bar">
-  <a href="/public/dashboard/admin.html" class="cli-back-btn">&larr; Admin Dashboard</a>
+  <a href="/public/dashboard/admin.html" class="cli-back-btn driven-admin-only">&larr; Admin Dashboard</a>
   <a href="/public/onboarding-dashboard.html" class="cli-back-btn" style="background:#374151;border-color:#4b5563;color:#d1d5db;">&larr; Onboarding Dashboard</a>
 </div>
 
@@ -340,7 +344,7 @@
       <h3>Bulk Upload Clients</h3>
       <p class="cli-subtitle">
         Download the Excel template, fill in your client list, then upload it here.
-        Client Name is required for every row.
+        Client Name is required for every row. CSV files are also supported.
       </p>
 
       <!-- Template download button — generates the Excel file in the browser using SheetJS -->
@@ -389,7 +393,7 @@
 <script src="/components/dashboard-common.js?v=2"></script>
 
 <!-- ===== AUTH CHECK (shared — ACTIVE, enforces login + role + task checks) ===== -->
-<script src="/components/auth-check.js?v=2"></script>
+<script src="/components/auth-check.js?v=3"></script>
 
 <!-- ===== PAGE-SPECIFIC SCRIPT ===== -->
 <script>
@@ -398,16 +402,15 @@
        ==========================================
        What this page does:
        1. Lets the admin add clients one at a time (Single Entry tab)
-       2. Lets the admin upload many clients via Excel or CSV (Bulk Upload tab)
+       2. Lets the admin upload many clients via Excel (Bulk Upload tab)
        3. Required field: Client Name
        4. Shows a running list of clients added
        5. Saves all clients to localStorage on "Save & Continue"
        6. Updates the client count badge
 
        BULK UPLOAD:
-       Excel/CSV template must have column: Client Name.
+       Excel template must have column: Client Name.
        Duplicates (case-insensitive) are rejected.
-       Instruction row (starting with "INSTRUCTIONS") is auto-detected and skipped.
 
        FUTURE ENHANCEMENTS (noted in daily report):
        - Save to D1 database via API (currently localStorage only)
@@ -524,7 +527,7 @@
       }
     });
 
-    // ===== BULK UPLOAD (Process Excel or CSV file) =====
+    // ===== BULK UPLOAD (Process Excel file) =====
     document.getElementById("btnProcessBulk").addEventListener("click", function() {
       statusBulk.textContent = "";
       statusBulk.className = "cli-error";
@@ -637,7 +640,7 @@
       };
 
       if (file.name.toLowerCase().endsWith(".csv")) { reader.readAsText(file); } else { reader.readAsArrayBuffer(file); }
-    });
+    };
 
     // ===== SAVE & CONTINUE =====
     document.getElementById("btnSaveCli").addEventListener("click", function() {
@@ -669,16 +672,14 @@
 
     // ===== DOWNLOAD CLIENT TEMPLATE =====
     // Generates the Excel template file in the browser using SheetJS (XLSX library).
-    // The template has:
-    //   Row 1: INSTRUCTIONS row (tells user to delete before uploading)
-    //   Row 2: Column header "Client Name" (frozen — always visible when scrolling)
-    //   No sample data rows (prevents accidental data entry)
+    // The template has one column: "Client Name" with a sample row.
+    // This avoids needing a physical .xlsx file on the server.
     function downloadClientTemplate() {
       var ws = XLSX.utils.aoa_to_sheet([
         ["INSTRUCTIONS: Delete this row before uploading. Only fill in the Client Name column."],
         ["Client Name"]
       ]);
-      ws["!cols"] = [{ wch: 60 }];
+      ws["!cols"] = [{ wch: 60 }, { wch: 40 }];
       ws["!freeze"] = { ySplit: 2, xSplit: 0, topLeftCell: "A3", panes: [{ state: "frozen", ySplit: 2, xSplit: 0, topLeftCell: "A3", activePane: "bottomLeft" }] };
       var wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Clients");
