@@ -3,30 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>DRIV‑EN | Onboarding — Projects</title>
-<meta name="description" content="Add projects to DRIV‑EN during onboarding. Single entry or bulk upload via Excel.">
 <meta name="robots" content="noindex, nofollow">
-<link rel="canonical" href="https://www.driv-en.com/public/onboarding-projects.html">
-
 <link rel="icon" type="image/png" href="/icons/favicon.png" sizes="48x48">
-<link rel="icon" type="image/png" href="/icons/favicon-96.png" sizes="96x96">
-<link rel="icon" type="image/png" href="/icons/favicon-192.png" sizes="192x192">
-<link rel="apple-touch-icon" href="/icons/favicon-180.png">
-
 <link rel="stylesheet" href="/styles/dashboard.css?v=4">
-
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
 <script>
-(function() {
-  var saved = localStorage.getItem("driven-theme");
-  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  var theme = saved || system;
-  document.documentElement.setAttribute("data-theme", theme);
-})();
+(function() { var saved = localStorage.getItem("driven-theme"); var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; document.documentElement.setAttribute("data-theme", saved || system); })();
 </script>
-
 <style>
     .prj-back-bar { max-width: 1100px; margin: 0 auto; padding: 12px 20px 0 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
     .prj-back-btn { display: inline-flex; align-items: center; gap: 6px; background: #1e40af; border: 1px solid #2563eb; color: #dbeafe; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; }
@@ -67,103 +51,47 @@
     .prj-bulk-preview td { background: var(--bg-card); color: var(--text); }
     @media (max-width: 600px) { .prj-form-grid { grid-template-columns: 1fr; } .prj-action-row { flex-direction: column; gap: 8px; } .prj-action-row .prj-btn-primary, .prj-action-row .prj-btn-secondary { width: 100%; } .prj-table { font-size: 11px; } .prj-table th, .prj-table td { padding: 4px 3px; } }
 </style>
-
 </head>
-
 <body data-page-title="Onboarding — Projects" data-required-task="Projects">
-
-<!-- ===== INDUSTRIAL DIAMOND-PLATE BACKGROUND (do not remove) ===== -->
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
-
 <div id="dashHeader"></div>
-
 <div class="prj-back-bar">
-  <a href="/public/dashboard/admin.html" class="prj-back-btn">&larr; Admin Dashboard</a>
+  <a href="/public/dashboard/admin.html" class="prj-back-btn driven-admin-only">&larr; Admin Dashboard</a>
   <a href="/public/onboarding-dashboard.html" class="prj-back-btn" style="background:#374151;border-color:#4b5563;color:#d1d5db;">&larr; Onboarding Dashboard</a>
 </div>
-
 <main class="dash-main">
-
   <div class="dash-card">
     <h2>Add Projects <span class="prj-count-badge" id="prjCount">0</span></h2>
-    <p class="prj-subtitle">
-      Add active, recently completed, or upcoming projects. Each project references a Client, Division,
-      Project Type, and personnel (Project Manager and Superintendent) — those must be added first.
-    </p>
-    <p class="prj-subtitle">
-      <strong>Required:</strong> Project Number, Project Name, Physical Address, Division, Client, Project Type,
-      Project Manager, and Project Superintendent.
-    </p>
-    <p class="prj-subtitle">
-      Even company-owned facilities (e.g., "Yard #1") should be added as a project so all equipment
-      locations can be tracked.
-    </p>
+    <p class="prj-subtitle">Add active, recently completed, or upcoming projects.</p>
+    <p class="prj-subtitle"><strong>Required:</strong> Project Number, Project Name, Physical Address, Division, Client, Project Type, Project Manager, and Project Superintendent.</p>
+    <p class="prj-subtitle">Even company-owned facilities (e.g., "Yard #1") should be added as a project.</p>
   </div>
-
   <div id="prereqWarning" class="prj-prereq-warning" style="display:none;">
     <strong>⚠ Prerequisites not met.</strong><br>
-    Projects require Employees (Step 3), Clients (Step 4), Divisions (Step 5), and Project Types (Step 6)
-    to be completed first. Please complete those steps before adding projects.
+    Projects require Employees (Step 3), Clients (Step 4), Divisions (Step 5), and Project Types (Step 6) to be completed first. The dropdowns below will be empty until those steps are done. You can still add projects manually, but you won't be able to select Division, Client, Type, or Personnel until the prerequisite data is entered.
     <br><br>
     <a href="/public/onboarding-dashboard.html" style="color:#fbbf24;text-decoration:underline;">Go to Onboarding Dashboard</a>
   </div>
-
-  <div id="prjMainContent" style="display:none;">
-
+  <div id="prjMainContent">
     <div class="dash-card">
       <div class="prj-tabs">
         <button class="prj-tab active" id="tabSingle" onclick="switchTab('single')">Single Entry</button>
         <button class="prj-tab" id="tabBulk" onclick="switchTab('bulk')">Bulk Upload</button>
       </div>
     </div>
-
     <div id="tabContentSingle">
       <div class="dash-card">
         <h3>Add a Project</h3>
         <div class="prj-form-grid">
-          <div class="prj-form-field">
-            <label>Project Number<span class="prj-required-star">*</span></label>
-            <input type="text" id="prjNumber" class="dash-input" placeholder="e.g., 2026-001">
-          </div>
-          <div class="prj-form-field">
-            <label>Project Name<span class="prj-required-star">*</span></label>
-            <input type="text" id="prjName" class="dash-input" placeholder="e.g., Pipeline Extension North">
-          </div>
-          <div class="prj-form-field" style="grid-column: 1 / -1;">
-            <label>Physical Address<span class="prj-required-star">*</span></label>
-            <input type="text" id="prjAddress" class="dash-input" placeholder="e.g., 123 Main St, Houston, TX 77001">
-          </div>
-          <div class="prj-form-field">
-            <label>Division<span class="prj-required-star">*</span></label>
-            <select id="prjDivision" class="dash-input">
-              <option value="">— Select Division —</option>
-            </select>
-          </div>
-          <div class="prj-form-field">
-            <label>Client<span class="prj-required-star">*</span></label>
-            <select id="prjClient" class="dash-input">
-              <option value="">— Select Client —</option>
-            </select>
-          </div>
-          <div class="prj-form-field">
-            <label>Project Type<span class="prj-required-star">*</span></label>
-            <select id="prjType" class="dash-input">
-              <option value="">— Select Project Type —</option>
-            </select>
-          </div>
-          <div class="prj-form-field">
-            <label>Project Manager<span class="prj-required-star">*</span></label>
-            <select id="prjPM" class="dash-input">
-              <option value="">— Select Project Manager —</option>
-            </select>
-          </div>
-          <div class="prj-form-field">
-            <label>Project Superintendent<span class="prj-required-star">*</span></label>
-            <select id="prjSuper" class="dash-input">
-              <option value="">— Select Superintendent —</option>
-            </select>
-          </div>
+          <div class="prj-form-field"><label>Project Number<span class="prj-required-star">*</span></label><input type="text" id="prjNumber" class="dash-input" placeholder="e.g., 2026-001"></div>
+          <div class="prj-form-field"><label>Project Name<span class="prj-required-star">*</span></label><input type="text" id="prjName" class="dash-input"></div>
+          <div class="prj-form-field" style="grid-column: 1 / -1;"><label>Physical Address<span class="prj-required-star">*</span></label><input type="text" id="prjAddress" class="dash-input"></div>
+          <div class="prj-form-field"><label>Division<span class="prj-required-star">*</span></label><select id="prjDivision" class="dash-input"><option value="">— Select Division —</option></select></div>
+          <div class="prj-form-field"><label>Client<span class="prj-required-star">*</span></label><select id="prjClient" class="dash-input"><option value="">— Select Client —</option></select></div>
+          <div class="prj-form-field"><label>Project Type<span class="prj-required-star">*</span></label><select id="prjType" class="dash-input"><option value="">— Select Project Type —</option></select></div>
+          <div class="prj-form-field"><label>Project Manager<span class="prj-required-star">*</span></label><select id="prjPM" class="dash-input"><option value="">— Select Project Manager —</option></select></div>
+          <div class="prj-form-field"><label>Project Superintendent<span class="prj-required-star">*</span></label><select id="prjSuper" class="dash-input"><option value="">— Select Superintendent —</option></select></div>
         </div>
         <button id="btnAddPrj" class="prj-btn-primary">Add Project</button>
         <div id="prjError" class="prj-error"></div>
@@ -171,45 +99,27 @@
       </div>
       <div class="dash-card">
         <h3>Projects Added</h3>
-        <p class="prj-subtitle">
-          These projects will be saved when you click Save &amp; Continue. You can add as many as you need before saving.
-        </p>
-        <div id="prjTableContainer">
-          <p class="prj-empty">No projects added yet.</p>
-        </div>
+        <p class="prj-subtitle">These projects will be saved when you click Save &amp; Continue.</p>
+        <div id="prjTableContainer"><p class="prj-empty">No projects added yet.</p></div>
       </div>
     </div>
-
     <div id="tabContentBulk" style="display:none;">
       <div class="dash-card">
         <h3>Bulk Upload Projects</h3>
-        <p class="prj-subtitle">
-          Download the Excel template, fill in your project list, then upload it here.
-          All linked fields (Division, Client, Project Type, Project Manager, Superintendent) must
-          match exactly what was entered in previous onboarding steps.
-        </p>
-        <button onclick="downloadProjectTemplate()" class="prj-bulk-link" style="cursor:pointer;border:none;font-size:14px;">
-          ⬇ Download Project-Mass-Upload-v1.0.xlsx
-        </button>
-        <div class="prj-form-field" style="max-width:400px;">
-          <label>Upload Completed Template</label>
-          <input type="file" id="bulkFile" accept=".xlsx,.csv" class="prj-bulk-file-input">
-        </div>
+        <p class="prj-subtitle">Download the Excel template, fill in your project list, then upload it here. All linked fields must match exactly. <strong>CSV files are also supported.</strong></p>
+        <p class="prj-subtitle"><strong>Template instructions:</strong> Row 1 contains the column headers (do NOT delete it). Start entering your data in Row 2. All 8 columns are required.</p>
+        <button onclick="downloadProjectTemplate()" class="prj-bulk-link" style="cursor:pointer;border:none;font-size:14px;">⬇ Download Project-Mass-Upload-v1.0.xlsx</button>
+        <div class="prj-form-field" style="max-width:400px;"><label>Upload Completed Template</label><input type="file" id="bulkFile" accept=".xlsx,.csv" class="prj-bulk-file-input"></div>
         <button id="btnProcessBulk" class="prj-btn-primary">Process Upload</button>
         <div id="statusBulk" class="prj-error"></div>
         <div id="bulkPreview" class="prj-bulk-preview"></div>
       </div>
       <div class="dash-card">
         <h3>Projects from Bulk Upload</h3>
-        <p class="prj-subtitle">
-          Review the uploaded projects below, then click Save &amp; Continue to save them all.
-        </p>
-        <div id="bulkTableContainer">
-          <p class="prj-empty">No projects uploaded yet.</p>
-        </div>
+        <p class="prj-subtitle">Review the uploaded projects below, then click Save &amp; Continue.</p>
+        <div id="bulkTableContainer"><p class="prj-empty">No projects uploaded yet.</p></div>
       </div>
     </div>
-
     <div class="dash-card">
       <div class="prj-action-row">
         <a href="/public/onboarding-dashboard.html" class="prj-btn-secondary">Return to Onboarding</a>
@@ -217,39 +127,25 @@
       </div>
       <div id="prjStepStatus" class="prj-step-status"></div>
     </div>
-
   </div>
-
 </main>
-
-<script src="/components/dashboard-common.js?v=2"></script>
-<script src="/components/auth-check.js?v=2"></script>
-
+<script src="/components/dashboard-common.js?v=3"></script>
+<script src="/components/auth-check.js?v=3"></script>
 <script>
-    var projects = [];
-    var prjError = document.getElementById("prjError");
-    var prjSuccess = document.getElementById("prjSuccess");
-    var prjTableContainer = document.getElementById("prjTableContainer");
-    var prjStepStatus = document.getElementById("prjStepStatus");
-    var prjCountEl = document.getElementById("prjCount");
-    var bulkTableContainer = document.getElementById("bulkTableContainer");
-    var statusBulk = document.getElementById("statusBulk");
-    var bulkPreview = document.getElementById("bulkPreview");
+    var projects = []; var prjError = document.getElementById("prjError"); var prjSuccess = document.getElementById("prjSuccess"); var prjTableContainer = document.getElementById("prjTableContainer"); var prjStepStatus = document.getElementById("prjStepStatus"); var prjCountEl = document.getElementById("prjCount"); var statusBulk = document.getElementById("statusBulk"); var bulkPreview = document.getElementById("bulkPreview");
     function updateCount() { prjCountEl.textContent = projects.length; }
     function populateSelect(selectId, items) { var sel = document.getElementById(selectId); sel.innerHTML = '<option value="">— Select —</option>'; items.forEach(function(item) { var opt = document.createElement("option"); opt.value = item; opt.textContent = item; sel.appendChild(opt); }); }
     function checkPrerequisites() { var employees = JSON.parse(localStorage.getItem("driven_employees") || "[]"); var clients = JSON.parse(localStorage.getItem("driven_clients") || "[]"); var divisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]"); var projectTypes = JSON.parse(localStorage.getItem("driven_project_types") || "[]"); return employees.length > 0 && clients.length > 0 && divisions.length > 0 && projectTypes.length > 0; }
-    function loadDropdowns() { var divisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]"); var divisionNames = divisions.map(function(d) { return d.name; }); populateSelect("prjDivision", divisionNames); var clients = JSON.parse(localStorage.getItem("driven_clients") || "[]"); var clientNames = clients.map(function(c) { return c.name; }); populateSelect("prjClient", clientNames); var projectTypes = JSON.parse(localStorage.getItem("driven_project_types") || "[]"); var ptNames = projectTypes.map(function(pt) { return pt.name; }); populateSelect("prjType", ptNames); var employees = JSON.parse(localStorage.getItem("driven_employees") || "[]"); var empNames = employees.map(function(e) { return e.fullName; }); populateSelect("prjPM", empNames); populateSelect("prjSuper", empNames); }
+    function loadDropdowns() { var divisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]"); populateSelect("prjDivision", divisions.map(function(d) { return d.name; })); var clients = JSON.parse(localStorage.getItem("driven_clients") || "[]"); populateSelect("prjClient", clients.map(function(c) { return c.name; })); var projectTypes = JSON.parse(localStorage.getItem("driven_project_types") || "[]"); populateSelect("prjType", projectTypes.map(function(pt) { return pt.name; })); var employees = JSON.parse(localStorage.getItem("driven_employees") || "[]"); var empNames = employees.map(function(e) { return e.fullName; }); populateSelect("prjPM", empNames); populateSelect("prjSuper", empNames); }
     function renderTable() { if (projects.length === 0) { prjTableContainer.innerHTML = '<p class="prj-empty">No projects added yet.</p>'; return; } var rows = projects.map(function(prj, index) { return '<tr><td>' + (index + 1) + '</td><td>' + prj.number + '</td><td>' + prj.name + '</td><td>' + prj.address + '</td><td>' + prj.division + '</td><td>' + prj.client + '</td><td>' + prj.type + '</td><td>' + prj.pm + '</td><td>' + prj.super + '</td><td><button class="prj-btn-secondary" style="padding:4px 10px;font-size:12px;height:auto;" onclick="removeProject(' + index + ')">Remove</button></td></tr>'; }).join(""); prjTableContainer.innerHTML = '<table class="prj-table"><thead><tr><th>#</th><th>Number</th><th>Name</th><th>Address</th><th>Division</th><th>Client</th><th>Type</th><th>PM</th><th>Superintendent</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table>'; }
     window.removeProject = function(index) { projects.splice(index, 1); renderTable(); updateCount(); prjSuccess.textContent = ""; prjError.textContent = ""; };
     window.switchTab = function(tab) { var tabSingle = document.getElementById("tabSingle"); var tabBulk = document.getElementById("tabBulk"); var contentSingle = document.getElementById("tabContentSingle"); var contentBulk = document.getElementById("tabContentBulk"); if (tab === "single") { tabSingle.classList.add("active"); tabBulk.classList.remove("active"); contentSingle.style.display = "block"; contentBulk.style.display = "none"; } else { tabBulk.classList.add("active"); tabSingle.classList.remove("active"); contentBulk.style.display = "block"; contentSingle.style.display = "none"; } };
-    document.getElementById("btnAddPrj").addEventListener("click", function() { prjError.textContent = ""; prjSuccess.textContent = ""; var number = document.getElementById("prjNumber").value.trim(); var name = document.getElementById("prjName").value.trim(); var address = document.getElementById("prjAddress").value.trim(); var division = document.getElementById("prjDivision").value; var client = document.getElementById("prjClient").value; var type = document.getElementById("prjType").value; var pm = document.getElementById("prjPM").value; var sup = document.getElementById("prjSuper").value; if (!number || !name) { prjError.textContent = "Project Number and Project Name are required."; return; } if (!address) { prjError.textContent = "Physical Address is required."; return; } if (!division || !client || !type) { prjError.textContent = "Division, Client, and Project Type are required."; return; } if (!pm || !sup) { prjError.textContent = "Project Manager and Superintendent are required."; return; } if (projects.some(function(p) { return p.number.toLowerCase() === number.toLowerCase(); })) { prjError.textContent = "A project with this number has already been added."; return; } var prj = { number: number, name: name, address: address, division: division, client: client, type: type, pm: pm, super: sup, customerId: localStorage.getItem("driven_customer_id") || "" }; projects.push(prj); renderTable(); updateCount(); document.getElementById("prjNumber").value = ""; document.getElementById("prjName").value = ""; document.getElementById("prjAddress").value = ""; document.getElementById("prjDivision").value = ""; document.getElementById("prjClient").value = ""; document.getElementById("prjType").value = ""; document.getElementById("prjPM").value = ""; document.getElementById("prjSuper").value = ""; document.getElementById("prjNumber").focus(); prjSuccess.textContent = "Project added. Add another or click Save & Continue."; });
-    document.getElementById("btnProcessBulk").addEventListener("click", function() { statusBulk.textContent = ""; statusBulk.className = "prj-error"; var file = document.getElementById("bulkFile").files[0]; if (!file) { statusBulk.textContent = "Please select an Excel or CSV file."; return; } var reader = new FileReader(); reader.onload = function(e) { var rows; var isCsv = file.name.toLowerCase().endsWith(".csv"); if (isCsv) { var text = e.target.result; var lines = text.split(/\r?\n/).filter(function(l) { return l.trim() !== ""; }); if (lines.length < 2) { statusBulk.textContent = "The CSV file is empty or has no data rows."; return; } var headers = parseCsvLine(lines[0]); rows = lines.slice(1).map(function(line) { var values = parseCsvLine(line); var obj = {}; headers.forEach(function(h, i) { obj[h] = values[i] || ""; }); return obj; }); } else { var workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" }); var sheet = workbook.Sheets[workbook.SheetNames[0]]; rows = XLSX.utils.sheet_to_json(sheet); } if (rows.length === 0) { statusBulk.textContent = "The file is empty."; return; } if (rows[0] && Object.values(rows[0])[0] && String(Object.values(rows[0])[0]).startsWith("INSTRUCTIONS")) { rows = rows.slice(1); } if (rows.length === 0) { statusBulk.textContent = "No data rows found after instruction row."; return; } var requiredFields = ["Project Number", "Project Name", "Physical Address", "Division", "Client", "Project Type", "Project Manager", "Project Superintendent"]; var header = Object.keys(rows[0]); for (var i = 0; i < requiredFields.length; i++) { if (header.indexOf(requiredFields[i]) === -1) { statusBulk.textContent = "Missing required column: " + requiredFields[i]; return; } } var validDivisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]").map(function(d) { return d.name; }); var validClients = JSON.parse(localStorage.getItem("driven_clients") || "[]").map(function(c) { return c.name; }); var validTypes = JSON.parse(localStorage.getItem("driven_project_types") || "[]").map(function(pt) { return pt.name; }); var validEmployees = JSON.parse(localStorage.getItem("driven_employees") || "[]").map(function(emp) { return emp.fullName; }); for (var r = 0; r < rows.length; r++) { var row = rows[r]; for (var f = 0; f < requiredFields.length; f++) { if (!row[requiredFields[f]] || String(row[requiredFields[f]]).trim() === "") { statusBulk.textContent = "Row " + (r + 2) + ": " + requiredFields[f] + " is required."; return; } } if (validDivisions.indexOf(row["Division"]) === -1) { statusBulk.textContent = "Row " + (r + 2) + ': Invalid Division "' + row["Division"] + '". Must match a division from Step 5.'; return; } if (validClients.indexOf(row["Client"]) === -1) { statusBulk.textContent = "Row " + (r + 2) + ': Invalid Client "' + row["Client"] + '". Must match a client from Step 4.'; return; } if (validTypes.indexOf(row["Project Type"]) === -1) { statusBulk.textContent = "Row " + (r + 2) + ': Invalid Project Type "' + row["Project Type"] + '". Must match a type from Step 6.'; return; } if (validEmployees.indexOf(row["Project Manager"]) === -1) { statusBulk.textContent = "Row " + (r + 2) + ': Invalid Project Manager "' + row["Project Manager"] + '". Must match an employee from Step 3.'; return; } if (validEmployees.indexOf(row["Project Superintendent"]) === -1) { statusBulk.textContent = "Row " + (r + 2) + ': Invalid Project Superintendent "' + row["Project Superintendent"] + '". Must match an employee from Step 3.'; return; } } var bulkProjects = rows.map(function(row) { return { number: String(row["Project Number"]).trim(), name: String(row["Project Name"]).trim(), address: String(row["Physical Address"]).trim(), division: row["Division"], client: row["Client"], type: row["Project Type"], pm: row["Project Manager"], super: row["Project Superintendent"], customerId: localStorage.getItem("driven_customer_id") || "" }; }); var html = "<table><thead><tr>"; requiredFields.forEach(function(f) { html += "<th>" + f + "</th>"; }); html += "</tr></thead><tbody>"; bulkProjects.forEach(function(p) { html += "<tr><td>" + p.number + "</td><td>" + p.name + "</td><td>" + p.address + "</td><td>" + p.division + "</td><td>" + p.client + "</td><td>" + p.type + "</td><td>" + p.pm + "</td><td>" + p.super + "</td></tr>"; }); html += "</tbody></table>"; bulkPreview.innerHTML = html; projects = projects.concat(bulkProjects); renderTable(); updateCount(); statusBulk.textContent = "Uploaded " + bulkProjects.length + " projects. Review above and click Save & Continue."; statusBulk.className = "prj-success"; }; if (file.name.toLowerCase().endsWith(".csv")) { reader.readAsText(file); } else { reader.readAsArrayBuffer(file); } });
+    document.getElementById("btnAddPrj").addEventListener("click", function() { prjError.textContent = ""; prjSuccess.textContent = ""; var number = document.getElementById("prjNumber").value.trim(); var name = document.getElementById("prjName").value.trim(); var address = document.getElementById("prjAddress").value.trim(); var division = document.getElementById("prjDivision").value; var client = document.getElementById("prjClient").value; var type = document.getElementById("prjType").value; var pm = document.getElementById("prjPM").value; var sup = document.getElementById("prjSuper").value; if (!number || !name) { prjError.textContent = "Project Number and Project Name are required."; return; } if (!address) { prjError.textContent = "Physical Address is required."; return; } if (!division || !client || !type) { prjError.textContent = "Division, Client, and Project Type are required."; return; } if (!pm || !sup) { prjError.textContent = "Project Manager and Superintendent are required."; return; } if (projects.some(function(p) { return p.number.toLowerCase() === number.toLowerCase(); })) { prjError.textContent = "A project with this number has already been added."; return; } projects.push({ number: number, name: name, address: address, division: division, client: client, type: type, pm: pm, super: sup, customerId: localStorage.getItem("driven_customer_id") || "" }); renderTable(); updateCount(); document.getElementById("prjNumber").value = ""; document.getElementById("prjName").value = ""; document.getElementById("prjAddress").value = ""; document.getElementById("prjDivision").value = ""; document.getElementById("prjClient").value = ""; document.getElementById("prjType").value = ""; document.getElementById("prjPM").value = ""; document.getElementById("prjSuper").value = ""; document.getElementById("prjNumber").focus(); prjSuccess.textContent = "Project added. Add another or click Save & Continue."; });
+    document.getElementById("btnProcessBulk").addEventListener("click", function() { statusBulk.textContent = ""; statusBulk.className = "prj-error"; var file = document.getElementById("bulkFile").files[0]; if (!file) { statusBulk.textContent = "Please select an Excel or CSV file."; return; } var reader = new FileReader(); reader.onload = function(e) { var rows; var isCsv = file.name.toLowerCase().endsWith(".csv"); if (isCsv) { var text = e.target.result; var lines = text.split(/\r?\n/).filter(function(l) { return l.trim() !== ""; }); if (lines.length < 2) { statusBulk.textContent = "The CSV file is empty or has no data rows."; return; } var headers = parseCsvLine(lines[0]); rows = lines.slice(1).map(function(line) { var values = parseCsvLine(line); var obj = {}; headers.forEach(function(h, i) { obj[h] = values[i] || ""; }); return obj; }); } else { var workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" }); var sheet = workbook.Sheets[workbook.SheetNames[0]]; rows = XLSX.utils.sheet_to_json(sheet); } if (rows.length === 0) { statusBulk.textContent = "The file is empty."; return; } var requiredFields = ["Project Number", "Project Name", "Physical Address", "Division", "Client", "Project Type", "Project Manager", "Project Superintendent"]; var header = Object.keys(rows[0]); for (var i = 0; i < requiredFields.length; i++) { if (header.indexOf(requiredFields[i]) === -1) { statusBulk.textContent = "Missing required column: " + requiredFields[i]; return; } } var validDivisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]").map(function(d) { return d.name; }); var validClients = JSON.parse(localStorage.getItem("driven_clients") || "[]").map(function(c) { return c.name; }); var validTypes = JSON.parse(localStorage.getItem("driven_project_types") || "[]").map(function(pt) { return pt.name; }); var validEmployees = JSON.parse(localStorage.getItem("driven_employees") || "[]").map(function(emp) { return emp.fullName; }); for (var r = 0; r < rows.length; r++) { var row = rows[r]; for (var f = 0; f < requiredFields.length; f++) { if (!row[requiredFields[f]] || String(row[requiredFields[f]]).trim() === "") { statusBulk.textContent = "Row " + (r + 2) + ": " + requiredFields[f] + " is required."; return; } } if (validDivisions.indexOf(row["Division"]) === -1) { statusBulk.textContent = "Row " + (r + 2) + ': Invalid Division "' + row["Division"] + '".'; return; } if (validClients.indexOf(row["Client"]) === -1) { statusBulk.textContent = "Row " + (r + 2) + ': Invalid Client "' + row["Client"] + '".'; return; } if (validTypes.indexOf(row["Project Type"]) === -1) { statusBulk.textContent = "Row " + (r + 2) + ': Invalid Project Type "' + row["Project Type"] + '".'; return; } if (validEmployees.indexOf(row["Project Manager"]) === -1) { statusBulk.textContent = "Row " + (r + 2) + ': Invalid Project Manager "' + row["Project Manager"] + '".'; return; } if (validEmployees.indexOf(row["Project Superintendent"]) === -1) { statusBulk.textContent = "Row " + (r + 2) + ': Invalid Project Superintendent "' + row["Project Superintendent"] + '".'; return; } } var bulkProjects = rows.map(function(row) { return { number: String(row["Project Number"]).trim(), name: String(row["Project Name"]).trim(), address: String(row["Physical Address"]).trim(), division: row["Division"], client: row["Client"], type: row["Project Type"], pm: row["Project Manager"], super: row["Project Superintendent"], customerId: localStorage.getItem("driven_customer_id") || "" }; }); var html = "<table><thead><tr>"; requiredFields.forEach(function(f) { html += "<th>" + f + "</th>"; }); html += "</tr></thead><tbody>"; bulkProjects.forEach(function(p) { html += "<tr><td>" + p.number + "</td><td>" + p.name + "</td><td>" + p.address + "</td><td>" + p.division + "</td><td>" + p.client + "</td><td>" + p.type + "</td><td>" + p.pm + "</td><td>" + p.super + "</td></tr>"; }); html += "</tbody></table>"; bulkPreview.innerHTML = html; projects = projects.concat(bulkProjects); renderTable(); updateCount(); statusBulk.textContent = "Uploaded " + bulkProjects.length + " projects. Review above and click Save & Continue."; statusBulk.className = "prj-success"; }; if (file.name.toLowerCase().endsWith(".csv")) { reader.readAsText(file); } else { reader.readAsArrayBuffer(file); } });
     document.getElementById("btnSavePrj").addEventListener("click", function() { prjStepStatus.textContent = ""; prjStepStatus.style.color = "var(--error)"; if (projects.length === 0) { prjStepStatus.textContent = "You must add at least one project."; return; } var existing = JSON.parse(localStorage.getItem("driven_projects") || "[]"); var allProjects = existing.concat(projects); localStorage.setItem("driven_projects", JSON.stringify(allProjects)); localStorage.setItem("driven_project_count", allProjects.length); localStorage.setItem("driven_step7_complete", "true"); prjStepStatus.style.color = "var(--success)"; prjStepStatus.textContent = projects.length + " project(s) saved. Total projects: " + allProjects.length + "."; var btnSave = document.getElementById("btnSavePrj"); btnSave.disabled = true; btnSave.textContent = "Saved ✓"; projects = []; renderTable(); updateCount(); });
-    document.addEventListener("dashSessionLoaded", function(e) { if (!checkPrerequisites()) { document.getElementById("prereqWarning").style.display = "block"; document.getElementById("prjMainContent").style.display = "none"; } else { loadDropdowns(); document.getElementById("prjMainContent").style.display = "block"; renderTable(); updateCount(); } });
+    document.addEventListener("dashSessionLoaded", function(e) { loadDropdowns(); document.getElementById("prjMainContent").style.display = "block"; if (!checkPrerequisites()) { document.getElementById("prereqWarning").style.display = "block"; } renderTable(); updateCount(); });
     function parseCsvLine(line) { var result = []; var current = ""; var inQuotes = false; for (var i = 0; i < line.length; i++) { var ch = line[i]; if (inQuotes) { if (ch === '"') { if (line[i + 1] === '"') { current += '"'; i++; } else { inQuotes = false; } } else { current += ch; } } else { if (ch === '"') { inQuotes = true; } else if (ch === ",") { result.push(current.trim()); current = ""; } else { current += ch; } } } result.push(current.trim()); return result; }
-    function downloadProjectTemplate() { var ws = XLSX.utils.aoa_to_sheet([ ["INSTRUCTIONS: Delete this row before uploading. All 8 columns are required. Division, Client, Project Type, Project Manager, and Superintendent must match exactly what was entered in previous onboarding steps."], ["Project Number", "Project Name", "Physical Address", "Division", "Client", "Project Type", "Project Manager", "Project Superintendent"] ]); ws["!cols"] = [{ wch: 15 }, { wch: 25 }, { wch: 35 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 20 }, { wch: 22 }]; ws["!freeze"] = { ySplit: 2, xSplit: 0, topLeftCell: "A3", panes: [{ state: "frozen", ySplit: 2, xSplit: 0, topLeftCell: "A3", activePane: "bottomLeft" }] }; var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Projects"); XLSX.writeFile(wb, "Project-Mass-Upload-v1.0.xlsx"); }
+    function downloadProjectTemplate() { var ws = XLSX.utils.aoa_to_sheet([["Project Number", "Project Name", "Physical Address", "Division", "Client", "Project Type", "Project Manager", "Project Superintendent"]]); ws["!cols"] = [{ wch: 15 }, { wch: 25 }, { wch: 35 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 20 }, { wch: 22 }]; ws["!autofilter"] = { ref: "A1:H1" }; var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Projects"); XLSX.writeFile(wb, "Project-Mass-Upload-v1.0.xlsx"); }
 </script>
-
-<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"aed8feab3b60404ba88ec92f026bbcd6","r":1}' crossorigin="anonymous"></script>
 </body>
 </html>
