@@ -53,7 +53,7 @@
     .admin-welcome h2 { margin: 0 0 6px 0; font-size: 20px; color: var(--text); }
     .admin-welcome p  { margin: 0; font-size: 14px; color: var(--text-muted); }
 
-    /* ===== ONBOARDING CARD (hides when complete) ===== */
+    /* ===== ONBOARDING CARD (hides when all steps complete) ===== */
     .admin-onboarding {
       background: var(--bg-card);
       border: 1px solid var(--primary);
@@ -124,6 +124,7 @@
     .admin-module-link  { font-size: 13px; color: var(--primary); font-weight: 500; }
 
     /* ===== KP COUNT BADGE (inside onboarding card) ===== */
+    /* Shows the number of key personnel with assignments */
     .admin-kp-count {
       display: inline-flex;
       align-items: center;
@@ -155,6 +156,7 @@
 
 </head>
 
+<!-- Page title — appears in the dashboard header. data-required-role="Admin" restricts access to Admin users only. -->
 <body data-page-title="Admin Dashboard" data-required-role="Admin">
 
 <!-- ===== INDUSTRIAL DIAMOND-PLATE BACKGROUND (do not remove) ===== -->
@@ -173,16 +175,20 @@
   <!-- ===== PAGE CONTENT ===== -->
   <main class="dash-main">
 
+    <!-- ===== WELCOME BANNER ===== -->
     <div class="admin-welcome">
       <h2>Welcome, <span id="admin-welcome-name"></span></h2>
       <p>You have full access to all modules, settings, users, and operational data.</p>
     </div>
 
+    <!-- ===== ONBOARDING CARD (hides when complete) ===== -->
     <div class="admin-onboarding" id="adminOnboardingCard">
       <div class="admin-onboarding-text">
         <h3>Onboarding Dashboard</h3>
         <p>Complete the onboarding steps to set up your organization: company logo, key personnel, employees, clients, divisions, project types, projects, and equipment.</p>
         <span class="admin-badge" id="admin-onboarding-status" style="background:var(--bg-card);border:1px solid var(--error);color:var(--error);">Not Started</span>
+
+        <!-- KP count badge — shows number of key personnel with assignments -->
         <div class="admin-kp-count">
           <span class="admin-kp-count-number" id="admin-kp-count">0</span>
           <span class="admin-kp-count-label">Key Personnel<br>Assigned</span>
@@ -191,6 +197,7 @@
       <button class="admin-btn-onboarding" onclick="window.location.href='/public/onboarding-dashboard.html'">Open Onboarding</button>
     </div>
 
+    <!-- ===== STATS GRID ===== -->
     <div class="admin-stats">
       <div class="admin-stat-card"><div class="admin-stat-number" id="admin-stat-employees">0</div><div class="admin-stat-label">Employees</div></div>
       <div class="admin-stat-card"><div class="admin-stat-number" id="admin-stat-projects">0</div><div class="admin-stat-label">Projects</div></div>
@@ -198,6 +205,7 @@
       <div class="admin-stat-card"><div class="admin-stat-number" id="admin-stat-clients">0</div><div class="admin-stat-label">Clients</div></div>
     </div>
 
+    <!-- ===== MODULES ===== -->
     <div class="dash-card">
       <h3>Modules</h3>
       <div class="admin-module-grid">
@@ -232,22 +240,52 @@
   </main>
 
 </div>
+<!-- ===== END DASHBOARD ===== -->
 
+<!-- ===== SHARED DASHBOARD JS (loads header, theme, logo, session) ===== -->
 <script src="/components/dashboard-common.js?v=2"></script>
+
+<!-- ===== AUTH CHECK (shared — currently inactive) ===== -->
 <script src="/components/auth-check.js?v=2"></script>
 
+<!-- ===== PAGE-SPECIFIC SCRIPT ===== -->
 <script>
+    /* ==========================================
+       ADMIN DASHBOARD INIT
+       Runs after dashboard-common.js loads the session.
+       The "dashSessionLoaded" event fires when the user
+       session is available (user object, org_id, etc.)
+
+       What this script does:
+       1. Fills the welcome banner with the user's first name
+       2. Shows the dashboard (hides loading screen)
+       3. Checks onboarding status (localStorage + KP API)
+       4. Hides onboarding card if complete
+       5. Loads stats from localStorage (will be DB queries later)
+       ========================================== */
     document.addEventListener("dashSessionLoaded", async function(e) {
+      // e.detail contains the user object from /auth/session
+      // e.detail.email, e.detail.first_name, e.detail.org_id
+
+      // 1. Fill welcome banner with first name
       var firstName = (e.detail && e.detail.first_name) ? e.detail.first_name : (e.detail && e.detail.email) || "";
       var welcomeEl = document.getElementById("admin-welcome-name");
       if (welcomeEl) welcomeEl.textContent = firstName;
+
+      // 2. Show dashboard, hide loading screen
       document.getElementById("adminLoading").style.display = "none";
       document.getElementById("adminDashboard").style.display = "block";
+
+      // 3. Check onboarding status
+      // Checks localStorage flags AND fetches KP count from server
+      // for desktop/mobile consistency
       var onboardingComplete = localStorage.getItem("driven_onboarding_complete") === "true";
       var onboardingStarted = localStorage.getItem("driven_customer_logo") !== null ||
                                localStorage.getItem("driven_kp_count") !== null;
       var statusEl = document.getElementById("admin-onboarding-status");
       var onboardingCard = document.getElementById("adminOnboardingCard");
+
+      // Fetch key personnel count from server
       try {
         var customerId = localStorage.getItem("driven_customer_id");
         if (customerId) {
@@ -256,32 +294,54 @@
           if (kpData.success && kpData.keyPersonnel) {
             localStorage.setItem("driven_kp_count", kpData.keyPersonnel.length);
             if (kpData.keyPersonnel.length > 0) onboardingStarted = true;
+            // Update the KP count badge inside the onboarding card
             var kpCountEl = document.getElementById("admin-kp-count");
             if (kpCountEl) kpCountEl.textContent = kpData.keyPersonnel.length;
           }
         }
-      } catch (err) { console.error("KP count fetch error:", err.message); }
-      if (onboardingComplete) { onboardingCard.style.display = "none"; }
-      else if (onboardingStarted) {
-        statusEl.textContent = "In Progress";
-        statusEl.style.background = "var(--bg-card)"; statusEl.style.borderColor = "var(--primary)"; statusEl.style.color = "var(--primary)";
-      } else {
-        statusEl.textContent = "Not Started";
-        statusEl.style.background = "var(--bg-card)"; statusEl.style.borderColor = "var(--error)"; statusEl.style.color = "var(--error)";
+      } catch (err) {
+        console.error("KP count fetch error:", err.message);
       }
+
+      // 4. Update onboarding card display
+      if (onboardingComplete) {
+        // All onboarding steps complete — hide the card
+        onboardingCard.style.display = "none";
+      } else if (onboardingStarted) {
+        // Onboarding in progress — show "In Progress" badge
+        statusEl.textContent = "In Progress";
+        statusEl.style.background = "var(--bg-card)";
+        statusEl.style.borderColor = "var(--primary)";
+        statusEl.style.color = "var(--primary)";
+      } else {
+        // Onboarding not started — show "Not Started" badge
+        statusEl.textContent = "Not Started";
+        statusEl.style.background = "var(--bg-card)";
+        statusEl.style.borderColor = "var(--error)";
+        statusEl.style.color = "var(--error)";
+      }
+
+      // 5. Load stats from localStorage (will be database queries later)
       document.getElementById("admin-stat-employees").textContent = localStorage.getItem("driven_employee_count") || "0";
       document.getElementById("admin-stat-projects").textContent  = localStorage.getItem("driven_project_count") || "0";
       document.getElementById("admin-stat-equipment").textContent  = localStorage.getItem("driven_equipment_count") || "0";
       document.getElementById("admin-stat-clients").textContent   = localStorage.getItem("driven_client_count") || "0";
     });
+
+    /* ==========================================
+       FALLBACK: If session fails to load (network error, etc.)
+       redirect to login page after 5 seconds
+       ========================================== */
     setTimeout(function() {
       if (document.getElementById("adminDashboard").style.display === "none") {
+        // Dashboard still hidden after 5 seconds — session likely failed
         console.error("Session check timed out — redirecting to login");
         window.location.href = "/public/login.html";
       }
     }, 5000);
 </script>
 
+<!-- Cloudflare Web Analytics -->
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"aed8feab3b60404ba88ec92f026bbcd6","r":1}' crossorigin="anonymous"></script>
 </body>
 </html>
