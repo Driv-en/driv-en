@@ -3,16 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DRIV‑EN | Onboarding — Divisions</title>
-<meta name="description" content="Add divisions to DRIV‑EN during onboarding. Single entry or bulk upload via Excel/CSV.">
+
+<title>DRIV‑EN | Onboarding — Employees</title>
+<meta name="description" content="Add employees to DRIV‑EN during onboarding. Single entry or bulk upload via Excel.">
 <meta name="robots" content="noindex, nofollow">
-<link rel="canonical" href="https://www.driv-en.com/public/onboarding-divisions.html">
+<link rel="canonical" href="https://www.driv-en.com/public/onboarding-employees.html">
+
 <link rel="icon" type="image/png" href="/icons/favicon.png" sizes="48x48">
 <link rel="icon" type="image/png" href="/icons/favicon-96.png" sizes="96x96">
 <link rel="icon" type="image/png" href="/icons/favicon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" href="/icons/favicon-180.png">
+
 <link rel="stylesheet" href="/styles/dashboard.css?v=4">
+
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
 <script>
 (function() {
   var saved = localStorage.getItem("driven-theme");
@@ -21,135 +26,238 @@
   document.documentElement.setAttribute("data-theme", theme);
 })();
 </script>
+
 <style>
-    .div-back-bar { max-width: 1100px; margin: 0 auto; padding: 12px 20px 0 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-    .div-back-btn { display: inline-flex; align-items: center; gap: 6px; background: #1e40af; border: 1px solid #2563eb; color: #dbeafe; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; }
-    .div-back-btn:hover { background: #1d4ed8; color: #fff; }
-    .div-subtitle { margin: 4px 0 12px 0; color: var(--text-muted); font-size: 14px; line-height: 1.5; }
-    .div-form-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 16px; max-width: 500px; }
-    .div-form-field { display: flex; flex-direction: column; }
-    .div-form-field label { margin-bottom: 4px; font-size: 14px; color: var(--text); font-weight: 600; }
-    .div-required-star { color: var(--error); margin-left: 3px; }
-    .div-btn-primary { background: var(--primary); color: white; padding: 10px 18px; border-radius: 6px; font-size: 15px; border: 1px solid var(--primary-hover); cursor: pointer; margin-top: 10px; }
-    .div-btn-primary:hover { background: var(--primary-hover); }
-    .div-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-    .div-btn-secondary { background: var(--bg-card); color: var(--text); padding: 10px 18px; border-radius: 6px; font-size: 15px; text-decoration: none; display: inline-flex; align-items: center; border: 1px solid var(--border); }
-    .div-btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
-    .div-action-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: nowrap; }
-    .div-action-row .div-btn-primary, .div-action-row .div-btn-secondary { margin-top: 0; box-sizing: border-box; height: 42px; display: inline-flex; align-items: center; justify-content: center; }
-    .div-error { margin-top: 10px; color: var(--error); font-size: 14px; }
-    .div-success { margin-top: 10px; color: var(--success); font-size: 14px; }
-    .div-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-    .div-table th, .div-table td { border: 1px solid var(--border); padding: 8px; font-size: 14px; vertical-align: top; }
-    .div-table th { background: var(--bg-header); color: var(--text); font-weight: 600; text-align: left; }
-    .div-table td { background: var(--bg-card); color: var(--text); }
-    .div-empty { color: var(--text-muted); font-size: 14px; padding: 20px 0; }
-    .div-step-status { margin-top: 12px; font-size: 14px; color: var(--success); }
-    .div-count-badge { display: inline-block; background: var(--primary); color: #fff; font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 999px; margin-left: 8px; }
-    .div-tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 2px solid var(--border); }
-    .div-tab { padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; background: none; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -2px; }
-    .div-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
-    .div-bulk-link { color: var(--primary); font-size: 14px; text-decoration: none; display: inline-block; margin-bottom: 12px; }
-    .div-bulk-link:hover { text-decoration: underline; }
-    .div-bulk-file-input { padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-size: 14px; width: 100%; max-width: 400px; margin-bottom: 12px; }
-    .div-bulk-preview { margin-top: 12px; overflow-x: auto; }
-    .div-bulk-preview table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .div-bulk-preview th, .div-bulk-preview td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
-    .div-bulk-preview th { background: var(--bg-header); color: var(--text); font-weight: 600; }
-    .div-bulk-preview td { background: var(--bg-card); color: var(--text); }
-    @media (max-width: 600px) { .div-action-row { flex-direction: column; gap: 8px; } .div-action-row .div-btn-primary, .div-action-row .div-btn-secondary { width: 100%; } .div-table { font-size: 12px; } .div-table th, .div-table td { padding: 6px 4px; } }
+    .emp-back-bar { max-width: 1100px; margin: 0 auto; padding: 12px 20px 0 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    .emp-back-btn { display: inline-flex; align-items: center; gap: 6px; background: #1e40af; border: 1px solid #2563eb; color: #dbeafe; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; }
+    .emp-back-btn:hover { background: #1d4ed8; color: #fff; }
+    .emp-subtitle { margin: 4px 0 12px 0; color: var(--text-muted); font-size: 14px; line-height: 1.5; }
+    .emp-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 16px; margin-bottom: 16px; }
+    .emp-form-field { display: flex; flex-direction: column; }
+    .emp-form-field label { margin-bottom: 4px; font-size: 14px; color: var(--text); font-weight: 600; }
+    .emp-form-field .emp-hint { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .emp-required-star { color: var(--error); margin-left: 3px; }
+    .emp-btn-primary { background: var(--primary); color: white; padding: 10px 18px; border-radius: 6px; font-size: 15px; border: 1px solid var(--primary-hover); cursor: pointer; margin-top: 10px; }
+    .emp-btn-primary:hover { background: var(--primary-hover); }
+    .emp-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+    .emp-btn-secondary { background: var(--bg-card); color: var(--text); padding: 10px 18px; border-radius: 6px; font-size: 15px; text-decoration: none; display: inline-flex; align-items: center; border: 1px solid var(--border); }
+    .emp-btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+    .emp-action-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: nowrap; }
+    .emp-action-row .emp-btn-primary, .emp-action-row .emp-btn-secondary { margin-top: 0; box-sizing: border-box; height: 42px; display: inline-flex; align-items: center; justify-content: center; }
+    .emp-error { margin-top: 10px; color: var(--error); font-size: 14px; }
+    .emp-success { margin-top: 10px; color: var(--success); font-size: 14px; }
+    .emp-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    .emp-table th, .emp-table td { border: 1px solid var(--border); padding: 8px; font-size: 13px; vertical-align: top; }
+    .emp-table th { background: var(--bg-header); color: var(--text); font-weight: 600; text-align: left; }
+    .emp-table td { background: var(--bg-card); color: var(--text); }
+    .emp-empty { color: var(--text-muted); font-size: 14px; padding: 20px 0; }
+    .emp-step-status { margin-top: 12px; font-size: 14px; color: var(--success); }
+    .emp-count-badge { display: inline-block; background: var(--primary); color: #fff; font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 999px; margin-left: 8px; }
+    .emp-tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 2px solid var(--border); }
+    .emp-tab { padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; background: none; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -2px; }
+    .emp-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .emp-bulk-link { color: var(--primary); font-size: 14px; text-decoration: none; display: inline-block; margin-bottom: 12px; }
+    .emp-bulk-link:hover { text-decoration: underline; }
+    .emp-bulk-file-input { padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-size: 14px; width: 100%; max-width: 400px; margin-bottom: 12px; }
+    .emp-bulk-preview { margin-top: 12px; overflow-x: auto; }
+    .emp-bulk-preview table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .emp-bulk-preview th, .emp-bulk-preview td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+    .emp-bulk-preview th { background: var(--bg-header); color: var(--text); font-weight: 600; }
+    .emp-bulk-preview td { background: var(--bg-card); color: var(--text); }
+    @media (max-width: 600px) { .emp-form-grid { grid-template-columns: 1fr; } .emp-action-row { flex-direction: column; gap: 8px; } .emp-action-row .emp-btn-primary, .emp-action-row .emp-btn-secondary { width: 100%; } .emp-table { font-size: 11px; } .emp-table th, .emp-table td { padding: 4px 3px; } }
 </style>
+
 </head>
-<body data-page-title="Onboarding — Divisions" data-required-task="Divisions">
+
+<body data-page-title="Onboarding — Employees" data-required-task="Employees">
+
 <!-- ===== INDUSTRIAL DIAMOND-PLATE BACKGROUND (do not remove) ===== -->
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
+
 <div id="dashHeader"></div>
-<div class="div-back-bar">
-  <a href="/public/dashboard/admin.html" class="div-back-btn">&larr; Admin Dashboard</a>
-  <a href="/public/onboarding-dashboard.html" class="div-back-btn" style="background:#374151;border-color:#4b5563;color:#d1d5db;">&larr; Onboarding Dashboard</a>
+
+<div class="emp-back-bar">
+  <a href="/public/dashboard/admin.html" class="emp-back-btn">&larr; Admin Dashboard</a>
+  <a href="/public/onboarding-dashboard.html" class="emp-back-btn" style="background:#374151;border-color:#4b5563;color:#d1d5db;">&larr; Onboarding Dashboard</a>
 </div>
+
 <main class="dash-main">
+
   <div class="dash-card">
-    <h2>Add Divisions <span class="div-count-badge" id="divCount">0</span></h2>
-    <p class="div-subtitle">Add all divisions within your organization. Divisions are used when creating projects and assigning equipment in DRIV‑EN.</p>
-    <p class="div-subtitle"><strong>Required:</strong> Division Name. That's all you need at this time.</p>
+    <h2>Add Employees <span class="emp-count-badge" id="empCount">0</span></h2>
+    <p class="emp-subtitle">
+      Add all employees who will perform inspections, preventative maintenance, complete equipment transfers
+      and fuel usage logs, perform work orders, or be tracked in DRIV‑EN.
+    </p>
+    <p class="emp-subtitle">
+      <strong>Required:</strong> First Name, Last Name, Email, Role, and Status.
+      Email is used for login access to DRIV‑EN.
+    </p>
+    <p class="emp-subtitle">
+      Phone and Division are optional at this time — HR/Payroll will complete those fields later.
+      However, you may fill them in now if you have the information.
+    </p>
   </div>
+
   <div class="dash-card">
-    <div class="div-tabs">
-      <button class="div-tab active" id="tabSingle" onclick="switchTab('single')">Single Entry</button>
-      <button class="div-tab" id="tabBulk" onclick="switchTab('bulk')">Bulk Upload</button>
+    <div class="emp-tabs">
+      <button class="emp-tab active" id="tabSingle" onclick="switchTab('single')">Single Entry</button>
+      <button class="emp-tab" id="tabBulk" onclick="switchTab('bulk')">Bulk Upload</button>
     </div>
   </div>
+
   <div id="tabContentSingle">
     <div class="dash-card">
-      <h3>Add Division</h3>
-      <div class="div-form-grid">
-        <div class="div-form-field">
-          <label>Division Name<span class="div-required-star">*</span></label>
-          <input type="text" id="divName" class="dash-input" placeholder="e.g., Heavy Civil, Pipeline, Earthwork">
+      <h3>Add Employee</h3>
+      <div class="emp-form-grid">
+        <div class="emp-form-field">
+          <label>First Name<span class="emp-required-star">*</span></label>
+          <input type="text" id="empFirstName" class="dash-input">
+        </div>
+        <div class="emp-form-field">
+          <label>Middle Name</label>
+          <input type="text" id="empMiddleName" class="dash-input">
+        </div>
+        <div class="emp-form-field">
+          <label>Last Name<span class="emp-required-star">*</span></label>
+          <input type="text" id="empLastName" class="dash-input">
+        </div>
+        <div class="emp-form-field">
+          <label>Suffix</label>
+          <input type="text" id="empSuffix" class="dash-input" placeholder="Jr, Sr, III, etc.">
+        </div>
+        <div class="emp-form-field">
+          <label>Email<span class="emp-required-star">*</span></label>
+          <input type="email" id="empEmail" class="dash-input">
+        </div>
+        <div class="emp-form-field">
+          <label>Phone</label>
+          <input type="tel" id="empPhone" class="dash-input" placeholder="Optional">
+        </div>
+        <div class="emp-form-field">
+          <label>Division</label>
+          <select id="empDivision" class="dash-input">
+            <option value="">— None —</option>
+          </select>
+          <div class="emp-hint">Optional — pulls from Step 5 divisions</div>
+        </div>
+        <div class="emp-form-field">
+          <label>Role<span class="emp-required-star">*</span></label>
+          <select id="empRole" class="dash-input">
+            <option value="">— Select Role —</option>
+            <option value="Admin">Admin</option>
+            <option value="Project Manager">Project Manager</option>
+            <option value="Superintendent">Superintendent</option>
+            <option value="Foreman">Foreman</option>
+            <option value="Equipment Manager">Equipment Manager</option>
+            <option value="Mechanic">Mechanic</option>
+            <option value="Operator">Operator</option>
+            <option value="Driver">Driver</option>
+            <option value="Laborer">Laborer</option>
+            <option value="Safety Officer">Safety Officer</option>
+            <option value="Inspector">Inspector</option>
+            <option value="Clerk">Clerk</option>
+            <option value="Supervisor">Supervisor</option>
+            <option value="HR">HR</option>
+            <option value="Payroll">Payroll</option>
+            <option value="Employee">Employee</option>
+          </select>
+          <div class="emp-hint">Determines which dashboard they see</div>
+        </div>
+        <div class="emp-form-field">
+          <label>Status<span class="emp-required-star">*</span></label>
+          <select id="empStatus" class="dash-input">
+            <option value="">— Select Status —</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+          <div class="emp-hint">Inactive = login revoked</div>
         </div>
       </div>
-      <button id="btnAddDiv" class="div-btn-primary">Add Division</button>
-      <div id="divError" class="div-error"></div>
-      <div id="divSuccess" class="div-success"></div>
+      <button id="btnAddEmp" class="emp-btn-primary">Add Employee</button>
+      <div id="empError" class="emp-error"></div>
+      <div id="empSuccess" class="emp-success"></div>
     </div>
     <div class="dash-card">
-      <h3>Divisions Added</h3>
-      <p class="div-subtitle">These divisions will be saved when you click Save &amp; Continue. You can add as many as you need before saving.</p>
-      <div id="divTableContainer"><p class="div-empty">No divisions added yet.</p></div>
+      <h3>Employees Added</h3>
+      <p class="emp-subtitle">
+        These employees will be saved when you click Save &amp; Continue. You can add as many as you need before saving.
+      </p>
+      <div id="empTableContainer">
+        <p class="emp-empty">No employees added yet.</p>
+      </div>
     </div>
   </div>
+
   <div id="tabContentBulk" style="display:none;">
     <div class="dash-card">
-      <h3>Bulk Upload Divisions</h3>
-      <p class="div-subtitle">Download the Excel template, fill in your division list, then upload it here. Division Name is required for every row. CSV files are also supported.</p>
-      <button onclick="downloadDivisionTemplate()" class="div-bulk-link" style="cursor:pointer;border:none;font-size:14px;">⬇ Download Division-Mass-Upload-v1.0.xlsx</button>
-      <div class="div-form-field" style="max-width:400px;">
+      <h3>Bulk Upload Employees</h3>
+      <p class="emp-subtitle">
+        Download the Excel template, fill in your employee list, then upload it here.
+        Role and Status are required for every row and must match the dropdown values exactly.
+      </p>
+      <button onclick="downloadEmployeeTemplate()" class="emp-bulk-link" style="cursor:pointer;border:none;font-size:14px;">
+        ⬇ Download Employee-Mass-Upload-v1.0.xlsx
+      </button>
+      <div class="emp-form-field" style="max-width:400px;">
         <label>Upload Completed Template</label>
-        <input type="file" id="bulkFile" accept=".xlsx,.csv" class="div-bulk-file-input">
+        <input type="file" id="bulkFile" accept=".xlsx,.csv" class="emp-bulk-file-input">
       </div>
-      <button id="btnProcessBulk" class="div-btn-primary">Process Upload</button>
-      <div id="statusBulk" class="div-error"></div>
-      <div id="bulkPreview" class="div-bulk-preview"></div>
+      <button id="btnProcessBulk" class="emp-btn-primary">Process Upload</button>
+      <div id="statusBulk" class="emp-error"></div>
+      <div id="bulkPreview" class="emp-bulk-preview"></div>
     </div>
     <div class="dash-card">
-      <h3>Divisions from Bulk Upload</h3>
-      <p class="div-subtitle">Review the uploaded divisions below, then click Save &amp; Continue to save them all.</p>
-      <div id="bulkTableContainer"><p class="div-empty">No divisions uploaded yet.</p></div>
+      <h3>Employees from Bulk Upload</h3>
+      <p class="emp-subtitle">
+        Review the uploaded employees below, then click Save &amp; Continue to save them all.
+      </p>
+      <div id="bulkTableContainer">
+        <p class="emp-empty">No employees uploaded yet.</p>
+      </div>
     </div>
   </div>
+
   <div class="dash-card">
-    <div class="div-action-row">
-      <a href="/public/onboarding-dashboard.html" class="div-btn-secondary">Return to Onboarding</a>
-      <button id="btnSaveDiv" class="div-btn-primary">Save &amp; Continue</button>
+    <div class="emp-action-row">
+      <a href="/public/onboarding-dashboard.html" class="emp-btn-secondary">Return to Onboarding</a>
+      <button id="btnSaveEmp" class="emp-btn-primary">Save &amp; Continue</button>
     </div>
-    <div id="divStepStatus" class="div-step-status"></div>
+    <div id="empStepStatus" class="emp-step-status"></div>
   </div>
+
 </main>
+
 <script src="/components/dashboard-common.js?v=2"></script>
 <script src="/components/auth-check.js?v=2"></script>
+
 <script>
-    var divisions = [];
-    var divError = document.getElementById("divError");
-    var divSuccess = document.getElementById("divSuccess");
-    var divTableContainer = document.getElementById("divTableContainer");
-    var divStepStatus = document.getElementById("divStepStatus");
-    var divCountEl = document.getElementById("divCount");
+    var employees = [];
+    var validRoles = ["Admin", "Project Manager", "Superintendent", "Foreman", "Equipment Manager", "Mechanic", "Operator", "Driver", "Laborer", "Safety Officer", "Inspector", "Clerk", "Supervisor", "HR", "Payroll", "Employee"];
+    var validStatuses = ["Active", "Inactive"];
+    var empError = document.getElementById("empError");
+    var empSuccess = document.getElementById("empSuccess");
+    var empTableContainer = document.getElementById("empTableContainer");
+    var empStepStatus = document.getElementById("empStepStatus");
+    var empCountEl = document.getElementById("empCount");
     var statusBulk = document.getElementById("statusBulk");
     var bulkPreview = document.getElementById("bulkPreview");
-    function updateCount() { divCountEl.textContent = divisions.length; }
-    function renderTable() { if (divisions.length === 0) { divTableContainer.innerHTML = '<p class="div-empty">No divisions added yet.</p>'; return; } var rows = divisions.map(function(div, index) { return '<tr><td>' + (index + 1) + '</td><td>' + div.name + '</td><td><button class="div-btn-secondary" style="padding:4px 10px;font-size:12px;height:auto;" onclick="removeDivision(' + index + ')">Remove</button></td></tr>'; }).join(""); divTableContainer.innerHTML = '<table class="div-table"><thead><tr><th>#</th><th>Division Name</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table>'; }
-    window.removeDivision = function(index) { divisions.splice(index, 1); renderTable(); updateCount(); divSuccess.textContent = ""; divError.textContent = ""; };
+    function isValidEmail(email) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
+    function updateCount() { empCountEl.textContent = employees.length; }
+    function buildFullName(first, middle, last, suffix) { var parts = [first, middle, last].filter(function(p) { return p && p.trim(); }); var name = parts.join(" ").trim(); if (suffix && suffix.trim()) { name += " " + suffix.trim(); } return name; }
+    function loadDivisionDropdown() { var divisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]"); var sel = document.getElementById("empDivision"); sel.innerHTML = '<option value="">— None —</option>'; divisions.forEach(function(div) { var opt = document.createElement("option"); opt.value = div.name; opt.textContent = div.name; sel.appendChild(opt); }); }
+    function renderTable() { if (employees.length === 0) { empTableContainer.innerHTML = '<p class="emp-empty">No employees added yet.</p>'; return; } var rows = employees.map(function(emp, index) { return '<tr><td>' + (index + 1) + '</td><td>' + emp.fullName + '</td><td>' + (emp.email || '—') + '</td><td>' + (emp.phone || '—') + '</td><td>' + (emp.division || '—') + '</td><td>' + (emp.role || '—') + '</td><td>' + (emp.status || '—') + '</td><td><button class="emp-btn-secondary" style="padding:4px 10px;font-size:12px;height:auto;" onclick="removeEmployee(' + index + ')">Remove</button></td></tr>'; }).join(""); empTableContainer.innerHTML = '<table class="emp-table"><thead><tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Division</th><th>Role</th><th>Status</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table>'; }
+    window.removeEmployee = function(index) { employees.splice(index, 1); renderTable(); updateCount(); empSuccess.textContent = ""; empError.textContent = ""; };
     window.switchTab = function(tab) { var tabSingle = document.getElementById("tabSingle"); var tabBulk = document.getElementById("tabBulk"); var contentSingle = document.getElementById("tabContentSingle"); var contentBulk = document.getElementById("tabContentBulk"); if (tab === "single") { tabSingle.classList.add("active"); tabBulk.classList.remove("active"); contentSingle.style.display = "block"; contentBulk.style.display = "none"; } else { tabBulk.classList.add("active"); tabSingle.classList.remove("active"); contentBulk.style.display = "block"; contentSingle.style.display = "none"; } };
-    document.getElementById("btnAddDiv").addEventListener("click", function() { divError.textContent = ""; divSuccess.textContent = ""; var name = document.getElementById("divName").value.trim(); if (!name) { divError.textContent = "Division Name is required."; return; } if (divisions.some(function(div) { return div.name.toLowerCase() === name.toLowerCase(); })) { divError.textContent = "A division with this name has already been added."; return; } divisions.push({ name: name, customerId: localStorage.getItem("driven_customer_id") || "" }); renderTable(); updateCount(); document.getElementById("divName").value = ""; document.getElementById("divName").focus(); divSuccess.textContent = "Division added. Add another or click Save & Continue."; });
-    document.getElementById("divName").addEventListener("keydown", function(e) { if (e.key === "Enter") { e.preventDefault(); document.getElementById("btnAddDiv").click(); } });
-    document.getElementById("btnProcessBulk").addEventListener("click", function() { statusBulk.textContent = ""; statusBulk.className = "div-error"; var file = document.getElementById("bulkFile").files[0]; if (!file) { statusBulk.textContent = "Please select an Excel or CSV file."; return; } var reader = new FileReader(); reader.onload = function(e) { var rows; var isCsv = file.name.toLowerCase().endsWith(".csv"); if (isCsv) { var text = e.target.result; var lines = text.split(/\r?\n/).filter(function(l) { return l.trim() !== ""; }); if (lines.length < 2) { statusBulk.textContent = "The CSV file is empty or has no data rows."; return; } var headers = parseCsvLine(lines[0]); rows = lines.slice(1).map(function(line) { var values = parseCsvLine(line); var obj = {}; headers.forEach(function(h, i) { obj[h] = values[i] || ""; }); return obj; }); } else { var workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" }); var sheet = workbook.Sheets[workbook.SheetNames[0]]; rows = XLSX.utils.sheet_to_json(sheet); } if (rows.length === 0) { statusBulk.textContent = "The file is empty."; return; } if (rows[0] && Object.values(rows[0])[0] && String(Object.values(rows[0])[0]).startsWith("INSTRUCTIONS")) { rows = rows.slice(1); } if (rows.length === 0) { statusBulk.textContent = "No data rows found after instruction row."; return; } var requiredField = "Division Name"; var header = Object.keys(rows[0]); if (header.indexOf(requiredField) === -1) { statusBulk.textContent = "Missing required column: " + requiredField; return; } for (var r = 0; r < rows.length; r++) { if (!rows[r][requiredField] || String(rows[r][requiredField]).trim() === "") { statusBulk.textContent = "Row " + (r + 2) + ": Division Name is required."; return; } } var seenNames = {}; for (var d = 0; d < rows.length; d++) { var nm = String(rows[d][requiredField]).trim().toLowerCase(); if (seenNames[nm]) { statusBulk.textContent = "Duplicate division name: " + nm + " (rows " + seenNames[nm] + " and " + (d + 2) + ")."; return; } seenNames[nm] = (d + 2); } var existingNames = divisions.map(function(div) { return div.name.toLowerCase(); }); for (var dd = 0; dd < rows.length; dd++) { var checkName = String(rows[dd][requiredField]).trim().toLowerCase(); if (existingNames.indexOf(checkName) !== -1) { statusBulk.textContent = "Row " + (dd + 2) + ': Division "' + checkName + '" has already been added in this session.'; return; } } var bulkDivisions = rows.map(function(row) { return { name: String(row[requiredField]).trim(), customerId: localStorage.getItem("driven_customer_id") || "" }; }); var html = "<table><thead><tr><th>Division Name</th></tr></thead><tbody>"; bulkDivisions.forEach(function(d) { html += "<tr><td>" + d.name + "</td></tr>"; }); html += "</tbody></table>"; bulkPreview.innerHTML = html; divisions = divisions.concat(bulkDivisions); renderTable(); updateCount(); statusBulk.textContent = "Uploaded " + bulkDivisions.length + " divisions. Review above and click Save & Continue."; statusBulk.className = "div-success"; }; if (file.name.toLowerCase().endsWith(".csv")) { reader.readAsText(file); } else { reader.readAsArrayBuffer(file); } });
-    document.getElementById("btnSaveDiv").addEventListener("click", function() { divStepStatus.textContent = ""; divStepStatus.style.color = "var(--error)"; if (divisions.length === 0) { divStepStatus.textContent = "You must add at least one division."; return; } var existing = JSON.parse(localStorage.getItem("driven_divisions") || "[]"); var allDivisions = existing.concat(divisions); localStorage.setItem("driven_divisions", JSON.stringify(allDivisions)); localStorage.setItem("driven_division_count", allDivisions.length); localStorage.setItem("driven_step5_complete", "true"); divStepStatus.style.color = "var(--success)"; divStepStatus.textContent = divisions.length + " division(s) saved. Total divisions: " + allDivisions.length + "."; var btnSave = document.getElementById("btnSaveDiv"); btnSave.disabled = true; btnSave.textContent = "Saved ✓"; divisions = []; renderTable(); updateCount(); });
-    function downloadDivisionTemplate() { var ws = XLSX.utils.aoa_to_sheet([ ["INSTRUCTIONS: Delete this row before uploading. Only fill in the Division Name column."], ["Division Name"] ]); ws["!cols"] = [{ wch: 60 }]; ws["!freeze"] = { ySplit: 2, xSplit: 0, topLeftCell: "A3", panes: [{ state: "frozen", ySplit: 2, xSplit: 0, topLeftCell: "A3", activePane: "bottomLeft" }] }; var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Divisions"); XLSX.writeFile(wb, "Division-Mass-Upload-v1.0.xlsx"); }
+    document.getElementById("btnAddEmp").addEventListener("click", function() { empError.textContent = ""; empSuccess.textContent = ""; var first = document.getElementById("empFirstName").value.trim(); var middle = document.getElementById("empMiddleName").value.trim(); var last = document.getElementById("empLastName").value.trim(); var suffix = document.getElementById("empSuffix").value.trim(); var email = document.getElementById("empEmail").value.trim(); var phone = document.getElementById("empPhone").value.trim(); var division = document.getElementById("empDivision").value; var role = document.getElementById("empRole").value; var status = document.getElementById("empStatus").value; if (!first || !last || !email) { empError.textContent = "First Name, Last Name, and Email are required."; return; } if (!isValidEmail(email)) { empError.textContent = "Please enter a valid email address."; return; } if (!role) { empError.textContent = "Role is required. Please select a role."; return; } if (!status) { empError.textContent = "Status is required. Please select a status."; return; } if (employees.some(function(emp) { return emp.email.toLowerCase() === email.toLowerCase(); })) { empError.textContent = "An employee with this email has already been added."; return; } var emp = { firstName: first, middleName: middle, lastName: last, suffix: suffix, fullName: buildFullName(first, middle, last, suffix), email: email, phone: phone, division: division, role: role, status: status, customerId: localStorage.getItem("driven_customer_id") || "" }; employees.push(emp); renderTable(); updateCount(); document.getElementById("empFirstName").value = ""; document.getElementById("empMiddleName").value = ""; document.getElementById("empLastName").value = ""; document.getElementById("empSuffix").value = ""; document.getElementById("empEmail").value = ""; document.getElementById("empPhone").value = ""; document.getElementById("empDivision").value = ""; document.getElementById("empRole").value = ""; document.getElementById("empStatus").value = ""; document.getElementById("empFirstName").focus(); empSuccess.textContent = "Employee added. Add another or click Save & Continue."; });
+    document.getElementById("btnProcessBulk").addEventListener("click", function() { statusBulk.textContent = ""; statusBulk.className = "emp-error"; var file = document.getElementById("bulkFile").files[0]; if (!file) { statusBulk.textContent = "Please select an Excel or CSV file."; return; } var reader = new FileReader(); reader.onload = function(e) { var rows; var isCsv = file.name.toLowerCase().endsWith(".csv"); if (isCsv) { var text = e.target.result; var lines = text.split(/\r?\n/).filter(function(l) { return l.trim() !== ""; }); if (lines.length < 2) { statusBulk.textContent = "The CSV file is empty or has no data rows."; return; } var headers = parseCsvLine(lines[0]); rows = lines.slice(1).map(function(line) { var values = parseCsvLine(line); var obj = {}; headers.forEach(function(h, i) { obj[h] = values[i] || ""; }); return obj; }); } else { var workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" }); var sheet = workbook.Sheets[workbook.SheetNames[0]]; rows = XLSX.utils.sheet_to_json(sheet); } if (rows.length === 0) { statusBulk.textContent = "The file is empty."; return; } if (rows[0] && Object.values(rows[0])[0] && String(Object.values(rows[0])[0]).startsWith("INSTRUCTIONS")) { rows = rows.slice(1); } if (rows.length === 0) { statusBulk.textContent = "No data rows found after instruction row."; return; } var requiredFields = ["First Name", "Last Name", "Email", "Role", "Status"]; var optionalFields = ["Middle Name", "Suffix", "Phone", "Division"]; var header = Object.keys(rows[0]); for (var i = 0; i < requiredFields.length; i++) { if (header.indexOf(requiredFields[i]) === -1) { statusBulk.textContent = "Missing required column: " + requiredFields[i]; return; } } var validDivisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]").map(function(d) { return d.name; }); for (var r = 0; r < rows.length; r++) { var row = rows[r]; for (var f = 0; f < requiredFields.length; f++) { if (!row[requiredFields[f]] || String(row[requiredFields[f]]).trim() === "") { statusBulk.textContent = "Row " + (r + 2) + ": " + requiredFields[f] + " is required."; return; } } var rowEmail = String(row["Email"]).trim(); if (!isValidEmail(rowEmail)) { statusBulk.textContent = "Row " + (r + 2) + ': Invalid email address "' + rowEmail + '".'; return; } var rowRole = String(row["Role"]).trim(); if (validRoles.indexOf(rowRole) === -1) { statusBulk.textContent = "Row " + (r + 2) + ': Invalid Role "' + rowRole + '". Must be one of: ' + validRoles.join(", ") + '.'; return; } var rowStatus = String(row["Status"]).trim(); if (validStatuses.indexOf(rowStatus) === -1) { statusBulk.textContent = "Row " + (r + 2) + ': Invalid Status "' + rowStatus + '". Must be either "Active" or "Inactive".'; return; } if (row["Division"] && String(row["Division"]).trim() !== "") { var rowDiv = String(row["Division"]).trim(); if (validDivisions.length > 0 && validDivisions.indexOf(rowDiv) === -1) { statusBulk.textContent = "Row " + (r + 2) + ': Invalid Division "' + rowDiv + '". Must match a division from Step 5, or leave blank.'; return; } } } var seenEmails = {}; for (var d = 0; d < rows.length; d++) { var em = String(rows[d]["Email"]).trim().toLowerCase(); if (seenEmails[em]) { statusBulk.textContent = "Duplicate email found in the upload: " + em + " (rows " + seenEmails[em] + " and " + (d + 2) + ")."; return; } seenEmails[em] = (d + 2); } var existingEmails = employees.map(function(emp) { return emp.email.toLowerCase(); }); for (var dd = 0; dd < rows.length; dd++) { var checkEmail = String(rows[dd]["Email"]).trim().toLowerCase(); if (existingEmails.indexOf(checkEmail) !== -1) { statusBulk.textContent = "Row " + (dd + 2) + ': Email "' + checkEmail + '" has already been added in this session.'; return; } } var bulkEmployees = rows.map(function(row) { var first = String(row["First Name"]).trim(); var middle = row["Middle Name"] ? String(row["Middle Name"]).trim() : ""; var last = String(row["Last Name"]).trim(); var suffix = row["Suffix"] ? String(row["Suffix"]).trim() : ""; var email = String(row["Email"]).trim(); var phone = row["Phone"] ? String(row["Phone"]).trim() : ""; var division = row["Division"] ? String(row["Division"]).trim() : ""; var role = String(row["Role"]).trim(); var status = String(row["Status"]).trim(); return { firstName: first, middleName: middle, lastName: last, suffix: suffix, fullName: buildFullName(first, middle, last, suffix), email: email, phone: phone, division: division, role: role, status: status, customerId: localStorage.getItem("driven_customer_id") || "" }; }); var allCols = requiredFields.concat(optionalFields); var html = "<table><thead><tr>"; allCols.forEach(function(c) { html += "<th>" + c + "</th>"; }); html += "</tr></thead><tbody>"; bulkEmployees.forEach(function(emp) { html += "<tr>"; html += "<td>" + emp.firstName + "</td>"; html += "<td>" + (emp.middleName || "") + "</td>"; html += "<td>" + emp.lastName + "</td>"; html += "<td>" + (emp.suffix || "") + "</td>"; html += "<td>" + emp.email + "</td>"; html += "<td>" + (emp.phone || "") + "</td>"; html += "<td>" + (emp.division || "") + "</td>"; html += "<td>" + emp.role + "</td>"; html += "<td>" + emp.status + "</td>"; html += "</tr>"; }); html += "</tbody></table>"; bulkPreview.innerHTML = html; employees = employees.concat(bulkEmployees); renderTable(); updateCount(); statusBulk.textContent = "Uploaded " + bulkEmployees.length + " employees. Review above and click Save & Continue."; statusBulk.className = "emp-success"; }; if (file.name.toLowerCase().endsWith(".csv")) { reader.readAsText(file); } else { reader.readAsArrayBuffer(file); } });
+    document.getElementById("btnSaveEmp").addEventListener("click", function() { empStepStatus.textContent = ""; empStepStatus.style.color = "var(--error)"; if (employees.length === 0) { empStepStatus.textContent = "You must add at least one employee."; return; } var existing = JSON.parse(localStorage.getItem("driven_employees") || "[]"); var allEmployees = existing.concat(employees); localStorage.setItem("driven_employees", JSON.stringify(allEmployees)); localStorage.setItem("driven_employee_count", allEmployees.length); localStorage.setItem("driven_step3_complete", "true"); empStepStatus.style.color = "var(--success)"; empStepStatus.textContent = employees.length + " employee(s) saved. Total employees: " + allEmployees.length + "."; var btnSave = document.getElementById("btnSaveEmp"); btnSave.disabled = true; btnSave.textContent = "Saved ✓"; employees = []; renderTable(); updateCount(); });
+    function downloadEmployeeTemplate() { var ws = XLSX.utils.aoa_to_sheet([ ["INSTRUCTIONS: Delete this row before uploading. Fill in all required columns. Role must be one of: Admin, Project Manager, Superintendent, Foreman, Equipment Manager, Mechanic, Operator, Driver, Laborer, Safety Officer, Inspector, Clerk, Supervisor, HR, Payroll, Employee. Status must be Active or Inactive."], ["First Name", "Middle Name", "Last Name", "Suffix", "Email", "Phone", "Division", "Role", "Status"] ]); ws["!cols"] = [{ wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }]; ws["!freeze"] = { ySplit: 2, xSplit: 0, topLeftCell: "A3", panes: [{ state: "frozen", ySplit: 2, xSplit: 0, topLeftCell: "A3", activePane: "bottomLeft" }] }; var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Employees"); XLSX.writeFile(wb, "Employee-Mass-Upload-v1.0.xlsx"); }
     function parseCsvLine(line) { var result = []; var current = ""; var inQuotes = false; for (var i = 0; i < line.length; i++) { var ch = line[i]; if (inQuotes) { if (ch === '"') { if (line[i + 1] === '"') { current += '"'; i++; } else { inQuotes = false; } } else { current += ch; } } else { if (ch === '"') { inQuotes = true; } else if (ch === ",") { result.push(current.trim()); current = ""; } else { current += ch; } } } result.push(current.trim()); return result; }
-    document.addEventListener("dashSessionLoaded", function(e) { renderTable(); updateCount(); });
+    document.addEventListener("dashSessionLoaded", function(e) { loadDivisionDropdown(); renderTable(); updateCount(); });
 </script>
+
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"aed8feab3b60404ba88ec92f026bbcd6","r":1}' crossorigin="anonymous"></script>
 </body>
 </html>
