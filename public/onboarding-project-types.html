@@ -11,7 +11,7 @@
 <link rel="icon" type="image/png" href="/icons/favicon-96.png" sizes="96x96">
 <link rel="icon" type="image/png" href="/icons/favicon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" href="/icons/favicon-180.png">
-<link rel="stylesheet" href="/styles/dashboard.css?v=3">
+<link rel="stylesheet" href="/styles/dashboard.css?v=4">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 (function() {
@@ -61,6 +61,9 @@
 </style>
 </head>
 <body data-page-title="Onboarding — Project Types" data-required-task="Project Types">
+<!-- ===== INDUSTRIAL DIAMOND-PLATE BACKGROUND (do not remove) ===== -->
+<div class="steel-bg"></div>
+<div class="steel-overlay"></div>
 <div id="dashHeader"></div>
 <div class="pt-back-bar">
   <a href="/public/dashboard/admin.html" class="pt-back-btn">&larr; Admin Dashboard</a>
@@ -136,103 +139,15 @@
     var statusBulk = document.getElementById("statusBulk");
     var bulkPreview = document.getElementById("bulkPreview");
     function updateCount() { ptCountEl.textContent = projectTypes.length; }
-    function renderTable() {
-      if (projectTypes.length === 0) { ptTableContainer.innerHTML = '<p class="pt-empty">No project types added yet.</p>'; return; }
-      var rows = projectTypes.map(function(pt, index) {
-        return '<tr><td>' + (index + 1) + '</td><td>' + pt.name + '</td><td><button class="pt-btn-secondary" style="padding:4px 10px;font-size:12px;height:auto;" onclick="removeProjectType(' + index + ')">Remove</button></td></tr>';
-      }).join("");
-      ptTableContainer.innerHTML = '<table class="pt-table"><thead><tr><th>#</th><th>Project Type Name</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table>';
-    }
+    function renderTable() { if (projectTypes.length === 0) { ptTableContainer.innerHTML = '<p class="pt-empty">No project types added yet.</p>'; return; } var rows = projectTypes.map(function(pt, index) { return '<tr><td>' + (index + 1) + '</td><td>' + pt.name + '</td><td><button class="pt-btn-secondary" style="padding:4px 10px;font-size:12px;height:auto;" onclick="removeProjectType(' + index + ')">Remove</button></td></tr>'; }).join(""); ptTableContainer.innerHTML = '<table class="pt-table"><thead><tr><th>#</th><th>Project Type Name</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table>'; }
     window.removeProjectType = function(index) { projectTypes.splice(index, 1); renderTable(); updateCount(); ptSuccess.textContent = ""; ptError.textContent = ""; };
-    window.switchTab = function(tab) {
-      var tabSingle = document.getElementById("tabSingle"); var tabBulk = document.getElementById("tabBulk");
-      var contentSingle = document.getElementById("tabContentSingle"); var contentBulk = document.getElementById("tabContentBulk");
-      if (tab === "single") { tabSingle.classList.add("active"); tabBulk.classList.remove("active"); contentSingle.style.display = "block"; contentBulk.style.display = "none"; }
-      else { tabBulk.classList.add("active"); tabSingle.classList.remove("active"); contentBulk.style.display = "block"; contentSingle.style.display = "none"; }
-    };
-    document.getElementById("btnAddPt").addEventListener("click", function() {
-      ptError.textContent = ""; ptSuccess.textContent = "";
-      var name = document.getElementById("ptName").value.trim();
-      if (!name) { ptError.textContent = "Project Type Name is required."; return; }
-      if (projectTypes.some(function(pt) { return pt.name.toLowerCase() === name.toLowerCase(); })) { ptError.textContent = "A project type with this name has already been added."; return; }
-      projectTypes.push({ name: name, customerId: localStorage.getItem("driven_customer_id") || "" });
-      renderTable(); updateCount(); document.getElementById("ptName").value = ""; document.getElementById("ptName").focus();
-      ptSuccess.textContent = "Project type added. Add another or click Save & Continue.";
-    });
+    window.switchTab = function(tab) { var tabSingle = document.getElementById("tabSingle"); var tabBulk = document.getElementById("tabBulk"); var contentSingle = document.getElementById("tabContentSingle"); var contentBulk = document.getElementById("tabContentBulk"); if (tab === "single") { tabSingle.classList.add("active"); tabBulk.classList.remove("active"); contentSingle.style.display = "block"; contentBulk.style.display = "none"; } else { tabBulk.classList.add("active"); tabSingle.classList.remove("active"); contentBulk.style.display = "block"; contentSingle.style.display = "none"; } };
+    document.getElementById("btnAddPt").addEventListener("click", function() { ptError.textContent = ""; ptSuccess.textContent = ""; var name = document.getElementById("ptName").value.trim(); if (!name) { ptError.textContent = "Project Type Name is required."; return; } if (projectTypes.some(function(pt) { return pt.name.toLowerCase() === name.toLowerCase(); })) { ptError.textContent = "A project type with this name has already been added."; return; } projectTypes.push({ name: name, customerId: localStorage.getItem("driven_customer_id") || "" }); renderTable(); updateCount(); document.getElementById("ptName").value = ""; document.getElementById("ptName").focus(); ptSuccess.textContent = "Project type added. Add another or click Save & Continue."; });
     document.getElementById("ptName").addEventListener("keydown", function(e) { if (e.key === "Enter") { e.preventDefault(); document.getElementById("btnAddPt").click(); } });
-    document.getElementById("btnProcessBulk").addEventListener("click", function() {
-      statusBulk.textContent = ""; statusBulk.className = "pt-error";
-      var file = document.getElementById("bulkFile").files[0];
-      if (!file) { statusBulk.textContent = "Please select an Excel or CSV file."; return; }
-      var reader = new FileReader();
-      reader.onload = function(e) {
-        var rows;
-        var isCsv = file.name.toLowerCase().endsWith(".csv");
-        if (isCsv) {
-          var text = e.target.result;
-          var lines = text.split(/\r?\n/).filter(function(l) { return l.trim() !== ""; });
-          if (lines.length < 2) { statusBulk.textContent = "The CSV file is empty or has no data rows."; return; }
-          var headers = parseCsvLine(lines[0]);
-          rows = lines.slice(1).map(function(line) { var values = parseCsvLine(line); var obj = {}; headers.forEach(function(h, i) { obj[h] = values[i] || ""; }); return obj; });
-        } else {
-          var workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
-          var sheet = workbook.Sheets[workbook.SheetNames[0]];
-          rows = XLSX.utils.sheet_to_json(sheet);
-        }
-        if (rows.length === 0) { statusBulk.textContent = "The file is empty."; return; }
-        if (rows[0] && Object.values(rows[0])[0] && String(Object.values(rows[0])[0]).startsWith("INSTRUCTIONS")) { rows = rows.slice(1); }
-        if (rows.length === 0) { statusBulk.textContent = "No data rows found after instruction row."; return; }
-        var requiredField = "Project Type Name";
-        var header = Object.keys(rows[0]);
-        if (header.indexOf(requiredField) === -1) { statusBulk.textContent = "Missing required column: " + requiredField; return; }
-        for (var r = 0; r < rows.length; r++) { if (!rows[r][requiredField] || String(rows[r][requiredField]).trim() === "") { statusBulk.textContent = "Row " + (r + 2) + ": Project Type Name is required."; return; } }
-        var seenNames = {};
-        for (var d = 0; d < rows.length; d++) { var nm = String(rows[d][requiredField]).trim().toLowerCase(); if (seenNames[nm]) { statusBulk.textContent = "Duplicate project type: " + nm + " (rows " + seenNames[nm] + " and " + (d + 2) + ")."; return; } seenNames[nm] = (d + 2); }
-        var existingNames = projectTypes.map(function(pt) { return pt.name.toLowerCase(); });
-        for (var dd = 0; dd < rows.length; dd++) { var checkName = String(rows[dd][requiredField]).trim().toLowerCase(); if (existingNames.indexOf(checkName) !== -1) { statusBulk.textContent = "Row " + (dd + 2) + ': Project type "' + checkName + '" has already been added in this session.'; return; } }
-        var bulkProjectTypes = rows.map(function(row) { return { name: String(row[requiredField]).trim(), customerId: localStorage.getItem("driven_customer_id") || "" }; });
-        var html = "<table><thead><tr><th>Project Type Name</th></tr></thead><tbody>";
-        bulkProjectTypes.forEach(function(pt) { html += "<tr><td>" + pt.name + "</td></tr>"; });
-        html += "</tbody></table>";
-        bulkPreview.innerHTML = html;
-        projectTypes = projectTypes.concat(bulkProjectTypes); renderTable(); updateCount();
-        statusBulk.textContent = "Uploaded " + bulkProjectTypes.length + " project types. Review above and click Save & Continue."; statusBulk.className = "pt-success";
-      };
-      if (file.name.toLowerCase().endsWith(".csv")) { reader.readAsText(file); } else { reader.readAsArrayBuffer(file); }
-    });
-    document.getElementById("btnSavePt").addEventListener("click", function() {
-      ptStepStatus.textContent = ""; ptStepStatus.style.color = "var(--error)";
-      if (projectTypes.length === 0) { ptStepStatus.textContent = "You must add at least one project type."; return; }
-      var existing = JSON.parse(localStorage.getItem("driven_project_types") || "[]");
-      var allProjectTypes = existing.concat(projectTypes);
-      localStorage.setItem("driven_project_types", JSON.stringify(allProjectTypes));
-      localStorage.setItem("driven_project_type_count", allProjectTypes.length);
-      localStorage.setItem("driven_step6_complete", "true");
-      ptStepStatus.style.color = "var(--success)";
-      ptStepStatus.textContent = projectTypes.length + " project type(s) saved. Total project types: " + allProjectTypes.length + ".";
-      var btnSave = document.getElementById("btnSavePt"); btnSave.disabled = true; btnSave.textContent = "Saved ✓";
-      projectTypes = []; renderTable(); updateCount();
-    });
-    function downloadProjectTypeTemplate() {
-      var ws = XLSX.utils.aoa_to_sheet([
-        ["INSTRUCTIONS: Delete this row before uploading. Only fill in the Project Type Name column."],
-        ["Project Type Name"]
-      ]);
-      ws["!cols"] = [{ wch: 60 }];
-      ws["!freeze"] = { ySplit: 2, xSplit: 0, topLeftCell: "A3", panes: [{ state: "frozen", ySplit: 2, xSplit: 0, topLeftCell: "A3", activePane: "bottomLeft" }] };
-      var wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Project Types");
-      XLSX.writeFile(wb, "Project-Type-Mass-Upload-v1.0.xlsx");
-    }
-    function parseCsvLine(line) {
-      var result = []; var current = ""; var inQuotes = false;
-      for (var i = 0; i < line.length; i++) {
-        var ch = line[i];
-        if (inQuotes) { if (ch === '"') { if (line[i + 1] === '"') { current += '"'; i++; } else { inQuotes = false; } } else { current += ch; } }
-        else { if (ch === '"') { inQuotes = true; } else if (ch === ",") { result.push(current.trim()); current = ""; } else { current += ch; } }
-      }
-      result.push(current.trim()); return result;
-    }
+    document.getElementById("btnProcessBulk").addEventListener("click", function() { statusBulk.textContent = ""; statusBulk.className = "pt-error"; var file = document.getElementById("bulkFile").files[0]; if (!file) { statusBulk.textContent = "Please select an Excel or CSV file."; return; } var reader = new FileReader(); reader.onload = function(e) { var rows; var isCsv = file.name.toLowerCase().endsWith(".csv"); if (isCsv) { var text = e.target.result; var lines = text.split(/\r?\n/).filter(function(l) { return l.trim() !== ""; }); if (lines.length < 2) { statusBulk.textContent = "The CSV file is empty or has no data rows."; return; } var headers = parseCsvLine(lines[0]); rows = lines.slice(1).map(function(line) { var values = parseCsvLine(line); var obj = {}; headers.forEach(function(h, i) { obj[h] = values[i] || ""; }); return obj; }); } else { var workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" }); var sheet = workbook.Sheets[workbook.SheetNames[0]]; rows = XLSX.utils.sheet_to_json(sheet); } if (rows.length === 0) { statusBulk.textContent = "The file is empty."; return; } if (rows[0] && Object.values(rows[0])[0] && String(Object.values(rows[0])[0]).startsWith("INSTRUCTIONS")) { rows = rows.slice(1); } if (rows.length === 0) { statusBulk.textContent = "No data rows found after instruction row."; return; } var requiredField = "Project Type Name"; var header = Object.keys(rows[0]); if (header.indexOf(requiredField) === -1) { statusBulk.textContent = "Missing required column: " + requiredField; return; } for (var r = 0; r < rows.length; r++) { if (!rows[r][requiredField] || String(rows[r][requiredField]).trim() === "") { statusBulk.textContent = "Row " + (r + 2) + ": Project Type Name is required."; return; } } var seenNames = {}; for (var d = 0; d < rows.length; d++) { var nm = String(rows[d][requiredField]).trim().toLowerCase(); if (seenNames[nm]) { statusBulk.textContent = "Duplicate project type: " + nm + " (rows " + seenNames[nm] + " and " + (d + 2) + ")."; return; } seenNames[nm] = (d + 2); } var existingNames = projectTypes.map(function(pt) { return pt.name.toLowerCase(); }); for (var dd = 0; dd < rows.length; dd++) { var checkName = String(rows[dd][requiredField]).trim().toLowerCase(); if (existingNames.indexOf(checkName) !== -1) { statusBulk.textContent = "Row " + (dd + 2) + ': Project type "' + checkName + '" has already been added in this session.'; return; } } var bulkProjectTypes = rows.map(function(row) { return { name: String(row[requiredField]).trim(), customerId: localStorage.getItem("driven_customer_id") || "" }; }); var html = "<table><thead><tr><th>Project Type Name</th></tr></thead><tbody>"; bulkProjectTypes.forEach(function(pt) { html += "<tr><td>" + pt.name + "</td></tr>"; }); html += "</tbody></table>"; bulkPreview.innerHTML = html; projectTypes = projectTypes.concat(bulkProjectTypes); renderTable(); updateCount(); statusBulk.textContent = "Uploaded " + bulkProjectTypes.length + " project types. Review above and click Save & Continue."; statusBulk.className = "pt-success"; }; if (file.name.toLowerCase().endsWith(".csv")) { reader.readAsText(file); } else { reader.readAsArrayBuffer(file); } });
+    document.getElementById("btnSavePt").addEventListener("click", function() { ptStepStatus.textContent = ""; ptStepStatus.style.color = "var(--error)"; if (projectTypes.length === 0) { ptStepStatus.textContent = "You must add at least one project type."; return; } var existing = JSON.parse(localStorage.getItem("driven_project_types") || "[]"); var allProjectTypes = existing.concat(projectTypes); localStorage.setItem("driven_project_types", JSON.stringify(allProjectTypes)); localStorage.setItem("driven_project_type_count", allProjectTypes.length); localStorage.setItem("driven_step6_complete", "true"); ptStepStatus.style.color = "var(--success)"; ptStepStatus.textContent = projectTypes.length + " project type(s) saved. Total project types: " + allProjectTypes.length + "."; var btnSave = document.getElementById("btnSavePt"); btnSave.disabled = true; btnSave.textContent = "Saved ✓"; projectTypes = []; renderTable(); updateCount(); });
+    function downloadProjectTypeTemplate() { var ws = XLSX.utils.aoa_to_sheet([ ["INSTRUCTIONS: Delete this row before uploading. Only fill in the Project Type Name column."], ["Project Type Name"] ]); ws["!cols"] = [{ wch: 60 }]; ws["!freeze"] = { ySplit: 2, xSplit: 0, topLeftCell: "A3", panes: [{ state: "frozen", ySplit: 2, xSplit: 0, topLeftCell: "A3", activePane: "bottomLeft" }] }; var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Project Types"); XLSX.writeFile(wb, "Project-Type-Mass-Upload-v1.0.xlsx"); }
+    function parseCsvLine(line) { var result = []; var current = ""; var inQuotes = false; for (var i = 0; i < line.length; i++) { var ch = line[i]; if (inQuotes) { if (ch === '"') { if (line[i + 1] === '"') { current += '"'; i++; } else { inQuotes = false; } } else { current += ch; } } else { if (ch === '"') { inQuotes = true; } else if (ch === ",") { result.push(current.trim()); current = ""; } else { current += ch; } } } result.push(current.trim()); return result; }
     document.addEventListener("dashSessionLoaded", function(e) { renderTable(); updateCount(); });
 </script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"aed8feab3b60404ba88ec92f026bbcd6","r":1}' crossorigin="anonymous"></script>
