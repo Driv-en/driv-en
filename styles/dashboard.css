@@ -18,9 +18,12 @@
    for page-specific class names to avoid conflicts.
 
    VERSION:
-   Bump the ?v= number in the <link> tag when you change this file.
-   Example: dashboard.css?v=1 → dashboard.css?v=2
-   ========================================================================== */
+  v4 — August 29, 2026: Added industrial diamond-plate steel background
+       (image-based, with readability overlay for light/dark modes).
+       Also fixed sticky header by moving overflow-x from body to html.
+  Bump the ?v= number in the <link> tag when you change this file.
+  Example: dashboard.css?v=1 → dashboard.css?v=2
+  ========================================================================== */
 
 
 /* ===== BASE RESET ===== */
@@ -33,14 +36,19 @@ html {
   margin: 0;
   padding: 0;
   width: 100%;
+  overflow-x: hidden;  /* Moved from body to html so body doesn't become
+                           a scroll container, which would break position:sticky
+                           on #dashHeader. html handles horizontal overflow
+                           without interfering with sticky positioning. */
 }
 
 body {
   font-family: "Segoe UI", Arial, Helvetica, sans-serif;
   margin: 0;
   padding: 0;
-  overflow-x: hidden;
   width: 100%;
+  /* Do NOT put overflow-x: hidden here — it breaks position:sticky.
+     It's on html instead. */
 }
 
 body {
@@ -100,6 +108,75 @@ input, textarea, button, select {
   --success:       #10b981;
   --warning:       #f59e0b;
 }
+
+
+/* ===== INDUSTRIAL DIAMOND-PLATE BACKGROUND ===== */
+/* This creates the industrial steel look using the user's diamond-plate.png
+   image. It works in two layers:
+   1. .steel-bg — a fixed full-viewport div that tiles the image (z-index: 0)
+   2. .steel-overlay — a semi-transparent overlay that keeps content readable
+      (z-index: 0, rendered above the image via DOM order)
+
+   HOW IT WORKS:
+   - The body background is set to transparent so the fixed layers show through.
+   - Each dashboard page must include TWO divs right after <body>:
+       <div class="steel-bg"></div>
+       <div class="steel-overlay"></div>
+   - All page content (header, main, cards) must have position: relative and
+     z-index: 1 or higher so they sit above the background layers.
+   - The .steel-bg and .steel-overlay divs have pointer-events: none so they
+     never block clicks.
+
+   LIGHT MODE: The overlay is white at 55% opacity — the steel texture is
+   visible but subtle, and text remains fully readable.
+   DARK MODE: The overlay is dark blue-gray at 70% opacity — the steel is
+   barely visible behind the dark cards.
+
+   IMAGE: /assets/diamond-plate.png (tiled, background-size: auto)
+   If the image is missing, the body falls back to the --bg-page color. */
+
+/* Force the body transparent so the fixed background layers show through.
+   The --bg-page variable is kept as a fallback color on .steel-bg. */
+body {
+  background: transparent !important;
+}
+
+/* --- Layer 1: Diamond-plate steel image (tiled, behind everything) --- */
+.steel-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: var(--bg-page);  /* fallback if image is missing */
+  background-image: url("/assets/diamond-plate.png");
+  background-repeat: repeat;
+  background-size: auto;
+}
+
+/* --- Layer 2: Readability overlay (lightens/darkens the steel) --- */
+/* Sits on top of the steel image (same z-index: 0 but later in DOM order).
+   In light mode: white at 55% — subtle steel texture, readable text.
+   In dark mode: dark blue-gray at 70% — steel barely visible behind dark UI. */
+.steel-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+:root[data-theme="light"] .steel-overlay {
+  background-color: rgba(255, 255, 255, 0.55);
+}
+
+:root[data-theme="dark"] .steel-overlay {
+  background-color: rgba(15, 23, 42, 0.70);
+}
+
+/* --- Content z-index: make sure all real content sits above the background --- */
+/* The header is sticky and needs a high z-index to stay above content. */
+#dashHeader { position: sticky; top: 0; z-index: 100; }
+.dash-main { position: relative; z-index: 1; }
+.dash-greeting-bar { position: relative; z-index: 1; }
 
 
 /* ===== SHARED BRAND STYLES (do not remove) ===== */
