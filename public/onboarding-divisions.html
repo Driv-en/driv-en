@@ -11,7 +11,7 @@
 <link rel="icon" type="image/png" href="/icons/favicon-96.png" sizes="96x96">
 <link rel="icon" type="image/png" href="/icons/favicon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" href="/icons/favicon-180.png">
-<link rel="stylesheet" href="/styles/dashboard.css?v=3">
+<link rel="stylesheet" href="/styles/dashboard.css?v=4">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 (function() {
@@ -61,6 +61,9 @@
 </style>
 </head>
 <body data-page-title="Onboarding — Divisions" data-required-task="Divisions">
+<!-- ===== INDUSTRIAL DIAMOND-PLATE BACKGROUND (do not remove) ===== -->
+<div class="steel-bg"></div>
+<div class="steel-overlay"></div>
 <div id="dashHeader"></div>
 <div class="div-back-bar">
   <a href="/public/dashboard/admin.html" class="div-back-btn">&larr; Admin Dashboard</a>
@@ -136,103 +139,15 @@
     var statusBulk = document.getElementById("statusBulk");
     var bulkPreview = document.getElementById("bulkPreview");
     function updateCount() { divCountEl.textContent = divisions.length; }
-    function renderTable() {
-      if (divisions.length === 0) { divTableContainer.innerHTML = '<p class="div-empty">No divisions added yet.</p>'; return; }
-      var rows = divisions.map(function(div, index) {
-        return '<tr><td>' + (index + 1) + '</td><td>' + div.name + '</td><td><button class="div-btn-secondary" style="padding:4px 10px;font-size:12px;height:auto;" onclick="removeDivision(' + index + ')">Remove</button></td></tr>';
-      }).join("");
-      divTableContainer.innerHTML = '<table class="div-table"><thead><tr><th>#</th><th>Division Name</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table>';
-    }
+    function renderTable() { if (divisions.length === 0) { divTableContainer.innerHTML = '<p class="div-empty">No divisions added yet.</p>'; return; } var rows = divisions.map(function(div, index) { return '<tr><td>' + (index + 1) + '</td><td>' + div.name + '</td><td><button class="div-btn-secondary" style="padding:4px 10px;font-size:12px;height:auto;" onclick="removeDivision(' + index + ')">Remove</button></td></tr>'; }).join(""); divTableContainer.innerHTML = '<table class="div-table"><thead><tr><th>#</th><th>Division Name</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table>'; }
     window.removeDivision = function(index) { divisions.splice(index, 1); renderTable(); updateCount(); divSuccess.textContent = ""; divError.textContent = ""; };
-    window.switchTab = function(tab) {
-      var tabSingle = document.getElementById("tabSingle"); var tabBulk = document.getElementById("tabBulk");
-      var contentSingle = document.getElementById("tabContentSingle"); var contentBulk = document.getElementById("tabContentBulk");
-      if (tab === "single") { tabSingle.classList.add("active"); tabBulk.classList.remove("active"); contentSingle.style.display = "block"; contentBulk.style.display = "none"; }
-      else { tabBulk.classList.add("active"); tabSingle.classList.remove("active"); contentBulk.style.display = "block"; contentSingle.style.display = "none"; }
-    };
-    document.getElementById("btnAddDiv").addEventListener("click", function() {
-      divError.textContent = ""; divSuccess.textContent = "";
-      var name = document.getElementById("divName").value.trim();
-      if (!name) { divError.textContent = "Division Name is required."; return; }
-      if (divisions.some(function(div) { return div.name.toLowerCase() === name.toLowerCase(); })) { divError.textContent = "A division with this name has already been added."; return; }
-      divisions.push({ name: name, customerId: localStorage.getItem("driven_customer_id") || "" });
-      renderTable(); updateCount(); document.getElementById("divName").value = ""; document.getElementById("divName").focus();
-      divSuccess.textContent = "Division added. Add another or click Save & Continue.";
-    });
+    window.switchTab = function(tab) { var tabSingle = document.getElementById("tabSingle"); var tabBulk = document.getElementById("tabBulk"); var contentSingle = document.getElementById("tabContentSingle"); var contentBulk = document.getElementById("tabContentBulk"); if (tab === "single") { tabSingle.classList.add("active"); tabBulk.classList.remove("active"); contentSingle.style.display = "block"; contentBulk.style.display = "none"; } else { tabBulk.classList.add("active"); tabSingle.classList.remove("active"); contentBulk.style.display = "block"; contentSingle.style.display = "none"; } };
+    document.getElementById("btnAddDiv").addEventListener("click", function() { divError.textContent = ""; divSuccess.textContent = ""; var name = document.getElementById("divName").value.trim(); if (!name) { divError.textContent = "Division Name is required."; return; } if (divisions.some(function(div) { return div.name.toLowerCase() === name.toLowerCase(); })) { divError.textContent = "A division with this name has already been added."; return; } divisions.push({ name: name, customerId: localStorage.getItem("driven_customer_id") || "" }); renderTable(); updateCount(); document.getElementById("divName").value = ""; document.getElementById("divName").focus(); divSuccess.textContent = "Division added. Add another or click Save & Continue."; });
     document.getElementById("divName").addEventListener("keydown", function(e) { if (e.key === "Enter") { e.preventDefault(); document.getElementById("btnAddDiv").click(); } });
-    document.getElementById("btnProcessBulk").addEventListener("click", function() {
-      statusBulk.textContent = ""; statusBulk.className = "div-error";
-      var file = document.getElementById("bulkFile").files[0];
-      if (!file) { statusBulk.textContent = "Please select an Excel or CSV file."; return; }
-      var reader = new FileReader();
-      reader.onload = function(e) {
-        var rows;
-        var isCsv = file.name.toLowerCase().endsWith(".csv");
-        if (isCsv) {
-          var text = e.target.result;
-          var lines = text.split(/\r?\n/).filter(function(l) { return l.trim() !== ""; });
-          if (lines.length < 2) { statusBulk.textContent = "The CSV file is empty or has no data rows."; return; }
-          var headers = parseCsvLine(lines[0]);
-          rows = lines.slice(1).map(function(line) { var values = parseCsvLine(line); var obj = {}; headers.forEach(function(h, i) { obj[h] = values[i] || ""; }); return obj; });
-        } else {
-          var workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
-          var sheet = workbook.Sheets[workbook.SheetNames[0]];
-          rows = XLSX.utils.sheet_to_json(sheet);
-        }
-        if (rows.length === 0) { statusBulk.textContent = "The file is empty."; return; }
-        if (rows[0] && Object.values(rows[0])[0] && String(Object.values(rows[0])[0]).startsWith("INSTRUCTIONS")) { rows = rows.slice(1); }
-        if (rows.length === 0) { statusBulk.textContent = "No data rows found after instruction row."; return; }
-        var requiredField = "Division Name";
-        var header = Object.keys(rows[0]);
-        if (header.indexOf(requiredField) === -1) { statusBulk.textContent = "Missing required column: " + requiredField; return; }
-        for (var r = 0; r < rows.length; r++) { if (!rows[r][requiredField] || String(rows[r][requiredField]).trim() === "") { statusBulk.textContent = "Row " + (r + 2) + ": Division Name is required."; return; } }
-        var seenNames = {};
-        for (var d = 0; d < rows.length; d++) { var nm = String(rows[d][requiredField]).trim().toLowerCase(); if (seenNames[nm]) { statusBulk.textContent = "Duplicate division name: " + nm + " (rows " + seenNames[nm] + " and " + (d + 2) + ")."; return; } seenNames[nm] = (d + 2); }
-        var existingNames = divisions.map(function(div) { return div.name.toLowerCase(); });
-        for (var dd = 0; dd < rows.length; dd++) { var checkName = String(rows[dd][requiredField]).trim().toLowerCase(); if (existingNames.indexOf(checkName) !== -1) { statusBulk.textContent = "Row " + (dd + 2) + ': Division "' + checkName + '" has already been added in this session.'; return; } }
-        var bulkDivisions = rows.map(function(row) { return { name: String(row[requiredField]).trim(), customerId: localStorage.getItem("driven_customer_id") || "" }; });
-        var html = "<table><thead><tr><th>Division Name</th></tr></thead><tbody>";
-        bulkDivisions.forEach(function(d) { html += "<tr><td>" + d.name + "</td></tr>"; });
-        html += "</tbody></table>";
-        bulkPreview.innerHTML = html;
-        divisions = divisions.concat(bulkDivisions); renderTable(); updateCount();
-        statusBulk.textContent = "Uploaded " + bulkDivisions.length + " divisions. Review above and click Save & Continue."; statusBulk.className = "div-success";
-      };
-      if (file.name.toLowerCase().endsWith(".csv")) { reader.readAsText(file); } else { reader.readAsArrayBuffer(file); }
-    });
-    document.getElementById("btnSaveDiv").addEventListener("click", function() {
-      divStepStatus.textContent = ""; divStepStatus.style.color = "var(--error)";
-      if (divisions.length === 0) { divStepStatus.textContent = "You must add at least one division."; return; }
-      var existing = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
-      var allDivisions = existing.concat(divisions);
-      localStorage.setItem("driven_divisions", JSON.stringify(allDivisions));
-      localStorage.setItem("driven_division_count", allDivisions.length);
-      localStorage.setItem("driven_step5_complete", "true");
-      divStepStatus.style.color = "var(--success)";
-      divStepStatus.textContent = divisions.length + " division(s) saved. Total divisions: " + allDivisions.length + ".";
-      var btnSave = document.getElementById("btnSaveDiv"); btnSave.disabled = true; btnSave.textContent = "Saved ✓";
-      divisions = []; renderTable(); updateCount();
-    });
-    function downloadDivisionTemplate() {
-      var ws = XLSX.utils.aoa_to_sheet([
-        ["INSTRUCTIONS: Delete this row before uploading. Only fill in the Division Name column."],
-        ["Division Name"]
-      ]);
-      ws["!cols"] = [{ wch: 60 }];
-      ws["!freeze"] = { ySplit: 2, xSplit: 0, topLeftCell: "A3", panes: [{ state: "frozen", ySplit: 2, xSplit: 0, topLeftCell: "A3", activePane: "bottomLeft" }] };
-      var wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Divisions");
-      XLSX.writeFile(wb, "Division-Mass-Upload-v1.0.xlsx");
-    }
-    function parseCsvLine(line) {
-      var result = []; var current = ""; var inQuotes = false;
-      for (var i = 0; i < line.length; i++) {
-        var ch = line[i];
-        if (inQuotes) { if (ch === '"') { if (line[i + 1] === '"') { current += '"'; i++; } else { inQuotes = false; } } else { current += ch; } }
-        else { if (ch === '"') { inQuotes = true; } else if (ch === ",") { result.push(current.trim()); current = ""; } else { current += ch; } }
-      }
-      result.push(current.trim()); return result;
-    }
+    document.getElementById("btnProcessBulk").addEventListener("click", function() { statusBulk.textContent = ""; statusBulk.className = "div-error"; var file = document.getElementById("bulkFile").files[0]; if (!file) { statusBulk.textContent = "Please select an Excel or CSV file."; return; } var reader = new FileReader(); reader.onload = function(e) { var rows; var isCsv = file.name.toLowerCase().endsWith(".csv"); if (isCsv) { var text = e.target.result; var lines = text.split(/\r?\n/).filter(function(l) { return l.trim() !== ""; }); if (lines.length < 2) { statusBulk.textContent = "The CSV file is empty or has no data rows."; return; } var headers = parseCsvLine(lines[0]); rows = lines.slice(1).map(function(line) { var values = parseCsvLine(line); var obj = {}; headers.forEach(function(h, i) { obj[h] = values[i] || ""; }); return obj; }); } else { var workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" }); var sheet = workbook.Sheets[workbook.SheetNames[0]]; rows = XLSX.utils.sheet_to_json(sheet); } if (rows.length === 0) { statusBulk.textContent = "The file is empty."; return; } if (rows[0] && Object.values(rows[0])[0] && String(Object.values(rows[0])[0]).startsWith("INSTRUCTIONS")) { rows = rows.slice(1); } if (rows.length === 0) { statusBulk.textContent = "No data rows found after instruction row."; return; } var requiredField = "Division Name"; var header = Object.keys(rows[0]); if (header.indexOf(requiredField) === -1) { statusBulk.textContent = "Missing required column: " + requiredField; return; } for (var r = 0; r < rows.length; r++) { if (!rows[r][requiredField] || String(rows[r][requiredField]).trim() === "") { statusBulk.textContent = "Row " + (r + 2) + ": Division Name is required."; return; } } var seenNames = {}; for (var d = 0; d < rows.length; d++) { var nm = String(rows[d][requiredField]).trim().toLowerCase(); if (seenNames[nm]) { statusBulk.textContent = "Duplicate division name: " + nm + " (rows " + seenNames[nm] + " and " + (d + 2) + ")."; return; } seenNames[nm] = (d + 2); } var existingNames = divisions.map(function(div) { return div.name.toLowerCase(); }); for (var dd = 0; dd < rows.length; dd++) { var checkName = String(rows[dd][requiredField]).trim().toLowerCase(); if (existingNames.indexOf(checkName) !== -1) { statusBulk.textContent = "Row " + (dd + 2) + ': Division "' + checkName + '" has already been added in this session.'; return; } } var bulkDivisions = rows.map(function(row) { return { name: String(row[requiredField]).trim(), customerId: localStorage.getItem("driven_customer_id") || "" }; }); var html = "<table><thead><tr><th>Division Name</th></tr></thead><tbody>"; bulkDivisions.forEach(function(d) { html += "<tr><td>" + d.name + "</td></tr>"; }); html += "</tbody></table>"; bulkPreview.innerHTML = html; divisions = divisions.concat(bulkDivisions); renderTable(); updateCount(); statusBulk.textContent = "Uploaded " + bulkDivisions.length + " divisions. Review above and click Save & Continue."; statusBulk.className = "div-success"; }; if (file.name.toLowerCase().endsWith(".csv")) { reader.readAsText(file); } else { reader.readAsArrayBuffer(file); } });
+    document.getElementById("btnSaveDiv").addEventListener("click", function() { divStepStatus.textContent = ""; divStepStatus.style.color = "var(--error)"; if (divisions.length === 0) { divStepStatus.textContent = "You must add at least one division."; return; } var existing = JSON.parse(localStorage.getItem("driven_divisions") || "[]"); var allDivisions = existing.concat(divisions); localStorage.setItem("driven_divisions", JSON.stringify(allDivisions)); localStorage.setItem("driven_division_count", allDivisions.length); localStorage.setItem("driven_step5_complete", "true"); divStepStatus.style.color = "var(--success)"; divStepStatus.textContent = divisions.length + " division(s) saved. Total divisions: " + allDivisions.length + "."; var btnSave = document.getElementById("btnSaveDiv"); btnSave.disabled = true; btnSave.textContent = "Saved ✓"; divisions = []; renderTable(); updateCount(); });
+    function downloadDivisionTemplate() { var ws = XLSX.utils.aoa_to_sheet([ ["INSTRUCTIONS: Delete this row before uploading. Only fill in the Division Name column."], ["Division Name"] ]); ws["!cols"] = [{ wch: 60 }]; ws["!freeze"] = { ySplit: 2, xSplit: 0, topLeftCell: "A3", panes: [{ state: "frozen", ySplit: 2, xSplit: 0, topLeftCell: "A3", activePane: "bottomLeft" }] }; var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Divisions"); XLSX.writeFile(wb, "Division-Mass-Upload-v1.0.xlsx"); }
+    function parseCsvLine(line) { var result = []; var current = ""; var inQuotes = false; for (var i = 0; i < line.length; i++) { var ch = line[i]; if (inQuotes) { if (ch === '"') { if (line[i + 1] === '"') { current += '"'; i++; } else { inQuotes = false; } } else { current += ch; } } else { if (ch === '"') { inQuotes = true; } else if (ch === ",") { result.push(current.trim()); current = ""; } else { current += ch; } } } result.push(current.trim()); return result; }
     document.addEventListener("dashSessionLoaded", function(e) { renderTable(); updateCount(); });
 </script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"aed8feab3b60404ba88ec92f026bbcd6","r":1}' crossorigin="anonymous"></script>
