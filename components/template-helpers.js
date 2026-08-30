@@ -1,5 +1,5 @@
 /* ==========================================================================
-   DRIV‑EN TEMPLATE HELPERS — Shared functions for Excel template generation
+   DRIV-EN TEMPLATE HELPERS — Shared functions for Excel template generation
    ==========================================================================
    This file provides a helper function that generates an XLSX file with
    FROZEN HEADER ROWS. SheetJS 0.18.5 community edition does NOT support
@@ -70,12 +70,23 @@ async function downloadXlsxWithFrozenHeader(ws, sheetName, fileName) {
     var freezePaneXml = '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>';
 
     // Insert the <pane> element as the first child of <sheetView>
-    // The regex matches <sheetView ...> (with any attributes) and inserts
-    // the freeze pane XML right after the opening tag
-    sheetXml = sheetXml.replace(
+    // SheetJS may generate either:
+    //   <sheetView ...>...</sheetView>  (opening tag — insert after it)
+    //   <sheetView .../>                (self-closing — convert to open+close)
+    // This regex handles BOTH cases.
+    if (/<sheetView([^>]*)\/>/.test(sheetXml)) {
+      // Self-closing tag: convert to open+close and insert pane
+      sheetXml = sheetXml.replace(
+        /<sheetView([^>]*)\/>/,
+        '<sheetView$1>' + freezePaneXml + '</sheetView>'
+      );
+    } else {
+      // Normal opening tag: insert pane right after it
+      sheetXml = sheetXml.replace(
         /<sheetView([^>]*)>/,
         '<sheetView$1>' + freezePaneXml
-    );
+      );
+    }
 
     // Step 6: Update the modified XML back into the ZIP
     zip.file(sheetFile, sheetXml);
