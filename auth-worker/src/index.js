@@ -1,9 +1,13 @@
 // ==========================================
 // DRIV-EN AUTH WORKER — UPDATED VERSION
-// Last updated: August 27, 2026
+// Last updated: August 30, 2026
 // Changes from previous version:
 //   - handleLogin: now includes first_name in JWT and response
 //   - handleSession: now includes first_name (from JWT or DB fallback)
+//   - handleSession: NEW Aug 30 — fetches role from DB when JWT role is null/empty
+//     This fixes the issue where the admin's role_id is NULL in the users table,
+//     causing the LEFT JOIN to return null for role_name, which made the JWT
+//     store role: null, which made auth-check.js treat the admin as non-admin.
 //   - handleLogin2FA: now includes first_name in JWT and response
 //   - handleRefresh: now includes first_name in JWT
 //   - handleChangePassword: now includes first_name in new session JWT
@@ -13,9 +17,6 @@
 //   - 2FA temporarily disabled in handleLogin (empty if block, comment shows how to re-enable)
 //   - NEW: handleSaveLogo and handleGetLogo — company logo stored in D1 company_settings table
 //     Logo syncs across ALL devices and ALL employees (no longer per-device localStorage)
-//   - NEW (Aug 29): handleSession now fetches role from DB as fallback when JWT role is null
-//     This fixes the issue where the Admin Dashboard button was hidden for admins because
-//     the LEFT JOIN on roles returned null for role_name.
 //
 // Routes:
 //   POST /auth/login              — Login with email + password
@@ -196,6 +197,9 @@ async function handleChangePassword(request, env) {
 // ==========================================
 // SESSION HANDLER
 // Returns first_name, last_name, full_name, and role from JWT or DB fallback
+// KEY FIX (Aug 30): When JWT role is null/empty (because role_id is NULL
+// in the users table), this handler now queries the users + roles tables
+// to get the role name. This fixes the admin button being hidden for admins.
 // ==========================================
 
 async function handleSession(request, env) {
