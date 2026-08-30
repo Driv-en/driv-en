@@ -17,7 +17,7 @@
 <link rel="apple-touch-icon" href="/icons/favicon-180.png">
 
 <!-- ===== SHARED DASHBOARD CSS ===== -->
-<link rel="stylesheet" href="/styles/dashboard.css?v=5">
+<link rel="stylesheet" href="/styles/dashboard.css?v=7">
 
 <!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
 <script>
@@ -482,10 +482,10 @@
 <div class="ob-popup-overlay" id="popupOverlay" onclick="closeAllPopups()"></div>
 
 <!-- ===== SHARED DASHBOARD JS (loads header, theme, logo) ===== -->
-<script src="/components/dashboard-common.js?v=6"></script>
+<script src="/components/dashboard-common.js?v=7"></script>
 
 <!-- ===== AUTH CHECK (shared — requires login only) ===== -->
-<script src="/components/auth-check.js?v=6"></script>
+<script src="/components/auth-check.js?v=7"></script>
 
 <!-- ===== PAGE-SPECIFIC SCRIPT (self-contained — does not rely on auth-check for role/greeting) ===== -->
 <script>
@@ -772,6 +772,36 @@
     } else {
       initOnboardingDashboard();
     }
+
+    /* ==========================================
+       SAFETY FALLBACK — if initOnboardingDashboard hasn't
+       shown the admin button within 3 seconds, try again.
+       This handles edge cases where the first fetch races
+       with auth-check.js or dashboard-common.js.
+       ========================================== */
+    setTimeout(async function() {
+      var adminBtn = document.getElementById("adminDashBtn");
+      if (adminBtn && adminBtn.style.display === "none") {
+        // Button still hidden — re-check session
+        try {
+          var resp = await fetch("/auth/session");
+          var data = await resp.json();
+          if (data.authenticated && data.user) {
+            var role = (data.user.role) ? String(data.user.role) : "";
+            if (role.toLowerCase() === "admin") {
+              adminBtn.style.display = "inline-flex";
+              // Also fill greeting if not done yet
+              var greetingEl = document.getElementById("dashGreetingText");
+              if (greetingEl && greetingEl.textContent === "Welcome") {
+                var fn = data.user.first_name || "";
+                if (!fn) { var fl = data.user.full_name || ""; if (fl) fn = fl.split(" ")[0]; }
+                if (fn) greetingEl.innerHTML = "Welcome, <strong>" + fn + "</strong>";
+              }
+            }
+          }
+        } catch (e) { /* ignore */ }
+      }
+    }, 3000);
 </script>
 
 <!-- Cloudflare Web Analytics -->
