@@ -1,0 +1,58 @@
+# ==========================================
+# ONBOARDING KEY PERSONNEL WORKER — wrangler.toml (BACKUP)
+# Generated: August 30, 2026 (Session 7 — Checkpoint 2)
+# Source: Cloudflare API binding data + workspace source code
+#
+# This worker handles key personnel onboarding: creates employee records,
+# generates temp passwords, sends onboarding emails, manages role assignments,
+# and handles revocation (with multi-tenant org_id security check).
+#
+# Routes: driv-en.com/api/onboarding/*
+# Deployed via: Cloudflare API /content endpoint (Session 6)
+#
+# SECURITY FIX (Session 7): handleRevoke now verifies employee customer_id
+# matches caller's customerId before allowing revocation.
+#
+# Bindings (from Cloudflare API):
+#   - D1: DB → driv-en-db (c58c4597-57f7-418d-973b-d6c67f32f07e)
+#   - D1: EMPLOYEES_DB → employees-db (2cc94c17-f60c-4a52-bead-57507b1292f4)
+#   - KV: ONBOARDING_KV → 743fc6f965af43e580aea945728ae8e7
+#   - Secret: AIRTABLE_TOKEN
+#   - Secret: SENDGRID_API_KEY
+#   - Var: AIRTABLE_BASE_ID
+#   - Var: ONBOARDING_DOMAIN
+#   - Var: FROM_EMAIL
+#   - Var: SUPPORT_CONTACT
+# ==========================================
+
+name = "onboarding-key-personnel"
+main = "src/index.js"
+compatibility_date = "2026-08-01"
+
+# D1 database — auth/users (driv-en-db)
+[[d1_databases]]
+binding = "DB"
+database_name = "driv-en-db"
+database_id = "c58c4597-57f7-418d-973b-d6c67f32f07e"
+
+# D1 database — employees + key_personnel_roles (employees-db)
+[[d1_databases]]
+binding = "EMPLOYEES_DB"
+database_name = "employees-db"
+database_id = "2cc94c17-f60c-4a52-bead-57507b1292f4"
+
+# KV namespace (existing)
+[[kv_namespaces]]
+binding = "ONBOARDING_KV"
+id = "743fc6f965af43e580aea945728ae8e7"
+
+# Plain-text vars
+[vars]
+AIRTABLE_BASE_ID = "appbZPijYF3evhSkK"
+ONBOARDING_DOMAIN = "https://driv-en.com"
+FROM_EMAIL = "support@driv-en.com"
+SUPPORT_CONTACT = "support@driv-en.com"
+
+# Secrets — set with:
+#   npx wrangler secret put AIRTABLE_TOKEN
+#   npx wrangler secret put SENDGRID_API_KEY
