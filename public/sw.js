@@ -7,7 +7,7 @@
  * v2.0 will add Background Sync API for automatic offline data sync.
  */
 
-const CACHE = 'driv-en-v3';
+const CACHE = 'driv-en-v4';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
