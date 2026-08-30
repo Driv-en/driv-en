@@ -481,13 +481,16 @@
 <!-- ===== POPUP OVERLAY ===== -->
 <div class="ob-popup-overlay" id="popupOverlay" onclick="closeAllPopups()"></div>
 
-<!-- ===== SHARED DASHBOARD JS (loads header, theme, logo) ===== -->
+<!-- ===== SHARED DASHBOARD JS (loads header, theme, logo, session) ===== -->
 <script src="/components/dashboard-common.js?v=7"></script>
 
 <!-- ===== AUTH CHECK (shared — requires login only) ===== -->
 <script src="/components/auth-check.js?v=7"></script>
 
-<!-- ===== PAGE-SPECIFIC SCRIPT (self-contained — does not rely on auth-check for role/greeting) ===== -->
+<!-- ===== PAGE-SPECIFIC SCRIPT ===== -->
+<!-- Uses the "dashSessionLoaded" event from dashboard-common.js -->
+<!-- (same pattern as the admin dashboard — proven to work) -->
+<!-- e.detail contains the user object from /auth/session -->
 <script>
     /* ==========================================
        POPUP MANAGEMENT
@@ -516,37 +519,32 @@
 
     var userAssignedTasks = [];
     var userIsAdmin = false;
+    var initStarted = false;
 
     /* ==========================================
-       MAIN INIT — fetches session directly, fills greeting,
-       determines admin status, filters steps, loads data.
-       This is SELF-CONTAINED — it does NOT depend on
-       dashboard-common.js or auth-check.js for the role
-       or greeting. It fetches /auth/session itself.
+       MAIN INIT — runs when dashboard-common.js fires
+       the "dashSessionLoaded" event (same pattern as admin dashboard).
+       e.detail contains the user object from /auth/session.
        ========================================== */
-    async function initOnboardingDashboard() {
-      // ===== STEP 1: Fetch the session directly =====
-      var sessionUser = null;
-      try {
-        var resp = await fetch("/auth/session");
-        var sdata = await resp.json();
-        if (sdata.authenticated && sdata.user) {
-          sessionUser = sdata.user;
-          window.dashUser = sdata.user;
-          // Store org_id for API calls
-          if (sdata.user.org_id) localStorage.setItem("driven_customer_id", sdata.user.org_id);
-        }
-      } catch (e) {
-        console.error("Session fetch error:", e.message);
-      }
+    document.addEventListener("dashSessionLoaded", function(e) {
+      if (initStarted) return;
+      initStarted = true;
+      initOnboardingDashboard(e.detail);
+    });
+
+    async function initOnboardingDashboard(sessionUser) {
       if (!sessionUser) return;
 
-      // ===== STEP 2: Fill the greeting with first name =====
+      // Store org_id for API calls
+      if (sessionUser.org_id) localStorage.setItem("driven_customer_id", sessionUser.org_id);
+
+      // ===== Fill the greeting with first name =====
+      // (dashboard-common.js already fills dashGreetingText, but we do it too
+      //  to be safe in case of timing)
       var greetingEl = document.getElementById("dashGreetingText");
       if (greetingEl) {
         var firstName = sessionUser.first_name || "";
         if (!firstName) {
-          // Try full_name, then email
           var fullName = sessionUser.full_name || "";
           if (fullName) firstName = fullName.split(" ")[0];
         }
@@ -557,15 +555,12 @@
         }
       }
 
-      // ===== STEP 3: Determine if user is admin =====
-      // Check the role field first (case-insensitive)
+      // ===== Determine if user is admin =====
       var role = (sessionUser.role) ? String(sessionUser.role) : "";
       if (role.toLowerCase() === "admin") {
         userIsAdmin = true;
       } else {
-        // Role is null/empty — check if this user is in the KP list.
-        // If they are NOT a KP, they must be the admin (the subscriber).
-        // The admin is the only non-KP user who can log in during onboarding.
+        // Role is null/empty — check KP list
         var customerId = sessionUser.org_id || localStorage.getItem("driven_customer_id");
         if (customerId && sessionUser.email) {
           try {
@@ -577,33 +572,28 @@
                 return kp.email && kp.email.toLowerCase().trim() === userEmail;
               });
               if (!foundKP) {
-                // User is NOT in the KP list → they are the admin
                 userIsAdmin = true;
               } else if (foundKP.roles) {
-                // User IS a KP — get their assigned tasks
                 userAssignedTasks = foundKP.roles.map(function(r) { return r.role; });
               }
             } else {
-              // API returned no KP data — assume admin (safer for onboarding)
               userIsAdmin = true;
             }
           } catch (e) {
-            // API not available — assume admin (safer for onboarding)
             userIsAdmin = true;
           }
         } else {
-          // No customerId or email — assume admin
           userIsAdmin = true;
         }
       }
 
-      // ===== STEP 4: Show/hide the Admin Dashboard button =====
+      // ===== Show/hide the Admin Dashboard button =====
       var adminBtn = document.getElementById("adminDashBtn");
       if (adminBtn) {
         adminBtn.style.display = userIsAdmin ? "inline-flex" : "none";
       }
 
-      // ===== STEP 5: Filter steps by assignment =====
+      // ===== Filter steps by assignment =====
       if (!userIsAdmin) {
         Object.keys(STEP_TASK_MAP).forEach(function(stepId) {
           var card = document.getElementById(stepId);
@@ -615,7 +605,6 @@
             card.style.display = "none";
           }
         });
-        // Show the non-admin notice
         var notice = document.getElementById("nonAdminNotice");
         var tasksList = document.getElementById("assignedTasksList");
         if (notice && tasksList) {
@@ -626,15 +615,34 @@
         }
       }
 
-      // ===== STEP 6: Populate "Assigned to" labels =====
+      // ===== Populate "Assigned to" labels =====
       await populateAssignedToLabels(sessionUser);
 
-      // ===== STEP 7: Load admin-only content =====
+      // ===== Load admin-only content =====
       if (userIsAdmin) {
         await loadLogoPreview();
         await loadKeyPersonnel();
       }
     }
+
+    /* ==========================================
+       FALLBACK — if dashSessionLoaded doesn't fire within 5 seconds,
+       fetch the session ourselves and dispatch the event manually.
+       This handles edge cases where dashboard-common.js fails.
+       ========================================== */
+    setTimeout(async function() {
+      if (!initStarted) {
+        console.log("Onboarding Dashboard: dashSessionLoaded timeout — fetching session directly");
+        try {
+          var resp = await fetch("/auth/session");
+          var sdata = await resp.json();
+          if (sdata.authenticated && sdata.user) {
+            initStarted = true;
+            initOnboardingDashboard(sdata.user);
+          }
+        } catch (e) { /* ignore */ }
+      }
+    }, 5000);
 
     /* ==========================================
        LOAD KEY PERSONNEL (into Step 2 card)
@@ -761,47 +769,6 @@
         });
       } catch (e) { /* API not available */ }
     }
-
-    /* ==========================================
-       RUN INIT — wait for DOM to be ready, then run.
-       We do NOT wait for the dashSessionLoaded event
-       because we fetch the session ourselves.
-       ========================================== */
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", initOnboardingDashboard);
-    } else {
-      initOnboardingDashboard();
-    }
-
-    /* ==========================================
-       SAFETY FALLBACK — if initOnboardingDashboard hasn't
-       shown the admin button within 3 seconds, try again.
-       This handles edge cases where the first fetch races
-       with auth-check.js or dashboard-common.js.
-       ========================================== */
-    setTimeout(async function() {
-      var adminBtn = document.getElementById("adminDashBtn");
-      if (adminBtn && adminBtn.style.display === "none") {
-        // Button still hidden — re-check session
-        try {
-          var resp = await fetch("/auth/session");
-          var data = await resp.json();
-          if (data.authenticated && data.user) {
-            var role = (data.user.role) ? String(data.user.role) : "";
-            if (role.toLowerCase() === "admin") {
-              adminBtn.style.display = "inline-flex";
-              // Also fill greeting if not done yet
-              var greetingEl = document.getElementById("dashGreetingText");
-              if (greetingEl && greetingEl.textContent === "Welcome") {
-                var fn = data.user.first_name || "";
-                if (!fn) { var fl = data.user.full_name || ""; if (fl) fn = fl.split(" ")[0]; }
-                if (fn) greetingEl.innerHTML = "Welcome, <strong>" + fn + "</strong>";
-              }
-            }
-          }
-        } catch (e) { /* ignore */ }
-      }
-    }, 3000);
 </script>
 
 <!-- Cloudflare Web Analytics -->
