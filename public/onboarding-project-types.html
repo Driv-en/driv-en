@@ -11,10 +11,10 @@
 <link rel="icon" type="image/png" href="/icons/favicon-96.png" sizes="96x96">
 <link rel="icon" type="image/png" href="/icons/favicon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" href="/icons/favicon-180.png">
-<link rel="stylesheet" href="/styles/dashboard.css?v=5">
+<link rel="stylesheet" href="/styles/dashboard.css?v=7">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-<script src="/components/template-helpers.js?v=2"></script>
+<script src="/components/template-helpers.js?v=7"></script>
 <script>
 (function() {
   var saved = localStorage.getItem("driven-theme");
@@ -24,6 +24,11 @@
 })();
 </script>
 <style>
+    /* ===== GREETING BAR (Session 7 fix — must be above steel-bg background) ===== */
+    .ob-greeting-bar { max-width: 1100px; margin: 0 auto; padding: 12px 20px 0 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; position: relative; z-index: 1; }
+    .ob-greeting-text { font-size: 16px; color: var(--text-muted); font-weight: 500; }
+    .ob-greeting-text strong { color: var(--text); }
+
     .pt-back-bar { max-width: 1100px; margin: 0 auto; padding: 12px 20px 0 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
     .pt-back-btn { display: inline-flex; align-items: center; gap: 6px; background: #1e40af; border: 1px solid #2563eb; color: #dbeafe; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; }
     .pt-back-btn:hover { background: #1d4ed8; color: #fff; }
@@ -66,6 +71,10 @@
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
 <div id="dashHeader"></div>
+<div class="ob-greeting-bar">
+  <div class="ob-greeting-text" id="dashGreetingText">Welcome</div>
+</div>
+
 <div class="pt-back-bar">
   <a href="/public/dashboard/admin.html" class="pt-back-btn driven-admin-only">&larr; Admin Dashboard</a>
   <a href="/public/onboarding-dashboard.html" class="pt-back-btn" style="background:#374151;border-color:#4b5563;color:#d1d5db;">&larr; Onboarding Dashboard</a>
@@ -129,8 +138,8 @@
     <div id="ptStepStatus" class="pt-step-status"></div>
   </div>
 </main>
-<script src="/components/dashboard-common.js?v=5"></script>
-<script src="/components/auth-check.js?v=5"></script>
+<script src="/components/dashboard-common.js?v=7"></script>
+<script src="/components/auth-check.js?v=7"></script>
 <script>
     var projectTypes = [];
     var ptError = document.getElementById("ptError");
@@ -232,7 +241,23 @@
       }
       result.push(current.trim()); return result;
     }
-    document.addEventListener("dashSessionLoaded", function(e) { renderTable(); updateCount(); });
+    document.addEventListener("dashSessionLoaded", function(e) {
+      if (e.detail) {
+        var greetingEl = document.getElementById("dashGreetingText");
+        if (greetingEl) {
+          var firstName = e.detail.first_name || "";
+          if (!firstName) {
+            var fullName = e.detail.full_name || "";
+            if (fullName) firstName = fullName.split(" ")[0];
+          }
+          if (firstName) {
+            greetingEl.innerHTML = "Welcome, <strong>" + firstName + "</strong>";
+          } else {
+            greetingEl.innerHTML = "Welcome";
+          }
+        }
+      }
+      renderTable(); updateCount(); });
 </script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"aed8feab3b60404ba88ec92f026bbcd6","r":1}' crossorigin="anonymous"></script>
 </body>
