@@ -17,10 +17,14 @@
 <link rel="apple-touch-icon" href="/icons/favicon-180.png">
 
 <!-- ===== SHARED DASHBOARD CSS ===== -->
-<link rel="stylesheet" href="/styles/dashboard.css?v=4">
+<link rel="stylesheet" href="/styles/dashboard.css?v=7">
 
 <!-- ===== EXCEL LIBRARY (for bulk upload) ===== -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- ===== JSZIP (needed for freeze panes in Excel templates) ===== -->
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<!-- ===== TEMPLATE HELPER (generates XLSX with frozen header rows) ===== -->
+<script src="/components/template-helpers.js?v=7"></script>
 
 <!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
 <script>
@@ -34,6 +38,22 @@
 
 <!-- ===== PAGE-SPECIFIC STYLES ===== -->
 <style>
+    /* ===== GREETING BAR (Session 7 fix — must be above steel-bg background) ===== */
+    .ob-greeting-bar {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 12px 20px 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      position: relative;
+      z-index: 1;
+    }
+    .ob-greeting-text { font-size: 16px; color: var(--text-muted); font-weight: 500; }
+    .ob-greeting-text strong { color: var(--text); }
+
     /* ===== BACK BUTTON BAR ===== */
     .cli-back-bar {
       max-width: 1100px;
@@ -275,6 +295,11 @@
 <!-- ===== SHARED DASHBOARD HEADER (auto-loaded by dashboard-common.js) ===== -->
 <div id="dashHeader"></div>
 
+<!-- ===== GREETING BAR (Session 7 — shows "Welcome, [Name]") ===== -->
+<div class="ob-greeting-bar">
+  <div class="ob-greeting-text" id="dashGreetingText">Welcome</div>
+</div>
+
 <!-- ===== BACK BUTTON BAR ===== -->
 <div class="cli-back-bar">
   <a href="/public/dashboard/admin.html" class="cli-back-btn driven-admin-only">&larr; Admin Dashboard</a>
@@ -394,10 +419,10 @@
 </main>
 
 <!-- ===== SHARED DASHBOARD JS (loads header, theme, logo, session) ===== -->
-<script src="/components/dashboard-common.js?v=3"></script>
+<script src="/components/dashboard-common.js?v=7"></script>
 
 <!-- ===== AUTH CHECK (shared — enforces login + role + task checks) ===== -->
-<script src="/components/auth-check.js?v=3"></script>
+<script src="/components/auth-check.js?v=7"></script>
 
 <!-- ===== PAGE-SPECIFIC SCRIPT ===== -->
 <script>
@@ -638,7 +663,7 @@
       };
 
       if (file.name.toLowerCase().endsWith(".csv")) { reader.readAsText(file); } else { reader.readAsArrayBuffer(file); }
-    });
+    };
 
     // ===== SAVE & CONTINUE =====
     document.getElementById("btnSaveCli").addEventListener("click", function() {
@@ -679,13 +704,8 @@
         ["Client Name"]
       ]);
       ws["!cols"] = [{ wch: 60 }];
-      // Add autofilter to Row 1 (adds dropdown arrows to each column header)
-      // NOTE: SheetJS 0.18.5 community edition does NOT support freeze panes (!freeze).
-      // Autofilter is the best alternative — it lets users filter/sort by column.
-      ws["!autofilter"] = { ref: "A1:A1" };
-      var wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Clients");
-      XLSX.writeFile(wb, "Client-Mass-Upload-v1.0.xlsx");
+      // Use the template helper to generate the XLSX with Row 1 (headers) frozen.
+      downloadXlsxWithFrozenHeader(ws, "Clients", "Client-Mass-Upload-v1.0.xlsx");
     }
 
     // CSV line parser — handles quoted fields with commas
@@ -710,6 +730,23 @@
 
     // ===== INIT =====
     document.addEventListener("dashSessionLoaded", function(e) {
+      // ===== Fill the greeting bar with the user's first name =====
+      if (e.detail) {
+        var greetingEl = document.getElementById("dashGreetingText");
+        if (greetingEl) {
+          var firstName = e.detail.first_name || "";
+          if (!firstName) {
+            var fullName = e.detail.full_name || "";
+            if (fullName) firstName = fullName.split(" ")[0];
+          }
+          if (firstName) {
+            greetingEl.innerHTML = "Welcome, <strong>" + firstName + "</strong>";
+          } else {
+            greetingEl.innerHTML = "Welcome";
+          }
+        }
+      }
+
       renderTable();
       updateCount();
     });
