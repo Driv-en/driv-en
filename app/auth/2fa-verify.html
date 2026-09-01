@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRIV‑EN | 2FA Verification</title>
+<meta name="description" content="Enter your 2FA verification code to complete login.">
+<link rel="icon" type="image/png" href="/assets/icons/favicon.png" sizes="48x48">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png" sizes="96x96">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png">
+<link rel="stylesheet" href="/styles/header.css?v=6">
+<link rel="stylesheet" href="/styles/footer.css?v=3">
+
+<style>
+    .twofa-section {
+        max-width: 360px;
+        margin: 40px auto 80px auto;
+        padding: 10px 24px;
+    }
+    .twofa-icon-wrap {
+        text-align: center;
+        margin-bottom: 16px;
+    }
+    .twofa-section h2 {
+        text-align: center;
+        margin-bottom: 8px;
+        font-size: 24px;
+        font-weight: 700;
+    }
+    .twofa-section p.subtitle {
+        text-align: center;
+        color: #555;
+        font-size: 14px;
+        margin-bottom: 24px;
+    }
+    label {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 6px;
+        display: block;
+    }
+    input[type="text"] {
+        width: 100%;
+        padding: 12px;
+        box-sizing: border-box;
+        margin-bottom: 16px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font-size: 20px;
+        text-align: center;
+        letter-spacing: 6px;
+    }
+    input.error {
+        border-color: #cc0000;
+    }
+    .btn-primary {
+        width: 100%;
+        background: #ffcc00;
+        color: #111;
+        border: none;
+        padding: 12px;
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+    .error-banner {
+        background: #ffdddd; color: #cc0000; padding: 10px;
+        border-radius: 6px; margin-bottom: 16px;
+        text-align: center; font-size: 14px; display: none;
+    }
+    .back-link {
+        text-align: center;
+        margin-top: 24px;
+        font-size: 14px;
+    }
+    .back-link a {
+        color: #2563eb;
+        text-decoration: underline;
+        cursor: pointer;
+    }
+    .brand-driv { color: #8c8c8c; font-weight: bold; font-style: italic; letter-spacing: -1px; }
+    .brand-dash { color: #2da94f; font-weight: bold; font-style: italic; letter-spacing: -1px; }
+    .brand-en { color: #dc2626; font-weight: bold; font-style: italic; letter-spacing: -1px; }
+    .login-icon-mask {
+        display: inline-block; width: 64px; height: 64px;
+        background-color: #fff;
+        -webkit-mask-image: url('/assets/icons/driven-login-icon.png');
+        -webkit-mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        -webkit-mask-size: contain;
+        mask-image: url('/assets/icons/driven-login-icon.png');
+        mask-repeat: no-repeat; mask-position: center; mask-size: contain;
+        vertical-align: middle;
+    }
+    .login-icon-fallback {
+        width: 64px; height: auto;
+        filter: invert(1) brightness(200%);
+        -webkit-filter: invert(1) brightness(200%);
+        vertical-align: middle; display: none;
+    }
+    @supports not (mask-image: url('')) {
+        .login-icon-mask { display: none; }
+        .login-icon-fallback { display: inline-block; }
+    }
+</style>
+</head>
+<body>
+<div id="header"></div>
+
+<div class="twofa-section">
+    <div class="twofa-icon-wrap">
+        <span class="login-icon-mask"></span>
+        <img src="/assets/icons/driven-login-icon.png" class="login-icon-fallback" alt="DRIV‑EN login icon">
+    </div>
+    <h2>Verification Required</h2>
+    <p class="subtitle"><span class="brand-driv">DRIV</span><span class="brand-dash">‑</span><span class="brand-en">EN</span></p>
+    <p style="font-size:14px;color:#555;text-align:center;margin-bottom:24px;">
+        Enter the 6-digit code from your authenticator app.
+    </p>
+
+    <div id="error-banner" class="error-banner"></div>
+
+    <form id="twofa-form">
+        <label>6-digit code</label>
+        <input type="text" id="code" maxlength="6" placeholder="000000" required autofocus />
+
+        <div style="margin-bottom:16px;">
+            <label style="display:flex;align-items:center;gap:6px;font-weight:normal;">
+                <input type="checkbox" id="remember" /> Remember this device
+            </label>
+        </div>
+
+        <button type="submit" class="btn-primary" id="verifyBtn">Verify &amp; Login</button>
+    </form>
+
+    <div class="back-link">
+        <a href="/app/auth/login.html">Back to Login</a>
+    </div>
+</div>
+
+<div id="footer"></div>
+
+<script>
+async function loadComponent(id, file) {
+    try {
+        const el = document.getElementById(id);
+        const html = await fetch(file).then(r => r.text());
+        el.innerHTML = html;
+    } catch (e) { console.error("Component failed:", id, file, e); }
+}
+document.addEventListener("DOMContentLoaded", async () => {
+    await loadComponent("header", "/components/header.html");
+    await loadComponent("footer", "/components/footer.html");
+    const yearEl = document.getElementById('footer-year');
+    if (yearEl) yearEl.textContent = new Date().getFullYear();
+});
+</script>
+<script src="/components/nav.js?v=2"></script>
+
+<script>
+    // Get email from URL params or sessionStorage
+    const urlParams = new URLSearchParams(window.location.search);
+    let email = urlParams.get("email") || sessionStorage.getItem("driven_2fa_email") || "";
+
+    const errorBanner = document.getElementById("error-banner");
+
+    document.getElementById("twofa-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        errorBanner.style.display = "none";
+
+        const code = document.getElementById("code").value.trim();
+        const remember = document.getElementById("remember").checked;
+        const verifyBtn = document.getElementById("verifyBtn");
+
+        verifyBtn.disabled = true;
+        verifyBtn.textContent = "Verifying...";
+
+        try {
+            const resp = await fetch("/auth/login-2fa", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: email, code: code, remember: remember })
+            });
+            const data = await resp.json();
+
+            if (data.success) {
+                sessionStorage.removeItem("driven_2fa_email");
+
+                if (data.must_change_password) {
+                    window.location.href = "/app/auth/change-password.html";
+                } else {
+                    window.location.href = "/app/dashboard/admin.html";
+                }
+            } else {
+                errorBanner.textContent = data.error || "Invalid verification code.";
+                errorBanner.style.display = "block";
+                verifyBtn.disabled = false;
+                verifyBtn.textContent = "Verify & Login";
+            }
+        } catch (e) {
+            errorBanner.textContent = "Verification failed. Please try again.";
+            errorBanner.style.display = "block";
+            verifyBtn.disabled = false;
+            verifyBtn.textContent = "Verify & Login";
+        }
+    });
+</script>
+</body>
+</html>
