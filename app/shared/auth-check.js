@@ -33,7 +33,7 @@
 
     if (!data.authenticated) {
       // Not logged in — redirect to login page
-      window.location.href = "/app/auth/login.html";
+      window.location.href = "/public/login.html";
       return;
     }
 
@@ -81,7 +81,7 @@
   } catch (e) {
     console.error("Auth check error:", e.message);
     // On error, redirect to login (safer to deny than allow)
-    window.location.href = "/app/auth/login.html";
+     window.location.href = "/public/login.html";
   }
 })();
 
