@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRIV‑EN | 2FA Backup Codes</title>
+<meta name="description" content="Email your 2FA backup codes to your registered email address.">
+<link rel="icon" type="image/png" href="/assets/icons/favicon.png" sizes="48x48">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png" sizes="96x96">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png">
+<link rel="stylesheet" href="/styles/header.css?v=6">
+<link rel="stylesheet" href="/styles/footer.css?v=3">
+
+<style>
+    .backup-section {
+        max-width: 420px;
+        margin: 40px auto 80px auto;
+        padding: 10px 24px;
+    }
+    .backup-section h2 {
+        text-align: center;
+        margin-bottom: 8px;
+        font-size: 24px;
+        font-weight: 700;
+    }
+    .backup-section p.subtitle {
+        text-align: center;
+        color: #555;
+        font-size: 14px;
+        margin-bottom: 24px;
+    }
+    .info-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 16px 0;
+        font-size: 14px;
+        color: #555;
+        line-height: 1.5;
+    }
+    .info-box strong {
+        color: #1e293b;
+    }
+    .btn-primary {
+        width: 100%;
+        background: #059669;
+        color: #fff;
+        border: none;
+        padding: 12px;
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    .btn-secondary {
+        width: 100%;
+        background: #e2e8f0;
+        color: #333;
+        border: none;
+        padding: 12px;
+        border-radius: 6px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 10px;
+        text-align: center;
+        text-decoration: none;
+        display: block;
+        box-sizing: border-box;
+    }
+    .status-message {
+        margin-top: 12px;
+        font-size: 14px;
+        text-align: center;
+        display: none;
+    }
+    .status-message.success {
+        color: #006600;
+        display: block;
+    }
+    .status-message.error {
+        color: #cc0000;
+        display: block;
+    }
+    .brand-driv { color: #8c8c8c; font-weight: bold; font-style: italic; letter-spacing: -1px; }
+    .brand-dash { color: #2da94f; font-weight: bold; font-style: italic; letter-spacing: -1px; }
+    .brand-en { color: #dc2626; font-weight: bold; font-style: italic; letter-spacing: -1px; }
+</style>
+</head>
+<body>
+<div id="header"></div>
+
+<div class="backup-section">
+    <h2>2FA Backup Codes</h2>
+    <p class="subtitle"><span class="brand-driv">DRIV</span><span class="brand-dash">‑</span><span class="brand-en">EN</span></p>
+
+    <div class="info-box">
+        <strong>What are backup codes?</strong><br>
+        Backup codes are one-time use codes that allow you to log in if you lose access to your authenticator app (for example, if you lose your phone, get a new phone, or your phone battery dies). Each code can only be used once.
+    </div>
+
+    <div id="status-message" class="status-message"></div>
+
+    <button class="btn-primary" id="emailCodesBtn">Email Codes to Me</button>
+
+    <a href="/app/dashboard/admin.html" class="btn-secondary">Back to Dashboard</a>
+</div>
+
+<div id="footer"></div>
+
+<script>
+async function loadComponent(id, file) {
+    try {
+        const el = document.getElementById(id);
+        const html = await fetch(file).then(r => r.text());
+        el.innerHTML = html;
+    } catch (e) { console.error("Component failed:", id, file, e); }
+}
+document.addEventListener("DOMContentLoaded", async () => {
+    await loadComponent("header", "/components/header.html");
+    await loadComponent("footer", "/components/footer.html");
+    const yearEl = document.getElementById('footer-year');
+    if (yearEl) yearEl.textContent = new Date().getFullYear();
+});
+</script>
+<script src="/components/nav.js?v=2"></script>
+
+<script>
+    var statusMsg = document.getElementById("status-message");
+
+    document.getElementById("emailCodesBtn").addEventListener("click", async function() {
+        var btn = this;
+        btn.disabled = true;
+        btn.textContent = "Sending...";
+        statusMsg.className = "status-message";
+        statusMsg.style.display = "none";
+
+        try {
+            var resp = await fetch("/auth/email-backup-codes", { method: "POST" });
+            var data = await resp.json();
+
+            if (data.success) {
+                statusMsg.className = "status-message success";
+                statusMsg.textContent = data.message;
+                btn.textContent = "Email Codes to Me";
+                btn.disabled = false;
+            } else {
+                statusMsg.className = "status-message error";
+                statusMsg.textContent = data.error || "Failed to send email.";
+                btn.textContent = "Email Codes to Me";
+                btn.disabled = false;
+            }
+        } catch (e) {
+            statusMsg.className = "status-message error";
+            statusMsg.textContent = "Failed to send email. Please try again.";
+            btn.textContent = "Email Codes to Me";
+            btn.disabled = false;
+        }
+    });
+</script>
+</body>
+</html>
