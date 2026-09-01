@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Equipment | DRIV‑EN</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/app/shared/dashboard.css?v=7">
+</head>
+<body>
+
+  <!-- GLOBAL APP HEADER -->
+  <header class="app-header">
+    <div class="app-header-inner">
+      <a href="/website/index.html" class="app-logo">
+        <span class="logo-driv">DRIV</span><span class="logo-en">-EN</span>
+      </a>
+      <nav class="app-nav-desktop">
+        <a href="/app/equipment/equipment.html" class="active">Equipment</a>
+        <a href="/app/pm/pm.html">PM</a>
+        <a href="/app/inspections/inspections.html">Inspections</a>
+        <a href="/app/work-orders/workorders.html">Work Orders</a>
+        <a href="/app/dashboard/admin.html">Admin</a>
+      </nav>
+      <button class="app-mobile-menu-btn" id="appMobileMenuBtn">☰</button>
+    </div>
+  </header>
+
+  <!-- MOBILE NAV -->
+  <nav class="app-nav-mobile" id="appNavMobile">
+    <a href="/app/equipment/equipment.html" class="active">Equipment</a>
+    <a href="/app/pm/pm.html">PM</a>
+    <a href="/app/inspections/inspections.html">Inspections</a>
+    <a href="/app/work-orders/workorders.html">Work Orders</a>
+    <a href="/app/dashboard/admin.html">Admin</a>
+  </nav>
+
+  <!-- STICKY WRAPPER -->
+  <div class="app-sticky-wrapper">
+    <main class="app-main">
+
+      <section class="app-page-header">
+        <h1>Equipment</h1>
+        <p>All active equipment in the fleet.</p>
+      </section>
+
+      <section class="app-section">
+        <div class="app-section-header">
+          <h2 class="app-section-title">Equipment List</h2>
+          <div class="app-section-actions">
+            <button class="btn-secondary" id="btnRefreshEquipment">Refresh</button>
+            <button class="btn-primary" id="btnAddEquipment">Add Equipment</button>
+          </div>
+        </div>
+
+        <div class="app-filters-row">
+          <input
+            type="search"
+            id="equipmentSearch"
+            class="app-input"
+            placeholder="Search by unit, description, division, project…"
+          >
+          <select id="equipmentStatusFilter" class="app-select">
+            <option value="">All statuses</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+            <option value="Out of Service">Out of Service</option>
+          </select>
+          <select id="equipmentDivisionFilter" class="app-select">
+            <option value="">All divisions</option>
+          </select>
+          <select id="equipmentProjectFilter" class="app-select">
+            <option value="">All projects</option>
+          </select>
+        </div>
+
+        <table class="app-table">
+          <thead>
+            <tr>
+              <th>Unit</th>
+              <th>Equipment Name</th>
+              <th>Division</th>
+              <th>Project</th>
+              <th>Status</th>
+              <th>Location</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="equipmentTableBody">
+            <!-- Rows injected via JS after Worker integration -->
+          </tbody>
+        </table>
+
+        <p class="app-status-text" id="equipmentStatusText"></p>
+      </section>
+
+    </main>
+
+    <footer class="app-footer">
+      <p>© 2026 DRIV‑EN — Built for the Field.</p>
+    </footer>
+  </div>
+
+  <script>
+    // Mobile nav + sticky header
+    const mobileBtn = document.getElementById('appMobileMenuBtn');
+    const mobileNav = document.getElementById('appNavMobile');
+    const header = document.querySelector('.app-header');
+
+    mobileBtn.addEventListener('click', () => {
+      mobileNav.classList.toggle('open');
+    });
+
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 10) header.classList.add('sticky');
+      else header.classList.remove('sticky');
+    });
+
+    // Equipment page logic
+    const WORKER_BASE_URL = "https://api.driv-en.example.com"; // update to your real Worker URL
+    const CUSTOMER_ID = "CUSTOMER-PLACEHOLDER"; // wire to real customer/session later
+
+    const equipmentTableBody = document.getElementById('equipmentTableBody');
+    const equipmentStatusText = document.getElementById('equipmentStatusText');
+
+    const equipmentSearch = document.getElementById('equipmentSearch');
+    const equipmentStatusFilter = document.getElementById('equipmentStatusFilter');
+    const equipmentDivisionFilter = document.getElementById('equipmentDivisionFilter');
+    const equipmentProjectFilter = document.getElementById('equipmentProjectFilter');
+
+    const btnRefreshEquipment = document.getElementById('btnRefreshEquipment');
+    const btnAddEquipment = document.getElementById('btnAddEquipment');
+
+    let equipmentData = [];
+
+    function setEquipmentStatus(message, type = 'info') {
+      equipmentStatusText.textContent = message || '';
+      equipmentStatusText.classList.remove('status-error', 'status-success');
+      if (type === 'error') equipmentStatusText.classList.add('status-error');
+      if (type === 'success') equipmentStatusText.classList.add('status-success');
+    }
+
+    function renderStatusPill(status) {
+      if (!status) return '';
+      let cls = 'status-pill';
+      if (status === 'Active') cls += ' status-pill-active';
+      else if (status === 'Inactive') cls += ' status-pill-inactive';
+      else if (status === 'Out of Service') cls += ' status-pill-outofservice';
+      return `<span class="${cls}">${status}</span>`;
+    }
+
+    function renderEquipmentTable() {
+      const search = equipmentSearch.value.trim().toLowerCase();
+      const status = equipmentStatusFilter.value;
+      const division = equipmentDivisionFilter.value;
+      const project = equipmentProjectFilter.value;
+
+      equipmentTableBody.innerHTML = '';
+
+      const filtered = equipmentData.filter(item => {
+        const matchesSearch =
+          !search ||
+          (item.unit && item.unit.toLowerCase().includes(search)) ||
+          (item.name && item.name.toLowerCase().includes(search)) ||
+          (item.division && item.division.toLowerCase().includes(search)) ||
+          (item.project && item.project.toLowerCase().includes(search));
+
+        const matchesStatus = !status || item.status === status;
+        const matchesDivision = !division || item.division === division;
+        const matchesProject = !project || item.project === project;
+
+        return matchesSearch && matchesStatus && matchesDivision && matchesProject;
+      });
+
+      filtered.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${item.unit || ''}</td>
+          <td>${item.name || ''}</td>
+          <td>${item.division || ''}</td>
+          <td>${item.project || ''}</td>
+          <td>${renderStatusPill(item.status)}</td>
+          <td>${item.location || ''}</td>
+          <td>
+            <button class="btn-link" data-id="${item.id || ''}">View</button>
+          </td>
+        `;
+        tr.addEventListener('click', (e) => {
+          // avoid double navigation if clicking button
+          if (e.target && e.target.matches('button.btn-link')) {
+            const id = e.target.getAttribute('data-id');
+            if (id) {
+              window.location.href = `/app/equipment/equipment-detail.html?id=${encodeURIComponent(id)}`;
+            }
+          } else if (item.id) {
+            window.location.href = `/app/equipment/equipment-detail.html?id=${encodeURIComponent(item.id)}`;
+          }
+        });
+        equipmentTableBody.appendChild(tr);
+      });
+
+      setEquipmentStatus(`Showing ${filtered.length} equipment record(s).`);
+    }
+
+    async function loadEquipmentFromWorker() {
+      setEquipmentStatus('Loading equipment…');
+      try {
+        const response = await fetch(`${WORKER_BASE_URL}/equipment/list`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ customerId: CUSTOMER_ID })
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || `HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        equipmentData = Array.isArray(data.equipment) ? data.equipment : [];
+
+        const divisions = [...new Set(equipmentData.map(e => e.division).filter(Boolean))];
+        const projects = [...new Set(equipmentData.map(e => e.project).filter(Boolean))];
+
+        equipmentDivisionFilter.innerHTML =
+          `<option value="">All divisions</option>` +
+          divisions.map(d => `<option value="${d}">${d}</option>`).join('');
+
+        equipmentProjectFilter.innerHTML =
+          `<option value="">All projects</option>` +
+          projects.map(p => `<option value="${p}">${p}</option>`).join('');
+
+        renderEquipmentTable();
+        setEquipmentStatus('Equipment loaded.', 'success');
+      } catch (err) {
+        console.error('Equipment load error:', err);
+        setEquipmentStatus('Failed to load equipment.', 'error');
+      }
+    }
+
+    // Events
+    btnRefreshEquipment.addEventListener('click', loadEquipmentFromWorker);
+    btnAddEquipment.addEventListener('click', () => {
+      window.location.href = '/app/onboarding/equipment.html';
+    });
+
+    equipmentSearch.addEventListener('input', renderEquipmentTable);
+    equipmentStatusFilter.addEventListener('change', renderEquipmentTable);
+    equipmentDivisionFilter.addEventListener('change', renderEquipmentTable);
+    equipmentProjectFilter.addEventListener('change', renderEquipmentTable);
+
+    // Initial load
+    loadEquipmentFromWorker();
+  </script>
+</body>
+</html>
