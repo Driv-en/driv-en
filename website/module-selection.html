@@ -1,987 +1,786 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<title>DRIV‑EN – Module Selection</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="/assets/favicon.png" />
 
-<!-- ===== PAGE-SPECIFIC SEO ===== -->
-<title>DRIV‑EN | Assign Key Personnel</title>
-<meta name="description" content="Assign onboarding responsibilities to key personnel in DRIV‑EN.">
-<meta name="robots" content="noindex, nofollow">
-<link rel="canonical" href="https://www.driv-en.com/app/onboarding/key-personnel.html">
-
-<!-- Favicon -->
-<link rel="icon" type="image/png" href="/assets/icons/favicon.png" sizes="48x48">
-<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png" sizes="96x96">
-<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png" sizes="192x192">
-<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png">
-
-<!-- ===== SHARED DASHBOARD CSS ===== -->
-<link rel="stylesheet" href="/app/shared/dashboard.css?v=7">
-
-<!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
-<script>
-(function() {
-  var saved = localStorage.getItem("driven-theme");
-  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  var theme = saved || system;
-  document.documentElement.setAttribute("data-theme", theme);
-})();
-</script>
-
-<!-- ===== PAGE-SPECIFIC STYLES ===== -->
 <style>
-    /* ===== GREETING BAR (Session 7 fix — must be above steel-bg background) ===== */
-    .ob-greeting-bar {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 12px 20px 0 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 10px;
-      position: relative;
-      z-index: 1;
-    }
-    .ob-greeting-text { font-size: 16px; color: var(--text-muted); font-weight: 500; }
-    .ob-greeting-text strong { color: var(--text); }
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  margin: 0;
+  padding: 0;
+  background: #0f172a;
+  color: #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
 
-    /* ===== BACK BUTTON BAR (below header) ===== */
-    .kp-back-bar {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 12px 20px 0 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-    .kp-back-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: #1e40af;
-      border: 1px solid #2563eb;
-      color: #dbeafe;
-      padding: 8px 14px;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 600;
-      text-decoration: none;
-      cursor: pointer;
-    }
-    .kp-back-btn:hover { background: #1d4ed8; color: #fff; }
+/* Sticky Header */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: 16px 24px;
+  border-bottom: 4px solid #2ecc71;
+  background: #020617;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+header img.logo {
+  height: 88px;
+}
+header .title-block h1 {
+  font-size: 18px;
+  margin: 0;
+}
+header .title-block span {
+  font-size: 12px;
+  color: #9ca3af;
+}
 
-    /* ===== PAGE-SPECIFIC CARD SUBTITLE ===== */
-    .kp-card-subtitle {
-      margin: 4px 0 12px 0;
-      color: var(--text-muted);
-      font-size: 14px;
-      line-height: 1.5;
-    }
+main {
+  flex: 1;
+  max-width: 1200px;
+  margin: 32px auto;
+  padding: 0 16px;
+}
 
-    /* ===== RESPONSIBILITY GROUPS (informational) ===== */
-    .kp-resp-group-title {
-      margin-top: 12px;
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text);
-    }
-    .kp-resp-list {
-      margin: 6px 0 10px 0;
-      padding-left: 18px;
-      color: var(--text-muted);
-      font-size: 14px;
-    }
-    .kp-resp-list li { margin-bottom: 4px; }
+/* Green banner */
+#selectionBanner {
+  display:none;
+  background:#022c22;
+  border:1px solid #22c55e;
+  color:#bbf7d0;
+  padding:10px 14px;
+  border-radius:6px;
+  margin-bottom:16px;
+  font-size:14px;
+  font-weight:600;
+}
 
-    /* ===== FORM ROWS ===== */
-    .kp-form-row {
-      margin-bottom: 15px;
-      display: flex;
-      flex-direction: column;
-    }
-    .kp-form-row label {
-      margin-bottom: 4px;
-      font-size: 14px;
-      color: var(--text);
-      font-weight: 600;
-    }
-    .kp-hint {
-      color: var(--text-muted);
-      font-size: 12px;
-      margin-bottom: 6px;
-    }
-    .kp-error-message {
-      margin-top: 10px;
-      color: var(--error);
-      font-size: 14px;
-    }
-    .kp-success-message {
-      margin-top: 10px;
-      color: var(--success);
-      font-size: 14px;
-    }
-    .kp-next-step {
-      margin-top: 4px;
-      color: var(--text-muted);
-      font-size: 13px;
-    }
+/* Layout */
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
 
-    /* ===== TASK CHECKBOXES ===== */
-    .kp-task-group {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 6px 16px;
-      margin-top: 6px;
-    }
-    .kp-task-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 14px;
-      color: var(--text);
-    }
-    .kp-task-item input[type="checkbox"] {
-      accent-color: var(--primary);
-      width: 16px;
-      height: 16px;
-    }
+.card {
+  border: 1px solid #1f2937;
+  background: #020617;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
 
-    /* ===== BUTTONS ===== */
-    .kp-btn-primary {
-      background: var(--primary);
-      color: white;
-      padding: 10px 18px;
-      border-radius: 6px;
-      font-size: 15px;
-      border: 1px solid var(--primary-hover);
-      cursor: pointer;
-      margin-top: 10px;
-    }
-    .kp-btn-primary:hover { background: var(--primary-hover); }
-    .kp-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.module-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
 
-    .kp-btn-secondary {
-      background: var(--bg-card);
-      color: var(--text);
-      padding: 10px 18px;
-      border-radius: 6px;
-      font-size: 15px;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      border: 1px solid var(--border);
-    }
-    .kp-btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+.module-item {
+  padding: 12px;
+  border: 1px solid #1f2937;
+  border-radius: 6px;
+  background: #0f172a;
+}
 
-    /* ===== ACTION ROW (bottom buttons) ===== */
-    .kp-action-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: nowrap;
-    }
-    .kp-action-row .kp-btn-primary,
-    .kp-action-row .kp-btn-secondary {
-      margin-top: 0;
-      box-sizing: border-box;
-      height: 42px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
+.module-item label {
+  font-size: 15px;
+  font-weight: 600;
+  color: #e5e7eb;
+  display: block;
+  margin-bottom: 6px;
+}
 
-    /* ===== TABLES ===== */
-    .kp-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 12px;
-    }
-    .kp-table th, .kp-table td {
-      border: 1px solid var(--border);
-      padding: 8px;
-      font-size: 14px;
-      vertical-align: top;
-    }
-    .kp-table th {
-      background: var(--bg-header);
-      color: var(--text);
-      font-weight: 600;
-    }
-    .kp-table td {
-      background: var(--bg-card);
-      color: var(--text);
-    }
-    .kp-tables-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-    }
-    .kp-tables-grid h3 {
-      font-size: 15px;
-      color: var(--text);
-      margin: 0 0 4px 0;
-    }
+.module-desc {
+  font-size: 13px;
+  color: #9ca3af;
+  margin-bottom: 10px;
+  line-height: 1.45;
+}
 
-    /* ===== REVOKE CHECKBOXES ===== */
-    .kp-revoke-item {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 13px;
-      color: var(--text-muted);
-      margin-bottom: 3px;
-    }
-    .kp-revoke-item input[type="checkbox"] {
-      accent-color: var(--error);
-      width: 14px;
-      height: 14px;
-    }
-    .kp-revoke-all-label {
-      font-weight: 600;
-      margin-top: 4px;
-      border-top: 1px solid var(--border);
-      padding-top: 4px;
-    }
-    .kp-pending-badge {
-      font-size: 11px;
-      color: var(--text-muted);
-      background: var(--bg-header);
-      padding: 2px 6px;
-      border-radius: 4px;
-      margin-left: 4px;
-    }
+.module-price {
+  font-size: 13px;
+  color: #e5e7eb;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
 
-    /* ===== STEP STATUS ===== */
-    .kp-step-status {
-      margin-top: 12px;
-      font-size: 14px;
-      color: var(--success);
-    }
+.module-item input {
+  transform: scale(1.2);
+  cursor: pointer;
+}
 
-    /* ===== ADMIN INFO AUTO-FILL NOTE ===== */
-    .kp-autofill-note {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-bottom: 10px;
-      font-style: italic;
-    }
+.footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
 
-    /* ===== MOBILE RESPONSIVE ===== */
-    @media (max-width: 900px) {
-      .kp-tables-grid { grid-template-columns: 1fr; }
-    }
-    @media (max-width: 600px) {
-      .kp-action-row .kp-btn-primary,
-      .kp-action-row .kp-btn-secondary {
-        font-size: 13px;
-        padding: 8px 12px;
-        height: 38px;
-      }
-      .kp-action-row { gap: 8px; }
-      .kp-task-group { grid-template-columns: 1fr; }
-    }
+button {
+  font-size: 13px;
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.btn-secondary {
+  background: #020617;
+  border-color: #374151;
+  color: #e5e7eb;
+}
+
+.btn-primary {
+  background: #22c55e;
+  border-color: #16a34a;
+  color: #022c22;
+  font-weight: 600;
+}
+
+.status-bar {
+  margin-top: 12px;
+  font-size: 12px;
+  color: #9ca3af;
+  min-height: 18px;
+}
+
+/* Coming Soon */
+.coming-soon {
+  padding: 20px;
+  border: 1px solid #1f2937;
+  background: #020617;
+  border-radius: 8px;
+}
+
+.coming-item {
+  margin-top: 12px;
+  padding: 12px;
+  background: #0f172a;
+  border-radius: 6px;
+  border: 1px solid #1f2937;
+}
+
+.coming-item-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.coming-item-desc {
+  font-size: 13px;
+  color: #9ca3af;
+  line-height: 1.45;
+}
+
+.coming-note {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #4ade80;
+  font-style: italic;
+}
+
+/* Footer */
+footer {
+  background-color: #111;
+  color: #eee;
+  text-align: center;
+  padding: 24px;
+  margin-top: 48px;
+  border-top: 4px solid #2ecc71;
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+footer a {
+  color: #2ecc71;
+  text-decoration: none;
+  margin: 0 8px;
+}
+
+/* ⭐ MOBILE FOOTER CENTERING FIX */
+@media (max-width: 600px) {
+  footer {
+    text-align: center;
+    line-height: 1.4;
+    width: 100%;
+    margin: 0 auto;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  footer br {
+    display: block;
+  }
+
+  footer .footer-line {
+    display: block;
+    margin: 6px 0;
+    width: 100%;
+    text-align: center;
+  }
+
+  footer a {
+    margin: 0 6px;
+  }
+}
 </style>
 
 </head>
 
-<!-- Page title — appears in the dashboard header -->
-<body data-page-title="Assign Key Personnel" data-required-role="Admin">
+<body>
 
-<!-- ===== INDUSTRIAL DIAMOND-PLATE BACKGROUND (do not remove) ===== -->
-<div class="steel-bg"></div>
-<div class="steel-overlay"></div>
+<header>
+  <div class="title-block">
+    <h1>DRIV‑EN – Module Selection</h1>
+    <span>Step 1 · Choose your modules</span>
+  </div>
+<a href="https://www.driv-en.com/website/index.html">
+  <img src="/assets/logo.png?v=2026" alt="DRIV‑EN Logo" class="logo">
+</a>
 
-<!-- ===== SHARED DASHBOARD HEADER (auto-loaded by dashboard-common.js) ===== -->
-<div id="dashHeader"></div>
+</header>
 
-<!-- ===== GREETING BAR (Session 7 — shows "Welcome, [Name]" and admin button) ===== -->
-<div class="ob-greeting-bar">
-  <div class="ob-greeting-text" id="dashGreetingText">Welcome</div>
+<main>
+
+<h2>Select the modules your business needs</h2>
+
+<!-- Green banner for bundle/module selection -->
+<div id="selectionBanner"></div>
+
+<p>
+  DRIV‑EN is modular. Choose the features you want to activate for your workspace.
+  You can adjust your active modules whenever your business needs change.
+</p>
+
+<!-- Pricing note + plan banner -->
+<div class="pricing-note">
+
+  <!-- Bundle activation banner (hidden until bundle is selected) -->
+  <div id="planBanner" class="plan-banner" style="display:none;">
+    <strong id="planBannerTitle"></strong>
+    <span id="planBannerText"></span>
+  </div>
+
+  Equipment Management is required. Other modules are optional and may be billed monthly or annually (annual billing receives a 10% discount).
 </div>
 
-<!-- ===== BACK BUTTON BAR ===== -->
-<div class="kp-back-bar">
-  <a href="/app/dashboard/admin.html" class="kp-back-btn driven-admin-only">&larr; Admin Dashboard</a>
-  <a href="/app/dashboard/onboarding-dashboard.html" class="kp-back-btn" style="background:#374151;border-color:#4b5563;color:#d1d5db;">&larr; Onboarding Dashboard</a>
+<!-- Bundle Pricing Section -->
+<div class="bundle-note">
+  <div class="bundle-title">Bundle Pricing</div>
+
+  <div class="bundle-item">
+    <input type="checkbox" id="bundleOperations">
+    Operations Bundle — $499/month<br>
+    <span>Equipment Management + Preventative Maintenance + Equipment Inspections + Extraction Engine (Included)</span>
+  </div>
+
+  <div class="bundle-item">
+    <input type="checkbox" id="bundleFull">
+    Full Equipment Bundle — $529/month<br>
+    <span>Equipment Management + Preventative Maintenance + Equipment Inspections + Work Orders + Extraction Engine (Included)</span>
+  </div>
+
+  <div class="bundle-item">
+    <input type="checkbox" id="bundleComplete">
+    Complete Platform Bundle — $599/month<br>
+    <span>All modules included + Extraction Engine (Included)</span>
+  </div>
 </div>
 
-<!-- ===== PAGE CONTENT ===== -->
-<main class="dash-main">
+<div class="layout">
 
-  <!-- ===== INTRO ===== -->
-  <div class="dash-card">
-    <h2>Assign Onboarding Responsibilities</h2>
-    <p class="kp-card-subtitle">
-      Key Personnel are the people who will be responsible for uploading onboarding data.
-      This may include admins, clerks, supervisors, or anyone who has access to the information
-      needed for their assigned tasks. Enter their full name and contact information,
-      then select all onboarding tasks they are responsible for.
-    </p>
-    <p class="kp-card-subtitle">
-      You may assign multiple people to the same task, and you may assign the same person to multiple tasks.
-      These assignments determine who is responsible for completing your initial data uploads.
-    </p>
-    <p class="kp-card-subtitle">
-      You can save at any time — all tasks do not need to be assigned. Come back later to add more people or revoke assignments.
-    </p>
-    <p class="kp-card-subtitle">
-      HR/Payroll will complete any remaining employee fields later.
-    </p>
-  </div>
+  <!-- LEFT COLUMN — MODULES -->
+  <div>
+    <div class="card">
+      <h3 style="margin-top:0;font-size:16px;">Available Modules</h3>
 
-  <!-- ===== RESPONSIBILITIES (INFORMATIONAL) ===== -->
-  <div class="dash-card">
-    <h2>Onboarding Responsibilities</h2>
-    <p class="kp-card-subtitle">
-      These are the setup tasks required so your Driv‑en modules can operate correctly.
-      They are not modules; they are data uploads your team will complete during onboarding.
-    </p>
+      <div class="module-list">
 
-    <div class="kp-resp-group-title">Company Information</div>
-    <ul class="kp-resp-list">
-      <li><strong>Employees</strong> — employee name and email (required for Work Orders and future Safety/Training modules).</li>
-      <li><strong>Divisions</strong> — division name (your company's internal structure used for equipment transfers and reporting).</li>
-    </ul>
+        <!-- Equipment Management -->
+        <div class="module-item">
+          <label for="modEquipment">Equipment Management (Required)</label>
+          <div class="module-price">$149/month</div>
+          <div class="module-desc">
+            The foundation of your fleet operations. Track unit details, locations, meter readings, operational status, and configuration profiles.
+            Equipment Management is the core of DRIV‑EN and powers every other module.
+            When selected alone, it provides essential manual tracking.
+            When paired with PM, Inspections, Work Orders, Fuel, or Transfers, it becomes a fully automated operational system.
+          </div>
+          <input type="checkbox" id="modEquipment" checked disabled />
+        </div>
 
-    <div class="kp-resp-group-title">Project Information</div>
-    <ul class="kp-resp-list">
-      <li><strong>Clients</strong> — client name (companies or owners associated with your projects).</li>
-      <li><strong>Project Types</strong> — project type name (used to categorize projects for scheduling and reporting; someone knowledgeable about your project categories).</li>
-      <li><strong>Projects</strong> — project name, client, division, and project type (required for Work Orders, Preventative Maintenance scheduling, and future Project Management).</li>
-    </ul>
+        <!-- PM -->
+        <div class="module-item">
+          <label for="modPM">Preventative Maintenance</label>
+          <div class="module-price">$299/month</div>
+          <div class="module-desc">
+            Automated PM schedules, manufacturer‑accurate templates, and guided technician workflows.
+            DRIV‑EN's extraction engine reads equipment manuals, manufacturer documentation, and configuration details to identify part numbers, fluid types, capacities, intervals, and safety requirements.
+            PM completions update Equipment Management automatically and generate full digital reports.
+          </div>
+          <input type="checkbox" id="modPM" />
+        </div>
 
-    <div class="kp-resp-group-title">Equipment Information</div>
-    <ul class="kp-resp-list">
-      <li><strong>Equipment</strong> — asset number, equipment type, current meter reading, and current project/location (required for Equipment Management, Preventative Maintenance, Inspections, Fuel Usage, and Transfers).</li>
-    </ul>
-  </div>
+        <!-- Inspections -->
+        <div class="module-item">
+          <label for="modInspections">Equipment Inspections</label>
+          <div class="module-price">$199/month</div>
+          <div class="module-desc">
+            Safety and compliance inspections tailored to each unit.
+            Templates adapt to equipment type, configuration, and operational requirements.
+            If Preventative Maintenance is active, inspections incorporate manufacturer safety items retrieved by the extraction engine.
+            Completed inspections update Equipment Management and trigger safety alerts when needed.
+          </div>
+          <input type="checkbox" id="modInspections" />
+        </div>
 
-  <!-- ===== ADMIN INFO (for email CC) ===== -->
-  <div class="dash-card">
-    <h2>Administrator Information</h2>
-    <p class="kp-card-subtitle">
-      Your name and email are used to personalize the notification emails sent to each Key Personnel (they will CC you).
-      Required only when adding new Key Personnel.
-    </p>
-    <p class="kp-autofill-note">Auto-filled from your login session — edit if needed.</p>
-    <div class="kp-form-row">
-      <label for="adminName">Administrator Name</label>
-      <input type="text" id="adminName" class="dash-input" placeholder="Your full name">
-    </div>
-    <div class="kp-form-row">
-      <label for="adminEmail">Administrator Email</label>
-      <input type="email" id="adminEmail" class="dash-input" placeholder="you@company.com">
-    </div>
-  </div>
+        <!-- Work Orders -->
+        <div class="module-item">
+          <label for="modWorkOrders">Work Orders</label>
+          <div class="module-price">$149/month</div>
+          <div class="module-desc">
+            Manage repairs, diagnostics, and non‑PM maintenance tasks with structured work orders.
+            Assign personnel, track progress, capture photos and notes, and close tasks with full documentation.
+            Work Orders integrate seamlessly with Equipment Management and can be triggered by inspections, PM completions, or manual entry.
+          </div>
+          <input type="checkbox" id="modWorkOrders" />
+        </div>
 
-  <!-- ===== KEY PERSONNEL ENTRY ===== -->
-  <div class="dash-card">
-    <h2>Add Key Personnel</h2>
+        <!-- Fuel -->
+        <div class="module-item">
+          <label for="modFuel">Fuel Usage Tracking</label>
+          <div class="module-price">$49/month</div>
+          <div class="module-desc">
+            Monitor fuel consumption, cost, and efficiency across your fleet.
+            Automatically update meter readings and equipment status.
+            Fuel data enhances PM scheduling when Preventative Maintenance is active and provides valuable insights into operating costs.
+          </div>
+          <input type="checkbox" id="modFuel" />
+        </div>
 
-    <div class="kp-form-row">
-      <label for="firstName">First Name</label>
-      <input type="text" id="firstName" class="dash-input">
-    </div>
-    <div class="kp-form-row">
-      <label for="lastName">Last Name</label>
-      <input type="text" id="lastName" class="dash-input">
-    </div>
-    <div class="kp-form-row">
-      <label for="email">Email</label>
-      <input type="email" id="email" class="dash-input">
-    </div>
+        <!-- Transfers -->
+        <div class="module-item">
+          <label for="modTransfers">Equipment Transfer Tracking</label>
+          <div class="module-price">$79/month</div>
+          <div class="module-desc">
+            Track equipment movement between projects, yards, shops, and divisions.
+            Transfers automatically update Equipment Management and adjust PM and inspection schedules based on where each unit is operating.
+            Maintain a complete movement history for every asset.
+          </div>
+          <input type="checkbox" id="modTransfers" />
+        </div>
 
-    <div class="kp-form-row">
-      <label>Select all onboarding tasks this person is responsible for:</label>
-      <small class="kp-hint">You may assign multiple people to the same task, and the same person to multiple tasks.</small>
-      <div class="kp-task-group">
-        <label class="kp-task-item">
-          <input type="checkbox" id="taskEmployees" value="Employees">
-          <span>Employees</span>
-        </label>
-        <label class="kp-task-item">
-          <input type="checkbox" id="taskClients" value="Clients">
-          <span>Clients</span>
-        </label>
-        <label class="kp-task-item">
-          <input type="checkbox" id="taskDivisions" value="Divisions">
-          <span>Divisions</span>
-        </label>
-        <label class="kp-task-item">
-          <input type="checkbox" id="taskProjectTypes" value="Project Types">
-          <span>Project Types</span>
-        </label>
-        <label class="kp-task-item">
-          <input type="checkbox" id="taskProjects" value="Projects">
-          <span>Projects</span>
-        </label>
-        <label class="kp-task-item">
-          <input type="checkbox" id="taskEquipment" value="Equipment">
-          <span>Equipment</span>
-        </label>
+        <!-- Extraction -->
+        <div class="module-item">
+          <label for="modExtraction">Extraction Engine</label>
+          <div class="module-price">$149/month</div>
+          <div class="module-desc">
+            DRIV‑EN's extraction engine analyzes equipment manuals, manufacturer documentation, and configuration details to retrieve part numbers, fluid types, capacities, maintenance intervals, safety requirements, and operational specifications.
+            This intelligence powers automated PM templates, inspection templates, and equipment configuration profiles.
+            <br><br>
+            <strong>Requires Preventative Maintenance or Equipment Inspections.</strong><br>
+            <strong>Included at no charge in all bundles.</strong>
+          </div>
+          <input type="checkbox" id="modExtraction" />
+        </div>
+
       </div>
-    </div>
 
-    <button id="btnAddKP" class="kp-btn-primary">Add Key Personnel</button>
-    <div id="kpError" class="kp-error-message"></div>
-    <div id="kpSuccess" class="kp-success-message"></div>
-    <div id="kpNextStep" class="kp-next-step"></div>
-  </div>
-
-  <!-- ===== CURRENT ASSIGNMENTS ===== -->
-  <div class="dash-card">
-    <h2>Current Assignments</h2>
-    <p class="kp-card-subtitle">
-      These employees will be added to your Employee list automatically. Assignments update each time you add a person.
-      To revoke an assignment, check the box next to the task in the Personnel table and click Save &amp; Continue — you will be asked to confirm.
-    </p>
-
-    <div class="kp-tables-grid">
-      <div>
-        <h3>Tasks &rarr; Personnel</h3>
-        <div id="tasksTableContainer"></div>
+      <div class="footer-actions">
+        <button class="btn-secondary" id="btnCancel">Cancel</button>
+        <button class="btn-secondary" id="btnClear">Clear Modules Selected</button>
+        <button class="btn-primary" id="btnContinue">Continue</button>
       </div>
-      <div>
-        <h3>Personnel &rarr; Tasks</h3>
-        <div id="personnelTableContainer"></div>
-      </div>
+
+      <div class="status-bar" id="statusBar"></div>
+      <div id="savingsPreview" style="display:none;margin-top:10px;padding:10px;background:#fff8e1;border:1px solid #ffb300;border-radius:6px;font-weight:600;color:#795548;"></div>
+
     </div>
   </div>
 
-  <!-- ===== ACTIONS ===== -->
-  <div class="dash-card">
-    <div class="kp-action-row">
-      <a href="/app/dashboard/onboarding-dashboard.html" class="kp-btn-secondary">Return to Onboarding</a>
-      <button id="btnCompleteStep" class="kp-btn-primary">Save &amp; Continue</button>
+  <!-- RIGHT COLUMN — COMING SOON -->
+  <div>
+    <div class="coming-soon">
+      <h3>Coming Soon</h3>
+
+      <div class="coming-item">
+        <div class="coming-item-title">Safety Training & Certifications</div>
+        <div class="coming-item-desc">
+          Includes equipment‑specific training, project‑required certifications, OSHA annual training, and other regulatory or company‑required qualifications.
+        </div>
+        <div class="coming-note">Learn more on our website and sign up to be notified when this module launches.</div>
+      </div>
+
+      <div class="coming-item">
+        <div class="coming-item-title">Project Management</div>
+        <div class="coming-item-desc">
+          Manage project phases, tasks, assignments, materials, and progress tracking.
+        </div>
+        <div class="coming-note">Learn more on our website and sign up to be notified when this module launches.</div>
+      </div>
+
+      <div class="coming-item">
+        <div class="coming-item-title">Material Receiving</div>
+        <div class="coming-item-desc">
+          Log incoming materials, verify quantities, track delivery issues, and link items to projects.
+        </div>
+        <div class="coming-note">Learn more on our website and sign up to be notified when this module launches.</div>
+      </div>
+
+      <div class="coming-item">
+        <div class="coming-item-title">Accident / Incident Investigations</div>
+        <div class="coming-item-desc">
+          Document incidents, capture evidence, track corrective actions, and maintain compliance records.
+        </div>
+        <div class="coming-note">Learn more on our website and sign up to be notified when this module launches.</div>
+      </div>
+
+      <div class="coming-item">
+        <div class="coming-item-title">JSA / JHA</div>
+        <div class="coming-item-desc">
+          Create job safety analyses tailored to tasks, hazards, and equipment involved.
+        </div>
+        <div class="coming-note">Learn more on our website and sign up to be notified when this module launches.</div>
+      </div>
+
+      <div class="coming-item">
+        <div class="coming-item-title">Lockout / Tagout (LOTO)</div>
+        <div class="coming-item-desc">
+          Manage LOTO procedures, authorized personnel, and equipment isolation steps.
+        </div>
+        <div class="coming-note">Learn more on our website and sign up to be notified when this module launches.</div>
+      </div>
+
+      <div class="coming-item">
+        <div class="coming-item-title">HAZCOM</div>
+        <div class="coming-item-desc">
+          Track hazardous materials, SDS documentation, and employee communication requirements.
+        </div>
+        <div class="coming-note">Learn more on our website and sign up to be notified when this module launches.</div>
+      </div>
+
+      <div class="coming-item">
+        <div class="coming-item-title">Hazard Recognition Reporting</div>
+        <div class="coming-item-desc">
+          Capture field hazards, photos, severity ratings, and corrective actions.
+        </div>
+        <div class="coming-note">Learn more on our website and sign up to be notified when this module launches.</div>
+      </div>
+
     </div>
-    <div id="stepStatus" class="kp-step-status"></div>
   </div>
+
+</div>
+  
+<script>
+
+// Buttons
+const btnContinue = document.getElementById("btnContinue");
+const btnCancel = document.getElementById("btnCancel");
+const btnClear = document.getElementById("btnClear");
+const statusBar = document.getElementById("statusBar");
+
+// Modules
+const modPM = document.getElementById("modPM");
+const modIns = document.getElementById("modInspections");
+const modWO = document.getElementById("modWorkOrders");
+const modFuel = document.getElementById("modFuel");
+const modTransfers = document.getElementById("modTransfers");
+const modExtraction = document.getElementById("modExtraction");
+
+// Bundles
+const bundleOps = document.getElementById("bundleOperations");
+const bundleFull = document.getElementById("bundleFull");
+const bundleComplete = document.getElementById("bundleComplete");
+const bundleIds = ["bundleOperations", "bundleFull", "bundleComplete"];
+
+let bundleActive = false;
+let activeBundle = null;
+
+/* -----------------------------
+   ⭐ RESTORE PREVIOUS SELECTIONS ONLY WHEN RETURNING FROM CART
+------------------------------ */
+(function restoreSelections() {
+  const returning = localStorage.getItem("returningFromCart");
+
+  // Only restore if user clicked "Back to Module Selection"
+  if (returning !== "yes") return;
+
+  const saved = JSON.parse(localStorage.getItem("selectedModules") || "[]");
+
+  // Clear flag so future visits start fresh
+  localStorage.removeItem("returningFromCart");
+
+  if (saved.length === 0) return;
+
+  // Restore modules
+  modPM.checked = saved.includes("Preventative Maintenance");
+  modIns.checked = saved.includes("Equipment Inspections");
+  modWO.checked = saved.includes("Work Orders");
+  modFuel.checked = saved.includes("Fuel Usage Tracking");
+  modTransfers.checked = saved.includes("Equipment Transfer Tracking");
+  modExtraction.checked = saved.includes("Extraction Engine");
+
+  // Restore bundle
+  const savedBundle = saved.find(x => x.includes("Bundle"));
+
+  if (savedBundle) {
+    if (savedBundle === "Operations Bundle") bundleOps.checked = true;
+    if (savedBundle === "Full Equipment Bundle") bundleFull.checked = true;
+    if (savedBundle === "Complete Platform Bundle") bundleComplete.checked = true;
+
+    applyBundle(
+      savedBundle === "Operations Bundle" ? "bundleOperations" :
+      savedBundle === "Full Equipment Bundle" ? "bundleFull" :
+      "bundleComplete"
+    );
+  }
+
+  showSelectionBanner();
+})();
+
+/* -----------------------------
+   ⭐ EXTRACTION ENGINE RULES
+   The Extraction Engine requires PM or Inspections to be selected.
+   If neither is checked, Extraction is disabled and unchecked.
+   If a bundle is active, this is skipped (bundle controls all modules).
+------------------------------ */
+function updateExtractionRules() {
+  // If a bundle is active, modules are controlled by the bundle — skip
+  if (bundleActive) return;
+
+  const pmOrIns = modPM.checked || modIns.checked;
+
+  if (!pmOrIns) {
+    // Neither PM nor Inspections selected — Extraction cannot be used alone
+    modExtraction.checked = false;
+    modExtraction.disabled = true;
+  } else {
+    // PM or Inspections is selected — Extraction is available
+    modExtraction.disabled = false;
+  }
+}
+
+/* -----------------------------
+   GREEN BANNER (Selected Modules)
+------------------------------ */
+function showSelectionBanner() {
+  const banner = document.getElementById("selectionBanner");
+
+  if (!bundleActive) {
+    banner.style.display = "none";
+    return;
+  }
+
+  const modules = [];
+
+  if (modPM.checked) modules.push("Preventative Maintenance");
+  if (modIns.checked) modules.push("Equipment Inspections");
+  if (modWO.checked) modules.push("Work Orders");
+  if (modFuel.checked) modules.push("Fuel Usage Tracking");
+  if (modTransfers.checked) modules.push("Equipment Transfer Tracking");
+  if (modExtraction.checked) modules.push("Extraction Engine");
+
+  // Equipment Management is always listed first because it is required for every bundle
+  banner.innerHTML =
+    `<strong>Selected: ${activeBundle}</strong><br>` +
+    `<span style="display:block; margin-left:20px;">Equipment Management (Required)<br>${modules.join("<br>")}</span>`;
+
+  banner.style.display = "block";
+}
+
+/* -----------------------------
+   CLEAR OTHER BUNDLES
+------------------------------ */
+function clearOtherBundles(selectedId) {
+  bundleIds.forEach(id => {
+    if (id !== selectedId) {
+      document.getElementById(id).checked = false;
+    }
+  });
+}
+
+/* -----------------------------
+   APPLY BUNDLE LOGIC
+------------------------------ */
+function applyBundle(bundleId) {
+  bundleActive = true;
+
+  // Reset all modules first
+  [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(m => {
+    m.checked = false;
+    m.disabled = true;
+  });
+
+  if (bundleId === "bundleOperations") {
+    activeBundle = "Operations Bundle";
+    modPM.checked = true;
+    modIns.checked = true;
+    modExtraction.checked = true;
+  }
+
+  if (bundleId === "bundleFull") {
+    activeBundle = "Full Equipment Bundle";
+    modPM.checked = true;
+    modIns.checked = true;
+    modWO.checked = true;
+    modExtraction.checked = true;
+  }
+
+  if (bundleId === "bundleComplete") {
+    activeBundle = "Complete Platform Bundle";
+    modPM.checked = true;
+    modIns.checked = true;
+    modWO.checked = true;
+    modFuel.checked = true;
+    modTransfers.checked = true;
+    modExtraction.checked = true;
+  }
+
+  showSelectionBanner();
+}
+
+/* -----------------------------
+   BREAK BUNDLE IF MODULES CHANGE
+------------------------------ */
+function uncheckBundleIfModuleChanged() {
+  if (!bundleActive) return;
+
+  const modules = [modPM, modIns, modWO, modFuel, modTransfers, modExtraction];
+  const changed = modules.some(m => !m.disabled && !m.checked);
+
+  if (changed) {
+    bundleActive = false;
+    activeBundle = null;
+
+    bundleIds.forEach(id => {
+      document.getElementById(id).checked = false;
+    });
+
+    modules.forEach(m => {
+      m.disabled = false;
+      m.checked = false;
+    });
+
+    statusBar.textContent = "";
+    document.getElementById("selectionBanner").style.display = "none";
+
+    updateExtractionRules();
+  }
+}
+
+/* -----------------------------
+   MODULE CHANGE EVENTS
+------------------------------ */
+[modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
+  el.addEventListener("change", () => {
+    uncheckBundleIfModuleChanged();
+    updateExtractionRules();
+    showSelectionBanner();
+  });
+});
+
+/* -----------------------------
+   BUNDLE CLICK EVENTS
+------------------------------ */
+bundleIds.forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener("change", () => {
+    if (el.checked) {
+      clearOtherBundles(id);
+      applyBundle(id);
+    } else {
+      bundleActive = false;
+      activeBundle = null;
+
+      [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(m => {
+        m.disabled = false;
+        m.checked = false;
+      });
+
+      statusBar.textContent = "";
+      document.getElementById("selectionBanner").style.display = "none";
+
+      updateExtractionRules();
+    }
+  });
+});
+
+/* -----------------------------
+   CONTINUE BUTTON
+------------------------------ */
+btnContinue.addEventListener("click", () => {
+  const selected = ["Equipment Management"];
+
+  if (modPM.checked) selected.push("Preventative Maintenance");
+  if (modIns.checked) selected.push("Equipment Inspections");
+  if (modWO.checked) selected.push("Work Orders");
+  if (modFuel.checked) selected.push("Fuel Usage Tracking");
+  if (modTransfers.checked) selected.push("Equipment Transfer Tracking");
+  if (modExtraction.checked) selected.push("Extraction Engine");
+
+  if (bundleActive && activeBundle) {
+    selected.push(activeBundle);
+  }
+
+  localStorage.setItem("selectedModules", JSON.stringify(selected));
+  window.location.href = "/website/cart.html";
+});
+
+/* -----------------------------
+   CLEAR MODULES
+------------------------------ */
+btnClear.addEventListener("click", () => {
+  bundleActive = false;
+  activeBundle = null;
+
+  bundleIds.forEach(id => {
+    document.getElementById(id).checked = false;
+  });
+
+  [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
+    el.checked = false;
+    el.disabled = false;
+  });
+
+  updateExtractionRules();
+  statusBar.textContent = "";
+  document.getElementById("selectionBanner").style.display = "none";
+  document.getElementById("selectionBanner").innerHTML = "";
+});
+
+</script>
 
 </main>
 
-<!-- ===== SHARED DASHBOARD JS (loads header, theme, logo, session) ===== -->
-<script src="/app/shared/dashboard-common.js?v=7"></script>
-
-<!-- ===== AUTH CHECK (shared — enforces login + Admin role) ===== -->
-<script src="/app/shared/auth-check.js?v=7"></script>
-
-<!-- ===== PAGE-SPECIFIC SCRIPT ===== -->
-<script>
-    /* ==========================================
-       ONBOARDING KEY PERSONNEL PAGE
-       ==========================================
-       What this page does:
-       1. Auto-fills admin name and email from the session
-       2. Loads existing key personnel from the API
-       3. Lets the admin add new key personnel with task assignments
-       4. Shows two tables: Tasks→Personnel and Personnel→Tasks
-       5. Lets the admin revoke assignments (individual or all)
-       6. Saves everything via the API on "Save & Continue"
-
-       The "dashSessionLoaded" event fires when dashboard-common.js
-       has loaded the user session. We use it to auto-fill the
-       admin name and email fields.
-       ========================================== */
-
-    // ===== DOM REFERENCES =====
-    var kpError = document.getElementById("kpError");
-    var kpSuccess = document.getElementById("kpSuccess");
-    var kpNextStep = document.getElementById("kpNextStep");
-    var tasksTableContainer = document.getElementById("tasksTableContainer");
-    var personnelTableContainer = document.getElementById("personnelTableContainer");
-    var stepStatus = document.getElementById("stepStatus");
-
-    // ===== TASK DEFINITIONS =====
-    // These are the 6 onboarding tasks that can be assigned to key personnel
-    var TASKS = [
-      "Employees",
-      "Clients",
-      "Divisions",
-      "Project Types",
-      "Projects",
-      "Equipment"
-    ];
-
-    // ===== STATE =====
-    var existingPersonnel = [];  // Personnel already saved in the database (loaded from API)
-    var keyPersonnel = [];        // Personnel added locally (not yet saved)
-    var assignments = {           // Combined view of all assignments
-      tasks: {},
-      personnel: {}
-    };
-
-    // Initialize assignments structure — each task starts with empty array
-    TASKS.forEach(function(t) {
-      assignments.tasks[t] = [];
-    });
-
-    // ===== HELPER: Validate email format =====
-    function isValidEmail(email) {
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    }
-
-    // ===== HELPER: Get selected task checkboxes =====
-    // Returns an array of task names that are checked
-    function getSelectedTasks() {
-      var ids = [
-        "taskEmployees",
-        "taskClients",
-        "taskDivisions",
-        "taskProjectTypes",
-        "taskProjects",
-        "taskEquipment"
-      ];
-      return ids
-        .map(function(id) { return document.getElementById(id); })
-        .filter(function(el) { return el.checked; })
-        .map(function(el) { return el.value; });
-    }
-
-    // ===== HELPER: Clear all task checkboxes =====
-    function clearTaskCheckboxes() {
-      [
-        "taskEmployees",
-        "taskClients",
-        "taskDivisions",
-        "taskProjectTypes",
-        "taskProjects",
-        "taskEquipment"
-      ].forEach(function(id) {
-        document.getElementById(id).checked = false;
-      });
-    }
-
-    // ===== REBUILD ASSIGNMENTS =====
-    // Combines existing (API) and new (local) personnel into one view
-    function rebuildAssignments() {
-      assignments = { tasks: {}, personnel: {} };
-      TASKS.forEach(function(t) { assignments.tasks[t] = []; });
-
-      // From existing personnel (loaded from API)
-      existingPersonnel.forEach(function(kp) {
-        var tasks = kp.roles.map(function(r) { return r.role; });
-        assignments.personnel[kp.name] = tasks;
-        tasks.forEach(function(task) {
-          if (!assignments.tasks[task]) assignments.tasks[task] = [];
-          if (assignments.tasks[task].indexOf(kp.name) === -1) {
-            assignments.tasks[task].push(kp.name);
-          }
-        });
-      });
-
-      // From new key personnel (added locally, not yet saved)
-      keyPersonnel.forEach(function(kp) {
-        if (!assignments.personnel[kp.name]) {
-          assignments.personnel[kp.name] = [];
-        }
-        kp.tasks.forEach(function(task) {
-          if (assignments.personnel[kp.name].indexOf(task) === -1) {
-            assignments.personnel[kp.name].push(task);
-          }
-          if (!assignments.tasks[task]) assignments.tasks[task] = [];
-          if (assignments.tasks[task].indexOf(kp.name) === -1) {
-            assignments.tasks[task].push(kp.name);
-          }
-        });
-      });
-    }
-
-    // ===== LOAD EXISTING PERSONNEL FROM API =====
-    // Fetches key personnel from /api/onboarding/key-personnel/list
-    // Called on page load and after saving
-    async function loadExistingPersonnel() {
-      var customerId = localStorage.getItem("driven_customer_id");
-      if (!customerId) return;
-
-      try {
-        var response = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(customerId));
-        var data = await response.json();
-
-        if (data.success && data.keyPersonnel) {
-          existingPersonnel = data.keyPersonnel;
-          rebuildAssignments();
-          renderTasksTable();
-          renderPersonnelTable();
-        }
-      } catch (e) {
-        // API might not be available yet — OK for first-time use
-      }
-    }
-
-    // ===== RENDER TASKS TABLE (Tasks → Personnel) =====
-    function renderTasksTable() {
-      var hasAnyAssignment = TASKS.some(function(t) {
-        return assignments.tasks[t] && assignments.tasks[t].length > 0;
-      });
-
-      if (!hasAnyAssignment) {
-        tasksTableContainer.innerHTML = "<p style='color:var(--text-muted);font-size:14px'>No task assignments yet.</p>";
-        return;
-      }
-
-      var rows = TASKS.map(function(task) {
-        var names = assignments.tasks[task] || [];
-        return '<tr><td>' + task + '</td><td>' + (names.length ? names.join(", ") : "—") + '</td></tr>';
-      }).join("");
-
-      tasksTableContainer.innerHTML =
-        '<table class="kp-table"><thead><tr><th>Task</th><th>Assigned Personnel</th></tr></thead><tbody>' + rows + '</tbody></table>';
-    }
-
-    // ===== RENDER PERSONNEL TABLE (Personnel → Tasks) =====
-    function renderPersonnelTable() {
-      var names = Object.keys(assignments.personnel);
-
-      if (names.length === 0) {
-        personnelTableContainer.innerHTML = "<p style='color:var(--text-muted);font-size:14px'>No personnel assignments yet.</p>";
-        return;
-      }
-
-      var rows = names.map(function(name) {
-        var tasks = assignments.personnel[name] || [];
-        var existing = existingPersonnel.find(function(ep) { return ep.name === name; });
-
-        var tasksCell;
-        var revokeCell;
-
-        if (existing) {
-          // Existing personnel — show revoke checkboxes
-          tasksCell = tasks.join(", ");
-          var revokeItems = tasks.map(function(task) {
-            return '<label class="kp-revoke-item"><input type="checkbox" class="revoke-checkbox" data-employee-id="' + existing.employeeId + '" data-employee-name="' + name + '" data-role="' + task + '"> ' + task + '</label>';
-          }).join("");
-          revokeCell = revokeItems +
-            '<label class="kp-revoke-item kp-revoke-all-label"><input type="checkbox" class="revoke-all-checkbox" data-employee-id="' + existing.employeeId + '" data-employee-name="' + name + '"> Revoke All</label>';
-        } else {
-          // New personnel — not yet saved to database
-          tasksCell = tasks.join(", ") + ' <span class="kp-pending-badge">pending</span>';
-          revokeCell = '<span style="color:var(--text-muted);font-size:13px">Not yet saved</span>';
-        }
-
-        return '<tr><td>' + name + '</td><td>' + tasksCell + '</td><td>' + revokeCell + '</td></tr>';
-      }).join("");
-
-      personnelTableContainer.innerHTML =
-        '<table class="kp-table"><thead><tr><th>Personnel</th><th>Tasks Assigned</th><th>Revoke</th></tr></thead><tbody>' + rows + '</tbody></table>';
-
-      // Wire up "Revoke All" checkboxes — checking/unchecking all individual boxes
-      document.querySelectorAll(".revoke-all-checkbox").forEach(function(cb) {
-        cb.addEventListener("change", function() {
-          var empId = this.dataset.employeeId;
-          var individualBoxes = document.querySelectorAll('.revoke-checkbox[data-employee-id="' + empId + '"]');
-          individualBoxes.forEach(function(box) { box.checked = cb.checked; });
-        });
-      });
-
-      // Wire up individual checkboxes — update "Revoke All" state
-      document.querySelectorAll(".revoke-checkbox").forEach(function(cb) {
-        cb.addEventListener("change", function() {
-          var empId = this.dataset.employeeId;
-          var allBox = document.querySelector('.revoke-all-checkbox[data-employee-id="' + empId + '"]');
-          var individualBoxes = document.querySelectorAll('.revoke-checkbox[data-employee-id="' + empId + '"]');
-          var allChecked = Array.from(individualBoxes).every(function(b) { return b.checked; });
-          if (allBox) allBox.checked = allChecked;
-        });
-      });
-    }
-
-    // ===== ADD KEY PERSONNEL (button click) =====
-    document.getElementById("btnAddKP").addEventListener("click", function() {
-      kpError.textContent = "";
-      kpSuccess.textContent = "";
-      kpNextStep.textContent = "";
-
-      var first = document.getElementById("firstName").value.trim();
-      var last = document.getElementById("lastName").value.trim();
-      var email = document.getElementById("email").value.trim();
-      var selectedTasks = getSelectedTasks();
-
-      // Validate: all fields required
-      if (!first || !last || !email || selectedTasks.length === 0) {
-        kpError.textContent = "First Name, Last Name, Email, and at least one Task are required.";
-        return;
-      }
-
-      // Validate: email format
-      if (!isValidEmail(email)) {
-        kpError.textContent = "Please enter a valid email address.";
-        return;
-      }
-
-      // Check: not already in new (local) personnel
-      if (keyPersonnel.some(function(kp) { return kp.email.toLowerCase() === email.toLowerCase(); })) {
-        kpError.textContent = "This email is already assigned to another Key Personnel.";
-        return;
-      }
-
-      // Check: not already in existing (API) personnel
-      if (existingPersonnel.some(function(kp) { return kp.email.toLowerCase() === email.toLowerCase(); })) {
-        kpError.textContent = "This person is already assigned. Use the revoke checkboxes below to modify their assignments.";
-        return;
-      }
-
-      // Create the new key personnel object
-      var fullName = first + " " + last;
-      var kp = {
-        name: fullName,
-        firstName: first,
-        lastName: last,
-        email: email,
-        tasks: selectedTasks
-      };
-
-      // Add to local array and rebuild
-      keyPersonnel.push(kp);
-      rebuildAssignments();
-
-      // Save to localStorage (backward compat)
-      localStorage.setItem("driven_key_personnel_assignments", JSON.stringify(assignments));
-
-      // Re-render tables
-      renderTasksTable();
-      renderPersonnelTable();
-
-      // Clear the form
-      document.getElementById("firstName").value = "";
-      document.getElementById("lastName").value = "";
-      document.getElementById("email").value = "";
-      clearTaskCheckboxes();
-
-      kpSuccess.textContent = "Key Personnel added. Click Save & Continue to save all assignments.";
-      kpNextStep.textContent = "Enter the next person's information and click Add Key Personnel again.";
-
-      // Scroll to tables so the user can see the update
-      tasksTableContainer.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-
-    // ===== SAVE & CONTINUE (button click) =====
-    document.getElementById("btnCompleteStep").addEventListener("click", async function() {
-      stepStatus.textContent = "";
-      stepStatus.style.color = "var(--error)";
-
-      // Check: at least one key personnel (existing or new)
-      if (existingPersonnel.length === 0 && keyPersonnel.length === 0) {
-        stepStatus.textContent = "You must add at least one Key Personnel.";
-        return;
-      }
-
-      // Check admin info (only needed if adding new personnel)
-      var adminName = "";
-      var adminEmail = "";
-      if (keyPersonnel.length > 0) {
-        adminName = document.getElementById("adminName").value.trim();
-        adminEmail = document.getElementById("adminEmail").value.trim();
-        if (!adminName || !adminEmail) {
-          stepStatus.textContent = "Please enter your Administrator Name and Email above.";
-          return;
-        }
-        if (!isValidEmail(adminEmail)) {
-          stepStatus.textContent = "Please enter a valid Administrator Email.";
-          return;
-        }
-      }
-
-      // Check for pending revokes
-      var revokeAllChecked = document.querySelectorAll(".revoke-all-checkbox:checked");
-      var revokeIndividualChecked = document.querySelectorAll(".revoke-checkbox:checked");
-      var hasRevokes = revokeAllChecked.length > 0 || revokeIndividualChecked.length > 0;
-      var hasNewPersonnel = keyPersonnel.length > 0;
-
-      if (!hasRevokes && !hasNewPersonnel) {
-        stepStatus.textContent = "No changes to save. Add a new Key Personnel or check a revoke box to make changes.";
-        return;
-      }
-
-      // Confirm revokes
-      if (hasRevokes) {
-        var revokeList = [];
-        var processedEmpIds = new Set();
-
-        revokeAllChecked.forEach(function(cb) {
-          processedEmpIds.add(cb.dataset.employeeId);
-          revokeList.push("• Revoke ALL assignments for " + cb.dataset.employeeName);
-        });
-
-        revokeIndividualChecked.forEach(function(cb) {
-          if (!processedEmpIds.has(cb.dataset.employeeId)) {
-            revokeList.push("• Revoke " + cb.dataset.role + " from " + cb.dataset.employeeName);
-          }
-        });
-
-        var confirmed = confirm("Are you sure you want to revoke the following assignments?\n\n" + revokeList.join("\n") + "\n\nThis action cannot be undone.");
-        if (!confirmed) return;
-      }
-
-      // Disable button while saving
-      var btnComplete = document.getElementById("btnCompleteStep");
-      btnComplete.disabled = true;
-      btnComplete.textContent = "Saving…";
-
-      var successMessages = [];
-      var errorMessages = [];
-
-      // Process revokes
-      if (hasRevokes) {
-        var revokeByEmployee = {};
-
-        revokeAllChecked.forEach(function(cb) {
-          revokeByEmployee[cb.dataset.employeeId] = { revokeAll: true, employeeName: cb.dataset.employeeName };
-        });
-
-        revokeIndividualChecked.forEach(function(cb) {
-          if (!revokeByEmployee[cb.dataset.employeeId]) {
-            revokeByEmployee[cb.dataset.employeeId] = { revokeAll: false, roles: [], employeeName: cb.dataset.employeeName };
-          }
-          if (!revokeByEmployee[cb.dataset.employeeId].revokeAll) {
-            revokeByEmployee[cb.dataset.employeeId].roles.push(cb.dataset.role);
-          }
-        });
-
-        for (var empId in revokeByEmployee) {
-          var revoke = revokeByEmployee[empId];
-          try {
-            var response = await fetch("/api/onboarding/key-personnel/revoke", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                customerId: localStorage.getItem("driven_customer_id"),
-                employeeId: empId,
-                revokeAll: revoke.revokeAll,
-                roles: revoke.roles
-              })
-            });
-            var data = await response.json();
-            if (data.success) {
-              successMessages.push("Revoked assignments for " + revoke.employeeName);
-            } else {
-              errorMessages.push("Revoke failed for " + revoke.employeeName + ": " + data.error);
-            }
-          } catch (e) {
-            errorMessages.push("Revoke failed for " + revoke.employeeName + ": " + e.message);
-          }
-        }
-      }
-
-      // Process new personnel
-      if (hasNewPersonnel) {
-        // Merge into employees list (localStorage)
-        var existingEmployees = JSON.parse(localStorage.getItem("driven_employees") || "[]");
-        var updatedEmployees = existingEmployees.concat(keyPersonnel);
-        localStorage.setItem("driven_employees", JSON.stringify(updatedEmployees));
-
-        try {
-          var response = await fetch("/api/onboarding/key-personnel/complete", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              customerId: localStorage.getItem("driven_customer_id"),
-              subscriptionId: localStorage.getItem("driven_subscription_id"),
-              activationCode: localStorage.getItem("driven_activation_code"),
-              adminName: adminName,
-              adminEmail: adminEmail,
-              keyPersonnel: keyPersonnel,
-              assignments: assignments
-            })
-          });
-
-          var data = await response.json();
-
-          if (response.ok && data.success) {
-            successMessages.push("Step 1 complete. " + data.total + " Key Personnel emailed with login credentials and onboarding instructions.");
-          } else {
-            var failed = data.results ? data.results.filter(function(r) { return r.error; }).map(function(r) { return r.name + ": " + r.error; }).join("; ") : "Unknown error";
-            errorMessages.push("Partial completion: " + (failed || data.error || "Unknown error"));
-          }
-        } catch (error) {
-          errorMessages.push("Error: " + error.message);
-        }
-      }
-
-      // Reload existing personnel from API to reflect changes
-      await loadExistingPersonnel();
-
-      // Clear new personnel (they've been saved or there were none)
-      keyPersonnel = [];
-      rebuildAssignments();
-      renderTasksTable();
-      renderPersonnelTable();
-
-      // Clear form
-      document.getElementById("firstName").value = "";
-      document.getElementById("lastName").value = "";
-      document.getElementById("email").value = "";
-      clearTaskCheckboxes();
-
-      // Show results
-      btnComplete.disabled = false;
-      btnComplete.textContent = "Save & Continue";
-
-      if (errorMessages.length > 0) {
-        stepStatus.style.color = "var(--error)";
-        stepStatus.textContent = errorMessages.join("; ");
-      } else {
-        stepStatus.style.color = "var(--success)";
-        stepStatus.textContent = successMessages.join(" ");
-        localStorage.setItem("driven_step1_complete", "true");
-      }
-    });
-
-    // ===== AUTO-FILL ADMIN INFO FROM SESSION =====
-    // When dashboard-common.js loads the session, auto-fill the
-    // Administrator Name and Email fields with the logged-in user's info.
-    // The user can still edit these fields if needed.
-    document.addEventListener("dashSessionLoaded", function(e) {
-      if (e.detail) {
-        // ===== Fill the greeting bar with the user's first name =====
-        var greetingEl = document.getElementById("dashGreetingText");
-        if (greetingEl) {
-          var firstName = e.detail.first_name || "";
-          if (!firstName) {
-            var fullName = e.detail.full_name || "";
-            if (fullName) firstName = fullName.split(" ")[0];
-          }
-          if (firstName) {
-            greetingEl.innerHTML = "Welcome, <strong>" + firstName + "</strong>";
-          } else {
-            greetingEl.innerHTML = "Welcome";
-          }
-        }
-
-        // Build full name from full_name, or first_name + last_name
-        var fullName = e.detail.full_name || "";
-        if (!fullName) {
-          var firstName = e.detail.first_name || "";
-          var lastName = e.detail.last_name || "";
-          fullName = (firstName + " " + lastName).trim();
-        }
-        var email = e.detail.email || "";
-
-        // Fill the fields (only if they have values)
-        var adminNameEl = document.getElementById("adminName");
-        var adminEmailEl = document.getElementById("adminEmail");
-
-        if (fullName && adminNameEl && !adminNameEl.value) {
-          adminNameEl.value = fullName;
-        }
-        if (email && adminEmailEl && !adminEmailEl.value) {
-          adminEmailEl.value = email;
-        }
-      }
-
-      // Load existing personnel after session is available
-      // (needs org_id from session to be stored in localStorage)
-      loadExistingPersonnel();
-      renderTasksTable();
-      renderPersonnelTable();
-    });
-</script>
-
-<!-- Cloudflare Web Analytics -->
-<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"aed8feab3b60404ba88ec92f026bbcd6","r":1}' crossorigin="anonymous"></script>
+<footer>
+  © Digital Safety Inspection LLC · DRIV‑EN Platform<br>
+
+  <span class="footer-line">
+    <a href="/website/legal/terms.html">Terms of Service</a> |
+    <a href="/website/legal/privacy.html">Privacy Policy</a>
+  </span>
+
+  <span class="footer-line">
+    <a href="/website/legal/refund.html">Refund Policy</a> |
+    <a href="mailto:support@driv-en.com">Contact</a>
+  </span>
+</footer>
+
+  
 </body>
 </html>
