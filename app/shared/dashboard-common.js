@@ -83,7 +83,7 @@
       // Even if logout fails, redirect to login
       console.error("Logout error:", e.message);
     }
-    window.location.href = "/app/auth/login.html";
+     window.location.href = "/public/login.html";
   };
 
   /* ===== SET PAGE TITLE ===== */
