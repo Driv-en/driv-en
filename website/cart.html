@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DRIV‑EN – Shopping Cart</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/assets/favicon.png" />
+
+  <style>
+    html, body { overflow-x: hidden; margin: 0; padding: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f172a; color: #e5e7eb; display: flex; flex-direction: column; min-height: 100vh; }
+    header { position: sticky; top: 0; z-index: 50; padding: 16px 24px; border-bottom: 4px solid #2ecc71; background: #020617; display: flex; justify-content: space-between; align-items: center; }
+    header img.logo { height: 88px; }
+    header .title-block h1 { font-size: 18px; margin: 0; }
+    header .title-block span { font-size: 12px; color: #9ca3af; }
+    main { flex: 1; max-width: 900px; margin: 32px auto; padding: 0 16px; }
+    h2 { font-size: 22px; margin-bottom: 8px; }
+    p { font-size: 14px; color: #9ca3af; margin-bottom: 16px; }
+    .card { border: 1px solid #1f2937; background: #020617; border-radius: 8px; padding: 20px; margin-bottom: 24px; }
+    .module-row { display: grid; grid-template-columns: 1fr 90px 90px; padding: 10px 0; border-bottom: 1px solid #1f2937; column-gap: 12px; }
+    @media (max-width: 480px) { .module-row { grid-template-columns: 1fr 70px 70px; } }
+    .module-row:last-child { border-bottom: none; }
+    .module-name { font-size: 15px; font-weight: 600; }
+    .unit-price { font-size: 15px; font-weight: 600; text-align: right; color: #e5e7eb; }
+    .extended-price { font-size: 15px; font-weight: 600; text-align: right; color: #22c55e; }
+    .savings-line { margin-top: 12px; padding: 10px 12px; border-radius: 6px; background: #022c22; border: 1px solid #22c55e; font-size: 14px; color: #bbf7d0; font-weight: 600; }
+    .totals-grid { display: grid; grid-template-columns: 1fr; gap: 24px; margin-top: 16px; }
+    @media (min-width: 700px) { .totals-grid { grid-template-columns: 1fr 1fr; } }
+    .totals-column h4 { margin: 0 0 8px 0; font-size: 16px; color: #e5e7eb; }
+    .totals-column div { margin-top: 6px; font-size: 15px; }
+    .billing-choice { margin-bottom: 12px; font-size: 15px; }
+    .billing-choice label { margin-right: 16px; cursor: pointer; }
+    .invoice-line { margin-top: 16px; font-size: 15px; }
+    .footer-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+    button { font-size: 13px; border-radius: 6px; padding: 10px 16px; cursor: pointer; border: 1px solid transparent; }
+    .btn-secondary { background: #020617; border-color: #374151; color: #e5e7eb; }
+    .btn-primary { background: #22c55e; border-color: #16a34a; color: #022c22; font-weight: 600; }
+    .status-bar { margin-top: 12px; font-size: 12px; color: #9ca3af; min-height: 18px; }
+    footer { background-color: #111; color: #eee; text-align: center; padding: 24px; margin-top: 48px; border-top: 4px solid #2ecc71; font-size: 0.9rem; width: 100%; }
+    footer a { color: #2ecc71; text-decoration: none; margin: 0 8px; }
+    @media (max-width: 600px) { footer { text-align: center; line-height: 1.4; width: 100%; margin: 0 auto; padding-left: 0; padding-right: 0; } footer br { display: block; } footer .footer-line { display: block; margin: 6px 0; width: 100%; text-align: center; } footer a { margin: 0 6px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title-block"><h1>DRIV‑EN – Shopping Cart</h1><span>Step 2 · Review your selections</span></div>
+    <a href="https://www.driv-en.com/website/index.html"><img src="/assets/logo.png" alt="DRIV‑EN Logo" class="logo"></a>
+  </header>
+  <main>
+    <h2>Your Selected Modules</h2>
+    <p>Review your selections below. You can proceed to checkout or go back to make changes.</p>
+    <div class="card" id="cartList"></div>
+    <div class="card totals">
+      <div class="billing-choice">
+        <label><input type="radio" name="billingPeriod" value="monthly" checked> Monthly</label>
+        <label><input type="radio" name="billingPeriod" value="annual"> Annual</label>
+      </div>
+      <div class="totals-grid">
+        <div class="totals-column"><h4>Monthly</h4><div><strong>Subtotal:</strong> <span id="subtotalMonthly">$0</span></div><div id="monthlySavingsBox" class="savings-line"></div></div>
+        <div class="totals-column"><h4>Annual (10% off)</h4><div><strong>Subtotal:</strong> <span id="subtotalAnnual">$0</span></div><div id="annualSavingsBox" class="savings-line"></div></div>
+      </div>
+      <div style="margin-top:12px; font-size:13px; color:#9ca3af; font-style:italic;">Taxes will be calculated at checkout based on your billing address.</div>
+      <div class="invoice-line"><strong>Invoice Amount (pre-tax, USD):</strong> <span id="invoiceAmount">$0</span><span id="invoiceLabel" style="color:#9ca3af; margin-left:4px;">(Monthly)</span></div>
+    </div>
+    <div class="footer-actions">
+      <button class="btn-secondary" id="btnBack">Back to Module Selection</button>
+      <button class="btn-primary" id="btnCheckout">Proceed to Checkout</button>
+    </div>
+    <div class="status-bar" id="statusBar"></div>
+  </main>
+  <footer>
+    <div class="footer-line">© Digital Safety Inspection, LLC</div>
+    <div class="footer-line">DRIV‑EN Platform</div>
+    <div class="footer-line"><a href="/website/legal/terms.html">Terms of Service</a> | <a href="/website/legal/privacy.html">Privacy Policy</a></div>
+    <div class="footer-line"><a href="/website/legal/refund.html">Refund Policy</a> | <a href="mailto:support@driv-en.com">Contact</a></div>
+  </footer>
+  <script>
+  const statusBar = document.getElementById("statusBar");
+  const cartList = document.getElementById("cartList");
+  const subtotalMonthlyEl = document.getElementById("subtotalMonthly");
+  const subtotalAnnualEl = document.getElementById("subtotalAnnual");
+  const monthlySavingsBox = document.getElementById("monthlySavingsBox");
+  const annualSavingsBox = document.getElementById("annualSavingsBox");
+  const invoiceAmountEl = document.getElementById("invoiceAmount");
+  const invoiceLabelEl = document.getElementById("invoiceLabel");
+  const billingRadios = document.querySelectorAll('input[name="billingPeriod"]');
+  const PRICES = { equipment: 149, pm: 299, inspections: 199, extraction: 149, workorders: 149, fuel: 49, transfers: 79 };
+  const BUNDLES = { "Operations Bundle": { modules: ["equipment", "pm", "inspections", "extraction"], price: 499 }, "Full Equipment Bundle": { modules: ["equipment", "pm", "inspections", "workorders", "extraction"], price: 529 }, "Complete Platform Bundle": { modules: ["equipment", "pm", "inspections", "workorders", "fuel", "transfers", "extraction"], price: 599 } };
+  const MODULE_MAP = { equipment: "Equipment Management", pm: "Preventative Maintenance", inspections: "Equipment Inspections", extraction: "Extraction Engine", workorders: "Work Orders", fuel: "Fuel Usage Tracking", transfers: "Equipment Transfer Tracking" };
+  function renderCart() {
+    const raw = JSON.parse(localStorage.getItem("selectedModules") || "[]");
+    const selections = { equipment: raw.includes("Equipment Management"), pm: raw.includes("Preventative Maintenance"), inspections: raw.includes("Equipment Inspections"), workorders: raw.includes("Work Orders"), fuel: raw.includes("Fuel Usage Tracking"), transfers: raw.includes("Equipment Transfer Tracking"), extraction: raw.includes("Extraction Engine"), bundle: raw.find(x => x.includes("Bundle")) || null };
+    const rows = []; let unitTotal = 0; let chargeTotal = 0;
+    const bundleName = selections.bundle || null;
+    const bundle = bundleName ? BUNDLES[bundleName] : null;
+    const bundleModules = bundle ? new Set(bundle.modules) : new Set();
+    const selectedModules = [];
+    if (selections.equipment) selectedModules.push("equipment");
+    if (selections.pm) selectedModules.push("pm");
+    if (selections.inspections) selectedModules.push("inspections");
+    if (selections.workorders) selectedModules.push("workorders");
+    if (selections.fuel) selectedModules.push("fuel");
+    if (selections.transfers) selectedModules.push("transfers");
+    if (selections.extraction) selectedModules.push("extraction");
+    const bundleModuleList = []; const extraModuleList = [];
+    selectedModules.forEach(key => { if (bundleModules.has(key)) { bundleModuleList.push(key); } else { extraModuleList.push(key); } });
+    bundleModuleList.forEach(key => { const name = MODULE_MAP[key]; const price = PRICES[key]; unitTotal += price; rows.push(`<div class="module-row"><div class="module-name">${name}<span class="included-badge" style="background:#e8f5e9;border:1px solid #4caf50;padding:2px 6px;margin-left:8px;border-radius:4px;font-size:12px;color:#2e7d32;">Included in Bundle</span></div><div class="unit-price">$${price}</div><div class="extended-price">-</div></div>`); });
+    if (bundle) { rows.push(`<div class="module-row bundle-row"><div class="module-name">${bundleName}</div><div class="unit-price">-</div><div class="extended-price">$${bundle.price}</div></div>`); chargeTotal += bundle.price; }
+    extraModuleList.forEach(key => { const name = MODULE_MAP[key]; const price = PRICES[key]; unitTotal += price; chargeTotal += price; rows.push(`<div class="module-row"><div class="module-name">${name}</div><div class="unit-price">$${price}</div><div class="extended-price">$${price}</div></div>`); });
+    cartList.innerHTML = rows.join("");
+    const monthlySavings = unitTotal - chargeTotal;
+    const annualNoDiscount = unitTotal * 12;
+    const annualWithDiscount = chargeTotal * 12 * 0.9;
+    const annualSavings = annualNoDiscount - annualWithDiscount;
+    monthlySavingsBox.textContent = `Monthly savings: $${monthlySavings.toFixed(2)}`;
+    annualSavingsBox.textContent = `Annual savings: $${annualSavings.toFixed(2)}`;
+    const monthlySubtotal = chargeTotal;
+    const monthlyTax = 0;
+    const monthlyTotal = monthlySubtotal + monthlyTax;
+    subtotalMonthlyEl.textContent = `$${monthlySubtotal.toFixed(2)}`;
+    const annualSubtotal = chargeTotal * 12 * 0.9;
+    const annualTax = 0;
+    const annualTotal = annualSubtotal + annualTax;
+    subtotalAnnualEl.textContent = `$${annualSubtotal.toFixed(2)}`;
+    const checkoutPayload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
+    const previousPeriod = checkoutPayload.billingPeriod || "monthly";
+    billingRadios.forEach(r => { r.checked = (r.value === previousPeriod); });
+    updateInvoiceDisplay(previousPeriod, { monthlyTotal, annualTotal });
+    localStorage.setItem("driven_checkout_payload", JSON.stringify({ modules: selectedModules, bundle: bundleName, monthlySubtotal, monthlyTax, monthlyTotal, annualSubtotal, annualTax, annualTotal, billingPeriod: previousPeriod, invoiceSubtotal: previousPeriod === "monthly" ? monthlySubtotal : annualSubtotal, invoiceTax: 0, invoiceTotal: previousPeriod === "monthly" ? monthlyTotal : annualTotal }));
+  }
+  function updateInvoiceDisplay(period, totals) { const { monthlyTotal, annualTotal } = totals; if (period === "monthly") { invoiceAmountEl.textContent = `$${monthlyTotal.toFixed(2)}`; invoiceLabelEl.textContent = "(Monthly)"; } else { invoiceAmountEl.textContent = `$${annualTotal.toFixed(2)}`; invoiceLabelEl.textContent = "(Annual)"; } }
+  billingRadios.forEach(radio => { radio.addEventListener("change", () => { const selections = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}"); const period = radio.value; const monthlyTotal = selections.monthlyTotal || 0; const annualTotal = selections.annualTotal || 0; updateInvoiceDisplay(period, { monthlyTotal, annualTotal }); let invoiceSubtotal, invoiceTax, invoiceTotal; if (period === "monthly") { invoiceSubtotal = selections.monthlySubtotal; invoiceTax = 0; invoiceTotal = selections.monthlyTotal; } else { invoiceSubtotal = selections.annualSubtotal; invoiceTax = 0; invoiceTotal = selections.annualTotal; } selections.billingPeriod = period; selections.invoiceSubtotal = invoiceSubtotal; selections.invoiceTax = invoiceTax; selections.invoiceTotal = invoiceTotal; localStorage.setItem("driven_checkout_payload", JSON.stringify(selections)); }); });
+  document.getElementById("btnBack").addEventListener("click", () => { localStorage.setItem("returningFromCart", "yes"); window.location.href = "module-selection.html"; });
+  document.getElementById("btnCheckout").addEventListener("click", () => { window.location.href = "checkout.html"; });
+  statusBar.textContent = "Review your selections.";
+  renderCart();
+  </script>
+</body>
+</html>
