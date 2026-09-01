@@ -11,10 +11,10 @@
 <link rel="canonical" href="https://www.driv-en.com/app/dashboard/admin.html">
 
 <!-- Favicon -->
-<link rel="icon" type="image/png" href="/assets/icons/favicon.png" sizes="48x48">
-<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png" sizes="96x96">
-<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png" sizes="192x192">
-<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png">
+<link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
 
 <!-- ===== SHARED DASHBOARD CSS ===== -->
 <link rel="stylesheet" href="/app/shared/dashboard.css?v=7">
@@ -40,6 +40,106 @@
       height: 100vh;
       font-size: 16px;
       color: var(--text-muted);
+    }
+
+    /* ===== ACTIVATION OVERLAY ===== */
+    /* Full-screen overlay shown when activation_complete is false.
+       Covers the entire dashboard until the admin enters their activation code.
+       Once activated, it never appears again (activation_complete = 1 in D1). */
+    .activation-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(2, 6, 23, 0.97);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 20px;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .activation-overlay.active { display: flex; }
+
+    .activation-card {
+      max-width: 440px;
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--primary);
+      border-radius: 12px;
+      padding: 32px;
+      text-align: center;
+    }
+    .activation-card h2 {
+      margin: 0 0 8px 0;
+      font-size: 22px;
+      color: var(--text);
+    }
+    .activation-card p {
+      margin: 0 0 20px 0;
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .activation-input {
+      width: 100%;
+      padding: 12px;
+      font-size: 18px;
+      text-align: center;
+      letter-spacing: 3px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg-step);
+      color: var(--text);
+      box-sizing: border-box;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+    }
+    .activation-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .activation-input.error {
+      border-color: var(--error);
+    }
+    .activation-btn {
+      width: 100%;
+      background: var(--primary);
+      border: 1px solid var(--primary-hover);
+      color: #fff;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+    .activation-btn:hover { background: var(--primary-hover); }
+    .activation-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .activation-error {
+      display: none;
+      background: #1f0f0f;
+      border: 1px solid var(--error);
+      color: #fca5a5;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+    .activation-error.show { display: block; }
+    .activation-resend {
+      font-size: 13px;
+      color: var(--primary);
+      cursor: pointer;
+      text-decoration: underline;
+      margin-top: 8px;
+    }
+    .activation-resend:hover { opacity: 0.8; }
+    .activation-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 12px;
+      line-height: 1.4;
     }
 
     /* ===== WELCOME BANNER ===== */
@@ -152,6 +252,9 @@
       .admin-onboarding { flex-direction: column; text-align: center; }
       .admin-stats { grid-template-columns: repeat(2, 1fr); }
     }
+    @media (max-width: 500px) {
+      .activation-card { padding: 20px; }
+    }
 </style>
 
 </head>
@@ -166,7 +269,25 @@
 <!-- ===== LOADING SCREEN (hides after session check) ===== -->
 <div id="adminLoading" class="admin-loading">Checking session…</div>
 
-<!-- ===== DASHBOARD (hidden until session verified) ===== -->
+<!-- ===== ACTIVATION OVERLAY (shown when activation_complete is false) ===== -->
+<!-- This overlay covers the entire screen until the admin enters their activation code. -->
+<!-- Once verified via /auth/verify-activation, it is never shown again. -->
+<div id="activationOverlay" class="activation-overlay">
+  <div class="activation-card">
+    <h2>🔐 Activate Your Account</h2>
+    <p>Enter the activation code from your welcome email to unlock your dashboard.</p>
+    <div id="activationError" class="activation-error"></div>
+    <input type="text" id="activationCodeInput" class="activation-input" placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" autocomplete="off" />
+    <button id="activationBtn" class="activation-btn">Activate Account</button>
+    <div class="activation-resend" id="resendActivation">Resend activation code</div>
+    <div class="activation-hint">
+      Your activation code was sent to your email when you completed checkout.
+      Check your spam/junk folder if you don't see it.
+    </div>
+  </div>
+</div>
+
+<!-- ===== DASHBOARD (hidden until session verified AND activated) ===== -->
 <div id="adminDashboard" style="display:none;">
 
   <!-- ===== SHARED DASHBOARD HEADER (auto-loaded by dashboard-common.js) ===== -->
@@ -206,34 +327,16 @@
     </div>
 
     <!-- ===== MODULES ===== -->
+    <!-- Module cards are generated by JavaScript based on activated_modules -->
+    <!-- from the session. Only purchased/activated modules are shown. -->
+    <!-- Core admin tools (User Management, Projects, Settings) always show. -->
     <div class="dash-card">
       <h3>Modules</h3>
-      <div class="admin-module-grid">
-        <div class="admin-module-card" onclick="window.location.href='/app/dashboard/admin/users.html'">
-          <div class="admin-module-title">User Management</div>
-          <div class="admin-module-body">Manage employees, roles, permissions, and account access.</div>
-          <div class="admin-module-link">Open →</div>
-        </div>
-        <div class="admin-module-card" onclick="window.location.href='/app/dashboard/admin/projects.html'">
-          <div class="admin-module-title">Projects</div>
-          <div class="admin-module-body">View, create, and manage all projects across your organization.</div>
-          <div class="admin-module-link">Open →</div>
-        </div>
-        <div class="admin-module-card" onclick="window.location.href='/app/dashboard/admin/equipment.html'">
-          <div class="admin-module-title">Equipment</div>
-          <div class="admin-module-body">Manage fleet, assignments, PM schedules, and service history.</div>
-          <div class="admin-module-link">Open →</div>
-        </div>
-        <div class="admin-module-card" onclick="window.location.href='/app/dashboard/admin/safety.html'">
-          <div class="admin-module-title">Safety</div>
-          <div class="admin-module-body">Review safety forms, compliance documentation, and hazard reports.</div>
-          <div class="admin-module-link">Open →</div>
-        </div>
-        <div class="admin-module-card" onclick="window.location.href='/app/dashboard/admin/settings.html'">
-          <div class="admin-module-title">Settings</div>
-          <div class="admin-module-body">Configure company settings, divisions, project types, and integrations.</div>
-          <div class="admin-module-link">Open →</div>
-        </div>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
+        Only activated modules are shown. To add modules, contact support.
+      </p>
+      <div class="admin-module-grid" id="moduleGrid">
+        <!-- Module cards are generated by JavaScript based on activated_modules -->
       </div>
     </div>
 
@@ -251,6 +354,165 @@
 <!-- ===== PAGE-SPECIFIC SCRIPT ===== -->
 <script>
     /* ==========================================
+       ALL AVAILABLE MODULES
+       These map module names (as stored in D1 activated_modules)
+       to their dashboard card info. Only modules in the user's
+       activated_modules array will be shown on the dashboard.
+       Core admin tools (User Management, Projects, Settings)
+       are always shown regardless of activation.
+       ========================================== */
+    var ALL_MODULES = [
+      { name: "Equipment Management", title: "Equipment", body: "Manage fleet, assignments, PM schedules, and service history.", url: "/app/dashboard/admin/equipment.html" },
+      { name: "Preventative Maintenance", title: "PM", body: "Automated PM schedules, templates, and technician workflows.", url: "/app/dashboard/admin/equipment.html" },
+      { name: "Equipment Inspections", title: "Inspections", body: "Safety and compliance inspections tailored to each unit.", url: "/app/dashboard/admin/safety.html" },
+      { name: "Work Orders", title: "Work Orders", body: "Manage repairs, diagnostics, and non-PM maintenance tasks.", url: "/app/dashboard/admin/equipment.html" },
+      { name: "Fuel Usage Tracking", title: "Fuel", body: "Monitor fuel consumption, cost, and efficiency across your fleet.", url: "/app/dashboard/admin/equipment.html" },
+      { name: "Equipment Transfer Tracking", title: "Transfers", body: "Track equipment movement between projects, yards, and divisions.", url: "/app/dashboard/admin/equipment.html" },
+      { name: "Extraction Engine", title: "Extraction Engine", body: "AI-powered analysis of equipment manuals and documentation.", url: "/app/dashboard/admin/equipment.html" }
+    ];
+
+    /* ==========================================
+       ACTIVATION OVERLAY LOGIC
+       Handles the activation code input, verification via
+       /auth/verify-activation, and the resend code link.
+       ========================================== */
+    var activationOverlay = document.getElementById("activationOverlay");
+    var activationInput = document.getElementById("activationCodeInput");
+    var activationBtn = document.getElementById("activationBtn");
+    var activationError = document.getElementById("activationError");
+    var resendLink = document.getElementById("resendActivation");
+
+    // Submit activation code
+    activationBtn.addEventListener("click", async function() {
+      var code = activationInput.value.trim();
+      activationError.classList.remove("show");
+      activationInput.classList.remove("error");
+
+      if (!code) {
+        activationError.textContent = "Please enter your activation code.";
+        activationError.classList.add("show");
+        activationInput.classList.add("error");
+        return;
+      }
+
+      activationBtn.disabled = true;
+      activationBtn.textContent = "Verifying…";
+
+      try {
+        var resp = await fetch("/auth/verify-activation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ activation_code: code })
+        });
+        var data = await resp.json();
+
+        if (data.success) {
+          // Activation successful — hide overlay, show dashboard
+          activationOverlay.classList.remove("active");
+          activationOverlay.style.display = "none";
+          document.getElementById("adminDashboard").style.display = "block";
+
+          // Render modules if returned
+          if (data.activated_modules) {
+            renderModules(data.activated_modules);
+          }
+        } else {
+          activationError.textContent = data.error || "Invalid activation code.";
+          activationError.classList.add("show");
+          activationInput.classList.add("error");
+          activationBtn.disabled = false;
+          activationBtn.textContent = "Activate Account";
+        }
+      } catch (e) {
+        activationError.textContent = "Failed to verify activation code. Please try again.";
+        activationError.classList.add("show");
+        activationBtn.disabled = false;
+        activationBtn.textContent = "Activate Account";
+      }
+    });
+
+    // Resend activation code
+    resendLink.addEventListener("click", async function() {
+      resendLink.textContent = "Sending…";
+      try {
+        var resp = await fetch("/auth/resend-activation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" }
+        });
+        var data = await resp.json();
+        if (data.success) {
+          resendLink.textContent = "✓ Code sent to your email";
+          setTimeout(function() {
+            resendLink.textContent = "Resend activation code";
+          }, 5000);
+        } else {
+          resendLink.textContent = data.error || "Failed to resend";
+          setTimeout(function() {
+            resendLink.textContent = "Resend activation code";
+          }, 3000);
+        }
+      } catch (e) {
+        resendLink.textContent = "Failed to resend";
+        setTimeout(function() {
+          resendLink.textContent = "Resend activation code";
+        }, 3000);
+      }
+    });
+
+    // Allow Enter key to submit activation
+    activationInput.addEventListener("keydown", function(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        activationBtn.click();
+      }
+    });
+
+    /* ==========================================
+       RENDER MODULES — only shows activated modules
+       Core admin tools (User Management, Projects, Settings)
+       always show. Purchased modules only show if they are
+       in the activated_modules array from D1.
+       ========================================== */
+    function renderModules(activatedModules) {
+      var grid = document.getElementById("moduleGrid");
+      grid.innerHTML = "";
+
+      // Always show core admin tools
+      var coreCards = [
+        { title: "User Management", body: "Manage employees, roles, permissions, and account access.", url: "/app/dashboard/admin/users.html" },
+        { title: "Projects", body: "View, create, and manage all projects across your organization.", url: "/app/dashboard/admin/projects.html" },
+        { title: "Settings", body: "Configure company settings, divisions, project types, and integrations.", url: "/app/dashboard/admin/settings.html" }
+      ];
+
+      coreCards.forEach(function(card) {
+        var div = document.createElement("div");
+        div.className = "admin-module-card";
+        div.onclick = function() { window.location.href = card.url; };
+        div.innerHTML =
+          '<div class="admin-module-title">' + card.title + '</div>' +
+          '<div class="admin-module-body">' + card.body + '</div>' +
+          '<div class="admin-module-link">Open →</div>';
+        grid.appendChild(div);
+      });
+
+      // Show activated purchased modules
+      if (activatedModules && activatedModules.length > 0) {
+        ALL_MODULES.forEach(function(mod) {
+          if (activatedModules.indexOf(mod.name) !== -1) {
+            var div = document.createElement("div");
+            div.className = "admin-module-card";
+            div.onclick = function() { window.location.href = mod.url; };
+            div.innerHTML =
+              '<div class="admin-module-title">' + mod.title + '</div>' +
+              '<div class="admin-module-body">' + mod.body + '</div>' +
+              '<div class="admin-module-link">Open →</div>';
+            grid.appendChild(div);
+          }
+        });
+      }
+    }
+
+    /* ==========================================
        ADMIN DASHBOARD INIT
        Runs after dashboard-common.js loads the session.
        The "dashSessionLoaded" event fires when the user
@@ -258,83 +520,108 @@
 
        What this script does:
        1. Fills the welcome banner with the user's first name
-       2. Shows the dashboard (hides loading screen)
-       3. Checks onboarding status (localStorage + KP API)
-       4. Hides onboarding card if complete
-       5. Loads stats from localStorage (will be DB queries later)
+       2. Checks activation status — shows overlay if not activated
+       3. If activated, shows the dashboard with activated modules
+       4. Checks onboarding status (localStorage + KP API)
+       5. Hides onboarding card if complete
+       6. Loads stats from localStorage (will be DB queries later)
        ========================================== */
     document.addEventListener("dashSessionLoaded", async function(e) {
       // e.detail contains the user object from /auth/session
       // e.detail.email, e.detail.first_name, e.detail.org_id
+      // e.detail.activation_complete (true/false)
+      // e.detail.activated_modules (array of module names)
 
       // 1. Fill welcome banner with first name
       var firstName = (e.detail && e.detail.first_name) ? e.detail.first_name : (e.detail && e.detail.email) || "";
       var welcomeEl = document.getElementById("admin-welcome-name");
       if (welcomeEl) welcomeEl.textContent = firstName;
 
-      // 2. Show dashboard, hide loading screen
+      // Hide loading screen
       document.getElementById("adminLoading").style.display = "none";
-      document.getElementById("adminDashboard").style.display = "block";
 
-      // 3. Check onboarding status
-      // Checks localStorage flags AND fetches KP count from server
-      // for desktop/mobile consistency
-      var onboardingComplete = localStorage.getItem("driven_onboarding_complete") === "true";
-      var onboardingStarted = localStorage.getItem("driven_customer_logo") !== null ||
-                               localStorage.getItem("driven_kp_count") !== null;
-      var statusEl = document.getElementById("admin-onboarding-status");
-      var onboardingCard = document.getElementById("adminOnboardingCard");
+      // 2. Check activation status from the session data
+      // handleSession now returns activation_complete and activated_modules from D1
+      var activationComplete = e.detail && e.detail.activation_complete === true;
+      var activatedModules = (e.detail && e.detail.activated_modules) || [];
 
-      // Fetch key personnel count from server
-      try {
-        var customerId = localStorage.getItem("driven_customer_id");
-        if (customerId) {
-          var kpRes = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(customerId));
-          var kpData = await kpRes.json();
-          if (kpData.success && kpData.keyPersonnel) {
-            localStorage.setItem("driven_kp_count", kpData.keyPersonnel.length);
-            if (kpData.keyPersonnel.length > 0) onboardingStarted = true;
-            // Update the KP count badge inside the onboarding card
-            var kpCountEl = document.getElementById("admin-kp-count");
-            if (kpCountEl) kpCountEl.textContent = kpData.keyPersonnel.length;
-          }
-        }
-      } catch (err) {
-        console.error("KP count fetch error:", err.message);
-      }
-
-      // 4. Update onboarding card display
-      if (onboardingComplete) {
-        // All onboarding steps complete — hide the card
-        onboardingCard.style.display = "none";
-      } else if (onboardingStarted) {
-        // Onboarding in progress — show "In Progress" badge
-        statusEl.textContent = "In Progress";
-        statusEl.style.background = "var(--bg-card)";
-        statusEl.style.borderColor = "var(--primary)";
-        statusEl.style.color = "var(--primary)";
+      if (!activationComplete) {
+        // Not activated — show the activation overlay, keep dashboard hidden
+        activationOverlay.classList.add("active");
+        activationInput.focus();
       } else {
-        // Onboarding not started — show "Not Started" badge
-        statusEl.textContent = "Not Started";
-        statusEl.style.background = "var(--bg-card)";
-        statusEl.style.borderColor = "var(--error)";
-        statusEl.style.color = "var(--error)";
+        // Already activated — hide overlay, show dashboard
+        activationOverlay.classList.remove("active");
+        activationOverlay.style.display = "none";
+        document.getElementById("adminDashboard").style.display = "block";
+        renderModules(activatedModules);
       }
 
-      // 5. Load stats from localStorage (will be database queries later)
-      document.getElementById("admin-stat-employees").textContent = localStorage.getItem("driven_employee_count") || "0";
-      document.getElementById("admin-stat-projects").textContent  = localStorage.getItem("driven_project_count") || "0";
-      document.getElementById("admin-stat-equipment").textContent  = localStorage.getItem("driven_equipment_count") || "0";
-      document.getElementById("admin-stat-clients").textContent   = localStorage.getItem("driven_client_count") || "0";
+      // 3-6. Onboarding status and stats (only relevant if activated)
+      if (activationComplete) {
+        // 3. Check onboarding status
+        // Checks localStorage flags AND fetches KP count from server
+        // for desktop/mobile consistency
+        var onboardingComplete = localStorage.getItem("driven_onboarding_complete") === "true";
+        var onboardingStarted = localStorage.getItem("driven_customer_logo") !== null ||
+                                 localStorage.getItem("driven_kp_count") !== null;
+        var statusEl = document.getElementById("admin-onboarding-status");
+        var onboardingCard = document.getElementById("adminOnboardingCard");
+
+        // Fetch key personnel count from server
+        try {
+          var customerId = localStorage.getItem("driven_customer_id");
+          if (customerId) {
+            var kpRes = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(customerId));
+            var kpData = await kpRes.json();
+            if (kpData.success && kpData.keyPersonnel) {
+              localStorage.setItem("driven_kp_count", kpData.keyPersonnel.length);
+              if (kpData.keyPersonnel.length > 0) onboardingStarted = true;
+              // Update the KP count badge inside the onboarding card
+              var kpCountEl = document.getElementById("admin-kp-count");
+              if (kpCountEl) kpCountEl.textContent = kpData.keyPersonnel.length;
+            }
+          }
+        } catch (err) {
+          console.error("KP count fetch error:", err.message);
+        }
+
+        // 4. Update onboarding card display
+        if (onboardingComplete) {
+          // All onboarding steps complete — hide the card
+          onboardingCard.style.display = "none";
+        } else if (onboardingStarted) {
+          // Onboarding in progress — show "In Progress" badge
+          statusEl.textContent = "In Progress";
+          statusEl.style.background = "var(--bg-card)";
+          statusEl.style.borderColor = "var(--primary)";
+          statusEl.style.color = "var(--primary)";
+        } else {
+          // Onboarding not started — show "Not Started" badge
+          statusEl.textContent = "Not Started";
+          statusEl.style.background = "var(--bg-card)";
+          statusEl.style.borderColor = "var(--error)";
+          statusEl.style.color = "var(--error)";
+        }
+
+        // 5. Load stats from localStorage (will be database queries later)
+        document.getElementById("admin-stat-employees").textContent = localStorage.getItem("driven_employee_count") || "0";
+        document.getElementById("admin-stat-projects").textContent  = localStorage.getItem("driven_project_count") || "0";
+        document.getElementById("admin-stat-equipment").textContent  = localStorage.getItem("driven_equipment_count") || "0";
+        document.getElementById("admin-stat-clients").textContent   = localStorage.getItem("driven_client_count") || "0";
+      }
     });
 
     /* ==========================================
        FALLBACK: If session fails to load (network error, etc.)
-       redirect to login page after 5 seconds
+       redirect to login page after 5 seconds.
+       Also checks that the activation overlay is not showing —
+       if it is, the session loaded fine, just not activated.
        ========================================== */
     setTimeout(function() {
-      if (document.getElementById("adminDashboard").style.display === "none") {
-        // Dashboard still hidden after 5 seconds — session likely failed
+      if (document.getElementById("adminDashboard").style.display === "none" &&
+          !document.getElementById("activationOverlay").classList.contains("active")) {
+        // Dashboard still hidden and activation overlay not showing — session likely failed
         console.error("Session check timed out — redirecting to login");
          window.location.href = "/public/login.html";
       }
