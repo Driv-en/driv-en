@@ -16,7 +16,7 @@ const CACHE = 'driv-en-v5';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
-  '/app/auth/login.html',
+  '/public/login.html',
   '/app/dashboard/onboarding-dashboard.html',
   '/app/onboarding/key-personnel.html',
   '/app/auth/change-password.html',
