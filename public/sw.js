@@ -1,34 +1,41 @@
 /**
- * sw.js — DRIV-EN Service Worker
+ * sw.js — DRIV-EN Service Worker (public scope)
  * 
  * Caches the app shell for offline use.
  * Uses stale-while-revalidate strategy: serve from cache, update in background.
- * 
- * v2.0 will add Background Sync API for automatic offline data sync.
+ *
+ * v6 — September 1, 2026: Bumped cache version to force re-fetch of all cached files.
+ *      Removed old /public/dashboard/admin.html (deleted from repo).
+ *      Login page now redirects to /app/dashboard/admin.html.
+ *      All old /public/ dashboard paths updated to /app/ paths.
  */
 
-const CACHE = 'driv-en-v4';
+const CACHE = 'driv-en-v6';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
   '/public/login.html',
-  '/public/onboarding-dashboard.html',
-  '/public/onboarding-key-personnel.html',
-  '/public/change-password.html',
-  '/public/reset-password.html',
-  '/public/2fa-setup.html',
-  '/public/2fa-verify.html',
-  '/public/2fa-backup-codes.html',
-  '/public/dashboard/admin.html',
-  '/logo.png',
-  '/favicon.png',
-  '/icons/favicon.png',
-  '/icons/driven-icon-192.png',
-  '/icons/driven-icon-512.png',
-  '/css/theme.css',
-  '/js/theme.js',
-  '/js/offline-db.js',
-  '/js/api.js',
+  '/app/dashboard/onboarding-dashboard.html',
+  '/app/onboarding/key-personnel.html',
+  '/app/auth/change-password.html',
+  '/app/auth/reset-password.html',
+  '/app/auth/2fa-setup.html',
+  '/app/auth/2fa-verify.html',
+  '/app/auth/2fa-backup-codes.html',
+  '/app/dashboard/admin.html',
+  '/assets/logo.png',
+  '/assets/favicon.png',
+  '/assets/icons/favicon.png',
+  '/assets/icons/driven-icon-192.png',
+  '/assets/icons/driven-icon-512.png',
+  '/app/shared/dashboard.css',
+  '/app/shared/offline-db.js',
+  '/app/shared/api.js',
+  '/app/shared/auth-check.js',
+  '/app/shared/dashboard-common.js',
+  '/app/shared/dashboard-header.html',
+  '/app/shared/dashboard-footer.html',
+  '/app/shared/template-helpers.js',
   '/styles/header.css',
   '/styles/footer.css',
   '/components/header.html',
