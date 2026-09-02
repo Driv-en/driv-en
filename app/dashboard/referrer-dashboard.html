@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Referral Partner Dashboard | Driv‑en</title>
+
+<link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
+
+<link rel="stylesheet" href="/app/shared/dashboard.css?v=4">
+
+<style>
+    .ref-dash-container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 24px 16px 60px 16px;
+    }
+
+    .ref-greeting {
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 24px;
+    }
+
+    .ref-status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        margin-left: 8px;
+    }
+    .ref-status-approved { background: #dcfce7; color: #166534; }
+    .ref-status-pending { background: #fef3c7; color: #92400e; }
+    .ref-status-expired { background: #fee2e2; color: #991b1b; }
+
+    .ref-stats-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-bottom: 32px;
+    }
+    @media (max-width: 768px) {
+        .ref-stats-row { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .ref-stat-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+    }
+    .ref-stat-card .stat-label {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .ref-stat-card .stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--text);
+    }
+    .ref-stat-card .stat-sub {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-top: 4px;
+    }
+
+    .ref-section-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+    .ref-section-card h3 {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0 0 16px 0;
+        color: var(--text);
+    }
+
+    .ref-link-box {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--bg-input);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px 16px;
+    }
+    .ref-link-box input {
+        flex: 1;
+        border: none;
+        background: none;
+        font-size: 14px;
+        color: var(--text);
+        outline: none;
+    }
+    .ref-copy-btn {
+        background: #ffcc00;
+        color: #111;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    .ref-copy-btn:hover { background: #e6b800; }
+    .ref-copy-btn:disabled { background: #ccc; cursor: default; }
+
+    .ref-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+    .ref-table th {
+        text-align: left;
+        padding: 10px 12px;
+        border-bottom: 2px solid var(--border);
+        font-weight: 600;
+        color: var(--text-muted);
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .ref-table td {
+        padding: 12px;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+    }
+    .ref-table tr:last-child td { border-bottom: none; }
+
+    .comm-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    .comm-paid { background: #dcfce7; color: #166534; }
+    .comm-pending { background: #fef3c7; color: #92400e; }
+    .comm-eligible { background: #dbeafe; color: #1e40af; }
+
+    .w9-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+    }
+    .w9-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    .w9-valid { background: #22c55e; }
+    .w9-expiring { background: #f59e0b; }
+    .w9-expired { background: #ef4444; }
+
+    .ref-change-pwd {
+        display: none;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border);
+    }
+    .ref-change-pwd input {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 12px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 14px;
+        background: var(--bg-input);
+        color: var(--text);
+    }
+    .ref-change-pwd button {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        color: var(--text);
+    }
+
+    .ref-loading {
+        text-align: center;
+        padding: 60px 0;
+        font-size: 16px;
+        color: var(--text-muted);
+    }
+
+    .ref-empty {
+        text-align: center;
+        padding: 40px 0;
+        color: var(--text-muted);
+        font-size: 15px;
+    }
+
+    .ref-actions {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 24px;
+        font-size: 14px;
+    }
+    .ref-actions a {
+        color: #2563eb;
+        text-decoration: underline;
+        cursor: pointer;
+    }
+</style>
+</head>
+
+<body data-page-title="Referral Partner Dashboard">
+
+<div id="dashHeader"></div>
+
+<div class="ref-dash-container" id="dashContent">
+
+    <div class="ref-loading" id="loadingMsg">Loading your dashboard...</div>
+
+    <div id="dashBody" style="display:none;">
+
+        <div class="ref-greeting">
+            Welcome, <span id="partnerName">Partner</span>
+            <span class="ref-status-badge ref-status-approved" id="statusBadge">Approved</span>
+        </div>
+
+        <div class="ref-actions">
+            <a onclick="toggleChangePassword()">Change Password</a>
+            <a href="/public/referrer-login.html" onclick="refLogout(event)">Logout</a>
+        </div>
+
+        <div class="ref-change-pwd" id="changePwdSection">
+            <h3 style="font-size:16px;margin-bottom:12px;">Change Your Password</h3>
+            <input type="password" id="currentPwd" placeholder="Current password" />
+            <input type="password" id="newPwd" placeholder="New password (min 8 characters)" />
+            <input type="password" id="confirmNewPwd" placeholder="Confirm new password" />
+            <button onclick="submitChangePassword()">Update Password</button>
+            <div id="changePwdMsg" style="margin-top:8px;font-size:13px;"></div>
+        </div>
+
+        <div class="ref-stats-row">
+            <div class="ref-stat-card">
+                <div class="stat-label">Total Referrals</div>
+                <div class="stat-value" id="statTotal">0</div>
+            </div>
+            <div class="ref-stat-card">
+                <div class="stat-label">Converted</div>
+                <div class="stat-value" id="statConverted">0</div>
+            </div>
+            <div class="ref-stat-card">
+                <div class="stat-label">Lifetime Earned</div>
+                <div class="stat-value" id="statEarned">$0</div>
+            </div>
+            <div class="ref-stat-card">
+                <div class="stat-label">Pending Payout</div>
+                <div class="stat-value" id="statPending">$0</div>
+            </div>
+        </div>
+
+        <div class="ref-section-card">
+            <h3>Your Referral Link</h3>
+            <p style="font-size:14px;color:var(--text-muted);margin-bottom:12px;">
+                Share this link with companies you refer. When they sign up, you automatically earn commission.
+            </p>
+            <div class="ref-link-box">
+                <input type="text" id="referralLink" readonly />
+                <button class="ref-copy-btn" id="copyBtn" onclick="copyReferralLink()">Copy Link</button>
+            </div>
+            <p style="font-size:13px;color:var(--text-muted);margin-top:8px;">
+                Commission rates: <strong>5%</strong> on monthly subscriptions, <strong>10%</strong> on annual subscriptions.
+            </p>
+        </div>
+
+        <div class="ref-section-card">
+            <h3>W-9 Tax Form Status</h3>
+            <div class="w9-status" id="w9Status">
+                <span class="w9-dot w9-valid"></span>
+                <span id="w9Text">Loading...</span>
+            </div>
+            <p style="font-size:13px;color:var(--text-muted);margin-top:8px;" id="w9Note"></p>
+        </div>
+
+        <div class="ref-section-card">
+            <h3>Your Referrals</h3>
+            <div id="activityTableWrap">
+                <div class="ref-empty">No referrals yet. Share your link to start earning!</div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div id="dashFooter"></div>
+
+<script src="/app/shared/dashboard-common.js?v=7"></script>
+
+<script>
+let partnerData = null;
+
+(async function() {
+    try {
+        const resp = await fetch('/referral/session');
+        const data = await resp.json();
+
+        if (!data.authenticated) {
+            window.location.href = '/public/referrer-login.html';
+            return;
+        }
+
+        partnerData = data.partner;
+        initDashboard();
+    } catch (e) {
+        console.error('Session check failed:', e);
+        window.location.href = '/public/referrer-login.html';
+    }
+})();
+
+function initDashboard() {
+    document.getElementById('loadingMsg').style.display = 'none';
+    document.getElementById('dashBody').style.display = 'block';
+
+    document.getElementById('partnerName').textContent = partnerData.name || 'Partner';
+
+    const badge = document.getElementById('statusBadge');
+    if (partnerData.status === 'Approved') {
+        badge.className = 'ref-status-badge ref-status-approved';
+        badge.textContent = 'Approved';
+    } else {
+        badge.className = 'ref-status-badge ref-status-pending';
+        badge.textContent = partnerData.status || 'Pending';
+    }
+
+    loadProfile();
+    loadCommissions();
+    loadActivity();
+}
+
+async function loadProfile() {
+    try {
+        const resp = await fetch('/referral/profile');
+        const data = await resp.json();
+
+        if (data.success && data.profile) {
+            const p = data.profile;
+
+            if (p.referral_link) {
+                document.getElementById('referralLink').value = p.referral_link;
+            } else {
+                document.getElementById('referralLink').value = 'Not yet assigned \u2014 contact support@driv-en.com';
+                document.getElementById('copyBtn').disabled = true;
+            }
+
+            const w9Dot = document.querySelector('.w9-dot');
+            const w9Text = document.getElementById('w9Text');
+            const w9Note = document.getElementById('w9Note');
+
+            if (p.w9_expiration_date) {
+                const expDate = new Date(p.w9_expiration_date);
+                const now = new Date();
+                const daysUntil = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24));
+
+                if (daysUntil < 0) {
+                    w9Dot.className = 'w9-dot w9-expired';
+                    w9Text.textContent = 'W-9 expired on ' + expDate.toLocaleDateString();
+                    w9Note.textContent = 'Please submit a new W-9 to continue receiving commissions. Contact support@driv-en.com.';
+                } else if (daysUntil <= 30) {
+                    w9Dot.className = 'w9-dot w9-expiring';
+                    w9Text.textContent = 'W-9 expires on ' + expDate.toLocaleDateString() + ' (' + daysUntil + ' days)';
+                    w9Note.textContent = 'Your W-9 will expire soon. Please submit a new one to avoid commission delays.';
+                } else {
+                    w9Dot.className = 'w9-dot w9-valid';
+                    w9Text.textContent = 'W-9 valid until ' + expDate.toLocaleDateString();
+                    w9Note.textContent = '';
+                }
+            } else {
+                w9Dot.className = 'w9-dot w9-expired';
+                w9Text.textContent = 'W-9 not on file';
+                w9Note.textContent = 'Please submit a W-9 to become eligible for commissions.';
+            }
+        }
+    } catch (e) {
+        console.error('Profile load failed:', e);
+    }
+}
+
+async function loadCommissions() {
+    try {
+        const resp = await fetch('/referral/commissions');
+        const data = await resp.json();
+
+        if (data.success && data.commissions) {
+            const c = data.commissions;
+            document.getElementById('statTotal').textContent = c.total_referrals || 0;
+            document.getElementById('statConverted').textContent = c.converted_referrals || 0;
+            document.getElementById('statEarned').textContent = '$' + (c.total_paid || c.lifetime_earned || 0).toFixed(2);
+            document.getElementById('statPending').textContent = '$' + (c.total_payable || c.total_pending || 0).toFixed(2);
+        }
+    } catch (e) {
+        console.error('Commissions load failed:', e);
+    }
+}
+
+async function loadActivity() {
+    try {
+        const resp = await fetch('/referral/activity');
+        const data = await resp.json();
+
+        if (data.success && data.activity && data.activity.length > 0) {
+            const wrap = document.getElementById('activityTableWrap');
+            let html = '<table class="ref-table">';
+            html += '<thead><tr>';
+            html += '<th>Company / Contact</th>';
+            html += '<th>Status</th>';
+            html += '<th>Subscription</th>';
+            html += '<th>Rate</th>';
+            html += '<th>Commission</th>';
+            html += '<th>Commission Status</th>';
+            html += '<th>Date</th>';
+            html += '</tr></thead><tbody>';
+
+            data.activity.forEach(function(a) {
+                html += '<tr>';
+                html += '<td>' + (a.customer_contact_name || '\u2014') + '<br><span style="font-size:12px;color:var(--text-muted);">' + (a.customer_contact_email || '') + '</span></td>';
+                html += '<td>' + (a.referral_status || '\u2014') + '</td>';
+                html += '<td>' + (a.subscription_amount ? '$' + a.subscription_amount.toFixed(2) : '\u2014') + '</td>';
+                html += '<td>' + (a.commission_rate ? a.commission_rate + '%' : '\u2014') + '</td>';
+                html += '<td>' + (a.commission_amount ? '$' + a.commission_amount.toFixed(2) : '\u2014') + '</td>';
+
+                let badgeClass = 'comm-pending';
+                let badgeText = a.commission_status || 'Pending';
+                if ((a.commission_status || '').toLowerCase() === 'paid') {
+                    badgeClass = 'comm-paid';
+                } else if (a.commission_eligible === 1) {
+                    badgeClass = 'comm-eligible';
+                    badgeText = 'Eligible';
+                }
+                html += '<td><span class="comm-badge ' + badgeClass + '">' + badgeText + '</span></td>';
+
+                html += '<td>' + (a.referral_date ? new Date(a.referral_date).toLocaleDateString() : (a.created_at ? new Date(a.created_at).toLocaleDateString() : '\u2014')) + '</td>';
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            wrap.innerHTML = html;
+        }
+    } catch (e) {
+        console.error('Activity load failed:', e);
+    }
+}
+
+function copyReferralLink() {
+    const input = document.getElementById('referralLink');
+    const btn = document.getElementById('copyBtn');
+    input.select();
+    input.setSelectionRange(0, 99999);
+    try {
+        document.execCommand('copy');
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = 'Copy Link'; }, 2000);
+    } catch (e) {
+        alert('Copy failed. Please manually copy the link.');
+    }
+}
+
+function toggleChangePassword() {
+    const section = document.getElementById('changePwdSection');
+    section.style.display = section.style.display === 'block' ? 'none' : 'block';
+}
+
+async function submitChangePassword() {
+    const currentPwd = document.getElementById('currentPwd').value;
+    const newPwd = document.getElementById('newPwd').value;
+    const confirmNewPwd = document.getElementById('confirmNewPwd').value;
+    const msgEl = document.getElementById('changePwdMsg');
+
+    if (!currentPwd || !newPwd || !confirmNewPwd) {
+        msgEl.innerHTML = '<span style="color:#cc0000;">All fields are required.</span>';
+        return;
+    }
+    if (newPwd !== confirmNewPwd) {
+        msgEl.innerHTML = '<span style="color:#cc0000;">New passwords do not match.</span>';
+        return;
+    }
+    if (newPwd.length < 8) {
+        msgEl.innerHTML = '<span style="color:#cc0000;">Password must be at least 8 characters.</span>';
+        return;
+    }
+
+    try {
+        const resp = await fetch('/referral/change-password', {
+            method: 'POST',
+            headers: { 'Content-Type": "application/json" },
+            body: JSON.stringify({ current_password: currentPwd, new_password: newPwd })
+        });
+        const data = await resp.json();
+
+        if (data.success) {
+            msgEl.innerHTML = '<span style="color:#166534;">Password changed successfully!</span>';
+            document.getElementById('currentPwd').value = '';
+            document.getElementById('newPwd').value = '';
+            document.getElementById('confirmNewPwd').value = '';
+        } else {
+            msgEl.innerHTML = '<span style="color:#cc0000;">' + (data.error || 'Failed to change password.') + '</span>';
+        }
+    } catch (e) {
+        msgEl.innerHTML = '<span style="color:#cc0000;">Network error. Please try again.</span>';
+    }
+}
+
+async function refLogout(e) {
+    if (e) e.preventDefault();
+    try {
+        await fetch('/referral/logout', { method: 'POST' });
+    } catch (err) { /* ignore */ }
+    window.location.href = '/public/referrer-login.html';
+}
+</script>
+
+</body>
+</html>
