@@ -26,10 +26,10 @@
 <!-- ===== END PAGE-SPECIFIC SEO ===== -->
 
 <!-- Favicon -->
-<link rel="icon" type="image/png" href="/assets/icons/favicon.png" sizes="48x48">
-<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png" sizes="96x96">
-<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png" sizes="192x192">
-<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png">
+<link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
 
 <!-- Shared stylesheets (bump ?v number when CSS changes) -->
 <link rel="stylesheet" href="/styles/header.css?v=6">
@@ -187,6 +187,61 @@
         font-size: 14px;
     }
 
+    /* Layer 1: Referral Partner login link */
+    .referrer-link-section {
+        text-align: center;
+        margin-top: 20px;
+        padding-bottom: 10px;
+    }
+    .referrer-divider {
+        border-top: 1px solid #e2e8f0;
+        margin: 0 20px 16px 20px;
+    }
+    .referrer-link-text {
+        font-size: 13px;
+        color: #64748b;
+        margin-bottom: 6px;
+    }
+    .referrer-login-link {
+        font-size: 14px;
+        font-weight: 600;
+        color: #2563eb;
+        text-decoration: none;
+    }
+    .referrer-login-link:hover {
+        text-decoration: underline;
+    }
+
+    /* Layer 3: Referrer redirect banner (shown when server detects referrer account) */
+    .referrer-redirect-banner {
+        background: #fef3c7;
+        border: 1px solid #f59e0b;
+        color: #92400e;
+        padding: 12px;
+        border-radius: 6px;
+        margin-bottom: 16px;
+        text-align: center;
+        font-size: 14px;
+        display: none;
+    }
+    .referrer-redirect-banner strong {
+        display: block;
+        margin-bottom: 8px;
+    }
+    .referrer-redirect-banner button {
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .referrer-redirect-banner button:hover {
+        background: #1d4ed8;
+    }
+
     /* ===== SHARED STYLES (do not remove) ===== */
 
     /* Inline logo for headings and buttons */
@@ -222,11 +277,11 @@
         width: 64px;
         height: 64px;
         background-color: #fff;
-        -webkit-mask-image: url('/icons/driven-login-icon.png');
+        -webkit-mask-image: url('/assets/icons/driven-login-icon.png');
         -webkit-mask-repeat: no-repeat;
         -webkit-mask-position: center;
         -webkit-mask-size: contain;
-        mask-image: url('/icons/driven-login-icon.png');
+        mask-image: url('/assets/icons/driven-login-icon.png');
         mask-repeat: no-repeat;
         mask-position: center;
         mask-size: contain;
@@ -259,12 +314,19 @@
 <div class="login-section">
     <div class="login-icon-wrap">
         <span class="login-icon-mask"></span>
-        <img src="/icons/driven-login-icon.png" class="login-icon-fallback" alt="DRIV‑EN login icon">
+        <img src="/assets/icons/driven-login-icon.png" class="login-icon-fallback" alt="DRIV‑EN login icon">
     </div>
     <h2>Login to <span class="brand-driv">DRIV</span><span class="brand-dash">‑</span><span class="brand-en">EN</span></h2>
 
     <div id="error-banner" class="error-banner">
         Invalid credentials.
+    </div>
+
+    <!-- Layer 3: Referrer redirect banner (shown when server detects referrer account) -->
+    <div id="referrer-redirect-banner" class="referrer-redirect-banner">
+        <strong>This email is a Referral Partner account.</strong>
+        Please use the Referral Partner Login page.
+        <button onclick="window.location.href='/website/referrer-login.html'">Go to Partner Login &rarr;</button>
     </div>
 
     <form id="login-form">
@@ -300,6 +362,13 @@
     <div class="no-account">
         <div class="no-account-line">Don't have an account?</div>
         <div class="no-account-line-2">Contact your Human Resources Department.</div>
+    </div>
+
+    <!-- Layer 1: Referral Partner login link -->
+    <div class="referrer-link-section">
+        <div class="referrer-divider"></div>
+        <div class="referrer-link-text">Are you a Referral Partner?</div>
+        <a href="/website/referrer-login.html" class="referrer-login-link">Partner Login &rarr;</a>
     </div>
 </div>
 <!-- ===== END PAGE CONTENT ===== -->
@@ -393,6 +462,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         const result = await response.json();
 
         if (!result.success) {
+            // Layer 3: If server detects this is a referrer account, show redirect banner
+            if (result.error === "referrer_account") {
+                errorBanner.style.display = "none";
+                document.getElementById("referrer-redirect-banner").style.display = "block";
+                email.classList.add("error");
+                return;
+            }
             // If 2FA is required, skip it for now and just show a message
             // (2FA is disabled during development — will re-enable later)
             if (result.requires2FA) {
@@ -423,7 +499,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             // Non-admin users go to the Onboarding Dashboard
             window.location.href = "/app/dashboard/onboarding-dashboard.html";
         }
-
     });
 </script>
 
