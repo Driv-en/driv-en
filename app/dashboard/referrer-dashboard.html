@@ -5,27 +5,49 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>Referral Partner Dashboard | Driv‑en</title>
+<meta name="robots" content="noindex, nofollow">
 
+<!-- Favicon -->
 <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
 <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
 <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
 <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
 
-<link rel="stylesheet" href="/app/shared/dashboard.css?v=4">
+<!-- ===== SHARED DASHBOARD CSS (v7 — includes diamond plate background) ===== -->
+<link rel="stylesheet" href="/app/shared/dashboard.css?v=7">
+
+<!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
+<script>
+(function() {
+  var saved = localStorage.getItem("driven-theme");
+  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  var theme = saved || system;
+  document.documentElement.setAttribute("data-theme", theme);
+})();
+</script>
 
 <style>
+    /* ===== PAGE-SPECIFIC STYLES ===== */
+
     .ref-dash-container {
         max-width: 1100px;
         margin: 0 auto;
         padding: 24px 16px 60px 16px;
     }
 
+    /* Greeting */
     .ref-greeting {
         font-size: 20px;
         font-weight: 600;
+        margin-bottom: 4px;
+    }
+    .ref-greeting-sub {
+        font-size: 14px;
+        color: var(--text-muted);
         margin-bottom: 24px;
     }
 
+    /* Status badge */
     .ref-status-badge {
         display: inline-block;
         padding: 4px 12px;
@@ -38,6 +60,7 @@
     .ref-status-pending { background: #fef3c7; color: #92400e; }
     .ref-status-expired { background: #fee2e2; color: #991b1b; }
 
+    /* Stat cards row */
     .ref-stats-row {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -73,6 +96,7 @@
         margin-top: 4px;
     }
 
+    /* Section card */
     .ref-section-card {
         background: var(--bg-card);
         border: 1px solid var(--border);
@@ -87,6 +111,7 @@
         color: var(--text);
     }
 
+    /* Referral link box */
     .ref-link-box {
         display: flex;
         align-items: center;
@@ -118,6 +143,7 @@
     .ref-copy-btn:hover { background: #e6b800; }
     .ref-copy-btn:disabled { background: #ccc; cursor: default; }
 
+    /* Table */
     .ref-table {
         width: 100%;
         border-collapse: collapse;
@@ -140,6 +166,7 @@
     }
     .ref-table tr:last-child td { border-bottom: none; }
 
+    /* Commission status badges */
     .comm-badge {
         display: inline-block;
         padding: 3px 10px;
@@ -151,6 +178,18 @@
     .comm-pending { background: #fef3c7; color: #92400e; }
     .comm-eligible { background: #dbeafe; color: #1e40af; }
 
+    /* Referral status badges */
+    .ref-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    .ref-converted { background: #dcfce7; color: #166534; }
+    .ref-rejected { background: #fee2e2; color: #991b1b; }
+
+    /* W-9 status */
     .w9-status {
         display: flex;
         align-items: center;
@@ -167,6 +206,7 @@
     .w9-expiring { background: #f59e0b; }
     .w9-expired { background: #ef4444; }
 
+    /* Change password section */
     .ref-change-pwd {
         display: none;
         margin-top: 16px;
@@ -194,6 +234,7 @@
         color: var(--text);
     }
 
+    /* Loading state */
     .ref-loading {
         text-align: center;
         padding: 60px 0;
@@ -201,6 +242,7 @@
         color: var(--text-muted);
     }
 
+    /* Empty state */
     .ref-empty {
         text-align: center;
         padding: 40px 0;
@@ -208,6 +250,7 @@
         font-size: 15px;
     }
 
+    /* Action links */
     .ref-actions {
         display: flex;
         gap: 16px;
@@ -219,29 +262,85 @@
         text-decoration: underline;
         cursor: pointer;
     }
+
+    /* Payment schedule note */
+    .ref-schedule-note {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-top: 12px;
+        padding: 10px 14px;
+        background: var(--bg-input);
+        border-radius: 6px;
+        border-left: 3px solid #2563eb;
+    }
+
+    /* Responsive table — horizontal scroll on mobile */
+    .ref-table-wrap {
+        overflow-x: auto;
+    }
 </style>
 </head>
 
 <body data-page-title="Referral Partner Dashboard">
 
-<div id="dashHeader"></div>
+<!-- ===== REFERRER DASHBOARD HEADER ===== -->
+<!-- This is a custom header for the referrer dashboard. -->
+<!-- It does NOT load the customer logo (referrers are not customers). -->
+<!-- It does NOT use dashboard-common.js (that calls /auth/session which is for regular users). -->
+<!-- It DOES use dashboard.css for the diamond plate background, theme variables, and shared styling. -->
+<!-- It DOES have the theme toggle (light/dark mode) and logout button. -->
+<div class="dash-header">
 
+  <!-- Row 1: DRIV-EN logo only (no customer logo) -->
+  <div class="dash-header-row1">
+    <!-- Empty left side — no customer logo for referrers -->
+    <div></div>
+    <!-- DRIV-EN logo (right side) -->
+    <img src="/assets/logo.png?v=2026" class="dash-driven-logo" alt="DRIV‑EN Logo">
+  </div>
+
+  <!-- Row 2: Page title (centered) -->
+  <div class="dash-header-row2">
+    <h1 id="dashPageTitle">Referral Partner Dashboard</h1>
+  </div>
+
+  <!-- Row 3: Theme toggle (left) | Logout (right) -->
+  <div class="dash-header-row3">
+    <div class="dash-theme-wrapper" title="Toggle light/dark mode">
+      <span class="dash-theme-label" id="dashThemeLabelLight">Light Mode</span>
+      <label class="dash-theme-switch">
+        <input type="checkbox" id="dashThemeCheckbox" onchange="dashToggleTheme()">
+        <span class="dash-theme-slider"></span>
+      </label>
+      <span class="dash-theme-label" id="dashThemeLabelDark">Dark Mode</span>
+    </div>
+    <button class="dash-logout" onclick="refLogout()">Logout</button>
+  </div>
+
+</div>
+
+<!-- ===== PAGE CONTENT ===== -->
 <div class="ref-dash-container" id="dashContent">
 
+    <!-- Loading state -->
     <div class="ref-loading" id="loadingMsg">Loading your dashboard...</div>
 
+    <!-- Main content (hidden until loaded) -->
     <div id="dashBody" style="display:none;">
 
+        <!-- Greeting -->
         <div class="ref-greeting">
             Welcome, <span id="partnerName">Partner</span>
             <span class="ref-status-badge ref-status-approved" id="statusBadge">Approved</span>
         </div>
+        <div class="ref-greeting-sub" id="partnerSubText">Your referral partner dashboard</div>
 
+        <!-- Action links -->
         <div class="ref-actions">
             <a onclick="toggleChangePassword()">Change Password</a>
-            <a href="/public/referrer-login.html" onclick="refLogout(event)">Logout</a>
         </div>
 
+        <!-- Change password section -->
         <div class="ref-change-pwd" id="changePwdSection">
             <h3 style="font-size:16px;margin-bottom:12px;">Change Your Password</h3>
             <input type="password" id="currentPwd" placeholder="Current password" />
@@ -251,6 +350,7 @@
             <div id="changePwdMsg" style="margin-top:8px;font-size:13px;"></div>
         </div>
 
+        <!-- Stat cards -->
         <div class="ref-stats-row">
             <div class="ref-stat-card">
                 <div class="stat-label">Total Referrals</div>
@@ -270,6 +370,7 @@
             </div>
         </div>
 
+        <!-- Referral link -->
         <div class="ref-section-card">
             <h3>Your Referral Link</h3>
             <p style="font-size:14px;color:var(--text-muted);margin-bottom:12px;">
@@ -284,6 +385,7 @@
             </p>
         </div>
 
+        <!-- W-9 status -->
         <div class="ref-section-card">
             <h3>W-9 Tax Form Status</h3>
             <div class="w9-status" id="w9Status">
@@ -293,9 +395,15 @@
             <p style="font-size:13px;color:var(--text-muted);margin-top:8px;" id="w9Note"></p>
         </div>
 
+        <!-- Payment schedule note -->
+        <div class="ref-schedule-note">
+            <strong>Payment Schedule:</strong> Commissions are paid 60 days after DRIV-EN receives payment from the customer, via Direct Deposit (ACH).
+        </div>
+
+        <!-- Referral activity table -->
         <div class="ref-section-card">
             <h3>Your Referrals</h3>
-            <div id="activityTableWrap">
+            <div class="ref-table-wrap" id="activityTableWrap">
                 <div class="ref-empty">No referrals yet. Share your link to start earning!</div>
             </div>
         </div>
@@ -303,20 +411,68 @@
     </div>
 </div>
 
-<div id="dashFooter"></div>
+<!-- ===== DASHBOARD FOOTER ===== -->
+<div class="dash-footer">
+  <div class="dash-footer-content">
+    <p class="dash-footer-copyright">
+      &copy; <span id="dashFooterYear">2026</span> DRIV-EN. All rights reserved.
+    </p>
+  </div>
+</div>
 
-<script src="/app/shared/dashboard-common.js?v=7"></script>
-
+<!-- ===== THEME TOGGLE JS (inline — does not use dashboard-common.js) ===== -->
 <script>
+// Toggle between light and dark mode
+// Reads current theme from <html data-theme="...">
+// Saves the new theme to localStorage key "driven-theme"
+function dashToggleTheme() {
+    var current = document.documentElement.getAttribute("data-theme");
+    var newTheme = current === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", newTheme);
+    localStorage.setItem("driven-theme", newTheme);
+    updateThemeSwitch();
+}
+
+// Updates the theme switch UI to match the current theme
+function updateThemeSwitch() {
+    var current = document.documentElement.getAttribute("data-theme");
+    var checkbox = document.getElementById("dashThemeCheckbox");
+    var labelLight = document.getElementById("dashThemeLabelLight");
+    var labelDark = document.getElementById("dashThemeLabelDark");
+    if (checkbox) checkbox.checked = (current === "dark");
+    if (labelLight) labelLight.classList.toggle("active", current === "light");
+    if (labelDark) labelDark.classList.toggle("active", current === "dark");
+}
+
+// Set footer year
+document.getElementById("dashFooterYear").textContent = new Date().getFullYear();
+
+// Initialize theme switch on load
+updateThemeSwitch();
+</script>
+
+<!-- ===== REFERRER DASHBOARD LOGIC ===== -->
+<script>
+// =========================================================================
+// REFERRER DASHBOARD LOGIC
+// =========================================================================
+// This page does NOT use dashboard-common.js or auth-check.js.
+// Referrers authenticate via /referral/session (driv_en_referrer_session cookie),
+// NOT /auth/session (driv_en_session cookie).
+// The header, theme toggle, and footer are all self-contained in this file
+// to avoid loading the customer logo (referrers are not customers).
+// =========================================================================
+
 let partnerData = null;
 
+// Check referrer session on load
 (async function() {
     try {
         const resp = await fetch('/referral/session');
         const data = await resp.json();
 
         if (!data.authenticated) {
-            window.location.href = '/public/referrer-login.html';
+            window.location.href = '/website/referrer-login.html';
             return;
         }
 
@@ -324,7 +480,7 @@ let partnerData = null;
         initDashboard();
     } catch (e) {
         console.error('Session check failed:', e);
-        window.location.href = '/public/referrer-login.html';
+        window.location.href = '/website/referrer-login.html';
     }
 })();
 
@@ -332,19 +488,32 @@ function initDashboard() {
     document.getElementById('loadingMsg').style.display = 'none';
     document.getElementById('dashBody').style.display = 'block';
 
+    // Set partner name in greeting
     document.getElementById('partnerName').textContent = partnerData.name || 'Partner';
 
+    // Set status badge
     const badge = document.getElementById('statusBadge');
-    if (partnerData.status === 'Approved') {
+    if (partnerData.status === 'Approved' || partnerData.partner_status === 'Approved') {
         badge.className = 'ref-status-badge ref-status-approved';
         badge.textContent = 'Approved';
+        document.getElementById('partnerSubText').textContent = 'Your referral partner dashboard';
+    } else if (partnerData.status === 'Converted' || partnerData.partner_status === 'Converted') {
+        badge.className = 'ref-status-badge ref-status-approved';
+        badge.textContent = 'Active';
+        document.getElementById('partnerSubText').textContent = 'Your referral partner dashboard';
     } else {
         badge.className = 'ref-status-badge ref-status-pending';
-        badge.textContent = partnerData.status || 'Pending';
+        badge.textContent = partnerData.status || partnerData.partner_status || 'Pending';
+        document.getElementById('partnerSubText').textContent = 'Your account is pending approval';
     }
 
+    // Load profile (referral link, W-9)
     loadProfile();
+
+    // Load commissions
     loadCommissions();
+
+    // Load activity
     loadActivity();
 }
 
@@ -356,13 +525,17 @@ async function loadProfile() {
         if (data.success && data.profile) {
             const p = data.profile;
 
+            // Referral link
             if (p.referral_link) {
                 document.getElementById('referralLink').value = p.referral_link;
+            } else if (p.referral_code) {
+                document.getElementById('referralLink').value = 'https://www.driv-en.com/website/checkout.html?ref=' + p.referral_code;
             } else {
-                document.getElementById('referralLink').value = 'Not yet assigned \u2014 contact support@driv-en.com';
+                document.getElementById('referralLink').value = 'Not yet assigned — contact support@driv-en.com';
                 document.getElementById('copyBtn').disabled = true;
             }
 
+            // W-9 status
             const w9Dot = document.querySelector('.w9-dot');
             const w9Text = document.getElementById('w9Text');
             const w9Note = document.getElementById('w9Note');
@@ -423,22 +596,37 @@ async function loadActivity() {
             let html = '<table class="ref-table">';
             html += '<thead><tr>';
             html += '<th>Company / Contact</th>';
-            html += '<th>Status</th>';
-            html += '<th>Subscription</th>';
-            html += '<th>Rate</th>';
-            html += '<th>Commission</th>';
+            html += '<th>Referral Status</th>';
+            html += '<th>Subscription Type</th>';
+            html += '<th>Subscription Amount</th>';
+            html += '<th>Commission Rate</th>';
+            html += '<th>Commission Amount</th>';
             html += '<th>Commission Status</th>';
             html += '<th>Date</th>';
             html += '</tr></thead><tbody>';
 
             data.activity.forEach(function(a) {
                 html += '<tr>';
-                html += '<td>' + (a.customer_contact_name || '\u2014') + '<br><span style="font-size:12px;color:var(--text-muted);">' + (a.customer_contact_email || '') + '</span></td>';
-                html += '<td>' + (a.referral_status || '\u2014') + '</td>';
-                html += '<td>' + (a.subscription_amount ? '$' + a.subscription_amount.toFixed(2) : '\u2014') + '</td>';
-                html += '<td>' + (a.commission_rate ? a.commission_rate + '%' : '\u2014') + '</td>';
-                html += '<td>' + (a.commission_amount ? '$' + a.commission_amount.toFixed(2) : '\u2014') + '</td>';
-
+                // Company / Contact
+                html += '<td>' + (a.customer_contact_name || '—') + '<br><span style="font-size:12px;color:var(--text-muted);">' + (a.customer_contact_email || '') + '</span></td>';
+                // Referral status badge
+                let refStatus = a.referral_status || '—';
+                let refBadgeClass = 'comm-pending';
+                if (refStatus === 'Converted') {
+                    refBadgeClass = 'ref-converted';
+                } else if (refStatus === 'Rejected' || refStatus.indexOf('Rejected') !== -1) {
+                    refBadgeClass = 'ref-rejected';
+                }
+                html += '<td><span class="ref-badge ' + refBadgeClass + '">' + refStatus + '</span></td>';
+                // Subscription type (Monthly / Annual)
+                html += '<td>' + (a.subscription_type || '—') + '</td>';
+                // Subscription amount
+                html += '<td>' + (a.subscription_amount ? '$' + a.subscription_amount.toFixed(2) : '—') + '</td>';
+                // Commission rate
+                html += '<td>' + (a.commission_rate ? a.commission_rate + '%' : '—') + '</td>';
+                // Commission amount
+                html += '<td>' + (a.commission_amount ? '$' + a.commission_amount.toFixed(2) : '—') + '</td>';
+                // Commission status badge
                 let badgeClass = 'comm-pending';
                 let badgeText = a.commission_status || 'Pending';
                 if ((a.commission_status || '').toLowerCase() === 'paid') {
@@ -448,8 +636,8 @@ async function loadActivity() {
                     badgeText = 'Eligible';
                 }
                 html += '<td><span class="comm-badge ' + badgeClass + '">' + badgeText + '</span></td>';
-
-                html += '<td>' + (a.referral_date ? new Date(a.referral_date).toLocaleDateString() : (a.created_at ? new Date(a.created_at).toLocaleDateString() : '\u2014')) + '</td>';
+                // Date
+                html += '<td>' + (a.referral_date ? new Date(a.referral_date).toLocaleDateString() : (a.created_at ? new Date(a.created_at).toLocaleDateString() : '—')) + '</td>';
                 html += '</tr>';
             });
 
@@ -461,6 +649,7 @@ async function loadActivity() {
     }
 }
 
+// Copy referral link
 function copyReferralLink() {
     const input = document.getElementById('referralLink');
     const btn = document.getElementById('copyBtn');
@@ -475,11 +664,13 @@ function copyReferralLink() {
     }
 }
 
+// Toggle change password section
 function toggleChangePassword() {
     const section = document.getElementById('changePwdSection');
     section.style.display = section.style.display === 'block' ? 'none' : 'block';
 }
 
+// Submit change password
 async function submitChangePassword() {
     const currentPwd = document.getElementById('currentPwd').value;
     const newPwd = document.getElementById('newPwd').value;
@@ -502,7 +693,7 @@ async function submitChangePassword() {
     try {
         const resp = await fetch('/referral/change-password', {
             method: 'POST',
-            headers: { 'Content-Type": "application/json" },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ current_password: currentPwd, new_password: newPwd })
         });
         const data = await resp.json();
@@ -520,12 +711,12 @@ async function submitChangePassword() {
     }
 }
 
-async function refLogout(e) {
-    if (e) e.preventDefault();
+// Logout — calls /referral/logout then redirects to referrer login
+async function refLogout() {
     try {
         await fetch('/referral/logout', { method: 'POST' });
-    } catch (err) { /* ignore */ }
-    window.location.href = '/public/referrer-login.html';
+    } catch (e) { /* ignore */ }
+    window.location.href = '/website/referrer-login.html';
 }
 </script>
 
