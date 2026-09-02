@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Referral Signup | Driv‑en</title>
+
+<!-- Favicon -->
+<link rel="icon" type="image/png" href="/favicon.png" sizes="48x48">
+<link rel="icon" type="image/png" href="/favicon-96.png" sizes="96x96">
+<link rel="icon" type="image/png" href="/favicon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="/favicon-180.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+
+<!-- Shared stylesheets -->
+<link rel="stylesheet" href="/styles/header.css?v=3">
+<link rel="stylesheet" href="/styles/footer.css?v=3">
+
+<style>
+    /* ===== PAGE-SPECIFIC STYLES ===== */
+
+    body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        background-color: #f7f7f7;
+        color: #222;
+    }
+
+    /* ---- Yellow announcement bar (below header, not sticky) ---- */
+    .announcement-bar {
+        width: 100%;
+        background-color: #ffcc00;
+        text-align: center;
+        padding: 15px 24px;
+        font-size: 20px;
+        font-weight: 800;
+        color: #111;
+        box-sizing: border-box;
+        border-bottom: 2px solid #111;
+    }
+
+    /* ---- Page title ---- */
+    .page-title {
+        text-align: center;
+        margin-top: 30px;
+        font-size: 32px;
+        font-weight: 700;
+        color: #111;
+    }
+
+    .intro-text {
+        text-align: center;
+        margin-top: 10px;
+        font-size: 18px;
+        max-width: 800px;
+        margin-left: auto;
+        margin-right: auto;
+        line-height: 1.5;
+    }
+
+    /* ---- Form section ---- */
+    .form-section {
+        max-width: 600px;
+        margin: 50px auto;
+        background: white;
+        padding: 40px;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+
+    .form-section h2 {
+        text-align: center;
+        margin-bottom: 25px;
+        font-size: 28px;
+    }
+
+    .form-section label {
+        font-weight: bold;
+        display: block;
+        margin-bottom: 6px;
+        font-size: 16px;
+    }
+
+    .required-star {
+        color: red;
+        margin-left: 4px;
+    }
+
+    .form-section input,
+    .form-section button,
+    .form-section a.button-link {
+        width: 100%;
+        padding: 14px;
+        margin-bottom: 20px;
+        border-radius: 6px;
+        font-size: 16px;
+        box-sizing: border-box;
+    }
+
+    .form-section input {
+        border: 1px solid #ccc;
+    }
+
+    .form-section button {
+        background: #ffcc00;
+        color: #111;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+    }
+
+    .form-section button:hover {
+        background: #e6b800;
+    }
+
+    .form-section a.button-link {
+        display: block;
+        text-align: center;
+        background: #111;
+        color: white;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    #step2 {
+        display: none;
+    }
+
+    #message {
+        margin-top: 20px;
+        text-align: center;
+        font-size: 18px;
+        font-weight: bold;
+    }
+
+    .error {
+        color: red;
+        margin-bottom: 15px;
+        text-align: center;
+        font-weight: bold;
+    }
+
+    /* ===== SHARED STYLES (do not remove) ===== */
+
+    .inline-logo {
+        height: 3.75em;
+        vertical-align: middle;
+        display: inline-block;
+    }
+
+    .brand-driv {
+        color: #8c8c8c;
+        font-weight: bold;
+        font-style: italic;
+        letter-spacing: -1px;
+    }
+    .brand-dash {
+        color: #2da94f;
+        font-weight: bold;
+        font-style: italic;
+        letter-spacing: -1px;
+    }
+    .brand-en {
+        color: #dc2626;
+        font-weight: bold;
+        font-style: italic;
+        letter-spacing: -1px;
+    }
+
+    .login-icon-mask {
+        display: inline-block;
+        width: 64px;
+        height: 64px;
+        background-color: #fff;
+        -webkit-mask-image: url('/icons/driven-login-icon.png');
+        -webkit-mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        -webkit-mask-size: contain;
+        mask-image: url('/icons/driven-login-icon.png');
+        mask-repeat: no-repeat;
+        mask-position: center;
+        mask-size: contain;
+        vertical-align: middle;
+    }
+
+    .login-icon-fallback {
+        width: 64px;
+        height: auto;
+        filter: invert(1) brightness(200%);
+        -webkit-filter: invert(1) brightness(200%);
+        vertical-align: middle;
+        display: none;
+    }
+
+    @supports not (mask-image: url('')) {
+        .login-icon-mask { display: none; }
+        .login-icon-fallback { display: inline-block; }
+    }
+</style>
+
+</head>
+
+<body>
+
+<!-- Header (auto-loaded) -->
+<div id="header"></div>
+
+<!-- Yellow announcement bar (below header, not sticky) -->
+<div class="announcement-bar">
+    Driv‑en is expected to go live September 2026
+</div>
+
+<div class="page-title">Become a Driv‑en Referral Partner</div>
+
+<div class="intro-text">
+    Please enter your contact information to begin the referral partner setup.<br>
+    After you submit your information, you will be guided to the W‑9 step to download, complete, and upload your form securely.
+</div>
+
+<div class="form-section">
+
+    <!-- STEP 1 -->
+    <div id="step1">
+        <h2>Submit Your Information</h2>
+
+        <div id="step1-error" class="error" style="display:none;"></div>
+
+        <label>Name<span class="required-star">*</span></label>
+        <input type="text" id="name">
+
+        <label>Email<span class="required-star">*</span></label>
+        <input type="email" id="email">
+
+        <label>Phone<span class="required-star">*</span></label>
+        <input type="text" id="phone">
+
+        <button onclick="goToStep2()">Continue</button>
+    </div>
+
+    <!-- STEP 2 -->
+    <div id="step2">
+        <h2>Complete Your W‑9</h2>
+
+        <p style="margin-bottom: 10px;">
+            Please click &ldquo;Open Fillable W‑9 Form&rdquo; to download the IRS W‑9.<br>
+            Complete the form, sign it, save it to your device, and then upload the PDF below.
+        </p>
+
+        <a class="button-link" href="https://www.irs.gov/pub/irs-pdf/fw9.pdf" target="_blank">
+            Open Fillable W‑9 Form
+        </a>
+
+        <label>Upload Completed W‑9 (PDF)<span class="required-star">*</span></label>
+        <input type="file" id="w9file" accept="application/pdf">
+
+        <button onclick="submitReferral()">Submit Referral Partner Application</button>
+
+        <div id="message"></div>
+    </div>
+
+</div>
+
+<!-- Footer (auto-loaded) -->
+<div id="footer"></div>
+
+<script>
+async function loadComponent(id, file) {
+    try {
+        const el = document.getElementById(id);
+        const html = await fetch(file).then(r => r.text());
+        el.innerHTML = html;
+    } catch (e) {
+        console.error("Component failed:", id, file, e);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+    await loadComponent("header", "/components/header.html");
+    await loadComponent("footer", "/components/footer.html");
+
+    const yearEl = document.getElementById('footer-year');
+    if (yearEl) yearEl.textContent = new Date().getFullYear();
+});
+
+// ---- Step navigation ----
+function goToStep2() {
+    const name = document.getElementById('name').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+
+    const errEl = document.getElementById('step1-error');
+    const errs = [];
+    if (!name) errs.push('Name');
+    if (!email) errs.push('Email');
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.push('Email (invalid format)');
+    if (!phone) errs.push('Phone');
+
+    if (errs.length) {
+        errEl.textContent = 'Please fill in: ' + errs.join(', ');
+        errEl.style.display = 'block';
+        return;
+    }
+    errEl.style.display = 'none';
+
+    document.getElementById('step1').style.display = 'none';
+    document.getElementById('step2').style.display = 'block';
+}
+
+// ---- Submit referral application ----
+async function submitReferral() {
+    const msgEl = document.getElementById('message');
+    const name = document.getElementById('name').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const w9fileInput = document.getElementById('w9file');
+    const w9file = w9fileInput.files[0];
+
+    if (!w9file) {
+        msgEl.innerHTML = '<span style="color:red;">Please upload your completed W-9 PDF.</span>';
+        return;
+    }
+    if (w9file.type !== 'application/pdf' && !w9file.name.toLowerCase().endsWith('.pdf')) {
+        msgEl.innerHTML = '<span style="color:red;">The W-9 must be a PDF file.</span>';
+        return;
+    }
+
+    msgEl.innerHTML = '<span style="color:#555;">Submitting your application...</span>';
+
+    try {
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('email', email);
+        formData.append('phone', phone);
+        formData.append('w9file', w9file);
+        // Turnstile token (if Turnstile is loaded on the page)
+        if (typeof turnstile !== 'undefined' && window.turnstileToken) {
+            formData.append('turnstileToken', window.turnstileToken);
+        }
+
+        const res = await fetch('https://api.driv-en.com/referral-signup', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            msgEl.innerHTML = '<span style="color:green;">' + data.message + '</span>';
+            // Hide the form fields after success
+            document.querySelector('.form-section h2').textContent = 'Application Submitted!';
+            document.getElementById('step2').querySelector('p').style.display = 'none';
+            document.querySelector('a.button-link').style.display = 'none';
+            document.querySelector('label[for]').style.display = 'none';
+            w9fileInput.style.display = 'none';
+            document.querySelector('#step2 button').style.display = 'none';
+        } else {
+            msgEl.innerHTML = '<span style="color:red;">' + (data.error || 'Submission failed. Please try again.') + '</span>';
+        }
+    } catch (err) {
+        msgEl.innerHTML = '<span style="color:red;">Network error. Please check your connection and try again.</span>';
+    }
+}
+</script>
+
+<script src="/components/nav.js"></script>
+</body>
+</html>
