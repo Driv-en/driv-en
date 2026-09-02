@@ -14,6 +14,9 @@
 <link rel="manifest" href="/manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 
+<!-- Cloudflare Turnstile (bot protection) -->
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+
 <!-- Shared stylesheets -->
 <link rel="stylesheet" href="/styles/header.css?v=3">
 <link rel="stylesheet" href="/styles/footer.css?v=3">
@@ -255,6 +258,11 @@
         <label>Upload Completed W‑9 (PDF)<span class="required-star">*</span></label>
         <input type="file" id="w9file" accept="application/pdf">
 
+        <!-- Cloudflare Turnstile widget — must be completed before submit -->
+        <div class="turnstile-wrap" style="margin-bottom:20px;">
+            <div class="cf-turnstile" data-sitekey="0x4AAAAAAEQLZ0tgWkwiVIg6" data-callback="onTurnstileSuccess"></div>
+        </div>
+
         <button onclick="submitReferral()">Submit Referral Partner Application</button>
 
         <div id="message"></div>
@@ -283,6 +291,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     const yearEl = document.getElementById('footer-year');
     if (yearEl) yearEl.textContent = new Date().getFullYear();
 });
+
+// ---- Turnstile token callback ----
+// Called by the Turnstile widget when the user completes the challenge.
+// Stores the token so it can be sent with the form submission.
+window.turnstileToken = null;
+function onTurnstileSuccess(token) {
+    window.turnstileToken = token;
+}
 
 // ---- Step navigation ----
 function goToStep2() {
@@ -326,6 +342,12 @@ async function submitReferral() {
         return;
     }
 
+    // Check Turnstile token — user must complete the bot check before submitting
+    if (!window.turnstileToken) {
+        msgEl.innerHTML = '<span style="color:red;">Please complete the bot verification check above before submitting.</span>';
+        return;
+    }
+
     msgEl.innerHTML = '<span style="color:#555;">Submitting your application...</span>';
 
     try {
@@ -334,10 +356,8 @@ async function submitReferral() {
         formData.append('email', email);
         formData.append('phone', phone);
         formData.append('w9file', w9file);
-        // Turnstile token (if Turnstile is loaded on the page)
-        if (typeof turnstile !== 'undefined' && window.turnstileToken) {
-            formData.append('turnstileToken', window.turnstileToken);
-        }
+        // Turnstile token — required by the worker
+        formData.append('turnstileToken', window.turnstileToken);
 
         const res = await fetch('https://api.driv-en.com/referral-signup', {
             method: 'POST',
