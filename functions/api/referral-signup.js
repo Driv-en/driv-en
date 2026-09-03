@@ -22,8 +22,8 @@
 // URL: https://driv-en.com/api/referral-signup (and www.driv-en.com)
 //
 // PAGES PROJECT BINDINGS (configured on the "driv-en" Pages project, NOT the worker):
-//   - D1: DB -> driv-en-db (c58c4597-57f7-418d-973b-d6c67f32f07e)
-//   - R2: W9_BUCKET -> w9-uploads (stores W-9 PDF files)
+//   - D1: DB → driv-en-db (c58c4597-57f7-418d-973b-d6c67f32f07e)
+//   - R2: W9_BUCKET → w9-uploads (stores W-9 PDF files)
 //   - Secret: TURNSTILE_SECRET_KEY
 //   - Secret: SENDGRID_API_KEY
 //   - Var: SENDGRID_FROM_EMAIL = noreply@driv-en.com
@@ -33,7 +33,7 @@
 // ============================================================================
 
 const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://www.driv-en.com',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Access-Control-Max-Age': '86400'
@@ -118,10 +118,10 @@ function buildPartnerConfirmationEmail(partnerName) {
 // ---------------------------------------------------------------------------
 function buildAdminNotificationEmail(partnerName, partnerEmail, partnerPhone, w9Status) {
   const w9Line = w9Status === 'r2'
-    ? '<p style="color:#166534;">The W-9 form has been uploaded and stored successfully. It is ready for review in the Owner Dashboard.</p>'
+    ? '<p style="color:#166534;">✅ The W-9 form has been uploaded and stored successfully. It is ready for review in the Owner Dashboard.</p>'
     : w9Status === 'base64'
-    ? '<p style="color:#166534;">The W-9 form has been uploaded and stored (base64 fallback). It is ready for review in the Owner Dashboard.</p>'
-    : '<p style="color:#cc0000;">WARNING: The W-9 file was not stored (0 bytes received). Please contact the applicant to re-submit their W-9.</p>';
+    ? '<p style="color:#166534;">✅ The W-9 form has been uploaded and stored (base64 fallback). It is ready for review in the Owner Dashboard.</p>'
+    : '<p style="color:#cc0000;">⚠️ WARNING: The W-9 file was not stored (0 bytes received). Please contact the applicant to re-submit their W-9.</p>';
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"></head>
@@ -177,7 +177,7 @@ async function ensureTable(env) {
 }
 
 // ---------------------------------------------------------------------------
-// Main handler - Pages Function entry point
+// Main handler — Pages Function entry point
 // ---------------------------------------------------------------------------
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -298,10 +298,10 @@ export async function onRequestPost(context) {
           console.log('[REFERRAL-SIGNUP] W-9 stored as base64 in D1, size:', fileSize);
         }
       } else {
-        // File was submitted but had 0 bytes - this is an error.
+        // File was submitted but had 0 bytes — this is an error.
         // We still create the partner record (so the admin knows someone
         // applied) but flag the W-9 as missing.
-        console.log('[REFERRAL-SIGNUP] W-9 file had 0 bytes - partner record created but W-9 NOT stored');
+        console.log('[REFERRAL-SIGNUP] W-9 file had 0 bytes — partner record created but W-9 NOT stored');
       }
     }
 
@@ -336,7 +336,7 @@ export async function onRequestPost(context) {
         fromEmail,
         partnerEmail,
         partnerName,
-        'Your DRIV-EN Referral Partner Application - Received',
+        'Your DRIV-EN Referral Partner Application — Received',
         buildPartnerConfirmationEmail(partnerName)
       );
 
@@ -375,7 +375,7 @@ export async function onRequestPost(context) {
           null,
           'ERROR: Referral Signup Pages Function Failed',
           '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#222;">' +
-          '<h2 style="color:#cc0000;">Pages Function Error - /api/referral-signup</h2>' +
+          '<h2 style="color:#cc0000;">Pages Function Error — /api/referral-signup</h2>' +
           '<p><strong>Time:</strong> ' + new Date().toISOString() + '</p>' +
           '<p><strong>Error:</strong> ' + (err.message || 'Unknown error') + '</p>' +
           '<p><strong>Stack:</strong></p><pre style="background:#f4f4f4;padding:12px;border-radius:6px;overflow-x:auto;font-size:13px;">' + (err.stack || 'No stack trace') + '</pre>' +
