@@ -310,7 +310,8 @@ function goToStep2() {
     const errs = [];
     if (!name) errs.push('Name');
     if (!email) errs.push('Email');
-    else if (!/^\[^\s@]+@\[^\s@]+\.\[^\s@]+$/.test(email)) errs.push('Email (invalid format)');
+    // Email format check — uses explicit whitespace chars instead of \s to avoid escaping issues
+    else if (!/^[^ \t\n\r\f\v@]+@[^ \t\n\r\f\v@]+\.[^ \t\n\r\f\v@]+$/.test(email)) errs.push('Email (invalid format)');
     if (!phone) errs.push('Phone');
 
     if (errs.length) {
@@ -368,8 +369,6 @@ async function submitReferral() {
         if (res.ok && data.success) {
             msgEl.innerHTML = '<span style="color:green;">' + data.message + '</span>';
             // Hide the form fields after success — use safe null-checked selectors
-            // (previous version used querySelector('label[for]') which returned null
-            //  because the W-9 label has no 'for' attribute, causing a crash)
             const h2 = document.querySelector('.form-section h2');
             if (h2) h2.textContent = 'Application Submitted!';
 
@@ -379,7 +378,6 @@ async function submitReferral() {
             const buttonLink = document.querySelector('a.button-link');
             if (buttonLink) buttonLink.style.display = 'none';
 
-            // Hide the W-9 upload label (the one containing "Upload Completed W-9")
             const w9Label = document.querySelector('#step2 label');
             if (w9Label) w9Label.style.display = 'none';
 
@@ -389,14 +387,13 @@ async function submitReferral() {
             if (submitBtn) submitBtn.style.display = 'none';
         } else {
             let errMsg = data.error || 'Submission failed. Please try again.';
-            // Include error details if available (helps debugging)
             if (data.details) {
                 errMsg += '<br><span style="font-size:13px;color:#999;">(' + data.details + ')</span>';
             }
             msgEl.innerHTML = '<span style="color:red;">' + errMsg + '</span>';
         }
     } catch (err) {
-        msgEl.innerHTML = '<span style="color:red;">Network error. Please check your connection and try again.</span>';
+        msgEl.innerHTML = '<span style="color:red;">The DRIV-EN team has been immediately notified of this issue and will resolve it within 24 hours. We apologize for the inconvenience. If you need immediate assistance, please contact support@driv-en.com.</span>';
     }
 }
 </script>
