@@ -5,28 +5,31 @@
 //   DRIV-EN website (referral-signup.html).
 //   1. Verifies the Cloudflare Turnstile bot-protection token
 //   2. Validates partner fields (name, email, phone)
-//   3. Accepts W-9 PDF upload (stores as base64 in D1, max 2MB)
+// 3. Accepts W-9 PDF upload (stores in R2 if bound, otherwise base64 in D1)
 //   4. Creates a referral_partners row in D1 (status = Pending)
 //   5. Sends a notification email to support@driv-en.com
 //   6. Sends a confirmation email to the partner
 //
-// WHY A PAGES FUNCTION (not a Worker route):
-//   The form is hosted on www.driv-en.com (Pages custom domain).
-//   Worker routes on the same domain get intercepted by Pages, which strips
-//   the Content-Type header, causing FormData parsing to fail.
-//   A Pages Function runs natively on Pages with direct access to the request.
+// WHY A PAGES FUNCTION (not a standalone Worker):
+//   The form is hosted on driv-en.com (a Pages custom domain). When a Worker
+//   route on the SAME domain handles the request, Pages proxies to the worker
+//   but strips the Content-Type header. The worker tries to parse FormData
+//   but can't because the content-type is wrong. A Pages Function runs
+//   natively on the same domain with no proxying, so the content-type is
+//   preserved.
 //
-// URL: /api/referral-signup (relative URL on the Pages domain)
-// BINDINGS (must be added to the Pages project, NOT the worker):
-//   - D1: DB → driv-en-db
-//   - Secrets: TURNSTILE_SECRET_KEY, SENDGRID_API_KEY
-//   - Vars: SENDGRID_FROM_EMAIL=noreply@driv-en.com, SUPPORT_CONTACT=support@driv-en.com
+// FILE LOCATION IN REPO: functions/api/referral-signup.js
+// URL: https://driv-en.com/api/referral-signup (and www.driv-en.com)
+//
+// PAGES PROJECT BINDINGS (configured on the "driv-en" Pages project, NOT the worker):
+//   - D1: DB → driv-en-db (c58c4597-57f7-418d-973b-d6c67f32f07e)
+//   - Secret: TURNSTILE_SECRET_KEY
+//   - Secret: SENDGRID_API_KEY
+//   - Var: SENDGRID_FROM_EMAIL = noreply@driv-en.com
+//   - Var: SUPPORT_CONTACT = support@driv-en.com
 //
 // LAST UPDATED: September 3, 2026
 // ============================================================================
-
-// Pages Functions use onRequestPost instead of export default { fetch }
-// This function only handles POST requests to /api/referral-signup
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -81,7 +84,7 @@ async function sendEmail(apiKey, fromEmail, toEmail, toName, subject, htmlConten
 }
 
 // ---------------------------------------------------------------------------
-// Build partner confirmation email (sent to the referrer)
+// Build partner confirmation email
 // ---------------------------------------------------------------------------
 function buildPartnerConfirmationEmail(partnerName) {
   return `<!DOCTYPE html>
@@ -109,7 +112,7 @@ function buildPartnerConfirmationEmail(partnerName) {
 }
 
 // ---------------------------------------------------------------------------
-// Build admin notification email (sent to support@driv-en.com)
+// Build admin notification email
 // ---------------------------------------------------------------------------
 function buildAdminNotificationEmail(partnerName, partnerEmail, partnerPhone) {
   return `<!DOCTYPE html>
@@ -167,21 +170,13 @@ async function ensureTable(env) {
 }
 
 // ---------------------------------------------------------------------------
-// Main handler — Pages Function format
+// Main handler — Pages Function entry point
 // ---------------------------------------------------------------------------
-// Pages Functions receive a single `context` object with:
-//   context.request — the Request object (same as Worker fetch)
-//   context.env     — bindings (D1, secrets, vars)
-//   context.next()  — for middleware chaining (not used here)
-//   context.params  — URL params (not used here)
-
 export async function onRequestPost(context) {
   const { request, env } = context;
 
   try {
     // --- Parse the form data (multipart, includes W-9 file) ---
-    // Pages Functions receive the request directly, so the Content-Type
-    // header is preserved correctly (unlike worker routes proxied through Pages).
     const formData = await request.formData();
 
     const turnstileToken = formData.get('turnstileToken') || '';
@@ -194,7 +189,7 @@ export async function onRequestPost(context) {
     const errors = [];
     if (!partnerName) errors.push('Name');
     if (!partnerEmail) errors.push('Email');
-    else if (!/^\S+@\S+\.\S+$/.test(partnerEmail)) errors.push('Email (invalid format)');
+    else if (!/^\[^\s@]+@\[^\s@]+\.\[^\s@]+$/.test(partnerEmail)) errors.push('Email (invalid format)');
     if (!partnerPhone) errors.push('Phone');
     if (!w9File) errors.push('W-9 file');
     if (errors.length) {
@@ -221,25 +216,39 @@ export async function onRequestPost(context) {
     }
 
     // --- Store W-9 file ---
-    // No R2 binding on Pages, so we store as base64 in D1 (max 2MB)
+    let w9StorageKey = null;
     let w9Base64 = null;
 
     if (w9File && w9File.size > 0) {
-      if (w9File.size > 2 * 1024 * 1024) {
-        return jsonResponse({ error: 'W-9 file is too large. Please upload a file under 2MB, or contact support@driv-en.com.' }, 413);
-      }
       const fileBuffer = await w9File.arrayBuffer();
-      const bytes = new Uint8Array(fileBuffer);
-      let binary = '';
-      for (let i = 0; i < bytes.length; i++) {
-        binary += String.fromCharCode(bytes[i]);
+
+      // Try R2 first (if the W9_BUCKET binding exists)
+      if (env.W9_BUCKET) {
+        w9StorageKey = 'w9/' + crypto.randomUUID() + '.pdf';
+        await env.W9_BUCKET.put(w9StorageKey, fileBuffer, {
+          httpMetadata: { contentType: 'application/pdf' }
+        });
+      } else {
+        // Fallback: store as base64 in D1 (not ideal for large files, but works)
+        // Limit to 2MB to avoid D1 row size issues
+        if (w9File.size > 2 * 1024 * 1024) {
+          return jsonResponse({ error: 'W-9 file is too large. Please upload a file under 2MB, or contact support@driv-en.com.' }, 413);
+        }
+        const bytes = new Uint8Array(fileBuffer);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        w9Base64 = btoa(binary);
       }
-      w9Base64 = btoa(binary);
     }
 
     // --- Create referral_partners row ---
     const partnerId = crypto.randomUUID();
     const now = new Date().toISOString();
+
+    // w9_attachment stores either the R2 key or the base64 data
+    const w9Attachment = w9StorageKey || w9Base64 || null;
 
     await env.DB.prepare(
       `INSERT INTO referral_partners (id, partner_name, partner_email, partner_phone, status, active, is_eligible, partner_status, w9_attachment, created_at)
@@ -249,7 +258,7 @@ export async function onRequestPost(context) {
       partnerName,
       partnerEmail,
       partnerPhone,
-      w9Base64,
+      w9Attachment,
       now
     ).run();
 
@@ -289,7 +298,7 @@ export async function onRequestPost(context) {
   } catch (err) {
     console.error('[REFERRAL-SIGNUP] Error:', err.message, err.stack);
 
-    // Send error notification email to support
+    // Send error notification email to support so the platform owner is proactively notified
     try {
       const fromEmail = env.SENDGRID_FROM_EMAIL || 'noreply@driv-en.com';
       const supportEmail = env.SUPPORT_CONTACT || 'support@driv-en.com';
@@ -320,7 +329,9 @@ export async function onRequestPost(context) {
   }
 }
 
-// Handle OPTIONS requests for CORS preflight
+// ---------------------------------------------------------------------------
+// Handle OPTIONS (CORS preflight)
+// ---------------------------------------------------------------------------
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: CORS_HEADERS });
 }
