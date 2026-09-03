@@ -23,6 +23,7 @@
 //
 // PAGES PROJECT BINDINGS (configured on the "driv-en" Pages project, NOT the worker):
 //   - D1: DB → driv-en-db (c58c4597-57f7-418d-973b-d6c67f32f07e)
+//   - R2: W9_BUCKET → w9-uploads (stores W-9 PDF files)
 //   - Secret: TURNSTILE_SECRET_KEY
 //   - Secret: SENDGRID_API_KEY
 //   - Var: SENDGRID_FROM_EMAIL = noreply@driv-en.com
@@ -114,7 +115,12 @@ function buildPartnerConfirmationEmail(partnerName) {
 // ---------------------------------------------------------------------------
 // Build admin notification email
 // ---------------------------------------------------------------------------
-function buildAdminNotificationEmail(partnerName, partnerEmail, partnerPhone) {
+function buildAdminNotificationEmail(partnerName, partnerEmail, partnerPhone, w9Status) {
+  const w9Line = w9Status === 'r2'
+    ? '<p style="color:#166534;">✅ The W-9 form has been uploaded and stored successfully. It is ready for review in the Owner Dashboard.</p>'
+    : w9Status === 'base64'
+    ? '<p style="color:#166534;">✅ The W-9 form has been uploaded and stored (base64 fallback). It is ready for review in the Owner Dashboard.</p>'
+    : '<p style="color:#cc0000;">⚠️ WARNING: The W-9 file was not stored (0 bytes received). Please contact the applicant to re-submit their W-9.</p>';
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"></head>
@@ -125,11 +131,11 @@ function buildAdminNotificationEmail(partnerName, partnerEmail, partnerPhone) {
     <tr><td style="padding:6px 0;font-weight:bold;">Email:</td><td>${partnerEmail}</td></tr>
     <tr><td style="padding:6px 0;font-weight:bold;">Phone:</td><td>${partnerPhone}</td></tr>
   </table>
-  <p>The W-9 form has been uploaded and is ready for review.</p>
+  ${w9Line}
   <p><strong>Next steps:</strong></p>
   <ol>
-    <li>Review the W-9 for completeness and signature</li>
-    <li>Approve the partner in the admin dashboard</li>
+    <li>Review the W-9 for completeness and signature in the Owner Dashboard</li>
+    <li>Approve the partner in the Owner Dashboard</li>
     <li>Generate a referral code (e.g., DRV-ABC123)</li>
     <li>Set status = Approved, active = 1, is_eligible = 1</li>
     <li>Set w9_expiration_date to 1 year from today</li>
@@ -189,7 +195,6 @@ export async function onRequestPost(context) {
     const errors = [];
     if (!partnerName) errors.push('Name');
     if (!partnerEmail) errors.push('Email');
-    // Email format check — uses explicit whitespace chars instead of \s to avoid escaping issues
     else if (!/^[^ \t\n\r\f\v@]+@[^ \t\n\r\f\v@]+\.[^ \t\n\r\f\v@]+$/.test(partnerEmail)) errors.push('Email (invalid format)');
     if (!partnerPhone) errors.push('Phone');
     if (!w9File) errors.push('W-9 file');
@@ -219,28 +224,63 @@ export async function onRequestPost(context) {
     // --- Store W-9 file ---
     let w9StorageKey = null;
     let w9Base64 = null;
+    let w9FileType = null;
 
-    if (w9File && w9File.size > 0) {
-      const fileBuffer = await w9File.arrayBuffer();
+    // In Pages Functions, w9File is a File object from FormData.
+    // It can exist but have 0 bytes if the upload was interrupted or the
+    // file input was empty. We also check the .size property as a fast check
+    // before reading the full buffer.
+    if (w9File) {
+      // Quick check: if the File object has a .size property and it's 0,
+      // skip without reading the buffer at all.
+      let quickSize = (typeof w9File.size === 'number') ? w9File.size : -1;
+      console.log('[REFERRAL-SIGNUP] W-9 file object received. Quick size:', quickSize, 'Type:', w9File.type, 'Name:', w9File.name);
 
-      // Try R2 first (if the W9_BUCKET binding exists)
-      if (env.W9_BUCKET) {
-        w9StorageKey = 'w9/' + crypto.randomUUID() + '.pdf';
-        await env.W9_BUCKET.put(w9StorageKey, fileBuffer, {
-          httpMetadata: { contentType: 'application/pdf' }
-        });
+      let fileBuffer = null;
+      let fileSize = 0;
+
+      try {
+        fileBuffer = await w9File.arrayBuffer();
+        fileSize = fileBuffer.byteLength;
+        console.log('[REFERRAL-SIGNUP] W-9 file buffer read. Actual size:', fileSize, 'bytes');
+      } catch (e) {
+        console.error('[REFERRAL-SIGNUP] Failed to read W-9 file buffer:', e.message);
+      }
+
+      if (fileSize > 0) {
+        w9FileType = w9File.type || 'application/pdf';
+        const originalFileName = w9File.name || 'w9.pdf';
+
+        // Try R2 first (if the W9_BUCKET binding exists)
+        if (env.W9_BUCKET) {
+          // Key format: w9/<uuid>-<sanitized-filename>.pdf
+          // This keeps files organized in a w9/ prefix and includes the original
+          // filename so the Owner Dashboard can display it for download.
+          const safeName = originalFileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+          w9StorageKey = 'w9/' + crypto.randomUUID() + '-' + safeName;
+          await env.W9_BUCKET.put(w9StorageKey, fileBuffer, {
+            httpMetadata: { contentType: w9FileType }
+          });
+          console.log('[REFERRAL-SIGNUP] W-9 stored in R2:', w9StorageKey);
+        } else {
+          // Fallback: store as base64 in D1 (not ideal for large files, but works)
+          // Limit to 2MB to avoid D1 row size issues
+          if (fileSize > 2 * 1024 * 1024) {
+            return jsonResponse({ error: 'W-9 file is too large. Please upload a file under 2MB, or contact support@driv-en.com.' }, 413);
+          }
+          const bytes = new Uint8Array(fileBuffer);
+          let binary = '';
+          for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          w9Base64 = btoa(binary);
+          console.log('[REFERRAL-SIGNUP] W-9 stored as base64 in D1, size:', fileSize);
+        }
       } else {
-        // Fallback: store as base64 in D1 (not ideal for large files, but works)
-        // Limit to 2MB to avoid D1 row size issues
-        if (w9File.size > 2 * 1024 * 1024) {
-          return jsonResponse({ error: 'W-9 file is too large. Please upload a file under 2MB, or contact support@driv-en.com.' }, 413);
-        }
-        const bytes = new Uint8Array(fileBuffer);
-        let binary = '';
-        for (let i = 0; i < bytes.length; i++) {
-          binary += String.fromCharCode(bytes[i]);
-        }
-        w9Base64 = btoa(binary);
+        // File was submitted but had 0 bytes — this is an error.
+        // We still create the partner record (so the admin knows someone
+        // applied) but flag the W-9 as missing.
+        console.log('[REFERRAL-SIGNUP] W-9 file had 0 bytes — partner record created but W-9 NOT stored');
       }
     }
 
@@ -250,6 +290,7 @@ export async function onRequestPost(context) {
 
     // w9_attachment stores either the R2 key or the base64 data
     const w9Attachment = w9StorageKey || w9Base64 || null;
+    console.log('[REFERRAL-SIGNUP] Storing partner record. w9Attachment is:', w9Attachment ? (w9StorageKey ? 'R2 key' : 'base64, length ' + w9Base64.length) : 'NULL');
 
     await env.DB.prepare(
       `INSERT INTO referral_partners (id, partner_name, partner_email, partner_phone, status, active, is_eligible, partner_status, w9_attachment, created_at)
@@ -279,13 +320,15 @@ export async function onRequestPost(context) {
       );
 
       // Notification email to support/admin
+      // Determine W-9 storage status for the admin email
+      const w9StatusForEmail = w9StorageKey ? 'r2' : (w9Base64 ? 'base64' : 'missing');
       await sendEmail(
         env.SENDGRID_API_KEY,
         fromEmail,
         supportEmail,
         null,
         'New Referral Partner Application: ' + partnerName,
-        buildAdminNotificationEmail(partnerName, partnerEmail, partnerPhone)
+        buildAdminNotificationEmail(partnerName, partnerEmail, partnerPhone, w9StatusForEmail)
       );
     }
 
@@ -324,7 +367,7 @@ export async function onRequestPost(context) {
     }
 
     return jsonResponse({
-      error: 'The DRIV-EN team has been immediately notified of this issue and will resolve it within 24 hours. We apologize for the inconvenience. If you need immediate assistance, please contact support@driv-en.com.',
+      error: 'An error occurred while processing your application. Please try again or contact support@driv-en.com.',
       details: err.message
     }, 500);
   }
