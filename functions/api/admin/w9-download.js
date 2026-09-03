@@ -4,11 +4,14 @@
 // PURPOSE: Downloads a W-9 PDF from R2 for a specific referral partner.
 //   GET /api/admin/w9-download?partnerId=<uuid>
 //
-// AUTH: Verifies the caller is logged in as DRIV-EN Founder via /auth/session.
+// AUTH: Verifies the caller is logged in as DRIV-EN Founder by parsing
+//   the driv_en_session JWT cookie directly using Web Crypto API.
+//   Requires JWT_SECRET to be set as a secret on the Pages project.
 //
 // PAGES PROJECT BINDINGS:
 //   - D1: DB → driv-en-db
 //   - R2: W9_BUCKET → w9-uploads
+//   - Secret: JWT_SECRET (same value as the auth worker)
 //
 // LAST UPDATED: September 3, 2026
 // ============================================================================
@@ -21,23 +24,85 @@ const CORS_HEADERS = {
 };
 
 // ---------------------------------------------------------------------------
+// JWT helpers — parse and verify the session cookie directly
+// ---------------------------------------------------------------------------
+function base64UrlDecode(str) {
+  str = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (str.length % 4) str += '=';
+  const bin = atob(str);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+async function importHmacKey(secret) {
+  return crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['verify']
+  );
+}
+
+async function verifyJwt(token, secret) {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const [headerB64, payloadB64, sigB64] = parts;
+    const data = headerB64 + '.' + payloadB64;
+    const key = await importHmacKey(secret);
+    const valid = await crypto.subtle.verify(
+      'HMAC',
+      key,
+      base64UrlDecode(sigB64),
+      new TextEncoder().encode(data)
+    );
+    if (!valid) return null;
+    const payload = JSON.parse(new TextDecoder().decode(base64UrlDecode(payloadB64)));
+    if (payload.exp && Math.floor(Date.now() / 1000) >= payload.exp) return null;
+    return payload;
+  } catch (e) {
+    console.error('[W9-DOWNLOAD] JWT verify error:', e.message);
+    return null;
+  }
+}
+
+function parseCookies(cookieHeader) {
+  const cookies = {};
+  if (!cookieHeader) return cookies;
+  for (const pair of cookieHeader.split(';')) {
+    const idx = pair.indexOf('=');
+    if (idx === -1) continue;
+    const key = pair.slice(0, idx).trim();
+    const val = pair.slice(idx + 1).trim();
+    cookies[key] = val;
+  }
+  return cookies;
+}
+
+// ---------------------------------------------------------------------------
 // Auth check — verify the caller is a DRIV-EN Founder
 // ---------------------------------------------------------------------------
-async function verifyAdmin(request, env) {
-  const cookieHeader = request.headers.get('Cookie') || '';
-  try {
-    const resp = await fetch('https://' + (request.headers.get('host') || 'driv-en.com') + '/auth/session', {
-      headers: { 'Cookie': cookieHeader }
-    });
-    const data = await resp.json();
-    if (data.authenticated && data.user) {
-      const role = data.user.role || '';
-      // Only DRIV-EN Founder can download W-9s — this is platform-level data.
-      if (role === 'DRIV-EN Founder') return data.user;
-    }
-  } catch (e) {
-    console.error('[W9-DOWNLOAD] Auth check failed:', e.message);
+async function verifyFounder(request, env) {
+  if (!env.JWT_SECRET) {
+    console.error('[W9-DOWNLOAD] JWT_SECRET is not set on the Pages project');
+    return null;
   }
+
+  const cookieHeader = request.headers.get('Cookie') || '';
+  const cookies = parseCookies(cookieHeader);
+  const token = cookies['driv_en_session'];
+
+  if (!token) return null;
+
+  const payload = await verifyJwt(token, env.JWT_SECRET);
+  if (!payload) return null;
+
+  if (payload.role === 'DRIV-EN Founder') {
+    return payload;
+  }
+
   return null;
 }
 
@@ -48,7 +113,7 @@ export async function onRequestGet(context) {
   const { request, env } = context;
 
   // Auth check
-  const user = await verifyAdmin(request, env);
+  const user = await verifyFounder(request, env);
   if (!user) {
     return new Response(JSON.stringify({ success: false, error: 'Unauthorized — DRIV-EN Founder access required' }), {
       status: 403,
@@ -104,10 +169,8 @@ export async function onRequestGet(context) {
     }
 
     // Extract original filename from the R2 key
-    // Key format: w9/<uuid>-<original-filename>.pdf
     const keyParts = partner.w9_attachment.split('/');
     const fileNamePart = keyParts[keyParts.length - 1] || 'w9.pdf';
-    // Remove the UUID prefix (first 36 chars + dash)
     const originalName = fileNamePart.replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/, '') || 'w9.pdf';
     const safeName = (partner.partner_name || 'partner').replace(/[^a-zA-Z0-9]/g, '_');
 
