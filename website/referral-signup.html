@@ -308,7 +308,7 @@ function goToStep2() {
     const errs = [];
     if (!name) errs.push('Name');
     if (!email) errs.push('Email');
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.push('Email (invalid format)');
+    else if (!/^\S+@\S+\.\S+$/.test(email)) errs.push('Email (invalid format)');
     if (!phone) errs.push('Phone');
 
     if (errs.length) {
@@ -323,6 +323,9 @@ function goToStep2() {
 }
 
 // ---- Submit referral application ----
+// Uses a RELATIVE URL (/api/referral-signup) so the form posts to the same
+// domain it's hosted on. This avoids CORS issues and redirect problems.
+// The request is handled by a Pages Function at /functions/api/referral-signup.js
 async function submitReferral() {
     const msgEl = document.getElementById('message');
     const name = document.getElementById('name').value.trim();
@@ -355,7 +358,9 @@ async function submitReferral() {
         formData.append('w9file', w9file);
         formData.append('turnstileToken', window.turnstileToken);
 
-        const res = await fetch('https://www.driv-en.com/api/referral-signup', {
+        // RELATIVE URL — posts to the same domain (www.driv-en.com/api/referral-signup)
+        // The Pages Function at /functions/api/referral-signup.js handles this request.
+        const res = await fetch('/api/referral-signup', {
             method: 'POST',
             body: formData
         });
