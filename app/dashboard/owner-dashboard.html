@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Owner Dashboard | DRIV‑EN</title>
+<meta name="robots" content="noindex, nofollow">
+
+<link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
+
+<link rel="stylesheet" href="/app/shared/dashboard.css?v=7">
+
+<script>
+(function() {
+  var saved = localStorage.getItem("driven-theme");
+  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  var theme = saved || system;
+  document.documentElement.setAttribute("data-theme", theme);
+})();
+</script>
+
+<style>
+    .owner-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      font-size: 16px;
+      color: var(--text-muted);
+      position: relative;
+      z-index: 1;
+    }
+    .owner-tab-bar {
+      display: flex;
+      gap: 0;
+      border-bottom: 2px solid var(--border);
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 20px;
+      overflow-x: auto;
+      position: relative;
+      z-index: 1;
+      background: var(--bg-header);
+    }
+    .owner-tab {
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      padding: 14px 22px;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 200ms ease, border-color 200ms ease;
+    }
+    .owner-tab:hover { color: var(--text); }
+    .owner-tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+    .owner-tab-content { display: none; }
+    .owner-tab-content.active { display: block; }
+    .owner-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .owner-stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+    }
+    .owner-stat-number { font-size: 32px; font-weight: 700; color: var(--text); }
+    .owner-stat-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+    .owner-search-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .owner-search-bar input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid var(--border-input);
+      border-radius: 6px;
+      font-size: 14px;
+      background: var(--bg-input);
+      color: var(--text);
+    }
+    .owner-search-bar input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+    }
+    .owner-refresh-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .owner-refresh-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .owner-table-wrap { overflow-x: auto; }
+    .owner-action-btn {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid;
+      margin-right: 4px;
+      text-decoration: none;
+    }
+    .owner-btn-approve {
+      background: #166534;
+      color: #d1fae5;
+      border-color: #059669;
+    }
+    .owner-btn-approve:hover { background: #059669; }
+    .owner-btn-reject {
+      background: #7f1d1d;
+      color: #fee2e2;
+      border-color: #b91c1c;
+    }
+    .owner-btn-reject:hover { background: #b91c1c; }
+    .owner-btn-w9 {
+      background: var(--bg-card);
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+    .owner-btn-w9:hover { background: var(--primary); color: #fff; }
+    .owner-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .owner-modal.active { display: flex; }
+    .owner-modal-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      max-width: 480px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .owner-modal-card h3 {
+      margin: 0 0 16px 0;
+      font-size: 20px;
+      color: var(--text);
+    }
+    .owner-modal-card label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+      margin-top: 16px;
+    }
+    .owner-modal-card input,
+    .owner-modal-card textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border-input);
+      border-radius: 6px;
+      font-size: 14px;
+      background: var(--bg-input);
+      color: var(--text);
+      box-sizing: border-box;
+    }
+    .owner-modal-card input:focus,
+    .owner-modal-card textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+    }
+    .owner-modal-card textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+    .owner-modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 24px;
+    }
+    .owner-modal-actions button {
+      flex: 1;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid;
+    }
+    .owner-modal-confirm {
+      background: var(--primary);
+      border-color: var(--primary-hover);
+      color: #fff;
+    }
+    .owner-modal-confirm:hover { background: var(--primary-hover); }
+    .owner-modal-confirm.danger {
+      background: #b91c1c;
+      border-color: #dc2626;
+    }
+    .owner-modal-confirm.danger:hover { background: #dc2626; }
+    .owner-modal-cancel {
+      background: var(--bg-card);
+      border-color: var(--border);
+      color: var(--text);
+    }
+    .owner-modal-cancel:hover { border-color: var(--primary); color: var(--primary); }
+    .owner-code-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .owner-code-row input { flex: 1; }
+    .owner-regen-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .owner-regen-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .owner-error-banner {
+      display: none;
+      background: #1f0f0f;
+      border: 1px solid var(--error);
+      color: #fca5a5;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+    .owner-coming-soon {
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--text-muted);
+    }
+    .owner-coming-soon h3 {
+      font-size: 22px;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .owner-coming-soon p {
+      font-size: 15px;
+    }
+    @media (max-width: 800px) {
+      .owner-stats { grid-template-columns: repeat(2, 1fr); }
+      .owner-tab { padding: 12px 16px; font-size: 14px; }
+    }
+</style>
+</head>
+
+<body data-page-title="Owner Dashboard">
+
+<div class="steel-bg"></div>
+<div class="steel-overlay"></div>
+
+<div id="loadingScreen" class="owner-loading">Verifying access...</div>
+
+<div id="dashboard" style="display:none;">
+
+  <div class="dash-header">
+    <div class="dash-header-row1">
+      <div></div>
+      <img src="/assets/logo.png?v=2026" class="dash-driven-logo" alt="DRIV‑EN Logo">
+    </div>
+    <div class="dash-header-row2">
+      <h1 id="dashPageTitle">Owner Dashboard</h1>
+    </div>
+    <div class="dash-header-row3">
+      <div class="dash-theme-wrapper" title="Toggle light/dark mode">
+        <span class="dash-theme-label" id="dashThemeLabelLight">Light Mode</span>
+        <label class="dash-theme-switch">
+          <input type="checkbox" id="dashThemeCheckbox" onchange="dashToggleTheme()">
+          <span class="dash-theme-slider"></span>
+        </label>
+        <span class="dash-theme-label" id="dashThemeLabelDark">Dark Mode</span>
+      </div>
+      <button class="dash-logout" onclick="ownerLogout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="owner-tab-bar">
+    <button class="owner-tab active" data-tab="referrers" onclick="switchTab('referrers')">Referrers</button>
+    <button class="owner-tab" data-tab="customers" onclick="switchTab('customers')">Customers</button>
+    <button class="owner-tab" data-tab="system" onclick="switchTab('system')">System Status</button>
+    <button class="owner-tab" data-tab="issues" onclick="switchTab('issues')">Issues</button>
+  </div>
+
+  <main class="dash-main">
+
+    <div id="errorBanner" class="owner-error-banner"></div>
+
+    <div id="tab-referrers" class="owner-tab-content active">
+
+      <div class="owner-stats">
+        <div class="owner-stat-card">
+          <div class="owner-stat-number" id="statTotal">0</div>
+          <div class="owner-stat-label">Total Partners</div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-number" id="statPending">0</div>
+          <div class="owner-stat-label">Pending</div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-number" id="statApproved">0</div>
+          <div class="owner-stat-label">Approved</div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-number" id="statRejected">0</div>
+          <div class="owner-stat-label">Rejected</div>
+        </div>
+      </div>
+
+      <div class="owner-search-bar">
+        <input type="text" id="searchInput" placeholder="Search by name or email..." oninput="filterPartners()">
+        <button class="owner-refresh-btn" onclick="loadPartners()">Refresh</button>
+      </div>
+
+      <div class="dash-card">
+        <div class="owner-table-wrap">
+          <table class="dash-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Status</th>
+                <th>W-9</th>
+                <th>Submitted</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="partnersTableBody">
+              <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <div id="tab-customers" class="owner-tab-content">
+      <div class="owner-coming-soon">
+        <h3>Customers</h3>
+        <p>Customer management is coming soon. This section will show all organizations, their subscription status, and activation details.</p>
+      </div>
+    </div>
+
+    <div id="tab-system" class="owner-tab-content">
+      <div class="owner-coming-soon">
+        <h3>System Status</h3>
+        <p>System health monitoring is coming soon. This section will show Worker health, D1 usage, KV usage, error counts, and invocation counts.</p>
+      </div>
+    </div>
+
+    <div id="tab-issues" class="owner-tab-content">
+      <div class="owner-coming-soon">
+        <h3>Issues</h3>
+        <p>Error log viewer is coming soon. This section will show errors that were emailed to support, with timestamps and stack traces.</p>
+      </div>
+    </div>
+
+  </main>
+
+  <div class="dash-footer">
+    <div class="dash-footer-content">
+      <p class="dash-footer-copyright">
+        &copy; <span id="dashFooterYear">2026</span> DRIV-EN. All rights reserved.
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<div id="approveModal" class="owner-modal">
+  <div class="owner-modal-card">
+    <h3>Approve Referral Partner</h3>
+    <p style="font-size:14px;color:var(--text-muted);margin:0 0 4px 0;">Approving:</p>
+    <p style="font-size:16px;font-weight:600;color:var(--text);margin:0;" id="approvePartnerName">-</p>
+
+    <label for="approveReferralCode">Referral Code</label>
+    <div class="owner-code-row">
+      <input type="text" id="approveReferralCode" placeholder="DRV-XXXXXX">
+      <button class="owner-regen-btn" onclick="regenerateCode()">New Code</button>
+    </div>
+
+    <label for="approveW9Expiration">W-9 Expiration Date</label>
+    <input type="date" id="approveW9Expiration">
+
+    <div class="owner-modal-actions">
+      <button class="owner-modal-cancel" onclick="closeApproveModal()">Cancel</button>
+      <button class="owner-modal-confirm" onclick="confirmApprove()">Approve Partner</button>
+    </div>
+  </div>
+</div>
+
+<div id="rejectModal" class="owner-modal">
+  <div class="owner-modal-card">
+    <h3>Reject Referral Partner</h3>
+    <p style="font-size:14px;color:var(--text-muted);margin:0 0 4px 0;">Rejecting:</p>
+    <p style="font-size:16px;font-weight:600;color:var(--text);margin:0;" id="rejectPartnerName">-</p>
+
+    <label for="rejectReason">Reason (optional - included in email to applicant)</label>
+    <textarea id="rejectReason" placeholder="e.g., W-9 is incomplete or missing signature."></textarea>
+
+    <div class="owner-modal-actions">
+      <button class="owner-modal-cancel" onclick="closeRejectModal()">Cancel</button>
+      <button class="owner-modal-confirm danger" onclick="confirmReject()">Reject Partner</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var allPartners = [];
+var currentApprovePartnerId = null;
+var currentRejectPartnerId = null;
+
+function dashToggleTheme() {
+  var current = document.documentElement.getAttribute("data-theme");
+  var newTheme = current === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", newTheme);
+  localStorage.setItem("driven-theme", newTheme);
+  updateThemeSwitch();
+}
+
+function updateThemeSwitch() {
+  var current = document.documentElement.getAttribute("data-theme");
+  var checkbox = document.getElementById("dashThemeCheckbox");
+  var labelLight = document.getElementById("dashThemeLabelLight");
+  var labelDark = document.getElementById("dashThemeLabelDark");
+  if (checkbox) checkbox.checked = (current === "dark");
+  if (labelLight) labelLight.classList.toggle("active", current === "light");
+  if (labelDark) labelDark.classList.toggle("active", current === "dark");
+}
+
+(async function() {
+  try {
+    var resp = await fetch('/auth/session');
+    var data = await resp.json();
+    if (!data.authenticated) {
+      window.location.href = '/public/login.html';
+      return;
+    }
+    var role = (data.user && data.user.role) ? String(data.user.role).toLowerCase() : '';
+    if (role !== 'admin') {
+      window.location.href = '/app/auth/no-access.html';
+      return;
+    }
+    window.ownerUser = data.user;
+    initOwnerDashboard();
+  } catch (e) {
+    console.error('Auth check failed:', e);
+    window.location.href = '/public/login.html';
+  }
+})();
+
+function initOwnerDashboard() {
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('dashFooterYear').textContent = new Date().getFullYear();
+  updateThemeSwitch();
+  loadPartners();
+}
+
+function switchTab(tabName) {
+  document.querySelectorAll('.owner-tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.owner-tab-content').forEach(function(c) { c.classList.remove('active'); });
+  var tabBtn = document.querySelector('[data-tab="' + tabName + '"]');
+  var tabContent = document.getElementById('tab-' + tabName);
+  if (tabBtn) tabBtn.classList.add('active');
+  if (tabContent) tabContent.classList.add('active');
+}
+
+async function loadPartners() {
+  var tbody = document.getElementById('partnersTableBody');
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading...</td></tr>';
+  try {
+    var resp = await fetch('/api/admin/referral-partners');
+    var data = await resp.json();
+    if (data.success && data.partners) {
+      allPartners = data.partners;
+      renderStats(data.partners);
+      renderTable(data.partners);
+    } else {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px 0;">No referral partners found.</td></tr>';
+      if (data.error) showError(data.error);
+    }
+  } catch (e) {
+    console.error('Load partners failed:', e);
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px 0;">Failed to load partners.</td></tr>';
+    showError('Failed to load partners. Please try refreshing.');
+  }
+}
+
+function renderStats(partners) {
+  var total = partners.length;
+  var pending = partners.filter(function(p) { return p.status === 'Pending'; }).length;
+  var approved = partners.filter(function(p) { return p.status === 'Approved'; }).length;
+  var rejected = partners.filter(function(p) { return p.status === 'Rejected'; }).length;
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statPending').textContent = pending;
+  document.getElementById('statApproved').textContent = approved;
+  document.getElementById('statRejected').textContent = rejected;
+}
+
+function renderTable(partners) {
+  var tbody = document.getElementById('partnersTableBody');
+  tbody.innerHTML = '';
+  if (partners.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px 0;">No referral partners yet.</td></tr>';
+    return;
+  }
+  partners.sort(function(a, b) {
+    if (a.status === 'Pending' && b.status !== 'Pending') return -1;
+    if (b.status === 'Pending' && a.status !== 'Pending') return 1;
+    return (b.created_at || '').localeCompare(a.created_at || '');
+  });
+  partners.forEach(function(p) {
+    var row = document.createElement('tr');
+    row.dataset.name = (p.partner_name || '').toLowerCase();
+    row.dataset.email = (p.partner_email || '').toLowerCase();
+    var statusBadge = '';
+    if (p.status === 'Approved') {
+      statusBadge = '<span class="dash-badge dash-badge-success">Approved</span>';
+    } else if (p.status === 'Pending') {
+      statusBadge = '<span class="dash-badge dash-badge-warning">Pending</span>';
+    } else if (p.status === 'Rejected') {
+      statusBadge = '<span class="dash-badge dash-badge-danger">Rejected</span>';
+    } else {
+      statusBadge = '<span class="dash-badge dash-badge-muted">' + escapeHtml(p.status || 'Unknown') + '</span>';
+    }
+    var w9Cell = '';
+    if (p.w9_attachment) {
+      w9Cell = '<button class="owner-action-btn owner-btn-w9" onclick="downloadW9(\'' + p.id + '\',\'' + escapeJs(p.partner_name) + '\')">Download</button>';
+    } else {
+      w9Cell = '<span style="color:var(--text-muted);">-</span>';
+    }
+    var actions = '';
+    if (p.status === 'Pending') {
+      actions = '<button class="owner-action-btn owner-btn-approve" onclick="openApproveModal(\'' + p.id + '\',\'' + escapeJs(p.partner_name) + '\')">Approve</button>';
+      actions += '<button class="owner-action-btn owner-btn-reject" onclick="openRejectModal(\'' + p.id + '\',\'' + escapeJs(p.partner_name) + '\')">Reject</button>';
+    } else {
+      actions = '<span style="color:var(--text-muted);">-</span>';
+    }
+    var date = p.created_at ? new Date(p.created_at).toLocaleDateString() : '-';
+    row.innerHTML =
+      '<td>' + escapeHtml(p.partner_name || '-') + '</td>' +
+      '<td>' + escapeHtml(p.partner_email || '-') + '</td>' +
+      '<td>' + escapeHtml(p.partner_phone || '-') + '</td>' +
+      '<td>' + statusBadge + '</td>' +
+      '<td>' + w9Cell + '</td>' +
+      '<td>' + date + '</td>' +
+      '<td>' + actions + '</td>';
+    tbody.appendChild(row);
+  });
+}
+
+function filterPartners() {
+  var query = document.getElementById('searchInput').value.toLowerCase();
+  var rows = document.querySelectorAll('#partnersTableBody tr');
+  rows.forEach(function(row) {
+    var name = row.dataset.name || '';
+    var email = row.dataset.email || '';
+    if (name.indexOf(query) !== -1 || email.indexOf(query) !== -1) {
+      row.style.display = '';
+    } else {
+      row.style.display = 'none';
+    }
+  });
+}
+
+function downloadW9(partnerId, partnerName) {
+  var a = document.createElement('a');
+  a.href = '/api/admin/w9-download?partnerId=' + encodeURIComponent(partnerId);
+  a.download = 'W9-' + (partnerName || 'partner').replace(/[^a-zA-Z0-9]/g, '_') + '.pdf';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function openApproveModal(partnerId, partnerName) {
+  currentApprovePartnerId = partnerId;
+  document.getElementById('approvePartnerName').textContent = partnerName || '-';
+  document.getElementById('approveReferralCode').value = generateReferralCode();
+  document.getElementById('approveW9Expiration').value = defaultW9Expiration();
+  document.getElementById('approveModal').classList.add('active');
+}
+
+function closeApproveModal() {
+  document.getElementById('approveModal').classList.remove('active');
+  currentApprovePartnerId = null;
+}
+
+async function confirmApprove() {
+  var partnerId = currentApprovePartnerId;
+  var referralCode = document.getElementById('approveReferralCode').value.trim();
+  var w9Expiration = document.getElementById('approveW9Expiration').value;
+  if (!partnerId) return;
+  if (!referralCode) { showError('Referral code is required.'); return; }
+  var confirmBtn = document.querySelector('#approveModal .owner-modal-confirm');
+  confirmBtn.textContent = 'Approving...';
+  confirmBtn.disabled = true;
+  try {
+    var resp = await fetch('/api/admin/referral-partners', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'approve', partnerId: partnerId, referralCode: referralCode, w9ExpirationDate: w9Expiration })
+    });
+    var data = await resp.json();
+    if (data.success) { closeApproveModal(); loadPartners(); }
+    else { showError(data.error || 'Failed to approve partner.'); }
+  } catch (e) { showError('Network error. Please try again.'); }
+  finally { confirmBtn.textContent = 'Approve Partner'; confirmBtn.disabled = false; }
+}
+
+function openRejectModal(partnerId, partnerName) {
+  currentRejectPartnerId = partnerId;
+  document.getElementById('rejectPartnerName').textContent = partnerName || '-';
+  document.getElementById('rejectReason').value = '';
+  document.getElementById('rejectModal').classList.add('active');
+}
+
+function closeRejectModal() {
+  document.getElementById('rejectModal').classList.remove('active');
+  currentRejectPartnerId = null;
+}
+
+async function confirmReject() {
+  var partnerId = currentRejectPartnerId;
+  var reason = document.getElementById('rejectReason').value.trim();
+  if (!partnerId) return;
+  var confirmBtn = document.querySelector('#rejectModal .owner-modal-confirm');
+  confirmBtn.textContent = 'Rejecting...';
+  confirmBtn.disabled = true;
+  try {
+    var resp = await fetch('/api/admin/referral-partners', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reject', partnerId: partnerId, reason: reason })
+    });
+    var data = await resp.json();
+    if (data.success) { closeRejectModal(); loadPartners(); }
+    else { showError(data.error || 'Failed to reject partner.'); }
+  } catch (e) { showError('Network error. Please try again.'); }
+  finally { confirmBtn.textContent = 'Reject Partner'; confirmBtn.disabled = false; }
+}
+
+function generateReferralCode() {
+  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  var code = 'DRV-';
+  for (var i = 0; i < 6; i++) { code += chars[Math.floor(Math.random() * chars.length)]; }
+  return code;
+}
+
+function regenerateCode() {
+  document.getElementById('approveReferralCode').value = generateReferralCode();
+}
+
+function defaultW9Expiration() {
+  return new Date().getFullYear() + '-12-31';
+}
+
+function escapeHtml(str) {
+  var div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+function escapeJs(str) {
+  return (str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+function showError(msg) {
+  var el = document.getElementById('errorBanner');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(function() { el.style.display = 'none'; }, 6000);
+}
+
+async function ownerLogout() {
+  try { await fetch('/auth/logout', { method: 'POST' }); } catch (e) {}
+  window.location.href = '/public/login.html';
+}
+
+document.getElementById('approveModal').addEventListener('click', function(e) { if (e.target === this) closeApproveModal(); });
+document.getElementById('rejectModal').addEventListener('click', function(e) { if (e.target === this) closeRejectModal(); });
+</script>
+
+</body>
+</html>
