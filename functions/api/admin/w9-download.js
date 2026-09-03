@@ -4,11 +4,11 @@
 // PURPOSE: Downloads a W-9 PDF from R2 for a specific referral partner.
 //   GET /api/admin/w9-download?partnerId=<uuid>
 //
-// AUTH: Verifies the caller is logged in as an Admin via /auth/session.
+// AUTH: Verifies the caller is logged in as DRIV-EN Founder via /auth/session.
 //
 // PAGES PROJECT BINDINGS:
-//   - D1: DB -> driv-en-db
-//   - R2: W9_BUCKET -> w9-uploads
+//   - D1: DB → driv-en-db
+//   - R2: W9_BUCKET → w9-uploads
 //
 // LAST UPDATED: September 3, 2026
 // ============================================================================
@@ -21,7 +21,7 @@ const CORS_HEADERS = {
 };
 
 // ---------------------------------------------------------------------------
-// Auth check - verify the caller is an Admin
+// Auth check — verify the caller is a DRIV-EN Founder
 // ---------------------------------------------------------------------------
 async function verifyAdmin(request, env) {
   const cookieHeader = request.headers.get('Cookie') || '';
@@ -31,8 +31,9 @@ async function verifyAdmin(request, env) {
     });
     const data = await resp.json();
     if (data.authenticated && data.user) {
-      const role = (data.user.role || '').toLowerCase();
-      if (role === 'admin') return data.user;
+      const role = data.user.role || '';
+      // Only DRIV-EN Founder can download W-9s — this is platform-level data.
+      if (role === 'DRIV-EN Founder') return data.user;
     }
   } catch (e) {
     console.error('[W9-DOWNLOAD] Auth check failed:', e.message);
@@ -49,7 +50,7 @@ export async function onRequestGet(context) {
   // Auth check
   const user = await verifyAdmin(request, env);
   if (!user) {
-    return new Response(JSON.stringify({ success: false, error: 'Unauthorized - Admin access required' }), {
+    return new Response(JSON.stringify({ success: false, error: 'Unauthorized — DRIV-EN Founder access required' }), {
       status: 403,
       headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
     });
@@ -86,7 +87,7 @@ export async function onRequestGet(context) {
 
   // Check if w9_attachment is an R2 key (starts with "w9/") or base64 data
   if (partner.w9_attachment.startsWith('w9/')) {
-    // R2 storage - fetch from R2
+    // R2 storage — fetch from R2
     if (!env.W9_BUCKET) {
       return new Response(JSON.stringify({ success: false, error: 'R2 bucket not configured' }), {
         status: 500,
@@ -122,7 +123,7 @@ export async function onRequestGet(context) {
     });
 
   } else {
-    // Base64 storage (fallback) - decode and return
+    // Base64 storage (fallback) — decode and return
     try {
       const binary = atob(partner.w9_attachment);
       const bytes = new Uint8Array(binary.length);
