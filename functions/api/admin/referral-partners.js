@@ -5,13 +5,16 @@
 //   GET  /api/admin/referral-partners       — List all referral partners
 //   POST /api/admin/referral-partners       — Approve or reject a partner
 //
-// AUTH: Verifies the caller is logged in as DRIV-EN Founder via /auth/session.
-//   The auth worker sets a session cookie that we check here.
+// AUTH: Verifies the caller is logged in as DRIV-EN Founder by parsing
+//   the driv_en_session JWT cookie directly using Web Crypto API.
+//   No fetch to /auth/session needed — the JWT is verified in-place.
+//   Requires JWT_SECRET to be set as a secret on the Pages project.
 //
-// PAGES PROJECT BINDINGS (same as referral-signup.js):
+// PAGES PROJECT BINDINGS:
 //   - D1: DB → driv-en-db
 //   - R2: W9_BUCKET → w9-uploads
 //   - Secret: SENDGRID_API_KEY
+//   - Secret: JWT_SECRET (same value as the auth worker)
 //   - Var: SENDGRID_FROM_EMAIL = noreply@driv-en.com
 //   - Var: SUPPORT_CONTACT = support@driv-en.com
 //
@@ -33,33 +36,87 @@ function jsonResponse(obj, status) {
 }
 
 // ---------------------------------------------------------------------------
-// Auth check — verify the caller is a DRIV-EN Founder
-// Returns the user object if authenticated and is Founder, null otherwise.
+// JWT helpers — parse and verify the session cookie directly
+// This avoids the need to fetch /auth/session from within a Pages Function.
 // ---------------------------------------------------------------------------
-async function verifyAdmin(request, env) {
-  // The auth worker sets a session cookie. We check it by calling
-  // the auth worker's /auth/session endpoint internally.
-  // In Pages Functions, we can fetch our own domain's routes.
-  const cookieHeader = request.headers.get('Cookie') || '';
+function base64UrlDecode(str) {
+  str = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (str.length % 4) str += '=';
+  const bin = atob(str);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
 
-  // We need to verify the session. Since we're in a Pages Function,
-  // we can call /auth/session on our own domain.
+async function importHmacKey(secret) {
+  return crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['verify']
+  );
+}
+
+async function verifyJwt(token, secret) {
   try {
-    const resp = await fetch('https://' + (request.headers.get('host') || 'driv-en.com') + '/auth/session', {
-      headers: { 'Cookie': cookieHeader }
-    });
-    const data = await resp.json();
-
-    if (data.authenticated && data.user) {
-      const role = data.user.role || '';
-      // Only DRIV-EN Founder can access the Owner Dashboard admin API.
-      // Customer Admins are NOT allowed — this is platform-level data.
-      if (role === 'DRIV-EN Founder') {
-        return data.user;
-      }
-    }
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const [headerB64, payloadB64, sigB64] = parts;
+    const data = headerB64 + '.' + payloadB64;
+    const key = await importHmacKey(secret);
+    const valid = await crypto.subtle.verify(
+      'HMAC',
+      key,
+      base64UrlDecode(sigB64),
+      new TextEncoder().encode(data)
+    );
+    if (!valid) return null;
+    const payload = JSON.parse(new TextDecoder().decode(base64UrlDecode(payloadB64)));
+    if (payload.exp && Math.floor(Date.now() / 1000) >= payload.exp) return null;
+    return payload;
   } catch (e) {
-    console.error('[ADMIN-REFERRAL] Auth check failed:', e.message);
+    console.error('[ADMIN-REFERRAL] JWT verify error:', e.message);
+    return null;
+  }
+}
+
+function parseCookies(cookieHeader) {
+  const cookies = {};
+  if (!cookieHeader) return cookies;
+  for (const pair of cookieHeader.split(';')) {
+    const idx = pair.indexOf('=');
+    if (idx === -1) continue;
+    const key = pair.slice(0, idx).trim();
+    const val = pair.slice(idx + 1).trim();
+    cookies[key] = val;
+  }
+  return cookies;
+}
+
+// ---------------------------------------------------------------------------
+// Auth check — verify the caller is a DRIV-EN Founder
+// Parses the driv_en_session cookie, verifies the JWT, checks the role.
+// Returns the JWT payload if authenticated and is Founder, null otherwise.
+// ---------------------------------------------------------------------------
+async function verifyFounder(request, env) {
+  if (!env.JWT_SECRET) {
+    console.error('[ADMIN-REFERRAL] JWT_SECRET is not set on the Pages project');
+    return null;
+  }
+
+  const cookieHeader = request.headers.get('Cookie') || '';
+  const cookies = parseCookies(cookieHeader);
+  const token = cookies['driv_en_session'];
+
+  if (!token) return null;
+
+  const payload = await verifyJwt(token, env.JWT_SECRET);
+  if (!payload) return null;
+
+  // Only DRIV-EN Founder can access the Owner Dashboard admin API.
+  if (payload.role === 'DRIV-EN Founder') {
+    return payload;
   }
 
   return null;
@@ -92,26 +149,6 @@ async function sendEmail(env, to, subject, htmlContent) {
 }
 
 // ---------------------------------------------------------------------------
-// Generate a unique referral code (DRV-XXXXXX format)
-// Checks D1 to ensure it doesn't already exist.
-// ---------------------------------------------------------------------------
-async function generateUniqueReferralCode(env) {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  for (let attempt = 0; attempt < 10; attempt++) {
-    let code = 'DRV-';
-    for (let i = 0; i < 6; i++) {
-      code += chars[Math.floor(Math.random() * chars.length)];
-    }
-    const existing = await env.DB.prepare(
-      'SELECT id FROM referral_partners WHERE referral_code = ?'
-    ).bind(code).first();
-    if (!existing) return code;
-  }
-  // Fallback with timestamp suffix if all attempts collide (extremely unlikely)
-  return 'DRV-' + Date.now().toString(36).toUpperCase().slice(-6);
-}
-
-// ---------------------------------------------------------------------------
 // Compute W-9 expiration date: December 31 of the current year
 // A new W-9 is required each calendar year.
 // ---------------------------------------------------------------------------
@@ -124,7 +161,7 @@ function computeW9Expiration() {
 // GET /api/admin/referral-partners — List all partners
 // ---------------------------------------------------------------------------
 async function handleListPartners(request, env) {
-  const user = await verifyAdmin(request, env);
+  const user = await verifyFounder(request, env);
   if (!user) {
     return jsonResponse({ success: false, error: 'Unauthorized — DRIV-EN Founder access required' }, 403);
   }
@@ -155,7 +192,7 @@ async function handleListPartners(request, env) {
 // Body: { action: 'approve' | 'reject', partnerId, referralCode?, w9ExpirationDate?, reason? }
 // ---------------------------------------------------------------------------
 async function handleUpdatePartner(request, env) {
-  const user = await verifyAdmin(request, env);
+  const user = await verifyFounder(request, env);
   if (!user) {
     return jsonResponse({ success: false, error: 'Unauthorized — DRIV-EN Founder access required' }, 403);
   }
