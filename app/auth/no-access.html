@@ -63,9 +63,53 @@
   <div class="no-access-card">
     <div class="no-access-icon">🔒</div>
     <h1>Access Denied</h1>
-    <p>You do not have permission to view this page. This onboarding step has not been assigned to you. If you believe you should have access, please contact your administrator.</p>
-    <a href="/app/dashboard/onboarding-dashboard.html" class="no-access-btn">Onboarding Dashboard</a>
-    <a href="/public/login.html" class="no-access-btn no-access-btn-secondary">Return to Login</a>
+    <p id="access-message">You do not have permission to view this page. If you believe you should have access, please contact your administrator.</p>
+    <div id="access-buttons">
+      <a href="/public/login.html" class="no-access-btn no-access-btn-secondary">Return to Login</a>
+    </div>
   </div>
+
+<script>
+// Check the user's session to show the right buttons and message.
+(async function() {
+  try {
+    var resp = await fetch('/auth/session');
+    var data = await resp.json();
+    var msg = document.getElementById('access-message');
+    var btns = document.getElementById('access-buttons');
+
+    if (!data.authenticated) {
+      // Not logged in at all — show login button
+      msg.textContent = 'You must be logged in to view this page. Please log in and try again.';
+      btns.innerHTML = '<a href="/public/login.html" class="no-access-btn">Customer Login</a>' +
+                       '<a href="/app/auth/founder-login.html" class="no-access-btn no-access-btn-secondary">Founder Login</a>';
+      return;
+    }
+
+    var role = data.user.role || '';
+
+    if (role === 'DRIV-EN Founder') {
+      // Founder ended up on no-access — they should go to the Owner Dashboard
+      msg.textContent = 'You are logged in as DRIV-EN Founder. Redirecting you to the Owner Dashboard…';
+      btns.innerHTML = '<a href="/app/dashboard/owner-dashboard.html" class="no-access-btn">Go to Owner Dashboard</a>';
+      // Auto-redirect after 2 seconds
+      setTimeout(function() { window.location.href = '/app/dashboard/owner-dashboard.html'; }, 2000);
+    } else if (role === 'Admin') {
+      // Customer Admin — they should go to the customer admin dashboard
+      msg.textContent = 'You are logged in as an Administrator. This page is for DRIV-EN Founders only.';
+      btns.innerHTML = '<a href="/app/dashboard/admin.html" class="no-access-btn">Go to Admin Dashboard</a>' +
+                       '<a href="/public/login.html" class="no-access-btn no-access-btn-secondary">Return to Login</a>';
+    } else {
+      // Key Personnel or other roles — they go to the Onboarding Dashboard
+      msg.textContent = 'You do not have permission to view this page. This area is restricted to DRIV-EN Founders. If you believe you should have access, please contact your administrator.';
+      btns.innerHTML = '<a href="/app/dashboard/onboarding-dashboard.html" class="no-access-btn">Onboarding Dashboard</a>' +
+                       '<a href="/public/login.html" class="no-access-btn no-access-btn-secondary">Return to Login</a>';
+    }
+  } catch (e) {
+    // If session check fails, just show the default message and login button
+    console.error('Session check failed:', e);
+  }
+})();
+</script>
 </body>
 </html>
