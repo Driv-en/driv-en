@@ -10,10 +10,10 @@
 <meta name="robots" content="noindex, nofollow">
 
 <!-- Favicon -->
-<link rel="icon" type="image/png" href="/assets/favicon.png" sizes="48x48">
-<link rel="icon" type="image/png" href="/assets/favicon-96.png" sizes="96x96">
-<link rel="icon" type="image/png" href="/assets/favicon-192.png" sizes="192x192">
-<link rel="apple-touch-icon" href="/assets/favicon-180.png">
+<link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
 
 <!-- Shared stylesheets (bump ?v number when CSS changes) -->
 <link rel="stylesheet" href="/styles/header.css?v=6">
@@ -349,46 +349,58 @@ document.addEventListener("DOMContentLoaded", async () => {
         const password = document.getElementById("password");
         const remember = document.getElementById("remember");
         const errorBanner = document.getElementById("error-banner");
+        const loginBtn = document.querySelector(".login-button");
 
         email.classList.remove("error");
         password.classList.remove("error");
         errorBanner.style.display = "none";
 
-        const response = await fetch("/auth/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                email: email.value.trim(),
-                password: password.value.trim(),
-                remember: remember.checked
-            })
-        });
+        loginBtn.textContent = "Logging in...";
+        loginBtn.disabled = true;
 
-        const result = await response.json();
+        try {
+            const response = await fetch("/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email: email.value.trim(),
+                    password: password.value.trim(),
+                    remember: remember.checked
+                })
+            });
 
-        if (!result.success) {
-            errorBanner.textContent = result.error || "Invalid credentials.";
+            const result = await response.json();
+
+            if (!result.success) {
+                errorBanner.textContent = result.error || "Invalid credentials.";
+                errorBanner.style.display = "block";
+                email.classList.add("error");
+                password.classList.add("error");
+                return;
+            }
+
+            // Force password change on first login
+            if (result.must_change_password) {
+                window.location.href = "/app/auth/change-password.html";
+                return;
+            }
+
+            // Founder login — always go to Owner Dashboard
+            // If the role is not "DRIV-EN Founder", reject (this is the Founder portal)
+            if (result.role === "DRIV-EN Founder") {
+                window.location.href = "/app/dashboard/owner-dashboard.html";
+            } else {
+                errorBanner.textContent = "This portal is for DRIV-EN Founders only. Please use the customer login page.";
+                errorBanner.style.display = "block";
+                email.classList.add("error");
+                password.classList.add("error");
+            }
+        } catch (err) {
+            errorBanner.textContent = "Login failed: " + (err.message || "Network error") + ". Please try again.";
             errorBanner.style.display = "block";
-            email.classList.add("error");
-            password.classList.add("error");
-            return;
-        }
-
-        // Force password change on first login
-        if (result.must_change_password) {
-            window.location.href = "/app/auth/change-password.html";
-            return;
-        }
-
-        // Founder login — always go to Owner Dashboard
-        // If the role is not "DRIV-EN Founder", reject (this is the Founder portal)
-        if (result.role === "DRIV-EN Founder") {
-            window.location.href = "/app/dashboard/owner-dashboard.html";
-        } else {
-            errorBanner.textContent = "This portal is for DRIV-EN Founders only. Please use the customer login page.";
-            errorBanner.style.display = "block";
-            email.classList.add("error");
-            password.classList.add("error");
+        } finally {
+            loginBtn.textContent = "Login";
+            loginBtn.disabled = false;
         }
     });
 </script>
