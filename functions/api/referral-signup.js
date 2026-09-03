@@ -189,7 +189,8 @@ export async function onRequestPost(context) {
     const errors = [];
     if (!partnerName) errors.push('Name');
     if (!partnerEmail) errors.push('Email');
-    else if (!/^\[^\s@]+@\[^\s@]+\.\[^\s@]+$/.test(partnerEmail)) errors.push('Email (invalid format)');
+    // Email format check — uses explicit whitespace chars instead of \s to avoid escaping issues
+    else if (!/^[^ \t\n\r\f\v@]+@[^ \t\n\r\f\v@]+\.[^ \t\n\r\f\v@]+$/.test(partnerEmail)) errors.push('Email (invalid format)');
     if (!partnerPhone) errors.push('Phone');
     if (!w9File) errors.push('W-9 file');
     if (errors.length) {
@@ -323,7 +324,7 @@ export async function onRequestPost(context) {
     }
 
     return jsonResponse({
-      error: 'An error occurred while processing your application. Please try again or contact support@driv-en.com.',
+      error: 'The DRIV-EN team has been immediately notified of this issue and will resolve it within 24 hours. We apologize for the inconvenience. If you need immediate assistance, please contact support@driv-en.com.',
       details: err.message
     }, 500);
   }
