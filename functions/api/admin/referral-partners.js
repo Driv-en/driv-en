@@ -2,15 +2,15 @@
 // Pages Function: /api/admin/referral-partners
 // ============================================================================
 // PURPOSE: Admin API for the Owner Dashboard's Referrers section.
-//   GET  /api/admin/referral-partners       - List all referral partners
-//   POST /api/admin/referral-partners       - Approve or reject a partner
+//   GET  /api/admin/referral-partners       — List all referral partners
+//   POST /api/admin/referral-partners       — Approve or reject a partner
 //
-// AUTH: Verifies the caller is logged in as an Admin via /auth/session.
+// AUTH: Verifies the caller is logged in as DRIV-EN Founder via /auth/session.
 //   The auth worker sets a session cookie that we check here.
 //
 // PAGES PROJECT BINDINGS (same as referral-signup.js):
-//   - D1: DB -> driv-en-db
-//   - R2: W9_BUCKET -> w9-uploads
+//   - D1: DB → driv-en-db
+//   - R2: W9_BUCKET → w9-uploads
 //   - Secret: SENDGRID_API_KEY
 //   - Var: SENDGRID_FROM_EMAIL = noreply@driv-en.com
 //   - Var: SUPPORT_CONTACT = support@driv-en.com
@@ -33,23 +33,35 @@ function jsonResponse(obj, status) {
 }
 
 // ---------------------------------------------------------------------------
-// Auth check - verify the caller is an Admin
-// Returns the user object if authenticated and is admin, null otherwise.
+// Auth check — verify the caller is a DRIV-EN Founder
+// Returns the user object if authenticated and is Founder, null otherwise.
 // ---------------------------------------------------------------------------
 async function verifyAdmin(request, env) {
+  // The auth worker sets a session cookie. We check it by calling
+  // the auth worker's /auth/session endpoint internally.
+  // In Pages Functions, we can fetch our own domain's routes.
   const cookieHeader = request.headers.get('Cookie') || '';
+
+  // We need to verify the session. Since we're in a Pages Function,
+  // we can call /auth/session on our own domain.
   try {
     const resp = await fetch('https://' + (request.headers.get('host') || 'driv-en.com') + '/auth/session', {
       headers: { 'Cookie': cookieHeader }
     });
     const data = await resp.json();
+
     if (data.authenticated && data.user) {
-      const role = (data.user.role || '').toLowerCase();
-      if (role === 'admin') return data.user;
+      const role = data.user.role || '';
+      // Only DRIV-EN Founder can access the Owner Dashboard admin API.
+      // Customer Admins are NOT allowed — this is platform-level data.
+      if (role === 'DRIV-EN Founder') {
+        return data.user;
+      }
     }
   } catch (e) {
     console.error('[ADMIN-REFERRAL] Auth check failed:', e.message);
   }
+
   return null;
 }
 
@@ -95,6 +107,7 @@ async function generateUniqueReferralCode(env) {
     ).bind(code).first();
     if (!existing) return code;
   }
+  // Fallback with timestamp suffix if all attempts collide (extremely unlikely)
   return 'DRV-' + Date.now().toString(36).toUpperCase().slice(-6);
 }
 
@@ -108,12 +121,12 @@ function computeW9Expiration() {
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/admin/referral-partners - List all partners
+// GET /api/admin/referral-partners — List all partners
 // ---------------------------------------------------------------------------
 async function handleListPartners(request, env) {
   const user = await verifyAdmin(request, env);
   if (!user) {
-    return jsonResponse({ success: false, error: 'Unauthorized - Admin access required' }, 403);
+    return jsonResponse({ success: false, error: 'Unauthorized — DRIV-EN Founder access required' }, 403);
   }
 
   try {
@@ -138,13 +151,13 @@ async function handleListPartners(request, env) {
 }
 
 // ---------------------------------------------------------------------------
-// POST /api/admin/referral-partners - Approve or reject a partner
+// POST /api/admin/referral-partners — Approve or reject a partner
 // Body: { action: 'approve' | 'reject', partnerId, referralCode?, w9ExpirationDate?, reason? }
 // ---------------------------------------------------------------------------
 async function handleUpdatePartner(request, env) {
   const user = await verifyAdmin(request, env);
   if (!user) {
-    return jsonResponse({ success: false, error: 'Unauthorized - Admin access required' }, 403);
+    return jsonResponse({ success: false, error: 'Unauthorized — DRIV-EN Founder access required' }, 403);
   }
 
   let body;
@@ -158,6 +171,7 @@ async function handleUpdatePartner(request, env) {
     return jsonResponse({ success: false, error: 'Action and partnerId are required' }, 400);
   }
 
+  // Fetch the partner
   const partner = await env.DB.prepare(
     'SELECT id, partner_name, partner_email, status FROM referral_partners WHERE id = ?'
   ).bind(partnerId).first();
@@ -167,10 +181,12 @@ async function handleUpdatePartner(request, env) {
   }
 
   if (action === 'approve') {
+    // Validate referral code
     if (!referralCode) {
       return jsonResponse({ success: false, error: 'Referral code is required' }, 400);
     }
 
+    // Check referral code uniqueness
     const existingCode = await env.DB.prepare(
       'SELECT id FROM referral_partners WHERE referral_code = ? AND id != ?'
     ).bind(referralCode, partnerId).first();
@@ -178,8 +194,10 @@ async function handleUpdatePartner(request, env) {
       return jsonResponse({ success: false, error: 'Referral code already in use by another partner' }, 409);
     }
 
+    // W-9 expiration: December 31 of current year if not provided
     const w9Exp = w9ExpirationDate || computeW9Expiration();
 
+    // Update partner to Approved
     await env.DB.prepare(
       `UPDATE referral_partners
        SET status = 'Approved', active = 1, is_eligible = 1,
@@ -188,8 +206,9 @@ async function handleUpdatePartner(request, env) {
        WHERE id = ?`
     ).bind(referralCode, w9Exp, partnerId).run();
 
+    // Send approval email to the partner
     const domain = 'https://www.driv-en.com';
-    const referralLink = domain + '/checkout.html?ref=' + referralCode;
+    const referralLink = domain + '/website/checkout.html?ref=' + referralCode;
     const loginLink = domain + '/public/referrer-login.html';
 
     const emailHtml = `<!DOCTYPE html>
@@ -219,7 +238,7 @@ async function handleUpdatePartner(request, env) {
 </body>
 </html>`;
 
-    await sendEmail(env, partner.partner_email, 'You\'re Approved - DRIV-EN Referral Partner', emailHtml);
+    await sendEmail(env, partner.partner_email, 'You\'re Approved — DRIV-EN Referral Partner', emailHtml);
 
     return jsonResponse({
       success: true,
@@ -229,6 +248,7 @@ async function handleUpdatePartner(request, env) {
     });
 
   } else if (action === 'reject') {
+    // Update partner to Rejected
     await env.DB.prepare(
       `UPDATE referral_partners
        SET status = 'Rejected', active = 0, is_eligible = 0,
@@ -236,6 +256,7 @@ async function handleUpdatePartner(request, env) {
        WHERE id = ?`
     ).bind(partnerId).run();
 
+    // Send rejection email to the partner
     const reasonText = reason ? '<p><strong>Reason:</strong> ' + reason + '</p>' : '';
     const emailHtml = `<!DOCTYPE html>
 <html>
