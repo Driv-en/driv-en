@@ -22,8 +22,8 @@
 // URL: https://driv-en.com/api/referral-signup (and www.driv-en.com)
 //
 // PAGES PROJECT BINDINGS (configured on the "driv-en" Pages project, NOT the worker):
-//   - D1: DB → driv-en-db (c58c4597-57f7-418d-973b-d6c67f32f07e)
-//   - R2: W9_BUCKET → w9-uploads (stores W-9 PDF files)
+//   - D1: DB -> driv-en-db (c58c4597-57f7-418d-973b-d6c67f32f07e)
+//   - R2: W9_BUCKET -> w9-uploads (stores W-9 PDF files)
 //   - Secret: TURNSTILE_SECRET_KEY
 //   - Secret: SENDGRID_API_KEY
 //   - Var: SENDGRID_FROM_EMAIL = noreply@driv-en.com
@@ -96,10 +96,11 @@ function buildPartnerConfirmationEmail(partnerName) {
   <p>We have received your referral partner application and your W-9 form.</p>
   <p>Our team will review your submission and verify your W-9. Once approved, you will receive:</p>
   <ul>
-    <li>Your unique referral link</li>
+    <li>Your unique referral code and referral link</li>
     <li>Access to your Partner Dashboard</li>
     <li>Instructions on how to start referring companies</li>
   </ul>
+  <p>When a company signs up using your referral link, you'll automatically receive credit for the referral.</p>
   <p><strong>Commission rates:</strong></p>
   <ul>
     <li>Monthly subscriptions: 5% recurring commission</li>
@@ -117,10 +118,10 @@ function buildPartnerConfirmationEmail(partnerName) {
 // ---------------------------------------------------------------------------
 function buildAdminNotificationEmail(partnerName, partnerEmail, partnerPhone, w9Status) {
   const w9Line = w9Status === 'r2'
-    ? '<p style="color:#166534;">✅ The W-9 form has been uploaded and stored successfully. It is ready for review in the Owner Dashboard.</p>'
+    ? '<p style="color:#166534;">The W-9 form has been uploaded and stored successfully. It is ready for review in the Owner Dashboard.</p>'
     : w9Status === 'base64'
-    ? '<p style="color:#166534;">✅ The W-9 form has been uploaded and stored (base64 fallback). It is ready for review in the Owner Dashboard.</p>'
-    : '<p style="color:#cc0000;">⚠️ WARNING: The W-9 file was not stored (0 bytes received). Please contact the applicant to re-submit their W-9.</p>';
+    ? '<p style="color:#166534;">The W-9 form has been uploaded and stored (base64 fallback). It is ready for review in the Owner Dashboard.</p>'
+    : '<p style="color:#cc0000;">WARNING: The W-9 file was not stored (0 bytes received). Please contact the applicant to re-submit their W-9.</p>';
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"></head>
@@ -138,7 +139,7 @@ function buildAdminNotificationEmail(partnerName, partnerEmail, partnerPhone, w9
     <li>Approve the partner in the Owner Dashboard</li>
     <li>Generate a referral code (e.g., DRV-ABC123)</li>
     <li>Set status = Approved, active = 1, is_eligible = 1</li>
-    <li>Set w9_expiration_date to 1 year from today</li>
+    <li>Set w9_expiration_date to December 31 of the current year (new W-9 required each calendar year)</li>
   </ol>
   <hr style="border:none;border-top:1px solid #ccc;margin:24px 0;">
   <p style="font-size:13px;color:#888;">This is an automated notification from the DRIV-EN referral system.</p>
@@ -176,7 +177,7 @@ async function ensureTable(env) {
 }
 
 // ---------------------------------------------------------------------------
-// Main handler — Pages Function entry point
+// Main handler - Pages Function entry point
 // ---------------------------------------------------------------------------
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -228,28 +229,48 @@ export async function onRequestPost(context) {
 
     // In Pages Functions, w9File is a File object from FormData.
     // It can exist but have 0 bytes if the upload was interrupted or the
-    // file input was empty. We also check the .size property as a fast check
-    // before reading the full buffer.
+    // file input was empty.
+    //
+    // IMPORTANT: Pages Functions sometimes return a string instead of a File
+    // object when the FormData field contains a file but the runtime doesn't
+    // recognize it as a file. We handle both cases.
     if (w9File) {
-      // Quick check: if the File object has a .size property and it's 0,
-      // skip without reading the buffer at all.
-      let quickSize = (typeof w9File.size === 'number') ? w9File.size : -1;
-      console.log('[REFERRAL-SIGNUP] W-9 file object received. Quick size:', quickSize, 'Type:', w9File.type, 'Name:', w9File.name);
-
       let fileBuffer = null;
       let fileSize = 0;
+      let originalFileName = 'w9.pdf';
+      let fileContentType = 'application/pdf';
 
-      try {
-        fileBuffer = await w9File.arrayBuffer();
-        fileSize = fileBuffer.byteLength;
-        console.log('[REFERRAL-SIGNUP] W-9 file buffer read. Actual size:', fileSize, 'bytes');
-      } catch (e) {
-        console.error('[REFERRAL-SIGNUP] Failed to read W-9 file buffer:', e.message);
+      // Determine the file type
+      if (w9File instanceof File) {
+        console.log('[REFERRAL-SIGNUP] W-9 is a File object. Size:', w9File.size, 'Type:', w9File.type, 'Name:', w9File.name);
+        originalFileName = w9File.name || 'w9.pdf';
+        fileContentType = w9File.type || 'application/pdf';
+        try {
+          fileBuffer = await w9File.arrayBuffer();
+          fileSize = fileBuffer.byteLength;
+        } catch (e) {
+          console.error('[REFERRAL-SIGNUP] Failed to read W-9 file buffer:', e.message);
+        }
+      } else if (w9File instanceof Blob) {
+        console.log('[REFERRAL-SIGNUP] W-9 is a Blob (not File). Size:', w9File.size, 'Type:', w9File.type);
+        try {
+          fileBuffer = await w9File.arrayBuffer();
+          fileSize = fileBuffer.byteLength;
+        } catch (e) {
+          console.error('[REFERRAL-SIGNUP] Failed to read W-9 blob buffer:', e.message);
+        }
+      } else if (typeof w9File === 'string') {
+        // Pages Function returned the field as a string (filename only)
+        console.log('[REFERRAL-SIGNUP] W-9 field is a string (not a file):', w9File);
+        console.log('[REFERRAL-SIGNUP] The file upload was not properly received. This is a known Pages Function issue.');
+      } else {
+        console.log('[REFERRAL-SIGNUP] W-9 field is unexpected type:', typeof w9File, 'Constructor:', w9File && w9File.constructor && w9File.constructor.name);
       }
 
+      console.log('[REFERRAL-SIGNUP] W-9 file buffer read. Actual size:', fileSize, 'bytes');
+
       if (fileSize > 0) {
-        w9FileType = w9File.type || 'application/pdf';
-        const originalFileName = w9File.name || 'w9.pdf';
+        w9FileType = fileContentType;
 
         // Try R2 first (if the W9_BUCKET binding exists)
         if (env.W9_BUCKET) {
@@ -277,10 +298,10 @@ export async function onRequestPost(context) {
           console.log('[REFERRAL-SIGNUP] W-9 stored as base64 in D1, size:', fileSize);
         }
       } else {
-        // File was submitted but had 0 bytes — this is an error.
+        // File was submitted but had 0 bytes - this is an error.
         // We still create the partner record (so the admin knows someone
         // applied) but flag the W-9 as missing.
-        console.log('[REFERRAL-SIGNUP] W-9 file had 0 bytes — partner record created but W-9 NOT stored');
+        console.log('[REFERRAL-SIGNUP] W-9 file had 0 bytes - partner record created but W-9 NOT stored');
       }
     }
 
@@ -315,7 +336,7 @@ export async function onRequestPost(context) {
         fromEmail,
         partnerEmail,
         partnerName,
-        'Your DRIV-EN Referral Partner Application — Received',
+        'Your DRIV-EN Referral Partner Application - Received',
         buildPartnerConfirmationEmail(partnerName)
       );
 
@@ -354,7 +375,7 @@ export async function onRequestPost(context) {
           null,
           'ERROR: Referral Signup Pages Function Failed',
           '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#222;">' +
-          '<h2 style="color:#cc0000;">Pages Function Error — /api/referral-signup</h2>' +
+          '<h2 style="color:#cc0000;">Pages Function Error - /api/referral-signup</h2>' +
           '<p><strong>Time:</strong> ' + new Date().toISOString() + '</p>' +
           '<p><strong>Error:</strong> ' + (err.message || 'Unknown error') + '</p>' +
           '<p><strong>Stack:</strong></p><pre style="background:#f4f4f4;padding:12px;border-radius:6px;overflow-x:auto;font-size:13px;">' + (err.stack || 'No stack trace') + '</pre>' +
