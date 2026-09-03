@@ -293,8 +293,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 // ---- Turnstile token callback ----
-// Called by the Turnstile widget when the user completes the challenge.
-// Stores the token so it can be sent with the form submission.
 window.turnstileToken = null;
 function onTurnstileSuccess(token) {
     window.turnstileToken = token;
@@ -342,7 +340,6 @@ async function submitReferral() {
         return;
     }
 
-    // Check Turnstile token — user must complete the bot check before submitting
     if (!window.turnstileToken) {
         msgEl.innerHTML = '<span style="color:red;">Please complete the bot verification check above before submitting.</span>';
         return;
@@ -356,10 +353,9 @@ async function submitReferral() {
         formData.append('email', email);
         formData.append('phone', phone);
         formData.append('w9file', w9file);
-        // Turnstile token — required by the worker
         formData.append('turnstileToken', window.turnstileToken);
 
-        const res = await fetch('https://driv-en.com/referral-signup', {
+        const res = await fetch('https://www.driv-en.com/referral-signup', {
             method: 'POST',
             body: formData
         });
@@ -367,7 +363,6 @@ async function submitReferral() {
 
         if (res.ok && data.success) {
             msgEl.innerHTML = '<span style="color:green;">' + data.message + '</span>';
-            // Hide the form fields after success
             document.querySelector('.form-section h2').textContent = 'Application Submitted!';
             document.getElementById('step2').querySelector('p').style.display = 'none';
             document.querySelector('a.button-link').style.display = 'none';
@@ -376,7 +371,6 @@ async function submitReferral() {
             document.querySelector('#step2 button').style.display = 'none';
         } else {
             let errMsg = data.error || 'Submission failed. Please try again.';
-            // Include error details if available (helps debugging)
             if (data.details) {
                 errMsg += '<br><span style="font-size:13px;color:#999;">(' + data.details + ')</span>';
             }
