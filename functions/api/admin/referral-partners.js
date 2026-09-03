@@ -1,5 +1,5 @@
 // ============================================================================
-// Pages Function: /api/admin/referral-partners
+// Pages Function: /api/admin/referral-partners  
 // ============================================================================
 // PURPOSE: Admin API for the Owner Dashboard's Referrers section.
 //   GET  /api/admin/referral-partners       — List all referral partners
