@@ -1,5 +1,5 @@
 // ============================================================================
-// Pages Function: /api/admin/w9-download  
+// Pages Function: /api/admin/w9-download
 // ============================================================================
 // PURPOSE: Downloads a W-9 PDF from R2 for a specific referral partner.
 //   GET /api/admin/w9-download?partnerId=<uuid>
