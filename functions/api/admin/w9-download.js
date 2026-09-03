@@ -1,5 +1,5 @@
 // ============================================================================
-// Pages Function: /api/admin/w9-download  
+// Pages Function: /api/admin/w9-download
 // ============================================================================
 // PURPOSE: Downloads a W-9 PDF from R2 for a specific referral partner.
 //   GET /api/admin/w9-download?partnerId=<uuid>
@@ -17,9 +17,10 @@
 // ============================================================================
 
 const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://www.driv-en.com',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Cookie',
+  'Access-Control-Allow-Credentials': 'true',
   'Access-Control-Max-Age': '86400'
 };
 
