@@ -1,5 +1,5 @@
 // ============================================================================
-// Pages Function: /api/admin/referral-partners  
+// Pages Function: /api/admin/referral-partners
 // ============================================================================
 // PURPOSE: Admin API for the Owner Dashboard's Referrers section.
 //   GET  /api/admin/referral-partners       — List all referral partners
@@ -22,9 +22,10 @@
 // ============================================================================
 
 const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://www.driv-en.com',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Cookie',
+  'Access-Control-Allow-Credentials': 'true',
   'Access-Control-Max-Age': '86400'
 };
 
@@ -158,6 +159,21 @@ function computeW9Expiration() {
 }
 
 // ---------------------------------------------------------------------------
+// Escape HTML to prevent injection in emails and responses.
+// Used on user-supplied fields like partner name and rejection reason.
+// ---------------------------------------------------------------------------
+function escapeHtml(text) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return String(text || '').replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+
+// ---------------------------------------------------------------------------
 // GET /api/admin/referral-partners — List all partners
 // ---------------------------------------------------------------------------
 async function handleListPartners(request, env) {
@@ -252,7 +268,7 @@ async function handleUpdatePartner(request, env) {
 <html>
 <head><meta charset="UTF-8"></head>
 <body style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#222;">
-  <h2 style="color:#111;">You're Approved, ${partner.partner_name}!</h2>
+  <h2 style="color:#111;">You're Approved, ${escapeHtml(partner.partner_name)}!</h2>
   <p>Congratulations! Your DRIV-EN referral partner application has been approved.</p>
   <p><strong>Your referral code:</strong> ${referralCode}</p>
   <p><strong>Your referral link:</strong></p>
@@ -294,13 +310,13 @@ async function handleUpdatePartner(request, env) {
     ).bind(partnerId).run();
 
     // Send rejection email to the partner
-    const reasonText = reason ? '<p><strong>Reason:</strong> ' + reason + '</p>' : '';
+    const reasonText = reason ? '<p><strong>Reason:</strong> ' + escapeHtml(reason) + '</p>' : '';
     const emailHtml = `<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"></head>
 <body style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#222;">
   <h2 style="color:#111;">Update on Your DRIV-EN Referral Partner Application</h2>
-  <p>Hello ${partner.partner_name},</p>
+  <p>Hello ${escapeHtml(partner.partner_name)},</p>
   <p>Thank you for your interest in becoming a DRIV-EN referral partner. After reviewing your application, we are unable to approve it at this time.</p>
   ${reasonText}
   <p>If you have questions or would like to reapply in the future, please contact us at support@driv-en.com.</p>
