@@ -29,7 +29,7 @@
 //   - Var: SENDGRID_FROM_EMAIL = noreply@driv-en.com
 //   - Var: SUPPORT_CONTACT = support@driv-en.com
 //
-// LAST UPDATED: September 3, 2026
+// LAST UPDATED: September 4, 2026
 // ============================================================================
 
 const CORS_HEADERS = {
@@ -226,66 +226,60 @@ export async function onRequestPost(context) {
     let w9StorageKey = null;
     let w9Base64 = null;
     let w9FileType = null;
+    let w9Debug = 'w9file field type: ' + typeof w9File;
 
-    // In Pages Functions, w9File is a File object from FormData.
-    // It can exist but have 0 bytes if the upload was interrupted or the
-    // file input was empty.
-    //
-    // IMPORTANT: Pages Functions sometimes return a string instead of a File
-    // object when the FormData field contains a file but the runtime doesn't
-    // recognize it as a file. We handle both cases.
+    // In Pages Functions, w9File from FormData can be a File, Blob, or
+    // sometimes a string. instanceof checks are unreliable in the Workers
+    // runtime — use duck-typing instead (check for arrayBuffer method).
     if (w9File) {
       let fileBuffer = null;
       let fileSize = 0;
       let originalFileName = 'w9.pdf';
       let fileContentType = 'application/pdf';
 
-      // Determine the file type
-      if (w9File instanceof File) {
-        console.log('[REFERRAL-SIGNUP] W-9 is a File object. Size:', w9File.size, 'Type:', w9File.type, 'Name:', w9File.name);
+      // Duck-type: does it have an arrayBuffer method? (File and Blob both do)
+      if (w9File && typeof w9File.arrayBuffer === 'function') {
+        w9Debug += ' | has arrayBuffer | size: ' + (w9File.size !== undefined ? w9File.size : '?');
+        w9Debug += ' | name: ' + (w9File.name || 'none');
+        w9Debug += ' | type: ' + (w9File.type || 'none');
         originalFileName = w9File.name || 'w9.pdf';
         fileContentType = w9File.type || 'application/pdf';
         try {
           fileBuffer = await w9File.arrayBuffer();
           fileSize = fileBuffer.byteLength;
+          w9Debug += ' | read OK: ' + fileSize + ' bytes';
         } catch (e) {
-          console.error('[REFERRAL-SIGNUP] Failed to read W-9 file buffer:', e.message);
-        }
-      } else if (w9File instanceof Blob) {
-        console.log('[REFERRAL-SIGNUP] W-9 is a Blob (not File). Size:', w9File.size, 'Type:', w9File.type);
-        try {
-          fileBuffer = await w9File.arrayBuffer();
-          fileSize = fileBuffer.byteLength;
-        } catch (e) {
-          console.error('[REFERRAL-SIGNUP] Failed to read W-9 blob buffer:', e.message);
+          w9Debug += ' | arrayBuffer FAILED: ' + e.message;
         }
       } else if (typeof w9File === 'string') {
-        // Pages Function returned the field as a string (filename only)
-        console.log('[REFERRAL-SIGNUP] W-9 field is a string (not a file):', w9File);
-        console.log('[REFERRAL-SIGNUP] The file upload was not properly received. This is a known Pages Function issue.');
+        w9Debug += ' | is string, length: ' + w9File.length + ' | value: ' + w9File.substring(0, 100);
       } else {
-        console.log('[REFERRAL-SIGNUP] W-9 field is unexpected type:', typeof w9File, 'Constructor:', w9File && w9File.constructor && w9File.constructor.name);
+        w9Debug += ' | unexpected | constructor: ' + (w9File && w9File.constructor ? w9File.constructor.name : 'unknown');
+        w9Debug += ' | keys: ' + (w9File ? Object.keys(w9File).join(',') : 'null');
+        // Last resort: try to read it as a blob anyway
+        if (w9File && typeof w9File.arrayBuffer === 'function') {
+          try {
+            fileBuffer = await w9File.arrayBuffer();
+            fileSize = fileBuffer.byteLength;
+          } catch (e) {
+            w9Debug += ' | fallback read failed: ' + e.message;
+          }
+        }
       }
-
-      console.log('[REFERRAL-SIGNUP] W-9 file buffer read. Actual size:', fileSize, 'bytes');
 
       if (fileSize > 0) {
         w9FileType = fileContentType;
 
         // Try R2 first (if the W9_BUCKET binding exists)
         if (env.W9_BUCKET) {
-          // Key format: w9/<uuid>-<sanitized-filename>.pdf
-          // This keeps files organized in a w9/ prefix and includes the original
-          // filename so the Owner Dashboard can display it for download.
           const safeName = originalFileName.replace(/[^a-zA-Z0-9._-]/g, '_');
           w9StorageKey = 'w9/' + crypto.randomUUID() + '-' + safeName;
           await env.W9_BUCKET.put(w9StorageKey, fileBuffer, {
             httpMetadata: { contentType: w9FileType }
           });
-          console.log('[REFERRAL-SIGNUP] W-9 stored in R2:', w9StorageKey);
+          w9Debug += ' | R2 stored: ' + w9StorageKey;
         } else {
-          // Fallback: store as base64 in D1 (not ideal for large files, but works)
-          // Limit to 2MB to avoid D1 row size issues
+          // Fallback: store as base64 in D1
           if (fileSize > 2 * 1024 * 1024) {
             return jsonResponse({ error: 'W-9 file is too large. Please upload a file under 2MB, or contact support@driv-en.com.' }, 413);
           }
@@ -295,14 +289,13 @@ export async function onRequestPost(context) {
             binary += String.fromCharCode(bytes[i]);
           }
           w9Base64 = btoa(binary);
-          console.log('[REFERRAL-SIGNUP] W-9 stored as base64 in D1, size:', fileSize);
+          w9Debug += ' | base64 stored, length: ' + w9Base64.length;
         }
       } else {
-        // File was submitted but had 0 bytes — this is an error.
-        // We still create the partner record (so the admin knows someone
-        // applied) but flag the W-9 as missing.
-        console.log('[REFERRAL-SIGNUP] W-9 file had 0 bytes — partner record created but W-9 NOT stored');
+        w9Debug += ' | FILE WAS 0 BYTES OR UNREADABLE';
       }
+    } else {
+      w9Debug += ' | w9file is null/falsy';
     }
 
     // --- Create referral_partners row ---
@@ -310,8 +303,9 @@ export async function onRequestPost(context) {
     const now = new Date().toISOString();
 
     // w9_attachment stores either the R2 key or the base64 data
-    const w9Attachment = w9StorageKey || w9Base64 || null;
-    console.log('[REFERRAL-SIGNUP] Storing partner record. w9Attachment is:', w9Attachment ? (w9StorageKey ? 'R2 key' : 'base64, length ' + w9Base64.length) : 'NULL');
+    // If W-9 failed to store, we put the debug info in w9_attachment so
+    // the admin can see what went wrong. This is a temporary diagnostic.
+    const w9Attachment = w9StorageKey || w9Base64 || ('DEBUG: ' + w9Debug);
 
     await env.DB.prepare(
       `INSERT INTO referral_partners (id, partner_name, partner_email, partner_phone, status, active, is_eligible, partner_status, w9_attachment, created_at)
