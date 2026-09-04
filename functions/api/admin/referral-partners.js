@@ -18,9 +18,7 @@
 //   - Var: SENDGRID_FROM_EMAIL = noreply@driv-en.com
 //   - Var: SUPPORT_CONTACT = support@driv-en.com
 //
-// LAST UPDATED: September 4, 2026
-// CHANGES:
-//   - Referral link in approval email: /website/checkout.html?ref=CODE → /?ref=CODE (home page)
+// LAST UPDATED: September 3, 2026
 // ============================================================================
 
 const CORS_HEADERS = {
@@ -40,6 +38,7 @@ function jsonResponse(obj, status) {
 
 // ---------------------------------------------------------------------------
 // JWT helpers — parse and verify the session cookie directly
+// This avoids the need to fetch /auth/session from within a Pages Function.
 // ---------------------------------------------------------------------------
 function base64UrlDecode(str) {
   str = str.replace(/-/g, '+').replace(/_/g, '/');
@@ -98,6 +97,8 @@ function parseCookies(cookieHeader) {
 
 // ---------------------------------------------------------------------------
 // Auth check — verify the caller is a DRIV-EN Founder
+// Parses the driv_en_session cookie, verifies the JWT, checks the role.
+// Returns the JWT payload if authenticated and is Founder, null otherwise.
 // ---------------------------------------------------------------------------
 async function verifyFounder(request, env) {
   if (!env.JWT_SECRET) {
@@ -114,6 +115,7 @@ async function verifyFounder(request, env) {
   const payload = await verifyJwt(token, env.JWT_SECRET);
   if (!payload) return null;
 
+  // Only DRIV-EN Founder can access the Owner Dashboard admin API.
   if (payload.role === 'DRIV-EN Founder') {
     return payload;
   }
@@ -154,6 +156,7 @@ async function sendEmail(env, to, subject, htmlContent) {
 
 // ---------------------------------------------------------------------------
 // Compute W-9 expiration date: December 31 of the current year
+// A new W-9 is required each calendar year.
 // ---------------------------------------------------------------------------
 function computeW9Expiration() {
   const now = new Date();
@@ -174,6 +177,7 @@ function generateTempPassword() {
 
 // ---------------------------------------------------------------------------
 // Hash a password using PBKDF2 (same algorithm as the auth worker)
+// Returns { salt, hash } as base64 strings
 // ---------------------------------------------------------------------------
 function base64UrlEncode(bytes) {
   let bin = '';
@@ -182,21 +186,39 @@ function base64UrlEncode(bytes) {
 }
 
 async function hashPassword(password, saltHex) {
-  const saltStr = saltHex || '';
-  const saltBytes = new Uint8Array(saltStr.match(/.{1,2}/g).map(b => parseInt(b, 16)));
-  const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: saltBytes, iterations: 100000, hash: 'SHA-256' }, keyMaterial, 256);
+  // If no salt provided, generate a new random 16-byte salt
+  let saltBytes;
+  let saltHexResult;
+
   if (!saltHex) {
+    // Generate a new random salt
     const newSalt = new Uint8Array(16);
     crypto.getRandomValues(newSalt);
-    const saltHexNew = Array.from(newSalt).map(b => b.toString(16).padStart(2, '0')).join('');
-    return { salt: saltHexNew, hash: base64UrlEncode(new Uint8Array(bits)) };
+    saltBytes = newSalt;
+    saltHexResult = Array.from(newSalt).map(b => b.toString(16).padStart(2, '0')).join('');
+  } else {
+    // Parse the existing salt from hex string
+    const hexPairs = saltHex.match(/.{1,2}/g);
+    if (!hexPairs) {
+      // Invalid hex string — generate a new salt as fallback
+      const newSalt = new Uint8Array(16);
+      crypto.getRandomValues(newSalt);
+      saltBytes = newSalt;
+      saltHexResult = Array.from(newSalt).map(b => b.toString(16).padStart(2, '0')).join('');
+    } else {
+      saltBytes = new Uint8Array(hexPairs.map(b => parseInt(b, 16)));
+      saltHexResult = saltHex;
+    }
   }
-  return { salt: saltHex, hash: base64UrlEncode(new Uint8Array(bits)) };
+
+  const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: saltBytes, iterations: 100000, hash: 'SHA-256' }, keyMaterial, 256);
+  return { salt: saltHexResult, hash: base64UrlEncode(new Uint8Array(bits)) };
 }
 
 // ---------------------------------------------------------------------------
-// Escape HTML to prevent injection in emails and responses
+// Escape HTML to prevent injection in emails and responses.
+// Used on user-supplied fields like partner name and rejection reason.
 // ---------------------------------------------------------------------------
 function escapeHtml(text) {
   const map = {
@@ -241,6 +263,7 @@ async function handleListPartners(request, env) {
 
 // ---------------------------------------------------------------------------
 // POST /api/admin/referral-partners — Approve or reject a partner
+// Body: { action: 'approve' | 'reject', partnerId, referralCode?, w9ExpirationDate?, reason? }
 // ---------------------------------------------------------------------------
 async function handleUpdatePartner(request, env) {
   const user = await verifyFounder(request, env);
@@ -259,6 +282,7 @@ async function handleUpdatePartner(request, env) {
     return jsonResponse({ success: false, error: 'Action and partnerId are required' }, 400);
   }
 
+  // Fetch the partner
   const partner = await env.DB.prepare(
     'SELECT id, partner_name, partner_email, status FROM referral_partners WHERE id = ?'
   ).bind(partnerId).first();
@@ -268,10 +292,12 @@ async function handleUpdatePartner(request, env) {
   }
 
   if (action === 'approve') {
+    // Validate referral code
     if (!referralCode) {
       return jsonResponse({ success: false, error: 'Referral code is required' }, 400);
     }
 
+    // Check referral code uniqueness
     const existingCode = await env.DB.prepare(
       'SELECT id FROM referral_partners WHERE referral_code = ? AND id != ?'
     ).bind(referralCode, partnerId).first();
@@ -279,10 +305,14 @@ async function handleUpdatePartner(request, env) {
       return jsonResponse({ success: false, error: 'Referral code already in use by another partner' }, 409);
     }
 
+    // W-9 expiration: December 31 of current year if not provided
     const w9Exp = w9ExpirationDate || computeW9Expiration();
+
+    // Generate a temporary password for the referrer to log in
     const tempPassword = generateTempPassword();
     const { salt, hash } = await hashPassword(tempPassword);
 
+    // Update partner to Approved with temp password
     await env.DB.prepare(
       `UPDATE referral_partners
        SET status = 'Approved', active = 1, is_eligible = 1,
@@ -292,7 +322,7 @@ async function handleUpdatePartner(request, env) {
        WHERE id = ?`
     ).bind(referralCode, w9Exp, hash, salt, partnerId).run();
 
-    // Send approval email — referral link now goes to HOME PAGE, not checkout
+    // Send approval email to the partner
     const domain = 'https://www.driv-en.com';
     const referralLink = domain + '/?ref=' + referralCode;
     const loginLink = domain + '/public/referrer-login.html';
@@ -301,14 +331,14 @@ async function handleUpdatePartner(request, env) {
 <html>
 <head><meta charset="UTF-8"></head>
 <body style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#222;">
-  <h2 style="color:#111;">You're approved, ${escapeHtml(partner.partner_name)}!</h2>
+  <h2 style="color:#111;">You're Approved, ${escapeHtml(partner.partner_name)}!</h2>
   <p>Congratulations! Your DRIV-EN referral partner application has been approved.</p>
   <p><strong>Your referral code:</strong> ${referralCode}</p>
   <p><strong>Your referral link:</strong></p>
   <p style="background:#f0f7ff;border:1px solid #c3dbf7;padding:12px;border-radius:6px;word-break:break-all;font-size:14px;">
     <a href="${referralLink}" style="color:#2563eb;">${referralLink}</a>
   </p>
-  <p>Share this link with companies you'd like to refer to DRIV-EN. When they visit your link, they'll land on our home page to learn about DRIV-EN. When they sign up, you'll automatically receive credit for the referral.</p>
+  <p>Share this link with companies you'd like to refer to DRIV-EN. When they sign up using your link, you'll automatically receive credit for the referral.</p>
   <p><strong>Commission rates:</strong></p>
   <ul>
     <li>Monthly subscriptions: 5% recurring commission</li>
@@ -364,6 +394,7 @@ async function handleUpdatePartner(request, env) {
     });
 
   } else if (action === 'reject') {
+    // Update partner to Rejected
     await env.DB.prepare(
       `UPDATE referral_partners
        SET status = 'Rejected', active = 0, is_eligible = 0,
@@ -371,6 +402,7 @@ async function handleUpdatePartner(request, env) {
        WHERE id = ?`
     ).bind(partnerId).run();
 
+    // Send rejection email to the partner
     const reasonText = reason ? '<p><strong>Reason:</strong> ' + escapeHtml(reason) + '</p>' : '';
     const emailHtml = `<!DOCTYPE html>
 <html>
