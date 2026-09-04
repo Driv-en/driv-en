@@ -32,8 +32,13 @@
     var data = await response.json();
 
     if (!data.authenticated) {
-      // Not logged in — redirect to login page
-      window.location.href = "/public/login.html";
+      // Not logged in — redirect to the correct login page based on role
+      var requiredRole = document.body.getAttribute("data-required-role");
+      if (requiredRole === "DRIV-EN Founder") {
+        window.location.href = "/app/auth/founder-login.html";
+      } else {
+        window.location.href = "/public/login.html";
+      }
       return;
     }
 
@@ -45,8 +50,9 @@
     // current user is NOT an admin. This is used for back buttons
     // (e.g., "Return to Admin Dashboard") that should only appear
     // for admins. Key Personnel should not see admin navigation.
-    var userRole = (data.user && data.user.role) ? data.user.role : "";
-    // Case-insensitive admin check — some databases store "admin" instead of "Admin"
+    var userRole = (data.user && data.user.role) ? String(data.user.role) : "";
+    // Case-insensitive admin check — handles "Admin", "admin", "ADMIN"
+    // Also handles null/undefined role (treats as non-admin)
     if (userRole.toLowerCase() !== "admin") {
       document.querySelectorAll(".driven-admin-only").forEach(function(el) {
         el.style.display = "none";
@@ -79,8 +85,13 @@
     }
   } catch (e) {
     console.error("Auth check error:", e.message);
-    // On error, redirect to login (safer to deny than allow)
-    window.location.href = "/public/login.html";
+    // On error, redirect to the correct login page based on role
+    var requiredRole = document.body.getAttribute("data-required-role");
+    if (requiredRole === "DRIV-EN Founder") {
+      window.location.href = "/app/auth/founder-login.html";
+    } else {
+      window.location.href = "/public/login.html";
+    }
   }
 })();
 
