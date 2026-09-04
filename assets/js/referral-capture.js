@@ -77,6 +77,7 @@
     }
 
     // Clean the URL — remove ?ref= parameter so it doesn't get accidentally shared
+    // This replaces the URL in the browser without reloading the page
     try {
       const cleanUrl = window.location.pathname + window.location.hash;
       window.history.replaceState({}, document.title, cleanUrl);
