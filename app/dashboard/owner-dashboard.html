@@ -157,6 +157,13 @@
       border-color: var(--primary);
     }
     .owner-btn-w9:hover { background: var(--primary); color: #fff; }
+    .owner-btn-w9-missing {
+      background: transparent;
+      color: var(--text-muted);
+      border-color: var(--border);
+      cursor: default;
+    }
+    .owner-btn-w9-missing:hover { background: transparent; color: var(--text-muted); }
 
     /* ===== MODAL ===== */
     .owner-modal {
@@ -484,7 +491,7 @@
 // =========================================================================
 // This page does NOT use dashboard-common.js or auth-check.js.
 // It performs its own auth check by fetching /auth/session directly.
-// Only users with role="DRIV-EN Founder" can access this dashboard.
+// Only users with role=Admin can access this dashboard.
 // The header, theme toggle, and footer are self-contained (like the
 // referrer dashboard) to avoid loading customer-specific data.
 // =========================================================================
@@ -519,7 +526,7 @@ function updateThemeSwitch() {
     var data = await resp.json();
 
     if (!data.authenticated) {
-      window.location.href = '/app/auth/founder-login.html';
+      window.location.href = '/public/login.html';
       return;
     }
 
@@ -534,7 +541,7 @@ function updateThemeSwitch() {
     initOwnerDashboard();
   } catch (e) {
     console.error('Auth check failed:', e);
-    window.location.href = '/app/auth/founder-login.html';
+    window.location.href = '/public/login.html';
   }
 })();
 
@@ -631,9 +638,9 @@ function renderTable(partners) {
     // W-9 download
     var w9Cell = '';
     if (p.w9_attachment) {
-      w9Cell = '<button class="owner-action-btn owner-btn-w9" onclick="downloadW9(\'' + p.id + '\',\'' + escapeJs(p.partner_name) + '\')">Download</button>';
+      w9Cell = '<button class="owner-action-btn owner-btn-w9" onclick="viewW9(\'' + p.id + '\')">View W-9</button>';
     } else {
-      w9Cell = '<span style="color:var(--text-muted);">—</span>';
+      w9Cell = '<span style="color:var(--text-muted);font-size:13px;">No W-9</span>';
     }
 
     // Actions
@@ -676,14 +683,9 @@ function filterPartners() {
   });
 }
 
-// ---- W-9 Download ----
-function downloadW9(partnerId, partnerName) {
-  var a = document.createElement('a');
-  a.href = '/api/admin/w9-download?partnerId=' + encodeURIComponent(partnerId);
-  a.download = 'W9-' + (partnerName || 'partner').replace(/[^a-zA-Z0-9]/g, '_') + '.pdf';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+// ---- W-9 View (opens in new tab) ----
+function viewW9(partnerId) {
+  window.open('/api/admin/w9-download?partnerId=' + encodeURIComponent(partnerId), '_blank');
 }
 
 // ---- Approve Modal ----
@@ -833,7 +835,7 @@ async function ownerLogout() {
   try {
     await fetch('/auth/logout', { method: 'POST' });
   } catch (e) { /* ignore */ }
-  window.location.href = '/app/auth/founder-login.html';
+  window.location.href = '/public/login.html';
 }
 
 // ---- Close modals on overlay click ----
