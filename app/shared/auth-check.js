@@ -32,8 +32,13 @@
     var data = await response.json();
 
     if (!data.authenticated) {
-      // Not logged in — redirect to login page
-      window.location.href = "/public/login.html";
+      // Not logged in — redirect to the correct login page based on role
+      var requiredRole = document.body.getAttribute("data-required-role");
+      if (requiredRole === "DRIV-EN Founder") {
+        window.location.href = "/app/auth/founder-login.html";
+      } else {
+        window.location.href = "/public/login.html";
+      }
       return;
     }
 
@@ -80,8 +85,13 @@
     }
   } catch (e) {
     console.error("Auth check error:", e.message);
-    // On error, redirect to login (safer to deny than allow)
-     window.location.href = "/public/login.html";
+    // On error, redirect to the correct login page based on role
+    var requiredRole = document.body.getAttribute("data-required-role");
+    if (requiredRole === "DRIV-EN Founder") {
+      window.location.href = "/app/auth/founder-login.html";
+    } else {
+      window.location.href = "/public/login.html";
+    }
   }
 })();
 
