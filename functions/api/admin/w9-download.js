@@ -13,7 +13,7 @@
 //   - R2: W9_BUCKET → w9-uploads
 //   - Secret: JWT_SECRET (same value as the auth worker)
 //
-// LAST UPDATED: September 3, 2026
+// LAST UPDATED: September 4, 2026
 // ============================================================================
 
 const CORS_HEADERS = {
@@ -175,10 +175,10 @@ export async function onRequestGet(context) {
     const originalName = fileNamePart.replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/, '') || 'w9.pdf';
     const safeName = (partner.partner_name || 'partner').replace(/[^a-zA-Z0-9]/g, '_');
 
-    // Return the PDF file
+    // Return the PDF file — inline so it opens in the browser for viewing
     const headers = new Headers();
     headers.set('Content-Type', r2Object.httpMetadata?.contentType || 'application/pdf');
-    headers.set('Content-Disposition', 'attachment; filename="W9-' + safeName + '.pdf"');
+    headers.set('Content-Disposition', 'inline; filename="W9-' + safeName + '.pdf"');
     headers.set('Content-Length', r2Object.size.toString());
 
     return new Response(r2Object.body, {
@@ -200,7 +200,7 @@ export async function onRequestGet(context) {
         status: 200,
         headers: {
           'Content-Type': 'application/pdf',
-          'Content-Disposition': 'attachment; filename="W9-' + safeName + '.pdf"',
+          'Content-Disposition': 'inline; filename="W9-' + safeName + '.pdf"',
           'Content-Length': bytes.length.toString()
         }
       });
