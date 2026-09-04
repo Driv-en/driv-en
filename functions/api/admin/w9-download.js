@@ -175,7 +175,7 @@ export async function onRequestGet(context) {
     const originalName = fileNamePart.replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/, '') || 'w9.pdf';
     const safeName = (partner.partner_name || 'partner').replace(/[^a-zA-Z0-9]/g, '_');
 
-    // Return the PDF file — inline so it opens in the browser for viewing
+    // Return the PDF file
     const headers = new Headers();
     headers.set('Content-Type', r2Object.httpMetadata?.contentType || 'application/pdf');
     headers.set('Content-Disposition', 'inline; filename="W9-' + safeName + '.pdf"');
