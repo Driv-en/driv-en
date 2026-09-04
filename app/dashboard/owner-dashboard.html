@@ -461,8 +461,9 @@
     <button class="owner-tab active" data-tab="referrers" onclick="switchTab('referrers')">Referrers</button>
     <button class="owner-tab" data-tab="customers" onclick="switchTab('customers')">Customers</button>
     <button class="owner-tab" data-tab="system" onclick="switchTab('system')">System Status</button>
-    <button class="owner-tab" data-tab="issues" onclick="switchTab('issues')">Issues</button>
-    <button class="owner-tab" data-tab="settings" onclick="switchTab('settings')">Settings</button>
+     <button class="owner-tab" data-tab="issues" onclick="switchTab('issues')">Issues</button>
+     <button class="owner-tab" data-tab="visitors" onclick="switchTab('visitors')">Site Visitors</button>
+     <button class="owner-tab" data-tab="settings" onclick="switchTab('settings')">Settings</button>
   </div>
 
   <!-- ===== CONTENT AREA ===== -->
@@ -547,6 +548,84 @@
       <div class="owner-coming-soon">
         <h3>Issues</h3>
         <p>Error log viewer is coming soon. This section will show errors that were emailed to support, with timestamps and stack traces.</p>
+      </div>
+    </div>
+
+    <!-- ===== SITE VISITORS TAB ===== -->
+    <div id="tab-visitors" class="owner-tab-content">
+
+      <!-- Date range filter -->
+      <div class="owner-visitors-filters" style="display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap;">
+        <label style="font-size:14px;color:var(--text-muted);">Date range:</label>
+        <input type="date" id="visitorDateStart" style="padding:8px 12px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);font-size:14px;" />
+        <span style="color:var(--text-muted);">to</span>
+        <input type="date" id="visitorDateEnd" style="padding:8px 12px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);font-size:14px;" />
+        <button onclick="loadVisitors()" style="background:var(--primary);color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:14px;cursor:pointer;">Apply</button>
+        <button onclick="loadVisitors('7')" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:6px;font-size:14px;cursor:pointer;">Last 7 days</button>
+        <button onclick="loadVisitors('30')" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:6px;font-size:14px;cursor:pointer;">Last 30 days</button>
+        <button onclick="loadVisitors('90')" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:6px;font-size:14px;cursor:pointer;">Last 90 days</button>
+      </div>
+
+      <!-- Summary stats cards -->
+      <div class="owner-stats" id="visitorStatsGrid">
+        <div class="owner-stat-card">
+          <div class="owner-stat-label">Total Visits</div>
+          <div class="owner-stat-value" id="visitorTotalVisits">—</div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-label">Countries</div>
+          <div class="owner-stat-value" id="visitorUniqueCountries">—</div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-label">Referral Visits</div>
+          <div class="owner-stat-value" id="visitorReferralVisits">—</div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-label">Top Device</div>
+          <div class="owner-stat-value" id="visitorTopDevice">—</div>
+        </div>
+      </div>
+
+      <!-- Breakdown cards -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-bottom:24px;">
+        <div class="owner-stat-card">
+          <div class="owner-stat-label">Top Pages</div>
+          <div id="visitorTopPages" style="margin-top:12px;"></div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-label">Top Countries</div>
+          <div id="visitorTopCountries" style="margin-top:12px;"></div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-label">Browsers</div>
+          <div id="visitorBrowsers" style="margin-top:12px;"></div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-label">Operating Systems</div>
+          <div id="visitorOS" style="margin-top:12px;"></div>
+        </div>
+      </div>
+
+      <!-- Recent visitors table -->
+      <h3 style="font-size:18px;color:var(--text);margin-bottom:12px;">Recent Visitors</h3>
+      <div class="owner-table-wrap">
+        <table class="owner-table" id="visitorsTable">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Page</th>
+              <th>Country</th>
+              <th>Device</th>
+              <th>Browser</th>
+              <th>OS</th>
+              <th>Referral Code</th>
+              <th>Source</th>
+            </tr>
+          </thead>
+          <tbody id="visitorsTableBody">
+            <tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px;">Loading visitor data...</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
@@ -762,6 +841,123 @@ function removeLogo() {
   loadOwnerLogo();
 }
 
+// =========================================================================
+// SITE VISITORS TAB LOGIC
+// =========================================================================
+
+// Load visitor data with optional date range
+// presetDays: '7', '30', '90' for quick filters, or null for custom date range
+async function loadVisitors(presetDays) {
+  try {
+    var startEl = document.getElementById('visitorDateStart');
+    var endEl = document.getElementById('visitorDateEnd');
+    var startDate, endDate;
+
+    if (presetDays) {
+      // Quick filter — last N days
+      var end = new Date();
+      var start = new Date();
+      start.setDate(start.getDate() - parseInt(presetDays));
+      startDate = start.toISOString();
+      endDate = end.toISOString();
+      // Update the date inputs to reflect the selected range
+      startEl.value = start.toISOString().split('T')[0];
+      endEl.value = end.toISOString().split('T')[0];
+    } else {
+      // Custom date range from inputs
+      var startVal = startEl.value;
+      var endVal = endEl.value;
+      if (startVal && endVal) {
+        startDate = new Date(startVal + 'T00:00:00Z').toISOString();
+        endDate = new Date(endVal + 'T23:59:59Z').toISOString();
+      } else {
+        // Default to last 30 days
+        var end = new Date();
+        var start = new Date();
+        start.setDate(start.getDate() - 30);
+        startDate = start.toISOString();
+        endDate = end.toISOString();
+        startEl.value = start.toISOString().split('T')[0];
+        endEl.value = end.toISOString().split('T')[0];
+      }
+    }
+
+    // Show loading state
+    document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px;">Loading...</td></tr>';
+
+    // Fetch summary stats
+    var summaryResp = await fetch('/api/admin/site-visitors?summary=true&start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate));
+    var summaryData = await summaryResp.json();
+
+    if (summaryData.success) {
+      var s = summaryData.summary;
+      document.getElementById('visitorTotalVisits').textContent = s.totalVisits || 0;
+      document.getElementById('visitorUniqueCountries').textContent = s.uniqueCountries || 0;
+      document.getElementById('visitorReferralVisits').textContent = s.referralVisits || 0;
+      document.getElementById('visitorTopDevice').textContent = (s.deviceBreakdown && s.deviceBreakdown[0]) ? s.deviceBreakdown[0].device_type : '—';
+
+      // Top pages
+      var pagesHtml = (s.topPages || []).map(function(p) {
+        return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
+               '<span style="color:var(--text);">' + (p.page_path || '/') + '</span>' +
+               '<span style="color:var(--text-muted);">' + p.count + '</span></div>';
+      }).join('');
+      document.getElementById('visitorTopPages').innerHTML = pagesHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
+
+      // Top countries
+      var countriesHtml = (s.topCountries || []).map(function(c) {
+        return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
+               '<span style="color:var(--text);">' + (c.country || 'Unknown') + '</span>' +
+               '<span style="color:var(--text-muted);">' + c.count + '</span></div>';
+      }).join('');
+      document.getElementById('visitorTopCountries').innerHTML = countriesHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
+
+      // Browsers
+      var browsersHtml = (s.browserBreakdown || []).map(function(b) {
+        return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
+               '<span style="color:var(--text);text-transform:capitalize;">' + b.browser + '</span>' +
+               '<span style="color:var(--text-muted);">' + b.count + '</span></div>';
+      }).join('');
+      document.getElementById('visitorBrowsers').innerHTML = browsersHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
+
+      // OS
+      var osHtml = (s.osBreakdown || []).map(function(o) {
+        return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
+               '<span style="color:var(--text);text-transform:capitalize;">' + o.os + '</span>' +
+               '<span style="color:var(--text-muted);">' + o.count + '</span></div>';
+      }).join('');
+      document.getElementById('visitorOS').innerHTML = osHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
+    }
+
+    // Fetch visitor list
+    var listResp = await fetch('/api/admin/site-visitors?start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate));
+    var listData = await listResp.json();
+
+    if (listData.success && listData.visitors && listData.visitors.length > 0) {
+      var rows = listData.visitors.map(function(v) {
+        var date = new Date(v.created_at).toLocaleString();
+        return '<tr>' +
+          '<td style="white-space:nowrap;">' + date + '</td>' +
+          '<td>' + (v.page_path || '/') + '</td>' +
+          '<td>' + (v.country || '—') + '</td>' +
+          '<td style="text-transform:capitalize;">' + (v.device_type || '—') + '</td>' +
+          '<td style="text-transform:capitalize;">' + (v.browser || '—') + '</td>' +
+          '<td style="text-transform:capitalize;">' + (v.os || '—') + '</td>' +
+          '<td>' + (v.referral_code || '—') + '</td>' +
+          '<td>' + (v.external_referrer || '—') + '</td>' +
+        '</tr>';
+      }).join('');
+      document.getElementById('visitorsTableBody').innerHTML = rows;
+    } else {
+      document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px;">No visitor data for this date range.</td></tr>';
+    }
+
+  } catch (e) {
+    console.error('loadVisitors error:', e);
+    document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--error);padding:24px;">Failed to load visitor data.</td></tr>';
+  }
+}
+
 // ---- Auth Check ----
 (async function() {
   try {
@@ -769,7 +965,7 @@ function removeLogo() {
     var data = await resp.json();
 
     if (!data.authenticated) {
-      window.location.href = '/public/login.html';
+      window.location.href = '/app/auth/founder-login.html';
       return;
     }
 
@@ -784,7 +980,7 @@ function removeLogo() {
     initOwnerDashboard();
   } catch (e) {
     console.error('Auth check failed:', e);
-    window.location.href = '/public/login.html';
+    window.location.href = '/app/auth/founder-login.html';
   }
 })();
 
@@ -813,6 +1009,11 @@ function switchTab(tabName) {
   var tabContent = document.getElementById('tab-' + tabName);
   if (tabBtn) tabBtn.classList.add('active');
   if (tabContent) tabContent.classList.add('active');
+
+  // Load visitor data when the Site Visitors tab is opened
+  if (tabName === 'visitors') {
+    loadVisitors('30');
+  }
 }
 
 // ---- Load Partners ----
@@ -1139,6 +1340,8 @@ function regenerateCode() {
 }
 
 function defaultW9Expiration() {
+  // W-9 expires on December 31 of the year it was uploaded.
+  // A new W-9 is required each calendar year.
   return new Date().getFullYear() + '-12-31';
 }
 
@@ -1165,7 +1368,7 @@ async function ownerLogout() {
   try {
     await fetch('/auth/logout', { method: 'POST' });
   } catch (e) { /* ignore */ }
-  window.location.href = '/public/login.html';
+  window.location.href = '/app/auth/founder-login.html';
 }
 
 // ---- Close modals on overlay click ----
