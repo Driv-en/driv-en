@@ -158,6 +158,37 @@
     }
     .owner-btn-w9:hover { background: var(--primary); color: #fff; }
 
+    /* ===== SORTABLE COLUMNS ===== */
+    .sortable {
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+    .sortable:hover {
+      background: var(--bg-input);
+    }
+    .sortable.active {
+      color: var(--primary);
+      font-weight: 600;
+    }
+    .sortable.active .sort-arrow::before {
+      content: '▼';
+      font-size: 10px;
+      vertical-align: middle;
+      margin-left: 4px;
+    }
+    .sortable.asc .sort-arrow::before {
+      content: '▲';
+      font-size: 10px;
+      vertical-align: middle;
+      margin-left: 4px;
+    }
+    .sort-arrow {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-left: 4px;
+    }
+
     /* ===== MODAL ===== */
     .owner-modal {
       display: none;
@@ -475,14 +506,14 @@
           <table class="dash-table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Status</th>
-                <th>Referral Code</th>
+                <th class="sortable" data-sort="partner_name" onclick="sortBy('partner_name')">Name <span class="sort-arrow"></span></th>
+                <th class="sortable" data-sort="partner_email" onclick="sortBy('partner_email')">Email <span class="sort-arrow"></span></th>
+                <th class="sortable" data-sort="partner_phone" onclick="sortBy('partner_phone')">Phone <span class="sort-arrow"></span></th>
+                <th class="sortable" data-sort="status" onclick="sortBy('status')">Status <span class="sort-arrow"></span></th>
+                <th class="sortable" data-sort="referral_code" onclick="sortBy('referral_code')">Referral Code <span class="sort-arrow"></span></th>
                 <th>W-9</th>
-                <th>W-9 Status</th>
-                <th>Submitted</th>
+                <th class="sortable" data-sort="w9_status" onclick="sortBy('w9_status')">W-9 Status <span class="sort-arrow"></span></th>
+                <th class="sortable" data-sort="created_at" onclick="sortBy('created_at')">Submitted <span class="sort-arrow"></span></th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -662,6 +693,8 @@
 var allPartners = [];
 var currentApprovePartnerId = null;
 var currentRejectPartnerId = null;
+var sortColumn = 'created_at';
+var sortDirection = 'desc';
 
 // ---- Theme Toggle ----
 function dashToggleTheme() {
@@ -798,6 +831,7 @@ async function loadPartners() {
     if (data.success && data.partners) {
       allPartners = data.partners;
       renderStats(data.partners);
+      updateSortIndicators();
       renderTable(data.partners);
     } else {
       tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:40px 0;">No referral partners found.</td></tr>';
@@ -833,12 +867,8 @@ function renderTable(partners) {
     return;
   }
 
-  // Sort: Pending first, then by date descending
-  partners.sort(function(a, b) {
-    if (a.status === 'Pending' && b.status !== 'Pending') return -1;
-    if (b.status === 'Pending' && a.status !== 'Pending') return 1;
-    return (b.created_at || '').localeCompare(a.created_at || '');
-  });
+  // Sort using the selected column and direction
+  partners = sortPartners(partners);
 
   partners.forEach(function(p) {
     var row = document.createElement('tr');
@@ -923,6 +953,59 @@ function filterPartners() {
     } else {
       row.style.display = 'none';
     }
+  });
+}
+
+// ---- Sort By Column ----
+function sortBy(column) {
+  if (sortColumn === column) {
+    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortColumn = column;
+    sortDirection = 'asc';
+  }
+  updateSortIndicators();
+  renderTable(allPartners);
+}
+
+function updateSortIndicators() {
+  document.querySelectorAll('.sortable').forEach(function(th) {
+    th.classList.remove('active', 'asc');
+    if (th.dataset.sort === sortColumn) {
+      th.classList.add('active');
+      if (sortDirection === 'asc') th.classList.add('asc');
+    }
+  });
+}
+
+function getW9SortValue(p) {
+  if (!p.w9_attachment || String(p.w9_attachment).startsWith('DEBUG:')) return 0;
+  if (p.w9_expiration_date) {
+    var expDate = new Date(p.w9_expiration_date + 'T23:59:59');
+    if (expDate < new Date()) return 1; // Expired
+    return 2; // Current
+  }
+  return 3; // No expiry set
+}
+
+function sortPartners(partners) {
+  var col = sortColumn;
+  var dir = sortDirection === 'asc' ? 1 : -1;
+  return partners.slice().sort(function(a, b) {
+    var aVal, bVal;
+    if (col === 'w9_status') {
+      aVal = getW9SortValue(a);
+      bVal = getW9SortValue(b);
+    } else if (col === 'created_at') {
+      aVal = (a[col] || '');
+      bVal = (b[col] || '');
+    } else {
+      aVal = String(a[col] || '').toLowerCase();
+      bVal = String(b[col] || '').toLowerCase();
+    }
+    if (aVal < bVal) return -1 * dir;
+    if (aVal > bVal) return 1 * dir;
+    return 0;
   });
 }
 
