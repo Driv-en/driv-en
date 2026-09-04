@@ -157,13 +157,6 @@
       border-color: var(--primary);
     }
     .owner-btn-w9:hover { background: var(--primary); color: #fff; }
-    .owner-btn-w9-missing {
-      background: transparent;
-      color: var(--text-muted);
-      border-color: var(--border);
-      cursor: default;
-    }
-    .owner-btn-w9-missing:hover { background: transparent; color: var(--text-muted); }
 
     /* ===== MODAL ===== */
     .owner-modal {
@@ -297,6 +290,102 @@
       font-size: 15px;
     }
 
+    /* ===== SETTINGS TAB ===== */
+    .settings-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .settings-section h3 {
+      margin: 0 0 4px 0;
+      font-size: 18px;
+      color: var(--text);
+    }
+    .settings-section .settings-desc {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin: 0 0 20px 0;
+    }
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 0;
+      border-top: 1px solid var(--border);
+    }
+    .settings-row:first-of-type { border-top: none; padding-top: 0; }
+    .settings-row-label {
+      font-size: 15px;
+      color: var(--text);
+      font-weight: 500;
+    }
+    .settings-row-hint {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    /* Theme toggle in settings */
+    .settings-theme-toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .settings-theme-toggle .dash-theme-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    /* Logo upload */
+    .settings-logo-preview {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .settings-logo-preview img {
+      max-height: 56px;
+      max-width: 180px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px;
+      background: var(--bg-card);
+    }
+    .settings-logo-placeholder {
+      max-height: 56px;
+      max-width: 180px;
+      border: 2px dashed var(--border);
+      border-radius: 6px;
+      padding: 16px 20px;
+      font-size: 13px;
+      color: var(--text-muted);
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .settings-logo-btn {
+      background: var(--primary);
+      border: 1px solid var(--primary-hover);
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .settings-logo-btn:hover { background: var(--primary-hover); }
+    .settings-logo-remove {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--error);
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .settings-logo-remove:hover { border-color: var(--error); }
+
     /* ===== MOBILE RESPONSIVE ===== */
     @media (max-width: 800px) {
       .owner-stats { grid-template-columns: repeat(2, 1fr); }
@@ -320,21 +409,18 @@
   <!-- ===== HEADER (self-contained — does NOT use dashboard-common.js) ===== -->
   <div class="dash-header">
     <div class="dash-header-row1">
-      <div></div>
+      <!-- DSI / Owner logo (left) — loaded from localStorage or placeholder -->
+      <div id="ownerLogoContainer">
+        <div class="dash-customer-logo-placeholder" id="ownerLogoPlaceholder">DSI Logo</div>
+      </div>
       <img src="/assets/logo.png?v=2026" class="dash-driven-logo" alt="DRIV‑EN Logo">
     </div>
     <div class="dash-header-row2">
       <h1 id="dashPageTitle">Owner Dashboard</h1>
     </div>
+    <!-- Row 3: Only logout now — theme toggle moved to Settings tab -->
     <div class="dash-header-row3">
-      <div class="dash-theme-wrapper" title="Toggle light/dark mode">
-        <span class="dash-theme-label" id="dashThemeLabelLight">Light Mode</span>
-        <label class="dash-theme-switch">
-          <input type="checkbox" id="dashThemeCheckbox" onchange="dashToggleTheme()">
-          <span class="dash-theme-slider"></span>
-        </label>
-        <span class="dash-theme-label" id="dashThemeLabelDark">Dark Mode</span>
-      </div>
+      <div></div>
       <button class="dash-logout" onclick="ownerLogout()">Logout</button>
     </div>
   </div>
@@ -345,6 +431,7 @@
     <button class="owner-tab" data-tab="customers" onclick="switchTab('customers')">Customers</button>
     <button class="owner-tab" data-tab="system" onclick="switchTab('system')">System Status</button>
     <button class="owner-tab" data-tab="issues" onclick="switchTab('issues')">Issues</button>
+    <button class="owner-tab" data-tab="settings" onclick="switchTab('settings')">Settings</button>
   </div>
 
   <!-- ===== CONTENT AREA ===== -->
@@ -430,6 +517,75 @@
       </div>
     </div>
 
+    <!-- ===== SETTINGS TAB ===== -->
+    <div id="tab-settings" class="owner-tab-content">
+
+      <!-- Appearance / Theme -->
+      <div class="settings-section">
+        <h3>Appearance</h3>
+        <p class="settings-desc">Choose how the dashboard looks.</p>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Theme</div>
+            <div class="settings-row-hint">Switch between light and dark mode.</div>
+          </div>
+          <div class="settings-theme-toggle">
+            <div class="dash-theme-wrapper">
+              <span class="dash-theme-label" id="dashThemeLabelLight">Light Mode</span>
+              <label class="dash-theme-switch">
+                <input type="checkbox" id="dashThemeCheckbox" onchange="dashToggleTheme()">
+                <span class="dash-theme-slider"></span>
+              </label>
+              <span class="dash-theme-label" id="dashThemeLabelDark">Dark Mode</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Logo -->
+      <div class="settings-section">
+        <h3>Organization Logo</h3>
+        <p class="settings-desc">Upload a logo for Digital Safety Inspection, LLC. It appears in the top-left corner of the dashboard header.</p>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">DSI Logo</div>
+            <div class="settings-row-hint">PNG, JPG, or SVG. Recommended height: 64px. Max 500KB.</div>
+          </div>
+          <div class="settings-logo-preview">
+            <div id="settingsLogoPreview">
+              <div class="settings-logo-placeholder">No logo uploaded</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <input type="file" id="logoFileInput" accept="image/png,image/jpeg,image/svg+xml" style="display:none;" onchange="handleLogoUpload(event)">
+              <button class="settings-logo-btn" onclick="document.getElementById('logoFileInput').click()">Upload Logo</button>
+              <button class="settings-logo-remove" id="logoRemoveBtn" onclick="removeLogo()" style="display:none;">Remove Logo</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Account -->
+      <div class="settings-section">
+        <h3>Account</h3>
+        <p class="settings-desc">Your account information.</p>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Logged in as</div>
+            <div class="settings-row-hint" id="settingsAccountEmail">—</div>
+          </div>
+          <div></div>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Role</div>
+            <div class="settings-row-hint">DRIV-EN Founder</div>
+          </div>
+          <div></div>
+        </div>
+      </div>
+
+    </div>
+
   </main>
 
   <!-- ===== FOOTER ===== -->
@@ -491,9 +647,14 @@
 // =========================================================================
 // This page does NOT use dashboard-common.js or auth-check.js.
 // It performs its own auth check by fetching /auth/session directly.
-// Only users with role=Admin can access this dashboard.
+// Only users with role=DRIV-EN Founder can access this dashboard.
 // The header, theme toggle, and footer are self-contained (like the
 // referrer dashboard) to avoid loading customer-specific data.
+//
+// NOTE: The theme toggle has been moved from the header to the Settings tab.
+//       The DSI logo is loaded from localStorage (base64) and displayed in
+//       the header. Logo upload is handled in the Settings tab.
+//       When other dashboards are updated, replicate this pattern.
 // =========================================================================
 
 var allPartners = [];
@@ -517,6 +678,53 @@ function updateThemeSwitch() {
   if (checkbox) checkbox.checked = (current === "dark");
   if (labelLight) labelLight.classList.toggle("active", current === "light");
   if (labelDark) labelDark.classList.toggle("active", current === "dark");
+}
+
+// ---- Logo Management ----
+function loadOwnerLogo() {
+  var logoData = localStorage.getItem('driven-owner-logo');
+  var container = document.getElementById('ownerLogoContainer');
+  var preview = document.getElementById('settingsLogoPreview');
+  var removeBtn = document.getElementById('logoRemoveBtn');
+
+  if (logoData) {
+    container.innerHTML = '<img src="' + logoData + '" class="dash-customer-logo" alt="DSI Logo">';
+    preview.innerHTML = '<img src="' + logoData + '" style="max-height:56px;max-width:180px;border:1px solid var(--border);border-radius:6px;padding:4px;background:var(--bg-card);" alt="Logo preview">';
+    if (removeBtn) removeBtn.style.display = 'inline-block';
+  } else {
+    container.innerHTML = '<div class="dash-customer-logo-placeholder">DSI Logo</div>';
+    preview.innerHTML = '<div class="settings-logo-placeholder">No logo uploaded</div>';
+    if (removeBtn) removeBtn.style.display = 'none';
+  }
+}
+
+function handleLogoUpload(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+
+  if (file.size > 500 * 1024) {
+    showError('Logo file is too large. Maximum size is 500KB.');
+    event.target.value = '';
+    return;
+  }
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var logoData = e.target.result;
+    localStorage.setItem('driven-owner-logo', logoData);
+    loadOwnerLogo();
+    showError('');
+  };
+  reader.onerror = function() {
+    showError('Failed to read the logo file. Please try again.');
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function removeLogo() {
+  localStorage.removeItem('driven-owner-logo');
+  loadOwnerLogo();
 }
 
 // ---- Auth Check ----
@@ -551,6 +759,14 @@ function initOwnerDashboard() {
   document.getElementById('dashboard').style.display = 'block';
   document.getElementById('dashFooterYear').textContent = new Date().getFullYear();
   updateThemeSwitch();
+  loadOwnerLogo();
+
+  // Fill account info in Settings
+  var emailEl = document.getElementById('settingsAccountEmail');
+  if (emailEl && window.ownerUser) {
+    emailEl.textContent = window.ownerUser.email || '—';
+  }
+
   loadPartners();
 }
 
@@ -568,6 +784,10 @@ function switchTab(tabName) {
 async function loadPartners() {
   var tbody = document.getElementById('partnersTableBody');
   tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading…</td></tr>';
+
+  // Clear the search input on refresh
+  var searchInput = document.getElementById('searchInput');
+  if (searchInput) searchInput.value = '';
 
   try {
     var resp = await fetch('/api/admin/referral-partners');
@@ -825,6 +1045,7 @@ function escapeJs(str) {
 
 function showError(msg) {
   var el = document.getElementById('errorBanner');
+  if (!msg) { el.style.display = 'none'; return; }
   el.textContent = msg;
   el.style.display = 'block';
   setTimeout(function() { el.style.display = 'none'; }, 6000);
