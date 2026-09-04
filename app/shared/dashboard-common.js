@@ -83,7 +83,13 @@
       // Even if logout fails, redirect to login
       console.error("Logout error:", e.message);
     }
-     window.location.href = "/public/login.html";
+    // Redirect to the correct login page based on role
+    var requiredRole = document.body.getAttribute("data-required-role");
+    if (requiredRole === "DRIV-EN Founder") {
+      window.location.href = "/app/auth/founder-login.html";
+    } else {
+      window.location.href = "/public/login.html";
+    }
   };
 
   /* ===== SET PAGE TITLE ===== */
