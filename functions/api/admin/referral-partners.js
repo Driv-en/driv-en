@@ -1,7 +1,7 @@
 // ============================================================================
 // Pages Function: /api/admin/referral-partners
 // ============================================================================
-// PURPOSE: Admin API for the DRIV-EN Dashboard's Referrers section.
+// PURPOSE: Admin API for the Owner Dashboard's Referrers section.
 //   GET  /api/admin/referral-partners       — List all referral partners
 //   POST /api/admin/referral-partners       — Approve or reject a partner
 //
@@ -19,6 +19,8 @@
 //   - Var: SUPPORT_CONTACT = support@driv-en.com
 //
 // LAST UPDATED: September 4, 2026
+// CHANGES:
+//   - Referral link in approval email: /website/checkout.html?ref=CODE → /?ref=CODE (home page)
 // ============================================================================
 
 const CORS_HEADERS = {
@@ -120,7 +122,7 @@ async function verifyFounder(request, env) {
 }
 
 // ---------------------------------------------------------------------------
-// SendGrid email helper — returns { ok, error } with diagnostics
+// SendGrid email helper
 // ---------------------------------------------------------------------------
 async function sendEmail(env, to, subject, htmlContent) {
   if (!env.SENDGRID_API_KEY) {
@@ -172,7 +174,6 @@ function generateTempPassword() {
 
 // ---------------------------------------------------------------------------
 // Hash a password using PBKDF2 (same algorithm as the auth worker)
-// Returns { salt, hash } as hex/base64 strings
 // ---------------------------------------------------------------------------
 function base64UrlEncode(bytes) {
   let bin = '';
@@ -181,14 +182,16 @@ function base64UrlEncode(bytes) {
 }
 
 async function hashPassword(password, saltHex) {
+  const saltStr = saltHex || '';
+  const saltBytes = new Uint8Array(saltStr.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+  const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: saltBytes, iterations: 100000, hash: 'SHA-256' }, keyMaterial, 256);
   if (!saltHex) {
     const newSalt = new Uint8Array(16);
     crypto.getRandomValues(newSalt);
-    saltHex = Array.from(newSalt).map(b => b.toString(16).padStart(2, '0')).join('');
+    const saltHexNew = Array.from(newSalt).map(b => b.toString(16).padStart(2, '0')).join('');
+    return { salt: saltHexNew, hash: base64UrlEncode(new Uint8Array(bits)) };
   }
-  const saltBytes = new Uint8Array(saltHex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
-  const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: saltBytes, iterations: 100000, hash: 'SHA-256' }, keyMaterial, 256);
   return { salt: saltHex, hash: base64UrlEncode(new Uint8Array(bits)) };
 }
 
@@ -238,7 +241,6 @@ async function handleListPartners(request, env) {
 
 // ---------------------------------------------------------------------------
 // POST /api/admin/referral-partners — Approve or reject a partner
-// Body: { action: 'approve' | 'reject', partnerId, referralCode?, w9ExpirationDate?, reason? }
 // ---------------------------------------------------------------------------
 async function handleUpdatePartner(request, env) {
   const user = await verifyFounder(request, env);
@@ -257,7 +259,6 @@ async function handleUpdatePartner(request, env) {
     return jsonResponse({ success: false, error: 'Action and partnerId are required' }, 400);
   }
 
-  // Fetch the partner
   const partner = await env.DB.prepare(
     'SELECT id, partner_name, partner_email, status FROM referral_partners WHERE id = ?'
   ).bind(partnerId).first();
@@ -267,12 +268,10 @@ async function handleUpdatePartner(request, env) {
   }
 
   if (action === 'approve') {
-    // Validate referral code
     if (!referralCode) {
       return jsonResponse({ success: false, error: 'Referral code is required' }, 400);
     }
 
-    // Check referral code uniqueness
     const existingCode = await env.DB.prepare(
       'SELECT id FROM referral_partners WHERE referral_code = ? AND id != ?'
     ).bind(referralCode, partnerId).first();
@@ -280,14 +279,10 @@ async function handleUpdatePartner(request, env) {
       return jsonResponse({ success: false, error: 'Referral code already in use by another partner' }, 409);
     }
 
-    // W-9 expiration: December 31 of current year if not provided
     const w9Exp = w9ExpirationDate || computeW9Expiration();
-
-    // Generate a temporary password for the referrer to log in
     const tempPassword = generateTempPassword();
     const { salt, hash } = await hashPassword(tempPassword);
 
-    // Update partner to Approved with temp password
     await env.DB.prepare(
       `UPDATE referral_partners
        SET status = 'Approved', active = 1, is_eligible = 1,
@@ -297,23 +292,23 @@ async function handleUpdatePartner(request, env) {
        WHERE id = ?`
     ).bind(referralCode, w9Exp, hash, salt, partnerId).run();
 
-    // Send approval email to the partner
+    // Send approval email — referral link now goes to HOME PAGE, not checkout
     const domain = 'https://www.driv-en.com';
-    const referralLink = domain + '/website/checkout.html?ref=' + referralCode;
+    const referralLink = domain + '/?ref=' + referralCode;
     const loginLink = domain + '/public/referrer-login.html';
 
     const emailHtml = `<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"></head>
 <body style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#222;">
-  <h2 style="color:#111;">You're Approved, ${escapeHtml(partner.partner_name)}!</h2>
+  <h2 style="color:#111;">You're approved, ${escapeHtml(partner.partner_name)}!</h2>
   <p>Congratulations! Your DRIV-EN referral partner application has been approved.</p>
   <p><strong>Your referral code:</strong> ${referralCode}</p>
   <p><strong>Your referral link:</strong></p>
   <p style="background:#f0f7ff;border:1px solid #c3dbf7;padding:12px;border-radius:6px;word-break:break-all;font-size:14px;">
     <a href="${referralLink}" style="color:#2563eb;">${referralLink}</a>
   </p>
-  <p>Share this link with companies you'd like to refer to DRIV-EN. When they sign up using your link, you'll automatically receive credit for the referral.</p>
+  <p>Share this link with companies you'd like to refer to DRIV-EN. When they visit your link, they'll land on our home page to learn about DRIV-EN. When they sign up, you'll automatically receive credit for the referral.</p>
   <p><strong>Commission rates:</strong></p>
   <ul>
     <li>Monthly subscriptions: 5% recurring commission</li>
@@ -369,7 +364,6 @@ async function handleUpdatePartner(request, env) {
     });
 
   } else if (action === 'reject') {
-    // Update partner to Rejected
     await env.DB.prepare(
       `UPDATE referral_partners
        SET status = 'Rejected', active = 0, is_eligible = 0,
@@ -377,7 +371,6 @@ async function handleUpdatePartner(request, env) {
        WHERE id = ?`
     ).bind(partnerId).run();
 
-    // Send rejection email to the partner
     const reasonText = reason ? '<p><strong>Reason:</strong> ' + escapeHtml(reason) + '</p>' : '';
     const emailHtml = `<!DOCTYPE html>
 <html>
