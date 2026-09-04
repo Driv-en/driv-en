@@ -120,10 +120,12 @@ async function verifyFounder(request, env) {
 }
 
 // ---------------------------------------------------------------------------
-// SendGrid email helper
+// SendGrid email helper — returns { ok, error } with diagnostics
 // ---------------------------------------------------------------------------
 async function sendEmail(env, to, subject, htmlContent) {
-  if (!env.SENDGRID_API_KEY) return false;
+  if (!env.SENDGRID_API_KEY) {
+    return { ok: false, error: 'SENDGRID_API_KEY is not set on the Pages project' };
+  }
   try {
     const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
       method: 'POST',
@@ -138,10 +140,13 @@ async function sendEmail(env, to, subject, htmlContent) {
         content: [{ type: 'text/html', value: htmlContent }]
       })
     });
-    return res.ok;
+    if (!res.ok) {
+      const errBody = await res.text();
+      return { ok: false, error: 'SendGrid API returned ' + res.status + ': ' + errBody.substring(0, 500) };
+    }
+    return { ok: true };
   } catch (e) {
-    console.error('[ADMIN-REFERRAL] Email send failed:', e.message);
-    return false;
+    return { ok: false, error: 'Fetch error: ' + e.message };
   }
 }
 
@@ -351,13 +356,16 @@ async function handleUpdatePartner(request, env) {
 </body>
 </html>`;
 
-    await sendEmail(env, partner.partner_email, 'You\'re Approved — DRIV-EN Referral Partner', emailHtml);
+    const emailResult = await sendEmail(env, partner.partner_email, 'You\'re Approved — DRIV-EN Referral Partner', emailHtml);
 
     return jsonResponse({
       success: true,
-      message: 'Partner approved successfully. Approval email with login credentials sent to ' + partner.partner_email,
+      message: 'Partner approved successfully. Approval email sent to ' + partner.partner_email,
       referralCode: referralCode,
-      w9ExpirationDate: w9Exp
+      w9ExpirationDate: w9Exp,
+      tempPassword: tempPassword,
+      emailSent: emailResult.ok,
+      emailError: emailResult.ok ? null : emailResult.error
     });
 
   } else if (action === 'reject') {
