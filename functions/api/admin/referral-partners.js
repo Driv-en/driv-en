@@ -1,7 +1,7 @@
 // ============================================================================
 // Pages Function: /api/admin/referral-partners
 // ============================================================================
-// PURPOSE: Admin API for the Owner Dashboard's Referrers section.
+// PURPOSE: Admin API for the DRIV-EN Dashboard's Referrers section.
 //   GET  /api/admin/referral-partners       — List all referral partners
 //   POST /api/admin/referral-partners       — Approve or reject a partner
 //
@@ -18,7 +18,7 @@
 //   - Var: SENDGRID_FROM_EMAIL = noreply@driv-en.com
 //   - Var: SUPPORT_CONTACT = support@driv-en.com
 //
-// LAST UPDATED: September 3, 2026
+// LAST UPDATED: September 4, 2026
 // ============================================================================
 
 const CORS_HEADERS = {
@@ -38,7 +38,6 @@ function jsonResponse(obj, status) {
 
 // ---------------------------------------------------------------------------
 // JWT helpers — parse and verify the session cookie directly
-// This avoids the need to fetch /auth/session from within a Pages Function.
 // ---------------------------------------------------------------------------
 function base64UrlDecode(str) {
   str = str.replace(/-/g, '+').replace(/_/g, '/');
@@ -97,8 +96,6 @@ function parseCookies(cookieHeader) {
 
 // ---------------------------------------------------------------------------
 // Auth check — verify the caller is a DRIV-EN Founder
-// Parses the driv_en_session cookie, verifies the JWT, checks the role.
-// Returns the JWT payload if authenticated and is Founder, null otherwise.
 // ---------------------------------------------------------------------------
 async function verifyFounder(request, env) {
   if (!env.JWT_SECRET) {
@@ -115,7 +112,6 @@ async function verifyFounder(request, env) {
   const payload = await verifyJwt(token, env.JWT_SECRET);
   if (!payload) return null;
 
-  // Only DRIV-EN Founder can access the Owner Dashboard admin API.
   if (payload.role === 'DRIV-EN Founder') {
     return payload;
   }
@@ -151,7 +147,6 @@ async function sendEmail(env, to, subject, htmlContent) {
 
 // ---------------------------------------------------------------------------
 // Compute W-9 expiration date: December 31 of the current year
-// A new W-9 is required each calendar year.
 // ---------------------------------------------------------------------------
 function computeW9Expiration() {
   const now = new Date();
@@ -159,8 +154,41 @@ function computeW9Expiration() {
 }
 
 // ---------------------------------------------------------------------------
-// Escape HTML to prevent injection in emails and responses.
-// Used on user-supplied fields like partner name and rejection reason.
+// Generate a random temporary password (12 chars, alphanumeric)
+// ---------------------------------------------------------------------------
+function generateTempPassword() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  let pwd = '';
+  for (let i = 0; i < 12; i++) {
+    pwd += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return pwd;
+}
+
+// ---------------------------------------------------------------------------
+// Hash a password using PBKDF2 (same algorithm as the auth worker)
+// Returns { salt, hash } as hex/base64 strings
+// ---------------------------------------------------------------------------
+function base64UrlEncode(bytes) {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function hashPassword(password, saltHex) {
+  if (!saltHex) {
+    const newSalt = new Uint8Array(16);
+    crypto.getRandomValues(newSalt);
+    saltHex = Array.from(newSalt).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  const saltBytes = new Uint8Array(saltHex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+  const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: saltBytes, iterations: 100000, hash: 'SHA-256' }, keyMaterial, 256);
+  return { salt: saltHex, hash: base64UrlEncode(new Uint8Array(bits)) };
+}
+
+// ---------------------------------------------------------------------------
+// Escape HTML to prevent injection in emails and responses
 // ---------------------------------------------------------------------------
 function escapeHtml(text) {
   const map = {
@@ -250,14 +278,19 @@ async function handleUpdatePartner(request, env) {
     // W-9 expiration: December 31 of current year if not provided
     const w9Exp = w9ExpirationDate || computeW9Expiration();
 
-    // Update partner to Approved
+    // Generate a temporary password for the referrer to log in
+    const tempPassword = generateTempPassword();
+    const { salt, hash } = await hashPassword(tempPassword);
+
+    // Update partner to Approved with temp password
     await env.DB.prepare(
       `UPDATE referral_partners
        SET status = 'Approved', active = 1, is_eligible = 1,
            partner_status = 'Approved', referral_code = ?,
-           w9_expiration_date = ?
+           w9_expiration_date = ?,
+           password_hash = ?, password_salt = ?, must_change_password = 1
        WHERE id = ?`
-    ).bind(referralCode, w9Exp, partnerId).run();
+    ).bind(referralCode, w9Exp, hash, salt, partnerId).run();
 
     // Send approval email to the partner
     const domain = 'https://www.driv-en.com';
@@ -281,10 +314,37 @@ async function handleUpdatePartner(request, env) {
     <li>Monthly subscriptions: 5% recurring commission</li>
     <li>Annual subscriptions: 10% recurring commission</li>
   </ul>
+  <p><strong>Your login credentials:</strong></p>
+  <div style="background:#f0f7ff;border:1px solid #c3dbf7;padding:16px;border-radius:6px;margin:12px 0;">
+    <p style="margin:0 0 8px 0;"><strong>Login URL:</strong> <a href="${loginLink}" style="color:#2563eb;">${loginLink}</a></p>
+    <p style="margin:0 0 8px 0;"><strong>Email:</strong> ${escapeHtml(partner.partner_email)}</p>
+    <p style="margin:0 0 8px 0;"><strong>Temporary Password:</strong> <span style="font-family:monospace;font-size:16px;font-weight:700;background:#fff;padding:4px 8px;border-radius:4px;border:1px solid #ddd;">${tempPassword}</span></p>
+  </div>
+  <p style="background:#fef3c7;border:1px solid #fcd34d;padding:12px;border-radius:6px;font-size:14px;">
+    <strong>Important:</strong> Please change your password after logging in for the first time.
+  </p>
   <p>You can now log in to your Partner Dashboard to track your referrals and commissions:</p>
   <p style="text-align:center;margin:24px 0;">
-    <a href="${loginLink}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 32px;border-radius:6px;font-size:15px;font-weight:600;">Log In to Partner Dashboard</a>
+    <a href="${loginLink}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:14px 40px;border-radius:8px;font-size:16px;font-weight:700;">Log In to Partner Dashboard</a>
   </p>
+  <p style="font-size:13px;color:#888;">If the button doesn't work, copy and paste this link into your browser: ${loginLink}</p>
+  <hr style="border:none;border-top:1px solid #ccc;margin:24px 0;">
+  <h3 style="font-size:16px;color:#111;">Quick Access on Your Phone</h3>
+  <p style="font-size:14px;">Add a DRIV-EN icon to your home screen so you can log in with one tap:</p>
+  <p style="font-size:14px;font-weight:600;margin-bottom:4px;">iPhone (Safari):</p>
+  <ol style="font-size:14px;margin:0 0 12px 0;padding-left:20px;">
+    <li>Open this link in Safari: <a href="${loginLink}" style="color:#2563eb;">${loginLink}</a></li>
+    <li>Tap the Share button (square with up arrow)</li>
+    <li>Tap "Add to Home Screen"</li>
+    <li>Tap "Add" — you'll now have a DRIV-EN icon on your home screen</li>
+  </ol>
+  <p style="font-size:14px;font-weight:600;margin-bottom:4px;">Android (Chrome):</p>
+  <ol style="font-size:14px;margin:0 0 12px 0;padding-left:20px;">
+    <li>Open this link in Chrome: <a href="${loginLink}" style="color:#2563eb;">${loginLink}</a></li>
+    <li>Tap the menu (three dots in upper right)</li>
+    <li>Tap "Add to Home screen"</li>
+    <li>Tap "Add" — you'll now have a DRIV-EN icon on your home screen</li>
+  </ol>
   <p style="font-size:13px;color:#888;">If you have questions, contact us at support@driv-en.com</p>
   <hr style="border:none;border-top:1px solid #ccc;margin:24px 0;">
   <p style="font-size:13px;color:#888;">This is an automated notification from the DRIV-EN referral system.</p>
@@ -295,7 +355,7 @@ async function handleUpdatePartner(request, env) {
 
     return jsonResponse({
       success: true,
-      message: 'Partner approved successfully. Approval email sent to ' + partner.partner_email,
+      message: 'Partner approved successfully. Approval email with login credentials sent to ' + partner.partner_email,
       referralCode: referralCode,
       w9ExpirationDate: w9Exp
     });
