@@ -479,13 +479,15 @@
                 <th>Email</th>
                 <th>Phone</th>
                 <th>Status</th>
+                <th>Referral Code</th>
                 <th>W-9</th>
+                <th>W-9 Status</th>
                 <th>Submitted</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody id="partnersTableBody">
-              <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading…</td></tr>
+              <tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading…</td></tr>
             </tbody>
           </table>
         </div>
@@ -783,7 +785,7 @@ function switchTab(tabName) {
 // ---- Load Partners ----
 async function loadPartners() {
   var tbody = document.getElementById('partnersTableBody');
-  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading…</td></tr>';
 
   // Clear the search input on refresh
   var searchInput = document.getElementById('searchInput');
@@ -798,12 +800,12 @@ async function loadPartners() {
       renderStats(data.partners);
       renderTable(data.partners);
     } else {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px 0;">No referral partners found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:40px 0;">No referral partners found.</td></tr>';
       if (data.error) showError(data.error);
     }
   } catch (e) {
     console.error('Load partners failed:', e);
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px 0;">Failed to load partners.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:40px 0;">Failed to load partners.</td></tr>';
     showError('Failed to load partners. Please try refreshing.');
   }
 }
@@ -827,7 +829,7 @@ function renderTable(partners) {
   tbody.innerHTML = '';
 
   if (partners.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px 0;">No referral partners yet.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:40px 0;">No referral partners yet.</td></tr>';
     return;
   }
 
@@ -857,11 +859,30 @@ function renderTable(partners) {
 
     // W-9 download
     var w9Cell = '';
-    if (p.w9_attachment) {
+    if (p.w9_attachment && !String(p.w9_attachment).startsWith('DEBUG:')) {
       w9Cell = '<button class="owner-action-btn owner-btn-w9" onclick="viewW9(\'' + p.id + '\')">View W-9</button>';
     } else {
       w9Cell = '<span style="color:var(--text-muted);font-size:13px;">No W-9</span>';
     }
+
+    // W-9 status (Current / Expired / None)
+    var w9StatusCell = '';
+    if (!p.w9_attachment || String(p.w9_attachment).startsWith('DEBUG:')) {
+      w9StatusCell = '<span class="dash-badge dash-badge-muted">None</span>';
+    } else if (p.w9_expiration_date) {
+      var expDate = new Date(p.w9_expiration_date + 'T23:59:59');
+      var now = new Date();
+      if (expDate < now) {
+        w9StatusCell = '<span class="dash-badge dash-badge-danger">Expired</span>';
+      } else {
+        w9StatusCell = '<span class="dash-badge dash-badge-success">Current</span>';
+      }
+    } else {
+      w9StatusCell = '<span class="dash-badge dash-badge-warning">No Expiry Set</span>';
+    }
+
+    // Referral code
+    var codeCell = p.referral_code ? '<span style="font-family:monospace;font-weight:600;color:var(--primary);">' + escapeHtml(p.referral_code) + '</span>' : '<span style="color:var(--text-muted);">—</span>';
 
     // Actions
     var actions = '';
@@ -880,7 +901,9 @@ function renderTable(partners) {
       '<td>' + escapeHtml(p.partner_email || '—') + '</td>' +
       '<td>' + escapeHtml(p.partner_phone || '—') + '</td>' +
       '<td>' + statusBadge + '</td>' +
+      '<td>' + codeCell + '</td>' +
       '<td>' + w9Cell + '</td>' +
+      '<td>' + w9StatusCell + '</td>' +
       '<td>' + date + '</td>' +
       '<td>' + actions + '</td>';
 
