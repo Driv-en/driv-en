@@ -29,7 +29,7 @@
 //   - Var: SENDGRID_FROM_EMAIL = noreply@driv-en.com
 //   - Var: SUPPORT_CONTACT = support@driv-en.com
 //
-// LAST UPDATED: September 4, 2026
+// LAST UPDATED: September 3, 2026
 // ============================================================================
 
 const CORS_HEADERS = {
