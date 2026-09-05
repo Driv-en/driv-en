@@ -311,7 +311,7 @@ function switchTab(tabName) {
 // ---- Load Partners ----
 async function loadPartners() {
   var tbody = document.getElementById('partnersTableBody');
-  tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading…</td></tr>';
 
   // Clear the search input on refresh
   var searchInput = document.getElementById('searchInput');
@@ -327,12 +327,12 @@ async function loadPartners() {
       updateSortIndicators();
       renderTable(data.partners);
     } else {
-      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:40px 0;">No referral partners found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">No referral partners found.</td></tr>';
       if (data.error) showError(data.error);
     }
   } catch (e) {
     console.error('Load partners failed:', e);
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:40px 0;">Failed to load partners.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">Failed to load partners.</td></tr>';
     showError('Failed to load partners. Please try refreshing.');
   }
 }
@@ -356,7 +356,7 @@ function renderTable(partners) {
   tbody.innerHTML = '';
 
   if (partners.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:40px 0;">No referral partners yet.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">No referral partners yet.</td></tr>';
     return;
   }
 
@@ -417,6 +417,16 @@ function renderTable(partners) {
     // Referral code
     var codeCell = p.referral_code ? '<span style="font-family:monospace;font-weight:600;color:var(--primary);">' + escapeHtml(p.referral_code) + '</span>' : '<span style="color:var(--text-muted);">—</span>';
 
+    // ACH payment status
+    var achCell = '';
+    if (p.bank_name && p.account_number_last4) {
+      achCell = '<span class="dash-badge dash-badge-success" title="' + escapeHtml(p.bank_name) + ' ••••' + escapeHtml(p.account_number_last4) + '">On File</span>';
+    } else if (p.has_voided_check) {
+      achCell = '<span class="dash-badge dash-badge-success" title="Voided check uploaded">Check</span>';
+    } else {
+      achCell = '<span class="dash-badge dash-badge-muted">None</span>';
+    }
+
     // Last referred date — from referral_activity subquery
     var lastReferredCell = '—';
     if (p.last_referred) {
@@ -459,6 +469,7 @@ function renderTable(partners) {
       '<td>' + codeCell + '</td>' +
       '<td>' + w9Cell + '</td>' +
       '<td>' + w9StatusCell + '</td>' +
+      '<td>' + achCell + '</td>' +
       '<td>' + lastReferredCell + '</td>' +
       '<td>' + date + '</td>' +
       '<td>' + actions + '</td>';
