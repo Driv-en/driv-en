@@ -310,6 +310,32 @@
         font-size: 14px;
     }
 
+    /* ===== W-9 RENEWAL NOTICE BANNER ===== */
+    .w9-renewal-banner {
+        display: none;
+        background: #fef3c7;
+        border: 1px solid #fcd34d;
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin-bottom: 24px;
+        font-size: 14px;
+        color: #92400e;
+    }
+    .w9-renewal-banner h4 {
+        margin: 0 0 4px 0;
+        font-size: 15px;
+        color: #78350f;
+    }
+    .w9-renewal-banner p {
+        margin: 0;
+    }
+    .w9-renewal-banner a {
+        color: #2563eb;
+        text-decoration: underline;
+        cursor: pointer;
+        font-weight: 600;
+    }
+
     /* ===== CHANGE PASSWORD SECTION (matches owner dashboard exactly) ===== */
     .change-pwd-section {
         display: none;
@@ -427,7 +453,7 @@
     .ref-tab-content { display: none; }
     .ref-tab-content.active { display: block; }
 
-    /* ===== SETTINGS TAB (matches owner dashboard, minus logo upload) ===== */
+    /* ===== SETTINGS TAB ===== */
     .settings-section {
         background: var(--bg-card);
         border: 1px solid var(--border);
@@ -462,11 +488,6 @@
         font-size: 13px;
         color: var(--text-muted);
         margin-top: 2px;
-    }
-    .settings-theme-toggle {
-        display: flex;
-        align-items: center;
-        gap: 10px;
     }
     .settings-theme-toggle .dash-theme-wrapper {
         display: flex;
@@ -516,6 +537,12 @@
 
         <!-- ===== OVERVIEW TAB ===== -->
         <div id="tab-overview" class="ref-tab-content active">
+
+            <!-- W-9 Renewal Notice (shown only when status is "Pending W-9 Review") -->
+            <div class="w9-renewal-banner" id="w9RenewalBanner">
+                <h4>⚠️ W-9 Pending Review</h4>
+                <p>Your new W-9 has been uploaded and is pending review. Your referral link is temporarily paused until the owner re-approves your account. <a onclick="switchTab('settings')">Go to Settings to view W-9 status →</a></p>
+            </div>
 
             <!-- Greeting -->
             <div class="ref-greeting">
@@ -715,7 +742,8 @@
 // NOT /auth/session (driv_en_session cookie).
 // The header, theme toggle, and footer are all self-contained in this file.
 //
-// NOTE: The theme toggle and W-9 upload are in the Settings tab.
+// NOTE: The theme toggle has been moved from the header to the Settings tab.
+//       W-9 upload is handled in the W-9 tab.
 //       When other dashboards are updated, replicate this pattern.
 // =========================================================================
 
@@ -788,6 +816,12 @@ function initDashboard() {
         badge.className = 'ref-status-badge ref-status-approved';
         badge.textContent = 'Active';
         document.getElementById('partnerSubText').textContent = 'Your referral partner dashboard';
+    } else if (partnerData.status === 'Pending W-9 Review') {
+        badge.className = 'ref-status-badge ref-status-pending';
+        badge.textContent = 'W-9 Review';
+        document.getElementById('partnerSubText').textContent = 'Your W-9 is pending review';
+        // Show the renewal banner
+        document.getElementById('w9RenewalBanner').style.display = 'block';
     } else {
         badge.className = 'ref-status-badge ref-status-pending';
         badge.textContent = partnerData.status || partnerData.partner_status || 'Pending';
