@@ -90,14 +90,47 @@ function removeLogo() {
 // =========================================================================
 
 // Load visitor data with optional date range
-// presetDays: '7', '30', '90' for quick filters, or null for custom date range
-async function loadVisitors(presetDays) {
+// presetDays: '1', '7', '30', '90' for quick filters
+// presetName: 'today', 'yesterday', 'week', 'month' for named ranges
+// null: use custom date range from inputs
+async function loadVisitors(presetDays, presetName) {
   try {
     var startEl = document.getElementById('visitorDateStart');
     var endEl = document.getElementById('visitorDateEnd');
     var startDate, endDate;
 
-    if (presetDays) {
+    if (presetName === 'today') {
+      var now = new Date();
+      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      endDate = now.toISOString();
+      startEl.value = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString().split('T')[0];
+      endEl.value = now.toISOString().split('T')[0];
+    } else if (presetName === 'yesterday') {
+      var y = new Date();
+      y.setDate(y.getDate() - 1);
+      startDate = new Date(y.getFullYear(), y.getMonth(), y.getDate()).toISOString();
+      endDate = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 23, 59, 59).toISOString();
+      startEl.value = new Date(y.getFullYear(), y.getMonth(), y.getDate()).toISOString().split('T')[0];
+      endEl.value = startEl.value;
+    } else if (presetName === 'week') {
+      // This week (starting Monday)
+      var w = new Date();
+      var day = w.getDay();
+      var diff = w.getDate() - day + (day === 0 ? -6 : 1); // Monday start
+      var weekStart = new Date(w);
+      weekStart.setDate(diff);
+      startDate = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate()).toISOString();
+      endDate = w.toISOString();
+      startEl.value = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate()).toISOString().split('T')[0];
+      endEl.value = w.toISOString().split('T')[0];
+    } else if (presetName === 'month') {
+      // This month
+      var m = new Date();
+      startDate = new Date(m.getFullYear(), m.getMonth(), 1).toISOString();
+      endDate = m.toISOString();
+      startEl.value = new Date(m.getFullYear(), m.getMonth(), 1).toISOString().split('T')[0];
+      endEl.value = m.toISOString().split('T')[0];
+    } else if (presetDays) {
       // Quick filter — last N days
       var end = new Date();
       var start = new Date();
