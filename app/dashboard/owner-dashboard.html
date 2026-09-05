@@ -189,6 +189,45 @@
       text-decoration: underline;
     }
 
+    /* ===== CHANGE PASSWORD SECTION ===== */
+    .change-pwd-section {
+      display: none;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .change-pwd-section input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border-input);
+      border-radius: 6px;
+      font-size: 14px;
+      background: var(--bg-input);
+      color: var(--text);
+      box-sizing: border-box;
+      margin-bottom: 12px;
+    }
+    .change-pwd-section input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+    }
+    .change-pwd-section button {
+      background: var(--primary);
+      border: 1px solid var(--primary-hover);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .change-pwd-section button:hover { background: var(--primary-hover); }
+    .change-pwd-msg {
+      margin-top: 8px;
+      font-size: 13px;
+    }
+
     /* ===== SORTABLE COLUMNS ===== */
     .sortable {
       cursor: pointer;
@@ -711,7 +750,7 @@
       <!-- Account -->
       <div class="settings-section">
         <h3>Account</h3>
-        <p class="settings-desc">Your account information.</p>
+        <p class="settings-desc">Your account information and password.</p>
         <div class="settings-row">
           <div>
             <div class="settings-row-label">Logged in as</div>
@@ -725,6 +764,25 @@
             <div class="settings-row-hint">DRIV-EN Founder</div>
           </div>
           <div></div>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Password</div>
+            <div class="settings-row-hint">Change your password.</div>
+          </div>
+          <div>
+            <button style="background:var(--bg-card);border:1px solid var(--border);color:var(--text);padding:10px 16px;border-radius:6px;font-size:14px;cursor:pointer;" onclick="toggleChangePassword()">Change Password</button>
+          </div>
+        </div>
+
+        <!-- Change password section -->
+        <div class="change-pwd-section" id="changePwdSection">
+          <h3 style="font-size:16px;margin-bottom:12px;">Change Your Password</h3>
+          <input type="password" id="currentPwd" placeholder="Current password" />
+          <input type="password" id="newPwd" placeholder="New password (min 8 characters)" />
+          <input type="password" id="confirmNewPwd" placeholder="Confirm new password" />
+          <button onclick="submitChangePassword()">Update Password</button>
+          <div class="change-pwd-msg" id="changePwdMsg"></div>
         </div>
       </div>
 
@@ -1388,6 +1446,52 @@ async function confirmReject() {
   } finally {
     confirmBtn.textContent = 'Reject Partner';
     confirmBtn.disabled = false;
+  }
+}
+
+// ---- Change Password (Owner Dashboard uses /auth/change-password) ----
+function toggleChangePassword() {
+  var section = document.getElementById('changePwdSection');
+  section.style.display = section.style.display === 'block' ? 'none' : 'block';
+}
+
+async function submitChangePassword() {
+  var currentPwd = document.getElementById('currentPwd').value;
+  var newPwd = document.getElementById('newPwd').value;
+  var confirmNewPwd = document.getElementById('confirmNewPwd').value;
+  var msgEl = document.getElementById('changePwdMsg');
+
+  if (!currentPwd || !newPwd || !confirmNewPwd) {
+    msgEl.innerHTML = '<span style="color:#fca5a5;">All fields are required.</span>';
+    return;
+  }
+  if (newPwd !== confirmNewPwd) {
+    msgEl.innerHTML = '<span style="color:#fca5a5;">New passwords do not match.</span>';
+    return;
+  }
+  if (newPwd.length < 8) {
+    msgEl.innerHTML = '<span style="color:#fca5a5;">Password must be at least 8 characters.</span>';
+    return;
+  }
+
+  try {
+    var resp = await fetch('/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_password: currentPwd, new_password: newPwd })
+    });
+    var data = await resp.json();
+
+    if (data.success) {
+      msgEl.innerHTML = '<span style="color:#166534;">Password changed successfully!</span>';
+      document.getElementById('currentPwd').value = '';
+      document.getElementById('newPwd').value = '';
+      document.getElementById('confirmNewPwd').value = '';
+    } else {
+      msgEl.innerHTML = '<span style="color:#fca5a5;">' + (data.error || 'Failed to change password.') + '</span>';
+    }
+  } catch (e) {
+    msgEl.innerHTML = '<span style="color:#fca5a5;">Network error. Please try again.</span>';
   }
 }
 
