@@ -213,6 +213,7 @@ async function loadVisitors(presetDays, presetName) {
     if (listData.success && listData.visitors && listData.visitors.length > 0) {
       var rows = listData.visitors.map(function(v) {
         var date = new Date(v.created_at).toLocaleString();
+        var timeOnPage = v.time_on_page ? (v.time_on_page + 's') : '—';
         return '<tr>' +
           '<td style="white-space:nowrap;">' + date + '</td>' +
           '<td>' + (v.page_path || '/') + '</td>' +
@@ -222,11 +223,43 @@ async function loadVisitors(presetDays, presetName) {
           '<td style="text-transform:capitalize;">' + (v.os || '—') + '</td>' +
           '<td>' + (v.referral_code || '—') + '</td>' +
           '<td>' + (v.external_referrer || '—') + '</td>' +
+          '<td>' + timeOnPage + '</td>' +
         '</tr>';
       }).join('');
       document.getElementById('visitorsTableBody').innerHTML = rows;
     } else {
-      document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px;">No visitor data for this date range.</td></tr>';
+      document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No visitor data for this date range.</td></tr>';
+    }
+
+    // Fetch session-grouped data for the sessions table
+    var sessResp = await fetch('/api/admin/site-visitors?sessions=true&start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate));
+    var sessData = await sessResp.json();
+
+    if (sessData.success && sessData.sessions && sessData.sessions.length > 0) {
+      var sessRows = sessData.sessions.map(function(s) {
+        var firstVisit = new Date(s.firstVisit).toLocaleString();
+        var pagesList = s.pages.map(function(p) {
+          var time = p.timeOnPage ? (p.timeOnPage + 's') : '—';
+          return '<div style="padding:2px 0;font-size:12px;">' +
+                 '<span style="color:var(--text);">' + (p.pagePath || '/') + '</span>' +
+                 ' <span style="color:var(--text-muted);">(' + time + ')</span></div>';
+        }).join('');
+        var totalTime = s.totalTimeOnSite > 0 ? (s.totalTimeOnSite + 's') : '—';
+        return '<tr>' +
+          '<td style="white-space:nowrap;">' + firstVisit + '</td>' +
+          '<td>' + s.pages.length + '</td>' +
+          '<td style="max-width:300px;">' + pagesList + '</td>' +
+          '<td>' + totalTime + '</td>' +
+          '<td>' + (s.country || '—') + '</td>' +
+          '<td style="text-transform:capitalize;">' + (s.deviceType || '—') + '</td>' +
+          '<td style="text-transform:capitalize;">' + (s.browser || '—') + '</td>' +
+          '<td style="text-transform:capitalize;">' + (s.os || '—') + '</td>' +
+          '<td>' + (s.referralCode || '—') + '</td>' +
+        '</tr>';
+      }).join('');
+      document.getElementById('sessionsTableBody').innerHTML = sessRows;
+    } else {
+      document.getElementById('sessionsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No session data for this date range.</td></tr>';
     }
 
   } catch (e) {
