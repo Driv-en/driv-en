@@ -85,6 +85,13 @@ async function sendEmail(apiKey, fromEmail, toEmail, toName, subject, htmlConten
 }
 
 // ---------------------------------------------------------------------------
+// DRIV-EN logo HTML — centered at the top of every email body.
+// ---------------------------------------------------------------------------
+const EMAIL_LOGO_HTML = '<div style="text-align:center;padding:24px 0 16px 0;">' +
+  '<img src="https://www.driv-en.com/assets/logo.png?v=2026" alt="DRIV-EN" style="display:block;margin:0 auto;max-width:200px;">' +
+  '</div>';
+
+// ---------------------------------------------------------------------------
 // Build partner confirmation email
 // ---------------------------------------------------------------------------
 function buildPartnerConfirmationEmail(partnerName) {
@@ -92,6 +99,7 @@ function buildPartnerConfirmationEmail(partnerName) {
 <html>
 <head><meta charset="UTF-8"></head>
 <body style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#222;">
+  ${EMAIL_LOGO_HTML}
   <h2 style="color:#111;">Thank You for Applying, ${partnerName}!</h2>
   <p>We have received your referral partner application and your W-9 form.</p>
   <p>Our team will review your submission and verify your W-9. Once approved, you will receive:</p>
@@ -126,6 +134,7 @@ function buildAdminNotificationEmail(partnerName, partnerEmail, partnerPhone, w9
 <html>
 <head><meta charset="UTF-8"></head>
 <body style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#222;">
+  ${EMAIL_LOGO_HTML}
   <h2 style="color:#111;">New Referral Partner Application</h2>
   <table style="width:100%;border-collapse:collapse;font-size:15px;">
     <tr><td style="padding:6px 0;font-weight:bold;">Name:</td><td>${partnerName}</td></tr>
