@@ -317,24 +317,31 @@
     }
     .ref-change-pwd input {
         width: 100%;
-        padding: 10px;
+        padding: 10px 12px;
         margin-bottom: 12px;
-        border: 1px solid var(--border);
+        border: 1px solid var(--border-input);
         border-radius: 6px;
         font-size: 14px;
         background: var(--bg-input);
         color: var(--text);
+        box-sizing: border-box;
+    }
+    .ref-change-pwd input:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
     }
     .ref-change-pwd button {
-        background: var(--bg-card);
-        border: 1px solid var(--border);
+        background: var(--primary);
+        border: 1px solid var(--primary-hover);
+        color: #fff;
         padding: 10px 20px;
         border-radius: 6px;
         font-size: 14px;
         font-weight: 600;
         cursor: pointer;
-        color: var(--text);
     }
+    .ref-change-pwd button:hover { background: var(--primary-hover); }
 
     /* Loading state */
     .ref-loading {
@@ -352,6 +359,19 @@
         font-size: 15px;
     }
 
+    /* Action links */
+    .ref-actions {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 24px;
+        font-size: 14px;
+    }
+    .ref-actions a {
+        color: #2563eb;
+        text-decoration: underline;
+        cursor: pointer;
+    }
+
     /* Payment schedule note */
     .ref-schedule-note {
         font-size: 13px;
@@ -363,12 +383,12 @@
         border-left: 3px solid #2563eb;
     }
 
-    /* Responsive table */
+    /* Responsive table — horizontal scroll on mobile */
     .ref-table-wrap {
         overflow-x: auto;
     }
 
-    /* ===== TAB BAR ===== */
+    /* ===== TAB BAR (same pattern as owner dashboard) ===== */
     .ref-tab-bar {
         display: flex;
         gap: 0;
@@ -707,7 +727,7 @@ function dashToggleTheme() {
 
 function updateThemeSwitch() {
     var current = document.documentElement.getAttribute("data-theme");
- var checkbox = document.getElementById("dashThemeCheckbox");
+    var checkbox = document.getElementById("dashThemeCheckbox");
     var labelLight = document.getElementById("dashThemeLabelLight");
     var labelDark = document.getElementById("dashThemeLabelDark");
     if (checkbox) checkbox.checked = (current === "dark");
@@ -825,6 +845,7 @@ function updateW9Status(p) {
     const w9FileInfo = document.getElementById('w9FileInfo');
 
     if (p.w9_attachment && !String(p.w9_attachment).startsWith('DEBUG:')) {
+        // W-9 on file
         w9Existing.style.display = 'block';
         var keyParts = String(p.w9_attachment).split('/');
         var fileName = keyParts[keyParts.length - 1] || 'w9.pdf';
@@ -854,6 +875,7 @@ function updateW9Status(p) {
             w9Note.textContent = 'Contact support@driv-en.com if you have questions about your W-9 expiration.';
         }
     } else {
+        // No W-9 on file
         w9Existing.style.display = 'none';
         w9Dot.className = 'w9-dot w9-none';
         w9Text.textContent = 'No W-9 on file';
@@ -897,6 +919,7 @@ async function handleW9Upload(event) {
 
         if (data.success) {
             msgEl.innerHTML = '<span style="color:#166534;">W-9 uploaded successfully! Your W-9 is now current.</span>';
+            // Reload profile to update status
             loadProfile();
         } else {
             msgEl.innerHTML = '<span style="color:#cc0000;">' + (data.error || 'Upload failed. Please try again.') + '</span>';
@@ -1011,6 +1034,7 @@ function copyReferralCode() {
         btn.textContent = 'Copied!';
         setTimeout(function() { btn.textContent = 'Copy Code'; }, 2000);
     } catch (e) {
+        // Fallback
         var ta = document.createElement('textarea');
         ta.value = code;
         document.body.appendChild(ta);
