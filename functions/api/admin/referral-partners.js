@@ -18,7 +18,13 @@
 //   - Var: SENDGRID_FROM_EMAIL = noreply@driv-en.com
 //   - Var: SUPPORT_CONTACT = support@driv-en.com
 //
-// LAST UPDATED: September 3, 2026
+// LAST UPDATED: September 4, 2026
+// CHANGES:
+//   - Added last_referred subquery to GET (most recent referral_activity per partner)
+//   - Added toggle_active action to POST (silently activate/deactivate approved partners)
+//   - Approval email: sender name changed to "Jackie Blood, Founder of DRIV-EN"
+//   - Approval email: DRIV-EN logo added at top of email body
+//   - Rejection email: DRIV-EN logo added at top of email body
 // ============================================================================
 
 const CORS_HEADERS = {
@@ -28,6 +34,15 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Credentials': 'true',
   'Access-Control-Max-Age': '86400'
 };
+
+// ---------------------------------------------------------------------------
+// DRIV-EN logo HTML — centered at the top of every email body.
+// Used in approval emails, rejection emails, and any other emails sent by
+// this Pages Function. The logo is loaded from the DRIV-EN website.
+// ---------------------------------------------------------------------------
+const EMAIL_LOGO_HTML = '<div style="text-align:center;padding:24px 0 16px 0;">' +
+  '<img src="https://www.driv-en.com/assets/logo.png?v=2026" alt="DRIV-EN" style="display:block;margin:0 auto;max-width:200px;">' +
+  '</div>';
 
 function jsonResponse(obj, status) {
   return new Response(JSON.stringify(obj), {
@@ -126,7 +141,7 @@ async function verifyFounder(request, env) {
 // ---------------------------------------------------------------------------
 // SendGrid email helper
 // ---------------------------------------------------------------------------
-async function sendEmail(env, to, subject, htmlContent) {
+async function sendEmail(env, to, subject, htmlContent, senderName) {
   if (!env.SENDGRID_API_KEY) {
     return { ok: false, error: 'SENDGRID_API_KEY is not set on the Pages project' };
   }
@@ -139,7 +154,7 @@ async function sendEmail(env, to, subject, htmlContent) {
       },
       body: JSON.stringify({
         personalizations: [{ to: [{ email: to }] }],
-        from: { email: env.SENDGRID_FROM_EMAIL || 'noreply@driv-en.com', name: 'DRIV\u2011EN Platform' },
+        from: { email: env.SENDGRID_FROM_EMAIL || 'noreply@driv-en.com', name: senderName || 'DRIV\u2011EN Platform' },
         subject: subject,
         content: [{ type: 'text/html', value: htmlContent }]
       })
@@ -241,14 +256,23 @@ async function handleListPartners(request, env) {
   }
 
   try {
+    // Query all partners, with a subquery to get the most recent referral_activity
+    // date for each partner. This tells the owner when each partner last referred
+    // someone (or had any activity like a visit). The subquery checks both
+    // partner_id and referrer_id columns since track.js uses partner_id and
+    // the checkout worker uses referrer_id.
     const result = await env.DB.prepare(
-      `SELECT id, partner_name, partner_email, partner_phone, status,
-              referral_code, active, is_eligible, partner_status,
-              w9_attachment, w9_expiration_date, created_at
-       FROM referral_partners
+      `SELECT rp.id, rp.partner_name, rp.partner_email, rp.partner_phone, rp.status,
+              rp.referral_code, rp.active, rp.is_eligible, rp.partner_status,
+              rp.w9_attachment, rp.w9_expiration_date, rp.created_at,
+              (SELECT MAX(ra.created_at)
+               FROM referral_activity ra
+               WHERE ra.partner_id = rp.id OR ra.referrer_id = rp.id
+              ) as last_referred
+       FROM referral_partners rp
        ORDER BY
-         CASE WHEN status = 'Pending' THEN 0 ELSE 1 END,
-         created_at DESC`
+         CASE WHEN rp.status = 'Pending' THEN 0 ELSE 1 END,
+         rp.created_at DESC`
     ).all();
 
     return jsonResponse({
@@ -331,6 +355,7 @@ async function handleUpdatePartner(request, env) {
 <html>
 <head><meta charset="UTF-8"></head>
 <body style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#222;">
+  ${EMAIL_LOGO_HTML}
   <h2 style="color:#111;">You're Approved, ${escapeHtml(partner.partner_name)}!</h2>
   <p>Congratulations! Your DRIV-EN referral partner application has been approved.</p>
   <p><strong>Your referral code:</strong> ${referralCode}</p>
@@ -381,7 +406,7 @@ async function handleUpdatePartner(request, env) {
 </body>
 </html>`;
 
-    const emailResult = await sendEmail(env, partner.partner_email, 'You\'re Approved — DRIV-EN Referral Partner', emailHtml);
+    const emailResult = await sendEmail(env, partner.partner_email, 'You\'re Approved — DRIV-EN Referral Partner', emailHtml, 'Jackie Blood, Founder of DRIV\u2011EN');
 
     return jsonResponse({
       success: true,
@@ -408,6 +433,7 @@ async function handleUpdatePartner(request, env) {
 <html>
 <head><meta charset="UTF-8"></head>
 <body style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#222;">
+  ${EMAIL_LOGO_HTML}
   <h2 style="color:#111;">Update on Your DRIV-EN Referral Partner Application</h2>
   <p>Hello ${escapeHtml(partner.partner_name)},</p>
   <p>Thank you for your interest in becoming a DRIV-EN referral partner. After reviewing your application, we are unable to approve it at this time.</p>
@@ -425,8 +451,44 @@ async function handleUpdatePartner(request, env) {
       message: 'Partner rejected. Notification email sent to ' + partner.partner_email
     });
 
+  } else if (action === 'toggle_active') {
+    // -----------------------------------------------------------------
+    // Toggle active/inactive for an Approved partner.
+    // This is SILENT (no email sent) and REVERSIBLE.
+    // When deactivated (active=0): the referrer can still log in, but their
+    // referral link stops working (the tracking endpoint checks active=1).
+    // When reactivated (active=1): everything works again.
+    // This is different from Reject, which sends an email and sets status=Rejected.
+    // -----------------------------------------------------------------
+
+    // Fetch the current active state
+    const currentPartner = await env.DB.prepare(
+      'SELECT active, status FROM referral_partners WHERE id = ?'
+    ).bind(partnerId).first();
+
+    if (!currentPartner) {
+      return jsonResponse({ success: false, error: 'Partner not found' }, 404);
+    }
+
+    // Only allow toggling for Approved partners
+    if (currentPartner.status !== 'Approved') {
+      return jsonResponse({ success: false, error: 'Can only toggle active state for Approved partners' }, 400);
+    }
+
+    const newActive = currentPartner.active === 1 ? 0 : 1;
+
+    await env.DB.prepare(
+      'UPDATE referral_partners SET active = ? WHERE id = ?'
+    ).bind(newActive, partnerId).run();
+
+    return jsonResponse({
+      success: true,
+      message: newActive === 1 ? 'Partner activated' : 'Partner deactivated',
+      active: newActive
+    });
+
   } else {
-    return jsonResponse({ success: false, error: 'Invalid action. Use "approve" or "reject".' }, 400);
+    return jsonResponse({ success: false, error: 'Invalid action. Use "approve", "reject", or "toggle_active".' }, 400);
   }
 }
 
