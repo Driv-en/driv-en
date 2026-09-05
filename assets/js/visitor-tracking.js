@@ -29,7 +29,7 @@
  * This script is designed to NEVER block or interrupt the visitor's experience.
  * All operations are silent and fail gracefully.
  * 
- * Last updated: 2026-09-04
+ * Last updated: 2026-09-05
  */
 
 (function() {
@@ -56,28 +56,55 @@
 
     // Parse User-Agent to determine device type, browser, and OS
     var ua = navigator.userAgent || '';
+    var platform = navigator.platform || '';
+    var maxTouchPoints = navigator.maxTouchPoints || 0;
+    var screenWidth = window.screen.width || 0;
 
-    // Device type
+    // Device type — robust detection that handles iPhone/iPad in "Request Desktop Site" mode
+    // In desktop mode, Safari on iOS changes the UA to look like macOS, but
+    // navigator.platform still reports "iPhone" or "iPad" and maxTouchPoints > 0.
     var deviceType = 'desktop';
+
     if (/iPad|Tablet|PlayBook/i.test(ua)) {
       deviceType = 'tablet';
     } else if (/Mobile|Android|iPhone|iPod|BlackBerry|Opera Mini|IEMobile/i.test(ua)) {
       deviceType = 'phone';
+    } else if (/iPhone|iPod/i.test(platform) && maxTouchPoints > 0) {
+      // iPhone in "Request Desktop Site" mode — UA looks like macOS but platform says iPhone
+      deviceType = 'phone';
+    } else if (/iPad/i.test(platform) && maxTouchPoints > 0) {
+      // iPad in "Request Desktop Site" mode
+      deviceType = 'tablet';
+    } else if (platform === 'MacIntel' && maxTouchPoints > 1) {
+      // iPadOS 13+ reports MacIntel platform with touch points > 1
+      deviceType = 'tablet';
+    } else if (maxTouchPoints > 0 && screenWidth <= 1024 && /Mac/i.test(ua)) {
+      // Fallback: touch device with small screen and Mac-like UA
+      if (screenWidth <= 500) {
+        deviceType = 'phone';
+      } else {
+        deviceType = 'tablet';
+      }
     }
 
-    // Browser
+    // Browser — also detect Safari on iOS in desktop mode (UA says Version/X Safari)
     var browser = 'other';
     if (/Edg\//i.test(ua)) browser = 'edge';
     else if (/OPR\//i.test(ua)) browser = 'opera';
-    else if (/Chrome\//i.test(ua)) browser = 'chrome';
+    else if (/CriOS/i.test(ua)) browser = 'chrome';      // Chrome on iOS
+    else if (/FxiOS/i.test(ua)) browser = 'firefox';     // Firefox on iOS
+    else if (/Chrome\//i.test(ua) && !/Edg|OPR/i.test(ua)) browser = 'chrome';
     else if (/Firefox\//i.test(ua)) browser = 'firefox';
-    else if (/Safari\//i.test(ua)) browser = 'safari';
+    else if (/Safari\//i.test(ua) && !/Chrome/i.test(ua)) browser = 'safari';
 
-    // Operating system
+    // Operating system — also check platform for iOS in desktop mode
     var os = 'other';
     if (/Windows/i.test(ua)) os = 'windows';
     else if (/Android/i.test(ua)) os = 'android';
     else if (/iPhone|iPad|iPod/i.test(ua)) os = 'ios';
+    else if (/iPhone|iPod/i.test(platform) && maxTouchPoints > 0) os = 'ios';       // iPhone desktop mode
+    else if (/iPad/i.test(platform) && maxTouchPoints > 0) os = 'ios';              // iPad desktop mode
+    else if (platform === 'MacIntel' && maxTouchPoints > 1) os = 'ios';              // iPadOS 13+ desktop mode
     else if (/Mac OS X/i.test(ua)) os = 'macos';
     else if (/Linux/i.test(ua)) os = 'linux';
 
