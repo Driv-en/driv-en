@@ -678,6 +678,69 @@
                 </div>
             </div>
 
+            <!-- Payment Information (ACH) -->
+            <div class="settings-section">
+                <h3>Payment Information (ACH Direct Deposit)</h3>
+                <p class="settings-desc">Provide your bank account details so we can deposit your commission payments via ACH. You can update this information anytime.</p>
+
+                <!-- Payment status -->
+                <div class="w9-status" id="achStatus">
+                    <span class="w9-dot w9-none"></span>
+                    <span id="achStatusText">Loading...</span>
+                </div>
+                <p style="font-size:13px;color:var(--text-muted);margin-top:8px;" id="achNote"></p>
+
+                <!-- ACH Form -->
+                <div style="margin-top:20px;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                        <div>
+                            <label style="font-size:14px;font-weight:600;display:block;margin-bottom:4px;">Bank Name</label>
+                            <input type="text" id="achBankName" placeholder="e.g., Chase, Bank of America" style="width:100%;padding:10px 12px;border:1px solid var(--border-input);border-radius:6px;font-size:14px;background:var(--bg-input);color:var(--text);box-sizing:border-box;" />
+                        </div>
+                        <div>
+                            <label style="font-size:14px;font-weight:600;display:block;margin-bottom:4px;">Account Type</label>
+                            <select id="achAccountType" style="width:100%;padding:10px 12px;border:1px solid var(--border-input);border-radius:6px;font-size:14px;background:var(--bg-input);color:var(--text);box-sizing:border-box;">
+                                <option value="">Select...</option>
+                                <option value="checking">Checking</option>
+                                <option value="savings">Savings</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                        <div>
+                            <label style="font-size:14px;font-weight:600;display:block;margin-bottom:4px;">Routing Number (9 digits)</label>
+                            <input type="text" id="achRoutingNumber" placeholder="123456789" maxlength="9" pattern="[0-9]*" style="width:100%;padding:10px 12px;border:1px solid var(--border-input);border-radius:6px;font-size:14px;background:var(--bg-input);color:var(--text);box-sizing:border-box;font-family:monospace;" />
+                        </div>
+                        <div>
+                            <label style="font-size:14px;font-weight:600;display:block;margin-bottom:4px;">Account Number</label>
+                            <input type="text" id="achAccountNumber" placeholder="••••••••" maxlength="17" pattern="[0-9]*" style="width:100%;padding:10px 12px;border:1px solid var(--border-input);border-radius:6px;font-size:14px;background:var(--bg-input);color:var(--text);box-sizing:border-box;font-family:monospace;" />
+                            <div style="font-size:12px;color:var(--text-muted);margin-top:2px;" id="achAccountNumberHint">Enter full account number</div>
+                        </div>
+                    </div>
+                    <div style="margin-bottom:16px;">
+                        <label style="font-size:14px;font-weight:600;display:block;margin-bottom:4px;">Name on Account</label>
+                        <input type="text" id="achNameOnAccount" placeholder="Full name as it appears on the account" style="width:100%;padding:10px 12px;border:1px solid var(--border-input);border-radius:6px;font-size:14px;background:var(--bg-input);color:var(--text);box-sizing:border-box;" />
+                    </div>
+
+                    <button onclick="savePaymentInfo()" style="background:var(--primary);color:#fff;border:none;padding:12px 24px;border-radius:6px;font-size:15px;font-weight:600;cursor:pointer;">Save Payment Info</button>
+                    <div id="achSaveMsg" style="font-size:14px;margin-top:8px;"></div>
+                </div>
+
+                <!-- Voided Check Upload -->
+                <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);">
+                    <h4 style="font-size:15px;margin:0 0 8px 0;color:var(--text);">Voided Check or Bank Direct Deposit Form (Optional)</h4>
+                    <p style="font-size:13px;color:var(--text-muted);margin:0 0 12px 0;">Upload a voided check or your bank's direct deposit form as an alternative to filling out the form above. PDF or image (PNG/JPG), max 5MB.</p>
+
+                    <div id="voidedCheckSection" style="display:none;margin-bottom:12px;">
+                        <button class="w9-view-btn" onclick="viewVoidedCheck()">View Uploaded Document</button>
+                    </div>
+
+                    <input type="file" id="voidedCheckInput" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" style="display:none;" onchange="handleVoidedCheckUpload(event)">
+                    <button class="w9-upload-btn" id="voidedCheckBtn" onclick="document.getElementById('voidedCheckInput').click()">Upload Document</button>
+                    <div id="voidedCheckMsg" style="font-size:14px;margin-top:8px;"></div>
+                </div>
+            </div>
+
             <!-- Account -->
             <div class="settings-section">
                 <h3>Account</h3>
@@ -836,6 +899,9 @@ function initDashboard() {
 
     // Load public settings (W-9 IRS form URL)
     loadSettings();
+
+    // Load payment info (ACH)
+    loadPaymentInfo();
 
     // Load commissions
     loadCommissions();
@@ -1122,6 +1188,179 @@ async function submitChangePassword() {
     } catch (e) {
         msgEl.innerHTML = '<span style="color:#cc0000;">Network error. Please try again.</span>';
     }
+}
+
+// ---- Payment Info (ACH) ----
+async function loadPaymentInfo() {
+    try {
+        const resp = await fetch('/referral/payment-info');
+        const data = await resp.json();
+
+        const dot = document.querySelector('#achStatus .w9-dot');
+        const text = document.getElementById('achStatusText');
+        const note = document.getElementById('achNote');
+        const voidedSection = document.getElementById('voidedCheckSection');
+        const accountNumberHint = document.getElementById('achAccountNumberHint');
+
+        if (data.success && data.paymentInfo) {
+            const p = data.paymentInfo;
+
+            // Fill form fields
+            document.getElementById('achBankName').value = p.bank_name || '';
+            document.getElementById('achAccountType').value = p.account_type || '';
+            document.getElementById('achRoutingNumber').value = p.routing_number || '';
+            document.getElementById('achNameOnAccount').value = p.name_on_account || '';
+
+            // Account number: show masked, hint about last 4
+            if (p.account_number_last4) {
+                document.getElementById('achAccountNumber').value = '';
+                accountNumberHint.textContent = 'On file: ••••' + p.account_number_last4 + ' — enter a new number to update';
+                accountNumberHint.style.color = 'var(--text-muted)';
+            }
+
+            // Status indicator
+            if (p.bank_name && p.routing_number && p.account_number_last4) {
+                dot.className = 'w9-dot w9-valid';
+                text.textContent = 'ACH information on file';
+                note.textContent = 'Last updated: ' + (p.updated_at ? new Date(p.updated_at).toLocaleDateString() : '—');
+            } else if (p.voided_check_attachment) {
+                dot.className = 'w9-dot w9-valid';
+                text.textContent = 'Voided check on file';
+                note.textContent = 'Last updated: ' + (p.updated_at ? new Date(p.updated_at).toLocaleDateString() : '—');
+            } else {
+                dot.className = 'w9-dot w9-none';
+                text.textContent = 'No payment information on file';
+                note.textContent = 'Please provide your bank details below to receive commission payments.';
+            }
+
+            // Show voided check section if one exists
+            if (p.voided_check_attachment) {
+                voidedSection.style.display = 'block';
+            }
+        } else {
+            dot.className = 'w9-dot w9-none';
+            text.textContent = 'No payment information on file';
+            note.textContent = 'Please provide your bank details below to receive commission payments.';
+        }
+    } catch (e) {
+        console.error('Payment info load failed:', e);
+    }
+}
+
+async function savePaymentInfo() {
+    var bankName = document.getElementById('achBankName').value.trim();
+    var accountType = document.getElementById('achAccountType').value;
+    var routingNumber = document.getElementById('achRoutingNumber').value.trim();
+    var accountNumber = document.getElementById('achAccountNumber').value.trim();
+    var nameOnAccount = document.getElementById('achNameOnAccount').value.trim();
+    var msg = document.getElementById('achSaveMsg');
+
+    if (!bankName || !accountType || !routingNumber || !nameOnAccount) {
+        msg.innerHTML = '<span style="color:#cc0000;">Please fill in all fields. Account number is only required when updating.</span>';
+        return;
+    }
+
+    // If account number is empty, check if we already have one on file
+    if (!accountNumber) {
+        // Check if we already have payment info — if so, allow updating without re-entering account number
+        try {
+            var checkResp = await fetch('/referral/payment-info');
+            var checkData = await checkResp.json();
+            if (checkData.success && checkData.paymentInfo && checkData.paymentInfo.account_number_last4) {
+                // Already on file — save without account number (keep existing)
+                // We'll send a flag to keep the existing account number
+                accountNumber = '__KEEP_EXISTING__';
+            } else {
+                msg.innerHTML = '<span style="color:#cc0000;">Please enter your account number.</span>';
+                return;
+            }
+        } catch (e) {
+            msg.innerHTML = '<span style="color:#cc0000;">Please enter your account number.</span>';
+            return;
+        }
+    }
+
+    msg.innerHTML = '<span style="color:var(--text-muted);">Saving...</span>';
+
+    try {
+        var resp = await fetch('/referral/payment-info', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                bankName: bankName,
+                accountType: accountType,
+                routingNumber: routingNumber,
+                accountNumber: accountNumber,
+                nameOnAccount: nameOnAccount
+            })
+        });
+        var data = await resp.json();
+
+        if (data.success) {
+            msg.innerHTML = '<span style="color:#166534;">Payment information saved successfully!</span>';
+            loadPaymentInfo();
+            // Clear the account number field after save
+            document.getElementById('achAccountNumber').value = '';
+        } else {
+            msg.innerHTML = '<span style="color:#cc0000;">' + (data.error || 'Failed to save.') + '</span>';
+        }
+    } catch (e) {
+        msg.innerHTML = '<span style="color:#cc0000;">Network error. Please try again.</span>';
+    }
+}
+
+// ---- Voided Check Upload ----
+async function handleVoidedCheckUpload(event) {
+    var file = event.target.files[0];
+    if (!file) return;
+
+    var msgEl = document.getElementById('voidedCheckMsg');
+    var btn = document.getElementById('voidedCheckBtn');
+
+    if (file.size > 5 * 1024 * 1024) {
+        msgEl.innerHTML = '<span style="color:#cc0000;">File is too large. Maximum size is 5MB.</span>';
+        event.target.value = '';
+        return;
+    }
+
+    var fileName = file.name.toLowerCase();
+    if (!fileName.endsWith('.pdf') && !fileName.endsWith('.png') && !fileName.endsWith('.jpg') && !fileName.endsWith('.jpeg')) {
+        msgEl.innerHTML = '<span style="color:#cc0000;">Please upload a PDF or image file (PNG/JPG).</span>';
+        event.target.value = '';
+        return;
+    }
+
+    btn.textContent = 'Uploading...';
+    btn.disabled = true;
+    msgEl.innerHTML = '<span style="color:var(--text-muted);">Uploading...</span>';
+
+    try {
+        var formData = new FormData();
+        formData.append('voidedCheck', file);
+
+        const resp = await fetch('/referral/upload-voided-check', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await resp.json();
+
+        if (data.success) {
+            msgEl.innerHTML = '<span style="color:#166534;">Document uploaded successfully!</span>';
+            loadPaymentInfo();
+        } else {
+            msgEl.innerHTML = '<span style="color:#cc0000;">' + (data.error || 'Upload failed.') + '</span>';
+        }
+    } catch (e) {
+        msgEl.innerHTML = '<span style="color:#cc0000;">Network error. Please try again.</span>';
+    } finally {
+        btn.textContent = 'Upload Document';
+        btn.disabled = false;
+        event.target.value = '';
+    }
+}
+
+function viewVoidedCheck() {
+    window.open('/referral/view-voided-check', '_blank');
 }
 
 // ---- Logout ----
