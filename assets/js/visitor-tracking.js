@@ -3,7 +3,7 @@
  * 
  * Purpose: This script runs on EVERY page of driv-en.com (not just the home page).
  * It silently collects non-PII (non-personally identifiable) data about each
- * visitor and sends it to /api/track-visitor for storage. This data powers the
+ * visitor and sends it to /referral/track-visitor for storage. This data powers the
  * "Site Visitors" tab on the Owner Dashboard.
  * 
  * What is collected:
@@ -29,7 +29,11 @@
  * This script is designed to NEVER block or interrupt the visitor's experience.
  * All operations are silent and fail gracefully.
  * 
- * Last updated: 2026-09-04
+ * Last updated: 2026-09-05
+ * CHANGES:
+ *   - Changed POST endpoint from /api/track-visitor to /referral/track-visitor
+ *     because the Worker route www.driv-en.com/referral/* intercepts all /referral/* paths.
+ *     The tracking endpoint now lives in the driven-referral-api Worker.
  */
 
 (function() {
@@ -113,11 +117,13 @@
 
     // Use sendBeacon for reliability (works even if page is closed quickly)
     // Fallback to fetch with keepalive
+    // POST to /referral/track-visitor (handled by the driven-referral-api Worker,
+    // which catches all /referral/* paths via the www.driv-en.com/referral/* route)
     try {
       if (navigator.sendBeacon) {
-        navigator.sendBeacon('/api/track-visitor', new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+        navigator.sendBeacon('/referral/track-visitor', new Blob([JSON.stringify(payload)], { type: 'application/json' }));
       } else {
-        fetch('/api/track-visitor', {
+        fetch('/referral/track-visitor', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
