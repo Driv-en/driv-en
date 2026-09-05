@@ -578,11 +578,10 @@
                     Share your unique referral link with companies. When they sign up through your link, you automatically earn commission.
                 </p>
 
-                <!-- Referral code display -->
+                <!-- Referral code display (read-only — no copy button, the link is what matters) -->
                 <div class="ref-code-display">
                     <span style="font-size:14px;color:var(--text-muted);">Your code:</span>
                     <span class="ref-code-value" id="referralCodeDisplay">—</span>
-                    <button class="ref-code-copy-btn" id="copyCodeBtn" onclick="copyReferralCode()">Copy Code</button>
                 </div>
 
                 <!-- Referral link -->
@@ -670,7 +669,7 @@
 
                     <div class="w9-upload-msg" id="w9UploadMsg"></div>
 
-                    <a class="w9-online-link" href="https://www.irs.gov/pub/irs-pdf/fw9.pdf" target="_blank" rel="noopener">
+                    <a class="w9-online-link" id="w9IrsLink" href="https://www.irs.gov/pub/irs-pdf/fw9.pdf" target="_blank" rel="noopener">
                         Need a W-9 form? Download IRS Form W-9 (PDF) from the IRS website →
                     </a>
                     <p style="font-size:13px;color:var(--text-muted);margin-top:4px;">
@@ -835,6 +834,9 @@ function initDashboard() {
     // Load profile (referral link, W-9)
     loadProfile();
 
+    // Load public settings (W-9 IRS form URL)
+    loadSettings();
+
     // Load commissions
     loadCommissions();
 
@@ -855,14 +857,13 @@ async function loadProfile() {
                 document.getElementById('referralCodeDisplay').textContent = p.referral_code;
             } else {
                 document.getElementById('referralCodeDisplay').textContent = 'Not yet assigned';
-                document.getElementById('copyCodeBtn').disabled = true;
             }
 
             // Referral link
             if (p.referral_link) {
                 document.getElementById('referralLink').value = p.referral_link;
             } else if (p.referral_code) {
-                document.getElementById('referralLink').value = 'https://www.driv-en.com/website/checkout.html?ref=' + p.referral_code;
+                document.getElementById('referralLink').value = 'https://www.driv-en.com/?ref=' + p.referral_code;
             } else {
                 document.getElementById('referralLink').value = 'Not yet assigned — contact support@driv-en.com';
                 document.getElementById('copyBtn').disabled = true;
@@ -873,6 +874,20 @@ async function loadProfile() {
         }
     } catch (e) {
         console.error('Profile load failed:', e);
+    }
+}
+
+// ---- Load public settings (W-9 IRS form URL) ----
+async function loadSettings() {
+    try {
+        const resp = await fetch('/referral/settings');
+        const data = await resp.json();
+        if (data.success && data.settings && data.settings.w9_irs_form_url) {
+            var link = document.getElementById('w9IrsLink');
+            if (link) link.href = data.settings.w9_irs_form_url;
+        }
+    } catch (e) {
+        // Fall back to default IRS link already in the HTML
     }
 }
 
@@ -1060,28 +1075,6 @@ function copyReferralLink() {
         setTimeout(function() { btn.textContent = 'Copy Link'; }, 2000);
     } catch (e) {
         alert('Copy failed. Please manually copy the link.');
-    }
-}
-
-// ---- Copy referral code ----
-function copyReferralCode() {
-    var code = document.getElementById('referralCodeDisplay').textContent;
-    var btn = document.getElementById('copyCodeBtn');
-    if (!code || code === 'Not yet assigned') return;
-    try {
-        navigator.clipboard.writeText(code);
-        btn.textContent = 'Copied!';
-        setTimeout(function() { btn.textContent = 'Copy Code'; }, 2000);
-    } catch (e) {
-        // Fallback
-        var ta = document.createElement('textarea');
-        ta.value = code;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        btn.textContent = 'Copied!';
-        setTimeout(function() { btn.textContent = 'Copy Code'; }, 2000);
     }
 }
 
