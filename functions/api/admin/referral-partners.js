@@ -22,6 +22,7 @@
 // CHANGES:
 //   - Added last_referred subquery to GET (most recent referral_activity per partner)
 //   - Added toggle_active action to POST (silently activate/deactivate approved partners)
+//   - Added reapprove_w9 action to POST (re-approve partners with renewed W-9)
 //   - Approval email: sender name changed to "Jackie Blood, Founder of DRIV-EN"
 //   - Approval email: DRIV-EN logo added at top of email body
 //   - Rejection email: DRIV-EN logo added at top of email body
@@ -271,7 +272,9 @@ async function handleListPartners(request, env) {
               ) as last_referred
        FROM referral_partners rp
        ORDER BY
-         CASE WHEN rp.status = 'Pending' THEN 0 ELSE 1 END,
+         CASE WHEN rp.status = 'Pending' THEN 0
+              WHEN rp.status = 'Pending W-9 Review' THEN 1
+              ELSE 2 END,
          rp.created_at DESC`
     ).all();
 
@@ -287,7 +290,7 @@ async function handleListPartners(request, env) {
 
 // ---------------------------------------------------------------------------
 // POST /api/admin/referral-partners — Approve or reject a partner
-// Body: { action: 'approve' | 'reject', partnerId, referralCode?, w9ExpirationDate?, reason? }
+// Body: { action: 'approve' | 'reject' | 'toggle_active' | 'reapprove_w9', partnerId, referralCode?, w9ExpirationDate?, reason? }
 // ---------------------------------------------------------------------------
 async function handleUpdatePartner(request, env) {
   const user = await verifyFounder(request, env);
@@ -451,6 +454,36 @@ async function handleUpdatePartner(request, env) {
       message: 'Partner rejected. Notification email sent to ' + partner.partner_email
     });
 
+  } else if (action === 'reapprove_w9') {
+    // -----------------------------------------------------------------
+    // Re-approve a partner whose W-9 was renewed (status was "Pending W-9 Review").
+    // Sets status back to Approved, active=1. The partner keeps their
+    // existing referral code — only the W-9 was renewed.
+    // No email is sent (the referrer already knows they uploaded a new W-9).
+    // -----------------------------------------------------------------
+    const w9Partner = await env.DB.prepare(
+      'SELECT status, referral_code FROM referral_partners WHERE id = ?'
+    ).bind(partnerId).first();
+
+    if (!w9Partner) {
+      return jsonResponse({ success: false, error: 'Partner not found' }, 404);
+    }
+
+    if (w9Partner.status !== 'Pending W-9 Review') {
+      return jsonResponse({ success: false, error: 'Can only re-approve partners with W-9 pending review' }, 400);
+    }
+
+    await env.DB.prepare(
+      `UPDATE referral_partners
+       SET status = 'Approved', active = 1, is_eligible = 1, partner_status = 'Approved'
+       WHERE id = ?`
+    ).bind(partnerId).run();
+
+    return jsonResponse({
+      success: true,
+      message: 'Partner re-approved. Referral link reactivated.'
+    });
+
   } else if (action === 'toggle_active') {
     // -----------------------------------------------------------------
     // Toggle active/inactive for an Approved partner.
@@ -488,7 +521,7 @@ async function handleUpdatePartner(request, env) {
     });
 
   } else {
-    return jsonResponse({ success: false, error: 'Invalid action. Use "approve", "reject", or "toggle_active".' }, 400);
+    return jsonResponse({ success: false, error: 'Invalid action. Use "approve", "reject", "toggle_active", or "reapprove_w9".' }, 400);
   }
 }
 
