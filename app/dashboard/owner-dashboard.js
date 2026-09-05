@@ -243,6 +243,48 @@ function initOwnerDashboard() {
   }
 
   loadPartners();
+  loadW9IrsFormUrl();
+}
+
+// ---- W-9 IRS Form URL ----
+async function loadW9IrsFormUrl() {
+  try {
+    var resp = await fetch('/api/admin/app-settings?key=w9_irs_form_url');
+    var data = await resp.json();
+    if (data.success && data.value) {
+      var input = document.getElementById('w9IrsFormUrlInput');
+      if (input) input.value = data.value;
+    }
+  } catch (e) {
+    // Endpoint may not exist yet — default is in the placeholder
+  }
+}
+
+async function saveW9IrsFormUrl() {
+  var input = document.getElementById('w9IrsFormUrlInput');
+  var msg = document.getElementById('w9IrsFormUrlMsg');
+  var url = input.value.trim();
+
+  if (!url) {
+    msg.innerHTML = '<span style="color:#fca5a5;">Please enter a URL.</span>';
+    return;
+  }
+
+  try {
+    var resp = await fetch('/api/admin/app-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: 'w9_irs_form_url', value: url })
+    });
+    var data = await resp.json();
+    if (data.success) {
+      msg.innerHTML = '<span style="color:#166534;">W-9 IRS form URL saved. Referrer dashboards will use this link.</span>';
+    } else {
+      msg.innerHTML = '<span style="color:#fca5a5;">' + (data.error || 'Failed to save.') + '</span>';
+    }
+  } catch (e) {
+    msg.innerHTML = '<span style="color:#fca5a5;">Network error. Please try again.</span>';
+  }
 }
 
 // ---- Tab Switching ----
