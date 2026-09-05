@@ -3,7 +3,7 @@
  * 
  * Purpose: This script runs on EVERY page of driv-en.com (not just the home page).
  * It silently collects non-PII (non-personally identifiable) data about each
- * visitor and sends it to /referral/track-visitor for storage. This data powers the
+ * visitor and sends it to /api/track-visitor for storage. This data powers the
  * "Site Visitors" tab on the Owner Dashboard.
  * 
  * What is collected:
@@ -29,11 +29,7 @@
  * This script is designed to NEVER block or interrupt the visitor's experience.
  * All operations are silent and fail gracefully.
  * 
- * Last updated: 2026-09-05
- * CHANGES:
- *   - Changed POST endpoint from /api/track-visitor to /referral/track-visitor
- *     because the Worker route www.driv-en.com/referral/* intercepts all /referral/* paths.
- *     The tracking endpoint now lives in the driven-referral-api Worker.
+ * Last updated: 2026-09-04
  */
 
 (function() {
