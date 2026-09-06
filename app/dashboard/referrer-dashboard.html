@@ -551,6 +551,17 @@
             </div>
             <div class="ref-greeting-sub" id="partnerSubText">Your referral partner dashboard</div>
 
+            <!-- KPI Date Range Filter -->
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:20px;flex-wrap:wrap;">
+                <label style="font-size:14px;color:var(--text-muted);white-space:nowrap;">KPI Period:</label>
+                <select id="kpiPeriod" onchange="loadCommissions()" style="padding:8px 12px;border:1px solid var(--border-input);border-radius:6px;font-size:14px;background:var(--bg-input);color:var(--text);">
+                    <option value="all">All Time</option>
+                    <option value="30">Last 30 Days</option>
+                    <option value="90">Last 90 Days</option>
+                    <option value="ytd">Year to Date</option>
+                </select>
+            </div>
+
             <!-- Stat cards -->
             <div class="ref-stats-row">
                 <div class="ref-stat-card">
@@ -730,7 +741,7 @@
                     </div>
                     <div style="margin-bottom:16px;">
                         <label style="font-size:14px;font-weight:600;display:block;margin-bottom:4px;">Name on Account</label>
-                        <input type="text" id="achNameOnAccount" placeholder="Full name as it appears on the bank account (not your email)" autocomplete="off" style="width:100%;padding:10px 12px;border:1px solid var(--border-input);border-radius:6px;font-size:14px;background:var(--bg-input);color:var(--text);box-sizing:border-box;" />
+                        <input type="text" id="achNameOnAccount" name="ach-name-on-account" placeholder="Full name as it appears on the bank account (not your email)" autocomplete="off" style="width:100%;padding:10px 12px;border:1px solid var(--border-input);border-radius:6px;font-size:14px;background:var(--bg-input);color:var(--text);box-sizing:border-box;" />
                     </div>
 
                     <button onclick="savePaymentInfo()" style="background:var(--primary);color:#fff;border:none;padding:12px 24px;border-radius:6px;font-size:15px;font-weight:600;cursor:pointer;">Save Payment Info</button>
@@ -1070,7 +1081,22 @@ function viewMyW9() {
 
 async function loadCommissions() {
     try {
-        const resp = await fetch('/referral/commissions');
+        // Get the selected KPI period
+        var periodEl = document.getElementById('kpiPeriod');
+        var period = periodEl ? periodEl.value : 'all';
+        var queryParams = '';
+        if (period && period !== 'all') {
+            if (period === 'ytd') {
+                var ytdStart = new Date(new Date().getFullYear(), 0, 1).toISOString();
+                queryParams = '?start=' + encodeURIComponent(ytdStart);
+            } else {
+                var daysAgo = new Date();
+                daysAgo.setDate(daysAgo.getDate() - parseInt(period));
+                queryParams = '?start=' + encodeURIComponent(daysAgo.toISOString());
+            }
+        }
+
+        const resp = await fetch('/referral/commissions' + queryParams);
         const data = await resp.json();
 
         if (data.success && data.commissions) {
@@ -1221,6 +1247,11 @@ async function loadPaymentInfo() {
             document.getElementById('achAccountType').value = p.account_type || '';
             document.getElementById('achRoutingNumber').value = p.routing_number || '';
             document.getElementById('achNameOnAccount').value = p.name_on_account || '';
+
+            // If name_on_account contains an email (old data), clear it
+            if (p.name_on_account && p.name_on_account.includes('@')) {
+                document.getElementById('achNameOnAccount').value = '';
+            }
 
             // Account number: show masked, hint about last 4
             if (p.account_number_last4) {
