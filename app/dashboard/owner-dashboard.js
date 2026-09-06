@@ -170,7 +170,7 @@ async function loadVisitors(presetDays, presetName) {
     }
 
     // Show loading state
-    document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">Loading...</td></tr>';
+    document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px;">Loading...</td></tr>';
 
     // Fetch summary stats
     var summaryResp = await fetch('/api/admin/site-visitors?summary=true&start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate));
@@ -492,6 +492,8 @@ function switchTab(tabName) {
     loadSystemStatus();
   } else if (tabName === 'issues') {
     loadIssues();
+  } else if (tabName === 'settings') {
+    loadTeamMembers();
   }
 }
 
@@ -632,8 +634,10 @@ function renderTable(partners) {
       actions = '<button class="owner-action-btn owner-btn-approve" onclick="openApproveModal(\'' + p.id + '\',\'' + escapeJs(p.partner_name) + '\')">Approve</button>';
       actions += '<button class="owner-action-btn owner-btn-reject" onclick="openRejectModal(\'' + p.id + '\',\'' + escapeJs(p.partner_name) + '\')">Reject</button>';
     } else if (p.status === 'Pending W-9 Review') {
+      // Owner can re-approve (the partner already has a referral code, so we just set status back to Approved)
       actions = '<button class="owner-action-btn owner-btn-approve" onclick="reapproveW9(\'' + p.id + '\',\'' + escapeJs(p.partner_name) + '\')">Re-Approve</button>';
     } else if (p.status === 'Approved') {
+      // Show Activate or Deactivate button depending on current state
       if (p.active === 1) {
         actions = '<button class="owner-action-btn owner-btn-deactivate" onclick="toggleActive(\'' + p.id + '\',\'' + escapeJs(p.partner_name) + '\')">Deactivate</button>';
       } else {
@@ -719,8 +723,11 @@ function sortPartners(partners) {
       aVal = getW9SortValue(a);
       bVal = getW9SortValue(b);
     } else if (col === 'created_at' || col === 'last_referred') {
+      // Both created_at and last_referred are date strings (ISO).
+      // Null/empty values sort to the bottom.
       aVal = (a[col] || '');
       bVal = (b[col] || '');
+      // When sorting dates, empty values should always be last regardless of direction
       if (!aVal && bVal) return 1;
       if (aVal && !bVal) return -1;
       if (!aVal && !bVal) return 0;
@@ -896,6 +903,8 @@ async function submitChangePassword() {
 }
 
 // ---- Re-Approve W-9 (for Pending W-9 Review partners) ----
+// Sets the partner back to Approved with active=1.
+// The partner keeps their existing referral code — only the W-9 was renewed.
 async function reapproveW9(partnerId, partnerName) {
   if (!confirm('Re-approve ' + partnerName + '? Their referral link will be reactivated.')) return;
   try {
@@ -917,6 +926,9 @@ async function reapproveW9(partnerId, partnerName) {
 }
 
 // ---- Activate/Deactivate Toggle (for Approved partners) ----
+// Silently toggles the active state of an Approved partner.
+// No email is sent. The referrer can still log in when deactivated,
+// but their referral link stops working (tracking checks active=1).
 async function toggleActive(partnerId, partnerName) {
   if (!confirm('Toggle active state for ' + partnerName + '?')) return;
   try {
@@ -952,6 +964,8 @@ function regenerateCode() {
 }
 
 function defaultW9Expiration() {
+  // W-9 expires on December 31 of the year it was uploaded.
+  // A new W-9 is required each calendar year.
   return new Date().getFullYear() + '-12-31';
 }
 
@@ -979,6 +993,7 @@ function showError(msg) {
 
 var allCustomers = [];
 
+// ---- Load Customers ----
 async function loadCustomers() {
   var listEl = document.getElementById('customerList');
   listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading customers…</div>';
@@ -1060,6 +1075,7 @@ function filterCustomers() {
 // SYSTEM STATUS TAB LOGIC
 // =========================================================================
 
+// ---- Load System Status ----
 async function loadSystemStatus() {
   document.getElementById('sysLastCheck').textContent = new Date().toLocaleString();
 
@@ -1089,6 +1105,7 @@ async function loadSystemStatus() {
     }
   }
 
+  // D1 — referral_partners count
   try {
     var resp = await fetch('/api/admin/referral-partners');
     var data = await resp.json();
@@ -1099,6 +1116,7 @@ async function loadSystemStatus() {
     document.getElementById('sysD1Partners').textContent = 'Unable to count';
   }
 
+  // D1 — site_visitors count
   try {
     var vResp = await fetch('/api/admin/site-visitors?summary=true');
     var vData = await vResp.json();
@@ -1109,6 +1127,7 @@ async function loadSystemStatus() {
     document.getElementById('sysD1Visitors').textContent = 'Unable to count';
   }
 
+  // D1 — referral_activity count
   try {
     var pResp = await fetch('/api/admin/referral-partners');
     var pData = await pResp.json();
@@ -1130,6 +1149,7 @@ async function loadSystemStatus() {
 
 var allIssues = [];
 
+// ---- Load Issues ----
 async function loadIssues() {
   var listEl = document.getElementById('issueList');
   listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading issues...</div>';
@@ -1207,9 +1227,117 @@ function filterIssues() {
 }
 
 // =========================================================================
+// TEAM ACCESS LOGIC
+// =========================================================================
+
+// ---- Load Team Members ----
+async function loadTeamMembers() {
+  var listEl = document.getElementById('teamAccessList');
+  if (!listEl) return;
+
+  try {
+    var resp = await fetch('/auth/team-members');
+    var data = await resp.json();
+
+    if (data.success && data.members && data.members.length > 0) {
+      var html = data.members.map(function(m) {
+        var statusBadge = m.is_active === 1
+          ? '<span class="dash-badge dash-badge-success">Active</span>'
+          : '<span class="dash-badge dash-badge-muted">Inactive</span>';
+        var lastLogin = m.last_login ? new Date(m.last_login).toLocaleDateString() : 'Never';
+        var deactivateBtn = m.is_active === 1
+          ? '<button class="owner-action-btn owner-btn-deactivate" onclick="toggleTeamMember(\'' + m.id + '\',\'' + escapeJs(m.email) + '\')">Deactivate</button>'
+          : '<button class="owner-action-btn owner-btn-activate" onclick="toggleTeamMember(\'' + m.id + '\',\'' + escapeJs(m.email) + '\')">Activate</button>';
+
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid var(--border);">' +
+          '<div>' +
+            '<div style="font-size:15px;font-weight:600;color:var(--text);">' + escapeHtml(m.full_name || m.email) + '</div>' +
+            '<div style="font-size:13px;color:var(--text-muted);">' + escapeHtml(m.email) + ' · Last login: ' + lastLogin + '</div>' +
+          '</div>' +
+          '<div style="display:flex;align-items:center;gap:8px;">' +
+            statusBadge +
+            (m.email !== window.ownerUser.email ? deactivateBtn : '<span style="font-size:12px;color:var(--text-muted);">(you)</span>') +
+          '</div>' +
+        '</div>';
+      }).join('');
+      listEl.innerHTML = html;
+    } else if (data.success) {
+      listEl.innerHTML = '<p style="color:var(--text-muted);font-size:14px;">No other team members yet. Add one below.</p>';
+    } else {
+      listEl.innerHTML = '<p style="color:var(--text-muted);font-size:14px;">Team access requires the /auth/team-members endpoint to be deployed.</p>';
+    }
+  } catch (e) {
+    listEl.innerHTML = '<p style="color:var(--text-muted);font-size:14px;">Unable to load team members. The /auth/team-members endpoint may not be deployed yet.</p>';
+  }
+}
+
+// ---- Add Team Member ----
+async function addTeamMember() {
+  var name = document.getElementById('newTeamMemberName').value.trim();
+  var email = document.getElementById('newTeamMemberEmail').value.trim();
+  var msg = document.getElementById('teamMemberMsg');
+
+  if (!name) {
+    msg.innerHTML = '<span style="color:#fca5a5;">Please enter the person\'s full name.</span>';
+    return;
+  }
+  if (!email || !email.includes('@')) {
+    msg.innerHTML = '<span style="color:#fca5a5;">Please enter a valid email address.</span>';
+    return;
+  }
+
+  msg.innerHTML = '<span style="color:var(--text-muted);">Sending invitation...</span>';
+
+  try {
+    var resp = await fetch('/auth/create-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: name,
+        email: email,
+        role: 'DRIV-EN Founder'
+      })
+    });
+    var data = await resp.json();
+
+    if (data.success) {
+      msg.innerHTML = '<span style="color:#166534;">Invitation sent to ' + escapeHtml(email) + '. They will receive a temporary password and login instructions.</span>';
+      document.getElementById('newTeamMemberName').value = '';
+      document.getElementById('newTeamMemberEmail').value = '';
+      loadTeamMembers();
+    } else {
+      msg.innerHTML = '<span style="color:#fca5a5;">' + (data.error || 'Failed to send invitation.') + '</span>';
+    }
+  } catch (e) {
+    msg.innerHTML = '<span style="color:#fca5a5;">Network error. Please try again.</span>';
+  }
+}
+
+// ---- Toggle Team Member Active State ----
+async function toggleTeamMember(memberId, memberEmail) {
+  if (!confirm('Toggle access for ' + memberEmail + '?')) return;
+  try {
+    var resp = await fetch('/auth/team-members', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'toggle_active', memberId: memberId })
+    });
+    var data = await resp.json();
+    if (data.success) {
+      loadTeamMembers();
+    } else {
+      showError(data.error || 'Failed to toggle access');
+    }
+  } catch (e) {
+    showError('Network error. Please try again.');
+  }
+}
+
+// =========================================================================
 // LOGOUT
 // =========================================================================
 
+// ---- Logout ----
 async function ownerLogout() {
   try {
     await fetch('/auth/logout', { method: 'POST' });
