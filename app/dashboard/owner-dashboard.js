@@ -19,6 +19,16 @@ var currentRejectPartnerId = null;
 var sortColumn = 'created_at';
 var sortDirection = 'desc';
 
+// Visitor table sort state
+var visitorSortColumn = 'created_at';
+var visitorSortDirection = 'desc';
+var allVisitors = [];
+
+// Session table sort state
+var sessionSortColumn = 'firstVisit';
+var sessionSortDirection = 'desc';
+var allSessions = [];
+
 // ---- Theme Toggle ----
 function dashToggleTheme() {
   var current = document.documentElement.getAttribute("data-theme");
@@ -160,7 +170,7 @@ async function loadVisitors(presetDays, presetName) {
     }
 
     // Show loading state
-    document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px;">Loading...</td></tr>';
+    document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">Loading...</td></tr>';
 
     // Fetch summary stats
     var summaryResp = await fetch('/api/admin/site-visitors?summary=true&start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate));
@@ -169,9 +179,13 @@ async function loadVisitors(presetDays, presetName) {
     if (summaryData.success) {
       var s = summaryData.summary;
       document.getElementById('visitorTotalVisits').textContent = s.totalVisits || 0;
+      document.getElementById('visitorUniqueVisitors').textContent = s.uniqueVisitors || 0;
+      document.getElementById('visitorUniqueSessions').textContent = s.uniqueSessions || 0;
       document.getElementById('visitorUniqueCountries').textContent = s.uniqueCountries || 0;
       document.getElementById('visitorReferralVisits').textContent = s.referralVisits || 0;
       document.getElementById('visitorTopDevice').textContent = (s.deviceBreakdown && s.deviceBreakdown[0]) ? s.deviceBreakdown[0].device_type : '—';
+      document.getElementById('visitorTopBrowser').textContent = (s.browserBreakdown && s.browserBreakdown[0]) ? s.browserBreakdown[0].browser : '—';
+      document.getElementById('visitorTopOS').textContent = (s.osBreakdown && s.osBreakdown[0]) ? s.osBreakdown[0].os : '—';
 
       // Top pages
       var pagesHtml = (s.topPages || []).map(function(p) {
@@ -211,23 +225,10 @@ async function loadVisitors(presetDays, presetName) {
     var listData = await listResp.json();
 
     if (listData.success && listData.visitors && listData.visitors.length > 0) {
-      var rows = listData.visitors.map(function(v) {
-        var date = new Date(v.created_at).toLocaleString();
-        var timeOnPage = v.time_on_page ? (v.time_on_page + 's') : '—';
-        return '<tr>' +
-          '<td style="white-space:nowrap;">' + date + '</td>' +
-          '<td>' + (v.page_path || '/') + '</td>' +
-          '<td>' + (v.country || '—') + '</td>' +
-          '<td style="text-transform:capitalize;">' + (v.device_type || '—') + '</td>' +
-          '<td style="text-transform:capitalize;">' + (v.browser || '—') + '</td>' +
-          '<td style="text-transform:capitalize;">' + (v.os || '—') + '</td>' +
-          '<td>' + (v.referral_code || '—') + '</td>' +
-          '<td>' + (v.external_referrer || '—') + '</td>' +
-          '<td>' + timeOnPage + '</td>' +
-        '</tr>';
-      }).join('');
-      document.getElementById('visitorsTableBody').innerHTML = rows;
+      allVisitors = listData.visitors;
+      renderVisitorTable();
     } else {
+      allVisitors = [];
       document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No visitor data for this date range.</td></tr>';
     }
 
@@ -236,36 +237,156 @@ async function loadVisitors(presetDays, presetName) {
     var sessData = await sessResp.json();
 
     if (sessData.success && sessData.sessions && sessData.sessions.length > 0) {
-      var sessRows = sessData.sessions.map(function(s) {
-        var firstVisit = new Date(s.firstVisit).toLocaleString();
-        var pagesList = s.pages.map(function(p) {
-          var time = p.timeOnPage ? (p.timeOnPage + 's') : '—';
-          return '<div style="padding:2px 0;font-size:12px;">' +
-                 '<span style="color:var(--text);">' + (p.pagePath || '/') + '</span>' +
-                 ' <span style="color:var(--text-muted);">(' + time + ')</span></div>';
-        }).join('');
-        var totalTime = s.totalTimeOnSite > 0 ? (s.totalTimeOnSite + 's') : '—';
-        return '<tr>' +
-          '<td style="white-space:nowrap;">' + firstVisit + '</td>' +
-          '<td>' + s.pages.length + '</td>' +
-          '<td style="max-width:300px;">' + pagesList + '</td>' +
-          '<td>' + totalTime + '</td>' +
-          '<td>' + (s.country || '—') + '</td>' +
-          '<td style="text-transform:capitalize;">' + (s.deviceType || '—') + '</td>' +
-          '<td style="text-transform:capitalize;">' + (s.browser || '—') + '</td>' +
-          '<td style="text-transform:capitalize;">' + (s.os || '—') + '</td>' +
-          '<td>' + (s.referralCode || '—') + '</td>' +
-        '</tr>';
-      }).join('');
-      document.getElementById('sessionsTableBody').innerHTML = sessRows;
+      allSessions = sessData.sessions;
+      renderSessionsTable();
     } else {
+      allSessions = [];
       document.getElementById('sessionsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No session data for this date range.</td></tr>';
     }
 
   } catch (e) {
     console.error('loadVisitors error:', e);
-    document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--error);padding:24px;">Failed to load visitor data.</td></tr>';
+    document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--error);padding:24px;">Failed to load visitor data.</td></tr>';
   }
+}
+
+// ---- Sort Recent Visitors ----
+function sortVisitors(column) {
+  if (visitorSortColumn === column) {
+    visitorSortDirection = visitorSortDirection === 'asc' ? 'desc' : 'asc';
+  } else {
+    visitorSortColumn = column;
+    visitorSortDirection = 'asc';
+  }
+  updateVisitorSortIndicators();
+  renderVisitorTable();
+}
+
+function updateVisitorSortIndicators() {
+  document.querySelectorAll('[data-vsort]').forEach(function(th) {
+    th.classList.remove('active', 'asc');
+    if (th.dataset.vsort === visitorSortColumn) {
+      th.classList.add('active');
+      if (visitorSortDirection === 'asc') th.classList.add('asc');
+    }
+  });
+}
+
+function renderVisitorTable() {
+  var tbody = document.getElementById('visitorsTableBody');
+  if (!allVisitors || allVisitors.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No visitor data for this date range.</td></tr>';
+    return;
+  }
+
+  var sorted = allVisitors.slice().sort(function(a, b) {
+    var aVal, bVal;
+    if (visitorSortColumn === 'time_on_page') {
+      aVal = a.time_on_page || 0;
+      bVal = b.time_on_page || 0;
+    } else if (visitorSortColumn === 'created_at') {
+      aVal = a.created_at || '';
+      bVal = b.created_at || '';
+    } else {
+      aVal = String(a[visitorSortColumn] || '').toLowerCase();
+      bVal = String(b[visitorSortColumn] || '').toLowerCase();
+    }
+    var dir = visitorSortDirection === 'asc' ? 1 : -1;
+    if (aVal < bVal) return -1 * dir;
+    if (aVal > bVal) return 1 * dir;
+    return 0;
+  });
+
+  var rows = sorted.map(function(v) {
+    var date = new Date(v.created_at).toLocaleString();
+    var timeOnPage = v.time_on_page ? (v.time_on_page + 's') : '—';
+    return '<tr>' +
+      '<td style="white-space:nowrap;">' + date + '</td>' +
+      '<td>' + escapeHtml(v.page_path || '/') + '</td>' +
+      '<td>' + escapeHtml(v.country || '—') + '</td>' +
+      '<td style="text-transform:capitalize;">' + escapeHtml(v.device_type || '—') + '</td>' +
+      '<td style="text-transform:capitalize;">' + escapeHtml(v.browser || '—') + '</td>' +
+      '<td style="text-transform:capitalize;">' + escapeHtml(v.os || '—') + '</td>' +
+      '<td>' + escapeHtml(v.referral_code || '—') + '</td>' +
+      '<td>' + escapeHtml(v.external_referrer || '—') + '</td>' +
+      '<td>' + timeOnPage + '</td>' +
+    '</tr>';
+  }).join('');
+  tbody.innerHTML = rows;
+}
+
+// ---- Sort Sessions ----
+function sortSessions(column) {
+  if (sessionSortColumn === column) {
+    sessionSortDirection = sessionSortDirection === 'asc' ? 'desc' : 'asc';
+  } else {
+    sessionSortColumn = column;
+    sessionSortDirection = 'asc';
+  }
+  updateSessionSortIndicators();
+  renderSessionsTable();
+}
+
+function updateSessionSortIndicators() {
+  document.querySelectorAll('[data-ssort]').forEach(function(th) {
+    th.classList.remove('active', 'asc');
+    if (th.dataset.ssort === sessionSortColumn) {
+      th.classList.add('active');
+      if (sessionSortDirection === 'asc') th.classList.add('asc');
+    }
+  });
+}
+
+function renderSessionsTable() {
+  var tbody = document.getElementById('sessionsTableBody');
+  if (!allSessions || allSessions.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No session data for this date range.</td></tr>';
+    return;
+  }
+
+  var sorted = allSessions.slice().sort(function(a, b) {
+    var aVal, bVal;
+    if (sessionSortColumn === 'totalTimeOnSite') {
+      aVal = a.totalTimeOnSite || 0;
+      bVal = b.totalTimeOnSite || 0;
+    } else if (sessionSortColumn === 'pagesCount') {
+      aVal = a.pages ? a.pages.length : 0;
+      bVal = b.pages ? b.pages.length : 0;
+    } else if (sessionSortColumn === 'firstVisit') {
+      aVal = a.firstVisit || '';
+      bVal = b.firstVisit || '';
+    } else {
+      aVal = String(a[sessionSortColumn] || '').toLowerCase();
+      bVal = String(b[sessionSortColumn] || '').toLowerCase();
+    }
+    var dir = sessionSortDirection === 'asc' ? 1 : -1;
+    if (aVal < bVal) return -1 * dir;
+    if (aVal > bVal) return 1 * dir;
+    return 0;
+  });
+
+  var sessRows = sorted.map(function(s, idx) {
+    var firstVisit = new Date(s.firstVisit).toLocaleString();
+    var pagesList = s.pages.map(function(p) {
+      var time = p.timeOnPage ? (p.timeOnPage + 's') : '—';
+      return '<div style="padding:2px 0;font-size:12px;">' +
+             '<span style="color:var(--text);">' + escapeHtml(p.pagePath || '/') + '</span>' +
+             ' <span style="color:var(--text-muted);">(' + time + ')</span></div>';
+    }).join('');
+    var totalTime = s.totalTimeOnSite > 0 ? (s.totalTimeOnSite + 's') : '—';
+    return '<tr>' +
+      '<td style="white-space:nowrap;">' + firstVisit + '</td>' +
+      '<td>' + s.pages.length + '</td>' +
+      '<td style="max-width:300px;">' + pagesList + '</td>' +
+      '<td>' + totalTime + '</td>' +
+      '<td>' + escapeHtml(s.country || '—') + '</td>' +
+      '<td style="text-transform:capitalize;">' + escapeHtml(s.deviceType || '—') + '</td>' +
+      '<td style="text-transform:capitalize;">' + escapeHtml(s.browser || '—') + '</td>' +
+      '<td style="text-transform:capitalize;">' + escapeHtml(s.os || '—') + '</td>' +
+      '<td>' + escapeHtml(s.referralCode || '—') + '</td>' +
+    '</tr>';
+  }).join('');
+  tbody.innerHTML = sessRows;
 }
 
 // ---- Auth Check ----
@@ -511,10 +632,8 @@ function renderTable(partners) {
       actions = '<button class="owner-action-btn owner-btn-approve" onclick="openApproveModal(\'' + p.id + '\',\'' + escapeJs(p.partner_name) + '\')">Approve</button>';
       actions += '<button class="owner-action-btn owner-btn-reject" onclick="openRejectModal(\'' + p.id + '\',\'' + escapeJs(p.partner_name) + '\')">Reject</button>';
     } else if (p.status === 'Pending W-9 Review') {
-      // Owner can re-approve (the partner already has a referral code, so we just set status back to Approved)
       actions = '<button class="owner-action-btn owner-btn-approve" onclick="reapproveW9(\'' + p.id + '\',\'' + escapeJs(p.partner_name) + '\')">Re-Approve</button>';
     } else if (p.status === 'Approved') {
-      // Show Activate or Deactivate button depending on current state
       if (p.active === 1) {
         actions = '<button class="owner-action-btn owner-btn-deactivate" onclick="toggleActive(\'' + p.id + '\',\'' + escapeJs(p.partner_name) + '\')">Deactivate</button>';
       } else {
@@ -600,11 +719,8 @@ function sortPartners(partners) {
       aVal = getW9SortValue(a);
       bVal = getW9SortValue(b);
     } else if (col === 'created_at' || col === 'last_referred') {
-      // Both created_at and last_referred are date strings (ISO).
-      // Null/empty values sort to the bottom.
       aVal = (a[col] || '');
       bVal = (b[col] || '');
-      // When sorting dates, empty values should always be last regardless of direction
       if (!aVal && bVal) return 1;
       if (aVal && !bVal) return -1;
       if (!aVal && !bVal) return 0;
@@ -780,8 +896,6 @@ async function submitChangePassword() {
 }
 
 // ---- Re-Approve W-9 (for Pending W-9 Review partners) ----
-// Sets the partner back to Approved with active=1.
-// The partner keeps their existing referral code — only the W-9 was renewed.
 async function reapproveW9(partnerId, partnerName) {
   if (!confirm('Re-approve ' + partnerName + '? Their referral link will be reactivated.')) return;
   try {
@@ -803,9 +917,6 @@ async function reapproveW9(partnerId, partnerName) {
 }
 
 // ---- Activate/Deactivate Toggle (for Approved partners) ----
-// Silently toggles the active state of an Approved partner.
-// No email is sent. The referrer can still log in when deactivated,
-// but their referral link stops working (tracking checks active=1).
 async function toggleActive(partnerId, partnerName) {
   if (!confirm('Toggle active state for ' + partnerName + '?')) return;
   try {
@@ -841,8 +952,6 @@ function regenerateCode() {
 }
 
 function defaultW9Expiration() {
-  // W-9 expires on December 31 of the year it was uploaded.
-  // A new W-9 is required each calendar year.
   return new Date().getFullYear() + '-12-31';
 }
 
@@ -870,7 +979,6 @@ function showError(msg) {
 
 var allCustomers = [];
 
-// ---- Load Customers ----
 async function loadCustomers() {
   var listEl = document.getElementById('customerList');
   listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading customers…</div>';
@@ -952,7 +1060,6 @@ function filterCustomers() {
 // SYSTEM STATUS TAB LOGIC
 // =========================================================================
 
-// ---- Load System Status ----
 async function loadSystemStatus() {
   document.getElementById('sysLastCheck').textContent = new Date().toLocaleString();
 
@@ -982,7 +1089,6 @@ async function loadSystemStatus() {
     }
   }
 
-  // D1 — referral_partners count
   try {
     var resp = await fetch('/api/admin/referral-partners');
     var data = await resp.json();
@@ -993,7 +1099,6 @@ async function loadSystemStatus() {
     document.getElementById('sysD1Partners').textContent = 'Unable to count';
   }
 
-  // D1 — site_visitors count
   try {
     var vResp = await fetch('/api/admin/site-visitors?summary=true');
     var vData = await vResp.json();
@@ -1004,7 +1109,6 @@ async function loadSystemStatus() {
     document.getElementById('sysD1Visitors').textContent = 'Unable to count';
   }
 
-  // D1 — referral_activity count
   try {
     var pResp = await fetch('/api/admin/referral-partners');
     var pData = await pResp.json();
@@ -1026,7 +1130,6 @@ async function loadSystemStatus() {
 
 var allIssues = [];
 
-// ---- Load Issues ----
 async function loadIssues() {
   var listEl = document.getElementById('issueList');
   listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading issues...</div>';
@@ -1107,7 +1210,6 @@ function filterIssues() {
 // LOGOUT
 // =========================================================================
 
-// ---- Logout ----
 async function ownerLogout() {
   try {
     await fetch('/auth/logout', { method: 'POST' });
