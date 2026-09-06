@@ -712,14 +712,25 @@
                             <input type="text" id="achRoutingNumber" placeholder="123456789" maxlength="9" pattern="[0-9]*" style="width:100%;padding:10px 12px;border:1px solid var(--border-input);border-radius:6px;font-size:14px;background:var(--bg-input);color:var(--text);box-sizing:border-box;font-family:monospace;" />
                         </div>
                         <div>
+                            <label style="font-size:14px;font-weight:600;display:block;margin-bottom:4px;">Confirm Routing Number</label>
+                            <input type="text" id="achRoutingNumberConfirm" placeholder="123456789" maxlength="9" pattern="[0-9]*" style="width:100%;padding:10px 12px;border:1px solid var(--border-input);border-radius:6px;font-size:14px;background:var(--bg-input);color:var(--text);box-sizing:border-box;font-family:monospace;" />
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                        <div>
                             <label style="font-size:14px;font-weight:600;display:block;margin-bottom:4px;">Account Number</label>
                             <input type="text" id="achAccountNumber" placeholder="••••••••" maxlength="17" pattern="[0-9]*" style="width:100%;padding:10px 12px;border:1px solid var(--border-input);border-radius:6px;font-size:14px;background:var(--bg-input);color:var(--text);box-sizing:border-box;font-family:monospace;" />
                             <div style="font-size:12px;color:var(--text-muted);margin-top:2px;" id="achAccountNumberHint">Enter full account number</div>
                         </div>
+                        <div>
+                            <label style="font-size:14px;font-weight:600;display:block;margin-bottom:4px;">Confirm Account Number</label>
+                            <input type="text" id="achAccountNumberConfirm" placeholder="••••••••" maxlength="17" pattern="[0-9]*" style="width:100%;padding:10px 12px;border:1px solid var(--border-input);border-radius:6px;font-size:14px;background:var(--bg-input);color:var(--text);box-sizing:border-box;font-family:monospace;" />
+                            <div style="font-size:12px;color:var(--text-muted);margin-top:2px;" id="achAccountNumberConfirmHint">Re-enter to verify</div>
+                        </div>
                     </div>
                     <div style="margin-bottom:16px;">
                         <label style="font-size:14px;font-weight:600;display:block;margin-bottom:4px;">Name on Account</label>
-                        <input type="text" id="achNameOnAccount" placeholder="Full name as it appears on the account" style="width:100%;padding:10px 12px;border:1px solid var(--border-input);border-radius:6px;font-size:14px;background:var(--bg-input);color:var(--text);box-sizing:border-box;" />
+                        <input type="text" id="achNameOnAccount" placeholder="Full name as it appears on the bank account (not your email)" autocomplete="off" style="width:100%;padding:10px 12px;border:1px solid var(--border-input);border-radius:6px;font-size:14px;background:var(--bg-input);color:var(--text);box-sizing:border-box;" />
                     </div>
 
                     <button onclick="savePaymentInfo()" style="background:var(--primary);color:#fff;border:none;padding:12px 24px;border-radius:6px;font-size:15px;font-weight:600;cursor:pointer;">Save Payment Info</button>
@@ -1251,12 +1262,44 @@ async function savePaymentInfo() {
     var bankName = document.getElementById('achBankName').value.trim();
     var accountType = document.getElementById('achAccountType').value;
     var routingNumber = document.getElementById('achRoutingNumber').value.trim();
+    var routingNumberConfirm = document.getElementById('achRoutingNumberConfirm').value.trim();
     var accountNumber = document.getElementById('achAccountNumber').value.trim();
+    var accountNumberConfirm = document.getElementById('achAccountNumberConfirm').value.trim();
     var nameOnAccount = document.getElementById('achNameOnAccount').value.trim();
     var msg = document.getElementById('achSaveMsg');
 
-    if (!bankName || !accountType || !routingNumber || !nameOnAccount) {
-        msg.innerHTML = '<span style="color:#cc0000;">Please fill in all fields. Account number is only required when updating.</span>';
+    // Validate all required fields
+    if (!bankName) {
+        msg.innerHTML = '<span style="color:#cc0000;">Bank name is required.</span>';
+        return;
+    }
+    if (!accountType) {
+        msg.innerHTML = '<span style="color:#cc0000;">Account type is required.</span>';
+        return;
+    }
+    if (!routingNumber) {
+        msg.innerHTML = '<span style="color:#cc0000;">Routing number is required.</span>';
+        return;
+    }
+    if (routingNumber.length !== 9 || !/^\d{9}$/.test(routingNumber)) {
+        msg.innerHTML = '<span style="color:#cc0000;">Routing number must be exactly 9 digits.</span>';
+        return;
+    }
+    if (!routingNumberConfirm) {
+        msg.innerHTML = '<span style="color:#cc0000;">Please confirm your routing number.</span>';
+        return;
+    }
+    if (routingNumber !== routingNumberConfirm) {
+        msg.innerHTML = '<span style="color:#cc0000;">Routing numbers do not match. Please re-enter.</span>';
+        return;
+    }
+    if (!nameOnAccount) {
+        msg.innerHTML = '<span style="color:#cc0000;">Name on account is required.</span>';
+        return;
+    }
+    // Prevent email in name field
+    if (nameOnAccount.includes('@')) {
+        msg.innerHTML = '<span style="color:#cc0000;">Name on account should be a person or business name, not an email address.</span>';
         return;
     }
 
@@ -1268,14 +1311,23 @@ async function savePaymentInfo() {
             var checkData = await checkResp.json();
             if (checkData.success && checkData.paymentInfo && checkData.paymentInfo.account_number_last4) {
                 // Already on file — save without account number (keep existing)
-                // We'll send a flag to keep the existing account number
                 accountNumber = '__KEEP_EXISTING__';
             } else {
-                msg.innerHTML = '<span style="color:#cc0000;">Please enter your account number.</span>';
+                msg.innerHTML = '<span style="color:#cc0000;">Account number is required.</span>';
                 return;
             }
         } catch (e) {
-            msg.innerHTML = '<span style="color:#cc0000;">Please enter your account number.</span>';
+            msg.innerHTML = '<span style="color:#cc0000;">Account number is required.</span>';
+            return;
+        }
+    } else {
+        // Account number entered — validate confirm field
+        if (!accountNumberConfirm) {
+            msg.innerHTML = '<span style="color:#cc0000;">Please confirm your account number.</span>';
+            return;
+        }
+        if (accountNumber !== accountNumberConfirm) {
+            msg.innerHTML = '<span style="color:#cc0000;">Account numbers do not match. Please re-enter.</span>';
             return;
         }
     }
@@ -1299,8 +1351,10 @@ async function savePaymentInfo() {
         if (data.success) {
             msg.innerHTML = '<span style="color:#166534;">Payment information saved successfully!</span>';
             loadPaymentInfo();
-            // Clear the account number field after save
+            // Clear the account number fields after save
             document.getElementById('achAccountNumber').value = '';
+            document.getElementById('achAccountNumberConfirm').value = '';
+            document.getElementById('achRoutingNumberConfirm').value = '';
         } else {
             msg.innerHTML = '<span style="color:#cc0000;">' + (data.error || 'Failed to save.') + '</span>';
         }
