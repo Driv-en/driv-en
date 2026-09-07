@@ -13,7 +13,7 @@
 //   - R2: W9_BUCKET → w9-uploads
 //   - Secret: JWT_SECRET (same value as the auth worker)
 //
-// LAST UPDATED: September 4, 2026
+// LAST UPDATED: September 7, 2026
 // ============================================================================
 
 const CORS_HEADERS = {
@@ -23,6 +23,43 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Credentials': 'true',
   'Access-Control-Max-Age': '86400'
 };
+
+// ---------------------------------------------------------------------------
+// logError — writes to error_log D1 table (Error Logs tab)
+// Captures: source, error message, stack trace, request URL, method, user agent
+// ---------------------------------------------------------------------------
+async function logError(env, source, err, request) {
+  try {
+    await env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS error_log (
+        id TEXT PRIMARY KEY, source TEXT, error_message TEXT,
+        stack_trace TEXT, severity TEXT DEFAULT 'error',
+        resolved INTEGER DEFAULT 0, created_at TEXT
+      )`
+    ).run();
+    const errorId = 'ERR-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    let stackTrace = (err && err.stack) ? err.stack : 'No stack trace';
+    if (request) {
+      try {
+        const url = new URL(request.url);
+        stackTrace += '\n\n--- REQUEST CONTEXT ---' +
+          '\nURL: ' + request.url +
+          '\nMethod: ' + request.method +
+          '\nPath: ' + url.pathname +
+          '\nUser-Agent: ' + (request.headers.get('User-Agent') || 'N/A') +
+          '\nCF-Ray: ' + (request.headers.get('CF-Ray') || 'N/A') +
+          '\nTime: ' + new Date().toISOString();
+      } catch (u) { /* ignore */ }
+    }
+    await env.DB.prepare(
+      `INSERT INTO error_log (id, source, error_message, stack_trace, severity, resolved, created_at)
+       VALUES (?, ?, ?, ?, 'error', 0, ?)`
+    ).bind(errorId, source, (err && err.message) ? err.message : 'Unknown error',
+           stackTrace, new Date().toISOString()).run();
+  } catch (dbErr) {
+    console.error('Failed to write to error_log:', dbErr.message);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // JWT helpers — parse and verify the session cookie directly
@@ -205,6 +242,7 @@ export async function onRequestGet(context) {
         }
       });
     } catch (e) {
+      await logError(env, 'pages:w9-download', e);
       return new Response(JSON.stringify({ success: false, error: 'Failed to decode W-9 data: ' + e.message }), {
         status: 500,
         headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
