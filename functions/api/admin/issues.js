@@ -1,7 +1,7 @@
 // ============================================================================
 // Pages Function: /api/admin/issues
 // ============================================================================
-// PURPOSE: Admin API for the Owner Dashboard's "Issues" tab.
+// PURPOSE: Admin API for the Owner Dashboard's "Error Logs" tab.
 //   GET /api/admin/issues          — List all error log entries (newest first)
 //   POST /api/admin/issues         — Resolve/unresolve an issue
 //     Body: { id: "...", resolved: true|false }
