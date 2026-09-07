@@ -95,8 +95,7 @@ export async function onRequestPost(context) {
       return jsonResponse({ success: true, valid: false, error: 'This code has reached its usage limit.' }, 200);
     }
 
-    // Check if the code itself has expired (valid_until is the free access end date,
-    // not the code expiration — but we can check if the free period is already over)
+    // Check if the code itself has expired
     if (promo.valid_until) {
       const now = new Date();
       const validUntil = new Date(promo.valid_until + 'T23:59:59');
