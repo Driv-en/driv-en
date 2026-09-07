@@ -4,11 +4,10 @@
   <meta charset="UTF-8" />
   <title>DRIV‑EN – Checkout</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<!-- Favicon -->
-<link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
-<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
-<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
-<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
+  <link rel="icon" type="image/png" href="/favicon.png" sizes="48x48">
+  <link rel="icon" type="image/png" href="/favicon-96.png" sizes="96x96">
+  <link rel="icon" type="image/png" href="/favicon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="/favicon-180.png">
 
 <style>
   body {
@@ -429,7 +428,7 @@ window.addEventListener('resize', updateHeaderLineTop);
   </div>
 
   <a href="/index.html">
-    <img class="logo" src="/assets/logo.png?v=2026" alt="DRIV‑EN Logo" />
+    <img class="logo" src="/logo.png?v=2" alt="DRIV‑EN Logo" />
   </a>
 </header>
 
@@ -481,7 +480,7 @@ window.addEventListener('resize', updateHeaderLineTop);
       <div class="form-field">
         <label>Tax</label>
         <span style="font-size:12px;color:#9ca3af;">
-          Taxes are only collected for Texas-based businesses (8.25% sales tax). All other states are tax-exempt.
+          Calculated after entering company address. Texas businesses are subject to sales tax.
         </span>
         <input id="invoiceTax" type="text" readonly />
       </div>
@@ -633,17 +632,18 @@ window.addEventListener('resize', updateHeaderLineTop);
 
   <!-- Updated Footer -->
 <footer>
-  © Digital Safety Inspection LLC · DRIV‑EN Platform<br>
+  <div class="footer-line">© Digital Safety Inspection, LLC</div>
+  <div class="footer-line">DRIV‑EN Platform</div>
 
-  <span class="footer-line">
-    <a href="/website/legal/terms.html">Terms of Service</a> |
-    <a href="/website/legal/privacy.html">Privacy Policy</a>
-  </span>
+  <div class="footer-line">
+    <a href="/public/legal/terms.html">Terms of Service</a> |
+    <a href="/public/legal/privacy.html">Privacy Policy</a>
+  </div>
 
-  <span class="footer-line">
-    <a href="/website/legal/refund.html">Refund Policy</a> |
+  <div class="footer-line">
+    <a href="/public/legal/refund.html">Refund Policy</a> |
     <a href="mailto:support@driv-en.com">Contact</a>
-  </span>
+  </div>
 </footer>
 
 <script>
@@ -700,7 +700,21 @@ const MODULE_MAP = {
 
 /* ----------------------------------------------------
    RENDER MODULES (SAFE DOM VERSION)
+   Handles both short keys (equipment, pm) and full names (Equipment Management)
 ---------------------------------------------------- */
+// Reverse map: full name -> short key
+const NAME_TO_KEY = {};
+Object.keys(MODULE_MAP).forEach(k => { NAME_TO_KEY[MODULE_MAP[k]] = k; });
+
+function resolveKey(item) {
+  // If it's already a short key, return it
+  if (PRICES[item]) return item;
+  // If it's a full name, convert to short key
+  if (NAME_TO_KEY[item]) return NAME_TO_KEY[item];
+  // Unknown — return as-is
+  return item;
+}
+
 function renderModules() {
   const payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
 
@@ -715,9 +729,10 @@ function renderModules() {
   const modulesList = document.getElementById("modulesList");
   modulesList.innerHTML = ""; // clear safely
 
-  selectedModules.forEach(key => {
-    const name = MODULE_MAP[key];
-    const price = PRICES[key];
+  selectedModules.forEach(item => {
+    const key = resolveKey(item);
+    const name = MODULE_MAP[key] || item;
+    const price = PRICES[key] || 0;
     sumUnitPrices += price;
 
     const row = document.createElement("div");
@@ -773,6 +788,18 @@ function renderModules() {
     modulesList.appendChild(row);
   }
 
+  // Check if this is a free access path
+  const isFree = payload.isFree || payload.billingPeriod === "free";
+
+  if (isFree) {
+    document.getElementById("invoicePeriod").value = "Free Access (Founding Member)";
+    document.getElementById("invoiceSubtotal").value = "$0.00";
+    document.getElementById("invoiceTax").value = "$0.00";
+    document.getElementById("invoiceTotal").value = "$0.00";
+    document.getElementById("invoiceSavingsBox").textContent = "Founding Member Code applied — no payment required.";
+    return;
+  }
+
   const periodLabel =
     payload.billingPeriod === "annual"
       ? "Annual (10% discount applied)"
@@ -799,13 +826,52 @@ function renderModules() {
     const annualUnitTotal = sumUnitPrices * 12;
     savingsNumber = annualUnitTotal - subtotal;
   }
-  if (savingsNumber < 0) savingsNumber = 0;
+  if (savingsNumber < 0 || isNaN(savingsNumber)) savingsNumber = 0;
 
   document.getElementById("invoiceSavingsBox").textContent =
     `Total Savings: $${savingsNumber.toFixed(2)}`;
 }
 
 renderModules();
+
+/* ----------------------------------------------------
+   FREE ACCESS PATH — detect promo code / founding member
+   If isFree is true in the checkout payload:
+   - Hide the payment/card section
+   - Show $0.00 for all amounts
+   - Change button to "Complete Setup"
+   - Pass isFree + promoCode to the worker
+---------------------------------------------------- */
+const checkoutPayload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
+
+if (checkoutPayload.isFree || checkoutPayload.billingPeriod === "free") {
+  // Hide payment section
+  const paymentCard = document.querySelector('.card:nth-of-type(4)');
+  if (paymentCard) {
+    paymentCard.style.display = 'none';
+  }
+
+  // Hide billing address toggle too
+  const billingToggle = document.getElementById('billingSameAsCompany');
+  if (billingToggle) {
+    billingToggle.parentElement.parentElement.style.display = 'none';
+  }
+
+  // Override all amounts to $0.00
+  document.getElementById("invoiceSubtotal").value = "$0.00";
+  document.getElementById("invoiceTax").value = "$0.00";
+  document.getElementById("invoiceTotal").value = "$0.00";
+  document.getElementById("invoicePeriod").value = "Free Access (Founding Member)";
+  document.getElementById("invoiceSavingsBox").textContent = "Founding Member Code applied — no payment required.";
+
+  // Change button text
+  const btnConfirm = document.getElementById("btnConfirm");
+  btnConfirm.textContent = "Complete Setup";
+
+  // Update header subtitle
+  const headerSpan = document.querySelector('header .title-block span');
+  if (headerSpan) headerSpan.textContent = "Free access — confirm your account details";
+}
 
 /* ----------------------------------------------------
    LIVE TAX UPDATE
@@ -943,9 +1009,6 @@ initStripe();
    CONFIRM PAYMENT (SAFE DOM VERSION)
    FIX: status bars now use .show class so messages are visible.
         Button is disabled during processing to prevent duplicates.
-   NOTE: This code will be altered once Stripe is added to the website.
-         The temporary Stripe bypass (error = null) will be replaced
-         with actual Stripe payment processing.
 ---------------------------------------------------- */
 document.getElementById("btnConfirm").addEventListener("click", async () => {
   if (!validateForm()) return;
@@ -999,6 +1062,9 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
     modulesSelected: modulesSelected,
     subscriptionType: payload.billingPeriod === "annual" ? "Annual" : "Monthly",
     accessPeriod: payload.billingPeriod === "annual" ? "12 months" : "1 month",
+    // Free access path (founding member promo code)
+    isFree: !!(payload.isFree || payload.billingPeriod === "free"),
+    promoCode: payload.promoCode || localStorage.getItem("driven_promo_code") || "",
     // ⭐ Referral: capture ref from URL query string (e.g. ?ref=DRV-123)
     referralCode: new URLSearchParams(window.location.search).get("ref") || ""
   };
@@ -1043,7 +1109,7 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
   btnConfirm.textContent = "Processing...";
 
   try {
-    // ⭐ TEMPORARY STRIPE BYPASS — will be replaced with actual Stripe payment processing
+    // ⭐ TEMPORARY STRIPE BYPASS
     const error = null;
 
     if (error) {
@@ -1083,16 +1149,22 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
     // --- Success ---
     cardErrors.classList.remove("show");
 
+    const isFreeOrder = !!(payload.isFree || payload.billingPeriod === "free");
+
     const img = document.createElement("img");
-    img.src = "/assets/logo.png?v=2026";
+    img.src = "/logo.png?v=2";
     img.alt = "DRIV‑EN Logo";
     img.style.height = "80px";
     img.style.verticalAlign = "middle";
 
-    statusSuccess.textContent = "Order confirmed. Thank you for choosing ";
+    if (isFreeOrder) {
+      statusSuccess.textContent = "Account created! Check your email for activation details. Welcome to ";
+    } else {
+      statusSuccess.textContent = "Order confirmed. Thank you for choosing ";
+    }
     statusSuccess.appendChild(img);
 
-    btnConfirm.textContent = "✓ Order Confirmed";
+    btnConfirm.textContent = isFreeOrder ? "✓ Account Created" : "✓ Order Confirmed";
 
     // Clear cart so the order can't be accidentally re-submitted
     localStorage.removeItem("driven_checkout_payload");
