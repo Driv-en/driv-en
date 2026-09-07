@@ -15,11 +15,7 @@
 //   - D1: DB → driv-en-db
 //   - Secret: JWT_SECRET (same value as the auth worker)
 //
-// LAST UPDATED: September 6, 2026
-// CHANGES:
-//   - Added uniqueVisitors count (COUNT DISTINCT visitor_id)
-//   - Session grouping now falls back to visitor_id when session_id is empty
-//   - Visitor list query now includes visitor_id column
+// LAST UPDATED: September 7, 2026
 // ============================================================================
 
 const CORS_HEADERS = {
@@ -35,6 +31,43 @@ function jsonResponse(obj, status) {
     status: status || 200,
     headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
   });
+}
+
+// ---------------------------------------------------------------------------
+// logError — writes to error_log D1 table (Error Logs tab)
+// Captures: source, error message, stack trace, request URL, method, user agent
+// ---------------------------------------------------------------------------
+async function logError(env, source, err, request) {
+  try {
+    await env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS error_log (
+        id TEXT PRIMARY KEY, source TEXT, error_message TEXT,
+        stack_trace TEXT, severity TEXT DEFAULT 'error',
+        resolved INTEGER DEFAULT 0, created_at TEXT
+      )`
+    ).run();
+    const errorId = 'ERR-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    let stackTrace = (err && err.stack) ? err.stack : 'No stack trace';
+    if (request) {
+      try {
+        const url = new URL(request.url);
+        stackTrace += '\n\n--- REQUEST CONTEXT ---' +
+          '\nURL: ' + request.url +
+          '\nMethod: ' + request.method +
+          '\nPath: ' + url.pathname +
+          '\nUser-Agent: ' + (request.headers.get('User-Agent') || 'N/A') +
+          '\nCF-Ray: ' + (request.headers.get('CF-Ray') || 'N/A') +
+          '\nTime: ' + new Date().toISOString();
+      } catch (u) { /* ignore */ }
+    }
+    await env.DB.prepare(
+      `INSERT INTO error_log (id, source, error_message, stack_trace, severity, resolved, created_at)
+       VALUES (?, ?, ?, ?, 'error', 0, ?)`
+    ).bind(errorId, source, (err && err.message) ? err.message : 'Unknown error',
+           stackTrace, new Date().toISOString()).run();
+  } catch (dbErr) {
+    console.error('Failed to write to error_log:', dbErr.message);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -184,12 +217,14 @@ async function handleListVisitors(request, env) {
 
   } catch (e) {
     console.error('[SITE-VISITORS] List failed:', e.message);
+    await logError(env, 'pages:site-visitors (list)', e);
     return jsonResponse({ success: false, error: 'Failed to load visitors: ' + e.message }, 500);
   }
 }
 
 // ---------------------------------------------------------------------------
-// Session-grouped data — groups page visits by session_id (or visitor_id fallback)
+// Session-grouped data — groups page visits by session_id, showing each
+// page visited and total time on site per session
 // ---------------------------------------------------------------------------
 async function handleSessions(request, env, startDate, endDate) {
   try {
@@ -254,6 +289,7 @@ async function handleSessions(request, env, startDate, endDate) {
 
   } catch (e) {
     console.error('[SITE-VISITORS] Sessions failed:', e.message);
+    await logError(env, 'pages:site-visitors (sessions)', e);
     return jsonResponse({ success: false, error: 'Failed to load sessions: ' + e.message }, 500);
   }
 }
@@ -346,6 +382,7 @@ async function handleSummary(request, env, startDate, endDate) {
 
   } catch (e) {
     console.error('[SITE-VISITORS] Summary failed:', e.message);
+    await logError(env, 'pages:site-visitors (summary)', e);
     return jsonResponse({ success: false, error: 'Failed to load summary: ' + e.message }, 500);
   }
 }
