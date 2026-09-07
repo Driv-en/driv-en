@@ -258,6 +258,29 @@ footer a {
 
 <h2>Select the modules your business needs</h2>
 
+<!-- Founding Member Code section -->
+<div id="promoSection" style="background:#022c22;border:1px solid #22c55e;border-radius:8px;padding:16px 20px;margin-bottom:20px;">
+  <h3 style="margin:0 0 8px 0;font-size:16px;color:#bbf7d0;">Founding Member Code</h3>
+  <p style="font-size:13px;color:#9ca3af;margin:0 0 12px 0;">
+    Have a Founding Member Code? Enter it here to get free full access to DRIV-EN through December 31, 2026.
+    No credit card required.
+  </p>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <input type="text" id="promoCodeInput" placeholder="Enter your code" style="flex:1;min-width:200px;padding:10px 14px;border:1px solid #374151;border-radius:6px;font-size:14px;background:#0f172a;color:#e5e7eb;box-sizing:border-box;" />
+    <button id="btnApplyPromo" style="background:#22c55e;border:1px solid #16a34a;color:#022c22;font-weight:600;padding:10px 20px;border-radius:6px;font-size:14px;cursor:pointer;white-space:nowrap;">Apply Code</button>
+  </div>
+  <div id="promoMsg" style="font-size:13px;margin-top:8px;min-height:18px;"></div>
+</div>
+
+<!-- Free access banner (shown when promo code is valid) -->
+<div id="freeAccessBanner" style="display:none;background:#022c22;border:2px solid #22c55e;border-radius:8px;padding:16px 20px;margin-bottom:20px;text-align:center;">
+  <h3 style="margin:0 0 4px 0;font-size:18px;color:#bbf7d0;">✓ Free Access Granted!</h3>
+  <p style="margin:0;font-size:14px;color:#86efac;">
+    Your Founding Member Code is valid. You have full access to all modules through <strong>December 31, 2026</strong>.
+    No payment required — proceed directly to setup.
+  </p>
+</div>
+
 <!-- Green banner for bundle/module selection -->
 <div id="selectionBanner"></div>
 
@@ -267,7 +290,7 @@ footer a {
 </p>
 
 <!-- Pricing note + plan banner -->
-<div class="pricing-note">
+<div class="pricing-note" id="pricingNote">
 
   <!-- Bundle activation banner (hidden until bundle is selected) -->
   <div id="planBanner" class="plan-banner" style="display:none;">
@@ -329,7 +352,7 @@ footer a {
           <div class="module-price">$299/month</div>
           <div class="module-desc">
             Automated PM schedules, manufacturer‑accurate templates, and guided technician workflows.
-            DRIV‑EN’s extraction engine reads equipment manuals, manufacturer documentation, and configuration details to identify part numbers, fluid types, capacities, intervals, and safety requirements.
+            DRIV‑EN's extraction engine reads equipment manuals, manufacturer documentation, and configuration details to identify part numbers, fluid types, capacities, intervals, and safety requirements.
             PM completions update Equipment Management automatically and generate full digital reports.
           </div>
           <input type="checkbox" id="modPM" />
@@ -389,7 +412,7 @@ footer a {
           <label for="modExtraction">Extraction Engine</label>
           <div class="module-price">$149/month</div>
           <div class="module-desc">
-            DRIV‑EN’s extraction engine analyzes equipment manuals, manufacturer documentation, and configuration details to retrieve part numbers, fluid types, capacities, maintenance intervals, safety requirements, and operational specifications.
+            DRIV‑EN's extraction engine analyzes equipment manuals, manufacturer documentation, and configuration details to retrieve part numbers, fluid types, capacities, maintenance intervals, safety requirements, and operational specifications.
             This intelligence powers automated PM templates, inspection templates, and equipment configuration profiles.
             <br><br>
             <strong>Requires Preventative Maintenance or Equipment Inspections.</strong><br>
@@ -715,8 +738,37 @@ btnContinue.addEventListener("click", () => {
   }
 
   localStorage.setItem("selectedModules", JSON.stringify(selected));
-  window.location.href = "/public/cart.html";
+
+  // If promo code is valid, go directly to checkout (cart page will handle skip)
+  if (promoCodeValid && validatedPromoCode) {
+    localStorage.setItem("driven_promo_code", validatedPromoCode);
+    localStorage.setItem("driven_checkout_payload", JSON.stringify({
+      modules: selected,
+      billingPeriod: "free",
+      promoCode: validatedPromoCode,
+      isFree: true
+    }));
+    window.location.href = "/website/checkout.html";
+  } else {
+    window.location.href = "/public/cart.html";
+  }
 });
+
+/* -----------------------------
+   EXTRACTION ENGINE RULES
+------------------------------ */
+function updateExtractionRules() {
+  if (bundleActive) return;
+
+  const pmOrIns = modPM.checked || modIns.checked;
+
+  if (!pmOrIns) {
+    modExtraction.checked = false;
+    modExtraction.disabled = true;
+  } else {
+    modExtraction.disabled = false;
+  }
+}
 
 /* -----------------------------
    CLEAR MODULES
@@ -737,6 +789,106 @@ btnClear.addEventListener("click", () => {
   updateExtractionRules();
   statusBar.textContent = "";
   document.getElementById("selectionBanner").style.display = "none";
+});
+
+// ============================
+// FOUNDING MEMBER CODE (Promo Code)
+// (Placed after all module/bundle variables & functions are defined)
+// ============================
+const promoInput = document.getElementById("promoCodeInput");
+const btnApplyPromo = document.getElementById("btnApplyPromo");
+const promoMsg = document.getElementById("promoMsg");
+const freeAccessBanner = document.getElementById("freeAccessBanner");
+const pricingNote = document.getElementById("pricingNote");
+let promoCodeValid = false;
+let validatedPromoCode = null;
+
+async function validatePromoCode(code) {
+  if (!code || code.trim().length < 3) {
+    promoMsg.innerHTML = '<span style="color:#fca5a5;">Please enter a valid code.</span>';
+    promoCodeValid = false;
+    return;
+  }
+
+  promoMsg.innerHTML = '<span style="color:#9ca3af;">Checking code...</span>';
+  btnApplyPromo.disabled = true;
+
+  try {
+    const resp = await fetch('/api/validate-promo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code.trim() })
+    });
+    const data = await resp.json();
+
+    if (data.success && data.valid) {
+      promoCodeValid = true;
+      validatedPromoCode = code.trim();
+      localStorage.setItem("driven_promo_code", code.trim());
+      localStorage.setItem("driven_promo_type", data.type || "free_period");
+      localStorage.setItem("driven_promo_until", data.validUntil || "2026-12-31");
+
+      promoMsg.innerHTML = '<span style="color:#4ade80;">✓ Code verified! Free access granted.</span>';
+      freeAccessBanner.style.display = 'block';
+
+      // Hide pricing — everything is free
+      pricingNote.style.display = 'none';
+      document.querySelector('.bundle-note').style.display = 'none';
+
+      // Disable bundle checkboxes (not needed for free access)
+      bundleIds.forEach(id => {
+        document.getElementById(id).disabled = true;
+        document.getElementById(id).checked = false;
+      });
+
+      // Enable all modules (free access = full access)
+      [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(m => {
+        m.checked = true;
+        m.disabled = false;
+      });
+
+      bundleActive = false;
+      activeBundle = null;
+      showSelectionBanner();
+
+      // Change continue button text
+      btnContinue.textContent = "Continue to Setup →";
+    } else {
+      promoCodeValid = false;
+      validatedPromoCode = null;
+      localStorage.removeItem("driven_promo_code");
+      localStorage.removeItem("driven_promo_type");
+      localStorage.removeItem("driven_promo_until");
+      promoMsg.innerHTML = '<span style="color:#fca5a5;">' + (data.error || 'Invalid code. Please check and try again.') + '</span>';
+      freeAccessBanner.style.display = 'none';
+      btnContinue.textContent = "Continue";
+    }
+  } catch (e) {
+    promoCodeValid = false;
+    promoMsg.innerHTML = '<span style="color:#fca5a5;">Unable to verify code. Please try again.</span>';
+  } finally {
+    btnApplyPromo.disabled = false;
+  }
+}
+
+// Restore promo code if returning from cart (must run after functions defined)
+(function restorePromo() {
+  const savedPromo = localStorage.getItem("driven_promo_code");
+  if (savedPromo) {
+    promoInput.value = savedPromo;
+    validatePromoCode(savedPromo);
+  }
+})();
+
+btnApplyPromo.addEventListener("click", () => {
+  validatePromoCode(promoInput.value);
+});
+
+promoInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    validatePromoCode(promoInput.value);
+  }
 });
 
 </script>
@@ -760,4 +912,3 @@ btnClear.addEventListener("click", () => {
   
 </body>
 </html>
-
