@@ -4,10 +4,11 @@
   <meta charset="UTF-8" />
   <title>DRIV‑EN – Checkout</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" type="image/png" href="/favicon.png" sizes="48x48">
-  <link rel="icon" type="image/png" href="/favicon-96.png" sizes="96x96">
-  <link rel="icon" type="image/png" href="/favicon-192.png" sizes="192x192">
-  <link rel="apple-touch-icon" href="/favicon-180.png">
+<!-- Favicon -->
+<link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
 
 <style>
   body {
@@ -428,7 +429,7 @@ window.addEventListener('resize', updateHeaderLineTop);
   </div>
 
   <a href="/index.html">
-    <img class="logo" src="/logo.png?v=2" alt="DRIV‑EN Logo" />
+    <img class="logo" src="/assets/logo.png?v=2026" alt="DRIV‑EN Logo" />
   </a>
 </header>
 
@@ -480,7 +481,7 @@ window.addEventListener('resize', updateHeaderLineTop);
       <div class="form-field">
         <label>Tax</label>
         <span style="font-size:12px;color:#9ca3af;">
-          Calculated after entering company address. Texas businesses are subject to sales tax.
+          Taxes are only collected for Texas-based businesses (8.25% sales tax). All other states are tax-exempt.
         </span>
         <input id="invoiceTax" type="text" readonly />
       </div>
@@ -496,7 +497,7 @@ window.addEventListener('resize', updateHeaderLineTop);
   <div id="statusBanner" class="status-bar"></div>
 
   <!-- Customer Info -->
-  <div class="card">
+  <div class="card" id="customerInfoCard">
     <h3>Customer Information</h3>
 
     <div class="form-row">
@@ -602,7 +603,7 @@ window.addEventListener('resize', updateHeaderLineTop);
   </div>
 
   <!-- Payment -->
-  <div class="card">
+  <div class="card" id="paymentCard">
     <h3>Billing Information & Payment</h3>
 
     <div class="form-field">
@@ -632,18 +633,17 @@ window.addEventListener('resize', updateHeaderLineTop);
 
   <!-- Updated Footer -->
 <footer>
-  <div class="footer-line">© Digital Safety Inspection, LLC</div>
-  <div class="footer-line">DRIV‑EN Platform</div>
+  © Digital Safety Inspection LLC · DRIV‑EN Platform<br>
 
-  <div class="footer-line">
-    <a href="/public/legal/terms.html">Terms of Service</a> |
-    <a href="/public/legal/privacy.html">Privacy Policy</a>
-  </div>
+  <span class="footer-line">
+    <a href="/website/legal/terms.html">Terms of Service</a> |
+    <a href="/website/legal/privacy.html">Privacy Policy</a>
+  </span>
 
-  <div class="footer-line">
-    <a href="/public/legal/refund.html">Refund Policy</a> |
+  <span class="footer-line">
+    <a href="/website/legal/refund.html">Refund Policy</a> |
     <a href="mailto:support@driv-en.com">Contact</a>
-  </div>
+  </span>
 </footer>
 
 <script>
@@ -845,8 +845,8 @@ renderModules();
 const checkoutPayload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
 
 if (checkoutPayload.isFree || checkoutPayload.billingPeriod === "free") {
-  // Hide payment section
-  const paymentCard = document.querySelector('.card:nth-of-type(4)');
+  // Hide payment section (using ID, not nth-of-type which was buggy)
+  const paymentCard = document.getElementById('paymentCard');
   if (paymentCard) {
     paymentCard.style.display = 'none';
   }
@@ -951,7 +951,7 @@ function validateForm() {
     banner.textContent = "Please complete all required fields: " + missingFields.join(", ") + ".";
     banner.classList.add("show");
 
-    document.querySelector('.card:nth-of-type(3)').scrollIntoView({
+    document.getElementById('customerInfoCard').scrollIntoView({
       behavior: "smooth"
     });
 
@@ -1020,6 +1020,10 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
 
   // --- Build order data ---
   const payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
+
+  // Determine button label for resets (free path uses "Complete Setup")
+  const _isFreePath = !!(payload.isFree || payload.billingPeriod === "free");
+  const _btnLabel = _isFreePath ? "Complete Setup" : "Confirm & Pay";
 
   const subtotal = Number(payload.invoiceSubtotal || 0);
   const state = document.getElementById("state").value.trim();
@@ -1117,7 +1121,7 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
       cardErrors.classList.add("show");
       statusSuccess.classList.remove("show");
       btnConfirm.disabled = false;
-      btnConfirm.textContent = "Confirm & Pay";
+      btnConfirm.textContent = _btnLabel;
       return;
     }
 
@@ -1142,7 +1146,7 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
       cardErrors.classList.add("show");
       statusSuccess.classList.remove("show");
       btnConfirm.disabled = false;
-      btnConfirm.textContent = "Confirm & Pay";
+      btnConfirm.textContent = _btnLabel;
       return;
     }
 
@@ -1152,7 +1156,7 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
     const isFreeOrder = !!(payload.isFree || payload.billingPeriod === "free");
 
     const img = document.createElement("img");
-    img.src = "/logo.png?v=2";
+    img.src = "/assets/logo.png?v=2026";
     img.alt = "DRIV‑EN Logo";
     img.style.height = "80px";
     img.style.verticalAlign = "middle";
@@ -1175,7 +1179,7 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
     cardErrors.classList.add("show");
     statusSuccess.classList.remove("show");
     btnConfirm.disabled = false;
-    btnConfirm.textContent = "Confirm & Pay";
+    btnConfirm.textContent = _btnLabel;
   }
 });
 </script>
