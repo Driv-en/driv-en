@@ -29,7 +29,7 @@
 //   - Var: SENDGRID_FROM_EMAIL = noreply@driv-en.com
 //   - Var: SUPPORT_CONTACT = support@driv-en.com
 //
-// LAST UPDATED: September 3, 2026
+// LAST UPDATED: September 7, 2026
 // ============================================================================
 
 const CORS_HEADERS = {
@@ -44,6 +44,43 @@ function jsonResponse(obj, status) {
     status: status || 200,
     headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
   });
+}
+
+// ---------------------------------------------------------------------------
+// logError — writes to error_log D1 table (Error Logs tab)
+// Captures: source, error message, stack trace, request URL, method, user agent
+// ---------------------------------------------------------------------------
+async function logError(env, source, err, request) {
+  try {
+    await env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS error_log (
+        id TEXT PRIMARY KEY, source TEXT, error_message TEXT,
+        stack_trace TEXT, severity TEXT DEFAULT 'error',
+        resolved INTEGER DEFAULT 0, created_at TEXT
+      )`
+    ).run();
+    const errorId = 'ERR-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    let stackTrace = (err && err.stack) ? err.stack : 'No stack trace';
+    if (request) {
+      try {
+        const url = new URL(request.url);
+        stackTrace += '\n\n--- REQUEST CONTEXT ---' +
+          '\nURL: ' + request.url +
+          '\nMethod: ' + request.method +
+          '\nPath: ' + url.pathname +
+          '\nUser-Agent: ' + (request.headers.get('User-Agent') || 'N/A') +
+          '\nCF-Ray: ' + (request.headers.get('CF-Ray') || 'N/A') +
+          '\nTime: ' + new Date().toISOString();
+      } catch (u) { /* ignore */ }
+    }
+    await env.DB.prepare(
+      `INSERT INTO error_log (id, source, error_message, stack_trace, severity, resolved, created_at)
+       VALUES (?, ?, ?, ?, 'error', 0, ?)`
+    ).bind(errorId, source, (err && err.message) ? err.message : 'Unknown error',
+           stackTrace, new Date().toISOString()).run();
+  } catch (dbErr) {
+    console.error('Failed to write to error_log:', dbErr.message);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -365,6 +402,7 @@ export async function onRequestPost(context) {
 
   } catch (err) {
     console.error('[REFERRAL-SIGNUP] Error:', err.message, err.stack);
+    await logError(env, 'pages:referral-signup', err);
 
     // Send error notification email to support so the platform owner is proactively notified
     try {
