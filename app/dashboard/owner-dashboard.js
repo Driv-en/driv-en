@@ -1149,7 +1149,7 @@ async function loadSystemStatus() {
 }
 
 // =========================================================================
-// ISSUES TAB LOGIC
+// ISSUES TAB LOGIC (Error Logs)
 // =========================================================================
 
 var allIssues = [];
@@ -1157,7 +1157,7 @@ var allIssues = [];
 // ---- Load Issues ----
 async function loadIssues() {
   var listEl = document.getElementById('issueList');
-  listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading issues...</div>';
+   listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading error logs...</div>';
 
   try {
     var resp = await fetch('/api/admin/issues');
@@ -1170,18 +1170,18 @@ async function loadIssues() {
     } else if (data.success && data.issues && data.issues.length === 0) {
       allIssues = [];
       renderIssueStats([]);
-      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Issues</h3><p>No errors have been logged. Everything looks good.</p></div>';
+      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors</h3><p>No errors have been logged. Everything looks good.</p></div>';
     } else {
       allIssues = [];
       renderIssueStats([]);
-      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Issues Log Not Yet Available</h3><p>The error log table needs to be created in D1. Run this SQL in D1 -> driv-en-db -> Query:</p>' +
+      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Error Log Not Yet Available</h3><p>The error log table needs to be created in D1. Run this SQL in D1 -> driv-en-db -> Query:</p>' +
         '<pre style="text-align:left;background:var(--bg-input);padding:16px;border-radius:8px;font-size:13px;overflow-x:auto;margin-top:12px;">CREATE TABLE IF NOT EXISTS error_log (\n  id TEXT PRIMARY KEY,\n  source TEXT,\n  error_message TEXT,\n  stack_trace TEXT,\n  severity TEXT DEFAULT \'error\',\n  resolved INTEGER DEFAULT 0,\n  created_at TEXT\n);</pre>' +
         '<p style="margin-top:12px;">Then create the /api/admin/issues Pages Function to query it.</p></div>';
     }
   } catch (e) {
     allIssues = [];
     renderIssueStats([]);
-    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Issues Log Not Yet Available</h3><p>The /api/admin/issues endpoint is not deployed yet. Once the error_log table and API are created, errors from all Workers and Pages Functions will appear here.</p></div>';
+    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Error Log Not Yet Available</h3><p>The /api/admin/issues endpoint is not deployed yet. Once the error_log table and API are created, errors from all Workers and Pages Functions will appear here.</p></div>';
   }
 }
 
@@ -1200,7 +1200,7 @@ function renderIssues(issues) {
   var listEl = document.getElementById('issueList');
 
   if (issues.length === 0) {
-    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Issues</h3><p>No errors have been logged. Everything looks good.</p></div>';
+    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors</h3><p>No errors have been logged. Everything looks good.</p></div>';
     return;
   }
 
