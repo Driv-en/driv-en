@@ -700,7 +700,21 @@ const MODULE_MAP = {
 
 /* ----------------------------------------------------
    RENDER MODULES (SAFE DOM VERSION)
+   Handles both short keys (equipment, pm) and full names (Equipment Management)
 ---------------------------------------------------- */
+// Reverse map: full name -> short key
+const NAME_TO_KEY = {};
+Object.keys(MODULE_MAP).forEach(k => { NAME_TO_KEY[MODULE_MAP[k]] = k; });
+
+function resolveKey(item) {
+  // If it's already a short key, return it
+  if (PRICES[item]) return item;
+  // If it's a full name, convert to short key
+  if (NAME_TO_KEY[item]) return NAME_TO_KEY[item];
+  // Unknown — return as-is
+  return item;
+}
+
 function renderModules() {
   const payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
 
@@ -715,9 +729,10 @@ function renderModules() {
   const modulesList = document.getElementById("modulesList");
   modulesList.innerHTML = ""; // clear safely
 
-  selectedModules.forEach(key => {
-    const name = MODULE_MAP[key];
-    const price = PRICES[key];
+  selectedModules.forEach(item => {
+    const key = resolveKey(item);
+    const name = MODULE_MAP[key] || item;
+    const price = PRICES[key] || 0;
     sumUnitPrices += price;
 
     const row = document.createElement("div");
@@ -773,6 +788,18 @@ function renderModules() {
     modulesList.appendChild(row);
   }
 
+  // Check if this is a free access path
+  const isFree = payload.isFree || payload.billingPeriod === "free";
+
+  if (isFree) {
+    document.getElementById("invoicePeriod").value = "Free Access (Founding Member)";
+    document.getElementById("invoiceSubtotal").value = "$0.00";
+    document.getElementById("invoiceTax").value = "$0.00";
+    document.getElementById("invoiceTotal").value = "$0.00";
+    document.getElementById("invoiceSavingsBox").textContent = "Founding Member Code applied — no payment required.";
+    return;
+  }
+
   const periodLabel =
     payload.billingPeriod === "annual"
       ? "Annual (10% discount applied)"
@@ -799,7 +826,7 @@ function renderModules() {
     const annualUnitTotal = sumUnitPrices * 12;
     savingsNumber = annualUnitTotal - subtotal;
   }
-  if (savingsNumber < 0) savingsNumber = 0;
+  if (savingsNumber < 0 || isNaN(savingsNumber)) savingsNumber = 0;
 
   document.getElementById("invoiceSavingsBox").textContent =
     `Total Savings: $${savingsNumber.toFixed(2)}`;
@@ -909,7 +936,7 @@ function validateForm() {
 
   // Email format validation
   const emailEl = document.getElementById("email");
-  if (emailEl.value.trim() && !/^[^\s@]+@[^s@]+\.[^\s@]+$/.test(emailEl.value.trim())) {
+  if (emailEl.value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailEl.value.trim())) {
     emailEl.classList.add("error");
     valid = false;
     if (!missingFields.includes("Email")) missingFields.push("Email (invalid format)");
