@@ -271,7 +271,7 @@
     <!-- Totals -->
     <div class="card totals">
       <div class="billing-choice">
-        <label><input type="radio" name="billingPeriod" value="monthly" checked> Monthly</label>
+        <label><input type="radio" name="billingPeriod" value="monthly"> Monthly</label>
         <label><input type="radio" name="billingPeriod" value="annual"> Annual</label>
       </div>
 
@@ -498,15 +498,21 @@
 
     subtotalAnnualEl.textContent = `$${annualSubtotal.toFixed(2)}`;
 
-    // Restore previously selected billing period
+    // Restore previously selected billing period (if any)
     const checkoutPayload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
-    const previousPeriod = checkoutPayload.billingPeriod || "monthly";
+    const previousPeriod = checkoutPayload.billingPeriod || null;
 
     billingRadios.forEach(r => {
       r.checked = (r.value === previousPeriod);
     });
 
-    updateInvoiceDisplay(previousPeriod, { monthlyTotal, annualTotal });
+    if (previousPeriod) {
+      updateInvoiceDisplay(previousPeriod, { monthlyTotal, annualTotal });
+    } else {
+      // No billing period selected yet — show placeholder
+      invoiceAmountEl.textContent = "$0";
+      invoiceLabelEl.textContent = "(Select Monthly or Annual)";
+    }
 
     localStorage.setItem("driven_checkout_payload", JSON.stringify({
       modules: selectedModules,
@@ -518,9 +524,9 @@
       annualTax,
       annualTotal,
       billingPeriod: previousPeriod,
-      invoiceSubtotal: previousPeriod === "monthly" ? monthlySubtotal : annualSubtotal,
+      invoiceSubtotal: previousPeriod === "monthly" ? monthlySubtotal : (previousPeriod === "annual" ? annualSubtotal : 0),
       invoiceTax: 0,
-      invoiceTotal: previousPeriod === "monthly" ? monthlyTotal : annualTotal
+      invoiceTotal: previousPeriod === "monthly" ? monthlyTotal : (previousPeriod === "annual" ? annualTotal : 0)
     }));
   }
 
@@ -574,6 +580,16 @@
   });
 
   document.getElementById("btnCheckout").addEventListener("click", () => {
+    const selectedPeriod = document.querySelector('input[name="billingPeriod"]:checked');
+    if (!selectedPeriod) {
+      statusBar.textContent = "Please select Monthly or Annual billing before proceeding to checkout.";
+      statusBar.style.color = "#f87171";
+      // Scroll to billing choice
+      document.querySelector('.billing-choice').scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+    statusBar.textContent = "";
+    statusBar.style.color = "";
     window.location.href = "checkout.html";
   });
 
