@@ -494,6 +494,11 @@ function switchTab(tabName) {
     loadIssues();
   } else if (tabName === 'settings') {
     loadTeamMembers();
+    // Clear team member input fields (prevents browser autofill)
+    var nameInput = document.getElementById('newTeamMemberName');
+    var emailInput = document.getElementById('newTeamMemberEmail');
+    if (nameInput) nameInput.value = '';
+    if (emailInput) emailInput.value = '';
   }
 }
 
@@ -1203,14 +1208,20 @@ function renderIssues(issues) {
     var time = i.created_at ? new Date(i.created_at).toLocaleString() : '—';
     var severity = i.severity || 'error';
     var borderColor = severity === 'warning' ? '#f59e0b' : '#ef4444';
+    var isResolved = i.resolved === 1;
+    var resolveBtn = isResolved
+      ? '<button class="owner-action-btn owner-btn-activate" onclick="resolveIssue(\'' + i.id + '\', false)">Reopen</button>'
+      : '<button class="owner-action-btn owner-btn-deactivate" onclick="resolveIssue(\'' + i.id + '\', true)">Resolve</button>';
+    var resolvedBadge = isResolved ? ' <span class="dash-badge dash-badge-success">Resolved</span>' : '';
 
-    return '<div class="issue-card" style="border-left-color:' + borderColor + ';" data-search="' + escapeHtml((i.error_message || '').toLowerCase() + ' ' + (i.source || '').toLowerCase()) + '">' +
+    return '<div class="issue-card" style="border-left-color:' + borderColor + ';' + (isResolved ? 'opacity:0.6;' : '') + '" data-search="' + escapeHtml((i.error_message || '').toLowerCase() + ' ' + (i.source || '').toLowerCase()) + '">' +
       '<div class="issue-card-header">' +
-        '<div class="issue-card-title">' + escapeHtml(i.error_message || 'Unknown error') + '</div>' +
+        '<div class="issue-card-title">' + escapeHtml(i.error_message || 'Unknown error') + resolvedBadge + '</div>' +
         '<div class="issue-card-time">' + time + '</div>' +
       '</div>' +
       '<span class="issue-card-source">' + escapeHtml(i.source || 'unknown') + '</span>' +
       (i.stack_trace ? '<div class="issue-card-body">' + escapeHtml(i.stack_trace) + '</div>' : '') +
+      '<div style="margin-top:8px;">' + resolveBtn + '</div>' +
     '</div>';
   }).join('');
 
@@ -1224,6 +1235,24 @@ function filterIssues() {
     var searchText = card.dataset.search || '';
     card.style.display = searchText.indexOf(query) !== -1 ? '' : 'none';
   });
+}
+
+async function resolveIssue(id, resolved) {
+  try {
+    var resp = await fetch('/api/admin/issues', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: id, resolved: resolved })
+    });
+    var data = await resp.json();
+    if (data.success) {
+      loadIssues();
+    } else {
+      alert('Failed to update issue: ' + (data.error || 'Unknown error'));
+    }
+  } catch (e) {
+    alert('Failed to update issue: ' + e.message);
+  }
 }
 
 // =========================================================================
