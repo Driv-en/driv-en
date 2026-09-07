@@ -197,6 +197,93 @@ button {
   font-style: italic;
 }
 
+/* Promo Code Section */
+.promo-section {
+  margin-bottom: 20px;
+  padding: 16px;
+  border: 1px solid #1f2937;
+  background: #020617;
+  border-radius: 8px;
+}
+.promo-section h3 {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+}
+.promo-section .promo-hint {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-bottom: 10px;
+}
+.promo-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.promo-input-row input {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  background: #0f172a;
+  color: #e5e7eb;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.promo-input-row input:focus {
+  outline: none;
+  border-color: #22c55e;
+}
+.promo-input-row button {
+  white-space: nowrap;
+}
+.promo-status {
+  margin-top: 8px;
+  font-size: 13px;
+  min-height: 18px;
+}
+.promo-status.error { color: #f87171; }
+.promo-status.success { color: #4ade80; font-weight: 600; }
+.promo-status.loading { color: #fbbf24; }
+
+/* Free Access Banner */
+#freeAccessBanner {
+  display: none;
+  background: linear-gradient(135deg, #022c22, #064e3b);
+  border: 2px solid #22c55e;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+#freeAccessBanner .free-badge {
+  display: inline-block;
+  background: #22c55e;
+  color: #022c22;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 4px 14px;
+  border-radius: 20px;
+  margin-bottom: 8px;
+}
+#freeAccessBanner .free-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #bbf7d0;
+  margin-bottom: 4px;
+}
+#freeAccessBanner .free-sub {
+  font-size: 13px;
+  color: #86efac;
+}
+
+/* When promo is active, dim pricing sections */
+.promo-active .bundle-note,
+.promo-active .pricing-note {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
 /* Footer */
 footer {
   background-color: #111;
@@ -280,6 +367,25 @@ footer a {
   </div>
 
   Equipment Management is required. Other modules are optional and may be billed monthly or annually (annual billing receives a 10% discount).
+</div>
+
+<!-- Free Access Banner (shown when promo code is valid) -->
+<div id="freeAccessBanner">
+  <div class="free-badge">★ FOUNDING MEMBER</div>
+  <div class="free-title">Free Access Granted</div>
+  <div class="free-sub" id="freeAccessSub">Enjoy all selected modules at no cost through December 31, 2026.</div>
+</div>
+
+<!-- Promo Code Section -->
+<div class="promo-section">
+  <h3>Founding Member Code</h3>
+  <div class="promo-hint">Have a Founding Member code? Enter it here to unlock free access.</div>
+  <div class="promo-input-row">
+    <input type="text" id="promoCodeInput" placeholder="ENTER CODE" maxlength="30" autocomplete="off" />
+    <button class="btn-secondary" id="btnApplyPromo">Apply Code</button>
+    <button class="btn-secondary" id="btnRemovePromo" style="display:none;">Remove</button>
+  </div>
+  <div class="promo-status" id="promoStatus"></div>
 </div>
 
 <!-- Bundle Pricing Section -->
@@ -492,7 +598,9 @@ footer a {
   
 <script>
 
-// Buttons
+// ============================
+// ORIGINAL MODULE SELECTION LOGIC
+// ============================
 const btnContinue = document.getElementById("btnContinue");
 const btnCancel = document.getElementById("btnCancel");
 const btnClear = document.getElementById("btnClear");
@@ -742,7 +850,15 @@ btnContinue.addEventListener("click", () => {
   }
 
   localStorage.setItem("selectedModules", JSON.stringify(selected));
-  window.location.href = "/website/cart.html";
+
+  // If promo code is active, go directly to checkout (which will skip Stripe)
+  if (promoActive && promoData) {
+    localStorage.setItem("promoCode", JSON.stringify(promoData));
+    window.location.href = "/website/checkout.html";
+  } else {
+    localStorage.removeItem("promoCode");
+    window.location.href = "/website/cart.html";
+  }
 });
 
 /* -----------------------------
@@ -765,6 +881,158 @@ btnClear.addEventListener("click", () => {
   statusBar.textContent = "";
   document.getElementById("selectionBanner").style.display = "none";
   document.getElementById("selectionBanner").innerHTML = "";
+});
+
+// ============================
+// PROMO CODE LOGIC
+// (Placed after all module/bundle variables & functions are defined)
+// ============================
+const promoInput = document.getElementById("promoCodeInput");
+const btnApplyPromo = document.getElementById("btnApplyPromo");
+const btnRemovePromo = document.getElementById("btnRemovePromo");
+const promoStatus = document.getElementById("promoStatus");
+const freeAccessBanner = document.getElementById("freeAccessBanner");
+const freeAccessSub = document.getElementById("freeAccessSub");
+
+let promoActive = false;
+let promoData = null; // { code, type, validUntil, valid }
+
+function setPromoStatus(msg, type) {
+  promoStatus.textContent = msg;
+  promoStatus.className = "promo-status" + (type ? " " + type : "");
+}
+
+async function validatePromoCode() {
+  const code = promoInput.value.trim();
+  if (!code) {
+    setPromoStatus("Please enter a code.", "error");
+    return;
+  }
+
+  setPromoStatus("Validating code…", "loading");
+  btnApplyPromo.disabled = true;
+
+  try {
+    const resp = await fetch("/api/validate-promo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: code })
+    });
+    const data = await resp.json();
+
+    if (data.success && data.valid) {
+      applyPromoSuccess({
+        code: code.toUpperCase(),
+        type: data.type,
+        validUntil: data.validUntil,
+        valid: true
+      }, false);
+    } else {
+      setPromoStatus(data.error || "Invalid code.", "error");
+      promoActive = false;
+      promoData = null;
+      localStorage.removeItem("promoCode");
+    }
+  } catch (e) {
+    setPromoStatus("Unable to validate code. Please try again.", "error");
+  } finally {
+    btnApplyPromo.disabled = false;
+  }
+}
+
+function applyPromoSuccess(data, isRestore) {
+  promoActive = true;
+  promoData = data;
+
+  // Save to localStorage
+  localStorage.setItem("promoCode", JSON.stringify(data));
+
+  // Update UI
+  document.body.classList.add("promo-active");
+  freeAccessBanner.style.display = "block";
+  freeAccessSub.textContent = "Enjoy all selected modules at no cost through " + (data.validUntil || "December 31, 2026") + ".";
+  btnApplyPromo.style.display = "none";
+  btnRemovePromo.style.display = "inline-block";
+  promoInput.disabled = true;
+
+  setPromoStatus(isRestore ? "Founding Member code restored." : "Code applied! Free access unlocked.", "success");
+
+  // Change Continue button text
+  btnContinue.textContent = "Continue to Setup";
+
+  // Auto-select all modules for free access
+  modPM.checked = true;
+  modIns.checked = true;
+  modWO.checked = true;
+  modFuel.checked = true;
+  modTransfers.checked = true;
+  modExtraction.checked = true;
+  modExtraction.disabled = false;
+
+  // Select Complete Platform Bundle
+  bundleComplete.checked = true;
+  clearOtherBundles("bundleComplete");
+  applyBundle("bundleComplete");
+
+  showSelectionBanner();
+}
+
+function removePromoCode() {
+  promoActive = false;
+  promoData = null;
+  localStorage.removeItem("promoCode");
+
+  document.body.classList.remove("promo-active");
+  freeAccessBanner.style.display = "none";
+  btnApplyPromo.style.display = "inline-block";
+  btnRemovePromo.style.display = "none";
+  promoInput.value = "";
+  promoInput.disabled = false;
+  setPromoStatus("", "");
+
+  // Reset Continue button text
+  btnContinue.textContent = "Continue";
+
+  // Reset modules
+  [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(m => {
+    m.checked = false;
+    m.disabled = false;
+  });
+
+  // Clear bundles
+  bundleIds.forEach(id => { document.getElementById(id).checked = false; });
+  bundleActive = false;
+  activeBundle = null;
+  document.getElementById("selectionBanner").style.display = "none";
+
+  updateExtractionRules();
+}
+
+// Restore promo code from localStorage on page load (must run after functions defined)
+(function restorePromo() {
+  const saved = localStorage.getItem("promoCode");
+  if (saved) {
+    try {
+      const data = JSON.parse(saved);
+      if (data && data.code && data.valid) {
+        promoInput.value = data.code;
+        applyPromoSuccess(data, true);
+      }
+    } catch (e) {
+      localStorage.removeItem("promoCode");
+    }
+  }
+})();
+
+btnApplyPromo.addEventListener("click", validatePromoCode);
+btnRemovePromo.addEventListener("click", removePromoCode);
+
+// Allow Enter key in promo input
+promoInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    validatePromoCode();
+  }
 });
 
 </script>
