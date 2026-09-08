@@ -4,19 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- ===== PAGE-SPECIFIC SEO ===== -->
-<title>DRIV‑EN | Onboarding Dashboard</title>
-<meta name="description" content="Complete your DRIV‑EN onboarding steps — company logo, key personnel, employees, clients, divisions, project types, projects, and equipment.">
+<title>DRIV-EN Dashboard | DRIV‑EN</title>
 <meta name="robots" content="noindex, nofollow">
-<link rel="canonical" href="https://www.driv-en.com/app/dashboard/onboarding-dashboard.html">
 
 <!-- Favicon -->
-<link rel="icon" type="image/png" href="/assets/icons/favicon.png" sizes="48x48">
-<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png" sizes="96x96">
-<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png" sizes="192x192">
-<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png">
+<link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
 
-<!-- ===== SHARED DASHBOARD CSS ===== -->
+<!-- ===== SHARED DASHBOARD CSS (v7 — includes diamond plate background) ===== -->
 <link rel="stylesheet" href="/app/shared/dashboard.css?v=7">
 
 <!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
@@ -29,751 +26,1234 @@
 })();
 </script>
 
-<!-- ===== PAGE-SPECIFIC STYLES ===== -->
 <style>
-    /* ===== GREETING BAR ===== */
-    .ob-greeting-bar {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 12px 20px 0 20px;
+    /* ===== LOADING SCREEN ===== */
+    .owner-loading {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      flex-wrap: wrap;
-      gap: 10px;
+      justify-content: center;
+      height: 100vh;
+      font-size: 16px;
+      color: var(--text-muted);
       position: relative;
       z-index: 1;
     }
-    .ob-greeting-text { font-size: 16px; color: var(--text-muted); font-weight: 500; }
-    .ob-greeting-text strong { color: var(--text); }
 
-    .ob-admin-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: #1e40af;
-      border: 1px solid #2563eb;
-      color: #dbeafe;
-      padding: 8px 14px;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 600;
-      text-decoration: none;
-      cursor: pointer;
-    }
-    .ob-admin-btn:hover { background: #1d4ed8; color: #fff; }
-
-    /* ===== STEP GRID ===== */
-    .ob-step-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 16px;
-      margin-top: 20px;
-    }
-
-    /* ===== STEP CARD ===== */
-    .ob-step-card {
-      background: var(--bg-step);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 16px;
+    /* ===== TAB BAR ===== */
+    .owner-tab-bar {
       display: flex;
-      flex-direction: column;
-      gap: 10px;
+      gap: 0;
+      border-bottom: 2px solid var(--border);
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 20px;
+      overflow-x: auto;
       position: relative;
+      z-index: 1;
+      background: var(--bg-header);
     }
-
-    .ob-step-header {
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-    }
-
-    .ob-step-title {
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--text);
-      flex: 1;
-    }
-
-    /* ===== INFO ICON (click for popup) ===== */
-    .ob-info-icon {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: #f97316;
-      color: #ffffff;
-      font-size: 12px;
-      font-weight: 700;
-      cursor: pointer;
+    .owner-tab {
+      background: none;
       border: none;
-      flex-shrink: 0;
+      border-bottom: 3px solid transparent;
+      padding: 14px 22px;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 200ms ease, border-color 200ms ease;
     }
-    .ob-info-icon:hover { background: #ea580c; }
+    .owner-tab:hover { color: var(--text); }
+    .owner-tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+    .owner-tab-content { display: none; }
+    .owner-tab-content.active { display: block; }
 
-    /* ===== INFO POPUP ===== */
-    .ob-info-popup {
-      display: none;
-      position: absolute;
-      top: 40px;
-      right: 16px;
+    /* ===== STATS GRID ===== */
+    .owner-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .owner-stat-card {
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 14px;
-      font-size: 12px;
-      color: var(--text-muted);
-      line-height: 1.5;
-      max-width: 280px;
-      z-index: 20;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      padding: 20px;
+      text-align: center;
     }
-    .ob-info-popup.active { display: block; }
-    .ob-info-popup strong { color: var(--text); }
-    .ob-info-popup-close {
-      position: absolute;
-      top: 6px;
-      right: 8px;
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      font-size: 16px;
-      cursor: pointer;
-      padding: 2px 6px;
-    }
+    .owner-stat-number { font-size: 32px; font-weight: 700; color: var(--text); }
+    .owner-stat-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
 
-    /* ===== STATUS BADGES ===== */
-    .ob-step-status {
-      font-size: 12px;
-      font-weight: 500;
-      padding: 4px 10px;
-      border-radius: 999px;
-      width: fit-content;
-    }
-    .ob-completed { background: #065f46; border: 1px solid #059669; color: #d1fae5; }
-    .ob-ready { background: #1e40af; border: 1px solid #2563eb; color: #dbeafe; }
-    .ob-locked-prereq { background: #7f1d1d; border: 1px solid #b91c1c; color: #fee2e2; }
-    .ob-admin-only { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); }
-
-    .ob-step-body { font-size: 13px; color: var(--text-muted); line-height: 1.4; }
-
-    /* ===== ASSIGNED TO LABEL (on each step card) ===== */
-    .ob-assigned-to {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-top: 8px;
-      padding-top: 8px;
-      border-top: 1px solid var(--border);
+    /* ===== SEARCH BAR ===== */
+    .owner-search-bar {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 10px;
+      margin-bottom: 16px;
     }
-    .ob-assigned-to-label { font-weight: 600; color: var(--text); }
-    .ob-assigned-to-name { color: var(--text-muted); }
-    .ob-assigned-to-name.unassigned { font-style: italic; color: var(--text-muted); opacity: 0.7; }
-
-    /* ===== BUTTONS ===== */
-    .ob-btn-primary {
-      background: var(--primary);
-      border: 1px solid var(--primary-hover);
-      color: #ffffff;
-      padding: 8px 14px;
+    .owner-search-bar input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid var(--border-input);
       border-radius: 6px;
+      font-size: 14px;
+      background: var(--bg-input);
+      color: var(--text);
+    }
+    .owner-search-bar input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+    }
+    .owner-refresh-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .owner-refresh-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* ===== TABLE WRAPPER ===== */
+    .owner-table-wrap {
+      overflow-x: auto;
+    }
+
+    /* ===== ACTION BUTTONS ===== */
+    .owner-action-btn {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 4px;
       font-size: 13px;
+      font-weight: 600;
       cursor: pointer;
-      width: fit-content;
+      border: 1px solid;
+      margin-right: 4px;
+      text-decoration: none;
     }
-    .ob-btn-primary:hover { background: var(--primary-hover); }
-
-    /* ===== KEY PERSONNEL LIST (in Step 2) ===== */
-    .ob-kp-list { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
-    .ob-kp-list-title { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
-    .ob-kp-person { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; padding: 4px 8px; background: var(--bg-card); border-radius: 4px; }
-    .ob-kp-person-name { font-weight: 600; color: var(--text); }
-    .ob-kp-person-tasks { color: var(--text-muted); font-size: 11px; }
-    .ob-kp-person-email { color: #60a5fa; font-size: 11px; }
-    .ob-kp-loading { font-size: 12px; color: var(--text-muted); }
-
-    /* ===== LOGO UPLOAD AREA (in Step 1) ===== */
-    .ob-logo-upload-area {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      margin-top: 8px;
+    .owner-btn-approve {
+      background: #166534;
+      color: #d1fae5;
+      border-color: #059669;
     }
-    .ob-logo-preview {
-      width: 120px;
-      height: 60px;
-      border: 2px dashed var(--border);
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
+    .owner-btn-approve:hover { background: #059669; }
+    .owner-btn-reject {
+      background: #7f1d1d;
+      color: #fee2e2;
+      border-color: #b91c1c;
+    }
+    .owner-btn-reject:hover { background: #b91c1c; }
+    .owner-btn-w9 {
+      background: var(--bg-card);
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+    .owner-btn-w9:hover { background: var(--primary); color: #fff; }
+
+    /* ===== ACTIVATE/DEACTIVATE BUTTON ===== */
+    .owner-btn-deactivate {
+      background: #78350f;
+      color: #fef3c7;
+      border-color: #92400e;
+    }
+    .owner-btn-deactivate:hover { background: #92400e; }
+    .owner-btn-activate {
+      background: #064e3b;
+      color: #d1fae5;
+      border-color: #065f46;
+    }
+    .owner-btn-activate:hover { background: #065f46; }
+
+    /* ===== INACTIVE ROW STYLING ===== */
+    .partner-row-inactive {
+      opacity: 0.55;
+    }
+    .partner-row-inactive td {
       color: var(--text-muted);
-      overflow: hidden;
     }
-    .ob-logo-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
-    .ob-logo-upload-btn {
+
+    /* ===== CLICKABLE EMAIL LINK ===== */
+    .partner-email-link {
+      color: var(--primary);
+      text-decoration: none;
+    }
+    .partner-email-link:hover {
+      text-decoration: underline;
+    }
+
+    /* ===== CHANGE PASSWORD SECTION ===== */
+    .change-pwd-section {
+      display: none;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .change-pwd-section input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border-input);
+      border-radius: 6px;
+      font-size: 14px;
+      background: var(--bg-input);
+      color: var(--text);
+      box-sizing: border-box;
+      margin-bottom: 12px;
+    }
+    .change-pwd-section input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+    }
+    .change-pwd-section button {
       background: var(--primary);
       border: 1px solid var(--primary-hover);
       color: #fff;
-      padding: 8px 14px;
+      padding: 10px 20px;
       border-radius: 6px;
-      font-size: 13px;
+      font-size: 14px;
+      font-weight: 600;
       cursor: pointer;
     }
-    .ob-logo-upload-btn:hover { background: var(--primary-hover); }
-    .ob-logo-status { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .change-pwd-section button:hover { background: var(--primary-hover); }
+    .change-pwd-msg {
+      margin-top: 8px;
+      font-size: 13px;
+    }
 
-    /* ===== POPUP OVERLAY ===== */
-    .ob-popup-overlay {
+    /* ===== SORTABLE COLUMNS ===== */
+    .sortable {
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+    .sortable:hover {
+      background: var(--bg-input);
+    }
+    .sortable.active {
+      color: var(--primary);
+      font-weight: 600;
+    }
+    .sortable.active .sort-arrow::before {
+      content: '▼';
+      font-size: 10px;
+      vertical-align: middle;
+      margin-left: 4px;
+    }
+    .sortable.asc .sort-arrow::before {
+      content: '▲';
+      font-size: 10px;
+      vertical-align: middle;
+      margin-left: 4px;
+    }
+    .sort-arrow {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-left: 4px;
+    }
+
+    /* ===== MODAL ===== */
+    .owner-modal {
       display: none;
       position: fixed;
       top: 0; left: 0; width: 100%; height: 100%;
-      z-index: 5;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      box-sizing: border-box;
     }
-    .ob-popup-overlay.active { display: block; }
+    .owner-modal.active { display: flex; }
+    .owner-modal-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      max-width: 480px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .owner-modal-card h3 {
+      margin: 0 0 16px 0;
+      font-size: 20px;
+      color: var(--text);
+    }
+    .owner-modal-card label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+      margin-top: 16px;
+    }
+    .owner-modal-card input,
+    .owner-modal-card textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border-input);
+      border-radius: 6px;
+      font-size: 14px;
+      background: var(--bg-input);
+      color: var(--text);
+      box-sizing: border-box;
+    }
+    .owner-modal-card input:focus,
+    .owner-modal-card textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+    }
+    .owner-modal-card textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+    .owner-modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 24px;
+    }
+    .owner-modal-actions button {
+      flex: 1;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid;
+    }
+    .owner-modal-confirm {
+      background: var(--primary);
+      border-color: var(--primary-hover);
+      color: #fff;
+    }
+    .owner-modal-confirm:hover { background: var(--primary-hover); }
+    .owner-modal-confirm.danger {
+      background: #b91c1c;
+      border-color: #dc2626;
+    }
+    .owner-modal-confirm.danger:hover { background: #dc2626; }
+    .owner-modal-cancel {
+      background: var(--bg-card);
+      border-color: var(--border);
+      color: var(--text);
+    }
+    .owner-modal-cancel:hover { border-color: var(--primary); color: var(--primary); }
+    .owner-code-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .owner-code-row input { flex: 1; }
+    .owner-regen-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .owner-regen-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* ===== ERROR BANNER ===== */
+    .owner-error-banner {
+      display: none;
+      background: #1f0f0f;
+      border: 1px solid var(--error);
+      color: #fca5a5;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+
+    /* ===== COMING SOON PLACEHOLDER ===== */
+    .owner-coming-soon {
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--text-muted);
+    }
+    .owner-coming-soon h3 {
+      font-size: 22px;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .owner-coming-soon p {
+      font-size: 15px;
+    }
+
+    /* ===== CUSTOMERS TAB ===== */
+    .customer-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .customer-card-info h4 {
+      margin: 0 0 4px 0;
+      font-size: 16px;
+      color: var(--text);
+    }
+    .customer-card-info p {
+      margin: 0;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .customer-card-meta {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .customer-sub-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .sub-active { background: #dcfce7; color: #166534; }
+    .sub-pending { background: #fef3c7; color: #92400e; }
+    .sub-trial { background: #dbeafe; color: #1e40af; }
+    .sub-cancelled { background: #fee2e2; color: #991b1b; }
+    .sub-none { background: #f1f5f9; color: #64748b; }
+
+    /* ===== SYSTEM STATUS TAB ===== */
+    .sys-status-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .sys-status-card h3 {
+      margin: 0 0 16px 0;
+      font-size: 18px;
+      color: var(--text);
+    }
+    .sys-status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-top: 1px solid var(--border);
+    }
+    .sys-status-row:first-of-type { border-top: none; padding-top: 0; }
+    .sys-status-label {
+      font-size: 15px;
+      color: var(--text);
+      font-weight: 500;
+    }
+    .sys-status-value {
+      font-size: 14px;
+      color: var(--text-muted);
+      font-family: monospace;
+    }
+    .sys-status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 8px;
+    }
+    .sys-dot-ok { background: #22c55e; }
+    .sys-dot-warn { background: #f59e0b; }
+    .sys-dot-down { background: #ef4444; }
+    .sys-dot-unknown { background: #94a3b8; }
+
+    /* ===== ISSUES TAB ===== */
+    .issue-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-left: 4px solid #ef4444;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 12px;
+    }
+    .issue-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .issue-card-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .issue-card-time {
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .issue-card-body {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .issue-card-source {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--bg-input);
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    /* ===== SETTINGS TAB ===== */
+    .settings-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .settings-section h3 {
+      margin: 0 0 4px 0;
+      font-size: 18px;
+      color: var(--text);
+    }
+    .settings-section .settings-desc {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin: 0 0 20px 0;
+    }
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 0;
+      border-top: 1px solid var(--border);
+    }
+    .settings-row:first-of-type { border-top: none; padding-top: 0; }
+    .settings-row-label {
+      font-size: 15px;
+      color: var(--text);
+      font-weight: 500;
+    }
+    .settings-row-hint {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    /* Theme toggle in settings */
+    .settings-theme-toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .settings-theme-toggle .dash-theme-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    /* Logo upload */
+    .settings-logo-preview {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .settings-logo-preview img {
+      max-height: 56px;
+      max-width: 180px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px;
+      background: var(--bg-card);
+    }
+    .settings-logo-placeholder {
+      max-height: 56px;
+      max-width: 180px;
+      border: 2px dashed var(--border);
+      border-radius: 6px;
+      padding: 16px 20px;
+      font-size: 13px;
+      color: var(--text-muted);
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .settings-logo-btn {
+      background: var(--primary);
+      border: 1px solid var(--primary-hover);
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .settings-logo-btn:hover { background: var(--primary-hover); }
+    .settings-logo-remove {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--error);
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .settings-logo-remove:hover { border-color: var(--error); }
 
     /* ===== MOBILE RESPONSIVE ===== */
     @media (max-width: 800px) {
-      .ob-step-grid { grid-template-columns: 1fr; }
-      .ob-info-popup { max-width: 220px; right: 8px; }
+      .owner-stats { grid-template-columns: repeat(2, 1fr); }
+      .owner-tab { padding: 12px 16px; font-size: 14px; }
     }
 </style>
-
 </head>
 
-<!-- Page title — appears in the dashboard header -->
-<body data-page-title="Onboarding Dashboard">
+<body data-page-title="Owner Dashboard">
 
 <!-- ===== INDUSTRIAL DIAMOND-PLATE BACKGROUND (do not remove) ===== -->
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
 
-<!-- ===== SHARED DASHBOARD HEADER (auto-loaded by dashboard-common.js) ===== -->
-<div id="dashHeader"></div>
+<!-- ===== LOADING SCREEN ===== -->
+<div id="loadingScreen" class="owner-loading">Verifying access…</div>
 
-<!-- ===== GREETING BAR (below header) ===== -->
-<div class="ob-greeting-bar">
-  <div class="ob-greeting-text" id="dashGreetingText">Welcome</div>
-  <!-- Admin Dashboard button — hidden by default, shown by the page script only for admins -->
-  <a href="/app/dashboard/admin.html" class="ob-admin-btn" id="adminDashBtn" style="display:none;">&larr; Admin Dashboard</a>
-</div>
+<!-- ===== DASHBOARD (hidden until auth verified) ===== -->
+<div id="dashboard" style="display:none;">
 
-<!-- ===== PAGE CONTENT ===== -->
-<main class="dash-main">
-
-  <div class="dash-card">
-    <h2>Onboarding Steps</h2>
-    <p>This dashboard shows the current status of each onboarding step. Some steps have prerequisites — complete those first to unlock the next step.</p>
-    <!-- Non-admin notice — hidden by default, shown to key personnel by JS -->
-    <div id="nonAdminNotice" style="display:none;background:#1e3a5f;border:1px solid #2563eb;color:#dbeafe;padding:12px 16px;border-radius:6px;margin-bottom:16px;font-size:13px;">
-      <strong>Your assigned tasks:</strong> <span id="assignedTasksList"></span><br>
-      Only the steps you are assigned to are shown below. If you believe you should have access to additional steps, please contact your administrator.
+  <!-- ===== HEADER (self-contained — does NOT use dashboard-common.js) ===== -->
+  <div class="dash-header">
+    <div class="dash-header-row1">
+      <!-- DSI / Owner logo (left) — loaded from localStorage or placeholder -->
+      <div id="ownerLogoContainer">
+        <div class="dash-customer-logo-placeholder" id="ownerLogoPlaceholder">DSI Logo</div>
+      </div>
+      <img src="/assets/logo.png?v=2026" class="dash-driven-logo" alt="DRIV‑EN Logo">
     </div>
-
-    <div class="ob-step-grid">
-
-      <!-- ===== STEP 1 — COMPANY LOGO ===== -->
-      <div class="ob-step-card" id="step1">
-        <div class="ob-step-header">
-          <div class="ob-step-title">Step 1 — Company Logo</div>
-          <button class="ob-info-icon" onclick="togglePopup('popup-logo')">i</button>
-          <div class="ob-info-popup" id="popup-logo">
-            <button class="ob-info-popup-close" onclick="togglePopup('popup-logo')">&times;</button>
-            <strong>Company Logo</strong><br>
-            Upload your company logo to display in the header on every page across the entire DRIV‑EN platform. This is the first step — only the Admin can upload the logo. Accepted formats: PNG, JPG, SVG. Recommended size: 200×60 pixels. Logos larger than 400×120 pixels or 200KB are automatically resized for optimal display.
-          </div>
-        </div>
-        <div class="ob-step-status ob-admin-only">Admin Only</div>
-        <div class="ob-step-body">
-          Upload your company logo. It will appear in the header on every page across the entire DRIV‑EN platform.
-        </div>
-        <!-- Logo upload area -->
-        <div class="ob-logo-upload-area" id="logoUploadArea">
-          <div class="ob-logo-preview" id="logoPreview">No logo</div>
-          <div>
-            <input type="file" id="logoFile" accept="image/png,image/jpeg,image/svg+xml" style="display:none;" onchange="handleLogoUpload()">
-            <button class="ob-logo-upload-btn" onclick="document.getElementById('logoFile').click()">Upload Logo</button>
-            <div class="ob-logo-status" id="logoStatus"></div>
-          </div>
-        </div>
-        <!-- Assigned to label (filled by JS) -->
-        <div class="ob-assigned-to" id="assignedTo-step1">
-          <span class="ob-assigned-to-label">Assigned to:</span>
-          <span class="ob-assigned-to-name unassigned">Not yet assigned</span>
-        </div>
-      </div>
-
-      <!-- ===== STEP 2 — KEY PERSONNEL ===== -->
-      <div class="ob-step-card" id="step2">
-        <div class="ob-step-header">
-          <div class="ob-step-title">Step 2 — Key Personnel</div>
-          <button class="ob-info-icon" onclick="togglePopup('popup-kp')">i</button>
-          <div class="ob-info-popup" id="popup-kp">
-            <button class="ob-info-popup-close" onclick="togglePopup('popup-kp')">&times;</button>
-            <strong>Key Personnel</strong><br>
-            Identify the people who will be responsible for uploading onboarding data. This may include admins, clerks, supervisors, or anyone who has access to the information needed for their assigned tasks. Only the Admin can assign key personnel.
-          </div>
-        </div>
-        <div class="ob-step-status ob-ready">Ready</div>
-        <div class="ob-step-body">
-          Assign key personnel and their onboarding responsibilities.
-        </div>
-        <!-- Key personnel list (loaded by JS) -->
-        <div id="kpListContainer" class="ob-kp-list" style="display:none;">
-          <div class="ob-kp-list-title">Assigned Key Personnel:</div>
-          <div id="kpListBody"></div>
-        </div>
-        <button class="ob-btn-primary" onclick="window.location.href='/app/onboarding/key-personnel.html'">Open Key Personnel</button>
-        <!-- Assigned to label (filled by JS) -->
-        <div class="ob-assigned-to" id="assignedTo-step2">
-          <span class="ob-assigned-to-label">Assigned to:</span>
-          <span class="ob-assigned-to-name unassigned">Not yet assigned</span>
-        </div>
-      </div>
-
-      <!-- ===== STEP 3 — EMPLOYEES ===== -->
-      <div class="ob-step-card" id="step3">
-        <div class="ob-step-header">
-          <div class="ob-step-title">Step 3 — Employees</div>
-          <button class="ob-info-icon" onclick="togglePopup('popup-emp')">i</button>
-          <div class="ob-info-popup" id="popup-emp">
-            <button class="ob-info-popup-close" onclick="togglePopup('popup-emp')">&times;</button>
-            <strong>Employees</strong><br>
-            Add all employees who will perform inspections, preventative maintenance, complete equipment transfers and fuel usage logs, perform work orders, or be tracked in DRIV‑EN. You will need: employee name and email. No prerequisites — can be done at any time.
-          </div>
-        </div>
-        <div class="ob-step-status ob-ready">Ready</div>
-        <div class="ob-step-body">
-          Add all employees. Employees are required for work orders, inspections, fuel logs, transfers, and other modules.
-        </div>
-        <button class="ob-btn-primary" onclick="window.location.href='/app/onboarding/employees.html'">Open Employees</button>
-        <!-- Assigned to label (filled by JS) -->
-        <div class="ob-assigned-to" id="assignedTo-step3">
-          <span class="ob-assigned-to-label">Assigned to:</span>
-          <span class="ob-assigned-to-name unassigned">Not yet assigned</span>
-        </div>
-      </div>
-
-      <!-- ===== STEP 4 — CLIENTS ===== -->
-      <div class="ob-step-card" id="step4">
-        <div class="ob-step-header">
-          <div class="ob-step-title">Step 4 — Clients</div>
-          <button class="ob-info-icon" onclick="togglePopup('popup-client')">i</button>
-          <div class="ob-info-popup" id="popup-client">
-            <button class="ob-info-popup-close" onclick="togglePopup('popup-client')">&times;</button>
-            <strong>Clients</strong><br>
-            Add clients and customer organizations for whom your company provides services. You will need: client name. No prerequisites — can be done at any time. Clients are required before creating Projects.
-          </div>
-        </div>
-        <div class="ob-step-status ob-ready">Ready</div>
-        <div class="ob-step-body">
-          Add clients and customer organizations associated with your projects.
-        </div>
-        <button class="ob-btn-primary" onclick="window.location.href='/app/onboarding/clients.html'">Open Clients</button>
-        <!-- Assigned to label (filled by JS) -->
-        <div class="ob-assigned-to" id="assignedTo-step4">
-          <span class="ob-assigned-to-label">Assigned to:</span>
-          <span class="ob-assigned-to-name unassigned">Not yet assigned</span>
-        </div>
-      </div>
-
-      <!-- ===== STEP 5 — DIVISIONS ===== -->
-      <div class="ob-step-card" id="step5">
-        <div class="ob-step-header">
-          <div class="ob-step-title">Step 5 — Divisions</div>
-          <button class="ob-info-icon" onclick="togglePopup('popup-div')">i</button>
-          <div class="ob-info-popup" id="popup-div">
-            <button class="ob-info-popup-close" onclick="togglePopup('popup-div')">&times;</button>
-            <strong>Divisions</strong><br>
-            Define internal divisions or business units used for reporting and tracking. You will need: division name. No prerequisites — can be done at any time. Divisions are required before creating Projects.
-          </div>
-        </div>
-        <div class="ob-step-status ob-ready">Ready</div>
-        <div class="ob-step-body">
-          Define internal divisions or business units used for reporting and tracking.
-        </div>
-        <button class="ob-btn-primary" onclick="window.location.href='/app/onboarding/divisions.html'">Open Divisions</button>
-        <!-- Assigned to label (filled by JS) -->
-        <div class="ob-assigned-to" id="assignedTo-step5">
-          <span class="ob-assigned-to-label">Assigned to:</span>
-          <span class="ob-assigned-to-name unassigned">Not yet assigned</span>
-        </div>
-      </div>
-
-      <!-- ===== STEP 6 — PROJECT TYPES ===== -->
-      <div class="ob-step-card" id="step6">
-        <div class="ob-step-header">
-          <div class="ob-step-title">Step 6 — Project Types</div>
-          <button class="ob-info-icon" onclick="togglePopup('popup-pt')">i</button>
-          <div class="ob-info-popup" id="popup-pt">
-            <button class="ob-info-popup-close" onclick="togglePopup('popup-pt')">&times;</button>
-            <strong>Project Types</strong><br>
-            Configure project types that represent the kinds of work your organization performs. You will need: project type name (someone knowledgeable about your project categories). No prerequisites — can be done at any time. Project Types are required before creating Projects.
-          </div>
-        </div>
-        <div class="ob-step-status ob-ready">Ready</div>
-        <div class="ob-step-body">
-          Configure project types that represent the kinds of work your organization performs.
-        </div>
-        <button class="ob-btn-primary" onclick="window.location.href='/app/onboarding/project-types.html'">Open Project Types</button>
-        <!-- Assigned to label (filled by JS) -->
-        <div class="ob-assigned-to" id="assignedTo-step6">
-          <span class="ob-assigned-to-label">Assigned to:</span>
-          <span class="ob-assigned-to-name unassigned">Not yet assigned</span>
-        </div>
-      </div>
-
-      <!-- ===== STEP 7 — PROJECTS ===== -->
-      <div class="ob-step-card" id="step7">
-        <div class="ob-step-header">
-          <div class="ob-step-title">Step 7 — Projects</div>
-          <button class="ob-info-icon" onclick="togglePopup('popup-proj')">i</button>
-          <div class="ob-info-popup" id="popup-proj">
-            <button class="ob-info-popup-close" onclick="togglePopup('popup-proj')">&times;</button>
-            <strong>Projects</strong><br>
-            Add active, recently completed, or upcoming projects. You will need: project number, project name, physical address of the project, client, division, project type, project manager, and superintendent. Each project references Employees (Step 3), Clients (Step 4), Divisions (Step 5), and Project Types (Step 6) — those must be completed first. Even company-owned facilities (e.g., "Yard #1") should be assigned a project name so all equipment locations can be tracked.
-          </div>
-        </div>
-        <div class="ob-step-status ob-ready">Ready</div>
-        <div class="ob-step-body">
-          Add projects. <strong>Requires:</strong> Steps 3, 4, 5, and 6 must be completed first.
-        </div>
-        <button class="ob-btn-primary" onclick="window.location.href='/app/onboarding/projects.html'">Open Projects</button>
-        <!-- Assigned to label (filled by JS) -->
-        <div class="ob-assigned-to" id="assignedTo-step7">
-          <span class="ob-assigned-to-label">Assigned to:</span>
-          <span class="ob-assigned-to-name unassigned">Not yet assigned</span>
-        </div>
-      </div>
-
-      <!-- ===== STEP 8 — EQUIPMENT ===== -->
-      <div class="ob-step-card" id="step8">
-        <div class="ob-step-header">
-          <div class="ob-step-title">Step 8 — Equipment</div>
-          <button class="ob-info-icon" onclick="togglePopup('popup-equip')">i</button>
-          <div class="ob-info-popup" id="popup-equip">
-            <button class="ob-info-popup-close" onclick="togglePopup('popup-equip')">&times;</button>
-            <strong>Equipment</strong><br>
-            Add equipment and assets that will be dispatched and maintained through DRIV‑EN. You will need: asset number, equipment type, current meter reading, and current project/location. Each piece of equipment is assigned to a Project/Location — Projects must be completed first. This ensures all equipment locations can be pulled up at any time.
-          </div>
-        </div>
-        <div class="ob-step-status ob-ready">Ready</div>
-        <div class="ob-step-body">
-          Add equipment and assets. <strong>Requires:</strong> Step 7 (Projects) must be completed first.
-        </div>
-        <button class="ob-btn-primary" onclick="window.location.href='/app/onboarding/equipment.html'">Open Equipment</button>
-        <!-- Assigned to label (filled by JS) -->
-        <div class="ob-assigned-to" id="assignedTo-step8">
-          <span class="ob-assigned-to-label">Assigned to:</span>
-          <span class="ob-assigned-to-name unassigned">Not yet assigned</span>
-        </div>
-      </div>
-
+    <div class="dash-header-row2">
+      <h1 id="dashPageTitle">DRIV-EN Dashboard</h1>
+    </div>
+    <!-- Row 3: Only logout now — theme toggle moved to Settings tab -->
+    <div class="dash-header-row3">
+      <div></div>
+      <button class="dash-logout" onclick="ownerLogout()">Logout</button>
     </div>
   </div>
 
-</main>
+  <!-- ===== TAB BAR ===== -->
+  <div class="owner-tab-bar">
+    <button class="owner-tab active" data-tab="referrers" onclick="switchTab('referrers')">Referrers</button>
+    <button class="owner-tab" data-tab="customers" onclick="switchTab('customers')">Customers</button>
+    <button class="owner-tab" data-tab="system" onclick="switchTab('system')">System Status</button>
+     <button class="owner-tab" data-tab="issues" onclick="switchTab('issues')">Error Logs</button>
+     <button class="owner-tab" data-tab="marketing" onclick="switchTab('marketing')">Marketing</button>
+     <button class="owner-tab" data-tab="visitors" onclick="switchTab('visitors')">Site Visitors</button>
+     <button class="owner-tab" data-tab="settings" onclick="switchTab('settings')">Settings</button>
+  </div>
 
-<!-- ===== POPUP OVERLAY ===== -->
-<div class="ob-popup-overlay" id="popupOverlay" onclick="closeAllPopups()"></div>
+  <!-- ===== CONTENT AREA ===== -->
+  <main class="dash-main">
 
-<!-- ===== SHARED DASHBOARD JS (loads header, theme, logo, session) ===== -->
-<script src="/app/shared/dashboard-common.js?v=7"></script>
+    <!-- ===== ERROR BANNER ===== -->
+    <div id="errorBanner" class="owner-error-banner"></div>
 
-<!-- ===== AUTH CHECK (shared — requires login only) ===== -->
-<script src="/app/shared/auth-check.js?v=7"></script>
+    <!-- ===== REFERRERS TAB ===== -->
+    <div id="tab-referrers" class="owner-tab-content active">
 
-<!-- ===== PAGE-SPECIFIC SCRIPT ===== -->
-<!-- Uses the "dashSessionLoaded" event from dashboard-common.js -->
-<!-- (same pattern as the admin dashboard — proven to work) -->
-<!-- e.detail contains the user object from /auth/session -->
-<script>
-    /* ==========================================
-       POPUP MANAGEMENT
-       ========================================== */
-    function togglePopup(id) {
-      var popup = document.getElementById(id);
-      var overlay = document.getElementById("popupOverlay");
-      var isActive = popup.classList.contains("active");
-      closeAllPopups();
-      if (!isActive) { popup.classList.add("active"); overlay.classList.add("active"); }
-    }
-    function closeAllPopups() {
-      document.querySelectorAll(".ob-info-popup").forEach(function(p) { p.classList.remove("active"); });
-      document.getElementById("popupOverlay").classList.remove("active");
-    }
+      <!-- Stats cards -->
+      <div class="owner-stats">
+        <div class="owner-stat-card">
+          <div class="owner-stat-number" id="statTotal">0</div>
+          <div class="owner-stat-label">Total Partners</div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-number" id="statPending">0</div>
+          <div class="owner-stat-label">Pending</div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-number" id="statApproved">0</div>
+          <div class="owner-stat-label">Approved</div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-number" id="statRejected">0</div>
+          <div class="owner-stat-label">Rejected</div>
+        </div>
+      </div>
 
-    /* ==========================================
-       STEP-TO-TASK MAPPING
-       ========================================== */
-    var STEP_TASK_MAP = {
-      "step1": "Admin Only", "step2": "Admin Only",
-      "step3": "Employees", "step4": "Clients",
-      "step5": "Divisions", "step6": "Project Types",
-      "step7": "Projects", "step8": "Equipment"
-    };
+      <!-- Search bar -->
+      <div class="owner-search-bar">
+        <input type="text" id="searchInput" placeholder="Search by name or email…" oninput="filterPartners()">
+        <button class="owner-refresh-btn" onclick="loadPartners()">↻ Refresh</button>
+      </div>
 
-    var userAssignedTasks = [];
-    var userIsAdmin = false;
-    var initStarted = false;
+      <!-- Partners table -->
+      <div class="dash-card">
+        <div class="owner-table-wrap">
+          <table class="dash-table">
+            <thead>
+              <tr>
+                <th class="sortable" data-sort="partner_name" onclick="sortBy('partner_name')">Name <span class="sort-arrow"></span></th>
+                <th class="sortable" data-sort="partner_email" onclick="sortBy('partner_email')">Email <span class="sort-arrow"></span></th>
+                <th class="sortable" data-sort="partner_phone" onclick="sortBy('partner_phone')">Phone <span class="sort-arrow"></span></th>
+                <th class="sortable" data-sort="status" onclick="sortBy('status')">Status <span class="sort-arrow"></span></th>
+                <th class="sortable" data-sort="referral_code" onclick="sortBy('referral_code')">Referral Code <span class="sort-arrow"></span></th>
+                <th>W-9</th>
+                <th class="sortable" data-sort="w9_status" onclick="sortBy('w9_status')">W-9 Status <span class="sort-arrow"></span></th>
+                <th>ACH</th>
+                <th class="sortable" data-sort="last_referred" onclick="sortBy('last_referred')">Last Referred <span class="sort-arrow"></span></th>
+                <th class="sortable" data-sort="created_at" onclick="sortBy('created_at')">Submitted <span class="sort-arrow"></span></th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="partnersTableBody">
+              <tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-    /* ==========================================
-       MAIN INIT — runs when dashboard-common.js fires
-       the "dashSessionLoaded" event (same pattern as admin dashboard).
-       e.detail contains the user object from /auth/session.
-       ========================================== */
-    document.addEventListener("dashSessionLoaded", function(e) {
-      if (initStarted) return;
-      initStarted = true;
-      initOnboardingDashboard(e.detail);
-    });
+    </div>
 
-    async function initOnboardingDashboard(sessionUser) {
-      if (!sessionUser) return;
+    <!-- ===== CUSTOMERS TAB ===== -->
+    <div id="tab-customers" class="owner-tab-content">
 
-      // Store org_id for API calls
-      if (sessionUser.org_id) localStorage.setItem("driven_customer_id", sessionUser.org_id);
+      <!-- Stats cards -->
+      <div class="owner-stats">
+        <div class="owner-stat-card">
+          <div class="owner-stat-number" id="custStatTotal">0</div>
+          <div class="owner-stat-label">Total Customers</div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-number" id="custStatActive">0</div>
+          <div class="owner-stat-label">Active</div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-number" id="custStatTrial">0</div>
+          <div class="owner-stat-label">Trial</div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-number" id="custStatPending">0</div>
+          <div class="owner-stat-label">Pending Activation</div>
+        </div>
+      </div>
 
-      // ===== Fill the greeting with first name =====
-      // (dashboard-common.js already fills dashGreetingText, but we do it too
-      //  to be safe in case of timing)
-      var greetingEl = document.getElementById("dashGreetingText");
-      if (greetingEl) {
-        var firstName = sessionUser.first_name || "";
-        if (!firstName) {
-          var fullName = sessionUser.full_name || "";
-          if (fullName) firstName = fullName.split(" ")[0];
-        }
-        if (firstName) {
-          greetingEl.innerHTML = "Welcome, <strong>" + firstName + "</strong>";
-        } else {
-          greetingEl.innerHTML = "Welcome";
-        }
-      }
+      <!-- Search bar -->
+      <div class="owner-search-bar">
+        <input type="text" id="customerSearchInput" placeholder="Search by company name or email…" oninput="filterCustomers()">
+        <button class="owner-refresh-btn" onclick="loadCustomers()">↻ Refresh</button>
+      </div>
 
-      // ===== Determine if user is admin =====
-      var role = (sessionUser.role) ? String(sessionUser.role) : "";
-      if (role.toLowerCase() === "admin") {
-        userIsAdmin = true;
-      } else {
-        // Role is null/empty — check KP list
-        var customerId = sessionUser.org_id || localStorage.getItem("driven_customer_id");
-        if (customerId && sessionUser.email) {
-          try {
-            var kpResp = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(customerId));
-            var kpData = await kpResp.json();
-            if (kpData.success && kpData.keyPersonnel) {
-              var userEmail = sessionUser.email.toLowerCase().trim();
-              var foundKP = kpData.keyPersonnel.find(function(kp) {
-                return kp.email && kp.email.toLowerCase().trim() === userEmail;
-              });
-              if (!foundKP) {
-                userIsAdmin = true;
-              } else if (foundKP.roles) {
-                userAssignedTasks = foundKP.roles.map(function(r) { return r.role; });
-              }
-            } else {
-              userIsAdmin = true;
-            }
-          } catch (e) {
-            userIsAdmin = true;
-          }
-        } else {
-          userIsAdmin = true;
-        }
-      }
+      <!-- Customer list -->
+      <div id="customerList">
+        <div class="owner-coming-soon" style="padding:40px 0;">
+          <p>Click Refresh to load customers.</p>
+        </div>
+      </div>
 
-      // ===== Show/hide the Admin Dashboard button =====
-      var adminBtn = document.getElementById("adminDashBtn");
-      if (adminBtn) {
-        adminBtn.style.display = userIsAdmin ? "inline-flex" : "none";
-      }
+    </div>
 
-      // ===== Filter steps by assignment =====
-      if (!userIsAdmin) {
-        Object.keys(STEP_TASK_MAP).forEach(function(stepId) {
-          var card = document.getElementById(stepId);
-          if (!card) return;
-          var task = STEP_TASK_MAP[stepId];
-          if (task === "Admin Only") {
-            card.style.display = "none";
-          } else if (userAssignedTasks.indexOf(task) === -1) {
-            card.style.display = "none";
-          }
-        });
-        var notice = document.getElementById("nonAdminNotice");
-        var tasksList = document.getElementById("assignedTasksList");
-        if (notice && tasksList) {
-          tasksList.textContent = userAssignedTasks.length > 0
-            ? userAssignedTasks.join(", ")
-            : "No tasks assigned yet.";
-          notice.style.display = "block";
-        }
-      }
+    <!-- ===== SYSTEM STATUS TAB ===== -->
+    <div id="tab-system" class="owner-tab-content">
 
-      // ===== Populate "Assigned to" labels =====
-      await populateAssignedToLabels(sessionUser);
+      <!-- Workers -->
+      <div class="sys-status-card">
+        <h3>Workers</h3>
+        <div class="sys-status-row">
+          <div>
+            <span class="sys-status-dot sys-dot-ok"></span>
+            <span class="sys-status-label">driv-en-auth-activation</span>
+          </div>
+          <div class="sys-status-value" id="sysWorkerAuth">—</div>
+        </div>
+        <div class="sys-status-row">
+          <div>
+            <span class="sys-status-dot sys-dot-ok"></span>
+            <span class="sys-status-label">driven-referral-api</span>
+          </div>
+          <div class="sys-status-value" id="sysWorkerReferral">—</div>
+        </div>
+        <div class="sys-status-row">
+          <div>
+            <span class="sys-status-dot sys-dot-ok"></span>
+            <span class="sys-status-label">driv-en-checkout</span>
+          </div>
+          <div class="sys-status-value" id="sysWorkerCheckout">—</div>
+        </div>
+        <div class="sys-status-row">
+          <div>
+            <span class="sys-status-dot sys-dot-ok"></span>
+            <span class="sys-status-label">Pages Functions</span>
+          </div>
+          <div class="sys-status-value" id="sysPagesFunctions">—</div>
+        </div>
+      </div>
 
-      // ===== Load admin-only content =====
-      if (userIsAdmin) {
-        await loadLogoPreview();
-        await loadKeyPersonnel();
-      }
-    }
+      <!-- D1 Database -->
+      <div class="sys-status-card">
+        <h3>D1 Database — driv-en-db</h3>
+        <div class="sys-status-row">
+          <div class="sys-status-label">referral_partners</div>
+          <div class="sys-status-value" id="sysD1Partners">— rows</div>
+        </div>
+        <div class="sys-status-row">
+          <div class="sys-status-label">referral_activity</div>
+          <div class="sys-status-value" id="sysD1Activity">— rows</div>
+        </div>
+        <div class="sys-status-row">
+          <div class="sys-status-label">site_visitors</div>
+          <div class="sys-status-value" id="sysD1Visitors">— rows</div>
+        </div>
+        <div class="sys-status-row">
+          <div class="sys-status-label">users</div>
+          <div class="sys-status-value" id="sysD1Users">— rows</div>
+        </div>
+      </div>
 
-    /* ==========================================
-       FALLBACK — if dashSessionLoaded doesn't fire within 5 seconds,
-       fetch the session ourselves and dispatch the event manually.
-       This handles edge cases where dashboard-common.js fails.
-       ========================================== */
-    setTimeout(async function() {
-      if (!initStarted) {
-        console.log("Onboarding Dashboard: dashSessionLoaded timeout — fetching session directly");
-        try {
-          var resp = await fetch("/auth/session");
-          var sdata = await resp.json();
-          if (sdata.authenticated && sdata.user) {
-            initStarted = true;
-            initOnboardingDashboard(sdata.user);
-          }
-        } catch (e) { /* ignore */ }
-      }
-    }, 5000);
+      <!-- R2 Storage -->
+      <div class="sys-status-card">
+        <h3>R2 Storage</h3>
+        <div class="sys-status-row">
+          <div class="sys-status-label">w9-uploads bucket</div>
+          <div class="sys-status-value" id="sysR2W9">—</div>
+        </div>
+      </div>
 
-    /* ==========================================
-       LOAD KEY PERSONNEL (into Step 2 card)
-       ========================================== */
-    async function loadKeyPersonnel() {
-      var customerId = localStorage.getItem("driven_customer_id");
-      if (!customerId) return;
-      var container = document.getElementById("kpListContainer");
-      var body = document.getElementById("kpListBody");
-      try {
-        var response = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(customerId));
-        var data = await response.json();
-        if (data.success && data.keyPersonnel && data.keyPersonnel.length > 0) {
-          body.innerHTML = data.keyPersonnel.map(function(kp) {
-            var tasks = kp.roles.map(function(r) { return r.role; }).join(", ");
-            var emailHtml = kp.email ? '<div class="ob-kp-person-email"><a href="mailto:' + kp.email + '?subject=DRIV‑EN Onboarding Status Request" style="color:#60a5fa;text-decoration:none;">' + kp.email + '</a></div>' : "";
-            return '<div class="ob-kp-person"><span class="ob-kp-person-name">' + kp.name + '</span> <span class="ob-kp-person-tasks">— ' + (tasks || "No tasks assigned") + '</span>' + emailHtml + '</div>';
-          }).join("");
-          container.style.display = "block";
-        }
-      } catch (e) { /* API not available */ }
-    }
+      <!-- Platform Info -->
+      <div class="sys-status-card">
+        <h3>Platform</h3>
+        <div class="sys-status-row">
+          <div class="sys-status-label">Domain</div>
+          <div class="sys-status-value">www.driv-en.com</div>
+        </div>
+        <div class="sys-status-row">
+          <div class="sys-status-label">Pages Project</div>
+          <div class="sys-status-value">driv-en</div>
+        </div>
+        <div class="sys-status-row">
+          <div class="sys-status-label">Last Status Check</div>
+          <div class="sys-status-value" id="sysLastCheck">—</div>
+        </div>
+      </div>
 
-    /* ==========================================
-       LOAD LOGO PREVIEW (into Step 1 card)
-       ========================================== */
-    async function loadLogoPreview() {
-      var preview = document.getElementById("logoPreview");
-      try {
-        var logoRes = await fetch("/auth/get-logo");
-        var logoData = await logoRes.json();
-        if (logoData.success && logoData.logo) {
-          localStorage.setItem("driven_customer_logo", logoData.logo);
-          if (preview) { preview.innerHTML = '<img src="' + logoData.logo + '" alt="Logo preview">'; preview.style.border = "none"; }
-          return;
-        }
-      } catch (e) { console.error("Logo fetch error:", e.message); }
-      var logoUrl = localStorage.getItem("driven_customer_logo");
-      if (logoUrl && preview) { preview.innerHTML = '<img src="' + logoUrl + '" alt="Logo preview">'; preview.style.border = "none"; }
-    }
+    </div>
 
-    /* ==========================================
-       LOGO UPLOAD HANDLER (with auto-resize)
-       ========================================== */
-    async function handleLogoUpload() {
-      var file = document.getElementById("logoFile").files[0];
-      if (!file) return;
-      document.getElementById("logoStatus").textContent = "Processing logo…";
-      document.getElementById("logoStatus").style.color = "var(--text-muted)";
-      var reader = new FileReader();
-      reader.onload = async function(e) {
-        var dataUrl = e.target.result;
-        var img = new Image();
-        img.onload = async function() {
-          var origWidth = img.width, origHeight = img.height, origSize = file.size;
-          var MAX_WIDTH = 400, MAX_HEIGHT = 120, MAX_SIZE = 200000;
-          var needsResize = false, newWidth = origWidth, newHeight = origHeight;
-          if (newWidth > MAX_WIDTH) { var ratio = MAX_WIDTH / newWidth; newWidth = MAX_WIDTH; newHeight = Math.round(newHeight * ratio); needsResize = true; }
-          if (newHeight > MAX_HEIGHT) { var ratio2 = MAX_HEIGHT / newHeight; newHeight = MAX_HEIGHT; newWidth = Math.round(newWidth * ratio2); needsResize = true; }
-          if (origSize > MAX_SIZE) needsResize = true;
-          var finalDataUrl;
-          if (needsResize) {
-            var canvas = document.createElement("canvas"); canvas.width = newWidth; canvas.height = newHeight;
-            var ctx = canvas.getContext("2d"); ctx.drawImage(img, 0, 0, newWidth, newHeight);
-            var isPng = file.type === "image/png"; var outputFormat = isPng ? "image/png" : "image/jpeg"; var quality = 0.85;
-            finalDataUrl = canvas.toDataURL(outputFormat, quality);
-            if (finalDataUrl.length > MAX_SIZE * 1.4) { for (var q = 0.8; q >= 0.3; q -= 0.1) { finalDataUrl = canvas.toDataURL("image/jpeg", q); if (finalDataUrl.length <= MAX_SIZE * 1.4) break; } }
-            document.getElementById("logoStatus").textContent = "Logo resized from " + origWidth + "×" + origHeight + " to " + newWidth + "×" + newHeight + " for optimal display.";
-            document.getElementById("logoStatus").style.color = "var(--text-muted)";
-          } else {
-            finalDataUrl = dataUrl;
-            document.getElementById("logoStatus").textContent = "Logo uploaded (" + origWidth + "×" + origHeight + ").";
-            document.getElementById("logoStatus").style.color = "var(--text-muted)";
-          }
-          localStorage.setItem("driven_customer_logo", finalDataUrl);
-          try {
-            var saveRes = await fetch("/auth/save-logo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ logo_data: finalDataUrl }) });
-            var saveData = await saveRes.json();
-            if (saveData.success) { document.getElementById("logoStatus").textContent += " Synced to all devices."; document.getElementById("logoStatus").style.color = "var(--success)"; }
-            else { document.getElementById("logoStatus").textContent = "Logo saved locally but not synced: " + (saveData.error || "Unknown error"); document.getElementById("logoStatus").style.color = "var(--error)"; }
-          } catch (e) { console.error("Logo save error:", e.message); document.getElementById("logoStatus").textContent = "Logo saved locally but not synced to server."; document.getElementById("logoStatus").style.color = "var(--error)"; }
-          await loadLogoPreview();
-        };
-        img.onerror = function() { document.getElementById("logoStatus").textContent = "Failed to load image. Please try a different file."; document.getElementById("logoStatus").style.color = "var(--error)"; };
-        img.src = dataUrl;
-      };
-      reader.onerror = function() { document.getElementById("logoStatus").textContent = "Failed to read file."; document.getElementById("logoStatus").style.color = "var(--error)"; };
-      reader.readAsDataURL(file);
-    }
+    <!-- ===== ISSUES TAB ===== -->
+    <div id="tab-issues" class="owner-tab-content">
 
-    /* ==========================================
-       POPULATE "ASSIGNED TO" LABELS
-       ========================================== */
-    async function populateAssignedToLabels(sessionUser) {
-      // Steps 1 and 2: show the admin's name
-      var adminName = "Admin";
-      if (sessionUser) {
-        adminName = sessionUser.full_name || "";
-        if (!adminName) { var fn = sessionUser.first_name || ""; var ln = sessionUser.last_name || ""; adminName = (fn + " " + ln).trim(); }
-        if (!adminName) adminName = sessionUser.email || "Admin";
-      }
-      var s1 = document.querySelector("#assignedTo-step1 .ob-assigned-to-name");
-      var s2 = document.querySelector("#assignedTo-step2 .ob-assigned-to-name");
-      if (s1) { s1.textContent = adminName; s1.classList.remove("unassigned"); }
-      if (s2) { s2.textContent = adminName; s2.classList.remove("unassigned"); }
+      <!-- Instructions panel -->
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:16px 20px;margin-bottom:20px;">
+        <h3 style="margin:0 0 10px 0;font-size:15px;color:var(--text);">📋 How to Use Error Logs</h3>
+        <p style="margin:0 0 10px 0;font-size:13px;color:var(--text-muted);line-height:1.6;">
+          System errors (server failures, email delivery issues, database errors) are automatically logged here and an email notification is sent to <strong>support@driv-en.com</strong>.
+          Visitor input errors (missing fields, invalid email format) are <strong>not</strong> logged — those are handled by the website with user-friendly messages.
+        </p>
+        <ol style="margin:0;padding-left:20px;font-size:13px;color:var(--text);line-height:1.8;">
+          <li><strong>Review the error</strong> — click the stack trace to expand it and read the error message, source, and timestamp.</li>
+          <li><strong>Click "Copy for Support"</strong> — copies the full error details (Error ID, source, message, stack trace) to your clipboard.</li>
+          <li><strong>Paste into a support conversation</strong> — paste the copied text so the DRIV-EN team can diagnose and fix the issue.</li>
+          <li><strong>Click "Resolve"</strong> — after the issue is fixed, mark it as resolved. The "Copy for Support" button will disappear.</li>
+        </ol>
+        <p style="margin:10px 0 0 0;font-size:12px;color:var(--text-muted);font-style:italic;">
+          Note: Resolved errors remain visible (dimmed) for your records. Click "Reopen" if an issue recurs.
+        </p>
+      </div>
 
-      // Steps 3-8: fetch KP and build task → names map
-      var customerId = localStorage.getItem("driven_customer_id");
-      if (!customerId) return;
-      var taskToStep = { "Employees": "step3", "Clients": "step4", "Divisions": "step5", "Project Types": "step6", "Projects": "step7", "Equipment": "step8" };
-      try {
-        var response = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(customerId));
-        var data = await response.json();
-        if (!data.success || !data.keyPersonnel) return;
-        var taskToNames = {};
-        data.keyPersonnel.forEach(function(kp) {
-          if (kp.roles) { kp.roles.forEach(function(r) { var task = r.role; if (!taskToNames[task]) taskToNames[task] = []; if (taskToNames[task].indexOf(kp.name) === -1) taskToNames[task].push(kp.name); }); }
-        });
-        Object.keys(taskToStep).forEach(function(task) {
-          var stepId = taskToStep[task]; var nameEl = document.querySelector("#assignedTo-" + stepId + " .ob-assigned-to-name"); if (!nameEl) return;
-          var names = taskToNames[task] || [];
-          if (names.length > 0) { nameEl.textContent = names.join(", "); nameEl.classList.remove("unassigned"); }
-          else { nameEl.textContent = "Not yet assigned"; nameEl.classList.add("unassigned"); }
-        });
-      } catch (e) { /* API not available */ }
-    }
-</script>
+      <!-- Stats cards -->
+      <div class="owner-stats">
+        <div class="owner-stat-card">
+          <div class="owner-stat-number" id="issueStatTotal">0</div>
+           <div class="owner-stat-label">Total Errors</div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-number" id="issueStatToday">0</div>
+          <div class="owner-stat-label">Today</div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-number" id="issueStatWeek">0</div>
+          <div class="owner-stat-label">This Week</div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-number" id="issueStatResolved">0</div>
+          <div class="owner-stat-label">Resolved</div>
+        </div>
+      </div>
 
-<!-- Cloudflare Web Analytics -->
-<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"aed8feab3b60404ba88ec92f026bbcd6","r":1}' crossorigin="anonymous"></script>
+      <!-- Search bar -->
+      <div class="owner-search-bar">
+        <input type="text" id="issueSearchInput" placeholder="Search error logs…" oninput="filterIssues()">
+        <button class="owner-refresh-btn" onclick="loadIssues()">↻ Refresh</button>
+      </div>
+
+      <!-- Issues list -->
+      <div id="issueList">
+        <div class="owner-coming-soon" style="padding:40px 0;">
+          <p>Click Refresh to load issues.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ===== SITE VISITORS TAB ===== -->
+    <div id="tab-visitors" class="owner-tab-content">
+
+      <!-- Date range filter -->
+      <div class="owner-visitors-filters" style="display:flex;gap:8px;align-items:center;margin-bottom:20px;flex-wrap:wrap;">
+        <label style="font-size:14px;color:var(--text-muted);white-space:nowrap;">Date range:</label>
+        <input type="date" id="visitorDateStart" style="padding:8px 12px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);font-size:14px;" />
+        <span style="color:var(--text-muted);">to</span>
+        <input type="date" id="visitorDateEnd" style="padding:8px 12px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);font-size:14px;" />
+        <button onclick="loadVisitors()" style="background:var(--primary);color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:14px;cursor:pointer;">Apply</button>
+        <span style="border-left:1px solid var(--border);height:24px;margin:0 4px;"></span>
+        <button onclick="loadVisitors(null,'today')" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:13px;cursor:pointer;">Today</button>
+        <button onclick="loadVisitors(null,'yesterday')" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:13px;cursor:pointer;">Yesterday</button>
+        <button onclick="loadVisitors(null,'week')" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:13px;cursor:pointer;">This Week</button>
+        <button onclick="loadVisitors(null,'month')" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:13px;cursor:pointer;">This Month</button>
+        <button onclick="loadVisitors('7')" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:13px;cursor:pointer;">Last 7 days</button>
+        <button onclick="loadVisitors('30')" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:13px;cursor:pointer;">Last 30 days</button>
+        <button onclick="loadVisitors('90')" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:13px;cursor:pointer;">Last 90 days</button>
+      </div>
+
+      <!-- Summary stats cards -->
+      <div class="owner-stats" id="visitorStatsGrid">
+        <div class="owner-stat-card">
+          <div class="owner-stat-label">Total Visits</div>
+          <div class="owner-stat-value" id="visitorTotalVisits">—</div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-label">Unique Visitors</div>
+          <div class="owner-stat-value" id="visitorUniqueVisitors">—</div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-label">Unique Sessions</div>
+          <div class="owner-stat-value" id="visitorUniqueSessions">—</div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-label">Countries</div>
+          <div class="owner-stat-value" id="visitorUniqueCountries">—</div>
+        </div>
+      </div>
+      <div class="owner-stats" style="margin-top:-8px;">
+        <div class="owner-stat-card">
+          <div class="owner-stat-label">Referral Visits</div>
+          <div class="owner-stat-value" id="visitorReferralVisits">—</div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-label">Top Device</div>
+          <div class="owner-stat-value" id="visitorTopDevice">—</div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-label">Top Browser</div>
+          <div class="owner-stat-value" id="visitorTopBrowser">—</div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-label">Top OS</div>
+          <div class="owner-stat-value" id="visitorTopOS">—</div>
+        </div>
+      </div>
+
+      <!-- Breakdown cards -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-bottom:24px;">
+        <div class="owner-stat-card">
+          <div class="owner-stat-label">Top Pages</div>
+          <div id="visitorTopPages" style="margin-top:12px;"></div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-label">Top Countries</div>
+          <div id="visitorTopCountries" style="margin-top:12px;"></div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-label">Browsers</div>
+          <div id="visitorBrowsers" style="margin-top:12px;"></div>
+        </div>
+        <div class="owner-stat-card">
+          <div class="owner-stat-label">Operating Systems</div>
+          <div id="visitorOS" style="margin-top:12px;"></div>
+        </div>
+      </div>
+
+      <!-- Recent visitors table -->
+      <h3 style="font-size:18px;color:var(--text);margin-bottom:12px;">Recent Visitors</h3>
+      <div class="owner-table-wrap">
+        <table class="dash-table" id="visitorsTable">
+          <thead>
+            <tr>
+              <th class="sortable" data-vsort="created_at" onclick="sortVisitors('created_at')">Date <span class="sort-arrow"></span></th>
+              <th class="sortable" data-vsort="page_path" onclick="sortVisitors('page_path')">Page <span class="sort-arrow"></span></th>
+              <th class="sortable" data-vsort="country" onclick="sortVisitors('country')">Country <span class="sort-arrow"></span></th>
+              <th class="sortable" data-vsort="device_type" onclick="sortVisitors('device_type')">Device <span class="sort-arrow"></span></th>
+              <th class="sortable" data-vsort="browser" onclick="sortVisitors('browser')">Browser <span class="sort-arrow"></span></th>
+              <th class="sortable" data-vsort="os" onclick="sortVisitors('os')">OS <span class="sort-arrow"></span></th>
+              <th class="sortable" data-vsort="referral_code" onclick="sortVisitors('referral_code')">Referral Code <span class="sort-arrow"></span></th>
+              <th class="sortable" data-vsort="external_referrer" onclick="sortVisitors('external_referrer')">Source <span class="sort-arrow"></span></th>
+              <th class="sortable" data-vsort="time_on_page" onclick="sortVisitors('time_on_page')">Time on Page <span class="sort-arrow"></span></th>
+            </tr>
+          </thead>
+          <tbody id="visitorsTableBody">
+            <tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">Loading visitor data...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Visitor sessions table (grouped by session — shows pages visited + time on site) -->
+      <h3 style="font-size:18px;color:var(--text);margin-bottom:12px;margin-top:32px;">Visitor Sessions</h3>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Each row is a single browsing session — shows every page visited and total time on site. Click a row to expand and see all pages visited.</p>
+      <div class="owner-table-wrap">
+        <table class="dash-table" id="sessionsTable">
+          <thead>
+            <tr>
+              <th class="sortable" data-ssort="firstVisit" onclick="sortSessions('firstVisit')">First Visit <span class="sort-arrow"></span></th>
+              <th class="sortable" data-ssort="pagesCount" onclick="sortSessions('pagesCount')">Pages <span class="sort-arrow"></span></th>
+              <th>Pages Visited</th>
+              <th class="sortable" data-ssort="totalTimeOnSite" onclick="sortSessions('totalTimeOnSite')">Total Time <span class="sort-arrow"></span></th>
+              <th class="sortable" data-ssort="country" onclick="sortSessions('country')">Country <span class="sort-arrow"></span></th>
+              <th class="sortable" data-ssort="deviceType" onclick="sortSessions('deviceType')">Device <span class="sort-arrow"></span></th>
+              <th class="sortable" data-ssort="browser" onclick="sortSessions('browser')">Browser <span class="sort-arrow"></span></th>
+              <th class="sortable" data-ssort="os" onclick="sortSessions('os')">OS <span class="sort-arrow"></span></th>
+              <th class="sortable" data-ssort="referralCode" onclick="sortSessions('referralCode')">Referral Code <span class="sort-arrow"></span></th>
+            </tr>
+          </thead>
+          <tbody id="sessionsTableBody">
+            <tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">Loading session data...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===== MARKETING TAB (placeholder) =====
+         PLAN:
+         - Owner creates HTML advertisements (title, HTML content, valid-until date, created date)
+         - Each ad entry shows: date created, title, valid until, share status
+         - Drill-down: click an ad to see full HTML content preview
+         - "Share to Active Referrers" button on each ad — sends the ad to all
+           approved+active referral partners (appears in their Marketing tab)
+         - Shows date shared per ad
+         - Referrers see shared ads in their dashboard Marketing tab (read-only)
+         - D1 table: marketing_ads (id, title, html_content, valid_until, created_at, shared_at)
+         - D1 table: marketing_shares (id, ad_id, partner_id, shared_at)
+         - Pages Function: /api/admin/marketing (CRUD for ads + share)
+         - Pages Function: /api/referral/marketing (list shared ads for referrer)
+         DO NOT DELETE THIS TAB — implement after current exports are deployed.
+    ===== -->
+    <div id="tab-marketing" class="owner-tab-content">
+      <div class="owner-coming-soon" style="padding:60px 20px;">
+        <h3>Marketing — Coming Soon</h3>
+        <p>Create and share HTML advertisements with your referral partners.</p>
+        <div style="text-align:left;max-width:600px;margin:24px auto;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:24px;font-size:14px;color:var(--text-muted);line-height:1.7;">
+          <strong style="color:var(--text);">Planned Features:</strong><br>
+          • Create HTML advertisements with title, content, and valid-until date<br>
+          • Drill-down to preview each advertisement's full content<br>
+          • Share button — push ads to all active referral partners<br>
+          • Track date shared per advertisement<br>
+          • Referrers see shared ads in their Marketing tab (read-only)<br>
+          • Ads auto-expire on valid-until date (hidden from referrers)
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SETTINGS TAB ===== -->
+    <div id="tab-settings" class="owner-tab-content">
+
+      <!-- Appearance / Theme -->
+      <div class="settings-section">
+        <h3>Appearance</h3>
+        <p class="settings-desc">Choose how the dashboard looks.</p>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Theme</div>
+            <div class="settings-row-hint">Switch between light and dark mode.</div>
+          </div>
+          <div class="settings-theme-toggle">
+            <div class="dash-theme-wrapper">
+              <span class="dash-theme-label" id="dashThemeLabelLight">Light Mode</span>
+              <label class="dash-theme-switch">
+                <input type="checkbox" id="dashThemeCheckbox" onchange="dashToggleTheme()">
+                <span class="dash-theme-slider"></span>
+              </label>
+              <span class="dash-theme-label" id="dashThemeLabelDark">Dark Mode</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Logo -->
+      <div class="settings-section">
+        <h3>Organization Logo</h3>
+        <p class="settings-desc">Upload a logo for Digital Safety Inspection, LLC. It appears in the top-left corner of the dashboard header.</p>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">DSI Logo</div>
+            <div class="settings-row-hint">PNG, JPG, or SVG. Recommended height: 64px. Max 500KB.</div>
+          </div>
+          <div class="settings-logo-preview">
+            <div id="settingsLogoPreview">
+              <div class="settings-logo-placeholder">No logo uploaded</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <input type="file" id="logoFileInput" accept="image/png,image/jpeg,image/svg+xml" style="display:none;" onchange="handleLogoUpload(event)">
+              <button class="settings-logo-btn" onclick="document.getElementById('logoFileInput').click()">Upload Logo</button>
+              <button class="settings-logo-remove" id="logoRemoveBtn" onclick="removeLogo()" style="display:none;">Remove Logo</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- W-9 IRS Form URL -->
+      <div class="settings-section">
+        <h3>W-9 IRS Form URL</h3>
+        <p class="settings-desc">The URL to the IRS W-9 form PDF, shown to referral partners in their dashboard. Update this if the IRS changes the form link.</p>
+        <div class="settings-row" style="flex-direction:column;align-items:stretch;">
+          <div style="margin-bottom:8px;">
+            <div class="settings-row-label">IRS Form W-9 PDF URL</div>
+            <div class="settings-row-hint">This link appears in the referrer dashboard's W-9 section. Default: https://www.irs.gov/pub/irs-pdf/fw9.pdf</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="url" id="w9IrsFormUrlInput" placeholder="https://www.irs.gov/pub/irs-pdf/fw9.pdf" style="flex:1;padding:10px 12px;border:1px solid var(--border-input);border-radius:6px;font-size:14px;background:var(--bg-input);color:var(--text);box-sizing:border-box;" />
+            <button class="settings-logo-btn" onclick="saveW9IrsFormUrl()">Save URL</button>
+          </div>
+          <div id="w9IrsFormUrlMsg" style="font-size:13px;margin-top:8px;"></div>
+        </div>
+      </div>
+
+      <!-- Team Access -->
+      <div class="settings-section">
+        <h3>Team Access</h3>
+        <p class="settings-desc">Add people who can access the Owner Dashboard. They will receive an email with a temporary password and login instructions.</p>
+        <div id="teamAccessList" style="margin-bottom:20px;">
+          <p style="color:var(--text-muted);font-size:14px;">Loading team members...</p>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:20px;">
+          <h4 style="font-size:15px;margin:0 0 12px 0;color:var(--text);">Add New Team Member</h4>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+            <div>
+              <label style="font-size:14px;font-weight:600;display:block;margin-bottom:4px;">Full Name</label>
+              <input type="text" id="newTeamMemberName" name="new-team-name-x" placeholder="Jane Smith" autocomplete="off" style="width:100%;padding:10px 12px;border:1px solid var(--border-input);border-radius:6px;font-size:14px;background:var(--bg-input);color:var(--text);box-sizing:border-box;" />
+            </div>
+            <div>
+              <label style="font-size:14px;font-weight:600;display:block;margin-bottom:4px;">Email Address</label>
+              <input type="email" id="newTeamMemberEmail" name="new-team-email-x" placeholder="jane@example.com" autocomplete="new-password" style="width:100%;padding:10px 12px;border:1px solid var(--border-input);border-radius:6px;font-size:14px;background:var(--bg-input);color:var(--text);box-sizing:border-box;" />
+            </div>
+          </div>
+          <button onclick="addTeamMember()" style="background:var(--primary);color:#fff;border:none;padding:10px 20px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;">Send Invitation</button>
+          <div id="teamMemberMsg" style="font-size:14px;margin-top:8px;"></div>
+        </div>
+      </div>
+
+      <!-- Account -->
+      <div class="settings-section">
+        <h3>Account</h3>
+        <p class="settings-desc">Your account information and password.</p>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Logged in as</div>
+            <div class="settings-row-hint" id="settingsAccountEmail">—</div>
+          </div>
+          <div></div>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Role</div>
+            <div class="settings-row-hint">DRIV-EN Founder</div>
+          </div>
+          <div></div>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Password</div>
+            <div class="settings-row-hint">Change your password.</div>
+          </div>
+          <div>
+            <button style="background:var(--bg-card);border:1px solid var(--border);color:var(--text);padding:10px 16px;border-radius:6px;font-size:14px;cursor:pointer;" onclick="toggleChangePassword()">Change Password</button>
+          </div>
+        </div>
+
+        <!-- Change password section -->
+        <div class="change-pwd-section" id="changePwdSection">
+          <h3 style="font-size:16px;margin-bottom:12px;">Change Your Password</h3>
+          <input type="password" id="currentPwd" placeholder="Current password" />
+          <input type="password" id="newPwd" placeholder="New password (min 8 characters)" />
+          <input type="password" id="confirmNewPwd" placeholder="Confirm new password" />
+          <button onclick="submitChangePassword()">Update Password</button>
+          <div class="change-pwd-msg" id="changePwdMsg"></div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ===== FOOTER ===== -->
+  <div class="dash-footer">
+    <div class="dash-footer-content">
+      <p class="dash-footer-copyright">
+        &copy; <span id="dashFooterYear">2026</span> DRIV-EN. All rights reserved.
+      </p>
+    </div>
+  </div>
+
+</div>
+<!-- ===== END DASHBOARD ===== -->
+
+<!-- ===== APPROVE MODAL ===== -->
+<div id="approveModal" class="owner-modal">
+  <div class="owner-modal-card">
+    <h3>Approve Referral Partner</h3>
+    <p style="font-size:14px;color:var(--text-muted);margin:0 0 4px 0;">Approving:</p>
+    <p style="font-size:16px;font-weight:600;color:var(--text);margin:0;" id="approvePartnerName">—</p>
+
+    <label for="approveReferralCode">Referral Code</label>
+    <div class="owner-code-row">
+      <input type="text" id="approveReferralCode" placeholder="DRV-XXXXXX">
+      <button class="owner-regen-btn" onclick="regenerateCode()">↻ New Code</button>
+    </div>
+
+    <label for="approveW9Expiration">W-9 Expiration Date</label>
+    <input type="date" id="approveW9Expiration">
+
+    <div class="owner-modal-actions">
+      <button class="owner-modal-cancel" onclick="closeApproveModal()">Cancel</button>
+      <button class="owner-modal-confirm" onclick="confirmApprove()">Approve Partner</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== REJECT MODAL ===== -->
+<div id="rejectModal" class="owner-modal">
+  <div class="owner-modal-card">
+    <h3>Reject Referral Partner</h3>
+    <p style="font-size:14px;color:var(--text-muted);margin:0 0 4px 0;">Rejecting:</p>
+    <p style="font-size:16px;font-weight:600;color:var(--text);margin:0;" id="rejectPartnerName">—</p>
+
+    <label for="rejectReason">Reason (optional — included in email to applicant)</label>
+    <textarea id="rejectReason" placeholder="e.g., W-9 is incomplete or missing signature."></textarea>
+
+    <div class="owner-modal-actions">
+      <button class="owner-modal-cancel" onclick="closeRejectModal()">Cancel</button>
+      <button class="owner-modal-confirm danger" onclick="confirmReject()">Reject Partner</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SCRIPTS ===== -->
+
+<!-- ===== SCRIPTS ===== -->
+<script src="/app/dashboard/owner-dashboard.js?v=2"></script>
+
+
 </body>
 </html>
