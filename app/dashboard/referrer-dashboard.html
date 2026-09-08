@@ -695,7 +695,16 @@
     <!-- Main content (hidden until loaded) -->
     <div id="dashBody" style="display:none;">
 
-        <!-- ===== OVERVIEW TAB ===== -->
+        <!-- ===== OVERVIEW TAB =====
+             This tab is a SUMMARY of all other tabs:
+             - KPIs (Total Referrals, Converted, Lifetime Earned, Pending Payout) — from My Referrals data
+             - W-9 Status card → links to W-9 tab
+             - Tax Info (1099-NEC) Status card → links to Tax Info tab
+             - Direct Deposit (ACH) Status card → links to Direct Deposit tab
+             - Marketing banner (when new ads available) → links to Marketing tab
+             - Payment schedule note
+             Keep this tab as a quick at-a-glance summary. Detailed actions live in their own tabs.
+        ===== -->
         <div id="tab-overview" class="ref-tab-content active">
 
             <!-- W-9 Renewal Notice (shown only when status is "Pending W-9 Review") -->
@@ -883,7 +892,7 @@
                     </div>
 
                     <div style="margin-top:12px;">
-                        <input type="file" id="w9FileInput" accept=".pdf,application/pdf" style="display:none;" onchange="handleW9Upload(event)">
+                        <input type="file" id="w9FileInput" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" style="display:none;" onchange="handleW9Upload(event)">
                         <button class="w9-upload-btn" id="w9UploadBtn" onclick="document.getElementById('w9FileInput').click()">Upload New W-9</button>
                     </div>
 
@@ -893,7 +902,7 @@
                         Need a W-9 form? Download IRS Form W-9 (PDF) from the IRS website →
                     </a>
                     <p style="font-size:13px;color:var(--text-muted);margin-top:4px;">
-                        Fill it out, save as PDF, then upload it here.
+                        Fill it out, save as PDF or take a clear photo (PNG/JPG), then upload it here.
                     </p>
                 </div>
             </div>
@@ -1010,8 +1019,11 @@
                         </div>
                     </div>
                     <div style="margin-bottom:16px;">
+                        <!-- Honeypot fields to intercept browser autofill of email/name -->
+                        <input type="text" name="name" style="display:none;" autocomplete="name" tabindex="-1" />
+                        <input type="email" name="email" style="display:none;" autocomplete="email" tabindex="-1" />
                         <label style="font-size:14px;font-weight:600;display:block;margin-bottom:4px;">Name on Account</label>
-                        <input type="text" id="achNameOnAccount" name="ach-name-on-account" placeholder="Full name as it appears on the bank account (not your email)" autocomplete="off" style="width:100%;padding:10px 12px;border:1px solid var(--border-input);border-radius:6px;font-size:14px;background:var(--bg-input);color:var(--text);box-sizing:border-box;" />
+                        <input type="text" id="achNameOnAccount" name="ach-name-on-account-xyz" placeholder="Full name as it appears on the bank account (not your email)" autocomplete="new-password" style="width:100%;padding:10px 12px;border:1px solid var(--border-input);border-radius:6px;font-size:14px;background:var(--bg-input);color:var(--text);box-sizing:border-box;" />
                     </div>
 
                     <button onclick="savePaymentInfo()" style="background:var(--primary);color:#fff;border:none;padding:12px 24px;border-radius:6px;font-size:15px;font-weight:600;cursor:pointer;">Save Payment Info</button>
@@ -1305,7 +1317,10 @@ function updateW9Status(p) {
         w9FileInfo.textContent = 'File: ' + fileName;
 
         if (p.w9_expiration_date) {
-            const expDate = new Date(p.w9_expiration_date);
+            // Append T23:59:59 to prevent timezone shifting the date back a day
+            var expDateStr = p.w9_expiration_date;
+            if (expDateStr.length === 10) expDateStr += 'T23:59:59';
+            const expDate = new Date(expDateStr);
             const now = new Date();
             const daysUntil = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24));
 
@@ -1343,7 +1358,10 @@ function updateOverviewW9Status(p) {
 
     if (p.w9_attachment && !String(p.w9_attachment).startsWith('DEBUG:')) {
         if (p.w9_expiration_date) {
-            const expDate = new Date(p.w9_expiration_date);
+            // Append T23:59:59 to prevent timezone shifting the date back a day
+            var expDateStr = p.w9_expiration_date;
+            if (expDateStr.length === 10) expDateStr += 'T23:59:59';
+            const expDate = new Date(expDateStr);
             const now = new Date();
             if (expDate < now) {
                 dot.className = 'w9-dot w9-expired';
@@ -1376,8 +1394,9 @@ async function handleW9Upload(event) {
         return;
     }
 
-    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-        msgEl.innerHTML = '<span style="color:#cc0000;">Please upload a PDF file.</span>';
+    var fileName = file.name.toLowerCase();
+    if (!fileName.endsWith('.pdf') && !fileName.endsWith('.png') && !fileName.endsWith('.jpg') && !fileName.endsWith('.jpeg')) {
+        msgEl.innerHTML = '<span style="color:#cc0000;">Please upload a PDF or image file (PNG/JPG).</span>';
         event.target.value = '';
         return;
     }
@@ -1583,12 +1602,20 @@ async function loadPaymentInfo() {
             document.getElementById('achBankName').value = p.bank_name || '';
             document.getElementById('achAccountType').value = p.account_type || '';
             document.getElementById('achRoutingNumber').value = p.routing_number || '';
-            document.getElementById('achNameOnAccount').value = p.name_on_account || '';
 
-            // If name_on_account contains an email (old data), clear it
-            if (p.name_on_account && p.name_on_account.includes('@')) {
-                document.getElementById('achNameOnAccount').value = '';
-            }
+            // Name on Account: NEVER prefill from server data.
+            // Old records have the partner's email stored here (bad data).
+            // The field must always start blank so the user types their real name.
+            // Browser autofill is also blocked via autocomplete="off" + non-standard name attr.
+            document.getElementById('achNameOnAccount').value = '';
+            document.getElementById('achNameOnAccount').setAttribute('autocomplete', 'off');
+            // Re-assert blank after a tick to defeat autofill that fires after JS runs
+            setTimeout(function() {
+                var field = document.getElementById('achNameOnAccount');
+                if (field && field.value && field.value.indexOf('@') !== -1) {
+                    field.value = '';
+                }
+            }, 300);
 
             // Account number: show masked, hint about last 4
             if (p.account_number_last4) {
