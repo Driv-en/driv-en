@@ -1149,7 +1149,7 @@ async function loadSystemStatus() {
 }
 
 // =========================================================================
-// ISSUES TAB LOGIC (Error Logs)
+// ISSUES TAB LOGIC
 // =========================================================================
 
 var allIssues = [];
@@ -1174,14 +1174,12 @@ async function loadIssues() {
     } else {
       allIssues = [];
       renderIssueStats([]);
-      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Error Log Not Yet Available</h3><p>The error log table needs to be created in D1. Run this SQL in D1 -> driv-en-db -> Query:</p>' +
-        '<pre style="text-align:left;background:var(--bg-input);padding:16px;border-radius:8px;font-size:13px;overflow-x:auto;margin-top:12px;">CREATE TABLE IF NOT EXISTS error_log (\n  id TEXT PRIMARY KEY,\n  source TEXT,\n  error_message TEXT,\n  stack_trace TEXT,\n  severity TEXT DEFAULT \'error\',\n  resolved INTEGER DEFAULT 0,\n  created_at TEXT\n);</pre>' +
-        '<p style="margin-top:12px;">Then create the /api/admin/issues Pages Function to query it.</p></div>';
+      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors Logged</h3><p>No errors have been recorded yet. When a Worker or Pages Function encounters an error, it will automatically appear here with full diagnostic details.</p></div>';
     }
   } catch (e) {
     allIssues = [];
     renderIssueStats([]);
-    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Error Log Not Yet Available</h3><p>The /api/admin/issues endpoint is not deployed yet. Once the error_log table and API are created, errors from all Workers and Pages Functions will appear here.</p></div>';
+    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Unable to Load Error Logs</h3><p>Could not reach the /api/admin/issues endpoint. Make sure the Pages Function is deployed and D1 is bound.</p></div>';
   }
 }
 
