@@ -854,9 +854,33 @@ btnContinue.addEventListener("click", () => {
   // If promo code is active, go directly to checkout (which will skip Stripe)
   if (promoActive && promoData) {
     localStorage.setItem("promoCode", JSON.stringify(promoData));
+    localStorage.setItem("driven_promo_code", promoData.code || "");
+
+    // Build the checkout payload with isFree=true so checkout knows to skip payment
+    const allModuleKeys = ["equipment", "pm", "inspections", "workorders", "fuel", "transfers", "extraction"];
+    localStorage.setItem("driven_checkout_payload", JSON.stringify({
+      modules: allModuleKeys,
+      bundle: "Complete Platform Bundle",
+      monthlySubtotal: 0,
+      monthlyTax: 0,
+      monthlyTotal: 0,
+      annualSubtotal: 0,
+      annualTax: 0,
+      annualTotal: 0,
+      billingPeriod: "free",
+      invoiceSubtotal: 0,
+      invoiceTax: 0,
+      invoiceTotal: 0,
+      isFree: true,
+      promoCode: promoData.code || "",
+      promoType: promoData.type || "free_period",
+      promoUntil: promoData.validUntil || "2026-12-31"
+    }));
+
     window.location.href = "/website/checkout.html";
   } else {
     localStorage.removeItem("promoCode");
+    localStorage.removeItem("driven_promo_code");
     window.location.href = "/website/cart.html";
   }
 });
