@@ -9,9 +9,11 @@
 //   It will:
 //     1. Auto-create the error_log table (if it doesn't exist)
 //     2. Insert a test error with source, message, stack trace, and timestamp
-//     3. Return a JSON confirmation
+//     3. Send an email notification to support@driv-en.com
+//     4. Return a JSON confirmation
 //
 // After visiting, open the Owner Dashboard → Error Logs tab to see the entry.
+// Check support@driv-en.com for the notification email.
 //
 // SAFE TO DELETE: This file can be removed once error logging is verified.
 // ============================================================================
@@ -55,12 +57,53 @@ export async function onRequest(context) {
       new Date().toISOString()
     ).run();
 
-    // 4. Return confirmation
+    // 4. Send email notification to support
+    if (env.SENDGRID_API_KEY) {
+      try {
+        const supportEmail = env.SUPPORT_CONTACT || 'support@driv-en.com';
+        const fromEmail = env.SENDGRID_FROM_EMAIL || 'noreply@driv-en.com';
+        const emailBody = '<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;">' +
+          '<h2 style="color:#ef4444;">⚠ System Error Logged (TEST)</h2>' +
+          '<p>This is a TEST error notification to verify the error alerting pipeline.</p>' +
+          '<table style="width:100%;border-collapse:collapse;margin:16px 0;">' +
+          '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;background:#f5f5f5;">Error ID</td><td style="padding:8px;border:1px solid #ddd;font-family:monospace;">' + errorId + '</td></tr>' +
+          '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;background:#f5f5f5;">Source</td><td style="padding:8px;border:1px solid #ddd;">test-error-log (intentional test)</td></tr>' +
+          '<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;background:#f5f5f5;">Timestamp</td><td style="padding:8px;border:1px solid #ddd;">' + new Date().toISOString() + '</td></tr>' +
+          '</table>' +
+          '<h3 style="color:#333;">Error Message</h3>' +
+          '<pre style="background:#f5f5f5;padding:12px;border-radius:6px;overflow-x:auto;font-size:13px;">' + testError.message + '</pre>' +
+          '<h3 style="color:#333;">Stack Trace</h3>' +
+          '<pre style="background:#f5f5f5;padding:12px;border-radius:6px;overflow-x:auto;font-size:12px;white-space:pre-wrap;">' + testError.stack + '</pre>' +
+          '<hr style="margin:24px 0;border:none;border-top:1px solid #ddd;">' +
+          '<p style="font-size:13px;color:#999;">This email was sent automatically by the DRIV-EN error logging system. View all errors in the Owner Dashboard → Error Logs tab.</p>' +
+          '</div>';
+
+        await fetch('https://api.sendgrid.com/v3/mail/send', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + env.SENDGRID_API_KEY,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            personalizations: [{ to: [{ email: supportEmail }] }],
+            from: { email: fromEmail, name: 'DRIV-EN Error Monitor' },
+            subject: '⚠ DRIV-EN System Error (TEST): ' + testError.message.substring(0, 100),
+            content: [{ type: 'text/html', value: emailBody }]
+          })
+        });
+      } catch (emailErr) {
+        // Email failure is non-fatal for the test endpoint
+        console.error('Failed to send test error email:', emailErr.message);
+      }
+    }
+
+    // 5. Return confirmation
     return new Response(JSON.stringify({
       success: true,
       message: 'Test error logged successfully.',
       errorId: errorId,
-      instructions: 'Open the Owner Dashboard → Error Logs tab to see this entry.',
+      emailSent: !!(env.SENDGRID_API_KEY),
+      instructions: 'Open the Owner Dashboard → Error Logs tab to see this entry. Check support@driv-en.com for the notification email.',
       note: 'You can safely delete /functions/api/test-error-log.js after verifying.'
     }, null, 2), { status: 200, headers });
 
