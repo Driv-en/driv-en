@@ -1,4 +1,4 @@
-/ =========================================================================
+// =========================================================================
 // OWNER DASHBOARD LOGIC
 // =========================================================================
 // This page does NOT use dashboard-common.js or auth-check.js.
@@ -99,6 +99,10 @@ function removeLogo() {
 // SITE VISITORS TAB LOGIC
 // =========================================================================
 
+// Load visitor data with optional date range
+// presetDays: '1', '7', '30', '90' for quick filters
+// presetName: 'today', 'yesterday', 'week', 'month' for named ranges
+// null: use custom date range from inputs
 async function loadVisitors(presetDays, presetName) {
   try {
     var startEl = document.getElementById('visitorDateStart');
@@ -119,9 +123,10 @@ async function loadVisitors(presetDays, presetName) {
       startEl.value = new Date(y.getFullYear(), y.getMonth(), y.getDate()).toISOString().split('T')[0];
       endEl.value = startEl.value;
     } else if (presetName === 'week') {
+      // This week (starting Monday)
       var w = new Date();
       var day = w.getDay();
-      var diff = w.getDate() - day + (day === 0 ? -6 : 1);
+      var diff = w.getDate() - day + (day === 0 ? -6 : 1); // Monday start
       var weekStart = new Date(w);
       weekStart.setDate(diff);
       startDate = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate()).toISOString();
@@ -129,26 +134,31 @@ async function loadVisitors(presetDays, presetName) {
       startEl.value = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate()).toISOString().split('T')[0];
       endEl.value = w.toISOString().split('T')[0];
     } else if (presetName === 'month') {
+      // This month
       var m = new Date();
       startDate = new Date(m.getFullYear(), m.getMonth(), 1).toISOString();
       endDate = m.toISOString();
       startEl.value = new Date(m.getFullYear(), m.getMonth(), 1).toISOString().split('T')[0];
       endEl.value = m.toISOString().split('T')[0];
     } else if (presetDays) {
+      // Quick filter — last N days
       var end = new Date();
       var start = new Date();
       start.setDate(start.getDate() - parseInt(presetDays));
       startDate = start.toISOString();
       endDate = end.toISOString();
+      // Update the date inputs to reflect the selected range
       startEl.value = start.toISOString().split('T')[0];
       endEl.value = end.toISOString().split('T')[0];
     } else {
+      // Custom date range from inputs
       var startVal = startEl.value;
       var endVal = endEl.value;
       if (startVal && endVal) {
         startDate = new Date(startVal + 'T00:00:00Z').toISOString();
         endDate = new Date(endVal + 'T23:59:59Z').toISOString();
       } else {
+        // Default to last 30 days
         var end = new Date();
         var start = new Date();
         start.setDate(start.getDate() - 30);
@@ -159,8 +169,10 @@ async function loadVisitors(presetDays, presetName) {
       }
     }
 
-    document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">Loading...</td></tr>';
+    // Show loading state
+    document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px;">Loading...</td></tr>';
 
+    // Fetch summary stats
     var summaryResp = await fetch('/api/admin/site-visitors?summary=true&start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate));
     var summaryData = await summaryResp.json();
 
@@ -175,6 +187,7 @@ async function loadVisitors(presetDays, presetName) {
       document.getElementById('visitorTopBrowser').textContent = (s.browserBreakdown && s.browserBreakdown[0]) ? s.browserBreakdown[0].browser : '—';
       document.getElementById('visitorTopOS').textContent = (s.osBreakdown && s.osBreakdown[0]) ? s.osBreakdown[0].os : '—';
 
+      // Top pages
       var pagesHtml = (s.topPages || []).map(function(p) {
         return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
                '<span style="color:var(--text);">' + (p.page_path || '/') + '</span>' +
@@ -182,6 +195,7 @@ async function loadVisitors(presetDays, presetName) {
       }).join('');
       document.getElementById('visitorTopPages').innerHTML = pagesHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
 
+      // Top countries
       var countriesHtml = (s.topCountries || []).map(function(c) {
         return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
                '<span style="color:var(--text);">' + (c.country || 'Unknown') + '</span>' +
@@ -189,6 +203,7 @@ async function loadVisitors(presetDays, presetName) {
       }).join('');
       document.getElementById('visitorTopCountries').innerHTML = countriesHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
 
+      // Browsers
       var browsersHtml = (s.browserBreakdown || []).map(function(b) {
         return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
                '<span style="color:var(--text);text-transform:capitalize;">' + b.browser + '</span>' +
@@ -196,6 +211,7 @@ async function loadVisitors(presetDays, presetName) {
       }).join('');
       document.getElementById('visitorBrowsers').innerHTML = browsersHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
 
+      // OS
       var osHtml = (s.osBreakdown || []).map(function(o) {
         return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
                '<span style="color:var(--text);text-transform:capitalize;">' + o.os + '</span>' +
@@ -204,6 +220,7 @@ async function loadVisitors(presetDays, presetName) {
       document.getElementById('visitorOS').innerHTML = osHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
     }
 
+    // Fetch visitor list
     var listResp = await fetch('/api/admin/site-visitors?start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate));
     var listData = await listResp.json();
 
@@ -215,6 +232,7 @@ async function loadVisitors(presetDays, presetName) {
       document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No visitor data for this date range.</td></tr>';
     }
 
+    // Fetch session-grouped data for the sessions table
     var sessResp = await fetch('/api/admin/site-visitors?sessions=true&start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate));
     var sessData = await sessResp.json();
 
@@ -232,6 +250,7 @@ async function loadVisitors(presetDays, presetName) {
   }
 }
 
+// ---- Sort Recent Visitors ----
 function sortVisitors(column) {
   if (visitorSortColumn === column) {
     visitorSortDirection = visitorSortDirection === 'asc' ? 'desc' : 'asc';
@@ -296,6 +315,7 @@ function renderVisitorTable() {
   tbody.innerHTML = rows;
 }
 
+// ---- Sort Sessions ----
 function sortSessions(column) {
   if (sessionSortColumn === column) {
     sessionSortDirection = sessionSortDirection === 'asc' ? 'desc' : 'asc';
@@ -345,7 +365,7 @@ function renderSessionsTable() {
     return 0;
   });
 
-  var sessRows = sorted.map(function(s) {
+  var sessRows = sorted.map(function(s, idx) {
     var firstVisit = new Date(s.firstVisit).toLocaleString();
     var pagesList = s.pages.map(function(p) {
       var time = p.timeOnPage ? (p.timeOnPage + 's') : '—';
@@ -381,6 +401,7 @@ function renderSessionsTable() {
     }
 
     var role = (data.user && data.user.role) ? String(data.user.role) : '';
+    // Only DRIV-EN Founder role can access the Owner Dashboard.
     if (role !== 'DRIV-EN Founder') {
       window.location.href = '/app/auth/no-access.html';
       return;
@@ -402,6 +423,7 @@ function initOwnerDashboard() {
   updateThemeSwitch();
   loadOwnerLogo();
 
+  // Fill account info in Settings
   var emailEl = document.getElementById('settingsAccountEmail');
   if (emailEl && window.ownerUser) {
     emailEl.textContent = window.ownerUser.email || '—';
@@ -421,7 +443,7 @@ async function loadW9IrsFormUrl() {
       if (input) input.value = data.value;
     }
   } catch (e) {
-    // Endpoint may not exist yet
+    // Endpoint may not exist yet — default is in the placeholder
   }
 }
 
@@ -461,6 +483,7 @@ function switchTab(tabName) {
   if (tabBtn) tabBtn.classList.add('active');
   if (tabContent) tabContent.classList.add('active');
 
+  // Load data when specific tabs are opened
   if (tabName === 'visitors') {
     loadVisitors('30');
   } else if (tabName === 'customers') {
@@ -471,6 +494,7 @@ function switchTab(tabName) {
     loadIssues();
   } else if (tabName === 'settings') {
     loadTeamMembers();
+    // Clear team member input fields (prevents browser autofill)
     var nameInput = document.getElementById('newTeamMemberName');
     var emailInput = document.getElementById('newTeamMemberEmail');
     if (nameInput) nameInput.value = '';
@@ -483,6 +507,7 @@ async function loadPartners() {
   var tbody = document.getElementById('partnersTableBody');
   tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading…</td></tr>';
 
+  // Clear the search input on refresh
   var searchInput = document.getElementById('searchInput');
   if (searchInput) searchInput.value = '';
 
@@ -506,6 +531,7 @@ async function loadPartners() {
   }
 }
 
+// ---- Render Stats ----
 function renderStats(partners) {
   var total = partners.length;
   var pending = partners.filter(function(p) { return p.status === 'Pending'; }).length;
@@ -518,6 +544,7 @@ function renderStats(partners) {
   document.getElementById('statRejected').textContent = rejected;
 }
 
+// ---- Render Table ----
 function renderTable(partners) {
   var tbody = document.getElementById('partnersTableBody');
   tbody.innerHTML = '';
@@ -527,6 +554,7 @@ function renderTable(partners) {
     return;
   }
 
+  // Sort using the selected column and direction
   partners = sortPartners(partners);
 
   partners.forEach(function(p) {
@@ -534,10 +562,12 @@ function renderTable(partners) {
     row.dataset.name = (p.partner_name || '').toLowerCase();
     row.dataset.email = (p.partner_email || '').toLowerCase();
 
+    // If partner is Approved but inactive, gray out the row
     if (p.status === 'Approved' && p.active === 0) {
       row.classList.add('partner-row-inactive');
     }
 
+    // Status badge — includes "Inactive" sub-badge for deactivated approved partners
     var statusBadge = '';
     if (p.status === 'Approved') {
       statusBadge = '<span class="dash-badge dash-badge-success">Approved</span>';
@@ -554,13 +584,15 @@ function renderTable(partners) {
       statusBadge = '<span class="dash-badge dash-badge-muted">' + escapeHtml(p.status || 'Unknown') + '</span>';
     }
 
+    // W-9 download
     var w9Cell = '';
     if (p.w9_attachment && !String(p.w9_attachment).startsWith('DEBUG:')) {
-      w9Cell = '<button class="owner-action-btn owner-btn-w9" data-action="viewW9" data-id="' + escapeHtml(p.id) + '">View W-9</button>';
+      w9Cell = '<button class="owner-action-btn owner-btn-w9" data-action="view-w9" data-id="' + escapeHtml(p.id) + '">View W-9</button>';
     } else {
       w9Cell = '<span style="color:var(--text-muted);font-size:13px;">No W-9</span>';
     }
 
+    // W-9 status (Current / Expired / None)
     var w9StatusCell = '';
     if (!p.w9_attachment || String(p.w9_attachment).startsWith('DEBUG:')) {
       w9StatusCell = '<span class="dash-badge dash-badge-muted">None</span>';
@@ -576,8 +608,10 @@ function renderTable(partners) {
       w9StatusCell = '<span class="dash-badge dash-badge-warning">No Expiry Set</span>';
     }
 
+    // Referral code
     var codeCell = p.referral_code ? '<span style="font-family:monospace;font-weight:600;color:var(--primary);">' + escapeHtml(p.referral_code) + '</span>' : '<span style="color:var(--text-muted);">—</span>';
 
+    // ACH payment status
     var achCell = '';
     if (p.bank_name && p.account_number_last4) {
       achCell = '<span class="dash-badge dash-badge-success" title="' + escapeHtml(p.bank_name) + ' ••••' + escapeHtml(p.account_number_last4) + '">On File</span>';
@@ -587,32 +621,36 @@ function renderTable(partners) {
       achCell = '<span class="dash-badge dash-badge-muted">None</span>';
     }
 
+    // Last referred date — from referral_activity subquery
     var lastReferredCell = '—';
     if (p.last_referred) {
       var lrDate = new Date(p.last_referred);
       lastReferredCell = lrDate.toLocaleDateString();
     }
 
+    // Clickable email link (mailto:)
     var emailCell = p.partner_email
       ? '<a href="mailto:' + escapeHtml(p.partner_email) + '" class="partner-email-link">' + escapeHtml(p.partner_email) + '</a>'
       : '—';
 
+    // Actions — Approve/Reject for Pending, Re-approve for W-9 Review, Activate/Deactivate for Approved
     var actions = '';
     if (p.status === 'Pending') {
-      actions = '<button class="owner-action-btn owner-btn-approve" data-action="approve" data-id="' + escapeHtml(p.id) + '" data-name="' + escapeHtml(p.partner_name || '') + '">Approve</button>';
-      actions += '<button class="owner-action-btn owner-btn-reject" data-action="reject" data-id="' + escapeHtml(p.id) + '" data-name="' + escapeHtml(p.partner_name || '') + '">Reject</button>';
+      actions = '<button class="owner-action-btn owner-btn-approve" data-action="approve" data-id="' + escapeHtml(p.id) + '" data-name="' + escapeHtml(p.partner_name) + '">Approve</button>';
+      actions += '<button class="owner-action-btn owner-btn-reject" data-action="reject" data-id="' + escapeHtml(p.id) + '" data-name="' + escapeHtml(p.partner_name) + '">Reject</button>';
     } else if (p.status === 'Pending W-9 Review') {
-      actions = '<button class="owner-action-btn owner-btn-approve" data-action="reapproveW9" data-id="' + escapeHtml(p.id) + '" data-name="' + escapeHtml(p.partner_name || '') + '">Re-Approve</button>';
+      actions = '<button class="owner-action-btn owner-btn-approve" data-action="reapprove" data-id="' + escapeHtml(p.id) + '">Re-Approve</button>';
     } else if (p.status === 'Approved') {
       if (p.active === 1) {
-        actions = '<button class="owner-action-btn owner-btn-deactivate" data-action="toggleActive" data-id="' + escapeHtml(p.id) + '" data-name="' + escapeHtml(p.partner_name || '') + '">Deactivate</button>';
+        actions = '<button class="owner-action-btn owner-btn-deactivate" data-action="toggle-active" data-id="' + escapeHtml(p.id) + '" data-name="' + escapeHtml(p.partner_name) + '">Deactivate</button>';
       } else {
-        actions = '<button class="owner-action-btn owner-btn-activate" data-action="toggleActive" data-id="' + escapeHtml(p.id) + '" data-name="' + escapeHtml(p.partner_name || '') + '">Activate</button>';
+        actions = '<button class="owner-action-btn owner-btn-activate" data-action="toggle-active" data-id="' + escapeHtml(p.id) + '" data-name="' + escapeHtml(p.partner_name) + '">Activate</button>';
       }
     } else {
       actions = '<span style="color:var(--text-muted);">—</span>';
     }
 
+    // Date
     var date = p.created_at ? new Date(p.created_at).toLocaleDateString() : '—';
 
     row.innerHTML =
@@ -631,22 +669,23 @@ function renderTable(partners) {
     tbody.appendChild(row);
   });
 
-  // Attach event listeners for action buttons
-  var actionBtns = tbody.querySelectorAll('[data-action]');
-  for (var i = 0; i < actionBtns.length; i++) {
-    actionBtns[i].addEventListener('click', function() {
+  // Attach event listeners for partner action buttons
+  var btns = tbody.querySelectorAll('[data-action]');
+  for (var b = 0; b < btns.length; b++) {
+    btns[b].addEventListener('click', function() {
       var action = this.getAttribute('data-action');
       var id = this.getAttribute('data-id');
       var name = this.getAttribute('data-name') || '';
-      if (action === 'viewW9') viewW9(id);
-      else if (action === 'approve') openApproveModal(id, name);
+      if (action === 'approve') openApproveModal(id, name);
       else if (action === 'reject') openRejectModal(id, name);
-      else if (action === 'reapproveW9') reapproveW9(id, name);
-      else if (action === 'toggleActive') toggleActive(id, name);
+      else if (action === 'reapprove') reapproveW9(id);
+      else if (action === 'toggle-active') toggleActive(id, name);
+      else if (action === 'view-w9') viewW9(id);
     });
   }
 }
 
+// ---- Filter Partners ----
 function filterPartners() {
   var query = document.getElementById('searchInput').value.toLowerCase();
   var rows = document.querySelectorAll('#partnersTableBody tr');
@@ -661,6 +700,7 @@ function filterPartners() {
   });
 }
 
+// ---- Sort By Column ----
 function sortBy(column) {
   if (sortColumn === column) {
     sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
@@ -686,10 +726,10 @@ function getW9SortValue(p) {
   if (!p.w9_attachment || String(p.w9_attachment).startsWith('DEBUG:')) return 0;
   if (p.w9_expiration_date) {
     var expDate = new Date(p.w9_expiration_date + 'T23:59:59');
-    if (expDate < new Date()) return 1;
-    return 2;
+    if (expDate < new Date()) return 1; // Expired
+    return 2; // Current
   }
-  return 3;
+  return 3; // No expiry set
 }
 
 function sortPartners(partners) {
@@ -701,8 +741,11 @@ function sortPartners(partners) {
       aVal = getW9SortValue(a);
       bVal = getW9SortValue(b);
     } else if (col === 'created_at' || col === 'last_referred') {
+      // Both created_at and last_referred are date strings (ISO).
+      // Null/empty values sort to the bottom.
       aVal = (a[col] || '');
       bVal = (b[col] || '');
+      // When sorting dates, empty values should always be last regardless of direction
       if (!aVal && bVal) return 1;
       if (aVal && !bVal) return -1;
       if (!aVal && !bVal) return 0;
@@ -716,10 +759,12 @@ function sortPartners(partners) {
   });
 }
 
+// ---- W-9 View (opens in new tab) ----
 function viewW9(partnerId) {
   window.open('/api/admin/w9-download?partnerId=' + encodeURIComponent(partnerId), '_blank');
 }
 
+// ---- Approve Modal ----
 function openApproveModal(partnerId, partnerName) {
   currentApprovePartnerId = partnerId;
   document.getElementById('approvePartnerName').textContent = partnerName || '—';
@@ -780,6 +825,7 @@ async function confirmApprove() {
   }
 }
 
+// ---- Reject Modal ----
 function openRejectModal(partnerId, partnerName) {
   currentRejectPartnerId = partnerId;
   document.getElementById('rejectPartnerName').textContent = partnerName || '—';
@@ -828,6 +874,7 @@ async function confirmReject() {
   }
 }
 
+// ---- Change Password (Owner Dashboard uses /auth/change-password) ----
 function toggleChangePassword() {
   var section = document.getElementById('changePwdSection');
   section.style.display = section.style.display === 'block' ? 'none' : 'block';
@@ -873,6 +920,9 @@ async function submitChangePassword() {
   }
 }
 
+// ---- Re-Approve W-9 (for Pending W-9 Review partners) ----
+// Sets the partner back to Approved with active=1.
+// The partner keeps their existing referral code — only the W-9 was renewed.
 async function reapproveW9(partnerId, partnerName) {
   if (!confirm('Re-approve ' + partnerName + '? Their referral link will be reactivated.')) return;
   try {
@@ -893,6 +943,10 @@ async function reapproveW9(partnerId, partnerName) {
   }
 }
 
+// ---- Activate/Deactivate Toggle (for Approved partners) ----
+// Silently toggles the active state of an Approved partner.
+// No email is sent. The referrer can still log in when deactivated,
+// but their referral link stops working (tracking checks active=1).
 async function toggleActive(partnerId, partnerName) {
   if (!confirm('Toggle active state for ' + partnerName + '?')) return;
   try {
@@ -913,6 +967,7 @@ async function toggleActive(partnerId, partnerName) {
   }
 }
 
+// ---- Helpers ----
 function generateReferralCode() {
   var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   var code = 'DRV-';
@@ -927,6 +982,8 @@ function regenerateCode() {
 }
 
 function defaultW9Expiration() {
+  // W-9 expires on December 31 of the year it was uploaded.
+  // A new W-9 is required each calendar year.
   return new Date().getFullYear() + '-12-31';
 }
 
@@ -937,7 +994,17 @@ function escapeHtml(str) {
 }
 
 function escapeJs(str) {
-  return (str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  var bs = String.fromCharCode(92);
+  var sq = String.fromCharCode(39);
+  var s = str || '';
+  var result = '';
+  for (var i = 0; i < s.length; i++) {
+    var ch = s[i];
+    if (ch === bs) result += bs + bs;
+    else if (ch === sq) result += bs + sq;
+    else result += ch;
+  }
+  return result;
 }
 
 function showError(msg) {
@@ -954,6 +1021,7 @@ function showError(msg) {
 
 var allCustomers = [];
 
+// ---- Load Customers ----
 async function loadCustomers() {
   var listEl = document.getElementById('customerList');
   listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading customers…</div>';
@@ -1035,14 +1103,15 @@ function filterCustomers() {
 // SYSTEM STATUS TAB LOGIC
 // =========================================================================
 
+// ---- Load System Status ----
 async function loadSystemStatus() {
   document.getElementById('sysLastCheck').textContent = new Date().toLocaleString();
 
   var endpoints = [
-    { id: 'sysWorkerAuth', url: '/auth/session' },
-    { id: 'sysWorkerReferral', url: '/referral/session' },
-    { id: 'sysWorkerCheckout', url: '/api/health' },
-    { id: 'sysPagesFunctions', url: '/api/admin/referral-partners' }
+    { id: 'sysWorkerAuth', url: '/auth/session', label: 'Auth Worker' },
+    { id: 'sysWorkerReferral', url: '/referral/session', label: 'Referral API' },
+    { id: 'sysWorkerCheckout', url: '/api/health', label: 'Checkout' },
+    { id: 'sysPagesFunctions', url: '/api/admin/referral-partners', label: 'Pages Functions' }
   ];
 
   for (var i = 0; i < endpoints.length; i++) {
@@ -1064,6 +1133,7 @@ async function loadSystemStatus() {
     }
   }
 
+  // D1 — referral_partners count
   try {
     var resp = await fetch('/api/admin/referral-partners');
     var data = await resp.json();
@@ -1074,6 +1144,7 @@ async function loadSystemStatus() {
     document.getElementById('sysD1Partners').textContent = 'Unable to count';
   }
 
+  // D1 — site_visitors count
   try {
     var vResp = await fetch('/api/admin/site-visitors?summary=true');
     var vData = await vResp.json();
@@ -1084,6 +1155,7 @@ async function loadSystemStatus() {
     document.getElementById('sysD1Visitors').textContent = 'Unable to count';
   }
 
+  // D1 — referral_activity count
   try {
     var pResp = await fetch('/api/admin/referral-partners');
     var pData = await pResp.json();
@@ -1105,9 +1177,10 @@ async function loadSystemStatus() {
 
 var allIssues = [];
 
+// ---- Load Issues ----
 async function loadIssues() {
   var listEl = document.getElementById('issueList');
-  listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading error logs...</div>';
+   listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading error logs...</div>';
 
   try {
     var resp = await fetch('/api/admin/issues');
@@ -1163,6 +1236,7 @@ function renderIssues(issues) {
       : '<button class="owner-action-btn owner-btn-deactivate" data-action="resolve" data-id="' + safeId + '" data-resolved="true">Resolve</button>';
     var resolvedBadge = isResolved ? ' <span class="dash-badge dash-badge-success">Resolved</span>' : '';
 
+    // Copy button — only visible on unresolved errors
     var copyBtn = isResolved
       ? ''
       : '<button class="owner-action-btn owner-btn-w9" data-action="copy" data-id="' + safeId + '">Copy for Support</button>';
@@ -1197,12 +1271,14 @@ function renderIssues(issues) {
 
 // ---- Copy Error for Support ----
 function copyIssue(errorId, btn) {
+  // Find the issue in allIssues
   var issue = allIssues.find(function(i) { return i.id === errorId; });
   if (!issue) {
     alert('Error not found. Try refreshing the page.');
     return;
   }
 
+  // Build a clean text block for pasting into a support conversation
   var text = '=== DRIV-EN ERROR LOG ENTRY ===\n';
   text += 'Error ID: ' + (issue.id || 'N/A') + '\n';
   text += 'Source: ' + (issue.source || 'N/A') + '\n';
@@ -1215,6 +1291,7 @@ function copyIssue(errorId, btn) {
   text += (issue.stack_trace || 'No stack trace available') + '\n';
   text += '\n=== END OF ERROR ENTRY ===';
 
+  // Copy to clipboard
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(function() {
       btn.textContent = '✓ Copied!';
@@ -1226,6 +1303,7 @@ function copyIssue(errorId, btn) {
         btn.style.color = '';
       }, 2000);
     }).catch(function() {
+      // Fallback: select text in a hidden textarea
       fallbackCopy(text, btn);
     });
   } else {
@@ -1287,6 +1365,7 @@ async function resolveIssue(id, resolved) {
 // TEAM ACCESS LOGIC
 // =========================================================================
 
+// ---- Load Team Members ----
 async function loadTeamMembers() {
   var listEl = document.getElementById('teamAccessList');
   if (!listEl) return;
@@ -1302,8 +1381,8 @@ async function loadTeamMembers() {
           : '<span class="dash-badge dash-badge-muted">Inactive</span>';
         var lastLogin = m.last_login ? new Date(m.last_login).toLocaleDateString() : 'Never';
         var deactivateBtn = m.is_active === 1
-          ? '<button class="owner-action-btn owner-btn-deactivate" data-action="toggleTeam" data-id="' + escapeHtml(m.id) + '" data-email="' + escapeHtml(m.email) + '">Deactivate</button>'
-          : '<button class="owner-action-btn owner-btn-activate" data-action="toggleTeam" data-id="' + escapeHtml(m.id) + '" data-email="' + escapeHtml(m.email) + '">Activate</button>';
+          ? '<button class="owner-action-btn owner-btn-deactivate" data-action="toggle-team" data-id="' + escapeHtml(m.id) + '" data-email="' + escapeHtml(m.email) + '">Deactivate</button>'
+          : '<button class="owner-action-btn owner-btn-activate" data-action="toggle-team" data-id="' + escapeHtml(m.id) + '" data-email="' + escapeHtml(m.email) + '">Activate</button>';
 
         return '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid var(--border);">' +
           '<div>' +
@@ -1319,7 +1398,7 @@ async function loadTeamMembers() {
       listEl.innerHTML = html;
 
       // Attach event listeners for team member toggle buttons
-      var teamBtns = listEl.querySelectorAll('[data-action="toggleTeam"]');
+      var teamBtns = listEl.querySelectorAll('[data-action="toggle-team"]');
       for (var t = 0; t < teamBtns.length; t++) {
         teamBtns[t].addEventListener('click', function() {
           toggleTeamMember(this.getAttribute('data-id'), this.getAttribute('data-email'));
@@ -1335,13 +1414,14 @@ async function loadTeamMembers() {
   }
 }
 
+// ---- Add Team Member ----
 async function addTeamMember() {
   var name = document.getElementById('newTeamMemberName').value.trim();
   var email = document.getElementById('newTeamMemberEmail').value.trim();
   var msg = document.getElementById('teamMemberMsg');
 
   if (!name) {
-    msg.innerHTML = '<span style="color:#fca5a5;">Please enter the person\'s full name.</span>';
+    msg.innerHTML = '<span style="color:#fca5a5;">Please enter the person' + String.fromCharCode(39) + 's full name.</span>';
     return;
   }
   if (!email || !email.includes('@')) {
@@ -1376,6 +1456,7 @@ async function addTeamMember() {
   }
 }
 
+// ---- Toggle Team Member Active State ----
 async function toggleTeamMember(memberId, memberEmail) {
   if (!confirm('Toggle access for ' + memberEmail + '?')) return;
   try {
@@ -1399,6 +1480,7 @@ async function toggleTeamMember(memberId, memberEmail) {
 // LOGOUT
 // =========================================================================
 
+// ---- Logout ----
 async function ownerLogout() {
   try {
     await fetch('/auth/logout', { method: 'POST' });
