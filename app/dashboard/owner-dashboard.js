@@ -272,6 +272,60 @@ function updateVisitorSortIndicators() {
   });
 }
 
+// ---- Page Path Mapping ----
+var PAGE_PATH_MAP = {
+  '/': 'Home',
+  '/website/': 'Home',
+  '/website/index.html': 'Home',
+  '/index.html': 'Home',
+  '/website/about.html': 'About',
+  '/about.html': 'About',
+  '/website/modules.html': 'Platform Suites',
+  '/modules.html': 'Platform Suites',
+  '/website/module-selection.html': 'Module Selection',
+  '/module-selection.html': 'Module Selection',
+  '/website/cart.html': 'Cart',
+  '/cart.html': 'Cart',
+  '/website/checkout.html': 'Checkout',
+  '/checkout.html': 'Checkout',
+  '/website/referral-signup.html': 'Referral Program',
+  '/referral-signup.html': 'Referral Program',
+  '/website/safety.html': 'Safety',
+  '/safety.html': 'Safety',
+  '/website/equipment.html': 'Equipment',
+  '/equipment.html': 'Equipment',
+  '/website/project.html': 'Project',
+  '/project.html': 'Project',
+  '/website/roadmap.html': 'Roadmap',
+  '/roadmap.html': 'Roadmap',
+  '/website/legal/privacy.html': 'Privacy Policy',
+  '/website/legal/terms.html': 'Terms of Service',
+  '/website/legal/refund.html': 'Refund Policy',
+  '/app/dashboard/referrer-dashboard.html': 'Referrer Dashboard',
+  '/app/dashboard/owner-dashboard.html': 'Owner Dashboard',
+  '/app/dashboard/onboarding-dashboard.html': 'Onboarding Dashboard'
+};
+
+function pagePathToName(path) {
+  if (!path || path === '/') return 'Home';
+  // Try exact match first
+  if (PAGE_PATH_MAP[path]) return PAGE_PATH_MAP[path];
+  // Try with /website/ prefix
+  if (PAGE_PATH_MAP['/website/' + path.replace(/^\//, '')]) return PAGE_PATH_MAP['/website/' + path.replace(/^\//, '')];
+  // Try without /website/ prefix
+  if (PAGE_PATH_MAP[path.replace('/website/', '/')]) return PAGE_PATH_MAP[path.replace('/website/', '/')];
+  // If it's a /website/ path, extract the page name
+  if (path.indexOf('/website/') === 0) {
+    var page = path.replace('/website/', '').replace('.html', '');
+    if (page === 'index') return 'Home';
+    return page.charAt(0).toUpperCase() + page.slice(1);
+  }
+  // Fallback — return the path as-is but cleaned up
+  var cleaned = path.replace(/^\//, '').replace('.html', '');
+  if (cleaned === 'index' || cleaned === '') return 'Home';
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
 function renderVisitorTable() {
   var tbody = document.getElementById('visitorsTableBody');
   if (!allVisitors || allVisitors.length === 0) {
@@ -300,9 +354,10 @@ function renderVisitorTable() {
   var rows = sorted.map(function(v) {
     var date = new Date(v.created_at).toLocaleString();
     var timeOnPage = v.time_on_page ? (v.time_on_page + 's') : '—';
+    var pageName = pagePathToName(v.page_path);
     return '<tr>' +
       '<td style="white-space:nowrap;">' + date + '</td>' +
-      '<td>' + escapeHtml(v.page_path || '/') + '</td>' +
+      '<td>' + escapeHtml(pageName) + '</td>' +
       '<td>' + escapeHtml(v.country || '—') + '</td>' +
       '<td style="text-transform:capitalize;">' + escapeHtml(v.device_type || '—') + '</td>' +
       '<td style="text-transform:capitalize;">' + escapeHtml(v.browser || '—') + '</td>' +
@@ -369,8 +424,9 @@ function renderSessionsTable() {
     var firstVisit = new Date(s.firstVisit).toLocaleString();
     var pagesList = s.pages.map(function(p) {
       var time = p.timeOnPage ? (p.timeOnPage + 's') : '—';
+      var pageName = pagePathToName(p.pagePath);
       return '<div style="padding:2px 0;font-size:12px;">' +
-             '<span style="color:var(--text);">' + escapeHtml(p.pagePath || '/') + '</span>' +
+             '<span style="color:var(--text);">' + escapeHtml(pageName) + '</span>' +
              ' <span style="color:var(--text-muted);">(' + time + ')</span></div>';
     }).join('');
     var totalTime = s.totalTimeOnSite > 0 ? (s.totalTimeOnSite + 's') : '—';
@@ -1176,6 +1232,8 @@ async function loadSystemStatus() {
 // =========================================================================
 
 var allIssues = [];
+var issueFilter = 'all'; // 'all', 'open', 'resolved'
+var issueExpandedId = null; // which issue is expanded
 
 // ---- Load Issues ----
 async function loadIssues() {
@@ -1217,6 +1275,19 @@ function renderIssueStats(issues) {
   document.getElementById('issueStatResolved').textContent = issues.filter(function(i) { return i.resolved === 1; }).length;
 }
 
+function filterIssuesByStatus(status) {
+  issueFilter = status;
+  // Update filter button states
+  var filterBtns = document.querySelectorAll('.issue-filter-btn');
+  for (var b = 0; b < filterBtns.length; b++) {
+    filterBtns[b].classList.remove('active');
+    if (filterBtns[b].getAttribute('data-filter') === status) {
+      filterBtns[b].classList.add('active');
+    }
+  }
+  renderIssues(allIssues);
+}
+
 function renderIssues(issues) {
   var listEl = document.getElementById('issueList');
 
@@ -1225,45 +1296,107 @@ function renderIssues(issues) {
     return;
   }
 
-  var html = issues.map(function(i) {
+  // Apply filter
+  var filtered = issues.filter(function(i) {
+    if (issueFilter === 'open') return i.resolved !== 1;
+    if (issueFilter === 'resolved') return i.resolved === 1;
+    return true; // 'all'
+  });
+
+  if (filtered.length === 0) {
+    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No ' + (issueFilter === 'open' ? 'Open' : 'Resolved') + ' Errors</h3><p>No errors match this filter.</p></div>';
+    return;
+  }
+
+  // Build table with collapsible rows
+  var html = '<table class="dash-table" style="width:100%;">';
+  html += '<thead><tr>';
+  html += '<th style="width:30px;"></th>';
+  html += '<th>Status</th>';
+  html += '<th>Error Message</th>';
+  html += '<th>Source</th>';
+  html += '<th>Date</th>';
+  html += '<th>Actions</th>';
+  html += '</tr></thead><tbody>';
+
+  filtered.forEach(function(i) {
     var time = i.created_at ? new Date(i.created_at).toLocaleString() : '—';
     var severity = i.severity || 'error';
     var borderColor = severity === 'warning' ? '#f59e0b' : '#ef4444';
     var isResolved = i.resolved === 1;
     var safeId = escapeHtml(i.id);
+    var isExpanded = (issueExpandedId === i.id);
+
+    var statusBadge = isResolved
+      ? '<span class="dash-badge dash-badge-success">Resolved</span>'
+      : '<span class="dash-badge dash-badge-danger">Open</span>';
+
+    var expandIcon = isExpanded ? '▼' : '▶';
+
+    html += '<tr class="issue-row' + (isResolved ? ' partner-row-inactive' : '') + '" data-error-id="' + safeId + '" style="cursor:pointer;">';
+    html += '<td style="text-align:center;font-size:12px;color:var(--text-muted);">' + expandIcon + '</td>';
+    html += '<td>' + statusBadge + '</td>';
+    html += '<td style="font-weight:600;">' + escapeHtml(i.error_message || 'Unknown error') + '</td>';
+    html += '<td><span class="issue-card-source">' + escapeHtml(i.source || 'unknown') + '</span></td>';
+    html += '<td style="white-space:nowrap;font-size:13px;color:var(--text-muted);">' + time + '</td>';
+    html += '<td style="white-space:nowrap;">';
+
+    // Copy button — only on unresolved
+    if (!isResolved) {
+      html += '<button class="owner-action-btn owner-btn-w9" data-action="copy" data-id="' + safeId + '">Copy</button>';
+    }
+
     var resolveBtn = isResolved
       ? '<button class="owner-action-btn owner-btn-activate" data-action="resolve" data-id="' + safeId + '" data-resolved="false">Reopen</button>'
       : '<button class="owner-action-btn owner-btn-deactivate" data-action="resolve" data-id="' + safeId + '" data-resolved="true">Resolve</button>';
-    var resolvedBadge = isResolved ? ' <span class="dash-badge dash-badge-success">Resolved</span>' : '';
+    html += resolveBtn;
+    html += '</td>';
+    html += '</tr>';
 
-    // Copy button — only visible on unresolved errors
-    var copyBtn = isResolved
-      ? ''
-      : '<button class="owner-action-btn owner-btn-w9" data-action="copy" data-id="' + safeId + '">Copy for Support</button>';
+    // Expanded detail row
+    if (isExpanded) {
+      html += '<tr class="issue-detail-row" style="background:var(--bg-input);">';
+      html += '<td></td>';
+      html += '<td colspan="5">';
+      html += '<div style="padding:12px 16px;">';
+      html += '<div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;"><strong>Error ID:</strong> ' + safeId + '</div>';
+      if (i.stack_trace) {
+        html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-weight:600;">Stack Trace:</div>';
+        html += '<pre style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;color:var(--text);white-space:pre-wrap;word-break:break-word;max-height:300px;overflow-y:auto;">' + escapeHtml(i.stack_trace) + '</pre>';
+      }
+      html += '</div>';
+      html += '</td>';
+      html += '</tr>';
+    }
+  });
 
-    return '<div class="issue-card" style="border-left-color:' + borderColor + ';' + (isResolved ? 'opacity:0.6;' : '') + '" data-search="' + escapeHtml((i.error_message || '').toLowerCase() + ' ' + (i.source || '').toLowerCase()) + '" data-error-id="' + safeId + '">' +
-      '<div class="issue-card-header">' +
-        '<div class="issue-card-title">' + escapeHtml(i.error_message || 'Unknown error') + resolvedBadge + '</div>' +
-        '<div class="issue-card-time">' + time + '</div>' +
-      '</div>' +
-      '<span class="issue-card-source">' + escapeHtml(i.source || 'unknown') + '</span>' +
-      (i.stack_trace ? '<div class="issue-card-body">' + escapeHtml(i.stack_trace) + '</div>' : '') +
-      '<div style="margin-top:8px;display:flex;gap:8px;align-items:center;">' + copyBtn + resolveBtn + '</div>' +
-    '</div>';
-  }).join('');
-
+  html += '</tbody></table>';
   listEl.innerHTML = html;
+
+  // Attach event listeners for row expand/collapse
+  var rows = listEl.querySelectorAll('.issue-row');
+  for (var r = 0; r < rows.length; r++) {
+    rows[r].addEventListener('click', function(e) {
+      // Don't toggle if clicking a button
+      if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+      var id = this.getAttribute('data-error-id');
+      issueExpandedId = (issueExpandedId === id) ? null : id;
+      renderIssues(allIssues);
+    });
+  }
 
   // Attach event listeners for copy and resolve buttons
   var copyBtns = listEl.querySelectorAll('[data-action="copy"]');
   for (var c = 0; c < copyBtns.length; c++) {
-    copyBtns[c].addEventListener('click', function() {
+    copyBtns[c].addEventListener('click', function(e) {
+      e.stopPropagation();
       copyIssue(this.getAttribute('data-id'), this);
     });
   }
   var resolveBtns = listEl.querySelectorAll('[data-action="resolve"]');
-  for (var r = 0; r < resolveBtns.length; r++) {
-    resolveBtns[r].addEventListener('click', function() {
+  for (var rb = 0; rb < resolveBtns.length; rb++) {
+    resolveBtns[rb].addEventListener('click', function(e) {
+      e.stopPropagation();
       resolveIssue(this.getAttribute('data-id'), this.getAttribute('data-resolved') === 'true');
     });
   }
@@ -1336,10 +1469,15 @@ function fallbackCopy(text, btn) {
 
 function filterIssues() {
   var query = document.getElementById('issueSearchInput').value.toLowerCase();
-  var cards = document.querySelectorAll('#issueList .issue-card');
-  cards.forEach(function(card) {
-    var searchText = card.dataset.search || '';
-    card.style.display = searchText.indexOf(query) !== -1 ? '' : 'none';
+  var rows = document.querySelectorAll('#issueList .issue-row');
+  rows.forEach(function(row) {
+    var searchText = (row.textContent || '').toLowerCase();
+    row.style.display = searchText.indexOf(query) !== -1 ? '' : 'none';
+    // Also show/hide the detail row that follows
+    var next = row.nextElementSibling;
+    if (next && next.classList.contains('issue-detail-row')) {
+      next.style.display = row.style.display;
+    }
   });
 }
 
