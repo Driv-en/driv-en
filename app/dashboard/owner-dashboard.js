@@ -1518,9 +1518,16 @@ async function loadTeamMembers() {
           ? '<span class="dash-badge dash-badge-success">Active</span>'
           : '<span class="dash-badge dash-badge-muted">Inactive</span>';
         var lastLogin = m.last_login ? new Date(m.last_login).toLocaleDateString() : 'Never';
-        var deactivateBtn = m.is_active === 1
-          ? '<button class="owner-action-btn owner-btn-deactivate" data-action="toggle-team" data-id="' + escapeHtml(m.id) + '" data-email="' + escapeHtml(m.email) + '">Deactivate</button>'
-          : '<button class="owner-action-btn owner-btn-activate" data-action="toggle-team" data-id="' + escapeHtml(m.id) + '" data-email="' + escapeHtml(m.email) + '">Activate</button>';
+        var actionBtns = '';
+        if (m.email !== window.ownerUser.email) {
+          var toggleBtn = m.is_active === 1
+            ? '<button class="owner-action-btn owner-btn-deactivate" data-action="toggle-team" data-id="' + escapeHtml(m.id) + '" data-email="' + escapeHtml(m.email) + '">Deactivate</button>'
+            : '<button class="owner-action-btn owner-btn-activate" data-action="toggle-team" data-id="' + escapeHtml(m.id) + '" data-email="' + escapeHtml(m.email) + '">Activate</button>';
+          var deleteBtn = '<button class="owner-action-btn owner-btn-reject" data-action="delete-team" data-id="' + escapeHtml(m.id) + '" data-email="' + escapeHtml(m.email) + '">Delete</button>';
+          actionBtns = toggleBtn + deleteBtn;
+        } else {
+          actionBtns = '<span style="font-size:12px;color:var(--text-muted);">(you)</span>';
+        }
 
         return '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid var(--border);">' +
           '<div>' +
@@ -1529,7 +1536,7 @@ async function loadTeamMembers() {
           '</div>' +
           '<div style="display:flex;align-items:center;gap:8px;">' +
             statusBadge +
-            (m.email !== window.ownerUser.email ? deactivateBtn : '<span style="font-size:12px;color:var(--text-muted);">(you)</span>') +
+            actionBtns +
           '</div>' +
         '</div>';
       }).join('');
@@ -1540,6 +1547,13 @@ async function loadTeamMembers() {
       for (var t = 0; t < teamBtns.length; t++) {
         teamBtns[t].addEventListener('click', function() {
           toggleTeamMember(this.getAttribute('data-id'), this.getAttribute('data-email'));
+        });
+      }
+      // Attach event listeners for delete buttons
+      var deleteBtns = listEl.querySelectorAll('[data-action="delete-team"]');
+      for (var d = 0; d < deleteBtns.length; d++) {
+        deleteBtns[d].addEventListener('click', function() {
+          deleteTeamMember(this.getAttribute('data-id'), this.getAttribute('data-email'));
         });
       }
     } else if (data.success) {
@@ -1608,6 +1622,26 @@ async function toggleTeamMember(memberId, memberEmail) {
       loadTeamMembers();
     } else {
       showError(data.error || 'Failed to toggle access');
+    }
+  } catch (e) {
+    showError('Network error. Please try again.');
+  }
+}
+
+// ---- Delete Team Member (permanent removal) ----
+async function deleteTeamMember(memberId, memberEmail) {
+  if (!confirm('Permanently DELETE ' + memberEmail + '?\n\nThis cannot be undone. The user will lose all access immediately.')) return;
+  try {
+    var resp = await fetch('/auth/team-members', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', memberId: memberId })
+    });
+    var data = await resp.json();
+    if (data.success) {
+      loadTeamMembers();
+    } else {
+      showError(data.error || 'Failed to delete team member');
     }
   } catch (e) {
     showError('Network error. Please try again.');
