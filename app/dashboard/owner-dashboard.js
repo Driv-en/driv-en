@@ -941,7 +941,7 @@ async function toggleActive(partnerId, partnerName) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'toggle_active', partnerId: partnerId })
-    });
+    };
     var data = await resp.json();
     if (data.success) {
       showError(data.message || 'State toggled');
@@ -1212,18 +1212,88 @@ function renderIssues(issues) {
       : '<button class="owner-action-btn owner-btn-deactivate" onclick="resolveIssue(\'' + i.id + '\', true)">Resolve</button>';
     var resolvedBadge = isResolved ? ' <span class="dash-badge dash-badge-success">Resolved</span>' : '';
 
-    return '<div class="issue-card" style="border-left-color:' + borderColor + ';' + (isResolved ? 'opacity:0.6;' : '') + '" data-search="' + escapeHtml((i.error_message || '').toLowerCase() + ' ' + (i.source || '').toLowerCase()) + '">' +
+    // Copy button — only visible on unresolved errors
+    var copyBtn = isResolved
+      ? ''
+      : '<button class="owner-action-btn owner-btn-w9" onclick="copyIssue(\'' + i.id + '\', this)">Copy for Support</button>';
+
+    return '<div class="issue-card" style="border-left-color:' + borderColor + ';' + (isResolved ? 'opacity:0.6;' : '') + '" data-search="' + escapeHtml((i.error_message || '').toLowerCase() + ' ' + (i.source || '').toLowerCase()) + '" data-error-id="' + escapeHtml(i.id) + '">' +
       '<div class="issue-card-header">' +
         '<div class="issue-card-title">' + escapeHtml(i.error_message || 'Unknown error') + resolvedBadge + '</div>' +
         '<div class="issue-card-time">' + time + '</div>' +
       '</div>' +
       '<span class="issue-card-source">' + escapeHtml(i.source || 'unknown') + '</span>' +
       (i.stack_trace ? '<div class="issue-card-body">' + escapeHtml(i.stack_trace) + '</div>' : '') +
-      '<div style="margin-top:8px;">' + resolveBtn + '</div>' +
+      '<div style="margin-top:8px;display:flex;gap:8px;align-items:center;">' + copyBtn + resolveBtn + '</div>' +
     '</div>';
   }).join('');
 
   listEl.innerHTML = html;
+}
+
+// ---- Copy Error for Support ----
+function copyIssue(errorId, btn) {
+  // Find the issue in allIssues
+  var issue = allIssues.find(function(i) { return i.id === errorId; });
+  if (!issue) {
+    alert('Error not found. Try refreshing the page.');
+    return;
+  }
+
+  // Build a clean text block for pasting into a support conversation
+  var text = '=== DRIV-EN ERROR LOG ENTRY ===\n';
+  text += 'Error ID: ' + (issue.id || 'N/A') + '\n';
+  text += 'Source: ' + (issue.source || 'N/A') + '\n';
+  text += 'Severity: ' + (issue.severity || 'error') + '\n';
+  text += 'Timestamp: ' + (issue.created_at || 'N/A') + '\n';
+  text += 'Resolved: ' + (issue.resolved === 1 ? 'Yes' : 'No') + '\n';
+  text += '\n--- ERROR MESSAGE ---\n';
+  text += (issue.error_message || 'No message') + '\n';
+  text += '\n--- STACK TRACE ---\n';
+  text += (issue.stack_trace || 'No stack trace available') + '\n';
+  text += '\n=== END OF ERROR ENTRY ===';
+
+  // Copy to clipboard
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function() {
+      btn.textContent = '✓ Copied!';
+      btn.style.background = '#22c55e';
+      btn.style.color = '#022c22';
+      setTimeout(function() {
+        btn.textContent = 'Copy for Support';
+        btn.style.background = '';
+        btn.style.color = '';
+      }, 2000);
+    }).catch(function() {
+      // Fallback: select text in a hidden textarea
+      fallbackCopy(text, btn);
+    });
+  } else {
+    fallbackCopy(text, btn);
+  }
+}
+
+function fallbackCopy(text, btn) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    btn.textContent = '✓ Copied!';
+    btn.style.background = '#22c55e';
+    btn.style.color = '#022c22';
+    setTimeout(function() {
+      btn.textContent = 'Copy for Support';
+      btn.style.background = '';
+      btn.style.color = '';
+    }, 2000);
+  } catch (e) {
+    alert('Could not copy automatically. Here is the error text:\n\n' + text);
+  }
+  document.body.removeChild(ta);
 }
 
 function filterIssues() {
