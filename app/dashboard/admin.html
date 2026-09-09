@@ -19,6 +19,9 @@
 <!-- ===== SHARED DASHBOARD CSS ===== -->
 <link rel="stylesheet" href="/app/shared/dashboard.css?v=7">
 
+<!-- ===== DIAMOND-PLATE BACKGROUND ===== -->
+<link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
+
 <!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
 <script>
 (function() {
@@ -32,7 +35,6 @@
 <!-- ===== PAGE-SPECIFIC STYLES ===== -->
 <style>
     /* ===== LOADING SCREEN ===== */
-    /* Shows while session is being verified, then hides */
     .admin-loading {
       display: flex;
       align-items: center;
@@ -42,10 +44,17 @@
       color: var(--text-muted);
     }
 
+    /* ===== HIDE THEME TOGGLE FROM SHARED HEADER (moved to Settings tab) ===== */
+    .dash-theme-wrapper {
+      display: none !important;
+    }
+
+    /* ===== TIGHTEN HEADER PADDING (Row 3 only has logout now) ===== */
+    .dash-header-row3 {
+      padding: 2px 20px 8px 20px;
+    }
+
     /* ===== ACTIVATION OVERLAY ===== */
-    /* Full-screen overlay shown when activation_complete is false.
-       Covers the entire dashboard until the admin enters their activation code.
-       Once activated, it never appears again (activation_complete = 1 in D1). */
     .activation-overlay {
       display: none;
       position: fixed;
@@ -142,6 +151,57 @@
       line-height: 1.4;
     }
 
+    /* ===== TAB BAR ===== */
+    .admin-tab-bar {
+      display: flex;
+      gap: 2px;
+      border-bottom: none;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 20px;
+      overflow-x: auto;
+      position: relative;
+      z-index: 1;
+      background: transparent;
+    }
+    .admin-tab {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      padding: 12px 22px;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 200ms ease, background 200ms ease, border-color 200ms ease, margin-top 200ms ease;
+      margin-top: 4px;
+      position: relative;
+      z-index: 1;
+    }
+    .admin-tab:hover {
+      color: var(--text);
+      margin-top: 2px;
+    }
+    .admin-tab.active {
+      color: var(--primary);
+      background: var(--bg);
+      border-color: var(--primary);
+      margin-top: 0;
+      font-weight: 600;
+      z-index: 2;
+    }
+    .admin-tab-content { display: none; }
+    .admin-tab-content.active { display: block; }
+    .admin-tab-bar::after {
+      content: '';
+      display: block;
+      flex: 1;
+      border-bottom: 2px solid var(--border);
+      margin-top: -1px;
+    }
+
     /* ===== WELCOME BANNER ===== */
     .admin-welcome {
       background: var(--bg-card);
@@ -153,7 +213,7 @@
     .admin-welcome h2 { margin: 0 0 6px 0; font-size: 20px; color: var(--text); }
     .admin-welcome p  { margin: 0; font-size: 14px; color: var(--text-muted); }
 
-    /* ===== ONBOARDING CARD (hides when all steps complete) ===== */
+    /* ===== ONBOARDING CARD ===== */
     .admin-onboarding {
       background: var(--bg-card);
       border: 1px solid var(--primary);
@@ -184,7 +244,7 @@
     }
     .admin-btn-onboarding:hover { background: var(--primary-hover); }
 
-    /* ===== STATS GRID (4 cards) ===== */
+    /* ===== STATS GRID ===== */
     .admin-stats {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -201,7 +261,7 @@
     .admin-stat-number { font-size: 32px; font-weight: 700; color: var(--text); }
     .admin-stat-label  { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
 
-    /* ===== MODULE GRID (5 cards) ===== */
+    /* ===== MODULE GRID ===== */
     .admin-module-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -223,8 +283,7 @@
     .admin-module-body  { font-size: 13px; color: var(--text-muted); line-height: 1.4; flex: 1; }
     .admin-module-link  { font-size: 13px; color: var(--primary); font-weight: 500; }
 
-    /* ===== KP COUNT BADGE (inside onboarding card) ===== */
-    /* Shows the number of key personnel with assignments */
+    /* ===== KP COUNT BADGE ===== */
     .admin-kp-count {
       display: inline-flex;
       align-items: center;
@@ -247,17 +306,48 @@
       line-height: 1.3;
     }
 
+    /* ===== SETTINGS TAB ===== */
+    .admin-settings-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .admin-settings-card h3 {
+      margin: 0 0 16px 0;
+      font-size: 16px;
+      color: var(--text);
+    }
+    .admin-theme-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .admin-theme-row:last-child { border-bottom: none; }
+    .admin-theme-row-label {
+      font-size: 14px;
+      color: var(--text);
+    }
+    .admin-theme-row-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
     /* ===== MOBILE RESPONSIVE ===== */
     @media (max-width: 800px) {
       .admin-onboarding { flex-direction: column; text-align: center; }
       .admin-stats { grid-template-columns: repeat(2, 1fr); }
+      .admin-tab { padding: 10px 16px; font-size: 14px; }
     }
     @media (max-width: 500px) {
       .activation-card { padding: 20px; }
+      .admin-tab { padding: 8px 12px; font-size: 13px; }
     }
 </style>
-
-<link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
 
 </head>
 
@@ -272,11 +362,9 @@
 <div id="adminLoading" class="admin-loading">Checking session…</div>
 
 <!-- ===== ACTIVATION OVERLAY (shown when activation_complete is false) ===== -->
-<!-- This overlay covers the entire screen until the admin enters their activation code. -->
-<!-- Once verified via /auth/verify-activation, it is never shown again. -->
 <div id="activationOverlay" class="activation-overlay">
   <div class="activation-card">
-    <h2>🔒 Activate Your Account</h2>
+    <h2>🔐 Activate Your Account</h2>
     <p>Enter the activation code from your welcome email to unlock your dashboard.</p>
     <div id="activationError" class="activation-error"></div>
     <input type="text" id="activationCodeInput" class="activation-input" placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" autocomplete="off" />
@@ -295,62 +383,209 @@
   <!-- ===== SHARED DASHBOARD HEADER (auto-loaded by dashboard-common.js) ===== -->
   <div id="dashHeader"></div>
 
-  <!-- ===== PAGE CONTENT ===== -->
+  <!-- ===== TAB BAR ===== -->
+  <div class="admin-tab-bar">
+    <button class="admin-tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
+    <button class="admin-tab" data-tab="settings" onclick="switchTab('settings')">Settings</button>
+    <button class="admin-tab" data-tab="onboarding" id="onboardingTab" onclick="switchTab('onboarding')">Onboarding</button>
+  </div>
+
+  <!-- ===== CONTENT AREA ===== -->
   <main class="dash-main">
 
-    <!-- ===== WELCOME BANNER ===== -->
-    <div class="admin-welcome">
-      <h2>Welcome, <span id="admin-welcome-name"></span></h2>
-      <p>You have full access to all modules, settings, users, and operational data.</p>
-    </div>
+    <!-- ===== OVERVIEW TAB ===== -->
+    <div id="tab-overview" class="admin-tab-content active">
 
-    <!-- ===== SUBSCRIPTION STATUS BANNER ===== -->
-    <div id="subscriptionBanner" style="display:none;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:16px;"></div>
+      <!-- ===== WELCOME BANNER ===== -->
+      <div class="admin-welcome">
+        <h2>Welcome, <span id="admin-welcome-name"></span></h2>
+        <p>You have full access to all modules, settings, users, and operational data.</p>
+      </div>
 
-    <!-- ===== CANCEL SUBSCRIPTION BUTTON ===== -->
-    <div style="text-align:right;margin-bottom:16px;">
-      <button id="btnCancelSubscription" style="display:none;background:transparent;border:1px solid #ef4444;color:#ef4444;padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer;" onclick="handleCancelSubscription()">
-        Cancel Subscription
-      </button>
-    </div>
+      <!-- ===== SUBSCRIPTION STATUS BANNER ===== -->
+      <div id="subscriptionBanner" style="display:none;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:16px;"></div>
 
-    <!-- ===== ONBOARDING CARD (hides when complete) ===== -->
-    <div class="admin-onboarding" id="adminOnboardingCard">
-      <div class="admin-onboarding-text">
-        <h3>Onboarding Dashboard</h3>
-        <p>Complete the onboarding steps to set up your organization: company logo, key personnel, employees, clients, divisions, project types, projects, and equipment.</p>
-        <span class="admin-badge" id="admin-onboarding-status" style="background:var(--bg-card);border:1px solid var(--error);color:var(--error);">Not Started</span>
+      <!-- ===== CANCEL SUBSCRIPTION BUTTON ===== -->
+      <div style="text-align:right;margin-bottom:16px;">
+        <button id="btnCancelSubscription" style="display:none;background:transparent;border:1px solid #ef4444;color:#ef4444;padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer;" onclick="handleCancelSubscription()">
+          Cancel Subscription
+        </button>
+      </div>
 
-        <!-- KP count badge — shows number of key personnel with assignments -->
-        <div class="admin-kp-count">
-          <span class="admin-kp-count-number" id="admin-kp-count">0</span>
-          <span class="admin-kp-count-label">Key Personnel<br>Assigned</span>
+      <!-- ===== STATS GRID ===== -->
+      <div class="admin-stats">
+        <div class="admin-stat-card"><div class="admin-stat-number" id="admin-stat-employees">0</div><div class="admin-stat-label">Employees</div></div>
+        <div class="admin-stat-card"><div class="admin-stat-number" id="admin-stat-projects">0</div><div class="admin-stat-label">Projects</div></div>
+        <div class="admin-stat-card"><div class="admin-stat-number" id="admin-stat-equipment">0</div><div class="admin-stat-label">Equipment</div></div>
+        <div class="admin-stat-card"><div class="admin-stat-number" id="admin-stat-clients">0</div><div class="admin-stat-label">Clients</div></div>
+      </div>
+
+      <!-- ===== MODULES ===== -->
+      <div class="dash-card">
+        <h3>Modules</h3>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
+          Only activated modules are shown. To add modules, contact support.
+        </p>
+        <div class="admin-module-grid" id="moduleGrid">
+          <!-- Module cards are generated by JavaScript based on activated_modules -->
         </div>
       </div>
-      <button class="admin-btn-onboarding" onclick="window.location.href='/app/dashboard/onboarding-dashboard.html'">Open Onboarding</button>
-    </div>
 
-    <!-- ===== STATS GRID ===== -->
-    <div class="admin-stats">
-      <div class="admin-stat-card"><div class="admin-stat-number" id="admin-stat-employees">0</div><div class="admin-stat-label">Employees</div></div>
-      <div class="admin-stat-card"><div class="admin-stat-number" id="admin-stat-projects">0</div><div class="admin-stat-label">Projects</div></div>
-      <div class="admin-stat-card"><div class="admin-stat-number" id="admin-stat-equipment">0</div><div class="admin-stat-label">Equipment</div></div>
-      <div class="admin-stat-card"><div class="admin-stat-number" id="admin-stat-clients">0</div><div class="admin-stat-label">Clients</div></div>
     </div>
+    <!-- ===== END OVERVIEW TAB ===== -->
 
-    <!-- ===== MODULES ===== -->
-    <!-- Module cards are generated by JavaScript based on activated_modules -->
-    <!-- from the session. Only purchased/activated modules are shown. -->
-    <!-- Core admin tools (User Management, Projects, Settings) always show. -->
-    <div class="dash-card">
-      <h3>Modules</h3>
-      <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
-        Only activated modules are shown. To add modules, contact support.
-      </p>
-      <div class="admin-module-grid" id="moduleGrid">
-        <!-- Module cards are generated by JavaScript based on activated_modules -->
+    <!-- ===== SETTINGS TAB ===== -->
+    <div id="tab-settings" class="admin-tab-content">
+
+      <!-- ===== THEME SETTINGS ===== -->
+      <div class="admin-settings-card">
+        <h3>Appearance</h3>
+        <div class="admin-theme-row">
+          <div>
+            <div class="admin-theme-row-label">Theme</div>
+            <div class="admin-theme-row-hint">Switch between light and dark mode</div>
+          </div>
+          <!-- Theme slide switch (moved here from shared header) -->
+          <div class="dash-theme-wrapper admin-theme-toggle" title="Toggle light/dark mode">
+            <span class="dash-theme-label" id="dashThemeLabelLight">Light</span>
+            <label class="dash-theme-switch">
+              <input type="checkbox" id="dashThemeCheckbox" onchange="dashToggleTheme()">
+              <span class="dash-theme-slider"></span>
+            </label>
+            <span class="dash-theme-label" id="dashThemeLabelDark">Dark</span>
+          </div>
+        </div>
       </div>
+
+      <!-- ===== ACCOUNT SETTINGS ===== -->
+      <div class="admin-settings-card">
+        <h3>Account</h3>
+        <div class="admin-theme-row">
+          <div>
+            <div class="admin-theme-row-label">Organization</div>
+            <div class="admin-theme-row-hint" id="admin-settings-org">Loading…</div>
+          </div>
+        </div>
+        <div class="admin-theme-row">
+          <div>
+            <div class="admin-theme-row-label">Email</div>
+            <div class="admin-theme-row-hint" id="admin-settings-email">Loading…</div>
+          </div>
+        </div>
+        <div class="admin-theme-row">
+          <div>
+            <div class="admin-theme-row-label">Role</div>
+            <div class="admin-theme-row-hint">Administrator</div>
+          </div>
+        </div>
+        <div class="admin-theme-row">
+          <div>
+            <div class="admin-theme-row-label">Change Password</div>
+            <div class="admin-theme-row-hint">Set a new password for your account</div>
+          </div>
+          <button class="dash-btn-secondary" onclick="window.location.href='/app/auth/change-password.html'">Change Password</button>
+        </div>
+      </div>
+
+      <!-- ===== SUBSCRIPTION SETTINGS ===== -->
+      <div class="admin-settings-card">
+        <h3>Subscription</h3>
+        <div id="admin-settings-subscription">
+          <div class="admin-theme-row">
+            <div>
+              <div class="admin-theme-row-label">Status</div>
+              <div class="admin-theme-row-hint" id="admin-settings-sub-status">Loading…</div>
+            </div>
+          </div>
+          <div class="admin-theme-row">
+            <div>
+              <div class="admin-theme-row-label">Activated Modules</div>
+              <div class="admin-theme-row-hint" id="admin-settings-modules">Loading…</div>
+            </div>
+          </div>
+          <div class="admin-theme-row">
+            <div></div>
+            <button id="btnCancelSubscription2" style="display:none;background:transparent;border:1px solid #ef4444;color:#ef4444;padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer;" onclick="handleCancelSubscription()">
+              Cancel Subscription
+            </button>
+          </div>
+        </div>
+      </div>
+
     </div>
+    <!-- ===== END SETTINGS TAB ===== -->
+
+    <!-- ===== ONBOARDING TAB ===== -->
+    <div id="tab-onboarding" class="admin-tab-content">
+
+      <!-- ===== ONBOARDING CARD ===== -->
+      <div class="admin-onboarding" id="adminOnboardingCard">
+        <div class="admin-onboarding-text">
+          <h3>Onboarding Dashboard</h3>
+          <p>Complete the onboarding steps to set up your organization: company logo, key personnel, employees, clients, divisions, project types, projects, and equipment.</p>
+          <span class="admin-badge" id="admin-onboarding-status" style="background:var(--bg-card);border:1px solid var(--error);color:var(--error);">Not Started</span>
+
+          <!-- KP count badge -->
+          <div class="admin-kp-count">
+            <span class="admin-kp-count-number" id="admin-kp-count">0</span>
+            <span class="admin-kp-count-label">Key Personnel<br>Assigned</span>
+          </div>
+        </div>
+        <button class="admin-btn-onboarding" onclick="window.location.href='/app/dashboard/onboarding-dashboard.html'">Open Onboarding</button>
+      </div>
+
+      <!-- ===== ONBOARDING STEPS PREVIEW ===== -->
+      <div class="dash-card">
+        <h3>Onboarding Steps</h3>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
+          Click "Open Onboarding" above to complete these steps.
+        </p>
+        <div class="admin-module-grid">
+          <div class="admin-module-card" onclick="window.location.href='/app/onboarding/key-personnel.html'">
+            <div class="admin-module-title">Key Personnel</div>
+            <div class="admin-module-body">Assign key personnel roles and responsibilities.</div>
+            <div class="admin-module-link">Open →</div>
+          </div>
+          <div class="admin-module-card" onclick="window.location.href='/app/onboarding/roles-permissions.html'">
+            <div class="admin-module-title">Roles & Permissions</div>
+            <div class="admin-module-body">Configure roles and permission levels.</div>
+            <div class="admin-module-link">Open →</div>
+          </div>
+          <div class="admin-module-card" onclick="window.location.href='/app/onboarding/employees.html'">
+            <div class="admin-module-title">Employees</div>
+            <div class="admin-module-body">Add and manage employee records.</div>
+            <div class="admin-module-link">Open →</div>
+          </div>
+          <div class="admin-module-card" onclick="window.location.href='/app/onboarding/clients.html'">
+            <div class="admin-module-title">Clients</div>
+            <div class="admin-module-body">Add clients for your projects.</div>
+            <div class="admin-module-link">Open →</div>
+          </div>
+          <div class="admin-module-card" onclick="window.location.href='/app/onboarding/divisions.html'">
+            <div class="admin-module-title">Divisions</div>
+            <div class="admin-module-body">Create organizational divisions.</div>
+            <div class="admin-module-link">Open →</div>
+          </div>
+          <div class="admin-module-card" onclick="window.location.href='/app/onboarding/project-types.html'">
+            <div class="admin-module-title">Project Types</div>
+            <div class="admin-module-body">Define types of projects you handle.</div>
+            <div class="admin-module-link">Open →</div>
+          </div>
+          <div class="admin-module-card" onclick="window.location.href='/app/onboarding/projects.html'">
+            <div class="admin-module-title">Projects</div>
+            <div class="admin-module-body">Create and configure projects.</div>
+            <div class="admin-module-link">Open →</div>
+          </div>
+          <div class="admin-module-card" onclick="window.location.href='/app/onboarding/equipment.html'">
+            <div class="admin-module-title">Equipment</div>
+            <div class="admin-module-body">Add equipment and fleet information.</div>
+            <div class="admin-module-link">Open →</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <!-- ===== END ONBOARDING TAB ===== -->
 
   </main>
 
@@ -366,12 +601,21 @@
 <!-- ===== PAGE-SPECIFIC SCRIPT ===== -->
 <script>
     /* ==========================================
+       TAB SWITCHING
+       Same pattern as owner-dashboard and referrer-dashboard.
+       ========================================== */
+    function switchTab(tabName) {
+      document.querySelectorAll('.admin-tab').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('.admin-tab-content').forEach(function(c) { c.classList.remove('active'); });
+      var tabBtn = document.querySelector('[data-tab="' + tabName + '"]');
+      var tabContent = document.getElementById('tab-' + tabName);
+      if (tabBtn) tabBtn.classList.add('active');
+      if (tabContent) tabContent.classList.add('active');
+    }
+    window.switchTab = switchTab;
+
+    /* ==========================================
        ALL AVAILABLE MODULES
-       These map module names (as stored in D1 activated_modules)
-       to their dashboard card info. Only modules in the user's
-       activated_modules array will be shown on the dashboard.
-       Core admin tools (User Management, Projects, Settings)
-       are always shown regardless of activation.
        ========================================== */
     var ALL_MODULES = [
       { name: "Equipment Management", title: "Equipment", body: "Manage fleet, assignments, PM schedules, and service history.", url: "/app/dashboard/admin/equipment.html" },
@@ -385,8 +629,6 @@
 
     /* ==========================================
        ACTIVATION OVERLAY LOGIC
-       Handles the activation code input, verification via
-       /auth/verify-activation, and the resend code link.
        ========================================== */
     var activationOverlay = document.getElementById("activationOverlay");
     var activationInput = document.getElementById("activationCodeInput");
@@ -394,7 +636,6 @@
     var activationError = document.getElementById("activationError");
     var resendLink = document.getElementById("resendActivation");
 
-    // Submit activation code
     activationBtn.addEventListener("click", async function() {
       var code = activationInput.value.trim();
       activationError.classList.remove("show");
@@ -419,12 +660,10 @@
         var data = await resp.json();
 
         if (data.success) {
-          // Activation successful — hide overlay, show dashboard
           activationOverlay.classList.remove("active");
           activationOverlay.style.display = "none";
           document.getElementById("adminDashboard").style.display = "block";
 
-          // Render modules if returned
           if (data.activated_modules) {
             renderModules(data.activated_modules);
           }
@@ -443,7 +682,6 @@
       }
     });
 
-    // Resend activation code
     resendLink.addEventListener("click", async function() {
       resendLink.textContent = "Sending…";
       try {
@@ -471,7 +709,6 @@
       }
     });
 
-    // Allow Enter key to submit activation
     activationInput.addEventListener("keydown", function(e) {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -480,16 +717,12 @@
     });
 
     /* ==========================================
-       RENDER MODULES — only shows activated modules
-       Core admin tools (User Management, Projects, Settings)
-       always show. Purchased modules only show if they are
-       in the activated_modules array from D1.
+       RENDER MODULES
        ========================================== */
     function renderModules(activatedModules) {
       var grid = document.getElementById("moduleGrid");
       grid.innerHTML = "";
 
-      // Always show core admin tools
       var coreCards = [
         { title: "User Management", body: "Manage employees, roles, permissions, and account access.", url: "/app/dashboard/admin/users.html" },
         { title: "Projects", body: "View, create, and manage all projects across your organization.", url: "/app/dashboard/admin/projects.html" },
@@ -507,7 +740,6 @@
         grid.appendChild(div);
       });
 
-      // Show activated purchased modules
       if (activatedModules && activatedModules.length > 0) {
         ALL_MODULES.forEach(function(mod) {
           if (activatedModules.indexOf(mod.name) !== -1) {
@@ -526,59 +758,35 @@
 
     /* ==========================================
        ADMIN DASHBOARD INIT
-       Runs after dashboard-common.js loads the session.
-       The "dashSessionLoaded" event fires when the user
-       session is available (user object, org_id, etc.)
-
-       What this script does:
-       1. Fills the welcome banner with the user's first name
-       2. Checks activation status — shows overlay if not activated
-       3. If activated, shows the dashboard with activated modules
-       4. Checks onboarding status (localStorage + KP API)
-       5. Hides onboarding card if complete
-       6. Loads stats from localStorage (will be DB queries later)
        ========================================== */
     document.addEventListener("dashSessionLoaded", async function(e) {
-      // e.detail contains the user object from /auth/session
-      // e.detail.email, e.detail.first_name, e.detail.org_id
-      // e.detail.activation_complete (true/false)
-      // e.detail.activated_modules (array of module names)
-
-      // 1. Fill welcome banner with first name
       var firstName = (e.detail && e.detail.first_name) ? e.detail.first_name : (e.detail && e.detail.email) || "";
       var welcomeEl = document.getElementById("admin-welcome-name");
       if (welcomeEl) welcomeEl.textContent = firstName;
 
-      // Hide loading screen
       document.getElementById("adminLoading").style.display = "none";
 
-      // 2. Check activation status from the session data
-      // handleSession now returns activation_complete and activated_modules from D1
       var activationComplete = e.detail && e.detail.activation_complete === true;
       var activatedModules = (e.detail && e.detail.activated_modules) || [];
 
       if (!activationComplete) {
-        // Not activated — show the activation overlay, keep dashboard hidden
         activationOverlay.classList.add("active");
         activationInput.focus();
       } else {
-        // Already activated — hide overlay, show dashboard
         activationOverlay.classList.remove("active");
         activationOverlay.style.display = "none";
         document.getElementById("adminDashboard").style.display = "block";
         renderModules(activatedModules);
       }
 
-      // 3-6. Onboarding status and stats (only relevant if activated)
       if (activationComplete) {
         // 3. Check onboarding status
-        // Checks localStorage flags AND fetches KP count from server
-        // for desktop/mobile consistency
         var onboardingComplete = localStorage.getItem("driven_onboarding_complete") === "true";
         var onboardingStarted = localStorage.getItem("driven_customer_logo") !== null ||
                                  localStorage.getItem("driven_kp_count") !== null;
         var statusEl = document.getElementById("admin-onboarding-status");
         var onboardingCard = document.getElementById("adminOnboardingCard");
+        var onboardingTab = document.getElementById("onboardingTab");
 
         // Fetch key personnel count from server
         try {
@@ -589,7 +797,6 @@
             if (kpData.success && kpData.keyPersonnel) {
               localStorage.setItem("driven_kp_count", kpData.keyPersonnel.length);
               if (kpData.keyPersonnel.length > 0) onboardingStarted = true;
-              // Update the KP count badge inside the onboarding card
               var kpCountEl = document.getElementById("admin-kp-count");
               if (kpCountEl) kpCountEl.textContent = kpData.keyPersonnel.length;
             }
@@ -600,23 +807,22 @@
 
         // 4. Update onboarding card display
         if (onboardingComplete) {
-          // All onboarding steps complete — hide the card
+          // All onboarding steps complete — hide the card and the tab
           onboardingCard.style.display = "none";
+          if (onboardingTab) onboardingTab.style.display = "none";
         } else if (onboardingStarted) {
-          // Onboarding in progress — show "In Progress" badge
           statusEl.textContent = "In Progress";
           statusEl.style.background = "var(--bg-card)";
           statusEl.style.borderColor = "var(--primary)";
           statusEl.style.color = "var(--primary)";
         } else {
-          // Onboarding not started — show "Not Started" badge
           statusEl.textContent = "Not Started";
           statusEl.style.background = "var(--bg-card)";
           statusEl.style.borderColor = "var(--error)";
           statusEl.style.color = "var(--error)";
         }
 
-        // 5. Load stats from localStorage (will be database queries later)
+        // 5. Load stats from localStorage
         document.getElementById("admin-stat-employees").textContent = localStorage.getItem("driven_employee_count") || "0";
         document.getElementById("admin-stat-projects").textContent  = localStorage.getItem("driven_project_count") || "0";
         document.getElementById("admin-stat-equipment").textContent  = localStorage.getItem("driven_equipment_count") || "0";
@@ -644,33 +850,44 @@
           }
         }
 
-        // Show cancel button (only for non-free, non-cancelled accounts)
+        // Show cancel button
         var cancelBtn = document.getElementById("btnCancelSubscription");
-        if (cancelBtn) {
-          if (subStatus === 'free') {
-            // Free accounts don't need a cancel button — nothing to cancel
-            cancelBtn.style.display = 'none';
-          } else if (subStatus === 'cancelled') {
-            cancelBtn.style.display = 'none';
+        var cancelBtn2 = document.getElementById("btnCancelSubscription2");
+        [cancelBtn, cancelBtn2].forEach(function(btn) {
+          if (!btn) return;
+          if (subStatus === 'free' || subStatus === 'cancelled') {
+            btn.style.display = 'none';
           } else {
-            // Paid account — show cancel button
-            // But since Stripe isn't live yet, show tooltip
-            cancelBtn.style.display = 'inline-block';
-            cancelBtn.title = 'Available when paid subscriptions launch';
+            btn.style.display = 'inline-block';
+            btn.title = 'Available when paid subscriptions launch';
           }
+        });
+
+        // 7. Fill Settings tab with account info
+        var orgEl = document.getElementById("admin-settings-org");
+        var emailEl = document.getElementById("admin-settings-email");
+        var subStatusEl = document.getElementById("admin-settings-sub-status");
+        var modulesEl = document.getElementById("admin-settings-modules");
+        if (orgEl) orgEl.textContent = (e.detail && e.detail.org_id) || 'N/A';
+        if (emailEl) emailEl.textContent = (e.detail && e.detail.email) || 'N/A';
+        if (subStatusEl) {
+          if (subStatus === 'free') subStatusEl.textContent = 'Free access (until ' + (subExpiry || 'Dec 31, 2026') + ')';
+          else if (subStatus === 'cancelled') subStatusEl.textContent = 'Cancelled (active until ' + (subExpiry || 'end of period') + ')';
+          else subStatusEl.textContent = 'Active';
+        }
+        if (modulesEl) {
+          modulesEl.textContent = (activatedModules && activatedModules.length > 0)
+            ? activatedModules.join(', ')
+            : 'None activated';
         }
       }
     });
 
     /* ==========================================
        CANCEL SUBSCRIPTION HANDLER
-       Shows a confirmation dialog, then calls /api/cancel-subscription.
-       NOTE: Without Stripe, the button is visible but shows a tooltip.
-       When Stripe is live, this will fully work.
        ========================================== */
     function handleCancelSubscription() {
-      // Check if Stripe is live (we'll set this flag when Stripe is configured)
-      var stripeLive = false; // TODO: Set to true when Stripe is configured
+      var stripeLive = false;
 
       if (!stripeLive) {
         alert('Cancel subscription will be available when paid subscriptions launch. ' +
@@ -679,7 +896,6 @@
         return;
       }
 
-      // Confirm cancellation
       var confirmCancel = confirm(
         'Are you sure you want to cancel your subscription?\n\n' +
         'You will continue to have access until the end of your current billing period. ' +
@@ -689,7 +905,6 @@
 
       if (!confirmCancel) return;
 
-      // Get org_id from session
       var sessionData = window.__drivenSession || {};
       var orgId = sessionData.org_id || '';
       var email = sessionData.email || '';
@@ -699,7 +914,6 @@
         return;
       }
 
-      // Call the cancel API
       fetch('/api/cancel-subscription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -713,7 +927,6 @@
       .then(function(data) {
         if (data.success) {
           alert(data.message);
-          // Reload to update the banner
           window.location.reload();
         } else {
           alert(data.error || 'Unable to cancel subscription. Please try again or contact support@driv-en.com.');
@@ -724,19 +937,14 @@
       });
     }
 
-    // Make available globally since the button uses onclick
     window.handleCancelSubscription = handleCancelSubscription;
 
     /* ==========================================
-       FALLBACK: If session fails to load (network error, etc.)
-       redirect to login page after 5 seconds.
-       Also checks that the activation overlay is not showing —
-       if it is, the session loaded fine, just not activated.
+       FALLBACK: redirect to login if session fails
        ========================================== */
     setTimeout(function() {
       if (document.getElementById("adminDashboard").style.display === "none" &&
           !document.getElementById("activationOverlay").classList.contains("active")) {
-        // Dashboard still hidden and activation overlay not showing — session likely failed
         console.error("Session check timed out — redirecting to login");
          window.location.href = "/public/login.html";
       }
