@@ -44,40 +44,32 @@ function updateThemeSwitch() {
 }
 
 // ---- Logo Management ----
+// The owner logo is stored SERVER-SIDE in the app_settings table (key: owner_logo)
+// via the /api/admin/app-settings Pages Function. This makes it visible from
+// any device the owner logs into — NOT just the device where it was uploaded.
+// localStorage is no longer used for the logo.
 function loadOwnerLogo() {
-  var logoData = localStorage.getItem('driven-owner-logo');
   var container = document.getElementById('ownerLogoContainer');
   var preview = document.getElementById('settingsLogoPreview');
   var removeBtn = document.getElementById('logoRemoveBtn');
 
-  if (logoData) {
-    container.innerHTML = '<img src="' + logoData + '" class="dash-customer-logo" alt="DSI Logo">';
-    preview.innerHTML = '<img src="' + logoData + '" style="max-height:56px;max-width:180px;border:1px solid var(--border);border-radius:6px;padding:4px;background:var(--bg-card);" alt="Logo preview">';
-    if (removeBtn) removeBtn.style.display = 'inline-block';
-  } else {
-    // Fallback: try fetching from /auth/get-logo (server-side stored logo)
-    fetchLogoFromServer(container, preview, removeBtn);
-  }
-}
+  // Show placeholder immediately while we fetch from server
+  container.innerHTML = '<div class="dash-customer-logo-placeholder">DSI Logo</div>';
+  preview.innerHTML = '<div class="settings-logo-placeholder">No logo uploaded</div>';
+  if (removeBtn) removeBtn.style.display = 'none';
 
-function fetchLogoFromServer(container, preview, removeBtn) {
-  fetch('/auth/get-logo', { credentials: 'include' })
+  // Fetch the logo from the server (app_settings table, key=owner_logo)
+  fetch('/api/admin/app-settings?key=owner_logo')
     .then(function(res) { return res.json(); })
     .then(function(data) {
-      if (data.success && data.logo) {
-        container.innerHTML = '<img src="' + data.logo + '" class="dash-customer-logo" alt="DSI Logo">';
-        preview.innerHTML = '<img src="' + data.logo + '" style="max-height:56px;max-width:180px;border:1px solid var(--border);border-radius:6px;padding:4px;background:var(--bg-card);" alt="Logo preview">';
-        if (removeBtn) removeBtn.style.display = 'none'; // Can't remove server-side logo from here
-      } else {
-        container.innerHTML = '<div class="dash-customer-logo-placeholder">DSI Logo</div>';
-        preview.innerHTML = '<div class="settings-logo-placeholder">No logo uploaded</div>';
-        if (removeBtn) removeBtn.style.display = 'none';
+      if (data.success && data.value) {
+        container.innerHTML = '<img src="' + data.value + '" class="dash-customer-logo" alt="DSI Logo">';
+        preview.innerHTML = '<img src="' + data.value + '" style="max-height:56px;max-width:180px;border:1px solid var(--border);border-radius:6px;padding:4px;background:var(--bg-card);" alt="Logo preview">';
+        if (removeBtn) removeBtn.style.display = 'inline-block';
       }
     })
-    .catch(function() {
-      container.innerHTML = '<div class="dash-customer-logo-placeholder">DSI Logo</div>';
-      preview.innerHTML = '<div class="settings-logo-placeholder">No logo uploaded</div>';
-      if (removeBtn) removeBtn.style.display = 'none';
+    .catch(function(e) {
+      // Endpoint may not exist yet — keep placeholder
     });
 }
 
@@ -94,9 +86,25 @@ function handleLogoUpload(event) {
   var reader = new FileReader();
   reader.onload = function(e) {
     var logoData = e.target.result;
-    localStorage.setItem('driven-owner-logo', logoData);
-    loadOwnerLogo();
-    showError('');
+
+    // Save to server (app_settings table) so it's visible from any device
+    fetch('/api/admin/app-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: 'owner_logo', value: logoData })
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.success) {
+        loadOwnerLogo();
+        showError('');
+      } else {
+        showError('Failed to save logo to server: ' + (data.error || 'Unknown error'));
+      }
+    })
+    .catch(function(e) {
+      showError('Network error while saving logo. Please try again.');
+    });
   };
   reader.onerror = function() {
     showError('Failed to read the logo file. Please try again.');
@@ -106,8 +114,19 @@ function handleLogoUpload(event) {
 }
 
 function removeLogo() {
-  localStorage.removeItem('driven-owner-logo');
-  loadOwnerLogo();
+  // Clear the server-side logo by saving an empty value
+  fetch('/api/admin/app-settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: 'owner_logo', value: '' })
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    loadOwnerLogo();
+  })
+  .catch(function(e) {
+    loadOwnerLogo();
+  });
 }
 
 // =========================================================================
@@ -468,11 +487,16 @@ function initOwnerDashboard() {
   loadOwnerLogo();
 
   // Add sticky positioning to tab bar
+  // The header (.dash-header) is already sticky at top:0 with z-index:100.
+  // The tab bar needs to stick BELOW the header. We measure the header height
+  // dynamically so it works regardless of logo size or screen width.
   var tabBar = document.querySelector('.owner-tab-bar');
-  if (tabBar) {
+  var header = document.querySelector('.dash-header');
+  if (tabBar && header) {
+    var headerHeight = header.offsetHeight;
     tabBar.style.position = 'sticky';
-    tabBar.style.top = '0';
-    tabBar.style.zIndex = '100';
+    tabBar.style.top = headerHeight + 'px';
+    tabBar.style.zIndex = '99';
     tabBar.style.background = 'var(--bg)';
   }
 
