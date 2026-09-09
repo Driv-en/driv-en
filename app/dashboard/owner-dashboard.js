@@ -1,16 +1,11 @@
 // =========================================================================
-// OWNER DASHBOARD LOGIC
+// OWNER DASHBOARD LOGIC — UPDATED (Session 29)
 // =========================================================================
-// This page does NOT use dashboard-common.js or auth-check.js.
-// It performs its own auth check by fetching /auth/session directly.
-// Only users with role=DRIV-EN Founder can access this dashboard.
-// The header, theme toggle, and footer are self-contained (like the
-// referrer dashboard) to avoid loading customer-specific data.
-//
-// NOTE: The theme toggle has been moved from the header to the Settings tab.
-//       The DSI logo is loaded from localStorage (base64) and displayed in
-//       the header. Logo upload is handled in the Settings tab.
-//       When other dashboards are updated, replicate this pattern.
+// Changes from original:
+//   1. Delete button removed from team members — only Activate/Deactivate
+//   2. Sticky tabs CSS added to .owner-tab-bar
+//   3. Logo loads from /auth/get-logo as fallback if localStorage is empty
+//   4. Error handler integration (DRIVENErrorHandler)
 // =========================================================================
 
 var allPartners = [];
@@ -60,10 +55,30 @@ function loadOwnerLogo() {
     preview.innerHTML = '<img src="' + logoData + '" style="max-height:56px;max-width:180px;border:1px solid var(--border);border-radius:6px;padding:4px;background:var(--bg-card);" alt="Logo preview">';
     if (removeBtn) removeBtn.style.display = 'inline-block';
   } else {
-    container.innerHTML = '<div class="dash-customer-logo-placeholder">DSI Logo</div>';
-    preview.innerHTML = '<div class="settings-logo-placeholder">No logo uploaded</div>';
-    if (removeBtn) removeBtn.style.display = 'none';
+    // Fallback: try fetching from /auth/get-logo (server-side stored logo)
+    fetchLogoFromServer(container, preview, removeBtn);
   }
+}
+
+function fetchLogoFromServer(container, preview, removeBtn) {
+  fetch('/auth/get-logo', { credentials: 'include' })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.success && data.logo) {
+        container.innerHTML = '<img src="' + data.logo + '" class="dash-customer-logo" alt="DSI Logo">';
+        preview.innerHTML = '<img src="' + data.logo + '" style="max-height:56px;max-width:180px;border:1px solid var(--border);border-radius:6px;padding:4px;background:var(--bg-card);" alt="Logo preview">';
+        if (removeBtn) removeBtn.style.display = 'none'; // Can't remove server-side logo from here
+      } else {
+        container.innerHTML = '<div class="dash-customer-logo-placeholder">DSI Logo</div>';
+        preview.innerHTML = '<div class="settings-logo-placeholder">No logo uploaded</div>';
+        if (removeBtn) removeBtn.style.display = 'none';
+      }
+    })
+    .catch(function() {
+      container.innerHTML = '<div class="dash-customer-logo-placeholder">DSI Logo</div>';
+      preview.innerHTML = '<div class="settings-logo-placeholder">No logo uploaded</div>';
+      if (removeBtn) removeBtn.style.display = 'none';
+    });
 }
 
 function handleLogoUpload(event) {
@@ -99,10 +114,6 @@ function removeLogo() {
 // SITE VISITORS TAB LOGIC
 // =========================================================================
 
-// Load visitor data with optional date range
-// presetDays: '1', '7', '30', '90' for quick filters
-// presetName: 'today', 'yesterday', 'week', 'month' for named ranges
-// null: use custom date range from inputs
 async function loadVisitors(presetDays, presetName) {
   try {
     var startEl = document.getElementById('visitorDateStart');
@@ -123,10 +134,9 @@ async function loadVisitors(presetDays, presetName) {
       startEl.value = new Date(y.getFullYear(), y.getMonth(), y.getDate()).toISOString().split('T')[0];
       endEl.value = startEl.value;
     } else if (presetName === 'week') {
-      // This week (starting Monday)
       var w = new Date();
       var day = w.getDay();
-      var diff = w.getDate() - day + (day === 0 ? -6 : 1); // Monday start
+      var diff = w.getDate() - day + (day === 0 ? -6 : 1);
       var weekStart = new Date(w);
       weekStart.setDate(diff);
       startDate = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate()).toISOString();
@@ -134,31 +144,26 @@ async function loadVisitors(presetDays, presetName) {
       startEl.value = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate()).toISOString().split('T')[0];
       endEl.value = w.toISOString().split('T')[0];
     } else if (presetName === 'month') {
-      // This month
       var m = new Date();
       startDate = new Date(m.getFullYear(), m.getMonth(), 1).toISOString();
       endDate = m.toISOString();
       startEl.value = new Date(m.getFullYear(), m.getMonth(), 1).toISOString().split('T')[0];
       endEl.value = m.toISOString().split('T')[0];
     } else if (presetDays) {
-      // Quick filter — last N days
       var end = new Date();
       var start = new Date();
       start.setDate(start.getDate() - parseInt(presetDays));
       startDate = start.toISOString();
       endDate = end.toISOString();
-      // Update the date inputs to reflect the selected range
       startEl.value = start.toISOString().split('T')[0];
       endEl.value = end.toISOString().split('T')[0];
     } else {
-      // Custom date range from inputs
       var startVal = startEl.value;
       var endVal = endEl.value;
       if (startVal && endVal) {
         startDate = new Date(startVal + 'T00:00:00Z').toISOString();
         endDate = new Date(endVal + 'T23:59:59Z').toISOString();
       } else {
-        // Default to last 30 days
         var end = new Date();
         var start = new Date();
         start.setDate(start.getDate() - 30);
@@ -169,10 +174,8 @@ async function loadVisitors(presetDays, presetName) {
       }
     }
 
-    // Show loading state
     document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px;">Loading...</td></tr>';
 
-    // Fetch summary stats
     var summaryResp = await fetch('/api/admin/site-visitors?summary=true&start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate));
     var summaryData = await summaryResp.json();
 
@@ -187,7 +190,6 @@ async function loadVisitors(presetDays, presetName) {
       document.getElementById('visitorTopBrowser').textContent = (s.browserBreakdown && s.browserBreakdown[0]) ? s.browserBreakdown[0].browser : '—';
       document.getElementById('visitorTopOS').textContent = (s.osBreakdown && s.osBreakdown[0]) ? s.osBreakdown[0].os : '—';
 
-      // Top pages
       var pagesHtml = (s.topPages || []).map(function(p) {
         return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
                '<span style="color:var(--text);">' + (p.page_path || '/') + '</span>' +
@@ -195,7 +197,6 @@ async function loadVisitors(presetDays, presetName) {
       }).join('');
       document.getElementById('visitorTopPages').innerHTML = pagesHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
 
-      // Top countries
       var countriesHtml = (s.topCountries || []).map(function(c) {
         return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
                '<span style="color:var(--text);">' + (c.country || 'Unknown') + '</span>' +
@@ -203,7 +204,6 @@ async function loadVisitors(presetDays, presetName) {
       }).join('');
       document.getElementById('visitorTopCountries').innerHTML = countriesHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
 
-      // Browsers
       var browsersHtml = (s.browserBreakdown || []).map(function(b) {
         return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
                '<span style="color:var(--text);text-transform:capitalize;">' + b.browser + '</span>' +
@@ -211,7 +211,6 @@ async function loadVisitors(presetDays, presetName) {
       }).join('');
       document.getElementById('visitorBrowsers').innerHTML = browsersHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
 
-      // OS
       var osHtml = (s.osBreakdown || []).map(function(o) {
         return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
                '<span style="color:var(--text);text-transform:capitalize;">' + o.os + '</span>' +
@@ -220,7 +219,6 @@ async function loadVisitors(presetDays, presetName) {
       document.getElementById('visitorOS').innerHTML = osHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
     }
 
-    // Fetch visitor list
     var listResp = await fetch('/api/admin/site-visitors?start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate));
     var listData = await listResp.json();
 
@@ -232,7 +230,6 @@ async function loadVisitors(presetDays, presetName) {
       document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No visitor data for this date range.</td></tr>';
     }
 
-    // Fetch session-grouped data for the sessions table
     var sessResp = await fetch('/api/admin/site-visitors?sessions=true&start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate));
     var sessData = await sessResp.json();
 
@@ -250,7 +247,6 @@ async function loadVisitors(presetDays, presetName) {
   }
 }
 
-// ---- Sort Recent Visitors ----
 function sortVisitors(column) {
   if (visitorSortColumn === column) {
     visitorSortDirection = visitorSortDirection === 'asc' ? 'desc' : 'asc';
@@ -272,7 +268,6 @@ function updateVisitorSortIndicators() {
   });
 }
 
-// ---- Page Path Mapping ----
 var PAGE_PATH_MAP = {
   '/': 'Home',
   '/website/': 'Home',
@@ -308,19 +303,14 @@ var PAGE_PATH_MAP = {
 
 function pagePathToName(path) {
   if (!path || path === '/') return 'Home';
-  // Try exact match first
   if (PAGE_PATH_MAP[path]) return PAGE_PATH_MAP[path];
-  // Try with /website/ prefix
   if (PAGE_PATH_MAP['/website/' + path.replace(/^\//, '')]) return PAGE_PATH_MAP['/website/' + path.replace(/^\//, '')];
-  // Try without /website/ prefix
   if (PAGE_PATH_MAP[path.replace('/website/', '/')]) return PAGE_PATH_MAP[path.replace('/website/', '/')];
-  // If it's a /website/ path, extract the page name
   if (path.indexOf('/website/') === 0) {
     var page = path.replace('/website/', '').replace('.html', '');
     if (page === 'index') return 'Home';
     return page.charAt(0).toUpperCase() + page.slice(1);
   }
-  // Fallback — return the path as-is but cleaned up
   var cleaned = path.replace(/^\//, '').replace('.html', '');
   if (cleaned === 'index' || cleaned === '') return 'Home';
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
@@ -370,7 +360,6 @@ function renderVisitorTable() {
   tbody.innerHTML = rows;
 }
 
-// ---- Sort Sessions ----
 function sortSessions(column) {
   if (sessionSortColumn === column) {
     sessionSortDirection = sessionSortDirection === 'asc' ? 'desc' : 'asc';
@@ -457,7 +446,6 @@ function renderSessionsTable() {
     }
 
     var role = (data.user && data.user.role) ? String(data.user.role) : '';
-    // Only DRIV-EN Founder role can access the Owner Dashboard.
     if (role !== 'DRIV-EN Founder') {
       window.location.href = '/app/auth/no-access.html';
       return;
@@ -479,7 +467,15 @@ function initOwnerDashboard() {
   updateThemeSwitch();
   loadOwnerLogo();
 
-  // Fill account info in Settings
+  // Add sticky positioning to tab bar
+  var tabBar = document.querySelector('.owner-tab-bar');
+  if (tabBar) {
+    tabBar.style.position = 'sticky';
+    tabBar.style.top = '0';
+    tabBar.style.zIndex = '100';
+    tabBar.style.background = 'var(--bg)';
+  }
+
   var emailEl = document.getElementById('settingsAccountEmail');
   if (emailEl && window.ownerUser) {
     emailEl.textContent = window.ownerUser.email || '—';
@@ -499,7 +495,6 @@ async function loadW9IrsFormUrl() {
       if (input) input.value = data.value;
     }
   } catch (e) {
-    // Endpoint may not exist yet — default is in the placeholder
   }
 }
 
@@ -539,7 +534,6 @@ function switchTab(tabName) {
   if (tabBtn) tabBtn.classList.add('active');
   if (tabContent) tabContent.classList.add('active');
 
-  // Load data when specific tabs are opened
   if (tabName === 'visitors') {
     loadVisitors('30');
   } else if (tabName === 'customers') {
@@ -550,7 +544,6 @@ function switchTab(tabName) {
     loadIssues();
   } else if (tabName === 'settings') {
     loadTeamMembers();
-    // Clear team member input fields (prevents browser autofill)
     var nameInput = document.getElementById('newTeamMemberName');
     var emailInput = document.getElementById('newTeamMemberEmail');
     if (nameInput) nameInput.value = '';
@@ -563,7 +556,6 @@ async function loadPartners() {
   var tbody = document.getElementById('partnersTableBody');
   tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading…</td></tr>';
 
-  // Clear the search input on refresh
   var searchInput = document.getElementById('searchInput');
   if (searchInput) searchInput.value = '';
 
@@ -610,7 +602,6 @@ function renderTable(partners) {
     return;
   }
 
-  // Sort using the selected column and direction
   partners = sortPartners(partners);
 
   partners.forEach(function(p) {
@@ -618,12 +609,10 @@ function renderTable(partners) {
     row.dataset.name = (p.partner_name || '').toLowerCase();
     row.dataset.email = (p.partner_email || '').toLowerCase();
 
-    // If partner is Approved but inactive, gray out the row
     if (p.status === 'Approved' && p.active === 0) {
       row.classList.add('partner-row-inactive');
     }
 
-    // Status badge — includes "Inactive" sub-badge for deactivated approved partners
     var statusBadge = '';
     if (p.status === 'Approved') {
       statusBadge = '<span class="dash-badge dash-badge-success">Approved</span>';
@@ -640,7 +629,6 @@ function renderTable(partners) {
       statusBadge = '<span class="dash-badge dash-badge-muted">' + escapeHtml(p.status || 'Unknown') + '</span>';
     }
 
-    // W-9 download
     var w9Cell = '';
     if (p.w9_attachment && !String(p.w9_attachment).startsWith('DEBUG:')) {
       w9Cell = '<button class="owner-action-btn owner-btn-w9" data-action="view-w9" data-id="' + escapeHtml(p.id) + '">View W-9</button>';
@@ -648,7 +636,6 @@ function renderTable(partners) {
       w9Cell = '<span style="color:var(--text-muted);font-size:13px;">No W-9</span>';
     }
 
-    // W-9 status (Current / Expired / None)
     var w9StatusCell = '';
     if (!p.w9_attachment || String(p.w9_attachment).startsWith('DEBUG:')) {
       w9StatusCell = '<span class="dash-badge dash-badge-muted">None</span>';
@@ -664,10 +651,8 @@ function renderTable(partners) {
       w9StatusCell = '<span class="dash-badge dash-badge-warning">No Expiry Set</span>';
     }
 
-    // Referral code
     var codeCell = p.referral_code ? '<span style="font-family:monospace;font-weight:600;color:var(--primary);">' + escapeHtml(p.referral_code) + '</span>' : '<span style="color:var(--text-muted);">—</span>';
 
-    // ACH payment status
     var achCell = '';
     if (p.bank_name && p.account_number_last4) {
       achCell = '<span class="dash-badge dash-badge-success" title="' + escapeHtml(p.bank_name) + ' ••••' + escapeHtml(p.account_number_last4) + '">On File</span>';
@@ -677,19 +662,16 @@ function renderTable(partners) {
       achCell = '<span class="dash-badge dash-badge-muted">None</span>';
     }
 
-    // Last referred date — from referral_activity subquery
     var lastReferredCell = '—';
     if (p.last_referred) {
       var lrDate = new Date(p.last_referred);
       lastReferredCell = lrDate.toLocaleDateString();
     }
 
-    // Clickable email link (mailto:)
     var emailCell = p.partner_email
       ? '<a href="mailto:' + escapeHtml(p.partner_email) + '" class="partner-email-link">' + escapeHtml(p.partner_email) + '</a>'
       : '—';
 
-    // Actions — Approve/Reject for Pending, Re-approve for W-9 Review, Activate/Deactivate for Approved
     var actions = '';
     if (p.status === 'Pending') {
       actions = '<button class="owner-action-btn owner-btn-approve" data-action="approve" data-id="' + escapeHtml(p.id) + '" data-name="' + escapeHtml(p.partner_name) + '">Approve</button>';
@@ -706,7 +688,6 @@ function renderTable(partners) {
       actions = '<span style="color:var(--text-muted);">—</span>';
     }
 
-    // Date
     var date = p.created_at ? new Date(p.created_at).toLocaleDateString() : '—';
 
     row.innerHTML =
@@ -725,7 +706,6 @@ function renderTable(partners) {
     tbody.appendChild(row);
   });
 
-  // Attach event listeners for partner action buttons
   var btns = tbody.querySelectorAll('[data-action]');
   for (var b = 0; b < btns.length; b++) {
     btns[b].addEventListener('click', function() {
@@ -782,10 +762,10 @@ function getW9SortValue(p) {
   if (!p.w9_attachment || String(p.w9_attachment).startsWith('DEBUG:')) return 0;
   if (p.w9_expiration_date) {
     var expDate = new Date(p.w9_expiration_date + 'T23:59:59');
-    if (expDate < new Date()) return 1; // Expired
-    return 2; // Current
+    if (expDate < new Date()) return 1;
+    return 2;
   }
-  return 3; // No expiry set
+  return 3;
 }
 
 function sortPartners(partners) {
@@ -797,11 +777,8 @@ function sortPartners(partners) {
       aVal = getW9SortValue(a);
       bVal = getW9SortValue(b);
     } else if (col === 'created_at' || col === 'last_referred') {
-      // Both created_at and last_referred are date strings (ISO).
-      // Null/empty values sort to the bottom.
       aVal = (a[col] || '');
       bVal = (b[col] || '');
-      // When sorting dates, empty values should always be last regardless of direction
       if (!aVal && bVal) return 1;
       if (aVal && !bVal) return -1;
       if (!aVal && !bVal) return 0;
@@ -815,7 +792,7 @@ function sortPartners(partners) {
   });
 }
 
-// ---- W-9 View (opens in new tab) ----
+// ---- W-9 View ----
 function viewW9(partnerId) {
   window.open('/api/admin/w9-download?partnerId=' + encodeURIComponent(partnerId), '_blank');
 }
@@ -930,7 +907,7 @@ async function confirmReject() {
   }
 }
 
-// ---- Change Password (Owner Dashboard uses /auth/change-password) ----
+// ---- Change Password ----
 function toggleChangePassword() {
   var section = document.getElementById('changePwdSection');
   section.style.display = section.style.display === 'block' ? 'none' : 'block';
@@ -976,9 +953,7 @@ async function submitChangePassword() {
   }
 }
 
-// ---- Re-Approve W-9 (for Pending W-9 Review partners) ----
-// Sets the partner back to Approved with active=1.
-// The partner keeps their existing referral code — only the W-9 was renewed.
+// ---- Re-Approve W-9 ----
 async function reapproveW9(partnerId, partnerName) {
   if (!confirm('Re-approve ' + partnerName + '? Their referral link will be reactivated.')) return;
   try {
@@ -999,10 +974,7 @@ async function reapproveW9(partnerId, partnerName) {
   }
 }
 
-// ---- Activate/Deactivate Toggle (for Approved partners) ----
-// Silently toggles the active state of an Approved partner.
-// No email is sent. The referrer can still log in when deactivated,
-// but their referral link stops working (tracking checks active=1).
+// ---- Activate/Deactivate Toggle ----
 async function toggleActive(partnerId, partnerName) {
   if (!confirm('Toggle active state for ' + partnerName + '?')) return;
   try {
@@ -1038,8 +1010,6 @@ function regenerateCode() {
 }
 
 function defaultW9Expiration() {
-  // W-9 expires on December 31 of the year it was uploaded.
-  // A new W-9 is required each calendar year.
   return new Date().getFullYear() + '-12-31';
 }
 
@@ -1077,7 +1047,6 @@ function showError(msg) {
 
 var allCustomers = [];
 
-// ---- Load Customers ----
 async function loadCustomers() {
   var listEl = document.getElementById('customerList');
   listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading customers…</div>';
@@ -1094,7 +1063,7 @@ async function loadCustomers() {
       listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><p>' + (data.error || 'No customers found.') + '</p></div>';
     }
   } catch (e) {
-    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><p>Failed to load customers. The /api/admin/customers endpoint may not be deployed yet.</p></div>';
+    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><p>Failed to load customers.</p></div>';
   }
 }
 
@@ -1159,7 +1128,6 @@ function filterCustomers() {
 // SYSTEM STATUS TAB LOGIC
 // =========================================================================
 
-// ---- Load System Status ----
 async function loadSystemStatus() {
   document.getElementById('sysLastCheck').textContent = new Date().toLocaleString();
 
@@ -1189,7 +1157,6 @@ async function loadSystemStatus() {
     }
   }
 
-  // D1 — referral_partners count
   try {
     var resp = await fetch('/api/admin/referral-partners');
     var data = await resp.json();
@@ -1200,7 +1167,6 @@ async function loadSystemStatus() {
     document.getElementById('sysD1Partners').textContent = 'Unable to count';
   }
 
-  // D1 — site_visitors count
   try {
     var vResp = await fetch('/api/admin/site-visitors?summary=true');
     var vData = await vResp.json();
@@ -1211,7 +1177,6 @@ async function loadSystemStatus() {
     document.getElementById('sysD1Visitors').textContent = 'Unable to count';
   }
 
-  // D1 — referral_activity count
   try {
     var pResp = await fetch('/api/admin/referral-partners');
     var pData = await pResp.json();
@@ -1232,10 +1197,9 @@ async function loadSystemStatus() {
 // =========================================================================
 
 var allIssues = [];
-var issueFilter = 'all'; // 'all', 'open', 'resolved'
-var issueExpandedId = null; // which issue is expanded
+var issueFilter = 'all';
+var issueExpandedId = null;
 
-// ---- Load Issues ----
 async function loadIssues() {
   var listEl = document.getElementById('issueList');
    listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading error logs...</div>';
@@ -1277,7 +1241,6 @@ function renderIssueStats(issues) {
 
 function filterIssuesByStatus(status) {
   issueFilter = status;
-  // Update filter button states
   var filterBtns = document.querySelectorAll('.issue-filter-btn');
   for (var b = 0; b < filterBtns.length; b++) {
     filterBtns[b].classList.remove('active');
@@ -1296,11 +1259,10 @@ function renderIssues(issues) {
     return;
   }
 
-  // Apply filter
   var filtered = issues.filter(function(i) {
     if (issueFilter === 'open') return i.resolved !== 1;
     if (issueFilter === 'resolved') return i.resolved === 1;
-    return true; // 'all'
+    return true;
   });
 
   if (filtered.length === 0) {
@@ -1308,7 +1270,6 @@ function renderIssues(issues) {
     return;
   }
 
-  // Build table with collapsible rows
   var html = '<table class="dash-table" style="width:100%;">';
   html += '<thead><tr>';
   html += '<th style="width:30px;"></th>';
@@ -1322,7 +1283,6 @@ function renderIssues(issues) {
   filtered.forEach(function(i) {
     var time = i.created_at ? new Date(i.created_at).toLocaleString() : '—';
     var severity = i.severity || 'error';
-    var borderColor = severity === 'warning' ? '#f59e0b' : '#ef4444';
     var isResolved = i.resolved === 1;
     var safeId = escapeHtml(i.id);
     var isExpanded = (issueExpandedId === i.id);
@@ -1341,7 +1301,6 @@ function renderIssues(issues) {
     html += '<td style="white-space:nowrap;font-size:13px;color:var(--text-muted);">' + time + '</td>';
     html += '<td style="white-space:nowrap;">';
 
-    // Copy button — only on unresolved
     if (!isResolved) {
       html += '<button class="owner-action-btn owner-btn-w9" data-action="copy" data-id="' + safeId + '">Copy</button>';
     }
@@ -1353,7 +1312,6 @@ function renderIssues(issues) {
     html += '</td>';
     html += '</tr>';
 
-    // Expanded detail row
     if (isExpanded) {
       html += '<tr class="issue-detail-row" style="background:var(--bg-input);">';
       html += '<td></td>';
@@ -1373,11 +1331,9 @@ function renderIssues(issues) {
   html += '</tbody></table>';
   listEl.innerHTML = html;
 
-  // Attach event listeners for row expand/collapse
   var rows = listEl.querySelectorAll('.issue-row');
   for (var r = 0; r < rows.length; r++) {
     rows[r].addEventListener('click', function(e) {
-      // Don't toggle if clicking a button
       if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
       var id = this.getAttribute('data-error-id');
       issueExpandedId = (issueExpandedId === id) ? null : id;
@@ -1385,7 +1341,6 @@ function renderIssues(issues) {
     });
   }
 
-  // Attach event listeners for copy and resolve buttons
   var copyBtns = listEl.querySelectorAll('[data-action="copy"]');
   for (var c = 0; c < copyBtns.length; c++) {
     copyBtns[c].addEventListener('click', function(e) {
@@ -1402,16 +1357,13 @@ function renderIssues(issues) {
   }
 }
 
-// ---- Copy Error for Support ----
 function copyIssue(errorId, btn) {
-  // Find the issue in allIssues
   var issue = allIssues.find(function(i) { return i.id === errorId; });
   if (!issue) {
     alert('Error not found. Try refreshing the page.');
     return;
   }
 
-  // Build a clean text block for pasting into a support conversation
   var text = '=== DRIV-EN ERROR LOG ENTRY ===\n';
   text += 'Error ID: ' + (issue.id || 'N/A') + '\n';
   text += 'Source: ' + (issue.source || 'N/A') + '\n';
@@ -1424,7 +1376,6 @@ function copyIssue(errorId, btn) {
   text += (issue.stack_trace || 'No stack trace available') + '\n';
   text += '\n=== END OF ERROR ENTRY ===';
 
-  // Copy to clipboard
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(function() {
       btn.textContent = '✓ Copied!';
@@ -1436,7 +1387,6 @@ function copyIssue(errorId, btn) {
         btn.style.color = '';
       }, 2000);
     }).catch(function() {
-      // Fallback: select text in a hidden textarea
       fallbackCopy(text, btn);
     });
   } else {
@@ -1473,7 +1423,6 @@ function filterIssues() {
   rows.forEach(function(row) {
     var searchText = (row.textContent || '').toLowerCase();
     row.style.display = searchText.indexOf(query) !== -1 ? '' : 'none';
-    // Also show/hide the detail row that follows
     var next = row.nextElementSibling;
     if (next && next.classList.contains('issue-detail-row')) {
       next.style.display = row.style.display;
@@ -1503,7 +1452,6 @@ async function resolveIssue(id, resolved) {
 // TEAM ACCESS LOGIC
 // =========================================================================
 
-// ---- Load Team Members ----
 async function loadTeamMembers() {
   var listEl = document.getElementById('teamAccessList');
   if (!listEl) return;
@@ -1523,8 +1471,8 @@ async function loadTeamMembers() {
           var toggleBtn = m.is_active === 1
             ? '<button class="owner-action-btn owner-btn-deactivate" data-action="toggle-team" data-id="' + escapeHtml(m.id) + '" data-email="' + escapeHtml(m.email) + '">Deactivate</button>'
             : '<button class="owner-action-btn owner-btn-activate" data-action="toggle-team" data-id="' + escapeHtml(m.id) + '" data-email="' + escapeHtml(m.email) + '">Activate</button>';
-          var deleteBtn = '<button class="owner-action-btn owner-btn-reject" data-action="delete-team" data-id="' + escapeHtml(m.id) + '" data-email="' + escapeHtml(m.email) + '">Delete</button>';
-          actionBtns = toggleBtn + deleteBtn;
+          // DELETE BUTTON REMOVED — team members can only be deactivated, never deleted
+          actionBtns = toggleBtn;
         } else {
           actionBtns = '<span style="font-size:12px;color:var(--text-muted);">(you)</span>';
         }
@@ -1542,18 +1490,10 @@ async function loadTeamMembers() {
       }).join('');
       listEl.innerHTML = html;
 
-      // Attach event listeners for team member toggle buttons
       var teamBtns = listEl.querySelectorAll('[data-action="toggle-team"]');
       for (var t = 0; t < teamBtns.length; t++) {
         teamBtns[t].addEventListener('click', function() {
           toggleTeamMember(this.getAttribute('data-id'), this.getAttribute('data-email'));
-        });
-      }
-      // Attach event listeners for delete buttons
-      var deleteBtns = listEl.querySelectorAll('[data-action="delete-team"]');
-      for (var d = 0; d < deleteBtns.length; d++) {
-        deleteBtns[d].addEventListener('click', function() {
-          deleteTeamMember(this.getAttribute('data-id'), this.getAttribute('data-email'));
         });
       }
     } else if (data.success) {
@@ -1628,31 +1568,10 @@ async function toggleTeamMember(memberId, memberEmail) {
   }
 }
 
-// ---- Delete Team Member (permanent removal) ----
-async function deleteTeamMember(memberId, memberEmail) {
-  if (!confirm('Permanently DELETE ' + memberEmail + '?\n\nThis cannot be undone. The user will lose all access immediately.')) return;
-  try {
-    var resp = await fetch('/auth/team-members', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'delete', memberId: memberId })
-    });
-    var data = await resp.json();
-    if (data.success) {
-      loadTeamMembers();
-    } else {
-      showError(data.error || 'Failed to delete team member');
-    }
-  } catch (e) {
-    showError('Network error. Please try again.');
-  }
-}
-
 // =========================================================================
 // LOGOUT
 // =========================================================================
 
-// ---- Logout ----
 async function ownerLogout() {
   try {
     await fetch('/auth/logout', { method: 'POST' });
@@ -1660,7 +1579,6 @@ async function ownerLogout() {
   window.location.href = '/app/auth/founder-login.html';
 }
 
-// ---- Close modals on overlay click ----
 document.getElementById('approveModal').addEventListener('click', function(e) {
   if (e.target === this) closeApproveModal();
 });
