@@ -1,763 +1,634 @@
-const SESSION_LIFETIME = 3600;
-const REFRESH_LIFETIME = 2592000;
-const PBKDF2_ITERATIONS = 100000;
-const COOKIE_SESSION = "driv_en_session";
-const COOKIE_REFRESH = "driv_en_refresh";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-function base64UrlEncode(buf) {
-  const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
-  let bin = "";
-  for (const b of bytes) bin += String.fromCharCode(b);
-  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
+<!-- ===== PAGE-SPECIFIC SEO ===== -->
+<title>DRIV‑EN | Admin Dashboard</title>
+<meta name="description" content="DRIV‑EN admin dashboard — full access to all modules, settings, users, and operational data.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://www.driv-en.com/app/dashboard/admin.html">
 
-function base64UrlDecode(str) {
-  str = str.replace(/-/g, "+").replace(/_/g, "/");
-  while (str.length % 4) str += "=";
-  const bin = atob(str);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes;
-}
+<!-- Favicon -->
+<link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
 
-async function importHmacKey(secret) {
-  return crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
-}
+<!-- ===== SHARED DASHBOARD CSS ===== -->
+<link rel="stylesheet" href="/app/shared/dashboard.css?v=7">
 
-async function signJWT(payload, secret, lifetimeSeconds) {
-  const header = { alg: "HS256", typ: "JWT" };
-  const now = Math.floor(Date.now() / 1000);
-  const fullPayload = { ...payload, iat: now, exp: now + lifetimeSeconds };
-  const headerB64 = base64UrlEncode(new TextEncoder().encode(JSON.stringify(header)));
-  const payloadB64 = base64UrlEncode(new TextEncoder().encode(JSON.stringify(fullPayload)));
-  const data = `${headerB64}.${payloadB64}`;
-  const key = await importHmacKey(secret);
-  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(data));
-  return `${data}.${base64UrlEncode(new Uint8Array(sig))}`;
-}
+<!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
+<script>
+(function() {
+  var saved = localStorage.getItem("driven-theme");
+  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  var theme = saved || system;
+  document.documentElement.setAttribute("data-theme", theme);
+})();
+</script>
 
-async function verifyJWT(token, secret) {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    const [headerB64, payloadB64, sigB64] = parts;
-    const data = `${headerB64}.${payloadB64}`;
-    const key = await importHmacKey(secret);
-    const valid = await crypto.subtle.verify("HMAC", key, base64UrlDecode(sigB64), new TextEncoder().encode(data));
-    if (!valid) return null;
-    const payload = JSON.parse(new TextDecoder().decode(base64UrlDecode(payloadB64)));
-    if (payload.exp && Math.floor(Date.now() / 1000) >= payload.exp) return null;
-    return payload;
-  } catch (e) {
-    console.error("verifyJWT error:", e.message);
-    return null;
-  }
-}
+<!-- ===== PAGE-SPECIFIC STYLES ===== -->
+<style>
+    /* ===== LOADING SCREEN ===== */
+    /* Shows while session is being verified, then hides */
+    .admin-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      font-size: 16px;
+      color: var(--text-muted);
+    }
 
-async function hashPassword(password, saltHex) {
-  const salt = saltHex ? hexToBytes(saltHex) : crypto.getRandomValues(new Uint8Array(16));
-  const saltHexStr = bytesToHex(salt);
-  const keyMaterial = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" }, keyMaterial, 256);
-  return { salt: saltHexStr, hash: base64UrlEncode(new Uint8Array(bits)) };
-}
+    /* ===== ACTIVATION OVERLAY ===== */
+    /* Full-screen overlay shown when activation_complete is false.
+       Covers the entire dashboard until the admin enters their activation code.
+       Once activated, it never appears again (activation_complete = 1 in D1). */
+    .activation-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(2, 6, 23, 0.97);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 20px;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .activation-overlay.active { display: flex; }
 
-async function verifyPassword(password, storedHash, storedSalt) {
-  const { hash } = await hashPassword(password, storedSalt);
-  return hash === storedHash;
-}
+    .activation-card {
+      max-width: 440px;
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--primary);
+      border-radius: 12px;
+      padding: 32px;
+      text-align: center;
+    }
+    .activation-card h2 {
+      margin: 0 0 8px 0;
+      font-size: 22px;
+      color: var(--text);
+    }
+    .activation-card p {
+      margin: 0 0 20px 0;
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .activation-input {
+      width: 100%;
+      padding: 12px;
+      font-size: 18px;
+      text-align: center;
+      letter-spacing: 3px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg-step);
+      color: var(--text);
+      box-sizing: border-box;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+    }
+    .activation-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .activation-input.error {
+      border-color: var(--error);
+    }
+    .activation-btn {
+      width: 100%;
+      background: var(--primary);
+      border: 1px solid var(--primary-hover);
+      color: #fff;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+    .activation-btn:hover { background: var(--primary-hover); }
+    .activation-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .activation-error {
+      display: none;
+      background: #1f0f0f;
+      border: 1px solid var(--error);
+      color: #fca5a5;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+    .activation-error.show { display: block; }
+    .activation-resend {
+      font-size: 13px;
+      color: var(--primary);
+      cursor: pointer;
+      text-decoration: underline;
+      margin-top: 8px;
+    }
+    .activation-resend:hover { opacity: 0.8; }
+    .activation-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 12px;
+      line-height: 1.4;
+    }
 
-function bytesToHex(bytes) { return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join(""); }
-function hexToBytes(hex) {
-  const arr = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) arr[i / 2] = parseInt(hex.slice(i, i + 2), 16);
-  return arr;
-}
+    /* ===== WELCOME BANNER ===== */
+    .admin-welcome {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .admin-welcome h2 { margin: 0 0 6px 0; font-size: 20px; color: var(--text); }
+    .admin-welcome p  { margin: 0; font-size: 14px; color: var(--text-muted); }
 
-function parseCookies(cookieHeader) {
-  const cookies = {};
-  if (!cookieHeader) return cookies;
-  for (const pair of cookieHeader.split(";")) {
-    const idx = pair.indexOf("=");
-    if (idx === -1) continue;
-    cookies[pair.slice(0, idx).trim()] = pair.slice(idx + 1).trim();
-  }
-  return cookies;
-}
+    /* ===== ONBOARDING CARD (hides when all steps complete) ===== */
+    .admin-onboarding {
+      background: var(--bg-card);
+      border: 1px solid var(--primary);
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+    .admin-onboarding-text h3 { margin: 0 0 6px 0; font-size: 18px; color: var(--text); }
+    .admin-onboarding-text p  { margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.4; }
+    .admin-onboarding .admin-badge {
+      font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 999px;
+      margin-top: 8px; display: inline-block;
+    }
+    .admin-btn-onboarding {
+      background: var(--primary);
+      border: 1px solid var(--primary-hover);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .admin-btn-onboarding:hover { background: var(--primary-hover); }
 
-function buildCookie(name, value, maxAge) {
-  let c = `${name}=${value}; HttpOnly; Secure; SameSite=Lax; Path=/`;
-  if (maxAge !== undefined) c += `; Max-Age=${maxAge}`;
-  return c;
-}
+    /* ===== STATS GRID (4 cards) ===== */
+    .admin-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .admin-stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+    }
+    .admin-stat-number { font-size: 32px; font-weight: 700; color: var(--text); }
+    .admin-stat-label  { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
 
-function clearCookie(name) { return `${name}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`; }
+    /* ===== MODULE GRID (5 cards) ===== */
+    .admin-module-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+    .admin-module-card {
+      background: var(--bg-step);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      cursor: pointer;
+      transition: border-color 200ms ease;
+    }
+    .admin-module-card:hover { border-color: var(--primary); }
+    .admin-module-title { font-size: 15px; font-weight: 600; color: var(--text); }
+    .admin-module-body  { font-size: 13px; color: var(--text-muted); line-height: 1.4; flex: 1; }
+    .admin-module-link  { font-size: 13px; color: var(--primary); font-weight: 500; }
 
-function json(data, status = 200, extraHeaders = {}) {
-  return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", ...extraHeaders } });
-}
+    /* ===== KP COUNT BADGE (inside onboarding card) ===== */
+    /* Shows the number of key personnel with assignments */
+    .admin-kp-count {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-step);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-top: 10px;
+    }
+    .admin-kp-count-number {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--primary);
+      line-height: 1;
+    }
+    .admin-kp-count-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.3;
+    }
 
-async function sendEmail(env, to, subject, htmlContent, textContent) {
-  const msg = {
-    personalizations: [{ to: [{ email: to }] }],
-    from: { email: env.FROM_EMAIL || env.SENDGRID_FROM_EMAIL || "noreply@driv-en.com" },
-    subject: subject,
-    content: [{ type: "text/plain", value: textContent || "" }, { type: "text/html", value: htmlContent }]
-  };
-  const resp = await fetch("https://api.sendgrid.com/v3/mail/send", {
-    method: "POST",
-    headers: { "Authorization": "Bearer " + env.SENDGRID_API_KEY, "Content-Type": "application/json" },
-    body: JSON.stringify(msg)
-  });
-  return resp.ok;
-}
+    /* ===== MOBILE RESPONSIVE ===== */
+    @media (max-width: 800px) {
+      .admin-onboarding { flex-direction: column; text-align: center; }
+      .admin-stats { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 500px) {
+      .activation-card { padding: 20px; }
+    }
+</style>
 
-async function notifySupportError(env, workerName, err, request) {
-  try {
-    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS error_log (id TEXT PRIMARY KEY, source TEXT, error_message TEXT, stack_trace TEXT, severity TEXT DEFAULT 'error', resolved INTEGER DEFAULT 0, created_at TEXT)`).run();
-    const errorId = 'ERR-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-    let stackTrace = (err && err.stack) ? err.stack : 'No stack trace';
-    if (request) {
+</head>
+
+<!-- Page title — appears in the dashboard header. data-required-role="Admin" restricts access to Admin users only. -->
+<body data-page-title="Admin Dashboard" data-required-role="Admin">
+
+<!-- ===== INDUSTRIAL DIAMOND-PLATE BACKGROUND (do not remove) ===== -->
+<div class="steel-bg"></div>
+<div class="steel-overlay"></div>
+
+<!-- ===== LOADING SCREEN (hides after session check) ===== -->
+<div id="adminLoading" class="admin-loading">Checking session…</div>
+
+<!-- ===== ACTIVATION OVERLAY (shown when activation_complete is false) ===== -->
+<!-- This overlay covers the entire screen until the admin enters their activation code. -->
+<!-- Once verified via /auth/verify-activation, it is never shown again. -->
+<div id="activationOverlay" class="activation-overlay">
+  <div class="activation-card">
+    <h2>🔐 Activate Your Account</h2>
+    <p>Enter the activation code from your welcome email to unlock your dashboard.</p>
+    <div id="activationError" class="activation-error"></div>
+    <input type="text" id="activationCodeInput" class="activation-input" placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" autocomplete="off" />
+    <button id="activationBtn" class="activation-btn">Activate Account</button>
+    <div class="activation-resend" id="resendActivation">Resend activation code</div>
+    <div class="activation-hint">
+      Your activation code was sent to your email when you completed checkout.
+      Check your spam/junk folder if you don't see it.
+    </div>
+  </div>
+</div>
+
+<!-- ===== DASHBOARD (hidden until session verified AND activated) ===== -->
+<div id="adminDashboard" style="display:none;">
+
+  <!-- ===== SHARED DASHBOARD HEADER (auto-loaded by dashboard-common.js) ===== -->
+  <div id="dashHeader"></div>
+
+  <!-- ===== PAGE CONTENT ===== -->
+  <main class="dash-main">
+
+    <!-- ===== WELCOME BANNER ===== -->
+    <div class="admin-welcome">
+      <h2>Welcome, <span id="admin-welcome-name"></span></h2>
+      <p>You have full access to all modules, settings, users, and operational data.</p>
+    </div>
+
+    <!-- ===== ONBOARDING CARD (hides when complete) ===== -->
+    <div class="admin-onboarding" id="adminOnboardingCard">
+      <div class="admin-onboarding-text">
+        <h3>Onboarding Dashboard</h3>
+        <p>Complete the onboarding steps to set up your organization: company logo, key personnel, employees, clients, divisions, project types, projects, and equipment.</p>
+        <span class="admin-badge" id="admin-onboarding-status" style="background:var(--bg-card);border:1px solid var(--error);color:var(--error);">Not Started</span>
+
+        <!-- KP count badge — shows number of key personnel with assignments -->
+        <div class="admin-kp-count">
+          <span class="admin-kp-count-number" id="admin-kp-count">0</span>
+          <span class="admin-kp-count-label">Key Personnel<br>Assigned</span>
+        </div>
+      </div>
+      <button class="admin-btn-onboarding" onclick="window.location.href='/app/dashboard/onboarding-dashboard.html'">Open Onboarding</button>
+    </div>
+
+    <!-- ===== STATS GRID ===== -->
+    <div class="admin-stats">
+      <div class="admin-stat-card"><div class="admin-stat-number" id="admin-stat-employees">0</div><div class="admin-stat-label">Employees</div></div>
+      <div class="admin-stat-card"><div class="admin-stat-number" id="admin-stat-projects">0</div><div class="admin-stat-label">Projects</div></div>
+      <div class="admin-stat-card"><div class="admin-stat-number" id="admin-stat-equipment">0</div><div class="admin-stat-label">Equipment</div></div>
+      <div class="admin-stat-card"><div class="admin-stat-number" id="admin-stat-clients">0</div><div class="admin-stat-label">Clients</div></div>
+    </div>
+
+    <!-- ===== MODULES ===== -->
+    <!-- Module cards are generated by JavaScript based on activated_modules -->
+    <!-- from the session. Only purchased/activated modules are shown. -->
+    <!-- Core admin tools (User Management, Projects, Settings) always show. -->
+    <div class="dash-card">
+      <h3>Modules</h3>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
+        Only activated modules are shown. To add modules, contact support.
+      </p>
+      <div class="admin-module-grid" id="moduleGrid">
+        <!-- Module cards are generated by JavaScript based on activated_modules -->
+      </div>
+    </div>
+
+  </main>
+
+</div>
+<!-- ===== END DASHBOARD ===== -->
+
+<!-- ===== SHARED DASHBOARD JS (loads header, theme, logo, session) ===== -->
+<script src="/app/shared/dashboard-common.js?v=7"></script>
+
+<!-- ===== AUTH CHECK (shared — enforces login + Admin role) ===== -->
+<script src="/app/shared/auth-check.js?v=7"></script>
+
+<!-- ===== PAGE-SPECIFIC SCRIPT ===== -->
+<script>
+    /* ==========================================
+       ALL AVAILABLE MODULES
+       These map module names (as stored in D1 activated_modules)
+       to their dashboard card info. Only modules in the user's
+       activated_modules array will be shown on the dashboard.
+       Core admin tools (User Management, Projects, Settings)
+       are always shown regardless of activation.
+       ========================================== */
+    var ALL_MODULES = [
+      { name: "Equipment Management", title: "Equipment", body: "Manage fleet, assignments, PM schedules, and service history.", url: "/app/dashboard/admin/equipment.html" },
+      { name: "Preventative Maintenance", title: "PM", body: "Automated PM schedules, templates, and technician workflows.", url: "/app/dashboard/admin/equipment.html" },
+      { name: "Equipment Inspections", title: "Inspections", body: "Safety and compliance inspections tailored to each unit.", url: "/app/dashboard/admin/safety.html" },
+      { name: "Work Orders", title: "Work Orders", body: "Manage repairs, diagnostics, and non-PM maintenance tasks.", url: "/app/dashboard/admin/equipment.html" },
+      { name: "Fuel Usage Tracking", title: "Fuel", body: "Monitor fuel consumption, cost, and efficiency across your fleet.", url: "/app/dashboard/admin/equipment.html" },
+      { name: "Equipment Transfer Tracking", title: "Transfers", body: "Track equipment movement between projects, yards, and divisions.", url: "/app/dashboard/admin/equipment.html" },
+      { name: "Extraction Engine", title: "Extraction Engine", body: "AI-powered analysis of equipment manuals and documentation.", url: "/app/dashboard/admin/equipment.html" }
+    ];
+
+    /* ==========================================
+       ACTIVATION OVERLAY LOGIC
+       Handles the activation code input, verification via
+       /auth/verify-activation, and the resend code link.
+       ========================================== */
+    var activationOverlay = document.getElementById("activationOverlay");
+    var activationInput = document.getElementById("activationCodeInput");
+    var activationBtn = document.getElementById("activationBtn");
+    var activationError = document.getElementById("activationError");
+    var resendLink = document.getElementById("resendActivation");
+
+    // Submit activation code
+    activationBtn.addEventListener("click", async function() {
+      var code = activationInput.value.trim();
+      activationError.classList.remove("show");
+      activationInput.classList.remove("error");
+
+      if (!code) {
+        activationError.textContent = "Please enter your activation code.";
+        activationError.classList.add("show");
+        activationInput.classList.add("error");
+        return;
+      }
+
+      activationBtn.disabled = true;
+      activationBtn.textContent = "Verifying…";
+
       try {
-        const url = new URL(request.url);
-        stackTrace += '\n\n--- REQUEST CONTEXT ---\nURL: ' + request.url + '\nMethod: ' + request.method + '\nPath: ' + url.pathname + '\nUser-Agent: ' + (request.headers.get('User-Agent') || 'N/A') + '\nCF-Ray: ' + (request.headers.get('CF-Ray') || 'N/A') + '\nTime: ' + new Date().toISOString();
-      } catch (u) {}
-    }
-    await env.DB.prepare(`INSERT INTO error_log (id, source, error_message, stack_trace, severity, resolved, created_at) VALUES (?, ?, ?, ?, 'error', 0, ?)`).bind(errorId, workerName, (err && err.message) ? err.message : 'Unknown error', stackTrace, new Date().toISOString()).run();
-  } catch (dbErr) { console.error('Failed to write to error_log:', dbErr.message); }
-  try {
-    const fromEmail = env.FROM_EMAIL || env.SENDGRID_FROM_EMAIL || "noreply@driv-en.com";
-    const supportEmail = env.SUPPORT_CONTACT || "support@driv-en.com";
-    if (env.SENDGRID_API_KEY) {
-      await sendEmail(env, supportEmail, "ERROR: " + workerName + " Worker Failed",
-        '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#222;"><h2 style="color:#cc0000;">Worker Error \u2014 ' + workerName + '</h2><p><strong>Time:</strong> ' + new Date().toISOString() + '</p><p><strong>Error:</strong> ' + (err.message || 'Unknown error') + '</p><p><strong>Stack:</strong></p><pre style="background:#f4f4f4;padding:12px;border-radius:6px;overflow-x:auto;font-size:13px;">' + (err.stack || 'No stack trace') + '</pre></div>');
-    }
-  } catch (emailErr) { console.error("Failed to send error notification email:", emailErr.message); }
-}
+        var resp = await fetch("/auth/verify-activation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ activation_code: code })
+        });
+        var data = await resp.json();
 
-async function ensureActivationColumns(env) {
-  try {
-    const cols = await env.DB.prepare("PRAGMA table_info(organizations)").all();
-    const colNames = cols.results ? cols.results.map(c => c.name) : [];
-    if (!colNames.includes("activation_code")) await env.DB.prepare("ALTER TABLE organizations ADD COLUMN activation_code TEXT").run();
-    if (!colNames.includes("activation_complete")) await env.DB.prepare("ALTER TABLE organizations ADD COLUMN activation_complete INTEGER NOT NULL DEFAULT 0").run();
-    if (!colNames.includes("activated_modules")) await env.DB.prepare("ALTER TABLE organizations ADD COLUMN activated_modules TEXT").run();
-    if (!colNames.includes("subscription_status")) await env.DB.prepare("ALTER TABLE organizations ADD COLUMN subscription_status TEXT DEFAULT 'paid'").run();
-    if (!colNames.includes("free_until")) await env.DB.prepare("ALTER TABLE organizations ADD COLUMN free_until TEXT").run();
-    if (!colNames.includes("paid_until")) await env.DB.prepare("ALTER TABLE organizations ADD COLUMN paid_until TEXT").run();
-    if (!colNames.includes("promo_code_used")) await env.DB.prepare("ALTER TABLE organizations ADD COLUMN promo_code_used TEXT").run();
-    if (!colNames.includes("cancelled_at")) await env.DB.prepare("ALTER TABLE organizations ADD COLUMN cancelled_at TEXT").run();
-    if (!colNames.includes("expiry_warning_sent")) await env.DB.prepare("ALTER TABLE organizations ADD COLUMN expiry_warning_sent TEXT").run();
-  } catch (e) { console.error("Schema migration error (non-fatal):", e.message); }
-}
+        if (data.success) {
+          // Activation successful — hide overlay, show dashboard
+          activationOverlay.classList.remove("active");
+          activationOverlay.style.display = "none";
+          document.getElementById("adminDashboard").style.display = "block";
 
-async function handleLogin(request, env) {
-  try {
-    await ensureActivationColumns(env);
-    if (!env.JWT_SECRET) {
-      console.error("JWT_SECRET is not set on the auth worker");
-      await notifySupportError(env, "driv-en-auth (login)", new Error("JWT_SECRET is not configured on the worker"));
-      return json({ success: false, error: "Server configuration error. DRIV-EN Support has been notified and is aware of the issue. We apologize for the inconvenience. If you don't hear from us within 24 hours, please contact support@driv-en.com." }, 500);
-    }
-    let body;
-    try { body = await request.json(); } catch (e) { return json({ success: false, error: "Invalid request format." }, 400); }
-    const { email, password, remember } = body;
-    if (!email || !password) return json({ success: false, error: "Email and password are required." }, 400);
-    const rememberMe = remember === true;
-    const stmt = env.DB.prepare(`
-      SELECT u.id, u.email, u.org_id, u.password_hash, u.password_salt,
-             u.must_change_password, u.is_active, u.twofa_enabled,
-             u.first_name, u.last_name,
-             o.status AS org_status, o.activation_complete, o.activated_modules,
-             o.subscription_status, o.free_until, o.paid_until,
-             r.name AS role_name
-      FROM users u
-      LEFT JOIN organizations o ON u.org_id = o.id
-      LEFT JOIN roles r ON u.role_id = r.id
-      WHERE u.email = ?
-    `);
-    const result = await stmt.bind(email.toLowerCase().trim()).first();
-    if (!result) {
-      const partner = await env.DB.prepare("SELECT id FROM referral_partners WHERE partner_email = ?").bind(email.toLowerCase().trim()).first();
-      if (partner) return json({ success: false, error: "referrer_account", message: "This email is a Referral Partner account. Please use the Referral Partner Login page." }, 401);
-      return json({ success: false, error: "Invalid email or password." }, 401);
-    }
-    if (!result.is_active) return json({ success: false, error: "Account is deactivated. Contact your administrator." }, 403);
-    if (result.role_name !== "DRIV-EN Founder" && result.org_status !== "active") return json({ success: false, error: "Your organization's subscription is not active. Contact your administrator." }, 403);
-    if (result.role_name !== "DRIV-EN Founder") {
-      const expiryDateStr = result.subscription_status === 'free' ? result.free_until : (result.paid_until || result.free_until);
-      if (expiryDateStr) {
-        const expiryDate = new Date(expiryDateStr + 'T23:59:59.000Z');
-        if (expiryDate < new Date()) return json({ success: false, error: "Your subscription has expired. Please contact support@driv-en.com to reactivate your account." }, 403);
+          // Render modules if returned
+          if (data.activated_modules) {
+            renderModules(data.activated_modules);
+          }
+        } else {
+          activationError.textContent = data.error || "Invalid activation code.";
+          activationError.classList.add("show");
+          activationInput.classList.add("error");
+          activationBtn.disabled = false;
+          activationBtn.textContent = "Activate Account";
+        }
+      } catch (e) {
+        activationError.textContent = "Failed to verify activation code. Please try again.";
+        activationError.classList.add("show");
+        activationBtn.disabled = false;
+        activationBtn.textContent = "Activate Account";
+      }
+    });
+
+    // Resend activation code
+    resendLink.addEventListener("click", async function() {
+      resendLink.textContent = "Sending…";
+      try {
+        var resp = await fetch("/auth/resend-activation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" }
+        });
+        var data = await resp.json();
+        if (data.success) {
+          resendLink.textContent = "✓ Code sent to your email";
+          setTimeout(function() {
+            resendLink.textContent = "Resend activation code";
+          }, 5000);
+        } else {
+          resendLink.textContent = data.error || "Failed to resend";
+          setTimeout(function() {
+            resendLink.textContent = "Resend activation code";
+          }, 3000);
+        }
+      } catch (e) {
+        resendLink.textContent = "Failed to resend";
+        setTimeout(function() {
+          resendLink.textContent = "Resend activation code";
+        }, 3000);
+      }
+    });
+
+    // Allow Enter key to submit activation
+    activationInput.addEventListener("keydown", function(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        activationBtn.click();
+      }
+    });
+
+    /* ==========================================
+       RENDER MODULES — only shows activated modules
+       Core admin tools (User Management, Projects, Settings)
+       always show. Purchased modules only show if they are
+       in the activated_modules array from D1.
+       ========================================== */
+    function renderModules(activatedModules) {
+      var grid = document.getElementById("moduleGrid");
+      grid.innerHTML = "";
+
+      // Always show core admin tools
+      var coreCards = [
+        { title: "User Management", body: "Manage employees, roles, permissions, and account access.", url: "/app/dashboard/admin/users.html" },
+        { title: "Projects", body: "View, create, and manage all projects across your organization.", url: "/app/dashboard/admin/projects.html" },
+        { title: "Settings", body: "Configure company settings, divisions, project types, and integrations.", url: "/app/dashboard/admin/settings.html" }
+      ];
+
+      coreCards.forEach(function(card) {
+        var div = document.createElement("div");
+        div.className = "admin-module-card";
+        div.onclick = function() { window.location.href = card.url; };
+        div.innerHTML =
+          '<div class="admin-module-title">' + card.title + '</div>' +
+          '<div class="admin-module-body">' + card.body + '</div>' +
+          '<div class="admin-module-link">Open →</div>';
+        grid.appendChild(div);
+      });
+
+      // Show activated purchased modules
+      if (activatedModules && activatedModules.length > 0) {
+        ALL_MODULES.forEach(function(mod) {
+          if (activatedModules.indexOf(mod.name) !== -1) {
+            var div = document.createElement("div");
+            div.className = "admin-module-card";
+            div.onclick = function() { window.location.href = mod.url; };
+            div.innerHTML =
+              '<div class="admin-module-title">' + mod.title + '</div>' +
+              '<div class="admin-module-body">' + mod.body + '</div>' +
+              '<div class="admin-module-link">Open →</div>';
+            grid.appendChild(div);
+          }
+        });
       }
     }
-    const valid = await verifyPassword(password, result.password_hash, result.password_salt);
-    if (!valid) return json({ success: false, error: "Invalid email or password." }, 401);
-    const sessionToken = await signJWT({ sub: result.email, email: result.email, org_id: result.org_id, role: result.role_name, first_name: result.first_name || "", last_name: result.last_name || "", must_change_password: result.must_change_password === 1, twofa_enabled: result.twofa_enabled === 1, activation_complete: result.activation_complete === 1 }, env.JWT_SECRET, SESSION_LIFETIME);
-    const setCookies = [buildCookie(COOKIE_SESSION, sessionToken, rememberMe ? SESSION_LIFETIME : undefined)];
-    if (rememberMe) {
-      const refreshToken = await signJWT({ sub: result.email, email: result.email, org_id: result.org_id, type: "refresh" }, env.JWT_SECRET, REFRESH_LIFETIME);
-      setCookies.push(buildCookie(COOKIE_REFRESH, refreshToken, REFRESH_LIFETIME));
-    }
-    return json({ success: true, role: result.role_name, must_change_password: result.must_change_password === 1, twofa_enabled: result.twofa_enabled === 1 }, 200, { "Set-Cookie": setCookies.join(", ") });
-  } catch (err) {
-    console.error("Login unexpected error:", err.message, err.stack);
-    await notifySupportError(env, "driv-en-auth (login)", err);
-    return json({ success: false, error: "An unexpected error occurred during login. DRIV-EN Support has been notified and is aware of the issue. We apologize for the inconvenience. If you don't hear from us within 24 hours, please contact support@driv-en.com." }, 500);
-  }
-}
 
-async function handleChangePassword(request, env) {
-  let body;
-  try { body = await request.json(); } catch (e) { return json({ success: false, error: "Invalid JSON body" }, 400); }
-  const { current_password, new_password } = body;
-  if (!current_password || !new_password) return json({ success: false, error: "Current password and new password are required" }, 400);
-  if (new_password.length < 8) return json({ success: false, error: "New password must be at least 8 characters" }, 400);
-  const cookies = parseCookies(request.headers.get("Cookie"));
-  const token = cookies[COOKIE_SESSION];
-  if (!token) return json({ success: false, error: "Not authenticated" }, 401);
-  const session = await verifyJWT(token, env.JWT_SECRET);
-  if (!session) return json({ success: false, error: "Session expired" }, 401);
-  const user = await env.DB.prepare("SELECT password_hash, password_salt FROM users WHERE email = ?").bind(session.email).first();
-  if (!user) return json({ success: false, error: "User not found" }, 404);
-  const valid = await verifyPassword(current_password, user.password_hash, user.password_salt);
-  if (!valid) return json({ success: false, error: "Current password is incorrect" }, 401);
-  const { salt, hash } = await hashPassword(new_password);
-  await env.DB.prepare("UPDATE users SET password_hash = ?, password_salt = ?, must_change_password = 0 WHERE email = ?").bind(hash, salt, session.email).run();
-  const newSessionToken = await signJWT({ sub: session.email, email: session.email, org_id: session.org_id, role: session.role, must_change_password: false }, env.JWT_SECRET, SESSION_LIFETIME);
-  return json({ success: true }, 200, { "Set-Cookie": buildCookie(COOKIE_SESSION, newSessionToken, SESSION_LIFETIME) });
-}
+    /* ==========================================
+       ADMIN DASHBOARD INIT
+       Runs after dashboard-common.js loads the session.
+       The "dashSessionLoaded" event fires when the user
+       session is available (user object, org_id, etc.)
 
-async function handleSession(request, env) {
-  try {
-    await ensureActivationColumns(env);
-    if (!env.JWT_SECRET) {
-      console.error("JWT_SECRET is not set on the auth worker");
-      await notifySupportError(env, "driv-en-auth (session)", new Error("JWT_SECRET is not configured on the worker"));
-      return json({ authenticated: false, error: "Server configuration error. DRIV-EN Support has been notified and is aware of the issue. We apologize for the inconvenience. If you don't hear from us within 24 hours, please contact support@driv-en.com." }, 500);
-    }
-    const cookies = parseCookies(request.headers.get("Cookie"));
-    const token = cookies[COOKIE_SESSION];
-    if (!token) return json({ authenticated: false }, 401);
-    const payload = await verifyJWT(token, env.JWT_SECRET);
-    if (!payload) return json({ authenticated: false }, 401);
+       What this script does:
+       1. Fills the welcome banner with the user's first name
+       2. Checks activation status — shows overlay if not activated
+       3. If activated, shows the dashboard with activated modules
+       4. Checks onboarding status (localStorage + KP API)
+       5. Hides onboarding card if complete
+       6. Loads stats from localStorage (will be DB queries later)
+       ========================================== */
+    document.addEventListener("dashSessionLoaded", async function(e) {
+      // e.detail contains the user object from /auth/session
+      // e.detail.email, e.detail.first_name, e.detail.org_id
+      // e.detail.activation_complete (true/false)
+      // e.detail.activated_modules (array of module names)
 
-    let activationComplete = payload.role === "DRIV-EN Founder" ? true : payload.activation_complete === true;
-    let activatedModules = [];
-    let firstName = payload.first_name || "";
-    let lastName = payload.last_name || "";
+      // 1. Fill welcome banner with first name
+      var firstName = (e.detail && e.detail.first_name) ? e.detail.first_name : (e.detail && e.detail.email) || "";
+      var welcomeEl = document.getElementById("admin-welcome-name");
+      if (welcomeEl) welcomeEl.textContent = firstName;
 
-    if (payload.role !== "DRIV-EN Founder") {
-      try {
-        const org = await env.DB.prepare("SELECT activation_complete, activated_modules, subscription_status, free_until, paid_until FROM organizations WHERE id = ?").bind(payload.org_id).first();
-        if (org) {
-          activationComplete = org.activation_complete === 1;
-          if (org.activated_modules) { try { activatedModules = JSON.parse(org.activated_modules); } catch (e) { activatedModules = []; } }
-          var subStatus = org.subscription_status || 'paid';
-          var subExpiry = subStatus === 'free' ? org.free_until : (org.paid_until || org.free_until);
-          return json({ authenticated: true, user: { email: payload.email, org_id: payload.org_id, role: payload.role, first_name: firstName, last_name: lastName, full_name: [firstName, lastName].filter(Boolean).join(" "), must_change_password: payload.must_change_password === true, activation_complete: activationComplete, activated_modules: activatedModules, subscription_status: subStatus, subscription_expires: subExpiry || null } }, 200);
+      // Hide loading screen
+      document.getElementById("adminLoading").style.display = "none";
+
+      // 2. Check activation status from the session data
+      // handleSession now returns activation_complete and activated_modules from D1
+      var activationComplete = e.detail && e.detail.activation_complete === true;
+      var activatedModules = (e.detail && e.detail.activated_modules) || [];
+
+      if (!activationComplete) {
+        // Not activated — show the activation overlay, keep dashboard hidden
+        activationOverlay.classList.add("active");
+        activationInput.focus();
+      } else {
+        // Already activated — hide overlay, show dashboard
+        activationOverlay.classList.remove("active");
+        activationOverlay.style.display = "none";
+        document.getElementById("adminDashboard").style.display = "block";
+        renderModules(activatedModules);
+      }
+
+      // 3-6. Onboarding status and stats (only relevant if activated)
+      if (activationComplete) {
+        // 3. Check onboarding status
+        // Checks localStorage flags AND fetches KP count from server
+        // for desktop/mobile consistency
+        var onboardingComplete = localStorage.getItem("driven_onboarding_complete") === "true";
+        var onboardingStarted = localStorage.getItem("driven_customer_logo") !== null ||
+                                 localStorage.getItem("driven_kp_count") !== null;
+        var statusEl = document.getElementById("admin-onboarding-status");
+        var onboardingCard = document.getElementById("adminOnboardingCard");
+
+        // Fetch key personnel count from server
+        try {
+          var customerId = localStorage.getItem("driven_customer_id");
+          if (customerId) {
+            var kpRes = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(customerId));
+            var kpData = await kpRes.json();
+            if (kpData.success && kpData.keyPersonnel) {
+              localStorage.setItem("driven_kp_count", kpData.keyPersonnel.length);
+              if (kpData.keyPersonnel.length > 0) onboardingStarted = true;
+              // Update the KP count badge inside the onboarding card
+              var kpCountEl = document.getElementById("admin-kp-count");
+              if (kpCountEl) kpCountEl.textContent = kpData.keyPersonnel.length;
+            }
+          }
+        } catch (err) {
+          console.error("KP count fetch error:", err.message);
         }
-      } catch (e) { console.error("Session activation lookup error:", e.message); }
-    }
 
-    if (!firstName || !lastName) {
-      try {
-        const user = await env.DB.prepare("SELECT first_name, last_name FROM users WHERE email = ?").bind(payload.email).first();
-        if (user) { firstName = user.first_name || ""; lastName = user.last_name || ""; }
-      } catch (e) {}
-    }
+        // 4. Update onboarding card display
+        if (onboardingComplete) {
+          // All onboarding steps complete — hide the card
+          onboardingCard.style.display = "none";
+        } else if (onboardingStarted) {
+          // Onboarding in progress — show "In Progress" badge
+          statusEl.textContent = "In Progress";
+          statusEl.style.background = "var(--bg-card)";
+          statusEl.style.borderColor = "var(--primary)";
+          statusEl.style.color = "var(--primary)";
+        } else {
+          // Onboarding not started — show "Not Started" badge
+          statusEl.textContent = "Not Started";
+          statusEl.style.background = "var(--bg-card)";
+          statusEl.style.borderColor = "var(--error)";
+          statusEl.style.color = "var(--error)";
+        }
 
-    return json({ authenticated: true, user: { email: payload.email, org_id: payload.org_id, role: payload.role, first_name: firstName, last_name: lastName, full_name: [firstName, lastName].filter(Boolean).join(" "), must_change_password: payload.must_change_password === true, activation_complete: activationComplete, activated_modules: activatedModules } }, 200);
-  } catch (err) {
-    console.error("Session unexpected error:", err.message, err.stack);
-    await notifySupportError(env, "driv-en-auth (session)", err);
-    return json({ authenticated: false, error: "An unexpected error occurred. DRIV-EN Support has been notified and is aware of the issue. We apologize for the inconvenience. If you don't hear from us within 24 hours, please contact support@driv-en.com." }, 500);
-  }
-}
+        // 5. Load stats from localStorage (will be database queries later)
+        document.getElementById("admin-stat-employees").textContent = localStorage.getItem("driven_employee_count") || "0";
+        document.getElementById("admin-stat-projects").textContent  = localStorage.getItem("driven_project_count") || "0";
+        document.getElementById("admin-stat-equipment").textContent  = localStorage.getItem("driven_equipment_count") || "0";
+        document.getElementById("admin-stat-clients").textContent   = localStorage.getItem("driven_client_count") || "0";
+      }
+    });
 
-async function handleLogout() {
-  const headers = { "Set-Cookie": `${clearCookie(COOKIE_SESSION)}, ${clearCookie(COOKIE_REFRESH)}` };
-  return json({ success: true }, 200, headers);
-}
+    /* ==========================================
+       FALLBACK: If session fails to load (network error, etc.)
+       redirect to login page after 5 seconds.
+       Also checks that the activation overlay is not showing —
+       if it is, the session loaded fine, just not activated.
+       ========================================== */
+    setTimeout(function() {
+      if (document.getElementById("adminDashboard").style.display === "none" &&
+          !document.getElementById("activationOverlay").classList.contains("active")) {
+        // Dashboard still hidden and activation overlay not showing — session likely failed
+        console.error("Session check timed out — redirecting to login");
+         window.location.href = "/public/login.html";
+      }
+    }, 5000);
+</script>
 
-async function handleRefresh(request, env) {
-  try {
-    if (!env.JWT_SECRET) {
-      console.error("JWT_SECRET is not set on the auth worker");
-      await notifySupportError(env, "driv-en-auth (refresh)", new Error("JWT_SECRET is not configured on the worker"));
-      return json({ success: false, error: "Server configuration error. DRIV-EN Support has been notified and is aware of the issue. We apologize for the inconvenience. If you don't hear from us within 24 hours, please contact support@driv-en.com." }, 500);
-    }
-    const cookies = parseCookies(request.headers.get("Cookie"));
-    const refreshToken = cookies[COOKIE_REFRESH];
-    if (!refreshToken) return json({ success: false, error: "No refresh token" }, 401);
-    const payload = await verifyJWT(refreshToken, env.JWT_SECRET);
-    if (!payload || payload.type !== "refresh") return json({ success: false, error: "Invalid or expired refresh token" }, 401);
-    const result = await env.DB.prepare(`SELECT u.email, u.org_id, u.is_active, o.status AS org_status, o.activation_complete, r.name AS role_name FROM users u LEFT JOIN organizations o ON u.org_id = o.id LEFT JOIN roles r ON u.role_id = r.id WHERE u.email = ?`).bind(payload.email).first();
-    if (!result || !result.is_active) return json({ success: false, error: "Account is no longer active" }, 401);
-    if (result.role_name !== "DRIV-EN Founder" && result.org_status !== "active") return json({ success: false, error: "Organization is no longer active" }, 401);
-    const sessionToken = await signJWT({ sub: result.email, email: result.email, org_id: result.org_id, role: result.role_name, must_change_password: false, activation_complete: result.activation_complete === 1 }, env.JWT_SECRET, SESSION_LIFETIME);
-    return json({ success: true }, 200, { "Set-Cookie": buildCookie(COOKIE_SESSION, sessionToken, SESSION_LIFETIME) });
-  } catch (err) {
-    console.error("Refresh unexpected error:", err.message, err.stack);
-    await notifySupportError(env, "driv-en-auth (refresh)", err);
-    return json({ success: false, error: "An unexpected error occurred. DRIV-EN Support has been notified and is aware of the issue. We apologize for the inconvenience. If you don't hear from us within 24 hours, please contact support@driv-en.com." }, 500);
-  }
-}
-
-async function handleVerifyActivation(request, env) {
-  await ensureActivationColumns(env);
-  let body;
-  try { body = await request.json(); } catch (e) { return json({ success: false, error: "Invalid JSON body" }, 400); }
-  const { activation_code } = body;
-  if (!activation_code) return json({ success: false, error: "Activation code is required" }, 400);
-  const cookies = parseCookies(request.headers.get("Cookie"));
-  const token = cookies[COOKIE_SESSION];
-  if (!token) return json({ success: false, error: "Not authenticated" }, 401);
-  const session = await verifyJWT(token, env.JWT_SECRET);
-  if (!session) return json({ success: false, error: "Session expired" }, 401);
-  try {
-    const org = await env.DB.prepare("SELECT id, activation_code, activation_complete, activated_modules FROM organizations WHERE id = ?").bind(session.org_id).first();
-    if (!org) return json({ success: false, error: "Organization not found" }, 404);
-    if (org.activation_complete === 1) {
-      let modules = [];
-      try { modules = JSON.parse(org.activated_modules || "[]"); } catch (e) {}
-      return json({ success: true, message: "Already activated", activated_modules: modules });
-    }
-    const storedCode = (org.activation_code || "").trim().toUpperCase();
-    const enteredCode = activation_code.trim().toUpperCase();
-    if (!storedCode) return json({ success: false, error: "No activation code found for your organization. Please contact support." }, 400);
-    if (storedCode !== enteredCode) return json({ success: false, error: "Invalid activation code. Please check your welcome email and try again." }, 400);
-    let modulesToActivate = [];
-    if (org.activated_modules) { try { modulesToActivate = JSON.parse(org.activated_modules); } catch (e) {} }
-    await env.DB.prepare("UPDATE organizations SET activation_complete = 1 WHERE id = ?").bind(session.org_id).run();
-    return json({ success: true, message: "Activation successful. Your dashboard is now unlocked.", activated_modules: modulesToActivate });
-  } catch (e) {
-    console.error("VerifyActivation error:", e.message, e.stack);
-    await notifySupportError(env, "driv-en-auth (verify-activation)", e);
-    return json({ success: false, error: "Failed to verify activation code" }, 500);
-  }
-}
-
-async function handleResendActivation(request, env) {
-  const cookies = parseCookies(request.headers.get("Cookie"));
-  const token = cookies[COOKIE_SESSION];
-  if (!token) return json({ success: false, error: "Not authenticated" }, 401);
-  const session = await verifyJWT(token, env.JWT_SECRET);
-  if (!session) return json({ success: false, error: "Session expired" }, 401);
-  try {
-    const org = await env.DB.prepare("SELECT activation_code, activation_complete FROM organizations WHERE id = ?").bind(session.org_id).first();
-    if (!org) return json({ success: false, error: "Organization not found" }, 404);
-    if (org.activation_complete === 1) return json({ success: false, error: "Your account is already activated" }, 400);
-    if (!org.activation_code) return json({ success: false, error: "No activation code found. Please contact support." }, 400);
-    const user = await env.DB.prepare("SELECT first_name, last_name, email FROM users WHERE email = ?").bind(session.email).first();
-    const fullName = user ? [user.first_name, user.last_name].filter(Boolean).join(" ") : "";
-    const domain = env.ONBOARDING_DOMAIN || "driv-en.com";
-    const emailHtml = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;"><div style="text-align:center;padding:24px 0;"><img src="https://www.' + domain + '/assets/logo.png?v=2026" alt="DRIV-EN" style="max-height:80px;"></div><h2 style="text-align:center;color:#1e293b;">Your DRIV-EN Activation Code</h2><p>Hello ' + fullName + ',</p><p>Here is your DRIV-EN activation code. Enter it on your admin dashboard to unlock your account.</p><div style="text-align:center;margin:24px 0;"><span style="font-size:24px;font-weight:bold;color:#00b140;letter-spacing:2px;">' + org.activation_code + '</span></div><p>After entering this code, your dashboard will be unlocked and you can begin onboarding.</p><p>If you did not request this email, you can safely ignore it.</p><p>Best regards,<br>DRIV-EN Team</p></div>';
-    const emailText = "Your DRIV-EN Activation Code\n\nHello " + fullName + ",\n\nHere is your DRIV-EN activation code: " + org.activation_code + "\n\nEnter it on your admin dashboard to unlock your account.\n\nIf you did not request this email, you can safely ignore it.\n\nBest regards, DRIV-EN Team";
-    await sendEmail(env, session.email, "Your DRIV-EN Activation Code", emailHtml, emailText);
-    return json({ success: true, message: "Activation code sent to " + session.email });
-  } catch (e) {
-    console.error("ResendActivation error:", e.message, e.stack);
-    await notifySupportError(env, "driv-en-auth (resend-activation)", e);
-    return json({ success: false, error: "Failed to resend activation code" }, 500);
-  }
-}
-
-async function handleSaveLogo(request, env) {
-  const cookies = parseCookies(request.headers.get("Cookie"));
-  const token = cookies[COOKIE_SESSION];
-  if (!token) return json({ success: false, error: "Not authenticated" }, 401);
-  const session = await verifyJWT(token, env.JWT_SECRET);
-  if (!session) return json({ success: false, error: "Session expired" }, 401);
-  let body;
-  try { body = await request.json(); } catch (e) { return json({ success: false, error: "Invalid JSON" }, 400); }
-  const { logo_data } = body;
-  if (!logo_data) return json({ success: false, error: "Logo data is required" }, 400);
-  try {
-    await env.DB.prepare("UPDATE organizations SET logo = ? WHERE id = ?").bind(logo_data, session.org_id).run();
-    return json({ success: true, message: "Logo saved" });
-  } catch (e) {
-    console.error("SaveLogo error:", e.message);
-    await notifySupportError(env, "driv-en-auth (save-logo)", e);
-    return json({ success: false, error: "Failed to save logo" }, 500);
-  }
-}
-
-async function handleGetLogo(request, env) {
-  const cookies = parseCookies(request.headers.get("Cookie"));
-  const token = cookies[COOKIE_SESSION];
-  if (!token) return json({ success: false }, 401);
-  const session = await verifyJWT(token, env.JWT_SECRET);
-  if (!session) return json({ success: false }, 401);
-  try {
-    const org = await env.DB.prepare("SELECT logo FROM organizations WHERE id = ?").bind(session.org_id).first();
-    if (org && org.logo) return json({ success: true, logo: org.logo });
-    return json({ success: false });
-  } catch (e) { return json({ success: false }); }
-}
-
-async function handleForgotPassword(request, env) {
-  let body;
-  try { body = await request.json(); } catch (e) { return json({ success: false, error: "Invalid JSON body" }, 400); }
-  const { email } = body;
-  if (!email) return json({ success: false, error: "Email is required" }, 400);
-  try {
-    const emailLower = email.toLowerCase().trim();
-    const user = await env.DB.prepare("SELECT id, email, first_name, last_name FROM users WHERE email = ?").bind(emailLower).first();
-    if (!user) return json({ success: true, message: "If an account exists for that email, a reset link has been sent." });
-    const resetToken = crypto.randomUUID();
-    const resetKey = "pwd_reset:" + resetToken;
-    await env.ONBOARDING_KV.put(resetKey, JSON.stringify({ userId: user.id, email: user.email }), { expirationTtl: 1800 });
-    const resetUrl = env.ONBOARDING_DOMAIN + "/public/reset-password?token=" + resetToken;
-    const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ") || user.email;
-    const emailHtml = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;"><div style="text-align:center;padding:24px 0;"><img src="' + env.ONBOARDING_DOMAIN + '/assets/logo.png?v=2026" alt="DRIV-EN" style="max-height:80px;"></div><h2 style="text-align:center;color:#1e293b;font-size:22px;margin:24px 0 16px 0;">Password Reset Request</h2><p>Hello ' + fullName + ',</p><p>We received a request to reset your DRIV-EN account password.</p><p>Click the button below to set a new password. This link will expire in 30 minutes.</p><p style="text-align:center;margin:24px 0;"><a href="' + resetUrl + '" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:6px;font-size:15px;font-weight:600;">RESET PASSWORD</a></p><p style="background:#fef3c7;border:1px solid #fcd34d;padding:12px;border-radius:6px;display:inline-block;">If you did not request a password reset, you can safely ignore this email.</p><p>If you have any questions, contact support at <a href="mailto:' + env.SUPPORT_CONTACT + '">' + env.SUPPORT_CONTACT + '</a>.</p><p>Best regards,<br>DRIV-EN Team</p></div>';
-    const emailText = "Password Reset Request\n\nHello " + fullName + ",\n\nWe received a request to reset your DRIV-EN account password.\n\nClick the link below to set a new password. This link will expire in 30 minutes.\n" + resetUrl + "\n\nIf you did not request a password reset, you can safely ignore this email.\n\nIf you have any questions, contact support at " + env.SUPPORT_CONTACT + ".\n\nBest regards, DRIV-EN Team";
-    await sendEmail(env, user.email, "DRIV-EN Password Reset", emailHtml, emailText);
-    return json({ success: true, message: "If an account exists for that email, a reset link has been sent." });
-  } catch (e) {
-    console.error("ForgotPassword error:", e.message, e.stack);
-    await notifySupportError(env, "driv-en-auth (forgot-password)", e);
-    return json({ success: false, error: "Failed to process password reset request" }, 500);
-  }
-}
-
-async function handleResetPassword(request, env) {
-  let body;
-  try { body = await request.json(); } catch (e) { return json({ success: false, error: "Invalid JSON body" }, 400); }
-  const { token, new_password } = body;
-  if (!token || !new_password) return json({ success: false, error: "Token and new password are required" }, 400);
-  if (new_password.length < 8) return json({ success: false, error: "Password must be at least 8 characters" }, 400);
-  try {
-    const resetKey = "pwd_reset:" + token;
-    const stored = await env.ONBOARDING_KV.get(resetKey);
-    if (!stored) return json({ success: false, error: "Invalid or expired reset token" }, 400);
-    const resetData = JSON.parse(stored);
-    const { salt, hash } = await hashPassword(new_password);
-    await env.DB.prepare("UPDATE users SET password_hash = ?, password_salt = ?, must_change_password = 0 WHERE id = ?").bind(hash, salt, resetData.userId).run();
-    await env.ONBOARDING_KV.delete(resetKey);
-    return json({ success: true, message: "Password reset successfully" });
-  } catch (e) {
-    console.error("ResetPassword error:", e.message, e.stack);
-    await notifySupportError(env, "driv-en-auth (reset-password)", e);
-    return json({ success: false, error: "Failed to reset password" }, 500);
-  }
-}
-
-function base32Encode(bytes) {
-  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-  let bits = 0, value = 0, output = "";
-  for (const byte of bytes) { value = (value << 8) | byte; bits += 8; while (bits >= 5) { output += alphabet[(value >>> (bits - 5)) & 31]; bits -= 5; } }
-  if (bits > 0) output += alphabet[(value << (5 - bits)) & 31];
-  return output;
-}
-
-function base32Decode(str) {
-  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-  const cleanStr = str.replace(/=/g, "").toUpperCase();
-  let bits = 0, value = 0, output = [];
-  for (const char of cleanStr) { const idx = alphabet.indexOf(char); if (idx === -1) continue; value = (value << 5) | idx; bits += 5; if (bits >= 8) { output.push((value >>> (bits - 8)) & 0xFF); bits -= 8; } }
-  return new Uint8Array(output);
-}
-
-async function generateTotpSecret() { return base32Encode(crypto.getRandomValues(new Uint8Array(20))); }
-
-async function generateTotpCode(secret, timestamp) {
-  const time = Math.floor((timestamp || Date.now()) / 1000 / 30);
-  const buffer = new ArrayBuffer(8);
-  const view = new DataView(buffer);
-  view.setUint32(0, Math.floor(time / 0x100000000));
-  view.setUint32(4, time & 0xFFFFFFFF);
-  const key = base32Decode(secret);
-  const cryptoKey = await crypto.subtle.importKey("raw", key, { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
-  const hmac = await crypto.subtle.sign("HMAC", cryptoKey, buffer);
-  const hmacBytes = new Uint8Array(hmac);
-  const offset = hmacBytes[hmacBytes.length - 1] & 0x0F;
-  const code = ((hmacBytes[offset] & 0x7F) << 24) | ((hmacBytes[offset + 1] & 0xFF) << 16) | ((hmacBytes[offset + 2] & 0xFF) << 8) | (hmacBytes[offset + 3] & 0xFF);
-  return (code % 1000000).toString().padStart(6, "0");
-}
-
-async function verifyTotpCode(secret, code) {
-  const now = Date.now();
-  for (let offset = -1; offset <= 1; offset++) { if (await generateTotpCode(secret, now + offset * 30000) === code) return true; }
-  return false;
-}
-
-function generateBackupCodes() {
-  const codes = [];
-  for (let i = 0; i < 10; i++) { const bytes = crypto.getRandomValues(new Uint8Array(4)); codes.push(Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("")); }
-  return codes;
-}
-
-async function handleEmailBackupCodes(request, env) {
-  try {
-    const cookies = parseCookies(request.headers.get("Cookie"));
-    const token = cookies[COOKIE_SESSION];
-    if (!token) return json({ success: false, error: "Not authenticated" }, 401);
-    const payload = await verifyJWT(token, env.JWT_SECRET);
-    if (!payload) return json({ success: false, error: "Not authenticated" }, 401);
-    const user = await env.DB.prepare("SELECT id, email, first_name, last_name FROM users WHERE email = ?").bind(payload.email).first();
-    if (!user) return json({ success: false, error: "User not found" }, 404);
-    const stored = await env.ONBOARDING_KV.get("2fa_backup:" + user.id);
-    if (!stored) return json({ success: false, error: "No backup codes found" }, 400);
-    const backupCodes = JSON.parse(stored);
-    const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ") || user.email;
-    const codesHtml = backupCodes.map(function(c, i) { return '<div style="font-family:monospace;font-size:16px;padding:4px 0;">' + (i + 1) + ". " + c + "</div>"; }).join("");
-    const emailHtml = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;"><div style="text-align:center;padding:24px 0;"><img src="' + env.ONBOARDING_DOMAIN + '/assets/logo.png?v=2026" alt="DRIV-EN" style="max-height:80px;"></div><h2 style="text-align:center;color:#1e293b;font-size:22px;margin:24px 0 16px 0;">Your 2FA Backup Codes</h2><p>Hello ' + fullName + ',</p><p>You are receiving this email because you enabled Two-Factor Authentication (2FA) on your DRIV-EN account.</p><div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin:16px 0;">' + codesHtml + '</div><p>If you did not enable 2FA, please contact support immediately at ' + env.SUPPORT_CONTACT + ".</p><p>Best regards,<br>DRIV-EN Team</p></div>";
-    const emailText = "Your 2FA Backup Codes\n\nHello " + fullName + ",\n\nYour backup codes:\n" + backupCodes.map(function(c, i) { return (i + 1) + ". " + c; }).join("\n") + "\n\nIf you did not enable 2FA, please contact support immediately at " + env.SUPPORT_CONTACT + ".";
-    await sendEmail(env, user.email, "DRIV-EN 2FA Backup Codes", emailHtml, emailText);
-    return json({ success: true, message: "Backup codes emailed to " + user.email });
-  } catch (e) {
-    console.error("EmailBackupCodes error:", e.message, e.stack);
-    await notifySupportError(env, "driv-en-auth (email-backup-codes)", e);
-    return json({ success: false, error: "Failed to email backup codes" }, 500);
-  }
-}
-
-async function handleSetup2FA(request, env) {
-  try {
-    const cookies = parseCookies(request.headers.get("Cookie"));
-    const token = cookies[COOKIE_SESSION];
-    if (!token) return json({ success: false, error: "Not authenticated" }, 401);
-    const payload = await verifyJWT(token, env.JWT_SECRET);
-    if (!payload) return json({ success: false, error: "Not authenticated" }, 401);
-    const user = await env.DB.prepare("SELECT id, email FROM users WHERE email = ?").bind(payload.email).first();
-    if (!user) return json({ success: false, error: "User not found" }, 404);
-    const existing = await env.DB.prepare("SELECT twofa_enabled FROM users WHERE id = ?").bind(user.id).first();
-    if (existing && existing.twofa_enabled === 1) return json({ success: false, error: "2FA is already enabled" }, 400);
-    const secret = await generateTotpSecret();
-    const otpauthUri = "otpauth://totp/" + encodeURIComponent("DRIV-EN:" + user.email) + "?secret=" + secret + "&issuer=" + encodeURIComponent("DRIV-EN") + "&algorithm=SHA1&digits=6&period=30";
-    await env.ONBOARDING_KV.put("2fa_pending:" + user.id, secret, { expirationTtl: 600 });
-    return json({ success: true, otpauthUri: otpauthUri, secret: secret });
-  } catch (e) {
-    console.error("Setup2FA error:", e.message, e.stack);
-    await notifySupportError(env, "driv-en-auth (setup-2fa)", e);
-    return json({ success: false, error: "Failed to setup 2FA: " + e.message }, 500);
-  }
-}
-
-async function handleVerify2FA(request, env) {
-  let body;
-  try { body = await request.json(); } catch (e) { return json({ success: false, error: "Invalid JSON" }, 400); }
-  const { code } = body;
-  if (!code) return json({ success: false, error: "Verification code is required" }, 400);
-  try {
-    const cookies = parseCookies(request.headers.get("Cookie"));
-    const token = cookies[COOKIE_SESSION];
-    if (!token) return json({ success: false, error: "Not authenticated" }, 401);
-    const payload = await verifyJWT(token, env.JWT_SECRET);
-    if (!payload) return json({ success: false, error: "Not authenticated" }, 401);
-    const user = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(payload.email).first();
-    if (!user) return json({ success: false, error: "User not found" }, 404);
-    const secret = await env.ONBOARDING_KV.get("2fa_pending:" + user.id);
-    if (!secret) return json({ success: false, error: "No pending 2FA setup. Please start again." }, 400);
-    const valid = await verifyTotpCode(secret, code);
-    if (!valid) return json({ success: false, error: "Invalid verification code. Please try again." }, 400);
-    await env.DB.prepare("UPDATE users SET totp_secret = ?, twofa_enabled = 1 WHERE id = ?").bind(secret, user.id).run();
-    await env.ONBOARDING_KV.delete("2fa_pending:" + user.id);
-    const backupCodes = generateBackupCodes();
-    await env.ONBOARDING_KV.put("2fa_backup:" + user.id, JSON.stringify(backupCodes));
-    return json({ success: true, message: "2FA enabled successfully", backupCodes: backupCodes });
-  } catch (e) {
-    console.error("Verify2FA error:", e.message, e.stack);
-    await notifySupportError(env, "driv-en-auth (verify-2fa)", e);
-    return json({ success: false, error: "Failed to verify 2FA: " + e.message }, 500);
-  }
-}
-
-async function handleDisable2FA(request, env) {
-  let body;
-  try { body = await request.json(); } catch (e) { return json({ success: false, error: "Invalid JSON" }, 400); }
-  const { password } = body;
-  if (!password) return json({ success: false, error: "Password is required to disable 2FA" }, 400);
-  try {
-    const cookies = parseCookies(request.headers.get("Cookie"));
-    const token = cookies[COOKIE_SESSION];
-    if (!token) return json({ success: false, error: "Not authenticated" }, 401);
-    const payload = await verifyJWT(token, env.JWT_SECRET);
-    if (!payload) return json({ success: false, error: "Not authenticated" }, 401);
-    const user = await env.DB.prepare("SELECT id, password_hash, password_salt FROM users WHERE email = ?").bind(payload.email).first();
-    if (!user) return json({ success: false, error: "User not found" }, 404);
-    const { hash } = await hashPassword(password, user.password_salt);
-    if (hash !== user.password_hash) return json({ success: false, error: "Incorrect password" }, 401);
-    await env.DB.prepare("UPDATE users SET totp_secret = NULL, twofa_enabled = 0 WHERE id = ?").bind(user.id).run();
-    await env.ONBOARDING_KV.delete("2fa_backup:" + user.id);
-    return json({ success: true, message: "2FA disabled successfully" });
-  } catch (e) {
-    console.error("Disable2FA error:", e.message, e.stack);
-    await notifySupportError(env, "driv-en-auth (disable-2fa)", e);
-    return json({ success: false, error: "Failed to disable 2FA" }, 500);
-  }
-}
-
-async function handleLogin2FA(request, env) {
-  let body;
-  try { body = await request.json(); } catch (e) { return json({ success: false, error: "Invalid JSON" }, 400); }
-  const { email, code, remember } = body;
-  if (!email || !code) return json({ success: false, error: "Email and verification code are required" }, 400);
-  try {
-    const emailLower = email.trim().toLowerCase();
-    const user = await env.DB.prepare("SELECT u.id, u.email, u.org_id, u.totp_secret, u.must_change_password FROM users u WHERE u.email = ? AND u.is_active = 1 AND u.twofa_enabled = 1").bind(emailLower).first();
-    if (!user) return json({ success: false, error: "Invalid credentials" }, 401);
-    const valid = await verifyTotpCode(user.totp_secret, code);
-    if (!valid) return json({ success: false, error: "Invalid verification code" }, 401);
-    const rememberMe = remember === true;
-    const sessionToken = await signJWT({ sub: user.email, email: user.email, org_id: user.org_id, must_change_password: user.must_change_password === 1 }, env.JWT_SECRET, SESSION_LIFETIME);
-    const setCookies = [buildCookie(COOKIE_SESSION, sessionToken, rememberMe ? SESSION_LIFETIME : undefined)];
-    return json({ success: true, must_change_password: user.must_change_password === 1 }, 200, { "Set-Cookie": setCookies });
-  } catch (e) {
-    console.error("Login2FA error:", e.message, e.stack);
-    await notifySupportError(env, "driv-en-auth (login-2fa)", e);
-    return json({ success: false, error: "Login failed" }, 500);
-  }
-}
-
-async function verifyFounderAccess(request, env) {
-  const cookieHeader = request.headers.get("Cookie") || "";
-  const cookies = {};
-  for (const pair of cookieHeader.split(";")) { const idx = pair.indexOf("="); if (idx === -1) continue; cookies[pair.slice(0, idx).trim()] = pair.slice(idx + 1).trim(); }
-  const token = cookies["driv_en_session"];
-  if (!token) return null;
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    const [headerB64, payloadB64, sigB64] = parts;
-    const data = headerB64 + "." + payloadB64;
-    const keyData = new TextEncoder().encode(env.JWT_SECRET || "");
-    const key = await crypto.subtle.importKey("raw", keyData, { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
-    let sigStr = sigB64.replace(/-/g, "+").replace(/_/g, "/");
-    while (sigStr.length % 4) sigStr += "=";
-    const sigBin = atob(sigStr);
-    const sigBytes = new Uint8Array(sigBin.length);
-    for (let i = 0; i < sigBin.length; i++) sigBytes[i] = sigBin.charCodeAt(i);
-    const valid = await crypto.subtle.verify("HMAC", key, sigBytes, new TextEncoder().encode(data));
-    if (!valid) return null;
-    const payload = JSON.parse(atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/")));
-    if (payload.exp && Math.floor(Date.now() / 1000) >= payload.exp) return null;
-    if (payload.role !== "DRIV-EN Founder") return null;
-    return payload;
-  } catch (e) { return null; }
-}
-
-function generateTempPassword() {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-  let pwd = "";
-  for (let i = 0; i < 12; i++) pwd += chars[Math.floor(Math.random() * chars.length)];
-  return pwd;
-}
-
-async function handleCreateUser(request, env) {
-  const founder = await verifyFounderAccess(request, env);
-  if (!founder) return json({ success: false, error: "Unauthorized \u2014 DRIV-EN Founder access required" }, 403);
-  let body;
-  try { body = await request.json(); } catch (e) { return json({ success: false, error: "Invalid JSON" }, 400); }
-  const name = String(body.name || "").trim();
-  const email = String(body.email || "").trim().toLowerCase();
-  const role = String(body.role || "DRIV-EN Founder");
-  if (!name || !email || !email.includes("@")) return json({ success: false, error: "Name and valid email are required" }, 400);
-  const existing = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
-  if (existing) return json({ success: false, error: "A user with this email already exists" }, 409);
-  const roleRecord = await env.DB.prepare("SELECT id FROM roles WHERE name = ? AND is_system = 1").bind(role).first();
-  if (!roleRecord) return json({ success: false, error: "Role not found: " + role }, 400);
-  const tempPassword = generateTempPassword();
-  const saltBytes = crypto.getRandomValues(new Uint8Array(16));
-  const saltHex = Array.from(saltBytes).map(b => b.toString(16).padStart(2, "0")).join("");
-  const keyMaterial = await crypto.subtle.importKey("raw", new TextEncoder().encode(tempPassword), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: saltBytes, iterations: 100000, hash: "SHA-256" }, keyMaterial, 256);
-  const hashBytes = new Uint8Array(bits);
-  let hashB64 = "";
-  for (const b of hashBytes) hashB64 += String.fromCharCode(b);
-  const hash = btoa(hashB64).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-  const userId = crypto.randomUUID();
-  const now = new Date().toISOString();
-  const nameParts = name.split(" ");
-  const firstName = nameParts[0] || name;
-  const lastName = nameParts.slice(1).join(" ") || "";
-  await env.DB.prepare("INSERT INTO users (id, email, org_id, role_id, password_hash, password_salt, must_change_password, is_active, first_name, last_name, full_name, created_at) VALUES (?, ?, ?, ?, ?, ?, 1, 1, ?, ?, ?, ?)").bind(userId, email, founder.org_id || null, roleRecord.id, hash, saltHex, firstName, lastName, name, now).run();
-  if (env.SENDGRID_API_KEY) {
-    try {
-      const fromEmail = env.SENDGRID_FROM_EMAIL || "noreply@driv-en.com";
-      const loginUrl = "https://www.driv-en.com/app/auth/founder-login.html";
-      const emailHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#222;"><div style="text-align:center;padding:24px 0 16px 0;"><img src="https://www.driv-en.com/assets/logo.png?v=2026" alt="DRIV-EN" style="display:block;margin:0 auto;max-width:200px;"></div><h2 style="color:#111;">You\'ve been invited to the DRIV-EN Owner Dashboard</h2><p>Hello ' + name + ',</p><p>You have been given access to the DRIV-EN Owner Dashboard by ' + (founder.email || 'the account owner') + '.</p><p style="background:#f0f7ff;border:1px solid #c7e0ff;padding:16px;border-radius:8px;"><strong>Your temporary password:</strong> <code style="font-size:16px;font-family:monospace;background:#fff;padding:4px 8px;border-radius:4px;">' + tempPassword + '</code><br><span style="font-size:13px;color:#666;">You will be asked to change this password on first login.</span></p><p style="text-align:center;margin:24px 0;"><a href="' + loginUrl + '" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 32px;border-radius:6px;font-size:15px;font-weight:600;">Log In Now</a></p><p style="font-size:13px;color:#888;">Login URL: ' + loginUrl + '</p><hr style="border:none;border-top:1px solid #ccc;margin:24px 0;"><p style="font-size:13px;color:#888;">If you did not expect this invitation, you can safely ignore this email.</p></body></html>';
-      const emailText = "You've been invited to the DRIV-EN Owner Dashboard.\n\nYour temporary password: " + tempPassword + "\n\nLogin at: " + loginUrl + "\n\nYou will be asked to change this password on first login.";
-      await fetch("https://api.sendgrid.com/v3/mail/send", { method: "POST", headers: { "Authorization": "Bearer " + env.SENDGRID_API_KEY, "Content-Type": "application/json" }, body: JSON.stringify({ personalizations: [{ to: [{ email: email }] }], from: { email: fromEmail, name: "DRIV\u2011EN Platform" }, subject: "You're invited to the DRIV-EN Owner Dashboard", content: [{ type: "text/plain", value: emailText }, { type: "text/html", value: emailHtml }] }) });
-    } catch (emailErr) {
-      console.error("[AUTH] Invitation email failed:", emailErr.message);
-      return json({ success: true, warning: "User created but invitation email failed. Temp password: " + tempPassword });
-    }
-  } else {
-    return json({ success: true, warning: "User created but email not configured. Temp password: " + tempPassword });
-  }
-  return json({ success: true, message: "Invitation sent to " + email });
-}
-
-async function handleListTeamMembers(request, env) {
-  const founder = await verifyFounderAccess(request, env);
-  if (!founder) return json({ success: false, error: "Unauthorized \u2014 DRIV-EN Founder access required" }, 403);
-  try {
-    const result = await env.DB.prepare(`SELECT u.id, u.email, u.full_name, u.first_name, u.last_name, u.is_active, u.created_at, r.name AS role_name FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE r.name = 'DRIV-EN Founder' AND r.is_system = 1 ORDER BY u.created_at ASC`).all();
-    const members = (result.results || []).map(function(m) { return { id: m.id, email: m.email, full_name: m.full_name || [m.first_name, m.last_name].filter(Boolean).join(" ") || m.email, is_active: m.is_active, role: m.role_name, created_at: m.created_at }; });
-    return json({ success: true, members: members });
-  } catch (e) {
-    console.error("[AUTH] List team members failed:", e.message);
-    return json({ success: false, error: "Failed to load team members" }, 500);
-  }
-}
-
-async function handleUpdateTeamMember(request, env) {
-  const founder = await verifyFounderAccess(request, env);
-  if (!founder) return json({ success: false, error: "Unauthorized \u2014 DRIV-EN Founder access required" }, 403);
-  let body;
-  try { body = await request.json(); } catch (e) { return json({ success: false, error: "Invalid JSON" }, 400); }
-  const action = body.action;
-  const memberId = body.memberId;
-  if (!action || !memberId) return json({ success: false, error: "Action and memberId are required" }, 400);
-  if (action === "toggle_active") {
-    try {
-      const member = await env.DB.prepare("SELECT is_active, email FROM users WHERE id = ?").bind(memberId).first();
-      if (!member) return json({ success: false, error: "User not found" }, 404);
-      if (member.email === founder.email) return json({ success: false, error: "You cannot deactivate your own account" }, 400);
-      const newState = member.is_active === 1 ? 0 : 1;
-      await env.DB.prepare("UPDATE users SET is_active = ? WHERE id = ?").bind(newState, memberId).run();
-      return json({ success: true, message: "User " + (newState === 1 ? "activated" : "deactivated") });
-    } catch (e) {
-      console.error("[AUTH] Toggle team member failed:", e.message);
-      return json({ success: false, error: "Failed to update team member" }, 500);
-    }
-  }
-  return json({ success: false, error: "Unknown action: " + action }, 400);
-}
-
-export default {
-  async fetch(request, env) {
-    try {
-      const url = new URL(request.url);
-      const path = url.pathname;
-      const method = request.method;
-      if (method === "OPTIONS") return new Response(null, { headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Allow-Headers": "Content-Type, Cookie", "Access-Control-Allow-Credentials": "true" } });
-      if (path === "/auth/forgot-password" && method === "POST") return handleForgotPassword(request, env);
-      if (path === "/auth/reset-password" && method === "POST") return handleResetPassword(request, env);
-      if (path === "/auth/email-backup-codes" && method === "POST") return handleEmailBackupCodes(request, env);
-      if (path === "/auth/setup-2fa" && method === "POST") return handleSetup2FA(request, env);
-      if (path === "/auth/verify-2fa" && method === "POST") return handleVerify2FA(request, env);
-      if (path === "/auth/disable-2fa" && method === "POST") return handleDisable2FA(request, env);
-      if (path === "/auth/login-2fa" && method === "POST") return handleLogin2FA(request, env);
-      if (path === "/auth/login" && method === "POST") return handleLogin(request, env);
-      if (path === "/auth/change-password" && method === "POST") return handleChangePassword(request, env);
-      if (path === "/auth/session" && method === "GET") return handleSession(request, env);
-      if (path === "/auth/logout" && method === "POST") return handleLogout();
-      if (path === "/auth/refresh" && method === "POST") return handleRefresh(request, env);
-      if (path === "/auth/verify-activation" && method === "POST") return handleVerifyActivation(request, env);
-      if (path === "/auth/resend-activation" && method === "POST") return handleResendActivation(request, env);
-      if (path === "/auth/save-logo" && method === "POST") return handleSaveLogo(request, env);
-      if (path === "/auth/get-logo" && method === "GET") return handleGetLogo(request, env);
-      if (path === "/auth/create-user" && method === "POST") return handleCreateUser(request, env);
-      if (path === "/auth/team-members" && method === "GET") return handleListTeamMembers(request, env);
-      if (path === "/auth/team-members" && method === "POST") return handleUpdateTeamMember(request, env);
-      return json({ error: "Not found" }, 404);
-    } catch (err) {
-      console.error("Router unexpected error:", err.message, err.stack);
-      try { await notifySupportError(env, "driv-en-auth (router)", err); } catch (e) {}
-      return json({ success: false, error: "An unexpected error occurred. DRIV-EN Support has been notified and is aware of the issue. We apologize for the inconvenience. If you don't hear from us within 24 hours, please contact support@driv-en.com." }, 500);
-    }
-  }
-};
+<!-- Cloudflare Web Analytics -->
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"aed8feab3b60404ba88ec92f026bbcd6","r":1}' crossorigin="anonymous"></script>
+</body>
+</html>
