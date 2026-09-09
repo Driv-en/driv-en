@@ -10,12 +10,9 @@
  *      All post-login pages moved from /public/ to /app/.
  *      Shared resources moved from /components/ and /styles/ to /app/shared/.
  *      Static assets moved to /assets/.
- *
- * v6 — September 1, 2026: Bumped cache version to force re-fetch of all cached files.
- *      Fixes stale login page that was still redirecting to old /public/dashboard/admin.html.
  */
 
-const CACHE = 'driv-en-v6';
+const CACHE = 'driv-en-v7';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
@@ -43,6 +40,7 @@ const SHELL_ASSETS = [
   '/app/shared/template-helpers.js',
   '/styles/header.css',
   '/styles/footer.css',
+  '/styles/diamond-plate.css',
   '/components/header.html',
   '/components/footer.html',
   '/components/nav.js'
