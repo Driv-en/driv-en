@@ -32,17 +32,14 @@
     var tabButtons = navContainer.querySelectorAll('.tab-btn');
     var tabPanels = document.querySelectorAll('.tab-panel');
 
-    // --- Tab switching ---
     tabButtons.forEach(function (btn) {
       btn.addEventListener('click', function () {
         var tabName = btn.getAttribute('data-tab');
         if (!tabName) return;
 
-        // Update button states
         tabButtons.forEach(function (b) { b.classList.remove('active'); });
         btn.classList.add('active');
 
-        // Show/hide panels
         tabPanels.forEach(function (panel) {
           var panelTab = panel.getAttribute('data-tab') || panel.id.replace('tab-', '');
           if (panelTab === tabName) {
@@ -54,14 +51,12 @@
           }
         });
 
-        // Update URL hash for bookmarkable tabs
         if (history.replaceState) {
           history.replaceState(null, null, '#' + tabName);
         }
       });
     });
 
-    // --- Sticky shadow on scroll ---
     var stickyOffset = 0;
     function updateStickyOffset() {
       var rect = navContainer.getBoundingClientRect();
@@ -78,7 +73,6 @@
       }
     }, { passive: true });
 
-    // --- Restore tab from URL hash on load ---
     var hash = window.location.hash;
     if (hash) {
       var tabName = hash.replace('#', '');
