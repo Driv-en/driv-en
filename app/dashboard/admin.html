@@ -257,6 +257,8 @@
     }
 </style>
 
+<link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
+
 </head>
 
 <!-- Page title — appears in the dashboard header. data-required-role="Admin" restricts access to Admin users only. -->
@@ -274,7 +276,7 @@
 <!-- Once verified via /auth/verify-activation, it is never shown again. -->
 <div id="activationOverlay" class="activation-overlay">
   <div class="activation-card">
-    <h2>🔐 Activate Your Account</h2>
+    <h2>🔒 Activate Your Account</h2>
     <p>Enter the activation code from your welcome email to unlock your dashboard.</p>
     <div id="activationError" class="activation-error"></div>
     <input type="text" id="activationCodeInput" class="activation-input" placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" autocomplete="off" />
@@ -300,6 +302,16 @@
     <div class="admin-welcome">
       <h2>Welcome, <span id="admin-welcome-name"></span></h2>
       <p>You have full access to all modules, settings, users, and operational data.</p>
+    </div>
+
+    <!-- ===== SUBSCRIPTION STATUS BANNER ===== -->
+    <div id="subscriptionBanner" style="display:none;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:16px;"></div>
+
+    <!-- ===== CANCEL SUBSCRIPTION BUTTON ===== -->
+    <div style="text-align:right;margin-bottom:16px;">
+      <button id="btnCancelSubscription" style="display:none;background:transparent;border:1px solid #ef4444;color:#ef4444;padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer;" onclick="handleCancelSubscription()">
+        Cancel Subscription
+      </button>
     </div>
 
     <!-- ===== ONBOARDING CARD (hides when complete) ===== -->
@@ -609,8 +621,111 @@
         document.getElementById("admin-stat-projects").textContent  = localStorage.getItem("driven_project_count") || "0";
         document.getElementById("admin-stat-equipment").textContent  = localStorage.getItem("driven_equipment_count") || "0";
         document.getElementById("admin-stat-clients").textContent   = localStorage.getItem("driven_client_count") || "0";
+
+        // 6. Show subscription status banner + cancel button
+        var subStatus = (e.detail && e.detail.subscription_status) || 'paid';
+        var subExpiry = (e.detail && e.detail.subscription_expires) || null;
+        var subBanner = document.getElementById("subscriptionBanner");
+        if (subBanner) {
+          if (subStatus === 'free') {
+            subBanner.style.display = 'block';
+            subBanner.innerHTML = '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">' +
+              '<span style="background:#22c55e;color:#022c22;font-weight:700;font-size:12px;padding:4px 12px;border-radius:20px;">FREE ACCESS</span>' +
+              '<span style="font-size:14px;">Your free access continues through <strong>' + (subExpiry || 'December 31, 2026') + '</strong>.</span>' +
+              '</div>';
+          } else if (subStatus === 'cancelled') {
+            subBanner.style.display = 'block';
+            subBanner.innerHTML = '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">' +
+              '<span style="background:#f59e0b;color:#1c1917;font-weight:700;font-size:12px;padding:4px 12px;border-radius:20px;">CANCELLED</span>' +
+              '<span style="font-size:14px;">Your subscription is cancelled but active until <strong>' + (subExpiry || 'the end of your current period') + '</strong>.</span>' +
+              '</div>';
+          } else {
+            subBanner.style.display = 'none';
+          }
+        }
+
+        // Show cancel button (only for non-free, non-cancelled accounts)
+        var cancelBtn = document.getElementById("btnCancelSubscription");
+        if (cancelBtn) {
+          if (subStatus === 'free') {
+            // Free accounts don't need a cancel button — nothing to cancel
+            cancelBtn.style.display = 'none';
+          } else if (subStatus === 'cancelled') {
+            cancelBtn.style.display = 'none';
+          } else {
+            // Paid account — show cancel button
+            // But since Stripe isn't live yet, show tooltip
+            cancelBtn.style.display = 'inline-block';
+            cancelBtn.title = 'Available when paid subscriptions launch';
+          }
+        }
       }
     });
+
+    /* ==========================================
+       CANCEL SUBSCRIPTION HANDLER
+       Shows a confirmation dialog, then calls /api/cancel-subscription.
+       NOTE: Without Stripe, the button is visible but shows a tooltip.
+       When Stripe is live, this will fully work.
+       ========================================== */
+    function handleCancelSubscription() {
+      // Check if Stripe is live (we'll set this flag when Stripe is configured)
+      var stripeLive = false; // TODO: Set to true when Stripe is configured
+
+      if (!stripeLive) {
+        alert('Cancel subscription will be available when paid subscriptions launch. ' +
+              'For now, your free access continues through December 31, 2026. ' +
+              'If you need to cancel immediately, please contact support@driv-en.com.');
+        return;
+      }
+
+      // Confirm cancellation
+      var confirmCancel = confirm(
+        'Are you sure you want to cancel your subscription?\n\n' +
+        'You will continue to have access until the end of your current billing period. ' +
+        'After that, your account will be deactivated.\n\n' +
+        'This action cannot be undone.'
+      );
+
+      if (!confirmCancel) return;
+
+      // Get org_id from session
+      var sessionData = window.__drivenSession || {};
+      var orgId = sessionData.org_id || '';
+      var email = sessionData.email || '';
+
+      if (!orgId) {
+        alert('Unable to determine your organization. Please contact support@driv-en.com.');
+        return;
+      }
+
+      // Call the cancel API
+      fetch('/api/cancel-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          org_id: orgId,
+          email: email,
+          reason: 'Customer initiated from dashboard'
+        })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success) {
+          alert(data.message);
+          // Reload to update the banner
+          window.location.reload();
+        } else {
+          alert(data.error || 'Unable to cancel subscription. Please try again or contact support@driv-en.com.');
+        }
+      })
+      .catch(function(err) {
+        alert('An error occurred. Please contact support@driv-en.com.');
+      });
+    }
+
+    // Make available globally since the button uses onclick
+    window.handleCancelSubscription = handleCancelSubscription;
 
     /* ==========================================
        FALLBACK: If session fails to load (network error, etc.)
