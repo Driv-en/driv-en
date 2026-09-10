@@ -107,9 +107,9 @@
     .admin-tab-content { display: none; }
     .admin-tab-content.active { display: block; }
 
-    /* ===== SUBTAB BAR (slate gray, same styling, different color) ===== */
+    /* ===== SUBTAB BAR (gray bar, green tabs) ===== */
     .admin-subtab-bar {
-      display: flex;
+      display: none; /* Hidden by default; shown when parent tab is active via JS */
       gap: 2px;
       max-width: 1100px;
       margin: 0 auto;
@@ -120,15 +120,18 @@
       background: #475569;
       border-bottom: 2px solid #334155;
     }
+    .admin-subtab-bar.visible {
+      display: flex;
+    }
     .admin-subtab {
-      background: #475569;
-      border: 1px solid #64748b;
+      background: #22c55e;
+      border: 1px solid #16a34a;
       border-bottom: none;
       border-radius: 8px 8px 0 0;
       padding: 8px 18px;
       font-size: 14px;
       font-weight: 500;
-      color: #cbd5e1;
+      color: #ffffff;
       cursor: pointer;
       white-space: nowrap;
       transition: color 200ms ease, background 200ms ease, border-color 200ms ease, margin-top 200ms ease;
@@ -137,19 +140,45 @@
       z-index: 1;
     }
     .admin-subtab:hover {
-      color: #f1f5f9;
+      background: #16a34a;
+      color: #ffffff;
       margin-top: 2px;
     }
     .admin-subtab.active {
-      color: #f1f5f9;
-      background: #334155;
-      border-color: #94a3b8;
+      color: #ffffff;
+      background: #15803d;
+      border-color: #22c55e;
       margin-top: 0;
       font-weight: 600;
       z-index: 2;
     }
     .admin-subtab-content { display: none; }
     .admin-subtab-content.active { display: block; margin-top: 20px; }
+
+    /* ===== ONBOARDING TOP ROW (View button + progress on same line) ===== */
+    .ob-top-row {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .ob-top-row .admin-view-ob-link {
+      margin-bottom: 0;
+      flex-shrink: 0;
+    }
+    .ob-progress-inline {
+      flex: 1;
+      min-width: 200px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+    }
+    .ob-progress-inline h3 { margin: 0 0 8px 0; font-size: 14px; color: var(--text); }
+    .ob-progress-inline .progress-bar-container { margin-bottom: 4px; }
+    .ob-progress-inline .progress-text { font-size: 12px; }
+    .ob-progress-btns { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
 
     /* ===== LOGOUT TAB ===== */
     .admin-tab-logout {
@@ -298,6 +327,21 @@
       border-color: var(--primary);
     }
     .settings-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .bt-inline-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .bt-inline-row select,
+    .bt-inline-row input {
+      flex: 1;
+      min-width: 0;
+    }
+    .bt-inline-row .settings-save-btn {
+      margin-top: 0;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
     .settings-save-btn {
       background: var(--primary);
       border: 1px solid var(--primary-hover);
@@ -833,31 +877,31 @@
           <div class="settings-row">
             <div class="settings-label">Type</div>
             <div class="settings-field">
-              <select id="businessTypeSelect" onchange="onBusinessTypeChange()">
-                <option value="">— Select business type —</option>
-                <option value="Construction">Construction</option>
-                <option value="Manufacturing">Manufacturing</option>
-                <option value="Chemical">Chemical</option>
-                <option value="Oil & Gas">Oil &amp; Gas</option>
-                <option value="Transportation">Transportation</option>
-                <option value="Warehousing">Warehousing</option>
-                <option value="Fabrication">Fabrication</option>
-                <option value="Logistics / Supply Chain">Logistics / Supply Chain</option>
-                <option value="Utilities & Energy">Utilities &amp; Energy</option>
-                <option value="Mining & Aggregates">Mining &amp; Aggregates</option>
-                <option value="Agriculture">Agriculture</option>
-                <option value="Environmental Services">Environmental Services</option>
-                <option value="Food & Beverage Processing">Food &amp; Beverage Processing</option>
-                <option value="General Services">General Services</option>
-              </select>
+              <div class="bt-inline-row">
+                <select id="businessTypeSelect" onchange="onBusinessTypeChange()">
+                  <option value="">— Select business type —</option>
+                  <option value="Construction">Construction</option>
+                  <option value="Manufacturing">Manufacturing</option>
+                  <option value="Chemical">Chemical</option>
+                  <option value="Oil & Gas">Oil &amp; Gas</option>
+                  <option value="Transportation">Transportation</option>
+                  <option value="Warehousing">Warehousing</option>
+                  <option value="Fabrication">Fabrication</option>
+                  <option value="Logistics / Supply Chain">Logistics / Supply Chain</option>
+                  <option value="Utilities & Energy">Utilities &amp; Energy</option>
+                  <option value="Mining & Aggregates">Mining &amp; Aggregates</option>
+                  <option value="Agriculture">Agriculture</option>
+                  <option value="Environmental Services">Environmental Services</option>
+                  <option value="Food & Beverage Processing">Food &amp; Beverage Processing</option>
+                  <option value="General Services">General Services</option>
+                </select>
+                <button class="settings-save-btn" id="saveSettingsBtn" onclick="saveSettings()">Save</button>
+              </div>
               <div class="settings-hint">Selecting a business type auto-configures which onboarding steps are visible. You can override individual steps in the Onboarding tab.</div>
+              <div class="settings-status" id="settingsStatus"></div>
             </div>
           </div>
         </div>
-
-        <!-- SAVE BUTTON (shared for Business Type + NAICS) -->
-        <button class="settings-save-btn" id="saveSettingsBtn" onclick="saveSettings()">Save Settings</button>
-        <div class="settings-status" id="settingsStatus"></div>
       </div>
 
       <!-- ===== SUBTAB: NAICS CODE ===== -->
@@ -867,15 +911,15 @@
           <div class="settings-row">
             <div class="settings-label">NAICS Code</div>
             <div class="settings-field">
-              <input type="text" id="naicsInput" placeholder="e.g., 236220 (Commercial Building Construction)" maxlength="6">
+              <div class="bt-inline-row">
+                <input type="text" id="naicsInput" placeholder="e.g., 236220 (Commercial Building Construction)" maxlength="6" onchange="onNaicsChange()">
+                <button class="settings-save-btn" id="saveNaicsBtn" onclick="saveSettings()">Save</button>
+              </div>
               <div class="settings-hint">The North American Industry Classification System code for your business. Used for reporting and compliance.</div>
+              <div class="settings-status" id="naicsStatus"></div>
             </div>
           </div>
         </div>
-
-        <!-- SAVE BUTTON (also here so user can save from this subtab) -->
-        <button class="settings-save-btn" onclick="saveSettings()">Save Settings</button>
-        <div class="settings-status"></div>
       </div>
 
       <!-- ===== APPEARANCE (stays on page, below subtabs) ===== -->
@@ -899,6 +943,7 @@
       <!-- ===== ACCOUNT (stays on page, below subtabs) ===== -->
       <div class="settings-section">
         <h3>Account</h3>
+        <div class="account-row"><span>Admin Name:</span> <span id="account-name"></span></div>
         <div class="account-row"><span>Email:</span> <span id="account-email"></span></div>
         <div class="account-row"><span>Role:</span> Administrator</div>
         <button class="settings-save-btn" style="background:transparent;border:1px solid var(--primary);color:var(--primary);" onclick="window.location.href='/app/auth/change-password.html'">Change Password</button>
@@ -911,10 +956,23 @@
   <div class="admin-tab-content" id="tab-onboarding">
     <div class="admin-main">
 
-      <!-- VIEW ONBOARDING DASHBOARD LINK -->
-      <a class="admin-view-ob-link" href="/app/dashboard/onboarding-dashboard.html" target="_blank">
-        View Onboarding Dashboard →
-      </a>
+      <!-- ===== TOP ROW: View button + Progress on same line ===== -->
+      <div class="ob-top-row">
+        <a class="admin-view-ob-link" href="/app/dashboard/onboarding-dashboard.html" target="_blank">
+          View Onboarding Dashboard →
+        </a>
+        <div class="ob-progress-inline">
+          <h3>Onboarding Progress</h3>
+          <div class="progress-bar-container">
+            <div class="progress-bar-fill" id="progressBarFill" style="width:0%;"></div>
+          </div>
+          <div class="progress-text" id="progressText">0 of 0 steps complete</div>
+          <div class="ob-progress-btns">
+            <button class="progress-complete-btn" id="markCompleteBtn" onclick="showCompleteModal()">Mark Onboarding Complete</button>
+            <button class="reopen-onboarding-btn" id="reopenOnboardingBtn" style="display:none;" onclick="reopenOnboarding()">Reopen Onboarding</button>
+          </div>
+        </div>
+      </div>
 
       <!-- ===== ONBOARDING SUBTABS ===== -->
       <div class="admin-subtab-bar" id="onboardingSubtabBar">
@@ -974,18 +1032,7 @@
         </div>
       </div>
 
-      <!-- ONBOARDING PROGRESS + COMPLETE (stays on page, below subtabs) -->
-      <div class="onboarding-progress">
-        <h3>Onboarding Progress</h3>
-        <div class="progress-bar-container">
-          <div class="progress-bar-fill" id="progressBarFill" style="width:0%;"></div>
-        </div>
-        <div class="progress-text" id="progressText">0 of 0 steps complete</div>
-        <button class="progress-complete-btn" id="markCompleteBtn" onclick="showCompleteModal()">Mark Onboarding Complete</button>
-        <button class="reopen-onboarding-btn" id="reopenOnboardingBtn" style="display:none;" onclick="reopenOnboarding()">Reopen Onboarding</button>
       </div>
-
-    </div>
   </div>
 
 </div>
@@ -1050,14 +1097,31 @@
 
     /* ===== TAB SWITCHING ===== */
     function switchTab(tabName) {
+      /* Warn about unsaved settings changes when leaving the Settings tab */
+      if (settingsDirty && document.getElementById('tab-settings').classList.contains('active') && tabName !== 'settings') {
+        var proceed = confirm("You have unsaved changes in Settings.\n\nClick Cancel to go back and save, or OK to leave without saving.");
+        if (!proceed) return;
+        clearSettingsDirty();
+      }
       document.querySelectorAll('.admin-tab').forEach(function(t) { t.classList.remove('active'); });
       document.querySelectorAll('.admin-tab-content').forEach(function(c) { c.classList.remove('active'); });
       document.querySelector('[data-tab="' + tabName + '"]').classList.add('active');
       document.getElementById('tab-' + tabName).classList.add('active');
+      /* Show/hide subtab bars based on active tab */
+      var settingsBar = document.getElementById('settingsSubtabBar');
+      var onboardingBar = document.getElementById('onboardingSubtabBar');
+      if (settingsBar) settingsBar.classList.toggle('visible', tabName === 'settings');
+      if (onboardingBar) onboardingBar.classList.toggle('visible', tabName === 'onboarding');
     }
 
     /* ===== SETTINGS SUBTAB SWITCHING ===== */
     function switchSettingsSubtab(subtabName) {
+      /* Warn about unsaved changes when switching subtabs within Settings */
+      if (settingsDirty) {
+        var proceed = confirm("You have unsaved changes.\n\nClick Cancel to go back and save, or OK to leave without saving.");
+        if (!proceed) return;
+        clearSettingsDirty();
+      }
       document.querySelectorAll('#settingsSubtabBar .admin-subtab').forEach(function(t) { t.classList.remove('active'); });
       document.querySelectorAll('.admin-subtab-content[id^="settings-subtab-"]').forEach(function(c) { c.classList.remove('active'); });
       document.querySelector('#settingsSubtabBar [data-subtab="' + subtabName + '"]').classList.add('active');
@@ -1213,13 +1277,27 @@
       updateProgress();
     }
 
+    /* ===== UNSAVED-CHANGES TRACKING ===== */
+    var settingsDirty = false;
+
+    function markSettingsDirty() {
+      settingsDirty = true;
+    }
+
+    function clearSettingsDirty() {
+      settingsDirty = false;
+    }
+
     async function saveSettings() {
-      var btn = document.getElementById("saveSettingsBtn");
+      var btBtn = document.getElementById("saveSettingsBtn");
+      var naicsBtn = document.getElementById("saveNaicsBtn");
       var status = document.getElementById("settingsStatus");
-      btn.disabled = true;
-      btn.textContent = "Saving…";
+      var naicsStatus = document.getElementById("naicsStatus");
       var bt = document.getElementById("businessTypeSelect").value;
       var naics = document.getElementById("naicsInput").value.trim();
+      // Disable whichever button exists
+      if (btBtn) { btBtn.disabled = true; btBtn.textContent = "Saving…"; }
+      if (naicsBtn) { naicsBtn.disabled = true; naicsBtn.textContent = "Saving…"; }
       try {
         var res = await fetch("/auth/save-settings", {
           method: "POST",
@@ -1232,25 +1310,33 @@
           orgSettings.naics_code = naics;
           document.getElementById("overviewBusinessType").textContent = bt || "Not set";
           document.getElementById("onboardingBtLabel").textContent = bt || "not set";
-          status.textContent = "Settings saved.";
-          status.style.color = "var(--success, #16a34a)";
+          if (status) { status.textContent = "Settings saved."; status.style.color = "var(--success, #16a34a)"; }
+          if (naicsStatus) { naicsStatus.textContent = "Settings saved."; naicsStatus.style.color = "var(--success, #16a34a)"; }
+          clearSettingsDirty();
           // If business type changed, re-evaluate step visibility defaults
           if (bt && (!stepVisibility._manualOverride || !stepVisibility._btApplied)) {
             applyBusinessTypeDefaults();
             renderStepToggles();
           }
         } else {
-          status.textContent = "Failed: " + (data.error || "Unknown error");
-          status.style.color = "var(--error)";
+          if (status) { status.textContent = "Failed: " + (data.error || "Unknown error"); status.style.color = "var(--error)"; }
+          if (naicsStatus) { naicsStatus.textContent = "Failed: " + (data.error || "Unknown error"); naicsStatus.style.color = "var(--error)"; }
         }
       } catch (e) {
         console.error("Settings save error:", e.message);
-        status.textContent = "Failed to save settings.";
-        status.style.color = "var(--error)";
+        if (status) { status.textContent = "Failed to save settings."; status.style.color = "var(--error)"; }
+        if (naicsStatus) { naicsStatus.textContent = "Failed to save settings."; naicsStatus.style.color = "var(--error)"; }
       }
-      btn.disabled = false;
-      btn.textContent = "Save Settings";
-      setTimeout(function() { status.textContent = ""; }, 3000);
+      if (btBtn) { btBtn.disabled = false; btBtn.textContent = "Save"; }
+      if (naicsBtn) { naicsBtn.disabled = false; naicsBtn.textContent = "Save"; }
+      setTimeout(function() {
+        if (status) status.textContent = "";
+        if (naicsStatus) naicsStatus.textContent = "";
+      }, 3000);
+    }
+
+    function onNaicsChange() {
+      markSettingsDirty();
     }
 
     function applyBusinessTypeDefaults() {
@@ -1274,6 +1360,7 @@
         }
         stepVisibility._manualOverrides = {};
       }
+      markSettingsDirty();
       renderStepToggles();
     }
 
@@ -1519,12 +1606,21 @@
       }
     }
 
-    /* ===== STICKY TABS (move tab bar inside shared header) ===== */
+    /* ===== STICKY TABS (move tab bar + subtab bars inside shared header) ===== */
     function makeTabsSticky() {
       var header = document.getElementById("dashHeader");
       var tabBar = document.getElementById("adminTabBar");
       if (header && tabBar && !header.contains(tabBar)) {
         header.appendChild(tabBar);
+      }
+      // Move subtab bars into the header too (right after the main tab bar) so they stick
+      var settingsSubtabBar = document.getElementById("settingsSubtabBar");
+      var onboardingSubtabBar = document.getElementById("onboardingSubtabBar");
+      if (header && settingsSubtabBar && !header.contains(settingsSubtabBar)) {
+        header.appendChild(settingsSubtabBar);
+      }
+      if (header && onboardingSubtabBar && !header.contains(onboardingSubtabBar)) {
+        header.appendChild(onboardingSubtabBar);
       }
     }
 
@@ -1557,6 +1653,7 @@
         // Greeting
         var firstName = user.first_name || user.email;
         document.getElementById("welcome-name").textContent = firstName;
+        document.getElementById("account-name").textContent = user.first_name ? (user.first_name + " " + (user.last_name || "")) : user.email;
         document.getElementById("account-email").textContent = user.email || "";
 
         // Insert title and make tabs sticky
