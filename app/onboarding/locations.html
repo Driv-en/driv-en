@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRIV‑EN | Onboarding — Locations</title>
+<meta name="description" content="Add locations to DRIV‑EN during onboarding. Single entry or bulk upload via Excel/CSV.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://www.driv-en.com/app/onboarding/locations.html">
+<link rel="icon" type="image/png" href="/assets/icons/favicon.png" sizes="48x48">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png" sizes="96x96">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png">
+<link rel="stylesheet" href="/app/shared/dashboard.css?v=7">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="/app/shared/template-helpers.js?v=7"></script>
+<script>
+(function() {
+  var saved = localStorage.getItem("driven-theme");
+  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  var theme = saved || system;
+  document.documentElement.setAttribute("data-theme", theme);
+})();
+</script>
+<style>
+    /* ===== GREETING BAR ===== */
+    .ob-greeting-bar { max-width: 1100px; margin: 0 auto; padding: 12px 20px 0 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; position: relative; z-index: 1; }
+    .ob-greeting-text { font-size: 16px; color: var(--text-muted); font-weight: 500; }
+    .ob-greeting-text strong { color: var(--text); }
+
+    .loc-back-bar { max-width: 1100px; margin: 0 auto; padding: 12px 20px 0 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    .loc-back-btn { display: inline-flex; align-items: center; gap: 6px; background: #1e40af; border: 1px solid #2563eb; color: #dbeafe; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; }
+    .loc-back-btn:hover { background: #1d4ed8; color: #fff; }
+    .loc-subtitle { margin: 4px 0 12px 0; color: var(--text-muted); font-size: 14px; line-height: 1.5; }
+    .loc-form-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 16px; max-width: 500px; }
+    .loc-form-field { display: flex; flex-direction: column; }
+    .loc-form-field label { margin-bottom: 4px; font-size: 14px; color: var(--text); font-weight: 600; }
+    .loc-required-star { color: var(--error); margin-left: 3px; }
+    .loc-btn-primary { background: var(--primary); color: white; padding: 10px 18px; border-radius: 6px; font-size: 15px; border: 1px solid var(--primary-hover); cursor: pointer; margin-top: 10px; }
+    .loc-btn-primary:hover { background: var(--primary-hover); }
+    .loc-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+    .loc-btn-secondary { background: var(--bg-card); color: var(--text); padding: 10px 18px; border-radius: 6px; font-size: 15px; text-decoration: none; display: inline-flex; align-items: center; border: 1px solid var(--border); }
+    .loc-btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+    .loc-action-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: nowrap; }
+    .loc-action-row .loc-btn-primary, .loc-action-row .loc-btn-secondary { margin-top: 0; box-sizing: border-box; height: 42px; display: inline-flex; align-items: center; justify-content: center; }
+    .loc-error { margin-top: 10px; color: var(--error); font-size: 14px; }
+    .loc-success { margin-top: 10px; color: var(--success); font-size: 14px; }
+    .loc-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    .loc-table th, .loc-table td { border: 1px solid var(--border); padding: 8px; font-size: 14px; vertical-align: top; }
+    .loc-table th { background: var(--bg-header); color: var(--text); font-weight: 600; text-align: left; }
+    .loc-table td { background: var(--bg-card); color: var(--text); }
+    .loc-empty { color: var(--text-muted); font-size: 14px; padding: 20px 0; }
+    .loc-step-status { margin-top: 12px; font-size: 14px; color: var(--success); }
+    .loc-count-badge { display: inline-block; background: var(--primary); color: #fff; font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 999px; margin-left: 8px; }
+    .loc-tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 2px solid var(--border); }
+    .loc-tab { padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; background: none; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -2px; }
+    .loc-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .loc-bulk-link { color: var(--primary); font-size: 14px; text-decoration: none; display: inline-block; margin-bottom: 12px; }
+    .loc-bulk-link:hover { text-decoration: underline; }
+    .loc-bulk-file-input { padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-size: 14px; width: 100%; max-width: 400px; margin-bottom: 12px; }
+    .loc-bulk-preview { margin-top: 12px; overflow-x: auto; }
+    .loc-bulk-preview table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .loc-bulk-preview th, .loc-bulk-preview td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+    .loc-bulk-preview th { background: var(--bg-header); color: var(--text); font-weight: 600; }
+    .loc-bulk-preview td { background: var(--bg-card); color: var(--text); }
+    @media (max-width: 600px) { .loc-action-row { flex-direction: column; gap: 8px; } .loc-action-row .loc-btn-primary, .loc-action-row .loc-btn-secondary { width: 100%; } .loc-table { font-size: 12px; } .loc-table th, .loc-table td { padding: 6px 4px; } }
+</style>
+</head>
+<body data-page-title="Onboarding — Locations" data-required-task="Locations">
+<!-- ===== INDUSTRIAL DIAMOND-PLATE BACKGROUND (do not remove) ===== -->
+<div class="steel-bg"></div>
+<div class="steel-overlay"></div>
+<div id="dashHeader"></div>
+<!-- ===== GREETING BAR ===== -->
+<div class="ob-greeting-bar">
+  <div class="ob-greeting-text" id="dashGreetingText">Welcome</div>
+</div>
+
+<div class="loc-back-bar">
+  <a href="/app/dashboard/admin.html" class="loc-back-btn driven-admin-only">&larr; Admin Dashboard</a>
+  <a href="/app/dashboard/onboarding-dashboard.html" class="loc-back-btn" style="background:#374151;border-color:#4b5563;color:#d1d5db;">&larr; Onboarding Dashboard</a>
+</div>
+<main class="dash-main">
+  <div class="dash-card">
+    <h2>Add Locations <span class="loc-count-badge" id="locCount">0</span></h2>
+    <p class="loc-subtitle">Add all physical locations within your organization. Locations can be plants, mines, manufacturing facilities, warehouses, job sites, terminals, or offices.</p>
+    <p class="loc-subtitle"><strong>Required:</strong> Location Name and Location Type. Address is optional but recommended.</p>
+  </div>
+  <div class="dash-card">
+    <div class="loc-tabs">
+      <button class="loc-tab active" id="tabSingle" onclick="switchTab('single')">Single Entry</button>
+      <button class="loc-tab" id="tabBulk" onclick="switchTab('bulk')">Bulk Upload</button>
+    </div>
+  </div>
+  <div id="tabContentSingle">
+    <div class="dash-card">
+      <h3>Add Location</h3>
+      <div class="loc-form-grid">
+        <div class="loc-form-field">
+          <label>Location Name<span class="loc-required-star">*</span></label>
+          <input type="text" id="locName" class="dash-input" placeholder="e.g., Main Plant, North Mine, Warehouse #1">
+        </div>
+        <div class="loc-form-field">
+          <label>Location Type<span class="loc-required-star">*</span></label>
+          <select id="locType" class="dash-input">
+            <option value="">— Select type —</option>
+            <option value="Plant">Plant</option>
+            <option value="Mine">Mine</option>
+            <option value="Manufacturing Facility">Manufacturing Facility</option>
+            <option value="Warehouse">Warehouse</option>
+            <option value="Job Site">Job Site</option>
+            <option value="Terminal">Terminal</option>
+            <option value="Office">Office</option>
+            <option value="Yard">Yard</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="loc-form-field">
+          <label>Address</label>
+          <input type="text" id="locAddress" class="dash-input" placeholder="Street, City, State, ZIP">
+        </div>
+      </div>
+      <button id="btnAddLoc" class="loc-btn-primary">Add Location</button>
+      <div id="locError" class="loc-error"></div>
+      <div id="locSuccess" class="loc-success"></div>
+    </div>
+    <div class="dash-card">
+      <h3>Locations Added</h3>
+      <p class="loc-subtitle">These locations will be saved when you click Save &amp; Continue. You can add as many as you need before saving.</p>
+      <div id="locTableContainer"><p class="loc-empty">No locations added yet.</p></div>
+    </div>
+  </div>
+  <div id="tabContentBulk" style="display:none;">
+    <div class="dash-card">
+      <h3>Bulk Upload Locations</h3>
+      <p class="loc-subtitle">Download the Excel template, fill in your location list, then upload it here. Location Name and Location Type are required for every row. <strong>CSV files are also supported.</strong></p>
+      <p class="loc-subtitle"><strong>Template instructions:</strong> Row 1 contains the column headers (do NOT delete them). Start entering your data in Row 2. Columns: Location Name, Location Type, Address.</p>
+      <button onclick="downloadLocationTemplate()" class="loc-bulk-link" style="cursor:pointer;border:none;font-size:14px;">⬇ Download Location-Mass-Upload-v1.0.xlsx</button>
+      <div class="loc-form-field" style="max-width:400px;">
+        <label>Upload Completed Template</label>
+        <input type="file" id="bulkFile" accept=".xlsx,.csv" class="loc-bulk-file-input">
+      </div>
+      <button id="btnProcessBulk" class="loc-btn-primary">Process Upload</button>
+      <div id="statusBulk" class="loc-error"></div>
+      <div id="bulkPreview" class="loc-bulk-preview"></div>
+    </div>
+    <div class="dash-card">
+      <h3>Locations from Bulk Upload</h3>
+      <p class="loc-subtitle">Review the uploaded locations below, then click Save &amp; Continue to save them all.</p>
+      <div id="bulkTableContainer"><p class="loc-empty">No locations uploaded yet.</p></div>
+    </div>
+  </div>
+  <div class="dash-card">
+    <div class="loc-action-row">
+      <a href="/app/dashboard/onboarding-dashboard.html" class="loc-btn-secondary">Return to Onboarding</a>
+      <button id="btnSaveLoc" class="loc-btn-primary">Save &amp; Continue</button>
+    </div>
+    <div id="locStepStatus" class="loc-step-status"></div>
+  </div>
+</main>
+<script src="/app/shared/dashboard-common.js?v=7"></script>
+<script src="/app/shared/auth-check.js?v=7"></script>
+<script>
+    var locations = [];
+    var locError = document.getElementById("locError");
+    var locSuccess = document.getElementById("locSuccess");
+    var locTableContainer = document.getElementById("locTableContainer");
+    var locStepStatus = document.getElementById("locStepStatus");
+    var locCountEl = document.getElementById("locCount");
+    var statusBulk = document.getElementById("statusBulk");
+    var bulkPreview = document.getElementById("bulkPreview");
+    function updateCount() { locCountEl.textContent = locations.length; }
+    function renderTable() {
+      if (locations.length === 0) { locTableContainer.innerHTML = '<p class="loc-empty">No locations added yet.</p>'; return; }
+      var rows = locations.map(function(loc, index) {
+        return '<tr><td>' + (index + 1) + '</td><td>' + loc.name + '</td><td>' + (loc.type || "") + '</td><td>' + (loc.address || "") + '</td><td><button class="loc-btn-secondary" style="padding:4px 10px;font-size:12px;height:auto;" onclick="removeLocation(' + index + ')">Remove</button></td></tr>';
+      }).join("");
+      locTableContainer.innerHTML = '<table class="loc-table"><thead><tr><th>#</th><th>Location Name</th><th>Type</th><th>Address</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    }
+    window.removeLocation = function(index) { locations.splice(index, 1); renderTable(); updateCount(); locSuccess.textContent = ""; locError.textContent = ""; };
+    window.switchTab = function(tab) {
+      var tabSingle = document.getElementById("tabSingle"); var tabBulk = document.getElementById("tabBulk");
+      var contentSingle = document.getElementById("tabContentSingle"); var contentBulk = document.getElementById("tabContentBulk");
+      if (tab === "single") { tabSingle.classList.add("active"); tabBulk.classList.remove("active"); contentSingle.style.display = "block"; contentBulk.style.display = "none"; }
+      else { tabBulk.classList.add("active"); tabSingle.classList.remove("active"); contentBulk.style.display = "block"; contentSingle.style.display = "none"; }
+    };
+    document.getElementById("btnAddLoc").addEventListener("click", function() {
+      locError.textContent = ""; locSuccess.textContent = "";
+      var name = document.getElementById("locName").value.trim();
+      var type = document.getElementById("locType").value;
+      var address = document.getElementById("locAddress").value.trim();
+      if (!name) { locError.textContent = "Location Name is required."; return; }
+      if (!type) { locError.textContent = "Location Type is required."; return; }
+      if (locations.some(function(loc) { return loc.name.toLowerCase() === name.toLowerCase(); })) { locError.textContent = "A location with this name has already been added."; return; }
+      locations.push({ name: name, type: type, address: address, customerId: localStorage.getItem("driven_customer_id") || "" });
+      renderTable(); updateCount(); document.getElementById("locName").value = ""; document.getElementById("locType").value = ""; document.getElementById("locAddress").value = ""; document.getElementById("locName").focus();
+      locSuccess.textContent = "Location added. Add another or click Save & Continue.";
+    });
+    document.getElementById("locName").addEventListener("keydown", function(e) { if (e.key === "Enter") { e.preventDefault(); document.getElementById("btnAddLoc").click(); } });
+    document.getElementById("btnProcessBulk").addEventListener("click", function() {
+      statusBulk.textContent = ""; statusBulk.className = "loc-error";
+      var file = document.getElementById("bulkFile").files[0];
+      if (!file) { statusBulk.textContent = "Please select an Excel or CSV file."; return; }
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var rows;
+        var isCsv = file.name.toLowerCase().endsWith(".csv");
+        if (isCsv) {
+          var text = e.target.result;
+          var lines = text.split(/\r?\n/).filter(function(l) { return l.trim() !== ""; });
+          if (lines.length < 2) { statusBulk.textContent = "The CSV file is empty or has no data rows."; return; }
+          var headers = parseCsvLine(lines[0]);
+          rows = lines.slice(1).map(function(line) { var values = parseCsvLine(line); var obj = {}; headers.forEach(function(h, i) { obj[h] = values[i] || ""; }); return obj; });
+        } else {
+          var workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+          var sheet = workbook.Sheets[workbook.SheetNames[0]];
+          rows = XLSX.utils.sheet_to_json(sheet);
+        }
+        if (rows.length === 0) { statusBulk.textContent = "The file is empty."; return; }
+        var requiredName = "Location Name";
+        var requiredType = "Location Type";
+        var header = Object.keys(rows[0]);
+        if (header.indexOf(requiredName) === -1) { statusBulk.textContent = "Missing required column: " + requiredName; return; }
+        if (header.indexOf(requiredType) === -1) { statusBulk.textContent = "Missing required column: " + requiredType; return; }
+        for (var r = 0; r < rows.length; r++) { if (!rows[r][requiredName] || String(rows[r][requiredName]).trim() === "") { statusBulk.textContent = "Row " + (r + 2) + ": Location Name is required."; return; } if (!rows[r][requiredType] || String(rows[r][requiredType]).trim() === "") { statusBulk.textContent = "Row " + (r + 2) + ": Location Type is required."; return; } }
+        var seenNames = {};
+        for (var d = 0; d < rows.length; d++) { var nm = String(rows[d][requiredName]).trim().toLowerCase(); if (seenNames[nm]) { statusBulk.textContent = "Duplicate location name: " + nm + " (rows " + seenNames[nm] + " and " + (d + 2) + ")."; return; } seenNames[nm] = (d + 2); }
+        var existingNames = locations.map(function(loc) { return loc.name.toLowerCase(); });
+        for (var dd = 0; dd < rows.length; dd++) { var checkName = String(rows[dd][requiredName]).trim().toLowerCase(); if (existingNames.indexOf(checkName) !== -1) { statusBulk.textContent = "Row " + (dd + 2) + ': Location "' + checkName + '" has already been added in this session.'; return; } }
+        var bulkLocations = rows.map(function(row) { return { name: String(row[requiredName]).trim(), type: String(row[requiredType]).trim(), address: (row["Address"] || "").toString().trim(), customerId: localStorage.getItem("driven_customer_id") || "" }; });
+        var html = "<table><thead><tr><th>Location Name</th><th>Type</th><th>Address</th></tr></thead><tbody>";
+        bulkLocations.forEach(function(l) { html += "<tr><td>" + l.name + "</td><td>" + l.type + "</td><td>" + l.address + "</td></tr>"; });
+        html += "</tbody></table>";
+        bulkPreview.innerHTML = html;
+        locations = locations.concat(bulkLocations); renderTable(); updateCount();
+        statusBulk.textContent = "Uploaded " + bulkLocations.length + " locations. Review above and click Save & Continue."; statusBulk.className = "loc-success";
+      };
+      if (file.name.toLowerCase().endsWith(".csv")) { reader.readAsText(file); } else { reader.readAsArrayBuffer(file); }
+    });
+    document.getElementById("btnSaveLoc").addEventListener("click", function() {
+      locStepStatus.textContent = ""; locStepStatus.style.color = "var(--error)";
+      if (locations.length === 0) { locStepStatus.textContent = "You must add at least one location."; return; }
+      var existing = JSON.parse(localStorage.getItem("driven_locations") || "[]");
+      var allLocations = existing.concat(locations);
+      localStorage.setItem("driven_locations", JSON.stringify(allLocations));
+      localStorage.setItem("driven_location_count", allLocations.length);
+      localStorage.setItem("driven_step3_complete", "true");
+      locStepStatus.style.color = "var(--success)";
+      locStepStatus.textContent = locations.length + " location(s) saved. Total locations: " + allLocations.length + ".";
+      var btnSave = document.getElementById("btnSaveLoc"); btnSave.disabled = true; btnSave.textContent = "Saved ✓";
+      locations = []; renderTable(); updateCount();
+    });
+    function downloadLocationTemplate() {
+      var ws = XLSX.utils.aoa_to_sheet([
+        ["Location Name", "Location Type", "Address"]
+      ]);
+      ws["!cols"] = [{ wch: 40 }, { wch: 25 }, { wch: 50 }];
+      downloadXlsxWithFrozenHeader(ws, "Locations", "Location-Mass-Upload-v1.0.xlsx");
+    }
+    function parseCsvLine(line) {
+      var result = []; var current = ""; var inQuotes = false;
+      for (var i = 0; i < line.length; i++) {
+        var ch = line[i];
+        if (inQuotes) { if (ch === '"') { if (line[i + 1] === '"') { current += '"'; i++; } else { inQuotes = false; } } else { current += ch; } }
+        else { if (ch === '"') { inQuotes = true; } else if (ch === ",") { result.push(current.trim()); current = ""; } else { current += ch; } }
+      }
+      result.push(current.trim()); return result;
+    }
+    document.addEventListener("dashSessionLoaded", function(e) {
+      if (e.detail) {
+        var greetingEl = document.getElementById("dashGreetingText");
+        if (greetingEl) {
+          var firstName = e.detail.first_name || "";
+          if (!firstName) {
+            var fullName = e.detail.full_name || "";
+            if (fullName) firstName = fullName.split(" ")[0];
+          }
+          if (firstName) {
+            greetingEl.innerHTML = "Welcome, <strong>" + firstName + "</strong>";
+          } else {
+            greetingEl.innerHTML = "Welcome";
+          }
+        }
+      }
+    });
+</script>
+</body>
+</html>
