@@ -63,7 +63,7 @@
       text-overflow: ellipsis;
     }
 
-    /* ===== TAB BAR ===== */
+    /* ===== TAB BAR (solid background, no bleed-through) ===== */
     .admin-tab-bar {
       display: flex;
       gap: 2px;
@@ -73,7 +73,8 @@
       overflow-x: auto;
       position: relative;
       z-index: 1;
-      background: transparent;
+      background: var(--bg-card);
+      border-bottom: 2px solid var(--border);
     }
     .admin-tab {
       background: var(--bg-card);
@@ -105,13 +106,50 @@
     }
     .admin-tab-content { display: none; }
     .admin-tab-content.active { display: block; }
-    .admin-tab-bar::after {
-      content: '';
-      display: block;
-      flex: 1;
-      border-bottom: 2px solid var(--border);
-      margin-top: -1px;
+
+    /* ===== SUBTAB BAR (slate gray, same styling, different color) ===== */
+    .admin-subtab-bar {
+      display: flex;
+      gap: 2px;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 20px;
+      overflow-x: auto;
+      position: relative;
+      z-index: 1;
+      background: #475569;
+      border-bottom: 2px solid #334155;
     }
+    .admin-subtab {
+      background: #475569;
+      border: 1px solid #64748b;
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      padding: 8px 18px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #cbd5e1;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 200ms ease, background 200ms ease, border-color 200ms ease, margin-top 200ms ease;
+      margin-top: 4px;
+      position: relative;
+      z-index: 1;
+    }
+    .admin-subtab:hover {
+      color: #f1f5f9;
+      margin-top: 2px;
+    }
+    .admin-subtab.active {
+      color: #f1f5f9;
+      background: #334155;
+      border-color: #94a3b8;
+      margin-top: 0;
+      font-weight: 600;
+      z-index: 2;
+    }
+    .admin-subtab-content { display: none; }
+    .admin-subtab-content.active { display: block; margin-top: 20px; }
 
     /* ===== LOGOUT TAB ===== */
     .admin-tab-logout {
@@ -360,6 +398,24 @@
     /* ===== ACCOUNT SECTION ===== */
     .account-row { font-size: 14px; color: var(--text); margin-bottom: 8px; }
     .account-row span { color: var(--text-muted); font-weight: 500; }
+
+    /* ===== ONBOARDING TAB — VIEW ONBOARDING DASHBOARD LINK ===== */
+    .admin-view-ob-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--primary);
+      border: 1px solid var(--primary-hover);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 20px;
+      text-decoration: none;
+    }
+    .admin-view-ob-link:hover { background: var(--primary-hover); }
 
     /* ===== ONBOARDING TAB — STEP TOGGLES ===== */
     .step-toggle-list {
@@ -746,66 +802,83 @@
   <div class="admin-tab-content" id="tab-settings">
     <div class="admin-main">
 
-      <!-- COMPANY LOGO SECTION -->
-      <div class="settings-section">
-        <h3>Company Logo</h3>
-        <p style="font-size:13px;color:var(--text-muted);margin:0 0 12px 0;">Upload your company logo. It appears in the dashboard header across all devices and employees. You can change or remove it at any time.</p>
-        <div class="logo-upload-area">
-          <div class="logo-preview" id="logoPreview">No logo</div>
-          <div>
-            <input type="file" id="logoFile" accept="image/png,image/jpeg,image/svg+xml" style="display:none;" onchange="handleLogoUpload()">
-            <button class="logo-upload-btn" onclick="document.getElementById('logoFile').click()">Upload Logo</button>
-            <button class="logo-remove-btn" id="logoRemoveBtn" style="display:none;" onclick="handleLogoRemove()">Remove Logo</button>
-            <div class="logo-status" id="logoStatus"></div>
+      <!-- ===== SETTINGS SUBTABS ===== -->
+      <div class="admin-subtab-bar" id="settingsSubtabBar">
+        <button class="admin-subtab active" data-subtab="logo" onclick="switchSettingsSubtab('logo')">Company Logo</button>
+        <button class="admin-subtab" data-subtab="btype" onclick="switchSettingsSubtab('btype')">Business Type</button>
+        <button class="admin-subtab" data-subtab="naics" onclick="switchSettingsSubtab('naics')">NAICS Code</button>
+      </div>
+
+      <!-- ===== SUBTAB: COMPANY LOGO ===== -->
+      <div class="admin-subtab-content active" id="settings-subtab-logo">
+        <div class="settings-section">
+          <h3>Company Logo</h3>
+          <p style="font-size:13px;color:var(--text-muted);margin:0 0 12px 0;">Upload your company logo. It appears in the dashboard header across all devices and employees. You can change or remove it at any time.</p>
+          <div class="logo-upload-area">
+            <div class="logo-preview" id="logoPreview">No logo</div>
+            <div>
+              <input type="file" id="logoFile" accept="image/png,image/jpeg,image/svg+xml" style="display:none;" onchange="handleLogoUpload()">
+              <button class="logo-upload-btn" onclick="document.getElementById('logoFile').click()">Upload Logo</button>
+              <button class="logo-remove-btn" id="logoRemoveBtn" style="display:none;" onclick="handleLogoRemove()">Remove Logo</button>
+              <div class="logo-status" id="logoStatus"></div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- BUSINESS TYPE SECTION -->
-      <div class="settings-section">
-        <h3>Business Type</h3>
-        <div class="settings-row">
-          <div class="settings-label">Type</div>
-          <div class="settings-field">
-            <select id="businessTypeSelect" onchange="onBusinessTypeChange()">
-              <option value="">— Select business type —</option>
-              <option value="Construction">Construction</option>
-              <option value="Manufacturing">Manufacturing</option>
-              <option value="Chemical">Chemical</option>
-              <option value="Oil & Gas">Oil &amp; Gas</option>
-              <option value="Transportation">Transportation</option>
-              <option value="Warehousing">Warehousing</option>
-              <option value="Fabrication">Fabrication</option>
-              <option value="Logistics / Supply Chain">Logistics / Supply Chain</option>
-              <option value="Utilities & Energy">Utilities &amp; Energy</option>
-              <option value="Mining & Aggregates">Mining &amp; Aggregates</option>
-              <option value="Agriculture">Agriculture</option>
-              <option value="Environmental Services">Environmental Services</option>
-              <option value="Food & Beverage Processing">Food &amp; Beverage Processing</option>
-              <option value="General Services">General Services</option>
-            </select>
-            <div class="settings-hint">Selecting a business type auto-configures which onboarding steps are visible. You can override individual steps in the Onboarding tab.</div>
+      <!-- ===== SUBTAB: BUSINESS TYPE ===== -->
+      <div class="admin-subtab-content" id="settings-subtab-btype">
+        <div class="settings-section">
+          <h3>Business Type</h3>
+          <div class="settings-row">
+            <div class="settings-label">Type</div>
+            <div class="settings-field">
+              <select id="businessTypeSelect" onchange="onBusinessTypeChange()">
+                <option value="">— Select business type —</option>
+                <option value="Construction">Construction</option>
+                <option value="Manufacturing">Manufacturing</option>
+                <option value="Chemical">Chemical</option>
+                <option value="Oil & Gas">Oil &amp; Gas</option>
+                <option value="Transportation">Transportation</option>
+                <option value="Warehousing">Warehousing</option>
+                <option value="Fabrication">Fabrication</option>
+                <option value="Logistics / Supply Chain">Logistics / Supply Chain</option>
+                <option value="Utilities & Energy">Utilities &amp; Energy</option>
+                <option value="Mining & Aggregates">Mining &amp; Aggregates</option>
+                <option value="Agriculture">Agriculture</option>
+                <option value="Environmental Services">Environmental Services</option>
+                <option value="Food & Beverage Processing">Food &amp; Beverage Processing</option>
+                <option value="General Services">General Services</option>
+              </select>
+              <div class="settings-hint">Selecting a business type auto-configures which onboarding steps are visible. You can override individual steps in the Onboarding tab.</div>
+            </div>
           </div>
         </div>
+
+        <!-- SAVE BUTTON (shared for Business Type + NAICS) -->
+        <button class="settings-save-btn" id="saveSettingsBtn" onclick="saveSettings()">Save Settings</button>
+        <div class="settings-status" id="settingsStatus"></div>
       </div>
 
-      <!-- NAICS CODE SECTION -->
-      <div class="settings-section">
-        <h3>NAICS Code</h3>
-        <div class="settings-row">
-          <div class="settings-label">NAICS Code</div>
-          <div class="settings-field">
-            <input type="text" id="naicsInput" placeholder="e.g., 236220 (Commercial Building Construction)" maxlength="6">
-            <div class="settings-hint">The North American Industry Classification System code for your business. Used for reporting and compliance.</div>
+      <!-- ===== SUBTAB: NAICS CODE ===== -->
+      <div class="admin-subtab-content" id="settings-subtab-naics">
+        <div class="settings-section">
+          <h3>NAICS Code</h3>
+          <div class="settings-row">
+            <div class="settings-label">NAICS Code</div>
+            <div class="settings-field">
+              <input type="text" id="naicsInput" placeholder="e.g., 236220 (Commercial Building Construction)" maxlength="6">
+              <div class="settings-hint">The North American Industry Classification System code for your business. Used for reporting and compliance.</div>
+            </div>
           </div>
         </div>
+
+        <!-- SAVE BUTTON (also here so user can save from this subtab) -->
+        <button class="settings-save-btn" onclick="saveSettings()">Save Settings</button>
+        <div class="settings-status"></div>
       </div>
 
-      <!-- SAVE BUTTON -->
-      <button class="settings-save-btn" id="saveSettingsBtn" onclick="saveSettings()">Save Settings</button>
-      <div class="settings-status" id="settingsStatus"></div>
-
-      <!-- THEME TOGGLE -->
+      <!-- ===== APPEARANCE (stays on page, below subtabs) ===== -->
       <div class="settings-section" style="margin-top:20px;">
         <h3>Appearance</h3>
         <div class="settings-row">
@@ -823,7 +896,7 @@
         </div>
       </div>
 
-      <!-- ACCOUNT -->
+      <!-- ===== ACCOUNT (stays on page, below subtabs) ===== -->
       <div class="settings-section">
         <h3>Account</h3>
         <div class="account-row"><span>Email:</span> <span id="account-email"></span></div>
@@ -838,51 +911,70 @@
   <div class="admin-tab-content" id="tab-onboarding">
     <div class="admin-main">
 
-      <!-- STEP VISIBILITY TOGGLES -->
-      <div class="settings-section">
-        <h3>Step Visibility</h3>
-        <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px 0;">Toggle which onboarding steps are visible to your team. Defaults are set by your business type (<span id="onboardingBtLabel">not set</span>), but you can override any step.</p>
-        <div class="step-toggle-list" id="stepToggleList">
-          <!-- Populated by JS -->
-        </div>
-        <button class="settings-save-btn" style="margin-top:16px;" onclick="saveStepVisibility()">Save Visibility</button>
-        <div class="settings-status" id="visibilityStatus"></div>
+      <!-- VIEW ONBOARDING DASHBOARD LINK -->
+      <a class="admin-view-ob-link" href="/app/dashboard/onboarding-dashboard.html" target="_blank">
+        View Onboarding Dashboard →
+      </a>
+
+      <!-- ===== ONBOARDING SUBTABS ===== -->
+      <div class="admin-subtab-bar" id="onboardingSubtabBar">
+        <button class="admin-subtab active" data-subtab="visibility" onclick="switchOnboardingSubtab('visibility')">Step Visibility</button>
+        <button class="admin-subtab" data-subtab="kp" onclick="switchOnboardingSubtab('kp')">Key Personnel</button>
       </div>
 
-      <!-- KEY PERSONNEL ASSIGNMENT -->
-      <div class="settings-section">
-        <h3>Key Personnel</h3>
-        <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px 0;">Assign key personnel and the onboarding tasks they are responsible for. They will receive an email with login instructions.</p>
-
-        <!-- Add KP form -->
-        <div class="kp-add-form">
-          <input type="text" id="kpName" placeholder="Full name">
-          <input type="email" id="kpEmail" placeholder="Email address">
-          <select id="kpTask">
-            <option value="">— Assign task —</option>
-            <option value="Employees">Employees</option>
-            <option value="Locations">Locations</option>
-            <option value="Clients">Clients</option>
-            <option value="Divisions">Divisions</option>
-            <option value="Project Types">Project Types</option>
-            <option value="Projects">Projects</option>
-            <option value="Equipment">Equipment</option>
-            <option value="Roles & Permissions">Roles &amp; Permissions</option>
-          </select>
-          <button class="kp-add-btn" id="kpAddBtn" onclick="addKeyPersonnel()">Add</button>
-        </div>
-
-        <!-- KP list -->
-        <div class="kp-list" id="kpListContainer">
-          <div class="kp-list-title">Assigned Key Personnel:</div>
-          <div id="kpListBody">
-            <div class="kp-loading">Loading…</div>
+      <!-- ===== SUBTAB: STEP VISIBILITY ===== -->
+      <div class="admin-subtab-content active" id="onboarding-subtab-visibility">
+        <div class="settings-section">
+          <h3>Step Visibility</h3>
+          <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px 0;line-height:1.6;">
+            Control which onboarding steps appear on the Onboarding Dashboard for your team. Steps are auto-configured based on your business type (<span id="onboardingBtLabel">not set</span>), but you can override any step here. Toggling a step off hides it from the Onboarding Dashboard — your team won't see it or be asked to complete it. Locked steps (Roles &amp; Permissions, Employees, Equipment) are required for all business types and cannot be turned off.
+          </p>
+          <div class="step-toggle-list" id="stepToggleList">
+            <!-- Populated by JS -->
           </div>
+          <button class="settings-save-btn" style="margin-top:16px;" onclick="saveStepVisibility()">Save Visibility</button>
+          <div class="settings-status" id="visibilityStatus"></div>
         </div>
-        <button class="settings-save-btn" id="kpCompleteBtn" style="margin-top:16px;display:none;" onclick="completeKeyPersonnel()">Send Invitations &amp; Create Accounts</button>
       </div>
 
-      <!-- ONBOARDING PROGRESS + COMPLETE -->
+      <!-- ===== SUBTAB: KEY PERSONNEL ===== -->
+      <div class="admin-subtab-content" id="onboarding-subtab-kp">
+        <div class="settings-section">
+          <h3>Key Personnel Assignments</h3>
+          <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px 0;line-height:1.6;">
+            Assign key personnel and the onboarding tasks they are responsible for. They will receive an email with login instructions and will see only their assigned tasks on the Onboarding Dashboard. You can assign multiple tasks to the same person or split tasks across different team members.
+          </p>
+
+          <!-- Add KP form -->
+          <div class="kp-add-form">
+            <input type="text" id="kpName" placeholder="Full name">
+            <input type="email" id="kpEmail" placeholder="Email address">
+            <select id="kpTask">
+              <option value="">— Assign task —</option>
+              <option value="Employees">Employees</option>
+              <option value="Locations">Locations</option>
+              <option value="Clients">Clients</option>
+              <option value="Divisions">Divisions</option>
+              <option value="Project Types">Project Types</option>
+              <option value="Projects">Projects</option>
+              <option value="Equipment">Equipment</option>
+              <option value="Roles & Permissions">Roles &amp; Permissions</option>
+            </select>
+            <button class="kp-add-btn" id="kpAddBtn" onclick="addKeyPersonnel()">Add</button>
+          </div>
+
+          <!-- KP list -->
+          <div class="kp-list" id="kpListContainer">
+            <div class="kp-list-title">Assigned Key Personnel:</div>
+            <div id="kpListBody">
+              <div class="kp-loading">Loading…</div>
+            </div>
+          </div>
+          <button class="settings-save-btn" id="kpCompleteBtn" style="margin-top:16px;display:none;" onclick="completeKeyPersonnel()">Send Invitations &amp; Create Accounts</button>
+        </div>
+      </div>
+
+      <!-- ONBOARDING PROGRESS + COMPLETE (stays on page, below subtabs) -->
       <div class="onboarding-progress">
         <h3>Onboarding Progress</h3>
         <div class="progress-bar-container">
@@ -962,6 +1054,22 @@
       document.querySelectorAll('.admin-tab-content').forEach(function(c) { c.classList.remove('active'); });
       document.querySelector('[data-tab="' + tabName + '"]').classList.add('active');
       document.getElementById('tab-' + tabName).classList.add('active');
+    }
+
+    /* ===== SETTINGS SUBTAB SWITCHING ===== */
+    function switchSettingsSubtab(subtabName) {
+      document.querySelectorAll('#settingsSubtabBar .admin-subtab').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('.admin-subtab-content[id^="settings-subtab-"]').forEach(function(c) { c.classList.remove('active'); });
+      document.querySelector('#settingsSubtabBar [data-subtab="' + subtabName + '"]').classList.add('active');
+      document.getElementById('settings-subtab-' + subtabName).classList.add('active');
+    }
+
+    /* ===== ONBOARDING SUBTAB SWITCHING ===== */
+    function switchOnboardingSubtab(subtabName) {
+      document.querySelectorAll('#onboardingSubtabBar .admin-subtab').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('.admin-subtab-content[id^="onboarding-subtab-"]').forEach(function(c) { c.classList.remove('active'); });
+      document.querySelector('#onboardingSubtabBar [data-subtab="' + subtabName + '"]').classList.add('active');
+      document.getElementById('onboarding-subtab-' + subtabName).classList.add('active');
     }
 
     /* ===== THEME TOGGLE ===== */
@@ -1071,24 +1179,30 @@
         var data = await res.json();
         if (data.success && data.settings) {
           orgSettings = data.settings;
+          // Business Type
           if (data.settings.business_type) {
             document.getElementById("businessTypeSelect").value = data.settings.business_type;
             document.getElementById("overviewBusinessType").textContent = data.settings.business_type;
             document.getElementById("onboardingBtLabel").textContent = data.settings.business_type;
           }
+          // NAICS
           if (data.settings.naics_code) {
             document.getElementById("naicsInput").value = data.settings.naics_code;
           }
+          // Step visibility
           if (data.settings.step_visibility) {
             stepVisibility = data.settings.step_visibility;
           } else {
+            // Apply defaults from business type
             applyBusinessTypeDefaults();
           }
+          // Onboarding complete
           if (data.settings.onboarding_complete) {
             onboardingComplete = true;
             hideOnboardingTab();
           }
         } else {
+          // No settings yet — apply defaults
           applyBusinessTypeDefaults();
         }
       } catch (e) {
@@ -1120,6 +1234,7 @@
           document.getElementById("onboardingBtLabel").textContent = bt || "not set";
           status.textContent = "Settings saved.";
           status.style.color = "var(--success, #16a34a)";
+          // If business type changed, re-evaluate step visibility defaults
           if (bt && (!stepVisibility._manualOverride || !stepVisibility._btApplied)) {
             applyBusinessTypeDefaults();
             renderStepToggles();
@@ -1166,7 +1281,7 @@
     function renderStepToggles() {
       var container = document.getElementById("stepToggleList");
       container.innerHTML = STEP_DEFS.map(function(step) {
-        var isVisible = stepVisibility[step.key] !== false;
+        var isVisible = stepVisibility[step.key] !== false; // default true
         var checked = isVisible ? "checked" : "";
         var disabled = step.locked ? "disabled" : "";
         var lockedLabel = step.locked ? '<span class="step-toggle-locked">(always on)</span>' : "";
@@ -1338,17 +1453,20 @@
     /* ===== ONBOARDING PROGRESS + COMPLETE ===== */
     function updateProgress() {
       var visibleSteps = STEP_DEFS.filter(function(s) { return stepVisibility[s.key] !== false; });
+      // For now, progress is based on KP count (will be expanded when step completion tracking is added)
       var completed = 0;
       if (keyPersonnel.length > 0 || pendingKP.length > 0) completed++;
       var total = visibleSteps.length;
       var pct = total > 0 ? Math.round((completed / total) * 100) : 0;
       document.getElementById("progressBarFill").style.width = pct + "%";
       document.getElementById("progressText").textContent = completed + " of " + total + " steps complete";
+      // Show mark complete button when all steps are done (placeholder logic)
       if (completed >= total && total > 0) {
         document.getElementById("markCompleteBtn").classList.add("show");
       } else {
         document.getElementById("markCompleteBtn").classList.remove("show");
       }
+      // Show reopen button if onboarding is complete
       if (onboardingComplete) {
         document.getElementById("reopenOnboardingBtn").style.display = "inline-block";
       }
@@ -1401,7 +1519,7 @@
       }
     }
 
-    /* ===== STICKY TABS ===== */
+    /* ===== STICKY TABS (move tab bar inside shared header) ===== */
     function makeTabsSticky() {
       var header = document.getElementById("dashHeader");
       var tabBar = document.getElementById("adminTabBar");
@@ -1417,6 +1535,7 @@
         var title = document.createElement("div");
         title.className = "admin-header-title";
         title.textContent = "Admin Dashboard";
+        // Insert between logo area and driven logo
         var logoArea = document.getElementById("dashCustomerLogoArea");
         var drivenLogo = row1.querySelector(".dash-driven-logo");
         if (logoArea && drivenLogo) {
@@ -1427,24 +1546,43 @@
 
     /* ===== INIT ===== */
     async function init() {
+      // Wait for shared dashboard-common.js to load session
       document.addEventListener("dashSessionLoaded", async function() {
         var user = window.dashUser;
         if (!user) {
           window.location.href = "/public/login.html";
           return;
         }
+
+        // Greeting
         var firstName = user.first_name || user.email;
         document.getElementById("welcome-name").textContent = firstName;
         document.getElementById("account-email").textContent = user.email || "";
+
+        // Insert title and make tabs sticky
         insertHeaderTitle();
         makeTabsSticky();
+
+        // Load logo
         await loadLogo();
+
+        // Load settings
         await loadSettings();
+
+        // Load key personnel
         await loadKeyPersonnel();
+
+        // Update progress
         updateProgress();
+
+        // Theme switch
         updateThemeSwitch();
+
+        // Show dashboard
         document.getElementById("loading").style.display = "none";
         document.getElementById("dashboard").style.display = "block";
+
+        // Stats (placeholder — will be database queries later)
         document.getElementById("stat-employees").textContent = localStorage.getItem("driven_employee_count") || "0";
         document.getElementById("stat-projects").textContent = localStorage.getItem("driven_project_count") || "0";
         document.getElementById("stat-equipment").textContent = localStorage.getItem("driven_equipment_count") || "0";
