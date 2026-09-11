@@ -53,7 +53,7 @@
       text-overflow: ellipsis;
     }
 
-    /* ===== TAB BAR (solid background, no bleed-through) ===== */
+    /* ===== TAB BAR (slate blue bar, distinct from page background) ===== */
     .ob-tab-bar {
       display: flex;
       gap: 2px;
@@ -63,18 +63,18 @@
       overflow-x: auto;
       position: relative;
       z-index: 1;
-      background: var(--bg-card);
-      border-bottom: 2px solid var(--border);
+      background: #1e293b;
+      border-bottom: 2px solid #0f172a;
     }
     .ob-tab {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
+      background: #334155;
+      border: 1px solid #475569;
       border-bottom: none;
       border-radius: 8px 8px 0 0;
       padding: 10px 22px;
       font-size: 15px;
       font-weight: 500;
-      color: var(--text-muted);
+      color: #cbd5e1;
       cursor: pointer;
       white-space: nowrap;
       transition: color 200ms ease, background 200ms ease, border-color 200ms ease, margin-top 200ms ease;
@@ -83,13 +83,14 @@
       z-index: 1;
     }
     .ob-tab:hover {
-      color: var(--text);
+      color: #f1f5f9;
+      background: #3b4d63;
       margin-top: 2px;
     }
     .ob-tab.active {
-      color: var(--primary);
-      background: var(--bg);
-      border-color: var(--primary);
+      color: #60a5fa;
+      background: #0f172a;
+      border-color: #3b82f6;
       margin-top: 0;
       font-weight: 600;
       z-index: 2;
@@ -816,7 +817,9 @@
     async function loadKeyPersonnel() {
       // Determine admin status from user role FIRST (before API call)
       // This ensures the dashboard works even if the KP API is down
-      if (currentUser && (currentUser.role === "admin" || currentUser.role === "DRIV-EN Founder")) {
+      // Case-insensitive check covers: Admin, admin, Administrator, DRIV-EN Founder
+      var roleLower = (currentUser && currentUser.role) ? currentUser.role.toLowerCase() : "";
+      if (currentUser && (roleLower === "admin" || roleLower === "administrator" || roleLower.indexOf("founder") !== -1)) {
         isAdmin = true;
         var adminTab0 = document.getElementById("obTabBar").querySelector('[data-tab="admin"]');
         if (adminTab0) adminTab0.style.display = "inline-block";
@@ -916,10 +919,19 @@
         // Theme switch
         updateThemeSwitch();
 
-        // Load settings (step visibility + onboarding status)
+        // Determine admin status from user role FIRST (before settings load)
+        // This prevents the onboarding_complete redirect from firing for admins
+        var roleLower = (user.role) ? user.role.toLowerCase() : "";
+        if (roleLower === "admin" || roleLower === "administrator" || roleLower.indexOf("founder") !== -1) {
+          isAdmin = true;
+          var adminTabInit = document.getElementById("obTabBar").querySelector('[data-tab="admin"]');
+          if (adminTabInit) adminTabInit.style.display = "inline-block";
+        }
+
+        // Load settings (step visibility + onboarding status + company info)
         await loadSettings();
 
-        // Load key personnel (determines admin vs KP, assigned tasks)
+        // Load key personnel (refines admin vs KP, assigned tasks)
         await loadKeyPersonnel();
 
         // Show dashboard
