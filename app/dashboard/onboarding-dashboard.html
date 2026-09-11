@@ -53,7 +53,7 @@
       text-overflow: ellipsis;
     }
 
-    /* ===== TAB BAR ===== */
+    /* ===== TAB BAR (solid background, no bleed-through) ===== */
     .ob-tab-bar {
       display: flex;
       gap: 2px;
@@ -63,7 +63,8 @@
       overflow-x: auto;
       position: relative;
       z-index: 1;
-      background: transparent;
+      background: var(--bg-card);
+      border-bottom: 2px solid var(--border);
     }
     .ob-tab {
       background: var(--bg-card);
@@ -95,13 +96,6 @@
     }
     .ob-tab-content { display: none; }
     .ob-tab-content.active { display: block; }
-    .ob-tab-bar::after {
-      content: '';
-      display: block;
-      flex: 1;
-      border-bottom: 2px solid var(--border);
-      margin-top: -1px;
-    }
 
     /* ===== ADMIN DASHBOARD TAB (blue, only visible to admins) ===== */
     .ob-tab-admin {
@@ -434,7 +428,12 @@
     <div class="ob-main">
       <div class="settings-section">
         <h3>Onboarding Steps</h3>
-        <p style="font-size:13px;color:var(--text-muted);margin:0;">Complete each step below. Some steps have prerequisites — complete those first to unlock the next step. Steps shown are based on your business type and your assigned tasks.</p>
+        <p style="font-size:13px;color:var(--text-muted);margin:0 0 8px 0;">Complete each step below. Some steps have prerequisites — complete those first to unlock the next step. Steps shown are based on your business type and your assigned tasks.</p>
+        <div id="companyInfoBar" style="display:none;margin-bottom:16px;padding:12px 16px;background:var(--bg-step);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text-muted);">
+          <span style="font-weight:600;color:var(--text);">Business Type:</span> <span id="obCompanyType">Not set</span>
+          &nbsp;|&nbsp;
+          <span style="font-weight:600;color:var(--text);">NAICS:</span> <span id="obCompanyNaics">Not set</span>
+        </div>
 
         <div class="ob-step-grid" id="stepGrid">
 
@@ -587,6 +586,7 @@
       </div>
       <div class="settings-section">
         <h3>Account</h3>
+        <div class="account-row"><span>Name:</span> <span id="account-name"></span></div>
         <div class="account-row"><span>Email:</span> <span id="account-email"></span></div>
         <div class="account-row"><span>Role:</span> <span id="account-role"></span></div>
         <button class="ob-btn-primary" style="background:transparent;border:1px solid var(--primary);color:var(--primary);padding:10px 20px;" onclick="window.location.href='/app/auth/change-password.html'">Change Password</button>
@@ -698,6 +698,7 @@
 
     /* ===== VISIBILITY CHECK ===== */
     function isStepVisible(stepKey) {
+      // If no step visibility loaded, show everything
       if (Object.keys(stepVisibility).length === 0) return true;
       return stepVisibility[stepKey] !== false;
     }
@@ -707,12 +708,14 @@
       var def = STEP_DEFS[stepNum];
       var statusId = "status-step" + stepNum;
 
+      // Hide step if toggled off
       if (!isStepVisible(def.name)) {
         var card = document.querySelector('[data-step-key="' + def.name + '"]');
         if (card) card.classList.add("hidden");
         return;
       }
 
+      // Admin-only steps
       if (def.adminOnly) {
         if (isAdmin) {
           if (stepCompletion[stepNum]) {
@@ -729,6 +732,7 @@
         return;
       }
 
+      // Admin (sees everything, subject to prerequisites)
       if (isAdmin) {
         if (stepCompletion[stepNum]) {
           setStatus(statusId, "ob-completed", "Completed");
@@ -744,6 +748,7 @@
         return;
       }
 
+      // Key Personnel (only assigned tasks)
       var hasTask = assignedTasks.indexOf(def.task) !== -1;
       if (!hasTask) {
         setStatus(statusId, "ob-not-assigned", "Not Assigned");
@@ -771,7 +776,7 @@
       }
     }
 
-    /* ===== LOAD SETTINGS ===== */
+    /* ===== LOAD SETTINGS (step visibility + onboarding status + company info) ===== */
     async function loadSettings() {
       try {
         var res = await fetch("/auth/get-settings");
@@ -782,13 +787,23 @@
           }
           if (data.settings.onboarding_complete) {
             onboardingComplete = true;
+            // Show complete notice and hide steps
             document.getElementById("completeNotice").style.display = "block";
             document.getElementById("tab-overview").style.display = "none";
+            // If KP, redirect to their dashboard after a few seconds
             if (!isAdmin) {
               setTimeout(function() {
                 window.location.href = "/app/dashboard/owner-dashboard.html";
               }, 3000);
             }
+          }
+          // Populate company info bar
+          var bt = data.settings.business_type;
+          var naics = data.settings.naics_code;
+          if (bt || naics) {
+            document.getElementById("obCompanyType").textContent = bt || "Not set";
+            document.getElementById("obCompanyNaics").textContent = naics || "Not set";
+            document.getElementById("companyInfoBar").style.display = "block";
           }
         }
       } catch (e) {
@@ -799,8 +814,20 @@
 
     /* ===== LOAD KEY PERSONNEL ===== */
     async function loadKeyPersonnel() {
+      // Determine admin status from user role FIRST (before API call)
+      // This ensures the dashboard works even if the KP API is down
+      if (currentUser && (currentUser.role === "admin" || currentUser.role === "DRIV-EN Founder")) {
+        isAdmin = true;
+        var adminTab0 = document.getElementById("obTabBar").querySelector('[data-tab="admin"]');
+        if (adminTab0) adminTab0.style.display = "inline-block";
+      }
+
       var customerId = localStorage.getItem("driven_customer_id");
-      if (!customerId) return;
+      if (!customerId) {
+        // No org_id — admin sees all, KP sees nothing assigned
+        updateAllSteps();
+        return;
+      }
 
       try {
         var response = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(customerId));
@@ -813,22 +840,23 @@
           });
 
           if (myRecord) {
+            // Found in KP list — they are Key Personnel, not admin
             isAdmin = false;
             assignedTasks = myRecord.roles.map(function(r) { return r.role; });
-          } else {
-            isAdmin = true;
-            document.getElementById("obTabBar").querySelector('[data-tab="admin"]').style.display = "inline-block";
+            // Hide admin tab for KP
+            var adminTabHide = document.getElementById("obTabBar").querySelector('[data-tab="admin"]');
+            if (adminTabHide) adminTabHide.style.display = "none";
           }
+          // If not found in KP list, keep the admin/role-based determination from above
 
+          // Step 1 (Roles & Permissions) is complete if at least one KP exists
           stepCompletion[1] = data.keyPersonnel.length > 0;
-        } else {
-          isAdmin = true;
-          document.getElementById("obTabBar").querySelector('[data-tab="admin"]').style.display = "inline-block";
         }
+        // If API returns no success, keep the role-based admin determination
       } catch (e) {
         console.error("Key personnel load error:", e.message);
-        isAdmin = true;
-        document.getElementById("obTabBar").querySelector('[data-tab="admin"]').style.display = "inline-block";
+        // API not available — keep the role-based admin determination from above
+        // Don't change isAdmin or stepCompletion — they stay based on user role
       }
 
       updateAllSteps();
@@ -868,21 +896,33 @@
         }
         currentUser = user;
 
+        // Greeting
         var firstName = user.first_name || "";
         var greeting = document.getElementById("greetingText");
         if (firstName) {
           greeting.innerHTML = "Welcome, <strong>" + firstName + "</strong>";
         }
 
+        // Account info
+        var fullName = (user.first_name || "") + (user.last_name ? " " + user.last_name : "");
+        document.getElementById("account-name").textContent = fullName || user.email || "";
         document.getElementById("account-email").textContent = user.email || "";
         document.getElementById("account-role").textContent = user.role || "User";
 
+        // Insert title and make tabs sticky
         insertHeaderTitle();
         makeTabsSticky();
+
+        // Theme switch
         updateThemeSwitch();
+
+        // Load settings (step visibility + onboarding status)
         await loadSettings();
+
+        // Load key personnel (determines admin vs KP, assigned tasks)
         await loadKeyPersonnel();
 
+        // Show dashboard
         document.getElementById("loading").style.display = "none";
         document.getElementById("dashboard").style.display = "block";
       });
