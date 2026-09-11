@@ -85,7 +85,7 @@
     }
     // Redirect to the correct login page based on role
     var requiredRole = document.body.getAttribute("data-required-role");
-    if (requiredRole === "DRIV-EN Founder") {
+    if (requiredRole && requiredRole.toLowerCase().indexOf("founder") !== -1) {
       window.location.href = "/app/auth/founder-login.html";
     } else {
       window.location.href = "/public/login.html";
