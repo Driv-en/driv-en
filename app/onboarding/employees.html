@@ -38,6 +38,25 @@
 
 <!-- ===== PAGE-SPECIFIC STYLES ===== -->
 <style>
+    /* ===== HEADER OVERRIDE (single row — matches Owner/Onboarding dashboards) ===== */
+    .dash-header-row2 { display: none !important; }
+    .dash-header-row3 { display: none !important; }
+    #dashHeader .dash-theme-wrapper { display: none !important; }
+    .dash-header-row1 {
+      padding: 8px 20px !important;
+      align-items: center;
+    }
+    .emp-header-title {
+      flex: 1;
+      text-align: center;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
     /* ===== GREETING BAR (Session 7 fix — must be above steel-bg background) ===== */
     .ob-greeting-bar {
       max-width: 1100px;
@@ -53,33 +72,6 @@
     }
     .ob-greeting-text { font-size: 16px; color: var(--text-muted); font-weight: 500; }
     .ob-greeting-text strong { color: var(--text); }
-
-    /* ===== BACK BUTTON BAR ===== */
-    .emp-back-bar {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 12px 20px 0 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-    .emp-back-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: #1e40af;
-      border: 1px solid #2563eb;
-      color: #dbeafe;
-      padding: 8px 14px;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 600;
-      text-decoration: none;
-      cursor: pointer;
-    }
-    .emp-back-btn:hover { background: #1d4ed8; color: #fff; }
 
     /* ===== CARD SUBTITLE ===== */
     .emp-subtitle {
@@ -216,8 +208,9 @@
       margin: 0 auto;
       padding: 0 20px;
       overflow-x: auto;
-      position: relative;
-      z-index: 1;
+      position: sticky;
+      top: 0;
+      z-index: 50;
       background: #cbd5e1;
       border-bottom: 2px solid #94a3b8;
     }
@@ -252,6 +245,77 @@
     }
     .emp-tab-content { display: none; }
     .emp-tab-content.active { display: block; }
+
+    /* ===== ADMIN DASHBOARD TAB (blue, only visible to admins) ===== */
+    .emp-tab-admin {
+      background: #1e40af;
+      border: 1px solid #2563eb;
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      padding: 10px 22px;
+      font-size: 15px;
+      font-weight: 600;
+      color: #dbeafe;
+      cursor: pointer;
+      white-space: nowrap;
+      margin-top: 4px;
+      position: relative;
+      z-index: 1;
+      transition: background 200ms ease, margin-top 200ms ease;
+      display: none;
+    }
+    .emp-tab-admin:hover {
+      background: #1d4ed8;
+      color: #fff;
+      margin-top: 2px;
+    }
+
+    /* ===== ONBOARDING DASHBOARD TAB (gray, right of Admin) ===== */
+    .emp-tab-return {
+      background: #374151;
+      border: 1px solid #4b5563;
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      padding: 10px 22px;
+      font-size: 15px;
+      font-weight: 600;
+      color: #d1d5db;
+      cursor: pointer;
+      white-space: nowrap;
+      margin-top: 4px;
+      position: relative;
+      z-index: 1;
+      text-decoration: none;
+      transition: background 200ms ease, margin-top 200ms ease;
+    }
+    .emp-tab-return:hover {
+      background: #4b5563;
+      color: #fff;
+      margin-top: 2px;
+    }
+
+    /* ===== LOGOUT TAB (red, right-aligned) ===== */
+    .emp-tab-logout {
+      background: #b91c1c;
+      border: 1px solid #dc2626;
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      padding: 10px 22px;
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      cursor: pointer;
+      white-space: nowrap;
+      margin-top: 4px;
+      margin-left: auto;
+      position: relative;
+      z-index: 1;
+      transition: background 200ms ease, margin-top 200ms ease;
+    }
+    .emp-tab-logout:hover {
+      background: #dc2626;
+      margin-top: 2px;
+    }
 
     /* ===== BULK UPLOAD AREA ===== */
     .emp-bulk-link {
@@ -327,12 +391,6 @@
   <div class="ob-greeting-text" id="dashGreetingText">Welcome</div>
 </div>
 
-<!-- ===== BACK BUTTON BAR ===== -->
-<div class="emp-back-bar">
-  <a href="/app/dashboard/admin.html" class="emp-back-btn driven-admin-only">&larr; Admin Dashboard</a>
-  <a href="/app/dashboard/onboarding-dashboard.html" class="emp-back-btn" style="background:#374151;border-color:#4b5563;color:#d1d5db;">&larr; Onboarding Dashboard</a>
-</div>
-
 <!-- ===== PAGE CONTENT ===== -->
 <main class="dash-main">
 
@@ -354,9 +412,12 @@
   </div>
 
   <!-- ===== TAB SWITCHER ===== -->
-  <div class="emp-tab-bar">
+  <div class="emp-tab-bar" id="empTabBar">
     <button class="emp-tab active" id="tabSingle" onclick="switchTab('single')">Single Entry</button>
     <button class="emp-tab" id="tabBulk" onclick="switchTab('bulk')">Bulk Upload</button>
+    <a class="emp-tab-admin driven-admin-only" href="/app/dashboard/admin.html">Admin Dashboard</a>
+    <a class="emp-tab-return" href="/app/dashboard/onboarding-dashboard.html">Onboarding Dashboard</a>
+    <button class="emp-tab-logout" onclick="dashLogout()">Logout</button>
   </div>
 
   <!-- ===== SINGLE ENTRY TAB ===== -->
@@ -396,30 +457,14 @@
           <select id="empDivision" class="dash-input">
             <option value="">— None —</option>
           </select>
-          <div class="emp-hint">Optional — pulls from Step 5 divisions</div>
+          <div class="emp-hint">Optional — pulls from the Divisions task</div>
         </div>
         <div class="emp-form-field">
           <label>Role<span class="emp-required-star">*</span></label>
           <select id="empRole" class="dash-input">
             <option value="">— Select Role —</option>
-            <option value="Admin">Admin</option>
-            <option value="Project Manager">Project Manager</option>
-            <option value="Superintendent">Superintendent</option>
-            <option value="Foreman">Foreman</option>
-            <option value="Equipment Manager">Equipment Manager</option>
-            <option value="Mechanic">Mechanic</option>
-            <option value="Operator">Operator</option>
-            <option value="Driver">Driver</option>
-            <option value="Laborer">Laborer</option>
-            <option value="Safety Officer">Safety Officer</option>
-            <option value="Inspector">Inspector</option>
-            <option value="Clerk">Clerk</option>
-            <option value="Supervisor">Supervisor</option>
-            <option value="HR">HR</option>
-            <option value="Payroll">Payroll</option>
-            <option value="Employee">Employee</option>
           </select>
-          <div class="emp-hint">Determines which dashboard they see</div>
+          <div class="emp-hint">Pulls from the Roles &amp; Permissions task — complete it first</div>
         </div>
         <div class="emp-form-field">
           <label>Status<span class="emp-required-star">*</span></label>
@@ -501,7 +546,6 @@
   <!-- ===== ACTIONS (shared — always visible) ===== -->
   <div class="dash-card">
     <div class="emp-action-row">
-      <a href="/app/dashboard/onboarding-dashboard.html" class="emp-btn-secondary">Return to Onboarding</a>
       <button id="btnSaveEmp" class="emp-btn-primary">Save &amp; Continue</button>
     </div>
     <div id="empStepStatus" class="emp-step-status"></div>
@@ -525,17 +569,14 @@
        2. Lets the admin upload many employees via Excel (Bulk Upload tab)
        3. Required fields: First Name, Last Name, Email, Role, Status
        4. Optional fields: Middle Name, Suffix, Phone, Division
-       5. Division dropdown pulls from localStorage (driven_divisions from Step 5)
+       5. Division dropdown pulls from localStorage (driven_divisions from the Divisions task)
        6. Shows a running list of employees added
        7. Saves all employees to localStorage on "Save & Continue"
        8. Updates the employee count badge
 
        ROLE LIST:
-       All roles are hardcoded in the dropdown and in the validRoles array below.
-       FUTURE: Pull roles from the roles database via API instead of hardcoding.
-       Current roles: Admin, Project Manager, Superintendent, Foreman, Equipment Manager,
-       Mechanic, Operator, Driver, Laborer, Safety Officer, Inspector, Clerk,
-       Supervisor, HR, Payroll, Employee.
+       Roles are pulled from the Roles & Permissions task via /api/onboarding/roles.
+       No system-assigned roles — only roles the customer created.
 
        BULK UPLOAD:
        Excel template must have columns: First Name, Middle Name, Last Name, Suffix,
@@ -550,14 +591,10 @@
     // Array of employee objects added locally (not yet saved)
     var employees = [];
 
-    // ===== VALID ROLES (must match the <select> options above) =====
-    // FUTURE: Pull this list from the roles database via API
-    var validRoles = [
-      "Admin", "Project Manager", "Superintendent", "Foreman",
-      "Equipment Manager", "Mechanic", "Operator", "Driver",
-      "Laborer", "Safety Officer", "Inspector", "Clerk",
-      "Supervisor", "HR", "Payroll", "Employee"
-    ];
+    // ===== VALID ROLES =====
+    // Populated from the Roles & Permissions task via /api/onboarding/roles.
+    // No system-assigned roles — only roles the customer created.
+    var validRoles = [];
 
     // ===== VALID STATUS VALUES =====
     var validStatuses = ["Active", "Inactive"];
@@ -594,7 +631,7 @@
     }
 
     // ===== HELPER: Populate the Division dropdown from localStorage =====
-    // Pulls division names from driven_divisions (saved by Step 5)
+    // Pulls division names from driven_divisions (saved by the Divisions task)
     function loadDivisionDropdown() {
       var divisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
       var sel = document.getElementById("empDivision");
@@ -609,6 +646,42 @@
         opt.textContent = div.name;
         sel.appendChild(opt);
       });
+    }
+
+    // ===== HELPER: Populate the Role dropdown from the Roles & Permissions task =====
+    // Fetches the customer's custom roles from /api/onboarding/roles.
+    // Only roles the customer created are shown — no system-assigned roles.
+    async function loadRoleDropdown() {
+      var sel = document.getElementById("empRole");
+      if (!sel) return;
+
+      // Keep the placeholder, clear the rest
+      sel.innerHTML = '<option value="">— Select Role —</option>';
+
+      var customerId = localStorage.getItem("driven_customer_id");
+      if (!customerId) {
+        sel.innerHTML = '<option value="">— Complete Roles & Permissions first —</option>';
+        return;
+      }
+
+      try {
+        var resp = await fetch("/api/onboarding/roles");
+        var data = await resp.json();
+        if (data.success && data.roles && data.roles.length > 0) {
+          validRoles = data.roles.map(function(r) { return r.name; });
+          validRoles.forEach(function(roleName) {
+            var opt = document.createElement("option");
+            opt.value = roleName;
+            opt.textContent = roleName;
+            sel.appendChild(opt);
+          });
+        } else {
+          sel.innerHTML = '<option value="">— Complete Roles & Permissions first —</option>';
+        }
+      } catch (e) {
+        console.error("Role dropdown load error:", e.message);
+        sel.innerHTML = '<option value="">— Complete Roles & Permissions first —</option>';
+      }
     }
 
     // ===== RENDER EMPLOYEE TABLE =====
@@ -856,11 +929,11 @@
             return;
           }
 
-          // Validate Division if provided (must match a division from Step 5)
+          // Validate Division if provided (must match a division from the Divisions task)
           if (row["Division"] && String(row["Division"]).trim() !== "") {
             var rowDiv = String(row["Division"]).trim();
             if (validDivisions.length > 0 && validDivisions.indexOf(rowDiv) === -1) {
-              statusBulk.textContent = "Row " + (r + 2) + ': Invalid Division "' + rowDiv + '". Must match a division from Step 5, or leave blank.';
+              statusBulk.textContent = "Row " + (r + 2) + ': Invalid Division "' + rowDiv + '". Must match a division from the Divisions task, or leave blank.';
               return;
             }
           }
@@ -1034,8 +1107,30 @@
         }
       }
 
-      // Load the Division dropdown from localStorage (Step 5 data)
+      // Insert header title (single-row header — matches other dashboards)
+      var row1 = document.querySelector(".dash-header-row1");
+      if (row1 && !document.querySelector(".emp-header-title")) {
+        var title = document.createElement("div");
+        title.className = "emp-header-title";
+        title.textContent = "Onboarding — Employees";
+        var logoArea = document.getElementById("dashCustomerLogoArea");
+        var drivenLogo = row1.querySelector(".dash-driven-logo");
+        if (logoArea && drivenLogo) {
+          row1.insertBefore(title, drivenLogo);
+        }
+      }
+
+      // Make the tab bar sticky below the header
+      var header = document.getElementById("dashHeader");
+      var tabBar = document.getElementById("empTabBar");
+      if (header && tabBar && !header.contains(tabBar)) {
+        header.appendChild(tabBar);
+      }
+
+      // Load the Division dropdown from the Divisions task
       loadDivisionDropdown();
+      // Load the Role dropdown from the Roles & Permissions task
+      loadRoleDropdown();
       // Render the empty table
       renderTable();
       updateCount();
