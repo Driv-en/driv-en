@@ -497,7 +497,7 @@ function initOwnerDashboard() {
     tabBar.style.position = 'sticky';
     tabBar.style.top = headerHeight + 'px';
     tabBar.style.zIndex = '99';
-    tabBar.style.background = 'var(--bg)';
+    tabBar.style.background = '#cbd5e1';
   }
 
   var emailEl = document.getElementById('settingsAccountEmail');
@@ -1096,7 +1096,6 @@ function renderCustomerStats(customers) {
   var active = customers.filter(function(c) { return c.subscription_status === 'active'; }).length;
   var trial = customers.filter(function(c) { return c.subscription_status === 'trial' || c.subscription_status === 'trialing'; }).length;
   var pending = customers.filter(function(c) { return !c.subscription_status || c.subscription_status === 'pending' || c.subscription_status === 'inactive'; }).length;
-
   document.getElementById('custStatTotal').textContent = total;
   document.getElementById('custStatActive').textContent = active;
   document.getElementById('custStatTrial').textContent = trial;
