@@ -418,8 +418,8 @@
 
 <!-- ===== BACK BUTTON BAR ===== -->
 <div class="rp-back-bar">
-  <a href="/app/dashboard/onboarding-dashboard.html" class="rp-back-btn">← Back to Onboarding</a>
-  <div></div>
+  <a href="/app/dashboard/admin.html" class="rp-back-btn driven-admin-only">&larr; Admin Dashboard</a>
+  <a href="/app/dashboard/onboarding-dashboard.html" class="rp-back-btn" style="background:#374151;border-color:#4b5563;color:#d1d5db;">&larr; Onboarding Dashboard</a>
 </div>
 
 <!-- ===== MAIN CARD ===== -->
@@ -522,6 +522,14 @@ var canModify = false; // Only KP assigned to "Roles & Permissions" can modify
     document.getElementById('userFirstName').textContent = data.user.first_name || data.user.email;
     loadCustomerLogo();
 
+    // Hide Admin Dashboard return button for non-admins (matches auth-check.js behavior)
+    var rpUserRole = (data.user && data.user.role) ? String(data.user.role) : "";
+    if (rpUserRole.toLowerCase() !== "admin") {
+      document.querySelectorAll(".driven-admin-only").forEach(function(el) {
+        el.style.display = "none";
+      });
+    }
+
     // Check if user is assigned to "Roles & Permissions" task
     var customerId = localStorage.getItem('driven_customer_id');
     if (customerId) {
@@ -602,7 +610,7 @@ function getFallbackPermissions() {
     { id: 'PRM-emp-delete',  name: 'employees.delete',  description: 'Delete employees',           module: 'employees' },
     { id: 'PRM-eq-view',     name: 'equipment.view',    description: 'View equipment records',     module: 'equipment' },
     { id: 'PRM-eq-add',      name: 'equipment.add',     description: 'Add new equipment',          module: 'equipment' },
-    { id: 'PRM-eq-edit',     name: 'equipment.edit',    description: 'Edit equipment records',     module: 'equipment' },
+    { id: 'PRM-eq-edit',     name: 'equipment.edit',    description: 'Edit equipment records',      module: 'equipment' },
     { id: 'PRM-eq-delete',   name: 'equipment.delete',  description: 'Delete equipment',            module: 'equipment' },
     { id: 'PRM-proj-view',   name: 'projects.view',     description: 'View projects',              module: 'projects' },
     { id: 'PRM-proj-add',    name: 'projects.add',      description: 'Add new projects',           module: 'projects' },
@@ -661,59 +669,43 @@ async function loadRoles() {
 // ---- Render roles list ----
 function renderRoles() {
   var listEl = document.getElementById('rolesList');
-
-  if (allRoles.length === 0) {
-    listEl.innerHTML = '<div class="rp-empty-state">No roles yet. Create your first role below.</div>';
+  if (!allRoles || allRoles.length === 0) {
+    listEl.innerHTML = '<div class="rp-empty-state">No roles defined yet. Add your first role above.</div>';
     return;
   }
 
-  var html = allRoles.map(function(r) {
-    var isSystem = r.is_system === 1;
-    var initials = r.name.substring(0, 2).toUpperCase();
-    var permCount = r.perm_count !== undefined ? r.perm_count : 0;
+  var html = allRoles.map(function(role) {
+    var isSystem = role.is_system === 1;
+    var permCount = role.perm_count || 0;
+    var icon = (role.name || 'R').charAt(0).toUpperCase();
 
-    var actions = '';
-    if (isSystem) {
-      actions = '<span style="font-size:12px;color:var(--text-muted);">System role — cannot modify</span>';
-    } else if (!canModify) {
-      actions = '<span style="font-size:12px;color:var(--text-muted);">View only</span>';
+    var actionsHtml = '';
+    if (canModify) {
+      actionsHtml += '<button class="rp-role-btn" onclick="openPermModal(\'' + role.id + '\', \'' + escapeJs(role.name) + '\')">Permissions (' + permCount + ')</button>';
+      if (!isSystem) {
+        actionsHtml += '<button class="rp-role-btn" onclick="editRole(\'' + role.id + '\', \'' + escapeJs(role.name) + '\', \'' + escapeJs(role.description || '') + '\')">Edit</button>';
+        actionsHtml += '<button class="rp-role-btn danger" onclick="deleteRole(\'' + role.id + '\', \'' + escapeJs(role.name) + '\')">Delete</button>';
+      }
     } else {
-      actions =
-        '<button class="rp-role-btn" data-action="edit-perms" data-role-id="' + escapeHtml(r.id) + '" data-role-name="' + escapeHtml(r.name) + '">Edit Permissions</button>' +
-        '<button class="rp-role-btn" data-action="edit-name" data-role-id="' + escapeHtml(r.id) + '" data-role-name="' + escapeHtml(r.name) + '" data-role-desc="' + escapeHtml(r.description || '') + '">Edit Name</button>' +
-        '<button class="rp-role-btn danger" data-action="delete" data-role-id="' + escapeHtml(r.id) + '" data-role-name="' + escapeHtml(r.name) + '">Delete</button>';
+      actionsHtml += '<button class="rp-role-btn" onclick="openPermModal(\'' + role.id + '\', \'' + escapeJs(role.name) + '\')">View Permissions (' + permCount + ')</button>';
     }
 
     return '<div class="rp-role-card' + (isSystem ? ' system-role' : '') + '">' +
       '<div class="rp-role-info">' +
-        '<div class="rp-role-icon">' + initials + '</div>' +
+        '<div class="rp-role-icon">' + icon + '</div>' +
         '<div>' +
-          '<div class="rp-role-name">' + escapeHtml(r.name) + '</div>' +
-          (r.description ? '<div class="rp-role-desc">' + escapeHtml(r.description) + '</div>' : '') +
+          '<div class="rp-role-name">' + escapeHtml(role.name) + (isSystem ? ' <span style="font-size:11px;color:#93c5fd;background:rgba(37,99,235,0.15);padding:2px 8px;border-radius:4px;">System</span>' : '') + '</div>' +
+          '<div class="rp-role-desc">' + escapeHtml(role.description || 'No description') + '</div>' +
         '</div>' +
       '</div>' +
-      '<div class="rp-role-perm-count">' + permCount + ' permission' + (permCount === 1 ? '' : 's') + '</div>' +
-      '<div class="rp-role-actions">' + actions + '</div>' +
+      '<div class="rp-role-actions">' + actionsHtml + '</div>' +
     '</div>';
   }).join('');
 
   listEl.innerHTML = html;
-
-  // Attach event listeners to role action buttons
-  listEl.querySelectorAll('[data-action]').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var action = btn.getAttribute('data-action');
-      var roleId = btn.getAttribute('data-role-id');
-      var roleName = btn.getAttribute('data-role-name');
-      var roleDesc = btn.getAttribute('data-role-desc');
-      if (action === 'edit-perms') openPermModal(roleId, roleName);
-      else if (action === 'edit-name') editRole(roleId, roleName, roleDesc);
-      else if (action === 'delete') deleteRole(roleId, roleName);
-    });
-  });
 }
 
-// ---- Add a new role ----
+// ---- Add Role ----
 async function addRole() {
   var nameInput = document.getElementById('newRoleName');
   var descInput = document.getElementById('newRoleDesc');
@@ -721,7 +713,8 @@ async function addRole() {
   var desc = descInput.value.trim();
 
   if (!name) {
-    showMessage('Please enter a role name.', 'error');
+    showMessage('Role name is required.', 'error');
+    nameInput.focus();
     return;
   }
 
@@ -736,31 +729,19 @@ async function addRole() {
     if (data.success) {
       nameInput.value = '';
       descInput.value = '';
-      showMessage('Role "' + name + '" created. Click "Edit Permissions" to assign permissions.', 'success');
+      showMessage('Role "' + name + '" created successfully!', 'success');
       await loadRoles();
     } else {
       showMessage(data.error || 'Failed to create role.', 'error');
     }
   } catch (e) {
-    // Fallback: add locally if API not deployed
-    var newRole = {
-      id: 'local-' + Date.now(),
-      name: name,
-      description: desc,
-      is_system: 0,
-      perm_count: 0
-    };
-    allRoles.push(newRole);
-    renderRoles();
-    nameInput.value = '';
-    descInput.value = '';
-    showMessage('Role "' + name + '" created locally. Deploy the worker to persist.', 'success');
+    showMessage('Network error. Please try again.', 'error');
   }
 }
 
-// ---- Edit role name/description ----
-function editRole(roleId, currentName, currentDesc) {
-  var newName = prompt('Role name:', currentName);
+// ---- Edit Role ----
+async function editRole(roleId, roleName, roleDesc) {
+  var newName = prompt('Edit role name:', roleName);
   if (newName === null) return;
   newName = newName.trim();
   if (!newName) {
@@ -768,47 +749,38 @@ function editRole(roleId, currentName, currentDesc) {
     return;
   }
 
-  var newDesc = prompt('Description (optional):', currentDesc || '');
+  var newDesc = prompt('Edit description (optional):', roleDesc || '');
   if (newDesc === null) return;
 
-  updateRole(roleId, newName, newDesc.trim());
-}
-
-async function updateRole(roleId, name, description) {
   try {
     var resp = await fetch('/api/onboarding/roles/' + roleId, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name, description: description })
+      body: JSON.stringify({ name: newName, description: newDesc.trim() })
     });
     var data = await resp.json();
+
     if (data.success) {
-      showMessage('Role updated.', 'success');
+      showMessage('Role updated successfully!', 'success');
       await loadRoles();
     } else {
       showMessage(data.error || 'Failed to update role.', 'error');
     }
   } catch (e) {
-    // Fallback: update locally
-    var role = allRoles.find(function(r) { return r.id === roleId; });
-    if (role) {
-      role.name = name;
-      role.description = description;
-      renderRoles();
-      showMessage('Role updated locally. Deploy the worker to persist.', 'success');
-    }
+    showMessage('Network error. Please try again.', 'error');
   }
 }
 
-// ---- Delete a role ----
+// ---- Delete Role ----
 async function deleteRole(roleId, roleName) {
-  if (!confirm('Delete role "' + roleName + '"? Users assigned to this role will need to be reassigned.')) return;
+  if (!confirm('Delete role "' + roleName + '"? This cannot be undone.')) return;
 
   try {
     var resp = await fetch('/api/onboarding/roles/' + roleId, {
       method: 'DELETE'
     });
     var data = await resp.json();
+
     if (data.success) {
       showMessage('Role "' + roleName + '" deleted.', 'success');
       await loadRoles();
@@ -816,67 +788,19 @@ async function deleteRole(roleId, roleName) {
       showMessage(data.error || 'Failed to delete role.', 'error');
     }
   } catch (e) {
-    // Fallback: delete locally
-    allRoles = allRoles.filter(function(r) { return r.id !== roleId; });
-    renderRoles();
-    showMessage('Role deleted locally. Deploy the worker to persist.', 'success');
+    showMessage('Network error. Please try again.', 'error');
   }
 }
 
-// ---- Open permissions modal ----
-async function openPermModal(roleId, roleName) {
+// ---- Permissions Modal ----
+function openPermModal(roleId, roleName) {
   currentEditingRoleId = roleId;
   currentEditingRoleName = roleName;
-  document.getElementById('permModalTitle').textContent = 'Edit Permissions — ' + roleName;
-  document.getElementById('permModalSubtitle').textContent = 'Check the permissions this role should have.';
-
-  // Render permission groups
-  var groups = {};
-  allPermissions.forEach(function(p) {
-    if (!groups[p.module]) groups[p.module] = [];
-    groups[p.module].push(p);
-  });
-
-  // Fetch current permissions for this role
-  var currentPerms = [];
-  try {
-    var resp = await fetch('/api/onboarding/roles/' + roleId + '/permissions');
-    var data = await resp.json();
-    if (data.success && data.permissions) {
-      currentPerms = data.permissions.map(function(p) { return p.id || p.permission_id; });
-    }
-  } catch (e) {
-    // Fallback: no current perms
-  }
-
-  var html = '';
-  var moduleOrder = ['employees', 'equipment', 'projects', 'workorders', 'inspections', 'pm', 'safety', 'reports', 'users', 'settings'];
-  var sortedModules = Object.keys(groups).sort(function(a, b) {
-    var ai = moduleOrder.indexOf(a);
-    var bi = moduleOrder.indexOf(b);
-    if (ai === -1) ai = 999;
-    if (bi === -1) bi = 999;
-    return ai - bi;
-  });
-
-  sortedModules.forEach(function(moduleName) {
-    var perms = groups[moduleName];
-    html += '<div class="rp-perm-group">';
-    html += '<div class="rp-perm-group-title">' + capitalize(moduleName) + '</div>';
-    html += '<div class="rp-perm-items">';
-    perms.forEach(function(p) {
-      var checked = currentPerms.indexOf(p.id) !== -1 ? 'checked' : '';
-      var action = p.name.split('.')[1] || 'access';
-      html += '<label class="rp-perm-item">' +
-        '<input type="checkbox" class="rp-perm-checkbox" data-perm-id="' + p.id + '" ' + checked + '>' +
-        '<span>' + capitalize(action) + '</span>' +
-        '</label>';
-    });
-    html += '</div></div>';
-  });
-
-  document.getElementById('permGroups').innerHTML = html;
+  document.getElementById('permModalTitle').textContent = 'Permissions — ' + roleName;
+  document.getElementById('permModalSubtitle').textContent = canModify ? 'Check the permissions for this role.' : 'Viewing permissions (read-only).';
   document.getElementById('permModal').classList.add('active');
+  renderPermGroups();
+  loadRolePermissions(roleId);
 }
 
 function closePermModal() {
@@ -884,43 +808,80 @@ function closePermModal() {
   currentEditingRoleId = null;
 }
 
-// ---- Save permissions for a role ----
+function renderPermGroups() {
+  var container = document.getElementById('permGroups');
+  var groups = {};
+  allPermissions.forEach(function(p) {
+    if (!groups[p.module]) groups[p.module] = [];
+    groups[p.module].push(p);
+  });
+
+  var html = Object.keys(groups).map(function(module) {
+    var items = groups[module].map(function(p) {
+      return '<label class="rp-perm-item">' +
+        '<input type="checkbox" value="' + p.id + '" data-perm-id="' + p.id + '"' + (canModify ? '' : ' disabled') + '> ' +
+        '<span>' + p.name + '</span>' +
+      '</label>';
+    }).join('');
+    return '<div class="rp-perm-group">' +
+      '<div class="rp-perm-group-title">' + module + '</div>' +
+      '<div class="rp-perm-items">' + items + '</div>' +
+    '</div>';
+  }).join('');
+
+  container.innerHTML = html;
+}
+
+async function loadRolePermissions(roleId) {
+  try {
+    var resp = await fetch('/api/onboarding/roles/' + roleId + '/permissions');
+    var data = await resp.json();
+    if (data.success && data.permissions) {
+      var ids = data.permissions.map(function(p) { return p.id; });
+      document.querySelectorAll('#permGroups input[type="checkbox"]').forEach(function(cb) {
+        cb.checked = ids.indexOf(cb.value) !== -1;
+      });
+    }
+  } catch (e) {
+    console.error('loadRolePermissions error:', e);
+  }
+}
+
 async function savePermissions() {
+  if (!canModify) return;
   if (!currentEditingRoleId) return;
 
-  var checked = [];
-  document.querySelectorAll('.rp-perm-checkbox:checked').forEach(function(cb) {
-    checked.push(cb.getAttribute('data-perm-id'));
+  var selected = [];
+  document.querySelectorAll('#permGroups input[type="checkbox"]:checked').forEach(function(cb) {
+    selected.push(cb.value);
   });
 
   try {
     var resp = await fetch('/api/onboarding/roles/' + currentEditingRoleId + '/permissions', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ permissionIds: checked })
+      body: JSON.stringify({ permissionIds: selected })
     });
     var data = await resp.json();
+
     if (data.success) {
-      showMessage('Permissions saved for "' + currentEditingRoleName + '".', 'success');
       closePermModal();
+      showMessage('Permissions saved for "' + currentEditingRoleName + '".', 'success');
       await loadRoles();
     } else {
       showMessage(data.error || 'Failed to save permissions.', 'error');
     }
   } catch (e) {
-    // Fallback: update locally
-    var role = allRoles.find(function(r) { return r.id === currentEditingRoleId; });
-    if (role) {
-      role.perm_count = checked.length;
-      renderRoles();
-    }
-    closePermModal();
-    showMessage('Permissions saved locally. Deploy the worker to persist.', 'success');
+    showMessage('Network error. Please try again.', 'error');
   }
 }
 
-// ---- Save & Continue (mark step complete) ----
+// ---- Save & Continue ----
 async function saveAndContinue() {
+  var btn = document.getElementById('saveContinueBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
   try {
     var resp = await fetch('/api/onboarding/roles-permissions/complete', {
       method: 'POST',
@@ -928,34 +889,36 @@ async function saveAndContinue() {
       body: JSON.stringify({})
     });
     var data = await resp.json();
+
     if (data.success) {
-      window.location.href = '/app/onboarding/key-personnel.html';
+      showMessage('Step marked complete!', 'success');
+      setTimeout(function() {
+        window.location.href = '/app/dashboard/onboarding-dashboard.html';
+      }, 800);
     } else {
-      // If endpoint not deployed, navigate anyway
-      window.location.href = '/app/onboarding/key-personnel.html';
+      showMessage(data.error || 'Failed to save. Please try again.', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Save & Continue →';
     }
   } catch (e) {
-    window.location.href = '/app/onboarding/key-personnel.html';
+    showMessage('Network error. Please try again.', 'error');
+    btn.disabled = false;
+    btn.textContent = 'Save & Continue →';
   }
 }
 
-// ---- Helpers ----
+// ---- Message helper ----
 function showMessage(msg, type) {
   var el = document.getElementById('rpMessage');
-  el.textContent = msg;
   el.style.display = 'block';
-  if (type === 'error') {
-    el.style.background = 'rgba(239, 68, 68, 0.1)';
-    el.style.color = '#fca5a5';
-    el.style.border = '1px solid rgba(239, 68, 68, 0.3)';
-  } else {
-    el.style.background = 'rgba(34, 197, 94, 0.1)';
-    el.style.color = '#86efac';
-    el.style.border = '1px solid rgba(34, 197, 94, 0.3)';
-  }
+  el.style.background = type === 'error' ? 'rgba(220,38,38,0.1)' : 'rgba(22,163,74,0.1)';
+  el.style.color = type === 'error' ? '#fca5a5' : '#86efac';
+  el.style.border = '1px solid ' + (type === 'error' ? 'rgba(220,38,38,0.3)' : 'rgba(22,163,74,0.3)');
+  el.textContent = msg;
   setTimeout(function() { el.style.display = 'none'; }, 5000);
 }
 
+// ---- Escape helpers ----
 function escapeHtml(str) {
   var div = document.createElement('div');
   div.textContent = str || '';
@@ -963,17 +926,18 @@ function escapeHtml(str) {
 }
 
 function escapeJs(str) {
-  return (str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  var bs = String.fromCharCode(92);
+  var sq = String.fromCharCode(39);
+  var s = str || '';
+  var result = '';
+  for (var i = 0; i < s.length; i++) {
+    var ch = s[i];
+    if (ch === bs) result += bs + bs;
+    else if (ch === sq) result += bs + sq;
+    else result += ch;
+  }
+  return result;
 }
-
-function capitalize(str) {
-  return (str || '').charAt(0).toUpperCase() + (str || '').slice(1);
-}
-
-// ---- Close modal on overlay click ----
-document.getElementById('permModal').addEventListener('click', function(e) {
-  if (e.target === this) closePermModal();
-});
 </script>
 
 </body>
