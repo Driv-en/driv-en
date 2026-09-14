@@ -297,6 +297,27 @@
     .ob-btn-primary:hover { background: var(--primary-hover); }
     .ob-btn-primary:disabled { background: var(--border); border-color: var(--border); cursor: default; opacity: 0.5; }
 
+    /* ===== MARK COMPLETE BUTTON ===== */
+    .ob-btn-complete {
+      background: #16a34a;
+      border: 1px solid #15803d;
+      color: #ffffff;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      width: fit-content;
+    }
+    .ob-btn-complete:hover { background: #15803d; }
+    .ob-btn-complete.done {
+      background: #065f46;
+      border-color: #059669;
+      color: #d1fae5;
+      cursor: default;
+    }
+    .ob-btn-complete.done:hover { background: #065f46; }
+
     /* ===== SETTINGS TAB ===== */
     .settings-section {
       background: var(--bg-card);
@@ -452,6 +473,7 @@
             <div id="status-step1" class="ob-step-status ob-admin-only">Admin Only</div>
             <div class="ob-step-body">Define roles and access levels for your organization.</div>
             <button id="btn-step1" class="ob-btn-primary">Open Roles &amp; Permissions</button>
+            <button id="btn-complete-step1" class="ob-btn-complete" onclick="markTaskComplete(1)" style="display:none;">✓ Mark Complete</button>
           </div>
 
           <!-- ===== STEP 2 — EMPLOYEES ===== -->
@@ -468,6 +490,7 @@
             <div id="status-step2" class="ob-step-status ob-ready">Ready</div>
             <div class="ob-step-body">Add all employees. Required for work orders, inspections, fuel logs, transfers, and other modules.</div>
             <button id="btn-step2" class="ob-btn-primary">Open Employees</button>
+            <button id="btn-complete-step2" class="ob-btn-complete" onclick="markTaskComplete(2)" style="display:none;">✓ Mark Complete</button>
           </div>
 
           <!-- ===== STEP 3 — LOCATIONS ===== -->
@@ -484,6 +507,7 @@
             <div id="status-step3" class="ob-step-status ob-ready">Ready</div>
             <div class="ob-step-body">Add physical locations: plants, mines, facilities, warehouses, job sites, or offices.</div>
             <button id="btn-step3" class="ob-btn-primary">Open Locations</button>
+            <button id="btn-complete-step3" class="ob-btn-complete" onclick="markTaskComplete(3)" style="display:none;">✓ Mark Complete</button>
           </div>
 
           <!-- ===== STEP 4 — CLIENTS (toggleable) ===== -->
@@ -500,6 +524,7 @@
             <div id="status-step4" class="ob-step-status ob-ready">Ready</div>
             <div class="ob-step-body">Add clients and customer organizations associated with your projects.</div>
             <button id="btn-step4" class="ob-btn-primary">Open Clients</button>
+            <button id="btn-complete-step4" class="ob-btn-complete" onclick="markTaskComplete(4)" style="display:none;">✓ Mark Complete</button>
           </div>
 
           <!-- ===== STEP 5 — DIVISIONS (toggleable) ===== -->
@@ -516,6 +541,7 @@
             <div id="status-step5" class="ob-step-status ob-ready">Ready</div>
             <div class="ob-step-body">Define internal divisions or business units used for reporting and tracking.</div>
             <button id="btn-step5" class="ob-btn-primary">Open Divisions</button>
+            <button id="btn-complete-step5" class="ob-btn-complete" onclick="markTaskComplete(5)" style="display:none;">✓ Mark Complete</button>
           </div>
 
           <!-- ===== STEP 6 — PROJECT TYPES (toggleable) ===== -->
@@ -532,6 +558,7 @@
             <div id="status-step6" class="ob-step-status ob-ready">Ready</div>
             <div class="ob-step-body">Configure project types that represent the kinds of work your organization performs.</div>
             <button id="btn-step6" class="ob-btn-primary">Open Project Types</button>
+            <button id="btn-complete-step6" class="ob-btn-complete" onclick="markTaskComplete(6)" style="display:none;">✓ Mark Complete</button>
           </div>
 
           <!-- ===== STEP 7 — PROJECTS (toggleable, requires 4,5,6) ===== -->
@@ -548,6 +575,7 @@
             <div id="status-step7" class="ob-step-status ob-locked-prereq">Prerequisites Required</div>
             <div class="ob-step-body">Add projects. <strong>Requires:</strong> Steps 4, 5, and 6 must be completed first.</div>
             <button id="btn-step7" class="ob-btn-primary" disabled>Open Projects</button>
+            <button id="btn-complete-step7" class="ob-btn-complete" onclick="markTaskComplete(7)" style="display:none;">✓ Mark Complete</button>
           </div>
 
           <!-- ===== STEP 8 — EQUIPMENT ===== -->
@@ -564,6 +592,7 @@
             <div id="status-step8" class="ob-step-status ob-locked-prereq">Prerequisites Required</div>
             <div class="ob-step-body">Add equipment and assets. <strong>Requires:</strong> Step 7 (Projects) must be completed first.</div>
             <button id="btn-step8" class="ob-btn-primary" disabled>Open Equipment</button>
+            <button id="btn-complete-step8" class="ob-btn-complete" onclick="markTaskComplete(8)" style="display:none;">✓ Mark Complete</button>
           </div>
 
         </div>
@@ -615,6 +644,10 @@
     var stepCompletion = {};
     var stepVisibility = {};
     var onboardingComplete = false;
+    // taskCompletions: { "taskName": [emails of KPs who clicked Complete] }
+    var taskCompletions = {};
+    // allKP: full list of key personnel (for multi-KP progress display)
+    var allKP = [];
 
     /* ===== STEP DEFINITIONS ===== */
     var STEP_DEFS = {
@@ -691,6 +724,169 @@
       }
     }
 
+    /* ===== TASK COMPLETION TRACKING ===== */
+    // taskCompletions is stored in localStorage as driven_task_completions:
+    // { "Employees": ["alice@co.com", "bob@co.com"], "Locations": ["alice@co.com"] }
+    // A task is 100% complete when ALL assigned KPs have clicked Complete.
+    // Admins can also click Complete — their completion counts too.
+
+    function loadTaskCompletions() {
+      try {
+        taskCompletions = JSON.parse(localStorage.getItem("driven_task_completions") || "{}");
+      } catch (e) {
+        taskCompletions = {};
+      }
+    }
+
+    function saveTaskCompletions() {
+      localStorage.setItem("driven_task_completions", JSON.stringify(taskCompletions));
+    }
+
+    // Get the list of emails assigned to a given task
+    function getAssignedEmails(taskName) {
+      var emails = [];
+      allKP.forEach(function(kp) {
+        if (kp.roles) {
+          for (var i = 0; i < kp.roles.length; i++) {
+            if (kp.roles[i].role === taskName) {
+              emails.push(kp.email.toLowerCase());
+              break;
+            }
+          }
+        }
+      });
+      return emails;
+    }
+
+    // Auto-detect completion from already-added data in localStorage
+    function autoDetectCompletion(stepNum) {
+      var def = STEP_DEFS[stepNum];
+      var key = def.name;
+      switch (key) {
+        case "roles-permissions":
+          // Complete if KP exist (from server) or roles saved locally
+          return allKP.length > 0 || !!localStorage.getItem("driven_step1_complete");
+        case "employees":
+          var empCount = parseInt(localStorage.getItem("driven_employee_count") || "0");
+          return empCount > 0 || localStorage.getItem("driven_step3_complete") === "true";
+        case "locations":
+          var locCount = parseInt(localStorage.getItem("driven_location_count") || "0");
+          return locCount > 0;
+        case "clients":
+          var cliCount = parseInt(localStorage.getItem("driven_client_count") || "0");
+          return cliCount > 0 || localStorage.getItem("driven_step4_complete") === "true";
+        case "divisions":
+          var divCount = parseInt(localStorage.getItem("driven_division_count") || "0");
+          return divCount > 0 || localStorage.getItem("driven_step5_complete") === "true";
+        case "project-types":
+          var ptCount = parseInt(localStorage.getItem("driven_project_type_count") || "0");
+          return ptCount > 0 || localStorage.getItem("driven_step6_complete") === "true";
+        case "projects":
+          var projCount = parseInt(localStorage.getItem("driven_project_count") || "0");
+          return projCount > 0 || localStorage.getItem("driven_step7_complete") === "true";
+        case "equipment":
+          var eqCount = parseInt(localStorage.getItem("driven_equipment_count") || "0");
+          return eqCount > 0 || localStorage.getItem("driven_step8_complete") === "true";
+        default:
+          return false;
+      }
+    }
+
+    // Check if a task is fully complete (all assigned KPs clicked Complete,
+    // OR data auto-detected, OR admin marked it)
+    function isTaskFullyComplete(stepNum) {
+      var def = STEP_DEFS[stepNum];
+      var taskName = def.task;
+
+      // If auto-detected data exists, count as complete
+      if (autoDetectCompletion(stepNum)) return true;
+
+      // Check per-KP completions
+      var assignedEmails = getAssignedEmails(taskName);
+      if (assignedEmails.length === 0) {
+        // No KP assigned — admin-only task; check if admin clicked Complete
+        var completions = taskCompletions[taskName] || [];
+        return completions.length > 0;
+      }
+      // All assigned KPs must have clicked Complete
+      var completions = taskCompletions[taskName] || [];
+      for (var i = 0; i < assignedEmails.length; i++) {
+        if (completions.indexOf(assignedEmails[i]) === -1) return false;
+      }
+      return true;
+    }
+
+    // Mark a task as complete for the current user
+    function markTaskComplete(stepNum) {
+      var def = STEP_DEFS[stepNum];
+      var taskName = def.task;
+      var myEmail = (currentUser && currentUser.email) ? currentUser.email.toLowerCase() : "";
+
+      if (!taskCompletions[taskName]) taskCompletions[taskName] = [];
+      if (taskCompletions[taskName].indexOf(myEmail) === -1) {
+        taskCompletions[taskName].push(myEmail);
+      }
+      saveTaskCompletions();
+
+      // Update display
+      updateStepStatus(stepNum);
+
+      // Check if all tasks are now complete
+      checkAllComplete();
+    }
+
+    // Show/hide the Complete button and update its label
+    function updateCompleteButton(stepNum) {
+      var btn = document.getElementById("btn-complete-step" + stepNum);
+      if (!btn) return;
+      var def = STEP_DEFS[stepNum];
+      var taskName = def.task;
+      var myEmail = (currentUser && currentUser.email) ? currentUser.email.toLowerCase() : "";
+
+      // Don't show if task is already fully complete via auto-detection
+      if (autoDetectCompletion(stepNum)) {
+        btn.style.display = "none";
+        return;
+      }
+
+      // Don't show if this user already clicked Complete
+      var completions = taskCompletions[taskName] || [];
+      if (completions.indexOf(myEmail) !== -1) {
+        btn.style.display = "inline-block";
+        btn.classList.add("done");
+        btn.textContent = "✓ You marked complete";
+        btn.disabled = true;
+        return;
+      }
+
+      // Show the button (user can click it)
+      btn.style.display = "inline-block";
+      btn.classList.remove("done");
+      btn.disabled = false;
+
+      // Show progress if multiple KPs assigned
+      var assignedEmails = getAssignedEmails(taskName);
+      if (assignedEmails.length > 1) {
+        var doneCount = assignedEmails.filter(function(e) {
+          return completions.indexOf(e) !== -1;
+        }).length;
+        btn.textContent = "✓ Mark Complete (" + doneCount + "/" + assignedEmails.length + " done)";
+      } else {
+        btn.textContent = "✓ Mark Complete";
+      }
+    }
+
+    // Check if all visible tasks are complete
+    function checkAllComplete() {
+      var allDone = true;
+      for (var i = 1; i <= 8; i++) {
+        if (!isStepVisible(STEP_DEFS[i].name)) continue;
+        if (!isTaskFullyComplete(i)) { allDone = false; break; }
+      }
+      // Could trigger a "all done" notification here
+      return allDone;
+    }
+
     /* ===== PREREQUISITE CHECK ===== */
     function checkPrereqs(stepNum) {
       var prereqs = STEP_DEFS[stepNum].prereqs;
@@ -708,6 +904,7 @@
     function updateStepStatus(stepNum) {
       var def = STEP_DEFS[stepNum];
       var statusId = "status-step" + stepNum;
+      var completeBtn = document.getElementById("btn-complete-step" + stepNum);
 
       // Hide step if toggled off
       if (!isStepVisible(def.name)) {
@@ -716,26 +913,11 @@
         return;
       }
 
-      // Admin-only steps
-      if (def.adminOnly) {
-        if (isAdmin) {
-          if (stepCompletion[stepNum]) {
-            setStatus(statusId, "ob-completed", "Completed");
-            setButton(stepNum, true, def.url);
-          } else {
-            setStatus(statusId, "ob-ready", "Ready");
-            setButton(stepNum, true, def.url);
-          }
-        } else {
-          setStatus(statusId, "ob-not-assigned", "Admin Only");
-          setButton(stepNum, false);
-        }
-        return;
-      }
+      var fullyComplete = isTaskFullyComplete(stepNum);
 
       // Admin (sees everything, subject to prerequisites)
       if (isAdmin) {
-        if (stepCompletion[stepNum]) {
+        if (fullyComplete) {
           setStatus(statusId, "ob-completed", "Completed");
           setButton(stepNum, true, def.url);
         } else if (def.prereqs.length > 0 && !checkPrereqs(stepNum)) {
@@ -746,6 +928,7 @@
           setStatus(statusId, "ob-ready", "Ready");
           setButton(stepNum, true, def.url);
         }
+        updateCompleteButton(stepNum);
         return;
       }
 
@@ -754,21 +937,21 @@
       if (!hasTask) {
         setStatus(statusId, "ob-not-assigned", "Not Assigned");
         setButton(stepNum, false);
+        if (completeBtn) completeBtn.style.display = "none";
         return;
       }
-      if (stepCompletion[stepNum]) {
+      if (fullyComplete) {
         setStatus(statusId, "ob-completed", "Completed");
         setButton(stepNum, true, def.url);
-        return;
-      }
-      if (def.prereqs.length > 0 && !checkPrereqs(stepNum)) {
+      } else if (def.prereqs.length > 0 && !checkPrereqs(stepNum)) {
         var prereqLabels = def.prereqs.map(function(p) { return "Step " + p; }).join(", ");
         setStatus(statusId, "ob-locked-prereq", "Requires " + prereqLabels);
         setButton(stepNum, false);
-        return;
+      } else {
+        setStatus(statusId, "ob-ready", "Ready");
+        setButton(stepNum, true, def.url);
       }
-      setStatus(statusId, "ob-ready", "Ready");
-      setButton(stepNum, true, def.url);
+      updateCompleteButton(stepNum);
     }
 
     function updateAllSteps() {
@@ -837,6 +1020,7 @@
         var data = await response.json();
 
         if (data.success && data.keyPersonnel) {
+          allKP = data.keyPersonnel;
           var myEmail = (currentUser && currentUser.email) ? currentUser.email.toLowerCase() : "";
           var myRecord = data.keyPersonnel.find(function(kp) {
             return kp.email && kp.email.toLowerCase() === myEmail;
@@ -930,6 +1114,9 @@
 
         // Load settings (step visibility + onboarding status + company info)
         await loadSettings();
+
+        // Load task completions from localStorage
+        loadTaskCompletions();
 
         // Load key personnel (refines admin vs KP, assigned tasks)
         await loadKeyPersonnel();
