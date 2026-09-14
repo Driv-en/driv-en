@@ -1064,7 +1064,6 @@ function showError(msg) {
   el.style.display = 'block';
   setTimeout(function() { el.style.display = 'none'; }, 6000);
 }
-
 // =========================================================================
 // CUSTOMERS TAB LOGIC
 // =========================================================================
@@ -1096,6 +1095,7 @@ function renderCustomerStats(customers) {
   var active = customers.filter(function(c) { return c.subscription_status === 'active'; }).length;
   var trial = customers.filter(function(c) { return c.subscription_status === 'trial' || c.subscription_status === 'trialing'; }).length;
   var pending = customers.filter(function(c) { return !c.subscription_status || c.subscription_status === 'pending' || c.subscription_status === 'inactive'; }).length;
+
   document.getElementById('custStatTotal').textContent = total;
   document.getElementById('custStatActive').textContent = active;
   document.getElementById('custStatTrial').textContent = trial;
@@ -1216,11 +1216,10 @@ async function loadSystemStatus() {
 }
 
 // =========================================================================
-// ISSUES TAB LOGIC
+// ISSUES TAB LOGIC (Error Logs)
 // =========================================================================
 
 var allIssues = [];
-var issueFilter = 'all';
 var issueExpandedId = null;
 
 async function loadIssues() {
@@ -1233,19 +1232,23 @@ async function loadIssues() {
 
     if (data.success && data.issues && data.issues.length > 0) {
       allIssues = data.issues;
+      populateSourceFilter(data.issues);
       renderIssueStats(data.issues);
       renderIssues(data.issues);
     } else if (data.success && data.issues && data.issues.length === 0) {
       allIssues = [];
+      populateSourceFilter([]);
       renderIssueStats([]);
       listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors</h3><p>No errors have been logged. Everything looks good.</p></div>';
     } else {
       allIssues = [];
+      populateSourceFilter([]);
       renderIssueStats([]);
       listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors Logged</h3><p>No errors have been recorded yet. When a Worker or Pages Function encounters an error, it will automatically appear here with full diagnostic details.</p></div>';
     }
   } catch (e) {
     allIssues = [];
+    populateSourceFilter([]);
     renderIssueStats([]);
     listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Unable to Load Error Logs</h3><p>Could not reach the /api/admin/issues endpoint. Make sure the Pages Function is deployed and D1 is bound.</p></div>';
   }
@@ -1262,15 +1265,43 @@ function renderIssueStats(issues) {
   document.getElementById('issueStatResolved').textContent = issues.filter(function(i) { return i.resolved === 1; }).length;
 }
 
-function filterIssuesByStatus(status) {
-  issueFilter = status;
-  var filterBtns = document.querySelectorAll('.issue-filter-btn');
-  for (var b = 0; b < filterBtns.length; b++) {
-    filterBtns[b].classList.remove('active');
-    if (filterBtns[b].getAttribute('data-filter') === status) {
-      filterBtns[b].classList.add('active');
-    }
+function populateSourceFilter(issues) {
+  var sel = document.getElementById('issueSourceFilter');
+  if (!sel) return;
+  var current = sel.value;
+  var sources = [];
+  issues.forEach(function(i) {
+    var s = i.source || 'unknown';
+    if (sources.indexOf(s) === -1) sources.push(s);
+  });
+  sources.sort();
+  var html = '<option value="all">All Sources</option>';
+  sources.forEach(function(s) {
+    html += '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>';
+  });
+  sel.innerHTML = html;
+  // Restore previous selection if it still exists
+  if (sources.indexOf(current) !== -1) {
+    sel.value = current;
   }
+}
+
+function getIssueStatusFilter() {
+  var sel = document.getElementById('issueStatusFilter');
+  return sel ? sel.value : 'all';
+}
+
+function clearIssueFilters() {
+  var statusSel = document.getElementById('issueStatusFilter');
+  var sourceSel = document.getElementById('issueSourceFilter');
+  var msgInput = document.getElementById('issueMsgFilter');
+  var dateFrom = document.getElementById('issueDateFrom');
+  var dateTo = document.getElementById('issueDateTo');
+  if (statusSel) statusSel.value = 'all';
+  if (sourceSel) sourceSel.value = 'all';
+  if (msgInput) msgInput.value = '';
+  if (dateFrom) dateFrom.value = '';
+  if (dateTo) dateTo.value = '';
   renderIssues(allIssues);
 }
 
@@ -1282,14 +1313,32 @@ function renderIssues(issues) {
     return;
   }
 
+  var statusFilter = getIssueStatusFilter();
+  var sourceFilterEl = document.getElementById('issueSourceFilter');
+  var sourceFilter = sourceFilterEl ? sourceFilterEl.value : 'all';
+  var msgInput = document.getElementById('issueMsgFilter');
+  var msgQuery = msgInput ? msgInput.value.toLowerCase() : '';
+  var dateFromEl = document.getElementById('issueDateFrom');
+  var dateToEl = document.getElementById('issueDateTo');
+  var dateFrom = dateFromEl && dateFromEl.value ? new Date(dateFromEl.value + 'T00:00:00').getTime() : null;
+  var dateTo = dateToEl && dateToEl.value ? new Date(dateToEl.value + 'T23:59:59').getTime() : null;
+
   var filtered = issues.filter(function(i) {
-    if (issueFilter === 'open') return i.resolved !== 1;
-    if (issueFilter === 'resolved') return i.resolved === 1;
+    if (statusFilter === 'open' && i.resolved === 1) return false;
+    if (statusFilter === 'resolved' && i.resolved !== 1) return false;
+    if (sourceFilter !== 'all' && (i.source || 'unknown') !== sourceFilter) return false;
+    if (msgQuery && ((i.error_message || '').toLowerCase().indexOf(msgQuery) === -1)) return false;
+    if (dateFrom || dateTo) {
+      var t = i.created_at ? new Date(i.created_at).getTime() : null;
+      if (!t) return false;
+      if (dateFrom && t < dateFrom) return false;
+      if (dateTo && t > dateTo) return false;
+    }
     return true;
   });
 
   if (filtered.length === 0) {
-    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No ' + (issueFilter === 'open' ? 'Open' : 'Resolved') + ' Errors</h3><p>No errors match this filter.</p></div>';
+    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors Match Filters</h3><p>No errors match the current filter settings. Adjust or clear the filters.</p></div>';
     return;
   }
 
@@ -1438,19 +1487,6 @@ function fallbackCopy(text, btn) {
     alert('Could not copy automatically. Here is the error text:\n\n' + text);
   }
   document.body.removeChild(ta);
-}
-
-function filterIssues() {
-  var query = document.getElementById('issueSearchInput').value.toLowerCase();
-  var rows = document.querySelectorAll('#issueList .issue-row');
-  rows.forEach(function(row) {
-    var searchText = (row.textContent || '').toLowerCase();
-    row.style.display = searchText.indexOf(query) !== -1 ? '' : 'none';
-    var next = row.nextElementSibling;
-    if (next && next.classList.contains('issue-detail-row')) {
-      next.style.display = row.style.display;
-    }
-  });
 }
 
 async function resolveIssue(id, resolved) {
