@@ -51,9 +51,12 @@
     // (e.g., "Return to Admin Dashboard") that should only appear
     // for admins. Key Personnel should not see admin navigation.
     var userRole = (data.user && data.user.role) ? String(data.user.role) : "";
-    // Case-insensitive admin check — handles "Admin", "admin", "ADMIN"
+    // Case-insensitive admin check — handles "Admin", "admin", "ADMIN",
+    // "Administrator", "administrator", and "DRIV-EN Founder" (platform-level admin).
     // Also handles null/undefined role (treats as non-admin)
-    if (userRole.toLowerCase() !== "admin") {
+    var isAdminRole = ["admin", "administrator"].indexOf(userRole.toLowerCase()) !== -1 ||
+                      userRole.toLowerCase().indexOf("founder") !== -1;
+    if (!isAdminRole) {
       document.querySelectorAll(".driven-admin-only").forEach(function(el) {
         el.style.display = "none";
       });
@@ -62,7 +65,7 @@
     // Check if this page requires a specific role
     var requiredRole = document.body.getAttribute("data-required-role");
     if (requiredRole) {
-      if (userRole.toLowerCase() !== requiredRole.toLowerCase()) {
+      if (!isAdminRole && userRole.toLowerCase() !== requiredRole.toLowerCase()) {
         // User doesn't have the required role — redirect to no-access page
         window.location.href = "/public/no-access.html";
         return;
@@ -74,7 +77,7 @@
     var requiredTask = document.body.getAttribute("data-required-task");
     if (requiredTask) {
       // Admins can access any page (case-insensitive check)
-      if (userRole.toLowerCase() !== "admin") {
+      if (!isAdminRole) {
         // Non-admin: check if they're assigned this task
         var hasTask = await checkUserAssignedTask(data.user, requiredTask);
         if (!hasTask) {
