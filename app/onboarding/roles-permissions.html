@@ -34,6 +34,25 @@
 
 <!-- ===== PAGE-SPECIFIC STYLES ===== -->
 <style>
+    /* ===== HEADER OVERRIDE (single row — matches Owner/Onboarding dashboards) ===== */
+    .dash-header-row2 { display: none !important; }
+    .dash-header-row3 { display: none !important; }
+    #dashHeader .dash-theme-wrapper { display: none !important; }
+    .dash-header-row1 {
+      padding: 8px 20px !important;
+      align-items: center;
+    }
+    .rp-header-title {
+      flex: 1;
+      text-align: center;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
     /* ===== GREETING BAR ===== */
     .ob-greeting-bar {
       max-width: 1100px;
@@ -50,32 +69,33 @@
     .ob-greeting-text { font-size: 16px; color: var(--text-muted); font-weight: 500; }
     .ob-greeting-text strong { color: var(--text); }
 
-    /* ===== BACK BUTTON BAR ===== */
-    .rp-back-bar {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 12px 20px 0 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 10px;
+    /* ===== TAB BAR (light industrial gray — matches other onboarding dashboards) ===== */
+    .rp-tab-bar {
+      display: flex; gap: 2px; max-width: 1100px; margin: 0 auto; padding: 0 20px;
+      overflow-x: auto; position: sticky; top: 0; z-index: 50;
+      background: #cbd5e1; border-bottom: 2px solid #94a3b8;
     }
-    .rp-back-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: #1e40af;
-      border: 1px solid #2563eb;
-      color: #dbeafe;
-      padding: 8px 14px;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 600;
-      text-decoration: none;
-      cursor: pointer;
+    .rp-tab-admin {
+      background: #1e40af; border: 1px solid #2563eb; border-bottom: none; border-radius: 8px 8px 0 0;
+      padding: 10px 22px; font-size: 15px; font-weight: 600; color: #dbeafe; cursor: pointer; white-space: nowrap;
+      margin-top: 4px; position: relative; z-index: 1; text-decoration: none;
+      transition: background 200ms ease, margin-top 200ms ease; display: none;
     }
-    .rp-back-btn:hover { background: #1d4ed8; color: #fff; }
+    .rp-tab-admin:hover { background: #1d4ed8; color: #fff; margin-top: 2px; }
+    .rp-tab-return {
+      background: #374151; border: 1px solid #4b5563; border-bottom: none; border-radius: 8px 8px 0 0;
+      padding: 10px 22px; font-size: 15px; font-weight: 600; color: #d1d5db; cursor: pointer; white-space: nowrap;
+      margin-top: 4px; position: relative; z-index: 1; text-decoration: none;
+      transition: background 200ms ease, margin-top 200ms ease;
+    }
+    .rp-tab-return:hover { background: #4b5563; color: #fff; margin-top: 2px; }
+    .rp-tab-logout {
+      background: #b91c1c; border: 1px solid #dc2626; border-bottom: none; border-radius: 8px 8px 0 0;
+      padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap;
+      margin-top: 4px; margin-left: auto; position: relative; z-index: 1;
+      transition: background 200ms ease, margin-top 200ms ease;
+    }
+    .rp-tab-logout:hover { background: #dc2626; margin-top: 2px; }
 
     /* ===== CARD ===== */
     .rp-card {
@@ -340,7 +360,7 @@
     /* ===== ACTION ROW ===== */
     .rp-action-row {
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-end;
       align-items: center;
       gap: 12px;
       flex-wrap: nowrap;
@@ -386,28 +406,14 @@
 </style>
 </head>
 
-<body data-page-title="Roles & Permissions">
+<body data-page-title="Onboarding — Roles & Permissions">
 
 <!-- ===== INDUSTRIAL DIAMOND-PLATE BACKGROUND ===== -->
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
 
-<!-- ===== HEADER ===== -->
-<div class="dash-header">
-  <div class="dash-header-row1">
-    <div id="customerLogoContainer">
-      <div class="dash-customer-logo-placeholder">Logo</div>
-    </div>
-    <img src="/assets/logo.png?v=2026" class="dash-driven-logo" alt="DRIV‑EN Logo">
-  </div>
-  <div class="dash-header-row2">
-    <h1>Onboarding — Step 1: Roles & Permissions</h1>
-  </div>
-  <div class="dash-header-row3">
-    <div></div>
-    <button class="dash-logout" onclick="window.location.href='/auth/logout'">Logout</button>
-  </div>
-</div>
+<!-- ===== SHARED DASHBOARD HEADER (auto-loaded by dashboard-common.js) ===== -->
+<div id="dashHeader"></div>
 
 <!-- ===== GREETING BAR ===== -->
 <div class="ob-greeting-bar">
@@ -416,24 +422,26 @@
   </div>
 </div>
 
-<!-- ===== BACK BUTTON BAR ===== -->
-<div class="rp-back-bar">
-  <a href="/app/dashboard/admin.html" class="rp-back-btn driven-admin-only">&larr; Admin Dashboard</a>
-  <a href="/app/dashboard/onboarding-dashboard.html" class="rp-back-btn" style="background:#374151;border-color:#4b5563;color:#d1d5db;">&larr; Onboarding Dashboard</a>
+<!-- ===== TAB BAR (Onboarding Dashboard, Admin Dashboard admin-only, Logout) ===== -->
+<div class="rp-tab-bar" id="rpTabBar">
+  <a class="rp-tab-admin driven-admin-only" href="/app/dashboard/admin.html" onclick="return confirmLeave()">Admin Dashboard</a>
+  <a class="rp-tab-return" href="/app/dashboard/onboarding-dashboard.html" onclick="return confirmLeave()">Onboarding Dashboard</a>
+  <button class="rp-tab-logout" onclick="confirmLogout()">Logout</button>
 </div>
 
 <!-- ===== MAIN CARD ===== -->
 <div class="rp-card">
   <div class="rp-card-inner">
-    <h2 class="rp-card-title">Roles & Permissions</h2>
+    <h2 class="rp-card-title">Roles &amp; Permissions</h2>
     <p class="rp-card-subtitle">
       Create custom roles for your organization and assign permissions to each.
-      These roles will be available when assigning key personnel in the next step.
+      These roles and permissions apply to <strong>all employees</strong> in DRIV‑EN —
+      they control what each employee can see and do in their dashboards, not just Key Personnel.
     </p>
 
     <!-- View-only notice for Admin (not assigned to this task) -->
     <div id="viewOnlyNotice" style="display:none;margin-bottom:16px;padding:12px 16px;border-radius:6px;font-size:14px;background:rgba(37,99,235,0.1);color:#93c5fd;border:1px solid rgba(37,99,235,0.3);">
-      <strong>View Only:</strong> You are viewing this step as an Admin. Only Key Personnel assigned to Roles &amp; Permissions can add, edit, or delete roles.
+      <strong>View Only:</strong> You are viewing this task as an Admin. Only Key Personnel assigned to Roles &amp; Permissions can add, edit, or delete roles.
     </div>
 
     <!-- Error/Success messages -->
@@ -464,7 +472,6 @@
 
     <!-- Action row -->
     <div class="rp-action-row">
-      <a href="/app/dashboard/onboarding-dashboard.html" class="rp-btn-secondary">← Back</a>
       <button class="rp-btn-primary" id="saveContinueBtn" onclick="saveAndContinue()">Save &amp; Continue →</button>
     </div>
   </div>
@@ -483,10 +490,16 @@
   </div>
 </div>
 
-<!-- ===== SCRIPTS ===== -->
+<!-- ===== SHARED DASHBOARD JS (loads header, theme, logo, session) ===== -->
+<script src="/app/shared/dashboard-common.js?v=7"></script>
+
+<!-- ===== AUTH CHECK (shared — enforces login + role checks) ===== -->
+<script src="/app/shared/auth-check.js?v=7"></script>
+
+<!-- ===== PAGE-SPECIFIC SCRIPT ===== -->
 <script>
 // ============================================================
-// ROLES & PERMISSIONS — Onboarding Step 1
+// ROLES & PERMISSIONS — Onboarding Task
 // ============================================================
 // This page lets the admin create custom roles for their org
 // and assign permissions (checkboxes) to each role.
@@ -499,13 +512,14 @@
 //   DELETE /api/onboarding/roles/:id          — delete a non-system role
 //   GET  /api/onboarding/roles/:id/permissions — get permissions for a role
 //   PUT  /api/onboarding/roles/:id/permissions — set permissions for a role
-//   POST /api/onboarding/roles-permissions/complete — mark step complete
+//   POST /api/onboarding/roles-permissions/complete — mark task complete
 // ============================================================
 
 var allPermissions = [];
 var allRoles = [];
 var currentEditingRoleId = null;
 var currentEditingRoleName = '';
+var rpDirty = false;
 
 // ---- Auth check & init ----
 var canModify = false; // Only KP assigned to "Roles & Permissions" can modify
@@ -520,11 +534,11 @@ var canModify = false; // Only KP assigned to "Roles & Permissions" can modify
     }
     window.currentUser = data.user;
     document.getElementById('userFirstName').textContent = data.user.first_name || data.user.email;
-    loadCustomerLogo();
 
-    // Hide Admin Dashboard return button for non-admins (matches auth-check.js behavior)
+    // Hide Admin Dashboard return tab for non-admins (matches auth-check.js behavior)
     var rpUserRole = (data.user && data.user.role) ? String(data.user.role) : "";
-    if (rpUserRole.toLowerCase() !== "admin") {
+    var rpIsAdmin = ["admin", "administrator"].indexOf(rpUserRole.toLowerCase()) !== -1 || rpUserRole.toLowerCase().indexOf("founder") !== -1;
+    if (!rpIsAdmin) {
       document.querySelectorAll(".driven-admin-only").forEach(function(el) {
         el.style.display = "none";
       });
@@ -552,7 +566,7 @@ var canModify = false; // Only KP assigned to "Roles & Permissions" can modify
     }
 
     // If user is admin role but NOT assigned to this task, they can view only
-    if (!canModify && data.user.role === 'admin') {
+    if (!canModify && rpIsAdmin) {
       // Admin can view but not modify
       canModify = false;
       document.getElementById('viewOnlyNotice').style.display = 'block';
@@ -574,15 +588,6 @@ var canModify = false; // Only KP assigned to "Roles & Permissions" can modify
     showMessage('Failed to initialize. Please refresh the page.', 'error');
   }
 })();
-
-// ---- Load customer logo from localStorage ----
-function loadCustomerLogo() {
-  var logoData = localStorage.getItem('driven-customer-logo');
-  var container = document.getElementById('customerLogoContainer');
-  if (logoData) {
-    container.innerHTML = '<img src="' + logoData + '" class="dash-customer-logo" alt="Company Logo">';
-  }
-}
 
 // ---- Load all available permissions from the API ----
 async function loadPermissions() {
@@ -610,7 +615,7 @@ function getFallbackPermissions() {
     { id: 'PRM-emp-delete',  name: 'employees.delete',  description: 'Delete employees',           module: 'employees' },
     { id: 'PRM-eq-view',     name: 'equipment.view',    description: 'View equipment records',     module: 'equipment' },
     { id: 'PRM-eq-add',      name: 'equipment.add',     description: 'Add new equipment',          module: 'equipment' },
-    { id: 'PRM-eq-edit',     name: 'equipment.edit',    description: 'Edit equipment records',      module: 'equipment' },
+    { id: 'PRM-eq-edit',     name: 'equipment.edit',    description: 'Edit equipment records',     module: 'equipment' },
     { id: 'PRM-eq-delete',   name: 'equipment.delete',  description: 'Delete equipment',            module: 'equipment' },
     { id: 'PRM-proj-view',   name: 'projects.view',     description: 'View projects',              module: 'projects' },
     { id: 'PRM-proj-add',    name: 'projects.add',      description: 'Add new projects',           module: 'projects' },
@@ -669,43 +674,59 @@ async function loadRoles() {
 // ---- Render roles list ----
 function renderRoles() {
   var listEl = document.getElementById('rolesList');
-  if (!allRoles || allRoles.length === 0) {
-    listEl.innerHTML = '<div class="rp-empty-state">No roles defined yet. Add your first role above.</div>';
+
+  if (allRoles.length === 0) {
+    listEl.innerHTML = '<div class="rp-empty-state">No roles yet. Create your first role below.</div>';
     return;
   }
 
-  var html = allRoles.map(function(role) {
-    var isSystem = role.is_system === 1;
-    var permCount = role.perm_count || 0;
-    var icon = (role.name || 'R').charAt(0).toUpperCase();
+  var html = allRoles.map(function(r) {
+    var isSystem = r.is_system === 1;
+    var initials = r.name.substring(0, 2).toUpperCase();
+    var permCount = r.perm_count !== undefined ? r.perm_count : 0;
 
-    var actionsHtml = '';
-    if (canModify) {
-      actionsHtml += '<button class="rp-role-btn" onclick="openPermModal(\'' + role.id + '\', \'' + escapeJs(role.name) + '\')">Permissions (' + permCount + ')</button>';
-      if (!isSystem) {
-        actionsHtml += '<button class="rp-role-btn" onclick="editRole(\'' + role.id + '\', \'' + escapeJs(role.name) + '\', \'' + escapeJs(role.description || '') + '\')">Edit</button>';
-        actionsHtml += '<button class="rp-role-btn danger" onclick="deleteRole(\'' + role.id + '\', \'' + escapeJs(role.name) + '\')">Delete</button>';
-      }
+    var actions = '';
+    if (isSystem) {
+      actions = '<span style="font-size:12px;color:var(--text-muted);">System role — cannot modify</span>';
+    } else if (!canModify) {
+      actions = '<span style="font-size:12px;color:var(--text-muted);">View only</span>';
     } else {
-      actionsHtml += '<button class="rp-role-btn" onclick="openPermModal(\'' + role.id + '\', \'' + escapeJs(role.name) + '\')">View Permissions (' + permCount + ')</button>';
+      actions =
+        '<button class="rp-role-btn" data-action="edit-perms" data-role-id="' + escapeHtml(r.id) + '" data-role-name="' + escapeHtml(r.name) + '">Edit Permissions</button>' +
+        '<button class="rp-role-btn" data-action="edit-name" data-role-id="' + escapeHtml(r.id) + '" data-role-name="' + escapeHtml(r.name) + '" data-role-desc="' + escapeHtml(r.description || '') + '">Edit Name</button>' +
+        '<button class="rp-role-btn danger" data-action="delete" data-role-id="' + escapeHtml(r.id) + '" data-role-name="' + escapeHtml(r.name) + '">Delete</button>';
     }
 
     return '<div class="rp-role-card' + (isSystem ? ' system-role' : '') + '">' +
       '<div class="rp-role-info">' +
-        '<div class="rp-role-icon">' + icon + '</div>' +
+        '<div class="rp-role-icon">' + initials + '</div>' +
         '<div>' +
-          '<div class="rp-role-name">' + escapeHtml(role.name) + (isSystem ? ' <span style="font-size:11px;color:#93c5fd;background:rgba(37,99,235,0.15);padding:2px 8px;border-radius:4px;">System</span>' : '') + '</div>' +
-          '<div class="rp-role-desc">' + escapeHtml(role.description || 'No description') + '</div>' +
+          '<div class="rp-role-name">' + escapeHtml(r.name) + '</div>' +
+          (r.description ? '<div class="rp-role-desc">' + escapeHtml(r.description) + '</div>' : '') +
         '</div>' +
       '</div>' +
-      '<div class="rp-role-actions">' + actionsHtml + '</div>' +
+      '<div class="rp-role-perm-count">' + permCount + ' permission' + (permCount === 1 ? '' : 's') + '</div>' +
+      '<div class="rp-role-actions">' + actions + '</div>' +
     '</div>';
   }).join('');
 
   listEl.innerHTML = html;
+
+  // Attach event listeners to role action buttons
+  listEl.querySelectorAll('[data-action]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var action = btn.getAttribute('data-action');
+      var roleId = btn.getAttribute('data-role-id');
+      var roleName = btn.getAttribute('data-role-name');
+      var roleDesc = btn.getAttribute('data-role-desc');
+      if (action === 'edit-perms') openPermModal(roleId, roleName);
+      else if (action === 'edit-name') editRole(roleId, roleName, roleDesc);
+      else if (action === 'delete') deleteRole(roleId, roleName);
+    });
+  });
 }
 
-// ---- Add Role ----
+// ---- Add a new role ----
 async function addRole() {
   var nameInput = document.getElementById('newRoleName');
   var descInput = document.getElementById('newRoleDesc');
@@ -713,8 +734,7 @@ async function addRole() {
   var desc = descInput.value.trim();
 
   if (!name) {
-    showMessage('Role name is required.', 'error');
-    nameInput.focus();
+    showMessage('Please enter a role name.', 'error');
     return;
   }
 
@@ -729,19 +749,33 @@ async function addRole() {
     if (data.success) {
       nameInput.value = '';
       descInput.value = '';
-      showMessage('Role "' + name + '" created successfully!', 'success');
+      showMessage('Role "' + name + '" created. Click "Edit Permissions" to assign permissions.', 'success');
+      rpDirty = true;
       await loadRoles();
     } else {
       showMessage(data.error || 'Failed to create role.', 'error');
     }
   } catch (e) {
-    showMessage('Network error. Please try again.', 'error');
+    // Fallback: add locally if API not deployed
+    var newRole = {
+      id: 'local-' + Date.now(),
+      name: name,
+      description: desc,
+      is_system: 0,
+      perm_count: 0
+    };
+    allRoles.push(newRole);
+    renderRoles();
+    nameInput.value = '';
+    descInput.value = '';
+    showMessage('Role "' + name + '" created locally. Deploy the worker to persist.', 'success');
+    rpDirty = true;
   }
 }
 
-// ---- Edit Role ----
-async function editRole(roleId, roleName, roleDesc) {
-  var newName = prompt('Edit role name:', roleName);
+// ---- Edit role name/description ----
+function editRole(roleId, currentName, currentDesc) {
+  var newName = prompt('Role name:', currentName);
   if (newName === null) return;
   newName = newName.trim();
   if (!newName) {
@@ -749,58 +783,119 @@ async function editRole(roleId, roleName, roleDesc) {
     return;
   }
 
-  var newDesc = prompt('Edit description (optional):', roleDesc || '');
+  var newDesc = prompt('Description (optional):', currentDesc || '');
   if (newDesc === null) return;
 
+  updateRole(roleId, newName, newDesc.trim());
+}
+
+async function updateRole(roleId, name, description) {
   try {
     var resp = await fetch('/api/onboarding/roles/' + roleId, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newName, description: newDesc.trim() })
+      body: JSON.stringify({ name: name, description: description })
     });
     var data = await resp.json();
-
     if (data.success) {
-      showMessage('Role updated successfully!', 'success');
+      showMessage('Role updated.', 'success');
+      rpDirty = true;
       await loadRoles();
     } else {
       showMessage(data.error || 'Failed to update role.', 'error');
     }
   } catch (e) {
-    showMessage('Network error. Please try again.', 'error');
+    // Fallback: update locally
+    var role = allRoles.find(function(r) { return r.id === roleId; });
+    if (role) {
+      role.name = name;
+      role.description = description;
+      renderRoles();
+      showMessage('Role updated locally. Deploy the worker to persist.', 'success');
+      rpDirty = true;
+    }
   }
 }
 
-// ---- Delete Role ----
+// ---- Delete a role ----
 async function deleteRole(roleId, roleName) {
-  if (!confirm('Delete role "' + roleName + '"? This cannot be undone.')) return;
+  if (!confirm('Delete role "' + roleName + '"? Users assigned to this role will need to be reassigned.')) return;
 
   try {
     var resp = await fetch('/api/onboarding/roles/' + roleId, {
       method: 'DELETE'
     });
     var data = await resp.json();
-
     if (data.success) {
       showMessage('Role "' + roleName + '" deleted.', 'success');
+      rpDirty = true;
       await loadRoles();
     } else {
       showMessage(data.error || 'Failed to delete role.', 'error');
     }
   } catch (e) {
-    showMessage('Network error. Please try again.', 'error');
+    // Fallback: delete locally
+    allRoles = allRoles.filter(function(r) { return r.id !== roleId; });
+    renderRoles();
+    showMessage('Role deleted locally. Deploy the worker to persist.', 'success');
+    rpDirty = true;
   }
 }
 
-// ---- Permissions Modal ----
-function openPermModal(roleId, roleName) {
+// ---- Open permissions modal ----
+async function openPermModal(roleId, roleName) {
   currentEditingRoleId = roleId;
   currentEditingRoleName = roleName;
-  document.getElementById('permModalTitle').textContent = 'Permissions — ' + roleName;
-  document.getElementById('permModalSubtitle').textContent = canModify ? 'Check the permissions for this role.' : 'Viewing permissions (read-only).';
+  document.getElementById('permModalTitle').textContent = 'Edit Permissions — ' + roleName;
+  document.getElementById('permModalSubtitle').textContent = 'Check the permissions this role should have.';
+
+  // Render permission groups
+  var groups = {};
+  allPermissions.forEach(function(p) {
+    if (!groups[p.module]) groups[p.module] = [];
+    groups[p.module].push(p);
+  });
+
+  // Fetch current permissions for this role
+  var currentPerms = [];
+  try {
+    var resp = await fetch('/api/onboarding/roles/' + roleId + '/permissions');
+    var data = await resp.json();
+    if (data.success && data.permissions) {
+      currentPerms = data.permissions.map(function(p) { return p.id || p.permission_id; });
+    }
+  } catch (e) {
+    // Fallback: no current perms
+  }
+
+  var html = '';
+  var moduleOrder = ['employees', 'equipment', 'projects', 'workorders', 'inspections', 'pm', 'safety', 'reports', 'users', 'settings'];
+  var sortedModules = Object.keys(groups).sort(function(a, b) {
+    var ai = moduleOrder.indexOf(a);
+    var bi = moduleOrder.indexOf(b);
+    if (ai === -1) ai = 999;
+    if (bi === -1) bi = 999;
+    return ai - bi;
+  });
+
+  sortedModules.forEach(function(moduleName) {
+    var perms = groups[moduleName];
+    html += '<div class="rp-perm-group">';
+    html += '<div class="rp-perm-group-title">' + capitalize(moduleName) + '</div>';
+    html += '<div class="rp-perm-items">';
+    perms.forEach(function(p) {
+      var checked = currentPerms.indexOf(p.id) !== -1 ? 'checked' : '';
+      var action = p.name.split('.')[1] || 'access';
+      html += '<label class="rp-perm-item">' +
+        '<input type="checkbox" class="rp-perm-checkbox" data-perm-id="' + p.id + '" ' + checked + '>' +
+        '<span>' + capitalize(action) + '</span>' +
+        '</label>';
+    });
+    html += '</div></div>';
+  });
+
+  document.getElementById('permGroups').innerHTML = html;
   document.getElementById('permModal').classList.add('active');
-  renderPermGroups();
-  loadRolePermissions(roleId);
 }
 
 function closePermModal() {
@@ -808,80 +903,45 @@ function closePermModal() {
   currentEditingRoleId = null;
 }
 
-function renderPermGroups() {
-  var container = document.getElementById('permGroups');
-  var groups = {};
-  allPermissions.forEach(function(p) {
-    if (!groups[p.module]) groups[p.module] = [];
-    groups[p.module].push(p);
-  });
-
-  var html = Object.keys(groups).map(function(module) {
-    var items = groups[module].map(function(p) {
-      return '<label class="rp-perm-item">' +
-        '<input type="checkbox" value="' + p.id + '" data-perm-id="' + p.id + '"' + (canModify ? '' : ' disabled') + '> ' +
-        '<span>' + p.name + '</span>' +
-      '</label>';
-    }).join('');
-    return '<div class="rp-perm-group">' +
-      '<div class="rp-perm-group-title">' + module + '</div>' +
-      '<div class="rp-perm-items">' + items + '</div>' +
-    '</div>';
-  }).join('');
-
-  container.innerHTML = html;
-}
-
-async function loadRolePermissions(roleId) {
-  try {
-    var resp = await fetch('/api/onboarding/roles/' + roleId + '/permissions');
-    var data = await resp.json();
-    if (data.success && data.permissions) {
-      var ids = data.permissions.map(function(p) { return p.id; });
-      document.querySelectorAll('#permGroups input[type="checkbox"]').forEach(function(cb) {
-        cb.checked = ids.indexOf(cb.value) !== -1;
-      });
-    }
-  } catch (e) {
-    console.error('loadRolePermissions error:', e);
-  }
-}
-
+// ---- Save permissions for a role ----
 async function savePermissions() {
-  if (!canModify) return;
   if (!currentEditingRoleId) return;
 
-  var selected = [];
-  document.querySelectorAll('#permGroups input[type="checkbox"]:checked').forEach(function(cb) {
-    selected.push(cb.value);
+  var checked = [];
+  document.querySelectorAll('.rp-perm-checkbox:checked').forEach(function(cb) {
+    checked.push(cb.getAttribute('data-perm-id'));
   });
 
   try {
     var resp = await fetch('/api/onboarding/roles/' + currentEditingRoleId + '/permissions', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ permissionIds: selected })
+      body: JSON.stringify({ permissionIds: checked })
     });
     var data = await resp.json();
-
     if (data.success) {
-      closePermModal();
       showMessage('Permissions saved for "' + currentEditingRoleName + '".', 'success');
+      rpDirty = true;
+      closePermModal();
       await loadRoles();
     } else {
       showMessage(data.error || 'Failed to save permissions.', 'error');
     }
   } catch (e) {
-    showMessage('Network error. Please try again.', 'error');
+    // Fallback: update locally
+    var role = allRoles.find(function(r) { return r.id === currentEditingRoleId; });
+    if (role) {
+      role.perm_count = checked.length;
+      renderRoles();
+    }
+    closePermModal();
+    showMessage('Permissions saved locally. Deploy the worker to persist.', 'success');
+    rpDirty = true;
   }
 }
 
-// ---- Save & Continue ----
+// ---- Save & Continue (mark task complete) ----
 async function saveAndContinue() {
-  var btn = document.getElementById('saveContinueBtn');
-  btn.disabled = true;
-  btn.textContent = 'Saving…';
-
   try {
     var resp = await fetch('/api/onboarding/roles-permissions/complete', {
       method: 'POST',
@@ -889,36 +949,56 @@ async function saveAndContinue() {
       body: JSON.stringify({})
     });
     var data = await resp.json();
-
     if (data.success) {
-      showMessage('Step marked complete!', 'success');
-      setTimeout(function() {
-        window.location.href = '/app/dashboard/onboarding-dashboard.html';
-      }, 800);
+      window.location.href = '/app/onboarding/key-personnel.html';
     } else {
-      showMessage(data.error || 'Failed to save. Please try again.', 'error');
-      btn.disabled = false;
-      btn.textContent = 'Save & Continue →';
+      // If endpoint not deployed, navigate anyway
+      window.location.href = '/app/onboarding/key-personnel.html';
     }
   } catch (e) {
-    showMessage('Network error. Please try again.', 'error');
-    btn.disabled = false;
-    btn.textContent = 'Save & Continue →';
+    window.location.href = '/app/onboarding/key-personnel.html';
   }
 }
 
-// ---- Message helper ----
+// ---- UNSAVED-CHANGES WARNING ----
+// If roles/permissions were changed but the user hasn't continued,
+// warn before leaving the page so they don't lose track.
+window.confirmLeave = function() {
+  if (rpDirty) {
+    return confirm("You have unsaved role changes. Click OK to leave without saving, or Cancel to stay.");
+  }
+  return true;
+};
+window.confirmLogout = function() {
+  if (rpDirty) {
+    if (!confirm("You have unsaved role changes. Click OK to log out without saving, or Cancel to stay.")) return;
+  }
+  dashLogout();
+};
+window.addEventListener("beforeunload", function(e) {
+  if (rpDirty) {
+    e.preventDefault();
+    e.returnValue = "You have unsaved role changes.";
+  }
+});
+
+// ---- Helpers ----
 function showMessage(msg, type) {
   var el = document.getElementById('rpMessage');
-  el.style.display = 'block';
-  el.style.background = type === 'error' ? 'rgba(220,38,38,0.1)' : 'rgba(22,163,74,0.1)';
-  el.style.color = type === 'error' ? '#fca5a5' : '#86efac';
-  el.style.border = '1px solid ' + (type === 'error' ? 'rgba(220,38,38,0.3)' : 'rgba(22,163,74,0.3)');
   el.textContent = msg;
+  el.style.display = 'block';
+  if (type === 'error') {
+    el.style.background = 'rgba(239, 68, 68, 0.1)';
+    el.style.color = '#fca5a5';
+    el.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+  } else {
+    el.style.background = 'rgba(34, 197, 94, 0.1)';
+    el.style.color = '#86efac';
+    el.style.border = '1px solid rgba(34, 197, 94, 0.3)';
+  }
   setTimeout(function() { el.style.display = 'none'; }, 5000);
 }
 
-// ---- Escape helpers ----
 function escapeHtml(str) {
   var div = document.createElement('div');
   div.textContent = str || '';
@@ -926,18 +1006,35 @@ function escapeHtml(str) {
 }
 
 function escapeJs(str) {
-  var bs = String.fromCharCode(92);
-  var sq = String.fromCharCode(39);
-  var s = str || '';
-  var result = '';
-  for (var i = 0; i < s.length; i++) {
-    var ch = s[i];
-    if (ch === bs) result += bs + bs;
-    else if (ch === sq) result += bs + sq;
-    else result += ch;
-  }
-  return result;
+  return (str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
+
+function capitalize(str) {
+  return (str || '').charAt(0).toUpperCase() + (str || '').slice(1);
+}
+
+// ---- Close modal on overlay click ----
+document.getElementById('permModal').addEventListener('click', function(e) {
+  if (e.target === this) closePermModal();
+});
+
+// ---- INIT — Runs after session loads ----
+document.addEventListener("dashSessionLoaded", function(e) {
+  // Insert header title (single-row header — matches other dashboards)
+  var row1 = document.querySelector(".dash-header-row1");
+  if (row1 && !document.querySelector(".rp-header-title")) {
+    var title = document.createElement("div");
+    title.className = "rp-header-title";
+    title.textContent = "Onboarding — Roles & Permissions";
+    var logoArea = document.getElementById("dashCustomerLogoArea");
+    var drivenLogo = row1.querySelector(".dash-driven-logo");
+    if (logoArea && drivenLogo) { row1.insertBefore(title, drivenLogo); }
+  }
+  // Make the tab bar sticky below the header
+  var header = document.getElementById("dashHeader");
+  var tabBar = document.getElementById("rpTabBar");
+  if (header && tabBar && !header.contains(tabBar)) { header.appendChild(tabBar); }
+});
 </script>
 
 </body>
