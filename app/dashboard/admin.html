@@ -691,6 +691,33 @@
     }
     .reopen-onboarding-btn:hover { background: var(--primary); color: #fff; }
 
+    /* ===== 100% COMPLETE PANEL ===== */
+    .onboarding-complete-panel {
+      display: none;
+      background: #f0fdf4;
+      border: 2px solid #16a34a;
+      border-radius: 10px;
+      padding: 24px;
+      margin-top: 16px;
+    }
+    .onboarding-complete-panel.show { display: block; }
+    .onboarding-complete-panel h3 { margin: 0 0 8px 0; font-size: 18px; color: #15803d; }
+    .onboarding-complete-panel p { margin: 0 0 12px 0; font-size: 14px; color: var(--text); line-height: 1.6; }
+    .onboarding-complete-panel .complete-note { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+    .finalize-onboarding-btn {
+      background: #16a34a;
+      border: 1px solid #15803d;
+      color: #fff;
+      padding: 14px 28px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-block;
+    }
+    .finalize-onboarding-btn:hover { background: #15803d; }
+    .finalize-onboarding-btn:disabled { background: #94a3b8; border-color: #94a3b8; cursor: not-allowed; }
+
     /* ===== CONFIRMATION MODAL ===== */
     .confirm-modal {
       display: none;
@@ -979,7 +1006,7 @@
                 <input type="text" id="naicsInput" placeholder="e.g., 236220 (Commercial Building Construction)" maxlength="6" onchange="onNaicsChange()">
                 <button class="settings-save-btn" id="saveNaicsBtn" onclick="saveSettings()">Save</button>
               </div>
-              <div class="settings-hint">The North American Industry Classification System code for your business. Used for reporting and compliance.</div>
+              <div class="settings-hint">The North American Industry Classification System code for your business. Used for reporting and compliance in future modules.</div>
               <div class="settings-status" id="naicsStatus"></div>
             </div>
           </div>
@@ -1037,6 +1064,19 @@
         <div class="ob-progress-btns">
           <button class="progress-complete-btn" id="markCompleteBtn" onclick="showCompleteModal()">Mark Onboarding Complete</button>
           <button class="reopen-onboarding-btn" id="reopenOnboardingBtn" style="display:none;" onclick="reopenOnboarding()">Reopen Onboarding</button>
+        </div>
+
+        <!-- ===== 100% COMPLETE PANEL (shown when all tasks are done) ===== -->
+        <div class="onboarding-complete-panel" id="onboardingCompletePanel">
+          <h3>🎉 Onboarding Complete</h3>
+          <p>All onboarding tasks have been closed by your Key Personnel. Every task assigned to your team has been marked complete — great work!</p>
+          <p class="complete-note">
+            <strong>Next step:</strong> Click the button below to <strong>finalize onboarding</strong>. This removes all Key Personnel onboarding assignments and unlocks their role-based dashboards (Owner, Admin, and department dashboards), so each employee can access the dashboards their role allows.
+          </p>
+          <p class="complete-note">
+            After finalizing, <strong>future additions</strong> — new employees, equipment, locations, and other data — are managed by the departments through their own dashboards, not through the Onboarding Dashboard. The initial onboarding is complete.
+          </p>
+          <button class="finalize-onboarding-btn" id="finalizeOnboardingBtn" onclick="finalizeOnboarding()">Finalize Onboarding &amp; Unlock Dashboards</button>
         </div>
       </div>
 
@@ -1741,6 +1781,16 @@
       if (onboardingComplete) {
         document.getElementById("reopenOnboardingBtn").style.display = "inline-block";
       }
+      // Show the 100% complete panel when ALL visible tasks are done
+      // (this is the "Key Personnel have closed all onboarding tasks" message)
+      var completePanel = document.getElementById("onboardingCompletePanel");
+      if (completePanel) {
+        if (total > 0 && completed >= total && !onboardingComplete) {
+          completePanel.classList.add("show");
+        } else {
+          completePanel.classList.remove("show");
+        }
+      }
     }
 
     function showCompleteModal() {
@@ -1770,6 +1820,60 @@
     function hideOnboardingTab() {
       var onboardingTab = document.querySelector('[data-tab="onboarding"]');
       if (onboardingTab) onboardingTab.style.display = "none";
+    }
+
+    // Finalize onboarding: removes all KP assignments so employees can
+    // access their role-based dashboards. Future data entry happens in
+    // department dashboards, not the Onboarding Dashboard.
+    async function finalizeOnboarding() {
+      var btn = document.getElementById("finalizeOnboardingBtn");
+      if (!confirm("Finalize onboarding?\n\nThis will remove all Key Personnel onboarding assignments and unlock role-based dashboards for your employees (Owner, Admin, and department dashboards).\n\nAfter finalizing, future additions — new employees, equipment, locations, etc. — are managed by departments through their own dashboards, not the Onboarding Dashboard.\n\nClick OK to finalize, or Cancel to keep onboarding open.")) return;
+      btn.disabled = true;
+      btn.textContent = "Finalizing…";
+      var customerId = localStorage.getItem("driven_customer_id");
+      try {
+        // 1) Remove all KP assignments (revoke all)
+        var revokeRes = await fetch("/api/onboarding/key-personnel/revoke", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ customerId: customerId, revokeAll: true })
+        });
+        var revokeData = await revokeRes.json();
+        if (!revokeData.success) {
+          alert("Failed to remove Key Personnel assignments: " + (revokeData.error || "Unknown error"));
+          btn.disabled = false;
+          btn.textContent = "Finalize Onboarding & Unlock Dashboards";
+          return;
+        }
+        // 2) Mark onboarding complete
+        var completeRes = await fetch("/auth/save-settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ settings: { onboarding_complete: true } })
+        });
+        var completeData = await completeRes.json();
+        if (!completeData.success) {
+          alert("Failed to mark onboarding complete: " + (completeData.error || "Unknown error"));
+          btn.disabled = false;
+          btn.textContent = "Finalize Onboarding & Unlock Dashboards";
+          return;
+        }
+        // 3) Update UI
+        onboardingComplete = true;
+        keyPersonnel = [];
+        pendingKP = [];
+        var panel = document.getElementById("onboardingCompletePanel");
+        if (panel) panel.classList.remove("show");
+        document.getElementById("reopenOnboardingBtn").style.display = "inline-block";
+        hideOnboardingTab();
+        switchTab("overview");
+        alert("Onboarding finalized!\n\nKey Personnel assignments have been removed. Your employees can now access their role-based dashboards. Future additions are managed by departments through their own dashboards.");
+      } catch (e) {
+        console.error("Finalize onboarding error:", e.message);
+        alert("Failed to finalize onboarding.");
+        btn.disabled = false;
+        btn.textContent = "Finalize Onboarding & Unlock Dashboards";
+      }
     }
 
     async function reopenOnboarding() {
