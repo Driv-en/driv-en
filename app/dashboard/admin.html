@@ -373,6 +373,37 @@
     .settings-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .settings-status { font-size: 13px; margin-top: 8px; }
 
+    /* ===== TASK VISIBILITY — TITLE ROW + UNSAVED WARNING ===== */
+    .settings-section-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .settings-section-title-row h3 {
+      margin: 0;
+      padding: 0;
+      border: none;
+    }
+    .settings-section-title-row .settings-save-btn {
+      margin-top: 0;
+      flex-shrink: 0;
+    }
+    .visibility-warning {
+      background: #fef3c7;
+      border: 1px solid #f59e0b;
+      color: #92400e;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+
     /* ===== LOGO UPLOAD ===== */
     .logo-upload-area {
       display: flex;
@@ -575,6 +606,41 @@
     .kp-person-remove:hover { background: var(--error); color: #fff; }
     .kp-loading { font-size: 13px; color: var(--text-muted); padding: 10px; }
 
+    /* ===== KP TASK CHIPS (one row per person, tasks removable individually) ===== */
+    .kp-person-tasks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .kp-task-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--primary);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 3px 6px 3px 10px;
+      font-size: 12px;
+    }
+    .kp-task-chip button {
+      background: transparent;
+      border: none;
+      color: var(--error);
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0 2px;
+    }
+    .kp-task-chip button:hover { color: #fff; background: var(--error); border-radius: 50%; }
+    .kp-person-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
     /* ===== ONBOARDING TAB — PROGRESS + COMPLETE ===== */
     .onboarding-progress {
       background: var(--bg-card);
@@ -760,7 +826,7 @@
     }
 </style>
 </head>
-<body data-page-title="Admin Dashboard">
+<body data-page-title="Admin Dashboard" data-required-role="Admin">
 
 <!-- ===== DIAMOND-PLATE BACKGROUND ===== -->
 <div class="steel-bg"></div>
@@ -977,7 +1043,13 @@
       <!-- ===== SUBTAB: TASK VISIBILITY ===== -->
       <div class="admin-subtab-content active" id="onboarding-subtab-visibility">
         <div class="settings-section">
-          <h3>Task Visibility</h3>
+          <div class="settings-section-title-row">
+            <h3>Task Visibility</h3>
+            <button class="settings-save-btn" onclick="saveStepVisibility()">Save Visibility</button>
+          </div>
+          <div class="visibility-warning" id="visibilityWarning" style="display:none;">
+            ⚠ You have unsaved visibility changes. Click <strong>Save Visibility</strong> before switching tabs or leaving this page, or your changes will be lost.
+          </div>
           <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px 0;line-height:1.6;">
             Control which onboarding tasks appear on the Onboarding Dashboard for your team. Tasks are auto-configured based on your business type (<span id="onboardingBtLabel">not set</span>), but you can override any task here. Toggling a task off hides it from the Onboarding Dashboard — your team won't see it or be asked to complete it. Locked tasks (Roles &amp; Permissions, Employees, Equipment) are required for all business types and cannot be turned off.
           </p>
@@ -1014,6 +1086,9 @@
             </select>
             <button class="kp-add-btn" id="kpAddBtn" onclick="addKeyPersonnel()">Add</button>
           </div>
+          <p style="font-size:12px;color:var(--text-muted);margin:-8px 0 14px 0;line-height:1.5;">
+            Tip: Add the same person multiple times with different tasks, or add different people for different tasks. Each person receives <strong>one</strong> invitation email listing all their assigned tasks.
+          </p>
 
           <!-- KP list -->
           <div class="kp-list" id="kpListContainer">
@@ -1091,10 +1166,16 @@
 
     /* ===== TAB SWITCHING ===== */
     function switchTab(tabName) {
+      /* Warn about unsaved visibility changes when leaving the Onboarding tab */
+      if (visibilityDirty && document.getElementById('tab-onboarding').classList.contains('active') && tabName !== 'onboarding') {
+        var proceed = confirm("You have unsaved Task Visibility changes.\n\nClick Cancel to go back and save, or OK to leave without saving.");
+        if (!proceed) return;
+        clearVisibilityDirty();
+      }
       /* Warn about unsaved settings changes when leaving the Settings tab */
       if (settingsDirty && document.getElementById('tab-settings').classList.contains('active') && tabName !== 'settings') {
-        var proceed = confirm("You have unsaved changes in Settings.\n\nClick Cancel to go back and save, or OK to leave without saving.");
-        if (!proceed) return;
+        var proceed2 = confirm("You have unsaved changes in Settings.\n\nClick Cancel to go back and save, or OK to leave without saving.");
+        if (!proceed2) return;
         clearSettingsDirty();
       }
       document.querySelectorAll('.admin-tab').forEach(function(t) { t.classList.remove('active'); });
@@ -1124,6 +1205,12 @@
 
     /* ===== ONBOARDING SUBTAB SWITCHING ===== */
     function switchOnboardingSubtab(subtabName) {
+      /* Warn about unsaved visibility changes when leaving the visibility subtab */
+      if (visibilityDirty && document.getElementById('onboarding-subtab-visibility').classList.contains('active') && subtabName !== 'visibility') {
+        var proceed = confirm("You have unsaved Task Visibility changes.\n\nClick Cancel to go back and save, or OK to leave without saving.");
+        if (!proceed) return;
+        clearVisibilityDirty();
+      }
       document.querySelectorAll('#onboardingSubtabBar .admin-subtab').forEach(function(t) { t.classList.remove('active'); });
       document.querySelectorAll('.admin-subtab-content[id^="onboarding-subtab-"]').forEach(function(c) { c.classList.remove('active'); });
       document.querySelector('#onboardingSubtabBar [data-subtab="' + subtabName + '"]').classList.add('active');
@@ -1273,6 +1360,7 @@
 
     /* ===== UNSAVED-CHANGES TRACKING ===== */
     var settingsDirty = false;
+    var visibilityDirty = false;
 
     function markSettingsDirty() {
       settingsDirty = true;
@@ -1280,6 +1368,18 @@
 
     function clearSettingsDirty() {
       settingsDirty = false;
+    }
+
+    function markVisibilityDirty() {
+      visibilityDirty = true;
+      var warn = document.getElementById('visibilityWarning');
+      if (warn) warn.style.display = 'block';
+    }
+
+    function clearVisibilityDirty() {
+      visibilityDirty = false;
+      var warn = document.getElementById('visibilityWarning');
+      if (warn) warn.style.display = 'none';
     }
 
     async function saveSettings() {
@@ -1383,6 +1483,7 @@
       stepVisibility[stepKey] = checked;
       if (!stepVisibility._manualOverrides) stepVisibility._manualOverrides = {};
       stepVisibility._manualOverrides[stepKey] = true;
+      markVisibilityDirty();
     }
 
     async function saveStepVisibility() {
@@ -1397,6 +1498,7 @@
         if (data.success) {
           status.textContent = "Visibility saved.";
           status.style.color = "var(--success, #16a34a)";
+          clearVisibilityDirty();
         } else {
           status.textContent = "Failed: " + (data.error || "Unknown error");
           status.style.color = "var(--error)";
@@ -1439,17 +1541,28 @@
         return;
       }
       document.getElementById("kpListBody").innerHTML = all.map(function(kp, idx) {
-        var tasks = kp.roles ? kp.roles.map(function(r) { return r.role; }).join(", ") : (kp.task || "No tasks");
+        var tasks = kp.roles ? kp.roles.map(function(r) { return r.role; }) : (kp.task ? [kp.task] : []);
         var email = kp.email || "";
         var isPending = kp._pending;
-        var removeAction = isPending ? 'removePendingKP(' + idx + ')' : 'revokeKP(\'' + (kp.id || kp.email) + '\')';
+        var taskChips = tasks.map(function(t) {
+          var escT = String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+          var removeTaskAction = isPending
+            ? 'removePendingKPTask(' + idx + ', \'' + escT.replace(/'/g, "\\'") + '\')'
+            : 'revokeKPTask(\'' + (kp.employeeId || kp.id || kp.email) + '\', \'' + escT.replace(/'/g, "\\'") + '\')';
+          return '<span class="kp-task-chip">' + escT + ' <button title="Remove this task" onclick="' + removeTaskAction + '">×</button></span>';
+        }).join("");
+        var removeAllAction = isPending
+          ? 'removePendingKP(' + idx + ')'
+          : 'revokeKP(\'' + (kp.employeeId || kp.id || kp.email) + '\')';
         return '<div class="kp-person-row">' +
           '<div class="kp-person-info">' +
             '<div class="kp-person-name">' + (kp.name || "Unknown") + (isPending ? ' <span style="font-size:11px;color:var(--text-muted);">(pending)</span>' : '') + '</div>' +
             '<div class="kp-person-email">' + email + '</div>' +
-            '<div class="kp-person-tasks">Tasks: ' + tasks + '</div>' +
+            '<div class="kp-person-tasks">' + taskChips + '</div>' +
           '</div>' +
-          '<button class="kp-person-remove" onclick="' + removeAction + '">Remove</button>' +
+          '<div class="kp-person-actions">' +
+            '<button class="kp-person-remove" onclick="' + removeAllAction + '">Remove All</button>' +
+          '</div>' +
         '</div>';
       }).join("");
       document.getElementById("kpCompleteBtn").style.display = (keyPersonnel.length + pendingKP.length) > 0 ? "inline-block" : "none";
@@ -1463,10 +1576,37 @@
         alert("Please fill in name, email, and assign a task.");
         return;
       }
-      pendingKP.push({ name: name, email: email, task: task, roles: [{ role: task }], _pending: true });
+      var emailLower = email.toLowerCase();
+      // If this person already exists as a pending KP, add the task to their existing record
+      var existing = pendingKP.find(function(kp) { return kp.email.toLowerCase() === emailLower; });
+      if (existing) {
+        if (!existing.roles) existing.roles = [];
+        if (!existing.roles.some(function(r) { return r.role === task; })) {
+          existing.roles.push({ role: task });
+        } else {
+          alert(task + " is already assigned to this person.");
+          return;
+        }
+      } else {
+        pendingKP.push({ name: name, email: email, task: task, roles: [{ role: task }], _pending: true });
+      }
       document.getElementById("kpName").value = "";
       document.getElementById("kpEmail").value = "";
       document.getElementById("kpTask").value = "";
+      renderKeyPersonnel();
+    }
+
+    function removePendingKPTask(idx, taskName) {
+      var kp = pendingKP[idx];
+      if (!kp) return;
+      if (kp.roles) {
+        kp.roles = kp.roles.filter(function(r) { return r.role !== taskName; });
+        if (kp.roles.length === 0) {
+          pendingKP.splice(idx, 1);
+        }
+      } else {
+        pendingKP.splice(idx, 1);
+      }
       renderKeyPersonnel();
     }
 
@@ -1475,17 +1615,50 @@
       renderKeyPersonnel();
     }
 
-    async function revokeKP(id) {
-      if (!confirm("Remove this key personnel?")) return;
+    async function revokeKPTask(employeeId, taskName) {
+      if (!confirm('Remove the task "' + taskName + '" from this key personnel?')) return;
       var customerId = localStorage.getItem("driven_customer_id");
       try {
-        await fetch("/api/onboarding/key-personnel/revoke", {
+        var res = await fetch("/api/onboarding/key-personnel/revoke", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ customerId: customerId, kpId: id })
+          body: JSON.stringify({ customerId: customerId, employeeId: employeeId, roles: [taskName] })
         });
-        keyPersonnel = keyPersonnel.filter(function(kp) { return (kp.id || kp.email) !== id; });
-        renderKeyPersonnel();
+        var data = await res.json();
+        if (data.success) {
+          var kp = keyPersonnel.find(function(k) { return (k.employeeId || k.id || k.email) === employeeId; });
+          if (kp && kp.roles) {
+            kp.roles = kp.roles.filter(function(r) { return r.role !== taskName; });
+            if (kp.roles.length === 0) {
+              keyPersonnel = keyPersonnel.filter(function(k) { return (k.employeeId || k.id || k.email) !== employeeId; });
+            }
+          }
+          renderKeyPersonnel();
+        } else {
+          alert("Failed: " + (data.error || "Unknown error"));
+        }
+      } catch (e) {
+        console.error("Revoke task error:", e.message);
+        alert("Failed to remove task.");
+      }
+    }
+
+    async function revokeKP(employeeId) {
+      if (!confirm("Remove this key personnel and all their task assignments?")) return;
+      var customerId = localStorage.getItem("driven_customer_id");
+      try {
+        var res = await fetch("/api/onboarding/key-personnel/revoke", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ customerId: customerId, employeeId: employeeId, revokeAll: true })
+        });
+        var data = await res.json();
+        if (data.success) {
+          keyPersonnel = keyPersonnel.filter(function(kp) { return (kp.employeeId || kp.id || kp.email) !== employeeId; });
+          renderKeyPersonnel();
+        } else {
+          alert("Failed: " + (data.error || "Unknown error"));
+        }
       } catch (e) {
         console.error("Revoke error:", e.message);
         alert("Failed to remove key personnel.");
@@ -1498,6 +1671,25 @@
       btn.textContent = "Sending invitations…";
       var customerId = localStorage.getItem("driven_customer_id");
       var adminUser = window.dashUser || {};
+      // Group pending KP by email — one entry per person with all their tasks
+      var grouped = {};
+      pendingKP.forEach(function(kp) {
+        var key = kp.email.toLowerCase();
+        if (!grouped[key]) {
+          grouped[key] = { name: kp.name, email: kp.email, tasks: [] };
+        }
+        if (kp.roles) {
+          kp.roles.forEach(function(r) {
+            if (grouped[key].tasks.indexOf(r.role) === -1) grouped[key].tasks.push(r.role);
+          });
+        } else if (kp.task && grouped[key].tasks.indexOf(kp.task) === -1) {
+          grouped[key].tasks.push(kp.task);
+        }
+      });
+      var kpPayload = Object.keys(grouped).map(function(key) {
+        var g = grouped[key];
+        return { firstName: g.name.split(" ")[0], lastName: g.name.split(" ").slice(1).join(" "), email: g.email, tasks: g.tasks };
+      });
       try {
         var res = await fetch("/api/onboarding/key-personnel/complete", {
           method: "POST",
@@ -1506,9 +1698,7 @@
             customerId: customerId,
             adminName: adminUser.first_name || adminUser.email || "Admin",
             adminEmail: adminUser.email || "",
-            keyPersonnel: pendingKP.map(function(kp) {
-              return { firstName: kp.name.split(" ")[0], lastName: kp.name.split(" ").slice(1).join(" "), email: kp.email, tasks: [kp.task] };
-            })
+            keyPersonnel: kpPayload
           })
         });
         var data = await res.json();
@@ -1600,6 +1790,30 @@
       }
     }
 
+    /* ===== UNSAVED-CHANGES — PAGE LEAVE / LOGOUT GUARD ===== */
+    // Warn when the admin tries to close/refresh the page with unsaved changes
+    window.addEventListener("beforeunload", function(e) {
+      if (visibilityDirty || settingsDirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    });
+
+    // Override dashLogout (from dashboard-common.js) to warn about unsaved changes
+    window.dashLogout = function() {
+      if (visibilityDirty || settingsDirty) {
+        var proceed = confirm("You have unsaved changes.\n\nClick Cancel to go back and save, or OK to leave without saving.");
+        if (!proceed) return;
+      }
+      // Proceed with the original logout behavior
+      try {
+        fetch("/auth/logout", { method: "POST" });
+      } catch (e) {
+        console.error("Logout error:", e.message);
+      }
+      window.location.href = "/public/login.html";
+    };
+
     /* ===== STICKY TABS (move tab bar + subtab bars inside shared header) ===== */
     function makeTabsSticky() {
       var header = document.getElementById("dashHeader");
@@ -1680,6 +1894,7 @@
         document.getElementById("stat-clients").textContent = localStorage.getItem("driven_client_count") || "0";
       });
     }
+
     init();
 </script>
 
