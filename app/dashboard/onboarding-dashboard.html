@@ -451,6 +451,13 @@
       <div class="settings-section">
         <h3>Onboarding Tasks</h3>
         <p style="font-size:13px;color:var(--text-muted);margin:0 0 8px 0;">Complete each task below. Some tasks have prerequisites — complete those first to unlock the next task. Tasks shown are based on your business type and your assigned tasks.</p>
+
+        <!-- ===== MARK COMPLETE INSTRUCTION BANNER (shown to Key Personnel only) ===== -->
+        <div id="kpMarkCompleteBanner" style="margin:12px 0 16px 0;padding:14px 16px;background:#fef3c7;border:1px solid #fcd34d;border-left:5px solid #f59e0b;border-radius:8px;font-size:13px;color:#78350f;line-height:1.5;">
+          <strong style="font-size:14px;">⚠ Important — Click “Mark Complete” when you finish a task.</strong><br>
+          After you have finished entering your assigned data for a task, scroll to the bottom of that task card and click the green <strong>“✓ Mark Complete”</strong> button. This tells your Admin that your portion of the task is done. A task is only considered complete once <em>every</em> assigned Key Personnel has clicked “Mark Complete” — so please don’t skip this step.
+        </div>
+
         <div id="companyInfoBar" style="display:none;margin-bottom:16px;padding:12px 16px;background:var(--bg-step);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text-muted);">
           <span style="font-weight:600;color:var(--text);">Business Type:</span> <span id="obCompanyType">Not set</span>
           &nbsp;|&nbsp;
@@ -908,6 +915,13 @@
         return;
       }
 
+      // Don't show if prerequisites are not met — Admin can view the task
+      // but cannot mark it complete until prerequisites are done.
+      if (def.prereqs.length > 0 && !checkPrereqs(stepNum)) {
+        btn.style.display = "none";
+        return;
+      }
+
       // Show the button (user can click it)
       btn.style.display = "inline-block";
       btn.classList.remove("done");
@@ -1011,9 +1025,12 @@
           setStatus(statusId, "ob-completed", "Completed");
           setButton(stepNum, true, def.url);
         } else if (def.prereqs.length > 0 && !checkPrereqs(stepNum)) {
+          // Admin can VIEW and OPEN the task even when prerequisites are not
+          // met.  The prerequisite status is shown as informational.  The
+          // "Mark Complete" button is hidden until prerequisites are done.
           var prereqNames = getVisiblePrereqNames(stepNum).join(", ");
           setStatus(statusId, "ob-locked-prereq", "Requires " + prereqNames);
-          setButton(stepNum, false);
+          setButton(stepNum, true, def.url);
         } else {
           setStatus(statusId, "ob-ready", "Ready");
           setButton(stepNum, true, def.url);
@@ -1036,7 +1053,7 @@
       } else if (def.prereqs.length > 0 && !checkPrereqs(stepNum)) {
         var prereqLabels = getVisiblePrereqNames(stepNum).join(", ");
         setStatus(statusId, "ob-locked-prereq", "Requires " + prereqLabels);
-        setButton(stepNum, false);
+        setButton(stepNum, true, def.url);
       } else {
         setStatus(statusId, "ob-ready", "Ready");
         setButton(stepNum, true, def.url);
@@ -1045,6 +1062,12 @@
     }
 
     function updateAllSteps() {
+      // Populate stepCompletion from isTaskFullyComplete() so that
+      // checkPrereqs() works correctly.  Without this, stepCompletion is
+      // always {} and every task with prerequisites stays permanently locked.
+      for (var i = 1; i <= 8; i++) {
+        stepCompletion[i] = isTaskFullyComplete(i);
+      }
       for (var i = 1; i <= 8; i++) {
         updateStepStatus(i);
       }
@@ -1232,6 +1255,9 @@
           isAdmin = true;
           var adminTabInit = document.getElementById("obTabBar").querySelector('[data-tab="admin"]');
           if (adminTabInit) adminTabInit.style.display = "inline-block";
+          // Hide the KP "Mark Complete" instruction banner for Admins
+          var kpBanner = document.getElementById("kpMarkCompleteBanner");
+          if (kpBanner) kpBanner.style.display = "none";
         }
 
         // Load settings (step visibility + onboarding status + company info)
