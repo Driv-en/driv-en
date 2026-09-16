@@ -593,11 +593,11 @@
               <div class="ob-info-popup" id="popup-proj">
                 <button class="ob-info-popup-close" onclick="togglePopup('popup-proj')">&times;</button>
                 <strong>Projects</strong><br>
-                Add active, recently completed, or upcoming projects. Each project references a Client, Division, and Project Type — those must be completed first. Even company-owned facilities (e.g., "Yard #1") should be assigned a project name so all equipment locations can be tracked.
+                Add active, recently completed, or upcoming projects. <span id="popup-proj-prereq">Each project references a Client, Division, and Project Type — those must be completed first.</span> Even company-owned facilities (e.g., "Yard #1") should be assigned a project name so all equipment locations can be tracked.
               </div>
             </div>
             <div id="status-step7" class="ob-step-status ob-locked-prereq">Prerequisites Required</div>
-            <div class="ob-step-body">Add projects. <strong>Requires:</strong> Clients, Divisions, and Project Types must be completed first.</div>
+            <div class="ob-step-body" id="ob-body-step7">Add projects. <strong>Requires:</strong> Clients, Divisions, and Project Types must be completed first.</div>
             <div class="ob-assigned-to" id="assigned-step7">
               <span class="ob-assigned-to-label">Assigned Key Personnel:</span>
               <span class="ob-assigned-to-name unassigned">Not assigned</span>
@@ -614,11 +614,11 @@
               <div class="ob-info-popup" id="popup-equip">
                 <button class="ob-info-popup-close" onclick="togglePopup('popup-equip')">&times;</button>
                 <strong>Equipment</strong><br>
-                Add equipment and assets that will be dispatched and maintained through DRIV‑EN. Each piece of equipment is assigned to a Project/Location — Projects must be completed first. This ensures all equipment locations can be pulled up at any time.
+                Add equipment and assets that will be dispatched and maintained through DRIV‑EN. <span id="popup-equip-prereq">Each piece of equipment is assigned to a Project/Location — Projects must be completed first.</span> This ensures all equipment locations can be pulled up at any time.
               </div>
             </div>
             <div id="status-step8" class="ob-step-status ob-locked-prereq">Prerequisites Required</div>
-            <div class="ob-step-body">Add equipment and assets. <strong>Requires:</strong> Projects must be completed first.</div>
+            <div class="ob-step-body" id="ob-body-step8">Add equipment and assets. <strong>Requires:</strong> Projects must be completed first.</div>
             <div class="ob-assigned-to" id="assigned-step8">
               <span class="ob-assigned-to-label">Assigned Key Personnel:</span>
               <span class="ob-assigned-to-name unassigned">Not assigned</span>
@@ -1049,6 +1049,40 @@
         updateStepStatus(i);
       }
       updateAssignedLabels();
+      updatePrereqBodies();
+    }
+
+    // Update the "Requires:" text inside Projects/Equipment card bodies so
+    // toggled-off prerequisites are not listed (they are auto-satisfied).
+    function updatePrereqBodies() {
+      var body7 = document.getElementById("ob-body-step7");
+      if (body7) {
+        var names7 = getVisiblePrereqNames(7);
+        body7.innerHTML = names7.length > 0
+          ? 'Add projects. <strong>Requires:</strong> ' + names7.join(", ") + ' must be completed first.'
+          : 'Add projects.';
+      }
+      var body8 = document.getElementById("ob-body-step8");
+      if (body8) {
+        var names8 = getVisiblePrereqNames(8);
+        body8.innerHTML = names8.length > 0
+          ? 'Add equipment and assets. <strong>Requires:</strong> ' + names8.join(", ") + ' must be completed first.'
+          : 'Add equipment and assets.';
+      }
+      // Also update the info popups so they don't claim a toggled-off
+      // prerequisite "must be completed first"
+      var popup7 = document.getElementById("popup-proj-prereq");
+      if (popup7) {
+        popup7.textContent = names7.length > 0
+          ? "Each project references " + names7.join(", ") + " — those must be completed first."
+          : "";
+      }
+      var popup8 = document.getElementById("popup-equip-prereq");
+      if (popup8) {
+        popup8.textContent = names8.length > 0
+          ? "Each piece of equipment is assigned to a Project/Location — " + names8.join(", ") + " must be completed first."
+          : "Each piece of equipment is assigned to a Project/Location.";
+      }
     }
 
     /* ===== LOAD SETTINGS (step visibility + onboarding status + company info) ===== */
