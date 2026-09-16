@@ -21,6 +21,8 @@
 //   exist, then read only from `customers` which is not the live table.
 //   Fixed: removed admin_email from organizations query (column doesn't exist
 //   in deployed schema); admin email now sourced from users table via org_id.
+//   Updated: filters out the platform owner org (org_type = 'platform') so
+//   the founder company does not appear as a customer.
 // ============================================================================
 
 const CORS_HEADERS = {
@@ -172,6 +174,7 @@ export async function onRequestGet(context) {
     // Every org that signs up / activates is a customer.
     // NOTE: The deployed organizations table does NOT have an admin_email
     // column. The admin email lives in the users table (via org_id).
+    // The platform owner org (org_type = 'platform') is excluded.
     // =====================================================================
     let orgs = [];
     try {
@@ -180,6 +183,7 @@ export async function onRequestGet(context) {
                 activated_modules, activation_code, activation_complete,
                 free_until, paid_until, created_at
          FROM organizations
+         WHERE org_type IS NULL OR org_type != 'platform'
          ORDER BY created_at DESC`
       ).all();
       orgs = result.results || [];
