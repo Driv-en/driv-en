@@ -14,7 +14,9 @@
 //   - Var: SENDGRID_FROM_EMAIL = noreply@driv-en.com
 //   - Var: SUPPORT_CONTACT = support@driv-en.com
 //
-// LAST UPDATED: September 9, 2026
+// LAST UPDATED: September 16, 2026 (Session 38 — fixed broken JOIN on
+//   organizations.admin_email which does not exist; now queries customers
+//   directly and enriches from organizations by id/name match)
 // ============================================================================
 
 const CORS_HEADERS = {
@@ -161,26 +163,52 @@ export async function onRequestGet(context) {
       return jsonResponse({ success: false, error: 'Unauthorized — DRIV-EN Founder access required' }, 401);
     }
 
-    // Query customers joined with organizations
-    // The customers table may or may not exist yet — if it doesn't, return empty
+    // Query customers table directly (organizations table has no admin_email column)
     let customers = [];
     try {
       const result = await env.DB.prepare(
         `SELECT c.customer_id, c.company_name, c.admin_email, c.admin_phone,
                 c.billing_address, c.city, c.state, c.zip,
                 c.subscription_type, c.status AS customer_status,
-                c.activation_date, c.expiration_date, c.created_at,
-                o.activation_code, o.activation_complete, o.subscription_status,
-                o.free_until, o.paid_until, o.activated_modules
+                c.activation_date, c.expiration_date, c.created_at
          FROM customers c
-         LEFT JOIN organizations o ON o.admin_email = c.admin_email
          ORDER BY c.created_at DESC`
       ).all();
       customers = result.results || [];
     } catch (dbErr) {
       // customers table may not exist yet — return empty list
-      console.log('[ADMIN-CUSTOMERS] customers table may not exist:', dbErr.message);
+      console.log('[ADMIN-CUSTOMERS] customers table query error:', dbErr.message);
     }
+
+    // Also query organizations table (for org_id, subscription_status, modules)
+    let orgMap = {};
+    try {
+      const orgResult = await env.DB.prepare(
+        `SELECT id, name, status, subscription_status, activated_modules,
+                activation_code, activation_complete, free_until, paid_until, created_at
+         FROM organizations`
+      ).all();
+      if (orgResult.results) {
+        for (const o of orgResult.results) {
+          orgMap[o.id] = o;
+        }
+      }
+    } catch (dbErr) {
+      console.log('[ADMIN-CUSTOMERS] organizations query error:', dbErr.message);
+    }
+
+    // Get employee counts per org (from employees-db if available, or users table)
+    let employeeMap = {};
+    try {
+      const empCounts = await env.DB.prepare(
+        `SELECT org_id, COUNT(*) as emp_count FROM users GROUP BY org_id`
+      ).all();
+      if (empCounts.results) {
+        for (const ec of empCounts.results) {
+          employeeMap[ec.org_id] = ec.emp_count;
+        }
+      }
+    } catch (dbErr) { /* users table may not exist */ }
 
     // Get order counts per customer (if orders table exists)
     let orderMap = {};
@@ -198,10 +226,34 @@ export async function onRequestGet(context) {
       // orders table may not exist — skip
     }
 
-    // Enrich customers with order data
+    // Enrich customers with org data, employee counts, and order data
     const enrichedCustomers = customers.map(c => {
-      const oc = orderMap[c.customer_id] || { order_count: 0, total_spent: 0 };
-      return { ...c, order_count: oc.order_count, total_spent: oc.total_spent };
+      // Try to find matching org by name (customers.company_name → organizations.name)
+      var org = orgMap[c.customer_id] || null;
+      // Also try matching by email if no org_id match
+      if (!org) {
+        for (var oid in orgMap) {
+          if (orgMap[oid].name && c.company_name && orgMap[oid].name.toLowerCase() === c.company_name.toLowerCase()) {
+            org = orgMap[oid];
+            break;
+          }
+        }
+      }
+      var oc = orderMap[c.customer_id] || { order_count: 0, total_spent: 0 };
+      var empCount = org ? (employeeMap[org.id] || 0) : 0;
+      return {
+        ...c,
+        org_id: org ? org.id : null,
+        subscription_status: org ? (org.subscription_status || org.status) : (c.customer_status || 'unknown'),
+        activated_modules: org ? org.activated_modules : null,
+        activation_code: org ? org.activation_code : null,
+        activation_complete: org ? org.activation_complete : null,
+        free_until: org ? org.free_until : null,
+        paid_until: org ? org.paid_until : null,
+        employee_count: empCount,
+        order_count: oc.order_count,
+        total_spent: oc.total_spent
+      };
     });
 
     return jsonResponse({ success: true, customers: enrichedCustomers, total: enrichedCustomers.length }, 200);
