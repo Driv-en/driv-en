@@ -1065,10 +1065,12 @@ function showError(msg) {
   setTimeout(function() { el.style.display = 'none'; }, 6000);
 }
 // =========================================================================
-// CUSTOMERS TAB LOGIC
+// CUSTOMERS TAB LOGIC — table with drill-down, pagination, totals
 // =========================================================================
 
 var allCustomers = [];
+var customerPageSize = 10;
+var customerCurrentPage = 1;
 
 async function loadCustomers() {
   var listEl = document.getElementById('customerList');
@@ -1081,7 +1083,8 @@ async function loadCustomers() {
     if (data.success && data.customers) {
       allCustomers = data.customers;
       renderCustomerStats(data.customers);
-      renderCustomers(data.customers);
+      customerCurrentPage = 1;
+      renderCustomersTable();
     } else {
       listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><p>' + (data.error || 'No customers found.') + '</p></div>';
     }
@@ -1102,49 +1105,184 @@ function renderCustomerStats(customers) {
   document.getElementById('custStatPending').textContent = pending;
 }
 
-function renderCustomers(customers) {
-  var listEl = document.getElementById('customerList');
+function getFilteredCustomers() {
+  var query = (document.getElementById('customerSearchInput') || {}).value;
+  query = query ? query.toLowerCase() : '';
+  if (!query) return allCustomers;
+  return allCustomers.filter(function(c) {
+    var name = (c.company_name || c.organization_name || c.name || '').toLowerCase();
+    var email = (c.admin_email || c.contact_email || c.email || '').toLowerCase();
+    return name.indexOf(query) !== -1 || email.indexOf(query) !== -1;
+  });
+}
 
-  if (customers.length === 0) {
+function renderCustomersTable() {
+  var listEl = document.getElementById('customerList');
+  var filtered = getFilteredCustomers();
+  var totalPages = Math.ceil(filtered.length / customerPageSize);
+  if (customerCurrentPage > totalPages) customerCurrentPage = totalPages || 1;
+  var startIdx = (customerCurrentPage - 1) * customerPageSize;
+  var pageData = filtered.slice(startIdx, startIdx + customerPageSize);
+
+  if (filtered.length === 0) {
     listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><p>No customers yet. When organizations sign up, they will appear here.</p></div>';
     return;
   }
 
-  var html = customers.map(function(c) {
-    var status = c.subscription_status || 'none';
-    var badgeClass = 'sub-none';
-    var badgeText = 'None';
-    if (status === 'active') { badgeClass = 'sub-active'; badgeText = 'Active'; }
-    else if (status === 'trial' || status === 'trialing') { badgeClass = 'sub-trial'; badgeText = 'Trial'; }
-    else if (status === 'pending') { badgeClass = 'sub-pending'; badgeText = 'Pending'; }
-    else if (status === 'cancelled' || status === 'canceled') { badgeClass = 'sub-cancelled'; badgeText = 'Cancelled'; }
+  // Build table
+  var html = '<div class="owner-table-wrap" style="overflow-x:auto;">';
+  html += '<table class="owner-data-table" style="width:100%;border-collapse:collapse;font-size:14px;">';
+  html += '<thead><tr style="border-bottom:2px solid var(--border-color);text-align:left;">';
+  html += '<th style="padding:10px 8px;cursor:pointer;" onclick="sortByCustomerField(\'company_name\')">Customer Name</th>';
+  html += '<th style="padding:10px 8px;text-align:center;">Employees</th>';
+  html += '<th style="padding:10px 8px;text-align:center;">Assets</th>';
+  html += '<th style="padding:10px 8px;text-align:center;">Completed PMs</th>';
+  html += '<th style="padding:10px 8px;text-align:center;">Completed WOs</th>';
+  html += '<th style="padding:10px 8px;text-align:center;">Equipment Transfers</th>';
+  html += '<th style="padding:10px 8px;text-align:center;">Fuel Purchases</th>';
+  html += '</tr></thead><tbody>';
 
-    var date = c.created_at ? new Date(c.created_at).toLocaleDateString() : '—';
+  for (var i = 0; i < pageData.length; i++) {
+    var c = pageData[i];
+    var name = escapeHtml(c.company_name || c.organization_name || c.name || 'Unknown');
+    var empCount = c.employee_count || 0;
+    var assetCount = c.asset_count || 0;
+    var pmCount = c.pm_count || 0;
+    var woCount = c.wo_count || 0;
+    var transferCount = c.transfer_count || 0;
+    var fuelCount = c.fuel_count || 0;
+    var idx = startIdx + i;
+    html += '<tr class="owner-customer-row" data-idx="' + idx + '" onclick="showCustomerDetail(' + idx + ')" style="cursor:pointer;border-bottom:1px solid var(--border-color);transition:background 0.15s;" onmouseover="this.style.background=\'var(--bg-hover,rgba(0,0,0,0.04))\'" onmouseout="this.style.background=\'\'">';
+    html += '<td style="padding:10px 8px;font-weight:500;">' + name + '</td>';
+    html += '<td style="padding:10px 8px;text-align:center;">' + empCount + '</td>';
+    html += '<td style="padding:10px 8px;text-align:center;">' + assetCount + '</td>';
+    html += '<td style="padding:10px 8px;text-align:center;">' + pmCount + '</td>';
+    html += '<td style="padding:10px 8px;text-align:center;">' + woCount + '</td>';
+    html += '<td style="padding:10px 8px;text-align:center;">' + transferCount + '</td>';
+    html += '<td style="padding:10px 8px;text-align:center;">' + fuelCount + '</td>';
+    html += '</tr>';
+  }
 
-    return '<div class="customer-card" data-name="' + escapeHtml((c.company_name || c.organization_name || c.name || '').toLowerCase()) + '" data-email="' + escapeHtml((c.contact_email || c.email || '').toLowerCase()) + '">' +
-      '<div class="customer-card-info">' +
-        '<h4>' + escapeHtml(c.company_name || c.organization_name || c.name || 'Unknown') + '</h4>' +
-        '<p>' + escapeHtml(c.contact_email || c.email || '—') + (c.contact_name ? ' · ' + escapeHtml(c.contact_name) : '') + '</p>' +
-      '</div>' +
-      '<div class="customer-card-meta">' +
-        '<span class="customer-sub-badge ' + badgeClass + '">' + badgeText + '</span>' +
-        (c.subscription_amount ? '<span style="font-size:13px;color:var(--text-muted);">$' + escapeHtml(String(c.subscription_amount)) + '/mo</span>' : '') +
-        '<span style="font-size:13px;color:var(--text-muted);">Joined: ' + date + '</span>' +
-      '</div>' +
-    '</div>';
-  }).join('');
+  // Totals row
+  var totEmp = 0, totAsset = 0, totPM = 0, totWO = 0, totTransfer = 0, totFuel = 0;
+  filtered.forEach(function(c) {
+    totEmp += c.employee_count || 0;
+    totAsset += c.asset_count || 0;
+    totPM += c.pm_count || 0;
+    totWO += c.wo_count || 0;
+    totTransfer += c.transfer_count || 0;
+    totFuel += c.fuel_count || 0;
+  });
+  html += '<tr style="border-top:2px solid var(--border-color);font-weight:700;background:var(--bg-alt,rgba(0,0,0,0.02));">';
+  html += '<td style="padding:10px 8px;">TOTAL (' + filtered.length + ' customers)</td>';
+  html += '<td style="padding:10px 8px;text-align:center;">' + totEmp + '</td>';
+  html += '<td style="padding:10px 8px;text-align:center;">' + totAsset + '</td>';
+  html += '<td style="padding:10px 8px;text-align:center;">' + totPM + '</td>';
+  html += '<td style="padding:10px 8px;text-align:center;">' + totWO + '</td>';
+  html += '<td style="padding:10px 8px;text-align:center;">' + totTransfer + '</td>';
+  html += '<td style="padding:10px 8px;text-align:center;">' + totFuel + '</td>';
+  html += '</tr>';
+
+  html += '</tbody></table></div>';
+
+  // Pagination controls
+  if (totalPages > 1) {
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;">';
+    html += '<span style="font-size:13px;color:var(--text-muted);">Page ' + customerCurrentPage + ' of ' + totalPages + ' (' + filtered.length + ' customers)</span>';
+    html += '<div>';
+    if (customerCurrentPage > 1) {
+      html += '<button class="owner-refresh-btn" style="margin-right:8px;" onclick="customerGoPage(' + (customerCurrentPage - 1) + ')">← Prev</button>';
+    }
+    if (customerCurrentPage < totalPages) {
+      html += '<button class="owner-refresh-btn" onclick="customerGoPage(' + (customerCurrentPage + 1) + ')">Next →</button>';
+    }
+    html += '</div></div>';
+  }
 
   listEl.innerHTML = html;
 }
 
+function customerGoPage(page) {
+  customerCurrentPage = page;
+  renderCustomersTable();
+}
+
 function filterCustomers() {
-  var query = document.getElementById('customerSearchInput').value.toLowerCase();
-  var cards = document.querySelectorAll('#customerList .customer-card');
-  cards.forEach(function(card) {
-    var name = card.dataset.name || '';
-    var email = card.dataset.email || '';
-    card.style.display = (name.indexOf(query) !== -1 || email.indexOf(query) !== -1) ? '' : 'none';
+  customerCurrentPage = 1;
+  renderCustomersTable();
+}
+
+function showCustomerDetail(idx) {
+  var c = getFilteredCustomers()[idx] || allCustomers[idx];
+  if (!c) return;
+
+  var modal = document.getElementById('customerDetailModal');
+  if (!modal) return;
+
+  var modules = c.activated_modules;
+  try { modules = JSON.parse(modules || '[]'); } catch(e) { modules = modules ? [modules] : []; }
+  var moduleStr = modules.length ? modules.join(', ') : '—';
+
+  var subDate = c.activation_date ? new Date(c.activation_date).toLocaleDateString() : '—';
+  var expDate = c.expiration_date ? new Date(c.expiration_date).toLocaleDateString() : '—';
+  var createdDate = c.created_at ? new Date(c.created_at).toLocaleDateString() : '—';
+
+  var html = '<div style="padding:24px;max-width:600px;">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
+  html += '<h3 style="margin:0;">' + escapeHtml(c.company_name || c.organization_name || c.name || 'Unknown') + '</h3>';
+  html += '<button onclick="closeCustomerDetail()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-muted);">×</button>';
+  html += '</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;font-size:14px;">';
+  html += '<div><strong>Customer #/OrgID:</strong><br>' + escapeHtml(c.customer_id || c.org_id || '—') + '</div>';
+  html += '<div><strong>Subscription Date:</strong><br>' + subDate + '</div>';
+  html += '<div><strong>Expiration Date:</strong><br>' + expDate + '</div>';
+  html += '<div><strong>Modules:</strong><br>' + escapeHtml(moduleStr) + '</div>';
+  html += '<div><strong>Subscription Status:</strong><br>' + escapeHtml(c.subscription_status || c.customer_status || '—') + '</div>';
+  html += '<div><strong>Subscription Type:</strong><br>' + escapeHtml(c.subscription_type || '—') + '</div>';
+  html += '<div><strong>Admin Email:</strong><br>' + escapeHtml(c.admin_email || c.contact_email || '—') + '</div>';
+  html += '<div><strong>Admin Phone:</strong><br>' + escapeHtml(c.admin_phone || '—') + '</div>';
+  html += '<div><strong>Address:</strong><br>' + escapeHtml([c.billing_address, c.city, c.state, c.zip].filter(Boolean).join(', ') || '—') + '</div>';
+  html += '<div><strong>Date Added:</strong><br>' + createdDate + '</div>';
+  if (c.referrer) {
+    html += '<div><strong>Referrer:</strong><br>' + escapeHtml(c.referrer) + '</div>';
+  }
+  html += '<div><strong>Employees:</strong><br>' + (c.employee_count || 0) + '</div>';
+  html += '<div><strong>Orders:</strong><br>' + (c.order_count || 0) + '</div>';
+  html += '</div>';
+  html += '</div>';
+
+  modal.innerHTML = html;
+  modal.style.display = 'flex';
+  modal.style.position = 'fixed';
+  modal.style.top = '0';
+  modal.style.left = '0';
+  modal.style.width = '100%';
+  modal.style.height = '100%';
+  modal.style.background = 'rgba(0,0,0,0.5)';
+  modal.style.zIndex = '9999';
+  modal.style.alignItems = 'center';
+  modal.style.justifyContent = 'center';
+}
+
+function closeCustomerDetail() {
+  var modal = document.getElementById('customerDetailModal');
+  if (modal) { modal.style.display = 'none'; modal.innerHTML = ''; }
+}
+
+var _customerSortField = 'company_name';
+var _customerSortAsc = true;
+function sortByCustomerField(field) {
+  if (_customerSortField === field) { _customerSortAsc = !_customerSortAsc; }
+  else { _customerSortField = field; _customerSortAsc = true; }
+  allCustomers.sort(function(a, b) {
+    var va = (a[field] || '').toString().toLowerCase();
+    var vb = (b[field] || '').toString().toLowerCase();
+    if (va < vb) return _customerSortAsc ? -1 : 1;
+    if (va > vb) return _customerSortAsc ? 1 : -1;
+    return 0;
   });
+  customerCurrentPage = 1;
+  renderCustomersTable();
 }
 
 // =========================================================================
@@ -1216,7 +1354,7 @@ async function loadSystemStatus() {
 }
 
 // =========================================================================
-// ISSUES TAB LOGIC (Error Logs)
+// ISSUES TAB LOGIC
 // =========================================================================
 
 var allIssues = [];
