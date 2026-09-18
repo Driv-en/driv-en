@@ -3,64 +3,85 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DRIV‑EN | Fuel Management</title>
-<meta name="description" content="DRIV‑EN fuel management — tank levels, transactions, and fuel inventory.">
+<title>DRIV‑EN | Fuel Alerts</title>
+<meta name="description" content="DRIV‑EN fuel alerts — capacity flags, consumption anomalies, employee tank fills.">
 <meta name="robots" content="noindex, nofollow">
-<link rel="canonical" href="https://www.driv-en.com/public/dashboard/fuel.html">
+<link rel="canonical" href="https://www.driv-en.com/public/dashboard/fuel-alerts.html">
 <link rel="icon" type="image/png" href="/icons/favicon.png" sizes="48x48">
 <link rel="stylesheet" href="/styles/dashboard.css?v=5">
 <script>
 (function(){var s=localStorage.getItem("driven-theme");var d=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",s||d);})();
 </script>
 <style>
-.fuel-loading{display:flex;align-items:center;justify-content:center;height:60vh;font-size:16px;color:var(--text-muted);}
-.tank-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;}
-.tank-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
-.tank-name{font-size:15px;font-weight:700;color:var(--text);}
-.tank-badge{font-size:11px;padding:2px 8px;border-radius:4px;text-transform:uppercase;font-weight:600;}
-.tank-badge.bulk{background:#0066cc;color:#fff;}
-.tank-badge.dragup{background:#ff9900;color:#fff;}
-.tank-badge.portable{background:#666;color:#fff;}
-.tank-badge.employee{background:#cc0000;color:#fff;}
-.tank-level-bar{height:24px;background:var(--border);border-radius:4px;overflow:hidden;margin:8px 0;position:relative;}
-.tank-level-fill{height:100%;background:linear-gradient(90deg,#0066cc,#00aa44);transition:width .5s;}
-.tank-level-fill.low{background:linear-gradient(90deg,#cc0000,#ff6600);}
-.tank-level-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
-.tank-meta{font-size:12px;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:12px;margin-top:6px;}
-.ownership-badge{font-size:11px;padding:2px 6px;border-radius:3px;background:var(--border);color:var(--text);}
-.ownership-badge.employee{background:#cc0000;color:#fff;}
-.ownership-badge.rental{background:#9933cc;color:#fff;}
-.tx-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);}
-.tx-row:last-child{border-bottom:none;}
-.tx-type{font-size:13px;font-weight:600;color:var(--text);}
-.tx-detail{font-size:12px;color:var(--text-muted);}
-.tx-qty{font-size:14px;font-weight:700;color:var(--primary);}
-.tx-date{font-size:11px;color:var(--text-muted);}
-.section-title{font-size:16px;font-weight:700;color:var(--text);margin:24px 0 12px 0;padding-bottom:8px;border-bottom:2px solid var(--border);}
+.alerts-loading{display:flex;align-items:center;justify-content:center;height:60vh;font-size:16px;color:var(--text-muted);}
+.flag-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;transition:border-color .2s;}
+.flag-card.critical{border-left:4px solid #cc0000;}
+.flag-card.warning{border-left:4px solid #ff9900;}
+.flag-card.info{border-left:4px solid #0066cc;}
+.flag-card.resolved{opacity:.55;}
+.flag-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px;}
+.flag-type{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 8px;border-radius:4px;}
+.flag-type.capacity_exceeded{background:#cc0000;color:#fff;}
+.flag-type.consumption_anomaly{background:#ff9900;color:#fff;}
+.flag-type.employee_tank_fill{background:#0066cc;color:#fff;}
+.flag-message{font-size:14px;color:var(--text);margin:4px 0 8px 0;line-height:1.5;}
+.flag-meta{font-size:12px;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:12px;}
+.flag-actions{margin-top:10px;display:flex;gap:8px;align-items:center;}
+.flag-resolve-btn{background:var(--primary);color:#fff;border:none;border-radius:4px;padding:6px 14px;font-size:13px;cursor:pointer;}
+.flag-resolve-btn:hover{opacity:.85;}
+.flag-resolve-input{flex:1;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;padding:6px 10px;font-size:13px;color:var(--text);}
+.flag-resolved-badge{font-size:12px;color:var(--text-muted);font-style:italic;}
+.settings-toggle{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:20px;}
+.settings-toggle h3{margin:0 0 12px 0;font-size:15px;color:var(--text);}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);}
+.toggle-row:last-child{border-bottom:none;}
+.toggle-row label{font-size:13px;color:var(--text);}
+.toggle-switch{position:relative;width:40px;height:22px;}
+.toggle-switch input{opacity:0;width:0;height:0;}
+.toggle-slider{position:absolute;cursor:pointer;inset:0;background:var(--border);border-radius:22px;transition:.3s;}
+.toggle-slider:before{content:"";position:absolute;height:16px;width:16px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s;}
+.toggle-switch input:checked+.toggle-slider{background:var(--primary);}
+.toggle-switch input:checked+.toggle-slider:before{transform:translateX(18px);}
+.filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+.filter-btn{background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:6px 14px;font-size:13px;cursor:pointer;color:var(--text);}
+.filter-btn.active{background:var(--primary);color:#fff;border-color:var(--primary);}
 .empty-state{text-align:center;padding:40px;color:var(--text-muted);font-size:14px;}
-.tab-bar{display:flex;gap:8px;margin-bottom:16px;}
-.tab-btn{background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:8px 16px;font-size:13px;cursor:pointer;color:var(--text);}
-.tab-btn.active{background:var(--primary);color:#fff;border-color:var(--primary);}
 </style>
 </head>
-<body data-page-title="Fuel Management">
-<script src="/components/auth-check.js?v=5"></script>
+<body data-page-title="Fuel Alerts">
 <div id="adminDashboard" style="display:none;">
   <div id="dashHeader"></div>
   <div style="max-width:900px;margin:0 auto;padding:20px;">
-    <div class="tab-bar"><button class="tab-btn active" onclick="switchTab('tanks',this)">Tanks</button><button class="tab-btn" onclick="switchTab('transactions',this)">Transactions</button></div>
-    <div id="tanksView"><div class="section-title">Fuel Tanks</div><div id="tanksList" class="fuel-loading">Loading tanks…</div></div>
-    <div id="txView" style="display:none;"><div class="section-title">Recent Transactions</div><div id="txList" class="fuel-loading">Loading transactions…</div></div>
+    <div class="settings-toggle">
+      <h3>📧 Email Notification Settings</h3>
+      <div class="toggle-row"><label>Capacity exceeded alerts</label><label class="toggle-switch"><input type="checkbox" id="toggleCapacity" onchange="saveSettings()"><span class="toggle-slider"></span></label></div>
+      <div class="toggle-row"><label>Consumption anomaly alerts</label><label class="toggle-switch"><input type="checkbox" id="toggleConsumption" onchange="saveSettings()"><span class="toggle-slider"></span></label></div>
+      <div class="toggle-row"><label>Employee tank fill alerts</label><label class="toggle-switch"><input type="checkbox" id="toggleEmployee" onchange="saveSettings()"><span class="toggle-slider"></span></label></div>
+      <div class="toggle-row"><label>Equipment manager notifications</label><label class="toggle-switch"><input type="checkbox" id="toggleManager" onchange="saveSettings()"><span class="toggle-slider"></span></label></div>
+    </div>
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="filterFlags('open',this)">Open</button>
+      <button class="filter-btn" onclick="filterFlags('resolved',this)">Resolved</button>
+      <button class="filter-btn" onclick="filterFlags('all',this)">All</button>
+      <button class="filter-btn" onclick="filterFlags('capacity_exceeded',this)">Capacity</button>
+      <button class="filter-btn" onclick="filterFlags('consumption_anomaly',this)">Consumption</button>
+      <button class="filter-btn" onclick="filterFlags('employee_tank_fill',this)">Employee Tank</button>
+    </div>
+    <div id="flagsList" class="alerts-loading">Loading fuel alerts…</div>
   </div>
 </div>
 <script>
-let currentTab='tanks';
-function switchTab(t,b){currentTab=t;document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.getElementById('tanksView').style.display=t==='tanks'?'':'none';document.getElementById('txView').style.display=t==='transactions'?'':'none';if(t==='tanks'&&!window._tanksLoaded)loadTanks();if(t==='transactions'&&!window._txLoaded)loadTransactions();}
-async function loadTanks(){try{const r=await fetch('/api/fuel-tanks');const d=await r.json();if(d.success&&d.tanks){window._tanksLoaded=true;if(d.tanks.length===0){document.getElementById('tanksList').innerHTML='<div class="empty-state">No fuel tanks found.</div>';return;}document.getElementById('tanksList').innerHTML=d.tanks.map(t=>{const pct=t.capacity>0?Math.min(100,(t.current_quantity/t.capacity)*100):0;const lc=pct<20?' low':'';const ob=t.ownership_type&&t.ownership_type!=='company'?'<span class="ownership-badge '+t.ownership_type+'">'+t.ownership_type+(t.owner_name?': '+t.owner_name:'')+'</span>':'';return '<div class="tank-card"><div class="tank-header"><span class="tank-name">'+(t.name||'')+'</span><span class="tank-badge '+(t.tank_type||'')+'">'+(t.tank_type||'')+'</span></div><div class="tank-level-bar"><div class="tank-level-fill'+lc+'" style="width:'+pct+'%"></div><div class="tank-level-text">'+(t.current_quantity||0)+' / '+(t.capacity||0)+' '+(t.unit||'gal')+'</div></div><div class="tank-meta"><span>'+(t.fuel_type||'—')+'</span>'+(t.location?'<span>📍 '+t.location+'</span>':'')+'<span>Status: '+(t.status||'—')+'</span>'+ob+'</div></div>';}).join('');}else{document.getElementById('tanksList').innerHTML='<div class="empty-state">Failed to load tanks.</div>';}}catch(e){document.getElementById('tanksList').innerHTML='<div class="empty-state">Error: '+e.message+'</div>';}}
-async function loadTransactions(){try{const r=await fetch('/api/fuel-transactions');const d=await r.json();if(d.success&&d.transactions){window._txLoaded=true;if(d.transactions.length===0){document.getElementById('txList').innerHTML='<div class="empty-state">No transactions found.</div>';return;}document.getElementById('txList').innerHTML=d.transactions.slice(0,50).map(t=>{const dt=new Date(t.transaction_date).toLocaleDateString();return '<div class="tx-row"><div><div class="tx-type">'+(t.transaction_type||'').replace(/_/g,' ')+'</div><div class="tx-detail">'+(t.fuel_type||'')+' · '+(t.asset_number||t.asset_name||'—')+'</div><div class="tx-date">'+dt+'</div></div><div class="tx-qty">'+(t.quantity||0)+' gal</div></div>';}).join('');}else{document.getElementById('txList').innerHTML='<div class="empty-state">Failed to load transactions.</div>';}}catch(e){document.getElementById('txList').innerHTML='<div class="empty-state">Error: '+e.message+'</div>';}}
-document.addEventListener('DOMContentLoaded',function(){const c=setInterval(()=>{if(document.getElementById('adminDashboard').style.display!=='none'){clearInterval(c);loadTanks();}},200);});
+let currentFilter='open';let allFlags=[];
+async function loadFlags(){try{const r=await fetch('/api/fuel-flags');const d=await r.json();if(d.success){allFlags=d.flags||[];renderFlags();}else{document.getElementById('flagsList').innerHTML='<div class="empty-state">Failed to load flags.</div>';}}catch(e){document.getElementById('flagsList').innerHTML='<div class="empty-state">Error: '+e.message+'</div>';}}
+function renderFlags(){let f=allFlags;if(currentFilter==='open')f=allFlags.filter(x=>x.status==='open');else if(currentFilter==='resolved')f=allFlags.filter(x=>x.status==='resolved');else if(currentFilter!=='all')f=allFlags.filter(x=>x.flag_type===currentFilter);if(f.length===0){document.getElementById('flagsList').innerHTML='<div class="empty-state">No fuel alerts found.</div>';return;}document.getElementById('flagsList').innerHTML=f.map(x=>{const sc=x.severity||'warning';const rs=x.status==='resolved';const dt=new Date(x.created_at).toLocaleString();let h='<div class="flag-card '+sc+(rs?' resolved':'')+'">';h+='<div class="flag-header"><span class="flag-type '+x.flag_type+'">'+x.flag_type.replace(/_/g,' ')+'</span>';h+=rs?'<span class="flag-resolved-badge">Resolved by '+(x.resolved_by||'—')+'</span>':'';h+='</div>';h+='<div class="flag-message">'+(x.message||'')+'</div>';h+='<div class="flag-meta">';if(x.asset_name)h+='<span>Asset: '+x.asset_name+'</span>';if(x.tank_name)h+='<span>Tank: '+x.tank_name+'</span>';h+='<span>'+dt+'</span></div>';if(!rs){h+='<div class="flag-actions"><input type="text" class="flag-resolve-input" id="notes-'+x.id+'" placeholder="Resolution notes…"><button class="flag-resolve-btn" onclick="resolveFlag(\''+x.id+'\')">Resolve</button></div>';}if(rs&&x.resolution_notes){h+='<div style="margin-top:6px;font-size:12px;color:var(--text-muted);">Notes: '+x.resolution_notes+'</div>';}h+='</div>';return h;}).join('');}
+async function resolveFlag(id){const notes=document.getElementById('notes-'+id).value||'';try{const r=await fetch('/api/fuel-flags/'+id+'/resolve',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({resolution_notes:notes})});const d=await r.json();if(d.success){loadFlags();}else{alert('Failed: '+(d.error||'Unknown'));}}catch(e){alert('Error: '+e.message);}}
+function filterFlags(t,b){currentFilter=t;document.querySelectorAll('.filter-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');renderFlags();}
+async function loadSettings(){try{const r=await fetch('/api/org-settings');const d=await r.json();if(d.success&&d.settings){document.getElementById('toggleCapacity').checked=!!d.settings.notify_capacity_flags_email;document.getElementById('toggleConsumption').checked=!!d.settings.notify_consumption_flags_email;document.getElementById('toggleEmployee').checked=!!d.settings.notify_employee_tank_flags_email;document.getElementById('toggleManager').checked=!!d.settings.notify_equipment_manager_email;}}catch(e){}}
+async function saveSettings(){try{await fetch('/api/org-settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({notify_capacity_flags_email:document.getElementById('toggleCapacity').checked,notify_equipment_manager_email:document.getElementById('toggleManager').checked,notify_consumption_flags_email:document.getElementById('toggleConsumption').checked,notify_employee_tank_flags_email:document.getElementById('toggleEmployee').checked})});}catch(e){}}
+document.addEventListener('dashSessionLoaded',function(){document.getElementById('adminDashboard').style.display='block';loadSettings();loadFlags();});
 </script>
 <script src="/components/dashboard-common.js?v=5"></script>
+<script src="/components/auth-check.js?v=5"></script>
 <script src="/components/nav.js?v=5"></script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" data-cf-beacon='{"token":"aed8feab3b60404ba88ec92f026bbcd6"}' crossorigin="anonymous"></script>
 </body>
