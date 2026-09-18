@@ -38,7 +38,6 @@
 </style>
 </head>
 <body data-page-title="Transfers">
-<script src="/components/auth-check.js?v=5"></script>
 <div id="adminDashboard" style="display:none;">
   <div id="dashHeader"></div>
   <div style="max-width:900px;margin:0 auto;padding:20px;">
@@ -50,9 +49,10 @@
 async function loadTransfers(){try{const r=await fetch('/api/transfers');const d=await r.json();if(d.success&&d.transfers){if(d.transfers.length===0){document.getElementById('tfList').innerHTML='<div class="empty-state">No transfer tickets found.</div>';return;}document.getElementById('tfList').innerHTML=d.transfers.map(t=>{const dt=new Date(t.created_at).toLocaleDateString();return '<div class="tf-card" onclick="showDetail(\''+t.id+'\')"><div class="tf-header"><span class="tf-ticket">'+(t.ticket_number||'—')+'</span><span class="tf-status '+(t.status||'created')+'">'+(t.status||'created')+'</span></div><div class="tf-meta"><span>From: '+(t.from_location||'—')+'</span><span>To: '+(t.to_location||'—')+'</span><span>'+dt+'</span>'+(t.carrier_type==='third_party'?'<span>3rd party</span>':'<span>Internal</span>')+'</div></div>';}).join('');}else{document.getElementById('tfList').innerHTML='<div class="empty-state">Failed to load transfers.</div>';}}catch(e){document.getElementById('tfList').innerHTML='<div class="empty-state">Error: '+e.message+'</div>';}}
 async function showDetail(id){document.getElementById('tfListView').style.display='none';document.getElementById('tfDetailView').style.display='';document.getElementById('tfDetail').innerHTML='<div class="tf-loading">Loading…</div>';try{const r=await fetch('/api/transfers/'+id);const d=await r.json();if(d.success&&d.transfer){const t=d.transfer;const ev=d.events||[];let h='<div class="tf-detail"><div class="tf-header"><span class="tf-ticket">'+(t.ticket_number||'—')+'</span><span class="tf-status '+(t.status||'created')+'">'+(t.status||'created')+'</span></div><div class="tf-meta"><span>From: '+(t.from_location||'—')+'</span><span>To: '+(t.to_location||'—')+'</span><span>Carrier: '+(t.carrier_type||'—')+'</span>'+(t.carrier_name?'<span>'+t.carrier_name+'</span>':'')+'</div>';if(t.notes)h+='<p style="margin-top:10px;font-size:13px;color:var(--text-muted);">Notes: '+t.notes+'</p>';h+='</div><div class="section-title">Event Trail</div><div class="tf-detail">';if(ev.length===0){h+='<div class="empty-state">No events recorded.</div>';}else{h+=ev.map(e=>{const tm=new Date(e.created_at).toLocaleString();return '<div class="tf-event"><div class="tf-event-dot"></div><div><div class="tf-event-content"><strong>'+(e.event_type||'event')+'</strong>'+(e.notes?' — '+e.notes:'')+'</div><div class="tf-event-time">'+tm+(e.recorded_by?' · '+e.recorded_by:'')+'</div></div></div>';}).join('');}h+='</div>';document.getElementById('tfDetail').innerHTML=h;}else{document.getElementById('tfDetail').innerHTML='<div class="empty-state">Failed to load transfer detail.</div>';}}catch(e){document.getElementById('tfDetail').innerHTML='<div class="empty-state">Error: '+e.message+'</div>';}}
 function showList(){document.getElementById('tfListView').style.display='';document.getElementById('tfDetailView').style.display='none';}
-document.addEventListener('DOMContentLoaded',function(){const c=setInterval(()=>{if(document.getElementById('adminDashboard').style.display!=='none'){clearInterval(c);loadTransfers();}},200);});
+document.addEventListener('dashSessionLoaded',function(){document.getElementById('adminDashboard').style.display='block';loadTransfers();});
 </script>
 <script src="/components/dashboard-common.js?v=5"></script>
+<script src="/components/auth-check.js?v=5"></script>
 <script src="/components/nav.js?v=5"></script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" data-cf-beacon='{"token":"aed8feab3b60404ba88ec92f026bbcd6"}' crossorigin="anonymous"></script>
 </body>
