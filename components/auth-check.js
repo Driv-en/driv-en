@@ -3,7 +3,7 @@
 // ==========================================
 // HOW IT WORKS:
 //   1. Add this line to any page that needs protection:
-//      <script src="/components/auth-check.js"></script>
+//      <script src="/app/shared/auth-check.js"></script>
 //   2. The script checks /auth/session to see if the user is logged in.
 //   3. If not logged in, it redirects to the login page.
 //   4. If the page has data-required-role="Admin" on the <body> tag,
@@ -13,7 +13,11 @@
 //      on the <body> tag, it checks that the user is either an Admin
 //      OR a Key Personnel assigned that task. If not, they are redirected
 //      to the no-access page.
-//   6. User info is stored in window.drivenUser for other scripts to use.
+//   6. If the page has data-required-permission="fuel.view" on the <body>
+//      tag, it checks that the user's role has that permission granted
+//      (from the /auth/session response permissions array). Admins always
+//      pass. If not granted, they are redirected to the no-access page.
+//   7. User info is stored in window.drivenUser for other scripts to use.
 //
 // HOW TO REQUIRE ADMIN ACCESS ON A PAGE:
 //   Add this attribute to the <body> tag:
@@ -24,6 +28,12 @@
 //      <body data-page-title="..." data-required-task="Employees">
 //   Admins always pass. Non-admins must be assigned the named task
 //   in the key_personnel_roles table.
+//
+// HOW TO REQUIRE A PERMISSION ON A PAGE:
+//   Add this attribute to the <body> tag:
+//      <body data-page-title="..." data-required-permission="fuel.view">
+//   Admins always pass. Non-admins must have the permission granted
+//   to their role (or via per-user override).
 // ==========================================
 
 (async function() {
@@ -67,7 +77,7 @@
     if (requiredRole) {
       if (!isAdminRole && userRole.toLowerCase() !== requiredRole.toLowerCase()) {
         // User doesn't have the required role — redirect to no-access page
-        window.location.href = "/public/no-access.html";
+        window.location.href = "/app/auth/no-access.html";
         return;
       }
     }
@@ -81,7 +91,25 @@
         // Non-admin: check if they're assigned this task
         var hasTask = await checkUserAssignedTask(data.user, requiredTask);
         if (!hasTask) {
-          window.location.href = "/public/no-access.html";
+          window.location.href = "/app/auth/no-access.html";
+          return;
+        }
+      }
+    }
+
+    // Check if this page requires a specific permission
+    // Admins always pass. Non-admins must have the permission in
+    // their effective permissions array (role permissions + overrides,
+    // returned by /auth/session).
+    var requiredPermission = document.body.getAttribute("data-required-permission");
+    if (requiredPermission) {
+      if (!isAdminRole) {
+        var userPerms = (data.user && data.user.permissions) ? data.user.permissions : [];
+        var hasPermission = userPerms.some(function(p) {
+          return p.toLowerCase() === requiredPermission.toLowerCase();
+        });
+        if (!hasPermission) {
+          window.location.href = "/app/auth/no-access.html";
           return;
         }
       }
