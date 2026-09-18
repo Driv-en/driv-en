@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRIV‑EN | Transfers</title>
+<meta name="description" content="DRIV-EN equipment transfers — transfer tickets, status tracking, and delivery signatures.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://www.driv-en.com/app/dashboard/transfers.html">
+<link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
+
+<!-- ===== SHARED DASHBOARD CSS ===== -->
+<link rel="stylesheet" href="/app/shared/dashboard.css?v=7">
+
+<!-- ===== DIAMOND-PLATE BACKGROUND ===== -->
+<link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
+
+<!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
+<script>
+(function() {
+  var saved = localStorage.getItem("driven-theme");
+  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  var theme = saved || system;
+  document.documentElement.setAttribute("data-theme", theme);
+})();
+</script>
+
+<style>
+.tf-loading{display:flex;align-items:center;justify-content:center;height:60vh;font-size:16px;color:var(--text-muted);}
+.tf-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;cursor:pointer;transition:border-color .2s;}
+.tf-card:hover{border-color:var(--primary);}
+.tf-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.tf-ticket{font-size:15px;font-weight:700;color:var(--text);}
+.tf-status{font-size:11px;padding:2px 10px;border-radius:12px;font-weight:600;text-transform:uppercase;}
+.tf-status.created{background:var(--border);color:var(--text);}
+.tf-status.picked_up{background:#0066cc;color:#fff;}
+.tf-status.in_transit{background:#ff9900;color:#fff;}
+.tf-status.delivered{background:#00aa44;color:#fff;}
+.tf-status.closed{background:var(--border);color:var(--text-muted);}
+.tf-meta{font-size:12px;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:12px;margin-top:6px;}
+.tf-detail{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:20px;margin-bottom:16px;}
+.tf-event{display:flex;align-items:flex-start;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);}
+.tf-event:last-child{border-bottom:none;}
+.tf-event-dot{width:10px;height:10px;border-radius:50%;background:var(--primary);margin-top:4px;flex-shrink:0;}
+.tf-event-content{font-size:13px;color:var(--text);}
+.tf-event-time{font-size:11px;color:var(--text-muted);}
+.tf-back{background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:6px 14px;font-size:13px;cursor:pointer;color:var(--text);margin-bottom:16px;}
+.tf-back:hover{border-color:var(--primary);}
+.section-title{font-size:16px;font-weight:700;color:var(--text);margin:24px 0 12px 0;padding-bottom:8px;border-bottom:2px solid var(--border);}
+.empty-state{text-align:center;padding:40px;color:var(--text-muted);font-size:14px;}
+</style>
+</head>
+<body data-page-title="Transfers" data-required-permission="transfer.view">
+
+<div id="adminDashboard" style="display:none;">
+  <div id="dashHeader"></div>
+  <div style="max-width:900px;margin:0 auto;padding:20px;">
+
+    <div id="tfListView">
+      <div class="section-title">Transfer Tickets</div>
+      <div id="tfList" class="tf-loading">Loading transfers…</div>
+    </div>
+
+    <div id="tfDetailView" style="display:none;">
+      <button class="tf-back" onclick="showList()">← Back to list</button>
+      <div id="tfDetail"></div>
+    </div>
+
+  </div>
+  <div id="dashFooter"></div>
+</div>
+
+<script>
+async function loadTransfers() {
+  try {
+    const resp = await fetch('/api/transfers');
+    const data = await resp.json();
+    if (data.success && data.transfers) {
+      if (data.transfers.length === 0) {
+        document.getElementById('tfList').innerHTML = '<div class="empty-state">No transfer tickets found.</div>';
+        return;
+      }
+      document.getElementById('tfList').innerHTML = data.transfers.map(t => {
+        const date = new Date(t.created_at).toLocaleDateString();
+        return '<div class="tf-card" onclick="showDetail(\'' + t.id + '\')">' +
+          '<div class="tf-header">' +
+            '<span class="tf-ticket">' + (t.ticket_number||'—') + '</span>' +
+            '<span class="tf-status ' + (t.status||'created') + '">' + (t.status||'created') + '</span>' +
+          '</div>' +
+          '<div class="tf-meta">' +
+            '<span>From: ' + (t.from_location||'—') + '</span>' +
+            '<span>To: ' + (t.to_location||'—') + '</span>' +
+            '<span>' + date + '</span>' +
+            (t.carrier_type === 'third_party' ? '<span>3rd party</span>' : '<span>Internal</span>') +
+          '</div>' +
+        '</div>';
+      }).join('');
+    } else {
+      document.getElementById('tfList').innerHTML = '<div class="empty-state">Failed to load transfers.</div>';
+    }
+  } catch (e) {
+    document.getElementById('tfList').innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>';
+  }
+}
+
+async function showDetail(id) {
+  document.getElementById('tfListView').style.display = 'none';
+  document.getElementById('tfDetailView').style.display = '';
+  document.getElementById('tfDetail').innerHTML = '<div class="tf-loading">Loading…</div>';
+
+  try {
+    const resp = await fetch('/api/transfers/' + id);
+    const data = await resp.json();
+    if (data.success && data.transfer) {
+      const t = data.transfer;
+      const events = data.events || [];
+      let html = '<div class="tf-detail">';
+      html += '<div class="tf-header"><span class="tf-ticket">' + (t.ticket_number||'—') + '</span>';
+      html += '<span class="tf-status ' + (t.status||'created') + '">' + (t.status||'created') + '</span></div>';
+      html += '<div class="tf-meta">';
+      html += '<span>From: ' + (t.from_location||'—') + '</span>';
+      html += '<span>To: ' + (t.to_location||'—') + '</span>';
+      html += '<span>Carrier: ' + (t.carrier_type||'—') + '</span>';
+      if (t.carrier_name) html += '<span>' + t.carrier_name + '</span>';
+      html += '</div>';
+      if (t.notes) html += '<p style="margin-top:10px;font-size:13px;color:var(--text-muted);">Notes: ' + t.notes + '</p>';
+      html += '</div>';
+
+      html += '<div class="section-title">Event Trail</div>';
+      html += '<div class="tf-detail">';
+      if (events.length === 0) {
+        html += '<div class="empty-state">No events recorded.</div>';
+      } else {
+        html += events.map(e => {
+          const time = new Date(e.created_at).toLocaleString();
+          return '<div class="tf-event">' +
+            '<div class="tf-event-dot"></div>' +
+            '<div>' +
+              '<div class="tf-event-content"><strong>' + (e.event_type||'event') + '</strong>' + (e.notes ? ' — ' + e.notes : '') + '</div>' +
+              '<div class="tf-event-time">' + time + (e.recorded_by ? ' · ' + e.recorded_by : '') + '</div>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+      }
+      html += '</div>';
+
+      document.getElementById('tfDetail').innerHTML = html;
+    } else {
+      document.getElementById('tfDetail').innerHTML = '<div class="empty-state">Failed to load transfer detail.</div>';
+    }
+  } catch (e) {
+    document.getElementById('tfDetail').innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>';
+  }
+}
+
+function showList() {
+  document.getElementById('tfListView').style.display = '';
+  document.getElementById('tfDetailView').style.display = 'none';
+}
+
+document.addEventListener('dashSessionLoaded', function() {
+  document.getElementById('adminDashboard').style.display = 'block';
+  loadTransfers();
+});
+</script>
+
+<script src="/app/shared/dashboard-common.js?v=7"></script>
+<script src="/app/shared/auth-check.js?v=7"></script>
+<script src="/components/nav.js?v=5"></script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" data-cf-beacon='{"token":"aed8feab3b60404ba88ec92f026bbcd6"}' crossorigin="anonymous"></script>
+</body>
+</html>
