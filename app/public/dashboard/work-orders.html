@@ -47,7 +47,6 @@
 </style>
 </head>
 <body data-page-title="Work Orders">
-<script src="/components/auth-check.js?v=5"></script>
 <div id="adminDashboard" style="display:none;">
   <div id="dashHeader"></div>
   <div style="max-width:900px;margin:0 auto;padding:20px;">
@@ -65,9 +64,10 @@ function renderWOs(){let f=allWOs;if(currentFilter!=='all')f=allWOs.filter(w=>w.
 async function showDetail(id){document.getElementById('woListView').style.display='none';document.getElementById('woDetailView').style.display='';document.getElementById('woDetail').innerHTML='<div class="wo-loading">Loading…</div>';try{const r=await fetch('/api/work-orders/'+id);const d=await r.json();if(d.success&&d.work_order){const w=d.work_order;const items=d.items||[];const parts=d.parts||[];let h='<div class="wo-detail"><div class="wo-header"><span class="wo-number">'+(w.wo_number||w.id.slice(0,8))+'</span><span class="wo-status '+(w.status||'open')+'">'+(w.status||'open')+'</span></div><div class="wo-meta"><span>Type: '+(w.wo_type||'').replace(/_/g,' ')+'</span><span class="wo-priority '+(w.priority||'low')+'">'+(w.priority||'low')+'</span>'+(w.assigned_to?'<span>Assigned: '+w.assigned_to+'</span>':'')+(w.labor_hours!=null?'<span>Labor: '+w.labor_hours+'h</span>':'')+'</div>';if(w.description)h+='<p style="margin-top:10px;font-size:14px;color:var(--text);">'+w.description+'</p>';h+='</div>';if(items.length>0){h+='<div class="section-title">Checklist ('+items.filter(i=>i.status==='completed').length+'/'+items.length+')</div><div class="wo-detail">';h+=items.map(i=>{const dn=i.status==='completed';return '<div class="wo-checklist-item"><div class="wo-check-icon '+(dn?'completed':'')+'">'+(dn?'✓':'')+'</div><div class="wo-check-text '+(dn?'completed':'')+'">'+(i.item_text||'')+'</div></div>';}).join('');h+='</div>';}if(parts.length>0){h+='<div class="section-title">Parts</div><div class="wo-detail">';h+=parts.map(p=>'<div class="wo-parts">'+(p.quantity||1)+'× '+(p.description||p.part_number||'')+(p.part_number?' ['+p.part_number+']':'')+'</div>').join('');h+='</div>';}document.getElementById('woDetail').innerHTML=h;}else{document.getElementById('woDetail').innerHTML='<div class="empty-state">Failed to load work order.</div>';}}catch(e){document.getElementById('woDetail').innerHTML='<div class="empty-state">Error: '+e.message+'</div>';}}
 function filterWO(s,b){currentFilter=s;document.querySelectorAll('.filter-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');renderWOs();}
 function showList(){document.getElementById('woListView').style.display='';document.getElementById('woDetailView').style.display='none';}
-document.addEventListener('DOMContentLoaded',function(){const c=setInterval(()=>{if(document.getElementById('adminDashboard').style.display!=='none'){clearInterval(c);loadWorkOrders();}},200);});
+document.addEventListener('dashSessionLoaded',function(){document.getElementById('adminDashboard').style.display='block';loadWorkOrders();});
 </script>
 <script src="/components/dashboard-common.js?v=5"></script>
+<script src="/components/auth-check.js?v=5"></script>
 <script src="/components/nav.js?v=5"></script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" data-cf-beacon='{"token":"aed8feab3b60404ba88ec92f026bbcd6"}' crossorigin="anonymous"></script>
 </body>
