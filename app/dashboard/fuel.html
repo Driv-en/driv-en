@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRIV‑EN | Fuel Management</title>
+<meta name="description" content="DRIV-EN fuel management — tank levels, transactions, and fuel inventory.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://www.driv-en.com/app/dashboard/fuel.html">
+<link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
+
+<!-- ===== SHARED DASHBOARD CSS ===== -->
+<link rel="stylesheet" href="/app/shared/dashboard.css?v=7">
+
+<!-- ===== DIAMOND-PLATE BACKGROUND ===== -->
+<link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
+
+<!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
+<script>
+(function() {
+  var saved = localStorage.getItem("driven-theme");
+  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  var theme = saved || system;
+  document.documentElement.setAttribute("data-theme", theme);
+})();
+</script>
+
+<style>
+.fuel-loading{display:flex;align-items:center;justify-content:center;height:60vh;font-size:16px;color:var(--text-muted);}
+.tank-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;}
+.tank-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.tank-name{font-size:15px;font-weight:700;color:var(--text);}
+.tank-badge{font-size:11px;padding:2px 8px;border-radius:4px;text-transform:uppercase;font-weight:600;}
+.tank-badge.bulk{background:#0066cc;color:#fff;}
+.tank-badge.dragup{background:#ff9900;color:#fff;}
+.tank-badge.portable{background:#666;color:#fff;}
+.tank-badge.employee{background:#cc0000;color:#fff;}
+.tank-level-bar{height:24px;background:var(--border);border-radius:4px;overflow:hidden;margin:8px 0;position:relative;}
+.tank-level-fill{height:100%;background:linear-gradient(90deg,#0066cc,#00aa44);transition:width .5s;}
+.tank-level-fill.low{background:linear-gradient(90deg,#cc0000,#ff6600);}
+.tank-level-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+.tank-meta{font-size:12px;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:12px;margin-top:6px;}
+.ownership-badge{font-size:11px;padding:2px 6px;border-radius:3px;background:var(--border);color:var(--text);}
+.ownership-badge.employee{background:#cc0000;color:#fff;}
+.ownership-badge.rental{background:#9933cc;color:#fff;}
+.tx-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);}
+.tx-row:last-child{border-bottom:none;}
+.tx-type{font-size:13px;font-weight:600;color:var(--text);}
+.tx-detail{font-size:12px;color:var(--text-muted);}
+.tx-qty{font-size:14px;font-weight:700;color:var(--primary);}
+.tx-date{font-size:11px;color:var(--text-muted);}
+.section-title{font-size:16px;font-weight:700;color:var(--text);margin:24px 0 12px 0;padding-bottom:8px;border-bottom:2px solid var(--border);}
+.empty-state{text-align:center;padding:40px;color:var(--text-muted);font-size:14px;}
+.tab-bar{display:flex;gap:8px;margin-bottom:16px;}
+.tab-btn{background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:8px 16px;font-size:13px;cursor:pointer;color:var(--text);}
+.tab-btn.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+</style>
+</head>
+<body data-page-title="Fuel Management" data-required-permission="fuel.view">
+
+<div id="adminDashboard" style="display:none;">
+  <div id="dashHeader"></div>
+  <div style="max-width:900px;margin:0 auto;padding:20px;">
+
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('tanks',this)">Tanks</button>
+      <button class="tab-btn" onclick="switchTab('transactions',this)">Transactions</button>
+    </div>
+
+    <div id="tanksView">
+      <div class="section-title">Fuel Tanks</div>
+      <div id="tanksList" class="fuel-loading">Loading tanks…</div>
+    </div>
+
+    <div id="txView" style="display:none;">
+      <div class="section-title">Recent Transactions</div>
+      <div id="txList" class="fuel-loading">Loading transactions…</div>
+    </div>
+
+  </div>
+  <div id="dashFooter"></div>
+</div>
+
+<script>
+let currentTab = 'tanks';
+
+function switchTab(tab, btn) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tanksView').style.display = tab === 'tanks' ? '' : 'none';
+  document.getElementById('txView').style.display = tab === 'transactions' ? '' : 'none';
+  if (tab === 'tanks' && !window._tanksLoaded) loadTanks();
+  if (tab === 'transactions' && !window._txLoaded) loadTransactions();
+}
+
+async function loadTanks() {
+  try {
+    const resp = await fetch('/api/fuel-tanks');
+    const data = await resp.json();
+    if (data.success && data.tanks) {
+      window._tanksLoaded = true;
+      if (data.tanks.length === 0) {
+        document.getElementById('tanksList').innerHTML = '<div class="empty-state">No fuel tanks found.</div>';
+        return;
+      }
+      document.getElementById('tanksList').innerHTML = data.tanks.map(t => {
+        const pct = t.capacity > 0 ? Math.min(100, (t.current_quantity / t.capacity) * 100) : 0;
+        const lowClass = pct < 20 ? ' low' : '';
+        const ownBadge = t.ownership_type && t.ownership_type !== 'company'
+          ? '<span class="ownership-badge ' + t.ownership_type + '">' + t.ownership_type + (t.owner_name ? ': ' + t.owner_name : '') + '</span>'
+          : '';
+        return '<div class="tank-card">' +
+          '<div class="tank-header">' +
+            '<span class="tank-name">' + (t.name||'') + '</span>' +
+            '<span class="tank-badge ' + (t.tank_type||'') + '">' + (t.tank_type||'') + '</span>' +
+          '</div>' +
+          '<div class="tank-level-bar">' +
+            '<div class="tank-level-fill' + lowClass + '" style="width:' + pct + '%"></div>' +
+            '<div class="tank-level-text">' + (t.current_quantity||0) + ' / ' + (t.capacity||0) + ' ' + (t.unit||'gal') + '</div>' +
+          '</div>' +
+          '<div class="tank-meta">' +
+            '<span>' + (t.fuel_type||'—') + '</span>' +
+            (t.location ? '<span>📍 ' + t.location + '</span>' : '') +
+            '<span>Status: ' + (t.status||'—') + '</span>' +
+            ownBadge +
+          '</div>' +
+        '</div>';
+      }).join('');
+    } else {
+      document.getElementById('tanksList').innerHTML = '<div class="empty-state">Failed to load tanks.</div>';
+    }
+  } catch (e) {
+    document.getElementById('tanksList').innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>';
+  }
+}
+
+async function loadTransactions() {
+  try {
+    const resp = await fetch('/api/fuel-transactions');
+    const data = await resp.json();
+    if (data.success && data.transactions) {
+      window._txLoaded = true;
+      if (data.transactions.length === 0) {
+        document.getElementById('txList').innerHTML = '<div class="empty-state">No transactions found.</div>';
+        return;
+      }
+      document.getElementById('txList').innerHTML = data.transactions.slice(0, 50).map(t => {
+        const date = new Date(t.transaction_date).toLocaleDateString();
+        return '<div class="tx-row">' +
+          '<div>' +
+            '<div class="tx-type">' + (t.transaction_type||'').replace(/_/g,' ') + '</div>' +
+            '<div class="tx-detail">' + (t.fuel_type||'') + ' · ' + (t.asset_number||t.asset_name||'—') + '</div>' +
+            '<div class="tx-date">' + date + '</div>' +
+          '</div>' +
+          '<div class="tx-qty">' + (t.quantity||0) + ' gal</div>' +
+        '</div>';
+      }).join('');
+    } else {
+      document.getElementById('txList').innerHTML = '<div class="empty-state">Failed to load transactions.</div>';
+    }
+  } catch (e) {
+    document.getElementById('txList').innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>';
+  }
+}
+
+document.addEventListener('dashSessionLoaded', function() {
+  document.getElementById('adminDashboard').style.display = 'block';
+  loadTanks();
+});
+</script>
+
+<script src="/app/shared/dashboard-common.js?v=7"></script>
+<script src="/app/shared/auth-check.js?v=7"></script>
+<script src="/components/nav.js?v=5"></script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" data-cf-beacon='{"token":"aed8feab3b60404ba88ec92f026bbcd6"}' crossorigin="anonymous"></script>
+</body>
+</html>
