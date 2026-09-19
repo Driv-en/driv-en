@@ -275,8 +275,6 @@
 
 <script>
 /* ===== MODULE DEFINITIONS ===== */
-/* Each module: key, label, description, link, requiredPermission (any of these) */
-/* If user has ANY of the required permissions, the module card shows */
 var MODULES = [
   {
     key: 'fuel',
@@ -310,7 +308,7 @@ var MODULES = [
     key: 'equipment',
     label: 'Equipment',
     desc: 'Manage fleet, assignments, meter readings, and service history.',
-    link: null, /* No standalone dashboard yet — link added when built */
+    link: null,
     perms: ['equipment.view', 'equipment.add', 'equipment.edit', 'equipment.delete', 'equipment.meter']
   },
   {
@@ -379,8 +377,6 @@ var MODULES = [
 ];
 
 /* ===== FORM DEFINITIONS (for field employees) ===== */
-/* These are quick-access form links shown to users who have .add permissions
-   but may not have .view permissions (field workers who enter data but don't manage dashboards) */
 var FORMS = [
   { key: 'fuel_log', label: 'Log Fuel', desc: 'Record a fuel transaction', link: '/app/forms/fuel-log.html', perm: 'fuel.add' },
   { key: 'transfer_create', label: 'Create Transfer', desc: 'Start an equipment transfer ticket', link: '/app/forms/transfer-create.html', perm: 'transfer.add' },
@@ -427,7 +423,7 @@ function renderModules() {
       '<div class="emp-module-body">' + esc(m.desc) + '</div>';
     if (m.link) {
       return '<div class="emp-module-card" onclick="window.location.href=\'' + m.link + '\'">' +
-        cardContent + '<div class="emp-module-link">Open →</div></div>';
+        cardContent + '<div class="emp-module-link">Open &rarr;</div></div>';
     } else {
       return '<div class="emp-module-card" style="opacity:0.7;cursor:default;" title="Dashboard coming soon">' +
         cardContent + '<div class="emp-module-link" style="color:var(--text-muted);">Coming soon</div></div>';
@@ -530,14 +526,12 @@ async function init() {
     var user = window.dashUser;
     if (!user) { window.location.href = '/public/login.html'; return; }
 
-    // Admin role goes to admin.html
     var role = (user.role || '').toLowerCase();
     if (role === 'admin') {
       window.location.href = '/app/dashboard/admin.html';
       return;
     }
 
-    // DRIV-EN Founder goes to owner-dashboard.html
     if (role === 'driv-en founder' || role === 'owner') {
       window.location.href = '/app/dashboard/owner-dashboard.html';
       return;
@@ -545,9 +539,15 @@ async function init() {
 
     userPermissions = user.permissions || [];
 
-    // Welcome message
+    // Welcome message — includes company name like the admin dashboard
     var firstName = user.first_name || user.full_name || '';
-    document.getElementById('welcome-name').textContent = firstName || user.email;
+    var orgName = user.org_name || '';
+    var welcomeEl = document.getElementById('welcome-name');
+    if (firstName && orgName) {
+      welcomeEl.innerHTML = esc(firstName) + ' <span style="font-weight:400;color:var(--text-muted);font-size:18px;">&mdash; ' + esc(orgName) + '</span>';
+    } else {
+      welcomeEl.textContent = firstName || user.email;
+    }
     document.getElementById('welcome-role').textContent =
       'Role: ' + (user.role || 'Employee') + ' — Your dashboard shows the modules and tools you have access to.';
 
