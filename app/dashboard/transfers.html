@@ -95,7 +95,7 @@
 <script>
 let allTransfers = [];
 let filteredTransfers = [];
-const UNCLOSSED_THRESHOLD_DAYS = 7;
+const UNCLOSSED_THRESHOLD_HOURS = 12;
 
 async function loadTransfers() {
   try {
@@ -107,8 +107,8 @@ async function loadTransfers() {
 }
 
 function isOpenTransfer(t) { return ['created', 'picked_up', 'in_transit', 'delivered'].includes(t.status); }
-function daysSince(dateStr) { return Math.floor((new Date() - new Date(dateStr)) / (1000 * 60 * 60 * 24)); }
-function isUnclosedTransfer(t) { return isOpenTransfer(t) && daysSince(t.created_at) >= UNCLOSSED_THRESHOLD_DAYS; }
+function hoursSince(dateStr) { return Math.floor((new Date() - new Date(dateStr)) / (1000 * 60 * 60)); }
+function isUnclosedTransfer(t) { return isOpenTransfer(t) && hoursSince(t.created_at) >= UNCLOSSED_THRESHOLD_HOURS; }
 
 function getDuplicateOpenTransfers() {
   const openByAsset = {};
@@ -124,7 +124,7 @@ function renderWarnings() {
   const warnings = [];
   const unclosed = allTransfers.filter(isUnclosedTransfer);
   if (unclosed.length > 0) {
-    warnings.push('<strong>' + unclosed.length + ' transfer' + (unclosed.length > 1 ? 's' : '') + '</strong> open for ' + UNCLOSSED_THRESHOLD_DAYS + '+ days: ' + unclosed.map(t => '<a onclick="jumpToDetail(\'' + t.id + '\')">' + (t.ticket_number || '—') + '</a>').join(', '));
+    warnings.push('<strong>' + unclosed.length + ' transfer' + (unclosed.length > 1 ? 's' : '') + '</strong> open for ' + UNCLOSSED_THRESHOLD_HOURS + '+ hours: ' + unclosed.map(t => '<a onclick="jumpToDetail(\'' + t.id + '\')">' + (t.ticket_number || '—') + '</a>').join(', '));
   }
   const duplicates = getDuplicateOpenTransfers();
   const dupAssetIds = {};
@@ -133,8 +133,7 @@ function renderWarnings() {
   if (dupCount > 0) {
     warnings.push('<strong>' + dupCount + ' asset' + (dupCount > 1 ? 's' : '') + '</strong> with multiple open transfer tickets: ' + Object.values(dupAssetIds).map(d => d.name + ' (' + d.tickets.join(', ') + ')').join('; '));
   }
-  if (warnings.length > 0) { list.innerHTML = warnings.map(w => '<li>' + w + '</li>').join(''); banner.style.display = 'block'; }
-  else { banner.style.display = 'none'; }
+  if (warnings.length > 0) { list.innerHTML = warnings.map(w => '<li>' + w + '</li>').join(''); banner.style.display = 'block'; } else { banner.style.display = 'none'; }
 }
 
 function jumpToDetail(id) { showDetail(id); }
@@ -143,8 +142,7 @@ function applyFilters() {
   const statusFilter = document.getElementById('tfStatusFilter').value;
   const searchText = document.getElementById('tfSearchInput').value.toLowerCase();
   filteredTransfers = allTransfers.filter(t => {
-    if (statusFilter === 'open') { if (!isOpenTransfer(t)) return false; }
-    else if (statusFilter && t.status !== statusFilter) return false;
+    if (statusFilter === 'open') { if (!isOpenTransfer(t)) return false; } else if (statusFilter && t.status !== statusFilter) return false;
     if (searchText) { const hay = [t.ticket_number, t.asset_name, t.asset_number, t.from_location, t.to_location, t.from_project_name, t.to_project_name, t.carrier_name, t.status].filter(Boolean).join(' ').toLowerCase(); if (!hay.includes(searchText)) return false; }
     return true;
   });
@@ -156,9 +154,9 @@ function renderList() {
   const duplicates = getDuplicateOpenTransfers();
   document.getElementById('tfList').innerHTML = filteredTransfers.map(t => {
     const date = new Date(t.created_at).toLocaleDateString();
-    const daysOpen = isOpenTransfer(t) ? daysSince(t.created_at) : null;
+    const hoursOpen = isOpenTransfer(t) ? hoursSince(t.created_at) : null;
     let flags = '';
-    if (isUnclosedTransfer(t)) flags += '<span class="tf-flag tf-flag-unclosed" title="Open for ' + daysOpen + ' days"><span class="tf-flag-icon">⏰</span> Open ' + daysOpen + 'd</span>';
+    if (isUnclosedTransfer(t)) flags += '<span class="tf-flag tf-flag-unclosed" title="Open for ' + hoursOpen + ' hours"><span class="tf-flag-icon">⏰</span> Open ' + hoursOpen + 'h</span>';
     if (duplicates[t.id]) flags += '<span class="tf-flag tf-flag-duplicate" title="This asset has multiple open transfer tickets"><span class="tf-flag-icon">⚠</span> Duplicate</span>';
     return '<div class="tf-card" onclick="showDetail(\'' + t.id + '\')"><div class="tf-header"><span class="tf-ticket">' + (t.ticket_number||'—') + flags + '</span><span class="tf-status ' + (t.status||'created') + '">' + (t.status||'created') + '</span></div><div class="tf-meta"><span>From: ' + (t.from_location||t.from_project_name||'—') + '</span><span>To: ' + (t.to_location||t.to_project_name||'—') + '</span><span>' + date + '</span>' + (t.carrier_type === 'third_party' ? '<span>3rd party</span>' : '<span>Internal</span>') + (t.asset_name ? '<span>📦 ' + t.asset_name + '</span>' : '') + '</div></div>';
   }).join('');
@@ -176,7 +174,7 @@ async function showDetail(id) {
       const events = data.events || [];
       let html = '<div class="tf-detail">';
       let flags = '';
-      if (isUnclosedTransfer(t)) { const days = daysSince(t.created_at); flags += '<span class="tf-flag tf-flag-unclosed"><span class="tf-flag-icon">⏰</span> Open ' + days + ' days — needs closing</span>'; }
+      if (isUnclosedTransfer(t)) { const hrs = hoursSince(t.created_at); flags += '<span class="tf-flag tf-flag-unclosed"><span class="tf-flag-icon">⏰</span> Open ' + hrs + ' hours — needs closing</span>'; }
       if (getDuplicateOpenTransfers()[t.id]) flags += '<span class="tf-flag tf-flag-duplicate"><span class="tf-flag-icon">⚠</span> Asset has multiple open tickets</span>';
       html += '<div class="tf-header"><span class="tf-ticket">' + (t.ticket_number||'—') + flags + '</span><span class="tf-status ' + (t.status||'created') + '">' + (t.status||'created') + '</span></div>';
       html += '<div class="tf-meta"><span>From: ' + (t.from_location||t.from_project_name||'—') + '</span><span>To: ' + (t.to_location||t.to_project_name||'—') + '</span><span>Carrier: ' + (t.carrier_type||'—') + '</span>';
@@ -194,6 +192,30 @@ async function showDetail(id) {
 }
 
 function showList() { document.getElementById('tfListView').style.display = ''; document.getElementById('tfDetailView').style.display = 'none'; }
+
+async function checkOpenTransfersForAsset(assetNumber) {
+  try {
+    const resp = await fetch('/api/transfers/open/' + encodeURIComponent(assetNumber));
+    const data = await resp.json();
+    if (data.success && data.open_transfers && data.open_transfers.length > 0) return { hasOpen: true, openTransfers: data.open_transfers, asset: data.asset };
+    return { hasOpen: false, openTransfers: [], asset: data.asset };
+  } catch (e) { return { hasOpen: false, openTransfers: [], error: e.message }; }
+}
+
+function showOpenTransferWarning(openTransfers, assetName, onProceed, onCancel) {
+  var existing = document.getElementById('openTransferWarningModal');
+  if (existing) existing.remove();
+  var modal = document.createElement('div');
+  modal.id = 'openTransferWarningModal';
+  modal.style.cssText = 'display:flex;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:10000;align-items:center;justify-content:center;';
+  var ticketList = openTransfers.map(function(t) { var age = hoursSince(t.created_at); var ageLabel = age >= 24 ? Math.floor(age / 24) + 'd' : age + 'h'; return '<li style="margin-bottom:6px;"><strong>' + (t.ticket_number || '—') + '</strong> — Status: ' + (t.status || '—') + ' — From: ' + (t.from_location || '—') + ' → To: ' + (t.to_location || '—') + ' — Open ' + ageLabel + '</li>'; }).join('');
+  modal.innerHTML = '<div style="max-width:500px;width:90%;background:var(--bg-card);border:2px solid #f59e0b;border-radius:12px;padding:28px;text-align:center;"><h3 style="margin:0 0 10px 0;font-size:20px;color:#92400e;">⚠ Open Transfer Ticket Exists</h3><p style="margin:0 0 14px 0;font-size:14px;color:var(--text-muted);line-height:1.5;">The asset <strong>' + esc(assetName) + '</strong> already has ' + openTransfers.length + ' open transfer ticket' + (openTransfers.length > 1 ? 's' : '') + ':</p><ul style="text-align:left;margin:0 0 18px 0;padding-left:20px;font-size:13px;color:var(--text);">' + ticketList + '</ul><p style="margin:0 0 18px 0;font-size:13px;color:#92400e;font-weight:600;">Did you forget to close the previous transfer?</p><div><button id="openTransferCancelBtn" style="background:var(--bg-step);border:1px solid var(--border);color:var(--text);padding:10px 20px;border-radius:6px;font-size:14px;cursor:pointer;margin:0 6px;">Go Back</button><button id="openTransferProceedBtn" style="background:#f59e0b;border:1px solid #d97706;color:#fff;padding:10px 20px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;margin:0 6px;">Create New Transfer Anyway</button></div></div>';
+  document.body.appendChild(modal);
+  document.getElementById('openTransferCancelBtn').onclick = function() { modal.remove(); if (onCancel) onCancel(); };
+  document.getElementById('openTransferProceedBtn').onclick = function() { modal.remove(); if (onProceed) onProceed(); };
+}
+
+function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 document.addEventListener('dashSessionLoaded', function() { document.getElementById('adminDashboard').style.display = 'block'; loadTransfers(); });
 </script>
