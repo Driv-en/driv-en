@@ -55,6 +55,20 @@
     }
   })();
 
+  /* ===== ERROR HANDLER LOADING ===== */
+  // Injects the error-handler.js script into the page if not already loaded.
+  // This catches all unhandled errors, shows a user-friendly banner, and
+  // POSTs the error to /api/error-report which logs it to D1 (visible on
+  // the owner dashboard Issues tab) and emails support@driv-en.com.
+  // Must load BEFORE other page scripts so it can catch their errors.
+  (function loadErrorHandler() {
+    if (window.DRIVENErrorHandler) return; // Already loaded
+    var script = document.createElement('script');
+    script.src = '/assets/js/error-handler.js';
+    script.async = false; // Load synchronously so it's ready before page scripts
+    document.head.appendChild(script);
+  })();
+
   /* ===== HELPER: Load an HTML component via fetch ===== */
   // Fetches an HTML file and injects it into a target element
   // Parameters:
