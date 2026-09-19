@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
 <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
 
-<link rel="stylesheet" href="/app/shared/dashboard.css?v=7">
+<link rel="stylesheet" href="/app/shared/dashboard.css?v=8">
 <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
 
 <script>
@@ -44,7 +44,9 @@
 .fuel-subtab.active { color: #ffffff; background: #15803d; border-color: #22c55e; margin-top: 0; font-weight: 600; z-index: 2; }
 .fuel-subtab-content { display: none; }
 .fuel-subtab-content.active { display: block; margin-top: 20px; }
-.fuel-tab-logout { background: #b91c1c; border: 1px solid #dc2626; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; margin-left: auto; position: relative; z-index: 1; transition: background 200ms ease, margin-top 200ms ease; }
+.fuel-tab-home { background: #1d4ed8; border: 1px solid #2563eb; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; margin-left: auto; position: relative; z-index: 1; transition: background 200ms ease, margin-top 200ms ease; text-decoration: none; display: inline-block; }
+.fuel-tab-home:hover { background: #2563eb; margin-top: 2px; }
+.fuel-tab-logout { background: #b91c1c; border: 1px solid #dc2626; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; margin-left: 0; position: relative; z-index: 1; transition: background 200ms ease, margin-top 200ms ease; }
 .fuel-tab-logout:hover { background: #dc2626; margin-top: 2px; }
 .fuel-main { max-width: 1100px; margin: 20px auto; padding: 0 20px; position: relative; z-index: 1; }
 .section-heading { position: sticky; top: 0; z-index: 5; background: var(--bg-card); border-bottom: 2px solid var(--border); padding: 12px 0; margin: 0 0 16px 0; font-size: 16px; font-weight: 700; color: var(--text); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
@@ -86,18 +88,26 @@
 .status-badge.active { background: #dcfce7; color: #15803d; border: 1px solid #16a34a; }
 .status-badge.inactive { background: var(--border); color: var(--text-muted); border: 1px solid var(--border); }
 .empty-state { text-align: center; padding: 40px; color: var(--text-muted); font-size: 14px; }
-@media (max-width: 800px) { .fuel-stats { grid-template-columns: repeat(2, 1fr); } .fuel-main { padding: 0 12px; margin: 12px auto; } .fuel-tab { padding: 10px 16px; font-size: 14px; } .fuel-tab-logout { padding: 10px 16px; font-size: 14px; } }
+@media (max-width: 800px) {
+  .fuel-stats { grid-template-columns: repeat(2, 1fr); }
+  .fuel-main { padding: 0 12px; margin: 12px auto; }
+  .fuel-tab { padding: 10px 16px; font-size: 14px; }
+  .fuel-tab-home { padding: 10px 16px; font-size: 14px; }
+  .fuel-tab-logout { padding: 10px 16px; font-size: 14px; }
+}
 </style>
 </head>
 <body data-page-title="Fuel Management" data-required-permission="fuel.view">
 
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
+
 <div id="dashHeader"></div>
 
 <div class="fuel-tab-bar" id="fuelTabBar">
   <button class="fuel-tab active" data-tab="tanks" onclick="switchTab('tanks')">Tanks</button>
   <button class="fuel-tab" data-tab="transactions" onclick="switchTab('transactions')">Transactions</button>
+  <a class="fuel-tab-home" id="dashHomeLink" href="/app/dashboard/employee-dashboard.html">Dashboard</a>
   <button class="fuel-tab-logout" onclick="dashLogout()">Logout</button>
 </div>
 
@@ -145,10 +155,18 @@
 </div>
 
 <div id="dashFooter"></div>
-<script src="/app/shared/dashboard-common.js?v=7"></script>
+
+<script src="/app/shared/dashboard-common.js?v=8"></script>
+
 <script>
 var allTanks = [];
 var allTransactions = [];
+var tankSortColumn = 'created_at';
+var tankSortDir = 'desc';
+var txSortColumn = 'transaction_date';
+var txSortDir = 'desc';
+var tankSearchText = '';
+var txSearchText = '';
 
 function switchTab(tabName) {
   document.querySelectorAll('.fuel-tab').forEach(function(t) { t.classList.remove('active'); });
@@ -181,7 +199,7 @@ function switchTxSubtab(subtabName) {
 function makeTabsSticky() {
   var header = document.getElementById('dashHeader');
   var tabBar = document.getElementById('fuelTabBar');
-  if (header && tabBar && !header.contains(tabBar)) header.appendChild(tabBar);
+  if (header && tabBar && !header.contains(tabBar)) { header.appendChild(tabBar); }
   var tanksBar = document.getElementById('tanksSubtabBar');
   var txBar = document.getElementById('txSubtabBar');
   if (header && tanksBar && !header.contains(tanksBar)) header.appendChild(tanksBar);
@@ -196,7 +214,7 @@ function insertHeaderTitle() {
     title.textContent = 'Fuel Management';
     var logoArea = document.getElementById('dashCustomerLogoArea');
     var drivenLogo = row1.querySelector('.dash-driven-logo');
-    if (logoArea && drivenLogo) row1.insertBefore(title, drivenLogo);
+    if (logoArea && drivenLogo) { row1.insertBefore(title, drivenLogo); }
   }
 }
 
@@ -205,7 +223,10 @@ window.dashLogout = function() {
   window.location.href = '/public/login.html';
 };
 
-function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
 function tankLevelHtml(t) {
   var pct = t.capacity > 0 ? Math.min(100, (t.current_quantity / t.capacity) * 100) : 0;
@@ -215,7 +236,11 @@ function tankLevelHtml(t) {
 
 function tankTypeBadge(t) {
   var type = t.tank_type || '';
-  var label = type === 'bulk' ? 'Bulk' : type === 'dragup' ? 'Drag-Up' : type === 'portable' ? 'Gas Can' : type === 'equipment' ? 'Equipment' : type;
+  var label = type;
+  if (type === 'bulk') label = 'Bulk';
+  else if (type === 'dragup') label = 'Drag-Up';
+  else if (type === 'portable') label = 'Gas Can';
+  else if (type === 'equipment') label = 'Equipment';
   return '<span class="tank-badge ' + type + '">' + label + '</span>';
 }
 
@@ -230,7 +255,8 @@ function statusBadge(t) {
 }
 
 function sortTanks(tanks, col, dir) {
-  return tanks.slice().sort(function(a, b) {
+  var sorted = tanks.slice();
+  sorted.sort(function(a, b) {
     var av, bv;
     if (col === 'name') { av = (a.name||'').toLowerCase(); bv = (b.name||'').toLowerCase(); }
     else if (col === 'tank_type') { av = (a.tank_type||'').toLowerCase(); bv = (b.tank_type||'').toLowerCase(); }
@@ -245,10 +271,12 @@ function sortTanks(tanks, col, dir) {
     if (av > bv) return dir === 'asc' ? 1 : -1;
     return 0;
   });
+  return sorted;
 }
 
 function sortTransactions(txs, col, dir) {
-  return txs.slice().sort(function(a, b) {
+  var sorted = txs.slice();
+  sorted.sort(function(a, b) {
     var av, bv;
     if (col === 'transaction_type') { av = (a.transaction_type||'').toLowerCase(); bv = (b.transaction_type||'').toLowerCase(); }
     else if (col === 'fuel_type') { av = (a.fuel_type||'').toLowerCase(); bv = (b.fuel_type||'').toLowerCase(); }
@@ -261,6 +289,7 @@ function sortTransactions(txs, col, dir) {
     if (av > bv) return dir === 'asc' ? 1 : -1;
     return 0;
   });
+  return sorted;
 }
 
 function filterTanks(tanks, search) {
@@ -277,7 +306,8 @@ function renderTankTable(tanks, containerId, showTypeColumn) {
   if (tanks.length === 0) { container.innerHTML = '<div class="empty-state">No tanks found.</div>'; return; }
   var filterBarId = containerId + '-filter';
   var tableId = containerId + '-table';
-  container.innerHTML = '<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="' + filterBarId + '" placeholder="Name, type, fuel, location…" oninput="onTankFilter(\'' + containerId + '\', this.value)" style="flex:1;min-width:180px;"></div>' +
+  container.innerHTML =
+    '<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="' + filterBarId + '" placeholder="Name, type, fuel, location…" oninput="onTankFilter(\'' + containerId + '\', this.value)" style="flex:1;min-width:180px;"></div>' +
     '<div class="fuel-table-wrap"><table class="fuel-table" id="' + tableId + '"><thead><tr>' +
     '<th onclick="onTankSort(\'' + containerId + '\',\'name\')" class="sortable">Tank Name <span class="sort-arrow"></span></th>' +
     (showTypeColumn ? '<th onclick="onTankSort(\'' + containerId + '\',\'tank_type\')" class="sortable">Type <span class="sort-arrow"></span></th>' : '') +
@@ -296,13 +326,13 @@ function renderTankTable(tanks, containerId, showTypeColumn) {
 function renderTankRows(tanks, showTypeColumn) {
   return tanks.map(function(t) {
     return '<tr><td style="font-weight:600;">' + esc(t.name||'') + '</td>' +
-      (showTypeColumn ? '<td>' + tankTypeBadge(t) + '</td>' : '') +
-      '<td>' + esc(t.fuel_type||'—') + '</td>' +
-      '<td>' + tankLevelHtml(t) + '</td>' +
-      '<td>' + (t.capacity||0) + ' ' + esc(t.unit||'gal') + '</td>' +
-      '<td>' + esc(t.location||'—') + '</td>' +
-      '<td>' + ownershipBadge(t) + '</td>' +
-      '<td>' + statusBadge(t) + '</td></tr>';
+    (showTypeColumn ? '<td>' + tankTypeBadge(t) + '</td>' : '') +
+    '<td>' + esc(t.fuel_type||'—') + '</td>' +
+    '<td>' + tankLevelHtml(t) + '</td>' +
+    '<td>' + (t.capacity||0) + ' ' + esc(t.unit||'gal') + '</td>' +
+    '<td>' + esc(t.location||'—') + '</td>' +
+    '<td>' + ownershipBadge(t) + '</td>' +
+    '<td>' + statusBadge(t) + '</td></tr>';
   }).join('');
 }
 
@@ -315,7 +345,8 @@ function onTankSort(containerId, col) {
 }
 
 function onTankFilter(containerId, searchText) {
-  document.getElementById(containerId)._tankSearch = searchText;
+  var container = document.getElementById(containerId);
+  container._tankSearch = searchText;
   reRenderTankTable(containerId);
 }
 
@@ -331,8 +362,10 @@ function reRenderTankTable(containerId) {
 }
 
 function updateSortIndicators(container) {
-  container.querySelectorAll('th.sortable').forEach(function(th) { th.classList.remove('sorted-asc', 'sorted-desc'); });
-  var th = container.querySelector('th[onclick*="' + container._tankSortCol + '"]');
+  var ths = container.querySelectorAll('th.sortable');
+  ths.forEach(function(th) { th.classList.remove('sorted-asc', 'sorted-desc'); });
+  var col = container._tankSortCol;
+  var th = container.querySelector('th[onclick*="' + col + '"]');
   if (th) th.classList.add(container._tankSortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
 }
 
@@ -375,14 +408,29 @@ async function loadTanks() {
   try {
     var resp = await fetch('/api/fuel-tanks');
     var data = await resp.json();
-    if (data.success && data.tanks) { allTanks = data.tanks; updateTankStats(); renderTanksForSubtab('all'); }
-    else { document.getElementById('allTanksContainer').innerHTML = '<div class="empty-state">Failed to load tanks.</div>'; }
-  } catch (e) { document.getElementById('allTanksContainer').innerHTML = '<div class="empty-state">Error: ' + esc(e.message) + '</div>'; }
+    if (data.success && data.tanks) {
+      allTanks = data.tanks;
+      updateTankStats();
+      renderTanksForSubtab('all');
+    } else {
+      document.getElementById('allTanksContainer').innerHTML = '<div class="empty-state">Failed to load tanks.</div>';
+    }
+  } catch (e) {
+    document.getElementById('allTanksContainer').innerHTML = '<div class="empty-state">Error: ' + esc(e.message) + '</div>';
+  }
 }
 
 function txTypeLabel(type) {
   var labels = { purchase: 'Purchase', bulk_issue: 'Bulk Issue', dragup_fill: 'Drag-Up Fill', dragup_issue: 'Drag-Up Issue', portable_fill: 'Can Fill', portable_issue: 'Can Issue', return: 'Return' };
   return labels[type] || (type || '').replace(/_/g, ' ');
+}
+
+function txTypeCategory(type) {
+  if (type === 'purchase') return 'purchase';
+  if (type === 'return') return 'transfer';
+  if (type.indexOf('fill') !== -1) return 'transfer';
+  if (type.indexOf('issue') !== -1) return 'issue';
+  return 'other';
 }
 
 function getTxForSubtab(subtab) {
@@ -398,7 +446,8 @@ function renderTxTable(txs, containerId) {
   if (txs.length === 0) { container.innerHTML = '<div class="empty-state">No transactions found.</div>'; return; }
   var filterId = containerId + '-filter';
   var tableId = containerId + '-table';
-  container.innerHTML = '<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="' + filterId + '" placeholder="Type, fuel, asset, person, project…" oninput="onTxFilter(\'' + containerId + '\', this.value)" style="flex:1;min-width:180px;"></div>' +
+  container.innerHTML =
+    '<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="' + filterId + '" placeholder="Type, fuel, asset, person, project…" oninput="onTxFilter(\'' + containerId + '\', this.value)" style="flex:1;min-width:180px;"></div>' +
     '<div class="fuel-table-wrap"><table class="fuel-table" id="' + tableId + '"><thead><tr>' +
     '<th onclick="onTxSort(\'' + containerId + '\',\'transaction_date\')" class="sortable">Date <span class="sort-arrow"></span></th>' +
     '<th onclick="onTxSort(\'' + containerId + '\',\'transaction_type\')" class="sortable">Type <span class="sort-arrow"></span></th>' +
@@ -429,7 +478,8 @@ function onTxSort(containerId, col) {
 }
 
 function onTxFilter(containerId, searchText) {
-  document.getElementById(containerId)._txSearch = searchText;
+  var container = document.getElementById(containerId);
+  container._txSearch = searchText;
   reRenderTxTable(containerId);
 }
 
@@ -438,15 +488,22 @@ function reRenderTxTable(containerId) {
   var subtab = container.getAttribute('data-subtab') || 'all';
   var txs = getTxForSubtab(subtab);
   var s = (container._txSearch || '').toLowerCase();
-  if (s) { txs = txs.filter(function(t) { var hay = [t.transaction_type, t.fuel_type, t.asset_name, t.asset_number, t.person, t.project_name].filter(Boolean).join(' ').toLowerCase(); return hay.indexOf(s) !== -1; }); }
+  if (s) {
+    txs = txs.filter(function(t) {
+      var hay = [t.transaction_type, t.fuel_type, t.asset_name, t.asset_number, t.person, t.project_name].filter(Boolean).join(' ').toLowerCase();
+      return hay.indexOf(s) !== -1;
+    });
+  }
   var sorted = sortTransactions(txs, container._txSortCol || 'transaction_date', container._txSortDir || 'desc');
   var tbody = container.querySelector('tbody');
   if (tbody) tbody.innerHTML = renderTxRows(sorted);
 }
 
 function updateTxSortIndicators(container) {
-  container.querySelectorAll('th.sortable').forEach(function(th) { th.classList.remove('sorted-asc', 'sorted-desc'); });
-  var th = container.querySelector('th[onclick*="' + container._txSortCol + '"]');
+  var ths = container.querySelectorAll('th.sortable');
+  ths.forEach(function(th) { th.classList.remove('sorted-asc', 'sorted-desc'); });
+  var col = container._txSortCol;
+  var th = container.querySelector('th[onclick*="' + col + '"]');
   if (th) th.classList.add(container._txSortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
 }
 
@@ -472,15 +529,25 @@ async function loadTransactions() {
   try {
     var resp = await fetch('/api/fuel-transactions');
     var data = await resp.json();
-    if (data.success && data.transactions) { allTransactions = data.transactions; renderTxForSubtab('all'); }
-    else { document.getElementById('allTxContainer').innerHTML = '<div class="empty-state">Failed to load transactions.</div>'; }
-  } catch (e) { document.getElementById('allTxContainer').innerHTML = '<div class="empty-state">Error: ' + esc(e.message) + '</div>'; }
+    if (data.success && data.transactions) {
+      allTransactions = data.transactions;
+      renderTxForSubtab('all');
+    } else {
+      document.getElementById('allTxContainer').innerHTML = '<div class="empty-state">Failed to load transactions.</div>';
+    }
+  } catch (e) {
+    document.getElementById('allTxContainer').innerHTML = '<div class="empty-state">Error: ' + esc(e.message) + '</div>';
+  }
 }
 
 async function init() {
   document.addEventListener('dashSessionLoaded', async function() {
     var user = window.dashUser;
     if (!user) { window.location.href = '/public/login.html'; return; }
+    var role = (user.role || '').toLowerCase();
+    var dashUrl = role === 'admin' ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
+    var homeLink = document.getElementById('dashHomeLink');
+    if (homeLink) homeLink.href = dashUrl;
     insertHeaderTitle();
     makeTabsSticky();
     document.getElementById('loading').style.display = 'none';
@@ -488,9 +555,11 @@ async function init() {
     await loadTanks();
   });
 }
+
 init();
 </script>
-<script src="/app/shared/auth-check.js?v=7"></script>
+
+<script src="/app/shared/auth-check.js?v=8"></script>
 <script src="/components/nav.js?v=5"></script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" data-cf-beacon='{"token":"aed8feab3b60404ba88ec92f026bbcd6"}' crossorigin="anonymous"></script>
 </body>
