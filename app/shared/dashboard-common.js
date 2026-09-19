@@ -158,16 +158,41 @@
         var greetingEl = document.getElementById("dashGreetingText");
         if (greetingEl) {
           var firstName = data.user.first_name || "";
-          if (firstName) {
+          var orgName = data.user.org_name || "";
+          if (firstName && orgName) {
+            greetingEl.innerHTML = "Welcome, <strong>" + firstName + "</strong> — " + escapeHtml(orgName);
+          } else if (firstName) {
             greetingEl.innerHTML = "Welcome, <strong>" + firstName + "</strong>";
           } else {
             greetingEl.innerHTML = "Welcome";
           }
         }
 
+        // Store org name in localStorage for pages that need it
+        if (data.user.org_name) {
+          localStorage.setItem("driven_org_name", data.user.org_name);
+        }
+
         // Also expose user data on window.dashUser immediately
         // (in addition to the dashSessionLoaded event)
         window.dashUser = data.user;
+
+        // ===== RESOLVE DASHBOARD BUTTON (return to main dashboard) =====
+        // Sub-dashboards (fuel, transfers, work-orders, fuel-alerts) are accessed
+        // by customer employees with permissions. The Dashboard button returns:
+        //   Admin role → admin.html
+        //   All other employees → employee-dashboard.html (permission-based)
+        var role = (data.user.role || '').toLowerCase();
+        var dashUrl;
+        if (role === 'admin') {
+          dashUrl = '/app/dashboard/admin.html';
+        } else {
+          dashUrl = '/app/dashboard/employee-dashboard.html';
+        }
+        var homeBtn = document.getElementById('dashHomeBtn');
+        if (homeBtn) {
+          homeBtn.href = dashUrl;
+        }
 
         return true;
       }
@@ -229,5 +254,71 @@
     document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: dashUser }));
     return result;
   };
+
+  /* ===== SLIDING SESSION REFRESH (prevents active users from being logged out) ===== */
+  // The auth worker issues a session JWT that expires after SESSION_LIFETIME
+  // (currently 3600s = 1 hour).  If the user is actively using the dashboard,
+  // we proactively call POST /auth/refresh (which exchanges the long-lived
+  // refresh cookie for a fresh session cookie) BEFORE the session expires.
+  // The refresh timer resets on user activity (clicks, keys, scroll, touch),
+  // so an idle user eventually logs out, but an active user never does.
+  var SESSION_REFRESH_MS = 30 * 60 * 1000;   // refresh every 30 minutes
+  var SESSION_ACTIVITY_MS = 5 * 60 * 1000;   // reset timer after 5 min of activity
+  var sessionRefreshTimer = null;
+  var sessionActivityTimer = null;
+  var lastSessionActivity = Date.now();
+
+  function scheduleSessionRefresh() {
+    if (sessionRefreshTimer) clearTimeout(sessionRefreshTimer);
+    sessionRefreshTimer = setTimeout(refreshSessionToken, SESSION_REFRESH_MS);
+  }
+
+  async function refreshSessionToken() {
+    try {
+      var resp = await fetch("/auth/refresh", { method: "POST", credentials: "include" });
+      if (resp.ok) {
+        // Session cookie refreshed — schedule the next refresh
+        scheduleSessionRefresh();
+      } else {
+        // Refresh failed (e.g., refresh cookie also expired) — the next
+        // /auth/session call will redirect to login.  Do nothing here.
+        console.warn("Session refresh failed:", resp.status);
+      }
+    } catch (e) {
+      console.warn("Session refresh error:", e.message);
+    }
+  }
+
+  function onSessionActivity() {
+    var now = Date.now();
+    // Only reset the timer if the user has been active for a meaningful
+    // stretch — this prevents a single stray event from keeping the
+    // session alive forever.
+    if (now - lastSessionActivity > 60 * 1000) {
+      lastSessionActivity = now;
+      scheduleSessionRefresh();
+    }
+  }
+
+  // Start the sliding refresh once the session is loaded and the user is
+  // authenticated.  Only start it for authenticated sessions (dashUser set).
+  document.addEventListener("dashSessionLoaded", function() {
+    if (!dashUser) return;
+    scheduleSessionRefresh();
+    ["click", "keydown", "scroll", "touchstart", "mousemove"].forEach(function(evt) {
+      document.addEventListener(evt, onSessionActivity, { passive: true });
+    });
+  });
+
+  /* ===== HTML ESCAPE HELPER ===== */
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
 
 })();
