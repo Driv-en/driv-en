@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRIV‑EN | Dashboard</title>
+<meta name="description" content="DRIV-EN employee dashboard — modules and tools based on your permissions.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://www.driv-en.com/app/dashboard/employee-dashboard.html">
+<link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
+<link rel="stylesheet" href="/app/shared/dashboard.css?v=8">
+<link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
+<script>
+(function() {
+  var saved = localStorage.getItem("driven-theme");
+  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  var theme = saved || system;
+  document.documentElement.setAttribute("data-theme", theme);
+})();
+</script>
+<style>
+.emp-loading{display:flex;align-items:center;justify-content:center;height:60vh;font-size:16px;color:var(--text-muted);}
+.dash-header-row2 { display: none !important; }
+.dash-header-row3 { display: none !important; }
+#dashHeader .dash-theme-wrapper { display: none !important; }
+.dash-header-row1 { padding: 8px 20px !important; align-items: center; }
+.emp-header-title { flex: 1; text-align: center; font-size: 20px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.emp-tab-bar { display: flex; gap: 2px; max-width: 1100px; margin: 0 auto; padding: 0 20px; overflow-x: auto; position: relative; z-index: 1; background: #cbd5e1; border-bottom: 2px solid #94a3b8; }
+.emp-tab { background: #94a3b8; border: 1px solid #64748b; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 500; color: #1e293b; cursor: pointer; white-space: nowrap; transition: color 200ms ease, background 200ms ease, margin-top 200ms ease; margin-top: 4px; position: relative; z-index: 1; }
+.emp-tab:hover { color: #0f172a; background: #a5b4c4; margin-top: 2px; }
+.emp-tab.active { color: #1d4ed8; background: #e2e8f0; border-color: #64748b; margin-top: 0; font-weight: 600; z-index: 2; }
+.emp-tab-content { display: none; }
+.emp-tab-content.active { display: block; }
+.emp-tab-logout { background: #b91c1c; border: 1px solid #dc2626; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; margin-left: auto; position: relative; z-index: 1; transition: background 200ms ease, margin-top 200ms ease; }
+.emp-tab-logout:hover { background: #dc2626; margin-top: 2px; }
+.emp-main { max-width: 1100px; margin: 20px auto; padding: 0 20px; position: relative; z-index: 1; }
+.emp-welcome { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px 24px; margin-bottom: 20px; }
+.emp-welcome h2 { margin: 0 0 6px 0; font-size: 22px; color: var(--text); }
+.emp-welcome p { margin: 0; font-size: 14px; color: var(--text-muted); }
+.emp-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.emp-stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; text-align: center; }
+.emp-stat-number { font-size: 32px; font-weight: 700; color: var(--text); }
+.emp-stat-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+.emp-section-title { font-size: 16px; font-weight: 700; color: var(--text); margin: 0 0 14px 0; padding-bottom: 8px; border-bottom: 2px solid var(--border); }
+.emp-module-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.emp-module-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; cursor: pointer; transition: border-color 200ms ease, box-shadow 200ms ease; }
+.emp-module-card:hover { border-color: var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.emp-module-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.emp-module-body { font-size: 13px; color: var(--text-muted); line-height: 1.4; margin-bottom: 10px; }
+.emp-module-link { font-size: 13px; color: var(--primary); font-weight: 600; }
+.emp-empty { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+.emp-empty h3 { font-size: 18px; margin: 0 0 8px 0; color: var(--text); }
+.emp-empty p { font-size: 14px; margin: 0; }
+.emp-form-links { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 8px; }
+.emp-form-link { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; text-decoration: none; color: var(--text); transition: border-color 200ms ease; }
+.emp-form-link:hover { border-color: var(--primary); }
+.emp-form-link-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.emp-form-link-desc { font-size: 12px; color: var(--text-muted); }
+@media (max-width: 800px) { .emp-stats { grid-template-columns: repeat(2, 1fr); } .emp-module-grid { grid-template-columns: 1fr; } .emp-form-links { grid-template-columns: 1fr; } .emp-main { padding: 0 12px; margin: 12px auto; } .emp-tab { padding: 10px 16px; font-size: 14px; } .emp-tab-logout { padding: 10px 16px; font-size: 14px; } }
+</style>
+</head>
+<body data-page-title="Dashboard" data-required-permission="any">
+<div class="steel-bg"></div>
+<div class="steel-overlay"></div>
+<div id="dashHeader"></div>
+<div class="emp-tab-bar" id="empTabBar">
+  <button class="emp-tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
+  <button class="emp-tab-logout" onclick="dashLogout()">Logout</button>
+</div>
+<div id="loading" class="emp-loading">Checking session…</div>
+<div id="dashboard" style="display:none;">
+  <div class="emp-tab-content active" id="tab-overview">
+    <div class="emp-main">
+      <div class="emp-welcome"><h2>Welcome, <span id="welcome-name"></span></h2><p id="welcome-role">Your dashboard shows the modules and tools you have access to.</p></div>
+      <div class="emp-stats" id="empStats" style="display:none;">
+        <div class="emp-stat-card"><div class="emp-stat-number" id="stat-projects">0</div><div class="emp-stat-label">My Projects</div></div>
+        <div class="emp-stat-card"><div class="emp-stat-number" id="stat-equipment">0</div><div class="emp-stat-label">Equipment</div></div>
+        <div class="emp-stat-card"><div class="emp-stat-number" id="stat-workorders">0</div><div class="emp-stat-label">Work Orders</div></div>
+        <div class="emp-stat-card"><div class="emp-stat-number" id="stat-transfers">0</div><div class="emp-stat-label">Transfers</div></div>
+      </div>
+      <div class="emp-section-title">Modules</div>
+      <div class="emp-module-grid" id="empModules"></div>
+      <div id="empFormLinksSection" style="display:none; margin-top:28px;"><div class="emp-section-title">Quick Forms</div><div class="emp-form-links" id="empFormLinks"></div></div>
+      <div id="empEmpty" class="emp-empty" style="display:none;"><h3>No Modules Assigned</h3><p>You don't have access to any modules yet. Contact your administrator to request access.</p></div>
+    </div>
+  </div>
+</div>
+<div id="dashFooter"></div>
+<script src="/app/shared/dashboard-common.js?v=8"></script>
+<script>
+var MODULES = [
+  { key: 'fuel', label: 'Fuel Management', desc: 'Tank levels, fuel transactions, inventory tracking, and ownership badges.', link: '/app/dashboard/fuel.html', perms: ['fuel.view', 'fuel.add', 'fuel.edit', 'fuel.delete'] },
+  { key: 'fuel_alerts', label: 'Fuel Alerts', desc: 'Capacity flags, consumption anomalies, and notification settings.', link: '/app/dashboard/fuel-alerts.html', perms: ['fuel_flags.view', 'fuel_flags.resolve'] },
+  { key: 'transfers', label: 'Transfers', desc: 'Equipment transfer tickets, status tracking, and delivery event trails.', link: '/app/dashboard/transfers.html', perms: ['transfer.view', 'transfer.add', 'transfer.edit', 'transfer.delete'] },
+  { key: 'work_orders', label: 'Work Orders', desc: 'Maintenance tickets, checklists, parts tracking, and completion status.', link: '/app/dashboard/work-orders.html', perms: ['wo.view', 'wo.add', 'wo.edit', 'wo.delete', 'wo.assign', 'wo.clock', 'wo.template_view', 'wo.template_add', 'workorders.view', 'workorders.add', 'workorders.edit', 'workorders.delete'] },
+  { key: 'equipment', label: 'Equipment', desc: 'Manage fleet, assignments, meter readings, and service history.', link: null, perms: ['equipment.view', 'equipment.add', 'equipment.edit', 'equipment.delete', 'equipment.meter'] },
+  { key: 'inspections', label: 'Inspections', desc: 'View, create, and manage equipment inspections.', link: null, perms: ['inspections.view', 'inspections.add', 'inspections.edit', 'inspections.delete'] },
+  { key: 'pm', label: 'Preventive Maintenance', desc: 'PM schedules, intervals, and upcoming service reminders.', link: null, perms: ['pm.view', 'pm.add', 'pm.edit', 'pm.delete'] },
+  { key: 'safety', label: 'Safety', desc: 'Safety forms, compliance documentation, and hazard reports.', link: null, perms: ['safety.view', 'safety.add', 'safety.edit', 'safety.approve'] },
+  { key: 'projects', label: 'Projects', desc: 'View, create, and manage projects and jobsites.', link: null, perms: ['project.view', 'project.add', 'project.edit', 'project.view_all', 'projects.view', 'projects.add', 'projects.edit', 'projects.delete'] },
+  { key: 'employees', label: 'Employees', desc: 'View and manage employee records.', link: null, perms: ['employees.view', 'employees.add', 'employees.edit', 'employees.delete'] },
+  { key: 'users', label: 'User Management', desc: 'Manage users, roles, and permissions.', link: null, perms: ['users.view', 'users.add', 'users.edit', 'users.delete', 'user.manage'] },
+  { key: 'reports', label: 'Reports', desc: 'View and export operational reports.', link: null, perms: ['reports.view', 'reports.export'] },
+  { key: 'extraction', label: 'AI Extraction', desc: 'Submit files for AI extraction and review results.', link: null, perms: ['extraction.view', 'extraction.add', 'extraction.review'] },
+  { key: 'settings', label: 'Company Settings', desc: 'View and edit company settings and configuration.', link: null, perms: ['settings.view', 'settings.edit', 'org_settings.edit'] }
+];
+var FORMS = [
+  { key: 'fuel_log', label: 'Log Fuel', desc: 'Record a fuel transaction', link: '/app/forms/fuel-log.html', perm: 'fuel.add' },
+  { key: 'transfer_create', label: 'Create Transfer', desc: 'Start an equipment transfer ticket', link: '/app/forms/transfer-create.html', perm: 'transfer.add' },
+  { key: 'wo_create', label: 'Create Work Order', desc: 'Submit a maintenance request', link: '/app/forms/work-order-create.html', perm: 'wo.add' },
+  { key: 'inspection_add', label: 'Add Inspection', desc: 'Record an equipment inspection', link: '/app/forms/inspection.html', perm: 'inspections.add' },
+  { key: 'safety_add', label: 'Safety Form', desc: 'Submit a safety form or hazard report', link: '/app/forms/safety.html', perm: 'safety.add' },
+  { key: 'pm_add', label: 'Add PM', desc: 'Create a preventive maintenance task', link: '/app/forms/pm.html', perm: 'pm.add' }
+];
+var userPermissions = [];
+function hasPermission(perm) { return userPermissions.indexOf(perm) !== -1; }
+function hasAnyPermission(perms) { for (var i = 0; i < perms.length; i++) { if (hasPermission(perms[i])) return true; } return false; }
+function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function renderModules() {
+  var container = document.getElementById('empModules');
+  var visibleModules = MODULES.filter(function(m) { return hasAnyPermission(m.perms); });
+  if (visibleModules.length === 0) { container.innerHTML = ''; document.getElementById('empEmpty').style.display = 'block'; return; }
+  container.innerHTML = visibleModules.map(function(m) {
+    var cardContent = '<div class="emp-module-title">' + esc(m.label) + '</div><div class="emp-module-body">' + esc(m.desc) + '</div>';
+    if (m.link) { return '<div class="emp-module-card" onclick="window.location.href=\'' + m.link + '\'">' + cardContent + '<div class="emp-module-link">Open →</div></div>'; }
+    else { return '<div class="emp-module-card" style="opacity:0.7;cursor:default;" title="Dashboard coming soon">' + cardContent + '<div class="emp-module-link" style="color:var(--text-muted);">Coming soon</div></div>'; }
+  }).join('');
+}
+function renderFormLinks() {
+  var container = document.getElementById('empFormLinks');
+  var section = document.getElementById('empFormLinksSection');
+  var visibleForms = FORMS.filter(function(f) { return hasPermission(f.perm); });
+  if (visibleForms.length === 0) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  container.innerHTML = visibleForms.map(function(f) { return '<a class="emp-form-link" href="' + f.link + '"><div class="emp-form-link-title">' + esc(f.label) + '</div><div class="emp-form-link-desc">' + esc(f.desc) + '</div></a>'; }).join('');
+}
+async function loadStats() {
+  var showStats = false;
+  if (hasAnyPermission(['project.view', 'project.view_all', 'projects.view'])) { showStats = true; try { var resp = await fetch('/api/projects?mine=1'); var data = await resp.json(); if (data.success) document.getElementById('stat-projects').textContent = (data.projects || []).length; } catch (e) {} }
+  if (hasAnyPermission(['equipment.view', 'equipment.add', 'equipment.edit'])) { showStats = true; try { var resp = await fetch('/api/equipment'); var data = await resp.json(); if (data.success) document.getElementById('stat-equipment').textContent = (data.equipment || []).length; } catch (e) {} }
+  if (hasAnyPermission(['wo.view', 'workorders.view'])) { showStats = true; try { var resp = await fetch('/api/work-orders?status=open'); var data = await resp.json(); if (data.success) document.getElementById('stat-workorders').textContent = (data.work_orders || []).length; } catch (e) {} }
+  if (hasAnyPermission(['transfer.view'])) { showStats = true; try { var resp = await fetch('/api/transfers?status=open'); var data = await resp.json(); if (data.success) document.getElementById('stat-transfers').textContent = (data.transfers || []).length; } catch (e) {} }
+  if (showStats) document.getElementById('empStats').style.display = 'grid';
+}
+function switchTab(tabName) {
+  document.querySelectorAll('.emp-tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.emp-tab-content').forEach(function(c) { c.classList.remove('active'); });
+  document.querySelector('[data-tab="' + tabName + '"]').classList.add('active');
+  document.getElementById('tab-' + tabName).classList.add('active');
+}
+function insertHeaderTitle() {
+  var row1 = document.querySelector('.dash-header-row1');
+  if (row1 && !document.querySelector('.emp-header-title')) { var title = document.createElement('div'); title.className = 'emp-header-title'; title.textContent = 'Dashboard'; var logoArea = document.getElementById('dashCustomerLogoArea'); var drivenLogo = row1.querySelector('.dash-driven-logo'); if (logoArea && drivenLogo) row1.insertBefore(title, drivenLogo); }
+}
+window.dashLogout = function() { try { fetch('/auth/logout', { method: 'POST' }); } catch (e) {} window.location.href = '/public/login.html'; };
+async function init() {
+  document.addEventListener('dashSessionLoaded', async function() {
+    var user = window.dashUser;
+    if (!user) { window.location.href = '/public/login.html'; return; }
+    var role = (user.role || '').toLowerCase();
+    if (role === 'admin') { window.location.href = '/app/dashboard/admin.html'; return; }
+    if (role === 'driv-en founder' || role === 'owner') { window.location.href = '/app/dashboard/owner-dashboard.html'; return; }
+    userPermissions = user.permissions || [];
+    var firstName = user.first_name || user.full_name || '';
+    document.getElementById('welcome-name').textContent = firstName || user.email;
+    document.getElementById('welcome-role').textContent = 'Role: ' + (user.role || 'Employee') + ' — Your dashboard shows the modules and tools you have access to.';
+    insertHeaderTitle();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    renderModules();
+    renderFormLinks();
+    loadStats();
+  });
+}
+init();
+</script>
+<script src="/app/shared/auth-check.js?v=8"></script>
+<script src="/components/nav.js?v=5"></script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" data-cf-beacon='{"token":"aed8feab3b60404ba88ec92f026bbcd6"}' crossorigin="anonymous"></script>
+</body>
+</html>
