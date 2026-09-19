@@ -20,14 +20,18 @@
 (function () {
   'use strict';
 
+  // --- Config ---
   var ERROR_REPORT_ENDPOINT = '/api/error-report';
   var MAX_BANNER_WIDTH = '500px';
   var BANNER_ZINDEX = 999999;
 
+  // Prevent duplicate error reports within a short window
   var recentErrors = {};
   var DEDUP_WINDOW_MS = 5000;
 
+  // --- User-friendly banner ---
   function showErrorBanner(message) {
+    // Don't show multiple banners
     var existing = document.getElementById('driv-en-error-banner');
     if (existing) return;
 
@@ -55,19 +59,23 @@
     banner.innerHTML = closeBtn + icon + title + body;
     document.body.appendChild(banner);
 
+    // Auto-dismiss after 15 seconds (but keep the error logged)
     setTimeout(function () {
       if (banner.parentElement) banner.remove();
     }, 15000);
   }
 
+  // --- Send error to backend ---
   function reportError(errorInfo) {
+    // Dedup: don't report the same error twice within 5 seconds
     var dedupKey = errorInfo.message + '|' + errorInfo.source;
     var now = Date.now();
     if (recentErrors[dedupKey] && (now - recentErrors[dedupKey] < DEDUP_WINDOW_MS)) {
-      return;
+      return; // Already reported recently
     }
     recentErrors[dedupKey] = now;
 
+    // Build the error report
     var report = {
       message: errorInfo.message || 'Unknown error',
       source: errorInfo.source || 'client-side',
@@ -81,6 +89,7 @@
       page: window.location.pathname
     };
 
+    // Send to backend (fire-and-forget, don't block)
     try {
       fetch(ERROR_REPORT_ENDPOINT, {
         method: 'POST',
@@ -88,6 +97,7 @@
         body: JSON.stringify(report),
         credentials: 'include'
       }).catch(function () {
+        // If the error report endpoint itself fails, log to console as last resort
         console.error('[DRIV-EN] Failed to report error to backend:', report);
       });
     } catch (e) {
@@ -95,10 +105,13 @@
     }
   }
 
+  // --- Catch synchronous errors ---
   window.addEventListener('error', function (event) {
+    // Ignore script loading errors (these are usually missing assets, not code bugs)
     if (event.message && event.message.indexOf('Error loading script') !== -1) {
       return;
     }
+
     var errorInfo = {
       message: event.message || 'Unhandled error',
       filename: event.filename,
@@ -107,10 +120,12 @@
       stack: event.error && event.error.stack ? event.error.stack : null,
       source: 'window.onerror'
     };
+
     reportError(errorInfo);
     showErrorBanner();
   });
 
+  // --- Catch unhandled promise rejections ---
   window.addEventListener('unhandledrejection', function (event) {
     var reason = event.reason;
     var errorInfo = {
@@ -118,19 +133,24 @@
       stack: reason && reason.stack ? reason.stack : null,
       source: 'unhandledrejection'
     };
+
     reportError(errorInfo);
     showErrorBanner();
   });
 
+  // --- Wrap fetch to catch API errors ---
   var originalFetch = window.fetch;
   window.fetch = function () {
     var args = arguments;
     return originalFetch.apply(this, args).then(function (response) {
+      // If the API returns a 500, show the user-friendly message
       if (response.status >= 500) {
+        // Try to read the error body for a custom message
         var cloned = response.clone();
         cloned.json().then(function (data) {
           var msg = (data && data.error) ? data.error : null;
           showErrorBanner(msg);
+          // Also report it (the backend already logged it, but this captures the client-side context)
           reportError({
             message: 'API returned ' + response.status + ': ' + (msg || 'Server error'),
             source: 'fetch-wrapper',
@@ -142,6 +162,7 @@
       }
       return response;
     }).catch(function (err) {
+      // Network error (server unreachable, CORS, etc.)
       reportError({
         message: 'Network error: ' + (err.message || 'fetch failed'),
         source: 'fetch-network-error',
@@ -152,6 +173,9 @@
     });
   };
 
+  // --- Helper: wrap async functions with error handling ---
+  // Pages can use this to wrap their main logic:
+  //   DRIVENErrorHandler.wrap(async () => { ... main page logic ... });
   window.DRIVENErrorHandler = {
     wrap: function (fn) {
       return function () {
@@ -168,6 +192,8 @@
         }
       };
     },
+
+    // Manual error reporting (for try/catch blocks in page code)
     report: function (message, source, stack) {
       reportError({
         message: message,
@@ -176,6 +202,8 @@
       });
       showErrorBanner(message);
     },
+
+    // Show the user-facing banner without reporting (for known errors)
     showBanner: function (message) {
       showErrorBanner(message);
     }
