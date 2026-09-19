@@ -1,42 +1,56 @@
 /**
- * sw.js — DRIV-EN Service Worker
+ * sw.js — DRIV‑EN Service Worker
  * 
  * Caches the app shell for offline use.
  * Uses stale-while-revalidate strategy: serve from cache, update in background.
  * 
  * v2.0 will add Background Sync API for automatic offline data sync.
  *
- * v5 — September 1, 2026: Updated cache paths for /app/ directory restructure.
- *      All post-login pages moved from /public/ to /app/.
- *      Shared resources moved from /components/ and /styles/ to /app/shared/.
- *      Static assets moved to /assets/.
+ * v8 — September 19, 2026: Added employee dashboard, all sub-dashboards, and
+ *      the new fuel/transfer forms to the cached shell. Field workers can now
+ *      access all forms and dashboards offline.
+ *      Previous: v7 (September 1, 2026) — /app/ directory restructure.
  */
 
-const CACHE = 'driv-en-v7';
+const CACHE = 'driv-en-v8';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
   '/public/login.html',
+  '/public/change-password.html',
+  '/public/reset-password.html',
   '/app/dashboard/onboarding-dashboard.html',
+  '/app/dashboard/employee-dashboard.html',
+  '/app/dashboard/admin.html',
+  '/app/dashboard/owner-dashboard.html',
+  '/app/dashboard/fuel.html',
+  '/app/dashboard/fuel-alerts.html',
+  '/app/dashboard/transfers.html',
+  '/app/dashboard/work-orders.html',
+  '/app/forms/fuel-purchase.html',
+  '/app/forms/fuel-transfer.html',
+  '/app/forms/transfer-create.html',
   '/app/onboarding/key-personnel.html',
   '/app/auth/change-password.html',
   '/app/auth/reset-password.html',
   '/app/auth/2fa-setup.html',
   '/app/auth/2fa-verify.html',
   '/app/auth/2fa-backup-codes.html',
-  '/app/dashboard/admin.html',
   '/assets/logo.png',
   '/assets/favicon.png',
   '/assets/icons/favicon.png',
+  '/assets/icons/favicon-96.png',
+  '/assets/icons/favicon-192.png',
+  '/assets/icons/favicon-180.png',
   '/assets/icons/driven-icon-192.png',
   '/assets/icons/driven-icon-512.png',
   '/app/shared/dashboard.css',
-  '/app/shared/offline-db.js',
-  '/app/shared/api.js',
-  '/app/shared/auth-check.js',
   '/app/shared/dashboard-common.js',
   '/app/shared/dashboard-header.html',
   '/app/shared/dashboard-footer.html',
+  '/app/shared/auth-check.js',
+  '/app/shared/offline-db.js',
+  '/app/shared/api.js',
   '/app/shared/template-helpers.js',
   '/styles/header.css',
   '/styles/footer.css',
