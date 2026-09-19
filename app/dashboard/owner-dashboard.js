@@ -6,6 +6,7 @@
 //   2. Sticky tabs CSS added to .owner-tab-bar
 //   3. Logo loads from /auth/get-logo as fallback if localStorage is empty
 //   4. Error handler integration (DRIVENErrorHandler)
+//   5. Logout now redirects to /public/login.html (not founder-login.html)
 // =========================================================================
 
 var allPartners = [];
@@ -460,7 +461,7 @@ function renderSessionsTable() {
     var data = await resp.json();
 
     if (!data.authenticated) {
-      window.location.href = '/app/auth/founder-login.html';
+      window.location.href = '/public/login.html';
       return;
     }
 
@@ -474,7 +475,7 @@ function renderSessionsTable() {
     initOwnerDashboard();
   } catch (e) {
     console.error('Auth check failed:', e);
-    window.location.href = '/app/auth/founder-login.html';
+    window.location.href = '/public/login.html';
   }
 })();
 
@@ -487,9 +488,6 @@ function initOwnerDashboard() {
   loadOwnerLogo();
 
   // Add sticky positioning to tab bar
-  // The header (.dash-header) is already sticky at top:0 with z-index:100.
-  // The tab bar needs to stick BELOW the header. We measure the header height
-  // dynamically so it works regardless of logo size or screen width.
   var tabBar = document.querySelector('.owner-tab-bar');
   var header = document.querySelector('.dash-header');
   if (tabBar && header) {
@@ -551,6 +549,7 @@ async function saveW9IrsFormUrl() {
 
 // ---- Tab Switching ----
 function switchTab(tabName) {
+  closeCustomerDetail();
   document.querySelectorAll('.owner-tab').forEach(function(t) { t.classList.remove('active'); });
   document.querySelectorAll('.owner-tab-content').forEach(function(c) { c.classList.remove('active'); });
   var tabBtn = document.querySelector('[data-tab="' + tabName + '"]');
@@ -1064,6 +1063,7 @@ function showError(msg) {
   el.style.display = 'block';
   setTimeout(function() { el.style.display = 'none'; }, 6000);
 }
+
 // =========================================================================
 // CUSTOMERS TAB LOGIC — table with drill-down, pagination, totals
 // =========================================================================
@@ -1129,17 +1129,16 @@ function renderCustomersTable() {
     return;
   }
 
-  // Build table
-  var html = '<div class="owner-table-wrap" style="overflow-x:auto;">';
-  html += '<table class="owner-data-table" style="width:100%;border-collapse:collapse;font-size:14px;">';
-  html += '<thead><tr style="border-bottom:2px solid var(--border-color);text-align:left;">';
-  html += '<th style="padding:10px 8px;cursor:pointer;" onclick="sortByCustomerField(\'company_name\')">Customer Name</th>';
-  html += '<th style="padding:10px 8px;text-align:center;">Employees</th>';
-  html += '<th style="padding:10px 8px;text-align:center;">Assets</th>';
-  html += '<th style="padding:10px 8px;text-align:center;">Completed PMs</th>';
-  html += '<th style="padding:10px 8px;text-align:center;">Completed WOs</th>';
-  html += '<th style="padding:10px 8px;text-align:center;">Equipment Transfers</th>';
-  html += '<th style="padding:10px 8px;text-align:center;">Fuel Purchases</th>';
+  var html = '<div class="owner-table-wrap" style="overflow-x:auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:0 4px;">';
+  html += '<table class="owner-data-table" style="width:100%;border-collapse:collapse;font-size:14px;background:#ffffff;">';
+  html += '<thead><tr style="border-bottom:2px solid #e2e8f0;text-align:left;background:#f8fafc;">';
+  html += '<th style="padding:10px 8px;cursor:pointer;color:#334155;" onclick="sortByCustomerField(\'company_name\')">Customer Name</th>';
+  html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Employees</th>';
+  html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Assets</th>';
+  html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Completed PMs</th>';
+  html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Completed WOs</th>';
+  html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Equipment Transfers</th>';
+  html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Fuel Purchases</th>';
   html += '</tr></thead><tbody>';
 
   for (var i = 0; i < pageData.length; i++) {
@@ -1152,18 +1151,17 @@ function renderCustomersTable() {
     var transferCount = c.transfer_count || 0;
     var fuelCount = c.fuel_count || 0;
     var idx = startIdx + i;
-    html += '<tr class="owner-customer-row" data-idx="' + idx + '" onclick="showCustomerDetail(' + idx + ')" style="cursor:pointer;border-bottom:1px solid var(--border-color);transition:background 0.15s;" onmouseover="this.style.background=\'var(--bg-hover,rgba(0,0,0,0.04))\'" onmouseout="this.style.background=\'\'">';
-    html += '<td style="padding:10px 8px;font-weight:500;">' + name + '</td>';
-    html += '<td style="padding:10px 8px;text-align:center;">' + empCount + '</td>';
-    html += '<td style="padding:10px 8px;text-align:center;">' + assetCount + '</td>';
-    html += '<td style="padding:10px 8px;text-align:center;">' + pmCount + '</td>';
-    html += '<td style="padding:10px 8px;text-align:center;">' + woCount + '</td>';
-    html += '<td style="padding:10px 8px;text-align:center;">' + transferCount + '</td>';
-    html += '<td style="padding:10px 8px;text-align:center;">' + fuelCount + '</td>';
+    html += '<tr class="owner-customer-row" data-idx="' + idx + '" onclick="showCustomerDetail(' + idx + ')" style="cursor:pointer;border-bottom:1px solid #e2e8f0;color:#1e293b;transition:background 0.15s;" onmouseover="this.style.background=\'#f1f5f9\'" onmouseout="this.style.background=\'#ffffff\'">';
+    html += '<td style="padding:10px 8px;font-weight:500;color:#1e293b;">' + name + '</td>';
+    html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + empCount + '</td>';
+    html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + assetCount + '</td>';
+    html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + pmCount + '</td>';
+    html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + woCount + '</td>';
+    html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + transferCount + '</td>';
+    html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + fuelCount + '</td>';
     html += '</tr>';
   }
 
-  // Totals row
   var totEmp = 0, totAsset = 0, totPM = 0, totWO = 0, totTransfer = 0, totFuel = 0;
   filtered.forEach(function(c) {
     totEmp += c.employee_count || 0;
@@ -1173,19 +1171,18 @@ function renderCustomersTable() {
     totTransfer += c.transfer_count || 0;
     totFuel += c.fuel_count || 0;
   });
-  html += '<tr style="border-top:2px solid var(--border-color);font-weight:700;background:var(--bg-alt,rgba(0,0,0,0.02));">';
-  html += '<td style="padding:10px 8px;">TOTAL (' + filtered.length + ' customers)</td>';
-  html += '<td style="padding:10px 8px;text-align:center;">' + totEmp + '</td>';
-  html += '<td style="padding:10px 8px;text-align:center;">' + totAsset + '</td>';
-  html += '<td style="padding:10px 8px;text-align:center;">' + totPM + '</td>';
-  html += '<td style="padding:10px 8px;text-align:center;">' + totWO + '</td>';
-  html += '<td style="padding:10px 8px;text-align:center;">' + totTransfer + '</td>';
-  html += '<td style="padding:10px 8px;text-align:center;">' + totFuel + '</td>';
+  html += '<tr style="border-top:2px solid #e2e8f0;font-weight:700;background:#f8fafc;color:#1e293b;">';
+  html += '<td style="padding:10px 8px;color:#1e293b;">TOTAL (' + filtered.length + ' customers)</td>';
+  html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totEmp + '</td>';
+  html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totAsset + '</td>';
+  html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totPM + '</td>';
+  html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totWO + '</td>';
+  html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totTransfer + '</td>';
+  html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totFuel + '</td>';
   html += '</tr>';
 
   html += '</tbody></table></div>';
 
-  // Pagination controls
   if (totalPages > 1) {
     html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;">';
     html += '<span style="font-size:13px;color:var(--text-muted);">Page ' + customerCurrentPage + ' of ' + totalPages + ' (' + filtered.length + ' customers)</span>';
@@ -1227,12 +1224,12 @@ function showCustomerDetail(idx) {
   var expDate = c.expiration_date ? new Date(c.expiration_date).toLocaleDateString() : '—';
   var createdDate = c.created_at ? new Date(c.created_at).toLocaleDateString() : '—';
 
-  var html = '<div style="padding:24px;max-width:600px;">';
+  var html = '<div style="background:#ffffff;color:#1e293b;border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.35);border:1px solid #e2e8f0;">';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
-  html += '<h3 style="margin:0;">' + escapeHtml(c.company_name || c.organization_name || c.name || 'Unknown') + '</h3>';
-  html += '<button onclick="closeCustomerDetail()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-muted);">×</button>';
+  html += '<h3 style="margin:0;color:#1e293b;">' + escapeHtml(c.company_name || c.organization_name || c.name || 'Unknown') + '</h3>';
+  html += '<button onclick="closeCustomerDetail()" style="background:none;border:none;font-size:26px;cursor:pointer;color:#64748b;line-height:1;">×</button>';
   html += '</div>';
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;font-size:14px;">';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;font-size:14px;color:#334155;">';
   html += '<div><strong>Customer #/OrgID:</strong><br>' + escapeHtml(c.customer_id || c.org_id || '—') + '</div>';
   html += '<div><strong>Subscription Date:</strong><br>' + subDate + '</div>';
   html += '<div><strong>Expiration Date:</strong><br>' + expDate + '</div>';
@@ -1258,10 +1255,20 @@ function showCustomerDetail(idx) {
   modal.style.left = '0';
   modal.style.width = '100%';
   modal.style.height = '100%';
-  modal.style.background = 'rgba(0,0,0,0.5)';
+  modal.style.background = 'rgba(0,0,0,0.55)';
   modal.style.zIndex = '9999';
   modal.style.alignItems = 'center';
   modal.style.justifyContent = 'center';
+  modal.style.cursor = 'pointer';
+  modal.onclick = function(e) {
+    if (e.target === modal) closeCustomerDetail();
+  };
+  document.addEventListener('keydown', function escHandler(e) {
+    if (e.key === 'Escape') {
+      closeCustomerDetail();
+      document.removeEventListener('keydown', escHandler);
+    }
+  });
 }
 
 function closeCustomerDetail() {
@@ -1418,7 +1425,6 @@ function populateSourceFilter(issues) {
     html += '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>';
   });
   sel.innerHTML = html;
-  // Restore previous selection if it still exists
   if (sources.indexOf(current) !== -1) {
     sel.value = current;
   }
@@ -1668,7 +1674,6 @@ async function loadTeamMembers() {
           var toggleBtn = m.is_active === 1
             ? '<button class="owner-action-btn owner-btn-deactivate" data-action="toggle-team" data-id="' + escapeHtml(m.id) + '" data-email="' + escapeHtml(m.email) + '">Deactivate</button>'
             : '<button class="owner-action-btn owner-btn-activate" data-action="toggle-team" data-id="' + escapeHtml(m.id) + '" data-email="' + escapeHtml(m.email) + '">Activate</button>';
-          // DELETE BUTTON REMOVED — team members can only be deactivated, never deleted
           actionBtns = toggleBtn;
         } else {
           actionBtns = '<span style="font-size:12px;color:var(--text-muted);">(you)</span>';
@@ -1773,7 +1778,7 @@ async function ownerLogout() {
   try {
     await fetch('/auth/logout', { method: 'POST' });
   } catch (e) { /* ignore */ }
-  window.location.href = '/app/auth/founder-login.html';
+  window.location.href = '/public/login.html';
 }
 
 document.getElementById('approveModal').addEventListener('click', function(e) {
