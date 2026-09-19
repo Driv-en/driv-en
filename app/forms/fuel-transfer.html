@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRIV‑EN | Log Fuel Transfer</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
+
+<link rel="stylesheet" href="/app/shared/dashboard.css?v=8">
+<link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
+
+<script>
+(function() {
+  var saved = localStorage.getItem("driven-theme");
+  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  var theme = saved || system;
+  document.documentElement.setAttribute("data-theme", theme);
+})();
+</script>
+
+<style>
+.ft-loading{display:flex;align-items:center;justify-content:center;height:60vh;font-size:16px;color:var(--text-muted);}
+.dash-header-row2 { display: none !important; }
+.dash-header-row3 { display: none !important; }
+#dashHeader .dash-theme-wrapper { display: none !important; }
+.dash-header-row1 { padding: 8px 20px !important; align-items: center; }
+.ft-header-title { flex: 1; text-align: center; font-size: 20px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ft-tab-bar { display: flex; gap: 2px; max-width: 1100px; margin: 0 auto; padding: 0 20px; overflow-x: auto; position: relative; z-index: 1; background: #cbd5e1; border-bottom: 2px solid #94a3b8; }
+.ft-tab-home { background: #1d4ed8; border: 1px solid #2563eb; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; margin-left: auto; position: relative; z-index: 1; transition: background 200ms ease, margin-top 200ms ease; text-decoration: none; display: inline-block; }
+.ft-tab-home:hover { background: #2563eb; margin-top: 2px; }
+.ft-tab-logout { background: #b91c1c; border: 1px solid #dc2626; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; margin-left: 0; position: relative; z-index: 1; transition: background 200ms ease, margin-top 200ms ease; }
+.ft-tab-logout:hover { background: #dc2626; margin-top: 2px; }
+.ft-main { max-width: 600px; margin: 20px auto; padding: 0 20px; position: relative; z-index: 1; }
+.ft-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 28px; margin-bottom: 20px; }
+.ft-card h2 { margin: 0 0 20px 0; font-size: 20px; font-weight: 700; color: var(--text); }
+.ft-row { margin-bottom: 20px; }
+.ft-row label { display: block; font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.ft-row label .req { color: #cc0000; }
+.ft-row select, .ft-row input, .ft-row textarea { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid var(--border-input, var(--border)); border-radius: 6px; background: var(--bg-input); color: var(--text); box-sizing: border-box; }
+.ft-row select:focus, .ft-row input:focus, .ft-row textarea:focus { outline: none; border-color: var(--primary); }
+.ft-row textarea { resize: vertical; min-height: 60px; }
+.ft-row .hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.ft-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.ft-arrow { text-align: center; font-size: 24px; color: var(--primary); margin: 8px 0; font-weight: 700; }
+.ft-btn-row { display: flex; gap: 12px; margin-top: 24px; }
+.ft-submit-btn { flex: 1; background: var(--primary); color: #fff; border: none; border-radius: 6px; padding: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
+.ft-submit-btn:hover { opacity: 0.9; }
+.ft-submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ft-cancel-btn { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 12px 20px; font-size: 16px; font-weight: 600; cursor: pointer; }
+.ft-cancel-btn:hover { border-color: var(--primary); }
+.ft-success { text-align: center; padding: 40px 20px; }
+.ft-success h3 { font-size: 20px; color: var(--text); margin: 0 0 8px 0; }
+.ft-success p { font-size: 14px; color: var(--text-muted); margin: 0 0 20px 0; }
+.ft-success .ft-again-btn { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.ft-error-banner { background: #ffdddd; color: #cc0000; padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 14px; display: none; }
+.ft-alt-link { text-align: center; margin-top: 16px; }
+.ft-alt-link a { font-size: 14px; color: var(--primary); font-weight: 600; text-decoration: none; }
+.ft-alt-link a:hover { text-decoration: underline; }
+.ft-tank-info { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+@media (max-width: 600px) {
+  .ft-two-col { grid-template-columns: 1fr; }
+  .ft-main { padding: 0 12px; margin: 12px auto; }
+}
+</style>
+</head>
+<body data-page-title="Log Fuel Transfer" data-required-permission="fuel.add">
+
+<div class="steel-bg"></div>
+<div class="steel-overlay"></div>
+
+<div id="dashHeader"></div>
+
+<div class="ft-tab-bar">
+  <a class="ft-tab-home" id="dashHomeLink" href="/app/dashboard/employee-dashboard.html">Dashboard</a>
+  <button class="ft-tab-logout" onclick="dashLogout()">Logout</button>
+</div>
+
+<div id="loading" class="ft-loading">Checking session…</div>
+
+<div id="dashboard" style="display:none;">
+  <div class="ft-main">
+
+    <div id="errorBanner" class="ft-error-banner"></div>
+
+    <!-- ===== FORM VIEW ===== -->
+    <div id="formView">
+      <div class="ft-card">
+        <h2>Log Fuel Transfer</h2>
+
+        <!-- FROM -->
+        <div class="ft-row">
+          <label>From (source) <span class="req">*</span></label>
+          <select id="fromSource" onchange="onFromChange()" required>
+            <option value="">Select source…</option>
+            <option value="bulk_tank">Bulk Tank</option>
+            <option value="dragup_tank">Drag-Up Tank</option>
+            <option value="portable_can">Portable Gas Can</option>
+          </select>
+        </div>
+
+        <div class="ft-row" id="fromTankRow" style="display:none;">
+          <label>Which Tank? <span class="req">*</span></label>
+          <select id="fromTank" onchange="onFromTankChange()"></select>
+          <div class="ft-tank-info" id="fromTankInfo"></div>
+        </div>
+
+        <div class="ft-arrow">↓</div>
+
+        <!-- TO -->
+        <div class="ft-row">
+          <label>To (destination) <span class="req">*</span></label>
+          <select id="toDest" onchange="onToChange()" required>
+            <option value="">Select destination…</option>
+          </select>
+        </div>
+
+        <div class="ft-row" id="toTankRow" style="display:none;">
+          <label>Which Tank? <span class="req">*</span></label>
+          <select id="toTank"></select>
+          <div class="ft-tank-info" id="toTankInfo"></div>
+        </div>
+
+        <div class="ft-row" id="toAssetRow" style="display:none;">
+          <label>Which Equipment? <span class="req">*</span></label>
+          <select id="toAsset"></select>
+        </div>
+
+        <div class="ft-two-col">
+          <div class="ft-row">
+            <label>Quantity (gallons) <span class="req">*</span></label>
+            <input type="number" id="quantity" step="0.01" min="0.01" placeholder="0.00" required>
+          </div>
+          <div class="ft-row">
+            <label>Date <span class="req">*</span></label>
+            <input type="date" id="txDate" required>
+          </div>
+        </div>
+
+        <div class="ft-row">
+          <label>Fuel Type <span class="req">*</span></label>
+          <select id="fuelType" required>
+            <option value="">Select fuel type…</option>
+            <option value="gasoline">Gasoline</option>
+            <option value="diesel">Diesel</option>
+            <option value="def">DEF</option>
+            <option value="propane">Propane</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <div class="ft-two-col">
+          <div class="ft-row">
+            <label>Project (optional)</label>
+            <select id="project">
+              <option value="">No project…</option>
+            </select>
+          </div>
+          <div class="ft-row">
+            <label>Location (optional)</label>
+            <input type="text" id="location" placeholder="Where this happened">
+          </div>
+        </div>
+
+        <div class="ft-row">
+          <label>Notes (optional)</label>
+          <textarea id="notes" placeholder="Any additional details…"></textarea>
+        </div>
+
+        <div class="ft-btn-row">
+          <button class="ft-cancel-btn" onclick="goBack()">Cancel</button>
+          <button class="ft-submit-btn" id="submitBtn" onclick="submitTransfer()">Log Transfer</button>
+        </div>
+
+        <div class="ft-alt-link">
+          <a href="/app/forms/fuel-purchase.html">Log a fuel purchase instead →</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SUCCESS VIEW ===== -->
+    <div id="successView" style="display:none;">
+      <div class="ft-card ft-success">
+        <h3>✓ Transfer Logged</h3>
+        <p id="successMsg"></p>
+        <button class="ft-again-btn" onclick="resetForm()">Log Another Transfer</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="dashFooter"></div>
+
+<script src="/app/shared/dashboard-common.js?v=8"></script>
+
+<script>
+var allTanks = [];
+var allAssets = [];
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function insertHeaderTitle() {
+  var row1 = document.querySelector('.dash-header-row1');
+  if (row1 && !document.querySelector('.ft-header-title')) {
+    var title = document.createElement('div');
+    title.className = 'ft-header-title';
+    title.textContent = 'Log Fuel Transfer';
+    var logoArea = document.getElementById('dashCustomerLogoArea');
+    var drivenLogo = row1.querySelector('.dash-driven-logo');
+    if (logoArea && drivenLogo) row1.insertBefore(title, drivenLogo);
+  }
+}
+
+window.dashLogout = function() {
+  try { fetch('/auth/logout', { method: 'POST' }); } catch (e) {}
+  window.location.href = '/public/login.html';
+};
+
+function goBack() {
+  var role = (window.dashUser && window.dashUser.role || '').toLowerCase();
+  window.location.href = role === 'admin' ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
+}
+
+function showError(msg) {
+  var el = document.getElementById('errorBanner');
+  if (!msg) { el.style.display = 'none'; return; }
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// Set today's date
+document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
+
+// ===== LOAD DATA =====
+async function loadTanks() {
+  try {
+    var resp = await fetch('/api/fuel-tanks');
+    var data = await resp.json();
+    if (data.success && data.tanks) {
+      allTanks = data.tanks;
+    }
+  } catch (e) {
+    console.error('Failed to load tanks:', e);
+  }
+}
+
+async function loadAssets() {
+  try {
+    var resp = await fetch('/api/equipment');
+    var data = await resp.json();
+    if (data.success && data.equipment) {
+      allAssets = data.equipment;
+    }
+  } catch (e) {
+    console.error('Failed to load equipment:', e);
+  }
+}
+
+async function loadProjects() {
+  try {
+    var resp = await fetch('/api/projects');
+    var data = await resp.json();
+    if (data.success && data.projects) {
+      var select = document.getElementById('project');
+      data.projects.forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name || p.project_name || p.id;
+        select.appendChild(opt);
+      });
+    }
+  } catch (e) {}
+}
+
+// ===== FROM SOURCE LOGIC =====
+function onFromChange() {
+  var fromType = document.getElementById('fromSource').value;
+  var fromTankRow = document.getElementById('fromTankRow');
+  var fromTank = document.getElementById('fromTank');
+
+  // Reset
+  fromTank.innerHTML = '';
+  document.getElementById('fromTankInfo').textContent = '';
+
+  if (!fromType) {
+    fromTankRow.style.display = 'none';
+  } else {
+    fromTankRow.style.display = 'block';
+    // Populate tanks matching the selected type
+    var tankType = fromType.replace('_tank', '').replace('_can', '');
+    var matching = allTanks.filter(function(t) {
+      if (tankType === 'portable') return t.tank_type === 'portable';
+      if (tankType === 'bulk') return t.tank_type === 'bulk';
+      if (tankType === 'dragup') return t.tank_type === 'dragup';
+      return false;
+    });
+    if (matching.length === 0) {
+      fromTank.innerHTML = '<option value="">No tanks of this type available</option>';
+    } else {
+      fromTank.innerHTML = '<option value="">Select tank…</option>';
+      matching.forEach(function(t) {
+        var opt = document.createElement('option');
+        opt.value = t.id;
+        opt.textContent = t.name + ' — ' + (t.current_quantity||0) + '/' + (t.capacity||0) + ' gal (' + (t.fuel_type||'?') + ')';
+        opt.dataset.fuelType = t.fuel_type || '';
+        fromTank.appendChild(opt);
+      });
+    }
+  }
+
+  updateToOptions();
+}
+
+function onFromTankChange() {
+  var fromTank = document.getElementById('fromTank');
+  var selected = fromTank.selectedOptions[0];
+  var info = document.getElementById('fromTankInfo');
+  if (selected && selected.value) {
+    var fuelType = selected.dataset.fuelType;
+    if (fuelType) {
+      info.textContent = 'Fuel type: ' + fuelType;
+      // Auto-fill fuel type
+      var fuelSelect = document.getElementById('fuelType');
+      for (var i = 0; i < fuelSelect.options.length; i++) {
+        if (fuelSelect.options[i].value === fuelType) {
+          fuelSelect.selectedIndex = i;
+          break;
+        }
+      }
+    }
+  } else {
+    info.textContent = '';
+  }
+}
+
+// ===== TO DESTINATION LOGIC =====
+function updateToOptions() {
+  var fromType = document.getElementById('fromSource').value;
+  var toSelect = document.getElementById('toDest');
+
+  toSelect.innerHTML = '<option value="">Select destination…</option>';
+
+  // Valid destinations based on source:
+  // bulk_tank → asset, dragup_tank, portable_can
+  // dragup_tank → asset, portable_can
+  // portable_can → asset
+
+  if (fromType === 'bulk_tank') {
+    toSelect.innerHTML += '<option value="asset">Equipment / Asset</option>';
+    toSelect.innerHTML += '<option value="dragup_tank">Drag-Up Tank</option>';
+    toSelect.innerHTML += '<option value="portable_can">Portable Gas Can</option>';
+  } else if (fromType === 'dragup_tank') {
+    toSelect.innerHTML += '<option value="asset">Equipment / Asset</option>';
+    toSelect.innerHTML += '<option value="portable_can">Portable Gas Can</option>';
+  } else if (fromType === 'portable_can') {
+    toSelect.innerHTML += '<option value="asset">Equipment / Asset</option>';
+  }
+
+  onToChange();
+}
+
+function onToChange() {
+  var toType = document.getElementById('toDest').value;
+  var toTankRow = document.getElementById('toTankRow');
+  var toAssetRow = document.getElementById('toAssetRow');
+  var toTank = document.getElementById('toTank');
+  var toAsset = document.getElementById('toAsset');
+
+  toTank.innerHTML = '';
+  toAsset.innerHTML = '';
+  toTankRow.style.display = 'none';
+  toAssetRow.style.display = 'none';
+
+  if (toType === 'dragup_tank' || toType === 'portable_can') {
+    toTankRow.style.display = 'block';
+    var tankType = toType === 'dragup_tank' ? 'dragup' : 'portable';
+    var matching = allTanks.filter(function(t) { return t.tank_type === tankType; });
+    if (matching.length === 0) {
+      toTank.innerHTML = '<option value="">No tanks of this type available</option>';
+    } else {
+      toTank.innerHTML = '<option value="">Select tank…</option>';
+      matching.forEach(function(t) {
+        var opt = document.createElement('option');
+        opt.value = t.id;
+        opt.textContent = t.name + ' — ' + (t.current_quantity||0) + '/' + (t.capacity||0) + ' gal';
+        toTank.appendChild(opt);
+      });
+    }
+  } else if (toType === 'asset') {
+    toAssetRow.style.display = 'block';
+    if (allAssets.length === 0) {
+      toAsset.innerHTML = '<option value="">No equipment available</option>';
+    } else {
+      toAsset.innerHTML = '<option value="">Select equipment…</option>';
+      allAssets.forEach(function(a) {
+        var opt = document.createElement('option');
+        opt.value = a.id;
+        opt.textContent = (a.asset_number || a.id.slice(0,8)) + ' — ' + (a.name || 'Unnamed');
+        toAsset.appendChild(opt);
+      });
+    }
+  }
+}
+
+// ===== MAP TO TRANSACTION TYPE =====
+function getTransactionType(fromType, toType) {
+  // bulk_tank → asset = bulk_issue
+  // bulk_tank → dragup_tank = dragup_fill
+  // bulk_tank → portable_can = portable_fill
+  // dragup_tank → asset = dragup_issue
+  // dragup_tank → portable_can = portable_fill
+  // portable_can → asset = portable_issue
+  if (fromType === 'bulk_tank' && toType === 'asset') return 'bulk_issue';
+  if (fromType === 'bulk_tank' && toType === 'dragup_tank') return 'dragup_fill';
+  if (fromType === 'bulk_tank' && toType === 'portable_can') return 'portable_fill';
+  if (fromType === 'dragup_tank' && toType === 'asset') return 'dragup_issue';
+  if (fromType === 'dragup_tank' && toType === 'portable_can') return 'portable_fill';
+  if (fromType === 'portable_can' && toType === 'asset') return 'portable_issue';
+  return null;
+}
+
+// ===== SUBMIT =====
+async function submitTransfer() {
+  showError('');
+
+  var fromType = document.getElementById('fromSource').value;
+  var fromTankId = document.getElementById('fromTank').value;
+  var toType = document.getElementById('toDest').value;
+  var toTankId = document.getElementById('toTank').value;
+  var toAssetId = document.getElementById('toAsset').value;
+  var quantity = parseFloat(document.getElementById('quantity').value);
+  var txDate = document.getElementById('txDate').value;
+  var fuelType = document.getElementById('fuelType').value;
+  var projectId = document.getElementById('project').value;
+  var location = document.getElementById('location').value.trim();
+  var notes = document.getElementById('notes').value.trim();
+
+  // Validation
+  if (!fromType) { showError('Please select a source.'); return; }
+  if (!fromTankId) { showError('Please select which tank the fuel is coming from.'); return; }
+  if (!toType) { showError('Please select a destination.'); return; }
+  if (!quantity || quantity <= 0) { showError('Please enter a valid quantity.'); return; }
+  if (!txDate) { showError('Please select a date.'); return; }
+  if (!fuelType) { showError('Please select a fuel type.'); return; }
+
+  if ((toType === 'dragup_tank' || toType === 'portable_can') && !toTankId) {
+    showError('Please select which tank the fuel is going into.'); return;
+  }
+  if (toType === 'asset' && !toAssetId) {
+    showError('Please select which equipment is being fueled.'); return;
+  }
+
+  var txType = getTransactionType(fromType, toType);
+  if (!txType) {
+    showError('Invalid transfer combination. Please check your selections.');
+    return;
+  }
+
+  var submitBtn = document.getElementById('submitBtn');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Saving…';
+
+  try {
+    var body = {
+      transaction_type: txType,
+      fuel_type: fuelType,
+      quantity: quantity,
+      transaction_date: txDate,
+      from_entity_type: fromType,
+      from_entity_id: fromTankId,
+      to_entity_type: toType,
+      to_entity_id: toType === 'asset' ? toAssetId : toTankId,
+      project_id: projectId || null,
+      location: location || null,
+      notes: notes || null
+    };
+    if (toType === 'asset') body.asset_id = toAssetId;
+
+    var resp = await fetch('/api/fuel-transactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    var data = await resp.json();
+
+    if (data.success) {
+      document.getElementById('formView').style.display = 'none';
+      document.getElementById('successView').style.display = 'block';
+      var fromName = document.getElementById('fromTank').selectedOptions[0].textContent.split(' —')[0];
+      var toName = '';
+      if (toType === 'asset') {
+        toName = document.getElementById('toAsset').selectedOptions[0].textContent;
+      } else {
+        toName = document.getElementById('toTank').selectedOptions[0].textContent.split(' —')[0];
+      }
+      document.getElementById('successMsg').textContent =
+        quantity + ' gallons of ' + fuelType + ' transferred from ' + fromName + ' to ' + toName;
+    } else {
+      showError(data.error || 'Failed to log transfer. Please try again.');
+    }
+  } catch (e) {
+    showError('Network error: ' + e.message);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Log Transfer';
+  }
+}
+
+function resetForm() {
+  document.getElementById('formView').style.display = 'block';
+  document.getElementById('successView').style.display = 'none';
+  document.getElementById('fromSource').value = '';
+  document.getElementById('fromTank').innerHTML = '';
+  document.getElementById('fromTankRow').style.display = 'none';
+  document.getElementById('toDest').innerHTML = '<option value="">Select destination…</option>';
+  document.getElementById('toTank').innerHTML = '';
+  document.getElementById('toTankRow').style.display = 'none';
+  document.getElementById('toAsset').innerHTML = '';
+  document.getElementById('toAssetRow').style.display = 'none';
+  document.getElementById('quantity').value = '';
+  document.getElementById('fuelType').value = '';
+  document.getElementById('location').value = '';
+  document.getElementById('notes').value = '';
+  document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
+  showError('');
+}
+
+document.addEventListener('dashSessionLoaded', async function() {
+  var user = window.dashUser;
+  if (!user) { window.location.href = '/public/login.html'; return; }
+
+  var role = (user.role || '').toLowerCase();
+  var dashUrl = role === 'admin' ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
+  var homeLink = document.getElementById('dashHomeLink');
+  if (homeLink) homeLink.href = dashUrl;
+
+  insertHeaderTitle();
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+
+  await loadTanks();
+  await loadAssets();
+  loadProjects();
+});
+</script>
+
+<script src="/app/shared/auth-check.js?v=8"></script>
+<script src="/components/nav.js?v=5"></script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" data-cf-beacon='{"token":"aed8feab3b60404ba88ec92f026bbcd6"}' crossorigin="anonymous"></script>
+</body>
+</html>
