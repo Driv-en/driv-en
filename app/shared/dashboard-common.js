@@ -29,6 +29,32 @@
   /* ===== STATE VARIABLES ===== */
   var dashUser = null;  // Will hold the logged-in user object from /auth/session
 
+  /* ===== PWA: MANIFEST LINK + SERVICE WORKER REGISTRATION ===== */
+  // Injects <link rel="manifest"> into <head> if not already present
+  // Registers /sw.js as the service worker for offline caching
+  // This makes every dashboard page installable as a PWA and caches
+  // the app shell so dashboards and forms work offline.
+  (function registerPWA() {
+    // Add manifest link if missing
+    if (!document.querySelector('link[rel="manifest"]')) {
+      var manifestLink = document.createElement('link');
+      manifestLink.rel = 'manifest';
+      manifestLink.href = '/manifest.json';
+      document.head.appendChild(manifestLink);
+    }
+
+    // Register service worker if supported
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js').then(function(reg) {
+          console.log('[DRIV-EN] Service worker registered:', reg.scope);
+        }).catch(function(err) {
+          console.warn('[DRIV-EN] SW registration failed:', err);
+        });
+      });
+    }
+  })();
+
   /* ===== HELPER: Load an HTML component via fetch ===== */
   // Fetches an HTML file and injects it into a target element
   // Parameters:
