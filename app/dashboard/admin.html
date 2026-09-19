@@ -1,2090 +1,1858 @@
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<!-- ===== PAGE-SPECIFIC SEO ===== -->
 <title>DRIV‑EN | Admin Dashboard</title>
 <meta name="description" content="DRIV‑EN admin dashboard — full access to all modules, settings, users, and operational data.">
 <meta name="robots" content="noindex, nofollow">
 <link rel="canonical" href="https://www.driv-en.com/app/dashboard/admin.html">
-
-<!-- Favicon -->
 <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
 <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
 <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
 <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
-
-<!-- ===== SHARED DASHBOARD CSS ===== -->
 <link rel="stylesheet" href="/app/shared/dashboard.css?v=7">
-
-<!-- ===== DIAMOND-PLATE BACKGROUND ===== -->
 <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
-
-<!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
 <script>
 (function() {
-  var saved = localStorage.getItem("driven-theme");
-  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  var theme = saved || system;
-  document.documentElement.setAttribute("data-theme", theme);
+var saved = localStorage.getItem("driven-theme");
+var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+var theme = saved || system;
+document.documentElement.setAttribute("data-theme", theme);
 })();
 </script>
-
-<!-- ===== PAGE-SPECIFIC STYLES ===== -->
 <style>
-    /* ===== LOADING SCREEN ===== */
-    .admin-loading {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      font-size: 16px;
-      color: var(--text-muted);
-    }
-
-    /* ===== ONE-LINE HEADER ===== */
-    .dash-header-row2 { display: none !important; }
-    .dash-header-row3 { display: none !important; }
-    #dashHeader .dash-theme-wrapper { display: none !important; }
-    .dash-header-row1 {
-      padding: 8px 20px !important;
-      align-items: center;
-    }
-    .admin-header-title {
-      flex: 1;
-      text-align: center;
-      font-size: 20px;
-      font-weight: 600;
-      color: var(--text);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    /* ===== TAB BAR (light industrial gray, distinct from page background) ===== */
-    .admin-tab-bar {
-      display: flex;
-      gap: 2px;
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 0 20px;
-      overflow-x: auto;
-      position: relative;
-      z-index: 1;
-      background: #cbd5e1;
-      border-bottom: 2px solid #94a3b8;
-    }
-    .admin-tab {
-      background: #94a3b8;
-      border: 1px solid #64748b;
-      border-bottom: none;
-      border-radius: 8px 8px 0 0;
-      padding: 10px 22px;
-      font-size: 15px;
-      font-weight: 500;
-      color: #1e293b;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: color 200ms ease, background 200ms ease, border-color 200ms ease, margin-top 200ms ease;
-      margin-top: 4px;
-      position: relative;
-      z-index: 1;
-    }
-    .admin-tab:hover {
-      color: #0f172a;
-      background: #a5b4c4;
-      margin-top: 2px;
-    }
-    .admin-tab.active {
-      color: #1d4ed8;
-      background: #e2e8f0;
-      border-color: #64748b;
-      margin-top: 0;
-      font-weight: 600;
-      z-index: 2;
-    }
-    .admin-tab-content { display: none; }
-    .admin-tab-content.active { display: block; }
-
-    /* ===== SUBTAB BAR (gray bar, green tabs) ===== */
-    .admin-subtab-bar {
-      display: none; /* Hidden by default; shown when parent tab is active via JS */
-      gap: 2px;
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 0 20px;
-      overflow-x: auto;
-      position: relative;
-      z-index: 1;
-      background: #475569;
-      border-bottom: 2px solid #334155;
-    }
-    .admin-subtab-bar.visible {
-      display: flex;
-    }
-    .admin-subtab {
-      background: #22c55e;
-      border: 1px solid #16a34a;
-      border-bottom: none;
-      border-radius: 8px 8px 0 0;
-      padding: 8px 18px;
-      font-size: 14px;
-      font-weight: 500;
-      color: #ffffff;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: color 200ms ease, background 200ms ease, border-color 200ms ease, margin-top 200ms ease;
-      margin-top: 4px;
-      position: relative;
-      z-index: 1;
-    }
-    .admin-subtab:hover {
-      background: #16a34a;
-      color: #ffffff;
-      margin-top: 2px;
-    }
-    .admin-subtab.active {
-      color: #ffffff;
-      background: #15803d;
-      border-color: #22c55e;
-      margin-top: 0;
-      font-weight: 600;
-      z-index: 2;
-    }
-    .admin-subtab-content { display: none; }
-    .admin-subtab-content.active { display: block; margin-top: 20px; }
-
-    /* ===== BLUE SUBTAB (View Onboarding Dashboard — in the subtab bar) ===== */
-    .admin-subtab-blue {
-      background: #1e40af;
-      border: 1px solid #2563eb;
-      border-bottom: none;
-      border-radius: 8px 8px 0 0;
-      padding: 8px 18px;
-      font-size: 14px;
-      font-weight: 600;
-      color: #dbeafe;
-      cursor: pointer;
-      white-space: nowrap;
-      margin-top: 4px;
-      margin-left: 8px;
-      position: relative;
-      z-index: 1;
-      text-decoration: none;
-      transition: background 200ms ease, margin-top 200ms ease;
-    }
-    .admin-subtab-blue:hover {
-      background: #1d4ed8;
-      color: #ffffff;
-      margin-top: 2px;
-    }
-
-    /* ===== ONBOARDING PROGRESS (full width — button moved to subtab bar) ===== */
-    .ob-progress-inline {
-      width: 100%;
-      max-width: 100%;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 16px 20px;
-      box-sizing: border-box;
-    }
-    .ob-progress-inline h3 { margin: 0 0 10px 0; font-size: 16px; color: var(--text); }
-    .ob-progress-inline .progress-bar-container { margin-bottom: 6px; }
-    .ob-progress-inline .progress-text { font-size: 13px; }
-    .ob-progress-btns { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
-
-    /* ===== LOGOUT TAB ===== */
-    .admin-tab-logout {
-      background: #b91c1c;
-      border: 1px solid #dc2626;
-      border-bottom: none;
-      border-radius: 8px 8px 0 0;
-      padding: 10px 22px;
-      font-size: 15px;
-      font-weight: 600;
-      color: #fff;
-      cursor: pointer;
-      white-space: nowrap;
-      margin-top: 4px;
-      margin-left: auto;
-      position: relative;
-      z-index: 1;
-      transition: background 200ms ease, margin-top 200ms ease;
-    }
-    .admin-tab-logout:hover {
-      background: #dc2626;
-      margin-top: 2px;
-    }
-
-    /* ===== MAIN CONTAINER ===== */
-    .admin-main {
-      max-width: 1100px;
-      margin: 20px auto;
-      padding: 0 20px;
-      position: relative;
-      z-index: 1;
-    }
-
-    /* ===== WELCOME BANNER ===== */
-    .admin-welcome {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 24px;
-      margin-bottom: 24px;
-    }
-    .admin-welcome h2 { margin: 0 0 6px 0; font-size: 20px; color: var(--text); }
-    .admin-welcome p  { margin: 0; font-size: 14px; color: var(--text-muted); }
-
-    /* ===== BUSINESS TYPE DISPLAY (Overview) ===== */
-    .admin-bt-display {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-    .admin-bt-display-label { font-size: 14px; font-weight: 600; color: var(--text); }
-    .admin-bt-display-value { font-size: 16px; color: var(--primary); font-weight: 600; }
-    .admin-bt-display-note { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-    .admin-bt-display-note a { color: var(--primary); cursor: pointer; text-decoration: underline; }
-
-    /* ===== STATS GRID ===== */
-    .admin-stats {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-    .admin-stat-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 20px;
-      text-align: center;
-    }
-    .admin-stat-number { font-size: 32px; font-weight: 700; color: var(--text); }
-    .admin-stat-label  { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
-
-    /* ===== MODULE GRID ===== */
-    .admin-module-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 16px;
-    }
-    .admin-module-card {
-      background: var(--bg-step);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      cursor: pointer;
-      transition: border-color 200ms ease;
-    }
-    .admin-module-card:hover { border-color: var(--primary); }
-    .admin-module-title { font-size: 15px; font-weight: 600; color: var(--text); }
-    .admin-module-body  { font-size: 13px; color: var(--text-muted); line-height: 1.4; flex: 1; }
-    .admin-module-link  { font-size: 13px; color: var(--primary); font-weight: 500; }
-
-    /* ===== SETTINGS SECTIONS ===== */
-    .settings-section {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 24px;
-      margin-bottom: 20px;
-    }
-    .settings-section h3 {
-      margin: 0 0 16px 0;
-      font-size: 18px;
-      color: var(--text);
-      padding-bottom: 10px;
-      border-bottom: 1px solid var(--border);
-    }
-    .settings-row {
-      display: flex;
-      align-items: flex-start;
-      gap: 16px;
-      margin-bottom: 16px;
-      flex-wrap: wrap;
-    }
-    .settings-label {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text);
-      min-width: 140px;
-      padding-top: 8px;
-    }
-    .settings-field { flex: 1; min-width: 200px; }
-    .settings-field select,
-    .settings-field input {
-      width: 100%;
-      padding: 10px 12px;
-      font-size: 14px;
-      border: 1px solid var(--border-input, var(--border));
-      border-radius: 6px;
-      background: var(--bg-step);
-      color: var(--text);
-      box-sizing: border-box;
-    }
-    .settings-field select:focus,
-    .settings-field input:focus {
-      outline: none;
-      border-color: var(--primary);
-    }
-    .settings-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-    .bt-inline-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .bt-inline-row select,
-    .bt-inline-row input {
-      flex: 1;
-      min-width: 0;
-    }
-    .bt-inline-row .settings-save-btn {
-      margin-top: 0;
-      flex-shrink: 0;
-      white-space: nowrap;
-    }
-    .settings-save-btn {
-      background: var(--primary);
-      border: 1px solid var(--primary-hover);
-      color: #fff;
-      padding: 10px 20px;
-      border-radius: 6px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      margin-top: 8px;
-    }
-    .settings-save-btn:hover { background: var(--primary-hover); }
-    .settings-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .settings-status { font-size: 13px; margin-top: 8px; }
-
-    /* ===== TASK VISIBILITY — TITLE ROW + UNSAVED WARNING ===== */
-    .settings-section-title-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 16px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid var(--border);
-      flex-wrap: wrap;
-    }
-    .settings-section-title-row h3 {
-      margin: 0;
-      padding: 0;
-      border: none;
-    }
-    .settings-section-title-row .settings-save-btn {
-      margin-top: 0;
-      flex-shrink: 0;
-    }
-    .visibility-warning {
-      background: #fef3c7;
-      border: 1px solid #f59e0b;
-      color: #92400e;
-      padding: 10px 14px;
-      border-radius: 6px;
-      font-size: 13px;
-      margin-bottom: 14px;
-      line-height: 1.5;
-    }
-
-    /* ===== LOGO UPLOAD ===== */
-    .logo-upload-area {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      margin-top: 8px;
-    }
-    .logo-preview {
-      width: 140px;
-      height: 70px;
-      border: 2px dashed var(--border);
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
-      color: var(--text-muted);
-      overflow: hidden;
-    }
-    .logo-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
-    .logo-upload-btn {
-      background: var(--primary);
-      border: 1px solid var(--primary-hover);
-      color: #fff;
-      padding: 8px 14px;
-      border-radius: 6px;
-      font-size: 13px;
-      cursor: pointer;
-    }
-    .logo-upload-btn:hover { background: var(--primary-hover); }
-    .logo-remove-btn {
-      background: transparent;
-      border: 1px solid var(--error);
-      color: var(--error);
-      padding: 8px 14px;
-      border-radius: 6px;
-      font-size: 13px;
-      cursor: pointer;
-      margin-top: 8px;
-    }
-    .logo-remove-btn:hover { background: var(--error); color: #fff; }
-    .logo-status { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-
-    /* ===== THEME TOGGLE (Settings) ===== */
-    .theme-switch-wrapper {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .theme-switch-label {
-      font-size: 12px;
-      color: var(--text-muted);
-      transition: opacity 200ms ease;
-    }
-    .theme-switch-label.active { color: var(--text); font-weight: 600; }
-    .theme-switch {
-      position: relative;
-      display: inline-block;
-      width: 44px;
-      height: 24px;
-    }
-    .theme-switch input { opacity: 0; width: 0; height: 0; }
-    .theme-slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: var(--border);
-      border-radius: 24px;
-      transition: background 200ms ease;
-    }
-    .theme-slider:before {
-      content: "";
-      position: absolute;
-      height: 18px; width: 18px;
-      left: 3px; bottom: 3px;
-      background: #fff;
-      border-radius: 50%;
-      transition: transform 200ms ease;
-    }
-    .theme-switch input:checked + .theme-slider { background: var(--primary); }
-    .theme-switch input:checked + .theme-slider:before { transform: translateX(20px); }
-
-    /* ===== ACCOUNT SECTION ===== */
-    .account-row { font-size: 14px; color: var(--text); margin-bottom: 8px; }
-    .account-row span { color: var(--text-muted); font-weight: 500; }
-
-    /* ===== ONBOARDING TAB — STEP TOGGLES ===== */
-    .step-toggle-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .step-toggle-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 16px;
-      background: var(--bg-step);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-    }
-    .step-toggle-name { font-size: 14px; font-weight: 600; color: var(--text); }
-    .step-toggle-desc { font-size: 12px; color: var(--text-muted); }
-    .step-toggle-locked { font-size: 11px; color: var(--text-muted); font-style: italic; }
-    /* Toggle switch */
-    .toggle-switch {
-      position: relative;
-      display: inline-block;
-      width: 44px;
-      height: 24px;
-      flex-shrink: 0;
-    }
-    .toggle-switch input { opacity: 0; width: 0; height: 0; }
-    .toggle-slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: #4b5563;
-      border-radius: 24px;
-      transition: background 200ms ease;
-    }
-    .toggle-slider:before {
-      content: "";
-      position: absolute;
-      height: 18px; width: 18px;
-      left: 3px; bottom: 3px;
-      background: #fff;
-      border-radius: 50%;
-      transition: transform 200ms ease;
-    }
-    .toggle-switch input:checked + .toggle-slider { background: var(--success, #16a34a); }
-    .toggle-switch input:checked + .toggle-slider:before { transform: translateX(20px); }
-    .toggle-switch input:disabled + .toggle-slider { opacity: 0.4; cursor: not-allowed; }
-    .toggle-switch input:disabled + .toggle-slider:before { background: #9ca3af; }
-
-    /* ===== ONBOARDING TAB — KEY PERSONNEL ===== */
-    .kp-add-form {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr auto;
-      gap: 10px;
-      margin-bottom: 16px;
-      align-items: end;
-    }
-    .kp-add-form input,
-    .kp-add-form select {
-      padding: 10px 12px;
-      font-size: 14px;
-      border: 1px solid var(--border-input, var(--border));
-      border-radius: 6px;
-      background: var(--bg-step);
-      color: var(--text);
-      box-sizing: border-box;
-    }
-    .kp-add-form input:focus,
-    .kp-add-form select:focus {
-      outline: none;
-      border-color: var(--primary);
-    }
-    .kp-add-btn {
-      background: var(--primary);
-      border: 1px solid var(--primary-hover);
-      color: #fff;
-      padding: 10px 16px;
-      border-radius: 6px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      white-space: nowrap;
-    }
-    .kp-add-btn:hover { background: var(--primary-hover); }
-    .kp-add-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .kp-list { margin-top: 8px; }
-    .kp-list-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 10px; }
-    .kp-person-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 14px;
-      background: var(--bg-step);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      margin-bottom: 8px;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .kp-person-info { flex: 1; min-width: 180px; }
-    .kp-person-name { font-size: 14px; font-weight: 600; color: var(--text); }
-    .kp-person-email { font-size: 12px; color: #60a5fa; }
-    .kp-person-tasks { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-    .kp-person-remove {
-      background: transparent;
-      border: 1px solid var(--error);
-      color: var(--error);
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 12px;
-      cursor: pointer;
-      white-space: nowrap;
-    }
-    .kp-person-remove:hover { background: var(--error); color: #fff; }
-    .kp-loading { font-size: 13px; color: var(--text-muted); padding: 10px; }
-
-    /* ===== KP TASK CHIPS (one row per person, tasks removable individually) ===== */
-    .kp-person-tasks {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 4px;
-    }
-    .kp-task-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: var(--bg-card);
-      border: 1px solid var(--primary);
-      color: var(--text);
-      border-radius: 14px;
-      padding: 3px 6px 3px 10px;
-      font-size: 12px;
-    }
-    .kp-task-chip button {
-      background: transparent;
-      border: none;
-      color: var(--error);
-      font-size: 14px;
-      line-height: 1;
-      cursor: pointer;
-      padding: 0 2px;
-    }
-    .kp-task-chip button:hover { color: #fff; background: var(--error); border-radius: 50%; }
-    .kp-person-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    /* ===== ONBOARDING TAB — PROGRESS + COMPLETE ===== */
-    .onboarding-progress {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 20px;
-      margin-top: 20px;
-    }
-    .onboarding-progress h3 { margin: 0 0 12px 0; font-size: 16px; color: var(--text); }
-    .progress-bar-container {
-      width: 100%;
-      height: 8px;
-      background: var(--border);
-      border-radius: 4px;
-      overflow: hidden;
-      margin-bottom: 8px;
-    }
-    .progress-bar-fill {
-      height: 100%;
-      background: var(--success, #16a34a);
-      border-radius: 4px;
-      transition: width 400ms ease;
-    }
-    .progress-text { font-size: 13px; color: var(--text-muted); }
-    .progress-complete-btn {
-      background: var(--success, #16a34a);
-      border: 1px solid #15803d;
-      color: #fff;
-      padding: 12px 24px;
-      border-radius: 6px;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      margin-top: 16px;
-      display: none;
-    }
-    .progress-complete-btn:hover { background: #15803d; }
-    .progress-complete-btn.show { display: inline-block; }
-    .reopen-onboarding-btn {
-      background: transparent;
-      border: 1px solid var(--primary);
-      color: var(--primary);
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-size: 13px;
-      cursor: pointer;
-      margin-top: 12px;
-    }
-    .reopen-onboarding-btn:hover { background: var(--primary); color: #fff; }
-
-    /* ===== 100% COMPLETE PANEL ===== */
-    .onboarding-complete-panel {
-      display: none;
-      background: #f0fdf4;
-      border: 2px solid #16a34a;
-      border-radius: 10px;
-      padding: 24px;
-      margin-top: 16px;
-    }
-    .onboarding-complete-panel.show { display: block; }
-    .onboarding-complete-panel h3 { margin: 0 0 8px 0; font-size: 18px; color: #15803d; }
-    .onboarding-complete-panel p { margin: 0 0 12px 0; font-size: 14px; color: var(--text); line-height: 1.6; }
-    .onboarding-complete-panel .complete-note { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
-    .finalize-onboarding-btn {
-      background: #16a34a;
-      border: 1px solid #15803d;
-      color: #fff;
-      padding: 14px 28px;
-      border-radius: 8px;
-      font-size: 15px;
-      font-weight: 700;
-      cursor: pointer;
-      display: inline-block;
-    }
-    .finalize-onboarding-btn:hover { background: #15803d; }
-    .finalize-onboarding-btn:disabled { background: #94a3b8; border-color: #94a3b8; cursor: not-allowed; }
-
-    /* ===== CONFIRMATION MODAL ===== */
-    .confirm-modal {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0, 0, 0, 0.7);
-      z-index: 10000;
-      align-items: center;
-      justify-content: center;
-    }
-    .confirm-modal.active { display: flex; }
-    .confirm-card {
-      max-width: 440px;
-      width: 90%;
-      background: var(--bg-card);
-      border: 1px solid var(--primary);
-      border-radius: 12px;
-      padding: 28px;
-      text-align: center;
-    }
-    .confirm-card h3 { margin: 0 0 10px 0; font-size: 20px; color: var(--text); }
-    .confirm-card p { margin: 0 0 20px 0; font-size: 14px; color: var(--text-muted); line-height: 1.5; }
-    .confirm-btn-confirm {
-      background: var(--success, #16a34a);
-      border: 1px solid #15803d;
-      color: #fff;
-      padding: 10px 20px;
-      border-radius: 6px;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      margin: 0 6px;
-    }
-    .confirm-btn-confirm:hover { background: #15803d; }
-    .confirm-btn-cancel {
-      background: var(--bg-step);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 10px 20px;
-      border-radius: 6px;
-      font-size: 15px;
-      cursor: pointer;
-      margin: 0 6px;
-    }
-    .confirm-btn-cancel:hover { border-color: var(--primary); }
-
-    /* ===== ACTIVATION OVERLAY ===== */
-    .activation-overlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(2, 6, 23, 0.97);
-      z-index: 9999;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      gap: 20px;
-      padding: 20px;
-      box-sizing: border-box;
-    }
-    .activation-overlay.active { display: flex; }
-    .activation-card {
-      max-width: 440px;
-      width: 100%;
-      background: var(--bg-card);
-      border: 1px solid var(--primary);
-      border-radius: 12px;
-      padding: 32px;
-      text-align: center;
-    }
-    .activation-card h2 { margin: 0 0 8px 0; font-size: 22px; color: var(--text); }
-    .activation-card p { margin: 0 0 20px 0; font-size: 14px; color: var(--text-muted); line-height: 1.5; }
-    .activation-input {
-      width: 100%;
-      padding: 12px;
-      font-size: 18px;
-      text-align: center;
-      letter-spacing: 3px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: var(--bg-step);
-      color: var(--text);
-      box-sizing: border-box;
-      margin-bottom: 16px;
-      text-transform: uppercase;
-    }
-    .activation-input:focus { outline: none; border-color: var(--primary); }
-    .activation-input.error { border-color: var(--error); }
-    .activation-btn {
-      width: 100%;
-      background: var(--primary);
-      border: 1px solid var(--primary-hover);
-      color: #fff;
-      padding: 12px;
-      border-radius: 6px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      margin-bottom: 12px;
-    }
-    .activation-btn:hover { background: var(--primary-hover); }
-    .activation-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-    .activation-error {
-      display: none;
-      background: #1f0f0f;
-      border: 1px solid var(--error);
-      color: #fca5a5;
-      padding: 10px;
-      border-radius: 6px;
-      font-size: 13px;
-      margin-bottom: 12px;
-    }
-    .activation-error.show { display: block; }
-    .activation-resend {
-      font-size: 13px;
-      color: var(--primary);
-      cursor: pointer;
-      text-decoration: underline;
-      margin-top: 8px;
-    }
-    .activation-resend:hover { opacity: 0.8; }
-    .activation-hint { font-size: 12px; color: var(--text-muted); margin-top: 12px; line-height: 1.4; }
-
-    /* ===== MOBILE RESPONSIVE ===== */
-    @media (max-width: 800px) {
-      .admin-stats { grid-template-columns: repeat(2, 1fr); }
-      .admin-main { padding: 0 12px; margin: 12px auto; }
-      .settings-row { flex-direction: column; gap: 4px; }
-      .settings-label { padding-top: 0; }
-      .kp-add-form { grid-template-columns: 1fr; }
-      .admin-tab { padding: 10px 16px; font-size: 14px; }
-      .admin-tab-logout { padding: 10px 16px; font-size: 14px; }
-    }
+.admin-loading {
+display: flex;
+align-items: center;
+justify-content: center;
+height: 100vh;
+font-size: 16px;
+color: var(--text-muted);
+}
+.dash-header-row2 { display: none !important; }
+.dash-header-row3 { display: none !important; }
+#dashHeader .dash-theme-wrapper { display: none !important; }
+.dash-header-row1 {
+padding: 8px 20px !important;
+align-items: center;
+}
+.admin-header-title {
+flex: 1;
+text-align: center;
+font-size: 20px;
+font-weight: 600;
+color: var(--text);
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+}
+.admin-tab-bar {
+display: flex;
+gap: 2px;
+max-width: 1100px;
+margin: 0 auto;
+padding: 0 20px;
+overflow-x: auto;
+position: relative;
+z-index: 1;
+background: #cbd5e1;
+border-bottom: 2px solid #94a3b8;
+}
+.admin-tab {
+background: #94a3b8;
+border: 1px solid #64748b;
+border-bottom: none;
+border-radius: 8px 8px 0 0;
+padding: 10px 22px;
+font-size: 15px;
+font-weight: 500;
+color: #1e293b;
+cursor: pointer;
+white-space: nowrap;
+transition: color 200ms ease, background 200ms ease, border-color 200ms ease, margin-top 200ms ease;
+margin-top: 4px;
+position: relative;
+z-index: 1;
+}
+.admin-tab:hover {
+color: #0f172a;
+background: #a5b4c4;
+margin-top: 2px;
+}
+.admin-tab.active {
+color: #1d4ed8;
+background: #e2e8f0;
+border-color: #64748b;
+margin-top: 0;
+font-weight: 600;
+z-index: 2;
+}
+.admin-tab-content { display: none; }
+.admin-tab-content.active { display: block; }
+.admin-subtab-bar {
+display: none; 
+gap: 2px;
+max-width: 1100px;
+margin: 0 auto;
+padding: 0 20px;
+overflow-x: auto;
+position: relative;
+z-index: 1;
+background: #475569;
+border-bottom: 2px solid #334155;
+}
+.admin-subtab-bar.visible {
+display: flex;
+}
+.admin-subtab {
+background: #22c55e;
+border: 1px solid #16a34a;
+border-bottom: none;
+border-radius: 8px 8px 0 0;
+padding: 8px 18px;
+font-size: 14px;
+font-weight: 500;
+color: #ffffff;
+cursor: pointer;
+white-space: nowrap;
+transition: color 200ms ease, background 200ms ease, border-color 200ms ease, margin-top 200ms ease;
+margin-top: 4px;
+position: relative;
+z-index: 1;
+}
+.admin-subtab:hover {
+background: #16a34a;
+color: #ffffff;
+margin-top: 2px;
+}
+.admin-subtab.active {
+color: #ffffff;
+background: #15803d;
+border-color: #22c55e;
+margin-top: 0;
+font-weight: 600;
+z-index: 2;
+}
+.admin-subtab-content { display: none; }
+.admin-subtab-content.active { display: block; margin-top: 20px; }
+.admin-subtab-blue {
+background: #1e40af;
+border: 1px solid #2563eb;
+border-bottom: none;
+border-radius: 8px 8px 0 0;
+padding: 8px 18px;
+font-size: 14px;
+font-weight: 600;
+color: #dbeafe;
+cursor: pointer;
+white-space: nowrap;
+margin-top: 4px;
+margin-left: 8px;
+position: relative;
+z-index: 1;
+text-decoration: none;
+transition: background 200ms ease, margin-top 200ms ease;
+}
+.admin-subtab-blue:hover {
+background: #1d4ed8;
+color: #ffffff;
+margin-top: 2px;
+}
+.ob-progress-inline {
+width: 100%;
+max-width: 100%;
+background: var(--bg-card);
+border: 1px solid var(--border);
+border-radius: 8px;
+padding: 16px 20px;
+box-sizing: border-box;
+}
+.ob-progress-inline h3 { margin: 0 0 10px 0; font-size: 16px; color: var(--text); }
+.ob-progress-inline .progress-bar-container { margin-bottom: 6px; }
+.ob-progress-inline .progress-text { font-size: 13px; }
+.ob-progress-btns { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.admin-tab-logout {
+background: #b91c1c;
+border: 1px solid #dc2626;
+border-bottom: none;
+border-radius: 8px 8px 0 0;
+padding: 10px 22px;
+font-size: 15px;
+font-weight: 600;
+color: #fff;
+cursor: pointer;
+white-space: nowrap;
+margin-top: 4px;
+margin-left: auto;
+position: relative;
+z-index: 1;
+transition: background 200ms ease, margin-top 200ms ease;
+}
+.admin-tab-logout:hover {
+background: #dc2626;
+margin-top: 2px;
+}
+.admin-main {
+max-width: 1100px;
+margin: 20px auto;
+padding: 0 20px;
+position: relative;
+z-index: 1;
+}
+.admin-welcome {
+background: var(--bg-card);
+border: 1px solid var(--border);
+border-radius: 8px;
+padding: 24px;
+margin-bottom: 24px;
+}
+.admin-welcome h2 { margin: 0 0 6px 0; font-size: 20px; color: var(--text); }
+.admin-welcome p { margin: 0; font-size: 14px; color: var(--text-muted); }
+.admin-bt-display {
+background: var(--bg-card);
+border: 1px solid var(--border);
+border-radius: 8px;
+padding: 20px;
+margin-bottom: 24px;
+display: flex;
+align-items: center;
+justify-content: space-between;
+gap: 16px;
+flex-wrap: wrap;
+}
+.admin-bt-display-label { font-size: 14px; font-weight: 600; color: var(--text); }
+.admin-bt-display-value { font-size: 16px; color: var(--primary); font-weight: 600; }
+.admin-bt-display-note { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.admin-bt-display-note a { color: var(--primary); cursor: pointer; text-decoration: underline; }
+.admin-stats {
+display: grid;
+grid-template-columns: repeat(4, 1fr);
+gap: 16px;
+margin-bottom: 24px;
+}
+.admin-stat-card {
+background: var(--bg-card);
+border: 1px solid var(--border);
+border-radius: 8px;
+padding: 20px;
+text-align: center;
+}
+.admin-stat-number { font-size: 32px; font-weight: 700; color: var(--text); }
+.admin-stat-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+.admin-module-grid {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+gap: 16px;
+}
+.admin-module-card {
+background: var(--bg-step);
+border: 1px solid var(--border);
+border-radius: 8px;
+padding: 16px;
+display: flex;
+flex-direction: column;
+gap: 10px;
+cursor: pointer;
+transition: border-color 200ms ease;
+}
+.admin-module-card:hover { border-color: var(--primary); }
+.admin-module-title { font-size: 15px; font-weight: 600; color: var(--text); }
+.admin-module-body { font-size: 13px; color: var(--text-muted); line-height: 1.4; flex: 1; }
+.admin-module-link { font-size: 13px; color: var(--primary); font-weight: 500; }
+.settings-section {
+background: var(--bg-card);
+border: 1px solid var(--border);
+border-radius: 8px;
+padding: 24px;
+margin-bottom: 20px;
+}
+.settings-section h3 {
+margin: 0 0 16px 0;
+font-size: 18px;
+color: var(--text);
+padding-bottom: 10px;
+border-bottom: 1px solid var(--border);
+}
+.settings-row {
+display: flex;
+align-items: flex-start;
+gap: 16px;
+margin-bottom: 16px;
+flex-wrap: wrap;
+}
+.settings-label {
+font-size: 14px;
+font-weight: 600;
+color: var(--text);
+min-width: 140px;
+padding-top: 8px;
+}
+.settings-field { flex: 1; min-width: 200px; }
+.settings-field select,
+.settings-field input {
+width: 100%;
+padding: 10px 12px;
+font-size: 14px;
+border: 1px solid var(--border-input, var(--border));
+border-radius: 6px;
+background: var(--bg-step);
+color: var(--text);
+box-sizing: border-box;
+}
+.settings-field select:focus,
+.settings-field input:focus {
+outline: none;
+border-color: var(--primary);
+}
+.settings-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.bt-inline-row {
+display: flex;
+align-items: center;
+gap: 10px;
+}
+.bt-inline-row select,
+.bt-inline-row input {
+flex: 1;
+min-width: 0;
+}
+.bt-inline-row .settings-save-btn {
+margin-top: 0;
+flex-shrink: 0;
+white-space: nowrap;
+}
+.settings-save-btn {
+background: var(--primary);
+border: 1px solid var(--primary-hover);
+color: #fff;
+padding: 10px 20px;
+border-radius: 6px;
+font-size: 14px;
+font-weight: 600;
+cursor: pointer;
+margin-top: 8px;
+}
+.settings-save-btn:hover { background: var(--primary-hover); }
+.settings-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.settings-status { font-size: 13px; margin-top: 8px; }
+.settings-section-title-row {
+display: flex;
+align-items: center;
+justify-content: space-between;
+gap: 12px;
+margin-bottom: 16px;
+padding-bottom: 10px;
+border-bottom: 1px solid var(--border);
+flex-wrap: wrap;
+}
+.settings-section-title-row h3 {
+margin: 0;
+padding: 0;
+border: none;
+}
+.settings-section-title-row .settings-save-btn {
+margin-top: 0;
+flex-shrink: 0;
+}
+.visibility-warning {
+background: #fef3c7;
+border: 1px solid #f59e0b;
+color: #92400e;
+padding: 10px 14px;
+border-radius: 6px;
+font-size: 13px;
+margin-bottom: 14px;
+line-height: 1.5;
+}
+.logo-upload-area {
+display: flex;
+align-items: center;
+gap: 16px;
+margin-top: 8px;
+}
+.logo-preview {
+width: 140px;
+height: 70px;
+border: 2px dashed var(--border);
+border-radius: 6px;
+display: flex;
+align-items: center;
+justify-content: center;
+font-size: 11px;
+color: var(--text-muted);
+overflow: hidden;
+}
+.logo-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.logo-upload-btn {
+background: var(--primary);
+border: 1px solid var(--primary-hover);
+color: #fff;
+padding: 8px 14px;
+border-radius: 6px;
+font-size: 13px;
+cursor: pointer;
+}
+.logo-upload-btn:hover { background: var(--primary-hover); }
+.logo-remove-btn {
+background: transparent;
+border: 1px solid var(--error);
+color: var(--error);
+padding: 8px 14px;
+border-radius: 6px;
+font-size: 13px;
+cursor: pointer;
+margin-top: 8px;
+}
+.logo-remove-btn:hover { background: var(--error); color: #fff; }
+.logo-status { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.theme-switch-wrapper {
+display: flex;
+align-items: center;
+gap: 8px;
+}
+.theme-switch-label {
+font-size: 12px;
+color: var(--text-muted);
+transition: opacity 200ms ease;
+}
+.theme-switch-label.active { color: var(--text); font-weight: 600; }
+.theme-switch {
+position: relative;
+display: inline-block;
+width: 44px;
+height: 24px;
+}
+.theme-switch input { opacity: 0; width: 0; height: 0; }
+.theme-slider {
+position: absolute;
+cursor: pointer;
+top: 0; left: 0; right: 0; bottom: 0;
+background: var(--border);
+border-radius: 24px;
+transition: background 200ms ease;
+}
+.theme-slider:before {
+content: "";
+position: absolute;
+height: 18px; width: 18px;
+left: 3px; bottom: 3px;
+background: #fff;
+border-radius: 50%;
+transition: transform 200ms ease;
+}
+.theme-switch input:checked + .theme-slider { background: var(--primary); }
+.theme-switch input:checked + .theme-slider:before { transform: translateX(20px); }
+.account-row { font-size: 14px; color: var(--text); margin-bottom: 8px; }
+.account-row span { color: var(--text-muted); font-weight: 500; }
+.step-toggle-list {
+display: flex;
+flex-direction: column;
+gap: 10px;
+}
+.step-toggle-row {
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 12px 16px;
+background: var(--bg-step);
+border: 1px solid var(--border);
+border-radius: 8px;
+}
+.step-toggle-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.step-toggle-desc { font-size: 12px; color: var(--text-muted); }
+.step-toggle-locked { font-size: 11px; color: var(--text-muted); font-style: italic; }
+.toggle-switch {
+position: relative;
+display: inline-block;
+width: 44px;
+height: 24px;
+flex-shrink: 0;
+}
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+position: absolute;
+cursor: pointer;
+top: 0; left: 0; right: 0; bottom: 0;
+background: #4b5563;
+border-radius: 24px;
+transition: background 200ms ease;
+}
+.toggle-slider:before {
+content: "";
+position: absolute;
+height: 18px; width: 18px;
+left: 3px; bottom: 3px;
+background: #fff;
+border-radius: 50%;
+transition: transform 200ms ease;
+}
+.toggle-switch input:checked + .toggle-slider { background: var(--success, #16a34a); }
+.toggle-switch input:checked + .toggle-slider:before { transform: translateX(20px); }
+.toggle-switch input:disabled + .toggle-slider { opacity: 0.4; cursor: not-allowed; }
+.toggle-switch input:disabled + .toggle-slider:before { background: #9ca3af; }
+.kp-add-form {
+display: grid;
+grid-template-columns: 1fr 1fr 1fr auto;
+gap: 10px;
+margin-bottom: 16px;
+align-items: end;
+}
+.kp-add-form input,
+.kp-add-form select {
+padding: 10px 12px;
+font-size: 14px;
+border: 1px solid var(--border-input, var(--border));
+border-radius: 6px;
+background: var(--bg-step);
+color: var(--text);
+box-sizing: border-box;
+}
+.kp-add-form input:focus,
+.kp-add-form select:focus {
+outline: none;
+border-color: var(--primary);
+}
+.kp-add-btn {
+background: var(--primary);
+border: 1px solid var(--primary-hover);
+color: #fff;
+padding: 10px 16px;
+border-radius: 6px;
+font-size: 14px;
+font-weight: 600;
+cursor: pointer;
+white-space: nowrap;
+}
+.kp-add-btn:hover { background: var(--primary-hover); }
+.kp-add-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.kp-list { margin-top: 8px; }
+.kp-list-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 10px; }
+.kp-person-row {
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 10px 14px;
+background: var(--bg-step);
+border: 1px solid var(--border);
+border-radius: 6px;
+margin-bottom: 8px;
+gap: 12px;
+flex-wrap: wrap;
+}
+.kp-person-info { flex: 1; min-width: 180px; }
+.kp-person-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.kp-person-email { font-size: 12px; color: #60a5fa; }
+.kp-person-tasks { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.kp-person-remove {
+background: transparent;
+border: 1px solid var(--error);
+color: var(--error);
+padding: 6px 12px;
+border-radius: 6px;
+font-size: 12px;
+cursor: pointer;
+white-space: nowrap;
+}
+.kp-person-remove:hover { background: var(--error); color: #fff; }
+.kp-loading { font-size: 13px; color: var(--text-muted); padding: 10px; }
+.kp-person-tasks {
+display: flex;
+flex-wrap: wrap;
+gap: 6px;
+margin-top: 4px;
+}
+.kp-task-chip {
+display: inline-flex;
+align-items: center;
+gap: 6px;
+background: var(--bg-card);
+border: 1px solid var(--primary);
+color: var(--text);
+border-radius: 14px;
+padding: 3px 6px 3px 10px;
+font-size: 12px;
+}
+.kp-task-chip button {
+background: transparent;
+border: none;
+color: var(--error);
+font-size: 14px;
+line-height: 1;
+cursor: pointer;
+padding: 0 2px;
+}
+.kp-task-chip button:hover { color: #fff; background: var(--error); border-radius: 50%; }
+.kp-person-actions {
+display: flex;
+align-items: center;
+gap: 8px;
+flex-wrap: wrap;
+}
+.onboarding-progress {
+background: var(--bg-card);
+border: 1px solid var(--border);
+border-radius: 8px;
+padding: 20px;
+margin-top: 20px;
+}
+.onboarding-progress h3 { margin: 0 0 12px 0; font-size: 16px; color: var(--text); }
+.progress-bar-container {
+width: 100%;
+height: 8px;
+background: var(--border);
+border-radius: 4px;
+overflow: hidden;
+margin-bottom: 8px;
+}
+.progress-bar-fill {
+height: 100%;
+background: var(--success, #16a34a);
+border-radius: 4px;
+transition: width 400ms ease;
+}
+.progress-text { font-size: 13px; color: var(--text-muted); }
+.progress-complete-btn {
+background: var(--success, #16a34a);
+border: 1px solid #15803d;
+color: #fff;
+padding: 12px 24px;
+border-radius: 6px;
+font-size: 15px;
+font-weight: 600;
+cursor: pointer;
+margin-top: 16px;
+display: none;
+}
+.progress-complete-btn:hover { background: #15803d; }
+.progress-complete-btn.show { display: inline-block; }
+.reopen-onboarding-btn {
+background: transparent;
+border: 1px solid var(--primary);
+color: var(--primary);
+padding: 8px 16px;
+border-radius: 6px;
+font-size: 13px;
+cursor: pointer;
+margin-top: 12px;
+}
+.reopen-onboarding-btn:hover { background: var(--primary); color: #fff; }
+.onboarding-complete-panel {
+display: none;
+background: #f0fdf4;
+border: 2px solid #16a34a;
+border-radius: 10px;
+padding: 24px;
+margin-top: 16px;
+}
+.onboarding-complete-panel.show { display: block; }
+.onboarding-complete-panel h3 { margin: 0 0 8px 0; font-size: 18px; color: #15803d; }
+.onboarding-complete-panel p { margin: 0 0 12px 0; font-size: 14px; color: var(--text); line-height: 1.6; }
+.onboarding-complete-panel .complete-note { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+.finalize-onboarding-btn {
+background: #16a34a;
+border: 1px solid #15803d;
+color: #fff;
+padding: 14px 28px;
+border-radius: 8px;
+font-size: 15px;
+font-weight: 700;
+cursor: pointer;
+display: inline-block;
+}
+.finalize-onboarding-btn:hover { background: #15803d; }
+.finalize-onboarding-btn:disabled { background: #94a3b8; border-color: #94a3b8; cursor: not-allowed; }
+.confirm-modal {
+display: none;
+position: fixed;
+top: 0; left: 0; width: 100%; height: 100%;
+background: rgba(0, 0, 0, 0.7);
+z-index: 10000;
+align-items: center;
+justify-content: center;
+}
+.confirm-modal.active { display: flex; }
+.confirm-card {
+max-width: 440px;
+width: 90%;
+background: var(--bg-card);
+border: 1px solid var(--primary);
+border-radius: 12px;
+padding: 28px;
+text-align: center;
+}
+.confirm-card h3 { margin: 0 0 10px 0; font-size: 20px; color: var(--text); }
+.confirm-card p { margin: 0 0 20px 0; font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+.confirm-btn-confirm {
+background: var(--success, #16a34a);
+border: 1px solid #15803d;
+color: #fff;
+padding: 10px 20px;
+border-radius: 6px;
+font-size: 15px;
+font-weight: 600;
+cursor: pointer;
+margin: 0 6px;
+}
+.confirm-btn-confirm:hover { background: #15803d; }
+.confirm-btn-cancel {
+background: var(--bg-step);
+border: 1px solid var(--border);
+color: var(--text);
+padding: 10px 20px;
+border-radius: 6px;
+font-size: 15px;
+cursor: pointer;
+margin: 0 6px;
+}
+.confirm-btn-cancel:hover { border-color: var(--primary); }
+.activation-overlay {
+display: none;
+position: fixed;
+top: 0; left: 0; width: 100%; height: 100%;
+background: rgba(2, 6, 23, 0.97);
+z-index: 9999;
+align-items: center;
+justify-content: center;
+flex-direction: column;
+gap: 20px;
+padding: 20px;
+box-sizing: border-box;
+}
+.activation-overlay.active { display: flex; }
+.activation-card {
+max-width: 440px;
+width: 100%;
+background: var(--bg-card);
+border: 1px solid var(--primary);
+border-radius: 12px;
+padding: 32px;
+text-align: center;
+}
+.activation-card h2 { margin: 0 0 8px 0; font-size: 22px; color: var(--text); }
+.activation-card p { margin: 0 0 20px 0; font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+.activation-input {
+width: 100%;
+padding: 12px;
+font-size: 18px;
+text-align: center;
+letter-spacing: 3px;
+border: 1px solid var(--border);
+border-radius: 6px;
+background: var(--bg-step);
+color: var(--text);
+box-sizing: border-box;
+margin-bottom: 16px;
+text-transform: uppercase;
+}
+.activation-input:focus { outline: none; border-color: var(--primary); }
+.activation-input.error { border-color: var(--error); }
+.activation-btn {
+width: 100%;
+background: var(--primary);
+border: 1px solid var(--primary-hover);
+color: #fff;
+padding: 12px;
+border-radius: 6px;
+font-size: 16px;
+font-weight: 600;
+cursor: pointer;
+margin-bottom: 12px;
+}
+.activation-btn:hover { background: var(--primary-hover); }
+.activation-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.activation-error {
+display: none;
+background: #1f0f0f;
+border: 1px solid var(--error);
+color: #fca5a5;
+padding: 10px;
+border-radius: 6px;
+font-size: 13px;
+margin-bottom: 12px;
+}
+.activation-error.show { display: block; }
+.activation-resend {
+font-size: 13px;
+color: var(--primary);
+cursor: pointer;
+text-decoration: underline;
+margin-top: 8px;
+}
+.activation-resend:hover { opacity: 0.8; }
+.activation-hint { font-size: 12px; color: var(--text-muted); margin-top: 12px; line-height: 1.4; }
+@media (max-width: 800px) {
+.admin-stats { grid-template-columns: repeat(2, 1fr); }
+.admin-main { padding: 0 12px; margin: 12px auto; }
+.settings-row { flex-direction: column; gap: 4px; }
+.settings-label { padding-top: 0; }
+.kp-add-form { grid-template-columns: 1fr; }
+.admin-tab { padding: 10px 16px; font-size: 14px; }
+.admin-tab-logout { padding: 10px 16px; font-size: 14px; }
+}
 </style>
 </head>
 <body data-page-title="Admin Dashboard" data-required-role="Admin">
-
-<!-- ===== DIAMOND-PLATE BACKGROUND ===== -->
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
-
-<!-- ===== SHARED HEADER ===== -->
 <div id="dashHeader"></div>
-
-<!-- ===== TAB BAR ===== -->
 <div class="admin-tab-bar" id="adminTabBar">
-  <button class="admin-tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
-  <button class="admin-tab" data-tab="settings" onclick="switchTab('settings')">Settings</button>
-  <button class="admin-tab" data-tab="onboarding" onclick="switchTab('onboarding')">Onboarding</button>
-  <button class="admin-tab-logout" onclick="dashLogout()">Logout</button>
+<button class="admin-tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
+<button class="admin-tab" data-tab="settings" onclick="switchTab('settings')">Settings</button>
+<button class="admin-tab" data-tab="onboarding" onclick="switchTab('onboarding')">Onboarding</button>
+<button class="admin-tab-logout" onclick="dashLogout()">Logout</button>
 </div>
-
-<!-- ===== LOADING SCREEN ===== -->
 <div id="loading" class="admin-loading">Checking session…</div>
-
-<!-- ===== DASHBOARD CONTENT ===== -->
 <div id="dashboard" style="display:none;">
-
-  <!-- ===== OVERVIEW TAB ===== -->
-  <div class="admin-tab-content active" id="tab-overview">
-    <div class="admin-main">
-
-      <!-- WELCOME BANNER -->
-      <div class="admin-welcome">
-        <h2>Welcome, <span id="welcome-name"></span></h2>
-        <p>You have full access to all modules, settings, users, and operational data.</p>
-      </div>
-
-      <!-- BUSINESS TYPE DISPLAY -->
-      <div class="admin-bt-display">
-        <div>
-          <div class="admin-bt-display-label">Business Type</div>
-          <div class="admin-bt-display-value" id="overviewBusinessType">Not set</div>
-          <div class="admin-bt-display-note">Change this in the <a onclick="switchTab('settings')">Settings tab</a>.</div>
-        </div>
-      </div>
-
-      <!-- STATS GRID -->
-      <div class="admin-stats">
-        <div class="admin-stat-card"><div class="admin-stat-number" id="stat-employees">0</div><div class="admin-stat-label">Employees</div></div>
-        <div class="admin-stat-card"><div class="admin-stat-number" id="stat-projects">0</div><div class="admin-stat-label">Projects</div></div>
-        <div class="admin-stat-card"><div class="admin-stat-number" id="stat-equipment">0</div><div class="admin-stat-label">Equipment</div></div>
-        <div class="admin-stat-card"><div class="admin-stat-number" id="stat-clients">0</div><div class="admin-stat-label">Clients</div></div>
-      </div>
-
-      <!-- MODULES -->
-      <div class="settings-section">
-        <h3>Modules</h3>
-        <div class="admin-module-grid">
-          <div class="admin-module-card" onclick="window.location.href='/app/dashboard/owner-dashboard.html'">
-            <div class="admin-module-title">User Management</div>
-            <div class="admin-module-body">Manage employees, roles, permissions, and account access.</div>
-            <div class="admin-module-link">Open →</div>
-          </div>
-          <div class="admin-module-card" onclick="window.location.href='/app/dashboard/owner-dashboard.html'">
-            <div class="admin-module-title">Projects</div>
-            <div class="admin-module-body">View, create, and manage all projects across your organization.</div>
-            <div class="admin-module-link">Open →</div>
-          </div>
-          <div class="admin-module-card" onclick="window.location.href='/app/dashboard/owner-dashboard.html'">
-            <div class="admin-module-title">Equipment</div>
-            <div class="admin-module-body">Manage fleet, assignments, PM schedules, and service history.</div>
-            <div class="admin-module-link">Open →</div>
-          </div>
-          <div class="admin-module-card" onclick="window.location.href='/app/dashboard/owner-dashboard.html'">
-            <div class="admin-module-title">Safety</div>
-            <div class="admin-module-body">Review safety forms, compliance documentation, and hazard reports.</div>
-            <div class="admin-module-link">Open →</div>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- ===== SETTINGS TAB ===== -->
-  <div class="admin-tab-content" id="tab-settings">
-    <div class="admin-main">
-
-      <!-- ===== SETTINGS SUBTABS ===== -->
-      <div class="admin-subtab-bar" id="settingsSubtabBar">
-        <button class="admin-subtab active" data-subtab="logo" onclick="switchSettingsSubtab('logo')">Company Logo</button>
-        <button class="admin-subtab" data-subtab="btype" onclick="switchSettingsSubtab('btype')">Business Type</button>
-        <button class="admin-subtab" data-subtab="naics" onclick="switchSettingsSubtab('naics')">NAICS Code</button>
-      </div>
-
-      <!-- ===== SUBTAB: COMPANY LOGO ===== -->
-      <div class="admin-subtab-content active" id="settings-subtab-logo">
-        <div class="settings-section">
-          <h3>Company Logo</h3>
-          <p style="font-size:13px;color:var(--text-muted);margin:0 0 12px 0;">Upload your company logo. It appears in the dashboard header across all devices and employees. You can change or remove it at any time.</p>
-          <div class="logo-upload-area">
-            <div class="logo-preview" id="logoPreview">No logo</div>
-            <div>
-              <input type="file" id="logoFile" accept="image/png,image/jpeg,image/svg+xml" style="display:none;" onchange="handleLogoUpload()">
-              <button class="logo-upload-btn" onclick="document.getElementById('logoFile').click()">Upload Logo</button>
-              <button class="logo-remove-btn" id="logoRemoveBtn" style="display:none;" onclick="handleLogoRemove()">Remove Logo</button>
-              <div class="logo-status" id="logoStatus"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== SUBTAB: BUSINESS TYPE ===== -->
-      <div class="admin-subtab-content" id="settings-subtab-btype">
-        <div class="settings-section">
-          <h3>Business Type</h3>
-          <div class="settings-row">
-            <div class="settings-label">Type</div>
-            <div class="settings-field">
-              <div class="bt-inline-row">
-                <select id="businessTypeSelect" onchange="onBusinessTypeChange()">
-                  <option value="">— Select business type —</option>
-                  <option value="Construction">Construction</option>
-                  <option value="Manufacturing">Manufacturing</option>
-                  <option value="Chemical">Chemical</option>
-                  <option value="Oil & Gas">Oil &amp; Gas</option>
-                  <option value="Transportation">Transportation</option>
-                  <option value="Warehousing">Warehousing</option>
-                  <option value="Fabrication">Fabrication</option>
-                  <option value="Logistics / Supply Chain">Logistics / Supply Chain</option>
-                  <option value="Utilities & Energy">Utilities &amp; Energy</option>
-                  <option value="Mining & Aggregates">Mining &amp; Aggregates</option>
-                  <option value="Agriculture">Agriculture</option>
-                  <option value="Environmental Services">Environmental Services</option>
-                  <option value="Food & Beverage Processing">Food &amp; Beverage Processing</option>
-                  <option value="General Services">General Services</option>
-                </select>
-                <button class="settings-save-btn" id="saveSettingsBtn" onclick="saveSettings()">Save</button>
-              </div>
-              <div class="settings-hint">Selecting a business type auto-configures which onboarding tasks are visible. You can override individual tasks in the Onboarding tab.</div>
-              <div class="settings-status" id="settingsStatus"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== SUBTAB: NAICS CODE ===== -->
-      <div class="admin-subtab-content" id="settings-subtab-naics">
-        <div class="settings-section">
-          <h3>NAICS Code</h3>
-          <div class="settings-row">
-            <div class="settings-label">NAICS Code</div>
-            <div class="settings-field">
-              <div class="bt-inline-row">
-                <input type="text" id="naicsInput" placeholder="e.g., 236220 (Commercial Building Construction)" maxlength="6" onchange="onNaicsChange()">
-                <button class="settings-save-btn" id="saveNaicsBtn" onclick="saveSettings()">Save</button>
-              </div>
-              <div class="settings-hint">The North American Industry Classification System code for your business. Used for reporting and compliance in future modules.</div>
-              <div class="settings-status" id="naicsStatus"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== APPEARANCE (stays on page, below subtabs) ===== -->
-      <div class="settings-section" style="margin-top:20px;">
-        <h3>Appearance</h3>
-        <div class="settings-row">
-          <div class="settings-label">Theme</div>
-          <div class="settings-field">
-            <div class="theme-switch-wrapper" title="Toggle light/dark mode">
-              <span class="theme-switch-label" id="theme-label-light">Light Mode</span>
-              <label class="theme-switch">
-                <input type="checkbox" id="theme-checkbox" onchange="toggleTheme()">
-                <span class="theme-slider"></span>
-              </label>
-              <span class="theme-switch-label" id="theme-label-dark">Dark Mode</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== ACCOUNT (stays on page, below subtabs) ===== -->
-      <div class="settings-section">
-        <h3>Account</h3>
-        <div class="account-row"><span>Admin Name:</span> <span id="account-name"></span></div>
-        <div class="account-row"><span>Email:</span> <span id="account-email"></span></div>
-        <div class="account-row"><span>Role:</span> Administrator</div>
-        <button class="settings-save-btn" style="background:transparent;border:1px solid var(--primary);color:var(--primary);" onclick="window.location.href='/app/auth/change-password.html'">Change Password</button>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- ===== ONBOARDING TAB ===== -->
-  <div class="admin-tab-content" id="tab-onboarding">
-    <div class="admin-main">
-
-      <!-- ===== ONBOARDING SUBTABS ===== -->
-      <div class="admin-subtab-bar" id="onboardingSubtabBar">
-        <button class="admin-subtab active" data-subtab="visibility" onclick="switchOnboardingSubtab('visibility')">Task Visibility</button>
-        <button class="admin-subtab" data-subtab="kp" onclick="switchOnboardingSubtab('kp')">Key Personnel</button>
-        <a class="admin-subtab admin-subtab-blue" href="/app/dashboard/onboarding-dashboard.html">View Onboarding Dashboard →</a>
-      </div>
-
-      <!-- ===== ONBOARDING PROGRESS (full width — button moved to subtab bar) ===== -->
-      <div class="ob-progress-inline" style="margin-bottom:20px;">
-        <h3>Onboarding Progress</h3>
-        <div class="progress-bar-container">
-          <div class="progress-bar-fill" id="progressBarFill" style="width:0%;"></div>
-        </div>
-        <div class="progress-text" id="progressText">0 of 0 tasks complete</div>
-        <div class="ob-progress-btns">
-          <button class="progress-complete-btn" id="markCompleteBtn" onclick="showCompleteModal()">Mark Onboarding Complete</button>
-          <button class="reopen-onboarding-btn" id="reopenOnboardingBtn" style="display:none;" onclick="reopenOnboarding()">Reopen Onboarding</button>
-        </div>
-
-        <!-- ===== 100% COMPLETE PANEL (shown when all tasks are done) ===== -->
-        <div class="onboarding-complete-panel" id="onboardingCompletePanel">
-          <h3>🎉 Onboarding Complete</h3>
-          <p>All onboarding tasks have been closed by your Key Personnel. Every task assigned to your team has been marked complete — great work!</p>
-          <p class="complete-note">
-            <strong>Next step:</strong> Click the button below to <strong>finalize onboarding</strong>. This removes all Key Personnel onboarding assignments and unlocks their role-based dashboards (Owner, Admin, and department dashboards), so each employee can access the dashboards their role allows.
-          </p>
-          <p class="complete-note">
-            After finalizing, <strong>future additions</strong> — new employees, equipment, locations, and other data — are managed by the departments through their own dashboards, not through the Onboarding Dashboard. The initial onboarding is complete.
-          </p>
-          <button class="finalize-onboarding-btn" id="finalizeOnboardingBtn" onclick="finalizeOnboarding()">Finalize Onboarding &amp; Unlock Dashboards</button>
-        </div>
-      </div>
-
-      <!-- ===== SUBTAB: TASK VISIBILITY ===== -->
-      <div class="admin-subtab-content active" id="onboarding-subtab-visibility">
-        <div class="settings-section">
-          <div class="settings-section-title-row">
-            <h3>Task Visibility</h3>
-            <button class="settings-save-btn" onclick="saveStepVisibility()">Save Visibility</button>
-          </div>
-          <div class="visibility-warning" id="visibilityWarning" style="display:none;">
-            ⚠ You have unsaved visibility changes. Click <strong>Save Visibility</strong> before switching tabs or leaving this page, or your changes will be lost.
-          </div>
-          <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px 0;line-height:1.6;">
-            Control which onboarding tasks appear on the Onboarding Dashboard for your team. Tasks are auto-configured based on your business type (<span id="onboardingBtLabel">not set</span>), but you can override any task here. Toggling a task off hides it from the Onboarding Dashboard — your team won't see it or be asked to complete it. Locked tasks (Roles &amp; Permissions, Employees, Equipment) are required for all business types and cannot be turned off.
-          </p>
-          <div class="step-toggle-list" id="stepToggleList">
-            <!-- Populated by JS -->
-          </div>
-          <button class="settings-save-btn" style="margin-top:16px;" onclick="saveStepVisibility()">Save Visibility</button>
-          <div class="settings-status" id="visibilityStatus"></div>
-        </div>
-      </div>
-
-      <!-- ===== SUBTAB: KEY PERSONNEL ===== -->
-      <div class="admin-subtab-content" id="onboarding-subtab-kp">
-        <div class="settings-section">
-          <h3>Key Personnel Assignments</h3>
-          <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px 0;line-height:1.6;">
-            Assign key personnel and the onboarding tasks they are responsible for. They will receive an email with login instructions and will see only their assigned tasks on the Onboarding Dashboard. You can assign multiple tasks to the same person or split tasks across different team members.
-          </p>
-
-          <!-- Add KP form -->
-          <div class="kp-add-form">
-            <input type="text" id="kpName" placeholder="Full name">
-            <input type="email" id="kpEmail" placeholder="Email address">
-            <select id="kpTask">
-              <option value="">— Assign task —</option>
-              <option value="Employees">Employees</option>
-              <option value="Locations">Locations</option>
-              <option value="Clients">Clients</option>
-              <option value="Divisions">Divisions</option>
-              <option value="Project Types">Project Types</option>
-              <option value="Projects">Projects</option>
-              <option value="Equipment">Equipment</option>
-              <option value="Roles & Permissions">Roles &amp; Permissions</option>
-            </select>
-            <button class="kp-add-btn" id="kpAddBtn" onclick="addKeyPersonnel()">Add</button>
-          </div>
-          <p style="font-size:12px;color:var(--text-muted);margin:-8px 0 14px 0;line-height:1.5;">
-            Tip: Add the same person multiple times with different tasks, or add different people for different tasks. Each person receives <strong>one</strong> invitation email listing all their assigned tasks.
-          </p>
-
-          <!-- KP list -->
-          <div class="kp-list" id="kpListContainer">
-            <div class="kp-list-title">Assigned Key Personnel:</div>
-            <div id="kpListBody">
-              <div class="kp-loading">Loading…</div>
-            </div>
-          </div>
-          <button class="settings-save-btn" id="kpCompleteBtn" style="margin-top:16px;display:none;" onclick="completeKeyPersonnel()">Send Invitations &amp; Create Accounts</button>
-        </div>
-      </div>
-
-      </div>
-  </div>
-
+<div class="admin-tab-content active" id="tab-overview">
+<div class="admin-main">
+<div class="admin-welcome">
+<h2>Welcome, <span id="welcome-name"></span></h2>
+<p>You have full access to all modules, settings, users, and operational data.</p>
 </div>
-
-<!-- ===== CONFIRMATION MODAL ===== -->
+<div class="admin-bt-display">
+<div>
+<div class="admin-bt-display-label">Business Type</div>
+<div class="admin-bt-display-value" id="overviewBusinessType">Not set</div>
+<div class="admin-bt-display-note">Change this in the <a onclick="switchTab('settings')">Settings tab</a>.</div>
+</div>
+</div>
+<div class="admin-stats">
+<div class="admin-stat-card"><div class="admin-stat-number" id="stat-employees">0</div><div class="admin-stat-label">Employees</div></div>
+<div class="admin-stat-card"><div class="admin-stat-number" id="stat-projects">0</div><div class="admin-stat-label">Projects</div></div>
+<div class="admin-stat-card"><div class="admin-stat-number" id="stat-equipment">0</div><div class="admin-stat-label">Equipment</div></div>
+<div class="admin-stat-card"><div class="admin-stat-number" id="stat-clients">0</div><div class="admin-stat-label">Clients</div></div>
+</div>
+<div class="settings-section">
+<h3>Modules</h3>
+<div class="admin-module-grid">
+<div class="admin-module-card" onclick="window.location.href='/app/dashboard/owner-dashboard.html'">
+<div class="admin-module-title">User Management</div>
+<div class="admin-module-body">Manage employees, roles, permissions, and account access.</div>
+<div class="admin-module-link">Open →</div>
+</div>
+<div class="admin-module-card" onclick="window.location.href='/app/dashboard/owner-dashboard.html'">
+<div class="admin-module-title">Projects</div>
+<div class="admin-module-body">View, create, and manage all projects across your organization.</div>
+<div class="admin-module-link">Open →</div>
+</div>
+<div class="admin-module-card" onclick="window.location.href='/app/dashboard/owner-dashboard.html'">
+<div class="admin-module-title">Equipment</div>
+<div class="admin-module-body">Manage fleet, assignments, PM schedules, and service history.</div>
+<div class="admin-module-link">Open →</div>
+</div>
+<div class="admin-module-card" onclick="window.location.href='/app/dashboard/owner-dashboard.html'">
+<div class="admin-module-title">Safety</div>
+<div class="admin-module-body">Review safety forms, compliance documentation, and hazard reports.</div>
+<div class="admin-module-link">Open →</div>
+</div>
+<div class="admin-module-card" onclick="window.location.href='/app/dashboard/fuel.html'">
+<div class="admin-module-title">Fuel Management</div>
+<div class="admin-module-body">Tank levels, fuel transactions, inventory tracking, and ownership badges.</div>
+<div class="admin-module-link">Open →</div>
+</div>
+<div class="admin-module-card" onclick="window.location.href='/app/dashboard/fuel-alerts.html'">
+<div class="admin-module-title">Fuel Alerts</div>
+<div class="admin-module-body">Capacity flags, consumption anomalies, employee tank fill alerts, and notification settings.</div>
+<div class="admin-module-link">Open →</div>
+</div>
+<div class="admin-module-card" onclick="window.location.href='/app/dashboard/transfers.html'">
+<div class="admin-module-title">Transfers</div>
+<div class="admin-module-body">Equipment transfer tickets, status tracking, and delivery event trails.</div>
+<div class="admin-module-link">Open →</div>
+</div>
+<div class="admin-module-card" onclick="window.location.href='/app/dashboard/work-orders.html'">
+<div class="admin-module-title">Work Orders</div>
+<div class="admin-module-body">Maintenance tickets, checklists, parts tracking, and completion status.</div>
+<div class="admin-module-link">Open →</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="admin-tab-content" id="tab-settings">
+<div class="admin-main">
+<div class="admin-subtab-bar" id="settingsSubtabBar">
+<button class="admin-subtab active" data-subtab="logo" onclick="switchSettingsSubtab('logo')">Company Logo</button>
+<button class="admin-subtab" data-subtab="btype" onclick="switchSettingsSubtab('btype')">Business Type</button>
+<button class="admin-subtab" data-subtab="naics" onclick="switchSettingsSubtab('naics')">NAICS Code</button>
+</div>
+<div class="admin-subtab-content active" id="settings-subtab-logo">
+<div class="settings-section">
+<h3>Company Logo</h3>
+<p style="font-size:13px;color:var(--text-muted);margin:0 0 12px 0;">Upload your company logo. It appears in the dashboard header across all devices and employees. You can change or remove it at any time.</p>
+<div class="logo-upload-area">
+<div class="logo-preview" id="logoPreview">No logo</div>
+<div>
+<input type="file" id="logoFile" accept="image/png,image/jpeg,image/svg+xml" style="display:none;" onchange="handleLogoUpload()">
+<button class="logo-upload-btn" onclick="document.getElementById('logoFile').click()">Upload Logo</button>
+<button class="logo-remove-btn" id="logoRemoveBtn" style="display:none;" onclick="handleLogoRemove()">Remove Logo</button>
+<div class="logo-status" id="logoStatus"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="admin-subtab-content" id="settings-subtab-btype">
+<div class="settings-section">
+<h3>Business Type</h3>
+<div class="settings-row">
+<div class="settings-label">Type</div>
+<div class="settings-field">
+<div class="bt-inline-row">
+<select id="businessTypeSelect" onchange="onBusinessTypeChange()">
+<option value="">— Select business type —</option>
+<option value="Construction">Construction</option>
+<option value="Manufacturing">Manufacturing</option>
+<option value="Chemical">Chemical</option>
+<option value="Oil & Gas">Oil &amp; Gas</option>
+<option value="Transportation">Transportation</option>
+<option value="Warehousing">Warehousing</option>
+<option value="Fabrication">Fabrication</option>
+<option value="Logistics / Supply Chain">Logistics / Supply Chain</option>
+<option value="Utilities & Energy">Utilities &amp; Energy</option>
+<option value="Mining & Aggregates">Mining &amp; Aggregates</option>
+<option value="Agriculture">Agriculture</option>
+<option value="Environmental Services">Environmental Services</option>
+<option value="Food & Beverage Processing">Food &amp; Beverage Processing</option>
+<option value="General Services">General Services</option>
+</select>
+<button class="settings-save-btn" id="saveSettingsBtn" onclick="saveSettings()">Save</button>
+</div>
+<div class="settings-hint">Selecting a business type auto-configures which onboarding tasks are visible. You can override individual tasks in the Onboarding tab.</div>
+<div class="settings-status" id="settingsStatus"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="admin-subtab-content" id="settings-subtab-naics">
+<div class="settings-section">
+<h3>NAICS Code</h3>
+<div class="settings-row">
+<div class="settings-label">NAICS Code</div>
+<div class="settings-field">
+<div class="bt-inline-row">
+<input type="text" id="naicsInput" placeholder="e.g., 236220 (Commercial Building Construction)" maxlength="6" onchange="onNaicsChange()">
+<button class="settings-save-btn" id="saveNaicsBtn" onclick="saveSettings()">Save</button>
+</div>
+<div class="settings-hint">The North American Industry Classification System code for your business. Used for reporting and compliance in future modules.</div>
+<div class="settings-status" id="naicsStatus"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="settings-section" style="margin-top:20px;">
+<h3>Appearance</h3>
+<div class="settings-row">
+<div class="settings-label">Theme</div>
+<div class="settings-field">
+<div class="theme-switch-wrapper" title="Toggle light/dark mode">
+<span class="theme-switch-label" id="theme-label-light">Light Mode</span>
+<label class="theme-switch">
+<input type="checkbox" id="theme-checkbox" onchange="toggleTheme()">
+<span class="theme-slider"></span>
+</label>
+<span class="theme-switch-label" id="theme-label-dark">Dark Mode</span>
+</div>
+</div>
+</div>
+</div>
+<div class="settings-section">
+<h3>Account</h3>
+<div class="account-row"><span>Admin Name:</span> <span id="account-name"></span></div>
+<div class="account-row"><span>Email:</span> <span id="account-email"></span></div>
+<div class="account-row"><span>Role:</span> Administrator</div>
+<button class="settings-save-btn" style="background:transparent;border:1px solid var(--primary);color:var(--primary);" onclick="window.location.href='/app/auth/change-password.html'">Change Password</button>
+</div>
+</div>
+</div>
+<div class="admin-tab-content" id="tab-onboarding">
+<div class="admin-main">
+<div class="admin-subtab-bar" id="onboardingSubtabBar">
+<button class="admin-subtab active" data-subtab="visibility" onclick="switchOnboardingSubtab('visibility')">Task Visibility</button>
+<button class="admin-subtab" data-subtab="kp" onclick="switchOnboardingSubtab('kp')">Key Personnel</button>
+<a class="admin-subtab admin-subtab-blue" href="/app/dashboard/onboarding-dashboard.html">View Onboarding Dashboard →</a>
+</div>
+<div class="ob-progress-inline" style="margin-bottom:20px;">
+<h3>Onboarding Progress</h3>
+<div class="progress-bar-container">
+<div class="progress-bar-fill" id="progressBarFill" style="width:0%;"></div>
+</div>
+<div class="progress-text" id="progressText">0 of 0 tasks complete</div>
+<div class="ob-progress-btns">
+<button class="progress-complete-btn" id="markCompleteBtn" onclick="showCompleteModal()">Mark Onboarding Complete</button>
+<button class="reopen-onboarding-btn" id="reopenOnboardingBtn" style="display:none;" onclick="reopenOnboarding()">Reopen Onboarding</button>
+</div>
+<div class="onboarding-complete-panel" id="onboardingCompletePanel">
+<h3>🎉 Onboarding Complete</h3>
+<p>All onboarding tasks have been closed by your Key Personnel. Every task assigned to your team has been marked complete — great work!</p>
+<p class="complete-note">
+<strong>Next step:</strong> Click the button below to <strong>finalize onboarding</strong>. This removes all Key Personnel onboarding assignments and unlocks their role-based dashboards (Owner, Admin, and department dashboards), so each employee can access the dashboards their role allows.
+</p>
+<p class="complete-note">
+After finalizing, <strong>future additions</strong> — new employees, equipment, locations, and other data — are managed by the departments through their own dashboards, not through the Onboarding Dashboard. The initial onboarding is complete.
+</p>
+<button class="finalize-onboarding-btn" id="finalizeOnboardingBtn" onclick="finalizeOnboarding()">Finalize Onboarding &amp; Unlock Dashboards</button>
+</div>
+</div>
+<div class="admin-subtab-content active" id="onboarding-subtab-visibility">
+<div class="settings-section">
+<div class="settings-section-title-row">
+<h3>Task Visibility</h3>
+<button class="settings-save-btn" onclick="saveStepVisibility()">Save Visibility</button>
+</div>
+<div class="visibility-warning" id="visibilityWarning" style="display:none;">
+⚠ You have unsaved visibility changes. Click <strong>Save Visibility</strong> before switching tabs or leaving this page, or your changes will be lost.
+</div>
+<p style="font-size:13px;color:var(--text-muted);margin:0 0 16px 0;line-height:1.6;">
+Control which onboarding tasks appear on the Onboarding Dashboard for your team. Tasks are auto-configured based on your business type (<span id="onboardingBtLabel">not set</span>), but you can override any task here. Toggling a task off hides it from the Onboarding Dashboard — your team won't see it or be asked to complete it. Locked tasks (Roles &amp; Permissions, Employees, Equipment) are required for all business types and cannot be turned off.
+</p>
+<div class="step-toggle-list" id="stepToggleList">
+</div>
+<button class="settings-save-btn" style="margin-top:16px;" onclick="saveStepVisibility()">Save Visibility</button>
+<div class="settings-status" id="visibilityStatus"></div>
+</div>
+</div>
+<div class="admin-subtab-content" id="onboarding-subtab-kp">
+<div class="settings-section">
+<h3>Key Personnel Assignments</h3>
+<p style="font-size:13px;color:var(--text-muted);margin:0 0 16px 0;line-height:1.6;">
+Assign key personnel and the onboarding tasks they are responsible for. They will receive an email with login instructions and will see only their assigned tasks on the Onboarding Dashboard. You can assign multiple tasks to the same person or split tasks across different team members.
+</p>
+<div class="kp-add-form">
+<input type="text" id="kpName" placeholder="Full name">
+<input type="email" id="kpEmail" placeholder="Email address">
+<select id="kpTask">
+<option value="">— Assign task —</option>
+<option value="Employees">Employees</option>
+<option value="Locations">Locations</option>
+<option value="Clients">Clients</option>
+<option value="Divisions">Divisions</option>
+<option value="Project Types">Project Types</option>
+<option value="Projects">Projects</option>
+<option value="Equipment">Equipment</option>
+<option value="Roles & Permissions">Roles &amp; Permissions</option>
+</select>
+<button class="kp-add-btn" id="kpAddBtn" onclick="addKeyPersonnel()">Add</button>
+</div>
+<p style="font-size:12px;color:var(--text-muted);margin:-8px 0 14px 0;line-height:1.5;">
+Tip: Add the same person multiple times with different tasks, or add different people for different tasks. Each person receives <strong>one</strong> invitation email listing all their assigned tasks.
+</p>
+<div class="kp-list" id="kpListContainer">
+<div class="kp-list-title">Assigned Key Personnel:</div>
+<div id="kpListBody">
+<div class="kp-loading">Loading…</div>
+</div>
+</div>
+<button class="settings-save-btn" id="kpCompleteBtn" style="margin-top:16px;display:none;" onclick="completeKeyPersonnel()">Send Invitations &amp; Create Accounts</button>
+</div>
+</div>
+</div>
+</div>
+</div>
 <div class="confirm-modal" id="confirmModal">
-  <div class="confirm-card">
-    <h3>Mark Onboarding Complete?</h3>
-    <p>Once you confirm, the Onboarding tab will no longer be accessible. You can still manage Logo, Business Type, NAICS, and Key Personnel in the Settings tab. Key Personnel will be redirected to their assigned dashboards on next login.</p>
-    <p style="font-size:13px;color:var(--error);">You can reopen onboarding later from the Settings tab if needed.</p>
-    <div>
-      <button class="confirm-btn-cancel" onclick="closeCompleteModal()">Cancel</button>
-      <button class="confirm-btn-confirm" onclick="markOnboardingComplete()">Confirm &amp; Complete</button>
-    </div>
-  </div>
+<div class="confirm-card">
+<h3>Mark Onboarding Complete?</h3>
+<p>Once you confirm, the Onboarding tab will no longer be accessible. You can still manage Logo, Business Type, NAICS, and Key Personnel in the Settings tab. Key Personnel will be redirected to their assigned dashboards on next login.</p>
+<p style="font-size:13px;color:var(--error);">You can reopen onboarding later from the Settings tab if needed.</p>
+<div>
+<button class="confirm-btn-cancel" onclick="closeCompleteModal()">Cancel</button>
+<button class="confirm-btn-confirm" onclick="markOnboardingComplete()">Confirm &amp; Complete</button>
 </div>
-
-<!-- ===== FOOTER ===== -->
+</div>
+</div>
 <div id="dashFooter"></div>
-
-<!-- ===== SHARED DASHBOARD JS ===== -->
 <script src="/app/shared/dashboard-common.js?v=7"></script>
-
-<!-- ===== PAGE-SPECIFIC JS ===== -->
 <script>
-    /* ===== STATE ===== */
-    var orgSettings = {};
-    var stepVisibility = {};
-    var keyPersonnel = [];
-    var pendingKP = []; // KP added locally but not yet saved to server
-    var onboardingComplete = false;
-
-    /* ===== BUSINESS TYPE → DEFAULT STEP VISIBILITY ===== */
-    var BUSINESS_TYPE_DEFAULTS = {
-      "Construction":            { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": true, "projects": true, "equipment": true },
-      "Manufacturing":           { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": false, "projects": false, "equipment": true },
-      "Chemical":               { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": false, "projects": false, "equipment": true },
-      "Oil & Gas":              { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": true, "projects": true, "equipment": true },
-      "Transportation":         { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": false, "project-types": false, "projects": false, "equipment": true },
-      "Warehousing":            { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": false, "project-types": false, "projects": false, "equipment": true },
-      "Fabrication":            { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": false, "projects": false, "equipment": true },
-      "Logistics / Supply Chain":{ "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": false, "project-types": false, "projects": false, "equipment": true },
-      "Utilities & Energy":     { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": true, "projects": true, "equipment": true },
-      "Mining & Aggregates":    { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": true, "projects": true, "equipment": true },
-      "Agriculture":            { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": false, "projects": false, "equipment": true },
-      "Environmental Services":  { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": false, "project-types": false, "projects": false, "equipment": true },
-      "Food & Beverage Processing": { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": false, "projects": false, "equipment": true },
-      "General Services":        { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": false, "project-types": false, "projects": false, "equipment": true }
-    };
-
-    /* ===== STEP DEFINITIONS (for toggles) ===== */
-    var STEP_DEFS = [
-      { key: "roles-permissions", label: "Roles & Permissions", desc: "Define roles and access levels", locked: true },
-      { key: "employees",        label: "Employees",           desc: "Add all employees", locked: true },
-      { key: "locations",        label: "Locations",           desc: "Plants, mines, facilities, warehouses, job sites", locked: false },
-      { key: "clients",          label: "Clients",             desc: "Add clients and customer organizations", locked: false },
-      { key: "divisions",        label: "Divisions",           desc: "Internal divisions or business units", locked: false },
-      { key: "project-types",    label: "Project Types",       desc: "Types of work your organization performs", locked: false },
-      { key: "projects",         label: "Projects",            desc: "Active, completed, or upcoming projects", locked: false },
-      { key: "equipment",        label: "Equipment",           desc: "Equipment and assets to maintain", locked: true }
-    ];
-
-    /* ===== TAB SWITCHING ===== */
-    function switchTab(tabName) {
-      /* Warn about unsaved visibility changes when leaving the Onboarding tab */
-      if (visibilityDirty && document.getElementById('tab-onboarding').classList.contains('active') && tabName !== 'onboarding') {
-        var proceed = confirm("You have unsaved Task Visibility changes.\n\nClick Cancel to go back and save, or OK to leave without saving.");
-        if (!proceed) return;
-        clearVisibilityDirty();
-      }
-      /* Warn about unsaved settings changes when leaving the Settings tab */
-      if (settingsDirty && document.getElementById('tab-settings').classList.contains('active') && tabName !== 'settings') {
-        var proceed2 = confirm("You have unsaved changes in Settings.\n\nClick Cancel to go back and save, or OK to leave without saving.");
-        if (!proceed2) return;
-        clearSettingsDirty();
-      }
-      document.querySelectorAll('.admin-tab').forEach(function(t) { t.classList.remove('active'); });
-      document.querySelectorAll('.admin-tab-content').forEach(function(c) { c.classList.remove('active'); });
-      document.querySelector('[data-tab="' + tabName + '"]').classList.add('active');
-      document.getElementById('tab-' + tabName).classList.add('active');
-      /* Show/hide subtab bars based on active tab */
-      var settingsBar = document.getElementById('settingsSubtabBar');
-      var onboardingBar = document.getElementById('onboardingSubtabBar');
-      if (settingsBar) settingsBar.classList.toggle('visible', tabName === 'settings');
-      if (onboardingBar) onboardingBar.classList.toggle('visible', tabName === 'onboarding');
-    }
-
-    /* ===== SETTINGS SUBTAB SWITCHING ===== */
-    function switchSettingsSubtab(subtabName) {
-      /* Warn about unsaved changes when switching subtabs within Settings */
-      if (settingsDirty) {
-        var proceed = confirm("You have unsaved changes.\n\nClick Cancel to go back and save, or OK to leave without saving.");
-        if (!proceed) return;
-        clearSettingsDirty();
-      }
-      document.querySelectorAll('#settingsSubtabBar .admin-subtab').forEach(function(t) { t.classList.remove('active'); });
-      document.querySelectorAll('.admin-subtab-content[id^="settings-subtab-"]').forEach(function(c) { c.classList.remove('active'); });
-      document.querySelector('#settingsSubtabBar [data-subtab="' + subtabName + '"]').classList.add('active');
-      document.getElementById('settings-subtab-' + subtabName).classList.add('active');
-    }
-
-    /* ===== ONBOARDING SUBTAB SWITCHING ===== */
-    function switchOnboardingSubtab(subtabName) {
-      /* Warn about unsaved visibility changes when leaving the visibility subtab */
-      if (visibilityDirty && document.getElementById('onboarding-subtab-visibility').classList.contains('active') && subtabName !== 'visibility') {
-        var proceed = confirm("You have unsaved Task Visibility changes.\n\nClick Cancel to go back and save, or OK to leave without saving.");
-        if (!proceed) return;
-        clearVisibilityDirty();
-      }
-      document.querySelectorAll('#onboardingSubtabBar .admin-subtab').forEach(function(t) { t.classList.remove('active'); });
-      document.querySelectorAll('.admin-subtab-content[id^="onboarding-subtab-"]').forEach(function(c) { c.classList.remove('active'); });
-      document.querySelector('#onboardingSubtabBar [data-subtab="' + subtabName + '"]').classList.add('active');
-      document.getElementById('onboarding-subtab-' + subtabName).classList.add('active');
-    }
-
-    /* ===== THEME TOGGLE ===== */
-    function toggleTheme() {
-      var current = document.documentElement.getAttribute("data-theme");
-      var newTheme = current === "dark" ? "light" : "dark";
-      document.documentElement.setAttribute("data-theme", newTheme);
-      localStorage.setItem("driven-theme", newTheme);
-      updateThemeSwitch();
-    }
-    function updateThemeSwitch() {
-      var current = document.documentElement.getAttribute("data-theme");
-      var checkbox = document.getElementById("theme-checkbox");
-      var labelLight = document.getElementById("theme-label-light");
-      var labelDark = document.getElementById("theme-label-dark");
-      if (checkbox) checkbox.checked = (current === "dark");
-      if (labelLight) labelLight.classList.toggle("active", current === "light");
-      if (labelDark) labelDark.classList.toggle("active", current === "dark");
-    }
-
-    /* ===== LOGO UPLOAD ===== */
-    async function loadLogo() {
-      var preview = document.getElementById("logoPreview");
-      var removeBtn = document.getElementById("logoRemoveBtn");
-      try {
-        var logoRes = await fetch("/auth/get-logo");
-        var logoData = await logoRes.json();
-        if (logoData.success && logoData.logo) {
-          localStorage.setItem("driven_customer_logo", logoData.logo);
-          preview.innerHTML = '<img src="' + logoData.logo + '" alt="Logo preview">';
-          preview.style.border = "none";
-          removeBtn.style.display = "inline-block";
-        } else {
-          preview.innerHTML = "No logo";
-          preview.style.border = "2px dashed var(--border)";
-          removeBtn.style.display = "none";
-        }
-      } catch (e) {
-        console.error("Logo load error:", e.message);
-        var localLogo = localStorage.getItem("driven_customer_logo");
-        if (localLogo) {
-          preview.innerHTML = '<img src="' + localLogo + '" alt="Logo preview">';
-          preview.style.border = "none";
-          removeBtn.style.display = "inline-block";
-        }
-      }
-    }
-
-    async function handleLogoUpload() {
-      var file = document.getElementById("logoFile").files[0];
-      if (!file) return;
-      if (file.size > 500000) {
-        document.getElementById("logoStatus").textContent = "File too large. Max 500KB.";
-        document.getElementById("logoStatus").style.color = "var(--error)";
-        return;
-      }
-      var reader = new FileReader();
-      reader.onload = async function(e) {
-        var dataUrl = e.target.result;
-        localStorage.setItem("driven_customer_logo", dataUrl);
-        try {
-          var saveRes = await fetch("/auth/save-logo", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ logo_data: dataUrl })
-          });
-          var saveData = await saveRes.json();
-          if (saveData.success) {
-            document.getElementById("logoStatus").textContent = "Logo uploaded and synced to all devices.";
-            document.getElementById("logoStatus").style.color = "var(--success, #16a34a)";
-          } else {
-            document.getElementById("logoStatus").textContent = "Saved locally but not synced: " + (saveData.error || "Unknown error");
-            document.getElementById("logoStatus").style.color = "var(--error)";
-          }
-        } catch (e) {
-          console.error("Logo save error:", e.message);
-          document.getElementById("logoStatus").textContent = "Saved locally but not synced to server.";
-          document.getElementById("logoStatus").style.color = "var(--error)";
-        }
-        await loadLogo();
-      };
-      reader.readAsDataURL(file);
-    }
-
-    async function handleLogoRemove() {
-      try {
-        await fetch("/auth/save-logo", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ logo_data: "" })
-        });
-        localStorage.removeItem("driven_customer_logo");
-        document.getElementById("logoStatus").textContent = "Logo removed.";
-        document.getElementById("logoStatus").style.color = "var(--text-muted)";
-        await loadLogo();
-      } catch (e) {
-        console.error("Logo remove error:", e.message);
-        document.getElementById("logoStatus").textContent = "Failed to remove logo.";
-        document.getElementById("logoStatus").style.color = "var(--error)";
-      }
-    }
-
-    /* ===== SETTINGS LOAD / SAVE ===== */
-    async function loadSettings() {
-      try {
-        var res = await fetch("/auth/get-settings");
-        var data = await res.json();
-        if (data.success && data.settings) {
-          orgSettings = data.settings;
-          // Business Type
-          if (data.settings.business_type) {
-            document.getElementById("businessTypeSelect").value = data.settings.business_type;
-            document.getElementById("overviewBusinessType").textContent = data.settings.business_type;
-            document.getElementById("onboardingBtLabel").textContent = data.settings.business_type;
-          }
-          // NAICS
-          if (data.settings.naics_code) {
-            document.getElementById("naicsInput").value = data.settings.naics_code;
-          }
-          // Step visibility
-          if (data.settings.step_visibility) {
-            stepVisibility = data.settings.step_visibility;
-          } else {
-            // Apply defaults from business type
-            applyBusinessTypeDefaults();
-          }
-          // Onboarding complete
-          if (data.settings.onboarding_complete) {
-            onboardingComplete = true;
-            hideOnboardingTab();
-          }
-        } else {
-          // No settings yet — apply defaults
-          applyBusinessTypeDefaults();
-        }
-      } catch (e) {
-        console.error("Settings load error:", e.message);
-        applyBusinessTypeDefaults();
-      }
-      renderStepToggles();
-      updateProgress();
-    }
-
-    /* ===== UNSAVED-CHANGES TRACKING ===== */
-    var settingsDirty = false;
-    var visibilityDirty = false;
-
-    function markSettingsDirty() {
-      settingsDirty = true;
-    }
-
-    function clearSettingsDirty() {
-      settingsDirty = false;
-    }
-
-    function markVisibilityDirty() {
-      visibilityDirty = true;
-      var warn = document.getElementById('visibilityWarning');
-      if (warn) warn.style.display = 'block';
-    }
-
-    function clearVisibilityDirty() {
-      visibilityDirty = false;
-      var warn = document.getElementById('visibilityWarning');
-      if (warn) warn.style.display = 'none';
-    }
-
-    async function saveSettings() {
-      var btBtn = document.getElementById("saveSettingsBtn");
-      var naicsBtn = document.getElementById("saveNaicsBtn");
-      var status = document.getElementById("settingsStatus");
-      var naicsStatus = document.getElementById("naicsStatus");
-      var bt = document.getElementById("businessTypeSelect").value;
-      var naics = document.getElementById("naicsInput").value.trim();
-      // Disable whichever button exists
-      if (btBtn) { btBtn.disabled = true; btBtn.textContent = "Saving…"; }
-      if (naicsBtn) { naicsBtn.disabled = true; naicsBtn.textContent = "Saving…"; }
-      try {
-        var res = await fetch("/auth/save-settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ settings: { business_type: bt, naics_code: naics } })
-        });
-        var data = await res.json();
-        if (data.success) {
-          orgSettings.business_type = bt;
-          orgSettings.naics_code = naics;
-          document.getElementById("overviewBusinessType").textContent = bt || "Not set";
-          document.getElementById("onboardingBtLabel").textContent = bt || "not set";
-          if (status) { status.textContent = "Settings saved."; status.style.color = "var(--success, #16a34a)"; }
-          if (naicsStatus) { naicsStatus.textContent = "Settings saved."; naicsStatus.style.color = "var(--success, #16a34a)"; }
-          clearSettingsDirty();
-          // If business type changed, re-evaluate step visibility defaults
-          if (bt && (!stepVisibility._manualOverride || !stepVisibility._btApplied)) {
-            applyBusinessTypeDefaults();
-            renderStepToggles();
-          }
-        } else {
-          if (status) { status.textContent = "Failed: " + (data.error || "Unknown error"); status.style.color = "var(--error)"; }
-          if (naicsStatus) { naicsStatus.textContent = "Failed: " + (data.error || "Unknown error"); naicsStatus.style.color = "var(--error)"; }
-        }
-      } catch (e) {
-        console.error("Settings save error:", e.message);
-        if (status) { status.textContent = "Failed to save settings."; status.style.color = "var(--error)"; }
-        if (naicsStatus) { naicsStatus.textContent = "Failed to save settings."; naicsStatus.style.color = "var(--error)"; }
-      }
-      if (btBtn) { btBtn.disabled = false; btBtn.textContent = "Save"; }
-      if (naicsBtn) { naicsBtn.disabled = false; naicsBtn.textContent = "Save"; }
-      setTimeout(function() {
-        if (status) status.textContent = "";
-        if (naicsStatus) naicsStatus.textContent = "";
-      }, 3000);
-    }
-
-    function onNaicsChange() {
-      markSettingsDirty();
-    }
-
-    function applyBusinessTypeDefaults() {
-      var bt = document.getElementById("businessTypeSelect").value;
-      if (bt && BUSINESS_TYPE_DEFAULTS[bt]) {
-        var defaults = BUSINESS_TYPE_DEFAULTS[bt];
-        for (var key in defaults) {
-          if (!stepVisibility._manualOverrides || !stepVisibility._manualOverrides[key]) {
-            stepVisibility[key] = defaults[key];
-          }
-        }
-      }
-    }
-
-    function onBusinessTypeChange() {
-      var bt = document.getElementById("businessTypeSelect").value;
-      if (bt && BUSINESS_TYPE_DEFAULTS[bt]) {
-        var defaults = BUSINESS_TYPE_DEFAULTS[bt];
-        for (var key in defaults) {
-          stepVisibility[key] = defaults[key];
-        }
-        stepVisibility._manualOverrides = {};
-      }
-      markSettingsDirty();
-      renderStepToggles();
-    }
-
-    /* ===== STEP TOGGLE RENDERING ===== */
-    function renderStepToggles() {
-      var container = document.getElementById("stepToggleList");
-      container.innerHTML = STEP_DEFS.map(function(step) {
-        var isVisible = stepVisibility[step.key] !== false; // default true
-        var checked = isVisible ? "checked" : "";
-        var disabled = step.locked ? "disabled" : "";
-        var lockedLabel = step.locked ? '<span class="step-toggle-locked">(always on)</span>' : "";
-        return '<div class="step-toggle-row">' +
-          '<div>' +
-            '<div class="step-toggle-name">' + step.label + ' ' + lockedLabel + '</div>' +
-            '<div class="step-toggle-desc">' + step.desc + '</div>' +
-          '</div>' +
-          '<label class="toggle-switch">' +
-            '<input type="checkbox" ' + checked + ' ' + disabled + ' onchange="onToggleChange(\'' + step.key + '\', this.checked)" data-step="' + step.key + '">' +
-            '<span class="toggle-slider"></span>' +
-          '</label>' +
-        '</div>';
-      }).join("");
-    }
-
-    function onToggleChange(stepKey, checked) {
-      stepVisibility[stepKey] = checked;
-      if (!stepVisibility._manualOverrides) stepVisibility._manualOverrides = {};
-      stepVisibility._manualOverrides[stepKey] = true;
-      markVisibilityDirty();
-    }
-
-    async function saveStepVisibility() {
-      var status = document.getElementById("visibilityStatus");
-      try {
-        var res = await fetch("/auth/save-settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ settings: { step_visibility: stepVisibility } })
-        });
-        var data = await res.json();
-        if (data.success) {
-          status.textContent = "Visibility saved.";
-          status.style.color = "var(--success, #16a34a)";
-          clearVisibilityDirty();
-        } else {
-          status.textContent = "Failed: " + (data.error || "Unknown error");
-          status.style.color = "var(--error)";
-        }
-      } catch (e) {
-        console.error("Visibility save error:", e.message);
-        status.textContent = "Failed to save visibility.";
-        status.style.color = "var(--error)";
-      }
-      setTimeout(function() { status.textContent = ""; }, 3000);
-    }
-
-    /* ===== KEY PERSONNEL ===== */
-    async function loadKeyPersonnel() {
-      var customerId = localStorage.getItem("driven_customer_id");
-      if (!customerId) {
-        document.getElementById("kpListBody").innerHTML = '<div class="kp-loading">No organization found.</div>';
-        return;
-      }
-      try {
-        var res = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(customerId));
-        var data = await res.json();
-        if (data.success && data.keyPersonnel) {
-          keyPersonnel = data.keyPersonnel;
-          renderKeyPersonnel();
-        } else {
-          document.getElementById("kpListBody").innerHTML = '<div class="kp-loading">No key personnel assigned yet.</div>';
-        }
-      } catch (e) {
-        console.error("KP load error:", e.message);
-        document.getElementById("kpListBody").innerHTML = '<div class="kp-loading">Failed to load key personnel.</div>';
-      }
-    }
-
-    function renderKeyPersonnel() {
-      var all = keyPersonnel.concat(pendingKP);
-      if (all.length === 0) {
-        document.getElementById("kpListBody").innerHTML = '<div class="kp-loading">No key personnel assigned yet.</div>';
-        document.getElementById("kpCompleteBtn").style.display = "none";
-        return;
-      }
-      document.getElementById("kpListBody").innerHTML = all.map(function(kp, idx) {
-        var tasks = kp.roles ? kp.roles.map(function(r) { return r.role; }) : (kp.task ? [kp.task] : []);
-        var email = kp.email || "";
-        var isPending = kp._pending;
-        var taskChips = tasks.map(function(t) {
-          var escT = String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-          var removeTaskAction = isPending
-            ? 'removePendingKPTask(' + idx + ', \'' + escT.replace(/'/g, "\\'") + '\')'
-            : 'revokeKPTask(\'' + (kp.employeeId || kp.id || kp.email) + '\', \'' + escT.replace(/'/g, "\\'") + '\')';
-          return '<span class="kp-task-chip">' + escT + ' <button title="Remove this task" onclick="' + removeTaskAction + '">×</button></span>';
-        }).join("");
-        var removeAllAction = isPending
-          ? 'removePendingKP(' + idx + ')'
-          : 'revokeKP(\'' + (kp.employeeId || kp.id || kp.email) + '\')';
-        return '<div class="kp-person-row">' +
-          '<div class="kp-person-info">' +
-            '<div class="kp-person-name">' + (kp.name || "Unknown") + (isPending ? ' <span style="font-size:11px;color:var(--text-muted);">(pending)</span>' : '') + '</div>' +
-            '<div class="kp-person-email">' + email + '</div>' +
-            '<div class="kp-person-tasks">' + taskChips + '</div>' +
-          '</div>' +
-          '<div class="kp-person-actions">' +
-            '<button class="kp-person-remove" onclick="' + removeAllAction + '">Remove All</button>' +
-          '</div>' +
-        '</div>';
-      }).join("");
-      document.getElementById("kpCompleteBtn").style.display = (keyPersonnel.length + pendingKP.length) > 0 ? "inline-block" : "none";
-    }
-
-    function addKeyPersonnel() {
-      var name = document.getElementById("kpName").value.trim();
-      var email = document.getElementById("kpEmail").value.trim();
-      var task = document.getElementById("kpTask").value;
-      if (!name || !email || !task) {
-        alert("Please fill in name, email, and assign a task.");
-        return;
-      }
-      var emailLower = email.toLowerCase();
-      // If this person already exists as a pending KP, add the task to their existing record
-      var existing = pendingKP.find(function(kp) { return kp.email.toLowerCase() === emailLower; });
-      if (existing) {
-        if (!existing.roles) existing.roles = [];
-        if (!existing.roles.some(function(r) { return r.role === task; })) {
-          existing.roles.push({ role: task });
-        } else {
-          alert(task + " is already assigned to this person.");
-          return;
-        }
-      } else {
-        pendingKP.push({ name: name, email: email, task: task, roles: [{ role: task }], _pending: true });
-      }
-      document.getElementById("kpName").value = "";
-      document.getElementById("kpEmail").value = "";
-      document.getElementById("kpTask").value = "";
-      renderKeyPersonnel();
-    }
-
-    function removePendingKPTask(idx, taskName) {
-      var kp = pendingKP[idx];
-      if (!kp) return;
-      if (kp.roles) {
-        kp.roles = kp.roles.filter(function(r) { return r.role !== taskName; });
-        if (kp.roles.length === 0) {
-          pendingKP.splice(idx, 1);
-        }
-      } else {
-        pendingKP.splice(idx, 1);
-      }
-      renderKeyPersonnel();
-    }
-
-    function removePendingKP(idx) {
-      pendingKP.splice(idx, 1);
-      renderKeyPersonnel();
-    }
-
-    // Normalize id comparison (API returns numeric ids; onclick passes strings)
-    function kpIdMatches(kp, id) {
-      var kpId = kp.employeeId || kp.id || kp.email;
-      return String(kpId) === String(id);
-    }
-
-    async function revokeKPTask(employeeId, taskName) {
-      if (!confirm('Remove the task "' + taskName + '" from this key personnel?')) return;
-      var customerId = localStorage.getItem("driven_customer_id");
-      try {
-        var res = await fetch("/api/onboarding/key-personnel/revoke", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ customerId: customerId, employeeId: employeeId, roles: [taskName] })
-        });
-        var data = await res.json();
-        if (data.success) {
-          var kp = keyPersonnel.find(function(k) { return kpIdMatches(k, employeeId); });
-          if (kp && kp.roles) {
-            kp.roles = kp.roles.filter(function(r) { return r.role !== taskName; });
-            if (kp.roles.length === 0) {
-              keyPersonnel = keyPersonnel.filter(function(k) { return !kpIdMatches(k, employeeId); });
-            }
-          }
-          renderKeyPersonnel();
-        } else {
-          alert("Failed: " + (data.error || "Unknown error"));
-        }
-      } catch (e) {
-        console.error("Revoke task error:", e.message);
-        alert("Failed to remove task.");
-      }
-    }
-
-    async function revokeKP(employeeId) {
-      if (!confirm("Remove this key personnel and all their task assignments?")) return;
-      var customerId = localStorage.getItem("driven_customer_id");
-      try {
-        var res = await fetch("/api/onboarding/key-personnel/revoke", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ customerId: customerId, employeeId: employeeId, revokeAll: true })
-        });
-        var data = await res.json();
-        if (data.success) {
-          keyPersonnel = keyPersonnel.filter(function(kp) { return !kpIdMatches(kp, employeeId); });
-          renderKeyPersonnel();
-        } else {
-          alert("Failed: " + (data.error || "Unknown error"));
-        }
-      } catch (e) {
-        console.error("Revoke error:", e.message);
-        alert("Failed to remove key personnel.");
-      }
-    }
-
-    async function completeKeyPersonnel() {
-      var btn = document.getElementById("kpCompleteBtn");
-      btn.disabled = true;
-      btn.textContent = "Sending invitations…";
-      var customerId = localStorage.getItem("driven_customer_id");
-      var adminUser = window.dashUser || {};
-      // Group pending KP by email — one entry per person with all their tasks
-      var grouped = {};
-      pendingKP.forEach(function(kp) {
-        var key = kp.email.toLowerCase();
-        if (!grouped[key]) {
-          grouped[key] = { name: kp.name, email: kp.email, tasks: [] };
-        }
-        if (kp.roles) {
-          kp.roles.forEach(function(r) {
-            if (grouped[key].tasks.indexOf(r.role) === -1) grouped[key].tasks.push(r.role);
-          });
-        } else if (kp.task && grouped[key].tasks.indexOf(kp.task) === -1) {
-          grouped[key].tasks.push(kp.task);
-        }
-      });
-      var kpPayload = Object.keys(grouped).map(function(key) {
-        var g = grouped[key];
-        return { firstName: g.name.split(" ")[0], lastName: g.name.split(" ").slice(1).join(" "), email: g.email, tasks: g.tasks };
-      });
-      try {
-        var res = await fetch("/api/onboarding/key-personnel/complete", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            customerId: customerId,
-            adminName: adminUser.first_name || adminUser.email || "Admin",
-            adminEmail: adminUser.email || "",
-            keyPersonnel: kpPayload
-          })
-        });
-        var data = await res.json();
-        if (data.success) {
-          pendingKP = [];
-          await loadKeyPersonnel();
-          btn.textContent = "Send Invitations & Create Accounts";
-          btn.disabled = false;
-          alert("Invitations sent successfully!");
-        } else {
-          alert("Failed: " + (data.error || "Unknown error"));
-          btn.textContent = "Send Invitations & Create Accounts";
-          btn.disabled = false;
-        }
-      } catch (e) {
-        console.error("Complete KP error:", e.message);
-        alert("Failed to send invitations.");
-        btn.textContent = "Send Invitations & Create Accounts";
-        btn.disabled = false;
-      }
-    }
-
-    /* ===== ONBOARDING PROGRESS + COMPLETE ===== */
-    // Auto-detect completion from localStorage data (same logic as onboarding dashboard)
-    function adminAutoDetect(stepKey) {
-      switch (stepKey) {
-        case "roles-permissions":
-          return false; // Must be manually marked complete
-        case "employees":
-          return parseInt(localStorage.getItem("driven_employee_count") || "0") > 0 ||
-                 localStorage.getItem("driven_step3_complete") === "true";
-        case "locations":
-          return parseInt(localStorage.getItem("driven_location_count") || "0") > 0;
-        case "clients":
-          return parseInt(localStorage.getItem("driven_client_count") || "0") > 0 ||
-                 localStorage.getItem("driven_step4_complete") === "true";
-        case "divisions":
-          return parseInt(localStorage.getItem("driven_division_count") || "0") > 0 ||
-                 localStorage.getItem("driven_step5_complete") === "true";
-        case "project-types":
-          return parseInt(localStorage.getItem("driven_project_type_count") || "0") > 0 ||
-                 localStorage.getItem("driven_step6_complete") === "true";
-        case "projects":
-          return parseInt(localStorage.getItem("driven_project_count") || "0") > 0 ||
-                 localStorage.getItem("driven_step7_complete") === "true";
-        case "equipment":
-          return parseInt(localStorage.getItem("driven_equipment_count") || "0") > 0 ||
-                 localStorage.getItem("driven_step8_complete") === "true";
-        default:
-          return false;
-      }
-    }
-
-    // Check if a task is fully complete (auto-detected data OR all assigned KPs clicked Complete)
-    function adminIsTaskComplete(stepKey) {
-      // Auto-detected data counts as complete
-      if (adminAutoDetect(stepKey)) return true;
-
-      // Check per-KP completions from localStorage (driven_task_completions)
-      var taskCompletions = {};
-      try { taskCompletions = JSON.parse(localStorage.getItem("driven_task_completions") || "{}"); } catch(e) {}
-
-      // Find the task label for this step key
-      var stepDef = STEP_DEFS.find(function(s) { return s.key === stepKey; });
-      if (!stepDef) return false;
-      var taskLabel = stepDef.label;
-
-      // Get emails of KPs assigned to this task
-      var assignedEmails = [];
-      keyPersonnel.forEach(function(kp) {
-        var tasks = kp.roles ? kp.roles.map(function(r) { return r.role; }) : (kp.task ? [kp.task] : []);
-        if (tasks.indexOf(taskLabel) !== -1 && kp.email) {
-          assignedEmails.push(kp.email.toLowerCase());
-        }
-      });
-      pendingKP.forEach(function(kp) {
-        var tasks = kp.roles ? kp.roles.map(function(r) { return r.role; }) : (kp.task ? [kp.task] : []);
-        if (tasks.indexOf(taskLabel) !== -1 && kp.email) {
-          assignedEmails.push(kp.email.toLowerCase());
-        }
-      });
-
-      var completions = taskCompletions[taskLabel] || [];
-      if (assignedEmails.length === 0) {
-        // No KP assigned — admin-only task; check if anyone clicked Complete
-        return completions.length > 0;
-      }
-      // All assigned KPs must have clicked Complete
-      for (var i = 0; i < assignedEmails.length; i++) {
-        if (completions.indexOf(assignedEmails[i]) === -1) return false;
-      }
-      return true;
-    }
-
-    function updateProgress() {
-      var visibleSteps = STEP_DEFS.filter(function(s) { return stepVisibility[s.key] !== false; });
-      // Count tasks as complete based on auto-detected data + KP completions
-      var completed = 0;
-      visibleSteps.forEach(function(s) {
-        if (adminIsTaskComplete(s.key)) completed++;
-      });
-      var total = visibleSteps.length;
-      var pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-      document.getElementById("progressBarFill").style.width = pct + "%";
-      document.getElementById("progressText").textContent = completed + " of " + total + " tasks complete";
-      // Show mark complete button when all steps are done (placeholder logic)
-      if (completed >= total && total > 0) {
-        document.getElementById("markCompleteBtn").classList.add("show");
-      } else {
-        document.getElementById("markCompleteBtn").classList.remove("show");
-      }
-      // Show reopen button if onboarding is complete
-      if (onboardingComplete) {
-        document.getElementById("reopenOnboardingBtn").style.display = "inline-block";
-      }
-      // Show the 100% complete panel when ALL visible tasks are done
-      // (this is the "Key Personnel have closed all onboarding tasks" message)
-      var completePanel = document.getElementById("onboardingCompletePanel");
-      if (completePanel) {
-        if (total > 0 && completed >= total && !onboardingComplete) {
-          completePanel.classList.add("show");
-        } else {
-          completePanel.classList.remove("show");
-        }
-      }
-    }
-
-    function showCompleteModal() {
-      document.getElementById("confirmModal").classList.add("active");
-    }
-    function closeCompleteModal() {
-      document.getElementById("confirmModal").classList.remove("active");
-    }
-
-    async function markOnboardingComplete() {
-      closeCompleteModal();
-      try {
-        await fetch("/auth/save-settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ settings: { onboarding_complete: true } })
-        });
-        onboardingComplete = true;
-        hideOnboardingTab();
-        switchTab("overview");
-      } catch (e) {
-        console.error("Mark complete error:", e.message);
-        alert("Failed to mark onboarding complete.");
-      }
-    }
-
-    function hideOnboardingTab() {
-      var onboardingTab = document.querySelector('[data-tab="onboarding"]');
-      if (onboardingTab) onboardingTab.style.display = "none";
-    }
-
-    // Finalize onboarding: removes all KP assignments so employees can
-    // access their role-based dashboards. Future data entry happens in
-    // department dashboards, not the Onboarding Dashboard.
-    async function finalizeOnboarding() {
-      var btn = document.getElementById("finalizeOnboardingBtn");
-      if (!confirm("Finalize onboarding?\n\nThis will remove all Key Personnel onboarding assignments and unlock role-based dashboards for your employees (Owner, Admin, and department dashboards).\n\nAfter finalizing, future additions — new employees, equipment, locations, etc. — are managed by departments through their own dashboards, not the Onboarding Dashboard.\n\nClick OK to finalize, or Cancel to keep onboarding open.")) return;
-      btn.disabled = true;
-      btn.textContent = "Finalizing…";
-      var customerId = localStorage.getItem("driven_customer_id");
-      try {
-        // 1) Remove all KP assignments (revoke all)
-        var revokeRes = await fetch("/api/onboarding/key-personnel/revoke", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ customerId: customerId, revokeAll: true })
-        });
-        var revokeData = await revokeRes.json();
-        if (!revokeData.success) {
-          alert("Failed to remove Key Personnel assignments: " + (revokeData.error || "Unknown error"));
-          btn.disabled = false;
-          btn.textContent = "Finalize Onboarding & Unlock Dashboards";
-          return;
-        }
-        // 2) Mark onboarding complete
-        var completeRes = await fetch("/auth/save-settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ settings: { onboarding_complete: true } })
-        });
-        var completeData = await completeRes.json();
-        if (!completeData.success) {
-          alert("Failed to mark onboarding complete: " + (completeData.error || "Unknown error"));
-          btn.disabled = false;
-          btn.textContent = "Finalize Onboarding & Unlock Dashboards";
-          return;
-        }
-        // 3) Update UI
-        onboardingComplete = true;
-        keyPersonnel = [];
-        pendingKP = [];
-        var panel = document.getElementById("onboardingCompletePanel");
-        if (panel) panel.classList.remove("show");
-        document.getElementById("reopenOnboardingBtn").style.display = "inline-block";
-        hideOnboardingTab();
-        switchTab("overview");
-        alert("Onboarding finalized!\n\nKey Personnel assignments have been removed. Your employees can now access their role-based dashboards. Future additions are managed by departments through their own dashboards.");
-      } catch (e) {
-        console.error("Finalize onboarding error:", e.message);
-        alert("Failed to finalize onboarding.");
-        btn.disabled = false;
-        btn.textContent = "Finalize Onboarding & Unlock Dashboards";
-      }
-    }
-
-    async function reopenOnboarding() {
-      try {
-        await fetch("/auth/save-settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ settings: { onboarding_complete: false } })
-        });
-        onboardingComplete = false;
-        var onboardingTab = document.querySelector('[data-tab="onboarding"]');
-        if (onboardingTab) onboardingTab.style.display = "";
-        document.getElementById("reopenOnboardingBtn").style.display = "none";
-        switchTab("onboarding");
-      } catch (e) {
-        console.error("Reopen error:", e.message);
-        alert("Failed to reopen onboarding.");
-      }
-    }
-
-    /* ===== UNSAVED-CHANGES — PAGE LEAVE / LOGOUT GUARD ===== */
-    // Warn when the admin tries to close/refresh the page with unsaved changes
-    window.addEventListener("beforeunload", function(e) {
-      if (visibilityDirty || settingsDirty) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    });
-
-    // Override dashLogout (from dashboard-common.js) to warn about unsaved changes
-    window.dashLogout = function() {
-      if (visibilityDirty || settingsDirty) {
-        var proceed = confirm("You have unsaved changes.\n\nClick Cancel to go back and save, or OK to leave without saving.");
-        if (!proceed) return;
-      }
-      // Proceed with the original logout behavior
-      try {
-        fetch("/auth/logout", { method: "POST" });
-      } catch (e) {
-        console.error("Logout error:", e.message);
-      }
-      window.location.href = "/public/login.html";
-    };
-
-    /* ===== STICKY TABS (move tab bar + subtab bars inside shared header) ===== */
-    function makeTabsSticky() {
-      var header = document.getElementById("dashHeader");
-      var tabBar = document.getElementById("adminTabBar");
-      if (header && tabBar && !header.contains(tabBar)) {
-        header.appendChild(tabBar);
-      }
-      // Move subtab bars into the header too (right after the main tab bar) so they stick
-      var settingsSubtabBar = document.getElementById("settingsSubtabBar");
-      var onboardingSubtabBar = document.getElementById("onboardingSubtabBar");
-      if (header && settingsSubtabBar && !header.contains(settingsSubtabBar)) {
-        header.appendChild(settingsSubtabBar);
-      }
-      if (header && onboardingSubtabBar && !header.contains(onboardingSubtabBar)) {
-        header.appendChild(onboardingSubtabBar);
-      }
-    }
-
-    /* ===== INSERT HEADER TITLE ===== */
-    function insertHeaderTitle() {
-      var row1 = document.querySelector(".dash-header-row1");
-      if (row1 && !document.querySelector(".admin-header-title")) {
-        var title = document.createElement("div");
-        title.className = "admin-header-title";
-        title.textContent = "Admin Dashboard";
-        // Insert between logo area and driven logo
-        var logoArea = document.getElementById("dashCustomerLogoArea");
-        var drivenLogo = row1.querySelector(".dash-driven-logo");
-        if (logoArea && drivenLogo) {
-          row1.insertBefore(title, drivenLogo);
-        }
-      }
-    }
-
-    /* ===== INIT ===== */
-    async function init() {
-      // Wait for shared dashboard-common.js to load session
-      document.addEventListener("dashSessionLoaded", async function() {
-        var user = window.dashUser;
-        if (!user) {
-          window.location.href = "/public/login.html";
-          return;
-        }
-
-        // Greeting — include the company name
-        var firstName = user.first_name || user.email;
-        var orgName = user.org_name || localStorage.getItem("driven_org_name") || "";
-        var welcomeEl = document.getElementById("welcome-name");
-        if (welcomeEl) {
-          welcomeEl.textContent = orgName ? (firstName + " — " + orgName) : firstName;
+var orgSettings = {};
+var stepVisibility = {};
+var keyPersonnel = [];
+var pendingKP = [];
+var onboardingComplete = false;
+var BUSINESS_TYPE_DEFAULTS = {
+"Construction": { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": true, "projects": true, "equipment": true },
+"Manufacturing": { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": false, "projects": false, "equipment": true },
+"Chemical": { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": false, "projects": false, "equipment": true },
+"Oil & Gas": { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": true, "projects": true, "equipment": true },
+"Transportation": { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": false, "project-types": false, "projects": false, "equipment": true },
+"Warehousing": { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": false, "project-types": false, "projects": false, "equipment": true },
+"Fabrication": { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": false, "projects": false, "equipment": true },
+"Logistics / Supply Chain":{ "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": false, "project-types": false, "projects": false, "equipment": true },
+"Utilities & Energy": { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": true, "projects": true, "equipment": true },
+"Mining & Aggregates": { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": true, "projects": true, "equipment": true },
+"Agriculture": { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": false, "projects": false, "equipment": true },
+"Environmental Services": { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": false, "project-types": false, "projects": false, "equipment": true },
+"Food & Beverage Processing": { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": false, "projects": false, "equipment": true },
+"General Services": { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": false, "project-types": false, "projects": false, "equipment": true }
+};
+var STEP_DEFS = [
+{ key: "roles-permissions", label: "Roles & Permissions", desc: "Define roles and access levels", locked: true },
+{ key: "employees", label: "Employees", desc: "Add all employees", locked: true },
+{ key: "locations", label: "Locations", desc: "Plants, mines, facilities, warehouses, job sites", locked: false },
+{ key: "clients", label: "Clients", desc: "Add clients and customer organizations", locked: false },
+{ key: "divisions", label: "Divisions", desc: "Internal divisions or business units", locked: false },
+{ key: "project-types", label: "Project Types", desc: "Types of work your organization performs", locked: false },
+{ key: "projects", label: "Projects", desc: "Active, completed, or upcoming projects", locked: false },
+{ key: "equipment", label: "Equipment", desc: "Equipment and assets to maintain", locked: true }
+];
+function switchTab(tabName) {
+if (visibilityDirty && document.getElementById('tab-onboarding').classList.contains('active') && tabName !== 'onboarding') {
+var proceed = confirm("You have unsaved Task Visibility changes.\n\nClick Cancel to go back and save, or OK to leave without saving.");
+if (!proceed) return;
+clearVisibilityDirty();
+}
+if (settingsDirty && document.getElementById('tab-settings').classList.contains('active') && tabName !== 'settings') {
+var proceed2 = confirm("You have unsaved changes in Settings.\n\nClick Cancel to go back and save, or OK to leave without saving.");
+if (!proceed2) return;
+clearSettingsDirty();
+}
+document.querySelectorAll('.admin-tab').forEach(function(t) { t.classList.remove('active'); });
+document.querySelectorAll('.admin-tab-content').forEach(function(c) { c.classList.remove('active'); });
+document.querySelector('[data-tab="' + tabName + '"]').classList.add('active');
+document.getElementById('tab-' + tabName).classList.add('active');
+var settingsBar = document.getElementById('settingsSubtabBar');
+var onboardingBar = document.getElementById('onboardingSubtabBar');
+if (settingsBar) settingsBar.classList.toggle('visible', tabName === 'settings');
+if (onboardingBar) onboardingBar.classList.toggle('visible', tabName === 'onboarding');
+}
+function switchSettingsSubtab(subtabName) {
+if (settingsDirty) {
+var proceed = confirm("You have unsaved changes.\n\nClick Cancel to go back and save, or OK to leave without saving.");
+if (!proceed) return;
+clearSettingsDirty();
+}
+document.querySelectorAll('#settingsSubtabBar .admin-subtab').forEach(function(t) { t.classList.remove('active'); });
+document.querySelectorAll('.admin-subtab-content[id^="settings-subtab-"]').forEach(function(c) { c.classList.remove('active'); });
+document.querySelector('#settingsSubtabBar [data-subtab="' + subtabName + '"]').classList.add('active');
+document.getElementById('settings-subtab-' + subtabName).classList.add('active');
+}
+function switchOnboardingSubtab(subtabName) {
+if (visibilityDirty && document.getElementById('onboarding-subtab-visibility').classList.contains('active') && subtabName !== 'visibility') {
+var proceed = confirm("You have unsaved Task Visibility changes.\n\nClick Cancel to go back and save, or OK to leave without saving.");
+if (!proceed) return;
+clearVisibilityDirty();
+}
+document.querySelectorAll('#onboardingSubtabBar .admin-subtab').forEach(function(t) { t.classList.remove('active'); });
+document.querySelectorAll('.admin-subtab-content[id^="onboarding-subtab-"]').forEach(function(c) { c.classList.remove('active'); });
+document.querySelector('#onboardingSubtabBar [data-subtab="' + subtabName + '"]').classList.add('active');
+document.getElementById('onboarding-subtab-' + subtabName).classList.add('active');
+}
+function toggleTheme() {
+var current = document.documentElement.getAttribute("data-theme");
+var newTheme = current === "dark" ? "light" : "dark";
+document.documentElement.setAttribute("data-theme", newTheme);
+localStorage.setItem("driven-theme", newTheme);
+updateThemeSwitch();
+}
+function updateThemeSwitch() {
+var current = document.documentElement.getAttribute("data-theme");
+var checkbox = document.getElementById("theme-checkbox");
+var labelLight = document.getElementById("theme-label-light");
+var labelDark = document.getElementById("theme-label-dark");
+if (checkbox) checkbox.checked = (current === "dark");
+if (labelLight) labelLight.classList.toggle("active", current === "light");
+if (labelDark) labelDark.classList.toggle("active", current === "dark");
+}
+async function loadLogo() {
+var preview = document.getElementById("logoPreview");
+var removeBtn = document.getElementById("logoRemoveBtn");
+try {
+var logoRes = await fetch("/auth/get-logo");
+var logoData = await logoRes.json();
+if (logoData.success && logoData.logo) {
+localStorage.setItem("driven_customer_logo", logoData.logo);
+preview.innerHTML = '<img src="' + logoData.logo + '" alt="Logo preview">';
+preview.style.border = "none";
+removeBtn.style.display = "inline-block";
+} else {
+preview.innerHTML = "No logo";
+preview.style.border = "2px dashed var(--border)";
+removeBtn.style.display = "none";
+}
+} catch (e) {
+console.error("Logo load error:", e.message);
+var localLogo = localStorage.getItem("driven_customer_logo");
+if (localLogo) {
+preview.innerHTML = '<img src="' + localLogo + '" alt="Logo preview">';
+preview.style.border = "none";
+removeBtn.style.display = "inline-block";
+}
+}
+}
+async function handleLogoUpload() {
+var file = document.getElementById("logoFile").files[0];
+if (!file) return;
+if (file.size > 500000) {
+document.getElementById("logoStatus").textContent = "File too large. Max 500KB.";
+document.getElementById("logoStatus").style.color = "var(--error)";
+return;
+}
+var reader = new FileReader();
+reader.onload = async function(e) {
+var dataUrl = e.target.result;
+localStorage.setItem("driven_customer_logo", dataUrl);
+try {
+var saveRes = await fetch("/auth/save-logo", {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({ logo_data: dataUrl })
+});
+var saveData = await saveRes.json();
+if (saveData.success) {
+document.getElementById("logoStatus").textContent = "Logo uploaded and synced to all devices.";
+document.getElementById("logoStatus").style.color = "var(--success, #16a34a)";
+} else {
+document.getElementById("logoStatus").textContent = "Saved locally but not synced: " + (saveData.error || "Unknown error");
+document.getElementById("logoStatus").style.color = "var(--error)";
+}
+} catch (e) {
+console.error("Logo save error:", e.message);
+document.getElementById("logoStatus").textContent = "Saved locally but not synced to server.";
+document.getElementById("logoStatus").style.color = "var(--error)";
+}
+await loadLogo();
+};
+reader.readAsDataURL(file);
+}
+async function handleLogoRemove() {
+try {
+await fetch("/auth/save-logo", {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({ logo_data: "" })
+});
+localStorage.removeItem("driven_customer_logo");
+document.getElementById("logoStatus").textContent = "Logo removed.";
+document.getElementById("logoStatus").style.color = "var(--text-muted)";
+await loadLogo();
+} catch (e) {
+console.error("Logo remove error:", e.message);
+document.getElementById("logoStatus").textContent = "Failed to remove logo.";
+document.getElementById("logoStatus").style.color = "var(--error)";
+}
+}
+async function loadSettings() {
+try {
+var res = await fetch("/auth/get-settings");
+var data = await res.json();
+if (data.success && data.settings) {
+orgSettings = data.settings;
+if (data.settings.business_type) {
+document.getElementById("businessTypeSelect").value = data.settings.business_type;
+document.getElementById("overviewBusinessType").textContent = data.settings.business_type;
+document.getElementById("onboardingBtLabel").textContent = data.settings.business_type;
+}
+if (data.settings.naics_code) {
+document.getElementById("naicsInput").value = data.settings.naics_code;
+}
+if (data.settings.step_visibility) {
+stepVisibility = data.settings.step_visibility;
+} else {
+applyBusinessTypeDefaults();
+}
+if (data.settings.onboarding_complete) {
+onboardingComplete = true;
+hideOnboardingTab();
+}
+} else {
+applyBusinessTypeDefaults();
+}
+} catch (e) {
+console.error("Settings load error:", e.message);
+applyBusinessTypeDefaults();
+}
+renderStepToggles();
+updateProgress();
+}
+var settingsDirty = false;
+var visibilityDirty = false;
+function markSettingsDirty() {
+settingsDirty = true;
+}
+function clearSettingsDirty() {
+settingsDirty = false;
+}
+function markVisibilityDirty() {
+visibilityDirty = true;
+var warn = document.getElementById('visibilityWarning');
+if (warn) warn.style.display = 'block';
+}
+function clearVisibilityDirty() {
+visibilityDirty = false;
+var warn = document.getElementById('visibilityWarning');
+if (warn) warn.style.display = 'none';
+}
+async function saveSettings() {
+var btBtn = document.getElementById("saveSettingsBtn");
+var naicsBtn = document.getElementById("saveNaicsBtn");
+var status = document.getElementById("settingsStatus");
+var naicsStatus = document.getElementById("naicsStatus");
+var bt = document.getElementById("businessTypeSelect").value;
+var naics = document.getElementById("naicsInput").value.trim();
+if (btBtn) { btBtn.disabled = true; btBtn.textContent = "Saving…"; }
+if (naicsBtn) { naicsBtn.disabled = true; naicsBtn.textContent = "Saving…"; }
+try {
+var res = await fetch("/auth/save-settings", {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({ settings: { business_type: bt, naics_code: naics } })
+});
+var data = await res.json();
+if (data.success) {
+orgSettings.business_type = bt;
+orgSettings.naics_code = naics;
+document.getElementById("overviewBusinessType").textContent = bt || "Not set";
+document.getElementById("onboardingBtLabel").textContent = bt || "not set";
+if (status) { status.textContent = "Settings saved."; status.style.color = "var(--success, #16a34a)"; }
+if (naicsStatus) { naicsStatus.textContent = "Settings saved."; naicsStatus.style.color = "var(--success, #16a34a)"; }
+clearSettingsDirty();
+if (bt && (!stepVisibility._manualOverride || !stepVisibility._btApplied)) {
+applyBusinessTypeDefaults();
+renderStepToggles();
+}
+} else {
+if (status) { status.textContent = "Failed: " + (data.error || "Unknown error"); status.style.color = "var(--error)"; }
+if (naicsStatus) { naicsStatus.textContent = "Failed: " + (data.error || "Unknown error"); naicsStatus.style.color = "var(--error)"; }
+}
+} catch (e) {
+console.error("Settings save error:", e.message);
+if (status) { status.textContent = "Failed to save settings."; status.style.color = "var(--error)"; }
+if (naicsStatus) { naicsStatus.textContent = "Failed to save settings."; naicsStatus.style.color = "var(--error)"; }
+}
+if (btBtn) { btBtn.disabled = false; btBtn.textContent = "Save"; }
+if (naicsBtn) { naicsBtn.disabled = false; naicsBtn.textContent = "Save"; }
+setTimeout(function() {
+if (status) status.textContent = "";
+if (naicsStatus) naicsStatus.textContent = "";
+}, 3000);
+}
+function onNaicsChange() {
+markSettingsDirty();
+}
+function applyBusinessTypeDefaults() {
+var bt = document.getElementById("businessTypeSelect").value;
+if (bt && BUSINESS_TYPE_DEFAULTS[bt]) {
+var defaults = BUSINESS_TYPE_DEFAULTS[bt];
+for (var key in defaults) {
+if (!stepVisibility._manualOverrides || !stepVisibility._manualOverrides[key]) {
+stepVisibility[key] = defaults[key];
+}
+}
+}
+}
+function onBusinessTypeChange() {
+var bt = document.getElementById("businessTypeSelect").value;
+if (bt && BUSINESS_TYPE_DEFAULTS[bt]) {
+var defaults = BUSINESS_TYPE_DEFAULTS[bt];
+for (var key in defaults) {
+stepVisibility[key] = defaults[key];
+}
+stepVisibility._manualOverrides = {};
+}
+markSettingsDirty();
+renderStepToggles();
+}
+function renderStepToggles() {
+var container = document.getElementById("stepToggleList");
+container.innerHTML = STEP_DEFS.map(function(step) {
+var isVisible = stepVisibility[step.key] !== false;
+var checked = isVisible ? "checked" : "";
+var disabled = step.locked ? "disabled" : "";
+var lockedLabel = step.locked ? '<span class="step-toggle-locked">(always on)</span>' : "";
+return '<div class="step-toggle-row">' +
+'<div>' +
+'<div class="step-toggle-name">' + step.label + ' ' + lockedLabel + '</div>' +
+'<div class="step-toggle-desc">' + step.desc + '</div>' +
+'</div>' +
+'<label class="toggle-switch">' +
+'<input type="checkbox" ' + checked + ' ' + disabled + ' onchange="onToggleChange(\'' + step.key + '\', this.checked)" data-step="' + step.key + '">' +
+'<span class="toggle-slider"></span>' +
+'</label>' +
+'</div>';
+}).join("");
+}
+function onToggleChange(stepKey, checked) {
+stepVisibility[stepKey] = checked;
+if (!stepVisibility._manualOverrides) stepVisibility._manualOverrides = {};
+stepVisibility._manualOverrides[stepKey] = true;
+markVisibilityDirty();
+}
+async function saveStepVisibility() {
+var status = document.getElementById("visibilityStatus");
+try {
+var res = await fetch("/auth/save-settings", {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({ settings: { step_visibility: stepVisibility } })
+});
+var data = await res.json();
+if (data.success) {
+status.textContent = "Visibility saved.";
+status.style.color = "var(--success, #16a34a)";
+clearVisibilityDirty();
+} else {
+status.textContent = "Failed: " + (data.error || "Unknown error");
+status.style.color = "var(--error)";
+}
+} catch (e) {
+console.error("Visibility save error:", e.message);
+status.textContent = "Failed to save visibility.";
+status.style.color = "var(--error)";
+}
+setTimeout(function() { status.textContent = ""; }, 3000);
+}
+async function loadKeyPersonnel() {
+var customerId = localStorage.getItem("driven_customer_id");
+if (!customerId) {
+document.getElementById("kpListBody").innerHTML = '<div class="kp-loading">No organization found.</div>';
+return;
+}
+try {
+var res = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(customerId));
+var data = await res.json();
+if (data.success && data.keyPersonnel) {
+keyPersonnel = data.keyPersonnel;
+renderKeyPersonnel();
+} else {
+document.getElementById("kpListBody").innerHTML = '<div class="kp-loading">No key personnel assigned yet.</div>';
+}
+} catch (e) {
+console.error("KP load error:", e.message);
+document.getElementById("kpListBody").innerHTML = '<div class="kp-loading">Failed to load key personnel.</div>';
+}
+}
+function renderKeyPersonnel() {
+var all = keyPersonnel.concat(pendingKP);
+if (all.length === 0) {
+document.getElementById("kpListBody").innerHTML = '<div class="kp-loading">No key personnel assigned yet.</div>';
+document.getElementById("kpCompleteBtn").style.display = "none";
+return;
+}
+document.getElementById("kpListBody").innerHTML = all.map(function(kp, idx) {
+var tasks = kp.roles ? kp.roles.map(function(r) { return r.role; }) : (kp.task ? [kp.task] : []);
+var email = kp.email || "";
+var isPending = kp._pending;
+var taskChips = tasks.map(function(t) {
+var escT = String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+var removeTaskAction = isPending
+? 'removePendingKPTask(' + idx + ', \'' + escT.replace(/'/g, "\\'") + '\')'
+: 'revokeKPTask(\'' + (kp.employeeId || kp.id || kp.email) + '\', \'' + escT.replace(/'/g, "\\'") + '\')';
+return '<span class="kp-task-chip">' + escT + ' <button title="Remove this task" onclick="' + removeTaskAction + '">×</button></span>';
+}).join("");
+var removeAllAction = isPending
+? 'removePendingKP(' + idx + ')'
+: 'revokeKP(\'' + (kp.employeeId || kp.id || kp.email) + '\')';
+return '<div class="kp-person-row">' +
+'<div class="kp-person-info">' +
+'<div class="kp-person-name">' + (kp.name || "Unknown") + (isPending ? ' <span style="font-size:11px;color:var(--text-muted);">(pending)</span>' : '') + '</div>' +
+'<div class="kp-person-email">' + email + '</div>' +
+'<div class="kp-person-tasks">' + taskChips + '</div>' +
+'</div>' +
+'<div class="kp-person-actions">' +
+'<button class="kp-person-remove" onclick="' + removeAllAction + '">Remove All</button>' +
+'</div>' +
+'</div>';
+}).join("");
+document.getElementById("kpCompleteBtn").style.display = (keyPersonnel.length + pendingKP.length) > 0 ? "inline-block" : "none";
+}
+function addKeyPersonnel() {
+var name = document.getElementById("kpName").value.trim();
+var email = document.getElementById("kpEmail").value.trim();
+var task = document.getElementById("kpTask").value;
+if (!name || !email || !task) {
+alert("Please fill in name, email, and assign a task.");
+return;
+}
+var emailLower = email.toLowerCase();
+var existing = pendingKP.find(function(kp) { return kp.email.toLowerCase() === emailLower; });
+if (existing) {
+if (!existing.roles) existing.roles = [];
+if (!existing.roles.some(function(r) { return r.role === task; })) {
+existing.roles.push({ role: task });
+} else {
+alert(task + " is already assigned to this person.");
+return;
+}
+} else {
+pendingKP.push({ name: name, email: email, task: task, roles: [{ role: task }], _pending: true });
+}
+document.getElementById("kpName").value = "";
+document.getElementById("kpEmail").value = "";
+document.getElementById("kpTask").value = "";
+renderKeyPersonnel();
+}
+function removePendingKPTask(idx, taskName) {
+var kp = pendingKP[idx];
+if (!kp) return;
+if (kp.roles) {
+kp.roles = kp.roles.filter(function(r) { return r.role !== taskName; });
+if (kp.roles.length === 0) {
+pendingKP.splice(idx, 1);
+}
+} else {
+pendingKP.splice(idx, 1);
+}
+renderKeyPersonnel();
+}
+function removePendingKP(idx) {
+pendingKP.splice(idx, 1);
+renderKeyPersonnel();
+}
+function kpIdMatches(kp, id) {
+var kpId = kp.employeeId || kp.id || kp.email;
+return String(kpId) === String(id);
+}
+async function revokeKPTask(employeeId, taskName) {
+if (!confirm('Remove the task "' + taskName + '" from this key personnel?')) return;
+var customerId = localStorage.getItem("driven_customer_id");
+try {
+var res = await fetch("/api/onboarding/key-personnel/revoke", {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({ customerId: customerId, employeeId: employeeId, roles: [taskName] })
+});
+var data = await res.json();
+if (data.success) {
+var kp = keyPersonnel.find(function(k) { return kpIdMatches(k, employeeId); });
+if (kp && kp.roles) {
+kp.roles = kp.roles.filter(function(r) { return r.role !== taskName; });
+if (kp.roles.length === 0) {
+keyPersonnel = keyPersonnel.filter(function(k) { return !kpIdMatches(k, employeeId); });
+}
+}
+renderKeyPersonnel();
+} else {
+alert("Failed: " + (data.error || "Unknown error"));
+}
+} catch (e) {
+console.error("Revoke task error:", e.message);
+alert("Failed to remove task.");
+}
+}
+async function revokeKP(employeeId) {
+if (!confirm("Remove this key personnel and all their task assignments?")) return;
+var customerId = localStorage.getItem("driven_customer_id");
+try {
+var res = await fetch("/api/onboarding/key-personnel/revoke", {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({ customerId: customerId, employeeId: employeeId, revokeAll: true })
+});
+var data = await res.json();
+if (data.success) {
+keyPersonnel = keyPersonnel.filter(function(kp) { return !kpIdMatches(kp, employeeId); });
+renderKeyPersonnel();
+} else {
+alert("Failed: " + (data.error || "Unknown error"));
+}
+} catch (e) {
+console.error("Revoke error:", e.message);
+alert("Failed to remove key personnel.");
+}
+}
+async function completeKeyPersonnel() {
+var btn = document.getElementById("kpCompleteBtn");
+btn.disabled = true;
+btn.textContent = "Sending invitations…";
+var customerId = localStorage.getItem("driven_customer_id");
+var adminUser = window.dashUser || {};
+var grouped = {};
+pendingKP.forEach(function(kp) {
+var key = kp.email.toLowerCase();
+if (!grouped[key]) {
+grouped[key] = { name: kp.name, email: kp.email, tasks: [] };
+}
+if (kp.roles) {
+kp.roles.forEach(function(r) {
+if (grouped[key].tasks.indexOf(r.role) === -1) grouped[key].tasks.push(r.role);
+});
+} else if (kp.task && grouped[key].tasks.indexOf(kp.task) === -1) {
+grouped[key].tasks.push(kp.task);
+}
+});
+var kpPayload = Object.keys(grouped).map(function(key) {
+var g = grouped[key];
+return { firstName: g.name.split(" ")[0], lastName: g.name.split(" ").slice(1).join(" "), email: g.email, tasks: g.tasks };
+});
+try {
+var res = await fetch("/api/onboarding/key-personnel/complete", {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({
+customerId: customerId,
+adminName: adminUser.first_name || adminUser.email || "Admin",
+adminEmail: adminUser.email || "",
+keyPersonnel: kpPayload
+})
+});
+var data = await res.json();
+if (data.success) {
+pendingKP = [];
+await loadKeyPersonnel();
+btn.textContent = "Send Invitations & Create Accounts";
+btn.disabled = false;
+alert("Invitations sent successfully!");
+} else {
+alert("Failed: " + (data.error || "Unknown error"));
+btn.textContent = "Send Invitations & Create Accounts";
+btn.disabled = false;
+}
+} catch (e) {
+console.error("Complete KP error:", e.message);
+alert("Failed to send invitations.");
+btn.textContent = "Send Invitations & Create Accounts";
+btn.disabled = false;
+}
+}
+function adminAutoDetect(stepKey) {
+switch (stepKey) {
+case "roles-permissions":
+return false;
+case "employees":
+return parseInt(localStorage.getItem("driven_employee_count") || "0") > 0 ||
+localStorage.getItem("driven_step3_complete") === "true";
+case "locations":
+return parseInt(localStorage.getItem("driven_location_count") || "0") > 0;
+case "clients":
+return parseInt(localStorage.getItem("driven_client_count") || "0") > 0 ||
+localStorage.getItem("driven_step4_complete") === "true";
+case "divisions":
+return parseInt(localStorage.getItem("driven_division_count") || "0") > 0 ||
+localStorage.getItem("driven_step5_complete") === "true";
+case "project-types":
+return parseInt(localStorage.getItem("driven_project_type_count") || "0") > 0 ||
+localStorage.getItem("driven_step6_complete") === "true";
+case "projects":
+return parseInt(localStorage.getItem("driven_project_count") || "0") > 0 ||
+localStorage.getItem("driven_step7_complete") === "true";
+case "equipment":
+return parseInt(localStorage.getItem("driven_equipment_count") || "0") > 0 ||
+localStorage.getItem("driven_step8_complete") === "true";
+default:
+return false;
+}
+}
+function adminIsTaskComplete(stepKey) {
+if (adminAutoDetect(stepKey)) return true;
+var taskCompletions = {};
+try { taskCompletions = JSON.parse(localStorage.getItem("driven_task_completions") || "{}"); } catch(e) {}
+var stepDef = STEP_DEFS.find(function(s) { return s.key === stepKey; });
+if (!stepDef) return false;
+var taskLabel = stepDef.label;
+var assignedEmails = [];
+keyPersonnel.forEach(function(kp) {
+var tasks = kp.roles ? kp.roles.map(function(r) { return r.role; }) : (kp.task ? [kp.task] : []);
+if (tasks.indexOf(taskLabel) !== -1 && kp.email) {
+assignedEmails.push(kp.email.toLowerCase());
+}
+});
+pendingKP.forEach(function(kp) {
+var tasks = kp.roles ? kp.roles.map(function(r) { return r.role; }) : (kp.task ? [kp.task] : []);
+if (tasks.indexOf(taskLabel) !== -1 && kp.email) {
+assignedEmails.push(kp.email.toLowerCase());
+}
+});
+var completions = taskCompletions[taskLabel] || [];
+if (assignedEmails.length === 0) {
+return completions.length > 0;
+}
+for (var i = 0; i < assignedEmails.length; i++) {
+if (completions.indexOf(assignedEmails[i]) === -1) return false;
+}
+return true;
+}
+function updateProgress() {
+var visibleSteps = STEP_DEFS.filter(function(s) { return stepVisibility[s.key] !== false; });
+var completed = 0;
+visibleSteps.forEach(function(s) {
+if (adminIsTaskComplete(s.key)) completed++;
+});
+var total = visibleSteps.length;
+var pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+document.getElementById("progressBarFill").style.width = pct + "%";
+document.getElementById("progressText").textContent = completed + " of " + total + " tasks complete";
+if (completed >= total && total > 0) {
+document.getElementById("markCompleteBtn").classList.add("show");
+} else {
+document.getElementById("markCompleteBtn").classList.remove("show");
+}
+if (onboardingComplete) {
+document.getElementById("reopenOnboardingBtn").style.display = "inline-block";
+}
+var completePanel = document.getElementById("onboardingCompletePanel");
+if (completePanel) {
+if (total > 0 && completed >= total && !onboardingComplete) {
+completePanel.classList.add("show");
+} else {
+completePanel.classList.remove("show");
+}
+}
+}
+function showCompleteModal() {
+document.getElementById("confirmModal").classList.add("active");
+}
+function closeCompleteModal() {
+document.getElementById("confirmModal").classList.remove("active");
+}
+async function markOnboardingComplete() {
+closeCompleteModal();
+try {
+await fetch("/auth/save-settings", {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({ settings: { onboarding_complete: true } })
+});
+onboardingComplete = true;
+hideOnboardingTab();
+switchTab("overview");
+} catch (e) {
+console.error("Mark complete error:", e.message);
+alert("Failed to mark onboarding complete.");
+}
+}
+function hideOnboardingTab() {
+var onboardingTab = document.querySelector('[data-tab="onboarding"]');
+if (onboardingTab) onboardingTab.style.display = "none";
+}
+async function finalizeOnboarding() {
+var btn = document.getElementById("finalizeOnboardingBtn");
+if (!confirm("Finalize onboarding?\n\nThis will remove all Key Personnel onboarding assignments and unlock role-based dashboards for your employees (Owner, Admin, and department dashboards).\n\nAfter finalizing, future additions — new employees, equipment, locations, etc. — are managed by departments through their own dashboards, not the Onboarding Dashboard.\n\nClick OK to finalize, or Cancel to keep onboarding open.")) return;
+btn.disabled = true;
+btn.textContent = "Finalizing…";
+var customerId = localStorage.getItem("driven_customer_id");
+try {
+var revokeRes = await fetch("/api/onboarding/key-personnel/revoke", {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({ customerId: customerId, revokeAll: true })
+});
+var revokeData = await revokeRes.json();
+if (!revokeData.success) {
+alert("Failed to remove Key Personnel assignments: " + (revokeData.error || "Unknown error"));
+btn.disabled = false;
+btn.textContent = "Finalize Onboarding & Unlock Dashboards";
+return;
+}
+var completeRes = await fetch("/auth/save-settings", {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({ settings: { onboarding_complete: true } })
+});
+var completeData = await completeRes.json();
+if (!completeData.success) {
+alert("Failed to mark onboarding complete: " + (completeData.error || "Unknown error"));
+btn.disabled = false;
+btn.textContent = "Finalize Onboarding & Unlock Dashboards";
+return;
+}
+onboardingComplete = true;
+keyPersonnel = [];
+pendingKP = [];
+var panel = document.getElementById("onboardingCompletePanel");
+if (panel) panel.classList.remove("show");
+document.getElementById("reopenOnboardingBtn").style.display = "inline-block";
+hideOnboardingTab();
+switchTab("overview");
+alert("Onboarding finalized!\n\nKey Personnel assignments have been removed. Your employees can now access their role-based dashboards. Future additions are managed by departments through their own dashboards.");
+} catch (e) {
+console.error("Finalize onboarding error:", e.message);
+alert("Failed to finalize onboarding.");
+btn.disabled = false;
+btn.textContent = "Finalize Onboarding & Unlock Dashboards";
+}
+}
+async function reopenOnboarding() {
+try {
+await fetch("/auth/save-settings", {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({ settings: { onboarding_complete: false } })
+});
+onboardingComplete = false;
+var onboardingTab = document.querySelector('[data-tab="onboarding"]');
+if (onboardingTab) onboardingTab.style.display = "";
+document.getElementById("reopenOnboardingBtn").style.display = "none";
+switchTab("onboarding");
+} catch (e) {
+console.error("Reopen error:", e.message);
+alert("Failed to reopen onboarding.");
+}
+}
+window.addEventListener("beforeunload", function(e) {
+if (visibilityDirty || settingsDirty) {
+e.preventDefault();
+e.returnValue = "";
+}
+});
+window.dashLogout = function() {
+if (visibilityDirty || settingsDirty) {
+var proceed = confirm("You have unsaved changes.\n\nClick Cancel to go back and save, or OK to leave without saving.");
+if (!proceed) return;
+}
+try {
+fetch("/auth/logout", { method: "POST" });
+} catch (e) {
+console.error("Logout error:", e.message);
+}
+window.location.href = "/public/login.html";
+};
+function makeTabsSticky() {
+var header = document.getElementById("dashHeader");
+var tabBar = document.getElementById("adminTabBar");
+if (header && tabBar && !header.contains(tabBar)) {
+header.appendChild(tabBar);
+}
+var settingsSubtabBar = document.getElementById("settingsSubtabBar");
+var onboardingSubtabBar = document.getElementById("onboardingSubtabBar");
+if (header && settingsSubtabBar && !header.contains(settingsSubtabBar)) {
+header.appendChild(settingsSubtabBar);
+}
+if (header && onboardingSubtabBar && !header.contains(onboardingSubtabBar)) {
+header.appendChild(onboardingSubtabBar);
+}
+}
+function insertHeaderTitle() {
+var row1 = document.querySelector(".dash-header-row1");
+if (row1 && !document.querySelector(".admin-header-title")) {
+var title = document.createElement("div");
+title.className = "admin-header-title";
+title.textContent = "Admin Dashboard";
+var logoArea = document.getElementById("dashCustomerLogoArea");
+var drivenLogo = row1.querySelector(".dash-driven-logo");
+if (logoArea && drivenLogo) {
+row1.insertBefore(title, drivenLogo);
+}
+}
+}
+async function init() {
+document.addEventListener("dashSessionLoaded", async function() {
+var user = window.dashUser;
+if (!user) {
+window.location.href = "/public/login.html";
+return;
+}
+var firstName = user.first_name || user.email;
+var orgName = user.org_name || localStorage.getItem("driven_org_name") || "";
+var welcomeEl = document.getElementById("welcome-name");
+if (welcomeEl) {
+welcomeEl.textContent = orgName ? (firstName + " — " + orgName) : firstName;
 }
 document.getElementById("account-name").textContent = user.first_name ? (user.first_name + " " + (user.last_name || "")) : user.email;
-
-        // Insert title and make tabs sticky
-        insertHeaderTitle();
-        makeTabsSticky();
-
-        // Load logo
-        await loadLogo();
-
-        // Load settings
-        await loadSettings();
-
-        // Load key personnel
-        await loadKeyPersonnel();
-
-        // Update progress
-        updateProgress();
-
-        // Theme switch
-        updateThemeSwitch();
-
-        // Show dashboard
-        document.getElementById("loading").style.display = "none";
-        document.getElementById("dashboard").style.display = "block";
-
-        // Stats (placeholder — will be database queries later)
-        document.getElementById("stat-employees").textContent = localStorage.getItem("driven_employee_count") || "0";
-        document.getElementById("stat-projects").textContent = localStorage.getItem("driven_project_count") || "0";
-        document.getElementById("stat-equipment").textContent = localStorage.getItem("driven_equipment_count") || "0";
-        document.getElementById("stat-clients").textContent = localStorage.getItem("driven_client_count") || "0";
-      });
-    }
-
-    init();
+insertHeaderTitle();
+makeTabsSticky();
+await loadLogo();
+await loadSettings();
+await loadKeyPersonnel();
+updateProgress();
+updateThemeSwitch();
+document.getElementById("loading").style.display = "none";
+document.getElementById("dashboard").style.display = "block";
+document.getElementById("stat-employees").textContent = localStorage.getItem("driven_employee_count") || "0";
+document.getElementById("stat-projects").textContent = localStorage.getItem("driven_project_count") || "0";
+document.getElementById("stat-equipment").textContent = localStorage.getItem("driven_equipment_count") || "0";
+document.getElementById("stat-clients").textContent = localStorage.getItem("driven_client_count") || "0";
+});
+}
+init();
 </script>
-
-<!-- ===== AUTH CHECK ===== -->
 <script src="/components/auth-check.js"></script>
 </body>
 </html>
