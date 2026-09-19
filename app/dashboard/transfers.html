@@ -11,14 +11,8 @@
 <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
 <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
 <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
-
-<!-- ===== SHARED DASHBOARD CSS ===== -->
 <link rel="stylesheet" href="/app/shared/dashboard.css?v=7">
-
-<!-- ===== DIAMOND-PLATE BACKGROUND ===== -->
 <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
-
-<!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
 <script>
 (function() {
   var saved = localStorage.getItem("driven-theme");
@@ -27,7 +21,6 @@
   document.documentElement.setAttribute("data-theme", theme);
 })();
 </script>
-
 <style>
 .tf-loading{display:flex;align-items:center;justify-content:center;height:60vh;font-size:16px;color:var(--text-muted);}
 .tf-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;cursor:pointer;transition:border-color .2s;}
@@ -51,66 +44,130 @@
 .tf-back:hover{border-color:var(--primary);}
 .section-title{font-size:16px;font-weight:700;color:var(--text);margin:24px 0 12px 0;padding-bottom:8px;border-bottom:2px solid var(--border);}
 .empty-state{text-align:center;padding:40px;color:var(--text-muted);font-size:14px;}
+.tf-flag{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 10px;border-radius:6px;font-weight:600;margin-left:8px;animation:flagPulse 2s ease-in-out infinite;}
+.tf-flag-unclosed{background:#fef3c7;border:1px solid #f59e0b;color:#92400e;}
+.tf-flag-duplicate{background:#fee2e2;border:1px solid #ef4444;color:#991b1b;}
+.tf-flag-icon{font-size:13px;line-height:1;}
+@keyframes flagPulse{0%,100%{opacity:1;}50%{opacity:0.7;}}
+.tf-warnings-banner{background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:14px 18px;margin-bottom:16px;}
+.tf-warnings-banner h4{margin:0 0 8px 0;font-size:14px;color:#92400e;display:flex;align-items:center;gap:6px;}
+.tf-warnings-banner ul{margin:0;padding-left:20px;}
+.tf-warnings-banner li{font-size:13px;color:#92400e;margin-bottom:4px;line-height:1.4;}
+.tf-warnings-banner a{color:#92400e;font-weight:600;cursor:pointer;text-decoration:underline;}
+.tf-filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+.tf-filter-bar select,.tf-filter-bar input{padding:8px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text);box-sizing:border-box;}
+.tf-filter-bar select:focus,.tf-filter-bar input:focus{outline:none;border-color:var(--primary);}
+.tf-filter-label{font-size:13px;color:var(--text-muted);font-weight:600;}
 </style>
 </head>
 <body data-page-title="Transfers" data-required-permission="transfer.view">
-
 <div id="adminDashboard" style="display:none;">
   <div id="dashHeader"></div>
-  <div style="max-width:900px;margin:0 auto;padding:20px;">
-
+  <div style="max-width:1100px;margin:0 auto;padding:20px;">
+    <div id="tfWarningsBanner" class="tf-warnings-banner" style="display:none;">
+      <h4>⚠ Transfer Alerts</h4>
+      <ul id="tfWarningsList"></ul>
+    </div>
+    <div class="tf-filter-bar">
+      <span class="tf-filter-label">Filter:</span>
+      <select id="tfStatusFilter" onchange="applyFilters()">
+        <option value="">All Statuses</option>
+        <option value="created">Created</option>
+        <option value="picked_up">Picked Up</option>
+        <option value="in_transit">In Transit</option>
+        <option value="delivered">Delivered</option>
+        <option value="closed">Closed</option>
+        <option value="open">Open (unclosed)</option>
+      </select>
+      <input type="text" id="tfSearchInput" placeholder="Search ticket #, asset, location…" oninput="applyFilters()" style="flex:1;min-width:200px;">
+    </div>
     <div id="tfListView">
       <div class="section-title">Transfer Tickets</div>
       <div id="tfList" class="tf-loading">Loading transfers…</div>
     </div>
-
     <div id="tfDetailView" style="display:none;">
       <button class="tf-back" onclick="showList()">← Back to list</button>
       <div id="tfDetail"></div>
     </div>
-
   </div>
   <div id="dashFooter"></div>
 </div>
-
 <script>
+let allTransfers = [];
+let filteredTransfers = [];
+const UNCLOSSED_THRESHOLD_DAYS = 7;
+
 async function loadTransfers() {
   try {
     const resp = await fetch('/api/transfers');
     const data = await resp.json();
-    if (data.success && data.transfers) {
-      if (data.transfers.length === 0) {
-        document.getElementById('tfList').innerHTML = '<div class="empty-state">No transfer tickets found.</div>';
-        return;
-      }
-      document.getElementById('tfList').innerHTML = data.transfers.map(t => {
-        const date = new Date(t.created_at).toLocaleDateString();
-        return '<div class="tf-card" onclick="showDetail(\'' + t.id + '\')">' +
-          '<div class="tf-header">' +
-            '<span class="tf-ticket">' + (t.ticket_number||'—') + '</span>' +
-            '<span class="tf-status ' + (t.status||'created') + '">' + (t.status||'created') + '</span>' +
-          '</div>' +
-          '<div class="tf-meta">' +
-            '<span>From: ' + (t.from_location||'—') + '</span>' +
-            '<span>To: ' + (t.to_location||'—') + '</span>' +
-            '<span>' + date + '</span>' +
-            (t.carrier_type === 'third_party' ? '<span>3rd party</span>' : '<span>Internal</span>') +
-          '</div>' +
-        '</div>';
-      }).join('');
-    } else {
-      document.getElementById('tfList').innerHTML = '<div class="empty-state">Failed to load transfers.</div>';
-    }
-  } catch (e) {
-    document.getElementById('tfList').innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>';
+    if (data.success && data.transfers) { allTransfers = data.transfers; applyFilters(); renderWarnings(); }
+    else { document.getElementById('tfList').innerHTML = '<div class="empty-state">Failed to load transfers.</div>'; }
+  } catch (e) { document.getElementById('tfList').innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
+}
+
+function isOpenTransfer(t) { return ['created', 'picked_up', 'in_transit', 'delivered'].includes(t.status); }
+function daysSince(dateStr) { return Math.floor((new Date() - new Date(dateStr)) / (1000 * 60 * 60 * 24)); }
+function isUnclosedTransfer(t) { return isOpenTransfer(t) && daysSince(t.created_at) >= UNCLOSSED_THRESHOLD_DAYS; }
+
+function getDuplicateOpenTransfers() {
+  const openByAsset = {};
+  allTransfers.forEach(t => { if (isOpenTransfer(t) && t.asset_id) { if (!openByAsset[t.asset_id]) openByAsset[t.asset_id] = []; openByAsset[t.asset_id].push(t); } });
+  const duplicates = {};
+  Object.keys(openByAsset).forEach(assetId => { if (openByAsset[assetId].length > 1) { openByAsset[assetId].forEach(t => { duplicates[t.id] = true; }); } });
+  return duplicates;
+}
+
+function renderWarnings() {
+  const banner = document.getElementById('tfWarningsBanner');
+  const list = document.getElementById('tfWarningsList');
+  const warnings = [];
+  const unclosed = allTransfers.filter(isUnclosedTransfer);
+  if (unclosed.length > 0) {
+    warnings.push('<strong>' + unclosed.length + ' transfer' + (unclosed.length > 1 ? 's' : '') + '</strong> open for ' + UNCLOSSED_THRESHOLD_DAYS + '+ days: ' + unclosed.map(t => '<a onclick="jumpToDetail(\'' + t.id + '\')">' + (t.ticket_number || '—') + '</a>').join(', '));
   }
+  const duplicates = getDuplicateOpenTransfers();
+  const dupAssetIds = {};
+  allTransfers.forEach(t => { if (duplicates[t.id] && t.asset_id) { if (!dupAssetIds[t.asset_id]) dupAssetIds[t.asset_id] = { name: t.asset_name || t.asset_number || 'Unknown', tickets: [] }; dupAssetIds[t.asset_id].tickets.push(t.ticket_number || '—'); } });
+  const dupCount = Object.keys(dupAssetIds).length;
+  if (dupCount > 0) {
+    warnings.push('<strong>' + dupCount + ' asset' + (dupCount > 1 ? 's' : '') + '</strong> with multiple open transfer tickets: ' + Object.values(dupAssetIds).map(d => d.name + ' (' + d.tickets.join(', ') + ')').join('; '));
+  }
+  if (warnings.length > 0) { list.innerHTML = warnings.map(w => '<li>' + w + '</li>').join(''); banner.style.display = 'block'; }
+  else { banner.style.display = 'none'; }
+}
+
+function jumpToDetail(id) { showDetail(id); }
+
+function applyFilters() {
+  const statusFilter = document.getElementById('tfStatusFilter').value;
+  const searchText = document.getElementById('tfSearchInput').value.toLowerCase();
+  filteredTransfers = allTransfers.filter(t => {
+    if (statusFilter === 'open') { if (!isOpenTransfer(t)) return false; }
+    else if (statusFilter && t.status !== statusFilter) return false;
+    if (searchText) { const hay = [t.ticket_number, t.asset_name, t.asset_number, t.from_location, t.to_location, t.from_project_name, t.to_project_name, t.carrier_name, t.status].filter(Boolean).join(' ').toLowerCase(); if (!hay.includes(searchText)) return false; }
+    return true;
+  });
+  renderList();
+}
+
+function renderList() {
+  if (filteredTransfers.length === 0) { document.getElementById('tfList').innerHTML = '<div class="empty-state">No transfer tickets match your filters.</div>'; return; }
+  const duplicates = getDuplicateOpenTransfers();
+  document.getElementById('tfList').innerHTML = filteredTransfers.map(t => {
+    const date = new Date(t.created_at).toLocaleDateString();
+    const daysOpen = isOpenTransfer(t) ? daysSince(t.created_at) : null;
+    let flags = '';
+    if (isUnclosedTransfer(t)) flags += '<span class="tf-flag tf-flag-unclosed" title="Open for ' + daysOpen + ' days"><span class="tf-flag-icon">⏰</span> Open ' + daysOpen + 'd</span>';
+    if (duplicates[t.id]) flags += '<span class="tf-flag tf-flag-duplicate" title="This asset has multiple open transfer tickets"><span class="tf-flag-icon">⚠</span> Duplicate</span>';
+    return '<div class="tf-card" onclick="showDetail(\'' + t.id + '\')"><div class="tf-header"><span class="tf-ticket">' + (t.ticket_number||'—') + flags + '</span><span class="tf-status ' + (t.status||'created') + '">' + (t.status||'created') + '</span></div><div class="tf-meta"><span>From: ' + (t.from_location||t.from_project_name||'—') + '</span><span>To: ' + (t.to_location||t.to_project_name||'—') + '</span><span>' + date + '</span>' + (t.carrier_type === 'third_party' ? '<span>3rd party</span>' : '<span>Internal</span>') + (t.asset_name ? '<span>📦 ' + t.asset_name + '</span>' : '') + '</div></div>';
+  }).join('');
 }
 
 async function showDetail(id) {
   document.getElementById('tfListView').style.display = 'none';
   document.getElementById('tfDetailView').style.display = '';
   document.getElementById('tfDetail').innerHTML = '<div class="tf-loading">Loading…</div>';
-
   try {
     const resp = await fetch('/api/transfers/' + id);
     const data = await resp.json();
@@ -118,55 +175,28 @@ async function showDetail(id) {
       const t = data.transfer;
       const events = data.events || [];
       let html = '<div class="tf-detail">';
-      html += '<div class="tf-header"><span class="tf-ticket">' + (t.ticket_number||'—') + '</span>';
-      html += '<span class="tf-status ' + (t.status||'created') + '">' + (t.status||'created') + '</span></div>';
-      html += '<div class="tf-meta">';
-      html += '<span>From: ' + (t.from_location||'—') + '</span>';
-      html += '<span>To: ' + (t.to_location||'—') + '</span>';
-      html += '<span>Carrier: ' + (t.carrier_type||'—') + '</span>';
+      let flags = '';
+      if (isUnclosedTransfer(t)) { const days = daysSince(t.created_at); flags += '<span class="tf-flag tf-flag-unclosed"><span class="tf-flag-icon">⏰</span> Open ' + days + ' days — needs closing</span>'; }
+      if (getDuplicateOpenTransfers()[t.id]) flags += '<span class="tf-flag tf-flag-duplicate"><span class="tf-flag-icon">⚠</span> Asset has multiple open tickets</span>';
+      html += '<div class="tf-header"><span class="tf-ticket">' + (t.ticket_number||'—') + flags + '</span><span class="tf-status ' + (t.status||'created') + '">' + (t.status||'created') + '</span></div>';
+      html += '<div class="tf-meta"><span>From: ' + (t.from_location||t.from_project_name||'—') + '</span><span>To: ' + (t.to_location||t.to_project_name||'—') + '</span><span>Carrier: ' + (t.carrier_type||'—') + '</span>';
       if (t.carrier_name) html += '<span>' + t.carrier_name + '</span>';
+      if (t.asset_name) html += '<span>📦 ' + t.asset_name + '</span>';
       html += '</div>';
       if (t.notes) html += '<p style="margin-top:10px;font-size:13px;color:var(--text-muted);">Notes: ' + t.notes + '</p>';
+      html += '</div><div class="section-title">Event Trail</div><div class="tf-detail">';
+      if (events.length === 0) html += '<div class="empty-state">No events recorded.</div>';
+      else html += events.map(e => { const time = new Date(e.event_at || e.created_at).toLocaleString(); return '<div class="tf-event"><div class="tf-event-dot"></div><div><div class="tf-event-content"><strong>' + (e.event_type||'event') + '</strong>' + (e.notes ? ' — ' + e.notes : '') + '</div><div class="tf-event-time">' + time + (e.event_by ? ' · ' + e.event_by : '') + '</div></div></div>'; }).join('');
       html += '</div>';
-
-      html += '<div class="section-title">Event Trail</div>';
-      html += '<div class="tf-detail">';
-      if (events.length === 0) {
-        html += '<div class="empty-state">No events recorded.</div>';
-      } else {
-        html += events.map(e => {
-          const time = new Date(e.created_at).toLocaleString();
-          return '<div class="tf-event">' +
-            '<div class="tf-event-dot"></div>' +
-            '<div>' +
-              '<div class="tf-event-content"><strong>' + (e.event_type||'event') + '</strong>' + (e.notes ? ' — ' + e.notes : '') + '</div>' +
-              '<div class="tf-event-time">' + time + (e.recorded_by ? ' · ' + e.recorded_by : '') + '</div>' +
-            '</div>' +
-          '</div>';
-        }).join('');
-      }
-      html += '</div>';
-
       document.getElementById('tfDetail').innerHTML = html;
-    } else {
-      document.getElementById('tfDetail').innerHTML = '<div class="empty-state">Failed to load transfer detail.</div>';
-    }
-  } catch (e) {
-    document.getElementById('tfDetail').innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>';
-  }
+    } else { document.getElementById('tfDetail').innerHTML = '<div class="empty-state">Failed to load transfer detail.</div>'; }
+  } catch (e) { document.getElementById('tfDetail').innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
 }
 
-function showList() {
-  document.getElementById('tfListView').style.display = '';
-  document.getElementById('tfDetailView').style.display = 'none';
-}
+function showList() { document.getElementById('tfListView').style.display = ''; document.getElementById('tfDetailView').style.display = 'none'; }
 
-document.addEventListener('dashSessionLoaded', function() {
-  document.getElementById('adminDashboard').style.display = 'block';
-  loadTransfers();
-});
+document.addEventListener('dashSessionLoaded', function() { document.getElementById('adminDashboard').style.display = 'block'; loadTransfers(); });
 </script>
-
 <script src="/app/shared/dashboard-common.js?v=7"></script>
 <script src="/app/shared/auth-check.js?v=7"></script>
 <script src="/components/nav.js?v=5"></script>
