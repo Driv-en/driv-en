@@ -87,478 +87,123 @@
 .status-badge { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600; text-transform: uppercase; white-space: nowrap; }
 .status-badge.active { background: #dcfce7; color: #15803d; border: 1px solid #16a34a; }
 .status-badge.inactive { background: var(--border); color: var(--text-muted); border: 1px solid var(--border); }
+.overview-section { margin-bottom: 28px; }
+.overview-section-title { font-size: 15px; font-weight: 700; color: var(--text); padding: 10px 0; border-bottom: 2px solid var(--border); margin-bottom: 0; display: flex; align-items: center; gap: 8px; }
+.overview-section-title .count { font-size: 13px; font-weight: 400; color: var(--text-muted); }
+.overview-section-title .icon { font-size: 18px; }
+.portable-loc-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; overflow: hidden; }
+.portable-loc-header { padding: 12px 16px; background: var(--bg-step); font-weight: 600; font-size: 14px; color: var(--text); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.portable-loc-qty { font-size: 13px; font-weight: 700; color: var(--primary); }
+.tx-totals-bar { display: flex; gap: 16px; flex-wrap: wrap; background: var(--bg-step); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; align-items: center; }
+.tx-totals-bar .total-item { display: flex; flex-direction: column; gap: 2px; }
+.tx-totals-bar .total-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
+.tx-totals-bar .total-value { font-size: 18px; font-weight: 700; color: var(--text); }
+.tx-totals-bar .total-value.gal { color: var(--primary); }
 .empty-state { text-align: center; padding: 40px; color: var(--text-muted); font-size: 14px; }
-@media (max-width: 800px) {
-  .fuel-stats { grid-template-columns: repeat(2, 1fr); }
-  .fuel-main { padding: 0 12px; margin: 12px auto; }
-  .fuel-tab { padding: 10px 16px; font-size: 14px; }
-  .fuel-tab-home { padding: 10px 16px; font-size: 14px; }
-  .fuel-tab-logout { padding: 10px 16px; font-size: 14px; }
-}
+@media (max-width: 800px) { .fuel-stats { grid-template-columns: repeat(2, 1fr); } .fuel-main { padding: 0 12px; margin: 12px auto; } .fuel-tab { padding: 10px 16px; font-size: 14px; } .fuel-tab-home { padding: 10px 16px; font-size: 14px; } .fuel-tab-logout { padding: 10px 16px; font-size: 14px; } }
 </style>
 </head>
 <body data-page-title="Fuel Management" data-required-permission="fuel.view">
-
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
-
 <div id="dashHeader"></div>
-
 <div class="fuel-tab-bar" id="fuelTabBar">
   <button class="fuel-tab active" data-tab="tanks" onclick="switchTab('tanks')">Tanks</button>
   <button class="fuel-tab" data-tab="transactions" onclick="switchTab('transactions')">Transactions</button>
   <a class="fuel-tab-home" id="dashHomeLink" href="/app/dashboard/employee-dashboard.html">Dashboard</a>
   <button class="fuel-tab-logout" onclick="dashLogout()">Logout</button>
 </div>
-
 <div id="loading" class="fuel-loading">Checking session…</div>
-
 <div id="dashboard" style="display:none;">
-  <div class="fuel-tab-content active" id="tab-tanks">
-    <div class="fuel-main">
-      <div class="fuel-subtab-bar visible" id="tanksSubtabBar">
-        <button class="fuel-subtab active" data-subtab="all" onclick="switchTankSubtab('all')">All Tanks</button>
-        <button class="fuel-subtab" data-subtab="bulk" onclick="switchTankSubtab('bulk')">Bulk</button>
-        <button class="fuel-subtab" data-subtab="dragup" onclick="switchTankSubtab('dragup')">Drag-Up</button>
-        <button class="fuel-subtab" data-subtab="portable" onclick="switchTankSubtab('portable')">Gas Cans</button>
-        <button class="fuel-subtab" data-subtab="equipment" onclick="switchTankSubtab('equipment')">Equipment</button>
-      </div>
-      <div class="fuel-subtab-content active" id="tanks-subtab-all">
-        <div class="fuel-stats">
-          <div class="fuel-stat-card"><div class="fuel-stat-number" id="stat-total-tanks">0</div><div class="fuel-stat-label">Total Tanks</div></div>
-          <div class="fuel-stat-card"><div class="fuel-stat-number" id="stat-low-tanks">0</div><div class="fuel-stat-label">Low (<20%)</div></div>
-          <div class="fuel-stat-card"><div class="fuel-stat-number" id="stat-total-gallons">0</div><div class="fuel-stat-label">Total Gallons</div></div>
-          <div class="fuel-stat-card"><div class="fuel-stat-number" id="stat-equipment-tanks">0</div><div class="fuel-stat-label">Equipment Tanks</div></div>
-        </div>
-        <div id="allTanksContainer"></div>
-      </div>
-      <div class="fuel-subtab-content" id="tanks-subtab-bulk"><div id="bulkTanksContainer"></div></div>
-      <div class="fuel-subtab-content" id="tanks-subtab-dragup"><div id="dragupTanksContainer"></div></div>
-      <div class="fuel-subtab-content" id="tanks-subtab-portable"><div id="portableTanksContainer"></div></div>
-      <div class="fuel-subtab-content" id="tanks-subtab-equipment"><div id="equipmentTanksContainer"></div></div>
+  <div class="fuel-tab-content active" id="tab-tanks"><div class="fuel-main">
+    <div class="fuel-subtab-bar visible" id="tanksSubtabBar">
+      <button class="fuel-subtab active" data-subtab="overview" onclick="switchTankSubtab('overview')">Tank Overview</button>
+      <button class="fuel-subtab" data-subtab="bulk" onclick="switchTankSubtab('bulk')">Bulk</button>
+      <button class="fuel-subtab" data-subtab="dragup" onclick="switchTankSubtab('dragup')">Drag-Up</button>
+      <button class="fuel-subtab" data-subtab="portable" onclick="switchTankSubtab('portable')">Gas Cans</button>
+      <button class="fuel-subtab" data-subtab="equipment" onclick="switchTankSubtab('equipment')">Equipment</button>
     </div>
-  </div>
-  <div class="fuel-tab-content" id="tab-transactions">
-    <div class="fuel-main">
-      <div class="fuel-subtab-bar visible" id="txSubtabBar">
-        <button class="fuel-subtab active" data-subtab="all" onclick="switchTxSubtab('all')">All Transactions</button>
-        <button class="fuel-subtab" data-subtab="purchase" onclick="switchTxSubtab('purchase')">Purchases</button>
-        <button class="fuel-subtab" data-subtab="issue" onclick="switchTxSubtab('issue')">Issues to Equipment</button>
-        <button class="fuel-subtab" data-subtab="transfer" onclick="switchTxSubtab('transfer')">Transfers</button>
+    <div class="fuel-subtab-content active" id="tanks-subtab-overview">
+      <div class="fuel-filter-bar" id="overviewFilterBar"><span class="fuel-filter-label">Filter by location:</span><select id="overviewLocationFilter" onchange="renderOverview()"><option value="">All Locations</option></select></div>
+      <div class="fuel-stats">
+        <div class="fuel-stat-card"><div class="fuel-stat-number" id="ov-stat-total-gal">0</div><div class="fuel-stat-label">Total Gallons On Hand</div></div>
+        <div class="fuel-stat-card"><div class="fuel-stat-number" id="ov-stat-bulk-gal">0</div><div class="fuel-stat-label">Bulk Tanks</div></div>
+        <div class="fuel-stat-card"><div class="fuel-stat-number" id="ov-stat-dragup-gal">0</div><div class="fuel-stat-label">Drag-Up Tanks</div></div>
+        <div class="fuel-stat-card"><div class="fuel-stat-number" id="ov-stat-equip-gal">0</div><div class="fuel-stat-label">Equipment Tanks</div></div>
       </div>
-      <div class="fuel-subtab-content active" id="tx-subtab-all"><div id="allTxContainer"></div></div>
-      <div class="fuel-subtab-content" id="tx-subtab-purchase"><div id="purchaseTxContainer"></div></div>
-      <div class="fuel-subtab-content" id="tx-subtab-issue"><div id="issueTxContainer"></div></div>
-      <div class="fuel-subtab-content" id="tx-subtab-transfer"><div id="transferTxContainer"></div></div>
+      <div id="overviewContainer"></div>
     </div>
-  </div>
+    <div class="fuel-subtab-content" id="tanks-subtab-bulk"><div id="bulkTanksContainer"></div></div>
+    <div class="fuel-subtab-content" id="tanks-subtab-dragup"><div id="dragupTanksContainer"></div></div>
+    <div class="fuel-subtab-content" id="tanks-subtab-portable"><div id="portableTanksContainer"></div></div>
+    <div class="fuel-subtab-content" id="tanks-subtab-equipment"><div id="equipmentTanksContainer"></div></div>
+  </div></div>
+  <div class="fuel-tab-content" id="tab-transactions"><div class="fuel-main">
+    <div class="fuel-subtab-bar visible" id="txSubtabBar">
+      <button class="fuel-subtab active" data-subtab="all" onclick="switchTxSubtab('all')">All Transactions</button>
+      <button class="fuel-subtab" data-subtab="purchase" onclick="switchTxSubtab('purchase')">Purchases</button>
+      <button class="fuel-subtab" data-subtab="issue" onclick="switchTxSubtab('issue')">Issues to Equipment</button>
+      <button class="fuel-subtab" data-subtab="transfer" onclick="switchTxSubtab('transfer')">Transfers</button>
+    </div>
+    <div class="fuel-subtab-content active" id="tx-subtab-all"><div id="allTxContainer"></div></div>
+    <div class="fuel-subtab-content" id="tx-subtab-purchase"><div id="purchaseTxContainer"></div></div>
+    <div class="fuel-subtab-content" id="tx-subtab-issue"><div id="issueTxContainer"></div></div>
+    <div class="fuel-subtab-content" id="tx-subtab-transfer"><div id="transferTxContainer"></div></div>
+  </div></div>
 </div>
-
 <div id="dashFooter"></div>
-
 <script src="/app/shared/dashboard-common.js?v=8"></script>
-
 <script>
-var allTanks = [];
-var allTransactions = [];
-var tankSortColumn = 'created_at';
-var tankSortDir = 'desc';
-var txSortColumn = 'transaction_date';
-var txSortDir = 'desc';
-var tankSearchText = '';
-var txSearchText = '';
-
-function switchTab(tabName) {
-  document.querySelectorAll('.fuel-tab').forEach(function(t) { t.classList.remove('active'); });
-  document.querySelectorAll('.fuel-tab-content').forEach(function(c) { c.classList.remove('active'); });
-  document.querySelector('[data-tab="' + tabName + '"]').classList.add('active');
-  document.getElementById('tab-' + tabName).classList.add('active');
-  var tanksBar = document.getElementById('tanksSubtabBar');
-  var txBar = document.getElementById('txSubtabBar');
-  if (tanksBar) tanksBar.classList.toggle('visible', tabName === 'tanks');
-  if (txBar) txBar.classList.toggle('visible', tabName === 'transactions');
-  if (tabName === 'transactions' && !window._txLoaded) loadTransactions();
-}
-
-function switchTankSubtab(subtabName) {
-  document.querySelectorAll('#tanksSubtabBar .fuel-subtab').forEach(function(t) { t.classList.remove('active'); });
-  document.querySelectorAll('.fuel-subtab-content[id^="tanks-subtab-"]').forEach(function(c) { c.classList.remove('active'); });
-  document.querySelector('#tanksSubtabBar [data-subtab="' + subtabName + '"]').classList.add('active');
-  document.getElementById('tanks-subtab-' + subtabName).classList.add('active');
-  renderTanksForSubtab(subtabName);
-}
-
-function switchTxSubtab(subtabName) {
-  document.querySelectorAll('#txSubtabBar .fuel-subtab').forEach(function(t) { t.classList.remove('active'); });
-  document.querySelectorAll('.fuel-subtab-content[id^="tx-subtab-"]').forEach(function(c) { c.classList.remove('active'); });
-  document.querySelector('#txSubtabBar [data-subtab="' + subtabName + '"]').classList.add('active');
-  document.getElementById('tx-subtab-' + subtabName).classList.add('active');
-  renderTxForSubtab(subtabName);
-}
-
-function makeTabsSticky() {
-  var header = document.getElementById('dashHeader');
-  var tabBar = document.getElementById('fuelTabBar');
-  if (header && tabBar && !header.contains(tabBar)) { header.appendChild(tabBar); }
-  var tanksBar = document.getElementById('tanksSubtabBar');
-  var txBar = document.getElementById('txSubtabBar');
-  if (header && tanksBar && !header.contains(tanksBar)) header.appendChild(tanksBar);
-  if (header && txBar && !header.contains(txBar)) header.appendChild(txBar);
-}
-
-function insertHeaderTitle() {
-  var row1 = document.querySelector('.dash-header-row1');
-  if (row1 && !document.querySelector('.fuel-header-title')) {
-    var title = document.createElement('div');
-    title.className = 'fuel-header-title';
-    title.textContent = 'Fuel Management';
-    var logoArea = document.getElementById('dashCustomerLogoArea');
-    var drivenLogo = row1.querySelector('.dash-driven-logo');
-    if (logoArea && drivenLogo) { row1.insertBefore(title, drivenLogo); }
-  }
-}
-
-window.dashLogout = function() {
-  try { fetch('/auth/logout', { method: 'POST' }); } catch (e) {}
-  window.location.href = '/public/login.html';
-};
-
-function esc(s) {
-  if (!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
-
-function tankLevelHtml(t) {
-  var pct = t.capacity > 0 ? Math.min(100, (t.current_quantity / t.capacity) * 100) : 0;
-  var lowClass = pct < 20 ? ' low' : '';
-  return '<div class="tank-level-mini"><div class="tank-level-bar"><div class="tank-level-fill' + lowClass + '" style="width:' + pct + '%"></div></div><span class="tank-level-text">' + (t.current_quantity||0) + '/' + (t.capacity||0) + '</span></div>';
-}
-
-function tankTypeBadge(t) {
-  var type = t.tank_type || '';
-  var label = type;
-  if (type === 'bulk') label = 'Bulk';
-  else if (type === 'dragup') label = 'Drag-Up';
-  else if (type === 'portable') label = 'Gas Can';
-  else if (type === 'equipment') label = 'Equipment';
-  return '<span class="tank-badge ' + type + '">' + label + '</span>';
-}
-
-function ownershipBadge(t) {
-  if (!t.ownership_type || t.ownership_type === 'company') return '';
-  return '<span class="ownership-badge ' + t.ownership_type + '">' + t.ownership_type + (t.owner_name ? ': ' + esc(t.owner_name) : '') + '</span>';
-}
-
-function statusBadge(t) {
-  var status = t.status || 'active';
-  return '<span class="status-badge ' + status + '">' + status + '</span>';
-}
-
-function sortTanks(tanks, col, dir) {
-  var sorted = tanks.slice();
-  sorted.sort(function(a, b) {
-    var av, bv;
-    if (col === 'name') { av = (a.name||'').toLowerCase(); bv = (b.name||'').toLowerCase(); }
-    else if (col === 'tank_type') { av = (a.tank_type||'').toLowerCase(); bv = (b.tank_type||'').toLowerCase(); }
-    else if (col === 'fuel_type') { av = (a.fuel_type||'').toLowerCase(); bv = (b.fuel_type||'').toLowerCase(); }
-    else if (col === 'level') { av = a.capacity > 0 ? (a.current_quantity/a.capacity) : 0; bv = b.capacity > 0 ? (b.current_quantity/b.capacity) : 0; }
-    else if (col === 'current_quantity') { av = a.current_quantity||0; bv = b.current_quantity||0; }
-    else if (col === 'capacity') { av = a.capacity||0; bv = b.capacity||0; }
-    else if (col === 'status') { av = (a.status||'').toLowerCase(); bv = (b.status||'').toLowerCase(); }
-    else if (col === 'location') { av = (a.location||'').toLowerCase(); bv = (b.location||'').toLowerCase(); }
-    else { av = a.created_at||''; bv = b.created_at||''; }
-    if (av < bv) return dir === 'asc' ? -1 : 1;
-    if (av > bv) return dir === 'asc' ? 1 : -1;
-    return 0;
-  });
-  return sorted;
-}
-
-function sortTransactions(txs, col, dir) {
-  var sorted = txs.slice();
-  sorted.sort(function(a, b) {
-    var av, bv;
-    if (col === 'transaction_type') { av = (a.transaction_type||'').toLowerCase(); bv = (b.transaction_type||'').toLowerCase(); }
-    else if (col === 'fuel_type') { av = (a.fuel_type||'').toLowerCase(); bv = (b.fuel_type||'').toLowerCase(); }
-    else if (col === 'quantity') { av = a.quantity||0; bv = b.quantity||0; }
-    else if (col === 'asset') { av = (a.asset_name||a.asset_number||'').toLowerCase(); bv = (b.asset_name||b.asset_number||'').toLowerCase(); }
-    else if (col === 'project') { av = (a.project_name||'').toLowerCase(); bv = (b.project_name||'').toLowerCase(); }
-    else if (col === 'person') { av = (a.person||'').toLowerCase(); bv = (b.person||'').toLowerCase(); }
-    else { av = a.transaction_date||''; bv = b.transaction_date||''; }
-    if (av < bv) return dir === 'asc' ? -1 : 1;
-    if (av > bv) return dir === 'asc' ? 1 : -1;
-    return 0;
-  });
-  return sorted;
-}
-
-function filterTanks(tanks, search) {
-  if (!search) return tanks;
-  var s = search.toLowerCase();
-  return tanks.filter(function(t) {
-    var hay = [t.name, t.tank_type, t.fuel_type, t.location, t.status, t.owner_name, t.ownership_type].filter(Boolean).join(' ').toLowerCase();
-    return hay.indexOf(s) !== -1;
-  });
-}
-
-function renderTankTable(tanks, containerId, showTypeColumn) {
-  var container = document.getElementById(containerId);
-  if (tanks.length === 0) { container.innerHTML = '<div class="empty-state">No tanks found.</div>'; return; }
-  var filterBarId = containerId + '-filter';
-  var tableId = containerId + '-table';
-  container.innerHTML =
-    '<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="' + filterBarId + '" placeholder="Name, type, fuel, location…" oninput="onTankFilter(\'' + containerId + '\', this.value)" style="flex:1;min-width:180px;"></div>' +
-    '<div class="fuel-table-wrap"><table class="fuel-table" id="' + tableId + '"><thead><tr>' +
-    '<th onclick="onTankSort(\'' + containerId + '\',\'name\')" class="sortable">Tank Name <span class="sort-arrow"></span></th>' +
-    (showTypeColumn ? '<th onclick="onTankSort(\'' + containerId + '\',\'tank_type\')" class="sortable">Type <span class="sort-arrow"></span></th>' : '') +
-    '<th onclick="onTankSort(\'' + containerId + '\',\'fuel_type\')" class="sortable">Fuel <span class="sort-arrow"></span></th>' +
-    '<th onclick="onTankSort(\'' + containerId + '\',\'level\')" class="sortable">Level <span class="sort-arrow"></span></th>' +
-    '<th onclick="onTankSort(\'' + containerId + '\',\'capacity\')" class="sortable">Capacity <span class="sort-arrow"></span></th>' +
-    '<th onclick="onTankSort(\'' + containerId + '\',\'location\')" class="sortable">Location <span class="sort-arrow"></span></th>' +
-    '<th>Ownership</th>' +
-    '<th onclick="onTankSort(\'' + containerId + '\',\'status\')" class="sortable">Status <span class="sort-arrow"></span></th>' +
-    '</tr></thead><tbody id="' + tableId + '-body">' + renderTankRows(tanks, showTypeColumn) + '</tbody></table></div>';
-  container._tankSortCol = 'name';
-  container._tankSortDir = 'asc';
-  updateSortIndicators(container);
-}
-
-function renderTankRows(tanks, showTypeColumn) {
-  return tanks.map(function(t) {
-    return '<tr><td style="font-weight:600;">' + esc(t.name||'') + '</td>' +
-    (showTypeColumn ? '<td>' + tankTypeBadge(t) + '</td>' : '') +
-    '<td>' + esc(t.fuel_type||'—') + '</td>' +
-    '<td>' + tankLevelHtml(t) + '</td>' +
-    '<td>' + (t.capacity||0) + ' ' + esc(t.unit||'gal') + '</td>' +
-    '<td>' + esc(t.location||'—') + '</td>' +
-    '<td>' + ownershipBadge(t) + '</td>' +
-    '<td>' + statusBadge(t) + '</td></tr>';
-  }).join('');
-}
-
-function onTankSort(containerId, col) {
-  var container = document.getElementById(containerId);
-  if (container._tankSortCol === col) { container._tankSortDir = container._tankSortDir === 'asc' ? 'desc' : 'asc'; }
-  else { container._tankSortCol = col; container._tankSortDir = 'asc'; }
-  updateSortIndicators(container);
-  reRenderTankTable(containerId);
-}
-
-function onTankFilter(containerId, searchText) {
-  var container = document.getElementById(containerId);
-  container._tankSearch = searchText;
-  reRenderTankTable(containerId);
-}
-
-function reRenderTankTable(containerId) {
-  var container = document.getElementById(containerId);
-  var subtab = container.getAttribute('data-subtab') || 'all';
-  var tanks = getTanksForSubtab(subtab);
-  var filtered = filterTanks(tanks, container._tankSearch || '');
-  var sorted = sortTanks(filtered, container._tankSortCol || 'name', container._tankSortDir || 'asc');
-  var showTypeColumn = (subtab === 'all');
-  var tbody = container.querySelector('tbody');
-  if (tbody) tbody.innerHTML = renderTankRows(sorted, showTypeColumn);
-}
-
-function updateSortIndicators(container) {
-  var ths = container.querySelectorAll('th.sortable');
-  ths.forEach(function(th) { th.classList.remove('sorted-asc', 'sorted-desc'); });
-  var col = container._tankSortCol;
-  var th = container.querySelector('th[onclick*="' + col + '"]');
-  if (th) th.classList.add(container._tankSortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
-}
-
-function getTanksForSubtab(subtab) {
-  if (subtab === 'all') return allTanks;
-  if (subtab === 'equipment') return allTanks.filter(function(t) { return t.tank_type === 'equipment' || t.asset_id; });
-  return allTanks.filter(function(t) { return t.tank_type === subtab; });
-}
-
-function renderTanksForSubtab(subtab) {
-  var tanks = getTanksForSubtab(subtab);
-  var containerId, showType;
-  if (subtab === 'all') { containerId = 'allTanksContainer'; showType = true; }
-  else if (subtab === 'bulk') { containerId = 'bulkTanksContainer'; showType = false; }
-  else if (subtab === 'dragup') { containerId = 'dragupTanksContainer'; showType = false; }
-  else if (subtab === 'portable') { containerId = 'portableTanksContainer'; showType = false; }
-  else if (subtab === 'equipment') { containerId = 'equipmentTanksContainer'; showType = false; }
-  var container = document.getElementById(containerId);
-  container.setAttribute('data-subtab', subtab);
-  var headingText = subtab === 'all' ? 'All Fuel Tanks' : subtab === 'bulk' ? 'Bulk Tanks' : subtab === 'dragup' ? 'Drag-Up Tanks' : subtab === 'portable' ? 'Portable Gas Cans' : 'Equipment Fuel Tanks';
-  container.innerHTML = '<div class="section-heading">' + headingText + ' <span class="section-heading-count">' + tanks.length + ' tank' + (tanks.length !== 1 ? 's' : '') + '</span></div>';
-  var innerDiv = document.createElement('div');
-  innerDiv.id = containerId + '-inner';
-  container.appendChild(innerDiv);
-  renderTankTable(tanks, innerDiv.id, showType);
-}
-
-function updateTankStats() {
-  var total = allTanks.length;
-  var low = allTanks.filter(function(t) { return t.capacity > 0 && (t.current_quantity / t.capacity) < 0.2; }).length;
-  var totalGal = allTanks.reduce(function(sum, t) { return sum + (t.current_quantity || 0); }, 0);
-  var equipCount = allTanks.filter(function(t) { return t.tank_type === 'equipment' || t.asset_id; }).length;
-  document.getElementById('stat-total-tanks').textContent = total;
-  document.getElementById('stat-low-tanks').textContent = low;
-  document.getElementById('stat-total-gallons').textContent = totalGal.toLocaleString();
-  document.getElementById('stat-equipment-tanks').textContent = equipCount;
-}
-
-async function loadTanks() {
-  try {
-    var resp = await fetch('/api/fuel-tanks');
-    var data = await resp.json();
-    if (data.success && data.tanks) {
-      allTanks = data.tanks;
-      updateTankStats();
-      renderTanksForSubtab('all');
-    } else {
-      document.getElementById('allTanksContainer').innerHTML = '<div class="empty-state">Failed to load tanks.</div>';
-    }
-  } catch (e) {
-    document.getElementById('allTanksContainer').innerHTML = '<div class="empty-state">Error: ' + esc(e.message) + '</div>';
-  }
-}
-
-function txTypeLabel(type) {
-  var labels = { purchase: 'Purchase', bulk_issue: 'Bulk Issue', dragup_fill: 'Drag-Up Fill', dragup_issue: 'Drag-Up Issue', portable_fill: 'Can Fill', portable_issue: 'Can Issue', return: 'Return' };
-  return labels[type] || (type || '').replace(/_/g, ' ');
-}
-
-function txTypeCategory(type) {
-  if (type === 'purchase') return 'purchase';
-  if (type === 'return') return 'transfer';
-  if (type.indexOf('fill') !== -1) return 'transfer';
-  if (type.indexOf('issue') !== -1) return 'issue';
-  return 'other';
-}
-
-function getTxForSubtab(subtab) {
-  if (subtab === 'all') return allTransactions;
-  if (subtab === 'purchase') return allTransactions.filter(function(t) { return t.transaction_type === 'purchase'; });
-  if (subtab === 'issue') return allTransactions.filter(function(t) { return t.transaction_type && t.transaction_type.indexOf('issue') !== -1; });
-  if (subtab === 'transfer') return allTransactions.filter(function(t) { return t.transaction_type === 'return' || (t.transaction_type && t.transaction_type.indexOf('fill') !== -1); });
-  return allTransactions;
-}
-
-function renderTxTable(txs, containerId) {
-  var container = document.getElementById(containerId);
-  if (txs.length === 0) { container.innerHTML = '<div class="empty-state">No transactions found.</div>'; return; }
-  var filterId = containerId + '-filter';
-  var tableId = containerId + '-table';
-  container.innerHTML =
-    '<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="' + filterId + '" placeholder="Type, fuel, asset, person, project…" oninput="onTxFilter(\'' + containerId + '\', this.value)" style="flex:1;min-width:180px;"></div>' +
-    '<div class="fuel-table-wrap"><table class="fuel-table" id="' + tableId + '"><thead><tr>' +
-    '<th onclick="onTxSort(\'' + containerId + '\',\'transaction_date\')" class="sortable">Date <span class="sort-arrow"></span></th>' +
-    '<th onclick="onTxSort(\'' + containerId + '\',\'transaction_type\')" class="sortable">Type <span class="sort-arrow"></span></th>' +
-    '<th onclick="onTxSort(\'' + containerId + '\',\'fuel_type\')" class="sortable">Fuel <span class="sort-arrow"></span></th>' +
-    '<th onclick="onTxSort(\'' + containerId + '\',\'quantity\')" class="sortable">Qty <span class="sort-arrow"></span></th>' +
-    '<th onclick="onTxSort(\'' + containerId + '\',\'asset\')" class="sortable">Equipment <span class="sort-arrow"></span></th>' +
-    '<th onclick="onTxSort(\'' + containerId + '\',\'person\')" class="sortable">Person <span class="sort-arrow"></span></th>' +
-    '<th onclick="onTxSort(\'' + containerId + '\',\'project\')" class="sortable">Project <span class="sort-arrow"></span></th>' +
-    '</tr></thead><tbody id="' + tableId + '-body">' + renderTxRows(txs) + '</tbody></table></div>';
-  container._txSortCol = 'transaction_date';
-  container._txSortDir = 'desc';
-  updateTxSortIndicators(container);
-}
-
-function renderTxRows(txs) {
-  return txs.map(function(t) {
-    var date = t.transaction_date ? new Date(t.transaction_date).toLocaleDateString() : '—';
-    return '<tr><td>' + date + '</td><td>' + esc(txTypeLabel(t.transaction_type)) + '</td><td>' + esc(t.fuel_type||'—') + '</td><td style="font-weight:600;color:var(--primary);">' + (t.quantity||0) + ' gal</td><td>' + esc(t.asset_name||t.asset_number||'—') + '</td><td>' + esc(t.person||'—') + '</td><td>' + esc(t.project_name||'—') + '</td></tr>';
-  }).join('');
-}
-
-function onTxSort(containerId, col) {
-  var container = document.getElementById(containerId);
-  if (container._txSortCol === col) { container._txSortDir = container._txSortDir === 'asc' ? 'desc' : 'asc'; }
-  else { container._txSortCol = col; container._txSortDir = 'asc'; }
-  updateTxSortIndicators(container);
-  reRenderTxTable(containerId);
-}
-
-function onTxFilter(containerId, searchText) {
-  var container = document.getElementById(containerId);
-  container._txSearch = searchText;
-  reRenderTxTable(containerId);
-}
-
-function reRenderTxTable(containerId) {
-  var container = document.getElementById(containerId);
-  var subtab = container.getAttribute('data-subtab') || 'all';
-  var txs = getTxForSubtab(subtab);
-  var s = (container._txSearch || '').toLowerCase();
-  if (s) {
-    txs = txs.filter(function(t) {
-      var hay = [t.transaction_type, t.fuel_type, t.asset_name, t.asset_number, t.person, t.project_name].filter(Boolean).join(' ').toLowerCase();
-      return hay.indexOf(s) !== -1;
-    });
-  }
-  var sorted = sortTransactions(txs, container._txSortCol || 'transaction_date', container._txSortDir || 'desc');
-  var tbody = container.querySelector('tbody');
-  if (tbody) tbody.innerHTML = renderTxRows(sorted);
-}
-
-function updateTxSortIndicators(container) {
-  var ths = container.querySelectorAll('th.sortable');
-  ths.forEach(function(th) { th.classList.remove('sorted-asc', 'sorted-desc'); });
-  var col = container._txSortCol;
-  var th = container.querySelector('th[onclick*="' + col + '"]');
-  if (th) th.classList.add(container._txSortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
-}
-
-function renderTxForSubtab(subtab) {
-  var txs = getTxForSubtab(subtab);
-  var containerId;
-  if (subtab === 'all') containerId = 'allTxContainer';
-  else if (subtab === 'purchase') containerId = 'purchaseTxContainer';
-  else if (subtab === 'issue') containerId = 'issueTxContainer';
-  else if (subtab === 'transfer') containerId = 'transferTxContainer';
-  var container = document.getElementById(containerId);
-  container.setAttribute('data-subtab', subtab);
-  var headingText = subtab === 'all' ? 'All Fuel Transactions' : subtab === 'purchase' ? 'Fuel Purchases' : subtab === 'issue' ? 'Issues to Equipment' : 'Tank Transfers & Fills';
-  container.innerHTML = '<div class="section-heading">' + headingText + ' <span class="section-heading-count">' + txs.length + ' record' + (txs.length !== 1 ? 's' : '') + '</span></div>';
-  var innerDiv = document.createElement('div');
-  innerDiv.id = containerId + '-inner';
-  container.appendChild(innerDiv);
-  renderTxTable(txs, innerDiv.id);
-}
-
-async function loadTransactions() {
-  window._txLoaded = true;
-  try {
-    var resp = await fetch('/api/fuel-transactions');
-    var data = await resp.json();
-    if (data.success && data.transactions) {
-      allTransactions = data.transactions;
-      renderTxForSubtab('all');
-    } else {
-      document.getElementById('allTxContainer').innerHTML = '<div class="empty-state">Failed to load transactions.</div>';
-    }
-  } catch (e) {
-    document.getElementById('allTxContainer').innerHTML = '<div class="empty-state">Error: ' + esc(e.message) + '</div>';
-  }
-}
-
-async function init() {
-  document.addEventListener('dashSessionLoaded', async function() {
-    var user = window.dashUser;
-    if (!user) { window.location.href = '/public/login.html'; return; }
-    var role = (user.role || '').toLowerCase();
-    var dashUrl = role === 'admin' ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
-    var homeLink = document.getElementById('dashHomeLink');
-    if (homeLink) homeLink.href = dashUrl;
-    insertHeaderTitle();
-    makeTabsSticky();
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('dashboard').style.display = 'block';
-    await loadTanks();
-  });
-}
-
+var allTanks=[],allAssets=[],allTransactions=[];
+var tankSortColumn='created_at',tankSortDir='desc',txSortColumn='transaction_date',txSortDir='desc';
+var tankSearchText='',txSearchText='',txLocationFilter='',txFromDate='',txToDate='';
+function switchTab(tabName){document.querySelectorAll('.fuel-tab').forEach(function(t){t.classList.remove('active')});document.querySelectorAll('.fuel-tab-content').forEach(function(c){c.classList.remove('active')});document.querySelector('[data-tab="'+tabName+'"]').classList.add('active');document.getElementById('tab-'+tabName).classList.add('active');var tanksBar=document.getElementById('tanksSubtabBar');var txBar=document.getElementById('txSubtabBar');if(tanksBar)tanksBar.classList.toggle('visible',tabName==='tanks');if(txBar)txBar.classList.toggle('visible',tabName==='transactions');if(tabName==='transactions'&&!window._txLoaded)loadTransactions();}
+function switchTankSubtab(subtabName){document.querySelectorAll('#tanksSubtabBar .fuel-subtab').forEach(function(t){t.classList.remove('active')});document.querySelectorAll('.fuel-subtab-content[id^="tanks-subtab-"]').forEach(function(c){c.classList.remove('active')});document.querySelector('#tanksSubtabBar [data-subtab="'+subtabName+'"]').classList.add('active');document.getElementById('tanks-subtab-'+subtabName).classList.add('active');if(subtabName==='overview'){renderOverview();}else{renderTanksForSubtab(subtabName);}}
+function switchTxSubtab(subtabName){document.querySelectorAll('#txSubtabBar .fuel-subtab').forEach(function(t){t.classList.remove('active')});document.querySelectorAll('.fuel-subtab-content[id^="tx-subtab-"]').forEach(function(c){c.classList.remove('active')});document.querySelector('#txSubtabBar [data-subtab="'+subtabName+'"]').classList.add('active');document.getElementById('tx-subtab-'+subtabName).classList.add('active');renderTxForSubtab(subtabName);}
+function makeTabsSticky(){var header=document.getElementById('dashHeader');var tabBar=document.getElementById('fuelTabBar');if(header&&tabBar&&!header.contains(tabBar)){header.appendChild(tabBar);}var tanksBar=document.getElementById('tanksSubtabBar');var txBar=document.getElementById('txSubtabBar');if(header&&tanksBar&&!header.contains(tanksBar))header.appendChild(tanksBar);if(header&&txBar&&!header.contains(txBar))header.appendChild(txBar);}
+function insertHeaderTitle(){var row1=document.querySelector('.dash-header-row1');if(row1&&!document.querySelector('.fuel-header-title')){var title=document.createElement('div');title.className='fuel-header-title';title.textContent='Fuel Management';var logoArea=document.getElementById('dashCustomerLogoArea');var drivenLogo=row1.querySelector('.dash-driven-logo');if(logoArea&&drivenLogo){row1.insertBefore(title,drivenLogo);}}}
+window.dashLogout=function(){try{fetch('/auth/logout',{method:'POST'});}catch(e){}window.location.href='/public/login.html';};
+function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function tankLevelHtml(currentQty,capacity){var pct=capacity>0?Math.min(100,(currentQty/capacity)*100):0;var lowClass=pct<20?' low':'';return '<div class="tank-level-mini"><div class="tank-level-bar"><div class="tank-level-fill'+lowClass+'" style="width:'+pct+'%"></div></div><span class="tank-level-text">'+(currentQty||0)+'/'+(capacity||0)+'</span></div>';}
+function tankTypeBadge(t){var type=t.tank_type||'';var label=type;if(type==='bulk')label='Bulk';else if(type==='dragup')label='Drag-Up';else if(type==='portable')label='Gas Can';else if(type==='equipment')label='Equipment';return '<span class="tank-badge '+type+'">'+label+'</span>';}
+function ownershipBadge(t){if(!t.ownership_type||t.ownership_type==='company')return'';return '<span class="ownership-badge '+t.ownership_type+'">'+t.ownership_type+(t.owner_name?': '+esc(t.owner_name):'')+'</span>';}
+function statusBadge(t){var status=t.status||'active';return '<span class="status-badge '+status+'">'+status+'</span>';}
+function sortTanks(tanks,col,dir){var sorted=tanks.slice();sorted.sort(function(a,b){var av,bv;if(col==='name'){av=(a.name||'').toLowerCase();bv=(b.name||'').toLowerCase();}else if(col==='tank_type'){av=(a.tank_type||'').toLowerCase();bv=(b.tank_type||'').toLowerCase();}else if(col==='fuel_type'){av=(a.fuel_type||'').toLowerCase();bv=(b.fuel_type||'').toLowerCase();}else if(col==='level'){av=a.capacity>0?(a.current_quantity/a.capacity):0;bv=b.capacity>0?(b.current_quantity/b.capacity):0;}else if(col==='current_quantity'){av=a.current_quantity||0;bv=b.current_quantity||0;}else if(col==='capacity'){av=a.capacity||0;bv=b.capacity||0;}else if(col==='status'){av=(a.status||'').toLowerCase();bv=(b.status||'').toLowerCase();}else if(col==='location'){av=(a.location||'').toLowerCase();bv=(b.location||'').toLowerCase();}else{av=a.created_at||'';bv=b.created_at||'';}if(av<bv)return dir==='asc'?-1:1;if(av>bv)return dir==='asc'?1:-1;return 0;});return sorted;}
+function sortTransactions(txs,col,dir){var sorted=txs.slice();sorted.sort(function(a,b){var av,bv;if(col==='transaction_type'){av=(a.transaction_type||'').toLowerCase();bv=(b.transaction_type||'').toLowerCase();}else if(col==='fuel_type'){av=(a.fuel_type||'').toLowerCase();bv=(b.fuel_type||'').toLowerCase();}else if(col==='quantity'){av=a.quantity||0;bv=b.quantity||0;}else if(col==='asset'){av=(a.asset_name||a.asset_number||'').toLowerCase();bv=(b.asset_name||b.asset_number||'').toLowerCase();}else if(col==='project'){av=(a.project_name||'').toLowerCase();bv=(b.project_name||'').toLowerCase();}else if(col==='person'){av=(a.person||'').toLowerCase();bv=(b.person||'').toLowerCase();}else if(col==='location'){av=(a.location||'').toLowerCase();bv=(b.location||'').toLowerCase();}else{av=a.transaction_date||'';bv=b.transaction_date||'';}if(av<bv)return dir==='asc'?-1:1;if(av>bv)return dir==='asc'?1:-1;return 0;});return sorted;}
+function filterTanks(tanks,search){if(!search)return tanks;var s=search.toLowerCase();return tanks.filter(function(t){var hay=[t.name,t.tank_type,t.fuel_type,t.location,t.status,t.owner_name,t.ownership_type].filter(Boolean).join(' ').toLowerCase();return hay.indexOf(s)!==-1;});}
+function renderTankTable(tanks,containerId,showTypeColumn){var container=document.getElementById(containerId);if(tanks.length===0){container.innerHTML='<div class="empty-state">No tanks found.</div>';return;}var filterBarId=containerId+'-filter';var tableId=containerId+'-table';container.innerHTML='<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="'+filterBarId+'" placeholder="Name, type, fuel, location…" oninput="onTankFilter(\''+containerId+'\', this.value)" style="flex:1;min-width:180px;"></div><div class="fuel-table-wrap"><table class="fuel-table" id="'+tableId+'"><thead><tr><th onclick="onTankSort(\''+containerId+'\',\'name\')" class="sortable">Tank Name <span class="sort-arrow"></span></th>'+(showTypeColumn?'<th onclick="onTankSort(\''+containerId+'\',\'tank_type\')" class="sortable">Type <span class="sort-arrow"></span></th>':'')+'<th onclick="onTankSort(\''+containerId+'\',\'fuel_type\')" class="sortable">Fuel <span class="sort-arrow"></span></th><th onclick="onTankSort(\''+containerId+'\',\'level\')" class="sortable">Level <span class="sort-arrow"></span></th><th onclick="onTankSort(\''+containerId+'\',\'capacity\')" class="sortable">Capacity <span class="sort-arrow"></span></th><th onclick="onTankSort(\''+containerId+'\',\'location\')" class="sortable">Location <span class="sort-arrow"></span></th><th>Ownership</th><th onclick="onTankSort(\''+containerId+'\',\'status\')" class="sortable">Status <span class="sort-arrow"></span></th></tr></thead><tbody id="'+tableId+'-body">'+renderTankRows(tanks,showTypeColumn)+'</tbody></table></div>';container._tankSortCol='name';container._tankSortDir='asc';updateSortIndicators(container);}
+function renderTankRows(tanks,showTypeColumn){return tanks.map(function(t){return '<tr><td style="font-weight:600;">'+esc(t.name||'')+'</td>'+(showTypeColumn?'<td>'+tankTypeBadge(t)+'</td>':'')+'<td>'+esc(t.fuel_type||'—')+'</td><td>'+tankLevelHtml(t.current_quantity||0,t.capacity||0)+'</td><td>'+(t.capacity||0)+' '+esc(t.unit||'gal')+'</td><td>'+esc(t.location||'—')+'</td><td>'+ownershipBadge(t)+'</td><td>'+statusBadge(t)+'</td></tr>';}).join('');}
+function onTankSort(containerId,col){var container=document.getElementById(containerId);if(container._tankSortCol===col){container._tankSortDir=container._tankSortDir==='asc'?'desc':'asc';}else{container._tankSortCol=col;container._tankSortDir='asc';}updateSortIndicators(container);reRenderTankTable(containerId);}
+function onTankFilter(containerId,searchText){var container=document.getElementById(containerId);container._tankSearch=searchText;reRenderTankTable(containerId);}
+function reRenderTankTable(containerId){var container=document.getElementById(containerId);var subtab=container.getAttribute('data-subtab')||'all';var tanks=getTanksForSubtab(subtab);var filtered=filterTanks(tanks,container._tankSearch||'');var sorted=sortTanks(filtered,container._tankSortCol||'name',container._tankSortDir||'asc');var tbody=container.querySelector('tbody');if(tbody)tbody.innerHTML=renderTankRows(sorted,false);}
+function updateSortIndicators(container){var ths=container.querySelectorAll('th.sortable');ths.forEach(function(th){th.classList.remove('sorted-asc','sorted-desc');});var col=container._tankSortCol;var th=container.querySelector('th[onclick*="'+col+'"]');if(th)th.classList.add(container._tankSortDir==='asc'?'sorted-asc':'sorted-desc');}
+function getTanksForSubtab(subtab){if(subtab==='equipment')return allTanks.filter(function(t){return t.tank_type==='equipment'||t.asset_id;});return allTanks.filter(function(t){return t.tank_type===subtab;});}
+function renderTanksForSubtab(subtab){var tanks=getTanksForSubtab(subtab);var containerId;if(subtab==='bulk')containerId='bulkTanksContainer';else if(subtab==='dragup')containerId='dragupTanksContainer';else if(subtab==='portable')containerId='portableTanksContainer';else if(subtab==='equipment')containerId='equipmentTanksContainer';else return;var container=document.getElementById(containerId);container.setAttribute('data-subtab',subtab);var headingText=subtab==='bulk'?'Bulk Tanks':subtab==='dragup'?'Drag-Up Tanks':subtab==='portable'?'Portable Gas Cans':'Equipment Fuel Tanks';container.innerHTML='<div class="section-heading">'+headingText+' <span class="section-heading-count">'+tanks.length+' tank'+(tanks.length!==1?'s':'')+'</span></div>';var innerDiv=document.createElement('div');innerDiv.id=containerId+'-inner';container.appendChild(innerDiv);renderTankTable(tanks,innerDiv.id,false);}
+function getAllLocations(){var locs={};allTanks.forEach(function(t){if(t.location&&t.location.trim())locs[t.location.trim()]=true;});allAssets.forEach(function(a){if(a.current_location&&a.current_location.trim())locs[a.current_location.trim()]=true;});return Object.keys(locs).sort();}
+function populateLocationFilter(){var select=document.getElementById('overviewLocationFilter');if(!select)return;var currentVal=select.value;var locations=getAllLocations();select.innerHTML='<option value="">All Locations</option>'+locations.map(function(l){return '<option value="'+esc(l)+'">'+esc(l)+'</option>';}).join('');select.value=currentVal;}
+function getOverviewLocationFilter(){var select=document.getElementById('overviewLocationFilter');return select?select.value:'';}
+function renderOverview(){var container=document.getElementById('overviewContainer');if(!container)return;var locFilter=getOverviewLocationFilter();var filteredTanks=allTanks.filter(function(t){if(t.status==='inactive')return false;if(!locFilter)return true;return(t.location||'').trim()===locFilter;});var filteredAssets=allAssets.filter(function(a){if(a.status==='inactive')return false;if(!locFilter)return true;return(a.current_location||'').trim()===locFilter;});var bulkTanks=filteredTanks.filter(function(t){return t.tank_type==='bulk';});var dragupTanks=filteredTanks.filter(function(t){return t.tank_type==='dragup';});var portableTanks=filteredTanks.filter(function(t){return t.tank_type==='portable';});var equipmentTanks=filteredAssets.filter(function(a){return a.fuel_tank_capacity&&a.fuel_tank_capacity>0;});var totalGal=0,bulkGal=0,dragupGal=0,equipGal=0;bulkTanks.forEach(function(t){bulkGal+=(t.current_quantity||0);});dragupTanks.forEach(function(t){dragupGal+=(t.current_quantity||0);});equipGal=equipmentTanks.length;totalGal=bulkGal+dragupGal;document.getElementById('ov-stat-total-gal').textContent=totalGal.toLocaleString();document.getElementById('ov-stat-bulk-gal').textContent=bulkGal.toLocaleString();document.getElementById('ov-stat-dragup-gal').textContent=dragupGal.toLocaleString();document.getElementById('ov-stat-equip-gal').textContent=equipGal.toLocaleString();var html='';html+='<div class="overview-section"><div class="overview-section-title"><span class="icon">🛢️</span> Bulk Tanks <span class="count">('+bulkTanks.length+')</span></div>';if(bulkTanks.length===0){html+='<div class="empty-state">No bulk tanks.</div>';}else{html+='<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Current Qty</th><th>Capacity</th><th>Level</th><th>Location</th><th>Ownership</th></tr></thead><tbody>';bulkTanks.forEach(function(t){html+='<tr><td style="font-weight:600;">'+esc(t.name||'')+'</td><td>'+esc(t.fuel_type||'—')+'</td><td style="font-weight:600;color:var(--primary);">'+(t.current_quantity||0)+' gal</td><td>'+(t.capacity||0)+' gal</td><td>'+tankLevelHtml(t.current_quantity||0,t.capacity||0)+'</td><td>'+esc(t.location||'—')+'</td><td>'+ownershipBadge(t)+'</td></tr>';});html+='</tbody></table></div>';}html+='</div>';html+='<div class="overview-section"><div class="overview-section-title"><span class="icon">🚛</span> Drag-Up Tanks <span class="count">('+dragupTanks.length+')</span></div>';if(dragupTanks.length===0){html+='<div class="empty-state">No drag-up tanks.</div>';}else{html+='<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Current Qty</th><th>Capacity</th><th>Level</th><th>Location</th><th>Ownership</th></tr></thead><tbody>';dragupTanks.forEach(function(t){html+='<tr><td style="font-weight:600;">'+esc(t.name||'')+'</td><td>'+esc(t.fuel_type||'—')+'</td><td style="font-weight:600;color:var(--primary);">'+(t.current_quantity||0)+' gal</td><td>'+(t.capacity||0)+' gal</td><td>'+tankLevelHtml(t.current_quantity||0,t.capacity||0)+'</td><td>'+esc(t.location||'—')+'</td><td>'+ownershipBadge(t)+'</td></tr>';});html+='</tbody></table></div>';}html+='</div>';html+='<div class="overview-section"><div class="overview-section-title"><span class="icon">🏗️</span> Equipment Tanks <span class="count">('+equipmentTanks.length+')</span></div>';if(equipmentTanks.length===0){html+='<div class="empty-state">No equipment with known tank capacity.</div>';}else{html+='<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Asset #</th><th>Name</th><th>Fuel Type</th><th>Tank Capacity</th><th>Location</th><th>Ownership</th></tr></thead><tbody>';equipmentTanks.forEach(function(a){var ownBadge='';if(a.ownership_type&&a.ownership_type!=='company'){ownBadge='<span class="ownership-badge '+a.ownership_type+'">'+a.ownership_type+(a.owner_name?': '+esc(a.owner_name):'')+'</span>';}html+='<tr><td style="font-weight:600;">'+esc(a.asset_number||'')+'</td><td>'+esc(a.name||'—')+'</td><td>'+esc(a.fuel_type||'—')+'</td><td style="font-weight:600;color:var(--primary);">'+(a.fuel_tank_capacity||0)+' gal</td><td>'+esc(a.current_location||'—')+'</td><td>'+ownBadge+'</td></tr>';});html+='</tbody></table></div>';}html+='</div>';html+='<div class="overview-section"><div class="overview-section-title"><span class="icon">⛽</span> Portable Gas Cans <span class="count">('+portableTanks.length+')</span></div>';if(portableTanks.length===0){html+='<div class="empty-state">No portable gas cans.</div>';}else{var byLocation={};portableTanks.forEach(function(t){var loc=(t.location||'Unspecified').trim();if(!byLocation[loc])byLocation[loc]=[];byLocation[loc].push(t);});Object.keys(byLocation).sort().forEach(function(loc){var cans=byLocation[loc];var locTotal=cans.reduce(function(sum,t){return sum+(t.current_quantity||0);},0);html+='<div class="portable-loc-card"><div class="portable-loc-header"><span>📍 '+esc(loc)+' — '+cans.length+' can'+(cans.length!==1?'s':'')+'</span><span class="portable-loc-qty">'+locTotal.toLocaleString()+' gal on hand</span></div><div class="fuel-table-wrap" style="border:none;border-radius:0;"><table class="fuel-table"><thead><tr><th>Can Name</th><th>Fuel Type</th><th>Current Qty</th><th>Capacity</th><th>Level</th></tr></thead><tbody>';cans.forEach(function(t){html+='<tr><td style="font-weight:600;">'+esc(t.name||'')+'</td><td>'+esc(t.fuel_type||'—')+'</td><td style="font-weight:600;color:var(--primary);">'+(t.current_quantity||0)+' gal</td><td>'+(t.capacity||0)+' gal</td><td>'+tankLevelHtml(t.current_quantity||0,t.capacity||0)+'</td></tr>';});html+='</tbody></table></div></div>';});var projectTotals=computePortableProjectTotals(locFilter);if(projectTotals.length>0){html+='<div style="margin-top:16px;"><div class="overview-section-title" style="font-size:14px;border-bottom:1px solid var(--border);">Per-Project Running Totals (from transactions)</div><div class="fuel-table-wrap" style="margin-top:8px;"><table class="fuel-table"><thead><tr><th>Project</th><th>Total Portable Fuel Issued</th><th># Transactions</th></tr></thead><tbody>';projectTotals.forEach(function(p){html+='<tr><td style="font-weight:600;">'+esc(p.project_name||'Unassigned')+'</td><td style="font-weight:700;color:var(--primary);">'+p.total_gal.toLocaleString()+' gal</td><td>'+p.tx_count+'</td></tr>';});html+='</tbody></table></div></div>';}}html+='</div>';container.innerHTML=html;}
+function computePortableProjectTotals(locFilter){var byProject={};allTransactions.forEach(function(tx){if(tx.transaction_type!=='portable_issue')return;if(locFilter){if((tx.location||'').trim()!==locFilter)return;}var projName=tx.project_name||'Unassigned';if(!byProject[projName])byProject[projName]={project_name:projName,total_gal:0,tx_count:0};byProject[projName].total_gal+=(tx.quantity||0);byProject[projName].tx_count+=1;});return Object.values(byProject).sort(function(a,b){return b.total_gal-a.total_gal;});}
+async function loadTanks(){try{var tanksResp=await fetch('/api/fuel-tanks');var assetsResp=await fetch('/api/assets?status=active');var tanksData=await tanksResp.json();var assetsData=await assetsResp.json();if(tanksData.success&&tanksData.tanks){allTanks=tanksData.tanks;}if(assetsData.success&&assetsData.assets){allAssets=assetsData.assets;}populateLocationFilter();renderOverview();}catch(e){document.getElementById('overviewContainer').innerHTML='<div class="empty-state">Error: '+esc(e.message)+'</div>';}}
+function txTypeLabel(type){var labels={purchase:'Purchase',bulk_issue:'Bulk Issue',dragup_fill:'Drag-Up Fill',dragup_issue:'Drag-Up Issue',portable_fill:'Can Fill',portable_issue:'Can Issue',return:'Return'};return labels[type]||(type||'').replace(/_/g,' ');}
+function txTypeCategory(type){if(type==='purchase')return 'purchase';if(type==='return')return 'transfer';if(type.indexOf('fill')!==-1)return 'transfer';if(type.indexOf('issue')!==-1)return 'issue';return 'other';}
+function getTxForSubtab(subtab){if(subtab==='all')return allTransactions;if(subtab==='purchase')return allTransactions.filter(function(t){return t.transaction_type==='purchase';});if(subtab==='issue')return allTransactions.filter(function(t){return t.transaction_type&&t.transaction_type.indexOf('issue')!==-1;});if(subtab==='transfer')return allTransactions.filter(function(t){return t.transaction_type==='return'||(t.transaction_type&&t.transaction_type.indexOf('fill')!==-1);});return allTransactions;}
+function getTxLocations(){var locs={};allTransactions.forEach(function(t){if(t.location&&t.location.trim())locs[t.location.trim()]=true;});return Object.keys(locs).sort();}
+function applyTxFilters(txs){var s=(txSearchText||'').toLowerCase();var loc=txLocationFilter||'';var fromD=txFromDate||'';var toD=txToDate||'';return txs.filter(function(t){if(loc&&(t.location||'').trim()!==loc)return false;if(fromD&&(t.transaction_date||'')<fromD)return false;if(toD&&(t.transaction_date||'')>toD+'T23:59:59')return false;if(s){var hay=[t.transaction_type,t.fuel_type,t.asset_name,t.asset_number,t.person,t.project_name,t.location].filter(Boolean).join(' ').toLowerCase();if(hay.indexOf(s)===-1)return false;}return true;});}
+function computeTxTotals(txs){var totalGal=0,totalPurchases=0,totalIssues=0,txCount=txs.length;txs.forEach(function(t){totalGal+=(t.quantity||0);if(t.transaction_type==='purchase')totalPurchases+=(t.quantity||0);if(t.transaction_type&&t.transaction_type.indexOf('issue')!==-1)totalIssues+=(t.quantity||0);});return{totalGal:totalGal,totalPurchases:totalPurchases,totalIssues:totalIssues,txCount:txCount};}
+function renderTxTable(txs,containerId){var container=document.getElementById(containerId);if(txs.length===0&&!txSearchText&&!txLocationFilter&&!txFromDate&&!txToDate){container.innerHTML='<div class="empty-state">No transactions found.</div>';return;}var filterId=containerId+'-filter';var tableId=containerId+'-table';var locFilterId=containerId+'-locfilter';var fromId=containerId+'-from';var toId=containerId+'-to';var txLocs=getTxLocations();var locOptions='<option value="">All Locations</option>'+txLocs.map(function(l){return '<option value="'+esc(l)+'"'+(txLocationFilter===l?' selected':'')+'>'+esc(l)+'</option>';}).join('');container.innerHTML='<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="'+filterId+'" placeholder="Type, fuel, asset, person, project…" oninput="onTxFilter(\''+containerId+'\', this.value)" style="flex:1;min-width:140px;" value="'+esc(txSearchText)+'"><span class="fuel-filter-label">Location:</span><select id="'+locFilterId+'" onchange="onTxLocationFilter(\''+containerId+'\', this.value)">'+locOptions+'</select><span class="fuel-filter-label">From:</span><input type="date" id="'+fromId+'" onchange="onTxDateFilter(\''+containerId+'\', \'from\', this.value)" value="'+esc(txFromDate)+'"><span class="fuel-filter-label">To:</span><input type="date" id="'+toId+'" onchange="onTxDateFilter(\''+containerId+'\', \'to\', this.value)" value="'+esc(txToDate)+'"></div><div id="'+containerId+'-totals"></div><div class="fuel-table-wrap"><table class="fuel-table" id="'+tableId+'"><thead><tr><th onclick="onTxSort(\''+containerId+'\',\'transaction_date\')" class="sortable">Date <span class="sort-arrow"></span></th><th onclick="onTxSort(\''+containerId+'\',\'transaction_type\')" class="sortable">Type <span class="sort-arrow"></span></th><th onclick="onTxSort(\''+containerId+'\',\'fuel_type\')" class="sortable">Fuel <span class="sort-arrow"></span></th><th onclick="onTxSort(\''+containerId+'\',\'quantity\')" class="sortable">Qty <span class="sort-arrow"></span></th><th onclick="onTxSort(\''+containerId+'\',\'asset\')" class="sortable">Equipment <span class="sort-arrow"></span></th><th onclick="onTxSort(\''+containerId+'\',\'person\')" class="sortable">Person <span class="sort-arrow"></span></th><th onclick="onTxSort(\''+containerId+'\',\'project\')" class="sortable">Project <span class="sort-arrow"></span></th><th onclick="onTxSort(\''+containerId+'\',\'location\')" class="sortable">Location <span class="sort-arrow"></span></th></tr></thead><tbody id="'+tableId+'-body"></tbody></table></div>';container._txSortCol='transaction_date';container._txSortDir='desc';updateTxSortIndicators(container);reRenderTxTable(containerId);}
+function renderTxRows(txs){return txs.map(function(t){var date=t.transaction_date?new Date(t.transaction_date).toLocaleDateString():'—';return '<tr><td>'+date+'</td><td>'+esc(txTypeLabel(t.transaction_type))+'</td><td>'+esc(t.fuel_type||'—')+'</td><td style="font-weight:600;color:var(--primary);">'+(t.quantity||0)+' gal</td><td>'+esc(t.asset_name||t.asset_number||'—')+'</td><td>'+esc(t.person||'—')+'</td><td>'+esc(t.project_name||'—')+'</td><td>'+esc(t.location||'—')+'</td></tr>';}).join('');}
+function onTxSort(containerId,col){var container=document.getElementById(containerId);if(container._txSortCol===col){container._txSortDir=container._txSortDir==='asc'?'desc':'asc';}else{container._txSortCol=col;container._txSortDir='asc';}updateTxSortIndicators(container);reRenderTxTable(containerId);}
+function onTxFilter(containerId,searchText){txSearchText=searchText;reRenderTxTable(containerId);}
+function onTxLocationFilter(containerId,val){txLocationFilter=val;reRenderTxTable(containerId);}
+function onTxDateFilter(containerId,which,val){if(which==='from')txFromDate=val;else txToDate=val;reRenderTxTable(containerId);}
+function reRenderTxTable(containerId){var container=document.getElementById(containerId);var subtab=container.getAttribute('data-subtab')||'all';var txs=getTxForSubtab(subtab);var filtered=applyTxFilters(txs);var sorted=sortTransactions(filtered,container._txSortCol||'transaction_date',container._txSortDir||'desc');var tbody=container.querySelector('tbody');if(tbody)tbody.innerHTML=renderTxRows(sorted);var totalsDiv=document.getElementById(containerId+'-totals');if(totalsDiv){var totals=computeTxTotals(filtered);totalsDiv.innerHTML='<div class="tx-totals-bar"><div class="total-item"><span class="total-label">Records</span><span class="total-value">'+totals.txCount+'</span></div><div class="total-item"><span class="total-label">Total Gallons</span><span class="total-value gal">'+totals.totalGal.toLocaleString()+' gal</span></div><div class="total-item"><span class="total-label">Purchases</span><span class="total-value gal">'+totals.totalPurchases.toLocaleString()+' gal</span></div><div class="total-item"><span class="total-label">Issues to Equipment</span><span class="total-value gal">'+totals.totalIssues.toLocaleString()+' gal</span></div></div>';}}
+function updateTxSortIndicators(container){var ths=container.querySelectorAll('th.sortable');ths.forEach(function(th){th.classList.remove('sorted-asc','sorted-desc');});var col=container._txSortCol;var th=container.querySelector('th[onclick*="'+col+'"]');if(th)th.classList.add(container._txSortDir==='asc'?'sorted-asc':'sorted-desc');}
+function renderTxForSubtab(subtab){var txs=getTxForSubtab(subtab);var containerId;if(subtab==='all')containerId='allTxContainer';else if(subtab==='purchase')containerId='purchaseTxContainer';else if(subtab==='issue')containerId='issueTxContainer';else if(subtab==='transfer')containerId='transferTxContainer';var container=document.getElementById(containerId);container.setAttribute('data-subtab',subtab);var headingText=subtab==='all'?'All Fuel Transactions':subtab==='purchase'?'Fuel Purchases':subtab==='issue'?'Issues to Equipment':'Tank Transfers & Fills';container.innerHTML='<div class="section-heading">'+headingText+' <span class="section-heading-count">'+txs.length+' record'+(txs.length!==1?'s':'')+'</span></div>';var innerDiv=document.createElement('div');innerDiv.id=containerId+'-inner';container.appendChild(innerDiv);renderTxTable(txs,innerDiv.id);}
+async function loadTransactions(){window._txLoaded=true;try{var resp=await fetch('/api/fuel-transactions');var data=await resp.json();if(data.success&&data.transactions){allTransactions=data.transactions;renderTxForSubtab('all');}else{document.getElementById('allTxContainer').innerHTML='<div class="empty-state">Failed to load transactions.</div>';}}catch(e){document.getElementById('allTxContainer').innerHTML='<div class="empty-state">Error: '+esc(e.message)+'</div>';}}
+async function init(){document.addEventListener('dashSessionLoaded',async function(){var user=window.dashUser;if(!user){window.location.href='/public/login.html';return;}var role=(user.role||'').toLowerCase();var dashUrl=role==='admin'?'/app/dashboard/admin.html':'/app/dashboard/employee-dashboard.html';var homeLink=document.getElementById('dashHomeLink');if(homeLink)homeLink.href=dashUrl;insertHeaderTitle();makeTabsSticky();document.getElementById('loading').style.display='none';document.getElementById('dashboard').style.display='block';await loadTanks();});}
 init();
 </script>
-
 <script src="/app/shared/auth-check.js?v=8"></script>
 <script src="/components/nav.js?v=5"></script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" data-cf-beacon='{"token":"aed8feab3b60404ba88ec92f026bbcd6"}' crossorigin="anonymous"></script>
