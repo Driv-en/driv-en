@@ -11,7 +11,11 @@ const WORKER_ROUTES = {
   'fuel-transactions': 'https://driven-fuel.driv-en.workers.dev',
   'fuel-receipts':     'https://driven-fuel.driv-en.workers.dev',
   'fuel-flags':        'https://driven-fuel.driv-en.workers.dev',
+  'fuel-purchases':    'https://driven-fuel.driv-en.workers.dev',
+  'fuel-tank-types':   'https://driven-fuel.driv-en.workers.dev',
   'org-settings':      'https://driven-fuel.driv-en.workers.dev',
+  'log-error':         'https://driven-fuel.driv-en.workers.dev',
+  'module-subscriptions': 'https://driven-fuel.driv-en.workers.dev',
 
   // Equipment config worker
   'assets':            'https://driven-equipment-config.driv-en.workers.dev',
@@ -64,13 +68,16 @@ const WORKER_ROUTES = {
 };
 
 function findWorkerUrl(path) {
+  // path is like "/api/fuel-tanks" or "/api/fuel-tanks/123" or "/api/work-orders/abc/complete"
   const parts = path.replace(/^\/api\//, '').split('/');
   const prefix = parts[0];
 
+  // Direct match
   if (WORKER_ROUTES[prefix]) {
     return WORKER_ROUTES[prefix] + '/' + parts.join('/');
   }
 
+  // Try singular → plural (e.g., "asset" → "assets")
   const plural = prefix + 's';
   if (WORKER_ROUTES[plural]) {
     return WORKER_ROUTES[plural] + '/' + parts.join('/');
@@ -84,6 +91,7 @@ export async function onRequest(context) {
   const url = new URL(request.url);
   const path = url.pathname;
 
+  // CORS preflight
   if (request.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
@@ -95,6 +103,7 @@ export async function onRequest(context) {
     });
   }
 
+  // Health check
   if (path === '/api' || path === '/api/') {
     return new Response(JSON.stringify({
       success: true,
@@ -105,6 +114,7 @@ export async function onRequest(context) {
     });
   }
 
+  // Find the target worker URL
   const targetUrl = findWorkerUrl(path);
 
   if (!targetUrl) {
@@ -118,23 +128,40 @@ export async function onRequest(context) {
     });
   }
 
+  // Build the proxied request — preserve method, headers, body, query string
   const proxyUrl = targetUrl + (url.search || '');
 
   const proxyHeaders = new Headers(request.headers);
+  // Remove host header so fetch uses the worker URL
   proxyHeaders.delete('host');
+  // Cookie forwarding is automatic in Pages Functions (same-origin)
 
   const proxyOptions = {
     method: request.method,
     headers: proxyHeaders,
   };
 
+  // Forward body for POST/PUT/PATCH/DELETE
   if (request.method !== 'GET' && request.method !== 'HEAD') {
-    proxyOptions.body = await request.arrayBuffer();
+    const contentType = request.headers.get('Content-Type') || '';
+    if (contentType.includes('multipart/form-data')) {
+      // For multipart/form-data, stream the original request body directly.
+      // This preserves the Content-Type header with its boundary parameter.
+      // Reading as arrayBuffer and re-sending can lose the boundary, causing
+      // the worker to reject with 400 "multipart/form-data required".
+      proxyOptions.body = request.body;
+      // Remove our copied Content-Type so fetch regenerates it with the correct boundary
+      proxyHeaders.delete('Content-Type');
+    } else {
+      // For JSON and other body types, read as arrayBuffer
+      proxyOptions.body = await request.arrayBuffer();
+    }
   }
 
   try {
     const response = await fetch(proxyUrl, proxyOptions);
 
+    // Return the response with CORS headers
     const respHeaders = new Headers(response.headers);
     respHeaders.set('Access-Control-Allow-Origin', '*');
     respHeaders.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
