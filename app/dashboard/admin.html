@@ -28,12 +28,12 @@
 .admin-tab-content{display:none;}.admin-tab-content.active{display:block;}
 .admin-subtab-bar{display:none;gap:2px;max-width:1100px;margin:0 auto;padding:0 20px;overflow-x:auto;position:relative;z-index:1;background:#475569;border-bottom:2px solid #334155;}
 .admin-subtab-bar.visible{display:flex;}
-.admin-subtab{background:#22c55e;border:1px solid #16a34a;border-bottom:none;border-radius:8px 8px 0 0;padding:8px 18px;font-size:14px;font-weight:500;color:#fff;cursor:pointer;white-space:nowrap;transition:color 200ms ease,background 200ms ease,border-color 200ms ease,margin-top 200ms ease;margin-top:4px;position:relative;z-index:1;}
-.admin-subtab:hover{background:#16a34a;color:#fff;margin-top:2px;}
-.admin-subtab.active{color:#fff;background:#15803d;border-color:#22c55e;margin-top:0;font-weight:600;z-index:2;}
+.admin-subtab{background:#22c55e;border:1px solid #16a34a;border-bottom:none;border-radius:8px 8px 0 0;padding:8px 18px;font-size:14px;font-weight:500;color:#ffffff;cursor:pointer;white-space:nowrap;transition:color 200ms ease,background 200ms ease,border-color 200ms ease,margin-top 200ms ease;margin-top:4px;position:relative;z-index:1;}
+.admin-subtab:hover{background:#16a34a;color:#ffffff;margin-top:2px;}
+.admin-subtab.active{color:#ffffff;background:#15803d;border-color:#22c55e;margin-top:0;font-weight:600;z-index:2;}
 .admin-subtab-content{display:none;}.admin-subtab-content.active{display:block;margin-top:20px;}
 .admin-subtab-blue{background:#1e40af;border:1px solid #2563eb;border-bottom:none;border-radius:8px 8px 0 0;padding:8px 18px;font-size:14px;font-weight:600;color:#dbeafe;cursor:pointer;white-space:nowrap;margin-top:4px;margin-left:8px;position:relative;z-index:1;text-decoration:none;transition:background 200ms ease,margin-top 200ms ease;}
-.admin-subtab-blue:hover{background:#1d4ed8;color:#fff;margin-top:2px;}
+.admin-subtab-blue:hover{background:#1d4ed8;color:#ffffff;margin-top:2px;}
 .ob-progress-inline{width:100%;max-width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:16px 20px;box-sizing:border-box;}
 .ob-progress-inline h3{margin:0 0 10px 0;font-size:16px;color:var(--text);}
 .ob-progress-inline .progress-bar-container{margin-bottom:6px;}
@@ -183,6 +183,7 @@
 <div id="dashHeader"></div>
 <div class="admin-tab-bar" id="adminTabBar">
   <button class="admin-tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
+  <button class="admin-tab" data-tab="forms" onclick="switchTab('forms')">Forms</button>
   <button class="admin-tab" data-tab="settings" onclick="switchTab('settings')">Settings</button>
   <button class="admin-tab" data-tab="onboarding" onclick="switchTab('onboarding')">Onboarding</button>
   <button class="admin-tab-logout" onclick="dashLogout()">Logout</button>
@@ -208,6 +209,10 @@
       <div class="admin-module-card" onclick="window.location.href='/app/dashboard/transfers.html'"><div class="admin-module-title">Transfers</div><div class="admin-module-body">Equipment transfer tickets, status tracking, and delivery event trails.</div><div class="admin-module-link">Open →</div></div>
       <div class="admin-module-card" onclick="window.location.href='/app/dashboard/work-orders.html'"><div class="admin-module-title">Work Orders</div><div class="admin-module-body">Maintenance tickets, checklists, parts tracking, and completion status.</div><div class="admin-module-link">Open →</div></div>
     </div></div>
+  </div></div>
+  <div class="admin-tab-content" id="tab-forms"><div class="admin-main">
+    <div class="admin-welcome"><h2>Forms</h2><p>Select a form below to fill out and submit. As an admin, you have access to all forms.</p></div>
+    <div class="emp-form-links" id="adminFormsTabLinks" style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;"></div>
   </div></div>
   <div class="admin-tab-content" id="tab-settings"><div class="admin-main">
     <div class="admin-subtab-bar" id="settingsSubtabBar">
@@ -235,6 +240,18 @@
 <div class="confirm-modal" id="confirmModal"><div class="confirm-card"><h3>Mark Onboarding Complete?</h3><p>Once you confirm, the Onboarding tab will no longer be accessible. You can still manage Logo, Business Type, NAICS, and Key Personnel in the Settings tab. Key Personnel will be redirected to their assigned dashboards on next login.</p><p style="font-size:13px;color:var(--error);">You can reopen onboarding later from the Settings tab if needed.</p><div><button class="confirm-btn-cancel" onclick="closeCompleteModal()">Cancel</button><button class="confirm-btn-confirm" onclick="markOnboardingComplete()">Confirm &amp; Complete</button></div></div></div>
 <div id="dashFooter"></div>
 <script src="/app/shared/dashboard-common.js?v=8"></script>
+      <button class="confirm-btn-confirm" onclick="markOnboardingComplete()">Confirm &amp; Complete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== FOOTER ===== -->
+<div id="dashFooter"></div>
+
+<!-- ===== SHARED DASHBOARD JS ===== -->
+<script src="/app/shared/dashboard-common.js?v=8"></script>
+
+<!-- ===== PAGE-SPECIFIC JS ===== -->
 <script>
     /* ===== STATE ===== */
     var orgSettings = {};
@@ -243,7 +260,6 @@
     var pendingKP = [];
     var onboardingComplete = false;
 
-    /* ===== BUSINESS TYPE → DEFAULT STEP VISIBILITY ===== */
     var BUSINESS_TYPE_DEFAULTS = {
       "Construction":            { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": true, "projects": true, "equipment": true },
       "Manufacturing":           { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": false, "projects": false, "equipment": true },
@@ -272,6 +288,26 @@
       { key: "equipment",        label: "Equipment",           desc: "Equipment and assets to maintain", locked: true }
     ];
 
+    var FORMS = [
+      { key: 'fuel_log', label: 'Log Fuel Purchase', desc: 'Record a fuel purchase with receipt AI extraction', link: '/app/forms/fuel-purchase.html' },
+      { key: 'fuel_transfer', label: 'Log Fuel Transfer', desc: 'Transfer fuel between tanks or issue to equipment', link: '/app/forms/fuel-transfer.html' },
+      { key: 'transfer_create', label: 'Create Transfer', desc: 'Start an equipment transfer ticket', link: '/app/forms/transfer-create.html' },
+      { key: 'wo_create', label: 'Create Work Order', desc: 'Submit a maintenance request', link: '/app/forms/work-order-create.html' },
+      { key: 'inspection_add', label: 'Add Inspection', desc: 'Record an equipment inspection', link: '/app/forms/inspection.html' },
+      { key: 'safety_add', label: 'Safety Form', desc: 'Submit a safety form or hazard report', link: '/app/forms/safety.html' },
+      { key: 'pm_add', label: 'Add PM', desc: 'Create a preventive maintenance task', link: '/app/forms/pm.html' }
+    ];
+
+    function renderFormsTab() {
+      var container = document.getElementById('adminFormsTabLinks');
+      if (!container) return;
+      container.innerHTML = FORMS.map(function(f) {
+        return '<a href="' + f.link + '" style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:14px 16px;text-decoration:none;color:var(--text);transition:border-color 200ms ease;display:block;">' +
+          '<div style="font-size:14px;font-weight:600;margin-bottom:4px;">' + esc(f.label) + '</div>' +
+          '<div style="font-size:12px;color:var(--text-muted);">' + esc(f.desc) + '</div></a>';
+      }).join('');
+    }
+
     function switchTab(tabName) {
       if (visibilityDirty && document.getElementById('tab-onboarding').classList.contains('active') && tabName !== 'onboarding') {
         var proceed = confirm("You have unsaved Task Visibility changes.\n\nClick Cancel to go back and save, or OK to leave without saving.");
@@ -291,6 +327,7 @@
       var onboardingBar = document.getElementById('onboardingSubtabBar');
       if (settingsBar) settingsBar.classList.toggle('visible', tabName === 'settings');
       if (onboardingBar) onboardingBar.classList.toggle('visible', tabName === 'onboarding');
+      if (tabName === 'forms') renderFormsTab();
     }
 
     function switchSettingsSubtab(subtabName) {
@@ -862,17 +899,17 @@
 
     async function finalizeOnboarding() {
       var btn = document.getElementById("finalizeOnboardingBtn");
-      if (!confirm("Finalize onboarding?\n\nThis will remove all Key Personnel onboarding assignments and unlock role-based dashboards for your employees.\n\nClick OK to finalize, or Cancel to keep onboarding open.")) return;
+      if (!confirm("Finalize onboarding?\n\nThis will remove all Key Personnel onboarding assignments and unlock role-based dashboards for your employees (Owner, Admin, and department dashboards).\n\nAfter finalizing, future additions — new employees, equipment, locations, etc. — are managed by departments through their own dashboards, not the Onboarding Dashboard.\n\nClick OK to finalize, or Cancel to keep onboarding open.")) return;
       btn.disabled = true;
       btn.textContent = "Finalizing…";
       var customerId = localStorage.getItem("driven_customer_id");
       try {
         var revokeRes = await fetch("/api/onboarding/key-personnel/revoke", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerId: customerId, revokeAll: true }) });
         var revokeData = await revokeRes.json();
-        if (!revokeData.success) { alert("Failed: " + (revokeData.error || "Unknown error")); btn.disabled = false; btn.textContent = "Finalize Onboarding & Unlock Dashboards"; return; }
+        if (!revokeData.success) { alert("Failed to remove Key Personnel assignments: " + (revokeData.error || "Unknown error")); btn.disabled = false; btn.textContent = "Finalize Onboarding & Unlock Dashboards"; return; }
         var completeRes = await fetch("/auth/save-settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ settings: { onboarding_complete: true } }) });
         var completeData = await completeRes.json();
-        if (!completeData.success) { alert("Failed: " + (completeData.error || "Unknown error")); btn.disabled = false; btn.textContent = "Finalize Onboarding & Unlock Dashboards"; return; }
+        if (!completeData.success) { alert("Failed to mark onboarding complete: " + (completeData.error || "Unknown error")); btn.disabled = false; btn.textContent = "Finalize Onboarding & Unlock Dashboards"; return; }
         onboardingComplete = true;
         keyPersonnel = [];
         pendingKP = [];
@@ -881,9 +918,9 @@
         document.getElementById("reopenOnboardingBtn").style.display = "inline-block";
         hideOnboardingTab();
         switchTab("overview");
-        alert("Onboarding finalized!");
+        alert("Onboarding finalized!\n\nKey Personnel assignments have been removed. Your employees can now access their role-based dashboards. Future additions are managed by departments through their own dashboards.");
       } catch (e) {
-        console.error("Finalize error:", e.message); reportError("finalizeOnboarding", e);
+        console.error("Finalize onboarding error:", e.message); reportError("finalizeOnboarding", e);
         alert("Failed to finalize onboarding.");
         btn.disabled = false;
         btn.textContent = "Finalize Onboarding & Unlock Dashboards";
@@ -959,6 +996,7 @@
         await loadKeyPersonnel();
         updateProgress();
         updateThemeSwitch();
+        renderFormsTab();
         document.getElementById("loading").style.display = "none";
         document.getElementById("dashboard").style.display = "block";
         document.getElementById("stat-employees").textContent = localStorage.getItem("driven_employee_count") || "0";
