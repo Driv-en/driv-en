@@ -529,7 +529,7 @@ function resizeImage(file, maxDim) {
           var resized = new File([blob], file.name || 'receipt.jpg', { type: 'image/jpeg' });
           resolve(resized);
         } else { resolve(file); }
-      }, 'image/jpeg', 0.85);
+      }, 'image/jpeg', 0.70);
     };
     img.onerror = function() { URL.revokeObjectURL(url); resolve(file); };
     img.src = url;
@@ -549,10 +549,11 @@ async function handleReceiptUpload(input) {
   if (isPdf) {
     previewContent.innerHTML = '<div class="receipt-pdf-icon">📄</div><p style="font-size:14px;font-weight:600;margin:8px 0 0;">' + esc(file.name) + '</p><p style="font-size:12px;color:var(--text-muted);">PDF document</p>';
   } else {
-    // Resize image to max 1024px to stay within vision model token limit
+    // Resize image to max 768px to stay within vision model 128K token limit.
+    // A 1024px image still generates ~240K tokens; 768px at 70% quality stays well under 128K.
     status.className = 'receipt-extract-status loading';
     status.textContent = 'Optimizing image…';
-    file = await resizeImage(file, 1024);
+    file = await resizeImage(file, 768);
     if (_objectUrl) { URL.revokeObjectURL(_objectUrl); _objectUrl = null; }
     _objectUrl = URL.createObjectURL(file);
     previewContent.innerHTML = '<img class="receipt-preview-img" src="' + _objectUrl + '">';
