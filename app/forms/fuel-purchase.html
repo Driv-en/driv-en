@@ -564,9 +564,24 @@ async function handleReceiptUpload(input) {
   document.getElementById('aiConfidenceBanner').style.display = 'none';
 
   try {
-    var formData = new FormData();
-    formData.append('file', file);
-    var resp = await fetch('/api/fuel-receipts/extract', { method: 'POST', body: formData });
+    // Send as JSON with base64-encoded image to avoid multipart corruption
+    // by the Pages Functions proxy (which strips Content-Disposition headers).
+    var base64Data = await new Promise(function(resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function() { resolve(reader.result); };
+      reader.onerror = function() { reject(new Error('Failed to read file')); };
+      reader.readAsDataURL(file);
+    });
+
+    var resp = await fetch('/api/fuel-receipts/extract', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        file: base64Data,
+        fileName: file.name || 'receipt.jpg',
+        fileType: file.type || 'image/jpeg'
+      })
+    });
     if (!resp.ok) {
       var errBody = await resp.text().catch(function() { return ''; });
       var errMsg = 'Server returned ' + resp.status;
