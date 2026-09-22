@@ -3,7 +3,9 @@
 // ============================================================================
 // PURPOSE: Admin API for the Owner Dashboard's Customers section.
 //   GET  /api/admin/customers  — List all customers (organizations) with
-//   subscription info, employee counts, and order data.
+//   subscription info, employee counts, order data, and per-org operational
+//   counts (assets, work orders, transfers, fuel, receipts, inspections, PMs,
+//   manuals, extraction jobs).
 //
 // AUTH: Verifies the caller is logged in as DRIV-EN Founder by parsing
 //   the driv_en_session JWT cookie directly using Web Crypto API.
@@ -15,14 +17,9 @@
 //   - Var: SENDGRID_FROM_EMAIL = noreply@driv-en.com
 //   - Var: SUPPORT_CONTACT = support@driv-en.com
 //
-// LAST UPDATED: September 16, 2026 (Session 38) — rewrote to read from the
-//   `organizations` table (the real customer table driv-en uses). The old
-//   version JOINed customers→organizations on admin_email which did not
-//   exist, then read only from `customers` which is not the live table.
-//   Fixed: removed admin_email from organizations query (column doesn't exist
-//   in deployed schema); admin email now sourced from users table via org_id.
-//   Updated: filters out the platform owner org (org_type = 'platform') so
-//   the founder company does not appear as a customer.
+// LAST UPDATED: September 22, 2026 (Session 42) — added per-org enrichment
+//   queries for assets, work_orders, transfers, fuel_transactions,
+//   fuel_receipts, inspections, pm_records, manuals, and extraction_jobs.
 // ============================================================================
 
 const CORS_HEADERS = {
@@ -158,7 +155,6 @@ async function verifyFounder(request, env) {
 export async function onRequestGet(context) {
   const { request, env } = context;
 
-  // Handle CORS preflight
   if (request.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: CORS_HEADERS });
   }
@@ -170,11 +166,7 @@ export async function onRequestGet(context) {
     }
 
     // =====================================================================
-    // PRIMARY SOURCE: organizations table — this is the real customer table.
-    // Every org that signs up / activates is a customer.
-    // NOTE: The deployed organizations table does NOT have an admin_email
-    // column. The admin email lives in the users table (via org_id).
-    // The platform owner org (org_type = 'platform') is excluded.
+    // PRIMARY SOURCE: organizations table
     // =====================================================================
     let orgs = [];
     try {
@@ -193,8 +185,6 @@ export async function onRequestGet(context) {
 
     // =====================================================================
     // ENRICHMENT 1: admin emails + employee counts per org from users table
-    // The admin is the user with role RO-Founder or RO-admin; fall back to
-    // the earliest-created user in the org.
     // =====================================================================
     let userMap = {};
     let employeeMap = {};
@@ -207,9 +197,7 @@ export async function onRequestGet(context) {
       if (users.results) {
         for (const u of users.results) {
           if (!u.org_id) continue;
-          // Count employees per org
           employeeMap[u.org_id] = (employeeMap[u.org_id] || 0) + 1;
-          // Pick admin: prefer Founder role, then Admin role, then first user
           const isFounder = u.role_id === 'RO-Founder';
           const isAdmin = u.role_id === 'RO-admin';
           const existing = userMap[u.org_id];
@@ -223,7 +211,7 @@ export async function onRequestGet(context) {
     } catch (dbErr) { /* users table may not exist */ }
 
     // =====================================================================
-    // ENRICHMENT 2: order counts per org from orders table (if it exists)
+    // ENRICHMENT 2: order counts per org from orders table
     // =====================================================================
     let orderMap = {};
     try {
@@ -236,13 +224,10 @@ export async function onRequestGet(context) {
           orderMap[oc.org_id] = { order_count: oc.order_count, total_spent: oc.total_spent || 0 };
         }
       }
-    } catch (dbErr) {
-      // orders table may not exist — skip
-    }
+    } catch (dbErr) { /* orders table may not exist */ }
 
     // =====================================================================
-    // ENRICHMENT 3: customers table (legacy/checkout records) — match by
-    // admin_email so any data there is merged in
+    // ENRICHMENT 3: customers table (legacy/checkout records)
     // =====================================================================
     let customerMap = {};
     try {
@@ -257,9 +242,69 @@ export async function onRequestGet(context) {
           if (c.admin_email) customerMap[c.admin_email.toLowerCase()] = c;
         }
       }
-    } catch (dbErr) {
-      // customers table may not exist — skip
-    }
+    } catch (dbErr) { /* customers table may not exist */ }
+
+    // =====================================================================
+    // ENRICHMENT 4: Per-org counts from operational tables
+    // Each query is wrapped in try/catch so a missing/empty table returns 0
+    // without breaking the entire API response.
+    // =====================================================================
+    let assetMap = {}, woMap = {}, woCompletedMap = {}, transferMap = {};
+    let fuelTxMap = {}, receiptMap = {}, inspectionMap = {}, pmMap = {};
+    let manualMap = {}, extractionReceiptMap = {}, extractionManualMap = {};
+
+    try {
+      const r = await env.DB.prepare(`SELECT org_id, COUNT(*) as cnt FROM assets GROUP BY org_id`).all();
+      if (r.results) for (const row of r.results) assetMap[row.org_id] = row.cnt;
+    } catch (e) {}
+
+    try {
+      const r = await env.DB.prepare(`SELECT org_id, COUNT(*) as cnt FROM work_orders GROUP BY org_id`).all();
+      if (r.results) for (const row of r.results) woMap[row.org_id] = row.cnt;
+    } catch (e) {}
+    try {
+      const r = await env.DB.prepare(`SELECT org_id, COUNT(*) as cnt FROM work_orders WHERE status='completed' GROUP BY org_id`).all();
+      if (r.results) for (const row of r.results) woCompletedMap[row.org_id] = row.cnt;
+    } catch (e) {}
+
+    try {
+      const r = await env.DB.prepare(`SELECT org_id, COUNT(*) as cnt FROM transfers GROUP BY org_id`).all();
+      if (r.results) for (const row of r.results) transferMap[row.org_id] = row.cnt;
+    } catch (e) {}
+
+    try {
+      const r = await env.DB.prepare(`SELECT org_id, COUNT(*) as cnt FROM fuel_transactions GROUP BY org_id`).all();
+      if (r.results) for (const row of r.results) fuelTxMap[row.org_id] = row.cnt;
+    } catch (e) {}
+
+    try {
+      const r = await env.DB.prepare(`SELECT org_id, COUNT(*) as cnt FROM fuel_receipts GROUP BY org_id`).all();
+      if (r.results) for (const row of r.results) receiptMap[row.org_id] = row.cnt;
+    } catch (e) {}
+
+    try {
+      const r = await env.DB.prepare(`SELECT org_id, COUNT(*) as cnt FROM inspections GROUP BY org_id`).all();
+      if (r.results) for (const row of r.results) inspectionMap[row.org_id] = row.cnt;
+    } catch (e) {}
+
+    try {
+      const r = await env.DB.prepare(`SELECT org_id, COUNT(*) as cnt FROM pm_records WHERE status='completed' GROUP BY org_id`).all();
+      if (r.results) for (const row of r.results) pmMap[row.org_id] = row.cnt;
+    } catch (e) {}
+
+    try {
+      const r = await env.DB.prepare(`SELECT org_id, COUNT(*) as cnt FROM manuals GROUP BY org_id`).all();
+      if (r.results) for (const row of r.results) manualMap[row.org_id] = row.cnt;
+    } catch (e) {}
+
+    try {
+      const r = await env.DB.prepare(`SELECT org_id, COUNT(*) as cnt FROM extraction_jobs WHERE job_type='receipt' GROUP BY org_id`).all();
+      if (r.results) for (const row of r.results) extractionReceiptMap[row.org_id] = row.cnt;
+    } catch (e) {}
+    try {
+      const r = await env.DB.prepare(`SELECT org_id, COUNT(*) as cnt FROM extraction_jobs WHERE job_type='manual' GROUP BY org_id`).all();
+      if (r.results) for (const row of r.results) extractionManualMap[row.org_id] = row.cnt;
+    } catch (e) {}
 
     // =====================================================================
     // Build the customer list from organizations
@@ -270,7 +315,6 @@ export async function onRequestGet(context) {
       const empCount = employeeMap[o.id] || 0;
       const oc = orderMap[o.id] || { order_count: 0, total_spent: 0 };
 
-      // Parse activated_modules (may be JSON string or comma list)
       let modules = o.activated_modules;
       if (modules) {
         try { modules = JSON.parse(modules); } catch (e) {
@@ -281,22 +325,20 @@ export async function onRequestGet(context) {
       const subStatus = o.subscription_status || o.status || (legacy ? legacy.status : null) || 'unknown';
 
       return {
-        // Identity
         org_id: o.id,
         customer_id: legacy ? legacy.customer_id : o.id,
         company_name: o.name || (legacy ? legacy.company_name : null) || 'Unknown',
         admin_email: (adminUser && adminUser.email) || (legacy ? legacy.admin_email : null),
-        email: (adminUser && adminUser.email) || (legacy ? legacy.admin_email : null), // alias for dashboard
-        contact_email: (adminUser && adminUser.email) || (legacy ? legacy.admin_email : null), // alias for dashboard
+        email: (adminUser && adminUser.email) || (legacy ? legacy.admin_email : null),
+        contact_email: (adminUser && adminUser.email) || (legacy ? legacy.admin_email : null),
         admin_name: adminUser ? [adminUser.first_name, adminUser.last_name].filter(Boolean).join(' ') : null,
-        contact_name: adminUser ? [adminUser.first_name, adminUser.last_name].filter(Boolean).join(' ') : null, // alias for dashboard
+        contact_name: adminUser ? [adminUser.first_name, adminUser.last_name].filter(Boolean).join(' ') : null,
         admin_phone: legacy ? legacy.admin_phone : null,
         billing_address: legacy ? legacy.billing_address : null,
         city: legacy ? legacy.city : null,
         state: legacy ? legacy.state : null,
         zip: legacy ? legacy.zip : null,
 
-        // Subscription
         subscription_status: subStatus,
         subscription_type: legacy ? legacy.subscription_type : o.plan || null,
         activation_date: legacy ? legacy.activation_date : (o.created_at || null),
@@ -307,17 +349,22 @@ export async function onRequestGet(context) {
         activation_code: o.activation_code || null,
         activation_complete: o.activation_complete || null,
 
-        // Counts
+        // Counts — populated from live D1 queries
         employee_count: empCount,
         order_count: oc.order_count,
         total_spent: oc.total_spent,
-        asset_count: 0,
-        pm_count: 0,
-        wo_count: 0,
-        transfer_count: 0,
-        fuel_count: 0,
+        asset_count: assetMap[o.id] || 0,
+        pm_count: pmMap[o.id] || 0,
+        wo_count: woMap[o.id] || 0,
+        wo_completed_count: woCompletedMap[o.id] || 0,
+        transfer_count: transferMap[o.id] || 0,
+        fuel_count: fuelTxMap[o.id] || 0,
+        receipt_count: receiptMap[o.id] || 0,
+        inspection_count: inspectionMap[o.id] || 0,
+        manual_count: manualMap[o.id] || 0,
+        extraction_receipt_count: extractionReceiptMap[o.id] || 0,
+        extraction_manual_count: extractionManualMap[o.id] || 0,
 
-        // Meta
         created_at: o.created_at || null
       };
     });
@@ -330,7 +377,6 @@ export async function onRequestGet(context) {
   }
 }
 
-// Handle POST (for future customer management actions)
 export async function onRequestPost(context) {
   const { request, env } = context;
 
@@ -345,7 +391,6 @@ export async function onRequestPost(context) {
     }
 
     const body = await request.json();
-    // Future: handle customer actions (update status, etc.)
     return jsonResponse({ success: false, error: 'No POST actions implemented yet' }, 400);
   } catch (err) {
     console.error('[ADMIN-CUSTOMERS] POST Error:', err.message, err.stack);
