@@ -187,7 +187,9 @@
         </div>
         <div class="purchase-field">
           <label class="purchase-label">Location</label>
-          <input type="text" id="purchaseLocation" class="purchase-input" placeholder="e.g., Yard A">
+          <select id="purchaseLocation" class="purchase-input" onchange="handleLocationChange(this)">
+            <option value="">Select location…</option>
+          </select>
         </div>
         <div class="purchase-field">
           <label class="purchase-label">User</label>
@@ -513,7 +515,7 @@ function resizeImage(file, maxDim) {
   return new Promise(function(resolve, reject) {
     if (!file.type.startsWith('image/')) { resolve(file); return; }
     var img = new Image();
-    var url = URL.createObjectURL(file);
+    url = URL.createObjectURL(file);
     img.onload = function() {
       URL.revokeObjectURL(url);
       var w = img.width, h = img.height;
@@ -549,11 +551,10 @@ async function handleReceiptUpload(input) {
   if (isPdf) {
     previewContent.innerHTML = '<div class="receipt-pdf-icon">📄</div><p style="font-size:14px;font-weight:600;margin:8px 0 0;">' + esc(file.name) + '</p><p style="font-size:12px;color:var(--text-muted);">PDF document</p>';
   } else {
-    // Resize image to max 768px to stay within vision model 128K token limit.
-    // A 1024px image still generates ~240K tokens; 768px at 70% quality stays well under 128K.
+    // Resize image to max 1024px for vision model text clarity.
     status.className = 'receipt-extract-status loading';
     status.textContent = 'Optimizing image…';
-    file = await resizeImage(file, 768);
+    file = await resizeImage(file, 1024);
     if (_objectUrl) { URL.revokeObjectURL(_objectUrl); _objectUrl = null; }
     _objectUrl = URL.createObjectURL(file);
     previewContent.innerHTML = '<img class="receipt-preview-img" src="' + _objectUrl + '">';
@@ -565,7 +566,6 @@ async function handleReceiptUpload(input) {
 
   try {
     // Send as JSON with base64-encoded image to avoid multipart corruption
-    // by the Pages Functions proxy (which strips Content-Disposition headers).
     var base64Data = await new Promise(function(resolve, reject) {
       var reader = new FileReader();
       reader.onload = function() { resolve(reader.result); };
@@ -787,6 +787,54 @@ async function loadTankTypes() {
   }
 }
 
+async function loadAssets() {
+  try {
+    var resp = await fetch('/api/assets');
+    if (!resp.ok) throw new Error('Failed to load assets: ' + resp.status);
+    var data = await resp.json();
+    if (data.success && data.assets) {
+      allAssets = data.assets.filter(function(a) { return a.status === 'active'; });
+    }
+    var locations = {};
+    allAssets.forEach(function(a) {
+      if (a.current_location && a.current_location.trim()) {
+        locations[a.current_location.trim()] = true;
+      }
+    });
+    allTanks.forEach(function(t) {
+      if (t.location && t.location.trim()) {
+        locations[t.location.trim()] = true;
+      }
+    });
+    var locSelect = document.getElementById('purchaseLocation');
+    if (locSelect) {
+      var currentVal = locSelect.value;
+      var html = '<option value="">Select location…</option>';
+      Object.keys(locations).sort().forEach(function(loc) {
+        html += '<option value="' + esc(loc) + '">' + esc(loc) + '</option>';
+      });
+      html += '<option value="__custom">+ Other (type manually)</option>';
+      locSelect.innerHTML = html;
+      if (currentVal) locSelect.value = currentVal;
+    }
+  } catch (e) {
+    console.error('Error loading assets:', e.message);
+    reportError('loadAssets', e);
+  }
+}
+
+function handleLocationChange(sel) {
+  if (sel.value === '__custom') {
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.id = 'purchaseLocation';
+    input.className = 'purchase-input';
+    input.placeholder = 'Type location name';
+    sel.parentNode.replaceChild(input, sel);
+    input.focus();
+  }
+}
+
 /* ===== INIT ===== */
 function initPurchaseForm() {
   var today = localDate();
@@ -823,6 +871,7 @@ document.addEventListener('dashSessionLoaded', async function() {
 
   await loadTankTypes();
   await loadTanks();
+  await loadAssets();
   initPurchaseForm();
 });
 </script>
