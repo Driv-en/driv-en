@@ -6,7 +6,6 @@
 //   2. Sticky tabs CSS added to .owner-tab-bar
 //   3. Logo loads from /auth/get-logo as fallback if localStorage is empty
 //   4. Error handler integration (DRIVENErrorHandler)
-//   5. Logout now redirects to /public/login.html (not founder-login.html)
 // =========================================================================
 
 var allPartners = [];
@@ -45,21 +44,15 @@ function updateThemeSwitch() {
 }
 
 // ---- Logo Management ----
-// The owner logo is stored SERVER-SIDE in the app_settings table (key: owner_logo)
-// via the /api/admin/app-settings Pages Function. This makes it visible from
-// any device the owner logs into — NOT just the device where it was uploaded.
-// localStorage is no longer used for the logo.
 function loadOwnerLogo() {
   var container = document.getElementById('ownerLogoContainer');
   var preview = document.getElementById('settingsLogoPreview');
   var removeBtn = document.getElementById('logoRemoveBtn');
 
-  // Show placeholder immediately while we fetch from server
   container.innerHTML = '<div class="dash-customer-logo-placeholder">DSI Logo</div>';
   preview.innerHTML = '<div class="settings-logo-placeholder">No logo uploaded</div>';
   if (removeBtn) removeBtn.style.display = 'none';
 
-  // Fetch the logo from the server (app_settings table, key=owner_logo)
   fetch('/api/admin/app-settings?key=owner_logo')
     .then(function(res) { return res.json(); })
     .then(function(data) {
@@ -70,7 +63,6 @@ function loadOwnerLogo() {
       }
     })
     .catch(function(e) {
-      // Endpoint may not exist yet — keep placeholder
     });
 }
 
@@ -88,7 +80,6 @@ function handleLogoUpload(event) {
   reader.onload = function(e) {
     var logoData = e.target.result;
 
-    // Save to server (app_settings table) so it's visible from any device
     fetch('/api/admin/app-settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -115,7 +106,6 @@ function handleLogoUpload(event) {
 }
 
 function removeLogo() {
-  // Clear the server-side logo by saving an empty value
   fetch('/api/admin/app-settings', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -461,7 +451,7 @@ function renderSessionsTable() {
     var data = await resp.json();
 
     if (!data.authenticated) {
-      window.location.href = '/public/login.html';
+      window.location.href = '/app/auth/founder-login.html';
       return;
     }
 
@@ -475,7 +465,7 @@ function renderSessionsTable() {
     initOwnerDashboard();
   } catch (e) {
     console.error('Auth check failed:', e);
-    window.location.href = '/public/login.html';
+    window.location.href = '/app/auth/founder-login.html';
   }
 })();
 
@@ -487,7 +477,6 @@ function initOwnerDashboard() {
   updateThemeSwitch();
   loadOwnerLogo();
 
-  // Add sticky positioning to tab bar
   var tabBar = document.querySelector('.owner-tab-bar');
   var header = document.querySelector('.dash-header');
   if (tabBar && header) {
@@ -563,6 +552,7 @@ function switchTab(tabName) {
     loadCustomers();
   } else if (tabName === 'system') {
     loadSystemStatus();
+    loadAIUsage();
   } else if (tabName === 'issues') {
     loadIssues();
   } else if (tabName === 'settings') {
@@ -1135,10 +1125,13 @@ function renderCustomersTable() {
   html += '<th style="padding:10px 8px;cursor:pointer;color:#334155;" onclick="sortByCustomerField(\'company_name\')">Customer Name</th>';
   html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Employees</th>';
   html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Assets</th>';
+  html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Inspections</th>';
   html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Completed PMs</th>';
   html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Completed WOs</th>';
   html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Equipment Transfers</th>';
   html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Fuel Purchases</th>';
+  html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Receipts (AI)</th>';
+  html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Manuals (AI)</th>';
   html += '</tr></thead><tbody>';
 
   for (var i = 0; i < pageData.length; i++) {
@@ -1146,43 +1139,57 @@ function renderCustomersTable() {
     var name = escapeHtml(c.company_name || c.organization_name || c.name || 'Unknown');
     var empCount = c.employee_count || 0;
     var assetCount = c.asset_count || 0;
+    var inspCount = c.inspection_count || 0;
     var pmCount = c.pm_count || 0;
     var woCount = c.wo_count || 0;
     var transferCount = c.transfer_count || 0;
     var fuelCount = c.fuel_count || 0;
+    var receiptCount = c.receipt_count || 0;
+    var manualCount = c.manual_count || 0;
     var idx = startIdx + i;
     html += '<tr class="owner-customer-row" data-idx="' + idx + '" onclick="showCustomerDetail(' + idx + ')" style="cursor:pointer;border-bottom:1px solid #e2e8f0;color:#1e293b;transition:background 0.15s;" onmouseover="this.style.background=\'#f1f5f9\'" onmouseout="this.style.background=\'#ffffff\'">';
     html += '<td style="padding:10px 8px;font-weight:500;color:#1e293b;">' + name + '</td>';
     html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + empCount + '</td>';
     html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + assetCount + '</td>';
+    html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + inspCount + '</td>';
     html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + pmCount + '</td>';
     html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + woCount + '</td>';
     html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + transferCount + '</td>';
     html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + fuelCount + '</td>';
+    html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + receiptCount + '</td>';
+    html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + manualCount + '</td>';
     html += '</tr>';
   }
 
-  var totEmp = 0, totAsset = 0, totPM = 0, totWO = 0, totTransfer = 0, totFuel = 0;
+  // Totals row
+  var totEmp = 0, totAsset = 0, totInsp = 0, totPM = 0, totWO = 0, totTransfer = 0, totFuel = 0, totReceipt = 0, totManual = 0;
   filtered.forEach(function(c) {
     totEmp += c.employee_count || 0;
     totAsset += c.asset_count || 0;
+    totInsp += c.inspection_count || 0;
     totPM += c.pm_count || 0;
     totWO += c.wo_count || 0;
     totTransfer += c.transfer_count || 0;
     totFuel += c.fuel_count || 0;
+    totReceipt += c.receipt_count || 0;
+    totManual += c.manual_count || 0;
   });
   html += '<tr style="border-top:2px solid #e2e8f0;font-weight:700;background:#f8fafc;color:#1e293b;">';
   html += '<td style="padding:10px 8px;color:#1e293b;">TOTAL (' + filtered.length + ' customers)</td>';
   html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totEmp + '</td>';
   html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totAsset + '</td>';
+  html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totInsp + '</td>';
   html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totPM + '</td>';
   html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totWO + '</td>';
   html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totTransfer + '</td>';
   html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totFuel + '</td>';
+  html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totReceipt + '</td>';
+  html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totManual + '</td>';
   html += '</tr>';
 
   html += '</tbody></table></div>';
 
+  // Pagination controls
   if (totalPages > 1) {
     html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;">';
     html += '<span style="font-size:13px;color:var(--text-muted);">Page ' + customerCurrentPage + ' of ' + totalPages + ' (' + filtered.length + ' customers)</span>';
@@ -1244,6 +1251,14 @@ function showCustomerDetail(idx) {
     html += '<div><strong>Referrer:</strong><br>' + escapeHtml(c.referrer) + '</div>';
   }
   html += '<div><strong>Employees:</strong><br>' + (c.employee_count || 0) + '</div>';
+  html += '<div><strong>Assets:</strong><br>' + (c.asset_count || 0) + '</div>';
+  html += '<div><strong>Inspections:</strong><br>' + (c.inspection_count || 0) + '</div>';
+  html += '<div><strong>Completed PMs:</strong><br>' + (c.pm_count || 0) + '</div>';
+  html += '<div><strong>Work Orders:</strong><br>' + (c.wo_count || 0) + '</div>';
+  html += '<div><strong>Equipment Transfers:</strong><br>' + (c.transfer_count || 0) + '</div>';
+  html += '<div><strong>Fuel Purchases:</strong><br>' + (c.fuel_count || 0) + '</div>';
+  html += '<div><strong>Receipts (AI):</strong><br>' + (c.receipt_count || 0) + '</div>';
+  html += '<div><strong>Manuals (AI):</strong><br>' + (c.manual_count || 0) + '</div>';
   html += '<div><strong>Orders:</strong><br>' + (c.order_count || 0) + '</div>';
   html += '</div>';
   html += '</div>';
@@ -1358,6 +1373,61 @@ async function loadSystemStatus() {
 
   document.getElementById('sysD1Users').textContent = '— (not yet queried)';
   document.getElementById('sysR2W9').textContent = '— (not yet queried)';
+}
+
+// =========================================================================
+// AI USAGE
+// =========================================================================
+
+async function loadAIUsage() {
+  try {
+    var resp = await fetch('/api/admin/customers');
+    var data = await resp.json();
+    if (!data.success || !data.customers) {
+      document.getElementById('ai-usage-detail').textContent = 'No AI usage data available yet.';
+      return;
+    }
+
+    var customers = data.customers;
+    var totReceipts = 0, totManuals = 0, totExtractions = 0;
+    customers.forEach(function(c) {
+      totReceipts += c.receipt_count || 0;
+      totManuals += c.manual_count || 0;
+      totExtractions += (c.extraction_receipt_count || 0) + (c.extraction_manual_count || 0);
+    });
+
+    document.getElementById('ai-stat-extractions').textContent = totReceipts + totManuals;
+    document.getElementById('ai-stat-success').textContent = totReceipts;
+    document.getElementById('ai-stat-failed').textContent = totManuals;
+    document.getElementById('ai-stat-avgtime').textContent = '—';
+
+    var detailEl = document.getElementById('ai-usage-detail');
+    var html = '<strong>AI Extraction Summary (All Customers)</strong><br>';
+    html += 'Receipt uploads (AI): ' + totReceipts + '<br>';
+    html += 'Manual uploads (AI): ' + totManuals + '<br>';
+    html += 'Total AI extractions: ' + totExtractions + '<br><br>';
+    html += '<strong>Per Customer:</strong>';
+    html += '<div style="margin-top:8px;max-height:200px;overflow-y:auto;">';
+    customers.forEach(function(c) {
+      var name = c.company_name || 'Unknown';
+      var rc = c.receipt_count || 0;
+      var mc = c.manual_count || 0;
+      if (rc > 0 || mc > 0) {
+        html += '<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;">';
+        html += _escHtml(name) + ' — Receipts: ' + rc + ' · Manuals: ' + mc;
+        html += '</div>';
+      }
+    });
+    html += '</div>';
+    detailEl.innerHTML = html;
+  } catch (e) {
+    document.getElementById('ai-usage-detail').textContent = 'Unable to load AI usage data.';
+  }
+}
+
+function _escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 // =========================================================================
