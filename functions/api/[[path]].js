@@ -143,12 +143,12 @@ export async function onRequest(context) {
 
   // Forward body for POST/PUT/PATCH/DELETE
   if (request.method !== 'GET' && request.method !== 'HEAD') {
-    // Forward the raw body as arrayBuffer with the original Content-Type header.
-    // This preserves the multipart boundary AND the file metadata (name, type)
-    // embedded in the multipart body. The worker uses includes() (not startsWith())
-    // so it accepts the Content-Type regardless of parameter formatting.
-    // Previous approaches that parsed formData() lost the file's name and type.
-    proxyOptions.body = await request.arrayBuffer();
+    // Stream the raw body directly (ReadableStream passthrough).
+    // This preserves the multipart boundary AND the file metadata (filename,
+    // content-type) embedded in the multipart Content-Disposition headers.
+    // Using arrayBuffer() causes fetch() to re-encode the body and strip
+    // filenames, making formData.get("file") return a string instead of a File.
+    proxyOptions.body = request.body;
   }
 
   try {
