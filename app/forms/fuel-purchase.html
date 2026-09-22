@@ -252,6 +252,7 @@
       <div class="purchase-field purchase-field-full" style="margin-bottom:20px;">
         <label class="purchase-label">Notes</label>
         <input type="text" id="purchaseNotes" class="purchase-input" placeholder="Optional — e.g., PO number, delivery ticket #, price per gallon quote, who authorized">
+        <!-- TODO: When multi-language module is enabled, translate notes field from user's preferred language to org primary language using @cf/meta/m2m100-1.2b. Store both original and translated. See build report Session 9c multi-language spec. -->
       </div>
 
       <!-- Submit -->
@@ -455,6 +456,7 @@ function addLineItem(data) {
   var bulkTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'bulk' && t.status === 'active'; }));
   var dragupTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'dragup' && t.status === 'active'; }));
   var portableTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'portable' && t.status === 'active'; }));
+  var equipmentAssets = allAssets.filter(function(a) { return a.status === 'active'; });
 
   var tankOptions = '<option value="">Select asset…</option>';
   if (bulkTanks.length > 0) {
@@ -478,6 +480,14 @@ function addLineItem(data) {
     portableTanks.forEach(function(t) {
       var label = esc(t.name) + (t.fuel_type ? ' (' + esc(t.fuel_type) + ')' : '') + (t.location ? ' — ' + esc(t.location) : '');
       tankOptions += '<option value="portable_can|' + esc(t.id) + '">' + label + '</option>';
+    });
+    tankOptions += '</optgroup>';
+  }
+  if (equipmentAssets.length > 0) {
+    tankOptions += '<optgroup label="Equipment / Assets">';
+    equipmentAssets.forEach(function(a) {
+      var label = esc(a.asset_number || a.id.slice(0,8)) + ' — ' + esc(a.name || 'Unnamed') + (a.fuel_type ? ' (' + esc(a.fuel_type) + ')' : '');
+      tankOptions += '<option value="asset|' + esc(a.id) + '">' + label + '</option>';
     });
     tankOptions += '</optgroup>';
   }
@@ -569,20 +579,19 @@ function showCropOverlay(file, callback) {
   var isPdf = file.type === 'application/pdf' || (file.name || '').toLowerCase().endsWith('.pdf');
   if (isPdf) { callback(file); return; }
 
+  var imgUrl = URL.createObjectURL(file);
   var img = new Image();
-  var url = URL.createObjectURL(file);
   img.onload = function() {
-    URL.revokeObjectURL(url);
-    _buildCropUI(file, img, callback);
+    _buildCropUI(file, img, imgUrl, callback);
   };
   img.onerror = function() {
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(imgUrl);
     callback(file);
   };
-  img.src = url;
+  img.src = imgUrl;
 }
 
-function _buildCropUI(file, img, callback) {
+function _buildCropUI(file, img, imgUrl, callback) {
   var existing = document.getElementById('cropOverlay');
   if (existing) existing.remove();
 
@@ -605,7 +614,7 @@ function _buildCropUI(file, img, callback) {
   stage.className = 'crop-stage';
 
   var imgEl = document.createElement('img');
-  imgEl.src = img.src;
+  imgEl.src = imgUrl;
   stage.appendChild(imgEl);
 
   var imgW = img.width, imgH = img.height;
@@ -629,20 +638,21 @@ function _buildCropUI(file, img, callback) {
   var cancelBtn = document.createElement('button');
   cancelBtn.className = 'crop-btn crop-btn-cancel';
   cancelBtn.textContent = 'Cancel';
-  cancelBtn.onclick = function() { overlay.remove(); _cropState = null; };
+  cancelBtn.onclick = function() { overlay.remove(); URL.revokeObjectURL(imgUrl); _cropState = null; };
 
   var fullBtn = document.createElement('button');
   fullBtn.className = 'crop-btn crop-btn-secondary';
   fullBtn.textContent = 'Use Full Image';
-  fullBtn.onclick = function() { overlay.remove(); _cropState = null; callback(file); };
+  fullBtn.onclick = function() { overlay.remove(); URL.revokeObjectURL(imgUrl); _cropState = null; callback(file); };
 
   var cropBtn = document.createElement('button');
   cropBtn.className = 'crop-btn crop-btn-primary';
   cropBtn.textContent = 'Crop & Extract';
   cropBtn.onclick = function() {
-    if (!_cropState) { overlay.remove(); callback(file); return; }
+    if (!_cropState) { overlay.remove(); URL.revokeObjectURL(imgUrl); callback(file); return; }
     var cropped = _performCrop(file, img, _cropState);
     overlay.remove();
+    URL.revokeObjectURL(imgUrl);
     _cropState = null;
     callback(cropped);
   };
