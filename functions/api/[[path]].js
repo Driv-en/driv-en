@@ -143,12 +143,43 @@ export async function onRequest(context) {
 
   // Forward body for POST/PUT/PATCH/DELETE
   if (request.method !== 'GET' && request.method !== 'HEAD') {
-    // Pass the raw body as arrayBuffer with the original Content-Type header.
-    // This preserves the multipart boundary for multipart/form-data requests.
-    // Using request.formData() + passing FormData to fetch() loses the file's
-    // MIME type (file.type becomes empty), which causes the worker to reject
-    // image uploads with a 400 "Receipt must be an image" error.
-    proxyOptions.body = await request.arrayBuffer();
+    const ct = (request.headers.get('Content-Type') || '').toLowerCase();
+
+    if (ct.startsWith('multipart/form-data')) {
+      // Multipart: parse formData, re-attach files with explicit MIME types,
+      // and let fetch() generate a fresh Content-Type with a new boundary.
+      // This is the ONLY approach that reliably works in Cloudflare Pages
+      // Functions — arrayBuffer() loses the boundary, and passing the raw
+      // stream doesn't set Content-Type at all.
+      const formData = await request.formData();
+      const newFormData = new FormData();
+      for (const [key, value] of formData.entries()) {
+        if (value instanceof File) {
+          // Re-attach the file with its original name and type preserved.
+          // If file.type is empty (common when proxied), infer from filename.
+          let fileType = value.type || '';
+          if (!fileType) {
+            const ext = (value.name || '').toLowerCase().split('.').pop();
+            const typeMap = {
+              jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+              webp: 'image/webp', gif: 'image/gif', bmp: 'image/bmp',
+              tiff: 'image/tiff', tif: 'image/tiff', pdf: 'application/pdf',
+            };
+            fileType = typeMap[ext] || 'application/octet-stream';
+          }
+          newFormData.append(key, new Blob([await value.arrayBuffer()], { type: fileType }), value.name);
+        } else {
+          newFormData.append(key, value);
+        }
+      }
+      proxyOptions.body = newFormData;
+      // Delete the Content-Type header so fetch() generates a fresh one
+      // with the correct boundary for the new FormData body.
+      proxyHeaders.delete('Content-Type');
+    } else {
+      // Non-multipart (JSON, text, etc.): pass raw body with original Content-Type
+      proxyOptions.body = await request.arrayBuffer();
+    }
   }
 
   try {
