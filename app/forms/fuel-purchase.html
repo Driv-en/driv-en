@@ -224,6 +224,12 @@
           <label class="purchase-label">Vendor <span style="color:#cc0000;">*</span></label>
           <input type="text" id="purchaseVendor" class="purchase-input" placeholder="e.g., Pacific Pride">
         </div>
+        <div class="purchase-field">
+          <label class="purchase-label">Project <span style="color:#cc0000;">*</span></label>
+          <select id="purchaseProject" class="purchase-input" required>
+            <option value="">Select project…</option>
+          </select>
+        </div>
       </div>
 
       <!-- AI Confidence Banner (shown after extraction) -->
@@ -458,39 +464,34 @@ function addLineItem(data) {
   var portableTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'portable' && t.status === 'active'; }));
   var equipmentAssets = allAssets.filter(function(a) { return a.status === 'active'; });
 
-  var tankOptions = '<option value="">Select asset…</option>';
-  if (bulkTanks.length > 0) {
-    tankOptions += '<optgroup label="' + esc(getTankTypeDisplayName('bulk_tank')) + '">';
-    bulkTanks.forEach(function(t) {
-      var label = esc(t.name) + (t.fuel_type ? ' (' + esc(t.fuel_type) + ')' : '') + (t.location ? ' — ' + esc(t.location) : '');
-      tankOptions += '<option value="bulk_tank|' + esc(t.id) + '">' + label + '</option>';
-    });
-    tankOptions += '</optgroup>';
+  // Build a lookup map: displayLabel → "type|id"
+  var assetMap = {};
+  var datalistOptions = '';
+
+  function addAssetEntry(value, label) {
+    assetMap[label] = value;
+    datalistOptions += '<option value="' + esc(label) + '">';
   }
-  if (dragupTanks.length > 0) {
-    tankOptions += '<optgroup label="' + esc(getTankTypeDisplayName('dragup_tank')) + '">';
-    dragupTanks.forEach(function(t) {
-      var label = esc(t.name) + (t.fuel_type ? ' (' + esc(t.fuel_type) + ')' : '') + (t.location ? ' — ' + esc(t.location) : '');
-      tankOptions += '<option value="dragup_tank|' + esc(t.id) + '">' + label + '</option>';
-    });
-    tankOptions += '</optgroup>';
-  }
-  if (portableTanks.length > 0) {
-    tankOptions += '<optgroup label="' + esc(getTankTypeDisplayName('portable_can')) + '">';
-    portableTanks.forEach(function(t) {
-      var label = esc(t.name) + (t.fuel_type ? ' (' + esc(t.fuel_type) + ')' : '') + (t.location ? ' — ' + esc(t.location) : '');
-      tankOptions += '<option value="portable_can|' + esc(t.id) + '">' + label + '</option>';
-    });
-    tankOptions += '</optgroup>';
-  }
-  if (equipmentAssets.length > 0) {
-    tankOptions += '<optgroup label="Equipment / Assets">';
-    equipmentAssets.forEach(function(a) {
-      var label = esc(a.asset_number || a.id.slice(0,8)) + ' — ' + esc(a.name || 'Unnamed') + (a.fuel_type ? ' (' + esc(a.fuel_type) + ')' : '');
-      tankOptions += '<option value="asset|' + esc(a.id) + '">' + label + '</option>';
-    });
-    tankOptions += '</optgroup>';
-  }
+
+  bulkTanks.forEach(function(t) {
+    var label = t.name + (t.fuel_type ? ' (' + t.fuel_type + ')' : '') + (t.location ? ' — ' + t.location : '');
+    addAssetEntry('bulk_tank|' + t.id, label);
+  });
+  dragupTanks.forEach(function(t) {
+    var label = t.name + (t.fuel_type ? ' (' + t.fuel_type + ')' : '') + (t.location ? ' — ' + t.location : '');
+    addAssetEntry('dragup_tank|' + t.id, label);
+  });
+  portableTanks.forEach(function(t) {
+    var label = t.name + (t.fuel_type ? ' (' + t.fuel_type + ')' : '') + (t.location ? ' — ' + t.location : '');
+    addAssetEntry('portable_can|' + t.id, label);
+  });
+  equipmentAssets.forEach(function(a) {
+    var label = (a.asset_number || a.id.slice(0,8)) + ' — ' + (a.name || 'Unnamed') + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
+    addAssetEntry('asset|' + a.id, label);
+  });
+
+  // Store the map on the div for submit lookup
+  div.dataset.assetMap = JSON.stringify(assetMap);
 
   var fuelType = (data && data.fuel_type) || 'diesel_onroad';
   var qty = (data && data.gallons) || '';
@@ -509,7 +510,8 @@ function addLineItem(data) {
         '</select>' +
       '</div>' +
       '<div class="purchase-field"><label class="purchase-label">Asset <span style="color:#cc0000;">*</span></label>' +
-        '<select class="purchase-input line-destination">' + tankOptions + '</select>' +
+        '<input type="text" class="purchase-input line-destination" placeholder="Type to search…" list="' + lineId + '-assets" autocomplete="off">' +
+        '<datalist id="' + lineId + '-assets">' + datalistOptions + '</datalist>' +
       '</div>' +
       '<div class="purchase-field"><label class="purchase-label">Qty (gal) <span style="color:#cc0000;">*</span></label>' +
         '<input type="number" class="purchase-input line-qty" placeholder="0" min="0" step="0.01" value="' + qty + '" oninput="recalcLine(\'' + lineId + '\')">' +
@@ -925,17 +927,23 @@ async function submitPurchase() {
 
   if (!date) { showPurchaseError('Date is required'); return; }
   if (!vendor || !vendor.trim()) { showPurchaseError('Vendor is required'); return; }
+  var projectId = document.getElementById('purchaseProject').value;
+  if (!projectId) { showPurchaseError('Project is required'); return; }
 
   var lineItems = [];
   var rows = document.querySelectorAll('.line-item-row');
   for (var i = 0; i < rows.length; i++) {
     var row = rows[i];
-    var dest = row.querySelector('.line-destination').value;
+    var destInput = row.querySelector('.line-destination');
+    var destLabel = destInput.value.trim();
+    var assetMap = {};
+    try { assetMap = JSON.parse(row.dataset.assetMap || '{}'); } catch(e) {}
+    var dest = assetMap[destLabel] || '';
     var qty = parseFloat(row.querySelector('.line-qty').value);
     var fuelType = row.querySelector('.line-fuel-type').value;
     var cpg = parseFloat(row.querySelector('.line-cpg').value) || null;
 
-    if (!dest) { showPurchaseError('Line ' + (i + 1) + ': asset is required'); return; }
+    if (!dest) { showPurchaseError('Line ' + (i + 1) + ': asset is required (select from the list)'); return; }
     if (!qty || qty <= 0) { showPurchaseError('Line ' + (i + 1) + ': quantity must be > 0'); return; }
 
     var parts = dest.split('|');
@@ -960,6 +968,7 @@ async function submitPurchase() {
     location: location || null,
     person: person || null,
     notes: notes || null,
+    project_id: projectId || null,
     receipt_r2_key: receiptR2Key,
     line_items: lineItems,
     device_location: hasDeviceLocation() ? deviceLocation : null
@@ -1013,6 +1022,7 @@ function clearPurchaseForm() {
   document.getElementById('purchaseLocation').value = '';
   document.getElementById('purchasePerson').value = getUserDisplayName();
   document.getElementById('purchaseVendor').value = '';
+  document.getElementById('purchaseProject').value = '';
   document.getElementById('purchaseNotes').value = '';
   document.getElementById('receiptPreview').style.display = 'none';
   document.getElementById('receiptPreviewContent').innerHTML = '';
@@ -1104,6 +1114,26 @@ function handleLocationChange(sel) {
   }
 }
 
+async function loadProjects() {
+  try {
+    var resp = await fetch('/api/projects');
+    if (!resp.ok) return;
+    var data = await resp.json();
+    if (data.success && data.projects) {
+      var sel = document.getElementById('purchaseProject');
+      if (sel) {
+        var html = '<option value="">Select project…</option>';
+        data.projects.forEach(function(p) {
+          html += '<option value="' + esc(p.id) + '">' + esc(p.name || p.project_name || p.id) + '</option>';
+        });
+        sel.innerHTML = html;
+      }
+    }
+  } catch (e) {
+    console.error('Error loading projects:', e.message);
+  }
+}
+
 /* ===== INIT ===== */
 function initPurchaseForm() {
   var today = localDate();
@@ -1141,6 +1171,7 @@ document.addEventListener('dashSessionLoaded', async function() {
   await loadTankTypes();
   await loadTanks();
   await loadAssets();
+  await loadProjects();
   initPurchaseForm();
 });
 </script>
