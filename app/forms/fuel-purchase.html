@@ -105,6 +105,31 @@
 .location-banner.warn { background: #fef3c7; border: 1px solid #fcd34d; color: #78350f; }
 .location-banner strong { color: inherit; }
 
+/* CROP OVERLAY */
+.crop-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10000; display: flex; align-items: center; justify-content: center; }
+.crop-modal { background: var(--bg-card); border-radius: 12px; padding: 20px; max-width: 90vw; max-height: 90vh; width: 640px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
+.crop-modal h3 { margin: 0; font-size: 16px; font-weight: 700; color: var(--text); }
+.crop-modal p { margin: 0; font-size: 13px; color: var(--text-muted); }
+.crop-stage { position: relative; overflow: hidden; background: #111; border-radius: 8px; touch-action: none; user-select: none; }
+.crop-stage img { display: block; max-width: 100%; max-height: 50vh; }
+.crop-box { position: absolute; border: 2px solid #22c55e; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); cursor: move; }
+.crop-box::before, .crop-box::after { content: ''; position: absolute; background: rgba(34,197,94,0.4); }
+.crop-box::before { top: 33.33%; bottom: 33.33%; left: 0; right: 0; }
+.crop-box::after { left: 33.33%; right: 33.33%; top: 0; bottom: 0; }
+.crop-handle { position: absolute; width: 14px; height: 14px; background: #22c55e; border: 2px solid #fff; border-radius: 3px; }
+.crop-handle.nw { top: -7px; left: -7px; cursor: nw-resize; }
+.crop-handle.ne { top: -7px; right: -7px; cursor: ne-resize; }
+.crop-handle.sw { bottom: -7px; left: -7px; cursor: sw-resize; }
+.crop-handle.se { bottom: -7px; right: -7px; cursor: se-resize; }
+.crop-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.crop-btn { padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; }
+.crop-btn-primary { background: #16a34a; color: #fff; }
+.crop-btn-primary:hover { opacity: 0.9; }
+.crop-btn-secondary { background: #e2e8f0; color: #1e293b; border: 1px solid #cbd5e1; }
+.crop-btn-secondary:hover { background: #cbd5e1; }
+.crop-btn-cancel { background: #fee2e2; color: #cc0000; border: 1px solid #fecaca; }
+.crop-btn-cancel:hover { background: #fecaca; }
+
 @media (max-width: 800px) { .purchase-form-grid { grid-template-columns: 1fr; } .line-item-grid { grid-template-columns: 1fr 1fr; } .fp-main { padding: 0 12px; margin: 12px auto; } }
 </style>
 </head>
@@ -431,7 +456,7 @@ function addLineItem(data) {
   var dragupTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'dragup' && t.status === 'active'; }));
   var portableTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'portable' && t.status === 'active'; }));
 
-  var tankOptions = '<option value="">Select destination…</option>';
+  var tankOptions = '<option value="">Select asset…</option>';
   if (bulkTanks.length > 0) {
     tankOptions += '<optgroup label="' + esc(getTankTypeDisplayName('bulk_tank')) + '">';
     bulkTanks.forEach(function(t) {
@@ -473,7 +498,7 @@ function addLineItem(data) {
           '<option value="other"' + (fuelType === 'other' ? ' selected' : '') + '>Other</option>' +
         '</select>' +
       '</div>' +
-      '<div class="purchase-field"><label class="purchase-label">Destination <span style="color:#cc0000;">*</span></label>' +
+      '<div class="purchase-field"><label class="purchase-label">Asset <span style="color:#cc0000;">*</span></label>' +
         '<select class="purchase-input line-destination">' + tankOptions + '</select>' +
       '</div>' +
       '<div class="purchase-field"><label class="purchase-label">Qty (gal) <span style="color:#cc0000;">*</span></label>' +
@@ -510,12 +535,11 @@ function recalcGrandTotal() {
 }
 
 /* ===== RECEIPT UPLOAD ===== */
-// Resize image to max dimension before upload (vision model has 128K token limit)
 function resizeImage(file, maxDim) {
   return new Promise(function(resolve, reject) {
     if (!file.type.startsWith('image/')) { resolve(file); return; }
     var img = new Image();
-    url = URL.createObjectURL(file);
+    var url = URL.createObjectURL(file);
     img.onload = function() {
       URL.revokeObjectURL(url);
       var w = img.width, h = img.height;
@@ -538,6 +562,232 @@ function resizeImage(file, maxDim) {
   });
 }
 
+/* ===== CROP OVERLAY ===== */
+var _cropState = null;
+
+function showCropOverlay(file, callback) {
+  var isPdf = file.type === 'application/pdf' || (file.name || '').toLowerCase().endsWith('.pdf');
+  if (isPdf) { callback(file); return; }
+
+  var img = new Image();
+  var url = URL.createObjectURL(file);
+  img.onload = function() {
+    URL.revokeObjectURL(url);
+    _buildCropUI(file, img, callback);
+  };
+  img.onerror = function() {
+    URL.revokeObjectURL(url);
+    callback(file);
+  };
+  img.src = url;
+}
+
+function _buildCropUI(file, img, callback) {
+  var existing = document.getElementById('cropOverlay');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'cropOverlay';
+  overlay.className = 'crop-overlay';
+
+  var modal = document.createElement('div');
+  modal.className = 'crop-modal';
+
+  var title = document.createElement('h3');
+  title.textContent = 'Crop Receipt';
+  modal.appendChild(title);
+
+  var desc = document.createElement('p');
+  desc.textContent = 'Drag the green box to select the receipt area. This helps the AI read the text more accurately. Click "Use Full Image" to skip cropping.';
+  modal.appendChild(desc);
+
+  var stage = document.createElement('div');
+  stage.className = 'crop-stage';
+
+  var imgEl = document.createElement('img');
+  imgEl.src = img.src;
+  stage.appendChild(imgEl);
+
+  var imgW = img.width, imgH = img.height;
+  var dispW, dispH;
+  var cropBox = document.createElement('div');
+  cropBox.className = 'crop-box';
+  stage.appendChild(cropBox);
+
+  ['nw', 'ne', 'sw', 'se'].forEach(function(pos) {
+    var h = document.createElement('div');
+    h.className = 'crop-handle ' + pos;
+    h.dataset.pos = pos;
+    cropBox.appendChild(h);
+  });
+
+  modal.appendChild(stage);
+
+  var actions = document.createElement('div');
+  actions.className = 'crop-actions';
+
+  var cancelBtn = document.createElement('button');
+  cancelBtn.className = 'crop-btn crop-btn-cancel';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.onclick = function() { overlay.remove(); _cropState = null; };
+
+  var fullBtn = document.createElement('button');
+  fullBtn.className = 'crop-btn crop-btn-secondary';
+  fullBtn.textContent = 'Use Full Image';
+  fullBtn.onclick = function() { overlay.remove(); _cropState = null; callback(file); };
+
+  var cropBtn = document.createElement('button');
+  cropBtn.className = 'crop-btn crop-btn-primary';
+  cropBtn.textContent = 'Crop & Extract';
+  cropBtn.onclick = function() {
+    if (!_cropState) { overlay.remove(); callback(file); return; }
+    var cropped = _performCrop(file, img, _cropState);
+    overlay.remove();
+    _cropState = null;
+    callback(cropped);
+  };
+
+  actions.appendChild(cancelBtn);
+  actions.appendChild(fullBtn);
+  actions.appendChild(cropBtn);
+  modal.appendChild(actions);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  requestAnimationFrame(function() {
+    dispW = imgEl.clientWidth;
+    dispH = imgEl.clientHeight;
+
+    var boxW = dispW * 0.8;
+    var boxH = dispH * 0.8;
+    var boxX = (dispW - boxW) / 2;
+    var boxY = (dispH - boxH) / 2;
+
+    cropBox.style.left = boxX + 'px';
+    cropBox.style.top = boxY + 'px';
+    cropBox.style.width = boxW + 'px';
+    cropBox.style.height = boxH + 'px';
+
+    _cropState = { boxX: boxX, boxY: boxY, boxW: boxW, boxH: boxH, dispW: dispW, dispH: dispH, imgW: imgW, imgH: imgH };
+    _attachCropEvents(stage, cropBox, imgW, imgH);
+  });
+}
+
+function _attachCropEvents(stage, cropBox, imgW, imgH) {
+  var dragging = false;
+  var resizing = false;
+  var resizePos = null;
+  var startX, startY, startBoxX, startBoxY, startBoxW, startBoxH;
+
+  function onDown(e) {
+    e.preventDefault();
+    var touch = e.touches ? e.touches[0] : e;
+    startX = touch.clientX;
+    startY = touch.clientY;
+    startBoxX = _cropState.boxX;
+    startBoxY = _cropState.boxY;
+    startBoxW = _cropState.boxW;
+    startBoxH = _cropState.boxH;
+
+    if (e.target.classList.contains('crop-handle')) {
+      resizing = true;
+      resizePos = e.target.dataset.pos;
+    } else if (e.target === cropBox) {
+      dragging = true;
+    }
+  }
+
+  function onMove(e) {
+    if (!dragging && !resizing) return;
+    e.preventDefault();
+    var touch = e.touches ? e.touches[0] : e;
+    var dx = touch.clientX - startX;
+    var dy = touch.clientY - startY;
+
+    if (dragging) {
+      _cropState.boxX = Math.max(0, Math.min(_cropState.dispW - _cropState.boxW, startBoxX + dx));
+      _cropState.boxY = Math.max(0, Math.min(_cropState.dispH - _cropState.boxH, startBoxY + dy));
+    } else if (resizing) {
+      var newX = startBoxX, newY = startBoxY, newW = startBoxW, newH = startBoxH;
+      if (resizePos.indexOf('e') !== -1) newW = Math.max(40, Math.min(_cropState.dispW - startBoxX, startBoxW + dx));
+      if (resizePos.indexOf('s') !== -1) newH = Math.max(40, Math.min(_cropState.dispH - startBoxY, startBoxH + dy));
+      if (resizePos.indexOf('w') !== -1) {
+        var maxDx = startBoxW - 40;
+        var realDx = Math.max(-startBoxX, Math.min(maxDx, dx));
+        newX = startBoxX + realDx;
+        newW = startBoxW - realDx;
+      }
+      if (resizePos.indexOf('n') !== -1) {
+        var maxDy = startBoxH - 40;
+        var realDy = Math.max(-startBoxY, Math.min(maxDy, dy));
+        newY = startBoxY + realDy;
+        newH = startBoxH - realDy;
+      }
+      _cropState.boxX = newX;
+      _cropState.boxY = newY;
+      _cropState.boxW = newW;
+      _cropState.boxH = newH;
+    }
+
+    cropBox.style.left = _cropState.boxX + 'px';
+    cropBox.style.top = _cropState.boxY + 'px';
+    cropBox.style.width = _cropState.boxW + 'px';
+    cropBox.style.height = _cropState.boxH + 'px';
+  }
+
+  function onUp() { dragging = false; resizing = false; }
+
+  cropBox.addEventListener('mousedown', onDown);
+  cropBox.addEventListener('touchstart', onDown, { passive: false });
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('touchmove', onMove, { passive: false });
+  document.addEventListener('mouseup', onUp);
+  document.addEventListener('touchend', onUp);
+}
+
+function _performCrop(file, img, state) {
+  var scaleX = state.imgW / state.dispW;
+  var scaleY = state.imgH / state.dispH;
+  var sx = Math.round(state.boxX * scaleX);
+  var sy = Math.round(state.boxY * scaleY);
+  var sw = Math.round(state.boxW * scaleX);
+  var sh = Math.round(state.boxH * scaleY);
+
+  sx = Math.max(0, Math.min(state.imgW - 1, sx));
+  sy = Math.max(0, Math.min(state.imgH - 1, sy));
+  sw = Math.max(1, Math.min(state.imgW - sx, sw));
+  sh = Math.max(1, Math.min(state.imgH - sy, sh));
+
+  var canvas = document.createElement('canvas');
+  canvas.width = sw;
+  canvas.height = sh;
+  var ctx = canvas.getContext('2d');
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+
+  var maxDim = 1024;
+  var finalW = sw, finalH = sh;
+  if (sw > maxDim || sh > maxDim) {
+    var scale = Math.min(maxDim / sw, maxDim / sh);
+    finalW = Math.round(sw * scale);
+    finalH = Math.round(sh * scale);
+  }
+
+  if (finalW !== sw || finalH !== sh) {
+    var resizeCanvas = document.createElement('canvas');
+    resizeCanvas.width = finalW;
+    resizeCanvas.height = finalH;
+    var rctx = resizeCanvas.getContext('2d');
+    rctx.drawImage(canvas, 0, 0, sw, sh, 0, 0, finalW, finalH);
+    canvas = resizeCanvas;
+  }
+
+  var dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+  var byteString = atob(dataUrl.split(',')[1]);
+  var arr = new Uint8Array(byteString.length);
+  for (var i = 0; i < byteString.length; i++) arr[i] = byteString.charCodeAt(i);
+  return new File([arr], file.name || 'receipt.jpg', { type: 'image/jpeg' });
+}
+
 async function handleReceiptUpload(input) {
   var file = input.files[0];
   if (!file) return;
@@ -551,10 +801,20 @@ async function handleReceiptUpload(input) {
   if (isPdf) {
     previewContent.innerHTML = '<div class="receipt-pdf-icon">📄</div><p style="font-size:14px;font-weight:600;margin:8px 0 0;">' + esc(file.name) + '</p><p style="font-size:12px;color:var(--text-muted);">PDF document</p>';
   } else {
-    // Resize image to max 1024px for vision model text clarity.
     status.className = 'receipt-extract-status loading';
-    status.textContent = 'Optimizing image…';
-    file = await resizeImage(file, 1024);
+    status.textContent = 'Crop the receipt area for best results…';
+    showCropOverlay(file, function(croppedFile) {
+      _doExtraction(croppedFile, previewContent, status, preview);
+    });
+    return;
+  }
+
+  _doExtraction(file, previewContent, status, preview);
+}
+
+async function _doExtraction(file, previewContent, status, preview) {
+  var isPdf = file.type === 'application/pdf' || (file.name || '').toLowerCase().endsWith('.pdf');
+  if (!isPdf) {
     if (_objectUrl) { URL.revokeObjectURL(_objectUrl); _objectUrl = null; }
     _objectUrl = URL.createObjectURL(file);
     previewContent.innerHTML = '<img class="receipt-preview-img" src="' + _objectUrl + '">';
@@ -565,7 +825,6 @@ async function handleReceiptUpload(input) {
   document.getElementById('aiConfidenceBanner').style.display = 'none';
 
   try {
-    // Send as JSON with base64-encoded image to avoid multipart corruption
     var base64Data = await new Promise(function(resolve, reject) {
       var reader = new FileReader();
       reader.onload = function() { resolve(reader.result); };
@@ -666,7 +925,7 @@ async function submitPurchase() {
     var fuelType = row.querySelector('.line-fuel-type').value;
     var cpg = parseFloat(row.querySelector('.line-cpg').value) || null;
 
-    if (!dest) { showPurchaseError('Line ' + (i + 1) + ': destination is required'); return; }
+    if (!dest) { showPurchaseError('Line ' + (i + 1) + ': asset is required'); return; }
     if (!qty || qty <= 0) { showPurchaseError('Line ' + (i + 1) + ': quantity must be > 0'); return; }
 
     var parts = dest.split('|');
