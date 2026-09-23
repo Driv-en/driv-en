@@ -6,15 +6,16 @@
  * This avoids the atomic failure problem where one missing file
  * breaks the entire cache.
  *
+ * v10 — September 23, 2026: Bumped cache version for updated fuel forms.
  * v9 — September 19, 2026: Fixed "page can't be reached" bug.
  *      Previous v8 used addAll() which failed atomically if any asset 404'd,
  *      leaving the cache empty and serving 504 empty responses.
- *      Now uses on-demand caching: pages are cached as they're visited.
+ *      Now uses on-demand caching: pages are cached as visited.
  *      Navigation requests are network-first (always try network, fall back
  *      to cache only when offline). Static assets are cache-first.
  */
 
-const CACHE = 'driv-en-v9';
+const CACHE = 'driv-en-v10';
 const STATIC_ASSETS = [
   '/app/shared/dashboard.css',
   '/app/shared/dashboard-common.js',
