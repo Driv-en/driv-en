@@ -315,7 +315,7 @@ function reportError(source, err) {
 
 /* ===== DEVICE LOCATION CHECK ===== */
 function checkDeviceLocation() {
-  if (!navigator.geolocation) { showLocationPopup('Your device does not support GPS location.'); return; }
+  if (!navigator.geolocation) { showLocationPopup('Your device does not support GPS location. Please use a device with location capabilities.'); return; }
   navigator.geolocation.getCurrentPosition(
     function(pos) { deviceLocation = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy, timestamp: new Date().toISOString() }; updateLocationStatus(true); },
     function(err) {
@@ -477,7 +477,9 @@ function _buildCropUI(file, img, imgUrl, callback) {
   var overlay = document.createElement('div'); overlay.id = 'cropOverlay'; overlay.className = 'crop-overlay';
   var modal = document.createElement('div'); modal.className = 'crop-modal';
   var title = document.createElement('h3'); title.textContent = 'Crop Receipt'; modal.appendChild(title);
-  var desc = document.createElement('p'); desc.textContent = 'Drag the green box to select the receipt area. This helps the AI read the text more accurately. Click "Use Full Image" to skip cropping.'; modal.appendChild(desc);
+  var desc = document.createElement('p');
+  desc.innerHTML = '<strong>How to crop:</strong> Drag the <strong>green corners</strong> (the small green squares at each corner) to resize the box around the receipt text. Drag anywhere inside the box to move it. The area inside the green box is what the AI will read — everything outside is cut away. Click "Use Full Image" to skip cropping.';
+  modal.appendChild(desc);
   var stage = document.createElement('div'); stage.className = 'crop-stage';
   var imgEl = document.createElement('img'); imgEl.src = imgUrl; stage.appendChild(imgEl);
   var imgW = img.width, imgH = img.height;
@@ -677,7 +679,6 @@ function showPurchaseError(msg) {
 function clearPurchaseForm() {
   clearFormDirty();
   document.getElementById('purchaseDate').value = localDate();
-  // Restore Location dropdown if it was replaced with a text input by "+ Other"
   var locEl = document.getElementById('purchaseLocation');
   if (locEl && locEl.tagName === 'INPUT') {
     var select = document.createElement('select');
@@ -685,7 +686,6 @@ function clearPurchaseForm() {
     select.setAttribute('onchange', 'handleLocationChange(this)');
     locEl.parentNode.replaceChild(select, locEl); locEl = select;
   }
-  // Rebuild location options
   var locations = {};
   allAssets.forEach(function(a) { if (a.current_location && a.current_location.trim()) locations[a.current_location.trim()] = true; });
   allTanks.forEach(function(t) { if (t.location && t.location.trim()) locations[t.location.trim()] = true; });
