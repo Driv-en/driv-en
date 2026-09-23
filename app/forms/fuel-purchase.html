@@ -288,6 +288,7 @@ var lineItemCount = 0;
 var _objectUrl = null;
 var deviceLocation = null;
 var formDirty = false;
+var managerReviewFlags = [];
 
 function markFormDirty() { formDirty = true; }
 function clearFormDirty() { formDirty = false; }
@@ -303,10 +304,6 @@ function reportError(source, err) {
   var stack = (err && err.stack) ? err.stack : 'No stack trace';
   console.error('[' + source + ']', msg, stack);
 
-  // NEVER report auth/session errors — prevents redirect cascade.
-  // If the session is expired, /api/log-error itself returns 401,
-  // which can trigger auth-check.js or the global error handler to
-  // redirect the user to the login page mid-operation.
   var lowerMsg = (msg || '').toLowerCase();
   if (lowerMsg.indexOf('not authenticated') !== -1 ||
       lowerMsg.indexOf('session') !== -1 ||
@@ -318,13 +315,9 @@ function reportError(source, err) {
     return;
   }
 
-  // Guard against logging loops
   if (_reportErrorInFlight) return;
   _reportErrorInFlight = true;
   try {
-    // Fire-and-forget. We deliberately do NOT read the response or check
-    // its status — if /api/log-error fails (e.g. session expired), we
-    // silently swallow it. This prevents any downstream redirect.
     fetch('/api/log-error', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -393,7 +386,7 @@ function showLocationPopup(message) {
     '<p style="margin:0 0 6px;"><strong>Android:</strong> Settings → Location → ON → App permissions → your browser → Allow only while using the app</p>' +
     '<p style="margin:0 0 6px;"><strong>Chrome (Desktop):</strong> Click the location icon in the address bar → Site settings → Location → Allow → Reload</p>' +
     '<p style="margin:0 0 6px;"><strong>Edge (Desktop):</strong> Settings → Cookies and site permissions → Location → Allow</p>' +
-    '<p style="margin:0 0 6px;"><strong>Firefox (Desktop):</strong> Settings → Privacy & Security → Permissions → Location → Settings → Allow</p>' +
+    '<p style="margin:0;"><strong>Firefox (Desktop):</strong> Settings → Privacy & Security → Permissions → Location → Settings → Allow</p>' +
     '</div>' +
     '<p style="font-size:13px;color:#666;margin:0;">After enabling, click "Retry" to capture your location. Forms cannot be submitted without location.</p>';
   overlay.style.display = 'flex';
@@ -414,6 +407,10 @@ function requireLocationOrPopup() {
   if (!isMobile) return true;
   showLocationPopup('Location is required to submit this form. Please enable location on your device and retry.');
   return false;
+}
+
+function isMobileDevice() {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
 }
 
 function esc(s) {
@@ -523,6 +520,8 @@ function addLineItem(data) {
   var fuelType = (data && data.fuel_type) || 'diesel_onroad';
   var qty = (data && data.gallons) || '';
   var unitPrice = (data && data.unit_price) || '';
+  var qtyEsc = esc(qty);
+  var unitPriceEsc = esc(unitPrice);
 
   div.innerHTML =
     '<div class="line-item-grid">' +
@@ -534,6 +533,7 @@ function addLineItem(data) {
           '<option value="DEF"' + (fuelType === 'DEF' ? ' selected' : '') + '>DEF</option>' +
           '<option value="propane"' + (fuelType === 'propane' ? ' selected' : '') + '>Propane</option>' +
           '<option value="other"' + (fuelType === 'other' ? ' selected' : '') + '>Other</option>' +
+          '<option value="__custom_fuel"' + (fuelType === '__custom_fuel' ? ' selected' : '') + '>+ Other (type manually)</option>' +
         '</select>' +
       '</div>' +
       '<div class="purchase-field"><label class="purchase-label">Asset <span style="color:#cc0000;">*</span></label>' +
@@ -541,10 +541,10 @@ function addLineItem(data) {
         '<datalist id="' + lineId + '-assets">' + datalistOptions + '</datalist>' +
       '</div>' +
       '<div class="purchase-field"><label class="purchase-label">Qty (gal) <span style="color:#cc0000;">*</span></label>' +
-        '<input type="number" class="purchase-input line-qty" placeholder="0" min="0" step="0.01" value="' + qty + '" oninput="recalcLine(\'' + lineId + '\'); markFormDirty()">' +
+        '<input type="number" class="purchase-input line-qty" placeholder="0" min="0" step="0.01" value="' + qtyEsc + '" oninput="recalcLine(\'' + lineId + '\'); markFormDirty()">' +
       '</div>' +
       '<div class="purchase-field"><label class="purchase-label">Cost/Gal</label>' +
-        '<input type="number" class="purchase-input line-cpg" placeholder="$0.00" min="0" step="0.001" value="' + unitPrice + '" oninput="recalcLine(\'' + lineId + '\'); markFormDirty()">' +
+        '<input type="number" class="purchase-input line-cpg" placeholder="$0.00" min="0" step="0.001" value="' + unitPriceEsc + '" oninput="recalcLine(\'' + lineId + '\'); markFormDirty()">' +
       '</div>' +
       '<button class="line-item-remove" onclick="removeLineItem(\'' + lineId + '\')">✕</button>' +
     '</div>';
@@ -560,17 +560,39 @@ function removeLineItem(lineId) {
   if (document.querySelectorAll('.line-item-row').length === 0) addLineItem();
 }
 
-function recalcLine(lineId) { recalcGrandTotal(); }
+function recalcLine(lineId) {
+  var row = document.getElementById(lineId);
+  if (!row) { recalcGrandTotal(); return; }
+  var fuelSelect = row.querySelector('.line-fuel-type');
+  if (fuelSelect && fuelSelect.value === '__custom_fuel') {
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'purchase-input line-fuel-type';
+    input.placeholder = 'Type fuel name';
+    input.setAttribute('data-custom', 'true');
+    input.oninput = function() { markFormDirty(); };
+    fuelSelect.parentNode.replaceChild(input, fuelSelect);
+    input.focus();
+  }
+  recalcGrandTotal();
+}
 
 function recalcGrandTotal() {
   var total = 0;
+  var hasAllPrices = true;
+  var hasAnyQty = false;
   document.querySelectorAll('.line-item-row').forEach(function(row) {
     var qty = parseFloat(row.querySelector('.line-qty').value) || 0;
     var cpg = parseFloat(row.querySelector('.line-cpg').value) || 0;
+    if (qty > 0) hasAnyQty = true;
     if (qty > 0 && cpg > 0) total += qty * cpg;
+    if (qty > 0 && cpg <= 0) hasAllPrices = false;
   });
   var totalEl = document.getElementById('grandTotal');
-  if (totalEl) totalEl.textContent = '$' + total.toFixed(2);
+  if (!totalEl) return;
+  if (!hasAnyQty) { totalEl.textContent = '$0.00'; return; }
+  if (!hasAllPrices) { totalEl.textContent = '$' + total.toFixed(2) + ' (incomplete)'; return; }
+  totalEl.textContent = '$' + total.toFixed(2);
 }
 
 /* ===== RECEIPT UPLOAD ===== */
@@ -652,7 +674,6 @@ function _buildCropUI(file, img, imgUrl, callback) {
   cropBox.className = 'crop-box';
   stage.appendChild(cropBox);
 
-  // Handles
   ['nw', 'ne', 'sw', 'se'].forEach(function(pos) {
     var h = document.createElement('div');
     h.className = 'crop-handle ' + pos;
@@ -702,14 +723,17 @@ function _buildCropUI(file, img, imgUrl, callback) {
   requestAnimationFrame(function() {
     dispW = imgEl.clientWidth;
     dispH = imgEl.clientHeight;
+
     var boxW = dispW * 0.8;
     var boxH = dispH * 0.8;
     var boxX = (dispW - boxW) / 2;
     var boxY = (dispH - boxH) / 2;
+
     cropBox.style.left = boxX + 'px';
     cropBox.style.top = boxY + 'px';
     cropBox.style.width = boxW + 'px';
     cropBox.style.height = boxH + 'px';
+
     _cropState = { boxX: boxX, boxY: boxY, boxW: boxW, boxH: boxH, dispW: dispW, dispH: dispH, imgW: imgW, imgH: imgH };
     _attachCropEvents(stage, cropBox, imgW, imgH);
   });
@@ -720,20 +744,32 @@ function _attachCropEvents(stage, cropBox, imgW, imgH) {
   var resizing = false;
   var resizePos = null;
   var startX, startY, startBoxX, startBoxY, startBoxW, startBoxH;
+
   function onDown(e) {
     e.preventDefault();
     var touch = e.touches ? e.touches[0] : e;
-    startX = touch.clientX; startY = touch.clientY;
-    startBoxX = _cropState.boxX; startBoxY = _cropState.boxY;
-    startBoxW = _cropState.boxW; startBoxH = _cropState.boxH;
-    if (e.target.classList.contains('crop-handle')) { resizing = true; resizePos = e.target.dataset.pos; }
-    else if (e.target === cropBox) { dragging = true; }
+    startX = touch.clientX;
+    startY = touch.clientY;
+    startBoxX = _cropState.boxX;
+    startBoxY = _cropState.boxY;
+    startBoxW = _cropState.boxW;
+    startBoxH = _cropState.boxH;
+
+    if (e.target.classList.contains('crop-handle')) {
+      resizing = true;
+      resizePos = e.target.dataset.pos;
+    } else if (e.target === cropBox) {
+      dragging = true;
+    }
   }
+
   function onMove(e) {
     if (!dragging && !resizing) return;
     e.preventDefault();
     var touch = e.touches ? e.touches[0] : e;
-    var dx = touch.clientX - startX; var dy = touch.clientY - startY;
+    var dx = touch.clientX - startX;
+    var dy = touch.clientY - startY;
+
     if (dragging) {
       _cropState.boxX = Math.max(0, Math.min(_cropState.dispW - _cropState.boxW, startBoxX + dx));
       _cropState.boxY = Math.max(0, Math.min(_cropState.dispH - _cropState.boxH, startBoxY + dy));
@@ -741,14 +777,32 @@ function _attachCropEvents(stage, cropBox, imgW, imgH) {
       var newX = startBoxX, newY = startBoxY, newW = startBoxW, newH = startBoxH;
       if (resizePos.indexOf('e') !== -1) newW = Math.max(40, Math.min(_cropState.dispW - startBoxX, startBoxW + dx));
       if (resizePos.indexOf('s') !== -1) newH = Math.max(40, Math.min(_cropState.dispH - startBoxY, startBoxH + dy));
-      if (resizePos.indexOf('w') !== -1) { var maxDx = startBoxW - 40; var realDx = Math.max(-startBoxX, Math.min(maxDx, dx)); newX = startBoxX + realDx; newW = startBoxW - realDx; }
-      if (resizePos.indexOf('n') !== -1) { var maxDy = startBoxH - 40; var realDy = Math.max(-startBoxY, Math.min(maxDy, dy)); newY = startBoxY + realDy; newH = startBoxH - realDy; }
-      _cropState.boxX = newX; _cropState.boxY = newY; _cropState.boxW = newW; _cropState.boxH = newH;
+      if (resizePos.indexOf('w') !== -1) {
+        var maxDx = startBoxW - 40;
+        var realDx = Math.max(-startBoxX, Math.min(maxDx, dx));
+        newX = startBoxX + realDx;
+        newW = startBoxW - realDx;
+      }
+      if (resizePos.indexOf('n') !== -1) {
+        var maxDy = startBoxH - 40;
+        var realDy = Math.max(-startBoxY, Math.min(maxDy, dy));
+        newY = startBoxY + realDy;
+        newH = startBoxH - realDy;
+      }
+      _cropState.boxX = newX;
+      _cropState.boxY = newY;
+      _cropState.boxW = newW;
+      _cropState.boxH = newH;
     }
-    cropBox.style.left = _cropState.boxX + 'px'; cropBox.style.top = _cropState.boxY + 'px';
-    cropBox.style.width = _cropState.boxW + 'px'; cropBox.style.height = _cropState.boxH + 'px';
+
+    cropBox.style.left = _cropState.boxX + 'px';
+    cropBox.style.top = _cropState.boxY + 'px';
+    cropBox.style.width = _cropState.boxW + 'px';
+    cropBox.style.height = _cropState.boxH + 'px';
   }
+
   function onUp() { dragging = false; resizing = false; }
+
   cropBox.addEventListener('mousedown', onDown);
   cropBox.addEventListener('touchstart', onDown, { passive: false });
   document.addEventListener('mousemove', onMove);
@@ -765,10 +819,15 @@ function _resizeImageAsync(file, maxDim) {
       URL.revokeObjectURL(url);
       var sw = img.width, sh = img.height;
       var finalW = sw, finalH = sh;
-      if (sw > maxDim || sh > maxDim) { var scale = Math.min(maxDim / sw, maxDim / sh); finalW = Math.round(sw * scale); finalH = Math.round(sh * scale); }
+      if (sw > maxDim || sh > maxDim) {
+        var scale = Math.min(maxDim / sw, maxDim / sh);
+        finalW = Math.round(sw * scale);
+        finalH = Math.round(sh * scale);
+      }
       if (finalW === sw && finalH === sh) { resolve(file); return; }
       var canvas = document.createElement('canvas');
-      canvas.width = finalW; canvas.height = finalH;
+      canvas.width = finalW;
+      canvas.height = finalH;
       var ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, sw, sh, 0, 0, finalW, finalH);
       var dataUrl = canvas.toDataURL('image/jpeg', 0.85);
@@ -789,24 +848,35 @@ function _performCrop(file, img, state) {
   var sy = Math.round(state.boxY * scaleY);
   var sw = Math.round(state.boxW * scaleX);
   var sh = Math.round(state.boxH * scaleY);
+
   sx = Math.max(0, Math.min(state.imgW - 1, sx));
   sy = Math.max(0, Math.min(state.imgH - 1, sy));
   sw = Math.max(1, Math.min(state.imgW - sx, sw));
   sh = Math.max(1, Math.min(state.imgH - sy, sh));
+
   var canvas = document.createElement('canvas');
-  canvas.width = sw; canvas.height = sh;
+  canvas.width = sw;
+  canvas.height = sh;
   var ctx = canvas.getContext('2d');
   ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+
   var maxDim = 1024;
   var finalW = sw, finalH = sh;
-  if (sw > maxDim || sh > maxDim) { var scale = Math.min(maxDim / sw, maxDim / sh); finalW = Math.round(sw * scale); finalH = Math.round(sh * scale); }
+  if (sw > maxDim || sh > maxDim) {
+    var scale = Math.min(maxDim / sw, maxDim / sh);
+    finalW = Math.round(sw * scale);
+    finalH = Math.round(sh * scale);
+  }
+
   if (finalW !== sw || finalH !== sh) {
     var resizeCanvas = document.createElement('canvas');
-    resizeCanvas.width = finalW; resizeCanvas.height = finalH;
+    resizeCanvas.width = finalW;
+    resizeCanvas.height = finalH;
     var rctx = resizeCanvas.getContext('2d');
     rctx.drawImage(canvas, 0, 0, sw, sh, 0, 0, finalW, finalH);
     canvas = resizeCanvas;
   }
+
   var dataUrl = canvas.toDataURL('image/jpeg', 0.85);
   var byteString = atob(dataUrl.split(',')[1]);
   var arr = new Uint8Array(byteString.length);
@@ -817,10 +887,12 @@ function _performCrop(file, img, state) {
 async function handleReceiptUpload(input) {
   var file = input.files[0];
   if (!file) return;
+
   var preview = document.getElementById('receiptPreview');
   var previewContent = document.getElementById('receiptPreviewContent');
   var status = document.getElementById('receiptExtractStatus');
   preview.style.display = 'block';
+
   var isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
   if (isPdf) {
     previewContent.innerHTML = '<div class="receipt-pdf-icon">📄</div><p style="font-size:14px;font-weight:600;margin:8px 0 0;">' + esc(file.name) + '</p><p style="font-size:12px;color:var(--text-muted);">PDF document</p>';
@@ -832,19 +904,31 @@ async function handleReceiptUpload(input) {
     });
     return;
   }
+
   _doExtraction(file, previewContent, status, preview);
 }
 
+var _currentExtractionId = 0;
+var _currentExtractionController = null;
+
 async function _doExtraction(file, previewContent, status, preview) {
+  _currentExtractionId++;
+  var thisReqId = _currentExtractionId;
+  if (_currentExtractionController) { try { _currentExtractionController.abort(); } catch(e) {} }
+  _currentExtractionController = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  var fetchSignal = _currentExtractionController ? _currentExtractionController.signal : undefined;
+
   var isPdf = file.type === 'application/pdf' || (file.name || '').toLowerCase().endsWith('.pdf');
   if (!isPdf) {
     if (_objectUrl) { URL.revokeObjectURL(_objectUrl); _objectUrl = null; }
     _objectUrl = URL.createObjectURL(file);
     previewContent.innerHTML = '<img class="receipt-preview-img" src="' + _objectUrl + '">';
   }
+
   status.className = 'receipt-extract-status loading';
   status.textContent = 'Uploading & extracting receipt data with AI…';
   document.getElementById('aiConfidenceBanner').style.display = 'none';
+
   try {
     var base64Data = await new Promise(function(resolve, reject) {
       var reader = new FileReader();
@@ -852,10 +936,16 @@ async function _doExtraction(file, previewContent, status, preview) {
       reader.onerror = function() { reject(new Error('Failed to read file')) };
       reader.readAsDataURL(file);
     });
+
     var resp = await fetch('/api/fuel-receipts/extract', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ file: base64Data, fileName: file.name || 'receipt.jpg', fileType: file.type || 'image/jpeg' })
+      body: JSON.stringify({
+        file: base64Data,
+        fileName: file.name || 'receipt.jpg',
+        fileType: file.type || 'image/jpeg'
+      }),
+      signal: fetchSignal
     });
     if (!resp.ok) {
       var errBody = await resp.text().catch(function() { return ''; });
@@ -877,21 +967,38 @@ async function _doExtraction(file, previewContent, status, preview) {
       return;
     }
     var data = await resp.json();
+
+    if (data.success && data.extracted && _currentExtractionId !== thisReqId) {
+      console.log('Stale extraction response ignored (req ' + thisReqId + ' vs current ' + _currentExtractionId + ')');
+      return;
+    }
+
     if (data.success && data.extracted) {
+      if (data.receipt && data.receipt.r2_key) {
+        receiptR2Key = data.receipt.r2_key;
+      }
       status.className = 'receipt-extract-status success';
       var conf = data.extracted.confidence || 0;
       var confPct = Math.round(conf * 100);
       var fileTypeLabel = data.receipt && data.receipt.file_type === 'pdf' ? 'PDF' : 'Image';
       status.textContent = '✓ Extraction complete (' + confPct + '% confidence, ' + fileTypeLabel + ', ' + (data.processing_time_ms || 0) + 'ms)';
+
       if (data.extracted.vendor) document.getElementById('purchaseVendor').value = data.extracted.vendor;
       if (data.extracted.receipt_date) document.getElementById('purchaseDate').value = data.extracted.receipt_date;
+
       if (data.extracted.line_items && data.extracted.line_items.length > 0) {
         document.getElementById('lineItemsContainer').innerHTML = '';
         lineItemCount = 0;
         data.extracted.line_items.forEach(function(li) {
-          addLineItem({ fuel_type: li.fuel_type || 'diesel_onroad', gallons: li.gallons || li.quantity || '', unit_price: li.unit_price || '', amount: li.amount || '' });
+          addLineItem({
+            fuel_type: li.fuel_type || 'diesel_onroad',
+            gallons: li.gallons || li.quantity || '',
+            unit_price: li.unit_price || '',
+            amount: li.amount || ''
+          });
         });
       }
+
       showConfidenceBanner(data.extracted);
       recalcGrandTotal();
     } else {
@@ -899,6 +1006,8 @@ async function _doExtraction(file, previewContent, status, preview) {
       status.textContent = '✗ Extraction completed but no data was recognized. Try cropping the receipt more tightly around the text.';
     }
   } catch (e) {
+    if (e.name === 'AbortError') { console.log('Extraction aborted (superseded by newer upload)'); return; }
+    if (thisReqId !== _currentExtractionId) { console.log('Stale extraction error ignored'); return; }
     status.className = 'receipt-extract-status error';
     status.textContent = '✗ Error: ' + e.message;
     console.error('extractReceipt error:', e);
@@ -923,17 +1032,21 @@ function showConfidenceBanner(extracted) {
   banner.style.display = 'block';
 }
 
+/* ===== SUBMIT PURCHASE ===== */
 async function submitPurchase() {
   if (!requireLocationOrPopup()) return;
+
   var date = document.getElementById('purchaseDate').value;
   var location = document.getElementById('purchaseLocation').value;
   var person = document.getElementById('purchasePerson').value;
   var vendor = document.getElementById('purchaseVendor').value;
   var notes = document.getElementById('purchaseNotes').value;
+
   if (!date) { showPurchaseError('Date is required'); return; }
   if (!vendor || !vendor.trim()) { showPurchaseError('Vendor is required'); return; }
   var projectId = document.getElementById('purchaseProject').value;
   if (!projectId) { showPurchaseError('Project is required'); return; }
+
   var lineItems = [];
   var rows = document.querySelectorAll('.line-item-row');
   for (var i = 0; i < rows.length; i++) {
@@ -946,32 +1059,81 @@ async function submitPurchase() {
     var qty = parseFloat(row.querySelector('.line-qty').value);
     var fuelType = row.querySelector('.line-fuel-type').value;
     var cpg = parseFloat(row.querySelector('.line-cpg').value) || null;
+
     if (!dest) { showPurchaseError('Line ' + (i + 1) + ': asset is required (select from the list)'); return; }
-    if (!qty || qty <= 0) { showPurchaseError('Line ' + (i + 1) + ': quantity must be > 0'); return; }
+    if (!qty || qty <= 0 || !isFinite(qty)) { showPurchaseError('Line ' + (i + 1) + ': quantity (gallons) is required and must be > 0'); return; }
+    if (!cpg || cpg <= 0 || !isFinite(cpg)) { showPurchaseError('Line ' + (i + 1) + ': cost per gallon is required and must be > 0'); return; }
+    if (!fuelType) { showPurchaseError('Line ' + (i + 1) + ': fuel type is required'); return; }
+
     var parts = dest.split('|');
-    lineItems.push({ fuel_type: fuelType, quantity: qty, to_entity_type: parts[0], to_entity_id: parts[1], cost_per_gallon: cpg });
+    lineItems.push({
+      fuel_type: fuelType,
+      quantity: qty,
+      to_entity_type: parts[0],
+      to_entity_id: parts[1],
+      cost_per_gallon: cpg
+    });
   }
+
   if (lineItems.length === 0) { showPurchaseError('At least one line item is required'); return; }
+
   var totalQty = 0;
   lineItems.forEach(function(li) { totalQty += li.quantity; });
   if (totalQty <= 0) { showPurchaseError('Total quantity must be greater than zero'); return; }
+
+  // Collect manager-review flags for "Other" selections
+  managerReviewFlags = [];
+
+  var locEl = document.getElementById('purchaseLocation');
+  if (locEl && locEl.tagName === 'INPUT') {
+    managerReviewFlags.push({ field: 'location', value: locEl.value, reason: 'Custom location typed manually (not from list)' });
+  }
+
+  for (var j = 0; j < lineItems.length; j++) {
+    var row = rows[j];
+    var fuelEl = row.querySelector('.line-fuel-type');
+    if (fuelEl && fuelEl.getAttribute('data-custom') === 'true') {
+      managerReviewFlags.push({ field: 'fuel_type', line: j + 1, value: fuelEl.value, reason: 'Custom fuel type typed manually (not from list)' });
+      lineItems[j].fuel_type = fuelEl.value;
+    }
+  }
+
   var body = {
-    vendor: vendor || null, purchase_date: date + 'T08:00:00Z',
-    submission_timestamp: new Date().toISOString(), location: location || null,
-    person: person || null, notes: notes || null, project_id: projectId || null,
-    receipt_r2_key: receiptR2Key, line_items: lineItems,
-    device_location: hasDeviceLocation() ? deviceLocation : null
+    vendor: vendor || null,
+    purchase_date: date + 'T08:00:00Z',
+    submission_timestamp: new Date().toISOString(),
+    location: location || null,
+    person: person || null,
+    notes: notes || null,
+    project_id: projectId || null,
+    receipt_r2_key: receiptR2Key,
+    line_items: lineItems,
+    device_location: hasDeviceLocation() ? deviceLocation : null,
+    manager_review_flags: managerReviewFlags
   };
+
   var submitBtn = document.querySelector('.purchase-submit-btn');
-  submitBtn.disabled = true; submitBtn.textContent = 'Recording…';
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Recording…';
+
   try {
     var resp = await fetch('/api/fuel-purchases', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!resp.ok) { throw new Error('Server returned ' + resp.status); }
     var data = await resp.json();
-    if (data.success) { clearFormDirty(); showPurchaseSuccess(data.purchase); setTimeout(clearPurchaseForm, 3000); }
-    else { showPurchaseError(data.error || 'Failed to record purchase'); }
-  } catch (e) { showPurchaseError('Error: ' + e.message); reportError('submitPurchase', e); }
-  finally { submitBtn.disabled = false; submitBtn.textContent = 'Record Purchase'; }
+    if (data.success) {
+      clearFormDirty();
+      showPurchaseSuccess(data.purchase);
+      setTimeout(clearPurchaseForm, 3000);
+    } else {
+      showPurchaseError(data.error || 'Failed to record purchase');
+    }
+  } catch (e) {
+    showPurchaseError('Error: ' + e.message);
+    reportError('submitPurchase', e);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Record Purchase';
+  }
 }
 
 function showPurchaseSuccess(purchase) {
@@ -997,20 +1159,30 @@ function showPurchaseError(msg) {
 function clearPurchaseForm() {
   clearFormDirty();
   document.getElementById('purchaseDate').value = localDate();
+
   var locEl = document.getElementById('purchaseLocation');
   if (locEl && locEl.tagName === 'INPUT') {
     var select = document.createElement('select');
-    select.id = 'purchaseLocation'; select.className = 'purchase-input';
+    select.id = 'purchaseLocation';
+    select.className = 'purchase-input';
     select.setAttribute('onchange', 'handleLocationChange(this)');
-    locEl.parentNode.replaceChild(select, locEl); locEl = select;
+    locEl.parentNode.replaceChild(select, locEl);
+    locEl = select;
   }
   var locations = {};
-  allAssets.forEach(function(a) { if (a.current_location && a.current_location.trim()) locations[a.current_location.trim()] = true; });
-  allTanks.forEach(function(t) { if (t.location && t.location.trim()) locations[t.location.trim()] = true; });
+  allAssets.forEach(function(a) {
+    if (a.current_location && a.current_location.trim()) locations[a.current_location.trim()] = true;
+  });
+  allTanks.forEach(function(t) {
+    if (t.location && t.location.trim()) locations[t.location.trim()] = true;
+  });
   var locHtml = '<option value="">Select location…</option>';
-  Object.keys(locations).sort().forEach(function(loc) { locHtml += '<option value="' + esc(loc) + '">' + esc(loc) + '</option>'; });
+  Object.keys(locations).sort().forEach(function(loc) {
+    locHtml += '<option value="' + esc(loc) + '">' + esc(loc) + '</option>';
+  });
   locHtml += '<option value="__custom">+ Other (type manually)</option>';
   if (locEl) locEl.innerHTML = locHtml;
+
   document.getElementById('purchasePerson').value = getUserDisplayName();
   document.getElementById('purchaseVendor').value = '';
   document.getElementById('purchaseProject').value = '';
@@ -1026,17 +1198,24 @@ function clearPurchaseForm() {
   document.getElementById('purchaseResult').style.display = 'none';
   if (_objectUrl) { URL.revokeObjectURL(_objectUrl); _objectUrl = null; }
   receiptR2Key = null;
+  managerReviewFlags = [];
   document.getElementById('lineItemsContainer').innerHTML = '';
-  lineItemCount = 0; addLineItem(); recalcGrandTotal();
+  lineItemCount = 0;
+  addLineItem();
+  recalcGrandTotal();
 }
 
+/* ===== LOAD DATA ===== */
 async function loadTanks() {
   try {
     var resp = await fetch('/api/fuel-tanks');
     if (!resp.ok) throw new Error('Failed to load tanks: ' + resp.status);
     var data = await resp.json();
     if (data.success && data.tanks) allTanks = data.tanks;
-  } catch (e) { console.error('Error loading tanks:', e.message); reportError('loadTanks', e); }
+  } catch (e) {
+    console.error('Error loading tanks:', e.message);
+    reportError('loadTanks', e);
+  }
 }
 
 async function loadTankTypes() {
@@ -1045,7 +1224,10 @@ async function loadTankTypes() {
     if (!resp.ok) throw new Error('Failed to load tank types: ' + resp.status);
     var data = await resp.json();
     if (data.success && data.tank_types) tankTypes = data.tank_types;
-  } catch (e) { console.error('Error loading tank types:', e.message); reportError('loadTankTypes', e); }
+  } catch (e) {
+    console.error('Error loading tank types:', e.message);
+    reportError('loadTankTypes', e);
+  }
 }
 
 async function loadAssets() {
@@ -1053,28 +1235,46 @@ async function loadAssets() {
     var resp = await fetch('/api/assets');
     if (!resp.ok) throw new Error('Failed to load assets: ' + resp.status);
     var data = await resp.json();
-    if (data.success && data.assets) { allAssets = data.assets.filter(function(a) { return a.status === 'active'; }); }
+    if (data.success && data.assets) {
+      allAssets = data.assets.filter(function(a) { return a.status === 'active'; });
+    }
     var locations = {};
-    allAssets.forEach(function(a) { if (a.current_location && a.current_location.trim()) locations[a.current_location.trim()] = true; });
-    allTanks.forEach(function(t) { if (t.location && t.location.trim()) locations[t.location.trim()] = true; });
+    allAssets.forEach(function(a) {
+      if (a.current_location && a.current_location.trim()) {
+        locations[a.current_location.trim()] = true;
+      }
+    });
+    allTanks.forEach(function(t) {
+      if (t.location && t.location.trim()) {
+        locations[t.location.trim()] = true;
+      }
+    });
     var locSelect = document.getElementById('purchaseLocation');
     if (locSelect) {
       var currentVal = locSelect.value;
       var html = '<option value="">Select location…</option>';
-      Object.keys(locations).sort().forEach(function(loc) { html += '<option value="' + esc(loc) + '">' + esc(loc) + '</option>'; });
+      Object.keys(locations).sort().forEach(function(loc) {
+        html += '<option value="' + esc(loc) + '">' + esc(loc) + '</option>';
+      });
       html += '<option value="__custom">+ Other (type manually)</option>';
       locSelect.innerHTML = html;
       if (currentVal) locSelect.value = currentVal;
     }
-  } catch (e) { console.error('Error loading assets:', e.message); reportError('loadAssets', e); }
+  } catch (e) {
+    console.error('Error loading assets:', e.message);
+    reportError('loadAssets', e);
+  }
 }
 
 function handleLocationChange(sel) {
   if (sel.value === '__custom') {
     var input = document.createElement('input');
-    input.type = 'text'; input.id = 'purchaseLocation'; input.className = 'purchase-input';
+    input.type = 'text';
+    input.id = 'purchaseLocation';
+    input.className = 'purchase-input';
     input.placeholder = 'Type location name';
-    sel.parentNode.replaceChild(input, sel); input.focus();
+    sel.parentNode.replaceChild(input, sel);
+    input.focus();
   }
 }
 
@@ -1087,37 +1287,51 @@ async function loadProjects() {
       var sel = document.getElementById('purchaseProject');
       if (sel) {
         var html = '<option value="">Select project…</option>';
-        data.projects.forEach(function(p) { html += '<option value="' + esc(p.id) + '">' + esc(p.name || p.project_name || p.id) + '</option>'; });
+        data.projects.forEach(function(p) {
+          html += '<option value="' + esc(p.id) + '">' + esc(p.name || p.project_name || p.id) + '</option>';
+        });
         sel.innerHTML = html;
       }
     }
-  } catch (e) { console.error('Error loading projects:', e.message); }
+  } catch (e) {
+    console.error('Error loading projects:', e.message);
+  }
 }
 
+/* ===== INIT ===== */
 function initPurchaseForm() {
   var today = localDate();
   var dateField = document.getElementById('purchaseDate');
   if (dateField) dateField.value = today;
+
   var userField = document.getElementById('purchasePerson');
   if (userField) userField.value = getUserDisplayName();
+
   document.getElementById('lineItemsContainer').innerHTML = '';
-  lineItemCount = 0; addLineItem(); recalcGrandTotal();
+  lineItemCount = 0;
+  addLineItem();
+  recalcGrandTotal();
 }
 
 document.addEventListener('dashSessionLoaded', async function() {
   var user = window.dashUser;
   if (!user) { window.location.href = '/public/login.html'; return; }
+
   var role = (user.role || '').toLowerCase();
   var dashUrl = role === 'admin' ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
   var homeLink = document.getElementById('dashHomeLink');
   if (homeLink) homeLink.href = dashUrl;
+
   insertHeaderTitle();
   makeTabsSticky();
-  if (!hasDeviceLocation()) checkDeviceLocation();
+
+  if (!hasDeviceLocation() && isMobileDevice()) checkDeviceLocation();
   var banner = document.getElementById('locationStatusBanner');
   if (banner) banner.style.display = 'block';
+
   document.getElementById('loading').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
+
   await loadTankTypes();
   await loadTanks();
   await loadAssets();
@@ -1128,6 +1342,5 @@ document.addEventListener('dashSessionLoaded', async function() {
 
 <script src="/app/shared/auth-check.js?v=8"></script>
 <script src="/components/nav.js?v=5"></script>
-<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" data-cf-beacon='{"token":"aed8feab3b60404ba88ec92f026bbcd6"}' crossorigin="anonymous"></script>
 </body>
 </html>
