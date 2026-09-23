@@ -151,11 +151,6 @@
           <div class="ft-tank-info" id="toTankInfo"></div>
         </div>
 
-        <div class="ft-row" id="toAssetRow" style="display:none;">
-          <label>Which Equipment? <span class="req">*</span></label>
-          <select id="toAsset"></select>
-        </div>
-
         <div class="ft-two-col">
           <div class="ft-row">
             <label>Quantity (gallons) <span class="req">*</span></label>
@@ -236,40 +231,18 @@ function reportError(source, err) {
   var msg = (err && err.message) ? err.message : (typeof err === 'string' ? err : 'Unknown error');
   var stack = (err && err.stack) ? err.stack : 'No stack trace';
   try {
-    fetch('/api/log-error', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        source: 'Fuel Transfer Form (' + source + ')',
-        message: msg,
-        stack: stack,
-        url: window.location.href,
-        userAgent: navigator.userAgent
-      })
-    }).catch(function() {});
+    fetch('/api/log-error', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'Fuel Transfer Form (' + source + ')', message: msg, stack: stack, url: window.location.href, userAgent: navigator.userAgent }) }).catch(function() {});
   } catch (e) { console.error('Failed to report error:', e); }
   console.error('[' + source + ']', msg, stack);
 }
 
 /* ===== DEVICE LOCATION CHECK ===== */
 function checkDeviceLocation() {
-  if (!navigator.geolocation) {
-    showLocationPopup('Your device does not support GPS location. Please use a device with location capabilities.');
-    return;
-  }
+  if (!navigator.geolocation) { showLocationPopup('Your device does not support GPS location.'); return; }
   navigator.geolocation.getCurrentPosition(
-    function(pos) {
-      deviceLocation = {
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
-        accuracy: pos.coords.accuracy,
-        timestamp: new Date().toISOString()
-      };
-      updateLocationStatus(true);
-    },
+    function(pos) { deviceLocation = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy, timestamp: new Date().toISOString() }; updateLocationStatus(true); },
     function(err) {
-      deviceLocation = null;
-      updateLocationStatus(false);
+      deviceLocation = null; updateLocationStatus(false);
       var msg = 'Location is required to submit forms. ';
       if (err.code === 1) msg += 'You denied location access. Please enable it in your device settings.';
       else if (err.code === 2) msg += 'Location is unavailable. Check your GPS or network connection.';
@@ -282,21 +255,13 @@ function checkDeviceLocation() {
 }
 
 function updateLocationStatus(hasLocation) {
-  var banner = document.getElementById('locationStatusBanner');
-  if (!banner) return;
-  if (hasLocation) {
-    banner.className = 'location-banner ok';
-    banner.innerHTML = '<strong>📍 Location:</strong> ' + deviceLocation.latitude.toFixed(6) + ', ' + deviceLocation.longitude.toFixed(6) + ' (±' + Math.round(deviceLocation.accuracy) + 'm)';
-  } else {
-    banner.className = 'location-banner warn';
-    banner.innerHTML = '<strong>⚠️ Location is OFF</strong> — Click to retry <button onclick="checkDeviceLocation()" style="margin-left:8px;padding:4px 12px;border:1px solid #b45309;border-radius:4px;background:#fef3c7;color:#78350f;cursor:pointer;font-size:12px;">Retry</button>';
-  }
+  var banner = document.getElementById('locationStatusBanner'); if (!banner) return;
+  if (hasLocation) { banner.className = 'location-banner ok'; banner.innerHTML = '<strong>📍 Location:</strong> ' + deviceLocation.latitude.toFixed(6) + ', ' + deviceLocation.longitude.toFixed(6) + ' (±' + Math.round(deviceLocation.accuracy) + 'm)'; }
+  else { banner.className = 'location-banner warn'; banner.innerHTML = '<strong>⚠️ Location is OFF</strong> — Click to retry <button onclick="checkDeviceLocation()" style="margin-left:8px;padding:4px 12px;border:1px solid #b45309;border-radius:4px;background:#fef3c7;color:#78350f;cursor:pointer;font-size:12px;">Retry</button>'; }
 }
 
 function showLocationPopup(message) {
-  var overlay = document.getElementById('locationPopupOverlay');
-  var msgEl = document.getElementById('locationPopupMessage');
-  if (!overlay || !msgEl) return;
+  var overlay = document.getElementById('locationPopupOverlay'); var msgEl = document.getElementById('locationPopupMessage'); if (!overlay || !msgEl) return;
   msgEl.innerHTML = '<p style="font-size:15px;margin:0 0 16px;">' + esc(message) + '</p>' +
     '<div style="background:#f4f4f4;border-radius:8px;padding:14px;margin-bottom:12px;">' +
     '<p style="font-weight:600;margin:0 0 8px;">How to enable location:</p>' +
@@ -308,15 +273,8 @@ function showLocationPopup(message) {
   overlay.style.display = 'flex';
 }
 
-function closeLocationPopup() {
-  var overlay = document.getElementById('locationPopupOverlay');
-  if (overlay) overlay.style.display = 'none';
-}
-
-function hasDeviceLocation() {
-  return deviceLocation !== null && deviceLocation.latitude !== undefined && deviceLocation.longitude !== undefined;
-}
-
+function closeLocationPopup() { var overlay = document.getElementById('locationPopupOverlay'); if (overlay) overlay.style.display = 'none'; }
+function hasDeviceLocation() { return deviceLocation !== null && deviceLocation.latitude !== undefined && deviceLocation.longitude !== undefined; }
 function requireLocationOrPopup() {
   if (hasDeviceLocation()) return true;
   var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
@@ -325,116 +283,57 @@ function requireLocationOrPopup() {
   return false;
 }
 
-function esc(s) {
-  if (!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
+function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 function insertHeaderTitle() {
   var row1 = document.querySelector('.dash-header-row1');
   if (row1 && !document.querySelector('.ft-header-title')) {
-    var title = document.createElement('div');
-    title.className = 'ft-header-title';
-    title.textContent = 'Log Fuel Transfer';
-    var logoArea = document.getElementById('dashCustomerLogoArea');
-    var drivenLogo = row1.querySelector('.dash-driven-logo');
+    var title = document.createElement('div'); title.className = 'ft-header-title'; title.textContent = 'Log Fuel Transfer';
+    var logoArea = document.getElementById('dashCustomerLogoArea'); var drivenLogo = row1.querySelector('.dash-driven-logo');
     if (logoArea && drivenLogo) row1.insertBefore(title, drivenLogo);
   }
 }
 
-window.dashLogout = function() {
-  try { fetch('/auth/logout', { method: 'POST' }); } catch (e) {}
-  window.location.href = '/public/login.html';
-};
+window.dashLogout = function() { try { fetch('/auth/logout', { method: 'POST' }); } catch (e) {} window.location.href = '/public/login.html'; };
 
-function goBack() {
-  var role = (window.dashUser && window.dashUser.role || '').toLowerCase();
-  window.location.href = role === 'admin' ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
-}
+function goBack() { var role = (window.dashUser && window.dashUser.role || '').toLowerCase(); window.location.href = role === 'admin' ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html'; }
 
-function showError(msg) {
-  var el = document.getElementById('errorBanner');
-  if (!msg) { el.style.display = 'none'; return; }
-  el.textContent = msg;
-  el.style.display = 'block';
-}
+function showError(msg) { var el = document.getElementById('errorBanner'); if (!msg) { el.style.display = 'none'; return; } el.textContent = msg; el.style.display = 'block'; }
 
-// Set today's date
 document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
 
 // ===== LOAD DATA =====
-async function loadTanks() {
-  try {
-    var resp = await fetch('/api/fuel-tanks');
-    var data = await resp.json();
-    if (data.success && data.tanks) {
-      allTanks = data.tanks;
-    }
-  } catch (e) {
-    console.error('Failed to load tanks:', e);
-    reportError('loadTanks', e);
-  }
-}
+async function loadTanks() { try { var resp = await fetch('/api/fuel-tanks'); var data = await resp.json(); if (data.success && data.tanks) { allTanks = data.tanks; } } catch (e) { console.error('Failed to load tanks:', e); reportError('loadTanks', e); } }
 
 async function loadAssets() {
   try {
-    var resp = await fetch('/api/assets');
-    var data = await resp.json();
-    if (data.success && data.assets) {
-      allAssets = data.assets.filter(function(a) { return a.status === 'active'; });
-    } else if (data.success && data.equipment) {
-      allAssets = data.equipment.filter(function(a) { return a.status === 'active'; });
-    }
-  } catch (e) {
-    console.error('Failed to load assets:', e);
-    reportError('loadAssets', e);
-  }
+    var resp = await fetch('/api/assets'); var data = await resp.json();
+    if (data.success && data.assets) { allAssets = data.assets.filter(function(a) { return a.status === 'active'; }); }
+    else if (data.success && data.equipment) { allAssets = data.equipment.filter(function(a) { return a.status === 'active'; }); }
+  } catch (e) { console.error('Failed to load assets:', e); reportError('loadAssets', e); }
 }
 
 async function loadProjects() {
-  try {
-    var resp = await fetch('/api/projects');
-    var data = await resp.json();
-    if (data.success && data.projects) {
-      var select = document.getElementById('project');
-      data.projects.forEach(function(p) {
-        var opt = document.createElement('option');
-        opt.value = p.id;
-        opt.textContent = p.name || p.project_name || p.id;
-        select.appendChild(opt);
-      });
-    }
-  } catch (e) {}
+  try { var resp = await fetch('/api/projects'); var data = await resp.json(); if (data.success && data.projects) { var select = document.getElementById('project'); data.projects.forEach(function(p) { var opt = document.createElement('option'); opt.value = p.id; opt.textContent = p.name || p.project_name || p.id; select.appendChild(opt); }); } } catch (e) {}
 }
 
 // ===== FROM SOURCE LOGIC =====
 function onFromChange() {
   var fromType = document.getElementById('fromSource').value;
-  var fromTankRow = document.getElementById('fromTankRow');
-  var fromAssetRow = document.getElementById('fromAssetRow');
-  var fromTank = document.getElementById('fromTank');
-  var fromAsset = document.getElementById('fromAsset');
-
-  // Reset
-  fromTank.innerHTML = '';
-  fromAsset.innerHTML = '';
+  var fromTankRow = document.getElementById('fromTankRow'); var fromAssetRow = document.getElementById('fromAssetRow');
+  var fromTank = document.getElementById('fromTank'); var fromAsset = document.getElementById('fromAsset');
+  fromTank.innerHTML = ''; fromAsset.innerHTML = '';
   document.getElementById('fromTankInfo').textContent = '';
-  var fromAssetInfo = document.getElementById('fromAssetInfo');
-  if (fromAssetInfo) fromAssetInfo.textContent = '';
-
-  fromTankRow.style.display = 'none';
-  fromAssetRow.style.display = 'none';
+  var fromAssetInfo = document.getElementById('fromAssetInfo'); if (fromAssetInfo) fromAssetInfo.textContent = '';
+  fromTankRow.style.display = 'none'; fromAssetRow.style.display = 'none';
 
   if (fromType === 'asset') {
-    // Populate assets
     fromAssetRow.style.display = 'block';
-    if (allAssets.length === 0) {
-      fromAsset.innerHTML = '<option value="">No equipment available</option>';
-    } else {
+    if (allAssets.length === 0) { fromAsset.innerHTML = '<option value="">No equipment available</option>'; }
+    else {
       fromAsset.innerHTML = '<option value="">Select equipment…</option>';
       allAssets.forEach(function(a) {
-        var opt = document.createElement('option');
-        opt.value = a.id;
+        var opt = document.createElement('option'); opt.value = a.id;
         opt.textContent = (a.asset_number || a.id.slice(0,8)) + ' — ' + (a.name || 'Unnamed') + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
         opt.dataset.fuelType = a.fuel_type || '';
         fromAsset.appendChild(opt);
@@ -442,7 +341,6 @@ function onFromChange() {
     }
   } else if (fromType) {
     fromTankRow.style.display = 'block';
-    // Populate tanks matching the selected type
     var tankType = fromType.replace('_tank', '').replace('_can', '');
     var matching = allTanks.filter(function(t) {
       if (tankType === 'portable') return t.tank_type === 'portable';
@@ -450,151 +348,95 @@ function onFromChange() {
       if (tankType === 'dragup') return t.tank_type === 'dragup';
       return false;
     });
-    if (matching.length === 0) {
-      fromTank.innerHTML = '<option value="">No tanks of this type available</option>';
-    } else {
+    if (matching.length === 0) { fromTank.innerHTML = '<option value="">No tanks of this type available</option>'; }
+    else {
       fromTank.innerHTML = '<option value="">Select tank…</option>';
       matching.forEach(function(t) {
-        var opt = document.createElement('option');
-        opt.value = t.id;
+        var opt = document.createElement('option'); opt.value = t.id;
         opt.textContent = t.name + ' — ' + (t.current_quantity||0) + '/' + (t.capacity||0) + ' gal (' + (t.fuel_type||'?') + ')';
         opt.dataset.fuelType = t.fuel_type || '';
         fromTank.appendChild(opt);
       });
     }
   }
-
   updateToOptions();
 }
 
 function onFromAssetChange() {
-  var fromAsset = document.getElementById('fromAsset');
-  var selected = fromAsset.selectedOptions[0];
-  var info = document.getElementById('fromAssetInfo');
+  var fromAsset = document.getElementById('fromAsset'); var selected = fromAsset.selectedOptions[0]; var info = document.getElementById('fromAssetInfo');
   if (selected && selected.value) {
     var fuelType = selected.dataset.fuelType;
-    if (fuelType) {
-      info.textContent = 'Fuel type: ' + fuelType;
-      var fuelSelect = document.getElementById('fuelType');
-      for (var i = 0; i < fuelSelect.options.length; i++) {
-        if (fuelSelect.options[i].value === fuelType) {
-          fuelSelect.selectedIndex = i;
-          break;
-        }
-      }
-    }
-  } else {
-    info.textContent = '';
-  }
+    if (fuelType) { info.textContent = 'Fuel type: ' + fuelType; var fuelSelect = document.getElementById('fuelType'); for (var i = 0; i < fuelSelect.options.length; i++) { if (fuelSelect.options[i].value === fuelType) { fuelSelect.selectedIndex = i; break; } } }
+  } else { info.textContent = ''; }
 }
 
 function onFromTankChange() {
-  var fromTank = document.getElementById('fromTank');
-  var selected = fromTank.selectedOptions[0];
-  var info = document.getElementById('fromTankInfo');
+  var fromTank = document.getElementById('fromTank'); var selected = fromTank.selectedOptions[0]; var info = document.getElementById('fromTankInfo');
   if (selected && selected.value) {
     var fuelType = selected.dataset.fuelType;
-    if (fuelType) {
-      info.textContent = 'Fuel type: ' + fuelType;
-      // Auto-fill fuel type
-      var fuelSelect = document.getElementById('fuelType');
-      for (var i = 0; i < fuelSelect.options.length; i++) {
-        if (fuelSelect.options[i].value === fuelType) {
-          fuelSelect.selectedIndex = i;
-          break;
-        }
-      }
-    }
-  } else {
-    info.textContent = '';
-  }
+    if (fuelType) { info.textContent = 'Fuel type: ' + fuelType; var fuelSelect = document.getElementById('fuelType'); for (var i = 0; i < fuelSelect.options.length; i++) { if (fuelSelect.options[i].value === fuelType) { fuelSelect.selectedIndex = i; break; } } }
+  } else { info.textContent = ''; }
 }
 
 // ===== TO DESTINATION LOGIC =====
 function updateToOptions() {
   var fromType = document.getElementById('fromSource').value;
   var toSelect = document.getElementById('toDest');
-
   toSelect.innerHTML = '<option value="">Select destination…</option>';
 
-  // Valid destinations based on source:
-  // bulk_tank → asset, dragup_tank, portable_can
-  // dragup_tank → asset, portable_can
-  // portable_can → asset
-  // asset → bulk_tank, dragup_tank, portable_can (fuel going back to a tank)
+  // Build optgroup for individual assets (always shown as destination options when source is not an asset)
+  if (allAssets.length > 0 && fromType !== 'asset') {
+    var assetGroup = document.createElement('optgroup');
+    assetGroup.label = 'Equipment / Assets';
+    allAssets.forEach(function(a) {
+      var opt = document.createElement('option');
+      opt.value = 'asset|' + a.id;
+      opt.textContent = (a.asset_number || a.id.slice(0,8)) + ' — ' + (a.name || 'Unnamed') + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
+      opt.dataset.destType = 'asset';
+      opt.dataset.destId = a.id;
+      assetGroup.appendChild(opt);
+    });
+    toSelect.appendChild(assetGroup);
+  }
 
-  if (fromType === 'bulk_tank') {
-    toSelect.innerHTML += '<option value="asset">Equipment / Asset</option>';
-    toSelect.innerHTML += '<option value="dragup_tank">Drag-Up Tank</option>';
-    toSelect.innerHTML += '<option value="portable_can">Portable Gas Can</option>';
-  } else if (fromType === 'dragup_tank') {
-    toSelect.innerHTML += '<option value="asset">Equipment / Asset</option>';
-    toSelect.innerHTML += '<option value="portable_can">Portable Gas Can</option>';
-  } else if (fromType === 'portable_can') {
-    toSelect.innerHTML += '<option value="asset">Equipment / Asset</option>';
-  } else if (fromType === 'asset') {
-    toSelect.innerHTML += '<option value="bulk_tank">Bulk Tank</option>';
-    toSelect.innerHTML += '<option value="dragup_tank">Drag-Up Tank</option>';
-    toSelect.innerHTML += '<option value="portable_can">Portable Gas Can</option>';
+  // Build optgroup for tanks (only valid tank destinations based on source)
+  var tankDestTypes = [];
+  if (fromType === 'bulk_tank') tankDestTypes = ['dragup_tank', 'portable_can'];
+  else if (fromType === 'dragup_tank') tankDestTypes = ['portable_can'];
+  else if (fromType === 'asset') tankDestTypes = ['bulk_tank', 'dragup_tank', 'portable_can'];
+
+  if (tankDestTypes.length > 0) {
+    var tankGroup = document.createElement('optgroup');
+    tankGroup.label = 'Tanks';
+    tankDestTypes.forEach(function(destType) {
+      var tankType = destType === 'bulk_tank' ? 'bulk' : (destType === 'dragup_tank' ? 'dragup' : 'portable');
+      var matching = allTanks.filter(function(t) { return t.tank_type === tankType; });
+      matching.forEach(function(t) {
+        var opt = document.createElement('option');
+        opt.value = destType + '|' + t.id;
+        opt.textContent = t.name + ' — ' + (t.current_quantity||0) + '/' + (t.capacity||0) + ' gal (' + (t.fuel_type||'?') + ')';
+        opt.dataset.destType = destType;
+        opt.dataset.destId = t.id;
+        tankGroup.appendChild(opt);
+      });
+    });
+    if (tankGroup.children.length > 0) { toSelect.appendChild(tankGroup); }
   }
 
   onToChange();
 }
 
 function onToChange() {
-  var toType = document.getElementById('toDest').value;
+  var toSelect = document.getElementById('toDest');
   var toTankRow = document.getElementById('toTankRow');
-  var toAssetRow = document.getElementById('toAssetRow');
   var toTank = document.getElementById('toTank');
-  var toAsset = document.getElementById('toAsset');
-
   toTank.innerHTML = '';
-  toAsset.innerHTML = '';
   toTankRow.style.display = 'none';
-  toAssetRow.style.display = 'none';
-
-  if (toType === 'bulk_tank' || toType === 'dragup_tank' || toType === 'portable_can') {
-    toTankRow.style.display = 'block';
-    var tankType = toType === 'bulk_tank' ? 'bulk' : (toType === 'dragup_tank' ? 'dragup' : 'portable');
-    var matching = allTanks.filter(function(t) { return t.tank_type === tankType; });
-    if (matching.length === 0) {
-      toTank.innerHTML = '<option value="">No tanks of this type available</option>';
-    } else {
-      toTank.innerHTML = '<option value="">Select tank…</option>';
-      matching.forEach(function(t) {
-        var opt = document.createElement('option');
-        opt.value = t.id;
-        opt.textContent = t.name + ' — ' + (t.current_quantity||0) + '/' + (t.capacity||0) + ' gal';
-        toTank.appendChild(opt);
-      });
-    }
-  } else if (toType === 'asset') {
-    toAssetRow.style.display = 'block';
-    if (allAssets.length === 0) {
-      toAsset.innerHTML = '<option value="">No equipment available</option>';
-    } else {
-      toAsset.innerHTML = '<option value="">Select equipment…</option>';
-      allAssets.forEach(function(a) {
-        var opt = document.createElement('option');
-        opt.value = a.id;
-        opt.textContent = (a.asset_number || a.id.slice(0,8)) + ' — ' + (a.name || 'Unnamed');
-        toAsset.appendChild(opt);
-      });
-    }
-  }
+  // No secondary row needed — the toDest dropdown now lists individual assets and tanks directly
 }
 
 // ===== MAP TO TRANSACTION TYPE =====
 function getTransactionType(fromType, toType) {
-  // bulk_tank → asset = bulk_issue
-  // bulk_tank → dragup_tank = dragup_fill
-  // bulk_tank → portable_can = portable_fill
-  // dragup_tank → asset = dragup_issue
-  // dragup_tank → portable_can = portable_fill
-  // portable_can → asset = portable_issue
-  // asset → bulk_tank = bulk_fill (fuel returned to bulk tank)
-  // asset → dragup_tank = dragup_fill (fuel returned to drag-up)
-  // asset → portable_can = portable_fill (fuel returned to portable)
   if (fromType === 'bulk_tank' && toType === 'asset') return 'bulk_issue';
   if (fromType === 'bulk_tank' && toType === 'dragup_tank') return 'dragup_fill';
   if (fromType === 'bulk_tank' && toType === 'portable_can') return 'portable_fill';
@@ -611,13 +453,14 @@ function getTransactionType(fromType, toType) {
 async function submitTransfer() {
   if (!requireLocationOrPopup()) return;
   showError('');
-
   var fromType = document.getElementById('fromSource').value;
   var fromTankId = document.getElementById('fromTank').value;
   var fromAssetId = document.getElementById('fromAsset').value;
-  var toType = document.getElementById('toDest').value;
-  var toTankId = document.getElementById('toTank').value;
-  var toAssetId = document.getElementById('toAsset').value;
+  // Destination: read from the toDest dropdown's selected option dataset
+  var toSelect = document.getElementById('toDest');
+  var toSelected = toSelect.selectedOptions[0];
+  var toType = toSelected ? (toSelected.dataset.destType || '') : '';
+  var toEntityId = toSelected ? (toSelected.dataset.destId || '') : '';
   var quantity = parseFloat(document.getElementById('quantity').value);
   var txDate = document.getElementById('txDate').value;
   var fuelType = document.getElementById('fuelType').value;
@@ -627,87 +470,46 @@ async function submitTransfer() {
 
   // Validation
   if (!fromType) { showError('Please select a source.'); return; }
-  if (fromType === 'asset') {
-    if (!fromAssetId) { showError('Please select which equipment the fuel is coming from.'); return; }
-  } else {
-    if (!fromTankId) { showError('Please select which tank the fuel is coming from.'); return; }
-  }
-  if (!toType) { showError('Please select a destination.'); return; }
+  if (fromType === 'asset') { if (!fromAssetId) { showError('Please select which equipment the fuel is coming from.'); return; } }
+  else { if (!fromTankId) { showError('Please select which tank the fuel is coming from.'); return; } }
+  if (!toType || !toEntityId) { showError('Please select a destination (asset or tank).'); return; }
   if (!quantity || quantity <= 0) { showError('Please enter a valid quantity (must be greater than 0).'); return; }
   if (!txDate) { showError('Please select a date.'); return; }
   if (!fuelType) { showError('Please select a fuel type.'); return; }
   if (!projectId) { showError('Please select a project.'); return; }
 
-  if ((toType === 'bulk_tank' || toType === 'dragup_tank' || toType === 'portable_can') && !toTankId) {
-    showError('Please select which tank the fuel is going into.'); return;
-  }
-  if (toType === 'asset' && !toAssetId) {
-    showError('Please select which equipment is being fueled.'); return;
-  }
-
   var txType = getTransactionType(fromType, toType);
-  if (!txType) {
-    showError('Invalid transfer combination. Please check your selections.'); return;
-  }
+  if (!txType) { showError('Invalid transfer combination. Please check your selections.'); return; }
 
   var submitBtn = document.getElementById('submitBtn');
-  submitBtn.disabled = true;
-  submitBtn.textContent = 'Saving…';
-
+  submitBtn.disabled = true; submitBtn.textContent = 'Saving…';
   try {
     var fromEntityId = fromType === 'asset' ? fromAssetId : fromTankId;
     var body = {
-      transaction_type: txType,
-      fuel_type: fuelType,
-      quantity: quantity,
+      transaction_type: txType, fuel_type: fuelType, quantity: quantity,
       transaction_date: txDate,
-      from_entity_type: fromType,
-      from_entity_id: fromEntityId,
-      to_entity_type: toType,
-      to_entity_id: toType === 'asset' ? toAssetId : toTankId,
-      project_id: projectId || null,
-      location: location || null,
-      notes: notes || null,
+      submission_timestamp: new Date().toISOString(),
+      from_entity_type: fromType, from_entity_id: fromEntityId,
+      to_entity_type: toType, to_entity_id: toEntityId,
+      project_id: projectId || null, location: location || null, notes: notes || null,
       device_location: hasDeviceLocation() ? deviceLocation : null
     };
     if (fromType === 'asset') body.asset_id = fromAssetId;
-    if (toType === 'asset') body.asset_id = toAssetId;
+    if (toType === 'asset') body.asset_id = toEntityId;
 
-    var resp = await fetch('/api/fuel-transactions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-
+    var resp = await fetch('/api/fuel-transactions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     var data = await resp.json();
-
     if (data.success) {
       document.getElementById('formView').style.display = 'none';
       document.getElementById('successView').style.display = 'block';
       var fromName = '';
-      if (fromType === 'asset') {
-        fromName = document.getElementById('fromAsset').selectedOptions[0].textContent;
-      } else {
-        fromName = document.getElementById('fromTank').selectedOptions[0].textContent.split(' —')[0];
-      }
-      var toName = '';
-      if (toType === 'asset') {
-        toName = document.getElementById('toAsset').selectedOptions[0].textContent;
-      } else {
-        toName = document.getElementById('toTank').selectedOptions[0].textContent.split(' —')[0];
-      }
-      document.getElementById('successMsg').textContent =
-        quantity + ' gallons of ' + fuelType + ' transferred from ' + fromName + ' to ' + toName;
-    } else {
-      showError(data.error || 'Failed to log transfer. Please try again.');
-    }
-  } catch (e) {
-    showError('Network error: ' + e.message);
-    reportError('submitTransfer', e);
-  } finally {
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Log Transfer';
-  }
+      if (fromType === 'asset') { fromName = document.getElementById('fromAsset').selectedOptions[0].textContent; }
+      else { fromName = document.getElementById('fromTank').selectedOptions[0].textContent.split(' —')[0]; }
+      var toName = toSelected ? toSelected.textContent : '';
+      document.getElementById('successMsg').textContent = quantity + ' gallons of ' + fuelType + ' transferred from ' + fromName + ' to ' + toName;
+    } else { showError(data.error || 'Failed to log transfer. Please try again.'); }
+  } catch (e) { showError('Network error: ' + e.message); reportError('submitTransfer', e); }
+  finally { submitBtn.disabled = false; submitBtn.textContent = 'Log Transfer'; }
 }
 
 function resetForm() {
@@ -721,8 +523,6 @@ function resetForm() {
   document.getElementById('toDest').innerHTML = '<option value="">Select destination…</option>';
   document.getElementById('toTank').innerHTML = '';
   document.getElementById('toTankRow').style.display = 'none';
-  document.getElementById('toAsset').innerHTML = '';
-  document.getElementById('toAssetRow').style.display = 'none';
   document.getElementById('quantity').value = '';
   document.getElementById('fuelType').value = '';
   document.getElementById('location').value = '';
@@ -734,21 +534,16 @@ function resetForm() {
 document.addEventListener('dashSessionLoaded', async function() {
   var user = window.dashUser;
   if (!user) { window.location.href = '/public/login.html'; return; }
-
   var role = (user.role || '').toLowerCase();
   var dashUrl = role === 'admin' ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
   var homeLink = document.getElementById('dashHomeLink');
   if (homeLink) homeLink.href = dashUrl;
-
   insertHeaderTitle();
   document.getElementById('loading').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
-
-  // Check device location
   if (!hasDeviceLocation()) checkDeviceLocation();
   var banner = document.getElementById('locationStatusBanner');
   if (banner) banner.style.display = 'block';
-
   await loadTanks();
   await loadAssets();
   loadProjects();
