@@ -113,7 +113,7 @@
 
         <!-- FROM -->
         <div class="ft-row">
-          <label>From (source) <span class="req">*</span></label>
+          <label>From (select the tank or can) <span class="req">*</span></label>
           <select id="fromSource" onchange="onFromChange()" required>
             <option value="">Select source…</option>
             <option value="bulk_tank">Bulk Tank</option>
@@ -139,7 +139,7 @@
 
         <!-- TO -->
         <div class="ft-row">
-          <label>To (destination) <span class="req">*</span></label>
+          <label>Asset being Fueled <span class="req">*</span></label>
           <select id="toDest" onchange="onToChange()" required>
             <option value="">Select destination…</option>
           </select>
@@ -182,9 +182,9 @@
 
         <div class="ft-two-col">
           <div class="ft-row">
-            <label>Project (optional)</label>
-            <select id="project">
-              <option value="">No project…</option>
+            <label>Project <span class="req">*</span></label>
+            <select id="project" required>
+              <option value="">Select project…</option>
             </select>
           </div>
           <div class="ft-row">
@@ -415,6 +415,7 @@ function onFromChange() {
   var fromTank = document.getElementById('fromTank');
   var fromAsset = document.getElementById('fromAsset');
 
+  // Reset
   fromTank.innerHTML = '';
   fromAsset.innerHTML = '';
   document.getElementById('fromTankInfo').textContent = '';
@@ -425,6 +426,7 @@ function onFromChange() {
   fromAssetRow.style.display = 'none';
 
   if (fromType === 'asset') {
+    // Populate assets
     fromAssetRow.style.display = 'block';
     if (allAssets.length === 0) {
       fromAsset.innerHTML = '<option value="">No equipment available</option>';
@@ -440,6 +442,7 @@ function onFromChange() {
     }
   } else if (fromType) {
     fromTankRow.style.display = 'block';
+    // Populate tanks matching the selected type
     var tankType = fromType.replace('_tank', '').replace('_can', '');
     var matching = allTanks.filter(function(t) {
       if (tankType === 'portable') return t.tank_type === 'portable';
@@ -493,6 +496,7 @@ function onFromTankChange() {
     var fuelType = selected.dataset.fuelType;
     if (fuelType) {
       info.textContent = 'Fuel type: ' + fuelType;
+      // Auto-fill fuel type
       var fuelSelect = document.getElementById('fuelType');
       for (var i = 0; i < fuelSelect.options.length; i++) {
         if (fuelSelect.options[i].value === fuelType) {
@@ -512,6 +516,12 @@ function updateToOptions() {
   var toSelect = document.getElementById('toDest');
 
   toSelect.innerHTML = '<option value="">Select destination…</option>';
+
+  // Valid destinations based on source:
+  // bulk_tank → asset, dragup_tank, portable_can
+  // dragup_tank → asset, portable_can
+  // portable_can → asset
+  // asset → bulk_tank, dragup_tank, portable_can (fuel going back to a tank)
 
   if (fromType === 'bulk_tank') {
     toSelect.innerHTML += '<option value="asset">Equipment / Asset</option>';
@@ -576,6 +586,15 @@ function onToChange() {
 
 // ===== MAP TO TRANSACTION TYPE =====
 function getTransactionType(fromType, toType) {
+  // bulk_tank → asset = bulk_issue
+  // bulk_tank → dragup_tank = dragup_fill
+  // bulk_tank → portable_can = portable_fill
+  // dragup_tank → asset = dragup_issue
+  // dragup_tank → portable_can = portable_fill
+  // portable_can → asset = portable_issue
+  // asset → bulk_tank = bulk_fill (fuel returned to bulk tank)
+  // asset → dragup_tank = dragup_fill (fuel returned to drag-up)
+  // asset → portable_can = portable_fill (fuel returned to portable)
   if (fromType === 'bulk_tank' && toType === 'asset') return 'bulk_issue';
   if (fromType === 'bulk_tank' && toType === 'dragup_tank') return 'dragup_fill';
   if (fromType === 'bulk_tank' && toType === 'portable_can') return 'portable_fill';
@@ -606,6 +625,7 @@ async function submitTransfer() {
   var location = document.getElementById('location').value.trim();
   var notes = document.getElementById('notes').value.trim();
 
+  // Validation
   if (!fromType) { showError('Please select a source.'); return; }
   if (fromType === 'asset') {
     if (!fromAssetId) { showError('Please select which equipment the fuel is coming from.'); return; }
@@ -616,6 +636,7 @@ async function submitTransfer() {
   if (!quantity || quantity <= 0) { showError('Please enter a valid quantity (must be greater than 0).'); return; }
   if (!txDate) { showError('Please select a date.'); return; }
   if (!fuelType) { showError('Please select a fuel type.'); return; }
+  if (!projectId) { showError('Please select a project.'); return; }
 
   if ((toType === 'bulk_tank' || toType === 'dragup_tank' || toType === 'portable_can') && !toTankId) {
     showError('Please select which tank the fuel is going into.'); return;
@@ -723,6 +744,7 @@ document.addEventListener('dashSessionLoaded', async function() {
   document.getElementById('loading').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
 
+  // Check device location
   if (!hasDeviceLocation()) checkDeviceLocation();
   var banner = document.getElementById('locationStatusBanner');
   if (banner) banner.style.display = 'block';
