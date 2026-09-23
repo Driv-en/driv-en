@@ -73,6 +73,14 @@
 .ai-confidence-banner.low strong { color: #b45309; }
 .ai-confidence-banner .field-flag { display: inline-block; background: #fcd34d; color: #78350f; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin: 2px; }
 
+/* AI FIELD HIGHLIGHTING */
+.ai-extracted { background: #dcfce7 !important; border-color: #86efac !important; }
+.ai-needed { background: #fed7aa !important; border-color: #fb923c !important; }
+.ai-field-legend { display: flex; gap: 16px; margin-bottom: 12px; font-size: 12px; color: var(--text-muted); flex-wrap: wrap; align-items: center; }
+.ai-field-legend .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: middle; margin-right: 4px; border: 1px solid; }
+.ai-field-legend .swatch-green { background: #dcfce7; border-color: #86efac; }
+.ai-field-legend .swatch-orange { background: #fed7aa; border-color: #fb923c; }
+
 /* LINE ITEMS */
 .line-items-section { margin-bottom: 20px; }
 .line-items-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
@@ -217,7 +225,7 @@
           </select>
         </div>
         <div class="purchase-field">
-          <label class="purchase-label">User</label>
+          <label class="purchase-label">User <span style="color:#cc0000;">*</span></label>
           <input type="text" id="purchasePerson" class="purchase-input" placeholder="auto-filled from session">
         </div>
         <div class="purchase-field">
@@ -234,6 +242,12 @@
 
       <!-- AI Confidence Banner (shown after extraction) -->
       <div id="aiConfidenceBanner" style="display:none;" class="ai-confidence-banner"></div>
+
+      <!-- AI Field Legend (shown after extraction) -->
+      <div id="aiFieldLegend" style="display:none;" class="ai-field-legend">
+        <span><span class="swatch swatch-green"></span>Green = AI-extracted data (review for accuracy)</span>
+        <span><span class="swatch swatch-orange"></span>Orange = needs your input</span>
+      </div>
 
       <!-- Line Items -->
       <div class="line-items-section">
@@ -304,6 +318,10 @@ function reportError(source, err) {
   var stack = (err && err.stack) ? err.stack : 'No stack trace';
   console.error('[' + source + ']', msg, stack);
 
+  // NEVER report auth/session errors — prevents redirect cascade.
+  // If the session is expired, /api/log-error itself returns 401,
+  // which can trigger auth-check.js or the global error handler to
+  // redirect the user to the login page mid-operation.
   var lowerMsg = (msg || '').toLowerCase();
   if (lowerMsg.indexOf('not authenticated') !== -1 ||
       lowerMsg.indexOf('session') !== -1 ||
@@ -315,9 +333,13 @@ function reportError(source, err) {
     return;
   }
 
+  // Guard against logging loops
   if (_reportErrorInFlight) return;
   _reportErrorInFlight = true;
   try {
+    // Fire-and-forget. We deliberately do NOT read the response or check
+    // its status — if /api/log-error fails (e.g. session expired), we
+    // silently swallow it. This prevents any downstream redirect.
     fetch('/api/log-error', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -403,8 +425,9 @@ function hasDeviceLocation() {
 
 function requireLocationOrPopup() {
   if (hasDeviceLocation()) return true;
+  // Only require location on mobile devices — desktop users in an office don't have meaningful GPS
   var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
-  if (!isMobile) return true;
+  if (!isMobile) return true; // Desktop: location optional, don't block submit
   showLocationPopup('Location is required to submit this form. Please enable location on your device and retry.');
   return false;
 }
@@ -490,6 +513,7 @@ function addLineItem(data) {
   var portableTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'portable' && t.status === 'active'; }));
   var equipmentAssets = allAssets.filter(function(a) { return a.status === 'active'; });
 
+  // Build a lookup map: displayLabel → "type|id"
   var assetMap = {};
   var datalistOptions = '';
 
@@ -515,17 +539,19 @@ function addLineItem(data) {
     addAssetEntry('asset|' + a.id, label);
   });
 
+  // Store the map on the div for submit lookup
   div.dataset.assetMap = JSON.stringify(assetMap);
 
   var fuelType = (data && data.fuel_type) || 'diesel_onroad';
   var qty = (data && data.gallons) || '';
   var unitPrice = (data && data.unit_price) || '';
+  // Escape AI-provided values before interpolating into HTML attributes
   var qtyEsc = esc(qty);
   var unitPriceEsc = esc(unitPrice);
 
   div.innerHTML =
     '<div class="line-item-grid">' +
-      '<div class="purchase-field"><label class="purchase-label">Fuel Type</label>' +
+      '<div class="purchase-field"><label class="purchase-label">Fuel Type <span style="color:#cc0000;">*</span></label>' +
         '<select class="purchase-input line-fuel-type" onchange="recalcLine(\'' + lineId + '\'); markFormDirty()">' +
           '<option value="diesel_onroad"' + (fuelType === 'diesel_onroad' || fuelType === 'diesel' ? ' selected' : '') + '>Diesel (On-Road)</option>' +
           '<option value="diesel_offroad"' + (fuelType === 'diesel_offroad' ? ' selected' : '') + '>Diesel (Off-Road)</option>' +
@@ -543,7 +569,7 @@ function addLineItem(data) {
       '<div class="purchase-field"><label class="purchase-label">Qty (gal) <span style="color:#cc0000;">*</span></label>' +
         '<input type="number" class="purchase-input line-qty" placeholder="0" min="0" step="0.01" value="' + qtyEsc + '" oninput="recalcLine(\'' + lineId + '\'); markFormDirty()">' +
       '</div>' +
-      '<div class="purchase-field"><label class="purchase-label">Cost/Gal</label>' +
+      '<div class="purchase-field"><label class="purchase-label">Cost/Gal <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(optional)</span></label>' +
         '<input type="number" class="purchase-input line-cpg" placeholder="$0.00" min="0" step="0.001" value="' + unitPriceEsc + '" oninput="recalcLine(\'' + lineId + '\'); markFormDirty()">' +
       '</div>' +
       '<button class="line-item-remove" onclick="removeLineItem(\'' + lineId + '\')">✕</button>' +
@@ -561,6 +587,7 @@ function removeLineItem(lineId) {
 }
 
 function recalcLine(lineId) {
+  // Handle "+ Other (type manually)" for fuel type
   var row = document.getElementById(lineId);
   if (!row) { recalcGrandTotal(); return; }
   var fuelSelect = row.querySelector('.line-fuel-type');
@@ -579,23 +606,25 @@ function recalcLine(lineId) {
 
 function recalcGrandTotal() {
   var total = 0;
-  var hasAllPrices = true;
   var hasAnyQty = false;
+  var hasAnyPrice = false;
   document.querySelectorAll('.line-item-row').forEach(function(row) {
     var qty = parseFloat(row.querySelector('.line-qty').value) || 0;
     var cpg = parseFloat(row.querySelector('.line-cpg').value) || 0;
     if (qty > 0) hasAnyQty = true;
+    if (cpg > 0) hasAnyPrice = true;
     if (qty > 0 && cpg > 0) total += qty * cpg;
-    if (qty > 0 && cpg <= 0) hasAllPrices = false;
   });
   var totalEl = document.getElementById('grandTotal');
   if (!totalEl) return;
   if (!hasAnyQty) { totalEl.textContent = '$0.00'; return; }
-  if (!hasAllPrices) { totalEl.textContent = '$' + total.toFixed(2) + ' (incomplete)'; return; }
+  if (!hasAnyPrice) { totalEl.textContent = '\u2014'; totalEl.style.color = 'var(--text-muted)'; return; }
+  totalEl.style.color = 'var(--primary)';
   totalEl.textContent = '$' + total.toFixed(2);
 }
 
 /* ===== RECEIPT UPLOAD ===== */
+// Resize image to max dimension before upload (vision model has 128K token limit)
 function resizeImage(file, maxDim) {
   return new Promise(function(resolve, reject) {
     if (!file.type.startsWith('image/')) { resolve(file); return; }
@@ -643,6 +672,7 @@ function showCropOverlay(file, callback) {
 }
 
 function _buildCropUI(file, img, imgUrl, callback) {
+  // Remove any existing overlay
   var existing = document.getElementById('cropOverlay');
   if (existing) existing.remove();
 
@@ -658,7 +688,7 @@ function _buildCropUI(file, img, imgUrl, callback) {
   modal.appendChild(title);
 
   var desc = document.createElement('p');
-  desc.innerHTML = '<strong>How to crop:</strong> Drag the <strong>green corners</strong> (the small green squares at each corner) to resize the box around the receipt text. Drag anywhere inside the box to move it. The area inside the green box is what the AI will read — everything outside is cut away. Click "Use Full Image" to skip cropping.';
+  desc.innerHTML = '<strong>How to crop:</strong> Drag the <strong>green corners</strong> (the small green squares at each corner) to resize the box around the receipt text. Drag anywhere inside the box to move it. The area inside the green box is what the AI will read \u2014 everything outside is cut away. Click "Use Full Image" to skip cropping.';
   modal.appendChild(desc);
 
   var stage = document.createElement('div');
@@ -668,12 +698,15 @@ function _buildCropUI(file, img, imgUrl, callback) {
   imgEl.src = imgUrl;
   stage.appendChild(imgEl);
 
+  // Initial crop box: 80% of image, centered
   var imgW = img.width, imgH = img.height;
   var dispW, dispH;
+  // We'll compute display size after append
   var cropBox = document.createElement('div');
   cropBox.className = 'crop-box';
   stage.appendChild(cropBox);
 
+  // Handles
   ['nw', 'ne', 'sw', 'se'].forEach(function(pos) {
     var h = document.createElement('div');
     h.className = 'crop-handle ' + pos;
@@ -696,6 +729,7 @@ function _buildCropUI(file, img, imgUrl, callback) {
   fullBtn.textContent = 'Use Full Image';
   fullBtn.onclick = function() {
     overlay.remove(); URL.revokeObjectURL(imgUrl); _cropState = null;
+    // Auto-resize the full image before sending to avoid "too large" errors
     _resizeImageAsync(file, 1024).then(function(resized) {
       callback(resized);
     });
@@ -720,10 +754,12 @@ function _buildCropUI(file, img, imgUrl, callback) {
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
 
+  // Compute display dimensions after the image is in the DOM
   requestAnimationFrame(function() {
     dispW = imgEl.clientWidth;
     dispH = imgEl.clientHeight;
 
+    // Initial crop box: 80% centered
     var boxW = dispW * 0.8;
     var boxH = dispH * 0.8;
     var boxX = (dispW - boxW) / 2;
@@ -811,6 +847,7 @@ function _attachCropEvents(stage, cropBox, imgW, imgH) {
   document.addEventListener('touchend', onUp);
 }
 
+// Resize an image file to max dimension without cropping (async)
 function _resizeImageAsync(file, maxDim) {
   return new Promise(function(resolve, reject) {
     var img = new Image();
@@ -842,6 +879,7 @@ function _resizeImageAsync(file, maxDim) {
 }
 
 function _performCrop(file, img, state) {
+  // Convert display coords to actual image coords
   var scaleX = state.imgW / state.dispW;
   var scaleY = state.imgH / state.dispH;
   var sx = Math.round(state.boxX * scaleX);
@@ -849,6 +887,7 @@ function _performCrop(file, img, state) {
   var sw = Math.round(state.boxW * scaleX);
   var sh = Math.round(state.boxH * scaleY);
 
+  // Clamp to image bounds
   sx = Math.max(0, Math.min(state.imgW - 1, sx));
   sy = Math.max(0, Math.min(state.imgH - 1, sy));
   sw = Math.max(1, Math.min(state.imgW - sx, sw));
@@ -860,6 +899,7 @@ function _performCrop(file, img, state) {
   var ctx = canvas.getContext('2d');
   ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
 
+  // Resize to max 1024px
   var maxDim = 1024;
   var finalW = sw, finalH = sh;
   if (sw > maxDim || sh > maxDim) {
@@ -895,16 +935,18 @@ async function handleReceiptUpload(input) {
 
   var isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
   if (isPdf) {
-    previewContent.innerHTML = '<div class="receipt-pdf-icon">📄</div><p style="font-size:14px;font-weight:600;margin:8px 0 0;">' + esc(file.name) + '</p><p style="font-size:12px;color:var(--text-muted);">PDF document</p>';
+    previewContent.innerHTML = '<div class="receipt-pdf-icon">\ud83d\udcc4</div><p style="font-size:14px;font-weight:600;margin:8px 0 0;">' + esc(file.name) + '</p><p style="font-size:12px;color:var(--text-muted);">PDF document</p>';
   } else {
+    // Show crop overlay \u2014 extraction won't start until user crops or skips
     status.className = 'receipt-extract-status loading';
-    status.textContent = 'Crop the receipt area for best results…';
+    status.textContent = 'Crop the receipt area for best results\u2026';
     showCropOverlay(file, function(croppedFile) {
       _doExtraction(croppedFile, previewContent, status, preview);
     });
     return;
   }
 
+  // PDF path \u2014 no cropping needed, go straight to extraction
   _doExtraction(file, previewContent, status, preview);
 }
 
@@ -912,6 +954,7 @@ var _currentExtractionId = 0;
 var _currentExtractionController = null;
 
 async function _doExtraction(file, previewContent, status, preview) {
+  // Race condition guard: increment request ID and abort any previous request
   _currentExtractionId++;
   var thisReqId = _currentExtractionId;
   if (_currentExtractionController) { try { _currentExtractionController.abort(); } catch(e) {} }
@@ -920,20 +963,23 @@ async function _doExtraction(file, previewContent, status, preview) {
 
   var isPdf = file.type === 'application/pdf' || (file.name || '').toLowerCase().endsWith('.pdf');
   if (!isPdf) {
+    // Show preview of the (cropped/resized) image
     if (_objectUrl) { URL.revokeObjectURL(_objectUrl); _objectUrl = null; }
     _objectUrl = URL.createObjectURL(file);
     previewContent.innerHTML = '<img class="receipt-preview-img" src="' + _objectUrl + '">';
   }
 
   status.className = 'receipt-extract-status loading';
-  status.textContent = 'Uploading & extracting receipt data with AI…';
+  status.textContent = 'Uploading & extracting receipt data with AI\u2026';
   document.getElementById('aiConfidenceBanner').style.display = 'none';
 
   try {
+    // Send as JSON with base64-encoded image to avoid multipart corruption
+    // by the Pages Functions proxy (which strips Content-Disposition headers).
     var base64Data = await new Promise(function(resolve, reject) {
       var reader = new FileReader();
       reader.onload = function() { resolve(reader.result); };
-      reader.onerror = function() { reject(new Error('Failed to read file')) };
+      reader.onerror = function() { reject(new Error('Failed to read file')); };
       reader.readAsDataURL(file);
     });
 
@@ -952,28 +998,33 @@ async function _doExtraction(file, previewContent, status, preview) {
       var errMsg = 'Server returned ' + resp.status;
       var errCode = '';
       try { var errJson = JSON.parse(errBody); if (errJson.error) errMsg = errJson.error; if (errJson.code) errCode = errJson.code; } catch(e) {}
+      // Check for "too large" error \u2014 don't kick the user out, tell them to crop
       if (errCode === 'IMAGE_TOO_LARGE' || errMsg.toLowerCase().indexOf('too large') !== -1 || errMsg.toLowerCase().indexOf('max size') !== -1) {
         status.className = 'receipt-extract-status error';
-        status.innerHTML = '⚠ Image is too large for AI processing. Please crop the receipt to show only the text area, then try again. Click "Choose File" and use the crop tool.';
+        status.innerHTML = '\u26a0 Image is too large for AI processing. Please crop the receipt to show only the text area, then try again. Click "Choose File" and use the crop tool.';
         return;
       }
+      // Check for auth errors \u2014 show inline, NEVER redirect
       if (resp.status === 401 || resp.status === 403) {
         status.className = 'receipt-extract-status error';
-        status.textContent = '✗ Your session has expired. Please save your work, then refresh the page and log in again.';
+        status.textContent = '\u2717 Your session has expired. Please save your work, then refresh the page and log in again.';
         return;
       }
+      // Any other server error \u2014 show inline, never redirect, never call reportError
       status.className = 'receipt-extract-status error';
-      status.textContent = '✗ Could not process the receipt: ' + errMsg;
+      status.textContent = '\u2717 Could not process the receipt: ' + errMsg;
       return;
     }
     var data = await resp.json();
 
+    // Race condition guard: ignore responses from older uploads
     if (data.success && data.extracted && _currentExtractionId !== thisReqId) {
       console.log('Stale extraction response ignored (req ' + thisReqId + ' vs current ' + _currentExtractionId + ')');
       return;
     }
 
     if (data.success && data.extracted) {
+      // Associate the receipt with the purchase via r2_key
       if (data.receipt && data.receipt.r2_key) {
         receiptR2Key = data.receipt.r2_key;
       }
@@ -981,10 +1032,22 @@ async function _doExtraction(file, previewContent, status, preview) {
       var conf = data.extracted.confidence || 0;
       var confPct = Math.round(conf * 100);
       var fileTypeLabel = data.receipt && data.receipt.file_type === 'pdf' ? 'PDF' : 'Image';
-      status.textContent = '✓ Extraction complete (' + confPct + '% confidence, ' + fileTypeLabel + ', ' + (data.processing_time_ms || 0) + 'ms)';
+      status.textContent = '\u2713 Extraction complete (' + confPct + '% confidence, ' + fileTypeLabel + ', ' + (data.processing_time_ms || 0) + 'ms)';
 
-      if (data.extracted.vendor) document.getElementById('purchaseVendor').value = data.extracted.vendor;
-      if (data.extracted.receipt_date) document.getElementById('purchaseDate').value = data.extracted.receipt_date;
+      // Show the field legend
+      document.getElementById('aiFieldLegend').style.display = 'flex';
+
+      // Highlight extracted fields green, mark empty required fields orange
+      if (data.extracted.vendor) {
+        var vendorEl = document.getElementById('purchaseVendor');
+        vendorEl.value = data.extracted.vendor;
+        vendorEl.classList.add('ai-extracted');
+      }
+      if (data.extracted.receipt_date) {
+        var dateEl = document.getElementById('purchaseDate');
+        dateEl.value = data.extracted.receipt_date;
+        dateEl.classList.add('ai-extracted');
+      }
 
       if (data.extracted.line_items && data.extracted.line_items.length > 0) {
         document.getElementById('lineItemsContainer').innerHTML = '';
@@ -997,19 +1060,35 @@ async function _doExtraction(file, previewContent, status, preview) {
             amount: li.amount || ''
           });
         });
+        // Highlight extracted line item fields
+        var lineRows = document.querySelectorAll('.line-item-row');
+        data.extracted.line_items.forEach(function(li, idx) {
+          if (lineRows[idx]) {
+            var row = lineRows[idx];
+            if (li.fuel_type) row.querySelector('.line-fuel-type').classList.add('ai-extracted');
+            if (li.gallons || li.quantity) row.querySelector('.line-qty').classList.add('ai-extracted');
+            if (li.unit_price) row.querySelector('.line-cpg').classList.add('ai-extracted');
+            // Asset field is never extracted by AI \u2014 mark it orange (needs user input)
+            row.querySelector('.line-destination').classList.add('ai-needed');
+          }
+        });
       }
 
       showConfidenceBanner(data.extracted);
       recalcGrandTotal();
     } else {
       status.className = 'receipt-extract-status error';
-      status.textContent = '✗ Extraction completed but no data was recognized. Try cropping the receipt more tightly around the text.';
+      status.textContent = '\u2717 Extraction completed but no data was recognized. Try cropping the receipt more tightly around the text.';
     }
   } catch (e) {
+    // Ignore AbortError \u2014 that means a newer upload superseded this one
     if (e.name === 'AbortError') { console.log('Extraction aborted (superseded by newer upload)'); return; }
+    // Ignore stale responses
     if (thisReqId !== _currentExtractionId) { console.log('Stale extraction error ignored'); return; }
     status.className = 'receipt-extract-status error';
-    status.textContent = '✗ Error: ' + e.message;
+    status.textContent = '\u2717 Error: ' + e.message;
+    // Don't call reportError for extraction errors \u2014 it can trigger a redirect
+    // if the session is expired. Just show the error inline.
     console.error('extractReceipt error:', e);
   }
 }
@@ -1044,6 +1123,7 @@ async function submitPurchase() {
 
   if (!date) { showPurchaseError('Date is required'); return; }
   if (!vendor || !vendor.trim()) { showPurchaseError('Vendor is required'); return; }
+  if (!person || !person.trim()) { showPurchaseError('User is required'); return; }
   var projectId = document.getElementById('purchaseProject').value;
   if (!projectId) { showPurchaseError('Project is required'); return; }
 
@@ -1058,11 +1138,11 @@ async function submitPurchase() {
     var dest = assetMap[destLabel] || '';
     var qty = parseFloat(row.querySelector('.line-qty').value);
     var fuelType = row.querySelector('.line-fuel-type').value;
+    // Cost/gal is OPTIONAL \u2014 bulk delivery tickets may not include unit prices
     var cpg = parseFloat(row.querySelector('.line-cpg').value) || null;
 
     if (!dest) { showPurchaseError('Line ' + (i + 1) + ': asset is required (select from the list)'); return; }
     if (!qty || qty <= 0 || !isFinite(qty)) { showPurchaseError('Line ' + (i + 1) + ': quantity (gallons) is required and must be > 0'); return; }
-    if (!cpg || cpg <= 0 || !isFinite(cpg)) { showPurchaseError('Line ' + (i + 1) + ': cost per gallon is required and must be > 0'); return; }
     if (!fuelType) { showPurchaseError('Line ' + (i + 1) + ': fuel type is required'); return; }
 
     var parts = dest.split('|');
@@ -1077,6 +1157,7 @@ async function submitPurchase() {
 
   if (lineItems.length === 0) { showPurchaseError('At least one line item is required'); return; }
 
+  // Verify total quantity > 0
   var totalQty = 0;
   lineItems.forEach(function(li) { totalQty += li.quantity; });
   if (totalQty <= 0) { showPurchaseError('Total quantity must be greater than zero'); return; }
@@ -1084,16 +1165,19 @@ async function submitPurchase() {
   // Collect manager-review flags for "Other" selections
   managerReviewFlags = [];
 
+  // Check location for "Other" (custom typed)
   var locEl = document.getElementById('purchaseLocation');
   if (locEl && locEl.tagName === 'INPUT') {
     managerReviewFlags.push({ field: 'location', value: locEl.value, reason: 'Custom location typed manually (not from list)' });
   }
 
+  // Check each line item for custom fuel type
   for (var j = 0; j < lineItems.length; j++) {
     var row = rows[j];
     var fuelEl = row.querySelector('.line-fuel-type');
     if (fuelEl && fuelEl.getAttribute('data-custom') === 'true') {
       managerReviewFlags.push({ field: 'fuel_type', line: j + 1, value: fuelEl.value, reason: 'Custom fuel type typed manually (not from list)' });
+      // Update the line item fuel_type with the custom value
       lineItems[j].fuel_type = fuelEl.value;
     }
   }
@@ -1114,7 +1198,7 @@ async function submitPurchase() {
 
   var submitBtn = document.querySelector('.purchase-submit-btn');
   submitBtn.disabled = true;
-  submitBtn.textContent = 'Recording…';
+  submitBtn.textContent = 'Recording\u2026';
 
   try {
     var resp = await fetch('/api/fuel-purchases', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -1141,7 +1225,7 @@ function showPurchaseSuccess(purchase) {
   result.className = 'purchase-result-success';
   var lineCount = purchase.line_items ? purchase.line_items.length : 0;
   var msg = 'Purchase recorded: ' + lineCount + ' line item' + (lineCount !== 1 ? 's' : '');
-  if (purchase.total_cost) msg += ' — $' + parseFloat(purchase.total_cost).toFixed(2);
+  if (purchase.total_cost) msg += ' \u2014 $' + parseFloat(purchase.total_cost).toFixed(2);
   if (purchase.vendor) msg += ' from ' + purchase.vendor;
   result.textContent = msg;
   result.style.display = 'block';
@@ -1151,7 +1235,7 @@ function showPurchaseSuccess(purchase) {
 function showPurchaseError(msg) {
   var result = document.getElementById('purchaseResult');
   result.className = 'purchase-result-error';
-  result.textContent = '✗ ' + msg;
+  result.textContent = '\u2717 ' + msg;
   result.style.display = 'block';
   setTimeout(function() { result.style.display = 'none'; }, 5000);
 }
@@ -1160,6 +1244,7 @@ function clearPurchaseForm() {
   clearFormDirty();
   document.getElementById('purchaseDate').value = localDate();
 
+  // Restore Location dropdown if it was replaced with a text input by "+ Other"
   var locEl = document.getElementById('purchaseLocation');
   if (locEl && locEl.tagName === 'INPUT') {
     var select = document.createElement('select');
@@ -1169,6 +1254,7 @@ function clearPurchaseForm() {
     locEl.parentNode.replaceChild(select, locEl);
     locEl = select;
   }
+  // Rebuild location options
   var locations = {};
   allAssets.forEach(function(a) {
     if (a.current_location && a.current_location.trim()) locations[a.current_location.trim()] = true;
@@ -1176,7 +1262,7 @@ function clearPurchaseForm() {
   allTanks.forEach(function(t) {
     if (t.location && t.location.trim()) locations[t.location.trim()] = true;
   });
-  var locHtml = '<option value="">Select location…</option>';
+  var locHtml = '<option value="">Select location\u2026</option>';
   Object.keys(locations).sort().forEach(function(loc) {
     locHtml += '<option value="' + esc(loc) + '">' + esc(loc) + '</option>';
   });
@@ -1195,6 +1281,9 @@ function clearPurchaseForm() {
   document.getElementById('receiptFileInput').value = '';
   document.getElementById('aiConfidenceBanner').style.display = 'none';
   document.getElementById('aiConfidenceBanner').innerHTML = '';
+  document.getElementById('aiFieldLegend').style.display = 'none';
+  // Clear AI highlight classes from all fields
+  document.querySelectorAll('.ai-extracted, .ai-needed').forEach(function(el) { el.classList.remove('ai-extracted'); el.classList.remove('ai-needed'); });
   document.getElementById('purchaseResult').style.display = 'none';
   if (_objectUrl) { URL.revokeObjectURL(_objectUrl); _objectUrl = null; }
   receiptR2Key = null;
@@ -1236,14 +1325,17 @@ async function loadAssets() {
     if (!resp.ok) throw new Error('Failed to load assets: ' + resp.status);
     var data = await resp.json();
     if (data.success && data.assets) {
+      // Only active assets
       allAssets = data.assets.filter(function(a) { return a.status === 'active'; });
     }
+    // Build Location dropdown from unique current_location values
     var locations = {};
     allAssets.forEach(function(a) {
       if (a.current_location && a.current_location.trim()) {
         locations[a.current_location.trim()] = true;
       }
     });
+    // Also add tank locations
     allTanks.forEach(function(t) {
       if (t.location && t.location.trim()) {
         locations[t.location.trim()] = true;
@@ -1252,7 +1344,7 @@ async function loadAssets() {
     var locSelect = document.getElementById('purchaseLocation');
     if (locSelect) {
       var currentVal = locSelect.value;
-      var html = '<option value="">Select location…</option>';
+      var html = '<option value="">Select location\u2026</option>';
       Object.keys(locations).sort().forEach(function(loc) {
         html += '<option value="' + esc(loc) + '">' + esc(loc) + '</option>';
       });
@@ -1268,6 +1360,7 @@ async function loadAssets() {
 
 function handleLocationChange(sel) {
   if (sel.value === '__custom') {
+    // Replace dropdown with text input
     var input = document.createElement('input');
     input.type = 'text';
     input.id = 'purchaseLocation';
@@ -1286,7 +1379,7 @@ async function loadProjects() {
     if (data.success && data.projects) {
       var sel = document.getElementById('purchaseProject');
       if (sel) {
-        var html = '<option value="">Select project…</option>';
+        var html = '<option value="">Select project\u2026</option>';
         data.projects.forEach(function(p) {
           html += '<option value="' + esc(p.id) + '">' + esc(p.name || p.project_name || p.id) + '</option>';
         });
@@ -1307,6 +1400,7 @@ function initPurchaseForm() {
   var userField = document.getElementById('purchasePerson');
   if (userField) userField.value = getUserDisplayName();
 
+  // Clear line items and add one
   document.getElementById('lineItemsContainer').innerHTML = '';
   lineItemCount = 0;
   addLineItem();
@@ -1325,6 +1419,8 @@ document.addEventListener('dashSessionLoaded', async function() {
   insertHeaderTitle();
   makeTabsSticky();
 
+  // Request device location IMMEDIATELY on mobile (where it's required) \u2014
+  // desktop users don't get the permission prompt (location is optional there).
   if (!hasDeviceLocation() && isMobileDevice()) checkDeviceLocation();
   var banner = document.getElementById('locationStatusBanner');
   if (banner) banner.style.display = 'block';
