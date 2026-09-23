@@ -208,7 +208,7 @@
       <div class="purchase-form-grid">
         <div class="purchase-field">
           <label class="purchase-label">Date <span style="color:#cc0000;">*</span></label>
-          <input type="date" id="purchaseDate" class="purchase-input">
+          <input type="date" id="purchaseDate" class="purchase-input" onchange="markFormDirty()">
         </div>
         <div class="purchase-field">
           <label class="purchase-label">Location</label>
@@ -222,11 +222,11 @@
         </div>
         <div class="purchase-field">
           <label class="purchase-label">Vendor <span style="color:#cc0000;">*</span></label>
-          <input type="text" id="purchaseVendor" class="purchase-input" placeholder="e.g., Pacific Pride">
+          <input type="text" id="purchaseVendor" class="purchase-input" placeholder="e.g., Pacific Pride" oninput="markFormDirty()">
         </div>
         <div class="purchase-field">
           <label class="purchase-label">Project <span style="color:#cc0000;">*</span></label>
-          <select id="purchaseProject" class="purchase-input" required>
+          <select id="purchaseProject" class="purchase-input" required onchange="markFormDirty()">
             <option value="">Select project…</option>
           </select>
         </div>
@@ -257,7 +257,7 @@
       <!-- Notes -->
       <div class="purchase-field purchase-field-full" style="margin-bottom:20px;">
         <label class="purchase-label">Notes</label>
-        <input type="text" id="purchaseNotes" class="purchase-input" placeholder="Optional — e.g., PO number, delivery ticket #, price per gallon quote, who authorized">
+        <input type="text" id="purchaseNotes" class="purchase-input" placeholder="Optional — e.g., PO number, delivery ticket #, price per gallon quote, who authorized" oninput="markFormDirty()">
         <!-- TODO: When multi-language module is enabled, translate notes field from user's preferred language to org primary language using @cf/meta/m2m100-1.2b. Store both original and translated. See build report Session 9c multi-language spec. -->
       </div>
 
@@ -287,6 +287,14 @@ var receiptR2Key = null;
 var lineItemCount = 0;
 var _objectUrl = null;
 var deviceLocation = null;
+var formDirty = false;
+
+function markFormDirty() { formDirty = true; }
+function clearFormDirty() { formDirty = false; }
+
+window.addEventListener('beforeunload', function(e) {
+  if (formDirty) { e.preventDefault(); e.returnValue = ''; }
+});
 
 /* ===== CLIENT-SIDE ERROR REPORTING ===== */
 var _reportErrorInFlight = false;
@@ -309,13 +317,9 @@ function reportError(source, err) {
 function checkDeviceLocation() {
   if (!navigator.geolocation) { showLocationPopup('Your device does not support GPS location.'); return; }
   navigator.geolocation.getCurrentPosition(
-    function(pos) {
-      deviceLocation = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy, timestamp: new Date().toISOString() };
-      updateLocationStatus(true);
-    },
+    function(pos) { deviceLocation = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy, timestamp: new Date().toISOString() }; updateLocationStatus(true); },
     function(err) {
-      deviceLocation = null;
-      updateLocationStatus(false);
+      deviceLocation = null; updateLocationStatus(false);
       var msg = 'Location is required to submit forms. ';
       if (err.code === 1) msg += 'You denied location access. Please enable it in your device settings.';
       else if (err.code === 2) msg += 'Location is unavailable. Check your GPS or network connection.';
@@ -328,30 +332,23 @@ function checkDeviceLocation() {
 }
 
 function updateLocationStatus(hasLocation) {
-  var banner = document.getElementById('locationStatusBanner');
-  if (!banner) return;
-  if (hasLocation) {
-    banner.className = 'location-banner ok';
-    banner.innerHTML = '<strong>📍 Location:</strong> ' + deviceLocation.latitude.toFixed(6) + ', ' + deviceLocation.longitude.toFixed(6) + ' (±' + Math.round(deviceLocation.accuracy) + 'm)';
-  } else {
-    banner.className = 'location-banner warn';
-    banner.innerHTML = '<strong>⚠️ Location is OFF</strong> — Click to retry <button onclick="checkDeviceLocation()" style="margin-left:8px;padding:4px 12px;border:1px solid #b45309;border-radius:4px;background:#fef3c7;color:#78350f;cursor:pointer;font-size:12px;">Retry</button>';
-  }
+  var banner = document.getElementById('locationStatusBanner'); if (!banner) return;
+  if (hasLocation) { banner.className = 'location-banner ok'; banner.innerHTML = '<strong>📍 Location:</strong> ' + deviceLocation.latitude.toFixed(6) + ', ' + deviceLocation.longitude.toFixed(6) + ' (±' + Math.round(deviceLocation.accuracy) + 'm)'; }
+  else { banner.className = 'location-banner warn'; banner.innerHTML = '<strong>⚠️ Location is OFF</strong> — Click to retry <button onclick="checkDeviceLocation()" style="margin-left:8px;padding:4px 12px;border:1px solid #b45309;border-radius:4px;background:#fef3c7;color:#78350f;cursor:pointer;font-size:12px;">Retry</button>'; }
 }
 
 function showLocationPopup(message) {
-  var overlay = document.getElementById('locationPopupOverlay');
-  var msgEl = document.getElementById('locationPopupMessage');
-  if (!overlay || !msgEl) return;
+  var overlay = document.getElementById('locationPopupOverlay'); var msgEl = document.getElementById('locationPopupMessage'); if (!overlay || !msgEl) return;
   msgEl.innerHTML = '<p style="font-size:15px;margin:0 0 16px;">' + esc(message) + '</p>' +
     '<div style="background:#f4f4f4;border-radius:8px;padding:14px;margin-bottom:12px;">' +
     '<p style="font-weight:600;margin:0 0 8px;">How to enable location:</p>' +
-    '<p style="margin:0 0 6px;"><strong>iPhone/iPad (iOS):</strong> Settings → Privacy & Security → Location Services → ON → Find your browser → set to "While Using"</p>' +
+    '<p style="margin:0 0 6px;"><strong>iPhone/iPad (iOS):</strong> Settings → Privacy & Security → Location Services → ON → Find your browser (Safari/Chrome) → set to "While Using"</p>' +
     '<p style="margin:0 0 6px;"><strong>Android:</strong> Settings → Location → ON → App permissions → your browser → Allow only while using the app</p>' +
     '<p style="margin:0 0 6px;"><strong>Chrome (Desktop):</strong> Click the location icon in the address bar → Site settings → Location → Allow → Reload</p>' +
     '<p style="margin:0 0 6px;"><strong>Edge (Desktop):</strong> Settings → Cookies and site permissions → Location → Allow</p>' +
     '<p style="margin:0;"><strong>Firefox (Desktop):</strong> Settings → Privacy & Security → Permissions → Location → Settings → Allow</p>' +
-    '</div><p style="font-size:13px;color:#666;margin:0;">After enabling, click "Retry" to capture your location.</p>';
+    '</div>' +
+    '<p style="font-size:13px;color:#666;margin:0;">After enabling, click "Retry" to capture your location. Forms cannot be submitted without location.</p>';
   overlay.style.display = 'flex';
 }
 
@@ -425,7 +422,7 @@ function addLineItem(data) {
   div.innerHTML =
     '<div class="line-item-grid">' +
       '<div class="purchase-field"><label class="purchase-label">Fuel Type</label>' +
-        '<select class="purchase-input line-fuel-type" onchange="recalcLine(\'' + lineId + '\')">' +
+        '<select class="purchase-input line-fuel-type" onchange="recalcLine(\'' + lineId + '\'); markFormDirty()">' +
           '<option value="diesel_onroad"' + (fuelType === 'diesel_onroad' || fuelType === 'diesel' ? ' selected' : '') + '>Diesel (On-Road)</option>' +
           '<option value="diesel_offroad"' + (fuelType === 'diesel_offroad' ? ' selected' : '') + '>Diesel (Off-Road)</option>' +
           '<option value="gasoline"' + (fuelType === 'gasoline' ? ' selected' : '') + '>Gasoline</option>' +
@@ -435,14 +432,14 @@ function addLineItem(data) {
         '</select>' +
       '</div>' +
       '<div class="purchase-field"><label class="purchase-label">Asset <span style="color:#cc0000;">*</span></label>' +
-        '<input type="text" class="purchase-input line-destination" placeholder="Type to search…" list="' + lineId + '-assets" autocomplete="off">' +
+        '<input type="text" class="purchase-input line-destination" placeholder="Type to search…" list="' + lineId + '-assets" autocomplete="off" oninput="markFormDirty()">' +
         '<datalist id="' + lineId + '-assets">' + datalistOptions + '</datalist>' +
       '</div>' +
       '<div class="purchase-field"><label class="purchase-label">Qty (gal) <span style="color:#cc0000;">*</span></label>' +
-        '<input type="number" class="purchase-input line-qty" placeholder="0" min="0" step="0.01" value="' + qty + '" oninput="recalcLine(\'' + lineId + '\')">' +
+        '<input type="number" class="purchase-input line-qty" placeholder="0" min="0" step="0.01" value="' + qty + '" oninput="recalcLine(\'' + lineId + '\'); markFormDirty()">' +
       '</div>' +
       '<div class="purchase-field"><label class="purchase-label">Cost/Gal</label>' +
-        '<input type="number" class="purchase-input line-cpg" placeholder="$0.00" min="0" step="0.001" value="' + unitPrice + '" oninput="recalcLine(\'' + lineId + '\')">' +
+        '<input type="number" class="purchase-input line-cpg" placeholder="$0.00" min="0" step="0.001" value="' + unitPrice + '" oninput="recalcLine(\'' + lineId + '\'); markFormDirty()">' +
       '</div>' +
       '<button class="line-item-remove" onclick="removeLineItem(\'' + lineId + '\')">✕</button>' +
     '</div>';
@@ -480,7 +477,7 @@ function _buildCropUI(file, img, imgUrl, callback) {
   var overlay = document.createElement('div'); overlay.id = 'cropOverlay'; overlay.className = 'crop-overlay';
   var modal = document.createElement('div'); modal.className = 'crop-modal';
   var title = document.createElement('h3'); title.textContent = 'Crop Receipt'; modal.appendChild(title);
-  var desc = document.createElement('p'); desc.textContent = 'Drag the green box to select the receipt area. Click "Use Full Image" to skip cropping.'; modal.appendChild(desc);
+  var desc = document.createElement('p'); desc.textContent = 'Drag the green box to select the receipt area. This helps the AI read the text more accurately. Click "Use Full Image" to skip cropping.'; modal.appendChild(desc);
   var stage = document.createElement('div'); stage.className = 'crop-stage';
   var imgEl = document.createElement('img'); imgEl.src = imgUrl; stage.appendChild(imgEl);
   var imgW = img.width, imgH = img.height;
@@ -650,14 +647,18 @@ async function submitPurchase() {
     var resp = await fetch('/api/fuel-purchases', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!resp.ok) { throw new Error('Server returned ' + resp.status); }
     var data = await resp.json();
-    if (data.success) { showPurchaseSuccess(data.purchase); setTimeout(clearPurchaseForm, 3000); }
-    else { showPurchaseError(data.error || 'Failed to record purchase'); }
+    if (data.success) {
+      clearFormDirty();
+      showPurchaseSuccess(data.purchase);
+      setTimeout(clearPurchaseForm, 3000);
+    } else { showPurchaseError(data.error || 'Failed to record purchase'); }
   } catch (e) { showPurchaseError('Error: ' + e.message); reportError('submitPurchase', e); }
   finally { submitBtn.disabled = false; submitBtn.textContent = 'Record Purchase'; }
 }
 
 function showPurchaseSuccess(purchase) {
-  var result = document.getElementById('purchaseResult'); result.className = 'purchase-result-success';
+  var result = document.getElementById('purchaseResult');
+  result.className = 'purchase-result-success';
   var lineCount = purchase.line_items ? purchase.line_items.length : 0;
   var msg = 'Purchase recorded: ' + lineCount + ' line item' + (lineCount !== 1 ? 's' : '');
   if (purchase.total_cost) msg += ' — $' + parseFloat(purchase.total_cost).toFixed(2);
@@ -667,12 +668,14 @@ function showPurchaseSuccess(purchase) {
 }
 
 function showPurchaseError(msg) {
-  var result = document.getElementById('purchaseResult'); result.className = 'purchase-result-error';
+  var result = document.getElementById('purchaseResult');
+  result.className = 'purchase-result-error';
   result.textContent = '✗ ' + msg; result.style.display = 'block';
   setTimeout(function() { result.style.display = 'none'; }, 5000);
 }
 
 function clearPurchaseForm() {
+  clearFormDirty();
   document.getElementById('purchaseDate').value = localDate();
   // Restore Location dropdown if it was replaced with a text input by "+ Other"
   var locEl = document.getElementById('purchaseLocation');
@@ -712,8 +715,16 @@ function clearPurchaseForm() {
 }
 
 /* ===== LOAD DATA ===== */
-async function loadTanks() { try { var resp = await fetch('/api/fuel-tanks'); if (!resp.ok) throw new Error('Failed to load tanks: ' + resp.status); var data = await resp.json(); if (data.success && data.tanks) allTanks = data.tanks; } catch (e) { console.error('Error loading tanks:', e.message); reportError('loadTanks', e); } }
-async function loadTankTypes() { try { var resp = await fetch('/api/fuel-tank-types'); if (!resp.ok) throw new Error('Failed to load tank types: ' + resp.status); var data = await resp.json(); if (data.success && data.tank_types) tankTypes = data.tank_types; } catch (e) { console.error('Error loading tank types:', e.message); reportError('loadTankTypes', e); } }
+async function loadTanks() {
+  try { var resp = await fetch('/api/fuel-tanks'); if (!resp.ok) throw new Error('Failed to load tanks: ' + resp.status); var data = await resp.json(); if (data.success && data.tanks) allTanks = data.tanks; }
+  catch (e) { console.error('Error loading tanks:', e.message); reportError('loadTanks', e); }
+}
+
+async function loadTankTypes() {
+  try { var resp = await fetch('/api/fuel-tank-types'); if (!resp.ok) throw new Error('Failed to load tank types: ' + resp.status); var data = await resp.json(); if (data.success && data.tank_types) tankTypes = data.tank_types; }
+  catch (e) { console.error('Error loading tank types:', e.message); reportError('loadTankTypes', e); }
+}
+
 async function loadAssets() {
   try {
     var resp = await fetch('/api/assets'); if (!resp.ok) throw new Error('Failed to load assets: ' + resp.status);
@@ -729,7 +740,8 @@ async function loadAssets() {
 
 function handleLocationChange(sel) {
   if (sel.value === '__custom') {
-    var input = document.createElement('input'); input.type = 'text'; input.id = 'purchaseLocation'; input.className = 'purchase-input'; input.placeholder = 'Type location name';
+    var input = document.createElement('input');
+    input.type = 'text'; input.id = 'purchaseLocation'; input.className = 'purchase-input'; input.placeholder = 'Type location name';
     sel.parentNode.replaceChild(input, sel); input.focus();
   }
 }
@@ -740,22 +752,35 @@ async function loadProjects() {
 
 /* ===== INIT ===== */
 function initPurchaseForm() {
-  var today = localDate(); var dateField = document.getElementById('purchaseDate'); if (dateField) dateField.value = today;
-  var userField = document.getElementById('purchasePerson'); if (userField) userField.value = getUserDisplayName();
-  document.getElementById('lineItemsContainer').innerHTML = ''; lineItemCount = 0; addLineItem(); recalcGrandTotal();
+  var today = localDate();
+  var dateField = document.getElementById('purchaseDate');
+  if (dateField) dateField.value = today;
+  var userField = document.getElementById('purchasePerson');
+  if (userField) userField.value = getUserDisplayName();
+  document.getElementById('lineItemsContainer').innerHTML = '';
+  lineItemCount = 0;
+  addLineItem();
+  recalcGrandTotal();
 }
 
 document.addEventListener('dashSessionLoaded', async function() {
-  var user = window.dashUser; if (!user) { window.location.href = '/public/login.html'; return; }
+  var user = window.dashUser;
+  if (!user) { window.location.href = '/public/login.html'; return; }
   var role = (user.role || '').toLowerCase();
   var dashUrl = role === 'admin' ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
-  var homeLink = document.getElementById('dashHomeLink'); if (homeLink) homeLink.href = dashUrl;
-  insertHeaderTitle(); makeTabsSticky();
+  var homeLink = document.getElementById('dashHomeLink');
+  if (homeLink) homeLink.href = dashUrl;
+  insertHeaderTitle();
+  makeTabsSticky();
   if (!hasDeviceLocation()) checkDeviceLocation();
-  var banner = document.getElementById('locationStatusBanner'); if (banner) banner.style.display = 'block';
+  var banner = document.getElementById('locationStatusBanner');
+  if (banner) banner.style.display = 'block';
   document.getElementById('loading').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
-  await loadTankTypes(); await loadTanks(); await loadAssets(); await loadProjects();
+  await loadTankTypes();
+  await loadTanks();
+  await loadAssets();
+  await loadProjects();
   initPurchaseForm();
 });
 </script>
