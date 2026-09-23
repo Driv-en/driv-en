@@ -44,15 +44,21 @@ function updateThemeSwitch() {
 }
 
 // ---- Logo Management ----
+// The owner logo is stored SERVER-SIDE in the app_settings table (key: owner_logo)
+// via the /api/admin/app-settings Pages Function. This makes it visible from
+// any device the owner logs into — NOT just the device where it was uploaded.
+// localStorage is no longer used for the logo.
 function loadOwnerLogo() {
   var container = document.getElementById('ownerLogoContainer');
   var preview = document.getElementById('settingsLogoPreview');
   var removeBtn = document.getElementById('logoRemoveBtn');
 
+  // Show placeholder immediately while we fetch from server
   container.innerHTML = '<div class="dash-customer-logo-placeholder">DSI Logo</div>';
   preview.innerHTML = '<div class="settings-logo-placeholder">No logo uploaded</div>';
   if (removeBtn) removeBtn.style.display = 'none';
 
+  // Fetch the logo from the server (app_settings table, key=owner_logo)
   fetch('/api/admin/app-settings?key=owner_logo')
     .then(function(res) { return res.json(); })
     .then(function(data) {
@@ -63,6 +69,7 @@ function loadOwnerLogo() {
       }
     })
     .catch(function(e) {
+      // Endpoint may not exist yet — keep placeholder
     });
 }
 
@@ -80,6 +87,7 @@ function handleLogoUpload(event) {
   reader.onload = function(e) {
     var logoData = e.target.result;
 
+    // Save to server (app_settings table) so it's visible from any device
     fetch('/api/admin/app-settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -106,6 +114,7 @@ function handleLogoUpload(event) {
 }
 
 function removeLogo() {
+  // Clear the server-side logo by saving an empty value
   fetch('/api/admin/app-settings', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -477,6 +486,10 @@ function initOwnerDashboard() {
   updateThemeSwitch();
   loadOwnerLogo();
 
+  // Add sticky positioning to tab bar
+  // The header (.dash-header) is already sticky at top:0 with z-index:100.
+  // The tab bar needs to stick BELOW the header. We measure the header height
+  // dynamically so it works regardless of logo size or screen width.
   var tabBar = document.querySelector('.owner-tab-bar');
   var header = document.querySelector('.dash-header');
   if (tabBar && header) {
@@ -538,6 +551,7 @@ async function saveW9IrsFormUrl() {
 
 // ---- Tab Switching ----
 function switchTab(tabName) {
+  // Close any open customer detail modal so it never layers over other tabs
   closeCustomerDetail();
   document.querySelectorAll('.owner-tab').forEach(function(t) { t.classList.remove('active'); });
   document.querySelectorAll('.owner-tab-content').forEach(function(c) { c.classList.remove('active'); });
@@ -967,6 +981,7 @@ async function submitChangePassword() {
 }
 
 // ---- Re-Approve W-9 ----
+// ---- Re-Approve W-9 ----
 async function reapproveW9(partnerId, partnerName) {
   if (!confirm('Re-approve ' + partnerName + '? Their referral link will be reactivated.')) return;
   try {
@@ -1119,6 +1134,7 @@ function renderCustomersTable() {
     return;
   }
 
+  // Build table — white background so it's readable over the dark page
   var html = '<div class="owner-table-wrap" style="overflow-x:auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:0 4px;">';
   html += '<table class="owner-data-table" style="width:100%;border-collapse:collapse;font-size:14px;background:#ffffff;">';
   html += '<thead><tr style="border-bottom:2px solid #e2e8f0;text-align:left;background:#f8fafc;">';
@@ -1275,9 +1291,11 @@ function showCustomerDetail(idx) {
   modal.style.alignItems = 'center';
   modal.style.justifyContent = 'center';
   modal.style.cursor = 'pointer';
+  // Click on the dark backdrop (not the white card) closes the modal
   modal.onclick = function(e) {
     if (e.target === modal) closeCustomerDetail();
   };
+  // Escape key closes the modal
   document.addEventListener('keydown', function escHandler(e) {
     if (e.key === 'Escape') {
       closeCustomerDetail();
@@ -1495,6 +1513,7 @@ function populateSourceFilter(issues) {
     html += '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>';
   });
   sel.innerHTML = html;
+  // Restore previous selection if it still exists
   if (sources.indexOf(current) !== -1) {
     sel.value = current;
   }
@@ -1521,6 +1540,9 @@ function clearIssueFilters() {
 
 function renderIssues(issues) {
   var listEl = document.getElementById('issueList');
+
+  // Preserve scroll position across re-renders
+  var scrollY = window.scrollY;
 
   if (issues.length === 0) {
     listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors</h3><p>No errors have been logged. Everything looks good.</p></div>';
@@ -1556,8 +1578,25 @@ function renderIssues(issues) {
     return;
   }
 
-  var html = '<table class="dash-table" style="width:100%;">';
+  // Count unresolved for "Resolve All" button
+  var unresolvedCount = filtered.filter(function(i) { return i.resolved !== 1; }).length;
+
+  var html = '';
+
+  // "Resolve All" bar — only show if there are unresolved issues
+  if (unresolvedCount > 0) {
+    html += '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;margin-bottom:8px;background:var(--bg-step);border:1px solid var(--border);border-radius:8px;">';
+    html += '<label style="display:flex;align-items:center;gap:6px;padding-left:12px;font-size:13px;color:var(--text);cursor:pointer;">';
+    html += '<input type="checkbox" id="issueSelectAll" onchange="toggleSelectAllIssues(this)" style="cursor:pointer;">';
+    html += 'Select All Visible</label>';
+    html += '<button class="owner-action-btn owner-btn-deactivate" onclick="resolveAllChecked()" id="resolveAllBtn">Resolve All Checked</button>';
+    html += '<span style="font-size:12px;color:var(--text-muted);">' + unresolvedCount + ' unresolved error' + (unresolvedCount !== 1 ? 's' : '') + ' in current view</span>';
+    html += '</div>';
+  }
+
+  html += '<table class="dash-table" style="width:100%;">';
   html += '<thead><tr>';
+  html += '<th style="width:30px;"></th>';
   html += '<th style="width:30px;"></th>';
   html += '<th>Status</th>';
   html += '<th>Error Message</th>';
@@ -1579,8 +1618,14 @@ function renderIssues(issues) {
 
     var expandIcon = isExpanded ? '▼' : '▶';
 
+    // Checkbox for batch resolve — only for unresolved issues
+    var checkboxHtml = isResolved
+      ? '<td></td>'
+      : '<td style="text-align:center;"><input type="checkbox" class="issue-checkbox" data-id="' + safeId + '" onclick="event.stopPropagation();" style="cursor:pointer;"></td>';
+
     html += '<tr class="issue-row' + (isResolved ? ' partner-row-inactive' : '') + '" data-error-id="' + safeId + '" style="cursor:pointer;">';
     html += '<td style="text-align:center;font-size:12px;color:var(--text-muted);">' + expandIcon + '</td>';
+    html += checkboxHtml;
     html += '<td>' + statusBadge + '</td>';
     html += '<td style="font-weight:600;">' + escapeHtml(i.error_message || 'Unknown error') + '</td>';
     html += '<td><span class="issue-card-source">' + escapeHtml(i.source || 'unknown') + '</span></td>';
@@ -1601,6 +1646,7 @@ function renderIssues(issues) {
     if (isExpanded) {
       html += '<tr class="issue-detail-row" style="background:var(--bg-input);">';
       html += '<td></td>';
+      html += '<td></td>';
       html += '<td colspan="5">';
       html += '<div style="padding:12px 16px;">';
       html += '<div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;"><strong>Error ID:</strong> ' + safeId + '</div>';
@@ -1617,10 +1663,13 @@ function renderIssues(issues) {
   html += '</tbody></table>';
   listEl.innerHTML = html;
 
+  // Restore scroll position
+  window.scrollTo(0, scrollY);
+
   var rows = listEl.querySelectorAll('.issue-row');
   for (var r = 0; r < rows.length; r++) {
     rows[r].addEventListener('click', function(e) {
-      if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+      if (e.target.tagName === 'BUTTON' || e.target.closest('button') || e.target.tagName === 'INPUT') return;
       var id = this.getAttribute('data-error-id');
       issueExpandedId = (issueExpandedId === id) ? null : id;
       renderIssues(allIssues);
@@ -1640,6 +1689,59 @@ function renderIssues(issues) {
       e.stopPropagation();
       resolveIssue(this.getAttribute('data-id'), this.getAttribute('data-resolved') === 'true');
     });
+  }
+}
+
+function toggleSelectAllIssues(checkbox) {
+  var issueCheckboxes = document.querySelectorAll('.issue-checkbox');
+  for (var i = 0; i < issueCheckboxes.length; i++) {
+    issueCheckboxes[i].checked = checkbox.checked;
+  }
+}
+
+async function resolveAllChecked() {
+  var issueCheckboxes = document.querySelectorAll('.issue-checkbox:checked');
+  if (issueCheckboxes.length === 0) {
+    alert('No errors selected. Check the boxes next to errors you want to resolve, or use "Select All Visible".');
+    return;
+  }
+  if (!confirm('Resolve ' + issueCheckboxes.length + ' error' + (issueCheckboxes.length !== 1 ? 's' : '') + '?')) return;
+
+  var ids = [];
+  for (var i = 0; i < issueCheckboxes.length; i++) {
+    ids.push(issueCheckboxes[i].getAttribute('data-id'));
+  }
+
+  var btn = document.getElementById('resolveAllBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Resolving ' + ids.length + '...'; }
+
+  var successCount = 0;
+  var failCount = 0;
+
+  for (var j = 0; j < ids.length; j++) {
+    try {
+      var resp = await fetch('/api/admin/issues', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: ids[j], resolved: true })
+      });
+      var data = await resp.json();
+      if (data.success) successCount++;
+      else failCount++;
+    } catch (e) {
+      failCount++;
+    }
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = 'Resolve All Checked'; }
+
+  // Reload issues but preserve scroll position
+  var scrollY = window.scrollY;
+  await loadIssues();
+  window.scrollTo(0, scrollY);
+
+  if (failCount > 0) {
+    alert('Resolved ' + successCount + ' error' + (successCount !== 1 ? 's' : '') + '. ' + failCount + ' failed.');
   }
 }
 
@@ -1712,7 +1814,14 @@ async function resolveIssue(id, resolved) {
     });
     var data = await resp.json();
     if (data.success) {
-      loadIssues();
+      // Update the issue in-memory instead of full reload to avoid scroll jump
+      var issue = allIssues.find(function(i) { return i.id === id; });
+      if (issue) issue.resolved = resolved ? 1 : 0;
+      // Re-render with preserved scroll position
+      var scrollY = window.scrollY;
+      renderIssueStats(allIssues);
+      renderIssues(allIssues);
+      window.scrollTo(0, scrollY);
     } else {
       alert('Failed to update issue: ' + (data.error || 'Unknown error'));
     }
@@ -1744,6 +1853,7 @@ async function loadTeamMembers() {
           var toggleBtn = m.is_active === 1
             ? '<button class="owner-action-btn owner-btn-deactivate" data-action="toggle-team" data-id="' + escapeHtml(m.id) + '" data-email="' + escapeHtml(m.email) + '">Deactivate</button>'
             : '<button class="owner-action-btn owner-btn-activate" data-action="toggle-team" data-id="' + escapeHtml(m.id) + '" data-email="' + escapeHtml(m.email) + '">Activate</button>';
+          // DELETE BUTTON REMOVED — team members can only be deactivated, never deleted
           actionBtns = toggleBtn;
         } else {
           actionBtns = '<span style="font-size:12px;color:var(--text-muted);">(you)</span>';
