@@ -154,17 +154,17 @@
         <div class="ft-two-col">
           <div class="ft-row">
             <label>Quantity (gallons) <span class="req">*</span></label>
-            <input type="number" id="quantity" step="0.01" min="0.01" placeholder="0.00" required>
+            <input type="number" id="quantity" step="0.01" min="0.01" placeholder="0.00" required oninput="markFormDirty()">
           </div>
           <div class="ft-row">
             <label>Date <span class="req">*</span></label>
-            <input type="date" id="txDate" required>
+            <input type="date" id="txDate" required onchange="markFormDirty()">
           </div>
         </div>
 
         <div class="ft-row">
           <label>Fuel Type <span class="req">*</span></label>
-          <select id="fuelType" required>
+          <select id="fuelType" required onchange="markFormDirty()">
             <option value="">Select fuel type…</option>
             <option value="diesel_onroad">Diesel (On-Road)</option>
             <option value="diesel_offroad">Diesel (Off-Road)</option>
@@ -178,19 +178,19 @@
         <div class="ft-two-col">
           <div class="ft-row">
             <label>Project <span class="req">*</span></label>
-            <select id="project" required>
+            <select id="project" required onchange="markFormDirty()">
               <option value="">Select project…</option>
             </select>
           </div>
           <div class="ft-row">
             <label>Location (optional)</label>
-            <input type="text" id="location" placeholder="Where this happened">
+            <input type="text" id="location" placeholder="Where this happened" oninput="markFormDirty()">
           </div>
         </div>
 
         <div class="ft-row">
           <label>Notes (optional)</label>
-          <textarea id="notes" placeholder="Any additional details…"></textarea>
+          <textarea id="notes" placeholder="Any additional details…" oninput="markFormDirty()"></textarea>
           <!-- TODO: When multi-language module is enabled, translate notes field from user's preferred language to org primary language using @cf/meta/m2m100-1.2b. Store both original and translated. See build report Session 9c multi-language spec. -->
         </div>
 
@@ -225,24 +225,54 @@
 var allTanks = [];
 var allAssets = [];
 var deviceLocation = null;
+var formDirty = false;
+
+function markFormDirty() { formDirty = true; }
+function clearFormDirty() { formDirty = false; }
+
+window.addEventListener('beforeunload', function(e) {
+  if (formDirty) { e.preventDefault(); e.returnValue = ''; }
+});
 
 /* ===== CLIENT-SIDE ERROR REPORTING ===== */
 function reportError(source, err) {
   var msg = (err && err.message) ? err.message : (typeof err === 'string' ? err : 'Unknown error');
   var stack = (err && err.stack) ? err.stack : 'No stack trace';
   try {
-    fetch('/api/log-error', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'Fuel Transfer Form (' + source + ')', message: msg, stack: stack, url: window.location.href, userAgent: navigator.userAgent }) }).catch(function() {});
+    fetch('/api/log-error', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        source: 'Fuel Transfer Form (' + source + ')',
+        message: msg,
+        stack: stack,
+        url: window.location.href,
+        userAgent: navigator.userAgent
+      })
+    }).catch(function() {});
   } catch (e) { console.error('Failed to report error:', e); }
   console.error('[' + source + ']', msg, stack);
 }
 
 /* ===== DEVICE LOCATION CHECK ===== */
 function checkDeviceLocation() {
-  if (!navigator.geolocation) { showLocationPopup('Your device does not support GPS location.'); return; }
+  if (!navigator.geolocation) {
+    showLocationPopup('Your device does not support GPS location. Please use a device with location capabilities.');
+    return;
+  }
   navigator.geolocation.getCurrentPosition(
-    function(pos) { deviceLocation = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy, timestamp: new Date().toISOString() }; updateLocationStatus(true); },
+    function(pos) {
+      deviceLocation = {
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        accuracy: pos.coords.accuracy,
+        timestamp: new Date().toISOString()
+      };
+      updateLocationStatus(true);
+    },
     function(err) {
-      deviceLocation = null; updateLocationStatus(false);
+      deviceLocation = null;
+      updateLocationStatus(false);
       var msg = 'Location is required to submit forms. ';
       if (err.code === 1) msg += 'You denied location access. Please enable it in your device settings.';
       else if (err.code === 2) msg += 'Location is unavailable. Check your GPS or network connection.';
@@ -255,13 +285,21 @@ function checkDeviceLocation() {
 }
 
 function updateLocationStatus(hasLocation) {
-  var banner = document.getElementById('locationStatusBanner'); if (!banner) return;
-  if (hasLocation) { banner.className = 'location-banner ok'; banner.innerHTML = '<strong>📍 Location:</strong> ' + deviceLocation.latitude.toFixed(6) + ', ' + deviceLocation.longitude.toFixed(6) + ' (±' + Math.round(deviceLocation.accuracy) + 'm)'; }
-  else { banner.className = 'location-banner warn'; banner.innerHTML = '<strong>⚠️ Location is OFF</strong> — Click to retry <button onclick="checkDeviceLocation()" style="margin-left:8px;padding:4px 12px;border:1px solid #b45309;border-radius:4px;background:#fef3c7;color:#78350f;cursor:pointer;font-size:12px;">Retry</button>'; }
+  var banner = document.getElementById('locationStatusBanner');
+  if (!banner) return;
+  if (hasLocation) {
+    banner.className = 'location-banner ok';
+    banner.innerHTML = '<strong>📍 Location:</strong> ' + deviceLocation.latitude.toFixed(6) + ', ' + deviceLocation.longitude.toFixed(6) + ' (±' + Math.round(deviceLocation.accuracy) + 'm)';
+  } else {
+    banner.className = 'location-banner warn';
+    banner.innerHTML = '<strong>⚠️ Location is OFF</strong> — Click to retry <button onclick="checkDeviceLocation()" style="margin-left:8px;padding:4px 12px;border:1px solid #b45309;border-radius:4px;background:#fef3c7;color:#78350f;cursor:pointer;font-size:12px;">Retry</button>';
+  }
 }
 
 function showLocationPopup(message) {
-  var overlay = document.getElementById('locationPopupOverlay'); var msgEl = document.getElementById('locationPopupMessage'); if (!overlay || !msgEl) return;
+  var overlay = document.getElementById('locationPopupOverlay');
+  var msgEl = document.getElementById('locationPopupMessage');
+  if (!overlay || !msgEl) return;
   msgEl.innerHTML = '<p style="font-size:15px;margin:0 0 16px;">' + esc(message) + '</p>' +
     '<div style="background:#f4f4f4;border-radius:8px;padding:14px;margin-bottom:12px;">' +
     '<p style="font-weight:600;margin:0 0 8px;">How to enable location:</p>' +
@@ -273,8 +311,15 @@ function showLocationPopup(message) {
   overlay.style.display = 'flex';
 }
 
-function closeLocationPopup() { var overlay = document.getElementById('locationPopupOverlay'); if (overlay) overlay.style.display = 'none'; }
-function hasDeviceLocation() { return deviceLocation !== null && deviceLocation.latitude !== undefined && deviceLocation.longitude !== undefined; }
+function closeLocationPopup() {
+  var overlay = document.getElementById('locationPopupOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function hasDeviceLocation() {
+  return deviceLocation !== null && deviceLocation.latitude !== undefined && deviceLocation.longitude !== undefined;
+}
+
 function requireLocationOrPopup() {
   if (hasDeviceLocation()) return true;
   var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
@@ -283,57 +328,117 @@ function requireLocationOrPopup() {
   return false;
 }
 
-function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
 function insertHeaderTitle() {
   var row1 = document.querySelector('.dash-header-row1');
   if (row1 && !document.querySelector('.ft-header-title')) {
-    var title = document.createElement('div'); title.className = 'ft-header-title'; title.textContent = 'Log Fuel Transfer';
-    var logoArea = document.getElementById('dashCustomerLogoArea'); var drivenLogo = row1.querySelector('.dash-driven-logo');
+    var title = document.createElement('div');
+    title.className = 'ft-header-title';
+    title.textContent = 'Log Fuel Transfer';
+    var logoArea = document.getElementById('dashCustomerLogoArea');
+    var drivenLogo = row1.querySelector('.dash-driven-logo');
     if (logoArea && drivenLogo) row1.insertBefore(title, drivenLogo);
   }
 }
 
-window.dashLogout = function() { try { fetch('/auth/logout', { method: 'POST' }); } catch (e) {} window.location.href = '/public/login.html'; };
+window.dashLogout = function() {
+  try { fetch('/auth/logout', { method: 'POST' }); } catch (e) {}
+  window.location.href = '/public/login.html';
+};
 
-function goBack() { var role = (window.dashUser && window.dashUser.role || '').toLowerCase(); window.location.href = role === 'admin' ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html'; }
+function goBack() {
+  var role = (window.dashUser && window.dashUser.role || '').toLowerCase();
+  window.location.href = role === 'admin' ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
+}
 
-function showError(msg) { var el = document.getElementById('errorBanner'); if (!msg) { el.style.display = 'none'; return; } el.textContent = msg; el.style.display = 'block'; }
+function showError(msg) {
+  var el = document.getElementById('errorBanner');
+  if (!msg) { el.style.display = 'none'; return; }
+  el.textContent = msg;
+  el.style.display = 'block';
+}
 
+// Set today's date
 document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
 
 // ===== LOAD DATA =====
-async function loadTanks() { try { var resp = await fetch('/api/fuel-tanks'); var data = await resp.json(); if (data.success && data.tanks) { allTanks = data.tanks; } } catch (e) { console.error('Failed to load tanks:', e); reportError('loadTanks', e); } }
+async function loadTanks() {
+  try {
+    var resp = await fetch('/api/fuel-tanks');
+    var data = await resp.json();
+    if (data.success && data.tanks) {
+      allTanks = data.tanks;
+    }
+  } catch (e) {
+    console.error('Failed to load tanks:', e);
+    reportError('loadTanks', e);
+  }
+}
 
 async function loadAssets() {
   try {
-    var resp = await fetch('/api/assets'); var data = await resp.json();
-    if (data.success && data.assets) { allAssets = data.assets.filter(function(a) { return a.status === 'active'; }); }
-    else if (data.success && data.equipment) { allAssets = data.equipment.filter(function(a) { return a.status === 'active'; }); }
-  } catch (e) { console.error('Failed to load assets:', e); reportError('loadAssets', e); }
+    var resp = await fetch('/api/assets');
+    var data = await resp.json();
+    if (data.success && data.assets) {
+      allAssets = data.assets.filter(function(a) { return a.status === 'active'; });
+    } else if (data.success && data.equipment) {
+      allAssets = data.equipment.filter(function(a) { return a.status === 'active'; });
+    }
+  } catch (e) {
+    console.error('Failed to load assets:', e);
+    reportError('loadAssets', e);
+  }
 }
 
 async function loadProjects() {
-  try { var resp = await fetch('/api/projects'); var data = await resp.json(); if (data.success && data.projects) { var select = document.getElementById('project'); data.projects.forEach(function(p) { var opt = document.createElement('option'); opt.value = p.id; opt.textContent = p.name || p.project_name || p.id; select.appendChild(opt); }); } } catch (e) {}
+  try {
+    var resp = await fetch('/api/projects');
+    var data = await resp.json();
+    if (data.success && data.projects) {
+      var select = document.getElementById('project');
+      data.projects.forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name || p.project_name || p.id;
+        select.appendChild(opt);
+      });
+    }
+  } catch (e) {}
 }
 
 // ===== FROM SOURCE LOGIC =====
 function onFromChange() {
+  markFormDirty();
   var fromType = document.getElementById('fromSource').value;
-  var fromTankRow = document.getElementById('fromTankRow'); var fromAssetRow = document.getElementById('fromAssetRow');
-  var fromTank = document.getElementById('fromTank'); var fromAsset = document.getElementById('fromAsset');
-  fromTank.innerHTML = ''; fromAsset.innerHTML = '';
+  var fromTankRow = document.getElementById('fromTankRow');
+  var fromAssetRow = document.getElementById('fromAssetRow');
+  var fromTank = document.getElementById('fromTank');
+  var fromAsset = document.getElementById('fromAsset');
+
+  // Reset
+  fromTank.innerHTML = '';
+  fromAsset.innerHTML = '';
   document.getElementById('fromTankInfo').textContent = '';
-  var fromAssetInfo = document.getElementById('fromAssetInfo'); if (fromAssetInfo) fromAssetInfo.textContent = '';
-  fromTankRow.style.display = 'none'; fromAssetRow.style.display = 'none';
+  var fromAssetInfo = document.getElementById('fromAssetInfo');
+  if (fromAssetInfo) fromAssetInfo.textContent = '';
+
+  fromTankRow.style.display = 'none';
+  fromAssetRow.style.display = 'none';
 
   if (fromType === 'asset') {
+    // Populate assets
     fromAssetRow.style.display = 'block';
-    if (allAssets.length === 0) { fromAsset.innerHTML = '<option value="">No equipment available</option>'; }
-    else {
+    if (allAssets.length === 0) {
+      fromAsset.innerHTML = '<option value="">No equipment available</option>';
+    } else {
       fromAsset.innerHTML = '<option value="">Select equipment…</option>';
       allAssets.forEach(function(a) {
-        var opt = document.createElement('option'); opt.value = a.id;
+        var opt = document.createElement('option');
+        opt.value = a.id;
         opt.textContent = (a.asset_number || a.id.slice(0,8)) + ' — ' + (a.name || 'Unnamed') + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
         opt.dataset.fuelType = a.fuel_type || '';
         fromAsset.appendChild(opt);
@@ -341,6 +446,7 @@ function onFromChange() {
     }
   } else if (fromType) {
     fromTankRow.style.display = 'block';
+    // Populate tanks matching the selected type
     var tankType = fromType.replace('_tank', '').replace('_can', '');
     var matching = allTanks.filter(function(t) {
       if (tankType === 'portable') return t.tank_type === 'portable';
@@ -348,43 +454,74 @@ function onFromChange() {
       if (tankType === 'dragup') return t.tank_type === 'dragup';
       return false;
     });
-    if (matching.length === 0) { fromTank.innerHTML = '<option value="">No tanks of this type available</option>'; }
-    else {
+    if (matching.length === 0) {
+      fromTank.innerHTML = '<option value="">No tanks of this type available</option>';
+    } else {
       fromTank.innerHTML = '<option value="">Select tank…</option>';
       matching.forEach(function(t) {
-        var opt = document.createElement('option'); opt.value = t.id;
+        var opt = document.createElement('option');
+        opt.value = t.id;
         opt.textContent = t.name + ' — ' + (t.current_quantity||0) + '/' + (t.capacity||0) + ' gal (' + (t.fuel_type||'?') + ')';
         opt.dataset.fuelType = t.fuel_type || '';
         fromTank.appendChild(opt);
       });
     }
   }
+
   updateToOptions();
 }
 
 function onFromAssetChange() {
-  var fromAsset = document.getElementById('fromAsset'); var selected = fromAsset.selectedOptions[0]; var info = document.getElementById('fromAssetInfo');
+  var fromAsset = document.getElementById('fromAsset');
+  var selected = fromAsset.selectedOptions[0];
+  var info = document.getElementById('fromAssetInfo');
   if (selected && selected.value) {
     var fuelType = selected.dataset.fuelType;
-    if (fuelType) { info.textContent = 'Fuel type: ' + fuelType; var fuelSelect = document.getElementById('fuelType'); for (var i = 0; i < fuelSelect.options.length; i++) { if (fuelSelect.options[i].value === fuelType) { fuelSelect.selectedIndex = i; break; } } }
-  } else { info.textContent = ''; }
+    if (fuelType) {
+      info.textContent = 'Fuel type: ' + fuelType;
+      var fuelSelect = document.getElementById('fuelType');
+      for (var i = 0; i < fuelSelect.options.length; i++) {
+        if (fuelSelect.options[i].value === fuelType) {
+          fuelSelect.selectedIndex = i;
+          break;
+        }
+      }
+    }
+  } else {
+    info.textContent = '';
+  }
 }
 
 function onFromTankChange() {
-  var fromTank = document.getElementById('fromTank'); var selected = fromTank.selectedOptions[0]; var info = document.getElementById('fromTankInfo');
+  var fromTank = document.getElementById('fromTank');
+  var selected = fromTank.selectedOptions[0];
+  var info = document.getElementById('fromTankInfo');
   if (selected && selected.value) {
     var fuelType = selected.dataset.fuelType;
-    if (fuelType) { info.textContent = 'Fuel type: ' + fuelType; var fuelSelect = document.getElementById('fuelType'); for (var i = 0; i < fuelSelect.options.length; i++) { if (fuelSelect.options[i].value === fuelType) { fuelSelect.selectedIndex = i; break; } } }
-  } else { info.textContent = ''; }
+    if (fuelType) {
+      info.textContent = 'Fuel type: ' + fuelType;
+      // Auto-fill fuel type
+      var fuelSelect = document.getElementById('fuelType');
+      for (var i = 0; i < fuelSelect.options.length; i++) {
+        if (fuelSelect.options[i].value === fuelType) {
+          fuelSelect.selectedIndex = i;
+          break;
+        }
+      }
+    }
+  } else {
+    info.textContent = '';
+  }
 }
 
 // ===== TO DESTINATION LOGIC =====
 function updateToOptions() {
   var fromType = document.getElementById('fromSource').value;
   var toSelect = document.getElementById('toDest');
+
   toSelect.innerHTML = '<option value="">Select destination…</option>';
 
-  // Build optgroup for individual assets (always shown as destination options when source is not an asset)
+  // Build optgroup for individual assets (always shown as destination options)
   if (allAssets.length > 0 && fromType !== 'asset') {
     var assetGroup = document.createElement('optgroup');
     assetGroup.label = 'Equipment / Assets';
@@ -420,23 +557,39 @@ function updateToOptions() {
         tankGroup.appendChild(opt);
       });
     });
-    if (tankGroup.children.length > 0) { toSelect.appendChild(tankGroup); }
+    if (tankGroup.children.length > 0) {
+      toSelect.appendChild(tankGroup);
+    }
   }
 
   onToChange();
 }
 
 function onToChange() {
+  markFormDirty();
   var toSelect = document.getElementById('toDest');
+  var selected = toSelect.selectedOptions[0];
   var toTankRow = document.getElementById('toTankRow');
   var toTank = document.getElementById('toTank');
+
   toTank.innerHTML = '';
   toTankRow.style.display = 'none';
+
   // No secondary row needed — the toDest dropdown now lists individual assets and tanks directly
+  // The selected option's dataset has destType and destId
 }
 
 // ===== MAP TO TRANSACTION TYPE =====
 function getTransactionType(fromType, toType) {
+  // bulk_tank → asset = bulk_issue
+  // bulk_tank → dragup_tank = dragup_fill
+  // bulk_tank → portable_can = portable_fill
+  // dragup_tank → asset = dragup_issue
+  // dragup_tank → portable_can = portable_fill
+  // portable_can → asset = portable_issue
+  // asset → bulk_tank = bulk_fill (fuel returned to bulk tank)
+  // asset → dragup_tank = dragup_fill (fuel returned to drag-up)
+  // asset → portable_can = portable_fill (fuel returned to portable)
   if (fromType === 'bulk_tank' && toType === 'asset') return 'bulk_issue';
   if (fromType === 'bulk_tank' && toType === 'dragup_tank') return 'dragup_fill';
   if (fromType === 'bulk_tank' && toType === 'portable_can') return 'portable_fill';
@@ -453,14 +606,17 @@ function getTransactionType(fromType, toType) {
 async function submitTransfer() {
   if (!requireLocationOrPopup()) return;
   showError('');
+
   var fromType = document.getElementById('fromSource').value;
   var fromTankId = document.getElementById('fromTank').value;
   var fromAssetId = document.getElementById('fromAsset').value;
+
   // Destination: read from the toDest dropdown's selected option dataset
   var toSelect = document.getElementById('toDest');
   var toSelected = toSelect.selectedOptions[0];
   var toType = toSelected ? (toSelected.dataset.destType || '') : '';
   var toEntityId = toSelected ? (toSelected.dataset.destId || '') : '';
+
   var quantity = parseFloat(document.getElementById('quantity').value);
   var txDate = document.getElementById('txDate').value;
   var fuelType = document.getElementById('fuelType').value;
@@ -470,8 +626,11 @@ async function submitTransfer() {
 
   // Validation
   if (!fromType) { showError('Please select a source.'); return; }
-  if (fromType === 'asset') { if (!fromAssetId) { showError('Please select which equipment the fuel is coming from.'); return; } }
-  else { if (!fromTankId) { showError('Please select which tank the fuel is coming from.'); return; } }
+  if (fromType === 'asset') {
+    if (!fromAssetId) { showError('Please select which equipment the fuel is coming from.'); return; }
+  } else {
+    if (!fromTankId) { showError('Please select which tank the fuel is coming from.'); return; }
+  }
   if (!toType || !toEntityId) { showError('Please select a destination (asset or tank).'); return; }
   if (!quantity || quantity <= 0) { showError('Please enter a valid quantity (must be greater than 0).'); return; }
   if (!txDate) { showError('Please select a date.'); return; }
@@ -479,40 +638,69 @@ async function submitTransfer() {
   if (!projectId) { showError('Please select a project.'); return; }
 
   var txType = getTransactionType(fromType, toType);
-  if (!txType) { showError('Invalid transfer combination. Please check your selections.'); return; }
+  if (!txType) {
+    showError('Invalid transfer combination. Please check your selections.'); return;
+  }
 
   var submitBtn = document.getElementById('submitBtn');
-  submitBtn.disabled = true; submitBtn.textContent = 'Saving…';
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Saving…';
+
   try {
     var fromEntityId = fromType === 'asset' ? fromAssetId : fromTankId;
     var body = {
-      transaction_type: txType, fuel_type: fuelType, quantity: quantity,
+      transaction_type: txType,
+      fuel_type: fuelType,
+      quantity: quantity,
       transaction_date: txDate,
       submission_timestamp: new Date().toISOString(),
-      from_entity_type: fromType, from_entity_id: fromEntityId,
-      to_entity_type: toType, to_entity_id: toEntityId,
-      project_id: projectId || null, location: location || null, notes: notes || null,
+      from_entity_type: fromType,
+      from_entity_id: fromEntityId,
+      to_entity_type: toType,
+      to_entity_id: toEntityId,
+      project_id: projectId || null,
+      location: location || null,
+      notes: notes || null,
       device_location: hasDeviceLocation() ? deviceLocation : null
     };
     if (fromType === 'asset') body.asset_id = fromAssetId;
     if (toType === 'asset') body.asset_id = toEntityId;
 
-    var resp = await fetch('/api/fuel-transactions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    var resp = await fetch('/api/fuel-transactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
     var data = await resp.json();
+
     if (data.success) {
+      clearFormDirty();
       document.getElementById('formView').style.display = 'none';
       document.getElementById('successView').style.display = 'block';
       var fromName = '';
-      if (fromType === 'asset') { fromName = document.getElementById('fromAsset').selectedOptions[0].textContent; }
-      else { fromName = document.getElementById('fromTank').selectedOptions[0].textContent.split(' —')[0]; }
+      if (fromType === 'asset') {
+        fromName = document.getElementById('fromAsset').selectedOptions[0].textContent;
+      } else {
+        fromName = document.getElementById('fromTank').selectedOptions[0].textContent.split(' —')[0];
+      }
       var toName = toSelected ? toSelected.textContent : '';
-      document.getElementById('successMsg').textContent = quantity + ' gallons of ' + fuelType + ' transferred from ' + fromName + ' to ' + toName;
-    } else { showError(data.error || 'Failed to log transfer. Please try again.'); }
-  } catch (e) { showError('Network error: ' + e.message); reportError('submitTransfer', e); }
-  finally { submitBtn.disabled = false; submitBtn.textContent = 'Log Transfer'; }
+      document.getElementById('successMsg').textContent =
+        quantity + ' gallons of ' + fuelType + ' transferred from ' + fromName + ' to ' + toName;
+    } else {
+      showError(data.error || 'Failed to log transfer. Please try again.');
+    }
+  } catch (e) {
+    showError('Network error: ' + e.message);
+    reportError('submitTransfer', e);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Log Transfer';
+  }
 }
 
 function resetForm() {
+  clearFormDirty();
   document.getElementById('formView').style.display = 'block';
   document.getElementById('successView').style.display = 'none';
   document.getElementById('fromSource').value = '';
@@ -534,19 +722,26 @@ function resetForm() {
 document.addEventListener('dashSessionLoaded', async function() {
   var user = window.dashUser;
   if (!user) { window.location.href = '/public/login.html'; return; }
+
   var role = (user.role || '').toLowerCase();
   var dashUrl = role === 'admin' ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
   var homeLink = document.getElementById('dashHomeLink');
   if (homeLink) homeLink.href = dashUrl;
+
   insertHeaderTitle();
   document.getElementById('loading').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
+
+  // Check device location
   if (!hasDeviceLocation()) checkDeviceLocation();
   var banner = document.getElementById('locationStatusBanner');
   if (banner) banner.style.display = 'block';
+
   await loadTanks();
   await loadAssets();
   loadProjects();
+  // Populate the "Asset being Fueled" dropdown immediately with all assets
+  updateToOptions();
 });
 </script>
 
