@@ -941,7 +941,7 @@
       <div class="admin-stats">
         <div class="admin-stat-card"><div class="admin-stat-number" id="stat-employees">0</div><div class="admin-stat-label">Employees</div></div>
         <div class="admin-stat-card"><div class="admin-stat-number" id="stat-projects">0</div><div class="admin-stat-label">Projects</div></div>
-        <div class="admin-stat-card"><div class="admin-stat-number" id="stat-equipment">0</div><div class="admin-stat-label">Equipment</div></div>
+        <div class="admin-stat-card"><div class="admin-stat-number" id="stat-equipment">0</div><div class="admin-stat-label">Assets</div></div>
         <div class="admin-stat-card"><div class="admin-stat-number" id="stat-clients">0</div><div class="admin-stat-label">Clients</div></div>
       </div>
 
@@ -1292,43 +1292,31 @@
     async function loadDashboardStats() {
       var orgId = localStorage.getItem('driven_customer_id');
       if (!orgId) return;
-
       var promises = [
         fetch('/api/users?limit=1').then(function(r) { return r.json(); }).catch(function() { return { success: false }; }),
         fetch('/api/assets?limit=1').then(function(r) { return r.json(); }).catch(function() { return { success: false }; }),
         fetch('/api/projects?limit=1').then(function(r) { return r.json(); }).catch(function() { return { success: false }; }),
       ];
-
       try {
         var results = await Promise.all(promises);
-
         if (results[0].success) {
           var empCount = results[0].users ? results[0].users.length : (results[0].total || results[0].count || 0);
-          if (results[0].users && Array.isArray(results[0].users)) {
-            empCount = results[0].users.length;
-          }
+          if (results[0].users && Array.isArray(results[0].users)) empCount = results[0].users.length;
           document.getElementById('stat-employees').textContent = empCount;
           localStorage.setItem('driven_employee_count', empCount);
         }
-
         if (results[1].success) {
           var eqCount = results[1].assets ? results[1].assets.length : (results[1].total || results[1].count || 0);
-          if (results[1].assets && Array.isArray(results[1].assets)) {
-            eqCount = results[1].assets.length;
-          }
+          if (results[1].assets && Array.isArray(results[1].assets)) eqCount = results[1].assets.length;
           document.getElementById('stat-equipment').textContent = eqCount;
           localStorage.setItem('driven_equipment_count', eqCount);
         }
-
         if (results[2].success) {
           var projCount = results[2].projects ? results[2].projects.length : (results[2].total || results[2].count || 0);
-          if (results[2].projects && Array.isArray(results[2].projects)) {
-            projCount = results[2].projects.length;
-          }
+          if (results[2].projects && Array.isArray(results[2].projects)) projCount = results[2].projects.length;
           document.getElementById('stat-projects').textContent = projCount;
           localStorage.setItem('driven_project_count', projCount);
         }
-
         try {
           var clientsResp = await fetch('/api/Clients?limit=1');
           var clientsData = await clientsResp.json();
@@ -1337,8 +1325,7 @@
             document.getElementById('stat-clients').textContent = clientCount;
             localStorage.setItem('driven_client_count', clientCount);
           }
-        } catch (e) { /* clients endpoint may not exist yet */ }
-
+        } catch (e) { }
       } catch (e) {
         console.error('Failed to load dashboard stats:', e.message);
         document.getElementById('stat-employees').textContent = localStorage.getItem('driven_employee_count') || '0';
@@ -1346,7 +1333,7 @@
         document.getElementById('stat-equipment').textContent = localStorage.getItem('driven_equipment_count') || '0';
         document.getElementById('stat-clients').textContent = localStorage.getItem('driven_client_count') || '0';
       }
-      }
+    }
 
     function renderFormsTab() {
       var container = document.getElementById('adminFormsTabLinks');
@@ -1381,7 +1368,6 @@
       if (tabName === 'forms') renderFormsTab();
     }
 
-    /* ===== SETTINGS SUBTAB SWITCHING ===== */
     function switchSettingsSubtab(subtabName) {
       if (settingsDirty) {
         var proceed = confirm("You have unsaved changes.\n\nClick Cancel to go back and save, or OK to leave without saving.");
@@ -1394,33 +1380,23 @@
       document.getElementById('settings-subtab-' + subtabName).classList.add('active');
     }
 
-    /* ===== XSS ESCAPE HELPER ===== */
     function esc(s) {
       if (!s) return '';
       return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
-    /* ===== CLIENT-SIDE ERROR REPORTING → Owner Dashboard error_log table ===== */
     function reportError(source, err) {
       var msg = (err && err.message) ? err.message : (typeof err === 'string' ? err : 'Unknown error');
       var stack = (err && err.stack) ? err.stack : 'No stack trace';
       try {
         fetch('/api/log-error', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            source: 'Admin Dashboard (' + source + ')',
-            message: msg,
-            stack: stack,
-            url: window.location.href,
-            userAgent: navigator.userAgent
-          })
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source: 'Admin Dashboard (' + source + ')', message: msg, stack: stack, url: window.location.href, userAgent: navigator.userAgent })
         }).catch(function() {});
       } catch (e) { console.error('Failed to report error:', e); }
       console.error('[' + source + ']', msg, stack);
     }
 
-    /* ===== ONBOARDING SUBTAB SWITCHING ===== */
     function switchOnboardingSubtab(subtabName) {
       if (visibilityDirty && document.getElementById('onboarding-subtab-visibility').classList.contains('active') && subtabName !== 'visibility') {
         var proceed = confirm("You have unsaved Task Visibility changes.\n\nClick Cancel to go back and save, or OK to leave without saving.");
@@ -1433,7 +1409,6 @@
       document.getElementById('onboarding-subtab-' + subtabName).classList.add('active');
     }
 
-    /* ===== THEME TOGGLE ===== */
     function toggleTheme() {
       var current = document.documentElement.getAttribute("data-theme");
       var newTheme = current === "dark" ? "light" : "dark";
@@ -1451,7 +1426,6 @@
       if (labelDark) labelDark.classList.toggle("active", current === "dark");
     }
 
-    /* ===== LOGO UPLOAD ===== */
     async function loadLogo() {
       var preview = document.getElementById("logoPreview");
       var removeBtn = document.getElementById("logoRemoveBtn");
@@ -1499,8 +1473,7 @@
         localStorage.setItem("driven_customer_logo", dataUrl);
         try {
           var saveRes = await fetch("/auth/save-logo", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+            method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ logo_data: dataUrl })
           });
           var saveData = await saveRes.json();
@@ -1524,8 +1497,7 @@
     async function handleLogoRemove() {
       try {
         await fetch("/auth/save-logo", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+          method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ logo_data: "" })
         });
         localStorage.removeItem("driven_customer_logo");
@@ -1539,7 +1511,6 @@
       }
     }
 
-    /* ===== SETTINGS LOAD / SAVE ===== */
     async function loadSettings() {
       try {
         var res = await fetch("/auth/get-settings");
@@ -1551,9 +1522,7 @@
             document.getElementById("overviewBusinessType").textContent = data.settings.business_type;
             document.getElementById("onboardingBtLabel").textContent = data.settings.business_type;
           }
-          if (data.settings.naics_code) {
-            document.getElementById("naicsInput").value = data.settings.naics_code;
-          }
+          if (data.settings.naics_code) document.getElementById("naicsInput").value = data.settings.naics_code;
           if (data.settings.step_visibility) {
             stepVisibility = data.settings.step_visibility;
           } else {
@@ -1574,24 +1543,16 @@
       updateProgress();
     }
 
-    /* ===== UNSAVED-CHANGES TRACKING ===== */
     var settingsDirty = false;
     var visibilityDirty = false;
 
-    function markSettingsDirty() {
-      settingsDirty = true;
-    }
-
-    function clearSettingsDirty() {
-      settingsDirty = false;
-    }
-
+    function markSettingsDirty() { settingsDirty = true; }
+    function clearSettingsDirty() { settingsDirty = false; }
     function markVisibilityDirty() {
       visibilityDirty = true;
       var warn = document.getElementById('visibilityWarning');
       if (warn) warn.style.display = 'block';
     }
-
     function clearVisibilityDirty() {
       visibilityDirty = false;
       var warn = document.getElementById('visibilityWarning');
@@ -1609,8 +1570,7 @@
       if (naicsBtn) { naicsBtn.disabled = true; naicsBtn.textContent = "Saving…"; }
       try {
         var res = await fetch("/auth/save-settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+          method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ settings: { business_type: bt, naics_code: naics } })
         });
         var data = await res.json();
@@ -1643,9 +1603,7 @@
       }, 3000);
     }
 
-    function onNaicsChange() {
-      markSettingsDirty();
-    }
+    function onNaicsChange() { markSettingsDirty(); }
 
     function applyBusinessTypeDefaults() {
       var bt = document.getElementById("businessTypeSelect").value;
@@ -1672,7 +1630,6 @@
       renderStepToggles();
     }
 
-    /* ===== STEP TOGGLE RENDERING ===== */
     function renderStepToggles() {
       var container = document.getElementById("stepToggleList");
       container.innerHTML = STEP_DEFS.map(function(step) {
@@ -1704,8 +1661,7 @@
       var status = document.getElementById("visibilityStatus");
       try {
         var res = await fetch("/auth/save-settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+          method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ settings: { step_visibility: stepVisibility } })
         });
         var data = await res.json();
@@ -1725,7 +1681,6 @@
       setTimeout(function() { status.textContent = ""; }, 3000);
     }
 
-    /* ===== KEY PERSONNEL ===== */
     async function loadKeyPersonnel() {
       var customerId = localStorage.getItem("driven_customer_id");
       if (!customerId) {
@@ -1815,9 +1770,7 @@
       if (!kp) return;
       if (kp.roles) {
         kp.roles = kp.roles.filter(function(r) { return r.role !== taskName; });
-        if (kp.roles.length === 0) {
-          pendingKP.splice(idx, 1);
-        }
+        if (kp.roles.length === 0) pendingKP.splice(idx, 1);
       } else {
         pendingKP.splice(idx, 1);
       }
@@ -1839,8 +1792,7 @@
       var customerId = localStorage.getItem("driven_customer_id");
       try {
         var res = await fetch("/api/onboarding/key-personnel/revoke", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+          method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ customerId: customerId, employeeId: employeeId, roles: [taskName] })
         });
         var data = await res.json();
@@ -1867,8 +1819,7 @@
       var customerId = localStorage.getItem("driven_customer_id");
       try {
         var res = await fetch("/api/onboarding/key-personnel/revoke", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+          method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ customerId: customerId, employeeId: employeeId, revokeAll: true })
         });
         var data = await res.json();
@@ -1893,9 +1844,7 @@
       var grouped = {};
       pendingKP.forEach(function(kp) {
         var key = kp.email.toLowerCase();
-        if (!grouped[key]) {
-          grouped[key] = { name: kp.name, email: kp.email, tasks: [] };
-        }
+        if (!grouped[key]) grouped[key] = { name: kp.name, email: kp.email, tasks: [] };
         if (kp.roles) {
           kp.roles.forEach(function(r) {
             if (grouped[key].tasks.indexOf(r.role) === -1) grouped[key].tasks.push(r.role);
@@ -1910,14 +1859,8 @@
       });
       try {
         var res = await fetch("/api/onboarding/key-personnel/complete", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            customerId: customerId,
-            adminName: adminUser.first_name || adminUser.email || "Admin",
-            adminEmail: adminUser.email || "",
-            keyPersonnel: kpPayload
-          })
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ customerId: customerId, adminName: adminUser.first_name || adminUser.email || "Admin", adminEmail: adminUser.email || "", keyPersonnel: kpPayload })
         });
         var data = await res.json();
         if (data.success) {
@@ -1939,33 +1882,17 @@
       }
     }
 
-    /* ===== ONBOARDING PROGRESS + COMPLETE ===== */
     function adminAutoDetect(stepKey) {
       switch (stepKey) {
-        case "roles-permissions":
-          return false;
-        case "employees":
-          return parseInt(localStorage.getItem("driven_employee_count") || "0") > 0 ||
-                 localStorage.getItem("driven_step3_complete") === "true";
-        case "locations":
-          return parseInt(localStorage.getItem("driven_location_count") || "0") > 0;
-        case "clients":
-          return parseInt(localStorage.getItem("driven_client_count") || "0") > 0 ||
-                 localStorage.getItem("driven_step4_complete") === "true";
-        case "divisions":
-          return parseInt(localStorage.getItem("driven_division_count") || "0") > 0 ||
-                 localStorage.getItem("driven_step5_complete") === "true";
-        case "project-types":
-          return parseInt(localStorage.getItem("driven_project_type_count") || "0") > 0 ||
-                 localStorage.getItem("driven_step6_complete") === "true";
-        case "projects":
-          return parseInt(localStorage.getItem("driven_project_count") || "0") > 0 ||
-                 localStorage.getItem("driven_step7_complete") === "true";
-        case "equipment":
-          return parseInt(localStorage.getItem("driven_equipment_count") || "0") > 0 ||
-                 localStorage.getItem("driven_step8_complete") === "true";
-        default:
-          return false;
+        case "roles-permissions": return false;
+        case "employees": return parseInt(localStorage.getItem("driven_employee_count") || "0") > 0 || localStorage.getItem("driven_step3_complete") === "true";
+        case "locations": return parseInt(localStorage.getItem("driven_location_count") || "0") > 0;
+        case "clients": return parseInt(localStorage.getItem("driven_client_count") || "0") > 0 || localStorage.getItem("driven_step4_complete") === "true";
+        case "divisions": return parseInt(localStorage.getItem("driven_division_count") || "0") > 0 || localStorage.getItem("driven_step5_complete") === "true";
+        case "project-types": return parseInt(localStorage.getItem("driven_project_type_count") || "0") > 0 || localStorage.getItem("driven_step6_complete") === "true";
+        case "projects": return parseInt(localStorage.getItem("driven_project_count") || "0") > 0 || localStorage.getItem("driven_step7_complete") === "true";
+        case "equipment": return parseInt(localStorage.getItem("driven_equipment_count") || "0") > 0 || localStorage.getItem("driven_step8_complete") === "true";
+        default: return false;
       }
     }
 
@@ -1979,20 +1906,14 @@
       var assignedEmails = [];
       keyPersonnel.forEach(function(kp) {
         var tasks = kp.roles ? kp.roles.map(function(r) { return r.role; }) : (kp.task ? [kp.task] : []);
-        if (tasks.indexOf(taskLabel) !== -1 && kp.email) {
-          assignedEmails.push(kp.email.toLowerCase());
-        }
+        if (tasks.indexOf(taskLabel) !== -1 && kp.email) assignedEmails.push(kp.email.toLowerCase());
       });
       pendingKP.forEach(function(kp) {
         var tasks = kp.roles ? kp.roles.map(function(r) { return r.role; }) : (kp.task ? [kp.task] : []);
-        if (tasks.indexOf(taskLabel) !== -1 && kp.email) {
-          assignedEmails.push(kp.email.toLowerCase());
-        }
+        if (tasks.indexOf(taskLabel) !== -1 && kp.email) assignedEmails.push(kp.email.toLowerCase());
       });
       var completions = taskCompletions[taskLabel] || [];
-      if (assignedEmails.length === 0) {
-        return completions.length > 0;
-      }
+      if (assignedEmails.length === 0) return completions.length > 0;
       for (var i = 0; i < assignedEmails.length; i++) {
         if (completions.indexOf(assignedEmails[i]) === -1) return false;
       }
@@ -2002,9 +1923,7 @@
     function updateProgress() {
       var visibleSteps = STEP_DEFS.filter(function(s) { return stepVisibility[s.key] !== false; });
       var completed = 0;
-      visibleSteps.forEach(function(s) {
-        if (adminIsTaskComplete(s.key)) completed++;
-      });
+      visibleSteps.forEach(function(s) { if (adminIsTaskComplete(s.key)) completed++; });
       var total = visibleSteps.length;
       var pct = total > 0 ? Math.round((completed / total) * 100) : 0;
       document.getElementById("progressBarFill").style.width = pct + "%";
@@ -2014,34 +1933,21 @@
       } else {
         document.getElementById("markCompleteBtn").classList.remove("show");
       }
-      if (onboardingComplete) {
-        document.getElementById("reopenOnboardingBtn").style.display = "inline-block";
-      }
+      if (onboardingComplete) document.getElementById("reopenOnboardingBtn").style.display = "inline-block";
       var completePanel = document.getElementById("onboardingCompletePanel");
       if (completePanel) {
-        if (total > 0 && completed >= total && !onboardingComplete) {
-          completePanel.classList.add("show");
-        } else {
-          completePanel.classList.remove("show");
-        }
+        if (total > 0 && completed >= total && !onboardingComplete) completePanel.classList.add("show");
+        else completePanel.classList.remove("show");
       }
     }
 
-    function showCompleteModal() {
-      document.getElementById("confirmModal").classList.add("active");
-    }
-    function closeCompleteModal() {
-      document.getElementById("confirmModal").classList.remove("active");
-    }
+    function showCompleteModal() { document.getElementById("confirmModal").classList.add("active"); }
+    function closeCompleteModal() { document.getElementById("confirmModal").classList.remove("active"); }
 
     async function markOnboardingComplete() {
       closeCompleteModal();
       try {
-        await fetch("/auth/save-settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ settings: { onboarding_complete: true } })
-        });
+        await fetch("/auth/save-settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ settings: { onboarding_complete: true } }) });
         onboardingComplete = true;
         hideOnboardingTab();
         switchTab("overview");
@@ -2063,29 +1969,17 @@
       btn.textContent = "Finalizing…";
       var customerId = localStorage.getItem("driven_customer_id");
       try {
-        var revokeRes = await fetch("/api/onboarding/key-personnel/revoke", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ customerId: customerId, revokeAll: true })
-        });
+        var revokeRes = await fetch("/api/onboarding/key-personnel/revoke", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerId: customerId, revokeAll: true }) });
         var revokeData = await revokeRes.json();
         if (!revokeData.success) {
           alert("Failed to remove Key Personnel assignments: " + (revokeData.error || "Unknown error"));
-          btn.disabled = false;
-          btn.textContent = "Finalize Onboarding & Unlock Dashboards";
-          return;
+          btn.disabled = false; btn.textContent = "Finalize Onboarding & Unlock Dashboards"; return;
         }
-        var completeRes = await fetch("/auth/save-settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ settings: { onboarding_complete: true } })
-        });
+        var completeRes = await fetch("/auth/save-settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ settings: { onboarding_complete: true } }) });
         var completeData = await completeRes.json();
         if (!completeData.success) {
           alert("Failed to mark onboarding complete: " + (completeData.error || "Unknown error"));
-          btn.disabled = false;
-          btn.textContent = "Finalize Onboarding & Unlock Dashboards";
-          return;
+          btn.disabled = false; btn.textContent = "Finalize Onboarding & Unlock Dashboards"; return;
         }
         onboardingComplete = true;
         keyPersonnel = [];
@@ -2099,8 +1993,7 @@
       } catch (e) {
         console.error("Finalize onboarding error:", e.message); reportError("finalizeOnboarding", e);
         alert("Failed to finalize onboarding.");
-        btn.disabled = false;
-        btn.textContent = "Finalize Onboarding & Unlock Dashboards";
+        btn.disabled = false; btn.textContent = "Finalize Onboarding & Unlock Dashboards";
       }
     }
 
@@ -2108,11 +2001,7 @@
       var btn = document.getElementById("reopenOnboardingBtn");
       if (btn) { btn.disabled = true; btn.textContent = "Reopening…"; }
       try {
-        await fetch("/auth/save-settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ settings: { onboarding_complete: false } })
-        });
+        await fetch("/auth/save-settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ settings: { onboarding_complete: false } }) });
         onboardingComplete = false;
         var onboardingTab = document.querySelector('[data-tab="onboarding"]');
         if (onboardingTab) onboardingTab.style.display = "";
@@ -2126,12 +2015,8 @@
       }
     }
 
-    /* ===== UNSAVED-CHANGES — PAGE LEAVE / LOGOUT GUARD ===== */
     window.addEventListener("beforeunload", function(e) {
-      if (visibilityDirty || settingsDirty) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
+      if (visibilityDirty || settingsDirty) { e.preventDefault(); e.returnValue = ""; }
     });
 
     window.dashLogout = function() {
@@ -2139,32 +2024,20 @@
         var proceed = confirm("You have unsaved changes.\n\nClick Cancel to go back and save, or OK to leave without saving.");
         if (!proceed) return;
       }
-      try {
-        fetch("/auth/logout", { method: "POST" });
-      } catch (e) {
-        console.error("Logout error:", e.message);
-      }
+      try { fetch("/auth/logout", { method: "POST" }); } catch (e) { console.error("Logout error:", e.message); }
       window.location.href = "/public/login.html";
     };
 
-    /* ===== STICKY TABS ===== */
     function makeTabsSticky() {
       var header = document.getElementById("dashHeader");
       var tabBar = document.getElementById("adminTabBar");
-      if (header && tabBar && !header.contains(tabBar)) {
-        header.appendChild(tabBar);
-      }
+      if (header && tabBar && !header.contains(tabBar)) header.appendChild(tabBar);
       var settingsSubtabBar = document.getElementById("settingsSubtabBar");
       var onboardingSubtabBar = document.getElementById("onboardingSubtabBar");
-      if (header && settingsSubtabBar && !header.contains(settingsSubtabBar)) {
-        header.appendChild(settingsSubtabBar);
-      }
-      if (header && onboardingSubtabBar && !header.contains(onboardingSubtabBar)) {
-        header.appendChild(onboardingSubtabBar);
-      }
+      if (header && settingsSubtabBar && !header.contains(settingsSubtabBar)) header.appendChild(settingsSubtabBar);
+      if (header && onboardingSubtabBar && !header.contains(onboardingSubtabBar)) header.appendChild(onboardingSubtabBar);
     }
 
-    /* ===== INSERT HEADER TITLE ===== */
     function insertHeaderTitle() {
       var row1 = document.querySelector(".dash-header-row1");
       if (row1 && !document.querySelector(".admin-header-title")) {
@@ -2173,44 +2046,31 @@
         title.textContent = "Admin Dashboard";
         var logoArea = document.getElementById("dashCustomerLogoArea");
         var drivenLogo = row1.querySelector(".dash-driven-logo");
-        if (logoArea && drivenLogo) {
-          row1.insertBefore(title, drivenLogo);
-        }
+        if (logoArea && drivenLogo) row1.insertBefore(title, drivenLogo);
       }
     }
 
-    /* ===== INIT ===== */
     async function init() {
       document.addEventListener("dashSessionLoaded", async function() {
         var user = window.dashUser;
-        if (!user) {
-          window.location.href = "/public/login.html";
-          return;
-        }
-
+        if (!user) { window.location.href = "/public/login.html"; return; }
         var firstName = user.first_name || user.email;
         var orgName = user.org_name || localStorage.getItem("driven_org_name") || "";
         var welcomeEl = document.getElementById("welcome-name");
-        if (welcomeEl) {
-          welcomeEl.textContent = orgName ? (firstName + " — " + orgName) : firstName;
-        }
+        if (welcomeEl) welcomeEl.textContent = orgName ? (firstName + " — " + orgName) : firstName;
         document.getElementById("account-name").textContent = user.first_name ? (user.first_name + " " + (user.last_name || "")) : user.email;
         var emailEl = document.getElementById("account-email");
         if (emailEl) emailEl.textContent = user.email || "";
-
         insertHeaderTitle();
         makeTabsSticky();
-
         await loadLogo();
         await loadSettings();
         await loadKeyPersonnel();
         updateProgress();
         updateThemeSwitch();
         renderFormsTab();
-
         document.getElementById("loading").style.display = "none";
         document.getElementById("dashboard").style.display = "block";
-
         loadDashboardStats();
       });
     }
