@@ -219,8 +219,8 @@
           <input type="date" id="purchaseDate" class="purchase-input" onchange="markFormDirty()">
         </div>
         <div class="purchase-field">
-          <label class="purchase-label">Location</label>
-          <select id="purchaseLocation" class="purchase-input" onchange="handleLocationChange(this)">
+          <label class="purchase-label">Location (if applicable)</label>
+          <select id="purchaseLocation" class="purchase-input ai-needed" onchange="handleLocationChange(this)">
             <option value="">Select location…</option>
           </select>
         </div>
@@ -234,7 +234,7 @@
         </div>
         <div class="purchase-field">
           <label class="purchase-label">Project <span style="color:#cc0000;">*</span></label>
-          <select id="purchaseProject" class="purchase-input" required onchange="markFormDirty()">
+          <select id="purchaseProject" class="purchase-input ai-needed" required onchange="handleProjectChange(this)">
             <option value="">Select project…</option>
           </select>
         </div>
@@ -618,7 +618,7 @@ function recalcGrandTotal() {
   var totalEl = document.getElementById('grandTotal');
   if (!totalEl) return;
   if (!hasAnyQty) { totalEl.textContent = '$0.00'; return; }
-  if (!hasAnyPrice) { totalEl.textContent = '\u2014'; totalEl.style.color = 'var(--text-muted)'; return; }
+  if (!hasAnyPrice) { totalEl.textContent = '—'; totalEl.style.color = 'var(--text-muted)'; return; }
   totalEl.style.color = 'var(--primary)';
   totalEl.textContent = '$' + total.toFixed(2);
 }
@@ -688,7 +688,7 @@ function _buildCropUI(file, img, imgUrl, callback) {
   modal.appendChild(title);
 
   var desc = document.createElement('p');
-  desc.innerHTML = '<strong>How to crop:</strong> Drag the <strong>green corners</strong> (the small green squares at each corner) to resize the box around the receipt text. Drag anywhere inside the box to move it. The area inside the green box is what the AI will read \u2014 everything outside is cut away. Click "Use Full Image" to skip cropping.';
+  desc.innerHTML = '<strong>How to crop:</strong> Drag the <strong>green corners</strong> (the small green squares at each corner) to resize the box around the receipt text. Drag anywhere inside the box to move it. The area inside the green box is what the AI will read — everything outside is cut away. Click "Use Full Image" to skip cropping.';
   modal.appendChild(desc);
 
   var stage = document.createElement('div');
@@ -935,18 +935,18 @@ async function handleReceiptUpload(input) {
 
   var isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
   if (isPdf) {
-    previewContent.innerHTML = '<div class="receipt-pdf-icon">\ud83d\udcc4</div><p style="font-size:14px;font-weight:600;margin:8px 0 0;">' + esc(file.name) + '</p><p style="font-size:12px;color:var(--text-muted);">PDF document</p>';
+    previewContent.innerHTML = '<div class="receipt-pdf-icon">📄</div><p style="font-size:14px;font-weight:600;margin:8px 0 0;">' + esc(file.name) + '</p><p style="font-size:12px;color:var(--text-muted);">PDF document</p>';
   } else {
-    // Show crop overlay \u2014 extraction won't start until user crops or skips
+    // Show crop overlay — extraction won't start until user crops or skips
     status.className = 'receipt-extract-status loading';
-    status.textContent = 'Crop the receipt area for best results\u2026';
+    status.textContent = 'Crop the receipt area for best results…';
     showCropOverlay(file, function(croppedFile) {
       _doExtraction(croppedFile, previewContent, status, preview);
     });
     return;
   }
 
-  // PDF path \u2014 no cropping needed, go straight to extraction
+  // PDF path — no cropping needed, go straight to extraction
   _doExtraction(file, previewContent, status, preview);
 }
 
@@ -970,7 +970,7 @@ async function _doExtraction(file, previewContent, status, preview) {
   }
 
   status.className = 'receipt-extract-status loading';
-  status.textContent = 'Uploading & extracting receipt data with AI\u2026';
+  status.textContent = 'Uploading & extracting receipt data with AI…';
   document.getElementById('aiConfidenceBanner').style.display = 'none';
 
   try {
@@ -998,21 +998,21 @@ async function _doExtraction(file, previewContent, status, preview) {
       var errMsg = 'Server returned ' + resp.status;
       var errCode = '';
       try { var errJson = JSON.parse(errBody); if (errJson.error) errMsg = errJson.error; if (errJson.code) errCode = errJson.code; } catch(e) {}
-      // Check for "too large" error \u2014 don't kick the user out, tell them to crop
+      // Check for "too large" error — don't kick the user out, tell them to crop
       if (errCode === 'IMAGE_TOO_LARGE' || errMsg.toLowerCase().indexOf('too large') !== -1 || errMsg.toLowerCase().indexOf('max size') !== -1) {
         status.className = 'receipt-extract-status error';
-        status.innerHTML = '\u26a0 Image is too large for AI processing. Please crop the receipt to show only the text area, then try again. Click "Choose File" and use the crop tool.';
+        status.innerHTML = '⚠ Image is too large for AI processing. Please crop the receipt to show only the text area, then try again. Click "Choose File" and use the crop tool.';
         return;
       }
-      // Check for auth errors \u2014 show inline, NEVER redirect
+      // Check for auth errors — show inline, NEVER redirect
       if (resp.status === 401 || resp.status === 403) {
         status.className = 'receipt-extract-status error';
-        status.textContent = '\u2717 Your session has expired. Please save your work, then refresh the page and log in again.';
+        status.textContent = '✗ Your session has expired. Please save your work, then refresh the page and log in again.';
         return;
       }
-      // Any other server error \u2014 show inline, never redirect, never call reportError
+      // Any other server error — show inline, never redirect, never call reportError
       status.className = 'receipt-extract-status error';
-      status.textContent = '\u2717 Could not process the receipt: ' + errMsg;
+      status.textContent = '✗ Could not process the receipt: ' + errMsg;
       return;
     }
     var data = await resp.json();
@@ -1032,7 +1032,7 @@ async function _doExtraction(file, previewContent, status, preview) {
       var conf = data.extracted.confidence || 0;
       var confPct = Math.round(conf * 100);
       var fileTypeLabel = data.receipt && data.receipt.file_type === 'pdf' ? 'PDF' : 'Image';
-      status.textContent = '\u2713 Extraction complete (' + confPct + '% confidence, ' + fileTypeLabel + ', ' + (data.processing_time_ms || 0) + 'ms)';
+      status.textContent = '✓ Extraction complete (' + confPct + '% confidence, ' + fileTypeLabel + ', ' + (data.processing_time_ms || 0) + 'ms)';
 
       // Show the field legend
       document.getElementById('aiFieldLegend').style.display = 'flex';
@@ -1068,7 +1068,7 @@ async function _doExtraction(file, previewContent, status, preview) {
             if (li.fuel_type) row.querySelector('.line-fuel-type').classList.add('ai-extracted');
             if (li.gallons || li.quantity) row.querySelector('.line-qty').classList.add('ai-extracted');
             if (li.unit_price) row.querySelector('.line-cpg').classList.add('ai-extracted');
-            // Asset field is never extracted by AI \u2014 mark it orange (needs user input)
+            // Asset field is never extracted by AI — mark it orange (needs user input)
             row.querySelector('.line-destination').classList.add('ai-needed');
           }
         });
@@ -1078,16 +1078,16 @@ async function _doExtraction(file, previewContent, status, preview) {
       recalcGrandTotal();
     } else {
       status.className = 'receipt-extract-status error';
-      status.textContent = '\u2717 Extraction completed but no data was recognized. Try cropping the receipt more tightly around the text.';
+      status.textContent = '✗ Extraction completed but no data was recognized. Try cropping the receipt more tightly around the text.';
     }
   } catch (e) {
-    // Ignore AbortError \u2014 that means a newer upload superseded this one
+    // Ignore AbortError — that means a newer upload superseded this one
     if (e.name === 'AbortError') { console.log('Extraction aborted (superseded by newer upload)'); return; }
     // Ignore stale responses
     if (thisReqId !== _currentExtractionId) { console.log('Stale extraction error ignored'); return; }
     status.className = 'receipt-extract-status error';
-    status.textContent = '\u2717 Error: ' + e.message;
-    // Don't call reportError for extraction errors \u2014 it can trigger a redirect
+    status.textContent = '✗ Error: ' + e.message;
+    // Don't call reportError for extraction errors — it can trigger a redirect
     // if the session is expired. Just show the error inline.
     console.error('extractReceipt error:', e);
   }
@@ -1116,7 +1116,8 @@ async function submitPurchase() {
   if (!requireLocationOrPopup()) return;
 
   var date = document.getElementById('purchaseDate').value;
-  var location = document.getElementById('purchaseLocation').value;
+  var locationEl = document.getElementById('purchaseLocation');
+  var location = locationEl ? locationEl.value.trim() : '';
   var person = document.getElementById('purchasePerson').value;
   var vendor = document.getElementById('purchaseVendor').value;
   var notes = document.getElementById('purchaseNotes').value;
@@ -1124,8 +1125,18 @@ async function submitPurchase() {
   if (!date) { showPurchaseError('Date is required'); return; }
   if (!vendor || !vendor.trim()) { showPurchaseError('Vendor is required'); return; }
   if (!person || !person.trim()) { showPurchaseError('User is required'); return; }
-  var projectId = document.getElementById('purchaseProject').value;
-  if (!projectId) { showPurchaseError('Project is required'); return; }
+
+  var projectEl = document.getElementById('purchaseProject');
+  var projectId = projectEl ? projectEl.value.trim() : '';
+  var customProjectName = null;
+  if (projectEl && projectEl.tagName === 'INPUT' && projectEl.getAttribute('data-custom') === 'true') {
+    // User typed a custom project name — flag for manager to add it
+    customProjectName = projectEl.value.trim();
+    if (!customProjectName) { showPurchaseError('Project is required'); return; }
+    projectId = null; // No real project ID yet — manager needs to create it
+  } else {
+    if (!projectId) { showPurchaseError('Project is required'); return; }
+  }
 
   var lineItems = [];
   var rows = document.querySelectorAll('.line-item-row');
@@ -1138,7 +1149,7 @@ async function submitPurchase() {
     var dest = assetMap[destLabel] || '';
     var qty = parseFloat(row.querySelector('.line-qty').value);
     var fuelType = row.querySelector('.line-fuel-type').value;
-    // Cost/gal is OPTIONAL \u2014 bulk delivery tickets may not include unit prices
+    // Cost/gal is OPTIONAL — bulk delivery tickets may not include unit prices
     var cpg = parseFloat(row.querySelector('.line-cpg').value) || null;
 
     if (!dest) { showPurchaseError('Line ' + (i + 1) + ': asset is required (select from the list)'); return; }
@@ -1146,13 +1157,15 @@ async function submitPurchase() {
     if (!fuelType) { showPurchaseError('Line ' + (i + 1) + ': fuel type is required'); return; }
 
     var parts = dest.split('|');
-    lineItems.push({
+    var li = {
       fuel_type: fuelType,
       quantity: qty,
       to_entity_type: parts[0],
       to_entity_id: parts[1],
       cost_per_gallon: cpg
-    });
+    };
+    if (customProjectName) li.project_name = customProjectName;
+    lineItems.push(li);
   }
 
   if (lineItems.length === 0) { showPurchaseError('At least one line item is required'); return; }
@@ -1169,6 +1182,11 @@ async function submitPurchase() {
   var locEl = document.getElementById('purchaseLocation');
   if (locEl && locEl.tagName === 'INPUT') {
     managerReviewFlags.push({ field: 'location', value: locEl.value, reason: 'Custom location typed manually (not from list)' });
+  }
+
+  // Custom project typed manually — flag for manager to add the project
+  if (customProjectName) {
+    managerReviewFlags.push({ field: 'project', value: customProjectName, reason: 'New project typed manually (not from list) — manager must add project and update record' });
   }
 
   // Check each line item for custom fuel type
@@ -1198,7 +1216,7 @@ async function submitPurchase() {
 
   var submitBtn = document.querySelector('.purchase-submit-btn');
   submitBtn.disabled = true;
-  submitBtn.textContent = 'Recording\u2026';
+  submitBtn.textContent = 'Recording…';
 
   try {
     var resp = await fetch('/api/fuel-purchases', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -1225,7 +1243,7 @@ function showPurchaseSuccess(purchase) {
   result.className = 'purchase-result-success';
   var lineCount = purchase.line_items ? purchase.line_items.length : 0;
   var msg = 'Purchase recorded: ' + lineCount + ' line item' + (lineCount !== 1 ? 's' : '');
-  if (purchase.total_cost) msg += ' \u2014 $' + parseFloat(purchase.total_cost).toFixed(2);
+  if (purchase.total_cost) msg += ' — $' + parseFloat(purchase.total_cost).toFixed(2);
   if (purchase.vendor) msg += ' from ' + purchase.vendor;
   result.textContent = msg;
   result.style.display = 'block';
@@ -1235,7 +1253,7 @@ function showPurchaseSuccess(purchase) {
 function showPurchaseError(msg) {
   var result = document.getElementById('purchaseResult');
   result.className = 'purchase-result-error';
-  result.textContent = '\u2717 ' + msg;
+  result.textContent = '✗ ' + msg;
   result.style.display = 'block';
   setTimeout(function() { result.style.display = 'none'; }, 5000);
 }
@@ -1254,6 +1272,17 @@ function clearPurchaseForm() {
     locEl.parentNode.replaceChild(select, locEl);
     locEl = select;
   }
+  // Restore Project dropdown if it was replaced with a text input by "+ Other"
+  var projEl = document.getElementById('purchaseProject');
+  if (projEl && projEl.tagName === 'INPUT') {
+    var projSelect = document.createElement('select');
+    projSelect.id = 'purchaseProject';
+    projSelect.className = 'purchase-input ai-needed';
+    projSelect.setAttribute('required', '');
+    projSelect.setAttribute('onchange', 'handleProjectChange(this)');
+    projEl.parentNode.replaceChild(projSelect, projEl);
+    projEl = projSelect;
+  }
   // Rebuild location options
   var locations = {};
   allAssets.forEach(function(a) {
@@ -1262,7 +1291,7 @@ function clearPurchaseForm() {
   allTanks.forEach(function(t) {
     if (t.location && t.location.trim()) locations[t.location.trim()] = true;
   });
-  var locHtml = '<option value="">Select location\u2026</option>';
+  var locHtml = '<option value="">Select location…</option>';
   Object.keys(locations).sort().forEach(function(loc) {
     locHtml += '<option value="' + esc(loc) + '">' + esc(loc) + '</option>';
   });
@@ -1282,8 +1311,8 @@ function clearPurchaseForm() {
   document.getElementById('aiConfidenceBanner').style.display = 'none';
   document.getElementById('aiConfidenceBanner').innerHTML = '';
   document.getElementById('aiFieldLegend').style.display = 'none';
-  // Clear AI highlight classes from all fields
-  document.querySelectorAll('.ai-extracted, .ai-needed').forEach(function(el) { el.classList.remove('ai-extracted'); el.classList.remove('ai-needed'); });
+  // Clear AI highlight classes from line-item fields only (NOT Location/Project which are always orange)
+  document.querySelectorAll('.line-item-row .ai-extracted, .line-item-row .ai-needed').forEach(function(el) { el.classList.remove('ai-extracted'); el.classList.remove('ai-needed'); });
   document.getElementById('purchaseResult').style.display = 'none';
   if (_objectUrl) { URL.revokeObjectURL(_objectUrl); _objectUrl = null; }
   receiptR2Key = null;
@@ -1344,7 +1373,7 @@ async function loadAssets() {
     var locSelect = document.getElementById('purchaseLocation');
     if (locSelect) {
       var currentVal = locSelect.value;
-      var html = '<option value="">Select location\u2026</option>';
+      var html = '<option value="">Select location…</option>';
       Object.keys(locations).sort().forEach(function(loc) {
         html += '<option value="' + esc(loc) + '">' + esc(loc) + '</option>';
       });
@@ -1371,6 +1400,20 @@ function handleLocationChange(sel) {
   }
 }
 
+function handleProjectChange(sel) {
+  if (sel.value === '__custom') {
+    // Replace dropdown with text input
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.id = 'purchaseProject';
+    input.className = 'purchase-input';
+    input.placeholder = 'Type new project name';
+    input.setAttribute('data-custom', 'true');
+    sel.parentNode.replaceChild(input, sel);
+    input.focus();
+  }
+}
+
 async function loadProjects() {
   try {
     var resp = await fetch('/api/projects');
@@ -1379,10 +1422,11 @@ async function loadProjects() {
     if (data.success && data.projects) {
       var sel = document.getElementById('purchaseProject');
       if (sel) {
-        var html = '<option value="">Select project\u2026</option>';
+        var html = '<option value="">Select project…</option>';
         data.projects.forEach(function(p) {
           html += '<option value="' + esc(p.id) + '">' + esc(p.name || p.project_name || p.id) + '</option>';
         });
+        html += '<option value="__custom">+ Other (type manually)</option>';
         sel.innerHTML = html;
       }
     }
@@ -1419,7 +1463,7 @@ document.addEventListener('dashSessionLoaded', async function() {
   insertHeaderTitle();
   makeTabsSticky();
 
-  // Request device location IMMEDIATELY on mobile (where it's required) \u2014
+  // Request device location IMMEDIATELY on mobile (where it's required) —
   // desktop users don't get the permission prompt (location is optional there).
   if (!hasDeviceLocation() && isMobileDevice()) checkDeviceLocation();
   var banner = document.getElementById('locationStatusBanner');
