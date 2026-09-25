@@ -191,7 +191,6 @@
         <div class="ft-row">
           <label>Notes (optional)</label>
           <textarea id="notes" placeholder="Any additional details…" oninput="markFormDirty()"></textarea>
-          <!-- TODO: When multi-language module is enabled, translate notes field from user's preferred language to org primary language using @cf/meta/m2m100-1.2b. Store both original and translated. See build report Session 9c multi-language spec. -->
         </div>
 
         <div class="ft-btn-row">
@@ -419,7 +418,6 @@ function onFromChange() {
   var fromTank = document.getElementById('fromTank');
   var fromAsset = document.getElementById('fromAsset');
 
-  // Reset
   fromTank.innerHTML = '';
   fromAsset.innerHTML = '';
   document.getElementById('fromTankInfo').textContent = '';
@@ -430,7 +428,6 @@ function onFromChange() {
   fromAssetRow.style.display = 'none';
 
   if (fromType === 'asset') {
-    // Populate assets
     fromAssetRow.style.display = 'block';
     if (allAssets.length === 0) {
       fromAsset.innerHTML = '<option value="">No equipment available</option>';
@@ -446,7 +443,6 @@ function onFromChange() {
     }
   } else if (fromType) {
     fromTankRow.style.display = 'block';
-    // Populate tanks matching the selected type
     var tankType = fromType.replace('_tank', '').replace('_can', '');
     var matching = allTanks.filter(function(t) {
       if (tankType === 'portable') return t.tank_type === 'portable';
@@ -500,7 +496,6 @@ function onFromTankChange() {
     var fuelType = selected.dataset.fuelType;
     if (fuelType) {
       info.textContent = 'Fuel type: ' + fuelType;
-      // Auto-fill fuel type
       var fuelSelect = document.getElementById('fuelType');
       for (var i = 0; i < fuelSelect.options.length; i++) {
         if (fuelSelect.options[i].value === fuelType) {
@@ -521,7 +516,6 @@ function updateToOptions() {
 
   toSelect.innerHTML = '<option value="">Select destination…</option>';
 
-  // Build optgroup for individual assets (always shown as destination options)
   if (allAssets.length > 0 && fromType !== 'asset') {
     var assetGroup = document.createElement('optgroup');
     assetGroup.label = 'Equipment / Assets';
@@ -536,7 +530,6 @@ function updateToOptions() {
     toSelect.appendChild(assetGroup);
   }
 
-  // Build optgroup for tanks (only valid tank destinations based on source)
   var tankDestTypes = [];
   if (fromType === 'bulk_tank') tankDestTypes = ['dragup_tank', 'portable_can'];
   else if (fromType === 'dragup_tank') tankDestTypes = ['portable_can'];
@@ -574,29 +567,17 @@ function onToChange() {
 
   toTank.innerHTML = '';
   toTankRow.style.display = 'none';
-
-  // No secondary row needed — the toDest dropdown now lists individual assets and tanks directly
-  // The selected option's dataset has destType and destId
 }
 
 // ===== MAP TO TRANSACTION TYPE =====
 function getTransactionType(fromType, toType) {
-  // bulk_tank → asset = bulk_issue
-  // bulk_tank → dragup_tank = dragup_fill
-  // bulk_tank → portable_can = portable_fill
-  // dragup_tank → asset = dragup_issue
-  // dragup_tank → portable_can = portable_fill
-  // portable_can → asset = portable_issue
-  // asset → bulk_tank = bulk_fill (fuel returned to bulk tank)
-  // asset → dragup_tank = dragup_fill (fuel returned to drag-up)
-  // asset → portable_can = portable_fill (fuel returned to portable)
   if (fromType === 'bulk_tank' && toType === 'asset') return 'bulk_issue';
   if (fromType === 'bulk_tank' && toType === 'dragup_tank') return 'dragup_fill';
   if (fromType === 'bulk_tank' && toType === 'portable_can') return 'portable_fill';
   if (fromType === 'dragup_tank' && toType === 'asset') return 'dragup_issue';
   if (fromType === 'dragup_tank' && toType === 'portable_can') return 'portable_fill';
   if (fromType === 'portable_can' && toType === 'asset') return 'portable_issue';
-  if (fromType === 'asset' && toType === 'bulk_tank') return 'bulk_fill';
+  if (fromType === 'asset' && toType === 'bulk_tank') return 'return';
   if (fromType === 'asset' && toType === 'dragup_tank') return 'dragup_fill';
   if (fromType === 'asset' && toType === 'portable_can') return 'portable_fill';
   return null;
@@ -611,7 +592,6 @@ async function submitTransfer() {
   var fromTankId = document.getElementById('fromTank').value;
   var fromAssetId = document.getElementById('fromAsset').value;
 
-  // Destination: read from the toDest dropdown's selected option dataset
   var toSelect = document.getElementById('toDest');
   var toSelected = toSelect.selectedOptions[0];
   var toType = toSelected ? (toSelected.dataset.destType || '') : '';
@@ -624,7 +604,6 @@ async function submitTransfer() {
   var location = document.getElementById('location').value.trim();
   var notes = document.getElementById('notes').value.trim();
 
-  // Validation
   if (!fromType) { showError('Please select a source.'); return; }
   if (fromType === 'asset') {
     if (!fromAssetId) { showError('Please select which equipment the fuel is coming from.'); return; }
@@ -741,7 +720,6 @@ document.addEventListener('dashSessionLoaded', async function() {
   await loadTanks();
   await loadAssets();
   loadProjects();
-  // Populate the "Asset being Fueled" dropdown immediately with all assets
   updateToOptions();
 });
 </script>
