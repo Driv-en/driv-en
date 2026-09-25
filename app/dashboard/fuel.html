@@ -147,6 +147,11 @@
 <div id="fuelAlertBanner" style="display:none;max-width:1100px;margin:12px auto 0;padding:10px 16px;border-radius:8px;background:#fef3c7;border:1px solid #fcd34d;color:#78350f;font-size:13px;cursor:pointer;position:relative;z-index:1;" onclick="switchTab('alerts')">
   <strong>⚠️ Fuel Alerts:</strong> <span id="fuelAlertBannerCount">0</span> open alert(s) need attention — click to view.
 </div>
+<div id="fuelNotifBell" style="display:none;position:fixed;bottom:24px;right:24px;z-index:1000;background:#1d4ed8;color:#fff;border-radius:50%;width:52px;height:52px;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.3);" onclick="toggleNotifications()">
+  <span style="font-size:22px;">🔔</span>
+  <span class="fuel-notif-count" style="position:absolute;top:-4px;right:-4px;background:#cc0000;color:#fff;border-radius:50%;min-width:20px;height:20px;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;"></span>
+</div>
+<div id="fuelNotifPanel" style="display:none;position:fixed;bottom:84px;right:24px;z-index:1000;width:340px;max-height:400px;overflow-y:auto;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,0.25);"></div>
 <div id="loading" class="fuel-loading">Checking session…</div>
 <div id="dashboard" style="display:none;">
   <div class="fuel-tab-content active" id="tab-tanks"><div class="fuel-main">
@@ -261,7 +266,6 @@
 var allTanks=[],allAssets=[],allTransactions=[],tankTypes=[];
 var txSearchText='',txLocationFilter='',txFromDate='',txToDate='';
 
-/* ===== TANK TYPE LOOKUP ===== */
 function getTankTypeDisplayName(systemKey){
   var t=tankTypes.find(function(tt){return tt.system_key===systemKey;});
   return t?t.display_name:systemKey;
@@ -272,7 +276,6 @@ function getTankTypeShortName(systemKey){
   return name;
 }
 
-/* ===== LOAD TANK TYPES ===== */
 async function loadTankTypes(){
   try{
     var resp=await fetch('/api/fuel-tank-types');
@@ -281,18 +284,15 @@ async function loadTankTypes(){
   }catch(e){console.error('Error loading tank types:',e.message);reportError('loadTankTypes',e);}
 }
 
-/* ===== GENERATE DYNAMIC SUBTABS ===== */
 function generateDynamicSubtabs(){
   var bar=document.getElementById('tanksSubtabBar');
   if(!bar)return;
   var overviewBtn=bar.querySelector('[data-subtab="overview"]');
   while(bar.firstChild)bar.removeChild(bar.firstChild);
   if(overviewBtn)bar.appendChild(overviewBtn);
-  
   var dynamicContainer=document.getElementById('dynamicTankSubtabs');
   if(!dynamicContainer)return;
   dynamicContainer.innerHTML='';
-  
   tankTypes.forEach(function(tt){
     var subtabKey=tt.system_key.replace('_tank','').replace('portable_can','portable');
     var btn=document.createElement('button');
@@ -301,7 +301,6 @@ function generateDynamicSubtabs(){
     btn.onclick=function(){switchTankSubtab(subtabKey);};
     btn.textContent=getTankTypeShortName(tt.system_key);
     bar.appendChild(btn);
-    
     var content=document.createElement('div');
     content.className='fuel-subtab-content';
     content.id='tanks-subtab-'+subtabKey;
@@ -347,7 +346,6 @@ function renderTankRows(tanks){return tanks.map(function(t){return '<tr><td styl
 function onTankFilter(containerId,searchText){var container=document.getElementById(containerId);container._tankSearch=searchText;var subtab=container.getAttribute('data-subtab')||'all';var tanks=getTanksForSubtab(subtab);var filtered=filterTanks(tanks,searchText);var tbody=container.querySelector('tbody');if(tbody)tbody.innerHTML=renderTankRows(filtered);}
 function getTanksForSubtab(subtab){if(subtab==='equipment')return allTanks.filter(function(t){return t.tank_type==='equipment'||t.asset_id;});return dedupTanks(allTanks.filter(function(t){return t.tank_type===subtab;}));}
 function renderTanksForSubtab(subtab){var tanks=getTanksForSubtab(subtab);var containerId=subtab+'TanksContainer';var container=document.getElementById(containerId);if(!container)return;container.setAttribute('data-subtab',subtab);var headingText=getTankTypeDisplayName(subtab+'_tank');if(subtab==='equipment')headingText='Equipment';headingText+=' Tanks';container.innerHTML='<div class="section-heading">'+esc(headingText)+' <span class="section-heading-count">'+tanks.length+' tank'+(tanks.length!==1?'s':'')+'</span></div>';var innerDiv=document.createElement('div');innerDiv.id=containerId+'-inner';container.appendChild(innerDiv);renderTankTable(tanks,innerDiv.id);}
-
 function getAllLocations(){var locs={};allTanks.forEach(function(t){if(t.location&&t.location.trim())locs[t.location.trim()]=true;});allAssets.forEach(function(a){if(a.current_location&&a.current_location.trim())locs[a.current_location.trim()]=true;});allTransactions.forEach(function(t){if(t.location&&t.location.trim())locs[t.location.trim()]=true;});return Object.keys(locs).sort();}
 function populateLocationFilter(){var select=document.getElementById('overviewLocationFilter');if(!select)return;var currentVal=select.value;var locations=getAllLocations();select.innerHTML='<option value="">All Locations</option>'+locations.map(function(l){return '<option value="'+esc(l)+'">'+esc(l)+'</option>';}).join('');select.value=currentVal;}
 function getOverviewFilters(){return{location:(document.getElementById('overviewLocationFilter')||{}).value||'',fromDate:(document.getElementById('overviewFromDate')||{}).value||'',toDate:(document.getElementById('overviewToDate')||{}).value||''};}
@@ -453,6 +451,7 @@ async function loadTanks(){
     generateDynamicSubtabs();
     renderOverview();
     loadFlags();
+    loadNotifications();
   }catch(e){
     console.error('loadTanks error:',e.message);
     reportError('loadTanks',e);
@@ -462,7 +461,6 @@ async function loadTanks(){
     if(stats)stats.innerHTML='';
   }
 }
-
 function txTypeLabel(type){var labels={purchase:'Purchase',bulk_issue:'Bulk Issue',dragup_fill:'Drag-Up Fill',dragup_issue:'Drag-Up Issue',portable_fill:'Can Fill',portable_issue:'Can Issue',return:'Return',adjustment:'Adjustment'};return labels[type]||(type||'').replace(/_/g,' ');}
 function getTxForSubtab(subtab){if(subtab==='all')return allTransactions;if(subtab==='purchase')return allTransactions.filter(function(t){return t.transaction_type==='purchase';});if(subtab==='issue')return allTransactions.filter(function(t){return t.transaction_type==='bulk_issue'||t.transaction_type==='dragup_issue'||t.transaction_type==='portable_issue';});if(subtab==='transfer')return allTransactions.filter(function(t){return t.transaction_type==='return'||t.transaction_type==='dragup_fill'||t.transaction_type==='portable_fill'||t.transaction_type==='bulk_issue'||t.transaction_type==='dragup_issue'||t.transaction_type==='portable_issue';});return allTransactions;}
 function getTxLocations(){var locs={};allTransactions.forEach(function(t){if(t.location&&t.location.trim())locs[t.location.trim()]=true;});return Object.keys(locs).sort();}
@@ -476,7 +474,6 @@ function onTxDateFilter(containerId,which,val){if(which==='from')txFromDate=val;
 function reRenderTxTable(containerId){var container=document.getElementById(containerId);var subtab=container.getAttribute('data-subtab')||'all';var txs=getTxForSubtab(subtab);var filtered=applyTxFilters(txs);var sorted=sortTransactions(filtered,container._txSortCol||'transaction_date',container._txSortDir||'desc');var tbody=container.querySelector('tbody');if(tbody)tbody.innerHTML=renderTxRows(sorted);var totalsDiv=document.getElementById(containerId+'-totals');if(totalsDiv){var totals=computeTxTotals(filtered);totalsDiv.innerHTML='<div class="tx-totals-bar"><div class="total-item"><span class="total-label">Records</span><span class="total-value">'+totals.txCount+'</span></div><div class="total-item"><span class="total-label">Total Gallons</span><span class="total-value gal">'+totals.totalGal.toLocaleString()+' gal</span></div><div class="total-item"><span class="total-label">Purchases</span><span class="total-value gal">'+totals.totalPurchases.toLocaleString()+' gal</span></div><div class="total-item"><span class="total-label">Issues to Equipment</span><span class="total-value gal">'+totals.totalIssues.toLocaleString()+' gal</span></div></div>';}}
 function renderTxForSubtab(subtab){var txs=getTxForSubtab(subtab);var containerId=subtab==='all'?'allTxContainer':subtab==='purchase'?'purchaseTxContainer':subtab==='issue'?'issueTxContainer':'transferTxContainer';var container=document.getElementById(containerId);container.setAttribute('data-subtab',subtab);var headingText=subtab==='all'?'All Fuel Transactions':subtab==='purchase'?'Fuel Purchases':subtab==='issue'?'Issues to Equipment':'Tank Transfers & Fills';container.innerHTML='<div class="section-heading">'+headingText+' <span class="section-heading-count">'+txs.length+' record'+(txs.length!==1?'s':'')+'</span></div>';var innerDiv=document.createElement('div');innerDiv.id=containerId+'-inner';innerDiv.setAttribute('data-subtab',subtab);container.appendChild(innerDiv);renderTxTable(txs,innerDiv.id);}
 async function loadTransactions(){window._txLoaded=true;if(allTransactions.length===0){try{var r=await fetch('/api/fuel-transactions');if(!r.ok)throw new Error('HTTP '+r.status);var d=await r.json();if(d.success&&d.transactions){allTransactions=d.transactions;}else{document.getElementById('allTxContainer').innerHTML='<div class="empty-state" style="color:#cc0000;">⚠️ Failed to load transactions.</div>';return;}}catch(e){document.getElementById('allTxContainer').innerHTML='<div class="empty-state" style="color:#cc0000;">⚠️ Error: '+esc(e.message)+'</div>';reportError('loadTransactions',e);return;}}renderTxForSubtab('all');}
-
 /* ===== FUEL ALERTS ===== */
 var allFlags=[];
 var _flagsLoaded=false;
@@ -599,28 +596,60 @@ async function resolveFlag(flagId){
   }catch(e){alert('Error: '+e.message);}
 }
 
-function resolveWithAdd(flagId,field,value){
-  if(field==='project'){
-    var projName=prompt('Add new project:\n\nProject name: '+value+'\n\nClick OK to add this project to the system and resolve the alert, or Cancel to just resolve.',value);
-    if(projName===null)return;
-    alert('Project "'+projName+'" will be added. (Note: The project creation API endpoint needs to be configured. For now, the alert is resolved and the manager should manually add the project in the Projects setup page.)');
-    resolveFlag(flagId);
-  }else if(field==='location'){
-    alert('Location "'+value+'" has been noted. Locations are derived from tank and asset locations — no separate location management is needed. The alert will be resolved.');
-    resolveFlag(flagId);
-  }else if(field==='asset'){
-    var assetName=prompt('Add new asset/equipment:\n\nAsset name: '+value+'\n\nClick OK to resolve the alert. The manager should add this asset in the Equipment setup page.',value);
-    if(assetName===null)return;
-    alert('Asset "'+assetName+'" will be added. (Note: The asset creation API endpoint needs to be configured. For now, the alert is resolved and the manager should manually add the asset in the Equipment setup page.)');
-    resolveFlag(flagId);
-  }
+async function resolveWithAdd(flagId,field,value){
+  var payload={field:field,value:value};
+  if(field==='project'){var projName=prompt('Add new project:\n\nProject name: '+value+'\n\nClick OK to add this project to the system, resolve the alert, and notify the user who entered it.',value);if(projName===null)return;payload.value=projName;}
+  else if(field==='asset'){var assetName=prompt('Add new asset/equipment:\n\nAsset name: '+value+'\n\nClick OK to add this asset to the system, resolve the alert, and notify the user who entered it.',value);if(assetName===null)return;payload.value=assetName;var assetNum=prompt('Asset number (optional — auto-generated if left blank):');if(assetNum!==null&&assetNum.trim())payload.asset_number=assetNum.trim();}
+  else if(field==='location'){if(!confirm('Mark location "'+value+'" as added and resolve this alert?'))return;}
+  try{
+    var resp=await fetch('/api/fuel-flags/'+flagId+'/add-and-resolve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    var data=await resp.json();
+    if(data.success){
+      allFlags=allFlags.map(function(f){if(f.id===flagId){f.status='resolved';f.resolved_at=new Date().toISOString();f.resolved_by=window.dashUser?window.dashUser.email:'';f.resolution_notes='Added '+field+' "'+(data.created&&data.created.entity_name||value)+'"';}return f;});
+      renderAlerts();updateAlertBanner();
+      alert('✅ '+field.charAt(0).toUpperCase()+field.slice(1)+' "'+(data.created&&data.created.entity_name||value)+'" added'+(data.notified?' and the user who entered it has been notified.':' (no submitter email on record).'));
+    }else{alert('Failed: '+(data.error||'Unknown error'));}
+  }catch(e){alert('Error: '+e.message);}
 }
 
-function forwardFlag(flagId,flagType){
+async function forwardFlag(flagId,flagType){
   var email=prompt('Forward this alert to:\n\nEnter the email of the employee who has permission to add projects, locations, or assets:');
   if(!email||!email.trim())return;
   var note=prompt('Add a note for the recipient (optional):');
-  alert('Alert forwarded to '+email+'. (Note: The notification/email API needs to be configured for this to send an actual email. For now, the alert remains open and the recipient will see it when they log in to the Fuel Alerts tab.)');
+  try{
+    var resp=await fetch('/api/notifications/forward',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({flag_id:flagId,recipient_email:email.trim(),note:note||''})});
+    var data=await resp.json();
+    if(data.success){alert('✅ Alert forwarded to '+email+'. They will see it in their notifications when they log in.');}
+    else{alert('Failed to forward: '+(data.error||'Unknown error'));}
+  }catch(e){alert('Error: '+e.message);}
+}
+
+/* ===== NOTIFICATIONS BELL ===== */
+var allNotifications=[];
+async function loadNotifications(){
+  try{var resp=await fetch('/api/notifications?unread=1');var data=await resp.json();if(data.success&&data.notifications){allNotifications=data.notifications;}}catch(e){console.error('loadNotifications error:',e.message);}
+  renderNotificationBell();
+}
+function renderNotificationBell(){
+  var bell=document.getElementById('fuelNotifBell');if(!bell)return;
+  var unread=allNotifications.filter(function(n){return !n.read_at;}).length;
+  bell.style.display=unread>0?'inline-flex':'none';
+  var count=bell.querySelector('.fuel-notif-count');if(count)count.textContent=unread;
+}
+function toggleNotifications(){
+  var panel=document.getElementById('fuelNotifPanel');if(!panel)return;
+  if(panel.style.display==='block'){panel.style.display='none';return;}
+  fetch('/api/notifications').then(function(r){return r.json();}).then(function(data){
+    if(data.success&&data.notifications){
+      panel.innerHTML=data.notifications.map(function(n){
+        return '<div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;"><div style="font-weight:600;color:var(--text);">'+esc(n.title||'')+'</div><div style="color:var(--text-muted);margin-top:2px;">'+esc(n.message||'')+'</div><div style="font-size:11px;color:var(--text-muted);margin-top:4px;">'+esc(new Date(n.created_at).toLocaleString())+'</div>'+(n.read_at?'':' <button onclick="markNotifRead(\''+n.id+'\')" style="margin-top:6px;padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:12px;">Mark read</button>')+'</div>';
+      }).join('')||'<div style="padding:16px;color:var(--text-muted);font-size:13px;">No notifications.</div>';
+      panel.style.display='block';
+    }
+  }).catch(function(){panel.style.display='block';panel.innerHTML='<div style="padding:16px;color:var(--text-muted);font-size:13px;">Error loading notifications.</div>';});
+}
+async function markNotifRead(id){
+  try{await fetch('/api/notifications/'+id+'/read',{method:'PUT'});allNotifications=allNotifications.filter(function(n){return n.id!==id;});renderNotificationBell();var panel=document.getElementById('fuelNotifPanel');if(panel)panel.style.display='none';}catch(e){}
 }
 
 var _initDone=false;
