@@ -68,7 +68,15 @@
 .fuel-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); }
 .fuel-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 700px; }
 .fuel-table thead { background: var(--bg-step); }
-.fuel-table th { padding: 10px 14px; text-align: left; font-weight: 600; color: var(--text); border-bottom: 1px solid var(--border); white-space: nowrap; }
+.fuel-table th { padding: 10px 14px; text-align: left; font-weight: 600; color: var(--text); border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; }
+.fuel-table th:hover { background: var(--border); }
+.fuel-table th .sort-indicator { font-size: 10px; margin-left: 4px; opacity: 0.5; }
+.fuel-table th.sorted-asc .sort-indicator { opacity: 1; }
+.fuel-table th.sorted-desc .sort-indicator { opacity: 1; }
+.print-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 13px; font-weight: 600; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-step); color: var(--text); cursor: pointer; transition: background 200ms; }
+.print-btn:hover { background: var(--border); }
+.tx-row-clickable { cursor: pointer; }
+.tx-row-clickable:hover { background: var(--bg-step); }
 .fuel-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text); white-space: nowrap; }
 .fuel-table tbody tr { transition: background 150ms ease; }
 .fuel-table tbody tr:hover { background: var(--bg-step); }
@@ -168,6 +176,7 @@
         <span class="fuel-filter-label">To:</span>
         <input type="date" id="overviewToDate" onchange="renderOverview()">
         <button onclick="clearOverviewFilters()" style="padding:8px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;">Clear</button>
+        <button class="print-btn" onclick="printOverview()">🖨 Print</button>
       </div>
       <div class="info-banner" id="bulkTankNote">
         <strong>📋 Bulk Tank Setup Requirements:</strong> When adding a bulk storage tank, ensure the following information is entered:
@@ -266,6 +275,7 @@
 var allTanks=[],allAssets=[],allTransactions=[],tankTypes=[];
 var txSearchText='',txLocationFilter='',txFromDate='',txToDate='';
 
+/* ===== TANK TYPE LOOKUP ===== */
 function getTankTypeDisplayName(systemKey){
   var t=tankTypes.find(function(tt){return tt.system_key===systemKey;});
   return t?t.display_name:systemKey;
@@ -276,6 +286,7 @@ function getTankTypeShortName(systemKey){
   return name;
 }
 
+/* ===== LOAD TANK TYPES ===== */
 async function loadTankTypes(){
   try{
     var resp=await fetch('/api/fuel-tank-types');
@@ -284,6 +295,7 @@ async function loadTankTypes(){
   }catch(e){console.error('Error loading tank types:',e.message);reportError('loadTankTypes',e);}
 }
 
+/* ===== GENERATE DYNAMIC SUBTABS ===== */
 function generateDynamicSubtabs(){
   var bar=document.getElementById('tanksSubtabBar');
   if(!bar)return;
@@ -333,33 +345,27 @@ var ALLOWED_STATUS=['active','inactive'];
 function ownershipBadge(t){if(!t.ownership_type||t.ownership_type==='company')return'';var ot=ALLOWED_OWNERSHIP.indexOf(t.ownership_type)!==-1?t.ownership_type:'company';if(ot==='company')return'';return '<span class="ownership-badge '+ot+'">'+esc(ot)+(t.owner_name?': '+esc(t.owner_name):'')+'</span>';}
 function statusBadge(t){var s=ALLOWED_STATUS.indexOf(t.status||'active')!==-1?(t.status||'active'):'inactive';return '<span class="status-badge '+s+'">'+esc(s)+'</span>';}
 function iconSvg(id){return '<svg><use href="#'+id+'"/></svg>';}
-
 function dedupTanks(tanks){var seen={};return tanks.filter(function(t){var key=t.id||(t.name||'')+'|'+(t.tank_type||'')+'|'+(t.location||'');if(seen[key])return false;seen[key]=true;return true;});}
-
 function sortTanks(tanks,col,dir){return tanks.slice().sort(function(a,b){var av,bv;if(col==='name'){av=(a.name||'').toLowerCase();bv=(b.name||'').toLowerCase();}else if(col==='fuel_type'){av=(a.fuel_type||'').toLowerCase();bv=(b.fuel_type||'').toLowerCase();}else if(col==='current_quantity'){av=a.current_quantity||0;bv=b.current_quantity||0;}else if(col==='capacity'){av=a.capacity||0;bv=b.capacity||0;}else if(col==='location'){av=(a.location||'').toLowerCase();bv=(b.location||'').toLowerCase();}else{av=a.created_at||'';bv=b.created_at||'';}if(av<bv)return dir==='asc'?-1:1;if(av>bv)return dir==='asc'?1:-1;return 0;});}
-function sortTransactions(txs,col,dir){return txs.slice().sort(function(a,b){var av,bv;if(col==='transaction_type'){av=(a.transaction_type||'').toLowerCase();bv=(b.transaction_type||'').toLowerCase();}else if(col==='fuel_type'){av=(a.fuel_type||'').toLowerCase();bv=(b.fuel_type||'').toLowerCase();}else if(col==='quantity'){av=a.quantity||0;bv=b.quantity||0;}else if(col==='asset'){av=(a.asset_name||a.asset_number||'').toLowerCase();bv=(b.asset_name||b.asset_number||'').toLowerCase();}else if(col==='project'){av=(a.project_name||'').toLowerCase();bv=(b.project_name||'').toLowerCase();}else if(col==='person'){av=(a.person||'').toLowerCase();bv=(b.person||'').toLowerCase();}else if(col==='location'){av=(a.location||'').toLowerCase();bv=(b.location||'').toLowerCase();}else{av=a.transaction_date||'';bv=b.transaction_date||'';}if(av<bv)return dir==='asc'?-1:1;if(av>bv)return dir==='asc'?1:-1;return 0;});}
-
+function sortTransactions(txs,col,dir){return txs.slice().sort(function(a,b){var av,bv;if(col==='transaction_type'){av=(a.transaction_type||'').toLowerCase();bv=(b.transaction_type||'').toLowerCase();}else if(col==='fuel_type'){av=(a.fuel_type||'').toLowerCase();bv=(b.fuel_type||'').toLowerCase();}else if(col==='quantity'){av=a.quantity||0;bv=b.quantity||0;}else if(col==='transferred_from'){av=(getTransferredFrom(a)||'').toLowerCase();bv=(getTransferredFrom(b)||'').toLowerCase();}else if(col==='asset'){av=(a.asset_name||a.asset_number||'').toLowerCase();bv=(b.asset_name||b.asset_number||'').toLowerCase();}else if(col==='project'){av=(a.project_name||'').toLowerCase();bv=(b.project_name||'').toLowerCase();}else if(col==='person'){av=(a.person||'').toLowerCase();bv=(b.person||'').toLowerCase();}else if(col==='location'){av=(a.location||'').toLowerCase();bv=(b.location||'').toLowerCase();}else{av=a.transaction_date||'';bv=b.transaction_date||'';}if(av<bv)return dir==='asc'?-1:1;if(av>bv)return dir==='asc'?1:-1;return 0;});}
 function filterTanks(tanks,search){if(!search)return tanks;var s=search.toLowerCase();return tanks.filter(function(t){var hay=[t.name,t.tank_type,t.fuel_type,t.location,t.status,t.owner_name,t.ownership_type].filter(Boolean).join(' ').toLowerCase();return hay.indexOf(s)!==-1;});}
-
 function renderTankTable(tanks,containerId){var container=document.getElementById(containerId);if(tanks.length===0){container.innerHTML='<div class="empty-state">No tanks found.</div>';return;}var filterBarId=containerId+'-filter';var tableId=containerId+'-table';container.innerHTML='<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="'+filterBarId+'" placeholder="Name, fuel, location…" oninput="onTankFilter(\''+containerId+'\', this.value)" style="flex:1;min-width:180px;"></div><div class="fuel-table-wrap"><table class="fuel-table" id="'+tableId+'"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Level</th><th>Capacity</th><th>Location</th><th>Ownership</th><th>Status</th></tr></thead><tbody id="'+tableId+'-body">'+renderTankRows(tanks)+'</tbody></table></div>';container._tankSortCol='name';container._tankSortDir='asc';container._tankSearch='';}
 function renderTankRows(tanks){return tanks.map(function(t){return '<tr><td style="font-weight:600;">'+esc(t.name||'')+'</td><td>'+esc(t.fuel_type||'—')+'</td><td>'+tankLevelHtml(t.current_quantity||0,t.capacity||0)+'</td><td>'+safeNum(t.capacity)+' gal</td><td>'+esc(t.location||'—')+'</td><td>'+ownershipBadge(t)+'</td><td>'+statusBadge(t)+'</td></tr>';}).join('');}
 function onTankFilter(containerId,searchText){var container=document.getElementById(containerId);container._tankSearch=searchText;var subtab=container.getAttribute('data-subtab')||'all';var tanks=getTanksForSubtab(subtab);var filtered=filterTanks(tanks,searchText);var tbody=container.querySelector('tbody');if(tbody)tbody.innerHTML=renderTankRows(filtered);}
 function getTanksForSubtab(subtab){if(subtab==='equipment')return allTanks.filter(function(t){return t.tank_type==='equipment'||t.asset_id;});return dedupTanks(allTanks.filter(function(t){return t.tank_type===subtab;}));}
 function renderTanksForSubtab(subtab){var tanks=getTanksForSubtab(subtab);var containerId=subtab+'TanksContainer';var container=document.getElementById(containerId);if(!container)return;container.setAttribute('data-subtab',subtab);var headingText=getTankTypeDisplayName(subtab+'_tank');if(subtab==='equipment')headingText='Equipment';headingText+=' Tanks';container.innerHTML='<div class="section-heading">'+esc(headingText)+' <span class="section-heading-count">'+tanks.length+' tank'+(tanks.length!==1?'s':'')+'</span></div>';var innerDiv=document.createElement('div');innerDiv.id=containerId+'-inner';container.appendChild(innerDiv);renderTankTable(tanks,innerDiv.id);}
+
 function getAllLocations(){var locs={};allTanks.forEach(function(t){if(t.location&&t.location.trim())locs[t.location.trim()]=true;});allAssets.forEach(function(a){if(a.current_location&&a.current_location.trim())locs[a.current_location.trim()]=true;});allTransactions.forEach(function(t){if(t.location&&t.location.trim())locs[t.location.trim()]=true;});return Object.keys(locs).sort();}
 function populateLocationFilter(){var select=document.getElementById('overviewLocationFilter');if(!select)return;var currentVal=select.value;var locations=getAllLocations();select.innerHTML='<option value="">All Locations</option>'+locations.map(function(l){return '<option value="'+esc(l)+'">'+esc(l)+'</option>';}).join('');select.value=currentVal;}
 function getOverviewFilters(){return{location:(document.getElementById('overviewLocationFilter')||{}).value||'',fromDate:(document.getElementById('overviewFromDate')||{}).value||'',toDate:(document.getElementById('overviewToDate')||{}).value||''};}
 function clearOverviewFilters(){document.getElementById('overviewLocationFilter').value='';document.getElementById('overviewFromDate').value='';document.getElementById('overviewToDate').value='';renderOverview();}
+function printOverview(){var container=document.getElementById('overviewContainer');if(!container||!container.innerHTML.trim()){alert('Nothing to print.');return;}var w=window.open('','_blank','width=900,height=700');var css='<style>body{font-family:Arial,Helvetica,sans-serif;margin:20px;color:#1e293b;}h2{margin:0 0 4px;font-size:18px;}.print-meta{font-size:12px;color:#64748b;margin-bottom:16px;}table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:20px;}th{background:#f1f5f9;padding:8px 10px;text-align:left;font-weight:600;border-bottom:2px solid #cbd5e1;white-space:nowrap;}td{padding:6px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;}tr:nth-child(even){background:#f8fafc;}h3{font-size:14px;margin:16px 0 4px;}@media print{body{margin:0;}}</style>';var meta='<div class="print-meta">Generated: '+new Date().toLocaleString()+' | DRIV-EN Fuel Management — Tank Overview</div>';w.document.write('<html><head><title>Tank Overview</title>'+css+'</head><body><h2>Tank Overview</h2>'+meta+container.innerHTML+'</body></html>');w.document.close();setTimeout(function(){w.print();},300);}
 function parseDate(s){if(!s)return NaN;var d=new Date(s);return isNaN(d.getTime())?NaN:d.getTime();}
 function txInDateRange(tx,fromDate,toDate){var d=parseDate(tx.transaction_date);if(isNaN(d))return true;var f=parseDate(fromDate);if(!isNaN(f)&&d<f)return false;var t=parseDate(toDate);if(!isNaN(t)&&d>t+86399999)return false;return true;}
 function txMatchesLocation(tx,locFilter){if(!locFilter)return true;return(tx.location||'').trim()===locFilter;}
-
 function computeBulkTankTotals(tankId,locFilter,fromDate,toDate){var purchased=0,dispensed=0;allTransactions.forEach(function(tx){if(tx.transaction_type==='purchase'&&tx.to_entity_id===tankId){if(!txMatchesLocation(tx,locFilter))return;if(!txInDateRange(tx,fromDate,toDate))return;purchased+=(tx.quantity||0);}if(tx.transaction_type==='bulk_issue'&&tx.from_entity_id===tankId){if(!txMatchesLocation(tx,locFilter))return;if(!txInDateRange(tx,fromDate,toDate))return;dispensed+=(tx.quantity||0);}});return{purchased:purchased,dispensed:dispensed};}
-
 function computeDragupTankTotals(tankId,locFilter,fromDate,toDate){var filled=0,dispensed=0;allTransactions.forEach(function(tx){if(tx.transaction_type==='dragup_fill'&&tx.to_entity_id===tankId){if(!txMatchesLocation(tx,locFilter))return;if(!txInDateRange(tx,fromDate,toDate))return;filled+=(tx.quantity||0);}if(tx.transaction_type==='dragup_issue'&&tx.from_entity_id===tankId){if(!txMatchesLocation(tx,locFilter))return;if(!txInDateRange(tx,fromDate,toDate))return;dispensed+=(tx.quantity||0);}});return{filled:filled,dispensed:dispensed};}
-
 function computeAssetFuelTotal(assetId,locFilter,fromDate,toDate){var total=0;allTransactions.forEach(function(tx){if(tx.asset_id!==assetId)return;var type=tx.transaction_type;if(!type)return;if(type==='bulk_issue'||type==='dragup_issue'||type==='portable_issue'){if(!txMatchesLocation(tx,locFilter))return;if(!txInDateRange(tx,fromDate,toDate))return;total+=safeNum(tx.quantity);}else if(type==='return'){if(!txMatchesLocation(tx,locFilter))return;if(!txInDateRange(tx,fromDate,toDate))return;total-=safeNum(tx.quantity);}});return total;}
-
 function computePortableProjectTotals(locFilter,fromDate,toDate){var byProject={};allTransactions.forEach(function(tx){if(tx.transaction_type!=='portable_fill'&&tx.transaction_type!=='portable_issue')return;if(!txMatchesLocation(tx,locFilter))return;if(!txInDateRange(tx,fromDate,toDate))return;var projName=tx.project_name||'Unassigned';if(!byProject[projName])byProject[projName]={project_name:projName,total_filled:0,total_issued:0,tx_count:0};if(tx.transaction_type==='portable_fill')byProject[projName].total_filled+=(tx.quantity||0);if(tx.transaction_type==='portable_issue')byProject[projName].total_issued+=(tx.quantity||0);byProject[projName].tx_count+=1;});return Object.values(byProject).sort(function(a,b){return b.total_filled-a.total_filled;});}
 
 function renderOverview(){
@@ -370,43 +376,16 @@ function renderOverview(){
   var bulkTanks=filteredTanks.filter(function(t){return t.tank_type==='bulk';});
   var dragupTanks=filteredTanks.filter(function(t){return t.tank_type==='dragup';});
   var equipmentTanks=filteredAssets.filter(function(a){return a.fuel_tank_capacity&&a.fuel_tank_capacity>0;});
-
-  /* ===== KPI CARDS: one per fuel type — BULK TANKS ONLY (per founder decision: KPIs exclude portable cans, drag-up tanks, and equipment) ===== */
   var fuelTypeTotals={};
-  bulkTanks.forEach(function(t){
-    var ft=(t.fuel_type||'Unknown').trim();
-    if(!fuelTypeTotals[ft])fuelTypeTotals[ft]={gallons:0,tankCount:0,type:'Bulk'};
-    fuelTypeTotals[ft].gallons+=(t.current_quantity||0);
-    fuelTypeTotals[ft].tankCount++;
-  });
+  bulkTanks.forEach(function(t){var ft=(t.fuel_type||'Unknown').trim();if(!fuelTypeTotals[ft])fuelTypeTotals[ft]={gallons:0,tankCount:0,type:'Bulk'};fuelTypeTotals[ft].gallons+=(t.current_quantity||0);fuelTypeTotals[ft].tankCount++;});
   var statsContainer=document.getElementById('ov-fuel-stats');
-  if(statsContainer){
-    var fuelKeys=Object.keys(fuelTypeTotals).sort();
-    if(fuelKeys.length===0){
-      statsContainer.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted);font-size:14px;">No bulk fuel on hand.</div>';
-    }else{
-      statsContainer.innerHTML=fuelKeys.map(function(ft){
-        var d=fuelTypeTotals[ft];
-        return '<div class="fuel-stat-card"><div class="fuel-stat-number">'+d.gallons.toLocaleString()+'</div><div class="fuel-stat-label">'+esc(ft)+' ('+d.tankCount+' bulk tank'+(d.tankCount!==1?'s':'')+')</div></div>';
-      }).join('');
-    }
-  }
-
+  if(statsContainer){var fuelKeys=Object.keys(fuelTypeTotals).sort();if(fuelKeys.length===0){statsContainer.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted);font-size:14px;">No bulk fuel on hand.</div>';}else{statsContainer.innerHTML=fuelKeys.map(function(ft){var d=fuelTypeTotals[ft];return '<div class="fuel-stat-card"><div class="fuel-stat-number">'+d.gallons.toLocaleString()+'</div><div class="fuel-stat-label">'+esc(ft)+' ('+d.tankCount+' bulk tank'+(d.tankCount!==1?'s':'')+')</div></div>';}).join('');}}
   var html='';
-  if(bulkTanks.length>0){
-    html+='<div class="overview-section"><div class="overview-section-title">'+iconSvg('icon-barrel')+' '+esc(getTankTypeDisplayName('bulk_tank'))+' <span class="count">('+bulkTanks.length+')</span></div>';
-    html+='<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>Fuel Purchased</th><th>Fuel Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th></tr></thead><tbody>';
-    bulkTanks.forEach(function(t){var totals=computeBulkTankTotals(t.id,f.location,f.fromDate,f.toDate);
-      html+='<tr><td style="font-weight:600;">'+esc(t.name||'')+'</td><td>'+esc(t.fuel_type||'—')+'</td><td>'+safeNum(t.capacity)+' gal</td><td style="font-weight:600;">'+totals.purchased.toLocaleString()+' gal</td><td style="font-weight:600;">'+totals.dispensed.toLocaleString()+' gal</td><td style="font-weight:700;color:var(--primary);">'+safeNum(t.current_quantity)+' gal</td><td>'+tankLevelHtml(t.current_quantity||0,t.capacity||0)+'</td><td>'+esc(t.location||'—')+'</td></tr>';});
-    html+='</tbody></table></div></div>';
-  }
-  if(dragupTanks.length>0){
-    html+='<div class="overview-section"><div class="overview-section-title">'+iconSvg('icon-dragup-tank')+' '+esc(getTankTypeDisplayName('dragup_tank'))+' <span class="count">('+dragupTanks.length+')</span></div>';
-    html+='<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>Gallons Filled</th><th>Gallons Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th></tr></thead><tbody>';
-    dragupTanks.forEach(function(t){var totals=computeDragupTankTotals(t.id,f.location,f.fromDate,f.toDate);
-      html+='<tr><td style="font-weight:600;">'+esc(t.name||'')+'</td><td>'+esc(t.fuel_type||'—')+'</td><td>'+safeNum(t.capacity)+' gal</td><td style="font-weight:600;">'+totals.filled.toLocaleString()+' gal</td><td style="font-weight:600;">'+totals.dispensed.toLocaleString()+' gal</td><td style="font-weight:700;color:var(--primary);">'+safeNum(t.current_quantity)+' gal</td><td>'+tankLevelHtml(t.current_quantity||0,t.capacity||0)+'</td><td>'+esc(t.location||'—')+'</td></tr>';});
-    html+='</tbody></table></div></div>';
-  }
+  if(bulkTanks.length>0){html+='<div class="overview-section"><div class="overview-section-title">'+iconSvg('icon-barrel')+' '+esc(getTankTypeDisplayName('bulk_tank'))+' <span class="count">('+bulkTanks.length+')</span></div>';html+='<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>Fuel Purchased</th><th>Fuel Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th></tr></thead><tbody>';bulkTanks.forEach(function(t){var totals=computeBulkTankTotals(t.id,f.location,f.fromDate,f.toDate);html+='<tr><td style="font-weight:600;">'+esc(t.name||'')+'</td><td>'+esc(t.fuel_type||'—')+'</td><td>'+safeNum(t.capacity)+' gal</td><td style="font-weight:600;">'+totals.purchased.toLocaleString()+' gal</td><td style="font-weight:600;">'+totals.dispensed.toLocaleString()+' gal</td><td style="font-weight:700;color:var(--primary);">'+safeNum(t.current_quantity)+' gal</td><td>'+tankLevelHtml(t.current_quantity||0,t.capacity||0)+'</td><td>'+esc(t.location||'—')+'</td></tr>';});html+='</tbody></table></div></div>';}
+  if(dragupTanks.length>0){html+='<div class="overview-section"><div class="overview-section-title">'+iconSvg('icon-dragup-tank')+' '+esc(getTankTypeDisplayName('dragup_tank'))+' <span class="count">('+dragupTanks.length+')</span></div>';html+='<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>Gallons Filled</th><th>Gallons Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th></tr></thead><tbody>';dragupTanks.forEach(function(t){var totals=computeDragupTankTotals(t.id,f.location,f.fromDate,f.toDate);html+='<tr><td style="font-weight:600;">'+esc(t.name||'')+'</td><td>'+esc(t.fuel_type||'—')+'</td><td>'+safeNum(t.capacity)+' gal</td><td style="font-weight:600;">'+totals.filled.toLocaleString()+' gal</td><td style="font-weight:600;">'+totals.dispensed.toLocaleString()+' gal</td><td style="font-weight:700;color:var(--primary);">'+safeNum(t.current_quantity)+' gal</td><td>'+tankLevelHtml(t.current_quantity||0,t.capacity||0)+'</td><td>'+esc(t.location||'—')+'</td></tr>';});html+='</tbody></table></div></div>';}
+</script>
+<!-- PART 1 ENDS — concatenate with PART 2 -->
+  // Equipment Tanks
   if(equipmentTanks.length>0){
     html+='<div class="overview-section"><div class="overview-section-title">'+iconSvg('icon-equipment')+' '+esc(getTankTypeDisplayName('equipment'))+' <span class="count">('+equipmentTanks.length+')</span></div>';
     html+='<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Asset #</th><th>Name</th><th>Fuel Type</th><th>Total Gallons Fueled</th><th>Location</th></tr></thead><tbody>';
@@ -414,6 +393,7 @@ function renderOverview(){
       html+='<tr><td style="font-weight:600;">'+esc(a.asset_number||'')+'</td><td>'+esc(a.name||'—')+'</td><td>'+esc(a.fuel_type||'—')+'</td><td style="font-weight:700;color:var(--primary);">'+totalFueled.toLocaleString()+' gal</td><td>'+esc(a.current_location||'—')+'</td></tr>';});
     html+='</tbody></table></div></div>';
   }
+  // Portable Gas Cans
   var projectTotals=computePortableProjectTotals(f.location,f.fromDate,f.toDate);
   if(projectTotals.length>0){
     html+='<div class="overview-section"><div class="overview-section-title">'+iconSvg('icon-jerrycan')+' '+esc(getTankTypeDisplayName('portable_can'))+' <span class="count">(per project)</span></div>';
@@ -430,246 +410,76 @@ function renderOverview(){
 
 async function loadTanks(){
   try{
-    var results=await Promise.all([
-      fetch('/api/fuel-tanks'),
-      fetch('/api/assets?status=active'),
-      fetch('/api/fuel-transactions')
-    ]);
-    if(!results.every(function(r){return r.ok;})){
-      throw new Error('One or more API requests failed');
-    }
-    var tanksData=await results[0].json();
-    var assetsData=await results[1].json();
-    var txData=await results[2].json();
-    if(!tanksData.success||!assetsData.success||!txData.success){
-      throw new Error('API returned error status');
-    }
-    allTanks=tanksData.tanks||[];
-    allAssets=assetsData.assets||[];
-    allTransactions=txData.transactions||[];
-    populateLocationFilter();
-    generateDynamicSubtabs();
-    renderOverview();
-    loadFlags();
-    loadNotifications();
+    var results=await Promise.all([fetch('/api/fuel-tanks'),fetch('/api/assets?status=active'),fetch('/api/fuel-transactions')]);
+    if(!results.every(function(r){return r.ok;})){throw new Error('One or more API requests failed');}
+    var tanksData=await results[0].json();var assetsData=await results[1].json();var txData=await results[2].json();
+    if(!tanksData.success||!assetsData.success||!txData.success){throw new Error('API returned error status');}
+    allTanks=tanksData.tanks||[];allAssets=assetsData.assets||[];allTransactions=txData.transactions||[];
+    populateLocationFilter();generateDynamicSubtabs();renderOverview();loadFlags();loadNotifications();
   }catch(e){
-    console.error('loadTanks error:',e.message);
-    reportError('loadTanks',e);
+    console.error('loadTanks error:',e.message);reportError('loadTanks',e);
     var container=document.getElementById('overviewContainer');
     if(container)container.innerHTML='<div class="empty-state" style="color:#cc0000;">⚠️ Error loading fuel data: '+esc(e.message)+'<br><br>Please refresh the page or try again later.</div>';
-    var stats=document.getElementById('ov-fuel-stats');
-    if(stats)stats.innerHTML='';
+    var stats=document.getElementById('ov-fuel-stats');if(stats)stats.innerHTML='';
   }
 }
-function txTypeLabel(type){var labels={purchase:'Purchase',bulk_issue:'Bulk Issue',dragup_fill:'Drag-Up Fill',dragup_issue:'Drag-Up Issue',portable_fill:'Can Fill',portable_issue:'Can Issue',return:'Return',adjustment:'Adjustment'};return labels[type]||(type||'').replace(/_/g,' ');}
+
+function txTypeLabel(type){var labels={purchase:'Purchase',bulk_issue:'Fuel Transfer',dragup_fill:'Tank Fill',dragup_issue:'Fuel Transfer',portable_fill:'Can Fill',portable_issue:'Fuel Transfer',return:'Return',adjustment:'Adjustment'};return labels[type]||(type||'').replace(/_/g,' ');}
 function getTxForSubtab(subtab){if(subtab==='all')return allTransactions;if(subtab==='purchase')return allTransactions.filter(function(t){return t.transaction_type==='purchase';});if(subtab==='issue')return allTransactions.filter(function(t){return t.transaction_type==='bulk_issue'||t.transaction_type==='dragup_issue'||t.transaction_type==='portable_issue';});if(subtab==='transfer')return allTransactions.filter(function(t){return t.transaction_type==='return'||t.transaction_type==='dragup_fill'||t.transaction_type==='portable_fill'||t.transaction_type==='bulk_issue'||t.transaction_type==='dragup_issue'||t.transaction_type==='portable_issue';});return allTransactions;}
 function getTxLocations(){var locs={};allTransactions.forEach(function(t){if(t.location&&t.location.trim())locs[t.location.trim()]=true;});return Object.keys(locs).sort();}
 function applyTxFilters(txs){var s=(txSearchText||'').toLowerCase();var loc=txLocationFilter||'';var fromD=txFromDate||'';var toD=txToDate||'';return txs.filter(function(t){if(loc&&(t.location||'').trim()!==loc)return false;if(fromD&&(t.transaction_date||'')<fromD)return false;if(toD&&(t.transaction_date||'')>toD+'T23:59:59')return false;if(s){var hay=[t.transaction_type,t.fuel_type,t.asset_name,t.asset_number,t.person,t.project_name,t.location].filter(Boolean).join(' ').toLowerCase();if(hay.indexOf(s)===-1)return false;}return true;});}
 function computeTxTotals(txs){var totalGal=0,totalPurchases=0,totalIssues=0;txs.forEach(function(t){var q=safeNum(t.quantity);var type=t.transaction_type;if(type==='purchase')totalPurchases+=q;else if(type==='bulk_issue'||type==='dragup_issue'||type==='portable_issue')totalIssues+=q;totalGal+=q;});return{totalGal:totalGal,totalPurchases:totalPurchases,totalIssues:totalIssues,txCount:txs.length};}
-function renderTxTable(txs,containerId){var container=document.getElementById(containerId);if(txs.length===0&&!txSearchText&&!txLocationFilter&&!txFromDate&&!txToDate){container.innerHTML='<div class="empty-state">No transactions found.</div>';return;}var filterId=containerId+'-filter';var tableId=containerId+'-table';var locFilterId=containerId+'-locfilter';var fromId=containerId+'-from';var toId=containerId+'-to';var txLocs=getTxLocations();var locOptions='<option value="">All Locations</option>'+txLocs.map(function(l){return '<option value="'+esc(l)+'"'+(txLocationFilter===l?' selected':'')+'>'+esc(l)+'</option>';}).join('');container.innerHTML='<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="'+filterId+'" placeholder="Type, fuel, asset, person, project…" oninput="onTxFilter(\''+containerId+'\', this.value)" style="flex:1;min-width:140px;" value="'+esc(txSearchText)+'"><span class="fuel-filter-label">Location:</span><select id="'+locFilterId+'" onchange="onTxLocationFilter(\''+containerId+'\', this.value)">'+locOptions+'</select><span class="fuel-filter-label">From:</span><input type="date" id="'+fromId+'" onchange="onTxDateFilter(\''+containerId+'\', \'from\', this.value)" value="'+esc(txFromDate)+'"><span class="fuel-filter-label">To:</span><input type="date" id="'+toId+'" onchange="onTxDateFilter(\''+containerId+'\', \'to\', this.value)" value="'+esc(txToDate)+'"></div><div id="'+containerId+'-totals"></div><div class="fuel-table-wrap"><table class="fuel-table" id="'+tableId+'"><thead><tr><th>Date</th><th>Type</th><th>Fuel</th><th>Qty</th><th>Equipment</th><th>Person</th><th>Project</th><th>Location</th></tr></thead><tbody id="'+tableId+'-body"></tbody></table></div>';container._txSortCol='transaction_date';container._txSortDir='desc';reRenderTxTable(containerId);}
-function renderTxRows(txs){return txs.map(function(t){var date=t.transaction_date?esc(new Date(t.transaction_date).toLocaleDateString()):'—';return '<tr><td>'+date+'</td><td>'+esc(txTypeLabel(t.transaction_type))+'</td><td>'+esc(t.fuel_type||'—')+'</td><td style="font-weight:600;color:var(--primary);">'+safeNum(t.quantity)+' gal</td><td>'+esc(t.asset_name||t.asset_number||'—')+'</td><td>'+esc(t.person||'—')+'</td><td>'+esc(t.project_name||'—')+'</td><td>'+esc(t.location||'—')+'</td></tr>';}).join('');}
+function renderTxTable(txs,containerId){var container=document.getElementById(containerId);if(txs.length===0&&!txSearchText&&!txLocationFilter&&!txFromDate&&!txToDate){container.innerHTML='<div class="empty-state">No transactions found.</div>';return;}var filterId=containerId+'-filter';var tableId=containerId+'-table';var locFilterId=containerId+'-locfilter';var fromId=containerId+'-from';var toId=containerId+'-to';var txLocs=getTxLocations();var locOptions='<option value="">All Locations</option>'+txLocs.map(function(l){return '<option value="'+esc(l)+'"'+(txLocationFilter===l?' selected':'')+'>'+esc(l)+'</option>';}).join('');container.innerHTML='<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="'+filterId+'" placeholder="Type, fuel, asset, person, project…" oninput="onTxFilter(\''+containerId+'\', this.value)" style="flex:1;min-width:140px;" value="'+esc(txSearchText)+'"><span class="fuel-filter-label">Location:</span><select id="'+locFilterId+'" onchange="onTxLocationFilter(\''+containerId+'\', this.value)">'+locOptions+'</select><span class="fuel-filter-label">From:</span><input type="date" id="'+fromId+'" onchange="onTxDateFilter(\''+containerId+'\', \'from\', this.value)" value="'+esc(txFromDate)+'"><span class="fuel-filter-label">To:</span><input type="date" id="'+toId+'" onchange="onTxDateFilter(\''+containerId+'\', \'to\', this.value)" value="'+esc(txToDate)+'"><button class="print-btn" onclick="printTable(\''+tableId+'\',\'Fuel Transactions\')">🖨 Print Table</button></div><div id="'+containerId+'-totals"></div><div class="fuel-table-wrap"><table class="fuel-table" id="'+tableId+'"><thead><tr><th onclick="onTxSort(\''+containerId+'\',\'transaction_date\')">Date <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'transaction_type\')">Type <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'fuel_type\')">Fuel <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'quantity\')">Qty <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'transferred_from\')">Transferred From <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'asset\')">Equipment <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'person\')">Person <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'project\')">Project <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'location\')">Location <span class="sort-indicator"></span></th></tr></thead><tbody id="'+tableId+'-body"></tbody></table></div>';container._txSortCol='transaction_date';container._txSortDir='desc';reRenderTxTable(containerId);}
+function getTransferredFrom(t){
+  if(t.transaction_type==='purchase')return '—';
+  if(t.from_entity_type==='vendor')return 'Vendor';
+  if(t.from_entity_name)return t.from_entity_name;
+  var tank=allTanks.find(function(x){return x.id===t.from_entity_id;});
+  if(tank)return tank.name||tank.asset_number||t.from_entity_id||'—';
+  return t.from_entity_id||'—';
+}
+function renderTxRows(txs){return txs.map(function(t){var date=t.transaction_date?esc(new Date(t.transaction_date).toLocaleDateString()):'—';var qty=safeNum(t.quantity).toFixed(2);var from=getTransferredFrom(t);return '<tr class="tx-row-clickable" onclick="showTxDetail(\''+t.id+'\')" title="Click for details"><td>'+date+'</td><td>'+esc(txTypeLabel(t.transaction_type))+'</td><td>'+esc(t.fuel_type||'—')+'</td><td style="font-weight:600;color:var(--primary);">'+qty+'</td><td>'+esc(from)+'</td><td>'+esc(t.asset_name||t.asset_number||'—')+'</td><td>'+esc(t.person||'—')+'</td><td>'+esc(t.project_name||'—')+'</td><td>'+esc(t.location||'—')+'</td></tr>';}).join('');}
 function onTxFilter(containerId,searchText){txSearchText=searchText;reRenderTxTable(containerId);}
 function onTxLocationFilter(containerId,val){txLocationFilter=val;reRenderTxTable(containerId);}
 function onTxDateFilter(containerId,which,val){if(which==='from')txFromDate=val;else txToDate=val;reRenderTxTable(containerId);}
-function reRenderTxTable(containerId){var container=document.getElementById(containerId);var subtab=container.getAttribute('data-subtab')||'all';var txs=getTxForSubtab(subtab);var filtered=applyTxFilters(txs);var sorted=sortTransactions(filtered,container._txSortCol||'transaction_date',container._txSortDir||'desc');var tbody=container.querySelector('tbody');if(tbody)tbody.innerHTML=renderTxRows(sorted);var totalsDiv=document.getElementById(containerId+'-totals');if(totalsDiv){var totals=computeTxTotals(filtered);totalsDiv.innerHTML='<div class="tx-totals-bar"><div class="total-item"><span class="total-label">Records</span><span class="total-value">'+totals.txCount+'</span></div><div class="total-item"><span class="total-label">Total Gallons</span><span class="total-value gal">'+totals.totalGal.toLocaleString()+' gal</span></div><div class="total-item"><span class="total-label">Purchases</span><span class="total-value gal">'+totals.totalPurchases.toLocaleString()+' gal</span></div><div class="total-item"><span class="total-label">Issues to Equipment</span><span class="total-value gal">'+totals.totalIssues.toLocaleString()+' gal</span></div></div>';}}
+function onTxSort(containerId,col){var container=document.getElementById(containerId);if(container._txSortCol===col){container._txSortDir=container._txSortDir==='asc'?'desc':'asc';}else{container._txSortCol=col;container._txSortDir='asc';}reRenderTxTable(containerId);}
+function reRenderTxTable(containerId){var container=document.getElementById(containerId);var subtab=container.getAttribute('data-subtab')||'all';var txs=getTxForSubtab(subtab);var filtered=applyTxFilters(txs);var sorted=sortTransactions(filtered,container._txSortCol||'transaction_date',container._txSortDir||'desc');var tbody=container.querySelector('tbody');if(tbody)tbody.innerHTML=renderTxRows(sorted);var totalsDiv=document.getElementById(containerId+'-totals');if(totalsDiv){var totals=computeTxTotals(filtered);totalsDiv.innerHTML='<div class="tx-totals-bar"><div class="total-item"><span class="total-label">Records</span><span class="total-value">'+totals.txCount+'</span></div><div class="total-item"><span class="total-label">Total (Gallons)</span><span class="total-value gal">'+totals.totalGal.toFixed(2)+'</span></div><div class="total-item"><span class="total-label">Purchased (Gallons)</span><span class="total-value gal">'+totals.totalPurchases.toFixed(2)+'</span></div><div class="total-item"><span class="total-label">Transferred (Gallons)</span><span class="total-value gal">'+totals.totalIssues.toFixed(2)+'</span></div></div>';
+  var thead=container.querySelector('thead');
+  if(thead){thead.querySelectorAll('th').forEach(function(th){th.classList.remove('sorted-asc','sorted-desc');var ind=th.querySelector('.sort-indicator');if(ind)ind.textContent='';});var col=container._txSortCol||'transaction_date';var dir=container._txSortDir||'desc';var thMap=['transaction_date','transaction_type','fuel_type','quantity','transferred_from','asset','person','project','location'];var idx=thMap.indexOf(col);if(idx>=0){var ths=thead.querySelectorAll('th');if(ths[idx]){ths[idx].classList.add(dir==='asc'?'sorted-asc':'sorted-desc');var ind=ths[idx].querySelector('.sort-indicator');if(ind)ind.textContent=dir==='asc'?'▲':'▼';}}}
+}
 function renderTxForSubtab(subtab){var txs=getTxForSubtab(subtab);var containerId=subtab==='all'?'allTxContainer':subtab==='purchase'?'purchaseTxContainer':subtab==='issue'?'issueTxContainer':'transferTxContainer';var container=document.getElementById(containerId);container.setAttribute('data-subtab',subtab);var headingText=subtab==='all'?'All Fuel Transactions':subtab==='purchase'?'Fuel Purchases':subtab==='issue'?'Issues to Equipment':'Tank Transfers & Fills';container.innerHTML='<div class="section-heading">'+headingText+' <span class="section-heading-count">'+txs.length+' record'+(txs.length!==1?'s':'')+'</span></div>';var innerDiv=document.createElement('div');innerDiv.id=containerId+'-inner';innerDiv.setAttribute('data-subtab',subtab);container.appendChild(innerDiv);renderTxTable(txs,innerDiv.id);}
 async function loadTransactions(){window._txLoaded=true;if(allTransactions.length===0){try{var r=await fetch('/api/fuel-transactions');if(!r.ok)throw new Error('HTTP '+r.status);var d=await r.json();if(d.success&&d.transactions){allTransactions=d.transactions;}else{document.getElementById('allTxContainer').innerHTML='<div class="empty-state" style="color:#cc0000;">⚠️ Failed to load transactions.</div>';return;}}catch(e){document.getElementById('allTxContainer').innerHTML='<div class="empty-state" style="color:#cc0000;">⚠️ Error: '+esc(e.message)+'</div>';reportError('loadTransactions',e);return;}}renderTxForSubtab('all');}
+
 /* ===== FUEL ALERTS ===== */
-var allFlags=[];
-var _flagsLoaded=false;
-
-async function loadFlags(){
-  try{
-    var resp=await fetch('/api/fuel-flags?status=open');
-    var data=await resp.json();
-    if(data.success&&data.flags){allFlags=data.flags;}
-  }catch(e){console.error('loadFlags error:',e.message);reportError('loadFlags',e);}
-  updateAlertBanner();
-}
-
-function updateAlertBanner(){
-  var openCount=allFlags.filter(function(f){return f.status==='open';}).length;
-  var banner=document.getElementById('fuelAlertBanner');
-  var countEl=document.getElementById('fuelAlertBannerCount');
-  if(banner&&countEl){
-    countEl.textContent=openCount;
-    banner.style.display=openCount>0?'block':'none';
-  }
-}
-
-function flagTypeLabel(type){
-  var labels={manager_review:'Manager Review',capacity_exceeded:'Capacity Exceeded',consumption_anomaly:'Consumption Anomaly',employee_tank_fill:'Employee Tank Fill',tank_adjustment:'Tank Adjustment',non_fuel_receipt:'Non-Fuel Items on Receipt'};
-  return labels[type]||(type||'').replace(/_/g,' ');
-}
-
-function flagSeverityClass(sev){
-  if(sev==='critical')return 'background:#fee2e2;border-color:#cc0000;color:#cc0000;';
-  if(sev==='warning')return 'background:#fef3c7;border-color:#fcd34d;color:#78350f;';
-  return 'background:#eff6ff;border-color:#93c5fd;color:#1e3a5f;';
-}
-
-function renderAlerts(){
-  var container=document.getElementById('alertsContainer');
-  if(!container)return;
-  var flagTypeFilter=(document.getElementById('alertsFlagTypeFilter')||{}).value||'';
-  var statusFilter=(document.getElementById('alertsStatusFilter')||{}).value||'open';
-
-  if(!_flagsLoaded){
-    container.innerHTML='<div class="empty-state">Loading alerts…</div>';
-    fetch('/api/fuel-flags'+(statusFilter?'?status='+statusFilter:'')).then(function(r){return r.json();}).then(function(data){
-      if(data.success&&data.flags){allFlags=data.flags;_flagsLoaded=true;}
-      renderAlerts();
-    }).catch(function(e){container.innerHTML='<div class="empty-state" style="color:#cc0000;">Error loading alerts: '+esc(e.message)+'</div>';});
-    return;
-  }
-
-  var flags=allFlags;
-  if(flagTypeFilter)flags=flags.filter(function(f){return f.flag_type===flagTypeFilter;});
-  if(statusFilter)flags=flags.filter(function(f){return f.status===statusFilter;});
-
-  var countEl=document.getElementById('alertsCount');
-  if(countEl)countEl.textContent=flags.length+' alert'+(flags.length!==1?'s':'');
-
-  if(flags.length===0){
-    container.innerHTML='<div class="empty-state">✅ No fuel alerts. All clear.</div>';
-    return;
-  }
-
-  container.innerHTML=flags.map(function(f){
-    var details={};
-    try{details=JSON.parse(f.details||'{}');}catch(e){}
-    var sevStyle=flagSeverityClass(f.severity);
-    var isManagerReview=f.flag_type==='manager_review';
-    var canEdit=(window.dashUser&&(window.dashUser.role==='admin'||window.dashUser.role==='manager'));
-    var html='<div style="border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;background:var(--bg-card);">';
-    html+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:8px;">';
-    html+='<div><span style="font-size:12px;padding:2px 8px;border-radius:4px;font-weight:600;'+sevStyle+'">'+esc(flagTypeLabel(f.flag_type))+'</span>';
-    if(f.status==='resolved'){html+=' <span style="font-size:12px;padding:2px 8px;border-radius:4px;background:#dcfce7;color:#15803d;font-weight:600;">RESOLVED</span>';}
-    html+='</div>';
-    html+='<div style="font-size:12px;color:var(--text-muted);">'+esc(new Date(f.created_at).toLocaleString())+'</div>';
-    html+='</div>';
-    html+='<div style="font-size:14px;margin-bottom:8px;">'+esc(f.message||'No message')+'</div>';
-    if(details.field){
-      html+='<div style="font-size:13px;color:var(--text-muted);margin-bottom:4px;"><strong>Field:</strong> '+esc(details.field);
-      if(details.value)html+=' | <strong>Value:</strong> '+esc(details.value);
-      if(details.reason)html+=' | <strong>Reason:</strong> '+esc(details.reason);
-      if(details.line)html+=' | <strong>Line:</strong> '+details.line;
-      html+='</div>';
-    }
-    if(f.asset_name)html+='<div style="font-size:13px;color:var(--text-muted);"><strong>Asset:</strong> '+esc(f.asset_name)+'</div>';
-    if(f.tank_name)html+='<div style="font-size:13px;color:var(--text-muted);"><strong>Tank:</strong> '+esc(f.tank_name)+'</div>';
-    if(f.status==='open'){
-      html+='<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">';
-      if(isManagerReview&&canEdit){
-        if(details.field==='project'||details.field==='location'){
-          html+='<button onclick="resolveWithAdd(\''+f.id+'\',\''+esc(details.field||'')+'\',\''+esc(details.value||'')+'\')" style="padding:8px 16px;border:none;border-radius:6px;background:#16a34a;color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Add & Resolve</button>';
-        }else if(details.field==='asset'){
-          html+='<button onclick="resolveWithAdd(\''+f.id+'\',\''+esc(details.field||'')+'\',\''+esc(details.value||'')+'\')" style="padding:8px 16px;border:none;border-radius:6px;background:#16a34a;color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Add Asset & Resolve</button>';
-        }
-      }
-      html+='<button onclick="resolveFlag(\''+f.id+'\')" style="padding:8px 16px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:13px;font-weight:600;">Resolve</button>';
-      if(!canEdit){
-        html+='<button onclick="forwardFlag(\''+f.id+'\',\''+esc(f.flag_type||'')+'\')" style="padding:8px 16px;border:1px solid #93c5fd;border-radius:6px;background:#eff6ff;color:#1e3a5f;cursor:pointer;font-size:13px;font-weight:600;">Forward</button>';
-      }
-      html+='</div>';
-    }
-    if(f.status==='resolved'){
-      html+='<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">Resolved by '+esc(f.resolved_by||'—')+' on '+esc(f.resolved_at?new Date(f.resolved_at).toLocaleString():'—');
-      if(f.resolution_notes)html+=' — '+esc(f.resolution_notes);
-      html+='</div>';
-    }
-    html+='</div>';
-    return html;
-  }).join('');
-}
-
-async function resolveFlag(flagId){
-  var notes=prompt('Resolution notes (optional):');
-  if(notes===null)return;
-  try{
-    var resp=await fetch('/api/fuel-flags/'+flagId+'/resolve',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({resolution_notes:notes||'Resolved from Fuel Management dashboard'})});
-    var data=await resp.json();
-    if(data.success){
-      allFlags=allFlags.map(function(f){if(f.id===flagId){f.status='resolved';f.resolved_at=new Date().toISOString();f.resolved_by=window.dashUser?window.dashUser.email:'';f.resolution_notes=notes;}return f;});
-      renderAlerts();updateAlertBanner();
-    }else{alert('Failed to resolve: '+(data.error||'Unknown error'));}
-  }catch(e){alert('Error: '+e.message);}
-}
-
-async function resolveWithAdd(flagId,field,value){
-  var payload={field:field,value:value};
-  if(field==='project'){var projName=prompt('Add new project:\n\nProject name: '+value+'\n\nClick OK to add this project to the system, resolve the alert, and notify the user who entered it.',value);if(projName===null)return;payload.value=projName;}
-  else if(field==='asset'){var assetName=prompt('Add new asset/equipment:\n\nAsset name: '+value+'\n\nClick OK to add this asset to the system, resolve the alert, and notify the user who entered it.',value);if(assetName===null)return;payload.value=assetName;var assetNum=prompt('Asset number (optional — auto-generated if left blank):');if(assetNum!==null&&assetNum.trim())payload.asset_number=assetNum.trim();}
-  else if(field==='location'){if(!confirm('Mark location "'+value+'" as added and resolve this alert?'))return;}
-  try{
-    var resp=await fetch('/api/fuel-flags/'+flagId+'/add-and-resolve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    var data=await resp.json();
-    if(data.success){
-      allFlags=allFlags.map(function(f){if(f.id===flagId){f.status='resolved';f.resolved_at=new Date().toISOString();f.resolved_by=window.dashUser?window.dashUser.email:'';f.resolution_notes='Added '+field+' "'+(data.created&&data.created.entity_name||value)+'"';}return f;});
-      renderAlerts();updateAlertBanner();
-      alert('✅ '+field.charAt(0).toUpperCase()+field.slice(1)+' "'+(data.created&&data.created.entity_name||value)+'" added'+(data.notified?' and the user who entered it has been notified.':' (no submitter email on record).'));
-    }else{alert('Failed: '+(data.error||'Unknown error'));}
-  }catch(e){alert('Error: '+e.message);}
-}
-
-async function forwardFlag(flagId,flagType){
-  var email=prompt('Forward this alert to:\n\nEnter the email of the employee who has permission to add projects, locations, or assets:');
-  if(!email||!email.trim())return;
-  var note=prompt('Add a note for the recipient (optional):');
-  try{
-    var resp=await fetch('/api/notifications/forward',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({flag_id:flagId,recipient_email:email.trim(),note:note||''})});
-    var data=await resp.json();
-    if(data.success){alert('✅ Alert forwarded to '+email+'. They will see it in their notifications when they log in.');}
-    else{alert('Failed to forward: '+(data.error||'Unknown error'));}
-  }catch(e){alert('Error: '+e.message);}
-}
+var allFlags=[];var _flagsLoaded=false;
+async function loadFlags(){try{var resp=await fetch('/api/fuel-flags?status=open');var data=await resp.json();if(data.success&&data.flags){allFlags=data.flags;}}catch(e){console.error('loadFlags error:',e.message);reportError('loadFlags',e);}updateAlertBanner();}
+function updateAlertBanner(){var openCount=allFlags.filter(function(f){return f.status==='open';}).length;var banner=document.getElementById('fuelAlertBanner');var countEl=document.getElementById('fuelAlertBannerCount');if(banner&&countEl){countEl.textContent=openCount;banner.style.display=openCount>0?'block':'none';}}
+function flagTypeLabel(type){var labels={manager_review:'Manager Review',capacity_exceeded:'Capacity Exceeded',consumption_anomaly:'Consumption Anomaly',employee_tank_fill:'Employee Tank Fill',tank_adjustment:'Tank Adjustment',non_fuel_receipt:'Non-Fuel Items on Receipt'};return labels[type]||(type||'').replace(/_/g,' ');}
+function flagSeverityClass(sev){if(sev==='critical')return 'background:#fee2e2;border-color:#cc0000;color:#cc0000;';if(sev==='warning')return 'background:#fef3c7;border-color:#fcd34d;color:#78350f;';return 'background:#eff6ff;border-color:#93c5fd;color:#1e3a5f;';}
+function renderAlerts(){var container=document.getElementById('alertsContainer');if(!container)return;var flagTypeFilter=(document.getElementById('alertsFlagTypeFilter')||{}).value||'';var statusFilter=(document.getElementById('alertsStatusFilter')||{}).value||'open';if(!_flagsLoaded){container.innerHTML='<div class="empty-state">Loading alerts…</div>';fetch('/api/fuel-flags'+(statusFilter?'?status='+statusFilter:'')).then(function(r){return r.json();}).then(function(data){if(data.success&&data.flags){allFlags=data.flags;_flagsLoaded=true;}renderAlerts();}).catch(function(e){container.innerHTML='<div class="empty-state" style="color:#cc0000;">Error loading alerts: '+esc(e.message)+'</div>';});return;}var flags=allFlags;if(flagTypeFilter)flags=flags.filter(function(f){return f.flag_type===flagTypeFilter;});if(statusFilter)flags=flags.filter(function(f){return f.status===statusFilter;});var countEl=document.getElementById('alertsCount');if(countEl)countEl.textContent=flags.length+' alert'+(flags.length!==1?'s':'');if(flags.length===0){container.innerHTML='<div class="empty-state">✅ No fuel alerts. All clear.</div>';return;}container.innerHTML=flags.map(function(f){var details={};try{details=JSON.parse(f.details||'{}');}catch(e){}var sevStyle=flagSeverityClass(f.severity);var isManagerReview=f.flag_type==='manager_review';var canEdit=(window.dashUser&&(window.dashUser.role==='admin'||window.dashUser.role==='manager'));var html='<div style="border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;background:var(--bg-card);">';html+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:8px;"><div><span style="font-size:12px;padding:2px 8px;border-radius:4px;font-weight:600;'+sevStyle+'">'+esc(flagTypeLabel(f.flag_type))+'</span>';if(f.status==='resolved'){html+=' <span style="font-size:12px;padding:2px 8px;border-radius:4px;background:#dcfce7;color:#15803d;font-weight:600;">RESOLVED</span>';}html+='</div><div style="font-size:12px;color:var(--text-muted);">'+esc(new Date(f.created_at).toLocaleString())+'</div></div>';html+='<div style="font-size:14px;margin-bottom:8px;">'+esc(f.message||'No message')+'</div>';if(details.field){html+='<div style="font-size:13px;color:var(--text-muted);margin-bottom:4px;"><strong>Field:</strong> '+esc(details.field);if(details.value)html+=' | <strong>Value:</strong> '+esc(details.value);if(details.reason)html+=' | <strong>Reason:</strong> '+esc(details.reason);if(details.line)html+=' | <strong>Line:</strong> '+details.line;html+='</div>';}if(f.asset_name)html+='<div style="font-size:13px;color:var(--text-muted);"><strong>Asset:</strong> '+esc(f.asset_name)+'</div>';if(f.tank_name)html+='<div style="font-size:13px;color:var(--text-muted);"><strong>Tank:</strong> '+esc(f.tank_name)+'</div>';if(f.status==='open'){html+='<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">';if(isManagerReview&&canEdit){if(details.field==='project'||details.field==='location'){html+='<button onclick="resolveWithAdd(\''+f.id+'\',\''+esc(details.field||'')+'\',\''+esc(details.value||'')+'\')" style="padding:8px 16px;border:none;border-radius:6px;background:#16a34a;color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Add & Resolve</button>';}else if(details.field==='asset'){html+='<button onclick="resolveWithAdd(\''+f.id+'\',\''+esc(details.field||'')+'\',\''+esc(details.value||'')+'\')" style="padding:8px 16px;border:none;border-radius:6px;background:#16a34a;color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Add Asset & Resolve</button>';}}html+='<button onclick="resolveFlag(\''+f.id+'\')" style="padding:8px 16px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:13px;font-weight:600;">Resolve</button>';if(!canEdit){html+='<button onclick="forwardFlag(\''+f.id+'\',\''+esc(f.flag_type||'')+'\')" style="padding:8px 16px;border:1px solid #93c5fd;border-radius:6px;background:#eff6ff;color:#1e3a5f;cursor:pointer;font-size:13px;font-weight:600;">Forward</button>';}html+='</div>';}if(f.status==='resolved'){html+='<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">Resolved by '+esc(f.resolved_by||'—')+' on '+esc(f.resolved_at?new Date(f.resolved_at).toLocaleString():'—');if(f.resolution_notes)html+=' — '+esc(f.resolution_notes);html+='</div>';}html+='</div>';return html;}).join('');}
+async function resolveFlag(flagId){var notes=prompt('Resolution notes (optional):');if(notes===null)return;try{var resp=await fetch('/api/fuel-flags/'+flagId+'/resolve',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({resolution_notes:notes||'Resolved from Fuel Management dashboard'})});var data=await resp.json();if(data.success){allFlags=allFlags.map(function(f){if(f.id===flagId){f.status='resolved';f.resolved_at=new Date().toISOString();f.resolved_by=window.dashUser?window.dashUser.email:'';f.resolution_notes=notes;}return f;});renderAlerts();updateAlertBanner();}else{alert('Failed to resolve: '+(data.error||'Unknown error'));}}catch(e){alert('Error: '+e.message);}}
+async function resolveWithAdd(flagId,field,value){var payload={field:field,value:value};if(field==='project'){var projName=prompt('Add new project:\n\nProject name: '+value+'\n\nClick OK to add this project to the system, resolve the alert, and notify the user who entered it.',value);if(projName===null)return;payload.value=projName;}else if(field==='asset'){var assetName=prompt('Add new asset/equipment:\n\nAsset name: '+value+'\n\nClick OK to add this asset to the system, resolve the alert, and notify the user who entered it.',value);if(assetName===null)return;payload.value=assetName;var assetNum=prompt('Asset number (optional — auto-generated if left blank):');if(assetNum!==null&&assetNum.trim())payload.asset_number=assetNum.trim();}else if(field==='location'){if(!confirm('Mark location "'+value+'" as added and resolve this alert?'))return;}try{var resp=await fetch('/api/fuel-flags/'+flagId+'/add-and-resolve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});var data=await resp.json();if(data.success){allFlags=allFlags.map(function(f){if(f.id===flagId){f.status='resolved';f.resolved_at=new Date().toISOString();f.resolved_by=window.dashUser?window.dashUser.email:'';f.resolution_notes='Added '+field+' "'+(data.created&&data.created.entity_name||value)+'"';}return f;});renderAlerts();updateAlertBanner();alert('\u2705 '+field.charAt(0).toUpperCase()+field.slice(1)+' "'+(data.created&&data.created.entity_name||value)+'" added'+(data.notified?' and the user who entered it has been notified.':' (no submitter email on record).'));}else{alert('Failed: '+(data.error||'Unknown error'));}}catch(e){alert('Error: '+e.message);}}
+async function forwardFlag(flagId,flagType){var email=prompt('Forward this alert to:\n\nEnter the email of the employee who has permission to add projects, locations, or assets:');if(!email||!email.trim())return;var note=prompt('Add a note for the recipient (optional):');try{var resp=await fetch('/api/notifications/forward',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({flag_id:flagId,recipient_email:email.trim(),note:note||''})});var data=await resp.json();if(data.success){alert('\u2705 Alert forwarded to '+email+'. They will see it in their notifications when they log in.');}else{alert('Failed to forward: '+(data.error||'Unknown error'));}}catch(e){alert('Error: '+e.message);}}
 
 /* ===== NOTIFICATIONS BELL ===== */
 var allNotifications=[];
-async function loadNotifications(){
-  try{var resp=await fetch('/api/notifications?unread=1');var data=await resp.json();if(data.success&&data.notifications){allNotifications=data.notifications;}}catch(e){console.error('loadNotifications error:',e.message);}
-  renderNotificationBell();
-}
-function renderNotificationBell(){
-  var bell=document.getElementById('fuelNotifBell');if(!bell)return;
-  var unread=allNotifications.filter(function(n){return !n.read_at;}).length;
-  bell.style.display=unread>0?'inline-flex':'none';
-  var count=bell.querySelector('.fuel-notif-count');if(count)count.textContent=unread;
-}
-function toggleNotifications(){
-  var panel=document.getElementById('fuelNotifPanel');if(!panel)return;
-  if(panel.style.display==='block'){panel.style.display='none';return;}
-  fetch('/api/notifications').then(function(r){return r.json();}).then(function(data){
-    if(data.success&&data.notifications){
-      panel.innerHTML=data.notifications.map(function(n){
-        return '<div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;"><div style="font-weight:600;color:var(--text);">'+esc(n.title||'')+'</div><div style="color:var(--text-muted);margin-top:2px;">'+esc(n.message||'')+'</div><div style="font-size:11px;color:var(--text-muted);margin-top:4px;">'+esc(new Date(n.created_at).toLocaleString())+'</div>'+(n.read_at?'':' <button onclick="markNotifRead(\''+n.id+'\')" style="margin-top:6px;padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:12px;">Mark read</button>')+'</div>';
-      }).join('')||'<div style="padding:16px;color:var(--text-muted);font-size:13px;">No notifications.</div>';
-      panel.style.display='block';
-    }
-  }).catch(function(){panel.style.display='block';panel.innerHTML='<div style="padding:16px;color:var(--text-muted);font-size:13px;">Error loading notifications.</div>';});
-}
-async function markNotifRead(id){
-  try{await fetch('/api/notifications/'+id+'/read',{method:'PUT'});allNotifications=allNotifications.filter(function(n){return n.id!==id;});renderNotificationBell();var panel=document.getElementById('fuelNotifPanel');if(panel)panel.style.display='none';}catch(e){}
-}
+async function loadNotifications(){try{var resp=await fetch('/api/notifications?unread=1');var data=await resp.json();if(data.success&&data.notifications){allNotifications=data.notifications;}}catch(e){console.error('loadNotifications error:',e.message);}renderNotificationBell();}
+function renderNotificationBell(){var bell=document.getElementById('fuelNotifBell');if(!bell)return;var unread=allNotifications.filter(function(n){return !n.read_at;}).length;bell.style.display=unread>0?'inline-flex':'none';var count=bell.querySelector('.fuel-notif-count');if(count)count.textContent=unread;}
+function toggleNotifications(){var panel=document.getElementById('fuelNotifPanel');if(!panel)return;if(panel.style.display==='block'){panel.style.display='none';return;}fetch('/api/notifications').then(function(r){return r.json();}).then(function(data){if(data.success&&data.notifications){panel.innerHTML=data.notifications.map(function(n){return '<div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;"><div style="font-weight:600;color:var(--text);">'+esc(n.title||'')+'</div><div style="color:var(--text-muted);margin-top:2px;">'+esc(n.message||'')+'</div><div style="font-size:11px;color:var(--text-muted);margin-top:4px;">'+esc(new Date(n.created_at).toLocaleString())+'</div>'+(n.read_at?'':' <button onclick="markNotifRead(\''+n.id+'\')" style="margin-top:6px;padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:12px;">Mark read</button>')+'</div>';}).join('')||'<div style="padding:16px;color:var(--text-muted);font-size:13px;">No notifications.</div>';panel.style.display='block';}}).catch(function(){panel.style.display='block';panel.innerHTML='<div style="padding:16px;color:var(--text-muted);font-size:13px;">Error loading notifications.</div>';});}
+async function markNotifRead(id){try{await fetch('/api/notifications/'+id+'/read',{method:'PUT'});allNotifications=allNotifications.filter(function(n){return n.id!==id;});renderNotificationBell();var panel=document.getElementById('fuelNotifPanel');if(panel)panel.style.display='none';}catch(e){}}
+
+/* ===== PRINT TABLE (reusable) ===== */
+function printTable(tableId,title){var table=document.getElementById(tableId);if(!table){alert('Table not found.');return;}var w=window.open('','_blank','width=900,height=700');var css='<style>body{font-family:Arial,Helvetica,sans-serif;margin:20px;color:#1e293b;}h2{margin:0 0 4px;font-size:18px;}.print-meta{font-size:12px;color:#64748b;margin-bottom:16px;}table{width:100%;border-collapse:collapse;font-size:12px;}th{background:#f1f5f9;padding:8px 10px;text-align:left;font-weight:600;border-bottom:2px solid #cbd5e1;white-space:nowrap;}td{padding:6px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;}tr:nth-child(even){background:#f8fafc;}@media print{body{margin:0;}.no-print{display:none;}}</style>';var meta='<div class="print-meta">Generated: '+new Date().toLocaleString()+' | DRIV-EN</div>';w.document.write('<html><head><title>'+esc(title)+'</title>'+css+'</head><body><h2>'+esc(title)+'</h2>'+meta+table.outerHTML+'</body></html>');w.document.close();setTimeout(function(){w.print();},300);}
+
+/* ===== TRANSACTION DETAIL MODAL ===== */
+function showTxDetail(txId){var tx=allTransactions.find(function(t){return t.id===txId;});if(!tx)return;var overlay=document.createElement('div');overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;';var modal=document.createElement('div');modal.style.cssText='background:var(--bg-card);border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.5);';var rows=[['Date',tx.transaction_date?new Date(tx.transaction_date).toLocaleString():'—'],['Type',txTypeLabel(tx.transaction_type)],['Fuel Type',tx.fuel_type||'—'],['Quantity',safeNum(tx.quantity).toFixed(2)],['Equipment',tx.asset_name||tx.asset_number||'—'],['Person',tx.person||'—'],['Project',tx.project_name||'—'],['Location',tx.location||'—'],['From',tx.from_entity_type?(tx.from_entity_type.replace(/_/g,' ')+' — '+(tx.from_entity_name||tx.from_entity_id||'')):'—'],['To',tx.to_entity_type?(tx.to_entity_type.replace(/_/g,' ')+' — '+(tx.to_entity_name||tx.to_entity_id||'')):'—'],['Cost/Gal',tx.cost_per_gallon!=null?'$'+parseFloat(tx.cost_per_gallon).toFixed(3):'—'],['Receipt Total',tx.receipt_total!=null?'$'+parseFloat(tx.receipt_total).toFixed(2):'—'],['PO Number',tx.po_number||'—'],['Notes',tx.notes||'—'],['Created',tx.created_at?new Date(tx.created_at).toLocaleString():'—']];var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><h3 style="margin:0;font-size:18px;color:var(--text);">Transaction Details</h3><button onclick="this.closest(\'div[style*=fixed]\').remove()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-muted);">×</button></div>';html+='<div style="display:grid;grid-template-columns:140px 1fr;gap:8px 12px;font-size:14px;">';rows.forEach(function(r){html+='<div style="font-weight:600;color:var(--text-muted);">'+r[0]+'</div><div style="color:var(--text);">'+esc(r[1])+'</div>';});html+='</div>';if(tx.receipt_r2_key){html+='<div style="margin-top:16px;"><a href="/api/fuel-receipts/'+tx.id+'" target="_blank" style="color:var(--primary);font-size:13px;font-weight:600;">View Receipt →</a></div>';}html+='<div style="margin-top:20px;display:flex;gap:8px;justify-content:flex-end;"><button onclick="printTable(\''+tx.id+'-detail-table\',\'Transaction Detail\')" style="padding:8px 16px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:13px;font-weight:600;">Print</button><button onclick="this.closest(\'div[style*=fixed]\').remove()" style="padding:8px 16px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:13px;">Close</button></div>';modal.innerHTML=html;overlay.appendChild(modal);overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove();});document.body.appendChild(overlay);}
+
+/* ===== QUICK-ADD POPUP (project/location/asset) ===== */
+function showQuickAdd(type){var overlay=document.createElement('div');overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;';var modal=document.createElement('div');modal.style.cssText='background:var(--bg-card);border-radius:12px;padding:24px;max-width:480px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.5);';var title=type==='project'?'Add Project':type==='location'?'Add Location':type==='asset'?'Add Asset':'Add Item';var fields='';if(type==='project'){fields='<div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Project Name *</label><input type="text" id="qaName" class="purchase-input" style="width:100%;box-sizing:border-box;" placeholder="e.g., Site A"></div><div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Project Code</label><input type="text" id="qaCode" class="purchase-input" style="width:100%;box-sizing:border-box;" placeholder="e.g., PRJ-001"></div><div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Location</label><input type="text" id="qaLocation" class="purchase-input" style="width:100%;box-sizing:border-box;" placeholder="Physical address/site"></div>';}else if(type==='asset'){fields='<div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Asset Name *</label><input type="text" id="qaName" class="purchase-input" style="width:100%;box-sizing:border-box;" placeholder="e.g., Excavator CAT 320"></div><div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Asset Number</label><input type="text" id="qaAssetNum" class="purchase-input" style="width:100%;box-sizing:border-box;" placeholder="Auto-generated if blank"></div><div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Asset Type</label><select id="qaType" class="purchase-input" style="width:100%;box-sizing:border-box;"><option value="equipment">Equipment</option><option value="vehicle">Vehicle</option><option value="tool">Tool</option></select></div>';}else if(type==='location'){fields='<div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Location Name *</label><input type="text" id="qaName" class="purchase-input" style="width:100%;box-sizing:border-box;" placeholder="e.g., Yard 1"></div>';}var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><h3 style="margin:0;font-size:18px;color:var(--text);">'+title+'</h3><button onclick="this.closest(\'div[style*=fixed]\').remove()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-muted);">×</button></div>';html+=fields;html+='<div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:10px 14px;margin:12px 0;font-size:12px;color:#1e3a5f;"><strong>⚠️ Reminder:</strong> This adds the item with minimal information. Go to the '+type.charAt(0).toUpperCase()+type.slice(1)+' dashboard to complete the full profile.</div>';html+='<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;"><button onclick="this.closest(\'div[style*=fixed]\').remove()" style="padding:10px 16px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:14px;">Cancel</button><button id="qaSubmitBtn" style="padding:10px 20px;border:none;border-radius:6px;background:#16a34a;color:#fff;cursor:pointer;font-size:14px;font-weight:600;">Add</button></div>';modal.innerHTML=html;overlay.appendChild(modal);overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove();});document.body.appendChild(overlay);document.getElementById('qaSubmitBtn').onclick=function(){submitQuickAdd(type,overlay);};}
+async function submitQuickAdd(type,overlay){var name=document.getElementById('qaName').value.trim();if(!name){alert('Name is required');return;}var btn=document.getElementById('qaSubmitBtn');btn.disabled=true;btn.textContent='Adding…';var body={name:name};if(type==='project'){var code=document.getElementById('qaCode').value.trim();var loc=document.getElementById('qaLocation').value.trim();if(code)body.code=code;if(loc)body.location=loc;}else if(type==='asset'){var an=document.getElementById('qaAssetNum').value.trim();var at=document.getElementById('qaType').value;if(an)body.asset_number=an;body.asset_type=at;}try{var endpoint=type==='project'?'projects':type==='asset'?'assets':'locations';var resp=await fetch('/api/'+endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});var data=await resp.json();if(data.success){alert('\u2705 '+type.charAt(0).toUpperCase()+type.slice(1)+' "'+name+'" added. Go to the '+type.charAt(0).toUpperCase()+type.slice(1)+' dashboard to complete the full profile.');overlay.remove();if(type==='project')loadProjects();if(type==='asset')loadAssets();}else{alert('Failed: '+(data.error||'Unknown error'));}}catch(e){alert('Error: '+e.message);}btn.disabled=false;btn.textContent='Add';}
 
 var _initDone=false;
-async function init(){
-  function startApp(){
-    if(_initDone)return;_initDone=true;
-    var user=window.dashUser;
-    if(!user){window.location.href='/public/login.html';return;}
-    var role=(user.role||'').toLowerCase();
-    var dashUrl=role==='admin'?'/app/dashboard/admin.html':'/app/dashboard/employee-dashboard.html';
-    var homeLink=document.getElementById('dashHomeLink');
-    if(homeLink)homeLink.href=dashUrl;
-    insertHeaderTitle();makeTabsSticky();
-    document.getElementById('loading').style.display='none';
-    document.getElementById('dashboard').style.display='block';
-    loadTankTypes().then(function(){return loadTanks();});
-  }
-  if(window.dashUser){startApp();return;}
-  document.addEventListener('dashSessionLoaded',startApp);
-}
+async function init(){function startApp(){if(_initDone)return;_initDone=true;var user=window.dashUser;if(!user){window.location.href='/public/login.html';return;}var role=(user.role||'').toLowerCase();var dashUrl=role==='admin'?'/app/dashboard/admin.html':'/app/dashboard/employee-dashboard.html';var homeLink=document.getElementById('dashHomeLink');if(homeLink)homeLink.href=dashUrl;insertHeaderTitle();makeTabsSticky();document.getElementById('loading').style.display='none';document.getElementById('dashboard').style.display='block';loadTankTypes().then(function(){return loadTanks();});}if(window.dashUser){startApp();return;}document.addEventListener('dashSessionLoaded',startApp);}
 init();
 </script>
 <script src="/app/shared/auth-check.js?v=8"></script>
