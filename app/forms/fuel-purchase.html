@@ -218,10 +218,10 @@
           <label class="purchase-label">Date <span style="color:#cc0000;">*</span></label>
           <input type="date" id="purchaseDate" class="purchase-input" onchange="markFormDirty()">
         </div>
-        <div class="purchase-field">
-          <label class="purchase-label">Location (if applicable)</label>
-          <select id="purchaseLocation" class="purchase-input ai-needed" onchange="handleLocationChange(this)">
-            <option value="">Select location…</option>
+        <div class="purchase-field" id="projectFieldWrap">
+          <label class="purchase-label">Project <span style="color:#cc0000;">*</span></label>
+          <select id="purchaseProject" class="purchase-input ai-needed" required onchange="handleProjectChange(this)">
+            <option value="">Select project…</option>
           </select>
         </div>
         <div class="purchase-field">
@@ -233,9 +233,9 @@
           <input type="text" id="purchaseVendor" class="purchase-input" placeholder="e.g., Pacific Pride" oninput="markFormDirty()">
         </div>
         <div class="purchase-field">
-          <label class="purchase-label">Project <span style="color:#cc0000;">*</span></label>
-          <select id="purchaseProject" class="purchase-input ai-needed" required onchange="handleProjectChange(this)">
-            <option value="">Select project…</option>
+          <label class="purchase-label">Location (if applicable)</label>
+          <select id="purchaseLocation" class="purchase-input ai-needed" onchange="handleLocationChange(this)">
+            <option value="">Select location…</option>
           </select>
         </div>
       </div>
@@ -262,16 +262,26 @@
         <div id="lineItemsContainer"></div>
       </div>
 
-      <!-- Grand Total -->
+      <!-- Grand Fuel Total (computed from line items: qty × cost/gal) -->
       <div class="grand-total-bar">
-        <span class="label">Grand Total:</span>
+        <span class="label">Grand Fuel Total:</span>
         <span class="value" id="grandTotal">$0.00</span>
+      </div>
+
+      <!-- Receipt Total (extracted from receipt by AI — may include non-fuel items) -->
+      <div class="purchase-field purchase-field-full" style="margin-bottom:20px;">
+        <label class="purchase-label">Receipt Total <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(from receipt — includes non-fuel items if any)</span></label>
+        <input type="number" id="receiptTotal" class="purchase-input" placeholder="Auto-filled from receipt, editable" min="0" step="0.01" oninput="markFormDirty()">
+        <div class="receipt-notice" id="receiptNonFuelNotice" style="display:none;">
+          <strong>⚠️ This receipt appears to include items besides fuel.</strong> The Receipt Total above may be higher than the Grand Fuel Total. A flag has been created for manager review.
+        </div>
       </div>
 
       <!-- Notes -->
       <div class="purchase-field purchase-field-full" style="margin-bottom:20px;">
         <label class="purchase-label">Notes</label>
         <input type="text" id="purchaseNotes" class="purchase-input" placeholder="Optional — e.g., PO number, delivery ticket #, price per gallon quote, who authorized" oninput="markFormDirty()">
+        <!-- TODO: When multi-language module is enabled, translate notes field from user's preferred language to org primary language using @cf/meta/m2m100-1.2b. Store both original and translated. See build report Session 9c multi-language spec. -->
       </div>
 
       <!-- Submit -->
@@ -417,7 +427,7 @@ function hasDeviceLocation() {
 function requireLocationOrPopup() {
   if (hasDeviceLocation()) return true;
   var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
-  if (!isMobile) return true; // Desktop: location optional, don't block submit
+  if (!isMobile) return true;
   showLocationPopup('Location is required to submit this form. Please enable location on your device and retry.');
   return false;
 }
@@ -510,6 +520,8 @@ function addLineItem(data) {
     assetMap[label] = value;
     datalistOptions += '<option value="' + esc(label) + '">';
   }
+
+  addAssetEntry('__custom_asset', '+ Other (type manually)');
 
   bulkTanks.forEach(function(t) {
     var label = t.name + (t.fuel_type ? ' (' + t.fuel_type + ')' : '') + (t.location ? ' — ' + t.location : '');
@@ -1010,6 +1022,21 @@ async function _doExtraction(file, previewContent, status, preview) {
         dateEl.classList.add('ai-extracted');
       }
 
+      if (data.extracted.receipt_total) {
+        var rtEl = document.getElementById('receiptTotal');
+        if (rtEl) {
+          rtEl.value = data.extracted.receipt_total;
+          rtEl.classList.add('ai-extracted');
+        }
+      }
+
+      window._receiptHasNonFuelItems = false;
+      if (data.extracted.has_non_fuel_items || (data.extracted.non_fuel_items && data.extracted.non_fuel_items.length > 0)) {
+        window._receiptHasNonFuelItems = true;
+        var notice = document.getElementById('receiptNonFuelNotice');
+        if (notice) notice.style.display = 'block';
+      }
+
       if (data.extracted.line_items && data.extracted.line_items.length > 0) {
         document.getElementById('lineItemsContainer').innerHTML = '';
         lineItemCount = 0;
@@ -1105,9 +1132,16 @@ async function submitPurchase() {
     var fuelType = row.querySelector('.line-fuel-type').value;
     var cpg = parseFloat(row.querySelector('.line-cpg').value) || null;
 
-    if (!dest) { showPurchaseError('Line ' + (i + 1) + ': asset is required (select from the list)'); return; }
     if (!qty || qty <= 0 || !isFinite(qty)) { showPurchaseError('Line ' + (i + 1) + ': quantity (gallons) is required and must be > 0'); return; }
     if (!fuelType) { showPurchaseError('Line ' + (i + 1) + ': fuel type is required'); return; }
+
+    var customAssetName = null;
+    if (!dest) {
+      if (!destLabel || destLabel === '+ Other (type manually)') {
+        showPurchaseError('Line ' + (i + 1) + ': asset is required (select from the list or type the asset name)'); return;
+      }
+      customAssetName = destLabel;
+    }
 
     var parts = dest.split('|');
     var li = {
@@ -1118,6 +1152,7 @@ async function submitPurchase() {
       cost_per_gallon: cpg
     };
     if (customProjectName) li.project_name = customProjectName;
+    if (customAssetName) li.custom_asset_name = customAssetName;
     lineItems.push(li);
   }
 
@@ -1145,6 +1180,16 @@ async function submitPurchase() {
       managerReviewFlags.push({ field: 'fuel_type', line: j + 1, value: fuelEl.value, reason: 'Custom fuel type typed manually (not from list)' });
       lineItems[j].fuel_type = fuelEl.value;
     }
+    if (lineItems[j].custom_asset_name) {
+      managerReviewFlags.push({ field: 'asset', line: j + 1, value: lineItems[j].custom_asset_name, reason: 'Custom asset typed manually (not in asset list) — manager must add asset and update record' });
+    }
+  }
+
+  var receiptTotalInput = document.getElementById('receiptTotal');
+  var receiptTotal = receiptTotalInput ? parseFloat(receiptTotalInput.value) || null : null;
+
+  if (window._receiptHasNonFuelItems) {
+    managerReviewFlags.push({ field: 'receipt_items', value: 'Receipt includes items besides fuel', reason: 'AI detected non-fuel items on the receipt — manager should review for cost control / project costing' });
   }
 
   var body = {
@@ -1156,6 +1201,7 @@ async function submitPurchase() {
     notes: notes || null,
     project_id: projectId || null,
     receipt_r2_key: receiptR2Key,
+    receipt_total: receiptTotal,
     line_items: lineItems,
     device_location: hasDeviceLocation() ? deviceLocation : null,
     manager_review_flags: managerReviewFlags
@@ -1260,6 +1306,11 @@ function clearPurchaseForm() {
   if (_objectUrl) { URL.revokeObjectURL(_objectUrl); _objectUrl = null; }
   receiptR2Key = null;
   managerReviewFlags = [];
+  window._receiptHasNonFuelItems = false;
+  var nonFuelNotice = document.getElementById('receiptNonFuelNotice');
+  if (nonFuelNotice) nonFuelNotice.style.display = 'none';
+  var rtEl = document.getElementById('receiptTotal');
+  if (rtEl) { rtEl.value = ''; rtEl.classList.remove('ai-extracted'); }
   document.getElementById('lineItemsContainer').innerHTML = '';
   lineItemCount = 0;
   addLineItem();
@@ -1366,6 +1417,16 @@ async function loadProjects() {
         });
         html += '<option value="__custom">+ Other (type manually)</option>';
         sel.innerHTML = html;
+      }
+      var wrap = document.getElementById('projectFieldWrap');
+      if (wrap) {
+        if (data.projects.length === 0) {
+          wrap.style.display = 'none';
+          sel.removeAttribute('required');
+        } else {
+          wrap.style.display = '';
+          sel.setAttribute('required', '');
+        }
       }
     }
   } catch (e) {
