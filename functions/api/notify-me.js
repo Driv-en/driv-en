@@ -24,6 +24,9 @@
 // HARDENED: 2026-09-26 — transactional success semantics, CORS allowlist,
 //   malformed-JSON handling, abuse protection, module dedup, email delivery
 //   validation.
+// HARDENED v2: 2026-09-26 — safe email coercion, fail-closed rate limiting,
+//   pending→sent status flow for atomicity, full HTML-escape of module
+//   names, widened CORS Allow-Headers.
 // ============================================================================
 
 // ---------------------------------------------------------------------------
@@ -43,7 +46,7 @@ function getCORSHeaders(request) {
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Max-Age': '86400',
     'Vary': 'Origin'
   };
@@ -198,8 +201,10 @@ async function checkRateLimit(env, email) {
 
     return (result && result.count < 3);
   } catch (e) {
-    // If D1 is unavailable, allow the request (fail open for rate limiting)
-    return true;
+    // Fail closed — if D1 is unavailable, block the request rather than
+    // silently disabling abuse protection on a public endpoint.
+    console.error('Rate limit check failed (D1 unavailable):', e.message);
+    return false;
   }
 }
 
@@ -233,7 +238,7 @@ export async function onRequestPost({ request, env }) {
     );
   }
 
-  const email = (body.email || '').trim().toLowerCase();
+  const email = String(body.email ?? '').trim().toLowerCase();
   const modules = body.modules;
 
   // --- Validate email ---
@@ -247,16 +252,24 @@ export async function onRequestPost({ request, env }) {
   }
 
   // --- Sanitize + deduplicate module names ---
+  // Full HTML-escape to prevent injection in email body templates.
   const seenModules = new Set();
   const cleanModules = [];
   for (const m of modules) {
     if (typeof m !== 'string' || m.length === 0 || m.length >= 100) continue;
-    const cleaned = m.replace(/[<>&"']/g, '').trim();
-    if (cleaned.length === 0) continue;
-    const lower = cleaned.toLowerCase();
+    // Full HTML entity escaping — covers all HTML contexts
+    const escaped = m
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;')
+      .trim();
+    if (escaped.length === 0) continue;
+    const lower = escaped.toLowerCase();
     if (seenModules.has(lower)) continue; // skip duplicates
     seenModules.add(lower);
-    cleanModules.push(cleaned);
+    cleanModules.push(escaped);
   }
 
   if (cleanModules.length === 0) {
@@ -273,6 +286,11 @@ export async function onRequestPost({ request, env }) {
   }
 
   // --- Store in D1 (notify_requests table) — fail hard if D1 is unavailable ---
+  // The record is inserted with status='pending' and updated to 'sent' only
+  // after the support email is delivered. This avoids orphaned "success"
+  // records if email delivery fails, and allows a reconciliation job to
+  // retry pending records later.
+  let requestId;
   try {
     await env.DB.prepare(
       `CREATE TABLE IF NOT EXISTS notify_requests (
@@ -280,14 +298,15 @@ export async function onRequestPost({ request, env }) {
         email TEXT NOT NULL,
         modules TEXT NOT NULL,
         created_at TEXT NOT NULL,
-        notified INTEGER DEFAULT 0
+        notified INTEGER DEFAULT 0,
+        status TEXT DEFAULT 'pending'
       )`
     ).run();
 
-    const requestId = 'NR-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    requestId = 'NR-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     await env.DB.prepare(
-      `INSERT INTO notify_requests (id, email, modules, created_at)
-       VALUES (?, ?, ?, ?)`
+      `INSERT INTO notify_requests (id, email, modules, created_at, status)
+       VALUES (?, ?, ?, ?, 'pending')`
     ).bind(
       requestId,
       email,
@@ -328,11 +347,23 @@ export async function onRequestPost({ request, env }) {
 
   if (!supportResult.ok) {
     console.error('Support email failed:', supportResult.error);
+    // Leave the D1 record as 'pending' so a reconciliation job can retry it
     await logError(env, 'notify-me-sendgrid', new Error(supportResult.error), request);
     return jsonResponse(
       { success: false, error: 'Unable to send notification. Please try again.' },
       502, corsHeaders
     );
+  }
+
+  // --- Mark D1 record as 'sent' now that the support email succeeded ---
+  try {
+    await env.DB.prepare(
+      `UPDATE notify_requests SET status = 'sent', notified = 1 WHERE id = ?`
+    ).bind(requestId).run();
+  } catch (updateErr) {
+    // The email was sent but we couldn't update the status — log it
+    // The record stays as 'pending' which is fine for reconciliation
+    console.error('D1 status update failed (email was sent):', updateErr.message);
   }
 
   // Send visitor confirmation email
