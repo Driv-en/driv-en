@@ -43,6 +43,19 @@
 <!-- Cloudflare Turnstile script (bot protection) -->
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
+<!-- Founding Member expiry — hide promo section after 2026-12-31 -->
+<script>
+  (function() {
+    // Founding Member program ends December 31, 2026 at 23:59:59 CST
+    // CST = UTC-6, so 2026-12-31 23:59:59 CST = 2027-01-01 05:59:59 UTC
+    var expiry = new Date('2027-01-01T05:59:59Z');
+    if (Date.now() > expiry.getTime()) {
+      var wrapper = document.getElementById('foundingMemberWrapper');
+      if (wrapper) wrapper.style.display = 'none';
+    }
+  })();
+</script>
+
 <style>
 /* ============================================================
    LIGHT THEME — Diamond-plate background shows through
@@ -135,7 +148,7 @@ main {
 /* Each module item — light theme */
 .module-item {
   padding: 12px;
-  border: 1px solid #d1d5db;
+  border: 2px solid #22c55e;
   border-radius: 6px;
   background: #f9fafb;       /* very light gray */
 }
@@ -218,7 +231,7 @@ button {
   padding: 12px;
   background: #f9fafb;
   border-radius: 6px;
-  border: 1px solid #d1d5db;
+  border: 2px solid #22c55e;
 }
 
 .coming-item-title {
@@ -241,12 +254,65 @@ button {
   font-style: italic;
 }
 
-/* Promo Code Section — light theme */
+/* Notify Me checkbox row inside Coming Soon cards */
+.notify-check {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.notify-check input {
+  cursor: pointer;
+  transform: scale(1.1);
+}
+.notify-check label {
+  font-size: 13px;
+  color: #1a1a1a;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Notify Me email + button section */
+.notify-me-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 2px solid #22c55e;
+}
+.notify-me-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.notify-me-row input {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #f9fafb;
+  color: #1a1a1a;
+}
+.notify-me-row input:focus {
+  outline: none;
+  border-color: #22c55e;
+}
+.notify-me-status {
+  margin-top: 8px;
+  font-size: 13px;
+  min-height: 18px;
+}
+.notify-me-status.error { color: #dc2626; }
+.notify-me-status.success { color: #16a34a; font-weight: 600; }
+.notify-me-status.loading { color: #d97706; }
+
+/* Promo Code Section — light green theme */
 .promo-section {
   margin-bottom: 20px;
   padding: 16px;
-  border: 1px solid #d1d5db;
-  background: #ffffff;
+  border: 2px solid #22c55e;
+  background: #ecfdf5;
   border-radius: 8px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
@@ -372,8 +438,9 @@ footer a {
     line-height: 1.4;
     width: 100%;
     margin: 0 auto;
-    padding-left: 0;
-    padding-right: 0;
+    padding-left: 16px;
+    padding-right: 16px;
+    box-sizing: border-box;
   }
 
   footer br {
@@ -389,6 +456,18 @@ footer a {
 
   footer a {
     margin: 0 6px;
+  }
+
+  /* Extend header and footer slightly beyond card edges so the
+     page doesn't need horizontal readjustment on mobile screens */
+  header {
+    padding-left: 16px;
+    padding-right: 16px;
+    box-sizing: border-box;
+  }
+
+  main {
+    padding: 0 8px;
   }
 }
 </style>
@@ -439,11 +518,19 @@ footer a {
   Asset Management is required. Other modules are optional and may be billed monthly or annually (annual billing receives a 10% discount).
 </div>
 
+<!-- Founding Member Code Section — auto-hides after 2026-12-31 -->
+<!-- The promo-section and freeAccessBanner are wrapped so JS can hide both -->
+<div id="foundingMemberWrapper">
 <!-- Free Access Banner (shown when promo code is valid) -->
 <div id="freeAccessBanner">
   <div class="free-badge">★ FOUNDING MEMBER</div>
   <div class="free-title">Free Access Granted</div>
   <div class="free-sub" id="freeAccessSub">Enjoy all selected modules at no cost through December 31, 2026.</div>
+  <div style="margin-top:10px;font-size:12px;color:#86efac;text-align:left;max-width:500px;margin-left:auto;margin-right:auto;line-height:1.6;">
+    <strong>All modules included free:</strong><br>
+    Asset Management · Preventative Maintenance · Equipment Inspections · Work Orders · Fuel Management · Asset Location Management · Extraction Engine · Multi-Language Support<br><br>
+    <strong>No credit card needed.</strong> Your free access continues through December 31, 2026.
+  </div>
 </div>
 
 <!-- Promo Code Section -->
@@ -460,6 +547,7 @@ footer a {
     Don't have a code? <a href="mailto:support@driv-en.com?subject=Founding%20Member%20Code%20Request" style="color:#16a34a;font-weight:600;">Contact DRIV-EN</a> to request one.
   </div>
 </div>
+<!-- End foundingMemberWrapper — hidden by JS after 2026-12-31 -->
 
 <!-- ============================================================
      BUNDLE PRICING SECTION
@@ -474,19 +562,19 @@ footer a {
   <div class="bundle-item">
     <input type="checkbox" id="bundleOperations">
     Operations Bundle — $499/month<br>
-    <span>Asset Management + Preventative Maintenance + Equipment Inspections + Extraction Engine (Included)</span>
+    <span style="display:block;margin-left:20px;">Asset Management + Preventative Maintenance + Equipment Inspections + Extraction Engine (Included)</span>
   </div>
 
   <div class="bundle-item">
     <input type="checkbox" id="bundleFull">
     Full Asset Bundle — $529/month<br>
-    <span>Asset Management + Preventative Maintenance + Equipment Inspections + Work Orders + Extraction Engine (Included)</span>
+    <span style="display:block;margin-left:20px;">Asset Management + Preventative Maintenance + Equipment Inspections + Work Orders + Extraction Engine (Included)</span>
   </div>
 
   <div class="bundle-item">
     <input type="checkbox" id="bundleComplete">
     Complete Platform Bundle — $599/month<br>
-    <span>All modules included + Extraction Engine (Included)</span>
+    <span style="display:block;margin-left:20px;">All modules included + Extraction Engine (Included)</span>
   </div>
 </div>
 
@@ -649,18 +737,24 @@ footer a {
 
   <!-- ========================================================
        RIGHT COLUMN — COMING SOON
-       All 8 items retained as-is.
+       Each card has a "Notify me when this launches" checkbox.
+       At the bottom: email input + Notify Me button.
+       Submits to /api/notify-me → SendGrid emails support@driv-en.com.
        ======================================================== -->
   <div>
     <div class="coming-soon">
-      <h3>Coming Soon</h3>
+      <h3 style="margin-top:0;font-size:16px;">Coming Soon</h3>
 
       <div class="coming-item">
         <div class="coming-item-title">Safety Training & Certifications</div>
         <div class="coming-item-desc">
           Includes equipment‑specific training, project‑required certifications, OSHA annual training, and other regulatory or company‑required qualifications.
         </div>
-        <div class="coming-note">Learn more on our website and sign up to be notified when this module launches.</div>
+        <div class="coming-note">Learn more on our website.</div>
+        <div class="notify-check">
+          <input type="checkbox" id="notify-safety" class="notify-checkbox" data-module="Safety Training & Certifications" />
+          <label for="notify-safety">Notify me when this launches</label>
+        </div>
       </div>
 
       <div class="coming-item">
@@ -668,7 +762,11 @@ footer a {
         <div class="coming-item-desc">
           Manage project phases, tasks, assignments, materials, and progress tracking.
         </div>
-        <div class="coming-note">Learn more on our website and sign up to be notified when this module launches.</div>
+        <div class="coming-note">Learn more on our website.</div>
+        <div class="notify-check">
+          <input type="checkbox" id="notify-pm" class="notify-checkbox" data-module="Project Management" />
+          <label for="notify-pm">Notify me when this launches</label>
+        </div>
       </div>
 
       <div class="coming-item">
@@ -676,7 +774,11 @@ footer a {
         <div class="coming-item-desc">
           Log incoming materials, verify quantities, track delivery issues, and link items to projects.
         </div>
-        <div class="coming-note">Learn more on our website and sign up to be notified when this module launches.</div>
+        <div class="coming-note">Learn more on our website.</div>
+        <div class="notify-check">
+          <input type="checkbox" id="notify-material" class="notify-checkbox" data-module="Material Receiving" />
+          <label for="notify-material">Notify me when this launches</label>
+        </div>
       </div>
 
       <div class="coming-item">
@@ -684,7 +786,11 @@ footer a {
         <div class="coming-item-desc">
           Document incidents, capture evidence, track corrective actions, and maintain compliance records.
         </div>
-        <div class="coming-note">Learn more on our website and sign up to be notified when this module launches.</div>
+        <div class="coming-note">Learn more on our website.</div>
+        <div class="notify-check">
+          <input type="checkbox" id="notify-incident" class="notify-checkbox" data-module="Accident / Incident Investigations" />
+          <label for="notify-incident">Notify me when this launches</label>
+        </div>
       </div>
 
       <div class="coming-item">
@@ -692,7 +798,11 @@ footer a {
         <div class="coming-item-desc">
           Create job safety analyses tailored to tasks, hazards, and equipment involved.
         </div>
-        <div class="coming-note">Learn more on our website and sign up to be notified when this module launches.</div>
+        <div class="coming-note">Learn more on our website.</div>
+        <div class="notify-check">
+          <input type="checkbox" id="notify-jsa" class="notify-checkbox" data-module="JSA / JHA" />
+          <label for="notify-jsa">Notify me when this launches</label>
+        </div>
       </div>
 
       <div class="coming-item">
@@ -700,7 +810,11 @@ footer a {
         <div class="coming-item-desc">
           Manage LOTO procedures, authorized personnel, and equipment isolation steps.
         </div>
-        <div class="coming-note">Learn more on our website and sign up to be notified when this module launches.</div>
+        <div class="coming-note">Learn more on our website.</div>
+        <div class="notify-check">
+          <input type="checkbox" id="notify-loto" class="notify-checkbox" data-module="Lockout / Tagout (LOTO)" />
+          <label for="notify-loto">Notify me when this launches</label>
+        </div>
       </div>
 
       <div class="coming-item">
@@ -708,7 +822,11 @@ footer a {
         <div class="coming-item-desc">
           Track hazardous materials, SDS documentation, and employee communication requirements.
         </div>
-        <div class="coming-note">Learn more on our website and sign up to be notified when this module launches.</div>
+        <div class="coming-note">Learn more on our website.</div>
+        <div class="notify-check">
+          <input type="checkbox" id="notify-hazcom" class="notify-checkbox" data-module="HAZCOM" />
+          <label for="notify-hazcom">Notify me when this launches</label>
+        </div>
       </div>
 
       <div class="coming-item">
@@ -716,7 +834,20 @@ footer a {
         <div class="coming-item-desc">
           Capture field hazards, photos, severity ratings, and corrective actions.
         </div>
-        <div class="coming-note">Learn more on our website and sign up to be notified when this module launches.</div>
+        <div class="coming-note">Learn more on our website.</div>
+        <div class="notify-check">
+          <input type="checkbox" id="notify-hazard" class="notify-checkbox" data-module="Hazard Recognition Reporting" />
+          <label for="notify-hazard">Notify me when this launches</label>
+        </div>
+      </div>
+
+      <!-- Notify Me — email input + submit button -->
+      <div class="notify-me-section">
+        <div class="notify-me-row">
+          <input type="email" id="notifyEmail" placeholder="your@email.com" maxlength="100" autocomplete="email" />
+          <button class="btn-primary" id="btnNotifyMe">Notify Me</button>
+        </div>
+        <div class="notify-me-status" id="notifyMeStatus"></div>
       </div>
 
     </div>
@@ -890,6 +1021,10 @@ function savedMatchesModule(savedArr, key, display) {
     applyBundle(matchedBundleId);
   }
 
+  // Validate restored combination — enforce Extraction Engine dependency rule
+  // (Extraction requires PM or Inspections; if neither was restored, uncheck Extraction)
+  updateExtractionRules();
+
   showSelectionBanner();
 })();
 
@@ -1020,9 +1155,10 @@ function updateSavingsPreview() {
     const annualTotal = monthlyTotal * 12;
     const annualDiscounted = Math.round(annualTotal * 0.90); // 10% off
     const savings = annualTotal - annualDiscounted;
+    // Use string concatenation to avoid template literal $ ambiguity
     preview.innerHTML =
-      `Monthly: $${monthlyTotal}/mo · Annual: $${annualDiscounted}/yr ` +
-      `<span style="color:#16a34a;">(save $${savings}/yr with annual billing)</span>`;
+      "Monthly: $" + monthlyTotal + "/mo \u00b7 Annual: $" + annualDiscounted + "/yr " +
+      '<span style="color:#16a34a;">(save $' + savings + "/yr with annual billing)</span>";
     preview.style.display = "block";
   } else {
     preview.style.display = "none";
@@ -1182,37 +1318,37 @@ btnContinue.addEventListener("click", async () => {
     return;
   }
 
-  // --- Turnstile token check ---
+  // --- Turnstile token check (fail closed — require token) ---
   const turnstileToken = document.querySelector('[name="cf-turnstile-response"]')?.value;
-  if (typeof turnstile !== 'undefined' && !turnstileToken) {
+  if (!turnstileToken) {
     statusBar.textContent = "Please complete the bot verification check.";
     statusBar.style.color = "#dc2626";
     return;
   }
 
   // --- Verify Turnstile token server-side (prevents token forgery) ---
-  if (turnstileToken) {
-    statusBar.textContent = "Verifying…";
-    statusBar.style.color = "#6b7280";
-    try {
-      const verifyResp = await fetch("/api/verify-turnstile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: turnstileToken })
-      });
-      const verifyData = await verifyResp.json();
-      if (!verifyData.success) {
-        statusBar.textContent = "Bot verification failed. Please try again.";
-        statusBar.style.color = "#dc2626";
-        return;
-      }
-    } catch (e) {
-      // If verification endpoint is unavailable, allow proceed with console warning
-      // (Turnstile widget itself already ran a client-side challenge)
-      console.warn("[DRIV-EN] Turnstile verification endpoint unavailable:", e);
+  statusBar.textContent = "Verifying…";
+  statusBar.style.color = "#6b7280";
+  try {
+    const verifyResp = await fetch("/api/verify-turnstile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: turnstileToken })
+    });
+    const verifyData = await verifyResp.json();
+    if (!verifyData.success) {
+      statusBar.textContent = "Bot verification failed. Please try again.";
+      statusBar.style.color = "#dc2626";
+      return;
     }
-    statusBar.textContent = "";
+  } catch (e) {
+    // Fail closed — if verification endpoint is unreachable, block submission
+    statusBar.textContent = "Unable to verify. Please check your connection and try again.";
+    statusBar.style.color = "#dc2626";
+    console.warn("[DRIV-EN] Turnstile verification endpoint unavailable:", e);
+    return;
   }
+  statusBar.textContent = "";
 
   // --- Gather selected modules ---
   // Save BOTH display names (for cart/checkout UI) and module keys (for backend).
@@ -1237,6 +1373,14 @@ btnContinue.addEventListener("click", async () => {
     localStorage.setItem("selectedModules", JSON.stringify(selected));
     localStorage.setItem("selectedModuleKeys", JSON.stringify(selectedKeys));
   } catch (e) { /* storage may be disabled — navigation still works */ }
+
+  // --- Pass referral code forward (captured on index.html via referral-capture.js) ---
+  // Read from localStorage and store in a key cart/checkout can pick up
+  let referralCode = null;
+  try { referralCode = localStorage.getItem("driv_en_referral_code"); } catch (e) { /* no-op */ }
+  if (referralCode) {
+    try { localStorage.setItem("driven_referral_code", referralCode); } catch (e) { /* no-op */ }
+  }
 
   // --- If promo code is active, go directly to checkout (skip Stripe) ---
   if (promoActive && promoData) {
@@ -1268,7 +1412,8 @@ btnContinue.addEventListener("click", async () => {
       isFree: true,
       promoCode: promoData.code || "",
       promoType: promoData.type || "free_period",
-      promoUntil: promoData.validUntil || "2026-12-31"
+      promoUntil: promoData.validUntil || "2026-12-31",
+      referralCode: referralCode || ""
     }));
     } catch (e) { /* no-op */ }
 
@@ -1483,6 +1628,80 @@ promoInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     e.preventDefault();
     validatePromoCode();
+  }
+});
+
+// ============================================================
+// NOTIFY ME — Coming Soon module notifications
+// When a user checks one or more "Notify me" checkboxes on
+// Coming Soon cards and provides their email, this sends a
+// POST to /api/notify-me with the email + selected module names.
+// The backend emails support@driv-en.com via SendGrid.
+// ============================================================
+const btnNotifyMe = document.getElementById("btnNotifyMe");
+const notifyEmail = document.getElementById("notifyEmail");
+const notifyMeStatus = document.getElementById("notifyMeStatus");
+
+function setNotifyMeStatus(msg, type) {
+  notifyMeStatus.textContent = msg;
+  notifyMeStatus.className = "notify-me-status" + (type ? " " + type : "");
+}
+
+async function submitNotifyMe() {
+  const email = notifyEmail.value.trim();
+
+  // Validate email
+  if (!email) {
+    setNotifyMeStatus("Please enter your email address.", "error");
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    setNotifyMeStatus("Please enter a valid email address.", "error");
+    return;
+  }
+
+  // Gather checked modules
+  const checkboxes = document.querySelectorAll(".notify-checkbox:checked");
+  const modules = Array.from(checkboxes).map(cb => cb.getAttribute("data-module"));
+
+  if (modules.length === 0) {
+    setNotifyMeStatus("Please select at least one module to be notified about.", "error");
+    return;
+  }
+
+  setNotifyMeStatus("Submitting…", "loading");
+  btnNotifyMe.disabled = true;
+
+  try {
+    const resp = await fetch("/api/notify-me", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email, modules: modules })
+    });
+    const data = await resp.json();
+
+    if (data.success) {
+      setNotifyMeStatus("Thank you! We'll notify you when these modules launch.", "success");
+      // Uncheck all checkboxes and clear email
+      document.querySelectorAll(".notify-checkbox").forEach(cb => { cb.checked = false; });
+      notifyEmail.value = "";
+    } else {
+      setNotifyMeStatus(data.error || "Something went wrong. Please try again.", "error");
+    }
+  } catch (e) {
+    setNotifyMeStatus("Network error. Please try again.", "error");
+  } finally {
+    btnNotifyMe.disabled = false;
+  }
+}
+
+btnNotifyMe.addEventListener("click", submitNotifyMe);
+
+// Allow Enter key in notify email input
+notifyEmail.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    submitNotifyMe();
   }
 });
 
