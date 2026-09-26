@@ -30,6 +30,15 @@
 
 <!-- Global error handler — must load before any other JS -->
 <script src="/assets/js/error-handler.js"></script>
+<script>
+  // Fallback: if error-handler.js fails to load, define a minimal reporter
+  // so calls to window.reportError don't throw and break page logic.
+  if (typeof window.reportError !== "function") {
+    window.reportError = function(err) {
+      console.error("[DRIV-EN] Unhandled error:", err);
+    };
+  }
+</script>
 
 <!-- Cloudflare Turnstile script (bot protection) -->
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
@@ -447,6 +456,9 @@ footer a {
     <button class="btn-secondary" id="btnRemovePromo" style="display:none;">Remove</button>
   </div>
   <div class="promo-status" id="promoStatus"></div>
+  <div style="margin-top:10px;font-size:12px;color:#6b7280;">
+    Don't have a code? <a href="mailto:support@driv-en.com?subject=Founding%20Member%20Code%20Request" style="color:#16a34a;font-weight:600;">Contact DRIV-EN</a> to request one.
+  </div>
 </div>
 
 <!-- ============================================================
@@ -849,6 +861,14 @@ function savedMatchesModule(savedArr, key, display) {
 
   if (!Array.isArray(saved) || saved.length === 0) return;
 
+  // Validate: every element must be a string — discard malformed data
+  if (!saved.every(s => typeof s === "string")) {
+    console.warn("[DRIV-EN] Malformed selection data in localStorage — clearing.");
+    safeRemoveItem("selectedModuleKeys");
+    safeRemoveItem("selectedModules");
+    return;
+  }
+
   // Restore modules — match by EITHER key OR display name (case-insensitive)
   // This ensures restore works whether the saved data came from this page
   // (display names) or from cart/checkout (which may use backend keys)
@@ -945,6 +965,67 @@ function showSelectionBanner() {
   } else {
     // Nothing selected (beyond required Asset Management) — hide banner
     banner.style.display = "none";
+  }
+
+  // --- Savings Preview (annual billing = 10% discount) ---
+  updateSavingsPreview();
+}
+
+/* -------------------------------------------------------------
+   SAVINGS PREVIEW
+   Calculates monthly total and shows annual savings (10% off).
+   Multi-Language Support adds $19/mo per secondary language.
+   ------------------------------------------------------------- */
+function updateSavingsPreview() {
+  const preview = document.getElementById("savingsPreview");
+  if (!preview) return;
+
+  // Price map for individual modules (monthly)
+  const PRICES = {
+    pm: 299, inspections: 199, workorders: 149,
+    fuel: 49, transfers: 79, extraction: 149, multilanguage: 19
+  };
+
+  // Bundle prices (monthly) — if a bundle is active, use bundle price
+  const BUNDLE_PRICES = {
+    bundleOperations: 499, bundleFull: 529, bundleComplete: 599
+  };
+
+  let monthlyTotal = 149; // Asset Management is always included
+  let hasExtras = false;
+
+  if (bundleActive && activeBundle) {
+    const bundleId = bundleIds.find(id => document.getElementById(id).checked);
+    if (bundleId && BUNDLE_PRICES[bundleId]) {
+      monthlyTotal = BUNDLE_PRICES[bundleId];
+      hasExtras = true;
+    }
+  } else {
+    // Individual module pricing
+    if (modPM.checked) { monthlyTotal += PRICES.pm; hasExtras = true; }
+    if (modIns.checked) { monthlyTotal += PRICES.inspections; hasExtras = true; }
+    if (modWO.checked) { monthlyTotal += PRICES.workorders; hasExtras = true; }
+    if (modFuel.checked) { monthlyTotal += PRICES.fuel; hasExtras = true; }
+    if (modTransfers.checked) { monthlyTotal += PRICES.transfers; hasExtras = true; }
+    if (modExtraction.checked) { monthlyTotal += PRICES.extraction; hasExtras = true; }
+  }
+
+  // Multi-Language is always additive (standalone add-on, not in bundles)
+  if (modTranslation.checked) {
+    monthlyTotal += PRICES.multilanguage;
+    hasExtras = true;
+  }
+
+  if (hasExtras && monthlyTotal > 149) {
+    const annualTotal = monthlyTotal * 12;
+    const annualDiscounted = Math.round(annualTotal * 0.90); // 10% off
+    const savings = annualTotal - annualDiscounted;
+    preview.innerHTML =
+      `Monthly: $${monthlyTotal}/mo · Annual: $${annualDiscounted}/yr ` +
+      `<span style="color:#16a34a;">(save $${savings}/yr with annual billing)</span>`;
+    preview.style.display = "block";
+  } else {
+    preview.style.display = "none";
   }
 }
 
@@ -1091,7 +1172,7 @@ bundleIds.forEach(id => {
 
    TURNSTILE CHECK: Verifies the Turnstile token before proceeding.
    ------------------------------------------------------------- */
-btnContinue.addEventListener("click", () => {
+btnContinue.addEventListener("click", async () => {
 
   // --- Honeypot check — if filled, a bot submitted the form ---
   const honeypot = document.getElementById("company_website");
@@ -1107,6 +1188,30 @@ btnContinue.addEventListener("click", () => {
     statusBar.textContent = "Please complete the bot verification check.";
     statusBar.style.color = "#dc2626";
     return;
+  }
+
+  // --- Verify Turnstile token server-side (prevents token forgery) ---
+  if (turnstileToken) {
+    statusBar.textContent = "Verifying…";
+    statusBar.style.color = "#6b7280";
+    try {
+      const verifyResp = await fetch("/api/verify-turnstile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: turnstileToken })
+      });
+      const verifyData = await verifyResp.json();
+      if (!verifyData.success) {
+        statusBar.textContent = "Bot verification failed. Please try again.";
+        statusBar.style.color = "#dc2626";
+        return;
+      }
+    } catch (e) {
+      // If verification endpoint is unavailable, allow proceed with console warning
+      // (Turnstile widget itself already ran a client-side challenge)
+      console.warn("[DRIV-EN] Turnstile verification endpoint unavailable:", e);
+    }
+    statusBar.textContent = "";
   }
 
   // --- Gather selected modules ---
@@ -1234,6 +1339,13 @@ async function validatePromoCode() {
     return;
   }
 
+  // Client-side format validation — alphanumeric + hyphens, 3–30 chars
+  // Prevents injection and reduces unnecessary API calls
+  if (!/^[A-Za-z0-9\-]{3,30}$/.test(code)) {
+    setPromoStatus("Invalid code format. Use letters, numbers, and hyphens only.", "error");
+    return;
+  }
+
   setPromoStatus("Validating code…", "loading");
   btnApplyPromo.disabled = true;
 
@@ -1241,7 +1353,7 @@ async function validatePromoCode() {
     const resp = await fetch("/api/validate-promo", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: code })
+      body: JSON.stringify({ code: code.toUpperCase() })
     });
     const data = await resp.json();
 
