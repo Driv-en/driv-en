@@ -220,7 +220,7 @@
         </div>
         <div class="purchase-field">
           <label class="purchase-label">P.O. Number</label>
-          <input type="text" id="purchasePONumber" class="purchase-input" placeholder="Optional — for future modules" oninput="markFormDirty()">
+          <input type="text" id="purchasePONumber" class="purchase-input" placeholder="Optional" oninput="markFormDirty()">
         </div>
         <div class="purchase-field">
           <label class="purchase-label">User <span style="color:#cc0000;">*</span></label>
@@ -294,7 +294,6 @@
       <div class="purchase-field purchase-field-full" style="margin-bottom:20px;">
         <label class="purchase-label">Notes</label>
         <input type="text" id="purchaseNotes" class="purchase-input" placeholder="Optional — e.g., PO number, delivery ticket #, price per gallon quote, who authorized" oninput="markFormDirty()">
-        <!-- TODO: When multi-language module is enabled, translate notes field from user's preferred language to org primary language using @cf/meta/m2m100-1.2b. Store both original and translated. See build report Session 9c multi-language spec. -->
       </div>
 
       <!-- Submit -->
@@ -340,15 +339,10 @@ function reportError(source, err) {
   var stack = (err && err.stack) ? err.stack : 'No stack trace';
   console.error('[' + source + ']', msg, stack);
   var lowerMsg = (msg || '').toLowerCase();
-  if (lowerMsg.indexOf('not authenticated') !== -1 || lowerMsg.indexOf('session') !== -1 || lowerMsg.indexOf('unauthorized') !== -1 || lowerMsg.indexOf('401') !== -1 || lowerMsg.indexOf('forbidden') !== -1 || lowerMsg.indexOf('403') !== -1) {
-    console.warn('[' + source + '] Suppressed error report for auth-related error (no redirect):', msg);
-    return;
-  }
+  if (lowerMsg.indexOf('not authenticated') !== -1 || lowerMsg.indexOf('session') !== -1 || lowerMsg.indexOf('unauthorized') !== -1 || lowerMsg.indexOf('401') !== -1 || lowerMsg.indexOf('forbidden') !== -1 || lowerMsg.indexOf('403') !== -1) { console.warn('[' + source + '] Suppressed error report for auth-related error:', msg); return; }
   if (_reportErrorInFlight) return;
   _reportErrorInFlight = true;
-  try {
-    fetch('/api/log-error', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'Fuel Purchase Form (' + source + ')', message: msg, stack: stack, url: window.location.href, userAgent: navigator.userAgent }) }).then(function() { _reportErrorInFlight = false; }).catch(function() { _reportErrorInFlight = false; });
-  } catch (e) { _reportErrorInFlight = false; }
+  try { fetch('/api/log-error', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'Fuel Purchase Form (' + source + ')', message: msg, stack: stack, url: window.location.href, userAgent: navigator.userAgent }) }).then(function() { _reportErrorInFlight = false; }).catch(function() { _reportErrorInFlight = false; }); } catch (e) { _reportErrorInFlight = false; }
 }
 
 /* ===== DEVICE LOCATION CHECK ===== */
@@ -356,22 +350,8 @@ function checkDeviceLocation() {
   if (!navigator.geolocation) { showLocationPopup('Your device does not support GPS location. Please use a device with location capabilities.'); return; }
   navigator.geolocation.getCurrentPosition(function(pos) { deviceLocation = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy, timestamp: new Date().toISOString() }; updateLocationStatus(true); }, function(err) { deviceLocation = null; updateLocationStatus(false); var msg = 'Location is required to submit forms. '; if (err.code === 1) msg += 'You denied location access. Please enable it in your device settings.'; else if (err.code === 2) msg += 'Location is unavailable. Check your GPS or network connection.'; else if (err.code === 3) msg += 'Location request timed out. Please try again.'; else msg += 'Error: ' + err.message; showLocationPopup(msg); }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
 }
-
-function updateLocationStatus(hasLocation) {
-  var banner = document.getElementById('locationStatusBanner');
-  if (!banner) return;
-  if (hasLocation) { banner.className = 'location-banner ok'; banner.innerHTML = '<strong>📍 Location:</strong> ' + deviceLocation.latitude.toFixed(6) + ', ' + deviceLocation.longitude.toFixed(6) + ' (±' + Math.round(deviceLocation.accuracy) + 'm)'; }
-  else { banner.className = 'location-banner warn'; banner.innerHTML = '<strong>⚠️ Location is OFF</strong> — Click to retry <button onclick="checkDeviceLocation()" style="margin-left:8px;padding:4px 12px;border:1px solid #b45309;border-radius:4px;background:#fef3c7;color:#78350f;cursor:pointer;font-size:12px;">Retry</button>'; }
-}
-
-function showLocationPopup(message) {
-  var overlay = document.getElementById('locationPopupOverlay');
-  var msgEl = document.getElementById('locationPopupMessage');
-  if (!overlay || !msgEl) return;
-  msgEl.innerHTML = '<p style="font-size:15px;margin:0 0 16px;">' + esc(message) + '</p><div style="background:#f4f4f4;border-radius:8px;padding:14px;margin-bottom:12px;"><p style="font-weight:600;margin:0 0 8px;">How to enable location:</p><p style="margin:0 0 6px;"><strong>iPhone/iPad (iOS):</strong> Settings → Privacy & Security → Location Services → ON → Find your browser (Safari/Chrome) → set to "While Using"</p><p style="margin:0 0 6px;"><strong>Android:</strong> Settings → Location → ON → App permissions → your browser → Allow only while using the app</p><p style="margin:0 0 6px;"><strong>Chrome (Desktop):</strong> Click the location icon in the address bar → Site settings → Location → Allow → Reload</p><p style="margin:0 0 6px;"><strong>Edge (Desktop):</strong> Settings → Cookies and site permissions → Location → Allow</p><p style="margin:0;"><strong>Firefox (Desktop):</strong> Settings → Privacy & Security → Permissions → Location → Settings → Allow</p></div><p style="font-size:13px;color:#666;margin:0;">After enabling, click "Retry" to capture your location. Forms cannot be submitted without location.</p>';
-  overlay.style.display = 'flex';
-}
-
+function updateLocationStatus(hasLocation) { var banner = document.getElementById('locationStatusBanner'); if (!banner) return; if (hasLocation) { banner.className = 'location-banner ok'; banner.innerHTML = '<strong>📍 Location:</strong> ' + deviceLocation.latitude.toFixed(6) + ', ' + deviceLocation.longitude.toFixed(6) + ' (±' + Math.round(deviceLocation.accuracy) + 'm)'; } else { banner.className = 'location-banner warn'; banner.innerHTML = '<strong>⚠️ Location is OFF</strong> — Click to retry <button onclick="checkDeviceLocation()" style="margin-left:8px;padding:4px 12px;border:1px solid #b45309;border-radius:4px;background:#fef3c7;color:#78350f;cursor:pointer;font-size:12px;">Retry</button>'; } }
+function showLocationPopup(message) { var overlay = document.getElementById('locationPopupOverlay'); var msgEl = document.getElementById('locationPopupMessage'); if (!overlay || !msgEl) return; msgEl.innerHTML = '<p style="font-size:15px;margin:0 0 16px;">' + esc(message) + '</p><div style="background:#f4f4f4;border-radius:8px;padding:14px;margin-bottom:12px;"><p style="font-weight:600;margin:0 0 8px;">How to enable location:</p><p style="margin:0 0 6px;"><strong>iPhone/iPad (iOS):</strong> Settings → Privacy & Security → Location Services → ON → Find your browser (Safari/Chrome) → set to "While Using"</p><p style="margin:0 0 6px;"><strong>Android:</strong> Settings → Location → ON → App permissions → your browser → Allow only while using the app</p><p style="margin:0 0 6px;"><strong>Chrome (Desktop):</strong> Click the location icon in the address bar → Site settings → Location → Allow → Reload</p><p style="margin:0 0 6px;"><strong>Edge (Desktop):</strong> Settings → Cookies and site permissions → Location → Allow</p><p style="margin:0;"><strong>Firefox (Desktop):</strong> Settings → Privacy & Security → Permissions → Location → Settings → Allow</p></div><p style="font-size:13px;color:#666;margin:0;">After enabling, click "Retry" to capture your location. Forms cannot be submitted without location.</p>'; overlay.style.display = 'flex'; }
 function closeLocationPopup() { var overlay = document.getElementById('locationPopupOverlay'); if (overlay) overlay.style.display = 'none'; }
 function hasDeviceLocation() { return deviceLocation !== null && deviceLocation.latitude !== undefined && deviceLocation.longitude !== undefined; }
 function requireLocationOrPopup() { if (hasDeviceLocation()) return true; var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024); if (!isMobile) return true; showLocationPopup('Location is required to submit this form. Please enable location on your device and retry.'); return false; }
@@ -416,63 +396,34 @@ function addLineItem(data) {
   container.appendChild(div);
   recalcGrandTotal();
 }
-
 function removeLineItem(lineId) { var el = document.getElementById(lineId); if (el) el.remove(); recalcGrandTotal(); if (document.querySelectorAll('.line-item-row').length === 0) addLineItem(); }
-
-function recalcLine(lineId) {
-  var row = document.getElementById(lineId);
-  if (!row) { recalcGrandTotal(); return; }
-  var fuelSelect = row.querySelector('.line-fuel-type');
-  if (fuelSelect && fuelSelect.value === '__custom_fuel') {
-    var input = document.createElement('input');
-    input.type = 'text'; input.className = 'purchase-input line-fuel-type'; input.placeholder = 'Type fuel name'; input.setAttribute('data-custom', 'true'); input.oninput = function() { markFormDirty(); };
-    fuelSelect.parentNode.replaceChild(input, fuelSelect);
-    input.focus();
-  }
-  recalcGrandTotal();
-}
-
-function recalcGrandTotal() {
-  var total = 0;
-  var hasAnyQty = false;
-  var hasAnyPrice = false;
-  document.querySelectorAll('.line-item-row').forEach(function(row) {
-    var qty = parseFloat(row.querySelector('.line-qty').value) || 0;
-    var cpg = parseFloat(row.querySelector('.line-cpg').value) || 0;
-    if (qty > 0) hasAnyQty = true;
-    if (cpg > 0) hasAnyPrice = true;
-    if (qty > 0 && cpg > 0) total += qty * cpg;
-  });
-  var totalEl = document.getElementById('grandTotal');
-  if (!totalEl) return;
-  if (!hasAnyQty) { totalEl.textContent = '$0.00'; return; }
-  if (!hasAnyPrice) { totalEl.textContent = '—'; totalEl.style.color = 'var(--text-muted)'; return; }
-  totalEl.style.color = 'var(--primary)';
-  totalEl.textContent = '$' + total.toFixed(2);
-  checkReceiptMismatch();
-}
-
-/* ===== RECEIPT TOTAL vs GRAND FUEL TOTAL MISMATCH ===== */
-function checkReceiptMismatch(){
-  var rtEl=document.getElementById('receiptTotal');
-  var gtEl=document.getElementById('grandTotal');
-  var notice=document.getElementById('receiptMismatchNotice');
-  if(!rtEl||!gtEl||!notice)return;
-  var rt=parseFloat(rtEl.value);
-  var gtText=gtEl.textContent.replace(/[$,]/g,'');
-  var gt=parseFloat(gtText);
-  if(isNaN(rt)||isNaN(gt))return;
-  window._receiptMismatch=Math.abs(rt-gt)>0.01;
-  notice.style.display=window._receiptMismatch?'block':'none';
-}
-
+function recalcLine(lineId) { var row = document.getElementById(lineId); if (!row) { recalcGrandTotal(); return; } var fuelSelect = row.querySelector('.line-fuel-type'); if (fuelSelect && fuelSelect.value === '__custom_fuel') { var input = document.createElement('input'); input.type = 'text'; input.className = 'purchase-input line-fuel-type'; input.placeholder = 'Type fuel name'; input.setAttribute('data-custom', 'true'); input.oninput = function() { markFormDirty(); }; fuelSelect.parentNode.replaceChild(input, fuelSelect); input.focus(); } recalcGrandTotal(); }
+function recalcGrandTotal() { var total = 0; var hasAnyQty = false; var hasAnyPrice = false; document.querySelectorAll('.line-item-row').forEach(function(row) { var qty = parseFloat(row.querySelector('.line-qty').value) || 0; var cpg = parseFloat(row.querySelector('.line-cpg').value) || 0; if (qty > 0) hasAnyQty = true; if (cpg > 0) hasAnyPrice = true; if (qty > 0 && cpg > 0) total += qty * cpg; }); var totalEl = document.getElementById('grandTotal'); if (!totalEl) return; if (!hasAnyQty) { totalEl.textContent = '$0.00'; return; } if (!hasAnyPrice) { totalEl.textContent = '—'; totalEl.style.color = 'var(--text-muted)'; return; } totalEl.style.color = 'var(--primary)'; totalEl.textContent = '$' + total.toFixed(2); checkReceiptMismatch(); }
+function checkReceiptMismatch(){ var rtEl=document.getElementById('receiptTotal'); var gtEl=document.getElementById('grandTotal'); var notice=document.getElementById('receiptMismatchNotice'); if(!rtEl||!gtEl||!notice)return; var rt=parseFloat(rtEl.value); var gtText=gtEl.textContent.replace(/[$,]/g,''); var gt=parseFloat(gtText); if(isNaN(rt)||isNaN(gt))return; window._receiptMismatch=Math.abs(rt-gt)>0.01; notice.style.display=window._receiptMismatch?'block':'none'; }
 /* ===== RECEIPT UPLOAD ===== */
+// Resize image to max dimension before upload (vision model has 128K token limit)
 function resizeImage(file, maxDim) {
   return new Promise(function(resolve, reject) {
     if (!file.type.startsWith('image/')) { resolve(file); return; }
     var img = new Image();
     var url = URL.createObjectURL(file);
-    img.onload = function() { URL.revokeObjectURL(url); var w = img.width, h = img.height; if (w <= maxDim && h <= maxDim) { resolve(file); return; } var scale = Math.min(maxDim / w, maxDim / h); var cw = Math.round(w * scale), ch = Math.round(h * scale); var canvas = document.createElement('canvas'); canvas.width = cw; canvas.height = ch; var ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, cw, ch); canvas.toBlob(function(blob) { if (blob) { var resized = new File([blob], file.name || 'receipt.jpg', { type: 'image/jpeg' }); resolve(resized); } else { resolve(file); } }, 'image/jpeg', 0.70); };
+    img.onload = function() {
+      URL.revokeObjectURL(url);
+      var w = img.width, h = img.height;
+      if (w <= maxDim && h <= maxDim) { resolve(file); return; }
+      var scale = Math.min(maxDim / w, maxDim / h);
+      var cw = Math.round(w * scale), ch = Math.round(h * scale);
+      var canvas = document.createElement('canvas');
+      canvas.width = cw; canvas.height = ch;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, cw, ch);
+      canvas.toBlob(function(blob) {
+        if (blob) {
+          var resized = new File([blob], file.name || 'receipt.jpg', { type: 'image/jpeg' });
+          resolve(resized);
+        } else { resolve(file); }
+      }, 'image/jpeg', 0.70);
+    };
     img.onerror = function() { URL.revokeObjectURL(url); resolve(file); };
     img.src = url;
   });
@@ -480,22 +431,105 @@ function resizeImage(file, maxDim) {
 
 /* ===== CROP OVERLAY ===== */
 var _cropState = null;
-function showCropOverlay(file, callback) { var isPdf = file.type === 'application/pdf' || (file.name || '').toLowerCase().endsWith('.pdf'); if (isPdf) { callback(file); return; } var imgUrl = URL.createObjectURL(file); var img = new Image(); img.onload = function() { _buildCropUI(file, img, imgUrl, callback); }; img.onerror = function() { URL.revokeObjectURL(imgUrl); callback(file); }; img.src = imgUrl; }
-function _buildCropUI(file, img, imgUrl, callback) { var existing = document.getElementById('cropOverlay'); if (existing) existing.remove(); var overlay = document.createElement('div'); overlay.id = 'cropOverlay'; overlay.className = 'crop-overlay'; var modal = document.createElement('div'); modal.className = 'crop-modal'; var title = document.createElement('h3'); title.textContent = 'Crop Receipt'; modal.appendChild(title); var desc = document.createElement('p'); desc.innerHTML = '<strong>How to crop:</strong> Drag the <strong>green corners</strong> to resize the box around the receipt text. Drag anywhere inside the box to move it. Click "Use Full Image" to skip cropping.'; modal.appendChild(desc); var stage = document.createElement('div'); stage.className = 'crop-stage'; var imgEl = document.createElement('img'); imgEl.src = imgUrl; stage.appendChild(imgEl); var imgW = img.width, imgH = img.height; var dispW, dispH; var cropBox = document.createElement('div'); cropBox.className = 'crop-box'; stage.appendChild(cropBox); ['nw', 'ne', 'sw', 'se'].forEach(function(pos) { var h = document.createElement('div'); h.className = 'crop-handle ' + pos; h.dataset.pos = pos; cropBox.appendChild(h); }); modal.appendChild(stage); var actions = document.createElement('div'); actions.className = 'crop-actions'; var cancelBtn = document.createElement('button'); cancelBtn.className = 'crop-btn crop-btn-cancel'; cancelBtn.textContent = 'Cancel'; cancelBtn.onclick = function() { overlay.remove(); URL.revokeObjectURL(imgUrl); _cropState = null; }; var fullBtn = document.createElement('button'); fullBtn.className = 'crop-btn crop-btn-secondary'; fullBtn.textContent = 'Use Full Image'; fullBtn.onclick = function() { overlay.remove(); URL.revokeObjectURL(imgUrl); _cropState = null; _resizeImageAsync(file, 1024).then(function(resized) { callback(resized); }); }; var cropBtn = document.createElement('button'); cropBtn.className = 'crop-btn crop-btn-primary'; cropBtn.textContent = 'Crop & Extract'; cropBtn.onclick = function() { if (!_cropState) { overlay.remove(); URL.revokeObjectURL(imgUrl); callback(file); return; } var cropped = _performCrop(file, img, _cropState); overlay.remove(); URL.revokeObjectURL(imgUrl); _cropState = null; callback(cropped); }; actions.appendChild(cancelBtn); actions.appendChild(fullBtn); actions.appendChild(cropBtn); modal.appendChild(actions); overlay.appendChild(modal); document.body.appendChild(overlay); requestAnimationFrame(function() { dispW = imgEl.clientWidth; dispH = imgEl.clientHeight; var boxW = dispW * 0.8; var boxH = dispH * 0.8; var boxX = (dispW - boxW) / 2; var boxY = (dispH - boxH) / 2; cropBox.style.left = boxX + 'px'; cropBox.style.top = boxY + 'px'; cropBox.style.width = boxW + 'px'; cropBox.style.height = boxH + 'px'; _cropState = { boxX: boxX, boxY: boxY, boxW: boxW, boxH: boxH, dispW: dispW, dispH: dispH, imgW: imgW, imgH: imgH }; _attachCropEvents(stage, cropBox, imgW, imgH); }); }
-function _attachCropEvents(stage, cropBox, imgW, imgH) { var dragging = false; var resizing = false; var resizePos = null; var startX, startY, startBoxX, startBoxY, startBoxW, startBoxH; function onDown(e) { e.preventDefault(); var touch = e.touches ? e.touches[0] : e; startX = touch.clientX; startY = touch.clientY; startBoxX = _cropState.boxX; startBoxY = _cropState.boxY; startBoxW = _cropState.boxW; startBoxH = _cropState.boxH; if (e.target.classList.contains('crop-handle')) { resizing = true; resizePos = e.target.dataset.pos; } else if (e.target === cropBox) { dragging = true; } } function onMove(e) { if (!dragging && !resizing) return; e.preventDefault(); var touch = e.touches ? e.touches[0] : e; var dx = touch.clientX - startX; var dy = touch.clientY - startY; if (dragging) { _cropState.boxX = Math.max(0, Math.min(_cropState.dispW - _cropState.boxW, startBoxX + dx)); _cropState.boxY = Math.max(0, Math.min(_cropState.dispH - _cropState.boxH, startBoxY + dy)); } else if (resizing) { var newX = startBoxX, newY = startBoxY, newW = startBoxW, newH = startBoxH; if (resizePos.indexOf('e') !== -1) newW = Math.max(40, Math.min(_cropState.dispW - startBoxX, startBoxW + dx)); if (resizePos.indexOf('s') !== -1) newH = Math.max(40, Math.min(_cropState.dispH - startBoxY, startBoxH + dy)); if (resizePos.indexOf('w') !== -1) { var maxDx = startBoxW - 40; var realDx = Math.max(-startBoxX, Math.min(maxDx, dx)); newX = startBoxX + realDx; newW = startBoxW - realDx; } if (resizePos.indexOf('n') !== -1) { var maxDy = startBoxH - 40; var realDy = Math.max(-startBoxY, Math.min(maxDy, dy)); newY = startBoxY + realDy; newH = startBoxH - realDy; } _cropState.boxX = newX; _cropState.boxY = newY; _cropState.boxW = newW; _cropState.boxH = newH; } cropBox.style.left = _cropState.boxX + 'px'; cropBox.style.top = _cropState.boxY + 'px'; cropBox.style.width = _cropState.boxW + 'px'; cropBox.style.height = _cropState.boxH + 'px'; } function onUp() { dragging = false; resizing = false; } cropBox.addEventListener('mousedown', onDown); cropBox.addEventListener('touchstart', onDown, { passive: false }); document.addEventListener('mousemove', onMove); document.addEventListener('touchmove', onMove, { passive: false }); document.addEventListener('mouseup', onUp); document.addEventListener('touchend', onUp); }
-function _resizeImageAsync(file, maxDim) { return new Promise(function(resolve, reject) { var img = new Image(); var url = URL.createObjectURL(file); img.onload = function() { URL.revokeObjectURL(url); var sw = img.width, sh = img.height; var finalW = sw, finalH = sh; if (sw > maxDim || sh > maxDim) { var scale = Math.min(maxDim / sw, maxDim / sh); finalW = Math.round(sw * scale); finalH = Math.round(sh * scale); } if (finalW === sw && finalH === sh) { resolve(file); return; } var canvas = document.createElement('canvas'); canvas.width = finalW; canvas.height = finalH; var ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, sw, sh, 0, 0, finalW, finalH); var dataUrl = canvas.toDataURL('image/jpeg', 0.85); var byteString = atob(dataUrl.split(',')[1]); var arr = new Uint8Array(byteString.length); for (var i = 0; i < byteString.length; i++) arr[i] = byteString.charCodeAt(i); resolve(new File([arr], file.name || 'receipt.jpg', { type: 'image/jpeg' })); }; img.onerror = function() { URL.revokeObjectURL(url); resolve(file); }; img.src = url; }); }
-function _performCrop(file, img, state) { var scaleX = state.imgW / state.dispW; var scaleY = state.imgH / state.dispH; var sx = Math.round(state.boxX * scaleX); var sy = Math.round(state.boxY * scaleY); var sw = Math.round(state.boxW * scaleX); var sh = Math.round(state.boxH * scaleY); sx = Math.max(0, Math.min(state.imgW - 1, sx)); sy = Math.max(0, Math.min(state.imgH - 1, sy)); sw = Math.max(1, Math.min(state.imgW - sx, sw)); sh = Math.max(1, Math.min(state.imgH - sy, sh)); var canvas = document.createElement('canvas'); canvas.width = sw; canvas.height = sh; var ctx = canvas.getContext('2d'); ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh); var maxDim = 1024; var finalW = sw, finalH = sh; if (sw > maxDim || sh > maxDim) { var scale = Math.min(maxDim / sw, maxDim / sh); finalW = Math.round(sw * scale); finalH = Math.round(sh * scale); } if (finalW !== sw || finalH !== sh) { var resizeCanvas = document.createElement('canvas'); resizeCanvas.width = finalW; resizeCanvas.height = finalH; var rctx = resizeCanvas.getContext('2d'); rctx.drawImage(canvas, 0, 0, sw, sh, 0, 0, finalW, finalH); canvas = resizeCanvas; } var dataUrl = canvas.toDataURL('image/jpeg', 0.85); var byteString = atob(dataUrl.split(',')[1]); var arr = new Uint8Array(byteString.length); for (var i = 0; i < byteString.length; i++) arr[i] = byteString.charCodeAt(i); return new File([arr], file.name || 'receipt.jpg', { type: 'image/jpeg' }); }
+
+function showCropOverlay(file, callback) {
+  var isPdf = file.type === 'application/pdf' || (file.name || '').toLowerCase().endsWith('.pdf');
+  if (isPdf) { callback(file); return; }
+  var imgUrl = URL.createObjectURL(file);
+  var img = new Image();
+  img.onload = function() { _buildCropUI(file, img, imgUrl, callback); };
+  img.onerror = function() { URL.revokeObjectURL(imgUrl); callback(file); };
+  img.src = imgUrl;
+}
+
+function _buildCropUI(file, img, imgUrl, callback) {
+  var existing = document.getElementById('cropOverlay');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'cropOverlay';
+  overlay.className = 'crop-overlay';
+  var modal = document.createElement('div');
+  modal.className = 'crop-modal';
+  var title = document.createElement('h3');
+  title.textContent = 'Crop Receipt';
+  modal.appendChild(title);
+  var desc = document.createElement('p');
+  desc.innerHTML = '<strong>How to crop:</strong> Drag the <strong>green corners</strong> (the small green squares at each corner) to resize the box around the receipt text. Drag anywhere inside the box to move it. The area inside the green box is what the AI will read — everything outside is cut away. Click "Use Full Image" to skip cropping.';
+  modal.appendChild(desc);
+  var stage = document.createElement('div');
+  stage.className = 'crop-stage';
+  var imgEl = document.createElement('img');
+  imgEl.src = imgUrl;
+  stage.appendChild(imgEl);
+  var imgW = img.width, imgH = img.height;
+  var dispW, dispH;
+  var cropBox = document.createElement('div');
+  cropBox.className = 'crop-box';
+  stage.appendChild(cropBox);
+  ['nw', 'ne', 'sw', 'se'].forEach(function(pos) { var h = document.createElement('div'); h.className = 'crop-handle ' + pos; h.dataset.pos = pos; cropBox.appendChild(h); });
+  modal.appendChild(stage);
+  var actions = document.createElement('div');
+  actions.className = 'crop-actions';
+  var cancelBtn = document.createElement('button');
+  cancelBtn.className = 'crop-btn crop-btn-cancel';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.onclick = function() { overlay.remove(); URL.revokeObjectURL(imgUrl); _cropState = null; };
+  var fullBtn = document.createElement('button');
+  fullBtn.className = 'crop-btn crop-btn-secondary';
+  fullBtn.textContent = 'Use Full Image';
+  fullBtn.onclick = function() { overlay.remove(); URL.revokeObjectURL(imgUrl); _cropState = null; _resizeImageAsync(file, 1024).then(function(resized) { callback(resized); }); };
+  var cropBtn = document.createElement('button');
+  cropBtn.className = 'crop-btn crop-btn-primary';
+  cropBtn.textContent = 'Crop & Extract';
+  cropBtn.onclick = function() { if (!_cropState) { overlay.remove(); URL.revokeObjectURL(imgUrl); callback(file); return; } var cropped = _performCrop(file, img, _cropState); overlay.remove(); URL.revokeObjectURL(imgUrl); _cropState = null; callback(cropped); };
+  actions.appendChild(cancelBtn); actions.appendChild(fullBtn); actions.appendChild(cropBtn);
+  modal.appendChild(actions);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  requestAnimationFrame(function() {
+    dispW = imgEl.clientWidth; dispH = imgEl.clientHeight;
+    var boxW = dispW * 0.8; var boxH = dispH * 0.8; var boxX = (dispW - boxW) / 2; var boxY = (dispH - boxH) / 2;
+    cropBox.style.left = boxX + 'px'; cropBox.style.top = boxY + 'px'; cropBox.style.width = boxW + 'px'; cropBox.style.height = boxH + 'px';
+    _cropState = { boxX: boxX, boxY: boxY, boxW: boxW, boxH: boxH, dispW: dispW, dispH: dispH, imgW: imgW, imgH: imgH };
+    _attachCropEvents(stage, cropBox, imgW, imgH);
+  });
+}
+
+function _attachCropEvents(stage, cropBox, imgW, imgH) {
+  var dragging = false; var resizing = false; var resizePos = null;
+  var startX, startY, startBoxX, startBoxY, startBoxW, startBoxH;
+  function onDown(e) { e.preventDefault(); var touch = e.touches ? e.touches[0] : e; startX = touch.clientX; startY = touch.clientY; startBoxX = _cropState.boxX; startBoxY = _cropState.boxY; startBoxW = _cropState.boxW; startBoxH = _cropState.boxH; if (e.target.classList.contains('crop-handle')) { resizing = true; resizePos = e.target.dataset.pos; } else if (e.target === cropBox) { dragging = true; } }
+  function onMove(e) { if (!dragging && !resizing) return; e.preventDefault(); var touch = e.touches ? e.touches[0] : e; var dx = touch.clientX - startX; var dy = touch.clientY - startY; if (dragging) { _cropState.boxX = Math.max(0, Math.min(_cropState.dispW - _cropState.boxW, startBoxX + dx)); _cropState.boxY = Math.max(0, Math.min(_cropState.dispH - _cropState.boxH, startBoxY + dy)); } else if (resizing) { var newX = startBoxX, newY = startBoxY, newW = startBoxW, newH = startBoxH; if (resizePos.indexOf('e') !== -1) newW = Math.max(40, Math.min(_cropState.dispW - startBoxX, startBoxW + dx)); if (resizePos.indexOf('s') !== -1) newH = Math.max(40, Math.min(_cropState.dispH - startBoxY, startBoxH + dy)); if (resizePos.indexOf('w') !== -1) { var maxDx = startBoxW - 40; var realDx = Math.max(-startBoxX, Math.min(maxDx, dx)); newX = startBoxX + realDx; newW = startBoxW - realDx; } if (resizePos.indexOf('n') !== -1) { var maxDy = startBoxH - 40; var realDy = Math.max(-startBoxY, Math.min(maxDy, dy)); newY = startBoxY + realDy; newH = startBoxH - realDy; } _cropState.boxX = newX; _cropState.boxY = newY; _cropState.boxW = newW; _cropState.boxH = newH; } cropBox.style.left = _cropState.boxX + 'px'; cropBox.style.top = _cropState.boxY + 'px'; cropBox.style.width = _cropState.boxW + 'px'; cropBox.style.height = _cropState.boxH + 'px'; }
+  function onUp() { dragging = false; resizing = false; }
+  cropBox.addEventListener('mousedown', onDown); cropBox.addEventListener('touchstart', onDown, { passive: false }); document.addEventListener('mousemove', onMove); document.addEventListener('touchmove', onMove, { passive: false }); document.addEventListener('mouseup', onUp); document.addEventListener('touchend', onUp);
+}
+
+function _resizeImageAsync(file, maxDim) {
+  return new Promise(function(resolve, reject) {
+    var img = new Image(); var url = URL.createObjectURL(file);
+    img.onload = function() { URL.revokeObjectURL(url); var sw = img.width, sh = img.height; var finalW = sw, finalH = sh; if (sw > maxDim || sh > maxDim) { var scale = Math.min(maxDim / sw, maxDim / sh); finalW = Math.round(sw * scale); finalH = Math.round(sh * scale); } if (finalW === sw && finalH === sh) { resolve(file); return; } var canvas = document.createElement('canvas'); canvas.width = finalW; canvas.height = finalH; var ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, sw, sh, 0, 0, finalW, finalH); var dataUrl = canvas.toDataURL('image/jpeg', 0.85); var byteString = atob(dataUrl.split(',')[1]); var arr = new Uint8Array(byteString.length); for (var i = 0; i < byteString.length; i++) arr[i] = byteString.charCodeAt(i); resolve(new File([arr], file.name || 'receipt.jpg', { type: 'image/jpeg' })); };
+    img.onerror = function() { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
+function _performCrop(file, img, state) {
+  var scaleX = state.imgW / state.dispW; var scaleY = state.imgH / state.dispH;
+  var sx = Math.round(state.boxX * scaleX); var sy = Math.round(state.boxY * scaleY); var sw = Math.round(state.boxW * scaleX); var sh = Math.round(state.boxH * scaleY);
+  sx = Math.max(0, Math.min(state.imgW - 1, sx)); sy = Math.max(0, Math.min(state.imgH - 1, sy)); sw = Math.max(1, Math.min(state.imgW - sx, sw)); sh = Math.max(1, Math.min(state.imgH - sy, sh));
+  var canvas = document.createElement('canvas'); canvas.width = sw; canvas.height = sh; var ctx = canvas.getContext('2d'); ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+  var maxDim = 1024; var finalW = sw, finalH = sh;
+  if (sw > maxDim || sh > maxDim) { var scale = Math.min(maxDim / sw, maxDim / sh); finalW = Math.round(sw * scale); finalH = Math.round(sh * scale); }
+  if (finalW !== sw || finalH !== sh) { var resizeCanvas = document.createElement('canvas'); resizeCanvas.width = finalW; resizeCanvas.height = finalH; var rctx = resizeCanvas.getContext('2d'); rctx.drawImage(canvas, 0, 0, sw, sh, 0, 0, finalW, finalH); canvas = resizeCanvas; }
+  var dataUrl = canvas.toDataURL('image/jpeg', 0.85); var byteString = atob(dataUrl.split(',')[1]); var arr = new Uint8Array(byteString.length); for (var i = 0; i < byteString.length; i++) arr[i] = byteString.charCodeAt(i); return new File([arr], file.name || 'receipt.jpg', { type: 'image/jpeg' });
+}
 
 async function handleReceiptUpload(input) {
-  var file = input.files[0];
-  if (!file) return;
-  var preview = document.getElementById('receiptPreview');
-  var previewContent = document.getElementById('receiptPreviewContent');
-  var status = document.getElementById('receiptExtractStatus');
+  var file = input.files[0]; if (!file) return;
+  var preview = document.getElementById('receiptPreview'); var previewContent = document.getElementById('receiptPreviewContent'); var status = document.getElementById('receiptExtractStatus');
   preview.style.display = 'block';
   var isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-  if (isPdf) { previewContent.innerHTML = '<div class="receipt-pdf-icon">📄</div><p style="font-size:14px;font-weight:600;margin:8px 0 0;">' + esc(file.name) + '</p><p style="font-size:12px;color:var(--text-muted);">PDF document</p>'; }
-  else { status.className = 'receipt-extract-status loading'; status.textContent = 'Crop the receipt area for best results…'; showCropOverlay(file, function(croppedFile) { _doExtraction(croppedFile, previewContent, status, preview); }); return; }
+  if (isPdf) { previewContent.innerHTML = '<div class="receipt-pdf-icon">📄</div><p style="font-size:14px;font-weight:600;margin:8px 0 0;">' + esc(file.name) + '</p><p style="font-size:12px;color:var(--text-muted);">PDF document</p>'; } else { status.className = 'receipt-extract-status loading'; status.textContent = 'Crop the receipt area for best results…'; showCropOverlay(file, function(croppedFile) { _doExtraction(croppedFile, previewContent, status, preview); }); return; }
   _doExtraction(file, previewContent, status, preview);
 }
 
@@ -503,25 +537,20 @@ var _currentExtractionId = 0;
 var _currentExtractionController = null;
 
 async function _doExtraction(file, previewContent, status, preview) {
-  _currentExtractionId++;
-  var thisReqId = _currentExtractionId;
+  _currentExtractionId++; var thisReqId = _currentExtractionId;
   if (_currentExtractionController) { try { _currentExtractionController.abort(); } catch(e) {} }
   _currentExtractionController = (typeof AbortController !== 'undefined') ? new AbortController() : null;
   var fetchSignal = _currentExtractionController ? _currentExtractionController.signal : undefined;
   var isPdf = file.type === 'application/pdf' || (file.name || '').toLowerCase().endsWith('.pdf');
   if (!isPdf) { if (_objectUrl) { URL.revokeObjectURL(_objectUrl); _objectUrl = null; } _objectUrl = URL.createObjectURL(file); previewContent.innerHTML = '<img class="receipt-preview-img" src="' + _objectUrl + '">'; }
-  status.className = 'receipt-extract-status loading';
-  status.textContent = 'Uploading & extracting receipt data with AI…';
-  document.getElementById('aiConfidenceBanner').style.display = 'none';
+  status.className = 'receipt-extract-status loading'; status.textContent = 'Uploading & extracting receipt data with AI…'; document.getElementById('aiConfidenceBanner').style.display = 'none';
   try {
     var base64Data = await new Promise(function(resolve, reject) { var reader = new FileReader(); reader.onload = function() { resolve(reader.result); }; reader.onerror = function() { reject(new Error('Failed to read file')); }; reader.readAsDataURL(file); });
     var resp = await fetch('/api/fuel-receipts/extract', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file: base64Data, fileName: file.name || 'receipt.jpg', fileType: file.type || 'image/jpeg' }), signal: fetchSignal });
     if (!resp.ok) {
-      var errBody = await resp.text().catch(function() { return ''; });
-      var errMsg = 'Server returned ' + resp.status;
-      var errCode = '';
+      var errBody = await resp.text().catch(function() { return ''; }); var errMsg = 'Server returned ' + resp.status; var errCode = '';
       try { var errJson = JSON.parse(errBody); if (errJson.error) errMsg = errJson.error; if (errJson.code) errCode = errJson.code; } catch(e) {}
-      if (errCode === 'IMAGE_TOO_LARGE' || errMsg.toLowerCase().indexOf('too large') !== -1 || errMsg.toLowerCase().indexOf('max size') !== -1) { status.className = 'receipt-extract-status error'; status.innerHTML = '⚠ Image is too large for AI processing. Please crop the receipt to show only the text area, then try again.'; return; }
+      if (errCode === 'IMAGE_TOO_LARGE' || errMsg.toLowerCase().indexOf('too large') !== -1 || errMsg.toLowerCase().indexOf('max size') !== -1) { status.className = 'receipt-extract-status error'; status.innerHTML = '⚠ Image is too large for AI processing. Please crop the receipt to show only the text area, then try again. Click "Choose File" and use the crop tool.'; return; }
       if (resp.status === 401 || resp.status === 403) { status.className = 'receipt-extract-status error'; status.textContent = '✗ Your session has expired. Please save your work, then refresh the page and log in again.'; return; }
       status.className = 'receipt-extract-status error'; status.textContent = '✗ Could not process the receipt: ' + errMsg; return;
     }
@@ -535,12 +564,15 @@ async function _doExtraction(file, previewContent, status, preview) {
       document.getElementById('aiFieldLegend').style.display = 'flex';
       if (data.extracted.vendor) { var vendorEl = document.getElementById('purchaseVendor'); vendorEl.value = data.extracted.vendor; vendorEl.classList.add('ai-extracted'); }
       if (data.extracted.receipt_date) { var dateEl = document.getElementById('purchaseDate'); dateEl.value = data.extracted.receipt_date; dateEl.classList.add('ai-extracted'); }
-      if (data.extracted.receipt_total) { var rtEl = document.getElementById('receiptTotal'); if (rtEl) { rtEl.value = data.extracted.receipt_total; rtEl.classList.add('ai-extracted'); } }
+      // Receipt Total — extracted by AI, editable; may include non-fuel items
+      // Worker returns total_amount; receipt_total is the form field name
+      var rtExtracted = data.extracted.receipt_total || data.extracted.total_amount;
+      if (rtExtracted) { var rtEl = document.getElementById('receiptTotal'); if (rtEl) { rtEl.value = rtExtracted; rtEl.classList.add('ai-extracted'); } }
+      // Non-fuel items on the receipt — flag for manager review
       window._receiptHasNonFuelItems = false;
       if (data.extracted.has_non_fuel_items || (data.extracted.non_fuel_items && data.extracted.non_fuel_items.length > 0)) { window._receiptHasNonFuelItems = true; var notice = document.getElementById('receiptNonFuelNotice'); if (notice) notice.style.display = 'block'; }
       if (data.extracted.line_items && data.extracted.line_items.length > 0) {
-        document.getElementById('lineItemsContainer').innerHTML = '';
-        lineItemCount = 0;
+        document.getElementById('lineItemsContainer').innerHTML = ''; lineItemCount = 0;
         data.extracted.line_items.forEach(function(li) { addLineItem({ fuel_type: li.fuel_type || 'diesel_onroad', gallons: li.gallons || li.quantity || '', unit_price: li.unit_price || '', amount: li.amount || '' }); });
         var lineRows = document.querySelectorAll('.line-item-row');
         data.extracted.line_items.forEach(function(li, idx) { if (lineRows[idx]) { var row = lineRows[idx]; if (li.fuel_type) row.querySelector('.line-fuel-type').classList.add('ai-extracted'); if (li.gallons || li.quantity) row.querySelector('.line-qty').classList.add('ai-extracted'); if (li.unit_price) row.querySelector('.line-cpg').classList.add('ai-extracted'); row.querySelector('.line-destination').classList.add('ai-needed'); } });
@@ -560,8 +592,7 @@ function showConfidenceBanner(extracted) {
   var banner = document.getElementById('aiConfidenceBanner');
   var conf = extracted.confidence || 0; var confPct = Math.round(conf * 100); var lowFields = extracted.low_confidence_fields || [];
   var html = '<strong>AI Extraction: ' + esc(String(confPct)) + '% confidence</strong>';
-  if (lowFields.length > 0) { banner.className = 'ai-confidence-banner low'; html += '<br><span style="font-size:12px;">Low confidence fields:</span> '; html += lowFields.map(function(f) { return '<span class="field-flag">' + esc(String(f)) + '</span>'; }).join(''); }
-  else { banner.className = 'ai-confidence-banner'; html += '<br><span style="font-size:12px;">All fields extracted with good confidence. Please review before submitting.</span>'; }
+  if (lowFields.length > 0) { banner.className = 'ai-confidence-banner low'; html += '<br><span style="font-size:12px;">Low confidence fields:</span> '; html += lowFields.map(function(f) { return '<span class="field-flag">' + esc(String(f)) + '</span>'; }).join(''); } else { banner.className = 'ai-confidence-banner'; html += '<br><span style="font-size:12px;">All fields extracted with good confidence. Please review before submitting.</span>'; }
   banner.innerHTML = html; banner.style.display = 'block';
 }
 
@@ -569,34 +600,23 @@ function showConfidenceBanner(extracted) {
 async function submitPurchase() {
   if (!requireLocationOrPopup()) return;
   var date = document.getElementById('purchaseDate').value;
-  var locationEl = document.getElementById('purchaseLocation');
-  var location = locationEl ? locationEl.value.trim() : '';
+  var locationEl = document.getElementById('purchaseLocation'); var location = locationEl ? locationEl.value.trim() : '';
   var person = document.getElementById('purchasePerson').value;
   var vendor = document.getElementById('purchaseVendor').value;
   var notes = document.getElementById('purchaseNotes').value;
   if (!date) { showPurchaseError('Date is required'); return; }
   if (!vendor || !vendor.trim()) { showPurchaseError('Vendor is required'); return; }
   if (!person || !person.trim()) { showPurchaseError('User is required'); return; }
-  var projectEl = document.getElementById('purchaseProject');
-  var projectId = projectEl ? projectEl.value.trim() : '';
-  var customProjectName = null;
-  if (projectEl && projectEl.tagName === 'INPUT' && projectEl.getAttribute('data-custom') === 'true') { customProjectName = projectEl.value.trim(); if (!customProjectName) { showPurchaseError('Project is required'); return; } projectId = null; }
-  else { if (!projectId) { showPurchaseError('Project is required'); return; } }
-  var lineItems = [];
-  var rows = document.querySelectorAll('.line-item-row');
+  var projectEl = document.getElementById('purchaseProject'); var projectId = projectEl ? projectEl.value.trim() : ''; var customProjectName = null;
+  if (projectEl && projectEl.tagName === 'INPUT' && projectEl.getAttribute('data-custom') === 'true') { customProjectName = projectEl.value.trim(); if (!customProjectName) { showPurchaseError('Project is required'); return; } projectId = null; } else { if (!projectId) { showPurchaseError('Project is required'); return; } }
+  var lineItems = []; var rows = document.querySelectorAll('.line-item-row');
   for (var i = 0; i < rows.length; i++) {
-    var row = rows[i];
-    var destInput = row.querySelector('.line-destination');
-    var destLabel = destInput.value.trim();
-    var assetMap = {}; try { assetMap = JSON.parse(row.dataset.assetMap || '{}'); } catch(e) {}
-    var dest = assetMap[destLabel] || '';
-    var qty = parseFloat(row.querySelector('.line-qty').value);
-    var fuelType = row.querySelector('.line-fuel-type').value;
-    var cpg = parseFloat(row.querySelector('.line-cpg').value) || null;
+    var row = rows[i]; var destInput = row.querySelector('.line-destination'); var destLabel = destInput.value.trim(); var assetMap = {}; try { assetMap = JSON.parse(row.dataset.assetMap || '{}'); } catch(e) {} var dest = assetMap[destLabel] || '';
+    var qty = parseFloat(row.querySelector('.line-qty').value); var fuelType = row.querySelector('.line-fuel-type').value; var cpg = parseFloat(row.querySelector('.line-cpg').value) || null;
     if (!qty || qty <= 0 || !isFinite(qty)) { showPurchaseError('Line ' + (i + 1) + ': quantity (gallons) is required and must be > 0'); return; }
     if (!fuelType) { showPurchaseError('Line ' + (i + 1) + ': fuel type is required'); return; }
     var customAssetName = null;
-    if (!dest) { if (!destLabel || destLabel === '+ Other (type manually)') { showPurchaseError('Line ' + (i + 1) + ': asset is required (select from the list or type the asset name)'); return; } customAssetName = destLabel; }
+    if (!dest) { if (!destLabel || destLabel === '+ Other (type manually)') { showPurchaseError('Line ' + (i + 1) + ': asset is required'); return; } customAssetName = destLabel; }
     var parts = dest.split('|');
     var li = { fuel_type: fuelType, quantity: qty, to_entity_type: parts[0], to_entity_id: parts[1], cost_per_gallon: cpg };
     if (customProjectName) li.project_name = customProjectName;
@@ -604,42 +624,42 @@ async function submitPurchase() {
     lineItems.push(li);
   }
   if (lineItems.length === 0) { showPurchaseError('At least one line item is required'); return; }
-  var totalQty = 0; lineItems.forEach(function(li) { totalQty += li.quantity; });
-  if (totalQty <= 0) { showPurchaseError('Total quantity must be greater than zero'); return; }
+  var totalQty = 0; lineItems.forEach(function(li) { totalQty += li.quantity; }); if (totalQty <= 0) { showPurchaseError('Total quantity must be greater than zero'); return; }
   managerReviewFlags = [];
   var locEl = document.getElementById('purchaseLocation');
   if (locEl && locEl.tagName === 'INPUT') { managerReviewFlags.push({ field: 'location', value: locEl.value, reason: 'Custom location typed manually (not from list)' }); }
   if (customProjectName) { managerReviewFlags.push({ field: 'project', value: customProjectName, reason: 'New project typed manually (not from list) — manager must add project and update record' }); }
   for (var j = 0; j < lineItems.length; j++) {
-    var row = rows[j];
-    var fuelEl = row.querySelector('.line-fuel-type');
+    var row = rows[j]; var fuelEl = row.querySelector('.line-fuel-type');
     if (fuelEl && fuelEl.getAttribute('data-custom') === 'true') { managerReviewFlags.push({ field: 'fuel_type', line: j + 1, value: fuelEl.value, reason: 'Custom fuel type typed manually (not from list)' }); lineItems[j].fuel_type = fuelEl.value; }
     if (lineItems[j].custom_asset_name) { managerReviewFlags.push({ field: 'asset', line: j + 1, value: lineItems[j].custom_asset_name, reason: 'Custom asset typed manually (not in asset list) — manager must add asset and update record' }); }
   }
-  var receiptTotalInput = document.getElementById('receiptTotal');
-  var receiptTotal = receiptTotalInput ? parseFloat(receiptTotalInput.value) || null : null;
-  var receiptItemsInput = document.getElementById('receiptItems');
-  var receiptItems = receiptItemsInput ? receiptItemsInput.value.trim() || null : null;
-  var poNumberInput = document.getElementById('purchasePONumber');
-  var poNumber = poNumberInput ? poNumberInput.value.trim() || null : null;
+  var receiptTotalInput = document.getElementById('receiptTotal'); var receiptTotal = receiptTotalInput ? parseFloat(receiptTotalInput.value) || null : null;
+  var receiptItemsInput = document.getElementById('receiptItems'); var receiptItems = receiptItemsInput ? receiptItemsInput.value.trim() || null : null;
+  var poNumberInput = document.getElementById('purchasePONumber'); var poNumber = poNumberInput ? poNumberInput.value.trim() || null : null;
   if (window._receiptHasNonFuelItems) { managerReviewFlags.push({ field: 'receipt_items', value: 'Receipt includes items besides fuel', reason: 'AI detected non-fuel items on the receipt — manager should review for cost control / project costing' }); }
   if (window._receiptMismatch) { managerReviewFlags.push({ field: 'receipt_mismatch', value: 'Receipt Total does not match Grand Fuel Total', reason: 'Receipt Total ('+(receiptTotal||'?')+') differs from Grand Fuel Total — manager should verify the receipt and line items' }); }
   var body = { vendor: vendor || null, purchase_date: date + 'T08:00:00Z', submission_timestamp: new Date().toISOString(), location: location || null, person: person || null, notes: notes || null, po_number: poNumber, project_id: projectId || null, receipt_r2_key: receiptR2Key, receipt_total: receiptTotal, receipt_items: receiptItems, line_items: lineItems, device_location: hasDeviceLocation() ? deviceLocation : null, manager_review_flags: managerReviewFlags };
-  var submitBtn = document.querySelector('.purchase-submit-btn');
-  submitBtn.disabled = true; submitBtn.textContent = 'Recording…';
+  var submitBtn = document.querySelector('.purchase-submit-btn'); submitBtn.disabled = true; submitBtn.textContent = 'Recording…';
   try {
     var resp = await fetch('/api/fuel-purchases', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!resp.ok) { throw new Error('Server returned ' + resp.status); }
     var data = await resp.json();
-    if (data.success) { clearFormDirty(); showPurchaseSuccess(data.purchase); setTimeout(clearPurchaseForm, 3000); }
-    else { showPurchaseError(data.error || 'Failed to record purchase'); }
-  } catch (e) { showPurchaseError('Error: ' + e.message); reportError('submitPurchase', e); }
-  finally { submitBtn.disabled = false; submitBtn.textContent = 'Record Purchase'; }
+    if (data.success) { clearFormDirty(); showPurchaseSuccess(data.purchase); setTimeout(clearPurchaseForm, 3000); } else { showPurchaseError(data.error || 'Failed to record purchase'); }
+  } catch (e) { showPurchaseError('Error: ' + e.message); reportError('submitPurchase', e); } finally { submitBtn.disabled = false; submitBtn.textContent = 'Record Purchase'; }
 }
 
-function showPurchaseSuccess(purchase) { var result = document.getElementById('purchaseResult'); result.className = 'purchase-result-success'; var lineCount = purchase.line_items ? purchase.line_items.length : 0; var msg = 'Purchase recorded: ' + lineCount + ' line item' + (lineCount !== 1 ? 's' : ''); if (purchase.total_cost) msg += ' — $' + parseFloat(purchase.total_cost).toFixed(2); if (purchase.vendor) msg += ' from ' + purchase.vendor; result.textContent = msg; result.style.display = 'block'; setTimeout(function() { result.style.display = 'none'; }, 5000); }
-function showPurchaseError(msg) { var result = document.getElementById('purchaseResult'); result.className = 'purchase-result-error'; result.textContent = '✗ ' + msg; result.style.display = 'block'; setTimeout(function() { result.style.display = 'none'; }, 5000); }
+function showPurchaseSuccess(purchase) {
+  var result = document.getElementById('purchaseResult'); result.className = 'purchase-result-success';
+  var lineCount = purchase.line_items ? purchase.line_items.length : 0; var msg = 'Purchase recorded: ' + lineCount + ' line item' + (lineCount !== 1 ? 's' : '');
+  if (purchase.total_cost) msg += ' — $' + parseFloat(purchase.total_cost).toFixed(2);
+  if (purchase.vendor) msg += ' from ' + purchase.vendor;
+  result.textContent = msg; result.style.display = 'block'; setTimeout(function() { result.style.display = 'none'; }, 5000);
+}
 
+function showPurchaseError(msg) {
+  var result = document.getElementById('purchaseResult'); result.className = 'purchase-result-error'; result.textContent = '✗ ' + msg; result.style.display = 'block'; setTimeout(function() { result.style.display = 'none'; }, 5000);
+}
 function clearPurchaseForm() {
   clearFormDirty();
   document.getElementById('purchaseDate').value = localDate();
@@ -679,15 +699,83 @@ function clearPurchaseForm() {
 }
 
 /* ===== LOAD DATA ===== */
-async function loadTanks() { try { var resp = await fetch('/api/fuel-tanks'); if (!resp.ok) throw new Error('Failed to load tanks: ' + resp.status); var data = await resp.json(); if (data.success && data.tanks) allTanks = data.tanks; } catch (e) { console.error('Error loading tanks:', e.message); reportError('loadTanks', e); } }
-async function loadTankTypes() { try { var resp = await fetch('/api/fuel-tank-types'); if (!resp.ok) throw new Error('Failed to load tank types: ' + resp.status); var data = await resp.json(); if (data.success && data.tank_types) tankTypes = data.tank_types; } catch (e) { console.error('Error loading tank types:', e.message); reportError('loadTankTypes', e); } }
-async function loadAssets() { try { var resp = await fetch('/api/assets'); if (!resp.ok) throw new Error('Failed to load assets: ' + resp.status); var data = await resp.json(); if (data.success && data.assets) { allAssets = data.assets.filter(function(a) { return a.status === 'active'; }); } var locations = {}; allAssets.forEach(function(a) { if (a.current_location && a.current_location.trim()) { locations[a.current_location.trim()] = true; } }); allTanks.forEach(function(t) { if (t.location && t.location.trim()) { locations[t.location.trim()] = true; } }); var locSelect = document.getElementById('purchaseLocation'); if (locSelect) { var currentVal = locSelect.value; var html = '<option value="">Select location…</option>'; Object.keys(locations).sort().forEach(function(loc) { html += '<option value="' + esc(loc) + '">' + esc(loc) + '</option>'; }); html += '<option value="__custom">+ Other (type manually)</option>'; locSelect.innerHTML = html; if (currentVal) locSelect.value = currentVal; } } catch (e) { console.error('Error loading assets:', e.message); reportError('loadAssets', e); } }
-function handleLocationChange(sel) { if (sel.value === '__custom') { var input = document.createElement('input'); input.type = 'text'; input.id = 'purchaseLocation'; input.className = 'purchase-input'; input.placeholder = 'Type location name'; sel.parentNode.replaceChild(input, sel); input.focus(); } }
-function handleProjectChange(sel) { if (sel.value === '__custom') { var input = document.createElement('input'); input.type = 'text'; input.id = 'purchaseProject'; input.className = 'purchase-input'; input.placeholder = 'Type new project name'; input.setAttribute('data-custom', 'true'); sel.parentNode.replaceChild(input, sel); input.focus(); } }
-async function loadProjects() { try { var resp = await fetch('/api/projects'); if (!resp.ok) return; var data = await resp.json(); if (data.success && data.projects) { var sel = document.getElementById('purchaseProject'); if (sel) { var html = '<option value="">Select project…</option>'; data.projects.forEach(function(p) { html += '<option value="' + esc(p.id) + '">' + esc(p.name || p.project_name || p.id) + '</option>'; }); html += '<option value="__custom">+ Other (type manually)</option>'; sel.innerHTML = html; } var wrap = document.getElementById('projectFieldWrap'); if (wrap) { if (data.projects.length === 0) { wrap.style.display = 'none'; sel.removeAttribute('required'); } else { wrap.style.display = ''; sel.setAttribute('required', ''); } } } } catch (e) { console.error('Error loading projects:', e.message); } }
+async function loadTanks() {
+  try {
+    var resp = await fetch('/api/fuel-tanks');
+    if (!resp.ok) throw new Error('Failed to load tanks: ' + resp.status);
+    var data = await resp.json();
+    if (data.success && data.tanks) allTanks = data.tanks;
+  } catch (e) { console.error('Error loading tanks:', e.message); reportError('loadTanks', e); }
+}
 
+async function loadTankTypes() {
+  try {
+    var resp = await fetch('/api/fuel-tank-types');
+    if (!resp.ok) throw new Error('Failed to load tank types: ' + resp.status);
+    var data = await resp.json();
+    if (data.success && data.tank_types) tankTypes = data.tank_types;
+  } catch (e) { console.error('Error loading tank types:', e.message); reportError('loadTankTypes', e); }
+}
+
+async function loadAssets() {
+  try {
+    var resp = await fetch('/api/assets');
+    if (!resp.ok) throw new Error('Failed to load assets: ' + resp.status);
+    var data = await resp.json();
+    if (data.success && data.assets) { allAssets = data.assets.filter(function(a) { return a.status === 'active'; }); }
+    var locations = {};
+    allAssets.forEach(function(a) { if (a.current_location && a.current_location.trim()) { locations[a.current_location.trim()] = true; } });
+    allTanks.forEach(function(t) { if (t.location && t.location.trim()) { locations[t.location.trim()] = true; } });
+    var locSelect = document.getElementById('purchaseLocation');
+    if (locSelect) {
+      var currentVal = locSelect.value;
+      var html = '<option value="">Select location…</option>';
+      Object.keys(locations).sort().forEach(function(loc) { html += '<option value="' + esc(loc) + '">' + esc(loc) + '</option>'; });
+      html += '<option value="__custom">+ Other (type manually)</option>';
+      locSelect.innerHTML = html;
+      if (currentVal) locSelect.value = currentVal;
+    }
+  } catch (e) { console.error('Error loading assets:', e.message); reportError('loadAssets', e); }
+}
+
+function handleLocationChange(sel) {
+  if (sel.value === '__custom') { var input = document.createElement('input'); input.type = 'text'; input.id = 'purchaseLocation'; input.className = 'purchase-input'; input.placeholder = 'Type location name'; sel.parentNode.replaceChild(input, sel); input.focus(); }
+}
+
+function handleProjectChange(sel) {
+  if (sel.value === '__custom') { var input = document.createElement('input'); input.type = 'text'; input.id = 'purchaseProject'; input.className = 'purchase-input'; input.placeholder = 'Type new project name'; input.setAttribute('data-custom', 'true'); sel.parentNode.replaceChild(input, sel); input.focus(); }
+}
+
+async function loadProjects() {
+  try {
+    var resp = await fetch('/api/projects');
+    if (!resp.ok) return;
+    var data = await resp.json();
+    if (data.success && data.projects) {
+      var sel = document.getElementById('purchaseProject');
+      if (sel) {
+        var html = '<option value="">Select project…</option>';
+        data.projects.forEach(function(p) { html += '<option value="' + esc(p.id) + '">' + esc(p.name || p.project_name || p.id) + '</option>'; });
+        html += '<option value="__custom">+ Other (type manually)</option>';
+        sel.innerHTML = html;
+      }
+      var wrap = document.getElementById('projectFieldWrap');
+      if (wrap) { if (data.projects.length === 0) { wrap.style.display = 'none'; sel.removeAttribute('required'); } else { wrap.style.display = ''; sel.setAttribute('required', ''); } }
+    }
+  } catch (e) { console.error('Error loading projects:', e.message); }
+}
 /* ===== INIT ===== */
-function initPurchaseForm() { var today = localDate(); var dateField = document.getElementById('purchaseDate'); if (dateField) dateField.value = today; var userField = document.getElementById('purchasePerson'); if (userField) userField.value = getUserDisplayName(); document.getElementById('lineItemsContainer').innerHTML = ''; lineItemCount = 0; addLineItem(); recalcGrandTotal(); }
+function initPurchaseForm() {
+  var today = localDate();
+  var dateField = document.getElementById('purchaseDate');
+  if (dateField) dateField.value = today;
+  var userField = document.getElementById('purchasePerson');
+  if (userField) userField.value = getUserDisplayName();
+  document.getElementById('lineItemsContainer').innerHTML = '';
+  lineItemCount = 0;
+  addLineItem();
+  recalcGrandTotal();
+}
 
 document.addEventListener('dashSessionLoaded', async function() {
   var user = window.dashUser;
