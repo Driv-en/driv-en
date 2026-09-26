@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
 
 <!-- ============================================================
-     MODULE SELECTION PAGE — Updated 2026-09-26 09:39 AM CST
+     MODULE SELECTION PAGE — Updated 2026-09-26
      Changes:
        1. Light theme (diamond-plate background visible)
        2. Renamed: Equipment Management → Asset Management
@@ -24,11 +24,6 @@
        5. Added Cloudflare Turnstile (bot protection) + honeypot field
        6. Added global error handler (error-handler.js → /api/error-report)
        7. No account IDs in client-side code
-       8. Copilot review fixes:
-          - Safe JSON.parse (won't crash on corrupted localStorage)
-          - Banner shows individual selections (not just bundles)
-          - Dual storage: saves both display names AND module keys
-          - Restore matches by EITHER key OR display name
      NOTE: Backend module_key values (equipment_management, fuel_management,
            equipment_transfers) are UNCHANGED — only display names changed.
      ============================================================ -->
@@ -719,7 +714,7 @@ footer a {
 <script>
 // ============================================================
 // MODULE SELECTION LOGIC
-// Updated 2026-09-26 09:39 AM CST
+// Updated 2026-09-26
 //
 // DISPLAY NAMES (what the customer sees):
 //   "Asset Management"           — module_key: equipment_management
@@ -777,11 +772,6 @@ const MODULE_MAP = [
   { key: "multilanguage",     display: "Multi-Language Support",     el: () => modTranslation }
 ];
 
-// Helper: check if a saved string matches either a key or display name
-function savedMatchesModule(savedArr, key, display) {
-  return savedArr.includes(key) || savedArr.includes(display);
-}
-
 // Helper: safe JSON.parse — never crashes, returns fallback on error
 function safeJSONParse(str, fallback) {
   try {
@@ -800,29 +790,66 @@ function safeJSONParse(str, fallback) {
    Restores by matching EITHER module keys OR display names, so it
    works regardless of which page wrote the saved data.
    ------------------------------------------------------------- */
+// --- Safe localStorage access — never throws in private browsing / disabled storage ---
+function safeGetItem(key) {
+  try { return localStorage.getItem(key); } catch (e) { return null; }
+}
+function safeRemoveItem(key) {
+  try { localStorage.removeItem(key); } catch (e) { /* no-op */ }
+}
+
+// --- Bundle identifier mapping (display name ↔ backend key, case-insensitive) ---
+const BUNDLE_MAP = [
+  { keys: ["operations bundle", "bundleoperations", "operations_bundle"], id: "bundleOperations" },
+  { keys: ["full asset bundle", "bundlefull", "full_asset_bundle"],     id: "bundleFull" },
+  { keys: ["complete platform bundle", "bundlecomplete", "complete_platform_bundle"], id: "bundleComplete" }
+];
+
+// Match a saved string against any known bundle identifier (case-insensitive)
+function matchBundle(savedStr) {
+  if (typeof savedStr !== "string") return null;
+  const lower = savedStr.toLowerCase();
+  for (const b of BUNDLE_MAP) {
+    if (b.keys.indexOf(lower) !== -1) return b.id;
+  }
+  return null;
+}
+
+// Match a saved string against any known module key or display name (case-insensitive)
+function savedMatchesModule(savedArr, key, display) {
+  const lowerKey = key.toLowerCase();
+  const lowerDisplay = display.toLowerCase();
+  return savedArr.some(s => {
+    if (typeof s !== "string") return false;
+    const lower = s.toLowerCase();
+    return lower === lowerKey || lower === lowerDisplay;
+  });
+}
+
 (function restoreSelections() {
-  const returning = localStorage.getItem("returningFromCart");
+  const returning = safeGetItem("returningFromCart");
 
   // Only restore if user clicked "Back to Module Selection" from cart or checkout
   if (returning !== "yes") {
-    // New visitor or direct visit — clear any stale selections
-    localStorage.removeItem("selectedModules");
+    // New visitor or direct visit — clear ALL stale selection keys
+    safeRemoveItem("selectedModules");
+    safeRemoveItem("selectedModuleKeys");
     return;
   }
 
   // Safe parse — corrupted localStorage won't crash the page
   // Try selectedModuleKeys first (more robust), fall back to selectedModules (display names)
-  let saved = safeJSONParse(localStorage.getItem("selectedModuleKeys") || "null", null);
+  let saved = safeJSONParse(safeGetItem("selectedModuleKeys") || "null", null);
   if (!Array.isArray(saved) || saved.length === 0) {
-    saved = safeJSONParse(localStorage.getItem("selectedModules") || "[]", []);
+    saved = safeJSONParse(safeGetItem("selectedModules") || "[]", []);
   }
 
   // Clear flag so future visits start fresh
-  localStorage.removeItem("returningFromCart");
+  safeRemoveItem("returningFromCart");
 
   if (!Array.isArray(saved) || saved.length === 0) return;
 
-  // Restore modules — match by EITHER key OR display name
+  // Restore modules — match by EITHER key OR display name (case-insensitive)
   // This ensures restore works whether the saved data came from this page
   // (display names) or from cart/checkout (which may use backend keys)
   MODULE_MAP.forEach(m => {
@@ -831,21 +858,16 @@ function safeJSONParse(str, fallback) {
     }
   });
 
-  // Restore bundle — check for display name or key-based bundle identifiers
-  const savedBundle = saved.find(x =>
-    typeof x === "string" && x.includes("Bundle")
-  );
+  // Restore bundle — match by display name OR backend key (case-insensitive)
+  // Handles "Operations Bundle", "bundleOperations", "operations_bundle", etc.
+  const savedBundle = saved.find(x => matchBundle(x) !== null);
+  const matchedBundleId = savedBundle ? matchBundle(savedBundle) : null;
 
-  if (savedBundle) {
-    if (savedBundle === "Operations Bundle") bundleOps.checked = true;
-    if (savedBundle === "Full Asset Bundle") bundleFull.checked = true;
-    if (savedBundle === "Complete Platform Bundle") bundleComplete.checked = true;
-
-    applyBundle(
-      savedBundle === "Operations Bundle" ? "bundleOperations" :
-      savedBundle === "Full Asset Bundle" ? "bundleFull" :
-      "bundleComplete"
-    );
+  if (matchedBundleId) {
+    if (matchedBundleId === "bundleOperations") bundleOps.checked = true;
+    if (matchedBundleId === "bundleFull") bundleFull.checked = true;
+    if (matchedBundleId === "bundleComplete") bundleComplete.checked = true;
+    applyBundle(matchedBundleId);
   }
 
   showSelectionBanner();
@@ -1106,13 +1128,17 @@ btnContinue.addEventListener("click", () => {
     selected.push(activeBundle);
   }
 
-  localStorage.setItem("selectedModules", JSON.stringify(selected));
-  localStorage.setItem("selectedModuleKeys", JSON.stringify(selectedKeys));
+  try {
+    localStorage.setItem("selectedModules", JSON.stringify(selected));
+    localStorage.setItem("selectedModuleKeys", JSON.stringify(selectedKeys));
+  } catch (e) { /* storage may be disabled — navigation still works */ }
 
   // --- If promo code is active, go directly to checkout (skip Stripe) ---
   if (promoActive && promoData) {
-    localStorage.setItem("promoCode", JSON.stringify(promoData));
-    localStorage.setItem("driven_promo_code", promoData.code || "");
+    try {
+      localStorage.setItem("promoCode", JSON.stringify(promoData));
+      localStorage.setItem("driven_promo_code", promoData.code || "");
+    } catch (e) { /* no-op */ }
 
     // Build the checkout payload with isFree=true so checkout knows to skip payment
     // allModuleKeys includes "multilanguage" — Founding Members get all modules free
@@ -1120,7 +1146,8 @@ btnContinue.addEventListener("click", () => {
       "equipment", "pm", "inspections", "workorders",
       "fuel", "transfers", "extraction", "multilanguage"
     ];
-    localStorage.setItem("driven_checkout_payload", JSON.stringify({
+    try {
+      localStorage.setItem("driven_checkout_payload", JSON.stringify({
       modules: allModuleKeys,
       bundle: "Complete Platform Bundle",
       monthlySubtotal: 0,
@@ -1138,11 +1165,12 @@ btnContinue.addEventListener("click", () => {
       promoType: promoData.type || "free_period",
       promoUntil: promoData.validUntil || "2026-12-31"
     }));
+    } catch (e) { /* no-op */ }
 
     window.location.href = "/website/checkout.html";
   } else {
-    localStorage.removeItem("promoCode");
-    localStorage.removeItem("driven_promo_code");
+    safeRemoveItem("promoCode");
+    safeRemoveItem("driven_promo_code");
     window.location.href = "/website/cart.html";
   }
 });
@@ -1228,7 +1256,7 @@ async function validatePromoCode() {
       setPromoStatus(data.error || "Invalid code.", "error");
       promoActive = false;
       promoData = null;
-      localStorage.removeItem("promoCode");
+      safeRemoveItem("promoCode");
     }
   } catch (e) {
     setPromoStatus("Unable to validate code. Please try again.", "error");
@@ -1248,8 +1276,8 @@ function applyPromoSuccess(data, isRestore) {
   promoActive = true;
   promoData = data;
 
-  // Save to localStorage
-  localStorage.setItem("promoCode", JSON.stringify(data));
+  // Save to localStorage (safe — no-op if storage is disabled)
+  try { localStorage.setItem("promoCode", JSON.stringify(data)); } catch (e) { /* no-op */ }
 
   // Update UI
   document.body.classList.add("promo-active");
@@ -1291,7 +1319,7 @@ function applyPromoSuccess(data, isRestore) {
 function removePromoCode() {
   promoActive = false;
   promoData = null;
-  localStorage.removeItem("promoCode");
+  safeRemoveItem("promoCode");
 
   document.body.classList.remove("promo-active");
   freeAccessBanner.style.display = "none";
@@ -1321,7 +1349,7 @@ function removePromoCode() {
 
 // Restore promo code from localStorage on page load (must run after functions defined)
 (function restorePromo() {
-  const saved = localStorage.getItem("promoCode");
+  const saved = safeGetItem("promoCode");
   if (saved) {
     try {
       const data = JSON.parse(saved);
@@ -1330,7 +1358,7 @@ function removePromoCode() {
         applyPromoSuccess(data, true);
       }
     } catch (e) {
-      localStorage.removeItem("promoCode");
+      safeRemoveItem("promoCode");
     }
   }
 })();
