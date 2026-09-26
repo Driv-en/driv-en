@@ -21,19 +21,38 @@
 //   - Var: SUPPORT_CONTACT = support@driv-en.com
 //
 // CREATED: 2026-09-26
+// HARDENED: 2026-09-26 — transactional success semantics, CORS allowlist,
+//   malformed-JSON handling, abuse protection, module dedup, email delivery
+//   validation.
 // ============================================================================
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': 'https://www.driv-en.com',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Max-Age': '86400'
-};
+// ---------------------------------------------------------------------------
+// CORS — allowlist of valid origins (www + apex + preview environments)
+// ---------------------------------------------------------------------------
+const ALLOWED_ORIGINS = [
+  'https://www.driv-en.com',
+  'https://driv-en.com',
+  'https://preview.driv-en.com',
+  'https://staging.driv-en.com'
+];
 
-function jsonResponse(obj, status) {
+function getCORSHeaders(request) {
+  const origin = request.headers.get('Origin') || '';
+  // Echo the origin only if it's in the allowlist
+  const allowedOrigin = ALLOWED_ORIGINS.indexOf(origin) !== -1 ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Max-Age': '86400',
+    'Vary': 'Origin'
+  };
+}
+
+function jsonResponse(obj, status, corsHeaders) {
   return new Response(JSON.stringify(obj), {
     status: status || 200,
-    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
+    headers: { 'Content-Type': 'application/json', ...corsHeaders }
   });
 }
 
@@ -74,26 +93,46 @@ async function logError(env, source, err, request) {
 }
 
 // ---------------------------------------------------------------------------
-// SendGrid email helper
+// SendGrid email helper — returns { ok, status, error }
 // ---------------------------------------------------------------------------
 async function sendEmail(apiKey, fromEmail, toEmail, toName, subject, htmlContent) {
   const personalization = { to: [{ email: toEmail }] };
   if (toName) personalization.to[0].name = toName;
 
-  const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
-    method: 'POST',
-    headers: {
-      'Authorization': 'Bearer ' + apiKey,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      personalizations: [personalization],
-      from: { email: fromEmail, name: 'DRIV\u2011EN Platform' },
-      subject: subject,
-      content: [{ type: 'text/html', value: htmlContent }]
-    })
-  });
-  return res.ok;
+  try {
+    const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + apiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        personalizations: [personalization],
+        from: { email: fromEmail, name: 'DRIV\u2011EN Platform' },
+        subject: subject,
+        content: [{ type: 'text/html', value: htmlContent }]
+      })
+    });
+
+    if (!res.ok) {
+      // Read error body for diagnostics
+      let errBody = '';
+      try { errBody = await res.text(); } catch (e) { /* ignore */ }
+      return {
+        ok: false,
+        status: res.status,
+        error: 'SendGrid returned ' + res.status + ': ' + errBody.substring(0, 500)
+      };
+    }
+
+    return { ok: true, status: res.status, error: null };
+  } catch (fetchErr) {
+    return {
+      ok: false,
+      status: 0,
+      error: 'Network error contacting SendGrid: ' + (fetchErr.message || 'unknown')
+    };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -145,98 +184,183 @@ function buildVisitorConfirmationEmail(modules) {
 }
 
 // ---------------------------------------------------------------------------
-// Main handler
+// Rate limiting — check recent submissions per email using D1
+// Returns true if the email is allowed, false if rate-limited.
+// Limit: max 3 submissions per email per hour.
 // ---------------------------------------------------------------------------
-export async function onRequestPost({ request, env }) {
-  // Handle CORS preflight
-  if (request.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: CORS_HEADERS });
-  }
-
+async function checkRateLimit(env, email) {
   try {
-    const body = await request.json();
-    const email = (body.email || '').trim().toLowerCase();
-    const modules = body.modules;
+    const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
+    const result = await env.DB.prepare(
+      `SELECT COUNT(*) as count FROM notify_requests
+       WHERE email = ? AND created_at > ?`
+    ).bind(email, oneHourAgo).first();
 
-    // Validate email
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return jsonResponse({ success: false, error: 'Invalid email address' }, 400);
-    }
-
-    // Validate modules array
-    if (!Array.isArray(modules) || modules.length === 0) {
-      return jsonResponse({ success: false, error: 'No modules selected' }, 400);
-    }
-
-    // Sanitize module names — only allow alphanumeric + common punctuation
-    const cleanModules = modules
-      .filter(m => typeof m === 'string' && m.length > 0 && m.length < 100)
-      .map(m => m.replace(/[<>&"']/g, ''))
-      .filter(m => m.length > 0);
-
-    if (cleanModules.length === 0) {
-      return jsonResponse({ success: false, error: 'No valid modules selected' }, 400);
-    }
-
-    // Store in D1 (notify_requests table)
-    try {
-      await env.DB.prepare(
-        `CREATE TABLE IF NOT EXISTS notify_requests (
-          id TEXT PRIMARY KEY,
-          email TEXT NOT NULL,
-          modules TEXT NOT NULL,
-          created_at TEXT NOT NULL,
-          notified INTEGER DEFAULT 0
-        )`
-      ).run();
-
-      const requestId = 'NR-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-      await env.DB.prepare(
-        `INSERT INTO notify_requests (id, email, modules, created_at)
-         VALUES (?, ?, ?, ?)`
-      ).bind(
-        requestId,
-        email,
-        JSON.stringify(cleanModules),
-        new Date().toISOString()
-      ).run();
-    } catch (dbErr) {
-      // D1 may not be bound in dev — log but don't fail the request
-      console.error('D1 write failed:', dbErr.message);
-    }
-
-    // Send emails via SendGrid
-    const sendGridKey = env.SENDGRID_API_KEY;
-    const fromEmail = env.SENDGRID_FROM_EMAIL || 'noreply@driv-en.com';
-    const supportEmail = env.SUPPORT_CONTACT || 'support@driv-en.com';
-
-    if (sendGridKey) {
-      // Email support@driv-en.com
-      await sendEmail(
-        sendGridKey, fromEmail, supportEmail, 'DRIV-EN Support',
-        'New Module Launch Notification Request',
-        buildSupportNotificationEmail(email, cleanModules)
-      );
-
-      // Confirmation email to visitor
-      await sendEmail(
-        sendGridKey, fromEmail, email, null,
-        'DRIV-EN — We\'ll Keep You Posted!',
-        buildVisitorConfirmationEmail(cleanModules)
-      );
-    } else {
-      console.warn('SENDGRID_API_KEY not bound — emails not sent');
-    }
-
-    return jsonResponse({ success: true });
-
-  } catch (err) {
-    await logError(env, 'notify-me', err, request);
-    return jsonResponse({ success: false, error: 'Internal server error' }, 500);
+    return (result && result.count < 3);
+  } catch (e) {
+    // If D1 is unavailable, allow the request (fail open for rate limiting)
+    return true;
   }
 }
 
+// ---------------------------------------------------------------------------
+// Main handler
+// ---------------------------------------------------------------------------
+export async function onRequestPost({ request, env }) {
+  const corsHeaders = getCORSHeaders(request);
+
+  // Handle CORS preflight
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  // --- Parse body with explicit malformed-JSON handling ---
+  let body;
+  try {
+    body = await request.json();
+  } catch (parseErr) {
+    return jsonResponse(
+      { success: false, error: 'Invalid request body. Please send valid JSON.' },
+      400, corsHeaders
+    );
+  }
+
+  // --- Validate body is an object ---
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return jsonResponse(
+      { success: false, error: 'Invalid request format.' },
+      400, corsHeaders
+    );
+  }
+
+  const email = (body.email || '').trim().toLowerCase();
+  const modules = body.modules;
+
+  // --- Validate email ---
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return jsonResponse({ success: false, error: 'Invalid email address' }, 400, corsHeaders);
+  }
+
+  // --- Validate modules array ---
+  if (!Array.isArray(modules) || modules.length === 0) {
+    return jsonResponse({ success: false, error: 'No modules selected' }, 400, corsHeaders);
+  }
+
+  // --- Sanitize + deduplicate module names ---
+  const seenModules = new Set();
+  const cleanModules = [];
+  for (const m of modules) {
+    if (typeof m !== 'string' || m.length === 0 || m.length >= 100) continue;
+    const cleaned = m.replace(/[<>&"']/g, '').trim();
+    if (cleaned.length === 0) continue;
+    const lower = cleaned.toLowerCase();
+    if (seenModules.has(lower)) continue; // skip duplicates
+    seenModules.add(lower);
+    cleanModules.push(cleaned);
+  }
+
+  if (cleanModules.length === 0) {
+    return jsonResponse({ success: false, error: 'No valid modules selected' }, 400, corsHeaders);
+  }
+
+  // --- Rate limiting (per email, per hour) ---
+  const allowed = await checkRateLimit(env, email);
+  if (!allowed) {
+    return jsonResponse(
+      { success: false, error: 'Too many requests. Please try again later.' },
+      429, corsHeaders
+    );
+  }
+
+  // --- Store in D1 (notify_requests table) — fail hard if D1 is unavailable ---
+  try {
+    await env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS notify_requests (
+        id TEXT PRIMARY KEY,
+        email TEXT NOT NULL,
+        modules TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        notified INTEGER DEFAULT 0
+      )`
+    ).run();
+
+    const requestId = 'NR-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    await env.DB.prepare(
+      `INSERT INTO notify_requests (id, email, modules, created_at)
+       VALUES (?, ?, ?, ?)`
+    ).bind(
+      requestId,
+      email,
+      JSON.stringify(cleanModules),
+      new Date().toISOString()
+    ).run();
+  } catch (dbErr) {
+    // D1 is a required dependency — if it fails, the request fails
+    console.error('D1 write failed:', dbErr.message);
+    await logError(env, 'notify-me-d1', dbErr, request);
+    return jsonResponse(
+      { success: false, error: 'Unable to save your request. Please try again.' },
+      503, corsHeaders
+    );
+  }
+
+  // --- Send emails via SendGrid — fail hard if email delivery fails ---
+  const sendGridKey = env.SENDGRID_API_KEY;
+  const fromEmail = env.SENDGRID_FROM_EMAIL || 'noreply@driv-en.com';
+  const supportEmail = env.SUPPORT_CONTACT || 'support@driv-en.com';
+
+  if (!sendGridKey) {
+    // No API key = misconfiguration — fail rather than pretend success
+    console.error('SENDGRID_API_KEY not bound — cannot send emails');
+    await logError(env, 'notify-me-sendgrid', new Error('SENDGRID_API_KEY not bound'), request);
+    return jsonResponse(
+      { success: false, error: 'Email service unavailable. Please try again later.' },
+      503, corsHeaders
+    );
+  }
+
+  // Send support notification email
+  const supportResult = await sendEmail(
+    sendGridKey, fromEmail, supportEmail, 'DRIV-EN Support',
+    'New Module Launch Notification Request',
+    buildSupportNotificationEmail(email, cleanModules)
+  );
+
+  if (!supportResult.ok) {
+    console.error('Support email failed:', supportResult.error);
+    await logError(env, 'notify-me-sendgrid', new Error(supportResult.error), request);
+    return jsonResponse(
+      { success: false, error: 'Unable to send notification. Please try again.' },
+      502, corsHeaders
+    );
+  }
+
+  // Send visitor confirmation email
+  const visitorResult = await sendEmail(
+    sendGridKey, fromEmail, email, null,
+    'DRIV-EN — We\'ll Keep You Posted!',
+    buildVisitorConfirmationEmail(cleanModules)
+  );
+
+  if (!visitorResult.ok) {
+    // Support email succeeded but visitor confirmation failed
+    // The lead is captured in D1 + support was notified, so we can still
+    // return success — but log the failure for follow-up
+    console.error('Visitor confirmation email failed:', visitorResult.error);
+    await logError(env, 'notify-me-sendgrid', new Error(visitorResult.error), request);
+    // Still return success — the primary purpose (notify support) succeeded
+    return jsonResponse({
+      success: true,
+      warning: 'Your request was received but the confirmation email could not be delivered.'
+    }, 200, corsHeaders);
+  }
+
+  // --- All critical steps succeeded ---
+  return jsonResponse({ success: true }, 200, corsHeaders);
+}
+
 // Handle GET (for health check)
-export async function onRequestGet() {
-  return jsonResponse({ success: true, message: 'notify-me endpoint is active' });
+export async function onRequestGet({ request }) {
+  const corsHeaders = getCORSHeaders(request);
+  return jsonResponse({ success: true, message: 'notify-me endpoint is active' }, 200, corsHeaders);
 }
