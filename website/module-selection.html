@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
 
 <!-- ============================================================
-     MODULE SELECTION PAGE — Updated 2026-09-26 09:14 AM CST
+     MODULE SELECTION PAGE — Updated 2026-09-26 09:39 AM CST
      Changes:
        1. Light theme (diamond-plate background visible)
        2. Renamed: Equipment Management → Asset Management
@@ -24,6 +24,11 @@
        5. Added Cloudflare Turnstile (bot protection) + honeypot field
        6. Added global error handler (error-handler.js → /api/error-report)
        7. No account IDs in client-side code
+       8. Copilot review fixes:
+          - Safe JSON.parse (won't crash on corrupted localStorage)
+          - Banner shows individual selections (not just bundles)
+          - Dual storage: saves both display names AND module keys
+          - Restore matches by EITHER key OR display name
      NOTE: Backend module_key values (equipment_management, fuel_management,
            equipment_transfers) are UNCHANGED — only display names changed.
      ============================================================ -->
@@ -714,7 +719,7 @@ footer a {
 <script>
 // ============================================================
 // MODULE SELECTION LOGIC
-// Updated 2026-09-26 09:14 AM CST
+// Updated 2026-09-26 09:39 AM CST
 //
 // DISPLAY NAMES (what the customer sees):
 //   "Asset Management"           — module_key: equipment_management
@@ -756,9 +761,44 @@ let bundleActive = false;
 let activeBundle = null;
 
 /* -------------------------------------------------------------
+   MODULE KEY ↔ DISPLAY NAME MAPPING
+   The page saves BOTH display names (for cart/checkout UI) and
+   module keys (for backend/restore). This ensures restore works
+   even if another page saved only keys, and vice versa.
+   ------------------------------------------------------------- */
+const MODULE_MAP = [
+  { key: "equipment",         display: "Asset Management",           el: null }, // always checked/disabled, no restore needed
+  { key: "pm",                display: "Preventative Maintenance",   el: () => modPM },
+  { key: "inspections",       display: "Equipment Inspections",      el: () => modIns },
+  { key: "workorders",        display: "Work Orders",                el: () => modWO },
+  { key: "fuel",              display: "Fuel Management",            el: () => modFuel },
+  { key: "transfers",         display: "Asset Location Management",  el: () => modTransfers },
+  { key: "extraction",        display: "Extraction Engine",          el: () => modExtraction },
+  { key: "multilanguage",     display: "Multi-Language Support",     el: () => modTranslation }
+];
+
+// Helper: check if a saved string matches either a key or display name
+function savedMatchesModule(savedArr, key, display) {
+  return savedArr.includes(key) || savedArr.includes(display);
+}
+
+// Helper: safe JSON.parse — never crashes, returns fallback on error
+function safeJSONParse(str, fallback) {
+  try {
+    return JSON.parse(str);
+  } catch (e) {
+    console.warn("[DRIV-EN] Malformed localStorage value, ignoring:", str);
+    return fallback;
+  }
+}
+
+/* -------------------------------------------------------------
    ⭐ RESTORE PREVIOUS SELECTIONS WHEN RETURNING FROM CART OR CHECKOUT
    New visitors start fresh. Returning visitors (from cart or checkout)
    get their selections back.
+   Uses safeJSONParse so corrupted localStorage never crashes the page.
+   Restores by matching EITHER module keys OR display names, so it
+   works regardless of which page wrote the saved data.
    ------------------------------------------------------------- */
 (function restoreSelections() {
   const returning = localStorage.getItem("returningFromCart");
@@ -770,24 +810,31 @@ let activeBundle = null;
     return;
   }
 
-  const saved = JSON.parse(localStorage.getItem("selectedModules") || "[]");
+  // Safe parse — corrupted localStorage won't crash the page
+  // Try selectedModuleKeys first (more robust), fall back to selectedModules (display names)
+  let saved = safeJSONParse(localStorage.getItem("selectedModuleKeys") || "null", null);
+  if (!Array.isArray(saved) || saved.length === 0) {
+    saved = safeJSONParse(localStorage.getItem("selectedModules") || "[]", []);
+  }
 
   // Clear flag so future visits start fresh
   localStorage.removeItem("returningFromCart");
 
-  if (saved.length === 0) return;
+  if (!Array.isArray(saved) || saved.length === 0) return;
 
-  // Restore modules — display names match what was saved
-  modPM.checked = saved.includes("Preventative Maintenance");
-  modIns.checked = saved.includes("Equipment Inspections");
-  modWO.checked = saved.includes("Work Orders");
-  modFuel.checked = saved.includes("Fuel Management");
-  modTransfers.checked = saved.includes("Asset Location Management");
-  modExtraction.checked = saved.includes("Extraction Engine");
-  modTranslation.checked = saved.includes("Multi-Language Support");
+  // Restore modules — match by EITHER key OR display name
+  // This ensures restore works whether the saved data came from this page
+  // (display names) or from cart/checkout (which may use backend keys)
+  MODULE_MAP.forEach(m => {
+    if (m.el && savedMatchesModule(saved, m.key, m.display)) {
+      m.el().checked = true;
+    }
+  });
 
-  // Restore bundle
-  const savedBundle = saved.find(x => x.includes("Bundle"));
+  // Restore bundle — check for display name or key-based bundle identifiers
+  const savedBundle = saved.find(x =>
+    typeof x === "string" && x.includes("Bundle")
+  );
 
   if (savedBundle) {
     if (savedBundle === "Operations Bundle") bundleOps.checked = true;
@@ -829,17 +876,13 @@ function updateExtractionRules() {
 
 /* -------------------------------------------------------------
    GREEN BANNER (Selected Modules)
-   Shows which modules are included in the active bundle.
-   Multi-Language is listed separately if checked (it's not part
-   of any bundle — it's a standalone add-on).
+   Shows a summary of what the user has selected:
+     - If a bundle is active: shows bundle name + included modules
+     - If no bundle: shows individually selected modules
+   Multi-Language is always listed separately if checked (standalone add-on).
    ------------------------------------------------------------- */
 function showSelectionBanner() {
   const banner = document.getElementById("selectionBanner");
-
-  if (!bundleActive) {
-    banner.style.display = "none";
-    return;
-  }
 
   const modules = [];
 
@@ -850,18 +893,37 @@ function showSelectionBanner() {
   if (modTransfers.checked) modules.push("Asset Location Management");
   if (modExtraction.checked) modules.push("Extraction Engine");
 
-  // Asset Management is always listed first because it is required for every bundle
-  let bannerHTML =
-    `<strong>Selected: ${activeBundle}</strong><br>` +
-    `<span style="display:block; margin-left:20px;">Asset Management (Required)<br>${modules.join("<br>")}</span>`;
-
   // Multi-Language is shown separately if checked (standalone add-on, not in bundle)
-  if (modTranslation.checked) {
-    bannerHTML += `<br><span style="display:block; margin-left:20px; color:#16a34a;">Multi-Language Support (Add-on)</span>`;
-  }
+  const hasTranslation = modTranslation.checked;
 
-  banner.innerHTML = bannerHTML;
-  banner.style.display = "block";
+  if (bundleActive) {
+    // Bundle mode — show bundle name + included modules
+    let bannerHTML =
+      `<strong>Selected: ${activeBundle}</strong><br>` +
+      `<span style="display:block; margin-left:20px;">Asset Management (Required)<br>${modules.join("<br>")}</span>`;
+
+    if (hasTranslation) {
+      bannerHTML += `<br><span style="display:block; margin-left:20px; color:#16a34a;">Multi-Language Support (Add-on)</span>`;
+    }
+
+    banner.innerHTML = bannerHTML;
+    banner.style.display = "block";
+  } else if (modules.length > 0 || hasTranslation) {
+    // Individual mode — show selected modules without a bundle
+    let bannerHTML =
+      `<strong>Selected Modules:</strong><br>` +
+      `<span style="display:block; margin-left:20px;">Asset Management (Required)<br>${modules.join("<br>")}</span>`;
+
+    if (hasTranslation) {
+      bannerHTML += `<br><span style="display:block; margin-left:20px; color:#16a34a;">Multi-Language Support (Add-on)</span>`;
+    }
+
+    banner.innerHTML = bannerHTML;
+    banner.style.display = "block";
+  } else {
+    // Nothing selected (beyond required Asset Management) — hide banner
+    banner.style.display = "none";
+  }
 }
 
 /* -------------------------------------------------------------
@@ -1025,23 +1087,27 @@ btnContinue.addEventListener("click", () => {
     return;
   }
 
-  // --- Gather selected modules (display names) ---
-  // Asset Management is always first (required, always selected)
+  // --- Gather selected modules ---
+  // Save BOTH display names (for cart/checkout UI) and module keys (for backend).
+  // localStorage.selectedModules = display names (backward compatible with existing pages)
+  // localStorage.selectedModuleKeys = module keys (for backend/restore robustness)
   const selected = ["Asset Management"];
+  const selectedKeys = ["equipment"];
 
-  if (modPM.checked) selected.push("Preventative Maintenance");
-  if (modIns.checked) selected.push("Equipment Inspections");
-  if (modWO.checked) selected.push("Work Orders");
-  if (modFuel.checked) selected.push("Fuel Management");
-  if (modTransfers.checked) selected.push("Asset Location Management");
-  if (modExtraction.checked) selected.push("Extraction Engine");
-  if (modTranslation.checked) selected.push("Multi-Language Support");
+  if (modPM.checked) { selected.push("Preventative Maintenance"); selectedKeys.push("pm"); }
+  if (modIns.checked) { selected.push("Equipment Inspections"); selectedKeys.push("inspections"); }
+  if (modWO.checked) { selected.push("Work Orders"); selectedKeys.push("workorders"); }
+  if (modFuel.checked) { selected.push("Fuel Management"); selectedKeys.push("fuel"); }
+  if (modTransfers.checked) { selected.push("Asset Location Management"); selectedKeys.push("transfers"); }
+  if (modExtraction.checked) { selected.push("Extraction Engine"); selectedKeys.push("extraction"); }
+  if (modTranslation.checked) { selected.push("Multi-Language Support"); selectedKeys.push("multilanguage"); }
 
   if (bundleActive && activeBundle) {
     selected.push(activeBundle);
   }
 
   localStorage.setItem("selectedModules", JSON.stringify(selected));
+  localStorage.setItem("selectedModuleKeys", JSON.stringify(selectedKeys));
 
   // --- If promo code is active, go directly to checkout (skip Stripe) ---
   if (promoActive && promoData) {
