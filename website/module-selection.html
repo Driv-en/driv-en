@@ -11,34 +11,19 @@
 <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
 
 <!-- ============================================================
-     MODULE SELECTION PAGE — Updated 2026-09-28
+     MODULE SELECTION PAGE — Updated 2026-09-26
      Changes:
        1. Light theme (diamond-plate background visible)
        2. Renamed: Equipment Management → Asset Management
                    Fuel Usage Tracking → Fuel Management
                    Equipment Transfer Tracking → Asset Location Management
-                   Equipment Inspections → Asset Inspections
        3. Added Multi-Language Support module ($19/mo per secondary language)
           — standalone add-on, NOT included in any bundle
           — module_key: "multilanguage"
-       4. Asset Management no longer required — now uses prerequisite system:
-          PM requires Asset Management
-          Asset Inspections requires Asset Management
-          Work Orders requires Asset Management + PM + Asset Inspections
-          Fuel Management requires Asset Management
-          Asset Location Management requires Asset Management
-          Extraction Engine requires PM or Asset Inspections
-          Multi-Language has no prerequisites
-       5. Founding Member Code card now explains what user gets before entering code
-       6. Header changed to light gray (#e5e7eb) to match dashboard --bg-header
-       7. Copyright year auto-populated via JS (getFullYear())
-       8. modEquipment now declared in JS (fixes Copilot High issue)
-       9. Added Cloudflare Turnstile (bot protection) + honeypot field
-      10. Added global error handler (error-handler.js → /api/error-report)
-      11. No account IDs in client-side code
-      12. Removed unused #planBanner element (no CSS, never populated)
-      13. Added validateDependencies() hard check in submit handler
-      14. Auto-select Asset Management when a dependent module is checked
+       4. Removed redundant "Choose your modules" subtitle from header
+       5. Added Cloudflare Turnstile (bot protection) + honeypot field
+       6. Added global error handler (error-handler.js → /api/error-report)
+       7. No account IDs in client-side code
      NOTE: Backend module_key values (equipment_management, fuel_management,
            equipment_transfers) are UNCHANGED — only display names changed.
      ============================================================ -->
@@ -571,7 +556,6 @@ footer a {
      It is a standalone add-on ($19/mo per secondary language).
      Bundle descriptions use updated display names:
        "Equipment Management" → "Asset Management"
-       "Equipment Inspections" → "Asset Inspections"
      ============================================================ -->
 <div class="bundle-note">
   <div class="bundle-title">Bundle Pricing</div>
@@ -603,7 +587,6 @@ footer a {
          Equipment Management  → Asset Management
          Fuel Usage Tracking    → Fuel Management
          Equipment Transfer Tracking → Asset Location Management
-         Equipment Inspections → Asset Inspections
        New module added:
          Multi-Language Support ($19/mo per secondary language)
        Backend module_key values are UNCHANGED.
@@ -724,7 +707,6 @@ footer a {
              Standalone add-on — NOT included in any bundle.
              $19/month per secondary language.
              Primary language is free (any supported language).
-             No prerequisites.
              ================================================== -->
         <div class="module-item" style="border: 2px solid #22c55e;">
           <label for="modTranslation">Multi-Language Support</label>
@@ -898,7 +880,7 @@ footer a {
 // ============================================================
 // MODULE SELECTION LOGIC
 // Updated 2026-09-28 (hardened: canonical backend keys, payload
-// versioning, module dependency system, restore normalization)
+// versioning, required-module enforcement, restore normalization)
 //
 // CANONICAL BACKEND KEYS (single source of truth — used for
 // localStorage, submit payloads, and restore matching):
@@ -909,22 +891,13 @@ footer a {
 //   fuel_management         → "Fuel Management"
 //   equipment_transfers     → "Asset Location Management"
 //   extraction              → "Extraction Engine"
-//   multilanguage           → "Multi-Language Support"
+//   multilanguage           → "Multi-Language Support"  ← NEW
 //
 // LEGACY SHORT KEYS (used by older versions of this page — mapped
 // in LEGACY_KEY_MAP for backward-compatible restore only):
 //   equipment → equipment_management
 //   fuel      → fuel_management
 //   transfers → equipment_transfers
-//
-// MODULE DEPENDENCY RULES:
-//   PM requires Asset Management
-//   Asset Inspections requires Asset Management
-//   Work Orders requires Asset Management + PM + Asset Inspections
-//   Fuel Management requires Asset Management
-//   Asset Location Management requires Asset Management
-//   Extraction Engine requires PM or Asset Inspections
-//   Multi-Language has no prerequisites
 //
 // NOTE: Multi-Language is a standalone add-on — NOT in any bundle.
 //       When a bundle is active, modTranslation stays independent
@@ -948,7 +921,7 @@ const modWO = document.getElementById("modWorkOrders");
 const modFuel = document.getElementById("modFuel");
 const modTransfers = document.getElementById("modTransfers");
 const modExtraction = document.getElementById("modExtraction");
-const modTranslation = document.getElementById("modTranslation"); // Multi-Language Support
+const modTranslation = document.getElementById("modTranslation"); // NEW — Multi-Language Support
 
 // --- Bundle checkboxes ---
 const bundleOps = document.getElementById("bundleOperations");
@@ -1387,7 +1360,7 @@ function clearOtherBundles(selectedId) {
 
 /* -------------------------------------------------------------
    APPLY BUNDLE LOGIC
-   When a bundle is selected, it controls the core modules.
+   When a bundle is selected, it controls the 6 core modules.
    Multi-Language (modTranslation) is NEVER controlled by bundles —
    it remains independently checkable/uncheckable.
    ------------------------------------------------------------- */
@@ -1463,7 +1436,7 @@ function uncheckBundleIfModuleChanged() {
 
 /* -------------------------------------------------------------
    MODULE CHANGE EVENTS
-   Core modules: trigger bundle-break check + dependency rules.
+   Core modules: trigger bundle-break check + extraction rules.
    Multi-Language: only updates the banner (does not break bundles).
    ------------------------------------------------------------- */
 // Core modules
@@ -1475,7 +1448,7 @@ function uncheckBundleIfModuleChanged() {
   });
 });
 
-// Multi-Language — independent, does not affect bundles or dependency rules
+// Multi-Language — independent, does not affect bundles or extraction rules
 modTranslation.addEventListener("change", () => {
   showSelectionBanner();
 });
@@ -1514,8 +1487,7 @@ bundleIds.forEach(id => {
    HONEYPOT CHECK: If the hidden honeypot field has a value,
    the submission is silently rejected (bot detected).
 
-   TURNSTILE CHECK: Verifies the Turnstile token server-side
-   before proceeding. Fail-closed — blocks if unreachable.
+   TURNSTILE CHECK: Verifies the Turnstile token before proceeding.
    ------------------------------------------------------------- */
 btnContinue.addEventListener("click", async () => {
 
@@ -1524,6 +1496,38 @@ btnContinue.addEventListener("click", async () => {
   if (honeypot && honeypot.value) {
     // Bot detected — silently do nothing (pretend success)
     console.warn("[DRIV-EN] Honeypot field was filled — bot submission blocked.");
+    return;
+  }
+
+  // --- Gather selected modules ---
+  // Uses CANONICAL backend keys (equipment_management, fuel_management, etc.)
+  // as the single source of truth for localStorage and submit payloads.
+  // Display names are saved separately for cart/checkout UI display.
+  const selected = [];
+  const selectedKeys = [];
+
+  if (modEquipment.checked) { selected.push("Asset Management"); selectedKeys.push("equipment_management"); }
+  if (modPM.checked) { selected.push("Preventative Maintenance"); selectedKeys.push("pm"); }
+  if (modIns.checked) { selected.push("Asset Inspections"); selectedKeys.push("inspections"); }
+  if (modWO.checked) { selected.push("Work Orders"); selectedKeys.push("workorders"); }
+  if (modFuel.checked) { selected.push("Fuel Management"); selectedKeys.push("fuel_management"); }
+  if (modTransfers.checked) { selected.push("Asset Location Management"); selectedKeys.push("equipment_transfers"); }
+  if (modExtraction.checked) { selected.push("Extraction Engine"); selectedKeys.push("extraction"); }
+  if (modTranslation.checked) { selected.push("Multi-Language Support"); selectedKeys.push("multilanguage"); }
+
+  // --- Validate at least one module is selected (BEFORE Turnstile) ---
+  if (selectedKeys.length === 0) {
+    statusBar.textContent = "Please select at least one module to continue.";
+    statusBar.style.color = "#dc2626";
+    return;
+  }
+
+  // --- Validate module dependencies (hard check — catches DevTools/localStorage bypass) ---
+  const depCheck = validateDependencies();
+  if (!depCheck.valid) {
+    statusBar.textContent = depCheck.error;
+    statusBar.style.color = "#dc2626";
+    console.error("[DRIV-EN] Dependency validation failed:", depCheck.error);
     return;
   }
 
@@ -1558,38 +1562,6 @@ btnContinue.addEventListener("click", async () => {
     return;
   }
   statusBar.textContent = "";
-
-  // --- Gather selected modules ---
-  // Uses CANONICAL backend keys (equipment_management, fuel_management, etc.)
-  // as the single source of truth for localStorage and submit payloads.
-  // Display names are saved separately for cart/checkout UI display.
-  const selected = [];
-  const selectedKeys = [];
-
-  if (modEquipment.checked) { selected.push("Asset Management"); selectedKeys.push("equipment_management"); }
-  if (modPM.checked) { selected.push("Preventative Maintenance"); selectedKeys.push("pm"); }
-  if (modIns.checked) { selected.push("Asset Inspections"); selectedKeys.push("inspections"); }
-  if (modWO.checked) { selected.push("Work Orders"); selectedKeys.push("workorders"); }
-  if (modFuel.checked) { selected.push("Fuel Management"); selectedKeys.push("fuel_management"); }
-  if (modTransfers.checked) { selected.push("Asset Location Management"); selectedKeys.push("equipment_transfers"); }
-  if (modExtraction.checked) { selected.push("Extraction Engine"); selectedKeys.push("extraction"); }
-  if (modTranslation.checked) { selected.push("Multi-Language Support"); selectedKeys.push("multilanguage"); }
-
-  // --- Validate at least one module is selected ---
-  if (selectedKeys.length === 0) {
-    statusBar.textContent = "Please select at least one module to continue.";
-    statusBar.style.color = "#dc2626";
-    return;
-  }
-
-  // --- Validate module dependencies (hard check — catches DevTools/localStorage bypass) ---
-  const depCheck = validateDependencies();
-  if (!depCheck.valid) {
-    statusBar.textContent = depCheck.error;
-    statusBar.style.color = "#dc2626";
-    console.error("[DRIV-EN] Dependency validation failed:", depCheck.error);
-    return;
-  }
 
   if (bundleActive && activeBundle) {
     selected.push(activeBundle);
