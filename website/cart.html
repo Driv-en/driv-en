@@ -75,8 +75,21 @@
       column-gap: 12px;
     }
 
+    .module-header {
+      display: grid;
+      grid-template-columns: 1fr 90px 90px;
+      padding: 8px 0;
+      border-bottom: 2px solid #d1d5db;
+      column-gap: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
     @media (max-width: 480px) {
-      .module-row { grid-template-columns: 1fr 70px 70px; }
+      .module-row, .module-header { grid-template-columns: 1fr 70px 70px; }
     }
 
     .module-row:last-child { border-bottom: none; }
@@ -237,13 +250,13 @@
       <div class="totals-grid">
         <div class="totals-column">
           <h4>Monthly</h4>
-          <div><strong>Subtotal:</strong> <span id="subtotalMonthly">$0</span></div>
+          <div><strong>Subtotal:</strong> <span id="subtotalMonthly">$0.00</span></div>
           <div id="monthlySavingsBox" class="savings-line"></div>
         </div>
 
         <div class="totals-column">
           <h4>Annual (10% off)</h4>
-          <div><strong>Subtotal:</strong> <span id="subtotalAnnual">$0</span></div>
+          <div><strong>Subtotal:</strong> <span id="subtotalAnnual">$0.00</span></div>
           <div id="annualSavingsBox" class="savings-line"></div>
         </div>
       </div>
@@ -253,7 +266,7 @@
       </div>
 
       <div class="invoice-line">
-        <strong>Invoice Amount (pre-tax, USD):</strong> <span id="invoiceAmount">$0</span>
+        <strong>Invoice Amount (pre-tax, USD):</strong> <span id="invoiceAmount">$0.00</span>
         <span id="invoiceLabel" style="color:#6b7280; margin-left:4px;">(Monthly)</span>
       </div>
     </div>
@@ -353,7 +366,7 @@
     nl: "Dutch", ar: "Arabic", hi: "Hindi", th: "Thai", vi: "Vietnamese", ru: "Russian"
   };
 
-  var LANG_PRICE = 19; // per secondary language per month
+  var LANG_PRICE = 19;
 
   function getSelectedSecondaryLanguages() {
     var checkboxes = document.querySelectorAll(".lang-cb:checked");
@@ -455,6 +468,15 @@
       }
     });
 
+    // Column headers
+    rows.push(
+      '<div class="module-header">' +
+        '<div>Module</div>' +
+        '<div style="text-align:right;">Unit Price</div>' +
+        '<div style="text-align:right;">Extended</div>' +
+      '</div>'
+    );
+
     bundleModuleList.forEach(function(key) {
       var name = MODULE_MAP[key];
       var price = PRICES[key];
@@ -462,9 +484,9 @@
       rows.push(
         '<div class="module-row">' +
           '<div class="module-name">' + name +
-            '<span class="included-badge" style="background:#e8f5e9;border:1px solid #4caf50;padding:2px 6px;margin-left:8px;border-radius:4px;font-size:12px;color:#2e7d32;">Included in Bundle</span>' +
+            '<span style="background:#e8f5e9;border:1px solid #4caf50;padding:2px 6px;margin-left:8px;border-radius:4px;font-size:12px;color:#2e7d32;">Included in Bundle</span>' +
           '</div>' +
-          '<div class="unit-price">$' + price + '</div>' +
+          '<div class="unit-price">$' + price.toFixed(2) + '</div>' +
           '<div class="extended-price">-</div>' +
         '</div>'
       );
@@ -472,10 +494,10 @@
 
     if (bundle) {
       rows.push(
-        '<div class="module-row bundle-row">' +
+        '<div class="module-row">' +
           '<div class="module-name">' + bundleName + '</div>' +
           '<div class="unit-price">-</div>' +
-          '<div class="extended-price">$' + bundle.price + '</div>' +
+          '<div class="extended-price">$' + bundle.price.toFixed(2) + '</div>' +
         '</div>'
       );
       chargeTotal += bundle.price;
@@ -492,12 +514,18 @@
 
       unitTotal += price;
       chargeTotal += price;
+
+      var unitPriceText;
+      if (key === "multilanguage") {
+        unitPriceText = '$' + LANG_PRICE.toFixed(2) + ' × ' + getSecondaryLanguageCount();
+      } else {
+        unitPriceText = '$' + price.toFixed(2);
+      }
+
       rows.push(
         '<div class="module-row">' +
           '<div class="module-name">' + name + '</div>' +
-          (key === "multilanguage"
-            ? '<div class="unit-price">$' + LANG_PRICE + ' × ' + getSecondaryLanguageCount() + '</div>'
-            : '<div class="unit-price">$' + price + '</div>') +
+          '<div class="unit-price">' + unitPriceText + '</div>' +
           '<div class="extended-price">$' + price.toFixed(2) + '</div>' +
         '</div>'
       );
@@ -505,6 +533,7 @@
 
     cartList.innerHTML = rows.join("");
 
+    // Show/hide language selection card
     showLanguageCardIfNeeded(selectedModules);
     updateLanguageNote();
 
@@ -536,7 +565,7 @@
     if (previousPeriod) {
       updateInvoiceDisplay(previousPeriod, { monthlyTotal: monthlyTotal, annualTotal: annualTotal });
     } else {
-      invoiceAmountEl.textContent = "$0";
+      invoiceAmountEl.textContent = "$0.00";
       invoiceLabelEl.textContent = "(Select Monthly or Annual)";
     }
 
@@ -580,27 +609,17 @@
     radio.addEventListener("change", function() {
       var selections = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
       var period = radio.value;
-      var monthlyTotal = selections.monthlyTotal || 0;
-      var annualTotal = selections.annualTotal || 0;
+      updateInvoiceDisplay(period, { monthlyTotal: selections.monthlyTotal || 0, annualTotal: selections.annualTotal || 0 });
 
-      updateInvoiceDisplay(period, { monthlyTotal: monthlyTotal, annualTotal: annualTotal });
-
-      var invoiceSubtotal, invoiceTax, invoiceTotal;
       if (period === "monthly") {
-        invoiceSubtotal = selections.monthlySubtotal;
-        invoiceTax = 0;
-        invoiceTotal = selections.monthlyTotal;
+        selections.invoiceSubtotal = selections.monthlySubtotal;
+        selections.invoiceTotal = selections.monthlyTotal;
       } else {
-        invoiceSubtotal = selections.annualSubtotal;
-        invoiceTax = 0;
-        invoiceTotal = selections.annualTotal;
+        selections.invoiceSubtotal = selections.annualSubtotal;
+        selections.invoiceTotal = selections.annualTotal;
       }
-
+      selections.invoiceTax = 0;
       selections.billingPeriod = period;
-      selections.invoiceSubtotal = invoiceSubtotal;
-      selections.invoiceTax = invoiceTax;
-      selections.invoiceTotal = invoiceTotal;
-
       localStorage.setItem("driven_checkout_payload", JSON.stringify(selections));
     });
   });
