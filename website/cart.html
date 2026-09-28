@@ -177,6 +177,57 @@
 
     <div class="card" id="cartList"></div>
 
+    <!-- Language Selection (only visible if Multi-Language Support is in the order) -->
+    <div class="card" id="languageCard" style="display:none;">
+      <h3>Language Selection</h3>
+      <p style="font-size:13px;color:#6b7280;margin-bottom:16px;">
+        Select your platform's primary language and any additional languages you need. Each secondary language adds $19/month.
+      </p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div>
+          <label for="primaryLanguage" style="font-size:13px;font-weight:600;color:#1a1a1a;display:block;margin-bottom:4px;">Primary Language *</label>
+          <select id="primaryLanguage" style="padding:8px 10px;border-radius:6px;border:1px solid #d1d5db;background:#f9fafb;color:#1a1a1a;font-size:13px;height:40px;width:100%;">
+            <option value="en">English</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <option value="ja">Japanese</option>
+            <option value="de">German</option>
+            <option value="pt">Portuguese</option>
+            <option value="zh">Chinese (Simplified)</option>
+            <option value="ko">Korean</option>
+            <option value="it">Italian</option>
+            <option value="nl">Dutch</option>
+            <option value="ar">Arabic</option>
+            <option value="hi">Hindi</option>
+            <option value="th">Thai</option>
+            <option value="vi">Vietnamese</option>
+            <option value="ru">Russian</option>
+          </select>
+        </div>
+        <div>
+          <span style="font-size:13px;font-weight:600;color:#1a1a1a;display:block;margin-bottom:4px;">Secondary Languages ($19/month each)</span>
+          <div id="secondaryLanguages" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <label style="font-size:13px;font-weight:400;display:flex;align-items:center;gap:6px;"><input type="checkbox" class="lang-cb" value="es" /> Spanish</label>
+            <label style="font-size:13px;font-weight:400;display:flex;align-items:center;gap:6px;"><input type="checkbox" class="lang-cb" value="fr" /> French</label>
+            <label style="font-size:13px;font-weight:400;display:flex;align-items:center;gap:6px;"><input type="checkbox" class="lang-cb" value="ja" /> Japanese</label>
+            <label style="font-size:13px;font-weight:400;display:flex;align-items:center;gap:6px;"><input type="checkbox" class="lang-cb" value="de" /> German</label>
+            <label style="font-size:13px;font-weight:400;display:flex;align-items:center;gap:6px;"><input type="checkbox" class="lang-cb" value="pt" /> Portuguese</label>
+            <label style="font-size:13px;font-weight:400;display:flex;align-items:center;gap:6px;"><input type="checkbox" class="lang-cb" value="zh" /> Chinese (Simplified)</label>
+            <label style="font-size:13px;font-weight:400;display:flex;align-items:center;gap:6px;"><input type="checkbox" class="lang-cb" value="ko" /> Korean</label>
+            <label style="font-size:13px;font-weight:400;display:flex;align-items:center;gap:6px;"><input type="checkbox" class="lang-cb" value="it" /> Italian</label>
+            <label style="font-size:13px;font-weight:400;display:flex;align-items:center;gap:6px;"><input type="checkbox" class="lang-cb" value="nl" /> Dutch</label>
+            <label style="font-size:13px;font-weight:400;display:flex;align-items:center;gap:6px;"><input type="checkbox" class="lang-cb" value="ar" /> Arabic</label>
+            <label style="font-size:13px;font-weight:400;display:flex;align-items:center;gap:6px;"><input type="checkbox" class="lang-cb" value="hi" /> Hindi</label>
+            <label style="font-size:13px;font-weight:400;display:flex;align-items:center;gap:6px;"><input type="checkbox" class="lang-cb" value="th" /> Thai</label>
+            <label style="font-size:13px;font-weight:400;display:flex;align-items:center;gap:6px;"><input type="checkbox" class="lang-cb" value="vi" /> Vietnamese</label>
+            <label style="font-size:13px;font-weight:400;display:flex;align-items:center;gap:6px;"><input type="checkbox" class="lang-cb" value="ru" /> Russian</label>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:12px;color:#6b7280;margin-top:8px;" id="languageNote"></p>
+    </div>
+
     <div class="card totals">
       <div class="billing-choice">
         <label><input type="radio" name="billingPeriod" value="monthly"> Monthly</label>
@@ -198,7 +249,7 @@
       </div>
 
       <div style="margin-top:12px; font-size:13px; color:#6b7280; font-style:italic;">
-        Taxes are only collected for Texas-based businesses (8.25% sales tax). Businesses outside Texas are responsible for determining and remitting their own state and local taxes.
+        Taxes are only collected for Texas-based US businesses (8.25% sales tax). Customers outside Texas are responsible for determining and remitting their own applicable taxes, including state, local, VAT, GST, or consumption tax as required by their jurisdiction.
       </div>
 
       <div class="invoice-line">
@@ -296,6 +347,55 @@
     "Multi-Language Support": "multilanguage"
   };
 
+  var LANG_NAMES = {
+    en: "English", es: "Spanish", fr: "French", ja: "Japanese", de: "German",
+    pt: "Portuguese", zh: "Chinese (Simplified)", ko: "Korean", it: "Italian",
+    nl: "Dutch", ar: "Arabic", hi: "Hindi", th: "Thai", vi: "Vietnamese", ru: "Russian"
+  };
+
+  var LANG_PRICE = 19; // per secondary language per month
+
+  function getSelectedSecondaryLanguages() {
+    var checkboxes = document.querySelectorAll(".lang-cb:checked");
+    return Array.from(checkboxes).map(function(cb) { return cb.value; });
+  }
+
+  function getSecondaryLanguageCount() {
+    return document.querySelectorAll(".lang-cb:checked").length;
+  }
+
+  function showLanguageCardIfNeeded(selectedModules) {
+    var hasMultilang = selectedModules.some(function(m) { return m === "multilanguage"; });
+    var langCard = document.getElementById("languageCard");
+    if (hasMultilang) {
+      langCard.style.display = "";
+    } else {
+      langCard.style.display = "none";
+      document.querySelectorAll(".lang-cb:checked").forEach(function(cb) { cb.checked = false; });
+      document.getElementById("primaryLanguage").value = "en";
+    }
+  }
+
+  function updateLanguageNote() {
+    var count = getSecondaryLanguageCount();
+    var note = document.getElementById("languageNote");
+    if (count === 0) {
+      note.textContent = "No secondary languages selected. Select at least one to enable multi-language support.";
+      note.style.color = "#dc2626";
+    } else {
+      var monthlyCost = count * LANG_PRICE;
+      note.textContent = count + " secondary language" + (count > 1 ? "s" : "") + " selected — $" + monthlyCost.toFixed(2) + "/month added.";
+      note.style.color = "#6b7280";
+    }
+  }
+
+  document.querySelectorAll(".lang-cb").forEach(function(cb) {
+    cb.addEventListener("change", function() {
+      updateLanguageNote();
+      renderCart();
+    });
+  });
+
   function normalizeKey(raw) {
     if (typeof raw !== "string") return null;
     if (MODULE_MAP[raw]) return raw;
@@ -384,18 +484,29 @@
     extraModuleList.forEach(function(key) {
       var name = MODULE_MAP[key];
       var price = PRICES[key];
+
+      if (key === "multilanguage") {
+        var langCount = getSecondaryLanguageCount();
+        price = langCount * LANG_PRICE;
+      }
+
       unitTotal += price;
       chargeTotal += price;
       rows.push(
         '<div class="module-row">' +
           '<div class="module-name">' + name + '</div>' +
-          '<div class="unit-price">$' + price + '</div>' +
-          '<div class="extended-price">$' + price + '</div>' +
+          (key === "multilanguage"
+            ? '<div class="unit-price">$' + LANG_PRICE + ' × ' + getSecondaryLanguageCount() + '</div>'
+            : '<div class="unit-price">$' + price + '</div>') +
+          '<div class="extended-price">$' + price.toFixed(2) + '</div>' +
         '</div>'
       );
     });
 
     cartList.innerHTML = rows.join("");
+
+    showLanguageCardIfNeeded(selectedModules);
+    updateLanguageNote();
 
     var monthlySavings = unitTotal - chargeTotal;
     var annualNoDiscount = unitTotal * 12;
@@ -448,7 +559,10 @@
       invoiceSubtotal: previousPeriod === "monthly" ? monthlySubtotal : (previousPeriod === "annual" ? annualSubtotal : 0),
       invoiceTax: 0,
       invoiceTotal: previousPeriod === "monthly" ? monthlyTotal : (previousPeriod === "annual" ? annualTotal : 0),
-      referralCode: referralCode || ""
+      referralCode: referralCode || "",
+      primaryLanguage: document.getElementById("primaryLanguage").value,
+      secondaryLanguages: getSelectedSecondaryLanguages(),
+      secondaryLanguageCount: getSecondaryLanguageCount()
     }));
   }
 
@@ -504,6 +618,16 @@
       document.querySelector('.billing-choice').scrollIntoView({ behavior: "smooth" });
       return;
     }
+
+    var payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
+    var hasMultilang = (payload.modules || []).some(function(m) { return m === "multilanguage"; });
+    if (hasMultilang && getSecondaryLanguageCount() === 0) {
+      statusBar.textContent = "Please select at least one secondary language before proceeding to checkout.";
+      statusBar.style.color = "#dc2626";
+      document.getElementById("languageCard").scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+
     statusBar.textContent = "";
     statusBar.style.color = "";
     window.location.href = "checkout.html";
