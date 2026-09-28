@@ -11,19 +11,31 @@
 <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
 
 <!-- ============================================================
-     MODULE SELECTION PAGE — Updated 2026-09-26
+     MODULE SELECTION PAGE — Updated 2026-09-28
      Changes:
        1. Light theme (diamond-plate background visible)
        2. Renamed: Equipment Management → Asset Management
                    Fuel Usage Tracking → Fuel Management
                    Equipment Transfer Tracking → Asset Location Management
+                   Equipment Inspections → Asset Inspections
        3. Added Multi-Language Support module ($19/mo per secondary language)
           — standalone add-on, NOT included in any bundle
           — module_key: "multilanguage"
-       4. Removed redundant "Choose your modules" subtitle from header
-       5. Added Cloudflare Turnstile (bot protection) + honeypot field
-       6. Added global error handler (error-handler.js → /api/error-report)
-       7. No account IDs in client-side code
+       4. Asset Management no longer required — now uses prerequisite system:
+          PM requires Asset Management
+          Asset Inspections requires Asset Management
+          Work Orders requires Asset Management + PM + Asset Inspections
+          Fuel Management requires Asset Management
+          Asset Location Management requires Asset Management
+          Extraction Engine requires PM or Asset Inspections
+          Multi-Language has no prerequisites
+       5. Founding Member Code card now explains what user gets before entering code
+       6. Header changed to light gray (#e5e7eb) to match dashboard --bg-header
+       7. Copyright year auto-populated via JS (getFullYear())
+       8. modEquipment now declared in JS (fixes Copilot High issue)
+       9. Added Cloudflare Turnstile (bot protection) + honeypot field
+      10. Added global error handler (error-handler.js → /api/error-report)
+      11. No account IDs in client-side code
      NOTE: Backend module_key values (equipment_management, fuel_management,
            equipment_transfers) are UNCHANGED — only display names changed.
      ============================================================ -->
@@ -80,7 +92,7 @@ header {
   z-index: 100;
   padding: 16px 24px;
   border-bottom: 4px solid #2ecc71;
-  background: #ffffff;       /* white header */
+  background: #e5e7eb;       /* light gray header (matches dashboard --bg-header) */
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -515,7 +527,7 @@ footer a {
     <span id="planBannerText"></span>
   </div>
 
-  Asset Management is required. Other modules are optional and may be billed monthly or annually (annual billing receives a 10% discount).
+  Asset Management is recommended as the foundation module. Other modules may have prerequisites (see each module description). Modules may be billed monthly or annually (annual billing receives a 10% discount).
 </div>
 
 <!-- Founding Member Code Section — auto-hides after 2026-12-31 -->
@@ -528,7 +540,7 @@ footer a {
   <div class="free-sub" id="freeAccessSub">Enjoy all selected modules at no cost through December 31, 2026.</div>
   <div style="margin-top:10px;font-size:12px;color:#86efac;text-align:left;max-width:500px;margin-left:auto;margin-right:auto;line-height:1.6;">
     <strong>All modules included free:</strong><br>
-    Asset Management · Preventative Maintenance · Equipment Inspections · Work Orders · Fuel Management · Asset Location Management · Extraction Engine · Multi-Language Support<br><br>
+    Asset Management · Preventative Maintenance · Asset Inspections · Work Orders · Fuel Management · Asset Location Management · Extraction Engine · Multi-Language Support<br><br>
     <strong>No credit card needed.</strong> Your free access continues through December 31, 2026.
   </div>
 </div>
@@ -537,6 +549,13 @@ footer a {
 <div class="promo-section">
   <h3>Founding Member Code</h3>
   <div class="promo-hint">Have a Founding Member code? Enter it here to unlock free access.</div>
+  <div style="margin-top:8px;margin-bottom:12px;padding:10px 12px;background:#ffffff;border:1px solid #d1d5db;border-radius:6px;font-size:13px;color:#374151;line-height:1.5;">
+    <strong style="color:#065f46;">What you get with a Founding Member Code:</strong><br>
+    • Free access to <strong>all modules</strong> — Asset Management, Preventative Maintenance, Asset Inspections, Work Orders, Fuel Management, Asset Location Management, Extraction Engine, and Multi-Language Support<br>
+    • No credit card needed<br>
+    • Free access continues through <strong>December 31, 2026</strong><br>
+    • The Complete Platform Bundle is automatically activated at no charge
+  </div>
   <div class="promo-input-row">
     <input type="text" id="promoCodeInput" placeholder="ENTER CODE" maxlength="30" autocomplete="off" />
     <button class="btn-secondary" id="btnApplyPromo">Apply Code</button>
@@ -555,6 +574,7 @@ footer a {
      It is a standalone add-on ($19/mo per secondary language).
      Bundle descriptions use updated display names:
        "Equipment Management" → "Asset Management"
+       "Equipment Inspections" → "Asset Inspections"
      ============================================================ -->
 <div class="bundle-note">
   <div class="bundle-title">Bundle Pricing</div>
@@ -562,13 +582,13 @@ footer a {
   <div class="bundle-item">
     <input type="checkbox" id="bundleOperations">
     Operations Bundle — $499/month<br>
-    <span style="display:block;margin-left:20px;">Asset Management + Preventative Maintenance + Equipment Inspections + Extraction Engine (Included)</span>
+    <span style="display:block;margin-left:20px;">Asset Management + Preventative Maintenance + Asset Inspections + Extraction Engine (Included)</span>
   </div>
 
   <div class="bundle-item">
     <input type="checkbox" id="bundleFull">
     Full Asset Bundle — $529/month<br>
-    <span style="display:block;margin-left:20px;">Asset Management + Preventative Maintenance + Equipment Inspections + Work Orders + Extraction Engine (Included)</span>
+    <span style="display:block;margin-left:20px;">Asset Management + Preventative Maintenance + Asset Inspections + Work Orders + Extraction Engine (Included)</span>
   </div>
 
   <div class="bundle-item">
@@ -586,6 +606,7 @@ footer a {
          Equipment Management  → Asset Management
          Fuel Usage Tracking    → Fuel Management
          Equipment Transfer Tracking → Asset Location Management
+         Equipment Inspections → Asset Inspections
        New module added:
          Multi-Language Support ($19/mo per secondary language)
        Backend module_key values are UNCHANGED.
@@ -597,20 +618,23 @@ footer a {
       <div class="module-list">
 
         <!-- Asset Management (was "Equipment Management")
-             module_key: equipment_management (UNCHANGED in backend) -->
+             module_key: equipment_management (UNCHANGED in backend)
+             No longer required — but is a prerequisite for PM, Asset Inspections,
+             Work Orders, Fuel Management, and Asset Location Management. -->
         <div class="module-item">
-          <label for="modEquipment">Asset Management (Required)</label>
+          <label for="modEquipment">Asset Management</label>
           <div class="module-price">$149/month</div>
           <div class="module-desc">
             The foundation of your fleet operations. Track unit details, locations, meter readings, operational status, and configuration profiles.
             Asset Management is the core of DRIV‑EN and powers every other module.
             When selected alone, it provides essential manual tracking.
-            When paired with PM, Inspections, Work Orders, Fuel, or Asset Location Management, it becomes a fully automated operational system.
+            When paired with PM, Asset Inspections, Work Orders, Fuel, or Asset Location Management, it becomes a fully automated operational system.
           </div>
-          <input type="checkbox" id="modEquipment" checked disabled />
+          <input type="checkbox" id="modEquipment" />
         </div>
 
-        <!-- Preventative Maintenance -->
+        <!-- Preventative Maintenance
+             Requires: Asset Management -->
         <div class="module-item">
           <label for="modPM">Preventative Maintenance</label>
           <div class="module-price">$299/month</div>
@@ -618,24 +642,29 @@ footer a {
             Automated PM schedules, manufacturer‑accurate templates, and guided technician workflows.
             DRIV‑EN's extraction engine reads equipment manuals, manufacturer documentation, and configuration details to identify part numbers, fluid types, capacities, intervals, and safety requirements.
             PM completions update Asset Management automatically and generate full digital reports.
+            <br><br><strong>Requires Asset Management.</strong>
           </div>
           <input type="checkbox" id="modPM" />
         </div>
 
-        <!-- Equipment Inspections -->
+        <!-- Asset Inspections (was "Equipment Inspections")
+             module_key: inspections (UNCHANGED in backend)
+             Requires: Asset Management -->
         <div class="module-item">
-          <label for="modInspections">Equipment Inspections</label>
+          <label for="modInspections">Asset Inspections</label>
           <div class="module-price">$199/month</div>
           <div class="module-desc">
             Safety and compliance inspections tailored to each unit.
             Templates adapt to equipment type, configuration, and operational requirements.
             If Preventative Maintenance is active, inspections incorporate manufacturer safety items retrieved by the extraction engine.
             Completed inspections update Asset Management and trigger safety alerts when needed.
+            <br><br><strong>Requires Asset Management.</strong>
           </div>
           <input type="checkbox" id="modInspections" />
         </div>
 
-        <!-- Work Orders -->
+        <!-- Work Orders
+             Requires: Asset Management, Preventative Maintenance, Asset Inspections -->
         <div class="module-item">
           <label for="modWorkOrders">Work Orders</label>
           <div class="module-price">$149/month</div>
@@ -643,12 +672,14 @@ footer a {
             Manage repairs, diagnostics, and non‑PM maintenance tasks with structured work orders.
             Assign personnel, track progress, capture photos and notes, and close tasks with full documentation.
             Work Orders integrate seamlessly with Asset Management and can be triggered by inspections, PM completions, or manual entry.
+            <br><br><strong>Requires Asset Management, Preventative Maintenance, and Asset Inspections.</strong>
           </div>
           <input type="checkbox" id="modWorkOrders" />
         </div>
 
         <!-- Fuel Management (was "Fuel Usage Tracking")
-             module_key: fuel_management (UNCHANGED in backend) -->
+             module_key: fuel_management (UNCHANGED in backend)
+             Requires: Asset Management -->
         <div class="module-item">
           <label for="modFuel">Fuel Management</label>
           <div class="module-price">$49/month</div>
@@ -656,12 +687,14 @@ footer a {
             Monitor fuel consumption, cost, and efficiency across your fleet.
             Automatically update meter readings and equipment status.
             Fuel data enhances PM scheduling when Preventative Maintenance is active and provides valuable insights into operating costs.
+            <br><br><strong>Requires Asset Management.</strong>
           </div>
           <input type="checkbox" id="modFuel" />
         </div>
 
         <!-- Asset Location Management (was "Equipment Transfer Tracking")
-             module_key: equipment_transfers (UNCHANGED in backend) -->
+             module_key: equipment_transfers (UNCHANGED in backend)
+             Requires: Asset Management -->
         <div class="module-item">
           <label for="modTransfers">Asset Location Management</label>
           <div class="module-price">$79/month</div>
@@ -669,6 +702,7 @@ footer a {
             Track equipment movement between projects, yards, shops, and divisions.
             Transfers automatically update Asset Management and adjust PM and inspection schedules based on where each unit is operating.
             Maintain a complete movement history for every asset.
+            <br><br><strong>Requires Asset Management.</strong>
           </div>
           <input type="checkbox" id="modTransfers" />
         </div>
@@ -681,7 +715,7 @@ footer a {
             DRIV‑EN's extraction engine analyzes equipment manuals, manufacturer documentation, and configuration details to retrieve part numbers, fluid types, capacities, maintenance intervals, safety requirements, and operational specifications.
             This intelligence powers automated PM templates, inspection templates, and equipment configuration profiles.
             <br><br>
-            <strong>Requires Preventative Maintenance or Equipment Inspections.</strong><br>
+            <strong>Requires Preventative Maintenance or Asset Inspections.</strong><br>
             <strong>Included at no charge in all bundles.</strong>
           </div>
           <input type="checkbox" id="modExtraction" />
@@ -693,6 +727,7 @@ footer a {
              Standalone add-on — NOT included in any bundle.
              $19/month per secondary language.
              Primary language is free (any supported language).
+             No prerequisites.
              ================================================== -->
         <div class="module-item" style="border: 2px solid #22c55e;">
           <label for="modTranslation">Multi-Language Support</label>
@@ -856,26 +891,43 @@ footer a {
 
 <script>
 // ============================================================
+// AUTO-POPULATE COPYRIGHT YEAR
+// ============================================================
+(function() {
+  var y = document.getElementById("copyrightYear");
+  if (y) y.textContent = new Date().getFullYear();
+})();
+
+// ============================================================
 // MODULE SELECTION LOGIC
-// Updated 2026-09-26 (hardened: canonical backend keys, payload
-// versioning, required-module enforcement, restore normalization)
+// Updated 2026-09-28 (hardened: canonical backend keys, payload
+// versioning, module dependency system, restore normalization)
 //
 // CANONICAL BACKEND KEYS (single source of truth — used for
 // localStorage, submit payloads, and restore matching):
 //   equipment_management   → "Asset Management"
 //   pm                      → "Preventative Maintenance"
-//   inspections             → "Equipment Inspections"
+//   inspections             → "Asset Inspections"
 //   workorders              → "Work Orders"
 //   fuel_management         → "Fuel Management"
 //   equipment_transfers     → "Asset Location Management"
 //   extraction              → "Extraction Engine"
-//   multilanguage           → "Multi-Language Support"  ← NEW
+//   multilanguage           → "Multi-Language Support"
 //
 // LEGACY SHORT KEYS (used by older versions of this page — mapped
 // in LEGACY_KEY_MAP for backward-compatible restore only):
 //   equipment → equipment_management
 //   fuel      → fuel_management
 //   transfers → equipment_transfers
+//
+// MODULE DEPENDENCY RULES:
+//   PM requires Asset Management
+//   Asset Inspections requires Asset Management
+//   Work Orders requires Asset Management + PM + Asset Inspections
+//   Fuel Management requires Asset Management
+//   Asset Location Management requires Asset Management
+//   Extraction Engine requires PM or Asset Inspections
+//   Multi-Language has no prerequisites
 //
 // NOTE: Multi-Language is a standalone add-on — NOT in any bundle.
 //       When a bundle is active, modTranslation stays independent
@@ -892,13 +944,14 @@ const btnClear = document.getElementById("btnClear");
 const statusBar = document.getElementById("statusBar");
 
 // --- Module checkboxes ---
+const modEquipment = document.getElementById("modEquipment");
 const modPM = document.getElementById("modPM");
 const modIns = document.getElementById("modInspections");
 const modWO = document.getElementById("modWorkOrders");
 const modFuel = document.getElementById("modFuel");
 const modTransfers = document.getElementById("modTransfers");
 const modExtraction = document.getElementById("modExtraction");
-const modTranslation = document.getElementById("modTranslation"); // NEW — Multi-Language Support
+const modTranslation = document.getElementById("modTranslation"); // Multi-Language Support
 
 // --- Bundle checkboxes ---
 const bundleOps = document.getElementById("bundleOperations");
@@ -916,9 +969,9 @@ let activeBundle = null;
    Legacy short keys are handled separately in LEGACY_KEY_MAP.
    ------------------------------------------------------------- */
 const MODULE_MAP = [
-  { key: "equipment_management", display: "Asset Management",           el: null }, // always checked/disabled
+  { key: "equipment_management", display: "Asset Management",           el: () => modEquipment },
   { key: "pm",                    display: "Preventative Maintenance",   el: () => modPM },
-  { key: "inspections",           display: "Equipment Inspections",      el: () => modIns },
+  { key: "inspections",           display: "Asset Inspections",          el: () => modIns },
   { key: "workorders",            display: "Work Orders",                el: () => modWO },
   { key: "fuel_management",       display: "Fuel Management",            el: () => modFuel },
   { key: "equipment_transfers",   display: "Asset Location Management",  el: () => modTransfers },
@@ -1094,36 +1147,65 @@ function savedMatchesModule(savedArr, canonicalKey, display) {
     applyBundle(matchedBundleId);
   }
 
-  // Validate restored combination — enforce Extraction Engine dependency rule
-  // (Extraction requires PM or Inspections; if neither was restored, uncheck Extraction)
-  updateExtractionRules();
+  // Validate restored combination — enforce module dependency rules
+  updateModuleDependencies();
 
   showSelectionBanner();
 })();
 
 /* -------------------------------------------------------------
-   ⭐ EXTRACTION ENGINE RULES
-   The Extraction Engine requires PM or Inspections to be selected.
-   If neither is checked, Extraction is disabled and unchecked.
+   ⭐ MODULE DEPENDENCY RULES
+   Asset Management is no longer required, but other modules depend on it:
+     PM requires Asset Management
+     Asset Inspections requires Asset Management
+     Work Orders requires Asset Management + PM + Asset Inspections
+     Fuel Management requires Asset Management
+     Asset Location Management requires Asset Management
+     Extraction Engine requires PM or Asset Inspections (existing rule)
+     Multi-Language has no prerequisites
+   If a prerequisite is unchecked, dependent modules are unchecked+disabled.
    If a bundle is active, this is skipped (bundle controls all modules).
-   Multi-Language is NOT affected by this rule (it's independent).
    ------------------------------------------------------------- */
-function updateExtractionRules() {
+function updateModuleDependencies() {
   // If a bundle is active, modules are controlled by the bundle — skip
   if (bundleActive) return;
 
-  const pmOrIns = modPM.checked || modIns.checked;
+  const hasEquipment = modEquipment.checked;
+  const hasPM = modPM.checked;
+  const hasIns = modIns.checked;
 
+  // PM, Inspections, Fuel, Transfers require Asset Management
+  modPM.disabled = !hasEquipment;
+  modIns.disabled = !hasEquipment;
+  modFuel.disabled = !hasEquipment;
+  modTransfers.disabled = !hasEquipment;
+
+  if (!hasEquipment) {
+    modPM.checked = false;
+    modIns.checked = false;
+    modFuel.checked = false;
+    modTransfers.checked = false;
+  }
+
+  // Work Orders requires Asset Management + PM + Asset Inspections
+  const woPrereqsMet = hasEquipment && hasPM && hasIns;
+  modWO.disabled = !woPrereqsMet;
+  if (!woPrereqsMet) {
+    modWO.checked = false;
+  }
+
+  // Extraction Engine requires PM or Asset Inspections
+  const pmOrIns = hasPM || hasIns;
   if (!pmOrIns) {
-    // Neither PM nor Inspections selected — Extraction cannot be used alone
     modExtraction.checked = false;
     modExtraction.disabled = true;
   } else {
-    // PM or Inspections is selected — Extraction is available
     modExtraction.disabled = false;
   }
 }
 
+// Backward-compatible alias
+function updateExtractionRules() { updateModuleDependencies(); }
 /* -------------------------------------------------------------
    GREEN BANNER (Selected Modules)
    Shows a summary of what the user has selected:
@@ -1136,8 +1218,9 @@ function showSelectionBanner() {
 
   const modules = [];
 
+  if (modEquipment.checked) modules.push("Asset Management");
   if (modPM.checked) modules.push("Preventative Maintenance");
-  if (modIns.checked) modules.push("Equipment Inspections");
+  if (modIns.checked) modules.push("Asset Inspections");
   if (modWO.checked) modules.push("Work Orders");
   if (modFuel.checked) modules.push("Fuel Management");
   if (modTransfers.checked) modules.push("Asset Location Management");
@@ -1150,7 +1233,7 @@ function showSelectionBanner() {
     // Bundle mode — show bundle name + included modules
     let bannerHTML =
       `<strong>Selected: ${activeBundle}</strong><br>` +
-      `<span style="display:block; margin-left:20px;">Asset Management (Required)<br>${modules.join("<br>")}</span>`;
+      `<span style="display:block; margin-left:20px;">Asset Management<br>${modules.join("<br>")}</span>`;
 
     if (hasTranslation) {
       bannerHTML += `<br><span style="display:block; margin-left:20px; color:#16a34a;">Multi-Language Support (Add-on)</span>`;
@@ -1162,7 +1245,7 @@ function showSelectionBanner() {
     // Individual mode — show selected modules without a bundle
     let bannerHTML =
       `<strong>Selected Modules:</strong><br>` +
-      `<span style="display:block; margin-left:20px;">Asset Management (Required)<br>${modules.join("<br>")}</span>`;
+      `<span style="display:block; margin-left:20px;">${modules.join("<br>")}</span>`;
 
     if (hasTranslation) {
       bannerHTML += `<br><span style="display:block; margin-left:20px; color:#16a34a;">Multi-Language Support (Add-on)</span>`;
@@ -1171,7 +1254,7 @@ function showSelectionBanner() {
     banner.innerHTML = bannerHTML;
     banner.style.display = "block";
   } else {
-    // Nothing selected (beyond required Asset Management) — hide banner
+    // Nothing selected — hide banner
     banner.style.display = "none";
   }
 
@@ -1199,8 +1282,11 @@ function updateSavingsPreview() {
     bundleOperations: 499, bundleFull: 529, bundleComplete: 599
   };
 
-  let monthlyTotal = 149; // Asset Management is always included
+  let monthlyTotal = 0;
   let hasExtras = false;
+
+  // Asset Management is now optional — add if checked
+  if (modEquipment.checked) { monthlyTotal += 149; hasExtras = true; }
 
   if (bundleActive && activeBundle) {
     const bundleId = bundleIds.find(id => document.getElementById(id).checked);
@@ -1224,7 +1310,7 @@ function updateSavingsPreview() {
     hasExtras = true;
   }
 
-  if (hasExtras && monthlyTotal > 149) {
+  if (hasExtras && monthlyTotal > 0) {
     const annualTotal = monthlyTotal * 12;
     const annualDiscounted = Math.round(annualTotal * 0.90); // 10% off
     const savings = annualTotal - annualDiscounted;
@@ -1252,7 +1338,7 @@ function clearOtherBundles(selectedId) {
 
 /* -------------------------------------------------------------
    APPLY BUNDLE LOGIC
-   When a bundle is selected, it controls the 6 core modules.
+   When a bundle is selected, it controls the core modules.
    Multi-Language (modTranslation) is NEVER controlled by bundles —
    it remains independently checkable/uncheckable.
    ------------------------------------------------------------- */
@@ -1260,13 +1346,14 @@ function applyBundle(bundleId) {
   bundleActive = true;
 
   // Reset all core modules first (NOT modTranslation)
-  [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(m => {
+  [modEquipment, modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(m => {
     m.checked = false;
     m.disabled = true;
   });
 
   if (bundleId === "bundleOperations") {
     activeBundle = "Operations Bundle";
+    modEquipment.checked = true;
     modPM.checked = true;
     modIns.checked = true;
     modExtraction.checked = true;
@@ -1274,6 +1361,7 @@ function applyBundle(bundleId) {
 
   if (bundleId === "bundleFull") {
     activeBundle = "Full Asset Bundle";
+    modEquipment.checked = true;
     modPM.checked = true;
     modIns.checked = true;
     modWO.checked = true;
@@ -1282,6 +1370,7 @@ function applyBundle(bundleId) {
 
   if (bundleId === "bundleComplete") {
     activeBundle = "Complete Platform Bundle";
+    modEquipment.checked = true;
     modPM.checked = true;
     modIns.checked = true;
     modWO.checked = true;
@@ -1303,7 +1392,7 @@ function uncheckBundleIfModuleChanged() {
   if (!bundleActive) return;
 
   // Only core modules trigger bundle break (NOT modTranslation)
-  const modules = [modPM, modIns, modWO, modFuel, modTransfers, modExtraction];
+  const modules = [modEquipment, modPM, modIns, modWO, modFuel, modTransfers, modExtraction];
   const changed = modules.some(m => !m.disabled && !m.checked);
 
   if (changed) {
@@ -1322,25 +1411,25 @@ function uncheckBundleIfModuleChanged() {
     statusBar.textContent = "";
     document.getElementById("selectionBanner").style.display = "none";
 
-    updateExtractionRules();
+    updateModuleDependencies();
   }
 }
 
 /* -------------------------------------------------------------
    MODULE CHANGE EVENTS
-   Core modules: trigger bundle-break check + extraction rules.
+   Core modules: trigger bundle-break check + dependency rules.
    Multi-Language: only updates the banner (does not break bundles).
    ------------------------------------------------------------- */
 // Core modules
-[modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
+[modEquipment, modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
   el.addEventListener("change", () => {
     uncheckBundleIfModuleChanged();
-    updateExtractionRules();
+    updateModuleDependencies();
     showSelectionBanner();
   });
 });
 
-// Multi-Language — independent, does not affect bundles or extraction rules
+// Multi-Language — independent, does not affect bundles or dependency rules
 modTranslation.addEventListener("change", () => {
   showSelectionBanner();
 });
@@ -1358,7 +1447,7 @@ bundleIds.forEach(id => {
       bundleActive = false;
       activeBundle = null;
 
-      [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(m => {
+      [modEquipment, modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(m => {
         m.disabled = false;
         m.checked = false;
       });
@@ -1366,7 +1455,7 @@ bundleIds.forEach(id => {
       statusBar.textContent = "";
       document.getElementById("selectionBanner").style.display = "none";
 
-      updateExtractionRules();
+      updateModuleDependencies();
     }
   });
 });
@@ -1379,7 +1468,8 @@ bundleIds.forEach(id => {
    HONEYPOT CHECK: If the hidden honeypot field has a value,
    the submission is silently rejected (bot detected).
 
-   TURNSTILE CHECK: Verifies the Turnstile token before proceeding.
+   TURNSTILE CHECK: Verifies the Turnstile token server-side
+   before proceeding. Fail-closed — blocks if unreachable.
    ------------------------------------------------------------- */
 btnContinue.addEventListener("click", async () => {
 
@@ -1427,25 +1517,22 @@ btnContinue.addEventListener("click", async () => {
   // Uses CANONICAL backend keys (equipment_management, fuel_management, etc.)
   // as the single source of truth for localStorage and submit payloads.
   // Display names are saved separately for cart/checkout UI display.
-  const selected = ["Asset Management"];
-  const selectedKeys = ["equipment_management"]; // canonical backend key
+  const selected = [];
+  const selectedKeys = [];
 
+  if (modEquipment.checked) { selected.push("Asset Management"); selectedKeys.push("equipment_management"); }
   if (modPM.checked) { selected.push("Preventative Maintenance"); selectedKeys.push("pm"); }
-  if (modIns.checked) { selected.push("Equipment Inspections"); selectedKeys.push("inspections"); }
+  if (modIns.checked) { selected.push("Asset Inspections"); selectedKeys.push("inspections"); }
   if (modWO.checked) { selected.push("Work Orders"); selectedKeys.push("workorders"); }
   if (modFuel.checked) { selected.push("Fuel Management"); selectedKeys.push("fuel_management"); }
   if (modTransfers.checked) { selected.push("Asset Location Management"); selectedKeys.push("equipment_transfers"); }
   if (modExtraction.checked) { selected.push("Extraction Engine"); selectedKeys.push("extraction"); }
   if (modTranslation.checked) { selected.push("Multi-Language Support"); selectedKeys.push("multilanguage"); }
 
-  // --- Enforce required module (Asset Management) programmatically ---
-  // The checkbox is disabled+checked in the DOM, but this is a hard
-  // validation — if the key is missing (DOM tampering, script error),
-  // block submission rather than sending an incomplete payload.
-  if (selectedKeys.indexOf("equipment_management") === -1) {
-    statusBar.textContent = "Asset Management is required. Please refresh the page and try again.";
+  // --- Validate at least one module is selected ---
+  if (selectedKeys.length === 0) {
+    statusBar.textContent = "Please select at least one module to continue.";
     statusBar.style.color = "#dc2626";
-    console.error("[DRIV-EN] Required module 'equipment_management' missing from payload — submission blocked.");
     return;
   }
 
@@ -1532,12 +1619,12 @@ btnClear.addEventListener("click", () => {
   });
 
   // Clear all modules including Multi-Language
-  [modPM, modIns, modWO, modFuel, modTransfers, modExtraction, modTranslation].forEach(el => {
+  [modEquipment, modPM, modIns, modWO, modFuel, modTransfers, modExtraction, modTranslation].forEach(el => {
     el.checked = false;
     el.disabled = false;
   });
 
-  updateExtractionRules();
+  updateModuleDependencies();
   statusBar.textContent = "";
   document.getElementById("selectionBanner").style.display = "none";
   document.getElementById("selectionBanner").innerHTML = "";
@@ -1643,6 +1730,7 @@ function applyPromoSuccess(data, isRestore) {
   btnContinue.textContent = "Continue to Setup";
 
   // Auto-select all core modules for free access
+  modEquipment.checked = true;
   modPM.checked = true;
   modIns.checked = true;
   modWO.checked = true;
@@ -1683,7 +1771,7 @@ function removePromoCode() {
   btnContinue.textContent = "Continue";
 
   // Reset all modules including Multi-Language
-  [modPM, modIns, modWO, modFuel, modTransfers, modExtraction, modTranslation].forEach(m => {
+  [modEquipment, modPM, modIns, modWO, modFuel, modTransfers, modExtraction, modTranslation].forEach(m => {
     m.checked = false;
     m.disabled = false;
   });
@@ -1694,7 +1782,7 @@ function removePromoCode() {
   activeBundle = null;
   document.getElementById("selectionBanner").style.display = "none";
 
-  updateExtractionRules();
+  updateModuleDependencies();
 }
 
 // Restore promo code from localStorage on page load (must run after functions defined)
@@ -1804,7 +1892,7 @@ notifyEmail.addEventListener("keydown", (e) => {
 
 <!-- Footer — unchanged (standard across all pages) -->
 <footer>
-  © Digital Safety Inspection LLC · DRIV‑EN Platform<br>
+  © <span id="copyrightYear"></span> Digital Safety Inspection LLC · DRIV‑EN Platform<br>
 
   <span class="footer-line">
     <a href="/website/legal/terms.html">Terms of Service</a> |
@@ -1818,4 +1906,4 @@ notifyEmail.addEventListener("keydown", (e) => {
 </footer>
 
 </body>
-</html>
+</html>     
