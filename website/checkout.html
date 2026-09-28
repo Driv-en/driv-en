@@ -169,7 +169,6 @@
   }
 
   #invoiceTotal {
-    margin-top: 35px !important;
     height: 42px !important;
   }
 
@@ -473,6 +472,20 @@ window.addEventListener('resize', updateHeaderLineTop);
     <div id="modulesList"></div>
     <div class="savings-line" id="invoiceSavingsBox"></div>
 
+    <!-- Annual breakdown rows (only visible when billingPeriod is annual) -->
+    <div id="annualBreakdown" style="display:none;">
+      <div class="module-row" style="border-bottom:1px solid #e5e7eb;">
+        <div class="module-name" style="font-weight:400;color:#6b7280;">Annual Subtotal (12 months)</div>
+        <div class="unit-price" style="font-weight:400;color:#6b7280;"></div>
+        <div class="extended-price" style="font-weight:400;color:#6b7280;" id="annualPreDiscount"></div>
+      </div>
+      <div class="module-row" style="border-bottom:1px solid #e5e7eb;">
+        <div class="module-name" style="font-weight:600;color:#16a34a;">10% Annual Discount</div>
+        <div class="unit-price" style="font-weight:400;color:#6b7280;"></div>
+        <div class="extended-price" style="font-weight:600;color:#16a34a;" id="annualDiscount"></div>
+      </div>
+    </div>
+
     <div class="form-row">
       <div class="form-field">
         <label>Billing Period</label>
@@ -498,8 +511,24 @@ window.addEventListener('resize', updateHeaderLineTop);
       </div>
     </div>
     <p style="font-size:12px;color:#6b7280;margin:-8px 0 16px 0;">
-      Taxes are only collected for Texas-based businesses (8.25% sales tax). Businesses outside Texas are responsible for determining and remitting their own state and local taxes.
+      Taxes are only collected for Texas-based US businesses (8.25% sales tax). Customers outside Texas are responsible for determining and remitting their own applicable taxes, including state, local, VAT, GST, or consumption tax as required by their jurisdiction.
     </p>
+  </div>
+
+  <!-- Language Selection (read-only display — selections made in cart) -->
+  <div class="card" id="languageCard" style="display:none;">
+    <h3>Language Selection</h3>
+    <div class="form-row">
+      <div class="form-field">
+        <label>Primary Language</label>
+        <input id="primaryLanguageDisplay" type="text" readonly />
+      </div>
+      <div class="form-field">
+        <label>Secondary Languages</label>
+        <input id="secondaryLanguagesDisplay" type="text" readonly />
+      </div>
+    </div>
+    <p style="font-size:12px;color:#6b7280;margin-top:4px;" id="languageNote"></p>
   </div>
 
   <!-- This bar only appears on validation error (CSS default is display:none) -->
@@ -681,6 +710,59 @@ window.addEventListener('resize', updateHeaderLineTop);
 })();
 
 /* ----------------------------------------------------
+   MULTI-LANGUAGE SUPPORT (read-only display)
+   Reads language selections from the cart payload and
+   displays them. Pricing is already calculated by the cart.
+---------------------------------------------------- */
+var LANG_NAMES = {
+  en: "English", es: "Spanish", fr: "French", ja: "Japanese", de: "German",
+  pt: "Portuguese", zh: "Chinese (Simplified)", ko: "Korean", it: "Italian",
+  nl: "Dutch", ar: "Arabic", hi: "Hindi", th: "Thai", vi: "Vietnamese", ru: "Russian"
+};
+
+var LANG_PRICE = 19;
+
+function getSecondaryLanguageCount() {
+  var payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
+  return payload.secondaryLanguageCount || 0;
+}
+
+function getSelectedSecondaryLanguages() {
+  var payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
+  return payload.secondaryLanguages || [];
+}
+
+function showLanguageCardIfNeeded() {
+  var payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
+  var selectedModules = payload.modules || [];
+  var hasMultilang = selectedModules.some(function(m) {
+    return resolveKey(m) === "multilanguage";
+  });
+
+  var langCard = document.getElementById("languageCard");
+  if (hasMultilang) {
+    langCard.style.display = "";
+    var primaryLang = payload.primaryLanguage || "en";
+    document.getElementById("primaryLanguageDisplay").value = LANG_NAMES[primaryLang] || primaryLang;
+
+    var secondaryLangs = payload.secondaryLanguages || [];
+    var secondaryNames = secondaryLangs.map(function(code) { return LANG_NAMES[code] || code; });
+    document.getElementById("secondaryLanguagesDisplay").value = secondaryNames.length > 0 ? secondaryNames.join(", ") : "None selected";
+
+    var count = secondaryLangs.length;
+    var note = document.getElementById("languageNote");
+    if (count > 0) {
+      note.textContent = count + " secondary language" + (count > 1 ? "s" : "") + " — $" + (count * LANG_PRICE).toFixed(2) + "/month added.";
+    } else {
+      note.textContent = "No secondary languages selected.";
+      note.style.color = "#dc2626";
+    }
+  } else {
+    langCard.style.display = "none";
+  }
+}
+
+/* ----------------------------------------------------
    COUNTRY / REGION SELECTOR
    Dynamically swaps the State/Region field based on
    the selected country. Supports US states, Japanese
@@ -739,7 +821,6 @@ var COUNTRY_CONFIG = {
   OTHER: { regionLabel: "Region / Province", regionType: "text", zipLabel: "Postal Code", zipPlaceholder: "" }
 };
 
-// Default config for countries not in COUNTRY_CONFIG (use free-text region)
 var DEFAULT_CONFIG = { regionLabel: "Region / Province", regionType: "text", zipLabel: "Postal Code", zipPlaceholder: "" };
 
 function updateRegionField() {
@@ -753,15 +834,11 @@ function updateRegionField() {
   var countryCode = countrySelect.value;
   var config = COUNTRY_CONFIG[countryCode] || DEFAULT_CONFIG;
 
-  // Update region label
   regionLabel.textContent = config.regionLabel + " *";
-
-  // Update zip label and placeholder
   zipLabel.textContent = config.zipLabel + " *";
   zipInput.placeholder = config.zipPlaceholder || "";
-  zipInput.removeAttribute("inputmode"); // allow non-numeric postal codes
+  zipInput.removeAttribute("inputmode");
 
-  // Show/hide "Other Country" text field
   if (countryCode === "OTHER") {
     otherCountryField.style.display = "";
   } else {
@@ -769,14 +846,11 @@ function updateRegionField() {
   }
 
   if (config.regionType === "dropdown" && COUNTRY_REGIONS[countryCode]) {
-    // Show dropdown, hide text input
     stateSelect.style.display = "";
     regionInput.style.display = "none";
     stateSelect.required = true;
     regionInput.required = false;
     regionInput.value = "";
-
-    // Populate dropdown with regions
     stateSelect.innerHTML = '<option value="">Select ' + config.regionLabel + '</option>';
     COUNTRY_REGIONS[countryCode].forEach(function(r) {
       var opt = document.createElement("option");
@@ -785,7 +859,6 @@ function updateRegionField() {
       stateSelect.appendChild(opt);
     });
   } else {
-    // Show text input, hide dropdown
     stateSelect.style.display = "none";
     regionInput.style.display = "";
     stateSelect.required = false;
@@ -794,13 +867,11 @@ function updateRegionField() {
     regionInput.placeholder = "Enter your " + config.regionLabel.toLowerCase();
   }
 
-  // Re-render modules/tax since country changed
   if (typeof renderModules === "function") renderModules();
 }
 
 document.getElementById("country").addEventListener("change", updateRegionField);
 
-// Auto-detect country from Cloudflare cf-ipcountry header (injected as meta tag by Pages)
 (function autoDetectCountry() {
   var meta = document.querySelector('meta[name="cf-ipcountry"]');
   var detected = meta ? meta.getAttribute("content") : null;
@@ -810,7 +881,6 @@ document.getElementById("country").addEventListener("change", updateRegionField)
   }
 })();
 
-// Also listen for changes on the region text field to trigger tax re-calc
 document.getElementById("region").addEventListener("input", function() {
   if (typeof renderModules === "function") renderModules();
 });
@@ -867,14 +937,12 @@ const MODULE_MAP = {
   multilanguage: "Multi-Language Support"
 };
 
-// Legacy key map — old short keys → canonical backend keys
 var LEGACY_KEY_MAP = {
   "equipment": "equipment_management",
   "fuel": "fuel_management",
   "transfers": "equipment_transfers"
 };
 
-// Legacy display names → canonical backend keys
 var LEGACY_DISPLAY_MAP = {
   "Equipment Management": "equipment_management",
   "Asset Management": "equipment_management",
@@ -908,20 +976,12 @@ function normalizeKey(raw) {
   return null;
 }
 
-/* ----------------------------------------------------
-   RENDER MODULES (SAFE DOM VERSION)
-   Handles both short keys (equipment, pm) and full names (Equipment Management)
----------------------------------------------------- */
-// Reverse map: full name -> canonical key (for legacy payloads)
 const NAME_TO_KEY = {};
 Object.keys(MODULE_MAP).forEach(k => { NAME_TO_KEY[MODULE_MAP[k]] = k; });
 
 function resolveKey(item) {
-  // Use normalizeKey for full backward compatibility (handles legacy short keys
-  // like "equipment", "fuel", "transfers" AND legacy display names)
   var normalized = normalizeKey(item);
   if (normalized) return normalized;
-  // Unknown — return as-is
   return item;
 }
 
@@ -936,13 +996,21 @@ function renderModules() {
   let sumUnitPrices = 0;
   let chargeTotal = 0;
 
+  const isAnnual = payload.billingPeriod === "annual";
+
   const modulesList = document.getElementById("modulesList");
-  modulesList.innerHTML = ""; // clear safely
+  modulesList.innerHTML = "";
 
   selectedModules.forEach(item => {
     const key = resolveKey(item);
     const name = MODULE_MAP[key] || item;
-    const price = PRICES[key] || 0;
+    var price = PRICES[key] || 0;
+
+    if (key === "multilanguage") {
+      var langCount = getSecondaryLanguageCount();
+      price = langCount * LANG_PRICE;
+    }
+
     sumUnitPrices += price;
 
     const row = document.createElement("div");
@@ -954,7 +1022,12 @@ function renderModules() {
 
     const unitEl = document.createElement("div");
     unitEl.className = "unit-price";
-    unitEl.textContent = `$${price}`;
+    if (key === "multilanguage") {
+      var lc = getSecondaryLanguageCount();
+      unitEl.textContent = lc > 0 ? `${LANG_PRICE} × ${lc}` : `${LANG_PRICE}`;
+    } else {
+      unitEl.textContent = `${price}`;
+    }
 
     const extendedEl = document.createElement("div");
     extendedEl.className = "extended-price";
@@ -962,7 +1035,11 @@ function renderModules() {
     if (bundleModules.has(key)) {
       extendedEl.textContent = "-";
     } else {
-      extendedEl.textContent = `${price}`;
+      if (isAnnual) {
+        extendedEl.textContent = `$${(price * 12).toFixed(2)}`;
+      } else {
+        extendedEl.textContent = `$${price.toFixed(2)}`;
+      }
       chargeTotal += price;
     }
 
@@ -989,7 +1066,11 @@ function renderModules() {
 
     const extendedEl = document.createElement("div");
     extendedEl.className = "extended-price";
-    extendedEl.textContent = `$${bundle.price}`;
+    if (isAnnual) {
+      extendedEl.textContent = `$${(bundle.price * 12).toFixed(2)}`;
+    } else {
+      extendedEl.textContent = `$${bundle.price}`;
+    }
 
     row.appendChild(nameEl);
     row.appendChild(unitEl);
@@ -998,7 +1079,6 @@ function renderModules() {
     modulesList.appendChild(row);
   }
 
-  // Check if this is a free access path
   const isFree = payload.isFree || payload.billingPeriod === "free";
 
   if (isFree) {
@@ -1019,7 +1099,18 @@ function renderModules() {
 
   const subtotal = Number(payload.invoiceSubtotal ?? 0);
 
-  // Tax: only collect for Texas-based US businesses (8.25% sales tax)
+  var annualBreakdown = document.getElementById("annualBreakdown");
+  if (payload.billingPeriod === "annual" && !isFree) {
+    annualBreakdown.style.display = "";
+    var monthlyRate = chargeTotal > 0 ? chargeTotal : sumUnitPrices;
+    var annualPre = monthlyRate * 12;
+    var annualDiscountAmount = annualPre * 0.10;
+    document.getElementById("annualPreDiscount").textContent = "$" + annualPre.toFixed(2);
+    document.getElementById("annualDiscount").textContent = "-$" + annualDiscountAmount.toFixed(2);
+  } else {
+    annualBreakdown.style.display = "none";
+  }
+
   var countryCode = document.getElementById("country").value;
   var regionValue = "";
   var stateEl = document.getElementById("state");
@@ -1053,42 +1144,33 @@ function renderModules() {
 }
 
 renderModules();
+showLanguageCardIfNeeded();
 
 /* ----------------------------------------------------
-   FREE ACCESS PATH — detect promo code / founding member
-   If isFree is true in the checkout payload:
-   - Hide the payment/card section
-   - Show $0.00 for all amounts
-   - Change button to "Complete Setup"
-   - Pass isFree + promoCode to the worker
+   FREE ACCESS PATH
 ---------------------------------------------------- */
 const checkoutPayload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
 
 if (checkoutPayload.isFree || checkoutPayload.billingPeriod === "free") {
-  // Hide payment section (using ID, not nth-of-type which was buggy)
   const paymentCard = document.getElementById('paymentCard');
   if (paymentCard) {
     paymentCard.style.display = 'none';
   }
 
-  // Hide billing address toggle too
   const billingToggle = document.getElementById('billingSameAsCompany');
   if (billingToggle) {
     billingToggle.parentElement.parentElement.style.display = 'none';
   }
 
-  // Override all amounts to $0.00
   document.getElementById("invoiceSubtotal").value = "$0.00";
   document.getElementById("invoiceTax").value = "$0.00";
   document.getElementById("invoiceTotal").value = "$0.00";
   document.getElementById("invoicePeriod").value = "Free Access (Founding Member)";
   document.getElementById("invoiceSavingsBox").textContent = "Founding Member Code applied — no payment required.";
 
-  // Change button text
   const btnConfirm = document.getElementById("btnConfirm");
   btnConfirm.textContent = "Complete Setup";
 
-  // Update header subtitle
   const headerSpan = document.querySelector('header .title-block span');
   if (headerSpan) headerSpan.textContent = "Free access — confirm your account details";
 }
@@ -1119,10 +1201,8 @@ document.getElementById("btnPrint").onclick = () => {
    FORM VALIDATION
 ---------------------------------------------------- */
 function validateForm() {
-  // Build the field list dynamically based on which region input is visible
   var stateEl = document.getElementById("state");
   var regionEl = document.getElementById("region");
-  var regionActive = (stateEl.style.display !== "none") ? stateEl : regionEl;
 
   var fields = [
     "companyName",
@@ -1134,7 +1214,6 @@ function validateForm() {
     "country"
   ];
 
-  // Add whichever region input is visible
   if (stateEl.style.display !== "none") {
     fields.push("state");
   } else {
@@ -1143,7 +1222,6 @@ function validateForm() {
 
   fields.push("zip");
 
-  // If "Other" country is selected, require the otherCountry field
   if (document.getElementById("country").value === "OTHER") {
     fields.push("otherCountry");
   }
@@ -1177,7 +1255,6 @@ function validateForm() {
     }
   });
 
-  // Email format validation
   const emailEl = document.getElementById("email");
   if (emailEl.value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailEl.value.trim())) {
     emailEl.classList.add("error");
@@ -1193,11 +1270,7 @@ function validateForm() {
   if (!valid) {
     banner.textContent = "Please complete all required fields: " + missingFields.join(", ") + ".";
     banner.classList.add("show");
-
-    document.getElementById('customerInfoCard').scrollIntoView({
-      behavior: "smooth"
-    });
-
+    document.getElementById('customerInfoCard').scrollIntoView({ behavior: "smooth" });
     if (firstMissing) firstMissing.focus();
   }
 
@@ -1205,66 +1278,17 @@ function validateForm() {
 }
 
 /* ----------------------------------------------------
-   STRIPE INITIALIZATION — FULLY DISABLED
----------------------------------------------------- */
-/*
-let stripe;
-let elements;
-let cardElement;
-let billingAddressElement;
-let clientSecret;
-
-async function initStripe() {
-  try {
-    stripe = Stripe("pk_test_YOUR_PUBLISHABLE_KEY_HERE");
-
-    const response = await fetch("/create-payment-intent", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({})
-    });
-
-    if (!response.ok) throw new Error("Payment intent creation failed");
-
-    const data = await response.json();
-    if (!data.clientSecret) throw new Error("Missing clientSecret");
-
-    clientSecret = data.clientSecret;
-
-    elements = stripe.elements({ clientSecret });
-
-    billingAddressElement = elements.create("address", { mode: "billing" });
-    billingAddressElement.mount("#billing-address-element");
-
-    cardElement = elements.create("payment");
-    cardElement.mount("#card-element");
-  } catch (err) {
-    document.getElementById("card-errors").textContent =
-      "Unable to initialize payment form.";
-  }
-}
-
-// Disable Stripe completely
-initStripe();
-*/
-
-/* ----------------------------------------------------
-   CONFIRM PAYMENT (SAFE DOM VERSION)
-   FIX: status bars now use .show class so messages are visible.
-        Button is disabled during processing to prevent duplicates.
+   CONFIRM PAYMENT
 ---------------------------------------------------- */
 document.getElementById("btnConfirm").addEventListener("click", async () => {
   if (!validateForm()) return;
 
-  // --- Element refs ---
   const btnConfirm = document.getElementById("btnConfirm");
   const cardErrors = document.getElementById("card-errors");
   const statusSuccess = document.getElementById("statusSuccess");
 
-  // --- Build order data ---
   const payload = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
 
-  // Determine button label for resets (free path uses "Complete Setup")
   const _isFreePath = !!(payload.isFree || payload.billingPeriod === "free");
   const _btnLabel = _isFreePath ? "Complete Setup" : "Confirm & Pay";
 
@@ -1284,7 +1308,6 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
 
   const total = subtotal + tax;
 
-  // Build modulesSelected array using full module names for the Worker
   const selectedModuleKeys = payload.modules || [];
   const modulesSelected = selectedModuleKeys.map(k => MODULE_MAP[k] || k);
 
@@ -1305,7 +1328,6 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
     invoiceSubtotal: subtotal,
     invoiceTax: tax,
     invoiceTotal: total,
-    // Worker-expected field names
     orderId: document.getElementById("orderNumber").value,
     customerName: document.getElementById("companyName").value.trim(),
     customerEmail: document.getElementById("email").value.trim(),
@@ -1318,17 +1340,19 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
     modulesSelected: modulesSelected,
     subscriptionType: payload.billingPeriod === "annual" ? "Annual" : "Monthly",
     accessPeriod: payload.billingPeriod === "annual" ? "12 months" : "1 month",
-    // Free access path (founding member promo code)
     isFree: !!(payload.isFree || payload.billingPeriod === "free"),
     promoCode: payload.promoCode || localStorage.getItem("driven_promo_code") || "",
-    // ⭐ Referral: capture ref from URL query string (e.g. ?ref=DRV-123)
-    referralCode: new URLSearchParams(window.location.search).get("ref") || ""
+    referralCode: new URLSearchParams(window.location.search).get("ref") || "",
+    primaryLanguage: (function() {
+      var p = JSON.parse(localStorage.getItem("driven_checkout_payload") || "{}");
+      return p.primaryLanguage || "en";
+    })(),
+    secondaryLanguages: getSelectedSecondaryLanguages(),
+    secondaryLanguageCount: getSecondaryLanguageCount()
   };
 
-  // ⭐ Extract Turnstile token
   const turnstileToken = document.querySelector('[name="cf-turnstile-response"]')?.value || "";
 
-  // ⭐ Guard: ensure ALL required customer fields are present before submitting
   const missingFields = [];
   if (!orderData.customerName) missingFields.push("Company Name");
   if (!orderData.contactName) missingFields.push("Contact Name");
@@ -1349,25 +1373,30 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
   }
 
   if (!turnstileToken) {
-    cardErrors.textContent =
-      "Please complete the verification checkbox before submitting.";
+    cardErrors.textContent = "Please complete the verification checkbox before submitting.";
     cardErrors.classList.add("show");
     statusSuccess.classList.remove("show");
     return;
   }
 
-  // --- Clear errors, show processing state ---
+  var hasMultilang = (payload.modules || []).some(function(m) { return resolveKey(m) === "multilanguage"; });
+  if (hasMultilang && getSecondaryLanguageCount() === 0) {
+    cardErrors.textContent = "Please select at least one secondary language in the Language Selection section.";
+    cardErrors.classList.add("show");
+    statusSuccess.classList.remove("show");
+    document.getElementById("languageCard").scrollIntoView({ behavior: "smooth" });
+    return;
+  }
+
   cardErrors.classList.remove("show");
   cardErrors.textContent = "";
   statusSuccess.classList.add("show");
   statusSuccess.textContent = "Processing your order...";
 
-  // --- Disable button to prevent duplicate submissions ---
   btnConfirm.disabled = true;
   btnConfirm.textContent = "Processing...";
 
   try {
-    // ⭐ TEMPORARY STRIPE BYPASS
     const error = null;
 
     if (error) {
@@ -1391,7 +1420,6 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
     const result = await response.json();
 
     if (!response.ok || !result.success) {
-      // Show user-friendly message — the worker has already logged the error to D1
       cardErrors.textContent = "Something went wrong on our end. The DRIV-EN team has been informed of this error and will fix it shortly. Please try again later or contact support@driv-en.com.";
       cardErrors.classList.add("show");
       statusSuccess.classList.remove("show");
@@ -1400,7 +1428,6 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
       return;
     }
 
-    // --- Success ---
     cardErrors.classList.remove("show");
 
     const isFreeOrder = !!(payload.isFree || payload.billingPeriod === "free");
@@ -1420,13 +1447,11 @@ document.getElementById("btnConfirm").addEventListener("click", async () => {
 
     btnConfirm.textContent = isFreeOrder ? "✓ Account Created" : "✓ Order Confirmed";
 
-    // Clear cart so the order can't be accidentally re-submitted
     localStorage.removeItem("driven_checkout_payload");
 
   } catch (err) {
     console.error('Checkout fetch error:', err);
-    cardErrors.textContent =
-      "Something went wrong on our end. The DRIV-EN team has been informed of this error and will fix it shortly. Please try again later or contact support@driv-en.com.";
+    cardErrors.textContent = "Something went wrong on our end. The DRIV-EN team has been informed of this error and will fix it shortly. Please try again later or contact support@driv-en.com.";
     cardErrors.classList.add("show");
     statusSuccess.classList.remove("show");
     btnConfirm.disabled = false;
