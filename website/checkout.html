@@ -151,7 +151,7 @@
     padding: 8px 10px;
     border-radius: 6px;
     border: 1px solid #374151;
-    background: #0f172a;
+    /* background: #0f172a; — replaced by diamond-plate.css */
     color: #e5e7eb;
     font-size: 13px;
     height: 40px;
@@ -233,7 +233,7 @@
     padding: 8px 10px;
     border-radius: 6px;
     border: 1px solid #374151;
-    background: #0f172a;
+    /* background: #0f172a; — replaced by diamond-plate.css */
     color: #e5e7eb;
     margin-bottom: 10px;
   }
@@ -419,7 +419,7 @@ window.addEventListener('load', updateHeaderLineTop);
 window.addEventListener('resize', updateHeaderLineTop);
 </script>
 
-<link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
+<link rel="stylesheet" href="/styles/diamond-plate.css?v=1">
 </head>
 <body>
 <div class="steel-bg"></div>
@@ -428,7 +428,6 @@ window.addEventListener('resize', updateHeaderLineTop);
 <header>
   <div class="title-block">
     <h1>Confirm Your Order</h1>
-    <span>Review your selections and complete checkout</span>
   </div>
 
   <a href="/index.html">
@@ -438,9 +437,7 @@ window.addEventListener('resize', updateHeaderLineTop);
 
 <div id="headerLine"></div>
 
-<div id="statusBar" class="review-bar">
-  Review your order and complete checkout.
-</div>
+<div id="statusBar" class="review-bar"></div>
 
 <main>
 
@@ -484,7 +481,7 @@ window.addEventListener('resize', updateHeaderLineTop);
       <div class="form-field">
         <label>Tax</label>
         <span style="font-size:12px;color:#9ca3af;">
-          Taxes are only collected for Texas-based businesses (8.25% sales tax). All other states are tax-exempt.
+          Taxes are only collected for Texas-based businesses (8.25% sales tax). Businesses outside Texas are responsible for determining and remitting their own state and local taxes.
         </span>
         <input id="invoiceTax" type="text" readonly />
       </div>
@@ -622,7 +619,7 @@ window.addEventListener('resize', updateHeaderLineTop);
     <div id="billing-address-element"></div>
     <div id="card-element"></div>
   </div>
-
+  
   <div id="statusSuccess" class="status-bar"></div>
 
   <!-- Buttons -->
@@ -641,7 +638,7 @@ window.addEventListener('resize', updateHeaderLineTop);
 
   <!-- Updated Footer -->
 <footer>
-  © Digital Safety Inspection LLC · DRIV‑EN Platform<br>
+  © <span id="copyrightYear"></span> Digital Safety Inspection LLC · DRIV‑EN Platform<br>
 
   <span class="footer-line">
     <a href="/website/legal/terms.html">Terms of Service</a> |
@@ -655,6 +652,14 @@ window.addEventListener('resize', updateHeaderLineTop);
 </footer>
 
 <script>
+/* ----------------------------------------------------
+   AUTO-POPULATE COPYRIGHT YEAR
+---------------------------------------------------- */
+(function() {
+  var y = document.getElementById("copyrightYear");
+  if (y) y.textContent = new Date().getFullYear();
+})();
+
 /* ----------------------------------------------------
    ORDER NUMBER GENERATION
 ---------------------------------------------------- */
@@ -672,53 +677,96 @@ document.getElementById("orderNumber").value = generateOrderNumber();
    MODULE + BUNDLE DEFINITIONS
 ---------------------------------------------------- */
 const PRICES = {
-  equipment: 149,
+  equipment_management: 149,
   pm: 299,
   inspections: 199,
   extraction: 149,
   workorders: 149,
-  fuel: 49,
-  transfers: 79
+  fuel_management: 49,
+  equipment_transfers: 79,
+  multilanguage: 19
 };
 
 const BUNDLES = {
   "Operations Bundle": {
-    modules: ["equipment", "pm", "inspections", "extraction"],
+    modules: ["equipment_management", "pm", "inspections", "extraction"],
     price: 499
   },
-  "Full Equipment Bundle": {
-    modules: ["equipment", "pm", "inspections", "workorders", "extraction"],
+  "Full Asset Bundle": {
+    modules: ["equipment_management", "pm", "inspections", "workorders", "extraction"],
     price: 529
   },
   "Complete Platform Bundle": {
-    modules: ["equipment", "pm", "inspections", "workorders", "fuel", "transfers", "extraction"],
+    modules: ["equipment_management", "pm", "inspections", "workorders", "fuel_management", "equipment_transfers", "extraction"],
     price: 599
   }
 };
 
 const MODULE_MAP = {
-  equipment: "Equipment Management",
+  equipment_management: "Asset Management",
   pm: "Preventative Maintenance",
-  inspections: "Equipment Inspections",
+  inspections: "Asset Inspections",
   extraction: "Extraction Engine",
   workorders: "Work Orders",
-  fuel: "Fuel Usage Tracking",
-  transfers: "Equipment Transfer Tracking"
+  fuel_management: "Fuel Management",
+  equipment_transfers: "Asset Location Management",
+  multilanguage: "Multi-Language Support"
 };
+
+// Legacy key map — old short keys → canonical backend keys
+var LEGACY_KEY_MAP = {
+  "equipment": "equipment_management",
+  "fuel": "fuel_management",
+  "transfers": "equipment_transfers"
+};
+
+// Legacy display names → canonical backend keys
+var LEGACY_DISPLAY_MAP = {
+  "Equipment Management": "equipment_management",
+  "Asset Management": "equipment_management",
+  "Preventative Maintenance": "pm",
+  "Equipment Inspections": "inspections",
+  "Asset Inspections": "inspections",
+  "Extraction Engine": "extraction",
+  "Work Orders": "workorders",
+  "Fuel Usage Tracking": "fuel_management",
+  "Fuel Management": "fuel_management",
+  "Equipment Transfer Tracking": "equipment_transfers",
+  "Asset Location Management": "equipment_transfers",
+  "Multi-Language Support": "multilanguage"
+};
+
+function normalizeKey(raw) {
+  if (typeof raw !== "string") return null;
+  if (MODULE_MAP[raw]) return raw;
+  if (LEGACY_KEY_MAP[raw]) return LEGACY_KEY_MAP[raw];
+  if (LEGACY_DISPLAY_MAP[raw]) return LEGACY_DISPLAY_MAP[raw];
+  var lower = raw.toLowerCase();
+  for (var key in MODULE_MAP) {
+    if (key.toLowerCase() === lower) return key;
+  }
+  for (var lk in LEGACY_KEY_MAP) {
+    if (lk.toLowerCase() === lower) return LEGACY_KEY_MAP[lk];
+  }
+  for (var dn in LEGACY_DISPLAY_MAP) {
+    if (dn.toLowerCase() === lower) return LEGACY_DISPLAY_MAP[dn];
+  }
+  return null;
+}
 
 /* ----------------------------------------------------
    RENDER MODULES (SAFE DOM VERSION)
    Handles both short keys (equipment, pm) and full names (Equipment Management)
 ---------------------------------------------------- */
-// Reverse map: full name -> short key
+// Reverse map: full name -> canonical key (for legacy payloads)
 const NAME_TO_KEY = {};
 Object.keys(MODULE_MAP).forEach(k => { NAME_TO_KEY[MODULE_MAP[k]] = k; });
 
 function resolveKey(item) {
-  // If it's already a short key, return it
-  if (PRICES[item]) return item;
-  // If it's a full name, convert to short key
-  if (NAME_TO_KEY[item]) return NAME_TO_KEY[item];
+  // Use normalizeKey for full backward compatibility (handles legacy short keys
+  // like "equipment", "fuel", "transfers" AND legacy display names)
+  var normalized = normalizeKey(item);
+  if (normalized) return normalized;
   // Unknown — return as-is
   return item;
 }
@@ -895,6 +943,7 @@ document.getElementById("btnBackCart").onclick = () => {
   window.location.href = "cart.html";
 };
 document.getElementById("btnBackModules").onclick = () => {
+  localStorage.setItem("returningFromCart", "yes");
   window.location.href = "module-selection.html";
 };
 document.getElementById("btnPrint").onclick = () => {
