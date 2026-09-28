@@ -857,23 +857,34 @@ footer a {
 <script>
 // ============================================================
 // MODULE SELECTION LOGIC
-// Updated 2026-09-26
+// Updated 2026-09-26 (hardened: canonical backend keys, payload
+// versioning, required-module enforcement, restore normalization)
 //
-// DISPLAY NAMES (what the customer sees):
-//   "Asset Management"           — module_key: equipment_management
-//   "Preventative Maintenance"   — module_key: pm
-//   "Equipment Inspections"      — module_key: inspections
-//   "Work Orders"                — module_key: workorders
-//   "Fuel Management"            — module_key: fuel_management
-//   "Asset Location Management"  — module_key: equipment_transfers
-//   "Extraction Engine"          — module_key: extraction
-//   "Multi-Language Support"     — module_key: multilanguage  ← NEW
+// CANONICAL BACKEND KEYS (single source of truth — used for
+// localStorage, submit payloads, and restore matching):
+//   equipment_management   → "Asset Management"
+//   pm                      → "Preventative Maintenance"
+//   inspections             → "Equipment Inspections"
+//   workorders              → "Work Orders"
+//   fuel_management         → "Fuel Management"
+//   equipment_transfers     → "Asset Location Management"
+//   extraction              → "Extraction Engine"
+//   multilanguage           → "Multi-Language Support"  ← NEW
 //
-// NOTE: Backend keys are UNCHANGED. Only display names changed.
+// LEGACY SHORT KEYS (used by older versions of this page — mapped
+// in LEGACY_KEY_MAP for backward-compatible restore only):
+//   equipment → equipment_management
+//   fuel      → fuel_management
+//   transfers → equipment_transfers
+//
 // NOTE: Multi-Language is a standalone add-on — NOT in any bundle.
 //       When a bundle is active, modTranslation stays independent
 //       (user can check/uncheck it freely regardless of bundle state).
 // ============================================================
+
+// Payload version — bump when the schema changes so old localStorage
+// entries can be migrated or discarded cleanly.
+const PAYLOAD_VERSION = 2;
 
 const btnContinue = document.getElementById("btnContinue");
 const btnCancel = document.getElementById("btnCancel");
@@ -900,20 +911,45 @@ let activeBundle = null;
 
 /* -------------------------------------------------------------
    MODULE KEY ↔ DISPLAY NAME MAPPING
-   The page saves BOTH display names (for cart/checkout UI) and
-   module keys (for backend/restore). This ensures restore works
-   even if another page saved only keys, and vice versa.
+   Uses CANONICAL backend keys as the single source of truth.
+   Display names are for UI only — never used for backend submit.
+   Legacy short keys are handled separately in LEGACY_KEY_MAP.
    ------------------------------------------------------------- */
 const MODULE_MAP = [
-  { key: "equipment",         display: "Asset Management",           el: null }, // always checked/disabled, no restore needed
-  { key: "pm",                display: "Preventative Maintenance",   el: () => modPM },
-  { key: "inspections",       display: "Equipment Inspections",      el: () => modIns },
-  { key: "workorders",        display: "Work Orders",                el: () => modWO },
-  { key: "fuel",              display: "Fuel Management",            el: () => modFuel },
-  { key: "transfers",         display: "Asset Location Management",  el: () => modTransfers },
-  { key: "extraction",        display: "Extraction Engine",          el: () => modExtraction },
-  { key: "multilanguage",     display: "Multi-Language Support",     el: () => modTranslation }
+  { key: "equipment_management", display: "Asset Management",           el: null }, // always checked/disabled
+  { key: "pm",                    display: "Preventative Maintenance",   el: () => modPM },
+  { key: "inspections",           display: "Equipment Inspections",      el: () => modIns },
+  { key: "workorders",            display: "Work Orders",                el: () => modWO },
+  { key: "fuel_management",       display: "Fuel Management",            el: () => modFuel },
+  { key: "equipment_transfers",   display: "Asset Location Management",  el: () => modTransfers },
+  { key: "extraction",            display: "Extraction Engine",          el: () => modExtraction },
+  { key: "multilanguage",         display: "Multi-Language Support",     el: () => modTranslation }
 ];
+
+// Legacy short keys → canonical backend keys (for backward-compatible restore)
+const LEGACY_KEY_MAP = {
+  "equipment": "equipment_management",
+  "fuel": "fuel_management",
+  "transfers": "equipment_transfers"
+};
+
+// Normalize a saved key string to its canonical backend key.
+// Returns null if the value doesn't match any known key (canonical or legacy).
+function normalizeKey(savedStr) {
+  if (typeof savedStr !== "string") return null;
+  const lower = savedStr.toLowerCase();
+  // Check canonical keys first
+  for (const m of MODULE_MAP) {
+    if (m.key.toLowerCase() === lower) return m.key;
+  }
+  // Check legacy short keys
+  if (LEGACY_KEY_MAP[lower]) return LEGACY_KEY_MAP[lower];
+  // Check display names (case-insensitive)
+  for (const m of MODULE_MAP) {
+    if (m.display.toLowerCase() === lower) return m.key;
+  }
+  return null;
+}
 
 // Helper: safe JSON.parse — never crashes, returns fallback on error
 function safeJSONParse(str, fallback) {
@@ -959,13 +995,19 @@ function matchBundle(savedStr) {
 }
 
 // Match a saved string against any known module key or display name (case-insensitive)
-function savedMatchesModule(savedArr, key, display) {
-  const lowerKey = key.toLowerCase();
+// Uses normalizeKey so legacy short keys (equipment, fuel, transfers) are
+// correctly mapped to their canonical backend keys (equipment_management, etc.)
+function savedMatchesModule(savedArr, canonicalKey, display) {
+  const lowerCanonical = canonicalKey.toLowerCase();
   const lowerDisplay = display.toLowerCase();
   return savedArr.some(s => {
     if (typeof s !== "string") return false;
     const lower = s.toLowerCase();
-    return lower === lowerKey || lower === lowerDisplay;
+    // Direct match on canonical key or display name
+    if (lower === lowerCanonical || lower === lowerDisplay) return true;
+    // Match via legacy key normalization
+    const normalized = normalizeKey(s);
+    return normalized !== null && normalized.toLowerCase() === lowerCanonical;
   });
 }
 
@@ -977,12 +1019,28 @@ function savedMatchesModule(savedArr, key, display) {
     // New visitor or direct visit — clear ALL stale selection keys
     safeRemoveItem("selectedModules");
     safeRemoveItem("selectedModuleKeys");
+    safeRemoveItem("driven_selection_v" + PAYLOAD_VERSION);
     return;
   }
 
   // Safe parse — corrupted localStorage won't crash the page
-  // Try selectedModuleKeys first (more robust), fall back to selectedModules (display names)
-  let saved = safeJSONParse(safeGetItem("selectedModuleKeys") || "null", null);
+  // Try versioned payload first, then selectedModuleKeys, then selectedModules (display names)
+  let saved = null;
+  let savedVersion = null;
+
+  // Versioned payload (v2+) — { version: 2, keys: [...], bundle: "..." }
+  const versioned = safeJSONParse(safeGetItem("driven_selection_v" + PAYLOAD_VERSION) || "null", null);
+  if (versioned && typeof versioned === "object" && Array.isArray(versioned.keys)) {
+    saved = versioned.keys;
+    savedVersion = versioned.version || PAYLOAD_VERSION;
+  }
+
+  // Fallback: unversioned selectedModuleKeys (v1 format)
+  if (!Array.isArray(saved) || saved.length === 0) {
+    saved = safeJSONParse(safeGetItem("selectedModuleKeys") || "null", null);
+  }
+
+  // Fallback: display names (oldest format)
   if (!Array.isArray(saved) || saved.length === 0) {
     saved = safeJSONParse(safeGetItem("selectedModules") || "[]", []);
   }
@@ -997,14 +1055,29 @@ function savedMatchesModule(savedArr, key, display) {
     console.warn("[DRIV-EN] Malformed selection data in localStorage — clearing.");
     safeRemoveItem("selectedModuleKeys");
     safeRemoveItem("selectedModules");
+    safeRemoveItem("driven_selection_v" + PAYLOAD_VERSION);
     return;
   }
 
-  // Restore modules — match by EITHER key OR display name (case-insensitive)
-  // This ensures restore works whether the saved data came from this page
-  // (display names) or from cart/checkout (which may use backend keys)
+  // Normalize saved keys to canonical backend keys, logging any mismatches
+  const normalizedSaved = [];
+  const unmatched = [];
+  for (const s of saved) {
+    const canonical = normalizeKey(s);
+    if (canonical) {
+      normalizedSaved.push(canonical);
+    } else {
+      unmatched.push(s);
+    }
+  }
+
+  if (unmatched.length > 0) {
+    console.warn("[DRIV-EN] Unmatched saved selection values (not restored):", unmatched);
+  }
+
+  // Restore modules — match normalized canonical keys against MODULE_MAP
   MODULE_MAP.forEach(m => {
-    if (m.el && savedMatchesModule(saved, m.key, m.display)) {
+    if (m.el && normalizedSaved.indexOf(m.key) !== -1) {
       m.el().checked = true;
     }
   });
@@ -1351,27 +1424,46 @@ btnContinue.addEventListener("click", async () => {
   statusBar.textContent = "";
 
   // --- Gather selected modules ---
-  // Save BOTH display names (for cart/checkout UI) and module keys (for backend).
-  // localStorage.selectedModules = display names (backward compatible with existing pages)
-  // localStorage.selectedModuleKeys = module keys (for backend/restore robustness)
+  // Uses CANONICAL backend keys (equipment_management, fuel_management, etc.)
+  // as the single source of truth for localStorage and submit payloads.
+  // Display names are saved separately for cart/checkout UI display.
   const selected = ["Asset Management"];
-  const selectedKeys = ["equipment"];
+  const selectedKeys = ["equipment_management"]; // canonical backend key
 
   if (modPM.checked) { selected.push("Preventative Maintenance"); selectedKeys.push("pm"); }
   if (modIns.checked) { selected.push("Equipment Inspections"); selectedKeys.push("inspections"); }
   if (modWO.checked) { selected.push("Work Orders"); selectedKeys.push("workorders"); }
-  if (modFuel.checked) { selected.push("Fuel Management"); selectedKeys.push("fuel"); }
-  if (modTransfers.checked) { selected.push("Asset Location Management"); selectedKeys.push("transfers"); }
+  if (modFuel.checked) { selected.push("Fuel Management"); selectedKeys.push("fuel_management"); }
+  if (modTransfers.checked) { selected.push("Asset Location Management"); selectedKeys.push("equipment_transfers"); }
   if (modExtraction.checked) { selected.push("Extraction Engine"); selectedKeys.push("extraction"); }
   if (modTranslation.checked) { selected.push("Multi-Language Support"); selectedKeys.push("multilanguage"); }
+
+  // --- Enforce required module (Asset Management) programmatically ---
+  // The checkbox is disabled+checked in the DOM, but this is a hard
+  // validation — if the key is missing (DOM tampering, script error),
+  // block submission rather than sending an incomplete payload.
+  if (selectedKeys.indexOf("equipment_management") === -1) {
+    statusBar.textContent = "Asset Management is required. Please refresh the page and try again.";
+    statusBar.style.color = "#dc2626";
+    console.error("[DRIV-EN] Required module 'equipment_management' missing from payload — submission blocked.");
+    return;
+  }
 
   if (bundleActive && activeBundle) {
     selected.push(activeBundle);
   }
 
   try {
+    // Save display names (backward compatible with existing cart/checkout pages)
     localStorage.setItem("selectedModules", JSON.stringify(selected));
+    // Save canonical backend keys (for backend/restore robustness)
     localStorage.setItem("selectedModuleKeys", JSON.stringify(selectedKeys));
+    // Save versioned payload (v2+) — includes version + keys for future migration
+    localStorage.setItem("driven_selection_v" + PAYLOAD_VERSION, JSON.stringify({
+      version: PAYLOAD_VERSION,
+      keys: selectedKeys,
+      bundle: bundleActive ? activeBundle : null
+    }));
   } catch (e) { /* storage may be disabled — navigation still works */ }
 
   // --- Pass referral code forward (captured on index.html via referral-capture.js) ---
@@ -1391,9 +1483,10 @@ btnContinue.addEventListener("click", async () => {
 
     // Build the checkout payload with isFree=true so checkout knows to skip payment
     // allModuleKeys includes "multilanguage" — Founding Members get all modules free
+    // Uses canonical backend keys (equipment_management, fuel_management, etc.)
     const allModuleKeys = [
-      "equipment", "pm", "inspections", "workorders",
-      "fuel", "transfers", "extraction", "multilanguage"
+      "equipment_management", "pm", "inspections", "workorders",
+      "fuel_management", "equipment_transfers", "extraction", "multilanguage"
     ];
     try {
       localStorage.setItem("driven_checkout_payload", JSON.stringify({
