@@ -4,50 +4,19 @@
 <meta charset="UTF-8" />
 <title>DRIV‑EN – Module Selection</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<!-- Favicon -->
 <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
 <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
 <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
 <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
-
-<!-- ============================================================
-     MODULE SELECTION PAGE — Updated 2026-09-26
-     Changes:
-       1. Light theme (diamond-plate background visible)
-       2. Renamed: Equipment Management → Asset Management
-                   Fuel Usage Tracking → Fuel Management
-                   Equipment Transfer Tracking → Asset Location Management
-       3. Added Multi-Language Support module ($19/mo per secondary language)
-          — standalone add-on, NOT included in any bundle
-          — module_key: "multilanguage"
-       4. Removed redundant "Choose your modules" subtitle from header
-       5. Added Cloudflare Turnstile (bot protection) + honeypot field
-       6. Added global error handler (error-handler.js → /api/error-report)
-       7. No account IDs in client-side code
-     NOTE: Backend module_key values (equipment_management, fuel_management,
-           equipment_transfers) are UNCHANGED — only display names changed.
-     ============================================================ -->
-
-<!-- Global error handler — must load before any other JS -->
 <script src="/assets/js/error-handler.js"></script>
 <script>
-  // Fallback: if error-handler.js fails to load, define a minimal reporter
-  // so calls to window.reportError don't throw and break page logic.
   if (typeof window.reportError !== "function") {
-    window.reportError = function(err) {
-      console.error("[DRIV-EN] Unhandled error:", err);
-    };
+    window.reportError = function(err) { console.error("[DRIV-EN] Unhandled error:", err); };
   }
 </script>
-
-<!-- Cloudflare Turnstile script (bot protection) -->
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-
-<!-- Founding Member expiry — hide promo section after 2026-12-31 -->
 <script>
   (function() {
-    // Founding Member program ends December 31, 2026 at 23:59:59 CST
-    // CST = UTC-6, so 2026-12-31 23:59:59 CST = 2027-01-01 05:59:59 UTC
     var expiry = new Date('2027-01-01T05:59:59Z');
     if (Date.now() > expiry.getTime()) {
       var wrapper = document.getElementById('foundingMemberWrapper');
@@ -55,467 +24,90 @@
     }
   })();
 </script>
-
 <style>
-/* ============================================================
-   LIGHT THEME — Diamond-plate background shows through
-   (diamond-plate.css forces body transparent, layers at z-index:-1)
-   All colors below use light theme: dark text on light/white cards.
-   ============================================================ */
-body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  margin: 0;
-  padding: 0;
-  /* background is set by diamond-plate.css (transparent !important) */
-  color: #1a1a1a;          /* dark text on light background */
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-/* Sticky Header — light theme */
-header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  padding: 16px 24px;
-  border-bottom: 4px solid #2ecc71;
-  background: #e5e7eb;       /* light gray header (matches dashboard --bg-header) */
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
-header img.logo {
-  height: 88px;
-}
-header .title-block h1 {
-  font-size: 18px;
-  margin: 0;
-  color: #1a1a1a;
-}
-/* "Choose your modules" subtitle removed from header — body already explains */
-
-main {
-  flex: 1;
-  max-width: 1200px;
-  margin: 32px auto;
-  padding: 0 16px;
-}
-
-/* Green banner — selected modules summary (light theme) */
-#selectionBanner {
-  display: none;
-  background: #ecfdf5;       /* light green */
-  border: 1px solid #22c55e;
-  color: #065f46;            /* dark green text */
-  padding: 10px 14px;
-  border-radius: 6px;
-  margin-bottom: 16px;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-/* Layout — two columns on desktop, one on mobile */
-.layout {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-}
-@media (max-width: 900px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Cards — white with subtle border (light theme) */
-.card {
-  border: 1px solid #d1d5db;
-  background: #ffffff;
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 24px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-}
-
-.module-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 12px;
-}
-
-/* Each module item — light theme */
-.module-item {
-  padding: 12px;
-  border: 2px solid #22c55e;
-  border-radius: 6px;
-  background: #f9fafb;       /* very light gray */
-}
-
-.module-item label {
-  font-size: 15px;
-  font-weight: 600;
-  color: #1a1a1a;
-  display: block;
-  margin-bottom: 6px;
-}
-
-.module-desc {
-  font-size: 13px;
-  color: #6b7280;           /* medium gray */
-  margin-bottom: 10px;
-  line-height: 1.45;
-}
-
-.module-price {
-  font-size: 13px;
-  color: #1a1a1a;
-  margin-bottom: 6px;
-  font-weight: 600;
-}
-
-.module-item input {
-  transform: scale(1.2);
-  cursor: pointer;
-}
-
-/* Footer actions (buttons row) */
-.footer-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 16px;
-}
-
-/* Buttons — light theme */
-button {
-  font-size: 13px;
-  border-radius: 6px;
-  padding: 8px 14px;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-
-.btn-secondary {
-  background: #ffffff;
-  border-color: #d1d5db;
-  color: #1a1a1a;
-}
-
-.btn-primary {
-  background: #22c55e;
-  border-color: #16a34a;
-  color: #022c22;
-  font-weight: 600;
-}
-
-.status-bar {
-  margin-top: 12px;
-  font-size: 12px;
-  color: #6b7280;
-  min-height: 18px;
-}
-
-/* Coming Soon section — light theme */
-.coming-soon {
-  padding: 20px;
-  border: 1px solid #d1d5db;
-  background: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-}
-
-.coming-item {
-  margin-top: 12px;
-  padding: 12px;
-  background: #f9fafb;
-  border-radius: 6px;
-  border: 2px solid #22c55e;
-}
-
-.coming-item-title {
-  font-size: 15px;
-  font-weight: 600;
-  margin-bottom: 6px;
-  color: #1a1a1a;
-}
-
-.coming-item-desc {
-  font-size: 13px;
-  color: #6b7280;
-  line-height: 1.45;
-}
-
-.coming-note {
-  margin-top: 8px;
-  font-size: 12px;
-  color: #16a34a;           /* green */
-  font-style: italic;
-}
-
-/* Notify Me checkbox row inside Coming Soon cards */
-.notify-check {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid #e5e7eb;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.notify-check input {
-  cursor: pointer;
-  transform: scale(1.1);
-}
-.notify-check label {
-  font-size: 13px;
-  color: #1a1a1a;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-/* Notify Me email + button section */
-.notify-me-section {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 2px solid #22c55e;
-}
-.notify-me-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.notify-me-row input {
-  flex: 1;
-  padding: 8px 12px;
-  font-size: 14px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  background: #f9fafb;
-  color: #1a1a1a;
-}
-.notify-me-row input:focus {
-  outline: none;
-  border-color: #22c55e;
-}
-.notify-me-status {
-  margin-top: 8px;
-  font-size: 13px;
-  min-height: 18px;
-}
+body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 0; color: #1a1a1a; display: flex; flex-direction: column; min-height: 100vh; }
+header { position: sticky; top: 0; z-index: 100; padding: 16px 24px; border-bottom: 4px solid #2ecc71; background: #e5e7eb; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+header img.logo { height: 88px; }
+header .title-block h1 { font-size: 18px; margin: 0; color: #1a1a1a; }
+main { flex: 1; max-width: 1200px; margin: 32px auto; padding: 0 16px; }
+#selectionBanner { display: none; background: #ecfdf5; border: 1px solid #22c55e; color: #065f46; padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 14px; font-weight: 600; }
+.layout { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+.card { border: 1px solid #d1d5db; background: #ffffff; border-radius: 8px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.module-list { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.module-item { padding: 12px; border: 2px solid #22c55e; border-radius: 6px; background: #f9fafb; }
+.module-item label { font-size: 15px; font-weight: 600; color: #1a1a1a; display: block; margin-bottom: 6px; }
+.module-desc { font-size: 13px; color: #6b7280; margin-bottom: 10px; line-height: 1.45; }
+.module-price { font-size: 13px; color: #1a1a1a; margin-bottom: 6px; font-weight: 600; }
+.module-item input { transform: scale(1.2); cursor: pointer; }
+.footer-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+button { font-size: 13px; border-radius: 6px; padding: 8px 14px; cursor: pointer; border: 1px solid transparent; }
+.btn-secondary { background: #ffffff; border-color: #d1d5db; color: #1a1a1a; }
+.btn-primary { background: #22c55e; border-color: #16a34a; color: #022c22; font-weight: 600; }
+.status-bar { margin-top: 12px; font-size: 12px; color: #6b7280; min-height: 18px; }
+.coming-soon { padding: 20px; border: 1px solid #d1d5db; background: #ffffff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.coming-item { margin-top: 12px; padding: 12px; background: #f9fafb; border-radius: 6px; border: 2px solid #22c55e; }
+.coming-item-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; color: #1a1a1a; }
+.coming-item-desc { font-size: 13px; color: #6b7280; line-height: 1.45; }
+.coming-note { margin-top: 8px; font-size: 12px; color: #16a34a; font-style: italic; }
+.notify-check { margin-top: 10px; padding-top: 8px; border-top: 1px solid #e5e7eb; display: flex; align-items: center; gap: 8px; }
+.notify-check input { cursor: pointer; transform: scale(1.1); }
+.notify-check label { font-size: 13px; color: #1a1a1a; font-weight: 600; cursor: pointer; }
+.notify-me-section { margin-top: 16px; padding-top: 16px; border-top: 2px solid #22c55e; }
+.notify-me-row { display: flex; gap: 8px; align-items: center; }
+.notify-me-row input { flex: 1; padding: 8px 12px; font-size: 14px; border: 1px solid #d1d5db; border-radius: 6px; background: #f9fafb; color: #1a1a1a; }
+.notify-me-row input:focus { outline: none; border-color: #22c55e; }
+.notify-me-status { margin-top: 8px; font-size: 13px; min-height: 18px; }
 .notify-me-status.error { color: #dc2626; }
 .notify-me-status.success { color: #16a34a; font-weight: 600; }
 .notify-me-status.loading { color: #d97706; }
-
-/* Promo Code Section — light green theme */
-.promo-section {
-  margin-bottom: 20px;
-  padding: 16px;
-  border: 2px solid #22c55e;
-  background: #ecfdf5;
-  border-radius: 8px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-}
-.promo-section h3 {
-  margin: 0 0 4px 0;
-  font-size: 16px;
-  color: #1a1a1a;
-}
-.promo-section .promo-hint {
-  font-size: 12px;
-  color: #6b7280;
-  margin-bottom: 10px;
-}
-.promo-input-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.promo-input-row input {
-  flex: 1;
-  padding: 8px 12px;
-  font-size: 14px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  background: #f9fafb;
-  color: #1a1a1a;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-.promo-input-row input:focus {
-  outline: none;
-  border-color: #22c55e;
-}
-.promo-input-row button {
-  white-space: nowrap;
-}
-.promo-status {
-  margin-top: 8px;
-  font-size: 13px;
-  min-height: 18px;
-}
+.promo-section { margin-bottom: 20px; padding: 16px; border: 2px solid #22c55e; background: #ecfdf5; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.promo-section h3 { margin: 0 0 4px 0; font-size: 16px; color: #1a1a1a; }
+.promo-section .promo-hint { font-size: 12px; color: #6b7280; margin-bottom: 10px; }
+.promo-input-row { display: flex; gap: 8px; align-items: center; }
+.promo-input-row input { flex: 1; padding: 8px 12px; font-size: 14px; border: 1px solid #d1d5db; border-radius: 6px; background: #f9fafb; color: #1a1a1a; text-transform: uppercase; letter-spacing: 1px; }
+.promo-input-row input:focus { outline: none; border-color: #22c55e; }
+.promo-input-row button { white-space: nowrap; }
+.promo-status { margin-top: 8px; font-size: 13px; min-height: 18px; }
 .promo-status.error { color: #dc2626; }
 .promo-status.success { color: #16a34a; font-weight: 600; }
 .promo-status.loading { color: #d97706; }
-
-/* Free Access Banner — keep green theme (looks good on light bg) */
-#freeAccessBanner {
-  display: none;
-  background: linear-gradient(135deg, #022c22, #064e3b);
-  border: 2px solid #22c55e;
-  border-radius: 8px;
-  padding: 16px 20px;
-  margin-bottom: 20px;
-  text-align: center;
-}
-#freeAccessBanner .free-badge {
-  display: inline-block;
-  background: #22c55e;
-  color: #022c22;
-  font-weight: 700;
-  font-size: 14px;
-  padding: 4px 14px;
-  border-radius: 20px;
-  margin-bottom: 8px;
-}
-#freeAccessBanner .free-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: #bbf7d0;
-  margin-bottom: 4px;
-}
-#freeAccessBanner .free-sub {
-  font-size: 13px;
-  color: #86efac;
-}
-
-/* When promo is active, dim pricing sections */
-.promo-active .bundle-note,
-.promo-active .pricing-note {
-  opacity: 0.4;
-  pointer-events: none;
-}
-
-/* Honeypot field — hidden from humans, bots fill it in */
-.honeypot-field {
-  position: absolute;
-  left: -9999px;
-  top: -9999px;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  opacity: 0;
-}
-
-/* Turnstile container */
-.turnstile-container {
-  margin-top: 12px;
-  margin-bottom: 8px;
-}
-
-/* Footer — keep dark (standard across all pages) */
-footer {
-  background-color: #111;
-  color: #eee;
-  text-align: center;
-  padding: 24px;
-  margin-top: 48px;
-  border-top: 4px solid #2ecc71;
-  font-size: 0.9rem;
-  width: 100%;
-}
-
-footer a {
-  color: #2ecc71;
-  text-decoration: none;
-  margin: 0 8px;
-}
-
-/* Mobile footer centering */
-@media (max-width: 600px) {
-  footer {
-    text-align: center;
-    line-height: 1.4;
-    width: 100%;
-    margin: 0 auto;
-    padding-left: 16px;
-    padding-right: 16px;
-    box-sizing: border-box;
-  }
-
-  footer br {
-    display: block;
-  }
-
-  footer .footer-line {
-    display: block;
-    margin: 6px 0;
-    width: 100%;
-    text-align: center;
-  }
-
-  footer a {
-    margin: 0 6px;
-  }
-
-  /* Extend header and footer slightly beyond card edges so the
-     page doesn't need horizontal readjustment on mobile screens */
-  header {
-    padding-left: 16px;
-    padding-right: 16px;
-    box-sizing: border-box;
-  }
-
-  main {
-    padding: 0 8px;
-  }
-}
+#freeAccessBanner { display: none; background: linear-gradient(135deg, #022c22, #064e3b); border: 2px solid #22c55e; border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; text-align: center; }
+#freeAccessBanner .free-badge { display: inline-block; background: #22c55e; color: #022c22; font-weight: 700; font-size: 14px; padding: 4px 14px; border-radius: 20px; margin-bottom: 8px; }
+#freeAccessBanner .free-title { font-size: 20px; font-weight: 700; color: #bbf7d0; margin-bottom: 4px; }
+#freeAccessBanner .free-sub { font-size: 13px; color: #86efac; }
+.promo-active .bundle-note, .promo-active .pricing-note { opacity: 0.4; pointer-events: none; }
+.honeypot-field { position: absolute; left: -9999px; top: -9999px; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
+.turnstile-container { margin-top: 12px; margin-bottom: 8px; }
+footer { background-color: #111; color: #eee; text-align: center; padding: 24px; margin-top: 48px; border-top: 4px solid #2ecc71; font-size: 0.9rem; width: 100%; }
+footer a { color: #2ecc71; text-decoration: none; margin: 0 8px; }
+@media (max-width: 600px) { footer { text-align: center; line-height: 1.4; width: 100%; margin: 0 auto; padding-left: 16px; padding-right: 16px; box-sizing: border-box; } footer br { display: block; } footer .footer-line { display: block; margin: 6px 0; width: 100%; text-align: center; } footer a { margin: 0 6px; } header { padding-left: 16px; padding-right: 16px; box-sizing: border-box; } main { padding: 0 8px; } }
+.bundle-match-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+.bundle-match-modal.show { display: flex; }
+.bundle-match-content { background: #ffffff; border-radius: 12px; padding: 28px 32px; max-width: 440px; width: 90%; box-shadow: 0 8px 32px rgba(0,0,0,0.25); text-align: center; }
+.bundle-match-content h3 { margin: 0 0 12px 0; font-size: 18px; color: #1a1a1a; }
+.bundle-match-content p { font-size: 14px; color: #4b5563; line-height: 1.5; margin: 0 0 20px 0; }
+.bundle-match-content .savings-amount { font-weight: 700; color: #16a34a; font-size: 16px; }
+.bundle-match-buttons { display: flex; gap: 12px; justify-content: center; }
+.bundle-match-buttons button { font-size: 14px; border-radius: 8px; padding: 10px 20px; cursor: pointer; border: 1px solid transparent; }
+.bundle-match-buttons .btn-switch { background: #22c55e; color: #022c22; font-weight: 600; }
+.bundle-match-buttons .btn-keep { background: #ffffff; border-color: #d1d5db; color: #1a1a1a; }
 </style>
-
-<!-- Diamond-plate background stylesheet (forces body transparent) -->
 <link rel="stylesheet" href="/styles/diamond-plate.css?v=1">
 </head>
-
 <body>
-<!-- Diamond-plate background layers (z-index: -1, behind all content) -->
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
-
-<!-- ============================================================
-     HEADER — DRIV-EN logo links to homepage
-     "Choose your modules" subtitle removed (body already explains)
-     ============================================================ -->
 <header>
-  <div class="title-block">
-    <h1>DRIV‑EN – Module Selection</h1>
-  </div>
-  <a href="https://www.driv-en.com/website/index.html">
-    <img src="/assets/logo.png?v=2026" alt="DRIV‑EN Logo" class="logo">
-  </a>
+  <div class="title-block"><h1>DRIV‑EN – Module Selection</h1></div>
+  <a href="https://www.driv-en.com/website/index.html"><img src="/assets/logo.png?v=2026" alt="DRIV‑EN Logo" class="logo"></a>
 </header>
-
 <main>
-
 <h2>Select the modules your business needs</h2>
-
-<!-- Green banner for bundle/module selection -->
 <div id="selectionBanner"></div>
-
-<p>
-  DRIV‑EN is modular. Choose the features you want to activate for your workspace.
-  You can adjust your active modules whenever your business needs change.
-</p>
-
-<!-- Pricing note -->
-<div class="pricing-note">
-
-  Asset Management is recommended as the foundation module. Other modules may have prerequisites (see each module description). Modules may be billed monthly or annually (annual billing receives a 10% discount).
-</div>
-
-<!-- Founding Member Code Section — auto-hides after 2026-12-31 -->
-<!-- The promo-section and freeAccessBanner are wrapped so JS can hide both -->
+<p>DRIV‑EN is modular. Choose the features you want to activate for your workspace. You can adjust your active modules whenever your business needs change.</p>
+<div class="pricing-note">Asset Management is recommended as the foundation module. Other modules may have prerequisites (see each module description). Modules may be billed monthly or annually (annual billing receives a 10% discount).</div>
 <div id="foundingMemberWrapper">
-<!-- Free Access Banner (shown when promo code is valid) -->
 <div id="freeAccessBanner">
   <div class="free-badge">★ FOUNDING MEMBER</div>
   <div class="free-title">Free Access Granted</div>
@@ -526,8 +118,6 @@ footer a {
     <strong>No credit card needed.</strong> Your free access continues through December 31, 2026.
   </div>
 </div>
-
-<!-- Promo Code Section -->
 <div class="promo-section">
   <h3>Founding Member Code</h3>
   <div class="promo-hint">Have a Founding Member code? Enter it here to unlock free access.</div>
@@ -544,318 +134,107 @@ footer a {
     <button class="btn-secondary" id="btnRemovePromo" style="display:none;">Remove</button>
   </div>
   <div class="promo-status" id="promoStatus"></div>
-  <div style="margin-top:10px;font-size:12px;color:#6b7280;">
-    Don't have a code? <a href="mailto:support@driv-en.com?subject=Founding%20Member%20Code%20Request" style="color:#16a34a;font-weight:600;">Contact DRIV-EN</a> to request one.
-  </div>
+  <div style="margin-top:10px;font-size:12px;color:#6b7280;">Don't have a code? <a href="mailto:support@driv-en.com?subject=Founding%20Member%20Code%20Request" style="color:#16a34a;font-weight:600;">Contact DRIV-EN</a> to request one.</div>
 </div>
-<!-- End foundingMemberWrapper — hidden by JS after 2026-12-31 -->
-
-<!-- ============================================================
-     BUNDLE PRICING SECTION
-     NOTE: Multi-Language Support is NOT included in any bundle.
-     It is a standalone add-on ($19/mo per secondary language).
-     Bundle descriptions use updated display names:
-       "Equipment Management" → "Asset Management"
-     ============================================================ -->
 <div class="bundle-note">
   <div class="bundle-title">Bundle Pricing</div>
-
   <div class="bundle-item">
     <input type="checkbox" id="bundleOperations">
     Operations Bundle — $499/month<br>
     <span style="display:block;margin-left:20px;">Asset Management + Preventative Maintenance + Asset Inspections + Extraction Engine (Included)</span>
   </div>
-
   <div class="bundle-item">
     <input type="checkbox" id="bundleFull">
     Full Asset Bundle — $529/month<br>
     <span style="display:block;margin-left:20px;">Asset Management + Preventative Maintenance + Asset Inspections + Work Orders + Extraction Engine (Included)</span>
   </div>
-
   <div class="bundle-item">
     <input type="checkbox" id="bundleComplete">
     Complete Platform Bundle — $599/month<br>
     <span style="display:block;margin-left:20px;">All modules (excluding Multi-Language Support) included + Extraction Engine (Included)</span>
   </div>
 </div>
-
 <div class="layout">
-
-  <!-- ========================================================
-       LEFT COLUMN — AVAILABLE MODULES
-       Display names updated:
-         Equipment Management  → Asset Management
-         Fuel Usage Tracking    → Fuel Management
-         Equipment Transfer Tracking → Asset Location Management
-       New module added:
-         Multi-Language Support ($19/mo per secondary language)
-       Backend module_key values are UNCHANGED.
-       ======================================================== -->
   <div>
     <div class="card">
       <h3 style="margin-top:0;font-size:16px;">Available Modules</h3>
-
       <div class="module-list">
-
-        <!-- Asset Management (was "Equipment Management")
-             module_key: equipment_management (UNCHANGED in backend)
-             No longer required — but is a prerequisite for PM, Asset Inspections,
-             Work Orders, Fuel Management, and Asset Location Management. -->
         <div class="module-item">
           <label for="modEquipment">Asset Management</label>
           <div class="module-price">$149/month</div>
-          <div class="module-desc">
-            The foundation of your fleet operations. Track unit details, locations, meter readings, operational status, and configuration profiles.
-            Asset Management is the core of DRIV‑EN and powers every other module.
-            When selected alone, it provides essential manual tracking.
-            When paired with PM, Asset Inspections, Work Orders, Fuel, or Asset Location Management, it becomes a fully automated operational system.
-          </div>
+          <div class="module-desc">The foundation of your fleet operations. Track unit details, locations, meter readings, operational status, and configuration profiles. Asset Management is the core of DRIV‑EN and powers every other module. When selected alone, it provides essential manual tracking. When paired with PM, Asset Inspections, Work Orders, Fuel, or Asset Location Management, it becomes a fully automated operational system.</div>
           <input type="checkbox" id="modEquipment" />
         </div>
-
-        <!-- Preventative Maintenance
-             Requires: Asset Management -->
         <div class="module-item">
           <label for="modPM">Preventative Maintenance</label>
           <div class="module-price">$299/month</div>
-          <div class="module-desc">
-            Automated PM schedules, manufacturer‑accurate templates, and guided technician workflows.
-            DRIV‑EN's extraction engine reads equipment manuals, manufacturer documentation, and configuration details to identify part numbers, fluid types, capacities, intervals, and safety requirements.
-            PM completions update Asset Management automatically and generate full digital reports.
-            <br><br><strong>Requires Asset Management.</strong>
-          </div>
+          <div class="module-desc">Automated PM schedules, manufacturer‑accurate templates, and guided technician workflows. DRIV‑EN's extraction engine reads equipment manuals, manufacturer documentation, and configuration details to identify part numbers, fluid types, capacities, intervals, and safety requirements. PM completions update Asset Management automatically and generate full digital reports.<br><br><strong>Requires Asset Management.</strong></div>
           <input type="checkbox" id="modPM" />
         </div>
-
-        <!-- Asset Inspections (was "Equipment Inspections")
-             module_key: inspections (UNCHANGED in backend)
-             Requires: Asset Management -->
         <div class="module-item">
           <label for="modInspections">Asset Inspections</label>
           <div class="module-price">$199/month</div>
-          <div class="module-desc">
-            Safety and compliance inspections tailored to each unit.
-            Templates adapt to equipment type, configuration, and operational requirements.
-            If Preventative Maintenance is active, inspections incorporate manufacturer safety items retrieved by the extraction engine.
-            Completed inspections update Asset Management and trigger safety alerts when needed.
-            <br><br><strong>Requires Asset Management.</strong>
-          </div>
+          <div class="module-desc">Safety and compliance inspections tailored to each unit. Templates adapt to equipment type, configuration, and operational requirements. If Preventative Maintenance is active, inspections incorporate manufacturer safety items retrieved by the extraction engine. Completed inspections update Asset Management and trigger safety alerts when needed.<br><br><strong>Requires Asset Management.</strong></div>
           <input type="checkbox" id="modInspections" />
         </div>
-
-        <!-- Work Orders
-             Requires: Asset Management, Preventative Maintenance, Asset Inspections -->
         <div class="module-item">
           <label for="modWorkOrders">Work Orders</label>
           <div class="module-price">$149/month</div>
-          <div class="module-desc">
-            Manage repairs, diagnostics, and non‑PM maintenance tasks with structured work orders.
-            Assign personnel, track progress, capture photos and notes, and close tasks with full documentation.
-            Work Orders integrate seamlessly with Asset Management and can be triggered by inspections, PM completions, or manual entry.
-            <br><br><strong>Requires Asset Management, Preventative Maintenance, and Asset Inspections.</strong>
-          </div>
+          <div class="module-desc">Manage repairs, diagnostics, and non‑PM maintenance tasks with structured work orders. Assign personnel, track progress, capture photos and notes, and close tasks with full documentation. Work Orders integrate seamlessly with Asset Management and can be triggered by inspections, PM completions, or manual entry.<br><br><strong>Requires Asset Management, Preventative Maintenance, and Asset Inspections.</strong></div>
           <input type="checkbox" id="modWorkOrders" />
         </div>
-
-        <!-- Fuel Management (was "Fuel Usage Tracking")
-             module_key: fuel_management (UNCHANGED in backend)
-             Requires: Asset Management -->
         <div class="module-item">
           <label for="modFuel">Fuel Management</label>
           <div class="module-price">$49/month</div>
-          <div class="module-desc">
-            Monitor fuel consumption, cost, and efficiency across your fleet.
-            Automatically update meter readings and equipment status.
-            Fuel data enhances PM scheduling when Preventative Maintenance is active and provides valuable insights into operating costs.
-            <br><br><strong>Requires Asset Management.</strong>
-          </div>
+          <div class="module-desc">Monitor fuel consumption, cost, and efficiency across your fleet. Automatically update meter readings and equipment status. Fuel data enhances PM scheduling when Preventative Maintenance is active and provides valuable insights into operating costs.<br><br><strong>Requires Asset Management.</strong></div>
           <input type="checkbox" id="modFuel" />
         </div>
-
-        <!-- Asset Location Management (was "Equipment Transfer Tracking")
-             module_key: equipment_transfers (UNCHANGED in backend)
-             Requires: Asset Management -->
         <div class="module-item">
           <label for="modTransfers">Asset Location Management</label>
           <div class="module-price">$79/month</div>
-          <div class="module-desc">
-            Track equipment movement between projects, yards, shops, and divisions.
-            Transfers automatically update Asset Management and adjust PM and inspection schedules based on where each unit is operating.
-            Maintain a complete movement history for every asset.
-            <br><br><strong>Requires Asset Management.</strong>
-          </div>
+          <div class="module-desc">Track equipment movement between projects, yards, shops, and divisions. Transfers automatically update Asset Management and adjust PM and inspection schedules based on where each unit is operating. Maintain a complete movement history for every asset.<br><br><strong>Requires Asset Management.</strong></div>
           <input type="checkbox" id="modTransfers" />
         </div>
-
-        <!-- Extraction Engine -->
         <div class="module-item">
           <label for="modExtraction">Extraction Engine</label>
           <div class="module-price">$149/month</div>
-          <div class="module-desc">
-            DRIV‑EN's extraction engine analyzes equipment manuals, manufacturer documentation, and configuration details to retrieve part numbers, fluid types, capacities, maintenance intervals, safety requirements, and operational specifications.
-            This intelligence powers automated PM templates, inspection templates, and equipment configuration profiles.
-            <br><br>
-            <strong>Requires Preventative Maintenance or Asset Inspections.</strong><br>
-            <strong>Included at no charge in all bundles.</strong>
-          </div>
+          <div class="module-desc">DRIV‑EN's extraction engine analyzes equipment manuals, manufacturer documentation, and configuration details to retrieve part numbers, fluid types, capacities, maintenance intervals, safety requirements, and operational specifications. This intelligence powers automated PM templates, inspection templates, and equipment configuration profiles.<br><br><strong>Requires Preventative Maintenance or Asset Inspections.</strong><br><strong>Included at no charge in all bundles.</strong></div>
           <input type="checkbox" id="modExtraction" />
         </div>
-
-        <!-- ==================================================
-             Multi-Language Support — NEW MODULE
-             module_key: multilanguage
-             Standalone add-on — NOT included in any bundle.
-             $19/month per secondary language.
-             Primary language is free (any supported language).
-             ================================================== -->
         <div class="module-item" style="border: 2px solid #22c55e;">
           <label for="modTranslation">Multi-Language Support</label>
           <div class="module-price">$19/month per secondary language</div>
-          <div class="module-desc">
-            Set your workspace primary language — English, Spanish, French, Japanese, or any supported language.
-            Your dashboard, forms, and labels display in your primary language at no cost.<br><br>
-            Add secondary languages for your field teams at $19/month each.
-            When a worker types a note, inspection comment, or report in their language,
-            DRIV‑EN automatically detects the language and translates it to your primary language in real time.
-            Managers see every note in their language — no translation apps needed.<br><br>
-            Original text is always preserved. Toggle between the original and translated version on any note or report.
-          </div>
+          <div class="module-desc">Set your workspace primary language — English, Spanish, French, Japanese, or any supported language. Your dashboard, forms, and labels display in your primary language at no cost.<br><br>Add secondary languages for your field teams at $19/month each. When a worker types a note, inspection comment, or report in their language, DRIV‑EN automatically detects the language and translates it to your primary language in real time. Managers see every note in their language — no translation apps needed.<br><br>Original text is always preserved. Toggle between the original and translated version on any note or report.</div>
           <input type="checkbox" id="modTranslation" />
         </div>
-
       </div>
-
-      <!-- Honeypot field — hidden from real users, bots fill it in.
-           If this field has a value on submit, the submission is rejected. -->
       <div class="honeypot-field" aria-hidden="true">
         <label for="company_website">Company Website (leave blank)</label>
         <input type="text" id="company_website" name="company_website" tabindex="-1" autocomplete="off" />
       </div>
-
-      <!-- Cloudflare Turnstile — bot verification (invisible challenge) -->
       <div class="turnstile-container">
         <div class="cf-turnstile" data-sitekey="0x4AAAAAAEQLZ0tgWkwiVIg6" data-theme="light"></div>
       </div>
-
       <div class="footer-actions">
         <button class="btn-secondary" id="btnCancel">Cancel</button>
         <button class="btn-secondary" id="btnClear">Clear Modules Selected</button>
         <button class="btn-primary" id="btnContinue">Continue</button>
       </div>
-
       <div class="status-bar" id="statusBar"></div>
       <div id="savingsPreview" style="display:none;margin-top:10px;padding:10px;background:#fff8e1;border:1px solid #ffb300;border-radius:6px;font-weight:600;color:#795548;"></div>
-
     </div>
   </div>
-
-  <!-- ========================================================
-       RIGHT COLUMN — COMING SOON
-       Each card has a "Notify me when this launches" checkbox.
-       At the bottom: email input + Notify Me button.
-       Submits to /api/notify-me → SendGrid emails support@driv-en.com.
-       ======================================================== -->
   <div>
     <div class="coming-soon">
       <h3 style="margin-top:0;font-size:16px;">Coming Soon</h3>
-
-      <div class="coming-item">
-        <div class="coming-item-title">Safety Training & Certifications</div>
-        <div class="coming-item-desc">
-          Includes equipment‑specific training, project‑required certifications, OSHA annual training, and other regulatory or company‑required qualifications.
-        </div>
-        <div class="coming-note">Learn more on our website.</div>
-        <div class="notify-check">
-          <input type="checkbox" id="notify-safety" class="notify-checkbox" data-module="Safety Training & Certifications" />
-          <label for="notify-safety">Notify me when this launches</label>
-        </div>
-      </div>
-
-      <div class="coming-item">
-        <div class="coming-item-title">Project Management</div>
-        <div class="coming-item-desc">
-          Manage project phases, tasks, assignments, materials, and progress tracking.
-        </div>
-        <div class="coming-note">Learn more on our website.</div>
-        <div class="notify-check">
-          <input type="checkbox" id="notify-pm" class="notify-checkbox" data-module="Project Management" />
-          <label for="notify-pm">Notify me when this launches</label>
-        </div>
-      </div>
-
-      <div class="coming-item">
-        <div class="coming-item-title">Material Receiving</div>
-        <div class="coming-item-desc">
-          Log incoming materials, verify quantities, track delivery issues, and link items to projects.
-        </div>
-        <div class="coming-note">Learn more on our website.</div>
-        <div class="notify-check">
-          <input type="checkbox" id="notify-material" class="notify-checkbox" data-module="Material Receiving" />
-          <label for="notify-material">Notify me when this launches</label>
-        </div>
-      </div>
-
-      <div class="coming-item">
-        <div class="coming-item-title">Accident / Incident Investigations</div>
-        <div class="coming-item-desc">
-          Document incidents, capture evidence, track corrective actions, and maintain compliance records.
-        </div>
-        <div class="coming-note">Learn more on our website.</div>
-        <div class="notify-check">
-          <input type="checkbox" id="notify-incident" class="notify-checkbox" data-module="Accident / Incident Investigations" />
-          <label for="notify-incident">Notify me when this launches</label>
-        </div>
-      </div>
-
-      <div class="coming-item">
-        <div class="coming-item-title">JSA / JHA</div>
-        <div class="coming-item-desc">
-          Create job safety analyses tailored to tasks, hazards, and equipment involved.
-        </div>
-        <div class="coming-note">Learn more on our website.</div>
-        <div class="notify-check">
-          <input type="checkbox" id="notify-jsa" class="notify-checkbox" data-module="JSA / JHA" />
-          <label for="notify-jsa">Notify me when this launches</label>
-        </div>
-      </div>
-
-      <div class="coming-item">
-        <div class="coming-item-title">Lockout / Tagout (LOTO)</div>
-        <div class="coming-item-desc">
-          Manage LOTO procedures, authorized personnel, and equipment isolation steps.
-        </div>
-        <div class="coming-note">Learn more on our website.</div>
-        <div class="notify-check">
-          <input type="checkbox" id="notify-loto" class="notify-checkbox" data-module="Lockout / Tagout (LOTO)" />
-          <label for="notify-loto">Notify me when this launches</label>
-        </div>
-      </div>
-
-      <div class="coming-item">
-        <div class="coming-item-title">HAZCOM</div>
-        <div class="coming-item-desc">
-          Track hazardous materials, SDS documentation, and employee communication requirements.
-        </div>
-        <div class="coming-note">Learn more on our website.</div>
-        <div class="notify-check">
-          <input type="checkbox" id="notify-hazcom" class="notify-checkbox" data-module="HAZCOM" />
-          <label for="notify-hazcom">Notify me when this launches</label>
-        </div>
-      </div>
-
-      <div class="coming-item">
-        <div class="coming-item-title">Hazard Recognition Reporting</div>
-        <div class="coming-item-desc">
-          Capture field hazards, photos, severity ratings, and corrective actions.
-        </div>
-        <div class="coming-note">Learn more on our website.</div>
-        <div class="notify-check">
-          <input type="checkbox" id="notify-hazard" class="notify-checkbox" data-module="Hazard Recognition Reporting" />
-          <label for="notify-hazard">Notify me when this launches</label>
-        </div>
-      </div>
-
-      <!-- Notify Me — email input + submit button -->
+      <div class="coming-item"><div class="coming-item-title">Safety Training & Certifications</div><div class="coming-item-desc">Includes equipment‑specific training, project‑required certifications, OSHA annual training, and other regulatory or company‑required qualifications.</div><div class="coming-note">Learn more on our website.</div><div class="notify-check"><input type="checkbox" id="notify-safety" class="notify-checkbox" data-module="Safety Training & Certifications" /><label for="notify-safety">Notify me when this launches</label></div></div>
+      <div class="coming-item"><div class="coming-item-title">Project Management</div><div class="coming-item-desc">Manage project phases, tasks, assignments, materials, and progress tracking.</div><div class="coming-note">Learn more on our website.</div><div class="notify-check"><input type="checkbox" id="notify-pm" class="notify-checkbox" data-module="Project Management" /><label for="notify-pm">Notify me when this launches</label></div></div>
+      <div class="coming-item"><div class="coming-item-title">Material Receiving</div><div class="coming-item-desc">Log incoming materials, verify quantities, track delivery issues, and link items to projects.</div><div class="coming-note">Learn more on our website.</div><div class="notify-check"><input type="checkbox" id="notify-material" class="notify-checkbox" data-module="Material Receiving" /><label for="notify-material">Notify me when this launches</label></div></div>
+      <div class="coming-item"><div class="coming-item-title">Accident / Incident Investigations</div><div class="coming-item-desc">Document incidents, capture evidence, track corrective actions, and maintain compliance records.</div><div class="coming-note">Learn more on our website.</div><div class="notify-check"><input type="checkbox" id="notify-incident" class="notify-checkbox" data-module="Accident / Incident Investigations" /><label for="notify-incident">Notify me when this launches</label></div></div>
+      <div class="coming-item"><div class="coming-item-title">JSA / JHA</div><div class="coming-item-desc">Create job safety analyses tailored to tasks, hazards, and equipment involved.</div><div class="coming-note">Learn more on our website.</div><div class="notify-check"><input type="checkbox" id="notify-jsa" class="notify-checkbox" data-module="JSA / JHA" /><label for="notify-jsa">Notify me when this launches</label></div></div>
+      <div class="coming-item"><div class="coming-item-title">Lockout / Tagout (LOTO)</div><div class="coming-item-desc">Manage LOTO procedures, authorized personnel, and equipment isolation steps.</div><div class="coming-note">Learn more on our website.</div><div class="notify-check"><input type="checkbox" id="notify-loto" class="notify-checkbox" data-module="Lockout / Tagout (LOTO)" /><label for="notify-loto">Notify me when this launches</label></div></div>
+      <div class="coming-item"><div class="coming-item-title">HAZCOM</div><div class="coming-item-desc">Track hazardous materials, SDS documentation, and employee communication requirements.</div><div class="coming-note">Learn more on our website.</div><div class="notify-check"><input type="checkbox" id="notify-hazcom" class="notify-checkbox" data-module="HAZCOM" /><label for="notify-hazcom">Notify me when this launches</label></div></div>
+      <div class="coming-item"><div class="coming-item-title">Hazard Recognition Reporting</div><div class="coming-item-desc">Capture field hazards, photos, severity ratings, and corrective actions.</div><div class="coming-note">Learn more on our website.</div><div class="notify-check"><input type="checkbox" id="notify-hazard" class="notify-checkbox" data-module="Hazard Recognition Reporting" /><label for="notify-hazard">Notify me when this launches</label></div></div>
       <div class="notify-me-section">
         <div class="notify-me-row">
           <input type="email" id="notifyEmail" placeholder="your@email.com" maxlength="100" autocomplete="email" />
@@ -863,57 +242,16 @@ footer a {
         </div>
         <div class="notify-me-status" id="notifyMeStatus"></div>
       </div>
-
     </div>
   </div>
 </div>
-
 <script>
-// ============================================================
-// AUTO-POPULATE COPYRIGHT YEAR
-// ============================================================
-(function() {
-  var y = document.getElementById("copyrightYear");
-  if (y) y.textContent = new Date().getFullYear();
-})();
-
-// ============================================================
-// MODULE SELECTION LOGIC
-// Updated 2026-09-28 (hardened: canonical backend keys, payload
-// versioning, required-module enforcement, restore normalization)
-//
-// CANONICAL BACKEND KEYS (single source of truth — used for
-// localStorage, submit payloads, and restore matching):
-//   equipment_management   → "Asset Management"
-//   pm                      → "Preventative Maintenance"
-//   inspections             → "Asset Inspections"
-//   workorders              → "Work Orders"
-//   fuel_management         → "Fuel Management"
-//   equipment_transfers     → "Asset Location Management"
-//   extraction              → "Extraction Engine"
-//   multilanguage           → "Multi-Language Support"  ← NEW
-//
-// LEGACY SHORT KEYS (used by older versions of this page — mapped
-// in LEGACY_KEY_MAP for backward-compatible restore only):
-//   equipment → equipment_management
-//   fuel      → fuel_management
-//   transfers → equipment_transfers
-//
-// NOTE: Multi-Language is a standalone add-on — NOT in any bundle.
-//       When a bundle is active, modTranslation stays independent
-//       (user can check/uncheck it freely regardless of bundle state).
-// ============================================================
-
-// Payload version — bump when the schema changes so old localStorage
-// entries can be migrated or discarded cleanly.
+(function() { var y = document.getElementById("copyrightYear"); if (y) y.textContent = new Date().getFullYear(); })();
 const PAYLOAD_VERSION = 2;
-
 const btnContinue = document.getElementById("btnContinue");
 const btnCancel = document.getElementById("btnCancel");
 const btnClear = document.getElementById("btnClear");
 const statusBar = document.getElementById("statusBar");
-
-// --- Module checkboxes ---
 const modEquipment = document.getElementById("modEquipment");
 const modPM = document.getElementById("modPM");
 const modIns = document.getElementById("modInspections");
@@ -921,325 +259,114 @@ const modWO = document.getElementById("modWorkOrders");
 const modFuel = document.getElementById("modFuel");
 const modTransfers = document.getElementById("modTransfers");
 const modExtraction = document.getElementById("modExtraction");
-const modTranslation = document.getElementById("modTranslation"); // NEW — Multi-Language Support
-
-// --- Bundle checkboxes ---
+const modTranslation = document.getElementById("modTranslation");
 const bundleOps = document.getElementById("bundleOperations");
 const bundleFull = document.getElementById("bundleFull");
 const bundleComplete = document.getElementById("bundleComplete");
 const bundleIds = ["bundleOperations", "bundleFull", "bundleComplete"];
-
 let bundleActive = false;
 let activeBundle = null;
-
-/* -------------------------------------------------------------
-   MODULE KEY ↔ DISPLAY NAME MAPPING
-   Uses CANONICAL backend keys as the single source of truth.
-   Display names are for UI only — never used for backend submit.
-   Legacy short keys are handled separately in LEGACY_KEY_MAP.
-   ------------------------------------------------------------- */
 const MODULE_MAP = [
-  { key: "equipment_management", display: "Asset Management",           el: () => modEquipment },
-  { key: "pm",                    display: "Preventative Maintenance",   el: () => modPM },
-  { key: "inspections",           display: "Asset Inspections",          el: () => modIns },
-  { key: "workorders",            display: "Work Orders",                el: () => modWO },
-  { key: "fuel_management",       display: "Fuel Management",            el: () => modFuel },
-  { key: "equipment_transfers",   display: "Asset Location Management",  el: () => modTransfers },
-  { key: "extraction",            display: "Extraction Engine",          el: () => modExtraction },
-  { key: "multilanguage",         display: "Multi-Language Support",     el: () => modTranslation }
+  { key: "equipment_management", display: "Asset Management", el: () => modEquipment },
+  { key: "pm", display: "Preventative Maintenance", el: () => modPM },
+  { key: "inspections", display: "Asset Inspections", el: () => modIns },
+  { key: "workorders", display: "Work Orders", el: () => modWO },
+  { key: "fuel_management", display: "Fuel Management", el: () => modFuel },
+  { key: "equipment_transfers", display: "Asset Location Management", el: () => modTransfers },
+  { key: "extraction", display: "Extraction Engine", el: () => modExtraction },
+  { key: "multilanguage", display: "Multi-Language Support", el: () => modTranslation }
 ];
-
-// Legacy short keys → canonical backend keys (for backward-compatible restore)
-const LEGACY_KEY_MAP = {
-  "equipment": "equipment_management",
-  "fuel": "fuel_management",
-  "transfers": "equipment_transfers"
-};
-
-// Normalize a saved key string to its canonical backend key.
-// Returns null if the value doesn't match any known key (canonical or legacy).
+const LEGACY_KEY_MAP = { "equipment": "equipment_management", "fuel": "fuel_management", "transfers": "equipment_transfers" };
 function normalizeKey(savedStr) {
   if (typeof savedStr !== "string") return null;
   const lower = savedStr.toLowerCase();
-  // Check canonical keys first
-  for (const m of MODULE_MAP) {
-    if (m.key.toLowerCase() === lower) return m.key;
-  }
-  // Check legacy short keys
+  for (const m of MODULE_MAP) { if (m.key.toLowerCase() === lower) return m.key; }
   if (LEGACY_KEY_MAP[lower]) return LEGACY_KEY_MAP[lower];
-  // Check display names (case-insensitive)
-  for (const m of MODULE_MAP) {
-    if (m.display.toLowerCase() === lower) return m.key;
-  }
+  for (const m of MODULE_MAP) { if (m.display.toLowerCase() === lower) return m.key; }
   return null;
 }
-
-// Helper: safe JSON.parse — never crashes, returns fallback on error
-function safeJSONParse(str, fallback) {
-  try {
-    return JSON.parse(str);
-  } catch (e) {
-    console.warn("[DRIV-EN] Malformed localStorage value, ignoring:", str);
-    return fallback;
-  }
-}
-
-/* -------------------------------------------------------------
-   ⭐ RESTORE PREVIOUS SELECTIONS WHEN RETURNING FROM CART OR CHECKOUT
-   New visitors start fresh. Returning visitors (from cart or checkout)
-   get their selections back.
-   Uses safeJSONParse so corrupted localStorage never crashes the page.
-   Restores by matching EITHER module keys OR display names, so it
-   works regardless of which page wrote the saved data.
-   ------------------------------------------------------------- */
-// --- Safe localStorage access — never throws in private browsing / disabled storage ---
-function safeGetItem(key) {
-  try { return localStorage.getItem(key); } catch (e) { return null; }
-}
-function safeRemoveItem(key) {
-  try { localStorage.removeItem(key); } catch (e) { /* no-op */ }
-}
-
-// --- Bundle identifier mapping (display name ↔ backend key, case-insensitive) ---
+function safeJSONParse(str, fallback) { try { return JSON.parse(str); } catch (e) { return fallback; } }
+function safeGetItem(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+function safeRemoveItem(key) { try { localStorage.removeItem(key); } catch (e) {} }
 const BUNDLE_MAP = [
   { keys: ["operations bundle", "bundleoperations", "operations_bundle"], id: "bundleOperations" },
-  { keys: ["full asset bundle", "bundlefull", "full_asset_bundle"],     id: "bundleFull" },
+  { keys: ["full asset bundle", "bundlefull", "full_asset_bundle"], id: "bundleFull" },
   { keys: ["complete platform bundle", "bundlecomplete", "complete_platform_bundle"], id: "bundleComplete" }
 ];
-
-// Match a saved string against any known bundle identifier (case-insensitive)
 function matchBundle(savedStr) {
   if (typeof savedStr !== "string") return null;
   const lower = savedStr.toLowerCase();
-  for (const b of BUNDLE_MAP) {
-    if (b.keys.indexOf(lower) !== -1) return b.id;
-  }
+  for (const b of BUNDLE_MAP) { if (b.keys.indexOf(lower) !== -1) return b.id; }
   return null;
 }
-
-// Match a saved string against any known module key or display name (case-insensitive)
-// Uses normalizeKey so legacy short keys (equipment, fuel, transfers) are
-// correctly mapped to their canonical backend keys (equipment_management, etc.)
 function savedMatchesModule(savedArr, canonicalKey, display) {
   const lowerCanonical = canonicalKey.toLowerCase();
   const lowerDisplay = display.toLowerCase();
   return savedArr.some(s => {
     if (typeof s !== "string") return false;
     const lower = s.toLowerCase();
-    // Direct match on canonical key or display name
     if (lower === lowerCanonical || lower === lowerDisplay) return true;
-    // Match via legacy key normalization
     const normalized = normalizeKey(s);
     return normalized !== null && normalized.toLowerCase() === lowerCanonical;
   });
 }
-
 (function restoreSelections() {
   const returning = safeGetItem("returningFromCart");
-
-  // Only restore if user clicked "Back to Module Selection" from cart or checkout
-  if (returning !== "yes") {
-    // New visitor or direct visit — clear ALL stale selection keys
-    safeRemoveItem("selectedModules");
-    safeRemoveItem("selectedModuleKeys");
-    safeRemoveItem("driven_selection_v" + PAYLOAD_VERSION);
-    return;
-  }
-
-  // Safe parse — corrupted localStorage won't crash the page
-  // Try versioned payload first, then selectedModuleKeys, then selectedModules (display names)
-  let saved = null;
-  let savedVersion = null;
-
-  // Versioned payload (v2+) — { version: 2, keys: [...], bundle: "..." }
+  if (returning !== "yes") { safeRemoveItem("selectedModules"); safeRemoveItem("selectedModuleKeys"); safeRemoveItem("driven_selection_v" + PAYLOAD_VERSION); return; }
+  let saved = null; let savedVersion = null;
   const versioned = safeJSONParse(safeGetItem("driven_selection_v" + PAYLOAD_VERSION) || "null", null);
-  if (versioned && typeof versioned === "object" && Array.isArray(versioned.keys)) {
-    saved = versioned.keys;
-    savedVersion = versioned.version || PAYLOAD_VERSION;
-  }
-
-  // Fallback: unversioned selectedModuleKeys (v1 format)
-  if (!Array.isArray(saved) || saved.length === 0) {
-    saved = safeJSONParse(safeGetItem("selectedModuleKeys") || "null", null);
-  }
-
-  // Fallback: display names (oldest format)
-  if (!Array.isArray(saved) || saved.length === 0) {
-    saved = safeJSONParse(safeGetItem("selectedModules") || "[]", []);
-  }
-
-  // Clear flag so future visits start fresh
+  if (versioned && typeof versioned === "object" && Array.isArray(versioned.keys)) { saved = versioned.keys; savedVersion = versioned.version || PAYLOAD_VERSION; }
+  if (!Array.isArray(saved) || saved.length === 0) { saved = safeJSONParse(safeGetItem("selectedModuleKeys") || "null", null); }
+  if (!Array.isArray(saved) || saved.length === 0) { saved = safeJSONParse(safeGetItem("selectedModules") || "[]", []); }
   safeRemoveItem("returningFromCart");
-
   if (!Array.isArray(saved) || saved.length === 0) return;
-
-  // Validate: every element must be a string — discard malformed data
-  if (!saved.every(s => typeof s === "string")) {
-    console.warn("[DRIV-EN] Malformed selection data in localStorage — clearing.");
-    safeRemoveItem("selectedModuleKeys");
-    safeRemoveItem("selectedModules");
-    safeRemoveItem("driven_selection_v" + PAYLOAD_VERSION);
-    return;
-  }
-
-  // Normalize saved keys to canonical backend keys, logging any mismatches
-  const normalizedSaved = [];
-  const unmatched = [];
-  for (const s of saved) {
-    const canonical = normalizeKey(s);
-    if (canonical) {
-      normalizedSaved.push(canonical);
-    } else {
-      unmatched.push(s);
-    }
-  }
-
-  if (unmatched.length > 0) {
-    console.warn("[DRIV-EN] Unmatched saved selection values (not restored):", unmatched);
-  }
-
-  // Restore modules — match normalized canonical keys against MODULE_MAP
-  MODULE_MAP.forEach(m => {
-    if (m.el && normalizedSaved.indexOf(m.key) !== -1) {
-      m.el().checked = true;
-    }
-  });
-
-  // Restore bundle — match by display name OR backend key (case-insensitive)
-  // Handles "Operations Bundle", "bundleOperations", "operations_bundle", etc.
+  if (!saved.every(s => typeof s === "string")) { safeRemoveItem("selectedModuleKeys"); safeRemoveItem("selectedModules"); safeRemoveItem("driven_selection_v" + PAYLOAD_VERSION); return; }
+  const normalizedSaved = []; const unmatched = [];
+  for (const s of saved) { const canonical = normalizeKey(s); if (canonical) { normalizedSaved.push(canonical); } else { unmatched.push(s); } }
+  if (unmatched.length > 0) { console.warn("[DRIV-EN] Unmatched saved selection values (not restored):", unmatched); }
+  MODULE_MAP.forEach(m => { if (m.el && normalizedSaved.indexOf(m.key) !== -1) { m.el().checked = true; } });
   const savedBundle = saved.find(x => matchBundle(x) !== null);
   const matchedBundleId = savedBundle ? matchBundle(savedBundle) : null;
-
   if (matchedBundleId) {
     if (matchedBundleId === "bundleOperations") bundleOps.checked = true;
     if (matchedBundleId === "bundleFull") bundleFull.checked = true;
     if (matchedBundleId === "bundleComplete") bundleComplete.checked = true;
     applyBundle(matchedBundleId);
   }
-
-  // Validate restored combination — enforce Extraction Engine dependency rule
-  // (Extraction requires PM or Inspections; if neither was restored, uncheck Extraction)
   updateExtractionRules();
-
   showSelectionBanner();
 })();
-
-/* -------------------------------------------------------------
-   ⭐ MODULE DEPENDENCY RULES
-   Asset Management is no longer required, but other modules depend on it:
-     PM requires Asset Management
-     Asset Inspections requires Asset Management
-     Work Orders requires Asset Management + PM + Asset Inspections
-     Fuel Management requires Asset Management
-     Asset Location Management requires Asset Management
-     Extraction Engine requires PM or Asset Inspections (existing rule)
-     Multi-Language has no prerequisites
-   If a prerequisite is unchecked, dependent modules are unchecked+disabled.
-   If a bundle is active, this is skipped (bundle controls all modules).
-   ------------------------------------------------------------- */
 function updateModuleDependencies() {
-  // If a bundle is active, modules are controlled by the bundle — skip
   if (bundleActive) return;
-
   const hasEquipment = modEquipment.checked;
   const hasPM = modPM.checked;
   const hasIns = modIns.checked;
-
-  // If a dependent module is checked but Asset Management is not,
-  // auto-select Asset Management (better UX than just blocking).
-  if (!hasEquipment && (modPM.checked || modIns.checked || modFuel.checked || modTransfers.checked || modWO.checked)) {
-    modEquipment.checked = true;
-    // Re-read after auto-select
-    // (fall through to normal logic below with hasEquipment now true)
-  }
-
-  // Re-read state after potential auto-select
+  if (!hasEquipment && (modPM.checked || modIns.checked || modFuel.checked || modTransfers.checked || modWO.checked)) { modEquipment.checked = true; }
   const hasEquipNow = modEquipment.checked;
-
-  // PM, Inspections, Fuel, Transfers require Asset Management
-  modPM.disabled = !hasEquipNow;
-  modIns.disabled = !hasEquipNow;
-  modFuel.disabled = !hasEquipNow;
-  modTransfers.disabled = !hasEquipNow;
-
-  if (!hasEquipNow) {
-    modPM.checked = false;
-    modIns.checked = false;
-    modFuel.checked = false;
-    modTransfers.checked = false;
-  }
-
-  // Re-read PM and Ins after potential disable
-  const hasPMNow = modPM.checked;
-  const hasInsNow = modIns.checked;
-
-  // Work Orders requires Asset Management + PM + Asset Inspections
+  modPM.disabled = !hasEquipNow; modIns.disabled = !hasEquipNow; modFuel.disabled = !hasEquipNow; modTransfers.disabled = !hasEquipNow;
+  if (!hasEquipNow) { modPM.checked = false; modIns.checked = false; modFuel.checked = false; modTransfers.checked = false; }
+  const hasPMNow = modPM.checked; const hasInsNow = modIns.checked;
   const woPrereqsMet = hasEquipNow && hasPMNow && hasInsNow;
   modWO.disabled = !woPrereqsMet;
-  if (!woPrereqsMet) {
-    modWO.checked = false;
-  }
-
-  // Extraction Engine requires PM or Asset Inspections
+  if (!woPrereqsMet) { modWO.checked = false; }
   const pmOrIns = hasPMNow || hasInsNow;
-  if (!pmOrIns) {
-    modExtraction.checked = false;
-    modExtraction.disabled = true;
-  } else {
-    modExtraction.disabled = false;
-  }
+  if (!pmOrIns) { modExtraction.checked = false; modExtraction.disabled = true; } else { modExtraction.disabled = false; }
 }
-
-/* -------------------------------------------------------------
-   VALIDATE DEPENDENCIES BEFORE SUBMIT
-   Returns true if the current selection is valid, false otherwise.
-   This is a hard validation — even if the UI was bypassed (DevTools,
-   localStorage replay), this catches invalid combinations before
-   the payload is sent to cart/checkout.
-   ------------------------------------------------------------- */
 function validateDependencies() {
-  const hasEquipment = modEquipment.checked;
-  const hasPM = modPM.checked;
-  const hasIns = modIns.checked;
-  const hasWO = modWO.checked;
-  const hasFuel = modFuel.checked;
-  const hasTransfers = modTransfers.checked;
-  const hasExtraction = modExtraction.checked;
-
-  // PM, Inspections, Fuel, Transfers require Asset Management
+  const hasEquipment = modEquipment.checked; const hasPM = modPM.checked; const hasIns = modIns.checked;
+  const hasWO = modWO.checked; const hasFuel = modFuel.checked; const hasTransfers = modTransfers.checked; const hasExtraction = modExtraction.checked;
   if (hasPM && !hasEquipment) return { valid: false, error: "Preventative Maintenance requires Asset Management." };
   if (hasIns && !hasEquipment) return { valid: false, error: "Asset Inspections requires Asset Management." };
   if (hasFuel && !hasEquipment) return { valid: false, error: "Fuel Management requires Asset Management." };
   if (hasTransfers && !hasEquipment) return { valid: false, error: "Asset Location Management requires Asset Management." };
-
-  // Work Orders requires Asset Management + PM + Asset Inspections
-  if (hasWO && !(hasEquipment && hasPM && hasIns)) {
-    return { valid: false, error: "Work Orders requires Asset Management, Preventative Maintenance, and Asset Inspections." };
-  }
-
-  // Extraction Engine requires PM or Asset Inspections
-  if (hasExtraction && !(hasPM || hasIns)) {
-    return { valid: false, error: "Extraction Engine requires Preventative Maintenance or Asset Inspections." };
-  }
-
+  if (hasWO && !(hasEquipment && hasPM && hasIns)) return { valid: false, error: "Work Orders requires Asset Management, Preventative Maintenance, and Asset Inspections." };
+  if (hasExtraction && !(hasPM || hasIns)) return { valid: false, error: "Extraction Engine requires Preventative Maintenance or Asset Inspections." };
   return { valid: true };
 }
-
-// Backward-compatible alias
 function updateExtractionRules() { updateModuleDependencies(); }
-
-/* -------------------------------------------------------------
-   GREEN BANNER (Selected Modules)
-   Shows a summary of what the user has selected:
-     - If a bundle is active: shows bundle name + included modules
-     - If no bundle: shows individually selected modules
-   Multi-Language is always listed separately if checked (standalone add-on).
-   ------------------------------------------------------------- */
 function showSelectionBanner() {
   const banner = document.getElementById("selectionBanner");
-
   const modules = [];
-
   if (modEquipment.checked) modules.push("Asset Management");
   if (modPM.checked) modules.push("Preventative Maintenance");
   if (modIns.checked) modules.push("Asset Inspections");
@@ -1247,77 +374,29 @@ function showSelectionBanner() {
   if (modFuel.checked) modules.push("Fuel Management");
   if (modTransfers.checked) modules.push("Asset Location Management");
   if (modExtraction.checked) modules.push("Extraction Engine");
-
-  // Multi-Language is shown separately if checked (standalone add-on, not in bundle)
   const hasTranslation = modTranslation.checked;
-
   if (bundleActive) {
-    // Bundle mode — show bundle name + included modules
-    let bannerHTML =
-      `<strong>Selected: ${activeBundle}</strong><br>` +
-      `<span style="display:block; margin-left:20px;">Asset Management<br>${modules.join("<br>")}</span>`;
-
-    if (hasTranslation) {
-      bannerHTML += `<br><span style="display:block; margin-left:20px; color:#16a34a;">Multi-Language Support (Add-on)</span>`;
-    }
-
-    banner.innerHTML = bannerHTML;
-    banner.style.display = "block";
+    let bannerHTML = `<strong>Selected: ${activeBundle}</strong><br><span style="display:block; margin-left:20px;">Asset Management<br>${modules.join("<br>")}</span>`;
+    if (hasTranslation) { bannerHTML += `<br><span style="display:block; margin-left:20px; color:#16a34a;">Multi-Language Support (Add-on)</span>`; }
+    banner.innerHTML = bannerHTML; banner.style.display = "block";
   } else if (modules.length > 0 || hasTranslation) {
-    // Individual mode — show selected modules without a bundle
-    let bannerHTML =
-      `<strong>Selected Modules:</strong><br>` +
-      `<span style="display:block; margin-left:20px;">${modules.join("<br>")}</span>`;
-
-    if (hasTranslation) {
-      bannerHTML += `<br><span style="display:block; margin-left:20px; color:#16a34a;">Multi-Language Support (Add-on)</span>`;
-    }
-
-    banner.innerHTML = bannerHTML;
-    banner.style.display = "block";
-  } else {
-    // Nothing selected (beyond required Asset Management) — hide banner
-    banner.style.display = "none";
-  }
-
-  // --- Savings Preview (annual billing = 10% discount) ---
+    let bannerHTML = `<strong>Selected Modules:</strong><br><span style="display:block; margin-left:20px;">${modules.join("<br>")}</span>`;
+    if (hasTranslation) { bannerHTML += `<br><span style="display:block; margin-left:20px; color:#16a34a;">Multi-Language Support (Add-on)</span>`; }
+    banner.innerHTML = bannerHTML; banner.style.display = "block";
+  } else { banner.style.display = "none"; }
   updateSavingsPreview();
 }
-
-/* -------------------------------------------------------------
-   SAVINGS PREVIEW
-   Calculates monthly total and shows annual savings (10% off).
-   Multi-Language Support adds $19/mo per secondary language.
-   ------------------------------------------------------------- */
 function updateSavingsPreview() {
   const preview = document.getElementById("savingsPreview");
   if (!preview) return;
-
-  // Price map for individual modules (monthly)
-  const PRICES = {
-    pm: 299, inspections: 199, workorders: 149,
-    fuel: 49, transfers: 79, extraction: 149, multilanguage: 19
-  };
-
-  // Bundle prices (monthly) — if a bundle is active, use bundle price
-  const BUNDLE_PRICES = {
-    bundleOperations: 499, bundleFull: 529, bundleComplete: 599
-  };
-
-  let monthlyTotal = 0;
-  let hasExtras = false;
-
-  // Asset Management is now optional — add if checked
+  const PRICES = { pm: 299, inspections: 199, workorders: 149, fuel: 49, transfers: 79, extraction: 149, multilanguage: 19 };
+  const BUNDLE_PRICES = { bundleOperations: 499, bundleFull: 529, bundleComplete: 599 };
+  let monthlyTotal = 0; let hasExtras = false;
   if (modEquipment.checked) { monthlyTotal += 149; hasExtras = true; }
-
   if (bundleActive && activeBundle) {
     const bundleId = bundleIds.find(id => document.getElementById(id).checked);
-    if (bundleId && BUNDLE_PRICES[bundleId]) {
-      monthlyTotal = BUNDLE_PRICES[bundleId];
-      hasExtras = true;
-    }
+    if (bundleId && BUNDLE_PRICES[bundleId]) { monthlyTotal = BUNDLE_PRICES[bundleId]; hasExtras = true; }
   } else {
-    // Individual module pricing
     if (modPM.checked) { monthlyTotal += PRICES.pm; hasExtras = true; }
     if (modIns.checked) { monthlyTotal += PRICES.inspections; hasExtras = true; }
     if (modWO.checked) { monthlyTotal += PRICES.workorders; hasExtras = true; }
@@ -1325,187 +404,100 @@ function updateSavingsPreview() {
     if (modTransfers.checked) { monthlyTotal += PRICES.transfers; hasExtras = true; }
     if (modExtraction.checked) { monthlyTotal += PRICES.extraction; hasExtras = true; }
   }
-
-  // Multi-Language is always additive (standalone add-on, not in bundles)
-  if (modTranslation.checked) {
-    monthlyTotal += PRICES.multilanguage;
-    hasExtras = true;
-  }
-
+  if (modTranslation.checked) { monthlyTotal += PRICES.multilanguage; hasExtras = true; }
   if (hasExtras && monthlyTotal > 0) {
     const annualTotal = monthlyTotal * 12;
-    const annualDiscounted = Math.round(annualTotal * 0.90); // 10% off
+    const annualDiscounted = Math.round(annualTotal * 0.90);
     const savings = annualTotal - annualDiscounted;
-    // Use string concatenation to avoid template literal $ ambiguity
-    preview.innerHTML =
-      "Monthly: $" + monthlyTotal + "/mo \u00b7 Annual: $" + annualDiscounted + "/yr " +
-      '<span style="color:#16a34a;">(save $' + savings + "/yr with annual billing)</span>";
+    preview.innerHTML = "Monthly: $" + monthlyTotal + "/mo · Annual: $" + annualDiscounted + "/yr <span style=\"color:#16a34a;\">(save $" + savings + "/yr with annual billing)</span>";
     preview.style.display = "block";
-  } else {
-    preview.style.display = "none";
-  }
+  } else { preview.style.display = "none"; }
 }
-
-/* -------------------------------------------------------------
-   CLEAR OTHER BUNDLES
-   When selecting a bundle, uncheck any other bundle that was active.
-   ------------------------------------------------------------- */
-function clearOtherBundles(selectedId) {
-  bundleIds.forEach(id => {
-    if (id !== selectedId) {
-      document.getElementById(id).checked = false;
-    }
-  });
-}
-
-/* -------------------------------------------------------------
-   APPLY BUNDLE LOGIC
-   When a bundle is selected, it controls the 6 core modules.
-   Multi-Language (modTranslation) is NEVER controlled by bundles —
-   it remains independently checkable/uncheckable.
-   ------------------------------------------------------------- */
+function clearOtherBundles(selectedId) { bundleIds.forEach(id => { if (id !== selectedId) { document.getElementById(id).checked = false; } }); }
 function applyBundle(bundleId) {
   bundleActive = true;
-
-  // Reset all core modules first (NOT modTranslation)
-  [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(m => {
-    m.checked = false;
-    m.disabled = true;
-  });
-
-  if (bundleId === "bundleOperations") {
-    activeBundle = "Operations Bundle";
-    modPM.checked = true;
-    modIns.checked = true;
-    modExtraction.checked = true;
-  }
-
-  if (bundleId === "bundleFull") {
-    activeBundle = "Full Asset Bundle";
-    modPM.checked = true;
-    modIns.checked = true;
-    modWO.checked = true;
-    modExtraction.checked = true;
-  }
-
-  if (bundleId === "bundleComplete") {
-    activeBundle = "Complete Platform Bundle";
-    modPM.checked = true;
-    modIns.checked = true;
-    modWO.checked = true;
-    modFuel.checked = true;
-    modTransfers.checked = true;
-    modExtraction.checked = true;
-  }
-
+  [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(m => { m.checked = false; m.disabled = true; });
+  if (bundleId === "bundleOperations") { activeBundle = "Operations Bundle"; modPM.checked = true; modIns.checked = true; modExtraction.checked = true; }
+  if (bundleId === "bundleFull") { activeBundle = "Full Asset Bundle"; modPM.checked = true; modIns.checked = true; modWO.checked = true; modExtraction.checked = true; }
+  if (bundleId === "bundleComplete") { activeBundle = "Complete Platform Bundle"; modPM.checked = true; modIns.checked = true; modWO.checked = true; modFuel.checked = true; modTransfers.checked = true; modExtraction.checked = true; }
   showSelectionBanner();
 }
-
-/* -------------------------------------------------------------
-   BREAK BUNDLE IF CORE MODULES CHANGE
-   If the user unchecks a core module while a bundle is active,
-   the bundle is broken and all modules become individually selectable.
-   Multi-Language changes do NOT break the bundle (it's independent).
-   ------------------------------------------------------------- */
 function uncheckBundleIfModuleChanged() {
   if (!bundleActive) return;
-
-  // Only core modules trigger bundle break (NOT modTranslation)
   const modules = [modEquipment, modPM, modIns, modWO, modFuel, modTransfers, modExtraction];
   const changed = modules.some(m => !m.disabled && !m.checked);
-
   if (changed) {
-    bundleActive = false;
-    activeBundle = null;
-
-    bundleIds.forEach(id => {
-      document.getElementById(id).checked = false;
-    });
-
-    modules.forEach(m => {
-      m.disabled = false;
-      m.checked = false;
-    });
-
-    statusBar.textContent = "";
-    document.getElementById("selectionBanner").style.display = "none";
-
+    bundleActive = false; activeBundle = null;
+    bundleIds.forEach(id => { document.getElementById(id).checked = false; });
+    modules.forEach(m => { m.disabled = false; m.checked = false; });
+    statusBar.textContent = ""; document.getElementById("selectionBanner").style.display = "none";
     updateExtractionRules();
   }
 }
-
-/* -------------------------------------------------------------
-   MODULE CHANGE EVENTS
-   Core modules: trigger bundle-break check + extraction rules.
-   Multi-Language: only updates the banner (does not break bundles).
-   ------------------------------------------------------------- */
-// Core modules
+var BUNDLE_DEFINITIONS = [
+  { id: "bundleOperations", name: "Operations Bundle", price: 499, modules: [modEquipment, modPM, modIns, modExtraction], moduleKeys: ["equipment_management", "pm", "inspections", "extraction"], individualPrice: 149 + 299 + 199 + 149 },
+  { id: "bundleFull", name: "Full Asset Bundle", price: 529, modules: [modEquipment, modPM, modIns, modWO, modExtraction], moduleKeys: ["equipment_management", "pm", "inspections", "workorders", "extraction"], individualPrice: 149 + 299 + 199 + 149 + 149 },
+  { id: "bundleComplete", name: "Complete Platform Bundle", price: 599, modules: [modEquipment, modPM, modIns, modWO, modFuel, modTransfers, modExtraction], moduleKeys: ["equipment_management", "pm", "inspections", "workorders", "fuel_management", "equipment_transfers", "extraction"], individualPrice: 149 + 299 + 199 + 149 + 49 + 79 + 149 }
+];
+function checkBundleMatch() {
+  if (bundleActive) return;
+  for (var i = 0; i < BUNDLE_DEFINITIONS.length; i++) {
+    var def = BUNDLE_DEFINITIONS[i];
+    var allChecked = def.modules.every(function(m) { return m.checked; });
+    if (allChecked) {
+      var extraChecked = [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].some(function(m) { return m.checked && def.modules.indexOf(m) === -1; });
+      if (!extraChecked) { var savings = def.individualPrice - def.price; showBundleMatchPopup(def, savings); return; }
+    }
+  }
+}
+var currentBundleMatch = null;
+function showBundleMatchPopup(bundleDef, savings) {
+  if (currentBundleMatch === bundleDef.id) return;
+  currentBundleMatch = bundleDef.id;
+  var modal = document.getElementById("bundleMatchModal");
+  if (!modal) return;
+  var titleEl = modal.querySelector("h3");
+  var descEl = modal.querySelector("p");
+  var savingsEl = modal.querySelector(".savings-amount");
+  titleEl.textContent = "Save with the " + bundleDef.name;
+  descEl.innerHTML = "You've selected all modules included in the <strong>" + bundleDef.name + "</strong>. Switching to this bundle saves you <span class=\"savings-amount\">$" + savings.toFixed(2) + "/month</span>.";
+  savingsEl.textContent = "$" + savings.toFixed(2) + "/month";
+  modal.classList.add("show");
+}
+function closeBundleMatchPopup(switchToBundle) {
+  var modal = document.getElementById("bundleMatchModal");
+  if (modal) modal.classList.remove("show");
+  if (switchToBundle && currentBundleMatch) {
+    var bundleCheckbox = document.getElementById(currentBundleMatch);
+    if (bundleCheckbox) { bundleCheckbox.checked = true; clearOtherBundles(currentBundleMatch); applyBundle(currentBundleMatch); updateSavingsPreview(); }
+  }
+  currentBundleMatch = null;
+}
+/* MODULE CHANGE EVENTS */
 [modEquipment, modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(el => {
-  el.addEventListener("change", () => {
-    uncheckBundleIfModuleChanged();
-    updateModuleDependencies();
-    showSelectionBanner();
-  });
+  el.addEventListener("change", () => { uncheckBundleIfModuleChanged(); updateModuleDependencies(); showSelectionBanner(); checkBundleMatch(); });
 });
+modTranslation.addEventListener("change", () => { showSelectionBanner(); });
 
-// Multi-Language — independent, does not affect bundles or extraction rules
-modTranslation.addEventListener("change", () => {
-  showSelectionBanner();
-});
-
-/* -------------------------------------------------------------
-   BUNDLE CLICK EVENTS
-   ------------------------------------------------------------- */
+/* BUNDLE CLICK EVENTS */
 bundleIds.forEach(id => {
   const el = document.getElementById(id);
   el.addEventListener("change", () => {
-    if (el.checked) {
-      clearOtherBundles(id);
-      applyBundle(id);
-    } else {
-      bundleActive = false;
-      activeBundle = null;
-
-      [modEquipment, modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(m => {
-        m.disabled = false;
-        m.checked = false;
-      });
-
-      statusBar.textContent = "";
-      document.getElementById("selectionBanner").style.display = "none";
-
+    if (el.checked) { clearOtherBundles(id); applyBundle(id); }
+    else {
+      bundleActive = false; activeBundle = null;
+      [modEquipment, modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(m => { m.disabled = false; m.checked = false; });
+      statusBar.textContent = ""; document.getElementById("selectionBanner").style.display = "none";
       updateModuleDependencies();
     }
   });
 });
 
-/* -------------------------------------------------------------
-   CONTINUE BUTTON
-   Gathers all selected modules into localStorage and navigates
-   to cart or checkout (depending on promo status).
-
-   HONEYPOT CHECK: If the hidden honeypot field has a value,
-   the submission is silently rejected (bot detected).
-
-   TURNSTILE CHECK: Verifies the Turnstile token before proceeding.
-   ------------------------------------------------------------- */
+/* CONTINUE BUTTON */
 btnContinue.addEventListener("click", async () => {
-
-  // --- Honeypot check — if filled, a bot submitted the form ---
   const honeypot = document.getElementById("company_website");
-  if (honeypot && honeypot.value) {
-    // Bot detected — silently do nothing (pretend success)
-    console.warn("[DRIV-EN] Honeypot field was filled — bot submission blocked.");
-    return;
-  }
-
-  // --- Gather selected modules ---
-  // Uses CANONICAL backend keys (equipment_management, fuel_management, etc.)
-  // as the single source of truth for localStorage and submit payloads.
-  // Display names are saved separately for cart/checkout UI display.
-  const selected = [];
-  const selectedKeys = [];
-
+  if (honeypot && honeypot.value) { console.warn("[DRIV-EN] Honeypot field was filled — bot submission blocked."); return; }
+  const selected = []; const selectedKeys = [];
   if (modEquipment.checked) { selected.push("Asset Management"); selectedKeys.push("equipment_management"); }
   if (modPM.checked) { selected.push("Preventative Maintenance"); selectedKeys.push("pm"); }
   if (modIns.checked) { selected.push("Asset Inspections"); selectedKeys.push("inspections"); }
@@ -1514,423 +506,140 @@ btnContinue.addEventListener("click", async () => {
   if (modTransfers.checked) { selected.push("Asset Location Management"); selectedKeys.push("equipment_transfers"); }
   if (modExtraction.checked) { selected.push("Extraction Engine"); selectedKeys.push("extraction"); }
   if (modTranslation.checked) { selected.push("Multi-Language Support"); selectedKeys.push("multilanguage"); }
-
-  // --- Validate at least one module is selected (BEFORE Turnstile) ---
-  if (selectedKeys.length === 0) {
-    statusBar.textContent = "Please select at least one module to continue.";
-    statusBar.style.color = "#dc2626";
-    return;
-  }
-
-  // --- Validate module dependencies (hard check — catches DevTools/localStorage bypass) ---
+  if (selectedKeys.length === 0) { statusBar.textContent = "Please select at least one module to continue."; statusBar.style.color = "#dc2626"; return; }
   const depCheck = validateDependencies();
-  if (!depCheck.valid) {
-    statusBar.textContent = depCheck.error;
-    statusBar.style.color = "#dc2626";
-    console.error("[DRIV-EN] Dependency validation failed:", depCheck.error);
-    return;
-  }
-
-  // --- Turnstile token check (fail closed — require token) ---
+  if (!depCheck.valid) { statusBar.textContent = depCheck.error; statusBar.style.color = "#dc2626"; console.error("[DRIV-EN] Dependency validation failed:", depCheck.error); return; }
   const turnstileToken = document.querySelector('[name="cf-turnstile-response"]')?.value;
-  if (!turnstileToken) {
-    statusBar.textContent = "Please complete the bot verification check.";
-    statusBar.style.color = "#dc2626";
-    return;
-  }
-
-  // --- Verify Turnstile token server-side (prevents token forgery) ---
-  statusBar.textContent = "Verifying…";
-  statusBar.style.color = "#6b7280";
+  if (!turnstileToken) { statusBar.textContent = "Please complete the bot verification check."; statusBar.style.color = "#dc2626"; return; }
+  statusBar.textContent = "Verifying…"; statusBar.style.color = "#6b7280";
   try {
-    const verifyResp = await fetch("/api/verify-turnstile", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: turnstileToken })
-    });
+    const verifyResp = await fetch("/api/verify-turnstile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: turnstileToken }) });
     const verifyData = await verifyResp.json();
-    if (!verifyData.success) {
-      statusBar.textContent = "Bot verification failed. Please try again.";
-      statusBar.style.color = "#dc2626";
-      return;
-    }
-  } catch (e) {
-    // Fail closed — if verification endpoint is unreachable, block submission
-    statusBar.textContent = "Unable to verify. Please check your connection and try again.";
-    statusBar.style.color = "#dc2626";
-    console.warn("[DRIV-EN] Turnstile verification endpoint unavailable:", e);
-    return;
-  }
+    if (!verifyData.success) { statusBar.textContent = "Bot verification failed. Please try again."; statusBar.style.color = "#dc2626"; return; }
+  } catch (e) { statusBar.textContent = "Unable to verify. Please check your connection and try again."; statusBar.style.color = "#dc2626"; console.warn("[DRIV-EN] Turnstile verification endpoint unavailable:", e); return; }
   statusBar.textContent = "";
-
-  if (bundleActive && activeBundle) {
-    selected.push(activeBundle);
-  }
-
+  if (bundleActive && activeBundle) { selected.push(activeBundle); }
   try {
-    // Save display names (backward compatible with existing cart/checkout pages)
     localStorage.setItem("selectedModules", JSON.stringify(selected));
-    // Save canonical backend keys (for backend/restore robustness)
     localStorage.setItem("selectedModuleKeys", JSON.stringify(selectedKeys));
-    // Save versioned payload (v2+) — includes version + keys for future migration
-    localStorage.setItem("driven_selection_v" + PAYLOAD_VERSION, JSON.stringify({
-      version: PAYLOAD_VERSION,
-      keys: selectedKeys,
-      bundle: bundleActive ? activeBundle : null
-    }));
-  } catch (e) { /* storage may be disabled — navigation still works */ }
-
-  // --- Pass referral code forward (captured on index.html via referral-capture.js) ---
-  // Read from localStorage and store in a key cart/checkout can pick up
+    localStorage.setItem("driven_selection_v" + PAYLOAD_VERSION, JSON.stringify({ version: PAYLOAD_VERSION, keys: selectedKeys, bundle: bundleActive ? activeBundle : null }));
+  } catch (e) {}
   let referralCode = null;
-  try { referralCode = localStorage.getItem("driv_en_referral_code"); } catch (e) { /* no-op */ }
-  if (referralCode) {
-    try { localStorage.setItem("driven_referral_code", referralCode); } catch (e) { /* no-op */ }
-  }
-
-  // --- If promo code is active, go directly to checkout (skip Stripe) ---
+  try { referralCode = localStorage.getItem("driv_en_referral_code"); } catch (e) {}
+  if (referralCode) { try { localStorage.setItem("driven_referral_code", referralCode); } catch (e) {} }
   if (promoActive && promoData) {
-    try {
-      localStorage.setItem("promoCode", JSON.stringify(promoData));
-      localStorage.setItem("driven_promo_code", promoData.code || "");
-    } catch (e) { /* no-op */ }
-
-    // Build the checkout payload with isFree=true so checkout knows to skip payment
-    // allModuleKeys includes "multilanguage" — Founding Members get all modules free
-    // Uses canonical backend keys (equipment_management, fuel_management, etc.)
-    const allModuleKeys = [
-      "equipment_management", "pm", "inspections", "workorders",
-      "fuel_management", "equipment_transfers", "extraction", "multilanguage"
-    ];
-    try {
-      localStorage.setItem("driven_checkout_payload", JSON.stringify({
-      modules: allModuleKeys,
-      bundle: "Complete Platform Bundle",
-      monthlySubtotal: 0,
-      monthlyTax: 0,
-      monthlyTotal: 0,
-      annualSubtotal: 0,
-      annualTax: 0,
-      annualTotal: 0,
-      billingPeriod: "free",
-      invoiceSubtotal: 0,
-      invoiceTax: 0,
-      invoiceTotal: 0,
-      isFree: true,
-      promoCode: promoData.code || "",
-      promoType: promoData.type || "free_period",
-      promoUntil: promoData.validUntil || "2026-12-31",
-      referralCode: referralCode || ""
-    }));
-    } catch (e) { /* no-op */ }
-
+    try { localStorage.setItem("promoCode", JSON.stringify(promoData)); localStorage.setItem("driven_promo_code", promoData.code || ""); } catch (e) {}
+    const allModuleKeys = ["equipment_management", "pm", "inspections", "workorders", "fuel_management", "equipment_transfers", "extraction", "multilanguage"];
+    try { localStorage.setItem("driven_checkout_payload", JSON.stringify({ modules: allModuleKeys, bundle: "Complete Platform Bundle", monthlySubtotal: 0, monthlyTax: 0, monthlyTotal: 0, annualSubtotal: 0, annualTax: 0, annualTotal: 0, billingPeriod: "free", invoiceSubtotal: 0, invoiceTax: 0, invoiceTotal: 0, isFree: true, promoCode: promoData.code || "", promoType: promoData.type || "free_period", promoUntil: promoData.validUntil || "2026-12-31", referralCode: referralCode || "" })); } catch (e) {}
     window.location.href = "/website/checkout.html";
-  } else {
-    safeRemoveItem("promoCode");
-    safeRemoveItem("driven_promo_code");
-    window.location.href = "/website/cart.html";
-  }
+  } else { safeRemoveItem("promoCode"); safeRemoveItem("driven_promo_code"); window.location.href = "/website/cart.html"; }
 });
 
-/* -------------------------------------------------------------
-   CLEAR MODULES
-   Resets all modules and bundles to default state.
-   Multi-Language is also cleared.
-   ------------------------------------------------------------- */
+/* CLEAR MODULES */
 btnClear.addEventListener("click", () => {
-  bundleActive = false;
-  activeBundle = null;
-
-  bundleIds.forEach(id => {
-    document.getElementById(id).checked = false;
-  });
-
-  // Clear all modules including Multi-Language
-  [modEquipment, modPM, modIns, modWO, modFuel, modTransfers, modExtraction, modTranslation].forEach(el => {
-    el.checked = false;
-    el.disabled = false;
-  });
-
-  updateModuleDependencies();
-  statusBar.textContent = "";
-  document.getElementById("selectionBanner").style.display = "none";
-  document.getElementById("selectionBanner").innerHTML = "";
+  bundleActive = false; activeBundle = null;
+  bundleIds.forEach(id => { document.getElementById(id).checked = false; });
+  [modEquipment, modPM, modIns, modWO, modFuel, modTransfers, modExtraction, modTranslation].forEach(el => { el.checked = false; el.disabled = false; });
+  updateModuleDependencies(); statusBar.textContent = ""; document.getElementById("selectionBanner").style.display = "none"; document.getElementById("selectionBanner").innerHTML = "";
 });
 
-/* -------------------------------------------------------------
-   CANCEL BUTTON
-   Returns to homepage.
-   ------------------------------------------------------------- */
-btnCancel.addEventListener("click", () => {
-  window.location.href = "/website/index.html";
-});
+/* CANCEL BUTTON */
+btnCancel.addEventListener("click", () => { window.location.href = "/website/index.html"; });
 
-// ============================================================
-// PROMO CODE LOGIC
-// (Placed after all module/bundle variables & functions are defined)
-// ============================================================
+/* PROMO CODE LOGIC */
 const promoInput = document.getElementById("promoCodeInput");
 const btnApplyPromo = document.getElementById("btnApplyPromo");
 const btnRemovePromo = document.getElementById("btnRemovePromo");
 const promoStatus = document.getElementById("promoStatus");
 const freeAccessBanner = document.getElementById("freeAccessBanner");
 const freeAccessSub = document.getElementById("freeAccessSub");
-
 let promoActive = false;
-let promoData = null; // { code, type, validUntil, valid }
-
-function setPromoStatus(msg, type) {
-  promoStatus.textContent = msg;
-  promoStatus.className = "promo-status" + (type ? " " + type : "");
-}
-
+let promoData = null;
+function setPromoStatus(msg, type) { promoStatus.textContent = msg; promoStatus.className = "promo-status" + (type ? " " + type : ""); }
 async function validatePromoCode() {
   const code = promoInput.value.trim();
-  if (!code) {
-    setPromoStatus("Please enter a code.", "error");
-    return;
-  }
-
-  // Client-side format validation — alphanumeric + hyphens, 3–30 chars
-  // Prevents injection and reduces unnecessary API calls
-  if (!/^[A-Za-z0-9\-]{3,30}$/.test(code)) {
-    setPromoStatus("Invalid code format. Use letters, numbers, and hyphens only.", "error");
-    return;
-  }
-
-  setPromoStatus("Validating code…", "loading");
-  btnApplyPromo.disabled = true;
-
+  if (!code) { setPromoStatus("Please enter a code.", "error"); return; }
+  if (!/^[A-Za-z0-9\-]{3,30}$/.test(code)) { setPromoStatus("Invalid code format. Use letters, numbers, and hyphens only.", "error"); return; }
+  setPromoStatus("Validating code…", "loading"); btnApplyPromo.disabled = true;
   try {
-    const resp = await fetch("/api/validate-promo", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: code.toUpperCase() })
-    });
+    const resp = await fetch("/api/validate-promo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: code.toUpperCase() }) });
     const data = await resp.json();
-
-    if (data.success && data.valid) {
-      applyPromoSuccess({
-        code: code.toUpperCase(),
-        type: data.type,
-        validUntil: data.validUntil,
-        valid: true
-      }, false);
-    } else {
-      setPromoStatus(data.error || "Invalid code.", "error");
-      promoActive = false;
-      promoData = null;
-      safeRemoveItem("promoCode");
-    }
-  } catch (e) {
-    setPromoStatus("Unable to validate code. Please try again.", "error");
-  } finally {
-    btnApplyPromo.disabled = false;
-  }
+    if (data.success && data.valid) { applyPromoSuccess({ code: code.toUpperCase(), type: data.type, validUntil: data.validUntil, valid: true }, false); }
+    else { setPromoStatus(data.error || "Invalid code.", "error"); promoActive = false; promoData = null; safeRemoveItem("promoCode"); }
+  } catch (e) { setPromoStatus("Unable to validate code. Please try again.", "error"); }
+  finally { btnApplyPromo.disabled = false; }
 }
-
-/* -------------------------------------------------------------
-   APPLY PROMO SUCCESS
-   When a Founding Member code is validated:
-     - All core modules are auto-selected
-     - Complete Platform Bundle is activated
-     - Multi-Language is also checked (free access unlocks all)
-   ------------------------------------------------------------- */
 function applyPromoSuccess(data, isRestore) {
-  promoActive = true;
-  promoData = data;
-
-  // Save to localStorage (safe — no-op if storage is disabled)
-  try { localStorage.setItem("promoCode", JSON.stringify(data)); } catch (e) { /* no-op */ }
-
-  // Update UI
+  promoActive = true; promoData = data;
+  try { localStorage.setItem("promoCode", JSON.stringify(data)); } catch (e) {}
   document.body.classList.add("promo-active");
   freeAccessBanner.style.display = "block";
   freeAccessSub.textContent = "Enjoy all selected modules at no cost through " + (data.validUntil || "December 31, 2026") + ".";
-  btnApplyPromo.style.display = "none";
-  btnRemovePromo.style.display = "inline-block";
-  promoInput.disabled = true;
-
+  btnApplyPromo.style.display = "none"; btnRemovePromo.style.display = "inline-block"; promoInput.disabled = true;
   setPromoStatus(isRestore ? "Founding Member code restored." : "Code applied! Free access unlocked.", "success");
-
-  // Change Continue button text
   btnContinue.textContent = "Continue to Setup";
-
-  // Auto-select all core modules for free access
-  modEquipment.checked = true;
-  modPM.checked = true;
-  modIns.checked = true;
-  modWO.checked = true;
-  modFuel.checked = true;
-  modTransfers.checked = true;
-  modExtraction.checked = true;
-  modExtraction.disabled = false;
-
-  // Multi-Language — also unlocked for Founding Members (all modules free)
-  modTranslation.checked = true;
-
-  // Select Complete Platform Bundle
-  bundleComplete.checked = true;
-  clearOtherBundles("bundleComplete");
-  applyBundle("bundleComplete");
-
+  modEquipment.checked = true; modPM.checked = true; modIns.checked = true; modWO.checked = true; modFuel.checked = true; modTransfers.checked = true; modExtraction.checked = true; modExtraction.disabled = false; modTranslation.checked = true;
+  bundleComplete.checked = true; clearOtherBundles("bundleComplete"); applyBundle("bundleComplete");
   showSelectionBanner();
 }
-
-/* -------------------------------------------------------------
-   REMOVE PROMO CODE
-   Resets everything to default state, including Multi-Language.
-   ------------------------------------------------------------- */
 function removePromoCode() {
-  promoActive = false;
-  promoData = null;
-  safeRemoveItem("promoCode");
-
-  document.body.classList.remove("promo-active");
-  freeAccessBanner.style.display = "none";
-  btnApplyPromo.style.display = "inline-block";
-  btnRemovePromo.style.display = "none";
-  promoInput.value = "";
-  promoInput.disabled = false;
-  setPromoStatus("", "");
-
-  // Reset Continue button text
+  promoActive = false; promoData = null; safeRemoveItem("promoCode");
+  document.body.classList.remove("promo-active"); freeAccessBanner.style.display = "none";
+  btnApplyPromo.style.display = "inline-block"; btnRemovePromo.style.display = "none"; promoInput.value = ""; promoInput.disabled = false; setPromoStatus("", "");
   btnContinue.textContent = "Continue";
-
-  // Reset all modules including Multi-Language
-  [modEquipment, modPM, modIns, modWO, modFuel, modTransfers, modExtraction, modTranslation].forEach(m => {
-    m.checked = false;
-    m.disabled = false;
-  });
-
-  // Clear bundles
+  [modEquipment, modPM, modIns, modWO, modFuel, modTransfers, modExtraction, modTranslation].forEach(m => { m.checked = false; m.disabled = false; });
   bundleIds.forEach(id => { document.getElementById(id).checked = false; });
-  bundleActive = false;
-  activeBundle = null;
-  document.getElementById("selectionBanner").style.display = "none";
-
+  bundleActive = false; activeBundle = null; document.getElementById("selectionBanner").style.display = "none";
   updateModuleDependencies();
 }
-
-// Restore promo code from localStorage on page load (must run after functions defined)
 (function restorePromo() {
   const saved = safeGetItem("promoCode");
-  if (saved) {
-    try {
-      const data = JSON.parse(saved);
-      if (data && data.code && data.valid) {
-        promoInput.value = data.code;
-        applyPromoSuccess(data, true);
-      }
-    } catch (e) {
-      safeRemoveItem("promoCode");
-    }
-  }
+  if (saved) { try { const data = JSON.parse(saved); if (data && data.code && data.valid) { promoInput.value = data.code; applyPromoSuccess(data, true); } } catch (e) { safeRemoveItem("promoCode"); } }
 })();
-
 btnApplyPromo.addEventListener("click", validatePromoCode);
 btnRemovePromo.addEventListener("click", removePromoCode);
+promoInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); validatePromoCode(); } });
 
-// Allow Enter key in promo input
-promoInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    validatePromoCode();
-  }
-});
-
-// ============================================================
-// NOTIFY ME — Coming Soon module notifications
-// When a user checks one or more "Notify me" checkboxes on
-// Coming Soon cards and provides their email, this sends a
-// POST to /api/notify-me with the email + selected module names.
-// The backend emails support@driv-en.com via SendGrid.
-// ============================================================
+/* NOTIFY ME */
 const btnNotifyMe = document.getElementById("btnNotifyMe");
 const notifyEmail = document.getElementById("notifyEmail");
 const notifyMeStatus = document.getElementById("notifyMeStatus");
-
-function setNotifyMeStatus(msg, type) {
-  notifyMeStatus.textContent = msg;
-  notifyMeStatus.className = "notify-me-status" + (type ? " " + type : "");
-}
-
+function setNotifyMeStatus(msg, type) { notifyMeStatus.textContent = msg; notifyMeStatus.className = "notify-me-status" + (type ? " " + type : ""); }
 async function submitNotifyMe() {
   const email = notifyEmail.value.trim();
-
-  // Validate email
-  if (!email) {
-    setNotifyMeStatus("Please enter your email address.", "error");
-    return;
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    setNotifyMeStatus("Please enter a valid email address.", "error");
-    return;
-  }
-
-  // Gather checked modules
+  if (!email) { setNotifyMeStatus("Please enter your email address.", "error"); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setNotifyMeStatus("Please enter a valid email address.", "error"); return; }
   const checkboxes = document.querySelectorAll(".notify-checkbox:checked");
   const modules = Array.from(checkboxes).map(cb => cb.getAttribute("data-module"));
-
-  if (modules.length === 0) {
-    setNotifyMeStatus("Please select at least one module to be notified about.", "error");
-    return;
-  }
-
-  setNotifyMeStatus("Submitting…", "loading");
-  btnNotifyMe.disabled = true;
-
+  if (modules.length === 0) { setNotifyMeStatus("Please select at least one module to be notified about.", "error"); return; }
+  setNotifyMeStatus("Submitting…", "loading"); btnNotifyMe.disabled = true;
   try {
-    const resp = await fetch("/api/notify-me", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email, modules: modules })
-    });
+    const resp = await fetch("/api/notify-me", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email, modules: modules }) });
     const data = await resp.json();
-
-    if (data.success) {
-      setNotifyMeStatus("Thank you! We'll notify you when these modules launch.", "success");
-      // Uncheck all checkboxes and clear email
-      document.querySelectorAll(".notify-checkbox").forEach(cb => { cb.checked = false; });
-      notifyEmail.value = "";
-    } else {
-      setNotifyMeStatus(data.error || "Something went wrong. Please try again.", "error");
-    }
-  } catch (e) {
-    setNotifyMeStatus("Network error. Please try again.", "error");
-  } finally {
-    btnNotifyMe.disabled = false;
-  }
+    if (data.success) { setNotifyMeStatus("Thank you! We'll notify you when these modules launch.", "success"); document.querySelectorAll(".notify-checkbox").forEach(cb => { cb.checked = false; }); notifyEmail.value = ""; }
+    else { setNotifyMeStatus(data.error || "Something went wrong. Please try again.", "error"); }
+  } catch (e) { setNotifyMeStatus("Network error. Please try again.", "error"); }
+  finally { btnNotifyMe.disabled = false; }
 }
-
 btnNotifyMe.addEventListener("click", submitNotifyMe);
-
-// Allow Enter key in notify email input
-notifyEmail.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    submitNotifyMe();
-  }
-});
-
+notifyEmail.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); submitNotifyMe(); } });
 </script>
 
 </main>
-
-<!-- Footer — unchanged (standard across all pages) -->
 <footer>
   © <span id="copyrightYear"></span> Digital Safety Inspection LLC · DRIV‑EN Platform<br>
-
-  <span class="footer-line">
-    <a href="/website/legal/terms.html">Terms of Service</a> |
-    <a href="/website/legal/privacy.html">Privacy Policy</a>
-  </span>
-
-  <span class="footer-line">
-    <a href="/website/legal/refund.html">Refund Policy</a> |
-    <a href="mailto:support@driv-en.com">Contact</a>
-  </span>
+  <span class="footer-line"><a href="/website/legal/terms.html">Terms of Service</a> | <a href="/website/legal/privacy.html">Privacy Policy</a></span>
+  <span class="footer-line"><a href="/website/legal/refund.html">Refund Policy</a> | <a href="mailto:support@driv-en.com">Contact</a></span>
 </footer>
-
+<div class="bundle-match-modal" id="bundleMatchModal">
+  <div class="bundle-match-content">
+    <h3>Save with this Bundle</h3>
+    <p>You've selected all modules included in this bundle. Switching saves you <span class="savings-amount">$0.00/month</span>.</p>
+    <div class="bundle-match-buttons">
+      <button class="btn-keep" onclick="closeBundleMatchPopup(false)">Keep Individual Selection</button>
+      <button class="btn-switch" onclick="closeBundleMatchPopup(true)">Switch to Bundle</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
