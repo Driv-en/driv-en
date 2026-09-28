@@ -123,10 +123,10 @@ footer a { color: #2ecc71; text-decoration: none; margin: 0 8px; }
   <div class="promo-hint">Have a Founding Member code? Enter it here to unlock free access.</div>
   <div style="margin-top:8px;margin-bottom:12px;padding:10px 12px;background:#ffffff;border:1px solid #d1d5db;border-radius:6px;font-size:13px;color:#374151;line-height:1.5;">
     <strong style="color:#065f46;">What you get with a Founding Member Code:</strong><br>
-    • Free access to <strong>all modules</strong> — Asset Management, Preventative Maintenance, Asset Inspections, Work Orders, Fuel Management, Asset Location Management, Extraction Engine, and Multi-Language Support<br>
-    • No credit card needed<br>
-    • Free access continues through <strong>December 31, 2026</strong><br>
-    • The Complete Platform Bundle is automatically activated at no charge
+    <div style="padding-left:14px;text-indent:-14px;">• Free access to <strong>all modules</strong> — Asset Management, Preventative Maintenance, Asset Inspections, Work Orders, Fuel Management, Asset Location Management, Extraction Engine, and Multi-Language Support</div>
+    <div style="padding-left:14px;text-indent:-14px;">• No credit card needed</div>
+    <div style="padding-left:14px;text-indent:-14px;">• Free access continues through <strong>December 31, 2026</strong></div>
+    <div style="padding-left:14px;text-indent:-14px;">• The Complete Platform Bundle is automatically activated at no charge</div>
   </div>
   <div class="promo-input-row">
     <input type="text" id="promoCodeInput" placeholder="ENTER CODE" maxlength="30" autocomplete="off" />
@@ -141,17 +141,17 @@ footer a { color: #2ecc71; text-decoration: none; margin: 0 8px; }
   <div class="bundle-item">
     <input type="checkbox" id="bundleOperations">
     Operations Bundle — $499/month<br>
-    <span style="display:block;margin-left:20px;">Asset Management + Preventative Maintenance + Asset Inspections + Extraction Engine (Included)</span>
+    <span style="display:block;margin-left:28px;">Asset Management + Preventative Maintenance + Asset Inspections + Extraction Engine (Included)</span>
   </div>
   <div class="bundle-item">
     <input type="checkbox" id="bundleFull">
     Full Asset Bundle — $529/month<br>
-    <span style="display:block;margin-left:20px;">Asset Management + Preventative Maintenance + Asset Inspections + Work Orders + Extraction Engine (Included)</span>
+    <span style="display:block;margin-left:28px;">Asset Management + Preventative Maintenance + Asset Inspections + Work Orders + Extraction Engine (Included)</span>
   </div>
   <div class="bundle-item">
     <input type="checkbox" id="bundleComplete">
     Complete Platform Bundle — $599/month<br>
-    <span style="display:block;margin-left:20px;">All modules (excluding Multi-Language Support) included + Extraction Engine (Included)</span>
+    <span style="display:block;margin-left:28px;">All modules (excluding Multi-Language Support) included + Extraction Engine (Included)</span>
   </div>
 </div>
 <div class="layout">
@@ -339,8 +339,6 @@ function savedMatchesModule(savedArr, canonicalKey, display) {
 function updateModuleDependencies() {
   if (bundleActive) return;
   const hasEquipment = modEquipment.checked;
-  const hasPM = modPM.checked;
-  const hasIns = modIns.checked;
   if (!hasEquipment && (modPM.checked || modIns.checked || modFuel.checked || modTransfers.checked || modWO.checked)) { modEquipment.checked = true; }
   const hasEquipNow = modEquipment.checked;
   modPM.disabled = !hasEquipNow; modIns.disabled = !hasEquipNow; modFuel.disabled = !hasEquipNow; modTransfers.disabled = !hasEquipNow;
@@ -435,17 +433,17 @@ function uncheckBundleIfModuleChanged() {
   }
 }
 var BUNDLE_DEFINITIONS = [
-  { id: "bundleOperations", name: "Operations Bundle", price: 499, modules: [modEquipment, modPM, modIns, modExtraction], moduleKeys: ["equipment_management", "pm", "inspections", "extraction"], individualPrice: 149 + 299 + 199 + 149 },
-  { id: "bundleFull", name: "Full Asset Bundle", price: 529, modules: [modEquipment, modPM, modIns, modWO, modExtraction], moduleKeys: ["equipment_management", "pm", "inspections", "workorders", "extraction"], individualPrice: 149 + 299 + 199 + 149 + 149 },
-  { id: "bundleComplete", name: "Complete Platform Bundle", price: 599, modules: [modEquipment, modPM, modIns, modWO, modFuel, modTransfers, modExtraction], moduleKeys: ["equipment_management", "pm", "inspections", "workorders", "fuel_management", "equipment_transfers", "extraction"], individualPrice: 149 + 299 + 199 + 149 + 49 + 79 + 149 }
+  { id: "bundleOperations", name: "Operations Bundle", price: 499, paidModules: [modEquipment, modPM, modIns], allModules: [modEquipment, modPM, modIns, modExtraction], individualPrice: 149 + 299 + 199 },
+  { id: "bundleFull", name: "Full Asset Bundle", price: 529, paidModules: [modEquipment, modPM, modIns, modWO], allModules: [modEquipment, modPM, modIns, modWO, modExtraction], individualPrice: 149 + 299 + 199 + 149 },
+  { id: "bundleComplete", name: "Complete Platform Bundle", price: 599, paidModules: [modEquipment, modPM, modIns, modWO, modFuel, modTransfers], allModules: [modEquipment, modPM, modIns, modWO, modFuel, modTransfers, modExtraction], individualPrice: 149 + 299 + 199 + 149 + 49 + 79 }
 ];
 function checkBundleMatch() {
   if (bundleActive) return;
   for (var i = 0; i < BUNDLE_DEFINITIONS.length; i++) {
     var def = BUNDLE_DEFINITIONS[i];
-    var allChecked = def.modules.every(function(m) { return m.checked; });
-    if (allChecked) {
-      var extraChecked = [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].some(function(m) { return m.checked && def.modules.indexOf(m) === -1; });
+    var allPaidChecked = def.paidModules.every(function(m) { return m.checked; });
+    if (allPaidChecked) {
+      var extraChecked = [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].some(function(m) { return m.checked && def.allModules.indexOf(m) === -1; });
       if (!extraChecked) { var savings = def.individualPrice - def.price; showBundleMatchPopup(def, savings); return; }
     }
   }
