@@ -87,9 +87,63 @@ function findWorkerUrl(path) {
 }
 
 export async function onRequest(context) {
-  const { request } = context;
+  const { request, env } = context;
   const url = new URL(request.url);
   const path = url.pathname;
+
+  // ── Turnstile verification (handled locally — no worker proxy) ──
+  if (path === '/api/verify-turnstile') {
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+        },
+      });
+    }
+    if (request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const token = body.token || '';
+        const secret = env.TURNSTILE_SECRET_KEY;
+        if (!token) {
+          return new Response(JSON.stringify({ success: false, error: 'Missing Turnstile token' }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          });
+        }
+        if (!secret) {
+          return new Response(JSON.stringify({ success: false, error: 'Turnstile secret not configured', debug: { envKeys: Object.keys(env || {}) } }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          });
+        }
+        const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'secret=' + encodeURIComponent(secret) + '&response=' + encodeURIComponent(token),
+        });
+        const verifyData = await verifyRes.json();
+        if (verifyData.success) {
+          return new Response(JSON.stringify({ success: true }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          });
+        } else {
+          return new Response(JSON.stringify({ success: false, error: 'Turnstile verification failed' }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          });
+        }
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid request body' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        });
+      }
+    }
+  }
 
   // CORS preflight
   if (request.method === 'OPTIONS') {
