@@ -36,6 +36,9 @@
        9. Added Cloudflare Turnstile (bot protection) + honeypot field
       10. Added global error handler (error-handler.js → /api/error-report)
       11. No account IDs in client-side code
+      12. Removed unused #planBanner element (no CSS, never populated)
+      13. Added validateDependencies() hard check in submit handler
+      14. Auto-select Asset Management when a dependent module is checked
      NOTE: Backend module_key values (equipment_management, fuel_management,
            equipment_transfers) are UNCHANGED — only display names changed.
      ============================================================ -->
@@ -518,14 +521,8 @@ footer a {
   You can adjust your active modules whenever your business needs change.
 </p>
 
-<!-- Pricing note + plan banner -->
+<!-- Pricing note -->
 <div class="pricing-note">
-
-  <!-- Bundle activation banner (hidden until bundle is selected) -->
-  <div id="planBanner" class="plan-banner" style="display:none;">
-    <strong id="planBannerTitle"></strong>
-    <span id="planBannerText"></span>
-  </div>
 
   Asset Management is recommended as the foundation module. Other modules may have prerequisites (see each module description). Modules may be billed monthly or annually (annual billing receives a 10% discount).
 </div>
@@ -1003,6 +1000,13 @@ function normalizeKey(savedStr) {
   }
   return null;
 }
+  if (LEGACY_KEY_MAP[lower]) return LEGACY_KEY_MAP[lower];
+  // Check display names (case-insensitive)
+  for (const m of MODULE_MAP) {
+    if (m.display.toLowerCase() === lower) return m.key;
+  }
+  return null;
+}
 
 // Helper: safe JSON.parse — never crashes, returns fallback on error
 function safeJSONParse(str, fallback) {
@@ -1147,8 +1151,9 @@ function savedMatchesModule(savedArr, canonicalKey, display) {
     applyBundle(matchedBundleId);
   }
 
-  // Validate restored combination — enforce module dependency rules
-  updateModuleDependencies();
+  // Validate restored combination — enforce Extraction Engine dependency rule
+  // (Extraction requires PM or Inspections; if neither was restored, uncheck Extraction)
+  updateExtractionRules();
 
   showSelectionBanner();
 })();
@@ -1174,28 +1179,43 @@ function updateModuleDependencies() {
   const hasPM = modPM.checked;
   const hasIns = modIns.checked;
 
-  // PM, Inspections, Fuel, Transfers require Asset Management
-  modPM.disabled = !hasEquipment;
-  modIns.disabled = !hasEquipment;
-  modFuel.disabled = !hasEquipment;
-  modTransfers.disabled = !hasEquipment;
+  // If a dependent module is checked but Asset Management is not,
+  // auto-select Asset Management (better UX than just blocking).
+  if (!hasEquipment && (modPM.checked || modIns.checked || modFuel.checked || modTransfers.checked || modWO.checked)) {
+    modEquipment.checked = true;
+    // Re-read after auto-select
+    // (fall through to normal logic below with hasEquipment now true)
+  }
 
-  if (!hasEquipment) {
+  // Re-read state after potential auto-select
+  const hasEquipNow = modEquipment.checked;
+
+  // PM, Inspections, Fuel, Transfers require Asset Management
+  modPM.disabled = !hasEquipNow;
+  modIns.disabled = !hasEquipNow;
+  modFuel.disabled = !hasEquipNow;
+  modTransfers.disabled = !hasEquipNow;
+
+  if (!hasEquipNow) {
     modPM.checked = false;
     modIns.checked = false;
     modFuel.checked = false;
     modTransfers.checked = false;
   }
 
+  // Re-read PM and Ins after potential disable
+  const hasPMNow = modPM.checked;
+  const hasInsNow = modIns.checked;
+
   // Work Orders requires Asset Management + PM + Asset Inspections
-  const woPrereqsMet = hasEquipment && hasPM && hasIns;
+  const woPrereqsMet = hasEquipNow && hasPMNow && hasInsNow;
   modWO.disabled = !woPrereqsMet;
   if (!woPrereqsMet) {
     modWO.checked = false;
   }
 
   // Extraction Engine requires PM or Asset Inspections
-  const pmOrIns = hasPM || hasIns;
+  const pmOrIns = hasPMNow || hasInsNow;
   if (!pmOrIns) {
     modExtraction.checked = false;
     modExtraction.disabled = true;
@@ -1204,8 +1224,44 @@ function updateModuleDependencies() {
   }
 }
 
+/* -------------------------------------------------------------
+   VALIDATE DEPENDENCIES BEFORE SUBMIT
+   Returns true if the current selection is valid, false otherwise.
+   This is a hard validation — even if the UI was bypassed (DevTools,
+   localStorage replay), this catches invalid combinations before
+   the payload is sent to cart/checkout.
+   ------------------------------------------------------------- */
+function validateDependencies() {
+  const hasEquipment = modEquipment.checked;
+  const hasPM = modPM.checked;
+  const hasIns = modIns.checked;
+  const hasWO = modWO.checked;
+  const hasFuel = modFuel.checked;
+  const hasTransfers = modTransfers.checked;
+  const hasExtraction = modExtraction.checked;
+
+  // PM, Inspections, Fuel, Transfers require Asset Management
+  if (hasPM && !hasEquipment) return { valid: false, error: "Preventative Maintenance requires Asset Management." };
+  if (hasIns && !hasEquipment) return { valid: false, error: "Asset Inspections requires Asset Management." };
+  if (hasFuel && !hasEquipment) return { valid: false, error: "Fuel Management requires Asset Management." };
+  if (hasTransfers && !hasEquipment) return { valid: false, error: "Asset Location Management requires Asset Management." };
+
+  // Work Orders requires Asset Management + PM + Asset Inspections
+  if (hasWO && !(hasEquipment && hasPM && hasIns)) {
+    return { valid: false, error: "Work Orders requires Asset Management, Preventative Maintenance, and Asset Inspections." };
+  }
+
+  // Extraction Engine requires PM or Asset Inspections
+  if (hasExtraction && !(hasPM || hasIns)) {
+    return { valid: false, error: "Extraction Engine requires Preventative Maintenance or Asset Inspections." };
+  }
+
+  return { valid: true };
+}
+
 // Backward-compatible alias
 function updateExtractionRules() { updateModuleDependencies(); }
+
 /* -------------------------------------------------------------
    GREEN BANNER (Selected Modules)
    Shows a summary of what the user has selected:
@@ -1254,7 +1310,7 @@ function showSelectionBanner() {
     banner.innerHTML = bannerHTML;
     banner.style.display = "block";
   } else {
-    // Nothing selected — hide banner
+    // Nothing selected (beyond required Asset Management) — hide banner
     banner.style.display = "none";
   }
 
@@ -1346,14 +1402,13 @@ function applyBundle(bundleId) {
   bundleActive = true;
 
   // Reset all core modules first (NOT modTranslation)
-  [modEquipment, modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(m => {
+  [modPM, modIns, modWO, modFuel, modTransfers, modExtraction].forEach(m => {
     m.checked = false;
     m.disabled = true;
   });
 
   if (bundleId === "bundleOperations") {
     activeBundle = "Operations Bundle";
-    modEquipment.checked = true;
     modPM.checked = true;
     modIns.checked = true;
     modExtraction.checked = true;
@@ -1361,7 +1416,6 @@ function applyBundle(bundleId) {
 
   if (bundleId === "bundleFull") {
     activeBundle = "Full Asset Bundle";
-    modEquipment.checked = true;
     modPM.checked = true;
     modIns.checked = true;
     modWO.checked = true;
@@ -1370,7 +1424,6 @@ function applyBundle(bundleId) {
 
   if (bundleId === "bundleComplete") {
     activeBundle = "Complete Platform Bundle";
-    modEquipment.checked = true;
     modPM.checked = true;
     modIns.checked = true;
     modWO.checked = true;
@@ -1411,7 +1464,7 @@ function uncheckBundleIfModuleChanged() {
     statusBar.textContent = "";
     document.getElementById("selectionBanner").style.display = "none";
 
-    updateModuleDependencies();
+    updateExtractionRules();
   }
 }
 
@@ -1533,6 +1586,15 @@ btnContinue.addEventListener("click", async () => {
   if (selectedKeys.length === 0) {
     statusBar.textContent = "Please select at least one module to continue.";
     statusBar.style.color = "#dc2626";
+    return;
+  }
+
+  // --- Validate module dependencies (hard check — catches DevTools/localStorage bypass) ---
+  const depCheck = validateDependencies();
+  if (!depCheck.valid) {
+    statusBar.textContent = depCheck.error;
+    statusBar.style.color = "#dc2626";
+    console.error("[DRIV-EN] Dependency validation failed:", depCheck.error);
     return;
   }
 
@@ -1906,4 +1968,4 @@ notifyEmail.addEventListener("keydown", (e) => {
 </footer>
 
 </body>
-</html>     
+</html>
