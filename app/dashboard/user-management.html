@@ -36,12 +36,32 @@
 /* ===== LOADING SCREEN ===== */
 .um-loading { display:flex; align-items:center; justify-content:center; height:100vh; font-size:16px; color:var(--text-muted); }
 
-/* ===== HEADER OVERRIDE ===== */
+/* ===== HEADER OVERRIDE — logos + title on one row ===== */
 .dash-header-row3 { display:none !important; }
 #dashHeader .dash-theme-wrapper { display:none !important; }
-.dash-header-row1 { padding:8px 20px !important; align-items:center; }
-.dash-header-row2 { padding:4px 20px !important; }
-#dashPageTitle { font-size:20px !important; font-weight:600 !important; }
+
+/* Use CSS grid to lay out customer logo | title | DRIV-EN logo in a single row.
+   display:contents makes the row wrappers' children participate in the grid. */
+.dash-header {
+  display:grid !important;
+  grid-template-columns:auto 1fr auto !important;
+  align-items:center !important;
+  padding:8px 20px !important;
+  gap:16px !important;
+}
+.dash-header-row1 { display:contents !important; }
+.dash-header-row2 { display:contents !important; }
+
+#dashCustomerLogoArea { grid-column:1; justify-self:start; }
+.dash-header-row2 h1 { grid-column:2; text-align:center; font-size:20px; font-weight:600; margin:0; }
+.dash-driven-logo { grid-column:3; justify-self:end; }
+
+@media (max-width:700px) {
+  .dash-header { gap:8px !important; padding:6px 12px !important; }
+  .dash-header-row2 h1 { font-size:15px; }
+  .dash-customer-logo, .dash-customer-logo-placeholder { max-height:36px; max-width:80px; }
+  .dash-driven-logo { max-height:40px; }
+}
 
 /* ===== TAB BAR ===== */
 .um-tab-bar { display:flex; gap:2px; max-width:1100px; margin:0 auto; padding:0 20px; overflow-x:auto; position:relative; z-index:1; background:#cbd5e1; border-bottom:2px solid #94a3b8; }
@@ -181,10 +201,10 @@
 
 <!-- ===== TAB BAR ===== -->
 <div class="um-tab-bar">
-  <div class="um-tab active" data-tab="users" onclick="switchTab('users')">Users</div>
   <div class="um-tab" data-tab="employees" onclick="switchTab('employees')">Employees</div>
   <div class="um-tab" data-tab="activity" onclick="switchTab('activity')">Activity Log</div>
   <div class="um-tab" data-tab="roles" onclick="switchTab('roles')">Roles & Permissions</div>
+  <div class="um-tab active" data-tab="users" onclick="switchTab('users')">Users</div>
   <div class="um-tab um-tab-dashboard" id="tabBackToDashboard" onclick="goToMainDashboard()">&#8592; Dashboard</div>
   <div class="um-tab-logout" onclick="drivenLogout()">Logout</div>
 </div>
@@ -636,6 +656,7 @@ async function showUserDetail(userId) {
   loadUserActivity(userId);
   loadUserWorkHistory(userId, user.email);
 }
+
 // ===== LOAD USER PERMISSIONS =====
 var userBaseVersion = null; // OCC: tracks the user's updated_at for conflict detection
 
