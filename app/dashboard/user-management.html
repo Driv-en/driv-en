@@ -37,8 +37,6 @@
 .um-loading { display:flex; align-items:center; justify-content:center; height:100vh; font-size:16px; color:var(--text-muted); }
 
 /* ===== HEADER OVERRIDE — logos + title on one row ===== */
-/* The header is loaded async by dashboard-common.js. We use JS (fixHeaderLayout)
-   to physically move the h1 into row 1, then these styles control the layout. */
 .dash-header-row3 { display:none !important; }
 #dashHeader .dash-theme-wrapper { display:none !important; }
 .dash-header-row2 { display:none !important; }
@@ -53,6 +51,10 @@
 .um-tab { background:#94a3b8; border:1px solid #64748b; border-bottom:none; border-radius:8px 8px 0 0; padding:10px 22px; font-size:15px; font-weight:500; color:#1e293b; cursor:pointer; white-space:nowrap; transition:color 200ms ease, background 200ms ease, margin-top 200ms ease; margin-top:4px; position:relative; z-index:1; }
 .um-tab:hover { color:#0f172a; background:#a5b4c4; margin-top:2px; }
 .um-tab.active { color:#1d4ed8; background:#e2e8f0; border-color:#64748b; margin-top:0; font-weight:600; z-index:2; }
+/* Employees tab — green (matches Admin Quick Links teal/green) */
+.um-tab[data-tab="employees"] { background:#0d9488; border-color:#0f766e; color:#fff; }
+.um-tab[data-tab="employees"]:hover { background:#0f766e; color:#fff; margin-top:2px; }
+.um-tab[data-tab="employees"].active { background:#ccfbf1; color:#0f766e; border-color:#0d9488; }
 .um-tab-logout { background:#b91c1c; border:1px solid #dc2626; border-bottom:none; border-radius:8px 8px 0 0; padding:10px 22px; font-size:15px; font-weight:600; color:#fff; cursor:pointer; white-space:nowrap; margin-top:4px; margin-left:auto; position:relative; z-index:1; transition:background 200ms ease, margin-top 200ms ease; }
 .um-tab-logout:hover { background:#dc2626; margin-top:2px; }
 .um-tab-dashboard { background:#2563eb; border:1px solid #1d4ed8; color:#fff; }
@@ -186,7 +188,7 @@
 
 <!-- ===== TAB BAR ===== -->
 <div class="um-tab-bar">
-  <div class="um-tab active" data-tab="employees" onclick="switchTab('employees')">Employees</div>
+  <div class="um-tab active" data-tab="employees" onclick="switchTab('employees')" style="background:#0d9488;border-color:#0f766e;color:#fff;">Employees</div>
   <div class="um-tab" data-tab="activity" onclick="switchTab('activity')">Activity Log</div>
   <div class="um-tab" data-tab="roles" onclick="switchTab('roles')">Roles & Permissions</div>
   <div class="um-tab" data-tab="users" onclick="switchTab('users')">Users</div>
@@ -374,7 +376,7 @@
 
 <!-- ===== ADD EMPLOYEE MODAL ===== -->
 <div class="um-modal-overlay" id="addEmployeeModal">
-  <div class="um-modal">
+  <div class="um-modal um-modal-large">
     <button class="um-modal-close" onclick="closeModal('addEmployeeModal')">&times;</button>
     <h3>Add New Employee</h3>
     <div class="um-form-grid">
@@ -416,6 +418,17 @@
         </select>
       </div>
     </div>
+    <!-- Required: Phone & Email -->
+    <div class="um-form-grid">
+      <div class="um-form-row">
+        <label>Phone Number *</label>
+        <input type="tel" id="newEmpPhone" placeholder="(555) 123-4567">
+      </div>
+      <div class="um-form-row">
+        <label>Email Address *</label>
+        <input type="email" id="newEmpEmail" placeholder="john.smith@company.com">
+      </div>
+    </div>
     <div class="um-form-row">
       <label>Status</label>
       <select id="newEmpStatus">
@@ -424,9 +437,96 @@
         <option value="Inactive">Inactive</option>
       </select>
     </div>
+    <!-- Optional: Address -->
+    <h4 style="margin:20px 0 8px 0; font-size:14px; color:var(--text-muted);">Optional Information</h4>
+    <div class="um-form-row">
+      <label>Street Address</label>
+      <input type="text" id="newEmpAddress" placeholder="123 Main St">
+    </div>
+    <div class="um-form-grid">
+      <div class="um-form-row">
+        <label>City</label>
+        <input type="text" id="newEmpCity" placeholder="Houston">
+      </div>
+      <div class="um-form-row">
+        <label>State</label>
+        <input type="text" id="newEmpState" placeholder="TX" maxlength="2">
+      </div>
+    </div>
+    <div class="um-form-grid">
+      <div class="um-form-row">
+        <label>ZIP Code</label>
+        <input type="text" id="newEmpZip" placeholder="77001">
+      </div>
+      <div class="um-form-row">
+        <label>Date of Birth</label>
+        <input type="date" id="newEmpDob">
+      </div>
+    </div>
+    <div class="um-form-grid">
+      <div class="um-form-row">
+        <label>Driver's License Number</label>
+        <input type="text" id="newEmpDl" placeholder="DL number">
+      </div>
+      <div class="um-form-row">
+        <label>DL State</label>
+        <input type="text" id="newEmpDlState" placeholder="TX" maxlength="2">
+      </div>
+    </div>
     <div style="display:flex; gap:12px; margin-top:20px;">
       <button class="um-btn um-btn-primary" onclick="createEmployee()">Add Employee</button>
       <button class="um-btn um-btn-secondary" onclick="closeModal('addEmployeeModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CREATE ROLE MODAL ===== -->
+<div class="um-modal-overlay" id="createRoleModal">
+  <div class="um-modal um-modal-large">
+    <button class="um-modal-close" onclick="closeModal('createRoleModal')">&times;</button>
+    <h3>Create New Role</h3>
+    <div class="um-form-grid">
+      <div class="um-form-row">
+        <label>Role Name *</label>
+        <input type="text" id="newRoleName" placeholder="e.g. Field Supervisor">
+      </div>
+      <div class="um-form-row">
+        <label>Description</label>
+        <input type="text" id="newRoleDesc" placeholder="Brief description of this role">
+      </div>
+    </div>
+    <h4 style="margin:20px 0 8px 0; font-size:15px;">Permissions</h4>
+    <p style="font-size:13px; color:var(--text-muted); margin:0 0 12px 0;">Select which permissions this role grants. Individual overrides can be applied per-employee on the user detail page.</p>
+    <div id="newRolePermContainer" style="max-height:400px; overflow-y:auto;"></div>
+    <div style="display:flex; gap:12px; margin-top:20px;">
+      <button class="um-btn um-btn-primary" onclick="createRole()">Create Role</button>
+      <button class="um-btn um-btn-secondary" onclick="closeModal('createRoleModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== EDIT ROLE MODAL ===== -->
+<div class="um-modal-overlay" id="editRoleModal">
+  <div class="um-modal um-modal-large">
+    <button class="um-modal-close" onclick="closeModal('editRoleModal')">&times;</button>
+    <h3>Edit Role & Permissions</h3>
+    <input type="hidden" id="editRoleId">
+    <div class="um-form-grid">
+      <div class="um-form-row">
+        <label>Role Name *</label>
+        <input type="text" id="editRoleName">
+      </div>
+      <div class="um-form-row">
+        <label>Description</label>
+        <input type="text" id="editRoleDesc">
+      </div>
+    </div>
+    <h4 style="margin:20px 0 8px 0; font-size:15px;">Permissions</h4>
+    <p style="font-size:13px; color:var(--text-muted); margin:0 0 12px 0;">Toggle permissions on or off for this role. Changes affect all users assigned to this role.</p>
+    <div id="editRolePermContainer" style="max-height:400px; overflow-y:auto;"></div>
+    <div style="display:flex; gap:12px; margin-top:20px;">
+      <button class="um-btn um-btn-primary" onclick="saveRolePermissions()">Save Changes</button>
+      <button class="um-btn um-btn-secondary" onclick="closeModal('editRoleModal')">Cancel</button>
     </div>
   </div>
 </div>
@@ -435,10 +535,6 @@
 <script src="/app/shared/dashboard-common.js?v=11"></script>
 
 <script>
-// ==========================================
-// USER & EMPLOYEE MANAGEMENT
-// ==========================================
-
 var allUsers = [];
 var allEmployees = [];
 var allActivity = [];
@@ -448,24 +544,17 @@ var userPermissions = [];
 var canEdit = false;
 var canAdd = false;
 
-// ===== INIT =====
 document.addEventListener('dashSessionLoaded', async function() {
   var user = window.dashUser;
   if (!user) { window.location.href = '/public/login.html'; return; }
-
   userPermissions = user.permissions || [];
-
-  // Check access
   if (!hasPermission('users.view') && !hasPermission('employees.view') && user.role !== 'DRIV-EN Founder' && user.role !== 'Admin') {
     document.getElementById('umLoading').style.display = 'none';
     document.getElementById('umDenied').style.display = 'block';
     return;
   }
-
   canEdit = hasPermission('users.edit') || hasPermission('user.manage') || user.role === 'DRIV-EN Founder' || user.role === 'Admin';
   canAdd = hasPermission('users.add') || hasPermission('user.manage') || user.role === 'DRIV-EN Founder' || user.role === 'Admin';
-
-  // Onboarding gate: Admin/Owner/Founder bypass, all others blocked until onboarding complete
   var isAdminOrOwner = user.role === 'DRIV-EN Founder' || user.role === 'Admin' || (user.role || '').toLowerCase() === 'owner';
   if (!isAdminOrOwner) {
     try {
@@ -475,40 +564,20 @@ document.addEventListener('dashSessionLoaded', async function() {
         window.location.href = '/app/dashboard/onboarding.html';
         return;
       }
-    } catch(e) {
-      // If we can't verify, allow access (fail open for Admin convenience)
-    }
+    } catch(e) { }
   }
-
-  if (canAdd) {
-    document.getElementById('btnAddUser').style.display = '';
-    document.getElementById('btnAddEmployee').style.display = '';
-  }
-
+  if (canAdd) { document.getElementById('btnAddUser').style.display = ''; document.getElementById('btnAddEmployee').style.display = ''; }
   document.getElementById('umLoading').style.display = 'none';
   document.getElementById('tab-employees').style.display = 'block';
-
-  // Fix header layout — the header is loaded async by dashboard-common.js,
-  // so we poll until it's in the DOM, then restructure it.
   var headerAttempts = 0;
-  var headerInterval = setInterval(function() {
-    headerAttempts++;
-    if (fixHeaderLayout() || headerAttempts > 50) {
-      clearInterval(headerInterval);
-    }
-  }, 100);
-
-  // Load data
+  var headerInterval = setInterval(function() { headerAttempts++; if (fixHeaderLayout() || headerAttempts > 50) { clearInterval(headerInterval); } }, 100);
   await Promise.all([loadUsers(), loadRoles(), loadPermissions()]);
   loadEmployees();
   loadActivity();
 });
 
-function hasPermission(perm) {
-  return userPermissions.indexOf(perm) !== -1;
-}
+function hasPermission(perm) { return userPermissions.indexOf(perm) !== -1; }
 
-// ===== TAB SWITCHING =====
 function switchTab(tab) {
   document.querySelectorAll('.um-tab').forEach(function(t) { t.classList.remove('active'); });
   document.querySelectorAll('.um-tab-content').forEach(function(c) { c.style.display = 'none'; });
@@ -516,117 +585,57 @@ function switchTab(tab) {
   document.getElementById('tab-' + tab).style.display = 'block';
 }
 
-// ===== BACK TO MAIN DASHBOARD =====
 function goToMainDashboard() {
-  // Use sessionStorage origin (set by dashboard-common.js when leaving a dashboard)
-  // This ensures we return to whichever dashboard the user came from, not based on role.
   var savedOrigin = sessionStorage.getItem('driven_dashboard_origin');
-  if (savedOrigin) {
-    window.location.href = savedOrigin;
-    return;
-  }
-  // Fallback: role-based
+  if (savedOrigin) { window.location.href = savedOrigin; return; }
   var user = window.dashUser;
   if (!user) { window.location.href = '/public/login.html'; return; }
   var role = (user.role || '').toLowerCase();
-  if (role === 'driv-en founder' || role === 'owner') {
-    window.location.href = '/app/dashboard/owner-dashboard.html';
-  } else if (role === 'admin') {
-    window.location.href = '/app/dashboard/admin.html';
-  } else {
-    window.location.href = '/app/dashboard/employee-dashboard.html';
-  }
+  if (role === 'driv-en founder' || role === 'owner') { window.location.href = '/app/dashboard/owner-dashboard.html'; }
+  else if (role === 'admin') { window.location.href = '/app/dashboard/admin.html'; }
+  else { window.location.href = '/app/dashboard/employee-dashboard.html'; }
 }
 
-// ===== FIX HEADER — move title into row 1 so logos + title are on one row =====
-// dashboard-common.js loads the header via fetch() and injects it into #dashHeader.
-// We restructure it after the header is in the DOM.
 function fixHeaderLayout() {
   var header = document.querySelector('.dash-header');
   if (!header) return false;
-
   var row1 = header.querySelector('.dash-header-row1');
   var row2 = header.querySelector('.dash-header-row2');
   var row3 = header.querySelector('.dash-header-row3');
   var h1 = row2 ? row2.querySelector('h1') : null;
-
   if (!row1 || !h1) return false;
-
-  // Only fix once
   if (h1.parentNode === row1) return true;
-
-  // Move h1 from row2 into row1, between the logo area and the DRIV-EN logo
   var drivenLogo = row1.querySelector('.dash-driven-logo');
   row1.insertBefore(h1, drivenLogo);
-
-  // Style row1: flex with logo | title | logo
   row1.style.cssText = 'display:flex !important; justify-content:space-between !important; align-items:center !important; padding:8px 20px !important; gap:16px !important;';
   h1.style.cssText = 'margin:0; font-size:20px; font-weight:600; text-align:center; flex:1;';
-
-  // Hide row2 (title was here, now empty) and row3 (theme toggle/logout — handled by tab bar)
   if (row2) row2.style.display = 'none';
   if (row3) row3.style.display = 'none';
-
   return true;
 }
 
-// ===== MODAL HELPERS =====
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 function openModal(id) { document.getElementById(id).classList.add('show'); }
-
 function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function initials(name) { if (!name) return '?'; var parts = name.trim().split(/\s+/); if (parts.length >= 2) return (parts[0][0] + parts[parts.length-1][0]).toUpperCase(); return name.substring(0,2).toUpperCase(); }
+function formatDate(d) { if (!d) return '—'; try { return new Date(d).toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' }); } catch(e) { return esc(d); } }
 
-function initials(name) {
-  if (!name) return '?';
-  var parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
-  return name.substring(0,2).toUpperCase();
-}
-
-function formatDate(d) {
-  if (!d) return '—';
-  try { return new Date(d).toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' }); }
-  catch(e) { return esc(d); }
-}
-
-// ===== LOAD USERS =====
 async function loadUsers() {
   try {
     var resp = await fetch('/api/onboarding/users/list');
-    if (!resp.ok) {
-      resp = await fetch('/api/user-activity');
-    }
+    if (!resp.ok) { resp = await fetch('/api/user-activity'); }
     var data = await resp.json();
-    if (data.success && data.users) {
-      allUsers = data.users;
-    } else if (data.success && data.activity) {
-      allUsers = [];
-    }
-  } catch (e) {
-    console.error('loadUsers error:', e.message);
-    allUsers = [];
-  }
-
+    if (data.success && data.users) { allUsers = data.users; } else if (data.success && data.activity) { allUsers = []; }
+  } catch (e) { console.error('loadUsers error:', e.message); allUsers = []; }
   if (allUsers.length === 0) {
-    try {
-      var resp2 = await fetch('/auth/users');
-      var data2 = await resp2.json();
-      if (data2.success && data2.users) allUsers = data2.users;
-    } catch(e2) {
-      console.error('loadUsers fallback error:', e2.message);
-    }
+    try { var resp2 = await fetch('/auth/users'); var data2 = await resp2.json(); if (data2.success && data2.users) allUsers = data2.users; } catch(e2) { console.error('loadUsers fallback error:', e2.message); }
   }
-
   renderUsers();
 }
 
 function renderUsers() {
   var tbody = document.getElementById('usersTableBody');
-  if (allUsers.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="um-empty">No users found. Users are created during onboarding when key personnel are assigned roles.</td></tr>';
-    return;
-  }
-
+  if (allUsers.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="um-empty">No users found. Users are created during onboarding when key personnel are assigned roles.</td></tr>'; return; }
   tbody.innerHTML = allUsers.map(function(u) {
     var name = u.full_name || [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email;
     var isActive = u.is_active === 1 || u.is_active === true || u.status === 'active';
@@ -648,233 +657,96 @@ function filterUsers() {
   var q = (document.getElementById('userSearch').value || '').toLowerCase();
   var status = document.getElementById('userStatusFilter').value;
   var rows = document.querySelectorAll('#usersTableBody tr');
-  rows.forEach(function(row) {
-    var text = row.textContent.toLowerCase();
-    var show = text.indexOf(q) !== -1;
-    if (status && row.innerHTML.indexOf(status) === -1) show = false;
-    row.style.display = show ? '' : 'none';
-  });
+  rows.forEach(function(row) { var text = row.textContent.toLowerCase(); var show = text.indexOf(q) !== -1; if (status && row.innerHTML.indexOf(status) === -1) show = false; row.style.display = show ? '' : 'none'; });
 }
 
-// ===== USER DETAIL =====
 async function showUserDetail(userId) {
   var user = allUsers.find(function(u) { return u.id === userId; });
   if (!user) return;
-
   var name = user.full_name || [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
   var isActive = user.is_active === 1 || user.is_active === true || user.status === 'active';
   var has2fa = user.twofa_enabled === 1 || user.twofa_enabled === true;
   var roleName = user.role_name || user.role || '—';
-
-  var html = '<div class="um-detail-header">' +
-    '<div class="um-avatar">' + initials(name) + '</div>' +
-    '<div>' +
-      '<div class="um-detail-name">' + esc(name) + '</div>' +
-      '<div class="um-detail-email">' + esc(user.email) + '</div>' +
-      '<div class="um-detail-meta">' +
-        '<span class="um-badge ' + (isActive ? 'um-badge-active' : 'um-badge-inactive') + '">' + (isActive ? 'Active' : 'Inactive') + '</span>' +
-        (has2fa ? '<span class="um-badge um-badge-2fa">2FA Enabled</span>' : '') +
-        '<span class="um-badge um-badge-active">' + esc(roleName) + '</span>' +
-      '</div>' +
-    '</div>' +
-  '</div>';
-
-  // User Info Section
-  html += '<div class="um-card" style="margin-bottom:20px;">' +
-    '<h3>Account Information</h3>' +
-    '<div class="um-form-grid">' +
-      '<div><strong>First Name:</strong> ' + esc(user.first_name || '—') + '</div>' +
-      '<div><strong>Last Name:</strong> ' + esc(user.last_name || '—') + '</div>' +
-      '<div><strong>Email:</strong> ' + esc(user.email) + '</div>' +
-      '<div><strong>Role:</strong> ' + esc(roleName) + '</div>' +
-      '<div><strong>Created:</strong> ' + formatDate(user.created_at) + '</div>' +
-      '<div><strong>Must Change Password:</strong> ' + (user.must_change_password ? 'Yes' : 'No') + '</div>' +
-    '</div>';
-
-  if (canEdit) {
-    html += '<div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">' +
-      '<button class="um-btn um-btn-primary um-btn-sm" onclick="toggleUserStatus(\'' + esc(userId) + '\', ' + isActive + ')">' + (isActive ? 'Deactivate' : 'Activate') + ' User</button>' +
-      '<button class="um-btn um-btn-secondary um-btn-sm" onclick="resetPassword(\'' + esc(userId) + '\')">Send Password Reset</button>' +
-      '<button class="um-btn um-btn-danger um-btn-sm" onclick="deleteUser(\'' + esc(userId) + '\', ' + (user.role === 'admin' || user.role === 'Admin') + ')">Delete User</button>' +
-    '</div>';
-  }
+  var html = '<div class="um-detail-header"><div class="um-avatar">' + initials(name) + '</div><div><div class="um-detail-name">' + esc(name) + '</div><div class="um-detail-email">' + esc(user.email) + '</div><div class="um-detail-meta"><span class="um-badge ' + (isActive ? 'um-badge-active' : 'um-badge-inactive') + '">' + (isActive ? 'Active' : 'Inactive') + '</span>' + (has2fa ? '<span class="um-badge um-badge-2fa">2FA Enabled</span>' : '') + '<span class="um-badge um-badge-active">' + esc(roleName) + '</span></div></div></div>';
+  html += '<div class="um-card" style="margin-bottom:20px;"><h3>Account Information</h3><div class="um-form-grid"><div><strong>First Name:</strong> ' + esc(user.first_name || '—') + '</div><div><strong>Last Name:</strong> ' + esc(user.last_name || '—') + '</div><div><strong>Email:</strong> ' + esc(user.email) + '</div><div><strong>Role:</strong> ' + esc(roleName) + '</div><div><strong>Created:</strong> ' + formatDate(user.created_at) + '</div><div><strong>Must Change Password:</strong> ' + (user.must_change_password ? 'Yes' : 'No') + '</div></div>';
+  if (canEdit) { html += '<div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;"><button class="um-btn um-btn-primary um-btn-sm" onclick="toggleUserStatus(\'' + esc(userId) + '\', ' + isActive + ')">' + (isActive ? 'Deactivate' : 'Activate') + ' User</button><button class="um-btn um-btn-secondary um-btn-sm" onclick="resetPassword(\'' + esc(userId) + '\')">Send Password Reset</button><button class="um-btn um-btn-danger um-btn-sm" onclick="deleteUser(\'' + esc(userId) + '\', ' + (user.role === 'admin' || user.role === 'Admin') + ')">Delete User</button></div>'; }
   html += '</div>';
-
-  // Permissions Section
-  html += '<div class="um-card" style="margin-bottom:20px;">' +
-    '<h3>Permissions</h3>' +
-    '<p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">' +
-      'Role permissions are inherited from <strong>' + esc(roleName) + '</strong>. Overrides can grant or revoke individual permissions for this user.' +
-    '</p>' +
-    '<div id="permContainer">Loading permissions...</div>' +
-  '</div>';
-
-  // Activity History Section
-  html += '<div class="um-card" style="margin-bottom:20px;">' +
-    '<h3>Activity History</h3>' +
-    '<div id="userActivityContainer">Loading activity...</div>' +
-  '</div>';
-
-  // Work History Section
-  html += '<div class="um-card">' +
-    '<h3>Work History</h3>' +
-    '<div id="userWorkHistory">Loading work history...</div>' +
-  '</div>';
-
+  html += '<div class="um-card" style="margin-bottom:20px;"><h3>Permissions</h3><p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">Role permissions are inherited from <strong>' + esc(roleName) + '</strong>. Overrides can grant or revoke individual permissions for this user.</p><div id="permContainer">Loading permissions...</div></div>';
+  html += '<div class="um-card" style="margin-bottom:20px;"><h3>Activity History</h3><div id="userActivityContainer">Loading activity...</div></div>';
+  html += '<div class="um-card"><h3>Work History</h3><div id="userWorkHistory">Loading work history...</div></div>';
   document.getElementById('userDetailContent').innerHTML = html;
   openModal('userDetailModal');
-
-  // OCC: initialize base_version from the user record (updated_at)
-  // loadUserPermissions will update this with the server-confirmed value
   userBaseVersion = user.updated_at || null;
-
   loadUserPermissions(userId);
   loadUserActivity(userId);
   loadUserWorkHistory(userId, user.email);
 }
 
-// ===== LOAD USER PERMISSIONS =====
-var userBaseVersion = null; // OCC: tracks the user's updated_at for conflict detection
+var userBaseVersion = null;
 
 async function loadUserPermissions(userId) {
   try {
     var resp = await fetch('/api/onboarding/users/' + userId + '/permissions');
     var data = await resp.json();
-
-    if (!data.success) {
-      document.getElementById('permContainer').innerHTML = '<p style="color:var(--text-muted);">Unable to load permissions.</p>';
-      return;
-    }
-
-    // OCC: store the base_version for conflict detection
+    if (!data.success) { document.getElementById('permContainer').innerHTML = '<p style="color:var(--text-muted);">Unable to load permissions.</p>'; return; }
     userBaseVersion = data.base_version || null;
-
     var rolePerms = data.rolePermissions || [];
     var overrides = data.overrides || [];
     var effective = data.effective || [];
-
     var overrideMap = {};
     overrides.forEach(function(o) { overrideMap[o.permission_id] = o.granted; });
-
     var effectiveMap = {};
     effective.forEach(function(p) { effectiveMap[p.id] = true; });
-
     var grouped = {};
     allPermissions.forEach(function(p) {
       if (!grouped[p.module]) grouped[p.module] = [];
       var isRole = rolePerms.some(function(rp) { return rp.id === p.id; });
       var override = overrideMap[p.id];
       var isEffective = effectiveMap[p.id];
-
       var source, sourceClass;
       if (override === 1) { source = 'Override: Granted'; sourceClass = 'um-perm-source-override-grant'; }
       else if (override === 0) { source = 'Override: Revoked'; sourceClass = 'um-perm-source-override-revoke'; }
       else if (isRole) { source = 'Role'; sourceClass = 'um-perm-source-role'; }
       else { source = 'Not Assigned'; sourceClass = 'um-perm-source-none'; }
-
-      grouped[p.module].push({
-        id: p.id, name: p.name, description: p.description || '',
-        isRole: isRole, override: override, isEffective: isEffective,
-        source: source, sourceClass: sourceClass
-      });
+      grouped[p.module].push({ id: p.id, name: p.name, description: p.description || '', isRole: isRole, override: override, isEffective: isEffective, source: source, sourceClass: sourceClass });
     });
-
     var html = '';
     Object.keys(grouped).sort().forEach(function(module) {
-      html += '<div class="um-perm-group">' +
-        '<div class="um-perm-group-title">' + esc(module.charAt(0).toUpperCase() + module.slice(1)) + '</div>';
+      html += '<div class="um-perm-group"><div class="um-perm-group-title">' + esc(module.charAt(0).toUpperCase() + module.slice(1)) + '</div>';
       grouped[module].forEach(function(p) {
         var checked = p.isEffective ? 'checked' : '';
         var disabled = canEdit ? '' : 'disabled';
-        html += '<div class="um-perm-item">' +
-          '<div class="um-perm-item-left">' +
-            '<div>' +
-              '<div class="um-perm-name">' + esc(p.name) + '</div>' +
-              '<div class="um-perm-desc">' + esc(p.description) + '</div>' +
-            '</div>' +
-            '<span class="um-perm-source ' + p.sourceClass + '">' + p.source + '</span>' +
-          '</div>' +
-          (canEdit ? '<label class="um-perm-toggle"><input type="checkbox" ' + checked + ' ' + disabled + ' onchange="togglePermission(\'' + esc(userId) + '\', \'' + esc(p.id) + '\', this.checked)"><span class="um-perm-slider"></span></label>' : '') +
-        '</div>';
+        html += '<div class="um-perm-item"><div class="um-perm-item-left"><div><div class="um-perm-name">' + esc(p.name) + '</div><div class="um-perm-desc">' + esc(p.description) + '</div></div><span class="um-perm-source ' + p.sourceClass + '">' + p.source + '</span></div>' + (canEdit ? '<label class="um-perm-toggle"><input type="checkbox" ' + checked + ' ' + disabled + ' onchange="togglePermission(\'' + esc(userId) + '\', \'' + esc(p.id) + '\', this.checked)"><span class="um-perm-slider"></span></label>' : '') + '</div>';
       });
       html += '</div>';
     });
-
     document.getElementById('permContainer').innerHTML = html || '<p style="color:var(--text-muted);">No permissions configured.</p>';
-  } catch (e) {
-    console.error('loadUserPermissions error:', e.message);
-    document.getElementById('permContainer').innerHTML = '<p style="color:var(--text-muted);">Unable to load permissions.</p>';
-  }
+  } catch (e) { console.error('loadUserPermissions error:', e.message); document.getElementById('permContainer').innerHTML = '<p style="color:var(--text-muted);">Unable to load permissions.</p>'; }
 }
 
-// ===== TOGGLE PERMISSION (PATCH with OCC) =====
 async function togglePermission(userId, permId, isGranted) {
   try {
-    var resp = await fetch('/api/onboarding/users/' + userId + '/permissions', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        permission_id: permId,
-        granted: isGranted,
-        base_version: userBaseVersion
-      })
-    });
-
-    if (resp.status === 409) {
-      // OCC conflict — another manager modified this user
-      var conflictData = await resp.json();
-      showConflictNotice(userId, conflictData);
-      return;
-    }
-
+    var resp = await fetch('/api/onboarding/users/' + userId + '/permissions', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ permission_id: permId, granted: isGranted, base_version: userBaseVersion }) });
+    if (resp.status === 409) { var conflictData = await resp.json(); showConflictNotice(userId, conflictData); return; }
     var data = await resp.json();
-
-    if (data.success) {
-      // Update base_version to the new updated_at
-      if (data.updated_at) userBaseVersion = data.updated_at;
-      loadUserPermissions(userId);
-    } else {
-      alert('Failed to update permission: ' + (data.error || 'Unknown error'));
-      loadUserPermissions(userId);
-    }
-  } catch (e) {
-    console.error('togglePermission error:', e.message);
-    alert('Error updating permission');
-    loadUserPermissions(userId);
-  }
+    if (data.success) { if (data.updated_at) userBaseVersion = data.updated_at; loadUserPermissions(userId); } else { alert('Failed to update permission: ' + (data.error || 'Unknown error')); loadUserPermissions(userId); }
+  } catch (e) { console.error('togglePermission error:', e.message); alert('Error updating permission'); loadUserPermissions(userId); }
 }
 
-// ===== CONFLICT NOTICE (409 handler) =====
 function showConflictNotice(userId, conflictData) {
-  // Show a non-blocking banner telling the user what happened
   var banner = document.createElement('div');
   banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#fef3c7;border-bottom:2px solid #f59e0b;padding:14px 20px;z-index:10000;font-size:14px;color:#92400e;display:flex;align-items:center;justify-content:center;gap:10px;';
-  banner.innerHTML = '<strong>⚠️ Conflict:</strong> This user was modified by another manager. ' +
-    '<span style="text-decoration:underline;cursor:pointer;" id="conflictRefreshBtn">Refresh your view</span>';
+  banner.innerHTML = '<strong>⚠️ Conflict:</strong> This user was modified by another manager. <span style="text-decoration:underline;cursor:pointer;" id="conflictRefreshBtn">Refresh your view</span>';
   document.body.appendChild(banner);
-
-  document.getElementById('conflictRefreshBtn').onclick = function() {
-    banner.remove();
-    // Reload the user's data fresh
-    loadUserPermissions(userId);
-  };
-
-  // Do NOT auto-refresh — user's unsaved toggle would be silently lost.
-  // They must click "Refresh your view" to reload.
+  document.getElementById('conflictRefreshBtn').onclick = function() { banner.remove(); loadUserPermissions(userId); };
 }
 
-// ===== LOAD USER ACTIVITY =====
 async function loadUserActivity(userId) {
   try {
     var resp = await fetch('/api/audit-log?user_id=' + userId);
     var data = await resp.json();
     var logs = data.logs || data.audit || [];
-
-    if (logs.length === 0) {
-      document.getElementById('userActivityContainer').innerHTML = '<p style="color:var(--text-muted);">No activity recorded.</p>';
-      return;
-    }
-
+    if (logs.length === 0) { document.getElementById('userActivityContainer').innerHTML = '<p style="color:var(--text-muted);">No activity recorded.</p>'; return; }
     var html = '<div class="um-timeline">';
     logs.slice(0, 50).forEach(function(log) {
       var dotClass = 'um-timeline-dot';
@@ -882,201 +754,79 @@ async function loadUserActivity(userId) {
       else if (log.action === 'delete') dotClass += ' red';
       else if (log.action === 'update' || log.action === 'status_change') dotClass += '';
       else dotClass += ' gray';
-
-      html += '<div class="um-timeline-item">' +
-        '<div class="' + dotClass + '"></div>' +
-        '<div class="um-timeline-date">' + formatDate(log.created_at) + '</div>' +
-        '<div class="um-timeline-action">' + esc(log.action || '—') + ' — ' + esc(log.module || '—') + '</div>' +
-        '<div class="um-timeline-detail">' + esc(log.table_name || '') + (log.record_id ? ' • ' + esc(log.record_id.substring(0,12)) : '') + '</div>' +
-      '</div>';
+      html += '<div class="um-timeline-item"><div class="' + dotClass + '"></div><div class="um-timeline-date">' + formatDate(log.created_at) + '</div><div class="um-timeline-action">' + esc(log.action || '—') + ' — ' + esc(log.module || '—') + '</div><div class="um-timeline-detail">' + esc(log.table_name || '') + (log.record_id ? ' • ' + esc(log.record_id.substring(0,12)) : '') + '</div></div>';
     });
     html += '</div>';
-
     document.getElementById('userActivityContainer').innerHTML = html;
-  } catch (e) {
-    document.getElementById('userActivityContainer').innerHTML = '<p style="color:var(--text-muted);">No activity data available.</p>';
-  }
+  } catch (e) { document.getElementById('userActivityContainer').innerHTML = '<p style="color:var(--text-muted);">No activity data available.</p>'; }
 }
 
-// ===== LOAD USER WORK HISTORY =====
 async function loadUserWorkHistory(userId, userEmail) {
   try {
     var encEmail = encodeURIComponent(userEmail);
     var [woResp, fuelResp, inspResp, pmResp, transferResp] = await Promise.all([
-      fetch('/api/work-orders?assigned_to=' + encEmail),
-      fetch('/api/fuel-transactions?person=' + encEmail),
-      fetch('/api/inspections?inspector=' + encEmail),
-      fetch('/api/pm-records?mechanic=' + encEmail),
-      fetch('/api/transfers?created_by=' + encEmail)
+      fetch('/api/work-orders?assigned_to=' + encEmail), fetch('/api/fuel-transactions?person=' + encEmail), fetch('/api/inspections?inspector=' + encEmail), fetch('/api/pm-records?mechanic=' + encEmail), fetch('/api/transfers?created_by=' + encEmail)
     ]);
-    var [woData, fuelData, inspData, pmData, transferData] = await Promise.all([
-      woResp.json(), fuelResp.json(), inspResp.json(), pmResp.json(), transferResp.json()
-    ]);
-    var workOrders = woData.work_orders || [];
-    var fuelTx = fuelData.transactions || [];
-    var inspections = inspData.inspections || [];
-    var pmRecords = pmData.pm_records || [];
-    var transfers = transferData.transfers || [];
-
+    var [woData, fuelData, inspData, pmData, transferData] = await Promise.all([woResp.json(), fuelResp.json(), inspResp.json(), pmResp.json(), transferResp.json()]);
+    var workOrders = woData.work_orders || []; var fuelTx = fuelData.transactions || []; var inspections = inspData.inspections || []; var pmRecords = pmData.pm_records || []; var transfers = transferData.transfers || [];
     var html = '';
-
-    // Work Orders
     html += '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:600; margin-bottom:8px; color:var(--text);">Work Orders (' + workOrders.length + ')</div>';
     if (workOrders.length === 0) html += '<p style="color:var(--text-muted); font-size:13px;">No work orders assigned.</p>';
-    else {
-      html += '<table class="um-table"><thead><tr><th>WO #</th><th>Description</th><th>Status</th><th>Priority</th><th>Created</th></tr></thead><tbody>';
-      workOrders.slice(0, 20).forEach(function(wo) {
-        html += '<tr><td>' + esc(wo.wo_number || '—') + '</td><td>' + esc((wo.description || '').substring(0,60)) + '</td><td>' + esc(wo.status) + '</td><td>' + esc(wo.priority || '—') + '</td><td>' + formatDate(wo.created_at) + '</td></tr>';
-      });
-      html += '</tbody></table>';
-    }
+    else { html += '<table class="um-table"><thead><tr><th>WO #</th><th>Description</th><th>Status</th><th>Priority</th><th>Created</th></tr></thead><tbody>'; workOrders.slice(0, 20).forEach(function(wo) { html += '<tr><td>' + esc(wo.wo_number || '—') + '</td><td>' + esc((wo.description || '').substring(0,60)) + '</td><td>' + esc(wo.status) + '</td><td>' + esc(wo.priority || '—') + '</td><td>' + formatDate(wo.created_at) + '</td></tr>'; }); html += '</tbody></table>'; }
     html += '</div>';
-
-    // Inspections
     html += '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:600; margin-bottom:8px; color:var(--text);">Inspections (' + inspections.length + ')</div>';
     if (inspections.length === 0) html += '<p style="color:var(--text-muted); font-size:13px;">No inspections recorded.</p>';
-    else {
-      html += '<table class="um-table"><thead><tr><th>Date</th><th>Asset</th><th>Inspector</th><th>Location</th></tr></thead><tbody>';
-      inspections.slice(0, 20).forEach(function(i) {
-        html += '<tr><td>' + formatDate(i.completed_at) + '</td><td>' + esc(i.asset_number || i.asset_name || '—') + '</td><td>' + esc(i.inspector || '—') + '</td><td>' + esc(i.location || '—') + '</td></tr>';
-      });
-      html += '</tbody></table>';
-    }
+    else { html += '<table class="um-table"><thead><tr><th>Date</th><th>Asset</th><th>Inspector</th><th>Location</th></tr></thead><tbody>'; inspections.slice(0, 20).forEach(function(i) { html += '<tr><td>' + formatDate(i.completed_at) + '</td><td>' + esc(i.asset_number || i.asset_name || '—') + '</td><td>' + esc(i.inspector || '—') + '</td><td>' + esc(i.location || '—') + '</td></tr>'; }); html += '</tbody></table>'; }
     html += '</div>';
-
-    // PM Records
     html += '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:600; margin-bottom:8px; color:var(--text);">PM Records (' + pmRecords.length + ')</div>';
     if (pmRecords.length === 0) html += '<p style="color:var(--text-muted); font-size:13px;">No PM records.</p>';
-    else {
-      html += '<table class="um-table"><thead><tr><th>Date</th><th>Asset</th><th>Status</th><th>Mechanic</th></tr></thead><tbody>';
-      pmRecords.slice(0, 20).forEach(function(p) {
-        html += '<tr><td>' + formatDate(p.pm_date) + '</td><td>' + esc(p.asset_number || p.asset_name || '—') + '</td><td>' + esc(p.status) + '</td><td>' + esc(p.mechanic || '—') + '</td></tr>';
-      });
-      html += '</tbody></table>';
-    }
+    else { html += '<table class="um-table"><thead><tr><th>Date</th><th>Asset</th><th>Status</th><th>Mechanic</th></tr></thead><tbody>'; pmRecords.slice(0, 20).forEach(function(p) { html += '<tr><td>' + formatDate(p.pm_date) + '</td><td>' + esc(p.asset_number || p.asset_name || '—') + '</td><td>' + esc(p.status) + '</td><td>' + esc(p.mechanic || '—') + '</td></tr>'; }); html += '</tbody></table>'; }
     html += '</div>';
-
-    // Fuel Transactions
     html += '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:600; margin-bottom:8px; color:var(--text);">Fuel Transactions (' + fuelTx.length + ')</div>';
     if (fuelTx.length === 0) html += '<p style="color:var(--text-muted); font-size:13px;">No fuel transactions.</p>';
-    else {
-      html += '<table class="um-table"><thead><tr><th>Date</th><th>Type</th><th>Qty</th><th>Fuel Type</th><th>Location</th></tr></thead><tbody>';
-      fuelTx.slice(0, 20).forEach(function(f) {
-        html += '<tr><td>' + formatDate(f.transaction_date) + '</td><td>' + esc(f.transaction_type) + '</td><td>' + esc(f.quantity) + '</td><td>' + esc(f.fuel_type || '—') + '</td><td>' + esc(f.location || '—') + '</td></tr>';
-      });
-      html += '</tbody></table>';
-    }
+    else { html += '<table class="um-table"><thead><tr><th>Date</th><th>Type</th><th>Qty</th><th>Fuel Type</th><th>Location</th></tr></thead><tbody>'; fuelTx.slice(0, 20).forEach(function(f) { html += '<tr><td>' + formatDate(f.transaction_date) + '</td><td>' + esc(f.transaction_type) + '</td><td>' + esc(f.quantity) + '</td><td>' + esc(f.fuel_type || '—') + '</td><td>' + esc(f.location || '—') + '</td></tr>'; }); html += '</tbody></table>'; }
     html += '</div>';
-
-    // Transfers
     html += '<div><div style="font-size:14px; font-weight:600; margin-bottom:8px; color:var(--text);">Equipment Transfers (' + transfers.length + ')</div>';
     if (transfers.length === 0) html += '<p style="color:var(--text-muted); font-size:13px;">No transfers created.</p>';
-    else {
-      html += '<table class="um-table"><thead><tr><th>Ticket #</th><th>Status</th><th>From</th><th>To</th><th>Created</th></tr></thead><tbody>';
-      transfers.slice(0, 20).forEach(function(t) {
-        html += '<tr><td>' + esc(t.ticket_number || '—') + '</td><td>' + esc(t.status) + '</td><td>' + esc(t.from_location || '—') + '</td><td>' + esc(t.to_location || '—') + '</td><td>' + formatDate(t.created_at) + '</td></tr>';
-      });
-      html += '</tbody></table>';
-    }
+    else { html += '<table class="um-table"><thead><tr><th>Ticket #</th><th>Status</th><th>From</th><th>To</th><th>Created</th></tr></thead><tbody>'; transfers.slice(0, 20).forEach(function(t) { html += '<tr><td>' + esc(t.ticket_number || '—') + '</td><td>' + esc(t.status) + '</td><td>' + esc(t.from_location || '—') + '</td><td>' + esc(t.to_location || '—') + '</td><td>' + formatDate(t.created_at) + '</td></tr>'; }); html += '</tbody></table>'; }
     html += '</div>';
-
     document.getElementById('userWorkHistory').innerHTML = html;
-  } catch (e) {
-    console.error('loadUserWorkHistory error:', e.message);
-    document.getElementById('userWorkHistory').innerHTML = '<p style="color:var(--text-muted);">Unable to load work history. Some API endpoints may not be available.</p>';
-  }
+  } catch (e) { console.error('loadUserWorkHistory error:', e.message); document.getElementById('userWorkHistory').innerHTML = '<p style="color:var(--text-muted);">Unable to load work history. Some API endpoints may not be available.</p>'; }
 }
 
-// ===== USER ACTIONS =====
 async function toggleUserStatus(userId, currentlyActive) {
   if (!confirm(currentlyActive ? 'Deactivate this user? They will lose access immediately.' : 'Activate this user?')) return;
-
-    if (currentlyActive) {
+  if (currentlyActive) {
     try {
       var safeResp = await fetch('/api/admin-safeguard?user_id=' + userId);
       var safeData = await safeResp.json();
-      if (safeData.success && safeData.would_leave_no_admins) {
-        alert('WARNING: ' + safeData.message + '\n\nAssign another admin before deactivating this user.');
-        return;
-      }
-      if (!safeResp.ok) {
-        alert('Unable to verify admin safeguard. Deactivation blocked for safety. Please try again.');
-        return;
-      }
-    } catch(e) {
-      alert('Unable to verify admin safeguard (network error). Deactivation blocked for safety. Please try again.');
-      return;
-    }
+      if (safeData.success && safeData.would_leave_no_admins) { alert('WARNING: ' + safeData.message + '\n\nAssign another admin before deactivating this user.'); return; }
+      if (!safeResp.ok) { alert('Unable to verify admin safeguard. Deactivation blocked for safety. Please try again.'); return; }
+    } catch(e) { alert('Unable to verify admin safeguard (network error). Deactivation blocked for safety. Please try again.'); return; }
   }
-
   try {
-    var resp = await fetch('/api/onboarding/users/' + userId + '/status', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        is_active: !currentlyActive,
-        base_version: userBaseVersion
-      })
-    });
-
-    if (resp.status === 409) {
-      var conflictData = await resp.json();
-      alert('⚠️ This user was modified by another manager.\n\nRefreshing your view...');
-      await loadUserPermissions(userId);
-      return;
-    }
-
+    var resp = await fetch('/api/onboarding/users/' + userId + '/status', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_active: !currentlyActive, base_version: userBaseVersion }) });
+    if (resp.status === 409) { var conflictData = await resp.json(); alert('⚠️ This user was modified by another manager.\n\nRefreshing your view...'); await loadUserPermissions(userId); return; }
     var data = await resp.json();
-    if (data.success) {
-      if (data.updated_at) userBaseVersion = data.updated_at;
-      alert('User ' + (currentlyActive ? 'deactivated' : 'activated') + ' successfully.');
-      await loadUsers();
-      closeModal('userDetailModal');
-    } else {
-      alert('Failed: ' + (data.error || 'Unknown error'));
-    }
-  } catch (e) {
-    alert('Error: ' + e.message);
-  }
+    if (data.success) { if (data.updated_at) userBaseVersion = data.updated_at; alert('User ' + (currentlyActive ? 'deactivated' : 'activated') + ' successfully.'); await loadUsers(); closeModal('userDetailModal'); } else { alert('Failed: ' + (data.error || 'Unknown error')); }
+  } catch (e) { alert('Error: ' + e.message); }
 }
 
 async function resetPassword(userId) {
   if (!confirm('Send a password reset email to this user?')) return;
-  try {
-    var resp = await fetch('/auth/forgot-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: userId })
-    });
-    var data = await resp.json();
-    if (data.success) { alert('Password reset email sent.'); }
-    else { alert('Failed: ' + (data.error || 'Unknown error')); }
-  } catch (e) { alert('Error: ' + e.message); }
+  try { var resp = await fetch('/auth/forgot-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: userId }) }); var data = await resp.json(); if (data.success) { alert('Password reset email sent.'); } else { alert('Failed: ' + (data.error || 'Unknown error')); } } catch (e) { alert('Error: ' + e.message); }
 }
 
 async function deleteUser(userId, isAdmin) {
   if (isAdmin) { alert('Cannot delete an admin user. Reassign their role first.'); return; }
   if (!confirm('Permanently delete this user? This cannot be undone.')) return;
-  try {
-    var resp = await fetch('/api/onboarding/users/' + userId, { method: 'DELETE' });
-    var data = await resp.json();
-    if (data.success) {
-      alert('User deleted.');
-      await loadUsers();
-      closeModal('userDetailModal');
-    } else { alert('Failed: ' + (data.error || 'Unknown error')); }
-  } catch (e) { alert('Error: ' + e.message); }
+  try { var resp = await fetch('/api/onboarding/users/' + userId, { method: 'DELETE' }); var data = await resp.json(); if (data.success) { alert('User deleted.'); await loadUsers(); closeModal('userDetailModal'); } else { alert('Failed: ' + (data.error || 'Unknown error')); } } catch (e) { alert('Error: ' + e.message); }
 }
 
-// ===== ADD USER =====
 async function openAddUserModal() {
   var select = document.getElementById('newUserRole');
-  select.innerHTML = '<option value="">Select a role...</option>' +
-    allRoles.filter(function(r) { return r.name !== 'DRIV-EN Founder'; }).map(function(r) { return '<option value="' + esc(r.id) + '">' + esc(r.name) + '</option>'; }).join('');
-  document.getElementById('newUserFirst').value = '';
-  document.getElementById('newUserLast').value = '';
-  document.getElementById('newUserEmail').value = '';
-  document.getElementById('newUserPassword').value = '';
+  select.innerHTML = '<option value="">Select a role...</option>' + allRoles.filter(function(r) { return r.name !== 'DRIV-EN Founder'; }).map(function(r) { return '<option value="' + esc(r.id) + '">' + esc(r.name) + '</option>'; }).join('');
+  document.getElementById('newUserFirst').value = ''; document.getElementById('newUserLast').value = ''; document.getElementById('newUserEmail').value = ''; document.getElementById('newUserPassword').value = '';
   openModal('addUserModal');
 }
 
@@ -1086,61 +836,36 @@ async function createUser() {
   var email = document.getElementById('newUserEmail').value.trim().toLowerCase();
   var roleId = document.getElementById('newUserRole').value;
   var password = document.getElementById('newUserPassword').value;
-
   if (!email) { alert('Email is required'); return; }
   if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) { alert('Please enter a valid email address'); return; }
   if (!roleId) { alert('Role is required'); return; }
   if (!password) { alert('Temporary password is required'); return; }
   if (password.length < 8) { alert('Password must be at least 8 characters'); return; }
-
   try {
-    var resp = await fetch('/api/onboarding/users', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ first_name: firstName, last_name: lastName, email: email, role_id: roleId, password: password, must_change_password: true })
-    });
+    var resp = await fetch('/api/onboarding/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ first_name: firstName, last_name: lastName, email: email, role_id: roleId, password: password, must_change_password: true }) });
     var data = await resp.json();
-    if (data.success) {
-      alert('User created successfully. They will be prompted to change their password on first login.');
-      closeModal('addUserModal');
-      await loadUsers();
-    } else { alert('Failed: ' + (data.error || 'Unknown error')); }
+    if (data.success) { alert('User created successfully. They will be prompted to change their password on first login.'); closeModal('addUserModal'); await loadUsers(); } else { alert('Failed: ' + (data.error || 'Unknown error')); }
   } catch (e) { alert('Error: ' + e.message); }
 }
 
-// ===== LOAD EMPLOYEES =====
 async function loadEmployees() {
   try {
     var resp = await fetch('/api/onboarding/key-personnel/list');
     if (!resp.ok) { allEmployees = []; renderEmployees(); return; }
     var data = await resp.json();
-    if (data.success && data.employees) { allEmployees = data.employees; }
-    else { allEmployees = []; }
-  } catch (e) {
-    console.error('loadEmployees error:', e.message);
-    allEmployees = [];
-  }
+    if (data.success && data.employees) { allEmployees = data.employees; } else { allEmployees = []; }
+  } catch (e) { console.error('loadEmployees error:', e.message); allEmployees = []; }
   renderEmployees();
 }
 
 function renderEmployees() {
   var tbody = document.getElementById('employeesTableBody');
-  if (allEmployees.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="um-empty">No employees found. Click Add Employee to add one.</td></tr>';
-    return;
-  }
-
+  if (allEmployees.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="um-empty">No employees found. Click Add Employee to add one.</td></tr>'; return; }
   tbody.innerHTML = allEmployees.map(function(e) {
     var statusClass = e.status === 'Active' ? 'um-badge-active' : (e.status === 'On Leave' ? 'um-badge-onleave' : 'um-badge-inactive');
     var isKey = e.is_key_personnel === 1 || e.is_key_personnel === true;
     var roles = (e['Key Personnel Roles'] || []).join(', ');
-    return '<tr>' +
-      '<td><strong>' + esc(e.employee_name) + '</strong></td>' +
-      '<td><span class="um-badge ' + statusClass + '">' + esc(e.status) + '</span></td>' +
-      '<td>' + (isKey ? '✓ Yes' : 'No') + '</td>' +
-      '<td>' + esc(roles || '—') + '</td>' +
-      '<td>' + (canEdit ? '<button class="um-btn um-btn-secondary um-btn-sm" onclick="editEmployee(' + e.id + ')">Edit</button>' : '—') + '</td>' +
-    '</tr>';
+    return '<tr><td><strong>' + esc(e.employee_name) + '</strong></td><td><span class="um-badge ' + statusClass + '">' + esc(e.status) + '</span></td><td>' + (isKey ? '✓ Yes' : 'No') + '</td><td>' + esc(roles || '—') + '</td><td>' + (canEdit ? '<button class="um-btn um-btn-secondary um-btn-sm" onclick="editEmployee(' + e.id + ')">Edit</button>' : '—') + '</td></tr>';
   }).join('');
 }
 
@@ -1148,31 +873,16 @@ function filterEmployees() {
   var q = (document.getElementById('empSearch').value || '').toLowerCase();
   var status = document.getElementById('empStatusFilter').value;
   var rows = document.querySelectorAll('#employeesTableBody tr');
-  rows.forEach(function(row) {
-    var text = row.textContent.toLowerCase();
-    var show = text.indexOf(q) !== -1;
-    if (status && row.innerHTML.indexOf(status) === -1) show = false;
-    row.style.display = show ? '' : 'none';
-  });
+  rows.forEach(function(row) { var text = row.textContent.toLowerCase(); var show = text.indexOf(q) !== -1; if (status && row.innerHTML.indexOf(status) === -1) show = false; row.style.display = show ? '' : 'none'; });
 }
 
-function editEmployee(empId) {
-  var emp = allEmployees.find(function(e) { return e.id === empId; });
-  if (!emp) return;
-  alert('Employee editing will be available in the next update. Employee: ' + emp.employee_name);
-}
+function editEmployee(empId) { var emp = allEmployees.find(function(e) { return e.id === empId; }); if (!emp) return; alert('Employee editing will be available in the next update. Employee: ' + emp.employee_name); }
 
-// ===== ADD EMPLOYEE =====
 function openAddEmployeeModal() {
   document.getElementById('newEmpNumber').value = '';
   var roleSelect = document.getElementById('newEmpRole');
-  roleSelect.innerHTML = '<option value="">Select a role...</option>' +
-    allRoles.filter(function(r) { return r.name !== 'DRIV-EN Founder'; }).map(function(r) { return '<option value="' + esc(r.name) + '">' + esc(r.name) + '</option>'; }).join('');
-  document.getElementById('newEmpFirst').value = '';
-  document.getElementById('newEmpMiddle').value = '';
-  document.getElementById('newEmpLast').value = '';
-  document.getElementById('newEmpSuffix').value = '';
-  document.getElementById('newEmpStatus').value = 'Active';
+  roleSelect.innerHTML = '<option value="">Select a role...</option>' + allRoles.filter(function(r) { return r.name !== 'DRIV-EN Founder'; }).map(function(r) { return '<option value="' + esc(r.name) + '">' + esc(r.name) + '</option>'; }).join('');
+  document.getElementById('newEmpFirst').value = ''; document.getElementById('newEmpMiddle').value = ''; document.getElementById('newEmpLast').value = ''; document.getElementById('newEmpSuffix').value = ''; document.getElementById('newEmpPhone').value = ''; document.getElementById('newEmpEmail').value = ''; document.getElementById('newEmpStatus').value = 'Active'; document.getElementById('newEmpAddress').value = ''; document.getElementById('newEmpCity').value = ''; document.getElementById('newEmpState').value = ''; document.getElementById('newEmpZip').value = ''; document.getElementById('newEmpDob').value = ''; document.getElementById('newEmpDl').value = ''; document.getElementById('newEmpDlState').value = '';
   openModal('addEmployeeModal');
 }
 
@@ -1184,61 +894,39 @@ async function createEmployee() {
   var ln = document.getElementById('newEmpLast').value.trim();
   var suffix = document.getElementById('newEmpSuffix').value;
   var status = document.getElementById('newEmpStatus').value;
-
+  var phone = document.getElementById('newEmpPhone').value.trim();
+  var email = document.getElementById('newEmpEmail').value.trim();
+  var address = document.getElementById('newEmpAddress').value.trim();
+  var city = document.getElementById('newEmpCity').value.trim();
+  var state = document.getElementById('newEmpState').value.trim();
+  var zip = document.getElementById('newEmpZip').value.trim();
+  var dob = document.getElementById('newEmpDob').value;
+  var dl = document.getElementById('newEmpDl').value.trim();
+  var dlState = document.getElementById('newEmpDlState').value.trim();
   if (!fn) { alert('First name is required'); return; }
   if (!ln) { alert('Last name is required'); return; }
-
+  if (!phone) { alert('Phone number is required'); return; }
+  if (!email) { alert('Email address is required'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Please enter a valid email address'); return; }
   var fullName = [fn, mn, ln].filter(Boolean).join(' ');
   if (suffix) fullName += ' ' + suffix;
-
   try {
-    var resp = await fetch('/api/onboarding/key-personnel/list', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        employee_name: fullName,
-        first_name: fn,
-        middle_name: mn,
-        last_name: ln,
-        suffix: suffix,
-        employee_number: empNum,
-        role: role || 'Unassigned',
-        status: status,
-        is_key_personnel: 0
-      })
-    });
+    var resp = await fetch('/api/onboarding/key-personnel/list', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ employee_name: fullName, first_name: fn, middle_name: mn, last_name: ln, suffix: suffix, employee_number: empNum, role: role || 'Unassigned', status: status, is_key_personnel: 0, phone: phone, email: email, address: address, city: city, state: state, zip: zip, dob: dob, drivers_license: dl, dl_state: dlState }) });
     var data = await resp.json();
-    if (data.success) { alert('Employee added.'); closeModal('addEmployeeModal'); await loadEmployees(); }
-    else { alert('Failed: ' + (data.error || 'Unknown error')); }
+    if (data.success) { alert('Employee added.'); closeModal('addEmployeeModal'); await loadEmployees(); } else { alert('Failed: ' + (data.error || 'Unknown error')); }
   } catch (e) { alert('Error: ' + e.message); }
 }
 
-// ===== LOAD ACTIVITY =====
 async function loadActivity() {
-  try {
-    var resp = await fetch('/api/audit-log');
-    var data = await resp.json();
-    allActivity = data.logs || data.audit || [];
-  } catch (e) { console.error('loadActivity error:', e.message); allActivity = []; }
+  try { var resp = await fetch('/api/audit-log'); var data = await resp.json(); allActivity = data.logs || data.audit || []; } catch (e) { console.error('loadActivity error:', e.message); allActivity = []; }
   renderActivity();
 }
 
 function renderActivity() {
   var tbody = document.getElementById('activityTableBody');
-  if (allActivity.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="um-empty">No activity logged.</td></tr>';
-    return;
-  }
-
+  if (allActivity.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="um-empty">No activity logged.</td></tr>'; return; }
   tbody.innerHTML = allActivity.slice(0, 100).map(function(log) {
-    return '<tr>' +
-      '<td>' + formatDate(log.created_at) + '</td>' +
-      '<td>' + esc(log.user_email || '—') + '</td>' +
-      '<td>' + esc(log.module || '—') + '</td>' +
-      '<td>' + esc(log.action || '—') + '</td>' +
-      '<td>' + esc(log.table_name || '') + (log.record_id ? ' • ' + esc(log.record_id.substring(0,12)) : '') + '</td>' +
-      '<td>' + esc(log.ip_address || '—') + '</td>' +
-    '</tr>';
+    return '<tr><td>' + formatDate(log.created_at) + '</td><td>' + esc(log.user_email || '—') + '</td><td>' + esc(log.module || '—') + '</td><td>' + esc(log.action || '—') + '</td><td>' + esc(log.table_name || '') + (log.record_id ? ' • ' + esc(log.record_id.substring(0,12)) : '') + '</td><td>' + esc(log.ip_address || '—') + '</td></tr>';
   }).join('');
 }
 
@@ -1246,45 +934,26 @@ function filterActivity() {
   var q = (document.getElementById('activitySearch').value || '').toLowerCase();
   var module = document.getElementById('activityModuleFilter').value;
   var rows = document.querySelectorAll('#activityTableBody tr');
-  rows.forEach(function(row) {
-    var text = row.textContent.toLowerCase();
-    var show = text.indexOf(q) !== -1;
-    if (module && row.cells[2] && row.cells[2].textContent !== module) show = false;
-    row.style.display = show ? '' : 'none';
-  });
+  rows.forEach(function(row) { var text = row.textContent.toLowerCase(); var show = text.indexOf(q) !== -1; if (module && row.cells[2] && row.cells[2].textContent !== module) show = false; row.style.display = show ? '' : 'none'; });
 }
 
-// ===== LOAD ROLES =====
 async function loadRoles() {
-  try {
-    var resp = await fetch('/api/onboarding/roles');
-    var data = await resp.json();
-    if (data.success) allRoles = data.roles || [];
-  } catch (e) { console.error('loadRoles error:', e.message); allRoles = []; }
+  try { var resp = await fetch('/api/onboarding/roles'); var data = await resp.json(); if (data.success) allRoles = data.roles || []; } catch (e) { console.error('loadRoles error:', e.message); allRoles = []; }
   renderRoles();
 }
 
 function renderRoles() {
   var container = document.getElementById('rolesContainer');
-  if (allRoles.length === 0) {
-    container.innerHTML = '<p class="um-empty">No roles found. Roles are created during onboarding.</p>';
-    return;
+  var customerRoles = allRoles.filter(function(r) { return !(r.is_system === 1 || r.is_system === true); });
+  if (customerRoles.length === 0) { container.innerHTML = '<p class="um-empty">No roles found. Click "Create Role" to add one.</p>'; }
+  else {
+    container.innerHTML = customerRoles.map(function(r) {
+      var desc = r.description || '';
+      return '<div class="um-card" style="margin-bottom:16px;"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><strong style="font-size:16px;">' + esc(r.name) + '</strong></div>' + (canEdit ? '<div style="display:flex; gap:8px;"><button class="um-btn um-btn-secondary um-btn-sm" onclick="editRole(\'' + esc(r.id) + '\')">Edit Permissions</button><button class="um-btn um-btn-danger um-btn-sm" onclick="deleteRole(\'' + esc(r.id) + '\', \'' + esc(r.name) + '\')">Delete</button></div>' : '') + '</div>' + (desc ? '<p style="font-size:13px; color:var(--text-muted); margin:4px 0 8px 0;">' + esc(desc) + '</p>' : '') + '<div id="rolePerms_' + esc(r.id) + '"><span style="font-size:13px; color:var(--text-muted);">Click to view permissions</span></div></div>';
+    }).join('');
   }
-
-  container.innerHTML = allRoles.map(function(r) {
-    var desc = r.description || '';
-    var isSystem = r.is_system === 1 || r.is_system === true;
-    return '<div class="um-card" style="margin-bottom:16px;">' +
-      '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">' +
-        '<div><strong style="font-size:16px;">' + esc(r.name) + '</strong>' + (isSystem ? ' <span class="um-badge um-badge-active">System</span>' : '') + '</div>' +
-        (canEdit && !isSystem ? '<button class="um-btn um-btn-secondary um-btn-sm" onclick="editRole(\'' + esc(r.id) + '\')">Edit Permissions</button>' : '') +
-      '</div>' +
-      (desc ? '<p style="font-size:13px; color:var(--text-muted); margin:4px 0 8px 0;">' + esc(desc) + '</p>' : '') +
-      '<div id="rolePerms_' + esc(r.id) + '"><span style="font-size:13px; color:var(--text-muted);">Click to view permissions</span></div>' +
-    '</div>';
-  }).join('');
-
-  allRoles.forEach(function(r) { loadRolePermissions(r.id); });
+  if (canEdit) { container.innerHTML = '<div style="margin-bottom:16px;"><button class="um-btn um-btn-primary um-btn-sm" onclick="openCreateRoleModal()">+ Create Role</button></div>' + container.innerHTML; }
+  customerRoles.forEach(function(r) { loadRolePermissions(r.id); });
 }
 
 async function loadRolePermissions(roleId) {
@@ -1293,27 +962,94 @@ async function loadRolePermissions(roleId) {
     var data = await resp.json();
     var perms = data.permissions || [];
     var el = document.getElementById('rolePerms_' + roleId);
-    if (perms.length === 0) {
-      el.innerHTML = '<span style="font-size:13px; color:var(--text-muted);">No permissions assigned.</span>';
-    } else {
-      el.innerHTML = perms.map(function(p) {
-        return '<span class="um-badge um-badge-active" style="margin:2px;">' + esc(p.name) + '</span>';
-      }).join('');
-    }
+    if (perms.length === 0) { el.innerHTML = '<span style="font-size:13px; color:var(--text-muted);">No permissions assigned.</span>'; }
+    else { el.innerHTML = perms.map(function(p) { return '<span class="um-badge um-badge-active" style="margin:2px;">' + esc(p.name) + '</span>'; }).join(''); }
   } catch(e) { }
 }
 
 function editRole(roleId) {
-  alert('Role permission editing will be available in the next update.');
+  var role = allRoles.find(function(r) { return r.id === roleId; });
+  if (!role) return;
+  document.getElementById('editRoleName').value = role.name || '';
+  document.getElementById('editRoleDesc').value = role.description || '';
+  document.getElementById('editRoleId').value = roleId;
+  var grouped = {};
+  allPermissions.forEach(function(p) { if (!grouped[p.module]) grouped[p.module] = []; grouped[p.module].push(p); });
+  var html = '';
+  Object.keys(grouped).sort().forEach(function(mod) {
+    html += '<div class="um-perm-group"><div class="um-perm-group-title">' + esc(mod.charAt(0).toUpperCase() + mod.slice(1)) + '</div>';
+    grouped[mod].forEach(function(p) {
+      html += '<div class="um-perm-item"><div class="um-perm-item-left"><div><div class="um-perm-name">' + esc(p.name) + '</div><div class="um-perm-desc">' + esc(p.description || '') + '</div></div></div><label class="um-perm-toggle"><input type="checkbox" id="perm_' + esc(p.id) + '" data-perm-id="' + esc(p.id) + '"><span class="um-perm-slider"></span></label></div>';
+    });
+    html += '</div>';
+  });
+  document.getElementById('editRolePermContainer').innerHTML = html || '<p style="color:var(--text-muted);">No permissions available.</p>';
+  loadRolePermissionsForEdit(roleId);
+  openModal('editRoleModal');
 }
 
-// ===== LOAD PERMISSIONS =====
-async function loadPermissions() {
+async function loadRolePermissionsForEdit(roleId) {
+  try { var resp = await fetch('/api/onboarding/roles/' + roleId + '/permissions'); var data = await resp.json(); var perms = data.permissions || []; perms.forEach(function(p) { var cb = document.getElementById('perm_' + p.id); if (cb) cb.checked = true; }); } catch(e) { }
+}
+
+async function saveRolePermissions() {
+  var roleId = document.getElementById('editRoleId').value;
+  var name = document.getElementById('editRoleName').value.trim();
+  var desc = document.getElementById('editRoleDesc').value.trim();
+  if (!name) { alert('Role name is required'); return; }
+  var permIds = [];
+  document.querySelectorAll('#editRolePermContainer input[type="checkbox"]').forEach(function(cb) { if (cb.checked) permIds.push(cb.getAttribute('data-perm-id')); });
   try {
-    var resp = await fetch('/api/onboarding/permissions');
-    var data = await resp.json();
-    if (data.success) allPermissions = data.permissions || [];
-  } catch (e) { console.error('loadPermissions error:', e.message); allPermissions = []; }
+    var updateResp = await fetch('/api/onboarding/roles/' + roleId, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name, description: desc }) });
+    if (!updateResp.ok) { var err = await updateResp.json(); alert('Failed to update role: ' + (err.error || 'Unknown')); return; }
+    var permResp = await fetch('/api/onboarding/roles/' + roleId + '/permissions', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ permissionIds: permIds }) });
+    var permData = await permResp.json();
+    if (permData.success) { alert('Role "' + name + '" updated with ' + permIds.length + ' permissions.'); closeModal('editRoleModal'); await loadRoles(); } else { alert('Failed to set permissions: ' + (permData.error || 'Unknown')); }
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function deleteRole(roleId, roleName) {
+  if (!confirm('Delete role "' + roleName + '"? Users assigned to this role will lose their role-based permissions.')) return;
+  try { var resp = await fetch('/api/onboarding/roles/' + roleId, { method: 'DELETE' }); var data = await resp.json(); if (data.success) { alert('Role deleted.'); await loadRoles(); } else { alert('Failed: ' + (data.error || 'Unknown error')); } } catch(e) { alert('Error: ' + e.message); }
+}
+
+function openCreateRoleModal() {
+  document.getElementById('newRoleName').value = '';
+  document.getElementById('newRoleDesc').value = '';
+  var grouped = {};
+  allPermissions.forEach(function(p) { if (!grouped[p.module]) grouped[p.module] = []; grouped[p.module].push(p); });
+  var html = '';
+  Object.keys(grouped).sort().forEach(function(mod) {
+    html += '<div class="um-perm-group"><div class="um-perm-group-title">' + esc(mod.charAt(0).toUpperCase() + mod.slice(1)) + '</div>';
+    grouped[mod].forEach(function(p) {
+      html += '<div class="um-perm-item"><div class="um-perm-item-left"><div><div class="um-perm-name">' + esc(p.name) + '</div><div class="um-perm-desc">' + esc(p.description || '') + '</div></div></div><label class="um-perm-toggle"><input type="checkbox" id="newperm_' + esc(p.id) + '" data-perm-id="' + esc(p.id) + '"><span class="um-perm-slider"></span></label></div>';
+    });
+    html += '</div>';
+  });
+  document.getElementById('newRolePermContainer').innerHTML = html || '<p style="color:var(--text-muted);">No permissions available.</p>';
+  openModal('createRoleModal');
+}
+
+async function createRole() {
+  var name = document.getElementById('newRoleName').value.trim();
+  var desc = document.getElementById('newRoleDesc').value.trim();
+  if (!name) { alert('Role name is required'); return; }
+  var permIds = [];
+  document.querySelectorAll('#newRolePermContainer input[type="checkbox"]').forEach(function(cb) { if (cb.checked) permIds.push(cb.getAttribute('data-perm-id')); });
+  try {
+    var createResp = await fetch('/api/onboarding/roles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name, description: desc }) });
+    var createData = await createResp.json();
+    if (!createData.success) { alert('Failed to create role: ' + (createData.error || 'Unknown')); return; }
+    var roleId = createData.role.id;
+    if (permIds.length > 0) { await fetch('/api/onboarding/roles/' + roleId + '/permissions', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ permissionIds: permIds }) }); }
+    alert('Role "' + name + '" created with ' + permIds.length + ' permissions.');
+    closeModal('createRoleModal');
+    await loadRoles();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function loadPermissions() {
+  try { var resp = await fetch('/api/onboarding/permissions'); var data = await resp.json(); if (data.success) allPermissions = data.permissions || []; } catch (e) { console.error('loadPermissions error:', e.message); allPermissions = []; }
 }
 </script>
 
