@@ -1168,12 +1168,12 @@
           <h3>🎉 Onboarding Complete</h3>
           <p>All onboarding tasks have been closed by your Key Personnel. Every task assigned to your team has been marked complete — great work!</p>
           <p class="complete-note">
-            <strong>Next step:</strong> Click the button below to <strong>finalize onboarding</strong>. This removes all Key Personnel onboarding assignments and unlocks their role-based dashboards (Owner, Admin, and department dashboards), so each employee can access the dashboards their role allows.
+            <strong>Next step:</strong> Click the button below to <strong>finalize onboarding</strong>. This sends invitation emails to all Key Personnel, activates their accounts, removes all onboarding assignments, and unlocks their role-based dashboards (Owner, Admin, and department dashboards).
           </p>
           <p class="complete-note">
             After finalizing, <strong>future additions</strong> — new employees, equipment, locations, and other data — are managed by the departments through their own dashboards, not through the Onboarding Dashboard. The initial onboarding is complete.
           </p>
-          <button class="finalize-onboarding-btn" id="finalizeOnboardingBtn" onclick="finalizeOnboarding()">Finalize Onboarding &amp; Unlock Dashboards</button>
+          <button class="finalize-onboarding-btn" id="finalizeOnboardingBtn" onclick="finalizeOnboarding()">Finalize Onboarding &amp; Send Invitations</button>
         </div>
       </div>
 
@@ -1234,7 +1234,7 @@
               <div class="kp-loading">Loading…</div>
             </div>
           </div>
-          <button class="settings-save-btn" id="kpCompleteBtn" style="margin-top:16px;display:none;" onclick="completeKeyPersonnel()">Send Invitations &amp; Create Accounts</button>
+          <button class="settings-save-btn" id="kpCompleteBtn" style="margin-top:16px;display:none;" onclick="completeKeyPersonnel()">Create Accounts</button>
         </div>
       </div>
 
@@ -1313,55 +1313,34 @@
     ];
 
     /* ===== DASHBOARD STATS (KPIs) ===== */
-    // Fetches real counts from the platform worker via the API proxy.
-    // The platform worker's /users endpoint returns the user list; we also
-    // query the equipment, projects, and clients endpoints for counts.
     async function loadDashboardStats() {
       var orgId = localStorage.getItem('driven_customer_id');
       if (!orgId) return;
-
-      // Fetch all counts in parallel
       var promises = [
         fetch('/api/users?limit=1').then(function(r) { return r.json(); }).catch(function() { return { success: false }; }),
         fetch('/api/assets?limit=1').then(function(r) { return r.json(); }).catch(function() { return { success: false }; }),
         fetch('/api/projects?limit=1').then(function(r) { return r.json(); }).catch(function() { return { success: false }; }),
       ];
-
       try {
         var results = await Promise.all(promises);
-
-        // Employees — count from users response
         if (results[0].success) {
           var empCount = results[0].users ? results[0].users.length : (results[0].total || results[0].count || 0);
-          // If the API returns all users, use the array length; otherwise use total
-          if (results[0].users && Array.isArray(results[0].users)) {
-            empCount = results[0].users.length;
-          }
+          if (results[0].users && Array.isArray(results[0].users)) { empCount = results[0].users.length; }
           document.getElementById('stat-employees').textContent = empCount;
           localStorage.setItem('driven_employee_count', empCount);
         }
-
-        // Equipment — count from assets response
         if (results[1].success) {
           var eqCount = results[1].assets ? results[1].assets.length : (results[1].total || results[1].count || 0);
-          if (results[1].assets && Array.isArray(results[1].assets)) {
-            eqCount = results[1].assets.length;
-          }
+          if (results[1].assets && Array.isArray(results[1].assets)) { eqCount = results[1].assets.length; }
           document.getElementById('stat-equipment').textContent = eqCount;
           localStorage.setItem('driven_equipment_count', eqCount);
         }
-
-        // Projects — count from projects response
         if (results[2].success) {
           var projCount = results[2].projects ? results[2].projects.length : (results[2].total || results[2].count || 0);
-          if (results[2].projects && Array.isArray(results[2].projects)) {
-            projCount = results[2].projects.length;
-          }
+          if (results[2].projects && Array.isArray(results[2].projects)) { projCount = results[2].projects.length; }
           document.getElementById('stat-projects').textContent = projCount;
           localStorage.setItem('driven_project_count', projCount);
         }
-
-        // Clients — fetch from the onboarding/legacy API
         try {
           var clientsResp = await fetch('/api/Clients?limit=1');
           var clientsData = await clientsResp.json();
@@ -1371,18 +1350,14 @@
             localStorage.setItem('driven_client_count', clientCount);
           }
         } catch (e) { /* clients endpoint may not exist yet */ }
-
       } catch (e) {
         console.error('Failed to load dashboard stats:', e.message);
-        // Fall back to localStorage values
         document.getElementById('stat-employees').textContent = localStorage.getItem('driven_employee_count') || '0';
         document.getElementById('stat-projects').textContent = localStorage.getItem('driven_project_count') || '0';
         document.getElementById('stat-equipment').textContent = localStorage.getItem('driven_equipment_count') || '0';
         document.getElementById('stat-clients').textContent = localStorage.getItem('driven_client_count') || '0';
       }
-
-        // Load AI usage data
-      }
+    }
 
     function renderFormsTab() {
       var container = document.getElementById('adminFormsTabLinks');
@@ -1396,13 +1371,11 @@
 
     /* ===== TAB SWITCHING ===== */
     function switchTab(tabName) {
-      /* Warn about unsaved visibility changes when leaving the Onboarding tab */
       if (visibilityDirty && document.getElementById('tab-onboarding').classList.contains('active') && tabName !== 'onboarding') {
         var proceed = confirm("You have unsaved Task Visibility changes.\n\nClick Cancel to go back and save, or OK to leave without saving.");
         if (!proceed) return;
         clearVisibilityDirty();
       }
-      /* Warn about unsaved settings changes when leaving the Settings tab */
       if (settingsDirty && document.getElementById('tab-settings').classList.contains('active') && tabName !== 'settings') {
         var proceed2 = confirm("You have unsaved changes in Settings.\n\nClick Cancel to go back and save, or OK to leave without saving.");
         if (!proceed2) return;
@@ -1412,7 +1385,6 @@
       document.querySelectorAll('.admin-tab-content').forEach(function(c) { c.classList.remove('active'); });
       document.querySelector('[data-tab="' + tabName + '"]').classList.add('active');
       document.getElementById('tab-' + tabName).classList.add('active');
-      /* Show/hide subtab bars based on active tab */
       var settingsBar = document.getElementById('settingsSubtabBar');
       var onboardingBar = document.getElementById('onboardingSubtabBar');
       if (settingsBar) settingsBar.classList.toggle('visible', tabName === 'settings');
@@ -1422,7 +1394,6 @@
 
     /* ===== SETTINGS SUBTAB SWITCHING ===== */
     function switchSettingsSubtab(subtabName) {
-      /* Warn about unsaved changes when switching subtabs within Settings */
       if (settingsDirty) {
         var proceed = confirm("You have unsaved changes.\n\nClick Cancel to go back and save, or OK to leave without saving.");
         if (!proceed) return;
@@ -1440,29 +1411,18 @@
       return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
-    /* ===== CLIENT-SIDE ERROR REPORTING → Owner Dashboard error_log table ===== */
+    /* ===== CLIENT-SIDE ERROR REPORTING ===== */
     function reportError(source, err) {
       var msg = (err && err.message) ? err.message : (typeof err === 'string' ? err : 'Unknown error');
       var stack = (err && err.stack) ? err.stack : 'No stack trace';
       try {
-        fetch('/api/log-error', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            source: 'Admin Dashboard (' + source + ')',
-            message: msg,
-            stack: stack,
-            url: window.location.href,
-            userAgent: navigator.userAgent
-          })
-        }).catch(function() {});
+        fetch('/api/log-error', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'Admin Dashboard (' + source + ')', message: msg, stack: stack, url: window.location.href, userAgent: navigator.userAgent }) }).catch(function() {});
       } catch (e) { console.error('Failed to report error:', e); }
       console.error('[' + source + ']', msg, stack);
     }
 
     /* ===== ONBOARDING SUBTAB SWITCHING ===== */
     function switchOnboardingSubtab(subtabName) {
-      /* Warn about unsaved visibility changes when leaving the visibility subtab */
       if (visibilityDirty && document.getElementById('onboarding-subtab-visibility').classList.contains('active') && subtabName !== 'visibility') {
         var proceed = confirm("You have unsaved Task Visibility changes.\n\nClick Cancel to go back and save, or OK to leave without saving.");
         if (!proceed) return;
@@ -1512,52 +1472,26 @@
       } catch (e) {
         console.error("Logo load error:", e.message); reportError("loadLogo", e);
         var localLogo = localStorage.getItem("driven_customer_logo");
-        if (localLogo) {
-          preview.innerHTML = '<img src="' + localLogo + '" alt="Logo preview">';
-          preview.style.border = "none";
-          removeBtn.style.display = "inline-block";
-        }
+        if (localLogo) { preview.innerHTML = '<img src="' + localLogo + '" alt="Logo preview">'; preview.style.border = "none"; removeBtn.style.display = "inline-block"; }
       }
     }
 
     async function handleLogoUpload() {
       var file = document.getElementById("logoFile").files[0];
       if (!file) return;
-      // Client-side validation: size + MIME type
-      if (file.size > 500000) {
-        document.getElementById("logoStatus").textContent = "File too large. Max 500KB.";
-        document.getElementById("logoStatus").style.color = "var(--error)";
-        return;
-      }
+      if (file.size > 500000) { document.getElementById("logoStatus").textContent = "File too large. Max 500KB."; document.getElementById("logoStatus").style.color = "var(--error)"; return; }
       var allowedTypes = ["image/png", "image/jpeg", "image/svg+xml"];
-      if (allowedTypes.indexOf(file.type) === -1) {
-        document.getElementById("logoStatus").textContent = "Invalid file type. Only PNG, JPEG, and SVG are allowed.";
-        document.getElementById("logoStatus").style.color = "var(--error)";
-        return;
-      }
+      if (allowedTypes.indexOf(file.type) === -1) { document.getElementById("logoStatus").textContent = "Invalid file type. Only PNG, JPEG, and SVG are allowed."; document.getElementById("logoStatus").style.color = "var(--error)"; return; }
       var reader = new FileReader();
       reader.onload = async function(e) {
         var dataUrl = e.target.result;
         localStorage.setItem("driven_customer_logo", dataUrl);
         try {
-          var saveRes = await fetch("/auth/save-logo", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ logo_data: dataUrl })
-          });
+          var saveRes = await fetch("/auth/save-logo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ logo_data: dataUrl }) });
           var saveData = await saveRes.json();
-          if (saveData.success) {
-            document.getElementById("logoStatus").textContent = "Logo uploaded and synced to all devices.";
-            document.getElementById("logoStatus").style.color = "var(--success, #16a34a)";
-          } else {
-            document.getElementById("logoStatus").textContent = "Saved locally but not synced: " + (saveData.error || "Unknown error");
-            document.getElementById("logoStatus").style.color = "var(--error)";
-          }
-        } catch (e) {
-          console.error("Logo save error:", e.message); reportError("handleLogoUpload", e);
-          document.getElementById("logoStatus").textContent = "Saved locally but not synced to server.";
-          document.getElementById("logoStatus").style.color = "var(--error)";
-        }
+          if (saveData.success) { document.getElementById("logoStatus").textContent = "Logo uploaded and synced to all devices."; document.getElementById("logoStatus").style.color = "var(--success, #16a34a)"; }
+          else { document.getElementById("logoStatus").textContent = "Saved locally but not synced: " + (saveData.error || "Unknown error"); document.getElementById("logoStatus").style.color = "var(--error)"; }
+        } catch (e) { console.error("Logo save error:", e.message); reportError("handleLogoUpload", e); document.getElementById("logoStatus").textContent = "Saved locally but not synced to server."; document.getElementById("logoStatus").style.color = "var(--error)"; }
         await loadLogo();
       };
       reader.readAsDataURL(file);
@@ -1565,20 +1499,10 @@
 
     async function handleLogoRemove() {
       try {
-        await fetch("/auth/save-logo", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ logo_data: "" })
-        });
+        await fetch("/auth/save-logo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ logo_data: "" }) });
         localStorage.removeItem("driven_customer_logo");
-        document.getElementById("logoStatus").textContent = "Logo removed.";
-        document.getElementById("logoStatus").style.color = "var(--text-muted)";
-        await loadLogo();
-      } catch (e) {
-        console.error("Logo remove error:", e.message); reportError("removeLogo", e);
-        document.getElementById("logoStatus").textContent = "Failed to remove logo.";
-        document.getElementById("logoStatus").style.color = "var(--error)";
-      }
+        document.getElementById("logoStatus").textContent = "Logo removed."; document.getElementById("logoStatus").style.color = "var(--text-muted)"; await loadLogo();
+      } catch (e) { console.error("Logo remove error:", e.message); reportError("removeLogo", e); document.getElementById("logoStatus").textContent = "Failed to remove logo."; document.getElementById("logoStatus").style.color = "var(--error)"; }
     }
 
     /* ===== SETTINGS LOAD / SAVE ===== */
@@ -1588,726 +1512,285 @@
         var data = await res.json();
         if (data.success && data.settings) {
           orgSettings = data.settings;
-          // Business Type
-          if (data.settings.business_type) {
-            document.getElementById("businessTypeSelect").value = data.settings.business_type;
-            document.getElementById("overviewBusinessType").textContent = data.settings.business_type;
-            document.getElementById("onboardingBtLabel").textContent = data.settings.business_type;
-          }
-          // NAICS
-          if (data.settings.naics_code) {
-            document.getElementById("naicsInput").value = data.settings.naics_code;
-          }
-          // Step visibility
-          if (data.settings.step_visibility) {
-            stepVisibility = data.settings.step_visibility;
-          } else {
-            // Apply defaults from business type
-            applyBusinessTypeDefaults();
-          }
-          // Onboarding complete
-          if (data.settings.onboarding_complete) {
-            onboardingComplete = true;
-            hideOnboardingTab();
-          }
-        } else {
-          // No settings yet — apply defaults
-          applyBusinessTypeDefaults();
-        }
-      } catch (e) {
-        console.error("Settings load error:", e.message); reportError("loadSettings", e);
-        applyBusinessTypeDefaults();
-      }
-      renderStepToggles();
-      updateProgress();
+          if (data.settings.business_type) { document.getElementById("businessTypeSelect").value = data.settings.business_type; document.getElementById("overviewBusinessType").textContent = data.settings.business_type; document.getElementById("onboardingBtLabel").textContent = data.settings.business_type; }
+          if (data.settings.naics_code) { document.getElementById("naicsInput").value = data.settings.naics_code; }
+          if (data.settings.step_visibility) { stepVisibility = data.settings.step_visibility; } else { applyBusinessTypeDefaults(); }
+          if (data.settings.onboarding_complete) { onboardingComplete = true; hideOnboardingTab(); }
+        } else { applyBusinessTypeDefaults(); }
+      } catch (e) { console.error("Settings load error:", e.message); reportError("loadSettings", e); applyBusinessTypeDefaults(); }
+      renderStepToggles(); updateProgress();
     }
 
     /* ===== UNSAVED-CHANGES TRACKING ===== */
     var settingsDirty = false;
     var visibilityDirty = false;
-
-    function markSettingsDirty() {
-      settingsDirty = true;
-    }
-
-    function clearSettingsDirty() {
-      settingsDirty = false;
-    }
-
-    function markVisibilityDirty() {
-      visibilityDirty = true;
-      var warn = document.getElementById('visibilityWarning');
-      if (warn) warn.style.display = 'block';
-    }
-
-    function clearVisibilityDirty() {
-      visibilityDirty = false;
-      var warn = document.getElementById('visibilityWarning');
-      if (warn) warn.style.display = 'none';
-    }
+    function markSettingsDirty() { settingsDirty = true; }
+    function clearSettingsDirty() { settingsDirty = false; }
+    function markVisibilityDirty() { visibilityDirty = true; var warn = document.getElementById('visibilityWarning'); if (warn) warn.style.display = 'block'; }
+    function clearVisibilityDirty() { visibilityDirty = false; var warn = document.getElementById('visibilityWarning'); if (warn) warn.style.display = 'none'; }
 
     async function saveSettings() {
-      var btBtn = document.getElementById("saveSettingsBtn");
-      var naicsBtn = document.getElementById("saveNaicsBtn");
-      var status = document.getElementById("settingsStatus");
-      var naicsStatus = document.getElementById("naicsStatus");
-      var bt = document.getElementById("businessTypeSelect").value;
-      var naics = document.getElementById("naicsInput").value.trim();
-      // Disable whichever button exists
+      var btBtn = document.getElementById("saveSettingsBtn"); var naicsBtn = document.getElementById("saveNaicsBtn"); var status = document.getElementById("settingsStatus"); var naicsStatus = document.getElementById("naicsStatus");
+      var bt = document.getElementById("businessTypeSelect").value; var naics = document.getElementById("naicsInput").value.trim();
       if (btBtn) { btBtn.disabled = true; btBtn.textContent = "Saving…"; }
       if (naicsBtn) { naicsBtn.disabled = true; naicsBtn.textContent = "Saving…"; }
       try {
-        var res = await fetch("/auth/save-settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ settings: { business_type: bt, naics_code: naics } })
-        });
+        var res = await fetch("/auth/save-settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ settings: { business_type: bt, naics_code: naics } }) });
         var data = await res.json();
         if (data.success) {
-          orgSettings.business_type = bt;
-          orgSettings.naics_code = naics;
-          document.getElementById("overviewBusinessType").textContent = bt || "Not set";
-          document.getElementById("onboardingBtLabel").textContent = bt || "not set";
+          orgSettings.business_type = bt; orgSettings.naics_code = naics;
+          document.getElementById("overviewBusinessType").textContent = bt || "Not set"; document.getElementById("onboardingBtLabel").textContent = bt || "not set";
           if (status) { status.textContent = "Settings saved."; status.style.color = "var(--success, #16a34a)"; }
           if (naicsStatus) { naicsStatus.textContent = "Settings saved."; naicsStatus.style.color = "var(--success, #16a34a)"; }
           clearSettingsDirty();
-          // If business type changed, re-evaluate step visibility defaults
-          if (bt && (!stepVisibility._manualOverride || !stepVisibility._btApplied)) {
-            applyBusinessTypeDefaults();
-            renderStepToggles();
-          }
+          if (bt && (!stepVisibility._manualOverride || !stepVisibility._btApplied)) { applyBusinessTypeDefaults(); renderStepToggles(); }
         } else {
           if (status) { status.textContent = "Failed: " + (data.error || "Unknown error"); status.style.color = "var(--error)"; }
           if (naicsStatus) { naicsStatus.textContent = "Failed: " + (data.error || "Unknown error"); naicsStatus.style.color = "var(--error)"; }
         }
-      } catch (e) {
-        console.error("Settings save error:", e.message); reportError("saveSettings", e);
-        if (status) { status.textContent = "Failed to save settings."; status.style.color = "var(--error)"; }
-        if (naicsStatus) { naicsStatus.textContent = "Failed to save settings."; naicsStatus.style.color = "var(--error)"; }
-      }
+      } catch (e) { console.error("Settings save error:", e.message); reportError("saveSettings", e); if (status) { status.textContent = "Failed to save settings."; status.style.color = "var(--error)"; } if (naicsStatus) { naicsStatus.textContent = "Failed to save settings."; naicsStatus.style.color = "var(--error)"; } }
       if (btBtn) { btBtn.disabled = false; btBtn.textContent = "Save"; }
       if (naicsBtn) { naicsBtn.disabled = false; naicsBtn.textContent = "Save"; }
-      setTimeout(function() {
-        if (status) status.textContent = "";
-        if (naicsStatus) naicsStatus.textContent = "";
-      }, 3000);
+      setTimeout(function() { if (status) status.textContent = ""; if (naicsStatus) naicsStatus.textContent = ""; }, 3000);
     }
 
-    function onNaicsChange() {
-      markSettingsDirty();
-    }
+    function onNaicsChange() { markSettingsDirty(); }
 
     function applyBusinessTypeDefaults() {
       var bt = document.getElementById("businessTypeSelect").value;
-      if (bt && BUSINESS_TYPE_DEFAULTS[bt]) {
-        var defaults = BUSINESS_TYPE_DEFAULTS[bt];
-        for (var key in defaults) {
-          if (!stepVisibility._manualOverrides || !stepVisibility._manualOverrides[key]) {
-            stepVisibility[key] = defaults[key];
-          }
-        }
-      }
+      if (bt && BUSINESS_TYPE_DEFAULTS[bt]) { var defaults = BUSINESS_TYPE_DEFAULTS[bt]; for (var key in defaults) { if (!stepVisibility._manualOverrides || !stepVisibility._manualOverrides[key]) { stepVisibility[key] = defaults[key]; } } }
     }
 
     function onBusinessTypeChange() {
       var bt = document.getElementById("businessTypeSelect").value;
-      if (bt && BUSINESS_TYPE_DEFAULTS[bt]) {
-        var defaults = BUSINESS_TYPE_DEFAULTS[bt];
-        for (var key in defaults) {
-          stepVisibility[key] = defaults[key];
-        }
-        stepVisibility._manualOverrides = {};
-      }
-      markSettingsDirty();
-      renderStepToggles();
+      if (bt && BUSINESS_TYPE_DEFAULTS[bt]) { var defaults = BUSINESS_TYPE_DEFAULTS[bt]; for (var key in defaults) { stepVisibility[key] = defaults[key]; } stepVisibility._manualOverrides = {}; }
+      markSettingsDirty(); renderStepToggles();
     }
 
     /* ===== STEP TOGGLE RENDERING ===== */
     function renderStepToggles() {
       var container = document.getElementById("stepToggleList");
       container.innerHTML = STEP_DEFS.map(function(step) {
-        var isVisible = stepVisibility[step.key] !== false; // default true
-        var checked = isVisible ? "checked" : "";
-        var disabled = step.locked ? "disabled" : "";
-        var lockedLabel = step.locked ? '<span class="step-toggle-locked">(always on)</span>' : "";
-        return '<div class="step-toggle-row">' +
-          '<div>' +
-            '<div class="step-toggle-name">' + step.label + ' ' + lockedLabel + '</div>' +
-            '<div class="step-toggle-desc">' + step.desc + '</div>' +
-          '</div>' +
-          '<label class="toggle-switch">' +
-            '<input type="checkbox" ' + checked + ' ' + disabled + ' onchange="onToggleChange(\'' + step.key + '\', this.checked)" data-step="' + step.key + '">' +
-            '<span class="toggle-slider"></span>' +
-          '</label>' +
-        '</div>';
+        var isVisible = stepVisibility[step.key] !== false; var checked = isVisible ? "checked" : ""; var disabled = step.locked ? "disabled" : ""; var lockedLabel = step.locked ? '<span class="step-toggle-locked">(always on)</span>' : "";
+        return '<div class="step-toggle-row"><div><div class="step-toggle-name">' + step.label + ' ' + lockedLabel + '</div><div class="step-toggle-desc">' + step.desc + '</div></div><label class="toggle-switch"><input type="checkbox" ' + checked + ' ' + disabled + ' onchange="onToggleChange(\'' + step.key + '\', this.checked)" data-step="' + step.key + '"><span class="toggle-slider"></span></label></div>';
       }).join("");
     }
 
-    function onToggleChange(stepKey, checked) {
-      stepVisibility[stepKey] = checked;
-      if (!stepVisibility._manualOverrides) stepVisibility._manualOverrides = {};
-      stepVisibility._manualOverrides[stepKey] = true;
-      markVisibilityDirty();
-    }
+    function onToggleChange(stepKey, checked) { stepVisibility[stepKey] = checked; if (!stepVisibility._manualOverrides) stepVisibility._manualOverrides = {}; stepVisibility._manualOverrides[stepKey] = true; markVisibilityDirty(); }
 
     async function saveStepVisibility() {
       var status = document.getElementById("visibilityStatus");
       try {
-        var res = await fetch("/auth/save-settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ settings: { step_visibility: stepVisibility } })
-        });
+        var res = await fetch("/auth/save-settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ settings: { step_visibility: stepVisibility } }) });
         var data = await res.json();
-        if (data.success) {
-          status.textContent = "Visibility saved.";
-          status.style.color = "var(--success, #16a34a)";
-          clearVisibilityDirty();
-        } else {
-          status.textContent = "Failed: " + (data.error || "Unknown error");
-          status.style.color = "var(--error)";
-        }
-      } catch (e) {
-        console.error("Visibility save error:", e.message); reportError("saveVisibility", e);
-        status.textContent = "Failed to save visibility.";
-        status.style.color = "var(--error)";
-      }
+        if (data.success) { status.textContent = "Visibility saved."; status.style.color = "var(--success, #16a34a)"; clearVisibilityDirty(); }
+        else { status.textContent = "Failed: " + (data.error || "Unknown error"); status.style.color = "var(--error)"; }
+      } catch (e) { console.error("Visibility save error:", e.message); reportError("saveVisibility", e); status.textContent = "Failed to save visibility."; status.style.color = "var(--error)"; }
       setTimeout(function() { status.textContent = ""; }, 3000);
     }
 
     /* ===== KEY PERSONNEL ===== */
     async function loadKeyPersonnel() {
       var customerId = localStorage.getItem("driven_customer_id");
-      if (!customerId) {
-        document.getElementById("kpListBody").innerHTML = '<div class="kp-loading">No organization found.</div>';
-        return;
-      }
+      if (!customerId) { document.getElementById("kpListBody").innerHTML = '<div class="kp-loading">No organization found.</div>'; return; }
       try {
         var res = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(customerId));
         var data = await res.json();
-        if (data.success && data.keyPersonnel) {
-          keyPersonnel = data.keyPersonnel;
-          renderKeyPersonnel();
-        } else {
-          document.getElementById("kpListBody").innerHTML = '<div class="kp-loading">No key personnel assigned yet.</div>';
-        }
-      } catch (e) {
-        console.error("KP load error:", e.message); reportError("loadKeyPersonnel", e);
-        document.getElementById("kpListBody").innerHTML = '<div class="kp-loading">Failed to load key personnel.</div>';
-      }
+        if (data.success && data.keyPersonnel) { keyPersonnel = data.keyPersonnel; renderKeyPersonnel(); }
+        else { document.getElementById("kpListBody").innerHTML = '<div class="kp-loading">No key personnel assigned yet.</div>'; }
+      } catch (e) { console.error("KP load error:", e.message); reportError("loadKeyPersonnel", e); document.getElementById("kpListBody").innerHTML = '<div class="kp-loading">Failed to load key personnel.</div>'; }
     }
 
     function renderKeyPersonnel() {
       var all = keyPersonnel.concat(pendingKP);
-      if (all.length === 0) {
-        document.getElementById("kpListBody").innerHTML = '<div class="kp-loading">No key personnel assigned yet.</div>';
-        document.getElementById("kpCompleteBtn").style.display = "none";
-        return;
-      }
+      if (all.length === 0) { document.getElementById("kpListBody").innerHTML = '<div class="kp-loading">No key personnel assigned yet.</div>'; document.getElementById("kpCompleteBtn").style.display = "none"; return; }
       document.getElementById("kpListBody").innerHTML = all.map(function(kp, idx) {
         var tasks = kp.roles ? kp.roles.map(function(r) { return r.role; }) : (kp.task ? [kp.task] : []);
-        var email = esc(kp.email || "");
-        var name = esc(kp.name || "Unknown");
-        var isPending = kp._pending;
+        var email = esc(kp.email || ""); var name = esc(kp.name || "Unknown"); var isPending = kp._pending;
         var taskChips = tasks.map(function(t) {
           var escT = esc(t);
-          var removeTaskAction = isPending
-            ? 'removePendingKPTask(' + idx + ', \'' + escT.replace(/'/g, "\\'") + '\')'
-            : 'revokeKPTask(\'' + esc(kp.employeeId || kp.id || kp.email).replace(/'/g, "\\'") + '\', \'' + escT.replace(/'/g, "\\'") + '\')';
+          var removeTaskAction = isPending ? 'removePendingKPTask(' + idx + ', \'' + escT.replace(/'/g, "\\'") + '\')' : 'revokeKPTask(\'' + esc(kp.employeeId || kp.id || kp.email).replace(/'/g, "\\'") + '\', \'' + escT.replace(/'/g, "\\'") + '\')';
           return '<span class="kp-task-chip">' + escT + ' <button title="Remove this task" onclick="' + removeTaskAction + '">×</button></span>';
         }).join("");
-        var removeAllAction = isPending
-          ? 'removePendingKP(' + idx + ')'
-          : 'revokeKP(\'' + esc(kp.employeeId || kp.id || kp.email).replace(/'/g, "\\'") + '\')';
-        return '<div class="kp-person-row">' +
-          '<div class="kp-person-info">' +
-            '<div class="kp-person-name">' + name + (isPending ? ' <span style="font-size:11px;color:var(--text-muted);">(pending)</span>' : '') + '</div>' +
-            '<div class="kp-person-email">' + email + '</div>' +
-            '<div class="kp-person-tasks">' + taskChips + '</div>' +
-          '</div>' +
-          '<div class="kp-person-actions">' +
-            '<button class="kp-person-remove" onclick="' + removeAllAction + '">Remove All</button>' +
-          '</div>' +
-        '</div>';
+        var removeAllAction = isPending ? 'removePendingKP(' + idx + ')' : 'revokeKP(\'' + esc(kp.employeeId || kp.id || kp.email).replace(/'/g, "\\'") + '\')';
+        return '<div class="kp-person-row"><div class="kp-person-info"><div class="kp-person-name">' + name + (isPending ? ' <span style="font-size:11px;color:var(--text-muted);">(pending)</span>' : '') + '</div><div class="kp-person-email">' + email + '</div><div class="kp-person-tasks">' + taskChips + '</div></div><div class="kp-person-actions"><button class="kp-person-remove" onclick="' + removeAllAction + '">Remove All</button></div></div>';
       }).join("");
       document.getElementById("kpCompleteBtn").style.display = (keyPersonnel.length + pendingKP.length) > 0 ? "inline-block" : "none";
     }
 
     function addKeyPersonnel() {
-      var name = document.getElementById("kpName").value.trim();
-      var email = document.getElementById("kpEmail").value.trim();
-      var task = document.getElementById("kpTask").value;
-      if (!name || !email || !task) {
-        alert("Please fill in name, email, and assign a task.");
-        return;
-      }
+      var name = document.getElementById("kpName").value.trim(); var email = document.getElementById("kpEmail").value.trim(); var task = document.getElementById("kpTask").value;
+      if (!name || !email || !task) { alert("Please fill in name, email, and assign a task."); return; }
       var emailLower = email.toLowerCase();
-      // If this person already exists as a pending KP, add the task to their existing record
       var existing = pendingKP.find(function(kp) { return kp.email.toLowerCase() === emailLower; });
-      if (existing) {
-        if (!existing.roles) existing.roles = [];
-        if (!existing.roles.some(function(r) { return r.role === task; })) {
-          existing.roles.push({ role: task });
-        } else {
-          alert(task + " is already assigned to this person.");
-          return;
-        }
-      } else {
-        pendingKP.push({ name: name, email: email, task: task, roles: [{ role: task }], _pending: true });
-      }
-      document.getElementById("kpName").value = "";
-      document.getElementById("kpEmail").value = "";
-      document.getElementById("kpTask").value = "";
-      renderKeyPersonnel();
+      if (existing) { if (!existing.roles) existing.roles = []; if (!existing.roles.some(function(r) { return r.role === task; })) { existing.roles.push({ role: task }); } else { alert(task + " is already assigned to this person."); return; } }
+      else { pendingKP.push({ name: name, email: email, task: task, roles: [{ role: task }], _pending: true }); }
+      document.getElementById("kpName").value = ""; document.getElementById("kpEmail").value = ""; document.getElementById("kpTask").value = ""; renderKeyPersonnel();
     }
 
-    function removePendingKPTask(idx, taskName) {
-      var kp = pendingKP[idx];
-      if (!kp) return;
-      if (kp.roles) {
-        kp.roles = kp.roles.filter(function(r) { return r.role !== taskName; });
-        if (kp.roles.length === 0) {
-          pendingKP.splice(idx, 1);
-        }
-      } else {
-        pendingKP.splice(idx, 1);
-      }
-      renderKeyPersonnel();
-    }
-
-    function removePendingKP(idx) {
-      pendingKP.splice(idx, 1);
-      renderKeyPersonnel();
-    }
-
-    // Normalize id comparison (API returns numeric ids; onclick passes strings)
-    function kpIdMatches(kp, id) {
-      var kpId = kp.employeeId || kp.id || kp.email;
-      return String(kpId) === String(id);
-    }
+    function removePendingKPTask(idx, taskName) { var kp = pendingKP[idx]; if (!kp) return; if (kp.roles) { kp.roles = kp.roles.filter(function(r) { return r.role !== taskName; }); if (kp.roles.length === 0) { pendingKP.splice(idx, 1); } } else { pendingKP.splice(idx, 1); } renderKeyPersonnel(); }
+    function removePendingKP(idx) { pendingKP.splice(idx, 1); renderKeyPersonnel(); }
+    function kpIdMatches(kp, id) { var kpId = kp.employeeId || kp.id || kp.email; return String(kpId) === String(id); }
 
     async function revokeKPTask(employeeId, taskName) {
       if (!confirm('Remove the task "' + taskName + '" from this key personnel?')) return;
       var customerId = localStorage.getItem("driven_customer_id");
       try {
-        var res = await fetch("/api/onboarding/key-personnel/revoke", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ customerId: customerId, employeeId: employeeId, roles: [taskName] })
-        });
+        var res = await fetch("/api/onboarding/key-personnel/revoke", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerId: customerId, employeeId: employeeId, roles: [taskName] }) });
         var data = await res.json();
-        if (data.success) {
-          var kp = keyPersonnel.find(function(k) { return kpIdMatches(k, employeeId); });
-          if (kp && kp.roles) {
-            kp.roles = kp.roles.filter(function(r) { return r.role !== taskName; });
-            if (kp.roles.length === 0) {
-              keyPersonnel = keyPersonnel.filter(function(k) { return !kpIdMatches(k, employeeId); });
-            }
-          }
-          renderKeyPersonnel();
-        } else {
-          alert("Failed: " + (data.error || "Unknown error"));
-        }
-      } catch (e) {
-        console.error("Revoke task error:", e.message); reportError("revokeTask", e);
-        alert("Failed to remove task.");
-      }
+        if (data.success) { var kp = keyPersonnel.find(function(k) { return kpIdMatches(k, employeeId); }); if (kp && kp.roles) { kp.roles = kp.roles.filter(function(r) { return r.role !== taskName; }); if (kp.roles.length === 0) { keyPersonnel = keyPersonnel.filter(function(k) { return !kpIdMatches(k, employeeId); }); } } renderKeyPersonnel(); } else { alert("Failed: " + (data.error || "Unknown error")); }
+      } catch (e) { console.error("Revoke task error:", e.message); reportError("revokeTask", e); alert("Failed to remove task."); }
     }
 
     async function revokeKP(employeeId) {
       if (!confirm("Remove this key personnel and all their task assignments?")) return;
       var customerId = localStorage.getItem("driven_customer_id");
       try {
-        var res = await fetch("/api/onboarding/key-personnel/revoke", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ customerId: customerId, employeeId: employeeId, revokeAll: true })
-        });
+        var res = await fetch("/api/onboarding/key-personnel/revoke", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerId: customerId, employeeId: employeeId, revokeAll: true }) });
         var data = await res.json();
-        if (data.success) {
-          keyPersonnel = keyPersonnel.filter(function(kp) { return !kpIdMatches(kp, employeeId); });
-          renderKeyPersonnel();
-        } else {
-          alert("Failed: " + (data.error || "Unknown error"));
-        }
-      } catch (e) {
-        console.error("Revoke error:", e.message); reportError("revokeKeyPersonnel", e);
-        alert("Failed to remove key personnel.");
-      }
+        if (data.success) { keyPersonnel = keyPersonnel.filter(function(kp) { return !kpIdMatches(kp, employeeId); }); renderKeyPersonnel(); } else { alert("Failed: " + (data.error || "Unknown error")); }
+      } catch (e) { console.error("Revoke error:", e.message); reportError("revokeKeyPersonnel", e); alert("Failed to remove key personnel."); }
     }
 
+    /* ===== COMPLETE KEY PERSONNEL — creates INACTIVE accounts, no emails ===== */
     async function completeKeyPersonnel() {
       var btn = document.getElementById("kpCompleteBtn");
-      btn.disabled = true;
-      btn.textContent = "Sending invitations…";
-      var customerId = localStorage.getItem("driven_customer_id");
-      var adminUser = window.dashUser || {};
-      // Group pending KP by email — one entry per person with all their tasks
+      btn.disabled = true; btn.textContent = "Creating accounts…";
+      var customerId = localStorage.getItem("driven_customer_id"); var adminUser = window.dashUser || {};
       var grouped = {};
-      pendingKP.forEach(function(kp) {
-        var key = kp.email.toLowerCase();
-        if (!grouped[key]) {
-          grouped[key] = { name: kp.name, email: kp.email, tasks: [] };
-        }
-        if (kp.roles) {
-          kp.roles.forEach(function(r) {
-            if (grouped[key].tasks.indexOf(r.role) === -1) grouped[key].tasks.push(r.role);
-          });
-        } else if (kp.task && grouped[key].tasks.indexOf(kp.task) === -1) {
-          grouped[key].tasks.push(kp.task);
-        }
-      });
-      var kpPayload = Object.keys(grouped).map(function(key) {
-        var g = grouped[key];
-        return { firstName: g.name.split(" ")[0], lastName: g.name.split(" ").slice(1).join(" "), email: g.email, tasks: g.tasks };
-      });
+      pendingKP.forEach(function(kp) { var key = kp.email.toLowerCase(); if (!grouped[key]) { grouped[key] = { name: kp.name, email: kp.email, tasks: [] }; } if (kp.roles) { kp.roles.forEach(function(r) { if (grouped[key].tasks.indexOf(r.role) === -1) grouped[key].tasks.push(r.role); }); } else if (kp.task && grouped[key].tasks.indexOf(kp.task) === -1) { grouped[key].tasks.push(kp.task); } });
+      var kpPayload = Object.keys(grouped).map(function(key) { var g = grouped[key]; return { firstName: g.name.split(" ")[0], lastName: g.name.split(" ").slice(1).join(" "), email: g.email, tasks: g.tasks }; });
       try {
-        var res = await fetch("/api/onboarding/key-personnel/complete", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            customerId: customerId,
-            adminName: adminUser.first_name || adminUser.email || "Admin",
-            adminEmail: adminUser.email || "",
-            keyPersonnel: kpPayload
-          })
-        });
+        var res = await fetch("/api/onboarding/key-personnel/complete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerId: customerId, adminName: adminUser.first_name || adminUser.email || "Admin", adminEmail: adminUser.email || "", keyPersonnel: kpPayload }) });
         var data = await res.json();
         if (data.success) {
-          pendingKP = [];
-          await loadKeyPersonnel();
-          btn.textContent = "Send Invitations & Create Accounts";
-          btn.disabled = false;
-          alert("Invitations sent successfully!");
-        } else {
-          alert("Failed: " + (data.error || "Unknown error"));
-          btn.textContent = "Send Invitations & Create Accounts";
-          btn.disabled = false;
-        }
-      } catch (e) {
-        console.error("Complete KP error:", e.message); reportError("completeKeyPersonnel", e);
-        alert("Failed to send invitations.");
-        btn.textContent = "Send Invitations & Create Accounts";
-        btn.disabled = false;
-      }
+          pendingKP = []; await loadKeyPersonnel(); btn.textContent = "Create Accounts"; btn.disabled = false;
+          alert("Accounts created successfully!\n\nKey Personnel accounts have been created but are INACTIVE. Invitation emails will NOT be sent until you click \"Finalize Onboarding\" after all tasks are 100% complete.\n\nThis prevents employees from logging in before your company's information is fully set up.");
+        } else { alert("Failed: " + (data.error || "Unknown error")); btn.textContent = "Create Accounts"; btn.disabled = false; }
+      } catch (e) { console.error("Complete KP error:", e.message); reportError("completeKeyPersonnel", e); alert("Failed to create accounts."); btn.textContent = "Create Accounts"; btn.disabled = false; }
     }
 
     /* ===== ONBOARDING PROGRESS + COMPLETE ===== */
-    // Auto-detect completion from localStorage data (same logic as onboarding dashboard)
     function adminAutoDetect(stepKey) {
       switch (stepKey) {
-        case "roles-permissions":
-          return false; // Must be manually marked complete
-        case "employees":
-          return parseInt(localStorage.getItem("driven_employee_count") || "0") > 0 ||
-                 localStorage.getItem("driven_step3_complete") === "true";
-        case "locations":
-          return parseInt(localStorage.getItem("driven_location_count") || "0") > 0;
-        case "clients":
-          return parseInt(localStorage.getItem("driven_client_count") || "0") > 0 ||
-                 localStorage.getItem("driven_step4_complete") === "true";
-        case "divisions":
-          return parseInt(localStorage.getItem("driven_division_count") || "0") > 0 ||
-                 localStorage.getItem("driven_step5_complete") === "true";
-        case "project-types":
-          return parseInt(localStorage.getItem("driven_project_type_count") || "0") > 0 ||
-                 localStorage.getItem("driven_step6_complete") === "true";
-        case "projects":
-          return parseInt(localStorage.getItem("driven_project_count") || "0") > 0 ||
-                 localStorage.getItem("driven_step7_complete") === "true";
-        case "equipment":
-          return parseInt(localStorage.getItem("driven_equipment_count") || "0") > 0 ||
-                 localStorage.getItem("driven_step8_complete") === "true";
-        default:
-          return false;
+        case "roles-permissions": return false;
+        case "employees": return parseInt(localStorage.getItem("driven_employee_count") || "0") > 0 || localStorage.getItem("driven_step3_complete") === "true";
+        case "locations": return parseInt(localStorage.getItem("driven_location_count") || "0") > 0;
+        case "clients": return parseInt(localStorage.getItem("driven_client_count") || "0") > 0 || localStorage.getItem("driven_step4_complete") === "true";
+        case "divisions": return parseInt(localStorage.getItem("driven_division_count") || "0") > 0 || localStorage.getItem("driven_step5_complete") === "true";
+        case "project-types": return parseInt(localStorage.getItem("driven_project_type_count") || "0") > 0 || localStorage.getItem("driven_step6_complete") === "true";
+        case "projects": return parseInt(localStorage.getItem("driven_project_count") || "0") > 0 || localStorage.getItem("driven_step7_complete") === "true";
+        case "equipment": return parseInt(localStorage.getItem("driven_equipment_count") || "0") > 0 || localStorage.getItem("driven_step8_complete") === "true";
+        default: return false;
       }
     }
 
-    // Check if a task is fully complete (auto-detected data OR all assigned KPs clicked Complete)
     function adminIsTaskComplete(stepKey) {
-      // Auto-detected data counts as complete
       if (adminAutoDetect(stepKey)) return true;
-
-      // Check per-KP completions from localStorage (driven_task_completions)
-      var taskCompletions = {};
-      try { taskCompletions = JSON.parse(localStorage.getItem("driven_task_completions") || "{}"); } catch(e) {}
-
-      // Find the task label for this step key
-      var stepDef = STEP_DEFS.find(function(s) { return s.key === stepKey; });
-      if (!stepDef) return false;
-      var taskLabel = stepDef.label;
-
-      // Get emails of KPs assigned to this task
+      var taskCompletions = {}; try { taskCompletions = JSON.parse(localStorage.getItem("driven_task_completions") || "{}"); } catch(e) {}
+      var stepDef = STEP_DEFS.find(function(s) { return s.key === stepKey; }); if (!stepDef) return false; var taskLabel = stepDef.label;
       var assignedEmails = [];
-      keyPersonnel.forEach(function(kp) {
-        var tasks = kp.roles ? kp.roles.map(function(r) { return r.role; }) : (kp.task ? [kp.task] : []);
-        if (tasks.indexOf(taskLabel) !== -1 && kp.email) {
-          assignedEmails.push(kp.email.toLowerCase());
-        }
-      });
-      pendingKP.forEach(function(kp) {
-        var tasks = kp.roles ? kp.roles.map(function(r) { return r.role; }) : (kp.task ? [kp.task] : []);
-        if (tasks.indexOf(taskLabel) !== -1 && kp.email) {
-          assignedEmails.push(kp.email.toLowerCase());
-        }
-      });
-
+      keyPersonnel.forEach(function(kp) { var tasks = kp.roles ? kp.roles.map(function(r) { return r.role; }) : (kp.task ? [kp.task] : []); if (tasks.indexOf(taskLabel) !== -1 && kp.email) { assignedEmails.push(kp.email.toLowerCase()); } });
+      pendingKP.forEach(function(kp) { var tasks = kp.roles ? kp.roles.map(function(r) { return r.role; }) : (kp.task ? [kp.task] : []); if (tasks.indexOf(taskLabel) !== -1 && kp.email) { assignedEmails.push(kp.email.toLowerCase()); } });
       var completions = taskCompletions[taskLabel] || [];
-      if (assignedEmails.length === 0) {
-        // No KP assigned — admin-only task; check if anyone clicked Complete
-        return completions.length > 0;
-      }
-      // All assigned KPs must have clicked Complete
-      for (var i = 0; i < assignedEmails.length; i++) {
-        if (completions.indexOf(assignedEmails[i]) === -1) return false;
-      }
+      if (assignedEmails.length === 0) { return completions.length > 0; }
+      for (var i = 0; i < assignedEmails.length; i++) { if (completions.indexOf(assignedEmails[i]) === -1) return false; }
       return true;
     }
 
     function updateProgress() {
       var visibleSteps = STEP_DEFS.filter(function(s) { return stepVisibility[s.key] !== false; });
-      // Count tasks as complete based on auto-detected data + KP completions
-      var completed = 0;
-      visibleSteps.forEach(function(s) {
-        if (adminIsTaskComplete(s.key)) completed++;
-      });
-      var total = visibleSteps.length;
-      var pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+      var completed = 0; visibleSteps.forEach(function(s) { if (adminIsTaskComplete(s.key)) completed++; });
+      var total = visibleSteps.length; var pct = total > 0 ? Math.round((completed / total) * 100) : 0;
       document.getElementById("progressBarFill").style.width = pct + "%";
       document.getElementById("progressText").textContent = completed + " of " + total + " tasks complete";
-      // Show mark complete button when all steps are done (placeholder logic)
-      if (completed >= total && total > 0) {
-        document.getElementById("markCompleteBtn").classList.add("show");
-      } else {
-        document.getElementById("markCompleteBtn").classList.remove("show");
-      }
-      // Show reopen button if onboarding is complete
-      if (onboardingComplete) {
-        document.getElementById("reopenOnboardingBtn").style.display = "inline-block";
-      }
-      // Show the 100% complete panel when ALL visible tasks are done
-      // (this is the "Key Personnel have closed all onboarding tasks" message)
+      if (completed >= total && total > 0) { document.getElementById("markCompleteBtn").classList.add("show"); } else { document.getElementById("markCompleteBtn").classList.remove("show"); }
+      if (onboardingComplete) { document.getElementById("reopenOnboardingBtn").style.display = "inline-block"; }
       var completePanel = document.getElementById("onboardingCompletePanel");
-      if (completePanel) {
-        if (total > 0 && completed >= total && !onboardingComplete) {
-          completePanel.classList.add("show");
-        } else {
-          completePanel.classList.remove("show");
-        }
-      }
+      if (completePanel) { if (total > 0 && completed >= total && !onboardingComplete) { completePanel.classList.add("show"); } else { completePanel.classList.remove("show"); } }
     }
 
-    function showCompleteModal() {
-      document.getElementById("confirmModal").classList.add("active");
-    }
-    function closeCompleteModal() {
-      document.getElementById("confirmModal").classList.remove("active");
-    }
+    function showCompleteModal() { document.getElementById("confirmModal").classList.add("active"); }
+    function closeCompleteModal() { document.getElementById("confirmModal").classList.remove("active"); }
 
     async function markOnboardingComplete() {
       closeCompleteModal();
-      try {
-        await fetch("/auth/save-settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ settings: { onboarding_complete: true } })
-        });
-        onboardingComplete = true;
-        hideOnboardingTab();
-        switchTab("overview");
-      } catch (e) {
-        console.error("Mark complete error:", e.message); reportError("markOnboardingComplete", e);
-        alert("Failed to mark onboarding complete.");
-      }
+      try { await fetch("/auth/save-settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ settings: { onboarding_complete: true } }) }); onboardingComplete = true; hideOnboardingTab(); switchTab("overview"); }
+      catch (e) { console.error("Mark complete error:", e.message); reportError("markOnboardingComplete", e); alert("Failed to mark onboarding complete."); }
     }
 
-    function hideOnboardingTab() {
-      var onboardingTab = document.querySelector('[data-tab="onboarding"]');
-      if (onboardingTab) onboardingTab.style.display = "none";
-    }
+    function hideOnboardingTab() { var onboardingTab = document.querySelector('[data-tab="onboarding"]'); if (onboardingTab) onboardingTab.style.display = "none"; }
 
-    // Finalize onboarding: removes all KP assignments so employees can
-    // access their role-based dashboards. Future data entry happens in
-    // department dashboards, not the Onboarding Dashboard.
+    /* ===== FINALIZE ONBOARDING — sends invites + activates accounts + removes KP ===== */
     async function finalizeOnboarding() {
       var btn = document.getElementById("finalizeOnboardingBtn");
-      if (!confirm("Finalize onboarding?\n\nThis will remove all Key Personnel onboarding assignments and unlock role-based dashboards for your employees (Owner, Admin, and department dashboards).\n\nAfter finalizing, future additions — new employees, equipment, locations, etc. — are managed by departments through their own dashboards, not the Onboarding Dashboard.\n\nClick OK to finalize, or Cancel to keep onboarding open.")) return;
-      btn.disabled = true;
-      btn.textContent = "Finalizing…";
+      if (!confirm("Finalize onboarding?\n\nThis will:\n1. Activate all Key Personnel accounts and send invitation emails\n2. Remove all Key Personnel onboarding assignments\n3. Unlock role-based dashboards for your employees\n\nAfter finalizing, future additions are managed by departments through their own dashboards.\n\nClick OK to finalize, or Cancel to keep onboarding open.")) return;
+      btn.disabled = true; btn.textContent = "Finalizing…";
       var customerId = localStorage.getItem("driven_customer_id");
       try {
-        // 1) Remove all KP assignments (revoke all)
-        var revokeRes = await fetch("/api/onboarding/key-personnel/revoke", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ customerId: customerId, revokeAll: true })
-        });
+        // 1) Send invite emails + activate all pending KP accounts
+        var inviteRes = await fetch("/api/onboarding/key-personnel/send-invites", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerId: customerId }) });
+        var inviteData = await inviteRes.json();
+        if (!inviteData.success) { console.error("Send invites failed:", inviteData.error); }
+        // 2) Remove all KP assignments (revoke all)
+        var revokeRes = await fetch("/api/onboarding/key-personnel/revoke", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerId: customerId, revokeAll: true }) });
         var revokeData = await revokeRes.json();
-        if (!revokeData.success) {
-          alert("Failed to remove Key Personnel assignments: " + (revokeData.error || "Unknown error"));
-          btn.disabled = false;
-          btn.textContent = "Finalize Onboarding & Unlock Dashboards";
-          return;
-        }
-        // 2) Mark onboarding complete
-        var completeRes = await fetch("/auth/save-settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ settings: { onboarding_complete: true } })
-        });
+        if (!revokeData.success) { alert("Failed to remove Key Personnel assignments: " + (revokeData.error || "Unknown error")); btn.disabled = false; btn.textContent = "Finalize Onboarding & Send Invitations"; return; }
+        // 3) Mark onboarding complete
+        var completeRes = await fetch("/auth/save-settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ settings: { onboarding_complete: true } }) });
         var completeData = await completeRes.json();
-        if (!completeData.success) {
-          alert("Failed to mark onboarding complete: " + (completeData.error || "Unknown error"));
-          btn.disabled = false;
-          btn.textContent = "Finalize Onboarding & Unlock Dashboards";
-          return;
-        }
-        // 3) Update UI
-        onboardingComplete = true;
-        keyPersonnel = [];
-        pendingKP = [];
-        var panel = document.getElementById("onboardingCompletePanel");
-        if (panel) panel.classList.remove("show");
+        if (!completeData.success) { alert("Failed to mark onboarding complete: " + (completeData.error || "Unknown error")); btn.disabled = false; btn.textContent = "Finalize Onboarding & Send Invitations"; return; }
+        // 4) Update UI
+        onboardingComplete = true; keyPersonnel = []; pendingKP = [];
+        var panel = document.getElementById("onboardingCompletePanel"); if (panel) panel.classList.remove("show");
         document.getElementById("reopenOnboardingBtn").style.display = "inline-block";
-        hideOnboardingTab();
-        switchTab("overview");
-        alert("Onboarding finalized!\n\nKey Personnel assignments have been removed. Your employees can now access their role-based dashboards. Future additions are managed by departments through their own dashboards.");
-      } catch (e) {
-        console.error("Finalize onboarding error:", e.message); reportError("finalizeOnboarding", e);
-        alert("Failed to finalize onboarding.");
-        btn.disabled = false;
-        btn.textContent = "Finalize Onboarding & Unlock Dashboards";
-      }
+        hideOnboardingTab(); switchTab("overview");
+        alert("Onboarding finalized!\n\nInvitation emails have been sent to all Key Personnel. Their accounts are now active and they can log in.\n\nKey Personnel assignments have been removed. Your employees can now access their role-based dashboards.");
+      } catch (e) { console.error("Finalize onboarding error:", e.message); reportError("finalizeOnboarding", e); alert("Failed to finalize onboarding."); btn.disabled = false; btn.textContent = "Finalize Onboarding & Send Invitations"; }
     }
 
     async function reopenOnboarding() {
       var btn = document.getElementById("reopenOnboardingBtn");
       if (btn) { btn.disabled = true; btn.textContent = "Reopening…"; }
-      try {
-        await fetch("/auth/save-settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ settings: { onboarding_complete: false } })
-        });
-        onboardingComplete = false;
-        var onboardingTab = document.querySelector('[data-tab="onboarding"]');
-        if (onboardingTab) onboardingTab.style.display = "";
-        document.getElementById("reopenOnboardingBtn").style.display = "none";
-        switchTab("onboarding");
-      } catch (e) {
-        console.error("Reopen error:", e.message); reportError("reopenOnboarding", e);
-        alert("Failed to reopen onboarding.");
-      } finally {
-        if (btn) { btn.disabled = false; btn.textContent = "Reopen Onboarding"; }
-      }
+      try { await fetch("/auth/save-settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ settings: { onboarding_complete: false } }) }); onboardingComplete = false; var onboardingTab = document.querySelector('[data-tab="onboarding"]'); if (onboardingTab) onboardingTab.style.display = ""; document.getElementById("reopenOnboardingBtn").style.display = "none"; switchTab("onboarding"); }
+      catch (e) { console.error("Reopen error:", e.message); reportError("reopenOnboarding", e); alert("Failed to reopen onboarding."); }
+      finally { if (btn) { btn.disabled = false; btn.textContent = "Reopen Onboarding"; } }
     }
 
     /* ===== UNSAVED-CHANGES — PAGE LEAVE / LOGOUT GUARD ===== */
-    // Warn when the admin tries to close/refresh the page with unsaved changes
-    window.addEventListener("beforeunload", function(e) {
-      if (visibilityDirty || settingsDirty) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    });
+    window.addEventListener("beforeunload", function(e) { if (visibilityDirty || settingsDirty) { e.preventDefault(); e.returnValue = ""; } });
+    window.dashLogout = function() { if (visibilityDirty || settingsDirty) { var proceed = confirm("You have unsaved changes.\n\nClick Cancel to go back and save, or OK to leave without saving."); if (!proceed) return; } try { fetch("/auth/logout", { method: "POST" }); } catch (e) { console.error("Logout error:", e.message); } window.location.href = "/public/login.html"; };
 
-    // Override dashLogout (from dashboard-common.js) to warn about unsaved changes
-    window.dashLogout = function() {
-      if (visibilityDirty || settingsDirty) {
-        var proceed = confirm("You have unsaved changes.\n\nClick Cancel to go back and save, or OK to leave without saving.");
-        if (!proceed) return;
-      }
-      // Proceed with the original logout behavior
-      try {
-        fetch("/auth/logout", { method: "POST" });
-      } catch (e) {
-        console.error("Logout error:", e.message);
-      }
-      window.location.href = "/public/login.html";
-    };
-
-    /* ===== STICKY TABS (move tab bar + subtab bars inside shared header) ===== */
+    /* ===== STICKY TABS ===== */
     function makeTabsSticky() {
-      var header = document.getElementById("dashHeader");
-      var tabBar = document.getElementById("adminTabBar");
-      if (header && tabBar && !header.contains(tabBar)) {
-        header.appendChild(tabBar);
-      }
-      // Move subtab bars into the header too (right after the main tab bar) so they stick
-      var settingsSubtabBar = document.getElementById("settingsSubtabBar");
-      var onboardingSubtabBar = document.getElementById("onboardingSubtabBar");
-      if (header && settingsSubtabBar && !header.contains(settingsSubtabBar)) {
-        header.appendChild(settingsSubtabBar);
-      }
-      if (header && onboardingSubtabBar && !header.contains(onboardingSubtabBar)) {
-        header.appendChild(onboardingSubtabBar);
-      }
+      var header = document.getElementById("dashHeader"); var tabBar = document.getElementById("adminTabBar");
+      if (header && tabBar && !header.contains(tabBar)) { header.appendChild(tabBar); }
+      var settingsSubtabBar = document.getElementById("settingsSubtabBar"); var onboardingSubtabBar = document.getElementById("onboardingSubtabBar");
+      if (header && settingsSubtabBar && !header.contains(settingsSubtabBar)) { header.appendChild(settingsSubtabBar); }
+      if (header && onboardingSubtabBar && !header.contains(onboardingSubtabBar)) { header.appendChild(onboardingSubtabBar); }
     }
 
     /* ===== INSERT HEADER TITLE ===== */
     function insertHeaderTitle() {
       var row1 = document.querySelector(".dash-header-row1");
-      if (row1 && !document.querySelector(".admin-header-title")) {
-        var title = document.createElement("div");
-        title.className = "admin-header-title";
-        title.textContent = "Admin Dashboard";
-        // Insert between logo area and driven logo
-        var logoArea = document.getElementById("dashCustomerLogoArea");
-        var drivenLogo = row1.querySelector(".dash-driven-logo");
-        if (logoArea && drivenLogo) {
-          row1.insertBefore(title, drivenLogo);
-        }
-      }
+      if (row1 && !document.querySelector(".admin-header-title")) { var title = document.createElement("div"); title.className = "admin-header-title"; title.textContent = "Admin Dashboard"; var logoArea = document.getElementById("dashCustomerLogoArea"); var drivenLogo = row1.querySelector(".dash-driven-logo"); if (logoArea && drivenLogo) { row1.insertBefore(title, drivenLogo); } }
     }
 
     /* ===== INIT ===== */
     async function init() {
-      // Wait for shared dashboard-common.js to load session
       document.addEventListener("dashSessionLoaded", async function() {
         var user = window.dashUser;
-        if (!user) {
-          window.location.href = "/public/login.html";
-          return;
-        }
-
-        // Greeting — include the company name
+        if (!user) { window.location.href = "/public/login.html"; return; }
         var firstName = user.first_name || user.email;
         var orgName = user.org_name || localStorage.getItem("driven_org_name") || "";
         var welcomeEl = document.getElementById("welcome-name");
-        if (welcomeEl) {
-          welcomeEl.textContent = orgName ? (firstName + " — " + orgName) : firstName;
-}
-document.getElementById("account-name").textContent = user.first_name ? (user.first_name + " " + (user.last_name || "")) : user.email;
-        var emailEl = document.getElementById("account-email");
-        if (emailEl) emailEl.textContent = user.email || "";
-
-        // Insert title and make tabs sticky
-        insertHeaderTitle();
-        makeTabsSticky();
-
-        // Load logo
-        await loadLogo();
-
-        // Load settings
-        await loadSettings();
-
-        // Load key personnel
-        await loadKeyPersonnel();
-
-        // Update progress
-        updateProgress();
-
-        // Theme switch
-        updateThemeSwitch();
-
-        // Render forms tab
-        renderFormsTab();
-
-        // Show dashboard
-        document.getElementById("loading").style.display = "none";
-        document.getElementById("dashboard").style.display = "block";
-
-        // Stats — fetch real counts from the API
+        if (welcomeEl) { welcomeEl.textContent = orgName ? (firstName + " — " + orgName) : firstName; }
+        document.getElementById("account-name").textContent = user.first_name ? (user.first_name + " " + (user.last_name || "")) : user.email;
+        var emailEl = document.getElementById("account-email"); if (emailEl) emailEl.textContent = user.email || "";
+        insertHeaderTitle(); makeTabsSticky();
+        await loadLogo(); await loadSettings(); await loadKeyPersonnel();
+        updateProgress(); updateThemeSwitch(); renderFormsTab();
+        document.getElementById("loading").style.display = "none"; document.getElementById("dashboard").style.display = "block";
         loadDashboardStats();
       });
     }
