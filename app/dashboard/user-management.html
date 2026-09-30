@@ -510,7 +510,7 @@ function initials(name) {
 function formatDate(d) {
   if (!d) return '—';
   try { return new Date(d).toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' }); }
-  catch(e) { return d; }
+  catch(e) { return esc(d); }
 }
 
 // ===== LOAD USERS =====
@@ -783,13 +783,8 @@ function showConflictNotice(userId, conflictData) {
     loadUserPermissions(userId);
   };
 
-  // Auto-dismiss after 8 seconds and auto-refresh
-  setTimeout(function() {
-    if (banner.parentNode) {
-      banner.remove();
-      loadUserPermissions(userId);
-    }
-  }, 8000);
+  // Do NOT auto-refresh — user's unsaved toggle would be silently lost.
+  // They must click "Refresh your view" to reload.
 }
 
 // ===== LOAD USER ACTIVITY =====
@@ -830,24 +825,21 @@ async function loadUserActivity(userId) {
 // ===== LOAD USER WORK HISTORY =====
 async function loadUserWorkHistory(userId, userEmail) {
   try {
-    var woResp = await fetch('/api/work-orders?assigned_to=' + encodeURIComponent(userEmail));
-    var woData = await woResp.json();
+    var encEmail = encodeURIComponent(userEmail);
+    var [woResp, fuelResp, inspResp, pmResp, transferResp] = await Promise.all([
+      fetch('/api/work-orders?assigned_to=' + encEmail),
+      fetch('/api/fuel-transactions?person=' + encEmail),
+      fetch('/api/inspections?inspector=' + encEmail),
+      fetch('/api/pm-records?mechanic=' + encEmail),
+      fetch('/api/transfers?created_by=' + encEmail)
+    ]);
+    var [woData, fuelData, inspData, pmData, transferData] = await Promise.all([
+      woResp.json(), fuelResp.json(), inspResp.json(), pmResp.json(), transferResp.json()
+    ]);
     var workOrders = woData.work_orders || [];
-
-    var fuelResp = await fetch('/api/fuel-transactions?person=' + encodeURIComponent(userEmail));
-    var fuelData = await fuelResp.json();
     var fuelTx = fuelData.transactions || [];
-
-    var inspResp = await fetch('/api/inspections?inspector=' + encodeURIComponent(userEmail));
-    var inspData = await inspResp.json();
     var inspections = inspData.inspections || [];
-
-    var pmResp = await fetch('/api/pm-records?mechanic=' + encodeURIComponent(userEmail));
-    var pmData = await pmResp.json();
     var pmRecords = pmData.pm_records || [];
-
-    var transferResp = await fetch('/api/transfers?created_by=' + encodeURIComponent(userEmail));
-    var transferData = await transferResp.json();
     var transfers = transferData.transfers || [];
 
     var html = '';
@@ -931,7 +923,14 @@ async function toggleUserStatus(userId, currentlyActive) {
         alert('WARNING: ' + safeData.message + '\n\nAssign another admin before deactivating this user.');
         return;
       }
-    } catch(e) { }
+      if (!safeResp.ok) {
+        alert('Unable to verify admin safeguard. Deactivation blocked for safety. Please try again.');
+        return;
+      }
+    } catch(e) {
+      alert('Unable to verify admin safeguard (network error). Deactivation blocked for safety. Please try again.');
+      return;
+    }
   }
 
   try {
@@ -1013,8 +1012,10 @@ async function createUser() {
   var password = document.getElementById('newUserPassword').value;
 
   if (!email) { alert('Email is required'); return; }
+  if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) { alert('Please enter a valid email address'); return; }
   if (!roleId) { alert('Role is required'); return; }
   if (!password) { alert('Temporary password is required'); return; }
+  if (password.length < 8) { alert('Password must be at least 8 characters'); return; }
 
   try {
     var resp = await fetch('/api/onboarding/users', {
