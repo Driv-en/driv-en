@@ -3,16 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- ===== PAGE-SPECIFIC SEO ===== -->
 <title>DRIV‑EN | Project Management</title>
 <meta name="description" content="DRIV-EN — manage projects, project types, and clients.">
 <meta name="robots" content="noindex, nofollow">
 <link rel="canonical" href="https://www.driv-en.com/app/dashboard/project-management.html">
+
+<!-- Favicon -->
 <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
 <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
 <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
 <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
+
+<!-- ===== SHARED DASHBOARD CSS ===== -->
 <link rel="stylesheet" href="/app/shared/dashboard.css?v=11">
+
+<!-- ===== DIAMOND-PLATE BACKGROUND ===== -->
 <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
+
+<!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
 <script>
 (function() {
   var saved = localStorage.getItem("driven-theme");
@@ -21,7 +31,22 @@
   document.documentElement.setAttribute("data-theme", theme);
 })();
 </script>
+
 <style>
+/* ===== LOADING SCREEN ===== */
+.pm-loading { display:flex; align-items:center; justify-content:center; height:100vh; font-size:16px; color:var(--text-muted); }
+
+/* ===== HEADER OVERRIDE — logos + title on one row ===== */
+.dash-header-row3 { display:none !important; }
+#dashHeader .dash-theme-wrapper { display:none !important; }
+.dash-header-row2 { display:none !important; }
+
+@media (max-width:700px) {
+  .dash-customer-logo, .dash-customer-logo-placeholder { max-height:36px; max-width:80px; }
+  .dash-driven-logo { max-height:40px; }
+}
+
+/* ===== TAB BAR ===== */
 .pm-tab-bar { display:flex; gap:2px; max-width:1100px; margin:0 auto; padding:0 20px; overflow-x:auto; position:relative; z-index:1; background:#cbd5e1; border-bottom:2px solid #94a3b8; }
 .pm-tab { background:#94a3b8; border:1px solid #64748b; border-bottom:none; border-radius:8px 8px 0 0; padding:10px 22px; font-size:15px; font-weight:500; color:#1e293b; cursor:pointer; white-space:nowrap; transition:color 200ms ease, background 200ms ease, margin-top 200ms ease; margin-top:4px; position:relative; z-index:1; }
 .pm-tab:hover { color:#0f172a; background:#a5b4c4; margin-top:2px; }
@@ -30,36 +55,60 @@
 .pm-tab-dashboard:hover { background:#1d4ed8; color:#fff; margin-top:2px; }
 .pm-tab-logout { background:#b91c1c; border:1px solid #dc2626; border-bottom:none; border-radius:8px 8px 0 0; padding:10px 22px; font-size:15px; font-weight:600; color:#fff; cursor:pointer; white-space:nowrap; margin-top:4px; margin-left:auto; position:relative; z-index:1; transition:background 200ms ease, margin-top 200ms ease; }
 .pm-tab-logout:hover { background:#dc2626; margin-top:2px; }
+.pm-tab-content { display:none; }
+.pm-tab-content.active { display:block; }
+
+/* ===== MAIN CONTAINER ===== */
 .pm-main { max-width:1100px; margin:20px auto; padding:0 20px; position:relative; z-index:1; }
-.pm-welcome { margin-bottom:24px; }
-.pm-welcome h2 { margin:0 0 4px 0; font-size:22px; color:var(--text); }
+
+/* ===== WELCOME ===== */
+.pm-welcome { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:24px; margin-bottom:24px; }
+.pm-welcome h2 { margin:0 0 6px 0; font-size:20px; color:var(--text); }
 .pm-welcome p { margin:0; font-size:14px; color:var(--text-muted); }
+
+/* ===== MODULE GRID ===== */
 .pm-module-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:16px; }
 .pm-module-card { background:var(--bg-step); border:2px solid #16a34a; border-radius:8px; padding:16px; display:flex; flex-direction:column; gap:10px; cursor:pointer; transition:border-color 200ms ease, box-shadow 200ms ease; }
 .pm-module-card:hover { border-color:#15803d; box-shadow:0 2px 8px rgba(22,163,74,0.15); }
 .pm-module-title { font-size:15px; font-weight:600; color:var(--text); }
 .pm-module-body { font-size:13px; color:var(--text-muted); line-height:1.4; flex:1; }
 .pm-module-link { font-size:13px; color:#16a34a; font-weight:500; }
+
+/* ===== PLACEHOLDER ===== */
 .pm-placeholder { text-align:center; padding:60px 20px; color:var(--text-muted); }
 .pm-placeholder h3 { font-size:18px; margin:0 0 8px 0; color:var(--text); }
 .pm-placeholder p { font-size:14px; margin:0; }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width:700px) {
+  .pm-main { padding:0 12px; margin:12px auto; }
+  .pm-tab { padding:10px 16px; font-size:14px; }
+  .pm-tab-logout { padding:10px 16px; font-size:14px; }
+}
 </style>
 </head>
 <body data-page-title="Project Management">
 
+<!-- ===== HEADER (loaded by dashboard-common.js) ===== -->
 <div id="dashHeader"></div>
 
+<!-- ===== TAB BAR ===== -->
 <div class="pm-tab-bar">
   <div class="pm-tab active" data-tab="overview" onclick="switchTab('overview')">Overview</div>
   <div class="pm-tab" data-tab="projects" onclick="switchTab('projects')">Projects</div>
   <div class="pm-tab" data-tab="types" onclick="switchTab('types')">Project Types</div>
   <div class="pm-tab" data-tab="clients" onclick="switchTab('clients')">Clients</div>
-  <div class="pm-tab pm-tab-dashboard" onclick="window.location.href='/app/dashboard/admin.html'">&#8592; Dashboard</div>
+  <div class="pm-tab pm-tab-dashboard" onclick="goToMainDashboard()">&#8592; Dashboard</div>
   <div class="pm-tab-logout" onclick="dashLogout()">Logout</div>
 </div>
 
+<!-- ===== MAIN CONTENT ===== -->
 <div class="pm-main">
-  <div class="pm-tab-content" id="tab-overview">
+  <!-- LOADING -->
+  <div class="pm-loading" id="pmLoading">Loading project management...</div>
+
+  <!-- OVERVIEW -->
+  <div class="pm-tab-content active" id="tab-overview" style="display:none;">
     <div class="pm-welcome">
       <h2>Project Management</h2>
       <p>Manage projects, project types, and clients across your organization.</p>
@@ -82,30 +131,109 @@
       </div>
     </div>
   </div>
+
+  <!-- PROJECTS -->
   <div class="pm-tab-content" id="tab-projects" style="display:none;">
-    <div class="pm-placeholder"><h3>Projects</h3><p>This module will be available in a future update. Project creation, assignment, and tracking will be managed here.</p></div>
+    <div class="pm-placeholder">
+      <h3>Projects</h3>
+      <p>This module will be available in a future update. Project creation, assignment, and tracking will be managed here.</p>
+    </div>
   </div>
+
+  <!-- PROJECT TYPES -->
   <div class="pm-tab-content" id="tab-types" style="display:none;">
-    <div class="pm-placeholder"><h3>Project Types</h3><p>This module will be available in a future update. Project type definitions and templates will be managed here.</p></div>
+    <div class="pm-placeholder">
+      <h3>Project Types</h3>
+      <p>This module will be available in a future update. Project type definitions and templates will be managed here.</p>
+    </div>
   </div>
+
+  <!-- CLIENTS -->
   <div class="pm-tab-content" id="tab-clients" style="display:none;">
-    <div class="pm-placeholder"><h3>Clients</h3><p>This module will be available in a future update. Client management and contact information will be managed here.</p></div>
+    <div class="pm-placeholder">
+      <h3>Clients</h3>
+      <p>This module will be available in a future update. Client management and contact information will be managed here.</p>
+    </div>
   </div>
 </div>
 
+<!-- ===== FOOTER (loaded by dashboard-common.js) ===== -->
 <div id="dashFooter"></div>
+
+<!-- ===== SHARED DASHBOARD JS ===== -->
 <script src="/app/shared/dashboard-common.js?v=11"></script>
+
 <script>
+// ===== INIT =====
+document.addEventListener('dashSessionLoaded', async function() {
+  var user = window.dashUser;
+  if (!user) { window.location.href = '/public/login.html'; return; }
+
+  document.getElementById('pmLoading').style.display = 'none';
+  document.getElementById('tab-overview').style.display = 'block';
+
+  // Fix header layout — the header is loaded async by dashboard-common.js
+  var headerAttempts = 0;
+  var headerInterval = setInterval(function() {
+    headerAttempts++;
+    if (fixHeaderLayout() || headerAttempts > 50) {
+      clearInterval(headerInterval);
+    }
+  }, 100);
+});
+
+// ===== TAB SWITCHING =====
 function switchTab(tab) {
   document.querySelectorAll('.pm-tab').forEach(function(t) { t.classList.remove('active'); });
   document.querySelectorAll('.pm-tab-content').forEach(function(c) { c.style.display = 'none'; });
   document.querySelector('.pm-tab[data-tab="' + tab + '"]').classList.add('active');
   document.getElementById('tab-' + tab).style.display = 'block';
 }
-function dashLogout() {
-  document.cookie = 'driv_en_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.driv-en.com; secure; samesite=strict';
-  window.location.href = '/public/login.html';
+
+// ===== GO TO MAIN DASHBOARD =====
+function goToMainDashboard() {
+  var savedOrigin = sessionStorage.getItem('driven_dashboard_origin');
+  if (savedOrigin) { window.location.href = savedOrigin; return; }
+  var user = window.dashUser;
+  if (!user) { window.location.href = '/public/login.html'; return; }
+  var role = (user.role || '').toLowerCase();
+  if (role === 'driv-en founder' || role === 'owner') {
+    window.location.href = '/app/dashboard/owner-dashboard.html';
+  } else if (role === 'admin') {
+    window.location.href = '/app/dashboard/admin.html';
+  } else {
+    window.location.href = '/app/dashboard/employee-dashboard.html';
+  }
+}
+
+// ===== FIX HEADER — move title into row 1 so logos + title are on one row =====
+function fixHeaderLayout() {
+  var header = document.querySelector('.dash-header');
+  if (!header) return false;
+
+  var row1 = header.querySelector('.dash-header-row1');
+  var row2 = header.querySelector('.dash-header-row2');
+  var row3 = header.querySelector('.dash-header-row3');
+  var h1 = row2 ? row2.querySelector('h1') : null;
+
+  if (!row1 || !h1) return false;
+
+  if (h1.parentNode === row1) return true;
+
+  var drivenLogo = row1.querySelector('.dash-driven-logo');
+  row1.insertBefore(h1, drivenLogo);
+
+  row1.style.cssText = 'display:flex !important; justify-content:space-between !important; align-items:center !important; padding:8px 20px !important; gap:16px !important;';
+  h1.style.cssText = 'margin:0; font-size:20px; font-weight:600; text-align:center; flex:1;';
+
+  if (row2) row2.style.display = 'none';
+  if (row3) row3.style.display = 'none';
+
+  return true;
 }
 </script>
+
+<!-- ===== AUTH CHECK ===== -->
+<script src="/app/shared/auth-check.js?v=11"></script>
 </body>
 </html>
