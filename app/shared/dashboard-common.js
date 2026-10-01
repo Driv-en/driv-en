@@ -2,7 +2,7 @@
    DRIV‑EN DASHBOARD COMMON JS — Shared across all dashboard pages
    ==========================================================================
    This file is loaded by every dashboard page via:
-   <script src="/app/shared/dashboard-common.js?v=11"></script>
+   <script src="/app/shared/dashboard-common.js?v=12"></script>
 
    WHAT IT DOES (in order):
    1. Loads the shared dashboard header into <div id="dashHeader"></div>
