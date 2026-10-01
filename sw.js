@@ -6,6 +6,7 @@
  * This avoids the atomic failure problem where one missing file
  * breaks the entire cache.
  *
+ * v13 — October 1, 2026: Force cache purge — old SW was serving stale dashboard-common.js.
  * v12 — October 1, 2026: Bumped cache version to force refresh of
  *        dashboard-common.js fix for asset/project/company management
  *        return-to-dashboard button.
@@ -19,7 +20,7 @@
  *      to cache only when offline). Static assets are cache-first.
  */
 
-const CACHE = 'driv-en-v12';
+const CACHE = 'driv-en-v13';
 const STATIC_ASSETS = [
   '/app/shared/dashboard.css',
   '/app/shared/dashboard-common.js',
