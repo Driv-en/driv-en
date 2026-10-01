@@ -58,8 +58,10 @@ const WORKER_ROUTES = {
   // PM complete worker
   'pm-complete':       'https://driven-pm-complete.driv-en.workers.dev',
 
-  // Onboarding (legacy Airtable API worker)
-  'onboarding':        'https://driv-en-api.driv-en.workers.dev',
+  // Onboarding key-personnel worker (roles, permissions, key personnel)
+  'onboarding':        'https://onboarding-key-personnel.driv-en.workers.dev',
+
+  // Legacy API worker (CRUD for D1 tables)
   'Division':          'https://driv-en-api.driv-en.workers.dev',
   'Clients':           'https://driv-en-api.driv-en.workers.dev',
   'Project':           'https://driv-en-api.driv-en.workers.dev',
