@@ -1,6 +1,7 @@
 /**
  * sw.js — DRIV‑EN Service Worker (app scope)
  * 
+ * v13 — October 1, 2026: Force cache purge — old SW was serving stale dashboard-common.js.
  * v12 — October 1, 2026: Cache version bump to match admin.html ?v=12 script tags.
  * v11 — September 30, 2026: Consolidated with root /sw.js strategy.
  *        Network-first for pages, cache-first for static assets.
@@ -9,7 +10,7 @@
  * v6 — September 1, 2026: Updated cache paths for /app/ directory restructure.
  */
 
-const CACHE = 'driv-en-v12';
+const CACHE = 'driv-en-v13';
 const STATIC_ASSETS = [
   '/app/shared/dashboard.css',
   '/app/shared/dashboard-common.js',
