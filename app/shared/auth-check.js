@@ -37,8 +37,14 @@
 // ==========================================
 
 (async function() {
+  // Guard against missing document.body (script loaded before body exists)
+  if (!document.body) {
+    document.addEventListener("DOMContentLoaded", arguments.callee);
+    return;
+  }
   try {
     var response = await fetch("/auth/session");
+    if (!response.ok) throw new Error("Session check failed: " + response.status);
     var data = await response.json();
 
     if (!data.authenticated) {
@@ -149,7 +155,7 @@ async function checkUserAssignedTask(user, taskName) {
 
     if (!foundUser || !foundUser.roles) return false;
 
-    return foundUser.roles.some(function(r) { return r.role === taskName; });
+    return foundUser.roles.some(function(r) { return String(r.role || "").trim().toLowerCase() === taskName.trim().toLowerCase(); });
   } catch (e) {
     console.error("Task assignment check error:", e.message);
     return false;
