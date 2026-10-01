@@ -147,7 +147,7 @@
 <div id="dashFooter"></div>
 
 <!-- ===== SHARED DASHBOARD JS ===== -->
-<script src="/app/shared/dashboard-common.js?v=11"></script>
+<script src="/app/shared/dashboard-common.js?v=12"></script>
 
 <script>
 // ===== INIT =====
@@ -178,18 +178,27 @@ function switchTab(tab) {
 
 // ===== GO TO MAIN DASHBOARD =====
 function goToMainDashboard() {
+  // Try sessionStorage origin (set by dashboard-common.js)
   var savedOrigin = sessionStorage.getItem('driven_dashboard_origin');
   if (savedOrigin) { window.location.href = savedOrigin; return; }
-  var user = window.dashUser;
-  if (!user) { window.location.href = '/public/login.html'; return; }
-  var role = (user.role || '').toLowerCase();
-  if (role === 'driv-en founder' || role === 'owner') {
-    window.location.href = '/app/dashboard/owner-dashboard.html';
-  } else if (role === 'admin') {
-    window.location.href = '/app/dashboard/admin.html';
-  } else {
-    window.location.href = '/app/dashboard/employee-dashboard.html';
+  // Try referrer (if we came from a dashboard)
+  if (document.referrer && document.referrer.indexOf('driv-en.com') !== -1) {
+    window.location.href = document.referrer; return;
   }
+  // Try role-based redirect
+  var user = window.dashUser;
+  if (user) {
+    var role = (user.role || '').toLowerCase();
+    if (role === 'driv-en founder' || role === 'owner') {
+      window.location.href = '/app/dashboard/owner-dashboard.html'; return;
+    } else if (role === 'admin') {
+      window.location.href = '/app/dashboard/admin.html'; return;
+    } else {
+      window.location.href = '/app/dashboard/employee-dashboard.html'; return;
+    }
+  }
+  // Fallback: go to admin dashboard (these pages are linked from admin Quick Links)
+  window.location.href = '/app/dashboard/admin.html';
 }
 
 // ===== FIX HEADER — move title into row 1 so logos + title are on one row =====
@@ -220,6 +229,6 @@ function fixHeaderLayout() {
 </script>
 
 <!-- ===== AUTH CHECK ===== -->
-<script src="/app/shared/auth-check.js?v=11"></script>
+<script src="/app/shared/auth-check.js?v=12"></script>
 </body>
 </html>
