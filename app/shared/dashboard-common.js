@@ -1,95 +1,381 @@
 /* ==========================================================================
    DRIV‑EN DASHBOARD COMMON JS — Shared across all dashboard pages
-   v11 — September 30, 2026: Fixed dashboard origin tracking.
+   ==========================================================================
+   This file is loaded by every dashboard page via:
+   <script src="/app/shared/dashboard-common.js?v=11"></script>
+
+   WHAT IT DOES (in order):
+   1. Loads the shared dashboard header into <div id="dashHeader"></div>
+   2. Sets the page title from <body data-page-title="...">
+   3. Loads the customer logo from D1 (syncs across all devices)
+   4. Initializes the theme toggle (light/dark mode)
+   5. Fills the greeting bar if one exists on the page
+   6. Stores the user's org_id in localStorage for API calls
+
+   HOW TO USE:
+   1. Include this script on your dashboard page
+   2. Make sure <div id="dashHeader"></div> exists in the HTML
+   3. Set <body data-page-title="Your Page Title">
+   4. (Optional) Add <div class="dash-greeting-bar"><span id="dashGreetingText">Welcome</span></div>
+      and it will be auto-filled with "Welcome, [First Name]"
+
+   YOU SHOULD NOT NEED TO EDIT THIS FILE.
+   All customization is done per-page via HTML attributes.
    ========================================================================== */
+
 (function() {
   'use strict';
-  var dashUser = null;
+
+  /* ===== STATE VARIABLES ===== */
+  var dashUser = null;  // Will hold the logged-in user object from /auth/session
+
+  /* ===== PWA: MANIFEST LINK + SERVICE WORKER REGISTRATION ===== */
+  // Injects <link rel="manifest"> into <head> if not already present
+  // Registers /sw.js as the service worker for offline caching
+  // This makes every dashboard page installable as a PWA and caches
+  // the app shell so dashboards and forms work offline.
   (function registerPWA() {
+    // Add manifest link if missing
     if (!document.querySelector('link[rel="manifest"]')) {
-      var ml = document.createElement('link'); ml.rel = 'manifest'; ml.href = '/manifest.json'; document.head.appendChild(ml);
+      var manifestLink = document.createElement('link');
+      manifestLink.rel = 'manifest';
+      manifestLink.href = '/manifest.json';
+      document.head.appendChild(manifestLink);
     }
+
+    // Register service worker if supported
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
         navigator.serviceWorker.register('/sw.js').then(function(reg) {
           console.log('[DRIV-EN] Service worker registered:', reg.scope);
-        }).catch(function(err) { console.warn('[DRIV-EN] SW registration failed:', err); });
+        }).catch(function(err) {
+          console.warn('[DRIV-EN] SW registration failed:', err);
+        });
       });
     }
   })();
+
+  /* ===== ERROR HANDLER LOADING ===== */
+  // Injects the error-handler.js script into the page if not already loaded.
+  // This catches all unhandled errors, shows a user-friendly banner, and
+  // POSTs the error to /api/error-report which logs it to D1 (visible on
+  // the owner dashboard Issues tab) and emails support@driv-en.com.
+  // Must load BEFORE other page scripts so it can catch their errors.
   (function loadErrorHandler() {
-    if (window.DRIVENErrorHandler) return;
-    var s = document.createElement('script'); s.src = '/assets/js/error-handler.js'; s.async = false; document.head.appendChild(s);
+    if (window.DRIVENErrorHandler) return; // Already loaded
+    var script = document.createElement('script');
+    script.src = '/assets/js/error-handler.js';
+    script.async = false; // Load synchronously so it's ready before page scripts
+    document.head.appendChild(script);
   })();
-  async function loadComponent(elementId, file) {
-    try { var el = document.getElementById(elementId); if (!el) return; var r = await fetch(file); el.innerHTML = await r.text(); }
-    catch (e) { console.error("Failed to load component:", elementId, file, e.message); }
+
+  /* ===== HELPER: Load an HTML component via fetch ===== */
+  // Fetches an HTML file and injects it into a target element
+  // Parameters:
+  //   elementId — the id of the DOM element to inject HTML into
+  //   file      — the URL of the HTML file to fetch
+   async function loadComponent(elementId, file) {
+    try {
+      var el = document.getElementById(elementId);
+      if (!el) return;
+      var response = await fetch(file);
+      var html = await response.text();
+      el.innerHTML = html;
+    } catch (e) {
+      console.error("Failed to load component:", elementId, file, e.message);
+    }
   }
+
+  /* ===== THEME TOGGLE ===== */
+  // Toggles between light and dark mode
+  // Reads current theme from <html data-theme="...">
+  // Saves the new theme to localStorage key "driven-theme"
+  // Updates the slide switch checkbox and labels
+  // This function is called by the header's onchange="dashToggleTheme()"
   window.dashToggleTheme = function() {
-    var c = document.documentElement.getAttribute("data-theme"); var n = c === "dark" ? "light" : "dark";
-    document.documentElement.setAttribute("data-theme", n); localStorage.setItem("driven-theme", n); updateThemeSwitch();
+    var current = document.documentElement.getAttribute("data-theme");
+    var newTheme = current === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", newTheme);
+    localStorage.setItem("driven-theme", newTheme);
+    updateThemeSwitch();
   };
+
+  // Updates the theme switch UI to match the current theme
+  // Called on page load and after toggle
   function updateThemeSwitch() {
-    var c = document.documentElement.getAttribute("data-theme");
-    var cb = document.getElementById("dashThemeCheckbox"); var ll = document.getElementById("dashThemeLabelLight"); var ld = document.getElementById("dashThemeLabelDark");
-    if (cb) cb.checked = (c === "dark"); if (ll) ll.classList.toggle("active", c === "light"); if (ld) ld.classList.toggle("active", c === "dark");
+    var current = document.documentElement.getAttribute("data-theme");
+    var checkbox = document.getElementById("dashThemeCheckbox");
+    var labelLight = document.getElementById("dashThemeLabelLight");
+    var labelDark = document.getElementById("dashThemeLabelDark");
+    if (checkbox) checkbox.checked = (current === "dark");
+    if (labelLight) labelLight.classList.toggle("active", current === "light");
+    if (labelDark) labelDark.classList.toggle("active", current === "dark");
   }
+
+  /* ===== LOGOUT ===== */
+  // Calls /auth/logout to destroy the session
+  // Then redirects to the login page
+  // This function is called by the header's onclick="dashLogout()"
   window.dashLogout = async function() {
-    try { await fetch("/auth/logout", { method: "POST" }); } catch (e) { console.error("Logout error:", e.message); }
+    try {
+      await fetch("/auth/logout", { method: "POST" });
+    } catch (e) {
+      // Even if logout fails, redirect to login
+      console.error("Logout error:", e.message);
+    }
+    // Always redirect to the public login page
     window.location.href = "/public/login.html";
   };
+
+  /* ===== SET PAGE TITLE ===== */
+  // Reads the page title from <body data-page-title="...">
+  // and inserts it into the header's <h1 id="dashPageTitle">
+  // If no data-page-title is set, defaults to "Dashboard"
   function setPageTitle() {
-    var t = document.body.getAttribute("data-page-title") || "Dashboard"; var te = document.getElementById("dashPageTitle"); if (te) te.textContent = t;
+    var title = document.body.getAttribute("data-page-title") || "Dashboard";
+    var titleEl = document.getElementById("dashPageTitle");
+    if (titleEl) titleEl.textContent = title;
   }
+
+  /* ===== LOAD CUSTOMER LOGO ===== */
+  // Fetches the customer logo from D1 database via /auth/get-logo
+  // If a logo is found, it is inserted into the header and cached in localStorage
+  // If no logo in D1, falls back to localStorage cache
+  // If no logo at all, shows a placeholder
+  // This syncs the logo across all devices and employees
   async function loadCustomerLogo() {
-    var area = document.getElementById("dashCustomerLogoArea"); if (!area) return;
-    try { var lr = await fetch("/auth/get-logo"); var ld = await lr.json(); if (ld.success && ld.logo) { localStorage.setItem("driven_customer_logo", ld.logo); area.innerHTML = '<img src="' + ld.logo + '" class="dash-customer-logo" alt="Company Logo">'; return; } }
-    catch (e) { console.error("Logo fetch error:", e.message); }
-    var lu = localStorage.getItem("driven_customer_logo"); if (lu) area.innerHTML = '<img src="' + lu + '" class="dash-customer-logo" alt="Company Logo">';
+    var area = document.getElementById("dashCustomerLogoArea");
+    if (!area) return;
+
+    // Try fetching from D1 first
+    try {
+      var logoRes = await fetch("/auth/get-logo");
+      var logoData = await logoRes.json();
+      if (logoData.success && logoData.logo) {
+        // Logo found in D1 — save to localStorage as cache
+        localStorage.setItem("driven_customer_logo", logoData.logo);
+        area.innerHTML = '<img src="' + logoData.logo + '" class="dash-customer-logo" alt="Company Logo">';
+        return;
+      }
+    } catch (e) {
+      console.error("Logo fetch from D1 error:", e.message);
+    }
+
+    // Fallback: check localStorage
+    var logoUrl = localStorage.getItem("driven_customer_logo");
+    if (logoUrl) {
+      area.innerHTML = '<img src="' + logoUrl + '" class="dash-customer-logo" alt="Company Logo">';
+    }
+    // If no logo at all, the placeholder div stays (it's in the HTML by default)
   }
+
+  /* ===== LOAD SESSION ===== */
+  // Fetches the user's session from /auth/session
+  // Stores the user object in dashUser (module-level variable)
+  // Stores org_id in localStorage for API calls (e.g., key personnel list)
+  // Fills the greeting bar if one exists on the page:
+  //   <div class="dash-greeting-bar"><span id="dashGreetingText">Welcome</span></div>
+  // Returns true if authenticated, false if not
   async function loadSession() {
     try {
-      var response = await fetch("/auth/session"); var data = await response.json();
+      var response = await fetch("/auth/session");
+      var data = await response.json();
+
       if (data.authenticated && data.user) {
         dashUser = data.user;
-        if (data.user.org_id) localStorage.setItem("driven_customer_id", data.user.org_id);
-        var ge = document.getElementById("dashGreetingText");
-        if (ge) { var fn = data.user.first_name || ""; var on = data.user.org_name || ""; if (fn && on) ge.innerHTML = "Welcome, <strong>" + fn + "</strong> — " + escapeHtml(on); else if (fn) ge.innerHTML = "Welcome, <strong>" + fn + "</strong>"; else ge.innerHTML = "Welcome"; }
-        if (data.user.org_name) localStorage.setItem("driven_org_name", data.user.org_name);
+
+        // Store org_id in localStorage for API calls
+        if (data.user.org_id) {
+          localStorage.setItem("driven_customer_id", data.user.org_id);
+        }
+
+        // Fill greeting bar if it exists on this page
+        var greetingEl = document.getElementById("dashGreetingText");
+        if (greetingEl) {
+          var firstName = data.user.first_name || "";
+          var orgName = data.user.org_name || "";
+          if (firstName && orgName) {
+            greetingEl.innerHTML = "Welcome, <strong>" + firstName + "</strong> — " + escapeHtml(orgName);
+          } else if (firstName) {
+            greetingEl.innerHTML = "Welcome, <strong>" + firstName + "</strong>";
+          } else {
+            greetingEl.innerHTML = "Welcome";
+          }
+        }
+
+        // Store org name in localStorage for pages that need it
+        if (data.user.org_name) {
+          localStorage.setItem("driven_org_name", data.user.org_name);
+        }
+
+        // Also expose user data on window.dashUser immediately
+        // (in addition to the dashSessionLoaded event)
         window.dashUser = data.user;
-        var role = (data.user.role || '').toLowerCase(); var dashUrl;
+
+        // ===== RESOLVE DASHBOARD BUTTON (return to main dashboard) =====
+        // The Dashboard button must return the user to THEIR dashboard, not a
+        // hardcoded one. We use sessionStorage to remember which dashboard the
+        // user was on before navigating to a sub-page (form, etc.).
+        //
+        // Priority:
+        //   1. sessionStorage "driven_dashboard_origin" (set when leaving a dashboard)
+        //   2. Role-based fallback:
+        //        owner  → owner-dashboard.html
+        //        admin  → admin.html
+        //        others → employee-dashboard.html
+        var role = (data.user.role || '').toLowerCase();
+        var dashUrl;
         var savedOrigin = sessionStorage.getItem('driven_dashboard_origin');
-        if (savedOrigin) dashUrl = savedOrigin;
-        else if (role === 'owner') dashUrl = '/app/dashboard/owner-dashboard.html';
-        else if (role === 'admin') dashUrl = '/app/dashboard/admin.html';
-        else dashUrl = '/app/dashboard/employee-dashboard.html';
-        var hb = document.getElementById('dashHomeBtn'); if (hb) hb.href = dashUrl;
-        var cp = window.location.pathname;
-        var isMain = cp.indexOf('/dashboard/') !== -1 && cp.indexOf('/forms/') === -1
-          && cp.indexOf('user-management') === -1 && cp.indexOf('fuel') === -1
-          && cp.indexOf('equipment') === -1 && cp.indexOf('transfers') === -1
-          && cp.indexOf('work-orders') === -1 && cp.indexOf('inspections') === -1
-          && cp.indexOf('pm') === -1 && cp.indexOf('projects') === -1
-          && cp.indexOf('extraction') === -1 && cp.indexOf('settings') === -1;
-        if (isMain) sessionStorage.setItem('driven_dashboard_origin', cp);
+        if (savedOrigin) {
+          dashUrl = savedOrigin;
+        } else if (role === 'owner') {
+          dashUrl = '/app/dashboard/owner-dashboard.html';
+        } else if (role === 'admin') {
+          dashUrl = '/app/dashboard/admin.html';
+        } else {
+          dashUrl = '/app/dashboard/employee-dashboard.html';
+        }
+        var homeBtn = document.getElementById('dashHomeBtn');
+        if (homeBtn) {
+          homeBtn.href = dashUrl;
+        }
+
+        // Remember this dashboard as the origin for sub-pages
+        // (only if we're currently ON a main dashboard page, not a sub-page like user-management)
+        var currentPage = window.location.pathname;
+        var isMainDashboard = currentPage.indexOf('/dashboard/') !== -1
+          && currentPage.indexOf('/forms/') === -1
+          && currentPage.indexOf('user-management') === -1
+          && currentPage.indexOf('fuel') === -1
+          && currentPage.indexOf('equipment') === -1
+          && currentPage.indexOf('transfers') === -1
+          && currentPage.indexOf('work-orders') === -1
+          && currentPage.indexOf('inspections') === -1
+          && currentPage.indexOf('pm') === -1
+          && currentPage.indexOf('projects') === -1
+          && currentPage.indexOf('extraction') === -1
+          && currentPage.indexOf('settings') === -1
+          && currentPage.indexOf('asset-management') === -1
+          && currentPage.indexOf('project-management') === -1
+          && currentPage.indexOf('company-management') === -1;
+        if (isMainDashboard) {
+          sessionStorage.setItem('driven_dashboard_origin', currentPage);
+        }
+
         return true;
       }
-    } catch (e) { console.error("Session load error:", e.message); }
+    } catch (e) {
+      console.error("Session load error:", e.message);
+    }
     return false;
   }
+
+  /* ===== INIT ===== */
+  // Main initialization — runs on DOMContentLoaded
+  // 1. Load the shared dashboard header HTML
+  // 2. Set the page title from body data-page-title
+  // 3. Update the theme switch to match current theme
+  // 4. Load the customer logo from D1
+  // 5. Load the user session (greeting + org_id)
   async function init() {
+    // Step 1: Load the shared header
     await loadComponent("dashHeader", "/app/shared/dashboard-header.html");
-    setPageTitle(); updateThemeSwitch(); await loadCustomerLogo(); await loadSession();
+
+    // Step 2: Set the page title from <body data-page-title="...">
+    setPageTitle();
+
+    // Step 3: Update theme switch to match current theme
+    updateThemeSwitch();
+
+    // Step 4: Load customer logo from D1
+    await loadCustomerLogo();
+
+    // Step 5: Load session (greeting + org_id)
+    await loadSession();
+
+    // Step 6: Load the shared dashboard footer (if a placeholder exists)
     await loadComponent("dashFooter", "/app/shared/dashboard-footer.html");
   }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
-  window.addEventListener("dashSessionLoaded", function() { window.dashUser = dashUser; });
-  var ols = loadSession;
-  loadSession = async function() { var r = await ols(); document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: dashUser })); return r; };
-  var SRF = 30 * 60 * 1000, lsa = Date.now(), srt = null;
-  function ssr() { if (srt) clearTimeout(srt); srt = setTimeout(rst, SRF); }
-  async function rst() { try { var r = await fetch("/auth/refresh", { method: "POST", credentials: "include" }); if (r.ok) ssr(); else console.warn("Session refresh failed:", r.status); } catch (e) { console.warn("Session refresh error:", e.message); } }
-  function osa() { var n = Date.now(); if (n - lsa > 60000) { lsa = n; ssr(); } }
-  document.addEventListener("dashSessionLoaded", function() { if (!dashUser) return; ssr(); ["click","keydown","scroll","touchstart","mousemove"].forEach(function(e) { document.addEventListener(e, osa, { passive: true }); }); });
-  function escapeHtml(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+  // Run init when the DOM is ready
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    // DOM already loaded (script loaded with defer or at end of body)
+    init();
+  }
+
+  // Expose dashUser globally so page-specific scripts can access it
+  // Example: if (window.dashUser) { console.log(dashUser.email); }
+  // Note: dashUser is null until loadSession() completes.
+  // Page scripts that need it should wait for the "dashReady" event.
+  window.addEventListener("dashSessionLoaded", function() {
+    window.dashUser = dashUser;
+  });
+
+  // Dispatch a custom event after session loads so page scripts know
+  // the user info is available
+  // Page scripts can listen: document.addEventListener("dashSessionLoaded", myFunction);
+  var originalLoadSession = loadSession;
+  loadSession = async function() {
+    var result = await originalLoadSession();
+    document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: dashUser }));
+    return result;
+  };
+
+  /* ===== SLIDING SESSION REFRESH (prevents active users from being logged out) ===== */
+  // The auth worker issues a session JWT that expires after SESSION_LIFETIME
+  // (currently 3600s = 1 hour).  If the user is actively using the dashboard,
+  // we proactively call POST /auth/refresh (which exchanges the long-lived
+  // refresh cookie for a fresh session cookie) BEFORE the session expires.
+  // The refresh timer resets on user activity (clicks, keys, scroll, touch),
+  // so an idle user eventually logs out, but an active user never does.
+  var SESSION_REFRESH_MS = 30 * 60 * 1000;   // refresh every 30 minutes
+  var SESSION_ACTIVITY_MS = 5 * 60 * 1000;   // reset timer after 5 min of activity
+  var sessionRefreshTimer = null;
+  var sessionActivityTimer = null;
+  var lastSessionActivity = Date.now();
+
+  function scheduleSessionRefresh() {
+    if (sessionRefreshTimer) clearTimeout(sessionRefreshTimer);
+    sessionRefreshTimer = setTimeout(refreshSessionToken, SESSION_REFRESH_MS);
+  }
+
+  async function refreshSessionToken() {
+    try {
+      var resp = await fetch("/auth/refresh", { method: "POST", credentials: "include" });
+      if (resp.ok) {
+        // Session cookie refreshed — schedule the next refresh
+        scheduleSessionRefresh();
+      } else {
+        // Refresh failed (e.g., refresh cookie also expired) — the next
+        // /auth/session call will redirect to login.  Do nothing here.
+        console.warn("Session refresh failed:", resp.status);
+      }
+    } catch (e) {
+      console.warn("Session refresh error:", e.message);
+    }
+  }
+
+  function onSessionActivity() {
+    var now = Date.now();
+    // Only reset the timer if the user has been active for a meaningful
+    // stretch — this prevents a single stray event from keeping the
+    // session alive forever.
+    if (now - lastSessionActivity > 60 * 1000) {
+      lastSessionActivity = now;
+      scheduleSessionRefresh();
+    }
+  }
+
+  // Start the sliding refresh once the session is loaded and the user is
+  // authenticated.  Only start it for authenticated sessions (dashUser set).
+  document.addEventListener("dashSessionLoaded", function() {
+    if (!dashUser) return;
+    scheduleSessionRefresh();
+    ["click", "keydown", "scroll", "touchstart", "mousemove"].forEach(function(evt) {
+      document.addEventListener(evt, onSessionActivity, { passive: true });
+    });
+  });
+
 })();
