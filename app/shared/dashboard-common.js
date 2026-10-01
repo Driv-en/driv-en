@@ -69,6 +69,12 @@
     document.head.appendChild(script);
   })();
 
+  /* ===== HELPER: Escape HTML (prevents XSS in injected strings) ===== */
+  function escapeHtml(str) {
+    if (!str) return "";
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
   /* ===== HELPER: Load an HTML component via fetch ===== */
   // Fetches an HTML file and injects it into a target element
   // Parameters:
