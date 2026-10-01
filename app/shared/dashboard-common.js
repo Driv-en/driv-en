@@ -1,37 +1,12 @@
 /* ==========================================================================
    DRIV‑EN DASHBOARD COMMON JS — Shared across all dashboard pages
-   ==========================================================================
-   This file is loaded by every dashboard page via:
-   <script src="/app/shared/dashboard-common.js?v=7"></script>
-
-   WHAT IT DOES (in order):
-   1. Loads the shared dashboard header into <div id="dashHeader"></div>
-   2. Sets the page title from <body data-page-title="...">
-   3. Loads the customer logo from D1 (syncs across all devices)
-   4. Initializes the theme toggle (light/dark mode)
-   5. Fills the greeting bar if one exists on the page
-   6. Stores the user's org_id in localStorage for API calls
-
-   HOW TO USE:
-   1. Include this script on your dashboard page
-   2. Make sure <div id="dashHeader"></div> exists in the HTML
-   3. Set <body data-page-title="Your Page Title">
-   4. (Optional) Add <div class="dash-greeting-bar"><span id="dashGreetingText">Welcome</span></div>
-      and it will be auto-filled with "Welcome, [First Name]"
-
-   YOU SHOULD NOT NEED TO EDIT THIS FILE.
-   All customization is done per-page via HTML attributes.
    ========================================================================== */
 
 (function() {
   'use strict';
 
-  /* ===== STATE VARIABLES ===== */
-  var dashUser = null;  // Will hold the logged-in user object from /auth/session
+  var dashUser = null;
 
-  /* ===== SAFE STORAGE HELPERS ===== */
-  // localStorage can throw in private browsing, blocked storage, or
-  // some browser security modes. Wrap all access in try/catch.
   function safeGetItem(key) {
     try { return localStorage.getItem(key); } catch (e) { return null; }
   }
@@ -42,7 +17,6 @@
     try { localStorage.removeItem(key); } catch (e) { /* ignore */ }
   }
 
-  /* ===== PWA: MANIFEST LINK + SERVICE WORKER REGISTRATION ===== */
   (function registerPWA() {
     if (!document.querySelector('link[rel="manifest"]')) {
       var manifestLink = document.createElement('link');
@@ -61,7 +35,6 @@
     }
   })();
 
-  /* ===== ERROR HANDLER LOADING ===== */
   (function loadErrorHandler() {
     if (window.DRIVENErrorHandler) return;
     var script = document.createElement('script');
@@ -70,13 +43,11 @@
     document.head.appendChild(script);
   })();
 
-  /* ===== HELPER: Escape HTML (prevents XSS in injected strings) ===== */
   function escapeHtml(str) {
     if (!str) return "";
     return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
-  /* ===== HELPER: Load an HTML component via fetch ===== */
   async function loadComponent(elementId, file) {
     try {
       var el = document.getElementById(elementId);
@@ -89,7 +60,6 @@
     }
   }
 
-  /* ===== THEME TOGGLE ===== */
   window.dashToggleTheme = function() {
     var current = document.documentElement.getAttribute("data-theme");
     var newTheme = current === "dark" ? "light" : "dark";
@@ -108,7 +78,6 @@
     if (labelDark) labelDark.classList.toggle("active", current === "dark");
   }
 
-  /* ===== LOGOUT ===== */
   window.dashLogout = async function() {
     try {
       await fetch("/auth/logout", { method: "POST" });
@@ -118,14 +87,12 @@
     window.location.href = "/public/login.html";
   };
 
-  /* ===== SET PAGE TITLE ===== */
   function setPageTitle() {
     var title = document.body.getAttribute("data-page-title") || "Dashboard";
     var titleEl = document.getElementById("dashPageTitle");
     if (titleEl) titleEl.textContent = title;
   }
 
-  /* ===== LOAD CUSTOMER LOGO ===== */
   async function loadCustomerLogo() {
     var area = document.getElementById("dashCustomerLogoArea");
     if (!area) return;
@@ -156,7 +123,6 @@
     }
   }
 
-  /* ===== LOAD SESSION ===== */
   async function loadSession() {
     try {
       var response = await fetch("/auth/session");
@@ -225,7 +191,6 @@
     return false;
   }
 
-  /* ===== INIT ===== */
   async function init() {
     await loadComponent("dashHeader", "/app/shared/dashboard-header.html");
     setPageTitle();
@@ -252,9 +217,10 @@
     return result;
   };
 
-  /* ===== SLIDING SESSION REFRESH ===== */
   var SESSION_REFRESH_MS = 30 * 60 * 1000;
+  var SESSION_ACTIVITY_MS = 5 * 60 * 1000;
   var sessionRefreshTimer = null;
+  var sessionActivityTimer = null;
   var lastSessionActivity = Date.now();
 
   function scheduleSessionRefresh() {
