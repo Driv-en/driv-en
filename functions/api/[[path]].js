@@ -5,8 +5,6 @@
 // ═══════════════════════════════════════════════════════════════
 
 // Route map: /api/{prefix}/* → worker URL
-// Note: driv-en-api uses api.driv-en.com zone route (workers.dev returns 403)
-// Note: onboarding-key-personnel uses www.driv-en.com zone route (workers.dev returns 403)
 const WORKER_ROUTES = {
   // Fuel worker
   'fuel-tanks':        'https://driven-fuel.driv-en.workers.dev',
@@ -60,17 +58,15 @@ const WORKER_ROUTES = {
   // PM complete worker
   'pm-complete':       'https://driven-pm-complete.driv-en.workers.dev',
 
-  // Onboarding key-personnel worker — uses www.driv-en.com zone route
-  // Zone route: www.driv-en.com/api/onboarding/* → onboarding-key-personnel
-  'onboarding':        'https://www.driv-en.com',
+  // Onboarding key-personnel worker (roles, permissions, key personnel)
+  'onboarding':        'https://onboarding-key-personnel.driv-en.workers.dev',
 
-  // Legacy API worker (CRUD for D1 tables) — uses api.driv-en.com zone route
-  // Zone route: api.driv-en.com/api/* → driv-en-api
-  'Division':          'https://api.driv-en.com',
-  'Clients':           'https://api.driv-en.com',
-  'Project':           'https://api.driv-en.com',
-  'Employee':          'https://api.driv-en.com',
-  'Equipment':         'https://api.driv-en.com',
+  // Legacy API worker (CRUD for D1 tables) — workers.dev now enabled
+  'Division':          'https://driv-en-api.driv-en.workers.dev',
+  'Clients':           'https://driv-en-api.driv-en.workers.dev',
+  'Project':           'https://driv-en-api.driv-en.workers.dev',
+  'Employee':          'https://driv-en-api.driv-en.workers.dev',
+  'Equipment':         'https://driv-en-api.driv-en.workers.dev',
 };
 
 function findWorkerUrl(path) {
