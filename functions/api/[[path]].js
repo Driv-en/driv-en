@@ -71,8 +71,9 @@ const WORKER_ROUTES = {
 
 function findWorkerUrl(path) {
   // path is like "/api/fuel-tanks" or "/api/fuel-tanks/123" or "/api/work-orders/abc/complete"
-  const parts = path.replace(/^\/api\//, '').split('/');
-  const prefix = parts[0];
+  // Workers expect the /api/ prefix preserved in the proxied URL.
+  const parts = path.replace(/^\//, '').split('/');
+  const prefix = parts[0] === 'api' ? parts[1] : parts[0];
 
   // Direct match
   if (WORKER_ROUTES[prefix]) {
