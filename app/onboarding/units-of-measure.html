@@ -42,6 +42,10 @@
     .um-step-status { margin-top: 12px; font-size: 14px; color: var(--success); }
     .um-count-badge { display: inline-block; background: var(--primary); color: #fff; font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 999px; margin-left: 8px; }
 
+    /* ===== UNIT GROUP HEADER ===== */
+    .um-group-header { font-size: 13px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 20px 0 8px 0; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+    .um-group-header:first-child { margin-top: 0; }
+
     /* ===== UNIT GRID ===== */
     .um-type-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 16px; }
     .um-type-card { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 2px solid #16a34a; border-radius: 8px; cursor: pointer; background: var(--bg-card); transition: border-color 200ms ease, background 200ms ease, box-shadow 200ms ease; user-select: none; }
@@ -74,19 +78,26 @@
 </style>
 </head>
 <body data-page-title="Onboarding — Units of Measure" data-required-task="Units of Measure">
+
 <!-- ===== INDUSTRIAL DIAMOND-PLATE BACKGROUND (do not remove) ===== -->
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
+
+<!-- ===== SHARED DASHBOARD HEADER (auto-loaded by dashboard-common.js) ===== -->
 <div id="dashHeader"></div>
-<!-- ===== GREETING BAR ===== -->
+
+<!-- ===== GREETING BAR (Session 7 — shows "Welcome, [Name]") ===== -->
 <div class="ob-greeting-bar">
   <div class="ob-greeting-text" id="dashGreetingText">Welcome</div>
 </div>
+
 <!-- ===== BACK BUTTON BAR ===== -->
 <div class="um-back-bar">
   <a href="/app/dashboard/admin.html" class="um-back-btn driven-admin-only">&larr; Admin Dashboard</a>
   <a href="/app/dashboard/onboarding-dashboard.html" class="um-back-btn" style="background:#374151;border-color:#4b5563;color:#d1d5db;">&larr; Onboarding Dashboard</a>
 </div>
+
+<!-- ===== PAGE CONTENT ===== -->
 <main class="dash-main">
   <div class="dash-card">
     <h2>Units of Measure <span class="um-count-badge" id="umCount">0</span></h2>
@@ -133,42 +144,75 @@
 <script src="/app/shared/dashboard-common.js?v=13"></script>
 <script src="/app/shared/auth-check.js?v=13"></script>
 <script>
-    /* ===== UNIT DEFINITIONS ===== */
-    var UNITS = [
-      // --- Volume (liquid fuel) ---
-      { name: "Gallons", desc: "US gallons (gal)" },
-      { name: "Liters", desc: "Metric liters (L)" },
-      { name: "Barrels", desc: "Oil barrels (BBL, 42 US gal)" },
-      { name: "Cubic Meters", desc: "Metric volume (m³)" },
-      { name: "Imperial Gallons", desc: "UK gallons (imp gal)" },
-      { name: "Quarts", desc: "US quarts (qt)" },
-      { name: "Pints", desc: "US pints (pt)" },
-      { name: "Cubic Feet", desc: "Volume (ft³)" },
-      { name: "Cubic Yards", desc: "Volume (yd³)" },
-      // --- Distance / Length ---
-      { name: "Miles", desc: "Distance (mi)" },
-      { name: "Kilometers", desc: "Distance (km)" },
-      { name: "Feet", desc: "Length (ft)" },
-      { name: "Meters", desc: "Length (m)" },
-      { name: "Yards", desc: "Length (yd)" },
-      // --- Mass / Weight ---
-      { name: "Kilograms", desc: "Mass-based (kg)" },
-      { name: "Pounds", desc: "Mass-based (lb)" },
-      { name: "Tons", desc: "US short tons (2,000 lb)" },
-      { name: "Metric Tons", desc: "Metric tonnes (1,000 kg)" },
-      // --- Area ---
-      { name: "Square Feet", desc: "Area (ft²)" },
-      { name: "Square Meters", desc: "Area (m²)" },
-      { name: "Acres", desc: "Land area (ac)" },
-      { name: "Hectares", desc: "Metric land area (ha)" },
-      // --- Energy / Power ---
-      { name: "Kilowatt-Hours", desc: "Electrical energy (kWh)" },
-      { name: "BTU", desc: "British Thermal Units (BTU)" },
-      { name: "Therms", desc: "Natural gas energy (therm)" },
-      // --- Other ---
-      { name: "Hours", desc: "Operating hours (hr)" },
-      { name: "Ounces", desc: "US fluid ounces (fl oz)" }
+    /* ===== UNIT DEFINITIONS (grouped by category) ===== */
+    var UNIT_GROUPS = [
+      {
+        label: "Liquid Volume",
+        units: [
+          { name: "Gallons", desc: "US gallons (gal)" },
+          { name: "Liters", desc: "Metric liters (L)" },
+          { name: "Barrels", desc: "Oil barrels (BBL, 42 US gal)" },
+          { name: "Imperial Gallons", desc: "UK gallons (imp gal)" },
+          { name: "Quarts", desc: "US quarts (qt)" },
+          { name: "Pints", desc: "US pints (pt)" },
+          { name: "Ounces", desc: "US fluid ounces (fl oz)" }
+        ]
+      },
+      {
+        label: "Cubic Volume",
+        units: [
+          { name: "Cubic Meters", desc: "Metric volume (m³)" },
+          { name: "Cubic Feet", desc: "Volume (ft³)" },
+          { name: "Cubic Yards", desc: "Volume (yd³)" }
+        ]
+      },
+      {
+        label: "Distance & Length",
+        units: [
+          { name: "Miles", desc: "Distance (mi)" },
+          { name: "Kilometers", desc: "Distance (km)" },
+          { name: "Feet", desc: "Length (ft)" },
+          { name: "Meters", desc: "Length (m)" },
+          { name: "Yards", desc: "Length (yd)" }
+        ]
+      },
+      {
+        label: "Mass & Weight",
+        units: [
+          { name: "Kilograms", desc: "Mass-based (kg)" },
+          { name: "Pounds", desc: "Mass-based (lb)" },
+          { name: "Tons", desc: "US short tons (2,000 lb)" },
+          { name: "Metric Tons", desc: "Metric tonnes (1,000 kg)" }
+        ]
+      },
+      {
+        label: "Area",
+        units: [
+          { name: "Square Feet", desc: "Area (ft²)" },
+          { name: "Square Meters", desc: "Area (m²)" },
+          { name: "Acres", desc: "Land area (ac)" },
+          { name: "Hectares", desc: "Metric land area (ha)" }
+        ]
+      },
+      {
+        label: "Energy & Power",
+        units: [
+          { name: "Kilowatt-Hours", desc: "Electrical energy (kWh)" },
+          { name: "BTU", desc: "British Thermal Units (BTU)" },
+          { name: "Therms", desc: "Natural gas energy (therm)" }
+        ]
+      },
+      {
+        label: "Time & Operations",
+        units: [
+          { name: "Hours", desc: "Operating hours (hr)" }
+        ]
+      }
     ];
+
+    /* Flatten for easy lookup */
+    var UNITS = [];
+    UNIT_GROUPS.forEach(function(g) { g.units.forEach(function(u) { UNITS.push(u); }); });
 
     /* ===== STATE ===== */
     var selectedUnits = [];   // array of { name, isCustom }
@@ -205,33 +249,46 @@
     /* ===== DOM-safe rendering (no innerHTML for user values) ===== */
     function renderGrid() {
       unitGridEl.textContent = "";
-      UNITS.forEach(function(u) {
-        var sel = isSelected(u.name);
-        var card = document.createElement("div");
-        card.className = "um-type-card" + (sel ? " selected" : "");
-        card.dataset.name = u.name;
-        card.addEventListener("click", function() { toggleUnit(u.name, false); });
+      UNIT_GROUPS.forEach(function(group) {
+        // Category header
+        var header = document.createElement("div");
+        header.className = "um-group-header";
+        header.textContent = group.label;
+        unitGridEl.appendChild(header);
 
-        var cb = document.createElement("input");
-        cb.type = "checkbox";
-        cb.checked = sel;
-        cb.addEventListener("click", function(e) { e.stopPropagation(); toggleUnit(u.name, false); });
+        // Grid for this group
+        var groupGrid = document.createElement("div");
+        groupGrid.className = "um-type-grid";
 
-        var info = document.createElement("div");
-        var label = document.createElement("div");
-        label.className = "um-type-label";
-        label.textContent = u.name;
-        info.appendChild(label);
-        if (u.desc) {
-          var desc = document.createElement("div");
-          desc.className = "um-type-desc";
-          desc.textContent = u.desc;
-          info.appendChild(desc);
-        }
+        group.units.forEach(function(u) {
+          var sel = isSelected(u.name);
+          var card = document.createElement("div");
+          card.className = "um-type-card" + (sel ? " selected" : "");
+          card.dataset.name = u.name;
+          card.addEventListener("click", function() { toggleUnit(u.name, false); });
 
-        card.appendChild(cb);
-        card.appendChild(info);
-        unitGridEl.appendChild(card);
+          var cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.checked = sel;
+          cb.addEventListener("click", function(e) { e.stopPropagation(); toggleUnit(u.name, false); });
+
+          var info = document.createElement("div");
+          var label = document.createElement("div");
+          label.className = "um-type-label";
+          label.textContent = u.name;
+          info.appendChild(label);
+          if (u.desc) {
+            var desc = document.createElement("div");
+            desc.className = "um-type-desc";
+            desc.textContent = u.desc;
+            info.appendChild(desc);
+          }
+
+          card.appendChild(cb);
+          card.appendChild(info);
+          groupGrid.appendChild(card);
+        });
+        unitGridEl.appendChild(groupGrid);
       });
     }
 
@@ -329,7 +386,7 @@
         if (!res.ok) throw new Error(data.error || "Save failed");
         umStepStatus.style.color = "var(--success)";
         umStepStatus.textContent = selectedUnits.length + " unit(s) of measure saved.";
-        btnSave.textContent = "Saved ✓";
+        btnSave.textContent = "Saved \u2713";
       } catch(err) {
         umStepStatus.style.color = "var(--error)";
         umStepStatus.textContent = "Saved locally, but server save failed: " + err.message;
