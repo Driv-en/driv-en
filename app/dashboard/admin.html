@@ -554,9 +554,12 @@
       justify-content: space-between;
       padding: 12px 16px;
       background: var(--bg-step);
-      border: 1px solid var(--border);
+      border: 2px solid #16a34a;
       border-radius: 8px;
+      transition: border-color 200ms ease, box-shadow 200ms ease;
     }
+    .step-toggle-row:hover { border-color: #15803d; box-shadow: 0 2px 8px rgba(22, 163, 74, 0.15); }
+
     .step-toggle-name { font-size: 14px; font-weight: 600; color: var(--text); }
     .step-toggle-desc { font-size: 12px; color: var(--text-muted); }
     .step-toggle-locked { font-size: 11px; color: var(--text-muted); font-style: italic; }
@@ -1122,7 +1125,8 @@
             ⚠ You have unsaved visibility changes. Click <strong>Save Visibility</strong> before switching tabs or leaving this page, or your changes will be lost.
           </div>
           <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px 0;line-height:1.6;">
-            Control which onboarding tasks appear on the Onboarding Dashboard for your team. Tasks are auto-configured based on your business type (<span id="onboardingBtLabel">not set</span>), but you can override any task here. Toggling a task off hides it from the Onboarding Dashboard — your team won't see it or be asked to complete it. Locked tasks (Roles &amp; Permissions, Employees, Equipment) are required for all business types and cannot be turned off.
+            Control which onboarding tasks appear on the Onboarding Dashboard for your team. Tasks are auto-configured based on your business type (<span id="onboardingBtLabel">not set</span>), but you can override any task here. Toggling a task off hides it from the Onboarding Dashboard — your team won't see it or be asked to complete it. Locked tasks (Roles &amp; Permissions, Employees, Fuel Types, Units of Measure, Assets) are required for all business types and cannot be turned off.
+
           </p>
           <div class="step-toggle-list" id="stepToggleList">
             <!-- Populated by JS -->
@@ -1151,8 +1155,11 @@
               <option value="Divisions">Divisions</option>
               <option value="Project Types">Project Types</option>
               <option value="Projects">Projects</option>
-              <option value="Equipment">Equipment</option>
+              <option value="Fuel Types">Fuel Types</option>
+              <option value="Units of Measure">Units of Measure</option>
+              <option value="Assets">Assets</option>
               <option value="Roles & Permissions">Roles &amp; Permissions</option>
+
             </select>
             <button class="kp-add-btn" id="kpAddBtn" onclick="addKeyPersonnel()">Add</button>
           </div>
@@ -1203,20 +1210,20 @@
     var onboardingComplete = false;
 
     var BUSINESS_TYPE_DEFAULTS = {
-      "Construction":            { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": true, "projects": true, "equipment": true },
-      "Manufacturing":           { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": false, "projects": false, "equipment": true },
-      "Chemical":               { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": false, "projects": false, "equipment": true },
-      "Oil & Gas":              { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": true, "projects": true, "equipment": true },
-      "Transportation":         { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": false, "project-types": false, "projects": false, "equipment": true },
-      "Warehousing":            { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": false, "project-types": false, "projects": false, "equipment": true },
-      "Fabrication":            { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": false, "projects": false, "equipment": true },
-      "Logistics / Supply Chain":{ "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": false, "project-types": false, "projects": false, "equipment": true },
-      "Utilities & Energy":     { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": true, "projects": true, "equipment": true },
-      "Mining & Aggregates":    { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": true, "projects": true, "equipment": true },
-      "Agriculture":            { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": false, "projects": false, "equipment": true },
-      "Environmental Services":  { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": false, "project-types": false, "projects": false, "equipment": true },
-      "Food & Beverage Processing": { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": false, "projects": false, "equipment": true },
-      "General Services":        { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": false, "project-types": false, "projects": false, "equipment": true }
+      "Construction":            { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": true, "projects": true, "assets": true, "fuel-types": true, "units-of-measure": true },
+      "Manufacturing":           { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": false, "projects": false, "assets": true, "fuel-types": true, "units-of-measure": true },
+      "Chemical":               { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": false, "projects": false, "assets": true, "fuel-types": true, "units-of-measure": true },
+      "Oil & Gas":              { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": true, "projects": true, "assets": true, "fuel-types": true, "units-of-measure": true },
+      "Transportation":         { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": false, "project-types": false, "projects": false, "assets": true, "fuel-types": true, "units-of-measure": true },
+      "Warehousing":            { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": false, "project-types": false, "projects": false, "assets": true, "fuel-types": true, "units-of-measure": true },
+      "Fabrication":            { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": false, "projects": false, "assets": true, "fuel-types": true, "units-of-measure": true },
+      "Logistics / Supply Chain":{ "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": false, "project-types": false, "projects": false, "assets": true, "fuel-types": true, "units-of-measure": true },
+      "Utilities & Energy":     { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": true, "projects": true, "assets": true, "fuel-types": true, "units-of-measure": true },
+      "Mining & Aggregates":    { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": true, "projects": true, "assets": true, "fuel-types": true, "units-of-measure": true },
+      "Agriculture":            { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": false, "projects": false, "assets": true, "fuel-types": true, "units-of-measure": true },
+      "Environmental Services":  { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": false, "project-types": false, "projects": false, "assets": true, "fuel-types": true, "units-of-measure": true },
+      "Food & Beverage Processing": { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": true, "project-types": false, "projects": false, "assets": true, "fuel-types": true, "units-of-measure": true },
+      "General Services":        { "roles-permissions": true, "employees": true, "locations": true, "clients": true, "divisions": false, "project-types": false, "projects": false, "assets": true, "fuel-types": true, "units-of-measure": true }
     };
 
     var STEP_DEFS = [
@@ -1227,7 +1234,9 @@
       { key: "divisions",        label: "Divisions",           desc: "Internal divisions or business units", locked: false },
       { key: "project-types",    label: "Project Types",       desc: "Types of work your organization performs", locked: false },
       { key: "projects",         label: "Projects",            desc: "Active, completed, or upcoming projects", locked: false },
-      { key: "equipment",        label: "Equipment",           desc: "Equipment and assets to maintain", locked: true }
+      { key: "fuel-types",       label: "Fuel Types",          desc: "Types of fuel your organization uses", locked: true },
+      { key: "units-of-measure", label: "Units of Measure",    desc: "Volume units for fuel and fluids (gallons, liters, etc.)", locked: true },
+      { key: "assets",           label: "Assets",              desc: "Assets and equipment to maintain (includes fuel type & tank capacity)", locked: true }
     ];
 
     var FORMS = [
@@ -1903,8 +1912,14 @@
                  localStorage.getItem("driven_step6_complete") === "true";
         case "projects":
           return localStorage.getItem("driven_step7_complete") === "true";
-        case "equipment":
-          return localStorage.getItem("driven_step8_complete") === "true";
+        case "fuel-types":
+          return parseInt(localStorage.getItem("driven_fuel_type_count") || "0") > 0 ||
+                 localStorage.getItem("driven_step8_complete") === "true";
+        case "units-of-measure":
+          return parseInt(localStorage.getItem("driven_unit_count") || "0") > 0 ||
+                 localStorage.getItem("driven_step9_complete") === "true";
+        case "assets":
+          return localStorage.getItem("driven_step10_complete") === "true";
         default:
           return false;
       }
