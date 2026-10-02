@@ -372,6 +372,13 @@
       .emp-table { font-size: 11px; }
       .emp-table th, .emp-table td { padding: 4px 3px; }
     }
+
+    /* ===== STICKY SAVE BAR ===== */
+    .emp-save-bar {
+      position: sticky; bottom: 0; z-index: 40; background: var(--bg-card);
+      border-top: 2px solid var(--border); padding: 12px 20px;
+      max-width: 1100px; margin: 0 auto; box-sizing: border-box;
+    }
 </style>
 
 </head>
@@ -415,9 +422,9 @@
   <div class="emp-tab-bar" id="empTabBar">
     <button class="emp-tab active" id="tabSingle" onclick="switchTab('single')">Single Entry</button>
     <button class="emp-tab" id="tabBulk" onclick="switchTab('bulk')">Bulk Upload</button>
-    <a class="emp-tab-admin driven-admin-only" href="/app/dashboard/admin.html">Admin Dashboard</a>
-    <a class="emp-tab-return" href="/app/dashboard/onboarding-dashboard.html">Onboarding Dashboard</a>
-    <button class="emp-tab-logout" onclick="dashLogout()">Logout</button>
+    <a class="emp-tab-admin driven-admin-only" href="/app/dashboard/admin.html" onclick="return confirmLeave()">Admin Dashboard</a>
+    <a class="emp-tab-return" href="/app/dashboard/onboarding-dashboard.html" onclick="return confirmLeave()">Onboarding Dashboard</a>
+    <button class="emp-tab-logout" onclick="confirmLogout()">Logout</button>
   </div>
 
   <!-- ===== SINGLE ENTRY TAB ===== -->
@@ -543,21 +550,21 @@
 
   </div><!-- /tabContentBulk -->
 
-  <!-- ===== ACTIONS (shared — always visible) ===== -->
-  <div class="dash-card">
-    <div class="emp-action-row">
-      <button id="btnSaveEmp" class="emp-btn-primary">Save &amp; Continue</button>
-    </div>
-    <div id="empStepStatus" class="emp-step-status"></div>
-  </div>
-
 </main>
 
+<!-- ===== STICKY SAVE BAR ===== -->
+<div class="emp-save-bar">
+  <div class="emp-action-row">
+    <button id="btnSaveEmp" class="emp-btn-primary">Save &amp; Continue</button>
+  </div>
+  <div id="empStepStatus" class="emp-step-status"></div>
+</div>
+
 <!-- ===== SHARED DASHBOARD JS (loads header, theme, logo, session) ===== -->
-<script src="/app/shared/dashboard-common.js?v=7"></script>
+<script src="/app/shared/dashboard-common.js?v=13"></script>
 
 <!-- ===== AUTH CHECK (shared — ACTIVE, enforces login + role + task checks) ===== -->
-<script src="/app/shared/auth-check.js?v=7"></script>
+<script src="/app/shared/auth-check.js?v=13"></script>
 
 <!-- ===== PAGE-SPECIFIC SCRIPT ===== -->
 <script>
@@ -575,8 +582,11 @@
        8. Updates the employee count badge
 
        ROLE LIST:
-       Roles are pulled from the Roles & Permissions task via /api/onboarding/roles.
-       No system-assigned roles — only roles the customer created.
+       All roles are hardcoded in the dropdown and in the validRoles array below.
+       FUTURE: Pull roles from the roles database via API instead of hardcoding.
+       Current roles: Admin, Project Manager, Superintendent, Foreman, Equipment Manager,
+       Mechanic, Operator, Driver, Laborer, Safety Officer, Inspector, Clerk,
+       Supervisor, HR, Payroll, Employee.
 
        BULK UPLOAD:
        Excel template must have columns: First Name, Middle Name, Last Name, Suffix,
@@ -590,6 +600,7 @@
     // ===== STATE =====
     // Array of employee objects added locally (not yet saved)
     var employees = [];
+    var empDirty = false;
 
     // ===== VALID ROLES =====
     // Populated from the Roles & Permissions task via /api/onboarding/roles.
@@ -612,6 +623,9 @@
     function isValidEmail(email) {
       return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     }
+
+    // ===== HELPER: Normalize a name (trim + collapse internal whitespace) =====
+    function normalizeName(str) { return String(str).trim().replace(/\s+/g, " "); }
 
     // ===== HELPER: Update the employee count badge =====
     function updateCount() {
@@ -685,40 +699,61 @@
     }
 
     // ===== RENDER EMPLOYEE TABLE =====
-    // Shows all employees added so far in a table
+    // Shows all employees added so far in a table (DOM-safe — no innerHTML for user values)
     function renderTable() {
+      empTableContainer.textContent = "";
       if (employees.length === 0) {
-        empTableContainer.innerHTML = '<p class="emp-empty">No employees added yet.</p>';
+        var empty = document.createElement("p");
+        empty.className = "emp-empty";
+        empty.textContent = "No employees added yet.";
+        empTableContainer.appendChild(empty);
         return;
       }
-
-      var rows = employees.map(function(emp, index) {
-        return '<tr>' +
-          '<td>' + (index + 1) + '</td>' +
-          '<td>' + emp.fullName + '</td>' +
-          '<td>' + (emp.email || '—') + '</td>' +
-          '<td>' + (emp.phone || '—') + '</td>' +
-          '<td>' + (emp.division || '—') + '</td>' +
-          '<td>' + (emp.role || '—') + '</td>' +
-          '<td>' + (emp.status || '—') + '</td>' +
-          '<td><button class="emp-btn-secondary" style="padding:4px 10px;font-size:12px;height:auto;" onclick="removeEmployee(' + index + ')">Remove</button></td>' +
-          '</tr>';
-      }).join("");
-
-      empTableContainer.innerHTML =
-        '<table class="emp-table"><thead><tr>' +
-        '<th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Division</th><th>Role</th><th>Status</th><th>Action</th>' +
-        '</tr></thead><tbody>' + rows + '</tbody></table>';
+      var table = document.createElement("table");
+      table.className = "emp-table";
+      var thead = document.createElement("thead");
+      var headRow = document.createElement("tr");
+      ["#", "Name", "Email", "Phone", "Division", "Role", "Status", "Action"].forEach(function(h) {
+        var th = document.createElement("th");
+        th.textContent = h;
+        headRow.appendChild(th);
+      });
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+      var tbody = document.createElement("tbody");
+      employees.forEach(function(emp, index) {
+        var row = document.createElement("tr");
+        var cellNum = document.createElement("td");
+        cellNum.textContent = String(index + 1);
+        row.appendChild(cellNum);
+        [emp.fullName, emp.email, emp.phone, emp.division, emp.role, emp.status].forEach(function(val) {
+          var cell = document.createElement("td");
+          cell.textContent = val || "—";
+          row.appendChild(cell);
+        });
+        var cellAction = document.createElement("td");
+        var btn = document.createElement("button");
+        btn.className = "emp-btn-secondary";
+        btn.style.cssText = "padding:4px 10px;font-size:12px;height:auto;";
+        btn.textContent = "Remove";
+        btn.addEventListener("click", function() { removeEmployee(index); });
+        cellAction.appendChild(btn);
+        row.appendChild(cellAction);
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      empTableContainer.appendChild(table);
     }
 
     // ===== REMOVE EMPLOYEE (by index) =====
-    window.removeEmployee = function(index) {
+    function removeEmployee(index) {
       employees.splice(index, 1);
       renderTable();
       updateCount();
       empSuccess.textContent = "";
       empError.textContent = "";
-    };
+      empDirty = true;
+    }
 
     // ===== TAB SWITCHER (Single Entry vs Bulk Upload) =====
     window.switchTab = function(tab) {
@@ -740,18 +775,31 @@
       }
     };
 
+    // ===== DIRTY-STATE TRACKING =====
+    window.confirmLeave = function() {
+      if (empDirty) { return confirm("You have unsaved employees. Click OK to leave without saving, or Cancel to stay and save them."); }
+      return true;
+    };
+    window.confirmLogout = function() {
+      if (empDirty) { if (!confirm("You have unsaved employees. Click OK to log out without saving, or Cancel to stay and save them.")) return; }
+      dashLogout();
+    };
+    window.addEventListener("beforeunload", function(e) {
+      if (empDirty) { e.preventDefault(); e.returnValue = "You have unsaved employees."; }
+    });
+
     // ===== ADD EMPLOYEE (single entry button click) =====
     document.getElementById("btnAddEmp").addEventListener("click", function() {
       empError.textContent = "";
       empSuccess.textContent = "";
 
       // Get form values
-      var first = document.getElementById("empFirstName").value.trim();
-      var middle = document.getElementById("empMiddleName").value.trim();
-      var last = document.getElementById("empLastName").value.trim();
-      var suffix = document.getElementById("empSuffix").value.trim();
+      var first = normalizeName(document.getElementById("empFirstName").value);
+      var middle = normalizeName(document.getElementById("empMiddleName").value);
+      var last = normalizeName(document.getElementById("empLastName").value);
+      var suffix = normalizeName(document.getElementById("empSuffix").value);
       var email = document.getElementById("empEmail").value.trim();
-      var phone = document.getElementById("empPhone").value.trim();
+      var phone = normalizeName(document.getElementById("empPhone").value);
       var division = document.getElementById("empDivision").value;
       var role = document.getElementById("empRole").value;
       var status = document.getElementById("empStatus").value;
@@ -823,6 +871,7 @@
       document.getElementById("empFirstName").focus();
 
       empSuccess.textContent = "Employee added. Add another or click Save & Continue.";
+      empDirty = true;
     });
 
     // ===== BULK UPLOAD (Process Excel file) =====
@@ -962,15 +1011,15 @@
 
         // All validation passed — build employee objects
         var bulkEmployees = rows.map(function(row) {
-          var first = String(row["First Name"]).trim();
-          var middle = row["Middle Name"] ? String(row["Middle Name"]).trim() : "";
-          var last = String(row["Last Name"]).trim();
-          var suffix = row["Suffix"] ? String(row["Suffix"]).trim() : "";
+          var first = normalizeName(String(row["First Name"]));
+          var middle = row["Middle Name"] ? normalizeName(String(row["Middle Name"])) : "";
+          var last = normalizeName(String(row["Last Name"]));
+          var suffix = row["Suffix"] ? normalizeName(String(row["Suffix"])) : "";
           var email = String(row["Email"]).trim();
-          var phone = row["Phone"] ? String(row["Phone"]).trim() : "";
-          var division = row["Division"] ? String(row["Division"]).trim() : "";
-          var role = String(row["Role"]).trim();
-          var status = String(row["Status"]).trim();
+          var phone = row["Phone"] ? normalizeName(String(row["Phone"])) : "";
+          var division = row["Division"] ? normalizeName(String(row["Division"])) : "";
+          var role = normalizeName(String(row["Role"]));
+          var status = normalizeName(String(row["Status"]));
 
           return {
             firstName: first,
@@ -987,26 +1036,31 @@
           };
         });
 
-        // Show preview table
+        // Show preview table (DOM-safe — no innerHTML for user values)
         var allCols = requiredFields.concat(optionalFields);
-        var html = "<table><thead><tr>";
-        allCols.forEach(function(c) { html += "<th>" + c + "</th>"; });
-        html += "</tr></thead><tbody>";
-        bulkEmployees.forEach(function(emp) {
-          html += "<tr>";
-          html += "<td>" + emp.firstName + "</td>";
-          html += "<td>" + (emp.middleName || "") + "</td>";
-          html += "<td>" + emp.lastName + "</td>";
-          html += "<td>" + (emp.suffix || "") + "</td>";
-          html += "<td>" + emp.email + "</td>";
-          html += "<td>" + (emp.phone || "") + "</td>";
-          html += "<td>" + (emp.division || "") + "</td>";
-          html += "<td>" + emp.role + "</td>";
-          html += "<td>" + emp.status + "</td>";
-          html += "</tr>";
+        bulkPreview.textContent = "";
+        var pTable = document.createElement("table");
+        var pThead = document.createElement("thead");
+        var pHeadRow = document.createElement("tr");
+        allCols.forEach(function(c) {
+          var pTh = document.createElement("th");
+          pTh.textContent = c;
+          pHeadRow.appendChild(pTh);
         });
-        html += "</tbody></table>";
-        bulkPreview.innerHTML = html;
+        pThead.appendChild(pHeadRow);
+        pTable.appendChild(pThead);
+        var pTbody = document.createElement("tbody");
+        bulkEmployees.forEach(function(emp) {
+          var pRow = document.createElement("tr");
+          [emp.firstName, emp.middleName, emp.lastName, emp.suffix, emp.email, emp.phone, emp.division, emp.role, emp.status].forEach(function(val) {
+            var pCell = document.createElement("td");
+            pCell.textContent = val || "";
+            pRow.appendChild(pCell);
+          });
+          pTbody.appendChild(pRow);
+        });
+        pTable.appendChild(pTbody);
+        bulkPreview.appendChild(pTable);
 
         // Add bulk employees to the main employees array
         employees = employees.concat(bulkEmployees);
@@ -1016,13 +1070,14 @@
         // Show success message
         statusBulk.textContent = "Uploaded " + bulkEmployees.length + " employees. Review above and click Save & Continue.";
         statusBulk.className = "emp-success";
+        empDirty = true;
       };
 
       if (file.name.toLowerCase().endsWith(".csv")) { reader.readAsText(file); } else { reader.readAsArrayBuffer(file); }
     });
 
     // ===== SAVE & CONTINUE (button click) =====
-    document.getElementById("btnSaveEmp").addEventListener("click", function() {
+    document.getElementById("btnSaveEmp").addEventListener("click", async function() {
       empStepStatus.textContent = "";
       empStepStatus.style.color = "var(--error)";
 
@@ -1032,31 +1087,33 @@
         return;
       }
 
-      // Save to localStorage (will be D1 API call in the future)
-      // Merge with any existing employees
+      // Save to localStorage (for immediate UI feedback)
       var existing = JSON.parse(localStorage.getItem("driven_employees") || "[]");
       var allEmployees = existing.concat(employees);
       localStorage.setItem("driven_employees", JSON.stringify(allEmployees));
-
-      // Update the employee count for the admin dashboard stats
       localStorage.setItem("driven_employee_count", allEmployees.length);
-
-      // Mark step as complete
       localStorage.setItem("driven_step3_complete", "true");
 
-      // Show success message
-      empStepStatus.style.color = "var(--success)";
-      empStepStatus.textContent = employees.length + " employee(s) saved. Total employees: " + allEmployees.length + ".";
-
-      // Disable the save button
       var btnSave = document.getElementById("btnSaveEmp");
-      btnSave.disabled = true;
-      btnSave.textContent = "Saved ✓";
-
-      // Clear the local array (they've been saved to localStorage)
-      employees = [];
-      renderTable();
-      updateCount();
+      btnSave.disabled = true; btnSave.textContent = "Saving...";
+      try {
+        var res = await fetch("/auth/save-settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ settings: { employees: allEmployees } })
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Save failed");
+        empStepStatus.style.color = "var(--success)";
+        empStepStatus.textContent = employees.length + " employee(s) saved. Total employees: " + allEmployees.length + ".";
+        btnSave.textContent = "Saved ✓";
+      } catch(err) {
+        empStepStatus.style.color = "var(--error)";
+        empStepStatus.textContent = "Saved locally, but server save failed: " + err.message;
+        btnSave.disabled = false; btnSave.textContent = "Save & Continue";
+      }
+      employees = []; renderTable(); updateCount();
+      empDirty = false;
     });
 
     // ===== DOWNLOAD EMPLOYEE TEMPLATE =====
@@ -1100,9 +1157,13 @@
             if (fullName) firstName = fullName.split(" ")[0];
           }
           if (firstName) {
-            greetingEl.innerHTML = "Welcome, <strong>" + firstName + "</strong>";
+            greetingEl.textContent = "";
+            greetingEl.appendChild(document.createTextNode("Welcome, "));
+            var strong = document.createElement("strong");
+            strong.textContent = firstName;
+            greetingEl.appendChild(strong);
           } else {
-            greetingEl.innerHTML = "Welcome";
+            greetingEl.textContent = "Welcome";
           }
         }
       }
