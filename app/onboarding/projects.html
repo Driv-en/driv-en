@@ -262,6 +262,10 @@
     var bulkTableContainer = document.getElementById("bulkTableContainer");
     var statusBulk = document.getElementById("statusBulk");
     var bulkPreview = document.getElementById("bulkPreview");
+
+    /* ===== COPILOT FIX: Normalize a name (trim + collapse internal whitespace) ===== */
+    function normalizeName(str) { return String(str).trim().replace(/\s+/g, " "); }
+
     function updateCount() { prjCountEl.textContent = projects.length; }
     function populateSelect(selectId, items) {
       var sel = document.getElementById(selectId);
@@ -295,14 +299,55 @@
       populateSelect("prjPM", empNames);
       populateSelect("prjSuper", empNames);
     }
+
+    /* ===== COPILOT FIX: renderTable — DOM-safe (no innerHTML for user values) ===== */
     function renderTable() {
-      if (projects.length === 0) { prjTableContainer.innerHTML = '<p class="prj-empty">No projects added yet.</p>'; return; }
-      var rows = projects.map(function(prj, index) {
-        return '<tr><td>' + (index + 1) + '</td><td>' + prj.number + '</td><td>' + prj.name + '</td><td>' + prj.address + '</td><td>' + prj.division + '</td><td>' + prj.client + '</td><td>' + prj.type + '</td><td>' + prj.pm + '</td><td>' + prj.super + '</td><td><button class="prj-btn-secondary" style="padding:4px 10px;font-size:12px;height:auto;" onclick="removeProject(' + index + ')">Remove</button></td></tr>';
-      }).join("");
-      prjTableContainer.innerHTML = '<table class="prj-table"><thead><tr><th>#</th><th>Number</th><th>Name</th><th>Address</th><th>Division</th><th>Client</th><th>Type</th><th>PM</th><th>Superintendent</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table>';
+      prjTableContainer.textContent = "";
+      if (projects.length === 0) {
+        var empty = document.createElement("p");
+        empty.className = "prj-empty";
+        empty.textContent = "No projects added yet.";
+        prjTableContainer.appendChild(empty);
+        return;
+      }
+      var table = document.createElement("table");
+      table.className = "prj-table";
+      var thead = document.createElement("thead");
+      var headRow = document.createElement("tr");
+      ["#", "Number", "Name", "Address", "Division", "Client", "Type", "PM", "Superintendent", "Action"].forEach(function(h) {
+        var th = document.createElement("th");
+        th.textContent = h;
+        headRow.appendChild(th);
+      });
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+      var tbody = document.createElement("tbody");
+      projects.forEach(function(prj, index) {
+        var row = document.createElement("tr");
+        var cellNum = document.createElement("td");
+        cellNum.textContent = String(index + 1);
+        row.appendChild(cellNum);
+        ["number", "name", "address", "division", "client", "type", "pm", "super"].forEach(function(key) {
+          var cell = document.createElement("td");
+          cell.textContent = prj[key] || "";
+          row.appendChild(cell);
+        });
+        var cellAction = document.createElement("td");
+        var btn = document.createElement("button");
+        btn.className = "prj-btn-secondary";
+        btn.style.cssText = "padding:4px 10px;font-size:12px;height:auto;";
+        btn.textContent = "Remove";
+        btn.addEventListener("click", function() { removeProject(index); });
+        cellAction.appendChild(btn);
+        row.appendChild(cellAction);
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      prjTableContainer.appendChild(table);
     }
-    window.removeProject = function(index) { projects.splice(index, 1); renderTable(); updateCount(); prjSuccess.textContent = ""; prjError.textContent = ""; prjDirty = true; };
+
+    /* ===== COPILOT FIX: removeProject — no longer global, uses addEventListener ===== */
+    function removeProject(index) { projects.splice(index, 1); renderTable(); updateCount(); prjSuccess.textContent = ""; prjError.textContent = ""; prjDirty = true; }
     window.switchTab = function(tab) {
       var tabSingle = document.getElementById("tabSingle"); var tabBulk = document.getElementById("tabBulk");
       var contentSingle = document.getElementById("tabContentSingle"); var contentBulk = document.getElementById("tabContentBulk");
@@ -322,9 +367,10 @@
     });
     document.getElementById("btnAddPrj").addEventListener("click", function() {
       prjError.textContent = ""; prjSuccess.textContent = "";
-      var number = document.getElementById("prjNumber").value.trim();
-      var name = document.getElementById("prjName").value.trim();
-      var address = document.getElementById("prjAddress").value.trim();
+      /* ===== COPILOT FIX: normalizeName on all text inputs ===== */
+      var number = normalizeName(document.getElementById("prjNumber").value);
+      var name = normalizeName(document.getElementById("prjName").value);
+      var address = normalizeName(document.getElementById("prjAddress").value);
       var division = document.getElementById("prjDivision").value;
       var client = document.getElementById("prjClient").value;
       var type = document.getElementById("prjType").value;
@@ -378,22 +424,43 @@
           if (validEmployees.indexOf(row["Project Manager"]) === -1) { statusBulk.textContent = "Row " + (r + 2) + ': Invalid Project Manager "' + row["Project Manager"] + '". Must match an employee from the Employees task.'; return; }
           if (validEmployees.indexOf(row["Project Superintendent"]) === -1) { statusBulk.textContent = "Row " + (r + 2) + ': Invalid Project Superintendent "' + row["Project Superintendent"] + '". Must match an employee from the Employees task.'; return; }
         }
+        /* ===== COPILOT FIX: normalizeName on bulk project values ===== */
         var bulkProjects = rows.map(function(row) {
-          return { number: String(row["Project Number"]).trim(), name: String(row["Project Name"]).trim(), address: String(row["Physical Address"]).trim(), division: row["Division"], client: row["Client"], type: row["Project Type"], pm: row["Project Manager"], super: row["Project Superintendent"], customerId: localStorage.getItem("driven_customer_id") || "" };
+          return { number: normalizeName(row["Project Number"]), name: normalizeName(row["Project Name"]), address: normalizeName(row["Physical Address"]), division: row["Division"], client: row["Client"], type: row["Project Type"], pm: row["Project Manager"], super: row["Project Superintendent"], customerId: localStorage.getItem("driven_customer_id") || "" };
         });
-        var html = "<table><thead><tr>";
-        requiredFields.forEach(function(f) { html += "<th>" + f + "</th>"; });
-        html += "</tr></thead><tbody>";
-        bulkProjects.forEach(function(p) { html += "<tr><td>" + p.number + "</td><td>" + p.name + "</td><td>" + p.address + "</td><td>" + p.division + "</td><td>" + p.client + "</td><td>" + p.type + "</td><td>" + p.pm + "</td><td>" + p.super + "</td></tr>"; });
-        html += "</tbody></table>";
-        bulkPreview.innerHTML = html;
+        /* ===== COPILOT FIX: bulk preview — DOM-safe (no innerHTML for user values) ===== */
+        bulkPreview.textContent = "";
+        var pTable = document.createElement("table");
+        var pThead = document.createElement("thead");
+        var pHeadRow = document.createElement("tr");
+        requiredFields.forEach(function(f) {
+          var pTh = document.createElement("th");
+          pTh.textContent = f;
+          pHeadRow.appendChild(pTh);
+        });
+        pThead.appendChild(pHeadRow);
+        pTable.appendChild(pThead);
+        var pTbody = document.createElement("tbody");
+        bulkProjects.forEach(function(p) {
+          var pRow = document.createElement("tr");
+          ["number", "name", "address", "division", "client", "type", "pm", "super"].forEach(function(key) {
+            var pCell = document.createElement("td");
+            pCell.textContent = p[key] || "";
+            pRow.appendChild(pCell);
+          });
+          pTbody.appendChild(pRow);
+        });
+        pTable.appendChild(pTbody);
+        bulkPreview.appendChild(pTable);
         projects = projects.concat(bulkProjects); renderTable(); updateCount();
         statusBulk.textContent = "Uploaded " + bulkProjects.length + " projects. Review above and click Save & Continue."; statusBulk.className = "prj-success";
         prjDirty = true;
       };
       if (file.name.toLowerCase().endsWith(".csv")) { reader.readAsText(file); } else { reader.readAsArrayBuffer(file); }
     });
-    document.getElementById("btnSavePrj").addEventListener("click", function() {
+
+    /* ===== COPILOT FIX: Save — server-side via /auth/save-settings ===== */
+    document.getElementById("btnSavePrj").addEventListener("click", async function() {
       prjStepStatus.textContent = ""; prjStepStatus.style.color = "var(--error)";
       if (projects.length === 0) { prjStepStatus.textContent = "You must add at least one project."; return; }
       var existing = JSON.parse(localStorage.getItem("driven_projects") || "[]");
@@ -401,9 +468,24 @@
       localStorage.setItem("driven_projects", JSON.stringify(allProjects));
       localStorage.setItem("driven_project_count", allProjects.length);
       localStorage.setItem("driven_step7_complete", "true");
-      prjStepStatus.style.color = "var(--success)";
-      prjStepStatus.textContent = projects.length + " project(s) saved. Total projects: " + allProjects.length + ".";
-      var btnSave = document.getElementById("btnSavePrj"); btnSave.disabled = true; btnSave.textContent = "Saved ✓";
+      var btnSave = document.getElementById("btnSavePrj");
+      btnSave.disabled = true; btnSave.textContent = "Saving...";
+      try {
+        var res = await fetch("/auth/save-settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ settings: { projects: allProjects } })
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Save failed");
+        prjStepStatus.style.color = "var(--success)";
+        prjStepStatus.textContent = projects.length + " project(s) saved. Total projects: " + allProjects.length + ".";
+        btnSave.textContent = "Saved ✓";
+      } catch(err) {
+        prjStepStatus.style.color = "var(--error)";
+        prjStepStatus.textContent = "Saved locally, but server save failed: " + err.message;
+        btnSave.disabled = false; btnSave.textContent = "Save & Continue";
+      }
       projects = []; renderTable(); updateCount();
       prjDirty = false;
     });
@@ -429,7 +511,16 @@
         if (greetingEl) {
           var firstName = e.detail.first_name || "";
           if (!firstName) { var fullName = e.detail.full_name || ""; if (fullName) firstName = fullName.split(" ")[0]; }
-          if (firstName) { greetingEl.innerHTML = "Welcome, <strong>" + firstName + "</strong>"; } else { greetingEl.innerHTML = "Welcome"; }
+          /* ===== COPILOT FIX: greeting — DOM-safe (no innerHTML) ===== */
+          if (firstName) {
+            greetingEl.textContent = "";
+            greetingEl.appendChild(document.createTextNode("Welcome, "));
+            var strong = document.createElement("strong");
+            strong.textContent = firstName;
+            greetingEl.appendChild(strong);
+          } else {
+            greetingEl.textContent = "Welcome";
+          }
         }
       }
       var row1 = document.querySelector(".dash-header-row1");
