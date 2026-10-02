@@ -232,6 +232,7 @@
       if (!file) { statusBulk.textContent = "Please select an Excel or CSV file."; return; }
       var reader = new FileReader();
       reader.onload = function(e) {
+        try {
         var rows;
         var isCsv = file.name.toLowerCase().endsWith(".csv");
         if (isCsv) {
@@ -277,17 +278,40 @@
         divisions = divisions.concat(bulkDivisions); renderTable(); updateCount();
         statusBulk.textContent = "Uploaded " + bulkDivisions.length + " divisions. Review above and click Save & Continue."; statusBulk.className = "div-success";
         divDirty = true;
+        } catch(parseErr) {
+          statusBulk.textContent = "Could not parse the file. Make sure it is a valid Excel (.xlsx) or CSV file with a 'Division Name' column.";
+          statusBulk.className = "div-error";
+          if (window.DRIVENErrorHandler) {
+            window.DRIVENErrorHandler.report(
+              "divisions.html: bulk upload parse failed — " + (parseErr.message || parseErr),
+              "bulk-upload-parse",
+              parseErr && parseErr.stack ? parseErr.stack : null
+            );
+          }
+        }
       };
       if (file.name.toLowerCase().endsWith(".csv")) { reader.readAsText(file); } else { reader.readAsArrayBuffer(file); }
     });
     document.getElementById("btnSaveDiv").addEventListener("click", async function() {
       divStepStatus.textContent = ""; divStepStatus.style.color = "var(--error)";
       if (divisions.length === 0) { divStepStatus.textContent = "You must add at least one division."; return; }
-      var existing = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
-      var allDivisions = existing.concat(divisions);
-      localStorage.setItem("driven_divisions", JSON.stringify(allDivisions));
-      localStorage.setItem("driven_division_count", allDivisions.length);
-      localStorage.setItem("driven_step5_complete", "true");
+      var allDivisions;
+      try {
+        var existing = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
+        allDivisions = existing.concat(divisions);
+        localStorage.setItem("driven_divisions", JSON.stringify(allDivisions));
+        localStorage.setItem("driven_division_count", allDivisions.length);
+        localStorage.setItem("driven_step5_complete", "true");
+      } catch(lsErr) {
+        console.warn("localStorage save failed:", lsErr.message);
+        if (window.DRIVENErrorHandler) {
+          window.DRIVENErrorHandler.report(
+            "divisions.html: localStorage save failed — " + (lsErr.message || lsErr),
+            "save-localStorage", lsErr && lsErr.stack ? lsErr.stack : null
+          );
+        }
+        allDivisions = divisions.slice();
+      }
       var btnSave = document.getElementById("btnSaveDiv");
       btnSave.disabled = true; btnSave.textContent = "Saving...";
       try {
@@ -297,20 +321,39 @@
           body: JSON.stringify({ settings: { divisions: allDivisions } })
         });
         var data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Save failed");
+        if (!res.ok) {
+          if (res.status < 500 && window.DRIVENErrorHandler) {
+            window.DRIVENErrorHandler.report(
+              "divisions.html: save-settings returned " + res.status + " — " + (data.error || "Request failed"),
+              "save-settings-" + res.status,
+              "URL: /auth/save-settings | Divisions: " + allDivisions.length
+            );
+          }
+          throw new Error(data.error || "Save failed");
+        }
         divStepStatus.style.color = "var(--success)";
-        divStepStatus.textContent = divisions.length + " division(s) saved. Total divisions: " + allDivisions.length + ".";
+        divStepStatus.textContent = divisions.length + " division(s) saved. Total divisions: " + allDivisions.length + ". Redirecting to onboarding dashboard…";
         btnSave.textContent = "Saved ✓";
+        divDirty = false;
+        divisions = []; renderTable(); updateCount();
+        setTimeout(function() {
+          btnSave.disabled = false; btnSave.textContent = "Save & Continue";
+          window.location.href = "/app/dashboard/onboarding-dashboard.html";
+        }, 1500);
       } catch(err) {
         divStepStatus.style.color = "var(--error)";
         divStepStatus.textContent = "Saved locally, but server save failed: " + err.message;
         btnSave.disabled = false; btnSave.textContent = "Save & Continue";
+        if (window.DRIVENErrorHandler) {
+          window.DRIVENErrorHandler.report(
+            "divisions.html: save failed — " + (err.message || err),
+            "save-settings-catch", err && err.stack ? err.stack : null
+          );
+        }
       }
-      divisions = []; renderTable(); updateCount();
-      divDirty = false;
     });
     function downloadDivisionTemplate() {
-      var ws = XLSX.utils.aoa_to_sheet([ ["Division Name"] ]);
+      var ws = XLSX.utils.aoa_to_sheet([["Division Name"]]);
       ws["!cols"] = [{ wch: 60 }];
       downloadXlsxWithFrozenHeader(ws, "Divisions", "Division-Mass-Upload-v1.0.xlsx");
     }
