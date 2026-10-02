@@ -36,7 +36,9 @@
 /* ===== LOADING SCREEN ===== */
 .um-loading { display:flex; align-items:center; justify-content:center; height:100vh; font-size:16px; color:var(--text-muted); }
 
-/* ===== HEADER OVERRIDE ===== */
+/* ===== HEADER OVERRIDE — logos + title on one row ===== */
+/* The header is loaded async by dashboard-common.js. We use JS (fixHeaderLayout)
+   to physically move the h1 into row 1, then these styles control the layout. */
 .dash-header-row3 { display:none !important; }
 #dashHeader .dash-theme-wrapper { display:none !important; }
 .dash-header-row2 { display:none !important; }
@@ -51,6 +53,7 @@
 .um-tab { background:#94a3b8; border:1px solid #64748b; border-bottom:none; border-radius:8px 8px 0 0; padding:10px 22px; font-size:15px; font-weight:500; color:#1e293b; cursor:pointer; white-space:nowrap; transition:color 200ms ease, background 200ms ease, margin-top 200ms ease; margin-top:4px; position:relative; z-index:1; }
 .um-tab:hover { color:#0f172a; background:#a5b4c4; margin-top:2px; }
 .um-tab.active { color:#1d4ed8; background:#e2e8f0; border-color:#64748b; margin-top:0; font-weight:600; z-index:2; }
+/* Employees tab — green (matches Admin Quick Links teal/green) */
 .um-tab[data-tab="employees"] { background:#0d9488; border-color:#0f766e; color:#fff; }
 .um-tab[data-tab="employees"]:hover { background:#0f766e; color:#fff; margin-top:2px; }
 .um-tab[data-tab="employees"].active { background:#ccfbf1; color:#0f766e; border-color:#0d9488; }
@@ -182,8 +185,10 @@
 </head>
 <body data-page-title="Employee Management">
 
+<!-- ===== HEADER (loaded by dashboard-common.js) ===== -->
 <div id="dashHeader"></div>
 
+<!-- ===== TAB BAR ===== -->
 <div class="um-tab-bar">
   <div class="um-tab active" data-tab="employees" onclick="switchTab('employees')" style="background:#0d9488;border-color:#0f766e;color:#fff;">Employees</div>
   <div class="um-tab" data-tab="activity" onclick="switchTab('activity')">Activity Log</div>
@@ -193,13 +198,20 @@
   <div class="um-tab-logout" onclick="dashLogout()">Logout</div>
 </div>
 
+<!-- ===== MAIN CONTENT ===== -->
 <div class="um-main">
+
+  <!-- ===== LOADING ===== -->
   <div class="um-loading" id="umLoading">Loading user management...</div>
+
+  <!-- ===== ACCESS DENIED (shown if no permission) ===== -->
   <div class="um-denied" id="umDenied" style="display:none;">
     <h2>Access Denied</h2>
     <p>You need <strong>users.view</strong> permission to access this page.</p>
     <p>Contact your administrator if you believe this is an error.</p>
   </div>
+
+  <!-- ===== USERS TAB ===== -->
   <div class="um-tab-content" id="tab-users" style="display:none;">
     <div class="um-card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
@@ -216,12 +228,24 @@
       </div>
       <div style="overflow-x:auto;">
         <table class="um-table" id="usersTable">
-          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>2FA</th><th>Last Login</th><th>Actions</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>2FA</th>
+              <th>Last Login</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
           <tbody id="usersTableBody"></tbody>
         </table>
       </div>
     </div>
   </div>
+
+  <!-- ===== EMPLOYEES TAB ===== -->
   <div class="um-tab-content active" id="tab-employees" style="display:none;">
     <div class="um-card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
@@ -239,12 +263,22 @@
       </div>
       <div style="overflow-x:auto;">
         <table class="um-table" id="employeesTable">
-          <thead><tr><th>Emp #</th><th>Name</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Emp #</th>
+              <th>Name</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
           <tbody id="employeesTableBody"></tbody>
         </table>
       </div>
     </div>
   </div>
+
+  <!-- ===== ACTIVITY TAB ===== -->
   <div class="um-tab-content" id="tab-activity" style="display:none;">
     <div class="um-card">
       <h3>User Activity Log</h3>
@@ -266,12 +300,23 @@
       </div>
       <div style="overflow-x:auto;">
         <table class="um-table" id="activityTable">
-          <thead><tr><th>Date/Time</th><th>User</th><th>Module</th><th>Action</th><th>Details</th><th>IP Address</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Date/Time</th>
+              <th>User</th>
+              <th>Module</th>
+              <th>Action</th>
+              <th>Details</th>
+              <th>IP Address</th>
+            </tr>
+          </thead>
           <tbody id="activityTableBody"></tbody>
         </table>
       </div>
     </div>
   </div>
+
+  <!-- ===== ROLES TAB ===== -->
   <div class="um-tab-content" id="tab-roles" style="display:none;">
     <div class="um-card">
       <h3>Roles & Permission Matrix</h3>
@@ -281,10 +326,13 @@
       <div id="rolesContainer"></div>
     </div>
   </div>
+
 </div>
 
+<!-- ===== FOOTER (loaded by dashboard-common.js) ===== -->
 <div id="dashFooter"></div>
 
+<!-- ===== USER DETAIL MODAL ===== -->
 <div class="um-modal-overlay" id="userDetailModal">
   <div class="um-modal um-modal-large">
     <button class="um-modal-close" onclick="closeModal('userDetailModal')">&times;</button>
@@ -292,18 +340,34 @@
   </div>
 </div>
 
+<!-- ===== ADD USER MODAL ===== -->
 <div class="um-modal-overlay" id="addUserModal">
   <div class="um-modal">
     <button class="um-modal-close" onclick="closeModal('addUserModal')">&times;</button>
     <h3>Add New User</h3>
     <div class="um-form-grid">
-      <div class="um-form-row"><label>First Name</label><input type="text" id="newUserFirst" placeholder="John"></div>
-      <div class="um-form-row"><label>Last Name</label><input type="text" id="newUserLast" placeholder="Doe"></div>
+      <div class="um-form-row">
+        <label>First Name</label>
+        <input type="text" id="newUserFirst" placeholder="John">
+      </div>
+      <div class="um-form-row">
+        <label>Last Name</label>
+        <input type="text" id="newUserLast" placeholder="Doe">
+      </div>
     </div>
-    <div class="um-form-row"><label>Email Address</label><input type="email" id="newUserEmail" placeholder="john.doe@company.com"></div>
+    <div class="um-form-row">
+      <label>Email Address</label>
+      <input type="email" id="newUserEmail" placeholder="john.doe@company.com">
+    </div>
     <div class="um-form-grid">
-      <div class="um-form-row"><label>Role</label><select id="newUserRole"></select></div>
-      <div class="um-form-row"><label>Temporary Password</label><input type="text" id="newUserPassword" placeholder="User will be prompted to change"></div>
+      <div class="um-form-row">
+        <label>Role</label>
+        <select id="newUserRole"></select>
+      </div>
+      <div class="um-form-row">
+        <label>Temporary Password</label>
+        <input type="text" id="newUserPassword" placeholder="User will be prompted to change">
+      </div>
     </div>
     <div style="display:flex; gap:12px; margin-top:20px;">
       <button class="um-btn um-btn-primary" onclick="createUser()">Create User</button>
@@ -312,41 +376,106 @@
   </div>
 </div>
 
+<!-- ===== ADD EMPLOYEE MODAL ===== -->
 <div class="um-modal-overlay" id="addEmployeeModal">
   <div class="um-modal um-modal-large">
     <button class="um-modal-close" onclick="closeModal('addEmployeeModal')">&times;</button>
     <h3>Add New Employee</h3>
     <div class="um-form-grid">
-      <div class="um-form-row"><label>Employee Number</label><input type="text" id="newEmpNumber" placeholder="EMP-001"></div>
-      <div class="um-form-row"><label>Role</label><select id="newEmpRole"><option value="">Select a role...</option></select></div>
+      <div class="um-form-row">
+        <label>Employee Number</label>
+        <input type="text" id="newEmpNumber" placeholder="EMP-001">
+      </div>
+      <div class="um-form-row">
+        <label>Role</label>
+        <select id="newEmpRole">
+          <option value="">Select a role...</option>
+        </select>
+      </div>
     </div>
     <div class="um-form-grid">
-      <div class="um-form-row"><label>First Name *</label><input type="text" id="newEmpFirst" placeholder="John"></div>
-      <div class="um-form-row"><label>Middle Name</label><input type="text" id="newEmpMiddle" placeholder="Robert"></div>
+      <div class="um-form-row">
+        <label>First Name *</label>
+        <input type="text" id="newEmpFirst" placeholder="John">
+      </div>
+      <div class="um-form-row">
+        <label>Middle Name</label>
+        <input type="text" id="newEmpMiddle" placeholder="Robert">
+      </div>
     </div>
     <div class="um-form-grid">
-      <div class="um-form-row"><label>Last Name *</label><input type="text" id="newEmpLast" placeholder="Smith"></div>
-      <div class="um-form-row"><label>Suffix</label><select id="newEmpSuffix"><option value="">—</option><option value="Jr.">Jr.</option><option value="Sr.">Sr.</option><option value="II">II</option><option value="III">III</option><option value="IV">IV</option></select></div>
+      <div class="um-form-row">
+        <label>Last Name *</label>
+        <input type="text" id="newEmpLast" placeholder="Smith">
+      </div>
+      <div class="um-form-row">
+        <label>Suffix</label>
+        <select id="newEmpSuffix">
+          <option value="">—</option>
+          <option value="Jr.">Jr.</option>
+          <option value="Sr.">Sr.</option>
+          <option value="II">II</option>
+          <option value="III">III</option>
+          <option value="IV">IV</option>
+        </select>
+      </div>
     </div>
+    <!-- Required: Phone & Email -->
     <div class="um-form-grid">
-      <div class="um-form-row"><label>Phone Number *</label><input type="tel" id="newEmpPhone" placeholder="(555) 123-4567"></div>
-      <div class="um-form-row"><label>Email Address *</label><input type="email" id="newEmpEmail" placeholder="john.smith@company.com"></div>
+      <div class="um-form-row">
+        <label>Phone Number *</label>
+        <input type="tel" id="newEmpPhone" placeholder="(555) 123-4567">
+      </div>
+      <div class="um-form-row">
+        <label>Email Address *</label>
+        <input type="email" id="newEmpEmail" placeholder="john.smith@company.com">
+      </div>
     </div>
-    <div class="um-form-row"><label>Status</label><select id="newEmpStatus"><option value="Active" selected>Active</option><option value="On Leave">On Leave</option><option value="Inactive">Inactive</option></select></div>
+    <div class="um-form-row">
+      <label>Status</label>
+      <select id="newEmpStatus">
+        <option value="Active" selected>Active</option>
+        <option value="On Leave">On Leave</option>
+        <option value="Inactive">Inactive</option>
+      </select>
+    </div>
+    <!-- Optional: Address -->
     <h4 style="margin:20px 0 8px 0; font-size:14px; color:var(--text-muted);">Optional Information</h4>
-    <div class="um-form-row"><label>Street Address</label><input type="text" id="newEmpAddress" placeholder="123 Main St"></div>
-    <div class="um-form-grid">
-      <div class="um-form-row"><label>City</label><input type="text" id="newEmpCity" placeholder="Houston"></div>
-      <div class="um-form-row"><label>State</label><input type="text" id="newEmpState" placeholder="TX" maxlength="2"></div>
+    <div class="um-form-row">
+      <label>Street Address</label>
+      <input type="text" id="newEmpAddress" placeholder="123 Main St">
     </div>
     <div class="um-form-grid">
-      <div class="um-form-row"><label>ZIP Code</label><input type="text" id="newEmpZip" placeholder="77001"></div>
-      <div class="um-form-row"><label>Date of Birth</label><input type="date" id="newEmpDob"></div>
+      <div class="um-form-row">
+        <label>City</label>
+        <input type="text" id="newEmpCity" placeholder="Houston">
+      </div>
+      <div class="um-form-row">
+        <label>State</label>
+        <input type="text" id="newEmpState" placeholder="TX" maxlength="2">
+      </div>
     </div>
     <div class="um-form-grid">
-      <div class="um-form-row"><label>Driver's License Number</label><input type="text" id="newEmpDl" placeholder="DL number"></div>
-      <div class="um-form-row"><label>DL State</label><input type="text" id="newEmpDlState" placeholder="TX" maxlength="2"></div>
+      <div class="um-form-row">
+        <label>ZIP Code</label>
+        <input type="text" id="newEmpZip" placeholder="77001">
+      </div>
+      <div class="um-form-row">
+        <label>Date of Birth</label>
+        <input type="date" id="newEmpDob">
+      </div>
     </div>
+    <div class="um-form-grid">
+      <div class="um-form-row">
+        <label>Driver's License Number</label>
+        <input type="text" id="newEmpDl" placeholder="DL number">
+      </div>
+      <div class="um-form-row">
+        <label>DL State</label>
+        <input type="text" id="newEmpDlState" placeholder="TX" maxlength="2">
+      </div>
+    </div>
+    <!-- ===== DRIVER'S LICENSE IMAGES ===== -->
     <h4 style="margin:20px 0 8px 0; font-size:14px; color:var(--text-muted);">Driver's License Images</h4>
     <div class="um-form-grid">
       <div class="um-form-row">
@@ -373,13 +502,20 @@
   </div>
 </div>
 
+<!-- ===== CREATE ROLE MODAL ===== -->
 <div class="um-modal-overlay" id="createRoleModal">
   <div class="um-modal um-modal-large">
     <button class="um-modal-close" onclick="closeModal('createRoleModal')">&times;</button>
     <h3>Create New Role</h3>
     <div class="um-form-grid">
-      <div class="um-form-row"><label>Role Name *</label><input type="text" id="newRoleName" placeholder="e.g. Field Supervisor"></div>
-      <div class="um-form-row"><label>Description</label><input type="text" id="newRoleDesc" placeholder="Brief description of this role"></div>
+      <div class="um-form-row">
+        <label>Role Name *</label>
+        <input type="text" id="newRoleName" placeholder="e.g. Field Supervisor">
+      </div>
+      <div class="um-form-row">
+        <label>Description</label>
+        <input type="text" id="newRoleDesc" placeholder="Brief description of this role">
+      </div>
     </div>
     <h4 style="margin:20px 0 8px 0; font-size:15px;">Permissions</h4>
     <p style="font-size:13px; color:var(--text-muted); margin:0 0 12px 0;">Select which permissions this role grants. Individual overrides can be applied per-employee on the user detail page.</p>
@@ -391,14 +527,21 @@
   </div>
 </div>
 
+<!-- ===== EDIT ROLE MODAL ===== -->
 <div class="um-modal-overlay" id="editRoleModal">
   <div class="um-modal um-modal-large">
     <button class="um-modal-close" onclick="closeModal('editRoleModal')">&times;</button>
     <h3>Edit Role & Permissions</h3>
     <input type="hidden" id="editRoleId">
     <div class="um-form-grid">
-      <div class="um-form-row"><label>Role Name *</label><input type="text" id="editRoleName"></div>
-      <div class="um-form-row"><label>Description</label><input type="text" id="editRoleDesc"></div>
+      <div class="um-form-row">
+        <label>Role Name *</label>
+        <input type="text" id="editRoleName">
+      </div>
+      <div class="um-form-row">
+        <label>Description</label>
+        <input type="text" id="editRoleDesc">
+      </div>
     </div>
     <h4 style="margin:20px 0 8px 0; font-size:15px;">Permissions</h4>
     <p style="font-size:13px; color:var(--text-muted); margin:0 0 12px 0;">Toggle permissions on or off for this role. Changes affect all users assigned to this role.</p>
@@ -410,8 +553,14 @@
   </div>
 </div>
 
+<!-- ===== DASHBOARD COMMON JS ===== -->
 <script src="/app/shared/dashboard-common.js?v=13"></script>
+
 <script>
+// ==========================================
+// USER & EMPLOYEE MANAGEMENT
+// ==========================================
+
 var allUsers = [];
 var allEmployees = [];
 var allActivity = [];
@@ -421,17 +570,24 @@ var userPermissions = [];
 var canEdit = false;
 var canAdd = false;
 
+// ===== INIT =====
 document.addEventListener('dashSessionLoaded', async function() {
   var user = window.dashUser;
   if (!user) { window.location.href = '/public/login.html'; return; }
+
   userPermissions = user.permissions || [];
+
+  // Check access
   if (!hasPermission('users.view') && !hasPermission('employees.view') && user.role !== 'DRIV-EN Founder' && user.role !== 'Admin') {
     document.getElementById('umLoading').style.display = 'none';
     document.getElementById('umDenied').style.display = 'block';
     return;
   }
+
   canEdit = hasPermission('users.edit') || hasPermission('user.manage') || user.role === 'DRIV-EN Founder' || user.role === 'Admin';
   canAdd = hasPermission('users.add') || hasPermission('user.manage') || user.role === 'DRIV-EN Founder' || user.role === 'Admin';
+
+  // Onboarding gate: Admin/Owner/Founder bypass, all others blocked until onboarding complete
   var isAdminOrOwner = user.role === 'DRIV-EN Founder' || user.role === 'Admin' || (user.role || '').toLowerCase() === 'owner';
   if (!isAdminOrOwner) {
     try {
@@ -441,14 +597,21 @@ document.addEventListener('dashSessionLoaded', async function() {
         window.location.href = '/app/dashboard/onboarding.html';
         return;
       }
-    } catch(e) { }
+    } catch(e) {
+      // If we can't verify, allow access (fail open for Admin convenience)
+    }
   }
+
   if (canAdd) {
     document.getElementById('btnAddUser').style.display = '';
     document.getElementById('btnAddEmployee').style.display = '';
   }
+
   document.getElementById('umLoading').style.display = 'none';
   document.getElementById('tab-employees').style.display = 'block';
+
+  // Fix header layout — the header is loaded async by dashboard-common.js,
+  // so we poll until it's in the DOM, then restructure it.
   var headerAttempts = 0;
   var headerInterval = setInterval(function() {
     headerAttempts++;
@@ -456,6 +619,8 @@ document.addEventListener('dashSessionLoaded', async function() {
       clearInterval(headerInterval);
     }
   }, 100);
+
+  // Load data
   await Promise.all([loadUsers(), loadRoles(), loadPermissions()]);
   loadEmployees();
   loadActivity();
@@ -465,6 +630,7 @@ function hasPermission(perm) {
   return userPermissions.indexOf(perm) !== -1;
 }
 
+// ===== TAB SWITCHING =====
 function switchTab(tab) {
   document.querySelectorAll('.um-tab').forEach(function(t) { t.classList.remove('active'); });
   document.querySelectorAll('.um-tab-content').forEach(function(c) { c.style.display = 'none'; });
@@ -472,9 +638,16 @@ function switchTab(tab) {
   document.getElementById('tab-' + tab).style.display = 'block';
 }
 
+// ===== BACK TO MAIN DASHBOARD =====
 function goToMainDashboard() {
+  // Use sessionStorage origin (set by dashboard-common.js when leaving a dashboard)
+  // This ensures we return to whichever dashboard the user came from, not based on role.
   var savedOrigin = sessionStorage.getItem('driven_dashboard_origin');
-  if (savedOrigin) { window.location.href = savedOrigin; return; }
+  if (savedOrigin) {
+    window.location.href = savedOrigin;
+    return;
+  }
+  // Fallback: role-based
   var user = window.dashUser;
   if (!user) { window.location.href = '/public/login.html'; return; }
   var role = (user.role || '').toLowerCase();
@@ -487,24 +660,39 @@ function goToMainDashboard() {
   }
 }
 
+// ===== FIX HEADER — move title into row 1 so logos + title are on one row =====
+// dashboard-common.js loads the header via fetch() and injects it into #dashHeader.
+// We restructure it after the header is in the DOM.
 function fixHeaderLayout() {
   var header = document.querySelector('.dash-header');
   if (!header) return false;
+
   var row1 = header.querySelector('.dash-header-row1');
   var row2 = header.querySelector('.dash-header-row2');
   var row3 = header.querySelector('.dash-header-row3');
   var h1 = row2 ? row2.querySelector('h1') : null;
+
   if (!row1 || !h1) return false;
+
+  // Only fix once
   if (h1.parentNode === row1) return true;
+
+  // Move h1 from row2 into row1, between the logo area and the DRIV-EN logo
   var drivenLogo = row1.querySelector('.dash-driven-logo');
   row1.insertBefore(h1, drivenLogo);
+
+  // Style row1: flex with logo | title | logo
   row1.style.cssText = 'display:flex !important; justify-content:space-between !important; align-items:center !important; padding:8px 20px !important; gap:16px !important;';
   h1.style.cssText = 'margin:0; font-size:20px; font-weight:600; text-align:center; flex:1;';
+
+  // Hide row2 (title was here, now empty) and row3 (theme toggle/logout — handled by tab bar)
   if (row2) row2.style.display = 'none';
   if (row3) row3.style.display = 'none';
+
   return true;
 }
 
+// ===== MODAL HELPERS =====
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 function openModal(id) { document.getElementById(id).classList.add('show'); }
 
@@ -523,6 +711,7 @@ function formatDate(d) {
   catch(e) { return esc(d); }
 }
 
+// ===== LOAD USERS =====
 async function loadUsers() {
   try {
     var resp = await fetch('/api/onboarding/users/list');
@@ -539,6 +728,7 @@ async function loadUsers() {
     console.error('loadUsers error:', e.message);
     allUsers = [];
   }
+
   if (allUsers.length === 0) {
     try {
       var resp2 = await fetch('/auth/users');
@@ -548,6 +738,7 @@ async function loadUsers() {
       console.error('loadUsers fallback error:', e2.message);
     }
   }
+
   renderUsers();
 }
 
@@ -557,6 +748,7 @@ function renderUsers() {
     tbody.innerHTML = '<tr><td colspan="7" class="um-empty">No users found. Users are created during onboarding when key personnel are assigned roles.</td></tr>';
     return;
   }
+
   tbody.innerHTML = allUsers.map(function(u) {
     var name = u.full_name || [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email;
     var isActive = u.is_active === 1 || u.is_active === true || u.status === 'active';
@@ -586,13 +778,16 @@ function filterUsers() {
   });
 }
 
+// ===== USER DETAIL =====
 async function showUserDetail(userId) {
   var user = allUsers.find(function(u) { return u.id === userId; });
   if (!user) return;
+
   var name = user.full_name || [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
   var isActive = user.is_active === 1 || user.is_active === true || user.status === 'active';
   var has2fa = user.twofa_enabled === 1 || user.twofa_enabled === true;
   var roleName = user.role_name || user.role || '—';
+
   var html = '<div class="um-detail-header">' +
     '<div class="um-avatar">' + initials(name) + '</div>' +
     '<div>' +
@@ -605,6 +800,8 @@ async function showUserDetail(userId) {
       '</div>' +
     '</div>' +
   '</div>';
+
+  // User Info Section
   html += '<div class="um-card" style="margin-bottom:20px;">' +
     '<h3>Account Information</h3>' +
     '<div class="um-form-grid">' +
@@ -615,6 +812,7 @@ async function showUserDetail(userId) {
       '<div><strong>Created:</strong> ' + formatDate(user.created_at) + '</div>' +
       '<div><strong>Must Change Password:</strong> ' + (user.must_change_password ? 'Yes' : 'No') + '</div>' +
     '</div>';
+
   if (canEdit) {
     html += '<div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">' +
       '<button class="um-btn um-btn-primary um-btn-sm" onclick="toggleUserStatus(\'' + esc(userId) + '\', ' + isActive + ')">' + (isActive ? 'Deactivate' : 'Activate') + ' User</button>' +
@@ -623,6 +821,8 @@ async function showUserDetail(userId) {
     '</div>';
   }
   html += '</div>';
+
+  // Permissions Section
   html += '<div class="um-card" style="margin-bottom:20px;">' +
     '<h3>Permissions</h3>' +
     '<p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">' +
@@ -630,63 +830,98 @@ async function showUserDetail(userId) {
     '</p>' +
     '<div id="permContainer">Loading permissions...</div>' +
   '</div>';
+
+  // Activity History Section
   html += '<div class="um-card" style="margin-bottom:20px;">' +
     '<h3>Activity History</h3>' +
     '<div id="userActivityContainer">Loading activity...</div>' +
   '</div>';
+
+  // Work History Section
   html += '<div class="um-card">' +
     '<h3>Work History</h3>' +
     '<div id="userWorkHistory">Loading work history...</div>' +
   '</div>';
+
   document.getElementById('userDetailContent').innerHTML = html;
   openModal('userDetailModal');
+
+  // OCC: initialize base_version from the user record (updated_at)
+  // loadUserPermissions will update this with the server-confirmed value
   userBaseVersion = user.updated_at || null;
+
   loadUserPermissions(userId);
   loadUserActivity(userId);
   loadUserWorkHistory(userId, user.email);
 }
-
-var userBaseVersion = null;
+<!-- ===== PART 2: Append this to the end of user-management-part1.html ===== -->
+<!-- ===== LOAD USER PERMISSIONS ===== -->
+var userBaseVersion = null; // OCC: tracks the user's updated_at for conflict detection
 
 async function loadUserPermissions(userId) {
   try {
     var resp = await fetch('/api/onboarding/users/' + userId + '/permissions');
     var data = await resp.json();
+
     if (!data.success) {
       document.getElementById('permContainer').innerHTML = '<p style="color:var(--text-muted);">Unable to load permissions.</p>';
       return;
     }
+
+    // OCC: store the base_version for conflict detection
     userBaseVersion = data.base_version || null;
+
     var rolePerms = data.rolePermissions || [];
     var overrides = data.overrides || [];
     var effective = data.effective || [];
+
     var overrideMap = {};
     overrides.forEach(function(o) { overrideMap[o.permission_id] = o.granted; });
+
     var effectiveMap = {};
     effective.forEach(function(p) { effectiveMap[p.id] = true; });
+
     var grouped = {};
     allPermissions.forEach(function(p) {
       if (!grouped[p.module]) grouped[p.module] = [];
       var isRole = rolePerms.some(function(rp) { return rp.id === p.id; });
       var override = overrideMap[p.id];
       var isEffective = effectiveMap[p.id];
+
       var source, sourceClass;
       if (override === 1) { source = 'Override: Granted'; sourceClass = 'um-perm-source-override-grant'; }
       else if (override === 0) { source = 'Override: Revoked'; sourceClass = 'um-perm-source-override-revoke'; }
       else if (isRole) { source = 'Role'; sourceClass = 'um-perm-source-role'; }
       else { source = 'Not Assigned'; sourceClass = 'um-perm-source-none'; }
-      grouped[p.module].push({ id: p.id, name: p.name, description: p.description || '', isRole: isRole, override: override, isEffective: isEffective, source: source, sourceClass: sourceClass });
+
+      grouped[p.module].push({
+        id: p.id, name: p.name, description: p.description || '',
+        isRole: isRole, override: override, isEffective: isEffective,
+        source: source, sourceClass: sourceClass
+      });
     });
+
     var html = '';
     Object.keys(grouped).sort().forEach(function(module) {
-      html += '<div class="um-perm-group"><div class="um-perm-group-title">' + esc(module.charAt(0).toUpperCase() + module.slice(1)) + '</div>';
+      html += '<div class="um-perm-group">' +
+        '<div class="um-perm-group-title">' + esc(module.charAt(0).toUpperCase() + module.slice(1)) + '</div>';
       grouped[module].forEach(function(p) {
         var checked = p.isEffective ? 'checked' : '';
         var disabled = canEdit ? '' : 'disabled';
-        html += '<div class="um-perm-item"><div class="um-perm-item-left"><div><div class="um-perm-name">' + esc(p.name) + '</div><div class="um-perm-desc">' + esc(p.description) + '</div></div><span class="um-perm-source ' + p.sourceClass + '">' + p.source + '</span></div>' + (canEdit ? '<label class="um-perm-toggle"><input type="checkbox" ' + checked + ' ' + disabled + ' onchange="togglePermission(\'' + esc(userId) + '\', \'' + esc(p.id) + '\', this.checked)"><span class="um-perm-slider"></span></label>' : '') + '</div>';
+        html += '<div class="um-perm-item">' +
+          '<div class="um-perm-item-left">' +
+            '<div>' +
+              '<div class="um-perm-name">' + esc(p.name) + '</div>' +
+              '<div class="um-perm-desc">' + esc(p.description) + '</div>' +
+            '</div>' +
+            '<span class="um-perm-source ' + p.sourceClass + '">' + p.source + '</span>' +
+          '</div>' +
+          (canEdit ? '<label class="um-perm-toggle"><input type="checkbox" ' + checked + ' ' + disabled + ' onchange="togglePermission(\'' + esc(userId) + '\', \'' + esc(p.id) + '\', this.checked)"><span class="um-perm-slider"></span></label>' : '') +
+        '</div>';
       });
       html += '</div>';
     });
+
     document.getElementById('permContainer').innerHTML = html || '<p style="color:var(--text-muted);">No permissions configured.</p>';
   } catch (e) {
     console.error('loadUserPermissions error:', e.message);
@@ -694,18 +929,25 @@ async function loadUserPermissions(userId) {
   }
 }
 
+// ===== TOGGLE PERMISSION (PATCH with OCC) =====
 async function togglePermission(userId, permId, isGranted) {
   try {
     var resp = await fetch('/api/onboarding/users/' + userId + '/permissions', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ permission_id: permId, granted: isGranted, base_version: userBaseVersion })
+      body: JSON.stringify({
+        permission_id: permId,
+        granted: isGranted,
+        base_version: userBaseVersion
+      })
     });
+
     if (resp.status === 409) {
       var conflictData = await resp.json();
       showConflictNotice(userId, conflictData);
       return;
     }
+
     var data = await resp.json();
     if (data.success) {
       if (data.updated_at) userBaseVersion = data.updated_at;
@@ -721,10 +963,12 @@ async function togglePermission(userId, permId, isGranted) {
   }
 }
 
+// ===== CONFLICT NOTICE (409 handler) =====
 function showConflictNotice(userId, conflictData) {
   var banner = document.createElement('div');
   banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#fef3c7;border-bottom:2px solid #f59e0b;padding:14px 20px;z-index:10000;font-size:14px;color:#92400e;display:flex;align-items:center;justify-content:center;gap:10px;';
-  banner.innerHTML = '<strong>⚠️ Conflict:</strong> This user was modified by another manager. <span style="text-decoration:underline;cursor:pointer;" id="conflictRefreshBtn">Refresh your view</span>';
+  banner.innerHTML = '<strong>⚠️ Conflict:</strong> This user was modified by another manager. ' +
+    '<span style="text-decoration:underline;cursor:pointer;" id="conflictRefreshBtn">Refresh your view</span>';
   document.body.appendChild(banner);
   document.getElementById('conflictRefreshBtn').onclick = function() {
     banner.remove();
@@ -732,6 +976,7 @@ function showConflictNotice(userId, conflictData) {
   };
 }
 
+// ===== LOAD USER ACTIVITY =====
 async function loadUserActivity(userId) {
   try {
     var resp = await fetch('/api/audit-log?user_id=' + userId);
@@ -748,7 +993,12 @@ async function loadUserActivity(userId) {
       else if (log.action === 'delete') dotClass += ' red';
       else if (log.action === 'update' || log.action === 'status_change') dotClass += '';
       else dotClass += ' gray';
-      html += '<div class="um-timeline-item"><div class="' + dotClass + '"></div><div class="um-timeline-date">' + formatDate(log.created_at) + '</div><div class="um-timeline-action">' + esc(log.action || '—') + ' — ' + esc(log.module || '—') + '</div><div class="um-timeline-detail">' + esc(log.table_name || '') + (log.record_id ? ' • ' + esc(log.record_id.substring(0,12)) : '') + '</div></div>';
+      html += '<div class="um-timeline-item">' +
+        '<div class="' + dotClass + '"></div>' +
+        '<div class="um-timeline-date">' + formatDate(log.created_at) + '</div>' +
+        '<div class="um-timeline-action">' + esc(log.action || '—') + ' — ' + esc(log.module || '—') + '</div>' +
+        '<div class="um-timeline-detail">' + esc(log.table_name || '') + (log.record_id ? ' • ' + esc(log.record_id.substring(0,12)) : '') + '</div>' +
+      '</div>';
     });
     html += '</div>';
     document.getElementById('userActivityContainer').innerHTML = html;
@@ -757,6 +1007,7 @@ async function loadUserActivity(userId) {
   }
 }
 
+// ===== LOAD USER WORK HISTORY =====
 async function loadUserWorkHistory(userId, userEmail) {
   try {
     var encEmail = encodeURIComponent(userEmail);
@@ -775,6 +1026,7 @@ async function loadUserWorkHistory(userId, userEmail) {
     var inspections = inspData.inspections || [];
     var pmRecords = pmData.pm_records || [];
     var transfers = transferData.transfers || [];
+
     var html = '';
     html += '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:600; margin-bottom:8px; color:var(--text);">Work Orders (' + workOrders.length + ')</div>';
     if (workOrders.length === 0) html += '<p style="color:var(--text-muted); font-size:13px;">No work orders assigned.</p>';
@@ -786,6 +1038,7 @@ async function loadUserWorkHistory(userId, userEmail) {
       html += '</tbody></table>';
     }
     html += '</div>';
+
     html += '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:600; margin-bottom:8px; color:var(--text);">Inspections (' + inspections.length + ')</div>';
     if (inspections.length === 0) html += '<p style="color:var(--text-muted); font-size:13px;">No inspections recorded.</p>';
     else {
@@ -796,6 +1049,7 @@ async function loadUserWorkHistory(userId, userEmail) {
       html += '</tbody></table>';
     }
     html += '</div>';
+
     html += '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:600; margin-bottom:8px; color:var(--text);">PM Records (' + pmRecords.length + ')</div>';
     if (pmRecords.length === 0) html += '<p style="color:var(--text-muted); font-size:13px;">No PM records.</p>';
     else {
@@ -806,6 +1060,7 @@ async function loadUserWorkHistory(userId, userEmail) {
       html += '</tbody></table>';
     }
     html += '</div>';
+
     html += '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:600; margin-bottom:8px; color:var(--text);">Fuel Transactions (' + fuelTx.length + ')</div>';
     if (fuelTx.length === 0) html += '<p style="color:var(--text-muted); font-size:13px;">No fuel transactions.</p>';
     else {
@@ -816,6 +1071,7 @@ async function loadUserWorkHistory(userId, userEmail) {
       html += '</tbody></table>';
     }
     html += '</div>';
+
     html += '<div><div style="font-size:14px; font-weight:600; margin-bottom:8px; color:var(--text);">Equipment Transfers (' + transfers.length + ')</div>';
     if (transfers.length === 0) html += '<p style="color:var(--text-muted); font-size:13px;">No transfers created.</p>';
     else {
@@ -833,6 +1089,7 @@ async function loadUserWorkHistory(userId, userEmail) {
   }
 }
 
+// ===== USER ACTIONS =====
 async function toggleUserStatus(userId, currentlyActive) {
   if (!confirm(currentlyActive ? 'Deactivate this user? They will lose access immediately.' : 'Activate this user?')) return;
   if (currentlyActive) {
@@ -873,9 +1130,7 @@ async function toggleUserStatus(userId, currentlyActive) {
     } else {
       alert('Failed: ' + (data.error || 'Unknown error'));
     }
-  } catch (e) {
-    alert('Error: ' + e.message);
-  }
+  } catch (e) { alert('Error: ' + e.message); }
 }
 
 async function resetPassword(userId) {
@@ -906,6 +1161,7 @@ async function deleteUser(userId, isAdmin) {
   } catch (e) { alert('Error: ' + e.message); }
 }
 
+// ===== ADD USER =====
 async function openAddUserModal() {
   var select = document.getElementById('newUserRole');
   select.innerHTML = '<option value="">Select a role...</option>' +
@@ -924,7 +1180,7 @@ async function createUser() {
   var roleId = document.getElementById('newUserRole').value;
   var password = document.getElementById('newUserPassword').value;
   if (!email) { alert('Email is required'); return; }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Please enter a valid email address'); return; }
+  if (!/^([^\s@]+@[^\s@]+\.[^\s@]+)$/.test(email)) { alert('Please enter a valid email address'); return; }
   if (!roleId) { alert('Role is required'); return; }
   if (!password) { alert('Temporary password is required'); return; }
   if (password.length < 8) { alert('Password must be at least 8 characters'); return; }
@@ -943,7 +1199,7 @@ async function createUser() {
   } catch (e) { alert('Error: ' + e.message); }
 }
 
-// ===== LOAD EMPLOYEES (uses new /api/onboarding/employees/list endpoint) =====
+// ===== LOAD EMPLOYEES =====
 async function loadEmployees() {
   try {
     var resp = await fetch('/api/onboarding/employees/list');
@@ -994,7 +1250,7 @@ function filterEmployees() {
 function editEmployee(empId) {
   var emp = allEmployees.find(function(e) { return e.id === empId; });
   if (!emp) return;
-  alert('Employee editing will be available in the next update. Employee: ' + emp.name);
+  alert('Employee editing will be available in the next update. Employee: ' + emp.employee_name);
 }
 
 // ===== ADD EMPLOYEE =====
@@ -1090,7 +1346,7 @@ async function createEmployee() {
   if (!ln) { alert('Last name is required'); return; }
   if (!phone) { alert('Phone number is required'); return; }
   if (!email) { alert('Email address is required'); return; }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Please enter a valid email address'); return; }
+  if (!/^([^\s@]+@[^\s@]+\.[^\s@]+)$/.test(email)) { alert('Please enter a valid email address'); return; }
   var fullName = [fn, mn, ln].filter(Boolean).join(' ');
   if (suffix) fullName += ' ' + suffix;
   var btn = document.querySelector('#addEmployeeModal .um-btn-primary');
@@ -1221,9 +1477,18 @@ function editRole(roleId) {
   });
   var html = '';
   Object.keys(grouped).sort().forEach(function(mod) {
-    html += '<div class="um-perm-group"><div class="um-perm-group-title">' + esc(mod.charAt(0).toUpperCase() + mod.slice(1)) + '</div>';
+    html += '<div class="um-perm-group">' +
+      '<div class="um-perm-group-title">' + esc(mod.charAt(0).toUpperCase() + mod.slice(1)) + '</div>';
     grouped[mod].forEach(function(p) {
-      html += '<div class="um-perm-item"><div class="um-perm-item-left"><div><div class="um-perm-name">' + esc(p.name) + '</div><div class="um-perm-desc">' + esc(p.description || '') + '</div></div></div><label class="um-perm-toggle"><input type="checkbox" id="perm_' + esc(p.id) + '" data-perm-id="' + esc(p.id) + '"><span class="um-perm-slider"></span></label></div>';
+      html += '<div class="um-perm-item">' +
+        '<div class="um-perm-item-left">' +
+          '<div>' +
+            '<div class="um-perm-name">' + esc(p.name) + '</div>' +
+            '<div class="um-perm-desc">' + esc(p.description || '') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<label class="um-perm-toggle"><input type="checkbox" id="perm_' + esc(p.id) + '" data-perm-id="' + esc(p.id) + '"><span class="um-perm-slider"></span></label>' +
+      '</div>';
     });
     html += '</div>';
   });
@@ -1302,9 +1567,18 @@ function openCreateRoleModal() {
   });
   var html = '';
   Object.keys(grouped).sort().forEach(function(mod) {
-    html += '<div class="um-perm-group"><div class="um-perm-group-title">' + esc(mod.charAt(0).toUpperCase() + mod.slice(1)) + '</div>';
+    html += '<div class="um-perm-group">' +
+      '<div class="um-perm-group-title">' + esc(mod.charAt(0).toUpperCase() + mod.slice(1)) + '</div>';
     grouped[mod].forEach(function(p) {
-      html += '<div class="um-perm-item"><div class="um-perm-item-left"><div><div class="um-perm-name">' + esc(p.name) + '</div><div class="um-perm-desc">' + esc(p.description || '') + '</div></div></div><label class="um-perm-toggle"><input type="checkbox" id="newperm_' + esc(p.id) + '" data-perm-id="' + esc(p.id) + '"><span class="um-perm-slider"></span></label></div>';
+      html += '<div class="um-perm-item">' +
+        '<div class="um-perm-item-left">' +
+          '<div>' +
+            '<div class="um-perm-name">' + esc(p.name) + '</div>' +
+            '<div class="um-perm-desc">' + esc(p.description || '') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<label class="um-perm-toggle"><input type="checkbox" id="newperm_' + esc(p.id) + '" data-perm-id="' + esc(p.id) + '"><span class="um-perm-slider"></span></label>' +
+      '</div>';
     });
     html += '</div>';
   });
@@ -1344,6 +1618,7 @@ async function createRole() {
   }
 }
 
+// ===== LOAD PERMISSIONS =====
 async function loadPermissions() {
   try {
     var resp = await fetch('/api/onboarding/permissions');
@@ -1352,6 +1627,6 @@ async function loadPermissions() {
   } catch (e) { console.error('loadPermissions error:', e.message); allPermissions = []; }
 }
 </script>
-<script src="/app/shared/auth-check.js?v=13"></script>
+
 </body>
 </html>
