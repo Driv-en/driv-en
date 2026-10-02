@@ -442,22 +442,41 @@
         });
         atStepStatus.style.color = "var(--text-muted)";
         atStepStatus.textContent = "Could not reach server — showing locally saved asset types.";
+        if (window.DRIVENErrorHandler) {
+          window.DRIVENErrorHandler.report(
+            "asset-types.html: loadAssetTypes failed — " + (e.message || e),
+            "loadAssetTypes",
+            e && e.stack ? e.stack : null
+          );
+        }
       }
 
       // Build available types from predefined + any saved custom types
-      availableTypes = [];
-      ASSET_TYPE_GROUPS.forEach(function(g) {
-        g.types.forEach(function(t) { availableTypes.push({ name: t.name, desc: t.desc, isCustom: false }); });
-      });
-      selectedTypes.forEach(function(t) {
-        if (t.isCustom && !availableTypes.some(function(a) { return a.name.toLowerCase() === t.name.toLowerCase(); })) {
-          availableTypes.push({ name: t.name, desc: "Custom asset type", isCustom: true });
-        }
-      });
+      try {
+        availableTypes = [];
+        ASSET_TYPE_GROUPS.forEach(function(g) {
+          g.types.forEach(function(t) { availableTypes.push({ name: t.name, desc: t.desc, isCustom: false }); });
+        });
+        selectedTypes.forEach(function(t) {
+          if (t.isCustom && !availableTypes.some(function(a) { return a.name.toLowerCase() === t.name.toLowerCase(); })) {
+            availableTypes.push({ name: t.name, desc: "Custom asset type", isCustom: true });
+          }
+        });
 
-      renderGrid();
-      renderSelected();
-      updateCount();
+        renderGrid();
+        renderSelected();
+        updateCount();
+      } catch(renderErr) {
+        atStepStatus.style.color = "var(--error)";
+        atStepStatus.textContent = "An error occurred while displaying asset types. The DRIV-EN team has been notified.";
+        if (window.DRIVENErrorHandler) {
+          window.DRIVENErrorHandler.report(
+            "asset-types.html: render after load failed — " + (renderErr.message || renderErr),
+            "loadAssetTypes-render",
+            renderErr && renderErr.stack ? renderErr.stack : null
+          );
+        }
+      }
     }
 
     /* ===== ADD CUSTOM ASSET TYPE ===== */
@@ -499,10 +518,22 @@
       atStepStatus.textContent = ""; atStepStatus.style.color = "var(--error)";
       if (selectedTypes.length === 0) { atStepStatus.textContent = "You must select at least one asset type."; return; }
 
-      // Save to localStorage (for immediate UI feedback)
-      localStorage.setItem("driven_asset_types", JSON.stringify(selectedTypes));
-      localStorage.setItem("driven_asset_type_count", selectedTypes.length);
-      localStorage.setItem("driven_step_asset_types_complete", "true");
+      // Save to localStorage (for immediate UI feedback) — wrapped in try/catch
+      // because localStorage can throw in private browsing or when storage is full
+      try {
+        localStorage.setItem("driven_asset_types", JSON.stringify(selectedTypes));
+        localStorage.setItem("driven_asset_type_count", selectedTypes.length);
+        localStorage.setItem("driven_step_asset_types_complete", "true");
+      } catch(lsErr) {
+        console.warn("localStorage save failed:", lsErr.message);
+        if (window.DRIVENErrorHandler) {
+          window.DRIVENErrorHandler.report(
+            "asset-types.html: localStorage save failed — " + (lsErr.message || lsErr),
+            "save-localStorage",
+            lsErr && lsErr.stack ? lsErr.stack : null
+          );
+        }
+      }
 
       // Save to D1 via settings API so all users in the company see it
       var btnSave = document.getElementById("btnSaveAt");
@@ -514,7 +545,18 @@
           body: JSON.stringify({ settings: { asset_types: selectedTypes } })
         });
         var data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Save failed");
+        if (!res.ok) {
+          // Report 4xx errors to the owner dashboard — the global fetch wrapper
+          // only reports 5xx, so we must manually report 401/403/400 etc.
+          if (res.status < 500 && window.DRIVENErrorHandler) {
+            window.DRIVENErrorHandler.report(
+              "asset-types.html: save-settings returned " + res.status + " — " + (data.error || "Request failed"),
+              "save-settings-" + res.status,
+              "URL: /auth/save-settings | Types: " + selectedTypes.length
+            );
+          }
+          throw new Error(data.error || "Save failed");
+        }
         atStepStatus.style.color = "var(--success)";
         atStepStatus.textContent = selectedTypes.length + " asset type(s) saved. Redirecting to onboarding dashboard…";
         btnSave.textContent = "Saved ✓";
@@ -527,6 +569,14 @@
         atStepStatus.style.color = "var(--error)";
         atStepStatus.textContent = "Saved locally, but server save failed: " + err.message;
         btnSave.disabled = false; btnSave.textContent = "Save & Continue";
+        // Report the caught error to the owner dashboard with page-specific context
+        if (window.DRIVENErrorHandler) {
+          window.DRIVENErrorHandler.report(
+            "asset-types.html: save failed — " + (err.message || err),
+            "save-settings-catch",
+            err && err.stack ? err.stack : null
+          );
+        }
       }
     });
 
