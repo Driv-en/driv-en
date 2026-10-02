@@ -682,7 +682,14 @@
         var resp = await fetch("/api/onboarding/roles");
         var data = await resp.json();
         if (data.success && data.roles && data.roles.length > 0) {
-          validRoles = data.roles.map(function(r) { return r.name; });
+          // Filter out DRIV-EN Founder — it is a platform-level system role
+          // that must NEVER be assignable to customer employees.
+          // Case-insensitive check as a safety net (API should already exclude it).
+          validRoles = data.roles
+            .filter(function(r) {
+              return r.name.toLowerCase() !== "driv-en founder";
+            })
+            .map(function(r) { return r.name; });
           validRoles.forEach(function(roleName) {
             var opt = document.createElement("option");
             opt.value = roleName;
