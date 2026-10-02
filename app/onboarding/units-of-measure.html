@@ -25,9 +25,6 @@
     .ob-greeting-text { font-size: 16px; color: var(--text-muted); font-weight: 500; }
     .ob-greeting-text strong { color: var(--text); }
 
-    .um-back-bar { max-width: 1100px; margin: 0 auto; padding: 12px 20px 0 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-    .um-back-btn { display: inline-flex; align-items: center; gap: 6px; background: #1e40af; border: 1px solid #2563eb; color: #dbeafe; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; }
-    .um-back-btn:hover { background: #1d4ed8; color: #fff; }
     .um-subtitle { margin: 4px 0 12px 0; color: var(--text-muted); font-size: 14px; line-height: 1.5; }
     .um-required-star { color: var(--error); margin-left: 3px; }
     .um-btn-primary { background: var(--primary); color: white; padding: 10px 18px; border-radius: 6px; font-size: 15px; border: 1px solid var(--primary-hover); cursor: pointer; margin-top: 10px; }
@@ -42,6 +39,7 @@
     .um-step-status { margin-top: 12px; font-size: 14px; color: var(--success); }
     .um-count-badge { display: inline-block; background: var(--primary); color: #fff; font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 999px; margin-left: 8px; }
 
+    /* ===== UNIT GRID ===== */
     .um-type-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 16px; }
     .um-type-card { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 2px solid #16a34a; border-radius: 8px; cursor: pointer; background: var(--bg-card); transition: border-color 200ms ease, background 200ms ease, box-shadow 200ms ease; user-select: none; }
     .um-type-card:hover { border-color: #15803d; box-shadow: 0 2px 8px rgba(22, 163, 74, 0.15); }
@@ -50,6 +48,7 @@
     .um-type-label { font-size: 14px; font-weight: 600; color: var(--text); }
     .um-type-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 
+    /* ===== OTHER INPUT ===== */
     .um-other-section { margin-top: 20px; padding: 16px; border: 1px dashed var(--border); border-radius: 8px; background: var(--bg-card); }
     .um-other-section label { font-size: 14px; font-weight: 600; color: var(--text); display: block; margin-bottom: 8px; }
     .um-other-input-row { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -59,6 +58,7 @@
     .um-other-btn:hover { background: var(--primary-hover); }
     .um-other-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
+    /* ===== SELECTED LIST ===== */
     .um-selected-section { margin-top: 20px; }
     .um-selected-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
     .um-chip { display: inline-flex; align-items: center; gap: 6px; background: #dcfce7; border: 1px solid #86efac; color: #15803d; padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; }
@@ -78,23 +78,30 @@
     .um-tab-logout:hover { background: #dc2626; margin-top: 2px; }
 
     @media (max-width: 600px) { .um-action-row { flex-direction: column; gap: 8px; } .um-action-row .um-btn-primary, .um-action-row .um-btn-secondary { width: 100%; } .um-type-grid { grid-template-columns: 1fr; } .um-tab { padding: 10px 16px; font-size: 14px; } .um-tab-logout { padding: 10px 16px; font-size: 14px; } }
-
 </style>
 </head>
+<!-- Page title — appears in the dashboard header -->
 <body data-page-title="Onboarding — Units of Measure" data-required-task="Units of Measure">
+
+<!-- ===== INDUSTRIAL DIAMOND-PLATE BACKGROUND (do not remove) ===== -->
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
+
+<!-- ===== SHARED DASHBOARD HEADER (auto-loaded by dashboard-common.js) ===== -->
 <div id="dashHeader"></div>
+
 <!-- ===== TAB BAR ===== -->
 <div class="um-tab-bar">
   <a href="/app/dashboard/onboarding-dashboard.html" class="um-tab um-tab-onboarding">&#8592; Onboarding Dashboard</a>
   <button class="um-tab-logout" onclick="dashLogout()">Logout</button>
 </div>
-<!-- ===== GREETING BAR ===== -->
+
+<!-- ===== GREETING BAR (shows "Welcome, [Name]") ===== -->
 <div class="ob-greeting-bar">
   <div class="ob-greeting-text" id="dashGreetingText">Welcome</div>
 </div>
 
+<!-- ===== PAGE CONTENT ===== -->
 <main class="dash-main">
   <div class="dash-card">
     <h2>Units of Measure <span class="um-count-badge" id="umCount">0</span></h2>
@@ -141,6 +148,7 @@
 <script src="/app/shared/dashboard-common.js?v=13"></script>
 <script src="/app/shared/auth-check.js?v=13"></script>
 <script>
+    /* ===== UNIT DEFINITIONS ===== */
     var UNITS = [
       { name: "Gallons", desc: "US gallons (gal)" },
       { name: "Liters", desc: "Metric liters (L)" },
@@ -154,7 +162,8 @@
       { name: "Pounds", desc: "Mass-based (lb)" }
     ];
 
-    var selectedUnits = [];
+    /* ===== STATE ===== */
+    var selectedUnits = [];   // array of { name, isCustom }
     var unitGridEl = document.getElementById("unitGrid");
     var umCountEl = document.getElementById("umCount");
     var selectedListEl = document.getElementById("selectedList");
@@ -218,6 +227,7 @@
       selectedListEl.innerHTML = html;
     }
 
+    /* ===== LOAD SAVED UNITS ===== */
     async function loadUnits() {
       try {
         var res = await fetch("/auth/get-settings");
@@ -238,6 +248,7 @@
       updateCount();
     }
 
+    /* ===== ADD CUSTOM UNIT ===== */
     document.getElementById("btnAddCustom").addEventListener("click", function() {
       customError.textContent = "";
       var input = document.getElementById("customUnitInput");
@@ -256,6 +267,7 @@
       if (e.key === "Enter") { e.preventDefault(); document.getElementById("btnAddCustom").click(); }
     });
 
+    /* ===== SAVE ===== */
     document.getElementById("btnSaveUm").addEventListener("click", async function() {
       umStepStatus.textContent = ""; umStepStatus.style.color = "var(--error)";
       if (selectedUnits.length === 0) { umStepStatus.textContent = "You must select at least one unit of measure."; return; }
@@ -282,6 +294,7 @@
       }
     });
 
+    /* ===== INIT ===== */
     document.addEventListener("dashSessionLoaded", function(e) {
       if (e.detail) {
         var greetingEl = document.getElementById("dashGreetingText");
