@@ -122,8 +122,8 @@
         <h3>Onboarding Tasks</h3>
         <p style="font-size:13px;color:var(--text-muted);margin:0 0 8px 0;">Complete each task below. Some tasks have prerequisites — complete those first to unlock the next task.</p>
         <div id="kpMarkCompleteBanner" style="margin:12px 0 16px 0;padding:14px 16px;background:#fef3c7;border:1px solid #fcd34d;border-left:5px solid #f59e0b;border-radius:8px;font-size:13px;color:#78350f;line-height:1.5;">
-          <strong style="font-size:14px;">⚠ Important — Click “Mark Complete” when you finish a task.</strong><br>
-          After you have finished entering your assigned data for a task, scroll to the bottom of that task card and click the green <strong>“✓ Mark Complete”</strong> button. A task is only considered complete once <em>every</em> assigned Key Personnel has clicked “Mark Complete”.
+          <strong style="font-size:14px;">⚠ Important — Click "Mark Complete" when you finish a task.</strong><br>
+          After you have finished entering your assigned data for a task, scroll to the bottom of that task card and click the green <strong>"✓ Mark Complete"</strong> button. A task is only considered complete once <em>every</em> assigned Key Personnel has clicked "Mark Complete".
         </div>
         <div id="companyInfoBar" style="display:none;margin-bottom:16px;padding:12px 16px;background:var(--bg-step);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text-muted);">
           <span style="font-weight:600;color:var(--text);">Business Type:</span> <span id="obCompanyType">Not set</span>
@@ -246,11 +246,8 @@
 <div class="popup-overlay" id="popupOverlay" onclick="closeAllPopups()"></div>
 <div id="dashFooter"></div>
 <script src="/app/shared/dashboard-common.js?v=13"></script>
-<!-- ===== PAGE JS IS IN onboarding-dashboard-part2-js.js — copy its contents into a <script> tag here ===== -->
-/* ===== ONBOARDING DASHBOARD — PAGE-SPECIFIC JAVASCRIPT =====
-   Paste this inside a <script> tag in onboarding-dashboard.html,
-   after the dashboard-common.js script tag and before </body>.
-   ============================================================= */
+<script>
+    /* ===== ONBOARDING DASHBOARD — PAGE-SPECIFIC JAVASCRIPT ===== */
 
     var currentUser = null;
     var isAdmin = false;
@@ -619,9 +616,12 @@
           if (data.settings.step_visibility) { stepVisibility = data.settings.step_visibility; }
           if (data.settings.onboarding_complete) {
             onboardingComplete = true;
-            document.getElementById("completeNotice").style.display = "block";
-            document.getElementById("tab-overview").style.display = "none";
+            // ── FIX 2: Only show the "Onboarding Complete" notice and
+            // redirect for non-admins. Admins keep full access to the
+            // onboarding dashboard so they can review or modify tasks. ──
             if (!isAdmin) {
+              document.getElementById("completeNotice").style.display = "block";
+              document.getElementById("tab-overview").style.display = "none";
               setTimeout(function() { window.location.href = "/app/dashboard/owner-dashboard.html"; }, 3000);
             }
           }
@@ -657,10 +657,22 @@
             return kp.email && kp.email.toLowerCase() === myEmail;
           });
           if (myRecord) {
-            isAdmin = false;
-            assignedTasks = myRecord.roles.map(function(r) { return r.role; });
-            var adminTabHide = document.getElementById("obTabBar").querySelector('[data-tab="admin"]');
-            if (adminTabHide) adminTabHide.style.display = "none";
+            // ── FIX 1: Don't override isAdmin when already true.
+            // An admin who is also in the KP list should keep admin
+            // access (see all tasks, admin tab, etc.). Only set KP
+            // mode if the role-based check above did NOT determine
+            // they're an admin. ──
+            if (!isAdmin) {
+              isAdmin = false;
+              assignedTasks = myRecord.roles.map(function(r) { return r.role; });
+              var adminTabHide = document.getElementById("obTabBar").querySelector('[data-tab="admin"]');
+              if (adminTabHide) adminTabHide.style.display = "none";
+            } else {
+              // Admin who is also in the KP list — keep admin access
+              // but also populate assignedTasks so they can see
+              // KP-specific UI
+              assignedTasks = myRecord.roles.map(function(r) { return r.role; });
+            }
           }
         }
       } catch (e) { console.error("Key personnel load error:", e.message); }
@@ -720,6 +732,9 @@
     }
 
     init();
+</script>
 
+<!-- ===== AUTH CHECK ===== -->
+<script src="/components/auth-check.js"></script>
 </body>
 </html>
