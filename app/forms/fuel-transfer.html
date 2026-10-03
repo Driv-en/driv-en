@@ -69,6 +69,24 @@
 .location-banner.ok { background: #dcfce7; border: 1px solid #16a34a; color: #15803d; }
 .location-banner.warn { background: #fef3c7; border: 1px solid #fcd34d; color: #78350f; }
 .location-banner strong { color: inherit; }
+
+/* FUEL PHOTO REQUIREMENTS */
+.fuel-photo-section { margin-bottom: 20px; }
+.fuel-photo-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px; }
+.fuel-photo-box { border: 2px dashed var(--border); border-radius: 10px; padding: 20px; text-align: center; transition: border-color 200ms; }
+.fuel-photo-box:hover { border-color: var(--primary); }
+.fuel-photo-box.required { border-color: #f59e0b; }
+.fuel-photo-label { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.fuel-photo-label .req { color: #f59e0b; }
+.fuel-photo-hint { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+.fuel-photo-preview { margin-top: 12px; }
+.fuel-photo-preview img { max-width: 200px; max-height: 200px; border-radius: 8px; border: 1px solid var(--border); }
+.fuel-photo-btn { background: var(--primary); color: #fff; border: none; border-radius: 6px; padding: 8px 18px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.fuel-photo-btn:hover { opacity: 0.9; }
+.fuel-photo-remove { background: transparent; border: 1px solid var(--error); color: var(--error); border-radius: 6px; padding: 6px 14px; font-size: 12px; cursor: pointer; margin-top: 8px; }
+.fuel-photo-remove:hover { background: var(--error); color: #fff; }
+.fuel-photo-required-banner { background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 10px 16px; margin-bottom: 16px; font-size: 13px; color: #92400e; line-height: 1.5; }
+@media (max-width: 600px) { .fuel-photo-row { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body data-page-title="Log Fuel Transfer" data-required-permission="fuel.add">
@@ -193,6 +211,31 @@
           <textarea id="notes" placeholder="Any additional details…" oninput="markFormDirty()"></textarea>
         </div>
 
+        <!-- ===== FUEL PHOTO REQUIREMENTS ===== -->
+        <div class="fuel-photo-section" id="fuelPhotoSection" style="display:none;">
+          <div class="fuel-photo-required-banner" id="fuelPhotoBanner">
+            📸 Your organization requires photos with fuel transfers. Please take the required photos below before submitting.
+          </div>
+          <div class="fuel-photo-row">
+            <div class="fuel-photo-box" id="meterPhotoBox" style="display:none;">
+              <div class="fuel-photo-label">Meter Photo <span class="req">*</span></div>
+              <div class="fuel-photo-hint">Photo of the meter/gauge showing the quantity transferred</div>
+              <input type="file" id="meterPhotoInput" accept="image/jpeg,image/png" capture="environment" style="display:none;" onchange="handleFuelPhotoUpload(this, 'meter')">
+              <button class="fuel-photo-btn" onclick="document.getElementById('meterPhotoInput').click()">📷 Take Photo</button>
+              <div class="fuel-photo-preview" id="meterPhotoPreview"></div>
+              <button class="fuel-photo-remove" id="meterPhotoRemove" style="display:none;" onclick="removeFuelPhoto('meter')">Remove Photo</button>
+            </div>
+            <div class="fuel-photo-box" id="assetPhotoBox" style="display:none;">
+              <div class="fuel-photo-label">Asset Photo <span class="req">*</span></div>
+              <div class="fuel-photo-hint">Photo of the asset/equipment receiving fuel</div>
+              <input type="file" id="assetPhotoInput" accept="image/jpeg,image/png" capture="environment" style="display:none;" onchange="handleFuelPhotoUpload(this, 'asset')">
+              <button class="fuel-photo-btn" onclick="document.getElementById('assetPhotoInput').click()">📷 Take Photo</button>
+              <div class="fuel-photo-preview" id="assetPhotoPreview"></div>
+              <button class="fuel-photo-remove" id="assetPhotoRemove" style="display:none;" onclick="removeFuelPhoto('asset')">Remove Photo</button>
+            </div>
+          </div>
+        </div>
+
         <div class="ft-btn-row">
           <button class="ft-cancel-btn" onclick="goBack()">Cancel</button>
           <button class="ft-submit-btn" id="submitBtn" onclick="submitTransfer()">Log Transfer</button>
@@ -218,13 +261,17 @@
 
 <div id="dashFooter"></div>
 
-<script src="/app/shared/dashboard-common.js?v=8"></script>
+<script src="/app/shared/dashboard-common.js?v=13"></script>
 
 <script>
 var allTanks = [];
 var allAssets = [];
 var deviceLocation = null;
 var formDirty = false;
+var managerReviewFlags = [];
+var fuelPhotoSettings = { meter: false, asset: false };
+var fuelPhotos = { meter: null, asset: null };
+var fuelPhotoData = { meter: null, asset: null };
 
 function markFormDirty() { formDirty = true; }
 function clearFormDirty() { formDirty = false; }
@@ -418,6 +465,7 @@ function onFromChange() {
   var fromTank = document.getElementById('fromTank');
   var fromAsset = document.getElementById('fromAsset');
 
+  // Reset
   fromTank.innerHTML = '';
   fromAsset.innerHTML = '';
   document.getElementById('fromTankInfo').textContent = '';
@@ -428,6 +476,7 @@ function onFromChange() {
   fromAssetRow.style.display = 'none';
 
   if (fromType === 'asset') {
+    // Populate assets
     fromAssetRow.style.display = 'block';
     if (allAssets.length === 0) {
       fromAsset.innerHTML = '<option value="">No equipment available</option>';
@@ -443,6 +492,7 @@ function onFromChange() {
     }
   } else if (fromType) {
     fromTankRow.style.display = 'block';
+    // Populate tanks matching the selected type
     var tankType = fromType.replace('_tank', '').replace('_can', '');
     var matching = allTanks.filter(function(t) {
       if (tankType === 'portable') return t.tank_type === 'portable';
@@ -496,6 +546,7 @@ function onFromTankChange() {
     var fuelType = selected.dataset.fuelType;
     if (fuelType) {
       info.textContent = 'Fuel type: ' + fuelType;
+      // Auto-fill fuel type
       var fuelSelect = document.getElementById('fuelType');
       for (var i = 0; i < fuelSelect.options.length; i++) {
         if (fuelSelect.options[i].value === fuelType) {
@@ -516,6 +567,7 @@ function updateToOptions() {
 
   toSelect.innerHTML = '<option value="">Select destination…</option>';
 
+  // Build optgroup for individual assets (always shown as destination options)
   if (allAssets.length > 0 && fromType !== 'asset') {
     var assetGroup = document.createElement('optgroup');
     assetGroup.label = 'Equipment / Assets';
@@ -530,6 +582,7 @@ function updateToOptions() {
     toSelect.appendChild(assetGroup);
   }
 
+  // Build optgroup for tanks (only valid tank destinations based on source)
   var tankDestTypes = [];
   if (fromType === 'bulk_tank') tankDestTypes = ['dragup_tank', 'portable_can'];
   else if (fromType === 'dragup_tank') tankDestTypes = ['portable_can'];
@@ -567,10 +620,22 @@ function onToChange() {
 
   toTank.innerHTML = '';
   toTankRow.style.display = 'none';
+
+  // No secondary row needed — the toDest dropdown now lists individual assets and tanks directly
+  // The selected option's dataset has destType and destId
 }
 
 // ===== MAP TO TRANSACTION TYPE =====
 function getTransactionType(fromType, toType) {
+  // bulk_tank → asset = bulk_issue
+  // bulk_tank → dragup_tank = dragup_fill
+  // bulk_tank → portable_can = portable_fill
+  // dragup_tank → asset = dragup_issue
+  // dragup_tank → portable_can = portable_fill
+  // portable_can → asset = portable_issue
+  // asset → bulk_tank = bulk_fill (fuel returned to bulk tank)
+  // asset → dragup_tank = dragup_fill (fuel returned to drag-up)
+  // asset → portable_can = portable_fill (fuel returned to portable)
   if (fromType === 'bulk_tank' && toType === 'asset') return 'bulk_issue';
   if (fromType === 'bulk_tank' && toType === 'dragup_tank') return 'dragup_fill';
   if (fromType === 'bulk_tank' && toType === 'portable_can') return 'portable_fill';
@@ -583,15 +648,118 @@ function getTransactionType(fromType, toType) {
   return null;
 }
 
+// ===== FUEL PHOTO SETTINGS =====
+async function loadFuelPhotoSettings() {
+  try {
+    var res = await fetch('/auth/get-settings');
+    var data = await res.json();
+    if (data.success && data.settings) {
+      fuelPhotoSettings.meter = !!data.settings.fuel_meter_photo;
+      fuelPhotoSettings.asset = !!data.settings.fuel_asset_photo;
+      var section = document.getElementById('fuelPhotoSection');
+      var banner = document.getElementById('fuelPhotoBanner');
+      var meterBox = document.getElementById('meterPhotoBox');
+      var assetBox = document.getElementById('assetPhotoBox');
+      if (fuelPhotoSettings.meter || fuelPhotoSettings.asset) {
+        if (section) section.style.display = 'block';
+        if (banner) banner.style.display = 'block';
+        if (meterBox) meterBox.style.display = fuelPhotoSettings.meter ? 'block' : 'none';
+        if (assetBox) assetBox.style.display = fuelPhotoSettings.asset ? 'block' : 'none';
+      }
+    }
+  } catch (e) { console.error('Fuel photo settings load error:', e.message); }
+}
+
+// ===== EXIF DATE EXTRACTION =====
+function getExifDate(file) {
+  return new Promise(function(resolve) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        var bytes = new Uint8Array(e.target.result);
+        if (bytes[0] !== 0xFF || bytes[1] !== 0xD8) { resolve(null); return; }
+        var i = 2;
+        while (i < bytes.length) {
+          if (bytes[i] !== 0xFF) { i++; continue; }
+          var marker = bytes[i + 1];
+          var size = (bytes[i + 2] << 8) | bytes[i + 3];
+          if (marker === 0xE1) {
+            var exifData = bytes.subarray(i + 4, i + 2 + size);
+            var str = '';
+            for (var j = 0; j < exifData.length && j < 65536; j++) { str += String.fromCharCode(exifData[j]); }
+            var dateMatch = str.match(/(\d{4}):(\d{2}):(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/);
+            if (dateMatch) { resolve(dateMatch[1] + '-' + dateMatch[2] + '-' + dateMatch[3]); } else { resolve(null); }
+            return;
+          }
+          i += 2 + size;
+        }
+        resolve(null);
+      } catch (e) { resolve(null); }
+    };
+    reader.onerror = function() { resolve(null); };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+// ===== HANDLE FUEL PHOTO UPLOAD =====
+async function handleFuelPhotoUpload(input, type) {
+  var file = input.files[0];
+  if (!file) return;
+  if (!['image/jpeg', 'image/png'].some(function(t) { return file.type === t; })) { alert('Please upload a JPEG or PNG image.'); return; }
+  if (file.size > 5000000) { alert('Photo is too large. Max 5MB.'); return; }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    fuelPhotoData[type] = e.target.result;
+    var preview = document.getElementById(type + 'PhotoPreview');
+    preview.innerHTML = '<img src="' + e.target.result + '" alt="' + type + ' photo">';
+    var removeBtn = document.getElementById(type + 'PhotoRemove');
+    if (removeBtn) removeBtn.style.display = 'inline-block';
+    markFormDirty();
+  };
+  reader.readAsDataURL(file);
+  var photoDate = await getExifDate(file);
+  var formDate = document.getElementById('txDate').value;
+  fuelPhotos[type] = { file: file, exifDate: photoDate };
+  if (photoDate && formDate) {
+    if (photoDate !== formDate) {
+      managerReviewFlags.push({ field: type + '_photo', value: 'Photo date (' + photoDate + ') does not match form date (' + formDate + ')', reason: 'Photo date (' + photoDate + ') does not match form date (' + formDate + ') — possible old photo. Manager should review.' });
+    }
+  } else if (!photoDate) {
+    managerReviewFlags.push({ field: type + '_photo', value: 'EXIF date could not be verified', reason: 'Photo date could not be verified (EXIF metadata missing). Manager should review.' });
+  }
+}
+
+// ===== REMOVE FUEL PHOTO =====
+function removeFuelPhoto(type) {
+  fuelPhotoData[type] = null;
+  fuelPhotos[type] = null;
+  var preview = document.getElementById(type + 'PhotoPreview');
+  if (preview) preview.innerHTML = '';
+  var removeBtn = document.getElementById(type + 'PhotoRemove');
+  if (removeBtn) removeBtn.style.display = 'none';
+  var input = document.getElementById(type + 'PhotoInput');
+  if (input) input.value = '';
+  managerReviewFlags = managerReviewFlags.filter(function(f) { return f.field !== type + '_photo'; });
+}
+
+// ===== VALIDATE FUEL PHOTOS BEFORE SUBMIT =====
+function validateFuelPhotos() {
+  if (fuelPhotoSettings.meter && !fuelPhotoData.meter) { alert('A meter photo is required. Please take a photo of the meter/gauge before submitting.'); return false; }
+  if (fuelPhotoSettings.asset && !fuelPhotoData.asset) { alert('An asset photo is required. Please take a photo of the asset/equipment before submitting.'); return false; }
+  return true;
+}
+
 // ===== SUBMIT =====
 async function submitTransfer() {
   if (!requireLocationOrPopup()) return;
+  if (!validateFuelPhotos()) return;
   showError('');
 
   var fromType = document.getElementById('fromSource').value;
   var fromTankId = document.getElementById('fromTank').value;
   var fromAssetId = document.getElementById('fromAsset').value;
 
+  // Destination: read from the toDest dropdown's selected option dataset
   var toSelect = document.getElementById('toDest');
   var toSelected = toSelect.selectedOptions[0];
   var toType = toSelected ? (toSelected.dataset.destType || '') : '';
@@ -604,6 +772,7 @@ async function submitTransfer() {
   var location = document.getElementById('location').value.trim();
   var notes = document.getElementById('notes').value.trim();
 
+  // Validation
   if (!fromType) { showError('Please select a source.'); return; }
   if (fromType === 'asset') {
     if (!fromAssetId) { showError('Please select which equipment the fuel is coming from.'); return; }
@@ -640,7 +809,12 @@ async function submitTransfer() {
       project_id: projectId || null,
       location: location || null,
       notes: notes || null,
-      device_location: hasDeviceLocation() ? deviceLocation : null
+      device_location: hasDeviceLocation() ? deviceLocation : null,
+      manager_review_flags: managerReviewFlags,
+      fuel_photos: {
+        meter: fuelPhotoData.meter || null,
+        asset: fuelPhotoData.asset || null
+      }
     };
     if (fromType === 'asset') body.asset_id = fromAssetId;
     if (toType === 'asset') body.asset_id = toEntityId;
@@ -695,6 +869,8 @@ function resetForm() {
   document.getElementById('location').value = '';
   document.getElementById('notes').value = '';
   document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
+  removeFuelPhoto('meter');
+  removeFuelPhoto('asset');
   showError('');
 }
 
@@ -721,10 +897,11 @@ document.addEventListener('dashSessionLoaded', async function() {
   await loadAssets();
   loadProjects();
   updateToOptions();
+  loadFuelPhotoSettings();
 });
 </script>
 
-<script src="/app/shared/auth-check.js?v=8"></script>
+<script src="/app/shared/auth-check.js?v=13"></script>
 <script src="/components/nav.js?v=5"></script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" data-cf-beacon='{"token":"aed8feab3b60404ba88ec92f026bbcd6"}' crossorigin="anonymous"></script>
 </body>
