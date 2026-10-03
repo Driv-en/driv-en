@@ -137,6 +137,23 @@
 .crop-btn-secondary:hover { background: #cbd5e1; }
 .crop-btn-cancel { background: #fee2e2; color: #cc0000; border: 1px solid #fecaca; }
 .crop-btn-cancel:hover { background: #fecaca; }
+/* FUEL PHOTO REQUIREMENTS */
+.fuel-photo-section { margin-bottom: 20px; }
+.fuel-photo-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px; }
+.fuel-photo-box { border: 2px dashed var(--border); border-radius: 10px; padding: 20px; text-align: center; transition: border-color 200ms; }
+.fuel-photo-box:hover { border-color: var(--primary); }
+.fuel-photo-box.required { border-color: #f59e0b; }
+.fuel-photo-label { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.fuel-photo-label .req { color: #f59e0b; }
+.fuel-photo-hint { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+.fuel-photo-preview { margin-top: 12px; }
+.fuel-photo-preview img { max-width: 200px; max-height: 200px; border-radius: 8px; border: 1px solid var(--border); }
+.fuel-photo-btn { background: var(--primary); color: #fff; border: none; border-radius: 6px; padding: 8px 18px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.fuel-photo-btn:hover { opacity: 0.9; }
+.fuel-photo-remove { background: transparent; border: 1px solid var(--error); color: var(--error); border-radius: 6px; padding: 6px 14px; font-size: 12px; cursor: pointer; margin-top: 8px; }
+.fuel-photo-remove:hover { background: var(--error); color: #fff; }
+.fuel-photo-required-banner { background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 10px 16px; margin-bottom: 16px; font-size: 13px; color: #92400e; line-height: 1.5; }
+@media (max-width: 800px) { .fuel-photo-row { grid-template-columns: 1fr; } }
 
 @media (max-width: 800px) { .purchase-form-grid { grid-template-columns: 1fr; } .line-item-grid { grid-template-columns: 1fr 1fr; } .fp-main { padding: 0 12px; margin: 12px auto; } }
 </style>
@@ -296,8 +313,31 @@
         <input type="text" id="purchaseNotes" class="purchase-input" placeholder="Optional — e.g., PO number, delivery ticket #, price per gallon quote, who authorized" oninput="markFormDirty()">
       </div>
 
-      <!-- Submit -->
-      <div class="purchase-actions">
+      <!-- ===== FUEL PHOTO REQUIREMENTS ===== -->
+      <div class="fuel-photo-section" id="fuelPhotoSection" style="display:none;">
+        <div class="fuel-photo-required-banner" id="fuelPhotoBanner">
+          📸 Your organization requires photos with fuel purchases. Please take the required photos below before submitting.
+        </div>
+        <div class="fuel-photo-row">
+          <div class="fuel-photo-box" id="meterPhotoBox" style="display:none;">
+            <div class="fuel-photo-label">Meter Photo <span class="req">*</span></div>
+            <div class="fuel-photo-hint">Photo of the meter/gauge showing the quantity purchased</div>
+            <input type="file" id="meterPhotoInput" accept="image/jpeg,image/png" capture="environment" style="display:none;" onchange="handleFuelPhotoUpload(this, 'meter')">
+            <button class="fuel-photo-btn" onclick="document.getElementById('meterPhotoInput').click()">📷 Take Photo</button>
+            <div class="fuel-photo-preview" id="meterPhotoPreview"></div>
+            <button class="fuel-photo-remove" id="meterPhotoRemove" style="display:none;" onclick="removeFuelPhoto('meter')">Remove Photo</button>
+          </div>
+          <div class="fuel-photo-box" id="assetPhotoBox" style="display:none;">
+            <div class="fuel-photo-label">Asset Photo <span class="req">*</span></div>
+            <div class="fuel-photo-hint">Photo of the asset/equipment receiving fuel</div>
+            <input type="file" id="assetPhotoInput" accept="image/jpeg,image/png" capture="environment" style="display:none;" onchange="handleFuelPhotoUpload(this, 'asset')">
+            <button class="fuel-photo-btn" onclick="document.getElementById('assetPhotoInput').click()">📷 Take Photo</button>
+            <div class="fuel-photo-preview" id="assetPhotoPreview"></div>
+            <button class="fuel-photo-remove" id="assetPhotoRemove" style="display:none;" onclick="removeFuelPhoto('asset')">Remove Photo</button>
+          </div>
+        </div>
+      </div>
+
         <button class="purchase-submit-btn" onclick="submitPurchase()">Record Purchase</button>
         <button class="purchase-clear-btn" onclick="clearPurchaseForm()">Clear Form</button>
       </div>
@@ -324,6 +364,143 @@ var _objectUrl = null;
 var deviceLocation = null;
 var formDirty = false;
 var managerReviewFlags = [];
+var fuelPhotoSettings = { meter: false, asset: false };
+var fuelPhotos = { meter: null, asset: null };
+var fuelPhotoData = { meter: null, asset: null };
+
+// ===== LOAD FUEL PHOTO SETTINGS =====
+async function loadFuelPhotoSettings() {
+  try {
+    var res = await fetch('/auth/get-settings');
+    var data = await res.json();
+    if (data.success && data.settings) {
+      fuelPhotoSettings.meter = !!data.settings.fuel_meter_photo;
+      fuelPhotoSettings.asset = !!data.settings.fuel_asset_photo;
+      var section = document.getElementById('fuelPhotoSection');
+      var banner = document.getElementById('fuelPhotoBanner');
+      var meterBox = document.getElementById('meterPhotoBox');
+      var assetBox = document.getElementById('assetPhotoBox');
+      if (fuelPhotoSettings.meter || fuelPhotoSettings.asset) {
+        if (section) section.style.display = 'block';
+        if (banner) banner.style.display = 'block';
+        if (meterBox) meterBox.style.display = fuelPhotoSettings.meter ? 'block' : 'none';
+        if (assetBox) assetBox.style.display = fuelPhotoSettings.asset ? 'block' : 'none';
+      }
+    }
+  } catch (e) { console.error('Fuel photo settings load error:', e.message); }
+}
+
+// ===== EXIF DATE EXTRACTION =====
+function getExifDate(file) {
+  return new Promise(function(resolve) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        var bytes = new Uint8Array(e.target.result);
+        // Check for JPEG SOI marker
+        if (bytes[0] !== 0xFF || bytes[1] !== 0xD8) { resolve(null); return; }
+        var i = 2;
+        while (i < bytes.length) {
+          if (bytes[i] !== 0xFF) { i++; continue; }
+          var marker = bytes[i + 1];
+          var size = (bytes[i + 2] << 8) | bytes[i + 3];
+          if (marker === 0xE1) { // APP1 (EXIF)
+            var exifData = bytes.subarray(i + 4, i + 2 + size);
+            // Convert to string and search for DateTimeOriginal (0x9003) tag
+            var str = '';
+            for (var j = 0; j < exifData.length && j < 65536; j++) {
+              str += String.fromCharCode(exifData[j]);
+            }
+            // Look for date pattern YYYY:MM:DD HH:MM:SS
+            var dateMatch = str.match(/(\d{4}):(\d{2}):(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/);
+            if (dateMatch) {
+              resolve(dateMatch[1] + '-' + dateMatch[2] + '-' + dateMatch[3]);
+            } else { resolve(null); }
+            return;
+          }
+          i += 2 + size;
+        }
+        resolve(null);
+      } catch (e) { resolve(null); }
+    };
+    reader.onerror = function() { resolve(null); };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+// ===== HANDLE FUEL PHOTO UPLOAD =====
+async function handleFuelPhotoUpload(input, type) {
+  var file = input.files[0];
+  if (!file) return;
+  // Validate file type
+  if (!['image/jpeg', '/png'].some(function(t) { return file.type === t; })) {
+    alert('Please upload a JPEG or PNG image.');
+    return;
+  }
+  // Validate file size (max 5MB)
+  if (file.size > 5000000) {
+    alert('Photo is too large. Max 5MB.');
+    return;
+  }
+  // Read file as data URL for preview
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    fuelPhotoData[type] = e.target.result;
+    var preview = document.getElementById(type + 'PhotoPreview');
+    preview.innerHTML = '<img src="' + e.target.result + '" alt="' + type + ' photo">';
+    var removeBtn = document.getElementById(type + 'PhotoRemove');
+    if (removeBtn) removeBtn.style.display = 'inline-block';
+    markFormDirty();
+  };
+  reader.readAsDataURL(file);
+  // Extract EXIF date and compare
+  var photoDate = await getExifDate(file);
+  var formDate = document.getElementById('purchaseDate').value;
+  fuelPhotos[type] = { file: file, exifDate: photoDate };
+  if (photoDate && formDate) {
+    if (photoDate !== formDate) {
+      managerReviewFlags.push({
+        field: type + '_photo',
+        value: 'Photo date (' + photoDate + ') does not match form date (' + formDate + ')',
+        reason: 'Photo date (' + photoDate + ') does not match form date (' + formDate + ') — possible old photo. Manager should review.'
+      });
+    }
+  } else if (!photoDate) {
+    managerReviewFlags.push({
+      field: type + '_photo',
+      value: 'EXIF date could not be verified',
+      reason: 'Photo date could not be verified (EXIF metadata missing). Manager should review.'
+    });
+  }
+}
+
+// ===== REMOVE FUEL PHOTO =====
+function removeFuelPhoto(type) {
+  fuelPhotoData[type] = null;
+  fuelPhotos[type] = null;
+  var preview = document.getElementById(type + 'PhotoPreview');
+  if (preview) preview.innerHTML = '';
+  var removeBtn = document.getElementById(type + 'PhotoRemove');
+  if (removeBtn) removeBtn.style.display = 'none';
+  var input = document.getElementById(type + 'PhotoInput');
+  if (input) input.value = '';
+  // Remove any flags related to this photo type
+  managerReviewFlags = managerReviewFlags.filter(function(f) { return f.field !== type + '_photo'; });
+}
+
+// ===== VALIDATE FUEL PHOTOS BEFORE SUBMIT =====
+function validateFuelPhotos() {
+  if (fuelPhotoSettings.meter && !fuelPhotoData.meter) {
+    alert('A meter photo is required. Please take a photo of the meter/gauge before submitting.');
+    return false;
+  }
+  if (fuelPhotoSettings.asset && !fuelPhotoData.asset) {
+    alert('An asset photo is required. Please take a photo of the asset/equipment before submitting.');
+    return false;
+  }
+  return true;
+}
+
 
 function markFormDirty() { formDirty = true; }
 function clearFormDirty() { formDirty = false; }
@@ -639,7 +816,13 @@ async function submitPurchase() {
   var poNumberInput = document.getElementById('purchasePONumber'); var poNumber = poNumberInput ? poNumberInput.value.trim() || null : null;
   if (window._receiptHasNonFuelItems) { managerReviewFlags.push({ field: 'receipt_items', value: 'Receipt includes items besides fuel', reason: 'AI detected non-fuel items on the receipt — manager should review for cost control / project costing' }); }
   if (window._receiptMismatch) { managerReviewFlags.push({ field: 'receipt_mismatch', value: 'Receipt Total does not match Grand Fuel Total', reason: 'Receipt Total ('+(receiptTotal||'?')+') differs from Grand Fuel Total — manager should verify the receipt and line items' }); }
-  var body = { vendor: vendor || null, purchase_date: date + 'T08:00:00Z', submission_timestamp: new Date().toISOString(), location: location || null, person: person || null, notes: notes || null, po_number: poNumber, project_id: projectId || null, receipt_r2_key: receiptR2Key, receipt_total: receiptTotal, receipt_items: receiptItems, line_items: lineItems, device_location: hasDeviceLocation() ? deviceLocation : null, manager_review_flags: managerReviewFlags };
+  if (!validateFuelPhotos()) return;
+
+  var body = {
+    meter_photo: fuelPhotoData.meter || null,
+    asset_photo: fuelPhotoData.asset || null,
+    vendor: vendor || null,
+ purchase_date: date + 'T08:00:00Z', submission_timestamp: new Date().toISOString(), location: location || null, person: person || null, notes: notes || null, po_number: poNumber, project_id: projectId || null, receipt_r2_key: receiptR2Key, receipt_total: receiptTotal, receipt_items: receiptItems, line_items: lineItems, device_location: hasDeviceLocation() ? deviceLocation : null, manager_review_flags: managerReviewFlags };
   var submitBtn = document.querySelector('.purchase-submit-btn'); submitBtn.disabled = true; submitBtn.textContent = 'Recording…';
   try {
     var resp = await fetch('/api/fuel-purchases', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
