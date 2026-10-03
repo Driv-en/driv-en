@@ -3,185 +3,460 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DRIV‑EN | User Management</title>
+
+<!-- ===== PAGE-SPECIFIC SEO ===== -->
+<title>DRIV‑EN | Employee Management</title>
+<meta name="description" content="DRIV-EN — manage users, employees, roles, permissions, and view employee activity history.">
 <meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://www.driv-en.com/app/dashboard/user-management.html">
+
+<!-- Favicon -->
 <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
 <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
 <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
 <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
-<link rel="stylesheet" href="/app/shared/dashboard.css?v=10">
+
+<!-- ===== SHARED DASHBOARD CSS ===== -->
+<link rel="stylesheet" href="/app/shared/dashboard.css?v=11">
+
+<!-- ===== DIAMOND-PLATE BACKGROUND ===== -->
 <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
+
+<!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
 <script>
-(function(){var s=localStorage.getItem("driven-theme");var m=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",s||m);})();
+(function() {
+  var saved = localStorage.getItem("driven-theme");
+  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  var theme = saved || system;
+  document.documentElement.setAttribute("data-theme", theme);
+})();
 </script>
+
 <style>
-.um-loading{display:flex;align-items:center;justify-content:center;height:60vh;font-size:16px;color:var(--text-muted);}
-.dash-header-row2{display:none!important;}.dash-header-row3{display:none!important;}#dashHeader .dash-theme-wrapper{display:none!important;}
-.dash-header-row1{padding:8px 20px!important;align-items:center;}
-.um-header-title{flex:1;text-align:center;font-size:20px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.um-tab-bar{display:flex;gap:2px;max-width:1100px;margin:0 auto;padding:0 20px;overflow-x:auto;position:relative;z-index:1;background:#cbd5e1;border-bottom:2px solid #94a3b8;}
-.um-tab-home{background:#1d4ed8;border:1px solid #2563eb;border-bottom:none;border-radius:8px 8px 0 0;padding:10px 22px;font-size:15px;font-weight:600;color:#fff;cursor:pointer;white-space:nowrap;margin-top:4px;margin-left:auto;position:relative;z-index:1;transition:background 200ms ease,margin-top 200ms ease;text-decoration:none;display:inline-block;}
-.um-tab-home:hover{background:#2563eb;margin-top:2px;}
-.um-tab-logout{background:#b91c1c;border:1px solid #dc2626;border-bottom:none;border-radius:8px 8px 0 0;padding:10px 22px;font-size:15px;font-weight:600;color:#fff;cursor:pointer;white-space:nowrap;margin-top:4px;margin-left:0;position:relative;z-index:1;transition:background 200ms ease,margin-top 200ms ease;}
-.um-tab-logout:hover{background:#dc2626;margin-top:2px;}
-.um-main{max-width:1100px;margin:20px auto;padding:0 20px;position:relative;z-index:1;}
-.um-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:24px;margin-bottom:20px;}
-.um-card h2{margin:0 0 20px 0;font-size:20px;font-weight:700;color:var(--text);}
-.um-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;flex-wrap:wrap;}
-.um-search{flex:1;min-width:200px;padding:10px 12px;font-size:14px;border:1px solid var(--border-input,var(--border));border-radius:6px;background:var(--bg-step);color:var(--text);box-sizing:border-box;}
-.um-search:focus{outline:none;border-color:var(--primary);}
-.um-btn{padding:10px 18px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:opacity 200ms;}
-.um-btn-primary{background:var(--primary);color:#fff;border:1px solid var(--primary-hover);}
-.um-btn-primary:hover{opacity:0.9;}
-.um-btn-secondary{background:var(--bg-card);color:var(--text);border:1px solid var(--border);}
-.um-btn-secondary:hover{border-color:var(--primary);color:var(--primary);}
-.um-btn-sm{padding:6px 12px;font-size:12px;}
-.um-btn-danger{background:#cc0000;color:#fff;border:1px solid #990000;}
-.um-btn-danger:hover{opacity:0.9;}
-.um-table{width:100%;border-collapse:collapse;margin-top:12px;}
-.um-table th,.um-table td{border:1px solid var(--border);padding:8px 10px;font-size:14px;text-align:left;vertical-align:middle;}
-.um-table th{background:var(--bg-header);color:var(--text);font-weight:600;cursor:pointer;white-space:nowrap;}
-.um-table th:hover{color:var(--primary);}
-.um-table td{background:var(--bg-card);color:var(--text);}
-.um-table tr:hover td{background:var(--bg-step);}
-.um-role-badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;white-space:nowrap;}
-.um-role-badge.admin{background:#dbeafe;color:#1d4ed8;}
-.um-role-badge.owner{background:#fef3c7;color:#b45309;}
-.um-role-badge.other{background:#e2e8f0;color:#475569;}
-.um-status-badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;white-space:nowrap;}
-.um-status-badge.active{background:#dcfce7;color:#15803d;}
-.um-status-badge.inactive{background:#fee2e2;color:#cc0000;}
-.um-actions{display:flex;gap:6px;}
-.um-actions button{padding:4px 10px;font-size:12px;border-radius:4px;cursor:pointer;border:1px solid var(--border);background:var(--bg-card);color:var(--text);}
-.um-actions button:hover{border-color:var(--primary);color:var(--primary);}
-.um-actions button.um-action-danger:hover{border-color:#cc0000;color:#cc0000;}
-.um-modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:10000;align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px 0;}
-.um-modal-overlay.show{display:flex;}
-.um-modal{background:var(--bg-card);border:1px solid var(--primary);border-radius:12px;padding:28px;max-width:700px;width:90%;margin:20px auto;box-shadow:0 8px 40px rgba(0,0,0,0.3);}
-.um-modal h3{margin:0 0 20px 0;font-size:20px;font-weight:700;color:var(--text);}
-.um-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-.um-form-row{margin-bottom:14px;}
-.um-form-row label{display:block;font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;}
-.um-form-row label .req{color:#cc0000;}
-.um-form-row input,.um-form-row select,.um-form-row textarea{width:100%;padding:10px 12px;font-size:14px;border:1px solid var(--border-input,var(--border));border-radius:6px;background:var(--bg-step);color:var(--text);box-sizing:border-box;}
-.um-form-row input:focus,.um-form-row select:focus,.um-form-row textarea:focus{outline:none;border-color:var(--primary);}
-.um-form-row .hint{font-size:11px;color:var(--text-muted);margin-top:4px;}
-.um-permissions-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;max-height:300px;overflow-y:auto;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);}
-.um-perm-item{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);}
-.um-perm-item input{width:16px;height:16px;accent-color:var(--primary);}
-.um-confirm-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:10001;align-items:center;justify-content:center;}
-.um-confirm-overlay.show{display:flex;}
-.um-confirm-card{background:var(--bg-card);border:1px solid var(--primary);border-radius:12px;padding:28px;text-align:center;max-width:400px;width:90%;}
-.um-confirm-card h3{margin:0 0 10px 0;font-size:18px;color:var(--text);}
-.um-confirm-card p{margin:0 0 20px 0;font-size:14px;color:var(--text-muted);}
-.um-confirm-card .um-confirm-btns{display:flex;gap:10px;justify-content:center;}
-@media(max-width:800px){.um-form-grid{grid-template-columns:1fr;}.um-table{font-size:12px;}.um-table th,.um-table td{padding:6px 4px;}.um-main{padding:0 12px;margin:12px auto;}}
+/* ===== LOADING SCREEN ===== */
+.um-loading { display:flex; align-items:center; justify-content:center; height:100vh; font-size:16px; color:var(--text-muted); }
+
+/* ===== HEADER OVERRIDE — logos + title on one row ===== */
+.dash-header-row3 { display:none !important; }
+#dashHeader .dash-theme-wrapper { display:none !important; }
+.dash-header-row2 { display:none !important; }
+
+@media (max-width:700px) {
+  .dash-customer-logo, .dash-customer-logo-placeholder { max-height:36px; max-width:80px; }
+  .dash-driven-logo { max-height:40px; }
+}
+
+/* ===== TAB BAR ===== */
+.um-tab-bar { display:flex; gap:2px; max-width:1100px; margin:0 auto; padding:0 20px; overflow-x:auto; position:relative; z-index:1; background:#cbd5e1; border-bottom:2px solid #94a3b8; }
+.um-tab { background:#94a3b8; border:1px solid #64748b; border-bottom:none; border-radius:8px 8px 0 0; padding:10px 22px; font-size:15px; font-weight:500; color:#1e293b; cursor:pointer; white-space:nowrap; transition:color 200ms ease, background 200ms ease, margin-top 200ms ease; margin-top:4px; position:relative; z-index:1; }
+.um-tab:hover { color:#0f172a; background:#a5b4c4; margin-top:2px; }
+.um-tab.active { color:#1d4ed8; background:#e2e8f0; border-color:#64748b; margin-top:0; font-weight:600; z-index:2; }
+.um-tab[data-tab="employees"] { background:#0d9488; border-color:#0f766e; color:#fff; }
+.um-tab[data-tab="employees"]:hover { background:#0f766e; color:#fff; margin-top:2px; }
+.um-tab[data-tab="employees"].active { background:#ccfbf1; color:#0f766e; border-color:#0d9488; }
+.um-tab-logout { background:#b91c1c; border:1px solid #dc2626; border-bottom:none; border-radius:8px 8px 0 0; padding:10px 22px; font-size:15px; font-weight:600; color:#fff; cursor:pointer; white-space:nowrap; margin-top:4px; margin-left:auto; position:relative; z-index:1; transition:background 200ms ease, margin-top 200ms ease; }
+.um-tab-logout:hover { background:#dc2626; margin-top:2px; }
+.um-tab-dashboard { background:#2563eb; border:1px solid #1d4ed8; color:#fff; }
+.um-tab-dashboard:hover { background:#1d4ed8; color:#fff; margin-top:2px; }
+.um-tab-content { display:none; }
+.um-tab-content.active { display:block; }
+
+/* ===== MAIN CONTAINER ===== */
+.um-main { max-width:1100px; margin:20px auto; padding:0 20px; position:relative; z-index:1; }
+
+/* ===== CARDS ===== */
+.um-card { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:20px; margin-bottom:24px; }
+.um-card h3 { margin:0 0 16px 0; font-size:17px; color:var(--text); }
+
+/* ===== TABLES ===== */
+.um-table { width:100%; border-collapse:collapse; font-size:14px; }
+.um-table th { text-align:left; padding:10px 12px; border-bottom:2px solid var(--border); color:var(--text-muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; }
+.um-table td { padding:10px 12px; border-bottom:1px solid var(--border); color:var(--text); }
+.um-table tr:hover td { background:var(--bg-hover, rgba(0,0,0,0.03)); }
+.um-table tr.clickable { cursor:pointer; }
+.um-table tr.clickable:hover td { background:rgba(59,130,246,0.08); }
+
+/* ===== BADGES ===== */
+.um-badge { display:inline-block; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600; }
+.um-badge-active { background:#dcfce7; color:#15803d; }
+.um-badge-inactive { background:#fee2e2; color:#b91c1c; }
+.um-badge-onleave { background:#fef3c7; color:#b45309; }
+.um-badge-2fa { background:#dbeafe; color:#1d4ed8; }
+
+/* ===== FORM ELEMENTS ===== */
+.um-form-row { margin-bottom:16px; }
+.um-form-row label { display:block; font-size:13px; font-weight:600; color:var(--text-muted); margin-bottom:4px; }
+.um-form-row input, .um-form-row select, .um-form-row textarea { width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:14px; color:var(--text); background:var(--bg-input, #fff); box-sizing:border-box; }
+.um-form-row input:focus, .um-form-row select:focus, .um-form-row textarea:focus { outline:none; border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,0.15); }
+.um-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.um-form-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+
+/* ===== BUTTONS ===== */
+.um-btn { display:inline-block; padding:8px 18px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; border:none; transition:background 200ms ease; }
+.um-btn-primary { background:#2563eb; color:#fff; }
+.um-btn-primary:hover { background:#1d4ed8; }
+.um-btn-success { background:#16a34a; color:#fff; }
+.um-btn-success:hover { background:#15803d; }
+.um-btn-danger { background:#dc2626; color:#fff; }
+.um-btn-danger:hover { background:#b91c1c; }
+.um-btn-secondary { background:var(--bg-card); color:var(--text); border:1px solid var(--border); }
+.um-btn-secondary:hover { background:var(--bg-hover, rgba(0,0,0,0.05)); }
+.um-btn-sm { padding:5px 12px; font-size:13px; }
+
+/* ===== MODAL ===== */
+.um-modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; display:none; align-items:flex-start; justify-content:center; padding:40px 20px; overflow-y:auto; }
+.um-modal-overlay.show { display:flex; }
+.um-modal { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; max-width:700px; width:100%; padding:28px; position:relative; margin-bottom:40px; }
+.um-modal-large { max-width:900px; }
+.um-modal-close { position:absolute; top:14px; right:18px; font-size:24px; cursor:pointer; color:var(--text-muted); background:none; border:none; line-height:1; }
+.um-modal-close:hover { color:var(--text); }
+.um-modal h3 { margin:0 0 20px 0; font-size:18px; color:var(--text); }
+
+/* ===== USER DETAIL PANEL ===== */
+.um-detail-header { display:flex; align-items:center; gap:16px; margin-bottom:24px; }
+.um-avatar { width:56px; height:56px; border-radius:50%; background:#2563eb; color:#fff; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; flex-shrink:0; }
+.um-detail-name { font-size:20px; font-weight:600; color:var(--text); }
+.um-detail-email { font-size:14px; color:var(--text-muted); }
+.um-detail-meta { display:flex; gap:12px; margin-top:6px; flex-wrap:wrap; }
+
+/* ===== PERMISSION TOGGLES ===== */
+.um-perm-group { margin-bottom:20px; }
+.um-perm-group-title { font-size:14px; font-weight:600; color:var(--text); margin-bottom:8px; padding-bottom:4px; border-bottom:1px solid var(--border); }
+.um-perm-item { display:flex; align-items:center; justify-content:space-between; padding:8px 0; }
+.um-perm-item-left { display:flex; align-items:center; gap:10px; }
+.um-perm-name { font-size:14px; color:var(--text); }
+.um-perm-desc { font-size:12px; color:var(--text-muted); }
+.um-perm-toggle { position:relative; width:44px; height:24px; }
+.um-perm-toggle input { opacity:0; width:0; height:0; }
+.um-perm-slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#cbd5e1; border-radius:24px; transition:200ms; }
+.um-perm-slider:before { position:absolute; content:""; height:18px; width:18px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:200ms; }
+.um-perm-toggle input:checked + .um-perm-slider { background:#16a34a; }
+.um-perm-toggle input:checked + .um-perm-slider:before { transform:translateX(20px); }
+.um-perm-source { font-size:11px; padding:2px 8px; border-radius:8px; font-weight:600; }
+.um-perm-source-role { background:#e0e7ff; color:#4338ca; }
+.um-perm-source-override-grant { background:#dcfce7; color:#15803d; }
+.um-perm-source-override-revoke { background:#fee2e2; color:#b91c1c; }
+.um-perm-source-none { background:#f3f4f6; color:#6b7280; }
+
+/* ===== ACTIVITY TIMELINE ===== */
+.um-timeline { position:relative; padding-left:24px; }
+.um-timeline:before { content:""; position:absolute; left:8px; top:0; bottom:0; width:2px; background:var(--border); }
+.um-timeline-item { position:relative; margin-bottom:20px; }
+.um-timeline-dot { position:absolute; left:-20px; top:4px; width:12px; height:12px; border-radius:50%; background:#2563eb; border:2px solid var(--bg-card); }
+.um-timeline-dot.green { background:#16a34a; }
+.um-timeline-dot.red { background:#dc2626; }
+.um-timeline-dot.gray { background:#94a3b8; }
+.um-timeline-date { font-size:12px; color:var(--text-muted); }
+.um-timeline-action { font-size:14px; color:var(--text); font-weight:500; }
+.um-timeline-detail { font-size:13px; color:var(--text-muted); margin-top:2px; }
+
+/* ===== SEARCH ===== */
+.um-search-bar { display:flex; gap:12px; margin-bottom:20px; align-items:center; }
+.um-search-bar input { flex:1; padding:8px 14px; border:1px solid var(--border); border-radius:6px; font-size:14px; color:var(--text); background:var(--bg-input,#fff); }
+.um-search-bar select { padding:8px 14px; border:1px solid var(--border); border-radius:6px; font-size:14px; color:var(--text); background:var(--bg-input,#fff); }
+
+/* ===== STATS ===== */
+.um-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+.um-stat { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:16px; text-align:center; }
+.um-stat-num { font-size:28px; font-weight:700; color:var(--text); }
+.um-stat-label { font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-top:4px; }
+
+/* ===== EMPTY STATE ===== */
+.um-empty { text-align:center; padding:40px; color:var(--text-muted); font-size:15px; }
+
+/* ===== ACCESS DENIED ===== */
+.um-denied { text-align:center; padding:60px 20px; }
+.um-denied h2 { color:#b91c1c; font-size:22px; margin-bottom:8px; }
+.um-denied p { color:var(--text-muted); font-size:15px; }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width:700px) {
+  .um-form-grid, .um-form-grid-3 { grid-template-columns:1fr; }
+  .um-stats { grid-template-columns:1fr 1fr; }
+  .um-table { font-size:13px; }
+  .um-table th, .um-table td { padding:8px 6px; }
+}
 </style>
 </head>
-<body data-page-title="User Management" data-required-role="Admin">
-<div class="steel-bg"></div><div class="steel-overlay"></div>
+<body data-page-title="Employee Management">
+
+<!-- ===== HEADER (loaded by dashboard-common.js) ===== -->
 <div id="dashHeader"></div>
+
+<!-- ===== TAB BAR ===== -->
 <div class="um-tab-bar">
-  <a class="um-tab-home" id="dashHomeLink" href="/app/dashboard/admin.html">Admin Dashboard</a>
-  <button class="um-tab-logout" onclick="dashLogout()">Logout</button>
+  <div class="um-tab active" data-tab="employees" onclick="switchTab('employees')" style="background:#0d9488;border-color:#0f766e;color:#fff;">Employees</div>
+  <div class="um-tab" data-tab="activity" onclick="switchTab('activity')">Activity Log</div>
+  <div class="um-tab" data-tab="roles" onclick="switchTab('roles')">Roles & Permissions</div>
+  <div class="um-tab" data-tab="users" onclick="switchTab('users')">Users</div>
+  <div class="um-tab um-tab-dashboard" id="tabBackToDashboard" onclick="goToMainDashboard()">&#8592; Dashboard</div>
+  <div class="um-tab-logout" onclick="dashLogout()">Logout</div>
 </div>
-<div id="loading" class="um-loading">Checking session…</div>
-<div id="dashboard" style="display:none;">
-  <div class="um-main">
+
+<!-- ===== MAIN CONTENT ===== -->
+<div class="um-main">
+  <div class="um-loading" id="umLoading">Loading user management...</div>
+  <div class="um-denied" id="umDenied" style="display:none;">
+    <h2>Access Denied</h2>
+    <p>You need <strong>users.view</strong> permission to access this page.</p>
+    <p>Contact your administrator if you believe this is an error.</p>
+  </div>
+  <div class="um-tab-content" id="tab-users" style="display:none;">
     <div class="um-card">
-      <h2>Employee Management</h2>
-      <div class="um-toolbar">
-        <input type="text" class="um-search" id="searchInput" placeholder="Search by name, email, role…" oninput="renderEmployeeTable()">
-        <button class="um-btn um-btn-primary" onclick="openAddEmployeeModal()">+ Add Employee</button>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 style="margin:0;">System Users</h3>
+        <button class="um-btn um-btn-primary um-btn-sm" id="btnAddUser" style="display:none;" onclick="openAddUserModal()">+ Add User</button>
       </div>
-      <div id="employeeTableContainer"></div>
+      <div class="um-search-bar">
+        <input type="text" id="userSearch" placeholder="Search by name or email..." oninput="filterUsers()">
+        <select id="userStatusFilter" onchange="filterUsers()">
+          <option value="">All Statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="um-table" id="usersTable">
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>2FA</th><th>Last Login</th><th>Actions</th></tr></thead>
+          <tbody id="usersTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="um-tab-content active" id="tab-employees" style="display:none;">
+    <div class="um-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 style="margin:0;">Employee Directory</h3>
+        <button class="um-btn um-btn-primary um-btn-sm" id="btnAddEmployee" style="display:none;" onclick="openAddEmployeeModal()">+ Add Employee</button>
+      </div>
+      <div class="um-search-bar">
+        <input type="text" id="empSearch" placeholder="Search employees..." oninput="filterEmployees()">
+        <select id="empStatusFilter" onchange="filterEmployees()">
+          <option value="">All Statuses</option>
+          <option value="Active">Active</option>
+          <option value="On Leave">On Leave</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="um-table" id="employeesTable">
+          <thead><tr><th>Emp #</th><th>Name</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="employeesTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="um-tab-content" id="tab-activity" style="display:none;">
+    <div class="um-card">
+      <h3>User Activity Log</h3>
+      <div class="um-search-bar">
+        <input type="text" id="activitySearch" placeholder="Search by user email..." oninput="filterActivity()">
+        <select id="activityModuleFilter" onchange="filterActivity()">
+          <option value="">All Modules</option>
+          <option value="auth">Auth</option>
+          <option value="fuel">Fuel</option>
+          <option value="transfers">Transfers</option>
+          <option value="work_orders">Work Orders</option>
+          <option value="assets">Assets</option>
+          <option value="inspections">Inspections</option>
+          <option value="pm">PM</option>
+          <option value="projects">Projects</option>
+          <option value="extraction">Extraction</option>
+          <option value="platform">Platform</option>
+        </select>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="um-table" id="activityTable">
+          <thead><tr><th>Date/Time</th><th>User</th><th>Module</th><th>Action</th><th>Details</th><th>IP Address</th></tr></thead>
+          <tbody id="activityTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="um-tab-content" id="tab-roles" style="display:none;">
+    <div class="um-card">
+      <h3>Roles & Permission Matrix</h3>
+      <p style="color:var(--text-muted); font-size:14px; margin-bottom:16px;">Roles define the base set of permissions for a group of users. Per-employee overrides can grant or revoke individual permissions on the user detail page.</p>
+      <div id="rolesContainer"></div>
     </div>
   </div>
 </div>
+
+<!-- ===== FOOTER ===== -->
+<div id="dashFooter"></div>
+
+<!-- ===== USER DETAIL MODAL ===== -->
+<div class="um-modal-overlay" id="userDetailModal">
+  <div class="um-modal um-modal-large">
+    <button class="um-modal-close" onclick="closeModal('userDetailModal')">&times;</button>
+    <div id="userDetailContent"></div>
+  </div>
+</div>
+
+<!-- ===== ADD USER MODAL ===== -->
+<div class="um-modal-overlay" id="addUserModal">
+  <div class="um-modal">
+    <button class="um-modal-close" onclick="closeModal('addUserModal')">&times;</button>
+    <h3>Add New User</h3>
+    <div class="um-form-grid">
+      <div class="um-form-row"><label>First Name</label><input type="text" id="newUserFirst" placeholder="John"></div>
+      <div class="um-form-row"><label>Last Name</label><input type="text" id="newUserLast" placeholder="Doe"></div>
+    </div>
+    <div class="um-form-row"><label>Email Address</label><input type="email" id="newUserEmail" placeholder="john.doe@company.com"></div>
+    <div class="um-form-grid">
+      <div class="um-form-row"><label>Role</label><select id="newUserRole"></select></div>
+      <div class="um-form-row"><label>Temporary Password</label><input type="text" id="newUserPassword" placeholder="User will be prompted to change"></div>
+    </div>
+    <div style="display:flex; gap:12px; margin-top:20px;">
+      <button class="um-btn um-btn-primary" onclick="createUser()">Create User</button>
+      <button class="um-btn um-btn-secondary" onclick="closeModal('addUserModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== ADD EMPLOYEE MODAL ===== -->
 <div class="um-modal-overlay" id="addEmployeeModal">
-  <div class="um-modal">
+  <div class="um-modal um-modal-large">
+    <button class="um-modal-close" onclick="closeModal('addEmployeeModal')">&times;</button>
     <h3>Add New Employee</h3>
     <div class="um-form-grid">
-      <div class="um-form-row"><label>Employee Number</label><input type="text" id="newEmpNumber" placeholder="Auto-assigned if blank"></div>
-      <div class="um-form-row"><label>Role <span class="req">*</span></label><select id="newEmpRole"><option value="">Select a role...</option></select></div>
-      <div class="um-form-row"><label>First Name <span class="req">*</span></label><input type="text" id="newEmpFirst"></div>
-      <div class="um-form-row"><label>Middle Name</label><input type="text" id="newEmpMiddle"></div>
-      <div class="um-form-row"><label>Last Name <span class="req">*</span></label><input type="text" id="newEmpLast"></div>
-      <div class="um-form-row"><label>Suffix</label><select id="newEmpSuffix"><option value="">None</option><option value="Jr">Jr</option><option value="Sr">Sr</option><option value="II">II</option><option value="III">III</option><option value="IV">IV</option></select></div>
-      <div class="um-form-row"><label>Phone <span class="req">*</span></label><input type="tel" id="newEmpPhone" placeholder="(555) 123-4567"></div>
-      <div class="um-form-row"><label>Email <span class="req">*</span></label><input type="email" id="newEmpEmail" placeholder="name@company.com"></div>
-      <div class="um-form-row"><label>Status</label><select id="newEmpStatus"><option value="Active">Active</option><option value="Inactive">Inactive</option></select></div>
-      <div class="um-form-row"><label>Date of Birth</label><input type="date" id="newEmpDob"></div>
+      <div class="um-form-row"><label>Employee Number</label><input type="text" id="newEmpNumber" placeholder="EMP-001"></div>
+      <div class="um-form-row"><label>Role</label><select id="newEmpRole"><option value="">Select a role...</option></select></div>
     </div>
-    <h4 style="margin:20px 0 8px 0;font-size:14px;color:var(--text-muted);">Address</h4>
+    <div class="um-form-grid">
+      <div class="um-form-row"><label>First Name *</label><input type="text" id="newEmpFirst" placeholder="John"></div>
+      <div class="um-form-row"><label>Middle Name</label><input type="text" id="newEmpMiddle" placeholder="Robert"></div>
+    </div>
+    <div class="um-form-grid">
+      <div class="um-form-row"><label>Last Name *</label><input type="text" id="newEmpLast" placeholder="Smith"></div>
+      <div class="um-form-row"><label>Suffix</label><select id="newEmpSuffix"><option value="">—</option><option value="Jr.">Jr.</option><option value="Sr.">Sr.</option><option value="II">II</option><option value="III">III</option><option value="IV">IV</option></select></div>
+    </div>
+    <div class="um-form-grid">
+      <div class="um-form-row"><label>Phone Number *</label><input type="tel" id="newEmpPhone" placeholder="(555) 123-4567"></div>
+      <div class="um-form-row"><label>Email Address *</label><input type="email" id="newEmpEmail" placeholder="john.smith@company.com"></div>
+    </div>
+    <div class="um-form-row"><label>Status</label><select id="newEmpStatus"><option value="Active" selected>Active</option><option value="On Leave">On Leave</option><option value="Inactive">Inactive</option></select></div>
+    <h4 style="margin:20px 0 8px 0; font-size:14px; color:var(--text-muted);">Optional Information</h4>
     <div class="um-form-row"><label>Street Address</label><input type="text" id="newEmpAddress" placeholder="123 Main St"></div>
     <div class="um-form-grid">
-      <div class="um-form-row"><label>City</label><input type="text" id="newEmpCity"></div>
-      <div class="um-form-row"><label>State</label><input type="text" id="newEmpState" placeholder="TX"></div>
-      <div class="um-form-row"><label>Zip Code</label><input type="text" id="newEmpZip" maxlength="10"></div>
+      <div class="um-form-row"><label>City</label><input type="text" id="newEmpCity" placeholder="Houston"></div>
+      <div class="um-form-row"><label>State</label><input type="text" id="newEmpState" placeholder="TX" maxlength="2"></div>
     </div>
-    <h4 style="margin:20px 0 8px 0;font-size:14px;color:var(--text-muted);">Driver's License</h4>
     <div class="um-form-grid">
-      <div class="um-form-row"><label>DL Number</label><input type="text" id="newEmpDl"></div>
-      <div class="um-form-row"><label>DL State</label><input type="text" id="newEmpDlState" placeholder="TX"></div>
+      <div class="um-form-row"><label>ZIP Code</label><input type="text" id="newEmpZip" placeholder="77001"></div>
+      <div class="um-form-row"><label>Date of Birth</label><input type="date" id="newEmpDob"></div>
     </div>
-    <h4 style="margin:20px 0 8px 0;font-size:14px;color:var(--text-muted);">Driver's License Images</h4>
     <div class="um-form-grid">
-      <div class="um-form-row"><label>DL Front</label><div style="display:flex;align-items:center;gap:10px;"><input type="file" id="newEmpDlFront" accept="image/*" capture="environment" style="flex:1;font-size:12px;" onchange="previewDlImage(this,'dlFrontPreview')"><button type="button" class="um-btn um-btn-secondary um-btn-sm" onclick="captureDlCamera('newEmpDlFront','dlFrontPreview')">📷 Camera</button></div><img id="dlFrontPreview" style="max-width:200px;max-height:140px;margin-top:8px;border-radius:6px;border:1px solid var(--border);display:none;" /></div>
-      <div class="um-form-row"><label>DL Back</label><div style="display:flex;align-items:center;gap:10px;"><input type="file" id="newEmpDlBack" accept="image/*" capture="environment" style="flex:1;font-size:12px;" onchange="previewDlImage(this,'dlBackPreview')"><button type="button" class="um-btn um-btn-secondary um-btn-sm" onclick="captureDlCamera('newEmpDlBack','dlBackPreview')">📷 Camera</button></div><img id="dlBackPreview" style="max-width:200px;max-height:140px;margin-top:8px;border-radius:6px;border:1px solid var(--border);display:none;" /></div>
+      <div class="um-form-row"><label>Driver's License Number</label><input type="text" id="newEmpDl" placeholder="DL number"></div>
+      <div class="um-form-row"><label>DL State</label><input type="text" id="newEmpDlState" placeholder="TX" maxlength="2"></div>
     </div>
-    <!-- ===== AUTHORIZED DRIVER ===== -->
-    <div class="um-form-row" style="margin-top:16px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="newEmpAuthorizedDriver" onchange="onAuthorizedDriverChange()" style="width:18px;height:18px;accent-color:var(--primary);"><span>Authorized Driver</span></label><div class="hint" style="font-size:12px;color:var(--text-muted);margin-top:4px;">If checked, driver's license fields and expiration date are required.</div></div>
-    <!-- ===== DL EXPIRATION ===== -->
-    <div class="um-form-grid" id="dlExpirationRow" style="display:none;"><div class="um-form-row"><label>DL Expiration Date <span style="color:#cc0000;">*</span></label><input type="date" id="newEmpDlExpiration" onchange="checkDlExpiration()"><div id="dlExpirationStatus" style="font-size:12px;margin-top:4px;font-weight:600;"></div></div></div>
-    <!-- ===== EMPLOYEE-OWNED EQUIPMENT ===== -->
-    <h4 style="margin:20px 0 8px 0;font-size:14px;color:var(--text-muted);">Employee-Owned Equipment</h4>
-    <div class="hint" style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">Add equipment the employee owns and uses for company work (truck, welding truck, drag-up tank, etc.). Check "Additional Pay" if the employee receives compensation for using this item.</div>
+    <h4 style="margin:20px 0 8px 0; font-size:14px; color:var(--text-muted);">Driver's License Images</h4>
+    <div class="um-form-grid">
+      <div class="um-form-row">
+        <label>DL Front</label>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <input type="file" id="newEmpDlFront" accept="image/*" capture="environment" style="flex:1; font-size:12px;" onchange="previewDlImage(this, 'dlFrontPreview')">
+          <button type="button" class="um-btn um-btn-secondary um-btn-sm" onclick="captureDlCamera('newEmpDlFront', 'dlFrontPreview')">📷 Camera</button>
+        </div>
+        <img id="dlFrontPreview" style="max-width:200px; max-height:140px; margin-top:8px; border-radius:6px; border:1px solid var(--border); display:none;" />
+      </div>
+      <div class="um-form-row">
+        <label>DL Back</label>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <input type="file" id="newEmpDlBack" accept="image/*" capture="environment" style="flex:1; font-size:12px;" onchange="previewDlImage(this, 'dlBackPreview')">
+          <button type="button" class="um-btn um-btn-secondary um-btn-sm" onclick="captureDlCamera('newEmpDlBack', 'dlBackPreview')">📷 Camera</button>
+        </div>
+        <img id="dlBackPreview" style="max-width:200px; max-height:140px; margin-top:8px; border-radius:6px; border:1px solid var(--border); display:none;" />
+      </div>
+    </div>
+    <div class="um-form-row" style="margin-top:16px;">
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+        <input type="checkbox" id="newEmpAuthorizedDriver" onchange="onAuthorizedDriverChange()" style="width:18px; height:18px; accent-color:var(--primary);">
+        <span>Authorized Driver</span>
+      </label>
+      <div class="hint" style="font-size:12px; color:var(--text-muted); margin-top:4px;">If checked, driver's license fields and expiration date are required.</div>
+    </div>
+    <div class="um-form-grid" id="dlExpirationRow" style="display:none;">
+      <div class="um-form-row">
+        <label>DL Expiration Date <span style="color:#cc0000;">*</span></label>
+        <input type="date" id="newEmpDlExpiration" onchange="checkDlExpiration()">
+        <div id="dlExpirationStatus" style="font-size:12px; margin-top:4px; font-weight:600;"></div>
+      </div>
+    </div>
+    <h4 style="margin:20px 0 8px 0; font-size:14px; color:var(--text-muted);">Employee-Owned Equipment</h4>
+    <div class="hint" style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">Add equipment the employee owns and uses for company work (truck, welding truck, drag-up tank, etc.). Check "Additional Pay" if the employee receives compensation for using this item.</div>
     <div id="ownedEquipmentList"></div>
     <button type="button" class="um-btn um-btn-secondary um-btn-sm" onclick="addOwnedEquipmentRow()" style="margin-top:8px;">+ Add Equipment</button>
-    <!-- ===== INSURANCE ===== -->
-    <h4 style="margin:20px 0 8px 0;font-size:14px;color:var(--text-muted);">Insurance</h4>
-    <div class="um-form-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="newEmpInsuranceRequired" onchange="onInsuranceRequiredChange()" style="width:18px;height:18px;accent-color:var(--primary);"><span>Insurance Required</span></label><div class="hint" style="font-size:12px;color:var(--text-muted);margin-top:4px;">If checked, the employee must provide proof of insurance for their equipment.</div></div>
+    <h4 style="margin:20px 0 8px 0; font-size:14px; color:var(--text-muted);">Insurance</h4>
+    <div class="um-form-row">
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+        <input type="checkbox" id="newEmpInsuranceRequired" onchange="onInsuranceRequiredChange()" style="width:18px; height:18px; accent-color:var(--primary);">
+        <span>Insurance Required</span>
+      </label>
+      <div class="hint" style="font-size:12px; color:var(--text-muted); margin-top:4px;">If checked, the employee must provide proof of insurance for their equipment.</div>
+    </div>
     <div id="insuranceFields" style="display:none;">
       <div class="um-form-grid">
         <div class="um-form-row"><label>Insurance Company <span style="color:#cc0000;">*</span></label><input type="text" id="newEmpInsuranceCompany" placeholder="e.g., State Farm"></div>
-        <div class="um-form-row"><label>Policy Expiration Date <span style="color:#cc0000;">*</span></label><input type="date" id="newEmpInsuranceExpiration" onchange="checkInsuranceExpiration()"><div id="insuranceExpirationStatus" style="font-size:12px;margin-top:4px;font-weight:600;"></div></div>
+        <div class="um-form-row"><label>Policy Expiration Date <span style="color:#cc0000;">*</span></label><input type="date" id="newEmpInsuranceExpiration" onchange="checkInsuranceExpiration()"><div id="insuranceExpirationStatus" style="font-size:12px; margin-top:4px; font-weight:600;"></div></div>
       </div>
       <div class="um-form-row"><label>Policy Limits <span style="color:#cc0000;">*</span></label><input type="text" id="newEmpInsuranceLimits" placeholder="e.g., $500,000 liability / $100,000 property"></div>
-      <div class="um-form-row"><label>Photo of Insurance Card <span style="color:#cc0000;">*</span></label><div style="display:flex;align-items:center;gap:10px;"><input type="file" id="newEmpInsuranceCard" accept="image/*" capture="environment" style="flex:1;font-size:12px;" onchange="previewInsuranceImage(this,'insuranceCardPreview')"><button type="button" class="um-btn um-btn-secondary um-btn-sm" onclick="captureDlCamera('newEmpInsuranceCard','insuranceCardPreview')">📷 Camera</button></div><img id="insuranceCardPreview" style="max-width:200px;max-height:140px;margin-top:8px;border-radius:6px;border:1px solid var(--border);display:none;" /></div>
+      <div class="um-form-row">
+        <label>Photo of Insurance Card <span style="color:#cc0000;">*</span></label>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <input type="file" id="newEmpInsuranceCard" accept="image/*" capture="environment" style="flex:1; font-size:12px;" onchange="previewInsuranceImage(this, 'insuranceCardPreview')">
+          <button type="button" class="um-btn um-btn-secondary um-btn-sm" onclick="captureDlCamera('newEmpInsuranceCard', 'insuranceCardPreview')">📷 Camera</button>
+        </div>
+        <img id="insuranceCardPreview" style="max-width:200px; max-height:140px; margin-top:8px; border-radius:6px; border:1px solid var(--border); display:none;" />
+      </div>
     </div>
-    <div style="display:flex;gap:12px;margin-top:20px;">
+    <div style="display:flex; gap:12px; margin-top:20px;">
       <button class="um-btn um-btn-primary" onclick="createEmployee()">Add Employee</button>
       <button class="um-btn um-btn-secondary" onclick="closeEmployeeModalWithWarning()">Cancel</button>
     </div>
   </div>
 </div>
+
+<!-- ===== CREATE ROLE MODAL ===== -->
+<div class="um-modal-overlay" id="createRoleModal">
+  <div class="um-modal um-modal-large">
+    <button class="um-modal-close" onclick="closeModal('createRoleModal')">&times;</button>
+    <h3>Create New Role</h3>
+    <div class="um-form-grid">
+      <div class="um-form-row"><label>Role Name *</label><input type="text" id="newRoleName" placeholder="e.g. Field Supervisor"></div>
+      <div class="um-form-row"><label>Description</label><input type="text" id="newRoleDesc" placeholder="Brief description of this role"></div>
+    </div>
+    <h4 style="margin:20px 0 8px 0; font-size:15px;">Permissions</h4>
+    <p style="font-size:13px; color:var(--text-muted); margin:0 0 12px 0;">Select which permissions this role grants. Individual overrides can be applied per-employee on the user detail page.</p>
+    <div id="newRolePermContainer" style="max-height:400px; overflow-y:auto;"></div>
+    <div style="display:flex; gap:12px; margin-top:20px;">
+      <button class="um-btn um-btn-primary" onclick="createRole()">Create Role</button>
+      <button class="um-btn um-btn-secondary" onclick="closeModal('createRoleModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== EDIT ROLE MODAL ===== -->
 <div class="um-modal-overlay" id="editRoleModal">
-  <div class="um-modal">
+  <div class="um-modal um-modal-large">
+    <button class="um-modal-close" onclick="closeModal('editRoleModal')">&times;</button>
     <h3>Edit Role & Permissions</h3>
-    <div class="um-form-row"><label>Employee</label><input type="text" id="editRoleEmpName" readonly style="background:var(--bg-header);"></div>
-    <div class="um-form-row"><label>New Role <span class="req">*</span></label><select id="editRoleSelect"></select></div>
-    <div class="um-form-row"><label>Permissions</label><div class="um-permissions-grid" id="editPermGrid"></div></div>
-    <div style="display:flex;gap:12px;margin-top:20px;">
-      <button class="um-btn um-btn-primary" onclick="saveRoleChange()">Save</button>
+    <input type="hidden" id="editRoleId">
+    <div class="um-form-grid">
+      <div class="um-form-row"><label>Role Name *</label><input type="text" id="editRoleName"></div>
+      <div class="um-form-row"><label>Description</label><input type="text" id="editRoleDesc"></div>
+    </div>
+    <h4 style="margin:20px 0 8px 0; font-size:15px;">Permissions</h4>
+    <p style="font-size:13px; color:var(--text-muted); margin:0 0 12px 0;">Toggle permissions on or off for this role. Changes affect all users assigned to this role.</p>
+    <div id="editRolePermContainer" style="max-height:400px; overflow-y:auto;"></div>
+    <div style="display:flex; gap:12px; margin-top:20px;">
+      <button class="um-btn um-btn-primary" onclick="saveRolePermissions()">Save Changes</button>
       <button class="um-btn um-btn-secondary" onclick="closeModal('editRoleModal')">Cancel</button>
     </div>
   </div>
 </div>
-<!-- ===== DELETE CONFIRM MODAL ===== -->
-<div class="um-confirm-overlay" id="deleteConfirmModal">
-  <div class="um-confirm-card">
-    <h3>Delete Employee?</h3>
-    <p id="deleteConfirmMsg">Are you sure you want to delete this employee? This action cannot be undone.</p>
-    <div class="um-confirm-btns">
-      <button class="um-btn um-btn-secondary" onclick="closeModal('deleteConfirmModal')">Cancel</button>
-      <button class="um-btn um-btn-danger" id="deleteConfirmBtn">Delete</button>
-    </div>
-  </div>
-</div>
-<div id="dashFooter"></div>
+
+<!-- ===== DASHBOARD COMMON JS ===== -->
 <script src="/app/shared/dashboard-common.js?v=13"></script>
 
 <script>
@@ -199,7 +474,8 @@ var canEdit = false;
 var canAdd = false;
 
 // ===== INIT =====
-document.addEventListener('dashSessionLoaded', async function() {
+// Wait for DOM to be fully parsed before running init
+function umInit() {
   var user = window.dashUser;
   if (!user) { window.location.href = '/public/login.html'; return; }
 
@@ -207,8 +483,10 @@ document.addEventListener('dashSessionLoaded', async function() {
 
   // Check access
   if (!hasPermission('users.view') && !hasPermission('employees.view') && user.role !== 'DRIV-EN Founder' && user.role !== 'Admin') {
-    document.getElementById('umLoading').style.display = 'none';
-    document.getElementById('umDenied').style.display = 'block';
+    var lmLoading = document.getElementById('umLoading');
+    var lmDenied = document.getElementById('umDenied');
+    if (lmLoading) lmLoading.style.display = 'none';
+    if (lmDenied) lmDenied.style.display = 'block';
     return;
   }
 
@@ -219,8 +497,9 @@ document.addEventListener('dashSessionLoaded', async function() {
   var isAdminOrOwner = user.role === 'DRIV-EN Founder' || user.role === 'Admin' || (user.role || '').toLowerCase() === 'owner';
   if (!isAdminOrOwner) {
     try {
-      var settingsResp = await fetch('/auth/get-settings');
-      var settingsData = await settingsResp.json();
+      var settingsResp = fetch('/auth/get-settings');
+      var settingsRespAwaited = await settingsResp;
+      var settingsData = await settingsRespAwaited.json();
       if (settingsData.success && !settingsData.settings.onboarding_complete) {
         window.location.href = '/app/dashboard/onboarding.html';
         return;
@@ -231,15 +510,18 @@ document.addEventListener('dashSessionLoaded', async function() {
   }
 
   if (canAdd) {
-    document.getElementById('btnAddUser').style.display = '';
-    document.getElementById('btnAddEmployee').style.display = '';
+    var btnAddUser = document.getElementById('btnAddUser');
+    var btnAddEmp = document.getElementById('btnAddEmployee');
+    if (btnAddUser) btnAddUser.style.display = '';
+    if (btnAddEmp) btnAddEmp.style.display = '';
   }
 
-  document.getElementById('umLoading').style.display = 'none';
-  document.getElementById('tab-employees').style.display = 'block';
+  var umLoading = document.getElementById('umLoading');
+  var tabEmployees = document.getElementById('tab-employees');
+  if (umLoading) umLoading.style.display = 'none';
+  if (tabEmployees) tabEmployees.style.display = 'block';
 
-  // Fix header layout — the header is loaded async by dashboard-common.js,
-  // so we poll until it's in the DOM, then restructure it.
+  // Fix header layout
   var headerAttempts = 0;
   var headerInterval = setInterval(function() {
     headerAttempts++;
@@ -252,6 +534,15 @@ document.addEventListener('dashSessionLoaded', async function() {
   await Promise.all([loadUsers(), loadRoles(), loadPermissions()]);
   loadEmployees();
   loadActivity();
+}
+
+// Fire umInit when session is loaded AND DOM is ready
+document.addEventListener('dashSessionLoaded', function() {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', umInit);
+  } else {
+    umInit();
+  }
 });
 
 function hasPermission(perm) {
@@ -262,20 +553,19 @@ function hasPermission(perm) {
 function switchTab(tab) {
   document.querySelectorAll('.um-tab').forEach(function(t) { t.classList.remove('active'); });
   document.querySelectorAll('.um-tab-content').forEach(function(c) { c.style.display = 'none'; });
-  document.querySelector('.um-tab[data-tab="' + tab + '"]').classList.add('active');
-  document.getElementById('tab-' + tab).style.display = 'block';
+  var tabBtn = document.querySelector('.um-tab[data-tab="' + tab + '"]');
+  if (tabBtn) tabBtn.classList.add('active');
+  var tabContent = document.getElementById('tab-' + tab);
+  if (tabContent) tabContent.style.display = 'block';
 }
 
 // ===== BACK TO MAIN DASHBOARD =====
 function goToMainDashboard() {
-  // Use sessionStorage origin (set by dashboard-common.js when leaving a dashboard)
-  // This ensures we return to whichever dashboard the user came from, not based on role.
   var savedOrigin = sessionStorage.getItem('driven_dashboard_origin');
   if (savedOrigin) {
     window.location.href = savedOrigin;
     return;
   }
-  // Fallback: role-based
   var user = window.dashUser;
   if (!user) { window.location.href = '/public/login.html'; return; }
   var role = (user.role || '').toLowerCase();
@@ -288,41 +578,28 @@ function goToMainDashboard() {
   }
 }
 
-// ===== FIX HEADER — move title into row 1 so logos + title are on one row =====
-// dashboard-common.js loads the header via fetch() and injects it into #dashHeader.
-// We restructure it after the header is in the DOM.
+// ===== FIX HEADER =====
 function fixHeaderLayout() {
   var header = document.querySelector('.dash-header');
   if (!header) return false;
-
   var row1 = header.querySelector('.dash-header-row1');
   var row2 = header.querySelector('.dash-header-row2');
   var row3 = header.querySelector('.dash-header-row3');
   var h1 = row2 ? row2.querySelector('h1') : null;
-
   if (!row1 || !h1) return false;
-
-  // Only fix once
   if (h1.parentNode === row1) return true;
-
-  // Move h1 from row2 into row1, between the logo area and the DRIV-EN logo
   var drivenLogo = row1.querySelector('.dash-driven-logo');
   row1.insertBefore(h1, drivenLogo);
-
-  // Style row1: flex with logo | title | logo
   row1.style.cssText = 'display:flex !important; justify-content:space-between !important; align-items:center !important; padding:8px 20px !important; gap:16px !important;';
   h1.style.cssText = 'margin:0; font-size:20px; font-weight:600; text-align:center; flex:1;';
-
-  // Hide row2 (title was here, now empty) and row3 (theme toggle/logout — handled by tab bar)
   if (row2) row2.style.display = 'none';
   if (row3) row3.style.display = 'none';
-
   return true;
 }
 
 // ===== MODAL HELPERS =====
-function closeModal(id) { document.getElementById(id).classList.remove('show'); }
-function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { var el = document.getElementById(id); if (el) el.classList.remove('show'); }
+function openModal(id) { var el = document.getElementById(id); if (el) el.classList.add('show'); }
 
 function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
@@ -429,7 +706,6 @@ async function showUserDetail(userId) {
     '</div>' +
   '</div>';
 
-  // User Info Section
   html += '<div class="um-card" style="margin-bottom:20px;">' +
     '<h3>Account Information</h3>' +
     '<div class="um-form-grid">' +
@@ -450,22 +726,17 @@ async function showUserDetail(userId) {
   }
   html += '</div>';
 
-  // Permissions Section
   html += '<div class="um-card" style="margin-bottom:20px;">' +
     '<h3>Permissions</h3>' +
-    '<p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">' +
-      'Role permissions are inherited from <strong>' + esc(roleName) + '</strong>. Overrides can grant or revoke individual permissions for this user.' +
-    '</p>' +
+    '<p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">Role permissions are inherited from <strong>' + esc(roleName) + '</strong>. Overrides can grant or revoke individual permissions for this user.</p>' +
     '<div id="permContainer">Loading permissions...</div>' +
   '</div>';
 
-  // Activity History Section
   html += '<div class="um-card" style="margin-bottom:20px;">' +
     '<h3>Activity History</h3>' +
     '<div id="userActivityContainer">Loading activity...</div>' +
   '</div>';
 
-  // Work History Section
   html += '<div class="um-card">' +
     '<h3>Work History</h3>' +
     '<div id="userWorkHistory">Loading work history...</div>' +
@@ -474,8 +745,6 @@ async function showUserDetail(userId) {
   document.getElementById('userDetailContent').innerHTML = html;
   openModal('userDetailModal');
 
-  // OCC: initialize base_version from the user record (updated_at)
-  // loadUserPermissions will update this with the server-confirmed value
   userBaseVersion = user.updated_at || null;
 
   loadUserPermissions(userId);
@@ -484,7 +753,7 @@ async function showUserDetail(userId) {
 }
 
 // ===== LOAD USER PERMISSIONS =====
-var userBaseVersion = null; // OCC: tracks the user's updated_at for conflict detection
+var userBaseVersion = null;
 
 async function loadUserPermissions(userId) {
   try {
@@ -496,7 +765,6 @@ async function loadUserPermissions(userId) {
       return;
     }
 
-    // OCC: store the base_version for conflict detection
     userBaseVersion = data.base_version || null;
 
     var rolePerms = data.rolePermissions || [];
@@ -531,19 +799,11 @@ async function loadUserPermissions(userId) {
 
     var html = '';
     Object.keys(grouped).sort().forEach(function(module) {
-      html += '<div class="um-perm-group">' +
-        '<div class="um-perm-group-title">' + esc(module.charAt(0).toUpperCase() + module.slice(1)) + '</div>';
+      html += '<div class="um-perm-group"><div class="um-perm-group-title">' + esc(module.charAt(0).toUpperCase() + module.slice(1)) + '</div>';
       grouped[module].forEach(function(p) {
         var checked = p.isEffective ? 'checked' : '';
         var disabled = canEdit ? '' : 'disabled';
-        html += '<div class="um-perm-item">' +
-          '<div class="um-perm-item-left">' +
-            '<div>' +
-              '<div class="um-perm-name">' + esc(p.name) + '</div>' +
-              '<div class="um-perm-desc">' + esc(p.description) + '</div>' +
-            '</div>' +
-            '<span class="um-perm-source ' + p.sourceClass + '">' + p.source + '</span>' +
-          '</div>' +
+        html += '<div class="um-perm-item"><div class="um-perm-item-left"><div><div class="um-perm-name">' + esc(p.name) + '</div><div class="um-perm-desc">' + esc(p.description) + '</div></div><span class="um-perm-source ' + p.sourceClass + '">' + p.source + '</span></div>' +
           (canEdit ? '<label class="um-perm-toggle"><input type="checkbox" ' + checked + ' ' + disabled + ' onchange="togglePermission(\'' + esc(userId) + '\', \'\'' + esc(p.id) + '\', this.checked)"><span class="um-perm-slider"></span></label>' : '') +
         '</div>';
       });
@@ -563,15 +823,10 @@ async function togglePermission(userId, permId, isGranted) {
     var resp = await fetch('/api/onboarding/users/' + userId + '/permissions', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        permission_id: permId,
-        granted: isGranted,
-        base_version: userBaseVersion
-      })
+      body: JSON.stringify({ permission_id: permId, granted: isGranted, base_version: userBaseVersion })
     });
 
     if (resp.status === 409) {
-      // OCC conflict — another manager modified this user
       var conflictData = await resp.json();
       showConflictNotice(userId, conflictData);
       return;
@@ -580,7 +835,6 @@ async function togglePermission(userId, permId, isGranted) {
     var data = await resp.json();
 
     if (data.success) {
-      // Update base_version to the new updated_at
       if (data.updated_at) userBaseVersion = data.updated_at;
       loadUserPermissions(userId);
     } else {
@@ -596,21 +850,15 @@ async function togglePermission(userId, permId, isGranted) {
 
 // ===== CONFLICT NOTICE (409 handler) =====
 function showConflictNotice(userId, conflictData) {
-  // Show a non-blocking banner telling the user what happened
   var banner = document.createElement('div');
   banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#fef3c7;border-bottom:2px solid #f59e0b;padding:14px 20px;z-index:10000;font-size:14px;color:#92400e;display:flex;align-items:center;justify-content:center;gap:10px;';
-  banner.innerHTML = '<strong>⚠️ Conflict:</strong> This user was modified by another manager. ' +
-    '<span style="text-decoration:underline;cursor:pointer;" id="conflictRefreshBtn">Refresh your view</span>';
+  banner.innerHTML = '<strong>⚠️ Conflict:</strong> This user was modified by another manager. <span style="text-decoration:underline;cursor:pointer;" id="conflictRefreshBtn">Refresh your view</span>';
   document.body.appendChild(banner);
 
   document.getElementById('conflictRefreshBtn').onclick = function() {
     banner.remove();
-    // Reload the user's data fresh
     loadUserPermissions(userId);
   };
-
-  // Do NOT auto-refresh — user's unsaved toggle would be silently lost.
-  // They must click "Refresh your view" to reload.
 }
 
 // ===== LOAD USER ACTIVITY =====
@@ -633,12 +881,7 @@ async function loadUserActivity(userId) {
       else if (log.action === 'update' || log.action === 'status_change') dotClass += '';
       else dotClass += ' gray';
 
-      html += '<div class="um-timeline-item">' +
-        '<div class="' + dotClass + '"></div>' +
-        '<div class="um-timeline-date">' + formatDate(log.created_at) + '</div>' +
-        '<div class="um-timeline-action">' + esc(log.action || '—') + ' — ' + esc(log.module || '—') + '</div>' +
-        '<div class="um-timeline-detail">' + esc(log.table_name || '') + (log.record_id ? ' • ' + esc(log.record_id.substring(0,12)) : '') + '</div>' +
-      '</div>';
+      html += '<div class="um-timeline-item"><div class="' + dotClass + '"></div><div class="um-timeline-date">' + formatDate(log.created_at) + '</div><div class="um-timeline-action">' + esc(log.action || '—') + ' — ' + esc(log.module || '—') + '</div><div class="um-timeline-detail">' + esc(log.table_name || '') + (log.record_id ? ' • ' + esc(log.record_id.substring(0,12)) : '') + '</div></div>';
     });
     html += '</div>';
 
@@ -670,7 +913,6 @@ async function loadUserWorkHistory(userId, userEmail) {
 
     var html = '';
 
-    // Work Orders
     html += '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:600; margin-bottom:8px; color:var(--text);">Work Orders (' + workOrders.length + ')</div>';
     if (workOrders.length === 0) html += '<p style="color:var(--text-muted); font-size:13px;">No work orders assigned.</p>';
     else {
@@ -682,7 +924,6 @@ async function loadUserWorkHistory(userId, userEmail) {
     }
     html += '</div>';
 
-    // Inspections
     html += '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:600; margin-bottom:8px; color:var(--text);">Inspections (' + inspections.length + ')</div>';
     if (inspections.length === 0) html += '<p style="color:var(--text-muted); font-size:13px;">No inspections recorded.</p>';
     else {
@@ -694,7 +935,6 @@ async function loadUserWorkHistory(userId, userEmail) {
     }
     html += '</div>';
 
-    // PM Records
     html += '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:600; margin-bottom:8px; color:var(--text);">PM Records (' + pmRecords.length + ')</div>';
     if (pmRecords.length === 0) html += '<p style="color:var(--text-muted); font-size:13px;">No PM records.</p>';
     else {
@@ -706,7 +946,6 @@ async function loadUserWorkHistory(userId, userEmail) {
     }
     html += '</div>';
 
-    // Fuel Transactions
     html += '<div style="margin-bottom:20px;"><div style="font-size:14px; font-weight:600; margin-bottom:8px; color:var(--text);">Fuel Transactions (' + fuelTx.length + ')</div>';
     if (fuelTx.length === 0) html += '<p style="color:var(--text-muted); font-size:13px;">No fuel transactions.</p>';
     else {
@@ -718,7 +957,6 @@ async function loadUserWorkHistory(userId, userEmail) {
     }
     html += '</div>';
 
-    // Transfers
     html += '<div><div style="font-size:14px; font-weight:600; margin-bottom:8px; color:var(--text);">Equipment Transfers (' + transfers.length + ')</div>';
     if (transfers.length === 0) html += '<p style="color:var(--text-muted); font-size:13px;">No transfers created.</p>';
     else {
@@ -763,10 +1001,7 @@ async function toggleUserStatus(userId, currentlyActive) {
     var resp = await fetch('/api/onboarding/users/' + userId + '/status', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        is_active: !currentlyActive,
-        base_version: userBaseVersion
-      })
+      body: JSON.stringify({ is_active: !currentlyActive, base_version: userBaseVersion })
     });
 
     if (resp.status === 409) {
@@ -915,7 +1150,7 @@ function editEmployee(empId) {
 
 // ===== ADD EMPLOYEE =====
 function openAddEmployeeModal() {
-  document.getElementById('newEmpNumber').value = '';
+    document.getElementById('newEmpNumber').value = '';
   var roleSelect = document.getElementById('newEmpRole');
   roleSelect.innerHTML = '<option value="">Select a role...</option>' +
     allRoles.filter(function(r) { return r.name !== 'DRIV-EN Founder'; }).map(function(r) { return '<option value="' + esc(r.name) + '">' + esc(r.name) + '</option>'; }).join('');
@@ -941,7 +1176,6 @@ function openAddEmployeeModal() {
   document.getElementById('dlFrontPreview').src = '';
   document.getElementById('dlBackPreview').style.display = 'none';
   document.getElementById('dlBackPreview').src = '';
-  // New fields reset
   document.getElementById('newEmpAuthorizedDriver').checked = false;
   document.getElementById('dlExpirationRow').style.display = 'none';
   document.getElementById('newEmpDlExpiration').value = '';
@@ -1090,12 +1324,16 @@ function addOwnedEquipmentRow(data) {
 
 function onCompanyFuelChange(rowId) {
   empModalDirty = true;
-  var checked = document.getElementById(rowId + '-fuel').checked;
-  document.getElementById(rowId + '-assetNumRow').style.display = checked ? 'grid' : 'none';
+  var fuelEl = document.getElementById(rowId + '-fuel');
+  if (!fuelEl) return;
+  var checked = fuelEl.checked;
+  var assetRow = document.getElementById(rowId + '-assetNumRow');
+  if (assetRow) assetRow.style.display = checked ? 'grid' : 'none';
   var inspectRow = document.getElementById(rowId + '-inspectRow');
   if (inspectRow) inspectRow.style.display = checked ? 'block' : 'none';
   if (checked) {
-    document.getElementById(rowId + '-assetNum').focus();
+    var assetInput = document.getElementById(rowId + '-assetNum');
+    if (assetInput) assetInput.focus();
   }
 }
 
@@ -1203,7 +1441,6 @@ async function createEmployee() {
   if (!email) { alert('Email address is required'); return; }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Please enter a valid email address'); return; }
 
-  // Authorized Driver validation
   var authorizedDriver = document.getElementById('newEmpAuthorizedDriver').checked;
   var dlExpiration = document.getElementById('newEmpDlExpiration').value;
   if (authorizedDriver) {
@@ -1212,7 +1449,6 @@ async function createEmployee() {
     if (!dlExpiration) { alert('DL Expiration Date is required for Authorized Drivers.'); return; }
   }
 
-  // Insurance validation
   var insuranceRequired = document.getElementById('newEmpInsuranceRequired').checked;
   var insuranceCompany = document.getElementById('newEmpInsuranceCompany').value.trim();
   var insuranceExpiration = document.getElementById('newEmpInsuranceExpiration').value;
@@ -1225,7 +1461,6 @@ async function createEmployee() {
     if (!insuranceCard) { alert('Photo of Insurance Card is required when Insurance Required is checked.'); return; }
   }
 
-  // Owned equipment validation
   var ownedEquipment = getOwnedEquipmentData();
   for (var i = 0; i < ownedEquipment.length; i++) {
     if (ownedEquipment[i].uses_company_fuel && !ownedEquipment[i].company_asset_number) {
@@ -1320,7 +1555,6 @@ async function loadRoles() {
 function renderRoles() {
   var container = document.getElementById('rolesContainer');
 
-  // Filter out system roles (DRIV-EN Founder) — customers should not see it
   var customerRoles = allRoles.filter(function(r) {
     return !(r.is_system === 1 || r.is_system === true);
   });
@@ -1344,7 +1578,6 @@ function renderRoles() {
     }).join('');
   }
 
-  // Add "Create Role" button at the top if user can edit
   if (canEdit) {
     container.innerHTML = '<div style="margin-bottom:16px;"><button class="um-btn um-btn-primary um-btn-sm" onclick="openCreateRoleModal()">+ Create Role</button></div>' + container.innerHTML;
   }
@@ -1376,7 +1609,6 @@ function editRole(roleId) {
   document.getElementById('editRoleDesc').value = role.description || '';
   document.getElementById('editRoleId').value = roleId;
 
-  // Load all permissions grouped by module into the modal
   var grouped = {};
   allPermissions.forEach(function(p) {
     if (!grouped[p.module]) grouped[p.module] = [];
@@ -1385,25 +1617,15 @@ function editRole(roleId) {
 
   var html = '';
   Object.keys(grouped).sort().forEach(function(mod) {
-    html += '<div class="um-perm-group">' +
-      '<div class="um-perm-group-title">' + esc(mod.charAt(0).toUpperCase() + mod.slice(1)) + '</div>';
+    html += '<div class="um-perm-group"><div class="um-perm-group-title">' + esc(mod.charAt(0).toUpperCase() + mod.slice(1)) + '</div>';
     grouped[mod].forEach(function(p) {
-      html += '<div class="um-perm-item">' +
-        '<div class="um-perm-item-left">' +
-          '<div>' +
-            '<div class="um-perm-name">' + esc(p.name) + '</div>' +
-            '<div class="um-perm-desc">' + esc(p.description || '') + '</div>' +
-          '</div>' +
-        '</div>' +
-        '<label class="um-perm-toggle"><input type="checkbox" id="perm_' + esc(p.id) + '" data-perm-id="' + esc(p.id) + '"><span class="um-perm-slider"></span></label>' +
-      '</div>';
+      html += '<div class="um-perm-item"><div class="um-perm-item-left"><div><div class="um-perm-name">' + esc(p.name) + '</div><div class="um-perm-desc">' + esc(p.description || '') + '</div></div></div><label class="um-perm-toggle"><input type="checkbox" id="perm_' + esc(p.id) + '" data-perm-id="' + esc(p.id) + '"><span class="um-perm-slider"></span></label></div>';
     });
     html += '</div>';
   });
 
   document.getElementById('editRolePermContainer').innerHTML = html || '<p style="color:var(--text-muted);">No permissions available.</p>';
 
-  // Load current role permissions and check the boxes
   loadRolePermissionsForEdit(roleId);
 
   openModal('editRoleModal');
@@ -1428,14 +1650,12 @@ async function saveRolePermissions() {
 
   if (!name) { alert('Role name is required'); return; }
 
-  // Collect checked permission IDs
   var permIds = [];
   document.querySelectorAll('#editRolePermContainer input[type="checkbox"]').forEach(function(cb) {
     if (cb.checked) permIds.push(cb.getAttribute('data-perm-id'));
   });
 
   try {
-    // Update role name/description
     var updateResp = await fetch('/api/onboarding/roles/' + roleId, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -1443,7 +1663,6 @@ async function saveRolePermissions() {
     });
     if (!updateResp.ok) { var err = await updateResp.json(); alert('Failed to update role: ' + (err.error || 'Unknown')); return; }
 
-    // Set permissions
     var permResp = await fetch('/api/onboarding/roles/' + roleId + '/permissions', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -1481,7 +1700,6 @@ function openCreateRoleModal() {
   document.getElementById('newRoleName').value = '';
   document.getElementById('newRoleDesc').value = '';
 
-  // Load all permissions grouped by module
   var grouped = {};
   allPermissions.forEach(function(p) {
     if (!grouped[p.module]) grouped[p.module] = [];
@@ -1490,18 +1708,9 @@ function openCreateRoleModal() {
 
   var html = '';
   Object.keys(grouped).sort().forEach(function(mod) {
-    html += '<div class="um-perm-group">' +
-      '<div class="um-perm-group-title">' + esc(mod.charAt(0).toUpperCase() + mod.slice(1)) + '</div>';
+    html += '<div class="um-perm-group"><div class="um-perm-group-title">' + esc(mod.charAt(0).toUpperCase() + mod.slice(1)) + '</div>';
     grouped[mod].forEach(function(p) {
-      html += '<div class="um-perm-item">' +
-        '<div class="um-perm-item-left">' +
-          '<div>' +
-            '<div class="um-perm-name">' + esc(p.name) + '</div>' +
-            '<div class="um-perm-desc">' + esc(p.description || '') + '</div>' +
-          '</div>' +
-        '</div>' +
-        '<label class="um-perm-toggle"><input type="checkbox" id="newperm_' + esc(p.id) + '" data-perm-id="' + esc(p.id) + '"><span class="um-perm-slider"></span></label>' +
-      '</div>';
+      html += '<div class="um-perm-item"><div class="um-perm-item-left"><div><div class="um-perm-name">' + esc(p.name) + '</div><div class="um-perm-desc">' + esc(p.description || '') + '</div></div></div><label class="um-perm-toggle"><input type="checkbox" id="newperm_' + esc(p.id) + '" data-perm-id="' + esc(p.id) + '"><span class="um-perm-slider"></span></label></div>';
     });
     html += '</div>';
   });
@@ -1516,14 +1725,12 @@ async function createRole() {
 
   if (!name) { alert('Role name is required'); return; }
 
-  // Collect checked permission IDs
   var permIds = [];
   document.querySelectorAll('#newRolePermContainer input[type="checkbox"]').forEach(function(cb) {
     if (cb.checked) permIds.push(cb.getAttribute('data-perm-id'));
   });
 
   try {
-    // Create the role
     var createResp = await fetch('/api/onboarding/roles', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1535,7 +1742,6 @@ async function createRole() {
 
     var roleId = createData.role.id;
 
-    // Set permissions if any were selected
     if (permIds.length > 0) {
       await fetch('/api/onboarding/roles/' + roleId + '/permissions', {
         method: 'PUT',
