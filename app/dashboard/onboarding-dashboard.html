@@ -140,9 +140,9 @@
             <button id="btn-complete-step1" class="ob-btn-complete" onclick="markTaskComplete(1)" style="display:none;">✓ Mark Complete</button>
           </div>
           <div class="ob-step-card" data-step="2" data-step-key="employees">
-            <div class="ob-step-header"><div class="ob-step-title">Employees</div><button class="ob-info-icon" onclick="togglePopup('popup-emp')">i</button><div class="ob-info-popup" id="popup-emp"><button class="ob-info-popup-close" onclick="togglePopup('popup-emp')">&times;</button><strong>Employees</strong><br>Add all employees who will perform inspections, preventative maintenance, complete asset transfers and fuel usage logs, perform work orders, or be tracked in DRIV‑EN.</div></div>
+            <div class="ob-step-header"><div class="ob-step-title">Employees</div><button class="ob-info-icon" onclick="togglePopup('popup-emp')">i</button><div class="ob-info-popup" id="popup-emp"><button class="ob-info-popup-close" onclick="togglePopup('popup-emp')">&times;</button><strong>Employees</strong><br>Add all employees who will perform inspections, preventative maintenance, complete asset transfers and fuel usage logs, perform work orders, or be tracked in DRIV‑EN. <span id="popup-emp-prereq"></span></div></div>
             <div id="status-step2" class="ob-step-status ob-ready">Ready</div>
-            <div class="ob-step-body">Add all employees. Required for work orders, inspections, fuel logs, transfers, and other modules.</div>
+            <div class="ob-step-body" id="ob-body-step2">Add all employees. Required for work orders, inspections, fuel logs, transfers, and other modules.</div>
             <div class="ob-assigned-to" id="assigned-step2"><span class="ob-assigned-to-label">Assigned Key Personnel:</span><span class="ob-assigned-to-name unassigned">Not assigned</span></div>
             <button id="btn-step2" class="ob-btn-primary">Open Employees</button>
             <button id="btn-complete-step2" class="ob-btn-complete" onclick="markTaskComplete(2)" style="display:none;">✓ Mark Complete</button>
@@ -263,7 +263,7 @@
        Task 11 = Assets (prereqs: 7,8,9,10). */
     var STEP_DEFS = {
       1: { name: "roles-permissions", task: "Roles & Permissions", prereqs: [],     url: "/app/onboarding/roles-permissions.html" },
-      2: { name: "employees",         task: "Employees",           prereqs: [1],    url: "/app/onboarding/employees.html" },
+      2: { name: "employees",         task: "Employees",           prereqs: [1,5],  url: "/app/onboarding/employees.html" },
       3: { name: "locations",         task: "Locations",           prereqs: [],     url: "/app/onboarding/locations.html" },
       4: { name: "clients",           task: "Clients",             prereqs: [],     url: "/app/onboarding/clients.html" },
       5: { name: "divisions",         task: "Divisions",           prereqs: [],     url: "/app/onboarding/divisions.html" },
@@ -299,8 +299,8 @@
       var labelLight = document.getElementById("theme-label-light");
       var labelDark = document.getElementById("theme-label-dark");
       if (checkbox) checkbox.checked = (current === "dark");
-      if (labelLight) labelLight.classList.toggle('active', current === "light");
-      if (labelDark) labelDark.classList.toggle('active', current === "dark");
+      if (labelLight) labelLight.classList.toggle('active', current === 'light');
+      if (labelDark) labelDark.classList.toggle('active', current === 'dark');
     }
 
     /* ===== POPUP MANAGEMENT ===== */
@@ -579,6 +579,20 @@
     }
 
     function updatePrereqBodies() {
+      var body2 = document.getElementById("ob-body-step2");
+      if (body2) {
+        var names2 = getVisiblePrereqNames(2);
+        body2.innerHTML = names2.length > 0
+          ? 'Add all employees. Required for work orders, inspections, fuel logs, transfers, and other modules. <strong>Requires:</strong> ' + names2.join(", ") + ' must be completed first.'
+          : 'Add all employees. Required for work orders, inspections, fuel logs, transfers, and other modules.';
+      }
+      var popupEmp = document.getElementById("popup-emp-prereq");
+      if (popupEmp) {
+        var names2p = getVisiblePrereqNames(2);
+        popupEmp.textContent = names2p.length > 0
+          ? names2p.join(", ") + " must be completed first."
+          : "";
+      }
       var body7 = document.getElementById("ob-body-step7");
       if (body7) {
         var names7 = getVisiblePrereqNames(7);
