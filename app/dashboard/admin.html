@@ -273,6 +273,7 @@
         <button class="admin-subtab" data-subtab="btype" onclick="switchSettingsSubtab('btype')">Business Type</button>
         <button class="admin-subtab" data-subtab="naics" onclick="switchSettingsSubtab('naics')">NAICS Code</button>
         <button class="admin-subtab" data-subtab="currency" onclick="switchSettingsSubtab('currency')">Currency</button>
+        <button class="admin-subtab" data-subtab="fuelphotos" onclick="switchSettingsSubtab('fuelphotos')">Fuel Photos</button>
       </div>
       <div class="admin-subtab-content active" id="settings-subtab-logo">
         <div class="settings-section">
@@ -375,6 +376,46 @@
           </div>
         </div>
       </div>
+
+      
+      <!-- ===== SUBTAB: FUEL PHOTOS ===== -->    ← PUT IT HERE
+      <div class="admin-subtab-content" id="settings-subtab-fuelphotos">
+        <div class="settings-section">
+          <h3>Fuel Photo Requirements</h3>
+          <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px 0;line-height:1.6;">
+            Control whether fuel purchase and transfer forms require photos. When enabled, users must take a photo before submitting the form. DRIV-EN verifies the photo's date against the form submission date — if they don't match, a flag is created for manager review (the submission is not blocked and the user is not alerted).
+          </p>
+          <div class="settings-row">
+            <div class="settings-label">Meter Photo</div>
+            <div class="settings-field">
+              <div class="theme-switch-wrapper">
+                <span class="theme-switch-label" id="fuelMeterPhotoLabel">Off</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="fuelMeterPhotoToggle" onchange="onFuelPhotoToggleChange()">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div class="settings-hint">Requires a photo of the meter/gauge showing the quantity transferred or purchased.</div>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div class="settings-label">Asset Photo</div>
+            <div class="settings-field">
+              <div class="theme-switch-wrapper">
+                <span class="theme-switch-label" id="fuelAssetPhotoLabel">Off</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="fuelAssetPhotoToggle" onchange="onFuelPhotoToggleChange()">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div class="settings-hint">Requires a photo of the asset/equipment receiving fuel.</div>
+            </div>
+          </div>
+          <button class="settings-save-btn" id="saveFuelPhotosBtn" onclick="saveFuelPhotoSettings()">Save</button>
+          <div class="settings-status" id="fuelPhotosStatus"></div>
+        </div>
+      </div>
+
       <div class="settings-section" style="margin-top:20px;">
         <h3>Appearance</h3>
         <div class="settings-row">
@@ -753,6 +794,20 @@
           if (data.settings.step_visibility && typeof data.settings.step_visibility === 'object' && !Array.isArray(data.settings.step_visibility)) { stepVisibility = data.settings.step_visibility; }
           else { stepVisibility = {}; applyBusinessTypeDefaults(); }
           if (data.settings.onboarding_complete) { onboardingComplete = true; hideOnboardingTab(); }
+          // Fuel photo requirements
+          if (data.settings.fuel_meter_photo) {
+            var meterToggle = document.getElementById("fuelMeterPhotoToggle");
+            if (meterToggle) meterToggle.checked = true;
+            var meterLabel = document.getElementById("fuelMeterPhotoLabel");
+            if (meterLabel) { meterLabel.textContent = "On"; meterLabel.classList.add("active"); }
+          }
+          if (data.settings.fuel_asset_photo) {
+            var assetToggle = document.getElementById("fuelAssetPhotoToggle");
+            if (assetToggle) assetToggle.checked = true;
+            var assetLabel = document.getElementById("fuelAssetPhotoLabel");
+            if (assetLabel) { assetLabel.textContent = "On"; assetLabel.classList.add("active"); }
+          }
+          
         } else { applyBusinessTypeDefaults(); }
       } catch (e) { console.error("Settings load error:", e.message); reportError("loadSettings", e); applyBusinessTypeDefaults(); }
       renderStepToggles();
@@ -802,6 +857,51 @@
     }
 
     function onNaicsChange() { markSettingsDirty(); }
+     function onFuelPhotoToggleChange() {
+      var meterToggle = document.getElementById("fuelMeterPhotoToggle");
+      var meterLabel = document.getElementById("fuelMeterPhotoLabel");
+      if (meterToggle && meterLabel) {
+        meterLabel.textContent = meterToggle.checked ? "On" : "Off";
+        meterLabel.classList.toggle("active", meterToggle.checked);
+      }
+      var assetToggle = document.getElementById("fuelAssetPhotoToggle");
+      var assetLabel = document.getElementById("fuelAssetPhotoLabel");
+      if (assetToggle && assetLabel) {
+        assetLabel.textContent = assetToggle.checked ? "On" : "Off";
+        assetLabel.classList.toggle("active", assetToggle.checked);
+      }
+      markSettingsDirty();
+    }
+
+    async function saveFuelPhotoSettings() {
+      var btn = document.getElementById("saveFuelPhotosBtn");
+      var status = document.getElementById("fuelPhotosStatus");
+      var meterPhoto = document.getElementById("fuelMeterPhotoToggle") ? document.getElementById("fuelMeterPhotoToggle").checked : false;
+      var assetPhoto = document.getElementById("fuelAssetPhotoToggle") ? document.getElementById("fuelAssetPhotoToggle").checked : false;
+      if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
+      try {
+        var res = await fetch("/auth/save-settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ settings: { fuel_meter_photo: meterPhoto, fuel_asset_photo: assetPhoto } })
+        });
+        var data = await res.json();
+        if (data.success) {
+          orgSettings.fuel_meter_photo = meterPhoto;
+          orgSettings.fuel_asset_photo = assetPhoto;
+          if (status) { status.textContent = "Fuel photo settings saved."; status.style.color = "var(--success, #16a34a)"; }
+          clearSettingsDirty();
+        } else {
+          if (status) { status.textContent = "Failed: " + (data.error || "Unknown error"); status.style.color = "var(--error)"; }
+        }
+      } catch (e) {
+        console.error("Fuel photo save error:", e.message); reportError("saveFuelPhotoSettings", e);
+        if (status) { status.textContent = "Failed to save settings."; status.style.color = "var(--error)"; }
+      }
+      if (btn) { btn.disabled = false; btn.textContent = "Save"; }
+      setTimeout(function() { if (status) status.textContent = ""; }, 3000);
+    }
+ 
     function onCurrencyChange() { markSettingsDirty(); }
 
     function applyBusinessTypeDefaults() {
