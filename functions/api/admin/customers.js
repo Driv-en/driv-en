@@ -1,5 +1,5 @@
 // ============================================================================
-// Pages Function: /api/admin/customers
+// Pages Function: /api/admin/customers 
 // ============================================================================
 // PURPOSE: Admin API for the Owner Dashboard's Customers section.
 //   GET  /api/admin/customers  — List all customers (organizations) with
