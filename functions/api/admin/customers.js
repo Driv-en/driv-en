@@ -5,7 +5,7 @@
 //   GET  /api/admin/customers  — List all customers (organizations) with
 //   subscription info, employee counts, and order data.
 //
-// AUTH: Verifies the caller is logged in as DRIV-EN founder by parsing
+// AUTH: Verifies the caller is logged in as DRIV-EN Founder by parsing
 //   the driv_en_session JWT cookie directly using Web Crypto API.
 //   Requires JWT_SECRET to be set as a secret on the Pages project.
 //
@@ -15,9 +15,10 @@
 //   - Var: SENDGRID_FROM_EMAIL = noreply@driv-en.com
 //   - Var: SUPPORT_CONTACT = support@driv-en.com
 //
-// LAST UPDATED: September 23, 2026 (Session 46) — fixed fuel_count query to
-//   filter by transaction_type = 'purchase' so the "Fuel Purchases" column
-//   only counts actual purchases, not transfers or adjustments.
+// LAST UPDATED: October 5, 2026 (Session 50) — employee_count now queried
+//   from the `employees` table (active only) instead of counting all rows
+//   in the `users` table. This matches the admin dashboard KPI and the
+//   user-management page so all three show the same employee count.
 // ============================================================================
 
 const CORS_HEADERS = {
@@ -186,7 +187,9 @@ export async function onRequestGet(context) {
     }
 
     // =====================================================================
-    // ENRICHMENT 1: admin emails + employee counts per org from users table
+    // ENRICHMENT 1: admin emails per org from users table
+    // Employee counts come from the employees table (same source as the
+    // user-management page and admin dashboard KPI), filtered to active only.
     // The admin is the user with role RO-Founder or RO-admin; fall back to
     // the earliest-created user in the org.
     // =====================================================================
@@ -201,8 +204,6 @@ export async function onRequestGet(context) {
       if (users.results) {
         for (const u of users.results) {
           if (!u.org_id) continue;
-          // Count employees per org
-          employeeMap[u.org_id] = (employeeMap[u.org_id] || 0) + 1;
           // Pick admin: prefer Founder role, then Admin role, then first user
           const isFounder = u.role_id === 'RO-Founder';
           const isAdmin = u.role_id === 'RO-admin';
@@ -215,6 +216,21 @@ export async function onRequestGet(context) {
         }
       }
     } catch (dbErr) { /* users table may not exist */ }
+
+    // Employee counts — from the employees table, active only (matches user-management + admin dashboard)
+    try {
+      const empRows = await env.DB.prepare(
+        `SELECT org_id, COUNT(*) as emp_count
+         FROM employees
+         WHERE status = 'Active' OR status = 'active'
+         GROUP BY org_id`
+      ).all();
+      if (empRows.results) {
+        for (const r of empRows.results) {
+          if (r.org_id) employeeMap[r.org_id] = r.emp_count;
+        }
+      }
+    } catch (dbErr) { /* employees table may not exist yet */ }
 
     // =====================================================================
     // ENRICHMENT 2: order counts per org from orders table (if it exists)
@@ -351,10 +367,10 @@ export async function onRequestGet(context) {
         customer_id: legacy ? legacy.customer_id : o.id,
         company_name: o.name || (legacy ? legacy.company_name : null) || 'Unknown',
         admin_email: (adminUser && adminUser.email) || (legacy ? legacy.admin_email : null),
-        email: (adminUser && adminUser.email) || (legacy ? legacy.admin_email : null),
-        contact_email: (adminUser && adminUser.email) || (legacy ? legacy.admin_email : null),
+        email: (adminUser && adminUser.email) || (legacy ? legacy.admin_email : null), // alias for dashboard
+        contact_email: (adminUser && adminUser.email) || (legacy ? legacy.admin_email : null), // alias for dashboard
         admin_name: adminUser ? [adminUser.first_name, adminUser.last_name].filter(Boolean).join(' ') : null,
-        contact_name: adminUser ? [adminUser.first_name, adminUser.last_name].filter(Boolean).join(' ') : null,
+        contact_name: adminUser ? [adminUser.first_name, adminUser.last_name].filter(Boolean).join(' ') : null, // alias for dashboard
         admin_phone: legacy ? legacy.admin_phone : null,
         billing_address: legacy ? legacy.billing_address : null,
         city: legacy ? legacy.city : null,
