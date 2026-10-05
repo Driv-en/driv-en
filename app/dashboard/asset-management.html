@@ -32,7 +32,7 @@
 #dashHeader .dash-theme-wrapper { display:none !important; }
 .dash-header-row2 { display:none !important; }
 @media (max-width:700px) { .dash-customer-logo, .dash-customer-logo-placeholder { max-height:36px; max-width:80px; } .dash-driven-logo { max-height:40px; } }
-.am-tab-bar { display:flex; gap:2px; max-width:1100px; margin:0 auto; padding:0 20px; overflow-x:auto; position:relative; z-index:1; background:#cbd5e1; border-bottom:2px solid #94a3b8; }
+.am-tab-bar { display:flex; gap:2px; max-width:1100px; margin:0 auto; padding:0 20px; overflow-x:auto; position:sticky; top:0; z-index:100; background:#cbd5e1; border-bottom:2px solid #94a3b8; }
 .am-tab { background:#94a3b8; border:1px solid #64748b; border-bottom:none; border-radius:8px 8px 0 0; padding:10px 22px; font-size:15px; font-weight:500; color:#1e293b; cursor:pointer; white-space:nowrap; transition:color 200ms ease, background 200ms ease, margin-top 200ms ease; margin-top:4px; position:relative; z-index:1; }
 .am-tab:hover { color:#0f172a; background:#a5b4c4; margin-top:2px; }
 .am-tab.active { color:#1d4ed8; background:#e2e8f0; border-color:#64748b; margin-top:0; font-weight:600; z-index:2; }
@@ -78,7 +78,7 @@
 .am-form-card { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:24px; margin-bottom:20px; }
 .am-form-card h3 { margin:0 0 16px 0; font-size:16px; color:var(--text); }
 .am-form-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:16px; }
-.am-form-row { display:flex; flex-direction:column; border:1px solid var(--border); border-radius:6px; padding:10px 12px; }
+.am-form-row { display:flex; flex-direction:column; border:1px solid #16a34a; border-radius:6px; padding:10px 12px; }
 .am-form-row label { margin-bottom:4px; font-size:14px; color:var(--text); font-weight:600; }
 .am-form-row label .am-required { color:var(--error); }
 .am-form-row input, .am-form-row select { padding:10px 12px; border:1px solid var(--border-input); border-radius:6px; font-size:14px; background:var(--bg-card); color:var(--text); box-sizing:border-box; font-family:inherit; }
@@ -133,6 +133,7 @@
 
 <div class="am-tab-bar">
   <div class="am-tab active" data-tab="assets" onclick="switchTab('assets')">Assets</div>
+  <div class="am-tab" data-tab="addasset" onclick="switchTab('addasset')">Add New Asset</div>
   <div class="am-tab" data-tab="inspections" onclick="switchTab('inspections')">Asset Inspections</div>
   <div class="am-tab" data-tab="workorders" onclick="switchTab('workorders')">Asset Work Orders</div>
   <div class="am-tab" data-tab="transfers" onclick="switchTab('transfers')">Asset Transfers</div>
@@ -149,8 +150,50 @@
       <p>View, add, and edit assets across your organization.</p>
     </div>
     <div id="amMessage" class="am-message"></div>
+    <div class="am-section-header">
+      <h3>Asset List</h3>
+      <span class="am-asset-count" id="amAssetCount">0 assets</span>
+    </div>
+    <div class="am-search-row">
+      <input type="text" class="am-search-input" id="amSearch" placeholder="Search by asset number, type, project, or location..." oninput="onSearchInput()" />
+      <select class="am-filter-select" id="amFilterType" onchange="renderAssetTable()"><option value="">All Types</option></select>
+      <select class="am-filter-select" id="amFilterStatus" onchange="renderAssetTable()">
+        <option value="">All Statuses</option>
+        <option value="Available">Available</option>
+        <option value="In Use">In Use</option>
+        <option value="Maintenance">Maintenance</option>
+        <option value="Retired">Retired</option>
+        <option value="Lost">Lost</option>
+        <option value="Sold">Sold</option>
+      </select>
+      <button class="am-btn-small" onclick="toggleColPanel(event)">Columns</button>
+      <button class="am-btn-small" onclick="openPrintModal()">Print</button>
+      <button class="am-btn-small" onclick="openExportModal('csv')">Export CSV</button>
+      <button class="am-btn-small" onclick="openExportModal('excel')">Export Excel</button>
+    </div>
+    <div class="am-col-toggle" id="amColPanel">
+      <div class="am-col-toggle-title">Show / Hide Columns</div>
+      <div id="amColToggleItems"></div>
+    </div>
+    <div class="am-table-scroll">
+      <table class="am-table" id="amTable">
+        <thead id="amTableHead"></thead>
+        <tbody id="amTableBody">
+          <tr><td class="am-empty">Loading assets…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="am-pagination" id="amPagination"></div>
+  </div>
+
+  <div class="am-tab-content" id="tab-addasset" style="display:none;">
+    <div class="am-welcome">
+      <h2>Add New Asset</h2>
+      <p>Enter the details for a new asset below.</p>
+    </div>
+    <div id="amAddMessage" class="am-message"></div>
     <div class="am-form-card" id="addAssetForm">
-      <h3>Add New Asset</h3>
+      <h3>New Asset Details</h3>
       <div class="am-form-grid">
         <div class="am-form-row">
           <label>Asset Number <span class="am-required">*</span></label>
@@ -192,41 +235,8 @@
       </div>
       <button class="am-btn-primary" id="btnAddAsset" onclick="addAsset()">Add Asset</button>
     </div>
-    <div class="am-section-header">
-      <h3>Asset List</h3>
-      <span class="am-asset-count" id="amAssetCount">0 assets</span>
-    </div>
-    <div class="am-search-row">
-      <input type="text" class="am-search-input" id="amSearch" placeholder="Search by asset number, type, project, or location..." oninput="onSearchInput()" />
-      <select class="am-filter-select" id="amFilterType" onchange="renderAssetTable()"><option value="">All Types</option></select>
-      <select class="am-filter-select" id="amFilterStatus" onchange="renderAssetTable()">
-        <option value="">All Statuses</option>
-        <option value="Available">Available</option>
-        <option value="In Use">In Use</option>
-        <option value="Maintenance">Maintenance</option>
-        <option value="Retired">Retired</option>
-        <option value="Lost">Lost</option>
-        <option value="Sold">Sold</option>
-      </select>
-      <button class="am-btn-small" onclick="toggleColPanel(event)">Columns</button>
-      <button class="am-btn-small" onclick="openPrintModal()">Print</button>
-      <button class="am-btn-small" onclick="openExportModal('csv')">Export CSV</button>
-      <button class="am-btn-small" onclick="openExportModal('excel')">Export Excel</button>
-    </div>
-    <div class="am-col-toggle" id="amColPanel">
-      <div class="am-col-toggle-title">Show / Hide Columns</div>
-      <div id="amColToggleItems"></div>
-    </div>
-    <div class="am-table-scroll">
-      <table class="am-table" id="amTable">
-        <thead id="amTableHead"></thead>
-        <tbody id="amTableBody">
-          <tr><td class="am-empty">Loading assets…</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="am-pagination" id="amPagination"></div>
   </div>
+
   <div class="am-tab-content" id="tab-inspections" style="display:none;">
     <div class="am-placeholder"><h3>Asset Inspections</h3><p>This module will be available in a future update.</p></div>
   </div>
@@ -291,12 +301,12 @@ async function loadAssets(){var tb=document.getElementById('amTableBody');tb.tex
 function renderTableHead(){var th=document.getElementById('amTableHead');th.textContent='';var tr=document.createElement('tr');COL_DEFS.forEach(function(col){if(!visibleCols[col.key])return;var h=document.createElement('th');h.dataset.key=col.key;h.textContent=col.label;var a=document.createElement('span');a.className='am-sort-arrow';if(sortKey===col.key){a.textContent=sortDir==='asc'?' ▲':' ▼';h.classList.add(sortDir==='asc'?'am-sorted-asc':'am-sorted-desc');}else{a.textContent=' ↕';}h.appendChild(a);h.addEventListener('click',function(){onSortClick(col.key);});tr.appendChild(h);});if(canModify){var ha=document.createElement('th');ha.textContent='Actions';ha.style.cursor='default';tr.appendChild(ha);}th.appendChild(tr);}
 function onSortClick(key){if(sortKey===key){sortDir=(sortDir==='asc')?'desc':'asc';}else{sortKey=key;sortDir='asc';}currentPage=1;renderTableHead();renderAssetTable();}
 var searchTimer=null;function onSearchInput(){clearTimeout(searchTimer);searchTimer=setTimeout(function(){currentPage=1;renderAssetTable();},200);}
-function renderAssetTable(){var tb=document.getElementById('amTableBody');var s=document.getElementById('amSearch').value.toLowerCase().trim();var ft=document.getElementById('amFilterType').value;var fs=document.getElementById('amFilterStatus').value;var filtered=allAssets.filter(function(a){var ms=!s||(a.assetNumber&&a.assetNumber.toLowerCase().indexOf(s)!==-1)||(a.type&&a.type.toLowerCase().indexOf(s)!==-1)||(a.project&&a.project.toLowerCase().indexOf(s)!==-1)||(a.location&&a.location.toLowerCase().indexOf(s)!==-1);var mt=!ft||(a.type&&a.type.toLowerCase()===ft.toLowerCase());var mst=!fs||(a.status&&a.status.toLowerCase()===fs.toLowerCase());return ms&&mt&&mst;});filtered.sort(function(a,b){var va=a[sortKey]||'',vb=b[sortKey]||'';if(sortKey==='meter'){va=(va===null||va===''||va===undefined)?-1:parseFloat(va);vb=(vb===null||vb===''||vb===undefined)?-1:parseFloat(vb);return sortDir==='asc'?va-vb:vb-va;}va=String(va).toLowerCase();vb=String(vb).toLowerCase();if(va<vb)return sortDir==='asc'?-1:1;if(va>vb)return sortDir==='asc'?1:-1;return 0;});document.getElementById('amAssetCount').textContent=filtered.length+' asset'+(filtered.length===1?'':'s');var tp=Math.max(1,Math.ceil(filtered.length/pageSize));if(currentPage>tp)currentPage=tp;var si=(currentPage-1)*pageSize;var pi=filtered.slice(si,si+pageSize);tb.textContent='';if(filtered.length===0){var tr=document.createElement('tr');var td=document.createElement('td');td.className='am-empty';td.textContent=allAssets.length===0?'No assets found. Add your first asset above.':'No assets match your search.';tr.appendChild(td);tb.appendChild(tr);renderPagination(0,1);return;}pi.forEach(function(a){var tr=document.createElement('tr');COL_DEFS.forEach(function(col){if(!visibleCols[col.key])return;var td=document.createElement('td');var v=a[col.key];if(col.key==='status'&&v){var b=document.createElement('span');b.className='am-badge am-badge-'+String(v).toLowerCase().replace(/\s+/g,'-');b.textContent=v;td.appendChild(b);}else if(col.key==='type'){var ic=assetTypes.some(function(at){return at.name&&at.name.toLowerCase()===String(v||'').toLowerCase();});if(v&&ic){td.textContent=v;}else if(v){td.textContent=v;td.style.opacity='0.5';td.title='This type is not in your configured asset types';}else{td.textContent='—';}}else if(col.key==='meter'){td.textContent=(v!==null&&v!==undefined&&v!=='')?v:'—';}else{td.textContent=(v!==undefined&&v!==null&&v!=='')?v:'—';}tr.appendChild(td);});if(canModify){var atd=document.createElement('td');atd.className='am-actions';var bv=document.createElement('button');bv.className='am-table-btn';bv.textContent='View';bv.addEventListener('click',function(){window.location.href='/app/asset/asset-detail.html?id='+encodeURIComponent(a.id);});atd.appendChild(bv);var be=document.createElement('button');be.className='am-table-btn';be.textContent='Edit';be.addEventListener('click',function(){openEditModal(a.id);});atd.appendChild(be);var bd=document.createElement('button');bd.className='am-table-btn danger';bd.textContent='Delete';bd.addEventListener('click',function(){deleteAsset(a.id);});atd.appendChild(bd);tr.appendChild(atd);}tb.appendChild(tr);});renderPagination(filtered.length,tp);}
-function renderPagination(ti,tp){var c=document.getElementById('amPagination');c.textContent='';if(ti===0)return;var i=document.createElement('span');i.className='am-page-info';var si=(currentPage-1)*pageSize+1;var ei=Math.min(currentPage*pageSize,ti);i.textContent='Showing '+si+'–'+ei+' of '+ti;c.appendChild(i);var bd=document.createElement('div');bd.className='am-page-btns';var bp=document.createElement('button');bp.className='am-page-btn';bp.textContent='◀ Prev';bp.disabled=currentPage<=1;bp.addEventListener('click',function(){currentPage--;renderAssetTable();});bd.appendChild(bp);var mv=7,sp=1,ep=tp;if(tp>mv){if(currentPage<=4){sp=1;ep=mv;}else if(currentPage>=tp-3){sp=tp-mv+1;ep=tp;}else{sp=currentPage-3;ep=currentPage+3;}}for(var p=sp;p<=ep;p++){var b=document.createElement('button');b.className='am-page-btn'+(p===currentPage?' active':'');b.textContent=p;b.addEventListener('click',function(pg){return function(){currentPage=pg;renderAssetTable();};}(p));bd.appendChild(b);}var bn=document.createElement('button');bn.className='am-page-btn';bn.textContent='Next ▶';bn.disabled=currentPage>=tp;bn.addEventListener('click',function(){currentPage++;renderAssetTable();});bd.appendChild(bn);c.appendChild(bd);}
+function renderAssetTable(){var tb=document.getElementById('amTableBody');var s=document.getElementById('amSearch').value.toLowerCase().trim();var ft=document.getElementById('amFilterType').value;var fs=document.getElementById('amFilterStatus').value;var filtered=allAssets.filter(function(a){var ms=!s||(a.assetNumber&&a.assetNumber.toLowerCase().indexOf(s)!==-1)||(a.type&&a.type.toLowerCase().indexOf(s)!==-1)||(a.project&&a.project.toLowerCase().indexOf(s)!==-1)||(a.location&&a.location.toLowerCase().indexOf(s)!==-1);var mt=!ft||(a.type&&a.type.toLowerCase()===ft.toLowerCase());var mst=!fs||(a.status&&a.status.toLowerCase()===fs.toLowerCase());return ms&&mt&&mst;});filtered.sort(function(a,b){var va=a[sortKey]||'',vb=b[sortKey]||'';if(sortKey==='meter'){va=(va===null||va===''||va===undefined)?-1:parseFloat(va);vb=(vb===null||vb===''||vb===undefined)?-1:parseFloat(vb);return sortDir==='asc'?va-vb:vb-va;}va=String(va).toLowerCase();vb=String(vb).toLowerCase();if(va<vb)return sortDir==='asc'?-1:1;if(va>vb)return sortDir==='asc'?1:-1;return 0;});document.getElementById('amAssetCount').textContent=filtered.length+' asset'+(filtered.length===1?'':'s');var tp=Math.max(1,Math.ceil(filtered.length/pageSize));if(currentPage>tp)currentPage=tp;var si=(currentPage-1)*pageSize;var pi=filtered.slice(si,si+pageSize);tb.textContent='';if(filtered.length===0){var tr=document.createElement('tr');var td=document.createElement('td');td.className='am-empty';td.textContent=allAssets.length===0?'No assets found. Use the Add New Asset tab to add your first asset.':'No assets match your search.';tr.appendChild(td);tb.appendChild(tr);renderPagination(0,1);return;}pi.forEach(function(a){var tr=document.createElement('tr');COL_DEFS.forEach(function(col){if(!visibleCols[col.key])return;var td=document.createElement('td');var v=a[col.key];if(col.key==='status'&&v){var b=document.createElement('span');b.className='am-badge am-badge-'+String(v).toLowerCase().replace(/\s+/g,'-');b.textContent=v;td.appendChild(b);}else if(col.key==='type'){var ic=assetTypes.some(function(at){return at.name&&at.name.toLowerCase()===String(v||'').toLowerCase();});if(v&&ic){td.textContent=v;}else if(v){td.textContent=v;td.style.opacity='0.5';td.title='This type is not in your configured asset types';}else{td.textContent='—';}}else if(col.key==='meter'){td.textContent=(v!==null&&v!==undefined&&v!=='')?v:'—';}else{td.textContent=(v!==undefined&&v!==null&&v!=='')?v:'—';}tr.appendChild(td);});if(canModify){var atd=document.createElement('td');atd.className='am-actions';var bv=document.createElement('button');bv.className='am-table-btn';bv.textContent='View';bv.addEventListener('click',function(){window.location.href='/app/asset/asset-detail.html?id='+encodeURIComponent(a.id);});atd.appendChild(bv);var be=document.createElement('button');be.className='am-table-btn';be.textContent='Edit';be.addEventListener('click',function(){openEditModal(a.id);});atd.appendChild(be);var bd=document.createElement('button');bd.className='am-table-btn danger';bd.textContent='Delete';bd.addEventListener('click',function(){deleteAsset(a.id);});atd.appendChild(bd);tr.appendChild(atd);}tb.appendChild(tr);});renderPagination(filtered.length,tp);}
+function renderPagination(ti,tp){var c=document.getElementById('amPagination');c.textContent='';if(ti===0)return;var i=document.createElement('span');i.className='am-page-info';var si=(currentPage-1)*pageSize+1;var ei=Math.min(currentPage*pageSize,ti);i.textContent='Showing '+si+'–'+ei+' of '+ti;c.appendChild(i);var sd=document.createElement('div');sd.style.display='flex';sd.style.alignItems='center';sd.style.gap='6px';var sl=document.createElement('span');sl.className='am-page-info';sl.textContent='Per page:';sd.appendChild(sl);var ss=document.createElement('select');ss.className='am-filter-select';ss.style.padding='4px 8px';ss.style.fontSize='13px';[10,25,50].forEach(function(sz){var o=document.createElement('option');o.value=sz;o.textContent=sz;if(sz===pageSize)o.selected=true;ss.appendChild(o);});ss.addEventListener('change',function(){pageSize=parseInt(ss.value);currentPage=1;renderAssetTable();});sd.appendChild(ss);c.appendChild(sd);var bd=document.createElement('div');bd.className='am-page-btns';var bp=document.createElement('button');bp.className='am-page-btn';bp.textContent='◀ Prev';bp.disabled=currentPage<=1;bp.addEventListener('click',function(){currentPage--;renderAssetTable();});bd.appendChild(bp);var mv=7,sp=1,ep=tp;if(tp>mv){if(currentPage<=4){sp=1;ep=mv;}else if(currentPage>=tp-3){sp=tp-mv+1;ep=tp;}else{sp=currentPage-3;ep=currentPage+3;}}for(var p=sp;p<=ep;p++){var b=document.createElement('button');b.className='am-page-btn'+(p===currentPage?' active':'');b.textContent=p;b.addEventListener('click',function(pg){return function(){currentPage=pg;renderAssetTable();};}(p));bd.appendChild(b);}var bn=document.createElement('button');bn.className='am-page-btn';bn.textContent='Next ▶';bn.disabled=currentPage>=tp;bn.addEventListener('click',function(){currentPage++;renderAssetTable();});bd.appendChild(bn);c.appendChild(bd);}
 function toggleColPanel(e){e.stopPropagation();var p=document.getElementById('amColPanel');p.classList.toggle('active');if(p.classList.contains('active')){renderColTogglePanel();var b=e.target;var r=b.getBoundingClientRect();p.style.position='fixed';p.style.top=(r.bottom+4)+'px';p.style.left=r.left+'px';}}
 function renderColTogglePanel(){var c=document.getElementById('amColToggleItems');c.textContent='';COL_DEFS.forEach(function(col){var i=document.createElement('label');i.className='am-col-toggle-item';var cb=document.createElement('input');cb.type='checkbox';cb.checked=visibleCols[col.key];cb.addEventListener('change',function(){visibleCols[col.key]=cb.checked;saveVisibleCols();renderTableHead();renderAssetTable();});i.appendChild(cb);i.appendChild(document.createTextNode(col.label));c.appendChild(i);});}
 document.addEventListener('click',function(e){var p=document.getElementById('amColPanel');if(p.classList.contains('active')&&!p.contains(e.target)&&e.target.textContent!=='Columns')p.classList.remove('active');});
-async function addAsset(){var an=document.getElementById('amAssetNumber').value.trim();var at=document.getElementById('amAssetType').value;var m=document.getElementById('amMeter').value.trim();var st=document.getElementById('amStatus').value;var pr=document.getElementById('amProject').value;var lo=document.getElementById('amLocation').value;if(!an){showMessage('Please enter an asset number.','error');return;}if(!at){showMessage('Please select an asset type.','error');return;}var AS=['available','in use','maintenance'];var d=allAssets.find(function(a){return a.assetNumber&&a.assetNumber.toLowerCase()===an.toLowerCase();});if(d){var ds=(d.status||'').toLowerCase();if(AS.indexOf(ds)!==-1){showMessage('An asset with number "'+an+'" is already in use ('+(d.status||'Active')+'). Asset numbers must be unique unless the existing asset is no longer active.','error');return;}else{if(!confirm('Asset number "'+an+'" is currently used by an inactive asset ('+(d.status||'unknown status')+' — '+(d.type||'unknown type')+'). Some companies reuse numbers from assets that are no longer in service.\n\nClick OK to reuse this number, or Cancel to choose a different number.'))return;}}var mv=null;if(m!==''){mv=parseFloat(m);if(isNaN(mv)||mv<0){showMessage('Meter Reading must be a valid number (0 or higher).','error');return;}}var p={'Equipment ID':an,'Equipment Name':at,'Category':at,'Status':st,'Project':pr,'Location':lo};if(mv!==null)p['Meter Reading']=mv;try{var resp=await fetch('/api/Equipment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});var data=await resp.json();if(!resp.ok)throw new Error(data.error||data.message||'Save failed ('+resp.status+')');if(data.record){allAssets.push(normalizeAsset(data.record));}else{await loadAssets();showMessage('Asset "'+an+'" added.','success');return;}document.getElementById('amAssetNumber').value='';document.getElementById('amMeter').value='';document.getElementById('amAssetType').value='';document.getElementById('amStatus').value='Available';document.getElementById('amProject').value='';document.getElementById('amLocation').value='';showMessage('Asset "'+an+'" added.','success');currentPage=1;renderAssetTable();}catch(e){showMessage('Failed to add asset: '+e.message,'error');if(window.DRIVENErrorHandler)window.DRIVENErrorHandler.report('asset-management.html: addAsset failed — '+(e.message||e),'addAsset',e&&e.stack?e.stack:null);}}
+async function addAsset(){var an=document.getElementById('amAssetNumber').value.trim();var at=document.getElementById('amAssetType').value;var m=document.getElementById('amMeter').value.trim();var st=document.getElementById('amStatus').value;var pr=document.getElementById('amProject').value;var lo=document.getElementById('amLocation').value;if(!an){showMessage('Please enter an asset number.','error');return;}if(!at){showMessage('Please select an asset type.','error');return;}var AS=['available','in use','maintenance'];var d=allAssets.find(function(a){return a.assetNumber&&a.assetNumber.toLowerCase()===an.toLowerCase();});if(d){var ds=(d.status||'').toLowerCase();if(AS.indexOf(ds)!==-1){showMessage('An asset with number "'+an+'" is already in use ('+(d.status||'Active')+'). Asset numbers must be unique unless the existing asset is no longer active.','error');return;}else{if(!confirm('Asset number "'+an+'" is currently used by an inactive asset ('+(d.status||'unknown status')+' — '+(d.type||'unknown type')+'). Some companies reuse numbers from assets that are no longer in service.\n\nClick OK to reuse this number, or Cancel to choose a different number.'))return;}}var mv=null;if(m!==''){mv=parseFloat(m);if(isNaN(mv)||mv<0){showMessage('Meter Reading must be a valid number (0 or higher).','error');return;}}var p={'Equipment ID':an,'Equipment Name':at,'Category':at,'Status':st,'Project':pr,'Location':lo};if(mv!==null)p['Meter Reading']=mv;try{var resp=await fetch('/api/Equipment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});var data=await resp.json();if(!resp.ok)throw new Error(data.error||data.message||'Save failed ('+resp.status+')');if(data.record){allAssets.push(normalizeAsset(data.record));}else{await loadAssets();showMessage('Asset "'+an+'" added.','success');return;}document.getElementById('amAssetNumber').value='';document.getElementById('amMeter').value='';document.getElementById('amAssetType').value='';document.getElementById('amStatus').value='Available';document.getElementById('amProject').value='';document.getElementById('amLocation').value='';showMessage('Asset "'+an+'" added.','success');currentPage=1;renderAssetTable();switchTab('assets');}catch(e){showMessage('Failed to add asset: '+e.message,'error');if(window.DRIVENErrorHandler)window.DRIVENErrorHandler.report('asset-management.html: addAsset failed — '+(e.message||e),'addAsset',e&&e.stack?e.stack:null);}}
 function openEditModal(id){var a=allAssets.find(function(x){return x.id===id;});if(!a)return;editingAssetId=id;document.getElementById('amEditAssetNumber').value=a.assetNumber||'';document.getElementById('amEditAssetType').value=a.type||'';document.getElementById('amEditMeter').value=(a.meter!==null&&a.meter!==undefined)?a.meter:'';document.getElementById('amEditStatus').value=a.status||'Available';document.getElementById('amEditProject').value=a.project||'';document.getElementById('amEditLocation').value=a.location||'';document.getElementById('amEditModal').classList.add('active');}
 function closeEditModal(){document.getElementById('amEditModal').classList.remove('active');editingAssetId=null;}
 async function saveEditAsset(){if(!editingAssetId)return;var an=document.getElementById('amEditAssetNumber').value.trim();var at=document.getElementById('amEditAssetType').value;var m=document.getElementById('amEditMeter').value.trim();var st=document.getElementById('amEditStatus').value;var pr=document.getElementById('amEditProject').value;var lo=document.getElementById('amEditLocation').value;if(!an){showMessage('Asset number is required.','error');return;}if(!at){showMessage('Asset type is required.','error');return;}var AS=['available','in use','maintenance'];var d=allAssets.find(function(a){return a.id!==editingAssetId&&a.assetNumber&&a.assetNumber.toLowerCase()===an.toLowerCase();});if(d){var ds=(d.status||'').toLowerCase();if(AS.indexOf(ds)!==-1){showMessage('An asset with number "'+an+'" is already in use ('+(d.status||'Active')+').','error');return;}else{if(!confirm('Asset number "'+an+'" is currently used by an inactive asset. Click OK to reuse, or Cancel.'))return;}}var mv=null;if(m!==''){mv=parseFloat(m);if(isNaN(mv)||mv<0){showMessage('Meter Reading must be a valid number (0 or higher).','error');return;}}var p={'Equipment ID':an,'Equipment Name':at,'Category':at,'Status':st,'Project':pr,'Location':lo};if(mv!==null)p['Meter Reading']=mv;try{var resp=await fetch('/api/Equipment/'+encodeURIComponent(editingAssetId),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});var data=await resp.json();if(!resp.ok)throw new Error(data.error||data.message||'Update failed ('+resp.status+')');if(data.record){var u=normalizeAsset(data.record);var i=allAssets.findIndex(function(a){return a.id===editingAssetId;});if(i!==-1)allAssets[i]=u;}else{var a=allAssets.find(function(x){return x.id===editingAssetId;});if(a){a.assetNumber=an;a.type=at;a.meter=mv;a.status=st;a.project=pr;a.location=lo;}}showMessage('Asset "'+an+'" updated.','success');closeEditModal();renderAssetTable();}catch(e){showMessage('Failed to update asset: '+e.message,'error');if(window.DRIVENErrorHandler)window.DRIVENErrorHandler.report('asset-management.html: saveEditAsset failed — '+(e.message||e),'saveEditAsset',e&&e.stack?e.stack:null);}}
