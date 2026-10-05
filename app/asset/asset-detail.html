@@ -26,12 +26,11 @@
 #dashHeader .dash-theme-wrapper { display:none !important; }
 .dash-header-row2 { display:none !important; }
 .ad-main { max-width:900px; margin:20px auto; padding:0 20px; position:relative; z-index:1; }
-.ad-back { display:inline-flex; align-items:center; gap:6px; background:var(--bg-card); border:1px solid var(--border); border-radius:6px; padding:8px 16px; font-size:14px; color:var(--text); cursor:pointer; text-decoration:none; margin-bottom:16px; }
-.ad-back:hover { border-color:var(--primary); color:var(--primary); }
-.ad-header { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:24px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px; }
-.ad-header h2 { margin:0 0 4px 0; font-size:22px; color:var(--text); }
-.ad-header .ad-subtitle { margin:0; font-size:14px; color:var(--text-muted); }
-.ad-header-actions { display:flex; gap:10px; flex-wrap:wrap; }
+.ad-header { position:sticky; top:0; z-index:10; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:16px 24px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+.ad-header h2 { margin:0; font-size:20px; color:var(--text); }
+.ad-header .ad-subtitle { margin:2px 0 0 0; font-size:13px; color:var(--text-muted); }
+.ad-header-left { display:flex; flex-direction:column; }
+.ad-header-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
 .ad-badge { display:inline-block; padding:4px 12px; border-radius:12px; font-size:13px; font-weight:600; }
 .ad-badge-available { background:rgba(34,197,94,0.15); color:#16a34a; }
 .ad-badge-in-use { background:rgba(59,130,246,0.15); color:#2563eb; }
@@ -42,15 +41,21 @@
 .ad-card { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:20px; margin-bottom:16px; }
 .ad-card h3 { margin:0 0 16px 0; font-size:16px; color:var(--text); border-bottom:1px solid var(--border); padding-bottom:8px; }
 .ad-field-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px; }
-.ad-field { display:flex; flex-direction:column; border:1px solid var(--border); border-radius:6px; padding:10px 12px; }
+.ad-field { display:flex; flex-direction:column; border:1px solid #16a34a; border-radius:6px; padding:10px 12px; }
 .ad-field-label { font-size:12px; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
 .ad-field-value { font-size:15px; color:var(--text); }
+.ad-field input, .ad-field select { padding:8px 10px; border:1px solid var(--border-input); border-radius:6px; font-size:14px; background:var(--bg-card); color:var(--text); box-sizing:border-box; font-family:inherit; }
+.ad-field input:focus, .ad-field select:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 2px rgba(37,99,235,0.2); }
+.ad-field.editing { border-color:var(--primary); }
 .ad-btn-primary { background:var(--primary); color:#fff; padding:10px 18px; border-radius:6px; font-size:15px; border:1px solid var(--primary-hover); cursor:pointer; text-decoration:none; }
 .ad-btn-primary:hover { background:var(--primary-hover); }
 .ad-btn-secondary { background:var(--bg-card); color:var(--text); padding:10px 18px; border-radius:6px; font-size:15px; border:1px solid var(--border); cursor:pointer; text-decoration:none; }
 .ad-btn-secondary:hover { border-color:var(--primary); color:var(--primary); }
+.ad-message { margin-bottom:16px; padding:12px 16px; border-radius:6px; font-size:14px; display:none; }
+.ad-message.error { background:rgba(239,68,68,0.1); color:#fca5a5; border:1px solid rgba(239,68,68,0.3); }
+.ad-message.success { background:rgba(34,197,94,0.1); color:#86efac; border:1px solid rgba(34,197,94,0.3); }
 .ad-error { text-align:center; padding:60px 20px; color:var(--error); font-size:16px; }
-@media (max-width:700px) { .ad-main { padding:0 12px; margin:12px auto; } .ad-field-grid { grid-template-columns:1fr; } .ad-header { flex-direction:column; } }
+@media (max-width:700px) { .ad-main { padding:0 12px; margin:12px auto; } .ad-field-grid { grid-template-columns:1fr; } .ad-header { flex-direction:column; align-items:flex-start; } }
 </style>
 </head>
 <body data-page-title="Asset Detail">
@@ -60,16 +65,16 @@
 <div class="ad-main">
   <div class="ad-loading" id="adLoading">Loading asset detail...</div>
   <div id="adContent" style="display:none;">
-    <a class="ad-back" href="/app/dashboard/asset-management.html">&#8592; Back to Asset List</a>
+    <div id="adMessage" class="ad-message"></div>
     <div class="ad-header">
-      <div>
+      <div class="ad-header-left">
         <h2 id="adTitle">Asset</h2>
         <p class="ad-subtitle" id="adSubtitle"></p>
-        <div style="margin-top:8px;" id="adStatusBadge"></div>
+        <div style="margin-top:6px;" id="adStatusBadge"></div>
       </div>
-      <div class="ad-header-actions">
-        <a class="ad-btn-secondary" id="adEditBtn" href="#">Edit</a>
-        <a class="ad-btn-primary" href="/app/dashboard/asset-management.html">Asset List</a>
+      <div class="ad-header-actions" id="adHeaderActions">
+        <button class="ad-btn-secondary" id="adEditBtn" onclick="enterEditMode()">Edit</button>
+        <button class="ad-btn-primary" onclick="window.location.href='/app/dashboard/asset-management.html'">Asset List</button>
       </div>
     </div>
     <div class="ad-card"><h3>Asset Information</h3><div class="ad-field-grid" id="adInfoGrid"></div></div>
@@ -81,24 +86,58 @@
 <div id="dashFooter"></div>
 <script src="/app/shared/dashboard-common.js?v=13"></script>
 <script>
+var assetId=null,assetData=null,assetTypes=[],projects=[],locations=[],isEditing=false,canModify=false;
 document.addEventListener('dashSessionLoaded', async function() {
   var user = window.dashUser;
   if (!user) { window.location.href = '/public/login.html'; return; }
+  var role = (user.role || '').toLowerCase();
+  canModify = role === 'admin' || role === 'administrator' || role.indexOf('founder') !== -1 || role === 'owner';
+  if (!canModify) {
+    var ci = localStorage.getItem('driven_customer_id');
+    if (ci) {
+      try {
+        var kp = await fetch('/api/onboarding/key-personnel/list?customerId=' + encodeURIComponent(ci));
+        var kd = await kp.json();
+        if (kd.success && kd.keyPersonnel) {
+          var me = user.email ? user.email.toLowerCase() : '';
+          var mr = kd.keyPersonnel.find(function(k) { return k.email && k.email.toLowerCase() === me; });
+          if (mr && mr.roles) { var mt = mr.roles.map(function(r) { return r.role; }); canModify = mt.indexOf('Equipment') !== -1 || mt.indexOf('Assets') !== -1; }
+        }
+      } catch(e) {}
+    }
+  }
+  if (!canModify) document.getElementById('adEditBtn').style.display = 'none';
   var ha = 0, hi = setInterval(function() { ha++; if (fixHeaderLayout() || ha > 50) clearInterval(hi); }, 100);
   var params = new URLSearchParams(window.location.search);
-  var assetId = params.get('id');
-  if (!assetId) {
-    document.getElementById('adLoading').style.display = 'none';
-    document.getElementById('adError').style.display = 'block';
-    document.getElementById('adError').textContent = 'No asset ID specified. Please go back to the Asset List and click View on an asset.';
-    return;
+  assetId = params.get('id');
+  if (!assetId) { document.getElementById('adLoading').style.display = 'none'; document.getElementById('adError').style.display = 'block'; document.getElementById('adError').textContent = 'No asset ID specified.'; return; }
+  await syncSettings();
+  await loadAsset();
+});
+async function syncSettings() {
+  try {
+    var res = await fetch('/auth/get-settings');
+    if (!res.ok) throw new Error('Settings fetch failed');
+    var data = await res.json();
+    var s = (data && data.settings) ? data.settings : {};
+    var rat = s.asset_types;
+    if (typeof rat === 'string') { try { assetTypes = JSON.parse(rat); } catch(e) { assetTypes = []; } } else if (Array.isArray(rat)) { assetTypes = rat; } else { try { assetTypes = JSON.parse(localStorage.getItem('driven_asset_types') || '[]'); } catch(e) { assetTypes = []; } }
+    var rp = s.projects;
+    if (typeof rp === 'string') { try { projects = JSON.parse(rp); } catch(e) { projects = []; } } else if (Array.isArray(rp)) { projects = rp; } else { try { projects = JSON.parse(localStorage.getItem('driven_projects') || '[]'); } catch(e) { projects = []; } }
+    var rl = s.locations;
+    if (typeof rl === 'string') { try { locations = JSON.parse(rl); } catch(e) { locations = []; } } else if (Array.isArray(rl)) { locations = rl; } else { try { locations = JSON.parse(localStorage.getItem('driven_locations') || '[]'); } catch(e) { locations = []; } }
+  } catch(e) {
+    try { assetTypes = JSON.parse(localStorage.getItem('driven_asset_types') || '[]'); } catch(e2) { assetTypes = []; }
+    try { projects = JSON.parse(localStorage.getItem('driven_projects') || '[]'); } catch(e2) { projects = []; }
+    try { locations = JSON.parse(localStorage.getItem('driven_locations') || '[]'); } catch(e2) { locations = []; }
   }
+}
+async function loadAsset() {
   try {
     var resp = await fetch('/api/Equipment/' + encodeURIComponent(assetId));
     var data = await resp.json();
     if (!resp.ok) {
-      document.getElementById('adLoading').style.display = 'none';
-      document.getElementById('adError').style.display = 'block';
+      document.getElementById('adLoading').style.display = 'none'; document.getElementById('adError').style.display = 'block';
       if (resp.status === 401) document.getElementById('adError').textContent = 'Your session has expired. Please log in again.';
       else if (resp.status === 404) document.getElementById('adError').textContent = 'Asset not found. It may have been deleted.';
       else if (resp.status === 403) document.getElementById('adError').textContent = 'You do not have permission to view this asset.';
@@ -106,34 +145,40 @@ document.addEventListener('dashSessionLoaded', async function() {
       return;
     }
     var record = data.record;
-    if (!record || !record.fields) {
-      document.getElementById('adLoading').style.display = 'none';
-      document.getElementById('adError').style.display = 'block';
-      document.getElementById('adError').textContent = 'Asset data is incomplete or corrupted.';
-      return;
-    }
-    var f = record.fields;
-    var assetNumber = f['Equipment ID'] || '—';
-    var assetType = f['Category'] || f['Equipment Name'] || '—';
-    var status = f['Status'] || 'Available';
-    document.getElementById('adTitle').textContent = assetNumber + ' — ' + assetType;
-    document.getElementById('adSubtitle').textContent = 'Asset ID: ' + assetId;
-    var badge = document.createElement('span');
-    badge.className = 'ad-badge ad-badge-' + String(status).toLowerCase().replace(/\s+/g, '-');
-    badge.textContent = status;
-    document.getElementById('adStatusBadge').appendChild(badge);
+    if (!record || !record.fields) { document.getElementById('adLoading').style.display = 'none'; document.getElementById('adError').style.display = 'block'; document.getElementById('adError').textContent = 'Asset data is incomplete or corrupted.'; return; }
+    assetData = record.fields;
+    renderAsset();
+    document.getElementById('adLoading').style.display = 'none';
+    document.getElementById('adContent').style.display = 'block';
+  } catch(e) {
+    document.getElementById('adLoading').style.display = 'none'; document.getElementById('adError').style.display = 'block';
+    document.getElementById('adError').textContent = 'Network error — could not reach the server.';
+    if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report('asset-detail.html: load failed — ' + (e.message || e), 'assetDetail', e && e.stack ? e.stack : null);
+  }
+}
+function renderAsset() {
+  var f = assetData;
+  var assetNumber = f['Equipment ID'] || '—';
+  var assetType = f['Category'] || f['Equipment Name'] || '—';
+  var status = f['Status'] || 'Available';
+  document.getElementById('adTitle').textContent = assetNumber + ' — ' + assetType;
+  document.getElementById('adSubtitle').textContent = 'Asset ID: ' + assetId;
+  var bc = document.getElementById('adStatusBadge'); bc.textContent = '';
+  var badge = document.createElement('span');
+  badge.className = 'ad-badge ad-badge-' + String(status).toLowerCase().replace(/\s+/g, '-');
+  badge.textContent = status; bc.appendChild(badge);
+  if (!isEditing) {
     renderFields('adInfoGrid', [
       { label: 'Asset Number', value: f['Equipment ID'] },
       { label: 'Asset Type', value: f['Category'] || f['Equipment Name'] },
       { label: 'Serial Number', value: f['Serial Number'] },
       { label: 'Meter Reading', value: f['Meter Reading'] !== undefined ? f['Meter Reading'] : null },
       { label: 'Status', value: f['Status'] },
-      { label: 'Condition', value: f['Condition'] },
+      { label: 'Owner', value: f['Assigned To'] },
     ]);
     renderFields('adAssignGrid', [
       { label: 'Current Project', value: f['Project'] },
       { label: 'Current Location', value: f['Location'] },
-      { label: 'Assigned To', value: f['Assigned To'] },
       { label: 'Division', value: f['Division'] },
     ]);
     renderFields('adExtraGrid', [
@@ -142,49 +187,122 @@ document.addEventListener('dashSessionLoaded', async function() {
       { label: 'Purchase Price', value: f['Purchase Price'] },
       { label: 'Notes', value: f['Notes'] },
     ]);
-    document.getElementById('adEditBtn').href = '/app/dashboard/asset-management.html?edit=' + encodeURIComponent(assetId);
-    document.getElementById('adLoading').style.display = 'none';
-    document.getElementById('adContent').style.display = 'block';
-  } catch(e) {
-    document.getElementById('adLoading').style.display = 'none';
-    document.getElementById('adError').style.display = 'block';
-    document.getElementById('adError').textContent = 'Network error — could not reach the server. Please check your connection and try again.';
-    if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report('asset-detail.html: load failed — ' + (e.message || e), 'assetDetail', e && e.stack ? e.stack : null);
   }
-});
+}
 function renderFields(containerId, fields) {
   var container = document.getElementById(containerId);
   container.textContent = '';
   fields.forEach(function(field) {
-    var div = document.createElement('div');
-    div.className = 'ad-field';
-    var label = document.createElement('div');
-    label.className = 'ad-field-label';
-    label.textContent = field.label;
-    var value = document.createElement('div');
-    value.className = 'ad-field-value';
+    var div = document.createElement('div'); div.className = 'ad-field';
+    var label = document.createElement('div'); label.className = 'ad-field-label'; label.textContent = field.label;
+    var value = document.createElement('div'); value.className = 'ad-field-value';
     value.textContent = (field.value !== undefined && field.value !== null && field.value !== '') ? field.value : '—';
-    div.appendChild(label);
-    div.appendChild(value);
+    div.appendChild(label); div.appendChild(value); container.appendChild(div);
+  });
+}
+function enterEditMode() {
+  isEditing = true; var f = assetData;
+  renderEditField('adInfoGrid', [
+    { label: 'Asset Number', key: 'Equipment ID', value: f['Equipment ID'] || '', type: 'text' },
+    { label: 'Asset Type', key: 'Category', value: f['Category'] || f['Equipment Name'] || '', type: 'select', options: assetTypes },
+    { label: 'Serial Number', key: 'Serial Number', value: f['Serial Number'] || '', type: 'text' },
+    { label: 'Meter Reading', key: 'Meter Reading', value: f['Meter Reading'] !== undefined ? f['Meter Reading'] : '', type: 'number' },
+    { label: 'Status', key: 'Status', value: f['Status'] || 'Available', type: 'select', options: [{name:'Available'},{name:'In Use'},{name:'Maintenance'},{name:'Retired'},{name:'Lost'},{name:'Sold'}] },
+    { label: 'Owner', key: 'Assigned To', value: f['Assigned To'] || '', type: 'text' },
+  ]);
+  renderEditField('adAssignGrid', [
+    { label: 'Current Project', key: 'Project', value: f['Project'] || '', type: 'select', options: projects, includeNone: true },
+    { label: 'Current Location', key: 'Location', value: f['Location'] || '', type: 'select', options: locations, includeNone: true },
+    { label: 'Division', key: 'Division', value: f['Division'] || '', type: 'text' },
+  ]);
+  renderEditField('adExtraGrid', [
+    { label: 'Created Date', key: 'Created Date', value: f['Created Date'] || '', type: 'text', readonly: true },
+    { label: 'Purchase Date', key: 'Purchase Date', value: f['Purchase Date'] || '', type: 'text' },
+    { label: 'Purchase Price', key: 'Purchase Price', value: f['Purchase Price'] || '', type: 'number' },
+    { label: 'Notes', key: 'Notes', value: f['Notes'] || '', type: 'text' },
+  ]);
+  var actions = document.getElementById('adHeaderActions'); actions.textContent = '';
+  var saveBtn = document.createElement('button'); saveBtn.className = 'ad-btn-primary'; saveBtn.textContent = 'Save Changes'; saveBtn.addEventListener('click', saveAsset); actions.appendChild(saveBtn);
+  var cancelBtn = document.createElement('button'); cancelBtn.className = 'ad-btn-secondary'; cancelBtn.textContent = 'Cancel'; cancelBtn.addEventListener('click', cancelEdit); actions.appendChild(cancelBtn);
+}
+function renderEditField(containerId, fields) {
+  var container = document.getElementById(containerId); container.textContent = '';
+  fields.forEach(function(field) {
+    var div = document.createElement('div'); div.className = 'ad-field editing';
+    var label = document.createElement('div'); label.className = 'ad-field-label'; label.textContent = field.label; div.appendChild(label);
+    if (field.readonly) {
+      var ro = document.createElement('div'); ro.className = 'ad-field-value'; ro.textContent = field.value || '—'; div.appendChild(ro);
+    } else if (field.type === 'select') {
+      var sel = document.createElement('select'); sel.id = 'edit-' + field.key.replace(/\s+/g, '-');
+      if (field.includeNone) { var n = document.createElement('option'); n.value = ''; n.textContent = '— None —'; sel.appendChild(n); }
+      field.options.forEach(function(opt) { var o = document.createElement('option'); o.value = opt.name; o.textContent = opt.name; if (opt.name === field.value) o.selected = true; sel.appendChild(o); });
+      div.appendChild(sel);
+    } else {
+      var input = document.createElement('input'); input.type = field.type || 'text'; input.id = 'edit-' + field.key.replace(/\s+/g, '-'); input.value = field.value; div.appendChild(input);
+    }
     container.appendChild(div);
   });
 }
+function cancelEdit() {
+  isEditing = false; renderAsset();
+  var actions = document.getElementById('adHeaderActions'); actions.textContent = '';
+  var eb = document.createElement('button'); eb.className = 'ad-btn-secondary'; eb.textContent = 'Edit'; eb.addEventListener('click', enterEditMode); actions.appendChild(eb);
+  var lb = document.createElement('button'); lb.className = 'ad-btn-primary'; lb.textContent = 'Asset List'; lb.addEventListener('click', function() { window.location.href = '/app/dashboard/asset-management.html'; }); actions.appendChild(lb);
+}
+async function saveAsset() {
+  var payload = {};
+  var fields = [
+    { key: 'Equipment ID', el: 'edit-Equipment-ID' },
+    { key: 'Category', el: 'edit-Category' },
+    { key: 'Serial Number', el: 'edit-Serial-Number' },
+    { key: 'Meter Reading', el: 'edit-Meter-Reading' },
+    { key: 'Status', el: 'edit-Status' },
+    { key: 'Assigned To', el: 'edit-Assigned-To' },
+    { key: 'Project', el: 'edit-Project' },
+    { key: 'Location', el: 'edit-Location' },
+    { key: 'Division', el: 'edit-Division' },
+    { key: 'Purchase Date', el: 'edit-Purchase-Date' },
+    { key: 'Purchase Price', el: 'edit-Purchase-Price' },
+    { key: 'Notes', el: 'edit-Notes' },
+  ];
+  fields.forEach(function(f) {
+    var el = document.getElementById(f.el);
+    if (el) {
+      var val = el.value.trim();
+      if (val !== '') {
+        if (f.key === 'Meter Reading' || f.key === 'Purchase Price') payload[f.key] = parseFloat(val);
+        else payload[f.key] = val;
+      }
+    }
+  });
+  if (payload['Category']) payload['Equipment Name'] = payload['Category'];
+  try {
+    var resp = await fetch('/api/Equipment/' + encodeURIComponent(assetId), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    var data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || data.message || 'Update failed (' + resp.status + ')');
+    if (data.record) assetData = data.record.fields;
+    isEditing = false; renderAsset();
+    showMessage('Asset updated successfully.', 'success');
+    var actions = document.getElementById('adHeaderActions'); actions.textContent = '';
+    var eb = document.createElement('button'); eb.className = 'ad-btn-secondary'; eb.textContent = 'Edit'; eb.addEventListener('click', enterEditMode); actions.appendChild(eb);
+    var lb = document.createElement('button'); lb.className = 'ad-btn-primary'; lb.textContent = 'Asset List'; lb.addEventListener('click', function() { window.location.href = '/app/dashboard/asset-management.html'; }); actions.appendChild(lb);
+  } catch(e) {
+    showMessage('Failed to update: ' + e.message, 'error');
+    if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report('asset-detail.html: save failed — ' + (e.message || e), 'assetDetailSave', e && e.stack ? e.stack : null);
+  }
+}
+function showMessage(msg, type) {
+  var el = document.getElementById('adMessage'); el.textContent = msg; el.className = 'ad-message ' + type; el.style.display = 'block';
+  setTimeout(function() { el.style.display = 'none'; }, 5000);
+}
 function fixHeaderLayout() {
-  var header = document.querySelector('.dash-header');
-  if (!header) return false;
-  var row1 = header.querySelector('.dash-header-row1');
-  var row2 = header.querySelector('.dash-header-row2');
-  var row3 = header.querySelector('.dash-header-row3');
-  var h1 = row2 ? row2.querySelector('h1') : null;
-  if (!row1 || !h1) return false;
-  if (h1.parentNode === row1) return true;
-  var drivenLogo = row1.querySelector('.dash-driven-logo');
-  row1.insertBefore(h1, drivenLogo);
+  var header = document.querySelector('.dash-header'); if (!header) return false;
+  var row1 = header.querySelector('.dash-header-row1'); var row2 = header.querySelector('.dash-header-row2'); var row3 = header.querySelector('.dash-header-row3');
+  var h1 = row2 ? row2.querySelector('h1') : null; if (!row1 || !h1) return false; if (h1.parentNode === row1) return true;
+  var dl = row1.querySelector('.dash-driven-logo'); row1.insertBefore(h1, dl);
   row1.style.cssText = 'display:flex !important; justify-content:space-between !important; align-items:center !important; padding:8px 20px !important; gap:16px !important;';
   h1.style.cssText = 'margin:0; font-size:20px; font-weight:600; text-align:center; flex:1;';
-  if (row2) row2.style.display = 'none';
-  if (row3) row3.style.display = 'none';
-  return true;
+  if (row2) row2.style.display = 'none'; if (row3) row3.style.display = 'none'; return true;
 }
 </script>
 <script src="/app/shared/auth-check.js?v=13"></script>
