@@ -16,9 +16,9 @@
 //   - Var: SUPPORT_CONTACT = support@driv-en.com
 //
 // LAST UPDATED: October 5, 2026 (Session 50) — employee_count now queried
-//   from the `employees` table (active only) instead of counting all rows
-//   in the `users` table. This matches the admin dashboard KPI and the
-//   user-management page so all three show the same employee count.
+//   from the `employees` table (active only) using `customer_id` column
+//   (NOT `org_id` — the employees table uses `customer_id` to link to orgs).
+//   This matches the admin dashboard KPI and the user-management page.
 // ============================================================================
 
 const CORS_HEADERS = {
@@ -218,16 +218,17 @@ export async function onRequestGet(context) {
     } catch (dbErr) { /* users table may not exist */ }
 
     // Employee counts — from the employees table, active only (matches user-management + admin dashboard)
+    // NOTE: The employees table uses `customer_id` (not `org_id`) to link to the organization.
     try {
       const empRows = await env.DB.prepare(
-        `SELECT org_id, COUNT(*) as emp_count
+        `SELECT customer_id, COUNT(*) as emp_count
          FROM employees
          WHERE status = 'Active' OR status = 'active'
-         GROUP BY org_id`
+         GROUP BY customer_id`
       ).all();
       if (empRows.results) {
         for (const r of empRows.results) {
-          if (r.org_id) employeeMap[r.org_id] = r.emp_count;
+          if (r.customer_id) employeeMap[r.customer_id] = r.emp_count;
         }
       }
     } catch (dbErr) { /* employees table may not exist yet */ }
