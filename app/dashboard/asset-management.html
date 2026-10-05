@@ -171,7 +171,7 @@
         <div class="am-form-row">
           <label>Asset Number <span class="am-required">*</span></label>
           <input type="text" id="amAssetNumber" placeholder="e.g., EQ-001" maxlength="100" />
-          <div class="am-hint">Unique identifier — duplicates are not allowed</div>
+          <div class="am-hint">Unique identifier — duplicates are not allowed for active assets</div>
         </div>
         <div class="am-form-row">
           <label>Asset Type <span class="am-required">*</span></label>
@@ -759,10 +759,19 @@ async function addAsset() {
   var location = document.getElementById('amLocation').value;
   if (!assetNumber) { showMessage('Please enter an asset number.', 'error'); return; }
   if (!assetType) { showMessage('Please select an asset type.', 'error'); return; }
+  var ACTIVE_STATUSES = ['available', 'in use', 'maintenance'];
   var dup = allAssets.find(function(a) {
     return a.assetNumber && a.assetNumber.toLowerCase() === assetNumber.toLowerCase();
   });
-  if (dup) { showMessage('An asset with number "' + assetNumber + '" already exists. Asset numbers must be unique.', 'error'); return; }
+  if (dup) {
+    var dupStatus = (dup.status || '').toLowerCase();
+    if (ACTIVE_STATUSES.indexOf(dupStatus) !== -1) {
+      showMessage('An asset with number "' + assetNumber + '" is already in use (' + (dup.status || 'Active') + '). Asset numbers must be unique unless the existing asset is no longer active.', 'error');
+      return;
+    } else {
+      if (!confirm('Asset number "' + assetNumber + '" is currently used by an inactive asset (' + (dup.status || 'unknown status') + ' \u2014 ' + (dup.type || 'unknown type') + '). Some companies reuse numbers from assets that are no longer in service.\n\nClick OK to reuse this number, or Cancel to choose a different number.')) return;
+    }
+  }
   var meterVal = null;
   if (meter !== '') {
     meterVal = parseFloat(meter);
@@ -806,7 +815,7 @@ async function addAsset() {
   } catch(e) {
     showMessage('Failed to add asset: ' + e.message, 'error');
     if (window.DRIVENErrorHandler) {
-      window.DRIVENErrorHandler.report('asset-management.html: addAsset failed — ' + (e.message || e), 'addAsset', e && e.stack ? e.stack : null);
+      window.DRIVENErrorHandler.report('asset-management.html: addAsset failed \u2014 ' + (e.message || e), 'addAsset', e && e.stack ? e.stack : null);
     }
   }
 }
@@ -839,11 +848,20 @@ async function saveEditAsset() {
   var location = document.getElementById('amEditLocation').value;
   if (!assetNumber) { showMessage('Asset number is required.', 'error'); return; }
   if (!assetType) { showMessage('Asset type is required.', 'error'); return; }
+  var ACTIVE_STATUSES = ['available', 'in use', 'maintenance'];
   var dup = allAssets.find(function(a) {
     return a.id !== editingAssetId &&
       a.assetNumber && a.assetNumber.toLowerCase() === assetNumber.toLowerCase();
   });
-  if (dup) { showMessage('An asset with number "' + assetNumber + '" already exists. Asset numbers must be unique.', 'error'); return; }
+  if (dup) {
+    var dupStatus = (dup.status || '').toLowerCase();
+    if (ACTIVE_STATUSES.indexOf(dupStatus) !== -1) {
+      showMessage('An asset with number "' + assetNumber + '" is already in use (' + (dup.status || 'Active') + '). Asset numbers must be unique unless the existing asset is no longer active.', 'error');
+      return;
+    } else {
+      if (!confirm('Asset number "' + assetNumber + '" is currently used by an inactive asset (' + (dup.status || 'unknown status') + ' \u2014 ' + (dup.type || 'unknown type') + '). Some companies reuse numbers from assets that are no longer in service.\n\nClick OK to reuse this number, or Cancel to choose a different number.')) return;
+    }
+  }
   var meterVal = null;
   if (meter !== '') {
     meterVal = parseFloat(meter);
@@ -889,7 +907,7 @@ async function saveEditAsset() {
   } catch(e) {
     showMessage('Failed to update asset: ' + e.message, 'error');
     if (window.DRIVENErrorHandler) {
-      window.DRIVENErrorHandler.report('asset-management.html: saveEditAsset failed — ' + (e.message || e), 'saveEditAsset', e && e.stack ? e.stack : null);
+      window.DRIVENErrorHandler.report('asset-management.html: saveEditAsset failed \u2014 ' + (e.message || e), 'saveEditAsset', e && e.stack ? e.stack : null);
     }
   }
 }
@@ -910,7 +928,7 @@ async function deleteAsset(assetId) {
   } catch(e) {
     showMessage('Failed to delete asset: ' + e.message, 'error');
     if (window.DRIVENErrorHandler) {
-      window.DRIVENErrorHandler.report('asset-management.html: deleteAsset failed — ' + (e.message || e), 'deleteAsset', e && e.stack ? e.stack : null);
+      window.DRIVENErrorHandler.report('asset-management.html: deleteAsset failed \u2014 ' + (e.message || e), 'deleteAsset', e && e.stack ? e.stack : null);
     }
   }
 }
@@ -958,7 +976,7 @@ function doPrint() {
     html += '<tr>';
     selectedCols.forEach(function(col) {
       var val = a[col.key];
-      html += '<td>' + escapeHtml((val !== undefined && val !== null && val !== '') ? String(val) : '—') + '</td>';
+      html += '<td>' + escapeHtml((val !== undefined && val !== null && val !== '') ? String(val) : '\u2014') + '</td>';
     });
     html += '</tr>';
   });
