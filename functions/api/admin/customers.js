@@ -11,14 +11,15 @@
 //
 // PAGES PROJECT BINDINGS:
 //   - D1: DB → driv-en-db
+//   - D1: EMPLOYEES_DB → employees-db
 //   - Secret: JWT_SECRET (same value as the auth worker)
 //   - Var: SENDGRID_FROM_EMAIL = noreply@driv-en.com
 //   - Var: SUPPORT_CONTACT = support@driv-en.com
 //
 // LAST UPDATED: October 5, 2026 (Session 50) — employee_count now queried
-//   from the `employees` table (active only) using `customer_id` column
-//   (NOT `org_id` — the employees table uses `customer_id` to link to orgs).
-//   This matches the admin dashboard KPI and the user-management page.
+//   from EMPLOYEES_DB (employees-db) using the `customer_id` column,
+//   filtered to active only. This matches the admin dashboard KPI and
+//   user-management page exactly.
 // ============================================================================
 
 const CORS_HEADERS = {
@@ -188,8 +189,9 @@ export async function onRequestGet(context) {
 
     // =====================================================================
     // ENRICHMENT 1: admin emails per org from users table
-    // Employee counts come from the employees table (same source as the
-    // user-management page and admin dashboard KPI), filtered to active only.
+    // Employee counts come from the employees table in employees-db
+    // (bound as EMPLOYEES_DB), filtered to active only — same source as
+    // the admin dashboard KPI and user-management page.
     // The admin is the user with role RO-Founder or RO-admin; fall back to
     // the earliest-created user in the org.
     // =====================================================================
@@ -217,10 +219,10 @@ export async function onRequestGet(context) {
       }
     } catch (dbErr) { /* users table may not exist */ }
 
-    // Employee counts — from the employees table, active only (matches user-management + admin dashboard)
-    // NOTE: The employees table uses `customer_id` (not `org_id`) to link to the organization.
+    // Employee counts — from employees-db (EMPLOYEES_DB binding), active only
+    // NOTE: The employees table uses `customer_id` to link to the organization.
     try {
-      const empRows = await env.DB.prepare(
+      const empRows = await env.EMPLOYEES_DB.prepare(
         `SELECT customer_id, COUNT(*) as emp_count
          FROM employees
          WHERE status = 'Active' OR status = 'active'
