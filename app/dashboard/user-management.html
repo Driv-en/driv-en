@@ -86,7 +86,9 @@
 /* ===== FORM ELEMENTS ===== */
 .um-form-row { margin-bottom:16px; }
 .um-form-row label { display:block; font-size:13px; font-weight:600; color:var(--text-muted); margin-bottom:4px; }
-.um-form-row input, .um-form-row select, .um-form-row textarea { width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:14px; color:var(--text); background:var(--bg-input, #fff); box-sizing:border-box; }
+.um-form-row input, .um-form-row select, .um-form-row textarea {
+  width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:14px; color:var(--text); background:var(--bg-input, #fff); box-sizing:border-box;
+}
 .um-form-row input:focus, .um-form-row select:focus, .um-form-row textarea:focus { outline:none; border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,0.15); }
 .um-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
 .um-form-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
@@ -193,14 +195,38 @@
   <div class="um-tab-logout" onclick="dashLogout()">Logout</div>
 </div>
 
+<!-- ===== ERROR RECOVERY — prevents blank screen on JS errors ===== -->
+<script>
+(function() {
+  window.addEventListener('error', function(e) {
+    if (document.getElementById('driv-en-recovery-banner')) return;
+    var banner = document.createElement('div');
+    banner.id = 'driv-en-recovery-banner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999998;background:#fee2e2;border-bottom:3px solid #dc2626;padding:16px 20px;font-family:Arial,sans-serif;display:flex;align-items:center;gap:16px;justify-content:center;';
+    var icon = '<span style="font-size:24px;">⚠️</span>';
+    var msg = '<span style="font-size:14px;color:#7f1d1d;"><strong>A page error occurred.</strong> The DRIV-EN team has been notified.</span>';
+    var btn = '<button onclick="goToMainDashboard()" style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:8px 20px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;">Return to Dashboard</button>';
+    var dismiss = '<button onclick="document.getElementById(\'driv-en-recovery-banner\').remove()" style="background:none;border:none;font-size:18px;color:#999;cursor:pointer;margin-left:8px;">×</button>';
+    banner.innerHTML = icon + msg + btn + dismiss;
+    document.body.appendChild(banner);
+  });
+})();
+</script>
+
 <!-- ===== MAIN CONTENT ===== -->
 <div class="um-main">
+
+  <!-- ===== LOADING ===== -->
   <div class="um-loading" id="umLoading">Loading user management...</div>
+
+  <!-- ===== ACCESS DENIED (shown if no permission) ===== -->
   <div class="um-denied" id="umDenied" style="display:none;">
     <h2>Access Denied</h2>
     <p>You need <strong>users.view</strong> permission to access this page.</p>
     <p>Contact your administrator if you believe this is an error.</p>
   </div>
+
+  <!-- ===== USERS TAB ===== -->
   <div class="um-tab-content" id="tab-users" style="display:none;">
     <div class="um-card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
@@ -217,12 +243,24 @@
       </div>
       <div style="overflow-x:auto;">
         <table class="um-table" id="usersTable">
-          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>2FA</th><th>Last Login</th><th>Actions</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>2FA</th>
+              <th>Last Login</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
           <tbody id="usersTableBody"></tbody>
         </table>
       </div>
     </div>
   </div>
+
+  <!-- ===== EMPLOYEES TAB ===== -->
   <div class="um-tab-content active" id="tab-employees" style="display:none;">
     <div class="um-card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
@@ -240,12 +278,22 @@
       </div>
       <div style="overflow-x:auto;">
         <table class="um-table" id="employeesTable">
-          <thead><tr><th>Emp #</th><th>Name</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Emp #</th>
+              <th>Name</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
           <tbody id="employeesTableBody"></tbody>
         </table>
       </div>
     </div>
   </div>
+
+  <!-- ===== ACTIVITY TAB ===== -->
   <div class="um-tab-content" id="tab-activity" style="display:none;">
     <div class="um-card">
       <h3>User Activity Log</h3>
@@ -267,22 +315,36 @@
       </div>
       <div style="overflow-x:auto;">
         <table class="um-table" id="activityTable">
-          <thead><tr><th>Date/Time</th><th>User</th><th>Module</th><th>Action</th><th>Details</th><th>IP Address</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Date/Time</th>
+              <th>User</th>
+              <th>Module</th>
+              <th>Action</th>
+              <th>Details</th>
+              <th>IP Address</th>
+            </tr>
+          </thead>
           <tbody id="activityTableBody"></tbody>
         </table>
       </div>
     </div>
   </div>
+
+  <!-- ===== ROLES TAB ===== -->
   <div class="um-tab-content" id="tab-roles" style="display:none;">
     <div class="um-card">
       <h3>Roles & Permission Matrix</h3>
-      <p style="color:var(--text-muted); font-size:14px; margin-bottom:16px;">Roles define the base set of permissions for a group of users. Per-employee overrides can grant or revoke individual permissions on the user detail page.</p>
+      <p style="color:var(--text-muted); font-size:14px; margin-bottom:16px;">
+        Roles define the base set of permissions for a group of users. Per-employee overrides can grant or revoke individual permissions on the user detail page.
+      </p>
       <div id="rolesContainer"></div>
     </div>
   </div>
+
 </div>
 
-<!-- ===== FOOTER ===== -->
+<!-- ===== FOOTER (loaded by dashboard-common.js) ===== -->
 <div id="dashFooter"></div>
 
 <!-- ===== USER DETAIL MODAL ===== -->
@@ -299,13 +361,28 @@
     <button class="um-modal-close" onclick="closeModal('addUserModal')">&times;</button>
     <h3>Add New User</h3>
     <div class="um-form-grid">
-      <div class="um-form-row"><label>First Name</label><input type="text" id="newUserFirst" placeholder="John"></div>
-      <div class="um-form-row"><label>Last Name</label><input type="text" id="newUserLast" placeholder="Doe"></div>
+      <div class="um-form-row">
+        <label>First Name</label>
+        <input type="text" id="newUserFirst" placeholder="John">
+      </div>
+      <div class="um-form-row">
+        <label>Last Name</label>
+        <input type="text" id="newUserLast" placeholder="Doe">
+      </div>
     </div>
-    <div class="um-form-row"><label>Email Address</label><input type="email" id="newUserEmail" placeholder="john.doe@company.com"></div>
+    <div class="um-form-row">
+      <label>Email Address</label>
+      <input type="email" id="newUserEmail" placeholder="john.doe@company.com">
+    </div>
     <div class="um-form-grid">
-      <div class="um-form-row"><label>Role</label><select id="newUserRole"></select></div>
-      <div class="um-form-row"><label>Temporary Password</label><input type="text" id="newUserPassword" placeholder="User will be prompted to change"></div>
+      <div class="um-form-row">
+        <label>Role</label>
+        <select id="newUserRole"></select>
+      </div>
+      <div class="um-form-row">
+        <label>Temporary Password</label>
+        <input type="text" id="newUserPassword" placeholder="User will be prompted to change">
+      </div>
     </div>
     <div style="display:flex; gap:12px; margin-top:20px;">
       <button class="um-btn um-btn-primary" onclick="createUser()">Create User</button>
@@ -320,35 +397,96 @@
     <button class="um-modal-close" onclick="closeModal('addEmployeeModal')">&times;</button>
     <h3>Add New Employee</h3>
     <div class="um-form-grid">
-      <div class="um-form-row"><label>Employee Number</label><input type="text" id="newEmpNumber" placeholder="EMP-001"></div>
-      <div class="um-form-row"><label>Role</label><select id="newEmpRole"><option value="">Select a role...</option></select></div>
+      <div class="um-form-row">
+        <label>Employee Number</label>
+        <input type="text" id="newEmpNumber" placeholder="EMP-001">
+      </div>
+      <div class="um-form-row">
+        <label>Role</label>
+        <select id="newEmpRole">
+          <option value="">Select a role...</option>
+        </select>
+      </div>
     </div>
     <div class="um-form-grid">
-      <div class="um-form-row"><label>First Name *</label><input type="text" id="newEmpFirst" placeholder="John"></div>
-      <div class="um-form-row"><label>Middle Name</label><input type="text" id="newEmpMiddle" placeholder="Robert"></div>
+      <div class="um-form-row">
+        <label>First Name *</label>
+        <input type="text" id="newEmpFirst" placeholder="John">
+      </div>
+      <div class="um-form-row">
+        <label>Middle Name</label>
+        <input type="text" id="newEmpMiddle" placeholder="Robert">
+      </div>
     </div>
     <div class="um-form-grid">
-      <div class="um-form-row"><label>Last Name *</label><input type="text" id="newEmpLast" placeholder="Smith"></div>
-      <div class="um-form-row"><label>Suffix</label><select id="newEmpSuffix"><option value="">—</option><option value="Jr.">Jr.</option><option value="Sr.">Sr.</option><option value="II">II</option><option value="III">III</option><option value="IV">IV</option></select></div>
+      <div class="um-form-row">
+        <label>Last Name *</label>
+        <input type="text" id="newEmpLast" placeholder="Smith">
+      </div>
+      <div class="um-form-row">
+        <label>Suffix</label>
+        <select id="newEmpSuffix">
+          <option value="">—</option>
+          <option value="Jr.">Jr.</option>
+          <option value="Sr.">Sr.</option>
+          <option value="II">II</option>
+          <option value="III">III</option>
+          <option value="IV">IV</option>
+        </select>
+      </div>
     </div>
     <div class="um-form-grid">
-      <div class="um-form-row"><label>Phone Number *</label><input type="tel" id="newEmpPhone" placeholder="(555) 123-4567"></div>
-      <div class="um-form-row"><label>Email Address *</label><input type="email" id="newEmpEmail" placeholder="john.smith@company.com"></div>
+      <div class="um-form-row">
+        <label>Phone Number *</label>
+        <input type="tel" id="newEmpPhone" placeholder="(555) 123-4567">
+      </div>
+      <div class="um-form-row">
+        <label>Email Address *</label>
+        <input type="email" id="newEmpEmail" placeholder="john.smith@company.com">
+      </div>
     </div>
-    <div class="um-form-row"><label>Status</label><select id="newEmpStatus"><option value="Active" selected>Active</option><option value="On Leave">On Leave</option><option value="Inactive">Inactive</option></select></div>
+    <div class="um-form-row">
+      <label>Status</label>
+      <select id="newEmpStatus">
+        <option value="Active" selected>Active</option>
+        <option value="On Leave">On Leave</option>
+        <option value="Inactive">Inactive</option>
+      </select>
+    </div>
     <h4 style="margin:20px 0 8px 0; font-size:14px; color:var(--text-muted);">Optional Information</h4>
-    <div class="um-form-row"><label>Street Address</label><input type="text" id="newEmpAddress" placeholder="123 Main St"></div>
-    <div class="um-form-grid">
-      <div class="um-form-row"><label>City</label><input type="text" id="newEmpCity" placeholder="Houston"></div>
-      <div class="um-form-row"><label>State</label><input type="text" id="newEmpState" placeholder="TX" maxlength="2"></div>
+    <div class="um-form-row">
+      <label>Street Address</label>
+      <input type="text" id="newEmpAddress" placeholder="123 Main St">
     </div>
     <div class="um-form-grid">
-      <div class="um-form-row"><label>ZIP Code</label><input type="text" id="newEmpZip" placeholder="77001"></div>
-      <div class="um-form-row"><label>Date of Birth</label><input type="date" id="newEmpDob"></div>
+      <div class="um-form-row">
+        <label>City</label>
+        <input type="text" id="newEmpCity" placeholder="Houston">
+      </div>
+      <div class="um-form-row">
+        <label>State</label>
+        <input type="text" id="newEmpState" placeholder="TX" maxlength="2">
+      </div>
     </div>
     <div class="um-form-grid">
-      <div class="um-form-row"><label>Driver's License Number</label><input type="text" id="newEmpDl" placeholder="DL number"></div>
-      <div class="um-form-row"><label>DL State</label><input type="text" id="newEmpDlState" placeholder="TX" maxlength="2"></div>
+      <div class="um-form-row">
+        <label>ZIP Code</label>
+        <input type="text" id="newEmpZip" placeholder="77001">
+      </div>
+      <div class="um-form-row">
+        <label>Date of Birth</label>
+        <input type="date" id="newEmpDob">
+      </div>
+    </div>
+    <div class="um-form-grid">
+      <div class="um-form-row">
+        <label>Driver's License Number</label>
+        <input type="text" id="newEmpDl" placeholder="DL number">
+      </div>
+      <div class="um-form-row">
+        <label>DL State</label>
+        <input type="text" id="newEmpDlState" placeholder="TX" maxlength="2">
+      </div>
     </div>
     <h4 style="margin:20px 0 8px 0; font-size:14px; color:var(--text-muted);">Driver's License Images</h4>
     <div class="um-form-grid">
@@ -369,6 +507,7 @@
         <img id="dlBackPreview" style="max-width:200px; max-height:140px; margin-top:8px; border-radius:6px; border:1px solid var(--border); display:none;" />
       </div>
     </div>
+
     <div class="um-form-row" style="margin-top:16px;">
       <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
         <input type="checkbox" id="newEmpAuthorizedDriver" onchange="onAuthorizedDriverChange()" style="width:18px; height:18px; accent-color:var(--primary);">
@@ -376,6 +515,7 @@
       </label>
       <div class="hint" style="font-size:12px; color:var(--text-muted); margin-top:4px;">If checked, driver's license fields and expiration date are required.</div>
     </div>
+
     <div class="um-form-grid" id="dlExpirationRow" style="display:none;">
       <div class="um-form-row">
         <label>DL Expiration Date <span style="color:#cc0000;">*</span></label>
@@ -383,10 +523,12 @@
         <div id="dlExpirationStatus" style="font-size:12px; margin-top:4px; font-weight:600;"></div>
       </div>
     </div>
+
     <h4 style="margin:20px 0 8px 0; font-size:14px; color:var(--text-muted);">Employee-Owned Equipment</h4>
     <div class="hint" style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">Add equipment the employee owns and uses for company work (truck, welding truck, drag-up tank, etc.). Check "Additional Pay" if the employee receives compensation for using this item.</div>
     <div id="ownedEquipmentList"></div>
     <button type="button" class="um-btn um-btn-secondary um-btn-sm" onclick="addOwnedEquipmentRow()" style="margin-top:8px;">+ Add Equipment</button>
+
     <h4 style="margin:20px 0 8px 0; font-size:14px; color:var(--text-muted);">Insurance</h4>
     <div class="um-form-row">
       <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
@@ -397,10 +539,20 @@
     </div>
     <div id="insuranceFields" style="display:none;">
       <div class="um-form-grid">
-        <div class="um-form-row"><label>Insurance Company <span style="color:#cc0000;">*</span></label><input type="text" id="newEmpInsuranceCompany" placeholder="e.g., State Farm"></div>
-        <div class="um-form-row"><label>Policy Expiration Date <span style="color:#cc0000;">*</span></label><input type="date" id="newEmpInsuranceExpiration" onchange="checkInsuranceExpiration()"><div id="insuranceExpirationStatus" style="font-size:12px; margin-top:4px; font-weight:600;"></div></div>
+        <div class="um-form-row">
+          <label>Insurance Company <span style="color:#cc0000;">*</span></label>
+          <input type="text" id="newEmpInsuranceCompany" placeholder="e.g., State Farm">
+        </div>
+        <div class="um-form-row">
+          <label>Policy Expiration Date <span style="color:#cc0000;">*</span></label>
+          <input type="date" id="newEmpInsuranceExpiration" onchange="checkInsuranceExpiration()">
+          <div id="insuranceExpirationStatus" style="font-size:12px; margin-top:4px; font-weight:600;"></div>
+        </div>
       </div>
-      <div class="um-form-row"><label>Policy Limits <span style="color:#cc0000;">*</span></label><input type="text" id="newEmpInsuranceLimits" placeholder="e.g., $500,000 liability / $100,000 property"></div>
+      <div class="um-form-row">
+        <label>Policy Limits <span style="color:#cc0000;">*</span></label>
+        <input type="text" id="newEmpInsuranceLimits" placeholder="e.g., $500,000 liability / $100,000 property">
+      </div>
       <div class="um-form-row">
         <label>Photo of Insurance Card <span style="color:#cc0000;">*</span></label>
         <div style="display:flex; align-items:center; gap:10px;">
@@ -410,6 +562,7 @@
         <img id="insuranceCardPreview" style="max-width:200px; max-height:140px; margin-top:8px; border-radius:6px; border:1px solid var(--border); display:none;" />
       </div>
     </div>
+
     <div style="display:flex; gap:12px; margin-top:20px;">
       <button class="um-btn um-btn-primary" onclick="createEmployee()">Add Employee</button>
       <button class="um-btn um-btn-secondary" onclick="closeEmployeeModalWithWarning()">Cancel</button>
@@ -423,8 +576,14 @@
     <button class="um-modal-close" onclick="closeModal('createRoleModal')">&times;</button>
     <h3>Create New Role</h3>
     <div class="um-form-grid">
-      <div class="um-form-row"><label>Role Name *</label><input type="text" id="newRoleName" placeholder="e.g. Field Supervisor"></div>
-      <div class="um-form-row"><label>Description</label><input type="text" id="newRoleDesc" placeholder="Brief description of this role"></div>
+      <div class="um-form-row">
+        <label>Role Name *</label>
+        <input type="text" id="newRoleName" placeholder="e.g. Field Supervisor">
+      </div>
+      <div class="um-form-row">
+        <label>Description</label>
+        <input type="text" id="newRoleDesc" placeholder="Brief description of this role">
+      </div>
     </div>
     <h4 style="margin:20px 0 8px 0; font-size:15px;">Permissions</h4>
     <p style="font-size:13px; color:var(--text-muted); margin:0 0 12px 0;">Select which permissions this role grants. Individual overrides can be applied per-employee on the user detail page.</p>
@@ -443,8 +602,14 @@
     <h3>Edit Role & Permissions</h3>
     <input type="hidden" id="editRoleId">
     <div class="um-form-grid">
-      <div class="um-form-row"><label>Role Name *</label><input type="text" id="editRoleName"></div>
-      <div class="um-form-row"><label>Description</label><input type="text" id="editRoleDesc"></div>
+      <div class="um-form-row">
+        <label>Role Name *</label>
+        <input type="text" id="editRoleName">
+      </div>
+      <div class="um-form-row">
+        <label>Description</label>
+        <input type="text" id="editRoleDesc">
+      </div>
     </div>
     <h4 style="margin:20px 0 8px 0; font-size:15px;">Permissions</h4>
     <p style="font-size:13px; color:var(--text-muted); margin:0 0 12px 0;">Toggle permissions on or off for this role. Changes affect all users assigned to this role.</p>
@@ -457,7 +622,7 @@
 </div>
 
 <!-- ===== DASHBOARD COMMON JS ===== -->
-<script src="/app/shared/dashboard-common.js?v=13"></script>
+<script src="/app/shared/dashboard-common.js?v=14"></script>
 
 <script>
 // ==========================================
@@ -474,15 +639,14 @@ var canEdit = false;
 var canAdd = false;
 
 // ===== INIT =====
-// Wait for DOM to be fully parsed before running init
-function umInit() {
+async function umInit() {
   var user = window.dashUser;
   if (!user) { window.location.href = '/public/login.html'; return; }
 
   userPermissions = user.permissions || [];
 
-  // Check access
-  if (!hasPermission('users.view') && !hasPermission('employees.view') && user.role !== 'DRIV-EN Founder' && user.role !== 'Admin') {
+  var userRoleLower = (user.role || '').toLowerCase();
+  if (!hasPermission('users.view') && !hasPermission('employees.view') && userRoleLower !== 'driv-en founder' && userRoleLower !== 'admin' && userRoleLower !== 'administrator' && userRoleLower !== 'owner') {
     var lmLoading = document.getElementById('umLoading');
     var lmDenied = document.getElementById('umDenied');
     if (lmLoading) lmLoading.style.display = 'none';
@@ -490,11 +654,10 @@ function umInit() {
     return;
   }
 
-  canEdit = hasPermission('users.edit') || hasPermission('user.manage') || user.role === 'DRIV-EN Founder' || user.role === 'Admin';
-  canAdd = hasPermission('users.add') || hasPermission('user.manage') || user.role === 'DRIV-EN Founder' || user.role === 'Admin';
+  canEdit = hasPermission('users.edit') || hasPermission('user.manage') || userRoleLower === 'driv-en founder' || userRoleLower === 'admin' || userRoleLower === 'administrator' || userRoleLower === 'owner';
+  canAdd = hasPermission('users.add') || hasPermission('user.manage') || userRoleLower === 'driv-en founder' || userRoleLower === 'admin' || userRoleLower === 'administrator' || userRoleLower === 'owner';
 
-  // Onboarding gate: Admin/Owner/Founder bypass, all others blocked until onboarding complete
-  var isAdminOrOwner = user.role === 'DRIV-EN Founder' || user.role === 'Admin' || (user.role || '').toLowerCase() === 'owner';
+  var isAdminOrOwner = userRoleLower === 'driv-en founder' || userRoleLower === 'admin' || userRoleLower === 'administrator' || userRoleLower === 'owner';
   if (!isAdminOrOwner) {
     try {
       var settingsResp = fetch('/auth/get-settings');
@@ -505,7 +668,6 @@ function umInit() {
         return;
       }
     } catch(e) {
-      // If we can't verify, allow access (fail open for Admin convenience)
     }
   }
 
@@ -521,7 +683,6 @@ function umInit() {
   if (umLoading) umLoading.style.display = 'none';
   if (tabEmployees) tabEmployees.style.display = 'block';
 
-  // Fix header layout
   var headerAttempts = 0;
   var headerInterval = setInterval(function() {
     headerAttempts++;
@@ -530,13 +691,11 @@ function umInit() {
     }
   }, 100);
 
-  // Load data
   await Promise.all([loadUsers(), loadRoles(), loadPermissions()]);
   loadEmployees();
   loadActivity();
 }
 
-// Fire umInit when session is loaded AND DOM is ready
 document.addEventListener('dashSessionLoaded', function() {
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', umInit);
@@ -549,7 +708,6 @@ function hasPermission(perm) {
   return userPermissions.indexOf(perm) !== -1;
 }
 
-// ===== TAB SWITCHING =====
 function switchTab(tab) {
   document.querySelectorAll('.um-tab').forEach(function(t) { t.classList.remove('active'); });
   document.querySelectorAll('.um-tab-content').forEach(function(c) { c.style.display = 'none'; });
@@ -559,7 +717,6 @@ function switchTab(tab) {
   if (tabContent) tabContent.style.display = 'block';
 }
 
-// ===== BACK TO MAIN DASHBOARD =====
 function goToMainDashboard() {
   var savedOrigin = sessionStorage.getItem('driven_dashboard_origin');
   if (savedOrigin) {
@@ -578,13 +735,11 @@ function goToMainDashboard() {
   }
 }
 
-// ===== FIX HEADER =====
 function fixHeaderLayout() {
   var header = document.querySelector('.dash-header');
   if (!header) return false;
   var row1 = header.querySelector('.dash-header-row1');
   var row2 = header.querySelector('.dash-header-row2');
-  var row3 = header.querySelector('.dash-header-row3');
   var h1 = row2 ? row2.querySelector('h1') : null;
   if (!row1 || !h1) return false;
   if (h1.parentNode === row1) return true;
@@ -593,11 +748,11 @@ function fixHeaderLayout() {
   row1.style.cssText = 'display:flex !important; justify-content:space-between !important; align-items:center !important; padding:8px 20px !important; gap:16px !important;';
   h1.style.cssText = 'margin:0; font-size:20px; font-weight:600; text-align:center; flex:1;';
   if (row2) row2.style.display = 'none';
+  var row3 = header.querySelector('.dash-header-row3');
   if (row3) row3.style.display = 'none';
   return true;
 }
 
-// ===== MODAL HELPERS =====
 function closeModal(id) { var el = document.getElementById(id); if (el) el.classList.remove('show'); }
 function openModal(id) { var el = document.getElementById(id); if (el) el.classList.add('show'); }
 
@@ -616,7 +771,6 @@ function formatDate(d) {
   catch(e) { return esc(d); }
 }
 
-// ===== LOAD USERS =====
 async function loadUsers() {
   try {
     var resp = await fetch('/api/onboarding/users/list');
@@ -633,7 +787,6 @@ async function loadUsers() {
     console.error('loadUsers error:', e.message);
     allUsers = [];
   }
-
   if (allUsers.length === 0) {
     try {
       var resp2 = await fetch('/auth/users');
@@ -643,7 +796,6 @@ async function loadUsers() {
       console.error('loadUsers fallback error:', e2.message);
     }
   }
-
   renderUsers();
 }
 
@@ -653,7 +805,6 @@ function renderUsers() {
     tbody.innerHTML = '<tr><td colspan="7" class="um-empty">No users found. Users are created during onboarding when key personnel are assigned roles.</td></tr>';
     return;
   }
-
   tbody.innerHTML = allUsers.map(function(u) {
     var name = u.full_name || [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email;
     var isActive = u.is_active === 1 || u.is_active === true || u.status === 'active';
@@ -683,16 +834,13 @@ function filterUsers() {
   });
 }
 
-// ===== USER DETAIL =====
 async function showUserDetail(userId) {
   var user = allUsers.find(function(u) { return u.id === userId; });
   if (!user) return;
-
   var name = user.full_name || [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
   var isActive = user.is_active === 1 || user.is_active === true || user.status === 'active';
   var has2fa = user.twofa_enabled === 1 || user.twofa_enabled === true;
   var roleName = user.role_name || user.role || '—';
-
   var html = '<div class="um-detail-header">' +
     '<div class="um-avatar">' + initials(name) + '</div>' +
     '<div>' +
@@ -705,7 +853,6 @@ async function showUserDetail(userId) {
       '</div>' +
     '</div>' +
   '</div>';
-
   html += '<div class="um-card" style="margin-bottom:20px;">' +
     '<h3>Account Information</h3>' +
     '<div class="um-form-grid">' +
@@ -716,7 +863,6 @@ async function showUserDetail(userId) {
       '<div><strong>Created:</strong> ' + formatDate(user.created_at) + '</div>' +
       '<div><strong>Must Change Password:</strong> ' + (user.must_change_password ? 'Yes' : 'No') + '</div>' +
     '</div>';
-
   if (canEdit) {
     html += '<div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">' +
       '<button class="um-btn um-btn-primary um-btn-sm" onclick="toggleUserStatus(\'' + esc(userId) + '\', ' + isActive + ')">' + (isActive ? 'Deactivate' : 'Activate') + ' User</button>' +
@@ -725,87 +871,91 @@ async function showUserDetail(userId) {
     '</div>';
   }
   html += '</div>';
-
   html += '<div class="um-card" style="margin-bottom:20px;">' +
     '<h3>Permissions</h3>' +
-    '<p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">Role permissions are inherited from <strong>' + esc(roleName) + '</strong>. Overrides can grant or revoke individual permissions for this user.</p>' +
+    '<p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">' +
+      'Role permissions are inherited from <strong>' + esc(roleName) + '</strong>. Overrides can grant or revoke individual permissions for this user.' +
+    '</p>' +
     '<div id="permContainer">Loading permissions...</div>' +
   '</div>';
-
   html += '<div class="um-card" style="margin-bottom:20px;">' +
     '<h3>Activity History</h3>' +
     '<div id="userActivityContainer">Loading activity...</div>' +
   '</div>';
-
   html += '<div class="um-card">' +
     '<h3>Work History</h3>' +
     '<div id="userWorkHistory">Loading work history...</div>' +
   '</div>';
-
   document.getElementById('userDetailContent').innerHTML = html;
   openModal('userDetailModal');
-
   userBaseVersion = user.updated_at || null;
-
   loadUserPermissions(userId);
   loadUserActivity(userId);
   loadUserWorkHistory(userId, user.email);
 }
 
-// ===== LOAD USER PERMISSIONS =====
 var userBaseVersion = null;
 
 async function loadUserPermissions(userId) {
   try {
     var resp = await fetch('/api/onboarding/users/' + userId + '/permissions');
     var data = await resp.json();
-
     if (!data.success) {
       document.getElementById('permContainer').innerHTML = '<p style="color:var(--text-muted);">Unable to load permissions.</p>';
       return;
     }
-
     userBaseVersion = data.base_version || null;
-
     var rolePerms = data.rolePermissions || [];
     var overrides = data.overrides || [];
     var effective = data.effective || [];
-
     var overrideMap = {};
     overrides.forEach(function(o) { overrideMap[o.permission_id] = o.granted; });
-
     var effectiveMap = {};
     effective.forEach(function(p) { effectiveMap[p.id] = true; });
-
     var grouped = {};
     allPermissions.forEach(function(p) {
       if (!grouped[p.module]) grouped[p.module] = [];
       var isRole = rolePerms.some(function(rp) { return rp.id === p.id; });
       var override = overrideMap[p.id];
       var isEffective = effectiveMap[p.id];
-
       var source, sourceClass;
       if (override === 1) { source = 'Override: Granted'; sourceClass = 'um-perm-source-override-grant'; }
       else if (override === 0) { source = 'Override: Revoked'; sourceClass = 'um-perm-source-override-revoke'; }
       else if (isRole) { source = 'Role'; sourceClass = 'um-perm-source-role'; }
       else { source = 'Not Assigned'; sourceClass = 'um-perm-source-none'; }
-
       grouped[p.module].push({
         id: p.id, name: p.name, description: p.description || '',
         isRole: isRole, override: override, isEffective: isEffective,
         source: source, sourceClass: sourceClass
       });
     });
-
     var html = '';
     Object.keys(grouped).sort().forEach(function(module) {
-      html += '<div class="um-perm-group"><div class="um-perm-group-title">' + esc(module.charAt(0).toUpperCase() + module.slice(1)) + '</div>';
+      html += '<div class="um-perm-group">' +
+        '<div class="um-perm-group-title">' + esc(module.charAt(0).toUpperCase() + module.slice(1)) + '</div>';
       grouped[module].forEach(function(p) {
         var checked = p.isEffective ? 'checked' : '';
         var disabled = canEdit ? '' : 'disabled';
-        html += '<div class="um-perm-item"><div class="um-perm-item-left"><div><div class="um-perm-name">' + esc(p.name) + '</div><div class="um-perm-desc">' + esc(p.description) + '</div></div><span class="um-perm-source ' + p.sourceClass + '">' + p.source + '</span></div>' +
-          (canEdit ? '<label class="um-perm-toggle"><input type="checkbox" ' + checked + ' ' + disabled + ' onchange="togglePermission(\'' + esc(userId) + '\', \'\'' + esc(p.id) + '\', this.checked)"><span class="um-perm-slider"></span></label>' : '') +
+        html += '<div class="um-perm-item">' +
+          '<div class="um-perm-item-left">' +
+            '<div>' +
+              '<div class="um-perm-name">' + esc(p.name) + '</div>' +
+              '<div class="um-perm-desc">' + esc(p.description) + '</div>' +
+            '</div>' +
+            '<span class="um-perm-source ' + p.sourceClass + '">' + p.source + '</span>' +
+          '</div>' +
+          (canEdit ? '<label class="um-perm-toggle"><input type="checkbox" ' + checked + ' ' + disabled + ' onchange="togglePermission(\'' + esc(userId) + '\', \'" + esc(p.id) + "\', this.checked)"><span class="um-perm-slider"></span></label>' : '') +
         '</div>';
+      });
+      html += '</div>';
+    });
+    document.getElementById('permContainer').innerHTML = html || '<p style="color:var(--text-muted);">No permissions configured.</p>';
+  } catch (e) {
+    console.error('loadUserPermissions error:', e.message);
+    document.getElementById('permContainer').innerHTML = '<p style="color:var(--text-muted);">Unable to load permissions.</p>';
+  }
+}
+          '</div>';
       });
       html += '</div>';
     });
@@ -823,7 +973,11 @@ async function togglePermission(userId, permId, isGranted) {
     var resp = await fetch('/api/onboarding/users/' + userId + '/permissions', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ permission_id: permId, granted: isGranted, base_version: userBaseVersion })
+      body: JSON.stringify({
+        permission_id: permId,
+        granted: isGranted,
+        base_version: userBaseVersion
+      })
     });
 
     if (resp.status === 409) {
@@ -852,7 +1006,8 @@ async function togglePermission(userId, permId, isGranted) {
 function showConflictNotice(userId, conflictData) {
   var banner = document.createElement('div');
   banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#fef3c7;border-bottom:2px solid #f59e0b;padding:14px 20px;z-index:10000;font-size:14px;color:#92400e;display:flex;align-items:center;justify-content:center;gap:10px;';
-  banner.innerHTML = '<strong>⚠️ Conflict:</strong> This user was modified by another manager. <span style="text-decoration:underline;cursor:pointer;" id="conflictRefreshBtn">Refresh your view</span>';
+  banner.innerHTML = '<strong>⚠️ Conflict:</strong> This user was modified by another manager. ' +
+    '<span style="text-decoration:underline;cursor:pointer;" id="conflictRefreshBtn">Refresh your view</span>';
   document.body.appendChild(banner);
 
   document.getElementById('conflictRefreshBtn').onclick = function() {
@@ -881,7 +1036,12 @@ async function loadUserActivity(userId) {
       else if (log.action === 'update' || log.action === 'status_change') dotClass += '';
       else dotClass += ' gray';
 
-      html += '<div class="um-timeline-item"><div class="' + dotClass + '"></div><div class="um-timeline-date">' + formatDate(log.created_at) + '</div><div class="um-timeline-action">' + esc(log.action || '—') + ' — ' + esc(log.module || '—') + '</div><div class="um-timeline-detail">' + esc(log.table_name || '') + (log.record_id ? ' • ' + esc(log.record_id.substring(0,12)) : '') + '</div></div>';
+      html += '<div class="um-timeline-item">' +
+        '<div class="' + dotClass + '"></div>' +
+        '<div class="um-timeline-date">' + formatDate(log.created_at) + '</div>' +
+        '<div class="um-timeline-action">' + esc(log.action || '—') + ' — ' + esc(log.module || '—') + '</div>' +
+        '<div class="um-timeline-detail">' + esc(log.table_name || '') + (log.record_id ? ' • ' + esc(log.record_id.substring(0,12)) : '') + '</div>' +
+      '</div>';
     });
     html += '</div>';
 
@@ -1001,7 +1161,10 @@ async function toggleUserStatus(userId, currentlyActive) {
     var resp = await fetch('/api/onboarding/users/' + userId + '/status', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_active: !currentlyActive, base_version: userBaseVersion })
+      body: JSON.stringify({
+        is_active: !currentlyActive,
+        base_version: userBaseVersion
+      })
     });
 
     if (resp.status === 409) {
@@ -1073,7 +1236,7 @@ async function createUser() {
   var password = document.getElementById('newUserPassword').value;
 
   if (!email) { alert('Email is required'); return; }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Please enter a valid email address'); return; }
+  if (!/^([^\s@]+@[^\s@]+\.[^\s@]+)$/.test(email)) { alert('Please enter a valid email address'); return; }
   if (!roleId) { alert('Role is required'); return; }
   if (!password) { alert('Temporary password is required'); return; }
   if (password.length < 8) { alert('Password must be at least 8 characters'); return; }
@@ -1150,7 +1313,7 @@ function editEmployee(empId) {
 
 // ===== ADD EMPLOYEE =====
 function openAddEmployeeModal() {
-    document.getElementById('newEmpNumber').value = '';
+  document.getElementById('newEmpNumber').value = '';
   var roleSelect = document.getElementById('newEmpRole');
   roleSelect.innerHTML = '<option value="">Select a role...</option>' +
     allRoles.filter(function(r) { return r.name !== 'DRIV-EN Founder'; }).map(function(r) { return '<option value="' + esc(r.name) + '">' + esc(r.name) + '</option>'; }).join('');
@@ -1439,7 +1602,7 @@ async function createEmployee() {
   if (!ln) { alert('Last name is required'); return; }
   if (!phone) { alert('Phone number is required'); return; }
   if (!email) { alert('Email address is required'); return; }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Please enter a valid email address'); return; }
+  if (!/^([^\s@]+@[^\s@]+\.[^\s@]+)$/.test(email)) { alert('Please enter a valid email address'); return; }
 
   var authorizedDriver = document.getElementById('newEmpAuthorizedDriver').checked;
   var dlExpiration = document.getElementById('newEmpDlExpiration').value;
@@ -1554,11 +1717,9 @@ async function loadRoles() {
 
 function renderRoles() {
   var container = document.getElementById('rolesContainer');
-
   var customerRoles = allRoles.filter(function(r) {
     return !(r.is_system === 1 || r.is_system === true);
   });
-
   if (customerRoles.length === 0) {
     container.innerHTML = '<p class="um-empty">No roles found. Click "Create Role" to add one.</p>';
   } else {
@@ -1569,7 +1730,7 @@ function renderRoles() {
           '<div><strong style="font-size:16px;">' + esc(r.name) + '</strong></div>' +
           (canEdit ? '<div style="display:flex; gap:8px;">' +
             '<button class="um-btn um-btn-secondary um-btn-sm" onclick="editRole(\'' + esc(r.id) + '\')">Edit Permissions</button>' +
-            '<button class="um-btn um-btn-danger um-btn-sm" onclick="deleteRole(\'' + esc(r.id) + '\', \'\'' + esc(r.name) + '\')">Delete</button>' +
+            '<button class="um-btn um-btn-danger um-btn-sm" onclick="deleteRole(\'' + esc(r.id) + '\', \'" + esc(r.name) + "\')">Delete</button>' +
           '</div>' : '') +
         '</div>' +
         (desc ? '<p style="font-size:13px; color:var(--text-muted); margin:4px 0 8px 0;">' + esc(desc) + '</p>' : '') +
@@ -1577,11 +1738,9 @@ function renderRoles() {
       '</div>';
     }).join('');
   }
-
   if (canEdit) {
     container.innerHTML = '<div style="margin-bottom:16px;"><button class="um-btn um-btn-primary um-btn-sm" onclick="openCreateRoleModal()">+ Create Role</button></div>' + container.innerHTML;
   }
-
   customerRoles.forEach(function(r) { loadRolePermissions(r.id); });
 }
 
@@ -1604,30 +1763,33 @@ async function loadRolePermissions(roleId) {
 function editRole(roleId) {
   var role = allRoles.find(function(r) { return r.id === roleId; });
   if (!role) return;
-
   document.getElementById('editRoleName').value = role.name || '';
   document.getElementById('editRoleDesc').value = role.description || '';
   document.getElementById('editRoleId').value = roleId;
-
   var grouped = {};
   allPermissions.forEach(function(p) {
     if (!grouped[p.module]) grouped[p.module] = [];
     grouped[p.module].push(p);
   });
-
   var html = '';
   Object.keys(grouped).sort().forEach(function(mod) {
-    html += '<div class="um-perm-group"><div class="um-perm-group-title">' + esc(mod.charAt(0).toUpperCase() + mod.slice(1)) + '</div>';
+    html += '<div class="um-perm-group">' +
+      '<div class="um-perm-group-title">' + esc(mod.charAt(0).toUpperCase() + mod.slice(1)) + '</div>';
     grouped[mod].forEach(function(p) {
-      html += '<div class="um-perm-item"><div class="um-perm-item-left"><div><div class="um-perm-name">' + esc(p.name) + '</div><div class="um-perm-desc">' + esc(p.description || '') + '</div></div></div><label class="um-perm-toggle"><input type="checkbox" id="perm_' + esc(p.id) + '" data-perm-id="' + esc(p.id) + '"><span class="um-perm-slider"></span></label></div>';
+      html += '<div class="um-perm-item">' +
+        '<div class="um-perm-item-left">' +
+          '<div>' +
+            '<div class="um-perm-name">' + esc(p.name) + '</div>' +
+            '<div class="um-perm-desc">' + esc(p.description || '') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<label class="um-perm-toggle"><input type="checkbox" id="perm_' + esc(p.id) + '" data-perm-id="' + esc(p.id) + '"><span class="um-perm-slider"></span></label>' +
+      '</div>';
     });
     html += '</div>';
   });
-
   document.getElementById('editRolePermContainer').innerHTML = html || '<p style="color:var(--text-muted);">No permissions available.</p>';
-
   loadRolePermissionsForEdit(roleId);
-
   openModal('editRoleModal');
 }
 
@@ -1647,14 +1809,11 @@ async function saveRolePermissions() {
   var roleId = document.getElementById('editRoleId').value;
   var name = document.getElementById('editRoleName').value.trim();
   var desc = document.getElementById('editRoleDesc').value.trim();
-
   if (!name) { alert('Role name is required'); return; }
-
   var permIds = [];
   document.querySelectorAll('#editRolePermContainer input[type="checkbox"]').forEach(function(cb) {
     if (cb.checked) permIds.push(cb.getAttribute('data-perm-id'));
   });
-
   try {
     var updateResp = await fetch('/api/onboarding/roles/' + roleId, {
       method: 'PUT',
@@ -1662,14 +1821,12 @@ async function saveRolePermissions() {
       body: JSON.stringify({ name: name, description: desc })
     });
     if (!updateResp.ok) { var err = await updateResp.json(); alert('Failed to update role: ' + (err.error || 'Unknown')); return; }
-
     var permResp = await fetch('/api/onboarding/roles/' + roleId + '/permissions', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ permissionIds: permIds })
     });
     var permData = await permResp.json();
-
     if (permData.success) {
       alert('Role "' + name + '" updated with ' + permIds.length + ' permissions.');
       closeModal('editRoleModal');
@@ -1699,22 +1856,28 @@ async function deleteRole(roleId, roleName) {
 function openCreateRoleModal() {
   document.getElementById('newRoleName').value = '';
   document.getElementById('newRoleDesc').value = '';
-
   var grouped = {};
   allPermissions.forEach(function(p) {
     if (!grouped[p.module]) grouped[p.module] = [];
     grouped[p.module].push(p);
   });
-
   var html = '';
   Object.keys(grouped).sort().forEach(function(mod) {
-    html += '<div class="um-perm-group"><div class="um-perm-group-title">' + esc(mod.charAt(0).toUpperCase() + mod.slice(1)) + '</div>';
+    html += '<div class="um-perm-group">' +
+      '<div class="um-perm-group-title">' + esc(mod.charAt(0).toUpperCase() + mod.slice(1)) + '</div>';
     grouped[mod].forEach(function(p) {
-      html += '<div class="um-perm-item"><div class="um-perm-item-left"><div><div class="um-perm-name">' + esc(p.name) + '</div><div class="um-perm-desc">' + esc(p.description || '') + '</div></div></div><label class="um-perm-toggle"><input type="checkbox" id="newperm_' + esc(p.id) + '" data-perm-id="' + esc(p.id) + '"><span class="um-perm-slider"></span></label></div>';
+      html += '<div class="um-perm-item">' +
+        '<div class="um-perm-item-left">' +
+          '<div>' +
+            '<div class="um-perm-name">' + esc(p.name) + '</div>' +
+            '<div class="um-perm-desc">' + esc(p.description || '') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<label class="um-perm-toggle"><input type="checkbox" id="newperm_' + esc(p.id) + '" data-perm-id="' + esc(p.id) + '"><span class="um-perm-slider"></span></label>' +
+      '</div>';
     });
     html += '</div>';
   });
-
   document.getElementById('newRolePermContainer').innerHTML = html || '<p style="color:var(--text-muted);">No permissions available.</p>';
   openModal('createRoleModal');
 }
@@ -1722,14 +1885,11 @@ function openCreateRoleModal() {
 async function createRole() {
   var name = document.getElementById('newRoleName').value.trim();
   var desc = document.getElementById('newRoleDesc').value.trim();
-
   if (!name) { alert('Role name is required'); return; }
-
   var permIds = [];
   document.querySelectorAll('#newRolePermContainer input[type="checkbox"]').forEach(function(cb) {
     if (cb.checked) permIds.push(cb.getAttribute('data-perm-id'));
   });
-
   try {
     var createResp = await fetch('/api/onboarding/roles', {
       method: 'POST',
@@ -1737,11 +1897,8 @@ async function createRole() {
       body: JSON.stringify({ name: name, description: desc })
     });
     var createData = await createResp.json();
-
     if (!createData.success) { alert('Failed to create role: ' + (createData.error || 'Unknown')); return; }
-
     var roleId = createData.role.id;
-
     if (permIds.length > 0) {
       await fetch('/api/onboarding/roles/' + roleId + '/permissions', {
         method: 'PUT',
@@ -1749,7 +1906,6 @@ async function createRole() {
         body: JSON.stringify({ permissionIds: permIds })
       });
     }
-
     alert('Role "' + name + '" created with ' + permIds.length + ' permissions.');
     closeModal('createRoleModal');
     await loadRoles();
