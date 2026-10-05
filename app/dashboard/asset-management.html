@@ -613,7 +613,9 @@ function populateDropdown(selectId, items, includeNone) {
     opt.textContent = item.name;
     sel.appendChild(opt);
   });
-  sel.value = currentVal;
+  // Only restore previous value if it still exists in the new options
+  var stillExists = Array.from(sel.options).some(function(opt) { return opt.value === currentVal; });
+  sel.value = stillExists ? currentVal : '';
 }
 
 // ===== NORMALIZE ASSET =====
@@ -655,18 +657,78 @@ async function loadAssets() {
     var data = await resp.json();
     if (resp.ok && data && data.records) {
       allAssets = data.records.map(normalizeAsset);
+    } else if (resp.status === 401) {
+      allAssets = [];
+      tbody.textContent = '';
+      var errRow = document.createElement('tr');
+      var errCell = document.createElement('td');
+      errCell.className = 'am-empty';
+      errCell.style.color = 'var(--error)';
+      errCell.textContent = 'Your session has expired. Please log in again.';
+      errRow.appendChild(errCell);
+      tbody.appendChild(errRow);
+      if (window.DRIVENErrorHandler) {
+        window.DRIVENErrorHandler.report(
+          'asset-management.html: loadAssets got 401 — session expired',
+          'loadAssets', null
+        );
+      }
+      renderTableHead();
+      renderColTogglePanel();
+      return;
+    } else if (resp.status === 403) {
+      allAssets = [];
+      tbody.textContent = '';
+      var errRow3 = document.createElement('tr');
+      var errCell3 = document.createElement('td');
+      errCell3.className = 'am-empty';
+      errCell3.style.color = 'var(--error)';
+      errCell3.textContent = 'You do not have permission to view assets.';
+      errRow3.appendChild(errCell3);
+      tbody.appendChild(errRow3);
+      renderTableHead();
+      renderColTogglePanel();
+      return;
     } else {
       allAssets = [];
+      tbody.textContent = '';
+      var errRow2 = document.createElement('tr');
+      var errCell2 = document.createElement('td');
+      errCell2.className = 'am-empty';
+      errCell2.style.color = 'var(--error)';
+      errCell2.textContent = 'Failed to load assets (HTTP ' + resp.status + '). Please try again or contact support.';
+      errRow2.appendChild(errCell2);
+      tbody.appendChild(errRow2);
+      if (window.DRIVENErrorHandler) {
+        window.DRIVENErrorHandler.report(
+          'asset-management.html: loadAssets got HTTP ' + resp.status + ' — ' + (data.error || data.message || ''),
+          'loadAssets', null
+        );
+      }
+      renderTableHead();
+      renderColTogglePanel();
+      return;
     }
   } catch(e) {
     console.error('loadAssets error:', e);
     allAssets = [];
+    tbody.textContent = '';
+    var errRow4 = document.createElement('tr');
+    var errCell4 = document.createElement('td');
+    errCell4.className = 'am-empty';
+    errCell4.style.color = 'var(--error)';
+    errCell4.textContent = 'Network error — could not reach the server. Please check your connection and try again.';
+    errRow4.appendChild(errCell4);
+    tbody.appendChild(errRow4);
     if (window.DRIVENErrorHandler) {
       window.DRIVENErrorHandler.report(
         'asset-management.html: loadAssets failed — ' + (e.message || e),
         'loadAssets', e && e.stack ? e.stack : null
       );
     }
+    renderTableHead();
+    renderColTogglePanel();
+    return;
   }
 
   renderTableHead();
@@ -748,7 +810,7 @@ function renderAssetTable() {
       (a.type && a.type.toLowerCase().indexOf(search) !== -1) ||
       (a.project && a.project.toLowerCase().indexOf(search) !== -1) ||
       (a.location && a.location.toLowerCase().indexOf(search) !== -1);
-    var matchesType = !filterType || a.type === filterType;
+    var matchesType = !filterType || (a.type && a.type.toLowerCase() === filterType.toLowerCase());
     var matchesStatus = !filterStatus || (a.status && a.status.toLowerCase() === filterStatus.toLowerCase());
     return matchesSearch && matchesType && matchesStatus;
   });
@@ -806,12 +868,20 @@ function renderAssetTable() {
         badge.textContent = val;
         td.appendChild(badge);
       } else if (col.key === 'type') {
-        // Only show the type if it matches a configured asset type;
-        // otherwise show '—' (no configured types yet, or legacy value)
+        // Show the actual type value; if it doesn't match a configured asset type,
+        // show it with a muted style so the user knows it's not in their configured list
         var isConfigured = assetTypes.some(function(at) {
           return at.name && at.name.toLowerCase() === String(val || '').toLowerCase();
         });
-        td.textContent = (val && isConfigured) ? val : '—';
+        if (val && isConfigured) {
+          td.textContent = val;
+        } else if (val) {
+          td.textContent = val;
+          td.style.opacity = '0.5';
+          td.title = 'This type is not in your configured asset types';
+        } else {
+          td.textContent = '—';
+        }
       } else if (col.key === 'meter') {
         td.textContent = (val !== null && val !== undefined && val !== '') ? val : '—';
       } else {
@@ -1353,7 +1423,7 @@ function getFilteredSorted() {
       (a.type && a.type.toLowerCase().indexOf(search) !== -1) ||
       (a.project && a.project.toLowerCase().indexOf(search) !== -1) ||
       (a.location && a.location.toLowerCase().indexOf(search) !== -1);
-    var matchesType = !filterType || a.type === filterType;
+    var matchesType = !filterType || (a.type && a.type.toLowerCase() === filterType.toLowerCase());
     var matchesStatus = !filterStatus || (a.status && a.status.toLowerCase() === filterStatus.toLowerCase());
     return matchesSearch && matchesType && matchesStatus;
   });
