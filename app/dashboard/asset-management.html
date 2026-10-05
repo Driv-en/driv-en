@@ -225,7 +225,8 @@
       </select>
       <button class="am-btn-small" onclick="toggleColPanel(event)">Columns</button>
       <button class="am-btn-small" onclick="openPrintModal()">Print</button>
-      <button class="am-btn-small" onclick="openExportModal()">Export CSV</button>
+      <button class="am-btn-small" onclick="openExportModal('csv')">Export CSV</button>
+      <button class="am-btn-small" onclick="openExportModal('excel')">Export Excel</button>
     </div>
 
     <div class="am-col-toggle" id="amColPanel">
@@ -324,12 +325,12 @@
 
 <div id="amExportModal" class="am-modal">
   <div class="am-modal-card">
-    <h3>Export to CSV</h3>
+    <h3 id="amExportTitle">Export to CSV</h3>
     <p class="am-modal-subtitle">Select which columns to include in the export.</p>
     <div class="am-check-grid" id="amExportCols"></div>
     <div class="am-modal-actions">
       <button class="am-btn-secondary" onclick="closeModal('amExportModal')">Cancel</button>
-      <button class="am-btn-primary" onclick="doExport()">Download CSV</button>
+      <button class="am-btn-primary" id="amExportBtn" onclick="doExport()">Download CSV</button>
     </div>
   </div>
 </div>
@@ -463,8 +464,7 @@ async function syncSettings() {
   filterType.innerHTML = '<option value="">All Types</option>';
   assetTypes.forEach(function(at) {
     var opt = document.createElement('option');
-    opt.value = at.name;
-    opt.textContent = at.name;
+    opt.value = at.name; opt.textContent = at.name;
     filterType.appendChild(opt);
   });
 }
@@ -971,7 +971,10 @@ function doPrint() {
   closeModal('amPrintModal');
 }
 
-function openExportModal() {
+var exportFormat = 'csv';
+
+function openExportModal(format) {
+  exportFormat = format || 'csv';
   var container = document.getElementById('amExportCols');
   container.textContent = '';
   COL_DEFS.forEach(function(col) {
@@ -983,6 +986,13 @@ function openExportModal() {
     item.appendChild(document.createTextNode(col.label));
     container.appendChild(item);
   });
+  if (exportFormat === 'excel') {
+    document.getElementById('amExportTitle').textContent = 'Export to Excel';
+    document.getElementById('amExportBtn').textContent = 'Download Excel';
+  } else {
+    document.getElementById('amExportTitle').textContent = 'Export to CSV';
+    document.getElementById('amExportBtn').textContent = 'Download CSV';
+  }
   document.getElementById('amExportModal').classList.add('active');
 }
 
@@ -997,25 +1007,55 @@ function doExport() {
   });
   if (selectedCols.length === 0) { showMessage('Select at least one column to export.', 'error'); return; }
   var filtered = getFilteredSorted();
-  var csv = selectedCols.map(function(c) { return csvEscape(c.label); }).join(',') + '\n';
-  filtered.forEach(function(a) {
-    var row = selectedCols.map(function(col) {
-      var val = a[col.key];
-      return csvEscape((val !== undefined && val !== null && val !== '') ? String(val) : '');
+  var dateStr = new Date().toISOString().slice(0,10);
+  var label = exportFormat === 'excel' ? 'Excel' : 'CSV';
+  if (exportFormat === 'excel') {
+    var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+    html += '<head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Assets</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>';
+    html += '<body><table border="1"><thead><tr>';
+    selectedCols.forEach(function(col) {
+      html += '<th style="background:#e2e8f0;font-weight:bold;">' + escapeHtml(col.label) + '</th>';
     });
-    csv += row.join(',') + '\n';
-  });
-  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  var url = URL.createObjectURL(blob);
-  var link = document.createElement('a');
-  link.href = url;
-  link.download = 'driv-en-assets-' + new Date().toISOString().slice(0,10) + '.csv';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+    html += '</tr></thead><tbody>';
+    filtered.forEach(function(a) {
+      html += '<tr>';
+      selectedCols.forEach(function(col) {
+        var val = a[col.key];
+        html += '<td>' + escapeHtml((val !== undefined && val !== null && val !== '') ? String(val) : '') + '</td>';
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table></body></html>';
+    var blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = 'driv-en-assets-' + dateStr + '.xls';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } else {
+    var csv = selectedCols.map(function(c) { return csvEscape(c.label); }).join(',') + '\n';
+    filtered.forEach(function(a) {
+      var row = selectedCols.map(function(col) {
+        var val = a[col.key];
+        return csvEscape((val !== undefined && val !== null && val !== '') ? String(val) : '');
+      });
+      csv += row.join(',') + '\n';
+    });
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = 'driv-en-assets-' + dateStr + '.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
   closeModal('amExportModal');
-  showMessage('Exported ' + filtered.length + ' assets to CSV.', 'success');
+  showMessage('Exported ' + filtered.length + ' assets to ' + label + '.', 'success');
 }
 
 function csvEscape(val) {
