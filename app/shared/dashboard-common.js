@@ -1,48 +1,10 @@
-/* ==========================================================================
-   DRIV‑EN DASHBOARD COMMON JS — Shared across all dashboard pages
-   ==========================================================================
-   This file is loaded by every dashboard page via:
-   <script src="/app/shared/dashboard-common.js?v=14"></script>
-
-   WHAT IT DOES (in order):
-   1. Loads the shared dashboard header into <div id="dashHeader"></div>
-   2. Sets the page title from <body data-page-title="...">
-   3. Loads the customer logo from D1 (syncs across all devices)
-   4. Initializes the theme toggle (light/dark mode)
-   5. Fills the greeting bar if one exists on the page
-   6. Stores the user's org_id in localStorage for API calls
-   7. Exposes goToMainDashboard() globally for any page's onclick handler
-   8. Catches uncaught errors and shows a recovery banner (no blank screens)
-
-   HOW TO USE:
-   1. Include this script on your dashboard page
-   2. Make sure <div id="dashHeader"></div> exists in the HTML
-   3. Set <body data-page-title="Your Page Title">
-   4. (Optional) Add <div class="dash-greeting-bar"><span id="dashGreetingText">Welcome</span></div>
-      and it will be auto-filled with "Welcome, [First Name]"
-
-   YOU SHOULD NOT NEED TO EDIT THIS FILE.
-   All customization is done per-page via HTML attributes.
-   ========================================================================== */
-
+/* DRIV-EN DASHBOARD COMMON JS - Shared across all dashboard pages */
 (function() {
   'use strict';
-
-  /* ===== STATE VARIABLES ===== */
-  var dashUser = null;  // Will hold the logged-in user object from /auth/session
-
-  /* ===== SAFE STORAGE HELPERS ===== */
-  function safeGetItem(key) {
-    try { return localStorage.getItem(key); } catch (e) { return null; }
-  }
-  function safeSetItem(key, value) {
-    try { localStorage.setItem(key, value); } catch (e) { /* ignore */ }
-  }
-  function safeRemoveItem(key) {
-    try { localStorage.removeItem(key); } catch (e) { /* ignore */ }
-  }
-
-  /* ===== PWA: MANIFEST LINK + SERVICE WORKER REGISTRATION ===== */
+  var dashUser = null;
+  function safeGetItem(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+  function safeSetItem(key, value) { try { localStorage.setItem(key, value); } catch (e) { } }
+  function safeRemoveItem(key) { try { localStorage.removeItem(key); } catch (e) { } }
   (function registerPWA() {
     if (!document.querySelector('link[rel="manifest"]')) {
       var manifestLink = document.createElement('link');
@@ -54,14 +16,10 @@
       window.addEventListener('load', function() {
         navigator.serviceWorker.register('/sw.js').then(function(reg) {
           console.log('[DRIV-EN] Service worker registered:', reg.scope);
-        }).catch(function(err) {
-          console.warn('[DRIV-EN] SW registration failed:', err);
-        });
+        }).catch(function(err) { console.warn('[DRIV-EN] SW registration failed:', err); });
       });
     }
   })();
-
-  /* ===== ERROR HANDLER LOADING ===== */
   (function loadErrorHandler() {
     if (window.DRIVENErrorHandler) return;
     var script = document.createElement('script');
@@ -69,14 +27,10 @@
     script.async = false;
     document.head.appendChild(script);
   })();
-
-  /* ===== HELPER: Escape HTML (prevents XSS in injected strings) ===== */
   function escapeHtml(str) {
     if (!str) return "";
     return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
-
-  /* ===== HELPER: Load an HTML component via fetch ===== */
   async function loadComponent(elementId, file) {
     try {
       var el = document.getElementById(elementId);
@@ -84,12 +38,8 @@
       var response = await fetch(file);
       var html = await response.text();
       el.innerHTML = html;
-    } catch (e) {
-      console.error("Failed to load component:", elementId, file, e.message);
-    }
+    } catch (e) { console.error("Failed to load component:", elementId, file, e.message); }
   }
-
-  /* ===== THEME TOGGLE ===== */
   window.dashToggleTheme = function() {
     var current = document.documentElement.getAttribute("data-theme");
     var newTheme = current === "dark" ? "light" : "dark";
@@ -97,7 +47,6 @@
     safeSetItem("driven-theme", newTheme);
     updateThemeSwitch();
   };
-
   function updateThemeSwitch() {
     var current = document.documentElement.getAttribute("data-theme");
     var checkbox = document.getElementById("dashThemeCheckbox");
@@ -107,25 +56,15 @@
     if (labelLight) labelLight.classList.toggle("active", current === "light");
     if (labelDark) labelDark.classList.toggle("active", current === "dark");
   }
-
-  /* ===== LOGOUT ===== */
   window.dashLogout = async function() {
-    try {
-      await fetch("/auth/logout", { method: "POST" });
-    } catch (e) {
-      console.error("Logout error:", e.message);
-    }
+    try { await fetch("/auth/logout", { method: "POST" }); } catch (e) { console.error("Logout error:", e.message); }
     window.location.href = "/public/login.html";
   };
-
-  /* ===== SET PAGE TITLE ===== */
   function setPageTitle() {
     var title = document.body.getAttribute("data-page-title") || "Dashboard";
     var titleEl = document.getElementById("dashPageTitle");
     if (titleEl) titleEl.textContent = title;
   }
-
-  /* ===== LOAD CUSTOMER LOGO ===== */
   async function loadCustomerLogo() {
     var area = document.getElementById("dashCustomerLogoArea");
     if (!area) return;
@@ -142,9 +81,7 @@
         area.appendChild(logoImg);
         return;
       }
-    } catch (e) {
-      console.error("Logo fetch from D1 error:", e.message);
-    }
+    } catch (e) { console.error("Logo fetch from D1 error:", e.message); }
     var logoUrl = safeGetItem("driven_customer_logo");
     if (logoUrl) {
       var fallbackImg = document.createElement("img");
@@ -155,49 +92,32 @@
       area.appendChild(fallbackImg);
     }
   }
-
-  /* ===== LOAD SESSION ===== */
   async function loadSession() {
     try {
       var response = await fetch("/auth/session");
       var data = await response.json();
       if (data.authenticated && data.user) {
         dashUser = data.user;
-        if (data.user.org_id) {
-          safeSetItem("driven_customer_id", data.user.org_id);
-        }
+        if (data.user.org_id) { safeSetItem("driven_customer_id", data.user.org_id); }
         var greetingEl = document.getElementById("dashGreetingText");
         if (greetingEl) {
           var firstName = data.user.first_name || "";
           var orgName = data.user.org_name || "";
-          if (firstName && orgName) {
-            greetingEl.innerHTML = "Welcome, <strong>" + escapeHtml(firstName) + "</strong> — " + escapeHtml(orgName);
-          } else if (firstName) {
-            greetingEl.innerHTML = "Welcome, <strong>" + escapeHtml(firstName) + "</strong>";
-          } else {
-            greetingEl.innerHTML = "Welcome";
-          }
+          if (firstName && orgName) { greetingEl.innerHTML = "Welcome, <strong>" + escapeHtml(firstName) + "</strong> \u2014 " + escapeHtml(orgName); }
+          else if (firstName) { greetingEl.innerHTML = "Welcome, <strong>" + escapeHtml(firstName) + "</strong>"; }
+          else { greetingEl.innerHTML = "Welcome"; }
         }
-        if (data.user.org_name) {
-          safeSetItem("driven_org_name", data.user.org_name);
-        }
+        if (data.user.org_name) { safeSetItem("driven_org_name", data.user.org_name); }
         window.dashUser = data.user;
         var role = (data.user.role || '').toLowerCase();
         var dashUrl;
         var savedOrigin = sessionStorage.getItem('driven_dashboard_origin');
-        if (savedOrigin) {
-          dashUrl = savedOrigin;
-        } else if (role === 'owner') {
-          dashUrl = '/app/dashboard/owner-dashboard.html';
-        } else if (role === 'admin') {
-          dashUrl = '/app/dashboard/admin.html';
-        } else {
-          dashUrl = '/app/dashboard/employee-dashboard.html';
-        }
+        if (savedOrigin) { dashUrl = savedOrigin; }
+        else if (role === 'owner') { dashUrl = '/app/dashboard/owner-dashboard.html'; }
+        else if (role === 'admin') { dashUrl = '/app/dashboard/admin.html'; }
+        else { dashUrl = '/app/dashboard/employee-dashboard.html'; }
         var homeBtn = document.getElementById('dashHomeBtn');
-        if (homeBtn) {
-          homeBtn.href = dashUrl;
-        }
+        if (homeBtn) { homeBtn.href = dashUrl; }
         var currentPage = window.location.pathname;
         var isMainDashboard = currentPage.indexOf('/dashboard/') !== -1
           && currentPage.indexOf('/forms/') === -1
@@ -214,18 +134,12 @@
           && currentPage.indexOf('asset-management') === -1
           && currentPage.indexOf('project-management') === -1
           && currentPage.indexOf('company-management') === -1;
-        if (isMainDashboard) {
-          sessionStorage.setItem('driven_dashboard_origin', currentPage);
-        }
+        if (isMainDashboard) { sessionStorage.setItem('driven_dashboard_origin', currentPage); }
         return true;
       }
-    } catch (e) {
-      console.error("Session load error:", e.message);
-    }
+    } catch (e) { console.error("Session load error:", e.message); }
     return false;
   }
-
-  /* ===== INIT ===== */
   async function init() {
     await loadComponent("dashHeader", "/app/shared/dashboard-header.html");
     setPageTitle();
@@ -234,49 +148,29 @@
     await loadSession();
     await loadComponent("dashFooter", "/app/shared/dashboard-footer.html");
   }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
-
-  document.addEventListener("dashSessionLoaded", function() {
-    window.dashUser = dashUser;
-  });
-
+  if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", init); }
+  else { init(); }
+  document.addEventListener("dashSessionLoaded", function() { window.dashUser = dashUser; });
   var originalLoadSession = loadSession;
   loadSession = async function() {
     var result = await originalLoadSession();
     document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: dashUser }));
     return result;
   };
-
-  /* ===== SLIDING SESSION REFRESH ===== */
   var SESSION_REFRESH_MS = 30 * 60 * 1000;
-  var SESSION_ACTIVITY_MS = 5 * 60 * 1000;
   var sessionRefreshTimer = null;
-  var sessionActivityTimer = null;
   var lastSessionActivity = Date.now();
-
   function scheduleSessionRefresh() {
     if (sessionRefreshTimer) clearTimeout(sessionRefreshTimer);
     sessionRefreshTimer = setTimeout(refreshSessionToken, SESSION_REFRESH_MS);
   }
-
   async function refreshSessionToken() {
     try {
       var resp = await fetch("/auth/refresh", { method: "POST", credentials: "include" });
-      if (resp.ok) {
-        scheduleSessionRefresh();
-      } else {
-        console.warn("Session refresh failed:", resp.status);
-      }
-    } catch (e) {
-      console.warn("Session refresh error:", e.message);
-    }
+      if (resp.ok) { scheduleSessionRefresh(); }
+      else { console.warn("Session refresh failed:", resp.status); }
+    } catch (e) { console.warn("Session refresh error:", e.message); }
   }
-
   function onSessionActivity() {
     var now = Date.now();
     if (now - lastSessionActivity > 60 * 1000) {
@@ -284,7 +178,6 @@
       scheduleSessionRefresh();
     }
   }
-
   document.addEventListener("dashSessionLoaded", function() {
     if (!dashUser) return;
     scheduleSessionRefresh();
@@ -292,10 +185,6 @@
       document.addEventListener(evt, onSessionActivity, { passive: true });
     });
   });
-
-  /* ===== GLOBAL: goToMainDashboard ===== */
-  // Exposed globally so any page's onclick="goToMainDashboard()" works.
-  // Priority: sessionStorage origin → role-based fallback → login.
   window.goToMainDashboard = function() {
     try {
       var savedOrigin = sessionStorage.getItem('driven_dashboard_origin');
@@ -304,32 +193,45 @@
     var user = window.dashUser;
     if (!user) { window.location.href = '/public/login.html'; return; }
     var role = (user.role || '').toLowerCase();
-    if (role === 'driv-en founder' || role === 'owner') {
-      window.location.href = '/app/dashboard/owner-dashboard.html';
-    } else if (role === 'admin' || role === 'administrator') {
-      window.location.href = '/app/dashboard/admin.html';
-    } else {
-      window.location.href = '/app/dashboard/employee-dashboard.html';
-    }
+    if (role === 'driv-en founder' || role === 'owner') { window.location.href = '/app/dashboard/owner-dashboard.html'; }
+    else if (role === 'admin' || role === 'administrator') { window.location.href = '/app/dashboard/admin.html'; }
+    else { window.location.href = '/app/dashboard/employee-dashboard.html'; }
   };
-
-  /* ===== GLOBAL: ERROR RECOVERY BANNER ===== */
-  // Prevents blank screens on ANY page. If an uncaught error fires,
-  // show a recovery banner with a "Return to Dashboard" button so the
-  // user can continue working instead of being stuck on a white page.
-  // Works on mobile too — no need to close/restart the app.
+  /* ===== GLOBAL: ERROR RECOVERY BANNER + /api/log-error REPORTING ===== */
   window.addEventListener('error', function(e) {
     if (document.getElementById('driv-en-recovery-banner')) return;
+    var errSrc = 'Global Error Handler';
+    var errMsg = (e && e.message) ? e.message : 'Unknown page error';
+    var errStack = (e && e.error && e.error.stack) ? e.error.stack : (e && e.filename ? (e.filename + ':' + (e.lineno||0) + ':' + (e.colno||0)) : 'No stack trace');
+    try {
+      fetch('/api/log-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: 'Dashboard Common (' + errSrc + ')', message: errMsg, stack: errStack, url: window.location.href, userAgent: navigator.userAgent })
+      }).catch(function() {});
+    } catch(logErr) { console.error('Failed to report error to Owner Dashboard:', logErr); }
     var banner = document.createElement('div');
     banner.id = 'driv-en-recovery-banner';
     banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999998;background:#fee2e2;border-bottom:3px solid #dc2626;padding:16px 20px;font-family:Arial,sans-serif;display:flex;align-items:center;gap:16px;justify-content:center;flex-wrap:wrap;';
-    var icon = '<span style="font-size:24px;">\u26A0\uFE0F</span>';
+    var icon = '<span style="font-size:24px;">\u26a0\ufe0f</span>';
     var msg = '<span style="font-size:14px;color:#7f1d1d;"><strong>A page error occurred.</strong> The DRIV-EN team has been notified.</span>';
     var btn = '<button onclick="window.goToMainDashboard()" style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:8px 20px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;">Return to Dashboard</button>';
-    var dismiss = '<button onclick="document.getElementById(\'driv-en-recovery-banner\').remove()" style="background:none;border:none;font-size:18px;color:#999;cursor:pointer;margin-left:8px;">\u00D7</button>';
+    var dismiss = '<button onclick="document.getElementById(\'driv-en-recovery-banner\').remove()" style="background:none;border:none;font-size:18px;color:#999;cursor:pointer;margin-left:8px;">\u00d7</button>';
     banner.innerHTML = icon + msg + btn + dismiss;
     if (document.body) document.body.appendChild(banner);
     else document.documentElement.appendChild(banner);
   });
-
+  /* ===== CATCH UNHANDLED PROMISE REJECTIONS ===== */
+  window.addEventListener('unhandledrejection', function(e) {
+    var errSrc = 'Unhandled Promise Rejection';
+    var errMsg = (e && e.reason && e.reason.message) ? e.reason.message : (e && e.reason ? String(e.reason) : 'Unknown promise rejection');
+    var errStack = (e && e.reason && e.reason.stack) ? e.reason.stack : 'No stack trace';
+    try {
+      fetch('/api/log-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: 'Dashboard Common (' + errSrc + ')', message: errMsg, stack: errStack, url: window.location.href, userAgent: navigator.userAgent })
+      }).catch(function() {});
+    } catch(logErr) { console.error('Failed to report promise rejection to Owner Dashboard:', logErr); }
+  });
 })();
