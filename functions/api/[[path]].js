@@ -71,22 +71,24 @@ const WORKER_ROUTES = {
 };
 
 function findWorkerUrl(path) {
-  // path is like "/api/fuel-tanks" or "/api/fuel-tanks/123" or "/api/work-orders/abc/complete"
-  // Workers expect the /api/ prefix preserved in the proxied URL.
   const parts = path.replace(/^\//, '').split('/');
   const prefix = parts[0] === 'api' ? parts[1] : parts[0];
 
-  // Direct match
   if (WORKER_ROUTES[prefix]) {
-    // Strip the 'api' prefix — workers expect paths without it (e.g., /fuel-tanks not /api/fuel-tanks)
     var pathParts = parts.filter(function(p) { return p !== 'api'; });
+    // driv-en-api worker expects /api/ prefix; other workers don't
+    if (WORKER_ROUTES[prefix].indexOf('driv-en-api') !== -1) {
+      return WORKER_ROUTES[prefix] + '/api/' + pathParts.join('/');
+    }
     return WORKER_ROUTES[prefix] + '/' + pathParts.join('/');
   }
 
-  // Try singular → plural (e.g., "asset" → "assets")
   const plural = prefix + 's';
   if (WORKER_ROUTES[plural]) {
     var pathParts = parts.filter(function(p) { return p !== 'api'; });
+    if (WORKER_ROUTES[plural].indexOf('driv-en-api') !== -1) {
+      return WORKER_ROUTES[plural] + '/api/' + pathParts.join('/');
+    }
     return WORKER_ROUTES[plural] + '/' + pathParts.join('/');
   }
 
