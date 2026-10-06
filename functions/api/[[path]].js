@@ -67,14 +67,6 @@ const WORKER_ROUTES = {
   'Project':           'https://driv-en-api.driv-en.workers.dev',
   'Employee':          'https://driv-en-api.driv-en.workers.dev',
   'Equipment':         'https://driv-en-api.driv-en.workers.dev',
-  // Fuel worker
-  'fuel-tanks':         'https://driven-fuel.driv-en.workers.dev',
-  'fuel-transactions':  'https://driven-fuel.driv-en.workers.dev',
-  'fuel-flags':         'https://driven-fuel.driv-en.workers.dev',
-  'fuel-tank-types':    'https://driven-fuel.driv-en.workers.dev',
-  'fuel-receipts':      'https://driven-fuel.driv-en.workers.dev',
-  'log-error':          'https://driven-platform.driv-en.workers.dev',
-  'notifications':      'https://driven-platform.driv-en.workers.dev',
 
 };
 
