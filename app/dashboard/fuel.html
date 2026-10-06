@@ -312,7 +312,8 @@ async function loadTanks(){try{var results=await Promise.all([fetch('/api/fuel-t
 ,fetch('/api/fuel-transactions')]);if(!results.every(function(r){return r.ok;})){throw new Error('One or more API requests failed');}var tanksData=await results[0].json();var assetsData=await results[1].json();var txData=await results[2].json();if(!tanksData.success||!txData.success){throw new Error('API returned error status');}
 var assetsRecords=assetsData.records||[];
 
-    allTanks=tanksData.tanks||[];allAssets=assetsRecords.map(function(r){var f=r.fields||{};return{id:r.id,name:f['Equipment Name']||f.name||'',asset_number:f['Equipment ID']||f.asset_number||'',fuel_type:f['Fuel Type']||f.fuel_type||'',fuel_tank_capacity:f['Fuel Tank Capacity']||f.fuel_tank_capacity||0,status:(f['Status']||f.status||'active').toLowerCase(),current_location:f['Location']||f.current_location||''};});
+    allTanks=tanksData.tanks||[];allAssets=assetsRecords.map(function(r){var f=r.fields||{};return{id:r.id,name:f['Equipment Name']||f.name||'',asset_number:f['Equipment ID']||f.asset_number||'',fuel_type:f['Fuel Type']||f.fuel_type||'',fuel_tank_capacity:f['Fuel Tank Capacity']||f['Purchase Price']||f.fuel_tank_capacity||0
+,status:(f['Status']||f.status||'active').toLowerCase(),current_location:f['Location']||f.current_location||''};});
 allTransactions=txData.transactions||[];populateLocationFilter();generateDynamicSubtabs();renderOverview();loadFlags();loadNotifications();
   }catch(e){console.error('loadTanks error:',e.message);reportError('loadTanks',e);var container=document.getElementById('overviewContainer');if(container)container.innerHTML='<div class="empty-state" style="color:#cc0000;">⚠️ Error loading fuel data: '+esc(e.message)+'<br><br>Please refresh the page or try again later.<br><br><em style="color:#666;">DRIV-EN support has been automatically notified of this issue.</em></div>';var stats=document.getElementById('ov-fuel-stats');if(stats)stats.innerHTML='';}
 }
