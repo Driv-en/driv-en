@@ -235,7 +235,7 @@
     <div id="alertsContainer"></div>
   </div></div>
 </div>
-<script src="/app/shared/dashboard-common.js?v=8"></script>
+<script src="/app/shared/dashboard-common.js?v=13"></script>
 <svg style="display:none;" xmlns="http://www.w3.org/2000/svg">
   <symbol id="icon-barrel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <ellipse cx="12" cy="5" rx="7" ry="2.5"/>
@@ -281,6 +281,7 @@ function getTankTypeDisplayName(systemKey){
   return t?t.display_name:systemKey;
 }
 function getTankTypeShortName(systemKey){
+  // For tab labels — shorter version
   var name=getTankTypeDisplayName(systemKey);
   if(name.length>15)return name.split(' ')[0];
   return name;
@@ -299,13 +300,25 @@ async function loadTankTypes(){
 function generateDynamicSubtabs(){
   var bar=document.getElementById('tanksSubtabBar');
   if(!bar)return;
+  // Keep the "Tank Overview" button, remove the rest
   var overviewBtn=bar.querySelector('[data-subtab="overview"]');
   while(bar.firstChild)bar.removeChild(bar.firstChild);
   if(overviewBtn)bar.appendChild(overviewBtn);
+  
   var dynamicContainer=document.getElementById('dynamicTankSubtabs');
   if(!dynamicContainer)return;
   dynamicContainer.innerHTML='';
+  
+  // For each tank type, check if there are tanks of that type
   tankTypes.forEach(function(tt){
+    var hasTanks=false;
+    if(tt.system_key==='equipment'){
+      hasTanks=allAssets.some(function(a){return a.fuel_tank_capacity&&a.fuel_tank_capacity>0;});
+    }else{
+      hasTanks=allTanks.some(function(t){return t.tank_type===tt.system_key.replace('_tank','').replace('portable_can','portable');});
+    }
+    // Show tab regardless — even if empty, the user may want to add tanks
+    // But only show if the tank type is active
     var subtabKey=tt.system_key.replace('_tank','').replace('portable_can','portable');
     var btn=document.createElement('button');
     btn.className='fuel-subtab';
@@ -313,6 +326,8 @@ function generateDynamicSubtabs(){
     btn.onclick=function(){switchTankSubtab(subtabKey);};
     btn.textContent=getTankTypeShortName(tt.system_key);
     bar.appendChild(btn);
+    
+    // Create content div
     var content=document.createElement('div');
     content.className='fuel-subtab-content';
     content.id='tanks-subtab-'+subtabKey;
@@ -331,6 +346,7 @@ function insertHeaderTitle(){var row1=document.querySelector('.dash-header-row1'
 window.dashLogout=async function(){try{await fetch('/auth/logout',{method:'POST',credentials:'include'});}catch(e){}window.location.href='/public/login.html';};
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function safeNum(v){var n=Number(v);return Number.isFinite(n)?n:0;}
+/* ===== CLIENT-SIDE ERROR REPORTING → Owner Dashboard error_log table ===== */
 function reportError(source,err){
   var msg=(err&&err.message)?err.message:(typeof err==='string'?err:'Unknown error');
   var stack=(err&&err.stack)?err.stack:'No stack trace';
@@ -345,15 +361,27 @@ var ALLOWED_STATUS=['active','inactive'];
 function ownershipBadge(t){if(!t.ownership_type||t.ownership_type==='company')return'';var ot=ALLOWED_OWNERSHIP.indexOf(t.ownership_type)!==-1?t.ownership_type:'company';if(ot==='company')return'';return '<span class="ownership-badge '+ot+'">'+esc(ot)+(t.owner_name?': '+esc(t.owner_name):'')+'</span>';}
 function statusBadge(t){var s=ALLOWED_STATUS.indexOf(t.status||'active')!==-1?(t.status||'active'):'inactive';return '<span class="status-badge '+s+'">'+esc(s)+'</span>';}
 function iconSvg(id){return '<svg><use href="#'+id+'"/></svg>';}
+
+/* ===== DEDUP HELPER: deduplicate by tank id (not name+type) ===== */
 function dedupTanks(tanks){var seen={};return tanks.filter(function(t){var key=t.id||(t.name||'')+'|'+(t.tank_type||'')+'|'+(t.location||'');if(seen[key])return false;seen[key]=true;return true;});}
+
+/* ===== SORTING ===== */
 function sortTanks(tanks,col,dir){return tanks.slice().sort(function(a,b){var av,bv;if(col==='name'){av=(a.name||'').toLowerCase();bv=(b.name||'').toLowerCase();}else if(col==='fuel_type'){av=(a.fuel_type||'').toLowerCase();bv=(b.fuel_type||'').toLowerCase();}else if(col==='current_quantity'){av=a.current_quantity||0;bv=b.current_quantity||0;}else if(col==='capacity'){av=a.capacity||0;bv=b.capacity||0;}else if(col==='location'){av=(a.location||'').toLowerCase();bv=(b.location||'').toLowerCase();}else{av=a.created_at||'';bv=b.created_at||'';}if(av<bv)return dir==='asc'?-1:1;if(av>bv)return dir==='asc'?1:-1;return 0;});}
 function sortTransactions(txs,col,dir){return txs.slice().sort(function(a,b){var av,bv;if(col==='transaction_type'){av=(a.transaction_type||'').toLowerCase();bv=(b.transaction_type||'').toLowerCase();}else if(col==='fuel_type'){av=(a.fuel_type||'').toLowerCase();bv=(b.fuel_type||'').toLowerCase();}else if(col==='quantity'){av=a.quantity||0;bv=b.quantity||0;}else if(col==='transferred_from'){av=(getTransferredFrom(a)||'').toLowerCase();bv=(getTransferredFrom(b)||'').toLowerCase();}else if(col==='asset'){av=(a.asset_name||a.asset_number||'').toLowerCase();bv=(b.asset_name||b.asset_number||'').toLowerCase();}else if(col==='project'){av=(a.project_name||'').toLowerCase();bv=(b.project_name||'').toLowerCase();}else if(col==='person'){av=(a.person||'').toLowerCase();bv=(b.person||'').toLowerCase();}else if(col==='location'){av=(a.location||'').toLowerCase();bv=(b.location||'').toLowerCase();}else{av=a.transaction_date||'';bv=b.transaction_date||'';}if(av<bv)return dir==='asc'?-1:1;if(av>bv)return dir==='asc'?1:-1;return 0;});}
+
+/* ===== FILTER TANKS (for individual subtabs) ===== */
 function filterTanks(tanks,search){if(!search)return tanks;var s=search.toLowerCase();return tanks.filter(function(t){var hay=[t.name,t.tank_type,t.fuel_type,t.location,t.status,t.owner_name,t.ownership_type].filter(Boolean).join(' ').toLowerCase();return hay.indexOf(s)!==-1;});}
+
+/* ===== RENDER TANK TABLE (for individual subtabs) ===== */
 function renderTankTable(tanks,containerId){var container=document.getElementById(containerId);if(tanks.length===0){container.innerHTML='<div class="empty-state">No tanks found.</div>';return;}var filterBarId=containerId+'-filter';var tableId=containerId+'-table';container.innerHTML='<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="'+filterBarId+'" placeholder="Name, fuel, location…" oninput="onTankFilter(\''+containerId+'\', this.value)" style="flex:1;min-width:180px;"></div><div class="fuel-table-wrap"><table class="fuel-table" id="'+tableId+'"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Level</th><th>Capacity</th><th>Location</th><th>Ownership</th><th>Status</th></tr></thead><tbody id="'+tableId+'-body">'+renderTankRows(tanks)+'</tbody></table></div>';container._tankSortCol='name';container._tankSortDir='asc';container._tankSearch='';}
 function renderTankRows(tanks){return tanks.map(function(t){return '<tr><td style="font-weight:600;">'+esc(t.name||'')+'</td><td>'+esc(t.fuel_type||'—')+'</td><td>'+tankLevelHtml(t.current_quantity||0,t.capacity||0)+'</td><td>'+safeNum(t.capacity)+' gal</td><td>'+esc(t.location||'—')+'</td><td>'+ownershipBadge(t)+'</td><td>'+statusBadge(t)+'</td></tr>';}).join('');}
 function onTankFilter(containerId,searchText){var container=document.getElementById(containerId);container._tankSearch=searchText;var subtab=container.getAttribute('data-subtab')||'all';var tanks=getTanksForSubtab(subtab);var filtered=filterTanks(tanks,searchText);var tbody=container.querySelector('tbody');if(tbody)tbody.innerHTML=renderTankRows(filtered);}
 function getTanksForSubtab(subtab){if(subtab==='equipment')return allTanks.filter(function(t){return t.tank_type==='equipment'||t.asset_id;});return dedupTanks(allTanks.filter(function(t){return t.tank_type===subtab;}));}
 function renderTanksForSubtab(subtab){var tanks=getTanksForSubtab(subtab);var containerId=subtab+'TanksContainer';var container=document.getElementById(containerId);if(!container)return;container.setAttribute('data-subtab',subtab);var headingText=getTankTypeDisplayName(subtab+'_tank');if(subtab==='equipment')headingText='Equipment';headingText+=' Tanks';container.innerHTML='<div class="section-heading">'+esc(headingText)+' <span class="section-heading-count">'+tanks.length+' tank'+(tanks.length!==1?'s':'')+'</span></div>';var innerDiv=document.createElement('div');innerDiv.id=containerId+'-inner';container.appendChild(innerDiv);renderTankTable(tanks,innerDiv.id);}
+
+/* ================================================================== */
+/* ===== TANK OVERVIEW ===== */
+/* ================================================================== */
 
 function getAllLocations(){var locs={};allTanks.forEach(function(t){if(t.location&&t.location.trim())locs[t.location.trim()]=true;});allAssets.forEach(function(a){if(a.current_location&&a.current_location.trim())locs[a.current_location.trim()]=true;});allTransactions.forEach(function(t){if(t.location&&t.location.trim())locs[t.location.trim()]=true;});return Object.keys(locs).sort();}
 function populateLocationFilter(){var select=document.getElementById('overviewLocationFilter');if(!select)return;var currentVal=select.value;var locations=getAllLocations();select.innerHTML='<option value="">All Locations</option>'+locations.map(function(l){return '<option value="'+esc(l)+'">'+esc(l)+'</option>';}).join('');select.value=currentVal;}
@@ -363,12 +391,20 @@ function printOverview(){var container=document.getElementById('overviewContaine
 function parseDate(s){if(!s)return NaN;var d=new Date(s);return isNaN(d.getTime())?NaN:d.getTime();}
 function txInDateRange(tx,fromDate,toDate){var d=parseDate(tx.transaction_date);if(isNaN(d))return true;var f=parseDate(fromDate);if(!isNaN(f)&&d<f)return false;var t=parseDate(toDate);if(!isNaN(t)&&d>t+86399999)return false;return true;}
 function txMatchesLocation(tx,locFilter){if(!locFilter)return true;return(tx.location||'').trim()===locFilter;}
+
+/* ===== Compute bulk tank: fuel purchased + fuel dispensed ===== */
 function computeBulkTankTotals(tankId,locFilter,fromDate,toDate){var purchased=0,dispensed=0;allTransactions.forEach(function(tx){if(tx.transaction_type==='purchase'&&tx.to_entity_id===tankId){if(!txMatchesLocation(tx,locFilter))return;if(!txInDateRange(tx,fromDate,toDate))return;purchased+=(tx.quantity||0);}if(tx.transaction_type==='bulk_issue'&&tx.from_entity_id===tankId){if(!txMatchesLocation(tx,locFilter))return;if(!txInDateRange(tx,fromDate,toDate))return;dispensed+=(tx.quantity||0);}});return{purchased:purchased,dispensed:dispensed};}
+
+/* ===== Compute drag-up tank: gallons filled + gallons dispensed ===== */
 function computeDragupTankTotals(tankId,locFilter,fromDate,toDate){var filled=0,dispensed=0;allTransactions.forEach(function(tx){if(tx.transaction_type==='dragup_fill'&&tx.to_entity_id===tankId){if(!txMatchesLocation(tx,locFilter))return;if(!txInDateRange(tx,fromDate,toDate))return;filled+=(tx.quantity||0);}if(tx.transaction_type==='dragup_issue'&&tx.from_entity_id===tankId){if(!txMatchesLocation(tx,locFilter))return;if(!txInDateRange(tx,fromDate,toDate))return;dispensed+=(tx.quantity||0);}});return{filled:filled,dispensed:dispensed};}
+
+/* ===== Compute equipment total gallons fueled (issues minus returns) ===== */
 function computeAssetFuelTotal(assetId,locFilter,fromDate,toDate){var total=0;allTransactions.forEach(function(tx){if(tx.asset_id!==assetId)return;var type=tx.transaction_type;if(!type)return;if(type==='bulk_issue'||type==='dragup_issue'||type==='portable_issue'){if(!txMatchesLocation(tx,locFilter))return;if(!txInDateRange(tx,fromDate,toDate))return;total+=safeNum(tx.quantity);}else if(type==='return'){if(!txMatchesLocation(tx,locFilter))return;if(!txInDateRange(tx,fromDate,toDate))return;total-=safeNum(tx.quantity);}});return total;}
+
+/* ===== Compute portable per-project totals ===== */
 function computePortableProjectTotals(locFilter,fromDate,toDate){var byProject={};allTransactions.forEach(function(tx){if(tx.transaction_type!=='portable_fill'&&tx.transaction_type!=='portable_issue')return;if(!txMatchesLocation(tx,locFilter))return;if(!txInDateRange(tx,fromDate,toDate))return;var projName=tx.project_name||'Unassigned';if(!byProject[projName])byProject[projName]={project_name:projName,total_filled:0,total_issued:0,tx_count:0};if(tx.transaction_type==='portable_fill')byProject[projName].total_filled+=(tx.quantity||0);if(tx.transaction_type==='portable_issue')byProject[projName].total_issued+=(tx.quantity||0);byProject[projName].tx_count+=1;});return Object.values(byProject).sort(function(a,b){return b.total_filled-a.total_filled;});}
-</script>
-<script>
+
+/* ===== MAIN OVERVIEW RENDER ===== */
 function renderOverview(){
   var container=document.getElementById('overviewContainer');if(!container)return;
   var f=getOverviewFilters();
@@ -377,42 +413,135 @@ function renderOverview(){
   var bulkTanks=filteredTanks.filter(function(t){return t.tank_type==='bulk';});
   var dragupTanks=filteredTanks.filter(function(t){return t.tank_type==='dragup';});
   var equipmentTanks=filteredAssets.filter(function(a){return a.fuel_tank_capacity&&a.fuel_tank_capacity>0;});
+
+  /* ===== KPI CARDS: one per fuel type — BULK TANKS ONLY (per founder decision: KPIs exclude portable cans, drag-up tanks, and equipment) ===== */
   var fuelTypeTotals={};
-  bulkTanks.forEach(function(t){var ft=(t.fuel_type||'Unknown').trim();if(!fuelTypeTotals[ft])fuelTypeTotals[ft]={gallons:0,tankCount:0,type:'Bulk'};fuelTypeTotals[ft].gallons+=(t.current_quantity||0);fuelTypeTotals[ft].tankCount++;});
+  bulkTanks.forEach(function(t){
+    var ft=(t.fuel_type||'Unknown').trim();
+    if(!fuelTypeTotals[ft])fuelTypeTotals[ft]={gallons:0,tankCount:0,type:'Bulk'};
+    fuelTypeTotals[ft].gallons+=(t.current_quantity||0);
+    fuelTypeTotals[ft].tankCount++;
+  });
   var statsContainer=document.getElementById('ov-fuel-stats');
-  if(statsContainer){var fuelKeys=Object.keys(fuelTypeTotals).sort();if(fuelKeys.length===0){statsContainer.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted);font-size:14px;">No bulk fuel on hand.</div>';}else{statsContainer.innerHTML=fuelKeys.map(function(ft){var d=fuelTypeTotals[ft];return '<div class="fuel-stat-card"><div class="fuel-stat-number">'+d.gallons.toLocaleString()+'</div><div class="fuel-stat-label">'+esc(ft)+' ('+d.tankCount+' bulk tank'+(d.tankCount!==1?'s':'')+')</div></div>';}).join('');}}
+  if(statsContainer){
+    var fuelKeys=Object.keys(fuelTypeTotals).sort();
+    if(fuelKeys.length===0){
+      statsContainer.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted);font-size:14px;">No bulk fuel on hand.</div>';
+    }else{
+      statsContainer.innerHTML=fuelKeys.map(function(ft){
+        var d=fuelTypeTotals[ft];
+        return '<div class="fuel-stat-card"><div class="fuel-stat-number">'+d.gallons.toLocaleString()+'</div><div class="fuel-stat-label">'+esc(ft)+' ('+d.tankCount+' bulk tank'+(d.tankCount!==1?'s':'')+')</div></div>';
+      }).join('');
+    }
+  }
+
   var html='';
-  if(bulkTanks.length>0){html+='<div class="overview-section"><div class="overview-section-title">'+iconSvg('icon-barrel')+' '+esc(getTankTypeDisplayName('bulk_tank'))+' <span class="count">('+bulkTanks.length+')</span></div>';html+='<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>Fuel Purchased</th><th>Fuel Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th></tr></thead><tbody>';bulkTanks.forEach(function(t){var totals=computeBulkTankTotals(t.id,f.location,f.fromDate,f.toDate);html+='<tr><td style="font-weight:600;">'+esc(t.name||'')+'</td><td>'+esc(t.fuel_type||'—')+'</td><td>'+safeNum(t.capacity)+' gal</td><td style="font-weight:600;">'+totals.purchased.toLocaleString()+' gal</td><td style="font-weight:600;">'+totals.dispensed.toLocaleString()+' gal</td><td style="font-weight:700;color:var(--primary);">'+safeNum(t.current_quantity)+' gal</td><td>'+tankLevelHtml(t.current_quantity||0,t.capacity||0)+'</td><td>'+esc(t.location||'—')+'</td></tr>';});html+='</tbody></table></div></div>';}
-  if(dragupTanks.length>0){html+='<div class="overview-section"><div class="overview-section-title">'+iconSvg('icon-dragup-tank')+' '+esc(getTankTypeDisplayName('dragup_tank'))+' <span class="count">('+dragupTanks.length+')</span></div>';html+='<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>Gallons Filled</th><th>Gallons Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th></tr></thead><tbody>';dragupTanks.forEach(function(t){var totals=computeDragupTankTotals(t.id,f.location,f.fromDate,f.toDate);html+='<tr><td style="font-weight:600;">'+esc(t.name||'')+'</td><td>'+esc(t.fuel_type||'—')+'</td><td>'+safeNum(t.capacity)+' gal</td><td style="font-weight:600;">'+totals.filled.toLocaleString()+' gal</td><td style="font-weight:600;">'+totals.dispensed.toLocaleString()+' gal</td><td style="font-weight:700;color:var(--primary);">'+safeNum(t.current_quantity)+' gal</td><td>'+tankLevelHtml(t.current_quantity||0,t.capacity||0)+'</td><td>'+esc(t.location||'—')+'</td></tr>';});html+='</tbody></table></div></div>';}
-  if(equipmentTanks.length>0){html+='<div class="overview-section"><div class="overview-section-title">'+iconSvg('icon-equipment')+' '+esc(getTankTypeDisplayName('equipment'))+' <span class="count">('+equipmentTanks.length+')</span></div>';html+='<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Asset #</th><th>Name</th><th>Fuel Type</th><th>Total Gallons Fueled</th><th>Location</th></tr></thead><tbody>';equipmentTanks.forEach(function(a){var totalFueled=computeAssetFuelTotal(a.id,f.location,f.fromDate,f.toDate);html+='<tr><td style="font-weight:600;">'+esc(a.asset_number||'')+'</td><td>'+esc(a.name||'—')+'</td><td>'+esc(a.fuel_type||'—')+'</td><td style="font-weight:700;color:var(--primary);">'+totalFueled.toLocaleString()+' gal</td><td>'+esc(a.current_location||'—')+'</td></tr>';});html+='</tbody></table></div></div>';}
+  // Only render sections for tank types that have at least one tank
+  // Bulk Storage Tanks
+  if(bulkTanks.length>0){
+    html+='<div class="overview-section"><div class="overview-section-title">'+iconSvg('icon-barrel')+' '+esc(getTankTypeDisplayName('bulk_tank'))+' <span class="count">('+bulkTanks.length+')</span></div>';
+    html+='<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>Fuel Purchased</th><th>Fuel Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th><th>Action</th></tr></thead><tbody>';
+    bulkTanks.forEach(function(t){var totals=computeBulkTankTotals(t.id,f.location,f.fromDate,f.toDate);
+      html+='<tr><td style="font-weight:600;">'+esc(t.name||'')+'</td><td>'+esc(t.fuel_type||'—')+'</td><td>'+safeNum(t.capacity)+' gal</td><td style="font-weight:600;">'+totals.purchased.toLocaleString()+' gal</td><td style="font-weight:600;">'+totals.dispensed.toLocaleString()+' gal</td><td style="font-weight:700;color:var(--primary);">'+safeNum(t.current_quantity)+' gal</td><td>'+tankLevelHtml(t.current_quantity||0,t.capacity||0)+'</td><td>'+esc(t.location||'—')+'</td><td><button class="adjust-btn" onclick="showAdjustModal(\''+t.id+'\',\''+esc(t.name||'').replace(/'/g,"\\'")+'\', '+safeNum(t.current_quantity)+', '+safeNum(t.capacity)+')" style="padding:4px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;">Adjust</button></td></tr>';});
+    html+='</tbody></table></div></div>';
+  }
+  // Drag-Up Tanks
+  if(dragupTanks.length>0){
+    html+='<div class="overview-section"><div class="overview-section-title">'+iconSvg('icon-dragup-tank')+' '+esc(getTankTypeDisplayName('dragup_tank'))+' <span class="count">('+dragupTanks.length+')</span></div>';
+    html+='<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>Gallons Filled</th><th>Gallons Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th></tr></thead><tbody>';
+    dragupTanks.forEach(function(t){var totals=computeDragupTankTotals(t.id,f.location,f.fromDate,f.toDate);
+      html+='<tr><td style="font-weight:600;">'+esc(t.name||'')+'</td><td>'+esc(t.fuel_type||'—')+'</td><td>'+safeNum(t.capacity)+' gal</td><td style="font-weight:600;">'+totals.filled.toLocaleString()+' gal</td><td style="font-weight:600;">'+totals.dispensed.toLocaleString()+' gal</td><td style="font-weight:700;color:var(--primary);">'+safeNum(t.current_quantity)+' gal</td><td>'+tankLevelHtml(t.current_quantity||0,t.capacity||0)+'</td><td>'+esc(t.location||'—')+'</td></tr>';});
+    html+='</tbody></table></div></div>';
+  }
+  // Equipment Tanks
+  if(equipmentTanks.length>0){
+    html+='<div class="overview-section"><div class="overview-section-title">'+iconSvg('icon-equipment')+' '+esc(getTankTypeDisplayName('equipment'))+' <span class="count">('+equipmentTanks.length+')</span></div>';
+    html+='<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Asset #</th><th>Name</th><th>Fuel Type</th><th>Total Gallons Fueled</th><th>Location</th></tr></thead><tbody>';
+    equipmentTanks.forEach(function(a){var totalFueled=computeAssetFuelTotal(a.id,f.location,f.fromDate,f.toDate);
+      html+='<tr><td style="font-weight:600;">'+esc(a.asset_number||'')+'</td><td>'+esc(a.name||'—')+'</td><td>'+esc(a.fuel_type||'—')+'</td><td style="font-weight:700;color:var(--primary);">'+totalFueled.toLocaleString()+' gal</td><td>'+esc(a.current_location||'—')+'</td></tr>';});
+    html+='</tbody></table></div></div>';
+  }
+  // Portable Gas Cans
   var projectTotals=computePortableProjectTotals(f.location,f.fromDate,f.toDate);
-  if(projectTotals.length>0){html+='<div class="overview-section"><div class="overview-section-title">'+iconSvg('icon-jerrycan')+' '+esc(getTankTypeDisplayName('portable_can'))+' <span class="count">(per project)</span></div>';html+='<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Gas Can (Project)</th><th>Gallons Put In Cans</th><th>Gallons Dispensed</th><th># Transactions</th></tr></thead><tbody>';projectTotals.forEach(function(p){var canLabel='Gas Can – '+esc(p.project_name||'Unassigned');html+='<tr><td style="font-weight:600;">'+canLabel+'</td><td style="font-weight:700;color:var(--primary);">'+p.total_filled.toLocaleString()+' gal</td><td style="font-weight:600;">'+p.total_issued.toLocaleString()+' gal</td><td>'+p.tx_count+'</td></tr>';});html+='</tbody></table></div></div>';}
-  if(bulkTanks.length===0&&dragupTanks.length===0&&equipmentTanks.length===0&&projectTotals.length===0){html='<div class="empty-state">No fuel tanks or transactions found. Set up tanks in the Fuel Management dashboard to get started.</div>';}
+  if(projectTotals.length>0){
+    html+='<div class="overview-section"><div class="overview-section-title">'+iconSvg('icon-jerrycan')+' '+esc(getTankTypeDisplayName('portable_can'))+' <span class="count">(per project)</span></div>';
+    html+='<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Gas Can (Project)</th><th>Gallons Put In Cans</th><th>Gallons Dispensed</th><th># Transactions</th></tr></thead><tbody>';
+    projectTotals.forEach(function(p){var canLabel='Gas Can – '+esc(p.project_name||'Unassigned');
+      html+='<tr><td style="font-weight:600;">'+canLabel+'</td><td style="font-weight:700;color:var(--primary);">'+p.total_filled.toLocaleString()+' gal</td><td style="font-weight:600;">'+p.total_issued.toLocaleString()+' gal</td><td>'+p.tx_count+'</td></tr>';});
+    html+='</tbody></table></div></div>';
+  }
+  // If no tanks at all
+  if(bulkTanks.length===0&&dragupTanks.length===0&&equipmentTanks.length===0&&projectTotals.length===0){
+    html='<div class="empty-state">No fuel tanks or transactions found. Set up tanks in the Fuel Management dashboard to get started.</div>';
+  }
   container.innerHTML=html;
 }
 
+/* ===== LOAD DATA ===== */
 async function loadTanks(){
   try{
-    var results=await Promise.all([fetch('/api/fuel-tanks'),fetch('/api/assets?status=active'),fetch('/api/fuel-transactions')]);
-    if(!results.every(function(r){return r.ok;})){throw new Error('One or more API requests failed');}
-    var tanksData=await results[0].json();var assetsData=await results[1].json();var txData=await results[2].json();
-    if(!tanksData.success||!assetsData.success||!txData.success){throw new Error('API returned error status');}
-    allTanks=tanksData.tanks||[];allAssets=assetsData.assets||[];allTransactions=txData.transactions||[];
-    populateLocationFilter();generateDynamicSubtabs();renderOverview();loadFlags();loadNotifications();
+    var results=await Promise.all([
+      fetch('/api/fuel-tanks'),
+      fetch('/api/assets?status=active'),
+      fetch('/api/fuel-transactions')
+    ]);
+    if(!results.every(function(r){return r.ok;})){
+      throw new Error('One or more API requests failed');
+    }
+    var tanksData=await results[0].json();
+    var assetsData=await results[1].json();
+    var txData=await results[2].json();
+    if(!tanksData.success||!assetsData.success||!txData.success){
+      throw new Error('API returned error status');
+    }
+    allTanks=tanksData.tanks||[];
+    allAssets=assetsData.assets||[];
+    allTransactions=txData.transactions||[];
+    populateLocationFilter();
+    generateDynamicSubtabs();
+    renderOverview();
+    loadFlags();
+    loadNotifications();
   }catch(e){
-    console.error('loadTanks error:',e.message);reportError('loadTanks',e);
+    console.error('loadTanks error:',e.message);
+    reportError('loadTanks',e);
     var container=document.getElementById('overviewContainer');
-    if(container)container.innerHTML='<div class="empty-state" style="color:#cc0000;">⚠️ Error loading fuel data: '+esc(e.message)+'<br><br>Please refresh the page or try again later.</div>';
-    var stats=document.getElementById('ov-fuel-stats');if(stats)stats.innerHTML='';
+    if(container)container.innerHTML='<div class="empty-state" style="color:#cc0000;">⚠️ Error loading fuel data: '+esc(e.message)+'<br><br>Please refresh the page or try again later.<br><br><em style="color:#666;">DRIV-EN support has been automatically notified of this issue.</em></div>';
+    var stats=document.getElementById('ov-fuel-stats');
+    if(stats)stats.innerHTML='';
+  }
+}
+/* ===== PART 2 — continues from Part 1 (line 496) ===== */
+/* This file contains the second half of fuel.html (lines 496-990).
+   Concatenate Part 1 + Part 2 to reconstruct the full fuel.html. */
+
+    allTanks=tanksData.tanks||[];
+    allAssets=assetsData.assets||[];
+    allTransactions=txData.transactions||[];
+    populateLocationFilter();
+    generateDynamicSubtabs();
+    renderOverview();
+    loadFlags();
+    loadNotifications();
+  }catch(e){
+    console.error('loadTanks error:',e.message);
+    reportError('loadTanks',e);
+    var container=document.getElementById('overviewContainer');
+    if(container)container.innerHTML='<div class="empty-state" style="color:#cc0000;">⚠️ Error loading fuel data: '+esc(e.message)+'<br><br>Please refresh the page or try again later.<br><br><em style="color:#666;">DRIV-EN support has been automatically notified of this issue.</em></div>';
+    var stats=document.getElementById('ov-fuel-stats');
+    if(stats)stats.innerHTML='';
   }
 }
 
+/* ================================================================== */
+/* ===== TRANSACTIONS ===== */
+/* ================================================================== */
 function txTypeLabel(type){var labels={purchase:'Purchase',bulk_issue:'Fuel Transfer',dragup_fill:'Tank Fill',dragup_issue:'Fuel Transfer',portable_fill:'Can Fill',portable_issue:'Fuel Transfer',return:'Return',adjustment:'Adjustment'};return labels[type]||(type||'').replace(/_/g,' ');}
 function getTxForSubtab(subtab){if(subtab==='all')return allTransactions;if(subtab==='purchase')return allTransactions.filter(function(t){return t.transaction_type==='purchase';});if(subtab==='issue')return allTransactions.filter(function(t){return t.transaction_type==='bulk_issue'||t.transaction_type==='dragup_issue'||t.transaction_type==='portable_issue';});if(subtab==='transfer')return allTransactions.filter(function(t){return t.transaction_type==='return'||t.transaction_type==='dragup_fill'||t.transaction_type==='portable_fill'||t.transaction_type==='bulk_issue'||t.transaction_type==='dragup_issue'||t.transaction_type==='portable_issue';});return allTransactions;}
 function getTxLocations(){var locs={};allTransactions.forEach(function(t){if(t.location&&t.location.trim())locs[t.location.trim()]=true;});return Object.keys(locs).sort();}
 function applyTxFilters(txs){var s=(txSearchText||'').toLowerCase();var loc=txLocationFilter||'';var fromD=txFromDate||'';var toD=txToDate||'';return txs.filter(function(t){if(loc&&(t.location||'').trim()!==loc)return false;if(fromD&&(t.transaction_date||'')<fromD)return false;if(toD&&(t.transaction_date||'')>toD+'T23:59:59')return false;if(s){var hay=[t.transaction_type,t.fuel_type,t.asset_name,t.asset_number,t.person,t.project_name,t.location].filter(Boolean).join(' ').toLowerCase();if(hay.indexOf(s)===-1)return false;}return true;});}
 function computeTxTotals(txs){var totalGal=0,totalPurchases=0,totalIssues=0;txs.forEach(function(t){var q=safeNum(t.quantity);var type=t.transaction_type;if(type==='purchase')totalPurchases+=q;else if(type==='bulk_issue'||type==='dragup_issue'||type==='portable_issue')totalIssues+=q;totalGal+=q;});return{totalGal:totalGal,totalPurchases:totalPurchases,totalIssues:totalIssues,txCount:txs.length};}
-function renderTxTable(txs,containerId){var container=document.getElementById(containerId);if(txs.length===0&&!txSearchText&&!txLocationFilter&&!txFromDate&&!txToDate){container.innerHTML='<div class="empty-state">No transactions found.</div>';return;}var filterId=containerId+'-filter';var tableId=containerId+'-table';var locFilterId=containerId+'-locfilter';var fromId=containerId+'-from';var toId=containerId+'-to';var txLocs=getTxLocations();var locOptions='<option value="">All Locations</option>'+txLocs.map(function(l){return '<option value="'+esc(l)+'"'+(txLocationFilter===l?' selected':'')+'>'+esc(l)+'</option>';}).join('');container.innerHTML='<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="'+filterId+'" placeholder="Type, fuel, asset, person, project…" oninput="onTxFilter(\''+containerId+'\', this.value)" style="flex:1;min-width:140px;" value="'+esc(txSearchText)+'"><span class="fuel-filter-label">Location:</span><select id="'+locFilterId+'" onchange="onTxLocationFilter(\''+containerId+'\', this.value)">'+locOptions+'</select><span class="fuel-filter-label">From:</span><input type="date" id="'+fromId+'" onchange="onTxDateFilter(\''+containerId+'\', \'from\', this.value)" value="'+esc(txFromDate)+'"><span class="fuel-filter-label">To:</span><input type="date" id="'+toId+'" onchange="onTxDateFilter(\''+containerId+'\', \'to\', this.value)" value="'+esc(txToDate)+'"><button class="print-btn" onclick="printTable(\''+tableId+'\',\'Fuel Transactions\')">🖨 Print Table</button></div><div id="'+containerId+'-totals"></div><div class="fuel-table-wrap"><table class="fuel-table" id="'+tableId+'"><thead><tr><th onclick="onTxSort(\''+containerId+'\',\'transaction_date\')">Date <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'transaction_type\')">Type <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'fuel_type\')">Fuel <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'quantity\')">Qty <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'transferred_from\')">Transferred From <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'asset\')">Equipment <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'person\')">Person <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'project\')">Project <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'location\')">Location <span class="sort-indicator"></span></th></tr></thead><tbody id="'+tableId+'-body"></tbody></table></div>';container._txSortCol='transaction_date';container._txSortDir='desc';reRenderTxTable(containerId);}
+function renderTxTable(txs,containerId){var container=document.getElementById(containerId);if(txs.length===0&&!txSearchText&&!txLocationFilter&&!txFromDate&&!txToDate){container.innerHTML='<div class="empty-state">No transactions found.</div>';return;}var filterId=containerId+'-filter';var tableId=containerId+'-table';var locFilterId=containerId+'-locfilter';var fromId=containerId+'-from';var toId=containerId+'-to';var txLocs=getTxLocations();var locOptions='<option value="">All Locations</option>'+txLocs.map(function(l){return '<option value="'+esc(l)+'"'+(txLocationFilter===l?' selected':'')+'>'+esc(l)+'</option>';}).join('');container.innerHTML='<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="'+filterId+'" placeholder="Type, fuel, asset, person, project…" oninput="onTxFilter(\''+containerId+'\', this.value)" style="flex:1;min-width:140px;" value="'+esc(txSearchText)+'"><span class="fuel-filter-label">Location:</span><select id="'+locFilterId+'" onchange="onTxLocationFilter(\''+containerId+'\', this.value)">'+locOptions+'</select><span class="fuel-filter-label">From:</span><input type="date" id="'+fromId+'" onchange="onTxDateFilter(\''+containerId+'\', \'from\', this.value)" value="'+esc(txFromDate)+'"><span class="fuel-filter-label">To:</span><input type="date" id="'+toId+'" onchange="onTxDateFilter(\''+containerId+'\', \'to\', this.value)" value="'+esc(txToDate)+'"><button class="print-btn" onclick="printTable(\''+tableId+'\',\'Fuel Transactions\')">🖨 Print Table</button></div><div id="'+containerId+'-totals"></div><div class="fuel-table-wrap"><table class="fuel-table" id="'+tableId+'"><thead><tr><th onclick="onTxSort(\''+containerId+'\',\'transaction_date\')">Date <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'transaction_type\')">Type <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'fuel_type\')">Fuel <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'quantity\')">Qty (gal) <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'transferred_from\')">From <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'asset\')">Equipment <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'person\')">Person <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'project\')">Project <span class="sort-indicator"></span></th><th onclick="onTxSort(\''+containerId+'\',\'location\')">Location <span class="sort-indicator"></span></th></tr></thead><tbody id="'+tableId+'-body">'+renderTxRows(txs)+'</tbody></table></div>';container._txSortCol='transaction_date';container._txSortDir='desc';}
 function getTransferredFrom(t){
   if(t.transaction_type==='purchase')return '—';
   if(t.from_entity_type==='vendor')return 'Vendor';
@@ -577,7 +706,7 @@ async function resolveWithAdd(flagId,field,value){
     if(data.success){
       allFlags=allFlags.map(function(f){if(f.id===flagId){f.status='resolved';f.resolved_at=new Date().toISOString();f.resolved_by=window.dashUser?window.dashUser.email:'';f.resolution_notes='Added '+field+' "'+(data.created&&data.created.entity_name||value)+'"';}return f;});
       renderAlerts();updateAlertBanner();
-      alert('\u2705 '+field.charAt(0).toUpperCase()+field.slice(1)+' "'+(data.created&&data.created.entity_name||value)+'" added'+(data.notified?' and the user who entered it has been notified.':' (no submitter email on record).'));
+      alert('✅ '+field.charAt(0).toUpperCase()+field.slice(1)+' "'+(data.created&&data.created.entity_name||value)+'" added'+(data.notified?' and the user who entered it has been notified.':' (no submitter email on record).'));
     }else{alert('Failed: '+(data.error||'Unknown error'));}
   }catch(e){alert('Error: '+e.message);}
 }
@@ -589,7 +718,7 @@ async function forwardFlag(flagId,flagType){
   try{
     var resp=await fetch('/api/notifications/forward',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({flag_id:flagId,recipient_email:email.trim(),note:note||''})});
     var data=await resp.json();
-    if(data.success){alert('\u2705 Alert forwarded to '+email+'. They will see it in their notifications when they log in.');}
+    if(data.success){alert('✅ Alert forwarded to '+email+'. They will see it in their notifications when they log in.');}
     else{alert('Failed to forward: '+(data.error||'Unknown error'));}
   }catch(e){alert('Error: '+e.message);}
 }
@@ -684,7 +813,7 @@ function showTxDetail(txId){
     ["Receipt Total",tx.receipt_total!=null?"$"+parseFloat(tx.receipt_total).toFixed(2):"—"],
     ["PO Number",tx.po_number||"—"],
     ["Notes",tx.notes||"—"],
-    ["Created",tx.created_at?new Date(tx.created_at).toLocaleString():"—"]
+   ["Created",tx.created_at?new Date(tx.created_at).toLocaleString():"—"],
   ];
   var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'+
     '<h3 style="margin:0;font-size:18px;color:var(--text);">Transaction Details</h3>'+
@@ -765,7 +894,7 @@ async function submitQuickAdd(type,overlay){
     var resp=await fetch('/api/'+endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     var data=await resp.json();
     if(data.success){
-      alert('\u2705 '+type.charAt(0).toUpperCase()+type.slice(1)+' "'+name+'" added. Go to the '+type.charAt(0).toUpperCase()+type.slice(1)+' dashboard to complete the full profile.');
+      alert('✅ '+type.charAt(0).toUpperCase()+type.slice(1)+' "'+name+'" added. Go to the '+type.charAt(0).toUpperCase()+type.slice(1)+' dashboard to complete the full profile.');
       overlay.remove();
       if(type==='project')loadProjects();
       if(type==='asset')loadAssets();
@@ -793,8 +922,86 @@ async function init(){
   document.addEventListener('dashSessionLoaded',startApp);
 }
 init();
+
+/* ===== TANK ADJUST MODAL ===== */
+function showAdjustModal(tankId, tankName, currentQty, capacity) {
+  var overlay = document.createElement('div');
+  overlay.id = 'adjustModalOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML = '<div style="background:var(--bg-card);border-radius:12px;padding:24px;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.3);">' +
+    '<h3 style="margin:0 0 4px;font-size:18px;color:var(--text);">Adjust Tank: ' + esc(tankName) + '</h3>' +
+    '<p style="margin:0 0 16px;font-size:13px;color:var(--text-muted);">Current: ' + currentQty + ' gal / Capacity: ' + capacity + ' gal</p>' +
+    '<div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Adjustment Amount (gal) <span style="color:#cc0000;">*</span></label>' +
+    '<input type="number" id="adjustAmount" step="0.01" placeholder="Positive for overage, negative for shortage" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;"></div>' +
+    '<div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Reason <span style="color:#cc0000;">*</span></label>' +
+    '<select id="adjustReason" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;">' +
+    '<option value="">Select reason…</option>' +
+    '<option value="Shortage — fuel theft suspected">Shortage — fuel theft suspected</option>' +
+    '<option value="Shortage — evaporation/spillage">Shortage — evaporation/spillage</option>' +
+    '<option value="Shortage — meter calibration error">Shortage — meter calibration error</option>' +
+    '<option value="Overage — delivery overfill">Overage — delivery overfill</option>' +
+    '<option value="Overage — meter calibration error">Overage — meter calibration error</option>' +
+    '<option value="Overage — fuel returned to tank">Overage — fuel returned to tank</option>' +
+    '<option value="Physical inventory count adjustment">Physical inventory count adjustment</option>' +
+    '<option value="__custom">+ Other (type manually)</option>' +
+    '</select></div>' +
+    '<div id="adjustCustomReason" style="display:none;margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Custom Reason <span style="color:#cc0000;">*</span></label>' +
+    '<input type="text" id="adjustCustomReasonText" placeholder="Type reason" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;"></div>' +
+    '<div style="margin-bottom:16px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Notes (optional)</label>' +
+    '<textarea id="adjustNotes" rows="2" placeholder="Additional details" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;resize:vertical;"></textarea></div>' +
+    '<div style="display:flex;gap:12px;justify-content:flex-end;">' +
+    '<button onclick="closeAdjustModal()" style="padding:10px 20px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:14px;">Cancel</button>' +
+    '<button onclick="submitAdjust(\'' + tankId + '\', ' + currentQty + ', ' + capacity + ')" style="padding:10px 24px;border:none;border-radius:6px;background:var(--primary);color:#fff;cursor:pointer;font-size:14px;font-weight:600;">Submit Adjustment</button>' +
+    '</div></div>';
+  document.body.appendChild(overlay);
+  var reasonSelect = document.getElementById('adjustReason');
+  if (reasonSelect) {
+    reasonSelect.onchange = function() {
+      var customDiv = document.getElementById('adjustCustomReason');
+      if (customDiv) customDiv.style.display = this.value === '__custom' ? 'block' : 'none';
+    };
+  }
+}
+function closeAdjustModal() {
+  var overlay = document.getElementById('adjustModalOverlay');
+  if (overlay) overlay.remove();
+}
+async function submitAdjust(tankId, currentQty, capacity) {
+  var amount = parseFloat(document.getElementById('adjustAmount').value);
+  var reasonSelect = document.getElementById('adjustReason');
+  var reason = reasonSelect.value;
+  if (reason === '__custom') {
+    reason = document.getElementById('adjustCustomReasonText').value.trim();
+  }
+  var notes = document.getElementById('adjustNotes').value.trim();
+  if (isNaN(amount) || amount === 0) { alert('Adjustment amount must be a non-zero number.'); return; }
+  if (!reason || !reason.trim()) { alert('Reason is required.'); return; }
+  var newQty = currentQty + amount;
+  if (newQty < 0) { alert('Adjustment would result in negative quantity (' + newQty + ' gal). Current: ' + currentQty + ', adjustment: ' + amount); return; }
+  if (capacity > 0 && newQty > capacity) { alert('Adjustment would exceed tank capacity (' + capacity + ' gal). New quantity would be: ' + newQty); return; }
+  var btn = event.target; btn.disabled = true; btn.textContent = 'Submitting…';
+  try {
+    var resp = await fetch('/api/fuel-tanks/' + tankId + '/adjust', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adjustment_amount: amount, reason: reason, person: (window.dashUser && window.dashUser.email) || null })
+    });
+    var data = await resp.json();
+    if (data.success) {
+      closeAdjustModal();
+      alert('Tank adjusted successfully. New quantity: ' + data.adjustment.new_quantity + ' gal. A flag has been created for review.');
+      loadTanks();
+    } else {
+      alert('Error: ' + (data.error || 'Unknown error'));
+      btn.disabled = false; btn.textContent = 'Submit Adjustment';
+    }
+  } catch (e) {
+    alert('Error: ' + e.message);
+    btn.disabled = false; btn.textContent = 'Submit Adjustment';
+  }
+}
 </script>
-<script src="/app/shared/auth-check.js?v=8"></script>
+<script src="/app/shared/auth-check.js?v=13"></script>
 <script src="/components/nav.js?v=5"></script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" data-cf-beacon='{"token":"aed8feab3b60404ba88ec92f026bbcd6"}' crossorigin="anonymous"></script>
 </body>
