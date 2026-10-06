@@ -86,13 +86,16 @@ function findWorkerUrl(path) {
 
   // Direct match
   if (WORKER_ROUTES[prefix]) {
-    return WORKER_ROUTES[prefix] + '/' + parts.join('/');
+    // Strip the 'api' prefix — workers expect paths without it (e.g., /fuel-tanks not /api/fuel-tanks)
+    var pathParts = parts.filter(function(p) { return p !== 'api'; });
+    return WORKER_ROUTES[prefix] + '/' + pathParts.join('/');
   }
 
   // Try singular → plural (e.g., "asset" → "assets")
   const plural = prefix + 's';
   if (WORKER_ROUTES[plural]) {
-    return WORKER_ROUTES[plural] + '/' + parts.join('/');
+    var pathParts = parts.filter(function(p) { return p !== 'api'; });
+    return WORKER_ROUTES[plural] + '/' + pathParts.join('/');
   }
 
   return null;
