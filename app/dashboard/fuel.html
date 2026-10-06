@@ -312,18 +312,31 @@ async function loadTanks(){
   try{
     var results=await Promise.all([
       fetch('/api/fuel-tanks'),
+      fetch('/api/Equipment'),
       fetch('/api/fuel-transactions')
     ]);
     if(!results.every(function(r){return r.ok;})){
       throw new Error('One or more API requests failed');
     }
     var tanksData=await results[0].json();
-    var txData=await results[1].json();
+    var assetsData=await results[1].json();
+    var txData=await results[2].json();
     if(!tanksData.success||!txData.success){
       throw new Error('API returned error status');
     }
     allTanks=tanksData.tanks||[];
-    allAssets=[];
+    allAssets=(assetsData.records||[]).map(function(r){
+      var f=r.fields||{};
+      return{
+        id:r.id,
+        name:f['Equipment Name']||f.name||'',
+        asset_number:f['Equipment ID']||f.asset_number||'',
+        fuel_type:f['Fuel Type']||f.fuel_type||'',
+        fuel_tank_capacity:f['Purchase Price']||f.fuel_tank_capacity||0,
+        status:(f['Status']||f.status||'active').toLowerCase(),
+        current_location:f['Location']||f.current_location||''
+      };
+    });
     allTransactions=txData.transactions||[];
     populateLocationFilter();
     generateDynamicSubtabs();
@@ -339,7 +352,6 @@ async function loadTanks(){
     if(stats)stats.innerHTML='';
   }
 }
-
 
 /* ===== TRANSACTIONS ===== */
 function txTypeLabel(type){var labels={purchase:'Purchase',bulk_issue:'Fuel Transfer',dragup_fill:'Tank Fill',dragup_issue:'Fuel Transfer',portable_fill:'Can Fill',portable_issue:'Fuel Transfer',return:'Return',adjustment:'Adjustment'};return labels[type]||(type||'').replace(/_/g,' ');}
