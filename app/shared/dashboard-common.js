@@ -70,6 +70,7 @@
     if (!area) return;
     try {
       var logoRes = await fetch("/auth/get-logo");
+      if (!logoRes.ok) throw new Error("Logo fetch failed: " + logoRes.status);
       var logoData = await logoRes.json();
       if (logoData.success && logoData.logo) {
         safeSetItem("driven_customer_logo", logoData.logo);
@@ -77,19 +78,27 @@
         logoImg.src = logoData.logo;
         logoImg.className = "dash-customer-logo";
         logoImg.alt = "Company Logo";
+        logoImg.style.maxHeight = "60px";
+        logoImg.style.maxWidth = "180px";
+        logoImg.style.objectFit = "contain";
         area.innerHTML = "";
         area.appendChild(logoImg);
         return;
       }
-    } catch (e) { console.error("Logo fetch from D1 error:", e.message); }
+    } catch (e) { console.warn("Logo fetch from server error:", e.message); }
     var logoUrl = safeGetItem("driven_customer_logo");
     if (logoUrl) {
-      var fallbackImg = document.createElement("img");
-      fallbackImg.src = logoUrl;
-      fallbackImg.className = "dash-customer-logo";
-      fallbackImg.alt = "Company Logo";
-      area.innerHTML = "";
-      area.appendChild(fallbackImg);
+      try {
+        var fallbackImg = document.createElement("img");
+        fallbackImg.src = logoUrl;
+        fallbackImg.className = "dash-customer-logo";
+        fallbackImg.alt = "Company Logo";
+        fallbackImg.style.maxHeight = "60px";
+        fallbackImg.style.maxWidth = "180px";
+        fallbackImg.style.objectFit = "contain";
+        area.innerHTML = "";
+        area.appendChild(fallbackImg);
+      } catch (e) { console.warn("Fallback logo error:", e.message); }
     }
   }
   async function loadSession() {
@@ -212,11 +221,11 @@
     } catch(logErr) { console.error('Failed to report error to Owner Dashboard:', logErr); }
     var banner = document.createElement('div');
     banner.id = 'driv-en-recovery-banner';
-    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999998;background:#fee2e2;border-bottom:3px solid #dc2626;padding:16px 20px;font-family:Arial,sans-serif;display:flex;align-items:center;gap:16px;justify-content:center;flex-wrap:wrap;';
-    var icon = '<span style="font-size:24px;">\u26a0\ufe0f</span>';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999998;background:#fee2e2;border-bottom:3px solid #dc2626;padding:16px 20px;font-family:Arial,sans-serif;display:flex;align-items:center;gap:12px;';
+    var icon = '<span style="font-size:24px;">⚠️</span>';
     var msg = '<span style="font-size:14px;color:#7f1d1d;"><strong>A page error occurred.</strong> The DRIV-EN team has been notified.</span>';
-    var btn = '<button onclick="window.goToMainDashboard()" style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:8px 20px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;">Return to Dashboard</button>';
-    var dismiss = '<button onclick="document.getElementById(\'driv-en-recovery-banner\').remove()" style="background:none;border:none;font-size:18px;color:#999;cursor:pointer;margin-left:8px;">\u00d7</button>';
+    var btn = '<button onclick="window.goToMainDashboard()" style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:8px 20px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;">Go to Dashboard</button>';
+    var dismiss = '<button onclick="document.getElementById(\'driv-en-recovery-banner\').remove()" style="background:none;border:none;font-size:18px;color:#999;cursor:pointer;margin-left:8px;">✕</button>';
     banner.innerHTML = icon + msg + btn + dismiss;
     if (document.body) document.body.appendChild(banner);
     else document.documentElement.appendChild(banner);
