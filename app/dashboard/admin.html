@@ -421,6 +421,11 @@
         <button class="settings-save-btn" id="saveTogglesBtn" onclick="saveToggles()">Save Toggles</button>
         <div class="settings-status" id="togglesStatus"></div>
       </div>
+      <div class="settings-section">
+        <h3>Onboarding</h3>
+        <p style="font-size:13px;color:var(--text-muted);margin:0 0 12px 0;">Reopen onboarding if your organization needs to make additional setup changes.</p>
+        <button class="reopen-onboarding-btn" id="reopenOnboardingBtn" onclick="reopenOnboarding()">Reopen Onboarding</button>
+      </div>
     </div>
   </div>
 
@@ -440,7 +445,6 @@
         <div class="progress-text" id="progressText">0 of 0 tasks complete</div>
         <div class="ob-progress-btns">
           <button class="progress-complete-btn" id="markCompleteBtn" onclick="showCompleteModal()">Mark Onboarding Complete</button>
-          <button class="reopen-onboarding-btn" id="reopenOnboardingBtn" style="display:none;" onclick="reopenOnboarding()">Reopen Onboarding</button>
         </div>
         <div class="onboarding-complete-panel" id="onboardingCompletePanel">
           <h3>🎉 Onboarding Complete</h3>
@@ -466,7 +470,7 @@
         <div class="settings-section">
           <h3>Key Personnel Assignments</h3>
           <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px 0;line-height:1.6;">Assign key personnel and the onboarding tasks they are responsible for. They will receive an email with login instructions.</p>
-          <div class="kp-unsaved-banner" id="kpUnsavedBanner" style="display:none;background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:6px;padding:10px 16px;font-size:14px;font-weight:500;display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+          <div class="kp-unsaved-banner" id="kpUnsavedBanner" style="display:none;background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:6px;padding:10px 16px;font-size:14px;font-weight:500;align-items:center;gap:12px;margin-bottom:16px;">
             <span style="font-size:18px;">⚠</span>
             <span>You have unsaved Key Personnel assignments. Click <strong>Send Invitations &amp; Create Accounts</strong> to save them.</span>
           </div>
@@ -522,6 +526,8 @@
     var pendingKP = [];
     var onboardingComplete = false;
     var settingsDirty = false;
+    var settingsFieldsDirty = false;
+    var settingsTogglesDirty = false;
     var visibilityDirty = false;
 
     var BUSINESS_TYPE_DEFAULTS = {
@@ -603,12 +609,14 @@
         var clientRecords = (results[3] && results[3].records) ? results[3].records : [];
         document.getElementById('stat-clients').textContent = clientRecords.length;
         localStorage.setItem('driven_client_count', clientRecords.length);
+        updateProgress();
       } catch(e) {
         reportError('loadDashboardStats', e);
         document.getElementById('stat-employees').textContent = localStorage.getItem('driven_employee_count') || '0';
         document.getElementById('stat-projects').textContent = localStorage.getItem('driven_project_count') || '0';
         document.getElementById('stat-equipment').textContent = localStorage.getItem('driven_equipment_count') || '0';
         document.getElementById('stat-clients').textContent = localStorage.getItem('driven_client_count') || '0';
+        updateProgress();
       }
     }
 
@@ -717,7 +725,7 @@
           if(data.settings.business_type){document.getElementById("businessTypeSelect").value=data.settings.business_type;}
           if(data.settings.naics_code){document.getElementById("naicsInput").value=data.settings.naics_code;}
           if(data.settings.currency){var cs=document.getElementById("currencySelect");if(cs)cs.value=data.settings.currency;}
-          if(data.settings.step_visibility&&typeof data.settings.step_visibility==='object'&&!Array.isArray(data.settings.step_visibility)){stepVisibility=data.settings.step_visibility;}else{stepVisibility={};}
+          if(data.settings.step_visibility&&typeof data.settings.step_visibility==='object'&&!Array.isArray(data.settings.step_visibility)){stepVisibility=data.settings.step_visibility;}else{stepVisibility={};applyBusinessTypeDefaults();}
           if(data.settings.onboarding_complete){onboardingComplete=true;hideOnboardingTab();}
           if(data.settings.fuel_meter_photo){var mt=document.getElementById("fuelMeterPhotoToggle");if(mt)mt.checked=true;var ml=document.getElementById("fuelMeterPhotoLabel");if(ml){ml.textContent="On";ml.classList.add("active");}}
           if(data.settings.fuel_asset_photo){var at2=document.getElementById("fuelAssetPhotoToggle");if(at2)at2.checked=true;var al=document.getElementById("fuelAssetPhotoLabel");if(al){al.textContent="On";al.classList.add("active");}}
@@ -728,8 +736,10 @@
       updateProgress();
     }
 
-    function markSettingsDirty(){settingsDirty=true;}
-    function clearSettingsDirty(){settingsDirty=false;}
+    function syncSettingsDirty(){settingsDirty=settingsFieldsDirty||settingsTogglesDirty;}
+    function markSettingsDirty(){settingsFieldsDirty=true;syncSettingsDirty();}
+    function markSettingsTogglesDirty(){settingsTogglesDirty=true;syncSettingsDirty();}
+    function clearSettingsDirty(){settingsFieldsDirty=false;settingsTogglesDirty=false;syncSettingsDirty();}
     function markVisibilityDirty(){visibilityDirty=true;var w=document.getElementById('visibilityWarning');if(w)w.style.display='block';}
     function clearVisibilityDirty(){visibilityDirty=false;var w=document.getElementById('visibilityWarning');if(w)w.style.display='none';}
 
@@ -741,14 +751,13 @@
       if(naicsBtn){naicsBtn.disabled=true;naicsBtn.textContent="Saving…";}
       if(curBtn){curBtn.disabled=true;curBtn.textContent="Saving…";}
       try{
-        var res=await fetch("/auth/save-settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({settings:{business_type:bt,naics_code:naics,currency:cur}})});
+        var res=await fetch("/auth/save-settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({settings:{business_type:bt,naics_code:naics,currency:cur,step_visibility:stepVisibility}})});
         var d=await res.json();
-        if(d.success){orgSettings.business_type=bt;orgSettings.naics_code=naics;orgSettings.currency=cur;if(st){st.textContent="Saved.";st.style.color="var(--success,#16a34a)";}if(ns){ns.textContent="Saved.";ns.style.color="var(--success,#16a34a)";}if(cs2){cs2.textContent="Saved.";cs2.style.color="var(--success,#16a34a)";}}
+        if(res.ok&&d.success){orgSettings.business_type=bt;orgSettings.naics_code=naics;orgSettings.currency=cur;orgSettings.step_visibility=stepVisibility;settingsFieldsDirty=false;syncSettingsDirty();clearVisibilityDirty();if(st){st.textContent="Saved.";st.style.color="var(--success,#16a34a)";}if(ns){ns.textContent="Saved.";ns.style.color="var(--success,#16a34a)";}if(cs2){cs2.textContent="Saved.";cs2.style.color="var(--success,#16a34a)";}}
         else{if(st){st.textContent="Failed: "+(d.error||"Unknown");st.style.color="var(--error)";}if(ns){ns.textContent="Failed.";ns.style.color="var(--error)";}if(cs2){cs2.textContent="Failed.";cs2.style.color="var(--error)";}}
       }catch(e){reportError("saveSettings",e);if(st){st.textContent="Failed.";st.style.color="var(--error)";}}
       if(btBtn){btBtn.disabled=false;btBtn.textContent="Save";}if(naicsBtn){naicsBtn.disabled=false;naicsBtn.textContent="Save";}if(curBtn){curBtn.disabled=false;curBtn.textContent="Save";}
       setTimeout(function(){if(st)st.textContent="";if(ns)ns.textContent="";if(cs2)cs2.textContent="";},3000);
-      clearSettingsDirty();
     }
 
     function onNaicsChange(){markSettingsDirty();}
@@ -759,13 +768,13 @@
       if(mt&&ml){ml.textContent=mt.checked?"On":"Off";ml.classList.toggle("active",mt.checked);}
       var at=document.getElementById("fuelAssetPhotoToggle"),al=document.getElementById("fuelAssetPhotoLabel");
       if(at&&al){al.textContent=at.checked?"On":"Off";al.classList.toggle("active",at.checked);}
-      markSettingsDirty();
+      markSettingsTogglesDirty();
     }
 
     function onLocationReqToggleChange() {
       var lt=document.getElementById("locationReqToggle"),ll=document.getElementById("locationReqLabel");
       if(lt&&ll){ll.textContent=lt.checked?"On":"Off";ll.classList.toggle("active",lt.checked);}
-      markSettingsDirty();
+      markSettingsTogglesDirty();
     }
 
     async function saveToggles() {
@@ -777,7 +786,7 @@
       try{
         var res=await fetch("/auth/save-settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({settings:{fuel_meter_photo:mp,fuel_asset_photo:ap,location_request:lr}})});
         var d=await res.json();
-        if(d.success){orgSettings.fuel_meter_photo=mp;orgSettings.fuel_asset_photo=ap;orgSettings.location_request=lr;if(st){st.textContent="Toggles saved.";st.style.color="var(--success,#16a34a)";}}
+        if(res.ok&&d.success){orgSettings.fuel_meter_photo=mp;orgSettings.fuel_asset_photo=ap;orgSettings.location_request=lr;settingsTogglesDirty=false;syncSettingsDirty();if(st){st.textContent="Toggles saved.";st.style.color="var(--success,#16a34a)";}}
         else{if(st){st.textContent="Failed: "+(d.error||"Unknown");st.style.color="var(--error)";}}
       }catch(e){reportError("saveToggles",e);if(st){st.textContent="Failed.";st.style.color="var(--error)";}}
       if(btn){btn.disabled=false;btn.textContent="Save Toggles";}
@@ -809,8 +818,8 @@
 
     async function saveStepVisibility() {
       var st=document.getElementById("visibilityStatus"); if(!stepVisibility||typeof stepVisibility!=='object') stepVisibility={};
-      try{var res=await fetch("/auth/save-settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({settings:{step_visibility:stepVisibility}})});var d=await res.json();if(d.success){if(st){st.textContent="Visibility saved.";st.style.color="var(--success,#16a34a)";}}else{if(st){st.textContent="Failed: "+(d.error||"Unknown");st.style.color="var(--error)";}}clearVisibilityDirty();renderStepToggles();updateProgress();}catch(e){reportError("saveStepVisibility",e);if(st){st.textContent="Failed.";st.style.color="var(--error)";}}
-      setTimeout(function(){st.textContent="";},3000);
+      try{var res=await fetch("/auth/save-settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({settings:{step_visibility:stepVisibility}})});var d=await res.json();if(res.ok&&d.success){if(st){st.textContent="Visibility saved.";st.style.color="var(--success,#16a34a)";}clearVisibilityDirty();renderStepToggles();updateProgress();}else{if(st){st.textContent="Failed: "+(d.error||"Unknown");st.style.color="var(--error)";}}}catch(e){reportError("saveStepVisibility",e);if(st){st.textContent="Failed.";st.style.color="var(--error)";}}
+      setTimeout(function(){if(st)st.textContent="";},3000);
     }
 
     async function loadKeyPersonnel() {
@@ -866,7 +875,7 @@
       btn.disabled=false;btn.textContent="Send Invitations & Create Accounts";
     }
 
-    function adminAutoDetect(k){switch(k){case"roles-permissions":return false;case"employees":return parseInt(localStorage.getItem("driven_employee_count")||"0")>0||localStorage.getItem("driven_step3_ts");case"locations":return localStorage.getItem("driven_locations_count");case"clients":return localStorage.getItem("driven_clients_count");case"divisions":return localStorage.getItem("driven_divisions_count");case"project-types":return localStorage.getItem("driven_project_types_count");case"projects":return localStorage.getItem("driven_projects_count");case"fuel-types":return localStorage.getItem("driven_fuel_types_count");case"units-of-measure":return localStorage.getItem("driven_units_of_measure_count");case"assets":return parseInt(localStorage.getItem("driven_equipment_count")||"0")>0;default:return false;}}
+    function adminAutoDetect(k){switch(k){case"roles-permissions":return false;case"employees":return parseInt(localStorage.getItem("driven_employee_count")||"0")>0||localStorage.getItem("driven_step3_ts");case"locations":return localStorage.getItem("driven_locations_count");case"clients":return localStorage.getItem("driven_client_count");case"divisions":return localStorage.getItem("driven_divisions_count");case"project-types":return localStorage.getItem("driven_project_types_count");case"projects":return localStorage.getItem("driven_project_count");case"fuel-types":return localStorage.getItem("driven_fuel_types_count");case"units-of-measure":return localStorage.getItem("driven_units_of_measure_count");case"assets":return parseInt(localStorage.getItem("driven_equipment_count")||"0")>0;default:return false;}}
 
     function adminIsTaskComplete(k){if(adminAutoDetect(k))return true;var tc={};try{tc=JSON.parse(localStorage.getItem("driven_task_completions")||"{}");}catch(e){}var sd=STEP_DEFS.find(function(s){return s.key===k;});return tc[k]===true || (sd && sd.locked);}
 
@@ -877,7 +886,7 @@
         var tot=vs.length,pct=tot>0?Math.round((comp/tot)*100):0;
         document.getElementById("progressBarFill").style.width=pct+"%";
         document.getElementById("progressText").textContent=comp+" of "+tot+" tasks complete";
-        if(comp>=tot&&tot>0)document.getElementById("markCompleteBtn").classList.add("show");else document.getElementById("markCompleteBtn").classList.remove("show");
+        if(comp>=tot&&tot>0&&!onboardingComplete)document.getElementById("markCompleteBtn").classList.add("show");else document.getElementById("markCompleteBtn").classList.remove("show");
         if(onboardingComplete)document.getElementById("reopenOnboardingBtn").style.display="inline-block";
         var cp=document.getElementById("onboardingCompletePanel");if(cp){if(tot>0&&comp>=tot&&!onboardingComplete)cp.classList.add("show");else cp.classList.remove("show");}
       } catch(e) { reportError("updateProgress",e); }
@@ -886,7 +895,7 @@
     function showCompleteModal(){document.getElementById("confirmModal").classList.add("active");}
     function closeCompleteModal(){document.getElementById("confirmModal").classList.remove("active");}
 
-    async function markOnboardingComplete(){closeCompleteModal();try{await fetch("/auth/save-settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({settings:{onboarding_complete:true}})});onboardingComplete=true;hideOnboardingTab();updateProgress();}catch(e){reportError("markOnboardingComplete",e);alert("Failed to mark complete.");}}
+    async function markOnboardingComplete(){closeCompleteModal();try{var res=await fetch("/auth/save-settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({settings:{onboarding_complete:true}})});var data=await res.json();if(!res.ok||!data.success)throw new Error(data.error||"Failed to mark onboarding complete.");onboardingComplete=true;hideOnboardingTab();updateProgress();}catch(e){reportError("markOnboardingComplete",e);alert("Failed to mark complete.");}}
 
     function hideOnboardingTab(){var t=document.querySelector('[data-tab="onboarding"]');if(t)t.style.display="none";}
 
@@ -900,11 +909,11 @@
         var ir=await fetch("/api/onboarding/key-personnel/send-invites",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({emails:kpList})});var id=await ir.json();if(!id.success){alert("Failed to send invitations. Invite email may have failed.");btn.disabled=false;btn.textContent="Finalize Onboarding & Unlock Dashboards";return;}
         var rr=await fetch("/api/onboarding/key-personnel/revoke",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({customerId:cid,revokeAll:true})});var rd=await rr.json();if(!rd.success){alert("Failed to revoke assignments.");btn.disabled=false;btn.textContent="Finalize Onboarding & Unlock Dashboards";return;}
         var cr=await fetch("/auth/save-settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({settings:{onboarding_complete:true}})});var cd=await cr.json();if(!cd.success){alert("Failed to mark complete.");btn.disabled=false;btn.textContent="Finalize Onboarding & Unlock Dashboards";return;}
-        onboardingComplete=true;keyPersonnel=[];pendingKP=[];var p=document.getElementById("onboardingCompletePanel");if(p)p.classList.remove("show");document.getElementById("reopenOnboardingBtn").style.display="inline-block";alert("Onboarding finalized! Key Personnel have been invited and onboarding is now locked.");hideOnboardingTab();
+        onboardingComplete=true;keyPersonnel=[];pendingKP=[];var p=document.getElementById("onboardingCompletePanel");if(p)p.classList.remove("show");document.getElementById("reopenOnboardingBtn").style.display="inline-block";updateProgress();alert("Onboarding finalized! Key Personnel have been invited and onboarding is now locked.");hideOnboardingTab();
       }catch(e){reportError("finalizeOnboarding",e);alert("Failed.");btn.disabled=false;btn.textContent="Finalize Onboarding & Unlock Dashboards";}
     }
 
-    async function reopenOnboarding(){var btn=document.getElementById("reopenOnboardingBtn");if(btn){btn.disabled=true;btn.textContent="Reopening…";}try{await fetch("/auth/save-settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({settings:{onboarding_complete:false}})});onboardingComplete=false;document.querySelector('[data-tab="onboarding"]').style.display="";document.getElementById("onboardingCompletePanel").classList.remove("show");if(btn){btn.disabled=false;btn.textContent="Reopen Onboarding";btn.style.display="none";}}catch(e){reportError("reopenOnboarding",e);alert("Failed.");if(btn){btn.disabled=false;btn.textContent="Reopen Onboarding";}}}
+    async function reopenOnboarding(){var btn=document.getElementById("reopenOnboardingBtn");if(btn){btn.disabled=true;btn.textContent="Reopening…";}try{var res=await fetch("/auth/save-settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({settings:{onboarding_complete:false}})});var data=await res.json();if(!res.ok||!data.success)throw new Error(data.error||"Failed to reopen onboarding.");onboardingComplete=false;document.querySelector('[data-tab="onboarding"]').style.display="";document.getElementById("onboardingCompletePanel").classList.remove("show");if(btn){btn.disabled=false;btn.textContent="Reopen Onboarding";btn.style.display="none";}updateProgress();}catch(e){reportError("reopenOnboarding",e);alert("Failed.");if(btn){btn.disabled=false;btn.textContent="Reopen Onboarding";}}}
 
     window.addEventListener("beforeunload",function(e){if(visibilityDirty||settingsDirty){e.preventDefault();e.returnValue="";}});
 
