@@ -63,13 +63,14 @@
     .admin-welcome-actions .theme-switch-wrapper { border:1px solid var(--border); border-radius:6px; padding:8px 12px; }
     .admin-welcome h2 { margin:0; font-size:20px; color:var(--text); }
     .admin-welcome p { margin:6px 0 0; font-size:14px; color:var(--text-muted); }
-    .admin-welcome .welcome-detail { display:grid; gap:2px; font-size:13px; color:var(--text-muted); margin-top:10px; }
+    .admin-welcome .welcome-detail { display:grid; gap:2px; font-size:13px; color:var(--text-muted); margin-top:0; }
     .welcome-detail-row { display:flex; align-items:center; gap:6px; }
     .welcome-detail-label { font-weight:600; color:var(--text); }
     .welcome-details-grid { display:grid; grid-template-columns:minmax(0, 1fr) auto; column-gap:20px; row-gap:2px; align-items:center; }
+    .welcome-company-row { grid-column:1; grid-row:1; }
     .welcome-role-row { grid-column:1; grid-row:2; }
     .welcome-email-row { grid-column:1; grid-row:3; }
-    .welcome-change-password { margin:0; flex-shrink:0; background:transparent; border:1px solid var(--primary); color:var(--primary); }
+    .welcome-change-password { grid-column:2; grid-row:1 / span 2; align-self:center; margin:0; flex-shrink:0; background:transparent; border:1px solid var(--primary); color:var(--primary); }
     .admin-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin-bottom:24px; }
     .admin-stat-card { background:var(--bg-card); border:2px solid var(--border); border-radius:8px; padding:20px; cursor:pointer; transition:border-color 200ms ease,box-shadow 200ms ease; display:flex; flex-direction:column; }
     .admin-stat-card:hover { border-color:var(--primary); box-shadow:0 2px 8px rgba(37,99,235,0.15); }
@@ -185,7 +186,7 @@
       .admin-welcome-top { align-items:flex-start; flex-direction:column; gap:12px; }
       .admin-welcome-actions { justify-content:flex-start; }
       .welcome-details-grid { grid-template-columns:minmax(0, 1fr) auto; column-gap:10px; }
-      .welcome-change-password { grid-column:2; grid-row:2 / span 2; align-self:center; padding:8px 10px; font-size:12px; }
+      .welcome-change-password { padding:8px 10px; font-size:12px; }
       .settings-row { flex-direction:column; gap:4px; }
       .settings-label { padding-top:0; }
       .kp-add-form { grid-template-columns:1fr; }
@@ -228,7 +229,7 @@
         </div>
         <p id="welcome-subtitle">You have full access to all modules, settings, users, and operational data.</p>
         <div class="welcome-details-grid welcome-detail">
-          <div class="welcome-detail-row"><span class="welcome-detail-label">Company:</span> <span id="welcome-company"></span></div>
+          <div class="welcome-detail-row welcome-company-row"><span class="welcome-detail-label">Company:</span> <span id="welcome-company"></span></div>
           <div class="welcome-detail-row welcome-role-row"><span class="welcome-detail-label">Role:</span> <span id="welcome-role"></span></div>
           <div class="welcome-detail-row welcome-email-row"><span class="welcome-detail-label">Email:</span> <span id="welcome-email"></span></div>
           <button class="settings-save-btn welcome-change-password" onclick="window.location.href='/app/auth/change-password.html'">Change Password</button>
@@ -590,10 +591,8 @@
 
     async function loadDashboardStats() {
       try {
-        var customerId = (window.dashUser && window.dashUser.org_id) || localStorage.getItem('driven_customer_id');
-        if (!customerId) throw new Error('Organization ID unavailable for employee count');
         var results = await Promise.all([
-          fetch('/api/onboarding/employees/count?customerId=' + encodeURIComponent(customerId)).then(function(r){
+          fetch('/api/onboarding/employees/list').then(function(r){
             if (!r.ok) throw new Error('Employee count request failed: ' + r.status);
             return r.json();
           }),
@@ -601,10 +600,13 @@
           fetch('/api/Project').then(function(r){return r.json();}).catch(function(){return {records:[]};}),
           fetch('/api/Clients').then(function(r){return r.json();}).catch(function(){return {records:[]};})
         ]);
-        if (!results[0] || !results[0].success || !Number.isFinite(Number(results[0].count))) {
-          throw new Error('Employee count response was invalid');
+        if (!results[0] || !results[0].success || !Array.isArray(results[0].employees)) {
+          throw new Error('Employee list response was invalid');
         }
-        var empCount = Number(results[0].count);
+        var empCount = results[0].employees.filter(function(employee) {
+          var status = employee.status;
+          return status === 1 || status === '1' || status === 'Active' || status === 'active';
+        }).length;
         document.getElementById('stat-employees').textContent = empCount;
         localStorage.setItem('driven_employee_count', empCount);
         var eqRecords = (results[1] && results[1].records) ? results[1].records : [];
