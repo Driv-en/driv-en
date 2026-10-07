@@ -63,11 +63,12 @@
     .admin-welcome-actions .theme-switch-wrapper { border:1px solid var(--border); border-radius:6px; padding:8px 12px; }
     .admin-welcome h2 { margin:0; font-size:20px; color:var(--text); }
     .admin-welcome p { margin:6px 0 0; font-size:14px; color:var(--text-muted); }
-    .admin-welcome .welcome-detail { display:grid; gap:6px; font-size:13px; color:var(--text-muted); margin-top:10px; }
+    .admin-welcome .welcome-detail { display:grid; gap:2px; font-size:13px; color:var(--text-muted); margin-top:10px; }
     .welcome-detail-row { display:flex; align-items:center; gap:6px; }
     .welcome-detail-label { font-weight:600; color:var(--text); }
-    .welcome-role-row { justify-content:space-between; gap:16px; }
-    .welcome-role-info { display:flex; align-items:center; gap:6px; }
+    .welcome-details-grid { display:grid; grid-template-columns:minmax(0, 1fr) auto; column-gap:20px; row-gap:2px; align-items:center; }
+    .welcome-role-row { grid-column:1; grid-row:2; }
+    .welcome-email-row { grid-column:1; grid-row:3; }
     .welcome-change-password { margin:0; flex-shrink:0; background:transparent; border:1px solid var(--primary); color:var(--primary); }
     .admin-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin-bottom:24px; }
     .admin-stat-card { background:var(--bg-card); border:2px solid var(--border); border-radius:8px; padding:20px; cursor:pointer; transition:border-color 200ms ease,box-shadow 200ms ease; display:flex; flex-direction:column; }
@@ -110,6 +111,7 @@
     .theme-switch input { opacity:0; width:0; height:0; }
     .theme-slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:var(--border); border-radius:24px; transition:background 200ms ease; }
     .theme-slider:before { content:""; position:absolute; height:18px; width:18px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:transform 200ms ease; }
+    :root[data-theme="light"] .theme-switch .theme-slider { background:#16a34a; border:1px solid #15803d; }
     .theme-switch input:checked + .theme-slider { background:var(--primary); }
     .theme-switch input:checked + .theme-slider:before { transform:translateX(20px); }
     .step-toggle-list { display:flex; flex-direction:column; gap:10px; }
@@ -182,6 +184,8 @@
       .admin-welcome { padding:18px; }
       .admin-welcome-top { align-items:flex-start; flex-direction:column; gap:12px; }
       .admin-welcome-actions { justify-content:flex-start; }
+      .welcome-details-grid { grid-template-columns:minmax(0, 1fr) auto; column-gap:10px; }
+      .welcome-change-password { grid-column:2; grid-row:2 / span 2; align-self:center; padding:8px 10px; font-size:12px; }
       .settings-row { flex-direction:column; gap:4px; }
       .settings-label { padding-top:0; }
       .kp-add-form { grid-template-columns:1fr; }
@@ -223,13 +227,11 @@
           </div>
         </div>
         <p id="welcome-subtitle">You have full access to all modules, settings, users, and operational data.</p>
-        <div class="welcome-detail">
+        <div class="welcome-details-grid welcome-detail">
           <div class="welcome-detail-row"><span class="welcome-detail-label">Company:</span> <span id="welcome-company"></span></div>
-          <div class="welcome-detail-row welcome-role-row">
-            <div class="welcome-role-info"><span class="welcome-detail-label">Role:</span> <span id="welcome-role"></span></div>
-            <button class="settings-save-btn welcome-change-password" onclick="window.location.href='/app/auth/change-password.html'">Change Password</button>
-          </div>
-          <div class="welcome-detail-row"><span class="welcome-detail-label">Email:</span> <span id="welcome-email"></span></div>
+          <div class="welcome-detail-row welcome-role-row"><span class="welcome-detail-label">Role:</span> <span id="welcome-role"></span></div>
+          <div class="welcome-detail-row welcome-email-row"><span class="welcome-detail-label">Email:</span> <span id="welcome-email"></span></div>
+          <button class="settings-save-btn welcome-change-password" onclick="window.location.href='/app/auth/change-password.html'">Change Password</button>
         </div>
       </div>
       <div class="admin-stats" id="overviewCards">
@@ -588,14 +590,21 @@
 
     async function loadDashboardStats() {
       try {
+        var customerId = (window.dashUser && window.dashUser.org_id) || localStorage.getItem('driven_customer_id');
+        if (!customerId) throw new Error('Organization ID unavailable for employee count');
         var results = await Promise.all([
-          fetch('/api/onboarding/employees/list').then(function(r){return r.json();}).catch(function(){return {employees:[]};}),
+          fetch('/api/onboarding/employees/count?customerId=' + encodeURIComponent(customerId)).then(function(r){
+            if (!r.ok) throw new Error('Employee count request failed: ' + r.status);
+            return r.json();
+          }),
           fetch('/api/Equipment').then(function(r){return r.json();}).catch(function(){return {records:[]};}),
           fetch('/api/Project').then(function(r){return r.json();}).catch(function(){return {records:[]};}),
           fetch('/api/Clients').then(function(r){return r.json();}).catch(function(){return {records:[]};})
         ]);
-        var empRecords = (results[0] && results[0].employees) ? results[0].employees : [];
-        var empCount = empRecords.filter(function(e){ var s=(e.status||'Active'); return s==='Active'||s==='active'; }).length;
+        if (!results[0] || !results[0].success || !Number.isFinite(Number(results[0].count))) {
+          throw new Error('Employee count response was invalid');
+        }
+        var empCount = Number(results[0].count);
         document.getElementById('stat-employees').textContent = empCount;
         localStorage.setItem('driven_employee_count', empCount);
         var eqRecords = (results[1] && results[1].records) ? results[1].records : [];
@@ -609,7 +618,7 @@
         localStorage.setItem('driven_client_count', clientRecords.length);
       } catch(e) {
         reportError('loadDashboardStats', e);
-        document.getElementById('stat-employees').textContent = localStorage.getItem('driven_employee_count') || '0';
+        document.getElementById('stat-employees').textContent = '—';
         document.getElementById('stat-projects').textContent = localStorage.getItem('driven_project_count') || '0';
         document.getElementById('stat-equipment').textContent = localStorage.getItem('driven_equipment_count') || '0';
         document.getElementById('stat-clients').textContent = localStorage.getItem('driven_client_count') || '0';
