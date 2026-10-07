@@ -58,12 +58,17 @@
     .admin-tab-logout:hover { background:#dc2626; margin-top:2px; }
     .admin-main { max-width:1100px; margin:20px auto; padding:0 20px; position:relative; z-index:1; }
     .admin-welcome { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:24px; margin-bottom:24px; }
-    .admin-welcome-actions { display:flex; justify-content:flex-end; align-items:center; gap:12px; margin-top:16px; flex-wrap:wrap; }
+    .admin-welcome-top { display:flex; justify-content:space-between; align-items:center; gap:16px; }
+    .admin-welcome-actions { display:flex; justify-content:flex-end; align-items:center; gap:12px; flex-wrap:wrap; }
     .admin-welcome-actions .theme-switch-wrapper { border:1px solid var(--border); border-radius:6px; padding:8px 12px; }
-    .admin-welcome h2 { margin:0 0 6px 0; font-size:20px; color:var(--text); }
-    .admin-welcome p { margin:0; font-size:14px; color:var(--text-muted); }
-    .admin-welcome .welcome-detail { font-size:13px; color:var(--text-muted); margin-top:6px; }
-    .admin-welcome .welcome-detail span { font-weight:600; color:var(--text); }
+    .admin-welcome h2 { margin:0; font-size:20px; color:var(--text); }
+    .admin-welcome p { margin:6px 0 0; font-size:14px; color:var(--text-muted); }
+    .admin-welcome .welcome-detail { display:grid; gap:6px; font-size:13px; color:var(--text-muted); margin-top:10px; }
+    .welcome-detail-row { display:flex; align-items:center; gap:6px; }
+    .welcome-detail-label { font-weight:600; color:var(--text); }
+    .welcome-role-row { justify-content:space-between; gap:16px; }
+    .welcome-role-info { display:flex; align-items:center; gap:6px; }
+    .welcome-change-password { margin:0; flex-shrink:0; background:transparent; border:1px solid var(--primary); color:var(--primary); }
     .admin-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin-bottom:24px; }
     .admin-stat-card { background:var(--bg-card); border:2px solid var(--border); border-radius:8px; padding:20px; cursor:pointer; transition:border-color 200ms ease,box-shadow 200ms ease; display:flex; flex-direction:column; }
     .admin-stat-card:hover { border-color:var(--primary); box-shadow:0 2px 8px rgba(37,99,235,0.15); }
@@ -174,6 +179,9 @@
     @media (max-width:800px) {
       .admin-stats { grid-template-columns:repeat(2,1fr); }
       .admin-main { padding:0 12px; margin:12px auto; }
+      .admin-welcome { padding:18px; }
+      .admin-welcome-top { align-items:flex-start; flex-direction:column; gap:12px; }
+      .admin-welcome-actions { justify-content:flex-start; }
       .settings-row { flex-direction:column; gap:4px; }
       .settings-label { padding-top:0; }
       .kp-add-form { grid-template-columns:1fr; }
@@ -201,19 +209,27 @@
   <div class="admin-tab-content active" id="tab-overview">
     <div class="admin-main">
       <div class="admin-welcome">
-        <h2>Welcome, <span id="welcome-name"></span></h2>
-        <p id="welcome-subtitle">You have full access to all modules, settings, users, and operational data.</p>
-        <div class="welcome-detail" id="welcome-detail"></div>
-        <div class="admin-welcome-actions">
-          <div class="theme-switch-wrapper" title="Toggle light/dark mode">
-            <span class="theme-switch-label" id="theme-label-light">Light Mode</span>
-            <label class="theme-switch">
-              <input type="checkbox" id="theme-checkbox" onchange="toggleTheme()">
-              <span class="theme-slider"></span>
-            </label>
-            <span class="theme-switch-label" id="theme-label-dark">Dark Mode</span>
+        <div class="admin-welcome-top">
+          <h2>Welcome, <span id="welcome-name"></span></h2>
+          <div class="admin-welcome-actions">
+            <div class="theme-switch-wrapper" title="Toggle light/dark mode">
+              <span class="theme-switch-label" id="theme-label-light">Light Mode</span>
+              <label class="theme-switch">
+                <input type="checkbox" id="theme-checkbox" onchange="toggleTheme()">
+                <span class="theme-slider"></span>
+              </label>
+              <span class="theme-switch-label" id="theme-label-dark">Dark Mode</span>
+            </div>
           </div>
-          <button class="settings-save-btn" style="background:transparent;border:1px solid var(--primary);color:var(--primary);margin-top:0;" onclick="window.location.href='/app/auth/change-password.html'">Change Password</button>
+        </div>
+        <p id="welcome-subtitle">You have full access to all modules, settings, users, and operational data.</p>
+        <div class="welcome-detail">
+          <div class="welcome-detail-row"><span class="welcome-detail-label">Company:</span> <span id="welcome-company"></span></div>
+          <div class="welcome-detail-row welcome-role-row">
+            <div class="welcome-role-info"><span class="welcome-detail-label">Role:</span> <span id="welcome-role"></span></div>
+            <button class="settings-save-btn welcome-change-password" onclick="window.location.href='/app/auth/change-password.html'">Change Password</button>
+          </div>
+          <div class="welcome-detail-row"><span class="welcome-detail-label">Email:</span> <span id="welcome-email"></span></div>
         </div>
       </div>
       <div class="admin-stats" id="overviewCards">
@@ -913,8 +929,12 @@
           var email = user.email || "";
           var wn = document.getElementById("welcome-name");
           if (wn) wn.textContent = firstName;
-          var wd = document.getElementById("welcome-detail");
-          if (wd) wd.innerHTML = "<span>Company:</span> " + esc(orgName || "—") + " &nbsp; <span>Role:</span> " + esc(role) + " &nbsp; <span>Email:</span> " + esc(email);
+          var wc = document.getElementById("welcome-company");
+          if (wc) wc.textContent = orgName || "—";
+          var wr = document.getElementById("welcome-role");
+          if (wr) wr.textContent = role;
+          var we = document.getElementById("welcome-email");
+          if (we) we.textContent = email;
           insertHeaderTitle();
           makeTabsSticky();
           try { await loadLogo(); } catch(e) { console.warn("loadLogo warning:", e.message); }
