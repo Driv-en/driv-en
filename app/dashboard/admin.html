@@ -58,6 +58,8 @@
     .admin-tab-logout:hover { background:#dc2626; margin-top:2px; }
     .admin-main { max-width:1100px; margin:20px auto; padding:0 20px; position:relative; z-index:1; }
     .admin-welcome { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:24px; margin-bottom:24px; }
+    .admin-welcome-actions { display:flex; justify-content:flex-end; align-items:center; gap:12px; margin-top:16px; flex-wrap:wrap; }
+    .admin-welcome-actions .theme-switch-wrapper { border:1px solid var(--border); border-radius:6px; padding:8px 12px; }
     .admin-welcome h2 { margin:0 0 6px 0; font-size:20px; color:var(--text); }
     .admin-welcome p { margin:0; font-size:14px; color:var(--text-muted); }
     .admin-welcome .welcome-detail { font-size:13px; color:var(--text-muted); margin-top:6px; }
@@ -105,8 +107,6 @@
     .theme-slider:before { content:""; position:absolute; height:18px; width:18px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:transform 200ms ease; }
     .theme-switch input:checked + .theme-slider { background:var(--primary); }
     .theme-switch input:checked + .theme-slider:before { transform:translateX(20px); }
-    .account-row { font-size:14px; color:var(--text); margin-bottom:8px; }
-    .account-row span { color:var(--text-muted); font-weight:500; }
     .step-toggle-list { display:flex; flex-direction:column; gap:10px; }
     .step-toggle-row { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:var(--bg-step); border:2px solid #16a34a; border-radius:8px; transition:border-color 200ms ease; }
     .step-toggle-row:hover { border-color:#15803d; box-shadow:0 2px 8px rgba(22,163,74,0.15); }
@@ -197,14 +197,14 @@
 <div id="loading" class="admin-loading">Checking session…</div>
 <div id="dashboard" style="display:none;">
 
-  <!-- ===== OVERVIEW TAB ===== --> 
+  <!-- ===== OVERVIEW TAB ===== -->
   <div class="admin-tab-content active" id="tab-overview">
     <div class="admin-main">
       <div class="admin-welcome">
         <h2>Welcome, <span id="welcome-name"></span></h2>
         <p id="welcome-subtitle">You have full access to all modules, settings, users, and operational data.</p>
         <div class="welcome-detail" id="welcome-detail"></div>
-        <div style="display:flex;align-items:center;gap:16px;margin-top:16px;flex-wrap:wrap;">
+        <div class="admin-welcome-actions">
           <div class="theme-switch-wrapper" title="Toggle light/dark mode">
             <span class="theme-switch-label" id="theme-label-light">Light Mode</span>
             <label class="theme-switch">
@@ -256,6 +256,7 @@
       </div>
     </div>
   </div>
+
   <!-- ===== FORMS TAB ===== -->
   <div class="admin-tab-content" id="tab-forms">
     <div class="admin-main">
@@ -899,7 +900,7 @@
 
     function makeTabsSticky(){var h=document.getElementById("dashHeader"),tb=document.getElementById("adminTabBar");if(h&&tb&&!h.contains(tb))h.appendChild(tb);var ob=document.getElementById("onboardingSubtabBar");if(ob&&h&&!h.contains(ob))h.appendChild(ob);}
 
-    function insertHeaderTitle(){var r=document.querySelector(".dash-header-row1");if(r&&!document.querySelector(".admin-header-title")){var t=document.createElement("div");t.className="admin-header-title";t.textContent="Admin Dashboard";r.appendChild(t);}}
+    function insertHeaderTitle(){var r=document.querySelector(".dash-header-row1");if(r&&!document.querySelector(".admin-header-title")){var t=document.createElement("div");t.className="admin-header-title";t.textContent="Admin Dashboard";var logo=r.querySelector(".dash-driven-logo");if(logo)r.insertBefore(t,logo);else r.appendChild(t);}}
 
     async function init() {
       document.addEventListener("dashSessionLoaded", async function() {
@@ -914,10 +915,6 @@
           if (wn) wn.textContent = firstName;
           var wd = document.getElementById("welcome-detail");
           if (wd) wd.innerHTML = "<span>Company:</span> " + esc(orgName || "—") + " &nbsp; <span>Role:</span> " + esc(role) + " &nbsp; <span>Email:</span> " + esc(email);
-          var an = document.getElementById("account-name");
-          if (an) an.textContent = user.first_name ? (user.first_name + " " + (user.last_name || "")) : user.email;
-          var ae = document.getElementById("account-email");
-          if (ae) ae.textContent = user.email || "";
           insertHeaderTitle();
           makeTabsSticky();
           try { await loadLogo(); } catch(e) { console.warn("loadLogo warning:", e.message); }
