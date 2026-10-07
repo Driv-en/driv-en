@@ -80,6 +80,10 @@ function findWorkerUrl(path) {
     if (WORKER_ROUTES[prefix].indexOf('driv-en-api') !== -1) {
       return WORKER_ROUTES[prefix] + '/api/' + pathParts.join('/');
     }
+    // The onboarding worker routes are defined with the /api/ prefix.
+    if (prefix === 'onboarding') {
+      return WORKER_ROUTES[prefix] + '/api/' + pathParts.join('/');
+    }
     return WORKER_ROUTES[prefix] + '/' + pathParts.join('/');
   }
 
