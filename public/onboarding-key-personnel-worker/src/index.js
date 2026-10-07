@@ -239,6 +239,23 @@ async function handleList(request, env) {
   }
 }
 
+async function handleEmployeeCount(request, env) {
+  try {
+    const url = new URL(request.url);
+    const customerId = url.searchParams.get("customerId");
+    if (!customerId) return json({ success: false, error: "Missing customerId" }, 400);
+
+    const result = await env.EMPLOYEES_DB.prepare(
+      "SELECT COUNT(*) AS count FROM employees WHERE customer_id=? AND (status='Active' OR status='active')"
+    ).bind(customerId).first();
+
+    return json({ success: true, count: Number(result && result.count || 0) });
+  } catch (e) {
+    console.error("handleEmployeeCount error:", e.message, e.stack);
+    return json({ success: false, error: "Failed to count employees" }, 500);
+  }
+}
+
 async function handleRevoke(request, env) {
   let body;
   try { body = await request.json(); } catch (e) {
@@ -283,6 +300,7 @@ export default {
     const method = request.method;
     if (method === "OPTIONS") return new Response(null, { status: 204, headers: CH });
     if (path === "/api/onboarding/roles" && method === "GET") return handleGetRoles(request, env);
+    if (path === "/api/onboarding/employees/count" && method === "GET") return handleEmployeeCount(request, env);
     if (path === "/api/onboarding/key-personnel/list" && method === "GET") return handleList(request, env);
     if (path === "/api/onboarding/key-personnel/revoke" && method === "POST") return handleRevoke(request, env);
     if (path === "/api/onboarding/key-personnel/complete" && method === "POST") return handleComplete(request, env);
