@@ -19,6 +19,14 @@ var sessionSortColumn = 'firstVisit';
 var sessionSortDirection = 'desc';
 var allSessions = [];
 
+// API routes for admin dashboard data.
+// Pages Functions live under /api/admin/* in this repo, so keep these paths exact.
+var ADMIN_API_BASE = '/api/admin';
+
+function adminApi(path) {
+  return ADMIN_API_BASE + path;
+}
+
 // ---- Theme Toggle ----
 function dashToggleTheme() {
   var current = document.documentElement.getAttribute("data-theme");
@@ -50,7 +58,7 @@ function loadOwnerLogo() {
   preview.innerHTML = '<div class="settings-logo-placeholder">No logo uploaded</div>';
   if (removeBtn) removeBtn.style.display = 'none';
 
-  fetch('/api/admin/app-settings?key=owner_logo')
+  fetch(adminApi('/app-settings?key=owner_logo'))
     .then(function(res) { return res.json(); })
     .then(function(data) {
       if (data.success && data.value) {
@@ -76,7 +84,7 @@ function handleLogoUpload(event) {
   reader.onload = function(e) {
     var logoData = e.target.result;
 
-    fetch('/api/admin/app-settings', {
+    fetch(adminApi('/app-settings'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key: 'owner_logo', value: logoData })
@@ -102,7 +110,7 @@ function handleLogoUpload(event) {
 }
 
 function removeLogo() {
-  fetch('/api/admin/app-settings', {
+  fetch(adminApi('/app-settings'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ key: 'owner_logo', value: '' })
@@ -181,7 +189,7 @@ async function loadVisitors(presetDays, presetName) {
 
     document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px;">Loading...</td></tr>';
 
-    var summaryResp = await fetch('/api/admin/site-visitors?summary=true&start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate));
+    var summaryResp = await fetch(adminApi('/site-visitors?summary=true&start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate)));
     var summaryData = await summaryResp.json();
 
     if (summaryData.success) {
@@ -224,7 +232,7 @@ async function loadVisitors(presetDays, presetName) {
       document.getElementById('visitorOS').innerHTML = osHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
     }
 
-    var listResp = await fetch('/api/admin/site-visitors?start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate));
+    var listResp = await fetch(adminApi('/site-visitors?start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate)));
     var listData = await listResp.json();
 
     if (listData.success && listData.visitors && listData.visitors.length > 0) {
@@ -235,7 +243,7 @@ async function loadVisitors(presetDays, presetName) {
       document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No visitor data for this date range.</td></tr>';
     }
 
-    var sessResp = await fetch('/api/admin/site-visitors?sessions=true&start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate));
+    var sessResp = await fetch(adminApi('/site-visitors?sessions=true&start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate)));
     var sessData = await sessResp.json();
 
     if (sessData.success && sessData.sessions && sessData.sessions.length > 0) {
@@ -493,7 +501,7 @@ function initOwnerDashboard() {
 // ---- W-9 IRS Form URL ----
 async function loadW9IrsFormUrl() {
   try {
-    var resp = await fetch('/api/admin/app-settings?key=w9_irs_form_url');
+    var resp = await fetch(adminApi('/app-settings?key=w9_irs_form_url'));
     var data = await resp.json();
     if (data.success && data.value) {
       var input = document.getElementById('w9IrsFormUrlInput');
@@ -513,7 +521,7 @@ async function saveW9IrsFormUrl() {
   }
 
   try {
-    var resp = await fetch('/api/admin/app-settings', {
+    var resp = await fetch(adminApi('/app-settings'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key: 'w9_irs_form_url', value: url })
@@ -566,7 +574,7 @@ async function loadPartners() {
   if (searchInput) searchInput.value = '';
 
   try {
-    var resp = await fetch('/api/admin/referral-partners');
+    var resp = await fetch(adminApi('/referral-partners'));
     var data = await resp.json();
 
     if (data.success && data.partners) {
@@ -800,7 +808,7 @@ function sortPartners(partners) {
 
 // ---- W-9 View ----
 function viewW9(partnerId) {
-  window.open('/api/admin/w9-download?partnerId=' + encodeURIComponent(partnerId), '_blank');
+  window.open(adminApi('/w9-download?partnerId=' + encodeURIComponent(partnerId)), '_blank');
 }
 
 // ---- Approve Modal ----
@@ -833,7 +841,7 @@ async function confirmApprove() {
   confirmBtn.disabled = true;
 
   try {
-    var resp = await fetch('/api/admin/referral-partners', {
+    var resp = await fetch(adminApi('/referral-partners'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -888,7 +896,7 @@ async function confirmReject() {
   confirmBtn.disabled = true;
 
   try {
-    var resp = await fetch('/api/admin/referral-partners', {
+    var resp = await fetch(adminApi('/referral-partners'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -963,7 +971,7 @@ async function submitChangePassword() {
 async function reapproveW9(partnerId, partnerName) {
   if (!confirm('Re-approve ' + partnerName + '? Their referral link will be reactivated.')) return;
   try {
-    var resp = await fetch('/api/admin/referral-partners', {
+    var resp = await fetch(adminApi('/referral-partners'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'reapprove_w9', partnerId: partnerId })
@@ -984,7 +992,7 @@ async function reapproveW9(partnerId, partnerName) {
 async function toggleActive(partnerId, partnerName) {
   if (!confirm('Toggle active state for ' + partnerName + '?')) return;
   try {
-    var resp = await fetch('/api/admin/referral-partners', {
+    var resp = await fetch(adminApi('/referral-partners'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'toggle_active', partnerId: partnerId })
@@ -1061,7 +1069,7 @@ async function loadCustomers() {
   listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading customers…</div>';
 
   try {
-    var resp = await fetch('/api/admin/customers');
+    var resp = await fetch(adminApi('/customers'));
     var data = await resp.json();
 
     if (data.success && data.customers) {
@@ -1223,7 +1231,7 @@ function showCustomerDetail(idx) {
   var expDate = c.expiration_date ? new Date(c.expiration_date).toLocaleDateString() : '—';
   var createdDate = c.created_at ? new Date(c.created_at).toLocaleDateString() : '—';
 
-  var html = '<div style="background:#ffffff;color:#1e293b;border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.35);border:1px solid #e2e8f0;">';
+  var html = '<div style="background:#ffffff;color:#1e293b;border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.35);borde[...]';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
   html += '<h3 style="margin:0;color:#1e293b;">' + escapeHtml(c.company_name || c.organization_name || c.name || 'Unknown') + '</h3>';
   html += '<button onclick="closeCustomerDetail()" style="background:none;border:none;font-size:26px;cursor:pointer;color:#64748b;line-height:1;">×</button>';
@@ -1332,7 +1340,7 @@ async function loadSystemStatus() {
   }
 
   try {
-    var resp = await fetch('/api/admin/referral-partners');
+    var resp = await fetch(adminApi('/referral-partners'));
     var data = await resp.json();
     if (data.success && data.partners) {
       document.getElementById('sysD1Partners').textContent = data.partners.length + ' rows';
@@ -1342,7 +1350,7 @@ async function loadSystemStatus() {
   }
 
   try {
-    var vResp = await fetch('/api/admin/site-visitors?summary=true');
+    var vResp = await fetch(adminApi('/site-visitors?summary=true'));
     var vData = await vResp.json();
     if (vData.success && vData.summary) {
       document.getElementById('sysD1Visitors').textContent = (vData.summary.totalVisits || 0) + ' rows';
@@ -1352,7 +1360,7 @@ async function loadSystemStatus() {
   }
 
   try {
-    var pResp = await fetch('/api/admin/referral-partners');
+    var pResp = await fetch(adminApi('/referral-partners'));
     var pData = await pResp.json();
     if (pData.success && pData.partners) {
       var withActivity = pData.partners.filter(function(p) { return p.last_referred; }).length;
@@ -1372,7 +1380,7 @@ async function loadSystemStatus() {
 
 async function loadAIUsage() {
   try {
-    var resp = await fetch('/api/admin/customers');
+    var resp = await fetch(adminApi('/customers'));
     var data = await resp.json();
     if (!data.success || !data.customers) {
       document.getElementById('ai-usage-detail').textContent = 'No AI usage data available yet.';
@@ -1433,7 +1441,7 @@ async function loadIssues() {
   listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading error logs...</div>';
 
   try {
-    var resp = await fetch('/api/admin/issues');
+    var resp = await fetch(adminApi('/issues'));
     var data = await resp.json();
 
     if (data.success && data.issues && data.issues.length > 0) {
@@ -1450,13 +1458,13 @@ async function loadIssues() {
       allIssues = [];
       populateSourceFilter([]);
       renderIssueStats([]);
-      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors Logged</h3><p>No errors have been recorded yet. When a Worker or Pages Function encounters an error, it will appear here.</p></div>';
+      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors Logged</h3><p>No errors have been recorded yet. When a Worker or Pages Function encounters an error[...]';
     }
   } catch (e) {
     allIssues = [];
     populateSourceFilter([]);
     renderIssueStats([]);
-    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Unable to Load Error Logs</h3><p>Could not reach the /api/admin/issues endpoint. Make sure the Pages Function is deployed and JWT_SECRET is configured.</p></div>';
+    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Unable to Load Error Logs</h3><p>Could not reach the /api/admin/issues endpoint. Make sure the Pages Function i[...]';
   }
 }
 
@@ -1545,7 +1553,7 @@ function renderIssues(issues) {
   });
 
   if (filtered.length === 0) {
-    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors Match Filters</h3><p>No errors match the current filter settings. Adjust or clear the filters.</p></div>';
+    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors Match Filters</h3><p>No errors match the current filter settings. Adjust or clear the filters.</p></d[...]';
     return;
   }
 
@@ -1618,7 +1626,7 @@ function renderIssues(issues) {
       html += '<div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;"><strong>Error ID:</strong> ' + safeId + '</div>';
       if (i.stack_trace) {
         html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-weight:600;">Stack Trace:</div>';
-        html += '<pre style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;color:var(--text);white-space:pre-wrap;word-break:break-word;max-height:240px;overflow:auto;">' + escapeHtml(i.stack_trace) + '</pre>';
+        html += '<pre style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;color:var(--text);white-space:pre-wrap;word-break:break-word;m[...]';
       }
       html += '</div>';
       html += '</td>';
@@ -1686,7 +1694,7 @@ async function resolveAllChecked() {
 
   for (var j = 0; j < ids.length; j++) {
     try {
-      var resp = await fetch('/api/admin/issues', {
+      var resp = await fetch(adminApi('/issues'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: ids[j], resolved: true })
@@ -1772,7 +1780,7 @@ function fallbackCopy(text, btn) {
 
 async function resolveIssue(id, resolved) {
   try {
-    var resp = await fetch('/api/admin/issues', {
+    var resp = await fetch(adminApi('/issues'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: id, resolved: resolved })
