@@ -1,9 +1,9 @@
 /**
  * sw.js — DRIV‑EN Service Worker
- * v13 — October 1, 2026: Force cache purge — old SW was serving stale dashboard-common.js.
+ * v14 — October 8, 2026: Force cache purge — old SW was serving stale dashboard-common.js.
  */
 
-const CACHE = 'driv-en-v13';
+const CACHE = 'driv-en-v14';
 const STATIC_ASSETS = [
   '/app/shared/dashboard.css',
   '/app/shared/dashboard-common.js',
