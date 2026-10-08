@@ -137,7 +137,7 @@ async function verifyFounder(request, env) {
   if (!token) return null;
   const payload = await verifyJwt(token, env.JWT_SECRET);
   if (!payload) return null;
-  if (payload.role === 'DRIV-EN Founder') return payload;
+  if (payload.role_id === 'RO-Founder' && payload.org_id === 'org_dsi') return payload;
   return null;
 }
 
