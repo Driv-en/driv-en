@@ -1,5 +1,6 @@
 // =========================================================================
-// OWNER DASHBOARD LOGIC — UPDATED (Founder auth fixed for multi-tenant)
+// OWNER DASHBOARD LOGIC — UPDATED
+// Multi-tenant founder auth fixed
 // =========================================================================
 
 var allPartners = [];
@@ -1427,11 +1428,9 @@ function _escHtml(s) {
 var allIssues = [];
 var issueExpandedId = null;
 
-// ---- leave the rest of the file unchanged below this point ----
-// (the remaining issue rendering, team access, logout, etc. can stay as-is)
 async function loadIssues() {
   var listEl = document.getElementById('issueList');
-   listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading error logs...</div>';
+  listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading error logs...</div>';
 
   try {
     var resp = await fetch('/api/admin/issues');
@@ -1451,13 +1450,13 @@ async function loadIssues() {
       allIssues = [];
       populateSourceFilter([]);
       renderIssueStats([]);
-      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors Logged</h3><p>No errors have been recorded yet. When a Worker or Pages Function encounters an error, it will automatically appear here with full diagnostic details.</p></div>';
+      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors Logged</h3><p>No errors have been recorded yet. When a Worker or Pages Function encounters an error, it will appear here.</p></div>';
     }
   } catch (e) {
     allIssues = [];
     populateSourceFilter([]);
     renderIssueStats([]);
-    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Unable to Load Error Logs</h3><p>Could not reach the /api/admin/issues endpoint. Make sure the Pages Function is deployed and D1 is bound.</p></div>';
+    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Unable to Load Error Logs</h3><p>Could not reach the /api/admin/issues endpoint. Make sure the Pages Function is deployed and JWT_SECRET is configured.</p></div>';
   }
 }
 
@@ -1487,7 +1486,6 @@ function populateSourceFilter(issues) {
     html += '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>';
   });
   sel.innerHTML = html;
-  // Restore previous selection if it still exists
   if (sources.indexOf(current) !== -1) {
     sel.value = current;
   }
@@ -1515,7 +1513,6 @@ function clearIssueFilters() {
 function renderIssues(issues) {
   var listEl = document.getElementById('issueList');
 
-  // Preserve scroll position across re-renders
   var scrollY = window.scrollY;
 
   if (issues.length === 0) {
@@ -1552,12 +1549,9 @@ function renderIssues(issues) {
     return;
   }
 
-  // Count unresolved for "Resolve All" button
   var unresolvedCount = filtered.filter(function(i) { return i.resolved !== 1; }).length;
-
   var html = '';
 
-  // "Resolve All" bar — only show if there are unresolved issues
   if (unresolvedCount > 0) {
     html += '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;margin-bottom:8px;background:var(--bg-step);border:1px solid var(--border);border-radius:8px;">';
     html += '<label style="display:flex;align-items:center;gap:6px;padding-left:12px;font-size:13px;color:var(--text);cursor:pointer;">';
@@ -1581,7 +1575,6 @@ function renderIssues(issues) {
 
   filtered.forEach(function(i) {
     var time = i.created_at ? new Date(i.created_at).toLocaleString() : '—';
-    var severity = i.severity || 'error';
     var isResolved = i.resolved === 1;
     var safeId = escapeHtml(i.id);
     var isExpanded = (issueExpandedId === i.id);
@@ -1592,7 +1585,6 @@ function renderIssues(issues) {
 
     var expandIcon = isExpanded ? '▼' : '▶';
 
-    // Checkbox for batch resolve — only for unresolved issues
     var checkboxHtml = isResolved
       ? '<td></td>'
       : '<td style="text-align:center;"><input type="checkbox" class="issue-checkbox" data-id="' + safeId + '" onclick="event.stopPropagation();" style="cursor:pointer;"></td>';
@@ -1626,7 +1618,7 @@ function renderIssues(issues) {
       html += '<div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;"><strong>Error ID:</strong> ' + safeId + '</div>';
       if (i.stack_trace) {
         html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-weight:600;">Stack Trace:</div>';
-        html += '<pre style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;color:var(--text);white-space:pre-wrap;word-break:break-word;max-height:300px;overflow-y:auto;">' + escapeHtml(i.stack_trace) + '</pre>';
+        html += '<pre style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;color:var(--text);white-space:pre-wrap;word-break:break-word;max-height:240px;overflow:auto;">' + escapeHtml(i.stack_trace) + '</pre>';
       }
       html += '</div>';
       html += '</td>';
@@ -1637,7 +1629,6 @@ function renderIssues(issues) {
   html += '</tbody></table>';
   listEl.innerHTML = html;
 
-  // Restore scroll position
   window.scrollTo(0, scrollY);
 
   var rows = listEl.querySelectorAll('.issue-row');
@@ -1657,6 +1648,7 @@ function renderIssues(issues) {
       copyIssue(this.getAttribute('data-id'), this);
     });
   }
+
   var resolveBtns = listEl.querySelectorAll('[data-action="resolve"]');
   for (var rb = 0; rb < resolveBtns.length; rb++) {
     resolveBtns[rb].addEventListener('click', function(e) {
@@ -1709,7 +1701,6 @@ async function resolveAllChecked() {
 
   if (btn) { btn.disabled = false; btn.textContent = 'Resolve All Checked'; }
 
-  // Reload issues but preserve scroll position
   var scrollY = window.scrollY;
   await loadIssues();
   window.scrollTo(0, scrollY);
@@ -1788,10 +1779,8 @@ async function resolveIssue(id, resolved) {
     });
     var data = await resp.json();
     if (data.success) {
-      // Update the issue in-memory instead of full reload to avoid scroll jump
       var issue = allIssues.find(function(i) { return i.id === id; });
       if (issue) issue.resolved = resolved ? 1 : 0;
-      // Re-render with preserved scroll position
       var scrollY = window.scrollY;
       renderIssueStats(allIssues);
       renderIssues(allIssues);
@@ -1827,7 +1816,6 @@ async function loadTeamMembers() {
           var toggleBtn = m.is_active === 1
             ? '<button class="owner-action-btn owner-btn-deactivate" data-action="toggle-team" data-id="' + escapeHtml(m.id) + '" data-email="' + escapeHtml(m.email) + '">Deactivate</button>'
             : '<button class="owner-action-btn owner-btn-activate" data-action="toggle-team" data-id="' + escapeHtml(m.id) + '" data-email="' + escapeHtml(m.email) + '">Activate</button>';
-          // DELETE BUTTON REMOVED — team members can only be deactivated, never deleted
           actionBtns = toggleBtn;
         } else {
           actionBtns = '<span style="font-size:12px;color:var(--text-muted);">(you)</span>';
@@ -1862,7 +1850,6 @@ async function loadTeamMembers() {
   }
 }
 
-// ---- Add Team Member ----
 async function addTeamMember() {
   var name = document.getElementById('newTeamMemberName').value.trim();
   var email = document.getElementById('newTeamMemberEmail').value.trim();
@@ -1904,7 +1891,6 @@ async function addTeamMember() {
   }
 }
 
-// ---- Toggle Team Member Active State ----
 async function toggleTeamMember(memberId, memberEmail) {
   if (!confirm('Toggle access for ' + memberEmail + '?')) return;
   try {
@@ -1931,7 +1917,7 @@ async function toggleTeamMember(memberId, memberEmail) {
 async function ownerLogout() {
   try {
     await fetch('/auth/logout', { method: 'POST' });
-  } catch (e) { /* ignore */ }
+  } catch (e) {}
   window.location.href = '/public/login.html';
 }
 
