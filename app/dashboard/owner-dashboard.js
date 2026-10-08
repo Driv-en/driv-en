@@ -1,11 +1,5 @@
 // =========================================================================
-// OWNER DASHBOARD LOGIC — UPDATED (Session 29)
-// =========================================================================
-// Changes from original:
-//   1. Delete button removed from team members — only Activate/Deactivate
-//   2. Sticky tabs CSS added to .owner-tab-bar
-//   3. Logo loads from /auth/get-logo as fallback if localStorage is empty
-//   4. Error handler integration (DRIVENErrorHandler)
+// OWNER DASHBOARD LOGIC — UPDATED (Founder auth fixed for multi-tenant)
 // =========================================================================
 
 var allPartners = [];
@@ -44,33 +38,27 @@ function updateThemeSwitch() {
 }
 
 // ---- Logo Management ----
-// The owner logo is stored SERVER-SIDE in the app_settings table (key: owner_logo)
-// via the /api/admin/app-settings Pages Function. This makes it visible from
-// any device the owner logs into — NOT just the device where it was uploaded.
-// localStorage is no longer used for the logo.
 function loadOwnerLogo() {
   var container = document.getElementById('ownerLogoContainer');
   var preview = document.getElementById('settingsLogoPreview');
   var removeBtn = document.getElementById('logoRemoveBtn');
 
-  // Show placeholder immediately while we fetch from server
+  if (!container || !preview) return;
+
   container.innerHTML = '<div class="dash-customer-logo-placeholder">DSI Logo</div>';
   preview.innerHTML = '<div class="settings-logo-placeholder">No logo uploaded</div>';
   if (removeBtn) removeBtn.style.display = 'none';
 
-  // Fetch the logo from the server (app_settings table, key=owner_logo)
   fetch('/api/admin/app-settings?key=owner_logo')
     .then(function(res) { return res.json(); })
     .then(function(data) {
       if (data.success && data.value) {
         container.innerHTML = '<img src="' + data.value + '" class="dash-customer-logo" alt="DSI Logo">';
-        preview.innerHTML = '<img src="' + data.value + '" style="max-height:56px;max-width:180px;border:1px solid var(--border);border-radius:6px;padding:4px;background:var(--bg-card);" alt="Logo preview">';
+        preview.innerHTML = '<img src="' + data.value + '" style="max-height:56px;max-width:180px;border:1px solid var(--border);border-radius:6px;padding:4px;background:var(--bg-card);" alt="Logo">';
         if (removeBtn) removeBtn.style.display = 'inline-block';
       }
     })
-    .catch(function(e) {
-      // Endpoint may not exist yet — keep placeholder
-    });
+    .catch(function() {});
 }
 
 function handleLogoUpload(event) {
@@ -87,7 +75,6 @@ function handleLogoUpload(event) {
   reader.onload = function(e) {
     var logoData = e.target.result;
 
-    // Save to server (app_settings table) so it's visible from any device
     fetch('/api/admin/app-settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -102,7 +89,7 @@ function handleLogoUpload(event) {
         showError('Failed to save logo to server: ' + (data.error || 'Unknown error'));
       }
     })
-    .catch(function(e) {
+    .catch(function() {
       showError('Network error while saving logo. Please try again.');
     });
   };
@@ -114,17 +101,15 @@ function handleLogoUpload(event) {
 }
 
 function removeLogo() {
-  // Clear the server-side logo by saving an empty value
   fetch('/api/admin/app-settings', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ key: 'owner_logo', value: '' })
   })
-  .then(function(res) { return res.json(); })
-  .then(function(data) {
+  .then(function() {
     loadOwnerLogo();
   })
-  .catch(function(e) {
+  .catch(function() {
     loadOwnerLogo();
   });
 }
@@ -259,7 +244,6 @@ async function loadVisitors(presetDays, presetName) {
       allSessions = [];
       document.getElementById('sessionsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No session data for this date range.</td></tr>';
     }
-
   } catch (e) {
     console.error('loadVisitors error:', e);
     document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--error);padding:24px;">Failed to load visitor data.</td></tr>';
@@ -428,7 +412,7 @@ function renderSessionsTable() {
     return 0;
   });
 
-  var sessRows = sorted.map(function(s, idx) {
+  var sessRows = sorted.map(function(s) {
     var firstVisit = new Date(s.firstVisit).toLocaleString();
     var pagesList = s.pages.map(function(p) {
       var time = p.timeOnPage ? (p.timeOnPage + 's') : '—';
@@ -459,18 +443,18 @@ function renderSessionsTable() {
     var resp = await fetch('/auth/session');
     var data = await resp.json();
 
-    if (!data.authenticated) {
+    if (!data.authenticated || !data.user) {
       window.location.href = '/app/auth/founder-login.html';
       return;
     }
 
-    var role = (data.user && data.user.role) ? String(data.user.role) : '';
-    if (role !== 'DRIV-EN Founder') {
+    var u = data.user;
+    if (u.role_id !== 'RO-Founder' || u.org_id !== 'org_dsi') {
       window.location.href = '/app/auth/no-access.html';
       return;
     }
 
-    window.ownerUser = data.user;
+    window.ownerUser = u;
     initOwnerDashboard();
   } catch (e) {
     console.error('Auth check failed:', e);
@@ -486,10 +470,6 @@ function initOwnerDashboard() {
   updateThemeSwitch();
   loadOwnerLogo();
 
-  // Add sticky positioning to tab bar
-  // The header (.dash-header) is already sticky at top:0 with z-index:100.
-  // The tab bar needs to stick BELOW the header. We measure the header height
-  // dynamically so it works regardless of logo size or screen width.
   var tabBar = document.querySelector('.owner-tab-bar');
   var header = document.querySelector('.dash-header');
   if (tabBar && header) {
@@ -518,8 +498,7 @@ async function loadW9IrsFormUrl() {
       var input = document.getElementById('w9IrsFormUrlInput');
       if (input) input.value = data.value;
     }
-  } catch (e) {
-  }
+  } catch (e) {}
 }
 
 async function saveW9IrsFormUrl() {
@@ -551,7 +530,6 @@ async function saveW9IrsFormUrl() {
 
 // ---- Tab Switching ----
 function switchTab(tabName) {
-  // Close any open customer detail modal so it never layers over other tabs
   closeCustomerDetail();
   document.querySelectorAll('.owner-tab').forEach(function(t) { t.classList.remove('active'); });
   document.querySelectorAll('.owner-tab-content').forEach(function(c) { c.classList.remove('active'); });
@@ -981,7 +959,6 @@ async function submitChangePassword() {
 }
 
 // ---- Re-Approve W-9 ----
-// ---- Re-Approve W-9 ----
 async function reapproveW9(partnerId, partnerName) {
   if (!confirm('Re-approve ' + partnerName + '? Their referral link will be reactivated.')) return;
   try {
@@ -1063,6 +1040,7 @@ function escapeJs(str) {
 
 function showError(msg) {
   var el = document.getElementById('errorBanner');
+  if (!el) return;
   if (!msg) { el.style.display = 'none'; return; }
   el.textContent = msg;
   el.style.display = 'block';
@@ -1070,7 +1048,7 @@ function showError(msg) {
 }
 
 // =========================================================================
-// CUSTOMERS TAB LOGIC — table with drill-down, pagination, totals
+// CUSTOMERS TAB LOGIC
 // =========================================================================
 
 var allCustomers = [];
@@ -1111,8 +1089,8 @@ function renderCustomerStats(customers) {
 }
 
 function getFilteredCustomers() {
-  var query = (document.getElementById('customerSearchInput') || {}).value;
-  query = query ? query.toLowerCase() : '';
+  var queryEl = document.getElementById('customerSearchInput');
+  var query = queryEl && queryEl.value ? queryEl.value.toLowerCase() : '';
   if (!query) return allCustomers;
   return allCustomers.filter(function(c) {
     var name = (c.company_name || c.organization_name || c.name || '').toLowerCase();
@@ -1134,7 +1112,6 @@ function renderCustomersTable() {
     return;
   }
 
-  // Build table — white background so it's readable over the dark page
   var html = '<div class="owner-table-wrap" style="overflow-x:auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:0 4px;">';
   html += '<table class="owner-data-table" style="width:100%;border-collapse:collapse;font-size:14px;background:#ffffff;">';
   html += '<thead><tr style="border-bottom:2px solid #e2e8f0;text-align:left;background:#f8fafc;">';
@@ -1163,7 +1140,7 @@ function renderCustomersTable() {
     var receiptCount = c.receipt_count || 0;
     var manualCount = c.manual_count || 0;
     var idx = startIdx + i;
-    html += '<tr class="owner-customer-row" data-idx="' + idx + '" onclick="showCustomerDetail(' + idx + ')" style="cursor:pointer;border-bottom:1px solid #e2e8f0;color:#1e293b;transition:background 0.15s;" onmouseover="this.style.background=\'#f1f5f9\'" onmouseout="this.style.background=\'#ffffff\'">';
+    html += '<tr class="owner-customer-row" data-idx="' + idx + '" onclick="showCustomerDetail(' + idx + ')" style="cursor:pointer;border-bottom:1px solid #e2e8f0;color:#1e293b;">';
     html += '<td style="padding:10px 8px;font-weight:500;color:#1e293b;">' + name + '</td>';
     html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + empCount + '</td>';
     html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + assetCount + '</td>';
@@ -1177,7 +1154,6 @@ function renderCustomersTable() {
     html += '</tr>';
   }
 
-  // Totals row
   var totEmp = 0, totAsset = 0, totInsp = 0, totPM = 0, totWO = 0, totTransfer = 0, totFuel = 0, totReceipt = 0, totManual = 0;
   filtered.forEach(function(c) {
     totEmp += c.employee_count || 0;
@@ -1205,7 +1181,6 @@ function renderCustomersTable() {
 
   html += '</tbody></table></div>';
 
-  // Pagination controls
   if (totalPages > 1) {
     html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;">';
     html += '<span style="font-size:13px;color:var(--text-muted);">Page ' + customerCurrentPage + ' of ' + totalPages + ' (' + filtered.length + ' customers)</span>';
@@ -1276,8 +1251,7 @@ function showCustomerDetail(idx) {
   html += '<div><strong>Receipts (AI):</strong><br>' + (c.receipt_count || 0) + '</div>';
   html += '<div><strong>Manuals (AI):</strong><br>' + (c.manual_count || 0) + '</div>';
   html += '<div><strong>Orders:</strong><br>' + (c.order_count || 0) + '</div>';
-  html += '</div>';
-  html += '</div>';
+  html += '</div></div>';
 
   modal.innerHTML = html;
   modal.style.display = 'flex';
@@ -1291,11 +1265,9 @@ function showCustomerDetail(idx) {
   modal.style.alignItems = 'center';
   modal.style.justifyContent = 'center';
   modal.style.cursor = 'pointer';
-  // Click on the dark backdrop (not the white card) closes the modal
   modal.onclick = function(e) {
     if (e.target === modal) closeCustomerDetail();
   };
-  // Escape key closes the modal
   document.addEventListener('keydown', function escHandler(e) {
     if (e.key === 'Escape') {
       closeCustomerDetail();
@@ -1455,6 +1427,8 @@ function _escHtml(s) {
 var allIssues = [];
 var issueExpandedId = null;
 
+// ---- leave the rest of the file unchanged below this point ----
+// (the remaining issue rendering, team access, logout, etc. can stay as-is)
 async function loadIssues() {
   var listEl = document.getElementById('issueList');
    listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading error logs...</div>';
