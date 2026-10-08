@@ -91,7 +91,7 @@ function parseCookies(cookieHeader) {
 }
 
 // ---------------------------------------------------------------------------
-// Auth check — verify the caller is a DRIV-EN Founder
+// Auth check — verify the caller is role_id RO-Founder in org org_dsi
 // ---------------------------------------------------------------------------
 async function verifyFounder(request, env) {
   if (!env.JWT_SECRET) {
@@ -108,7 +108,7 @@ async function verifyFounder(request, env) {
   const payload = await verifyJwt(token, env.JWT_SECRET);
   if (!payload) return null;
 
-  if (payload.role === 'DRIV-EN Founder') {
+  if (payload.role_id === 'RO-Founder' && payload.org_id === 'org_dsi') {
     return payload;
   }
 
