@@ -3496,16 +3496,18 @@ async function addProject() {
 var payload = { /* * The user-facing term is Project Number. * Project Code is retained in the API payload for compatibility * with the existing DRIV-EN project database field. */ 'Project Code': projectNumber, 'Project Name': name, 'Status': status, 'Location': location, 'Expected Start Date': expectedStartDate, 'Actual Start Date': actualStartDate, 'Expected Completion Date': expectedCompletionDate, 'Actual Completion Date': actualCompletionDate };
 
   try {
-
     var response =
       await fetch(
         '/api/Project',
         {
-          method: 'POST',
+          method:
+            'POST',
+
           headers: {
             'Content-Type':
               'application/json'
           },
+
           body:
             JSON.stringify(
               payload
@@ -3513,11 +3515,16 @@ var payload = { /* * The user-facing term is Project Number. * Project Code is r
         }
       );
 
-    var data =
-      await response.json();
+    var data = {};
+
+    try {
+      data =
+        await response.json();
+    } catch (jsonError) {
+      data = {};
+    }
 
     if (!response.ok) {
-
       throw new Error(
         data.error ||
         data.message ||
@@ -3530,8 +3537,89 @@ var payload = { /* * The user-facing term is Project Number. * Project Code is r
     }
 
     if (data.record) {
+      allProjects.push(
+        normalizeProject(
+          data.record
+        )
+      );
+    } else {
+      await loadProjects();
+    }
 
-   
+    document.getElementById(
+      'pmProjectCode'
+    ).value = '';
+
+    document.getElementById(
+      'pmProjectName'
+    ).value = '';
+
+    document.getElementById(
+      'pmProjectLocation'
+    ).value = '';
+
+    document.getElementById(
+      'pmExpectedStartDate'
+    ).value = '';
+
+    document.getElementById(
+      'pmActualStartDate'
+    ).value = '';
+
+    document.getElementById(
+      'pmExpectedCompletionDate'
+    ).value = '';
+
+    document.getElementById(
+      'pmActualCompletionDate'
+    ).value = '';
+
+    document.getElementById(
+      'pmProjectStatus'
+    ).value =
+      'Active';
+
+    showProjectMessage(
+      'Project "' +
+      name +
+      '" added.',
+      'success'
+    );
+
+    renderProjectTableHead();
+
+    renderProjectTable();
+
+    renderOverview();
+
+    switchTab(
+      'projects'
+    );
+  } catch (error) {
+    showProjectMessage(
+      'Failed to add project: ' +
+      (
+        error.message ||
+        error
+      ),
+      'error'
+    );
+
+    reportProjectManagementError(
+      'addProject failed: ' +
+      (
+        error.message ||
+        error
+      ),
+      'addProject',
+      error &&
+      error.stack
+        ? error.stack
+        : null
+    );
+  }
+}   
+  
 // ===== EDIT PROJECT =====
 function openEditProjectModal(
   projectId
