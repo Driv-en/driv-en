@@ -5919,3 +5919,738 @@ function doClientExport() {
     'success'
   );
 }
+// ===== HELPERS =====
+function escapeHtml(value) {
+  var div =
+    document.createElement(
+      'div'
+    );
+
+  div.textContent =
+    value === undefined ||
+    value === null
+      ? ''
+      : String(value);
+
+  return div.innerHTML;
+}
+
+function csvEscape(value) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return '';
+  }
+
+  var stringValue =
+    String(value);
+
+  if (
+    stringValue.indexOf(',') !== -1 ||
+    stringValue.indexOf('"') !== -1 ||
+    stringValue.indexOf('\n') !== -1 ||
+    stringValue.indexOf('\r') !== -1
+  ) {
+    return (
+      '"' +
+      stringValue.replace(
+        /"/g,
+        '""'
+      ) +
+      '"'
+    );
+  }
+
+  return stringValue;
+}
+
+function closeModal(modalId) {
+  var modal =
+    document.getElementById(
+      modalId
+    );
+
+  if (modal) {
+    modal.classList.remove(
+      'active'
+    );
+  }
+}
+
+function showProjectMessage(
+  message,
+  type
+) {
+  var projectsMessage =
+    document.getElementById(
+      'pmProjectsMessage'
+    );
+
+  var addProjectMessage =
+    document.getElementById(
+      'pmAddProjectMessage'
+    );
+
+  var activeTab =
+    document.querySelector(
+      '.pm-tab.active'
+    );
+
+  var targetElement =
+    activeTab &&
+    activeTab.dataset.tab ===
+      'addproject'
+      ? addProjectMessage
+      : projectsMessage;
+
+  if (!targetElement) {
+    targetElement =
+      projectsMessage ||
+      addProjectMessage;
+  }
+
+  if (!targetElement) {
+    reportProjectManagementError(
+      'Unable to display project message: ' +
+      message,
+      'showProjectMessage',
+      null
+    );
+
+    return;
+  }
+
+  targetElement.textContent =
+    message;
+
+  targetElement.className =
+    'pm-message ' +
+    type;
+
+  targetElement.style.display =
+    'block';
+
+  setTimeout(
+    function() {
+      targetElement.style.display =
+        'none';
+    },
+    5000
+  );
+}
+
+function showClientMessage(
+  message,
+  type
+) {
+  var clientsMessage =
+    document.getElementById(
+      'pmClientsMessage'
+    );
+
+  var addClientMessage =
+    document.getElementById(
+      'pmAddClientMessage'
+    );
+
+  var activeTab =
+    document.querySelector(
+      '.pm-tab.active'
+    );
+
+  var targetElement =
+    activeTab &&
+    activeTab.dataset.tab ===
+      'addclient'
+      ? addClientMessage
+      : clientsMessage;
+
+  if (!targetElement) {
+    targetElement =
+      clientsMessage ||
+      addClientMessage;
+  }
+
+  if (!targetElement) {
+    reportProjectManagementError(
+      'Unable to display client message: ' +
+      message,
+      'showClientMessage',
+      null
+    );
+
+    return;
+  }
+
+  targetElement.textContent =
+    message;
+
+  targetElement.className =
+    'pm-message ' +
+    type;
+
+  targetElement.style.display =
+    'block';
+
+  setTimeout(
+    function() {
+      targetElement.style.display =
+        'none';
+    },
+    5000
+  );
+}
+
+function showTypeMessage(
+  message,
+  type
+) {
+  var messageElement =
+    document.getElementById(
+      'pmTypesMessage'
+    );
+
+  if (!messageElement) {
+    reportProjectManagementError(
+      'Unable to display project type message: ' +
+      message,
+      'showTypeMessage',
+      null
+    );
+
+    return;
+  }
+
+  messageElement.textContent =
+    message;
+
+  messageElement.className =
+    'pm-message ' +
+    type;
+
+  messageElement.style.display =
+    'block';
+
+  setTimeout(
+    function() {
+      messageElement.style.display =
+        'none';
+    },
+    5000
+  );
+}
+
+// ===== MODAL OVERLAY CLICKS =====
+var editProjectModal =
+  document.getElementById(
+    'pmEditProjectModal'
+  );
+
+if (editProjectModal) {
+  editProjectModal.addEventListener(
+    'click',
+    function(event) {
+      if (
+        event.target ===
+        this
+      ) {
+        closeEditProjectModal();
+      }
+    }
+  );
+}
+
+var editClientModal =
+  document.getElementById(
+    'pmEditClientModal'
+  );
+
+if (editClientModal) {
+  editClientModal.addEventListener(
+    'click',
+    function(event) {
+      if (
+        event.target ===
+        this
+      ) {
+        closeEditClientModal();
+      }
+    }
+  );
+}
+
+var editTypeModal =
+  document.getElementById(
+    'pmEditTypeModal'
+  );
+
+if (editTypeModal) {
+  editTypeModal.addEventListener(
+    'click',
+    function(event) {
+      if (
+        event.target ===
+        this
+      ) {
+        closeEditTypeModal();
+      }
+    }
+  );
+}
+
+var projectPrintModal =
+  document.getElementById(
+    'pmProjectPrintModal'
+  );
+
+if (projectPrintModal) {
+  projectPrintModal.addEventListener(
+    'click',
+    function(event) {
+      if (
+        event.target ===
+        this
+      ) {
+        closeModal(
+          'pmProjectPrintModal'
+        );
+      }
+    }
+  );
+}
+
+var projectExportModal =
+  document.getElementById(
+    'pmProjectExportModal'
+  );
+
+if (projectExportModal) {
+  projectExportModal.addEventListener(
+    'click',
+    function(event) {
+      if (
+        event.target ===
+        this
+      ) {
+        closeModal(
+          'pmProjectExportModal'
+        );
+      }
+    }
+  );
+}
+
+var clientPrintModal =
+  document.getElementById(
+    'pmClientPrintModal'
+  );
+
+if (clientPrintModal) {
+  clientPrintModal.addEventListener(
+    'click',
+    function(event) {
+      if (
+        event.target ===
+        this
+      ) {
+        closeModal(
+          'pmClientPrintModal'
+        );
+      }
+    }
+  );
+}
+
+var clientExportModal =
+  document.getElementById(
+    'pmClientExportModal'
+  );
+
+if (clientExportModal) {
+  clientExportModal.addEventListener(
+    'click',
+    function(event) {
+      if (
+        event.target ===
+        this
+      ) {
+        closeModal(
+          'pmClientExportModal'
+        );
+      }
+    }
+  );
+}
+
+// ===== KEYBOARD: ENTER TRIGGERS ADD =====
+var projectNameInput =
+  document.getElementById(
+    'pmProjectName'
+  );
+
+if (projectNameInput) {
+  projectNameInput.addEventListener(
+    'keydown',
+    function(event) {
+      if (
+        event.key ===
+        'Enter'
+      ) {
+        event.preventDefault();
+
+        addProject();
+      }
+    }
+  );
+}
+
+var clientNameInput =
+  document.getElementById(
+    'pmClientName'
+  );
+
+if (clientNameInput) {
+  clientNameInput.addEventListener(
+    'keydown',
+    function(event) {
+      if (
+        event.key ===
+        'Enter'
+      ) {
+        event.preventDefault();
+
+        addClient();
+      }
+    }
+  );
+}
+
+// ===== TAB SWITCHING =====
+function switchTab(tab) {
+  try {
+    document
+      .querySelectorAll(
+        '.pm-tab'
+      )
+      .forEach(
+        function(tabElement) {
+          tabElement.classList.remove(
+            'active'
+          );
+        }
+      );
+
+    document
+      .querySelectorAll(
+        '.pm-tab-content'
+      )
+      .forEach(
+        function(contentElement) {
+          contentElement.style.display =
+            'none';
+
+          contentElement.classList.remove(
+            'active'
+          );
+        }
+      );
+
+    var selectedTab =
+      document.querySelector(
+        '.pm-tab[data-tab="' +
+        tab +
+        '"]'
+      );
+
+    var selectedContent =
+      document.getElementById(
+        'tab-' +
+        tab
+      );
+
+    if (!selectedTab) {
+      throw new Error(
+        'Tab control was not found: ' +
+        tab
+      );
+    }
+
+    if (!selectedContent) {
+      throw new Error(
+        'Tab content was not found: ' +
+        tab
+      );
+    }
+
+    selectedTab.classList.add(
+      'active'
+    );
+
+    selectedContent.classList.add(
+      'active'
+    );
+
+    selectedContent.style.display =
+      'block';
+
+    if (
+      tab ===
+      'overview'
+    ) {
+      renderOverview();
+    }
+
+    if (
+      tab ===
+      'projects'
+    ) {
+      renderProjectTableHead();
+
+      renderProjectTable();
+    }
+
+    if (
+      tab ===
+      'clients'
+    ) {
+      renderClientTableHead();
+
+      renderClientTable();
+    }
+
+    if (
+      tab ===
+      'types'
+    ) {
+      renderProjectTypes();
+    }
+  } catch (error) {
+    reportProjectManagementError(
+      'Tab switching failed: ' +
+      (
+        error.message ||
+        error
+      ),
+      'switchTab',
+      error &&
+      error.stack
+        ? error.stack
+        : null
+    );
+  }
+}
+
+// ===== GO TO MAIN DASHBOARD =====
+function goToMainDashboard() {
+  if (pmDirty) {
+    if (
+      !confirm(
+        'You have unsaved changes. Click OK to leave without saving, or Cancel to stay.'
+      )
+    ) {
+      return;
+    }
+  }
+
+  var savedOrigin =
+    sessionStorage.getItem(
+      'driven_dashboard_origin'
+    );
+
+  if (savedOrigin) {
+    window.location.href =
+      savedOrigin;
+
+    return;
+  }
+
+  if (
+    document.referrer &&
+    document.referrer.indexOf(
+      'driv-en.com'
+    ) !== -1
+  ) {
+    window.location.href =
+      document.referrer;
+
+    return;
+  }
+
+  var user =
+    window.dashUser;
+
+  if (user) {
+    var role =
+      String(
+        user.role || ''
+      ).toLowerCase();
+
+    if (
+      role ===
+        'driv-en founder' ||
+      role ===
+        'owner'
+    ) {
+      window.location.href =
+        '/app/dashboard/owner-dashboard.html';
+
+      return;
+    }
+
+    if (
+      role ===
+        'admin' ||
+      role ===
+        'administrator'
+    ) {
+      window.location.href =
+        '/app/dashboard/admin.html';
+
+      return;
+    }
+
+    window.location.href =
+      '/app/dashboard/employee-dashboard.html';
+
+    return;
+  }
+
+  window.location.href =
+    '/app/dashboard/admin.html';
+}
+
+// ===== CONFIRM LOGOUT =====
+function confirmLogout() {
+  if (pmDirty) {
+    if (
+      !confirm(
+        'You have unsaved changes. Click OK to log out without saving, or Cancel to stay.'
+      )
+    ) {
+      return;
+    }
+  }
+
+  if (
+    typeof dashLogout ===
+    'function'
+  ) {
+    dashLogout();
+  } else {
+    reportProjectManagementError(
+      'dashLogout is not available.',
+      'confirmLogout',
+      null
+    );
+  }
+}
+
+// ===== BEFOREUNLOAD =====
+window.addEventListener(
+  'beforeunload',
+  function(event) {
+    if (pmDirty) {
+      event.preventDefault();
+
+      event.returnValue =
+        'You have unsaved changes.';
+    }
+  }
+);
+
+// ===== FIX HEADER =====
+function fixHeaderLayout() {
+  var header =
+    document.querySelector(
+      '.dash-header'
+    );
+
+  if (!header) {
+    return false;
+  }
+
+  var row1 =
+    header.querySelector(
+      '.dash-header-row1'
+    );
+
+  var row2 =
+    header.querySelector(
+      '.dash-header-row2'
+    );
+
+  var row3 =
+    header.querySelector(
+      '.dash-header-row3'
+    );
+
+  var heading =
+    row2
+      ? row2.querySelector(
+          'h1'
+        )
+      : null;
+
+  if (
+    !row1 ||
+    !heading
+  ) {
+    return false;
+  }
+
+  if (
+    heading.parentNode ===
+    row1
+  ) {
+    return true;
+  }
+
+  var drivenLogo =
+    row1.querySelector(
+      '.dash-driven-logo'
+    );
+
+  if (drivenLogo) {
+    row1.insertBefore(
+      heading,
+      drivenLogo
+    );
+  } else {
+    row1.appendChild(
+      heading
+    );
+  }
+
+  row1.style.cssText =
+    'display:flex !important;' +
+    'justify-content:space-between !important;' +
+    'align-items:center !important;' +
+    'padding:8px 20px !important;' +
+    'gap:16px !important;';
+
+  heading.style.cssText =
+    'margin:0;' +
+    'font-size:20px;' +
+    'font-weight:600;' +
+    'text-align:center;' +
+    'flex:1;';
+
+  if (row2) {
+    row2.style.display =
+      'none';
+  }
+
+  if (row3) {
+    row3.style.display =
+      'none';
+  }
+
+  return true;
+}
+</script>
+
+<!-- ===== AUTH CHECK ===== -->
+/app/shared/auth-check.js?v=13script>
+</body>
+</html>      
