@@ -66,66 +66,76 @@
 .pm-welcome h2 { margin:0 0 6px 0; font-size:20px; color:var(--text); }
 .pm-welcome p { margin:0; font-size:14px; color:var(--text-muted); }
 
-/**===== OVERVIEW KPI CARDS ===== */
-*pm-kpi-grid {
+/* ===== OVERVIEW KPI CARDS ===== */
+.pm-kpi-grid {
   display:grid;
-  gr*d-template-columns:repeat(2, 1fr);*  gap:16px;
+  grid-template-columns:repeat(2, 1fr);
+  gap:16px;
   margin-bottom:24px;
-*
+}
 
 .pm-kpi-card {
-  background:var(*-bg-card);
-  border:1px solid var(*-border);
+  background:var(--bg-card);
+  border:1px solid var(--border);
   border-radius:8px;
-  p*dding:20px;
+  padding:20px;
   text-align:center;
- *cursor:pointer;
-  touch-action:man*pulation;
+  cursor:pointer;
+  touch-action:manipulation;
+  min-height:110px;
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
 
   transition:
-    borde*-color .2s ease,
-    box-shadow .2* ease,
+    border-color .2s ease,
+    box-shadow .2s ease,
     transform .2s ease;
 }
 
-*pm-kpi-card:hover {
-  border-color*#2563eb;
-
-  box-shadow:
-    0 0 0 *px rgba(
-      37,
-      99,
-     *235,
-      0.15
-    );
-
-  transfor*:translateY(-2px);
+.pm-kpi-card:hover,
+.pm-kpi-card:focus-visible {
+  border-color:#2563eb;
+  box-shadow:0 0 0 2px rgba(37,99,235,0.15);
+  transform:translateY(-2px);
+  outline:none;
 }
 
-.pm-kpi-card*active {
+.pm-kpi-card:active {
   border-color:#2563eb;
-
-* box-shadow:
-    0 0 0 2px rgba(
- *    37,
-      99,
-      235,
-     *0.15
-    );
+  box-shadow:0 0 0 2px rgba(37,99,235,0.15);
+  transform:none;
 }
 
 .pm-kpi-number {
-  *ont-size:32px;
+  font-size:32px;
   font-weight:700;
-* color:var(--text);
+  color:var(--text);
 }
 
-.pm-kpi-lab*l {
+.pm-kpi-label {
   font-size:13px;
-  color:var(*-text-muted);
+  color:var(--text-muted);
   margin-top:4px;
 }
-*
+
+.pm-kpi-grid {
+  grid-template-columns:1fr;
+}
+
+.pm-kpi-card {
+  min-height:110px;
+}
+
+.pm-kpi-number {
+  font-size:28px;
+}
+
+.pm-kpi-label {
+  font-size:12px;
+}
 
 /* ===== OVERVIEW SECTIONS ===== */
 .pm-overview-section { margin-bottom:28px; }
@@ -357,39 +367,101 @@
       <h2>Projects</h2>
       <p>View, add, and edit projects across your organization.</p>
     </div>
+
     <div id="pmProjectsMessage" class="pm-message"></div>
+
     <div class="pm-section-header">
       <h3>Project List</h3>
       <span class="pm-record-count" id="pmProjectCount">0 projects</span>
     </div>
+
     <div class="pm-search-row">
-      <input type="text" class="pm-search-input" id="pmProjectSearch" placeholder="Search by project name, code, or location..." oninput="onProjectSearchInput()" />
-      <select class="pm-filter-select" id="pmProjectFilterStatus" onchange="renderProjectTable()">
+
+      <input
+        type="text"
+        class="pm-search-input"
+        id="pmProjectSearch"
+        placeholder="Search by project number, name, or location..."
+        oninput="onProjectSearchInput()"
+      />
+
+      <select
+        class="pm-filter-select"
+        id="pmProjectFilterStatus"
+        onchange="renderProjectTable()"
+      >
         <option value="">All Statuses</option>
         <option value="Active">Active</option>
         <option value="Planning">Planning</option>
         <option value="On Hold">On Hold</option>
         <option value="Completed">Completed</option>
         <option value="Cancelled">Cancelled</option>
+        <option value="Inactive">Inactive</option>
       </select>
-      <button class="pm-btn-small" onclick="toggleProjectColPanel(event)">Columns</button>
-      <button class="pm-btn-small" onclick="openProjectPrintModal()">Print</button>
-      <button class="pm-btn-small" onclick="openProjectExportModal('csv')">Export CSV</button>
-      <button class="pm-btn-small" onclick="openProjectExportModal('excel')">Export Excel</button>
+
+      <button
+        class="pm-btn-small"
+        onclick="toggleProjectColPanel(event)"
+      >
+        Columns
+      </button>
+
+      <button
+        class="pm-btn-small"
+        onclick="openProjectPrintModal()"
+      >
+        Print
+      </button>
+
+      <button
+        class="pm-btn-small"
+        onclick="openProjectExportModal('csv')"
+      >
+        Export CSV
+      </button>
+
+      <button
+        class="pm-btn-small"
+        onclick="openProjectExportModal('excel')"
+      >
+        Export Excel
+      </button>
+
     </div>
-    <div class="pm-col-toggle" id="pmProjectColPanel">
-      <div class="pm-col-toggle-title">Show / Hide Columns</div>
+
+    <div
+      class="pm-col-toggle"
+      id="pmProjectColPanel"
+    >
+      <div class="pm-col-toggle-title">
+        Show / Hide Columns
+      </div>
+
       <div id="pmProjectColToggleItems"></div>
     </div>
+
     <div class="pm-table-scroll">
-      <table class="pm-table" id="pmProjectTable">
+      <table
+        class="pm-table"
+        id="pmProjectTable"
+      >
         <thead id="pmProjectTableHead"></thead>
+
         <tbody id="pmProjectTableBody">
-          <tr><td class="pm-empty">Loading projects…</td></tr>
+          <tr>
+            <td class="pm-empty">
+              Loading projects…
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>
-    <div class="pm-pagination" id="pmProjectPagination"></div>
+
+    <div
+      class="pm-pagination"
+      id="pmProjectPagination"
+    ></div>
+
   </div>
 
 <!-- ===== ADD NEW PROJECT TAB ===== -->
@@ -444,9 +516,7 @@
       </div>
 
       <div class="pm-form-row">
-        <label>
-          Status
-        </label>
+        <label>Status</label>
 
         <select id="pmProjectStatus">
           <option value="Active">Active</option>
@@ -463,9 +533,7 @@
       </div>
 
       <div class="pm-form-row">
-        <label>
-          Location
-        </label>
+        <label>Location</label>
 
         <input
           type="text"
@@ -480,9 +548,7 @@
       </div>
 
       <div class="pm-form-row">
-        <label>
-          Expected Start Date
-        </label>
+        <label>Expected Start Date</label>
 
         <input
           type="date"
@@ -495,9 +561,7 @@
       </div>
 
       <div class="pm-form-row">
-        <label>
-          Actual Start Date
-        </label>
+        <label>Actual Start Date</label>
 
         <input
           type="date"
@@ -510,9 +574,7 @@
       </div>
 
       <div class="pm-form-row">
-        <label>
-          Expected Completion Date
-        </label>
+        <label>Expected Completion Date</label>
 
         <input
           type="date"
@@ -525,9 +587,7 @@
       </div>
 
       <div class="pm-form-row">
-        <label>
-          Actual Completion Date
-        </label>
+        <label>Actual Completion Date</label>
 
         <input
           type="date"
@@ -551,7 +611,7 @@
 
   </div>
 </div>
-
+  
   <!-- ===== PROJECT TYPES TAB ===== -->
   <div class="pm-tab-content" id="tab-types" style="display:none;">
     <div class="pm-welcome">
@@ -1108,78 +1168,249 @@ function saveClientVisibleCols() {
 }
 
 // ===== INIT =====
-document.addEventListener('dashSessionLoaded', async function() {
-  var user = window.dashUser;
-  if (!user) { window.location.href = '/public/login.html'; return; }
+document.addEventListener(
+  'dashSessionLoaded',
+  async function() {
+    try {
+      var user =
+        window.dashUser;
 
-  var role = (user.role || '').toLowerCase();
-  var isAdmin = role === 'admin' || role === 'administrator' || role.indexOf('founder') !== -1 || role === 'owner';
-  canModify = isAdmin;
+      if (!user) {
+        window.location.href =
+          '/public/login.html';
 
-  if (!isAdmin) {
-    var customerId = localStorage.getItem('driven_customer_id');
-    if (customerId) {
-      try {
-        var kpResp = await fetch('/api/onboarding/key-personnel/list?customerId=' + encodeURIComponent(customerId));
-        var kpData = await kpResp.json();
-        if (kpData.success && kpData.keyPersonnel) {
-          var myEmail = user.email ? user.email.toLowerCase() : '';
-          var myRecord = kpData.keyPersonnel.find(function(kp) {
-            return kp.email && kp.email.toLowerCase() === myEmail;
-          });
-          if (myRecord && myRecord.roles) {
-            var myTasks = myRecord.roles.map(function(r) { return r.role; });
-            canModify = myTasks.indexOf('Projects') !== -1 || myTasks.indexOf('Clients') !== -1;
+        return;
+      }
+
+      var role =
+        String(
+          user.role || ''
+        ).toLowerCase();
+
+      var isAdmin =
+        role === 'admin' ||
+        role === 'administrator' ||
+        role.indexOf('founder') !== -1 ||
+        role === 'owner';
+
+      canModify =
+        isAdmin;
+
+      if (!isAdmin) {
+        var customerId =
+          localStorage.getItem(
+            'driven_customer_id'
+          );
+
+        if (customerId) {
+          try {
+            var keyPersonnelResponse =
+              await fetch(
+                '/api/onboarding/key-personnel/list?customerId=' +
+                encodeURIComponent(
+                  customerId
+                )
+              );
+
+            var keyPersonnelData =
+              await keyPersonnelResponse.json();
+
+            if (
+              keyPersonnelResponse.ok &&
+              keyPersonnelData.success &&
+              Array.isArray(
+                keyPersonnelData.keyPersonnel
+              )
+            ) {
+              var myEmail =
+                user.email
+                  ? String(
+                      user.email
+                    ).toLowerCase()
+                  : '';
+
+              var myRecord =
+                keyPersonnelData.keyPersonnel.find(
+                  function(personnelRecord) {
+                    return (
+                      personnelRecord.email &&
+                      String(
+                        personnelRecord.email
+                      ).toLowerCase() ===
+                        myEmail
+                    );
+                  }
+                );
+
+              if (
+                myRecord &&
+                Array.isArray(
+                  myRecord.roles
+                )
+              ) {
+                var myTasks =
+                  myRecord.roles.map(
+                    function(roleRecord) {
+                      return (
+                        roleRecord.role
+                      );
+                    }
+                  );
+
+                canModify =
+                  myTasks.indexOf(
+                    'Projects'
+                  ) !== -1 ||
+                  myTasks.indexOf(
+                    'Clients'
+                  ) !== -1;
+              }
+            }
+          } catch (error) {
+            reportProjectManagementError(
+              'KP permission check failed: ' +
+              (
+                error.message ||
+                error
+              ),
+              'kp-permission-check',
+              error &&
+              error.stack
+                ? error.stack
+                : null
+            );
           }
         }
-      } catch(e) {
-        if (window.DRIVENErrorHandler) {
-          window.DRIVENErrorHandler.report(
-            'project-management.html: KP permission check failed — ' + (e.message || e),
-            'kp-permission-check', e && e.stack ? e.stack : null
+      }
+
+      if (!canModify) {
+        var addProjectForm =
+          document.getElementById(
+            'addProjectForm'
           );
+
+        var addClientForm =
+          document.getElementById(
+            'addClientForm'
+          );
+
+        var addTypeForm =
+          document.getElementById(
+            'addTypeForm'
+          );
+
+        if (addProjectForm) {
+          addProjectForm.style.display =
+            'none';
         }
+
+        if (addClientForm) {
+          addClientForm.style.display =
+            'none';
+        }
+
+        if (addTypeForm) {
+          addTypeForm.style.display =
+            'none';
+        }
+      }
+
+      var headerAttempts =
+        0;
+
+      var headerInterval =
+        setInterval(
+          function() {
+            headerAttempts++;
+
+            if (
+              fixHeaderLayout() ||
+              headerAttempts > 50
+            ) {
+              clearInterval(
+                headerInterval
+              );
+            }
+          },
+          100
+        );
+
+      initVisibleCols();
+
+      await loadProjectTypes();
+
+      await loadProjects();
+
+      await loadClients();
+
+      renderOverview();
+
+      var loadingElement =
+        document.getElementById(
+          'pmLoading'
+        );
+
+      var overviewTab =
+        document.getElementById(
+          'tab-overview'
+        );
+
+      if (loadingElement) {
+        loadingElement.style.display =
+          'none';
+      }
+
+      if (overviewTab) {
+        overviewTab.style.display =
+          'block';
+      }
+    } catch (error) {
+      reportProjectManagementError(
+        'Project Management initialization failed: ' +
+        (
+          error.message ||
+          error
+        ),
+        'project-management-initialization',
+        error &&
+        error.stack
+          ? error.stack
+          : null
+      );
+
+      var loadingElement =
+        document.getElementById(
+          'pmLoading'
+        );
+
+      if (loadingElement) {
+        loadingElement.textContent =
+          'Project Management could not be loaded. Please refresh the page or contact support.';
       }
     }
   }
-
-  if (!canModify) {
-    document.getElementById('addProjectForm').style.display = 'none';
-    document.getElementById('addClientForm').style.display = 'none';
-    document.getElementById('addTypeForm').style.display = 'none';
-  }
-
-  var headerAttempts = 0;
-  var headerInterval = setInterval(function() {
-    headerAttempts++;
-    if (fixHeaderLayout() || headerAttempts > 50) { clearInterval(headerInterval); }
-  }, 100);
-
-  initVisibleCols();
-  await loadProjectTypes();
-  await loadProjects();
-  await loadClients();
-  renderOverview();
-
-  document.getElementById('pmLoading').style.display = 'none';
-  document.getElementById('tab-overview').style.display = 'block';
-});
+);
 
 // ===== NORMALIZE PROJECT =====
-function normalizeProject(r) {
-  var f =
+function normalizeProject(
+  record
+) {
+  record =
+    record || {};
+
+  var fields =
     (
-      r &&
-      r.fields &&
-      typeof r.fields === 'object'
+      record.fields &&
+      typeof record.fields ===
+        'object'
     )
-      ? r.fields
-      : r;
+      ? record.fields
+      : record;
 
   return {
-
     id:
-      r.id ||
+      record.id ||
+      fields.id ||
       (
         'prj-' +
         Math.random()
@@ -1188,74 +1419,166 @@ function normalizeProject(r) {
       ),
 
     projectNumber:
-      f['Project Number'] ||
-      f['Project Code'] ||
-      f.projectNumber ||
-      f.code ||
+      fields['Project Number'] ||
+      fields['Company Project Number'] ||
+      fields['Project Code'] ||
+      fields.projectNumber ||
+      fields.project_number ||
+      fields.company_project_number ||
+      fields.code ||
       '',
 
     name:
-      f['Project Name'] ||
-      f.name ||
+      fields['Project Name'] ||
+      fields.projectName ||
+      fields.project_name ||
+      fields.name ||
       '',
 
     status:
-      f['Status'] ||
-      f.status ||
+      fields['Status'] ||
+      fields.status ||
       'Active',
 
     location:
-      f['Location'] ||
-      f.location ||
+      fields['Location'] ||
+      fields.location ||
       '',
 
     expectedStartDate:
-      f['Expected Start Date'] ||
-      f.expectedStartDate ||
+      fields['Expected Start Date'] ||
+      fields.expectedStartDate ||
+      fields.expected_start_date ||
       '',
 
     actualStartDate:
-      f['Actual Start Date'] ||
-      f.actualStartDate ||
+      fields['Actual Start Date'] ||
+      fields.actualStartDate ||
+      fields.actual_start_date ||
       '',
 
     expectedCompletionDate:
-      f['Expected Completion Date'] ||
-      f.expectedCompletionDate ||
+      fields['Expected Completion Date'] ||
+      fields.expectedCompletionDate ||
+      fields.expected_completion_date ||
       '',
 
     actualCompletionDate:
-      f['Actual Completion Date'] ||
-      f.actualCompletionDate ||
+      fields['Actual Completion Date'] ||
+      fields.actualCompletionDate ||
+      fields.actual_completion_date ||
       '',
 
     createdAt:
-      f['Created Date'] ||
-      f.created_at ||
+      fields['Created Date'] ||
+      fields.createdAt ||
+      fields.created_at ||
       ''
-
   };
 }
 
 // ===== NORMALIZE CLIENT =====
-function normalizeClient(r) {
-  var f = (r && r.fields && typeof r.fields === 'object') ? r.fields : r;
+function normalizeClient(
+  record
+) {
+  record =
+    record || {};
+
+  var fields =
+    (
+      record.fields &&
+      typeof record.fields ===
+        'object'
+    )
+      ? record.fields
+      : record;
+
   return {
-    id: r.id || ('cli-' + Math.random().toString(36).substr(2, 9)),
-    clientName:   f['Client Name'] || f.client_name || '',
-    contactName:  f['Contact Name'] || f.contact_name || '',
-    contactEmail: f['Contact Email'] || f.contact_email || '',
-    contactPhone: f['Contact Phone'] || f.contact_phone || '',
-    company:      f['Company'] || f.company || '',
-    address:      f['Address'] || f.address || '',
-    city:         f['City'] || f.city || '',
-    state:        f['State'] || f.state || '',
-    zip:          f['Zip Code'] || f.zip_code || '',
-    country:      f['Country'] || f.country || '',
-    industry:     f['Industry'] || f.industry || '',
-    status:       f['Status'] || f.status || 'Active',
-    notes:        f['Notes'] || f.notes || '',
-    createdAt:    f['Created Date'] || f.created_at || '',
+    id:
+      record.id ||
+      fields.id ||
+      (
+        'cli-' +
+        Math.random()
+          .toString(36)
+          .substr(2, 9)
+      ),
+
+    clientName:
+      fields['Client Name'] ||
+      fields.clientName ||
+      fields.client_name ||
+      '',
+
+    contactName:
+      fields['Contact Name'] ||
+      fields.contactName ||
+      fields.contact_name ||
+      '',
+
+    contactEmail:
+      fields['Contact Email'] ||
+      fields.contactEmail ||
+      fields.contact_email ||
+      '',
+
+    contactPhone:
+      fields['Contact Phone'] ||
+      fields.contactPhone ||
+      fields.contact_phone ||
+      '',
+
+    company:
+      fields['Company'] ||
+      fields.company ||
+      '',
+
+    address:
+      fields['Address'] ||
+      fields.address ||
+      '',
+
+    city:
+      fields['City'] ||
+      fields.city ||
+      '',
+
+    state:
+      fields['State'] ||
+      fields.state ||
+      '',
+
+    zip:
+      fields['Zip Code'] ||
+      fields.zipCode ||
+      fields.zip_code ||
+      '',
+
+    country:
+      fields['Country'] ||
+      fields.country ||
+      '',
+
+    industry:
+      fields['Industry'] ||
+      fields.industry ||
+      '',
+
+    status:
+      fields['Status'] ||
+      fields.status ||
+      'Active',
+
+    notes:
+      fields['Notes'] ||
+      fields.notes ||
+      '',
+
+    createdAt:
+      fields['Created Date'] ||
+      fields.createdAt ||
+      fields.created_at ||
+      ''
   };
 }
 
@@ -2769,6 +3092,7 @@ function renderProjectTable() {
     }
   }
 }
+  
 // ===== RENDER CLIENT TABLE HEAD =====
 function renderClientTableHead() {
   var thead = document.getElementById('pmClientTableHead');
@@ -3162,38 +3486,7 @@ async function addProject() {
     return;
   }
 
-  var payload = {
-
-/*
- * The user-facing term is Project Number.
- * Project Code is retained in the API payload for compatibility
- * with the existing DRIV-EN project database field.
- */
-'Project Code':
-  projectNumber,*
-
-    'Project Name':
-      name,
-
-    'Status':
-      status,
-
-    'Location':
-      location,
-
-    'Expected Start Date':
-      expectedStartDate,
-
-    'Actual Start Date':
-      actualStartDate,
-
-    'Expected Completion Date':
-      expectedCompletionDate,
-
-    'Actual Completion Date':
-      actualCompletionDate
-
-  };
+var payload = { /* * The user-facing term is Project Number. * Project Code is retained in the API payload for compatibility * with the existing DRIV-EN project database field. */ 'Project Code': projectNumber, 'Project Name': name, 'Status': status, 'Location': location, 'Expected Start Date': expectedStartDate, 'Actual Start Date': actualStartDate, 'Expected Completion Date': expectedCompletionDate, 'Actual Completion Date': actualCompletionDate };
 
   try {
 
@@ -3320,7 +3613,414 @@ function openEditProjectModal(
 
 // ===== FORMAT DATE FOR HTML DATE INPUT =====
 function formatDateForInput(
-  
+  value
+) {
+  if (!value) {
+    return '';
+  }
+
+  var stringValue =
+    String(
+      value
+    ).trim();
+
+  var dateOnlyMatch =
+    stringValue.match(
+      /^(\d{4})-(\d{2})-(\d{2})$/
+    );
+
+  if (dateOnlyMatch) {
+    return (
+      dateOnlyMatch[1] +
+      '-' +
+      dateOnlyMatch[2] +
+      '-' +
+      dateOnlyMatch[3]
+    );
+  }
+
+  var date =
+    new Date(
+      stringValue
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    reportProjectManagementError(
+      'Invalid project date value: ' +
+      stringValue,
+      'formatDateForInput',
+      null
+    );
+
+    return '';
+  }
+
+  var year =
+    String(
+      date.getFullYear()
+    );
+
+  var month =
+    String(
+      date.getMonth() + 1
+    ).padStart(
+      2,
+      '0'
+    );
+
+  var day =
+    String(
+      date.getDate()
+    ).padStart(
+      2,
+      '0'
+    );
+
+  return (
+    year +
+    '-' +
+    month +
+    '-' +
+    day
+  );
+}
+
+// ===== CLOSE EDIT PROJECT MODAL =====
+function closeEditProjectModal() {
+  var modal =
+    document.getElementById(
+      'pmEditProjectModal'
+    );
+
+  if (modal) {
+    modal.classList.remove(
+      'active'
+    );
+  }
+
+  editingProjectId =
+    null;
+}
+
+// ===== SAVE EDITED PROJECT =====
+async function saveEditProject() {
+  if (!editingProjectId) {
+    showProjectMessage(
+      'No project is selected for editing.',
+      'error'
+    );
+
+    reportProjectManagementError(
+      'saveEditProject was called without an editingProjectId.',
+      'saveEditProject',
+      null
+    );
+
+    return;
+  }
+
+  var projectNumber =
+    document.getElementById(
+      'pmEditProjectCode'
+    ).value.trim();
+
+  var name =
+    document.getElementById(
+      'pmEditProjectName'
+    ).value.trim();
+
+  var status =
+    document.getElementById(
+      'pmEditProjectStatus'
+    ).value;
+
+  var location =
+    document.getElementById(
+      'pmEditProjectLocation'
+    ).value.trim();
+
+  var expectedStartDate =
+    document.getElementById(
+      'pmEditExpectedStartDate'
+    ).value;
+
+  var actualStartDate =
+    document.getElementById(
+      'pmEditActualStartDate'
+    ).value;
+
+  var expectedCompletionDate =
+    document.getElementById(
+      'pmEditExpectedCompletionDate'
+    ).value;
+
+  var actualCompletionDate =
+    document.getElementById(
+      'pmEditActualCompletionDate'
+    ).value;
+
+  if (!projectNumber) {
+    showProjectMessage(
+      'Project number is required.',
+      'error'
+    );
+
+    return;
+  }
+
+  if (!name) {
+    showProjectMessage(
+      'Project name is required.',
+      'error'
+    );
+
+    return;
+  }
+
+  if (
+    expectedStartDate &&
+    expectedCompletionDate &&
+    expectedCompletionDate <
+      expectedStartDate
+  ) {
+    showProjectMessage(
+      'Expected Completion Date cannot be earlier than Expected Start Date.',
+      'error'
+    );
+
+    return;
+  }
+
+  if (
+    actualStartDate &&
+    actualCompletionDate &&
+    actualCompletionDate <
+      actualStartDate
+  ) {
+    showProjectMessage(
+      'Actual Completion Date cannot be earlier than Actual Start Date.',
+      'error'
+    );
+
+    return;
+  }
+
+  var duplicateProject =
+    allProjects.find(
+      function(projectRecord) {
+        if (
+          projectRecord.id ===
+          editingProjectId
+        ) {
+          return false;
+        }
+
+        var existingProjectNumber =
+          String(
+            projectRecord.projectNumber ||
+            ''
+          )
+            .trim()
+            .toLowerCase();
+
+        return (
+          existingProjectNumber ===
+          projectNumber.toLowerCase()
+        );
+      }
+    );
+
+  if (duplicateProject) {
+    showProjectMessage(
+      'A project with number "' +
+      projectNumber +
+      '" already exists.',
+      'error'
+    );
+
+    return;
+  }
+
+  /*
+   * The user-facing term is Project Number.
+   * Project Code is retained in the API payload for compatibility
+   * with the existing DRIV-EN project database field.
+   */
+  var payload = {
+    'Project Code':
+      projectNumber,
+
+    'Project Name':
+      name,
+
+    'Status':
+      status,
+
+    'Location':
+      location,
+
+    'Expected Start Date':
+      expectedStartDate,
+
+    'Actual Start Date':
+      actualStartDate,
+
+    'Expected Completion Date':
+      expectedCompletionDate,
+
+    'Actual Completion Date':
+      actualCompletionDate
+  };
+
+  try {
+    var response =
+      await fetch(
+        '/api/Project/' +
+        encodeURIComponent(
+          editingProjectId
+        ),
+        {
+          method:
+            'PUT',
+
+          headers: {
+            'Content-Type':
+              'application/json'
+          },
+
+          body:
+            JSON.stringify(
+              payload
+            )
+        }
+      );
+
+    var data = {};
+
+    try {
+      data =
+        await response.json();
+    } catch (jsonError) {
+      data = {};
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        data.error ||
+        data.message ||
+        (
+          'Update failed (' +
+          response.status +
+          ')'
+        )
+      );
+    }
+
+    if (data.record) {
+      var updatedProject =
+        normalizeProject(
+          data.record
+        );
+
+      var projectIndex =
+        allProjects.findIndex(
+          function(projectRecord) {
+            return (
+              projectRecord.id ===
+              editingProjectId
+            );
+          }
+        );
+
+      if (
+        projectIndex !== -1
+      ) {
+        allProjects[
+          projectIndex
+        ] =
+          updatedProject;
+      }
+    } else {
+      var existingProject =
+        allProjects.find(
+          function(projectRecord) {
+            return (
+              projectRecord.id ===
+              editingProjectId
+            );
+          }
+        );
+
+      if (existingProject) {
+        existingProject.projectNumber =
+          projectNumber;
+
+        existingProject.name =
+          name;
+
+        existingProject.status =
+          status;
+
+        existingProject.location =
+          location;
+
+        existingProject.expectedStartDate =
+          expectedStartDate;
+
+        existingProject.actualStartDate =
+          actualStartDate;
+
+        existingProject.expectedCompletionDate =
+          expectedCompletionDate;
+
+        existingProject.actualCompletionDate =
+          actualCompletionDate;
+      }
+    }
+
+    showProjectMessage(
+      'Project "' +
+      name +
+      '" updated.',
+      'success'
+    );
+
+    closeEditProjectModal();
+
+    renderProjectTableHead();
+
+    renderProjectTable();
+
+    renderOverview();
+  } catch (error) {
+    showProjectMessage(
+      'Failed to update project: ' +
+      (
+        error.message ||
+        error
+      ),
+      'error'
+    );
+
+    reportProjectManagementError(
+      'saveEditProject failed: ' +
+      (
+        error.message ||
+        error
+      ),
+      'saveEditProject',
+      error &&
+      error.stack
+        ? error.stack
+        : null
+    );
+  }
+}
+
 // ===== DELETE PROJECT =====
 async function deleteProject(
   projectId
@@ -3336,7 +4036,6 @@ async function deleteProject(
     );
 
   if (!project) {
-
     reportProjectManagementError(
       'deleteProject could not find project with ID ' +
       projectId,
@@ -3363,7 +4062,6 @@ async function deleteProject(
   }
 
   try {
-
     var response =
       await fetch(
         '/api/Project/' +
@@ -3371,19 +4069,18 @@ async function deleteProject(
           projectId
         ),
         {
-          method: 'DELETE'
+          method:
+            'DELETE'
         }
       );
 
     if (!response.ok) {
-
       var data = {};
 
       try {
         data =
           await response.json();
-      }
-      catch(ignore) {
+      } catch (jsonError) {
         data = {};
       }
 
@@ -3418,10 +4115,7 @@ async function deleteProject(
     renderProjectTable();
 
     renderOverview();
-
-  }
-  catch(error) {
-
+  } catch (error) {
     showProjectMessage(
       'Failed to delete project: ' +
       (
@@ -3443,7 +4137,6 @@ async function deleteProject(
         ? error.stack
         : null
     );
-
   }
 }
 
@@ -4690,299 +5383,532 @@ function getFilteredSortedProjects() {
 
 // ===== PRINT & EXPORT (Clients) =====
 function openClientPrintModal() {
-  var container = document.getElementById('pmClientPrintCols');
-  container.textContent = '';
-  CLIENT_COL_DEFS.forEach(function(col) {
-    var item = document.createElement('label');
-    item.className = 'pm-check-item';
-    var cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.checked = clientVisibleCols[col.key];
-    cb.dataset.key = col.key;
-    item.appendChild(cb);
-    item.appendChild(document.createTextNode(col.label));
-    container.appendChild(item);
-  });
-  document.getElementById('pmClientPrintModal').classList.add('active');
+  var container =
+    document.getElementById(
+      'pmClientPrintCols'
+    );
+
+  container.textContent =
+    '';
+
+  CLIENT_COL_DEFS.forEach(
+    function(col) {
+      var item =
+        document.createElement(
+          'label'
+        );
+
+      item.className =
+        'pm-check-item';
+
+      var cb =
+        document.createElement(
+          'input'
+        );
+
+      cb.type =
+        'checkbox';
+
+      cb.checked =
+        clientVisibleCols[
+          col.key
+        ];
+
+      cb.dataset.key =
+        col.key;
+
+      item.appendChild(
+        cb
+      );
+
+      item.appendChild(
+        document.createTextNode(
+          col.label
+        )
+      );
+
+      container.appendChild(
+        item
+      );
+    }
+  );
+
+  document
+    .getElementById(
+      'pmClientPrintModal'
+    )
+    .classList.add(
+      'active'
+    );
 }
 
 function doClientPrint() {
-  var checkboxes = document.querySelectorAll('#pmClientPrintCols input[type="checkbox"]');
-  var selectedCols = [];
-  checkboxes.forEach(function(cb) {
-    if (cb.checked) {
-      var col = CLIENT_COL_DEFS.find(function(c) { return c.key === cb.dataset.key; });
-      if (col) selectedCols.push(col);
-    }
-  });
-  if (selectedCols.length === 0) { showClientMessage('Select at least one column to print.', 'error'); return; }
+  var checkboxes =
+    document.querySelectorAll(
+      '#pmClientPrintCols input[type="checkbox"]'
+    );
 
-  var filtered = getFilteredSortedClients();
-  var html = '<html><head><title>DRIV-EN Client List</title><style>';
-  html += 'body{font-family:Arial,sans-serif;margin:20px;}h2{margin:0 0 16px 0;}table{width:100%;border-collapse:collapse;font-size:12px;}';
-  html += 'th{background:#e2e8f0;padding:8px 10px;text-align:left;border:1px solid #94a3b8;}td{padding:6px 10px;border:1px solid #cbd5e1;}';
-  html += '.print-date{font-size:12px;color:#64748b;margin-bottom:12px;}</style></head><body>';
-  html += '<h2>DRIV-EN Client List</h2>';
-  html += '<div class="print-date">Generated: ' + new Date().toLocaleString() + ' | Total: ' + filtered.length + ' clients</div>';
-  html += '<table><thead><tr>';
-  selectedCols.forEach(function(col) { html += '<th>' + escapeHtml(col.label) + '</th>'; });
-  html += '</tr></thead><tbody>';
-  filtered.forEach(function(c) {
-    html += '<tr>';
-    selectedCols.forEach(function(col) {
-      var val = c[col.key];
-      html += '<td>' + escapeHtml((val !== undefined && val !== null && val !== '') ? String(val) : '—') + '</td>';
-    });
-    html += '</tr>';
-  });
-  html += '</tbody></table></body></html>';
-  var printWin = window.open('', '_blank');
-  printWin.document.write(html);
+  var selectedCols =
+    [];
+
+  checkboxes.forEach(
+    function(cb) {
+      if (
+        cb.checked
+      ) {
+        var col =
+          CLIENT_COL_DEFS.find(
+            function(c) {
+              return (
+                c.key ===
+                cb.dataset.key
+              );
+            }
+          );
+
+        if (col) {
+          selectedCols.push(
+            col
+          );
+        }
+      }
+    }
+  );
+
+  if (
+    selectedCols.length ===
+    0
+  ) {
+    showClientMessage(
+      'Select at least one column to print.',
+      'error'
+    );
+
+    return;
+  }
+
+  var filtered =
+    getFilteredSortedClients();
+
+  var html =
+    '<html><head><title>DRIV-EN Client List</title><style>';
+
+  html +=
+    'body{font-family:Arial,sans-serif;margin:20px;}h2{margin:0 0 16px 0;}table{width:100%;border-collapse:collapse;font-size:12px;}';
+
+  html +=
+    'th{background:#e2e8f0;padding:8px 10px;text-align:left;border:1px solid #94a3b8;}td{padding:6px 10px;border:1px solid #cbd5e1;}';
+
+  html +=
+    '.print-date{font-size:12px;color:#64748b;margin-bottom:12px;}</style></head><body>';
+
+  html +=
+    '<h2>DRIV-EN Client List</h2>';
+
+  html +=
+    '<div class="print-date">Generated: ' +
+    new Date().toLocaleString() +
+    ' | Total: ' +
+    filtered.length +
+    ' clients</div>';
+
+  html +=
+    '<table><thead><tr>';
+
+  selectedCols.forEach(
+    function(col) {
+      html +=
+        '<th>' +
+        escapeHtml(
+          col.label
+        ) +
+        '</th>';
+    }
+  );
+
+  html +=
+    '</tr></thead><tbody>';
+
+  filtered.forEach(
+    function(c) {
+      html +=
+        '<tr>';
+
+      selectedCols.forEach(
+        function(col) {
+          var val =
+            c[col.key];
+
+          html +=
+            '<td>' +
+            escapeHtml(
+              (
+                val !==
+                  undefined &&
+                val !==
+                  null &&
+                val !==
+                  ''
+              )
+                ? String(
+                    val
+                  )
+                : '—'
+            ) +
+            '</td>';
+        }
+      );
+
+      html +=
+        '</tr>';
+    }
+  );
+
+  html +=
+    '</tbody></table></body></html>';
+
+  var printWin =
+    window.open(
+      '',
+      '_blank'
+    );
+
+  if (!printWin) {
+    showClientMessage(
+      'The browser blocked the print window.',
+      'error'
+    );
+
+    return;
+  }
+
+  printWin.document.write(
+    html
+  );
+
   printWin.document.close();
+
   printWin.focus();
-  setTimeout(function() { printWin.print(); }, 300);
-  closeModal('pmClientPrintModal');
+
+  setTimeout(
+    function() {
+      printWin.print();
+    },
+    300
+  );
+
+  closeModal(
+    'pmClientPrintModal'
+  );
 }
 
-var clientExportFormat = 'csv';
-function openClientExportModal(format) {
-  clientExportFormat = format || 'csv';
-  var container = document.getElementById('pmClientExportCols');
-  container.textContent = '';
-  CLIENT_COL_DEFS.forEach(function(col) {
-    var item = document.createElement('label');
-    item.className = 'pm-check-item';
-    var cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.checked = clientVisibleCols[col.key];
-    cb.dataset.key = col.key;
-    item.appendChild(cb);
-    item.appendChild(document.createTextNode(col.label));
-    container.appendChild(item);
-  });
-  if (clientExportFormat === 'excel') {
-    document.getElementById('pmClientExportTitle').textContent = 'Export to Excel';
-    document.getElementById('pmClientExportBtn').textContent = 'Download Excel';
+var clientExportFormat =
+  'csv';
+
+function openClientExportModal(
+  format
+) {
+  clientExportFormat =
+    format || 'csv';
+
+  var container =
+    document.getElementById(
+      'pmClientExportCols'
+    );
+
+  container.textContent =
+    '';
+
+  CLIENT_COL_DEFS.forEach(
+    function(col) {
+      var item =
+        document.createElement(
+          'label'
+        );
+
+      item.className =
+        'pm-check-item';
+
+      var cb =
+        document.createElement(
+          'input'
+        );
+
+      cb.type =
+        'checkbox';
+
+      cb.checked =
+        clientVisibleCols[
+          col.key
+        ];
+
+      cb.dataset.key =
+        col.key;
+
+      item.appendChild(
+        cb
+      );
+
+      item.appendChild(
+        document.createTextNode(
+          col.label
+        )
+      );
+
+      container.appendChild(
+        item
+      );
+    }
+  );
+
+  if (
+    clientExportFormat ===
+    'excel'
+  ) {
+    document.getElementById(
+      'pmClientExportTitle'
+    ).textContent =
+      'Export to Excel';
+
+    document.getElementById(
+      'pmClientExportBtn'
+    ).textContent =
+      'Download Excel';
   } else {
-    document.getElementById('pmClientExportTitle').textContent = 'Export to CSV';
-    document.getElementById('pmClientExportBtn').textContent = 'Download CSV';
+    document.getElementById(
+      'pmClientExportTitle'
+    ).textContent =
+      'Export to CSV';
+
+    document.getElementById(
+      'pmClientExportBtn'
+    ).textContent =
+      'Download CSV';
   }
-  document.getElementById('pmClientExportModal').classList.add('active');
+
+  document
+    .getElementById(
+      'pmClientExportModal'
+    )
+    .classList.add(
+      'active'
+    );
 }
 
 function doClientExport() {
-  var checkboxes = document.querySelectorAll('#pmClientExportCols input[type="checkbox"]');
-  var selectedCols = [];
-  checkboxes.forEach(function(cb) {
-    if (cb.checked) {
-      var col = CLIENT_COL_DEFS.find(function(c) { return c.key === cb.dataset.key; });
-      if (col) selectedCols.push(col);
+  var checkboxes =
+    document.querySelectorAll(
+      '#pmClientExportCols input[type="checkbox"]'
+    );
+
+  var selectedCols =
+    [];
+
+  checkboxes.forEach(
+    function(cb) {
+      if (
+        cb.checked
+      ) {
+        var col =
+          CLIENT_COL_DEFS.find(
+            function(c) {
+              return (
+                c.key ===
+                cb.dataset.key
+              );
+            }
+          );
+
+        if (col) {
+          selectedCols.push(
+            col
+          );
+        }
+      }
     }
-  });
-  if (selectedCols.length === 0) { showClientMessage('Select at least one column to export.', 'error'); return; }
+  );
 
-  var filtered = getFilteredSortedClients();
-  var dateStr = new Date().toISOString().slice(0, 10);
-  var label = clientExportFormat === 'excel' ? 'Excel' : 'CSV';
+  if (
+    selectedCols.length ===
+    0
+  ) {
+    showClientMessage(
+      'Select at least one column to export.',
+      'error'
+    );
 
-  if (clientExportFormat === 'excel') {
-    var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
-    html += '<head><meta charset="UTF-8"></head><body><table border="1"><thead><tr>';
-    selectedCols.forEach(function(col) { html += '<th style="background:#e2e8f0;font-weight:bold;">' + escapeHtml(col.label) + '</th>'; });
-    html += '</tr></thead><tbody>';
-    filtered.forEach(function(c) {
-      html += '<tr>';
-      selectedCols.forEach(function(col) {
-        var val = c[col.key];
-        html += '<td>' + escapeHtml((val !== undefined && val !== null && val !== '') ? String(val) : '') + '</td>';
-      });
-      html += '</tr>';
-    });
-    html += '</tbody></table></body></html>';
-    var blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-    var url = URL.createObjectURL(blob);
-    var link = document.createElement('a');
-    link.href = url;
-    link.download = 'driv-en-clients-' + dateStr + '.xls';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    return;
+  }
+
+  var filtered =
+    getFilteredSortedClients();
+
+  var dateStr =
+    new Date()
+      .toISOString()
+      .slice(
+        0,
+        10
+      );
+
+  var label =
+    clientExportFormat ===
+    'excel'
+      ? 'Excel'
+      : 'CSV';
+
+  if (
+    clientExportFormat ===
+    'excel'
+  ) {
+    var html =
+      '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+      'xmlns:x="urn:schemas-microsoft-com:office:excel" ' +
+      'xmlns="http://www.w3.org/TR/REC-html40">';
+
+    html +=
+      '<head><meta charset="UTF-8"></head><body><table border="1"><thead><tr>';
+
+    selectedCols.forEach(
+      function(col) {
+        html +=
+          '<th style="background:#e2e8f0;font-weight:bold;">' +
+          escapeHtml(
+            col.label
+          ) +
+          '</th>';
+      }
+    );
+
+    html +=
+      '</tr></thead><tbody>';
+
+    filtered.forEach(
+      function(c) {
+        html +=
+          '<tr>';
+
+        selectedCols.forEach(
+          function(col) {
+            var val =
+              c[col.key];
+
+            html +=
+              '<td>' +
+              escapeHtml(
+                (
+                  val !==
+                    undefined &&
+                  val !==
+                    null &&
+                  val !==
+                    ''
+                )
+                  ? String(
+                      val
+                    )
+                  : ''
+              ) +
+              '</td>';
+          }
+        );
+
+        html +=
+          '</tr>';
+      }
+    );
+
+    html +=
+      '</tbody></table></body></html>';
+
+    var blob =
+      new Blob(
+        [ html ],
+        {
+          type:
+            'application/vnd.ms-excel;charset=utf-8;'
+        }
+      );
+
+    downloadProjectFile(
+      blob,
+      'driv-en-clients-' +
+      dateStr +
+      '.xls'
+    );
   } else {
-    var csv = selectedCols.map(function(c) { return csvEscape(c.label); }).join(',') + '\n';
-    filtered.forEach(function(c) {
-      var row = selectedCols.map(function(col) {
-        var val = c[col.key];
-        return csvEscape((val !== undefined && val !== null && val !== '') ? String(val) : '');
-      });
-      csv += row.join(',') + '\n';
-    });
-    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    var url = URL.createObjectURL(blob);
-    var link = document.createElement('a');
-    link.href = url;
-    link.download = 'driv-en-clients-' + dateStr + '.csv';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    var csv =
+      selectedCols
+        .map(
+          function(c) {
+            return csvEscape(
+              c.label
+            );
+          }
+        )
+        .join(',') +
+      '\n';
+
+    filtered.forEach(
+      function(c) {
+        var row =
+          selectedCols.map(
+            function(col) {
+              var val =
+                c[col.key];
+
+              return csvEscape(
+                (
+                  val !==
+                    undefined &&
+                  val !==
+                    null &&
+                  val !==
+                    ''
+                )
+                  ? String(
+                      val
+                    )
+                  : ''
+              );
+            }
+          );
+
+        csv +=
+          row.join(
+            ','
+          ) +
+          '\n';
+      }
+    );
+
+    var blob =
+      new Blob(
+        [ csv ],
+        {
+          type:
+            'text/csv;charset=utf-8;'
+        }
+      );
+
+    downloadProjectFile(
+      blob,
+      'driv-en-clients-' +
+      dateStr +
+      '.csv'
+    );
   }
-  closeModal('pmClientExportModal');
-  showClientMessage('Exported ' + filtered.length + ' clients to ' + label + '.', 'success');
+
+  closeModal(
+    'pmClientExportModal'
+  );
+
+  showClientMessage(
+    'Exported ' +
+    filtered.length +
+    ' clients to ' +
+    label +
+    '.',
+    'success'
+  );
 }
-
-function getFilteredSortedClients() {
-  var search = document.getElementById('pmClientSearch').value.toLowerCase().trim();
-  var filterStatus = document.getElementById('pmClientFilterStatus').value;
-  var filtered = allClients.filter(function(c) {
-    var matchesSearch = !search ||
-      (c.clientName && c.clientName.toLowerCase().indexOf(search) !== -1) ||
-      (c.contactName && c.contactName.toLowerCase().indexOf(search) !== -1) ||
-      (c.contactEmail && c.contactEmail.toLowerCase().indexOf(search) !== -1) ||
-      (c.company && c.company.toLowerCase().indexOf(search) !== -1);
-    var matchesStatus = !filterStatus || (c.status && c.status.toLowerCase() === filterStatus.toLowerCase());
-    return matchesSearch && matchesStatus;
-  });
-  filtered.sort(function(a, b) {
-    var va = String(a[clientSortKey] || '').toLowerCase();
-    var vb = String(b[clientSortKey] || '').toLowerCase();
-    if (va < vb) return clientSortDir === 'asc' ? -1 : 1;
-    if (va > vb) return clientSortDir === 'asc' ? 1 : -1;
-    return 0;
-  });
-  return filtered;
-}
-
-// ===== HELPERS =====
-function escapeHtml(str) {
-  var div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
-
-function csvEscape(val) {
-  if (val === null || val === undefined) return '';
-  var s = String(val);
-  if (s.indexOf(',') !== -1 || s.indexOf('"') !== -1 || s.indexOf('\n') !== -1) {
-    return '"' + s.replace(/"/g, '""') + '"';
-  }
-  return s;
-}
-
-function closeModal(modalId) {
-  document.getElementById(modalId).classList.remove('active');
-}
-
-function showProjectMessage(msg, type) {
-  var el = document.getElementById('pmProjectsMessage');
-  if (!el) el = document.getElementById('pmAddProjectMessage');
-  el.textContent = msg;
-  el.className = 'pm-message ' + type;
-  el.style.display = 'block';
-  setTimeout(function() { el.style.display = 'none'; }, 5000);
-}
-
-function showClientMessage(msg, type) {
-  var el = document.getElementById('pmClientsMessage');
-  if (!el) el = document.getElementById('pmAddClientMessage');
-  el.textContent = msg;
-  el.className = 'pm-message ' + type;
-  el.style.display = 'block';
-  setTimeout(function() { el.style.display = 'none'; }, 5000);
-}
-
-function showTypeMessage(msg, type) {
-  var el = document.getElementById('pmTypesMessage');
-  el.textContent = msg;
-  el.className = 'pm-message ' + type;
-  el.style.display = 'block';
-  setTimeout(function() { el.style.display = 'none'; }, 5000);
-}
-
-// ===== MODAL OVERLAY CLICKS =====
-document.getElementById('pmEditProjectModal').addEventListener('click', function(e) { if (e.target === this) closeEditProjectModal(); });
-document.getElementById('pmEditClientModal').addEventListener('click', function(e) { if (e.target === this) closeEditClientModal(); });
-document.getElementById('pmEditTypeModal').addEventListener('click', function(e) { if (e.target === this) closeEditTypeModal(); });
-document.getElementById('pmProjectPrintModal').addEventListener('click', function(e) { if (e.target === this) closeModal('pmProjectPrintModal'); });
-document.getElementById('pmProjectExportModal').addEventListener('click', function(e) { if (e.target === this) closeModal('pmProjectExportModal'); });
-document.getElementById('pmClientPrintModal').addEventListener('click', function(e) { if (e.target === this) closeModal('pmClientPrintModal'); });
-document.getElementById('pmClientExportModal').addEventListener('click', function(e) { if (e.target === this) closeModal('pmClientExportModal'); });
-
-// ===== KEYBOARD: Enter in project name field triggers Add =====
-document.getElementById('pmProjectName').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') { e.preventDefault(); addProject(); }
-});
-document.getElementById('pmClientName').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') { e.preventDefault(); addClient(); }
-});
-
-// ===== TAB SWITCHING =====
-function switchTab(tab) {
-  document.querySelectorAll('.pm-tab').forEach(function(t) { t.classList.remove('active'); });
-  document.querySelectorAll('.pm-tab-content').forEach(function(c) { c.style.display = 'none'; });
-  document.querySelector('.pm-tab[data-tab="' + tab + '"]').classList.add('active');
-  document.getElementById('tab-' + tab).style.display = 'block';
-  if (tab === 'overview') renderOverview();
-}
-
-// ===== GO TO MAIN DASHBOARD =====
-function goToMainDashboard() {
-  if (pmDirty) {
-    if (!confirm('You have unsaved changes. Click OK to leave without saving, or Cancel to stay.')) return;
-  }
-  var savedOrigin = sessionStorage.getItem('driven_dashboard_origin');
-  if (savedOrigin) { window.location.href = savedOrigin; return; }
-  if (document.referrer && document.referrer.indexOf('driv-en.com') !== -1) {
-    window.location.href = document.referrer; return;
-  }
-  var user = window.dashUser;
-  if (user) {
-    var role = (user.role || '').toLowerCase();
-    if (role === 'driv-en founder' || role === 'owner') {
-      window.location.href = '/app/dashboard/owner-dashboard.html'; return;
-    } else if (role === 'admin') {
-      window.location.href = '/app/dashboard/admin.html'; return;
-    } else {
-      window.location.href = '/app/dashboard/employee-dashboard.html'; return;
-    }
-  }
-  window.location.href = '/app/dashboard/admin.html';
-}
-
-// ===== CONFIRM LOGOUT =====
-function confirmLogout() {
-  if (pmDirty) {
-    if (!confirm('You have unsaved changes. Click OK to log out without saving, or Cancel to stay.')) return;
-  }
-  dashLogout();
-}
-
-// ===== BEFOREUNLOAD =====
-window.addEventListener('beforeunload', function(e) {
-  if (pmDirty) { e.preventDefault(); e.returnValue = 'You have unsaved changes.'; }
-});
-
-// ===== FIX HEADER =====
-function fixHeaderLayout() {
-  var header = document.querySelector('.dash-header');
-  if (!header) return false;
-  var row1 = header.querySelector('.dash-header-row1');
-  var row2 = header.querySelector('.dash-header-row2');
-  var row3 = header.querySelector('.dash-header-row3');
-  var h1 = row2 ? row2.querySelector('h1') : null;
-  if (!row1 || !h1) return false;
-  if (h1.parentNode === row1) return true;
-  var drivenLogo = row1.querySelector('.dash-driven-logo');
-  row1.insertBefore(h1, drivenLogo);
-  row1.style.cssText = 'display:flex !important; justify-content:space-between !important; align-items:center !important; padding:8px 20px !important; gap:16px !important;';
-  h1.style.cssText = 'margin:0; font-size:20px; font-weight:600; text-align:center; flex:1;';
-  if (row2) row2.style.display = 'none';
-  if (row3) row3.style.display = 'none';
-  return true;
-}
-</script>
-
-<!-- ===== AUTH CHECK ===== -->
-<script src="/app/shared/auth-check.js?v=13"></script>
-</body>
-</html>
