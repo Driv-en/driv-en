@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>DRIV‑EN | Asset Management</title>
     <meta name="description" content="DRIV-EN — manage assets, inspections, work orders, and transfers.">
     <meta name="robots" content="noindex, nofollow">
@@ -22,6 +22,17 @@
         })();
     </script>
     <style>
+        :root {
+            --header-height: 60px;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            overflow-x: hidden;
+        }
+
         .am-loading {
             display: flex;
             align-items: center;
@@ -39,28 +50,40 @@
             top: 0;
             z-index: 101;
             background: var(--bg-card);
+            width: 100%;
+            box-sizing: border-box;
+            border-bottom: 1px solid var(--border);
         }
 
         @media (max-width: 700px) {
             .dash-customer-logo, .dash-customer-logo-placeholder {
-                max-height: 36px;
-                max-width: 80px;
+                max-height: 32px;
+                max-width: 70px;
             }
-            .dash-driven-logo { max-height: 40px; }
+            .dash-driven-logo { max-height: 36px; }
+            #dashHeader .dash-header-row1 {
+                padding: 6px 12px !important;
+                gap: 8px !important;
+            }
+            #dashHeader h1 {
+                font-size: 16px !important;
+            }
         }
 
         .am-tab-bar {
             display: flex;
             gap: 2px;
+            width: 100%;
             max-width: 1100px;
             margin: 0 auto;
-            padding: 0 20px;
+            padding: 0 16px;
             overflow-x: auto;
             position: sticky;
-            top: 60px;
+            top: var(--header-height);
             z-index: 100;
             background: #cbd5e1;
             border-bottom: 2px solid #94a3b8;
+            box-sizing: border-box;
             -webkit-overflow-scrolling: touch;
         }
         .am-tab {
@@ -68,8 +91,8 @@
             border: 1px solid #64748b;
             border-bottom: none;
             border-radius: 8px 8px 0 0;
-            padding: 10px 22px;
-            font-size: 15px;
+            padding: 10px 18px;
+            font-size: 14px;
             font-weight: 500;
             color: #1e293b;
             cursor: pointer;
@@ -107,8 +130,8 @@
             border: 1px solid #dc2626;
             border-bottom: none;
             border-radius: 8px 8px 0 0;
-            padding: 10px 22px;
-            font-size: 15px;
+            padding: 10px 18px;
+            font-size: 14px;
             font-weight: 600;
             color: #fff;
             cursor: pointer;
@@ -128,18 +151,21 @@
         .am-tab-content.active { display: block; }
 
         .am-main {
+            width: 100%;
             max-width: 1100px;
-            margin: 20px auto;
-            padding: 0 20px;
+            margin: 16px auto;
+            padding: 0 16px;
             position: relative;
             z-index: 1;
+            box-sizing: border-box;
         }
+
         .am-welcome {
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 8px;
-            padding: 20px 24px;
-            margin-bottom: 20px;
+            padding: 20px;
+            margin-bottom: 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -156,26 +182,55 @@
             font-size: 14px;
             color: var(--text-muted);
         }
-        .am-welcome-kpi {
+
+        .am-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(85px, 1fr));
+            gap: 8px;
+            width: auto;
+        }
+        .am-kpi-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            text-align: center;
+        }
+        .am-kpi-card.kpi-active {
             background: rgba(37, 99, 235, 0.1);
-            border: 1px solid rgba(37, 99, 235, 0.25);
-            border-radius: 8px;
-            padding: 10px 18px;
-            text-align: right;
-            min-width: 140px;
+            border-color: rgba(37, 99, 235, 0.3);
         }
-        .am-kpi-value {
-            font-size: 22px;
+        .am-kpi-card.kpi-available {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+        .am-kpi-card.kpi-inuse {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+        .am-kpi-card.kpi-maint {
+            background: rgba(249, 115, 22, 0.1);
+            border-color: rgba(249, 115, 22, 0.3);
+        }
+
+        .am-kpi-val {
+            font-size: 18px;
             font-weight: 700;
-            color: var(--primary);
             line-height: 1.2;
+            color: var(--text);
         }
-        .am-kpi-label {
-            font-size: 12px;
+        .kpi-active .am-kpi-val { color: var(--primary); }
+        .kpi-available .am-kpi-val { color: #16a34a; }
+        .kpi-inuse .am-kpi-val { color: #2563eb; }
+        .kpi-maint .am-kpi-val { color: #ea580c; }
+
+        .am-kpi-lbl {
+            font-size: 11px;
             font-weight: 600;
             color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
+            margin-top: 2px;
         }
 
         .am-placeholder {
@@ -195,14 +250,12 @@
             border: 1px solid var(--border);
             border-radius: 8px;
             padding: 16px;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             display: flex;
             flex-direction: column;
             gap: 12px;
         }
-        .am-search-row1 {
-            width: 100%;
-        }
+        .am-search-row1 { width: 100%; }
         .am-search-input {
             width: 100%;
             padding: 10px 14px;
@@ -625,12 +678,11 @@
         .am-check-item input { cursor: pointer; }
 
         @media (max-width: 700px) {
-            .am-tab-bar { top: 50px; }
             .am-main { padding: 0 12px; margin: 12px auto; }
             .am-welcome { flex-direction: column; align-items: flex-start; }
-            .am-welcome-kpi { width: 100%; box-sizing: border-box; text-align: left; }
-            .am-tab { padding: 8px 14px; font-size: 13px; }
-            .am-tab-logout { padding: 8px 14px; font-size: 13px; }
+            .am-kpi-grid { width: 100%; grid-template-columns: repeat(2, 1fr); }
+            .am-tab { padding: 8px 12px; font-size: 13px; }
+            .am-tab-logout { padding: 8px 12px; font-size: 13px; }
             .am-form-grid { grid-template-columns: 1fr; }
             .am-search-row3 { grid-template-columns: repeat(2, 1fr); }
             .am-btn-action { font-size: 12px; padding: 6px 4px; min-height: 36px; }
@@ -660,7 +712,7 @@
     <div class="steel-overlay"></div>
     <div id="dashHeader"></div>
 
-    <div class="am-tab-bar">
+    <div class="am-tab-bar" id="amTabBar">
         <div class="am-tab active" data-tab="assets" onclick="switchTab('assets')">Assets</div>
         <div class="am-tab" data-tab="addasset" onclick="switchTab('addasset')">Add New Asset</div>
         <div class="am-tab" data-tab="inspections" onclick="switchTab('inspections')">Asset Inspections</div>
@@ -679,9 +731,23 @@
                     <h2>Asset Management</h2>
                     <p>View, add, and edit assets across your organization.</p>
                 </div>
-                <div class="am-welcome-kpi">
-                    <div class="am-kpi-value" id="amActiveKpi">0 / 0</div>
-                    <div class="am-kpi-label">Active / Total Assets</div>
+                <div class="am-kpi-grid">
+                    <div class="am-kpi-card kpi-available">
+                        <div class="am-kpi-val" id="kpiAvailable">0</div>
+                        <div class="am-kpi-lbl">Available</div>
+                    </div>
+                    <div class="am-kpi-card kpi-inuse">
+                        <div class="am-kpi-val" id="kpiInUse">0</div>
+                        <div class="am-kpi-lbl">In Use</div>
+                    </div>
+                    <div class="am-kpi-card kpi-maint">
+                        <div class="am-kpi-val" id="kpiMaint">0</div>
+                        <div class="am-kpi-lbl">Maintenance</div>
+                    </div>
+                    <div class="am-kpi-card kpi-active">
+                        <div class="am-kpi-val" id="kpiActive">0 / 0</div>
+                        <div class="am-kpi-lbl">Active / Total</div>
+                    </div>
                 </div>
             </div>
 
@@ -898,6 +964,15 @@
         ];
         var sortKey = 'assetNumber', sortDir = 'asc', currentPage = 1, pageSize = 10, visibleCols = {}, colWidths = {};
 
+        function updateHeaderOffset() {
+            var h = document.getElementById('dashHeader');
+            if (h) {
+                var hh = h.getBoundingClientRect().height;
+                document.documentElement.style.setProperty('--header-height', hh + 'px');
+            }
+        }
+        window.addEventListener('resize', updateHeaderOffset);
+
         function initVisibleCols() {
             try {
                 var s = JSON.parse(localStorage.getItem('driven_am_visible_cols') || '{}');
@@ -954,13 +1029,17 @@
             if (!canModify) document.getElementById('addAssetForm').style.display = 'none';
             var ha = 0, hi = setInterval(function() {
                 ha++;
-                if (fixHeaderLayout() || ha > 50) clearInterval(hi);
+                if (fixHeaderLayout() || ha > 50) {
+                    clearInterval(hi);
+                    updateHeaderOffset();
+                }
             }, 100);
             initVisibleCols();
             await syncSettings();
             await loadAssets();
             document.getElementById('amLoading').style.display = 'none';
             document.getElementById('tab-assets').style.display = 'block';
+            updateHeaderOffset();
         });
 
         async function syncSettings() {
@@ -1066,11 +1145,19 @@
 
         function updateKpi() {
             var total = allAssets.length;
-            var active = allAssets.filter(function(a) {
+            var avail = 0, inuse = 0, maint = 0;
+            allAssets.forEach(function(a) {
                 var st = (a.status || '').toLowerCase();
-                return st === 'available' || st === 'in use';
-            }).length;
-            document.getElementById('amActiveKpi').textContent = active + ' / ' + total;
+                if (st === 'available') avail++;
+                else if (st === 'in use') inuse++;
+                else if (st === 'maintenance') maint++;
+            });
+            var active = avail + inuse;
+
+            document.getElementById('kpiAvailable').textContent = avail;
+            document.getElementById('kpiInUse').textContent = inuse;
+            document.getElementById('kpiMaint').textContent = maint;
+            document.getElementById('kpiActive').textContent = active + ' / ' + total;
         }
 
         async function loadAssets() {
@@ -1891,7 +1978,7 @@
             if (h1.parentNode === r1) return true;
             var dl = r1.querySelector('.dash-driven-logo');
             r1.insertBefore(h1, dl);
-            r1.style.cssText = 'display:flex !important; justify-content:space-between !important; align-items:center !important; padding:8px 20px !important; gap:16px !important;';
+            r1.style.cssText = 'display:flex !important; justify-content:space-between !important; align-items:center !important; padding:8px 20px !important; gap:16px !important; width:100% !important; box-sizing:border-box !important;';
             h1.style.cssText = 'margin:0; font-size:20px; font-weight:600; text-align:center; flex:1;';
             if (r2) r2.style.display = 'none';
             if (r3) r3.style.display = 'none';
