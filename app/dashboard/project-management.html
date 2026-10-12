@@ -121,22 +121,6 @@
   margin-top:4px;
 }
 
-.pm-kpi-grid {
-  grid-template-columns:1fr;
-}
-
-.pm-kpi-card {
-  min-height:110px;
-}
-
-.pm-kpi-number {
-  font-size:28px;
-}
-
-.pm-kpi-label {
-  font-size:12px;
-}
-
 /* ===== OVERVIEW SECTIONS ===== */
 .pm-overview-section { margin-bottom:28px; }
 .pm-overview-section-title { font-size:15px; font-weight:700; color:var(--text); padding:10px 0; border-bottom:2px solid var(--border); margin-bottom:0; display:flex; align-items:center; justify-content:space-between; }
@@ -1364,29 +1348,30 @@ document.addEventListener(
         overviewTab.style.display =
           'block';
       }
-    } catch (error) {
-      reportProjectManagementError(
-        'Project Management initialization failed: ' +
-        (
-          error.message ||
-          error
-        ),
-        'project-management-initialization',
-        error &&
-        error.stack
-          ? error.stack
-          : null
-      );
+  } catch (error) {
+    reportProjectManagementError(
+      'Project Management initialization failed: ' +
+      (error.message || error),
+      'project-management-initialization',
+      error && error.stack ? error.stack : null
+    );
 
-      var loadingElement =
-        document.getElementById(
-          'pmLoading'
-        );
+    var loadingElement = document.getElementById('pmLoading');
+    if (loadingElement) {
+      loadingElement.textContent = 'Failed to load Project Management.';
+      loadingElement.style.display = 'none';
+    }
 
-      if (loadingElement) {
-        loadingElement.textContent =
-          'Project Management could not be loaded. Please refresh the page or contact support.';
-      }
+    var overviewTab = document.getElementById('tab-overview');
+    if (overviewTab) {
+      overviewTab.style.display = 'block';
+    }
+
+    var fallbackMessage = document.getElementById('pmProjectsMessage');
+    if (fallbackMessage) {
+      fallbackMessage.className = 'pm-message error';
+      fallbackMessage.textContent = 'Project Management failed to initialize. Check the console for details.';
+      fallbackMessage.style.display = 'block';
     }
   }
 );
