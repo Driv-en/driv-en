@@ -1323,22 +1323,34 @@
             return String(val);
         }
 
-        function normalizeAsset(r) {
+function normalizeAsset(r) {
             var f = (r && r.fields && typeof r.fields === 'object') ? r.fields : (r || {});
+
+            function parseVal(val) {
+                if (val === undefined || val === null) return '';
+                if (Array.isArray(val)) return val.map(parseVal).filter(Boolean).join(', ');
+                if (typeof val === 'object') {
+                    // Only return string name if it's a valid non-empty object property
+                    return val.name || val.title || val.project_name || val.location_name || '';
+                }
+                var str = String(val).trim();
+                return (str === 'null' || str === 'undefined') ? '' : str;
+            }
 
             return {
                 id: r.id || f.id || ('eq-' + Math.random().toString(36).substr(2, 9)),
-                assetNumber: parseVal(f.asset_number || f['Equipment ID'] || f.assetNumber),
-                type: parseVal(f.category || f.name || f['Category'] || f.type),
-                meter: f.current_meter_reading !== undefined ? f.current_meter_reading : (f.meter !== undefined ? f.meter : null),
-                status: parseVal(f.status || f['Status'] || 'Available'),
-                project: parseVal(f.current_project || f['Project'] || f.project),
-                location: parseVal(f.current_location || f['Location'] || f.location),
-                serialNumber: parseVal(f.serial_number || f['Serial Number']),
-                division: parseVal(f.division || f['Division']),
-                assignedTo: parseVal(f.assigned_to || f.owner_name || f['Assigned To']),
-                condition: parseVal(f.condition || f['Condition']),
-                createdAt: parseVal(f.created_at || f['Created Date'])
+                assetNumber: parseVal(f.asset_number),
+                type: parseVal(f.category || f.name),
+                meter: (f.current_meter_reading !== undefined && f.current_meter_reading !== null) ? f.current_meter_reading : null,
+                status: parseVal(f.status) || 'Available',
+                project: parseVal(f.current_project),
+                location: parseVal(f.current_location),
+                // Strict mapping to prevent false fallback data:
+                serialNumber: parseVal(f.serial_number), // Will be empty -> renders '-'
+                division: parseVal(f.division),          // Will be empty -> renders '-'
+                assignedTo: parseVal(f.owner_name),       // Only uses owner_name from D1
+                condition: parseVal(f.condition),        // Will be empty -> renders '-'
+                createdAt: parseVal(f.created_at)
             };
         }
 
