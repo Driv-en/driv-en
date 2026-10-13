@@ -29,7 +29,6 @@
             document.documentElement.setAttribute("data-theme", theme);
         })();
 
-        // Register Service Worker for PWA compliance
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
                 navigator.serviceWorker.register('/sw.js').catch(function(err) {
@@ -582,6 +581,33 @@
         .um-page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .um-page-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
+        .um-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .um-modal.active { display: flex; }
+        .um-modal-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 28px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+
         .um-col-toggle {
             display: none;
             position: absolute;
@@ -601,6 +627,21 @@
             align-items: center;
             gap: 8px;
             padding: 6px 0;
+            font-size: 14px;
+            color: var(--text);
+            cursor: pointer;
+        }
+
+        .um-check-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+            margin: 16px 0;
+        }
+        .um-check-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
             font-size: 14px;
             color: var(--text);
             cursor: pointer;
@@ -689,9 +730,9 @@
                 </div>
                 <div class="um-search-row3">
                     <button class="um-btn-action" onclick="toggleColPanel('emp', event)">Columns</button>
-                    <button class="um-btn-action" onclick="alert('Print functionality ready.')">Print</button>
-                    <button class="um-btn-action" onclick="alert('Export CSV ready.')">Export CSV</button>
-                    <button class="um-btn-action" onclick="alert('Export Excel ready.')">Export Excel</button>
+                    <button class="um-btn-action" onclick="openPrintModal('emp')">Print</button>
+                    <button class="um-btn-action" onclick="openExportModal('emp', 'csv')">Export CSV</button>
+                    <button class="um-btn-action" onclick="openExportModal('emp', 'excel')">Export Excel</button>
                 </div>
             </div>
 
@@ -737,9 +778,9 @@
                 </div>
                 <div class="um-search-row3">
                     <button class="um-btn-action" onclick="toggleColPanel('user', event)">Columns</button>
-                    <button class="um-btn-action" onclick="alert('Print ready.')">Print</button>
-                    <button class="um-btn-action" onclick="alert('Export CSV ready.')">Export CSV</button>
-                    <button class="um-btn-action" onclick="alert('Export Excel ready.')">Export Excel</button>
+                    <button class="um-btn-action" onclick="openPrintModal('user')">Print</button>
+                    <button class="um-btn-action" onclick="openExportModal('user', 'csv')">Export CSV</button>
+                    <button class="um-btn-action" onclick="openExportModal('user', 'excel')">Export Excel</button>
                 </div>
             </div>
 
@@ -782,6 +823,32 @@
         </div>
     </div>
 
+    <!-- Print Modal -->
+    <div id="umPrintModal" class="um-modal">
+        <div class="um-modal-card">
+            <h3>Print Directory</h3>
+            <p style="color:var(--text-muted); font-size:14px;">Select which columns to include in the printout.</p>
+            <div class="um-check-grid" id="umPrintCols"></div>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button class="um-btn-action" onclick="closeModal('umPrintModal')">Cancel</button>
+                <button class="um-btn-action" style="background:var(--primary); color:#fff;" onclick="doPrint()">Print</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div id="umExportModal" class="um-modal">
+        <div class="um-modal-card">
+            <h3 id="umExportTitle">Export Data</h3>
+            <p style="color:var(--text-muted); font-size:14px;">Select which columns to include in the export file.</p>
+            <div class="um-check-grid" id="umExportCols"></div>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button class="um-btn-action" onclick="closeModal('umExportModal')">Cancel</button>
+                <button class="um-btn-action" style="background:var(--primary); color:#fff;" onclick="doExport()">Download</button>
+            </div>
+        </div>
+    </div>
+
     <div id="dashFooter"></div>
     <script src="/app/shared/dashboard-common.js?v=13"></script>
     <script>
@@ -819,15 +886,6 @@
         }
         window.addEventListener('resize', updateHeaderOffset);
 
-        function showGlobalMessage(msg, type) {
-            var el = document.getElementById('umGlobalMessage');
-            if (!el) return;
-            el.textContent = msg;
-            el.className = 'um-message ' + (type || 'error');
-            el.style.display = 'block';
-            setTimeout(function() { el.style.display = 'none'; }, 6000);
-        }
-
         function parseVal(val) {
             if (val === undefined || val === null) return '';
             if (Array.isArray(val)) return val.map(parseVal).filter(Boolean).join(', ');
@@ -836,17 +894,27 @@
             return (str === 'null' || str === 'undefined') ? '' : str;
         }
 
+        function isFounderRole(roleStr) {
+            var r = (roleStr || '').toLowerCase();
+            return r.indexOf('founder') !== -1 || r.indexOf('ro-founder') !== -1;
+        }
+
         function normalizeUser(r) {
             var f = (r && r.fields && typeof r.fields === 'object') ? r.fields : (r || {});
             var fn = parseVal(f.first_name);
             var ln = parseVal(f.last_name);
             var full = parseVal(f.full_name) || [fn, ln].filter(Boolean).join(' ');
+            var roleName = parseVal(f.role_name || f.role) || '—';
+
+            if (isFounderRole(roleName) && currentUserOrgId !== 'org_dsi') {
+                roleName = 'Administrator';
+            }
 
             return {
                 id: r.id || f.id || ('usr-' + Math.random().toString(36).substr(2, 9)),
                 fullName: full || parseVal(f.email) || '—',
                 email: parseVal(f.email),
-                role: parseVal(f.role_name || f.role) || '—',
+                role: roleName,
                 status: (f.is_active === 1 || f.is_active === true || f.status === 'active') ? 'Active' : 'Inactive',
                 twofa: (f.twofa_enabled === 1 || f.twofa_enabled === true) ? '2FA Enabled' : 'Disabled',
                 lastLogin: parseVal(f.last_login || f.last_login_at) || '—'
@@ -855,11 +923,17 @@
 
         function normalizeEmployee(r) {
             var f = (r && r.fields && typeof r.fields === 'object') ? r.fields : (r || {});
+            var roleName = parseVal(f.role) || 'Unassigned';
+
+            if (isFounderRole(roleName) && currentUserOrgId !== 'org_dsi') {
+                roleName = 'Employee';
+            }
+
             return {
                 id: r.id || f.id || ('emp-' + Math.random().toString(36).substr(2, 9)),
                 employeeNumber: parseVal(f.employee_number || f.employeeNumber) || '—',
                 name: parseVal(f.employee_name || f.name || f.full_name) || '—',
-                role: parseVal(f.role) || 'Unassigned',
+                role: roleName,
                 status: parseVal(f.status) || 'Active',
                 phone: parseVal(f.phone) || '—'
             };
@@ -869,7 +943,6 @@
             var u = window.dashUser;
             if (!u) { window.location.href = '/public/login.html'; return; }
             
-            // Resolve Multi-Tenant Organization Context
             currentUserOrgId = u.org_id || u.customerId || localStorage.getItem('driven_customer_id');
 
             initCols();
@@ -897,18 +970,14 @@
             }
         }
 
-async function loadUsers() {
+        async function loadUsers() {
             try {
                 var orgQuery = currentUserOrgId ? ('?orgId=' + encodeURIComponent(currentUserOrgId)) : '';
-                
-                // Try active system endpoints for users
                 var resp = await fetch('/api/users' + orgQuery);
                 if (!resp.ok) resp = await fetch('/api/onboarding/users' + orgQuery);
                 if (!resp.ok) resp = await fetch('/auth/get-users' + orgQuery);
 
                 if (!resp.ok) {
-                    // Gracefully handle missing backend endpoints without breaking execution
-                    console.warn('User endpoints returned ' + resp.status + '. Rendering empty system users list.');
                     allUsers = [];
                     renderUserTableHead();
                     renderUserTable();
@@ -920,7 +989,6 @@ async function loadUsers() {
                 allUsers = raw.map(normalizeUser);
             } catch (e) {
                 allUsers = [];
-                console.warn('loadUsers non-fatal fetch issue:', e);
             }
             renderUserTableHead();
             renderUserTable();
@@ -930,13 +998,17 @@ async function loadUsers() {
             try {
                 var orgQuery = currentUserOrgId ? ('?customerId=' + encodeURIComponent(currentUserOrgId)) : '';
                 var resp = await fetch('/api/onboarding/employees/list' + orgQuery);
-                if (!resp.ok) throw new Error('Failed to load employee list (HTTP ' + resp.status + ')');
+                if (!resp.ok) {
+                    allEmployees = [];
+                    renderEmpTableHead();
+                    renderEmpTable();
+                    return;
+                }
                 var data = await resp.json();
                 var raw = data.employees || (Array.isArray(data) ? data : []);
                 allEmployees = raw.map(normalizeEmployee);
             } catch (e) {
                 allEmployees = [];
-                if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report('user-management.html: loadEmployees failed — ' + (e.message || e), 'loadEmployees', e && e.stack ? e.stack : null);
             }
             renderEmpTableHead();
             renderEmpTable();
@@ -945,12 +1017,11 @@ async function loadUsers() {
         async function loadRoles() {
             try {
                 var resp = await fetch('/api/onboarding/roles');
-                if (!resp.ok) throw new Error('Failed to load roles (HTTP ' + resp.status + ')');
+                if (!resp.ok) { allRoles = []; buildMultiSelectPanels(); return; }
                 var data = await resp.json();
                 allRoles = data.roles || [];
             } catch (e) {
                 allRoles = [];
-                if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report('user-management.html: loadRoles failed — ' + (e.message || e), 'loadRoles', e && e.stack ? e.stack : null);
             }
             buildMultiSelectPanels();
         }
@@ -977,6 +1048,8 @@ async function loadUsers() {
             allRoles.forEach(function(r) {
                 var rName = typeof r === 'object' ? r.name : String(r);
                 if (rName) {
+                    if (isFounderRole(rName) && currentUserOrgId !== 'org_dsi') return;
+
                     if (pur) {
                         var l1 = document.createElement('label');
                         l1.className = 'um-multiselect-option';
@@ -993,6 +1066,11 @@ async function loadUsers() {
             });
         }
 
+        function getSelectedCheckboxes(panelId) {
+            var cbs = document.querySelectorAll('#' + panelId + ' input[type="checkbox"]:checked');
+            return Array.from(cbs).map(function(cb) { return cb.value.toLowerCase(); });
+        }
+
         function renderUserTableHead() {
             var th = document.getElementById('userTableHead');
             th.textContent = '';
@@ -1002,6 +1080,12 @@ async function loadUsers() {
                 var h = document.createElement('th');
                 h.style.width = userColWidths[col.key] || col.defaultWidth;
                 h.textContent = col.label;
+
+                var resizer = document.createElement('div');
+                resizer.className = 'um-resizer';
+                resizer.addEventListener('mousedown', function(e) { initColumnResize(e, h, col.key, 'user'); });
+                h.appendChild(resizer);
+
                 tr.appendChild(h);
             });
             var ha = document.createElement('th');
@@ -1014,11 +1098,24 @@ async function loadUsers() {
         function renderUserTable() {
             var tb = document.getElementById('userTableBody');
             tb.textContent = '';
-            if (allUsers.length === 0) {
-                tb.innerHTML = '<tr><td colspan="7" class="um-empty">No system users found.</td></tr>';
+
+            var search = (document.getElementById('userSearch').value || '').toLowerCase().trim();
+            var selStatuses = getSelectedCheckboxes('panelUserStatuses');
+            var selRoles = getSelectedCheckboxes('panelUserRoles');
+
+            var filtered = allUsers.filter(function(u) {
+                var matchSearch = !search || u.fullName.toLowerCase().indexOf(search) !== -1 || u.email.toLowerCase().indexOf(search) !== -1 || u.role.toLowerCase().indexOf(search) !== -1;
+                var matchStatus = selStatuses.length === 0 || selStatuses.indexOf(u.status.toLowerCase()) !== -1;
+                var matchRole = selRoles.length === 0 || selRoles.indexOf(u.role.toLowerCase()) !== -1;
+                return matchSearch && matchStatus && matchRole;
+            });
+
+            if (filtered.length === 0) {
+                tb.innerHTML = '<tr><td colspan="7" class="um-empty">No matching system users found.</td></tr>';
                 return;
             }
-            allUsers.forEach(function(u) {
+
+            filtered.forEach(function(u) {
                 var tr = document.createElement('tr');
                 USER_COL_DEFS.forEach(function(col) {
                     if (!visibleUserCols[col.key]) return;
@@ -1036,7 +1133,14 @@ async function loadUsers() {
                 });
                 var atd = document.createElement('td');
                 atd.className = 'um-actions';
-                atd.innerHTML = '<div class="um-actions-wrap"><button class="um-table-btn">View</button></div>';
+                var wrap = document.createElement('div');
+                wrap.className = 'um-actions-wrap';
+                var btn = document.createElement('button');
+                btn.className = 'um-table-btn';
+                btn.textContent = 'View';
+                btn.addEventListener('click', function() { window.location.href = '/app/user/user-detail.html?id=' + encodeURIComponent(u.id); });
+                wrap.appendChild(btn);
+                atd.appendChild(wrap);
                 tr.appendChild(atd);
                 tb.appendChild(tr);
             });
@@ -1051,6 +1155,12 @@ async function loadUsers() {
                 var h = document.createElement('th');
                 h.style.width = empColWidths[col.key] || col.defaultWidth;
                 h.textContent = col.label;
+
+                var resizer = document.createElement('div');
+                resizer.className = 'um-resizer';
+                resizer.addEventListener('mousedown', function(e) { initColumnResize(e, h, col.key, 'emp'); });
+                h.appendChild(resizer);
+
                 tr.appendChild(h);
             });
             var ha = document.createElement('th');
@@ -1063,11 +1173,24 @@ async function loadUsers() {
         function renderEmpTable() {
             var tb = document.getElementById('empTableBody');
             tb.textContent = '';
-            if (allEmployees.length === 0) {
-                tb.innerHTML = '<tr><td colspan="6" class="um-empty">No employees found.</td></tr>';
+
+            var search = (document.getElementById('empSearch').value || '').toLowerCase().trim();
+            var selStatuses = getSelectedCheckboxes('panelEmpStatuses');
+            var selRoles = getSelectedCheckboxes('panelEmpRoles');
+
+            var filtered = allEmployees.filter(function(e) {
+                var matchSearch = !search || e.name.toLowerCase().indexOf(search) !== -1 || e.employeeNumber.toLowerCase().indexOf(search) !== -1 || e.role.toLowerCase().indexOf(search) !== -1 || e.phone.toLowerCase().indexOf(search) !== -1;
+                var matchStatus = selStatuses.length === 0 || selStatuses.indexOf(e.status.toLowerCase()) !== -1;
+                var matchRole = selRoles.length === 0 || selRoles.indexOf(e.role.toLowerCase()) !== -1;
+                return matchSearch && matchStatus && matchRole;
+            });
+
+            if (filtered.length === 0) {
+                tb.innerHTML = '<tr><td colspan="6" class="um-empty">No matching employees found.</td></tr>';
                 return;
             }
-            allEmployees.forEach(function(e) {
+
+            filtered.forEach(function(e) {
                 var tr = document.createElement('tr');
                 EMP_COL_DEFS.forEach(function(col) {
                     if (!visibleEmpCols[col.key]) return;
@@ -1083,16 +1206,174 @@ async function loadUsers() {
                 });
                 var atd = document.createElement('td');
                 atd.className = 'um-actions';
-                atd.innerHTML = '<div class="um-actions-wrap"><button class="um-table-btn">View</button></div>';
+                var wrap = document.createElement('div');
+                wrap.className = 'um-actions-wrap';
+                var btn = document.createElement('button');
+                btn.className = 'um-table-btn';
+                btn.textContent = 'View';
+                btn.addEventListener('click', function() { window.location.href = '/app/employee/employee-detail.html?id=' + encodeURIComponent(e.id); });
+                wrap.appendChild(btn);
+                atd.appendChild(wrap);
                 tr.appendChild(atd);
                 tb.appendChild(tr);
             });
         }
 
+        function initColumnResize(e, th, colKey, type) {
+            e.stopPropagation(); e.preventDefault();
+            var startX = e.pageX;
+            var startWidth = th.offsetWidth;
+            var colIndex = Array.from(th.parentNode.children).indexOf(th);
+
+            function onMove(me) {
+                var newWidth = Math.max(60, startWidth + (me.pageX - startX)) + 'px';
+                th.style.width = newWidth;
+                var tableId = type === 'user' ? 'userTable' : 'empTable';
+                var table = document.getElementById(tableId);
+                if (table) {
+                    table.querySelectorAll('tbody tr').forEach(function(row) {
+                        if (row.children[colIndex]) row.children[colIndex].style.width = newWidth;
+                    });
+                }
+                if (type === 'user') userColWidths[colKey] = newWidth; else empColWidths[colKey] = newWidth;
+            }
+
+            function onEnd() {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onEnd);
+            }
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onEnd);
+        }
+
+        function toggleColPanel(type, e) {
+            e.stopPropagation();
+            var panelId = type === 'user' ? 'userColPanel' : 'empColPanel';
+            var itemsId = type === 'user' ? 'userColToggleItems' : 'empColToggleItems';
+            var defs = type === 'user' ? USER_COL_DEFS : EMP_COL_DEFS;
+            var vis = type === 'user' ? visibleUserCols : visibleEmpCols;
+
+            var p = document.getElementById(panelId);
+            var active = p.classList.contains('active');
+            document.querySelectorAll('.um-col-toggle').forEach(function(x) { x.classList.remove('active'); });
+
+            if (!active) {
+                p.classList.add('active');
+                var c = document.getElementById(itemsId);
+                c.innerHTML = '';
+                defs.forEach(function(col) {
+                    var lbl = document.createElement('label');
+                    lbl.className = 'um-col-toggle-item';
+                    var cb = document.createElement('input');
+                    cb.type = 'checkbox';
+                    cb.checked = vis[col.key];
+                    cb.addEventListener('change', function() {
+                        vis[col.key] = cb.checked;
+                        localStorage.setItem('driven_um_' + type + '_cols', JSON.stringify(vis));
+                        if (type === 'user') { renderUserTableHead(); renderUserTable(); }
+                        else { renderEmpTableHead(); renderEmpTable(); }
+                    });
+                    lbl.appendChild(cb);
+                    lbl.appendChild(document.createTextNode(col.label));
+                    c.appendChild(lbl);
+                });
+
+                var r = e.target.getBoundingClientRect();
+                p.style.position = 'fixed';
+                p.style.top = (r.bottom + 4) + 'px';
+                p.style.left = r.left + 'px';
+            }
+        }
+
+        var activeModalType = 'emp', activeExportFmt = 'csv';
+
+        function openPrintModal(type) {
+            activeModalType = type;
+            var c = document.getElementById('umPrintCols');
+            c.innerHTML = '';
+            var defs = type === 'user' ? USER_COL_DEFS : EMP_COL_DEFS;
+            var vis = type === 'user' ? visibleUserCols : visibleEmpCols;
+
+            defs.forEach(function(col) {
+                var i = document.createElement('label');
+                i.className = 'um-check-item';
+                i.innerHTML = '<input type="checkbox" data-key="' + col.key + '" ' + (vis[col.key] ? 'checked' : '') + '> ' + escapeHtml(col.label);
+                c.appendChild(i);
+            });
+            document.getElementById('umPrintModal').classList.add('active');
+        }
+
+        function doPrint() {
+            var type = activeModalType;
+            var defs = type === 'user' ? USER_COL_DEFS : EMP_COL_DEFS;
+            var data = type === 'user' ? allUsers : allEmployees;
+            var cbs = document.querySelectorAll('#umPrintCols input[type="checkbox"]:checked');
+            var keys = Array.from(cbs).map(function(cb) { return cb.dataset.key; });
+
+            if (keys.length === 0) return;
+
+            var h = '<html><head><title>DRIV-EN Directory</title><style>body{font-family:Arial,sans-serif;margin:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;text-align:left;}</style></head><body><h2>Directory Export</h2><table><thead><tr>';
+            defs.forEach(function(d) { if (keys.indexOf(d.key) !== -1) h += '<th>' + escapeHtml(d.label) + '</th>'; });
+            h += '</tr></thead><tbody>';
+            data.forEach(function(item) {
+                h += '<tr>';
+                defs.forEach(function(d) { if (keys.indexOf(d.key) !== -1) h += '<td>' + escapeHtml(String(item[d.key] || '—')) + '</td>'; });
+                h += '</tr>';
+            });
+            h += '</tbody></table></body></html>';
+
+            var w = window.open('', '_blank');
+            w.document.write(h);
+            w.document.close();
+            setTimeout(function() { w.print(); }, 300);
+            closeModal('umPrintModal');
+        }
+
+        function openExportModal(type, fmt) {
+            activeModalType = type; activeExportFmt = fmt;
+            document.getElementById('umExportTitle').textContent = 'Export ' + (type === 'user' ? 'Users' : 'Employees') + ' to ' + fmt.toUpperCase();
+            var c = document.getElementById('umExportCols');
+            c.innerHTML = '';
+            var defs = type === 'user' ? USER_COL_DEFS : EMP_COL_DEFS;
+            var vis = type === 'user' ? visibleUserCols : visibleEmpCols;
+
+            defs.forEach(function(col) {
+                var i = document.createElement('label');
+                i.className = 'um-check-item';
+                i.innerHTML = '<input type="checkbox" data-key="' + col.key + '" ' + (vis[col.key] ? 'checked' : '') + '> ' + escapeHtml(col.label);
+                c.appendChild(i);
+            });
+            document.getElementById('umExportModal').classList.add('active');
+        }
+
+        function doExport() {
+            var type = activeModalType;
+            var defs = type === 'user' ? USER_COL_DEFS : EMP_COL_DEFS;
+            var data = type === 'user' ? allUsers : allEmployees;
+            var cbs = document.querySelectorAll('#umExportCols input[type="checkbox"]:checked');
+            var keys = Array.from(cbs).map(function(cb) { return cb.dataset.key; });
+
+            if (keys.length === 0) return;
+
+            var csv = keys.map(function(k) { return '"' + k + '"'; }).join(',') + '\n';
+            data.forEach(function(item) {
+                var row = keys.map(function(k) { return '"' + String(item[k] || '').replace(/"/g, '""') + '"'; });
+                csv += row.join(',') + '\n';
+            });
+
+            var b = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            var u = URL.createObjectURL(b);
+            var l = document.createElement('a');
+            l.href = u;
+            l.download = 'driv-en-' + type + '-directory.csv';
+            document.body.appendChild(l); l.click(); document.body.removeChild(l);
+            closeModal('umExportModal');
+        }
+
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
         function filterByKpi(kpiType) {
             if (kpiType === 'ActiveUsers') switchTab('users');
-            else if (kpiType === 'ActiveEmployees' || kpiType === 'OnLeave') switchTab('employees');
-            else switchTab('users');
+            else switchTab('employees');
         }
 
         function toggleFilterPanel(panelId, event) {
@@ -1106,6 +1387,9 @@ async function loadUsers() {
         document.addEventListener('click', function(e) {
             if (!e.target.closest('.um-multiselect-dd')) {
                 document.querySelectorAll('.um-multiselect-panel').forEach(function(panel) { panel.classList.remove('active'); });
+            }
+            if (!e.target.closest('.um-col-toggle') && e.target.textContent !== 'Columns') {
+                document.querySelectorAll('.um-col-toggle').forEach(function(p) { p.classList.remove('active'); });
             }
         });
 
@@ -1140,7 +1424,6 @@ async function loadUsers() {
         function onUserFilterChange() { renderUserTable(); }
         function onEmpSearchInput() { renderEmpTable(); }
         function onEmpFilterChange() { renderEmpTable(); }
-        function toggleColPanel(type, e) { alert('Column settings panel for ' + type); }
     </script>
     <script src="/app/shared/auth-check.js?v=13"></script>
 </body>
