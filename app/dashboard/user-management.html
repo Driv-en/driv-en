@@ -55,8 +55,8 @@
             color: var(--text-muted);
         }
 
-        /* Standardized Header layout matching admin.html and asset-management.html */
-        #dashHeader, .dash-header {
+        /* Fixed Top Dual-Header matching admin.html & asset-management.html */
+        .dash-header {
             position: sticky !important;
             top: 0 !important;
             z-index: 101 !important;
@@ -64,6 +64,26 @@
             width: 100%;
             box-sizing: border-box;
             border-bottom: 2px solid var(--card-green-border);
+            padding: 10px 16px;
+        }
+        .am-header-wrap {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+        .am-title-section h1 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text);
+        }
+        .am-title-section p {
+            margin: 2px 0 0 0;
+            font-size: 12px;
+            color: var(--text-muted);
         }
 
         .um-tab-bar {
@@ -594,8 +614,15 @@
     <div class="steel-bg"></div>
     <div class="steel-overlay"></div>
     
-    <!-- Header match to admin.html & asset-management.html -->
-    <div id="dashHeader"></div>
+    <!-- Top Header matched to admin.html & asset-management.html -->
+    <header class="dash-header" id="dashHeader">
+        <div class="am-header-wrap">
+            <div class="am-title-section">
+                <h1>Employee Management</h1>
+                <p>Manage users, system employees, roles, and security permissions.</p>
+            </div>
+        </div>
+    </header>
 
     <!-- Sticky Tabs Navigation Bar -->
     <div class="um-tab-bar" id="umTabBar">
@@ -697,12 +724,11 @@
                             <tr>
                                 <th>Role Name</th>
                                 <th>Description</th>
-                                <th>Organization ID</th>
                                 <th>System Role</th>
                             </tr>
                         </thead>
                         <tbody id="rolesTableBody">
-                            <tr><td colspan="4" class="um-empty">Loading organization roles…</td></tr>
+                            <tr><td colspan="3" class="um-empty">Loading organization roles…</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -776,7 +802,7 @@
         </div>
     </div>
 
-    <!-- Complete Add / Edit Employee Modal covering all 22 Employee fields -->
+    <!-- Employee Modal (Key Personnel and Org ID removed) -->
     <div id="umAddEmpModal" class="um-modal">
         <div class="um-modal-card">
             <h3 style="margin-top:0;" id="empModalTitle">Add New Employee</h3>
@@ -854,13 +880,6 @@
                     <label>DL State</label>
                     <input type="text" id="addEmpDlState" placeholder="TX">
                 </div>
-                <div class="um-form-group full">
-                    <label>Key Personnel Assignment</label>
-                    <select id="addEmpKp">
-                        <option value="0">No</option>
-                        <option value="1">Yes</option>
-                    </select>
-                </div>
             </div>
             <div style="display:flex; gap:10px; margin-top:20px;">
                 <button class="um-btn-action" onclick="closeModal('umAddEmpModal')">Cancel</button>
@@ -869,7 +888,7 @@
         </div>
     </div>
 
-    <!-- Complete Employee Detail Modal -->
+    <!-- Employee Detail View Modal -->
     <div id="umEmpViewModal" class="um-modal">
         <div class="um-modal-card">
             <h3 style="margin-top:0;" id="viewEmpName">Employee Details</h3>
@@ -881,7 +900,6 @@
                 <div><strong>Status:</strong> <span id="viewEmpStatus">—</span></div>
                 <div><strong>Phone:</strong> <span id="viewEmpPhone">—</span></div>
                 <div><strong>DOB:</strong> <span id="viewEmpDob">—</span></div>
-                <div><strong>Key Personnel:</strong> <span id="viewEmpKp">—</span></div>
                 <div><strong>DL #:</strong> <span id="viewEmpDl">—</span></div>
                 <div><strong>DL State:</strong> <span id="viewEmpDlState">—</span></div>
                 <div style="grid-column: span 2;"><strong>Address:</strong> <span id="viewEmpAddr">—</span></div>
@@ -948,19 +966,19 @@
         var allUsers = [], allEmployees = [], allOrgRoles = [];
         var currentUserOrgId = null;
 
+        // User Column Definitions (Org ID removed from table display)
         var USER_COL_DEFS = [
             { key: 'id', label: 'User ID', defaultWidth: '120px' },
             { key: 'fullName', label: 'Full Name', defaultWidth: '160px' },
             { key: 'email', label: 'Email', defaultWidth: '200px' },
             { key: 'role', label: 'Role', defaultWidth: '140px' },
-            { key: 'org_id', label: 'Organization ID', defaultWidth: '140px' },
             { key: 'is_active', label: 'Status', defaultWidth: '110px' },
             { key: 'must_change_password', label: 'Must Reset Pwd', defaultWidth: '130px' },
             { key: 'twofa_enabled', label: '2FA Enabled', defaultWidth: '110px' },
             { key: 'last_login', label: 'Last Login', defaultWidth: '160px' }
         ];
 
-        // Complete Employee Column Schema Matching D1 `employees` Table
+        // Employee Column Definitions (Key Personnel & Org ID removed)
         var EMP_COL_DEFS = [
             { key: 'employeeNumber', label: 'Emp #', defaultWidth: '100px' },
             { key: 'firstName', label: 'First Name', defaultWidth: '120px' },
@@ -977,9 +995,7 @@
             { key: 'state', label: 'State', defaultWidth: '80px' },
             { key: 'zip', label: 'Zip', defaultWidth: '90px' },
             { key: 'driversLicense', label: 'DL Number', defaultWidth: '130px' },
-            { key: 'dlState', label: 'DL State', defaultWidth: '80px' },
-            { key: 'isKeyPersonnel', label: 'Key Personnel', defaultWidth: '120px' },
-            { key: 'org_id', label: 'Organization ID', defaultWidth: '140px' }
+            { key: 'dlState', label: 'DL State', defaultWidth: '80px' }
         ];
 
         var visibleUserCols = {}, userColWidths = {};
@@ -1010,7 +1026,6 @@
                 fullName: parseVal(r.full_name || r.name || ([r.first_name, r.last_name].filter(Boolean).join(' '))) || parseVal(r.email),
                 email: parseVal(r.email),
                 role: normalizeRoleName(r.role || r.role_id || r.role_name),
-                org_id: parseVal(r.org_id || currentUserOrgId),
                 is_active: (r.is_active === 1 || r.is_active === true || r.status === 'Active' || r.status === 'active') ? 'Active' : 'Inactive',
                 must_change_password: (r.must_change_password === 1 || r.must_change_password === true) ? 'Yes' : 'No',
                 twofa_enabled: (r.twofa_enabled === 1 || r.twofa_enabled === true) ? 'Yes' : 'No',
@@ -1018,7 +1033,6 @@
             };
         }
 
-        // Expanded normalize mapping to extract all D1 columns
         function normalizeEmployee(r) {
             var fullName = parseVal(r.full_name || r.employee_name || r.name);
             var parts = fullName !== '—' ? fullName.split(' ') : [];
@@ -1043,9 +1057,7 @@
                 state: parseVal(r.state),
                 zip: parseVal(r.zip),
                 driversLicense: parseVal(r.drivers_license || r.driversLicense),
-                dlState: parseVal(r.dl_state || r.dlState),
-                isKeyPersonnel: (r.is_key_personnel === 1 || r.is_key_personnel === true || r.isKeyPersonnel === true) ? 'Yes' : 'No',
-                org_id: parseVal(r.org_id || currentUserOrgId)
+                dlState: parseVal(r.dl_state || r.dlState)
             };
         }
 
@@ -1074,7 +1086,7 @@
                     allUsers = raw.map(normalizeUser);
                 } else throw new Error('API error');
             } catch (e) {
-                console.warn('loadUsers error, defaulting:', e.message);
+                console.warn('loadUsers error:', e.message);
                 allUsers = [];
             }
             renderUserTableHead();
@@ -1112,9 +1124,9 @@
                 } else throw new Error();
             } catch (e) {
                 allOrgRoles = [
-                    { id: '1', name: 'Admin', description: 'Full administrative access', org_id: currentUserOrgId || 'org_01', is_system: 1 },
-                    { id: '2', name: 'Fleet Manager', description: 'Fleet and asset assignment management', org_id: currentUserOrgId || 'org_01', is_system: 0 },
-                    { id: '3', name: 'Employee', description: 'Standard driver / employee portal view', org_id: currentUserOrgId || 'org_01', is_system: 0 }
+                    { id: '1', name: 'Admin', description: 'Full administrative access', is_system: 1 },
+                    { id: '2', name: 'Fleet Manager', description: 'Fleet and asset assignment management', is_system: 0 },
+                    { id: '3', name: 'Employee', description: 'Standard driver / employee portal view', is_system: 0 }
                 ];
             }
 
@@ -1124,7 +1136,6 @@
                     var tr = document.createElement('tr');
                     tr.innerHTML = '<td><strong>' + escapeHtml(r.name) + '</strong></td>' +
                                    '<td>' + escapeHtml(r.description || '—') + '</td>' +
-                                   '<td>' + escapeHtml(r.org_id || '—') + '</td>' +
                                    '<td>' + (r.is_system ? 'Yes' : 'No') + '</td>';
                     container.appendChild(tr);
                 });
@@ -1236,7 +1247,7 @@
             });
 
             if (filtered.length === 0) {
-                tb.innerHTML = '<tr><td colspan="10" class="um-empty">No matching system users found.</td></tr>';
+                tb.innerHTML = '<tr><td colspan="9" class="um-empty">No matching system users found.</td></tr>';
                 return;
             }
 
@@ -1314,7 +1325,7 @@
             });
 
             if (filtered.length === 0) {
-                tb.innerHTML = '<tr><td colspan="19" class="um-empty">No matching employees found.</td></tr>';
+                tb.innerHTML = '<tr><td colspan="17" class="um-empty">No matching employees found.</td></tr>';
                 return;
             }
 
@@ -1385,7 +1396,6 @@
             document.getElementById('viewEmpStatus').textContent = emp.status;
             document.getElementById('viewEmpPhone').textContent = emp.phone;
             document.getElementById('viewEmpDob').textContent = emp.dob;
-            document.getElementById('viewEmpKp').textContent = emp.isKeyPersonnel;
             document.getElementById('viewEmpDl').textContent = emp.driversLicense;
             document.getElementById('viewEmpDlState').textContent = emp.dlState;
             document.getElementById('viewEmpAddr').textContent = emp.address + ', ' + emp.city + ', ' + emp.state + ' ' + emp.zip;
@@ -1411,7 +1421,6 @@
             document.getElementById('addEmpStatus').value = 'Active';
             document.getElementById('addEmpDl').value = '';
             document.getElementById('addEmpDlState').value = '';
-            document.getElementById('addEmpKp').value = '0';
             document.getElementById('umAddEmpModal').classList.add('active');
         }
 
@@ -1436,11 +1445,9 @@
             document.getElementById('addEmpStatus').value = emp.status;
             document.getElementById('addEmpDl').value = emp.driversLicense !== '—' ? emp.driversLicense : '';
             document.getElementById('addEmpDlState').value = emp.dlState !== '—' ? emp.dlState : '';
-            document.getElementById('addEmpKp').value = emp.isKeyPersonnel === 'Yes' ? '1' : '0';
             document.getElementById('umAddEmpModal').classList.add('active');
         }
 
-        // Live D1 API Persistence mapping all 22 properties
         async function submitSaveEmployee() {
             var id = document.getElementById('editEmpId').value;
             var fn = document.getElementById('addEmpFn').value.trim();
@@ -1459,7 +1466,6 @@
             var status = document.getElementById('addEmpStatus').value;
             var dl = document.getElementById('addEmpDl').value.trim();
             var dlState = document.getElementById('addEmpDlState').value.trim();
-            var isKp = document.getElementById('addEmpKp').value;
 
             if (!fn || !ln) { 
                 showToast('First and Last name are required.', 'error');
@@ -1485,8 +1491,7 @@
                 zip: zip,
                 status: status,
                 drivers_license: dl,
-                dl_state: dlState,
-                is_key_personnel: parseInt(isKp, 10)
+                dl_state: dlState
             };
 
             try {
