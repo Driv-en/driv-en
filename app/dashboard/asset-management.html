@@ -1485,7 +1485,7 @@
             th.appendChild(tr);
         }
 
-        function initColumnResize(e, th, colKey) {
+function initColumnResize(e, th, colKey) {
             e.stopPropagation();
             e.preventDefault();
             var resizer = e.target;
@@ -1493,12 +1493,31 @@
 
             var startX = e.touches ? e.touches[0].pageX : e.pageX;
             var startWidth = th.offsetWidth;
+            var colIndex = Array.from(th.parentNode.children).indexOf(th);
 
             function onMove(me) {
                 var currentX = me.touches ? me.touches[0].pageX : me.pageX;
-                var newWidth = Math.max(60, startWidth + (currentX - startX));
-                th.style.width = newWidth + 'px';
-                colWidths[colKey] = newWidth + 'px';
+                var newWidth = Math.max(60, startWidth + (currentX - startX)) + 'px';
+                
+                // Update header cell width
+                th.style.width = newWidth;
+                th.style.minWidth = newWidth;
+                th.style.maxWidth = newWidth;
+
+                // Update all body cells in this specific column
+                var table = document.getElementById('amTable');
+                if (table) {
+                    var rows = table.querySelectorAll('tbody tr');
+                    rows.forEach(function(row) {
+                        var td = row.children[colIndex];
+                        if (td) {
+                            td.style.width = newWidth;
+                            td.style.minWidth = newWidth;
+                            td.style.maxWidth = newWidth;
+                        }
+                    });
+                }
+                colWidths[colKey] = newWidth;
             }
 
             function onEnd() {
@@ -1515,7 +1534,6 @@
             document.addEventListener('touchmove', onMove, { passive: false });
             document.addEventListener('touchend', onEnd);
         }
-
         function onSortClick(key) {
             if (sortKey === key) {
                 sortDir = (sortDir === 'asc') ? 'desc' : 'asc';
