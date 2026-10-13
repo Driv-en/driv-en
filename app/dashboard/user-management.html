@@ -34,6 +34,14 @@
             width: 100%;
         }
 
+        .um-header-title {
+            text-align: center !important;
+            margin: 16px auto 8px auto;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
         .um-loading {
             display: flex;
             align-items: center;
@@ -42,9 +50,6 @@
             font-size: 16px;
             color: var(--text-muted);
         }
-        .dash-header-row3 { display: none !important; }
-        #dashHeader .dash-theme-wrapper { display: none !important; }
-        .dash-header-row2 { display: none !important; }
 
         #dashHeader, .dash-header {
             position: sticky !important;
@@ -54,19 +59,6 @@
             width: 100%;
             box-sizing: border-box;
             border-bottom: 2px solid var(--card-green-border);
-        }
-
-        @media (max-width: 700px) {
-            .dash-customer-logo, .dash-customer-logo-placeholder {
-                max-height: 32px;
-                max-width: 70px;
-            }
-            .dash-driven-logo { max-height: 36px; }
-            #dashHeader .dash-header-row1 {
-                padding: 6px 12px !important;
-                gap: 8px !important;
-            }
-            #dashHeader h1 { font-size: 16px !important; }
         }
 
         .um-tab-bar {
@@ -374,14 +366,16 @@
             background: var(--bg-card);
             -webkit-overflow-scrolling: touch;
         }
+
+        /* Fixed Width Lock Behavior Matching Asset Directory */
         .um-table {
-            width: max-content;
-            min-width: 100%;
+            table-layout: fixed !important;
+            width: max-content !important;
+            min-width: 100% !important;
             border-collapse: separate;
             border-spacing: 0;
             font-size: 14px;
             background: var(--bg-card);
-            table-layout: fixed;
         }
         .um-table thead tr {
             position: sticky;
@@ -400,9 +394,9 @@
             border-bottom: 2px solid var(--blue-line);
             border-left: 1px solid var(--blue-line);
             border-right: 1px solid var(--blue-line);
-            white-space: normal;
-            word-wrap: break-word;
-            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
             user-select: none;
             vertical-align: middle;
             box-sizing: border-box;
@@ -425,13 +419,12 @@
             border-left: 1px solid var(--border);
             border-right: 1px solid var(--border);
             color: var(--text);
-            white-space: normal;
-            word-wrap: break-word;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
             vertical-align: middle;
             box-sizing: border-box;
         }
-        .um-table td:first-child { border-left: none; }
-        .um-table td:last-child { border-right: none; }
         .um-table tr:hover td { background: var(--bg-input); }
 
         .um-table td.am-actions {
@@ -573,11 +566,13 @@
     <div class="steel-overlay"></div>
     <div id="dashHeader"></div>
 
+    <h1 class="um-header-title">Employee Management</h1>
+
     <div class="um-tab-bar" id="umTabBar">
         <div class="um-tab active" data-tab="overview" onclick="switchTab('overview')">Overview</div>
         <div class="um-tab" data-tab="employees" onclick="switchTab('employees')">Employees</div>
-        <div class="um-tab" data-tab="users" onclick="switchTab('users')">System Users</div>
         <div class="um-tab" data-tab="roles" onclick="switchTab('roles')">Roles & Permissions</div>
+        <div class="um-tab" data-tab="users" onclick="switchTab('users')">System Users</div>
         <div class="um-tab" data-tab="activity" onclick="switchTab('activity')">Activity Log</div>
         <div class="um-tab um-tab-dashboard" onclick="goToMainDashboard()">&#8592; Dashboard</div>
         <div class="um-tab-logout" onclick="dashLogout()">Logout</div>
@@ -649,11 +644,35 @@
             </div>
 
             <div class="um-table-card">
+                <h3 style="margin-top:0; margin-bottom:12px;">Employee Directory</h3>
                 <div class="um-table-scroll">
                     <table class="um-table" id="empTable">
                         <thead id="empTableHead"></thead>
                         <tbody id="empTableBody">
                             <tr><td class="um-empty">Loading employees…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Roles & Permissions Tab (Reordered) -->
+        <div class="um-tab-content" id="tab-roles">
+            <div class="um-table-card">
+                <h3 style="margin-top:0;">Organization Roles & Permissions</h3>
+                <p style="color:var(--text-muted); font-size:14px;">Roles defined for your organization context.</p>
+                <div id="rolesContainer">
+                    <table class="um-table" id="rolesTable" style="width:100%;">
+                        <thead>
+                            <tr>
+                                <th>Role Name</th>
+                                <th>Description</th>
+                                <th>Organization ID</th>
+                                <th>System Role</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rolesTableBody">
+                            <tr><td colspan="4" class="um-empty">Loading organization roles…</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -704,56 +723,12 @@
             </div>
         </div>
 
-        <!-- Roles Tab -->
-        <div class="um-tab-content" id="tab-roles">
-            <div class="um-table-card">
-                <h3 style="margin-top:0;">Organization Roles & Permissions Matrix</h3>
-                <p style="color:var(--text-muted); font-size:14px;">Configured system roles and module permission rules for your organization.</p>
-                <div id="rolesContainer">
-                    <table class="um-table" style="width:100%;">
-                        <thead>
-                            <tr>
-                                <th>Role Name</th>
-                                <th>Description</th>
-                                <th>Asset Module</th>
-                                <th>User Management</th>
-                                <th>Settings</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><strong>Administrator</strong></td>
-                                <td>Full administrative access to all system modules</td>
-                                <td>Full Access</td>
-                                <td>Full Access</td>
-                                <td>Full Access</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Fleet Manager</strong></td>
-                                <td>Oversees vehicle & equipment assignments</td>
-                                <td>Full Access</td>
-                                <td>Read Only</td>
-                                <td>No Access</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Employee / Driver</strong></td>
-                                <td>Standard employee view and task access</td>
-                                <td>Read Only</td>
-                                <td>No Access</td>
-                                <td>No Access</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Activity Tab -->
+        <!-- Activity Log Tab -->
         <div class="um-tab-content" id="tab-activity">
             <div class="um-table-card">
                 <h3 style="margin-top:0;">Audit Trail & System Activity</h3>
                 <div class="um-table-scroll">
-                    <table class="um-table" style="width:100%;">
+                    <table class="um-table" id="activityTable" style="width:100%;">
                         <thead>
                             <tr>
                                 <th>Timestamp</th>
@@ -763,9 +738,7 @@
                             </tr>
                         </thead>
                         <tbody id="activityLogBody">
-                            <tr><td>2026-10-13 11:15:02</td><td>admin@driv-en.com</td><td>Updated Employee Directory Filter</td><td>192.168.1.104</td></tr>
-                            <tr><td>2026-10-13 10:42:19</td><td>system</td><td>Automated System Sync Completed</td><td>Localhost</td></tr>
-                            <tr><td>2026-10-12 16:20:11</td><td>manager@driv-en.com</td><td>Updated Employee Role Assignment</td><td>192.168.1.112</td></tr>
+                            <tr><td colspan="4" class="um-empty">Loading activity history…</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -773,10 +746,11 @@
         </div>
     </div>
 
-    <!-- Add Employee Modal -->
+    <!-- Add / Edit Employee Modal -->
     <div id="umAddEmpModal" class="um-modal">
         <div class="um-modal-card">
-            <h3 style="margin-top:0;">Add New Employee</h3>
+            <h3 style="margin-top:0;" id="empModalTitle">Add New Employee</h3>
+            <input type="hidden" id="editEmpId" value="">
             <div class="um-form-group">
                 <label>First Name</label>
                 <input type="text" id="addEmpFn" placeholder="Jane">
@@ -792,9 +766,9 @@
             <div class="um-form-group">
                 <label>Role</label>
                 <select id="addEmpRole">
-                    <option value="Employee">Employee</option>
+                    <option value="Admin">Admin</option>
                     <option value="Fleet Manager">Fleet Manager</option>
-                    <option value="Administrator">Administrator</option>
+                    <option value="Employee">Employee</option>
                 </select>
             </div>
             <div class="um-form-group">
@@ -803,7 +777,24 @@
             </div>
             <div style="display:flex; gap:10px; margin-top:20px;">
                 <button class="um-btn-action" onclick="closeModal('umAddEmpModal')">Cancel</button>
-                <button class="um-btn-action" style="background:#16a34a; color:#fff; border:none;" onclick="submitAddEmployee()">Save Employee</button>
+                <button class="um-btn-action" style="background:#16a34a; color:#fff; border:none;" onclick="submitSaveEmployee()">Save Employee</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Employee Detail Modal (View Action) -->
+    <div id="umEmpViewModal" class="um-modal">
+        <div class="um-modal-card">
+            <h3 style="margin-top:0;" id="viewEmpName">Employee Details</h3>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; font-size:14px;">
+                <div><strong>Employee #:</strong> <span id="viewEmpNum">—</span></div>
+                <div><strong>Email:</strong> <span id="viewEmpEmail">—</span></div>
+                <div><strong>Role:</strong> <span id="viewEmpRole">—</span></div>
+                <div><strong>Status:</strong> <span id="viewEmpStatus">—</span></div>
+                <div><strong>Phone:</strong> <span id="viewEmpPhone">—</span></div>
+            </div>
+            <div style="display:flex; justify-content:flex-end; margin-top:20px;">
+                <button class="um-btn-action" onclick="closeModal('umEmpViewModal')">Close</button>
             </div>
         </div>
     </div>
@@ -821,7 +812,6 @@
                     </thead>
                     <tbody id="userLoginHistoryBody">
                         <tr><td>2026-10-13 09:12:00</td><td>192.168.1.104</td><td>Successful</td></tr>
-                        <tr><td>2026-10-12 14:05:22</td><td>192.168.1.104</td><td>Successful</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -859,10 +849,9 @@
     <div id="dashFooter"></div>
     <script src="/app/shared/dashboard-common.js?v=13"></script>
     <script>
-        var allUsers = [], allEmployees = [], allRoles = [];
+        var allUsers = [], allEmployees = [], allOrgRoles = [];
         var currentUserOrgId = null;
 
-        // Strictly defined columns for System Users
         var USER_COL_DEFS = [
             { key: 'fullName', label: 'Full Name', defaultWidth: '160px' },
             { key: 'email', label: 'Email', defaultWidth: '200px' },
@@ -889,35 +878,30 @@
             return (str === '' || str === 'null' || str === 'undefined') ? '—' : str;
         }
 
-        function isFounderRole(roleStr) {
-            var r = (roleStr || '').toLowerCase();
-            return r.indexOf('founder') !== -1 || r.indexOf('ro-founder') !== -1;
+        function normalizeRoleName(r) {
+            var name = parseVal(r);
+            if (name === 'Administrator') return 'Admin';
+            return name;
         }
 
         function normalizeUser(r) {
-            var roleName = parseVal(r.role || r.role_id || r.role_name);
-            if (isFounderRole(roleName) && currentUserOrgId !== 'org_dsi') roleName = 'Administrator';
-
             return {
                 id: parseVal(r.id),
                 fullName: parseVal(r.full_name || r.name || ([r.first_name, r.last_name].filter(Boolean).join(' '))) || parseVal(r.email),
                 email: parseVal(r.email),
-                role: roleName,
+                role: normalizeRoleName(r.role || r.role_id || r.role_name),
                 is_active: (r.is_active === 1 || r.is_active === true || r.status === 'active') ? 'Active' : 'Inactive',
                 last_login: parseVal(r.last_login || r.last_login_at)
             };
         }
 
         function normalizeEmployee(r) {
-            var roleName = parseVal(r.role);
-            if (isFounderRole(roleName) && currentUserOrgId !== 'org_dsi') roleName = 'Employee';
-
             return {
                 id: parseVal(r.id),
                 employeeNumber: parseVal(r.employee_number || r.employeeNumber || ('EMP-' + Math.floor(100 + Math.random() * 900))),
                 name: parseVal(r.full_name || r.name || ([r.first_name, r.last_name].filter(Boolean).join(' '))),
                 email: parseVal(r.email),
-                role: roleName,
+                role: normalizeRoleName(r.role),
                 status: parseVal(r.status || 'Active'),
                 phone: parseVal(r.phone)
             };
@@ -932,7 +916,7 @@
             USER_COL_DEFS.forEach(function(c) { visibleUserCols[c.key] = true; userColWidths[c.key] = c.defaultWidth; });
             EMP_COL_DEFS.forEach(function(c) { visibleEmpCols[c.key] = true; empColWidths[c.key] = c.defaultWidth; });
 
-            await Promise.all([loadUsers(), loadEmployees(), loadRoles()]);
+            await Promise.all([loadUsers(), loadEmployees(), loadOrgRoles(), loadActivityLog()]);
 
             document.getElementById('umLoading').style.display = 'none';
             document.getElementById('tab-overview').style.display = 'block';
@@ -950,7 +934,7 @@
                 } else throw new Error();
             } catch (e) {
                 allUsers = [
-                    normalizeUser({ id: 'USR-101', full_name: 'System Admin', email: 'admin@driv-en.com', role: 'Administrator', is_active: 1, last_login: '2026-10-13 09:12' }),
+                    normalizeUser({ id: 'USR-101', full_name: 'System Admin', email: 'admin@driv-en.com', role: 'Admin', is_active: 1, last_login: '2026-10-13 09:12' }),
                     normalizeUser({ id: 'USR-102', full_name: 'Mark Smith', email: 'm.smith@driv-en.com', role: 'Fleet Manager', is_active: 1, last_login: '2026-10-12 14:05' })
                 ];
             }
@@ -968,7 +952,7 @@
                 } else throw new Error();
             } catch (e) {
                 allEmployees = [
-                    normalizeEmployee({ id: 'EMP-1', employee_number: 'EMP-101', full_name: 'John Smith', email: 'j.smith@company.com', role: 'Administrator', status: 'Active', phone: '(555) 234-5678' }),
+                    normalizeEmployee({ id: 'EMP-1', employee_number: 'EMP-101', full_name: 'John Smith', email: 'j.smith@company.com', role: 'Admin', status: 'Active', phone: '(555) 234-5678' }),
                     normalizeEmployee({ id: 'EMP-2', employee_number: 'EMP-102', full_name: 'Sarah Connor', email: 's.connor@company.com', role: 'Fleet Manager', status: 'Active', phone: '(555) 987-6543' })
                 ];
             }
@@ -976,9 +960,57 @@
             renderEmpTable();
         }
 
-        async function loadRoles() {
-            allRoles = ['Administrator', 'Fleet Manager', 'Employee'];
+        async function loadOrgRoles() {
+            var container = document.getElementById('rolesTableBody');
+            try {
+                var resp = await fetch('/api/roles?org_id=' + encodeURIComponent(currentUserOrgId));
+                if (resp.ok) {
+                    var data = await resp.json();
+                    allOrgRoles = data.roles || (Array.isArray(data) ? data : []);
+                } else throw new Error();
+            } catch (e) {
+                allOrgRoles = [
+                    { id: '1', name: 'Admin', description: 'Full administrative access', org_id: currentUserOrgId || 'org_01', is_system: 1 },
+                    { id: '2', name: 'Fleet Manager', description: 'Fleet and asset assignment management', org_id: currentUserOrgId || 'org_01', is_system: 0 },
+                    { id: '3', name: 'Employee', description: 'Standard driver / employee portal view', org_id: currentUserOrgId || 'org_01', is_system: 0 }
+                ];
+            }
+
+            if (container) {
+                container.innerHTML = '';
+                allOrgRoles.forEach(function(r) {
+                    var tr = document.createElement('tr');
+                    tr.innerHTML = '<td><strong>' + escapeHtml(r.name) + '</strong></td>' +
+                                   '<td>' + escapeHtml(r.description || '—') + '</td>' +
+                                   '<td>' + escapeHtml(r.org_id || '—') + '</td>' +
+                                   '<td>' + (r.is_system ? 'Yes' : 'No') + '</td>';
+                    container.appendChild(tr);
+                });
+            }
             buildMultiSelectPanels();
+        }
+
+        async function loadActivityLog() {
+            var tb = document.getElementById('activityLogBody');
+            try {
+                var resp = await fetch('/api/audit-log');
+                if (resp.ok) {
+                    var data = await resp.json();
+                    var logs = data.logs || (Array.isArray(data) ? data : []);
+                    if (logs.length > 0) {
+                        tb.innerHTML = '';
+                        logs.forEach(function(l) {
+                            var tr = document.createElement('tr');
+                            tr.innerHTML = '<td>' + escapeHtml(l.timestamp) + '</td><td>' + escapeHtml(l.user_email) + '</td><td>' + escapeHtml(l.action) + '</td><td>' + escapeHtml(l.ip_address) + '</td>';
+                            tb.appendChild(tr);
+                        });
+                        return;
+                    }
+                }
+            } catch (e) {}
+
+            tb.innerHTML = '<tr><td>2026-10-13 11:15:02</td><td>admin@driv-en.com</td><td>Updated Employee Directory Filter</td><td>192.168.1.104</td></tr>' +
+                           '<tr><td>2026-10-13 10:42:19</td><td>system</td><td>Automated System Sync Completed</td><td>Localhost</td></tr>';
         }
 
         function updateKpi() {
@@ -994,9 +1026,10 @@
             if (pur) pur.innerHTML = '';
             if (per) per.innerHTML = '';
 
-            allRoles.forEach(function(rName) {
-                if (isFounderRole(rName) && currentUserOrgId !== 'org_dsi') return;
+            var roleNames = allOrgRoles.map(function(r) { return r.name; });
+            if (roleNames.length === 0) roleNames = ['Admin', 'Fleet Manager', 'Employee'];
 
+            roleNames.forEach(function(rName) {
                 if (pur) {
                     var l1 = document.createElement('label');
                     l1.className = 'um-multiselect-option';
@@ -1126,7 +1159,6 @@
             var selRoles = getSelectedCheckboxes('panelEmpRoles');
 
             var filtered = allEmployees.filter(function(e) {
-                // Precise field matching to prevent erroneous search hits
                 var matchSearch = !search || 
                     e.name.toLowerCase().indexOf(search) !== -1 || 
                     e.email.toLowerCase().indexOf(search) !== -1 || 
@@ -1162,7 +1194,7 @@
                 atd.className = 'am-actions';
                 atd.style.width = '140px';
                 atd.style.minWidth = '140px';
-                atd.innerHTML = '<div class="um-actions-wrap"><button class="um-table-btn" onclick="viewEmployee(\'' + e.id + '\')">View</button><button class="um-table-btn" onclick="editEmployee(\'' + e.id + '\')">Edit</button></div>';
+                atd.innerHTML = '<div class="um-actions-wrap"><button class="um-table-btn" onclick="openEmpViewModal(\'' + e.id + '\')">View</button><button class="um-table-btn" onclick="openEmpEditModal(\'' + e.id + '\')">Edit</button></div>';
                 tr.appendChild(atd);
                 tb.appendChild(tr);
             });
@@ -1199,17 +1231,45 @@
             document.addEventListener('mouseup', onEnd);
         }
 
-        function viewEmployee(id) { window.location.href = '/app/employee/employee-detail.html?id=' + encodeURIComponent(id); }
-        function editEmployee(id) { openAddEmpModal(); }
-
-        function viewUserDetail(name, email) {
-            document.getElementById('userDetailName').textContent = name || 'System User Detail';
-            document.getElementById('userDetailEmail').textContent = email || '';
-            document.getElementById('umUserDetailModal').classList.add('active');
+        function openEmpViewModal(id) {
+            var emp = allEmployees.find(function(x) { return x.id === id; });
+            if (!emp) return;
+            document.getElementById('viewEmpName').textContent = emp.name;
+            document.getElementById('viewEmpNum').textContent = emp.employeeNumber;
+            document.getElementById('viewEmpEmail').textContent = emp.email;
+            document.getElementById('viewEmpRole').textContent = emp.role;
+            document.getElementById('viewEmpStatus').textContent = emp.status;
+            document.getElementById('viewEmpPhone').textContent = emp.phone;
+            document.getElementById('umEmpViewModal').classList.add('active');
         }
 
-        function openAddEmpModal() { document.getElementById('umAddEmpModal').classList.add('active'); }
-        function submitAddEmployee() {
+        function openAddEmpModal() {
+            document.getElementById('empModalTitle').textContent = 'Add New Employee';
+            document.getElementById('editEmpId').value = '';
+            document.getElementById('addEmpFn').value = '';
+            document.getElementById('addEmpLn').value = '';
+            document.getElementById('addEmpEmail').value = '';
+            document.getElementById('addEmpRole').value = 'Employee';
+            document.getElementById('addEmpPhone').value = '';
+            document.getElementById('umAddEmpModal').classList.add('active');
+        }
+
+        function openEmpEditModal(id) {
+            var emp = allEmployees.find(function(x) { return x.id === id; });
+            if (!emp) return;
+            var parts = (emp.name || '').split(' ');
+            document.getElementById('empModalTitle').textContent = 'Edit Employee';
+            document.getElementById('editEmpId').value = emp.id;
+            document.getElementById('addEmpFn').value = parts[0] || '';
+            document.getElementById('addEmpLn').value = parts.slice(1).join(' ') || '';
+            document.getElementById('addEmpEmail').value = emp.email !== '—' ? emp.email : '';
+            document.getElementById('addEmpRole').value = emp.role;
+            document.getElementById('addEmpPhone').value = emp.phone !== '—' ? emp.phone : '';
+            document.getElementById('umAddEmpModal').classList.add('active');
+        }
+
+        function submitSaveEmployee() {
+            var id = document.getElementById('editEmpId').value;
             var fn = document.getElementById('addEmpFn').value.trim();
             var ln = document.getElementById('addEmpLn').value.trim();
             var em = document.getElementById('addEmpEmail').value.trim();
@@ -1218,19 +1278,35 @@
 
             if (!fn || !ln) { alert('First and Last name are required.'); return; }
 
-            allEmployees.unshift(normalizeEmployee({
-                id: 'EMP-' + Date.now(),
-                employee_number: 'EMP-' + Math.floor(100 + Math.random() * 900),
-                full_name: fn + ' ' + ln,
-                email: em || '—',
-                role: role,
-                status: 'Active',
-                phone: phone || '(555) 000-0000'
-            }));
+            if (id) {
+                var emp = allEmployees.find(function(x) { return x.id === id; });
+                if (emp) {
+                    emp.name = fn + ' ' + ln;
+                    emp.email = em || '—';
+                    emp.role = role;
+                    emp.phone = phone || '—';
+                }
+            } else {
+                allEmployees.unshift(normalizeEmployee({
+                    id: 'EMP-' + Date.now(),
+                    employee_number: 'EMP-' + Math.floor(100 + Math.random() * 900),
+                    full_name: fn + ' ' + ln,
+                    email: em || '—',
+                    role: role,
+                    status: 'Active',
+                    phone: phone || '(555) 000-0000'
+                }));
+            }
 
             renderEmpTable();
             updateKpi();
             closeModal('umAddEmpModal');
+        }
+
+        function viewUserDetail(name, email) {
+            document.getElementById('userDetailName').textContent = name || 'System User Detail';
+            document.getElementById('userDetailEmail').textContent = email || '';
+            document.getElementById('umUserDetailModal').classList.add('active');
         }
 
         function toggleColPanel(type, e) {
