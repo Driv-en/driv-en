@@ -55,6 +55,7 @@
             color: var(--text-muted);
         }
 
+        /* Sticky Header layout matched to asset-management.html */
         #dashHeader, .dash-header {
             position: sticky !important;
             top: 0 !important;
@@ -388,6 +389,7 @@
             -webkit-overflow-scrolling: touch;
         }
 
+        /* Border & Table Lock style matching asset-management.html */
         .um-table {
             table-layout: fixed !important;
             width: max-content !important;
@@ -876,6 +878,7 @@
         var allUsers = [], allEmployees = [], allOrgRoles = [];
         var currentUserOrgId = null;
 
+        // All Users Table Columns (All Fields from users D1 Table)
         var USER_COL_DEFS = [
             { key: 'id', label: 'User ID', defaultWidth: '120px' },
             { key: 'fullName', label: 'Full Name', defaultWidth: '160px' },
@@ -976,7 +979,7 @@
                     var data = await resp.json();
                     var raw = data.users || data.records || (Array.isArray(data) ? data : []);
                     allUsers = raw.map(normalizeUser);
-                } else throw new Error('API returned error');
+                } else throw new Error('API error');
             } catch (e) {
                 console.warn('loadUsers error, defaulting:', e.message);
                 allUsers = [];
@@ -992,7 +995,7 @@
                     var data = await resp.json();
                     var raw = data.employees || (Array.isArray(data) ? data : []);
                     allEmployees = raw.map(normalizeEmployee);
-                } else throw new Error('API returned error');
+                } else throw new Error('API error');
             } catch (e) {
                 console.warn('loadEmployees fallback to local cache:', e.message);
                 var saved = localStorage.getItem('driven_saved_employees');
@@ -1313,7 +1316,7 @@
             document.getElementById('umAddEmpModal').classList.add('active');
         }
 
-        // Live D1 Database Persistence with Multi-Tenant Enforcement & Error Handling
+        // Live D1 API Persistence for Edits & New Personnel
         async function submitSaveEmployee() {
             var id = document.getElementById('editEmpId').value;
             var fn = document.getElementById('addEmpFn').value.trim();
@@ -1329,7 +1332,7 @@
 
             var payload = {
                 id: id || undefined,
-                customer_id: currentUserOrgId, // Tenant Boundary Enforcement
+                customer_id: currentUserOrgId,
                 first_name: fn,
                 last_name: ln,
                 name: fn + ' ' + ln,
@@ -1350,12 +1353,12 @@
                 });
 
                 if (!resp.ok) {
-                    throw new Error('Server responded with status ' + resp.status);
+                    throw new Error('HTTP status ' + resp.status);
                 }
-                showToast('Employee saved to D1 database successfully.', 'success');
+                showToast('Employee updated in D1 successfully.', 'success');
             } catch (e) {
-                console.warn('D1 Sync error, updated locally:', e.message);
-                showToast('Saved locally (Offline/Cache fallback)', 'error');
+                console.warn('Backend sync failed, updated local state:', e.message);
+                showToast('Saved locally (Offline mode active)', 'error');
             }
 
             if (id) {
