@@ -2,18 +2,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DRIV‑EN | Employee Management</title>
-    <meta name="description" content="DRIV-EN — manage users, employees, roles, and permissions.">
+    <meta name="description" content="DRIV-EN admin dashboard — full access to all modules, settings, users, and permissions.">
     <meta name="robots" content="noindex, nofollow">
-    <meta name="theme-color" content="#16a34a">
-    <link rel="manifest" href="/manifest.json?v=2026">
     <link rel="canonical" href="https://www.driv-en.com/app/dashboard/user-management.html">
     <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
     <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
     <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
     <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
-    <link rel="stylesheet" href="/app/shared/dashboard.css?v=11">
+    <link rel="stylesheet" href="/app/shared/dashboard.css?v=10">
     <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
     <script>
         (function() {
@@ -22,16 +20,16 @@
             var theme = saved || system;
             document.documentElement.setAttribute("data-theme", theme);
         })();
-
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js?v=2026').catch(function(err) {
-                    console.warn('PWA ServiceWorker registration skipped:', err);
-                });
-            });
-        }
     </script>
     <style>
+        .admin-loading { display:flex; align-items:center; justify-content:center; height:100vh; font-size:16px; color:var(--text-muted); }
+        .dash-header-row2 { display:none !important; }
+        .dash-header-row3 { display:none !important; }
+        #dashHeader .dash-theme-wrapper { display:none !important; }
+        .dash-header-row1 { padding:8px 20px !important; align-items:center; }
+        .admin-header-title { flex:1; text-align:center; font-size:20px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .admin-header-title span { font-size:12px; font-weight:400; color:var(--text-muted); display:block; margin-top:2px; }
+
         :root {
             --header-height: 60px;
             --card-green-border: #16a34a;
@@ -46,63 +44,7 @@
             width: 100%;
         }
 
-        .um-loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            font-size: 16px;
-            color: var(--text-muted);
-        }
-
-        /* Fixed Top Header (exact layout from asset-management.html) */
-        .am-header {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            background: var(--bg-card);
-            border-bottom: 2px solid var(--card-green-border);
-            padding: 10px 16px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            box-sizing: border-box;
-        }
-        .am-header-wrap {
-            max-width: 1100px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 16px;
-        }
-        .am-brand {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .am-brand img {
-            height: 36px;
-            width: auto;
-        }
-        .am-title-section h1 {
-            margin: 0;
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--text);
-            line-height: 1.2;
-        }
-        .am-title-section p {
-            margin: 2px 0 0 0;
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-        .am-user-controls {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        /* Sticky Secondary Tab Bar */
+        /* Secondary Tab Bar Sticky Below Header */
         .um-tab-bar {
             display: flex;
             gap: 2px;
@@ -627,23 +569,12 @@
         }
     </style>
 </head>
-<body data-page-title="Employee Management">
+<body>
     <div class="steel-bg"></div>
     <div class="steel-overlay"></div>
-    
-    <!-- Top Header matching asset-management.html -->
-    <header class="am-header">
-        <div class="am-header-wrap">
-            <div class="am-brand">
-                <a href="/app/dashboard/admin.html"><img src="/assets/logo.png?v=2026" alt="DRIV-EN Logo"></a>
-                <div class="am-title-section">
-                    <h1>Employee Management</h1>
-                    <p>Manage users, system employees, roles, and security permissions.</p>
-                </div>
-            </div>
-            <div class="am-user-controls" id="dashHeaderUserControls"></div>
-        </div>
-    </header>
+
+    <!-- Header exactly matched to admin.html structure -->
+    <div id="dashHeader"></div>
 
     <!-- Sticky Tabs Navigation Bar -->
     <div class="um-tab-bar" id="umTabBar">
@@ -657,7 +588,7 @@
     </div>
 
     <div class="um-main">
-        <div class="um-loading" id="umLoading">Loading employee management...</div>
+        <div class="admin-loading" id="adminLoading">Loading employee management...</div>
 
         <!-- Overview Tab -->
         <div class="um-tab-content active" id="tab-overview">
@@ -1086,12 +1017,24 @@
             
             currentUserOrgId = u.org_id || localStorage.getItem('driven_org_id') || u.customerId;
 
+            // Header matching admin.html layout format
+            var hRow = document.querySelector('.dash-header-row1');
+            if (hRow) {
+                var titleDiv = document.createElement('div');
+                titleDiv.className = 'admin-header-title';
+                titleDiv.innerHTML = 'Employee Management<span>Manage users, employees, roles, and permissions</span>';
+                var rightCol = hRow.querySelector('.dash-header-right') || hRow.children[1];
+                if (rightCol) hRow.insertBefore(titleDiv, rightCol);
+                else hRow.appendChild(titleDiv);
+            }
+
             USER_COL_DEFS.forEach(function(c) { visibleUserCols[c.key] = true; userColWidths[c.key] = c.defaultWidth; });
             EMP_COL_DEFS.forEach(function(c) { visibleEmpCols[c.key] = true; empColWidths[c.key] = c.defaultWidth; });
 
             await Promise.all([loadUsers(), loadEmployees(), loadOrgRoles(), loadActivityLog()]);
 
-            document.getElementById('umLoading').style.display = 'none';
+            var loadingEl = document.getElementById('adminLoading');
+            if (loadingEl) loadingEl.style.display = 'none';
             document.getElementById('tab-overview').style.display = 'block';
             updateKpi();
         });
