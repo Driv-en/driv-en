@@ -42,7 +42,7 @@
         .admin-tab[data-tab="onboarding"]:hover { background:#1d4ed8; color:#fff; }
         .admin-tab[data-tab="onboarding"].active { background:#dbeafe; color:#1d4ed8; border-color:#2563eb; }
         
-        .admin-subtab-bar { display:none; gap:2px; width:100%; max-width:1100px; margin:0 auto; padding:0 20px; overflow-x:auto; position:sticky !important; top:101px !important; z-index:98 !important; background:#475569; border-bottom:2px solid #334155; box-sizing:border-box; -webkit-overflow-scrolling: touch; }
+        .admin-subtab-bar { display:none; gap:2px; width:100%; max-width:1100px; margin:0 auto; padding:0 20px; overflow-x:auto; position:sticky !important; top:98px !important; z-index:98 !important; background:#475569; border-bottom:2px solid #334155; box-sizing:border-box; -webkit-overflow-scrolling: touch; }
         .admin-subtab-bar.visible { display:flex; }
         .admin-subtab { background:#22c55e; border:1px solid #16a34a; border-bottom:none; border-radius:8px 8px 0 0; padding:8px 18px; font-size:14px; font-weight:500; color:#fff; cursor:pointer; white-space:nowrap; }
         .admin-subtab:hover { background:#16a34a; color:#fff; margin-top:2px; }
@@ -57,7 +57,7 @@
 
         .admin-tab-logout { background:#b91c1c; border:1px solid #dc2626; border-bottom:none; border-radius:8px 8px 0 0; padding:10px 22px; font-size:15px; font-weight:600; color:#fff; cursor:pointer; white-space:nowrap; margin-left: auto; }
         .admin-tab-logout:hover { background:#dc2626; margin-top:2px; }
-        .admin-main { max-width:1100px; margin:20px auto; padding:0 20px; position:relative; z-index:1; box-sizing: border-box; }
+        .admin-main { max-width:1100px; margin:20px auto; padding:0 20px; box-sizing: border-box; }
 
         /* Card Styling with Green Borders */
         .admin-welcome { background:var(--bg-card); border:2px solid #16a34a; border-radius:8px; padding:24px; margin-bottom:24px; }
@@ -608,6 +608,125 @@
         }
         window.addEventListener('error', function(e) { reportError('window.onerror', e.error || e.message); showPageError(); });
 
+        /* ===== Global Key Personnel Helper Functions ===== */
+        function toggleSelectAllKpTasks(checked) {
+            document.querySelectorAll('.kp-task-cb').forEach(function(cb) { cb.checked = checked; });
+            updateKpTaskCount();
+        }
+
+        function updateKpTaskCount() {
+            var cbs = document.querySelectorAll('.kp-task-cb:checked');
+            var totalCbs = document.querySelectorAll('.kp-task-cb');
+            var selectAll = document.getElementById('kpTaskSelectAll');
+            if (selectAll) selectAll.checked = (cbs.length === totalCbs.length && totalCbs.length > 0);
+            var counter = document.getElementById('kpTaskCount');
+            if (counter) counter.textContent = cbs.length + ' task' + (cbs.length === 1 ? '' : 's') + ' selected';
+        }
+
+        function addKeyPersonnel() {
+            var name = document.getElementById("kpName").value.trim();
+            var email = document.getElementById("kpEmail").value.trim();
+            var selectedCbs = document.querySelectorAll('.kp-task-cb:checked');
+            var selectedTasks = Array.from(selectedCbs).map(function(cb) { return cb.value; });
+
+            if(!name || !email) {
+                alert("Please enter both Full Name and Email Address.");
+                return;
+            }
+            if(selectedTasks.length === 0) {
+                alert("Please select at least one task for this person.");
+                return;
+            }
+
+            var parts = name.split(' ');
+            var fn = parts[0] || '';
+            var ln = parts.slice(1).join(' ') || '';
+
+            pendingKP.push({ firstName: fn, lastName: ln, name: name, email: email, tasks: selectedTasks });
+
+            document.getElementById("kpName").value = "";
+            document.getElementById("kpEmail").value = "";
+            document.querySelectorAll('.kp-task-cb').forEach(function(cb) { cb.checked = false; });
+            var selectAll = document.getElementById("kpTaskSelectAll");
+            if (selectAll) selectAll.checked = false;
+            updateKpTaskCount();
+
+            renderKeyPersonnel();
+        }
+
+        function removeKpTask(personIdx, taskIdx) {
+            var target = personIdx < keyPersonnel.length ? keyPersonnel[personIdx] : pendingKP[personIdx - keyPersonnel.length];
+            var tasks = target.tasks || (target.roles ? target.roles.map(function(r){return r.role;}) : [target.task]);
+            tasks.splice(taskIdx, 1);
+            target.tasks = tasks;
+            delete target.roles;
+            delete target.task;
+            renderKeyPersonnel();
+        }
+
+        async function removeKpPerson(personIdx) {
+            if(personIdx < keyPersonnel.length) {
+                var kp = keyPersonnel[personIdx];
+                if(kp.employeeId) {
+                    try {
+                        await fetch("/api/onboarding/key-personnel/revoke", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ employeeId: kp.employeeId, revokeAll: true })
+                        });
+                    } catch(e) { reportError("removeKpPerson", e); }
+                }
+                keyPersonnel.splice(personIdx, 1);
+            } else {
+                pendingKP.splice(personIdx - keyPersonnel.length, 1);
+            }
+            renderKeyPersonnel();
+        }
+
+        async function completeKeyPersonnel() {
+            if (pendingKP.length === 0) return;
+
+            var btn = document.getElementById("kpCompleteBtn");
+            if (btn) { btn.disabled = true; btn.textContent = "Creating Accounts & Sending Emails…"; }
+
+            try {
+                var resComplete = await fetch("/api/onboarding/key-personnel/complete", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ keyPersonnel: pendingKP })
+                });
+                var dComplete = await resComplete.json();
+
+                if (!dComplete.success && !dComplete.results) {
+                    throw new Error(dComplete.error || "Failed to create accounts");
+                }
+
+                var emailList = pendingKP.map(function(kp) { return kp.email; });
+                var resInvites = await fetch("/api/onboarding/key-personnel/send-invites", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ emails: emailList })
+                });
+                var dInvites = await resInvites.json();
+
+                if (dInvites.success) {
+                    alert("Key personnel accounts created and invitation emails sent successfully!");
+                } else {
+                    alert("Key personnel accounts created. Some emails may have failed: " + (dInvites.error || "Check worker logs"));
+                }
+
+                keyPersonnel = keyPersonnel.concat(pendingKP);
+                pendingKP = [];
+                renderKeyPersonnel();
+
+            } catch(e) {
+                reportError("completeKeyPersonnel", e);
+                alert("Error sending invitations: " + e.message);
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = "Send Invitations & Create Accounts"; }
+            }
+        }
+
         async function loadDashboardStats() {
             try {
                 var results = await Promise.all([
@@ -852,21 +971,6 @@
             } catch(e) { reportError("saveStepVisibility", e); }
         }
 
-        /* ===== Key Personnel Checkboxes & Multi-Select ===== */
-        function toggleSelectAllKpTasks(checked) {
-            document.querySelectorAll('.kp-task-cb').forEach(function(cb) { cb.checked = checked; });
-            updateKpTaskCount();
-        }
-
-        function updateKpTaskCount() {
-            var cbs = document.querySelectorAll('.kp-task-cb:checked');
-            var totalCbs = document.querySelectorAll('.kp-task-cb');
-            var selectAll = document.getElementById('kpTaskSelectAll');
-            if (selectAll) selectAll.checked = (cbs.length === totalCbs.length && totalCbs.length > 0);
-            var counter = document.getElementById('kpTaskCount');
-            if (counter) counter.textContent = cbs.length + ' task' + (cbs.length === 1 ? '' : 's') + ' selected';
-        }
-
         async function loadKeyPersonnel() {
             var cid = localStorage.getItem("driven_customer_id");
             if(!cid) return;
@@ -911,114 +1015,6 @@
                     '</div>' +
                 '</div>';
             }).join("");
-        }
-
-        function addKeyPersonnel() {
-            var name = document.getElementById("kpName").value.trim();
-            var email = document.getElementById("kpEmail").value.trim();
-            var selectedCbs = document.querySelectorAll('.kp-task-cb:checked');
-            var selectedTasks = Array.from(selectedCbs).map(function(cb) { return cb.value; });
-
-            if(!name || !email) {
-                alert("Please enter both Full Name and Email Address.");
-                return;
-            }
-            if(selectedTasks.length === 0) {
-                alert("Please select at least one task for this person.");
-                return;
-            }
-
-            var parts = name.split(' ');
-            var fn = parts[0] || '';
-            var ln = parts.slice(1).join(' ') || '';
-
-            pendingKP.push({ firstName: fn, lastName: ln, name: name, email: email, tasks: selectedTasks });
-
-            // Reset inputs
-            document.getElementById("kpName").value = "";
-            document.getElementById("kpEmail").value = "";
-            document.querySelectorAll('.kp-task-cb').forEach(function(cb) { cb.checked = false; });
-            var selectAll = document.getElementById("kpTaskSelectAll");
-            if (selectAll) selectAll.checked = false;
-            updateKpTaskCount();
-
-            renderKeyPersonnel();
-        }
-
-        function removeKpTask(personIdx, taskIdx) {
-            var target = personIdx < keyPersonnel.length ? keyPersonnel[personIdx] : pendingKP[personIdx - keyPersonnel.length];
-            var tasks = target.tasks || (target.roles ? target.roles.map(function(r){return r.role;}) : [target.task]);
-            tasks.splice(taskIdx, 1);
-            target.tasks = tasks;
-            delete target.roles;
-            delete target.task;
-            renderKeyPersonnel();
-        }
-
-        async function removeKpPerson(personIdx) {
-            if(personIdx < keyPersonnel.length) {
-                var kp = keyPersonnel[personIdx];
-                if(kp.employeeId) {
-                    try {
-                        await fetch("/api/onboarding/key-personnel/revoke", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ employeeId: kp.employeeId, revokeAll: true })
-                        });
-                    } catch(e) { reportError("removeKpPerson", e); }
-                }
-                keyPersonnel.splice(personIdx, 1);
-            } else {
-                pendingKP.splice(personIdx - keyPersonnel.length, 1);
-            }
-            renderKeyPersonnel();
-        }
-
-        /* ===== Worker-Synced Key Personnel Invitation Flow ===== */
-        async function completeKeyPersonnel() {
-            if (pendingKP.length === 0) return;
-
-            var btn = document.getElementById("kpCompleteBtn");
-            if (btn) { btn.disabled = true; btn.textContent = "Creating Accounts & Sending Emails…"; }
-
-            try {
-                // Step 1: Create Employee / User Records
-                var resComplete = await fetch("/api/onboarding/key-personnel/complete", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ keyPersonnel: pendingKP })
-                });
-                var dComplete = await resComplete.json();
-
-                if (!dComplete.success && !dComplete.results) {
-                    throw new Error(dComplete.error || "Failed to create accounts");
-                }
-
-                // Step 2: Trigger Welcome Emails & Activate Accounts
-                var emailList = pendingKP.map(function(kp) { return kp.email; });
-                var resInvites = await fetch("/api/onboarding/key-personnel/send-invites", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ emails: emailList })
-                });
-                var dInvites = await resInvites.json();
-
-                if (dInvites.success) {
-                    alert("Key personnel accounts created and invitation emails sent successfully!");
-                } else {
-                    alert("Key personnel accounts created. Some emails may have failed: " + (dInvites.error || "Check worker logs"));
-                }
-
-                keyPersonnel = keyPersonnel.concat(pendingKP);
-                pendingKP = [];
-                renderKeyPersonnel();
-
-            } catch(e) {
-                reportError("completeKeyPersonnel", e);
-                alert("Error sending invitations: " + e.message);
-            } finally {
-                if (btn) { btn.disabled = false; btn.textContent = "Send Invitations & Create Accounts"; }
-            }
         }
 
         function updateProgress() {
