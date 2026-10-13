@@ -28,7 +28,7 @@
             --blue-line: #1e3a8a;
         }
 
-html, body {
+        html, body {
             margin: 0;
             padding: 0;
             width: 100%;
@@ -46,10 +46,10 @@ html, body {
         #dashHeader .dash-theme-wrapper { display: none !important; }
         .dash-header-row2 { display: none !important; }
 
-        #dashHeader {
-            position: sticky;
-            top: 0;
-            z-index: 101;
+        #dashHeader, .dash-header {
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 101 !important;
             background: var(--bg-card);
             width: 100%;
             box-sizing: border-box;
@@ -79,9 +79,9 @@ html, body {
             margin: 0 auto;
             padding: 0 16px;
             overflow-x: auto;
-            position: sticky;
-            top: var(--header-height, 60px);
-            z-index: 100;
+            position: sticky !important;
+            top: var(--header-height, 60px) !important;
+            z-index: 100 !important;
             background: #cbd5e1;
             border-bottom: 2px solid #94a3b8;
             box-sizing: border-box;
@@ -1066,9 +1066,9 @@ html, body {
         var sortKey = 'assetNumber', sortDir = 'asc', currentPage = 1, pageSize = 10, visibleCols = {}, colWidths = {};
 
         function updateHeaderOffset() {
-            var h = document.getElementById('dashHeader');
+            var h = document.getElementById('dashHeader') || document.querySelector('.dash-header');
             if (h) {
-                var hh = h.getBoundingClientRect().height;
+                var hh = h.getBoundingClientRect().height || 60;
                 document.documentElement.style.setProperty('--header-height', hh + 'px');
             }
         }
@@ -1211,10 +1211,13 @@ html, body {
                 sel.appendChild(p);
             }
             items.forEach(function(item) {
-                var o = document.createElement('option');
-                o.value = item.name;
-                o.textContent = item.name;
-                sel.appendChild(o);
+                var nameVal = typeof item === 'object' ? (item.name || item.title || item.project_name || '') : String(item);
+                if (nameVal) {
+                    var o = document.createElement('option');
+                    o.value = nameVal;
+                    o.textContent = nameVal;
+                    sel.appendChild(o);
+                }
             });
             var se = Array.from(sel.options).some(function(o) { return o.value === cv; });
             sel.value = se ? cv : '';
@@ -1224,28 +1227,37 @@ html, body {
             var pt = document.getElementById('panelTypes');
             pt.innerHTML = '';
             assetTypes.forEach(function(at) {
-                var lbl = document.createElement('label');
-                lbl.className = 'am-multiselect-option';
-                lbl.innerHTML = '<input type="checkbox" value="' + escapeHtml(at.name) + '" onchange="onFilterChange()"> ' + escapeHtml(at.name);
-                pt.appendChild(lbl);
+                var nameVal = typeof at === 'object' ? (at.name || at.title || '') : String(at);
+                if (nameVal) {
+                    var lbl = document.createElement('label');
+                    lbl.className = 'am-multiselect-option';
+                    lbl.innerHTML = '<input type="checkbox" value="' + escapeHtml(nameVal) + '" onchange="onFilterChange()"> ' + escapeHtml(nameVal);
+                    pt.appendChild(lbl);
+                }
             });
 
             var pp = document.getElementById('panelProjects');
             pp.innerHTML = '';
             projects.forEach(function(pr) {
-                var lbl = document.createElement('label');
-                lbl.className = 'am-multiselect-option';
-                lbl.innerHTML = '<input type="checkbox" value="' + escapeHtml(pr.name) + '" onchange="onFilterChange()"> ' + escapeHtml(pr.name);
-                pp.appendChild(lbl);
+                var nameVal = typeof pr === 'object' ? (pr.name || pr.title || pr.project_name || '') : String(pr);
+                if (nameVal) {
+                    var lbl = document.createElement('label');
+                    lbl.className = 'am-multiselect-option';
+                    lbl.innerHTML = '<input type="checkbox" value="' + escapeHtml(nameVal) + '" onchange="onFilterChange()"> ' + escapeHtml(nameVal);
+                    pp.appendChild(lbl);
+                }
             });
 
             var pl = document.getElementById('panelLocations');
             pl.innerHTML = '';
             locations.forEach(function(lo) {
-                var lbl = document.createElement('label');
-                lbl.className = 'am-multiselect-option';
-                lbl.innerHTML = '<input type="checkbox" value="' + escapeHtml(lo.name) + '" onchange="onFilterChange()"> ' + escapeHtml(lo.name);
-                pl.appendChild(lbl);
+                var nameVal = typeof lo === 'object' ? (lo.name || lo.title || lo.location_name || '') : String(lo);
+                if (nameVal) {
+                    var lbl = document.createElement('label');
+                    lbl.className = 'am-multiselect-option';
+                    lbl.innerHTML = '<input type="checkbox" value="' + escapeHtml(nameVal) + '" onchange="onFilterChange()"> ' + escapeHtml(nameVal);
+                    pl.appendChild(lbl);
+                }
             });
         }
 
@@ -1303,30 +1315,32 @@ html, body {
             switchTab('assets');
         }
 
-function normalizeAsset(r) {
+        function parseVal(val) {
+            if (val === undefined || val === null) return '';
+            if (Array.isArray(val)) return val.map(parseVal).join(', ');
+            if (typeof val === 'object') return val.name || val.title || val.project_name || val.location_name || '';
+            return String(val);
+        }
+
+        function normalizeAsset(r) {
             var f = (r && r.fields && typeof r.fields === 'object') ? r.fields : r;
 
-            function parseVal(val) {
-                if (Array.isArray(val)) return val.join(', ');
-                return val !== undefined && val !== null ? String(val) : '';
-            }
-
-            var proj = f['Project'] || f['Project Name'] || f['Current Project'] || f['projects'] || f.project || '';
-            var loc = f['Location'] || f['Location Name'] || f['Current Location'] || f['locations'] || f.location || '';
+            var proj = f['Project'] || f['Project Name'] || f['Current Project'] || f['projects'] || f.project || f.project_name || '';
+            var loc = f['Location'] || f['Location Name'] || f['Current Location'] || f['locations'] || f.location || f.location_name || '';
 
             return {
-                id: r.id || ('eq-' + Math.random().toString(36).substr(2, 9)),
-                assetNumber: parseVal(f['Equipment ID'] || f.assetNumber || f.asset_number || f.assetNumber),
-                type: parseVal(f['Category'] || f['Equipment Name'] || f.type || f.asset_type),
-                meter: f['Meter Reading'] !== undefined ? f['Meter Reading'] : (f.meter !== undefined ? f.meter : null),
+                id: r.id || f.id || ('eq-' + Math.random().toString(36).substr(2, 9)),
+                assetNumber: parseVal(f['Equipment ID'] || f.assetNumber || f.asset_number || f.equipment_id),
+                type: parseVal(f['Category'] || f['Equipment Name'] || f.type || f.asset_type || f.category),
+                meter: f['Meter Reading'] !== undefined ? f['Meter Reading'] : (f.meter !== undefined ? f.meter : (f.meter_reading !== undefined ? f.meter_reading : null)),
                 status: parseVal(f['Status'] || f.status || 'Available'),
                 project: parseVal(proj),
                 location: parseVal(loc),
-                serialNumber: parseVal(f['Serial Number'] || f.serialNumber),
+                serialNumber: parseVal(f['Serial Number'] || f.serialNumber || f.serial_number),
                 division: parseVal(f['Division'] || f.division),
-                assignedTo: parseVal(f['Assigned To'] || f.assignedTo),
+                assignedTo: parseVal(f['Assigned To'] || f.assignedTo || f.assigned_to),
                 condition: parseVal(f['Condition'] || f.condition),
-                createdAt: parseVal(f['Created Date'] || f.createdAt)
+                createdAt: parseVal(f['Created Date'] || f.createdAt || f.created_at)
             };
         }
 
@@ -1359,8 +1373,9 @@ function normalizeAsset(r) {
             try {
                 var resp = await fetch('/api/Equipment');
                 var data = await resp.json();
-                if (resp.ok && data && data.records) {
-                    allAssets = data.records.map(normalizeAsset);
+                var rawRecords = (data && data.records) ? data.records : (Array.isArray(data) ? data : []);
+                if (resp.ok && rawRecords.length >= 0) {
+                    allAssets = rawRecords.map(normalizeAsset);
                 } else if (resp.status === 401) {
                     allAssets = [];
                     tb.textContent = '';
@@ -1592,7 +1607,10 @@ function normalizeAsset(r) {
                         b.textContent = v;
                         td.appendChild(b);
                     } else if (col.key === 'type') {
-                        var ic = assetTypes.some(function(at) { return at.name && at.name.toLowerCase() === String(v || '').toLowerCase(); });
+                        var ic = assetTypes.some(function(at) {
+                            var atName = typeof at === 'object' ? at.name : String(at);
+                            return atName && atName.toLowerCase() === String(v || '').toLowerCase();
+                        });
                         if (v && ic) {
                             td.textContent = v;
                         } else if (v) {
