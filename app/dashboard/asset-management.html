@@ -28,11 +28,10 @@
             --blue-line: #1e3a8a;
         }
 
-        html, body {
+html, body {
             margin: 0;
             padding: 0;
             width: 100%;
-            overflow-x: hidden;
         }
 
         .am-loading {
@@ -81,7 +80,7 @@
             padding: 0 16px;
             overflow-x: auto;
             position: sticky;
-            top: var(--header-height);
+            top: var(--header-height, 60px);
             z-index: 100;
             background: #cbd5e1;
             border-bottom: 2px solid #94a3b8;
@@ -1304,21 +1303,30 @@
             switchTab('assets');
         }
 
-        function normalizeAsset(r) {
+function normalizeAsset(r) {
             var f = (r && r.fields && typeof r.fields === 'object') ? r.fields : r;
+
+            function parseVal(val) {
+                if (Array.isArray(val)) return val.join(', ');
+                return val !== undefined && val !== null ? String(val) : '';
+            }
+
+            var proj = f['Project'] || f['Project Name'] || f['Current Project'] || f['projects'] || f.project || '';
+            var loc = f['Location'] || f['Location Name'] || f['Current Location'] || f['locations'] || f.location || '';
+
             return {
                 id: r.id || ('eq-' + Math.random().toString(36).substr(2, 9)),
-                assetNumber: f['Equipment ID'] || f.assetNumber || f.asset_number || '',
-                type: f['Category'] || f['Equipment Name'] || f.type || f.asset_type || '',
+                assetNumber: parseVal(f['Equipment ID'] || f.assetNumber || f.asset_number || f.assetNumber),
+                type: parseVal(f['Category'] || f['Equipment Name'] || f.type || f.asset_type),
                 meter: f['Meter Reading'] !== undefined ? f['Meter Reading'] : (f.meter !== undefined ? f.meter : null),
-                status: f['Status'] || f.status || 'Available',
-                project: f['Project'] || f.project || '',
-                location: f['Location'] || f.location || '',
-                serialNumber: f['Serial Number'] || f.serialNumber || '',
-                division: f['Division'] || f.division || '',
-                assignedTo: f['Assigned To'] || f.assignedTo || '',
-                condition: f['Condition'] || f.condition || '',
-                createdAt: f['Created Date'] || f.createdAt || ''
+                status: parseVal(f['Status'] || f.status || 'Available'),
+                project: parseVal(proj),
+                location: parseVal(loc),
+                serialNumber: parseVal(f['Serial Number'] || f.serialNumber),
+                division: parseVal(f['Division'] || f.division),
+                assignedTo: parseVal(f['Assigned To'] || f.assignedTo),
+                condition: parseVal(f['Condition'] || f.condition),
+                createdAt: parseVal(f['Created Date'] || f.createdAt)
             };
         }
 
