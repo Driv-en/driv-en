@@ -6,19 +6,11 @@
     <title>DRIV‑EN | Employee Management</title>
     <meta name="description" content="DRIV-EN — manage users, employees, roles, and permissions.">
     <meta name="robots" content="noindex, nofollow">
-    <meta name="theme-color" content="#0f172a">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="DRIV-EN">
-
-    <link rel="manifest" href="/manifest.json?v=2026">
     <link rel="canonical" href="https://www.driv-en.com/app/dashboard/user-management.html">
     <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
     <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
     <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
     <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
-
     <link rel="stylesheet" href="/app/shared/dashboard.css?v=11">
     <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
     <script>
@@ -28,14 +20,6 @@
             var theme = saved || system;
             document.documentElement.setAttribute("data-theme", theme);
         })();
-
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js').catch(function(err) {
-                    console.warn('PWA SW registration failed:', err);
-                });
-            });
-        }
     </script>
     <style>
         :root {
@@ -50,14 +34,6 @@
             width: 100%;
         }
 
-        .um-header-title {
-            text-align: center !important;
-            margin: 16px auto 8px auto;
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--text);
-        }
-
         .um-loading {
             display: flex;
             align-items: center;
@@ -66,6 +42,9 @@
             font-size: 16px;
             color: var(--text-muted);
         }
+        .dash-header-row3 { display: none !important; }
+        #dashHeader .dash-theme-wrapper { display: none !important; }
+        .dash-header-row2 { display: none !important; }
 
         #dashHeader, .dash-header {
             position: sticky !important;
@@ -77,11 +56,24 @@
             border-bottom: 2px solid var(--card-green-border);
         }
 
+        @media (max-width: 700px) {
+            .dash-customer-logo, .dash-customer-logo-placeholder {
+                max-height: 32px;
+                max-width: 70px;
+            }
+            .dash-driven-logo { max-height: 36px; }
+            #dashHeader .dash-header-row1 {
+                padding: 6px 12px !important;
+                gap: 8px !important;
+            }
+            #dashHeader h1 { font-size: 16px !important; }
+        }
+
         .um-tab-bar {
             display: flex;
             gap: 2px;
             width: 100%;
-            max-width: 1200px;
+            max-width: 1100px;
             margin: 0 auto;
             padding: 0 16px;
             overflow-x: auto;
@@ -159,7 +151,7 @@
 
         .um-main {
             width: 100%;
-            max-width: 1200px;
+            max-width: 1100px;
             margin: 16px auto;
             padding: 0 16px;
             position: relative;
@@ -211,6 +203,7 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
+
         .um-kpi-val {
             font-size: 22px;
             font-weight: 700;
@@ -242,7 +235,7 @@
             width: 100%;
         }
         .um-search-input {
-            flex: 1;
+            width: 100%;
             padding: 10px 14px;
             border: 1.5px solid #2563eb;
             border-radius: 6px;
@@ -250,6 +243,12 @@
             background: var(--bg-card);
             color: var(--text);
             box-sizing: border-box;
+            transition: all 150ms ease;
+        }
+        .um-search-input:focus {
+            outline: none;
+            border: 2.5px solid #1d4ed8;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
         }
         .um-btn-add {
             background: #16a34a;
@@ -261,9 +260,6 @@
             border: none;
             cursor: pointer;
             white-space: nowrap;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
         .um-btn-add:hover { background: #15803d; }
 
@@ -290,6 +286,12 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            transition: all 150ms ease;
+        }
+        .um-multiselect-btn:hover {
+            border: 2.5px solid #1d4ed8;
+            color: #1d4ed8;
+            background: rgba(37, 99, 235, 0.05);
         }
         .um-multiselect-btn:after {
             content: '▼';
@@ -347,10 +349,11 @@
             justify-content: center;
             min-height: 40px;
             line-height: 1.2;
+            transition: all 150ms ease;
             box-sizing: border-box;
         }
         .um-btn-action:hover {
-            border-color: #1d4ed8;
+            border: 2.5px solid #1d4ed8;
             color: #1d4ed8;
             background: rgba(37, 99, 235, 0.05);
         }
@@ -362,11 +365,8 @@
             padding: 16px;
             margin-bottom: 20px;
         }
-
-        /* Rigid Fixed Table Sizing (Asset Management Style) */
         .um-table-scroll {
-            width: 100%;
-            max-height: 550px;
+            max-height: 500px;
             overflow-x: auto;
             overflow-y: auto;
             border: 1px solid var(--border);
@@ -375,46 +375,72 @@
             -webkit-overflow-scrolling: touch;
         }
         .um-table {
-            table-layout: fixed !important;
-            width: max-content !important;
-            min-width: 100% !important;
+            width: max-content;
+            min-width: 100%;
             border-collapse: separate;
             border-spacing: 0;
-            font-size: 13px;
+            font-size: 14px;
             background: var(--bg-card);
+            table-layout: fixed;
+        }
+        .um-table thead tr {
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
         .um-table th {
             position: sticky;
             top: 0;
             background: var(--bg-header, #f1f5f9);
             z-index: 10;
-            padding: 10px 12px;
+            padding: 10px 14px;
             text-align: left;
             font-weight: 600;
             color: var(--text);
             border-bottom: 2px solid var(--blue-line);
             border-left: 1px solid var(--blue-line);
             border-right: 1px solid var(--blue-line);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            white-space: normal;
+            word-wrap: break-word;
+            cursor: pointer;
+            user-select: none;
+            vertical-align: middle;
             box-sizing: border-box;
         }
+        .um-resizer {
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            width: 8px;
+            cursor: col-resize;
+            user-select: none;
+            touch-action: none;
+            z-index: 11;
+        }
         .um-table td {
-            padding: 8px 12px;
+            padding: 10px 14px;
             border-top: 1px solid var(--blue-line);
             border-bottom: 1px solid var(--blue-line);
             border-left: 1px solid var(--border);
             border-right: 1px solid var(--border);
             color: var(--text);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            box-sizing: border-box;
+            white-space: normal;
+            word-wrap: break-word;
             vertical-align: middle;
+            box-sizing: border-box;
         }
         .um-table tr:hover td { background: var(--bg-input); }
 
+        .um-table td.um-actions {
+            border-top: 1px solid var(--blue-line);
+            border-bottom: 1px solid var(--blue-line);
+            border-left: 1px solid var(--border);
+            border-right: 1px solid var(--border);
+            display: table-cell;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
         .um-actions-wrap {
             display: flex;
             gap: 6px;
@@ -424,23 +450,24 @@
             background: var(--bg-card);
             border: 1.5px solid #2563eb;
             color: var(--text);
-            padding: 4px 8px;
+            padding: 5px 12px;
             border-radius: 4px;
             font-size: 12px;
             font-weight: 600;
             cursor: pointer;
+            transition: all 150ms ease;
         }
         .um-table-btn:hover {
-            border-color: #1d4ed8;
+            border: 2px solid #1d4ed8;
             color: #1d4ed8;
             background: rgba(37, 99, 235, 0.05);
         }
 
         .um-badge {
             display: inline-block;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
             font-weight: 600;
         }
         .um-badge-active { background: rgba(34, 197, 94, 0.15); color: #16a34a; }
@@ -492,7 +519,7 @@
             color: var(--text);
         }
         .um-form-group input, .um-form-group select {
-            padding: 8px 12px;
+            padding: 10px 12px;
             border: 1px solid var(--border);
             border-radius: 6px;
             background: var(--bg-card);
@@ -524,27 +551,26 @@
             cursor: pointer;
         }
 
-        /* Roles & Matrix Table Styles */
-        .um-roles-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 12px;
+        .um-check-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+            margin: 16px 0;
         }
-        .um-roles-table th, .um-roles-table td {
-            border: 1px solid var(--border);
-            padding: 10px;
-            text-align: left;
-            font-size: 13px;
+        .um-check-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text);
+            cursor: pointer;
         }
-        .um-roles-table th { background: var(--bg-input); }
     </style>
 </head>
 <body data-page-title="Employee Management">
     <div class="steel-bg"></div>
     <div class="steel-overlay"></div>
     <div id="dashHeader"></div>
-
-    <h1 class="um-header-title">Employee Management</h1>
 
     <div class="um-tab-bar" id="umTabBar">
         <div class="um-tab active" data-tab="overview" onclick="switchTab('overview')">Overview</div>
@@ -682,42 +708,7 @@
             <div class="um-table-card">
                 <h3 style="margin-top:0;">Roles & Permissions Matrix</h3>
                 <p style="color:var(--text-muted); font-size:14px;">Role permission rules across system modules.</p>
-                <div id="rolesContainer">
-                    <table class="um-roles-table">
-                        <thead>
-                            <tr>
-                                <th>Role</th>
-                                <th>Description</th>
-                                <th>Asset Access</th>
-                                <th>User Management</th>
-                                <th>System Settings</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><strong>Administrator</strong></td>
-                                <td>Full operational administrative privileges</td>
-                                <td>Full Access</td>
-                                <td>Read / Write</td>
-                                <td>Full Access</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Fleet Manager</strong></td>
-                                <td>Oversees vehicle & asset assignments</td>
-                                <td>Full Access</td>
-                                <td>Read Only</td>
-                                <td>None</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Employee / Driver</strong></td>
-                                <td>Standard employee portal view</td>
-                                <td>Read Only</td>
-                                <td>None</td>
-                                <td>None</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                <div id="rolesContainer"></div>
             </div>
         </div>
 
@@ -759,6 +750,10 @@
                 <input type="text" id="addEmpLn" placeholder="Doe">
             </div>
             <div class="um-form-group">
+                <label>Email Address</label>
+                <input type="email" id="addEmpEmail" placeholder="jane.doe@company.com">
+            </div>
+            <div class="um-form-group">
                 <label>Role</label>
                 <select id="addEmpRole">
                     <option value="Employee">Employee</option>
@@ -782,7 +777,7 @@
         <div class="um-modal-card">
             <h3>Print Directory</h3>
             <p style="color:var(--text-muted); font-size:14px;">Select columns for print output.</p>
-            <div id="umPrintCols" style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin:12px 0;"></div>
+            <div id="umPrintCols" class="um-check-grid"></div>
             <div style="display:flex; gap:10px; margin-top:16px;">
                 <button class="um-btn-action" onclick="closeModal('umPrintModal')">Cancel</button>
                 <button class="um-btn-action" style="background:var(--primary); color:#fff;" onclick="doPrint()">Print</button>
@@ -794,7 +789,7 @@
         <div class="um-modal-card">
             <h3 id="umExportTitle">Export Data</h3>
             <p style="color:var(--text-muted); font-size:14px;">Select columns for output file.</p>
-            <div id="umExportCols" style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin:12px 0;"></div>
+            <div id="umExportCols" class="um-check-grid"></div>
             <div style="display:flex; gap:10px; margin-top:16px;">
                 <button class="um-btn-action" onclick="closeModal('umExportModal')">Cancel</button>
                 <button class="um-btn-action" style="background:var(--primary); color:#fff;" onclick="doExport()">Download</button>
@@ -808,7 +803,6 @@
         var allUsers = [], allEmployees = [], allRoles = [];
         var currentUserOrgId = null;
 
-        // System Users Columns
         var USER_COL_DEFS = [
             { key: 'id', label: 'ID', defaultWidth: '100px' },
             { key: 'org_id', label: 'Org ID', defaultWidth: '100px' },
@@ -823,10 +817,10 @@
             { key: 'updated_at', label: 'Updated At', defaultWidth: '160px' }
         ];
 
-        // Employees Columns
         var EMP_COL_DEFS = [
             { key: 'employeeNumber', label: 'Emp #', defaultWidth: '110px' },
             { key: 'name', label: 'Name', defaultWidth: '180px' },
+            { key: 'email', label: 'Email', defaultWidth: '200px' },
             { key: 'role', label: 'Role', defaultWidth: '140px' },
             { key: 'status', label: 'Status', defaultWidth: '110px' },
             { key: 'phone', label: 'Phone', defaultWidth: '140px' }
@@ -873,6 +867,7 @@
                 id: parseVal(r.id),
                 employeeNumber: parseVal(r.employee_number || r.employeeNumber || ('EMP-' + Math.floor(100 + Math.random() * 900))),
                 name: parseVal(r.full_name || r.name || ([r.first_name, r.last_name].filter(Boolean).join(' '))),
+                email: parseVal(r.email),
                 role: roleName,
                 status: parseVal(r.status || 'Active'),
                 phone: parseVal(r.phone)
@@ -905,7 +900,6 @@
                     allUsers = raw.map(normalizeUser);
                 } else throw new Error();
             } catch (e) {
-                // Safe UI Fallback Data if backend endpoints are unpopulated
                 allUsers = [
                     normalizeUser({ id: 'USR-101', org_id: currentUserOrgId || 'org_01', email: 'admin@driv-en.com', role: 'Administrator', is_active: 1, twofa_enabled: 1, last_login: '2026-10-13 09:12' }),
                     normalizeUser({ id: 'USR-102', org_id: currentUserOrgId || 'org_01', email: 'm.smith@driv-en.com', role: 'Fleet Manager', is_active: 1, twofa_enabled: 0, last_login: '2026-10-12 14:05' })
@@ -925,8 +919,8 @@
                 } else throw new Error();
             } catch (e) {
                 allEmployees = [
-                    normalizeEmployee({ id: 'EMP-1', employee_number: 'EMP-101', full_name: 'John Smith', role: 'Administrator', status: 'Active', phone: '(555) 234-5678' }),
-                    normalizeEmployee({ id: 'EMP-2', employee_number: 'EMP-102', full_name: 'Sarah Connor', role: 'Fleet Manager', status: 'Active', phone: '(555) 987-6543' })
+                    normalizeEmployee({ id: 'EMP-1', employee_number: 'EMP-101', full_name: 'John Smith', email: 'j.smith@company.com', role: 'Administrator', status: 'Active', phone: '(555) 234-5678' }),
+                    normalizeEmployee({ id: 'EMP-2', employee_number: 'EMP-102', full_name: 'Sarah Connor', email: 's.connor@company.com', role: 'Fleet Manager', status: 'Active', phone: '(555) 987-6543' })
                 ];
             }
             renderEmpTableHead();
@@ -1032,9 +1026,10 @@
                     tr.appendChild(td);
                 });
                 var atd = document.createElement('td');
+                atd.className = 'am-actions';
                 atd.style.width = '140px';
                 atd.style.minWidth = '140px';
-                atd.innerHTML = '<div class="um-actions-wrap"><button class="um-table-btn" onclick="alert(\'Viewing user ' + u.id + '\')">View</button><button class="um-table-btn" onclick="alert(\'Editing user ' + u.id + '\')">Edit</button></div>';
+                atd.innerHTML = '<div class="um-actions-wrap"><button class="um-table-btn" onclick="viewUser(\'' + u.id + '\')">View</button><button class="um-table-btn" onclick="editUser(\'' + u.id + '\')">Edit</button></div>';
                 tr.appendChild(atd);
                 tb.appendChild(tr);
             });
@@ -1069,14 +1064,14 @@
             var selRoles = getSelectedCheckboxes('panelEmpRoles');
 
             var filtered = allEmployees.filter(function(e) {
-                var matchSearch = !search || e.name.toLowerCase().indexOf(search) !== -1 || e.employeeNumber.toLowerCase().indexOf(search) !== -1 || e.role.toLowerCase().indexOf(search) !== -1;
+                var matchSearch = !search || e.name.toLowerCase().indexOf(search) !== -1 || e.email.toLowerCase().indexOf(search) !== -1 || e.employeeNumber.toLowerCase().indexOf(search) !== -1 || e.role.toLowerCase().indexOf(search) !== -1;
                 var matchStatus = selStatuses.length === 0 || selStatuses.indexOf(e.status.toLowerCase()) !== -1;
                 var matchRole = selRoles.length === 0 || selRoles.indexOf(e.role.toLowerCase()) !== -1;
                 return matchSearch && matchStatus && matchRole;
             });
 
             if (filtered.length === 0) {
-                tb.innerHTML = '<tr><td colspan="6" class="um-empty">No matching employees found.</td></tr>';
+                tb.innerHTML = '<tr><td colspan="7" class="um-empty">No matching employees found.</td></tr>';
                 return;
             }
 
@@ -1096,18 +1091,25 @@
                     tr.appendChild(td);
                 });
                 var atd = document.createElement('td');
+                atd.className = 'am-actions';
                 atd.style.width = '140px';
                 atd.style.minWidth = '140px';
-                atd.innerHTML = '<div class="um-actions-wrap"><button class="um-table-btn" onclick="alert(\'Viewing employee ' + e.employeeNumber + '\')">View</button><button class="um-table-btn" onclick="alert(\'Editing employee ' + e.employeeNumber + '\')">Edit</button></div>';
+                atd.innerHTML = '<div class="um-actions-wrap"><button class="um-table-btn" onclick="viewEmployee(\'' + e.id + '\')">View</button><button class="um-table-btn" onclick="editEmployee(\'' + e.id + '\')">Edit</button></div>';
                 tr.appendChild(atd);
                 tb.appendChild(tr);
             });
         }
 
+        function viewEmployee(id) { window.location.href = '/app/employee/employee-detail.html?id=' + encodeURIComponent(id); }
+        function editEmployee(id) { openAddEmpModal(); }
+        function viewUser(id) { window.location.href = '/app/user/user-detail.html?id=' + encodeURIComponent(id); }
+        function editUser(id) { alert('Editing User ' + id); }
+
         function openAddEmpModal() { document.getElementById('umAddEmpModal').classList.add('active'); }
         function submitAddEmployee() {
             var fn = document.getElementById('addEmpFn').value.trim();
             var ln = document.getElementById('addEmpLn').value.trim();
+            var em = document.getElementById('addEmpEmail').value.trim();
             var role = document.getElementById('addEmpRole').value;
             var phone = document.getElementById('addEmpPhone').value.trim();
 
@@ -1117,6 +1119,7 @@
                 id: 'EMP-' + Date.now(),
                 employee_number: 'EMP-' + Math.floor(100 + Math.random() * 900),
                 full_name: fn + ' ' + ln,
+                email: em || '—',
                 role: role,
                 status: 'Active',
                 phone: phone || '(555) 000-0000'
@@ -1165,12 +1168,44 @@
             }
         }
 
-        function openPrintModal(type) { document.getElementById('umPrintModal').classList.add('active'); }
-        function openExportModal(type, fmt) { document.getElementById('umExportModal').classList.add('active'); }
-        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+        var activeModalType = 'emp';
 
+        function openPrintModal(type) {
+            activeModalType = type;
+            var c = document.getElementById('umPrintCols');
+            c.innerHTML = '';
+            var defs = type === 'user' ? USER_COL_DEFS : EMP_COL_DEFS;
+            var vis = type === 'user' ? visibleUserCols : visibleEmpCols;
+
+            defs.forEach(function(col) {
+                var i = document.createElement('label');
+                i.className = 'um-check-item';
+                i.innerHTML = '<input type="checkbox" data-key="' + col.key + '" ' + (vis[col.key] ? 'checked' : '') + '> ' + escapeHtml(col.label);
+                c.appendChild(i);
+            });
+            document.getElementById('umPrintModal').classList.add('active');
+        }
+
+        function openExportModal(type, fmt) {
+            activeModalType = type;
+            document.getElementById('umExportTitle').textContent = 'Export ' + (type === 'user' ? 'Users' : 'Employees') + ' to ' + fmt.toUpperCase();
+            var c = document.getElementById('umExportCols');
+            c.innerHTML = '';
+            var defs = type === 'user' ? USER_COL_DEFS : EMP_COL_DEFS;
+            var vis = type === 'user' ? visibleUserCols : visibleEmpCols;
+
+            defs.forEach(function(col) {
+                var i = document.createElement('label');
+                i.className = 'um-check-item';
+                i.innerHTML = '<input type="checkbox" data-key="' + col.key + '" ' + (vis[col.key] ? 'checked' : '') + '> ' + escapeHtml(col.label);
+                c.appendChild(i);
+            });
+            document.getElementById('umExportModal').classList.add('active');
+        }
+
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
         function doPrint() { window.print(); closeModal('umPrintModal'); }
-        function doExport() { alert('Export downloaded successfully.'); closeModal('umExportModal'); }
+        function doExport() { closeModal('umExportModal'); }
 
         function filterByKpi(type) { switchTab(type === 'ActiveUsers' ? 'users' : 'employees'); }
         function toggleFilterPanel(panelId, e) {
