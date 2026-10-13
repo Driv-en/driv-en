@@ -42,7 +42,7 @@
         .admin-tab[data-tab="onboarding"]:hover { background:#1d4ed8; color:#fff; }
         .admin-tab[data-tab="onboarding"].active { background:#dbeafe; color:#1d4ed8; border-color:#2563eb; }
         
-        .admin-subtab-bar { display:none; gap:2px; width:100%; max-width:1100px; margin:0 auto; padding:0 20px; overflow-x:auto; position:sticky !important; top:104px !important; z-index:98 !important; background:#475569; border-bottom:2px solid #334155; box-sizing:border-box; -webkit-overflow-scrolling: touch; }
+        .admin-subtab-bar { display:none; gap:2px; width:100%; max-width:1100px; margin:0 auto; padding:0 20px; overflow-x:auto; position:sticky !important; top:101px !important; z-index:98 !important; background:#475569; border-bottom:2px solid #334155; box-sizing:border-box; -webkit-overflow-scrolling: touch; }
         .admin-subtab-bar.visible { display:flex; }
         .admin-subtab { background:#22c55e; border:1px solid #16a34a; border-bottom:none; border-radius:8px 8px 0 0; padding:8px 18px; font-size:14px; font-weight:500; color:#fff; cursor:pointer; white-space:nowrap; }
         .admin-subtab:hover { background:#16a34a; color:#fff; margin-top:2px; }
@@ -230,6 +230,13 @@
         <button class="admin-tab" data-tab="settings" onclick="switchTab('settings')">Settings</button>
         <button class="admin-tab" data-tab="onboarding" onclick="switchTab('onboarding')">Onboarding</button>
         <button class="admin-tab-logout" onclick="dashLogout()">Logout</button>
+    </div>
+
+    <!-- Sticky Subtabs Navigation Bar -->
+    <div class="admin-subtab-bar" id="onboardingSubtabBar">
+        <button class="admin-subtab active" data-subtab="visibility" onclick="switchOnboardingSubtab('visibility')">Task Visibility</button>
+        <button class="admin-subtab" data-subtab="kp" onclick="switchOnboardingSubtab('kp')">Key Personnel</button>
+        <a class="admin-subtab admin-subtab-blue" href="/app/dashboard/onboarding-dashboard.html">View Onboarding Dashboard →</a>
     </div>
 
     <div id="loading" class="admin-loading">Checking session…</div>
@@ -458,13 +465,6 @@
 
         <!-- ===== ONBOARDING TAB ===== -->
         <div class="admin-tab-content" id="tab-onboarding">
-            <!-- Sticky Subtabs Navigation Bar -->
-            <div class="admin-subtab-bar" id="onboardingSubtabBar">
-                <button class="admin-subtab active" data-subtab="visibility" onclick="switchOnboardingSubtab('visibility')">Task Visibility</button>
-                <button class="admin-subtab" data-subtab="kp" onclick="switchOnboardingSubtab('kp')">Key Personnel</button>
-                <a class="admin-subtab admin-subtab-blue" href="/app/dashboard/onboarding-dashboard.html">View Onboarding Dashboard →</a>
-            </div>
-            
             <div class="admin-main">
                 <div class="ob-progress-inline" style="margin-bottom:20px;">
                     <h3>Onboarding Progress</h3>
@@ -904,7 +904,7 @@
                     '<div class="kp-person-info">' +
                         '<div class="kp-person-name">' + esc(kp.name || 'Unknown') + (isPending ? ' <span style="font-size:11px;color:#d97706;font-weight:normal;">(Pending Save)</span>' : '') + '</div>' +
                         '<div class="kp-person-email">' + esc(kp.email || '') + '</div>' +
-                        '<div class="kp-person-tasks">' + (chips || '<span style="font-size:12px;color:var(--text-muted); italic;">No tasks assigned</span>') + '</div>' +
+                        '<div class="kp-person-tasks">' + (chips || '<span style="font-size:12px;color:var(--text-muted);italic;">No tasks assigned</span>') + '</div>' +
                     '</div>' +
                     '<div class="kp-person-actions">' +
                         '<button class="kp-person-remove" onclick="removeKpPerson(' + personIdx + ')">Remove Person</button>' +
@@ -928,7 +928,11 @@
                 return;
             }
 
-            pendingKP.push({ name: name, email: email, tasks: selectedTasks });
+            var parts = name.split(' ');
+            var fn = parts[0] || '';
+            var ln = parts.slice(1).join(' ') || '';
+
+            pendingKP.push({ firstName: fn, lastName: ln, name: name, email: email, tasks: selectedTasks });
 
             // Reset inputs
             document.getElementById("kpName").value = "";
@@ -951,8 +955,18 @@
             renderKeyPersonnel();
         }
 
-        function removeKpPerson(personIdx) {
+        async function removeKpPerson(personIdx) {
             if(personIdx < keyPersonnel.length) {
+                var kp = keyPersonnel[personIdx];
+                if(kp.employeeId) {
+                    try {
+                        await fetch("/api/onboarding/key-personnel/revoke", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ employeeId: kp.employeeId, revokeAll: true })
+                        });
+                    } catch(e) { reportError("removeKpPerson", e); }
+                }
                 keyPersonnel.splice(personIdx, 1);
             } else {
                 pendingKP.splice(personIdx - keyPersonnel.length, 1);
@@ -960,27 +974,50 @@
             renderKeyPersonnel();
         }
 
+        /* ===== Worker-Synced Key Personnel Invitation Flow ===== */
         async function completeKeyPersonnel() {
-            var cid = localStorage.getItem("driven_customer_id");
+            if (pendingKP.length === 0) return;
+
+            var btn = document.getElementById("kpCompleteBtn");
+            if (btn) { btn.disabled = true; btn.textContent = "Creating Accounts & Sending Emails…"; }
+
             try {
-                var res = await fetch("/api/onboarding/key-personnel/save", {
+                // Step 1: Create Employee / User Records
+                var resComplete = await fetch("/api/onboarding/key-personnel/complete", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ customerId: cid, keyPersonnel: pendingKP })
+                    body: JSON.stringify({ keyPersonnel: pendingKP })
                 });
-                var d = await res.json();
-                if(d.success) {
-                    keyPersonnel = keyPersonnel.concat(pendingKP);
-                    pendingKP = [];
-                    renderKeyPersonnel();
-                    alert("Key Personnel invitations sent successfully!");
+                var dComplete = await resComplete.json();
+
+                if (!dComplete.success && !dComplete.results) {
+                    throw new Error(dComplete.error || "Failed to create accounts");
                 }
-            } catch(e) {
-                reportError("completeKeyPersonnel", e);
-                alert("Saved locally.");
+
+                // Step 2: Trigger Welcome Emails & Activate Accounts
+                var emailList = pendingKP.map(function(kp) { return kp.email; });
+                var resInvites = await fetch("/api/onboarding/key-personnel/send-invites", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ emails: emailList })
+                });
+                var dInvites = await resInvites.json();
+
+                if (dInvites.success) {
+                    alert("Key personnel accounts created and invitation emails sent successfully!");
+                } else {
+                    alert("Key personnel accounts created. Some emails may have failed: " + (dInvites.error || "Check worker logs"));
+                }
+
                 keyPersonnel = keyPersonnel.concat(pendingKP);
                 pendingKP = [];
                 renderKeyPersonnel();
+
+            } catch(e) {
+                reportError("completeKeyPersonnel", e);
+                alert("Error sending invitations: " + e.message);
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = "Send Invitations & Create Accounts"; }
             }
         }
 
@@ -998,8 +1035,9 @@
         function hideOnboardingTab(){ var t = document.querySelector('[data-tab="onboarding"]'); if(t) t.style.display = "none"; }
 
         function makeTabsSticky(){
-            var h = document.getElementById("dashHeader"), tb = document.getElementById("adminTabBar");
+            var h = document.getElementById("dashHeader"), tb = document.getElementById("adminTabBar"), sb = document.getElementById("onboardingSubtabBar");
             if(h && tb && !h.contains(tb)) h.appendChild(tb);
+            if(h && sb && !h.contains(sb)) h.appendChild(sb);
         }
 
         function insertHeaderTitle(){
