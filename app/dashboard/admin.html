@@ -1,1029 +1,891 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DRIV‑EN | Admin Dashboard</title>
-<meta name="description" content="DRIV‑EN admin dashboard — full access to all modules, settings, users, and operational data.">
-<meta name="robots" content="noindex, nofollow">
-<link rel="canonical" href="https://www.driv-en.com/app/dashboard/admin.html">
-<link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
-<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
-<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
-<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
-<link rel="stylesheet" href="/app/shared/dashboard.css?v=10">
-<link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
-<script>
-(function() {
-  var saved = localStorage.getItem("driven-theme");
-  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  var theme = saved || system;
-  document.documentElement.setAttribute("data-theme", theme);
-})();
-</script>
-<style>
-    .admin-loading { display:flex; align-items:center; justify-content:center; height:100vh; font-size:16px; color:var(--text-muted); }
-    .dash-header-row2 { display:none !important; }
-    .dash-header-row3 { display:none !important; }
-    #dashHeader .dash-theme-wrapper { display:none !important; }
-    .dash-header-row1 { padding:8px 20px !important; align-items:center; }
-    .admin-header-title { flex:1; text-align:center; font-size:20px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .admin-tab-bar { display:flex; gap:2px; max-width:1100px; margin:0 auto; padding:0 20px; overflow-x:auto; position:relative; z-index:1; background:#cbd5e1; border-bottom:2px solid #94a3b8; }
-    .admin-tab { background:#94a3b8; border:1px solid #64748b; border-bottom:none; border-radius:8px 8px 0 0; padding:10px 22px; font-size:15px; font-weight:500; color:#1e293b; cursor:pointer; white-space:nowrap; }
-    .admin-tab:hover { color:#0f172a; background:#a5b4c4; margin-top:2px; }
-    .admin-tab.active { color:#1d4ed8; background:#e2e8f0; border-color:#64748b; margin-top:0; font-weight:600; z-index:2; }
-    .admin-tab[data-tab="forms"] { background:#22c55e; border-color:#16a34a; color:#fff; }
-    .admin-tab[data-tab="forms"]:hover { background:#16a34a; color:#fff; }
-    .admin-tab[data-tab="forms"].active { background:#dcfce7; color:#15803d; border-color:#16a34a; }
-    .admin-tab[data-tab="onboarding"] { background:#2563eb; border-color:#1d4ed8; color:#fff; }
-    .admin-tab[data-tab="onboarding"]:hover { background:#1d4ed8; color:#fff; }
-    .admin-tab[data-tab="onboarding"].active { background:#dbeafe; color:#1d4ed8; border-color:#2563eb; }
-    .admin-tab-content { display:none; }
-    .admin-tab-content.active { display:block; }
-    .admin-subtab-bar { display:none; gap:2px; max-width:1100px; margin:0 auto; padding:0 20px; overflow-x:auto; position:relative; z-index:1; background:#475569; border-bottom:2px solid #334155; }
-    .admin-subtab-bar.visible { display:flex; }
-    .admin-subtab { background:#22c55e; border:1px solid #16a34a; border-bottom:none; border-radius:8px 8px 0 0; padding:8px 18px; font-size:14px; font-weight:500; color:#fff; cursor:pointer; white-space:nowrap; }
-    .admin-subtab:hover { background:#16a34a; color:#fff; margin-top:2px; }
-    .admin-subtab.active { color:#fff; background:#15803d; border-color:#22c55e; margin-top:0; font-weight:600; z-index:2; }
-    .admin-subtab-content { display:none; }
-    .admin-subtab-content.active { display:block; margin-top:20px; }
-    .admin-subtab-blue { background:#1e40af; border:1px solid #2563eb; border-bottom:none; border-radius:8px 8px 0 0; padding:8px 18px; font-size:14px; font-weight:600; color:#dbeafe; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; }
-    .admin-subtab-blue:hover { background:#1d4ed8; color:#fff; margin-top:2px; }
-    .ob-progress-inline { width:100%; max-width:100%; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:16px 20px; box-sizing:border-box; }
-    .ob-progress-inline h3 { margin:0 0 10px 0; font-size:16px; color:var(--text); }
-    .ob-progress-inline .progress-bar-container { margin-bottom:6px; }
-    .ob-progress-inline .progress-text { font-size:13px; }
-    .ob-progress-btns { display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; }
-    .admin-tab-logout { background:#b91c1c; border:1px solid #dc2626; border-bottom:none; border-radius:8px 8px 0 0; padding:10px 22px; font-size:15px; font-weight:600; color:#fff; cursor:pointer; white-space:nowrap; }
-    .admin-tab-logout:hover { background:#dc2626; margin-top:2px; }
-    .admin-main { max-width:1100px; margin:20px auto; padding:0 20px; position:relative; z-index:1; }
-    .admin-welcome { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:24px; margin-bottom:24px; }
-    .admin-welcome-top { display:flex; justify-content:space-between; align-items:center; gap:16px; }
-    .admin-welcome-actions { display:flex; justify-content:flex-end; align-items:center; gap:12px; flex-wrap:wrap; }
-    .admin-welcome-actions .theme-switch-wrapper { border:1px solid var(--border); border-radius:6px; padding:8px 12px; }
-    .admin-welcome h2 { margin:0; font-size:20px; color:var(--text); }
-    .admin-welcome p { margin:6px 0 0; font-size:14px; color:var(--text-muted); }
-    .admin-welcome .welcome-detail { display:grid; gap:2px; font-size:13px; color:var(--text-muted); margin-top:0; }
-    .welcome-detail-row { display:flex; align-items:center; gap:6px; }
-    .welcome-detail-label { font-weight:600; color:var(--text); }
-    .welcome-details-grid { display:grid; grid-template-columns:minmax(0, 1fr) auto; column-gap:20px; row-gap:2px; align-items:center; }
-    .welcome-company-row { grid-column:1; grid-row:1; }
-    .welcome-role-row { grid-column:1; grid-row:2; }
-    .welcome-email-row { grid-column:1; grid-row:3; }
-    .welcome-change-password { grid-column:2; grid-row:1 / span 2; align-self:center; margin:0; flex-shrink:0; background:transparent; border:1px solid var(--primary); color:var(--primary); }
-    .admin-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin-bottom:24px; }
-.admin-stat-card {
-    background: var(--bg-card);
-    border: 2px solid #16a34a; /* Set default border to green */
-    border-radius: 8px;
-    padding: 20px;
-    cursor: pointer;
-    transition: border-color 200ms ease, box-shadow 200ms ease;
-    display: flex;
-    flex-direction: column;
-}
-
-.admin-stat-card:hover {
-    border-color: #2563eb; /* Turn border blue on hover */
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
-}
-.admin-stat-card {
-      background: var(--bg-card);
-      border: 2px solid #16a34a;
-      border-radius: 8px;
-      padding: 20px;
-      cursor: pointer;
-      transition: border-color 200ms ease, box-shadow 200ms ease;
-      display: flex;
-      flex-direction: column;
-    }
-    .admin-stat-card:hover {
-      border-color: #2563eb;
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
-    }
-    .admin-stat-number { font-size:32px; font-weight:700; color:var(--text); }
-    .admin-stat-label { font-size:14px; font-weight:600; color:var(--text); }
-    .admin-stat-desc { font-size:12px; color:var(--text-muted); line-height:1.4; flex:1; }
-    .admin-stat-link { font-size:13px; color:var(--primary); font-weight:500; }
-    .emp-form-card {
-      background: var(--bg-card);
-      border: 2px solid #16a34a;
-      border-radius: 8px;
-      padding: 16px 20px;
-      text-decoration: none;
-      color: var(--text);
-      transition: border-color 200ms ease, box-shadow 200ms ease;
-      display: flex;
-      flex-direction: column;
-    }
-    .emp-form-card:hover {
-      border-color: #2563eb;
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
-    }
-    .settings-section { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:24px; margin-bottom:20px; }
-    .settings-section h3 { margin:0 0 16px 0; font-size:18px; color:var(--text); padding-bottom:10px; border-bottom:1px solid var(--border); }
-    .settings-row { display:flex; align-items:flex-start; gap:16px; margin-bottom:16px; flex-wrap:wrap; }
-    .settings-label { font-size:14px; font-weight:600; color:var(--text); min-width:140px; padding-top:8px; }
-    .settings-field { flex:1; min-width:200px; }
-    .settings-field select, .settings-field input { width:100%; padding:10px 12px; font-size:14px; border:1px solid var(--border-input,var(--border)); border-radius:6px; background:var(--bg-step); color:var(--text); box-sizing:border-box; }
-    .settings-field select:focus, .settings-field input:focus { outline:none; border-color:var(--primary); }
-    .settings-hint { font-size:12px; color:var(--text-muted); margin-top:4px; }
-    .bt-inline-row { display:flex; align-items:center; gap:10px; }
-    .bt-inline-row select, .bt-inline-row input { flex:1; min-width:0; }
-    .bt-inline-row .settings-save-btn { margin-top:0; flex-shrink:0; white-space:nowrap; }
-    .settings-save-btn { background:var(--primary); border:1px solid var(--primary-hover); color:#fff; padding:10px 20px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; margin-top:8px; }
-    .settings-save-btn:hover { background:var(--primary-hover); }
-    .settings-save-btn:disabled { opacity:0.5; cursor:not-allowed; }
-    .settings-status { font-size:13px; margin-top:8px; }
-    .settings-section-title-row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; padding-bottom:10px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
-    .settings-section-title-row h3 { margin:0; padding:0; border:none; }
-    .settings-section-title-row .settings-save-btn { margin-top:0; flex-shrink:0; }
-    .visibility-warning { background:#fef3c7; border:1px solid #f59e0b; color:#92400e; padding:10px 14px; border-radius:6px; font-size:13px; margin-bottom:14px; line-height:1.5; }
-    .logo-upload-area { display:flex; align-items:center; gap:16px; margin-top:8px; }
-    .logo-preview { width:140px; height:70px; border:2px dashed var(--border); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--text-muted); overflow:hidden; }
-    .logo-preview img { max-width:100%; max-height:100%; object-fit:contain; }
-    .logo-upload-btn { background:var(--primary); border:1px solid var(--primary-hover); color:#fff; padding:8px 14px; border-radius:6px; font-size:13px; cursor:pointer; }
-    .logo-upload-btn:hover { background:var(--primary-hover); }
-    .logo-remove-btn { background:transparent; border:1px solid var(--error); color:var(--error); padding:8px 14px; border-radius:6px; font-size:13px; cursor:pointer; margin-top:8px; }
-    .logo-remove-btn:hover { background:var(--error); color:#fff; }
-    .logo-status { font-size:12px; color:var(--text-muted); margin-top:4px; }
-    .theme-switch-wrapper { display:flex; align-items:center; gap:8px; }
-    .theme-switch-label { font-size:12px; color:var(--text-muted); transition:opacity 200ms ease; }
-    .theme-switch-label.active { color:var(--text); font-weight:600; }
-    .theme-switch { position:relative; display:inline-block; width:44px; height:24px; }
-    .theme-switch input { opacity:0; width:0; height:0; }
-    .theme-slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:var(--border); border-radius:24px; transition:background 200ms ease; }
-    .theme-slider:before { content:""; position:absolute; height:18px; width:18px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:transform 200ms ease; }
-    :root[data-theme="light"] .theme-switch .theme-slider { background:#16a34a; border:1px solid #15803d; }
-    .theme-switch input:checked + .theme-slider { background:var(--primary); }
-    .theme-switch input:checked + .theme-slider:before { transform:translateX(20px); }
-    .step-toggle-list { display:flex; flex-direction:column; gap:10px; }
-    .step-toggle-row { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:var(--bg-step); border:2px solid #16a34a; border-radius:8px; transition:border-color 200ms ease; }
-    .step-toggle-row:hover { border-color:#15803d; box-shadow:0 2px 8px rgba(22,163,74,0.15); }
-    .step-toggle-name { font-size:14px; font-weight:600; color:var(--text); }
-    .step-toggle-desc { font-size:12px; color:var(--text-muted); }
-    .step-toggle-locked { font-size:11px; color:var(--text-muted); font-style:italic; }
-    .toggle-switch { position:relative; display:inline-block; width:44px; height:24px; flex-shrink:0; }
-    .toggle-switch input { opacity:0; width:0; height:0; }
-    .toggle-slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#4b5563; border-radius:24px; transition:background 200ms ease; }
-    .toggle-slider:before { content:""; position:absolute; height:18px; width:18px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:transform 200ms ease; }
-    .toggle-switch input:checked + .toggle-slider { background:var(--success,#16a34a); }
-    .toggle-switch input:checked + .toggle-slider:before { transform:translateX(20px); }
-    .toggle-switch input:disabled + .toggle-slider { opacity:0.4; cursor:not-allowed; }
-    .toggle-switch input:disabled + .toggle-slider:before { background:#9ca3af; }
-    .kp-add-form { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; align-items:end; }
-    .kp-add-form input, .kp-add-form select { padding:10px 12px; font-size:14px; border:1px solid var(--border-input,var(--border)); border-radius:6px; background:var(--bg-step); color:var(--text); box-sizing:border-box; }
-    .kp-add-form input:focus, .kp-add-form select:focus { outline:none; border-color:var(--primary); }
-    .kp-add-btn { background:var(--primary); border:1px solid var(--primary-hover); color:#fff; padding:10px 16px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; white-space:nowrap; }
-    .kp-add-btn:hover { background:var(--primary-hover); }
-    .kp-add-btn:disabled { opacity:0.5; cursor:not-allowed; }
-    .kp-list { margin-top:8px; }
-    .kp-list-title { font-size:14px; font-weight:600; color:var(--text); margin-bottom:10px; }
-    .kp-person-row { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:var(--bg-step); border:1px solid var(--border); border-radius:6px; margin-bottom:8px; flex-wrap:wrap; }
-    .kp-person-info { flex:1; min-width:180px; }
-    .kp-person-name { font-size:14px; font-weight:600; color:var(--text); }
-    .kp-person-email { font-size:12px; color:#60a5fa; }
-    .kp-person-tasks { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
-    .kp-task-chip { display:inline-flex; align-items:center; gap:6px; background:var(--bg-card); border:1px solid var(--primary); color:var(--text); border-radius:14px; padding:3px 6px 3px 10px; font-size:12px; }
-    .kp-task-chip button { background:transparent; border:none; color:var(--error); font-size:14px; line-height:1; cursor:pointer; padding:0 2px; }
-    .kp-task-chip button:hover { color:#fff; background:var(--error); border-radius:50%; }
-    .kp-person-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-    .kp-person-remove { background:transparent; border:1px solid var(--error); color:var(--error); padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer; white-space:nowrap; }
-    .kp-person-remove:hover { background:var(--error); color:#fff; }
-    .kp-loading { font-size:13px; color:var(--text-muted); padding:10px; }
-    .onboarding-progress { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:20px; margin-top:20px; }
-    .onboarding-progress h3 { margin:0 0 12px 0; font-size:16px; color:var(--text); }
-    .progress-bar-container { width:100%; height:8px; background:var(--border); border-radius:4px; overflow:hidden; margin-bottom:8px; }
-    .progress-bar-fill { height:100%; background:var(--success,#16a34a); border-radius:4px; transition:width 400ms ease; }
-    .progress-text { font-size:13px; color:var(--text-muted); }
-    .progress-complete-btn { background:var(--success,#16a34a); border:1px solid #15803d; color:#fff; padding:12px 24px; border-radius:6px; font-size:15px; font-weight:600; cursor:pointer; margin-top:8px; display:none; }
-    .progress-complete-btn:hover { background:#15803d; }
-    .progress-complete-btn.show { display:inline-block; }
-    .reopen-onboarding-btn { background:transparent; border:1px solid var(--primary); color:var(--primary); padding:8px 16px; border-radius:6px; font-size:13px; cursor:pointer; margin-top:12px; display:none; }
-    .reopen-onboarding-btn:hover { background:var(--primary); color:#fff; }
-    .onboarding-complete-panel { display:none; background:#f0fdf4; border:2px solid #16a34a; border-radius:10px; padding:24px; margin-top:16px; }
-    .onboarding-complete-panel.show { display:block; }
-    .onboarding-complete-panel h3 { margin:0 0 8px 0; font-size:18px; color:#15803d; }
-    .onboarding-complete-panel p { margin:0 0 12px 0; font-size:14px; color:var(--text); line-height:1.6; }
-    .onboarding-complete-panel .complete-note { font-size:13px; color:var(--text-muted); margin-bottom:16px; }
-    .finalize-onboarding-btn { background:#16a34a; border:1px solid #15803d; color:#fff; padding:14px 28px; border-radius:8px; font-size:15px; font-weight:700; cursor:pointer; display:inline-block; }
-    .finalize-onboarding-btn:hover { background:#15803d; }
-    .finalize-onboarding-btn:disabled { background:#94a3b8; border-color:#94a3b8; cursor:not-allowed; }
-    .confirm-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:10000; align-items:center; justify-content:center; }
-    .confirm-modal.active { display:flex; }
-    .confirm-card { max-width:440px; width:90%; background:var(--bg-card); border:1px solid var(--primary); border-radius:12px; padding:28px; text-align:center; }
-    .confirm-card h3 { margin:0 0 10px 0; font-size:20px; color:var(--text); }
-    .confirm-card p { margin:0 0 20px 0; font-size:14px; color:var(--text-muted); line-height:1.5; }
-    .confirm-btn-confirm { background:var(--success,#16a34a); border:1px solid #15803d; color:#fff; padding:10px 20px; border-radius:6px; font-size:15px; font-weight:600; cursor:pointer; margin:0 6px; }
-    .confirm-btn-confirm:hover { background:#15803d; }
-    .confirm-btn-cancel { background:var(--bg-step); border:1px solid var(--border); color:var(--text); padding:10px 20px; border-radius:6px; font-size:15px; cursor:pointer; margin:0 6px; }
-    .confirm-btn-cancel:hover { border-color:var(--primary); }
-    .page-error-banner { display:none; position:sticky; top:0; z-index:999; background:#fef2f2; border:1px solid #dc2626; color:#991b1b; padding:10px 20px; font-size:14px; text-align:center; }
-    .page-error-banner.show { display:block; }
-    .page-error-banner a { color:#dc2626; cursor:pointer; text-decoration:underline; }
-    @media (max-width:800px) {
-      .admin-stats { grid-template-columns:repeat(2,1fr); }
-      .admin-main { padding:0 12px; margin:12px auto; }
-      .admin-welcome { padding:18px; }
-      .admin-welcome-top { align-items:flex-start; flex-direction:column; gap:12px; }
-      .admin-welcome-actions { justify-content:flex-start; }
-      .welcome-details-grid { grid-template-columns:minmax(0, 1fr) auto; column-gap:10px; }
-      .welcome-change-password { padding:8px 10px; font-size:12px; }
-      .settings-row { flex-direction:column; gap:4px; }
-      .settings-label { padding-top:0; }
-      .kp-add-form { grid-template-columns:1fr; }
-      .admin-tab { padding:10px 16px; font-size:14px; }
-      .admin-tab-logout { padding:10px 16px; font-size:14px; }
-    }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DRIV‑EN | Admin Dashboard</title>
+    <meta name="description" content="DRIV‑EN admin dashboard — full access to all modules, settings, users, and operational data.">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="canonical" href="https://www.driv-en.com/app/dashboard/admin.html">
+    <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+    <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+    <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+    <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
+    <link rel="stylesheet" href="/app/shared/dashboard.css?v=10">
+    <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
+    <script>
+        (function() {
+            var saved = localStorage.getItem("driven-theme");
+            var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+            var theme = saved || system;
+            document.documentElement.setAttribute("data-theme", theme);
+        })();
+    </script>
+    <style>
+        .admin-loading { display:flex; align-items:center; justify-content:center; height:100vh; font-size:16px; color:var(--text-muted); }
+        .dash-header-row2 { display:none !important; }
+        .dash-header-row3 { display:none !important; }
+        #dashHeader .dash-theme-wrapper { display:none !important; }
+        .dash-header-row1 { padding:8px 20px !important; align-items:center; }
+        .admin-header-title { flex:1; text-align:center; font-size:20px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .admin-tab-bar { display:flex; gap:2px; max-width:1100px; margin:0 auto; padding:0 20px; overflow-x:auto; position:relative; z-index:1; background:#cbd5e1; border-bottom:2px solid #94a3b8; }
+        .admin-tab { background:#94a3b8; border:1px solid #64748b; border-bottom:none; border-radius:8px 8px 0 0; padding:10px 22px; font-size:15px; font-weight:500; color:#1e293b; cursor:pointer; white-space:nowrap; }
+        .admin-tab:hover { color:#0f172a; background:#a5b4c4; margin-top:2px; }
+        .admin-tab.active { color:#1d4ed8; background:#e2e8f0; border-color:#64748b; margin-top:0; font-weight:600; z-index:2; }
+        .admin-tab[data-tab="forms"] { background:#22c55e; border-color:#16a34a; color:#fff; }
+        .admin-tab[data-tab="forms"]:hover { background:#16a34a; color:#fff; }
+        .admin-tab[data-tab="forms"].active { background:#dcfce7; color:#15803d; border-color:#16a34a; }
+        .admin-tab[data-tab="onboarding"] { background:#2563eb; border-color:#1d4ed8; color:#fff; }
+        .admin-tab[data-tab="onboarding"]:hover { background:#1d4ed8; color:#fff; }
+        .admin-tab[data-tab="onboarding"].active { background:#dbeafe; color:#1d4ed8; border-color:#2563eb; }
+        .admin-tab-content { display:none; }
+        .admin-tab-content.active { display:block; }
+        .admin-subtab-bar { display:none; gap:2px; max-width:1100px; margin:0 auto; padding:0 20px; overflow-x:auto; position:relative; z-index:1; background:#475569; border-bottom:2px solid #334155; }
+        .admin-subtab-bar.visible { display:flex; }
+        .admin-subtab { background:#22c55e; border:1px solid #16a34a; border-bottom:none; border-radius:8px 8px 0 0; padding:8px 18px; font-size:14px; font-weight:500; color:#fff; cursor:pointer; white-space:nowrap; }
+        .admin-subtab:hover { background:#16a34a; color:#fff; margin-top:2px; }
+        .admin-subtab.active { color:#fff; background:#15803d; border-color:#22c55e; margin-top:0; font-weight:600; z-index:2; }
+        .admin-subtab-content { display:none; }
+        .admin-subtab-content.active { display:block; margin-top:20px; }
+        .admin-subtab-blue { background:#1e40af; border:1px solid #2563eb; border-bottom:none; border-radius:8px 8px 0 0; padding:8px 18px; font-size:14px; font-weight:600; color:#dbeafe; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; }
+        .admin-subtab-blue:hover { background:#1d4ed8; color:#fff; margin-top:2px; }
+        .ob-progress-inline { width:100%; max-width:100%; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:16px 20px; box-sizing:border-box; }
+        .ob-progress-inline h3 { margin:0 0 10px 0; font-size:16px; color:var(--text); }
+        .ob-progress-inline .progress-bar-container { margin-bottom:6px; }
+        .ob-progress-inline .progress-text { font-size:13px; }
+        .ob-progress-btns { display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; }
+        .admin-tab-logout { background:#b91c1c; border:1px solid #dc2626; border-bottom:none; border-radius:8px 8px 0 0; padding:10px 22px; font-size:15px; font-weight:600; color:#fff; cursor:pointer; white-space:nowrap; }
+        .admin-tab-logout:hover { background:#dc2626; margin-top:2px; }
+        .admin-main { max-width:1100px; margin:20px auto; padding:0 20px; position:relative; z-index:1; }
+        .admin-welcome { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:24px; margin-bottom:24px; }
+        .admin-welcome-top { display:flex; justify-content:space-between; align-items:center; gap:16px; }
+        .admin-welcome-actions { display:flex; justify-content:flex-end; align-items:center; gap:12px; flex-wrap:wrap; }
+        .admin-welcome-actions .theme-switch-wrapper { border:1px solid var(--border); border-radius:6px; padding:8px 12px; }
+        .admin-welcome h2 { margin:0; font-size:20px; color:var(--text); }
+        .admin-welcome p { margin:6px 0 0; font-size:14px; color:var(--text-muted); }
+        .admin-welcome .welcome-detail { display:grid; gap:2px; font-size:13px; color:var(--text-muted); margin-top:0; }
+        .welcome-detail-row { display:flex; align-items:center; gap:6px; }
+        .welcome-detail-label { font-weight:600; color:var(--text); }
+        .welcome-details-grid { display:grid; grid-template-columns:minmax(0, 1fr) auto; column-gap:20px; row-gap:2px; align-items:center; }
+        .welcome-company-row { grid-column:1; grid-row:1; }
+        .welcome-role-row { grid-column:1; grid-row:2; }
+        .welcome-email-row { grid-column:1; grid-row:3; }
+        .welcome-change-password { grid-column:2; grid-row:1 / span 2; align-self:center; margin:0; flex-shrink:0; background:transparent; border:1px solid var(--primary); color:var(--primary); }
+        .admin-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin-bottom:24px; }
+        .admin-stat-card { background:var(--bg-card); border:2px solid #16a34a; border-radius:8px; padding:20px; cursor:pointer; transition:border-color 200ms ease, box-shadow 200ms ease; display:flex; flex-direction:column; }
+        .admin-stat-card:hover { border-color:#2563eb; box-shadow:0 4px 12px rgba(37, 99, 235, 0.2); }
+        .admin-stat-number { font-size:32px; font-weight:700; color:var(--text); }
+        .admin-stat-label { font-size:14px; font-weight:600; color:var(--text); }
+        .admin-stat-desc { font-size:12px; color:var(--text-muted); line-height:1.4; flex:1; }
+        .admin-stat-link { font-size:13px; color:var(--primary); font-weight:500; }
+        .emp-form-card { background:var(--bg-card); border:2px solid #16a34a; border-radius:8px; padding:16px 20px; text-decoration:none; color:var(--text); transition:border-color 200ms ease, box-shadow 200ms ease; display:flex; flex-direction:column; }
+        .emp-form-card:hover { border-color:#2563eb; box-shadow:0 4px 12px rgba(37, 99, 235, 0.2); }
+        .settings-section { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:24px; margin-bottom:20px; }
+        .settings-section h3 { margin:0 0 16px 0; font-size:18px; color:var(--text); padding-bottom:10px; border-bottom:1px solid var(--border); }
+        .settings-row { display:flex; align-items:flex-start; gap:16px; margin-bottom:16px; flex-wrap:wrap; }
+        .settings-label { font-size:14px; font-weight:600; color:var(--text); min-width:140px; padding-top:8px; }
+        .settings-field { flex:1; min-width:200px; }
+        .settings-field select, .settings-field input { width:100%; padding:10px 12px; font-size:14px; border:1px solid var(--border-input,var(--border)); border-radius:6px; background:var(--bg-step); color:var(--text); box-sizing:border-box; }
+        .settings-field select:focus, .settings-field input:focus { outline:none; border-color:var(--primary); }
+        .settings-hint { font-size:12px; color:var(--text-muted); margin-top:4px; }
+        .bt-inline-row { display:flex; align-items:center; gap:10px; }
+        .bt-inline-row select, .bt-inline-row input { flex:1; min-width:0; }
+        .bt-inline-row .settings-save-btn { margin-top:0; flex-shrink:0; white-space:nowrap; }
+        .settings-save-btn { background:var(--primary); border:1px solid var(--primary-hover); color:#fff; padding:10px 20px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; margin-top:8px; }
+        .settings-save-btn:hover { background:var(--primary-hover); }
+        .settings-save-btn:disabled { opacity:0.5; cursor:not-allowed; }
+        .settings-status { font-size:13px; margin-top:8px; }
+        .settings-section-title-row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; padding-bottom:10px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+        .settings-section-title-row h3 { margin:0; padding:0; border:none; }
+        .settings-section-title-row .settings-save-btn { margin-top:0; flex-shrink:0; }
+        .visibility-warning { background:#fef3c7; border:1px solid #f59e0b; color:#92400e; padding:10px 14px; border-radius:6px; font-size:13px; margin-bottom:14px; line-height:1.5; }
+        .logo-upload-area { display:flex; align-items:center; gap:16px; margin-top:8px; }
+        .logo-preview { width:140px; height:70px; border:2px dashed var(--border); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--text-muted); overflow:hidden; }
+        .logo-preview img { max-width:100%; max-height:100%; object-fit:contain; }
+        .logo-upload-btn { background:var(--primary); border:1px solid var(--primary-hover); color:#fff; padding:8px 14px; border-radius:6px; font-size:13px; cursor:pointer; }
+        .logo-upload-btn:hover { background:var(--primary-hover); }
+        .logo-remove-btn { background:transparent; border:1px solid var(--error); color:var(--error); padding:8px 14px; border-radius:6px; font-size:13px; cursor:pointer; margin-top:8px; }
+        .logo-remove-btn:hover { background:var(--error); color:#fff; }
+        .logo-status { font-size:12px; color:var(--text-muted); margin-top:4px; }
+        .theme-switch-wrapper { display:flex; align-items:center; gap:8px; }
+        .theme-switch-label { font-size:12px; color:var(--text-muted); transition:opacity 200ms ease; }
+        .theme-switch-label.active { color:var(--text); font-weight:600; }
+        .theme-switch { position:relative; display:inline-block; width:44px; height:24px; }
+        .theme-switch input { opacity:0; width:0; height:0; }
+        .theme-slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:var(--border); border-radius:24px; transition:background 200ms ease; }
+        .theme-slider:before { content:""; position:absolute; height:18px; width:18px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:transform 200ms ease; }
+        :root[data-theme="light"] .theme-switch .theme-slider { background:#16a34a; border:1px solid #15803d; }
+        .theme-switch input:checked + .theme-slider { background:var(--primary); }
+        .theme-switch input:checked + .theme-slider:before { transform:translateX(20px); }
+        .step-toggle-list { display:flex; flex-direction:column; gap:10px; }
+        .step-toggle-row { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:var(--bg-step); border:2px solid #16a34a; border-radius:8px; transition:border-color 200ms ease; }
+        .step-toggle-row:hover { border-color:#15803d; box-shadow:0 2px 8px rgba(22,163,74,0.15); }
+        .step-toggle-name { font-size:14px; font-weight:600; color:var(--text); }
+        .step-toggle-desc { font-size:12px; color:var(--text-muted); }
+        .step-toggle-locked { font-size:11px; color:var(--text-muted); font-style:italic; }
+        .toggle-switch { position:relative; display:inline-block; width:44px; height:24px; flex-shrink:0; }
+        .toggle-switch input { opacity:0; width:0; height:0; }
+        .toggle-slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#4b5563; border-radius:24px; transition:background 200ms ease; }
+        .toggle-slider:before { content:""; position:absolute; height:18px; width:18px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:transform 200ms ease; }
+        .toggle-switch input:checked + .toggle-slider { background:var(--success,#16a34a); }
+        .toggle-switch input:checked + .toggle-slider:before { transform:translateX(20px); }
+        .toggle-switch input:disabled + .toggle-slider { opacity:0.4; cursor:not-allowed; }
+        .toggle-switch input:disabled + .toggle-slider:before { background:#9ca3af; }
+        .kp-add-form { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; align-items:end; }
+        .kp-add-form input, .kp-add-form select { padding:10px 12px; font-size:14px; border:1px solid var(--border-input,var(--border)); border-radius:6px; background:var(--bg-step); color:var(--text); box-sizing:border-box; }
+        .kp-add-form input:focus, .kp-add-form select:focus { outline:none; border-color:var(--primary); }
+        .kp-add-btn { background:var(--primary); border:1px solid var(--primary-hover); color:#fff; padding:10px 16px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; white-space:nowrap; }
+        .kp-add-btn:hover { background:var(--primary-hover); }
+        .kp-add-btn:disabled { opacity:0.5; cursor:not-allowed; }
+        .kp-list { margin-top:8px; }
+        .kp-list-title { font-size:14px; font-weight:600; color:var(--text); margin-bottom:10px; }
+        .kp-person-row { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:var(--bg-step); border:1px solid var(--border); border-radius:6px; margin-bottom:8px; flex-wrap:wrap; }
+        .kp-person-info { flex:1; min-width:180px; }
+        .kp-person-name { font-size:14px; font-weight:600; color:var(--text); }
+        .kp-person-email { font-size:12px; color:#60a5fa; }
+        .kp-person-tasks { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
+        .kp-task-chip { display:inline-flex; align-items:center; gap:6px; background:var(--bg-card); border:1px solid var(--primary); color:var(--text); border-radius:14px; padding:3px 6px 3px 10px; font-size:12px; }
+        .kp-task-chip button { background:transparent; border:none; color:var(--error); font-size:14px; line-height:1; cursor:pointer; padding:0 2px; }
+        .kp-task-chip button:hover { color:#fff; background:var(--error); border-radius:50%; }
+        .kp-person-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .kp-person-remove { background:transparent; border:1px solid var(--error); color:var(--error); padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer; white-space:nowrap; }
+        .kp-person-remove:hover { background:var(--error); color:#fff; }
+        .kp-loading { font-size:13px; color:var(--text-muted); padding:10px; }
+        .onboarding-progress { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:20px; margin-top:20px; }
+        .onboarding-progress h3 { margin:0 0 12px 0; font-size:16px; color:var(--text); }
+        .progress-bar-container { width:100%; height:8px; background:var(--border); border-radius:4px; overflow:hidden; margin-bottom:8px; }
+        .progress-bar-fill { height:100%; background:var(--success,#16a34a); border-radius:4px; transition:width 400ms ease; }
+        .progress-text { font-size:13px; color:var(--text-muted); }
+        .progress-complete-btn { background:var(--success,#16a34a); border:1px solid #15803d; color:#fff; padding:12px 24px; border-radius:6px; font-size:15px; font-weight:600; cursor:pointer; margin-top:8px; display:none; }
+        .progress-complete-btn:hover { background:#15803d; }
+        .progress-complete-btn.show { display:inline-block; }
+        .reopen-onboarding-btn { background:transparent; border:1px solid var(--primary); color:var(--primary); padding:8px 16px; border-radius:6px; font-size:13px; cursor:pointer; margin-top:12px; display:none; }
+        .reopen-onboarding-btn:hover { background:var(--primary); color:#fff; }
+        .onboarding-complete-panel { display:none; background:#f0fdf4; border:2px solid #16a34a; border-radius:10px; padding:24px; margin-top:16px; }
+        .onboarding-complete-panel.show { display:block; }
+        .onboarding-complete-panel h3 { margin:0 0 8px 0; font-size:18px; color:#15803d; }
+        .onboarding-complete-panel p { margin:0 0 12px 0; font-size:14px; color:var(--text); line-height:1.6; }
+        .onboarding-complete-panel .complete-note { font-size:13px; color:var(--text-muted); margin-bottom:16px; }
+        .finalize-onboarding-btn { background:#16a34a; border:1px solid #15803d; color:#fff; padding:14px 28px; border-radius:8px; font-size:15px; font-weight:700; cursor:pointer; display:inline-block; }
+        .finalize-onboarding-btn:hover { background:#15803d; }
+        .finalize-onboarding-btn:disabled { background:#94a3b8; border-color:#94a3b8; cursor:not-allowed; }
+        .confirm-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:10000; align-items:center; justify-content:center; }
+        .confirm-modal.active { display:flex; }
+        .confirm-card { max-width:440px; width:90%; background:var(--bg-card); border:1px solid var(--primary); border-radius:12px; padding:28px; text-align:center; }
+        .confirm-card h3 { margin:0 0 10px 0; font-size:20px; color:var(--text); }
+        .confirm-card p { margin:0 0 20px 0; font-size:14px; color:var(--text-muted); line-height:1.5; }
+        .confirm-btn-confirm { background:var(--success,#16a34a); border:1px solid #15803d; color:#fff; padding:10px 20px; border-radius:6px; font-size:15px; font-weight:600; cursor:pointer; margin:0 6px; }
+        .confirm-btn-confirm:hover { background:#15803d; }
+        .confirm-btn-cancel { background:var(--bg-step); border:1px solid var(--border); color:var(--text); padding:10px 20px; border-radius:6px; font-size:15px; cursor:pointer; margin:0 6px; }
+        .confirm-btn-cancel:hover { border-color:var(--primary); }
+        .page-error-banner { display:none; position:sticky; top:0; z-index:999; background:#fef2f2; border:1px solid #dc2626; color:#991b1b; padding:10px 20px; font-size:14px; text-align:center; }
+        .page-error-banner.show { display:block; }
+        .page-error-banner a { color:#dc2626; cursor:pointer; text-decoration:underline; }
+        @media (max-width:800px) {
+          .admin-stats { grid-template-columns:repeat(2,1fr); }
+          .admin-main { padding:0 12px; margin:12px auto; }
+          .admin-welcome { padding:18px; }
+          .admin-welcome-top { align-items:flex-start; flex-direction:column; gap:12px; }
+          .admin-welcome-actions { justify-content:flex-start; }
+          .welcome-details-grid { grid-template-columns:minmax(0, 1fr) auto; column-gap:10px; }
+          .welcome-change-password { padding:8px 10px; font-size:12px; }
+          .settings-row { flex-direction:column; gap:4px; }
+          .settings-label { padding-top:0; }
+          .kp-add-form { grid-template-columns:1fr; }
+          .admin-tab { padding:10px 16px; font-size:14px; }
+          .admin-tab-logout { padding:10px 16px; font-size:14px; }
+        }
+    </style>
 </head>
 <body data-page-title="Admin Dashboard" data-required-role="Admin">
-<div class="steel-bg"></div>
-<div class="steel-overlay"></div>
-<div class="page-error-banner" id="pageErrorBanner">⚠️ A page error occurred. The DRIV-EN team has been notified. <a onclick="dismissPageError()">Dismiss</a></div>
-<div id="dashHeader"></div>
-<div class="admin-tab-bar" id="adminTabBar">
-  <button class="admin-tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
-  <button class="admin-tab" data-tab="forms" onclick="switchTab('forms')">Forms</button>
-  <button class="admin-tab" data-tab="settings" onclick="switchTab('settings')">Settings</button>
-  <button class="admin-tab" data-tab="onboarding" onclick="switchTab('onboarding')">Onboarding</button>
-  <button class="admin-tab-logout" onclick="dashLogout()">Logout</button>
-</div>
-<div id="loading" class="admin-loading">Checking session…</div>
-<div id="dashboard" style="display:none;">
-
-  <!-- ===== OVERVIEW TAB ===== -->
-  <div class="admin-tab-content active" id="tab-overview">
-    <div class="admin-main">
-      <div class="admin-welcome">
-        <div class="admin-welcome-top">
-          <h2>Welcome, <span id="welcome-name"></span></h2>
-          <div class="admin-welcome-actions">
-            <div class="theme-switch-wrapper" title="Toggle light/dark mode">
-              <span class="theme-switch-label" id="theme-label-light">Light Mode</span>
-              <label class="theme-switch">
-                <input type="checkbox" id="theme-checkbox" onchange="toggleTheme()">
-                <span class="theme-slider"></span>
-              </label>
-              <span class="theme-switch-label" id="theme-label-dark">Dark Mode</span>
-            </div>
-          </div>
-        </div>
-        <p id="welcome-subtitle">You have full access to all modules, settings, users, and operational data.</p>
-        <div class="welcome-details-grid welcome-detail">
-          <div class="welcome-detail-row welcome-company-row"><span class="welcome-detail-label">Company:</span> <span id="welcome-company"></span></div>
-          <div class="welcome-detail-row welcome-role-row"><span class="welcome-detail-label">Role:</span> <span id="welcome-role"></span></div>
-          <div class="welcome-detail-row welcome-email-row"><span class="welcome-detail-label">Email:</span> <span id="welcome-email"></span></div>
-          <button class="settings-save-btn welcome-change-password" onclick="window.location.href='/app/auth/change-password.html'">Change Password</button>
-        </div>
-      </div>
-      <div class="admin-stats" id="overviewCards">
-        <div class="admin-stat-card" onclick="window.location.href='/app/dashboard/user-management.html'">
-          <div class="admin-stat-number" id="stat-employees">—</div>
-          <div class="admin-stat-label">Employees</div>
-          <div class="admin-stat-desc">Manage employees, roles, permissions, and account access.</div>
-          <div class="admin-stat-link">Open Employee Management →</div>
-        </div>
-        <div class="admin-stat-card" onclick="window.location.href='/app/dashboard/project-management.html'">
-          <div class="admin-stat-number" id="stat-projects">—</div>
-          <div class="admin-stat-label">Projects</div>
-          <div class="admin-stat-desc">Manage projects, project types, and clients.</div>
-          <div class="admin-stat-link">Open Project Management →</div>
-        </div>
-        <div class="admin-stat-card" onclick="window.location.href='/app/dashboard/asset-management.html'">
-          <div class="admin-stat-number" id="stat-equipment">—</div>
-          <div class="admin-stat-label">Assets</div>
-          <div class="admin-stat-desc">Manage assets, inspections, work orders, and transfers.</div>
-          <div class="admin-stat-link">Open Asset Management →</div>
-        </div>
-        <div class="admin-stat-card" onclick="window.location.href='/app/dashboard/project-management.html'">
-          <div class="admin-stat-number" id="stat-clients">—</div>
-          <div class="admin-stat-label">Clients</div>
-          <div class="admin-stat-desc">Manage clients and customer organizations.</div>
-          <div class="admin-stat-link">Open Project Management →</div>
-        </div>
-        <div class="admin-stat-card" onclick="window.location.href='/app/dashboard/fuel.html'">
-          <div class="admin-stat-number" style="font-size:18px;">Fuel</div>
-          <div class="admin-stat-label">Fuel Management</div>
-          <div class="admin-stat-desc">Tank levels, fuel transactions, alerts, inventory tracking.</div>
-          <div class="admin-stat-link">Open Fuel Management →</div>
-        </div>
-        <div class="admin-stat-card" onclick="window.location.href='/app/dashboard/company-management.html'">
-          <div class="admin-stat-number" style="font-size:18px;">Company</div>
-          <div class="admin-stat-label">Company Management</div>
-          <div class="admin-stat-desc">Manage divisions, locations, and company-wide settings.</div>
-          <div class="admin-stat-link">Open Company Management →</div>
-        </div>
-      </div>
+    <div class="steel-bg"></div>
+    <div class="steel-overlay"></div>
+    <div class="page-error-banner" id="pageErrorBanner">⚠️ A page error occurred. The DRIV-EN team has been notified. <a onclick="dismissPageError()">Dismiss</a></div>
+    <div id="dashHeader"></div>
+    <div class="admin-tab-bar" id="adminTabBar">
+        <button class="admin-tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
+        <button class="admin-tab" data-tab="forms" onclick="switchTab('forms')">Forms</button>
+        <button class="admin-tab" data-tab="settings" onclick="switchTab('settings')">Settings</button>
+        <button class="admin-tab" data-tab="onboarding" onclick="switchTab('onboarding')">Onboarding</button>
+        <button class="admin-tab-logout" onclick="dashLogout()">Logout</button>
     </div>
-  </div>
+    <div id="loading" class="admin-loading">Checking session…</div>
+    <div id="dashboard" style="display:none;">
+        <!-- ===== OVERVIEW TAB ===== -->
+        <div class="admin-tab-content active" id="tab-overview">
+            <div class="admin-main">
+                <div class="admin-welcome">
+                    <div class="admin-welcome-top">
+                        <h2>Welcome, <span id="welcome-name"></span></h2>
+                        <div class="admin-welcome-actions">
+                            <div class="theme-switch-wrapper" title="Toggle light/dark mode">
+                                <span class="theme-switch-label" id="theme-label-light">Light Mode</span>
+                                <label class="theme-switch">
+                                    <input type="checkbox" id="theme-checkbox" onchange="toggleTheme()">
+                                    <span class="theme-slider"></span>
+                                </label>
+                                <span class="theme-switch-label" id="theme-label-dark">Dark Mode</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p id="welcome-subtitle">You have full access to all modules, settings, users, and operational data.</p>
+                    <div class="welcome-details-grid welcome-detail">
+                        <div class="welcome-detail-row welcome-company-row"><span class="welcome-detail-label">Company:</span> <span id="welcome-company"></span></div>
+                        <div class="welcome-detail-row welcome-role-row"><span class="welcome-detail-label">Role:</span> <span id="welcome-role"></span></div>
+                        <div class="welcome-detail-row welcome-email-row"><span class="welcome-detail-label">Email:</span> <span id="welcome-email"></span></div>
+                        <button class="settings-save-btn welcome-change-password" onclick="window.location.href='/app/auth/change-password.html'">Change Password</button>
+                    </div>
+                </div>
+                <div class="admin-stats" id="overviewCards">
+                    <div class="admin-stat-card" onclick="window.location.href='/app/dashboard/user-management.html'">
+                        <div class="admin-stat-number" id="stat-employees">—</div>
+                        <div class="admin-stat-label">Employees</div>
+                        <div class="admin-stat-desc">Manage employees, roles, permissions, and account access.</div>
+                        <div class="admin-stat-link">Open Employee Management →</div>
+                    </div>
+                    <div class="admin-stat-card" onclick="window.location.href='/app/dashboard/project-management.html'">
+                        <div class="admin-stat-number" id="stat-projects">—</div>
+                        <div class="admin-stat-label">Projects</div>
+                        <div class="admin-stat-desc">Manage projects, project types, and clients.</div>
+                        <div class="admin-stat-link">Open Project Management →</div>
+                    </div>
+                    <div class="admin-stat-card" onclick="window.location.href='/app/dashboard/asset-management.html'">
+                        <div class="admin-stat-number" id="stat-equipment">—</div>
+                        <div class="admin-stat-label">Assets</div>
+                        <div class="admin-stat-desc">Manage assets, inspections, work orders, and transfers.</div>
+                        <div class="admin-stat-link">Open Asset Management →</div>
+                    </div>
+                    <div class="admin-stat-card" onclick="window.location.href='/app/dashboard/project-management.html'">
+                        <div class="admin-stat-number" id="stat-clients">—</div>
+                        <div class="admin-stat-label">Clients</div>
+                        <div class="admin-stat-desc">Manage clients and customer organizations.</div>
+                        <div class="admin-stat-link">Open Project Management →</div>
+                    </div>
+                    <div class="admin-stat-card" onclick="window.location.href='/app/dashboard/fuel.html'">
+                        <div class="admin-stat-number" style="font-size:18px;">Fuel</div>
+                        <div class="admin-stat-label">Fuel Management</div>
+                        <div class="admin-stat-desc">Tank levels, fuel transactions, alerts, inventory tracking.</div>
+                        <div class="admin-stat-link">Open Fuel Management →</div>
+                    </div>
+                    <div class="admin-stat-card" onclick="window.location.href='/app/dashboard/company-management.html'">
+                        <div class="admin-stat-number" style="font-size:18px;">Company</div>
+                        <div class="admin-stat-label">Company Management</div>
+                        <div class="admin-stat-desc">Manage divisions, locations, and company-wide settings.</div>
+                        <div class="admin-stat-link">Open Company Management →</div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-  <!-- ===== FORMS TAB ===== -->
-  <div class="admin-tab-content" id="tab-forms">
-    <div class="admin-main">
-      <div class="admin-welcome">
-        <h2>Forms</h2>
-        <p>Select a form below to fill out and submit. As an admin, you have access to all forms.</p>
-      </div>
-      <div class="emp-form-links" id="adminFormsTabLinks" style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;"></div>
+        <!-- ===== FORMS TAB ===== -->
+        <div class="admin-tab-content" id="tab-forms">
+            <div class="admin-main">
+                <div class="admin-welcome">
+                    <h2>Forms</h2>
+                    <p>Select a form below to fill out and submit. As an admin, you have access to all forms.</p>
+                </div>
+                <div class="emp-form-links" id="adminFormsTabLinks" style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;"></div>
+            </div>
+        </div>
+
+        <!-- ===== SETTINGS TAB ===== -->
+        <div class="admin-tab-content" id="tab-settings">
+            <div class="admin-main">
+                <div class="settings-section">
+                    <h3>Company Logo</h3>
+                    <p style="font-size:13px;color:var(--text-muted);margin:0 0 12px 0;">Upload your company logo. It appears in the dashboard header across all devices.</p>
+                    <div class="logo-upload-area">
+                        <div class="logo-preview" id="logoPreview">No logo</div>
+                        <div>
+                            <input type="file" id="logoFile" accept="image/png,image/jpeg,image/svg+xml" style="display:none;" onchange="handleLogoUpload()">
+                            <button class="logo-upload-btn" onclick="document.getElementById('logoFile').click()">Upload Logo</button>
+                            <button class="logo-remove-btn" id="logoRemoveBtn" style="display:none;" onclick="handleLogoRemove()">Remove Logo</button>
+                            <div class="logo-status" id="logoStatus"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>Business Type</h3>
+                    <div class="settings-row">
+                        <div class="settings-label">Type</div>
+                        <div class="settings-field">
+                            <div class="bt-inline-row">
+                                <select id="businessTypeSelect" onchange="onBusinessTypeChange()">
+                                    <option value="">— Select business type —</option>
+                                    <option value="Construction">Construction</option>
+                                    <option value="Manufacturing">Manufacturing</option>
+                                    <option value="Chemical">Chemical</option>
+                                    <option value="Oil & Gas">Oil &amp; Gas</option>
+                                    <option value="Transportation">Transportation</option>
+                                    <option value="Warehousing">Warehousing</option>
+                                    <option value="Fabrication">Fabrication</option>
+                                    <option value="Logistics / Supply Chain">Logistics / Supply Chain</option>
+                                    <option value="Utilities & Energy">Utilities &amp; Energy</option>
+                                    <option value="Mining & Aggregates">Mining &amp; Aggregates</option>
+                                    <option value="Agriculture">Agriculture</option>
+                                    <option value="Environmental Services">Environmental Services</option>
+                                    <option value="Food & Beverage Processing">Food &amp; Beverage Processing</option>
+                                    <option value="General Services">General Services</option>
+                                </select>
+                                <button class="settings-save-btn" id="saveSettingsBtn" onclick="saveSettings()">Save</button>
+                            </div>
+                            <div class="settings-hint">Auto-configures which onboarding tasks are visible. Override individual tasks in the Onboarding tab.</div>
+                            <div class="settings-status" id="settingsStatus"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>NAICS Code</h3>
+                    <div class="settings-row">
+                        <div class="settings-label">NAICS Code</div>
+                        <div class="settings-field">
+                            <div class="bt-inline-row">
+                                <input type="text" id="naicsInput" placeholder="e.g., 236220" maxlength="6" onchange="onNaicsChange()">
+                                <button class="settings-save-btn" id="saveNaicsBtn" onclick="saveSettings()">Save</button>
+                            </div>
+                            <div class="settings-hint">North American Industry Classification System code for your business.</div>
+                            <div class="settings-status" id="naicsStatus"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>Currency</h3>
+                    <div class="settings-row">
+                        <div class="settings-label">Currency</div>
+                        <div class="settings-field">
+                            <div class="bt-inline-row">
+                                <select id="currencySelect" onchange="onCurrencyChange()">
+                                    <option value="">— Select currency —</option>
+                                    <option value="USD">USD — US Dollar ($)</option>
+                                    <option value="EUR">EUR — Euro (€)</option>
+                                    <option value="GBP">GBP — British Pound (£)</option>
+                                    <option value="CAD">CAD — Canadian Dollar (C$)</option>
+                                    <option value="MXN">MXN — Mexican Peso ($)</option>
+                                    <option value="JPY">JPY — Japanese Yen (¥)</option>
+                                    <option value="AUD">AUD — Australian Dollar (A$)</option>
+                                    <option value="CHF">CHF — Swiss Franc (CHF)</option>
+                                    <option value="CNY">CNY — Chinese Yuan (¥)</option>
+                                    <option value="INR">INR — Indian Rupee (₹)</option>
+                                    <option value="BRL">BRL — Brazilian Real (R$)</option>
+                                    <option value="ZAR">ZAR — South African Rand (R)</option>
+                                    <option value="AED">AED — UAE Dirham (د.إ)</option>
+                                    <option value="SAR">SAR — Saudi Riyal (﷼)</option>
+                                    <option value="NOK">NOK — Norwegian Krone (kr)</option>
+                                    <option value="SEK">SEK — Swedish Krona (kr)</option>
+                                    <option value="DKK">DKK — Danish Krone (kr)</option>
+                                    <option value="SGD">SGD — Singapore Dollar (S$)</option>
+                                    <option value="HKD">HKD — Hong Kong Dollar (HK$)</option>
+                                    <option value="NZD">NZD — New Zealand Dollar (NZ$)</option>
+                                </select>
+                                <button class="settings-save-btn" id="saveCurrencyBtn" onclick="saveSettings()">Save</button>
+                            </div>
+                            <div class="settings-hint">Used for fuel costs, asset values, and financial reporting across DRIV‑EN.</div>
+                            <div class="settings-status" id="currencyStatus"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>Feature Toggles</h3>
+                    <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px 0;line-height:1.6;">Control which features your company requires. These are company preferences — not permissions. Toggling a feature OFF will not remove it from the system; it simply hides it from non-admin users.</p>
+                    <div class="settings-row">
+                        <div class="settings-label">Fuel Meter Photo</div>
+                        <div class="settings-field">
+                            <div class="theme-switch-wrapper">
+                                <span class="theme-switch-label" id="fuelMeterPhotoLabel">Off</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="fuelMeterPhotoToggle" onchange="onFuelPhotoToggleChange()">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="settings-hint">Requires a photo of the meter/gauge showing the quantity transferred or purchased.</div>
+                        </div>
+                    </div>
+                    <div class="settings-row">
+                        <div class="settings-label">Fuel Asset Photo</div>
+                        <div class="settings-field">
+                            <div class="theme-switch-wrapper">
+                                <span class="theme-switch-label" id="fuelAssetPhotoLabel">Off</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="fuelAssetPhotoToggle" onchange="onFuelPhotoToggleChange()">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="settings-hint">Requires a photo of the asset/equipment receiving fuel.</div>
+                        </div>
+                    </div>
+                    <div class="settings-row">
+                        <div class="settings-label">Location Request</div>
+                        <div class="settings-field">
+                            <div class="theme-switch-wrapper">
+                                <span class="theme-switch-label" id="locationReqLabel">Off</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="locationReqToggle" onchange="onLocationReqToggleChange()">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="settings-hint">When ON, forms require location access — a popup asks the user to enable location before proceeding. When OFF, forms complete without location data and no popup appears.</div>
+                        </div>
+                    </div>
+                    <button class="settings-save-btn" id="saveTogglesBtn" onclick="saveToggles()">Save Toggles</button>
+                    <div class="settings-status" id="togglesStatus"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== ONBOARDING TAB ===== -->
+        <div class="admin-tab-content" id="tab-onboarding">
+            <div class="admin-main">
+                <div class="admin-subtab-bar" id="onboardingSubtabBar">
+                    <button class="admin-subtab active" data-subtab="visibility" onclick="switchOnboardingSubtab('visibility')">Task Visibility</button>
+                    <button class="admin-subtab" data-subtab="kp" onclick="switchOnboardingSubtab('kp')">Key Personnel</button>
+                    <a class="admin-subtab admin-subtab-blue" href="/app/dashboard/onboarding-dashboard.html">View Onboarding Dashboard →</a>
+                </div>
+                <div class="ob-progress-inline" style="margin-bottom:20px;">
+                    <h3>Onboarding Progress</h3>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar-fill" id="progressBarFill" style="width:0%;"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">0 of 0 tasks complete</div>
+                    <div class="ob-progress-btns">
+                        <button class="progress-complete-btn" id="markCompleteBtn" onclick="showCompleteModal()">Mark Onboarding Complete</button>
+                        <button class="reopen-onboarding-btn" id="reopenOnboardingBtn" style="display:none;" onclick="reopenOnboarding()">Reopen Onboarding</button>
+                    </div>
+                    <div class="onboarding-complete-panel" id="onboardingCompletePanel">
+                        <h3>🎉 Onboarding Complete</h3>
+                        <p>All onboarding tasks have been closed by your Key Personnel.</p>
+                        <p class="complete-note"><strong>Next step:</strong> Click below to finalize onboarding. This removes all Key Personnel onboarding assignments and unlocks their role-based dashboards.</p>
+                        <button class="finalize-onboarding-btn" id="finalizeOnboardingBtn" onclick="finalizeOnboarding()">Finalize Onboarding &amp; Unlock Dashboards</button>
+                    </div>
+                </div>
+                <div class="admin-subtab-content active" id="onboarding-subtab-visibility">
+                    <div class="settings-section">
+                        <div class="settings-section-title-row">
+                            <h3>Task Visibility</h3>
+                            <button class="settings-save-btn" onclick="saveStepVisibility()">Save Visibility</button>
+                        </div>
+                        <div class="visibility-warning" id="visibilityWarning" style="display:none;">⚠ You have unsaved visibility changes. Click <strong>Save Visibility</strong> before switching tabs.</div>
+                        <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px 0;line-height:1.6;">Control which onboarding tasks appear on the Onboarding Dashboard. Tasks are auto-configured based on your business type, but you can override them individually here.</p>
+                        <div class="step-toggle-list" id="stepToggleList"></div>
+                        <button class="settings-save-btn" style="margin-top:16px;" onclick="saveStepVisibility()">Save Visibility</button>
+                        <div class="settings-status" id="visibilityStatus"></div>
+                    </div>
+                </div>
+                <div class="admin-subtab-content" id="onboarding-subtab-kp">
+                    <div class="settings-section">
+                        <h3>Key Personnel Assignments</h3>
+                        <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px 0;line-height:1.6;">Assign key personnel and the onboarding tasks they are responsible for. They will receive an email with login instructions.</p>
+                        <div class="kp-unsaved-banner" id="kpUnsavedBanner" style="display:none;background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:6px;padding:10px 16px;font-size:14px;font-weight:500;display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                            <span style="font-size:18px;">⚠</span> <span>You have unsaved Key Personnel assignments. Click <strong>Send Invitations &amp; Create Accounts</strong> to save them.</span>
+                        </div>
+                        <div class="kp-add-form">
+                            <input type="text" id="kpName" placeholder="Full name">
+                            <input type="email" id="kpEmail" placeholder="Email address">
+                        </div>
+                        <div style="margin-bottom:12px;">
+                            <label style="font-size:14px;font-weight:600;color:var(--text);display:block;margin-bottom:6px;">Select tasks for this person:</label>
+                            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px 16px;">
+                                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Employees" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Employees</label>
+                                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Locations" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Locations</label>
+                                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Clients" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Clients</label>
+                                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Divisions" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Divisions</label>
+                                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Project Types" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Project Types</label>
+                                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Projects" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Projects</label>
+                                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Fuel Types" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Fuel Types</label>
+                                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Units of Measure" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Units of Measure</label>
+                                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Assets" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Assets</label>
+                                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Roles & Permissions" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Roles & Permissions</label>
+                                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);border-top:1px solid var(--border);padding-top:4px;margin-top:2px;"><input type="checkbox" id="kpTaskSelectAll" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Select All</label>
+                            </div>
+                            <div id="kpTaskCount" style="font-size:13px;font-weight:600;color:var(--primary);margin-top:6px;">0 tasks selected</div>
+                        </div>
+                        <button class="kp-add-btn" id="kpAddBtn" onclick="addKeyPersonnel()">Add Key Personnel</button>
+                        <div class="kp-list" id="kpListContainer">
+                            <div class="kp-list-title">Assigned Key Personnel:</div>
+                            <div id="kpListBody"><div class="kp-loading">Loading…</div></div>
+                        </div>
+                        <button class="settings-save-btn" id="kpCompleteBtn" style="margin-top:16px;display:none;" onclick="completeKeyPersonnel()">Send Invitations &amp; Create Accounts</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
-
-  <!-- ===== SETTINGS TAB (single page, no subtabs) ===== -->
-  <div class="admin-tab-content" id="tab-settings">
-    <div class="admin-main">
-      <div class="settings-section">
-        <h3>Company Logo</h3>
-        <p style="font-size:13px;color:var(--text-muted);margin:0 0 12px 0;">Upload your company logo. It appears in the dashboard header across all devices.</p>
-        <div class="logo-upload-area">
-          <div class="logo-preview" id="logoPreview">No logo</div>
-          <div>
-            <input type="file" id="logoFile" accept="image/png,image/jpeg,image/svg+xml" style="display:none;" onchange="handleLogoUpload()">
-            <button class="logo-upload-btn" onclick="document.getElementById('logoFile').click()">Upload Logo</button>
-            <button class="logo-remove-btn" id="logoRemoveBtn" style="display:none;" onclick="handleLogoRemove()">Remove Logo</button>
-            <div class="logo-status" id="logoStatus"></div>
-          </div>
-        </div>
-      </div>
-      <div class="settings-section">
-        <h3>Business Type</h3>
-        <div class="settings-row">
-          <div class="settings-label">Type</div>
-          <div class="settings-field">
-            <div class="bt-inline-row">
-              <select id="businessTypeSelect" onchange="onBusinessTypeChange()">
-                <option value="">— Select business type —</option>
-                <option value="Construction">Construction</option>
-                <option value="Manufacturing">Manufacturing</option>
-                <option value="Chemical">Chemical</option>
-                <option value="Oil & Gas">Oil &amp; Gas</option>
-                <option value="Transportation">Transportation</option>
-                <option value="Warehousing">Warehousing</option>
-                <option value="Fabrication">Fabrication</option>
-                <option value="Logistics / Supply Chain">Logistics / Supply Chain</option>
-                <option value="Utilities & Energy">Utilities &amp; Energy</option>
-                <option value="Mining & Aggregates">Mining &amp; Aggregates</option>
-                <option value="Agriculture">Agriculture</option>
-                <option value="Environmental Services">Environmental Services</option>
-                <option value="Food & Beverage Processing">Food &amp; Beverage Processing</option>
-                <option value="General Services">General Services</option>
-              </select>
-              <button class="settings-save-btn" id="saveSettingsBtn" onclick="saveSettings()">Save</button>
+    <div class="confirm-modal" id="confirmModal">
+        <div class="confirm-card">
+            <h3>Mark Onboarding Complete?</h3>
+            <p>Once you confirm, the Onboarding tab will no longer be accessible. You can reopen onboarding later from the Settings tab if needed.</p>
+            <div>
+                <button class="confirm-btn-cancel" onclick="closeCompleteModal()">Cancel</button>
+                <button class="confirm-btn-confirm" onclick="markOnboardingComplete()">Confirm &amp; Complete</button>
             </div>
-            <div class="settings-hint">Auto-configures which onboarding tasks are visible. Override individual tasks in the Onboarding tab.</div>
-            <div class="settings-status" id="settingsStatus"></div>
-          </div>
         </div>
-      </div>
-      <div class="settings-section">
-        <h3>NAICS Code</h3>
-        <div class="settings-row">
-          <div class="settings-label">NAICS Code</div>
-          <div class="settings-field">
-            <div class="bt-inline-row">
-              <input type="text" id="naicsInput" placeholder="e.g., 236220" maxlength="6" onchange="onNaicsChange()">
-              <button class="settings-save-btn" id="saveNaicsBtn" onclick="saveSettings()">Save</button>
-            </div>
-            <div class="settings-hint">North American Industry Classification System code for your business.</div>
-            <div class="settings-status" id="naicsStatus"></div>
-          </div>
-        </div>
-      </div>
-      <div class="settings-section">
-        <h3>Currency</h3>
-        <div class="settings-row">
-          <div class="settings-label">Currency</div>
-          <div class="settings-field">
-            <div class="bt-inline-row">
-              <select id="currencySelect" onchange="onCurrencyChange()">
-                <option value="">— Select currency —</option>
-                <option value="USD">USD — US Dollar ($)</option>
-                <option value="EUR">EUR — Euro (€)</option>
-                <option value="GBP">GBP — British Pound (£)</option>
-                <option value="CAD">CAD — Canadian Dollar (C$)</option>
-                <option value="MXN">MXN — Mexican Peso ($)</option>
-                <option value="JPY">JPY — Japanese Yen (¥)</option>
-                <option value="AUD">AUD — Australian Dollar (A$)</option>
-                <option value="CHF">CHF — Swiss Franc (CHF)</option>
-                <option value="CNY">CNY — Chinese Yuan (¥)</option>
-                <option value="INR">INR — Indian Rupee (₹)</option>
-                <option value="BRL">BRL — Brazilian Real (R$)</option>
-                <option value="ZAR">ZAR — South African Rand (R)</option>
-                <option value="AED">AED — UAE Dirham (د.إ)</option>
-                <option value="SAR">SAR — Saudi Riyal (﷼)</option>
-                <option value="NOK">NOK — Norwegian Krone (kr)</option>
-                <option value="SEK">SEK — Swedish Krona (kr)</option>
-                <option value="DKK">DKK — Danish Krone (kr)</option>
-                <option value="SGD">SGD — Singapore Dollar (S$)</option>
-                <option value="HKD">HKD — Hong Kong Dollar (HK$)</option>
-                <option value="NZD">NZD — New Zealand Dollar (NZ$)</option>
-              </select>
-              <button class="settings-save-btn" id="saveCurrencyBtn" onclick="saveSettings()">Save</button>
-            </div>
-            <div class="settings-hint">Used for fuel costs, asset values, and financial reporting across DRIV‑EN.</div>
-            <div class="settings-status" id="currencyStatus"></div>
-          </div>
-        </div>
-      </div>
-      <div class="settings-section">
-        <h3>Feature Toggles</h3>
-        <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px 0;line-height:1.6;">Control which features your company requires. These are company preferences — not permissions. Toggling a feature OFF will not remove it from the system; it simply hides it from non-admin users.</p>
-        <div class="settings-row">
-          <div class="settings-label">Fuel Meter Photo</div>
-          <div class="settings-field">
-            <div class="theme-switch-wrapper">
-              <span class="theme-switch-label" id="fuelMeterPhotoLabel">Off</span>
-              <label class="toggle-switch">
-                <input type="checkbox" id="fuelMeterPhotoToggle" onchange="onFuelPhotoToggleChange()">
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-            <div class="settings-hint">Requires a photo of the meter/gauge showing the quantity transferred or purchased.</div>
-          </div>
-        </div>
-        <div class="settings-row">
-          <div class="settings-label">Fuel Asset Photo</div>
-          <div class="settings-field">
-            <div class="theme-switch-wrapper">
-              <span class="theme-switch-label" id="fuelAssetPhotoLabel">Off</span>
-              <label class="toggle-switch">
-                <input type="checkbox" id="fuelAssetPhotoToggle" onchange="onFuelPhotoToggleChange()">
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-            <div class="settings-hint">Requires a photo of the asset/equipment receiving fuel.</div>
-          </div>
-        </div>
-        <div class="settings-row">
-          <div class="settings-label">Location Request</div>
-          <div class="settings-field">
-            <div class="theme-switch-wrapper">
-              <span class="theme-switch-label" id="locationReqLabel">Off</span>
-              <label class="toggle-switch">
-                <input type="checkbox" id="locationReqToggle" onchange="onLocationReqToggleChange()">
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-            <div class="settings-hint">When ON, forms require location access — a popup asks the user to enable location before proceeding. When OFF, forms complete without location data and no popup appears.</div>
-          </div>
-        </div>
-        <button class="settings-save-btn" id="saveTogglesBtn" onclick="saveToggles()">Save Toggles</button>
-        <div class="settings-status" id="togglesStatus"></div>
-      </div>
     </div>
-  </div>
+    <div id="dashFooter"></div>
+    <script src="/app/shared/dashboard-common.js?v=13"></script>
+    <script>
+        var orgSettings = {}; var stepVisibility = {}; var keyPersonnel = []; var pendingKP = []; var onboardingComplete = false; var settingsDirty = false; var visibilityDirty = false;
+        var BUSINESS_TYPE_DEFAULTS = {
+            "Construction": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true},
+            "Manufacturing": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
+            "Chemical": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
+            "Oil & Gas": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true},
+            "Transportation": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
+            "Warehousing": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
+            "Fabrication": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
+            "Logistics / Supply Chain": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
+            "Utilities & Energy": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true},
+            "Mining & Aggregates": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true},
+            "Agriculture": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
+            "Environmental Services": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
+            "Food & Beverage Processing": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
+            "General Services": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true}
+        };
+        var STEP_DEFS = [
+            { key:"roles-permissions", label:"Roles & Permissions", desc:"Define roles and access levels", locked:true },
+            { key:"employees", label:"Employees", desc:"Add all employees", locked:true },
+            { key:"locations", label:"Locations", desc:"Plants, mines, facilities, warehouses, job sites", locked:false },
+            { key:"clients", label:"Clients", desc:"Add clients and customer organizations", locked:false },
+            { key:"divisions", label:"Divisions", desc:"Internal divisions or business units", locked:false },
+            { key:"project-types", label:"Project Types", desc:"Types of work your organization performs", locked:false },
+            { key:"projects", label:"Projects", desc:"Active, completed, or upcoming projects", locked:false },
+            { key:"fuel-types", label:"Fuel Types", desc:"Types of fuel your organization uses", locked:true },
+            { key:"units-of-measure", label:"Units of Measure", desc:"Volume units for fuel and fluids", locked:true },
+            { key:"assets", label:"Assets", desc:"Assets and equipment to maintain", locked:true }
+        ];
+        var FORMS = [
+            { key:'fuel_log', label:'Log Fuel Purchase', desc:'Record a fuel purchase with receipt AI extraction', link:'/app/forms/fuel-purchase.html' },
+            { key:'fuel_transfer', label:'Log Fuel Transfer', desc:'Transfer fuel between tanks or issue to equipment', link:'/app/forms/fuel-transfer.html' },
+            { key:'transfer_create', label:'Create Transfer', desc:'Start an equipment transfer ticket', link:'/app/forms/transfer-create.html' },
+            { key:'wo_create', label:'Create Work Order', desc:'Submit a maintenance request', link:'/app/forms/work-order-create.html' },
+            { key:'inspection_add', label:'Add Inspection', desc:'Record an equipment inspection', link:'/app/forms/inspection.html' },
+            { key:'pm_add', label:'Add PM', desc:'Create a preventive maintenance task', link:'/app/forms/pm.html' }
+        ];
 
-  <!-- ===== ONBOARDING TAB ===== -->
-  <div class="admin-tab-content" id="tab-onboarding">
-    <div class="admin-main">
-      <div class="admin-subtab-bar" id="onboardingSubtabBar">
-        <button class="admin-subtab active" data-subtab="visibility" onclick="switchOnboardingSubtab('visibility')">Task Visibility</button>
-        <button class="admin-subtab" data-subtab="kp" onclick="switchOnboardingSubtab('kp')">Key Personnel</button>
-        <a class="admin-subtab admin-subtab-blue" href="/app/dashboard/onboarding-dashboard.html">View Onboarding Dashboard →</a>
-      </div>
-      <div class="ob-progress-inline" style="margin-bottom:20px;">
-        <h3>Onboarding Progress</h3>
-        <div class="progress-bar-container">
-          <div class="progress-bar-fill" id="progressBarFill" style="width:0%;"></div>
-        </div>
-        <div class="progress-text" id="progressText">0 of 0 tasks complete</div>
-        <div class="ob-progress-btns">
-          <button class="progress-complete-btn" id="markCompleteBtn" onclick="showCompleteModal()">Mark Onboarding Complete</button>
-          <button class="reopen-onboarding-btn" id="reopenOnboardingBtn" style="display:none;" onclick="reopenOnboarding()">Reopen Onboarding</button>
-        </div>
-        <div class="onboarding-complete-panel" id="onboardingCompletePanel">
-          <h3>🎉 Onboarding Complete</h3>
-          <p>All onboarding tasks have been closed by your Key Personnel.</p>
-          <p class="complete-note"><strong>Next step:</strong> Click below to finalize onboarding. This removes all Key Personnel onboarding assignments and unlocks their role-based dashboards.</p>
-          <button class="finalize-onboarding-btn" id="finalizeOnboardingBtn" onclick="finalizeOnboarding()">Finalize Onboarding &amp; Unlock Dashboards</button>
-        </div>
-      </div>
-      <div class="admin-subtab-content active" id="onboarding-subtab-visibility">
-        <div class="settings-section">
-          <div class="settings-section-title-row">
-            <h3>Task Visibility</h3>
-            <button class="settings-save-btn" onclick="saveStepVisibility()">Save Visibility</button>
-          </div>
-          <div class="visibility-warning" id="visibilityWarning" style="display:none;">⚠ You have unsaved visibility changes. Click <strong>Save Visibility</strong> before switching tabs.</div>
-          <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px 0;line-height:1.6;">Control which onboarding tasks appear on the Onboarding Dashboard. Tasks are auto-configured based on your business type, but you can override them individually here.</p>
-          <div class="step-toggle-list" id="stepToggleList"></div>
-          <button class="settings-save-btn" style="margin-top:16px;" onclick="saveStepVisibility()">Save Visibility</button>
-          <div class="settings-status" id="visibilityStatus"></div>
-        </div>
-      </div>
-      <div class="admin-subtab-content" id="onboarding-subtab-kp">
-        <div class="settings-section">
-          <h3>Key Personnel Assignments</h3>
-          <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px 0;line-height:1.6;">Assign key personnel and the onboarding tasks they are responsible for. They will receive an email with login instructions.</p>
-          <div class="kp-unsaved-banner" id="kpUnsavedBanner" style="display:none;background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:6px;padding:10px 16px;font-size:14px;font-weight:500;display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-            <span style="font-size:18px;">⚠</span>
-            <span>You have unsaved Key Personnel assignments. Click <strong>Send Invitations &amp; Create Accounts</strong> to save them.</span>
-          </div>
-          <div class="kp-add-form">
-            <input type="text" id="kpName" placeholder="Full name">
-            <input type="email" id="kpEmail" placeholder="Email address">
-          </div>
-          <div style="margin-bottom:12px;">
-            <label style="font-size:14px;font-weight:600;color:var(--text);display:block;margin-bottom:6px;">Select tasks for this person:</label>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px 16px;">
-              <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Employees" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Employees</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Locations" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Locations</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Clients" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Clients</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Divisions" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Divisions</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Project Types" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Project Types</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Projects" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Projects</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Fuel Types" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Fuel Types</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Units of Measure" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Units of Measure</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Assets" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Assets</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Roles & Permissions" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Roles & Permissions</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);border-top:1px solid var(--border);padding-top:4px;margin-top:2px;"><input type="checkbox" id="kpTaskSelectAll" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Select All</label>
-            </div>
-            <div id="kpTaskCount" style="font-size:13px;font-weight:600;color:var(--primary);margin-top:6px;">0 tasks selected</div>
-          </div>
-          <button class="kp-add-btn" id="kpAddBtn" onclick="addKeyPersonnel()">Add Key Personnel</button>
-          <div class="kp-list" id="kpListContainer">
-            <div class="kp-list-title">Assigned Key Personnel:</div>
-            <div id="kpListBody"><div class="kp-loading">Loading…</div></div>
-          </div>
-          <button class="settings-save-btn" id="kpCompleteBtn" style="margin-top:16px;display:none;" onclick="completeKeyPersonnel()">Send Invitations &amp; Create Accounts</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-</div>
-<div class="confirm-modal" id="confirmModal">
-  <div class="confirm-card">
-    <h3>Mark Onboarding Complete?</h3>
-    <p>Once you confirm, the Onboarding tab will no longer be accessible. You can reopen onboarding later from the Settings tab if needed.</p>
-    <div>
-      <button class="confirm-btn-cancel" onclick="closeCompleteModal()">Cancel</button>
-      <button class="confirm-btn-confirm" onclick="markOnboardingComplete()">Confirm &amp; Complete</button>
-    </div>
-  </div>
-</div>
-<div id="dashFooter"></div>
-<script src="/app/shared/dashboard-common.js?v=13"></script>
-<script>
-    var orgSettings = {};
-    var stepVisibility = {};
-    var keyPersonnel = [];
-    var pendingKP = [];
-    var onboardingComplete = false;
-    var settingsDirty = false;
-    var visibilityDirty = false;
-
-    var BUSINESS_TYPE_DEFAULTS = {
-      "Construction": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Manufacturing": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Chemical": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Oil & Gas": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Transportation": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Warehousing": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Fabrication": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Logistics / Supply Chain": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Utilities & Energy": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Mining & Aggregates": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Agriculture": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Environmental Services": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Food & Beverage Processing": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "General Services": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true}
-    };
-
-    var STEP_DEFS = [
-      { key:"roles-permissions", label:"Roles & Permissions", desc:"Define roles and access levels", locked:true },
-      { key:"employees", label:"Employees", desc:"Add all employees", locked:true },
-      { key:"locations", label:"Locations", desc:"Plants, mines, facilities, warehouses, job sites", locked:false },
-      { key:"clients", label:"Clients", desc:"Add clients and customer organizations", locked:false },
-      { key:"divisions", label:"Divisions", desc:"Internal divisions or business units", locked:false },
-      { key:"project-types", label:"Project Types", desc:"Types of work your organization performs", locked:false },
-      { key:"projects", label:"Projects", desc:"Active, completed, or upcoming projects", locked:false },
-      { key:"fuel-types", label:"Fuel Types", desc:"Types of fuel your organization uses", locked:true },
-      { key:"units-of-measure", label:"Units of Measure", desc:"Volume units for fuel and fluids", locked:true },
-      { key:"assets", label:"Assets", desc:"Assets and equipment to maintain", locked:true }
-    ];
-
-    var FORMS = [
-      { key:'fuel_log', label:'Log Fuel Purchase', desc:'Record a fuel purchase with receipt AI extraction', link:'/app/forms/fuel-purchase.html' },
-      { key:'fuel_transfer', label:'Log Fuel Transfer', desc:'Transfer fuel between tanks or issue to equipment', link:'/app/forms/fuel-transfer.html' },
-      { key:'transfer_create', label:'Create Transfer', desc:'Start an equipment transfer ticket', link:'/app/forms/transfer-create.html' },
-      { key:'wo_create', label:'Create Work Order', desc:'Submit a maintenance request', link:'/app/forms/work-order-create.html' },
-      { key:'inspection_add', label:'Add Inspection', desc:'Record an equipment inspection', link:'/app/forms/inspection.html' },
-      { key:'pm_add', label:'Add PM', desc:'Create a preventive maintenance task', link:'/app/forms/pm.html' }
-    ];
-
-    function esc(s) { if(!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-
-    function showPageError() { var b=document.getElementById('pageErrorBanner'); if(b) b.classList.add('show'); }
-    function dismissPageError() { var b=document.getElementById('pageErrorBanner'); if(b) b.classList.remove('show'); }
-
-    function reportError(source, err) {
-      var msg = (err && err.message) ? err.message : (typeof err === 'string' ? err : 'Unknown error');
-      var stack = (err && err.stack) ? err.stack : 'No stack trace';
-      try {
-        fetch('/api/log-error', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ source:'Admin Dashboard ('+source+')', message:msg, stack:stack, url:window.location.href, userAgent:navigator.userAgent }) }).catch(function(){});
-      } catch(e) {}
-      console.error('['+source+']', msg, stack);
-    }
-
-    window.addEventListener('error', function(e) {
-      reportError('window.onerror', e.error || e.message);
-      showPageError();
-    });
-
-    async function loadDashboardStats() {
-      try {
-        var results = await Promise.all([
-          fetch('/api/onboarding/employees/list').then(function(r){
-            if (!r.ok) throw new Error('Employee count request failed: ' + r.status);
-            return r.json();
-          }),
-          fetch('/api/Equipment').then(function(r){return r.json();}).catch(function(){return {records:[]};}),
-          fetch('/api/Project').then(function(r){return r.json();}).catch(function(){return {records:[]};}),
-          fetch('/api/Clients').then(function(r){return r.json();}).catch(function(){return {records:[]};})
-        ]);
-        if (!results[0] || !results[0].success || !Array.isArray(results[0].employees)) {
-          throw new Error('Employee list response was invalid');
+        function esc(s) { if(!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+        function showPageError() { var b=document.getElementById('pageErrorBanner'); if(b) b.classList.add('show'); }
+        function dismissPageError() { var b=document.getElementById('pageErrorBanner'); if(b) b.classList.remove('show'); }
+        function reportError(source, err) {
+            var msg = (err && err.message) ? err.message : (typeof err === 'string' ? err : 'Unknown error');
+            var stack = (err && err.stack) ? err.stack : 'No stack trace';
+            try {
+                fetch('/api/log-error', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ source:'Admin Dashboard ('+source+')', message:msg, stack:stack, url:window.location.href, userAgent:navigator.userAgent }) }).catch(function(){});
+            } catch(e) {}
+            console.error('['+source+']', msg, stack);
         }
-        var empCount = results[0].employees.filter(function(employee) {
-          var status = employee.status;
-          return status === 1 || status === '1' || status === 'Active' || status === 'active';
-        }).length;
-        document.getElementById('stat-employees').textContent = empCount;
-        localStorage.setItem('driven_employee_count', empCount);
-        var eqRecords = (results[1] && results[1].records) ? results[1].records : [];
-        document.getElementById('stat-equipment').textContent = eqRecords.length;
-        localStorage.setItem('driven_equipment_count', eqRecords.length);
-        var projRecords = (results[2] && results[2].records) ? results[2].records : [];
-        document.getElementById('stat-projects').textContent = projRecords.length;
-        localStorage.setItem('driven_project_count', projRecords.length);
-        var clientRecords = (results[3] && results[3].records) ? results[3].records : [];
-        document.getElementById('stat-clients').textContent = clientRecords.length;
-        localStorage.setItem('driven_client_count', clientRecords.length);
-      } catch(e) {
-        reportError('loadDashboardStats', e);
-        document.getElementById('stat-employees').textContent = '—';
-        document.getElementById('stat-projects').textContent = localStorage.getItem('driven_project_count') || '0';
-        document.getElementById('stat-equipment').textContent = localStorage.getItem('driven_equipment_count') || '0';
-        document.getElementById('stat-clients').textContent = localStorage.getItem('driven_client_count') || '0';
-      }
-    }
+        window.addEventListener('error', function(e) { reportError('window.onerror', e.error || e.message); showPageError(); });
 
-    function renderFormsTab() {
-      var c = document.getElementById('adminFormsTabLinks');
-      if(!c) return;
-      c.innerHTML = FORMS.map(function(f){
-        return '<a href="'+f.link+'" style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:14px 16px;text-decoration:none;color:var(--text);transition:border-color 200ms ease;" onmouseover="this.style.borderColor=\'var(--primary)\'" onmouseout="this.style.borderColor=\'var(--border)\'"><div style="font-weight:600;font-size:14px;margin-bottom:4px;">'+esc(f.label)+'</div><div style="font-size:12px;color:var(--text-muted);">'+esc(f.desc)+'</div></a>';
-      }).join('');
-    }
-
-    function switchTab(tabName) {
-      if(visibilityDirty && document.getElementById('tab-onboarding').classList.contains('active') && tabName!=='onboarding') { if(!confirm("You have unsaved Task Visibility changes.\n\nClick Cancel to go back and save them, or OK to discard."))return; clearVisibilityDirty(); }
-      if(settingsDirty && document.getElementById('tab-settings').classList.contains('active') && tabName!=='settings') { if(!confirm("You have unsaved changes in Settings.\n\nClick Cancel to go back and save them, or OK to discard."))return; clearSettingsDirty(); }
-      document.querySelectorAll('.admin-tab').forEach(function(t){t.classList.remove('active');});
-      document.querySelectorAll('.admin-tab-content').forEach(function(c){c.classList.remove('active');});
-      document.querySelector('[data-tab="'+tabName+'"]').classList.add('active');
-      document.getElementById('tab-'+tabName).classList.add('active');
-      var obBar=document.getElementById('onboardingSubtabBar');
-      if(obBar) obBar.classList.toggle('visible', tabName==='onboarding');
-      if(tabName==='forms') renderFormsTab();
-    }
-
-    function switchOnboardingSubtab(subtabName) {
-      if(visibilityDirty && document.getElementById('onboarding-subtab-visibility').classList.contains('active') && subtabName!=='visibility') { if(!confirm("You have unsaved Task Visibility changes.\n\nClick Cancel to go back and save them, or OK to discard."))return; clearVisibilityDirty(); }
-      document.querySelectorAll('#onboardingSubtabBar .admin-subtab').forEach(function(t){t.classList.remove('active');});
-      document.querySelectorAll('.admin-subtab-content[id^="onboarding-subtab-"]').forEach(function(c){c.classList.remove('active');});
-      document.querySelector('#onboardingSubtabBar [data-subtab="'+subtabName+'"]').classList.add('active');
-      document.getElementById('onboarding-subtab-'+subtabName).classList.add('active');
-    }
-
-    function toggleTheme() {
-      var current=document.documentElement.getAttribute("data-theme");
-      var newTheme=current==="dark"?"light":"dark";
-      document.documentElement.setAttribute("data-theme",newTheme);
-      localStorage.setItem("driven-theme",newTheme);
-      updateThemeSwitch();
-    }
-    function updateThemeSwitch() {
-      var current=document.documentElement.getAttribute("data-theme");
-      var cb=document.getElementById("theme-checkbox");
-      var ll=document.getElementById("theme-label-light");
-      var ld=document.getElementById("theme-label-dark");
-      if(cb) cb.checked=(current==="dark");
-      if(ll) ll.classList.toggle("active",current==="light");
-      if(ld) ld.classList.toggle("active",current==="dark");
-    }
-
-    async function loadLogo() {
-      var p=document.getElementById("logoPreview"), r=document.getElementById("logoRemoveBtn");
-      if (!p) return;
-      try {
-        var res=await fetch("/auth/get-logo");
-        if (!res.ok) throw new Error("Logo fetch failed: " + res.status);
-        var d=await res.json();
-        if(d.success&&d.logo) { 
-          localStorage.setItem("driven_customer_logo",d.logo); 
-          p.innerHTML='<img src="'+d.logo+'" alt="Logo" style="max-height:60px;max-width:140px;object-fit:contain;">'; 
-          p.style.border="none"; 
-          if(r) r.style.display="inline-block"; 
+        async function loadDashboardStats() {
+            try {
+                var results = await Promise.all([
+                    fetch('/api/onboarding/employees/list').then(function(r){if (!r.ok) throw new Error('Employee count failed'); return r.json(); }),
+                    fetch('/api/Equipment').then(function(r){return r.json();}).catch(function(){return {records:[]};}),
+                    fetch('/api/Project').then(function(r){return r.json();}).catch(function(){return {records:[]};}),
+                    fetch('/api/Clients').then(function(r){return r.json();}).catch(function(){return {records:[]};})
+                ]);
+                if (results[0] && results[0].success && Array.isArray(results[0].employees)) {
+                    var empCount = results[0].employees.filter(function(e) { return e.status === 1 || e.status === '1' || e.status === 'Active' || e.status === 'active'; }).length;
+                    document.getElementById('stat-employees').textContent = empCount;
+                    localStorage.setItem('driven_employee_count', empCount);
+                }
+                var eqRecords = (results[1] && results[1].records) ? results[1].records : [];
+                document.getElementById('stat-equipment').textContent = eqRecords.length;
+                localStorage.setItem('driven_equipment_count', eqRecords.length);
+                var projRecords = (results[2] && results[2].records) ? results[2].records : [];
+                document.getElementById('stat-projects').textContent = projRecords.length;
+                localStorage.setItem('driven_project_count', projRecords.length);
+                var clientRecords = (results[3] && results[3].records) ? results[3].records : [];
+                document.getElementById('stat-clients').textContent = clientRecords.length;
+                localStorage.setItem('driven_client_count', clientRecords.length);
+            } catch(e) {
+                reportError('loadDashboardStats', e);
+                document.getElementById('stat-employees').textContent = '—';
+                document.getElementById('stat-projects').textContent = localStorage.getItem('driven_project_count') || '0';
+                document.getElementById('stat-equipment').textContent = localStorage.getItem('driven_equipment_count') || '0';
+                document.getElementById('stat-clients').textContent = localStorage.getItem('driven_client_count') || '0';
+            }
         }
-        else { 
-          p.innerHTML="No logo"; 
-          p.style.border="2px dashed var(--border)"; 
-          if(r) r.style.display="none"; 
+
+        function renderFormsTab() {
+            var c = document.getElementById('adminFormsTabLinks');
+            if (!c) return;
+            c.innerHTML = FORMS.map(function(f) {
+                return '<a href="' + f.link + '" class="emp-form-card">' +
+                    '<div style="font-weight:600;font-size:15px;margin-bottom:6px;">' + esc(f.label) + '</div>' +
+                    '<div style="font-size:13px;color:var(--text-muted);line-height:1.4;">' + esc(f.desc) + '</div>' +
+                    '</a>';
+            }).join('');
         }
-      } catch(e) { 
-        console.warn("loadLogo warning:", e.message);
-        var ll=localStorage.getItem("driven_customer_logo"); 
-        if(ll){
-          p.innerHTML='<img src="'+ll+'" alt="Logo" style="max-height:60px;max-width:140px;object-fit:contain;">';
-          p.style.border="none";
-          if(r)r.style.display="inline-block";
-        } else {
-          p.innerHTML="No logo"; 
-          p.style.border="2px dashed var(--border)"; 
-          if(r) r.style.display="none"; 
+
+        function switchTab(tabName) {
+            if(visibilityDirty && document.getElementById('tab-onboarding').classList.contains('active') && tabName!=='onboarding') {
+                if(!confirm("You have unsaved Task Visibility changes.\n\nClick Cancel to go back and save them, or OK to discard.")) return;
+                clearVisibilityDirty();
+            }
+            if(settingsDirty && document.getElementById('tab-settings').classList.contains('active') && tabName!=='settings') {
+                if(!confirm("You have unsaved changes in Settings.\n\nClick Cancel to go back and save them, or OK to discard.")) return;
+                clearSettingsDirty();
+            }
+            document.querySelectorAll('.admin-tab').forEach(function(t){t.classList.remove('active');});
+            document.querySelectorAll('.admin-tab-content').forEach(function(c){c.classList.remove('active');});
+            document.querySelector('[data-tab="'+tabName+'"]').classList.add('active');
+            document.getElementById('tab-'+tabName).classList.add('active');
+            var obBar=document.getElementById('onboardingSubtabBar');
+            if(obBar) obBar.classList.toggle('visible', tabName==='onboarding');
+            if(tabName==='forms') renderFormsTab();
         }
-      }
-    }
 
-    async function handleLogoUpload() {
-      var f=document.getElementById("logoFile").files[0]; if(!f) return;
-      if(f.size>500000){document.getElementById("logoStatus").textContent="File too large. Max 500KB.";document.getElementById("logoStatus").style.color="var(--error)";return;}
-      var at=["image/png","image/jpeg","image/svg+xml"]; if(at.indexOf(f.type)===-1){document.getElementById("logoStatus").textContent="Invalid file type. PNG, JPEG, SVG only.";document.getElementById("logoStatus").style.color="var(--error)";return;}
-      var rd=new FileReader();
-      rd.onload=async function(e){
-        var du=e.target.result; localStorage.setItem("driven_customer_logo",du);
-        try{var sr=await fetch("/auth/save-logo",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({logo_data:du})});var sd=await sr.json();if(sd.success){document.getElementById("logoStatus").textContent="Logo uploaded.";document.getElementById("logoStatus").style.color="var(--success,#16a34a)";}else{document.getElementById("logoStatus").textContent="Failed to save logo.";document.getElementById("logoStatus").style.color="var(--error)";}}catch(ex){reportError("handleLogoUpload",ex);}
-        await loadLogo();
-      };
-      rd.readAsDataURL(f);
-    }
-
-    async function handleLogoRemove() {
-      try{await fetch("/auth/save-logo",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({logo_data:""})});localStorage.removeItem("driven_customer_logo");document.getElementById("logoStatus").textContent="Logo removed.";document.getElementById("logoStatus").style.color="var(--success,#16a34a)";}catch(e){reportError("handleLogoRemove",e);}
-      await loadLogo();
-    }
-
-    async function loadSettings() {
-      try {
-        var res=await fetch("/auth/get-settings");
-        var data=await res.json();
-        if(data.success&&data.settings) {
-          orgSettings=data.settings;
-          if(data.settings.business_type){document.getElementById("businessTypeSelect").value=data.settings.business_type;}
-          if(data.settings.naics_code){document.getElementById("naicsInput").value=data.settings.naics_code;}
-          if(data.settings.currency){var cs=document.getElementById("currencySelect");if(cs)cs.value=data.settings.currency;}
-          if(data.settings.step_visibility&&typeof data.settings.step_visibility==='object'&&!Array.isArray(data.settings.step_visibility)){stepVisibility=data.settings.step_visibility;}else{stepVisibility={};}
-          if(data.settings.onboarding_complete){onboardingComplete=true;hideOnboardingTab();}
-          if(data.settings.fuel_meter_photo){var mt=document.getElementById("fuelMeterPhotoToggle");if(mt)mt.checked=true;var ml=document.getElementById("fuelMeterPhotoLabel");if(ml){ml.textContent="On";ml.classList.add("active");}}
-          if(data.settings.fuel_asset_photo){var at2=document.getElementById("fuelAssetPhotoToggle");if(at2)at2.checked=true;var al=document.getElementById("fuelAssetPhotoLabel");if(al){al.textContent="On";al.classList.add("active");}}
-          if(data.settings.location_request){var lt=document.getElementById("locationReqToggle");if(lt)lt.checked=true;var ll2=document.getElementById("locationReqLabel");if(ll2){ll2.textContent="On";ll2.classList.add("active");}}
-        } else { applyBusinessTypeDefaults(); }
-      } catch(e) { reportError("loadSettings",e); applyBusinessTypeDefaults(); }
-      renderStepToggles();
-      updateProgress();
-    }
-
-    function markSettingsDirty(){settingsDirty=true;}
-    function clearSettingsDirty(){settingsDirty=false;}
-    function markVisibilityDirty(){visibilityDirty=true;var w=document.getElementById('visibilityWarning');if(w)w.style.display='block';}
-    function clearVisibilityDirty(){visibilityDirty=false;var w=document.getElementById('visibilityWarning');if(w)w.style.display='none';}
-
-    async function saveSettings() {
-      var btBtn=document.getElementById("saveSettingsBtn"),naicsBtn=document.getElementById("saveNaicsBtn"),curBtn=document.getElementById("saveCurrencyBtn");
-      var st=document.getElementById("settingsStatus"),ns=document.getElementById("naicsStatus"),cs2=document.getElementById("currencyStatus");
-      var bt=document.getElementById("businessTypeSelect").value,naics=document.getElementById("naicsInput").value.trim(),cur=document.getElementById("currencySelect")?document.getElementById("currencySelect").value:"USD";
-      if(btBtn){btBtn.disabled=true;btBtn.textContent="Saving…";}
-      if(naicsBtn){naicsBtn.disabled=true;naicsBtn.textContent="Saving…";}
-      if(curBtn){curBtn.disabled=true;curBtn.textContent="Saving…";}
-      try{
-        var res=await fetch("/auth/save-settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({settings:{business_type:bt,naics_code:naics,currency:cur}})});
-        var d=await res.json();
-        if(d.success){orgSettings.business_type=bt;orgSettings.naics_code=naics;orgSettings.currency=cur;if(st){st.textContent="Saved.";st.style.color="var(--success,#16a34a)";}if(ns){ns.textContent="Saved.";ns.style.color="var(--success,#16a34a)";}if(cs2){cs2.textContent="Saved.";cs2.style.color="var(--success,#16a34a)";}}
-        else{if(st){st.textContent="Failed: "+(d.error||"Unknown");st.style.color="var(--error)";}if(ns){ns.textContent="Failed.";ns.style.color="var(--error)";}if(cs2){cs2.textContent="Failed.";cs2.style.color="var(--error)";}}
-      }catch(e){reportError("saveSettings",e);if(st){st.textContent="Failed.";st.style.color="var(--error)";}}
-      if(btBtn){btBtn.disabled=false;btBtn.textContent="Save";}if(naicsBtn){naicsBtn.disabled=false;naicsBtn.textContent="Save";}if(curBtn){curBtn.disabled=false;curBtn.textContent="Save";}
-      setTimeout(function(){if(st)st.textContent="";if(ns)ns.textContent="";if(cs2)cs2.textContent="";},3000);
-      clearSettingsDirty();
-    }
-
-    function onNaicsChange(){markSettingsDirty();}
-    function onCurrencyChange(){markSettingsDirty();}
-
-    function onFuelPhotoToggleChange() {
-      var mt=document.getElementById("fuelMeterPhotoToggle"),ml=document.getElementById("fuelMeterPhotoLabel");
-      if(mt&&ml){ml.textContent=mt.checked?"On":"Off";ml.classList.toggle("active",mt.checked);}
-      var at=document.getElementById("fuelAssetPhotoToggle"),al=document.getElementById("fuelAssetPhotoLabel");
-      if(at&&al){al.textContent=at.checked?"On":"Off";al.classList.toggle("active",at.checked);}
-      markSettingsDirty();
-    }
-
-    function onLocationReqToggleChange() {
-      var lt=document.getElementById("locationReqToggle"),ll=document.getElementById("locationReqLabel");
-      if(lt&&ll){ll.textContent=lt.checked?"On":"Off";ll.classList.toggle("active",lt.checked);}
-      markSettingsDirty();
-    }
-
-    async function saveToggles() {
-      var btn=document.getElementById("saveTogglesBtn"),st=document.getElementById("togglesStatus");
-      var mp=document.getElementById("fuelMeterPhotoToggle")?document.getElementById("fuelMeterPhotoToggle").checked:false;
-      var ap=document.getElementById("fuelAssetPhotoToggle")?document.getElementById("fuelAssetPhotoToggle").checked:false;
-      var lr=document.getElementById("locationReqToggle")?document.getElementById("locationReqToggle").checked:false;
-      if(btn){btn.disabled=true;btn.textContent="Saving…";}
-      try{
-        var res=await fetch("/auth/save-settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({settings:{fuel_meter_photo:mp,fuel_asset_photo:ap,location_request:lr}})});
-        var d=await res.json();
-        if(d.success){orgSettings.fuel_meter_photo=mp;orgSettings.fuel_asset_photo=ap;orgSettings.location_request=lr;if(st){st.textContent="Toggles saved.";st.style.color="var(--success,#16a34a)";}}
-        else{if(st){st.textContent="Failed: "+(d.error||"Unknown");st.style.color="var(--error)";}}
-      }catch(e){reportError("saveToggles",e);if(st){st.textContent="Failed.";st.style.color="var(--error)";}}
-      if(btn){btn.disabled=false;btn.textContent="Save Toggles";}
-      setTimeout(function(){if(st)st.textContent="";},3000);
-    }
-
-    function applyBusinessTypeDefaults() {
-      if(!stepVisibility||typeof stepVisibility!=='object') stepVisibility={};
-      var bt=document.getElementById("businessTypeSelect").value;
-      if(bt&&BUSINESS_TYPE_DEFAULTS[bt]){var df=BUSINESS_TYPE_DEFAULTS[bt];for(var k in df){if(!stepVisibility._manualOverrides||!stepVisibility._manualOverrides[k]){stepVisibility[k]=df[k];}}}
-    }
-
-    function onBusinessTypeChange() {
-      var bt=document.getElementById("businessTypeSelect").value;
-      if(bt&&BUSINESS_TYPE_DEFAULTS[bt]){var df=BUSINESS_TYPE_DEFAULTS[bt];for(var k in df){stepVisibility[k]=df[k];}stepVisibility._manualOverrides={};}
-      markSettingsDirty(); renderStepToggles();
-    }
-
-    function renderStepToggles() {
-      if(!stepVisibility||typeof stepVisibility!=='object') stepVisibility={};
-      var c=document.getElementById("stepToggleList"); if(!c) return;
-      c.innerHTML=STEP_DEFS.map(function(s){
-        var v=stepVisibility[s.key]!==false,ck=v?"checked":"",dis=s.locked?"disabled":"",ll=s.locked?'<span class="step-toggle-locked">(always on)</span>':"";
-        return '<div class="step-toggle-row"><div><div class="step-toggle-name">'+s.label+' '+ll+'</div><div class="step-toggle-desc">'+s.desc+'</div></div><label class="toggle-switch"><input type="checkbox" '+ck+' '+dis+' onchange="onToggleChange(\''+s.key+'\',this.checked)"><span class="toggle-slider"></span></label></div>';
-      }).join("");
-    }
-
-    function onToggleChange(k,v) { if(!stepVisibility||typeof stepVisibility!=='object') stepVisibility={}; stepVisibility[k]=v; if(!stepVisibility._manualOverrides) stepVisibility._manualOverrides={}; stepVisibility._manualOverrides[k]=true; markVisibilityDirty(); }
-
-    async function saveStepVisibility() {
-      var st=document.getElementById("visibilityStatus"); if(!stepVisibility||typeof stepVisibility!=='object') stepVisibility={};
-      try{var res=await fetch("/auth/save-settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({settings:{step_visibility:stepVisibility}})});var d=await res.json();if(d.success){if(st){st.textContent="Visibility saved.";st.style.color="var(--success,#16a34a)";}}else{if(st){st.textContent="Failed: "+(d.error||"Unknown");st.style.color="var(--error)";}}clearVisibilityDirty();renderStepToggles();updateProgress();}catch(e){reportError("saveStepVisibility",e);if(st){st.textContent="Failed.";st.style.color="var(--error)";}}
-      setTimeout(function(){st.textContent="";},3000);
-    }
-
-    async function loadKeyPersonnel() {
-      var cid=localStorage.getItem("driven_customer_id"); if(!cid){document.getElementById("kpListBody").innerHTML='<div class="kp-loading">No organization found.</div>';return;}
-      try{var res=await fetch("/api/onboarding/key-personnel/list?customerId="+encodeURIComponent(cid));var d=await res.json();if(d.success&&d.keyPersonnel){keyPersonnel=d.keyPersonnel;renderKeyPersonnel();}else{document.getElementById("kpListBody").innerHTML='<div class="kp-loading">No key personnel assigned yet.</div>';}}catch(e){console.warn("loadKeyPersonnel:",e.message);}
-    }
-
-    function renderKeyPersonnel() {
-      var all=keyPersonnel.concat(pendingKP);
-      if(all.length===0){document.getElementById("kpListBody").innerHTML='<div class="kp-loading">No key personnel assigned yet.</div>';document.getElementById("kpCompleteBtn").style.display="none";updateKpUnsavedBanner();return;}
-      document.getElementById("kpListBody").innerHTML=all.map(function(kp,idx){
-        var tasks=kp.roles?kp.roles.map(function(r){return r.role;}):(kp.task?[kp.task]:[]);
-        var email=esc(kp.email||""),name=esc(kp.name||"Unknown"),isP=kp._pending;
-        var pIdx=isP?(idx-keyPersonnel.length):-1;
-        var chips=tasks.map(function(t){var et=esc(t);var ra=isP?'removePendingKPTask('+pIdx+',\''+et.replace(/'/g,"\\'")+'\')':'revokeKPTask(\''+esc(kp.employeeId||kp.id||kp.email).replace(/'/g,"\\'")+'\',\''+et.replace(/'/g,"\\'")+'\')';return '<div class="kp-task-chip">'+et+'<button type="button" onclick="'+ra+'" style="padding:0;margin:0;line-height:1;">×</button></div>';}).join("");
-        var rma=isP?'removePendingKP('+pIdx+')':'revokeKP(\''+esc(kp.employeeId||kp.id||kp.email).replace(/'/g,"\\'")+'\')';
-        return '<div class="kp-person-row"><div class="kp-person-info"><div class="kp-person-name">'+name+(isP?' <span style="font-size:11px;color:var(--text-muted);">(pending)</span>':'')+'</div><div class="kp-person-email">'+email+'</div><div class="kp-person-tasks">'+chips+'</div></div><button class="kp-person-remove" onclick="'+rma+'">Remove</button></div>';
-      }).join("");
-      document.getElementById("kpCompleteBtn").style.display=(keyPersonnel.length+pendingKP.length)>0?"inline-block":"none";
-      updateKpUnsavedBanner();
-    }
-
-    function updateKpUnsavedBanner(){var b=document.getElementById("kpUnsavedBanner");if(!b)return;b.style.display=pendingKP.length>0?"flex":"none";}
-
-    function getSelectedKPTasks(){return Array.from(document.querySelectorAll('.kp-task-cb:checked')).map(function(cb){return cb.value;});}
-    function clearKPTaskCheckboxes(){document.querySelectorAll('.kp-task-cb').forEach(function(cb){cb.checked=false;});var sa=document.getElementById("kpTaskSelectAll");if(sa)sa.checked=false;updateKPTaskCount();}
-    function updateKPTaskCount(){var c=getSelectedKPTasks().length;var el=document.getElementById("kpTaskCount");if(el)el.textContent=c+" task"+(c===1?"":"s")+" selected";var sa=document.getElementById("kpTaskSelectAll");if(sa)sa.checked=(c===document.querySelectorAll('.kp-task-cb').length);}
-
-    function addKeyPersonnel() {
-      var name=document.getElementById("kpName").value.trim(),email=document.getElementById("kpEmail").value.trim(),tasks=getSelectedKPTasks();
-      if(!name||!email){alert("Please fill in name and email.");return;}
-      if(tasks.length===0){alert("Please select at least one task.");return;}
-      var el=email.toLowerCase(),ex=pendingKP.find(function(k){return k.email.toLowerCase()===el;});
-      if(ex){if(!ex.roles)ex.roles=[];tasks.forEach(function(t){if(!ex.roles.some(function(r){return r.role===t;}))ex.roles.push({role:t});});}
-      else{var roles=tasks.map(function(t){return{role:t};});pendingKP.push({name:name,email:email,roles:roles,_pending:true});}
-      document.getElementById("kpName").value="";document.getElementById("kpEmail").value="";clearKPTaskCheckboxes();renderKeyPersonnel();
-    }
-
-    function removePendingKPTask(i,t){var k=pendingKP[i];if(!k)return;if(k.roles){k.roles=k.roles.filter(function(r){return r.role!==t;});if(k.roles.length===0)pendingKP.splice(i,1);}else{pendingKP.splice(i,1);}renderKeyPersonnel();}
-    function removePendingKP(i){pendingKP.splice(i,1);renderKeyPersonnel();}
-    function kpIdMatches(k,id){var kid=k.employeeId||k.id||k.email;return String(kid)===String(id);}
-
-    async function revokeKPTask(eid,tn){if(!confirm('Remove "'+tn+'" from this person?'))return;var cid=localStorage.getItem("driven_customer_id");try{var res=await fetch("/api/onboarding/key-personnel/revoke",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({employeeId:eid,roles:[tn]})});var d=await res.json();if(d.success){loadKeyPersonnel();}else{alert("Failed to revoke assignment.");}}catch(e){reportError("revokeKPTask",e);}}
-
-    async function revokeKP(eid){if(!confirm("Remove this person and all assignments?"))return;var cid=localStorage.getItem("driven_customer_id");try{var res=await fetch("/api/onboarding/key-personnel/revoke",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({employeeId:eid,revokeAll:true})});var d=await res.json();if(d.success){loadKeyPersonnel();}else{alert("Failed to revoke.");}}catch(e){reportError("revokeKP",e);}}
-
-    async function completeKeyPersonnel() {
-      var btn=document.getElementById("kpCompleteBtn");btn.disabled=true;btn.textContent="Creating accounts…";
-      var cid=localStorage.getItem("driven_customer_id"),au=window.dashUser||{};
-      var g={};pendingKP.forEach(function(k){var key=k.email.toLowerCase();if(!g[key])g[key]={name:k.name,email:k.email,tasks:[]};if(k.roles)k.roles.forEach(function(r){if(g[key].tasks.indexOf(r.role)<0)g[key].tasks.push(r.role);});});
-      var payload=Object.keys(g).map(function(key){var x=g[key];return{firstName:x.name.split(" ")[0],lastName:x.name.split(" ").slice(1).join(" "),email:x.email,tasks:x.tasks};});
-      try{var res=await fetch("/api/onboarding/key-personnel/complete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({customerId:cid,keyPersonnel:payload})});var d=await res.json();if(d.success){alert("Key Personnel accounts created. Now send invitations to activate them.");pendingKP=[];renderKeyPersonnel();loadKeyPersonnel();}else{alert("Error: "+(d.error||"Unknown"));}}catch(e){reportError("completeKeyPersonnel",e);alert("Failed to create accounts.");}
-      btn.disabled=false;btn.textContent="Send Invitations & Create Accounts";
-    }
-
-    function adminAutoDetect(k){switch(k){case"roles-permissions":return false;case"employees":return parseInt(localStorage.getItem("driven_employee_count")||"0")>0||localStorage.getItem("driven_step3_ts");case"locations":return localStorage.getItem("driven_locations_count");case"clients":return localStorage.getItem("driven_clients_count");case"divisions":return localStorage.getItem("driven_divisions_count");case"project-types":return localStorage.getItem("driven_project_types_count");case"projects":return localStorage.getItem("driven_projects_count");case"fuel-types":return localStorage.getItem("driven_fuel_types_count");case"units-of-measure":return localStorage.getItem("driven_units_of_measure_count");case"assets":return parseInt(localStorage.getItem("driven_equipment_count")||"0")>0;default:return false;}}
-
-    function adminIsTaskComplete(k){if(adminAutoDetect(k))return true;var tc={};try{tc=JSON.parse(localStorage.getItem("driven_task_completions")||"{}");}catch(e){}var sd=STEP_DEFS.find(function(s){return s.key===k;});return tc[k]===true || (sd && sd.locked);}
-
-    function updateProgress() {
-      try {
-        var vs=STEP_DEFS.filter(function(s){return stepVisibility[s.key]!==false;}),comp=0;
-        vs.forEach(function(s){if(adminIsTaskComplete(s.key))comp++;});
-        var tot=vs.length,pct=tot>0?Math.round((comp/tot)*100):0;
-        document.getElementById("progressBarFill").style.width=pct+"%";
-        document.getElementById("progressText").textContent=comp+" of "+tot+" tasks complete";
-        if(comp>=tot&&tot>0)document.getElementById("markCompleteBtn").classList.add("show");else document.getElementById("markCompleteBtn").classList.remove("show");
-        if(onboardingComplete)document.getElementById("reopenOnboardingBtn").style.display="inline-block";
-        var cp=document.getElementById("onboardingCompletePanel");if(cp){if(tot>0&&comp>=tot&&!onboardingComplete)cp.classList.add("show");else cp.classList.remove("show");}
-      } catch(e) { reportError("updateProgress",e); }
-    }
-
-    function showCompleteModal(){document.getElementById("confirmModal").classList.add("active");}
-    function closeCompleteModal(){document.getElementById("confirmModal").classList.remove("active");}
-
-    async function markOnboardingComplete(){closeCompleteModal();try{await fetch("/auth/save-settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({settings:{onboarding_complete:true}})});onboardingComplete=true;hideOnboardingTab();updateProgress();}catch(e){reportError("markOnboardingComplete",e);alert("Failed to mark complete.");}}
-
-    function hideOnboardingTab(){var t=document.querySelector('[data-tab="onboarding"]');if(t)t.style.display="none";}
-
-    async function finalizeOnboarding() {
-      var btn=document.getElementById("finalizeOnboardingBtn");
-      if(!confirm("Finalize onboarding?\n\n1. Activate Key Personnel accounts and send invitation emails\n2. Remove all Key Personnel onboarding assignments\n3. Unlock role-based dashboards\n\nClick OK to continue."))return;
-      btn.disabled=true;btn.textContent="Finalizing…";
-      var cid=localStorage.getItem("driven_customer_id");
-      try{
-        var kpList=[];try{var lr=await fetch("/api/onboarding/key-personnel/list?customerId="+encodeURIComponent(cid));var ld=await lr.json();kpList=(ld.keyPersonnel||[]).map(function(k){return k.email;});}catch(e){}
-        var ir=await fetch("/api/onboarding/key-personnel/send-invites",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({emails:kpList})});var id=await ir.json();if(!id.success){alert("Failed to send invitations. Invite email may have failed.");btn.disabled=false;btn.textContent="Finalize Onboarding & Unlock Dashboards";return;}
-        var rr=await fetch("/api/onboarding/key-personnel/revoke",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({customerId:cid,revokeAll:true})});var rd=await rr.json();if(!rd.success){alert("Failed to revoke assignments.");btn.disabled=false;btn.textContent="Finalize Onboarding & Unlock Dashboards";return;}
-        var cr=await fetch("/auth/save-settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({settings:{onboarding_complete:true}})});var cd=await cr.json();if(!cd.success){alert("Failed to mark complete.");btn.disabled=false;btn.textContent="Finalize Onboarding & Unlock Dashboards";return;}
-        onboardingComplete=true;keyPersonnel=[];pendingKP=[];var p=document.getElementById("onboardingCompletePanel");if(p)p.classList.remove("show");document.getElementById("reopenOnboardingBtn").style.display="inline-block";alert("Onboarding finalized! Key Personnel have been invited and onboarding is now locked.");hideOnboardingTab();
-      }catch(e){reportError("finalizeOnboarding",e);alert("Failed.");btn.disabled=false;btn.textContent="Finalize Onboarding & Unlock Dashboards";}
-    }
-
-    async function reopenOnboarding(){var btn=document.getElementById("reopenOnboardingBtn");if(btn){btn.disabled=true;btn.textContent="Reopening…";}try{await fetch("/auth/save-settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({settings:{onboarding_complete:false}})});onboardingComplete=false;document.querySelector('[data-tab="onboarding"]').style.display="";document.getElementById("onboardingCompletePanel").classList.remove("show");if(btn){btn.disabled=false;btn.textContent="Reopen Onboarding";btn.style.display="none";}}catch(e){reportError("reopenOnboarding",e);alert("Failed.");if(btn){btn.disabled=false;btn.textContent="Reopen Onboarding";}}}
-
-    window.addEventListener("beforeunload",function(e){if(visibilityDirty||settingsDirty){e.preventDefault();e.returnValue="";}});
-
-    window.dashLogout=function(){if(visibilityDirty||settingsDirty){if(!confirm("You have unsaved changes.\n\nClick Cancel to go back and save, or OK to leave without saving."))return;}try{fetch("/auth/logout",{method:"POST"}).catch(function(){});}catch(e){}window.location.href="/public/login.html";};
-
-    function makeTabsSticky(){var h=document.getElementById("dashHeader"),tb=document.getElementById("adminTabBar");if(h&&tb&&!h.contains(tb))h.appendChild(tb);var ob=document.getElementById("onboardingSubtabBar");if(ob&&h&&!h.contains(ob))h.appendChild(ob);}
-
-    function insertHeaderTitle(){var r=document.querySelector(".dash-header-row1");if(r&&!document.querySelector(".admin-header-title")){var t=document.createElement("div");t.className="admin-header-title";t.textContent="Admin Dashboard";var logo=r.querySelector(".dash-driven-logo");if(logo)r.insertBefore(t,logo);else r.appendChild(t);}}
-
-    async function init() {
-      document.addEventListener("dashSessionLoaded", async function() {
-        var user = window.dashUser;
-        if (!user) { window.location.href = "/public/login.html"; return; }
-        try {
-          var firstName = user.first_name || user.email || "Admin";
-          var orgName = user.org_name || localStorage.getItem("driven_org_name") || "";
-          var role = user.role || "Admin";
-          var email = user.email || "";
-          var wn = document.getElementById("welcome-name");
-          if (wn) wn.textContent = firstName;
-          var wc = document.getElementById("welcome-company");
-          if (wc) wc.textContent = orgName || "—";
-          var wr = document.getElementById("welcome-role");
-          if (wr) wr.textContent = role;
-          var we = document.getElementById("welcome-email");
-          if (we) we.textContent = email;
-          insertHeaderTitle();
-          makeTabsSticky();
-          try { await loadLogo(); } catch(e) { console.warn("loadLogo warning:", e.message); }
-          try { await loadSettings(); } catch(e) { reportError("init-loadSettings", e); }
-          try { await loadKeyPersonnel(); } catch(e) { reportError("init-loadKeyPersonnel", e); }
-          try { updateProgress(); } catch(e) { reportError("init-updateProgress", e); }
-          try { updateThemeSwitch(); } catch(e) { reportError("init-updateThemeSwitch", e); }
-          try { renderFormsTab(); } catch(e) { reportError("init-renderFormsTab", e); }
-          document.getElementById("loading").style.display = "none";
-          document.getElementById("dashboard").style.display = "block";
-          loadDashboardStats().catch(function(e) { reportError("init-loadDashboardStats", e); });
-        } catch(e) {
-          reportError("init-inner", e);
-          showPageError();
-          document.getElementById("loading").style.display = "none";
-          document.getElementById("dashboard").style.display = "block";
+        function switchOnboardingSubtab(subtabName) {
+            if(visibilityDirty && document.getElementById('onboarding-subtab-visibility').classList.contains('active') && subtabName!=='visibility') {
+                if(!confirm("You have unsaved Task Visibility changes.\n\nClick Cancel to go back and save them, or OK to discard.")) return;
+                clearVisibilityDirty();
+            }
+            document.querySelectorAll('#onboardingSubtabBar .admin-subtab').forEach(function(t){t.classList.remove('active');});
+            document.querySelectorAll('.admin-subtab-content[id^="onboarding-subtab-"]').forEach(function(c){c.classList.remove('active');});
+            document.querySelector('#onboardingSubtabBar [data-subtab="'+subtabName+'"]').classList.add('active');
+            document.getElementById('onboarding-subtab-'+subtabName).classList.add('active');
         }
-      });
-      setTimeout(function() {
-        if (document.getElementById("loading").style.display !== "none") {
-          reportError("init-timeout", "dashSessionLoaded event never fired within 8s");
-          showPageError();
-          document.getElementById("loading").style.display = "none";
-          document.getElementById("dashboard").style.display = "block";
+
+        function toggleTheme() {
+            var current = document.documentElement.getAttribute("data-theme");
+            var newTheme = current === "dark" ? "light" : "dark";
+            document.documentElement.setAttribute("data-theme", newTheme);
+            localStorage.setItem("driven-theme", newTheme);
+            updateThemeSwitch();
         }
-      }, 8000);
-    }
 
-    (function() {
-      var sa = document.getElementById("kpTaskSelectAll");
-      if (sa) sa.addEventListener("change", function() { document.querySelectorAll('.kp-task-cb').forEach(function(cb) { cb.checked = sa.checked; }); updateKPTaskCount(); });
-      document.querySelectorAll('.kp-task-cb').forEach(function(cb) { cb.addEventListener("change", updateKPTaskCount); });
-    })();
+        function updateThemeSwitch() {
+            var current = document.documentElement.getAttribute("data-theme");
+            var cb = document.getElementById("theme-checkbox");
+            var ll = document.getElementById("theme-label-light");
+            var ld = document.getElementById("theme-label-dark");
+            if(cb) cb.checked = (current === "dark");
+            if(ll) ll.classList.toggle("active", current === "light");
+            if(ld) ld.classList.toggle("active", current === "dark");
+        }
 
-    init();
-</script>
-<script src="/app/shared/auth-check.js?v=13"></script>
+        async function loadLogo() {
+            var p = document.getElementById("logoPreview"), r = document.getElementById("logoRemoveBtn");
+            if (!p) return;
+            try {
+                var res = await fetch("/auth/get-logo");
+                if (!res.ok) throw new Error("Logo fetch failed");
+                var d = await res.json();
+                if(d.success && d.logo) {
+                    localStorage.setItem("driven_customer_logo", d.logo);
+                    p.innerHTML = '<img src="' + d.logo + '" alt="Logo" style="max-height:60px;max-width:140px;object-fit:contain;">';
+                    p.style.border = "none";
+                    if(r) r.style.display = "inline-block";
+                } else {
+                    p.innerHTML = "No logo";
+                    p.style.border = "2px dashed var(--border)";
+                    if(r) r.style.display = "none";
+                }
+            } catch(e) {
+                var ll = localStorage.getItem("driven_customer_logo");
+                if(ll) {
+                    p.innerHTML = '<img src="' + ll + '" alt="Logo" style="max-height:60px;max-width:140px;object-fit:contain;">';
+                    p.style.border = "none";
+                    if(r) r.style.display = "inline-block";
+                } else {
+                    p.innerHTML = "No logo";
+                    p.style.border = "2px dashed var(--border)";
+                    if(r) r.style.display = "none";
+                }
+            }
+        }
+
+        async function handleLogoUpload() {
+            var f = document.getElementById("logoFile").files[0];
+            if(!f) return;
+            if(f.size > 500000) { document.getElementById("logoStatus").textContent = "File too large. Max 500KB."; document.getElementById("logoStatus").style.color = "var(--error)"; return; }
+            var rd = new FileReader();
+            rd.onload = async function(e) {
+                var du = e.target.result;
+                localStorage.setItem("driven_customer_logo", du);
+                try {
+                    var sr = await fetch("/auth/save-logo", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({logo_data:du}) });
+                    var sd = await sr.json();
+                    if(sd.success) { document.getElementById("logoStatus").textContent = "Logo uploaded."; document.getElementById("logoStatus").style.color = "var(--success,#16a34a)"; }
+                } catch(ex) { reportError("handleLogoUpload", ex); }
+                await loadLogo();
+            };
+            rd.readAsDataURL(f);
+        }
+
+        async function handleLogoRemove() {
+            try {
+                await fetch("/auth/save-logo", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({logo_data:""}) });
+                localStorage.removeItem("driven_customer_logo");
+                document.getElementById("logoStatus").textContent = "Logo removed.";
+            } catch(e) { reportError("handleLogoRemove", e); }
+            await loadLogo();
+        }
+
+        async function loadSettings() {
+            try {
+                var res = await fetch("/auth/get-settings");
+                var data = await res.json();
+                if(data.success && data.settings) {
+                    orgSettings = data.settings;
+                    if(data.settings.business_type) document.getElementById("businessTypeSelect").value = data.settings.business_type;
+                    if(data.settings.naics_code) document.getElementById("naicsInput").value = data.settings.naics_code;
+                    if(data.settings.currency && document.getElementById("currencySelect")) document.getElementById("currencySelect").value = data.settings.currency;
+                    if(data.settings.step_visibility && typeof data.settings.step_visibility==='object' && !Array.isArray(data.settings.step_visibility)) stepVisibility = data.settings.step_visibility;
+                    if(data.settings.onboarding_complete) { onboardingComplete = true; hideOnboardingTab(); }
+                } else { applyBusinessTypeDefaults(); }
+            } catch(e) { reportError("loadSettings", e); applyBusinessTypeDefaults(); }
+            renderStepToggles();
+            updateProgress();
+        }
+
+        function markSettingsDirty(){ settingsDirty = true; }
+        function clearSettingsDirty(){ settingsDirty = false; }
+        function markVisibilityDirty(){ visibilityDirty = true; var w = document.getElementById('visibilityWarning'); if(w) w.style.display = 'block'; }
+        function clearVisibilityDirty(){ visibilityDirty = false; var w = document.getElementById('visibilityWarning'); if(w) w.style.display = 'none'; }
+
+        async function saveSettings() {
+            var bt = document.getElementById("businessTypeSelect").value, naics = document.getElementById("naicsInput").value.trim(), cur = document.getElementById("currencySelect") ? document.getElementById("currencySelect").value : "USD";
+            try {
+                var res = await fetch("/auth/save-settings", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({settings:{business_type:bt, naics_code:naics, currency:cur}}) });
+                var d = await res.json();
+                if(d.success) {
+                    orgSettings.business_type = bt; orgSettings.naics_code = naics; orgSettings.currency = cur;
+                    document.getElementById("settingsStatus").textContent = "Saved.";
+                }
+            } catch(e) { reportError("saveSettings", e); }
+            clearSettingsDirty();
+        }
+
+        function onNaicsChange(){ markSettingsDirty(); }
+        function onCurrencyChange(){ markSettingsDirty(); }
+        function onFuelPhotoToggleChange() { markSettingsDirty(); }
+        function onLocationReqToggleChange() { markSettingsDirty(); }
+
+        async function saveToggles() {
+            var mp = document.getElementById("fuelMeterPhotoToggle") ? document.getElementById("fuelMeterPhotoToggle").checked : false;
+            var ap = document.getElementById("fuelAssetPhotoToggle") ? document.getElementById("fuelAssetPhotoToggle").checked : false;
+            var lr = document.getElementById("locationReqToggle") ? document.getElementById("locationReqToggle").checked : false;
+            try {
+                await fetch("/auth/save-settings", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({settings:{fuel_meter_photo:mp, fuel_asset_photo:ap, location_request:lr}}) });
+                document.getElementById("togglesStatus").textContent = "Toggles saved.";
+            } catch(e) { reportError("saveToggles", e); }
+        }
+
+        function applyBusinessTypeDefaults() {
+            if(!stepVisibility || typeof stepVisibility !== 'object') stepVisibility = {};
+            var bt = document.getElementById("businessTypeSelect").value;
+            if(bt && BUSINESS_TYPE_DEFAULTS[bt]) {
+                var df = BUSINESS_TYPE_DEFAULTS[bt];
+                for(var k in df) { if(!stepVisibility._manualOverrides || !stepVisibility._manualOverrides[k]) stepVisibility[k] = df[k]; }
+            }
+        }
+
+        function onBusinessTypeChange() {
+            var bt = document.getElementById("businessTypeSelect").value;
+            if(bt && BUSINESS_TYPE_DEFAULTS[bt]) {
+                var df = BUSINESS_TYPE_DEFAULTS[bt];
+                for(var k in df) stepVisibility[k] = df[k];
+                stepVisibility._manualOverrides = {};
+            }
+            markSettingsDirty(); renderStepToggles();
+        }
+
+        function renderStepToggles() {
+            if(!stepVisibility || typeof stepVisibility !== 'object') stepVisibility = {};
+            var c = document.getElementById("stepToggleList");
+            if(!c) return;
+            c.innerHTML = STEP_DEFS.map(function(s) {
+                var v = stepVisibility[s.key] !== false, ck = v ? "checked" : "", dis = s.locked ? "disabled" : "", ll = s.locked ? '<span class="step-toggle-locked">(always on)</span>' : "";
+                return '<div class="step-toggle-row"><div><div class="step-toggle-name">' + s.label + ' ' + ll + '</div><div class="step-toggle-desc">' + s.desc + '</div></div><label class="toggle-switch"><input type="checkbox" ' + ck + ' ' + dis + ' onchange="onToggleChange(\'' + s.key + '\',this.checked)"><span class="toggle-slider"></span></label></div>';
+            }).join("");
+        }
+
+        function onToggleChange(k, v) {
+            if(!stepVisibility || typeof stepVisibility !== 'object') stepVisibility = {};
+            stepVisibility[k] = v;
+            if(!stepVisibility._manualOverrides) stepVisibility._manualOverrides = {};
+            stepVisibility._manualOverrides[k] = true;
+            markVisibilityDirty();
+        }
+
+        async function saveStepVisibility() {
+            var st = document.getElementById("visibilityStatus");
+            try {
+                var res = await fetch("/auth/save-settings", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({settings:{step_visibility:stepVisibility}}) });
+                var d = await res.json();
+                if(d.success && st) { st.textContent = "Visibility saved."; st.style.color = "var(--success,#16a34a)"; }
+                clearVisibilityDirty(); renderStepToggles(); updateProgress();
+            } catch(e) { reportError("saveStepVisibility", e); }
+        }
+
+        async function loadKeyPersonnel() {
+            var cid = localStorage.getItem("driven_customer_id");
+            if(!cid) return;
+            try {
+                var res = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(cid));
+                var d = await res.json();
+                if(d.success && d.keyPersonnel) { keyPersonnel = d.keyPersonnel; renderKeyPersonnel(); }
+            } catch(e){}
+        }
+
+        function renderKeyPersonnel() {
+            var all = keyPersonnel.concat(pendingKP);
+            if(all.length === 0) { document.getElementById("kpListBody").innerHTML = '<div class="kp-loading">No key personnel assigned yet.</div>'; return; }
+            document.getElementById("kpListBody").innerHTML = all.map(function(kp, idx) {
+                var tasks = kp.roles ? kp.roles.map(function(r){return r.role;}) : (kp.task ? [kp.task] : []);
+                var chips = tasks.map(function(t) { return '<div class="kp-task-chip">' + esc(t) + '</div>'; }).join("");
+                return '<div class="kp-person-row"><div class="kp-person-info"><div class="kp-person-name">' + esc(kp.name || 'Unknown') + '</div><div class="kp-person-email">' + esc(kp.email || '') + '</div><div class="kp-person-tasks">' + chips + '</div></div></div>';
+            }).join("");
+        }
+
+        function updateProgress() {
+            var vs = STEP_DEFS.filter(function(s){return stepVisibility[s.key] !== false;}), comp = 0;
+            vs.forEach(function(s){ if(adminIsTaskComplete(s.key)) comp++; });
+            var tot = vs.length, pct = tot > 0 ? Math.round((comp / tot) * 100) : 0;
+            document.getElementById("progressBarFill").style.width = pct + "%";
+            document.getElementById("progressText").textContent = comp + " of " + tot + " tasks complete";
+        }
+
+        function adminIsTaskComplete(k) { return false; }
+        function showCompleteModal(){ document.getElementById("confirmModal").classList.add("active"); }
+        function closeCompleteModal(){ document.getElementById("confirmModal").classList.remove("active"); }
+        function hideOnboardingTab(){ var t = document.querySelector('[data-tab="onboarding"]'); if(t) t.style.display = "none"; }
+
+        function makeTabsSticky(){
+            var h = document.getElementById("dashHeader"), tb = document.getElementById("adminTabBar");
+            if(h && tb && !h.contains(tb)) h.appendChild(tb);
+        }
+
+        function insertHeaderTitle(){
+            var r = document.querySelector(".dash-header-row1");
+            if(r && !document.querySelector(".admin-header-title")) {
+                var t = document.createElement("div"); t.className = "admin-header-title"; t.textContent = "Admin Dashboard";
+                var logo = r.querySelector(".dash-driven-logo");
+                if(logo) r.insertBefore(t, logo); else r.appendChild(t);
+            }
+        }
+
+        async function init() {
+            document.addEventListener("dashSessionLoaded", async function() {
+                var user = window.dashUser;
+                if (!user) { window.location.href = "/public/login.html"; return; }
+                document.getElementById("welcome-name").textContent = user.first_name || user.email || "Admin";
+                document.getElementById("welcome-company").textContent = user.org_name || localStorage.getItem("driven_org_name") || "—";
+                document.getElementById("welcome-role").textContent = user.role || "Admin";
+                document.getElementById("welcome-email").textContent = user.email || "";
+                insertHeaderTitle(); makeTabsSticky();
+                try { await loadLogo(); } catch(e){}
+                try { await loadSettings(); } catch(e){}
+                try { await loadKeyPersonnel(); } catch(e){}
+                try { updateProgress(); } catch(e){}
+                try { updateThemeSwitch(); } catch(e){}
+                try { renderFormsTab(); } catch(e){}
+                document.getElementById("loading").style.display = "none";
+                document.getElementById("dashboard").style.display = "block";
+                loadDashboardStats().catch(function(e){ reportError("init-loadDashboardStats", e); });
+            });
+        }
+        init();
+    </script>
+    <script src="/app/shared/auth-check.js?v=13"></script>
 </body>
 </html>
