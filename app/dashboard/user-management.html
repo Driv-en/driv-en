@@ -6,6 +6,8 @@
     <title>DRIV‑EN | Employee Management</title>
     <meta name="description" content="DRIV-EN — manage users, employees, roles, and permissions.">
     <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#16a34a">
+    <link rel="manifest" href="/manifest.json?v=2026">
     <link rel="canonical" href="https://www.driv-en.com/app/dashboard/user-management.html">
     <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
     <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
@@ -20,6 +22,14 @@
             var theme = saved || system;
             document.documentElement.setAttribute("data-theme", theme);
         })();
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js?v=2026').catch(function(err) {
+                    console.warn('PWA ServiceWorker registration skipped:', err);
+                });
+            });
+        }
     </script>
     <style>
         :root {
@@ -144,6 +154,23 @@
             z-index: 1;
             box-sizing: border-box;
         }
+
+        .um-toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            background: #1e293b;
+            color: #fff;
+            font-size: 14px;
+            z-index: 2000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            display: none;
+        }
+        .um-toast.show { display: block; }
+        .um-toast.error { background: #dc2626; }
+        .um-toast.success { background: #16a34a; }
 
         .um-welcome {
             background: var(--bg-card);
@@ -361,7 +388,6 @@
             -webkit-overflow-scrolling: touch;
         }
 
-        /* Column Width Lock matching Asset Directory */
         .um-table {
             table-layout: fixed !important;
             width: max-content !important;
@@ -816,6 +842,9 @@
         </div>
     </div>
 
+    <!-- Toast Notification Banner -->
+    <div id="umToast" class="um-toast"></div>
+
     <!-- Print & Export Modals -->
     <div id="umPrintModal" class="um-modal">
         <div class="um-modal-card">
@@ -847,7 +876,6 @@
         var allUsers = [], allEmployees = [], allOrgRoles = [];
         var currentUserOrgId = null;
 
-        // Full Columns Set for Users Table (All Fields from users D1 Table)
         var USER_COL_DEFS = [
             { key: 'id', label: 'User ID', defaultWidth: '120px' },
             { key: 'fullName', label: 'Full Name', defaultWidth: '160px' },
@@ -860,7 +888,6 @@
             { key: 'last_login', label: 'Last Login', defaultWidth: '160px' }
         ];
 
-        // Full Columns Set for Employees Directory Table
         var EMP_COL_DEFS = [
             { key: 'employeeNumber', label: 'Emp #', defaultWidth: '110px' },
             { key: 'firstName', label: 'First Name', defaultWidth: '140px' },
@@ -873,6 +900,13 @@
 
         var visibleUserCols = {}, userColWidths = {};
         var visibleEmpCols = {}, empColWidths = {};
+
+        function showToast(msg, type) {
+            var t = document.getElementById('umToast');
+            t.textContent = msg;
+            t.className = 'um-toast show ' + (type || 'success');
+            setTimeout(function() { t.classList.remove('show'); }, 3500);
+        }
 
         function parseVal(val) {
             if (val === undefined || val === null) return '—';
@@ -942,8 +976,9 @@
                     var data = await resp.json();
                     var raw = data.users || data.records || (Array.isArray(data) ? data : []);
                     allUsers = raw.map(normalizeUser);
-                } else throw new Error();
+                } else throw new Error('API returned error');
             } catch (e) {
+                console.warn('loadUsers error, defaulting:', e.message);
                 allUsers = [];
             }
             renderUserTableHead();
@@ -957,8 +992,9 @@
                     var data = await resp.json();
                     var raw = data.employees || (Array.isArray(data) ? data : []);
                     allEmployees = raw.map(normalizeEmployee);
-                } else throw new Error();
+                } else throw new Error('API returned error');
             } catch (e) {
+                console.warn('loadEmployees fallback to local cache:', e.message);
                 var saved = localStorage.getItem('driven_saved_employees');
                 if (saved) {
                     allEmployees = JSON.parse(saved).map(normalizeEmployee);
@@ -1277,6 +1313,7 @@
             document.getElementById('umAddEmpModal').classList.add('active');
         }
 
+        // Live D1 Database Persistence with Multi-Tenant Enforcement & Error Handling
         async function submitSaveEmployee() {
             var id = document.getElementById('editEmpId').value;
             var fn = document.getElementById('addEmpFn').value.trim();
@@ -1285,7 +1322,41 @@
             var role = document.getElementById('addEmpRole').value;
             var phone = document.getElementById('addEmpPhone').value.trim();
 
-            if (!fn || !ln) { alert('First and Last name are required.'); return; }
+            if (!fn || !ln) { 
+                showToast('First and Last name are required.', 'error');
+                return; 
+            }
+
+            var payload = {
+                id: id || undefined,
+                customer_id: currentUserOrgId, // Tenant Boundary Enforcement
+                first_name: fn,
+                last_name: ln,
+                name: fn + ' ' + ln,
+                email: em,
+                role: role,
+                phone: phone,
+                status: 'Active'
+            };
+
+            try {
+                var endpoint = id ? '/api/onboarding/employees/' + encodeURIComponent(id) : '/api/onboarding/employees/create';
+                var method = id ? 'PUT' : 'POST';
+
+                var resp = await fetch(endpoint, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!resp.ok) {
+                    throw new Error('Server responded with status ' + resp.status);
+                }
+                showToast('Employee saved to D1 database successfully.', 'success');
+            } catch (e) {
+                console.warn('D1 Sync error, updated locally:', e.message);
+                showToast('Saved locally (Offline/Cache fallback)', 'error');
+            }
 
             if (id) {
                 var emp = allEmployees.find(function(x) { return x.id === id; });
@@ -1298,16 +1369,7 @@
                     emp.phone = phone || '—';
                 }
             } else {
-                allEmployees.unshift(normalizeEmployee({
-                    id: 'EMP-' + Date.now(),
-                    employee_number: 'EMP-' + Math.floor(100 + Math.random() * 900),
-                    first_name: fn,
-                    last_name: ln,
-                    email: em || '—',
-                    role: role,
-                    status: 'Active',
-                    phone: phone || '—'
-                }));
+                allEmployees.unshift(normalizeEmployee(payload));
             }
 
             localStorage.setItem('driven_saved_employees', JSON.stringify(allEmployees));
