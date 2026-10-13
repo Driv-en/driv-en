@@ -265,7 +265,7 @@
             gap: 12px;
         }
         .am-search-row1 { width: 100%; }
-.am-search-input {
+        .am-search-input {
             width: 100%;
             padding: 10px 14px;
             border: 1.5px solid #2563eb;
@@ -402,7 +402,7 @@
             color: var(--text);
         }
 
-.am-table-scroll {
+        .am-table-scroll {
             max-height: 500px;
             overflow-x: auto;
             overflow-y: auto;
@@ -442,6 +442,7 @@
             cursor: pointer;
             user-select: none;
             vertical-align: middle;
+            box-sizing: border-box;
         }
         .am-table th:first-child { border-left: none; }
         .am-table th:last-child { border-right: none; }
@@ -488,31 +489,42 @@
             white-space: normal;
             word-wrap: break-word;
             vertical-align: middle;
+            box-sizing: border-box;
         }
         .am-table td:first-child { border-left: none; }
         .am-table td:last-child { border-right: none; }
         .am-table tr:hover td { background: var(--bg-input); }
-        .am-table .am-actions {
+        
+        .am-table td.am-actions {
+            border-top: 1px solid var(--blue-line);
+            border-bottom: 1px solid var(--blue-line);
+            border-left: 1px solid var(--border);
+            border-right: 1px solid var(--border);
+            display: table-cell;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+        .am-table .am-actions-wrap {
             display: flex;
             gap: 6px;
-            white-space: nowrap;
-            flex-wrap: wrap;
+            align-items: center;
         }
         .am-table-btn {
             background: var(--bg-card);
-            border: 1px solid var(--border);
+            border: 1.5px solid #2563eb;
             color: var(--text);
-            padding: 5px 10px;
+            padding: 5px 12px;
             border-radius: 4px;
             font-size: 12px;
+            font-weight: 600;
             cursor: pointer;
+            transition: all 150ms ease;
         }
         .am-table-btn:hover {
-            border-color: var(--primary);
-            color: var(--primary);
+            border: 2px solid #1d4ed8;
+            color: #1d4ed8;
+            background: rgba(37, 99, 235, 0.05);
         }
-        .am-table-btn.danger { color: var(--error); }
-        .am-table-btn.danger:hover { border-color: var(--error); }
 
         .am-badge {
             display: inline-block;
@@ -1326,23 +1338,13 @@
         function parseVal(val) {
             if (val === undefined || val === null) return '';
             if (Array.isArray(val)) return val.map(parseVal).filter(Boolean).join(', ');
-            if (typeof val === 'object') return val.name || val.title || val.project_name || '';
-            return String(val);
+            if (typeof val === 'object') return val.name || val.title || val.project_name || val.location_name || '';
+            var str = String(val).trim();
+            return (str === 'null' || str === 'undefined') ? '' : str;
         }
 
-function normalizeAsset(r) {
+        function normalizeAsset(r) {
             var f = (r && r.fields && typeof r.fields === 'object') ? r.fields : (r || {});
-
-            function parseVal(val) {
-                if (val === undefined || val === null) return '';
-                if (Array.isArray(val)) return val.map(parseVal).filter(Boolean).join(', ');
-                if (typeof val === 'object') {
-                    // Only return string name if it's a valid non-empty object property
-                    return val.name || val.title || val.project_name || val.location_name || '';
-                }
-                var str = String(val).trim();
-                return (str === 'null' || str === 'undefined') ? '' : str;
-            }
 
             return {
                 id: r.id || f.id || ('eq-' + Math.random().toString(36).substr(2, 9)),
@@ -1352,11 +1354,10 @@ function normalizeAsset(r) {
                 status: parseVal(f.status) || 'Available',
                 project: parseVal(f.current_project),
                 location: parseVal(f.current_location),
-                // Strict mapping to prevent false fallback data:
-                serialNumber: parseVal(f.serial_number), // Will be empty -> renders '-'
-                division: parseVal(f.division),          // Will be empty -> renders '-'
-                assignedTo: parseVal(f.owner_name),       // Only uses owner_name from D1
-                condition: parseVal(f.condition),        // Will be empty -> renders '-'
+                serialNumber: parseVal(f.serial_number),
+                division: parseVal(f.division),
+                assignedTo: parseVal(f.owner_name),
+                condition: parseVal(f.condition),
                 createdAt: parseVal(f.created_at)
             };
         }
@@ -1504,7 +1505,7 @@ function normalizeAsset(r) {
             th.appendChild(tr);
         }
 
-function initColumnResize(e, th, colKey) {
+        function initColumnResize(e, th, colKey) {
             e.stopPropagation();
             e.preventDefault();
             var resizer = e.target;
@@ -1518,12 +1519,10 @@ function initColumnResize(e, th, colKey) {
                 var currentX = me.touches ? me.touches[0].pageX : me.pageX;
                 var newWidth = Math.max(60, startWidth + (currentX - startX)) + 'px';
                 
-                // Update header cell width
                 th.style.width = newWidth;
                 th.style.minWidth = newWidth;
                 th.style.maxWidth = newWidth;
 
-                // Update all body cells in this specific column
                 var table = document.getElementById('amTable');
                 if (table) {
                     var rows = table.querySelectorAll('tbody tr');
@@ -1553,6 +1552,7 @@ function initColumnResize(e, th, colKey) {
             document.addEventListener('touchmove', onMove, { passive: false });
             document.addEventListener('touchend', onEnd);
         }
+
         function onSortClick(key) {
             if (sortKey === key) {
                 sortDir = (sortDir === 'asc') ? 'desc' : 'asc';
@@ -1667,16 +1667,27 @@ function initColumnResize(e, th, colKey) {
                     var atd = document.createElement('td');
                     atd.className = 'am-actions';
                     atd.style.width = '140px';
+                    
+                    var wrap = document.createElement('div');
+                    wrap.className = 'am-actions-wrap';
+
                     var bv = document.createElement('button');
                     bv.className = 'am-table-btn';
                     bv.textContent = 'View';
-                    bv.addEventListener('click', function() { window.location.href = '/app/asset/asset-detail.html?id=' + encodeURIComponent(a.id); });
-                    atd.appendChild(bv);
+                    bv.addEventListener('click', function() { 
+                        window.location.href = '/app/asset/asset-detail.html?id=' + encodeURIComponent(a.id); 
+                    });
+                    wrap.appendChild(bv);
+
                     var be = document.createElement('button');
                     be.className = 'am-table-btn';
                     be.textContent = 'Edit';
-                    be.addEventListener('click', function() { openEditModal(a.id); });
-                    atd.appendChild(be);
+                    be.addEventListener('click', function() { 
+                        openEditModal(a.id); 
+                    });
+                    wrap.appendChild(be);
+
+                    atd.appendChild(wrap);
                     tr.appendChild(atd);
                 }
                 tb.appendChild(tr);
@@ -1952,26 +1963,6 @@ function initColumnResize(e, th, colKey) {
             } catch (e) {
                 showEditMessage('Failed to update asset: ' + e.message, 'error');
                 if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report('asset-management.html: saveEditAsset failed — ' + (e.message || e), 'saveEditAsset', e && e.stack ? e.stack : null);
-            }
-        }
-
-        async function deleteAsset(id) {
-            var a = allAssets.find(function(x) { return x.id === id; });
-            if (!a) return;
-            if (!confirm('Delete asset "' + (a.assetNumber || a.type) + '"? This cannot be undone.')) return;
-            try {
-                var resp = await fetch('/api/Equipment/' + encodeURIComponent(id), { method: 'DELETE' });
-                if (!resp.ok) {
-                    var d = await resp.json();
-                    throw new Error(d.error || d.message || 'Delete failed (' + resp.status + ')');
-                }
-                allAssets = allAssets.filter(function(x) { return x.id !== id; });
-                showMessage('Asset "' + (a.assetNumber || a.type) + '" deleted.', 'success');
-                updateKpi();
-                renderAssetTable();
-            } catch (e) {
-                showMessage('Failed to delete asset: ' + e.message, 'error');
-                if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report('asset-management.html: deleteAsset failed — ' + (e.message || e), 'deleteAsset', e && e.stack ? e.stack : null);
             }
         }
 
