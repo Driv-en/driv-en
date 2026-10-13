@@ -34,14 +34,6 @@
             width: 100%;
         }
 
-        .um-header-title {
-            text-align: center !important;
-            margin: 16px auto 8px auto;
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--text);
-        }
-
         .um-loading {
             display: flex;
             align-items: center;
@@ -70,7 +62,7 @@
             padding: 0 16px;
             overflow-x: auto;
             position: sticky !important;
-            top: var(--header-height, 60px) !important;
+            top: 60px !important;
             z-index: 100 !important;
             background: #cbd5e1;
             border-bottom: 2px solid #94a3b8;
@@ -367,7 +359,7 @@
             -webkit-overflow-scrolling: touch;
         }
 
-        /* Fixed Width Lock Behavior Matching Asset Directory */
+        /* Column Resizing Behavior (Isolated Cell Widths) */
         .um-table {
             table-layout: fixed !important;
             width: max-content !important;
@@ -564,10 +556,11 @@
 <body data-page-title="Employee Management">
     <div class="steel-bg"></div>
     <div class="steel-overlay"></div>
+    
+    <!-- Dynamic Dashboard Header (renders title via data-page-title) -->
     <div id="dashHeader"></div>
 
-    <h1 class="um-header-title">Employee Management</h1>
-
+    <!-- Navigation Tabs Bar -->
     <div class="um-tab-bar" id="umTabBar">
         <div class="um-tab active" data-tab="overview" onclick="switchTab('overview')">Overview</div>
         <div class="um-tab" data-tab="employees" onclick="switchTab('employees')">Employees</div>
@@ -656,7 +649,7 @@
             </div>
         </div>
 
-        <!-- Roles & Permissions Tab (Reordered) -->
+        <!-- Roles & Permissions Tab -->
         <div class="um-tab-content" id="tab-roles">
             <div class="um-table-card">
                 <h3 style="margin-top:0;">Organization Roles & Permissions</h3>
@@ -853,20 +846,22 @@
         var currentUserOrgId = null;
 
         var USER_COL_DEFS = [
+            { key: 'id', label: 'User ID', defaultWidth: '120px' },
             { key: 'fullName', label: 'Full Name', defaultWidth: '160px' },
             { key: 'email', label: 'Email', defaultWidth: '200px' },
             { key: 'role', label: 'Role', defaultWidth: '140px' },
-            { key: 'is_active', label: 'Active', defaultWidth: '110px' },
+            { key: 'is_active', label: 'Status', defaultWidth: '110px' },
             { key: 'last_login', label: 'Last Login', defaultWidth: '160px' }
         ];
 
         var EMP_COL_DEFS = [
             { key: 'employeeNumber', label: 'Emp #', defaultWidth: '110px' },
-            { key: 'name', label: 'Name', defaultWidth: '180px' },
+            { key: 'firstName', label: 'First Name', defaultWidth: '140px' },
+            { key: 'lastName', label: 'Last Name', defaultWidth: '140px' },
             { key: 'email', label: 'Email', defaultWidth: '200px' },
             { key: 'role', label: 'Role', defaultWidth: '140px' },
-            { key: 'status', label: 'Status', defaultWidth: '110px' },
-            { key: 'phone', label: 'Phone', defaultWidth: '140px' }
+            { key: 'phone', label: 'Phone', defaultWidth: '140px' },
+            { key: 'status', label: 'Status', defaultWidth: '110px' }
         ];
 
         var visibleUserCols = {}, userColWidths = {};
@@ -890,16 +885,23 @@
                 fullName: parseVal(r.full_name || r.name || ([r.first_name, r.last_name].filter(Boolean).join(' '))) || parseVal(r.email),
                 email: parseVal(r.email),
                 role: normalizeRoleName(r.role || r.role_id || r.role_name),
-                is_active: (r.is_active === 1 || r.is_active === true || r.status === 'active') ? 'Active' : 'Inactive',
+                is_active: (r.is_active === 1 || r.is_active === true || r.status === 'Active' || r.status === 'active') ? 'Active' : 'Inactive',
                 last_login: parseVal(r.last_login || r.last_login_at)
             };
         }
 
         function normalizeEmployee(r) {
+            var fullName = parseVal(r.full_name || r.name || ([r.first_name, r.last_name].filter(Boolean).join(' ')));
+            var parts = fullName !== '—' ? fullName.split(' ') : [];
+            var fn = parseVal(r.first_name || parts[0]);
+            var ln = parseVal(r.last_name || parts.slice(1).join(' '));
+
             return {
                 id: parseVal(r.id),
-                employeeNumber: parseVal(r.employee_number || r.employeeNumber || ('EMP-' + Math.floor(100 + Math.random() * 900))),
-                name: parseVal(r.full_name || r.name || ([r.first_name, r.last_name].filter(Boolean).join(' '))),
+                employeeNumber: parseVal(r.employeeNumber || r.employee_number || ('EMP-' + Math.floor(100 + Math.random() * 900))),
+                firstName: fn,
+                lastName: ln,
+                name: fullName,
                 email: parseVal(r.email),
                 role: normalizeRoleName(r.role),
                 status: parseVal(r.status || 'Active'),
@@ -926,17 +928,13 @@
         async function loadUsers() {
             try {
                 var resp = await fetch('/api/users');
-                if (!resp.ok) resp = await fetch('/api/onboarding/users');
                 if (resp.ok) {
                     var data = await resp.json();
                     var raw = data.users || data.records || (Array.isArray(data) ? data : []);
                     allUsers = raw.map(normalizeUser);
                 } else throw new Error();
             } catch (e) {
-                allUsers = [
-                    normalizeUser({ id: 'USR-101', full_name: 'System Admin', email: 'admin@driv-en.com', role: 'Admin', is_active: 1, last_login: '2026-10-13 09:12' }),
-                    normalizeUser({ id: 'USR-102', full_name: 'Mark Smith', email: 'm.smith@driv-en.com', role: 'Fleet Manager', is_active: 1, last_login: '2026-10-12 14:05' })
-                ];
+                allUsers = [];
             }
             renderUserTableHead();
             renderUserTable();
@@ -951,10 +949,12 @@
                     allEmployees = raw.map(normalizeEmployee);
                 } else throw new Error();
             } catch (e) {
-                allEmployees = [
-                    normalizeEmployee({ id: 'EMP-1', employee_number: 'EMP-101', full_name: 'John Smith', email: 'j.smith@company.com', role: 'Admin', status: 'Active', phone: '(555) 234-5678' }),
-                    normalizeEmployee({ id: 'EMP-2', employee_number: 'EMP-102', full_name: 'Sarah Connor', email: 's.connor@company.com', role: 'Fleet Manager', status: 'Active', phone: '(555) 987-6543' })
-                ];
+                var saved = localStorage.getItem('driven_saved_employees');
+                if (saved) {
+                    allEmployees = JSON.parse(saved).map(normalizeEmployee);
+                } else {
+                    allEmployees = [];
+                }
             }
             renderEmpTableHead();
             renderEmpTable();
@@ -1009,8 +1009,7 @@
                 }
             } catch (e) {}
 
-            tb.innerHTML = '<tr><td>2026-10-13 11:15:02</td><td>admin@driv-en.com</td><td>Updated Employee Directory Filter</td><td>192.168.1.104</td></tr>' +
-                           '<tr><td>2026-10-13 10:42:19</td><td>system</td><td>Automated System Sync Completed</td><td>Localhost</td></tr>';
+            tb.innerHTML = '<tr><td colspan="4" class="um-empty">No activity log records found.</td></tr>';
         }
 
         function updateKpi() {
@@ -1095,7 +1094,7 @@
             });
 
             if (filtered.length === 0) {
-                tb.innerHTML = '<tr><td colspan="6" class="um-empty">No matching system users found.</td></tr>';
+                tb.innerHTML = '<tr><td colspan="7" class="um-empty">No matching system users found.</td></tr>';
                 return;
             }
 
@@ -1160,7 +1159,8 @@
 
             var filtered = allEmployees.filter(function(e) {
                 var matchSearch = !search || 
-                    e.name.toLowerCase().indexOf(search) !== -1 || 
+                    e.firstName.toLowerCase().indexOf(search) !== -1 || 
+                    e.lastName.toLowerCase().indexOf(search) !== -1 || 
                     e.email.toLowerCase().indexOf(search) !== -1 || 
                     e.employeeNumber.toLowerCase().indexOf(search) !== -1 || 
                     e.role.toLowerCase().indexOf(search) !== -1 || 
@@ -1171,7 +1171,7 @@
             });
 
             if (filtered.length === 0) {
-                tb.innerHTML = '<tr><td colspan="7" class="um-empty">No matching employees found.</td></tr>';
+                tb.innerHTML = '<tr><td colspan="8" class="um-empty">No matching employees found.</td></tr>';
                 return;
             }
 
@@ -1234,7 +1234,7 @@
         function openEmpViewModal(id) {
             var emp = allEmployees.find(function(x) { return x.id === id; });
             if (!emp) return;
-            document.getElementById('viewEmpName').textContent = emp.name;
+            document.getElementById('viewEmpName').textContent = emp.firstName + ' ' + emp.lastName;
             document.getElementById('viewEmpNum').textContent = emp.employeeNumber;
             document.getElementById('viewEmpEmail').textContent = emp.email;
             document.getElementById('viewEmpRole').textContent = emp.role;
@@ -1257,18 +1257,17 @@
         function openEmpEditModal(id) {
             var emp = allEmployees.find(function(x) { return x.id === id; });
             if (!emp) return;
-            var parts = (emp.name || '').split(' ');
             document.getElementById('empModalTitle').textContent = 'Edit Employee';
             document.getElementById('editEmpId').value = emp.id;
-            document.getElementById('addEmpFn').value = parts[0] || '';
-            document.getElementById('addEmpLn').value = parts.slice(1).join(' ') || '';
+            document.getElementById('addEmpFn').value = emp.firstName !== '—' ? emp.firstName : '';
+            document.getElementById('addEmpLn').value = emp.lastName !== '—' ? emp.lastName : '';
             document.getElementById('addEmpEmail').value = emp.email !== '—' ? emp.email : '';
             document.getElementById('addEmpRole').value = emp.role;
             document.getElementById('addEmpPhone').value = emp.phone !== '—' ? emp.phone : '';
             document.getElementById('umAddEmpModal').classList.add('active');
         }
 
-        function submitSaveEmployee() {
+        async function submitSaveEmployee() {
             var id = document.getElementById('editEmpId').value;
             var fn = document.getElementById('addEmpFn').value.trim();
             var ln = document.getElementById('addEmpLn').value.trim();
@@ -1281,6 +1280,8 @@
             if (id) {
                 var emp = allEmployees.find(function(x) { return x.id === id; });
                 if (emp) {
+                    emp.firstName = fn;
+                    emp.lastName = ln;
                     emp.name = fn + ' ' + ln;
                     emp.email = em || '—';
                     emp.role = role;
@@ -1290,14 +1291,16 @@
                 allEmployees.unshift(normalizeEmployee({
                     id: 'EMP-' + Date.now(),
                     employee_number: 'EMP-' + Math.floor(100 + Math.random() * 900),
-                    full_name: fn + ' ' + ln,
+                    first_name: fn,
+                    last_name: ln,
                     email: em || '—',
                     role: role,
                     status: 'Active',
-                    phone: phone || '(555) 000-0000'
+                    phone: phone || '—'
                 }));
             }
 
+            localStorage.setItem('driven_saved_employees', JSON.stringify(allEmployees));
             renderEmpTable();
             updateKpi();
             closeModal('umAddEmpModal');
