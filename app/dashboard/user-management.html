@@ -26,6 +26,8 @@
             --header-height: 60px;
             --card-green-border: #16a34a;
             --blue-line: #1e3a8a;
+            --primary-blue: #2563eb;
+            --primary-blue-hover: #1d4ed8;
         }
 
         html, body {
@@ -91,7 +93,7 @@
             margin-top: 2px;
         }
         .um-tab.active {
-            color: #1d4ed8;
+            color: var(--primary-blue);
             background: #e2e8f0;
             border-color: #64748b;
             margin-top: 0;
@@ -99,12 +101,12 @@
             z-index: 2;
         }
         .um-tab-dashboard {
-            background: #2563eb;
-            border: 1px solid #1d4ed8;
+            background: var(--primary-blue);
+            border: 1px solid var(--primary-blue-hover);
             color: #fff;
         }
         .um-tab-dashboard:hover {
-            background: #1d4ed8;
+            background: var(--primary-blue-hover);
             color: #fff;
             margin-top: 2px;
         }
@@ -221,7 +223,7 @@
         .um-search-input {
             width: 100%;
             padding: 10px 14px;
-            border: 1.5px solid #2563eb;
+            border: 1.5px solid var(--primary-blue);
             border-radius: 6px;
             font-size: 14px;
             background: var(--bg-card);
@@ -231,7 +233,7 @@
         }
         .um-search-input:focus {
             outline: none;
-            border: 2.5px solid #1d4ed8;
+            border: 2.5px solid var(--primary-blue-hover);
             box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
         }
         .um-btn-add {
@@ -256,7 +258,7 @@
         .um-multiselect-btn {
             width: 100%;
             padding: 10px 12px;
-            border: 1.5px solid #2563eb;
+            border: 1.5px solid var(--primary-blue);
             border-radius: 6px;
             font-size: 13px;
             background: var(--bg-card);
@@ -273,8 +275,8 @@
             transition: all 150ms ease;
         }
         .um-multiselect-btn:hover {
-            border: 2.5px solid #1d4ed8;
-            color: #1d4ed8;
+            border: 2.5px solid var(--primary-blue-hover);
+            color: var(--primary-blue-hover);
             background: rgba(37, 99, 235, 0.05);
         }
         .um-multiselect-btn:after {
@@ -325,7 +327,7 @@
             border-radius: 6px;
             font-size: 13px;
             font-weight: 600;
-            border: 1.5px solid #2563eb;
+            border: 1.5px solid var(--primary-blue);
             cursor: pointer;
             text-align: center;
             display: flex;
@@ -337,8 +339,8 @@
             box-sizing: border-box;
         }
         .um-btn-action:hover {
-            border: 2.5px solid #1d4ed8;
-            color: #1d4ed8;
+            border: 2.5px solid var(--primary-blue-hover);
+            color: var(--primary-blue-hover);
             background: rgba(37, 99, 235, 0.05);
         }
 
@@ -359,7 +361,7 @@
             -webkit-overflow-scrolling: touch;
         }
 
-        /* Column Resizing Behavior (Isolated Cell Widths) */
+        /* Column Width Lock matching Asset Directory */
         .um-table {
             table-layout: fixed !important;
             width: max-content !important;
@@ -435,7 +437,7 @@
         }
         .um-table-btn {
             background: var(--bg-card);
-            border: 1.5px solid #2563eb;
+            border: 1.5px solid var(--primary-blue);
             color: var(--text);
             padding: 5px 12px;
             border-radius: 4px;
@@ -445,8 +447,8 @@
             transition: all 150ms ease;
         }
         .um-table-btn:hover {
-            border: 2px solid #1d4ed8;
-            color: #1d4ed8;
+            border: 2px solid var(--primary-blue-hover);
+            color: var(--primary-blue-hover);
             background: rgba(37, 99, 235, 0.05);
         }
 
@@ -557,7 +559,7 @@
     <div class="steel-bg"></div>
     <div class="steel-overlay"></div>
     
-    <!-- Dynamic Dashboard Header (renders title via data-page-title) -->
+    <!-- Shared Dashboard Header Component -->
     <div id="dashHeader"></div>
 
     <!-- Navigation Tabs Bar -->
@@ -845,15 +847,20 @@
         var allUsers = [], allEmployees = [], allOrgRoles = [];
         var currentUserOrgId = null;
 
+        // Full Columns Set for Users Table (All Fields from users D1 Table)
         var USER_COL_DEFS = [
             { key: 'id', label: 'User ID', defaultWidth: '120px' },
             { key: 'fullName', label: 'Full Name', defaultWidth: '160px' },
             { key: 'email', label: 'Email', defaultWidth: '200px' },
             { key: 'role', label: 'Role', defaultWidth: '140px' },
+            { key: 'org_id', label: 'Organization ID', defaultWidth: '140px' },
             { key: 'is_active', label: 'Status', defaultWidth: '110px' },
+            { key: 'must_change_password', label: 'Must Reset Pwd', defaultWidth: '130px' },
+            { key: 'twofa_enabled', label: '2FA Enabled', defaultWidth: '110px' },
             { key: 'last_login', label: 'Last Login', defaultWidth: '160px' }
         ];
 
+        // Full Columns Set for Employees Directory Table
         var EMP_COL_DEFS = [
             { key: 'employeeNumber', label: 'Emp #', defaultWidth: '110px' },
             { key: 'firstName', label: 'First Name', defaultWidth: '140px' },
@@ -885,7 +892,10 @@
                 fullName: parseVal(r.full_name || r.name || ([r.first_name, r.last_name].filter(Boolean).join(' '))) || parseVal(r.email),
                 email: parseVal(r.email),
                 role: normalizeRoleName(r.role || r.role_id || r.role_name),
+                org_id: parseVal(r.org_id || currentUserOrgId),
                 is_active: (r.is_active === 1 || r.is_active === true || r.status === 'Active' || r.status === 'active') ? 'Active' : 'Inactive',
+                must_change_password: (r.must_change_password === 1 || r.must_change_password === true) ? 'Yes' : 'No',
+                twofa_enabled: (r.twofa_enabled === 1 || r.twofa_enabled === true) ? 'Yes' : 'No',
                 last_login: parseVal(r.last_login || r.last_login_at)
             };
         }
@@ -1094,7 +1104,7 @@
             });
 
             if (filtered.length === 0) {
-                tb.innerHTML = '<tr><td colspan="7" class="um-empty">No matching system users found.</td></tr>';
+                tb.innerHTML = '<tr><td colspan="10" class="um-empty">No matching system users found.</td></tr>';
                 return;
             }
 
