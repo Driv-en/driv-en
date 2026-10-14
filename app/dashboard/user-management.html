@@ -565,12 +565,20 @@
       </div>
     </div>
 
-<!-- CSS Styles for Sorting, Drag & Drop, and Sticky Frozen Columns -->
+<!-- CSS Styles for Word Wrapping, Sorting, Drag & Drop Drop Indicator, and Multi-Column Freezing -->
     <style>
       .um-table th {
         cursor: pointer;
         position: relative;
         user-select: none;
+        white-space: normal !important;
+        word-break: break-word !important;
+        line-height: 1.2;
+      }
+      .um-table td {
+        white-space: normal !important;
+        word-break: break-word !important;
+        line-height: 1.3;
       }
       .um-table th:hover {
         background: rgba(37, 99, 235, 0.08) !important;
@@ -581,26 +589,33 @@
       .um-table th.draggable-th:active {
         cursor: grabbing;
       }
+      .um-table th.drag-over-left {
+        border-left: 3px solid #2563eb !important;
+      }
+      .um-table th.drag-over-right {
+        border-right: 3px solid #2563eb !important;
+      }
       .um-sort-icon {
         display: inline-block;
-        margin-left: 6px;
+        margin-left: 4px;
         font-size: 11px;
-        opacity: 0.7;
         color: var(--primary-blue);
       }
       /* Sticky Frozen Columns CSS */
       .um-table th.um-col-frozen,
       .um-table td.um-col-frozen {
         position: sticky !important;
-        left: 0 !important;
         z-index: 5 !important;
         background: var(--bg-card) !important;
-        border-right: 2px solid var(--primary-blue) !important;
-        box-shadow: 2px 0 5px rgba(0,0,0,0.08);
+        box-shadow: 2px 0 5px rgba(0,0,0,0.06);
       }
       .um-table th.um-col-frozen {
         z-index: 15 !important;
         background: var(--bg-header, #f1f5f9) !important;
+      }
+      .um-table th.um-col-frozen-last,
+      .um-table td.um-col-frozen-last {
+        border-right: 2.5px solid var(--primary-blue) !important;
       }
     </style>
 
@@ -726,14 +741,15 @@
           <table class="um-table" id="activityTable" style="width:100%;">
             <thead>
               <tr>
-                <th onclick="toggleSort('activity', 'created_at')">Timestamp <span class="um-sort-icon" id="sort-activity-created_at">▼</span></th>
-                <th onclick="toggleSort('activity', 'user_email')">User <span class="um-sort-icon" id="sort-activity-user_email"></span></th>
-                <th onclick="toggleSort('activity', 'action')">Action <span class="um-sort-icon" id="sort-activity-action"></span></th>
-                <th onclick="toggleSort('activity', 'ip_address')">IP Address <span class="um-sort-icon" id="sort-activity-ip_address"></span></th>
+                <th onclick="toggleSort('activity', 'created_at')" style="width:180px;">Timestamp <span class="um-sort-icon" id="sort-activity-created_at">▼</span></th>
+                <th onclick="toggleSort('activity', 'user_email')" style="width:180px;">User Email <span class="um-sort-icon" id="sort-activity-user_email"></span></th>
+                <th onclick="toggleSort('activity', 'module')" style="width:140px;">Module / Page <span class="um-sort-icon" id="sort-activity-module"></span></th>
+                <th onclick="toggleSort('activity', 'action')" style="width:260px;">Action Details <span class="um-sort-icon" id="sort-activity-action"></span></th>
+                <th onclick="toggleSort('activity', 'ip_address')" style="width:130px;">IP Address <span class="um-sort-icon" id="sort-activity-ip_address"></span></th>
               </tr>
             </thead>
             <tbody id="activityLogBody">
-              <tr><td colspan="4" class="um-empty">Loading activity history…</td></tr>
+              <tr><td colspan="5" class="um-empty">Loading activity history…</td></tr>
             </tbody>
           </table>
         </div>
@@ -858,9 +874,8 @@
     var allUsers = [], allEmployees = [], allOrgRoles = [], allActivityLogs = [];
     var currentUserOrgId = null;
 
-    // Sorting State Tracking
     var sortState = {
-      emp: { key: 'firstName', dir: 'asc' },
+      emp: { key: 'employeeNumber', dir: 'asc' },
       user: { key: 'fullName', dir: 'asc' },
       roles: { key: 'name', dir: 'asc' },
       activity: { key: 'created_at', dir: 'desc' }
@@ -868,7 +883,7 @@
 
     var USER_COL_DEFS = [
       { key: 'id', label: 'User ID', defaultWidth: '120px', frozen: true },
-      { key: 'fullName', label: 'Full Name', defaultWidth: '160px' },
+      { key: 'fullName', label: 'Full Name', defaultWidth: '160px', frozen: true },
       { key: 'email', label: 'Email', defaultWidth: '200px' },
       { key: 'role', label: 'Role', defaultWidth: '140px' },
       { key: 'is_active', label: 'Status', defaultWidth: '110px' },
@@ -879,9 +894,9 @@
 
     var EMP_COL_DEFS = [
       { key: 'employeeNumber', label: 'Emp #', defaultWidth: '100px', frozen: true },
-      { key: 'firstName', label: 'First Name', defaultWidth: '120px' },
+      { key: 'firstName', label: 'First Name', defaultWidth: '120px', frozen: true },
       { key: 'middleName', label: 'Middle Name', defaultWidth: '110px' },
-      { key: 'lastName', label: 'Last Name', defaultWidth: '120px' },
+      { key: 'lastName', label: 'Last Name', defaultWidth: '120px', frozen: true },
       { key: 'suffix', label: 'Suffix', defaultWidth: '80px' },
       { key: 'email', label: 'Email', defaultWidth: '190px' },
       { key: 'role', label: 'Role', defaultWidth: '130px' },
@@ -898,6 +913,25 @@
 
     var visibleUserCols = {}, userColWidths = {};
     var visibleEmpCols = {}, empColWidths = {};
+
+    function formatUserLocalTime(dateStr) {
+      if (!dateStr || dateStr === '—') return '—';
+      try {
+        var d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        return d.toLocaleString(undefined, {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+          timeZoneName: 'short'
+        });
+      } catch (e) {
+        return dateStr;
+      }
+    }
 
     function showToast(msg, type) {
       var t = document.getElementById('umToast');
@@ -927,7 +961,7 @@
         is_active: (r.is_active === 1 || r.is_active === true || r.status === 'Active' || r.status === 'active') ? 'Active' : 'Inactive',
         must_change_password: (r.must_change_password === 1 || r.must_change_password === true) ? 'Yes' : 'No',
         twofa_enabled: (r.twofa_enabled === 1 || r.twofa_enabled === true) ? 'Yes' : 'No',
-        last_login: parseVal(r.last_login || r.last_login_at)
+        last_login: formatUserLocalTime(r.last_login || r.last_login_at)
       };
     }
 
@@ -958,7 +992,6 @@
       };
     }
 
-    // Generic Sorting Utility
     function sortArray(list, key, dir) {
       return list.slice().sort(function(a, b) {
         var valA = (a[key] !== undefined && a[key] !== null) ? a[key].toString().toLowerCase() : '';
@@ -1132,18 +1165,23 @@
       if (!tb) return;
       tb.innerHTML = '';
       if (!allActivityLogs || allActivityLogs.length === 0) {
-        tb.innerHTML = '<tr><td colspan="4" class="um-empty">No activity log records found.</td></tr>';
+        tb.innerHTML = '<tr><td colspan="5" class="um-empty">No activity log records found.</td></tr>';
         return;
       }
       var sorted = sortArray(allActivityLogs, sortState.activity.key, sortState.activity.dir);
       sorted.forEach(function(l) {
         var tr = document.createElement('tr');
-        var timeVal = l.created_at || l.timestamp || '—';
+        var timeVal = formatUserLocalTime(l.created_at || l.timestamp);
         var userVal = l.user_email || l.email || '—';
+        var moduleVal = l.module || l.page || 'Employee Management';
         var actionVal = l.action || '—';
         var ipVal = l.ip_address || l.ip || '—';
 
-        tr.innerHTML = '<td>' + escapeHtml(timeVal) + '</td><td>' + escapeHtml(userVal) + '</td><td>' + escapeHtml(actionVal) + '</td><td>' + escapeHtml(ipVal) + '</td>';
+        tr.innerHTML = '<td>' + escapeHtml(timeVal) + '</td>' +
+                       '<td>' + escapeHtml(userVal) + '</td>' +
+                       '<td><strong style="text-transform:capitalize;">' + escapeHtml(moduleVal) + '</strong></td>' +
+                       '<td>' + escapeHtml(actionVal) + '</td>' +
+                       '<td>' + escapeHtml(ipVal) + '</td>';
         tb.appendChild(tr);
       });
       updateSortIcons('activity');
@@ -1182,55 +1220,94 @@
       return Array.from(cbs).map(function(cb) { return cb.value.toLowerCase(); });
     }
 
-    // Drag and Drop Column Reordering Logic
+    // Advanced Drag & Drop Column Reordering Logic with Drop Target Indicator
     function attachDragAndDropHeaders(tableType, defsArray, renderHeadFn, renderTableFn) {
-      var draggedIdx = null;
+      var draggedKey = null;
       var selector = tableType === 'emp' ? '#empTableHead th.draggable-th' : '#userTableHead th.draggable-th';
       var headers = document.querySelectorAll(selector);
 
       headers.forEach(function(th) {
         th.addEventListener('dragstart', function(e) {
-          draggedIdx = parseInt(th.getAttribute('data-col-index'));
+          draggedKey = th.getAttribute('data-col-key');
           e.dataTransfer.effectAllowed = 'move';
         });
+
+        th.addEventListener('dragenter', function(e) {
+          if (!draggedKey || draggedKey === th.getAttribute('data-col-key')) return;
+          th.classList.add('drag-over-left');
+        });
+
         th.addEventListener('dragover', function(e) {
           e.preventDefault();
         });
+
+        th.addEventListener('dragleave', function(e) {
+          th.classList.remove('drag-over-left', 'drag-over-right');
+        });
+
         th.addEventListener('drop', function(e) {
           e.preventDefault();
-          var targetIdx = parseInt(th.getAttribute('data-col-index'));
-          if (draggedIdx === null || draggedIdx === targetIdx) return;
+          th.classList.remove('drag-over-left', 'drag-over-right');
+          var targetKey = th.getAttribute('data-col-key');
+          if (!draggedKey || draggedKey === targetKey) return;
 
-          var movedCol = defsArray.splice(draggedIdx, 1)[0];
-          defsArray.splice(targetIdx, 0, movedCol);
+          var fromIdx = defsArray.findIndex(function(c) { return c.key === draggedKey; });
+          var toIdx = defsArray.findIndex(function(c) { return c.key === targetKey; });
 
-          var orderKeys = defsArray.map(function(c) { return c.key; });
-          localStorage.setItem(tableType === 'emp' ? 'um_emp_col_order' : 'um_user_col_order', JSON.stringify(orderKeys));
+          if (fromIdx !== -1 && toIdx !== -1) {
+            var movedCol = defsArray.splice(fromIdx, 1)[0];
+            defsArray.splice(toIdx, 0, movedCol);
 
-          renderHeadFn();
-          renderTableFn();
+            var orderKeys = defsArray.map(function(c) { return c.key; });
+            localStorage.setItem(tableType === 'emp' ? 'um_emp_col_order' : 'um_user_col_order', JSON.stringify(orderKeys));
+
+            renderHeadFn();
+            renderTableFn();
+          }
         });
       });
+    }
+
+    function calculateFrozenOffsets(colDefs, visibleColsMap, colWidthsMap) {
+      var leftOffset = 0;
+      var offsets = {};
+      var lastFrozenKey = null;
+
+      colDefs.forEach(function(col) {
+        if (!visibleColsMap[col.key]) return;
+        if (col.frozen) {
+          offsets[col.key] = leftOffset + 'px';
+          var w = parseInt(colWidthsMap[col.key] || col.defaultWidth, 10) || 120;
+          leftOffset += w;
+          lastFrozenKey = col.key;
+        }
+      });
+
+      return { offsets: offsets, lastFrozenKey: lastFrozenKey };
     }
 
     function renderUserTableHead() {
       var th = document.getElementById('userTableHead');
       th.textContent = '';
       var tr = document.createElement('tr');
-      var renderIndex = 0;
+      var frozenCalc = calculateFrozenOffsets(USER_COL_DEFS, visibleUserCols, userColWidths);
 
       USER_COL_DEFS.forEach(function(col) {
         if (!visibleUserCols[col.key]) return;
         var h = document.createElement('th');
-        h.className = 'draggable-th' + (col.frozen ? ' um-col-frozen' : '');
+        var isFrozen = !!col.frozen;
+        h.className = 'draggable-th' + (isFrozen ? ' um-col-frozen' : '') + (col.key === frozenCalc.lastFrozenKey ? ' um-col-frozen-last' : '');
+        if (isFrozen) {
+          h.style.left = frozenCalc.offsets[col.key];
+        }
         h.setAttribute('draggable', 'true');
-        h.setAttribute('data-col-index', renderIndex++);
+        h.setAttribute('data-col-key', col.key);
         h.style.width = userColWidths[col.key];
         h.style.minWidth = userColWidths[col.key];
-        
+
         var arrow = sortState.user.key === col.key ? (sortState.user.dir === 'asc' ? '▲' : '▼') : '';
         h.innerHTML = escapeHtml(col.label) + ' <span class="um-sort-icon">' + arrow + '</span>';
-        
+
         h.addEventListener('click', function(e) {
           if (e.target.classList.contains('um-resizer')) return;
           toggleSort('user', col.key);
@@ -1259,6 +1336,7 @@
       var search = (document.getElementById('userSearch').value || '').toLowerCase().trim();
       var selStatuses = getSelectedCheckboxes('panelUserStatuses');
       var selRoles = getSelectedCheckboxes('panelUserRoles');
+      var frozenCalc = calculateFrozenOffsets(USER_COL_DEFS, visibleUserCols, userColWidths);
 
       var filtered = allUsers.filter(function(u) {
         var matchSearch = !search || u.fullName.toLowerCase().indexOf(search) !== -1 || u.email.toLowerCase().indexOf(search) !== -1 || u.role.toLowerCase().indexOf(search) !== -1;
@@ -1279,7 +1357,11 @@
         USER_COL_DEFS.forEach(function(col) {
           if (!visibleUserCols[col.key]) return;
           var td = document.createElement('td');
-          if (col.frozen) td.className = 'um-col-frozen';
+          var isFrozen = !!col.frozen;
+          if (isFrozen) {
+            td.className = 'um-col-frozen' + (col.key === frozenCalc.lastFrozenKey ? ' um-col-frozen-last' : '');
+            td.style.left = frozenCalc.offsets[col.key];
+          }
           td.style.width = userColWidths[col.key];
           td.style.minWidth = userColWidths[col.key];
           var v = u[col.key];
@@ -1304,14 +1386,18 @@
       var th = document.getElementById('empTableHead');
       th.textContent = '';
       var tr = document.createElement('tr');
-      var renderIndex = 0;
+      var frozenCalc = calculateFrozenOffsets(EMP_COL_DEFS, visibleEmpCols, empColWidths);
 
       EMP_COL_DEFS.forEach(function(col) {
         if (!visibleEmpCols[col.key]) return;
         var h = document.createElement('th');
-        h.className = 'draggable-th' + (col.frozen ? ' um-col-frozen' : '');
+        var isFrozen = !!col.frozen;
+        h.className = 'draggable-th' + (isFrozen ? ' um-col-frozen' : '') + (col.key === frozenCalc.lastFrozenKey ? ' um-col-frozen-last' : '');
+        if (isFrozen) {
+          h.style.left = frozenCalc.offsets[col.key];
+        }
         h.setAttribute('draggable', 'true');
-        h.setAttribute('data-col-index', renderIndex++);
+        h.setAttribute('data-col-key', col.key);
         h.style.width = empColWidths[col.key];
         h.style.minWidth = empColWidths[col.key];
 
@@ -1346,6 +1432,7 @@
       var search = (document.getElementById('empSearch').value || '').toLowerCase().trim();
       var selStatuses = getSelectedCheckboxes('panelEmpStatuses');
       var selRoles = getSelectedCheckboxes('panelEmpRoles');
+      var frozenCalc = calculateFrozenOffsets(EMP_COL_DEFS, visibleEmpCols, empColWidths);
 
       var filtered = allEmployees.filter(function(e) {
         var matchSearch = !search || e.firstName.toLowerCase().indexOf(search) !== -1 || e.lastName.toLowerCase().indexOf(search) !== -1 || e.email.toLowerCase().indexOf(search) !== -1 || e.employeeNumber.toLowerCase().indexOf(search) !== -1 || e.role.toLowerCase().indexOf(search) !== -1 || e.phone.toLowerCase().indexOf(search) !== -1 || e.state.toLowerCase().indexOf(search) !== -1;
@@ -1366,7 +1453,11 @@
         EMP_COL_DEFS.forEach(function(col) {
           if (!visibleEmpCols[col.key]) return;
           var td = document.createElement('td');
-          if (col.frozen) td.className = 'um-col-frozen';
+          var isFrozen = !!col.frozen;
+          if (isFrozen) {
+            td.className = 'um-col-frozen' + (col.key === frozenCalc.lastFrozenKey ? ' um-col-frozen-last' : '');
+            td.style.left = frozenCalc.offsets[col.key];
+          }
           td.style.width = empColWidths[col.key];
           td.style.minWidth = empColWidths[col.key];
           var v = e[col.key];
@@ -1408,8 +1499,15 @@
             }
           });
         }
-        if (type === 'user') userColWidths[colKey] = newWidth;
-        else empColWidths[colKey] = newWidth;
+        if (type === 'user') {
+          userColWidths[colKey] = newWidth;
+          renderUserTableHead();
+          renderUserTable();
+        } else {
+          empColWidths[colKey] = newWidth;
+          renderEmpTableHead();
+          renderEmpTable();
+        }
       }
 
       function onEnd() {
@@ -1548,7 +1646,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               action: (id ? 'Updated employee ' : 'Created employee ') + fn + ' ' + ln + ' (' + role + ')',
-              module: 'employees',
+              module: 'Employees',
               table_name: 'employees',
               record_id: id || empNum
             })
