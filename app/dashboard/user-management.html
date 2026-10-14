@@ -620,7 +620,6 @@
 
 /* Print Optimization Styles */
       @media print {
-        /* Hides the Actions column header and action button cells in print mode */
         .um-table th:last-child,
         .um-table td.am-actions,
         .um-actions-wrap {
@@ -694,13 +693,33 @@
           margin: 0 !important;
           position: relative !important;
           left: 0 !important;
+          table-layout: auto !important;
+        }
+
+        /* Forces clean table headers in print output */
+        .um-table thead {
+          display: table-header-group !important;
+        }
+
+        .um-table tr {
+          page-break-inside: avoid !important;
         }
 
         .um-table th, .um-table td {
           border: 1px solid #000 !important;
           color: #000 !important;
           background: #fff !important;
-          position: static !important; /* Removes sticky offsets during print */
+          position: static !important;
+          padding: 6px 8px !important;
+          font-size: 11px !important;
+        }
+
+        /* Controls IP Address column width so print scaling isn't squeezed */
+        #activityTable th:last-child,
+        #activityTable td:last-child {
+          width: 100px !important;
+          max-width: 100px !important;
+          word-break: break-all !important;
         }
 
         .print-exclude-row {
@@ -756,8 +775,14 @@
       </div>
     </div>
 
-    <!-- Roles & Permissions Tab -->
+<!-- Roles & Permissions Tab -->
     <div class="um-tab-content" id="tab-roles">
+      <div class="um-search-card" style="padding:12px 16px;">
+        <div class="um-search-row3" style="grid-template-columns: auto;">
+          <button class="um-btn-action" style="max-width:200px;" onclick="printRolesTable()">Print Roles & Permissions</button>
+        </div>
+      </div>
+
       <div class="um-table-card">
         <h3 style="margin-top:0;">Organization Roles & Permissions</h3>
         <p style="color:var(--text-muted); font-size:14px;">Roles defined for your organization context.</p>
@@ -1854,7 +1879,19 @@
       document.querySelectorAll('.print-row-cb').forEach(function(cb) { cb.checked = checked; });
     }
 
-function doPrint() {
+    function printRolesTable() {
+      var origTitle = document.title;
+      var orgName = (window.dashUser && (window.dashUser.org_name || window.dashUser.company_name)) || localStorage.getItem('driven_org_name') || 'Organization';
+      
+      document.title = orgName + ' | Roles & Permissions';
+      window.print();
+
+      setTimeout(function() {
+        document.title = origTitle;
+      }, 500);
+    }
+
+    function doPrint() {
       var uncheckedIds = [];
       document.querySelectorAll('.print-row-cb:not(:checked)').forEach(function(cb) {
         uncheckedIds.push(cb.getAttribute('data-id'));
