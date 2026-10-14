@@ -1357,7 +1357,7 @@ async function loadActivityLog() {
       document.getElementById('umAddEmpModal').classList.add('active');
     }
 
-    async function submitSaveEmployee() {
+async function submitSaveEmployee() {
       var id = document.getElementById('editEmpId').value;
       var fn = document.getElementById('addEmpFn').value.trim();
       var mn = document.getElementById('addEmpMn').value.trim();
@@ -1411,8 +1411,26 @@ async function loadActivityLog() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
+
         if (!resp.ok) throw new Error('HTTP status ' + resp.status);
         showToast('Employee updated in D1 successfully.', 'success');
+
+        // Write entry to Audit Log
+        try {
+          await fetch('/api/audit-log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: (id ? 'Updated employee ' : 'Created employee ') + fn + ' ' + ln + ' (' + role + ')',
+              module: 'employees',
+              table_name: 'employees',
+              record_id: id || empNum
+            })
+          });
+        } catch (auditErr) {
+          console.warn('Audit log write error:', auditErr);
+        }
+
       } catch (e) {
         console.warn('Backend sync failed, saved locally:', e.message);
         showToast('Saved locally (Offline mode active)', 'error');
@@ -1428,9 +1446,12 @@ async function loadActivityLog() {
       localStorage.setItem('driven_saved_employees', JSON.stringify(allEmployees));
       renderEmpTable();
       updateKpi();
+
+      // Reload the Activity Log table so the change is displayed immediately
+      await loadActivityLog();
+
       closeModal('umAddEmpModal');
     }
-
     function viewUserDetail(name, email) {
       document.getElementById('userDetailName').textContent = name || 'System User Detail';
       document.getElementById('userDetailEmail').textContent = email || '';
