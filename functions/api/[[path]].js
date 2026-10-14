@@ -111,7 +111,7 @@ export async function onRequest(context) {
     const responseHeaders = new Headers(response.headers);
     responseHeaders.set('Access-Control-Allow-Origin', '*');
     responseHeaders.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-    responseHeaders.set('Access-Control-Allow-Headers': 'Content-Type, Authorization');
+    responseHeaders.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     return new Response(response.body, {
       status: response.status,
