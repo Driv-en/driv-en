@@ -565,7 +565,7 @@
       </div>
     </div>
 
-<!-- CSS Styles for Word Wrapping, Resizing, Sorting, Drag & Drop, Freezing, and Clean Printing -->
+<!-- CSS Styles for Word Wrapping, Resizing, Sorting, Drag & Drop, Freezing, Pagination, and Clean Printing -->
     <style>
       .um-table {
         table-layout: fixed !important;
@@ -623,12 +623,68 @@
         border-right: 2.5px solid var(--primary-blue) !important;
       }
 
+      /* Pagination Controls Styling */
+      .um-pagination-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        font-size: 13px;
+        color: var(--text);
+        box-sizing: border-box;
+      }
+      .um-pagination-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .um-pagination-select {
+        padding: 4px 8px;
+        border: 1px solid var(--primary-blue);
+        border-radius: 4px;
+        background: var(--bg-card);
+        color: var(--text);
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .um-pagination-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .um-pagination-btn {
+        background: var(--bg-card);
+        border: 1.5px solid var(--primary-blue);
+        color: var(--text);
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 150ms ease;
+      }
+      .um-pagination-btn:hover:not(:disabled) {
+        border-color: var(--primary-blue-hover);
+        color: var(--primary-blue-hover);
+        background: rgba(37, 99, 235, 0.05);
+      }
+      .um-pagination-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        border-color: var(--border);
+      }
+
       /* Print Optimization Styles */
       @media print {
         .um-sort-icon,
         .um-resizer,
         .um-actions-wrap,
         .am-actions,
+        .um-pagination-bar,
         #empTable th:last-child,
         #userTable th:last-child {
           display: none !important;
@@ -704,12 +760,14 @@
           table-layout: auto !important;
         }
 
+        /* Forces clean table headers at top of each printed page */
         .um-table thead {
           display: table-header-group !important;
         }
 
         .um-table tr {
           page-break-inside: avoid !important;
+          display: table-row !important;
         }
 
         .um-table th, .um-table td {
@@ -777,6 +835,22 @@
               <tr><td class="um-empty">Loading employees…</td></tr>
             </tbody>
           </table>
+        </div>
+        <div class="um-pagination-bar" id="empPagination">
+          <div class="um-pagination-left">
+            <span>Rows per page:</span>
+            <select class="um-pagination-select" id="empPageSize" onchange="changePageSize('emp', this.value)">
+              <option value="10" selected>10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+            </select>
+            <span id="empPageInfo" style="margin-left:10px;">Showing 0 - 0 of 0</span>
+          </div>
+          <div class="um-pagination-right">
+            <button class="um-pagination-btn" id="empPrevBtn" onclick="changePage('emp', -1)">◄ Prev</button>
+            <span id="empPageNum" style="font-weight:600;">Page 1</span>
+            <button class="um-pagination-btn" id="empNextBtn" onclick="changePage('emp', 1)">Next ►</button>
+          </div>
         </div>
       </div>
     </div>
@@ -851,6 +925,22 @@
             </tbody>
           </table>
         </div>
+        <div class="um-pagination-bar" id="userPagination">
+          <div class="um-pagination-left">
+            <span>Rows per page:</span>
+            <select class="um-pagination-select" id="userPageSize" onchange="changePageSize('user', this.value)">
+              <option value="10" selected>10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+            </select>
+            <span id="userPageInfo" style="margin-left:10px;">Showing 0 - 0 of 0</span>
+          </div>
+          <div class="um-pagination-right">
+            <button class="um-pagination-btn" id="userPrevBtn" onclick="changePage('user', -1)">◄ Prev</button>
+            <span id="userPageNum" style="font-weight:600;">Page 1</span>
+            <button class="um-pagination-btn" id="userNextBtn" onclick="changePage('user', 1)">Next ►</button>
+          </div>
+        </div>
       </div>
     </div>
     
@@ -885,6 +975,22 @@
             </tbody>
           </table>
         </div>
+        <div class="um-pagination-bar" id="activityPagination">
+          <div class="um-pagination-left">
+            <span>Rows per page:</span>
+            <select class="um-pagination-select" id="activityPageSize" onchange="changePageSize('activity', this.value)">
+              <option value="10" selected>10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+            </select>
+            <span id="activityPageInfo" style="margin-left:10px;">Showing 0 - 0 of 0</span>
+          </div>
+          <div class="um-pagination-right">
+            <button class="um-pagination-btn" id="activityPrevBtn" onclick="changePage('activity', -1)">◄ Prev</button>
+            <span id="activityPageNum" style="font-weight:600;">Page 1</span>
+            <button class="um-pagination-btn" id="activityNextBtn" onclick="changePage('activity', 1)">Next ►</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -916,6 +1022,12 @@
   <script>
     var allUsers = [], allEmployees = [], allOrgRoles = [], allActivityLogs = [];
     var currentUserOrgId = null;
+
+    var paginationState = {
+      emp: { currentPage: 1, pageSize: 10 },
+      user: { currentPage: 1, pageSize: 10 },
+      activity: { currentPage: 1, pageSize: 10 }
+    };
 
     var sortState = {
       emp: { key: 'employeeNumber', dir: 'asc' },
@@ -956,6 +1068,41 @@
 
     var visibleUserCols = {}, userColWidths = {};
     var visibleEmpCols = {}, empColWidths = {};
+
+    function changePageSize(type, size) {
+      paginationState[type].pageSize = parseInt(size, 10);
+      paginationState[type].currentPage = 1;
+      if (type === 'emp') renderEmpTable();
+      else if (type === 'user') renderUserTable();
+      else if (type === 'activity') renderActivityLogTable();
+    }
+
+    function changePage(type, delta) {
+      paginationState[type].currentPage += delta;
+      if (type === 'emp') renderEmpTable();
+      else if (type === 'user') renderUserTable();
+      else if (type === 'activity') renderActivityLogTable();
+    }
+
+    function updatePaginationUI(type, totalRecords) {
+      var state = paginationState[type];
+      var totalPages = Math.ceil(totalRecords / state.pageSize) || 1;
+      if (state.currentPage > totalPages) state.currentPage = totalPages;
+      if (state.currentPage < 1) state.currentPage = 1;
+
+      var start = totalRecords === 0 ? 0 : ((state.currentPage - 1) * state.pageSize) + 1;
+      var end = Math.min(state.currentPage * state.pageSize, totalRecords);
+
+      var infoEl = document.getElementById(type + 'PageInfo');
+      var numEl = document.getElementById(type + 'PageNum');
+      var prevBtn = document.getElementById(type + 'PrevBtn');
+      var nextBtn = document.getElementById(type + 'NextBtn');
+
+      if (infoEl) infoEl.textContent = 'Showing ' + start + ' - ' + end + ' of ' + totalRecords;
+      if (numEl) numEl.textContent = 'Page ' + state.currentPage + ' of ' + totalPages;
+      if (prevBtn) prevBtn.disabled = (state.currentPage <= 1);
+      if (nextBtn) nextBtn.disabled = (state.currentPage >= totalPages);
+    }
 
     function formatUserLocalTime(dateStr) {
       if (!dateStr || dateStr === '—') return '—';
@@ -1259,6 +1406,7 @@
       tb.innerHTML = '';
       if (!allActivityLogs || allActivityLogs.length === 0) {
         tb.innerHTML = '<tr><td colspan="5" class="um-empty">No activity log records found.</td></tr>';
+        updatePaginationUI('activity', 0);
         return;
       }
 
@@ -1284,13 +1432,18 @@
                l.action.toLowerCase().indexOf(search) !== -1;
       });
 
+      updatePaginationUI('activity', filtered.length);
+
       if (filtered.length === 0) {
         tb.innerHTML = '<tr><td colspan="5" class="um-empty">No matching activity records found.</td></tr>';
         return;
       }
 
       var sorted = sortArray(filtered, sortState.activity.key, sortState.activity.dir);
-      sorted.forEach(function(l) {
+      var pState = paginationState.activity;
+      var paged = sorted.slice((pState.currentPage - 1) * pState.pageSize, pState.currentPage * pState.pageSize);
+
+      paged.forEach(function(l) {
         var tr = document.createElement('tr');
         tr.setAttribute('data-record-id', l.id);
         var timeVal = formatUserLocalTime(l.created_at);
@@ -1462,14 +1615,18 @@
         return matchSearch && matchStatus && matchRole;
       });
 
+      updatePaginationUI('user', filtered.length);
+
       if (filtered.length === 0) {
         tb.innerHTML = '<tr><td colspan="9" class="um-empty">No matching system users found.</td></tr>';
         return;
       }
 
       var sorted = sortArray(filtered, sortState.user.key, sortState.user.dir);
+      var pState = paginationState.user;
+      var paged = sorted.slice((pState.currentPage - 1) * pState.pageSize, pState.currentPage * pState.pageSize);
 
-      sorted.forEach(function(u) {
+      paged.forEach(function(u) {
         var tr = document.createElement('tr');
         tr.setAttribute('data-record-id', u.id);
         USER_COL_DEFS.forEach(function(col) {
@@ -1559,14 +1716,18 @@
         return matchSearch && matchStatus && matchRole;
       });
 
+      updatePaginationUI('emp', filtered.length);
+
       if (filtered.length === 0) {
         tb.innerHTML = '<tr><td colspan="17" class="um-empty">No matching employees found.</td></tr>';
         return;
       }
 
       var sorted = sortArray(filtered, sortState.emp.key, sortState.emp.dir);
+      var pState = paginationState.emp;
+      var paged = sorted.slice((pState.currentPage - 1) * pState.pageSize, pState.currentPage * pState.pageSize);
 
-      sorted.forEach(function(e) {
+      paged.forEach(function(e) {
         var tr = document.createElement('tr');
         tr.setAttribute('data-record-id', e.id);
         EMP_COL_DEFS.forEach(function(col) {
@@ -1920,6 +2081,19 @@
     }
 
     function doPrint() {
+      // Temporarily render all rows so print output isn't truncated by pagination
+      var origEmpPageSize = paginationState.emp.pageSize;
+      var origUserPageSize = paginationState.user.pageSize;
+      var origActPageSize = paginationState.activity.pageSize;
+
+      paginationState.emp.pageSize = 9999;
+      paginationState.user.pageSize = 9999;
+      paginationState.activity.pageSize = 9999;
+
+      if (activePrintType === 'emp') renderEmpTable();
+      else if (activePrintType === 'user') renderUserTable();
+      else if (activePrintType === 'activity') renderActivityLogTable();
+
       var uncheckedIds = [];
       document.querySelectorAll('.print-row-cb:not(:checked)').forEach(function(cb) {
         uncheckedIds.push(cb.getAttribute('data-id'));
@@ -1945,15 +2119,22 @@
       closeModal('umPrintModal');
       window.print();
 
+      // Restore pagination view after print completes
       setTimeout(function() {
         document.title = origTitle;
-        rows.forEach(function(tr) { tr.classList.remove('print-exclude-row'); });
+        paginationState.emp.pageSize = origEmpPageSize;
+        paginationState.user.pageSize = origUserPageSize;
+        paginationState.activity.pageSize = origActPageSize;
+
+        if (activePrintType === 'emp') renderEmpTable();
+        else if (activePrintType === 'user') renderUserTable();
+        else if (activePrintType === 'activity') renderActivityLogTable();
       }, 500);
     }
 
     function openExportModal(type, fmt) {
       activeModalType = type;
-      document.getElementById('umExportTitle').textContent = 'Export ' + (type === 'user' ? 'Users' : 'Employees') + ' to ' + fmt.toUpperCase();
+      document.getElementById('umExportTitle').textContent = 'Export ' + (type === 'user' ? 'Users' : 'Employees') + ' to ' + fmttoUpperCase();
       var c = document.getElementById('umExportCols');
       c.innerHTML = '';
       var defs = type === 'user' ? USER_COL_DEFS : EMP_COL_DEFS;
