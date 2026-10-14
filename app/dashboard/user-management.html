@@ -1065,18 +1065,23 @@ document.addEventListener('dashSessionLoaded', async function() {
       buildMultiSelectPanels();
     }
 
-    async function loadActivityLog() {
+async function loadActivityLog() {
       var tb = document.getElementById('activityLogBody');
       try {
         var resp = await fetch('/api/audit-log');
         if (resp.ok) {
           var data = await resp.json();
-          var logs = data.logs || (Array.isArray(data) ? data : []);
+          var logs = data.logs || data.audit_entries || (Array.isArray(data) ? data : []);
           if (logs.length > 0) {
             tb.innerHTML = '';
             logs.forEach(function(l) {
               var tr = document.createElement('tr');
-              tr.innerHTML = '<td>' + escapeHtml(l.timestamp) + '</td><td>' + escapeHtml(l.user_email) + '</td><td>' + escapeHtml(l.action) + '</td><td>' + escapeHtml(l.ip_address) + '</td>';
+              var timeVal = l.created_at || l.timestamp || '—';
+              var userVal = l.user_email || l.email || '—';
+              var actionVal = l.action || '—';
+              var ipVal = l.ip_address || l.ip || '—';
+
+              tr.innerHTML = '<td>' + escapeHtml(timeVal) + '</td><td>' + escapeHtml(userVal) + '</td><td>' + escapeHtml(actionVal) + '</td><td>' + escapeHtml(ipVal) + '</td>';
               tb.appendChild(tr);
             });
             return;
