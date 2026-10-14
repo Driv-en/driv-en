@@ -565,6 +565,45 @@
       </div>
     </div>
 
+<!-- CSS Styles for Sorting, Drag & Drop, and Sticky Frozen Columns -->
+    <style>
+      .um-table th {
+        cursor: pointer;
+        position: relative;
+        user-select: none;
+      }
+      .um-table th:hover {
+        background: rgba(37, 99, 235, 0.08) !important;
+      }
+      .um-table th.draggable-th {
+        cursor: grab;
+      }
+      .um-table th.draggable-th:active {
+        cursor: grabbing;
+      }
+      .um-sort-icon {
+        display: inline-block;
+        margin-left: 6px;
+        font-size: 11px;
+        opacity: 0.7;
+        color: var(--primary-blue);
+      }
+      /* Sticky Frozen Columns CSS */
+      .um-table th.um-col-frozen,
+      .um-table td.um-col-frozen {
+        position: sticky !important;
+        left: 0 !important;
+        z-index: 5 !important;
+        background: var(--bg-card) !important;
+        border-right: 2px solid var(--primary-blue) !important;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.08);
+      }
+      .um-table th.um-col-frozen {
+        z-index: 15 !important;
+        background: var(--bg-header, #f1f5f9) !important;
+      }
+    </style>
+
     <!-- Employees Tab -->
     <div class="um-tab-content" id="tab-employees">
       <div class="um-search-card">
@@ -621,9 +660,9 @@
           <table class="um-table" id="rolesTable" style="width:100%;">
             <thead>
               <tr>
-                <th>Role Name</th>
-                <th>Description</th>
-                <th>System Role</th>
+                <th onclick="toggleSort('roles', 'name')">Role Name <span class="um-sort-icon" id="sort-roles-name">▲</span></th>
+                <th onclick="toggleSort('roles', 'description')">Description <span class="um-sort-icon" id="sort-roles-description"></span></th>
+                <th onclick="toggleSort('roles', 'is_system')">System Role <span class="um-sort-icon" id="sort-roles-is_system"></span></th>
               </tr>
             </thead>
             <tbody id="rolesTableBody">
@@ -634,7 +673,7 @@
       </div>
     </div>
 
-<!-- System Users Tab -->
+    <!-- System Users Tab -->
     <div class="um-tab-content" id="tab-users">
       <div class="um-search-card">
         <div class="um-search-row1">
@@ -642,13 +681,15 @@
         </div>
         <div class="um-filter-grid">
           <div class="um-multiselect-dd" id="ddUserStatuses">
-            <button class="um-multiselect-btn" onclick="toggleFilterPanel('panelUserStatuses', event)">Statuses (All)</button> <div class="um-multiselect-panel" id="panelUserStatuses">
+            <button class="um-multiselect-btn" onclick="toggleFilterPanel('panelUserStatuses', event)">Statuses (All)</button> 
+            <div class="um-multiselect-panel" id="panelUserStatuses">
               <label class="um-multiselect-option"><input type="checkbox" value="Active" onchange="onUserFilterChange()"> Active</label>
               <label class="um-multiselect-option"><input type="checkbox" value="Inactive" onchange="onUserFilterChange()"> Inactive</label>
             </div>
           </div>
           <div class="um-multiselect-dd" id="ddUserRoles">
-            <button class="um-multiselect-btn" onclick="toggleFilterPanel('panelUserRoles', event)">Roles (All)</button> <div class="um-multiselect-panel" id="panelUserRoles"></div>
+            <button class="um-multiselect-btn" onclick="toggleFilterPanel('panelUserRoles', event)">Roles (All)</button> 
+            <div class="um-multiselect-panel" id="panelUserRoles"></div>
           </div>
         </div>
         <div class="um-search-row3">
@@ -685,10 +726,10 @@
           <table class="um-table" id="activityTable" style="width:100%;">
             <thead>
               <tr>
-                <th>Timestamp</th>
-                <th>User</th>
-                <th>Action</th>
-                <th>IP Address</th>
+                <th onclick="toggleSort('activity', 'created_at')">Timestamp <span class="um-sort-icon" id="sort-activity-created_at">▼</span></th>
+                <th onclick="toggleSort('activity', 'user_email')">User <span class="um-sort-icon" id="sort-activity-user_email"></span></th>
+                <th onclick="toggleSort('activity', 'action')">Action <span class="um-sort-icon" id="sort-activity-action"></span></th>
+                <th onclick="toggleSort('activity', 'ip_address')">IP Address <span class="um-sort-icon" id="sort-activity-ip_address"></span></th>
               </tr>
             </thead>
             <tbody id="activityLogBody">
@@ -700,36 +741,18 @@
     </div>
   </div>
 
-  <!-- Employee Modal -->
+  <!-- Modals -->
   <div id="umAddEmpModal" class="um-modal">
     <div class="um-modal-card">
       <h3 style="margin-top:0;" id="empModalTitle">Add New Employee</h3>
       <input type="hidden" id="editEmpId" value="">
       <div class="um-form-grid">
-        <div class="um-form-group">
-          <label>First Name</label>
-          <input type="text" id="addEmpFn" placeholder="Jane">
-        </div>
-        <div class="um-form-group">
-          <label>Middle Name</label>
-          <input type="text" id="addEmpMn" placeholder="Marie">
-        </div>
-        <div class="um-form-group">
-          <label>Last Name</label>
-          <input type="text" id="addEmpLn" placeholder="Doe">
-        </div>
-        <div class="um-form-group">
-          <label>Suffix</label>
-          <input type="text" id="addEmpSuffix" placeholder="Jr., III">
-        </div>
-        <div class="um-form-group full">
-          <label>Email Address</label>
-          <input type="email" id="addEmpEmail" placeholder="jane.doe@company.com">
-        </div>
-        <div class="um-form-group">
-          <label>Employee #</label>
-          <input type="text" id="addEmpNum" placeholder="EMP-102">
-        </div>
+        <div class="um-form-group"><label>First Name</label><input type="text" id="addEmpFn" placeholder="Jane"></div>
+        <div class="um-form-group"><label>Middle Name</label><input type="text" id="addEmpMn" placeholder="Marie"></div>
+        <div class="um-form-group"><label>Last Name</label><input type="text" id="addEmpLn" placeholder="Doe"></div>
+        <div class="um-form-group"><label>Suffix</label><input type="text" id="addEmpSuffix" placeholder="Jr., III"></div>
+        <div class="um-form-group full"><label>Email Address</label><input type="email" id="addEmpEmail" placeholder="jane.doe@company.com"></div>
+        <div class="um-form-group"><label>Employee #</label><input type="text" id="addEmpNum" placeholder="EMP-102"></div>
         <div class="um-form-group">
           <label>Role</label>
           <select id="addEmpRole">
@@ -738,30 +761,12 @@
             <option value="Employee">Employee</option>
           </select>
         </div>
-        <div class="um-form-group">
-          <label>Phone Number</label>
-          <input type="text" id="addEmpPhone" placeholder="(555) 019-2834">
-        </div>
-        <div class="um-form-group">
-          <label>Date of Birth (DOB)</label>
-          <input type="date" id="addEmpDob">
-        </div>
-        <div class="um-form-group full">
-          <label>Street Address</label>
-          <input type="text" id="addEmpAddress" placeholder="123 Industrial Pkwy">
-        </div>
-        <div class="um-form-group">
-          <label>City</label>
-          <input type="text" id="addEmpCity" placeholder="Dallas">
-        </div>
-        <div class="um-form-group">
-          <label>State</label>
-          <input type="text" id="addEmpState" placeholder="TX">
-        </div>
-        <div class="um-form-group">
-          <label>Zip Code</label>
-          <input type="text" id="addEmpZip" placeholder="75201">
-        </div>
+        <div class="um-form-group"><label>Phone Number</label><input type="text" id="addEmpPhone" placeholder="(555) 019-2834"></div>
+        <div class="um-form-group"><label>Date of Birth (DOB)</label><input type="date" id="addEmpDob"></div>
+        <div class="um-form-group full"><label>Street Address</label><input type="text" id="addEmpAddress" placeholder="123 Industrial Pkwy"></div>
+        <div class="um-form-group"><label>City</label><input type="text" id="addEmpCity" placeholder="Dallas"></div>
+        <div class="um-form-group"><label>State</label><input type="text" id="addEmpState" placeholder="TX"></div>
+        <div class="um-form-group"><label>Zip Code</label><input type="text" id="addEmpZip" placeholder="75201"></div>
         <div class="um-form-group">
           <label>Status</label>
           <select id="addEmpStatus">
@@ -770,14 +775,8 @@
             <option value="Inactive">Inactive</option>
           </select>
         </div>
-        <div class="um-form-group">
-          <label>Driver's License #</label>
-          <input type="text" id="addEmpDl" placeholder="DL-9482014">
-        </div>
-        <div class="um-form-group">
-          <label>DL State</label>
-          <input type="text" id="addEmpDlState" placeholder="TX">
-        </div>
+        <div class="um-form-group"><label>Driver's License #</label><input type="text" id="addEmpDl" placeholder="DL-9482014"></div>
+        <div class="um-form-group"><label>DL State</label><input type="text" id="addEmpDlState" placeholder="TX"></div>
       </div>
       <div style="display:flex; gap:10px; margin-top:20px;">
         <button class="um-btn-action" onclick="closeModal('umAddEmpModal')">Cancel</button>
@@ -786,7 +785,6 @@
     </div>
   </div>
 
-  <!-- Employee Detail View Modal -->
   <div id="umEmpViewModal" class="um-modal">
     <div class="um-modal-card">
       <h3 style="margin-top:0;" id="viewEmpName">Employee Details</h3>
@@ -808,7 +806,6 @@
     </div>
   </div>
 
-  <!-- User Details Modal -->
   <div id="umUserDetailModal" class="um-modal">
     <div class="um-modal-card">
       <h3 style="margin-top:0;" id="userDetailName">User Detail</h3>
@@ -816,9 +813,7 @@
       <h4 style="margin-top:16px;">Login History Details</h4>
       <div class="um-table-scroll">
         <table class="um-table" style="width:100%;">
-          <thead>
-            <tr><th>Timestamp</th><th>IP Address</th><th>Status</th></tr>
-          </thead>
+          <thead><tr><th>Timestamp</th><th>IP Address</th><th>Status</th></tr></thead>
           <tbody id="userLoginHistoryBody">
             <tr><td>2026-10-13 09:12:00</td><td>192.168.1.104</td><td>Successful</td></tr>
           </tbody>
@@ -830,10 +825,8 @@
     </div>
   </div>
 
-  <!-- Toast Notification Banner -->
   <div id="umToast" class="um-toast"></div>
 
-  <!-- Print & Export Modals -->
   <div id="umPrintModal" class="um-modal">
     <div class="um-modal-card">
       <h3>Print Directory</h3>
@@ -862,11 +855,19 @@
 
   <script src="/app/shared/dashboard-common.js?v=13"></script>
   <script>
-    var allUsers = [], allEmployees = [], allOrgRoles = [];
+    var allUsers = [], allEmployees = [], allOrgRoles = [], allActivityLogs = [];
     var currentUserOrgId = null;
 
+    // Sorting State Tracking
+    var sortState = {
+      emp: { key: 'firstName', dir: 'asc' },
+      user: { key: 'fullName', dir: 'asc' },
+      roles: { key: 'name', dir: 'asc' },
+      activity: { key: 'created_at', dir: 'desc' }
+    };
+
     var USER_COL_DEFS = [
-      { key: 'id', label: 'User ID', defaultWidth: '120px' },
+      { key: 'id', label: 'User ID', defaultWidth: '120px', frozen: true },
       { key: 'fullName', label: 'Full Name', defaultWidth: '160px' },
       { key: 'email', label: 'Email', defaultWidth: '200px' },
       { key: 'role', label: 'Role', defaultWidth: '140px' },
@@ -877,7 +878,7 @@
     ];
 
     var EMP_COL_DEFS = [
-      { key: 'employeeNumber', label: 'Emp #', defaultWidth: '100px' },
+      { key: 'employeeNumber', label: 'Emp #', defaultWidth: '100px', frozen: true },
       { key: 'firstName', label: 'First Name', defaultWidth: '120px' },
       { key: 'middleName', label: 'Middle Name', defaultWidth: '110px' },
       { key: 'lastName', label: 'Last Name', defaultWidth: '120px' },
@@ -957,7 +958,49 @@
       };
     }
 
-document.addEventListener('dashSessionLoaded', async function() {
+    // Generic Sorting Utility
+    function sortArray(list, key, dir) {
+      return list.slice().sort(function(a, b) {
+        var valA = (a[key] !== undefined && a[key] !== null) ? a[key].toString().toLowerCase() : '';
+        var valB = (b[key] !== undefined && b[key] !== null) ? b[key].toString().toLowerCase() : '';
+        if (valA < valB) return dir === 'asc' ? -1 : 1;
+        if (valA > valB) return dir === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    function toggleSort(type, key) {
+      if (sortState[type].key === key) {
+        sortState[type].dir = sortState[type].dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortState[type].key = key;
+        sortState[type].dir = 'asc';
+      }
+
+      if (type === 'emp') {
+        renderEmpTableHead();
+        renderEmpTable();
+      } else if (type === 'user') {
+        renderUserTableHead();
+        renderUserTable();
+      } else if (type === 'roles') {
+        updateSortIcons('roles');
+        renderRolesTable();
+      } else if (type === 'activity') {
+        updateSortIcons('activity');
+        renderActivityLogTable();
+      }
+    }
+
+    function updateSortIcons(type) {
+      document.querySelectorAll('#tab-' + type + ' .um-sort-icon').forEach(function(el) { el.textContent = ''; });
+      var activeEl = document.getElementById('sort-' + type + '-' + sortState[type].key);
+      if (activeEl) {
+        activeEl.textContent = sortState[type].dir === 'asc' ? '▲' : '▼';
+      }
+    }
+
+    document.addEventListener('dashSessionLoaded', async function() {
       var u = window.dashUser;
       if (!u) { window.location.href = '/public/login.html'; return; }
       currentUserOrgId = u.org_id || localStorage.getItem('driven_org_id') || u.customerId;
@@ -972,25 +1015,28 @@ document.addEventListener('dashSessionLoaded', async function() {
         else hRow.appendChild(titleDiv);
       }
 
-      // Set default column widths
       USER_COL_DEFS.forEach(function(c) { userColWidths[c.key] = c.defaultWidth; });
       EMP_COL_DEFS.forEach(function(c) { empColWidths[c.key] = c.defaultWidth; });
 
-      // Restore saved column visibility settings from localStorage
       try {
-        var savedEmpCols = localStorage.getItem('um_visible_emp_cols');
-        if (savedEmpCols) {
-          visibleEmpCols = JSON.parse(savedEmpCols);
-        } else {
-          EMP_COL_DEFS.forEach(function(c) { visibleEmpCols[c.key] = true; });
+        var savedEmpOrder = localStorage.getItem('um_emp_col_order');
+        if (savedEmpOrder) {
+          var keys = JSON.parse(savedEmpOrder);
+          EMP_COL_DEFS.sort(function(a, b) { return keys.indexOf(a.key) - keys.indexOf(b.key); });
+        }
+        var savedUserOrder = localStorage.getItem('um_user_col_order');
+        if (savedUserOrder) {
+          var ukeys = JSON.parse(savedUserOrder);
+          USER_COL_DEFS.sort(function(a, b) { return ukeys.indexOf(a.key) - ukeys.indexOf(b.key); });
         }
 
+        var savedEmpCols = localStorage.getItem('um_visible_emp_cols');
+        if (savedEmpCols) { visibleEmpCols = JSON.parse(savedEmpCols); }
+        else { EMP_COL_DEFS.forEach(function(c) { visibleEmpCols[c.key] = true; }); }
+
         var savedUserCols = localStorage.getItem('um_visible_user_cols');
-        if (savedUserCols) {
-          visibleUserCols = JSON.parse(savedUserCols);
-        } else {
-          USER_COL_DEFS.forEach(function(c) { visibleUserCols[c.key] = true; });
-        }
+        if (savedUserCols) { visibleUserCols = JSON.parse(savedUserCols); }
+        else { USER_COL_DEFS.forEach(function(c) { visibleUserCols[c.key] = true; }); }
       } catch (e) {
         EMP_COL_DEFS.forEach(function(c) { visibleEmpCols[c.key] = true; });
         USER_COL_DEFS.forEach(function(c) { visibleUserCols[c.key] = true; });
@@ -1038,7 +1084,6 @@ document.addEventListener('dashSessionLoaded', async function() {
     }
 
     async function loadOrgRoles() {
-      var container = document.getElementById('rolesTableBody');
       try {
         var resp = await fetch('/api/roles?org_id=' + encodeURIComponent(currentUserOrgId));
         if (resp.ok) {
@@ -1052,43 +1097,56 @@ document.addEventListener('dashSessionLoaded', async function() {
           { id: '3', name: 'Employee', description: 'Standard driver / employee portal view', is_system: 0 }
         ];
       }
-      if (container) {
-        container.innerHTML = '';
-        allOrgRoles.forEach(function(r) {
-          var tr = document.createElement('tr');
-          tr.innerHTML = '<td><strong>' + escapeHtml(r.name) + '</strong></td>' +
-                         '<td>' + escapeHtml(r.description || '—') + '</td>' +
-                         '<td>' + (r.is_system ? 'Yes' : 'No') + '</td>';
-          container.appendChild(tr);
-        });
-      }
+      renderRolesTable();
       buildMultiSelectPanels();
     }
 
-async function loadActivityLog() {
-      var tb = document.getElementById('activityLogBody');
+    function renderRolesTable() {
+      var container = document.getElementById('rolesTableBody');
+      if (!container) return;
+      container.innerHTML = '';
+      var sorted = sortArray(allOrgRoles, sortState.roles.key, sortState.roles.dir);
+      sorted.forEach(function(r) {
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td><strong>' + escapeHtml(r.name) + '</strong></td>' +
+                       '<td>' + escapeHtml(r.description || '—') + '</td>' +
+                       '<td>' + (r.is_system ? 'Yes' : 'No') + '</td>';
+        container.appendChild(tr);
+      });
+      updateSortIcons('roles');
+    }
+
+    async function loadActivityLog() {
       try {
         var resp = await fetch('/api/audit-log');
         if (resp.ok) {
           var data = await resp.json();
-          var logs = data.logs || data.audit_entries || (Array.isArray(data) ? data : []);
-          if (logs.length > 0) {
-            tb.innerHTML = '';
-            logs.forEach(function(l) {
-              var tr = document.createElement('tr');
-              var timeVal = l.created_at || l.timestamp || '—';
-              var userVal = l.user_email || l.email || '—';
-              var actionVal = l.action || '—';
-              var ipVal = l.ip_address || l.ip || '—';
-
-              tr.innerHTML = '<td>' + escapeHtml(timeVal) + '</td><td>' + escapeHtml(userVal) + '</td><td>' + escapeHtml(actionVal) + '</td><td>' + escapeHtml(ipVal) + '</td>';
-              tb.appendChild(tr);
-            });
-            return;
-          }
+          allActivityLogs = data.logs || data.audit_entries || (Array.isArray(data) ? data : []);
         }
       } catch (e) {}
-      tb.innerHTML = '<tr><td colspan="4" class="um-empty">No activity log records found.</td></tr>';
+      renderActivityLogTable();
+    }
+
+    function renderActivityLogTable() {
+      var tb = document.getElementById('activityLogBody');
+      if (!tb) return;
+      tb.innerHTML = '';
+      if (!allActivityLogs || allActivityLogs.length === 0) {
+        tb.innerHTML = '<tr><td colspan="4" class="um-empty">No activity log records found.</td></tr>';
+        return;
+      }
+      var sorted = sortArray(allActivityLogs, sortState.activity.key, sortState.activity.dir);
+      sorted.forEach(function(l) {
+        var tr = document.createElement('tr');
+        var timeVal = l.created_at || l.timestamp || '—';
+        var userVal = l.user_email || l.email || '—';
+        var actionVal = l.action || '—';
+        var ipVal = l.ip_address || l.ip || '—';
+
+        tr.innerHTML = '<td>' + escapeHtml(timeVal) + '</td><td>' + escapeHtml(userVal) + '</td><td>' + escapeHtml(actionVal) + '</td><td>' + escapeHtml(ipVal) + '</td>';
+        tb.appendChild(tr);
+      });
+      updateSortIcons('activity');
     }
 
     function updateKpi() {
@@ -1124,28 +1182,75 @@ async function loadActivityLog() {
       return Array.from(cbs).map(function(cb) { return cb.value.toLowerCase(); });
     }
 
+    // Drag and Drop Column Reordering Logic
+    function attachDragAndDropHeaders(tableType, defsArray, renderHeadFn, renderTableFn) {
+      var draggedIdx = null;
+      var selector = tableType === 'emp' ? '#empTableHead th.draggable-th' : '#userTableHead th.draggable-th';
+      var headers = document.querySelectorAll(selector);
+
+      headers.forEach(function(th) {
+        th.addEventListener('dragstart', function(e) {
+          draggedIdx = parseInt(th.getAttribute('data-col-index'));
+          e.dataTransfer.effectAllowed = 'move';
+        });
+        th.addEventListener('dragover', function(e) {
+          e.preventDefault();
+        });
+        th.addEventListener('drop', function(e) {
+          e.preventDefault();
+          var targetIdx = parseInt(th.getAttribute('data-col-index'));
+          if (draggedIdx === null || draggedIdx === targetIdx) return;
+
+          var movedCol = defsArray.splice(draggedIdx, 1)[0];
+          defsArray.splice(targetIdx, 0, movedCol);
+
+          var orderKeys = defsArray.map(function(c) { return c.key; });
+          localStorage.setItem(tableType === 'emp' ? 'um_emp_col_order' : 'um_user_col_order', JSON.stringify(orderKeys));
+
+          renderHeadFn();
+          renderTableFn();
+        });
+      });
+    }
+
     function renderUserTableHead() {
       var th = document.getElementById('userTableHead');
       th.textContent = '';
       var tr = document.createElement('tr');
+      var renderIndex = 0;
+
       USER_COL_DEFS.forEach(function(col) {
         if (!visibleUserCols[col.key]) return;
         var h = document.createElement('th');
+        h.className = 'draggable-th' + (col.frozen ? ' um-col-frozen' : '');
+        h.setAttribute('draggable', 'true');
+        h.setAttribute('data-col-index', renderIndex++);
         h.style.width = userColWidths[col.key];
         h.style.minWidth = userColWidths[col.key];
-        h.textContent = col.label;
+        
+        var arrow = sortState.user.key === col.key ? (sortState.user.dir === 'asc' ? '▲' : '▼') : '';
+        h.innerHTML = escapeHtml(col.label) + ' <span class="um-sort-icon">' + arrow + '</span>';
+        
+        h.addEventListener('click', function(e) {
+          if (e.target.classList.contains('um-resizer')) return;
+          toggleSort('user', col.key);
+        });
+
         var resizer = document.createElement('div');
         resizer.className = 'um-resizer';
         resizer.addEventListener('mousedown', function(e) { initColumnResize(e, h, col.key, 'user'); });
         h.appendChild(resizer);
         tr.appendChild(h);
       });
+
       var ha = document.createElement('th');
       ha.textContent = 'Actions';
       ha.style.width = '100px';
       ha.style.minWidth = '100px';
       tr.appendChild(ha);
       th.appendChild(tr);
+
+      attachDragAndDropHeaders('user', USER_COL_DEFS, renderUserTableHead, renderUserTable);
     }
 
     function renderUserTable() {
@@ -1167,11 +1272,14 @@ async function loadActivityLog() {
         return;
       }
 
-      filtered.forEach(function(u) {
+      var sorted = sortArray(filtered, sortState.user.key, sortState.user.dir);
+
+      sorted.forEach(function(u) {
         var tr = document.createElement('tr');
         USER_COL_DEFS.forEach(function(col) {
           if (!visibleUserCols[col.key]) return;
           var td = document.createElement('td');
+          if (col.frozen) td.className = 'um-col-frozen';
           td.style.width = userColWidths[col.key];
           td.style.minWidth = userColWidths[col.key];
           var v = u[col.key];
@@ -1196,24 +1304,40 @@ async function loadActivityLog() {
       var th = document.getElementById('empTableHead');
       th.textContent = '';
       var tr = document.createElement('tr');
+      var renderIndex = 0;
+
       EMP_COL_DEFS.forEach(function(col) {
         if (!visibleEmpCols[col.key]) return;
         var h = document.createElement('th');
+        h.className = 'draggable-th' + (col.frozen ? ' um-col-frozen' : '');
+        h.setAttribute('draggable', 'true');
+        h.setAttribute('data-col-index', renderIndex++);
         h.style.width = empColWidths[col.key];
         h.style.minWidth = empColWidths[col.key];
-        h.textContent = col.label;
+
+        var arrow = sortState.emp.key === col.key ? (sortState.emp.dir === 'asc' ? '▲' : '▼') : '';
+        h.innerHTML = escapeHtml(col.label) + ' <span class="um-sort-icon">' + arrow + '</span>';
+
+        h.addEventListener('click', function(e) {
+          if (e.target.classList.contains('um-resizer')) return;
+          toggleSort('emp', col.key);
+        });
+
         var resizer = document.createElement('div');
         resizer.className = 'um-resizer';
         resizer.addEventListener('mousedown', function(e) { initColumnResize(e, h, col.key, 'emp'); });
         h.appendChild(resizer);
         tr.appendChild(h);
       });
+
       var ha = document.createElement('th');
       ha.textContent = 'Actions';
       ha.style.width = '140px';
       ha.style.minWidth = '140px';
       tr.appendChild(ha);
       th.appendChild(tr);
+
+      attachDragAndDropHeaders('emp', EMP_COL_DEFS, renderEmpTableHead, renderEmpTable);
     }
 
     function renderEmpTable() {
@@ -1235,11 +1359,14 @@ async function loadActivityLog() {
         return;
       }
 
-      filtered.forEach(function(e) {
+      var sorted = sortArray(filtered, sortState.emp.key, sortState.emp.dir);
+
+      sorted.forEach(function(e) {
         var tr = document.createElement('tr');
         EMP_COL_DEFS.forEach(function(col) {
           if (!visibleEmpCols[col.key]) return;
           var td = document.createElement('td');
+          if (col.frozen) td.className = 'um-col-frozen';
           td.style.width = empColWidths[col.key];
           td.style.minWidth = empColWidths[col.key];
           var v = e[col.key];
@@ -1357,7 +1484,7 @@ async function loadActivityLog() {
       document.getElementById('umAddEmpModal').classList.add('active');
     }
 
-async function submitSaveEmployee() {
+    async function submitSaveEmployee() {
       var id = document.getElementById('editEmpId').value;
       var fn = document.getElementById('addEmpFn').value.trim();
       var mn = document.getElementById('addEmpMn').value.trim();
@@ -1415,7 +1542,6 @@ async function submitSaveEmployee() {
         if (!resp.ok) throw new Error('HTTP status ' + resp.status);
         showToast('Employee updated in D1 successfully.', 'success');
 
-        // Write entry to Audit Log
         try {
           await fetch('/api/audit-log', {
             method: 'POST',
@@ -1447,18 +1573,17 @@ async function submitSaveEmployee() {
       renderEmpTable();
       updateKpi();
 
-      // Reload the Activity Log table so the change is displayed immediately
       await loadActivityLog();
-
       closeModal('umAddEmpModal');
     }
+
     function viewUserDetail(name, email) {
       document.getElementById('userDetailName').textContent = name || 'System User Detail';
       document.getElementById('userDetailEmail').textContent = email || '';
       document.getElementById('umUserDetailModal').classList.add('active');
     }
 
-function toggleColPanel(type, e) {
+    function toggleColPanel(type, e) {
       if (e) e.stopPropagation();
       var panelId = type === 'user' ? 'userColPanel' : 'empColPanel';
       var itemsId = type === 'user' ? 'userColToggleItems' : 'empColToggleItems';
@@ -1478,10 +1603,7 @@ function toggleColPanel(type, e) {
         defs.forEach(function(col) {
           var lbl = document.createElement('label');
           lbl.className = 'um-col-toggle-item';
-
-          lbl.addEventListener('click', function(ev) {
-            ev.stopPropagation();
-          });
+          lbl.addEventListener('click', function(ev) { ev.stopPropagation(); });
 
           var cb = document.createElement('input');
           cb.type = 'checkbox';
@@ -1519,7 +1641,6 @@ function toggleColPanel(type, e) {
             p.style.position = 'fixed';
             p.style.left = Math.max(10, r.left) + 'px';
 
-            // On mobile or tight screens, flip upwards if needed or fit available space
             if (spaceBelow < 200 && r.top > 200) {
               p.style.top = 'auto';
               p.style.bottom = (viewportHeight - r.top + 4) + 'px';
@@ -1533,7 +1654,7 @@ function toggleColPanel(type, e) {
         }
       }
     }
-    
+
     var activeModalType = 'emp';
 
     function openPrintModal(type) {
