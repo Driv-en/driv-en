@@ -63,8 +63,8 @@
       display: block;
       margin-top: 2px;
     }
+
     :root {
-      --header-height: 60px;
       --card-green-border: #16a34a;
       --blue-line: #1e3a8a;
       --primary-blue: #2563eb;
@@ -87,7 +87,7 @@
       overflow-x: auto;
       position: -webkit-sticky !important;
       position: sticky !important;
-      top: var(--header-height, 60px) !important;
+      top: 52px !important; /* Locks flush below #dashHeader */
       z-index: 99 !important;
       background: #cbd5e1;
       border-bottom: 2px solid #94a3b8;
@@ -97,11 +97,8 @@
 
     /* Mobile Responsive Sticky Adjustment */
     @media screen and (max-width: 768px) {
-      :root {
-        --header-height: 50px;
-      }
       .um-tab-bar {
-        top: var(--header-height, 50px) !important;
+        top: 48px !important;
         padding: 0 8px;
       }
       .um-tab {
@@ -1272,21 +1269,24 @@
       }
     }
 
-    document.addEventListener('dashSessionLoaded', async function() {
+document.addEventListener('dashSessionLoaded', async function() {
       var u = window.dashUser;
       if (!u) { window.location.href = '/public/login.html'; return; }
       currentUserOrgId = u.org_id || localStorage.getItem('driven_org_id') || u.customerId;
 
-      var hRow = document.querySelector('.dash-header-row1');
-      if (hRow) {
-        var titleDiv = document.createElement('div');
-        titleDiv.className = 'admin-header-title';
-        titleDiv.innerHTML = 'Employee Management';
-        var rightCol = hRow.querySelector('.dash-header-right') || hRow.children[1];
-        if (rightCol) hRow.insertBefore(titleDiv, rightCol);
-        else hRow.appendChild(titleDiv);
+      // Prevent duplicate title injection
+      var existingTitle = document.querySelector('.dash-header-row1 .admin-header-title');
+      if (!existingTitle) {
+        var hRow = document.querySelector('.dash-header-row1');
+        if (hRow) {
+          var titleDiv = document.createElement('div');
+          titleDiv.className = 'admin-header-title';
+          titleDiv.innerHTML = 'Employee Management';
+          var rightCol = hRow.querySelector('.dash-header-right') || hRow.children[1];
+          if (rightCol) hRow.insertBefore(titleDiv, rightCol);
+          else hRow.appendChild(titleDiv);
+        }
       }
-
       USER_COL_DEFS.forEach(function(c) { userColWidths[c.key] = c.defaultWidth; });
       EMP_COL_DEFS.forEach(function(c) { empColWidths[c.key] = c.defaultWidth; });
 
@@ -2394,7 +2394,7 @@ async function submitSaveEmployee() {
     function onEmpFilterChange() { renderEmpTable(); }
   </script>
 
-  <!-- Custom Footer with Links and Dynamic Auto-Copyright Year -->
+<!-- Single Consolidated Footer with Navigation Links & Auto-Copyright Year -->
   <footer id="dashFooter" style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px; border-top: 1px solid var(--border); margin-top: 40px;">
     <div style="margin-bottom: 8px; display: flex; justify-content: center; gap: 16px;">
       <a href="/public/privacy.html" style="color: var(--primary-blue); text-decoration: none;">Privacy Policy</a>
@@ -2408,17 +2408,16 @@ async function submitSaveEmployee() {
     </div>
   </footer>
 
-  <script src="/app/shared/dashboard-common.js?v=13"></script>
   <script>
-    // Dynamic auto-copyright year
-    document.addEventListener('DOMContentLoaded', function() {
+    (function updateFooterYear() {
       var yEl = document.getElementById('dashFooterYear');
       if (yEl) {
         yEl.textContent = new Date().getFullYear();
+      } else {
+        setTimeout(updateFooterYear, 50);
       }
-    });
+    })();
   </script>
-  
   <script src="/app/shared/auth-check.js?v=13"></script>
 </body>
 </html>
