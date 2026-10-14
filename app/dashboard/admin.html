@@ -757,7 +757,13 @@
                     pendingKP = [];
                     await loadKeyPersonnel();
                 } else {
-                    alert("Warning/Error during save: " + (dComplete.error || "Check worker logs"));
+                    var errorDetails = (dComplete.results || [])
+                        .filter(function(r) { return r.error; })
+                        .map(function(r) { return (r.email || "Item") + ": " + r.error; })
+                        .join("\n");
+
+                    var errorMsg = dComplete.error || errorDetails || "An unknown error occurred during save.";
+                    alert("Warning/Error during save:\n\n" + errorMsg);
                 }
             } catch(e) {
                 reportError("saveKeyPersonnelToDB", e);
