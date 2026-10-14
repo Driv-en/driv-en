@@ -1430,7 +1430,7 @@ document.addEventListener('dashSessionLoaded', async function() {
     }
 
 function toggleColPanel(type, e) {
-      e.stopPropagation();
+      if (e) e.stopPropagation();
       var panelId = type === 'user' ? 'userColPanel' : 'empColPanel';
       var itemsId = type === 'user' ? 'userColToggleItems' : 'empColToggleItems';
       var defs = type === 'user' ? USER_COL_DEFS : EMP_COL_DEFS;
@@ -1438,42 +1438,61 @@ function toggleColPanel(type, e) {
 
       var p = document.getElementById(panelId);
       var active = p.classList.contains('active');
+
       document.querySelectorAll('.um-col-toggle').forEach(function(x) { x.classList.remove('active'); });
 
       if (!active) {
         p.classList.add('active');
         var c = document.getElementById(itemsId);
         c.innerHTML = '';
+
         defs.forEach(function(col) {
           var lbl = document.createElement('label');
           lbl.className = 'um-col-toggle-item';
+
+          // Prevent clicking label from bubbling up and closing panel
+          lbl.addEventListener('click', function(ev) {
+            ev.stopPropagation();
+          });
+
           var cb = document.createElement('input');
           cb.type = 'checkbox';
-          cb.checked = vis[col.key];
-          cb.addEventListener('change', function() {
+          cb.checked = (vis[col.key] !== false);
+
+          cb.addEventListener('change', function(ev) {
+            ev.stopPropagation();
             vis[col.key] = cb.checked;
+
             if (type === 'user') {
+              visibleUserCols[col.key] = cb.checked;
               localStorage.setItem('um_visible_user_cols', JSON.stringify(visibleUserCols));
               renderUserTableHead();
               renderUserTable();
             } else {
+              visibleEmpCols[col.key] = cb.checked;
               localStorage.setItem('um_visible_emp_cols', JSON.stringify(visibleEmpCols));
               renderEmpTableHead();
               renderEmpTable();
             }
           });
+
           lbl.appendChild(cb);
-          lbl.appendChild(document.createTextNode(col.label));
+          lbl.appendChild(document.createTextNode(' ' + col.label));
           c.appendChild(lbl);
         });
 
-        var r = e.target.getBoundingClientRect();
-        p.style.position = 'fixed';
-        p.style.top = (r.bottom + 4) + 'px';
-        p.style.left = r.left + 'px';
+        if (e && e.target) {
+          var btn = e.target.closest('.um-btn-action');
+          if (btn) {
+            var r = btn.getBoundingClientRect();
+            p.style.position = 'fixed';
+            p.style.top = (r.bottom + 4) + 'px';
+            p.style.left = r.left + 'px';
+          }
+        }
       }
     }
-
+    
     var activeModalType = 'emp';
 
     function openPrintModal(type) {
