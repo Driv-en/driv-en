@@ -1453,7 +1453,6 @@ function toggleColPanel(type, e) {
           var lbl = document.createElement('label');
           lbl.className = 'um-col-toggle-item';
 
-          // Prevent clicking label from bubbling up and closing panel
           lbl.addEventListener('click', function(ev) {
             ev.stopPropagation();
           });
@@ -1488,9 +1487,22 @@ function toggleColPanel(type, e) {
           var btn = e.target.closest('.um-btn-action');
           if (btn) {
             var r = btn.getBoundingClientRect();
+            var viewportHeight = window.innerHeight;
+            var spaceBelow = viewportHeight - r.bottom - 20;
+
             p.style.position = 'fixed';
-            p.style.top = (r.bottom + 4) + 'px';
-            p.style.left = r.left + 'px';
+            p.style.left = Math.max(10, r.left) + 'px';
+
+            // On mobile or tight screens, flip upwards if needed or fit available space
+            if (spaceBelow < 200 && r.top > 200) {
+              p.style.top = 'auto';
+              p.style.bottom = (viewportHeight - r.top + 4) + 'px';
+              p.style.maxHeight = Math.min(280, r.top - 20) + 'px';
+            } else {
+              p.style.bottom = 'auto';
+              p.style.top = (r.bottom + 4) + 'px';
+              p.style.maxHeight = Math.min(280, Math.max(150, spaceBelow)) + 'px';
+            }
           }
         }
       }
