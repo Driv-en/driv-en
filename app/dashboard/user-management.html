@@ -584,7 +584,7 @@
           </div>
         </div>
         <div class="um-search-row3">
-          <button class="um-btn-action" onclick="toggleColPanel('emp', event)">Columns</button>
+          <button class="um-btn-action" onclick="toggleColPanel('emp', event)">Columns (Show / Hide)</button>
           <button class="um-btn-action" onclick="openPrintModal('emp')">Print</button>
           <button class="um-btn-action" onclick="openExportModal('emp', 'csv')">Export CSV</button>
           <button class="um-btn-action" onclick="openExportModal('emp', 'excel')">Export Excel</button>
@@ -955,7 +955,7 @@
       };
     }
 
-    document.addEventListener('dashSessionLoaded', async function() {
+document.addEventListener('dashSessionLoaded', async function() {
       var u = window.dashUser;
       if (!u) { window.location.href = '/public/login.html'; return; }
       currentUserOrgId = u.org_id || localStorage.getItem('driven_org_id') || u.customerId;
@@ -970,8 +970,29 @@
         else hRow.appendChild(titleDiv);
       }
 
-      USER_COL_DEFS.forEach(function(c) { visibleUserCols[c.key] = true; userColWidths[c.key] = c.defaultWidth; });
-      EMP_COL_DEFS.forEach(function(c) { visibleEmpCols[c.key] = true; empColWidths[c.key] = c.defaultWidth; });
+      // Set default column widths
+      USER_COL_DEFS.forEach(function(c) { userColWidths[c.key] = c.defaultWidth; });
+      EMP_COL_DEFS.forEach(function(c) { empColWidths[c.key] = c.defaultWidth; });
+
+      // Restore saved column visibility settings from localStorage
+      try {
+        var savedEmpCols = localStorage.getItem('um_visible_emp_cols');
+        if (savedEmpCols) {
+          visibleEmpCols = JSON.parse(savedEmpCols);
+        } else {
+          EMP_COL_DEFS.forEach(function(c) { visibleEmpCols[c.key] = true; });
+        }
+
+        var savedUserCols = localStorage.getItem('um_visible_user_cols');
+        if (savedUserCols) {
+          visibleUserCols = JSON.parse(savedUserCols);
+        } else {
+          USER_COL_DEFS.forEach(function(c) { visibleUserCols[c.key] = true; });
+        }
+      } catch (e) {
+        EMP_COL_DEFS.forEach(function(c) { visibleEmpCols[c.key] = true; });
+        USER_COL_DEFS.forEach(function(c) { visibleUserCols[c.key] = true; });
+      }
 
       await Promise.all([loadUsers(), loadEmployees(), loadOrgRoles(), loadActivityLog()]);
       var loadingEl = document.getElementById('adminLoading');
@@ -1409,7 +1430,7 @@
       document.getElementById('umUserDetailModal').classList.add('active');
     }
 
-    function toggleColPanel(type, e) {
+function toggleColPanel(type, e) {
       e.stopPropagation();
       var panelId = type === 'user' ? 'userColPanel' : 'empColPanel';
       var itemsId = type === 'user' ? 'userColToggleItems' : 'empColToggleItems';
@@ -1432,8 +1453,15 @@
           cb.checked = vis[col.key];
           cb.addEventListener('change', function() {
             vis[col.key] = cb.checked;
-            if (type === 'user') { renderUserTableHead(); renderUserTable(); }
-            else { renderEmpTableHead(); renderEmpTable(); }
+            if (type === 'user') {
+              localStorage.setItem('um_visible_user_cols', JSON.stringify(visibleUserCols));
+              renderUserTableHead();
+              renderUserTable();
+            } else {
+              localStorage.setItem('um_visible_emp_cols', JSON.stringify(visibleEmpCols));
+              renderEmpTableHead();
+              renderEmpTable();
+            }
           });
           lbl.appendChild(cb);
           lbl.appendChild(document.createTextNode(col.label));
