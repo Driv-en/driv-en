@@ -1854,7 +1854,7 @@
       document.querySelectorAll('.print-row-cb').forEach(function(cb) { cb.checked = checked; });
     }
 
-    function doPrint() {
+function doPrint() {
       var uncheckedIds = [];
       document.querySelectorAll('.print-row-cb:not(:checked)').forEach(function(cb) {
         uncheckedIds.push(cb.getAttribute('data-id'));
@@ -1871,10 +1871,20 @@
         }
       });
 
+      // Save original tab title and dynamically set the customer print title
+      var origTitle = document.title;
+      var orgName = (window.dashUser && (window.dashUser.org_name || window.dashUser.company_name)) || localStorage.getItem('driven_org_name') || 'Organization';
+      var tabLabel = activePrintType === 'user' ? 'System Users' : (activePrintType === 'emp' ? 'Employee Directory' : 'Activity Audit Trail');
+
+      // Forces print header to: "ACME Fleet Ops | Employee Directory"
+      document.title = orgName + ' | ' + tabLabel;
+
       closeModal('umPrintModal');
       window.print();
 
+      // Instantly restore original browser tab title
       setTimeout(function() {
+        document.title = origTitle;
         rows.forEach(function(tr) { tr.classList.remove('print-exclude-row'); });
       }, 500);
     }
