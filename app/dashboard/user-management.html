@@ -75,23 +75,45 @@
       width: 100%;
     }
 
-    /* Secondary Tab Bar Sticky Flush Below Header */
-    .um-tab-bar {
-      display: flex;
-      gap: 2px;
-      width: 100%;
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 0 16px;
-      overflow-x: auto;
-      position: sticky !important;
-      top: var(--header-height, 60px) !important; /* Pins directly to the bottom of #dashHeader */
-      z-index: 99 !important;
-      background: #cbd5e1;
-      border-bottom: 2px solid #94a3b8;
-      box-sizing: border-box;
-      -webkit-overflow-scrolling: touch;
-    }
+#dashHeader {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 100 !important;
+}
+
+/* Secondary Tab Bar - Desktop & Mobile Sticky Below Header */
+.um-tab-bar {
+  display: flex;
+  gap: 2px;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 16px;
+  overflow-x: auto;
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  top: var(--header-height, 60px) !important;
+  z-index: 99 !important;
+  background: #cbd5e1;
+  border-bottom: 2px solid #94a3b8;
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile Responsive Sticky Adjustment */
+@media screen and (max-width: 768px) {
+  :root {
+    --header-height: 50px;
+  }
+  .um-tab-bar {
+    top: var(--header-height, 50px) !important;
+    padding: 0 8px;
+  }
+  .um-tab {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+}
     .um-tab {
       background: #94a3b8;
       border: 1px solid #64748b;
@@ -1056,24 +1078,21 @@
       { key: 'last_login', label: 'Last Login', defaultWidth: '160px' }
     ];
 
-    var EMP_COL_DEFS = [
-      { key: 'employeeNumber', label: 'Emp #', defaultWidth: '100px', frozen: true },
-      { key: 'firstName', label: 'First Name', defaultWidth: '120px', frozen: true },
-      { key: 'middleName', label: 'Middle Name', defaultWidth: '110px' },
-      { key: 'lastName', label: 'Last Name', defaultWidth: '120px', frozen: true },
-      { key: 'suffix', label: 'Suffix', defaultWidth: '80px' },
-      { key: 'email', label: 'Email', defaultWidth: '190px' },
-      { key: 'role', label: 'Role', defaultWidth: '130px' },
-      { key: 'phone', label: 'Phone', defaultWidth: '130px' },
-      { key: 'status', label: 'Status', defaultWidth: '100px' },
-      { key: 'dob', label: 'DOB', defaultWidth: '110px' },
-      { key: 'address', label: 'Address', defaultWidth: '160px' },
-      { key: 'city', label: 'City', defaultWidth: '120px' },
-      { key: 'state', label: 'State', defaultWidth: '80px' },
-      { key: 'zip', label: 'Zip', defaultWidth: '90px' },
-      { key: 'driversLicense', label: 'DL Number', defaultWidth: '130px' },
-      { key: 'dlState', label: 'DL State', defaultWidth: '80px' }
-    ];
+var EMP_COL_DEFS = [
+  { key: 'employeeNumber', label: 'Emp #', defaultWidth: '100px', frozen: true },
+  { key: 'fullName', label: 'Full Name', defaultWidth: '180px', frozen: true },
+  { key: 'email', label: 'Email', defaultWidth: '190px' },
+  { key: 'role', label: 'Role', defaultWidth: '130px' },
+  { key: 'phone', label: 'Phone', defaultWidth: '130px' },
+  { key: 'status', label: 'Status', defaultWidth: '100px' },
+  { key: 'dob', label: 'DOB', defaultWidth: '110px' },
+  { key: 'address', label: 'Address', defaultWidth: '160px' },
+  { key: 'city', label: 'City', defaultWidth: '120px' },
+  { key: 'state', label: 'State', defaultWidth: '80px' },
+  { key: 'zip', label: 'Zip', defaultWidth: '90px' },
+  { key: 'driversLicense', label: 'DL Number', defaultWidth: '130px' },
+  { key: 'dlState', label: 'DL State', defaultWidth: '80px' }
+];
 
     var visibleUserCols = {}, userColWidths = {};
     var visibleEmpCols = {}, empColWidths = {};
@@ -1174,32 +1193,37 @@
       };
     }
 
-    function normalizeEmployee(r) {
-      var fullName = parseVal(r.full_name || r.employee_name || r.name);
-      var parts = fullName !== '—' ? fullName.split(' ') : [];
-      var fn = parseVal(r.first_name || parts[0]);
-      var ln = parseVal(r.last_name || parts.slice(1).join(' '));
-      return {
-        id: parseVal(r.id),
-        employeeNumber: parseVal(r.employeeNumber || r.employee_number || ('EMP-' + Math.floor(100 + Math.random() * 900))),
-        firstName: fn,
-        middleName: parseVal(r.middle_name),
-        lastName: ln,
-        suffix: parseVal(r.suffix),
-        name: fullName,
-        email: parseVal(r.email),
-        role: normalizeRoleName(r.role),
-        status: parseVal(r.status || 'Active'),
-        phone: parseVal(r.phone),
-        dob: parseVal(r.dob),
-        address: parseVal(r.address),
-        city: parseVal(r.city),
-        state: parseVal(r.state),
-        zip: parseVal(r.zip),
-        driversLicense: parseVal(r.drivers_license || r.driversLicense),
-        dlState: parseVal(r.dl_state || r.dlState)
-      };
-    }
+function normalizeEmployee(r) {
+  var fn = parseVal(r.first_name || r.firstName);
+  var mn = parseVal(r.middle_name || r.middleName);
+  var ln = parseVal(r.last_name || r.lastName);
+  var suf = parseVal(r.suffix);
+
+  var computedFull = [fn, mn, ln].filter(function(x) { return x && x !== '—'; }).join(' ') + (suf && suf !== '—' ? ' ' + suf : '');
+  var fullName = parseVal(r.full_name || r.fullName || r.name || computedFull);
+
+  return {
+    id: parseVal(r.id),
+    employeeNumber: parseVal(r.employeeNumber || r.employee_number || ('EMP-' + Math.floor(100 + Math.random() * 900))),
+    firstName: fn,
+    middleName: mn,
+    lastName: ln,
+    suffix: suf,
+    fullName: fullName !== '—' ? fullName : '—',
+    name: fullName,
+    email: parseVal(r.email),
+    role: normalizeRoleName(r.role),
+    status: parseVal(r.status || 'Active'),
+    phone: parseVal(r.phone),
+    dob: parseVal(r.dob),
+    address: parseVal(r.address),
+    city: parseVal(r.city),
+    state: parseVal(r.state),
+    zip: parseVal(r.zip),
+    driversLicense: parseVal(r.drivers_license || r.driversLicense),
+    dlState: parseVal(r.dl_state || r.dlState)
+  };
+}
 
     function sortArray(list, key, dir) {
       return list.slice().sort(function(a, b) {
@@ -1718,12 +1742,18 @@
       var selRoles = getSelectedCheckboxes('panelEmpRoles');
       var frozenCalc = calculateFrozenOffsets(EMP_COL_DEFS, visibleEmpCols, empColWidths);
 
-      var filtered = allEmployees.filter(function(e) {
-        var matchSearch = !search || e.firstName.toLowerCase().indexOf(search) !== -1 || e.lastName.toLowerCase().indexOf(search) !== -1 || e.email.toLowerCase().indexOf(search) !== -1 || e.employeeNumber.toLowerCase().indexOf(search) !== -1 || e.role.toLowerCase().indexOf(search) !== -1 || e.phone.toLowerCase().indexOf(search) !== -1 || e.state.toLowerCase().indexOf(search) !== -1;
-        var matchStatus = selStatuses.length === 0 || selStatuses.indexOf(e.status.toLowerCase()) !== -1;
-        var matchRole = selRoles.length === 0 || selRoles.indexOf(e.role.toLowerCase()) !== -1;
-        return matchSearch && matchStatus && matchRole;
-      });
+var filtered = allEmployees.filter(function(e) {
+  var matchSearch = !search || 
+                    e.fullName.toLowerCase().indexOf(search) !== -1 || 
+                    e.email.toLowerCase().indexOf(search) !== -1 || 
+                    e.employeeNumber.toLowerCase().indexOf(search) !== -1 || 
+                    e.role.toLowerCase().indexOf(search) !== -1 || 
+                    e.phone.toLowerCase().indexOf(search) !== -1 || 
+                    e.state.toLowerCase().indexOf(search) !== -1;
+  var matchStatus = selStatuses.length === 0 || selStatuses.indexOf(e.status.toLowerCase()) !== -1;
+  var matchRole = selRoles.length === 0 || selRoles.indexOf(e.role.toLowerCase()) !== -1;
+  return matchSearch && matchStatus && matchRole;
+});
 
       updatePaginationUI('emp', filtered.length);
 
@@ -1812,22 +1842,22 @@
       document.addEventListener('mouseup', onEnd);
     }
 
-    function openEmpViewModal(id) {
-      var emp = allEmployees.find(function(x) { return x.id === id; });
-      if (!emp) return;
-      document.getElementById('viewEmpName').textContent = emp.firstName + ' ' + emp.lastName;
-      document.getElementById('viewEmpFullName').textContent = emp.firstName + ' ' + (emp.middleName !== '—' ? emp.middleName + ' ' : '') + emp.lastName + (emp.suffix !== '—' ? ' ' + emp.suffix : '');
-      document.getElementById('viewEmpNum').textContent = emp.employeeNumber;
-      document.getElementById('viewEmpEmail').textContent = emp.email;
-      document.getElementById('viewEmpRole').textContent = emp.role;
-      document.getElementById('viewEmpStatus').textContent = emp.status;
-      document.getElementById('viewEmpPhone').textContent = emp.phone;
-      document.getElementById('viewEmpDob').textContent = emp.dob;
-      document.getElementById('viewEmpDl').textContent = emp.driversLicense;
-      document.getElementById('viewEmpDlState').textContent = emp.dlState;
-      document.getElementById('viewEmpAddr').textContent = emp.address + ', ' + emp.city + ', ' + emp.state + ' ' + emp.zip;
-      document.getElementById('umEmpViewModal').classList.add('active');
-    }
+function openEmpViewModal(id) {
+  var emp = allEmployees.find(function(x) { return x.id === id; });
+  if (!emp) return;
+  document.getElementById('viewEmpName').textContent = emp.fullName;
+  document.getElementById('viewEmpFullName').textContent = emp.fullName;
+  document.getElementById('viewEmpNum').textContent = emp.employeeNumber;
+  document.getElementById('viewEmpEmail').textContent = emp.email;
+  document.getElementById('viewEmpRole').textContent = emp.role;
+  document.getElementById('viewEmpStatus').textContent = emp.status;
+  document.getElementById('viewEmpPhone').textContent = emp.phone;
+  document.getElementById('viewEmpDob').textContent = emp.dob;
+  document.getElementById('viewEmpDl').textContent = emp.driversLicense;
+  document.getElementById('viewEmpDlState').textContent = emp.dlState;
+  document.getElementById('viewEmpAddr').textContent = emp.address + ', ' + emp.city + ', ' + emp.state + ' ' + emp.zip;
+  document.getElementById('umEmpViewModal').classList.add('active');
+}
 
     function openAddEmpModal() {
       document.getElementById('empModalTitle').textContent = 'Add New Employee';
@@ -1851,122 +1881,126 @@
       document.getElementById('umAddEmpModal').classList.add('active');
     }
 
-    function openEmpEditModal(id) {
-      var emp = allEmployees.find(function(x) { return x.id === id; });
-      if (!emp) return;
-      document.getElementById('empModalTitle').textContent = 'Edit Employee';
-      document.getElementById('editEmpId').value = emp.id;
-      document.getElementById('addEmpFn').value = emp.firstName !== '—' ? emp.firstName : '';
-      document.getElementById('addEmpMn').value = emp.middleName !== '—' ? emp.middleName : '';
-      document.getElementById('addEmpLn').value = emp.lastName !== '—' ? emp.lastName : '';
-      document.getElementById('addEmpSuffix').value = emp.suffix !== '—' ? emp.suffix : '';
-      document.getElementById('addEmpEmail').value = emp.email !== '—' ? emp.email : '';
-      document.getElementById('addEmpNum').value = emp.employeeNumber !== '—' ? emp.employeeNumber : '';
-      document.getElementById('addEmpRole').value = emp.role;
-      document.getElementById('addEmpPhone').value = emp.phone !== '—' ? emp.phone : '';
-      document.getElementById('addEmpDob').value = emp.dob !== '—' ? emp.dob : '';
-      document.getElementById('addEmpAddress').value = emp.address !== '—' ? emp.address : '';
-      document.getElementById('addEmpCity').value = emp.city !== '—' ? emp.city : '';
-      document.getElementById('addEmpState').value = emp.state !== '—' ? emp.state : '';
-      document.getElementById('addEmpZip').value = emp.zip !== '—' ? emp.zip : '';
-      document.getElementById('addEmpStatus').value = emp.status;
-      document.getElementById('addEmpDl').value = emp.driversLicense !== '—' ? emp.driversLicense : '';
-      document.getElementById('addEmpDlState').value = emp.dlState !== '—' ? emp.dlState : '';
-      document.getElementById('umAddEmpModal').classList.add('active');
+function openEmpEditModal(id) {
+  var emp = allEmployees.find(function(x) { return x.id === id; });
+  if (!emp) return;
+  document.getElementById('empModalTitle').textContent = 'Edit Employee';
+  document.getElementById('editEmpId').value = emp.id;
+  document.getElementById('addEmpFn').value = emp.firstName !== '—' ? emp.firstName : '';
+  document.getElementById('addEmpMn').value = emp.middleName !== '—' ? emp.middleName : '';
+  document.getElementById('addEmpLn').value = emp.lastName !== '—' ? emp.lastName : '';
+  document.getElementById('addEmpSuffix').value = emp.suffix !== '—' ? emp.suffix : '';
+  document.getElementById('addEmpEmail').value = emp.email !== '—' ? emp.email : '';
+  document.getElementById('addEmpNum').value = emp.employeeNumber !== '—' ? emp.employeeNumber : '';
+  document.getElementById('addEmpRole').value = emp.role;
+  document.getElementById('addEmpPhone').value = emp.phone !== '—' ? emp.phone : '';
+  document.getElementById('addEmpDob').value = emp.dob !== '—' ? emp.dob : '';
+  document.getElementById('addEmpAddress').value = emp.address !== '—' ? emp.address : '';
+  document.getElementById('addEmpCity').value = emp.city !== '—' ? emp.city : '';
+  document.getElementById('addEmpState').value = emp.state !== '—' ? emp.state : '';
+  document.getElementById('addEmpZip').value = emp.zip !== '—' ? emp.zip : '';
+  document.getElementById('addEmpStatus').value = emp.status;
+  document.getElementById('addEmpDl').value = emp.driversLicense !== '—' ? emp.driversLicense : '';
+  document.getElementById('addEmpDlState').value = emp.dlState !== '—' ? emp.dlState : '';
+  document.getElementById('umAddEmpModal').classList.add('active');
+}
+
+async function submitSaveEmployee() {
+  var id = document.getElementById('editEmpId').value;
+  var fn = document.getElementById('addEmpFn').value.trim();
+  var mn = document.getElementById('addEmpMn').value.trim();
+  var ln = document.getElementById('addEmpLn').value.trim();
+  var suffix = document.getElementById('addEmpSuffix').value.trim();
+  var em = document.getElementById('addEmpEmail').value.trim();
+  var empNum = document.getElementById('addEmpNum').value.trim();
+  var role = document.getElementById('addEmpRole').value;
+  var phone = document.getElementById('addEmpPhone').value.trim();
+  var dob = document.getElementById('addEmpDob').value;
+  var addr = document.getElementById('addEmpAddress').value.trim();
+  var city = document.getElementById('addEmpCity').value.trim();
+  var state = document.getElementById('addEmpState').value.trim();
+  var zip = document.getElementById('addEmpZip').value.trim();
+  var status = document.getElementById('addEmpStatus').value;
+  var dl = document.getElementById('addEmpDl').value.trim();
+  var dlState = document.getElementById('addEmpDlState').value.trim();
+
+  if (!fn || !ln) {
+    showToast('First and Last name are required.', 'error');
+    return;
+  }
+
+  var fullStr = [fn, mn, ln].filter(Boolean).join(' ') + (suffix ? ' ' + suffix : '');
+
+  var payload = {
+    id: id || undefined,
+    org_id: currentUserOrgId,
+    first_name: fn,
+    middle_name: mn,
+    last_name: ln,
+    suffix: suffix,
+    full_name: fullStr,
+    name: fullStr,
+    email: em,
+    employee_number: empNum,
+    role: role,
+    phone: phone,
+    dob: dob,
+    address: addr,
+    city: city,
+    state: state,
+    zip: zip,
+    status: status,
+    drivers_license: dl,
+    dl_state: dlState
+  };
+
+  try {
+    var endpoint = id ? '/api/onboarding/employees/' + encodeURIComponent(id) : '/api/onboarding/employees/create';
+    var method = id ? 'PUT' : 'POST';
+    var resp = await fetch(endpoint, {
+      method: method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!resp.ok) throw new Error('HTTP status ' + resp.status);
+    showToast('Employee updated successfully.', 'success');
+
+    try {
+      await fetch('/api/audit-log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: (id ? 'Updated employee ' : 'Created employee ') + fullStr + ' (' + role + ')',
+          module: 'Employees',
+          table_name: 'employees',
+          record_id: id || empNum
+        })
+      });
+    } catch (auditErr) {
+      console.warn('Audit log write error:', auditErr);
     }
 
-    async function submitSaveEmployee() {
-      var id = document.getElementById('editEmpId').value;
-      var fn = document.getElementById('addEmpFn').value.trim();
-      var mn = document.getElementById('addEmpMn').value.trim();
-      var ln = document.getElementById('addEmpLn').value.trim();
-      var suffix = document.getElementById('addEmpSuffix').value.trim();
-      var em = document.getElementById('addEmpEmail').value.trim();
-      var empNum = document.getElementById('addEmpNum').value.trim();
-      var role = document.getElementById('addEmpRole').value;
-      var phone = document.getElementById('addEmpPhone').value.trim();
-      var dob = document.getElementById('addEmpDob').value;
-      var addr = document.getElementById('addEmpAddress').value.trim();
-      var city = document.getElementById('addEmpCity').value.trim();
-      var state = document.getElementById('addEmpState').value.trim();
-      var zip = document.getElementById('addEmpZip').value.trim();
-      var status = document.getElementById('addEmpStatus').value;
-      var dl = document.getElementById('addEmpDl').value.trim();
-      var dlState = document.getElementById('addEmpDlState').value.trim();
+  } catch (e) {
+    console.warn('Backend sync failed, saved locally:', e.message);
+    showToast('Saved locally (Offline mode active)', 'error');
+  }
 
-      if (!fn || !ln) {
-        showToast('First and Last name are required.', 'error');
-        return;
-      }
+  var normalized = normalizeEmployee(payload);
+  if (id) {
+    var emp = allEmployees.find(function(x) { return x.id === id; });
+    if (emp) Object.assign(emp, normalized);
+  } else {
+    allEmployees.unshift(normalized);
+  }
 
-      var payload = {
-        id: id || undefined,
-        org_id: currentUserOrgId,
-        first_name: fn,
-        middle_name: mn,
-        last_name: ln,
-        suffix: suffix,
-        name: [fn, mn, ln].filter(Boolean).join(' ') + (suffix ? ' ' + suffix : ''),
-        email: em,
-        employee_number: empNum,
-        role: role,
-        phone: phone,
-        dob: dob,
-        address: addr,
-        city: city,
-        state: state,
-        zip: zip,
-        status: status,
-        drivers_license: dl,
-        dl_state: dlState
-      };
+  localStorage.setItem('driven_saved_employees', JSON.stringify(allEmployees));
+  renderEmpTable();
+  updateKpi();
 
-      try {
-        var endpoint = id ? '/api/onboarding/employees/' + encodeURIComponent(id) : '/api/onboarding/employees/create';
-        var method = id ? 'PUT' : 'POST';
-        var resp = await fetch(endpoint, {
-          method: method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (!resp.ok) throw new Error('HTTP status ' + resp.status);
-        showToast('Employee updated in D1 successfully.', 'success');
-
-        try {
-          await fetch('/api/audit-log', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: (id ? 'Updated employee ' : 'Created employee ') + fn + ' ' + ln + ' (' + role + ')',
-              module: 'Employees',
-              table_name: 'employees',
-              record_id: id || empNum
-            })
-          });
-        } catch (auditErr) {
-          console.warn('Audit log write error:', auditErr);
-        }
-
-      } catch (e) {
-        console.warn('Backend sync failed, saved locally:', e.message);
-        showToast('Saved locally (Offline mode active)', 'error');
-      }
-
-      if (id) {
-        var emp = allEmployees.find(function(x) { return x.id === id; });
-        if (emp) Object.assign(emp, normalizeEmployee(payload));
-      } else {
-        allEmployees.unshift(normalizeEmployee(payload));
-      }
-
-      localStorage.setItem('driven_saved_employees', JSON.stringify(allEmployees));
-      renderEmpTable();
-      updateKpi();
-
-      await loadActivityLog();
-      closeModal('umAddEmpModal');
-    }
+  await loadActivityLog();
+  closeModal('umAddEmpModal');
+}
 
     function viewUserDetail(name, email) {
       document.getElementById('userDetailName').textContent = name || 'System User Detail';
