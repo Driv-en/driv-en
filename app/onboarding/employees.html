@@ -39,6 +39,10 @@
     .emp-form-field .emp-hint { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
     .emp-required-star { color: var(--error); margin-left: 3px; }
     
+    /* Presence Banner Styling */
+    .presence-banner { display: none; align-items: center; gap: 8px; background: rgba(34, 197, 94, 0.15); border: 1px solid #16a34a; padding: 6px 14px; border-radius: 20px; font-size: 13px; color: var(--text); }
+    .presence-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px #22c55e; }
+
     /* Section 3 Standardized Hover States */
     .emp-btn-primary { 
       background: var(--primary); 
@@ -135,7 +139,7 @@
     /* Section 3 Print Override Standards & Page Breaks */
     @media print {
       @page { margin: 10mm; }
-      #dashHeader, .emp-tab-bar, .emp-save-bar, .um-pagination-bar, .emp-print-bar, .emp-btn-primary, .emp-btn-secondary, td.emp-actions-col, th.emp-actions-col, #formCard { display: none !important; }
+      #dashHeader, .emp-tab-bar, .emp-save-bar, .um-pagination-bar, .emp-print-bar, .emp-btn-primary, .emp-btn-secondary, td.emp-actions-col, th.emp-actions-col, #formCard, .presence-banner { display: none !important; }
       .print-hide { display: none !important; }
       
       body.print-session-only #existingEmpCard { display: none !important; }
@@ -158,6 +162,10 @@
 <div id="dashHeader"></div>
 <div class="ob-greeting-bar">
   <div class="ob-greeting-text" id="dashGreetingText">Welcome</div>
+  <div class="presence-banner" id="presenceBanner">
+    <span class="presence-dot"></span>
+    <span id="presenceText">Other Key Personnel active</span>
+  </div>
 </div>
 <main class="dash-main">
   <div class="dash-card print-hide">
@@ -281,7 +289,7 @@
       return name;
     }
 
-    // Section 3 Dynamic Print Functionality
+    // Section 3 Dynamic Print Functionality — Auto Expands Dataset
     function doPrintEmployees(defaultSelection) {
       var selId = defaultSelection === 'session' ? 'printTableSelectSession' : 'printTableSelectExisting';
       var mode = document.getElementById(selId).value;
@@ -296,14 +304,51 @@
         document.body.classList.add('print-both');
       }
 
+      // Temporarily expand pagination so all records render in print preview
+      var origSessionSize = sessionPageSize;
+      var origExistingSize = existingPageSize;
+      sessionPageSize = 9999;
+      existingPageSize = 9999;
+      renderTable();
+      renderExistingTable();
+
       var origTitle = document.title;
       var orgName = localStorage.getItem("driven_company_name") || "DRIV-EN";
       document.title = orgName + " | Employee Directory";
 
       window.print();
 
+      // Restore original pagination and page state
       document.title = origTitle;
       document.body.classList.remove('print-session-only', 'print-existing-only', 'print-both');
+      sessionPageSize = origSessionSize;
+      existingPageSize = origExistingSize;
+      renderTable();
+      renderExistingTable();
+    }
+
+    // Presence / Active Co-Worker Heartbeat
+    async function checkActivePresence() {
+      try {
+        var resp = await fetch("/api/onboarding/presence", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ page: "Employees" })
+        });
+        if (resp.ok) {
+          var data = await resp.json();
+          var banner = document.getElementById("presenceBanner");
+          var textEl = document.getElementById("presenceText");
+          if (data.activeUsers && data.activeUsers.length > 0) {
+            textEl.textContent = data.activeUsers.join(", ") + " is also on this page";
+            banner.style.display = "inline-flex";
+          } else {
+            banner.style.display = "none";
+          }
+        }
+      } catch (e) {
+        // Presence check is non-blocking
+      }
     }
 
     async function loadExistingEmployees() {
@@ -710,6 +755,10 @@
       if (row1 && !document.querySelector(".emp-header-title")) { var title = document.createElement("div"); title.className = "emp-header-title"; title.textContent = "Onboarding — Employees"; var logoArea = document.getElementById("dashCustomerLogoArea"); var drivenLogo = row1.querySelector(".dash-driven-logo"); if (logoArea && drivenLogo) { row1.insertBefore(title, drivenLogo); } }
       var header = document.getElementById("dashHeader"); var tabBar = document.getElementById("empTabBar"); if (header && tabBar && !header.contains(tabBar)) { header.appendChild(tabBar); }
       loadDivisionDropdown(); loadRoleDropdown(); loadExistingEmployees(); renderTable(); updateCount();
+      
+      // Start presence check & poll every 15s
+      checkActivePresence();
+      setInterval(checkActivePresence, 15000);
     });
 </script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"aed8feab3b60404ba88ec92f026bbcd6","r":1}' crossorigin="anonymous"></script>
