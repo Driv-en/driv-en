@@ -777,6 +777,7 @@ var canModify = false;
 var pmDirty = false;
 
 // ===== PROJECT COLUMN DEFINITIONS =====
+// ===== PROJECT COLUMN DEFINITIONS =====
 var PROJECT_COL_DEFS = [
   { key: 'projectNumber', label: 'Project Number', defaultVisible: true },
   { key: 'name', label: 'Project Name', defaultVisible: true },
@@ -916,17 +917,33 @@ document.addEventListener('dashSessionLoaded', async function() {
 function normalizeProject(record) {
   record = record || {};
   var fields = (record.fields && typeof record.fields === 'object') ? record.fields : record;
+
+  var id = record.id || fields.id || ('prj-' + Math.random().toString(36).substr(2, 9));
+
+  var projectNumber = fields['Project Number'] || fields['Company Project Number'] || fields['Project Code'] || 
+                        fields.project_number || fields.company_project_number || fields.code || id;
+
+  var name = fields['Project Name'] || fields.projectName || fields.project_name || fields.name || 'Unnamed Project';
+  var status = fields['Status'] || fields.status || 'Active';
+  var location = fields['Location'] || fields.location || fields.address || '';
+
+  var expectedStart = fields['Expected Start Date'] || fields.expectedStartDate || fields.expected_start_date || fields.created_at || '';
+  var actualStart = fields['Actual Start Date'] || fields.actualStartDate || fields.actual_start_date || '';
+  var expectedComp = fields['Expected Completion Date'] || fields.expectedCompletionDate || fields.expected_completion_date || '';
+  var actualComp = fields['Actual Completion Date'] || fields.actualCompletionDate || fields.actual_completion_date || '';
+  var createdAt = fields['Created Date'] || fields.createdAt || fields.created_at || '';
+
   return {
-    id: record.id || fields.id || ('prj-' + Math.random().toString(36).substr(2, 9)),
-    projectNumber: fields['Project Number'] || fields['Company Project Number'] || fields['Project Code'] || fields.projectNumber || fields.project_number || fields.company_project_number || fields.code || '',
-    name: fields['Project Name'] || fields.projectName || fields.project_name || fields.name || '',
-    status: fields['Status'] || fields.status || 'Active',
-    location: fields['Location'] || fields.location || '',
-    expectedStartDate: fields['Expected Start Date'] || fields.expectedStartDate || fields.expected_start_date || '',
-    actualStartDate: fields['Actual Start Date'] || fields.actualStartDate || fields.actual_start_date || '',
-    expectedCompletionDate: fields['Expected Completion Date'] || fields.expectedCompletionDate || fields.expected_completion_date || '',
-    actualCompletionDate: fields['Actual Completion Date'] || fields.actualCompletionDate || fields.actual_completion_date || '',
-    createdAt: fields['Created Date'] || fields.createdAt || fields.created_at || ''
+    id: id,
+    projectNumber: projectNumber,
+    name: name,
+    status: status,
+    location: location,
+    expectedStartDate: expectedStart,
+    actualStartDate: actualStart,
+    expectedCompletionDate: expectedComp,
+    actualCompletionDate: actualComp,
+    createdAt: createdAt
   };
 }
 
@@ -955,19 +972,29 @@ function normalizeClient(record) {
 async function loadProjects() {
   try {
     var response = await fetch('/api/Project');
-    var data = await response.json();
-    var records = data.projects || data.records || (Array.isArray(data) ? data : []);
+    var data = {};
+    try { data = await response.json(); } catch (jsonError) { data = {}; }
+
+    var records = null;
+    if (Array.isArray(data)) {
+      records = data;
+    } else if (data && typeof data === 'object') {
+      records = data.projects || data.data || data.records || data.results || data.result;
+    }
+
     if (response.ok && Array.isArray(records)) {
       allProjects = records.map(normalizeProject);
     } else {
       allProjects = [];
-      reportProjectManagementError('Project API returned an unexpected response format.', 'loadProjects', null);
+      var errMsg = data.error || data.message || ('Project API returned HTTP ' + response.status);
+      reportProjectManagementError('Project API response issue: ' + errMsg, 'loadProjects', null);
     }
   } catch(error) {
-    console.error('loadProjects error:', error);
+    console.error('loadProjects fetch error:', error);
     allProjects = [];
     reportProjectManagementError('loadProjects failed: ' + (error.message || error), 'loadProjects', error && error.stack ? error.stack : null);
   }
+
   try {
     renderProjectTableHead();
     renderProjectTable();
@@ -1037,6 +1064,7 @@ async function saveProjectTypes() {
     }
   } catch(e) { console.error('saveProjectTypes error:', e); }
 }
+
 function renderOverview() {
   var totalProjectsElement = document.getElementById('kpiTotalProjects');
   var activeProjectsElement = document.getElementById('kpiActiveProjects');
