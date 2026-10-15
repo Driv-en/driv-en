@@ -850,6 +850,9 @@ function saveClientVisibleCols() {
 
 document.addEventListener('dashSessionLoaded', async function() {
   makeTabsSticky();
+  var loadingElement = document.getElementById('pmLoading');
+  var overviewTab = document.getElementById('tab-overview');
+
   try {
     var user = window.dashUser;
     if (!user) { window.location.href = '/public/login.html'; return; }
@@ -894,21 +897,20 @@ document.addEventListener('dashSessionLoaded', async function() {
     }, 100);
 
     initVisibleCols();
-    await loadProjectTypes();
-    await loadProjects();
-    await loadClients();
+    
+    // Safely load all resources concurrently without letting one failure break the UI
+    await Promise.allSettled([
+      loadProjectTypes(),
+      loadProjects(),
+      loadClients()
+    ]);
+    
     renderOverview();
-
-    var loadingElement = document.getElementById('pmLoading');
-    var overviewTab = document.getElementById('tab-overview');
-    if (loadingElement) loadingElement.style.display = 'none';
-    if (overviewTab) overviewTab.style.display = 'block';
 
   } catch (error) {
     reportProjectManagementError('Project Management initialization failed: ' + (error.message || error), 'project-management-initialization', error && error.stack ? error.stack : null);
-    var loadingElement = document.getElementById('pmLoading');
-    if (loadingElement) { loadingElement.textContent = 'Failed to load Project Management.'; loadingElement.style.display = 'none'; }
-    var overviewTab = document.getElementById('tab-overview');
+  } finally {
+    if (loadingElement) loadingElement.style.display = 'none';
     if (overviewTab) overviewTab.style.display = 'block';
   }
 });
@@ -966,7 +968,6 @@ function normalizeClient(record) {
   };
 }
 
-loadProjects()
 async function loadProjectTypes() {
   try {
     var res = await fetch('/auth/get-settings');
@@ -1422,6 +1423,7 @@ function closeEditProjectModal() {
 }
 
 async function saveEditProject() {
+  if (!canModify) { showProjectMessage('You do not have permission to modify projects.', 'error'); return; }
   if (!editingProjectId) return;
   var code = document.getElementById('pmEditProjectCode').value.trim();
   var name = document.getElementById('pmEditProjectName').value.trim();
@@ -1472,6 +1474,7 @@ async function saveEditProject() {
 }
 
 async function deleteProject(projectId) {
+  if (!canModify) { showProjectMessage('You do not have permission to delete projects.', 'error'); return; }
   if (!confirm('Are you sure you want to delete this project?')) return;
   try {
     var resp = await fetch('/api/Project/' + encodeURIComponent(projectId), { method: 'DELETE' });
@@ -1568,6 +1571,7 @@ function closeEditClientModal() {
 }
 
 async function saveEditClient() {
+  if (!canModify) { showClientMessage('You do not have permission to modify clients.', 'error'); return; }
   if (!editingClientId) return;
   var clientName = document.getElementById('pmEditClientName').value.trim();
   var contactName = document.getElementById('pmEditContactName').value.trim();
