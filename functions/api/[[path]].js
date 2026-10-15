@@ -31,7 +31,7 @@ const WORKER_ROUTES = {
   'onboarding':        'https://onboarding-key-personnel.driv-en.workers.dev',
 
   // Platform worker (driven-platform)
-  'equipment':         'https://driven-platform.driv-en.workers.dev',
+  'equipment':         'https://driv-en-api.driv-en.workers.dev',
   'error-log':         'https://driven-platform.driv-en.workers.dev',
   'users':             'https://driven-platform.driv-en.workers.dev',
   'permissions':       'https://driven-platform.driv-en.workers.dev',
