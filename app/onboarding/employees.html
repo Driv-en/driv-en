@@ -364,17 +364,41 @@
     var bulkPreview = document.getElementById("bulkPreview");
 
     function isValidEmail(email) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
-    function normalizeName(str) { return String(str).trim().replace(/\s+/g, " "); }
+    function normalizeName(str) { return String(str || "").trim().replace(/\s+/g, " "); }
     function updateCount() {
       empCountEl.textContent = employees.length;
       if (existingEmpCountEl) existingEmpCountEl.textContent = existingEmployees.length;
     }
     
     function buildFullName(first, middle, last, suffix) {
-      var parts = [first, middle, last].filter(function(p) { return p && String(p).trim(); });
+      var parts = [first, middle, last].filter(function(p) { return p && String(p).trim() && String(p).trim() !== "undefined"; });
       var name = parts.join(" ").trim();
-      if (suffix && String(suffix).trim()) { name += " " + String(suffix).trim(); }
-      return name || "—";
+      if (suffix && String(suffix).trim() && String(suffix).trim() !== "undefined") { name += " " + String(suffix).trim(); }
+      return name;
+    }
+
+    function updateGreeting(sessionDetail) {
+      var greetingEl = document.getElementById("dashGreetingText");
+      if (!greetingEl) return;
+      var firstName = "";
+      if (sessionDetail) {
+        firstName = sessionDetail.first_name || sessionDetail.firstName || "";
+        if (!firstName && sessionDetail.full_name) {
+          firstName = sessionDetail.full_name.split(" ")[0];
+        }
+      }
+      if (!firstName) {
+        firstName = localStorage.getItem("driven_user_firstname") || localStorage.getItem("driven_first_name") || "";
+      }
+      if (firstName) {
+        greetingEl.textContent = "";
+        greetingEl.appendChild(document.createTextNode("Welcome, "));
+        var strong = document.createElement("strong");
+        strong.textContent = firstName;
+        greetingEl.appendChild(strong);
+      } else {
+        greetingEl.textContent = "Welcome";
+      }
     }
 
     function checkQuickAddDivision(selectEl) {
@@ -515,13 +539,18 @@
           var data = await resp.json();
           var rawList = data.employees || data.records || (Array.isArray(data) ? data : []);
           existingEmployees = rawList.map(function(item) {
-            var fName = item.fullName || item.full_name || buildFullName(item.firstName || item.first_name, item.middleName || item.middle_name, item.lastName || item.last_name, item.suffix);
+            var fName = item.fullName || item.full_name || item.name || buildFullName(item.firstName || item.first_name, item.middleName || item.middle_name, item.lastName || item.last_name, item.suffix);
+            var empNum = item.empNumber || item.emp_number || item.employee_number || item.emp_id || item.employee_id || "";
             return {
-              empNumber: item.empNumber || item.emp_number || item.employee_number || item.emp_id || "",
-              fullName: fName,
+              empNumber: String(empNum).trim(),
+              fullName: String(fName).trim(),
+              firstName: item.firstName || item.first_name || "",
+              middleName: item.middleName || item.middle_name || "",
+              lastName: item.lastName || item.last_name || "",
+              suffix: item.suffix || "",
               email: item.email || "",
               phone: item.phone || "",
-              division: item.division || "",
+              division: item.division || item.division_name || "",
               role: item.role || item.role_name || "",
               status: item.status || "Active"
             };
@@ -591,14 +620,21 @@
       var tbody = document.createElement("tbody");
       paged.forEach(function(emp) {
         var row = document.createElement("tr");
+        
         var empNumCell = document.createElement("td");
-        empNumCell.textContent = emp.empNumber ? emp.empNumber : "—";
+        var numVal = (emp.empNumber && emp.empNumber !== "undefined" && emp.empNumber !== "null") ? emp.empNumber : "—";
+        empNumCell.textContent = numVal;
         row.appendChild(empNumCell);
 
-        var fullName = emp.fullName || buildFullName(emp.firstName, emp.middleName, emp.lastName, emp.suffix);
-        [fullName, emp.email, emp.phone, emp.division, emp.role, emp.status].forEach(function(val) {
+        var displayName = emp.fullName;
+        if (!displayName || displayName === "—" || displayName === "undefined") {
+          displayName = buildFullName(emp.firstName, emp.middleName, emp.lastName, emp.suffix);
+        }
+        if (!displayName) displayName = "—";
+
+        [displayName, emp.email, emp.phone, emp.division, emp.role, emp.status].forEach(function(val) {
           var cell = document.createElement("td");
-          cell.textContent = val || "—";
+          cell.textContent = (val && val !== "undefined" && val !== "null") ? val : "—";
           row.appendChild(cell);
         });
         tbody.appendChild(row);
@@ -941,7 +977,7 @@
     }
 
     document.addEventListener("dashSessionLoaded", function(e) {
-      if (e.detail) { var greetingEl = document.getElementById("dashGreetingText"); if (greetingEl) { var firstName = e.detail.first_name || ""; if (!firstName) { var fullName = e.detail.full_name || ""; if (fullName) firstName = fullName.split(" ")[0]; } if (firstName) { greetingEl.textContent = ""; greetingEl.appendChild(document.createTextNode("Welcome, ")); var strong = document.createElement("strong"); strong.textContent = firstName; greetingEl.appendChild(strong); } else { greetingEl.textContent = "Welcome"; } } }
+      updateGreeting(e.detail);
       var row1 = document.querySelector(".dash-header-row1");
       if (row1 && !document.querySelector(".emp-header-title")) { var title = document.createElement("div"); title.className = "emp-header-title"; title.textContent = "Onboarding — Employees"; var logoArea = document.getElementById("dashCustomerLogoArea"); var drivenLogo = row1.querySelector(".dash-driven-logo"); if (logoArea && drivenLogo) { row1.insertBefore(title, drivenLogo); } }
       var header = document.getElementById("dashHeader"); var tabBar = document.getElementById("empTabBar"); if (header && tabBar && !header.contains(tabBar)) { header.appendChild(tabBar); }
@@ -950,6 +986,9 @@
       checkActivePresence();
       setInterval(checkActivePresence, 15000);
     });
+
+    // Immediate greeting update on page load fallback
+    updateGreeting(null);
 </script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"aed8feab3b60404ba88ec92f026bbcd6","r":1}' crossorigin="anonymous"></script>
 </body>
