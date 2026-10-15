@@ -20,6 +20,12 @@ const WORKER_ROUTES = {
   'resend-verify':     'https://driven-auth.driv-en.workers.dev',
   '2fa':               'https://driven-auth.driv-en.workers.dev',
 
+  // Project Management / Platform worker
+  'project':           'https://driven-platform.driv-en.workers.dev',
+  'projects':          'https://driven-platform.driv-en.workers.dev',
+  'onboarding':        'https://driven-platform.driv-en.workers.dev',
+  'equipment':         'https://driven-platform.driv-en.workers.dev',
+
   // Platform worker
   'error-log':         'https://driven-platform.driv-en.workers.dev',
   'users':             'https://driven-platform.driv-en.workers.dev',
