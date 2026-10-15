@@ -450,15 +450,28 @@ function renderSessionsTable() {
 (async function() {
   try {
     var resp = await fetch('/auth/session');
+    
+    // If request fails or returns non-200, redirect directly to Founder Login
+    if (!resp.ok) {
+      window.location.href = '/app/auth/founder-login.html';
+      return;
+    }
+
     var data = await resp.json();
 
+    // If session expired or unauthenticated, send to Founder Login
     if (!data.authenticated || !data.user) {
       window.location.href = '/app/auth/founder-login.html';
       return;
     }
 
     var u = data.user;
-    if (u.role_id !== 'RO-Founder' || u.org_id !== 'org_dsi') {
+
+    // Check role/org access
+    var isFounder = (u.role_id === 'RO-Founder' || u.role === 'Founder' || u.role === 'DRIV-EN Founder');
+    var isDsiOrg = (u.org_id === 'org_dsi' || u.org_id === 'dsi');
+
+    if (!isFounder || !isDsiOrg) {
       window.location.href = '/app/auth/no-access.html';
       return;
     }
