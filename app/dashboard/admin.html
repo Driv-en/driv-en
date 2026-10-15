@@ -771,41 +771,56 @@
     }
 
 async function loadDashboardStats() {
+  var fetchSafe = function(url, defaultKey) {
+    return fetch(url)
+      .then(function(r) { return r.ok ? r.json() : {}; })
+      .catch(function() { return {}; });
+  };
+
   try {
     var results = await Promise.all([
-      fetch('/api/onboarding/employees/list').then(r => r.ok ? r.json() : { employees: [] }).catch(() => ({ employees: [] })),
-      fetch('/api/Project').then(r => r.ok ? r.json() : { projects: [] }).catch(() => ({ projects: [] })),
-      fetch('/api/onboarding/equipment/list').then(r => r.ok ? r.json() : { equipment: [] }).catch(() => ({ equipment: [] })),
-      fetch('/api/onboarding/clients/list').then(r => r.ok ? r.json() : { clients: [] }).catch(() => ({ clients: [] }))
+      fetchSafe('/api/onboarding/employees/list'),
+      fetchSafe('/api/Project'),
+      fetchSafe('/api/onboarding/equipment/list'),
+      fetchSafe('/api/onboarding/clients/list')
     ]);
 
     // 1. Employees
-    var empList = results[0].employees || results[0].records || (Array.isArray(results[0]) ? results[0] : []);
-    var empCount = empList.filter(e => e.status === 1 || e.status === '1' || e.status === 'Active' || e.status === 'active').length;
-    document.getElementById('stat-employees').textContent = empCount;
+    var empData = results[0];
+    var empList = empData.employees || empData.data || empData.records || (Array.isArray(empData) ? empData : []);
+    var empCount = empList.filter(function(e) { return e.status === 1 || e.status === '1' || e.status === 'Active' || e.status === 'active'; }).length;
+    var elEmp = document.getElementById('stat-employees');
+    if (elEmp) elEmp.textContent = empCount;
     localStorage.setItem('driven_employee_count', empCount);
 
     // 2. Projects
-    var projList = results[1].projects || results[1].records || (Array.isArray(results[1]) ? results[1] : []);
-    document.getElementById('stat-projects').textContent = projList.length;
+    var projData = results[1];
+    var projList = projData.projects || projData.data || projData.records || (Array.isArray(projData) ? projData : []);
+    var elProj = document.getElementById('stat-projects');
+    if (elProj) elProj.textContent = projList.length;
     localStorage.setItem('driven_project_count', projList.length);
 
-    // 3. Assets
-    var assetList = results[2].equipment || results[2].assets || results[2].records || (Array.isArray(results[2]) ? results[2] : []);
-    document.getElementById('stat-equipment').textContent = assetList.length;
+    // 3. Assets / Equipment
+    var assetData = results[2];
+    var assetList = assetData.equipment || assetData.assets || assetData.data || assetData.records || (Array.isArray(assetData) ? assetData : []);
+    var elEq = document.getElementById('stat-equipment');
+    if (elEq) elEq.textContent = assetList.length;
     localStorage.setItem('driven_equipment_count', assetList.length);
 
     // 4. Clients
-    var clientList = results[3].clients || results[3].records || (Array.isArray(results[3]) ? results[3] : []);
-    document.getElementById('stat-clients').textContent = clientList.length;
+    var clientData = results[3];
+    var clientList = clientData.clients || clientData.data || clientData.records || (Array.isArray(clientData) ? clientData : []);
+    var elCli = document.getElementById('stat-clients');
+    if (elCli) elCli.textContent = clientList.length;
     localStorage.setItem('driven_client_count', clientList.length);
 
-  } catch (e) {
+} catch (e) {
+    console.error('loadDashboardStats error:', e);
     if (window.reportError) reportError('loadDashboardStats', e);
-    document.getElementById('stat-employees').textContent = localStorage.getItem('driven_employee_count') || '0';
-    document.getElementById('stat-projects').textContent = localStorage.getItem('driven_project_count') || '0';
-    document.getElementById('stat-equipment').textContent = localStorage.getItem('driven_equipment_count') || '0';
-    document.getElementById('stat-clients').textContent = localStorage.getItem('driven_client_count') || '0';
+    var elE = document.getElementById('stat-employees'); if (elE) elE.textContent = localStorage.getItem('driven_employee_count') || '0';
+    var elP = document.getElementById('stat-projects'); if (elP) elP.textContent = localStorage.getItem('driven_project_count') || '0';
+    var elEq = document.getElementById('stat-equipment'); if (elEq) elEq.textContent = localStorage.getItem('driven_equipment_count') || '0';
+    var elC = document.getElementById('stat-clients'); if (elC) elC.textContent = localStorage.getItem('driven_client_count') || '0';
   }
 }
 
