@@ -3,6 +3,7 @@
  * Catch-all API proxy router that forwards incoming fetch requests to
  * their respective microservice workers.
  */
+
 const WORKER_ROUTES = {
   // Auth worker
   'auth':              'https://driven-auth.driv-en.workers.dev',
@@ -21,15 +22,16 @@ const WORKER_ROUTES = {
 
   // DRIV-EN API Worker (handles Project, Clients, Division, Equipment, Users, Roles, AuditLog)
   'project':           'https://driven-api.driv-en.workers.dev',
+  'projects':          'https://driven-api.driv-en.workers.dev',
   'clients':           'https://driven-api.driv-en.workers.dev',
   'division':          'https://driven-api.driv-en.workers.dev',
-  'equipment':         'https://driven-api.driv-en.workers.dev',
   'log-error':         'https://driven-api.driv-en.workers.dev',
 
-  // Onboarding / Key Personnel worker (onboarding-key-personnel)
-  'onboarding':        'https://driven-onboarding.driv-en.workers.dev',
+  // Onboarding / Key Personnel worker
+  'onboarding':        'https://driven-api.driv-en.workers.dev',
 
   // Platform worker
+  'equipment':         'https://driven-platform.driv-en.workers.dev',
   'error-log':         'https://driven-platform.driv-en.workers.dev',
   'users':             'https://driven-platform.driv-en.workers.dev',
   'permissions':       'https://driven-platform.driv-en.workers.dev',
@@ -73,9 +75,11 @@ export async function onRequest(context) {
     });
   }
 
+  // Extract path components (params.path contains sub-path segments after /api/)
   const pathSegments = params.path || [];
   const primaryRoute = pathSegments[0] ? pathSegments[0].toLowerCase() : '';
 
+  // Find target worker base URL
   const targetWorkerBase = WORKER_ROUTES[primaryRoute];
 
   if (!targetWorkerBase) {
@@ -92,10 +96,11 @@ export async function onRequest(context) {
     );
   }
 
-  // PRESERVE /api/ and exact path casing so /api/Project and /api/onboarding/... match worker routes
+  // Construct target URL — keep /api/ prefix and exact path segment casing
   const fullPath = pathSegments.join('/');
   const targetUrl = `${targetWorkerBase}/api/${fullPath}${url.search}`;
 
+  // Clone headers and remove host header
   const proxyHeaders = new Headers(request.headers);
   proxyHeaders.delete('host');
 
@@ -104,6 +109,7 @@ export async function onRequest(context) {
     headers: proxyHeaders
   };
 
+  // Pass through request body for non-GET/HEAD methods
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     proxyOptions.body = request.body;
   }
@@ -111,6 +117,7 @@ export async function onRequest(context) {
   try {
     const response = await fetch(targetUrl, proxyOptions);
 
+    // Attach CORS headers to proxy response
     const responseHeaders = new Headers(response.headers);
     responseHeaders.set('Access-Control-Allow-Origin', '*');
     responseHeaders.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
