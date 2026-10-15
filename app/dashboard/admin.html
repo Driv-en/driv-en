@@ -771,7 +771,7 @@
     }
 
 async function loadDashboardStats() {
-  var fetchSafe = function(url, defaultKey) {
+  var fetchSafe = function(url) {
     return fetch(url)
       .then(function(r) { return r.ok ? r.json() : {}; })
       .catch(function() { return {}; });
@@ -781,8 +781,8 @@ async function loadDashboardStats() {
     var results = await Promise.all([
       fetchSafe('/api/onboarding/employees/list'),
       fetchSafe('/api/Project'),
-      fetchSafe('/api/onboarding/equipment/list'),
-      fetchSafe('/api/onboarding/clients/list')
+      fetchSafe('/api/Equipment'),
+      fetchSafe('/api/Clients')
     ]);
 
     // 1. Employees
@@ -814,7 +814,7 @@ async function loadDashboardStats() {
     if (elCli) elCli.textContent = clientList.length;
     localStorage.setItem('driven_client_count', clientList.length);
 
-} catch (e) {
+  } catch (e) {
     console.error('loadDashboardStats error:', e);
     if (window.reportError) reportError('loadDashboardStats', e);
     var elE = document.getElementById('stat-employees'); if (elE) elE.textContent = localStorage.getItem('driven_employee_count') || '0';
@@ -823,7 +823,6 @@ async function loadDashboardStats() {
     var elC = document.getElementById('stat-clients'); if (elC) elC.textContent = localStorage.getItem('driven_client_count') || '0';
   }
 }
-
     function renderFormsTab() {
       var c = document.getElementById('adminFormsTabLinks');
       if (!c) return;
