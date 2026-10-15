@@ -777,7 +777,6 @@ var canModify = false;
 var pmDirty = false;
 
 // ===== PROJECT COLUMN DEFINITIONS =====
-// ===== PROJECT COLUMN DEFINITIONS =====
 var PROJECT_COL_DEFS = [
   { key: 'projectNumber', label: 'Project Number', defaultVisible: true },
   { key: 'name', label: 'Project Name', defaultVisible: true },
@@ -919,10 +918,8 @@ function normalizeProject(record) {
   var fields = (record.fields && typeof record.fields === 'object') ? record.fields : record;
 
   var id = record.id || fields.id || ('prj-' + Math.random().toString(36).substr(2, 9));
-
   var projectNumber = fields['Project Number'] || fields['Company Project Number'] || fields['Project Code'] || 
                         fields.project_number || fields.company_project_number || fields.code || id;
-
   var name = fields['Project Name'] || fields.projectName || fields.project_name || fields.name || 'Unnamed Project';
   var status = fields['Status'] || fields.status || 'Active';
   var location = fields['Location'] || fields.location || fields.address || '';
@@ -971,7 +968,7 @@ function normalizeClient(record) {
 
 async function loadProjects() {
   try {
-    var response = await fetch('/api/Project');
+    var response = await fetch('/api/project');
     var data = {};
     try { data = await response.json(); } catch (jsonError) { data = {}; }
 
@@ -1007,21 +1004,29 @@ async function loadProjects() {
 
 async function loadClients() {
   try {
-    var response = await fetch('/api/onboarding/clients/list');
+    var response = await fetch('/api/onboarding/clients');
     var data = {};
     try { data = await response.json(); } catch (jsonError) { data = {}; }
-    var records = data.clients || data.records || (Array.isArray(data) ? data : []);
+    var records = null;
+    if (Array.isArray(data)) {
+      records = data;
+    } else if (data && typeof data === 'object') {
+      records = data.clients || data.data || data.records || data.results || data.result;
+    }
+
     if (response.ok && Array.isArray(records)) {
       allClients = records.map(normalizeClient);
     } else {
       allClients = [];
-      throw new Error(data.error || data.message || ('Client API returned an unexpected response (' + response.status + ').'));
+      var errMsg = data.error || data.message || ('Client API returned HTTP ' + response.status);
+      reportProjectManagementError('Client API response issue: ' + errMsg, 'loadClients', null);
     }
   } catch (error) {
     console.error('loadClients error:', error);
     allClients = [];
     reportProjectManagementError('loadClients failed: ' + (error.message || error), 'loadClients', error && error.stack ? error.stack : null);
   }
+
   try {
     renderClientTableHead();
     renderClientTable();
