@@ -20,15 +20,15 @@ const WORKER_ROUTES = {
   'resend-verify':     'https://driven-auth.driv-en.workers.dev',
   '2fa':               'https://driven-auth.driv-en.workers.dev',
 
-  // DRIV-EN API Worker (handles Project, Clients, Division, Equipment, Users, Roles, AuditLog)
-  'project':           'https://driven-api.driv-en.workers.dev',
-  'projects':          'https://driven-api.driv-en.workers.dev',
-  'clients':           'https://driven-api.driv-en.workers.dev',
-  'division':          'https://driven-api.driv-en.workers.dev',
-  'log-error':         'https://driven-api.driv-en.workers.dev',
+// DRIV-EN API Worker (handles Project, Clients, Division, Equipment, Users, Roles, AuditLog)
+  'project':           'https://driv-en-api.driv-en.workers.dev',
+  'projects':          'https://driv-en-api.driv-en.workers.dev',
+  'clients':           'https://driv-en-api.driv-en.workers.dev',
+  'division':          'https://driv-en-api.driv-en.workers.dev',
+  'log-error':         'https://driv-en-api.driv-en.workers.dev',
 
   // Onboarding / Key Personnel worker
-  'onboarding':        'https://driven-api.driv-en.workers.dev',
+  'onboarding':        'https://driv-en-api.driv-en.workers.dev',
 
   // Platform worker
   'equipment':         'https://driven-platform.driv-en.workers.dev',
