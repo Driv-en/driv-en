@@ -897,14 +897,13 @@ document.addEventListener('dashSessionLoaded', async function() {
     }, 100);
 
     initVisibleCols();
-    
-    // Safely load all resources concurrently without letting one failure break the UI
+
     await Promise.allSettled([
       loadProjectTypes(),
       loadProjects(),
       loadClients()
     ]);
-    
+
     renderOverview();
 
   } catch (error) {
@@ -920,12 +919,10 @@ function normalizeProject(record) {
   var fields = (record.fields && typeof record.fields === 'object') ? record.fields : record;
 
   var id = record.id || fields.id || ('prj-' + Math.random().toString(36).substr(2, 9));
-  var projectNumber = fields['Project Number'] || fields['Company Project Number'] || fields['Project Code'] || 
-                        fields.project_number || fields.company_project_number || fields.code || id;
+  var projectNumber = fields['Project Number'] || fields['Company Project Number'] || fields['Project Code'] || fields.project_number || fields.company_project_number || fields.code || id;
   var name = fields['Project Name'] || fields.projectName || fields.project_name || fields.name || 'Unnamed Project';
   var status = fields['Status'] || fields.status || 'Active';
   var location = fields['Location'] || fields.location || fields.address || '';
-
   var expectedStart = fields['Expected Start Date'] || fields.expectedStartDate || fields.expected_start_date || fields.created_at || '';
   var actualStart = fields['Actual Start Date'] || fields.actualStartDate || fields.actual_start_date || '';
   var expectedComp = fields['Expected Completion Date'] || fields.expectedCompletionDate || fields.expected_completion_date || '';
@@ -966,6 +963,76 @@ function normalizeClient(record) {
     notes: fields['Notes'] || fields.notes || '',
     createdAt: fields['Created Date'] || fields.createdAt || fields.created_at || ''
   };
+}
+
+async function loadProjects() {
+  try {
+    var response = await fetch('/api/Project');
+    if (response.status === 404) response = await fetch('/api/project');
+
+    var data = {};
+    try { data = await response.json(); } catch (e) { data = {}; }
+
+    var records = null;
+    if (Array.isArray(data)) {
+      records = data;
+    } else if (data && typeof data === 'object') {
+      records = data.projects || data.data || data.records || data.results || data.result;
+    }
+
+    if (response.ok && Array.isArray(records)) {
+      allProjects = records.map(normalizeProject);
+    } else {
+      allProjects = [];
+    }
+  } catch(error) {
+    console.error('loadProjects fetch error:', error);
+    allProjects = [];
+  }
+
+  try {
+    renderProjectTableHead();
+    renderProjectTable();
+    renderProjectColTogglePanel();
+    renderOverview();
+  } catch(error) {
+    console.error('Project rendering failed:', error);
+  }
+}
+
+async function loadClients() {
+  try {
+    var response = await fetch('/api/onboarding/clients/list');
+    if (response.status === 404) response = await fetch('/api/onboarding/clients');
+
+    var data = {};
+    try { data = await response.json(); } catch (e) { data = {}; }
+
+    var records = null;
+    if (Array.isArray(data)) {
+      records = data;
+    } else if (data && typeof data === 'object') {
+      records = data.clients || data.data || data.records || data.results || data.result;
+    }
+
+    if (response.ok && Array.isArray(records)) {
+      allClients = records.map(normalizeClient);
+    } else {
+      allClients = [];
+    }
+  } catch (error) {
+    console.error('loadClients error:', error);
+    allClients = [];
+  }
+
+  try {
+    renderClientTableHead();
+    renderClientTable();
+    renderClientColTogglePanel();
+    renderOverview();
+  } catch (error) {
+    console.error('Client rendering failed:', error);
+  }
 }
 
 async function loadProjectTypes() {
@@ -1068,7 +1135,7 @@ function configureKpiCard(card, accessibilityLabel, navigationAction) {
 
 function executeKpiNavigation(navigationAction, accessibilityLabel) {
   try { navigationAction(); } catch (error) {
-    reportProjectManagementError('KPI navigation failed for ' + accessibilityLabel + ': ' + (error.message || error), 'kpi-navigation', error && error.stack ? error.stack : null);
+    console.error('KPI navigation failed:', error);
   }
 }
 
@@ -1354,8 +1421,10 @@ function renderClientTable() {
 
   renderPagination('pmClientPagination', filtered.length, totalPages, clientPage, clientPageSize, function(p) { clientPage = p; renderClientTable(); }, function(sz) { clientPageSize = sz; clientPage = 1; renderClientTable(); });
 }
+
 // ===== PROJECT CRUD ACTIONS =====
 async function addProject() {
+  if (!canModify) { showProjectMessage('You do not have permission to add projects.', 'error'); return; }
   var code = document.getElementById('pmProjectCode').value.trim();
   var name = document.getElementById('pmProjectName').value.trim();
   var status = document.getElementById('pmProjectStatus').value;
@@ -1368,14 +1437,14 @@ async function addProject() {
   if (!code || !name) { showProjectMessage('Project Number and Name are required.', 'error'); return; }
 
   var payload = {
-    'Project Code': code,
-    'Project Name': name,
-    'Status': status,
-    'Location': location,
-    'Expected Start Date': expStart,
-    'Actual Start Date': actStart,
-    'Expected Completion Date': expComp,
-    'Actual Completion Date': actComp
+    project_number: code,
+    name: name,
+    status: status,
+    location: location,
+    expected_start_date: expStart,
+    actual_start_date: actStart,
+    expected_completion_date: expComp,
+    actual_completion_date: actComp
   };
 
   try {
@@ -1386,7 +1455,7 @@ async function addProject() {
     });
     var data = await resp.json();
     if (!resp.ok) throw new Error(data.error || data.message || 'Save failed');
-    
+
     if (data.record || data.project) allProjects.push(normalizeProject(data.record || data.project));
     else await loadProjects();
 
@@ -1437,14 +1506,14 @@ async function saveEditProject() {
   if (!code || !name) { showProjectMessage('Project Number and Name are required.', 'error'); return; }
 
   var payload = {
-    'Project Code': code,
-    'Project Name': name,
-    'Status': status,
-    'Location': location,
-    'Expected Start Date': expStart,
-    'Actual Start Date': actStart,
-    'Expected Completion Date': expComp,
-    'Actual Completion Date': actComp
+    project_number: code,
+    name: name,
+    status: status,
+    location: location,
+    expected_start_date: expStart,
+    actual_start_date: actStart,
+    expected_completion_date: expComp,
+    actual_completion_date: actComp
   };
 
   try {
@@ -1490,6 +1559,7 @@ async function deleteProject(projectId) {
 
 // ===== CLIENT CRUD ACTIONS =====
 async function addClient() {
+  if (!canModify) { showClientMessage('You do not have permission to add clients.', 'error'); return; }
   var clientName = document.getElementById('pmClientName').value.trim();
   var contactName = document.getElementById('pmContactName').value.trim();
   var contactEmail = document.getElementById('pmContactEmail').value.trim();
@@ -1503,23 +1573,15 @@ async function addClient() {
   var status = document.getElementById('pmClientStatus').value;
   var notes = document.getElementById('pmClientNotes').value.trim();
 
-  if (!clientName) { showClientMessage('Please enter a client name.', 'error'); return; }
-  if (!contactName) { showClientMessage('Please enter a contact name.', 'error'); return; }
-  if (!contactEmail) { showClientMessage('Please enter a contact email.', 'error'); return; }
+  if (!clientName || !contactName || !contactEmail) {
+    showClientMessage('Client Name, Contact Name, and Contact Email are required.', 'error'); return;
+  }
 
   var payload = {
-    client_name: clientName,
-    contact_name: contactName,
-    contact_email: contactEmail,
-    status: status,
-    contact_phone: contactPhone,
-    company: company,
-    industry: industry,
-    address: address,
-    city: city,
-    state: state,
-    zip_code: zip,
-    notes: notes
+    client_name: clientName, contact_name: contactName, contact_email: contactEmail,
+    status: status, contact_phone: contactPhone, company: company,
+    industry: industry, address: address, city: city, state: state,
+    zip_code: zip, notes: notes
   };
 
   try {
@@ -1530,7 +1592,7 @@ async function addClient() {
     });
     var data = await resp.json();
     if (!resp.ok) throw new Error(data.error || data.message || 'Save failed (' + resp.status + ')');
-    
+
     if (data.record || data.client) allClients.push(normalizeClient(data.record || data.client));
     else await loadClients();
 
@@ -1587,23 +1649,14 @@ async function saveEditClient() {
   var notes = document.getElementById('pmEditClientNotes').value.trim();
 
   if (!clientName || !contactName || !contactEmail) {
-    showClientMessage('Client Name, Contact Name, and Contact Email are required.', 'error');
-    return;
+    showClientMessage('Client Name, Contact Name, and Contact Email are required.', 'error'); return;
   }
 
   var payload = {
-    client_name: clientName,
-    contact_name: contactName,
-    contact_email: contactEmail,
-    status: status,
-    contact_phone: contactPhone,
-    company: company,
-    industry: industry,
-    address: address,
-    city: city,
-    state: state,
-    zip_code: zip,
-    notes: notes
+    client_name: clientName, contact_name: contactName, contact_email: contactEmail,
+    status: status, contact_phone: contactPhone, company: company,
+    industry: industry, address: address, city: city, state: state,
+    zip_code: zip, notes: notes
   };
 
   try {
@@ -1614,7 +1667,7 @@ async function saveEditClient() {
     });
     var data = await resp.json();
     if (!resp.ok) throw new Error(data.error || data.message || 'Update failed (' + resp.status + ')');
-    
+
     if (data.record || data.client) {
       var updated = normalizeClient(data.record || data.client);
       var idx = allClients.findIndex(function(c) { return c.id === editingClientId; });
@@ -1638,8 +1691,7 @@ function renderProjectTypes() {
   document.getElementById('pmTypeCount').textContent = projectTypes.length + ' type' + (projectTypes.length === 1 ? '' : 's');
   tbody.textContent = '';
   if (projectTypes.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="3" class="pm-empty">No project types defined.</td></tr>';
-    return;
+    tbody.innerHTML = '<tr><td colspan="3" class="pm-empty">No project types defined.</td></tr>'; return;
   }
   projectTypes.forEach(function(t, idx) {
     var tr = document.createElement('tr');
@@ -1658,6 +1710,7 @@ function renderProjectTypes() {
 }
 
 async function addProjectType() {
+  if (!canModify) { alert('You do not have permission to add project types.'); return; }
   var name = document.getElementById('pmTypeName').value.trim();
   var desc = document.getElementById('pmTypeDesc').value.trim();
   if (!name) { alert('Type name is required.'); return; }
@@ -1683,6 +1736,7 @@ function closeEditTypeModal() {
 }
 
 async function saveEditProjectType() {
+  if (!canModify) { alert('You do not have permission to modify project types.'); return; }
   if (editingTypeIndex === null) return;
   var name = document.getElementById('pmEditTypeName').value.trim();
   var desc = document.getElementById('pmEditTypeDesc').value.trim();
@@ -1694,6 +1748,7 @@ async function saveEditProjectType() {
 }
 
 async function deleteProjectType(idx) {
+  if (!canModify) { alert('You do not have permission to delete project types.'); return; }
   if (!confirm('Are you sure you want to delete this project type?')) return;
   projectTypes.splice(idx, 1);
   await saveProjectTypes();
@@ -1760,7 +1815,6 @@ function renderClientColTogglePanel() {
 
 // ===== EXPORT & PRINT HANDLERS =====
 var currentExportType = 'csv';
-
 function openProjectExportModal(type) {
   currentExportType = type;
   document.getElementById('pmProjectExportTitle').textContent = 'Export to ' + type.toUpperCase();
@@ -1782,10 +1836,7 @@ function doProjectExport() {
   var cols = PROJECT_COL_DEFS.filter(function(c) { return selected.indexOf(c.key) !== -1; });
   var rows = [cols.map(function(c) { return '"' + c.label.replace(/"/g, '""') + '"'; }).join(',')];
   allProjects.forEach(function(p) {
-    var row = cols.map(function(c) {
-      var val = p[c.key] || '';
-      return '"' + String(val).replace(/"/g, '""') + '"';
-    });
+    var row = cols.map(function(c) { var val = p[c.key] || ''; return '"' + String(val).replace(/"/g, '""') + '"'; });
     rows.push(row.join(','));
   });
   var mime = currentExportType === 'excel' ? 'application/vnd.ms-excel' : 'text/csv';
@@ -1810,10 +1861,7 @@ function openProjectPrintModal() {
   document.getElementById('pmProjectPrintModal').classList.add('active');
 }
 
-function doProjectPrint() {
-  closeModal('pmProjectPrintModal');
-  window.print();
-}
+function doProjectPrint() { closeModal('pmProjectPrintModal'); window.print(); }
 
 function openClientExportModal(type) {
   currentExportType = type;
@@ -1836,10 +1884,7 @@ function doClientExport() {
   var cols = CLIENT_COL_DEFS.filter(function(c) { return selected.indexOf(c.key) !== -1; });
   var rows = [cols.map(function(c) { return '"' + c.label.replace(/"/g, '""') + '"'; }).join(',')];
   allClients.forEach(function(cli) {
-    var row = cols.map(function(c) {
-      var val = cli[c.key] || '';
-      return '"' + String(val).replace(/"/g, '""') + '"';
-    });
+    var row = cols.map(function(c) { var val = cli[c.key] || ''; return '"' + String(val).replace(/"/g, '""') + '"'; });
     rows.push(row.join(','));
   });
   var mime = currentExportType === 'excel' ? 'application/vnd.ms-excel' : 'text/csv';
@@ -1864,10 +1909,7 @@ function openClientPrintModal() {
   document.getElementById('pmClientPrintModal').classList.add('active');
 }
 
-function doClientPrint() {
-  closeModal('pmClientPrintModal');
-  window.print();
-}
+function doClientPrint() { closeModal('pmClientPrintModal'); window.print(); }
 
 function renderPagination(containerId, totalItems, totalPages, currentPage, pageSize, onPageChange, onPageSizeChange) {
   var container = document.getElementById(containerId);
@@ -1882,13 +1924,18 @@ function renderPagination(containerId, totalItems, totalPages, currentPage, page
   container.appendChild(info);
 
   var sizeDiv = document.createElement('div');
-  sizeDiv.style.display = 'flex'; sizeDiv.style.alignItems = 'center'; sizeDiv.style.gap = '6px';
+  sizeDiv.style.display = 'flex';
+  sizeDiv.style.alignItems = 'center';
+  sizeDiv.style.gap = '6px';
   var sizeLabel = document.createElement('span');
-  sizeLabel.className = 'pm-page-info'; sizeLabel.textContent = 'Per page:';
+  sizeLabel.className = 'pm-page-info';
+  sizeLabel.textContent = 'Per page:';
   sizeDiv.appendChild(sizeLabel);
 
   var sizeSelect = document.createElement('select');
-  sizeSelect.className = 'pm-filter-select'; sizeSelect.style.padding = '4px 8px'; sizeSelect.style.fontSize = '13px';
+  sizeSelect.className = 'pm-filter-select';
+  sizeSelect.style.padding = '4px 8px';
+  sizeSelect.style.fontSize = '13px';
   [10, 25, 50].forEach(function(sz) {
     var opt = document.createElement('option');
     opt.value = sz; opt.textContent = sz;
@@ -1901,9 +1948,9 @@ function renderPagination(containerId, totalItems, totalPages, currentPage, page
 
   var btnsDiv = document.createElement('div');
   btnsDiv.className = 'pm-page-btns';
-
   var btnPrev = document.createElement('button');
-  btnPrev.className = 'pm-page-btn'; btnPrev.textContent = '◀ Prev';
+  btnPrev.className = 'pm-page-btn';
+  btnPrev.textContent = '◀ Prev';
   btnPrev.disabled = currentPage <= 1;
   btnPrev.onclick = function() { onPageChange(currentPage - 1); };
   btnsDiv.appendChild(btnPrev);
@@ -1917,7 +1964,8 @@ function renderPagination(containerId, totalItems, totalPages, currentPage, page
   }
 
   var btnNext = document.createElement('button');
-  btnNext.className = 'pm-page-btn'; btnNext.textContent = 'Next ▶';
+  btnNext.className = 'pm-page-btn';
+  btnNext.textContent = 'Next ▶';
   btnNext.disabled = currentPage >= totalPages;
   btnNext.onclick = function() { onPageChange(currentPage + 1); };
   btnsDiv.appendChild(btnNext);
@@ -1932,7 +1980,10 @@ function switchTab(tab) {
   if (tabBtn) tabBtn.classList.add('active');
 
   var tabContent = document.getElementById('tab-' + tab);
-  if (tabContent) { tabContent.classList.add('active'); tabContent.style.display = 'block'; }
+  if (tabContent) {
+    tabContent.classList.add('active');
+    tabContent.style.display = 'block';
+  }
 
   if (tab === 'overview') renderOverview();
   if (tab === 'projects') { renderProjectTableHead(); renderProjectTable(); }
@@ -1961,12 +2012,22 @@ function escapeHtml(value) {
 
 function showProjectMessage(message, type) {
   var target = document.getElementById('pmProjectsMessage');
-  if (target) { target.textContent = message; target.className = 'pm-message ' + type; target.style.display = 'block'; setTimeout(function(){ target.style.display = 'none'; }, 4000); }
+  if (target) {
+    target.textContent = message;
+    target.className = 'pm-message ' + type;
+    target.style.display = 'block';
+    setTimeout(function(){ target.style.display = 'none'; }, 4000);
+  }
 }
 
 function showClientMessage(message, type) {
   var target = document.getElementById('pmClientsMessage');
-  if (target) { target.textContent = message; target.className = 'pm-message ' + type; target.style.display = 'block'; setTimeout(function(){ target.style.display = 'none'; }, 4000); }
+  if (target) {
+    target.textContent = message;
+    target.className = 'pm-message ' + type;
+    target.style.display = 'block';
+    setTimeout(function(){ target.style.display = 'none'; }, 4000);
+  }
 }
 
 function closeModal(modalId) {
@@ -1981,23 +2042,18 @@ function fixHeaderLayout() {
   var row2 = header.querySelector('.dash-header-row2');
   var row3 = header.querySelector('.dash-header-row3');
   var heading = row2 ? row2.querySelector('h1') : null;
-
   if (!row1 || !heading) return false;
   if (heading.parentNode === row1) return true;
-
   var drivenLogo = row1.querySelector('.dash-driven-logo');
   if (drivenLogo) row1.insertBefore(heading, drivenLogo);
   else row1.appendChild(heading);
-
   row1.style.cssText = 'display:flex !important; justify-content:space-between !important; align-items:center !important; padding:8px 20px !important; gap:16px !important;';
   heading.style.cssText = 'margin:0; font-size:20px; font-weight:600; text-align:center; flex:1;';
-
   if (row2) row2.style.display = 'none';
   if (row3) row3.style.display = 'none';
   return true;
 }
 </script>
-
 <!-- ===== AUTH CHECK ===== -->
 <script src="/app/shared/auth-check.js?v=13"></script>
 </body>
