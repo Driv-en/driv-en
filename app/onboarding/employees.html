@@ -377,19 +377,39 @@
       return name;
     }
 
-    function updateGreeting(sessionDetail) {
+function updateGreeting(sessionDetail) {
       var greetingEl = document.getElementById("dashGreetingText");
       if (!greetingEl) return;
+
       var firstName = "";
+
+      // 1. Try sessionDetail from event
       if (sessionDetail) {
         firstName = sessionDetail.first_name || sessionDetail.firstName || "";
         if (!firstName && sessionDetail.full_name) {
           firstName = sessionDetail.full_name.split(" ")[0];
         }
       }
+
+      // 2. Try parsing stored 'driven_user' JSON object
       if (!firstName) {
-        firstName = localStorage.getItem("driven_user_firstname") || localStorage.getItem("driven_first_name") || "";
+        try {
+          var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
+          firstName = userObj.first_name || userObj.firstName || userObj.first || "";
+          if (!firstName && userObj.name) {
+            firstName = userObj.name.split(" ")[0];
+          }
+        } catch (e) {}
       }
+
+      // 3. Fallback to flat localStorage keys
+      if (!firstName) {
+        firstName = localStorage.getItem("driven_user_firstname") || 
+                    localStorage.getItem("driven_first_name") || 
+                    localStorage.getItem("driven_user_name") || "";
+      }
+
+      firstName = normalizeName(firstName);
       if (firstName) {
         greetingEl.textContent = "";
         greetingEl.appendChild(document.createTextNode("Welcome, "));
