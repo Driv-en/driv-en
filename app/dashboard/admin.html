@@ -774,13 +774,13 @@ async function loadDashboardStats() {
   try {
     var results = await Promise.all([
       fetch('/api/onboarding/employees/list').then(r => r.ok ? r.json() : { employees: [] }).catch(() => ({ employees: [] })),
-      fetch('/api/projects').then(r => r.ok ? r.json() : { projects: [] }).catch(() => ({ projects: [] })),
-      fetch('/api/assets').then(r => r.ok ? r.json() : { assets: [] }).catch(() => ({ assets: [] })),
-      fetch('/api/clients').then(r => r.ok ? r.json() : { clients: [] }).catch(() => ({ clients: [] }))
+      fetch('/api/Project').then(r => r.ok ? r.json() : { projects: [] }).catch(() => ({ projects: [] })),
+      fetch('/api/onboarding/equipment/list').then(r => r.ok ? r.json() : { equipment: [] }).catch(() => ({ equipment: [] })),
+      fetch('/api/onboarding/clients/list').then(r => r.ok ? r.json() : { clients: [] }).catch(() => ({ clients: [] }))
     ]);
 
     // 1. Employees
-    var empList = results[0].employees || (Array.isArray(results[0]) ? results[0] : []);
+    var empList = results[0].employees || results[0].records || (Array.isArray(results[0]) ? results[0] : []);
     var empCount = empList.filter(e => e.status === 1 || e.status === '1' || e.status === 'Active' || e.status === 'active').length;
     document.getElementById('stat-employees').textContent = empCount;
     localStorage.setItem('driven_employee_count', empCount);
@@ -791,7 +791,7 @@ async function loadDashboardStats() {
     localStorage.setItem('driven_project_count', projList.length);
 
     // 3. Assets
-    var assetList = results[2].assets || results[2].records || results[2].equipment || (Array.isArray(results[2]) ? results[2] : []);
+    var assetList = results[2].equipment || results[2].assets || results[2].records || (Array.isArray(results[2]) ? results[2] : []);
     document.getElementById('stat-equipment').textContent = assetList.length;
     localStorage.setItem('driven_equipment_count', assetList.length);
 
@@ -801,7 +801,7 @@ async function loadDashboardStats() {
     localStorage.setItem('driven_client_count', clientList.length);
 
   } catch (e) {
-    reportError('loadDashboardStats', e);
+    if (window.reportError) reportError('loadDashboardStats', e);
     document.getElementById('stat-employees').textContent = localStorage.getItem('driven_employee_count') || '0';
     document.getElementById('stat-projects').textContent = localStorage.getItem('driven_project_count') || '0';
     document.getElementById('stat-equipment').textContent = localStorage.getItem('driven_equipment_count') || '0';
