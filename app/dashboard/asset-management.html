@@ -1343,22 +1343,22 @@
             return (str === 'null' || str === 'undefined') ? '' : str;
         }
 
-        function normalizeAsset(r) {
+function normalizeAsset(r) {
             var f = (r && r.fields && typeof r.fields === 'object') ? r.fields : (r || {});
 
             return {
                 id: r.id || f.id || ('eq-' + Math.random().toString(36).substr(2, 9)),
-                assetNumber: parseVal(f.asset_number),
-                type: parseVal(f.category || f.name),
-                meter: (f.current_meter_reading !== undefined && f.current_meter_reading !== null) ? f.current_meter_reading : null,
-                status: parseVal(f.status) || 'Available',
-                project: parseVal(f.current_project),
-                location: parseVal(f.current_location),
-                serialNumber: parseVal(f.serial_number),
-                division: parseVal(f.division),
-                assignedTo: parseVal(f.owner_name),
-                condition: parseVal(f.condition),
-                createdAt: parseVal(f.created_at)
+                assetNumber: parseVal(f.asset_number || f['Equipment ID'] || f['Equipment Name'] || f.assetNumber || f.name),
+                type: parseVal(f.category || f['Category'] || f.type || f.name || 'Unassigned'),
+                meter: (f.current_meter_reading !== undefined && f.current_meter_reading !== null) ? f.current_meter_reading : (f['Meter Reading'] || null),
+                status: parseVal(f.status || f['Status']) || 'Available',
+                project: parseVal(f.current_project || f['Project']),
+                location: parseVal(f.current_location || f['Location'] || f.location),
+                serialNumber: parseVal(f.serial_number || f['Serial Number']),
+                division: parseVal(f.division || f['Division']),
+                assignedTo: parseVal(f.owner_name || f['Assigned To']),
+                condition: parseVal(f.condition || f['Condition']),
+                createdAt: parseVal(f.created_at || f['Created Date'])
             };
         }
 
@@ -1390,9 +1390,12 @@
             tb.appendChild(lr);
             try {
                 var resp = await fetch('/api/Equipment');
+                if (resp.status === 404) resp = await fetch('/api/equipment');
+
                 var data = await resp.json();
-                var rawRecords = (data && data.records) ? data.records : (Array.isArray(data) ? data : []);
-                if (resp.ok && rawRecords.length >= 0) {
+                var rawRecords = (data && data.records) ? data.records : (Array.isArray(data) ? data : (data.equipment || data.assets || []));
+                
+                if (resp.ok && Array.isArray(rawRecords)) {
                     allAssets = rawRecords.map(normalizeAsset);
                 } else if (resp.status === 401) {
                     allAssets = [];
