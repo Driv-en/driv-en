@@ -377,7 +377,7 @@
       return name;
     }
 
-function updateGreeting(sessionDetail) {
+    function updateGreeting(sessionDetail) {
       var greetingEl = document.getElementById("dashGreetingText");
       if (!greetingEl) return;
 
@@ -406,7 +406,7 @@ function updateGreeting(sessionDetail) {
       if (!firstName) {
         try {
           var savedEmps = JSON.parse(localStorage.getItem("driven_saved_employees") || "[]");
-          var currentId = localStorage.getItem("driven_user_id") || "25"; // Fallback to current session ID
+          var currentId = localStorage.getItem("driven_user_id") || "25";
           var match = savedEmps.find(function(emp) { return String(emp.id) === String(currentId); });
           if (match && match.firstName && match.firstName !== "—") {
             firstName = match.firstName;
@@ -858,7 +858,7 @@ function updateGreeting(sessionDetail) {
     window.confirmLogout = function() { if (empDirty) { if (!confirm("You have unsaved employees. Click OK to log out without saving, or Cancel to stay and save them.")) return; } dashLogout(); };
     window.addEventListener("beforeunload", function(e) { if (empDirty) { e.preventDefault(); e.returnValue = "You have unsaved employees."; } });
 
-document.getElementById("btnAddEmp").addEventListener("click", function() {
+    document.getElementById("btnAddEmp").addEventListener("click", function() {
       empError.textContent = ""; empSuccess.textContent = "";
       var empNumber = normalizeName(document.getElementById("empNumber").value);
       var first = normalizeName(document.getElementById("empFirstName").value);
@@ -882,7 +882,6 @@ document.getElementById("btnAddEmp").addEventListener("click", function() {
         return;
       }
 
-      // Check for duplicate full name across existing employees & session batch
       var checkFullName = buildFullName(first, middle, last, suffix).toLowerCase().trim();
       var nameMatch = existingEmployees.some(function(emp) { 
         return (emp.fullName || "").toLowerCase().trim() === checkFullName; 
@@ -894,14 +893,6 @@ document.getElementById("btnAddEmp").addEventListener("click", function() {
         var confirmAdd = confirm("⚠️ An employee named '" + buildFullName(first, middle, last, suffix) + "' already exists in the system.\n\nWould you like to add a middle initial or suffix to differentiate them, or proceed anyway?");
         if (!confirmAdd) return;
       }
-
-      var emp = { empNumber: empNumber, firstName: first, middleName: middle, lastName: last, suffix: suffix, fullName: buildFullName(first, middle, last, suffix), email: email, phone: phone, division: division, role: role, status: status, customerId: localStorage.getItem("driven_customer_id") || "" };
-      employees.push(emp); renderTable(); updateCount();
-      document.getElementById("empNumber").value = ""; document.getElementById("empFirstName").value = ""; document.getElementById("empMiddleName").value = ""; document.getElementById("empLastName").value = ""; document.getElementById("empSuffix").value = ""; document.getElementById("empEmail").value = ""; document.getElementById("empPhone").value = ""; document.getElementById("empDivision").value = ""; document.getElementById("empRole").value = ""; document.getElementById("empStatus").value = "Active";
-      document.getElementById("empFirstName").focus();
-      empSuccess.textContent = "Employee added to current batch. Click Save & Continue when finished.";
-      empDirty = true;
-    });
 
       var emp = { empNumber: empNumber, firstName: first, middleName: middle, lastName: last, suffix: suffix, fullName: buildFullName(first, middle, last, suffix), email: email, phone: phone, division: division, role: role, status: status, customerId: localStorage.getItem("driven_customer_id") || "" };
       employees.push(emp); renderTable(); updateCount();
@@ -1040,7 +1031,6 @@ document.getElementById("btnAddEmp").addEventListener("click", function() {
       setInterval(checkActivePresence, 15000);
     });
 
-    // Immediate execution on page parse & load
     updateGreeting(null);
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", function() { updateGreeting(null); });
