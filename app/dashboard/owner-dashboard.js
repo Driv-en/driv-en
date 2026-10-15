@@ -451,23 +451,23 @@ function renderSessionsTable() {
   try {
     var resp = await fetch('/auth/session');
     
-    // If request fails or returns non-200, redirect directly to Founder Login
+    // If session expired or invalid, send directly to main login page
     if (!resp.ok) {
-      window.location.href = '/app/auth/founder-login.html';
+      window.location.href = '/public/login.html';
       return;
     }
 
     var data = await resp.json();
 
-    // If session expired or unauthenticated, send to Founder Login
+    // If session expired or unauthenticated, send to main login page
     if (!data.authenticated || !data.user) {
-      window.location.href = '/app/auth/founder-login.html';
+      window.location.href = '/public/login.html';
       return;
     }
 
     var u = data.user;
 
-    // Check role/org access
+    // Verify Founder / DSI org access
     var isFounder = (u.role_id === 'RO-Founder' || u.role === 'Founder' || u.role === 'DRIV-EN Founder');
     var isDsiOrg = (u.org_id === 'org_dsi' || u.org_id === 'dsi');
 
@@ -480,7 +480,7 @@ function renderSessionsTable() {
     initOwnerDashboard();
   } catch (e) {
     console.error('Auth check failed:', e);
-    window.location.href = '/app/auth/founder-login.html';
+    window.location.href = '/public/login.html';
   }
 })();
 
