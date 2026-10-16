@@ -45,14 +45,28 @@
 .presence-banner { display: none; align-items: center; gap: 8px; background: #ea580c !important; border: 1.5px solid #f97316 !important; padding: 6px 14px; border-radius: 20px; font-size: 13px; color: #ffffff !important; font-weight: 600; }
 .presence-dot { width: 8px; height: 8px; background: #fdba74; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px #fdba74; }
 
-/* ===== TAB BAR ===== */
-.rp-tab-bar { display: flex; gap: 2px; max-width: 1100px; margin: 0 auto; padding: 0 20px; overflow-x: auto; background: #cbd5e1; border-bottom: 2px solid #94a3b8; }
-.rp-tab-admin { background: #1e40af; border: 1px solid #2563eb; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #dbeafe; cursor: pointer; white-space: nowrap; margin-top: 4px; position: relative; z-index: 1; text-decoration: none; transition: background 200ms ease, margin-top 200ms ease; display: none; }
-.rp-tab-admin:hover { background: #1d4ed8; color: #fff; margin-top: 2px; }
-.rp-tab-return { background: #374151; border: 1px solid #4b5563; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #d1d5db; cursor: pointer; white-space: nowrap; margin-top: 4px; position: relative; z-index: 1; text-decoration: none; transition: background 200ms ease, margin-top 200ms ease; }
-.rp-tab-return:hover { background: #4b5563; color: #fff; margin-top: 2px; }
-.rp-tab-logout { background: #b91c1c; border: 1px solid #dc2626; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; margin-left: auto; position: relative; z-index: 1; transition: background 200ms ease, margin-top 200ms ease; }
-.rp-tab-logout:hover { background: #dc2626; margin-top: 2px; }
+/* ===== TAB BAR (FORCED VISIBILITY & STICKY POSITIONING) ===== */
+.rp-tab-bar { 
+  display: flex !important; 
+  visibility: visible !important;
+  opacity: 1 !important;
+  gap: 8px !important; 
+  max-width: 1100px; 
+  margin: 0 auto 16px auto; 
+  padding: 8px 20px; 
+  overflow-x: auto; 
+  background: #cbd5e1; 
+  border-radius: 8px;
+  border: 1px solid #94a3b8;
+  position: relative;
+  z-index: 90;
+}
+.rp-tab-admin { background: #1e40af; border: 1px solid #2563eb; border-radius: 6px; padding: 8px 18px; font-size: 14px; font-weight: 600; color: #dbeafe; cursor: pointer; white-space: nowrap; text-decoration: none; transition: background 200ms ease; display: none; }
+.rp-tab-admin:hover { background: #1d4ed8; color: #fff; }
+.rp-tab-return { background: #374151; border: 1px solid #4b5563; border-radius: 6px; padding: 8px 18px; font-size: 14px; font-weight: 600; color: #d1d5db; cursor: pointer; white-space: nowrap; text-decoration: none; transition: background 200ms ease; display: inline-flex; align-items: center; }
+.rp-tab-return:hover { background: #4b5563; color: #fff; }
+.rp-tab-logout { background: #b91c1c; border: 1px solid #dc2626; border-radius: 6px; padding: 8px 18px; font-size: 14px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-left: auto; transition: background 200ms ease; display: inline-flex; align-items: center; }
+.rp-tab-logout:hover { background: #dc2626; }
 
 /* ===== CARDS & TABLES ===== */
 .dash-card { border: 1.5px solid var(--card-green-border, #16a34a) !important; border-radius: 8px; }
@@ -132,7 +146,7 @@
 
 <div class="rp-tab-bar" id="rpTabBar">
   <a class="rp-tab-admin driven-admin-only" href="/app/dashboard/admin.html" onclick="return confirmLeave()">Admin Dashboard</a>
-  <a class="rp-tab-return" href="/app/dashboard/onboarding-dashboard.html" onclick="return confirmLeave()">Onboarding Dashboard</a>
+  <a class="rp-tab-return" href="/app/dashboard/onboarding-dashboard.html" onclick="return confirmLeave()">← Return to Onboarding Dashboard</a>
   <button class="rp-tab-logout" onclick="confirmLogout()">Logout</button>
 </div>
 
@@ -235,17 +249,6 @@
       return true;
     }
 
-    function setupStickyHeaderBar() {
-      var h = document.getElementById("dashHeader");
-      var greetingBar = document.getElementById("obGreetingBar");
-      var tabBar = document.getElementById("rpTabBar");
-
-      if (h) {
-        if (greetingBar && greetingBar.parentElement !== h) h.appendChild(greetingBar);
-        if (tabBar && tabBar.parentElement !== h) h.appendChild(tabBar);
-      }
-    }
-
     async function checkActivePresence() {
       try {
         var resp = await fetch("/api/onboarding/presence", {
@@ -286,6 +289,8 @@
         var rpIsAdmin = ["admin", "administrator"].indexOf(rpUserRole.toLowerCase()) !== -1 || rpUserRole.toLowerCase().indexOf("founder") !== -1;
         if (!rpIsAdmin) {
           document.querySelectorAll(".driven-admin-only").forEach(function(el) { el.style.display = "none"; });
+        } else {
+          document.querySelectorAll(".driven-admin-only").forEach(function(el) { el.style.display = "inline-flex"; });
         }
 
         var customerId = localStorage.getItem('driven_customer_id');
@@ -827,16 +832,9 @@
         if (logoArea && drivenLogo) { row1.insertBefore(title, drivenLogo); } 
       }
 
-      setupStickyHeaderBar();
       checkActivePresence();
       setInterval(checkActivePresence, 12000);
     });
-
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", function() { setupStickyHeaderBar(); });
-    } else {
-      setupStickyHeaderBar();
-    }
 </script>
 </body>
 </html>
