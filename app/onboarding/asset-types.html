@@ -23,16 +23,37 @@
   <style>
     .dash-header-row2, .dash-header-row3, #dashHeader .dash-theme-wrapper { display: none !important; }
     .dash-header-row1 { padding: 8px 20px !important; align-items: center; }
-    .at-header-title { flex: 1; text-align: center; font-size: 20px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    
+    /* Responsive Header Title Formatting (Matches onboarding-dashboard) */
+    .at-header-title { 
+      flex: 1; 
+      text-align: center; 
+      font-size: 18px; 
+      font-weight: 600; 
+      color: var(--text); 
+      white-space: nowrap; 
+      overflow: hidden; 
+      text-overflow: ellipsis; 
+      padding: 0 8px;
+    }
+
+    @media screen and (max-width: 768px) {
+      .dash-header-row1 { padding: 6px 10px !important; }
+      .at-header-title { font-size: 14px !important; }
+      .ob-greeting-bar { padding: 8px 12px 0 12px !important; flex-direction: column; align-items: flex-start !important; gap: 4px !important; }
+      .ob-greeting-text { font-size: 14px !important; }
+      .presence-banner { font-size: 12px !important; padding: 4px 10px !important; }
+    }
+
     .ob-greeting-bar { max-width: 1100px; margin: 0 auto; padding: 12px 20px 0 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; position: relative; z-index: 1; }
     .ob-greeting-text { font-size: 16px; color: var(--text-muted); font-weight: 500; }
     .ob-greeting-text strong { color: var(--text); }
     .at-subtitle { margin: 4px 0 16px 0; color: var(--text-muted); font-size: 14px; line-height: 1.5; }
     .dash-card { border: 1.5px solid var(--card-green-border, #16a34a) !important; border-radius: 8px; }
     
-    /* Presence Banner & Co-Worker Polling Styles */
+    /* Presence Banner Styling */
     .presence-banner { display: none; align-items: center; gap: 8px; background: rgba(34, 197, 94, 0.15); border: 1.5px solid #16a34a; padding: 6px 14px; border-radius: 20px; font-size: 13px; color: var(--text); font-weight: 500; }
-    .presence-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px #22c55e; }
+    .presence-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px #22c55e; flex-shrink: 0; }
     
     .at-section-heading { font-size: 15px; font-weight: 700; color: var(--primary); margin: 20px 0 10px 0; padding-bottom: 4px; border-bottom: 1px dashed var(--border); display: flex; align-items: center; gap: 8px; }
     .at-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-bottom: 16px; }
@@ -46,7 +67,7 @@
     .at-btn-remove-custom:hover { color: #dc2626; }
     .at-custom-input-row { display: flex; gap: 10px; align-items: center; max-width: 550px; margin: 24px 0 16px 0; }
     
-    /* Standardized Action Button Hover Baseline States */
+    /* Standard Action Buttons */
     .at-btn-primary { background: var(--primary); color: white; padding: 10px 18px; border-radius: 6px; font-size: 15px; border: 1.5px solid var(--card-green-border, #16a34a); cursor: pointer; transition: all 200ms ease; }
     .at-btn-primary:hover { border: 2px solid var(--primary-blue, #2563eb) !important; background: var(--primary-hover); }
     .at-btn-secondary { background: var(--bg-card); color: var(--text); padding: 10px 18px; border-radius: 6px; font-size: 15px; text-decoration: none; display: inline-flex; align-items: center; border: 1.5px solid var(--card-green-border, #16a34a); transition: all 200ms ease; }
@@ -70,7 +91,7 @@
     .at-tab-logout:hover { background: #dc2626; margin-top: 2px; }
     .at-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
     
-    /* Print Overrides & Sticky Overrides */
+    /* Print Overrides */
     @media print {
       @page { margin: 10mm; }
       #dashHeader, .at-tab-bar, .at-save-bar, .at-btn-print, .presence-banner, .at-custom-input-row, .at-btn-remove-custom, #dashFooter { display: none !important; }
@@ -369,12 +390,14 @@
       return String(str || "").trim().replace(/\s+/g, " ");
     }
 
+    /* Standardized Greeting Resolution (Mirrors onboarding-dashboard logic) */
     function updateGreeting(sessionDetail) {
       var greetingEl = document.getElementById("dashGreetingText");
       if (!greetingEl) return;
       var firstName = "";
+      
       if (sessionDetail) {
-        firstName = sessionDetail.first_name || sessionDetail.firstName || "";
+        firstName = sessionDetail.first_name || sessionDetail.firstName || (sessionDetail.employee ? sessionDetail.employee.first_name || sessionDetail.employee.firstName : "");
         if (!firstName && sessionDetail.full_name) {
           firstName = sessionDetail.full_name.split(" ")[0];
         }
@@ -393,14 +416,15 @@
           var savedEmps = JSON.parse(localStorage.getItem("driven_saved_employees") || "[]");
           var currentId = localStorage.getItem("driven_user_id") || "25";
           var match = savedEmps.find(function(emp) { return String(emp.id) === String(currentId); });
-          if (match && match.firstName && match.firstName !== "—") {
-            firstName = match.firstName;
+          if (match && (match.firstName || match.first_name) && match.firstName !== "—") {
+            firstName = match.firstName || match.first_name;
           }
         } catch (e) {}
       }
       if (!firstName) {
         firstName = localStorage.getItem("driven_user_firstname") || localStorage.getItem("driven_first_name") || localStorage.getItem("driven_user_name") || "";
       }
+      
       firstName = normalizeName(firstName);
       if (firstName) {
         greetingEl.textContent = "";
@@ -413,20 +437,24 @@
       }
     }
 
-    /* Active User Presence & Co-Worker Polling Heartbeat (Section 2 Standard) */
+    /* Active User Presence & Co-Worker Polling Heartbeat (Mirrors onboarding-dashboard worker structure) */
     async function checkActivePresence() {
       try {
+        var taskKey = document.body.getAttribute("data-required-task") || "Asset Types";
         var resp = await fetch("/api/onboarding/presence", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ page: "Asset Types" })
+          body: JSON.stringify({ task: taskKey, page: "Asset Types" })
         });
         if (resp.ok) {
           var data = await resp.json();
           var banner = document.getElementById("presenceBanner");
           var textEl = document.getElementById("presenceText");
-          if (data.activeUsers && data.activeUsers.length > 0) {
-            textEl.textContent = "🟢 " + data.activeUsers.join(", ") + " is also working on this page";
+          var activeList = data.activeUsers || data.users || [];
+          
+          if (Array.isArray(activeList) && activeList.length > 0) {
+            var userText = activeList.length === 1 ? activeList[0] + " is also working on this page" : activeList.join(", ") + " are also working on this page";
+            textEl.textContent = userText;
             banner.style.display = "inline-flex";
           } else {
             banner.style.display = "none";
@@ -676,10 +704,12 @@
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", function() {
         updateGreeting(null);
-        document.getElementById("dashFooterYear").textContent = new Date().getFullYear();
+        var yEl = document.getElementById("dashFooterYear");
+        if (yEl) yEl.textContent = new Date().getFullYear();
       });
     } else {
-      document.getElementById("dashFooterYear").textContent = new Date().getFullYear();
+      var yEl = document.getElementById("dashFooterYear");
+      if (yEl) yEl.textContent = new Date().getFullYear();
     }
   </script>
 </body>
