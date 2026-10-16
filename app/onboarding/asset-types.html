@@ -51,7 +51,7 @@
       text-overflow: ellipsis;
     }
 
-/* Sticky Presence Bar (Nested inside #dashHeader) */
+    /* Sticky Presence Bar (Nested inside #dashHeader) */
     .ob-greeting-bar {
       max-width: 100%;
       margin: 0 auto;
@@ -131,11 +131,6 @@
         flex-direction: column !important;
         align-items: stretch !important;
         gap: 6px !important;
-      }
-      .ob-greeting-text {
-        font-size: 13px !important;
-        text-align: center;
-        width: 100%;
       }
       .presence-banner {
         font-size: 12px !important;
@@ -428,7 +423,7 @@
   <!-- SINGLE PINNED STICKY HEADER CONTAINER -->
   <div id="dashHeader"></div>
 
-<!-- STICKY ACTIVE USER PRESENCE BAR (Nested inside #dashHeader) -->
+  <!-- STICKY ACTIVE USER PRESENCE BAR (Nested inside #dashHeader) -->
   <div class="ob-greeting-bar" id="obGreetingBar">
     <div class="presence-banner" id="presenceBanner">
       <span class="presence-dot"></span>
@@ -525,7 +520,7 @@
         <div class="at-checkbox-item"><input type="checkbox" id="at_chemical_water_skid" value="Portable Chemical / Water Skid"><label for="at_chemical_water_skid">Portable Chemical / Water Skid</label></div>
       </div>
 
-<!-- SECTION 7: EARTHMOVING, PAVING & ROADWORK -->
+      <!-- SECTION 7: EARTHMOVING, PAVING & ROADWORK -->
       <div class="at-section-heading">🚜 Earthmoving, Paving &amp; Roadwork</div>
       <div class="at-grid">
         <div class="at-checkbox-item"><input type="checkbox" id="at_skidsteer" value="Skid Steer / Compact Loader" checked><label for="at_skidsteer">Skid Steer / Compact Loader</label></div>
@@ -744,69 +739,6 @@
       return String(str || "").trim().replace(/\s+/g, " ");
     }
 
-    /* Robust Multi-Layer Name Resolution Safeguard for Mobile & Desktop */
-    function updateGreeting(sessionDetail) {
-      var greetingEl = document.getElementById("dashGreetingText");
-      if (!greetingEl) return;
-      var firstName = "";
-
-      if (sessionDetail) {
-        var u = sessionDetail.user || sessionDetail;
-        firstName = u.first_name || u.firstName || (u.employee ? u.employee.first_name || u.employee.firstName : "");
-        if (!firstName && u.full_name) {
-          firstName = u.full_name.split(" ")[0];
-        }
-      }
-
-      if (!firstName) {
-        try {
-          var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
-          firstName = userObj.first_name || userObj.firstName || userObj.first || "";
-          if (!firstName && userObj.name) {
-            firstName = userObj.name.split(" ")[0];
-          }
-        } catch (e) {}
-      }
-
-      if (!firstName) {
-        try {
-          var savedEmps = JSON.parse(localStorage.getItem("driven_saved_employees") || "[]");
-          var currentId = localStorage.getItem("driven_user_id") || "25";
-          var match = savedEmps.find(function(emp) {
-            return String(emp.id) === String(currentId);
-          });
-          if (match && (match.firstName || match.first_name) && match.firstName !== "—") {
-            firstName = match.firstName || match.first_name;
-          }
-        } catch (e) {}
-      }
-
-      if (!firstName) {
-        firstName = localStorage.getItem("driven_user_firstname") || localStorage.getItem("driven_first_name") || localStorage.getItem("driven_user_name") || "";
-      }
-
-      /* Fallback: Extract First Name from Email Prefix if missing on mobile */
-      if (!firstName) {
-        var email = localStorage.getItem("driven_user_email") || (sessionDetail && sessionDetail.user ? sessionDetail.user.email : "");
-        if (email && email.indexOf("@") !== -1) {
-          var part = email.split("@")[0].split(".")[0];
-          firstName = part.charAt(0).toUpperCase() + part.slice(1);
-        }
-      }
-
-      firstName = normalizeName(firstName);
-
-      if (firstName) {
-        greetingEl.textContent = "";
-        greetingEl.appendChild(document.createTextNode("Welcome, "));
-        var strong = document.createElement("strong");
-        strong.textContent = firstName;
-        greetingEl.appendChild(strong);
-      } else {
-        greetingEl.textContent = "Welcome";
-      }
-    }
-
     /* Active User Presence Heartbeat */
     async function checkActivePresence() {
       try {
@@ -887,7 +819,6 @@
         }
       }
 
-      /* Safe type check safeguard for custom asset type string comparison */
       var existsCustom = customAssetTypes.some(function(c) {
         return String(c || "").toLowerCase() === checkClean;
       });
@@ -957,19 +888,21 @@
       });
     }
 
-/* Multi-Tenant D1 DB Fetch with LocalStorage Fallback & Default Cleanup */
+    /* Multi-Tenant D1 DB Fetch with Strict LocalStorage Fallback & Cleanup */
     async function loadSavedAssetTypes() {
       try {
         var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
-        var orgId = userObj.org_id || localStorage.getItem("driven_org_id") || "default_org";
-        var userId = userObj.id || localStorage.getItem("driven_user_id") || "25";
+        var orgId = userObj.org_id || localStorage.getItem("driven_org_id");
+        var userId = userObj.id || localStorage.getItem("driven_user_id");
+
+        if (!orgId || orgId === "default_org") return;
 
         var saved = [];
         var res = await fetch("/api/asset-types", { 
           method: "GET",
           headers: {
             "x-org-id": orgId,
-            "x-user-id": String(userId)
+            "x-user-id": String(userId || "")
           }
         });
         
@@ -981,12 +914,10 @@
           saved = JSON.parse(localStorage.getItem("driven_asset_types") || "[]");
         }
 
-        // Standardize returned string array
         var normalizedSaved = saved.map(function(s) {
           return normalizeName(typeof s === "string" ? s : (s && (s.asset_type_name || s.name) ? (s.asset_type_name || s.name) : ""));
         }).filter(Boolean);
 
-        // ALWAYS uncheck all default hardcoded HTML checkboxes first if a saved selection exists
         if (Array.isArray(normalizedSaved) && normalizedSaved.length > 0) {
           customAssetTypes = [];
           var defaultVals = [];
@@ -994,11 +925,9 @@
           document.querySelectorAll(".at-grid:not(#customAssetGrid) input[type='checkbox']").forEach(function(cb) {
             var cbVal = normalizeName(cb.value);
             defaultVals.push(cbVal);
-            // Explicitly set checked state based ONLY on saved state
             cb.checked = normalizedSaved.indexOf(cbVal) !== -1;
           });
 
-          // Extract custom tags (any saved asset type that is NOT in the standard grid)
           normalizedSaved.forEach(function(itemStr) {
             if (defaultVals.indexOf(itemStr) === -1 && customAssetTypes.indexOf(itemStr) === -1) {
               customAssetTypes.push(itemStr);
@@ -1012,7 +941,7 @@
       }
     }
 
-    /* Save Selected Asset Types to D1 DB (asset_types table) */
+    /* Save Selected Asset Types to D1 DB with Strict Multi-Tenant Enforcement */
     async function saveAssetTypes() {
       var selected = [];
       document.querySelectorAll(".dash-card input[type='checkbox']:checked").forEach(function(cb) {
@@ -1027,6 +956,27 @@
         return;
       }
 
+      var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
+      var orgId = userObj.org_id || localStorage.getItem("driven_org_id");
+      var userId = userObj.id || localStorage.getItem("driven_user_id");
+
+      // STRICT MULTI-TENANT GUARD
+      if (!orgId || orgId === "default_org") {
+        statusEl.textContent = "⚠️ Error: Active Organization session missing. Information was not saved. Please log in again.";
+        
+        fetch("/api/log-error", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            source: "Client (asset-types.html saveAssetTypes)",
+            message: "Save blocked: Invalid or missing org_id context",
+            severity: "critical"
+          })
+        }).catch(function() {});
+
+        return;
+      }
+
       localStorage.setItem("driven_asset_types", JSON.stringify(selected));
       localStorage.setItem("driven_step5_complete", "true");
 
@@ -1035,16 +985,12 @@
       btnSave.textContent = "Saving...";
 
       try {
-        var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
-        var orgId = userObj.org_id || localStorage.getItem("driven_org_id") || "default_org";
-        var userId = userObj.id || localStorage.getItem("driven_user_id") || "25";
-
         var res = await fetch("/api/asset-types", {
           method: "POST",
           headers: { 
             "Content-Type": "application/json",
             "x-org-id": orgId,
-            "x-user-id": String(userId)
+            "x-user-id": String(userId || "")
           },
           body: JSON.stringify({ assetTypes: selected })
         });
@@ -1052,7 +998,7 @@
         if (!res.ok) throw new Error("API Save failed (HTTP " + res.status + ")");
 
         statusEl.style.color = "var(--success)";
-        statusEl.textContent = selected.length + " asset type(s) saved. Redirecting to onboarding dashboard…";
+        statusEl.textContent = selected.length + " asset type(s) saved under " + orgId + ". Redirecting…";
         btnSave.textContent = "Saved ✓";
         atDirty = false;
         setTimeout(function() {
@@ -1060,12 +1006,9 @@
         }, 1200);
       } catch(err) {
         statusEl.style.color = "#f59e0b";
-        statusEl.textContent = "Saved locally (" + selected.length + " types). Cloud sync pending... Redirecting…";
-        btnSave.textContent = "Saved (Offline) ✓";
-        atDirty = false;
-        setTimeout(function() {
-          window.location.href = "/app/dashboard/onboarding-dashboard.html";
-        }, 1500);
+        statusEl.textContent = "Saved locally (" + selected.length + " types). Cloud sync pending...";
+        btnSave.disabled = false;
+        btnSave.textContent = "Save & Continue";
       }
     }
 
@@ -1078,7 +1021,6 @@
         if (greetingBar && greetingBar.parentElement !== h) h.appendChild(greetingBar);
         if (tabBar && tabBar.parentElement !== h) h.appendChild(tabBar);
       }
-      updateGreeting(null);
     }
 
     document.querySelectorAll(".dash-card input[type='checkbox']").forEach(function(cb) {
@@ -1114,7 +1056,6 @@
     });
 
     document.addEventListener("dashSessionLoaded", function(e) {
-      updateGreeting(e.detail);
       var row1 = document.querySelector(".dash-header-row1");
       if (row1 && !document.querySelector(".at-header-title")) {
         var title = document.createElement("div");
@@ -1131,11 +1072,8 @@
       setInterval(checkActivePresence, 12000);
     });
 
-    updateGreeting(null);
-
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", function() {
-        updateGreeting(null);
         var yEl = document.getElementById("dashFooterYear");
         if (yEl) yEl.textContent = new Date().getFullYear();
       });
