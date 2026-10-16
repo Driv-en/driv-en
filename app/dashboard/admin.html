@@ -696,7 +696,7 @@
       if (!validateOrgContext()) return;
       if(personIdx < keyPersonnel.length) {
         var kp = keyPersonnel[personIdx];
-        if(kp.employeeId) {
+        if(kp.employeeId || kp.id) {
           try {
             await fetch("/api/onboarding/key-personnel/revoke", {
               method: "POST",
@@ -704,7 +704,7 @@
                 "Content-Type": "application/json",
                 "x-org-id": activeOrgId || ""
               },
-              body: JSON.stringify({ employeeId: kp.employeeId, revokeAll: true })
+              body: JSON.stringify({ employeeId: kp.employeeId || kp.id, revokeAll: true })
             });
           } catch(e) { reportError("removeKpPerson", e); }
         }
@@ -811,10 +811,14 @@ async function loadDashboardStats() {
       fetchSafe('/api/Clients')
     ]);
 
-    // 1. Employees
+    // 1. Employees (Count active employees correctly across schema shapes)
     var empData = results[0];
     var empList = empData.employees || empData.data || empData.records || (Array.isArray(empData) ? empData : []);
-    var empCount = empList.filter(function(e) { return e.status === 1 || e.status === '1' || e.status === 'Active' || e.status === 'active'; }).length;
+    var empCount = empList.filter(function(e) { 
+      var st = e.status !== undefined ? e.status : e.is_active;
+      return st === 1 || st === '1' || st === 'Active' || st === 'active' || st === true; 
+    }).length;
+
     var elEmp = document.getElementById('stat-employees');
     if (elEmp) elEmp.textContent = empCount;
     localStorage.setItem('driven_employee_count', empCount);
@@ -1154,10 +1158,11 @@ async function loadDashboardStats() {
         if(d.success && d.keyPersonnel) {
           keyPersonnel = d.keyPersonnel.map(function(kp) {
             return {
-              employeeId: kp.employeeId,
+              employeeId: kp.employeeId || kp.id,
               name: kp.name,
               email: kp.email,
-              tasks: kp.roles ? kp.roles.map(function(r) { return r.role; }) : []
+              role_id: kp.role_id,
+              tasks: kp.roles ? kp.roles.map(function(r) { return r.role || r.task_name; }) : []
             };
           });
         }
@@ -1180,7 +1185,7 @@ async function loadDashboardStats() {
       }
 
       container.innerHTML = all.map(function(kp, personIdx) {
-        var tasks = kp.tasks || (kp.roles ? kp.roles.map(function(r){return r.role;}) : (kp.task ? [kp.task] : []));
+        var tasks = kp.tasks || (kp.roles ? kp.roles.map(function(r){return r.role || r.task_name;}) : (kp.task ? [kp.task] : []));
         var isPending = personIdx >= keyPersonnel.length;
         var chips = tasks.map(function(t, taskIdx) {
           return '<div class="kp-task-chip">' + esc(t) + ' <button onclick="removeKpTask(' + personIdx + ', ' + taskIdx + ')" title="Remove task">×</button></div>';
@@ -1239,7 +1244,7 @@ async function loadDashboardStats() {
 
         document.getElementById("welcome-name").textContent = user.first_name || user.email || "Admin";
         document.getElementById("welcome-company").textContent = user.org_name || localStorage.getItem("driven_org_name") || "—";
-        document.getElementById("welcome-role").textContent = user.role || "Admin";
+        document.getElementById("welcome-role").textContent = user.role || user.role_id || "Admin";
         document.getElementById("welcome-email").textContent = user.email || "";
 
         insertHeaderTitle();
