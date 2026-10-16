@@ -12,6 +12,7 @@
 <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png">
 <link rel="stylesheet" href="/app/shared/dashboard.css?v=10">
+<link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="/app/shared/template-helpers.js?v=7"></script>
@@ -24,16 +25,138 @@
 })();
 </script>
 <style>
+    /* ===== VIEWPORT STICKY HEADER CONTAINER ===== */
+    #dashHeader {
+      position: sticky !important;
+      top: 0 !important;
+      z-index: 100 !important;
+      background: var(--bg-header, #f8fafc) !important;
+      border-bottom: 1px solid var(--border, #cbd5e1) !important;
+    }
+
     .dash-header-row2 { display: none !important; }
     .dash-header-row3 { display: none !important; }
     #dashHeader .dash-theme-wrapper { display: none !important; }
-    .dash-header-row1 { padding: 8px 20px !important; align-items: center; }
+    .dash-header-row1 { padding: 8px 20px !important; align-items: center; background: var(--bg-header, #f8fafc); border-bottom: 1px solid var(--border, #cbd5e1); }
     .loc-header-title { flex: 1; text-align: center; font-size: 20px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .ob-greeting-bar { max-width: 1100px; margin: 0 auto; padding: 12px 20px 0 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; position: relative; z-index: 1; }
-    .ob-greeting-text { font-size: 16px; color: var(--text-muted); font-weight: 500; }
-    .ob-greeting-text strong { color: var(--text); }
-    .loc-subtitle { margin: 4px 0 12px 0; color: var(--text-muted); font-size: 14px; line-height: 1.5; }
 
+    /* ===== SINGLE UNIFIED BLOCK CONTAINER (PRESENCE + TABS) ===== */
+    .ob-greeting-bar { 
+      max-width: 1100px; 
+      margin: 12px auto 16px auto; 
+      padding: 12px 20px; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      gap: 10px; 
+      position: relative; 
+      z-index: 95; 
+      background: #cbd5e1 !important;
+      border-radius: 8px !important;
+      border: 1.5px solid #94a3b8 !important;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .presence-banner { 
+      display: none; 
+      align-items: center; 
+      justify-content: center;
+      gap: 8px; 
+      background: #ea580c !important; 
+      border: 1.5px solid #f97316 !important; 
+      padding: 6px 14px; 
+      border-radius: 20px; 
+      font-size: 13px; 
+      color: #ffffff !important; 
+      font-weight: 600; 
+      width: auto;
+    }
+
+    /* ===== TAB ROW INSIDE UNIFIED BLOCK ===== */
+    .loc-tab-bar { 
+      display: flex !important; 
+      visibility: visible !important;
+      opacity: 1 !important;
+      align-items: center !important;
+      gap: 8px !important; 
+      width: 100%; 
+      margin: 0; 
+      padding: 0; 
+      overflow-x: auto; 
+      background: transparent !important; 
+      border: none !important;
+      box-shadow: none !important;
+      position: relative;
+      z-index: 90;
+    }
+
+    .loc-tab { 
+      background: #94a3b8 !important; 
+      border: 1px solid #64748b !important; 
+      border-radius: 6px; 
+      padding: 8px 18px; 
+      font-size: 14px; 
+      font-weight: 500; 
+      color: #1e293b !important; 
+      cursor: pointer; 
+      white-space: nowrap; 
+      transition: background 200ms ease; 
+    }
+    .loc-tab:hover { background: #a5b4c4 !important; color: #0f172a !important; }
+    .loc-tab.active { background: #e2e8f0 !important; color: #1d4ed8 !important; border-color: #2563eb !important; font-weight: 600; }
+
+    .loc-tab-admin { 
+      background: #1e40af !important; 
+      border: 1px solid #2563eb !important; 
+      border-radius: 6px; 
+      padding: 8px 18px; 
+      font-size: 14px; 
+      font-weight: 600; 
+      color: #dbeafe !important; 
+      cursor: pointer; 
+      white-space: nowrap; 
+      text-decoration: none; 
+      transition: background 200ms ease; 
+      display: none; 
+    }
+    .loc-tab-admin:hover { background: #1d4ed8 !important; color: #ffffff !important; }
+
+    .loc-tab-return { 
+      background: #1e40af !important; 
+      border: 1px solid #2563eb !important; 
+      border-radius: 6px; 
+      padding: 8px 18px; 
+      font-size: 14px; 
+      font-weight: 600; 
+      color: #dbeafe !important; 
+      cursor: pointer; 
+      white-space: nowrap; 
+      text-decoration: none; 
+      transition: background 200ms ease; 
+      display: inline-flex; 
+      align-items: center; 
+    }
+    .loc-tab-return:hover { background: #1d4ed8 !important; color: #ffffff !important; }
+
+    .loc-tab-logout { 
+      background: #b91c1c !important; 
+      border: 1px solid #dc2626 !important; 
+      border-radius: 6px; 
+      padding: 8px 18px; 
+      font-size: 14px; 
+      font-weight: 600; 
+      color: #ffffff !important; 
+      cursor: pointer; 
+      white-space: nowrap; 
+      margin-left: auto; 
+      transition: background 200ms ease; 
+      display: inline-flex; 
+      align-items: center; 
+    }
+    .loc-tab-logout:hover { background: #dc2626 !important; }
+
+    /* ===== CARDS & FORM ===== */
+    .loc-subtitle { margin: 4px 0 12px 0; color: var(--text-muted); font-size: 14px; line-height: 1.5; }
     .dash-card {
       border: 1.5px solid var(--card-green-border, #16a34a) !important;
       border-radius: 8px;
@@ -44,9 +167,7 @@
     .loc-form-field label { margin-bottom: 4px; font-size: 14px; color: var(--text); font-weight: 600; }
     .loc-required-star { color: var(--error); margin-left: 3px; }
 
-    .presence-banner { display: none; align-items: center; gap: 8px; background: rgba(34, 197, 94, 0.15); border: 1.5px solid #16a34a; padding: 6px 14px; border-radius: 20px; font-size: 13px; color: var(--text); }
-    .presence-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px #22c55e; }
-
+    /* ===== BUTTON STANDARDS ===== */
     .loc-btn-primary { 
       background: var(--primary); 
       color: white; 
@@ -101,11 +222,12 @@
       color: #ffffff !important;
     }
 
-    .loc-action-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: nowrap; }
+    .loc-action-row { display: flex; justify-content: flex-end; align-items: center; gap: 12px; flex-wrap: nowrap; }
     .loc-action-row .loc-btn-primary, .loc-action-row .loc-btn-secondary { margin-top: 0; box-sizing: border-box; height: 42px; display: inline-flex; align-items: center; justify-content: center; }
     .loc-error { margin-top: 10px; color: var(--error); font-size: 14px; }
     .loc-success { margin-top: 10px; color: var(--success); font-size: 14px; }
 
+    /* ===== TABLES ===== */
     .loc-table-wrap { overflow-x: auto; width: 100%; border: 1px solid var(--border); border-radius: 8px; margin-top: 12px; }
     .loc-table { 
       width: max-content !important; 
@@ -150,16 +272,6 @@
     .um-pagination-btn:hover:not(:disabled) { border-color: var(--primary-blue, #2563eb); }
     .um-pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    .loc-tab-bar { display: flex; gap: 2px; max-width: 1100px; margin: 0 auto; padding: 0 20px; overflow-x: auto; position: sticky; top: 0; z-index: 50; background: #cbd5e1; border-bottom: 2px solid #94a3b8; }
-    .loc-tab { background: #94a3b8; border: 1px solid #64748b; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 500; color: #1e293b; cursor: pointer; white-space: nowrap; transition: color 200ms ease, background 200ms ease, border-color 200ms ease, margin-top 200ms ease; margin-top: 4px; position: relative; z-index: 1; }
-    .loc-tab:hover { color: #0f172a; background: #a5b4c4; margin-top: 2px; }
-    .loc-tab.active { color: #1d4ed8; background: #e2e8f0; border-color: #64748b; margin-top: 0; font-weight: 600; z-index: 2; }
-    .loc-tab-admin { background: #1e40af; border: 1px solid #2563eb; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #dbeafe; cursor: pointer; white-space: nowrap; margin-top: 4px; position: relative; z-index: 1; text-decoration: none; transition: background 200ms ease, margin-top 200ms ease; display: none; }
-    .loc-tab-admin:hover { background: #1d4ed8; color: #fff; margin-top: 2px; }
-    .loc-tab-return { background: #374151; border: 1px solid #4b5563; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #d1d5db; cursor: pointer; white-space: nowrap; margin-top: 4px; position: relative; z-index: 1; text-decoration: none; transition: background 200ms ease, margin-top 200ms ease; }
-    .loc-tab-return:hover { background: #4b5563; color: #fff; margin-top: 2px; }
-    .loc-tab-logout { background: #b91c1c; border: 1px solid #dc2626; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; margin-left: auto; position: relative; z-index: 1; transition: background 200ms ease, margin-top 200ms ease; }
-    .loc-tab-logout:hover { background: #dc2626; margin-top: 2px; }
     .loc-bulk-link { color: var(--primary); font-size: 14px; text-decoration: none; display: inline-block; margin-bottom: 12px; }
     .loc-bulk-link:hover { text-decoration: underline; }
     .loc-bulk-file-input { padding: 10px; border-radius: 6px; border: 1.5px solid var(--card-green-border, #16a34a); background: var(--bg-card); color: var(--text); font-size: 14px; width: 100%; max-width: 400px; margin-bottom: 12px; }
@@ -168,6 +280,33 @@
     .loc-bulk-preview th, .loc-bulk-preview td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
     .loc-bulk-preview th { background: var(--bg-header); color: var(--text); font-weight: 600; }
     .loc-bulk-preview td { background: var(--bg-card); color: var(--text); }
+
+    /* ===== BOTTOM ACTION ROW (MATCHED TO SOLID SLATE GRAY BLOCK) ===== */
+    .loc-save-bar { 
+      position: sticky; 
+      bottom: 0; 
+      z-index: 40; 
+      background: #cbd5e1 !important; 
+      border-top: 1.5px solid #94a3b8 !important; 
+      padding: 12px 20px; 
+      max-width: 1100px; 
+      margin: 0 auto; 
+      box-sizing: border-box; 
+      border-radius: 8px 8px 0 0;
+      box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    @media (max-width: 768px) {
+      .ob-greeting-bar { padding: 10px; margin: 8px 12px 16px 12px; }
+      .loc-tab-bar { flex-direction: column; align-items: stretch; gap: 6px !important; }
+      .loc-tab, .loc-tab-admin, .loc-tab-return, .loc-tab-logout { width: 100%; justify-content: center; margin-left: 0 !important; }
+      .loc-header-title { white-space: normal !important; max-width: 170px !important; word-break: break-word !important; }
+      .loc-form-grid { grid-template-columns: 1fr; } 
+      .loc-action-row { flex-direction: column; gap: 8px; } 
+      .loc-action-row .loc-btn-primary, .loc-action-row .loc-btn-secondary { width: 100%; } 
+      .loc-table { font-size: 11px; } 
+      .loc-table th, .loc-table td { padding: 4px 3px; }
+    }
 
     @media print {
       @page { margin: 10mm; }
@@ -180,35 +319,34 @@
       .loc-table tr { page-break-inside: avoid !important; }
       .loc-table { width: 100% !important; table-layout: auto !important; }
     }
-    
-    @media (max-width: 600px) { .loc-form-grid { grid-template-columns: 1fr; } .loc-action-row { flex-direction: column; gap: 8px; } .loc-action-row .loc-btn-primary, .loc-action-row .loc-btn-secondary { width: 100%; } .loc-table { font-size: 11px; } .loc-table th, .loc-table td { padding: 4px 3px; } }
-    .loc-save-bar { position: sticky; bottom: 0; z-index: 40; background: var(--bg-card); border-top: 2px solid var(--border); padding: 12px 20px; max-width: 1100px; margin: 0 auto; box-sizing: border-box; }
 </style>
 </head>
 <body data-page-title="Onboarding — Locations" data-required-task="Locations">
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
 <div id="dashHeader"></div>
-<div class="ob-greeting-bar">
-  <div class="ob-greeting-text" id="dashGreetingText">Welcome</div>
+
+<div class="ob-greeting-bar" id="obGreetingBar">
   <div class="presence-banner" id="presenceBanner">
-    <span class="presence-dot"></span>
     <span id="presenceText">Other Key Personnel active</span>
   </div>
+
+  <div class="loc-tab-bar print-hide" id="locTabBar">
+    <button class="loc-tab active" id="tabSingle" onclick="switchTab('single')">Single Entry</button>
+    <button class="loc-tab" id="tabBulk" onclick="switchTab('bulk')">Bulk Upload</button>
+    <a class="loc-tab-admin driven-admin-only" href="/app/dashboard/admin.html" onclick="return confirmLeave()">Admin Dashboard</a>
+    <a class="loc-tab-return" href="/app/dashboard/onboarding-dashboard.html" onclick="return confirmLeave()">← Return to Onboarding Dashboard</a>
+    <button class="loc-tab-logout" onclick="confirmLogout()">Logout</button>
+  </div>
 </div>
+
 <main class="dash-main">
   <div class="dash-card print-hide">
     <h2>Add Locations <span class="loc-count-badge" id="locCount">0</span></h2>
     <p class="loc-subtitle">Add all physical locations within your organization. Locations can be plants, mines, manufacturing facilities, warehouses, job sites, terminals, or offices.</p>
     <p class="loc-subtitle"><strong>Required:</strong> Location Name and Location Type. Address is optional but recommended.</p>
   </div>
-  <div class="loc-tab-bar print-hide" id="locTabBar">
-    <button class="loc-tab active" id="tabSingle" onclick="switchTab('single')">Single Entry</button>
-    <button class="loc-tab" id="tabBulk" onclick="switchTab('bulk')">Bulk Upload</button>
-    <a class="loc-tab-admin driven-admin-only" href="/app/dashboard/admin.html" onclick="return confirmLeave()">Admin Dashboard</a>
-    <a class="loc-tab-return" href="/app/dashboard/onboarding-dashboard.html" onclick="return confirmLeave()">Onboarding Dashboard</a>
-    <button class="loc-tab-logout" onclick="confirmLogout()">Logout</button>
-  </div>
+
   <div id="tabContentSingle">
     <div class="dash-card" id="formCard">
       <h3>Add Location</h3>
@@ -297,6 +435,8 @@
     var locations = [];
     var existingLocations = [];
     var locDirty = false;
+    var activeOrgId = null;
+    var customerOrgName = "DRIV-EN Org";
 
     var sessionPageSize = 10, sessionPage = 1, sessionSortCol = 'name', sessionSortAsc = true;
     var existingPageSize = 10, existingPage = 1, existingSortCol = 'name', existingSortAsc = true;
@@ -312,61 +452,89 @@
     var bulkPreview = document.getElementById("bulkPreview");
 
     function normalizeName(str) { return String(str || "").trim().replace(/\s+/g, " "); }
+    
+    function validateOrgContext() {
+      if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
+        if (locError) locError.textContent = "Security Alert: Invalid Organization Context. Action rejected.";
+        return false;
+      }
+      return true;
+    }
+
+    function setupStickyHeaderBar() {
+      var greetingBar = document.getElementById("obGreetingBar");
+      var dashHeader = document.getElementById("dashHeader");
+
+      if (dashHeader && greetingBar && greetingBar.parentElement === dashHeader) {
+        dashHeader.parentNode.insertBefore(greetingBar, dashHeader.nextSibling);
+      }
+    }
+
+    function sendPresenceUnload() {
+      if (!activeOrgId) return;
+      var payload = JSON.stringify({ page: "Locations", action: "leave" });
+      if (navigator.sendBeacon) {
+        var blob = new Blob([payload], { type: "application/json" });
+        navigator.sendBeacon("/api/onboarding/presence", blob);
+      } else {
+        fetch("/api/onboarding/presence", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-org-id": activeOrgId },
+          body: payload,
+          keepalive: true
+        }).catch(function() {});
+      }
+    }
+
+    async function checkActivePresence() {
+      try {
+        var resp = await fetch("/api/onboarding/presence", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "x-org-id": activeOrgId || ""
+          },
+          body: JSON.stringify({ page: "Locations" })
+        });
+        if (resp.ok) {
+          var data = await resp.json();
+          var banner = document.getElementById("presenceBanner");
+          var textEl = document.getElementById("presenceText");
+          if (data.activeUsers && data.activeUsers.length > 0) {
+            var fullNames = data.activeUsers.map(function(u) {
+              if (typeof u === "object") {
+                return ((u.firstName || u.first_name || "") + " " + (u.lastName || u.last_name || "")).trim() || u.name || u.email;
+              }
+              return String(u);
+            });
+            textEl.textContent = "🟢 " + fullNames.join(", ") + " is also active on this page";
+            banner.style.display = "inline-flex";
+          } else {
+            banner.style.display = "none";
+          }
+        }
+      } catch (e) {}
+    }
+
+    window.addEventListener("pagehide", sendPresenceUnload);
+    window.addEventListener("beforeunload", function(e) {
+      sendPresenceUnload();
+      if (locDirty) {
+        e.preventDefault();
+        e.returnValue = "You have unsaved locations.";
+      }
+    });
+    document.addEventListener("visibilitychange", function() {
+      if (document.visibilityState === "hidden") {
+        sendPresenceUnload();
+      } else if (document.visibilityState === "visible") {
+        checkActivePresence();
+      }
+    });
+
     function updateCount() {
       locCountEl.textContent = locations.length;
       if (existingLocCountEl) existingLocCountEl.textContent = existingLocations.length;
-    }
-
-    function updateGreeting(sessionDetail) {
-      var greetingEl = document.getElementById("dashGreetingText");
-      if (!greetingEl) return;
-
-      var firstName = "";
-
-      if (sessionDetail) {
-        firstName = sessionDetail.first_name || sessionDetail.firstName || "";
-        if (!firstName && sessionDetail.full_name) {
-          firstName = sessionDetail.full_name.split(" ")[0];
-        }
-      }
-
-      if (!firstName) {
-        try {
-          var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
-          firstName = userObj.first_name || userObj.firstName || userObj.first || "";
-          if (!firstName && userObj.name) {
-            firstName = userObj.name.split(" ")[0];
-          }
-        } catch (e) {}
-      }
-
-      if (!firstName) {
-        try {
-          var savedEmps = JSON.parse(localStorage.getItem("driven_saved_employees") || "[]");
-          var currentId = localStorage.getItem("driven_user_id") || "25";
-          var match = savedEmps.find(function(emp) { return String(emp.id) === String(currentId); });
-          if (match && match.firstName && match.firstName !== "—") {
-            firstName = match.firstName;
-          }
-        } catch (e) {}
-      }
-
-      if (!firstName) {
-        firstName = localStorage.getItem("driven_user_firstname") || 
-                    localStorage.getItem("driven_first_name") || 
-                    localStorage.getItem("driven_user_name") || "";
-      }
-
-      firstName = normalizeName(firstName);
-      if (firstName) {
-        greetingEl.textContent = "";
-        greetingEl.appendChild(document.createTextNode("Welcome, "));
-        var strong = document.createElement("strong");
-        strong.textContent = firstName;
-        greetingEl.appendChild(strong);
-      } else {
-        greetingEl.textContent = "Welcome";
-      }
     }
 
     function doPrintLocations(defaultSelection) {
@@ -391,8 +559,7 @@
       renderExistingTable();
 
       var origTitle = document.title;
-      var orgName = localStorage.getItem("driven_company_name") || "DRIV-EN";
-      document.title = orgName + " | Location Directory";
+      document.title = customerOrgName + " | Location Directory";
 
       window.print();
 
@@ -404,31 +571,12 @@
       renderExistingTable();
     }
 
-    async function checkActivePresence() {
-      try {
-        var resp = await fetch("/api/onboarding/presence", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ page: "Locations" })
-        });
-        if (resp.ok) {
-          var data = await resp.json();
-          var banner = document.getElementById("presenceBanner");
-          var textEl = document.getElementById("presenceText");
-          if (data.activeUsers && data.activeUsers.length > 0) {
-            textEl.textContent = data.activeUsers.join(", ") + " is also on this page";
-            banner.style.display = "inline-flex";
-          } else {
-            banner.style.display = "none";
-          }
-        }
-      } catch (e) {}
-    }
-
     async function loadExistingLocations() {
       existingLocTableContainer.textContent = "";
       try {
-        var resp = await fetch("/api/onboarding/locations/list");
+        var resp = await fetch("/api/onboarding/locations/list", {
+          headers: { "x-org-id": activeOrgId || "" }
+        });
         if (resp.ok) {
           var data = await resp.json();
           var rawList = data.locations || data.records || (Array.isArray(data) ? data : []);
@@ -651,9 +799,9 @@
 
     window.confirmLeave = function() { if (locDirty) { return confirm("You have unsaved locations. Click OK to leave without saving, or Cancel to stay and save them."); } return true; };
     window.confirmLogout = function() { if (locDirty) { if (!confirm("You have unsaved locations. Click OK to log out without saving, or Cancel to stay and save them.")) return; } dashLogout(); };
-    window.addEventListener("beforeunload", function(e) { if (locDirty) { e.preventDefault(); e.returnValue = "You have unsaved locations."; } });
 
     document.getElementById("btnAddLoc").addEventListener("click", function() {
+      if (!validateOrgContext()) return;
       locError.textContent = ""; locSuccess.textContent = "";
       var name = normalizeName(document.getElementById("locName").value);
       var type = document.getElementById("locType").value;
@@ -689,6 +837,7 @@
     });
 
     document.getElementById("btnProcessBulk").addEventListener("click", function() {
+      if (!validateOrgContext()) return;
       statusBulk.textContent = ""; statusBulk.className = "loc-error";
       var file = document.getElementById("bulkFile").files[0];
       if (!file) { statusBulk.textContent = "Please select an Excel or CSV file."; return; }
@@ -761,6 +910,7 @@
     });
 
     document.getElementById("btnSaveLoc").addEventListener("click", async function() {
+      if (!validateOrgContext()) return;
       locStepStatus.textContent = ""; locStepStatus.style.color = "var(--error)";
       if (locations.length === 0 && existingLocations.length === 0) { locStepStatus.textContent = "You must add at least one location."; return; }
       var allLocations;
@@ -777,7 +927,14 @@
       var btnSave = document.getElementById("btnSaveLoc");
       btnSave.disabled = true; btnSave.textContent = "Saving...";
       try {
-        var res = await fetch("/auth/save-settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ settings: { locations: allLocations } }) });
+        var res = await fetch("/auth/save-settings", { 
+          method: "POST", 
+          headers: { 
+            "Content-Type": "application/json",
+            "x-org-id": activeOrgId || ""
+          }, 
+          body: JSON.stringify({ settings: { locations: allLocations } }) 
+        });
         var data = await res.json();
         if (!res.ok) {
           if (res.status < 500 && window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("locations.html: save-settings returned " + res.status + " — " + (data.error || "Request failed"), "save-settings-" + res.status, "URL: /auth/save-settings | Locations: " + allLocations.length); }
@@ -811,7 +968,11 @@
     }
 
     document.addEventListener("dashSessionLoaded", function(e) {
-      updateGreeting(e.detail);
+      activeOrgId = (e.detail && e.detail.org_id) || localStorage.getItem("driven_org_id");
+      customerOrgName = (e.detail && e.detail.org_name) || localStorage.getItem("driven_org_name") || "DRIV-EN Org";
+
+      setupStickyHeaderBar();
+
       var row1 = document.querySelector(".dash-header-row1");
       if (row1 && !document.querySelector(".loc-header-title")) { 
         var title = document.createElement("div"); 
@@ -821,23 +982,20 @@
         var drivenLogo = row1.querySelector(".dash-driven-logo"); 
         if (logoArea && drivenLogo) { row1.insertBefore(title, drivenLogo); } 
       }
-      var header = document.getElementById("dashHeader"); 
-      var tabBar = document.getElementById("locTabBar"); 
-      if (header && tabBar && !header.contains(tabBar)) { header.appendChild(tabBar); }
-      
+
       loadExistingLocations(); 
       renderTable(); 
       updateCount();
 
       checkActivePresence();
-      setInterval(checkActivePresence, 15000);
+      setInterval(checkActivePresence, 5000);
     });
 
-    updateGreeting(null);
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", function() { updateGreeting(null); });
+      document.addEventListener("DOMContentLoaded", function() { setupStickyHeaderBar(); });
+    } else {
+      setupStickyHeaderBar();
     }
 </script>
-<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"aed8feab3b60404ba88ec92f026bbcd6","r":1}' crossorigin="anonymous"></script>
 </body>
 </html>
