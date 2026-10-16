@@ -313,8 +313,7 @@
       align-items: center;
       justify-content: center;
     }
-    
-.at-tab-admin {
+    .at-tab-admin {
       background: #1e40af;
       border: 1px solid #2563eb;
       border-bottom: none;
@@ -380,7 +379,6 @@
       background: #dc2626;
       margin-top: 2px;
     }
-    
     .at-card-header {
       display: flex;
       justify-content: space-between;
@@ -489,7 +487,8 @@
         <div class="at-checkbox-item"><input type="checkbox" id="at_servicetruck" value="Service / Utility Body Truck (Heavy)" checked><label for="at_servicetruck">Service / Utility Body Truck (Heavy)</label></div>
         <div class="at-checkbox-item"><input type="checkbox" id="at_buckettruck" value="Bucket / Boom Truck"><label for="at_buckettruck">Bucket / Boom Truck</label></div>
         <div class="at-checkbox-item"><input type="checkbox" id="at_vactruck" value="Vacuum / Hydro-Vac Truck"><label for="at_vactruck">Vacuum / Hydro-Vac Truck</label></div>
-        <div class="at-checkbox-item"><input type="checkbox" id="at_watertruck" value="Water Truck / Tanker"><label for="at_watertruck">Water Truck / Tanker</label></div>
+        <div class="at-checkbox-item"><input type="checkbox" id="at_watertruck" value="Water T
+                                        ruck / Tanker"><label for="at_watertruck">Water Truck / Tanker</label></div>
         <div class="at-checkbox-item"><input type="checkbox" id="at_fueltruck" value="Fuel &amp; Lube Truck"><label for="at_fueltruck">Fuel &amp; Lube Truck</label></div>
         <div class="at-checkbox-item"><input type="checkbox" id="at_mixertruck" value="Concrete Mixer Truck"><label for="at_mixertruck">Concrete Mixer Truck</label></div>
         <div class="at-checkbox-item"><input type="checkbox" id="at_rolloff" value="Roll-Off / Hooklift Truck"><label for="at_rolloff">Roll-Off / Hooklift Truck</label></div>
@@ -834,8 +833,8 @@
       var allDefaults = document.querySelectorAll(".at-grid:not(#customAssetGrid) input[type='checkbox']");
 
       allDefaults.forEach(function(cb) {
-        var valText = cb.value.toLowerCase();
-        var lblText = (cb.nextElementSibling ? cb.nextElementSibling.textContent : "").toLowerCase();
+        var valText = String(cb.value || "").toLowerCase();
+        var lblText = String(cb.nextElementSibling ? cb.nextElementSibling.textContent : "").toLowerCase();
         if (valText === checkClean || lblText === checkClean || (checkClean.length >= 3 && (valText.indexOf(checkClean) !== -1 || lblText.indexOf(checkClean) !== -1))) {
           matchedCheckbox = cb;
         }
@@ -866,7 +865,11 @@
         }
       }
 
-      var existsCustom = customAssetTypes.some(function(c) { return c.toLowerCase() === checkClean; });
+      /* Safe type check safeguard for custom asset type string comparison */
+      var existsCustom = customAssetTypes.some(function(c) {
+        return String(c || "").toLowerCase() === checkClean;
+      });
+
       if (existsCustom) {
         notice.textContent = 'ℹ️ Custom asset type "' + val + '" is already added below.';
         notice.style.color = "var(--primary-blue, #2563eb)";
@@ -935,15 +938,16 @@
     function loadSavedAssetTypes() {
       try {
         var saved = JSON.parse(localStorage.getItem("driven_asset_types") || "[]");
-        if (saved && saved.length > 0) {
+        if (Array.isArray(saved) && saved.length > 0) {
           var defaultVals = [];
           document.querySelectorAll(".at-grid:not(#customAssetGrid) input[type='checkbox']").forEach(function(cb) {
-            defaultVals.push(cb.value);
+            defaultVals.push(String(cb.value || "").trim());
             cb.checked = saved.indexOf(cb.value) !== -1;
           });
           saved.forEach(function(sItem) {
-            if (defaultVals.indexOf(sItem) === -1 && customAssetTypes.indexOf(sItem) === -1) {
-              customAssetTypes.push(sItem);
+            var itemStr = normalizeName(typeof sItem === "string" ? sItem : (sItem && sItem.name ? sItem.name : ""));
+            if (itemStr && defaultVals.indexOf(itemStr) === -1 && customAssetTypes.indexOf(itemStr) === -1) {
+              customAssetTypes.push(itemStr);
             }
           });
           renderCustomAssetTypes();
