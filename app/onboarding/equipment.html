@@ -24,15 +24,27 @@
 })();
 </script>
 <style>
+    /* ===== VIEWPORT STICKY HEADER CONTAINER ===== */
+    #dashHeader {
+      position: sticky !important;
+      top: 0 !important;
+      z-index: 100 !important;
+    }
+
     .dash-header-row2 { display: none !important; }
     .dash-header-row3 { display: none !important; }
     #dashHeader .dash-theme-wrapper { display: none !important; }
     .dash-header-row1 { padding: 8px 20px !important; align-items: center; }
     .eq-header-title { flex: 1; text-align: center; font-size: 20px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     
-    .ob-greeting-bar { max-width: 1100px; margin: 0 auto; padding: 12px 20px 0 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; position: relative; z-index: 1; }
+    /* ===== GREETING & SOLID ORANGE PRESENCE BAR ===== */
+    .ob-greeting-bar { max-width: 1100px; margin: 0 auto; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; position: relative; z-index: 1; }
     .ob-greeting-text { font-size: 16px; color: var(--text-muted); font-weight: 500; }
     .ob-greeting-text strong { color: var(--text); }
+    
+    .presence-banner { display: none; align-items: center; gap: 8px; background: #ea580c !important; border: 1.5px solid #f97316 !important; padding: 6px 14px; border-radius: 20px; font-size: 13px; color: #ffffff !important; font-weight: 600; }
+    .presence-dot { width: 8px; height: 8px; background: #fdba74; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px #fdba74; }
+
     .eq-subtitle { margin: 4px 0 12px 0; color: var(--text-muted); font-size: 14px; line-height: 1.5; }
 
     .dash-card {
@@ -46,9 +58,7 @@
     .eq-form-field .eq-hint { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
     .eq-required-star { color: var(--error); margin-left: 3px; }
 
-    .presence-banner { display: none; align-items: center; gap: 8px; background: rgba(34, 197, 94, 0.15); border: 1.5px solid #16a34a; padding: 6px 14px; border-radius: 20px; font-size: 13px; color: var(--text); }
-    .presence-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px #22c55e; }
-
+    /* ===== BUTTON STANDARDS ===== */
     .eq-btn-primary { 
       background: var(--primary); 
       color: white; 
@@ -152,7 +162,8 @@
     .um-pagination-btn:hover:not(:disabled) { border-color: var(--primary-blue, #2563eb); }
     .um-pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    .eq-tab-bar { display: flex; gap: 2px; max-width: 1100px; margin: 0 auto; padding: 0 20px; overflow-x: auto; position: sticky; top: 0; z-index: 50; background: #cbd5e1; border-bottom: 2px solid #94a3b8; }
+    /* ===== TAB BAR ===== */
+    .eq-tab-bar { display: flex; gap: 2px; max-width: 1100px; margin: 0 auto; padding: 0 20px; overflow-x: auto; background: #cbd5e1; border-bottom: 2px solid #94a3b8; }
     .eq-tab { background: #94a3b8; border: 1px solid #64748b; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 500; color: #1e293b; cursor: pointer; white-space: nowrap; transition: color 200ms ease, background 200ms ease, border-color 200ms ease, margin-top 200ms ease; margin-top: 4px; position: relative; z-index: 1; }
     .eq-tab:hover { color: #0f172a; background: #a5b4c4; margin-top: 2px; }
     .eq-tab.active { color: #1d4ed8; background: #e2e8f0; border-color: #64748b; margin-top: 0; font-weight: 600; z-index: 2; }
@@ -170,6 +181,11 @@
     .eq-bulk-preview th, .eq-bulk-preview td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
     .eq-bulk-preview th { background: var(--bg-header); color: var(--text); font-weight: 600; }
     .eq-bulk-preview td { background: var(--bg-card); color: var(--text); }
+
+    @media (max-width: 768px) {
+      .ob-greeting-bar { flex-direction: column; align-items: stretch; }
+      .eq-header-title { white-space: normal !important; max-width: 170px !important; word-break: break-word !important; }
+    }
 
     @media print {
       @page { margin: 10mm; }
@@ -191,7 +207,7 @@
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
 <div id="dashHeader"></div>
-<div class="ob-greeting-bar">
+<div class="ob-greeting-bar" id="obGreetingBar">
   <div class="ob-greeting-text" id="dashGreetingText">Welcome</div>
   <div class="presence-banner" id="presenceBanner">
     <span class="presence-dot"></span>
@@ -332,6 +348,10 @@
     var equipment = [];
     var existingEquipment = [];
     var eqDirty = false;
+    var editingEqIndex = null;
+    var isEditingExistingEq = false;
+    var activeOrgId = null;
+    var customerOrgName = "DRIV-EN Org";
 
     var sessionPageSize = 10, sessionPage = 1, sessionSortCol = 'unitNo', sessionSortAsc = true;
     var existingPageSize = 10, existingPage = 1, existingSortCol = 'unitNo', existingSortAsc = true;
@@ -347,6 +367,26 @@
     var bulkPreview = document.getElementById("bulkPreview");
 
     function normalizeName(str) { return String(str || "").trim().replace(/\s+/g, " "); }
+    
+    function validateOrgContext() {
+      if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
+        eqError.textContent = "Security Alert: Invalid Organization Context. Action rejected.";
+        return false;
+      }
+      return true;
+    }
+
+    function setupStickyHeaderBar() {
+      var h = document.getElementById("dashHeader");
+      var greetingBar = document.getElementById("obGreetingBar");
+      var tabBar = document.getElementById("eqTabBar");
+
+      if (h) {
+        if (greetingBar && greetingBar.parentElement !== h) h.appendChild(greetingBar);
+        if (tabBar && tabBar.parentElement !== h) h.appendChild(tabBar);
+      }
+    }
+
     function updateCount() {
       eqCountEl.textContent = equipment.length;
       if (existingEqCountEl) existingEqCountEl.textContent = existingEquipment.length;
@@ -433,6 +473,32 @@
       }
     }
 
+    function editEquipment(index, isExisting) {
+      var list = isExisting ? existingEquipment : equipment;
+      var item = list[index];
+      if (!item) return;
+
+      editingEqIndex = index;
+      isEditingExistingEq = isExisting;
+
+      document.getElementById("eqUnitNo").value = item.unitNo || "";
+      document.getElementById("eqName").value = item.name || "";
+      document.getElementById("eqCategory").value = item.category || "";
+      document.getElementById("eqMake").value = item.make || "";
+      document.getElementById("eqModel").value = item.model || "";
+      document.getElementById("eqYear").value = item.year || "";
+      document.getElementById("eqSerial").value = item.serial || "";
+      document.getElementById("eqMeter").value = item.meter || "";
+      document.getElementById("eqLocation").value = item.location || "";
+      document.getElementById("eqDivision").value = item.division || "";
+
+      var btnAdd = document.getElementById("btnAddEq");
+      btnAdd.textContent = "Update Asset";
+      btnAdd.style.background = "#2563eb";
+
+      document.getElementById("formCard").scrollIntoView({ behavior: "smooth" });
+    }
+
     function doPrintEquipment(defaultSelection) {
       var selId = defaultSelection === 'session' ? 'printTableSelectSession' : 'printTableSelectExisting';
       var mode = document.getElementById(selId).value;
@@ -455,8 +521,7 @@
       renderExistingTable();
 
       var origTitle = document.title;
-      var orgName = localStorage.getItem("driven_company_name") || "DRIV-EN";
-      document.title = orgName + " | Asset Directory";
+      document.title = customerOrgName + " | Asset Directory";
 
       window.print();
 
@@ -472,7 +537,10 @@
       try {
         var resp = await fetch("/api/onboarding/presence", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "x-org-id": activeOrgId || ""
+          },
           body: JSON.stringify({ page: "Assets" })
         });
         if (resp.ok) {
@@ -480,7 +548,7 @@
           var banner = document.getElementById("presenceBanner");
           var textEl = document.getElementById("presenceText");
           if (data.activeUsers && data.activeUsers.length > 0) {
-            textEl.textContent = data.activeUsers.join(", ") + " is also on this page";
+            textEl.textContent = "🟢 " + data.activeUsers.join(", ") + " is also active on this page";
             banner.style.display = "inline-flex";
           } else {
             banner.style.display = "none";
@@ -492,7 +560,9 @@
     async function loadExistingEquipment() {
       existingEqTableContainer.textContent = "";
       try {
-        var resp = await fetch("/api/onboarding/equipment/list");
+        var resp = await fetch("/api/onboarding/equipment/list", {
+          headers: { "x-org-id": activeOrgId || "" }
+        });
         if (resp.ok) {
           var data = await resp.json();
           var rawList = data.equipment || data.records || (Array.isArray(data) ? data : []);
@@ -556,12 +626,14 @@
         { label: "Model " + (existingSortCol === 'model' ? (existingSortAsc ? '▲' : '▼') : ''), key: "model" },
         { label: "Year " + (existingSortCol === 'year' ? (existingSortAsc ? '▲' : '▼') : ''), key: "year" },
         { label: "Serial # " + (existingSortCol === 'serial' ? (existingSortAsc ? '▲' : '▼') : ''), key: "serial" },
-        { label: "Location " + (existingSortCol === 'location' ? (existingSortAsc ? '▲' : '▼') : ''), key: "location" }
+        { label: "Location " + (existingSortCol === 'location' ? (existingSortAsc ? '▲' : '▼') : ''), key: "location" },
+        { label: "Action", key: "" }
       ];
 
       cols.forEach(function(c) {
         var th = document.createElement("th");
         th.textContent = c.label;
+        if (c.label === "Action") th.className = "eq-actions-col";
         if (c.key) {
           th.onclick = function() {
             if (existingSortCol === c.key) existingSortAsc = !existingSortAsc;
@@ -574,13 +646,21 @@
       thead.appendChild(headRow); table.appendChild(thead);
 
       var tbody = document.createElement("tbody");
-      paged.forEach(function(item) {
+      paged.forEach(function(item, index) {
         var row = document.createElement("tr");
         [item.unitNo, item.name, item.category, item.make, item.model, item.year, item.serial, item.location].forEach(function(val) {
           var cell = document.createElement("td");
           cell.textContent = (val && val !== "undefined" && val !== "null") ? val : "—";
           row.appendChild(cell);
         });
+
+        var cellAction = document.createElement("td"); cellAction.className = "eq-actions-col";
+        var btnEdit = document.createElement("button");
+        btnEdit.className = "eq-btn-secondary"; btnEdit.style.cssText = "padding:4px 10px;font-size:12px;height:auto;"; btnEdit.textContent = "Edit";
+        btnEdit.addEventListener("click", function() { editEquipment(start + index, true); });
+        cellAction.appendChild(btnEdit);
+        row.appendChild(cellAction);
+
         tbody.appendChild(row);
       });
       table.appendChild(tbody); wrap.appendChild(table);
@@ -678,12 +758,21 @@
 
         var cellAction = document.createElement("td"); 
         cellAction.className = "eq-actions-col"; 
-        var btn = document.createElement("button");
-        btn.className = "eq-btn-secondary"; 
-        btn.style.cssText = "padding:4px 10px;font-size:12px;height:auto;"; 
-        btn.textContent = "Remove";
-        btn.addEventListener("click", function() { removeEquipment(start + index); }); 
-        cellAction.appendChild(btn); 
+
+        var btnEdit = document.createElement("button");
+        btnEdit.className = "eq-btn-secondary"; 
+        btnEdit.style.cssText = "padding:4px 10px;font-size:12px;height:auto;margin-right:6px;"; 
+        btnEdit.textContent = "Edit";
+        btnEdit.addEventListener("click", function() { editEquipment(start + index, false); }); 
+        cellAction.appendChild(btnEdit);
+
+        var btnRemove = document.createElement("button");
+        btnRemove.className = "eq-btn-secondary"; 
+        btnRemove.style.cssText = "padding:4px 10px;font-size:12px;height:auto;"; 
+        btnRemove.textContent = "Remove";
+        btnRemove.addEventListener("click", function() { removeEquipment(start + index); }); 
+        cellAction.appendChild(btnRemove); 
+
         row.appendChild(cellAction); 
         tbody.appendChild(row);
       });
@@ -733,6 +822,7 @@
     window.addEventListener("beforeunload", function(e) { if (eqDirty) { e.preventDefault(); e.returnValue = "You have unsaved assets."; } });
 
     document.getElementById("btnAddEq").addEventListener("click", function() {
+      if (!validateOrgContext()) return;
       eqError.textContent = ""; eqSuccess.textContent = "";
       var unitNo = normalizeName(document.getElementById("eqUnitNo").value);
       var name = normalizeName(document.getElementById("eqName").value);
@@ -754,18 +844,39 @@
         return (item.unitNo || "").toLowerCase().trim() === checkUnit; 
       });
 
-      if (unitMatch) {
+      if (unitMatch && editingEqIndex === null) {
         var confirmAdd = confirm("⚠️ An asset with ID '" + unitNo + "' already exists in the system or current batch.\n\nWould you like to differentiate the ID or proceed anyway?");
         if (!confirmAdd) return;
       }
 
-      equipment.push({ 
+      var eqObj = { 
         unitNo: unitNo, name: name, category: category, make: make, model: model, 
         year: year, serial: serial, meter: meter, location: location, division: division, 
         customerId: localStorage.getItem("driven_customer_id") || "" 
-      });
+      };
+
+      if (editingEqIndex !== null) {
+        if (isEditingExistingEq) {
+          existingEquipment[editingEqIndex] = eqObj;
+          renderExistingTable();
+        } else {
+          equipment[editingEqIndex] = eqObj;
+          renderTable();
+        }
+        editingEqIndex = null;
+        isEditingExistingEq = false;
+        var btnAdd = document.getElementById("btnAddEq");
+        btnAdd.textContent = "Add Asset";
+        btnAdd.style.background = "";
+        eqSuccess.textContent = "Asset updated successfully.";
+      } else {
+        equipment.push(eqObj);
+        renderTable();
+        eqSuccess.textContent = "Asset added to current batch. Click Save & Continue when finished.";
+      }
       
-      renderTable(); updateCount();
+      updateCount();
+      eqDirty = true;
       document.getElementById("eqUnitNo").value = ""; 
       document.getElementById("eqName").value = ""; 
       document.getElementById("eqMake").value = ""; 
@@ -774,11 +885,10 @@
       document.getElementById("eqSerial").value = ""; 
       document.getElementById("eqMeter").value = ""; 
       document.getElementById("eqUnitNo").focus();
-      eqSuccess.textContent = "Asset added to current batch. Click Save & Continue when finished.";
-      eqDirty = true;
     });
 
     document.getElementById("btnProcessBulk").addEventListener("click", function() {
+      if (!validateOrgContext()) return;
       statusBulk.textContent = ""; statusBulk.className = "eq-error";
       var file = document.getElementById("bulkFile").files[0];
       if (!file) { statusBulk.textContent = "Please select an Excel or CSV file."; return; }
@@ -870,6 +980,7 @@
     });
 
     document.getElementById("btnSaveEq").addEventListener("click", async function() {
+      if (!validateOrgContext()) return;
       eqStepStatus.textContent = ""; eqStepStatus.style.color = "var(--error)";
       if (equipment.length === 0 && existingEquipment.length === 0) { eqStepStatus.textContent = "You must add at least one asset."; return; }
       var allEquipment;
@@ -886,7 +997,14 @@
       var btnSave = document.getElementById("btnSaveEq");
       btnSave.disabled = true; btnSave.textContent = "Saving...";
       try {
-        var res = await fetch("/auth/save-settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ settings: { equipment: allEquipment } }) });
+        var res = await fetch("/auth/save-settings", { 
+          method: "POST", 
+          headers: { 
+            "Content-Type": "application/json",
+            "x-org-id": activeOrgId || ""
+          }, 
+          body: JSON.stringify({ settings: { equipment: allEquipment } }) 
+        });
         var data = await res.json();
         if (!res.ok) {
           if (res.status < 500 && window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("equipment.html: save-settings returned " + res.status + " — " + (data.error || "Request failed"), "save-settings-" + res.status, "URL: /auth/save-settings | Assets: " + allEquipment.length); }
@@ -921,6 +1039,9 @@
 
     document.addEventListener("dashSessionLoaded", function(e) {
       updateGreeting(e.detail);
+      activeOrgId = (e.detail && e.detail.org_id) || localStorage.getItem("driven_org_id");
+      customerOrgName = (e.detail && e.detail.org_name) || localStorage.getItem("driven_org_name") || "DRIV-EN Org";
+
       var row1 = document.querySelector(".dash-header-row1");
       if (row1 && !document.querySelector(".eq-header-title")) { 
         var title = document.createElement("div"); 
@@ -930,24 +1051,22 @@
         var drivenLogo = row1.querySelector(".dash-driven-logo"); 
         if (logoArea && drivenLogo) { row1.insertBefore(title, drivenLogo); } 
       }
-      var header = document.getElementById("dashHeader"); 
-      var tabBar = document.getElementById("eqTabBar"); 
-      if (header && tabBar && !header.contains(tabBar)) { header.appendChild(tabBar); }
       
+      setupStickyHeaderBar();
       loadDropdowns();
       loadExistingEquipment(); 
       renderTable(); 
       updateCount();
 
       checkActivePresence();
-      setInterval(checkActivePresence, 15000);
+      setInterval(checkActivePresence, 12000);
     });
 
-    updateGreeting(null);
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", function() { updateGreeting(null); });
+      document.addEventListener("DOMContentLoaded", function() { setupStickyHeaderBar(); });
+    } else {
+      setupStickyHeaderBar();
     }
 </script>
-<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"aed8feab3b60404ba88ec92f026bbcd6","r":1}' crossorigin="anonymous"></script>
 </body>
 </html>
