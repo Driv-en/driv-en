@@ -112,12 +112,11 @@
       margin: 0 auto;
       padding: 0 20px;
       overflow-x: auto;
-      position: static !important; /* Managed by #dashHeader sticky wrapper */
+      position: static !important;
       background: var(--bg-card, #1e293b) !important;
       border-top: 1px solid var(--border, #334155);
     }
 
-    /* Ensure main content container has clean top padding */
     .dash-main {
       margin-top: 0 !important;
       padding-top: 16px;
@@ -440,7 +439,7 @@
   <!-- SINGLE PINNED STICKY HEADER CONTAINER -->
   <div id="dashHeader"></div>
 
-  <!-- STICKY WELCOME & ACTIVE USER PRESENCE BAR (Dynamically Reparented Inside #dashHeader) -->
+  <!-- STICKY WELCOME & ACTIVE USER PRESENCE BAR -->
   <div class="ob-greeting-bar" id="obGreetingBar">
     <div class="ob-greeting-text" id="dashGreetingText">Welcome</div>
     <div class="presence-banner" id="presenceBanner">
@@ -449,7 +448,7 @@
     </div>
   </div>
 
-  <!-- SECONDARY TAB BAR (Dynamically Reparented Inside #dashHeader Beneath Greeting Bar) -->
+  <!-- SECONDARY TAB BAR -->
   <div class="at-tab-bar print-hide" id="atTabBar">
     <a class="at-tab-admin driven-admin-only" href="/app/dashboard/admin.html" onclick="return confirmLeave()">Admin Dashboard</a>
     <a class="at-tab-return" href="/app/dashboard/onboarding-dashboard.html" onclick="return confirmLeave()">Onboarding Dashboard</a>
@@ -764,9 +763,10 @@
       var firstName = "";
 
       if (sessionDetail) {
-        firstName = sessionDetail.first_name || sessionDetail.firstName || (sessionDetail.employee ? sessionDetail.employee.first_name || sessionDetail.employee.firstName : "");
-        if (!firstName && sessionDetail.full_name) {
-          firstName = sessionDetail.full_name.split(" ")[0];
+        var u = sessionDetail.user || sessionDetail;
+        firstName = u.first_name || u.firstName || (u.employee ? u.employee.first_name || u.employee.firstName : "");
+        if (!firstName && u.full_name) {
+          firstName = u.full_name.split(" ")[0];
         }
       }
 
@@ -799,7 +799,7 @@
 
       /* Fallback: Extract First Name from Email Prefix if missing on mobile */
       if (!firstName) {
-        var email = localStorage.getItem("driven_user_email") || (sessionDetail ? sessionDetail.email : "");
+        var email = localStorage.getItem("driven_user_email") || (sessionDetail && sessionDetail.user ? sessionDetail.user.email : "");
         if (email && email.indexOf("@") !== -1) {
           var part = email.split("@")[0].split(".")[0];
           firstName = part.charAt(0).toUpperCase() + part.slice(1);
@@ -969,9 +969,19 @@
       });
     }
 
-    function loadSavedAssetTypes() {
+    /* Multi-Tenant D1 DB Fetch with LocalStorage Fallback */
+    async function loadSavedAssetTypes() {
       try {
-        var saved = JSON.parse(localStorage.getItem("driven_asset_types") || "[]");
+        var saved = [];
+        var res = await fetch("/api/asset-types", { method: "GET" });
+        if (res.ok) {
+          var data = await res.json();
+          saved = data.assetTypes || data.records || [];
+          localStorage.setItem("driven_asset_types", JSON.stringify(saved));
+        } else {
+          saved = JSON.parse(localStorage.getItem("driven_asset_types") || "[]");
+        }
+
         if (Array.isArray(saved) && saved.length > 0) {
           var defaultVals = [];
           document.querySelectorAll(".at-grid:not(#customAssetGrid) input[type='checkbox']").forEach(function(cb) {
@@ -979,16 +989,24 @@
             cb.checked = saved.indexOf(cb.value) !== -1;
           });
           saved.forEach(function(sItem) {
-            var itemStr = normalizeName(typeof sItem === "string" ? sItem : (sItem && sItem.name ? sItem.name : ""));
+            var itemStr = normalizeName(typeof sItem === "string" ? sItem : (sItem && sItem.asset_type_name ? sItem.asset_type_name : ""));
             if (itemStr && defaultVals.indexOf(itemStr) === -1 && customAssetTypes.indexOf(itemStr) === -1) {
               customAssetTypes.push(itemStr);
             }
           });
           renderCustomAssetTypes();
         }
-      } catch (e) {}
+      } catch (e) {
+        var localSaved = JSON.parse(localStorage.getItem("driven_asset_types") || "[]");
+        if (Array.isArray(localSaved) && localSaved.length > 0) {
+          document.querySelectorAll(".at-grid:not(#customAssetGrid) input[type='checkbox']").forEach(function(cb) {
+            cb.checked = localSaved.indexOf(cb.value) !== -1;
+          });
+        }
+      }
     }
 
+    /* Save Selected Asset Types to D1 DB (asset_types table) */
     async function saveAssetTypes() {
       var selected = [];
       document.querySelectorAll(".dash-card input[type='checkbox']:checked").forEach(function(cb) {
@@ -1011,12 +1029,12 @@
       btnSave.textContent = "Saving...";
 
       try {
-        var res = await fetch("/auth/save-settings", {
+        var res = await fetch("/api/asset-types", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ settings: { assetTypes: selected } })
+          body: JSON.stringify({ assetTypes: selected })
         });
-        if (!res.ok) throw new Error("Save failed");
+        if (!res.ok) throw new Error("API Save failed");
         statusEl.style.color = "var(--success)";
         statusEl.textContent = selected.length + " asset type(s) saved. Redirecting to onboarding dashboard…";
         btnSave.textContent = "Saved ✓";
@@ -1032,20 +1050,16 @@
       }
     }
 
-    /* Move Greeting Bar AND Tab Bar INSIDE Single Sticky Header Container */
     function setupStickyHeaderBar() {
       var h = document.getElementById("dashHeader");
       var greetingBar = document.getElementById("obGreetingBar");
       var tabBar = document.getElementById("atTabBar");
 
       if (h) {
-        if (greetingBar && greetingBar.parentElement !== h) {
-          h.appendChild(greetingBar);
-        }
-        if (tabBar && tabBar.parentElement !== h) {
-          h.appendChild(tabBar);
-        }
+        if (greetingBar && greetingBar.parentElement !== h) h.appendChild(greetingBar);
+        if (tabBar && tabBar.parentElement !== h) h.appendChild(tabBar);
       }
+      updateGreeting(null);
     }
 
     document.querySelectorAll(".dash-card input[type='checkbox']").forEach(function(cb) {
@@ -1112,4 +1126,4 @@
     }
   </script>
 </body>
-</html> 
+</html>
