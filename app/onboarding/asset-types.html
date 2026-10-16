@@ -969,7 +969,7 @@
       });
     }
 
-/* Multi-Tenant D1 DB Fetch with LocalStorage Fallback */
+/* Multi-Tenant D1 DB Fetch with LocalStorage Fallback & Default Cleanup */
     async function loadSavedAssetTypes() {
       try {
         var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
@@ -984,6 +984,7 @@
             "x-user-id": String(userId)
           }
         });
+        
         if (res.ok) {
           var data = await res.json();
           saved = data.assetTypes || data.records || [];
@@ -992,27 +993,34 @@
           saved = JSON.parse(localStorage.getItem("driven_asset_types") || "[]");
         }
 
-        if (Array.isArray(saved) && saved.length > 0) {
+        // Standardize returned string array
+        var normalizedSaved = saved.map(function(s) {
+          return normalizeName(typeof s === "string" ? s : (s && (s.asset_type_name || s.name) ? (s.asset_type_name || s.name) : ""));
+        }).filter(Boolean);
+
+        // ALWAYS uncheck all default hardcoded HTML checkboxes first if a saved selection exists
+        if (Array.isArray(normalizedSaved) && normalizedSaved.length > 0) {
+          customAssetTypes = [];
           var defaultVals = [];
+
           document.querySelectorAll(".at-grid:not(#customAssetGrid) input[type='checkbox']").forEach(function(cb) {
-            defaultVals.push(String(cb.value || "").trim());
-            cb.checked = saved.indexOf(cb.value) !== -1;
+            var cbVal = normalizeName(cb.value);
+            defaultVals.push(cbVal);
+            // Explicitly set checked state based ONLY on saved state
+            cb.checked = normalizedSaved.indexOf(cbVal) !== -1;
           });
-          saved.forEach(function(sItem) {
-            var itemStr = normalizeName(typeof sItem === "string" ? sItem : (sItem && sItem.asset_type_name ? sItem.asset_type_name : ""));
-            if (itemStr && defaultVals.indexOf(itemStr) === -1 && customAssetTypes.indexOf(itemStr) === -1) {
+
+          // Extract custom tags (any saved asset type that is NOT in the standard grid)
+          normalizedSaved.forEach(function(itemStr) {
+            if (defaultVals.indexOf(itemStr) === -1 && customAssetTypes.indexOf(itemStr) === -1) {
               customAssetTypes.push(itemStr);
             }
           });
+
           renderCustomAssetTypes();
         }
       } catch (e) {
-        var localSaved = JSON.parse(localStorage.getItem("driven_asset_types") || "[]");
-        if (Array.isArray(localSaved) && localSaved.length > 0) {
-          document.querySelectorAll(".at-grid:not(#customAssetGrid) input[type='checkbox']").forEach(function(cb) {
-            cb.checked = localSaved.indexOf(cb.value) !== -1;
-          });
-        }
+        console.warn("Load asset types fallback error:", e);
       }
     }
 
