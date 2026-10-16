@@ -20,18 +20,19 @@ const WORKER_ROUTES = {
   'resend-verify':     'https://driv-en-auth.driv-en.workers.dev',
   '2fa':               'https://driv-en-auth.driv-en.workers.dev',
 
-  // DRIV-EN API Worker (driv-en-api — Project, Clients, Division, Equipment, Users, Roles, AuditLog)
+  // DRIV-EN API Worker (driv-en-api — Project, Clients, Division, Equipment, Asset Types, Users, Roles, AuditLog)
   'project':           'https://driv-en-api.driv-en.workers.dev',
   'projects':          'https://driv-en-api.driv-en.workers.dev',
   'clients':           'https://driv-en-api.driv-en.workers.dev',
   'division':          'https://driv-en-api.driv-en.workers.dev',
+  'equipment':         'https://driv-en-api.driv-en.workers.dev',
+  'asset-types':       'https://driv-en-api.driv-en.workers.dev',
   'log-error':         'https://driv-en-api.driv-en.workers.dev',
 
   // Onboarding & Key Personnel worker (onboarding-key-personnel)
   'onboarding':        'https://onboarding-key-personnel.driv-en.workers.dev',
 
   // Platform worker (driven-platform)
-  'equipment':         'https://driv-en-api.driv-en.workers.dev',
   'error-log':         'https://driven-platform.driv-en.workers.dev',
   'users':             'https://driven-platform.driv-en.workers.dev',
   'permissions':       'https://driven-platform.driv-en.workers.dev',
@@ -60,7 +61,7 @@ export async function onRequest(context) {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, PATCH',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, x-org-id, x-user-id',
         'Access-Control-Max-Age': '86400'
       }
     });
@@ -112,7 +113,7 @@ export async function onRequest(context) {
     const responseHeaders = new Headers(response.headers);
     responseHeaders.set('Access-Control-Allow-Origin', '*');
     responseHeaders.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-    responseHeaders.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    responseHeaders.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-org-id, x-user-id');
 
     return new Response(response.body, {
       status: response.status,
