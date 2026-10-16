@@ -31,7 +31,7 @@
   position: sticky !important;
   top: 0 !important;
   z-index: 100 !important;
-  background: var(--bg-card, #ffffff) !important;
+  background: var(--bg-header, #f8fafc) !important;
   border-bottom: 1px solid var(--border, #cbd5e1) !important;
 }
 
@@ -41,15 +41,15 @@
 .dash-header-row1 { 
   padding: 8px 20px !important; 
   align-items: center; 
-  background: var(--bg-card, #ffffff);
+  background: var(--bg-header, #f8fafc);
   border-bottom: 1px solid var(--border, #cbd5e1);
 }
 .rp-header-title { flex: 1; text-align: center; font-size: 20px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* ===== SOLID GRAY CONTAINER FOR PRESENCE & TABS ===== */
+/* ===== SOLID GRAY CONTAINER FLUSH TO BOTTOM OF HEADER ===== */
 .ob-greeting-bar { 
   max-width: 1100px; 
-  margin: 8px auto 0 auto; 
+  margin: 0 auto; 
   padding: 8px 20px; 
   display: flex; 
   justify-content: center; 
@@ -59,8 +59,9 @@
   position: relative; 
   z-index: 95; 
   background: #cbd5e1 !important;
-  border-radius: 8px 8px 0 0;
+  border-radius: 0;
   border: 1px solid #94a3b8;
+  border-top: none;
   border-bottom: none;
 }
 
@@ -85,7 +86,7 @@
   align-items: center !important;
   gap: 8px !important; 
   max-width: 1100px; 
-  margin: 0 auto 8px auto; 
+  margin: 0 auto 16px auto; 
   padding: 8px 20px; 
   overflow-x: auto; 
   background: #cbd5e1; 
@@ -179,8 +180,8 @@
 .rp-action-row { display: flex; justify-content: flex-end; align-items: center; gap: 12px; }
 
 @media (max-width: 768px) {
-  .ob-greeting-bar { flex-direction: column; align-items: stretch; padding: 10px; margin: 8px 12px 0 12px; border-radius: 8px 8px 0 0; }
-  .rp-tab-bar { flex-direction: column; align-items: stretch; gap: 6px !important; padding: 10px; margin: 0 12px 8px 12px; border-radius: 0 0 8px 8px; }
+  .ob-greeting-bar { flex-direction: column; align-items: stretch; padding: 10px; margin: 0 12px; border-radius: 0; }
+  .rp-tab-bar { flex-direction: column; align-items: stretch; gap: 6px !important; padding: 10px; margin: 0 12px 16px 12px; border-radius: 0 0 8px 8px; }
   .rp-tab-return, .rp-tab-logout { width: 100%; justify-content: center; margin-left: 0 !important; }
   .rp-header-title { white-space: normal !important; max-width: 170px !important; word-break: break-word !important; }
 }
@@ -333,7 +334,14 @@
           var banner = document.getElementById("presenceBanner");
           var textEl = document.getElementById("presenceText");
           if (data.activeUsers && data.activeUsers.length > 0) {
-            textEl.textContent = "🟢 " + data.activeUsers.join(", ") + " is also active on this page";
+            // Enforce Full Name (First + Last) formatting for all active co-workers
+            var fullNames = data.activeUsers.map(function(u) {
+              if (typeof u === "object") {
+                return ((u.firstName || u.first_name || "") + " " + (u.lastName || u.last_name || "")).trim() || u.name || u.email;
+              }
+              return String(u);
+            });
+            textEl.textContent = "🟢 " + fullNames.join(", ") + " is also active on this page";
             banner.style.display = "inline-flex";
           } else {
             banner.style.display = "none";
