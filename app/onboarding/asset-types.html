@@ -12,6 +12,7 @@
   <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png" sizes="192x192">
   <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png">
   <link rel="stylesheet" href="/app/shared/dashboard.css?v=10">
+  <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
   <script>
     (function() {
       var saved = localStorage.getItem("driven-theme");
@@ -21,8 +22,8 @@
     })();
   </script>
   <style>
-    /* Viewport Sticky Header Container */
-    #dashHeader {
+    /* ===== VIEWPORT STICKY HEADER WRAPPER ===== */
+    #dashStickyHeader {
       position: sticky !important;
       top: 0 !important;
       z-index: 100 !important;
@@ -30,6 +31,11 @@
       border-bottom: 1px solid var(--border, #cbd5e1) !important;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     }
+
+    #dashHeader {
+      background: var(--bg-header, #f8fafc) !important;
+    }
+
     .dash-header-row2, .dash-header-row3, #dashHeader .dash-theme-wrapper {
       display: none !important;
     }
@@ -56,8 +62,8 @@
     /* Single Unified Container Block (.ob-greeting-bar) */
     .ob-greeting-bar { 
       max-width: 1100px; 
-      margin: 12px auto 16px auto; 
-      padding: 12px 20px; 
+      margin: 8px auto; 
+      padding: 10px 20px; 
       display: flex; 
       flex-direction: column; 
       align-items: center; 
@@ -189,6 +195,9 @@
         white-space: normal !important;
         word-break: break-word !important;
       }
+      .at-custom-input-row { flex-direction: column; align-items: stretch; }
+      .at-action-row { flex-direction: column; gap: 8px; }
+      .at-action-row .at-btn-primary { width: 100%; }
     }
 
     .at-subtitle {
@@ -330,7 +339,7 @@
     }
     .at-action-row {
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-end;
       align-items: center;
       gap: 12px;
       flex-wrap: nowrap;
@@ -353,7 +362,7 @@
     /* Print Overrides */
     @media print {
       @page { margin: 10mm; }
-      #dashHeader, .ob-greeting-bar, .rp-save-bar, .at-btn-print, .presence-banner, .at-custom-input-row, .at-btn-remove-custom, #dashFooter {
+      #dashStickyHeader, .ob-greeting-bar, .rp-save-bar, .at-btn-print, .presence-banner, .at-custom-input-row, .at-btn-remove-custom, #dashFooter {
         display: none !important;
       }
       .rp-save-bar {
@@ -404,19 +413,20 @@
   <div class="steel-bg"></div>
   <div class="steel-overlay"></div>
 
-  <!-- VIEWPORT STICKY HEADER CONTAINER -->
-  <div id="dashHeader"></div>
+  <!-- UNIFIED PINNED STICKY HEADER CONTAINER -->
+  <div id="dashStickyHeader">
+    <div id="dashHeader"></div>
 
-  <!-- SINGLE UNIFIED PRESENCE + TAB BAR BLOCK CARD -->
-  <div class="ob-greeting-bar print-hide" id="obGreetingBar">
-    <div class="presence-banner" id="presenceBanner">
-      <span id="presenceText">Key Personnel Active</span>
-    </div>
+    <div class="ob-greeting-bar print-hide" id="obGreetingBar">
+      <div class="presence-banner" id="presenceBanner">
+        <span id="presenceText">Key Personnel Active</span>
+      </div>
 
-    <div class="rp-tab-bar" id="rpTabBar">
-      <a class="rp-tab-admin driven-admin-only" href="/app/dashboard/admin.html" onclick="return confirmLeave()">Admin Dashboard</a>
-      <a class="rp-tab-return" href="/app/dashboard/onboarding-dashboard.html" onclick="return confirmLeave()">← Return to Onboarding Dashboard</a>
-      <button class="rp-tab-logout" onclick="confirmLogout()">Logout</button>
+      <div class="rp-tab-bar" id="rpTabBar">
+        <a class="rp-tab-admin driven-admin-only" href="/app/dashboard/admin.html" onclick="return confirmLeave()">Admin Dashboard</a>
+        <a class="rp-tab-return" href="/app/dashboard/onboarding-dashboard.html" onclick="return confirmLeave()">← Return to Onboarding Dashboard</a>
+        <button class="rp-tab-logout" onclick="confirmLogout()">Logout</button>
+      </div>
     </div>
   </div>
 
@@ -722,16 +732,6 @@
       return String(str || "").trim().replace(/\s+/g, " ");
     }
 
-    /* Standard Sticky Header DOM Positioning */
-    function setupStickyHeaderBar() {
-      var greetingBar = document.getElementById("obGreetingBar");
-      var dashHeader = document.getElementById("dashHeader");
-
-      if (dashHeader && greetingBar && greetingBar.parentElement === dashHeader) {
-        dashHeader.parentNode.insertBefore(greetingBar, dashHeader.nextSibling);
-      }
-    }
-
     /* Fast Unload Presence Tracking */
     function sendPresenceUnload() {
       if (!activeOrgId) return;
@@ -782,7 +782,13 @@
 
     /* Global Lifecycle Observers for Instant Cleanup */
     window.addEventListener("pagehide", sendPresenceUnload);
-    window.addEventListener("beforeunload", sendPresenceUnload);
+    window.addEventListener("beforeunload", function(e) {
+      sendPresenceUnload();
+      if (atDirty) {
+        e.preventDefault();
+        e.returnValue = "You have unsaved changes.";
+      }
+    });
     document.addEventListener("visibilitychange", function() {
       if (document.visibilityState === "hidden") {
         sendPresenceUnload();
@@ -914,11 +920,11 @@
       });
     }
 
-    /* Multi-Tenant D1 DB Fetch with Strict Selection Integrity */
+    /* Multi-Tenant DB Fetch with Strict Selection Integrity */
     async function loadSavedAssetTypes() {
       try {
         var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
-        var orgId = userObj.org_id || localStorage.getItem("driven_org_id");
+        var orgId = activeOrgId || userObj.org_id || localStorage.getItem("driven_org_id");
         var userId = userObj.id || localStorage.getItem("driven_user_id");
 
         if (!orgId || orgId === "default_org") return;
@@ -982,23 +988,11 @@
       }
 
       var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
-      var orgId = userObj.org_id || localStorage.getItem("driven_org_id");
+      var orgId = activeOrgId || userObj.org_id || localStorage.getItem("driven_org_id");
       var userId = userObj.id || localStorage.getItem("driven_user_id");
 
-      // STRICT MULTI-TENANT GUARD
       if (!orgId || orgId === "default_org") {
         statusEl.textContent = "⚠️ Error: Active Organization session missing. Information was not saved. Please log in again.";
-        
-        fetch("/api/log-error", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            source: "Client (asset-types.html saveAssetTypes)",
-            message: "Save blocked: Invalid or missing org_id context",
-            severity: "critical"
-          })
-        }).catch(function() {});
-
         return;
       }
 
@@ -1062,16 +1056,9 @@
       dashLogout();
     };
 
-    window.addEventListener("beforeunload", function(e) {
-      if (atDirty) {
-        e.preventDefault();
-        e.returnValue = "You have unsaved changes.";
-      }
-    });
-
     document.addEventListener("dashSessionLoaded", function(e) {
       var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
-      activeOrgId = userObj.org_id || localStorage.getItem("driven_org_id") || "";
+      activeOrgId = userObj.org_id || (e.detail && e.detail.org_id) || localStorage.getItem("driven_org_id") || "";
 
       var row1 = document.querySelector(".dash-header-row1");
       if (row1 && !document.querySelector(".at-header-title")) {
@@ -1083,7 +1070,6 @@
           row1.insertBefore(title, drivenLogo);
         }
       }
-      setupStickyHeaderBar();
       loadSavedAssetTypes();
       checkActivePresence();
       setInterval(checkActivePresence, 5000);
