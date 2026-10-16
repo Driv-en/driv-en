@@ -46,7 +46,7 @@
 }
 .rp-header-title { flex: 1; text-align: center; font-size: 20px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* ===== SINGLE UNIFIED BLOCK CONTAINER (PRESENCE + TABS) ===== */
+/* ===== SINGLE UNIFIED BLOCK CONTAINER (EXTENDS DIAMOND PLATE TO HEADER) ===== */
 .ob-greeting-bar { 
   max-width: 1100px; 
   margin: 12px auto 16px auto; 
@@ -320,11 +320,29 @@
     }
 
     function setupStickyHeaderBar() {
-      var h = document.getElementById("dashHeader");
       var greetingBar = document.getElementById("obGreetingBar");
+      var dashHeader = document.getElementById("dashHeader");
 
-      if (h && greetingBar && greetingBar.parentElement !== h) {
-        h.appendChild(greetingBar);
+      // Place obGreetingBar directly into the DOM flow under the header
+      if (dashHeader && greetingBar && greetingBar.parentElement === dashHeader) {
+        dashHeader.parentNode.insertBefore(greetingBar, dashHeader.nextSibling);
+      }
+    }
+
+    // Fast Unload Beacon for instant Mobile/Desktop presence cleanup
+    function sendPresenceUnload() {
+      if (!activeOrgId) return;
+      var payload = JSON.stringify({ page: "Roles & Permissions", action: "leave" });
+      if (navigator.sendBeacon) {
+        var blob = new Blob([payload], { type: "application/json" });
+        navigator.sendBeacon("/api/onboarding/presence", blob);
+      } else {
+        fetch("/api/onboarding/presence", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-org-id": activeOrgId },
+          body: payload,
+          keepalive: true
+        }).catch(function() {});
       }
     }
 
@@ -357,6 +375,17 @@
         }
       } catch (e) {}
     }
+
+    // Mobile & Desktop Unload / Visibility Observers
+    window.addEventListener("pagehide", sendPresenceUnload);
+    window.addEventListener("beforeunload", sendPresenceUnload);
+    document.addEventListener("visibilitychange", function() {
+      if (document.visibilityState === "hidden") {
+        sendPresenceUnload();
+      } else if (document.visibilityState === "visible") {
+        checkActivePresence();
+      }
+    });
 
     (async function() {
       try {
@@ -925,7 +954,8 @@
       }
 
       checkActivePresence();
-      setInterval(checkActivePresence, 12000);
+      // Fast presence polling (5 seconds)
+      setInterval(checkActivePresence, 5000);
     });
 </script>
 </body>
