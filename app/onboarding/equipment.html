@@ -685,24 +685,26 @@
     async function loadExistingEquipment() {
       existingEqTableContainer.textContent = "";
       try {
-        var resp = await fetch("/api/onboarding/equipment/list", {
+        var resp = await fetch("/api/equipment", {
           headers: { "x-org-id": activeOrgId || "" }
         });
         if (resp.ok) {
           var data = await resp.json();
-          var rawList = data.equipment || data.records || (Array.isArray(data) ? data : []);
+          var rawList = data.records || data.equipment || data.data || (Array.isArray(data) ? data : []);
           existingEquipment = rawList.map(function(item) {
+            var rec = item.fields ? Object.assign({ id: item.id }, item.fields) : item;
             return {
-              unitNo: item.unitNo || item.unit_no || item.asset_id || item.unitNumber || "",
-              name: normalizeName(item.name || item.description || item.asset_name || ""),
-              category: item.category || item.category_name || "",
-              make: item.make || "",
-              model: item.model || "",
-              year: item.year || "",
-              serial: item.serial || item.serial_number || item.vin || "",
-              meter: item.meter || item.odometer || "",
-              location: item.location || item.location_name || "",
-              division: item.division || item.division_name || ""
+              id: rec.id || "",
+              unitNo: rec.asset_number || rec.unitNo || rec.unit_no || rec.asset_id || "",
+              name: normalizeName(rec.name || rec.description || rec.asset_name || ""),
+              category: rec.category || rec.category_name || "",
+              make: rec.make || "",
+              model: rec.model || "",
+              year: rec.year || "",
+              serial: rec.serial_number || rec.serial || rec.vin || "",
+              meter: rec.meter || rec.odometer || "",
+              location: rec.current_location || rec.location || "",
+              division: rec.division || rec.division_name || ""
             };
           });
         } else {
@@ -780,6 +782,16 @@
         });
 
         var cellAction = document.createElement("td"); cellAction.className = "eq-actions-col";
+        
+        if (item.id) {
+          var btnDetail = document.createElement("a");
+          btnDetail.className = "eq-btn-secondary"; 
+          btnDetail.style.cssText = "padding:4px 10px;font-size:12px;height:auto;margin-right:6px;text-decoration:none;"; 
+          btnDetail.textContent = "View Detail";
+          btnDetail.href = "/app/equipment/asset-detail.html?id=" + encodeURIComponent(item.id);
+          cellAction.appendChild(btnDetail);
+        }
+
         var btnEdit = document.createElement("button");
         btnEdit.className = "eq-btn-secondary"; btnEdit.style.cssText = "padding:4px 10px;font-size:12px;height:auto;"; btnEdit.textContent = "Edit";
         btnEdit.addEventListener("click", function() { editEquipment(start + index, true); });
@@ -1116,35 +1128,48 @@
       if (!validateOrgContext()) return;
       eqStepStatus.textContent = ""; eqStepStatus.style.color = "var(--error)";
       if (equipment.length === 0 && existingEquipment.length === 0) { eqStepStatus.textContent = "You must add at least one asset."; return; }
-      var allEquipment;
+      
+      var btnSave = document.getElementById("btnSaveEq");
+      btnSave.disabled = true; btnSave.textContent = "Saving...";
+
       try {
-        allEquipment = existingEquipment.concat(equipment);
+        var saveErrors = [];
+        for (var i = 0; i < equipment.length; i++) {
+          var eq = equipment[i];
+          var payload = {
+            "Equipment Name": eq.name,
+            "Equipment ID": eq.unitNo,
+            "Category": eq.category,
+            "Status": "active",
+            "Location": eq.location,
+            "Serial Number": eq.serial,
+            "Division": eq.division
+          };
+          var res = await fetch("/api/equipment", { 
+            method: "POST", 
+            headers: { 
+              "Content-Type": "application/json",
+              "x-org-id": activeOrgId || ""
+            }, 
+            body: JSON.stringify(payload) 
+          });
+          if (!res.ok) {
+            var errData = await res.json().catch(function() { return {}; });
+            saveErrors.push(eq.unitNo + ": " + (errData.error || errData.message || "Save failed"));
+          }
+        }
+
+        if (saveErrors.length > 0) {
+          throw new Error("Some assets failed to save: " + saveErrors.join("; "));
+        }
+
+        var allEquipment = existingEquipment.concat(equipment);
         localStorage.setItem("driven_equipment", JSON.stringify(allEquipment));
         localStorage.setItem("driven_equipment_count", allEquipment.length);
         localStorage.setItem("driven_step7_complete", "true");
-      } catch(lsErr) {
-        console.warn("localStorage save failed:", lsErr.message);
-        if (window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("equipment.html: localStorage save failed — " + (lsErr.message || lsErr), "save-localStorage", lsErr && lsErr.stack ? lsErr.stack : null); }
-        allEquipment = equipment.slice();
-      }
-      var btnSave = document.getElementById("btnSaveEq");
-      btnSave.disabled = true; btnSave.textContent = "Saving...";
-      try {
-        var res = await fetch("/api/equipment", { 
-          method: "POST", 
-          headers: { 
-            "Content-Type": "application/json",
-            "x-org-id": activeOrgId || ""
-          }, 
-          body: JSON.stringify({ equipment: allEquipment }) 
-        });
-        var data = await res.json();
-        if (!res.ok) {
-          if (res.status < 500 && window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("equipment.html: save-settings returned " + res.status + " — " + (data.error || "Request failed"), "save-settings-" + res.status, "URL: /api/equipment | Assets: " + allEquipment.length); }
-          throw new Error(data.error || "Save failed");
-        }
+
         eqStepStatus.style.color = "var(--success)";
-        eqStepStatus.textContent = equipment.length + " asset(s) saved. Total assets: " + allEquipment.length + ". Redirecting to onboarding dashboard…";
+        eqStepStatus.textContent = equipment.length + " asset(s) saved directly to system. Redirecting to onboarding dashboard…";
         btnSave.textContent = "Saved ✓"; eqDirty = false;
         equipment = [];
         await loadExistingEquipment();
@@ -1152,9 +1177,9 @@
         setTimeout(function() { btnSave.disabled = false; btnSave.textContent = "Save & Continue"; window.location.href = "/app/dashboard/onboarding-dashboard.html"; }, 1500);
       } catch(err) {
         eqStepStatus.style.color = "var(--error)";
-        eqStepStatus.textContent = "Saved locally, but server save failed: " + err.message;
+        eqStepStatus.textContent = "Save failed: " + err.message;
         btnSave.disabled = false; btnSave.textContent = "Save & Continue";
-        if (window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("equipment.html: save failed — " + (err.message || err), "save-settings-catch", err && err.stack ? err.stack : null); }
+        if (window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("equipment.html: save failed — " + (err.message || err), "save-equipment-catch", err && err.stack ? err.stack : null); }
       }
     });
 
@@ -1172,8 +1197,8 @@
 
     document.addEventListener("dashSessionLoaded", function(e) {
       var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
-      activeOrgId = userObj.org_id || localStorage.getItem("driven_org_id") || "";
-      customerOrgName = localStorage.getItem("driven_org_name") || "DRIV-EN Org";
+      activeOrgId = (e.detail && e.detail.org_id) || userObj.org_id || localStorage.getItem("driven_org_id") || "";
+      customerOrgName = (e.detail && e.detail.org_name) || localStorage.getItem("driven_org_name") || "DRIV-EN Org";
 
       var row1 = document.querySelector(".dash-header-row1");
       if (row1 && !document.querySelector(".eq-header-title")) { 
