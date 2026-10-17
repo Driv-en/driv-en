@@ -642,18 +642,20 @@
     async function loadExistingProjects() {
       existingPrjTableContainer.textContent = "";
       try {
-        var resp = await fetch("/api/onboarding/projects/list", {
+        var resp = await fetch("/api/project", {
           headers: { "x-org-id": activeOrgId || "" }
         });
         if (resp.ok) {
           var data = await resp.json();
-          var rawList = data.projects || data.records || (Array.isArray(data) ? data : []);
+          var rawList = data.records || data.projects || data.data || (Array.isArray(data) ? data : []);
           existingProjects = rawList.map(function(item) {
+            var rec = item.fields ? Object.assign({ id: item.id }, item.fields) : item;
             return {
-              number: item.number || item.project_number || item.projectNumber || item.prj_number || "",
-              name: normalizeName(item.name || item.project_name || item.projectName || ""),
-              client: item.client || item.client_name || item.clientName || "",
-              division: item.division || item.division_name || item.divisionName || ""
+              id: rec.id || "",
+              number: rec.code || rec.number || rec.project_number || rec.projectNumber || "",
+              name: normalizeName(rec.name || rec.project_name || rec.projectName || ""),
+              client: rec.client || rec.client_name || "",
+              division: rec.division || rec.division_name || ""
             };
           });
         } else {
@@ -990,35 +992,44 @@
       if (!validateOrgContext()) return;
       prjStepStatus.textContent = ""; prjStepStatus.style.color = "var(--error)";
       if (projects.length === 0 && existingProjects.length === 0) { prjStepStatus.textContent = "You must add at least one project."; return; }
-      var allProjects;
+      
+      var btnSave = document.getElementById("btnSavePrj");
+      btnSave.disabled = true; btnSave.textContent = "Saving...";
+
       try {
-        allProjects = existingProjects.concat(projects);
+        var saveErrors = [];
+        for (var i = 0; i < projects.length; i++) {
+          var p = projects[i];
+          var payload = {
+            "Project Name": p.name,
+            "Project Code": p.number,
+            "Status": "Active"
+          };
+          var res = await fetch("/api/project", { 
+            method: "POST", 
+            headers: { 
+              "Content-Type": "application/json",
+              "x-org-id": activeOrgId || ""
+            }, 
+            body: JSON.stringify(payload) 
+          });
+          if (!res.ok) {
+            var errData = await res.json().catch(function() { return {}; });
+            saveErrors.push(p.name + ": " + (errData.error || errData.message || "Save failed"));
+          }
+        }
+
+        if (saveErrors.length > 0) {
+          throw new Error("Some projects failed to save: " + saveErrors.join("; "));
+        }
+
+        var allProjects = existingProjects.concat(projects);
         localStorage.setItem("driven_projects", JSON.stringify(allProjects));
         localStorage.setItem("driven_project_count", allProjects.length);
         localStorage.setItem("driven_step6_complete", "true");
-      } catch(lsErr) {
-        console.warn("localStorage save failed:", lsErr.message);
-        if (window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("projects.html: localStorage save failed — " + (lsErr.message || lsErr), "save-localStorage", lsErr && lsErr.stack ? lsErr.stack : null); }
-        allProjects = projects.slice();
-      }
-      var btnSave = document.getElementById("btnSavePrj");
-      btnSave.disabled = true; btnSave.textContent = "Saving...";
-      try {
-        var res = await fetch("/auth/save-settings", { 
-          method: "POST", 
-          headers: { 
-            "Content-Type": "application/json",
-            "x-org-id": activeOrgId || ""
-          }, 
-          body: JSON.stringify({ settings: { projects: allProjects } }) 
-        });
-        var data = await res.json();
-        if (!res.ok) {
-          if (res.status < 500 && window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("projects.html: save-settings returned " + res.status + " — " + (data.error || "Request failed"), "save-settings-" + res.status, "URL: /auth/save-settings | Projects: " + allProjects.length); }
-          throw new Error(data.error || "Save failed");
-        }
+
         prjStepStatus.style.color = "var(--success)";
-        prjStepStatus.textContent = projects.length + " project(s) saved. Total projects: " + allProjects.length + ". Redirecting to onboarding dashboard…";
+        prjStepStatus.textContent = projects.length + " project(s) saved directly to system. Redirecting to onboarding dashboard…";
         btnSave.textContent = "Saved ✓"; prjDirty = false;
         projects = [];
         await loadExistingProjects();
@@ -1026,9 +1037,9 @@
         setTimeout(function() { btnSave.disabled = false; btnSave.textContent = "Save & Continue"; window.location.href = "/app/dashboard/onboarding-dashboard.html"; }, 1500);
       } catch(err) {
         prjStepStatus.style.color = "var(--error)";
-        prjStepStatus.textContent = "Saved locally, but server save failed: " + err.message;
+        prjStepStatus.textContent = "Save failed: " + err.message;
         btnSave.disabled = false; btnSave.textContent = "Save & Continue";
-        if (window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("projects.html: save failed — " + (err.message || err), "save-settings-catch", err && err.stack ? err.stack : null); }
+        if (window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("projects.html: save failed — " + (err.message || err), "save-project-catch", err && err.stack ? err.stack : null); }
       }
     });
 
