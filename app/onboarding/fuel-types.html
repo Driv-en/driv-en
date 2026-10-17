@@ -509,7 +509,6 @@
 
       var checkClean = val.toLowerCase();
 
-      // 1. Check against default checkboxes (both value and visible label text)
       var matchedCheckbox = null;
       var allDefaults = document.querySelectorAll(".ft-grid:not(#customFuelGrid) input[type='checkbox']");
 
@@ -546,7 +545,6 @@
         return;
       }
 
-      // 2. Check against custom entries
       var existsCustom = customFuelTypes.some(function(c) { return c.toLowerCase() === checkClean; });
       if (existsCustom) {
         notice.textContent = 'ℹ️ Custom fuel type "' + val + '" is already added below.';
@@ -556,7 +554,6 @@
         return;
       }
 
-      // 3. Add as new custom entry
       customFuelTypes.push(val);
       input.value = "";
       ftDirty = true;
@@ -614,24 +611,39 @@
       });
     }
 
-    function loadSavedFuelTypes() {
+    async function loadSavedFuelTypes() {
+      var saved = [];
       try {
-        var saved = JSON.parse(localStorage.getItem("driven_fuel_types") || "[]");
-        if (saved && saved.length > 0) {
-          var defaultVals = [];
-          document.querySelectorAll(".ft-grid:not(#customFuelGrid) input[type='checkbox']").forEach(function(cb) {
-            defaultVals.push(cb.value);
-            cb.checked = saved.indexOf(cb.value) !== -1;
-          });
-
-          saved.forEach(function(sItem) {
-            if (defaultVals.indexOf(sItem) === -1 && customFuelTypes.indexOf(sItem) === -1) {
-              customFuelTypes.push(sItem);
-            }
-          });
-          renderCustomFuelTypes();
+        var res = await fetch("/api/fuel-types", {
+          headers: { "x-org-id": activeOrgId || "" }
+        });
+        if (res.ok) {
+          var data = await res.json();
+          var rawList = data.fuelTypes || data.records || data.data || (Array.isArray(data) ? data : []);
+          saved = rawList.map(function(item) {
+            return typeof item === "string" ? item : (item.name || item.fuel_type || "");
+          }).filter(Boolean);
+        } else {
+          saved = JSON.parse(localStorage.getItem("driven_fuel_types") || "[]");
         }
-      } catch (e) {}
+      } catch (e) {
+        saved = JSON.parse(localStorage.getItem("driven_fuel_types") || "[]");
+      }
+
+      if (saved && saved.length > 0) {
+        var defaultVals = [];
+        document.querySelectorAll(".ft-grid:not(#customFuelGrid) input[type='checkbox']").forEach(function(cb) {
+          defaultVals.push(cb.value);
+          cb.checked = saved.indexOf(cb.value) !== -1;
+        });
+
+        saved.forEach(function(sItem) {
+          if (defaultVals.indexOf(sItem) === -1 && customFuelTypes.indexOf(sItem) === -1) {
+            customFuelTypes.push(sItem);
+          }
+        });
+        renderCustomFuelTypes();
+      }
     }
 
     async function saveFuelTypes() {
@@ -657,18 +669,18 @@
       btnSave.textContent = "Saving...";
 
       try {
-        var res = await fetch("/auth/save-settings", {
+        var res = await fetch("/api/fuel-types", {
           method: "POST",
           headers: { 
             "Content-Type": "application/json",
             "x-org-id": activeOrgId || ""
           },
-          body: JSON.stringify({ settings: { fuelTypes: selected } })
+          body: JSON.stringify({ fuelTypes: selected })
         });
         if (!res.ok) throw new Error("Save failed");
         
         statusEl.style.color = "var(--success)";
-        statusEl.textContent = selected.length + " fuel & fluid type(s) saved. Redirecting to onboarding dashboard…";
+        statusEl.textContent = selected.length + " fuel & fluid type(s) saved directly to system. Redirecting to onboarding dashboard…";
         btnSave.textContent = "Saved ✓";
         ftDirty = false;
 
@@ -677,7 +689,7 @@
         }, 1200);
       } catch(err) {
         statusEl.style.color = "var(--error)";
-        statusEl.textContent = "Saved locally, but server save failed: " + err.message;
+        statusEl.textContent = "Save failed: " + err.message;
         btnSave.disabled = false;
         btnSave.textContent = "Save & Continue";
       }
