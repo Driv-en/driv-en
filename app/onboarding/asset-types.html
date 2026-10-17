@@ -940,17 +940,19 @@
         
         if (res.ok) {
           var data = await res.json();
-          saved = data.assetTypes || data.records || [];
+          var rawList = data.assetTypes || data.records || data.data || (Array.isArray(data) ? data : []);
+          saved = rawList.map(function(s) {
+            return typeof s === "string" ? s : (s && (s.asset_type_name || s.name) ? (s.asset_type_name || s.name) : "");
+          }).filter(Boolean);
           localStorage.setItem("driven_asset_types", JSON.stringify(saved));
         } else {
           saved = JSON.parse(localStorage.getItem("driven_asset_types") || "[]");
         }
 
         var normalizedSaved = saved.map(function(s) {
-          return normalizeName(typeof s === "string" ? s : (s && (s.asset_type_name || s.name) ? (s.asset_type_name || s.name) : ""));
+          return normalizeName(s);
         }).filter(Boolean);
 
-        // Standard checkboxes checked ONLY based on explicit saved state
         customAssetTypes = [];
         var defaultVals = [];
 
