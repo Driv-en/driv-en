@@ -29,6 +29,7 @@ const WORKER_ROUTES = {
   'fuel-types':        'https://driv-en-api.driv-en.workers.dev',
   'asset-types':       'https://driv-en-api.driv-en.workers.dev',
   'log-error':         'https://driv-en-api.driv-en.workers.dev',
+  'audit-log':         'https://driv-en-api.driv-en.workers.dev',
 
   // Onboarding & Key Personnel worker (onboarding-key-personnel)
   'onboarding':        'https://onboarding-key-personnel.driv-en.workers.dev',
@@ -37,7 +38,6 @@ const WORKER_ROUTES = {
   'error-log':         'https://driven-platform.driv-en.workers.dev',
   'users':             'https://driven-platform.driv-en.workers.dev',
   'permissions':       'https://driven-platform.driv-en.workers.dev',
-  'audit-log':         'https://driven-platform.driv-en.workers.dev',
   'project-assignments': 'https://driven-platform.driv-en.workers.dev',
   'user-activity':     'https://driven-platform.driv-en.workers.dev',
   'admin-safeguard':   'https://driven-platform.driv-en.workers.dev',
