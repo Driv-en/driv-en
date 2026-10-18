@@ -2,26 +2,83 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Asset Detail | DRIV-EN Platform</title>
-  <link rel="stylesheet" href="/app/shared/dashboard.css?v=10">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Master Asset Profile | DRIV-EN Platform</title>
+  <meta name="description" content="DRIV-EN — Master Asset Profile, Operational Status, Location Assignments, and Open Inspection Flags.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://www.driv-en.com/app/asset/asset-detail.html">
+  <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+  <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+  <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+  <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
+  <link rel="stylesheet" href="/app/shared/dashboard.css?v=13">
   <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
+  <script>
+    (function() {
+      var saved = localStorage.getItem("driven-theme");
+      var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      var theme = saved || system;
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
   <style>
-    /* Header layout overrides */
-    .dash-header-row2, .dash-header-row3, #dashHeader .dash-theme-wrapper { display: none !important; }
-    #dashHeader { width: 100% !important; box-sizing: border-box; }
-    .dash-header-row1 { padding: 8px 20px !important; align-items: center; width: 100% !important; box-sizing: border-box; display: flex; justify-content: space-between; }
-    .admin-header-title { flex: 1; text-align: center; font-size: 20px; font-weight: 700; color: var(--text, #0f172a); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    :root {
+      --header-height: 52px;
+      --card-green-border: #16a34a;
+      --blue-line: #1e3a8a;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      background-color: #0f172a;
+      color: #0f172a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    
+    /* Viewport Sticky Header */
+    #dashStickyHeader {
+      position: sticky !important;
+      top: 0 !important;
+      z-index: 100 !important;
+      background: #ffffff !important;
+      border-bottom: 1px solid #cbd5e1 !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+    #dashHeader {
+      background: #ffffff !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 20px;
+      position: relative;
+    }
+    .dash-header-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #0f172a;
+      text-align: center;
+      margin: 0;
+      letter-spacing: -0.01em;
+    }
 
-    /* Main Sticky Tab Bar */
-    .admin-tab-bar { display: flex; gap: 2px; width: 100%; max-width: 1100px; margin: 0 auto; padding: 0 20px; overflow-x: auto; position: sticky !important; top: 58px !important; z-index: 99 !important; background: #cbd5e1; border-bottom: 2px solid #94a3b8; box-sizing: border-box; -webkit-overflow-scrolling: touch; }
-    .admin-tab { background: #94a3b8; border: 1px solid #64748b; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 500; color: #1e293b; cursor: pointer; white-space: nowrap; text-decoration: none; transition: background 200ms ease, margin-top 200ms ease; }
-    .admin-tab:hover { color: #0f172a; background: #a5b4c4; margin-top: 2px; }
-    .admin-tab.active { color: #1d4ed8; background: #e2e8f0; border-color: #64748b; margin-top: 0; font-weight: 600; z-index: 2; }
-    .admin-tab-logout { background: #b91c1c; border: 1px solid #dc2626; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-left: auto; }
-    .admin-tab-logout:hover { background: #dc2626; margin-top: 2px; }
-
-    /* Presence Banner */
+    /* Sticky Tab & Presence Bar attached under sticky header */
+    .ob-greeting-bar { 
+      max-width: 1100px; 
+      margin: 8px auto; 
+      padding: 10px 20px; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      gap: 10px; 
+      position: sticky !important; 
+      top: var(--header-height) !important;
+      z-index: 95 !important; 
+      background: #cbd5e1 !important;
+      border-radius: 8px !important;
+      border: 1.5px solid #94a3b8 !important;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+    }
     .presence-banner { 
       display: none; 
       align-items: center; 
@@ -34,241 +91,440 @@
       font-size: 13px; 
       color: #ffffff !important; 
       font-weight: 600; 
-      width: fit-content;
-      margin: 12px auto 0 auto;
+      width: auto;
+    }
+    .rp-tab-bar { 
+      display: flex !important; 
+      visibility: visible !important;
+      opacity: 1 !important;
+      align-items: center !important;
+      justify-content: space-between;
+      gap: 8px !important; 
+      width: 100%; 
+      margin: 0; 
+      padding: 0; 
+      background: transparent !important; 
+      border: none !important;
+      box-shadow: none !important;
+    }
+    .rp-tab-btn {
+      background: #1e293b !important;
+      border: 1px solid #475569 !important;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #cbd5e1 !important;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 150ms ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .rp-tab-btn:hover, .rp-tab-btn.active {
+      background: #2563eb !important;
+      border-color: #1d4ed8 !important;
+      color: #ffffff !important;
+    }
+    .rp-tab-return { 
+      background: #1e40af !important; 
+      border: 1px solid #2563eb !important; 
+      border-radius: 6px; 
+      padding: 8px 18px; 
+      font-size: 14px; 
+      font-weight: 600; 
+      color: #dbeafe !important; 
+      cursor: pointer; 
+      white-space: nowrap; 
+      text-decoration: none; 
+      transition: background 200ms ease; 
+      display: inline-flex; 
+      align-items: center; 
+    }
+    .rp-tab-return:hover { background: #1d4ed8 !important; color: #ffffff !important; }
+    .rp-tab-logout { 
+      background: #b91c1c !important; 
+      border: 1px solid #dc2626 !important; 
+      border-radius: 6px; 
+      padding: 8px 18px; 
+      font-size: 14px; 
+      font-weight: 600; 
+      color: #ffffff !important; 
+      cursor: pointer; 
+      white-space: nowrap; 
+      transition: background 200ms ease; 
+      display: inline-flex; 
+      align-items: center; 
+    }
+    .rp-tab-logout:hover { background: #dc2626 !important; }
+
+    /* Main Page Content Container */
+    .ad-main {
+      width: 100%;
+      max-width: 1100px;
+      margin: 16px auto 80px auto;
+      padding: 0 16px;
+      box-sizing: border-box;
+      position: relative;
+      z-index: 10;
     }
 
-    /* Main Layout & Cards */
-    .asset-container {
-      max-width: 1100px;
-      margin: 20px auto 30px auto;
-      padding: 0 20px;
-      box-sizing: border-box;
-    }
-    .asset-grid {
-      display: grid;
-      grid-template-columns: 2fr 1fr;
-      gap: 20px;
-    }
-    @media (max-width: 850px) {
-      .asset-grid { grid-template-columns: 1fr; }
-      .asset-container { padding: 0 12px; margin: 12px auto; }
-    }
-    .card-panel {
-      background: var(--bg-card, #ffffff);
-      border: 2px solid #16a34a;
+    /* White Card Theme with Solid Green Border */
+    .ad-card {
+      background: #ffffff;
+      border: 2px solid var(--card-green-border);
       border-radius: 8px;
-      padding: 24px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      padding: 20px;
       margin-bottom: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08);
+      color: #0f172a;
     }
-    .card-title {
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--text, #0f172a);
-      margin-bottom: 16px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--border, #cbd5e1);
+    .ad-card-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
     }
-
-    /* Spec Grid Layout */
-    .spec-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px 20px;
-    }
-    .spec-item { display: flex; flex-direction: column; }
-    .spec-label { font-size: 12px; font-weight: 600; color: var(--text-muted, #64748b); text-transform: uppercase; }
-    .spec-value { font-size: 15px; font-weight: 600; color: var(--text, #1e293b); margin-top: 2px; }
-
-    /* Open Issues List */
-    .issue-badge {
-      display: inline-flex;
+    .ad-card-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0;
+      display: flex;
       align-items: center;
-      gap: 6px;
-      background: #fef2f2;
-      border: 1px solid #fca5a5;
-      color: #991b1b;
-      padding: 4px 10px;
-      border-radius: 4px;
-      font-size: 13px;
-      font-weight: 600;
+      gap: 8px;
     }
-    .issue-item {
-      padding: 12px;
-      border: 1px solid #fecaca;
-      background: #fff5f5;
+
+    /* Key Value Metric Grid */
+    .ad-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+    .ad-metric-box {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
       border-radius: 6px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .ad-metric-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+    .ad-metric-value {
+      font-size: 16px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    /* Open Inspection Warning Banner */
+    .ad-issue-banner {
+      background: #fffbebfb;
+      border: 2px solid #f59e0b;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    .ad-issue-header {
+      font-size: 15px;
+      font-weight: 700;
+      color: #b45309;
+      display: flex;
+      align-items: center;
+      gap: 8px;
       margin-bottom: 8px;
     }
-    .issue-header { display: flex; justify-content: space-between; font-weight: 700; color: #991b1b; font-size: 13px; }
-    .issue-desc { font-size: 13px; color: #451a03; margin-top: 4px; white-space: normal; word-break: break-word; }
 
-    /* Action Buttons */
-    .btn-action {
-      background: var(--primary, #16a34a);
-      color: #ffffff;
-      border: 1px solid var(--primary-hover, #15803d);
-      padding: 8px 16px;
+    /* Tables */
+    .ad-table-scroll {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid #e2e8f0;
       border-radius: 6px;
+      margin-top: 10px;
+    }
+    .ad-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed !important;
+      font-size: 13px;
+    }
+    .ad-table th {
+      background: #f1f5f9;
+      color: #334155;
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 2px solid #1e3a8a;
+      white-space: normal !important;
+      word-break: break-word !important;
+    }
+    .ad-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e2e8f0;
+      color: #0f172a;
+      white-space: normal !important;
+      word-break: break-word !important;
+    }
+
+    /* Buttons */
+    .ad-btn {
+      background: #16a34a;
+      border: 1px solid #15803d;
+      color: #ffffff;
       font-weight: 600;
-      font-size: 14px;
+      padding: 8px 18px;
+      border-radius: 6px;
       cursor: pointer;
+      text-decoration: none;
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      text-decoration: none;
-      transition: all 200ms ease;
+      transition: background 200ms ease;
     }
-    .btn-action:hover {
-      background: var(--primary-hover, #15803d);
+    .ad-btn:hover {
+      background: #2563eb;
+      border-color: #1d4ed8;
     }
-    .btn-print {
-      background: #16a34a !important;
-      border: 1px solid #15803d !important;
-      color: #ffffff !important;
+
+    .ad-message {
+      display: none;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-bottom: 16px;
+      font-weight: 600;
     }
-    .btn-print:hover {
-      background: #15803d !important;
+    .ad-message.error {
+      background: #fef2f2;
+      border: 1px solid #ef4444;
+      color: #991b1b;
     }
 
     @media print {
-      .admin-tab-bar, .presence-banner, .btn-action, #dashFooter { display: none !important; }
-      body { background: #ffffff !important; color: #000000 !important; }
-      .asset-container { max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
-      @page { margin: 10mm; }
+      #dashStickyHeader, .ob-greeting-bar, #dashFooter, .ad-btn {
+        display: none !important;
+      }
+      body {
+        background: #ffffff;
+        color: #000000;
+      }
+      .ad-card {
+        background: #ffffff;
+        border: 1px solid #000;
+        box-shadow: none;
+      }
     }
   </style>
 </head>
-<body data-page-title="Asset Detail" data-required-role="Admin">
+<body data-page-title="Asset Detail">
   <div class="steel-bg"></div>
   <div class="steel-overlay"></div>
 
-  <!-- Header Placeholder -->
-  <div id="dashHeader"></div>
-
-  <!-- Sticky Navigation Tab Bar (Restricted to Assets Return & Logout) -->
-  <div class="admin-tab-bar" id="adminTabBar">
-    <a class="admin-tab active" href="/app/dashboard/asset-management.html?tab=assets">← Back to Assets</a>
-    <button class="admin-tab-logout" onclick="dashLogout()">Logout</button>
+  <!-- Viewport Sticky Header -->
+  <div id="dashStickyHeader">
+    <div id="dashHeader">
+      <h1 class="dash-header-title">Master Asset Profile</h1>
+    </div>
   </div>
 
-  <!-- Presence Indicator Banner -->
-  <div class="presence-banner" id="presenceBanner">
-    <span id="presenceText">Other Key Personnel active</span>
+  <!-- Sticky Presence Banner & Tab Navigation (Sticks to bottom of header, body scrolls behind) -->
+  <div class="ob-greeting-bar" id="obGreetingBar">
+    <div class="presence-banner" id="presenceBanner">
+      <span id="presenceText">Other Key Personnel active</span>
+    </div>
+
+    <div class="rp-tab-bar" id="rpTabBar">
+      <div style="display:flex; gap:8px; align-items:center;">
+        <a class="rp-tab-return" href="/app/dashboard/asset-management.html?tab=assets">← Asset Directory</a>
+        <a class="rp-tab-btn" id="lnkConfig" href="/app/asset/asset-configuration.html">⚙️ Configure Details</a>
+        <a class="rp-tab-btn" id="lnkHistory" href="/app/asset/asset-history.html">📜 Lifecycle History</a>
+      </div>
+      <button class="rp-tab-logout" onclick="confirmLogout()">Logout</button>
+    </div>
   </div>
 
-  <main class="asset-container">
-    <!-- Header Summary Panel -->
-    <div class="card-panel">
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
-        <div>
-          <span id="assetTypeCode" style="font-size: 12px; font-weight: 700; color: #2563eb; text-transform: uppercase; letter-spacing: 0.05em;">ASSET CATEGORY</span>
-          <h1 id="assetUnitNumber" style="font-size: 28px; font-weight: 800; color: var(--text, #0f172a); margin: 4px 0;">--</h1>
-          <p id="assetMakeModel" style="font-size: 16px; color: var(--text-muted, #475569); font-weight: 500; margin: 0;">Loading Specs...</p>
+  <!-- Main Scrollable Body Content -->
+  <div class="ad-main">
+    <div id="adMessage" class="ad-message"></div>
+
+    <!-- Dynamic Open Inspection Issue Flag Alert Banner -->
+    <div class="ad-issue-banner" id="bannerOpenIssues">
+      <div class="ad-issue-header">
+        <span>⚠️ ATTENTION: OPEN INSPECTION ISSUES DETECTED</span>
+      </div>
+      <div id="txtOpenIssuesSummary" style="font-size:13px; color:#92400e;">
+        This asset currently has unresolved flags recorded from previous operational inspections.
+      </div>
+    </div>
+
+    <!-- Section 1: Master Asset Profile & Operational Status -->
+    <div class="ad-card">
+      <div class="ad-card-header">
+        <h3 class="ad-card-title">
+          <span>📦 Primary Asset Profile:</span>
+          <span id="txtAssetNumber" style="color:#2563eb;">Loading Asset...</span>
+        </h3>
+        <a class="ad-btn" id="lnkQuickEditConfig" href="#">⚙️ Asset Configuration</a>
+      </div>
+      <div class="ad-grid">
+        <div class="ad-metric-box">
+          <span class="ad-metric-label">Asset Identifier / Tag</span>
+          <span class="ad-metric-value" id="valAssetNumber">—</span>
         </div>
-        <div style="text-align: right;">
-          <span id="assetStatusBadge" class="issue-badge" style="background: #e0f2fe; border-color: #7dd3fc; color: #0369a1;">Active</span>
-          <div id="assetLocation" style="font-size: 13px; color: var(--text-muted, #64748b); font-weight: 600; margin-top: 6px;">Location: Unassigned</div>
+        <div class="ad-metric-box">
+          <span class="ad-metric-label">Category / Asset Type</span>
+          <span class="ad-metric-value" id="valCategory">—</span>
+        </div>
+        <div class="ad-metric-box">
+          <span class="ad-metric-label">Operational Status</span>
+          <span class="ad-metric-value" id="valStatus">—</span>
+        </div>
+        <div class="ad-metric-box">
+          <span class="ad-metric-label">OEM / Make & Model</span>
+          <span class="ad-metric-value" id="valMakeModel">—</span>
+        </div>
+        <div class="ad-metric-box">
+          <span class="ad-metric-label">Serial / VIN Number</span>
+          <span class="ad-metric-value" id="valSerial">—</span>
+        </div>
+        <div class="ad-metric-box">
+          <span class="ad-metric-label">Current Meter Hours/Miles</span>
+          <span class="ad-metric-value" id="valMeter">—</span>
         </div>
       </div>
     </div>
 
-    <div class="asset-grid">
-      <!-- Left Column: Primary Asset Specifications & Open Inspection Issues -->
-      <div>
-        <div class="card-panel">
-          <div class="card-title">
-            <span>Core Specifications</span>
-            <a id="btnEditConfig" href="#" class="btn-action" style="font-size: 12px; padding: 4px 10px;">Configure Details</a>
-          </div>
-          <div class="spec-grid">
-            <div class="spec-item"><span class="spec-label">Serial Number / VIN</span><span class="spec-value" id="specVin">--</span></div>
-            <div class="spec-item"><span class="spec-label">Year</span><span class="spec-value" id="specYear">--</span></div>
-            <div class="spec-item"><span class="spec-label">Primary Driver / Operator</span><span class="spec-value" id="specOperator">--</span></div>
-            <div class="spec-item"><span class="spec-label">Assigned Project</span><span class="spec-value" id="specProject">--</span></div>
-            <div class="spec-item"><span class="spec-label">Meter Reading (Hours/Miles)</span><span class="spec-value" id="specMeter">--</span></div>
-            <div class="spec-item"><span class="spec-label">Fuel Type</span><span class="spec-value" id="specFuelType">--</span></div>
-          </div>
-        </div>
-
-        <div class="card-panel">
-          <div class="card-title">
-            <span>⚠️ Open Inspection Issues & Flags</span>
-            <span id="openIssueCount" class="issue-badge">0 Open</span>
-          </div>
-          <div id="openIssuesList">
-            <p style="color: var(--text-muted, #64748b); font-size: 14px; margin: 0;">No unclosed inspection issues flagged for this asset.</p>
-          </div>
-        </div>
+    <!-- Section 2: Active Assignment & Operator Details -->
+    <div class="ad-card">
+      <div class="ad-card-header">
+        <h3 class="ad-card-title">📍 Current Location & Assigned Operator</h3>
       </div>
-
-      <!-- Right Column: Quick Operational Actions & Composite Structures -->
-      <div>
-        <div class="card-panel">
-          <div class="card-title"><span>Quick Operations</span></div>
-          <div style="display: flex; flex-direction: column; gap: 10px;">
-            <a id="linkNewInspection" href="#" class="btn-action" style="justify-content: center;">📋 Start New Inspection</a>
-            <a id="linkNewWorkOrder" href="#" class="btn-action" style="justify-content: center; background: #d97706; border-color: #b45309;">🛠 Create Work Order</a>
-            <a id="linkLogFuel" href="#" class="btn-action" style="justify-content: center; background: #475569; border-color: #334155;">⛽ Log Fuel / Fluid</a>
-            <button class="btn-action btn-print" onclick="window.print()" style="justify-content: center;">🖨 Print Profile</button>
-          </div>
+      <div class="ad-grid">
+        <div class="ad-metric-box">
+          <span class="ad-metric-label">Assigned Project / Division</span>
+          <span class="ad-metric-value" id="valProject">—</span>
         </div>
-
-        <div class="card-panel">
-          <div class="card-title"><span>Composite Components</span></div>
-          <div id="compositeComponentList" style="font-size: 13px; color: var(--text-muted, #475569);">
-            <p style="margin: 0;">No attached child components configured.</p>
-          </div>
+        <div class="ad-metric-box">
+          <span class="ad-metric-label">Physical Location / Site</span>
+          <span class="ad-metric-value" id="valLocation">—</span>
+        </div>
+        <div class="ad-metric-box">
+          <span class="ad-metric-label">Assigned Primary Operator</span>
+          <span class="ad-metric-value" id="valOperator">—</span>
+        </div>
+        <div class="ad-metric-box">
+          <span class="ad-metric-label">Drive / Mobility Setup</span>
+          <span class="ad-metric-value" id="valDriveConfig">—</span>
         </div>
       </div>
     </div>
-  </main>
+
+    <!-- Section 3: Open Work Orders & Inspection Flags -->
+    <div class="ad-card">
+      <div class="ad-card-header">
+        <h3 class="ad-card-title">🛠️ Active Work Orders & Inspection Flags</h3>
+      </div>
+      <div class="ad-table-scroll">
+        <table class="ad-table">
+          <thead>
+            <tr>
+              <th style="width:15%;">Log Date</th>
+              <th style="width:20%;">Type / Module</th>
+              <th style="width:45%;">Logged Defect / Issue Description</th>
+              <th style="width:20%;">Current Status</th>
+            </tr>
+          </thead>
+          <tbody id="tbOpenIssues">
+            <tr>
+              <td colspan="4" style="text-align:center; color:#64748b;">No open work orders or unresolved inspection flags recorded.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
   <div id="dashFooter"></div>
 
   <script src="/app/shared/dashboard-common.js?v=13"></script>
+  <script src="/app/shared/auth-check.js?v=13"></script>
+
   <script>
-    var activeOrgId = "";
-    var currentAssetId = "";
+    var currentAssetId = null;
+    var activeOrgId = null;
 
-    function getQueryParam(param) {
-      var urlParams = new URLSearchParams(window.location.search);
-      return urlParams.get(param);
+    // URL Query Parameter Parsing
+    var urlParams = new URLSearchParams(window.location.search);
+    currentAssetId = urlParams.get('id') || urlParams.get('asset_id');
+
+    // Strict Multi-Tenant Execution Guardrail & Boot
+    document.addEventListener("dashSessionLoaded", async function(e) {
+      var u = window.dashUser;
+      
+      // Multi-Tenant Isolation Verification
+      activeOrgId = (u && u.org_id && u.org_id !== "default_org") ? u.org_id : null;
+
+      if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "") {
+        var errMsg = "Invalid multi-tenant session context. Execution halted to prevent data leaks.";
+        if (window.DRIVENErrorHandler) {
+          window.DRIVENErrorHandler.report(
+            "asset-detail.html: " + errMsg,
+            "tenant-security-guardrail",
+            new Error().stack
+          );
+        }
+        displayMessage(errMsg, "error");
+        document.querySelector(".ad-main").style.opacity = "0.3";
+        return; // Halt execution completely
+      }
+
+      // Configure sub-navigation links with asset context
+      if (currentAssetId) {
+        document.getElementById("lnkConfig").href = "/app/asset/asset-configuration.html?id=" + encodeURIComponent(currentAssetId);
+        document.getElementById("lnkHistory").href = "/app/asset/asset-history.html?id=" + encodeURIComponent(currentAssetId);
+        document.getElementById("lnkQuickEditConfig").href = "/app/asset/asset-configuration.html?id=" + encodeURIComponent(currentAssetId);
+      }
+
+      // Initialize active co-worker presence
+      checkActivePresence();
+      setInterval(checkActivePresence, 5000);
+
+      if (currentAssetId) {
+        await loadAssetDetails(currentAssetId);
+        await loadOpenInspectionIssues(currentAssetId);
+      } else {
+        displayMessage("No Asset ID specified in navigation request.", "error");
+      }
+    });
+
+    function displayMessage(msg, type) {
+      var el = document.getElementById("adMessage");
+      if (!el) return;
+      el.textContent = msg;
+      el.className = "ad-message " + type;
+      el.style.display = "block";
     }
 
-    function resolveOrgId() {
-      if (window.dashUser && (window.dashUser.org_id || window.dashUser.orgId)) {
-        return window.dashUser.org_id || window.dashUser.orgId;
-      }
-      var sessionStr = localStorage.getItem("driv_en_session");
-      if (sessionStr) {
-        try {
-          var sessionData = JSON.parse(sessionStr);
-          if (sessionData.org_id || sessionData.orgId) return sessionData.org_id || sessionData.orgId;
-        } catch(e){}
-      }
-      return localStorage.getItem("driven_org_id") || "";
-    }
-
-    function insertCenteredHeaderTitle() {
-      var row = document.querySelector(".dash-header-row1");
-      if (row && !document.querySelector(".admin-header-title")) {
-        var titleEl = document.createElement("div");
-        titleEl.className = "admin-header-title";
-        titleEl.textContent = "Asset Detail";
-        var logo = row.querySelector(".dash-driven-logo");
-        if (logo) row.insertBefore(titleEl, logo);
-        else row.appendChild(titleEl);
+    function reportClientError(msg, context, err) {
+      if (window.DRIVENErrorHandler) {
+        window.DRIVENErrorHandler.report("asset-detail.html: " + msg, context, err ? err.stack : null);
       }
     }
 
+    // High-Frequency Co-Worker Polling & Fast Beacon Unload
     function sendPresenceUnload() {
       if (!activeOrgId) return;
-      var payload = JSON.stringify({ page: "Asset Detail: " + (currentAssetId || "Unknown"), action: "leave" });
+      var payload = JSON.stringify({ page: "Asset Detail", action: "leave" });
       if (navigator.sendBeacon) {
         var blob = new Blob([payload], { type: "application/json" });
         navigator.sendBeacon("/api/onboarding/presence", blob);
@@ -283,7 +539,7 @@
     }
 
     async function checkActivePresence() {
-      if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") return;
+      if (!activeOrgId) return;
       try {
         var resp = await fetch("/api/onboarding/presence", {
           method: "POST",
@@ -291,175 +547,108 @@
             "Content-Type": "application/json",
             "x-org-id": activeOrgId
           },
-          body: JSON.stringify({ page: "Asset Detail: " + (currentAssetId || "Unknown") })
+          body: JSON.stringify({ page: "Asset Detail" })
         });
         if (resp.ok) {
           var data = await resp.json();
           var banner = document.getElementById("presenceBanner");
           var textEl = document.getElementById("presenceText");
-          if (banner && textEl && data.activeUsers && data.activeUsers.length > 0) {
+          if (data.activeUsers && data.activeUsers.length > 0) {
             var fullNames = data.activeUsers.map(function(u) {
               if (typeof u === "object") {
                 return ((u.firstName || u.first_name || "") + " " + (u.lastName || u.last_name || "")).trim() || u.name || u.email;
               }
               return String(u);
             });
-            textEl.textContent = "🟢 " + fullNames.join(", ") + " is also viewing this asset";
+            textEl.textContent = "🟢 " + fullNames.join(", ") + " is also active on this page";
             banner.style.display = "inline-flex";
-          } else if (banner) {
+          } else {
             banner.style.display = "none";
           }
         }
-      } catch (e) {}
-    }
-
-    async function initializeAssetDetail() {
-      currentAssetId = getQueryParam("id");
-
-      insertCenteredHeaderTitle();
-      activeOrgId = resolveOrgId();
-
-      if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
-        alert("Invalid multi-tenant session context. Execution halted to prevent data leaks.");
-        window.location.href = "/public/login.html";
-        return;
-      }
-
-      if (currentAssetId) {
-        var btnEdit = document.getElementById("btnEditConfig");
-        var linkInsp = document.getElementById("linkNewInspection");
-        var linkWo = document.getElementById("linkNewWorkOrder");
-        var linkFuel = document.getElementById("linkLogFuel");
-        
-        if (btnEdit) btnEdit.href = "/app/asset/asset-configuration.html?id=" + currentAssetId;
-        if (linkInsp) linkInsp.href = "/app/forms/inspection.html?asset_id=" + currentAssetId;
-        if (linkWo) linkWo.href = "/app/forms/work-order-create.html?asset_id=" + currentAssetId;
-        if (linkFuel) linkFuel.href = "/app/dashboard/fuel.html?asset_id=" + currentAssetId;
-      }
-
-      await loadAssetRecord();
-      await loadOpenIssues();
-      
-      checkActivePresence();
-      setInterval(checkActivePresence, 5000);
-    }
-
-    async function loadAssetRecord() {
-      if (!currentAssetId) return;
-      try {
-        var resp = await fetch("/api/Equipment", {
-          headers: { "x-org-id": activeOrgId }
-        });
-        if (resp.ok) {
-          var resData = await resp.json();
-          var list = resData.records || resData.equipment || resData.assets || resData.data || (Array.isArray(resData) ? resData : [resData]);
-          
-          var asset = null;
-          if (Array.isArray(list)) {
-            asset = list.find(function(item) {
-              return String(item.id) === String(currentAssetId) || 
-                     String(item.equipment_id) === String(currentAssetId) ||
-                     String(item.asset_id) === String(currentAssetId);
-            }) || list[0];
-          } else {
-            asset = list;
-          }
-
-          if (asset && (asset.id || asset.equipment_id || asset.unit_number || asset.asset_number)) {
-            var unitVal = asset.unit_number || asset.asset_number || asset.unit_no || asset.name || ("Asset #" + (asset.id || asset.equipment_id));
-            var unitEl = document.getElementById("assetUnitNumber");
-            if (unitEl) unitEl.textContent = unitVal;
-
-            var mmEl = document.getElementById("assetMakeModel");
-            if (mmEl) mmEl.textContent = ((asset.make || asset.manufacturer || "") + " " + (asset.model || "")).trim() || "N/A Specs";
-
-            var typeEl = document.getElementById("assetTypeCode");
-            if (typeEl) typeEl.textContent = asset.asset_type_name || asset.category || asset.type || "ASSET";
-
-            var vinEl = document.getElementById("specVin");
-            if (vinEl) vinEl.textContent = asset.vin || asset.serial_number || asset.serial_no || "N/A";
-
-            var yearEl = document.getElementById("specYear");
-            if (yearEl) yearEl.textContent = asset.year || "N/A";
-
-            var opEl = document.getElementById("specOperator");
-            if (opEl) opEl.textContent = asset.operator_name || asset.assigned_operator || "Unassigned";
-
-            var projEl = document.getElementById("specProject");
-            if (projEl) projEl.textContent = asset.project_name || asset.assigned_project || "Unassigned";
-
-            var meterEl = document.getElementById("specMeter");
-            if (meterEl) meterEl.textContent = (asset.meter_reading || asset.current_meter || asset.hours || "0") + " " + (asset.meter_type || "Hours");
-
-            var fuelEl = document.getElementById("specFuelType");
-            if (fuelEl) fuelEl.textContent = asset.fuel_type || "N/A";
-
-            var locEl = document.getElementById("assetLocation");
-            if (locEl) locEl.textContent = "Location: " + (asset.location || asset.current_location || "Unassigned");
-
-            document.title = unitVal + " | DRIV-EN Asset Detail";
-          } else {
-            var mmEl = document.getElementById("assetMakeModel");
-            if (mmEl) mmEl.textContent = "Asset profile record not found.";
-          }
-        }
       } catch (e) {
-        console.error("Failed to load asset details:", e);
-        var mmEl = document.getElementById("assetMakeModel");
-        if (mmEl) mmEl.textContent = "Error fetching asset details.";
-      }
-    }
-
-    async function loadOpenIssues() {
-      if (!currentAssetId) return;
-      try {
-        var resp = await fetch("/api/inspections/open-issues?asset_id=" + encodeURIComponent(currentAssetId), {
-          headers: { "x-org-id": activeOrgId }
-        });
-        if (resp.ok) {
-          var resData = await resp.json();
-          var issues = resData.records || resData.issues || resData.data || [];
-          var listEl = document.getElementById("openIssuesList");
-          var countEl = document.getElementById("openIssueCount");
-          
-          if (countEl) countEl.textContent = issues.length + " Open";
-
-          if (listEl) {
-            if (issues.length > 0) {
-              listEl.innerHTML = issues.map(function(issue) {
-                return '<div class="issue-item">' +
-                  '<div class="issue-header">' +
-                    '<span>⚠️ ' + (issue.item_name || 'Inspection Flag') + '</span>' +
-                    '<span>Log Date: ' + (issue.logged_date || 'Recent') + '</span>' +
-                  '</div>' +
-                  '<div class="issue-desc">' + (issue.description || 'No detailed issue notes recorded.') + '</div>' +
-                '</div>';
-              }).join("");
-            } else {
-              listEl.innerHTML = '<p style="color: var(--text-muted, #64748b); font-size: 14px; margin: 0;">No unclosed inspection issues flagged for this asset.</p>';
-            }
-          }
-        }
-      } catch(e) {
-        console.error("Failed to load open inspection issues:", e);
+        reportClientError("Presence check failed", "checkActivePresence", e);
       }
     }
 
     window.addEventListener("pagehide", sendPresenceUnload);
     window.addEventListener("beforeunload", sendPresenceUnload);
-    document.addEventListener("visibilitychange", function() {
-      if (document.visibilityState === "hidden") {
-        sendPresenceUnload();
-      } else if (document.visibilityState === "visible") {
-        checkActivePresence();
-      }
-    });
 
-    document.addEventListener("dashSessionLoaded", initializeAssetDetail);
-    document.addEventListener("DOMContentLoaded", function() {
-      if (window.dashUser) initializeAssetDetail();
-    });
+    // Fetch Master Asset Record
+    async function loadAssetDetails(assetId) {
+      try {
+        var resp = await fetch("/api/equipment/" + encodeURIComponent(assetId), {
+          headers: { "x-org-id": activeOrgId }
+        });
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        
+        var data = await resp.json();
+        var rec = data.record || data.equipment || data;
+
+        var num = rec.asset_number || rec.assetNumber || "Asset #" + assetId;
+        document.getElementById("txtAssetNumber").textContent = num;
+        document.getElementById("valAssetNumber").textContent = num;
+        document.getElementById("valCategory").textContent = rec.category || rec.type || "—";
+        document.getElementById("valStatus").textContent = rec.status || "Active";
+        
+        var makeModel = [rec.make, rec.model].filter(Boolean).join(" ") || "—";
+        document.getElementById("valMakeModel").textContent = makeModel;
+        document.getElementById("valSerial").textContent = rec.serial_number || rec.serialNumber || "—";
+        document.getElementById("valMeter").textContent = rec.current_meter ? rec.current_meter + " hrs" : "—";
+
+        document.getElementById("valProject").textContent = rec.project_name || rec.project || "Unassigned";
+        document.getElementById("valLocation").textContent = rec.location || "Yard / Shop";
+        document.getElementById("valOperator").textContent = rec.operator_name || rec.assigned_operator || "Unassigned";
+        document.getElementById("valDriveConfig").textContent = rec.drive_configuration || "Standard";
+
+      } catch (e) {
+        reportClientError("Failed loading asset profile details", "loadAssetDetails", e);
+        displayMessage("Unable to retrieve asset profile records.", "error");
+      }
+    }
+
+    // Dynamic Query for Open Inspection Issues & Flags
+    async function loadOpenInspectionIssues(assetId) {
+      try {
+        var resp = await fetch("/api/equipment/" + encodeURIComponent(assetId) + "/open-issues", {
+          headers: { "x-org-id": activeOrgId }
+        });
+
+        if (resp.ok) {
+          var data = await resp.json();
+          var issues = data.records || data.issues || data.data || (Array.isArray(data) ? data : []);
+          
+          if (issues.length > 0) {
+            document.getElementById("bannerOpenIssues").style.display = "block";
+            var tb = document.getElementById("tbOpenIssues");
+            tb.innerHTML = "";
+
+            issues.forEach(function(iss) {
+              var tr = document.createElement("tr");
+              tr.innerHTML = 
+                '<td>' + (iss.created_at ? new Date(iss.created_at).toLocaleDateString() : '—') + '</td>' +
+                '<td><strong style="color:#eab308;">⚠️ Inspection Flag</strong></td>' +
+                '<td>' + escapeHtml(iss.description || iss.issue_details || 'Defect logged during inspection') + '</td>' +
+                '<td><span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:12px; font-weight:600; font-size:12px;">OPEN</span></td>';
+              tb.appendChild(tr);
+            });
+          }
+        }
+      } catch (e) {
+        reportClientError("Failed loading open inspection flags", "loadOpenInspectionIssues", e);
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function confirmLogout() {
+      if (confirm("Are you sure you want to log out?")) {
+        dashLogout();
+      }
+    }
   </script>
-  <script src="/app/shared/auth-check.js?v=13"></script>
 </body>
 </html>
