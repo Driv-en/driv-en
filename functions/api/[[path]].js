@@ -20,12 +20,13 @@ const WORKER_ROUTES = {
   'resend-verify':     'https://driv-en-auth.driv-en.workers.dev',
   '2fa':               'https://driv-en-auth.driv-en.workers.dev',
 
-  // DRIV-EN API Worker (driv-en-api — Project, Clients, Division, Equipment, Asset Types, Users, Roles, AuditLog)
+  // DRIV-EN API Worker (driv-en-api — Project, Clients, Division, Equipment, Fuel Types, Asset Types, Users, Roles, AuditLog)
   'project':           'https://driv-en-api.driv-en.workers.dev',
   'projects':          'https://driv-en-api.driv-en.workers.dev',
   'clients':           'https://driv-en-api.driv-en.workers.dev',
   'division':          'https://driv-en-api.driv-en.workers.dev',
   'equipment':         'https://driv-en-api.driv-en.workers.dev',
+  'fuel-types':        'https://driv-en-api.driv-en.workers.dev',
   'asset-types':       'https://driv-en-api.driv-en.workers.dev',
   'log-error':         'https://driv-en-api.driv-en.workers.dev',
 
