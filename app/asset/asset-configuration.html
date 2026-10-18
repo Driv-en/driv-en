@@ -266,6 +266,26 @@
       border-color: #1d4ed8;
     }
 
+    .btn-action {
+      background: #16a34a;
+      color: #ffffff;
+      border: 1px solid #15803d;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      transition: background 200ms ease;
+    }
+    .btn-action:hover {
+      background: #2563eb;
+      border-color: #1d4ed8;
+    }
+
     .ac-table-scroll {
       width: 100%;
       overflow-x: auto;
@@ -321,20 +341,34 @@
       .am-tab-logout { padding: 8px 12px; font-size: 13px; }
     }
 
+    /* Flush Targeted Printing */
     @media print {
-      .am-tab-bar, #dashHeader, .ac-save-bar, #dashFooter, .ac-btn-action {
+      .am-tab-bar, #dashHeader, .ac-save-bar, #dashFooter, .btn-action, .ac-btn-save {
         display: none !important;
       }
       body {
-        background: #ffffff;
-        color: #000000;
+        background: #ffffff !important;
+        color: #000000 !important;
+      }
+      .ac-main {
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
       }
       .ac-card {
-        background: #ffffff;
-        border: 1px solid #000;
-        color: #000000;
-        box-shadow: none;
+        background: #ffffff !important;
+        border: 1px solid #000000 !important;
+        color: #000000 !important;
+        box-shadow: none !important;
       }
+      .ac-field-group input, 
+      .ac-field-group select, 
+      .ac-field-group textarea {
+        border: 1px solid #64748b !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+      }
+      @page { margin: 10mm; }
     }
   </style>
 </head>
@@ -365,8 +399,11 @@
     <!-- Section 1: OEM Technical Specifications & Drive Configuration -->
     <div class="ac-card">
       <div class="ac-card-header">
-        <h3 class="ac-card-title">1. OEM Specifications & Mobility Setup</h3>
-        <span id="txtAssetTitle" style="font-size: 14px; font-weight: 600; color: #2563eb;">Loading Asset Context...</span>
+        <div>
+          <h3 class="ac-card-title">1. OEM Specifications & Mobility Setup</h3>
+          <span id="txtAssetTitle" style="font-size: 14px; font-weight: 600; color: #2563eb;">Loading Asset Context...</span>
+        </div>
+        <button class="btn-action" onclick="doPrintConfig()">🖨 Print Configuration</button>
       </div>
       <div class="ac-grid">
         <div class="ac-field-group">
@@ -565,6 +602,7 @@
     var currentAssetId = null;
     var activeOrgId = null;
     var activeUserId = null;
+    var humanAssetNumber = "";
     var pmScheduleItems = [];
 
     // Header Height Adjustment Logic matching asset-detail.html
@@ -723,7 +761,7 @@
     window.addEventListener("pagehide", sendPresenceUnload);
     window.addEventListener("beforeunload", sendPresenceUnload);
 
-    // Populate Standard System Fuel Types Directly (Avoids trigger of global fetch 500 error modal)
+    // Populate Standard System Fuel Types Directly
     function loadFuelTypesDropdown() {
       var defaultTypes = ["Ultra-Low Sulfur Diesel (ULSD)", "Unleaded Gasoline (Regular)", "Unleaded Gasoline (Premium)", "Electric / Battery (EV)", "Hybrid (Diesel/Electric)", "Propane / LPG", "Compressed Natural Gas (CNG)", "Biodiesel (B20)"];
       var sel = document.getElementById("cfgFuelType");
@@ -778,9 +816,9 @@
         var data = await resp.json();
         var rec = data.record || data.equipment || data;
         
-        var assetNum = rec.asset_number || rec.assetNumber || "Asset #" + assetId;
+        humanAssetNumber = rec.asset_number || rec.assetNumber || "Asset #" + assetId;
         var category = rec.category || rec.type || "";
-        document.getElementById("txtAssetTitle").textContent = assetNum + " (" + category + ")";
+        document.getElementById("txtAssetTitle").textContent = humanAssetNumber + (category ? " (" + category + ")" : "");
 
         // Populate Fields (Zero Pre-selection Integrity)
         document.getElementById("cfgMake").value = rec.make || "";
@@ -857,6 +895,18 @@
           '<td><button type="button" class="am-tab-logout" style="padding:4px 10px; font-size:12px; margin-left:0;" onclick="removePmRule(' + idx + ')">Remove</button></td>';
         tb.appendChild(tr);
       });
+    }
+
+    // Dynamic Customer Title Print Handler
+    function doPrintConfig() {
+      var u = window.dashUser || {};
+      var customerName = u.org_name || u.tenant_name || u.company_name || u.organization_name || "Organization";
+      var assetIdentifier = humanAssetNumber || currentAssetId || "Setup";
+
+      // Set print document title dynamically excluding DRIV-EN branding
+      document.title = customerName + " Technical Configuration | Asset #" + assetIdentifier;
+      
+      window.print();
     }
 
     // Asynchronous OEM Manual PDF Ingestion
