@@ -166,7 +166,7 @@
         .ad-main {
             width: 100%;
             max-width: 1100px;
-            margin: 16px auto 80px auto;
+            margin: 16px auto 100px auto;
             padding: 0 16px;
             box-sizing: border-box;
             position: relative;
@@ -201,10 +201,10 @@
             gap: 8px;
         }
 
-        /* Metric Grid */
+        /* Metric Grid & Dynamic Inputs */
         .ad-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
             gap: 16px;
         }
         .ad-metric-box {
@@ -214,7 +214,7 @@
             padding: 12px 14px;
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 6px;
         }
         .ad-metric-label {
             font-size: 12px;
@@ -227,6 +227,23 @@
             font-size: 16px;
             font-weight: 700;
             color: #0f172a;
+        }
+        .ad-input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px 10px;
+            border: 1px solid #94a3b8;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #0f172a;
+            background: #ffffff;
+            transition: border-color 200ms ease;
+        }
+        .ad-input:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
         }
 
         /* Inspection Issues Alert Banner */
@@ -279,7 +296,7 @@
             word-break: break-word !important;
         }
 
-        /* Buttons */
+        /* Buttons & Dynamic Save Bar */
         .ad-btn {
             background: #16a34a;
             border: 1px solid #15803d;
@@ -298,6 +315,56 @@
             background: #2563eb;
             border-color: #1d4ed8;
         }
+        .ad-btn-toggle {
+            background: #2563eb;
+            border: 1px solid #1d4ed8;
+            color: #ffffff;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            gap: 6px;
+            transition: background 200ms ease;
+        }
+        .ad-btn-toggle:hover {
+            background: #1e40af;
+        }
+
+        .ac-save-bar { 
+            position: fixed; 
+            bottom: 0; 
+            left: 0;
+            right: 0;
+            z-index: 120; 
+            background: #cbd5e1 !important; 
+            border-top: 2px solid #94a3b8 !important; 
+            padding: 12px 20px; 
+            max-width: 1100px; 
+            margin: 0 auto; 
+            box-sizing: border-box; 
+            border-radius: 8px 8px 0 0;
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .ad-btn-save {
+            background: #16a34a;
+            border: 1px solid #15803d;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 700;
+            padding: 10px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 200ms ease;
+        }
+        .ad-btn-save:hover {
+            background: #2563eb;
+            border-color: #1d4ed8;
+        }
 
         .ad-message {
             display: none;
@@ -312,15 +379,20 @@
             border: 1px solid #ef4444;
             color: #991b1b;
         }
+        .ad-message.success {
+            background: #f0fdf4;
+            border: 1px solid #22c55e;
+            color: #15803d;
+        }
 
         @media (max-width: 700px) {
-            .ad-main { padding: 0 12px; margin: 12px auto; }
+            .ad-main { padding: 0 12px; margin: 12px auto 120px auto; }
             .am-tab { padding: 8px 12px; font-size: 13px; }
             .am-tab-logout { padding: 8px 12px; font-size: 13px; }
         }
 
         @media print {
-            .am-tab-bar, #dashHeader, #dashFooter, .ad-btn {
+            .am-tab-bar, #dashHeader, #dashFooter, .ad-btn, .ad-btn-toggle, .ac-save-bar {
                 display: none !important;
             }
             body { background: #ffffff; color: #000000; }
@@ -363,67 +435,100 @@
             </div>
         </div>
 
-        <!-- Section 1: Master Asset Profile & Operational Status -->
-        <div class="ad-card">
-            <div class="ad-card-header">
-                <h3 class="ad-card-title">
-                    <span>📦 Primary Asset Profile:</span>
-                    <span id="txtAssetNumber" style="color:#2563eb;">Loading Asset...</span>
-                </h3>
-                <a class="ad-btn" id="lnkQuickEditConfig" href="#">⚙️ Asset Configuration</a>
+        <form id="frmAssetProfile" onsubmit="saveAssetDetails(event)">
+            <!-- Section 1: Master Asset Profile & Operational Status -->
+            <div class="ad-card">
+                <div class="ad-card-header">
+                    <h3 class="ad-card-title">
+                        <span>📦 Primary Asset Profile:</span>
+                        <span id="txtAssetNumber" style="color:#2563eb;">Loading Asset...</span>
+                    </h3>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <button type="button" class="ad-btn-toggle" id="btnToggleEdit" onclick="toggleEditMode()">✏️ Edit Profile</button>
+                        <a class="ad-btn" id="lnkQuickEditConfig" href="#">⚙️ Configuration</a>
+                    </div>
+                </div>
+                <div class="ad-grid">
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Asset Identifier / Tag</span>
+                        <span class="ad-metric-value" id="valAssetNumber">—</span>
+                        <input type="text" id="inpAssetNumber" class="ad-input" style="display:none;" required />
+                    </div>
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Category / Asset Type</span>
+                        <span class="ad-metric-value" id="valCategory">—</span>
+                        <input type="text" id="inpCategory" class="ad-input" style="display:none;" />
+                    </div>
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Operational Status</span>
+                        <span class="ad-metric-value" id="valStatus">—</span>
+                        <select id="inpStatus" class="ad-input" style="display:none;">
+                            <option value="Active">Active</option>
+                            <option value="Maintenance">Maintenance / Shop</option>
+                            <option value="Out of Service">Out of Service</option>
+                            <option value="Standby">Standby</option>
+                        </select>
+                    </div>
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Make / OEM</span>
+                        <span class="ad-metric-value" id="valMake">—</span>
+                        <input type="text" id="inpMake" class="ad-input" style="display:none;" />
+                    </div>
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Model</span>
+                        <span class="ad-metric-value" id="valModel">—</span>
+                        <input type="text" id="inpModel" class="ad-input" style="display:none;" />
+                    </div>
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Serial / VIN Number</span>
+                        <span class="ad-metric-value" id="valSerial">—</span>
+                        <input type="text" id="inpSerial" class="ad-input" style="display:none;" />
+                    </div>
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Current Meter Hours/Miles</span>
+                        <span class="ad-metric-value" id="valMeter">—</span>
+                        <input type="number" step="0.1" id="inpMeter" class="ad-input" style="display:none;" />
+                    </div>
+                </div>
             </div>
-            <div class="ad-grid">
-                <div class="ad-metric-box">
-                    <span class="ad-metric-label">Asset Identifier / Tag</span>
-                    <span class="ad-metric-value" id="valAssetNumber">—</span>
-                </div>
-                <div class="ad-metric-box">
-                    <span class="ad-metric-label">Category / Asset Type</span>
-                    <span class="ad-metric-value" id="valCategory">—</span>
-                </div>
-                <div class="ad-metric-box">
-                    <span class="ad-metric-label">Operational Status</span>
-                    <span class="ad-metric-value" id="valStatus">—</span>
-                </div>
-                <div class="ad-metric-box">
-                    <span class="ad-metric-label">OEM / Make & Model</span>
-                    <span class="ad-metric-value" id="valMakeModel">—</span>
-                </div>
-                <div class="ad-metric-box">
-                    <span class="ad-metric-label">Serial / VIN Number</span>
-                    <span class="ad-metric-value" id="valSerial">—</span>
-                </div>
-                <div class="ad-metric-box">
-                    <span class="ad-metric-label">Current Meter Hours/Miles</span>
-                    <span class="ad-metric-value" id="valMeter">—</span>
-                </div>
-            </div>
-        </div>
 
-        <!-- Section 2: Active Assignment & Operator Details -->
-        <div class="ad-card">
-            <div class="ad-card-header">
-                <h3 class="ad-card-title">📍 Current Location & Assigned Operator</h3>
+            <!-- Section 2: Active Assignment & Operator Details -->
+            <div class="ad-card">
+                <div class="ad-card-header">
+                    <h3 class="ad-card-title">📍 Current Location & Assigned Operator</h3>
+                </div>
+                <div class="ad-grid">
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Assigned Project / Division</span>
+                        <span class="ad-metric-value" id="valProject">—</span>
+                        <input type="text" id="inpProject" class="ad-input" style="display:none;" />
+                    </div>
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Physical Location / Site</span>
+                        <span class="ad-metric-value" id="valLocation">—</span>
+                        <input type="text" id="inpLocation" class="ad-input" style="display:none;" />
+                    </div>
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Assigned Primary Operator</span>
+                        <span class="ad-metric-value" id="valOperator">—</span>
+                        <input type="text" id="inpOperator" class="ad-input" style="display:none;" />
+                    </div>
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Drive / Mobility Setup</span>
+                        <span class="ad-metric-value" id="valDriveConfig">—</span>
+                        <input type="text" id="inpDriveConfig" class="ad-input" style="display:none;" />
+                    </div>
+                </div>
             </div>
-            <div class="ad-grid">
-                <div class="ad-metric-box">
-                    <span class="ad-metric-label">Assigned Project / Division</span>
-                    <span class="ad-metric-value" id="valProject">—</span>
-                </div>
-                <div class="ad-metric-box">
-                    <span class="ad-metric-label">Physical Location / Site</span>
-                    <span class="ad-metric-value" id="valLocation">—</span>
-                </div>
-                <div class="ad-metric-box">
-                    <span class="ad-metric-label">Assigned Primary Operator</span>
-                    <span class="ad-metric-value" id="valOperator">—</span>
-                </div>
-                <div class="ad-metric-box">
-                    <span class="ad-metric-label">Drive / Mobility Setup</span>
-                    <span class="ad-metric-value" id="valDriveConfig">—</span>
-                </div>
+
+            <!-- Bottom Sticky Save Bar -->
+            <div class="ac-save-bar" id="saveBar">
+                <span style="font-size:13px; font-weight:600; color:#334155;">
+                    💡 Edit mode active. Update fields and click Save Changes.
+                </span>
+                <button type="submit" class="ad-btn-save" id="btnSaveAsset">💾 Save Changes</button>
             </div>
-        </div>
+        </form>
 
         <!-- Section 3: Open Work Orders & Inspection Flags -->
         <div class="ad-card">
@@ -458,6 +563,9 @@
     <script>
         var currentAssetId = null;
         var activeOrgId = null;
+        var canEditAssets = false;
+        var isEditMode = false;
+        var rawAssetRecord = {};
 
         // Header Height Adjustment Logic matching asset-management.html
         function updateHeaderOffset() {
@@ -512,6 +620,16 @@
                 return;
             }
 
+            // Role Permission Check: Admin or Authorized Asset Manager
+            var rpRoleId = u ? (u.role_id || u.role) : "";
+            var rpIsAdmin = (rpRoleId === "RO-admin" || u.is_admin === true);
+            canEditAssets = rpIsAdmin || (u.permissions && u.permissions.can_edit_assets === true);
+
+            if (canEditAssets) {
+                var btnToggle = document.getElementById("btnToggleEdit");
+                if (btnToggle) btnToggle.style.display = "inline-flex";
+            }
+
             // Fix Header Layout & Adjust Height Offset
             var ha = 0, hi = setInterval(function() {
                 ha++;
@@ -548,6 +666,7 @@
             el.textContent = msg;
             el.className = "ad-message " + type;
             el.style.display = "block";
+            window.scrollTo({ top: 0, behavior: "smooth" });
         }
 
         function reportClientError(msg, context, err) {
@@ -618,27 +737,140 @@
                 if (!resp.ok) throw new Error("HTTP " + resp.status);
                 
                 var data = await resp.json();
-                var rec = data.record || data.equipment || data;
+                rawAssetRecord = data.record || data.equipment || data;
 
-                var num = rec.asset_number || rec.assetNumber || "Asset #" + assetId;
-                document.getElementById("txtAssetNumber").textContent = num;
-                document.getElementById("valAssetNumber").textContent = num;
-                document.getElementById("valCategory").textContent = rec.category || rec.type || "—";
-                document.getElementById("valStatus").textContent = rec.status || "Active";
-                
-                var makeModel = [rec.make, rec.model].filter(Boolean).join(" ") || "—";
-                document.getElementById("valMakeModel").textContent = makeModel;
-                document.getElementById("valSerial").textContent = rec.serial_number || rec.serialNumber || "—";
-                document.getElementById("valMeter").textContent = rec.current_meter ? rec.current_meter + " hrs" : "—";
-
-                document.getElementById("valProject").textContent = rec.project_name || rec.project || "Unassigned";
-                document.getElementById("valLocation").textContent = rec.location || "Yard / Shop";
-                document.getElementById("valOperator").textContent = rec.operator_name || rec.assigned_operator || "Unassigned";
-                document.getElementById("valDriveConfig").textContent = rec.drive_configuration || "Standard";
+                renderAssetData(rawAssetRecord);
 
             } catch (e) {
                 reportClientError("Failed loading asset profile details", "loadAssetDetails", e);
                 displayMessage("Unable to retrieve asset profile records.", "error");
+            }
+        }
+
+        // Render Values into View Spans and Form Inputs
+        function renderAssetData(rec) {
+            var num = rec.asset_number || rec.assetNumber || "Asset #" + currentAssetId;
+            document.getElementById("txtAssetNumber").textContent = num;
+            document.getElementById("valAssetNumber").textContent = num;
+            document.getElementById("inpAssetNumber").value = num;
+
+            var cat = rec.category || rec.type || "—";
+            document.getElementById("valCategory").textContent = cat;
+            document.getElementById("inpCategory").value = cat !== "—" ? cat : "";
+
+            var st = rec.status || "Active";
+            document.getElementById("valStatus").textContent = st;
+            document.getElementById("inpStatus").value = st;
+
+            document.getElementById("valMake").textContent = rec.make || "—";
+            document.getElementById("inpMake").value = rec.make || "";
+
+            document.getElementById("valModel").textContent = rec.model || "—";
+            document.getElementById("inpModel").value = rec.model || "";
+
+            var sn = rec.serial_number || rec.serialNumber || "—";
+            document.getElementById("valSerial").textContent = sn;
+            document.getElementById("inpSerial").value = sn !== "—" ? sn : "";
+
+            var mtr = rec.current_meter ? rec.current_meter + " hrs" : "—";
+            document.getElementById("valMeter").textContent = mtr;
+            document.getElementById("inpMeter").value = rec.current_meter || "";
+
+            var prj = rec.project_name || rec.project || "Unassigned";
+            document.getElementById("valProject").textContent = prj;
+            document.getElementById("inpProject").value = prj !== "Unassigned" ? prj : "";
+
+            var loc = rec.location || "Yard / Shop";
+            document.getElementById("valLocation").textContent = loc;
+            document.getElementById("inpLocation").value = loc;
+
+            var op = rec.operator_name || rec.assigned_operator || "Unassigned";
+            document.getElementById("valOperator").textContent = op;
+            document.getElementById("inpOperator").value = op !== "Unassigned" ? op : "";
+
+            var drv = rec.drive_configuration || "Standard";
+            document.getElementById("valDriveConfig").textContent = drv;
+            document.getElementById("inpDriveConfig").value = drv;
+        }
+
+        // Toggle Between View Mode and Edit Mode
+        function toggleEditMode() {
+            if (!canEditAssets) return;
+            isEditMode = !isEditMode;
+
+            var fields = ["AssetNumber", "Category", "Status", "Make", "Model", "Serial", "Meter", "Project", "Location", "Operator", "DriveConfig"];
+            
+            fields.forEach(function(f) {
+                var valEl = document.getElementById("val" + f);
+                var inpEl = document.getElementById("inp" + f);
+                if (valEl && inpEl) {
+                    valEl.style.display = isEditMode ? "none" : "block";
+                    inpEl.style.display = isEditMode ? "block" : "none";
+                }
+            });
+
+            var btnToggle = document.getElementById("btnToggleEdit");
+            var saveBar = document.getElementById("saveBar");
+
+            if (isEditMode) {
+                btnToggle.textContent = "🔒 Cancel Editing";
+                btnToggle.style.background = "#64748b";
+                saveBar.style.display = "flex";
+            } else {
+                btnToggle.textContent = "✏️ Edit Profile";
+                btnToggle.style.background = "#2563eb";
+                saveBar.style.display = "none";
+                renderAssetData(rawAssetRecord); // Reset edits on cancel
+            }
+        }
+
+        // Save Profile Updates to API
+        async function saveAssetDetails(e) {
+            e.preventDefault();
+            if (!currentAssetId || !activeOrgId) return;
+
+            var btn = document.getElementById("btnSaveAsset");
+            btn.disabled = true;
+            btn.textContent = "⏳ Saving...";
+
+            var payload = {
+                id: currentAssetId,
+                asset_number: document.getElementById("inpAssetNumber").value.trim(),
+                category: document.getElementById("inpCategory").value.trim(),
+                status: document.getElementById("inpStatus").value,
+                make: document.getElementById("inpMake").value.trim(),
+                model: document.getElementById("inpModel").value.trim(),
+                serial_number: document.getElementById("inpSerial").value.trim(),
+                current_meter: parseFloat(document.getElementById("inpMeter").value) || 0,
+                project_name: document.getElementById("inpProject").value.trim(),
+                location: document.getElementById("inpLocation").value.trim(),
+                operator_name: document.getElementById("inpOperator").value.trim(),
+                drive_configuration: document.getElementById("inpDriveConfig").value.trim()
+            };
+
+            try {
+                var resp = await fetch("/api/equipment/" + encodeURIComponent(currentAssetId), {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-org-id": activeOrgId
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!resp.ok) throw new Error("HTTP " + resp.status);
+
+                rawAssetRecord = Object.assign({}, rawAssetRecord, payload);
+                renderAssetData(rawAssetRecord);
+                toggleEditMode(); // Exit edit mode
+                displayMessage("Asset profile updated successfully!", "success");
+
+            } catch (err) {
+                reportClientError("Failed updating asset profile", "saveAssetDetails", err);
+                displayMessage("Failed to save changes. Please try again.", "error");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "💾 Save Changes";
             }
         }
 
