@@ -457,7 +457,9 @@
                     <div class="ad-metric-box">
                         <span class="ad-metric-label">Category / Asset Type</span>
                         <span class="ad-metric-value" id="valCategory">—</span>
-                        <input type="text" id="inpCategory" class="ad-input" style="display:none;" />
+                        <select id="inpCategory" class="ad-input" style="display:none;">
+                            <option value="">-- Select Asset Type --</option>
+                        </select>
                     </div>
                     <div class="ad-metric-box">
                         <span class="ad-metric-label">Operational Status</span>
@@ -467,6 +469,8 @@
                             <option value="Maintenance">Maintenance / Shop</option>
                             <option value="Out of Service">Out of Service</option>
                             <option value="Standby">Standby</option>
+                            <option value="In Transit">In Transit</option>
+                            <option value="Decommissioned">Decommissioned</option>
                         </select>
                     </div>
                     <div class="ad-metric-box">
@@ -499,9 +503,18 @@
                 </div>
                 <div class="ad-grid">
                     <div class="ad-metric-box">
-                        <span class="ad-metric-label">Assigned Project / Division</span>
+                        <span class="ad-metric-label">Assigned Project</span>
                         <span class="ad-metric-value" id="valProject">—</span>
-                        <input type="text" id="inpProject" class="ad-input" style="display:none;" />
+                        <select id="inpProject" class="ad-input" style="display:none;">
+                            <option value="">-- Unassigned / Yard --</option>
+                        </select>
+                    </div>
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Assigned Division</span>
+                        <span class="ad-metric-value" id="valDivision">—</span>
+                        <select id="inpDivision" class="ad-input" style="display:none;">
+                            <option value="">-- Select Division --</option>
+                        </select>
                     </div>
                     <div class="ad-metric-box">
                         <span class="ad-metric-label">Physical Location / Site</span>
@@ -511,7 +524,9 @@
                     <div class="ad-metric-box">
                         <span class="ad-metric-label">Assigned Primary Operator</span>
                         <span class="ad-metric-value" id="valOperator">—</span>
-                        <input type="text" id="inpOperator" class="ad-input" style="display:none;" />
+                        <select id="inpOperator" class="ad-input" style="display:none;">
+                            <option value="">-- Unassigned --</option>
+                        </select>
                     </div>
                     <div class="ad-metric-box">
                         <span class="ad-metric-label">Drive / Mobility Setup</span>
@@ -599,6 +614,13 @@
         var urlParams = new URLSearchParams(window.location.search);
         currentAssetId = urlParams.get('id') || urlParams.get('asset_id');
 
+        // Extract normalized array helper
+        function extractRecords(data) {
+            if (Array.isArray(data)) return data;
+            if (!data || typeof data !== "object") return [];
+            return data.records || data.assetTypes || data.projects || data.divisions || data.users || data.data || data.results || [];
+        }
+
         // Strict Multi-Tenant Execution Guardrail & Boot
         document.addEventListener("dashSessionLoaded", async function(e) {
             var u = window.dashUser;
@@ -646,6 +668,14 @@
                 document.getElementById("lnkQuickEditConfig").href = "/app/asset/asset-configuration.html?id=" + encodeURIComponent(currentAssetId);
             }
 
+            // Load relational dropdowns in parallel
+            await Promise.all([
+                loadAssetTypesDropdown(),
+                loadProjectsDropdown(),
+                loadDivisionsDropdown(),
+                loadOperatorsDropdown()
+            ]);
+
             // Initialize active co-worker presence
             checkActivePresence();
             setInterval(checkActivePresence, 5000);
@@ -672,6 +702,102 @@
         function reportClientError(msg, context, err) {
             if (window.DRIVENErrorHandler) {
                 window.DRIVENErrorHandler.report("asset-detail.html: " + msg, context, err ? err.stack : null);
+            }
+        }
+
+        // Dropdown Loaders
+        async function loadAssetTypesDropdown() {
+            try {
+                var resp = await fetch("/api/asset-types", { headers: { "x-org-id": activeOrgId } });
+                if (resp.ok) {
+                    var data = await resp.json();
+                    var list = extractRecords(data);
+                    var sel = document.getElementById("inpCategory");
+                    sel.innerHTML = '<option value="">-- Select Asset Type --</option>';
+                    list.forEach(function(item) {
+                        var name = item.asset_type_name || item.name || item.type;
+                        if (name) {
+                            var opt = document.createElement("option");
+                            opt.value = name;
+                            opt.textContent = name;
+                            sel.appendChild(opt);
+                        }
+                    });
+                }
+            } catch (e) {
+                reportClientError("Failed loading asset types", "loadAssetTypesDropdown", e);
+            }
+        }
+
+        async function loadProjectsDropdown() {
+            try {
+                var resp = await fetch("/api/projects", { headers: { "x-org-id": activeOrgId } });
+                if (resp.ok) {
+                    var data = await resp.json();
+                    var list = extractRecords(data);
+                    var sel = document.getElementById("inpProject");
+                    sel.innerHTML = '<option value="">-- Unassigned / Yard --</option>';
+                    list.forEach(function(item) {
+                        var name = item.project_name || item.name || item.title;
+                        var id = item.id || name;
+                        if (name) {
+                            var opt = document.createElement("option");
+                            opt.value = id;
+                            opt.textContent = name;
+                            sel.appendChild(opt);
+                        }
+                    });
+                }
+            } catch (e) {
+                reportClientError("Failed loading projects", "loadProjectsDropdown", e);
+            }
+        }
+
+        async function loadDivisionsDropdown() {
+            try {
+                var resp = await fetch("/api/division", { headers: { "x-org-id": activeOrgId } });
+                if (resp.ok) {
+                    var data = await resp.json();
+                    var list = extractRecords(data);
+                    var sel = document.getElementById("inpDivision");
+                    sel.innerHTML = '<option value="">-- Select Division --</option>';
+                    list.forEach(function(item) {
+                        var name = item.division_name || item.name;
+                        var id = item.id || name;
+                        if (name) {
+                            var opt = document.createElement("option");
+                            opt.value = id;
+                            opt.textContent = name;
+                            sel.appendChild(opt);
+                        }
+                    });
+                }
+            } catch (e) {
+                reportClientError("Failed loading divisions", "loadDivisionsDropdown", e);
+            }
+        }
+
+        async function loadOperatorsDropdown() {
+            try {
+                var resp = await fetch("/api/onboarding/key-personnel/list", { headers: { "x-org-id": activeOrgId } });
+                if (resp.ok) {
+                    var data = await resp.json();
+                    var list = extractRecords(data);
+                    var sel = document.getElementById("inpOperator");
+                    sel.innerHTML = '<option value="">-- Unassigned --</option>';
+                    list.forEach(function(item) {
+                        var name = ((item.firstName || item.first_name || '') + ' ' + (item.lastName || item.last_name || '')).trim() || item.fullName || item.name || item.email;
+                        var id = item.id || name;
+                        if (name) {
+                            var opt = document.createElement("option");
+                            opt.value = id;
+                            opt.textContent = name;
+                            sel.appendChild(opt);
+                        }
+                    });
+                }
+            } catch (e) {
+                reportClientError("Failed loading employees for operator dropdown", "loadOperatorsDropdown", e);
             }
         }
 
@@ -754,7 +880,7 @@
             document.getElementById("valAssetNumber").textContent = num;
             document.getElementById("inpAssetNumber").value = num;
 
-            var cat = rec.category || rec.type || "—";
+            var cat = rec.category || rec.asset_type || rec.type || "—";
             document.getElementById("valCategory").textContent = cat;
             document.getElementById("inpCategory").value = cat !== "—" ? cat : "";
 
@@ -776,15 +902,19 @@
             document.getElementById("valMeter").textContent = mtr;
             document.getElementById("inpMeter").value = rec.current_meter || "";
 
-            var prj = rec.project_name || rec.project || "Unassigned";
+            var prj = rec.project_name || rec.project_id || rec.project || "Unassigned";
             document.getElementById("valProject").textContent = prj;
             document.getElementById("inpProject").value = prj !== "Unassigned" ? prj : "";
+
+            var div = rec.division_name || rec.division_id || rec.division || "—";
+            document.getElementById("valDivision").textContent = div;
+            document.getElementById("inpDivision").value = div !== "—" ? div : "";
 
             var loc = rec.location || "Yard / Shop";
             document.getElementById("valLocation").textContent = loc;
             document.getElementById("inpLocation").value = loc;
 
-            var op = rec.operator_name || rec.assigned_operator || "Unassigned";
+            var op = rec.operator_name || rec.assigned_operator || rec.operator_id || "Unassigned";
             document.getElementById("valOperator").textContent = op;
             document.getElementById("inpOperator").value = op !== "Unassigned" ? op : "";
 
@@ -798,7 +928,7 @@
             if (!canEditAssets) return;
             isEditMode = !isEditMode;
 
-            var fields = ["AssetNumber", "Category", "Status", "Make", "Model", "Serial", "Meter", "Project", "Location", "Operator", "DriveConfig"];
+            var fields = ["AssetNumber", "Category", "Status", "Make", "Model", "Serial", "Meter", "Project", "Division", "Location", "Operator", "DriveConfig"];
             
             fields.forEach(function(f) {
                 var valEl = document.getElementById("val" + f);
@@ -836,15 +966,16 @@
             var payload = {
                 id: currentAssetId,
                 asset_number: document.getElementById("inpAssetNumber").value.trim(),
-                category: document.getElementById("inpCategory").value.trim(),
+                category: document.getElementById("inpCategory").value,
                 status: document.getElementById("inpStatus").value,
                 make: document.getElementById("inpMake").value.trim(),
                 model: document.getElementById("inpModel").value.trim(),
                 serial_number: document.getElementById("inpSerial").value.trim(),
                 current_meter: parseFloat(document.getElementById("inpMeter").value) || 0,
-                project_name: document.getElementById("inpProject").value.trim(),
+                project_id: document.getElementById("inpProject").value,
+                division_id: document.getElementById("inpDivision").value,
                 location: document.getElementById("inpLocation").value.trim(),
-                operator_name: document.getElementById("inpOperator").value.trim(),
+                operator_id: document.getElementById("inpOperator").value,
                 drive_configuration: document.getElementById("inpDriveConfig").value.trim()
             };
 
@@ -883,7 +1014,7 @@
 
                 if (resp.ok) {
                     var data = await resp.json();
-                    var issues = data.records || data.issues || data.data || (Array.isArray(data) ? data : []);
+                    var issues = extractRecords(data);
                     
                     if (issues.length > 0) {
                         document.getElementById("bannerOpenIssues").style.display = "block";
