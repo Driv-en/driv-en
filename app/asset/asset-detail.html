@@ -582,7 +582,10 @@
         var activeOrgId = null;
         var canEditAssets = false;
         var isEditMode = false;
-        var rawAssetRecord = {};
+        
+        // Truth vs Working Copy Separation to prevent state mutation bugs
+        var originalAssetRecord = null;
+        var workingAssetRecord = {};
 
         // Header Height Adjustment Logic matching asset-management.html
         function updateHeaderOffset() {
@@ -829,7 +832,6 @@
             sel.innerHTML = '<option value="">-- Unassigned --</option>';
 
             list.forEach(function(item) {
-                // Filter: Show all employees that are NOT Inactive
                 var st = (item.status || item.employment_status || "").toLowerCase();
                 var isActiveBool = item.is_active !== undefined ? Boolean(item.is_active) : (item.active !== undefined ? Boolean(item.active) : true);
 
@@ -847,6 +849,37 @@
                     }
                 }
             });
+        }
+
+        // Helper: Matches raw value or human name against select options and updates UI
+        function matchDropdownValue(selectId, rawVal, fallbackName) {
+            var sel = document.getElementById(selectId);
+            if (!sel) return fallbackName || "—";
+
+            var searchTarget = (rawVal || fallbackName || "").toString().trim().toLowerCase();
+            if (!searchTarget || searchTarget === "—" || searchTarget === "unassigned") {
+                sel.value = "";
+                return fallbackName || "—";
+            }
+
+            // 1. Try direct option value match
+            for (var i = 0; i < sel.options.length; i++) {
+                if (sel.options[i].value.toString().trim().toLowerCase() === searchTarget) {
+                    sel.value = sel.options[i].value;
+                    return sel.options[i].text;
+                }
+            }
+
+            // 2. Try option text match if rawVal was a display name
+            for (var j = 0; j < sel.options.length; j++) {
+                if (sel.options[j].text.toString().trim().toLowerCase() === searchTarget) {
+                    sel.value = sel.options[j].value;
+                    return sel.options[j].text;
+                }
+            }
+
+            sel.value = "";
+            return fallbackName || rawVal || "—";
         }
 
         // High-Frequency Co-Worker Polling & Fast Beacon Unload
@@ -911,9 +944,10 @@
                 if (!resp.ok) throw new Error("HTTP " + resp.status);
                 
                 var data = await resp.json();
-                rawAssetRecord = data.record || data.equipment || data;
+                originalAssetRecord = JSON.parse(JSON.stringify(data.record || data.equipment || data));
+                workingAssetRecord = Object.assign({}, originalAssetRecord);
 
-                renderAssetData(rawAssetRecord);
+                renderAssetData(workingAssetRecord);
 
             } catch (e) {
                 reportClientError("Failed loading asset profile details", "loadAssetDetails", e);
@@ -923,49 +957,56 @@
 
         // Render Values into View Spans and Form Inputs
         function renderAssetData(rec) {
+            if (!rec) return;
+
             var num = rec.asset_number || rec.assetNumber || "Asset #" + currentAssetId;
             document.getElementById("txtAssetNumber").textContent = num;
             document.getElementById("valAssetNumber").textContent = num;
             document.getElementById("inpAssetNumber").value = num;
 
-            var cat = rec.category || rec.asset_type || rec.type || "—";
-            document.getElementById("valCategory").textContent = cat;
-            document.getElementById("inpCategory").value = cat !== "—" ? cat : "";
+            // Category
+            var catName = matchDropdownValue("inpCategory", rec.category || rec.asset_type || rec.type, rec.category);
+            document.getElementById("valCategory").textContent = catName;
 
+            // Operational Status
             var st = rec.status || "Available";
             document.getElementById("valStatus").textContent = st;
             document.getElementById("inpStatus").value = st;
 
+            // Make & Model
             document.getElementById("valMake").textContent = rec.make || "—";
             document.getElementById("inpMake").value = rec.make || "";
 
             document.getElementById("valModel").textContent = rec.model || "—";
             document.getElementById("inpModel").value = rec.model || "";
 
+            // Serial / VIN
             var sn = rec.serial_number || rec.serialNumber || "—";
             document.getElementById("valSerial").textContent = sn;
             document.getElementById("inpSerial").value = sn !== "—" ? sn : "";
 
-            var mtr = rec.current_meter ? rec.current_meter + " hrs" : "—";
-            document.getElementById("valMeter").textContent = mtr;
-            document.getElementById("inpMeter").value = rec.current_meter || "";
+            // Meter (Preserve null vs 0 accurately)
+            var mtrVal = rec.current_meter !== undefined && rec.current_meter !== null ? rec.current_meter : "";
+            document.getElementById("valMeter").textContent = mtrVal !== "" ? mtrVal + " hrs" : "—";
+            document.getElementById("inpMeter").value = mtrVal;
 
-            var prj = rec.project_name || rec.project_id || rec.project || "Unassigned";
-            document.getElementById("valProject").textContent = prj;
-            document.getElementById("inpProject").value = prj !== "Unassigned" ? prj : "";
+            // Project
+            var prjName = matchDropdownValue("inpProject", rec.project_id || rec.project, rec.project_name || rec.project);
+            document.getElementById("valProject").textContent = prjName;
 
-            var div = rec.division_name || rec.division_id || rec.division || "—";
-            document.getElementById("valDivision").textContent = div;
-            document.getElementById("inpDivision").value = div !== "—" ? div : "";
+            // Division
+            var divName = matchDropdownValue("inpDivision", rec.division_id || rec.division, rec.division_name || rec.division);
+            document.getElementById("valDivision").textContent = divName;
 
-            var loc = rec.location_name || rec.location_id || rec.location || "Yard / Shop";
-            document.getElementById("valLocation").textContent = loc;
-            document.getElementById("inpLocation").value = loc;
+            // Location
+            var locName = matchDropdownValue("inpLocation", rec.location_id || rec.location, rec.location_name || rec.location);
+            document.getElementById("valLocation").textContent = locName;
 
-            var op = rec.operator_name || rec.assigned_operator || rec.operator_id || "Unassigned";
-            document.getElementById("valOperator").textContent = op;
-            document.getElementById("inpOperator").value = op !== "Unassigned" ? op : "";
+            // Operator
+            var opName = matchDropdownValue("inpOperator", rec.operator_id || rec.assigned_operator || rec.operator, rec.operator_name);
+            document.getElementById("valOperator").textContent = opName;
 
+            // Drive Configuration
             var drv = rec.drive_configuration || "Standard";
             document.getElementById("valDriveConfig").textContent = drv;
             document.getElementById("inpDriveConfig").value = drv;
@@ -976,11 +1017,11 @@
             if (!canEditAssets) return;
             isEditMode = !isEditMode;
 
-            var fields = ["AssetNumber", "Category", "Status", "Make", "Model", "Serial", "Meter", "Project", "Division", "Location", "Operator", "DriveConfig"];
-            
-            fields.forEach(function(f) {
-                var valEl = document.getElementById("val" + f);
-                var inpEl = document.getElementById("inp" + f);
+            // Dynamically query all metric boxes to prevent out-of-sync DOM issues
+            var metricBoxes = document.querySelectorAll(".ad-metric-box");
+            metricBoxes.forEach(function(box) {
+                var valEl = box.querySelector(".ad-metric-value");
+                var inpEl = box.querySelector(".ad-input");
                 if (valEl && inpEl) {
                     valEl.style.display = isEditMode ? "none" : "block";
                     inpEl.style.display = isEditMode ? "block" : "none";
@@ -991,14 +1032,21 @@
             var saveBar = document.getElementById("saveBar");
 
             if (isEditMode) {
-                btnToggle.textContent = "🔒 Cancel Editing";
-                btnToggle.style.background = "#64748b";
-                saveBar.style.display = "flex";
+                if (btnToggle) {
+                    btnToggle.textContent = "🔒 Cancel Editing";
+                    btnToggle.style.background = "#64748b";
+                }
+                if (saveBar) saveBar.style.display = "flex";
             } else {
-                btnToggle.textContent = "✏️ Edit Profile";
-                btnToggle.style.background = "#2563eb";
-                saveBar.style.display = "none";
-                renderAssetData(rawAssetRecord); // Reset edits on cancel
+                if (btnToggle) {
+                    btnToggle.textContent = "✏️ Edit Profile";
+                    btnToggle.style.background = "#2563eb";
+                }
+                if (saveBar) saveBar.style.display = "none";
+
+                // Revert to original server record on cancel
+                workingAssetRecord = JSON.parse(JSON.stringify(originalAssetRecord || {}));
+                renderAssetData(workingAssetRecord);
             }
         }
 
@@ -1008,8 +1056,13 @@
             if (!currentAssetId || !activeOrgId) return;
 
             var btn = document.getElementById("btnSaveAsset");
-            btn.disabled = true;
-            btn.textContent = "⏳ Saving...";
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = "⏳ Saving...";
+            }
+
+            var meterRaw = document.getElementById("inpMeter").value;
+            var parsedMeter = meterRaw === "" ? null : parseFloat(meterRaw);
 
             var payload = {
                 id: currentAssetId,
@@ -1019,7 +1072,7 @@
                 make: document.getElementById("inpMake").value.trim(),
                 model: document.getElementById("inpModel").value.trim(),
                 serial_number: document.getElementById("inpSerial").value.trim(),
-                current_meter: parseFloat(document.getElementById("inpMeter").value) || 0,
+                current_meter: isNaN(parsedMeter) ? null : parsedMeter,
                 project_id: document.getElementById("inpProject").value,
                 division_id: document.getElementById("inpDivision").value,
                 location: document.getElementById("inpLocation").value,
@@ -1039,8 +1092,11 @@
 
                 if (!resp.ok) throw new Error("HTTP " + resp.status);
 
-                rawAssetRecord = Object.assign({}, rawAssetRecord, payload);
-                renderAssetData(rawAssetRecord);
+                // Commit working payload to immutable server record
+                originalAssetRecord = JSON.parse(JSON.stringify(Object.assign({}, workingAssetRecord, payload)));
+                workingAssetRecord = Object.assign({}, originalAssetRecord);
+
+                renderAssetData(workingAssetRecord);
                 toggleEditMode(); // Exit edit mode
                 displayMessage("Asset profile updated successfully!", "success");
 
@@ -1048,8 +1104,10 @@
                 reportClientError("Failed updating asset profile", "saveAssetDetails", err);
                 displayMessage("Failed to save changes. Please try again.", "error");
             } finally {
-                btn.disabled = false;
-                btn.textContent = "💾 Save Changes";
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = "💾 Save Changes";
+                }
             }
         }
 
@@ -1065,19 +1123,21 @@
                     var issues = extractRecords(data);
                     
                     if (issues.length > 0) {
-                        document.getElementById("bannerOpenIssues").style.display = "block";
+                        var banner = document.getElementById("bannerOpenIssues");
+                        if (banner) banner.style.display = "block";
                         var tb = document.getElementById("tbOpenIssues");
-                        tb.innerHTML = "";
-
-                        issues.forEach(function(iss) {
-                            var tr = document.createElement("tr");
-                            tr.innerHTML = 
-                                '<td>' + (iss.created_at ? new Date(iss.created_at).toLocaleDateString() : '—') + '</td>' +
-                                '<td><strong style="color:#eab308;">⚠️ Inspection Flag</strong></td>' +
-                                '<td>' + escapeHtml(iss.description || iss.issue_details || 'Defect logged during inspection') + '</td>' +
-                                '<td><span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:12px; font-weight:600; font-size:12px;">OPEN</span></td>';
-                            tb.appendChild(tr);
-                        });
+                        if (tb) {
+                            tb.innerHTML = "";
+                            issues.forEach(function(iss) {
+                                var tr = document.createElement("tr");
+                                tr.innerHTML = 
+                                    '<td>' + (iss.created_at ? new Date(iss.created_at).toLocaleDateString() : '—') + '</td>' +
+                                    '<td><strong style="color:#eab308;">⚠️ Inspection Flag</strong></td>' +
+                                    '<td>' + escapeHtml(iss.description || iss.issue_details || 'Defect logged during inspection') + '</td>' +
+                                    '<td><span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:12px; font-weight:600; font-size:12px;">OPEN</span></td>';
+                                tb.appendChild(tr);
+                            });
+                        }
                     }
                 }
             } catch (e) {
