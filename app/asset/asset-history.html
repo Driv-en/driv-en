@@ -493,7 +493,7 @@
         });
         if (resp.ok) {
           var data = await resp.json();
-          var rec = data.record || data.equipment || data;
+          var rec = data.record || data.equipment || data.data || data;
           var num = rec.asset_number || rec.assetNumber || "Asset #" + assetId;
           document.getElementById("txtAssetTitle").textContent = num;
         }
@@ -502,39 +502,80 @@
       }
     }
 
+    // Normalized extraction helper across all worker payload standards
+    function extractRecords(resData) {
+      if (Array.isArray(resData)) return resData;
+      if (!resData || typeof resData !== "object") return [];
+      if (Array.isArray(resData.records)) return resData.records;
+      if (Array.isArray(resData.history)) return resData.history;
+      if (Array.isArray(resData.audit_log)) return resData.audit_log;
+      if (Array.isArray(resData.logs)) return resData.logs;
+      if (Array.isArray(resData.data)) return resData.data;
+      if (resData.results && Array.isArray(resData.results)) return resData.results;
+      return [];
+    }
+
     async function loadAssetHistory(assetId) {
       if (!assetId) return;
-      try {
-        var resp = await fetch("/api/equipment/history?id=" + encodeURIComponent(assetId), {
-          headers: { "x-org-id": activeOrgId }
-        });
+      
+      // Endpoints to try sequentially for audit log fetching
+      var endpoints = [
+        "/api/equipment/history?id=" + encodeURIComponent(assetId),
+        "/api/equipment/" + encodeURIComponent(assetId) + "/history",
+        "/api/audit-log?record_id=" + encodeURIComponent(assetId) + "&module=equipment"
+      ];
 
-        if (resp.ok) {
-          var resData = await resp.json();
-          var records = resData.records || resData.history || resData.data || (Array.isArray(resData) ? resData : []);
-          var tbody = document.getElementById("historyTableBody");
-          document.getElementById("recordCountBadge").textContent = records.length + " Events";
+      var records = null;
+      var lastError = null;
 
-          if (records.length > 0) {
-            tbody.innerHTML = records.map(function(item) {
-              var localTime = item.created_at ? new Date(item.created_at).toLocaleString() : "N/A";
-              return '<tr>' +
-                '<td>' + localTime + '</td>' +
-                '<td><strong>' + escapeHtml(item.module || 'System') + '</strong></td>' +
-                '<td>' + escapeHtml(item.user_email || item.user_name || 'System') + '</td>' +
-                '<td>' + escapeHtml(item.action || 'Log') + '</td>' +
-                '<td>' + escapeHtml(item.details || item.description || '--') + '</td>' +
-              '</tr>';
-            }).join("");
-          } else {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #64748b; padding: 20px;">No historical audit events recorded for this asset.</td></tr>';
+      for (var i = 0; i < endpoints.length; i++) {
+        try {
+          var resp = await fetch(endpoints[i], {
+            headers: { "x-org-id": activeOrgId }
+          });
+
+          if (resp.ok) {
+            var resData = await resp.json();
+            records = extractRecords(resData);
+            break; // Successfully loaded and parsed
           }
-        } else {
-          throw new Error("HTTP " + resp.status);
+        } catch (e) {
+          lastError = e;
         }
-      } catch (e) {
-        reportClientError("Failed loading asset audit log", "loadAssetHistory", e);
-        displayMessage("Unable to retrieve historical audit log.", "error");
+      }
+
+      var tbody = document.getElementById("historyTableBody");
+
+      if (records !== null) {
+        document.getElementById("recordCountBadge").textContent = records.length + " Events";
+
+        if (records.length > 0) {
+          tbody.innerHTML = records.map(function(item) {
+            var localTime = item.created_at ? new Date(item.created_at).toLocaleString() : "N/A";
+            var mod = item.module || item.table_name || 'Equipment';
+            var usr = item.user_email || item.user_name || item.user_id || 'System';
+            var act = item.action || item.event_type || 'Log';
+            var dtls = item.details || item.description || item.after_data || '--';
+
+            if (typeof dtls === "object") {
+              try { dtls = JSON.stringify(dtls); } catch(err) { dtls = String(dtls); }
+            }
+
+            return '<tr>' +
+              '<td>' + localTime + '</td>' +
+              '<td><strong>' + escapeHtml(mod) + '</strong></td>' +
+              '<td>' + escapeHtml(usr) + '</td>' +
+              '<td>' + escapeHtml(act) + '</td>' +
+              '<td>' + escapeHtml(dtls) + '</td>' +
+            '</tr>';
+          }).join("");
+        } else {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #64748b; padding: 20px;">No historical audit events recorded for this asset.</td></tr>';
+        }
+      } else {
+        reportClientError("Failed loading asset audit log across endpoints", "loadAssetHistory", lastError || new Error("All endpoints failed"));
+        displayMessage("Unable to retrieve historical audit log. Please check connection and try again.", "error");
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #ef4444; padding: 20px;">⚠️ Error loading audit logs. Please refresh the page.</td></tr>';
       }
     }
 
