@@ -336,6 +336,7 @@
   <script>
     var activeOrgId = "";
     var currentAssetId = "";
+    var humanAssetNumber = "";
 
     // Header Height Adjustment Logic matching asset-detail.html
     function updateHeaderOffset() {
@@ -494,8 +495,8 @@
         if (resp.ok) {
           var data = await resp.json();
           var rec = data.record || data.equipment || data.data || data;
-          var num = rec.asset_number || rec.assetNumber || "Asset #" + assetId;
-          document.getElementById("txtAssetTitle").textContent = num;
+          humanAssetNumber = rec.asset_number || rec.assetNumber || "Asset #" + assetId;
+          document.getElementById("txtAssetTitle").textContent = humanAssetNumber;
         }
       } catch (e) {
         reportClientError("Failed loading asset header info", "loadAssetInfo", e);
@@ -523,7 +524,6 @@
         if (typeof rawTime === "number") {
           dt = new Date(rawTime);
         } else if (typeof rawTime === "string") {
-          // Replace SQL space with T for Date parser compatibility
           dt = new Date(rawTime.replace(' ', 'T'));
         }
         if (dt && !isNaN(dt.getTime())) {
@@ -643,8 +643,15 @@
       }
     }
 
+    // Dynamic Customer Title Print Handler
     function doPrintHistory() {
-      document.title = "DRIV-EN Audit History | Asset #" + (currentAssetId || "Log");
+      var u = window.dashUser || {};
+      var customerName = u.org_name || u.tenant_name || u.company_name || u.organization_name || "Organization";
+      var assetIdentifier = humanAssetNumber || currentAssetId || "Log";
+
+      // Set print document title dynamically excluding DRIV-EN branding
+      document.title = customerName + " Audit History | Asset #" + assetIdentifier;
+      
       window.print();
     }
 
