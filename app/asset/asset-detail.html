@@ -465,12 +465,12 @@
                         <span class="ad-metric-label">Operational Status</span>
                         <span class="ad-metric-value" id="valStatus">—</span>
                         <select id="inpStatus" class="ad-input" style="display:none;">
-                            <option value="Active">Active</option>
-                            <option value="Maintenance">Maintenance / Shop</option>
-                            <option value="Out of Service">Out of Service</option>
-                            <option value="Standby">Standby</option>
-                            <option value="In Transit">In Transit</option>
-                            <option value="Decommissioned">Decommissioned</option>
+                            <option value="Available">Available</option>
+                            <option value="In Use">In Use</option>
+                            <option value="Maintenance">Maintenance</option>
+                            <option value="Retired">Retired</option>
+                            <option value="Lost">Lost</option>
+                            <option value="Sold">Sold</option>
                         </select>
                     </div>
                     <div class="ad-metric-box">
@@ -519,7 +519,9 @@
                     <div class="ad-metric-box">
                         <span class="ad-metric-label">Physical Location / Site</span>
                         <span class="ad-metric-value" id="valLocation">—</span>
-                        <input type="text" id="inpLocation" class="ad-input" style="display:none;" />
+                        <select id="inpLocation" class="ad-input" style="display:none;">
+                            <option value="">-- Select Location / Site --</option>
+                        </select>
                     </div>
                     <div class="ad-metric-box">
                         <span class="ad-metric-label">Assigned Primary Operator</span>
@@ -618,7 +620,7 @@
         function extractRecords(data) {
             if (Array.isArray(data)) return data;
             if (!data || typeof data !== "object") return [];
-            return data.records || data.assetTypes || data.projects || data.divisions || data.users || data.data || data.results || [];
+            return data.records || data.assetTypes || data.projects || data.divisions || data.locations || data.users || data.data || data.results || [];
         }
 
         // Strict Multi-Tenant Execution Guardrail & Boot
@@ -673,6 +675,7 @@
                 loadAssetTypesDropdown(),
                 loadProjectsDropdown(),
                 loadDivisionsDropdown(),
+                loadLocationsDropdown(),
                 loadOperatorsDropdown()
             ]);
 
@@ -775,6 +778,33 @@
             } catch (e) {
                 reportClientError("Failed loading divisions", "loadDivisionsDropdown", e);
             }
+        }
+
+        async function loadLocationsDropdown() {
+            var endpoints = ["/api/locations", "/api/location"];
+            var list = [];
+            for (var i = 0; i < endpoints.length; i++) {
+                try {
+                    var resp = await fetch(endpoints[i], { headers: { "x-org-id": activeOrgId } });
+                    if (resp.ok) {
+                        var data = await resp.json();
+                        list = extractRecords(data);
+                        if (list.length > 0) break;
+                    }
+                } catch (e) {}
+            }
+            var sel = document.getElementById("inpLocation");
+            sel.innerHTML = '<option value="">-- Select Location / Site --</option>';
+            list.forEach(function(item) {
+                var name = item.location_name || item.name || item.site_name || item.location;
+                var id = item.id || name;
+                if (name) {
+                    var opt = document.createElement("option");
+                    opt.value = id;
+                    opt.textContent = name;
+                    sel.appendChild(opt);
+                }
+            });
         }
 
         async function loadOperatorsDropdown() {
@@ -884,7 +914,7 @@
             document.getElementById("valCategory").textContent = cat;
             document.getElementById("inpCategory").value = cat !== "—" ? cat : "";
 
-            var st = rec.status || "Active";
+            var st = rec.status || "Available";
             document.getElementById("valStatus").textContent = st;
             document.getElementById("inpStatus").value = st;
 
@@ -910,7 +940,7 @@
             document.getElementById("valDivision").textContent = div;
             document.getElementById("inpDivision").value = div !== "—" ? div : "";
 
-            var loc = rec.location || "Yard / Shop";
+            var loc = rec.location_name || rec.location_id || rec.location || "Yard / Shop";
             document.getElementById("valLocation").textContent = loc;
             document.getElementById("inpLocation").value = loc;
 
@@ -974,7 +1004,7 @@
                 current_meter: parseFloat(document.getElementById("inpMeter").value) || 0,
                 project_id: document.getElementById("inpProject").value,
                 division_id: document.getElementById("inpDivision").value,
-                location: document.getElementById("inpLocation").value.trim(),
+                location: document.getElementById("inpLocation").value,
                 operator_id: document.getElementById("inpOperator").value,
                 drive_configuration: document.getElementById("inpDriveConfig").value.trim()
             };
