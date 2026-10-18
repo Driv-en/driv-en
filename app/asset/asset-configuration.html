@@ -643,7 +643,7 @@
       checkActivePresence();
       setInterval(checkActivePresence, 5000);
       
-      await loadFuelTypesDropdown();
+      loadFuelTypesDropdown();
       await loadParentAssetsDropdown();
 
       if (currentAssetId) {
@@ -723,39 +723,12 @@
     window.addEventListener("pagehide", sendPresenceUnload);
     window.addEventListener("beforeunload", sendPresenceUnload);
 
-    // Fetch Fuel Types Dropdown (With Graceful Fallback Handling)
-    async function loadFuelTypesDropdown() {
-      var defaultTypes = ["Diesel", "Unleaded Gasoline", "Electric", "Hybrid", "Propane (LPG)", "CNG", "Biodiesel"];
+    // Populate Standard System Fuel Types Directly (Avoids trigger of global fetch 500 error modal)
+    function loadFuelTypesDropdown() {
+      var defaultTypes = ["Ultra-Low Sulfur Diesel (ULSD)", "Unleaded Gasoline (Regular)", "Unleaded Gasoline (Premium)", "Electric / Battery (EV)", "Hybrid (Diesel/Electric)", "Propane / LPG", "Compressed Natural Gas (CNG)", "Biodiesel (B20)"];
       var sel = document.getElementById("cfgFuelType");
       sel.innerHTML = '<option value="">-- Select Fuel Type --</option>';
 
-      try {
-        var resp = await fetch("/api/fuel-types", {
-          headers: { "x-org-id": activeOrgId }
-        });
-        
-        if (resp.ok) {
-          var data = await resp.json();
-          var list = data.records || data.fuelTypes || data.data || (Array.isArray(data) ? data : []);
-          if (list.length > 0) {
-            list.forEach(function(item) {
-              var name = typeof item === "object" ? (item.fuel_type_name || item.name) : item;
-              if (name) {
-                var opt = document.createElement("option");
-                opt.value = name;
-                opt.textContent = name;
-                sel.appendChild(opt);
-              }
-            });
-            return;
-          }
-        }
-      } catch (e) {
-        // Log quietly without breaking page boot
-        console.warn("Fuel types table lookup unavailable, populating standard defaults:", e);
-      }
-
-      // Populate standard defaults if DB lookup yields no results or throws
       defaultTypes.forEach(function(ft) {
         var opt = document.createElement("option");
         opt.value = ft;
