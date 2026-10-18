@@ -616,11 +616,11 @@
         var urlParams = new URLSearchParams(window.location.search);
         currentAssetId = urlParams.get('id') || urlParams.get('asset_id');
 
-        // Extract normalized array helper
+        // Extract normalized array helper across all worker payload variants
         function extractRecords(data) {
             if (Array.isArray(data)) return data;
             if (!data || typeof data !== "object") return [];
-            return data.records || data.assetTypes || data.projects || data.divisions || data.locations || data.users || data.data || data.results || [];
+            return data.employees || data.personnel || data.key_personnel || data.records || data.assetTypes || data.projects || data.divisions || data.locations || data.users || data.data || data.results || [];
         }
 
         // Strict Multi-Tenant Execution Guardrail & Boot
@@ -808,27 +808,45 @@
         }
 
         async function loadOperatorsDropdown() {
-            try {
-                var resp = await fetch("/api/onboarding/key-personnel/list", { headers: { "x-org-id": activeOrgId } });
-                if (resp.ok) {
-                    var data = await resp.json();
-                    var list = extractRecords(data);
-                    var sel = document.getElementById("inpOperator");
-                    sel.innerHTML = '<option value="">-- Unassigned --</option>';
-                    list.forEach(function(item) {
-                        var name = ((item.firstName || item.first_name || '') + ' ' + (item.lastName || item.last_name || '')).trim() || item.fullName || item.name || item.email;
-                        var id = item.id || name;
-                        if (name) {
-                            var opt = document.createElement("option");
-                            opt.value = id;
-                            opt.textContent = name;
-                            sel.appendChild(opt);
+            var endpoints = ["/api/onboarding/key-personnel/list", "/api/users"];
+            var list = [];
+
+            for (var i = 0; i < endpoints.length; i++) {
+                try {
+                    var resp = await fetch(endpoints[i], { headers: { "x-org-id": activeOrgId } });
+                    if (resp.ok) {
+                        var data = await resp.json();
+                        var records = extractRecords(data);
+                        if (records && records.length > 0) {
+                            list = records;
+                            break;
                         }
-                    });
-                }
-            } catch (e) {
-                reportClientError("Failed loading employees for operator dropdown", "loadOperatorsDropdown", e);
+                    }
+                } catch (e) {}
             }
+
+            var sel = document.getElementById("inpOperator");
+            sel.innerHTML = '<option value="">-- Unassigned --</option>';
+
+            list.forEach(function(item) {
+                // Filter: Show all employees that are NOT Inactive
+                var st = (item.status || item.employment_status || "").toLowerCase();
+                var isActiveBool = item.is_active !== undefined ? Boolean(item.is_active) : (item.active !== undefined ? Boolean(item.active) : true);
+
+                if (st !== "inactive" && isActiveBool !== false) {
+                    var firstName = item.firstName || item.first_name || "";
+                    var lastName = item.lastName || item.last_name || "";
+                    var name = (firstName + " " + lastName).trim() || item.fullName || item.full_name || item.name || item.user_name || item.email;
+                    var id = item.id || item.user_id || item.empNumber || item.emp_number || name;
+
+                    if (name) {
+                        var opt = document.createElement("option");
+                        opt.value = id;
+                        opt.textContent = name;
+                        sel.appendChild(opt);
+                    }
+                }
+            });
         }
 
         // High-Frequency Co-Worker Polling & Fast Beacon Unload
