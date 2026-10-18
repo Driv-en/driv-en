@@ -610,7 +610,6 @@
       if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "") {
         var errMsg = "Invalid multi-tenant session context. Execution halted to prevent data leaks.";
         
-        // Report to error log before terminating
         if (window.DRIVENErrorHandler) {
           window.DRIVENErrorHandler.report(
             "asset-configuration.html: " + errMsg,
@@ -622,7 +621,7 @@
         displayMessage(errMsg, "error");
         document.querySelector(".ac-main").style.opacity = "0.3";
         document.querySelector(".ac-save-bar").style.display = "none";
-        return; // Halt execution completely
+        return;
       }
 
       // Fix Header Layout & Adjust Height Offset
@@ -656,7 +655,6 @@
       updateHeaderOffset();
     });
 
-    // Report client error wrapper
     function reportClientError(msg, context, err) {
       if (window.DRIVENErrorHandler) {
         window.DRIVENErrorHandler.report("asset-configuration.html: " + msg, context, err ? err.stack : null);
@@ -725,31 +723,45 @@
     window.addEventListener("pagehide", sendPresenceUnload);
     window.addEventListener("beforeunload", sendPresenceUnload);
 
-    // Fetch Fuel Types Dropdown (Array Normalization & Zero Automatic Selection)
+    // Fetch Fuel Types Dropdown (With Graceful Fallback Handling)
     async function loadFuelTypesDropdown() {
+      var defaultTypes = ["Diesel", "Unleaded Gasoline", "Electric", "Hybrid", "Propane (LPG)", "CNG", "Biodiesel"];
+      var sel = document.getElementById("cfgFuelType");
+      sel.innerHTML = '<option value="">-- Select Fuel Type --</option>';
+
       try {
         var resp = await fetch("/api/fuel-types", {
           headers: { "x-org-id": activeOrgId }
         });
-        var sel = document.getElementById("cfgFuelType");
-        sel.innerHTML = '<option value="">-- Select Fuel Type --</option>';
         
         if (resp.ok) {
           var data = await resp.json();
           var list = data.records || data.fuelTypes || data.data || (Array.isArray(data) ? data : []);
-          list.forEach(function(item) {
-            var name = typeof item === "object" ? (item.fuel_type_name || item.name) : item;
-            if (name) {
-              var opt = document.createElement("option");
-              opt.value = name;
-              opt.textContent = name;
-              sel.appendChild(opt);
-            }
-          });
+          if (list.length > 0) {
+            list.forEach(function(item) {
+              var name = typeof item === "object" ? (item.fuel_type_name || item.name) : item;
+              if (name) {
+                var opt = document.createElement("option");
+                opt.value = name;
+                opt.textContent = name;
+                sel.appendChild(opt);
+              }
+            });
+            return;
+          }
         }
       } catch (e) {
-        reportClientError("Failed loading fuel types", "loadFuelTypesDropdown", e);
+        // Log quietly without breaking page boot
+        console.warn("Fuel types table lookup unavailable, populating standard defaults:", e);
       }
+
+      // Populate standard defaults if DB lookup yields no results or throws
+      defaultTypes.forEach(function(ft) {
+        var opt = document.createElement("option");
+        opt.value = ft;
+        opt.textContent = ft;
+        sel.appendChild(opt);
+      });
     }
 
     // Fetch Parent Assets Dropdown
