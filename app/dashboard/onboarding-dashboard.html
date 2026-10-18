@@ -660,8 +660,9 @@
         }
       }
 
-      // Execute endpoint queries in parallel
-      const [resEmp, resLoc, resCli, resDiv, resPT, resProj, resFT, resUM, resAT, resEq] = await Promise.allSettled([
+      // Execute endpoint queries in parallel (including Roles endpoint)
+      const [resRoles, resEmp, resLoc, resCli, resDiv, resPT, resProj, resFT, resUM, resAT, resEq] = await Promise.allSettled([
+        fetch("/api/roles", { headers }),
         fetch("/api/onboarding/employees/list", { headers }),
         fetch("/api/locations", { headers }),
         fetch("/api/clients", { headers }),
@@ -673,6 +674,24 @@
         fetch("/api/asset-types", { headers }),
         fetch("/api/equipment", { headers })
       ]);
+
+      // Step 1: Roles & Permissions
+      if (resRoles.status === "fulfilled" && resRoles.value.ok) {
+        const data = await resRoles.value.json();
+        const list = data.roles || data.records || data.data || (Array.isArray(data) ? data : []);
+        if (list.length > 0) {
+          setCardKpi(1, list.length + " Roles Configured");
+        }
+      } else {
+        // Fallback for SQL-seeded or locally stored roles
+        try {
+          var localRoles = JSON.parse(localStorage.getItem("driven_roles") || "[]");
+          var roleCount = localRoles.length || parseInt(localStorage.getItem("driven_role_count") || "0");
+          if (roleCount > 0) {
+            setCardKpi(1, roleCount + " Roles Configured");
+          }
+        } catch (e) {}
+      }
 
       // Step 2: Employees
       if (resEmp.status === "fulfilled" && resEmp.value.ok) {
