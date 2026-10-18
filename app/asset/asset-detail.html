@@ -248,7 +248,7 @@
     </div>
 
     <div class="rp-tab-bar" id="rpTabBar">
-      <a class="rp-tab-return" href="/app/dashboard/asset-management.html">← Back to Master Assets</a>
+      <a class="rp-tab-return" href="/app/dashboard/admin.html">← Back to Dashboard</a>
       <a class="rp-tab-nav active" href="#">Master File</a>
       <a class="rp-tab-nav" id="linkConfiguration" href="#">Configuration & Specs</a>
       <a class="rp-tab-nav" id="linkHistory" href="#">Complete History</a>
@@ -325,7 +325,7 @@
 
   <footer id="dashFooter" style="text-align: center; padding: 20px; font-size: 13px; color: #64748b; border-top: 1px solid #cbd5e1; background: #f8fafc;">
     <div>
-      <a href="/app/dashboard/asset-management.html" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: none;">Assets</a> | 
+      <a href="/app/dashboard/admin.html" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: none;">Admin</a> | 
       <a href="/app/dashboard/project-management.html" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: none;">Projects</a> | 
       <a href="/app/dashboard/user-management.html" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: none;">Users</a>
     </div>
@@ -334,6 +334,7 @@
     </div>
   </footer>
 
+  <script src="/app/shared/dashboard-common.js?v=13"></script>
   <script>
     var activeOrgId = "";
     var currentAssetId = "";
@@ -341,6 +342,20 @@
     function getQueryParam(param) {
       var urlParams = new URLSearchParams(window.location.search);
       return urlParams.get(param);
+    }
+
+    function resolveOrgId() {
+      if (window.dashUser && (window.dashUser.org_id || window.dashUser.orgId)) {
+        return window.dashUser.org_id || window.dashUser.orgId;
+      }
+      var sessionStr = localStorage.getItem("driv_en_session");
+      if (sessionStr) {
+        try {
+          var sessionData = JSON.parse(sessionStr);
+          if (sessionData.org_id || sessionData.orgId) return sessionData.org_id || sessionData.orgId;
+        } catch(e){}
+      }
+      return localStorage.getItem("driven_org_id") || "";
     }
 
     function sendPresenceUnload() {
@@ -360,7 +375,7 @@
     }
 
     async function checkActivePresence() {
-      if (!activeOrgId || activeOrgId === "default_org") return;
+      if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") return;
       try {
         var resp = await fetch("/api/onboarding/presence", {
           method: "POST",
@@ -394,22 +409,14 @@
       currentAssetId = getQueryParam("id");
       document.getElementById("dashFooterYear").textContent = new Date().getFullYear();
 
-      // Validate session and multi-tenant org_id context
-      var sessionStr = localStorage.getItem("driv_en_session");
-      if (sessionStr) {
-        try {
-          var sessionData = JSON.parse(sessionStr);
-          activeOrgId = sessionData.org_id || sessionData.orgId || "";
-        } catch(e){}
-      }
+      activeOrgId = resolveOrgId();
 
-      if (!activeOrgId || activeOrgId === "default_org") {
+      if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
         alert("Invalid multi-tenant session context. Execution halted to prevent data leaks.");
         window.location.href = "/auth/login.html";
         return;
       }
 
-      // Configure tab links with current asset ID
       if (currentAssetId) {
         document.getElementById("linkConfiguration").href = "/app/asset/asset-configuration.html?id=" + currentAssetId;
         document.getElementById("linkHistory").href = "/app/asset/asset-history.html?id=" + currentAssetId;
@@ -504,7 +511,10 @@
       }
     });
 
-    document.addEventListener("DOMContentLoaded", initializeAssetDetail);
+    document.addEventListener("dashSessionLoaded", initializeAssetDetail);
+    document.addEventListener("DOMContentLoaded", function() {
+      if (window.dashUser) initializeAssetDetail();
+    });
   </script>
 </body>
 </html>
