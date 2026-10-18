@@ -202,7 +202,7 @@
     }
     .um-table {
       width: 100% !important;
-      min-width: 100% !important;
+      min-width: 800px !important;
       border-collapse: collapse;
       table-layout: fixed !important;
       font-size: 13px;
@@ -311,11 +311,11 @@
         <table class="um-table" id="historyTable">
           <thead>
             <tr>
-              <th style="width: 160px;">Timestamp</th>
-              <th style="width: 130px;">Module / Type</th>
-              <th style="width: 160px;">Logged By</th>
-              <th style="width: 140px;">Action / Event</th>
-              <th>Event Details & Audit Notes</th>
+              <th style="width: 18%; min-width: 140px;">Timestamp</th>
+              <th style="width: 14%; min-width: 110px;">Module / Type</th>
+              <th style="width: 18%; min-width: 140px;">Logged By</th>
+              <th style="width: 15%; min-width: 120px;">Action / Event</th>
+              <th style="width: 35%; min-width: 250px;">Event Details & Audit Notes</th>
             </tr>
           </thead>
           <tbody id="historyTableBody">
@@ -515,14 +515,81 @@
       return [];
     }
 
+    // Formatter for timestamp values (ISO, SQL string, or epoch)
+    function formatTimestamp(rawTime) {
+      if (!rawTime) return "N/A";
+      try {
+        var dt;
+        if (typeof rawTime === "number") {
+          dt = new Date(rawTime);
+        } else if (typeof rawTime === "string") {
+          // Replace SQL space with T for Date parser compatibility
+          dt = new Date(rawTime.replace(' ', 'T'));
+        }
+        if (dt && !isNaN(dt.getTime())) {
+          return dt.toLocaleString();
+        }
+      } catch(e) {}
+      return String(rawTime);
+    }
+
+    // Formatter for audit event details & notes
+    function formatAuditDetails(item) {
+      if (item.details && typeof item.details === "string" && item.details.trim().length > 0) {
+        return item.details;
+      }
+      if (item.description && typeof item.description === "string" && item.description.trim().length > 0) {
+        return item.description;
+      }
+
+      var beforeObj = parseJsonIfNeeded(item.before_data);
+      var afterObj = parseJsonIfNeeded(item.after_data);
+
+      if (beforeObj || afterObj) {
+        if (beforeObj && afterObj && typeof beforeObj === "object" && typeof afterObj === "object") {
+          var changes = [];
+          var allKeys = Object.keys(Object.assign({}, beforeObj, afterObj));
+          allKeys.forEach(function(k) {
+            if (k === "updated_at" || k === "created_at" || k === "id" || k === "org_id" || k === "user_id") return;
+            var valBefore = beforeObj[k];
+            var valAfter = afterObj[k];
+            if (JSON.stringify(valBefore) !== JSON.stringify(valAfter)) {
+              changes.push('<strong>' + k + ':</strong> ' + (valBefore !== undefined ? valBefore : '<em>null</em>') + ' &#8594; ' + (valAfter !== undefined ? valAfter : '<em>null</em>'));
+            }
+          });
+          if (changes.length > 0) {
+            return changes.join('<br>');
+          }
+        }
+        if (afterObj) {
+          try { return '<pre style="margin:0; font-size:11px; white-space:pre-wrap;">' + JSON.stringify(afterObj, null, 2) + '</pre>'; } catch(e) {}
+        }
+      }
+
+      if (item.action) {
+        return item.action + ' event recorded for ' + (item.table_name || item.module || 'equipment');
+      }
+
+      return 'Audit event logged';
+    }
+
+    function parseJsonIfNeeded(val) {
+      if (!val) return null;
+      if (typeof val === "object") return val;
+      if (typeof val === "string") {
+        try { return JSON.parse(val); } catch(e) { return null; }
+      }
+      return null;
+    }
+
     async function loadAssetHistory(assetId) {
       if (!assetId) return;
       
       // Endpoints to try sequentially for audit log fetching
       var endpoints = [
+        "/api/audit-log?record_id=" + encodeURIComponent(assetId) + "&module=equipment",
         "/api/equipment/history?id=" + encodeURIComponent(assetId),
-        "/api/equipment/" + encodeURIComponent(assetId) + "/history",
-        "/api/audit-log?record_id=" + encodeURIComponent(assetId) + "&module=equipment"
+        "/api/equipment/" + encodeURIComponent(assetId) + "/history"
       ];
 
       var records = null;
@@ -551,22 +618,19 @@
 
         if (records.length > 0) {
           tbody.innerHTML = records.map(function(item) {
-            var localTime = item.created_at ? new Date(item.created_at).toLocaleString() : "N/A";
+            var rawTime = item.created_at || item.timestamp || item.created || item.date;
+            var localTime = formatTimestamp(rawTime);
             var mod = item.module || item.table_name || 'Equipment';
-            var usr = item.user_email || item.user_name || item.user_id || 'System';
-            var act = item.action || item.event_type || 'Log';
-            var dtls = item.details || item.description || item.after_data || '--';
-
-            if (typeof dtls === "object") {
-              try { dtls = JSON.stringify(dtls); } catch(err) { dtls = String(dtls); }
-            }
+            var usr = item.user_email || item.user_name || item.user_id || item.user || 'System';
+            var act = item.action || item.event_type || item.event || 'Log';
+            var dtls = formatAuditDetails(item);
 
             return '<tr>' +
-              '<td>' + localTime + '</td>' +
+              '<td>' + escapeHtml(localTime) + '</td>' +
               '<td><strong>' + escapeHtml(mod) + '</strong></td>' +
               '<td>' + escapeHtml(usr) + '</td>' +
               '<td>' + escapeHtml(act) + '</td>' +
-              '<td>' + escapeHtml(dtls) + '</td>' +
+              '<td>' + dtls + '</td>' +
             '</tr>';
           }).join("");
         } else {
