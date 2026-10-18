@@ -47,7 +47,7 @@
       white-space: nowrap;
     }
 
-    /* Presence Banner (Standalone Inline Block) */
+    /* Presence Banner */
     .presence-banner { 
       display: none; 
       align-items: center; 
@@ -143,7 +143,7 @@
     .issue-header { display: flex; justify-content: space-between; font-weight: 700; color: #991b1b; font-size: 13px; }
     .issue-desc { font-size: 13px; color: #451a03; margin-top: 4px; white-space: normal; word-break: break-word; }
 
-    /* Action Buttons Standard */
+    /* Action Buttons */
     .btn-action {
       background: #16a34a;
       color: #ffffff;
@@ -190,7 +190,7 @@
       <div class="dash-header-row1">
         <!-- Customer Logo (Left) -->
         <div class="header-logo-container" id="customerLogoArea">
-          <img id="customerLogoImg" src="/logo.png" alt="Customer Logo" style="height: 36px; max-width: 160px; object-fit: contain;">
+          <img id="customerLogoImg" src="/assets/icons/favicon-96.png" alt="Customer Logo" style="height: 36px; max-width: 160px; object-fit: contain;">
         </div>
 
         <!-- Centered Page Title -->
@@ -354,7 +354,7 @@
           var data = await resp.json();
           var banner = document.getElementById("presenceBanner");
           var textEl = document.getElementById("presenceText");
-          if (data.activeUsers && data.activeUsers.length > 0) {
+          if (banner && textEl && data.activeUsers && data.activeUsers.length > 0) {
             var fullNames = data.activeUsers.map(function(u) {
               if (typeof u === "object") {
                 return ((u.firstName || u.first_name || "") + " " + (u.lastName || u.last_name || "")).trim() || u.name || u.email;
@@ -363,7 +363,7 @@
             });
             textEl.textContent = "🟢 " + fullNames.join(", ") + " is also viewing this asset";
             banner.style.display = "inline-flex";
-          } else {
+          } else if (banner) {
             banner.style.display = "none";
           }
         }
@@ -372,28 +372,41 @@
 
     async function initializeAssetDetail() {
       currentAssetId = getQueryParam("id");
-      document.getElementById("dashFooterYear").textContent = new Date().getFullYear();
-      document.getElementById("assetTargetIdKey").textContent = currentAssetId || "Not Specified";
+      
+      var footerYear = document.getElementById("dashFooterYear");
+      if (footerYear) footerYear.textContent = new Date().getFullYear();
+      
+      var idBadge = document.getElementById("assetTargetIdKey");
+      if (idBadge) idBadge.textContent = currentAssetId || "Not Specified";
 
       cleanupExtraHeaders();
       activeOrgId = resolveOrgId();
 
       if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
         alert("Invalid multi-tenant session context. Execution halted to prevent data leaks.");
-        window.location.href = "/auth/login.html";
+        window.location.href = "/public/login.html";
         return;
       }
 
-      var customerLogo = localStorage.getItem("driven_customer_logo");
-      if (customerLogo) {
-        document.getElementById("customerLogoImg").src = customerLogo;
+      // Safe logo assignment check
+      var logoImg = document.getElementById("customerLogoImg");
+      if (logoImg) {
+        var customerLogo = localStorage.getItem("driven_customer_logo");
+        if (customerLogo) {
+          logoImg.src = customerLogo;
+        }
       }
 
       if (currentAssetId) {
-        document.getElementById("btnEditConfig").href = "/app/asset/asset-configuration.html?id=" + currentAssetId;
-        document.getElementById("linkNewInspection").href = "/app/inspections/new.html?asset_id=" + currentAssetId;
-        document.getElementById("linkNewWorkOrder").href = "/app/work-orders/new.html?asset_id=" + currentAssetId;
-        document.getElementById("linkLogFuel").href = "/app/dashboard/fuel.html?asset_id=" + currentAssetId;
+        var btnEdit = document.getElementById("btnEditConfig");
+        var linkInsp = document.getElementById("linkNewInspection");
+        var linkWo = document.getElementById("linkNewWorkOrder");
+        var linkFuel = document.getElementById("linkLogFuel");
+        
+        if (btnEdit) btnEdit.href = "/app/asset/asset-configuration.html?id=" + currentAssetId;
+        if (linkInsp) linkInsp.href = "/app/forms/inspection.html?asset_id=" + currentAssetId;
+        if (linkWo) linkWo.href = "/app/forms/work-order-create.html?asset_id=" + currentAssetId;
+        if (linkFuel) linkFuel.href = "/app/dashboard/fuel.html?asset_id=" + currentAssetId;
       }
 
       await loadAssetRecord();
@@ -406,33 +419,67 @@
     async function loadAssetRecord() {
       if (!currentAssetId) return;
       try {
-        var resp = await fetch("/api/equipment?id=" + encodeURIComponent(currentAssetId), {
+        // Query full equipment endpoint and filter by id on payload fallback
+        var resp = await fetch("/api/Equipment", {
           headers: { "x-org-id": activeOrgId }
         });
         if (resp.ok) {
           var resData = await resp.json();
           var list = resData.records || resData.equipment || resData.assets || resData.data || (Array.isArray(resData) ? resData : [resData]);
-          var asset = Array.isArray(list) ? list[0] : list;
-
-          if (asset && (asset.id || asset.unit_number || asset.asset_number)) {
-            document.getElementById("assetUnitNumber").textContent = asset.unit_number || asset.asset_number || asset.unit_no || ("Asset #" + asset.id);
-            document.getElementById("assetMakeModel").textContent = ((asset.make || asset.manufacturer || "") + " " + (asset.model || "")).trim() || "N/A Specs";
-            document.getElementById("assetTypeCode").textContent = asset.asset_type_name || asset.category || asset.type || "ASSET";
-            document.getElementById("specVin").textContent = asset.vin || asset.serial_number || asset.serial_no || "N/A";
-            document.getElementById("specYear").textContent = asset.year || "N/A";
-            document.getElementById("specOperator").textContent = asset.operator_name || asset.assigned_operator || "Unassigned";
-            document.getElementById("specProject").textContent = asset.project_name || asset.assigned_project || "Unassigned";
-            document.getElementById("specMeter").textContent = (asset.meter_reading || asset.current_meter || "0") + " " + (asset.meter_type || "Hours");
-            document.getElementById("specFuelType").textContent = asset.fuel_type || "N/A";
-            document.getElementById("assetLocation").textContent = "Location: " + (asset.location || asset.current_location || "Unassigned");
-            document.title = (asset.unit_number || "Asset") + " | DRIV-EN Asset Detail";
+          
+          var asset = null;
+          if (Array.isArray(list)) {
+            asset = list.find(function(item) {
+              return String(item.id) === String(currentAssetId) || 
+                     String(item.equipment_id) === String(currentAssetId) ||
+                     String(item.asset_id) === String(currentAssetId);
+            }) || list[0];
           } else {
-            document.getElementById("assetMakeModel").textContent = "Asset profile record not found.";
+            asset = list;
+          }
+
+          if (asset && (asset.id || asset.equipment_id || asset.unit_number || asset.asset_number)) {
+            var unitVal = asset.unit_number || asset.asset_number || asset.unit_no || asset.name || ("Asset #" + (asset.id || asset.equipment_id));
+            var unitEl = document.getElementById("assetUnitNumber");
+            if (unitEl) unitEl.textContent = unitVal;
+
+            var mmEl = document.getElementById("assetMakeModel");
+            if (mmEl) mmEl.textContent = ((asset.make || asset.manufacturer || "") + " " + (asset.model || "")).trim() || "N/A Specs";
+
+            var typeEl = document.getElementById("assetTypeCode");
+            if (typeEl) typeEl.textContent = asset.asset_type_name || asset.category || asset.type || "ASSET";
+
+            var vinEl = document.getElementById("specVin");
+            if (vinEl) vinEl.textContent = asset.vin || asset.serial_number || asset.serial_no || "N/A";
+
+            var yearEl = document.getElementById("specYear");
+            if (yearEl) yearEl.textContent = asset.year || "N/A";
+
+            var opEl = document.getElementById("specOperator");
+            if (opEl) opEl.textContent = asset.operator_name || asset.assigned_operator || "Unassigned";
+
+            var projEl = document.getElementById("specProject");
+            if (projEl) projEl.textContent = asset.project_name || asset.assigned_project || "Unassigned";
+
+            var meterEl = document.getElementById("specMeter");
+            if (meterEl) meterEl.textContent = (asset.meter_reading || asset.current_meter || asset.hours || "0") + " " + (asset.meter_type || "Hours");
+
+            var fuelEl = document.getElementById("specFuelType");
+            if (fuelEl) fuelEl.textContent = asset.fuel_type || "N/A";
+
+            var locEl = document.getElementById("assetLocation");
+            if (locEl) locEl.textContent = "Location: " + (asset.location || asset.current_location || "Unassigned");
+
+            document.title = unitVal + " | DRIV-EN Asset Detail";
+          } else {
+            var mmEl = document.getElementById("assetMakeModel");
+            if (mmEl) mmEl.textContent = "Asset profile record not found.";
           }
         }
       } catch (e) {
         console.error("Failed to load asset details:", e);
-        document.getElementById("assetMakeModel").textContent = "Error fetching asset details.";
+        var mmEl = document.getElementById("assetMakeModel");
+        if (mmEl) mmEl.textContent = "Error fetching asset details.";
       }
     }
 
@@ -448,20 +495,22 @@
           var listEl = document.getElementById("openIssuesList");
           var countEl = document.getElementById("openIssueCount");
           
-          countEl.textContent = issues.length + " Open";
+          if (countEl) countEl.textContent = issues.length + " Open";
 
-          if (issues.length > 0) {
-            listEl.innerHTML = issues.map(function(issue) {
-              return '<div class="issue-item">' +
-                '<div class="issue-header">' +
-                  '<span>⚠️ ' + (issue.item_name || 'Inspection Flag') + '</span>' +
-                  '<span>Log Date: ' + (issue.logged_date || 'Recent') + '</span>' +
-                '</div>' +
-                '<div class="issue-desc">' + (issue.description || 'No detailed issue notes recorded.') + '</div>' +
-              '</div>';
-            }).join("");
-          } else {
-            listEl.innerHTML = '<p style="color: #64748b; font-size: 14px; margin: 0;">No unclosed inspection issues flagged for this asset.</p>';
+          if (listEl) {
+            if (issues.length > 0) {
+              listEl.innerHTML = issues.map(function(issue) {
+                return '<div class="issue-item">' +
+                  '<div class="issue-header">' +
+                    '<span>⚠️ ' + (issue.item_name || 'Inspection Flag') + '</span>' +
+                    '<span>Log Date: ' + (issue.logged_date || 'Recent') + '</span>' +
+                  '</div>' +
+                  '<div class="issue-desc">' + (issue.description || 'No detailed issue notes recorded.') + '</div>' +
+                '</div>';
+              }).join("");
+            } else {
+              listEl.innerHTML = '<p style="color: #64748b; font-size: 14px; margin: 0;">No unclosed inspection issues flagged for this asset.</p>';
+            }
           }
         }
       } catch(e) {
