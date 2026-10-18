@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Asset Configuration & Setup | DRIV-EN Platform</title>
+  <link rel="stylesheet" href="/app/styles/dashboard.css?v=10">
+  <style>
+    /* Viewport Sticky Header Standard */
+    #dashStickyHeader {
+      position: sticky !important;
+      top: 0 !important;
+      z-index: 100 !important;
+      background: var(--bg-header, #f8fafc) !important;
+      border-bottom: 1px solid var(--border, #cbd5e1) !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+    #dashHeader {
+      background: var(--bg-header, #f8fafc) !important;
+    }
+    .dash-header-row1 { 
+      padding: 8px 20px !important; 
+      align-items: center; 
+      background: var(--bg-header, #f8fafc);
+      border-bottom: 1px solid var(--border, #cbd5e1);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Single Unified Presence + Tab Bar Card Block */
+    .ob-greeting-bar { 
+      max-width: 1100px; 
+      margin: 12px auto; 
+      padding: 10px 20px; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      gap: 10px; 
+      position: relative; 
+      z-index: 95; 
+      background: #cbd5e1 !important;
+      border-radius: 8px !important;
+      border: 1.5px solid #94a3b8 !important;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .presence-banner { 
+      display: none; 
+      align-items: center; 
+      justify-content: center;
+      gap: 8px; 
+      background: #ea580c !important; 
+      border: 1.5px solid #f97316 !important; 
+      padding: 6px 14px; 
+      border-radius: 20px; 
+      font-size: 13px; 
+      color: #ffffff !important; 
+      font-weight: 600; 
+      width: auto;
+    }
+    .rp-tab-bar { 
+      display: flex !important; 
+      visibility: visible !important;
+      opacity: 1 !important;
+      align-items: center !important;
+      gap: 8px !important; 
+      width: 100%; 
+      margin: 0; 
+      padding: 0; 
+      overflow-x: auto; 
+      background: transparent !important; 
+      border: none !important;
+      box-shadow: none !important;
+      position: relative;
+      z-index: 90;
+    }
+    .rp-tab-return { 
+      background: #1e40af !important; 
+      border: 1px solid #2563eb !important; 
+      border-radius: 6px; 
+      padding: 8px 18px; 
+      font-size: 14px; 
+      font-weight: 600; 
+      color: #dbeafe !important; 
+      cursor: pointer; 
+      white-space: nowrap; 
+      text-decoration: none; 
+      transition: background 200ms ease; 
+      display: inline-flex; 
+      align-items: center; 
+    }
+    .rp-tab-return:hover { background: #1d4ed8 !important; color: #ffffff !important; }
+    .rp-tab-nav {
+      background: #475569 !important;
+      border: 1px solid #64748b !important;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #f8fafc !important;
+      text-decoration: none;
+      transition: background 200ms ease;
+    }
+    .rp-tab-nav:hover, .rp-tab-nav.active { background: #334155 !important; color: #ffffff !important; }
+    .rp-tab-logout { 
+      background: #b91c1c !important; 
+      border: 1px solid #dc2626 !important; 
+      border-radius: 6px; 
+      padding: 8px 18px; 
+      font-size: 14px; 
+      font-weight: 600; 
+      color: #ffffff !important; 
+      cursor: pointer; 
+      white-space: nowrap; 
+      margin-left: auto; 
+      transition: background 200ms ease; 
+      display: inline-flex; 
+      align-items: center; 
+    }
+    .rp-tab-logout:hover { background: #dc2626 !important; }
+
+    /* Configuration Form Layout */
+    .config-container {
+      max-width: 1100px;
+      margin: 0 auto 80px auto;
+      padding: 0 10px;
+    }
+    .card-panel {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-group label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #334155;
+    }
+    .form-group input, .form-group select, .form-group textarea {
+      padding: 8px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 14px;
+      color: #0f172a;
+      background: #f8fafc;
+      transition: border-color 200ms ease;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      outline: none;
+      border-color: #2563eb;
+      background: #ffffff;
+    }
+
+    /* Bottom Save Bar Standard */
+    .rp-save-bar { 
+      position: sticky; 
+      bottom: 0; 
+      z-index: 40; 
+      background: #cbd5e1 !important; 
+      border-top: 1.5px solid #94a3b8 !important; 
+      padding: 12px 20px; 
+      max-width: 1100px; 
+      margin: 0 auto; 
+      box-sizing: border-box; 
+      border-radius: 8px 8px 0 0;
+      box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .btn-action {
+      background: #16a34a;
+      color: #ffffff;
+      border: 1px solid #16a34a;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      transition: all 200ms ease;
+    }
+    .btn-action:hover { background: #2563eb; border-color: #2563eb; }
+
+    @media print {
+      #dashStickyHeader, .ob-greeting-bar, .rp-save-bar, #dashFooter { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Viewport Sticky Header -->
+  <div id="dashStickyHeader">
+    <header id="dashHeader">
+      <div class="dash-header-row1">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <img src="/logo.png" alt="DRIV-EN Logo" style="height: 36px;">
+          <span style="font-size: 20px; font-weight: 800; color: #0f172a; tracking: -0.02em;">DRIV-EN</span>
+        </div>
+        <div style="font-size: 14px; font-weight: 600; color: #475569;" id="dashOrgDisplayName">
+          Loading Workspace...
+        </div>
+      </div>
+    </header>
+  </div>
+
+  <!-- Single Unified Presence + Tab Bar Card Block -->
+  <div class="ob-greeting-bar" id="obGreetingBar">
+    <div class="presence-banner" id="presenceBanner">
+      <span id="presenceText">Other Key Personnel active</span>
+    </div>
+
+    <div class="rp-tab-bar" id="rpTabBar">
+      <a class="rp-tab-return" id="linkMasterFile" href="#">← Back to Asset Profile</a>
+      <a class="rp-tab-nav" id="linkMasterProfileNav" href="#">Master File</a>
+      <a class="rp-tab-nav active" href="#">Configuration & Specs</a>
+      <a class="rp-tab-nav" id="linkHistory" href="#">Complete History</a>
+      <button class="rp-tab-logout" onclick="confirmLogout()">Logout</button>
+    </div>
+  </div>
+
+  <main class="config-container">
+    <form id="configForm">
+      <!-- Section 1: Drive & Mobility Technical Options -->
+      <div class="card-panel">
+        <div class="card-title">
+          <span>Drive & Mobility Configuration</span>
+        </div>
+        <p style="font-size: 13px; color: #64748b; margin-top: -8px; margin-bottom: 16px;">
+          Configure mobility specs independently from primary asset taxonomy classification.
+        </p>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="mobilityType">Mobility Base</label>
+            <select id="mobilityType" name="mobility_type">
+              <option value="">-- Select Mobility --</option>
+              <option value="wheeled">Wheeled</option>
+              <option value="tracked">Tracked</option>
+              <option value="stationary">Stationary / Skid</option>
+              <option value="rail">Rail Mounted</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="driveConfiguration">Drive Configuration</label>
+            <select id="driveConfiguration" name="drive_configuration">
+              <option value="">-- Select Drive --</option>
+              <option value="2wd">2WD (Two-Wheel Drive)</option>
+              <option value="4wd">4WD / AWD</option>
+              <option value="6x4">6x4</option>
+              <option value="8x4">8x4</option>
+              <option value="hydrostatic">Hydrostatic</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="undercarriageVariant">Undercarriage / Tire Spec</label>
+            <input type="text" id="undercarriageVariant" name="undercarriage_variant" placeholder="e.g. Steel Tracks 600mm / L3 Pneumatic">
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Fluid Capacities & Specs -->
+      <div class="card-panel">
+        <div class="card-title"><span>Fluid Capacities & Technical Specs</span></div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="engineOilCapacity">Engine Oil Capacity (Quarts/Liters)</label>
+            <input type="text" id="engineOilCapacity" name="engine_oil_capacity" placeholder="e.g. 12.5 Qts (15W-40)">
+          </div>
+          <div class="form-group">
+            <label for="hydraulicCapacity">Hydraulic Fluid Capacity</label>
+            <input type="text" id="hydraulicCapacity" name="hydraulic_capacity" placeholder="e.g. 35 Gal (ISO 46)">
+          </div>
+          <div class="form-group">
+            <label for="fuelTankCapacity">Fuel Tank Capacity (Gallons)</label>
+            <input type="text" id="fuelTankCapacity" name="fuel_tank_capacity" placeholder="e.g. 80 Gal Diesel">
+          </div>
+          <div class="form-group">
+            <label for="defTankCapacity">DEF Tank Capacity (Gallons)</label>
+            <input type="text" id="defTankCapacity" name="def_tank_capacity" placeholder="e.g. 5 Gal">
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 3: Composite Parent / Child Relationships -->
+      <div class="card-panel">
+        <div class="card-title"><span>Parent / Child Composite Attachments</span></div>
+        <p style="font-size: 13px; color: #64748b; margin-top: -8px; margin-bottom: 16px;">
+          Attach component assets (e.g., Compressor, Drill Rig, Generator) mounted on this unit.
+        </p>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="parentAssetSelect">Parent Asset / Primary Carrier</label>
+            <select id="parentAssetSelect" name="parent_asset_id">
+              <option value="">-- None (Standalone Primary Unit) --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="attachedChildAssets">Attached Child Units</label>
+            <select id="attachedChildAssets" name="child_asset_ids" multiple style="height: 100px;">
+              <!-- Populated dynamically via JS -->
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 4: OEM Manual Ingestion & AI RAG Ingest -->
+      <div class="card-panel">
+        <div class="card-title"><span>OEM Manual Ingestion (AI RAG Parser)</span></div>
+        <p style="font-size: 13px; color: #64748b; margin-top: -8px; margin-bottom: 16px;">
+          Upload heavy OEM manuals (PDF 100–1000+ pages) for async parsing into fluid specs and PM schedules.
+        </p>
+        <div class="form-group">
+          <label for="oemManualUpload">Select OEM Manual (PDF)</label>
+          <input type="file" id="oemManualUpload" accept="application/pdf">
+        </div>
+      </div>
+    </form>
+  </main>
+
+  <!-- Bottom Save Bar -->
+  <div class="rp-save-bar">
+    <span style="font-size: 13px; font-weight: 600; color: #334155;">Asset Setup Status: <strong id="saveStatusText" style="color: #16a34a;">Ready</strong></span>
+    <button type="button" class="btn-action" onclick="saveConfiguration()">💾 Save Asset Configuration</button>
+  </div>
+
+  <footer id="dashFooter" style="text-align: center; padding: 20px; font-size: 13px; color: #64748b; border-top: 1px solid #cbd5e1; background: #f8fafc;">
+    <div>
+      <a href="/app/dashboard/asset-management.html" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: none;">Assets</a> | 
+      <a href="/app/dashboard/project-management.html" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: none;">Projects</a> | 
+      <a href="/app/dashboard/user-management.html" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: none;">Users</a>
+    </div>
+    <div style="margin-top: 6px;">
+      &copy; <span id="dashFooterYear"></span> DRIV-EN Platform. All Rights Reserved.
+    </div>
+  </footer>
+
+  <script>
+    var activeOrgId = "";
+    var currentAssetId = "";
+
+    function getQueryParam(param) {
+      var urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(param);
+    }
+
+    function sendPresenceUnload() {
+      if (!activeOrgId) return;
+      var payload = JSON.stringify({ page: "Asset Config: " + (currentAssetId || "Unknown"), action: "leave" });
+      if (navigator.sendBeacon) {
+        var blob = new Blob([payload], { type: "application/json" });
+        navigator.sendBeacon("/api/onboarding/presence", blob);
+      } else {
+        fetch("/api/onboarding/presence", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-org-id": activeOrgId },
+          body: payload,
+          keepalive: true
+        }).catch(function() {});
+      }
+    }
+
+    async function checkActivePresence() {
+      if (!activeOrgId || activeOrgId === "default_org") return;
+      try {
+        var resp = await fetch("/api/onboarding/presence", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "x-org-id": activeOrgId
+          },
+          body: JSON.stringify({ page: "Asset Config: " + (currentAssetId || "Unknown") })
+        });
+        if (resp.ok) {
+          var data = await resp.json();
+          var banner = document.getElementById("presenceBanner");
+          var textEl = document.getElementById("presenceText");
+          if (data.activeUsers && data.activeUsers.length > 0) {
+            var fullNames = data.activeUsers.map(function(u) {
+              if (typeof u === "object") {
+                return ((u.firstName || u.first_name || "") + " " + (u.lastName || u.last_name || "")).trim() || u.name || u.email;
+              }
+              return String(u);
+            });
+            textEl.textContent = "🟢 " + fullNames.join(", ") + " is also configuring this asset";
+            banner.style.display = "inline-flex";
+          } else {
+            banner.style.display = "none";
+          }
+        }
+      } catch (e) {}
+    }
+
+    async function initializeConfig() {
+      currentAssetId = getQueryParam("id");
+      document.getElementById("dashFooterYear").textContent = new Date().getFullYear();
+
+      var sessionStr = localStorage.getItem("driv_en_session");
+      if (sessionStr) {
+        try {
+          var sessionData = JSON.parse(sessionStr);
+          activeOrgId = sessionData.org_id || sessionData.orgId || "";
+        } catch(e){}
+      }
+
+      if (!activeOrgId || activeOrgId === "default_org") {
+        alert("Invalid multi-tenant session context. Execution halted to prevent data leaks.");
+        window.location.href = "/auth/login.html";
+        return;
+      }
+
+      if (currentAssetId) {
+        document.getElementById("linkMasterFile").href = "/app/asset/asset-detail.html?id=" + currentAssetId;
+        document.getElementById("linkMasterProfileNav").href = "/app/asset/asset-detail.html?id=" + currentAssetId;
+        document.getElementById("linkHistory").href = "/app/asset/asset-history.html?id=" + currentAssetId;
+      }
+
+      await loadAssetConfig();
+      checkActivePresence();
+      setInterval(checkActivePresence, 5000);
+    }
+
+    async function loadAssetConfig() {
+      if (!currentAssetId) return;
+      try {
+        var resp = await fetch("/api/equipment/config?id=" + encodeURIComponent(currentAssetId), {
+          headers: { "x-org-id": activeOrgId }
+        });
+        if (resp.ok) {
+          var resData = await resp.json();
+          var config = resData.config || resData.record || {};
+          if (config.mobility_type) document.getElementById("mobilityType").value = config.mobility_type;
+          if (config.drive_configuration) document.getElementById("driveConfiguration").value = config.drive_configuration;
+          if (config.undercarriage_variant) document.getElementById("undercarriageVariant").value = config.undercarriage_variant;
+          if (config.engine_oil_capacity) document.getElementById("engineOilCapacity").value = config.engine_oil_capacity;
+          if (config.hydraulic_capacity) document.getElementById("hydraulicCapacity").value = config.hydraulic_capacity;
+          if (config.fuel_tank_capacity) document.getElementById("fuelTankCapacity").value = config.fuel_tank_capacity;
+          if (config.def_tank_capacity) document.getElementById("defTankCapacity").value = config.def_tank_capacity;
+        }
+      } catch (e) {
+        console.error("Error loading asset configuration:", e);
+      }
+    }
+
+    async function saveConfiguration() {
+      if (!activeOrgId || activeOrgId === "default_org") {
+        alert("Cannot save: Invalid org context.");
+        return;
+      }
+
+      var form = document.getElementById("configForm");
+      var formData = new FormData(form);
+      var payload = {
+        asset_id: currentAssetId,
+        mobility_type: formData.get("mobility_type"),
+        drive_configuration: formData.get("drive_configuration"),
+        undercarriage_variant: formData.get("undercarriage_variant"),
+        engine_oil_capacity: formData.get("engine_oil_capacity"),
+        hydraulic_capacity: formData.get("hydraulic_capacity"),
+        fuel_tank_capacity: formData.get("fuel_tank_capacity"),
+        def_tank_capacity: formData.get("def_tank_capacity")
+      };
+
+      document.getElementById("saveStatusText").textContent = "Saving...";
+
+      try {
+        var resp = await fetch("/api/equipment/config", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-org-id": activeOrgId
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (resp.ok) {
+          document.getElementById("saveStatusText").textContent = "Saved Successfully!";
+          setTimeout(function() {
+            document.getElementById("saveStatusText").textContent = "Ready";
+          }, 2500);
+        } else {
+          alert("Failed to save asset configuration.");
+          document.getElementById("saveStatusText").textContent = "Error";
+        }
+      } catch(e) {
+        console.error("Error saving config:", e);
+        alert("An error occurred while saving.");
+        document.getElementById("saveStatusText").textContent = "Error";
+      }
+    }
+
+    function confirmLogout() {
+      if (confirm("Are you sure you want to log out?")) {
+        localStorage.removeItem("driv_en_session");
+        window.location.href = "/auth/login.html";
+      }
+    }
+
+    window.addEventListener("pagehide", sendPresenceUnload);
+    window.addEventListener("beforeunload", sendPresenceUnload);
+    document.addEventListener("visibilitychange", function() {
+      if (document.visibilityState === "hidden") {
+        sendPresenceUnload();
+      } else if (document.visibilityState === "visible") {
+        checkActivePresence();
+      }
+    });
+
+    document.addEventListener("DOMContentLoaded", initializeConfig);
+  </script>
+</body>
+</html>
