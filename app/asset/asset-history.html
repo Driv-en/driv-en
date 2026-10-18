@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Complete Asset History & Audit Log | DRIV-EN Platform</title>
+  <link rel="stylesheet" href="/app/styles/dashboard.css?v=10">
+  <style>
+    /* Viewport Sticky Header Standard */
+    #dashStickyHeader {
+      position: sticky !important;
+      top: 0 !important;
+      z-index: 100 !important;
+      background: var(--bg-header, #f8fafc) !important;
+      border-bottom: 1px solid var(--border, #cbd5e1) !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+    #dashHeader {
+      background: var(--bg-header, #f8fafc) !important;
+    }
+    .dash-header-row1 { 
+      padding: 8px 20px !important; 
+      align-items: center; 
+      background: var(--bg-header, #f8fafc);
+      border-bottom: 1px solid var(--border, #cbd5e1);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Single Unified Presence + Tab Bar Card Block */
+    .ob-greeting-bar { 
+      max-width: 1100px; 
+      margin: 12px auto; 
+      padding: 10px 20px; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      gap: 10px; 
+      position: relative; 
+      z-index: 95; 
+      background: #cbd5e1 !important;
+      border-radius: 8px !important;
+      border: 1.5px solid #94a3b8 !important;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .presence-banner { 
+      display: none; 
+      align-items: center; 
+      justify-content: center;
+      gap: 8px; 
+      background: #ea580c !important; 
+      border: 1.5px solid #f97316 !important; 
+      padding: 6px 14px; 
+      border-radius: 20px; 
+      font-size: 13px; 
+      color: #ffffff !important; 
+      font-weight: 600; 
+      width: auto;
+    }
+    .rp-tab-bar { 
+      display: flex !important; 
+      visibility: visible !important;
+      opacity: 1 !important;
+      align-items: center !important;
+      gap: 8px !important; 
+      width: 100%; 
+      margin: 0; 
+      padding: 0; 
+      overflow-x: auto; 
+      background: transparent !important; 
+      border: none !important;
+      box-shadow: none !important;
+      position: relative;
+      z-index: 90;
+    }
+    .rp-tab-return { 
+      background: #1e40af !important; 
+      border: 1px solid #2563eb !important; 
+      border-radius: 6px; 
+      padding: 8px 18px; 
+      font-size: 14px; 
+      font-weight: 600; 
+      color: #dbeafe !important; 
+      cursor: pointer; 
+      white-space: nowrap; 
+      text-decoration: none; 
+      transition: background 200ms ease; 
+      display: inline-flex; 
+      align-items: center; 
+    }
+    .rp-tab-return:hover { background: #1d4ed8 !important; color: #ffffff !important; }
+    .rp-tab-nav {
+      background: #475569 !important;
+      border: 1px solid #64748b !important;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #f8fafc !important;
+      text-decoration: none;
+      transition: background 200ms ease;
+    }
+    .rp-tab-nav:hover, .rp-tab-nav.active { background: #334155 !important; color: #ffffff !important; }
+    .rp-tab-logout { 
+      background: #b91c1c !important; 
+      border: 1px solid #dc2626 !important; 
+      border-radius: 6px; 
+      padding: 8px 18px; 
+      font-size: 14px; 
+      font-weight: 600; 
+      color: #ffffff !important; 
+      cursor: pointer; 
+      white-space: nowrap; 
+      margin-left: auto; 
+      transition: background 200ms ease; 
+      display: inline-flex; 
+      align-items: center; 
+    }
+    .rp-tab-logout:hover { background: #dc2626 !important; }
+
+    /* History Layout & Table Standard */
+    .history-container {
+      max-width: 1100px;
+      margin: 0 auto 30px auto;
+      padding: 0 10px;
+    }
+    .card-panel {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Isolated Resizable & Wrapping Table */
+    .um-table-container {
+      overflow-x: auto;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+    }
+    .um-table {
+      width: 100% !important;
+      min-width: 100% !important;
+      border-collapse: collapse;
+      table-layout: fixed !important;
+    }
+    .um-table th, .um-table td {
+      padding: 10px 12px;
+      text-align: left;
+      font-size: 13px;
+      border-bottom: 1px solid #e2e8f0;
+      white-space: normal !important;
+      word-break: break-word !important;
+    }
+    .um-table th {
+      background: #f1f5f9;
+      font-weight: 700;
+      color: #334155;
+    }
+    .um-table tr:hover { background: #f8fafc; }
+
+    /* Buttons Standard */
+    .btn-action {
+      background: #16a34a;
+      color: #ffffff;
+      border: 1px solid #16a34a;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      transition: all 200ms ease;
+    }
+    .btn-action:hover { background: #2563eb; border-color: #2563eb; }
+    .btn-print { background: #16a34a !important; border: 1px solid #16a34a !important; color: #ffffff !important; }
+    .btn-print:hover { background: #2563eb !important; border-color: #2563eb !important; }
+
+    /* Targeted & Flush Printing */
+    @media print {
+      #dashStickyHeader, .ob-greeting-bar, .btn-action, .pagination-bar, #dashFooter { display: none !important; }
+      body { background: #ffffff !important; color: #000000 !important; }
+      .history-container { max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+      .um-table thead { display: table-header-group !important; }
+      @page { margin: 10mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Viewport Sticky Header -->
+  <div id="dashStickyHeader">
+    <header id="dashHeader">
+      <div class="dash-header-row1">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <img src="/logo.png" alt="DRIV-EN Logo" style="height: 36px;">
+          <span style="font-size: 20px; font-weight: 800; color: #0f172a; tracking: -0.02em;">DRIV-EN</span>
+        </div>
+        <div style="font-size: 14px; font-weight: 600; color: #475569;" id="dashOrgDisplayName">
+          Loading Workspace...
+        </div>
+      </div>
+    </header>
+  </div>
+
+  <!-- Single Unified Presence + Tab Bar Card Block -->
+  <div class="ob-greeting-bar" id="obGreetingBar">
+    <div class="presence-banner" id="presenceBanner">
+      <span id="presenceText">Other Key Personnel active</span>
+    </div>
+
+    <div class="rp-tab-bar" id="rpTabBar">
+      <a class="rp-tab-return" id="linkMasterFile" href="#">← Back to Asset Profile</a>
+      <a class="rp-tab-nav" id="linkMasterProfileNav" href="#">Master File</a>
+      <a class="rp-tab-nav" id="linkConfiguration" href="#">Configuration & Specs</a>
+      <a class="rp-tab-nav active" href="#">Complete History</a>
+      <button class="btn-action btn-print" onclick="doPrintHistory()" style="margin-left: 12px;">🖨 Print Audit History</button>
+      <button class="rp-tab-logout" onclick="confirmLogout()">Logout</button>
+    </div>
+  </div>
+
+  <main class="history-container">
+    <div class="card-panel">
+      <div class="card-title">
+        <span>Complete Life-Cycle Audit Log</span>
+        <span id="recordCountBadge" style="font-size: 13px; font-weight: 600; color: #64748b;">0 Events</span>
+      </div>
+
+      <div class="um-table-container">
+        <table class="um-table" id="historyTable">
+          <thead>
+            <tr>
+              <th style="width: 150px;">Timestamp</th>
+              <th style="width: 130px;">Module / Type</th>
+              <th style="width: 140px;">Logged By</th>
+              <th style="width: 140px;">Action / Event</th>
+              <th>Event Details & Audit Notes</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody">
+            <tr>
+              <td colspan="5" style="text-align: center; color: #64748b; padding: 20px;">Loading historical audit log...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <footer id="dashFooter" style="text-align: center; padding: 20px; font-size: 13px; color: #64748b; border-top: 1px solid #cbd5e1; background: #f8fafc;">
+    <div>
+      <a href="/app/dashboard/asset-management.html" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: none;">Assets</a> | 
+      <a href="/app/dashboard/project-management.html" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: none;">Projects</a> | 
+      <a href="/app/dashboard/user-management.html" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: none;">Users</a>
+    </div>
+    <div style="margin-top: 6px;">
+      &copy; <span id="dashFooterYear"></span> DRIV-EN Platform. All Rights Reserved.
+    </div>
+  </footer>
+
+  <script>
+    var activeOrgId = "";
+    var currentAssetId = "";
+
+    function getQueryParam(param) {
+      var urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(param);
+    }
+
+    function sendPresenceUnload() {
+      if (!activeOrgId) return;
+      var payload = JSON.stringify({ page: "Asset History: " + (currentAssetId || "Unknown"), action: "leave" });
+      if (navigator.sendBeacon) {
+        var blob = new Blob([payload], { type: "application/json" });
+        navigator.sendBeacon("/api/onboarding/presence", blob);
+      } else {
+        fetch("/api/onboarding/presence", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-org-id": activeOrgId },
+          body: payload,
+          keepalive: true
+        }).catch(function() {});
+      }
+    }
+
+    async function checkActivePresence() {
+      if (!activeOrgId || activeOrgId === "default_org") return;
+      try {
+        var resp = await fetch("/api/onboarding/presence", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "x-org-id": activeOrgId
+          },
+          body: JSON.stringify({ page: "Asset History: " + (currentAssetId || "Unknown") })
+        });
+        if (resp.ok) {
+          var data = await resp.json();
+          var banner = document.getElementById("presenceBanner");
+          var textEl = document.getElementById("presenceText");
+          if (data.activeUsers && data.activeUsers.length > 0) {
+            var fullNames = data.activeUsers.map(function(u) {
+              if (typeof u === "object") {
+                return ((u.firstName || u.first_name || "") + " " + (u.lastName || u.last_name || "")).trim() || u.name || u.email;
+              }
+              return String(u);
+            });
+            textEl.textContent = "🟢 " + fullNames.join(", ") + " is also reviewing this audit log";
+            banner.style.display = "inline-flex";
+          } else {
+            banner.style.display = "none";
+          }
+        }
+      } catch (e) {}
+    }
+
+    async function initializeHistory() {
+      currentAssetId = getQueryParam("id");
+      document.getElementById("dashFooterYear").textContent = new Date().getFullYear();
+
+      var sessionStr = localStorage.getItem("driv_en_session");
+      if (sessionStr) {
+        try {
+          var sessionData = JSON.parse(sessionStr);
+          activeOrgId = sessionData.org_id || sessionData.orgId || "";
+        } catch(e){}
+      }
+
+      if (!activeOrgId || activeOrgId === "default_org") {
+        alert("Invalid multi-tenant session context. Execution halted to prevent data leaks.");
+        window.location.href = "/auth/login.html";
+        return;
+      }
+
+      if (currentAssetId) {
+        document.getElementById("linkMasterFile").href = "/app/asset/asset-detail.html?id=" + currentAssetId;
+        document.getElementById("linkMasterProfileNav").href = "/app/asset/asset-detail.html?id=" + currentAssetId;
+        document.getElementById("linkConfiguration").href = "/app/asset/asset-configuration.html?id=" + currentAssetId;
+      }
+
+      await loadAssetHistory();
+      checkActivePresence();
+      setInterval(checkActivePresence, 5000);
+    }
+
+    async function loadAssetHistory() {
+      if (!currentAssetId) return;
+      try {
+        var resp = await fetch("/api/equipment/history?id=" + encodeURIComponent(currentAssetId), {
+          headers: { "x-org-id": activeOrgId }
+        });
+        if (resp.ok) {
+          var resData = await resp.json();
+          var records = resData.records || resData.history || resData.data || [];
+          var tbody = document.getElementById("historyTableBody");
+          document.getElementById("recordCountBadge").textContent = records.length + " Events";
+
+          if (records.length > 0) {
+            tbody.innerHTML = records.map(function(item) {
+              var localTime = item.created_at ? new Date(item.created_at).toLocaleString() : "N/A";
+              return '<tr>' +
+                '<td>' + localTime + '</td>' +
+                '<td><strong>' + (item.module || 'System') + '</strong></td>' +
+                '<td>' + (item.user_email || item.user_name || 'System') + '</td>' +
+                '<td>' + (item.action || 'Log') + '</td>' +
+                '<td>' + (item.details || item.description || '--') + '</td>' +
+              '</tr>';
+            }).join("");
+          } else {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #64748b; padding: 20px;">No historical audit events recorded for this asset.</td></tr>';
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load asset history:", e);
+      }
+    }
+
+    function doPrintHistory() {
+      document.title = "DRIV-EN Audit History | Asset #" + (currentAssetId || "Log");
+      window.print();
+    }
+
+    function confirmLogout() {
+      if (confirm("Are you sure you want to log out?")) {
+        localStorage.removeItem("driv_en_session");
+        window.location.href = "/auth/login.html";
+      }
+    }
+
+    window.addEventListener("pagehide", sendPresenceUnload);
+    window.addEventListener("beforeunload", sendPresenceUnload);
+    document.addEventListener("visibilitychange", function() {
+      if (document.visibilityState === "hidden") {
+        sendPresenceUnload();
+      } else if (document.visibilityState === "visible") {
+        checkActivePresence();
+      }
+    });
+
+    document.addEventListener("DOMContentLoaded", initializeHistory);
+  </script>
+</body>
+</html>
