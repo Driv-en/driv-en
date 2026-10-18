@@ -1159,7 +1159,18 @@
             await syncSettings();
             await loadAssets();
             document.getElementById('amLoading').style.display = 'none';
-            document.getElementById('tab-overview').style.display = 'block';
+            
+            // Check URL parameters for tab and kpi routing
+            var urlParams = new URLSearchParams(window.location.search);
+            var initialTab = urlParams.get('tab') || 'overview';
+            var initialKpi = urlParams.get('kpi');
+
+            if (initialKpi) {
+                filterByKpi(initialKpi);
+            } else {
+                switchTab(initialTab);
+            }
+
             updateHeaderOffset();
         });
 
@@ -1343,7 +1354,7 @@
             return (str === 'null' || str === 'undefined') ? '' : str;
         }
 
-function normalizeAsset(r) {
+        function normalizeAsset(r) {
             var f = (r && r.fields && typeof r.fields === 'object') ? r.fields : (r || {});
 
             return {
