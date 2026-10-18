@@ -26,6 +26,11 @@
       display: flex;
       justify-content: space-between;
       box-sizing: border-box;
+      width: 100%;
+    }
+    /* Hide lower header rows from dashboard-common.js */
+    .dash-header-row2, .dash-header-row3, .ob-greeting-bar, .rp-tab-bar { 
+      display: none !important; 
     }
     .header-logo-container {
       display: flex;
@@ -116,6 +121,18 @@
       font-size: 13px;
       font-weight: 600;
     }
+    .asset-key-badge {
+      display: inline-block;
+      font-family: monospace;
+      font-size: 11px;
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 2px 6px;
+      margin-top: 6px;
+      word-break: break-all;
+    }
     .issue-item {
       padding: 12px;
       border: 1px solid #fecaca;
@@ -200,6 +217,7 @@
           <span id="assetTypeCode" style="font-size: 12px; font-weight: 700; color: #2563eb; text-transform: uppercase; letter-spacing: 0.05em;">ASSET CATEGORY</span>
           <h1 id="assetUnitNumber" style="font-size: 28px; font-weight: 800; color: #0f172a; margin: 4px 0;">--</h1>
           <p id="assetMakeModel" style="font-size: 16px; color: #475569; font-weight: 500; margin: 0;">Loading Specs...</p>
+          <div class="asset-key-badge">ID: <span id="assetTargetIdKey">--</span></div>
         </div>
         <div style="text-align: right;">
           <span id="assetStatusBadge" class="issue-badge" style="background: #e0f2fe; border-color: #7dd3fc; color: #0369a1;">Active</span>
@@ -294,6 +312,17 @@
       return localStorage.getItem("driven_org_id") || "";
     }
 
+    function cleanupExtraHeaders() {
+      var r2 = document.querySelector(".dash-header-row2");
+      var r3 = document.querySelector(".dash-header-row3");
+      var ob = document.getElementById("obGreetingBar");
+      var rp = document.getElementById("rpTabBar");
+      if (r2) r2.style.setProperty("display", "none", "important");
+      if (r3) r3.style.setProperty("display", "none", "important");
+      if (ob) ob.style.setProperty("display", "none", "important");
+      if (rp) rp.style.setProperty("display", "none", "important");
+    }
+
     function sendPresenceUnload() {
       if (!activeOrgId) return;
       var payload = JSON.stringify({ page: "Asset Detail: " + (currentAssetId || "Unknown"), action: "leave" });
@@ -344,7 +373,9 @@
     async function initializeAssetDetail() {
       currentAssetId = getQueryParam("id");
       document.getElementById("dashFooterYear").textContent = new Date().getFullYear();
+      document.getElementById("assetTargetIdKey").textContent = currentAssetId || "Not Specified";
 
+      cleanupExtraHeaders();
       activeOrgId = resolveOrgId();
 
       if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
@@ -380,22 +411,28 @@
         });
         if (resp.ok) {
           var resData = await resp.json();
-          var asset = (resData.records || resData.equipment || resData.data || [resData])[0];
-          if (asset) {
-            document.getElementById("assetUnitNumber").textContent = asset.unit_number || asset.asset_number || "Asset #" + asset.id;
-            document.getElementById("assetMakeModel").textContent = ((asset.make || "") + " " + (asset.model || "")).trim() || "N/A Specs";
-            document.getElementById("assetTypeCode").textContent = asset.asset_type_name || asset.category || "ASSET";
-            document.getElementById("specVin").textContent = asset.vin || asset.serial_number || "N/A";
+          var list = resData.records || resData.equipment || resData.assets || resData.data || (Array.isArray(resData) ? resData : [resData]);
+          var asset = Array.isArray(list) ? list[0] : list;
+
+          if (asset && (asset.id || asset.unit_number || asset.asset_number)) {
+            document.getElementById("assetUnitNumber").textContent = asset.unit_number || asset.asset_number || asset.unit_no || ("Asset #" + asset.id);
+            document.getElementById("assetMakeModel").textContent = ((asset.make || asset.manufacturer || "") + " " + (asset.model || "")).trim() || "N/A Specs";
+            document.getElementById("assetTypeCode").textContent = asset.asset_type_name || asset.category || asset.type || "ASSET";
+            document.getElementById("specVin").textContent = asset.vin || asset.serial_number || asset.serial_no || "N/A";
             document.getElementById("specYear").textContent = asset.year || "N/A";
-            document.getElementById("specOperator").textContent = asset.operator_name || "Unassigned";
-            document.getElementById("specProject").textContent = asset.project_name || "Unassigned";
-            document.getElementById("specMeter").textContent = (asset.meter_reading || "0") + " " + (asset.meter_type || "Hours");
+            document.getElementById("specOperator").textContent = asset.operator_name || asset.assigned_operator || "Unassigned";
+            document.getElementById("specProject").textContent = asset.project_name || asset.assigned_project || "Unassigned";
+            document.getElementById("specMeter").textContent = (asset.meter_reading || asset.current_meter || "0") + " " + (asset.meter_type || "Hours");
             document.getElementById("specFuelType").textContent = asset.fuel_type || "N/A";
+            document.getElementById("assetLocation").textContent = "Location: " + (asset.location || asset.current_location || "Unassigned");
             document.title = (asset.unit_number || "Asset") + " | DRIV-EN Asset Detail";
+          } else {
+            document.getElementById("assetMakeModel").textContent = "Asset profile record not found.";
           }
         }
       } catch (e) {
         console.error("Failed to load asset details:", e);
+        document.getElementById("assetMakeModel").textContent = "Error fetching asset details.";
       }
     }
 
@@ -444,6 +481,7 @@
 
     document.addEventListener("dashSessionLoaded", initializeAssetDetail);
     document.addEventListener("DOMContentLoaded", function() {
+      cleanupExtraHeaders();
       if (window.dashUser) initializeAssetDetail();
     });
   </script>
