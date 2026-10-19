@@ -625,7 +625,7 @@
       }
     }
 
-    /* ===== DYNAMIC CARD KPI HYDRATION (Normalized Routes & Local Storage Fallback) ===== */
+    /* ===== DYNAMIC CARD KPI HYDRATION ===== */
     async function loadOnboardingKPIs() {
       var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
       var orgId = activeOrgId || userObj.org_id || localStorage.getItem("driven_org_id");
@@ -654,7 +654,7 @@
           try {
             var data = res.value._data;
             if (data) {
-              var list = data.records || data.data || data.assetTypes || data.fuelTypes || data.roles || data.employees || data.locations || data.clients || data.divisions || data.projectTypes || data.projects || data.units || data.equipment || (Array.isArray(data) ? data : []);
+              var list = data.records || data.data || data.users || data.employees || data.projectTypes || data.units || data.unitsOfMeasure || data.assetTypes || data.fuelTypes || data.roles || data.locations || data.clients || data.divisions || data.projects || data.equipment || (Array.isArray(data) ? data : []);
               count = Array.isArray(list) ? list.length : (typeof list === "object" ? Object.keys(list).length : 0);
             }
           } catch(e) {}
@@ -676,7 +676,7 @@
         return count;
       }
 
-      // Execute endpoint queries in parallel (Using correct route strings)
+      // Execute endpoint queries in parallel matching Worker table keys
       const requests = [
         fetch("/api/roles" + (customerId ? "?customerId=" + encodeURIComponent(customerId) : ""), { headers }),
         fetch("/api/users", { headers }),
@@ -686,14 +686,13 @@
         fetch("/api/project-types", { headers }),
         fetch("/api/projects", { headers }),
         fetch("/api/fuel-types", { headers }),
-        fetch("/api/units", { headers }),
+        fetch("/api/units-of-measure", { headers }),
         fetch("/api/asset-types", { headers }),
         fetch("/api/equipment", { headers })
       ];
 
       const responses = await Promise.allSettled(requests);
 
-      // Pre-extract JSON safely from fulfilled responses
       for (let i = 0; i < responses.length; i++) {
         if (responses[i].status === "fulfilled" && responses[i].value.ok) {
           try {
@@ -702,7 +701,7 @@
         }
       }
 
-      // Step 1: Roles
+      // Step 1: Roles & Permissions
       let c1 = parseListCount(responses[0], ["driven_roles", "driven_role_count"]);
       if (c1 === 0 && (isAdmin || allKP.length > 0)) c1 = 5;
       if (c1 > 0) setCardKpi(1, c1 + " Roles Configured");
@@ -735,7 +734,7 @@
       let c8 = parseListCount(responses[7], ["driven_fuel_types", "driven_fuel_type_count"]);
       if (c8 > 0) setCardKpi(8, c8 + " Fuel Types Selected");
 
-      // Step 9: Units
+      // Step 9: Units of Measure
       let c9 = parseListCount(responses[8], ["driven_units", "driven_unit_count"]);
       if (c9 > 0) setCardKpi(9, c9 + " Units Configured");
 
@@ -743,7 +742,7 @@
       let c10 = parseListCount(responses[9], ["driven_asset_types", "driven_asset_type_count"]);
       if (c10 > 0) setCardKpi(10, c10 + " Categories Configured");
 
-      // Step 11: Equipment (Assets)
+      // Step 11: Assets (Equipment)
       let c11 = parseListCount(responses[10], ["driven_equipment", "driven_equipment_count"]);
       if (c11 > 0) setCardKpi(11, c11 + " Assets Registered");
     }
