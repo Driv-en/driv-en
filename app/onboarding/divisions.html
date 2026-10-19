@@ -529,8 +529,12 @@
     });
 
     function updateCount() {
-      divCountEl.textContent = divisions.length;
+      var totalCount = existingDivisions.length + divisions.length;
+      if (divCountEl) divCountEl.textContent = totalCount;
       if (existingDivCountEl) existingDivCountEl.textContent = existingDivisions.length;
+      try {
+        localStorage.setItem("driven_division_count", String(totalCount));
+      } catch (e) {}
     }
 
     function doPrintDivisions(defaultSelection) {
@@ -581,6 +585,7 @@
               name: normalizeName(item.name || item.division_name || item.divisionName || "")
             };
           });
+          localStorage.setItem("driven_divisions", JSON.stringify(existingDivisions));
         } else {
           existingDivisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
         }
@@ -894,7 +899,7 @@
       try {
         allDivisions = existingDivisions.concat(divisions);
         localStorage.setItem("driven_divisions", JSON.stringify(allDivisions));
-        localStorage.setItem("driven_division_count", allDivisions.length);
+        localStorage.setItem("driven_division_count", String(allDivisions.length));
         localStorage.setItem("driven_step5_complete", "true");
       } catch(lsErr) {
         console.warn("localStorage save failed:", lsErr.message);
