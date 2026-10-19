@@ -32,9 +32,15 @@
     
     /* Sticky Navigation Bars */
     .admin-tab-bar { display:flex; gap:2px; width: 100%; max-width:1100px; margin:0 auto; padding:0 20px; overflow-x:auto; position:sticky !important; top:58px !important; z-index:99 !important; background:#cbd5e1; border-bottom:2px solid #94a3b8; box-sizing:border-box; -webkit-overflow-scrolling: touch; }
+    :root[data-theme="dark"] .admin-tab-bar { background:#334155; border-bottom-color:#475569; }
+
     .admin-tab { background:#94a3b8; border:1px solid #64748b; border-bottom:none; border-radius:8px 8px 0 0; padding:10px 22px; font-size:15px; font-weight:500; color:#1e293b; cursor:pointer; white-space:nowrap; transition: background 200ms ease, margin-top 200ms ease; }
+    :root[data-theme="dark"] .admin-tab { background:#475569; border-color:#64748b; color:#f1f5f9; }
     .admin-tab:hover { color:#0f172a; background:#a5b4c4; margin-top:2px; }
+    :root[data-theme="dark"] .admin-tab:hover { color:#ffffff; background:#64748b; }
     .admin-tab.active { color:#1d4ed8; background:#e2e8f0; border-color:#64748b; margin-top:0; font-weight:600; z-index:2; }
+    :root[data-theme="dark"] .admin-tab.active { color:#60a5fa; background:#1e293b; border-color:#475569; }
+
     .admin-tab[data-tab="forms"] { background:#22c55e; border-color:#16a34a; color:#fff; }
     .admin-tab[data-tab="forms"]:hover { background:#16a34a; color:#fff; }
     .admin-tab[data-tab="forms"].active { background:#dcfce7; color:#15803d; border-color:#16a34a; }
@@ -797,26 +803,34 @@
     }
 
 async function loadDashboardStats() {
-  var fetchSafe = function(url) {
-    return fetch(url, { headers: { "x-org-id": activeOrgId || "" } })
-      .then(function(r) { return r.ok ? r.json() : {}; })
-      .catch(function() { return {}; });
+  var fetchSafe = function(urls) {
+    var urlList = Array.isArray(urls) ? urls : [urls];
+    var tryFetch = async function(idx) {
+      if (idx >= urlList.length) return {};
+      try {
+        var r = await fetch(urlList[idx], { headers: { "x-org-id": activeOrgId || "" } });
+        if (r.ok) return await r.json();
+      } catch(e) {}
+      return tryFetch(idx + 1);
+    };
+    return tryFetch(0);
   };
 
   try {
     var results = await Promise.all([
-      fetchSafe('/api/onboarding/employees/list'),
-      fetchSafe('/api/Project'),
-      fetchSafe('/api/Equipment'),
-      fetchSafe('/api/Clients')
+      fetchSafe(['/api/onboarding/employees/list', '/api/users']),
+      fetchSafe(['/api/Project', '/api/projects']),
+      fetchSafe(['/api/Equipment', '/api/equipment']),
+      fetchSafe(['/api/Clients?active_only=true', '/api/Clients', '/api/clients'])
     ]);
 
     // 1. Employees (Count active employees correctly across schema shapes)
     var empData = results[0];
-    var empList = empData.employees || empData.data || empData.records || (Array.isArray(empData) ? empData : []);
+    var empList = empData.employees || empData.personnel || empData.users || empData.data || empData.records || (Array.isArray(empData) ? empData : []);
     var empCount = empList.filter(function(e) { 
-      var st = e.status !== undefined ? e.status : e.is_active;
-      return st === 1 || st === '1' || st === 'Active' || st === 'active' || st === true; 
+      var st = e.status !== undefined ? e.status : (e.is_active !== undefined ? e.is_active : e.employment_status);
+      if (typeof st === "string") st = st.toLowerCase();
+      return st === 1 || st === '1' || st === 'active' || st === true; 
     }).length;
 
     var elEmp = document.getElementById('stat-employees');
@@ -837,12 +851,18 @@ async function loadDashboardStats() {
     if (elEq) elEq.textContent = assetList.length;
     localStorage.setItem('driven_equipment_count', assetList.length);
 
-    // 4. Clients
+    // 4. Active Clients (Extract from D1 database)
     var clientData = results[3];
-    var clientList = clientData.clients || clientData.data || clientData.records || (Array.isArray(clientData) ? clientData : []);
+    var clientList = clientData.clients || clientData.records || clientData.data || clientData.results || (Array.isArray(clientData) ? clientData : []);
+    var activeClients = clientList.filter(function(c) {
+      var st = c.status !== undefined ? c.status : (c.is_active !== undefined ? c.is_active : c.active);
+      if (typeof st === "string") st = st.toLowerCase();
+      return st === undefined || st === null || st === 1 || st === '1' || st === 'active' || st === true;
+    }).length;
+
     var elCli = document.getElementById('stat-clients');
-    if (elCli) elCli.textContent = clientList.length;
-    localStorage.setItem('driven_client_count', clientList.length);
+    if (elCli) elCli.textContent = activeClients;
+    localStorage.setItem('driven_client_count', activeClients);
 
   } catch (e) {
     console.error('loadDashboardStats error:', e);
