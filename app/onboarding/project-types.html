@@ -532,8 +532,12 @@
     });
 
     function updateCount() {
-      ptCountEl.textContent = projectTypes.length;
+      var totalCount = existingProjectTypes.length + projectTypes.length;
+      if (ptCountEl) ptCountEl.textContent = totalCount;
       if (existingPtCountEl) existingPtCountEl.textContent = existingProjectTypes.length;
+      try {
+        localStorage.setItem("driven_project_type_count", String(totalCount));
+      } catch (e) {}
     }
 
     function doPrintProjectTypes(defaultSelection) {
@@ -573,17 +577,22 @@
     async function loadExistingProjectTypes() {
       existingPtTableContainer.textContent = "";
       try {
-        var resp = await fetch("/api/onboarding/project-types/list", {
+        var resp = await fetch("/api/project-types", {
           headers: { "x-org-id": activeOrgId || "" }
         });
         if (resp.ok) {
           var data = await resp.json();
           var rawList = data.projectTypes || data.records || (Array.isArray(data) ? data : []);
-          existingProjectTypes = rawList.map(function(item) {
-            return {
-              name: normalizeName(item.name || item.project_type_name || item.projectTypeName || "")
-            };
-          });
+          if (Array.isArray(rawList) && rawList.length > 0) {
+            existingProjectTypes = rawList.map(function(item) {
+              return {
+                name: normalizeName(item.name || item.project_type_name || item.projectTypeName || "")
+              };
+            });
+            localStorage.setItem("driven_project_types", JSON.stringify(existingProjectTypes));
+          } else {
+            existingProjectTypes = JSON.parse(localStorage.getItem("driven_project_types") || "[]");
+          }
         } else {
           existingProjectTypes = JSON.parse(localStorage.getItem("driven_project_types") || "[]");
         }
@@ -893,18 +902,48 @@
       if (!validateOrgContext()) return;
       ptStepStatus.textContent = ""; ptStepStatus.style.color = "var(--error)";
       if (projectTypes.length === 0 && existingProjectTypes.length === 0) { ptStepStatus.textContent = "You must add at least one project type."; return; }
+      
       var allProjectTypes;
       try {
         allProjectTypes = existingProjectTypes.concat(projectTypes);
         localStorage.setItem("driven_project_types", JSON.stringify(allProjectTypes));
-        localStorage.setItem("driven_project_type_count", allProjectTypes.length);
+        localStorage.setItem("driven_project_type_count", String(allProjectTypes.length));
+        localStorage.setItem("driven_step7_complete", "true");
       } catch(lsErr) {
         console.warn("localStorage save failed:", lsErr.message);
         if (window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("project-types.html: localStorage save failed — " + (lsErr.message || lsErr), "save-localStorage", lsErr && lsErr.stack ? lsErr.stack : null); }
         allProjectTypes = projectTypes.slice();
       }
+
       var btnSave = document.getElementById("btnSavePt");
-      btnSave.disabled = true; btnSave.textContent = "Saving...";
+      btnSave.disabled = true; btnSave.textContent = "Saving to Database...";
+
+      // 1. Post new session project types directly to D1 database
+      var saveErrors = [];
+      for (var i = 0; i < projectTypes.length; i++) {
+        var ptItem = projectTypes[i];
+        try {
+          var d1Res = await fetch("/api/project-types", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-org-id": activeOrgId || ""
+            },
+            body: JSON.stringify({
+              name: ptItem.name,
+              status: "Active"
+            })
+          });
+          if (!d1Res.ok) {
+            var errJson = await d1Res.json().catch(function() { return {}; });
+            saveErrors.push(ptItem.name + ": " + (errJson.error || "D1 insert failed"));
+          }
+        } catch (d1Err) {
+          saveErrors.push(ptItem.name + ": " + d1Err.message);
+        }
+      }
+
+      // 2. Save settings blob for legacy worker runtime compatibility
       try {
         var res = await fetch("/auth/save-settings", { 
           method: "POST", 
@@ -920,7 +959,7 @@
           throw new Error(data.error || "Save failed");
         }
         ptStepStatus.style.color = "var(--success)";
-        ptStepStatus.textContent = projectTypes.length + " project type(s) saved. Total project types: " + allProjectTypes.length + ". Redirecting to onboarding dashboard…";
+        ptStepStatus.textContent = projectTypes.length + " project type(s) saved to D1. Total project types: " + allProjectTypes.length + ". Redirecting to onboarding dashboard…";
         btnSave.textContent = "Saved ✓"; ptDirty = false;
         projectTypes = [];
         await loadExistingProjectTypes();
@@ -928,7 +967,7 @@
         setTimeout(function() { btnSave.disabled = false; btnSave.textContent = "Save & Continue"; window.location.href = "/app/dashboard/onboarding-dashboard.html"; }, 1500);
       } catch(err) {
         ptStepStatus.style.color = "var(--error)";
-        ptStepStatus.textContent = "Saved locally, but server save failed: " + err.message;
+        ptStepStatus.textContent = "Saved locally, but server save failed: " + (saveErrors.length ? saveErrors.join("; ") : err.message);
         btnSave.disabled = false; btnSave.textContent = "Save & Continue";
         if (window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("project-types.html: save failed — " + (err.message || err), "save-settings-catch", err && err.stack ? err.stack : null); }
       }
@@ -947,7 +986,8 @@
     }
 
     document.addEventListener("dashSessionLoaded", function(e) {
-      activeOrgId = (e.detail && e.detail.org_id) || localStorage.getItem("driven_org_id");
+      var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
+      activeOrgId = userObj.org_id || (e.detail && e.detail.org_id) || localStorage.getItem("driven_org_id");
       customerOrgName = (e.detail && e.detail.org_name) || localStorage.getItem("driven_org_name") || "DRIV-EN Org";
 
       var row1 = document.querySelector(".dash-header-row1");
