@@ -574,7 +574,7 @@
     async function loadExistingDivisions() {
       existingDivTableContainer.textContent = "";
       try {
-        var resp = await fetch("/api/onboarding/divisions/list", {
+        var resp = await fetch("/api/divisions", {
           headers: { "x-org-id": activeOrgId || "" }
         });
         if (resp.ok) {
@@ -582,7 +582,8 @@
           var rawList = data.divisions || data.records || (Array.isArray(data) ? data : []);
           existingDivisions = rawList.map(function(item) {
             return {
-              name: normalizeName(item.name || item.division_name || item.divisionName || "")
+              name: normalizeName(item.name || item.division_name || item.divisionName || ""),
+              status: item.status || "Active"
             };
           });
           localStorage.setItem("driven_divisions", JSON.stringify(existingDivisions));
@@ -625,7 +626,8 @@
       var thead = document.createElement("thead"); var headRow = document.createElement("tr");
 
       var cols = [
-        { label: "Division Name " + (existingSortCol === 'name' ? (existingSortAsc ? '▲' : '▼') : ''), key: "name" }
+        { label: "Division Name " + (existingSortCol === 'name' ? (existingSortAsc ? '▲' : '▼') : ''), key: "name" },
+        { label: "Status", key: "status" }
       ];
 
       cols.forEach(function(c) {
@@ -648,6 +650,11 @@
         var cell = document.createElement("td");
         cell.textContent = (div.name && div.name !== "undefined" && div.name !== "null") ? div.name : "—";
         row.appendChild(cell);
+
+        var cellStatus = document.createElement("td");
+        cellStatus.textContent = div.status || "Active";
+        row.appendChild(cellStatus);
+
         tbody.appendChild(row);
       });
       table.appendChild(tbody); wrap.appendChild(table);
@@ -711,6 +718,7 @@
 
       var cols = [
         { label: "Division Name " + (sessionSortCol === 'name' ? (sessionSortAsc ? '▲' : '▼') : ''), key: "name" },
+        { label: "Status", key: "status" },
         { label: "Action", key: "" }
       ];
 
@@ -735,6 +743,10 @@
         var cellName = document.createElement("td"); 
         cellName.textContent = div.name || "—"; 
         row.appendChild(cellName);
+
+        var cellStatus = document.createElement("td");
+        cellStatus.textContent = div.status || "Active";
+        row.appendChild(cellStatus);
 
         var cellAction = document.createElement("td"); 
         cellAction.className = "div-actions-col"; 
@@ -810,7 +822,11 @@
         if (!confirmAdd) return;
       }
 
-      divisions.push({ name: name, customerId: localStorage.getItem("driven_customer_id") || "" });
+      divisions.push({ 
+        name: name,
+        division_name: name,
+        status: "Active" 
+      });
       renderTable(); updateCount();
       document.getElementById("divName").value = ""; 
       document.getElementById("divName").focus();
@@ -859,7 +875,12 @@
           }
 
           var bulkDivisions = rows.map(function(row) {
-            return { name: normalizeName(row[requiredName]), customerId: localStorage.getItem("driven_customer_id") || "" };
+            var nm = normalizeName(row[requiredName]);
+            return { 
+              name: nm, 
+              division_name: nm, 
+              status: "Active" 
+            };
           });
 
           bulkPreview.textContent = ""; 
@@ -894,7 +915,11 @@
     document.getElementById("btnSaveDiv").addEventListener("click", async function() {
       if (!validateOrgContext()) return;
       divStepStatus.textContent = ""; divStepStatus.style.color = "var(--error)";
-      if (divisions.length === 0 && existingDivisions.length === 0) { divStepStatus.textContent = "You must add at least one division."; return; }
+      if (divisions.length === 0 && existingDivisions.length === 0) { 
+        divStepStatus.textContent = "You must add at least one division."; 
+        return; 
+      }
+
       var allDivisions;
       try {
         allDivisions = existingDivisions.concat(divisions);
@@ -906,8 +931,37 @@
         if (window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("divisions.html: localStorage save failed — " + (lsErr.message || lsErr), "save-localStorage", lsErr && lsErr.stack ? lsErr.stack : null); }
         allDivisions = divisions.slice();
       }
+
       var btnSave = document.getElementById("btnSaveDiv");
-      btnSave.disabled = true; btnSave.textContent = "Saving...";
+      btnSave.disabled = true; 
+      btnSave.textContent = "Saving to Database...";
+
+      // 1. Post new session divisions into D1 table with 'Active' status
+      var saveErrors = [];
+      for (var i = 0; i < divisions.length; i++) {
+        var divItem = divisions[i];
+        try {
+          var d1Res = await fetch("/api/divisions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-org-id": activeOrgId || ""
+            },
+            body: JSON.stringify({
+              name: divItem.name || divItem.division_name,
+              status: "Active"
+            })
+          });
+          if (!d1Res.ok) {
+            var errJson = await d1Res.json().catch(function() { return {}; });
+            saveErrors.push(divItem.name + ": " + (errJson.error || "D1 insert failed"));
+          }
+        } catch (d1Err) {
+          saveErrors.push(divItem.name + ": " + d1Err.message);
+        }
+      }
+
+      // 2. Persist org settings blob to support legacy dashboard checks
       try {
         var res = await fetch("/auth/save-settings", { 
           method: "POST", 
@@ -919,21 +973,34 @@
         });
         var data = await res.json();
         if (!res.ok) {
-          if (res.status < 500 && window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("divisions.html: save-settings returned " + res.status + " — " + (data.error || "Request failed"), "save-settings-" + res.status, "URL: /auth/save-settings | Divisions: " + allDivisions.length); }
-          throw new Error(data.error || "Save failed");
+          if (res.status < 500 && window.DRIVENErrorHandler) { 
+            window.DRIVENErrorHandler.report("divisions.html: save-settings returned " + res.status + " — " + (data.error || "Request failed"), "save-settings-" + res.status, "URL: /auth/save-settings | Divisions: " + allDivisions.length); 
+          }
+          throw new Error(data.error || "Save settings failed");
         }
+
         divStepStatus.style.color = "var(--success)";
-        divStepStatus.textContent = divisions.length + " division(s) saved. Total divisions: " + allDivisions.length + ". Redirecting to onboarding dashboard…";
-        btnSave.textContent = "Saved ✓"; divDirty = false;
+        divStepStatus.textContent = divisions.length + " division(s) saved to D1. Total divisions: " + allDivisions.length + ". Redirecting to onboarding dashboard…";
+        btnSave.textContent = "Saved ✓"; 
+        divDirty = false;
         divisions = [];
         await loadExistingDivisions();
-        renderTable(); updateCount();
-        setTimeout(function() { btnSave.disabled = false; btnSave.textContent = "Save & Continue"; window.location.href = "/app/dashboard/onboarding-dashboard.html"; }, 1500);
+        renderTable(); 
+        updateCount();
+        setTimeout(function() { 
+          btnSave.disabled = false; 
+          btnSave.textContent = "Save & Continue"; 
+          window.location.href = "/app/dashboard/onboarding-dashboard.html"; 
+        }, 1500);
+
       } catch(err) {
         divStepStatus.style.color = "var(--error)";
-        divStepStatus.textContent = "Saved locally, but server save failed: " + err.message;
-        btnSave.disabled = false; btnSave.textContent = "Save & Continue";
-        if (window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("divisions.html: save failed — " + (err.message || err), "save-settings-catch", err && err.stack ? err.stack : null); }
+        divStepStatus.textContent = "Saved locally, but server save failed: " + (saveErrors.length ? saveErrors.join("; ") : err.message);
+        btnSave.disabled = false; 
+        btnSave.textContent = "Save & Continue";
+        if (window.DRIVENErrorHandler) { 
+          window.DRIVENErrorHandler.report("divisions.html: save failed — " + (err.message || err), "save-settings-catch", err && err.stack ? err.stack : null); 
+        }
       }
     });
 
