@@ -602,7 +602,7 @@ function doPrintLocations(defaultSelection) {
 async function loadExistingLocations() {
   existingLocTableContainer.textContent = "";
   try {
-    var resp = await fetch("/api/onboarding/locations/list", {
+    var resp = await fetch("/api/locations", {
       headers: { "x-org-id": activeOrgId || "" }
     });
     if (resp.ok) {
@@ -611,13 +611,13 @@ async function loadExistingLocations() {
       if (Array.isArray(rawList) && rawList.length > 0) {
         existingLocations = rawList.map(function(item) {
           return {
-            number: String(item.number || item.locNumber || item.location_number || "").trim(),
+            number: String(item.code || item.number || item.locNumber || item.location_number || "").trim(),
             name: String(item.name || item.locName || item.location_name || "").trim(),
             type: String(item.type || item.locType || "").trim(),
             address: String(item.address || "").trim(),
             city: String(item.city || "").trim(),
             state: String(item.state || "").trim(),
-            zip: String(item.zip || item.postal_code || "").trim(),
+            zip: String(item.zip_code || item.zip || item.postal_code || "").trim(),
             division: String(item.division || item.division_name || "").trim(),
             status: String(item.status || "Active").trim()
           };
@@ -958,12 +958,14 @@ document.getElementById("btnAddLoc").addEventListener("click", function() {
 
   var locObj = {
     number: number,
+    code: number,
     name: name,
     type: type,
     address: address,
     city: city,
     state: state,
     zip: zip,
+    zip_code: zip,
     division: division,
     status: status,
     customerId: localStorage.getItem("driven_customer_id") || ""
@@ -1102,14 +1104,18 @@ document.getElementById("btnProcessBulk").addEventListener("click", function() {
       }
 
       var bulkLocations = rows.map(function(row) {
+        var num = row["Location #"] ? normalizeName(String(row["Location #"])) : "";
+        var zp = row["Zip"] ? normalizeName(String(row["Zip"])) : "";
         return {
-          number: row["Location #"] ? normalizeName(String(row["Location #"])) : "",
+          number: num,
+          code: num,
           name: normalizeName(String(row["Location Name"])),
           type: normalizeName(String(row["Type"])),
           address: row["Address"] ? normalizeName(String(row["Address"])) : "",
           city: row["City"] ? normalizeName(String(row["City"])) : "",
           state: row["State"] ? normalizeName(String(row["State"])) : "",
-          zip: row["Zip"] ? normalizeName(String(row["Zip"])) : "",
+          zip: zp,
+          zip_code: zp,
           division: row["Division"] ? normalizeName(String(row["Division"])) : "",
           status: normalizeName(String(row["Status"])),
           customerId: localStorage.getItem("driven_customer_id") || ""
@@ -1190,8 +1196,41 @@ document.getElementById("btnSaveLoc").addEventListener("click", async function()
 
   var btnSave = document.getElementById("btnSaveLoc");
   btnSave.disabled = true;
-  btnSave.textContent = "Saving...";
+  btnSave.textContent = "Saving to Database...";
 
+  // 1. Post new session locations directly to D1 database
+  var saveErrors = [];
+  for (var i = 0; i < locations.length; i++) {
+    var locItem = locations[i];
+    try {
+      var d1Res = await fetch("/api/locations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-org-id": activeOrgId || ""
+        },
+        body: JSON.stringify({
+          name: locItem.name,
+          code: locItem.number || locItem.code || "",
+          type: locItem.type,
+          address: locItem.address || "",
+          city: locItem.city || "",
+          state: locItem.state || "",
+          zip_code: locItem.zip || locItem.zip_code || "",
+          division: locItem.division || "",
+          status: locItem.status || "Active"
+        })
+      });
+      if (!d1Res.ok) {
+        var errJson = await d1Res.json().catch(function() { return {}; });
+        saveErrors.push(locItem.name + ": " + (errJson.error || "D1 insert failed"));
+      }
+    } catch (d1Err) {
+      saveErrors.push(locItem.name + ": " + d1Err.message);
+    }
+  }
+
+  // 2. Persist org settings blob for legacy support
   try {
     var res = await fetch("/auth/save-settings", {
       method: "POST",
@@ -1206,10 +1245,11 @@ document.getElementById("btnSaveLoc").addEventListener("click", async function()
       if (res.status < 500 && window.DRIVENErrorHandler) {
         window.DRIVENErrorHandler.report("locations.html: save-settings returned " + res.status + " — " + (data.error || "Request failed"), "save-settings-" + res.status, "URL: /auth/save-settings | Locations: " + allLocations.length);
       }
-      throw new Error(data.error || "Save failed");
+      throw new Error(data.error || "Save settings failed");
     }
+
     locStepStatus.style.color = "var(--success)";
-    locStepStatus.textContent = locations.length + " location(s) saved. Total locations: " + allLocations.length + ". Redirecting to onboarding dashboard…";
+    locStepStatus.textContent = locations.length + " location(s) saved to D1. Total locations: " + allLocations.length + ". Redirecting to onboarding dashboard…";
     btnSave.textContent = "Saved ✓";
     locDirty = false;
     locations = [];
@@ -1223,7 +1263,7 @@ document.getElementById("btnSaveLoc").addEventListener("click", async function()
     }, 1500);
   } catch(err) {
     locStepStatus.style.color = "var(--error)";
-    locStepStatus.textContent = "Saved locally, but server save failed: " + err.message;
+    locStepStatus.textContent = "Saved locally, but server save failed: " + (saveErrors.length ? saveErrors.join("; ") : err.message);
     btnSave.disabled = false;
     btnSave.textContent = "Save & Continue";
     if (window.DRIVENErrorHandler) {
