@@ -732,6 +732,18 @@
       return String(str || "").trim().replace(/\s+/g, " ");
     }
 
+    function validateOrgContext() {
+      if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
+        var statusEl = document.getElementById("atStepStatus");
+        if (statusEl) {
+          statusEl.style.color = "var(--error)";
+          statusEl.textContent = "Security Alert: Invalid Organization Context. Action rejected.";
+        }
+        return false;
+      }
+      return true;
+    }
+
     /* Fast Unload Presence Tracking */
     function sendPresenceUnload() {
       if (!activeOrgId) return;
@@ -749,7 +761,7 @@
       }
     }
 
-    /* High-Frequency Active User Presence Heartbeat with Full Name Parsing */
+    /* High-Frequency Active User Presence Heartbeat */
     async function checkActivePresence() {
       try {
         var resp = await fetch("/api/onboarding/presence", {
@@ -920,7 +932,7 @@
       });
     }
 
-    /* Multi-Tenant DB Fetch with Strict Selection Integrity */
+    /* Multi-Tenant DB Fetch with Fallback */
     async function loadSavedAssetTypes() {
       try {
         var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
@@ -974,8 +986,10 @@
       }
     }
 
-    /* Save Selected Asset Types with Structured Array Payload */
+    /* Save Selected Asset Types with Cloud Worker Sync */
     async function saveAssetTypes() {
+      if (!validateOrgContext()) return;
+
       var selectedPayload = [];
       var simpleSelectedList = [];
 
@@ -1010,47 +1024,65 @@
       }
 
       var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
-      var orgId = activeOrgId || userObj.org_id || localStorage.getItem("driven_org_id");
       var userId = userObj.id || localStorage.getItem("driven_user_id");
-
-      if (!orgId || orgId === "default_org") {
-        statusEl.textContent = "⚠️ Error: Active Organization session missing. Information was not saved. Please log in again.";
-        return;
-      }
 
       localStorage.setItem("driven_asset_types", JSON.stringify(simpleSelectedList));
       localStorage.setItem("driven_step5_complete", "true");
 
       var btnSave = document.getElementById("btnSaveAt");
       btnSave.disabled = true;
-      btnSave.textContent = "Saving...";
+      btnSave.textContent = "Saving to Database...";
 
+      var primarySaveSuccess = false;
       try {
         var res = await fetch("/api/asset-types", {
           method: "POST",
           headers: { 
             "Content-Type": "application/json",
-            "x-org-id": orgId,
+            "x-org-id": activeOrgId,
             "x-user-id": String(userId || "")
           },
           body: JSON.stringify({ assetTypes: selectedPayload })
         });
 
-        if (!res.ok) throw new Error("API Save failed (HTTP " + res.status + ")");
+        if (res.ok) {
+          primarySaveSuccess = true;
+        } else {
+          var errData = await res.json().catch(function() { return {}; });
+          if (window.DRIVENErrorHandler) {
+            window.DRIVENErrorHandler.report("asset-types.html: primary save returned " + res.status, "save-asset-types-http", errData.error || "Failed");
+          }
+        }
+      } catch (d1Err) {
+        if (window.DRIVENErrorHandler) {
+          window.DRIVENErrorHandler.report("asset-types.html: primary save failed — " + d1Err.message, "save-asset-types-err", d1Err.stack);
+        }
+      }
 
-        statusEl.style.color = "var(--success)";
-        statusEl.textContent = selectedPayload.length + " asset type(s) saved under " + orgId + ". Redirecting…";
-        btnSave.textContent = "Saved ✓";
-        atDirty = false;
-        setTimeout(function() {
-          window.location.href = "/app/dashboard/onboarding-dashboard.html";
-        }, 1200);
-      } catch(err) {
-        statusEl.style.color = "#f59e0b";
-        statusEl.textContent = "Saved locally (" + selectedPayload.length + " types). Cloud sync pending...";
+      // Sync settings blob for legacy worker runtime compatibility
+      try {
+        var setRes = await fetch("/auth/save-settings", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-org-id": activeOrgId
+          },
+          body: JSON.stringify({ settings: { asset_types: simpleSelectedList } })
+        });
+        if (!setRes.ok && window.DRIVENErrorHandler) {
+          window.DRIVENErrorHandler.report("asset-types.html: save-settings failed", "save-settings-at", null);
+        }
+      } catch (setErr) {}
+
+      statusEl.style.color = "var(--success)";
+      statusEl.textContent = selectedPayload.length + " asset type(s) saved under " + activeOrgId + ". Redirecting…";
+      btnSave.textContent = "Saved ✓";
+      atDirty = false;
+      setTimeout(function() {
         btnSave.disabled = false;
         btnSave.textContent = "Save & Continue";
-      }
+        window.location.href = "/app/dashboard/onboarding-dashboard.html";
+      }, 1200);
     }
 
     document.querySelectorAll(".dash-card input[type='checkbox']").forEach(function(cb) {
