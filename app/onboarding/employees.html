@@ -584,7 +584,7 @@ async function submitQuickDivision() {
   errEl.textContent = "";
   if (!name) { errEl.textContent = "Please enter a division name."; return; }
   try {
-    var resp = await fetch("/api/Division", {
+    var resp = await fetch("/api/divisions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -611,7 +611,7 @@ async function submitQuickRole() {
   errEl.textContent = "";
   if (!name) { errEl.textContent = "Please enter a role name."; return; }
   try {
-    var resp = await fetch("/api/onboarding/roles", {
+    var resp = await fetch("/api/roles", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -657,12 +657,12 @@ function doPrintEmployees(defaultSelection) {
 async function loadExistingEmployees() {
   existingEmpTableContainer.textContent = "";
   try {
-    var resp = await fetch("/api/onboarding/employees/list", {
+    var resp = await fetch("/api/users", {
       headers: { "x-org-id": activeOrgId || "" }
     });
     if (resp.ok) {
       var data = await resp.json();
-      var rawList = data.employees || data.records || (Array.isArray(data) ? data : []);
+      var rawList = data.users || data.employees || data.records || (Array.isArray(data) ? data : []);
       existingEmployees = rawList.map(function(item) {
         var fName = item.fullName || item.full_name || item.name || buildFullName(item.firstName || item.first_name, item.middleName || item.middle_name, item.lastName || item.last_name, item.suffix);
         var empNum = item.empNumber || item.emp_number || item.employee_number || item.emp_id || item.employee_id || "";
@@ -680,6 +680,8 @@ async function loadExistingEmployees() {
           status: item.status || "Active"
         };
       });
+      localStorage.setItem("driven_employees", JSON.stringify(existingEmployees));
+      localStorage.setItem("driven_employee_count", String(existingEmployees.length));
     } else {
       existingEmployees = JSON.parse(localStorage.getItem("driven_employees") || "[]");
     }
@@ -839,12 +841,13 @@ async function loadRoleDropdown(selectedVal) {
   if (!sel) return;
   sel.innerHTML = '<option value="">— Select Role —</option><option value="__ADD_NEW__">➕ Add New Role...</option>';
   try {
-    var resp = await fetch("/api/onboarding/roles", {
+    var resp = await fetch("/api/roles", {
       headers: { "x-org-id": activeOrgId || "" }
     });
     var data = await resp.json();
-    if (data.success && data.roles && data.roles.length > 0) {
-      validRoles = data.roles.filter(function(r) { return r.name.toLowerCase() !== "driv-en founder"; }).map(function(r) { return r.name; });
+    var rawRoles = data.roles || data.records || [];
+    if (data.success && rawRoles.length > 0) {
+      validRoles = rawRoles.filter(function(r) { return r.name.toLowerCase() !== "driv-en founder"; }).map(function(r) { return r.name; });
       validRoles.forEach(function(roleName) {
         var opt = document.createElement("option");
         opt.value = roleName;
@@ -1307,7 +1310,7 @@ document.getElementById("btnSaveEmp").addEventListener("click", async function()
   try {
     allEmployees = existingEmployees.concat(employees);
     localStorage.setItem("driven_employees", JSON.stringify(allEmployees));
-    localStorage.setItem("driven_employee_count", allEmployees.length);
+    localStorage.setItem("driven_employee_count", String(allEmployees.length));
     localStorage.setItem("driven_step3_complete", "true");
   } catch(lsErr) {
     console.warn("localStorage save failed:", lsErr.message);
