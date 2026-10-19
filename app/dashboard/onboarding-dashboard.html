@@ -275,9 +275,6 @@
     var allKP = [];
     var activeOrgId = "";
 
-    /* ===== STEP DEFINITIONS =====
-       11 tasks. Task 10 = Asset Types (no prereqs).
-       Task 11 = Assets (prereqs: 7,8,9,10). */
     var STEP_DEFS = {
       1: { name: "roles-permissions", task: "Roles & Permissions", prereqs: [],     url: "/app/onboarding/roles-permissions.html" },
       2: { name: "employees",         task: "Employees",           prereqs: [1,5],  url: "/app/onboarding/employees.html" },
@@ -292,7 +289,6 @@
       11:{ name: "assets",            task: "Assets",              prereqs: [7,8,9,10],url: "/app/onboarding/equipment.html" }
     };
 
-    /* ===== TAB SWITCHING ===== */
     function switchTab(tabName) {
       document.querySelectorAll('.ob-tab').forEach(function(t) { t.classList.remove('active'); });
       document.querySelectorAll('.ob-tab-content').forEach(function(c) { c.classList.remove('active'); });
@@ -302,7 +298,6 @@
       if (tabContent) tabContent.classList.add('active');
     }
 
-    /* ===== THEME TOGGLE ===== */
     function toggleTheme() {
       var current = document.documentElement.getAttribute("data-theme");
       var newTheme = current === "dark" ? "light" : "dark";
@@ -320,7 +315,6 @@
       if (labelDark) labelDark.classList.toggle('active', current === 'dark');
     }
 
-    /* ===== POPUP MANAGEMENT ===== */
     function togglePopup(id) {
       var popup = document.getElementById(id);
       var overlay = document.getElementById("popupOverlay");
@@ -336,7 +330,6 @@
       document.getElementById("popupOverlay").classList.remove("active");
     }
 
-    /* ===== STATUS HELPERS ===== */
     function setStatus(id, statusClass, text) {
       var el = document.getElementById(id);
       if (!el) return;
@@ -355,7 +348,6 @@
       }
     }
 
-    /* ===== TASK COMPLETION TRACKING ===== */
     function loadTaskCompletions() {
       try {
         taskCompletions = JSON.parse(localStorage.getItem("driven_task_completions") || "{}");
@@ -395,7 +387,6 @@
       return names;
     }
 
-    // Auto-detect completion from localStorage data
     function autoDetectCompletion(stepNum) {
       var def = STEP_DEFS[stepNum];
       var key = def.name;
@@ -497,7 +488,6 @@
       return allDone;
     }
 
-    /* ===== PREREQUISITE CHECK ===== */
     function getVisiblePrereqNames(stepNum) {
       var prereqs = STEP_DEFS[stepNum].prereqs;
       var names = [];
@@ -515,13 +505,11 @@
       });
     }
 
-    /* ===== VISIBILITY CHECK ===== */
     function isStepVisible(stepKey) {
       if (Object.keys(stepVisibility).length === 0) return true;
       return stepVisibility[stepKey] !== false;
     }
 
-    /* ===== UPDATE ASSIGNED-TO LABELS ===== */
     function updateAssignedLabels() {
       for (var i = 1; i <= 11; i++) {
         var def = STEP_DEFS[i];
@@ -541,7 +529,6 @@
       }
     }
 
-    /* ===== UPDATE STEP STATUS ===== */
     function updateStepStatus(stepNum) {
       var def = STEP_DEFS[stepNum];
       var statusId = "status-step" + stepNum;
@@ -638,7 +625,7 @@
       }
     }
 
-    /* ===== DYNAMIC CARD KPI HYDRATION ===== */
+    /* ===== DYNAMIC CARD KPI HYDRATION (Normalized Routes & Local Storage Fallback) ===== */
     async function loadOnboardingKPIs() {
       var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
       var orgId = activeOrgId || userObj.org_id || localStorage.getItem("driven_org_id");
@@ -661,120 +648,106 @@
         }
       }
 
-      // Execute endpoint queries in parallel (including multi-fallback for Roles endpoints)
-      const [resRoles, resEmp, resLoc, resCli, resDiv, resPT, resProj, resFT, resUM, resAT, resEq] = await Promise.allSettled([
-        fetch("/api/roles" + (customerId ? "?customerId=" + encodeURIComponent(customerId) : ""), { headers }),
-        fetch("/api/onboarding/employees/list", { headers }),
-        fetch("/api/locations", { headers }),
-        fetch("/api/clients", { headers }),
-        fetch("/api/division", { headers }),
-        fetch("/api/project-types", { headers }),
-        fetch("/api/project", { headers }),
-        fetch("/api/fuel-types", { headers }),
-        fetch("/api/units-of-measure", { headers }),
-        fetch("/api/asset-types", { headers }),
-        fetch("/api/equipment", { headers })
-      ]);
-
-      // Step 1: Roles & Permissions
-      let rolesFound = 0;
-      if (resRoles.status === "fulfilled" && resRoles.value.ok) {
-        try {
-          const data = await resRoles.value.json();
-          const list = data.roles || data.records || data.data || (Array.isArray(data) ? data : []);
-          rolesFound = list.length;
-        } catch (e) {}
+      function parseListCount(res, localKeys) {
+        var count = 0;
+        if (res && res.status === "fulfilled" && res.value && res.value.ok) {
+          try {
+            var data = res.value._data;
+            if (data) {
+              var list = data.records || data.data || data.assetTypes || data.fuelTypes || data.roles || data.employees || data.locations || data.clients || data.divisions || data.projectTypes || data.projects || data.units || data.equipment || (Array.isArray(data) ? data : []);
+              count = Array.isArray(list) ? list.length : (typeof list === "object" ? Object.keys(list).length : 0);
+            }
+          } catch(e) {}
+        }
+        if (count === 0 && localKeys) {
+          for (var i = 0; i < localKeys.length; i++) {
+            var raw = localStorage.getItem(localKeys[i]);
+            if (raw) {
+              try {
+                var parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) { count = parsed.length; break; }
+              } catch(e) {
+                var num = parseInt(raw);
+                if (!isNaN(num) && num > 0) { count = num; break; }
+              }
+            }
+          }
+        }
+        return count;
       }
 
-      // Fallback if seeded directly via D1 SQL or cached in localStorage/allKP
-      if (rolesFound === 0) {
-        try {
-          var localRoles = JSON.parse(localStorage.getItem("driven_roles") || "[]");
-          rolesFound = localRoles.length || parseInt(localStorage.getItem("driven_role_count") || "0");
-        } catch (e) {}
-        
-        // Final fallback for database-seeded system roles (e.g. 5 default org roles)
-        if (rolesFound === 0 && (isAdmin || allKP.length > 0)) {
-          rolesFound = 5; 
+      // Execute endpoint queries in parallel (Using correct route strings)
+      const requests = [
+        fetch("/api/roles" + (customerId ? "?customerId=" + encodeURIComponent(customerId) : ""), { headers }),
+        fetch("/api/users", { headers }),
+        fetch("/api/locations", { headers }),
+        fetch("/api/clients", { headers }),
+        fetch("/api/divisions", { headers }),
+        fetch("/api/project-types", { headers }),
+        fetch("/api/projects", { headers }),
+        fetch("/api/fuel-types", { headers }),
+        fetch("/api/units", { headers }),
+        fetch("/api/asset-types", { headers }),
+        fetch("/api/equipment", { headers })
+      ];
+
+      const responses = await Promise.allSettled(requests);
+
+      // Pre-extract JSON safely from fulfilled responses
+      for (let i = 0; i < responses.length; i++) {
+        if (responses[i].status === "fulfilled" && responses[i].value.ok) {
+          try {
+            responses[i].value._data = await responses[i].value.json();
+          } catch(e) {}
         }
       }
 
-      if (rolesFound > 0) {
-        setCardKpi(1, rolesFound + " Roles Configured");
-      }
+      // Step 1: Roles
+      let c1 = parseListCount(responses[0], ["driven_roles", "driven_role_count"]);
+      if (c1 === 0 && (isAdmin || allKP.length > 0)) c1 = 5;
+      if (c1 > 0) setCardKpi(1, c1 + " Roles Configured");
 
       // Step 2: Employees
-      if (resEmp.status === "fulfilled" && resEmp.value.ok) {
-        const data = await resEmp.value.json();
-        const list = data.employees || data.records || data.data || (Array.isArray(data) ? data : []);
-        if (list.length > 0) setCardKpi(2, list.length + " Employees Active");
-      }
+      let c2 = parseListCount(responses[1], ["driven_employees", "driven_employee_count"]);
+      if (c2 > 0) setCardKpi(2, c2 + " Employees Active");
 
       // Step 3: Locations
-      if (resLoc.status === "fulfilled" && resLoc.value.ok) {
-        const data = await resLoc.value.json();
-        const list = data.locations || data.records || data.data || (Array.isArray(data) ? data : []);
-        if (list.length > 0) setCardKpi(3, list.length + " Locations Registered");
-      }
+      let c3 = parseListCount(responses[2], ["driven_locations", "driven_location_count"]);
+      if (c3 > 0) setCardKpi(3, c3 + " Locations Registered");
 
       // Step 4: Clients
-      if (resCli.status === "fulfilled" && resCli.value.ok) {
-        const data = await resCli.value.json();
-        const list = data.clients || data.records || data.data || (Array.isArray(data) ? data : []);
-        if (list.length > 0) setCardKpi(4, list.length + " Clients Registered");
-      }
+      let c4 = parseListCount(responses[3], ["driven_clients", "driven_client_count"]);
+      if (c4 > 0) setCardKpi(4, c4 + " Clients Registered");
 
       // Step 5: Divisions
-      if (resDiv.status === "fulfilled" && resDiv.value.ok) {
-        const data = await resDiv.value.json();
-        const list = data.divisions || data.records || data.data || (Array.isArray(data) ? data : []);
-        if (list.length > 0) setCardKpi(5, list.length + " Divisions Configured");
-      }
+      let c5 = parseListCount(responses[4], ["driven_divisions", "driven_division_count"]);
+      if (c5 > 0) setCardKpi(5, c5 + " Divisions Configured");
 
       // Step 6: Project Types
-      if (resPT.status === "fulfilled" && resPT.value.ok) {
-        const data = await resPT.value.json();
-        const list = data.projectTypes || data.records || data.data || (Array.isArray(data) ? data : []);
-        if (list.length > 0) setCardKpi(6, list.length + " Project Types Configured");
-      }
+      let c6 = parseListCount(responses[5], ["driven_project_types", "driven_project_type_count"]);
+      if (c6 > 0) setCardKpi(6, c6 + " Project Types Configured");
 
       // Step 7: Projects
-      if (resProj.status === "fulfilled" && resProj.value.ok) {
-        const data = await resProj.value.json();
-        const list = data.projects || data.records || data.data || (Array.isArray(data) ? data : []);
-        if (list.length > 0) setCardKpi(7, list.length + " Active Projects");
-      }
+      let c7 = parseListCount(responses[6], ["driven_projects", "driven_project_count"]);
+      if (c7 > 0) setCardKpi(7, c7 + " Active Projects");
 
       // Step 8: Fuel Types
-      if (resFT.status === "fulfilled" && resFT.value.ok) {
-        const data = await resFT.value.json();
-        const list = data.fuelTypes || data.records || data.data || (Array.isArray(data) ? data : []);
-        if (list.length > 0) setCardKpi(8, list.length + " Fuel Types Selected");
-      }
+      let c8 = parseListCount(responses[7], ["driven_fuel_types", "driven_fuel_type_count"]);
+      if (c8 > 0) setCardKpi(8, c8 + " Fuel Types Selected");
 
-      // Step 9: Units of Measure
-      if (resUM.status === "fulfilled" && resUM.value.ok) {
-        const data = await resUM.value.json();
-        const list = data.units || data.records || data.data || (Array.isArray(data) ? data : []);
-        if (list.length > 0) setCardKpi(9, list.length + " Units Configured");
-      }
+      // Step 9: Units
+      let c9 = parseListCount(responses[8], ["driven_units", "driven_unit_count"]);
+      if (c9 > 0) setCardKpi(9, c9 + " Units Configured");
 
       // Step 10: Asset Types
-      if (resAT.status === "fulfilled" && resAT.value.ok) {
-        const data = await resAT.value.json();
-        const list = data.assetTypes || data.records || data.data || (Array.isArray(data) ? data : []);
-        if (list.length > 0) setCardKpi(10, list.length + " Categories Configured");
-      }
+      let c10 = parseListCount(responses[9], ["driven_asset_types", "driven_asset_type_count"]);
+      if (c10 > 0) setCardKpi(10, c10 + " Categories Configured");
 
-      // Step 11: Assets (Equipment)
-      if (resEq.status === "fulfilled" && resEq.value.ok) {
-        const data = await resEq.value.json();
-        const list = data.equipment || data.records || data.data || (Array.isArray(data) ? data : []);
-        if (list.length > 0) setCardKpi(11, list.length + " Assets Registered");
-      }
+      // Step 11: Equipment (Assets)
+      let c11 = parseListCount(responses[10], ["driven_equipment", "driven_equipment_count"]);
+      if (c11 > 0) setCardKpi(11, c11 + " Assets Registered");
     }
 
-    /* ===== LOAD SETTINGS ===== */
     async function loadSettings() {
       try {
         var res = await fetch("/auth/get-settings");
@@ -801,7 +774,6 @@
       updateAllSteps();
     }
 
-    /* ===== LOAD KEY PERSONNEL ===== */
     async function loadKeyPersonnel() {
       var roleLower = (currentUser && currentUser.role) ? currentUser.role.toLowerCase() : "";
       if (currentUser && (roleLower === "admin" || roleLower === "administrator" || roleLower.indexOf("founder") !== -1)) {
@@ -835,14 +807,12 @@
       updateAllSteps();
     }
 
-    /* ===== STICKY TABS ===== */
     function makeTabsSticky() {
       var header = document.getElementById("dashHeader");
       var tabBar = document.getElementById("obTabBar");
       if (header && tabBar && !header.contains(tabBar)) { header.appendChild(tabBar); }
     }
 
-    /* ===== INSERT HEADER TITLE ===== */
     function insertHeaderTitle() {
       var row1 = document.querySelector(".dash-header-row1");
       if (row1 && !document.querySelector(".ob-header-title")) {
@@ -855,7 +825,6 @@
       }
     }
 
-    /* ===== INIT ===== */
     async function init() {
       document.addEventListener("dashSessionLoaded", async function(e) {
         var user = window.dashUser;
