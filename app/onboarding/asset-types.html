@@ -974,17 +974,37 @@
       }
     }
 
-    /* Save Selected Asset Types with Strict Multi-Tenant Enforcement */
+    /* Save Selected Asset Types with Structured Array Payload */
     async function saveAssetTypes() {
-      var selected = [];
+      var selectedPayload = [];
+      var simpleSelectedList = [];
+
       document.querySelectorAll(".dash-card input[type='checkbox']:checked").forEach(function(cb) {
-        selected.push(cb.value);
+        var val = cb.value.trim();
+        if (!val) return;
+
+        simpleSelectedList.push(val);
+
+        var categoryGroup = "General";
+        var parentGrid = cb.closest('.at-grid');
+        if (parentGrid) {
+          var prevHeader = parentGrid.previousElementSibling;
+          if (prevHeader && prevHeader.classList.contains('at-section-heading')) {
+            categoryGroup = prevHeader.textContent.replace(/^[^\w\s]+/, '').trim();
+          }
+        }
+
+        selectedPayload.push({
+          asset_type_name: val,
+          category_group: categoryGroup,
+          is_custom: cb.id.startsWith("custom_at_") ? 1 : 0
+        });
       });
 
       var statusEl = document.getElementById("atStepStatus");
       statusEl.style.color = "var(--error)";
 
-      if (selected.length === 0) {
+      if (selectedPayload.length === 0) {
         statusEl.textContent = "Please select at least one asset type.";
         return;
       }
@@ -998,7 +1018,7 @@
         return;
       }
 
-      localStorage.setItem("driven_asset_types", JSON.stringify(selected));
+      localStorage.setItem("driven_asset_types", JSON.stringify(simpleSelectedList));
       localStorage.setItem("driven_step5_complete", "true");
 
       var btnSave = document.getElementById("btnSaveAt");
@@ -1013,13 +1033,13 @@
             "x-org-id": orgId,
             "x-user-id": String(userId || "")
           },
-          body: JSON.stringify({ assetTypes: selected })
+          body: JSON.stringify({ assetTypes: selectedPayload })
         });
 
         if (!res.ok) throw new Error("API Save failed (HTTP " + res.status + ")");
 
         statusEl.style.color = "var(--success)";
-        statusEl.textContent = selected.length + " asset type(s) saved under " + orgId + ". Redirecting…";
+        statusEl.textContent = selectedPayload.length + " asset type(s) saved under " + orgId + ". Redirecting…";
         btnSave.textContent = "Saved ✓";
         atDirty = false;
         setTimeout(function() {
@@ -1027,7 +1047,7 @@
         }, 1200);
       } catch(err) {
         statusEl.style.color = "#f59e0b";
-        statusEl.textContent = "Saved locally (" + selected.length + " types). Cloud sync pending...";
+        statusEl.textContent = "Saved locally (" + selectedPayload.length + " types). Cloud sync pending...";
         btnSave.disabled = false;
         btnSave.textContent = "Save & Continue";
       }
