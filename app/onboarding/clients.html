@@ -529,8 +529,12 @@
     });
 
     function updateCount() {
-      cliCountEl.textContent = clients.length;
+      var totalCount = existingClients.length + clients.length;
+      if (cliCountEl) cliCountEl.textContent = totalCount;
       if (existingCliCountEl) existingCliCountEl.textContent = existingClients.length;
+      try {
+        localStorage.setItem("driven_client_count", String(totalCount));
+      } catch (e) {}
     }
 
     function doPrintClients(defaultSelection) {
@@ -581,6 +585,7 @@
               name: normalizeName(item.name || item.client_name || item.clientName || "")
             };
           });
+          localStorage.setItem("driven_clients", JSON.stringify(existingClients));
         } else {
           existingClients = JSON.parse(localStorage.getItem("driven_clients") || "[]");
         }
@@ -894,7 +899,7 @@
       try {
         allClients = existingClients.concat(clients);
         localStorage.setItem("driven_clients", JSON.stringify(allClients));
-        localStorage.setItem("driven_client_count", allClients.length);
+        localStorage.setItem("driven_client_count", String(allClients.length));
         localStorage.setItem("driven_step4_complete", "true");
       } catch(lsErr) {
         console.warn("localStorage save failed:", lsErr.message);
