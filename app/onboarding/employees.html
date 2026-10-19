@@ -514,8 +514,12 @@ document.addEventListener("visibilitychange", function() {
 });
 
 function updateCount() {
-  empCountEl.textContent = employees.length;
+  var totalCount = existingEmployees.length + employees.length;
+  if (empCountEl) empCountEl.textContent = totalCount;
   if (existingEmpCountEl) existingEmpCountEl.textContent = existingEmployees.length;
+  try {
+    localStorage.setItem("driven_employee_count", String(totalCount));
+  } catch (e) {}
 }
 
 function buildFullName(first, middle, last, suffix) {
@@ -682,7 +686,6 @@ async function loadExistingEmployees() {
           };
         });
         localStorage.setItem("driven_employees", JSON.stringify(existingEmployees));
-        localStorage.setItem("driven_employee_count", String(existingEmployees.length));
       } else {
         existingEmployees = JSON.parse(localStorage.getItem("driven_employees") || "[]");
       }
@@ -781,6 +784,7 @@ function renderExistingTable() {
       emp.status = this.value;
       empDirty = true;
       renderExistingTable();
+      updateCount();
     };
     statusCell.appendChild(statusSelect);
     row.appendChild(statusCell);
