@@ -663,25 +663,29 @@ async function loadExistingEmployees() {
     if (resp.ok) {
       var data = await resp.json();
       var rawList = data.users || data.employees || data.records || (Array.isArray(data) ? data : []);
-      existingEmployees = rawList.map(function(item) {
-        var fName = item.fullName || item.full_name || item.name || buildFullName(item.firstName || item.first_name, item.middleName || item.middle_name, item.lastName || item.last_name, item.suffix);
-        var empNum = item.empNumber || item.emp_number || item.employee_number || item.emp_id || item.employee_id || "";
-        return {
-          empNumber: String(empNum).trim(),
-          fullName: String(fName).trim(),
-          firstName: item.firstName || item.first_name || "",
-          middleName: item.middleName || item.middle_name || "",
-          lastName: item.lastName || item.last_name || "",
-          suffix: item.suffix || "",
-          email: item.email || "",
-          phone: item.phone || "",
-          division: item.division || item.division_name || "",
-          role: item.role || item.role_name || "",
-          status: item.status || "Active"
-        };
-      });
-      localStorage.setItem("driven_employees", JSON.stringify(existingEmployees));
-      localStorage.setItem("driven_employee_count", String(existingEmployees.length));
+      if (Array.isArray(rawList) && rawList.length > 0) {
+        existingEmployees = rawList.map(function(item) {
+          var fName = item.fullName || item.full_name || item.name || buildFullName(item.firstName || item.first_name, item.middleName || item.middle_name, item.lastName || item.last_name, item.suffix);
+          var empNum = item.empNumber || item.emp_number || item.employee_number || item.emp_id || item.employee_id || "";
+          return {
+            empNumber: String(empNum).trim(),
+            fullName: String(fName).trim(),
+            firstName: item.firstName || item.first_name || "",
+            middleName: item.middleName || item.middle_name || "",
+            lastName: item.lastName || item.last_name || "",
+            suffix: item.suffix || "",
+            email: item.email || "",
+            phone: item.phone || "",
+            division: item.division || item.division_name || "",
+            role: item.role || item.role_name || "",
+            status: item.status || "Active"
+          };
+        });
+        localStorage.setItem("driven_employees", JSON.stringify(existingEmployees));
+        localStorage.setItem("driven_employee_count", String(existingEmployees.length));
+      } else {
+        existingEmployees = JSON.parse(localStorage.getItem("driven_employees") || "[]");
+      }
     } else {
       existingEmployees = JSON.parse(localStorage.getItem("driven_employees") || "[]");
     }
