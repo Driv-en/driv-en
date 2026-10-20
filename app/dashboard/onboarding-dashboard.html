@@ -648,30 +648,36 @@
         }
       }
 
+      function getLocalCount(localKeys) {
+        if (!localKeys) return 0;
+        for (var i = 0; i < localKeys.length; i++) {
+          var raw = localStorage.getItem(localKeys[i]);
+          if (raw) {
+            try {
+              var parsed = JSON.parse(raw);
+              if (Array.isArray(parsed)) return parsed.length;
+            } catch(e) {
+              var num = parseInt(raw, 10);
+              if (!isNaN(num) && num > 0) return num;
+            }
+          }
+        }
+        return 0;
+      }
+
       function parseListCount(res, localKeys) {
-        var count = 0;
+        var count = getLocalCount(localKeys);
+        if (count > 0) return count;
+
         if (res && res.status === "fulfilled" && res.value && res.value.ok) {
           try {
             var data = res.value._data;
             if (data) {
               var list = data.records || data.data || data.users || data.employees || data.projectTypes || data.units || data.unitsOfMeasure || data.assetTypes || data.fuelTypes || data.roles || data.locations || data.clients || data.divisions || data.projects || data.equipment || (Array.isArray(data) ? data : []);
-              count = Array.isArray(list) ? list.length : (typeof list === "object" ? Object.keys(list).length : 0);
+              if (Array.isArray(list)) count = list.length;
+              else if (typeof list === "object") count = Object.keys(list).length;
             }
           } catch(e) {}
-        }
-        if (count === 0 && localKeys) {
-          for (var i = 0; i < localKeys.length; i++) {
-            var raw = localStorage.getItem(localKeys[i]);
-            if (raw) {
-              try {
-                var parsed = JSON.parse(raw);
-                if (Array.isArray(parsed)) { count = parsed.length; break; }
-              } catch(e) {
-                var num = parseInt(raw);
-                if (!isNaN(num) && num > 0) { count = num; break; }
-              }
-            }
-          }
         }
         return count;
       }
@@ -706,8 +712,22 @@
       if (c1 === 0 && (isAdmin || allKP.length > 0)) c1 = 5;
       if (c1 > 0) setCardKpi(1, c1 + " Roles Configured");
 
-      // Step 2: Employees
-      let c2 = parseListCount(responses[1], ["driven_employees", "driven_employee_count"]);
+      // Step 2: Employees (Filtered for org_id & active status if from API)
+      let c2 = getLocalCount(["driven_employee_count", "driven_employees", "driven_employees_count"]);
+      if (c2 === 0 && responses[1].status === "fulfilled" && responses[1].value && responses[1].value.ok) {
+        try {
+          var uData = responses[1].value._data;
+          var uList = uData.records || uData.users || uData.employees || uData.data || (Array.isArray(uData) ? uData : []);
+          if (Array.isArray(uList)) {
+            var activeEmps = uList.filter(function(u) {
+              var uOrg = u.org_id || u.orgId;
+              var isActive = u.is_active !== undefined ? (u.is_active == 1 || u.is_active === true) : true;
+              return isActive && (!uOrg || uOrg === orgId);
+            });
+            c2 = activeEmps.length;
+          }
+        } catch(e) {}
+      }
       if (c2 > 0) setCardKpi(2, c2 + " Employees Active");
 
       // Step 3: Locations
@@ -731,11 +751,11 @@
       if (c7 > 0) setCardKpi(7, c7 + " Active Projects");
 
       // Step 8: Fuel Types
-      let c8 = parseListCount(responses[7], ["driven_fuel_types", "driven_fuel_type_count"]);
+      let c8 = parseListCount(responses[7], ["driven_fuel_types", "driven_fuel_count", "driven_fuel_type_count"]);
       if (c8 > 0) setCardKpi(8, c8 + " Fuel Types Selected");
 
       // Step 9: Units of Measure
-      let c9 = parseListCount(responses[8], ["driven_units", "driven_unit_count"]);
+      let c9 = parseListCount(responses[8], ["driven_units_of_measure", "driven_units_count", "driven_uom_count", "driven_unit_count"]);
       if (c9 > 0) setCardKpi(9, c9 + " Units Configured");
 
       // Step 10: Asset Types
