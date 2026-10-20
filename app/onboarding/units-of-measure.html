@@ -40,7 +40,7 @@
     .dash-header-row3 { display: none !important; }
     #dashHeader .dash-theme-wrapper { display: none !important; }
     .dash-header-row1 { padding: 8px 20px !important; align-items: center; background: var(--bg-header, #f8fafc); border-bottom: 1px solid var(--border, #cbd5e1); }
-    .um-header-title { flex: 1; text-align: center; font-size: 20px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .um-header-title { flex: 1; text-align: center; font-size: clamp(14px, 2.5vw, 20px); font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 8px; }
     
     /* ===== SINGLE UNIFIED BLOCK CONTAINER (PRESENCE + TABS) ===== */
     .ob-greeting-bar { 
@@ -294,13 +294,15 @@
     }
 
     @media (max-width: 768px) {
+      .dash-header-row1 { padding: 6px 10px !important; }
       .ob-greeting-bar { padding: 8px 12px !important; margin: 8px 12px !important; }
       .um-tab-bar { flex-direction: column; align-items: stretch; gap: 6px !important; }
       .um-tab-admin, .um-tab-return, .um-tab-logout { width: 100%; justify-content: center; margin-left: 0 !important; }
-      .um-header-title { white-space: normal !important; max-width: 170px !important; word-break: break-word !important; }
+      .um-header-title { font-size: clamp(12px, 3.8vw, 16px) !important; max-width: 100% !important; white-space: normal !important; text-align: center; word-break: break-word !important; }
       .um-custom-input-row { flex-direction: column; align-items: stretch; }
       .um-action-row { flex-direction: column; gap: 8px; }
       .um-action-row .um-btn-primary { width: 100%; }
+      .um-grid { grid-template-columns: 1fr !important; }
     }
 
     @media print {
@@ -647,24 +649,49 @@
       });
     }
 
-    function loadSavedUnits() {
+    async function loadSavedUnits() {
+      var saved = [];
       try {
-        var saved = JSON.parse(localStorage.getItem("driven_units_of_measure") || "[]");
-        var defaultVals = [];
-
-        document.querySelectorAll(".um-grid:not(#customUmGrid) input[type='checkbox']").forEach(function(cb) {
-          defaultVals.push(cb.value);
-          cb.checked = saved.indexOf(cb.value) !== -1;
-        });
-
-        customUnits = [];
-        saved.forEach(function(sItem) {
-          if (defaultVals.indexOf(sItem) === -1 && customUnits.indexOf(sItem) === -1) {
-            customUnits.push(sItem);
-          }
-        });
-        renderCustomUnits();
+        var localRaw = localStorage.getItem("driven_units_of_measure");
+        if (localRaw) {
+          saved = JSON.parse(localRaw);
+        }
       } catch (e) {}
+
+      if ((!saved || saved.length === 0) && activeOrgId) {
+        try {
+          var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
+          var res = await fetch("/api/units-of-measure", {
+            headers: {
+              "x-org-id": activeOrgId,
+              "x-user-id": String(userObj.id || "")
+            }
+          });
+          if (res.ok) {
+            var data = await res.json();
+            var list = data.records || data.unitsOfMeasure || data.data || (Array.isArray(data) ? data : []);
+            if (Array.isArray(list) && list.length > 0) {
+              saved = list.map(function(item) { return typeof item === "string" ? item : (item.name || item.unit_name || item.unit); });
+              localStorage.setItem("driven_units_of_measure", JSON.stringify(saved));
+              localStorage.setItem("driven_units_count", String(saved.length));
+            }
+          }
+        } catch (e) {}
+      }
+
+      var defaultVals = [];
+      document.querySelectorAll(".um-grid:not(#customUmGrid) input[type='checkbox']").forEach(function(cb) {
+        defaultVals.push(cb.value);
+        cb.checked = saved.indexOf(cb.value) !== -1;
+      });
+
+      customUnits = [];
+      saved.forEach(function(sItem) {
+        if (defaultVals.indexOf(sItem) === -1 && customUnits.indexOf(sItem) === -1) {
+          customUnits.push(sItem);
+        }
+      });
+      renderCustomUnits();
     }
 
     async function saveUnitsOfMeasure() {
@@ -701,7 +728,6 @@
       });
 
       try {
-        // Correct API Direct Route for D1 Persistence
         var res = await fetch("/api/units-of-measure", {
           method: "POST",
           headers: { 
@@ -756,7 +782,7 @@
       dashLogout();
     };
 
-    document.addEventListener("dashSessionLoaded", function(e) {
+    document.addEventListener("dashSessionLoaded", async function(e) {
       var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
       activeOrgId = userObj.org_id || (e.detail && e.detail.org_id) || localStorage.getItem("driven_org_id");
 
@@ -770,7 +796,7 @@
         if (logoArea && drivenLogo) { row1.insertBefore(title, drivenLogo); } 
       }
 
-      loadSavedUnits();
+      await loadSavedUnits();
       checkActivePresence();
       setInterval(checkActivePresence, 5000);
     });
