@@ -523,8 +523,9 @@
                 <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Divisions" onchange="updateKpTaskCount()" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Divisions</label>
                 <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Project Types" onchange="updateKpTaskCount()" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Project Types</label>
                 <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Projects" onchange="updateKpTaskCount()" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Projects</label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Fuel Types" onchange="updateKpTaskCount()" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Fuel Types</label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Fuels, Fluids & Energy" onchange="updateKpTaskCount()" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Fuels, Fluids &amp; Energy</label>
                 <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Units of Measure" onchange="updateKpTaskCount()" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Units of Measure</label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Asset Types" onchange="updateKpTaskCount()" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Asset Types</label>
                 <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Assets" onchange="updateKpTaskCount()" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Assets</label>
                 <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Roles & Permissions" onchange="updateKpTaskCount()" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Roles &amp; Permissions</label>
                 <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);border-top:1px solid var(--border);padding-top:4px;margin-top:2px;"><input type="checkbox" id="kpTaskSelectAll" onchange="toggleSelectAllKpTasks(this.checked)" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Select All</label>
@@ -567,22 +568,24 @@
     var settingsDirty = false;
     var visibilityDirty = false;
     var activeOrgId = null;
+    var taskCompletions = {};
+    var syncChannel = window.BroadcastChannel ? new BroadcastChannel("driven_onboarding_sync") : null;
 
     var BUSINESS_TYPE_DEFAULTS = {
-      "Construction": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Manufacturing": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Chemical": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Oil & Gas": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Transportation": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Warehousing": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Fabrication": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Logistics / Supply Chain": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Utilities & Energy": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Mining & Aggregates": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Agriculture": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Environmental Services": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "Food & Beverage Processing": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true},
-      "General Services": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true}
+      "Construction": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+      "Manufacturing": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+      "Chemical": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+      "Oil & Gas": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+      "Transportation": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+      "Warehousing": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+      "Fabrication": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+      "Logistics / Supply Chain": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+      "Utilities & Energy": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+      "Mining & Aggregates": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+      "Agriculture": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+      "Environmental Services": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+      "Food & Beverage Processing": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+      "General Services": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true}
     };
 
     var STEP_DEFS = [
@@ -593,8 +596,9 @@
       { key:"divisions", label:"Divisions", desc:"Internal divisions or business units", locked:false },
       { key:"project-types", label:"Project Types", desc:"Types of work your organization performs", locked:false },
       { key:"projects", label:"Projects", desc:"Active, completed, or upcoming projects", locked:false },
-      { key:"fuel-types", label:"Fuel Types", desc:"Types of fuel your organization uses", locked:true },
-      { key:"units-of-measure", label:"Units of Measure", desc:"Volume units for fuel and fluids", locked:true },
+      { key:"fuel-types", label:"Fuels, Fluids & Energy", desc:"Types of fuel and fluids your organization uses", locked:true },
+      { key:"units-of-measure", label:"Units of Measure", desc:"Volume, weight, distance, and metric units", locked:true },
+      { key:"asset-types", label:"Asset Types", desc:"Primary equipment and machine categories", locked:true },
       { key:"assets", label:"Assets", desc:"Assets and equipment to maintain", locked:true }
     ];
 
@@ -752,6 +756,7 @@
           keyPersonnel = allKPToSave;
           pendingKP = [];
           await loadKeyPersonnel();
+          notifySync();
         } else {
           var errorDetails = (dComplete.results || [])
             .filter(function(r) { return r.error; })
@@ -824,7 +829,7 @@ async function loadDashboardStats() {
       fetchSafe(['/api/Clients?active_only=true', '/api/Clients', '/api/clients'])
     ]);
 
-    // 1. Employees (Count active employees correctly across schema shapes)
+    // 1. Employees
     var empData = results[0];
     var empList = empData.employees || empData.personnel || empData.users || empData.data || empData.records || (Array.isArray(empData) ? empData : []);
     var empCount = empList.filter(function(e) { 
@@ -851,7 +856,7 @@ async function loadDashboardStats() {
     if (elEq) elEq.textContent = assetList.length;
     localStorage.setItem('driven_equipment_count', assetList.length);
 
-    // 4. Active Clients (Extract from D1 database)
+    // 4. Active Clients
     var clientData = results[3];
     var clientList = clientData.clients || clientData.records || clientData.data || clientData.results || (Array.isArray(clientData) ? clientData : []);
     var activeClients = clientList.filter(function(c) {
@@ -1027,6 +1032,10 @@ async function loadDashboardStats() {
           if(data.settings.naics_code) document.getElementById("naicsInput").value = data.settings.naics_code;
           if(data.settings.currency && document.getElementById("currencySelect")) document.getElementById("currencySelect").value = data.settings.currency;
           if(data.settings.step_visibility && typeof data.settings.step_visibility==='object' && !Array.isArray(data.settings.step_visibility)) stepVisibility = data.settings.step_visibility;
+          if(data.settings.task_completions) {
+            taskCompletions = data.settings.task_completions;
+            localStorage.setItem("driven_task_completions", JSON.stringify(taskCompletions));
+          }
           if(data.settings.onboarding_complete) {
             onboardingComplete = true;
             hideOnboardingTab();
@@ -1075,6 +1084,7 @@ async function loadDashboardStats() {
           orgSettings.naics_code = naics;
           orgSettings.currency = cur;
           document.getElementById("settingsStatus").textContent = "Saved.";
+          notifySync();
         }
       } catch(e) { reportError("saveSettings", e); }
       clearSettingsDirty();
@@ -1166,6 +1176,7 @@ async function loadDashboardStats() {
         clearVisibilityDirty();
         renderStepToggles();
         updateProgress();
+        notifySync();
       } catch(e) { reportError("saveStepVisibility", e); }
     }
 
@@ -1224,7 +1235,53 @@ async function loadDashboardStats() {
       }).join("");
     }
 
+    function loadTaskCompletions() {
+      try {
+        taskCompletions = JSON.parse(localStorage.getItem("driven_task_completions") || "{}");
+      } catch(e) { taskCompletions = {}; }
+    }
+
+    function adminIsTaskComplete(taskKey) {
+      var mapKeyToTask = {
+        "roles-permissions": "Roles & Permissions",
+        "employees": "Employees",
+        "locations": "Locations",
+        "clients": "Clients",
+        "divisions": "Divisions",
+        "project-types": "Project Types",
+        "projects": "Projects",
+        "fuel-types": "Fuels, Fluids & Energy",
+        "units-of-measure": "Units of Measure",
+        "asset-types": "Asset Types",
+        "assets": "Assets"
+      };
+
+      var taskName = mapKeyToTask[taskKey];
+      if (!taskName) return false;
+
+      var completions = taskCompletions[taskName] || [];
+      var assignedEmails = [];
+
+      var all = keyPersonnel.concat(pendingKP);
+      all.forEach(function(kp) {
+        var tasks = kp.tasks || (kp.roles ? kp.roles.map(function(r){return r.role || r.task_name;}) : (kp.task ? [kp.task] : []));
+        if (tasks.indexOf(taskName) !== -1 && kp.email) {
+          assignedEmails.push(kp.email.toLowerCase());
+        }
+      });
+
+      if (assignedEmails.length === 0) {
+        return completions.length > 0;
+      }
+
+      for (var i = 0; i < assignedEmails.length; i++) {
+        if (completions.indexOf(assignedEmails[i]) === -1) return false;
+      }
+      return true;
+    }
+
     function updateProgress() {
+      loadTaskCompletions();
       var vs = STEP_DEFS.filter(function(s){return stepVisibility[s.key] !== false;}), comp = 0;
       vs.forEach(function(s){ if(adminIsTaskComplete(s.key)) comp++; });
       var tot = vs.length, pct = tot > 0 ? Math.round((comp / tot) * 100) : 0;
@@ -1232,7 +1289,11 @@ async function loadDashboardStats() {
       document.getElementById("progressText").textContent = comp + " of " + tot + " tasks complete";
     }
 
-    function adminIsTaskComplete(k) { return false; }
+    function notifySync() {
+      window.dispatchEvent(new CustomEvent("driven_completion_updated"));
+      if (syncChannel) syncChannel.postMessage({ type: "driven_completion_updated" });
+    }
+
     function showCompleteModal(){ document.getElementById("confirmModal").classList.add("active"); }
     function closeCompleteModal(){ document.getElementById("confirmModal").classList.remove("active"); }
     function hideOnboardingTab(){ var t = document.querySelector('[data-tab="onboarding"]'); if(t) t.style.display = "none"; }
@@ -1282,6 +1343,18 @@ async function loadDashboardStats() {
 
         loadDashboardStats().catch(function(e){ reportError("init-loadDashboardStats", e); });
       });
+
+      window.addEventListener("driven_completion_updated", function() {
+        updateProgress();
+      });
+
+      if (syncChannel) {
+        syncChannel.onmessage = function(msg) {
+          if (msg.data && msg.data.type === "driven_completion_updated") {
+            updateProgress();
+          }
+        };
+      }
     }
 
     init();
