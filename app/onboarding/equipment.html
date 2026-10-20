@@ -514,7 +514,12 @@
     var statusBulk = document.getElementById("statusBulk");
     var bulkPreview = document.getElementById("bulkPreview");
 
-    function normalizeName(str) { return String(str || "").trim().replace(/\s+/g, " "); }
+    function normalizeName(str) { 
+      if (typeof str === 'object' && str !== null) {
+        str = str.name || str.asset_type_name || str.location_name || str.division_name || str.description || str.asset_name || "";
+      }
+      return String(str || "").trim().replace(/\s+/g, " "); 
+    }
     
     function validateOrgContext() {
       if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
@@ -543,6 +548,7 @@
 
     /* High-Frequency Active User Presence Heartbeat with Full Name Parsing */
     async function checkActivePresence() {
+      if (!navigator.onLine) return;
       try {
         var resp = await fetch("/api/onboarding/presence", {
           method: "POST",
@@ -601,7 +607,7 @@
         var cats = JSON.parse(localStorage.getItem("driven_asset_types") || "[]");
         cats.forEach(function(c) {
           var opt = document.createElement("option");
-          var val = typeof c === "string" ? c : (c.asset_type_name || c.name || "");
+          var val = normalizeName(c);
           if (val) { opt.value = val; opt.textContent = val; catSel.appendChild(opt); }
         });
       }
@@ -612,7 +618,7 @@
         var locs = JSON.parse(localStorage.getItem("driven_locations") || "[]");
         locs.forEach(function(l) {
           var opt = document.createElement("option");
-          var val = typeof l === "string" ? l : (l.name || l.location_name || "");
+          var val = normalizeName(l);
           if (val) { opt.value = val; opt.textContent = val; locSel.appendChild(opt); }
         });
       }
@@ -623,7 +629,7 @@
         var divs = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
         divs.forEach(function(d) {
           var opt = document.createElement("option");
-          var val = typeof d === "string" ? d : (d.name || d.division_name || "");
+          var val = normalizeName(d);
           if (val) { opt.value = val; opt.textContent = val; divSel.appendChild(opt); }
         });
       }
@@ -691,36 +697,59 @@
 
     async function loadExistingEquipment() {
       existingEqTableContainer.textContent = "";
-      try {
-        var resp = await fetch("/api/equipment", {
-          headers: { "x-org-id": activeOrgId || "" }
-        });
-        if (resp.ok) {
-          var data = await resp.json();
-          var rawList = data.records || data.equipment || data.data || (Array.isArray(data) ? data : []);
-          existingEquipment = rawList.map(function(item) {
-            var rec = item.fields ? Object.assign({ id: item.id }, item.fields) : item;
-            return {
-              id: rec.id || "",
-              unitNo: rec.asset_number || rec.unitNo || rec.unit_no || rec.asset_id || "",
-              name: normalizeName(rec.name || rec.description || rec.asset_name || ""),
-              category: rec.category || rec.category_name || "",
-              make: rec.make || "",
-              model: rec.model || "",
-              year: rec.year || "",
-              serial: rec.serial_number || rec.serial || rec.vin || "",
-              meter: rec.meter || rec.odometer || "",
-              location: rec.current_location || rec.location || "",
-              division: rec.division || rec.division_name || ""
-            };
+
+      // Rule 3: Primary D1 query backend endpoint directly
+      if (navigator.onLine) {
+        try {
+          var resp = await fetch("/api/equipment", {
+            headers: { "x-org-id": activeOrgId || "" }
           });
-        } else {
-          existingEquipment = JSON.parse(localStorage.getItem("driven_equipment") || "[]");
+          if (resp.ok) {
+            var data = await resp.json();
+            var rawList = data.records || data.equipment || data.data || (Array.isArray(data) ? data : []);
+            existingEquipment = rawList.map(function(item) {
+              var rec = item.fields ? Object.assign({ id: item.id }, item.fields) : item;
+              return {
+                id: rec.id || "",
+                unitNo: normalizeName(rec.asset_number || rec.unitNo || rec.unit_no || rec.asset_id),
+                name: normalizeName(rec.name || rec.description || rec.asset_name),
+                category: normalizeName(rec.category || rec.category_name),
+                make: normalizeName(rec.make),
+                model: normalizeName(rec.model),
+                year: normalizeName(rec.year),
+                serial: normalizeName(rec.serial_number || rec.serial || rec.vin),
+                meter: normalizeName(rec.meter || rec.odometer),
+                location: normalizeName(rec.current_location || rec.location),
+                division: normalizeName(rec.division || rec.division_name)
+              };
+            });
+            localStorage.setItem("driven_equipment", JSON.stringify(existingEquipment));
+            renderExistingTable();
+            updateCount();
+            return;
+          }
+        } catch (e) {
+          console.warn("API load for existing equipment failed, falling back to local storage:", e.message);
         }
-      } catch (e) {
-        console.warn("API load for existing equipment failed, fallback to local storage:", e.message);
-        existingEquipment = JSON.parse(localStorage.getItem("driven_equipment") || "[]");
       }
+
+      // Offline fallback
+      var cached = JSON.parse(localStorage.getItem("driven_equipment") || "[]");
+      existingEquipment = cached.map(function(rec) {
+        return {
+          id: rec.id || "",
+          unitNo: normalizeName(rec.unitNo || rec.asset_number || rec.unit_no || rec.asset_id),
+          name: normalizeName(rec.name || rec.description || rec.asset_name),
+          category: normalizeName(rec.category || rec.category_name),
+          make: normalizeName(rec.make),
+          model: normalizeName(rec.model),
+          year: normalizeName(rec.year),
+          serial: normalizeName(rec.serial || rec.serial_number || rec.vin),
+          meter: normalizeName(rec.meter || rec.odometer),
+          location: normalizeName(rec.location || rec.current_location),
+          division: normalizeName(rec.division || rec.division_name)
+        };
+      });
       renderExistingTable();
       updateCount();
     }
@@ -978,14 +1007,14 @@
       eqError.textContent = ""; eqSuccess.textContent = "";
       var unitNo = normalizeName(document.getElementById("eqUnitNo").value);
       var name = normalizeName(document.getElementById("eqName").value);
-      var category = document.getElementById("eqCategory").value;
+      var category = normalizeName(document.getElementById("eqCategory").value);
       var make = normalizeName(document.getElementById("eqMake").value);
       var model = normalizeName(document.getElementById("eqModel").value);
       var year = normalizeName(document.getElementById("eqYear").value);
       var serial = normalizeName(document.getElementById("eqSerial").value);
       var meter = normalizeName(document.getElementById("eqMeter").value);
-      var location = document.getElementById("eqLocation").value;
-      var division = document.getElementById("eqDivision").value;
+      var location = normalizeName(document.getElementById("eqLocation").value);
+      var division = normalizeName(document.getElementById("eqDivision").value);
 
       if (!unitNo || !name) { eqError.textContent = "Asset ID and Description are required."; return; }
 
@@ -1134,6 +1163,13 @@
     document.getElementById("btnSaveEq").addEventListener("click", async function() {
       if (!validateOrgContext()) return;
       eqStepStatus.textContent = ""; eqStepStatus.style.color = "var(--error)";
+
+      // Rule 1: Offline Guard
+      if (!navigator.onLine) {
+        eqStepStatus.textContent = "Network Error: You must be connected to the internet to save asset data to Cloudflare D1.";
+        return;
+      }
+
       if (equipment.length === 0 && existingEquipment.length === 0) { eqStepStatus.textContent = "You must add at least one asset."; return; }
       
       var btnSave = document.getElementById("btnSaveEq");
@@ -1173,7 +1209,7 @@
         var allEquipment = existingEquipment.concat(equipment);
         localStorage.setItem("driven_equipment", JSON.stringify(allEquipment));
         localStorage.setItem("driven_equipment_count", allEquipment.length);
-        localStorage.setItem("driven_step7_complete", "true");
+        // Rule 2: Manual completion rule applied - removed step completion flag setting
 
         eqStepStatus.style.color = "var(--success)";
         eqStepStatus.textContent = equipment.length + " asset(s) saved directly to system. Redirecting to onboarding dashboard…";
@@ -1215,7 +1251,7 @@
         var logoArea = document.getElementById("dashCustomerLogoArea"); 
         var drivenLogo = row1.querySelector(".dash-driven-logo"); 
         if (logoArea && drivenLogo) { row1.insertBefore(title, drivenLogo); } 
-      }
+      } 
       
       loadDropdowns();
       loadExistingEquipment(); 
