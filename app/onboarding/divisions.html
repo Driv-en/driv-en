@@ -458,7 +458,12 @@
     var statusBulk = document.getElementById("statusBulk");
     var bulkPreview = document.getElementById("bulkPreview");
 
-    function normalizeName(str) { return String(str || "").trim().replace(/\s+/g, " "); }
+    function normalizeName(str) { 
+      if (typeof str === 'object' && str !== null) {
+        str = str.name || str.division_name || str.divisionName || "";
+      }
+      return String(str || "").trim().replace(/\s+/g, " "); 
+    }
     
     function validateOrgContext() {
       if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
@@ -485,6 +490,7 @@
     }
 
     async function checkActivePresence() {
+      if (!navigator.onLine) return;
       try {
         var resp = await fetch("/api/onboarding/presence", {
           method: "POST",
@@ -575,27 +581,41 @@
 
     async function loadExistingDivisions() {
       existingDivTableContainer.textContent = "";
-      try {
-        var resp = await fetch("/api/divisions", {
-          headers: { "x-org-id": activeOrgId || "" }
-        });
-        if (resp.ok) {
-          var data = await resp.json();
-          var rawList = data.divisions || data.records || (Array.isArray(data) ? data : []);
-          existingDivisions = rawList.map(function(item) {
-            return {
-              name: normalizeName(item.name || item.division_name || item.divisionName || ""),
-              status: item.status || "Active"
-            };
+      
+      // Primary D1 backend query first
+      if (navigator.onLine) {
+        try {
+          var resp = await fetch("/api/divisions", {
+            headers: { "x-org-id": activeOrgId || "" }
           });
-          localStorage.setItem("driven_divisions", JSON.stringify(existingDivisions));
-        } else {
-          existingDivisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
+          if (resp.ok) {
+            var data = await resp.json();
+            var rawList = data.divisions || data.records || (Array.isArray(data) ? data : []);
+            existingDivisions = rawList.map(function(item) {
+              var cleanName = normalizeName(item);
+              return {
+                name: cleanName,
+                status: (item && item.status) || "Active"
+              };
+            });
+            localStorage.setItem("driven_divisions", JSON.stringify(existingDivisions));
+            renderExistingTable();
+            updateCount();
+            return;
+          }
+        } catch (e) {
+          console.warn("API load for existing divisions failed, falling back to local cache:", e.message);
         }
-      } catch (e) {
-        console.warn("API load for existing divisions failed, fallback to local storage:", e.message);
-        existingDivisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
       }
+
+      // Fallback to local cache when offline or upon API failure
+      var cached = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
+      existingDivisions = cached.map(function(item) {
+        return {
+          name: normalizeName(item),
+          status: (item && item.status) || "Active"
+        };
+      });
       renderExistingTable();
       updateCount();
     }
@@ -917,6 +937,13 @@
     document.getElementById("btnSaveDiv").addEventListener("click", async function() {
       if (!validateOrgContext()) return;
       divStepStatus.textContent = ""; divStepStatus.style.color = "var(--error)";
+
+      // Rule 1: Offline Guard
+      if (!navigator.onLine) {
+        divStepStatus.textContent = "Network error: An active internet connection is required to create or save structural master data to Cloudflare D1.";
+        return;
+      }
+
       if (divisions.length === 0 && existingDivisions.length === 0) { 
         divStepStatus.textContent = "You must add at least one division."; 
         return; 
@@ -927,7 +954,7 @@
         allDivisions = existingDivisions.concat(divisions);
         localStorage.setItem("driven_divisions", JSON.stringify(allDivisions));
         localStorage.setItem("driven_division_count", String(allDivisions.length));
-        localStorage.setItem("driven_step5_complete", "true");
+        // Rule 2: Removed automated step completion flag (driven_step5_complete)
       } catch(lsErr) {
         console.warn("localStorage save failed:", lsErr.message);
         if (window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("divisions.html: localStorage save failed — " + (lsErr.message || lsErr), "save-localStorage", lsErr && lsErr.stack ? lsErr.stack : null); }
@@ -1005,7 +1032,7 @@
 
       } catch(err) {
         divStepStatus.style.color = "var(--error)";
-        divStepStatus.textContent = "Saved locally, but server save failed: " + (saveErrors.length ? saveErrors.join("; ") : err.message);
+        divStepStatus.textContent = "Server save failed: " + (saveErrors.length ? saveErrors.join("; ") : err.message);
         btnSave.disabled = false; 
         btnSave.textContent = "Save & Continue";
         if (window.DRIVENErrorHandler) { 
