@@ -450,7 +450,12 @@ var statusBulk = document.getElementById("statusBulk");
 var bulkPreview = document.getElementById("bulkPreview");
 
 function isValidEmail(email) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
-function normalizeName(str) { return String(str || "").trim().replace(/\s+/g, " "); }
+function normalizeName(str) { 
+  if (typeof str === 'object' && str !== null) {
+    str = str.name || str.fullName || str.full_name || "";
+  }
+  return String(str || "").trim().replace(/\s+/g, " "); 
+}
 
 function validateOrgContext() {
   if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
@@ -477,6 +482,7 @@ function sendPresenceUnload() {
 }
 
 async function checkActivePresence() {
+  if (!navigator.onLine) return;
   try {
     var resp = await fetch("/api/onboarding/presence", {
       method: "POST",
@@ -532,10 +538,11 @@ function updateCount() {
 }
 
 function buildFullName(first, middle, last, suffix) {
-  var parts = [first, middle, last].filter(function(p) { return p && String(p).trim() && String(p).trim() !== "undefined"; });
+  var parts = [first, middle, last].map(function(p) { return normalizeName(p); }).filter(Boolean);
   var name = parts.join(" ").trim();
-  if (suffix && String(suffix).trim() && String(suffix).trim() !== "undefined") {
-    name += " " + String(suffix).trim();
+  var suff = normalizeName(suffix);
+  if (suff) {
+    name += " " + suff;
   }
   return name;
 }
@@ -574,15 +581,15 @@ function editEmployee(index, isExisting) {
   if (!emp) return;
   editingEmployeeIndex = index;
   isEditingExisting = isExisting;
-  document.getElementById("empNumber").value = emp.empNumber || "";
-  document.getElementById("empFirstName").value = emp.firstName || "";
-  document.getElementById("empMiddleName").value = emp.middleName || "";
-  document.getElementById("empLastName").value = emp.lastName || "";
-  document.getElementById("empSuffix").value = emp.suffix || "";
+  document.getElementById("empNumber").value = normalizeName(emp.empNumber);
+  document.getElementById("empFirstName").value = normalizeName(emp.firstName);
+  document.getElementById("empMiddleName").value = normalizeName(emp.middleName);
+  document.getElementById("empLastName").value = normalizeName(emp.lastName);
+  document.getElementById("empSuffix").value = normalizeName(emp.suffix);
   document.getElementById("empEmail").value = emp.email || "";
-  document.getElementById("empPhone").value = emp.phone || "";
-  document.getElementById("empDivision").value = emp.division || "";
-  document.getElementById("empRole").value = emp.role || "";
+  document.getElementById("empPhone").value = normalizeName(emp.phone);
+  document.getElementById("empDivision").value = normalizeName(emp.division);
+  document.getElementById("empRole").value = normalizeName(emp.role);
   document.getElementById("empStatus").value = emp.status || "Active";
   var btnAdd = document.getElementById("btnAddEmp");
   btnAdd.textContent = "Update Employee";
@@ -592,6 +599,10 @@ function editEmployee(index, isExisting) {
 
 async function submitQuickDivision() {
   if (!validateOrgContext()) return;
+  if (!navigator.onLine) {
+    document.getElementById("modalDivError").textContent = "Internet connection required to create divisions.";
+    return;
+  }
   var name = normalizeName(document.getElementById("newDivisionName").value);
   var errEl = document.getElementById("modalDivError");
   errEl.textContent = "";
@@ -606,7 +617,7 @@ async function submitQuickDivision() {
       body: JSON.stringify({ name: name, customer_id: localStorage.getItem("driven_customer_id") || "" })
     });
     var divisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
-    if (!divisions.some(function(d) { return d.name.toLowerCase() === name.toLowerCase(); })) {
+    if (!divisions.some(function(d) { return normalizeName(d).toLowerCase() === name.toLowerCase(); })) {
       divisions.push({ name: name });
       localStorage.setItem("driven_divisions", JSON.stringify(divisions));
     }
@@ -619,6 +630,10 @@ async function submitQuickDivision() {
 
 async function submitQuickRole() {
   if (!validateOrgContext()) return;
+  if (!navigator.onLine) {
+    document.getElementById("modalRoleError").textContent = "Internet connection required to create roles.";
+    return;
+  }
   var name = normalizeName(document.getElementById("newRoleName").value);
   var errEl = document.getElementById("modalRoleError");
   errEl.textContent = "";
@@ -669,42 +684,74 @@ function doPrintEmployees(defaultSelection) {
 
 async function loadExistingEmployees() {
   existingEmpTableContainer.textContent = "";
-  try {
-    var resp = await fetch("/api/onboarding/employees/list", {
-      headers: { "x-org-id": activeOrgId || "" }
-    });
-    if (resp.ok) {
-      var data = await resp.json();
-      var rawList = data.employees || data.keyPersonnel || data.records || data.users || (Array.isArray(data) ? data : []);
-      if (Array.isArray(rawList) && rawList.length > 0) {
-        existingEmployees = rawList.map(function(item) {
-          var fName = item.fullName || item.full_name || item.name || buildFullName(item.firstName || item.first_name, item.middleName || item.middle_name, item.lastName || item.last_name, item.suffix);
-          var empNum = item.empNumber || item.emp_number || item.employee_number || item.emp_id || item.employee_id || "";
-          return {
-            empNumber: String(empNum).trim(),
-            fullName: String(fName).trim(),
-            firstName: item.firstName || item.first_name || "",
-            middleName: item.middleName || item.middle_name || "",
-            lastName: item.lastName || item.last_name || "",
-            suffix: item.suffix || "",
-            email: item.email || "",
-            phone: item.phone || "",
-            division: item.division || item.division_name || "",
-            role: item.role || item.role_name || "",
-            status: item.status || "Active"
-          };
-        });
-        localStorage.setItem("driven_employees", JSON.stringify(existingEmployees));
-      } else {
-        existingEmployees = JSON.parse(localStorage.getItem("driven_employees") || "[]");
+
+  if (navigator.onLine) {
+    try {
+      var resp = await fetch("/api/onboarding/employees/list", {
+        headers: { "x-org-id": activeOrgId || "" }
+      });
+      if (resp.ok) {
+        var data = await resp.json();
+        var rawList = data.employees || data.keyPersonnel || data.records || data.users || (Array.isArray(data) ? data : []);
+        if (Array.isArray(rawList)) {
+          existingEmployees = rawList.map(function(item) {
+            var fName = buildFullName(
+              item.firstName || item.first_name,
+              item.middleName || item.middle_name,
+              item.lastName || item.last_name,
+              item.suffix
+            ) || normalizeName(item.fullName || item.full_name || item.name);
+
+            var empNum = normalizeName(item.empNumber || item.emp_number || item.employee_number || item.emp_id || item.employee_id);
+
+            return {
+              empNumber: empNum,
+              fullName: fName,
+              firstName: normalizeName(item.firstName || item.first_name),
+              middleName: normalizeName(item.middleName || item.middle_name),
+              lastName: normalizeName(item.lastName || item.last_name),
+              suffix: normalizeName(item.suffix),
+              email: String(item.email || "").trim(),
+              phone: normalizeName(item.phone),
+              division: normalizeName(item.division || item.division_name),
+              role: normalizeName(item.role || item.role_name),
+              status: item.status || "Active"
+            };
+          });
+          localStorage.setItem("driven_employees", JSON.stringify(existingEmployees));
+          renderExistingTable();
+          updateCount();
+          return;
+        }
       }
-    } else {
-      existingEmployees = JSON.parse(localStorage.getItem("driven_employees") || "[]");
+    } catch (e) {
+      console.warn("API load for existing employees failed, falling back to local storage:", e.message);
     }
-  } catch (e) {
-    console.warn("API load for existing employees failed, fallback to local storage:", e.message);
-    existingEmployees = JSON.parse(localStorage.getItem("driven_employees") || "[]");
   }
+
+  var cached = JSON.parse(localStorage.getItem("driven_employees") || "[]");
+  existingEmployees = cached.map(function(item) {
+    var fName = buildFullName(
+      item.firstName || item.first_name,
+      item.middleName || item.middle_name,
+      item.lastName || item.last_name,
+      item.suffix
+    ) || normalizeName(item.fullName || item.full_name || item.name);
+
+    return {
+      empNumber: normalizeName(item.empNumber || item.emp_number),
+      fullName: fName,
+      firstName: normalizeName(item.firstName || item.first_name),
+      middleName: normalizeName(item.middleName || item.middle_name),
+      lastName: normalizeName(item.lastName || item.last_name),
+      suffix: normalizeName(item.suffix),
+      email: String(item.email || "").trim(),
+      phone: normalizeName(item.phone),
+      division: normalizeName(item.division || item.division_name),
+      role: normalizeName(item.role || item.role_name),
+      status: item.status || "Active"
+    };
+  });
   renderExistingTable();
   updateCount();
 }
@@ -838,14 +885,17 @@ function isDuplicateEmail(email) {
 }
 
 function loadDivisionDropdown(selectedVal) {
-  var divisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
+  var rawDivs = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
   var sel = document.getElementById("empDivision");
   sel.innerHTML = '<option value="">— None —</option><option value="__ADD_NEW__">➕ Add New Division...</option>';
-  divisions.forEach(function(div) {
-    var opt = document.createElement("option");
-    opt.value = div.name;
-    opt.textContent = div.name;
-    sel.appendChild(opt);
+  rawDivs.forEach(function(div) {
+    var divName = normalizeName(div);
+    if (divName) {
+      var opt = document.createElement("option");
+      opt.value = divName;
+      opt.textContent = divName;
+      sel.appendChild(opt);
+    }
   });
   if (selectedVal) {
     sel.value = selectedVal;
@@ -857,23 +907,29 @@ async function loadRoleDropdown(selectedVal) {
   var sel = document.getElementById("empRole");
   if (!sel) return;
   sel.innerHTML = '<option value="">— Select Role —</option><option value="__ADD_NEW__">➕ Add New Role...</option>';
-  try {
-    var resp = await fetch("/api/roles", {
-      headers: { "x-org-id": activeOrgId || "" }
-    });
-    var data = await resp.json();
-    var rawRoles = data.roles || data.records || [];
-    if (data.success && rawRoles.length > 0) {
-      validRoles = rawRoles.filter(function(r) { return r.name.toLowerCase() !== "driv-en founder"; }).map(function(r) { return r.name; });
-      validRoles.forEach(function(roleName) {
-        var opt = document.createElement("option");
-        opt.value = roleName;
-        opt.textContent = roleName;
-        sel.appendChild(opt);
+  if (navigator.onLine) {
+    try {
+      var resp = await fetch("/api/roles", {
+        headers: { "x-org-id": activeOrgId || "" }
       });
+      var data = await resp.json();
+      var rawRoles = data.roles || data.records || [];
+      if (data.success && rawRoles.length > 0) {
+        validRoles = rawRoles.filter(function(r) { 
+          var rName = normalizeName(r);
+          return rName.toLowerCase() !== "driv-en founder"; 
+        }).map(function(r) { return normalizeName(r); });
+
+        validRoles.forEach(function(roleName) {
+          var opt = document.createElement("option");
+          opt.value = roleName;
+          opt.textContent = roleName;
+          sel.appendChild(opt);
+        });
+      }
+    } catch (e) {
+      console.error("Role dropdown load error:", e.message);
     }
-  } catch (e) {
-    console.error("Role dropdown load error:", e.message);
   }
   if (selectedVal) {
     sel.value = selectedVal;
@@ -1050,8 +1106,8 @@ document.getElementById("btnAddEmp").addEventListener("click", function() {
   var suffix = normalizeName(document.getElementById("empSuffix").value);
   var email = document.getElementById("empEmail").value.trim();
   var phone = normalizeName(document.getElementById("empPhone").value);
-  var division = document.getElementById("empDivision").value;
-  var role = document.getElementById("empRole").value;
+  var division = normalizeName(document.getElementById("empDivision").value);
+  var role = normalizeName(document.getElementById("empRole").value);
   var status = document.getElementById("empStatus").value;
 
   if (!first || !last || !email) {
@@ -1179,7 +1235,6 @@ document.getElementById("btnProcessBulk").addEventListener("click", function() {
       }
 
       var requiredFields = ["First Name", "Last Name", "Email", "Role", "Status"];
-      var optionalFields = ["Employee #", "Middle Name", "Suffix", "Phone", "Division"];
       var header = Object.keys(rows[0]);
 
       for (var i = 0; i < requiredFields.length; i++) {
@@ -1189,7 +1244,8 @@ document.getElementById("btnProcessBulk").addEventListener("click", function() {
         }
       }
 
-      var validDivisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]").map(function(d) { return d.name; });
+      var rawDivs = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
+      var validDivisions = rawDivs.map(function(d) { return normalizeName(d); }).filter(Boolean);
 
       for (var r = 0; r < rows.length; r++) {
         var row = rows[r];
@@ -1204,18 +1260,18 @@ document.getElementById("btnProcessBulk").addEventListener("click", function() {
           statusBulk.textContent = "Row " + (r + 2) + ': Invalid email address "' + rowEmail + '".';
           return;
         }
-        var rowRole = String(row["Role"]).trim();
+        var rowRole = normalizeName(row["Role"]);
         if (validRoles.indexOf(rowRole) === -1) {
           statusBulk.textContent = "Row " + (r + 2) + ': Invalid Role "' + rowRole + '". Must be one of: ' + validRoles.join(", ") + '.';
           return;
         }
-        var rowStatus = String(row["Status"]).trim();
+        var rowStatus = normalizeName(row["Status"]);
         if (validStatuses.indexOf(rowStatus) === -1) {
           statusBulk.textContent = "Row " + (r + 2) + ': Invalid Status "' + rowStatus + '". Must be either "Active" or "Inactive".';
           return;
         }
         if (row["Division"] && String(row["Division"]).trim() !== "") {
-          var rowDiv = String(row["Division"]).trim();
+          var rowDiv = normalizeName(row["Division"]);
           if (validDivisions.length > 0 && validDivisions.indexOf(rowDiv) === -1) {
             statusBulk.textContent = "Row " + (r + 2) + ': Invalid Division "' + rowDiv + '". Must match a division from the Divisions task, or leave blank.';
             return;
@@ -1238,16 +1294,16 @@ document.getElementById("btnProcessBulk").addEventListener("click", function() {
       }
 
       var bulkEmployees = rows.map(function(row) {
-        var empNum = row["Employee #"] ? normalizeName(String(row["Employee #"])) : "";
-        var first = normalizeName(String(row["First Name"]));
-        var middle = row["Middle Name"] ? normalizeName(String(row["Middle Name"])) : "";
-        var last = normalizeName(String(row["Last Name"]));
-        var suffix = row["Suffix"] ? normalizeName(String(row["Suffix"])) : "";
+        var empNum = row["Employee #"] ? normalizeName(row["Employee #"]) : "";
+        var first = normalizeName(row["First Name"]);
+        var middle = row["Middle Name"] ? normalizeName(row["Middle Name"]) : "";
+        var last = normalizeName(row["Last Name"]);
+        var suffix = row["Suffix"] ? normalizeName(row["Suffix"]) : "";
         var email = String(row["Email"]).trim();
-        var phone = row["Phone"] ? normalizeName(String(row["Phone"])) : "";
-        var division = row["Division"] ? normalizeName(String(row["Division"])) : "";
-        var role = normalizeName(String(row["Role"]));
-        var status = normalizeName(String(row["Status"]));
+        var phone = row["Phone"] ? normalizeName(row["Phone"]) : "";
+        var division = row["Division"] ? normalizeName(row["Division"]) : "";
+        var role = normalizeName(row["Role"]);
+        var status = normalizeName(row["Status"]);
 
         return {
           empNumber: empNum,
@@ -1318,6 +1374,12 @@ document.getElementById("btnSaveEmp").addEventListener("click", async function()
   empStepStatus.textContent = "";
   empStepStatus.style.color = "var(--error)";
 
+  // Core Rule 1: Offline Guard Enforcement
+  if (!navigator.onLine) {
+    empStepStatus.textContent = "Network Error: You must be connected to the internet to save employee data to Cloudflare D1.";
+    return;
+  }
+
   if (employees.length === 0 && existingEmployees.length === 0) {
     empStepStatus.textContent = "You must add at least one employee.";
     return;
@@ -1328,7 +1390,7 @@ document.getElementById("btnSaveEmp").addEventListener("click", async function()
     allEmployees = existingEmployees.concat(employees);
     localStorage.setItem("driven_employees", JSON.stringify(allEmployees));
     localStorage.setItem("driven_employee_count", String(allEmployees.length));
-    localStorage.setItem("driven_step3_complete", "true");
+    // Core Rule 2: Manual completion rule applied - removed setting step completion flag
   } catch(lsErr) {
     console.warn("localStorage save failed:", lsErr.message);
     if (window.DRIVENErrorHandler) {
@@ -1372,7 +1434,7 @@ document.getElementById("btnSaveEmp").addEventListener("click", async function()
     }, 1500);
   } catch(err) {
     empStepStatus.style.color = "var(--error)";
-    empStepStatus.textContent = "Saved locally, but server save failed: " + err.message;
+    empStepStatus.textContent = "Server save failed: " + err.message;
     btnSave.disabled = false;
     btnSave.textContent = "Save & Continue";
     if (window.DRIVENErrorHandler) {
