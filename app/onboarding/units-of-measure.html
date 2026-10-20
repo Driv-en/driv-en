@@ -682,26 +682,42 @@
         return;
       }
 
+      // LocalStorage Key Standardization for Dashboard Card Banners
       localStorage.setItem("driven_units_of_measure", JSON.stringify(selected));
+      localStorage.setItem("driven_units_count", String(selected.length));
+      localStorage.setItem("driven_uom_count", String(selected.length));
       localStorage.setItem("driven_step9_complete", "true");
 
       var btnSave = document.getElementById("btnSaveUm");
       btnSave.disabled = true;
       btnSave.textContent = "Saving...";
 
+      var payloadItems = selected.map(function(uName) {
+        return {
+          name: uName,
+          code: uName.toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 50),
+          status: "Active"
+        };
+      });
+
       try {
-        var res = await fetch("/auth/save-settings", {
+        // Correct API Direct Route for D1 Persistence
+        var res = await fetch("/api/units-of-measure", {
           method: "POST",
           headers: { 
             "Content-Type": "application/json",
             "x-org-id": activeOrgId || ""
           },
-          body: JSON.stringify({ settings: { unitsOfMeasure: selected } })
+          body: JSON.stringify({ unitsOfMeasure: payloadItems })
         });
-        if (!res.ok) throw new Error("Save failed");
+
+        if (!res.ok) {
+          var errData = await res.json();
+          throw new Error(errData.message || "Save failed");
+        }
         
         statusEl.style.color = "var(--success)";
-        statusEl.textContent = selected.length + " unit(s) of measure saved under " + activeOrgId + ". Redirecting…";
+        statusEl.textContent = selected.length + " unit(s) of measure saved to D1 under " + activeOrgId + ". Redirecting…";
         btnSave.textContent = "Saved ✓";
         umDirty = false;
 
@@ -710,7 +726,7 @@
         }, 1200);
       } catch(err) {
         statusEl.style.color = "var(--error)";
-        statusEl.textContent = "Saved locally, but server save failed: " + err.message;
+        statusEl.textContent = "Server save failed: " + err.message;
         btnSave.disabled = false;
         btnSave.textContent = "Save & Continue";
       }
