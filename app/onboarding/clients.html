@@ -468,6 +468,20 @@
       return true;
     }
 
+    function checkOfflineGuard(targetErrorElement) {
+      if (!navigator.onLine) {
+        var msg = "Internet connection required. Offline data entry is disabled for onboarding master data.";
+        if (targetErrorElement) {
+          targetErrorElement.textContent = msg;
+          if (targetErrorElement.classList.contains("cli-step-status")) {
+            targetErrorElement.style.color = "var(--error)";
+          }
+        }
+        return true;
+      }
+      return false;
+    }
+
     function sendPresenceUnload() {
       if (!activeOrgId) return;
       var payload = JSON.stringify({ page: "Clients", action: "leave" });
@@ -583,21 +597,37 @@
           var data = await resp.json();
           var rawList = data.clients || data.records || (Array.isArray(data) ? data : []);
           existingClients = rawList.map(function(item) {
+            var rawName = typeof item === "string" ? item : (item.client_name || item.name || item.clientName || "");
             return {
-              name: normalizeName(item.client_name || item.name || item.clientName || ""),
-              status: item.status || "Active"
+              name: normalizeName(rawName),
+              status: (typeof item === "object" && item.status) ? item.status : "Active"
             };
           });
           localStorage.setItem("driven_clients", JSON.stringify(existingClients));
         } else {
-          existingClients = JSON.parse(localStorage.getItem("driven_clients") || "[]");
+          parseCachedClients();
         }
       } catch (e) {
         console.warn("API load for existing clients failed, fallback to local storage:", e.message);
-        existingClients = JSON.parse(localStorage.getItem("driven_clients") || "[]");
+        parseCachedClients();
       }
       renderExistingTable();
       updateCount();
+    }
+
+    function parseCachedClients() {
+      try {
+        var cached = JSON.parse(localStorage.getItem("driven_clients") || "[]");
+        existingClients = cached.map(function(item) {
+          var rawName = typeof item === "string" ? item : (item.client_name || item.name || item.clientName || "");
+          return {
+            name: normalizeName(rawName),
+            status: (typeof item === "object" && item.status) ? item.status : "Active"
+          };
+        });
+      } catch (err) {
+        existingClients = [];
+      }
     }
 
     function renderExistingTable() {
@@ -807,6 +837,7 @@
 
     document.getElementById("btnAddCli").addEventListener("click", function() {
       if (!validateOrgContext()) return;
+      if (checkOfflineGuard(cliError)) return;
       cliError.textContent = ""; cliSuccess.textContent = "";
       var name = normalizeName(document.getElementById("cliName").value);
 
@@ -842,6 +873,7 @@
 
     document.getElementById("btnProcessBulk").addEventListener("click", function() {
       if (!validateOrgContext()) return;
+      if (checkOfflineGuard(statusBulk)) return;
       statusBulk.textContent = ""; statusBulk.className = "cli-error";
       var file = document.getElementById("bulkFile").files[0];
       if (!file) { statusBulk.textContent = "Please select an Excel or CSV file."; return; }
@@ -916,6 +948,7 @@
 
     document.getElementById("btnSaveCli").addEventListener("click", async function() {
       if (!validateOrgContext()) return;
+      if (checkOfflineGuard(cliStepStatus)) return;
       cliStepStatus.textContent = ""; cliStepStatus.style.color = "var(--error)";
       if (clients.length === 0 && existingClients.length === 0) { 
         cliStepStatus.textContent = "You must add at least one client."; 
@@ -927,7 +960,6 @@
         allClients = existingClients.concat(clients);
         localStorage.setItem("driven_clients", JSON.stringify(allClients));
         localStorage.setItem("driven_client_count", String(allClients.length));
-        localStorage.setItem("driven_step4_complete", "true");
       } catch(lsErr) {
         console.warn("localStorage save failed:", lsErr.message);
         if (window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("clients.html: localStorage save failed — " + (lsErr.message || lsErr), "save-localStorage", lsErr && lsErr.stack ? lsErr.stack : null); }
