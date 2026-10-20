@@ -430,7 +430,12 @@
     var customFuelTypes = [];
     var activeOrgId = null;
 
-    function normalizeName(str) { return String(str || "").trim().replace(/\s+/g, " "); }
+    function normalizeName(str) { 
+      if (typeof str === 'object' && str !== null) {
+        str = str.fuel_name || str.name || str.fuel_type || str.description || "";
+      }
+      return String(str || "").trim().replace(/\s+/g, " "); 
+    }
 
     function validateOrgContext() {
       if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
@@ -461,6 +466,7 @@
     }
 
     async function checkActivePresence() {
+      if (!navigator.onLine) return;
       try {
         var resp = await fetch("/api/onboarding/presence", {
           method: "POST",
@@ -619,21 +625,31 @@
 
     async function loadSavedFuelTypes() {
       var saved = [];
-      try {
-        var res = await fetch("/api/fuel-types", {
-          headers: { "x-org-id": activeOrgId || "" }
-        });
-        if (res.ok) {
-          var data = await res.json();
-          var rawList = data.fuelTypes || data.records || data.data || (Array.isArray(data) ? data : []);
-          saved = rawList.map(function(item) {
-            return typeof item === "string" ? item : (item.fuel_name || item.name || item.fuel_type || "");
-          }).filter(Boolean);
-        } else {
-          saved = JSON.parse(localStorage.getItem("driven_fuel_types") || "[]");
+
+      // Rule 3: Primary D1 data fetch via API endpoint first
+      if (navigator.onLine) {
+        try {
+          var res = await fetch("/api/fuel-types", {
+            headers: { "x-org-id": activeOrgId || "" }
+          });
+          if (res.ok) {
+            var data = await res.json();
+            var rawList = data.fuelTypes || data.records || data.data || (Array.isArray(data) ? data : []);
+            saved = rawList.map(function(item) {
+              return normalizeName(item);
+            }).filter(Boolean);
+
+            localStorage.setItem("driven_fuel_types", JSON.stringify(saved));
+          } else {
+            saved = JSON.parse(localStorage.getItem("driven_fuel_types") || "[]").map(normalizeName).filter(Boolean);
+          }
+        } catch (e) {
+          console.warn("API load for fuel types failed, falling back to local storage:", e.message);
+          saved = JSON.parse(localStorage.getItem("driven_fuel_types") || "[]").map(normalizeName).filter(Boolean);
         }
-      } catch (e) {
-        saved = JSON.parse(localStorage.getItem("driven_fuel_types") || "[]");
+      } else {
+        // Offline fallback
+        saved = JSON.parse(localStorage.getItem("driven_fuel_types") || "[]").map(normalizeName).filter(Boolean);
       }
 
       if (saved && saved.length > 0) {
@@ -654,13 +670,20 @@
 
     async function saveFuelTypes() {
       if (!validateOrgContext()) return;
+
+      var statusEl = document.getElementById("ftStepStatus");
+      statusEl.style.color = "var(--error)";
+
+      // Rule 1: Offline Guard Enforcement
+      if (!navigator.onLine) {
+        statusEl.textContent = "Network Error: You must be connected to the internet to save fuel & fluid selections to Cloudflare D1.";
+        return;
+      }
+
       var selected = [];
       document.querySelectorAll(".dash-card input[type='checkbox']:checked").forEach(function(cb) {
         selected.push(cb.value);
       });
-
-      var statusEl = document.getElementById("ftStepStatus");
-      statusEl.style.color = "var(--error)";
 
       if (selected.length === 0) {
         statusEl.textContent = "Please select at least one fuel, fluid, or energy type.";
@@ -671,7 +694,7 @@
       localStorage.setItem("driven_fuel_types", JSON.stringify(selected));
       localStorage.setItem("driven_fuel_count", String(selected.length));
       localStorage.setItem("driven_fuel_types_count", String(selected.length));
-      localStorage.setItem("driven_step8_complete", "true");
+      // Rule 2: Manual Completion Only - removed setting driven_step8_complete flag
 
       var btnSave = document.getElementById("btnSaveFt");
       btnSave.disabled = true;
