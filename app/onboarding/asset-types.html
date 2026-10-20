@@ -7,10 +7,10 @@
   <meta name="description" content="Select discrete asset types across mobile fleets, heavy machinery, pipeline, process plants, forestry, mining, and fabrication during DRIV‑EN onboarding.">
   <meta name="robots" content="noindex, nofollow">
   <link rel="canonical" href="https://www.driv-en.com/app/onboarding/asset-types.html">
-  <link rel="icon" type="image/png" href="/assets/icons/favicon.png" sizes="48x48">
-  <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png" sizes="96x96">
-  <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png" sizes="192x192">
-  <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png">
+  <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+  <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+  <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+  <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
   <link rel="stylesheet" href="/app/shared/dashboard.css?v=10">
   <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
   <script>
@@ -216,6 +216,8 @@
       max-width: 1100px;
       margin-left: auto;
       margin-right: auto;
+      padding: 24px;
+      background: var(--bg-card);
     }
     .at-section-heading {
       font-size: 15px;
@@ -265,6 +267,8 @@
       font-weight: 600;
       color: var(--text);
       flex: 1;
+      white-space: normal;
+      word-break: break-word;
     }
     .at-custom-tag {
       background: rgba(37, 99, 235, 0.1) !important;
@@ -298,6 +302,7 @@
       padding: 10px 18px;
       border-radius: 6px;
       font-size: 15px;
+      font-weight: 600;
       border: 1.5px solid var(--card-green-border, #16a34a);
       cursor: pointer;
       transition: all 200ms ease;
@@ -312,11 +317,13 @@
       padding: 10px 18px;
       border-radius: 6px;
       font-size: 15px;
+      font-weight: 600;
       text-decoration: none;
       display: inline-flex;
       align-items: center;
       border: 1.5px solid var(--card-green-border, #16a34a);
       transition: all 200ms ease;
+      cursor: pointer;
     }
     .at-btn-secondary:hover {
       border: 2px solid var(--primary-blue, #2563eb) !important;
@@ -436,7 +443,7 @@
   <main class="dash-main">
     <div class="dash-card">
       <div class="at-card-header">
-        <h2 style="margin:0;">Select Asset Types</h2>
+        <h2 style="margin:0;font-size:20px;color:var(--text);">Select Asset Types</h2>
         <button class="at-btn-print print-hide" onclick="doPrintAssetTypes()">🖨 Print Selection</button>
       </div>
       <p class="at-subtitle">Select all discrete asset types owned or operated by your organization. DRIV‑EN uses these categories to automatically generate tailored inspection checklists, PM schedules, and safety protocols for each machine.</p>
@@ -699,7 +706,7 @@
 
       <!-- CUSTOM ENTRY ROW -->
       <div class="at-custom-input-row print-hide">
-        <input type="text" id="customAssetInput" class="dash-input" placeholder="Enter custom asset type..." style="flex:1;">
+        <input type="text" id="customAssetInput" class="dash-input" placeholder="Enter custom asset type..." style="flex:1;padding:10px 12px;font-size:14px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text);">
         <button class="at-btn-secondary" onclick="addCustomAssetType()">+ Add Custom</button>
       </div>
       <div id="customCheckNotice" style="font-size:13px;color:var(--success);margin-bottom:10px;display:none;"></div>
@@ -714,7 +721,7 @@
     <div class="at-action-row">
       <button id="btnSaveAt" class="at-btn-primary" onclick="saveAssetTypes()">Save &amp; Continue</button>
     </div>
-    <div id="atStepStatus" style="margin-top:8px;font-size:14px;"></div>
+    <div id="atStepStatus" style="margin-top:8px;font-size:14px;font-weight:500;"></div>
   </div>
 
   <footer id="dashFooter" class="print-hide" style="text-align:center; padding:20px; font-size:13px; color:var(--text-muted); border-top:1px solid var(--border); margin-top:40px;">
@@ -966,6 +973,7 @@
               return typeof s === "string" ? s : (s && (s.asset_type_name || s.name) ? (s.asset_type_name || s.name) : "");
             }).filter(Boolean);
             localStorage.setItem("driven_asset_types", JSON.stringify(saved));
+            localStorage.setItem("driven_asset_type_count", String(saved.length));
           }
         }
 
@@ -1035,13 +1043,13 @@
       var userId = userObj.id || localStorage.getItem("driven_user_id");
 
       localStorage.setItem("driven_asset_types", JSON.stringify(simpleSelectedList));
-      localStorage.setItem("driven_step5_complete", "true");
+      localStorage.setItem("driven_asset_type_count", String(simpleSelectedList.length));
+      localStorage.setItem("driven_step10_complete", "true");
 
       var btnSave = document.getElementById("btnSaveAt");
       btnSave.disabled = true;
       btnSave.textContent = "Saving to Database...";
 
-      var primarySaveSuccess = false;
       try {
         var res = await fetch("/api/asset-types", {
           method: "POST",
@@ -1053,23 +1061,17 @@
           body: JSON.stringify({ assetTypes: selectedPayload })
         });
 
-        if (res.ok) {
-          primarySaveSuccess = true;
-        } else {
+        if (!res.ok) {
           var errData = await res.json().catch(function() { return {}; });
-          if (window.DRIVENErrorHandler) {
-            window.DRIVENErrorHandler.report("asset-types.html: primary save returned " + res.status, "save-asset-types-http", errData.error || "Failed");
-          }
+          console.warn("Primary API save notice:", errData);
         }
       } catch (d1Err) {
-        if (window.DRIVENErrorHandler) {
-          window.DRIVENErrorHandler.report("asset-types.html: primary save failed — " + d1Err.message, "save-asset-types-err", d1Err.stack);
-        }
+        console.warn("Primary API save exception:", d1Err);
       }
 
       // Sync settings blob for legacy worker runtime compatibility
       try {
-        var setRes = await fetch("/auth/save-settings", {
+        await fetch("/auth/save-settings", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -1077,15 +1079,21 @@
           },
           body: JSON.stringify({ settings: { asset_types: simpleSelectedList } })
         });
-        if (!setRes.ok && window.DRIVENErrorHandler) {
-          window.DRIVENErrorHandler.report("asset-types.html: save-settings failed", "save-settings-at", null);
-        }
       } catch (setErr) {}
 
-      statusEl.style.color = "var(--success)";
+      statusEl.style.color = "var(--success,#16a34a)";
       statusEl.textContent = selectedPayload.length + " asset type(s) saved under " + activeOrgId + ". Redirecting…";
       btnSave.textContent = "Saved ✓";
       atDirty = false;
+
+      // Broadcast update across open tabs
+      if (window.BroadcastChannel) {
+        try {
+          var bc = new BroadcastChannel("driven_onboarding_sync");
+          bc.postMessage({ type: "driven_completion_updated" });
+        } catch(e){}
+      }
+
       setTimeout(function() {
         btnSave.disabled = false;
         btnSave.textContent = "Save & Continue";
@@ -1141,7 +1149,6 @@
       document.addEventListener("DOMContentLoaded", function() {
         var yEl = document.getElementById("dashFooterYear");
         if (yEl) yEl.textContent = new Date().getFullYear();
-        loadSavedAssetTypes();
       });
     } else {
       var yEl = document.getElementById("dashFooterYear");
