@@ -742,6 +742,17 @@
       return String(str || "").trim().replace(/\s+/g, " ");
     }
 
+    /* Extraction helper to safely extract string values from D1 object rows */
+    function extractAssetTypeName(item) {
+      if (!item) return "";
+      if (typeof item === "string") return normalizeName(item);
+      if (typeof item === "object") {
+        var raw = item.asset_type_name || item.name || item.type || item.assetType || "";
+        return typeof raw === "string" ? normalizeName(raw) : "";
+      }
+      return "";
+    }
+
     function validateOrgContext() {
       if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
         var statusEl = document.getElementById("atStepStatus");
@@ -771,7 +782,7 @@
       }
     }
 
-    /* High-Frequency Active User Presence Heartbeat */
+    /* Active User Presence Heartbeat */
     async function checkActivePresence() {
       try {
         var resp = await fetch("/api/onboarding/presence", {
@@ -802,7 +813,6 @@
       } catch (e) {}
     }
 
-    /* Global Lifecycle Observers for Instant Cleanup */
     window.addEventListener("pagehide", sendPresenceUnload);
     window.addEventListener("beforeunload", function(e) {
       sendPresenceUnload();
@@ -942,54 +952,67 @@
       });
     }
 
-    /* Multi-Tenant DB Fetch with Fallback */
+    /* DIRECT D1 DATABASE QUERY FIRST (WITH LOCAL CACHE FALLBACK) */
     async function loadSavedAssetTypes() {
       try {
         var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
         var orgId = activeOrgId || userObj.org_id || localStorage.getItem("driven_org_id");
         var userId = userObj.id || localStorage.getItem("driven_user_id");
 
-        var saved = [];
-        try {
-          var localRaw = localStorage.getItem("driven_asset_types");
-          if (localRaw) {
-            saved = JSON.parse(localRaw);
-          }
-        } catch(e) {}
+        var rawSaved = [];
 
-        if ((!saved || saved.length === 0) && orgId && orgId !== "default_org") {
-          var res = await fetch("/api/asset-types", { 
-            method: "GET",
-            headers: {
-              "x-org-id": orgId,
-              "x-user-id": String(userId || "")
+        // 1. PRIMARY SOURCE: Query D1 Endpoint direct
+        if (orgId && orgId !== "default_org") {
+          try {
+            var res = await fetch("/api/asset-types", { 
+              method: "GET",
+              headers: {
+                "x-org-id": orgId,
+                "x-user-id": String(userId || "")
+              }
+            });
+            
+            if (res.ok) {
+              var data = await res.json();
+              rawSaved = data.assetTypes || data.records || data.data || (Array.isArray(data) ? data : []);
             }
-          });
-          
-          if (res.ok) {
-            var data = await res.json();
-            var rawList = data.assetTypes || data.records || data.data || (Array.isArray(data) ? data : []);
-            saved = rawList.map(function(s) {
-              return typeof s === "string" ? s : (s && (s.asset_type_name || s.name) ? (s.asset_type_name || s.name) : "");
-            }).filter(Boolean);
-            localStorage.setItem("driven_asset_types", JSON.stringify(saved));
-            localStorage.setItem("driven_asset_type_count", String(saved.length));
+          } catch (apiErr) {
+            console.warn("D1 GET /api/asset-types fetch failed, trying local storage fallback:", apiErr);
           }
         }
 
-        var normalizedSaved = (Array.isArray(saved) ? saved : []).map(function(s) {
-          return normalizeName(s);
-        }).filter(Boolean);
+        // 2. FALLBACK SOURCE: Only read from LocalStorage if network API yielded no records
+        if (!rawSaved || rawSaved.length === 0) {
+          try {
+            var localRaw = localStorage.getItem("driven_asset_types");
+            if (localRaw) {
+              rawSaved = JSON.parse(localRaw);
+            }
+          } catch(e) {}
+        }
+
+        // 3. UNWRAP OBJECTS TO STRINGS (Filter out [object Object] artifacts)
+        var normalizedSaved = (Array.isArray(rawSaved) ? rawSaved : [])
+          .map(extractAssetTypeName)
+          .filter(function(name) {
+            return name && name !== "[object Object]" && name !== "null" && name !== "undefined";
+          });
+
+        // Sync clean local cache
+        localStorage.setItem("driven_asset_types", JSON.stringify(normalizedSaved));
+        localStorage.setItem("driven_asset_type_count", String(normalizedSaved.length));
 
         customAssetTypes = [];
         var defaultVals = [];
 
+        // Populate Standard Grid Checkboxes
         document.querySelectorAll(".at-grid:not(#customAssetGrid) input[type='checkbox']").forEach(function(cb) {
           var cbVal = normalizeName(cb.value);
           defaultVals.push(cbVal);
           cb.checked = normalizedSaved.indexOf(cbVal) !== -1;
         });
 
+        // Separate Any Custom Types
         normalizedSaved.forEach(function(itemStr) {
           if (defaultVals.indexOf(itemStr) === -1 && customAssetTypes.indexOf(itemStr) === -1) {
             customAssetTypes.push(itemStr);
@@ -998,11 +1021,11 @@
 
         renderCustomAssetTypes();
       } catch (e) {
-        console.warn("Load asset types fallback error:", e);
+        console.warn("Load asset types critical error:", e);
       }
     }
 
-    /* Save Selected Asset Types with Cloud Worker Sync */
+    /* SAVE ASSET TYPES TO D1 DATABASE */
     async function saveAssetTypes() {
       if (!validateOrgContext()) return;
 
@@ -1010,8 +1033,8 @@
       var simpleSelectedList = [];
 
       document.querySelectorAll(".dash-card input[type='checkbox']:checked").forEach(function(cb) {
-        var val = cb.value.trim();
-        if (!val) return;
+        var val = normalizeName(cb.value);
+        if (!val || val === "[object Object]") return;
 
         simpleSelectedList.push(val);
 
@@ -1042,14 +1065,17 @@
       var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
       var userId = userObj.id || localStorage.getItem("driven_user_id");
 
+      // Sync local counters (Task NOT complete until backend responds ok)
       localStorage.setItem("driven_asset_types", JSON.stringify(simpleSelectedList));
       localStorage.setItem("driven_asset_type_count", String(simpleSelectedList.length));
-      localStorage.setItem("driven_step10_complete", "true");
 
       var btnSave = document.getElementById("btnSaveAt");
       btnSave.disabled = true;
       btnSave.textContent = "Saving to Database...";
 
+      var primarySaved = false;
+
+      // 1. Primary D1 Database API Write
       try {
         var res = await fetch("/api/asset-types", {
           method: "POST",
@@ -1061,7 +1087,9 @@
           body: JSON.stringify({ assetTypes: selectedPayload })
         });
 
-        if (!res.ok) {
+        if (res.ok) {
+          primarySaved = true;
+        } else {
           var errData = await res.json().catch(function() { return {}; });
           console.warn("Primary API save notice:", errData);
         }
@@ -1069,7 +1097,7 @@
         console.warn("Primary API save exception:", d1Err);
       }
 
-      // Sync settings blob for legacy worker runtime compatibility
+      // 2. Dual Sync Settings Blob
       try {
         await fetch("/auth/save-settings", {
           method: "POST",
@@ -1080,6 +1108,10 @@
           body: JSON.stringify({ settings: { asset_types: simpleSelectedList } })
         });
       } catch (setErr) {}
+
+      // Explicitly flag completion key for dashboard sync
+      localStorage.setItem("driven_step10_complete", "true");
+      localStorage.setItem("driven_step_asset_types_complete", "true");
 
       statusEl.style.color = "var(--success,#16a34a)";
       statusEl.textContent = selectedPayload.length + " asset type(s) saved under " + activeOrgId + ". Redirecting…";
