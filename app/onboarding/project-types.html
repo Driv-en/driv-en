@@ -466,7 +466,12 @@
     var statusBulk = document.getElementById("statusBulk");
     var bulkPreview = document.getElementById("bulkPreview");
 
-    function normalizeName(str) { return String(str || "").trim().replace(/\s+/g, " "); }
+    function normalizeName(str) { 
+      if (typeof str === 'object' && str !== null) {
+        str = str.name || str.project_type_name || str.projectTypeName || "";
+      }
+      return String(str || "").trim().replace(/\s+/g, " "); 
+    }
     
     function validateOrgContext() {
       if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
@@ -493,6 +498,7 @@
     }
 
     async function checkActivePresence() {
+      if (!navigator.onLine) return;
       try {
         var resp = await fetch("/api/onboarding/presence", {
           method: "POST",
@@ -583,30 +589,38 @@
 
     async function loadExistingProjectTypes() {
       existingPtTableContainer.textContent = "";
-      try {
-        var resp = await fetch("/api/project-types", {
-          headers: { "x-org-id": activeOrgId || "" }
-        });
-        if (resp.ok) {
-          var data = await resp.json();
-          var rawList = data.projectTypes || data.records || (Array.isArray(data) ? data : []);
-          if (Array.isArray(rawList) && rawList.length > 0) {
+
+      // Rule 3: Primary D1 data fetch via API endpoint first
+      if (navigator.onLine) {
+        try {
+          var resp = await fetch("/api/project-types", {
+            headers: { "x-org-id": activeOrgId || "" }
+          });
+          if (resp.ok) {
+            var data = await resp.json();
+            var rawList = data.projectTypes || data.records || data.data || (Array.isArray(data) ? data : []);
             existingProjectTypes = rawList.map(function(item) {
               return {
-                name: normalizeName(item.name || item.project_type_name || item.projectTypeName || "")
+                name: normalizeName(item.name || item.project_type_name || item.projectTypeName)
               };
             });
             localStorage.setItem("driven_project_types", JSON.stringify(existingProjectTypes));
-          } else {
-            existingProjectTypes = JSON.parse(localStorage.getItem("driven_project_types") || "[]");
+            renderExistingTable();
+            updateCount();
+            return;
           }
-        } else {
-          existingProjectTypes = JSON.parse(localStorage.getItem("driven_project_types") || "[]");
+        } catch (e) {
+          console.warn("API load for existing project types failed, fallback to local storage:", e.message);
         }
-      } catch (e) {
-        console.warn("API load for existing project types failed, fallback to local storage:", e.message);
-        existingProjectTypes = JSON.parse(localStorage.getItem("driven_project_types") || "[]");
       }
+
+      // Offline fallback
+      var cached = JSON.parse(localStorage.getItem("driven_project_types") || "[]");
+      existingProjectTypes = cached.map(function(item) {
+        return {
+          name: normalizeName(item.name || item.project_type_name || item.projectTypeName || item)
+        };
+      });
       renderExistingTable();
       updateCount();
     }
@@ -908,18 +922,23 @@
     document.getElementById("btnSavePt").addEventListener("click", async function() {
       if (!validateOrgContext()) return;
       ptStepStatus.textContent = ""; ptStepStatus.style.color = "var(--error)";
+
+      // Rule 1: Offline Guard
+      if (!navigator.onLine) {
+        ptStepStatus.textContent = "Network Error: You must be connected to the internet to save project type data to Cloudflare D1.";
+        return;
+      }
+
       if (projectTypes.length === 0 && existingProjectTypes.length === 0) { ptStepStatus.textContent = "You must add at least one project type."; return; }
       
-      var allProjectTypes;
+      var allProjectTypes = existingProjectTypes.concat(projectTypes);
       try {
-        allProjectTypes = existingProjectTypes.concat(projectTypes);
         localStorage.setItem("driven_project_types", JSON.stringify(allProjectTypes));
         localStorage.setItem("driven_project_type_count", String(allProjectTypes.length));
-        localStorage.setItem("driven_step7_complete", "true");
+        // Rule 2: Manual completion rule applied - removed step completion flag setting
       } catch(lsErr) {
         console.warn("localStorage save failed:", lsErr.message);
         if (window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("project-types.html: localStorage save failed — " + (lsErr.message || lsErr), "save-localStorage", lsErr && lsErr.stack ? lsErr.stack : null); }
-        allProjectTypes = projectTypes.slice();
       }
 
       var btnSave = document.getElementById("btnSavePt");
@@ -950,6 +969,13 @@
         }
       }
 
+      if (saveErrors.length > 0) {
+        ptStepStatus.style.color = "var(--error)";
+        ptStepStatus.textContent = "Save failed: " + saveErrors.join("; ");
+        btnSave.disabled = false; btnSave.textContent = "Save & Continue";
+        return;
+      }
+
       // 2. Save settings blob for legacy worker runtime compatibility
       try {
         var res = await fetch("/auth/save-settings", { 
@@ -960,10 +986,10 @@
           }, 
           body: JSON.stringify({ settings: { projectTypes: allProjectTypes } }) 
         });
-        var data = await res.json();
+        var data = await res.json().catch(function() { return {}; });
         if (!res.ok) {
           if (res.status < 500 && window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("project-types.html: save-settings returned " + res.status + " — " + (data.error || "Request failed"), "save-settings-" + res.status, "URL: /auth/save-settings | Project Types: " + allProjectTypes.length); }
-          throw new Error(data.error || "Save failed");
+          throw new Error(data.error || "Save settings failed");
         }
         ptStepStatus.style.color = "var(--success)";
         ptStepStatus.textContent = projectTypes.length + " project type(s) saved to D1. Total project types: " + allProjectTypes.length + ". Redirecting to onboarding dashboard…";
@@ -974,7 +1000,7 @@
         setTimeout(function() { btnSave.disabled = false; btnSave.textContent = "Save & Continue"; window.location.href = "/app/dashboard/onboarding-dashboard.html"; }, 1500);
       } catch(err) {
         ptStepStatus.style.color = "var(--error)";
-        ptStepStatus.textContent = "Saved locally, but server save failed: " + (saveErrors.length ? saveErrors.join("; ") : err.message);
+        ptStepStatus.textContent = "Server save failed: " + err.message;
         btnSave.disabled = false; btnSave.textContent = "Save & Continue";
         if (window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("project-types.html: save failed — " + (err.message || err), "save-settings-catch", err && err.stack ? err.stack : null); }
       }
