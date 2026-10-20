@@ -1,9 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"><!DOCTYPE html>
-<html lang="en">
-<head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DRIV‑EN | Onboarding — Asset Types</title>
@@ -1032,6 +1029,15 @@
     async function saveAssetTypes() {
       if (!validateOrgContext()) return;
 
+      var statusEl = document.getElementById("atStepStatus");
+      statusEl.style.color = "var(--error)";
+
+      // ENFORCE OFFLINE GUARD FOR MASTER DATA ONBOARDING
+      if (!navigator.onLine) {
+        statusEl.textContent = "Offline Mode Active: Internet connection is required to modify organization asset types. Please reconnect to save.";
+        return;
+      }
+
       var selectedPayload = [];
       var simpleSelectedList = [];
 
@@ -1057,9 +1063,6 @@
         });
       });
 
-      var statusEl = document.getElementById("atStepStatus");
-      statusEl.style.color = "var(--error)";
-
       if (selectedPayload.length === 0) {
         statusEl.textContent = "Please select at least one asset type.";
         return;
@@ -1067,10 +1070,6 @@
 
       var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
       var userId = userObj.id || localStorage.getItem("driven_user_id");
-
-      // Sync local counters (Task NOT complete until backend responds ok)
-      localStorage.setItem("driven_asset_types", JSON.stringify(simpleSelectedList));
-      localStorage.setItem("driven_asset_type_count", String(simpleSelectedList.length));
 
       var btnSave = document.getElementById("btnSaveAt");
       btnSave.disabled = true;
@@ -1092,6 +1091,9 @@
 
         if (res.ok) {
           primarySaved = true;
+          // Local cache update only — task completion requires explicit 'Mark Complete' action on dashboard
+          localStorage.setItem("driven_asset_types", JSON.stringify(simpleSelectedList));
+          localStorage.setItem("driven_asset_type_count", String(simpleSelectedList.length));
         } else {
           var errData = await res.json().catch(function() { return {}; });
           console.warn("Primary API save notice:", errData);
@@ -1112,28 +1114,31 @@
         });
       } catch (setErr) {}
 
-      // Explicitly flag completion key for dashboard sync
-      localStorage.setItem("driven_step10_complete", "true");
-      localStorage.setItem("driven_step_asset_types_complete", "true");
+      if (primarySaved) {
+        statusEl.style.color = "var(--success,#16a34a)";
+        statusEl.textContent = selectedPayload.length + " asset type(s) saved under " + activeOrgId + ". Redirecting…";
+        btnSave.textContent = "Saved ✓";
+        atDirty = false;
 
-      statusEl.style.color = "var(--success,#16a34a)";
-      statusEl.textContent = selectedPayload.length + " asset type(s) saved under " + activeOrgId + ". Redirecting…";
-      btnSave.textContent = "Saved ✓";
-      atDirty = false;
+        // Broadcast update across open tabs
+        if (window.BroadcastChannel) {
+          try {
+            var bc = new BroadcastChannel("driven_onboarding_sync");
+            bc.postMessage({ type: "driven_data_updated" });
+          } catch(e){}
+        }
 
-      // Broadcast update across open tabs
-      if (window.BroadcastChannel) {
-        try {
-          var bc = new BroadcastChannel("driven_onboarding_sync");
-          bc.postMessage({ type: "driven_completion_updated" });
-        } catch(e){}
-      }
-
-      setTimeout(function() {
+        setTimeout(function() {
+          btnSave.disabled = false;
+          btnSave.textContent = "Save & Continue";
+          window.location.href = "/app/dashboard/onboarding-dashboard.html";
+        }, 1200);
+      } else {
+        statusEl.style.color = "var(--error)";
+        statusEl.textContent = "Server save failed. Please check your connection and try again.";
         btnSave.disabled = false;
         btnSave.textContent = "Save & Continue";
-        window.location.href = "/app/dashboard/onboarding-dashboard.html";
-      }, 1200);
+      }
     }
 
     document.querySelectorAll(".dash-card input[type='checkbox']").forEach(function(cb) {
