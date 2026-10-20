@@ -2,8 +2,8 @@ const express = require('express');
 const session = require('express-session');
 const path = require('path');
 
-const db = require('./public/db');
-const api = require('./public/api');
+const db = require('./archive/public/db');
+const api = require('./archive/public/api');
 
 const app = express();
 
