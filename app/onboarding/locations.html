@@ -438,7 +438,12 @@ var existingLocCountEl = document.getElementById("existingLocCount");
 var statusBulk = document.getElementById("statusBulk");
 var bulkPreview = document.getElementById("bulkPreview");
 
-function normalizeName(str) { return String(str || "").trim().replace(/\s+/g, " "); }
+function normalizeName(str) { 
+  if (typeof str === 'object' && str !== null) {
+    str = str.name || str.location_name || str.division_name || str.division || "";
+  }
+  return String(str || "").trim().replace(/\s+/g, " "); 
+}
 
 function validateOrgContext() {
   if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
@@ -465,6 +470,7 @@ function sendPresenceUnload() {
 }
 
 async function checkActivePresence() {
+  if (!navigator.onLine) return;
   try {
     var resp = await fetch("/api/onboarding/presence", {
       method: "POST",
@@ -563,16 +569,18 @@ async function submitQuickDivision() {
   errEl.textContent = "";
   if (!name) { errEl.textContent = "Please enter a division name."; return; }
   try {
-    var resp = await fetch("/api/divisions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-org-id": activeOrgId || ""
-      },
-      body: JSON.stringify({ name: name, customer_id: localStorage.getItem("driven_customer_id") || "" })
-    });
+    if (navigator.onLine) {
+      await fetch("/api/divisions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-org-id": activeOrgId || ""
+        },
+        body: JSON.stringify({ name: name, customer_id: localStorage.getItem("driven_customer_id") || "" })
+      });
+    }
     var divisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
-    if (!divisions.some(function(d) { return d.name.toLowerCase() === name.toLowerCase(); })) {
+    if (!divisions.some(function(d) { return normalizeName(d).toLowerCase() === name.toLowerCase(); })) {
       divisions.push({ name: name });
       localStorage.setItem("driven_divisions", JSON.stringify(divisions));
     }
@@ -613,38 +621,54 @@ function doPrintLocations(defaultSelection) {
 
 async function loadExistingLocations() {
   existingLocTableContainer.textContent = "";
-  try {
-    var resp = await fetch("/api/locations", {
-      headers: { "x-org-id": activeOrgId || "" }
-    });
-    if (resp.ok) {
-      var data = await resp.json();
-      var rawList = data.locations || data.records || (Array.isArray(data) ? data : []);
-      if (Array.isArray(rawList) && rawList.length > 0) {
+
+  // Rule 3: Direct D1 backend fetching
+  if (navigator.onLine) {
+    try {
+      var resp = await fetch("/api/locations", {
+        headers: { "x-org-id": activeOrgId || "" }
+      });
+      if (resp.ok) {
+        var data = await resp.json();
+        var rawList = data.locations || data.records || data.data || (Array.isArray(data) ? data : []);
         existingLocations = rawList.map(function(item) {
           return {
-            number: String(item.code || item.number || item.locNumber || item.location_number || "").trim(),
-            name: String(item.name || item.locName || item.location_name || "").trim(),
-            type: String(item.type || item.locType || "").trim(),
-            address: String(item.address || "").trim(),
-            city: String(item.city || "").trim(),
-            state: String(item.state || "").trim(),
-            zip: String(item.zip_code || item.zip || item.postal_code || "").trim(),
-            division: String(item.division || item.division_name || "").trim(),
-            status: String(item.status || "Active").trim()
+            number: normalizeName(item.code || item.number || item.locNumber || item.location_number),
+            name: normalizeName(item.name || item.locName || item.location_name),
+            type: normalizeName(item.type || item.locType),
+            address: normalizeName(item.address),
+            city: normalizeName(item.city),
+            state: normalizeName(item.state),
+            zip: normalizeName(item.zip_code || item.zip || item.postal_code),
+            division: normalizeName(item.division || item.division_name),
+            status: normalizeName(item.status || "Active")
           };
         });
         localStorage.setItem("driven_locations", JSON.stringify(existingLocations));
-      } else {
-        existingLocations = JSON.parse(localStorage.getItem("driven_locations") || "[]");
+        renderExistingTable();
+        updateCount();
+        return;
       }
-    } else {
-      existingLocations = JSON.parse(localStorage.getItem("driven_locations") || "[]");
+    } catch (e) {
+      console.warn("API load for existing locations failed, fallback to local storage:", e.message);
     }
-  } catch (e) {
-    console.warn("API load for existing locations failed, fallback to local storage:", e.message);
-    existingLocations = JSON.parse(localStorage.getItem("driven_locations") || "[]");
   }
+
+  // Offline fallback
+  var cached = JSON.parse(localStorage.getItem("driven_locations") || "[]");
+  existingLocations = cached.map(function(item) {
+    return {
+      number: normalizeName(item.number || item.code || item.locNumber || item.location_number),
+      name: normalizeName(item.name || item.locName || item.location_name),
+      type: normalizeName(item.type || item.locType),
+      address: normalizeName(item.address),
+      city: normalizeName(item.city),
+      state: normalizeName(item.state),
+      zip: normalizeName(item.zip || item.zip_code || item.postal_code),
+      division: normalizeName(item.division || item.division_name),
+      status: normalizeName(item.status || "Active")
+    };
+  });
   renderExistingTable();
   updateCount();
 }
@@ -778,9 +802,12 @@ function loadDivisionDropdown(selectedVal) {
   sel.innerHTML = '<option value="">— None —</option><option value="__ADD_NEW__">➕ Add New Division...</option>';
   divisions.forEach(function(div) {
     var opt = document.createElement("option");
-    opt.value = div.name;
-    opt.textContent = div.name;
-    sel.appendChild(opt);
+    var val = normalizeName(div);
+    if (val) {
+      opt.value = val;
+      opt.textContent = val;
+      sel.appendChild(opt);
+    }
   });
   if (selectedVal) {
     sel.value = selectedVal;
@@ -958,7 +985,7 @@ document.getElementById("btnAddLoc").addEventListener("click", function() {
   var city = normalizeName(document.getElementById("locCity").value);
   var state = normalizeName(document.getElementById("locState").value);
   var zip = normalizeName(document.getElementById("locZip").value);
-  var division = document.getElementById("locDivision").value;
+  var division = normalizeName(document.getElementById("locDivision").value);
   var status = document.getElementById("locStatus").value;
 
   if (!name || !type || !status) {
@@ -1072,7 +1099,7 @@ document.getElementById("btnProcessBulk").addEventListener("click", function() {
         }
       }
 
-      var validDivisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]").map(function(d) { return d.name; });
+      var validDivisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]").map(function(d) { return normalizeName(d); });
 
       for (var r = 0; r < rows.length; r++) {
         var row = rows[r];
@@ -1093,7 +1120,7 @@ document.getElementById("btnProcessBulk").addEventListener("click", function() {
           return;
         }
         if (row["Division"] && String(row["Division"]).trim() !== "") {
-          var rowDiv = String(row["Division"]).trim();
+          var rowDiv = normalizeName(row["Division"]);
           if (validDivisions.length > 0 && validDivisions.indexOf(rowDiv) === -1) {
             statusBulk.textContent = "Row " + (r + 2) + ': Invalid Division "' + rowDiv + '". Must match a division from the Divisions task, or leave blank.';
             return;
@@ -1103,7 +1130,7 @@ document.getElementById("btnProcessBulk").addEventListener("click", function() {
 
       var seenNames = {};
       for (var d = 0; d < rows.length; d++) {
-        var nm = String(rows[d]["Location Name"]).trim().toLowerCase();
+        var nm = normalizeName(rows[d]["Location Name"]).toLowerCase();
         if (seenNames[nm]) {
           statusBulk.textContent = "Duplicate location name found in the upload file: " + nm + " (rows " + seenNames[nm] + " and " + (d + 2) + ").";
           return;
@@ -1116,20 +1143,20 @@ document.getElementById("btnProcessBulk").addEventListener("click", function() {
       }
 
       var bulkLocations = rows.map(function(row) {
-        var num = row["Location #"] ? normalizeName(String(row["Location #"])) : "";
-        var zp = row["Zip"] ? normalizeName(String(row["Zip"])) : "";
+        var num = row["Location #"] ? normalizeName(row["Location #"]) : "";
+        var zp = row["Zip"] ? normalizeName(row["Zip"]) : "";
         return {
           number: num,
           code: num,
-          name: normalizeName(String(row["Location Name"])),
-          type: normalizeName(String(row["Type"])),
-          address: row["Address"] ? normalizeName(String(row["Address"])) : "",
-          city: row["City"] ? normalizeName(String(row["City"])) : "",
-          state: row["State"] ? normalizeName(String(row["State"])) : "",
+          name: normalizeName(row["Location Name"]),
+          type: normalizeName(row["Type"]),
+          address: row["Address"] ? normalizeName(row["Address"]) : "",
+          city: row["City"] ? normalizeName(row["City"]) : "",
+          state: row["State"] ? normalizeName(row["State"]) : "",
           zip: zp,
           zip_code: zp,
-          division: row["Division"] ? normalizeName(String(row["Division"])) : "",
-          status: normalizeName(String(row["Status"])),
+          division: row["Division"] ? normalizeName(row["Division"]) : "",
+          status: normalizeName(row["Status"]),
           customerId: localStorage.getItem("driven_customer_id") || ""
         };
       });
@@ -1187,30 +1214,33 @@ document.getElementById("btnSaveLoc").addEventListener("click", async function()
   locStepStatus.textContent = "";
   locStepStatus.style.color = "var(--error)";
 
+  // Rule 1: Offline Guard
+  if (!navigator.onLine) {
+    locStepStatus.textContent = "Network Error: You must be connected to the internet to save location data to Cloudflare D1.";
+    return;
+  }
+
   if (locations.length === 0 && existingLocations.length === 0) {
     locStepStatus.textContent = "You must add at least one location.";
     return;
   }
 
-  var allLocations;
+  var allLocations = existingLocations.concat(locations);
   try {
-    allLocations = existingLocations.concat(locations);
     localStorage.setItem("driven_locations", JSON.stringify(allLocations));
     localStorage.setItem("driven_location_count", String(allLocations.length));
-    localStorage.setItem("driven_step4_complete", "true");
+    // Rule 2: Manual completion rule applied - removed step completion flag setting
   } catch(lsErr) {
     console.warn("localStorage save failed:", lsErr.message);
     if (window.DRIVENErrorHandler) {
       window.DRIVENErrorHandler.report("locations.html: localStorage save failed — " + (lsErr.message || lsErr), "save-localStorage", lsErr && lsErr.stack ? lsErr.stack : null);
     }
-    allLocations = locations.slice();
   }
 
   var btnSave = document.getElementById("btnSaveLoc");
   btnSave.disabled = true;
   btnSave.textContent = "Saving to Database...";
 
-  // 1. Post new session locations directly to D1 database
   var saveErrors = [];
   for (var i = 0; i < locations.length; i++) {
     var locItem = locations[i];
@@ -1242,7 +1272,14 @@ document.getElementById("btnSaveLoc").addEventListener("click", async function()
     }
   }
 
-  // 2. Persist org settings blob for legacy support
+  if (saveErrors.length > 0) {
+    locStepStatus.style.color = "var(--error)";
+    locStepStatus.textContent = "Save failed: " + saveErrors.join("; ");
+    btnSave.disabled = false;
+    btnSave.textContent = "Save & Continue";
+    return;
+  }
+
   try {
     var res = await fetch("/auth/save-settings", {
       method: "POST",
@@ -1252,7 +1289,7 @@ document.getElementById("btnSaveLoc").addEventListener("click", async function()
       },
       body: JSON.stringify({ settings: { locations: allLocations } })
     });
-    var data = await res.json();
+    var data = await res.json().catch(function() { return {}; });
     if (!res.ok) {
       if (res.status < 500 && window.DRIVENErrorHandler) {
         window.DRIVENErrorHandler.report("locations.html: save-settings returned " + res.status + " — " + (data.error || "Request failed"), "save-settings-" + res.status, "URL: /auth/save-settings | Locations: " + allLocations.length);
@@ -1275,7 +1312,7 @@ document.getElementById("btnSaveLoc").addEventListener("click", async function()
     }, 1500);
   } catch(err) {
     locStepStatus.style.color = "var(--error)";
-    locStepStatus.textContent = "Saved locally, but server save failed: " + (saveErrors.length ? saveErrors.join("; ") : err.message);
+    locStepStatus.textContent = "Server save failed: " + err.message;
     btnSave.disabled = false;
     btnSave.textContent = "Save & Continue";
     if (window.DRIVENErrorHandler) {
