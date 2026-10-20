@@ -50,7 +50,7 @@
     .at-header-title {
       flex: 1;
       text-align: center;
-      font-size: 18px;
+      font-size: clamp(13px, 2.8vw, 18px);
       font-weight: 600;
       color: var(--text);
       padding: 0 8px;
@@ -173,13 +173,13 @@
         gap: 4px !important;
       }
       .at-header-title {
-        font-size: 13px !important;
+        font-size: clamp(12px, 3.8vw, 16px) !important;
         white-space: normal !important;
         overflow: visible !important;
         text-overflow: clip !important;
         line-height: 1.25 !important;
         word-break: break-word !important;
-        max-width: 170px !important;
+        max-width: 100% !important;
       }
       .ob-greeting-bar {
         padding: 8px 12px !important;
@@ -194,6 +194,9 @@
         text-align: center !important;
         white-space: normal !important;
         word-break: break-word !important;
+      }
+      .at-grid {
+        grid-template-columns: 1fr !important;
       }
       .at-custom-input-row { flex-direction: column; align-items: stretch; }
       .at-action-row { flex-direction: column; gap: 8px; }
@@ -939,29 +942,34 @@
         var orgId = activeOrgId || userObj.org_id || localStorage.getItem("driven_org_id");
         var userId = userObj.id || localStorage.getItem("driven_user_id");
 
-        if (!orgId || orgId === "default_org") return;
-
         var saved = [];
-        var res = await fetch("/api/asset-types", { 
-          method: "GET",
-          headers: {
-            "x-org-id": orgId,
-            "x-user-id": String(userId || "")
+        try {
+          var localRaw = localStorage.getItem("driven_asset_types");
+          if (localRaw) {
+            saved = JSON.parse(localRaw);
           }
-        });
-        
-        if (res.ok) {
-          var data = await res.json();
-          var rawList = data.assetTypes || data.records || data.data || (Array.isArray(data) ? data : []);
-          saved = rawList.map(function(s) {
-            return typeof s === "string" ? s : (s && (s.asset_type_name || s.name) ? (s.asset_type_name || s.name) : "");
-          }).filter(Boolean);
-          localStorage.setItem("driven_asset_types", JSON.stringify(saved));
-        } else {
-          saved = JSON.parse(localStorage.getItem("driven_asset_types") || "[]");
+        } catch(e) {}
+
+        if ((!saved || saved.length === 0) && orgId && orgId !== "default_org") {
+          var res = await fetch("/api/asset-types", { 
+            method: "GET",
+            headers: {
+              "x-org-id": orgId,
+              "x-user-id": String(userId || "")
+            }
+          });
+          
+          if (res.ok) {
+            var data = await res.json();
+            var rawList = data.assetTypes || data.records || data.data || (Array.isArray(data) ? data : []);
+            saved = rawList.map(function(s) {
+              return typeof s === "string" ? s : (s && (s.asset_type_name || s.name) ? (s.asset_type_name || s.name) : "");
+            }).filter(Boolean);
+            localStorage.setItem("driven_asset_types", JSON.stringify(saved));
+          }
         }
 
-        var normalizedSaved = saved.map(function(s) {
+        var normalizedSaved = (Array.isArray(saved) ? saved : []).map(function(s) {
           return normalizeName(s);
         }).filter(Boolean);
 
@@ -1110,7 +1118,7 @@
       dashLogout();
     };
 
-    document.addEventListener("dashSessionLoaded", function(e) {
+    document.addEventListener("dashSessionLoaded", async function(e) {
       var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
       activeOrgId = userObj.org_id || (e.detail && e.detail.org_id) || localStorage.getItem("driven_org_id") || "";
 
@@ -1124,7 +1132,7 @@
           row1.insertBefore(title, drivenLogo);
         }
       }
-      loadSavedAssetTypes();
+      await loadSavedAssetTypes();
       checkActivePresence();
       setInterval(checkActivePresence, 5000);
     });
@@ -1133,6 +1141,7 @@
       document.addEventListener("DOMContentLoaded", function() {
         var yEl = document.getElementById("dashFooterYear");
         if (yEl) yEl.textContent = new Date().getFullYear();
+        loadSavedAssetTypes();
       });
     } else {
       var yEl = document.getElementById("dashFooterYear");
