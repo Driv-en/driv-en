@@ -601,7 +601,7 @@
             var rawList = data.projectTypes || data.records || data.data || (Array.isArray(data) ? data : []);
             existingProjectTypes = rawList.map(function(item) {
               return {
-                name: normalizeName(item.name || item.project_type_name || item.projectTypeName)
+                name: normalizeName(item.name || item.project_type_name || item.projectTypeName || item)
               };
             });
             localStorage.setItem("driven_project_types", JSON.stringify(existingProjectTypes));
@@ -923,26 +923,32 @@
       if (!validateOrgContext()) return;
       ptStepStatus.textContent = ""; ptStepStatus.style.color = "var(--error)";
 
-      // Rule 1: Offline Guard
+      // Core Rule 1: Offline Guard
       if (!navigator.onLine) {
         ptStepStatus.textContent = "Network Error: You must be connected to the internet to save project type data to Cloudflare D1.";
         return;
       }
 
-      if (projectTypes.length === 0 && existingProjectTypes.length === 0) { ptStepStatus.textContent = "You must add at least one project type."; return; }
+      if (projectTypes.length === 0 && existingProjectTypes.length === 0) { 
+        ptStepStatus.textContent = "You must add at least one project type."; 
+        return; 
+      }
       
       var allProjectTypes = existingProjectTypes.concat(projectTypes);
       try {
         localStorage.setItem("driven_project_types", JSON.stringify(allProjectTypes));
         localStorage.setItem("driven_project_type_count", String(allProjectTypes.length));
-        // Rule 2: Manual completion rule applied - removed step completion flag setting
+        // Core Rule 2: Manual completion rule applied - step completion flag setting omitted
       } catch(lsErr) {
         console.warn("localStorage save failed:", lsErr.message);
-        if (window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("project-types.html: localStorage save failed — " + (lsErr.message || lsErr), "save-localStorage", lsErr && lsErr.stack ? lsErr.stack : null); }
+        if (window.DRIVENErrorHandler) { 
+          window.DRIVENErrorHandler.report("project-types.html: localStorage save failed — " + (lsErr.message || lsErr), "save-localStorage", lsErr && lsErr.stack ? lsErr.stack : null); 
+        }
       }
 
       var btnSave = document.getElementById("btnSavePt");
-      btnSave.disabled = true; btnSave.textContent = "Saving to Database...";
+      btnSave.disabled = true; 
+      btnSave.textContent = "Saving to Database...";
 
       // 1. Post new session project types directly to D1 database
       var saveErrors = [];
@@ -972,7 +978,8 @@
       if (saveErrors.length > 0) {
         ptStepStatus.style.color = "var(--error)";
         ptStepStatus.textContent = "Save failed: " + saveErrors.join("; ");
-        btnSave.disabled = false; btnSave.textContent = "Save & Continue";
+        btnSave.disabled = false; 
+        btnSave.textContent = "Save & Continue";
         return;
       }
 
@@ -988,21 +995,32 @@
         });
         var data = await res.json().catch(function() { return {}; });
         if (!res.ok) {
-          if (res.status < 500 && window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("project-types.html: save-settings returned " + res.status + " — " + (data.error || "Request failed"), "save-settings-" + res.status, "URL: /auth/save-settings | Project Types: " + allProjectTypes.length); }
+          if (res.status < 500 && window.DRIVENErrorHandler) { 
+            window.DRIVENErrorHandler.report("project-types.html: save-settings returned " + res.status + " — " + (data.error || "Request failed"), "save-settings-" + res.status, "URL: /auth/save-settings | Project Types: " + allProjectTypes.length); 
+          }
           throw new Error(data.error || "Save settings failed");
         }
         ptStepStatus.style.color = "var(--success)";
         ptStepStatus.textContent = projectTypes.length + " project type(s) saved to D1. Total project types: " + allProjectTypes.length + ". Redirecting to onboarding dashboard…";
-        btnSave.textContent = "Saved ✓"; ptDirty = false;
+        btnSave.textContent = "Saved ✓"; 
+        ptDirty = false;
         projectTypes = [];
         await loadExistingProjectTypes();
-        renderTable(); updateCount();
-        setTimeout(function() { btnSave.disabled = false; btnSave.textContent = "Save & Continue"; window.location.href = "/app/dashboard/onboarding-dashboard.html"; }, 1500);
+        renderTable(); 
+        updateCount();
+        setTimeout(function() { 
+          btnSave.disabled = false; 
+          btnSave.textContent = "Save & Continue"; 
+          window.location.href = "/app/dashboard/onboarding-dashboard.html"; 
+        }, 1500);
       } catch(err) {
         ptStepStatus.style.color = "var(--error)";
         ptStepStatus.textContent = "Server save failed: " + err.message;
-        btnSave.disabled = false; btnSave.textContent = "Save & Continue";
-        if (window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("project-types.html: save failed — " + (err.message || err), "save-settings-catch", err && err.stack ? err.stack : null); }
+        btnSave.disabled = false; 
+        btnSave.textContent = "Save & Continue";
+        if (window.DRIVENErrorHandler) { 
+          window.DRIVENErrorHandler.report("project-types.html: save failed — " + (err.message || err), "save-settings-catch", err && err.stack ? err.stack : null); 
+        }
       }
     });
 
