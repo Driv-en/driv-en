@@ -500,7 +500,7 @@
 
     function normalizeName(str) { 
       if (typeof str === 'object' && str !== null) {
-        str = str.name || str.project_name || str.projectName || "";
+        str = str.name || str.project_name || str.projectName || str["Project Name"] || "";
       }
       return String(str || "").trim().replace(/\s+/g, " "); 
     }
@@ -666,7 +666,7 @@
     async function loadExistingProjects() {
       existingPrjTableContainer.textContent = "";
 
-      // Rule 3: Direct Cloudflare D1 fetch first when online
+      // Core Rule 3: Primary D1 data fetch via backend endpoint directly
       if (navigator.onLine) {
         try {
           var resp = await fetch("/api/project", {
@@ -680,7 +680,7 @@
               return {
                 id: rec.id || "",
                 number: normalizeName(rec.code || rec.number || rec.project_number || rec.projectNumber || rec["Project Code"] || ""),
-                name: normalizeName(rec.name || rec.project_name || rec.projectName || rec["Project Name"] || ""),
+                name: normalizeName(rec.name || rec.project_name || rec.projectName || rec["Project Name"] || rec),
                 client: normalizeName(rec.client || rec.client_name || rec.Client || ""),
                 division: normalizeName(rec.division || rec.division_name || rec.Division || "")
               };
@@ -702,7 +702,7 @@
         return {
           id: rec.id || "",
           number: normalizeName(rec.number || rec.code || rec.project_number || rec.projectNumber || rec["Project Code"] || ""),
-          name: normalizeName(rec.name || rec.project_name || rec.projectName || rec["Project Name"] || ""),
+          name: normalizeName(rec.name || rec.project_name || rec.projectName || rec["Project Name"] || rec),
           client: normalizeName(rec.client || rec.client_name || rec.Client || ""),
           division: normalizeName(rec.division || rec.division_name || rec.Division || "")
         };
@@ -1034,16 +1034,20 @@
       if (!validateOrgContext()) return;
       prjStepStatus.textContent = ""; prjStepStatus.style.color = "var(--error)";
 
-      // Rule 1: Offline Guard Enforcement
+      // Core Rule 1: Offline Guard Enforcement
       if (!navigator.onLine) {
         prjStepStatus.textContent = "Network Error: You must be connected to the internet to save project data to Cloudflare D1.";
         return;
       }
 
-      if (projects.length === 0 && existingProjects.length === 0) { prjStepStatus.textContent = "You must add at least one project."; return; }
+      if (projects.length === 0 && existingProjects.length === 0) { 
+        prjStepStatus.textContent = "You must add at least one project."; 
+        return; 
+      }
       
       var btnSave = document.getElementById("btnSavePrj");
-      btnSave.disabled = true; btnSave.textContent = "Saving to Database...";
+      btnSave.disabled = true; 
+      btnSave.textContent = "Saving to Database...";
 
       try {
         var saveErrors = [];
@@ -1077,20 +1081,30 @@
         var allProjects = existingProjects.concat(projects);
         localStorage.setItem("driven_projects", JSON.stringify(allProjects));
         localStorage.setItem("driven_project_count", String(allProjects.length));
-        // Rule 2: Manual completion rule applied - removed step completion flag setting
+        
+        // Core Rule 2: Completion flags omitted intentionally (managed on Dashboard explicitly)
 
         prjStepStatus.style.color = "var(--success)";
         prjStepStatus.textContent = projects.length + " project(s) saved directly to D1. Total projects: " + allProjects.length + ". Redirecting to onboarding dashboard…";
-        btnSave.textContent = "Saved ✓"; prjDirty = false;
+        btnSave.textContent = "Saved ✓"; 
+        prjDirty = false;
         projects = [];
         await loadExistingProjects();
-        renderTable(); updateCount();
-        setTimeout(function() { btnSave.disabled = false; btnSave.textContent = "Save & Continue"; window.location.href = "/app/dashboard/onboarding-dashboard.html"; }, 1500);
+        renderTable(); 
+        updateCount();
+        setTimeout(function() { 
+          btnSave.disabled = false; 
+          btnSave.textContent = "Save & Continue"; 
+          window.location.href = "/app/dashboard/onboarding-dashboard.html"; 
+        }, 1500);
       } catch(err) {
         prjStepStatus.style.color = "var(--error)";
         prjStepStatus.textContent = "Save failed: " + err.message;
-        btnSave.disabled = false; btnSave.textContent = "Save & Continue";
-        if (window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("projects.html: save failed — " + (err.message || err), "save-project-catch", err && err.stack ? err.stack : null); }
+        btnSave.disabled = false; 
+        btnSave.textContent = "Save & Continue";
+        if (window.DRIVENErrorHandler) { 
+          window.DRIVENErrorHandler.report("projects.html: save failed — " + (err.message || err), "save-project-catch", err && err.stack ? err.stack : null); 
+        }
       }
     });
 
