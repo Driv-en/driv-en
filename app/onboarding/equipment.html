@@ -403,7 +403,7 @@
     <p class="eq-subtitle"><strong>Required:</strong> Asset ID and Asset Name/Description.</p>
   </div>
 
-  <!-- ENTRY MODE SUB-TABS (MATCHED EXACTLY TO EMPLOYEES.HTML) -->
+  <!-- ENTRY MODE SUB-TABS -->
   <div class="eq-subtab-bar print-hide" style="max-width: 1100px; margin: 16px auto 0 auto;">
     <button class="eq-subtab active" id="tabSingle" onclick="switchTab('single')">Single Entry</button>
     <button class="eq-subtab" id="tabBulk" onclick="switchTab('bulk')">Bulk Upload</button>
@@ -423,11 +423,11 @@
           <input type="text" id="eqName" class="dash-input" placeholder="e.g. CAT 320 Hydraulic Excavator">
         </div>
         <div class="eq-form-field">
-          <label>Asset Category</label>
+          <label>Asset Type<span class="eq-required-star">*</span></label>
           <select id="eqCategory" class="dash-input">
-            <option value="">— Select Category —</option>
+            <option value="">— Select Asset Type —</option>
           </select>
-          <div class="eq-hint">Optional — pulls from Asset Types task</div>
+          <div class="eq-hint">Pulls from Asset Types task</div>
         </div>
         <div class="eq-form-field">
           <label>Make / Manufacturer</label>
@@ -450,18 +450,25 @@
           <input type="number" id="eqMeter" class="dash-input" placeholder="e.g. 1250">
         </div>
         <div class="eq-form-field">
-          <label>Primary Location</label>
-          <select id="eqLocation" class="dash-input">
-            <option value="">— Select Location —</option>
-          </select>
-          <div class="eq-hint">Optional — pulls from Locations task</div>
-        </div>
-        <div class="eq-form-field">
-          <label>Assigned Division / Project</label>
+          <label>Assigned Division</label>
           <select id="eqDivision" class="dash-input">
             <option value="">— Select Division —</option>
           </select>
           <div class="eq-hint">Optional — pulls from Divisions task</div>
+        </div>
+        <div class="eq-form-field">
+          <label>Current Project</label>
+          <select id="eqProject" class="dash-input">
+            <option value="">— Select Project —</option>
+          </select>
+          <div class="eq-hint">Optional — pulls from Projects task</div>
+        </div>
+        <div class="eq-form-field">
+          <label>Current Location</label>
+          <select id="eqLocation" class="dash-input">
+            <option value="">— Select Location —</option>
+          </select>
+          <div class="eq-hint">Optional — pulls from Locations task</div>
         </div>
       </div>
       <button id="btnAddEq" class="eq-btn-primary">Add Asset</button>
@@ -502,7 +509,7 @@
     <div class="dash-card">
       <h3>Bulk Upload Assets</h3>
       <p class="eq-subtitle">Download the Excel template, fill in your asset inventory, then upload it here. Asset ID and Name/Description are required for every row. <strong>CSV files are also supported.</strong></p>
-      <p class="eq-subtitle"><strong>Template instructions:</strong> Row 1 contains column headers (do NOT delete them). Columns: Asset ID, Name, Category, Make, Model, Year, Serial #, Meter, Location, Division.</p>
+      <p class="eq-subtitle"><strong>Template instructions:</strong> Row 1 contains column headers (do NOT delete them). Columns: Asset ID, Name, Asset Type, Make, Model, Year, Serial #, Meter, Division, Project, Location.</p>
       <button onclick="downloadEquipmentTemplate()" class="eq-bulk-link" style="cursor:pointer;border:none;font-size:14px;">⬇ Download Asset-Mass-Upload-v1.0.xlsx</button>
       <div class="eq-form-field" style="max-width:400px;"><label>Upload Completed Template</label><input type="file" id="bulkFile" accept=".xlsx,.csv" class="eq-bulk-file-input"></div>
       <button id="btnProcessBulk" class="eq-btn-primary">Process Upload</button>
@@ -570,7 +577,6 @@
       return true;
     }
 
-    /* Fast Unload Presence Tracking */
     function sendPresenceUnload() {
       if (!activeOrgId) return;
       var payload = JSON.stringify({ page: "Assets", action: "leave" });
@@ -587,7 +593,6 @@
       }
     }
 
-    /* High-Frequency Active User Presence Heartbeat with Full Name Parsing */
     async function checkActivePresence() {
       if (!navigator.onLine) return;
       try {
@@ -619,7 +624,6 @@
       } catch (e) {}
     }
 
-    /* Global Lifecycle Observers for Instant Cleanup */
     window.addEventListener("pagehide", sendPresenceUnload);
     window.addEventListener("beforeunload", function(e) {
       sendPresenceUnload();
@@ -641,38 +645,135 @@
       if (existingEqCountEl) existingEqCountEl.textContent = existingEquipment.length;
     }
 
-    function loadDropdowns() {
+    async function loadDropdowns() {
+      var orgHeaders = { "x-org-id": activeOrgId || "" };
+
+      // Asset Types
       var catSel = document.getElementById("eqCategory");
       if (catSel) {
-        catSel.innerHTML = '<option value="">— Select Category —</option>';
-        var cats = JSON.parse(localStorage.getItem("driven_asset_types") || "[]");
-        cats.forEach(function(c) {
-          var opt = document.createElement("option");
-          var val = normalizeName(c);
-          if (val) { opt.value = val; opt.textContent = val; catSel.appendChild(opt); }
-        });
+        catSel.innerHTML = '<option value="">— Select Asset Type —</option>';
+        try {
+          if (navigator.onLine) {
+            var resAt = await fetch("/api/asset-types", { headers: orgHeaders });
+            if (resAt.ok) {
+              var dataAt = await resAt.json();
+              var listAt = dataAt.assetTypes || dataAt.records || dataAt.data || [];
+              listAt.forEach(function(item) {
+                var val = normalizeName(item);
+                if (val) {
+                  var opt = document.createElement("option");
+                  opt.value = val;
+                  opt.textContent = val;
+                  catSel.appendChild(opt);
+                }
+              });
+            }
+          }
+        } catch(e) {}
+        if (catSel.options.length <= 1) {
+          var cats = JSON.parse(localStorage.getItem("driven_asset_types") || "[]");
+          cats.forEach(function(c) {
+            var opt = document.createElement("option");
+            var val = normalizeName(c);
+            if (val) { opt.value = val; opt.textContent = val; catSel.appendChild(opt); }
+          });
+        }
       }
 
-      var locSel = document.getElementById("eqLocation");
-      if (locSel) {
-        locSel.innerHTML = '<option value="">— Select Location —</option>';
-        var locs = JSON.parse(localStorage.getItem("driven_locations") || "[]");
-        locs.forEach(function(l) {
-          var opt = document.createElement("option");
-          var val = normalizeName(l);
-          if (val) { opt.value = val; opt.textContent = val; locSel.appendChild(opt); }
-        });
-      }
-
+      // Divisions
       var divSel = document.getElementById("eqDivision");
       if (divSel) {
         divSel.innerHTML = '<option value="">— Select Division —</option>';
-        var divs = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
-        divs.forEach(function(d) {
-          var opt = document.createElement("option");
-          var val = normalizeName(d);
-          if (val) { opt.value = val; opt.textContent = val; divSel.appendChild(opt); }
-        });
+        try {
+          if (navigator.onLine) {
+            var resDiv = await fetch("/api/divisions", { headers: orgHeaders });
+            if (resDiv.ok) {
+              var dataDiv = await resDiv.json();
+              var listDiv = dataDiv.divisions || dataDiv.records || dataDiv.data || [];
+              listDiv.forEach(function(item) {
+                var val = normalizeName(item);
+                if (val) {
+                  var opt = document.createElement("option");
+                  opt.value = val;
+                  opt.textContent = val;
+                  divSel.appendChild(opt);
+                }
+              });
+            }
+          }
+        } catch(e) {}
+        if (divSel.options.length <= 1) {
+          var divs = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
+          divs.forEach(function(d) {
+            var opt = document.createElement("option");
+            var val = normalizeName(d);
+            if (val) { opt.value = val; opt.textContent = val; divSel.appendChild(opt); }
+          });
+        }
+      }
+
+      // Projects
+      var projSel = document.getElementById("eqProject");
+      if (projSel) {
+        projSel.innerHTML = '<option value="">— Select Project —</option>';
+        try {
+          if (navigator.onLine) {
+            var resProj = await fetch("/api/projects", { headers: orgHeaders });
+            if (resProj.ok) {
+              var dataProj = await resProj.json();
+              var listProj = dataProj.projects || dataProj.records || dataProj.data || [];
+              listProj.forEach(function(item) {
+                var val = normalizeName(item);
+                if (val) {
+                  var opt = document.createElement("option");
+                  opt.value = val;
+                  opt.textContent = val;
+                  projSel.appendChild(opt);
+                }
+              });
+            }
+          }
+        } catch(e) {}
+        if (projSel.options.length <= 1) {
+          var projs = JSON.parse(localStorage.getItem("driven_projects") || "[]");
+          projs.forEach(function(p) {
+            var opt = document.createElement("option");
+            var val = normalizeName(p);
+            if (val) { opt.value = val; opt.textContent = val; projSel.appendChild(opt); }
+          });
+        }
+      }
+
+      // Locations
+      var locSel = document.getElementById("eqLocation");
+      if (locSel) {
+        locSel.innerHTML = '<option value="">— Select Location —</option>';
+        try {
+          if (navigator.onLine) {
+            var resLoc = await fetch("/api/locations", { headers: orgHeaders });
+            if (resLoc.ok) {
+              var dataLoc = await resLoc.json();
+              var listLoc = dataLoc.locations || dataLoc.records || dataLoc.data || [];
+              listLoc.forEach(function(item) {
+                var val = normalizeName(item);
+                if (val) {
+                  var opt = document.createElement("option");
+                  opt.value = val;
+                  opt.textContent = val;
+                  locSel.appendChild(opt);
+                }
+              });
+            }
+          }
+        } catch(e) {}
+        if (locSel.options.length <= 1) {
+          var locs = JSON.parse(localStorage.getItem("driven_locations") || "[]");
+          locs.forEach(function(l) {
+            var opt = document.createElement("option");
+            var val = normalizeName(l);
+            if (val) { opt.value = val; opt.textContent = val; locSel.appendChild(opt); }
+          });
+        }
       }
     }
 
@@ -692,8 +793,9 @@
       document.getElementById("eqYear").value = item.year || "";
       document.getElementById("eqSerial").value = item.serial || "";
       document.getElementById("eqMeter").value = item.meter || "";
-      document.getElementById("eqLocation").value = item.location || "";
       document.getElementById("eqDivision").value = item.division || "";
+      document.getElementById("eqProject").value = item.project || "";
+      document.getElementById("eqLocation").value = item.location || "";
 
       var btnAdd = document.getElementById("btnAddEq");
       btnAdd.textContent = "Update Asset";
@@ -739,7 +841,6 @@
     async function loadExistingEquipment() {
       existingEqTableContainer.textContent = "";
 
-      // Rule 3: Primary D1 query backend endpoint directly
       if (navigator.onLine) {
         try {
           var resp = await fetch("/api/equipment", {
@@ -754,14 +855,15 @@
                 id: rec.id || "",
                 unitNo: normalizeName(rec.asset_number || rec.unitNo || rec.unit_no || rec.asset_id),
                 name: normalizeName(rec.name || rec.description || rec.asset_name),
-                category: normalizeName(rec.category || rec.category_name),
+                category: normalizeName(rec.category || rec.category_name || rec.asset_type),
                 make: normalizeName(rec.make),
                 model: normalizeName(rec.model),
                 year: normalizeName(rec.year),
                 serial: normalizeName(rec.serial_number || rec.serial || rec.vin),
                 meter: normalizeName(rec.meter || rec.odometer),
-                location: normalizeName(rec.current_location || rec.location),
-                division: normalizeName(rec.division || rec.division_name)
+                division: normalizeName(rec.division || rec.division_name),
+                project: normalizeName(rec.project || rec.project_name),
+                location: normalizeName(rec.current_location || rec.location)
               };
             });
             localStorage.setItem("driven_equipment", JSON.stringify(existingEquipment));
@@ -774,21 +876,21 @@
         }
       }
 
-      // Offline fallback
       var cached = JSON.parse(localStorage.getItem("driven_equipment") || "[]");
       existingEquipment = cached.map(function(rec) {
         return {
           id: rec.id || "",
           unitNo: normalizeName(rec.unitNo || rec.asset_number || rec.unit_no || rec.asset_id),
           name: normalizeName(rec.name || rec.description || rec.asset_name),
-          category: normalizeName(rec.category || rec.category_name),
+          category: normalizeName(rec.category || rec.category_name || rec.asset_type),
           make: normalizeName(rec.make),
           model: normalizeName(rec.model),
           year: normalizeName(rec.year),
           serial: normalizeName(rec.serial || rec.serial_number || rec.vin),
           meter: normalizeName(rec.meter || rec.odometer),
-          location: normalizeName(rec.location || rec.current_location),
-          division: normalizeName(rec.division || rec.division_name)
+          division: normalizeName(rec.division || rec.division_name),
+          project: normalizeName(rec.project || rec.project_name),
+          location: normalizeName(rec.location || rec.current_location)
         };
       });
       renderExistingTable();
@@ -825,12 +927,12 @@
       var cols = [
         { label: "Asset ID " + (existingSortCol === 'unitNo' ? (existingSortAsc ? '▲' : '▼') : ''), key: "unitNo" },
         { label: "Description " + (existingSortCol === 'name' ? (existingSortAsc ? '▲' : '▼') : ''), key: "name" },
-        { label: "Category " + (existingSortCol === 'category' ? (existingSortAsc ? '▲' : '▼') : ''), key: "category" },
+        { label: "Asset Type " + (existingSortCol === 'category' ? (existingSortAsc ? '▲' : '▼') : ''), key: "category" },
         { label: "Make " + (existingSortCol === 'make' ? (existingSortAsc ? '▲' : '▼') : ''), key: "make" },
         { label: "Model " + (existingSortCol === 'model' ? (existingSortAsc ? '▲' : '▼') : ''), key: "model" },
         { label: "Year " + (existingSortCol === 'year' ? (existingSortAsc ? '▲' : '▼') : ''), key: "year" },
         { label: "Serial # " + (existingSortCol === 'serial' ? (existingSortAsc ? '▲' : '▼') : ''), key: "serial" },
-        { label: "Location " + (existingSortCol === 'location' ? (existingSortAsc ? '▲' : '▼') : ''), key: "location" },
+        { label: "Current Location " + (existingSortCol === 'location' ? (existingSortAsc ? '▲' : '▼') : ''), key: "location" },
         { label: "Action", key: "" }
       ];
 
@@ -939,7 +1041,7 @@
       var cols = [
         { label: "Asset ID " + (sessionSortCol === 'unitNo' ? (sessionSortAsc ? '▲' : '▼') : ''), key: "unitNo" },
         { label: "Description " + (sessionSortCol === 'name' ? (sessionSortAsc ? '▲' : '▼') : ''), key: "name" },
-        { label: "Category " + (sessionSortCol === 'category' ? (sessionSortAsc ? '▲' : '▼') : ''), key: "category" },
+        { label: "Asset Type " + (sessionSortCol === 'category' ? (sessionSortAsc ? '▲' : '▼') : ''), key: "category" },
         { label: "Make " + (sessionSortCol === 'make' ? (sessionSortAsc ? '▲' : '▼') : ''), key: "make" },
         { label: "Model " + (sessionSortCol === 'model' ? (sessionSortAsc ? '▲' : '▼') : ''), key: "model" },
         { label: "Year " + (sessionSortCol === 'year' ? (sessionSortAsc ? '▲' : '▼') : ''), key: "year" },
@@ -1054,10 +1156,11 @@
       var year = normalizeName(document.getElementById("eqYear").value);
       var serial = normalizeName(document.getElementById("eqSerial").value);
       var meter = normalizeName(document.getElementById("eqMeter").value);
-      var location = normalizeName(document.getElementById("eqLocation").value);
       var division = normalizeName(document.getElementById("eqDivision").value);
+      var project = normalizeName(document.getElementById("eqProject").value);
+      var location = normalizeName(document.getElementById("eqLocation").value);
 
-      if (!unitNo || !name) { eqError.textContent = "Asset ID and Description are required."; return; }
+      if (!unitNo || !name || !category) { eqError.textContent = "Asset ID, Asset Name, and Asset Type are required."; return; }
 
       var checkUnit = unitNo.toLowerCase().trim();
       var unitMatch = existingEquipment.some(function(item) { 
@@ -1073,7 +1176,7 @@
 
       var eqObj = { 
         unitNo: unitNo, name: name, category: category, make: make, model: model, 
-        year: year, serial: serial, meter: meter, location: location, division: division, 
+        year: year, serial: serial, meter: meter, division: division, project: project, location: location, 
         customerId: localStorage.getItem("driven_customer_id") || "" 
       };
 
@@ -1101,11 +1204,15 @@
       eqDirty = true;
       document.getElementById("eqUnitNo").value = ""; 
       document.getElementById("eqName").value = ""; 
+      document.getElementById("eqCategory").value = ""; 
       document.getElementById("eqMake").value = ""; 
       document.getElementById("eqModel").value = ""; 
       document.getElementById("eqYear").value = ""; 
       document.getElementById("eqSerial").value = ""; 
       document.getElementById("eqMeter").value = ""; 
+      document.getElementById("eqDivision").value = ""; 
+      document.getElementById("eqProject").value = ""; 
+      document.getElementById("eqLocation").value = ""; 
       document.getElementById("eqUnitNo").focus();
     });
 
@@ -1130,18 +1237,19 @@
           }
           if (rows.length === 0) { statusBulk.textContent = "The file is empty."; return; }
 
-          var reqId = "Asset ID"; var reqName = "Name";
+          var reqId = "Asset ID"; var reqName = "Name"; var reqCat = "Asset Type";
           var header = Object.keys(rows[0]);
           if (header.indexOf(reqId) === -1 && header.indexOf("Unit #") !== -1) reqId = "Unit #";
           if (header.indexOf(reqName) === -1 && header.indexOf("Description") !== -1) reqName = "Description";
+          if (header.indexOf(reqCat) === -1 && header.indexOf("Category") !== -1) reqCat = "Category";
 
-          if (header.indexOf(reqId) === -1 || header.indexOf(reqName) === -1) { 
-            statusBulk.textContent = "Missing required columns: Asset ID and Name/Description."; return; 
+          if (header.indexOf(reqId) === -1 || header.indexOf(reqName) === -1 || header.indexOf(reqCat) === -1) { 
+            statusBulk.textContent = "Missing required columns: Asset ID, Name/Description, and Asset Type."; return; 
           }
 
           for (var r = 0; r < rows.length; r++) {
-            if (!rows[r][reqId] || String(rows[r][reqId]).trim() === "" || !rows[r][reqName] || String(rows[r][reqName]).trim() === "") { 
-              statusBulk.textContent = "Row " + (r + 2) + ": Asset ID and Name are required."; return; 
+            if (!rows[r][reqId] || String(rows[r][reqId]).trim() === "" || !rows[r][reqName] || String(rows[r][reqName]).trim() === "" || !rows[r][reqCat] || String(rows[r][reqCat]).trim() === "") { 
+              statusBulk.textContent = "Row " + (r + 2) + ": Asset ID, Name, and Asset Type are required."; return; 
             }
           }
 
@@ -1156,14 +1264,15 @@
             return { 
               unitNo: normalizeName(row[reqId]), 
               name: normalizeName(row[reqName]), 
-              category: normalizeName(row["Category"] || ""), 
+              category: normalizeName(row[reqCat] || ""), 
               make: normalizeName(row["Make"] || ""), 
               model: normalizeName(row["Model"] || ""), 
               year: normalizeName(row["Year"] || ""), 
               serial: normalizeName(row["Serial #"] || row["VIN"] || ""), 
               meter: normalizeName(row["Meter"] || row["Odometer"] || ""), 
-              location: normalizeName(row["Location"] || ""), 
               division: normalizeName(row["Division"] || ""), 
+              project: normalizeName(row["Project"] || ""), 
+              location: normalizeName(row["Location"] || ""), 
               customerId: localStorage.getItem("driven_customer_id") || "" 
             };
           });
@@ -1172,7 +1281,7 @@
           var pTable = document.createElement("table"); 
           var pThead = document.createElement("thead"); 
           var pHeadRow = document.createElement("tr");
-          ["Asset ID", "Description", "Category", "Make", "Model"].forEach(function(h) { var pTh = document.createElement("th"); pTh.textContent = h; pHeadRow.appendChild(pTh); });
+          ["Asset ID", "Description", "Asset Type", "Make", "Model"].forEach(function(h) { var pTh = document.createElement("th"); pTh.textContent = h; pHeadRow.appendChild(pTh); });
           pThead.appendChild(pHeadRow); pTable.appendChild(pThead); 
 
           var pTbody = document.createElement("tbody");
@@ -1193,7 +1302,7 @@
           statusBulk.className = "eq-success"; 
           eqDirty = true;
         } catch(parseErr) {
-          statusBulk.textContent = "Could not parse the file. Make sure it is a valid Excel (.xlsx) or CSV file with 'Asset ID' and 'Name' columns.";
+          statusBulk.textContent = "Could not parse the file. Make sure it is a valid Excel (.xlsx) or CSV file with required columns.";
           statusBulk.className = "eq-error";
           if (window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("equipment.html: bulk upload parse failed — " + (parseErr.message || parseErr), "bulk-upload-parse", parseErr && parseErr.stack ? parseErr.stack : null); }
         }
@@ -1205,7 +1314,6 @@
       if (!validateOrgContext()) return;
       eqStepStatus.textContent = ""; eqStepStatus.style.color = "var(--error)";
 
-      // Rule 1: Offline Guard Enforcement
       if (!navigator.onLine) {
         eqStepStatus.textContent = "Network Error: You must be connected to the internet to save asset data to Cloudflare D1.";
         return;
@@ -1227,7 +1335,8 @@
             "Status": "active",
             "Location": eq.location,
             "Serial Number": eq.serial,
-            "Division": eq.division
+            "Division": eq.division,
+            "Project": eq.project
           };
           var res = await fetch("/api/equipment", { 
             method: "POST", 
@@ -1250,8 +1359,6 @@
         var allEquipment = existingEquipment.concat(equipment);
         localStorage.setItem("driven_equipment", JSON.stringify(allEquipment));
         localStorage.setItem("driven_equipment_count", allEquipment.length);
-        
-        // Rule 2: Manual completion rule applied - step completion flag setting omitted intentionally
 
         eqStepStatus.style.color = "var(--success)";
         eqStepStatus.textContent = equipment.length + " asset(s) saved directly to system. Redirecting to onboarding dashboard…";
@@ -1269,8 +1376,8 @@
     });
 
     function downloadEquipmentTemplate() {
-      var ws = XLSX.utils.aoa_to_sheet([["Asset ID", "Name", "Category", "Make", "Model", "Year", "Serial #", "Meter", "Location", "Division"]]);
-      ws["!cols"] = [{ wch: 16 }, { wch: 35 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 10 }, { wch: 25 }, { wch: 12 }, { wch: 25 }, { wch: 25 }];
+      var ws = XLSX.utils.aoa_to_sheet([["Asset ID", "Name", "Asset Type", "Make", "Model", "Year", "Serial #", "Meter", "Division", "Project", "Location"]]);
+      ws["!cols"] = [{ wch: 16 }, { wch: 35 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 10 }, { wch: 25 }, { wch: 12 }, { wch: 25 }, { wch: 25 }, { wch: 25 }];
       downloadXlsxWithFrozenHeader(ws, "Assets", "Asset-Mass-Upload-v1.0.xlsx");
     }
 
@@ -1280,7 +1387,7 @@
       result.push(current.trim()); return result;
     }
 
-    document.addEventListener("dashSessionLoaded", function(e) {
+    document.addEventListener("dashSessionLoaded", async function(e) {
       var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
       activeOrgId = (e.detail && e.detail.org_id) || userObj.org_id || localStorage.getItem("driven_org_id") || "";
       customerOrgName = (e.detail && e.detail.org_name) || localStorage.getItem("driven_org_name") || "DRIV-EN Org";
@@ -1295,8 +1402,8 @@
         if (logoArea && drivenLogo) { row1.insertBefore(title, drivenLogo); } 
       } 
       
-      loadDropdowns();
-      loadExistingEquipment(); 
+      await loadDropdowns();
+      await loadExistingEquipment(); 
       renderTable(); 
       updateCount();
 
