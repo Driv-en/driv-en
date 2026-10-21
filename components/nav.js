@@ -3,10 +3,16 @@ function initDrivenNav() {
     var hamburger = document.getElementById('drivenHamburger');
     var mobileNav = document.getElementById('drivenMobileNav');
 
+    // Safe exit if elements don't exist on this page (stops infinite loop)
     if (!hamburger || !mobileNav) {
-        setTimeout(initDrivenNav, 100);
         return;
     }
+
+    // Prevent double initialization on the same page
+    if (mobileNav.dataset.initialized === 'true') {
+        return;
+    }
+    mobileNav.dataset.initialized = 'true';
 
     var overlay = document.getElementById('drivenNavOverlay');
 
@@ -60,4 +66,9 @@ function initDrivenNav() {
     });
 }
 
-initDrivenNav();
+// Safely initialize on DOM ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initDrivenNav);
+} else {
+    initDrivenNav();
+}
