@@ -662,7 +662,7 @@
     async function loadSavedUnits() {
       var saved = [];
 
-      // Rule 3: Cloudflare D1 query via API first when online
+      // Core Rule 3: Primary D1 data fetch via API endpoint first
       if (navigator.onLine && activeOrgId) {
         try {
           var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
@@ -690,7 +690,7 @@
         }
       }
 
-      // Offline or fallback check
+      // Offline fallback
       if (!saved || saved.length === 0) {
         try {
           var localRaw = localStorage.getItem("driven_units_of_measure");
@@ -722,7 +722,7 @@
       var statusEl = document.getElementById("umStepStatus");
       statusEl.style.color = "var(--error)";
 
-      // Rule 1: Offline Guard
+      // Core Rule 1: Offline Guard Enforcement
       if (!navigator.onLine) {
         statusEl.textContent = "Network Error: You must be connected to the internet to save units of measure to Cloudflare D1.";
         return;
@@ -738,11 +738,12 @@
         return;
       }
 
-      // LocalStorage Key Standardization for Dashboard Card Banners
+      // LocalStorage Key Standardization
       localStorage.setItem("driven_units_of_measure", JSON.stringify(selected));
       localStorage.setItem("driven_units_count", String(selected.length));
       localStorage.setItem("driven_uom_count", String(selected.length));
-      // Rule 2: Manual completion rule applied - removed step completion flag setting
+
+      // Core Rule 2: Manual Completion Only — step completion flags omitted
 
       var btnSave = document.getElementById("btnSaveUm");
       btnSave.disabled = true;
