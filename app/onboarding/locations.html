@@ -79,7 +79,7 @@
 }
 
 /* ===== TAB ROW INSIDE UNIFIED BLOCK ===== */
-.loc-tab-bar { 
+.rp-tab-bar { 
   display: flex !important; 
   visibility: visible !important;
   opacity: 1 !important;
@@ -96,7 +96,23 @@
   z-index: 90;
 }
 
-.loc-tab-return { 
+.rp-tab-admin { 
+  background: #1e40af !important; 
+  border: 1px solid #2563eb !important; 
+  border-radius: 6px; 
+  padding: 8px 18px; 
+  font-size: 14px; 
+  font-weight: 600; 
+  color: #dbeafe !important; 
+  cursor: pointer; 
+  white-space: nowrap; 
+  text-decoration: none; 
+  transition: background 200ms ease; 
+  display: none; 
+}
+.rp-tab-admin:hover { background: #1d4ed8 !important; color: #ffffff !important; }
+
+.rp-tab-return { 
   background: #1e40af !important; 
   border: 1px solid #2563eb !important; 
   border-radius: 6px; 
@@ -111,9 +127,9 @@
   display: inline-flex; 
   align-items: center; 
 }
-.loc-tab-return:hover { background: #1d4ed8 !important; color: #ffffff !important; }
+.rp-tab-return:hover { background: #1d4ed8 !important; color: #ffffff !important; }
 
-.loc-tab-logout { 
+.rp-tab-logout { 
   background: #b91c1c !important; 
   border: 1px solid #dc2626 !important; 
   border-radius: 6px; 
@@ -128,7 +144,7 @@
   display: inline-flex; 
   align-items: center; 
 }
-.loc-tab-logout:hover { background: #dc2626 !important; }
+.rp-tab-logout:hover { background: #dc2626 !important; }
 
 /* ===== ENTRY MODE SUB-TABS (SINGLE vs BULK) ===== */
 .loc-subtab-bar {
@@ -234,10 +250,10 @@
   .dash-header-row1 { padding: 6px 8px !important; gap: 4px !important; }
   .loc-header-title { white-space: normal !important; max-width: 100% !important; word-break: break-word !important; line-height: 1.25 !important; }
   .ob-greeting-bar { padding: 8px 12px !important; margin: 8px 12px !important; }
-  .loc-tab-bar { flex-direction: column; align-items: stretch; gap: 6px !important; width: 100% !important; margin-top: 8px !important; }
-  .loc-tab-return, .loc-tab-logout { width: 100%; justify-content: center; margin-left: 0 !important; box-sizing: border-box; text-align: center; }
+  .rp-tab-bar { flex-direction: column; align-items: stretch; gap: 6px !important; width: 100% !important; margin-top: 8px !important; }
+  .rp-tab-admin, .rp-tab-return, .rp-tab-logout { width: 100%; justify-content: center; margin-left: 0 !important; box-sizing: border-box; text-align: center; }
   .presence-banner { font-size: 12px !important; padding: 6px 10px !important; width: 100% !important; box-sizing: border-box !important; justify-content: center !important; text-align: center !important; white-space: normal !important; word-break: break-word !important; }
-  .loc-subtab-bar { flex-direction: column; gap: 6px; }
+  .loc-subtab-bar { flex-direction: column; gap: 6px; width: 100%; padding: 0 12px; box-sizing: border-box; }
   .loc-subtab { width: 100%; text-align: center; }
 }
 
@@ -252,7 +268,7 @@
 
 @media print {
   @page { margin: 10mm; }
-  #dashStickyHeader, .loc-tab-bar, .loc-save-bar, .um-pagination-bar, .loc-print-bar, .loc-btn-primary, .loc-btn-secondary, .loc-btn-print, td.loc-actions-col, th.loc-actions-col, #formCard, .presence-banner, .quick-modal-overlay, #dashFooter { display: none !important; }
+  #dashStickyHeader, .rp-tab-bar, .loc-save-bar, .um-pagination-bar, .loc-print-bar, .loc-btn-primary, .loc-btn-secondary, .loc-btn-print, td.loc-actions-col, th.loc-actions-col, #formCard, .presence-banner, .quick-modal-overlay, #dashFooter { display: none !important; }
   .print-hide { display: none !important; }
   body.print-session-only #existingLocCard { display: none !important; }
   body.print-existing-only #sessionLocCard { display: none !important; }
@@ -267,18 +283,20 @@
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
 
-<!-- UNIFIED PINNED STICKY HEADER CONTAINER -->
+<!-- VIEWPORT STICKY HEADER CONTAINER -->
 <div id="dashStickyHeader">
   <div id="dashHeader"></div>
 
+  <!-- SINGLE UNIFIED PRESENCE + TAB BAR BLOCK CARD -->
   <div class="ob-greeting-bar print-hide" id="obGreetingBar">
     <div class="presence-banner" id="presenceBanner">
-      <span id="presenceText">Other Key Personnel active</span>
+      <span id="presenceText">Key Personnel Active</span>
     </div>
 
-    <div class="loc-tab-bar print-hide" id="locTabBar">
-      <a class="loc-tab-return" href="/app/dashboard/onboarding-dashboard.html" onclick="return confirmLeave()">← Return to Onboarding Dashboard</a>
-      <button class="loc-tab-logout" onclick="confirmLogout()">Logout</button>
+    <div class="rp-tab-bar" id="rpTabBar">
+      <a class="rp-tab-admin driven-admin-only" href="/app/dashboard/admin.html" onclick="return confirmLeave()">Admin Dashboard</a>
+      <a class="rp-tab-return" href="/app/dashboard/onboarding-dashboard.html" onclick="return confirmLeave()">← Return to Onboarding Dashboard</a>
+      <button class="rp-tab-logout" onclick="confirmLogout()">Logout</button>
     </div>
   </div>
 </div>
@@ -622,26 +640,26 @@ function doPrintLocations(defaultSelection) {
 async function loadExistingLocations() {
   existingLocTableContainer.textContent = "";
 
-  // Rule 3: Direct D1 backend fetching
   if (navigator.onLine) {
     try {
-      var resp = await fetch("/api/locations", {
+      var resp = await fetch("/api/location", {
         headers: { "x-org-id": activeOrgId || "" }
       });
       if (resp.ok) {
         var data = await resp.json();
         var rawList = data.locations || data.records || data.data || (Array.isArray(data) ? data : []);
         existingLocations = rawList.map(function(item) {
+          var rec = item.fields ? Object.assign({ id: item.id }, item.fields) : item;
           return {
-            number: normalizeName(item.code || item.number || item.locNumber || item.location_number),
-            name: normalizeName(item.name || item.locName || item.location_name),
-            type: normalizeName(item.type || item.locType),
-            address: normalizeName(item.address),
-            city: normalizeName(item.city),
-            state: normalizeName(item.state),
-            zip: normalizeName(item.zip_code || item.zip || item.postal_code),
-            division: normalizeName(item.division || item.division_name),
-            status: normalizeName(item.status || "Active")
+            number: normalizeName(rec.code || rec.number || rec.locNumber || rec.location_number || rec["Location Code"] || ""),
+            name: normalizeName(rec.name || rec.locName || rec.location_name || rec["Location Name"] || rec),
+            type: normalizeName(rec.type || rec.locType || rec["Type"] || ""),
+            address: normalizeName(rec.address || rec["Address"] || ""),
+            city: normalizeName(rec.city || rec["City"] || ""),
+            state: normalizeName(rec.state || rec["State"] || ""),
+            zip: normalizeName(rec.zip_code || rec.zip || rec.postal_code || rec["Zip"] || ""),
+            division: normalizeName(rec.division || rec.division_name || rec["Division"] || ""),
+            status: normalizeName(rec.status || rec["Status"] || "Active")
           };
         });
         localStorage.setItem("driven_locations", JSON.stringify(existingLocations));
@@ -654,19 +672,19 @@ async function loadExistingLocations() {
     }
   }
 
-  // Offline fallback
   var cached = JSON.parse(localStorage.getItem("driven_locations") || "[]");
   existingLocations = cached.map(function(item) {
+    var rec = item.fields ? Object.assign({ id: item.id }, item.fields) : item;
     return {
-      number: normalizeName(item.number || item.code || item.locNumber || item.location_number),
-      name: normalizeName(item.name || item.locName || item.location_name),
-      type: normalizeName(item.type || item.locType),
-      address: normalizeName(item.address),
-      city: normalizeName(item.city),
-      state: normalizeName(item.state),
-      zip: normalizeName(item.zip || item.zip_code || item.postal_code),
-      division: normalizeName(item.division || item.division_name),
-      status: normalizeName(item.status || "Active")
+      number: normalizeName(rec.number || rec.code || rec.locNumber || rec.location_number || rec["Location Code"] || ""),
+      name: normalizeName(rec.name || rec.locName || rec.location_name || rec["Location Name"] || rec),
+      type: normalizeName(rec.type || rec.locType || rec["Type"] || ""),
+      address: normalizeName(rec.address || rec["Address"] || ""),
+      city: normalizeName(rec.city || rec["City"] || ""),
+      state: normalizeName(rec.state || rec["State"] || ""),
+      zip: normalizeName(rec.zip || rec.zip_code || rec.postal_code || rec["Zip"] || ""),
+      division: normalizeName(rec.division || rec.division_name || rec["Division"] || ""),
+      status: normalizeName(rec.status || rec["Status"] || "Active")
     };
   });
   renderExistingTable();
@@ -1214,7 +1232,6 @@ document.getElementById("btnSaveLoc").addEventListener("click", async function()
   locStepStatus.textContent = "";
   locStepStatus.style.color = "var(--error)";
 
-  // Rule 1: Offline Guard
   if (!navigator.onLine) {
     locStepStatus.textContent = "Network Error: You must be connected to the internet to save location data to Cloudflare D1.";
     return;
@@ -1225,98 +1242,74 @@ document.getElementById("btnSaveLoc").addEventListener("click", async function()
     return;
   }
 
-  var allLocations = existingLocations.concat(locations);
-  try {
-    localStorage.setItem("driven_locations", JSON.stringify(allLocations));
-    localStorage.setItem("driven_location_count", String(allLocations.length));
-    // Rule 2: Manual completion rule applied - removed step completion flag setting
-  } catch(lsErr) {
-    console.warn("localStorage save failed:", lsErr.message);
-    if (window.DRIVENErrorHandler) {
-      window.DRIVENErrorHandler.report("locations.html: localStorage save failed — " + (lsErr.message || lsErr), "save-localStorage", lsErr && lsErr.stack ? lsErr.stack : null);
-    }
-  }
-
   var btnSave = document.getElementById("btnSaveLoc");
   btnSave.disabled = true;
   btnSave.textContent = "Saving to Database...";
 
-  var saveErrors = [];
-  for (var i = 0; i < locations.length; i++) {
-    var locItem = locations[i];
-    try {
-      var d1Res = await fetch("/api/locations", {
+  try {
+    var saveErrors = [];
+    for (var i = 0; i < locations.length; i++) {
+      var loc = locations[i];
+      var payload = {
+        "Location Name": loc.name,
+        "Location Code": loc.number || loc.code || "",
+        "Type": loc.type,
+        "Address": loc.address || "",
+        "City": loc.city || "",
+        "State": loc.state || "",
+        "Zip": loc.zip || loc.zip_code || "",
+        "Division": loc.division || "",
+        "Status": loc.status || "Active"
+      };
+
+      var res = await fetch("/api/location", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-org-id": activeOrgId || ""
         },
-        body: JSON.stringify({
-          name: locItem.name,
-          code: locItem.number || locItem.code || "",
-          type: locItem.type,
-          address: locItem.address || "",
-          city: locItem.city || "",
-          state: locItem.state || "",
-          zip_code: locItem.zip || locItem.zip_code || "",
-          division: locItem.division || "",
-          status: locItem.status || "Active"
-        })
+        body: JSON.stringify(payload)
       });
-      if (!d1Res.ok) {
-        var errJson = await d1Res.json().catch(function() { return {}; });
-        saveErrors.push(locItem.name + ": " + (errJson.error || "D1 insert failed"));
-      }
-    } catch (d1Err) {
-      saveErrors.push(locItem.name + ": " + d1Err.message);
-    }
-  }
 
-  if (saveErrors.length > 0) {
-    locStepStatus.style.color = "var(--error)";
-    locStepStatus.textContent = "Save failed: " + saveErrors.join("; ");
-    btnSave.disabled = false;
-    btnSave.textContent = "Save & Continue";
-    return;
-  }
-
-  try {
-    var res = await fetch("/auth/save-settings", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-org-id": activeOrgId || ""
-      },
-      body: JSON.stringify({ settings: { locations: allLocations } })
-    });
-    var data = await res.json().catch(function() { return {}; });
-    if (!res.ok) {
-      if (res.status < 500 && window.DRIVENErrorHandler) {
-        window.DRIVENErrorHandler.report("locations.html: save-settings returned " + res.status + " — " + (data.error || "Request failed"), "save-settings-" + res.status, "URL: /auth/save-settings | Locations: " + allLocations.length);
+      if (!res.ok) {
+        var errData = await res.json().catch(function() { return {}; });
+        var errMsg = (typeof errData.error === "string" ? errData.error : null) || 
+                     (typeof errData.message === "string" ? errData.message : null) || 
+                     ("HTTP " + res.status);
+        saveErrors.push(loc.name + ": " + errMsg);
       }
-      throw new Error(data.error || "Save settings failed");
     }
+
+    if (saveErrors.length > 0) {
+      throw new Error("Some locations failed to save: " + saveErrors.join("; "));
+    }
+
+    var allLocations = existingLocations.concat(locations);
+    localStorage.setItem("driven_locations", JSON.stringify(allLocations));
+    localStorage.setItem("driven_location_count", String(allLocations.length));
 
     locStepStatus.style.color = "var(--success)";
-    locStepStatus.textContent = locations.length + " location(s) saved to D1. Total locations: " + allLocations.length + ". Redirecting to onboarding dashboard…";
+    locStepStatus.textContent = locations.length + " location(s) saved directly to D1. Total locations: " + allLocations.length + ". Redirecting to onboarding dashboard…";
     btnSave.textContent = "Saved ✓";
     locDirty = false;
     locations = [];
     await loadExistingLocations();
     renderTable();
     updateCount();
+
     setTimeout(function() {
       btnSave.disabled = false;
       btnSave.textContent = "Save & Continue";
       window.location.href = "/app/dashboard/onboarding-dashboard.html";
     }, 1500);
+
   } catch(err) {
     locStepStatus.style.color = "var(--error)";
-    locStepStatus.textContent = "Server save failed: " + err.message;
+    locStepStatus.textContent = "Save failed: " + err.message;
     btnSave.disabled = false;
     btnSave.textContent = "Save & Continue";
     if (window.DRIVENErrorHandler) {
-      window.DRIVENErrorHandler.report("locations.html: save failed — " + (err.message || err), "save-settings-catch", err && err.stack ? err.stack : null);
+      window.DRIVENErrorHandler.report("locations.html: save failed — " + (err.message || err), "save-location-catch", err && err.stack ? err.stack : null);
     }
   }
 });
