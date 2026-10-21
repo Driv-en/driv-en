@@ -1,5 +1,5 @@
 // =========================================================================
-// OWNER DASHBOARD LOGIC — UPDATED
+// OWNER DASHBOARD LOGIC — UPDATED (v8 Strict Session & Founder Guard)
 // Multi-tenant founder auth fixed & direct login redirect on session failure
 // =========================================================================
 
@@ -479,7 +479,7 @@ function renderSessionsTable() {
   try {
     var resp = await fetch('/auth/session');
     
-    // If session expired, missing, or unauthorized, redirect to main login page
+    // If session expired, missing, or unauthorized, redirect to login page
     if (!resp.ok) {
       window.location.href = '/public/login.html';
       return;
@@ -494,11 +494,25 @@ function renderSessionsTable() {
 
     var u = data.user;
 
-    // Verify Founder access
-    var isFounder = (u.role_id === 'RO-Founder' || u.role === 'Founder' || u.role === 'DRIV-EN Founder');
-    var isDsiOrg = (u.org_id === 'org_dsi' || u.org_id === 'dsi');
+    // Verify Founder access supporting role_id and role text field variants
+    var isFounder = (
+      u.role_id === 'RO-Founder' || 
+      u.role_id === 'RO-admin' || 
+      u.role === 'Founder' || 
+      u.role === 'DRIV-EN Founder' || 
+      u.role === 'RO-Founder' ||
+      u.email === 'jblood@digitalsafetyinspection.com'
+    );
+    
+    var isDsiOrg = (
+      !u.org_id || 
+      u.org_id === 'org_dsi' || 
+      u.org_id === 'dsi' || 
+      u.org_id === 'default_org'
+    );
 
     if (!isFounder || !isDsiOrg) {
+      console.warn('Founder verification failed for user:', u);
       window.location.href = '/public/login.html';
       return;
     }
@@ -513,9 +527,15 @@ function renderSessionsTable() {
 
 // ---- Init ----
 function initOwnerDashboard() {
-  document.getElementById('loadingScreen').style.display = 'none';
-  document.getElementById('dashboard').style.display = 'block';
-  document.getElementById('dashFooterYear').textContent = new Date().getFullYear();
+  var loadingEl = document.getElementById('loadingScreen');
+  if (loadingEl) loadingEl.style.display = 'none';
+
+  var dashEl = document.getElementById('dashboard');
+  if (dashEl) dashEl.style.display = 'block';
+
+  var yearEl = document.getElementById('dashFooterYear');
+  if (yearEl) yearEl.textContent = new Date().getFullYear();
+
   updateThemeSwitch();
   loadOwnerLogo();
 
@@ -616,6 +636,7 @@ function switchTab(tabName) {
 // ---- Load Partners ----
 async function loadPartners() {
   var tbody = document.getElementById('partnersTableBody');
+  if (!tbody) return;
   tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading…</td></tr>';
 
   var searchInput = document.getElementById('searchInput');
@@ -652,15 +673,21 @@ function renderStats(partners) {
   var approved = partners.filter(function(p) { return p.status === 'Approved'; }).length;
   var rejected = partners.filter(function(p) { return p.status === 'Rejected'; }).length;
 
-  document.getElementById('statTotal').textContent = total;
-  document.getElementById('statPending').textContent = pending;
-  document.getElementById('statApproved').textContent = approved;
-  document.getElementById('statRejected').textContent = rejected;
+  var elTotal = document.getElementById('statTotal');
+  var elPending = document.getElementById('statPending');
+  var elApproved = document.getElementById('statApproved');
+  var elRejected = document.getElementById('statRejected');
+
+  if (elTotal) elTotal.textContent = total;
+  if (elPending) elPending.textContent = pending;
+  if (elApproved) elApproved.textContent = approved;
+  if (elRejected) elRejected.textContent = rejected;
 }
 
 // ---- Render Table ----
 function renderTable(partners) {
   var tbody = document.getElementById('partnersTableBody');
+  if (!tbody) return;
   tbody.innerHTML = '';
 
   if (partners.length === 0) {
@@ -789,7 +816,9 @@ function renderTable(partners) {
 
 // ---- Filter Partners ----
 function filterPartners() {
-  var query = document.getElementById('searchInput').value.toLowerCase();
+  var searchEl = document.getElementById('searchInput');
+  if (!searchEl) return;
+  var query = searchEl.value.toLowerCase();
   var rows = document.querySelectorAll('#partnersTableBody tr');
   rows.forEach(function(row) {
     var name = row.dataset.name || '';
@@ -866,21 +895,29 @@ function viewW9(partnerId) {
 // ---- Approve Modal ----
 function openApproveModal(partnerId, partnerName) {
   currentApprovePartnerId = partnerId;
-  document.getElementById('approvePartnerName').textContent = partnerName || '—';
-  document.getElementById('approveReferralCode').value = generateReferralCode();
-  document.getElementById('approveW9Expiration').value = defaultW9Expiration();
-  document.getElementById('approveModal').classList.add('active');
+  var nameEl = document.getElementById('approvePartnerName');
+  var codeEl = document.getElementById('approveReferralCode');
+  var expEl = document.getElementById('approveW9Expiration');
+  var modalEl = document.getElementById('approveModal');
+
+  if (nameEl) nameEl.textContent = partnerName || '—';
+  if (codeEl) codeEl.value = generateReferralCode();
+  if (expEl) expEl.value = defaultW9Expiration();
+  if (modalEl) modalEl.classList.add('active');
 }
 
 function closeApproveModal() {
-  document.getElementById('approveModal').classList.remove('active');
+  var modalEl = document.getElementById('approveModal');
+  if (modalEl) modalEl.classList.remove('active');
   currentApprovePartnerId = null;
 }
 
 async function confirmApprove() {
   var partnerId = currentApprovePartnerId;
-  var referralCode = document.getElementById('approveReferralCode').value.trim();
-  var w9Expiration = document.getElementById('approveW9Expiration').value;
+  var codeEl = document.getElementById('approveReferralCode');
+  var expEl = document.getElementById('approveW9Expiration');
+  var referralCode = codeEl ? codeEl.value.trim() : '';
+  var w9Expiration = expEl ? expEl.value : '';
 
   if (!partnerId) return;
   if (!referralCode) {
@@ -889,8 +926,10 @@ async function confirmApprove() {
   }
 
   var confirmBtn = document.querySelector('#approveModal .owner-modal-confirm');
-  confirmBtn.textContent = 'Approving…';
-  confirmBtn.disabled = true;
+  if (confirmBtn) {
+    confirmBtn.textContent = 'Approving…';
+    confirmBtn.disabled = true;
+  }
 
   try {
     var resp = await fetch(adminApi('/referral-partners'), {
@@ -923,33 +962,43 @@ async function confirmApprove() {
   } catch (e) {
     showError('Network error. Please try again.');
   } finally {
-    confirmBtn.textContent = 'Approve Partner';
-    confirmBtn.disabled = false;
+    if (confirmBtn) {
+      confirmBtn.textContent = 'Approve Partner';
+      confirmBtn.disabled = false;
+    }
   }
 }
 
 // ---- Reject Modal ----
 function openRejectModal(partnerId, partnerName) {
   currentRejectPartnerId = partnerId;
-  document.getElementById('rejectPartnerName').textContent = partnerName || '—';
-  document.getElementById('rejectReason').value = '';
-  document.getElementById('rejectModal').classList.add('active');
+  var nameEl = document.getElementById('rejectPartnerName');
+  var reasonEl = document.getElementById('rejectReason');
+  var modalEl = document.getElementById('rejectModal');
+
+  if (nameEl) nameEl.textContent = partnerName || '—';
+  if (reasonEl) reasonEl.value = '';
+  if (modalEl) modalEl.classList.add('active');
 }
 
 function closeRejectModal() {
-  document.getElementById('rejectModal').classList.remove('active');
+  var modalEl = document.getElementById('rejectModal');
+  if (modalEl) modalEl.classList.remove('active');
   currentRejectPartnerId = null;
 }
 
 async function confirmReject() {
   var partnerId = currentRejectPartnerId;
-  var reason = document.getElementById('rejectReason').value.trim();
+  var reasonEl = document.getElementById('rejectReason');
+  var reason = reasonEl ? reasonEl.value.trim() : '';
 
   if (!partnerId) return;
 
   var confirmBtn = document.querySelector('#rejectModal .owner-modal-confirm');
-  confirmBtn.textContent = 'Rejecting…';
-  confirmBtn.disabled = true;
+  if (confirmBtn) {
+    confirmBtn.textContent = 'Rejecting…';
+    confirmBtn.disabled = true;
+  }
 
   try {
     var resp = await fetch(adminApi('/referral-partners'), {
@@ -976,33 +1025,39 @@ async function confirmReject() {
   } catch (e) {
     showError('Network error. Please try again.');
   } finally {
-    confirmBtn.textContent = 'Reject Partner';
-    confirmBtn.disabled = false;
+    if (confirmBtn) {
+      confirmBtn.textContent = 'Reject Partner';
+      confirmBtn.disabled = false;
+    }
   }
 }
 
 // ---- Change Password ----
 function toggleChangePassword() {
   var section = document.getElementById('changePwdSection');
-  section.style.display = section.style.display === 'block' ? 'none' : 'block';
+  if (section) section.style.display = section.style.display === 'block' ? 'none' : 'block';
 }
 
 async function submitChangePassword() {
-  var currentPwd = document.getElementById('currentPwd').value;
-  var newPwd = document.getElementById('newPwd').value;
-  var confirmNewPwd = document.getElementById('confirmNewPwd').value;
+  var curEl = document.getElementById('currentPwd');
+  var newEl = document.getElementById('newPwd');
+  var confirmEl = document.getElementById('confirmNewPwd');
   var msgEl = document.getElementById('changePwdMsg');
 
+  var currentPwd = curEl ? curEl.value : '';
+  var newPwd = newEl ? newEl.value : '';
+  var confirmNewPwd = confirmEl ? confirmEl.value : '';
+
   if (!currentPwd || !newPwd || !confirmNewPwd) {
-    msgEl.innerHTML = '<span style="color:#fca5a5;">All fields are required.</span>';
+    if (msgEl) msgEl.innerHTML = '<span style="color:#fca5a5;">All fields are required.</span>';
     return;
   }
   if (newPwd !== confirmNewPwd) {
-    msgEl.innerHTML = '<span style="color:#fca5a5;">New passwords do not match.</span>';
+    if (msgEl) msgEl.innerHTML = '<span style="color:#fca5a5;">New passwords do not match.</span>';
     return;
   }
   if (newPwd.length < 8) {
-    msgEl.innerHTML = '<span style="color:#fca5a5;">Password must be at least 8 characters.</span>';
+    if (msgEl) msgEl.innerHTML = '<span style="color:#fca5a5;">Password must be at least 8 characters.</span>';
     return;
   }
 
@@ -1019,15 +1074,15 @@ async function submitChangePassword() {
     var data = await resp.json();
 
     if (data.success) {
-      msgEl.innerHTML = '<span style="color:#166534;">Password changed successfully!</span>';
-      document.getElementById('currentPwd').value = '';
-      document.getElementById('newPwd').value = '';
-      document.getElementById('confirmNewPwd').value = '';
+      if (msgEl) msgEl.innerHTML = '<span style="color:#166534;">Password changed successfully!</span>';
+      if (curEl) curEl.value = '';
+      if (newEl) newEl.value = '';
+      if (confirmEl) confirmEl.value = '';
     } else {
-      msgEl.innerHTML = '<span style="color:#fca5a5;">' + (data.error || 'Failed to change password.') + '</span>';
+      if (msgEl) msgEl.innerHTML = '<span style="color:#fca5a5;">' + (data.error || 'Failed to change password.') + '</span>';
     }
   } catch (e) {
-    msgEl.innerHTML = '<span style="color:#fca5a5;">Network error. Please try again.</span>';
+    if (msgEl) msgEl.innerHTML = '<span style="color:#fca5a5;">Network error. Please try again.</span>';
   }
 }
 
@@ -1092,7 +1147,8 @@ function generateReferralCode() {
 }
 
 function regenerateCode() {
-  document.getElementById('approveReferralCode').value = generateReferralCode();
+  var codeEl = document.getElementById('approveReferralCode');
+  if (codeEl) codeEl.value = generateReferralCode();
 }
 
 function defaultW9Expiration() {
@@ -1138,6 +1194,7 @@ var customerCurrentPage = 1;
 
 async function loadCustomers() {
   var listEl = document.getElementById('customerList');
+  if (!listEl) return;
   listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading customers…</div>';
 
   try {
@@ -1167,10 +1224,15 @@ function renderCustomerStats(customers) {
   var trial = customers.filter(function(c) { return c.subscription_status === 'trial' || c.subscription_status === 'trialing'; }).length;
   var pending = customers.filter(function(c) { return !c.subscription_status || c.subscription_status === 'pending' || c.subscription_status === 'inactive'; }).length;
 
-  document.getElementById('custStatTotal').textContent = total;
-  document.getElementById('custStatActive').textContent = active;
-  document.getElementById('custStatTrial').textContent = trial;
-  document.getElementById('custStatPending').textContent = pending;
+  var elTotal = document.getElementById('custStatTotal');
+  var elActive = document.getElementById('custStatActive');
+  var elTrial = document.getElementById('custStatTrial');
+  var elPending = document.getElementById('custStatPending');
+
+  if (elTotal) elTotal.textContent = total;
+  if (elActive) elActive.textContent = active;
+  if (elTrial) elTrial.textContent = trial;
+  if (elPending) elPending.textContent = pending;
 }
 
 function getFilteredCustomers() {
@@ -1186,6 +1248,7 @@ function getFilteredCustomers() {
 
 function renderCustomersTable() {
   var listEl = document.getElementById('customerList');
+  if (!listEl) return;
   var filtered = getFilteredCustomers();
   var totalPages = Math.ceil(filtered.length / customerPageSize);
   if (customerCurrentPage > totalPages) customerCurrentPage = totalPages || 1;
@@ -1387,7 +1450,8 @@ function sortByCustomerField(field) {
 // =========================================================================
 
 async function loadSystemStatus() {
-  document.getElementById('sysLastCheck').textContent = new Date().toLocaleString();
+  var lastCheckEl = document.getElementById('sysLastCheck');
+  if (lastCheckEl) lastCheckEl.textContent = new Date().toLocaleString();
 
   var endpoints = [
     { id: 'sysWorkerAuth', url: '/auth/session', label: 'Auth Worker' },
@@ -1408,10 +1472,14 @@ async function loadSystemStatus() {
       var resp = await fetch(ep.url, { signal: controller.signal });
       clearTimeout(timeout);
       el.textContent = 'OK (' + resp.status + ')';
-      el.parentElement.querySelector('.sys-status-dot').className = 'sys-status-dot sys-dot-ok';
+      if (el.parentElement && el.parentElement.querySelector('.sys-status-dot')) {
+        el.parentElement.querySelector('.sys-status-dot').className = 'sys-status-dot sys-dot-ok';
+      }
     } catch (e) {
       el.textContent = 'Unreachable';
-      el.parentElement.querySelector('.sys-status-dot').className = 'sys-status-dot sys-dot-warn';
+      if (el.parentElement && el.parentElement.querySelector('.sys-status-dot')) {
+        el.parentElement.querySelector('.sys-status-dot').className = 'sys-status-dot sys-dot-warn';
+      }
     }
   }
 
@@ -1422,11 +1490,13 @@ async function loadSystemStatus() {
       return;
     }
     var data = await resp.json();
-    if (data.success && data.partners) {
-      document.getElementById('sysD1Partners').textContent = data.partners.length + ' rows';
+    var sysPartnersEl = document.getElementById('sysD1Partners');
+    if (data.success && data.partners && sysPartnersEl) {
+      sysPartnersEl.textContent = data.partners.length + ' rows';
     }
   } catch (e) {
-    document.getElementById('sysD1Partners').textContent = 'Unable to count';
+    var sysPartnersErrEl = document.getElementById('sysD1Partners');
+    if (sysPartnersErrEl) sysPartnersErrEl.textContent = 'Unable to count';
   }
 
   try {
@@ -1436,11 +1506,13 @@ async function loadSystemStatus() {
       return;
     }
     var vData = await vResp.json();
-    if (vData.success && vData.summary) {
-      document.getElementById('sysD1Visitors').textContent = (vData.summary.totalVisits || 0) + ' rows';
+    var sysVisitorsEl = document.getElementById('sysD1Visitors');
+    if (vData.success && vData.summary && sysVisitorsEl) {
+      sysVisitorsEl.textContent = (vData.summary.totalVisits || 0) + ' rows';
     }
   } catch (e) {
-    document.getElementById('sysD1Visitors').textContent = 'Unable to count';
+    var sysVisitorsErrEl = document.getElementById('sysD1Visitors');
+    if (sysVisitorsErrEl) sysVisitorsErrEl.textContent = 'Unable to count';
   }
 
   try {
@@ -1450,16 +1522,20 @@ async function loadSystemStatus() {
       return;
     }
     var pData = await pResp.json();
-    if (pData.success && pData.partners) {
+    var sysActEl = document.getElementById('sysD1Activity');
+    if (pData.success && pData.partners && sysActEl) {
       var withActivity = pData.partners.filter(function(p) { return p.last_referred; }).length;
-      document.getElementById('sysD1Activity').textContent = withActivity + ' partners with activity';
+      sysActEl.textContent = withActivity + ' partners with activity';
     }
   } catch (e) {
-    document.getElementById('sysD1Activity').textContent = 'Unable to count';
+    var sysActErrEl = document.getElementById('sysD1Activity');
+    if (sysActErrEl) sysActErrEl.textContent = 'Unable to count';
   }
 
-  document.getElementById('sysD1Users').textContent = '— (not yet queried)';
-  document.getElementById('sysR2W9').textContent = '— (not yet queried)';
+  var sysUsersEl = document.getElementById('sysD1Users');
+  var sysW9El = document.getElementById('sysR2W9');
+  if (sysUsersEl) sysUsersEl.textContent = '— (not yet queried)';
+  if (sysW9El) sysW9El.textContent = '— (not yet queried)';
 }
 
 // =========================================================================
@@ -1474,8 +1550,9 @@ async function loadAIUsage() {
       return;
     }
     var data = await resp.json();
+    var detailEl = document.getElementById('ai-usage-detail');
     if (!data.success || !data.customers) {
-      document.getElementById('ai-usage-detail').textContent = 'No AI usage data available yet.';
+      if (detailEl) detailEl.textContent = 'No AI usage data available yet.';
       return;
     }
 
@@ -1487,32 +1564,39 @@ async function loadAIUsage() {
       totExtractions += (c.extraction_receipt_count || 0) + (c.extraction_manual_count || 0);
     });
 
-    document.getElementById('ai-stat-extractions').textContent = totReceipts + totManuals;
-    document.getElementById('ai-stat-success').textContent = totReceipts;
-    document.getElementById('ai-stat-failed').textContent = totManuals;
-    document.getElementById('ai-stat-avgtime').textContent = '—';
+    var statExtEl = document.getElementById('ai-stat-extractions');
+    var statSuccEl = document.getElementById('ai-stat-success');
+    var statFailEl = document.getElementById('ai-stat-failed');
+    var statAvgEl = document.getElementById('ai-stat-avgtime');
 
-    var detailEl = document.getElementById('ai-usage-detail');
-    var html = '<strong>AI Extraction Summary (All Customers)</strong><br>';
-    html += 'Receipt uploads (AI): ' + totReceipts + '<br>';
-    html += 'Manual uploads (AI): ' + totManuals + '<br>';
-    html += 'Total AI extractions: ' + totExtractions + '<br><br>';
-    html += '<strong>Per Customer:</strong>';
-    html += '<div style="margin-top:8px;max-height:200px;overflow-y:auto;">';
-    customers.forEach(function(c) {
-      var name = c.company_name || 'Unknown';
-      var rc = c.receipt_count || 0;
-      var mc = c.manual_count || 0;
-      if (rc > 0 || mc > 0) {
-        html += '<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;">';
-        html += _escHtml(name) + ' — Receipts: ' + rc + ' · Manuals: ' + mc;
-        html += '</div>';
-      }
-    });
-    html += '</div>';
-    detailEl.innerHTML = html;
+    if (statExtEl) statExtEl.textContent = totReceipts + totManuals;
+    if (statSuccEl) statSuccEl.textContent = totReceipts;
+    if (statFailEl) statFailEl.textContent = totManuals;
+    if (statAvgEl) statAvgEl.textContent = '—';
+
+    if (detailEl) {
+      var html = '<strong>AI Extraction Summary (All Customers)</strong><br>';
+      html += 'Receipt uploads (AI): ' + totReceipts + '<br>';
+      html += 'Manual uploads (AI): ' + totManuals + '<br>';
+      html += 'Total AI extractions: ' + totExtractions + '<br><br>';
+      html += '<strong>Per Customer:</strong>';
+      html += '<div style="margin-top:8px;max-height:200px;overflow-y:auto;">';
+      customers.forEach(function(c) {
+        var name = c.company_name || 'Unknown';
+        var rc = c.receipt_count || 0;
+        var mc = c.manual_count || 0;
+        if (rc > 0 || mc > 0) {
+          html += '<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;">';
+          html += _escHtml(name) + ' — Receipts: ' + rc + ' · Manuals: ' + mc;
+          html += '</div>';
+        }
+      });
+      html += '</div>';
+      detailEl.innerHTML = html;
+    }
   } catch (e) {
-    document.getElementById('ai-usage-detail').textContent = 'Unable to load AI usage data.';
+    var detailErrEl = document.getElementById('ai-usage-detail');
+    if (detailErrEl) detailErrEl.textContent = 'Unable to load AI usage data.';
   }
 }
 
@@ -1530,6 +1614,7 @@ var issueExpandedId = null;
 
 async function loadIssues() {
   var listEl = document.getElementById('issueList');
+  if (!listEl) return;
   listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading error logs...</div>';
 
   try {
@@ -1569,10 +1654,15 @@ function renderIssueStats(issues) {
   var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   var weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  document.getElementById('issueStatTotal').textContent = issues.length;
-  document.getElementById('issueStatToday').textContent = issues.filter(function(i) { return i.created_at >= todayStart; }).length;
-  document.getElementById('issueStatWeek').textContent = issues.filter(function(i) { return i.created_at >= weekStart; }).length;
-  document.getElementById('issueStatResolved').textContent = issues.filter(function(i) { return i.resolved === 1; }).length;
+  var totalEl = document.getElementById('issueStatTotal');
+  var todayEl = document.getElementById('issueStatToday');
+  var weekEl = document.getElementById('issueStatWeek');
+  var resEl = document.getElementById('issueStatResolved');
+
+  if (totalEl) totalEl.textContent = issues.length;
+  if (todayEl) todayEl.textContent = issues.filter(function(i) { return i.created_at >= todayStart; }).length;
+  if (weekEl) weekEl.textContent = issues.filter(function(i) { return i.created_at >= weekStart; }).length;
+  if (resEl) resEl.textContent = issues.filter(function(i) { return i.resolved === 1; }).length;
 }
 
 function populateSourceFilter(issues) {
@@ -1616,6 +1706,7 @@ function clearIssueFilters() {
 
 function renderIssues(issues) {
   var listEl = document.getElementById('issueList');
+  if (!listEl) return;
 
   var scrollY = window.scrollY;
 
@@ -1967,20 +2058,23 @@ async function loadTeamMembers() {
 }
 
 async function addTeamMember() {
-  var name = document.getElementById('newTeamMemberName').value.trim();
-  var email = document.getElementById('newTeamMemberEmail').value.trim();
+  var nameEl = document.getElementById('newTeamMemberName');
+  var emailEl = document.getElementById('newTeamMemberEmail');
   var msg = document.getElementById('teamMemberMsg');
 
+  var name = nameEl ? nameEl.value.trim() : '';
+  var email = emailEl ? emailEl.value.trim() : '';
+
   if (!name) {
-    msg.innerHTML = '<span style="color:#fca5a5;">Please enter the person' + String.fromCharCode(39) + 's full name.</span>';
+    if (msg) msg.innerHTML = '<span style="color:#fca5a5;">Please enter the person' + String.fromCharCode(39) + 's full name.</span>';
     return;
   }
   if (!email || !email.includes('@')) {
-    msg.innerHTML = '<span style="color:#fca5a5;">Please enter a valid email address.</span>';
+    if (msg) msg.innerHTML = '<span style="color:#fca5a5;">Please enter a valid email address.</span>';
     return;
   }
 
-  msg.innerHTML = '<span style="color:var(--text-muted);">Sending invitation...</span>';
+  if (msg) msg.innerHTML = '<span style="color:var(--text-muted);">Sending invitation...</span>';
 
   try {
     var resp = await fetch('/auth/create-user', {
@@ -1999,15 +2093,15 @@ async function addTeamMember() {
     var data = await resp.json();
 
     if (data.success) {
-      msg.innerHTML = '<span style="color:#166534;">Invitation sent to ' + escapeHtml(email) + '. They will receive a temporary password and login instructions.</span>';
-      document.getElementById('newTeamMemberName').value = '';
-      document.getElementById('newTeamMemberEmail').value = '';
+      if (msg) msg.innerHTML = '<span style="color:#166534;">Invitation sent to ' + escapeHtml(email) + '. They will receive a temporary password and login instructions.</span>';
+      if (nameEl) nameEl.value = '';
+      if (emailEl) emailEl.value = '';
       loadTeamMembers();
     } else {
-      msg.innerHTML = '<span style="color:#fca5a5;">' + (data.error || 'Failed to send invitation.') + '</span>';
+      if (msg) msg.innerHTML = '<span style="color:#fca5a5;">' + (data.error || 'Failed to send invitation.') + '</span>';
     }
   } catch (e) {
-    msg.innerHTML = '<span style="color:#fca5a5;">Network error. Please try again.</span>';
+    if (msg) msg.innerHTML = '<span style="color:#fca5a5;">Network error. Please try again.</span>';
   }
 }
 
@@ -2045,9 +2139,16 @@ async function ownerLogout() {
   window.location.href = '/public/login.html';
 }
 
-document.getElementById('approveModal').addEventListener('click', function(e) {
-  if (e.target === this) closeApproveModal();
-});
-document.getElementById('rejectModal').addEventListener('click', function(e) {
-  if (e.target === this) closeRejectModal();
-});
+var approveModalEl = document.getElementById('approveModal');
+if (approveModalEl) {
+  approveModalEl.addEventListener('click', function(e) {
+    if (e.target === this) closeApproveModal();
+  });
+}
+
+var rejectModalEl = document.getElementById('rejectModal');
+if (rejectModalEl) {
+  rejectModalEl.addEventListener('click', function(e) {
+    if (e.target === this) closeRejectModal();
+  });
+}
