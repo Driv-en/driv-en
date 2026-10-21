@@ -1,9 +1,9 @@
 /**
  * sw.js — DRIV‑EN Service Worker
- * v14 — October 8, 2026: Force cache purge — old SW was serving stale dashboard-common.js.
+ * v15 — October 2026: Fix navigation caching & bypass dashboard/public auth routes
  */
 
-const CACHE = 'driv-en-v14';
+const CACHE = 'driv-en-v15';
 const STATIC_ASSETS = [
   '/app/shared/dashboard.css',
   '/app/shared/dashboard-common.js',
@@ -53,53 +53,51 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const request = e.request;
   if (request.method !== 'GET') return;
+  
   const url = new URL(request.url);
   if (url.origin !== location.origin) return;
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) return;
+
+  // 1. ALWAYS BYPASS SERVICE WORKER FOR AUTH, APIS, AND PROTECTED DASHBOARDS
+  if (
+    url.pathname.startsWith('/api/') || 
+    url.pathname.startsWith('/auth/') ||
+    url.pathname.startsWith('/app/') ||
+    url.pathname.startsWith('/public/')
+  ) {
+    return; // Pass through directly to network
+  }
+
   if (url.hostname.includes('cloudflareinsights.com')) return;
 
   const isNavigation = request.mode === 'navigate';
-  const isStaticAsset = url.pathname.match(/\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|html)$/i);
+  const isStaticAsset = url.pathname.match(/\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf)$/i);
 
+  // 2. NETWORK-FIRST FOR NAVIGATION (DO NOT STORE DYNAMIC HTML REDIRECTS IN SW CACHE)
   if (isNavigation) {
     e.respondWith(
-      fetch(request).then(response => {
-        if (response && response.status === 200) {
-          const clone = response.clone();
-          caches.open(CACHE).then(c => c.put(request, clone));
-        }
-        return response;
-      }).catch(() => {
+      fetch(request).catch(() => {
         return caches.match(request).then(cached => {
           if (cached) return cached;
           return new Response(
-            '<!DOCTYPE html><html><head><title>Offline</title></head><body style="font-family:sans-serif;text-align:center;padding:60px 20px;"><h1>You are offline</h1><p>This page has not been cached yet. Connect to the internet and try again.</p></body></html>',
+            '<!DOCTYPE html><html><head><title>Offline</title></head><body style="font-family:sans-serif;text-align:center;padding:60px 20px;"><h1>You are offline</h1><p>Please check your internet connection.</p></body></html>',
             { status: 503, statusText: 'Offline', headers: { 'Content-Type': 'text/html' } }
           );
         });
       })
     );
   } else if (isStaticAsset) {
+    // 3. STALE-WHILE-REVALIDATE FOR STATIC ASSETS ONLY
     e.respondWith(
       caches.match(request).then(cached => {
-        if (cached) {
-          fetch(request).then(response => {
-            if (response && response.status === 200) {
-              const clone = response.clone();
-              caches.open(CACHE).then(c => c.put(request, clone));
-            }
-          }).catch(() => {});
-          return cached;
-        }
-        return fetch(request).then(response => {
+        const fetchPromise = fetch(request).then(response => {
           if (response && response.status === 200) {
             const clone = response.clone();
             caches.open(CACHE).then(c => c.put(request, clone));
           }
           return response;
-        }).catch(() => {
-          return new Response('', { status: 404 });
-        });
+        }).catch(() => {});
+
+        return cached || fetchPromise;
       })
     );
   }
