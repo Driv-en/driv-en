@@ -16,13 +16,20 @@
 <!-- ===== SHARED DASHBOARD CSS (v7 — includes diamond plate background) ===== -->
 <link rel="stylesheet" href="/app/shared/dashboard.css?v=10">
 
-<!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
+<!-- ===== AUTH & SESSION GUARD (redirects directly to login on logged-out state) ===== -->
 <script>
 (function() {
   var saved = localStorage.getItem("driven-theme");
   var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   var theme = saved || system;
   document.documentElement.setAttribute("data-theme", theme);
+
+  // Immediate check for session/user state
+  var token = localStorage.getItem("driven_token") || localStorage.getItem("driven_session");
+  var userRaw = localStorage.getItem("driven_user");
+  if (!token || !userRaw) {
+    window.location.href = "/public/login.html";
+  }
 })();
 </script>
 
@@ -1100,7 +1107,7 @@
         </table>
       </div>
 
-      <!-- Visitor sessions table (grouped by session — shows pages visited + time on site) -->
+      <!-- Visitor sessions table -->
       <h3 style="font-size:18px;color:var(--text);margin-bottom:12px;margin-top:32px;">Visitor Sessions</h3>
       <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Each row is a single browsing session — shows every page visited and total time on site. Click a row to expand and see all pages visited.</p>
       <div class="owner-table-wrap" style="max-height:500px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
@@ -1125,21 +1132,7 @@
       </div>
     </div>
 
-    <!-- ===== MARKETING TAB (placeholder) =====
-         PLAN:
-         - Owner creates HTML advertisements (title, HTML content, valid-until date, created date)
-         - Each ad entry shows: date created, title, valid until, share status
-         - Drill-down: click an ad to see full HTML content preview
-         - "Share to Active Referrers" button on each ad — sends the ad to all
-           approved+active referral partners (appears in their Marketing tab)
-         - Shows date shared per ad
-         - Referrers see shared ads in their dashboard Marketing tab (read-only)
-         - D1 table: marketing_ads (id, title, html_content, valid_until, created_at, shared_at)
-         - D1 table: marketing_shares (id, ad_id, partner_id, shared_at)
-         - Pages Function: /api/admin/marketing (CRUD for ads + share)
-         - Pages Function: /api/referral/marketing (list shared ads for referrer)
-         DO NOT DELETE THIS TAB — implement after current exports are deployed.
-    ===== -->
+    <!-- ===== MARKETING TAB ===== -->
     <div id="tab-marketing" class="owner-tab-content">
       <div class="owner-coming-soon" style="padding:60px 20px;">
         <h3>Marketing — Coming Soon</h3>
@@ -1340,10 +1333,7 @@
 </div>
 
 <!-- ===== SCRIPTS ===== -->
-
-<!-- ===== SCRIPTS ===== -->
 <script src="/app/dashboard/owner-dashboard.js?v=4"></script>
-
 
 </body>
 </html>
