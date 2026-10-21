@@ -525,48 +525,22 @@
       return names;
     }
 
+    /* RULE 2 STRICT ENFORCEMENT: 
+       Disable automatic completion checks based on record counts.
+       Tasks must only be marked complete explicitly. */
     function autoDetectCompletion(stepNum) {
-      var def = STEP_DEFS[stepNum];
-      var key = def.name;
-      switch (key) {
-        case "roles-permissions": return false;
-        case "employees":
-          var empCount = parseInt(localStorage.getItem("driven_employee_count") || "0");
-          return empCount > 0 || localStorage.getItem("driven_step3_complete") === "true";
-        case "locations":
-          var locCount = parseInt(localStorage.getItem("driven_location_count") || "0");
-          return locCount > 0;
-        case "clients":
-          var cliCount = parseInt(localStorage.getItem("driven_client_count") || "0");
-          return cliCount > 0 || localStorage.getItem("driven_step4_complete") === "true";
-        case "divisions":
-          var divCount = parseInt(localStorage.getItem("driven_division_count") || "0");
-          return divCount > 0 || localStorage.getItem("driven_step5_complete") === "true";
-        case "project-types":
-          var ptCount = parseInt(localStorage.getItem("driven_project_type_count") || "0");
-          return ptCount > 0 || localStorage.getItem("driven_step6_complete") === "true";
-        case "projects":
-          return localStorage.getItem("driven_step7_complete") === "true";
-        case "fuel-types":
-          var ftCount = parseInt(localStorage.getItem("driven_fuel_type_count") || "0");
-          return ftCount > 0 || localStorage.getItem("driven_step8_complete") === "true";
-        case "units-of-measure":
-          var umCount = parseInt(localStorage.getItem("driven_unit_count") || "0");
-          return umCount > 0 || localStorage.getItem("driven_step9_complete") === "true";
-        case "asset-types":
-          var atCount = parseInt(localStorage.getItem("driven_asset_type_count") || "0");
-          return atCount > 0 || localStorage.getItem("driven_step_asset_types_complete") === "true";
-        case "assets":
-          return localStorage.getItem("driven_step10_complete") === "true";
-        default:
-          return false;
-      }
+      return false;
     }
 
     function isTaskFullyComplete(stepNum) {
       var def = STEP_DEFS[stepNum];
       var taskName = def.task;
-      if (autoDetectCompletion(stepNum)) return true;
+      
+      // Explicit single-step completion flag check
+      if (localStorage.getItem("driven_step_" + def.name + "_complete") === "true") {
+        return true;
+      }
+
       var assignedEmails = getAssignedEmails(taskName);
       if (assignedEmails.length === 0) {
         var completions = taskCompletions[taskName] || [];
@@ -587,6 +561,7 @@
       if (taskCompletions[taskName].indexOf(myEmail) === -1) {
         taskCompletions[taskName].push(myEmail);
       }
+      localStorage.setItem("driven_step_" + def.name + "_complete", "true");
       saveTaskCompletions();
       updateStepStatus(stepNum);
       checkAllComplete();
@@ -598,23 +573,35 @@
       var def = STEP_DEFS[stepNum];
       var taskName = def.task;
       var myEmail = (currentUser && currentUser.email) ? currentUser.email.toLowerCase() : "";
-      if (autoDetectCompletion(stepNum)) { btn.style.display = "none"; return; }
+
       var completions = taskCompletions[taskName] || [];
-      if (completions.indexOf(myEmail) !== -1) {
-        btn.style.display = "inline-block"; btn.classList.add("done");
-        btn.textContent = "✓ You marked complete"; btn.disabled = true; return;
+      var isAlreadyComplete = completions.indexOf(myEmail) !== -1 || localStorage.getItem("driven_step_" + def.name + "_complete") === "true";
+
+      if (isAlreadyComplete) {
+        btn.style.display = "inline-block"; 
+        btn.classList.add("done");
+        btn.textContent = "✓ You marked complete"; 
+        btn.disabled = true; 
+        return;
       }
       if (def.prereqs.length > 0 && !checkPrereqs(stepNum)) {
-        btn.style.display = "inline-block"; btn.classList.remove("done"); btn.disabled = true;
+        btn.style.display = "inline-block"; 
+        btn.classList.remove("done"); 
+        btn.disabled = true;
         var prereqNames = getVisiblePrereqNames(stepNum).join(", ");
-        btn.textContent = "🔒 Mark Complete — Requires " + prereqNames; return;
+        btn.textContent = "🔒 Mark Complete — Requires " + prereqNames; 
+        return;
       }
-      btn.style.display = "inline-block"; btn.classList.remove("done"); btn.disabled = false;
+      btn.style.display = "inline-block"; 
+      btn.classList.remove("done"); 
+      btn.disabled = false;
       var assignedEmails = getAssignedEmails(taskName);
       if (assignedEmails.length > 1) {
         var doneCount = assignedEmails.filter(function(e) { return completions.indexOf(e) !== -1; }).length;
         btn.textContent = "✓ Mark Complete (" + doneCount + "/" + assignedEmails.length + " done)";
-      } else { btn.textContent = "✓ Mark Complete"; }
+      } else { 
+        btn.textContent = "✓ Mark Complete"; 
+      }
     }
 
     function checkAllComplete() {
@@ -870,7 +857,7 @@
       let c9 = parseListCount(responses[8], ["driven_units_of_measure", "driven_units_count", "driven_uom_count", "driven_unit_count"]);
       if (c9 > 0) setCardKpi(9, c9 + " Units Configured");
 
-      // Step 10: Asset Types (Forced fallback to guarantee display on mobile if local storage present)
+      // Step 10: Asset Types
       let c10 = parseListCount(responses[9], ["driven_asset_types", "driven_asset_type_count"]);
       if (c10 > 0) setCardKpi(10, c10 + " Categories Configured");
 
