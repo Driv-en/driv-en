@@ -1,6 +1,6 @@
 // =========================================================================
 // OWNER DASHBOARD LOGIC — UPDATED
-// Multi-tenant founder auth fixed
+// Multi-tenant founder auth fixed & direct login redirect on session failure
 // =========================================================================
 
 var allPartners = [];
@@ -59,9 +59,15 @@ function loadOwnerLogo() {
   if (removeBtn) removeBtn.style.display = 'none';
 
   fetch(adminApi('/app-settings?key=owner_logo'))
-    .then(function(res) { return res.json(); })
+    .then(function(res) { 
+      if (res.status === 401 || res.status === 403) {
+        window.location.href = '/public/login.html';
+        return;
+      }
+      return res.json(); 
+    })
     .then(function(data) {
-      if (data.success && data.value) {
+      if (data && data.success && data.value) {
         container.innerHTML = '<img src="' + data.value + '" class="dash-customer-logo" alt="DSI Logo">';
         preview.innerHTML = '<img src="' + data.value + '" style="max-height:56px;max-width:180px;border:1px solid var(--border);border-radius:6px;padding:4px;background:var(--bg-card);" alt="Logo">';
         if (removeBtn) removeBtn.style.display = 'inline-block';
@@ -89,12 +95,18 @@ function handleLogoUpload(event) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key: 'owner_logo', value: logoData })
     })
-    .then(function(res) { return res.json(); })
+    .then(function(res) {
+      if (res.status === 401 || res.status === 403) {
+        window.location.href = '/public/login.html';
+        return;
+      }
+      return res.json();
+    })
     .then(function(data) {
-      if (data.success) {
+      if (data && data.success) {
         loadOwnerLogo();
         showError('');
-      } else {
+      } else if (data) {
         showError('Failed to save logo to server: ' + (data.error || 'Unknown error'));
       }
     })
@@ -115,7 +127,11 @@ function removeLogo() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ key: 'owner_logo', value: '' })
   })
-  .then(function() {
+  .then(function(res) {
+    if (res.status === 401 || res.status === 403) {
+      window.location.href = '/public/login.html';
+      return;
+    }
     loadOwnerLogo();
   })
   .catch(function() {
@@ -187,9 +203,13 @@ async function loadVisitors(presetDays, presetName) {
       }
     }
 
-    document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px;">Loading...</td></tr>';
+    document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">Loading...</td></tr>';
 
     var summaryResp = await fetch(adminApi('/site-visitors?summary=true&start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate)));
+    if (summaryResp.status === 401 || summaryResp.status === 403) {
+      window.location.href = '/public/login.html';
+      return;
+    }
     var summaryData = await summaryResp.json();
 
     if (summaryData.success) {
@@ -233,6 +253,10 @@ async function loadVisitors(presetDays, presetName) {
     }
 
     var listResp = await fetch(adminApi('/site-visitors?start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate)));
+    if (listResp.status === 401 || listResp.status === 403) {
+      window.location.href = '/public/login.html';
+      return;
+    }
     var listData = await listResp.json();
 
     if (listData.success && listData.visitors && listData.visitors.length > 0) {
@@ -244,6 +268,10 @@ async function loadVisitors(presetDays, presetName) {
     }
 
     var sessResp = await fetch(adminApi('/site-visitors?sessions=true&start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate)));
+    if (sessResp.status === 401 || sessResp.status === 403) {
+      window.location.href = '/public/login.html';
+      return;
+    }
     var sessData = await sessResp.json();
 
     if (sessData.success && sessData.sessions && sessData.sessions.length > 0) {
@@ -451,7 +479,7 @@ function renderSessionsTable() {
   try {
     var resp = await fetch('/auth/session');
     
-    // If session expired or invalid, send directly to main login page
+    // If session expired, missing, or unauthorized, redirect to main login page
     if (!resp.ok) {
       window.location.href = '/public/login.html';
       return;
@@ -459,20 +487,19 @@ function renderSessionsTable() {
 
     var data = await resp.json();
 
-    // If session expired or unauthenticated, send to main login page
-    if (!data.authenticated || !data.user) {
+    if (!data || !data.authenticated || !data.user) {
       window.location.href = '/public/login.html';
       return;
     }
 
     var u = data.user;
 
-    // Verify Founder / DSI org access
+    // Verify Founder access
     var isFounder = (u.role_id === 'RO-Founder' || u.role === 'Founder' || u.role === 'DRIV-EN Founder');
     var isDsiOrg = (u.org_id === 'org_dsi' || u.org_id === 'dsi');
 
     if (!isFounder || !isDsiOrg) {
-      window.location.href = '/app/auth/no-access.html';
+      window.location.href = '/public/login.html';
       return;
     }
 
@@ -515,6 +542,10 @@ function initOwnerDashboard() {
 async function loadW9IrsFormUrl() {
   try {
     var resp = await fetch(adminApi('/app-settings?key=w9_irs_form_url'));
+    if (resp.status === 401 || resp.status === 403) {
+      window.location.href = '/public/login.html';
+      return;
+    }
     var data = await resp.json();
     if (data.success && data.value) {
       var input = document.getElementById('w9IrsFormUrlInput');
@@ -539,6 +570,10 @@ async function saveW9IrsFormUrl() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key: 'w9_irs_form_url', value: url })
     });
+    if (resp.status === 401 || resp.status === 403) {
+      window.location.href = '/public/login.html';
+      return;
+    }
     var data = await resp.json();
     if (data.success) {
       msg.innerHTML = '<span style="color:#166534;">W-9 IRS form URL saved. Referrer dashboards will use this link.</span>';
@@ -588,6 +623,10 @@ async function loadPartners() {
 
   try {
     var resp = await fetch(adminApi('/referral-partners'));
+    if (resp.status === 401 || resp.status === 403) {
+      window.location.href = '/public/login.html';
+      return;
+    }
     var data = await resp.json();
 
     if (data.success && data.partners) {
@@ -741,7 +780,7 @@ function renderTable(partners) {
       var name = this.getAttribute('data-name') || '';
       if (action === 'approve') openApproveModal(id, name);
       else if (action === 'reject') openRejectModal(id, name);
-      else if (action === 'reapprove') reapproveW9(id);
+      else if (action === 'reapprove') reapproveW9(id, name);
       else if (action === 'toggle-active') toggleActive(id, name);
       else if (action === 'view-w9') viewW9(id);
     });
@@ -864,6 +903,10 @@ async function confirmApprove() {
         w9ExpirationDate: w9Expiration
       })
     });
+    if (resp.status === 401 || resp.status === 403) {
+      window.location.href = '/public/login.html';
+      return;
+    }
     var data = await resp.json();
 
     if (data.success) {
@@ -918,6 +961,10 @@ async function confirmReject() {
         reason: reason
       })
     });
+    if (resp.status === 401 || resp.status === 403) {
+      window.location.href = '/public/login.html';
+      return;
+    }
     var data = await resp.json();
 
     if (data.success) {
@@ -965,6 +1012,10 @@ async function submitChangePassword() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ current_password: currentPwd, new_password: newPwd })
     });
+    if (resp.status === 401 || resp.status === 403) {
+      window.location.href = '/public/login.html';
+      return;
+    }
     var data = await resp.json();
 
     if (data.success) {
@@ -989,6 +1040,10 @@ async function reapproveW9(partnerId, partnerName) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'reapprove_w9', partnerId: partnerId })
     });
+    if (resp.status === 401 || resp.status === 403) {
+      window.location.href = '/public/login.html';
+      return;
+    }
     var data = await resp.json();
     if (data.success) {
       showError(data.message || 'Partner re-approved');
@@ -1010,6 +1065,10 @@ async function toggleActive(partnerId, partnerName) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'toggle_active', partnerId: partnerId })
     });
+    if (resp.status === 401 || resp.status === 403) {
+      window.location.href = '/public/login.html';
+      return;
+    }
     var data = await resp.json();
     if (data.success) {
       showError(data.message || 'State toggled');
@@ -1083,6 +1142,10 @@ async function loadCustomers() {
 
   try {
     var resp = await fetch(adminApi('/customers'));
+    if (resp.status === 401 || resp.status === 403) {
+      window.location.href = '/public/login.html';
+      return;
+    }
     var data = await resp.json();
 
     if (data.success && data.customers) {
@@ -1244,7 +1307,7 @@ function showCustomerDetail(idx) {
   var expDate = c.expiration_date ? new Date(c.expiration_date).toLocaleDateString() : '—';
   var createdDate = c.created_at ? new Date(c.created_at).toLocaleDateString() : '—';
 
-  var html = '<div style="background:#ffffff;color:#1e293b;border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.35);borde[...]';
+  var html = '<div style="background:#ffffff;color:#1e293b;border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.35);">';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
   html += '<h3 style="margin:0;color:#1e293b;">' + escapeHtml(c.company_name || c.organization_name || c.name || 'Unknown') + '</h3>';
   html += '<button onclick="closeCustomerDetail()" style="background:none;border:none;font-size:26px;cursor:pointer;color:#64748b;line-height:1;">×</button>';
@@ -1354,6 +1417,10 @@ async function loadSystemStatus() {
 
   try {
     var resp = await fetch(adminApi('/referral-partners'));
+    if (resp.status === 401 || resp.status === 403) {
+      window.location.href = '/public/login.html';
+      return;
+    }
     var data = await resp.json();
     if (data.success && data.partners) {
       document.getElementById('sysD1Partners').textContent = data.partners.length + ' rows';
@@ -1364,6 +1431,10 @@ async function loadSystemStatus() {
 
   try {
     var vResp = await fetch(adminApi('/site-visitors?summary=true'));
+    if (vResp.status === 401 || vResp.status === 403) {
+      window.location.href = '/public/login.html';
+      return;
+    }
     var vData = await vResp.json();
     if (vData.success && vData.summary) {
       document.getElementById('sysD1Visitors').textContent = (vData.summary.totalVisits || 0) + ' rows';
@@ -1374,6 +1445,10 @@ async function loadSystemStatus() {
 
   try {
     var pResp = await fetch(adminApi('/referral-partners'));
+    if (pResp.status === 401 || pResp.status === 403) {
+      window.location.href = '/public/login.html';
+      return;
+    }
     var pData = await pResp.json();
     if (pData.success && pData.partners) {
       var withActivity = pData.partners.filter(function(p) { return p.last_referred; }).length;
@@ -1394,6 +1469,10 @@ async function loadSystemStatus() {
 async function loadAIUsage() {
   try {
     var resp = await fetch(adminApi('/customers'));
+    if (resp.status === 401 || resp.status === 403) {
+      window.location.href = '/public/login.html';
+      return;
+    }
     var data = await resp.json();
     if (!data.success || !data.customers) {
       document.getElementById('ai-usage-detail').textContent = 'No AI usage data available yet.';
@@ -1455,6 +1534,10 @@ async function loadIssues() {
 
   try {
     var resp = await fetch(adminApi('/issues'));
+    if (resp.status === 401 || resp.status === 403) {
+      window.location.href = '/public/login.html';
+      return;
+    }
     var data = await resp.json();
 
     if (data.success && data.issues && data.issues.length > 0) {
@@ -1471,13 +1554,13 @@ async function loadIssues() {
       allIssues = [];
       populateSourceFilter([]);
       renderIssueStats([]);
-      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors Logged</h3><p>No errors have been recorded yet. When a Worker or Pages Function encounters an error[...]';
+      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors Logged</h3><p>No errors have been recorded yet. When a Worker or Pages Function encounters an error...</p></div>';
     }
   } catch (e) {
     allIssues = [];
     populateSourceFilter([]);
     renderIssueStats([]);
-    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Unable to Load Error Logs</h3><p>Could not reach the /api/admin/issues endpoint. Make sure the Pages Function i[...]';
+    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Unable to Load Error Logs</h3><p>Could not reach the /api/admin/issues endpoint. Make sure the Pages Function is deployed.</p></div>';
   }
 }
 
@@ -1566,7 +1649,7 @@ function renderIssues(issues) {
   });
 
   if (filtered.length === 0) {
-    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors Match Filters</h3><p>No errors match the current filter settings. Adjust or clear the filters.</p></d[...]';
+    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors Match Filters</h3><p>No errors match the current filter settings. Adjust or clear the filters.</p></div>';
     return;
   }
 
@@ -1639,7 +1722,7 @@ function renderIssues(issues) {
       html += '<div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;"><strong>Error ID:</strong> ' + safeId + '</div>';
       if (i.stack_trace) {
         html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-weight:600;">Stack Trace:</div>';
-        html += '<pre style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;color:var(--text);white-space:pre-wrap;word-break:break-word;m[...]';
+        html += '<pre style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;color:var(--text);white-space:pre-wrap;word-break:break-word;">' + escapeHtml(i.stack_trace) + '</pre>';
       }
       html += '</div>';
       html += '</td>';
@@ -1712,6 +1795,10 @@ async function resolveAllChecked() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: ids[j], resolved: true })
       });
+      if (resp.status === 401 || resp.status === 403) {
+        window.location.href = '/public/login.html';
+        return;
+      }
       var data = await resp.json();
       if (data.success) successCount++;
       else failCount++;
@@ -1798,6 +1885,10 @@ async function resolveIssue(id, resolved) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: id, resolved: resolved })
     });
+    if (resp.status === 401 || resp.status === 403) {
+      window.location.href = '/public/login.html';
+      return;
+    }
     var data = await resp.json();
     if (data.success) {
       var issue = allIssues.find(function(i) { return i.id === id; });
@@ -1824,6 +1915,10 @@ async function loadTeamMembers() {
 
   try {
     var resp = await fetch('/auth/team-members');
+    if (resp.status === 401 || resp.status === 403) {
+      window.location.href = '/public/login.html';
+      return;
+    }
     var data = await resp.json();
 
     if (data.success && data.members && data.members.length > 0) {
@@ -1897,6 +1992,10 @@ async function addTeamMember() {
         role: 'DRIV-EN Founder'
       })
     });
+    if (resp.status === 401 || resp.status === 403) {
+      window.location.href = '/public/login.html';
+      return;
+    }
     var data = await resp.json();
 
     if (data.success) {
@@ -1920,6 +2019,10 @@ async function toggleTeamMember(memberId, memberEmail) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'toggle_active', memberId: memberId })
     });
+    if (resp.status === 401 || resp.status === 403) {
+      window.location.href = '/public/login.html';
+      return;
+    }
     var data = await resp.json();
     if (data.success) {
       loadTeamMembers();
