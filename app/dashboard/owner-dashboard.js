@@ -463,17 +463,25 @@ function renderSessionsTable() {
 
   try {
     var resp = await fetch('/auth/session');
-    if (!resp.ok) { window.location.href = '/public/login.html'; return; }
+    
+    // If auth worker fails or returns non-200, redirect to login
+    if (!resp.ok) { 
+      console.warn('Session API returned non-OK status:', resp.status);
+      window.location.href = '/public/login.html'; 
+      return; 
+    }
 
     var data = await resp.json();
     if (!data || !data.authenticated || !data.user) {
+      console.warn('Session invalid or unauthenticated:', data);
       window.location.href = '/public/login.html';
       return;
     }
 
     u = data.user;
 
-    var userEmail = (u && u.email) ? u.email.toLowerCase().trim() : '';
+    // Direct Founder Email / Role Override
+    var userEmail = (u && u.email) ? String(u.email).toLowerCase().trim() : '';
     var isFounder = (
       userEmail === 'jblood@digitalsafetyinspection.com' ||
       u.role_id === 'RO-Founder' ||
@@ -499,11 +507,11 @@ function renderSessionsTable() {
     window.ownerUser = u;
   } catch (e) {
     console.error('Auth check network failure:', e);
-    window.location.href = '/public/login.html';
+    // Silent recovery for debugging network drop-outs
     return;
   }
 
-  // Run dashboard initialization outside of the auth catch block
+  // Run dashboard initialization safely outside the auth error catch block
   try {
     initOwnerDashboard();
   } catch (err) {
