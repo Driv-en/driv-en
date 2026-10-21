@@ -317,6 +317,14 @@
   <div id="tabContentSingle">
     <div class="dash-card" id="formCard">
       <h3>Add Location</h3>
+
+      <!-- DIVISION INFORMATIONAL BANNER -->
+      <div style="margin-bottom: 16px; padding: 12px 16px; background: #f0f9ff; border-left: 4px solid #0284c7; border-radius: 6px; font-size: 13px; color: #0c4a6e; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <strong>Organizing by Division?</strong> Assigning a division to a location is optional. If your organization operates across multiple divisions, you can manage or add divisions anytime in <a href="/app/onboarding/divisions.html" onclick="return confirmLeave()" style="color: #0284c7; text-decoration: underline; font-weight: 600;">Divisions Setup</a>.
+        </div>
+      </div>
+
       <div class="loc-form-grid">
         <div class="loc-form-field"><label>Location #</label><input type="text" id="locNumber" class="dash-input" placeholder="Optional"></div>
         <div class="loc-form-field"><label>Location Name<span class="loc-required-star">*</span></label><input type="text" id="locName" class="dash-input"></div>
@@ -602,7 +610,7 @@ async function submitQuickDivision() {
       divisions.push({ name: name });
       localStorage.setItem("driven_divisions", JSON.stringify(divisions));
     }
-    loadDivisionDropdown(name);
+    await loadDivisionDropdown(name);
     document.getElementById("modalDivision").style.display = "none";
   } catch (e) {
     errEl.textContent = "Error saving division: " + e.message;
@@ -642,7 +650,7 @@ async function loadExistingLocations() {
 
   if (navigator.onLine) {
     try {
-      var resp = await fetch("/api/location", {
+      var resp = await fetch("/api/locations", {
         headers: { "x-org-id": activeOrgId || "" }
       });
       if (resp.ok) {
@@ -814,19 +822,39 @@ function isDuplicateLocationName(name) {
   return inSession || inSystem;
 }
 
-function loadDivisionDropdown(selectedVal) {
-  var divisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
+async function loadDivisionDropdown(selectedVal) {
   var sel = document.getElementById("locDivision");
   sel.innerHTML = '<option value="">— None —</option><option value="__ADD_NEW__">➕ Add New Division...</option>';
-  divisions.forEach(function(div) {
-    var opt = document.createElement("option");
-    var val = normalizeName(div);
-    if (val) {
-      opt.value = val;
-      opt.textContent = val;
-      sel.appendChild(opt);
+  var divisions = [];
+
+  if (navigator.onLine) {
+    try {
+      var resp = await fetch("/api/divisions", {
+        headers: { "x-org-id": activeOrgId || "" }
+      });
+      if (resp.ok) {
+        var data = await resp.json();
+        var rawList = data.divisions || data.records || data.data || (Array.isArray(data) ? data : []);
+        divisions = rawList.map(function(d) { return normalizeName(d.name || d); }).filter(Boolean);
+        localStorage.setItem("driven_divisions", JSON.stringify(divisions.map(function(n) { return { name: n }; })));
+      }
+    } catch (e) {
+      console.warn("Could not fetch divisions from API, using fallback:", e.message);
     }
+  }
+
+  if (divisions.length === 0) {
+    var cached = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
+    divisions = cached.map(function(d) { return normalizeName(d); }).filter(Boolean);
+  }
+
+  divisions.forEach(function(val) {
+    var opt = document.createElement("option");
+    opt.value = val;
+    opt.textContent = val;
+    sel.appendChild(opt);
   });
+
   if (selectedVal) {
     sel.value = selectedVal;
     lastDivisionVal = selectedVal;
@@ -1257,12 +1285,12 @@ document.getElementById("btnSaveLoc").addEventListener("click", async function()
         "Address": loc.address || "",
         "City": loc.city || "",
         "State": loc.state || "",
-        "Zip": loc.zip || loc.zip_code || "",
+        "Zip Code": loc.zip || loc.zip_code || "",
         "Division": loc.division || "",
         "Status": loc.status || "Active"
       };
 
-      var res = await fetch("/api/location", {
+      var res = await fetch("/api/locations", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1338,7 +1366,7 @@ function parseCsvLine(line) {
   return result;
 }
 
-document.addEventListener("dashSessionLoaded", function(e) {
+document.addEventListener("dashSessionLoaded", async function(e) {
   var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
   activeOrgId = userObj.org_id || (e.detail && e.detail.org_id) || localStorage.getItem("driven_org_id");
   customerOrgName = (e.detail && e.detail.org_name) || localStorage.getItem("driven_org_name") || "DRIV-EN Org";
@@ -1353,8 +1381,8 @@ document.addEventListener("dashSessionLoaded", function(e) {
     if (logoArea && drivenLogo) { row1.insertBefore(title, drivenLogo); }
   }
 
-  loadDivisionDropdown();
-  loadExistingLocations();
+  await loadDivisionDropdown();
+  await loadExistingLocations();
   renderTable();
   updateCount();
   checkActivePresence();
