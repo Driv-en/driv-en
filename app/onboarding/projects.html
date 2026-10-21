@@ -498,7 +498,12 @@
     var statusBulk = document.getElementById("statusBulk");
     var bulkPreview = document.getElementById("bulkPreview");
 
-    function normalizeName(str) { return String(str || "").trim().replace(/\s+/g, " "); }
+    function normalizeName(str) { 
+      if (typeof str === 'object' && str !== null) {
+        str = str.name || str.project_name || str.projectName || "";
+      }
+      return String(str || "").trim().replace(/\s+/g, " "); 
+    }
     
     function validateOrgContext() {
       if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
@@ -525,6 +530,7 @@
     }
 
     async function checkActivePresence() {
+      if (!navigator.onLine) return;
       try {
         var resp = await fetch("/api/onboarding/presence", {
           method: "POST",
@@ -571,12 +577,17 @@
     });
 
     function updateCount() {
-      prjCountEl.textContent = projects.length;
+      var totalCount = existingProjects.length + projects.length;
+      if (prjCountEl) prjCountEl.textContent = totalCount;
       if (existingPrjCountEl) existingPrjCountEl.textContent = existingProjects.length;
+      try {
+        localStorage.setItem("driven_project_count", String(totalCount));
+      } catch (e) {}
     }
 
     function checkPrerequisites() {
-      var clientsDone = localStorage.getItem("driven_step4_complete") === "true" || (JSON.parse(localStorage.getItem("driven_clients") || "[]")).length > 0;
+      var clients = JSON.parse(localStorage.getItem("driven_clients") || "[]");
+      var clientsDone = clients.length > 0;
       var prereqBanner = document.getElementById("prereqBanner");
 
       if (!clientsDone) {
@@ -593,9 +604,12 @@
       var clients = JSON.parse(localStorage.getItem("driven_clients") || "[]");
       clients.forEach(function(c) {
         var opt = document.createElement("option");
-        opt.value = c.name;
-        opt.textContent = c.name;
-        sel.appendChild(opt);
+        var val = normalizeName(c.name || c.client_name || c);
+        if (val) {
+          opt.value = val;
+          opt.textContent = val;
+          sel.appendChild(opt);
+        }
       });
     }
 
@@ -606,9 +620,12 @@
       var divisions = JSON.parse(localStorage.getItem("driven_divisions") || "[]");
       divisions.forEach(function(d) {
         var opt = document.createElement("option");
-        opt.value = d.name;
-        opt.textContent = d.name;
-        sel.appendChild(opt);
+        var val = normalizeName(d.name || d.division_name || d);
+        if (val) {
+          opt.value = val;
+          opt.textContent = val;
+          sel.appendChild(opt);
+        }
       });
     }
 
@@ -648,30 +665,48 @@
 
     async function loadExistingProjects() {
       existingPrjTableContainer.textContent = "";
-      try {
-        var resp = await fetch("/api/project", {
-          headers: { "x-org-id": activeOrgId || "" }
-        });
-        if (resp.ok) {
-          var data = await resp.json();
-          var rawList = data.records || data.projects || data.data || (Array.isArray(data) ? data : []);
-          existingProjects = rawList.map(function(item) {
-            var rec = item.fields ? Object.assign({ id: item.id }, item.fields) : item;
-            return {
-              id: rec.id || "",
-              number: rec.code || rec.number || rec.project_number || rec.projectNumber || "",
-              name: normalizeName(rec.name || rec.project_name || rec.projectName || ""),
-              client: rec.client || rec.client_name || "",
-              division: rec.division || rec.division_name || ""
-            };
+
+      // Rule 3: Direct Cloudflare D1 fetch first when online
+      if (navigator.onLine) {
+        try {
+          var resp = await fetch("/api/project", {
+            headers: { "x-org-id": activeOrgId || "" }
           });
-        } else {
-          existingProjects = JSON.parse(localStorage.getItem("driven_projects") || "[]");
+          if (resp.ok) {
+            var data = await resp.json();
+            var rawList = data.records || data.projects || data.data || (Array.isArray(data) ? data : []);
+            existingProjects = rawList.map(function(item) {
+              var rec = item.fields ? Object.assign({ id: item.id }, item.fields) : item;
+              return {
+                id: rec.id || "",
+                number: normalizeName(rec.code || rec.number || rec.project_number || rec.projectNumber || rec["Project Code"] || ""),
+                name: normalizeName(rec.name || rec.project_name || rec.projectName || rec["Project Name"] || ""),
+                client: normalizeName(rec.client || rec.client_name || rec.Client || ""),
+                division: normalizeName(rec.division || rec.division_name || rec.Division || "")
+              };
+            });
+            localStorage.setItem("driven_projects", JSON.stringify(existingProjects));
+            renderExistingTable();
+            updateCount();
+            return;
+          }
+        } catch (e) {
+          console.warn("API load for existing projects failed, fallback to local storage:", e.message);
         }
-      } catch (e) {
-        console.warn("API load for existing projects failed, fallback to local storage:", e.message);
-        existingProjects = JSON.parse(localStorage.getItem("driven_projects") || "[]");
       }
+
+      // Offline fallback
+      var cached = JSON.parse(localStorage.getItem("driven_projects") || "[]");
+      existingProjects = cached.map(function(item) {
+        var rec = item.fields ? Object.assign({ id: item.id }, item.fields) : item;
+        return {
+          id: rec.id || "",
+          number: normalizeName(rec.number || rec.code || rec.project_number || rec.projectNumber || rec["Project Code"] || ""),
+          name: normalizeName(rec.name || rec.project_name || rec.projectName || rec["Project Name"] || ""),
+          client: normalizeName(rec.client || rec.client_name || rec.Client || ""),
+          division: normalizeName(rec.division || rec.division_name || rec.Division || "")
+        };
+      });
       renderExistingTable();
       updateCount();
     }
@@ -998,10 +1033,17 @@
     document.getElementById("btnSavePrj").addEventListener("click", async function() {
       if (!validateOrgContext()) return;
       prjStepStatus.textContent = ""; prjStepStatus.style.color = "var(--error)";
+
+      // Rule 1: Offline Guard Enforcement
+      if (!navigator.onLine) {
+        prjStepStatus.textContent = "Network Error: You must be connected to the internet to save project data to Cloudflare D1.";
+        return;
+      }
+
       if (projects.length === 0 && existingProjects.length === 0) { prjStepStatus.textContent = "You must add at least one project."; return; }
       
       var btnSave = document.getElementById("btnSavePrj");
-      btnSave.disabled = true; btnSave.textContent = "Saving...";
+      btnSave.disabled = true; btnSave.textContent = "Saving to Database...";
 
       try {
         var saveErrors = [];
@@ -1010,6 +1052,8 @@
           var payload = {
             "Project Name": p.name,
             "Project Code": p.number,
+            "Client": p.client,
+            "Division": p.division,
             "Status": "Active"
           };
           var res = await fetch("/api/project", { 
@@ -1032,11 +1076,11 @@
 
         var allProjects = existingProjects.concat(projects);
         localStorage.setItem("driven_projects", JSON.stringify(allProjects));
-        localStorage.setItem("driven_project_count", allProjects.length);
-        localStorage.setItem("driven_step6_complete", "true");
+        localStorage.setItem("driven_project_count", String(allProjects.length));
+        // Rule 2: Manual completion rule applied - removed step completion flag setting
 
         prjStepStatus.style.color = "var(--success)";
-        prjStepStatus.textContent = projects.length + " project(s) saved directly to system. Redirecting to onboarding dashboard…";
+        prjStepStatus.textContent = projects.length + " project(s) saved directly to D1. Total projects: " + allProjects.length + ". Redirecting to onboarding dashboard…";
         btnSave.textContent = "Saved ✓"; prjDirty = false;
         projects = [];
         await loadExistingProjects();
@@ -1063,7 +1107,8 @@
     }
 
     document.addEventListener("dashSessionLoaded", function(e) {
-      activeOrgId = (e.detail && e.detail.org_id) || localStorage.getItem("driven_org_id");
+      var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
+      activeOrgId = userObj.org_id || (e.detail && e.detail.org_id) || localStorage.getItem("driven_org_id");
       customerOrgName = (e.detail && e.detail.org_name) || localStorage.getItem("driven_org_name") || "DRIV-EN Org";
 
       var row1 = document.querySelector(".dash-header-row1");
