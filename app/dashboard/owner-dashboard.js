@@ -60,10 +60,7 @@ function loadOwnerLogo() {
 
   fetch(adminApi('/app-settings?key=owner_logo'))
     .then(function(res) { 
-      if (res.status === 401 || res.status === 403) {
-        window.location.href = '/public/login.html';
-        return;
-      }
+      if (!res || !res.ok) return null;
       return res.json(); 
     })
     .then(function(data) {
@@ -96,10 +93,7 @@ function handleLogoUpload(event) {
       body: JSON.stringify({ key: 'owner_logo', value: logoData })
     })
     .then(function(res) {
-      if (res.status === 401 || res.status === 403) {
-        window.location.href = '/public/login.html';
-        return;
-      }
+      if (!res || !res.ok) return null;
       return res.json();
     })
     .then(function(data) {
@@ -128,10 +122,6 @@ function removeLogo() {
     body: JSON.stringify({ key: 'owner_logo', value: '' })
   })
   .then(function(res) {
-    if (res.status === 401 || res.status === 403) {
-      window.location.href = '/public/login.html';
-      return;
-    }
     loadOwnerLogo();
   })
   .catch(function() {
@@ -206,84 +196,77 @@ async function loadVisitors(presetDays, presetName) {
     document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">Loading...</td></tr>';
 
     var summaryResp = await fetch(adminApi('/site-visitors?summary=true&start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate)));
-    if (summaryResp.status === 401 || summaryResp.status === 403) {
-      window.location.href = '/public/login.html';
-      return;
-    }
-    var summaryData = await summaryResp.json();
+    if (summaryResp && summaryResp.ok) {
+      var summaryData = await summaryResp.json();
+      if (summaryData.success) {
+        var s = summaryData.summary;
+        document.getElementById('visitorTotalVisits').textContent = s.totalVisits || 0;
+        document.getElementById('visitorUniqueVisitors').textContent = s.uniqueVisitors || 0;
+        document.getElementById('visitorUniqueSessions').textContent = s.uniqueSessions || 0;
+        document.getElementById('visitorUniqueCountries').textContent = s.uniqueCountries || 0;
+        document.getElementById('visitorReferralVisits').textContent = s.referralVisits || 0;
+        document.getElementById('visitorTopDevice').textContent = (s.deviceBreakdown && s.deviceBreakdown[0]) ? s.deviceBreakdown[0].device_type : '—';
+        document.getElementById('visitorTopBrowser').textContent = (s.browserBreakdown && s.browserBreakdown[0]) ? s.browserBreakdown[0].browser : '—';
+        document.getElementById('visitorTopOS').textContent = (s.osBreakdown && s.osBreakdown[0]) ? s.osBreakdown[0].os : '—';
 
-    if (summaryData.success) {
-      var s = summaryData.summary;
-      document.getElementById('visitorTotalVisits').textContent = s.totalVisits || 0;
-      document.getElementById('visitorUniqueVisitors').textContent = s.uniqueVisitors || 0;
-      document.getElementById('visitorUniqueSessions').textContent = s.uniqueSessions || 0;
-      document.getElementById('visitorUniqueCountries').textContent = s.uniqueCountries || 0;
-      document.getElementById('visitorReferralVisits').textContent = s.referralVisits || 0;
-      document.getElementById('visitorTopDevice').textContent = (s.deviceBreakdown && s.deviceBreakdown[0]) ? s.deviceBreakdown[0].device_type : '—';
-      document.getElementById('visitorTopBrowser').textContent = (s.browserBreakdown && s.browserBreakdown[0]) ? s.browserBreakdown[0].browser : '—';
-      document.getElementById('visitorTopOS').textContent = (s.osBreakdown && s.osBreakdown[0]) ? s.osBreakdown[0].os : '—';
+        var pagesHtml = (s.topPages || []).map(function(p) {
+          return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
+                 '<span style="color:var(--text);">' + (p.page_path || '/') + '</span>' +
+                 '<span style="color:var(--text-muted);">' + p.count + '</span></div>';
+        }).join('');
+        document.getElementById('visitorTopPages').innerHTML = pagesHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
 
-      var pagesHtml = (s.topPages || []).map(function(p) {
-        return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
-               '<span style="color:var(--text);">' + (p.page_path || '/') + '</span>' +
-               '<span style="color:var(--text-muted);">' + p.count + '</span></div>';
-      }).join('');
-      document.getElementById('visitorTopPages').innerHTML = pagesHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
+        var countriesHtml = (s.topCountries || []).map(function(c) {
+          return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
+                 '<span style="color:var(--text);">' + (c.country || 'Unknown') + '</span>' +
+                 '<span style="color:var(--text-muted);">' + c.count + '</span></div>';
+        }).join('');
+        document.getElementById('visitorTopCountries').innerHTML = countriesHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
 
-      var countriesHtml = (s.topCountries || []).map(function(c) {
-        return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
-               '<span style="color:var(--text);">' + (c.country || 'Unknown') + '</span>' +
-               '<span style="color:var(--text-muted);">' + c.count + '</span></div>';
-      }).join('');
-      document.getElementById('visitorTopCountries').innerHTML = countriesHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
+        var browsersHtml = (s.browserBreakdown || []).map(function(b) {
+          return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
+                 '<span style="color:var(--text);text-transform:capitalize;">' + b.browser + '</span>' +
+                 '<span style="color:var(--text-muted);">' + b.count + '</span></div>';
+        }).join('');
+        document.getElementById('visitorBrowsers').innerHTML = browsersHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
 
-      var browsersHtml = (s.browserBreakdown || []).map(function(b) {
-        return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
-               '<span style="color:var(--text);text-transform:capitalize;">' + b.browser + '</span>' +
-               '<span style="color:var(--text-muted);">' + b.count + '</span></div>';
-      }).join('');
-      document.getElementById('visitorBrowsers').innerHTML = browsersHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
-
-      var osHtml = (s.osBreakdown || []).map(function(o) {
-        return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
-               '<span style="color:var(--text);text-transform:capitalize;">' + o.os + '</span>' +
-               '<span style="color:var(--text-muted);">' + o.count + '</span></div>';
-      }).join('');
-      document.getElementById('visitorOS').innerHTML = osHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
+        var osHtml = (s.osBreakdown || []).map(function(o) {
+          return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
+                 '<span style="color:var(--text);text-transform:capitalize;">' + o.os + '</span>' +
+                 '<span style="color:var(--text-muted);">' + o.count + '</span></div>';
+        }).join('');
+        document.getElementById('visitorOS').innerHTML = osHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
+      }
     }
 
     var listResp = await fetch(adminApi('/site-visitors?start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate)));
-    if (listResp.status === 401 || listResp.status === 403) {
-      window.location.href = '/public/login.html';
-      return;
-    }
-    var listData = await listResp.json();
-
-    if (listData.success && listData.visitors && listData.visitors.length > 0) {
-      allVisitors = listData.visitors;
-      renderVisitorTable();
+    if (listResp && listResp.ok) {
+      var listData = await listResp.json();
+      if (listData.success && listData.visitors && listData.visitors.length > 0) {
+        allVisitors = listData.visitors;
+        renderVisitorTable();
+      } else {
+        allVisitors = [];
+        document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No visitor data for this date range.</td></tr>';
+      }
     } else {
-      allVisitors = [];
-      document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No visitor data for this date range.</td></tr>';
+      document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">Visitor tracking endpoint unavailable.</td></tr>';
     }
 
     var sessResp = await fetch(adminApi('/site-visitors?sessions=true&start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate)));
-    if (sessResp.status === 401 || sessResp.status === 403) {
-      window.location.href = '/public/login.html';
-      return;
-    }
-    var sessData = await sessResp.json();
-
-    if (sessData.success && sessData.sessions && sessData.sessions.length > 0) {
-      allSessions = sessData.sessions;
-      renderSessionsTable();
-    } else {
-      allSessions = [];
-      document.getElementById('sessionsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No session data for this date range.</td></tr>';
+    if (sessResp && sessResp.ok) {
+      var sessData = await sessResp.json();
+      if (sessData.success && sessData.sessions && sessData.sessions.length > 0) {
+        allSessions = sessData.sessions;
+        renderSessionsTable();
+      } else {
+        allSessions = [];
+        document.getElementById('sessionsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No session data for this date range.</td></tr>';
+      }
     }
   } catch (e) {
     console.error('loadVisitors error:', e);
-    document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--error);padding:24px;">Failed to load visitor data.</td></tr>';
+    document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">Failed to load visitor data.</td></tr>';
   }
 }
 
@@ -474,7 +457,7 @@ function renderSessionsTable() {
   tbody.innerHTML = sessRows;
 }
 
-// ---- Auth Check ----
+// ---- Primary Auth Check Guard ----
 (async function() {
   var u = null;
 
@@ -527,6 +510,7 @@ function renderSessionsTable() {
     console.error('Dashboard initialization error:', err);
   }
 })();
+
 // ---- Init ----
 function initOwnerDashboard() {
   var loadingEl = document.getElementById('loadingScreen');
@@ -564,12 +548,9 @@ function initOwnerDashboard() {
 async function loadW9IrsFormUrl() {
   try {
     var resp = await fetch(adminApi('/app-settings?key=w9_irs_form_url'));
-    if (resp.status === 401 || resp.status === 403) {
-      window.location.href = '/public/login.html';
-      return;
-    }
+    if (!resp || !resp.ok) return;
     var data = await resp.json();
-    if (data.success && data.value) {
+    if (data && data.success && data.value) {
       var input = document.getElementById('w9IrsFormUrlInput');
       if (input) input.value = data.value;
     }
@@ -579,10 +560,10 @@ async function loadW9IrsFormUrl() {
 async function saveW9IrsFormUrl() {
   var input = document.getElementById('w9IrsFormUrlInput');
   var msg = document.getElementById('w9IrsFormUrlMsg');
-  var url = input.value.trim();
+  var url = input ? input.value.trim() : '';
 
   if (!url) {
-    msg.innerHTML = '<span style="color:#fca5a5;">Please enter a URL.</span>';
+    if (msg) msg.innerHTML = '<span style="color:#fca5a5;">Please enter a URL.</span>';
     return;
   }
 
@@ -592,18 +573,18 @@ async function saveW9IrsFormUrl() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key: 'w9_irs_form_url', value: url })
     });
-    if (resp.status === 401 || resp.status === 403) {
-      window.location.href = '/public/login.html';
+    if (!resp || !resp.ok) {
+      if (msg) msg.innerHTML = '<span style="color:#fca5a5;">Failed to save settings.</span>';
       return;
     }
     var data = await resp.json();
-    if (data.success) {
-      msg.innerHTML = '<span style="color:#166534;">W-9 IRS form URL saved. Referrer dashboards will use this link.</span>';
+    if (data && data.success) {
+      if (msg) msg.innerHTML = '<span style="color:#166534;">W-9 IRS form URL saved. Referrer dashboards will use this link.</span>';
     } else {
-      msg.innerHTML = '<span style="color:#fca5a5;">' + (data.error || 'Failed to save.') + '</span>';
+      if (msg) msg.innerHTML = '<span style="color:#fca5a5;">' + (data.error || 'Failed to save.') + '</span>';
     }
   } catch (e) {
-    msg.innerHTML = '<span style="color:#fca5a5;">Network error. Please try again.</span>';
+    if (msg) msg.innerHTML = '<span style="color:#fca5a5;">Network error. Please try again.</span>';
   }
 }
 
@@ -635,7 +616,7 @@ function switchTab(tabName) {
   }
 }
 
-// ---- Load Partners ----
+// ---- Load Partners (Safe No-Redirect Variant) ----
 async function loadPartners() {
   var tbody = document.getElementById('partnersTableBody');
   if (!tbody) return;
@@ -646,25 +627,24 @@ async function loadPartners() {
 
   try {
     var resp = await fetch(adminApi('/referral-partners'));
-    if (resp.status === 401 || resp.status === 403) {
-      window.location.href = '/public/login.html';
+    if (!resp || !resp.ok) {
+      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">Referral partner service unavailable.</td></tr>';
       return;
     }
     var data = await resp.json();
 
-    if (data.success && data.partners) {
+    if (data && data.success && data.partners) {
       allPartners = data.partners;
       renderStats(data.partners);
       updateSortIndicators();
       renderTable(data.partners);
     } else {
       tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">No referral partners found.</td></tr>';
-      if (data.error) showError(data.error);
+      if (data && data.error) showError(data.error);
     }
   } catch (e) {
     console.error('Load partners failed:', e);
     tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">Failed to load partners.</td></tr>';
-    showError('Failed to load partners. Please try refreshing.');
   }
 }
 
@@ -944,13 +924,13 @@ async function confirmApprove() {
         w9ExpirationDate: w9Expiration
       })
     });
-    if (resp.status === 401 || resp.status === 403) {
-      window.location.href = '/public/login.html';
+    if (!resp || !resp.ok) {
+      showError('Failed to approve partner.');
       return;
     }
     var data = await resp.json();
 
-    if (data.success) {
+    if (data && data.success) {
       closeApproveModal();
       loadPartners();
       if (data.emailSent === false) {
@@ -959,7 +939,7 @@ async function confirmApprove() {
         showError('');
       }
     } else {
-      showError(data.error || 'Failed to approve partner.');
+      showError(data ? data.error : 'Failed to approve partner.');
     }
   } catch (e) {
     showError('Network error. Please try again.');
@@ -1012,17 +992,17 @@ async function confirmReject() {
         reason: reason
       })
     });
-    if (resp.status === 401 || resp.status === 403) {
-      window.location.href = '/public/login.html';
+    if (!resp || !resp.ok) {
+      showError('Failed to reject partner.');
       return;
     }
     var data = await resp.json();
 
-    if (data.success) {
+    if (data && data.success) {
       closeRejectModal();
       loadPartners();
     } else {
-      showError(data.error || 'Failed to reject partner.');
+      showError(data ? data.error : 'Failed to reject partner.');
     }
   } catch (e) {
     showError('Network error. Please try again.');
@@ -1069,19 +1049,19 @@ async function submitChangePassword() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ current_password: currentPwd, new_password: newPwd })
     });
-    if (resp.status === 401 || resp.status === 403) {
-      window.location.href = '/public/login.html';
+    if (!resp || !resp.ok) {
+      if (msgEl) msgEl.innerHTML = '<span style="color:#fca5a5;">Failed to change password.</span>';
       return;
     }
     var data = await resp.json();
 
-    if (data.success) {
+    if (data && data.success) {
       if (msgEl) msgEl.innerHTML = '<span style="color:#166534;">Password changed successfully!</span>';
       if (curEl) curEl.value = '';
       if (newEl) newEl.value = '';
       if (confirmEl) confirmEl.value = '';
     } else {
-      if (msgEl) msgEl.innerHTML = '<span style="color:#fca5a5;">' + (data.error || 'Failed to change password.') + '</span>';
+      if (msgEl) msgEl.innerHTML = '<span style="color:#fca5a5;">' + (data ? data.error : 'Failed to change password.') + '</span>';
     }
   } catch (e) {
     if (msgEl) msgEl.innerHTML = '<span style="color:#fca5a5;">Network error. Please try again.</span>';
@@ -1097,16 +1077,16 @@ async function reapproveW9(partnerId, partnerName) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'reapprove_w9', partnerId: partnerId })
     });
-    if (resp.status === 401 || resp.status === 403) {
-      window.location.href = '/public/login.html';
+    if (!resp || !resp.ok) {
+      showError('Failed to re-approve partner.');
       return;
     }
     var data = await resp.json();
-    if (data.success) {
+    if (data && data.success) {
       showError(data.message || 'Partner re-approved');
       loadPartners();
     } else {
-      showError(data.error || 'Failed to re-approve');
+      showError(data ? data.error : 'Failed to re-approve');
     }
   } catch (e) {
     showError('Network error. Please try again.');
@@ -1122,16 +1102,16 @@ async function toggleActive(partnerId, partnerName) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'toggle_active', partnerId: partnerId })
     });
-    if (resp.status === 401 || resp.status === 403) {
-      window.location.href = '/public/login.html';
+    if (!resp || !resp.ok) {
+      showError('Failed to toggle active state.');
       return;
     }
     var data = await resp.json();
-    if (data.success) {
+    if (data && data.success) {
       showError(data.message || 'State toggled');
       loadPartners();
     } else {
-      showError(data.error || 'Failed to toggle state');
+      showError(data ? data.error : 'Failed to toggle state');
     }
   } catch (e) {
     showError('Network error. Please try again.');
@@ -1201,19 +1181,19 @@ async function loadCustomers() {
 
   try {
     var resp = await fetch(adminApi('/customers'));
-    if (resp.status === 401 || resp.status === 403) {
-      window.location.href = '/public/login.html';
+    if (!resp || !resp.ok) {
+      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><p>Customer management service currently unavailable.</p></div>';
       return;
     }
     var data = await resp.json();
 
-    if (data.success && data.customers) {
+    if (data && data.success && data.customers) {
       allCustomers = data.customers;
       renderCustomerStats(data.customers);
       customerCurrentPage = 1;
       renderCustomersTable();
     } else {
-      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><p>' + (data.error || 'No customers found.') + '</p></div>';
+      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><p>' + (data ? data.error : 'No customers found.') + '</p></div>';
     }
   } catch (e) {
     listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><p>Failed to load customers.</p></div>';
@@ -1487,14 +1467,12 @@ async function loadSystemStatus() {
 
   try {
     var resp = await fetch(adminApi('/referral-partners'));
-    if (resp.status === 401 || resp.status === 403) {
-      window.location.href = '/public/login.html';
-      return;
-    }
-    var data = await resp.json();
-    var sysPartnersEl = document.getElementById('sysD1Partners');
-    if (data.success && data.partners && sysPartnersEl) {
-      sysPartnersEl.textContent = data.partners.length + ' rows';
+    if (resp && resp.ok) {
+      var data = await resp.json();
+      var sysPartnersEl = document.getElementById('sysD1Partners');
+      if (data && data.success && data.partners && sysPartnersEl) {
+        sysPartnersEl.textContent = data.partners.length + ' rows';
+      }
     }
   } catch (e) {
     var sysPartnersErrEl = document.getElementById('sysD1Partners');
@@ -1503,14 +1481,12 @@ async function loadSystemStatus() {
 
   try {
     var vResp = await fetch(adminApi('/site-visitors?summary=true'));
-    if (vResp.status === 401 || vResp.status === 403) {
-      window.location.href = '/public/login.html';
-      return;
-    }
-    var vData = await vResp.json();
-    var sysVisitorsEl = document.getElementById('sysD1Visitors');
-    if (vData.success && vData.summary && sysVisitorsEl) {
-      sysVisitorsEl.textContent = (vData.summary.totalVisits || 0) + ' rows';
+    if (vResp && vResp.ok) {
+      var vData = await vResp.json();
+      var sysVisitorsEl = document.getElementById('sysD1Visitors');
+      if (vData && vData.success && vData.summary && sysVisitorsEl) {
+        sysVisitorsEl.textContent = (vData.summary.totalVisits || 0) + ' rows';
+      }
     }
   } catch (e) {
     var sysVisitorsErrEl = document.getElementById('sysD1Visitors');
@@ -1519,15 +1495,13 @@ async function loadSystemStatus() {
 
   try {
     var pResp = await fetch(adminApi('/referral-partners'));
-    if (pResp.status === 401 || pResp.status === 403) {
-      window.location.href = '/public/login.html';
-      return;
-    }
-    var pData = await pResp.json();
-    var sysActEl = document.getElementById('sysD1Activity');
-    if (pData.success && pData.partners && sysActEl) {
-      var withActivity = pData.partners.filter(function(p) { return p.last_referred; }).length;
-      sysActEl.textContent = withActivity + ' partners with activity';
+    if (pResp && pResp.ok) {
+      var pData = await pResp.json();
+      var sysActEl = document.getElementById('sysD1Activity');
+      if (pData && pData.success && pData.partners && sysActEl) {
+        var withActivity = pData.partners.filter(function(p) { return p.last_referred; }).length;
+        sysActEl.textContent = withActivity + ' partners with activity';
+      }
     }
   } catch (e) {
     var sysActErrEl = document.getElementById('sysD1Activity');
@@ -1547,13 +1521,13 @@ async function loadSystemStatus() {
 async function loadAIUsage() {
   try {
     var resp = await fetch(adminApi('/customers'));
-    if (resp.status === 401 || resp.status === 403) {
-      window.location.href = '/public/login.html';
+    var detailEl = document.getElementById('ai-usage-detail');
+    if (!resp || !resp.ok) {
+      if (detailEl) detailEl.textContent = 'No AI usage data available yet.';
       return;
     }
     var data = await resp.json();
-    var detailEl = document.getElementById('ai-usage-detail');
-    if (!data.success || !data.customers) {
+    if (!data || !data.success || !data.customers) {
       if (detailEl) detailEl.textContent = 'No AI usage data available yet.';
       return;
     }
@@ -1621,18 +1595,18 @@ async function loadIssues() {
 
   try {
     var resp = await fetch(adminApi('/issues'));
-    if (resp.status === 401 || resp.status === 403) {
-      window.location.href = '/public/login.html';
+    if (!resp || !resp.ok) {
+      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Unable to Load Error Logs</h3><p>Could not reach the /api/admin/issues endpoint. Make sure the Pages Function is deployed.</p></div>';
       return;
     }
     var data = await resp.json();
 
-    if (data.success && data.issues && data.issues.length > 0) {
+    if (data && data.success && data.issues && data.issues.length > 0) {
       allIssues = data.issues;
       populateSourceFilter(data.issues);
       renderIssueStats(data.issues);
       renderIssues(data.issues);
-    } else if (data.success && data.issues && data.issues.length === 0) {
+    } else if (data && data.success && data.issues && data.issues.length === 0) {
       allIssues = [];
       populateSourceFilter([]);
       renderIssueStats([]);
@@ -1641,13 +1615,13 @@ async function loadIssues() {
       allIssues = [];
       populateSourceFilter([]);
       renderIssueStats([]);
-      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors Logged</h3><p>No errors have been recorded yet. When a Worker or Pages Function encounters an error...</p></div>';
+      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors Logged</h3><p>No errors have been recorded yet.</p></div>';
     }
   } catch (e) {
     allIssues = [];
     populateSourceFilter([]);
     renderIssueStats([]);
-    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Unable to Load Error Logs</h3><p>Could not reach the /api/admin/issues endpoint. Make sure the Pages Function is deployed.</p></div>';
+    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Unable to Load Error Logs</h3><p>Could not reach the /api/admin/issues endpoint.</p></div>';
   }
 }
 
@@ -1888,13 +1862,13 @@ async function resolveAllChecked() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: ids[j], resolved: true })
       });
-      if (resp.status === 401 || resp.status === 403) {
-        window.location.href = '/public/login.html';
-        return;
+      if (resp && resp.ok) {
+        var data = await resp.json();
+        if (data && data.success) successCount++;
+        else failCount++;
+      } else {
+        failCount++;
       }
-      var data = await resp.json();
-      if (data.success) successCount++;
-      else failCount++;
     } catch (e) {
       failCount++;
     }
@@ -1978,12 +1952,12 @@ async function resolveIssue(id, resolved) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: id, resolved: resolved })
     });
-    if (resp.status === 401 || resp.status === 403) {
-      window.location.href = '/public/login.html';
+    if (!resp || !resp.ok) {
+      alert('Failed to update issue.');
       return;
     }
     var data = await resp.json();
-    if (data.success) {
+    if (data && data.success) {
       var issue = allIssues.find(function(i) { return i.id === id; });
       if (issue) issue.resolved = resolved ? 1 : 0;
       var scrollY = window.scrollY;
@@ -1991,7 +1965,7 @@ async function resolveIssue(id, resolved) {
       renderIssues(allIssues);
       window.scrollTo(0, scrollY);
     } else {
-      alert('Failed to update issue: ' + (data.error || 'Unknown error'));
+      alert('Failed to update issue: ' + (data ? data.error : 'Unknown error'));
     }
   } catch (e) {
     alert('Failed to update issue: ' + e.message);
@@ -2008,20 +1982,20 @@ async function loadTeamMembers() {
 
   try {
     var resp = await fetch('/auth/team-members');
-    if (resp.status === 401 || resp.status === 403) {
-      window.location.href = '/public/login.html';
+    if (!resp || !resp.ok) {
+      listEl.innerHTML = '<p style="color:var(--text-muted);font-size:14px;">Team access endpoint unavailable.</p>';
       return;
     }
     var data = await resp.json();
 
-    if (data.success && data.members && data.members.length > 0) {
+    if (data && data.success && data.members && data.members.length > 0) {
       var html = data.members.map(function(m) {
         var statusBadge = m.is_active === 1
           ? '<span class="dash-badge dash-badge-success">Active</span>'
           : '<span class="dash-badge dash-badge-muted">Inactive</span>';
         var lastLogin = m.last_login ? new Date(m.last_login).toLocaleDateString() : 'Never';
         var actionBtns = '';
-        if (m.email !== window.ownerUser.email) {
+        if (m.email !== (window.ownerUser ? window.ownerUser.email : '')) {
           var toggleBtn = m.is_active === 1
             ? '<button class="owner-action-btn owner-btn-deactivate" data-action="toggle-team" data-id="' + escapeHtml(m.id) + '" data-email="' + escapeHtml(m.email) + '">Deactivate</button>'
             : '<button class="owner-action-btn owner-btn-activate" data-action="toggle-team" data-id="' + escapeHtml(m.id) + '" data-email="' + escapeHtml(m.email) + '">Activate</button>';
@@ -2049,13 +2023,13 @@ async function loadTeamMembers() {
           toggleTeamMember(this.getAttribute('data-id'), this.getAttribute('data-email'));
         });
       }
-    } else if (data.success) {
+    } else if (data && data.success) {
       listEl.innerHTML = '<p style="color:var(--text-muted);font-size:14px;">No other team members yet. Add one below.</p>';
     } else {
       listEl.innerHTML = '<p style="color:var(--text-muted);font-size:14px;">Team access requires the /auth/team-members endpoint to be deployed.</p>';
     }
   } catch (e) {
-    listEl.innerHTML = '<p style="color:var(--text-muted);font-size:14px;">Unable to load team members. The /auth/team-members endpoint may not be deployed yet.</p>';
+    listEl.innerHTML = '<p style="color:var(--text-muted);font-size:14px;">Unable to load team members.</p>';
   }
 }
 
@@ -2088,19 +2062,19 @@ async function addTeamMember() {
         role: 'DRIV-EN Founder'
       })
     });
-    if (resp.status === 401 || resp.status === 403) {
-      window.location.href = '/public/login.html';
+    if (!resp || !resp.ok) {
+      if (msg) msg.innerHTML = '<span style="color:#fca5a5;">Failed to send invitation.</span>';
       return;
     }
     var data = await resp.json();
 
-    if (data.success) {
+    if (data && data.success) {
       if (msg) msg.innerHTML = '<span style="color:#166534;">Invitation sent to ' + escapeHtml(email) + '. They will receive a temporary password and login instructions.</span>';
       if (nameEl) nameEl.value = '';
       if (emailEl) emailEl.value = '';
       loadTeamMembers();
     } else {
-      if (msg) msg.innerHTML = '<span style="color:#fca5a5;">' + (data.error || 'Failed to send invitation.') + '</span>';
+      if (msg) msg.innerHTML = '<span style="color:#fca5a5;">' + (data ? data.error : 'Failed to send invitation.') + '</span>';
     }
   } catch (e) {
     if (msg) msg.innerHTML = '<span style="color:#fca5a5;">Network error. Please try again.</span>';
@@ -2115,15 +2089,15 @@ async function toggleTeamMember(memberId, memberEmail) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'toggle_active', memberId: memberId })
     });
-    if (resp.status === 401 || resp.status === 403) {
-      window.location.href = '/public/login.html';
+    if (!resp || !resp.ok) {
+      showError('Failed to toggle access');
       return;
     }
     var data = await resp.json();
-    if (data.success) {
+    if (data && data.success) {
       loadTeamMembers();
     } else {
-      showError(data.error || 'Failed to toggle access');
+      showError(data ? data.error : 'Failed to toggle access');
     }
   } catch (e) {
     showError('Network error. Please try again.');
