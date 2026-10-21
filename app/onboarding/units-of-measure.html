@@ -466,7 +466,12 @@
     var customUnits = [];
     var activeOrgId = null;
 
-    function normalizeName(str) { return String(str || "").trim().replace(/\s+/g, " "); }
+    function normalizeName(str) {
+      if (typeof str === "object" && str !== null) {
+        str = str.name || str.unit_name || str.unit || "";
+      }
+      return String(str || "").trim().replace(/\s+/g, " ");
+    }
 
     function validateOrgContext() {
       if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
@@ -497,6 +502,7 @@
     }
 
     async function checkActivePresence() {
+      if (!navigator.onLine) return;
       try {
         var resp = await fetch("/api/onboarding/presence", {
           method: "POST",
@@ -655,14 +661,9 @@
 
     async function loadSavedUnits() {
       var saved = [];
-      try {
-        var localRaw = localStorage.getItem("driven_units_of_measure");
-        if (localRaw) {
-          saved = JSON.parse(localRaw);
-        }
-      } catch (e) {}
 
-      if ((!saved || saved.length === 0) && activeOrgId) {
+      // Rule 3: Cloudflare D1 query via API first when online
+      if (navigator.onLine && activeOrgId) {
         try {
           var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
           var res = await fetch("/api/units-of-measure", {
@@ -675,10 +676,27 @@
             var data = await res.json();
             var list = data.records || data.unitsOfMeasure || data.data || (Array.isArray(data) ? data : []);
             if (Array.isArray(list) && list.length > 0) {
-              saved = list.map(function(item) { return typeof item === "string" ? item : (item.name || item.unit_name || item.unit); });
+              saved = list.map(function(item) {
+                return normalizeName(item);
+              }).filter(Boolean);
+
               localStorage.setItem("driven_units_of_measure", JSON.stringify(saved));
               localStorage.setItem("driven_units_count", String(saved.length));
+              localStorage.setItem("driven_uom_count", String(saved.length));
             }
+          }
+        } catch (e) {
+          console.warn("API load for units of measure failed, fallback to local storage:", e.message);
+        }
+      }
+
+      // Offline or fallback check
+      if (!saved || saved.length === 0) {
+        try {
+          var localRaw = localStorage.getItem("driven_units_of_measure");
+          if (localRaw) {
+            var parsed = JSON.parse(localRaw);
+            saved = parsed.map(function(item) { return normalizeName(item); }).filter(Boolean);
           }
         } catch (e) {}
       }
@@ -700,13 +718,20 @@
 
     async function saveUnitsOfMeasure() {
       if (!validateOrgContext()) return;
+
+      var statusEl = document.getElementById("umStepStatus");
+      statusEl.style.color = "var(--error)";
+
+      // Rule 1: Offline Guard
+      if (!navigator.onLine) {
+        statusEl.textContent = "Network Error: You must be connected to the internet to save units of measure to Cloudflare D1.";
+        return;
+      }
+
       var selected = [];
       document.querySelectorAll(".dash-card input[type='checkbox']:checked").forEach(function(cb) {
         selected.push(cb.value);
       });
-
-      var statusEl = document.getElementById("umStepStatus");
-      statusEl.style.color = "var(--error)";
 
       if (selected.length === 0) {
         statusEl.textContent = "Please select at least one unit of measure.";
@@ -717,11 +742,11 @@
       localStorage.setItem("driven_units_of_measure", JSON.stringify(selected));
       localStorage.setItem("driven_units_count", String(selected.length));
       localStorage.setItem("driven_uom_count", String(selected.length));
-      localStorage.setItem("driven_step9_complete", "true");
+      // Rule 2: Manual completion rule applied - removed step completion flag setting
 
       var btnSave = document.getElementById("btnSaveUm");
       btnSave.disabled = true;
-      btnSave.textContent = "Saving...";
+      btnSave.textContent = "Saving to Database...";
 
       var payloadItems = selected.map(function(uName) {
         return {
@@ -742,8 +767,8 @@
         });
 
         if (!res.ok) {
-          var errData = await res.json();
-          throw new Error(errData.message || "Save failed");
+          var errData = await res.json().catch(function() { return {}; });
+          throw new Error(errData.message || errData.error || "Save failed");
         }
         
         statusEl.style.color = "var(--success)";
@@ -752,6 +777,8 @@
         umDirty = false;
 
         setTimeout(function() {
+          btnSave.disabled = false;
+          btnSave.textContent = "Save & Continue";
           window.location.href = "/app/dashboard/onboarding-dashboard.html";
         }, 1200);
       } catch(err) {
