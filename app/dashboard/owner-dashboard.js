@@ -476,25 +476,20 @@ function renderSessionsTable() {
 
 // ---- Auth Check ----
 (async function() {
+  var u = null;
+
   try {
     var resp = await fetch('/auth/session');
-    
-    // If session expired, missing, or unauthorized, redirect to login page
-    if (!resp.ok) {
-      window.location.href = '/public/login.html';
-      return;
-    }
+    if (!resp.ok) { window.location.href = '/public/login.html'; return; }
 
     var data = await resp.json();
-
     if (!data || !data.authenticated || !data.user) {
       window.location.href = '/public/login.html';
       return;
     }
 
-    var u = data.user;
+    u = data.user;
 
- // Verify Founder access supporting role_id and role text field variants
     var userEmail = (u && u.email) ? u.email.toLowerCase().trim() : '';
     var isFounder = (
       userEmail === 'jblood@digitalsafetyinspection.com' ||
@@ -519,13 +514,19 @@ function renderSessionsTable() {
     }
 
     window.ownerUser = u;
-    initOwnerDashboard();
   } catch (e) {
-    console.error('Auth check failed:', e);
+    console.error('Auth check network failure:', e);
     window.location.href = '/public/login.html';
+    return;
+  }
+
+  // Run dashboard initialization outside of the auth catch block
+  try {
+    initOwnerDashboard();
+  } catch (err) {
+    console.error('Dashboard initialization error:', err);
   }
 })();
-
 // ---- Init ----
 function initOwnerDashboard() {
   var loadingEl = document.getElementById('loadingScreen');
