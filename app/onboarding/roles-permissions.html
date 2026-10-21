@@ -165,6 +165,7 @@
 /* ===== BUTTON STANDARDS ===== */
 .rp-btn-primary { background: var(--primary); color: white; padding: 10px 18px; border-radius: 6px; font-size: 15px; border: 1.5px solid var(--card-green-border, #16a34a); cursor: pointer; transition: all 200ms ease; }
 .rp-btn-primary:hover { border-color: var(--primary-blue, #2563eb); background: var(--primary-hover); }
+.rp-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 .rp-btn-secondary { background: var(--bg-card); color: var(--text); padding: 8px 12px; border-radius: 6px; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; border: 1.5px solid var(--card-green-border, #16a34a); cursor: pointer; transition: all 200ms ease; }
 .rp-btn-secondary:hover { border-color: var(--primary-blue, #2563eb); color: var(--primary); }
 .rp-btn-secondary.danger { color: var(--error); border-color: var(--error); }
@@ -340,7 +341,12 @@
     var sessionPageSize = 10, sessionPage = 1, sessionSortCol = 'name', sessionSortAsc = true;
     var existingPageSize = 10, existingPage = 1, existingSortCol = 'name', existingSortAsc = true;
 
-    function normalizeName(str) { return String(str || "").trim().replace(/\s+/g, " "); }
+    function normalizeName(str) { 
+      if (typeof str === 'object' && str !== null) {
+        str = str.name || str.role_name || str.roleName || str.title || "";
+      }
+      return String(str || "").trim().replace(/\s+/g, " "); 
+    }
 
     function validateOrgContext() {
       if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
@@ -368,6 +374,7 @@
     }
 
     async function checkActivePresence() {
+      if (!navigator.onLine) return;
       try {
         var resp = await fetch("/api/onboarding/presence", {
           method: "POST",
@@ -480,19 +487,48 @@
     }
 
     async function loadExistingRoles() {
-      try {
-        var resp = await fetch('/api/onboarding/roles', {
-          headers: { "x-org-id": activeOrgId || "" }
-        });
-        var data = await resp.json();
-        if (data.success && data.roles) {
-          existingRoles = data.roles.filter(function(r) { return r.name && r.name.toLowerCase() !== 'driv-en founder'; });
-        } else {
-          existingRoles = [];
+      // Rule 3: Cloudflare D1 query via API first when online
+      if (navigator.onLine) {
+        try {
+          var resp = await fetch('/api/onboarding/roles', {
+            headers: { "x-org-id": activeOrgId || "" }
+          });
+          if (resp.ok) {
+            var data = await resp.json();
+            var rawList = data.roles || data.records || data.data || [];
+            existingRoles = rawList
+              .filter(function(r) { return (r.name || r.role_name) && String(r.name || r.role_name).toLowerCase() !== 'driv-en founder'; })
+              .map(function(r) {
+                return {
+                  id: r.id || r.role_id,
+                  name: normalizeName(r.name || r.role_name || r.title),
+                  description: normalizeName(r.description || r.desc),
+                  perm_count: typeof r.perm_count === 'number' ? r.perm_count : (Array.isArray(r.permissions) ? r.permissions.length : 0),
+                  is_system: r.is_system === 1 || r.is_system === true ? 1 : 0
+                };
+              });
+            localStorage.setItem("driven_roles", JSON.stringify(existingRoles));
+            renderExistingTable();
+            renderSessionTable();
+            updateCounts();
+            return;
+          }
+        } catch (e) {
+          console.warn("API load for existing roles failed, falling back to local storage:", e.message);
         }
-      } catch (e) {
-        existingRoles = [];
       }
+
+      // Offline fallback
+      var cached = JSON.parse(localStorage.getItem("driven_roles") || "[]");
+      existingRoles = cached.map(function(r) {
+        return {
+          id: r.id || r.role_id,
+          name: normalizeName(r.name || r.role_name || r.title || r),
+          description: normalizeName(r.description || r.desc),
+          perm_count: r.perm_count || 0,
+          is_system: r.is_system ? 1 : 0
+        };
+      });
       renderExistingTable();
       renderSessionTable();
       updateCounts();
@@ -756,6 +792,10 @@
 
     async function updateRole(roleId, name, description) {
       if (!validateOrgContext()) return;
+      if (!navigator.onLine) {
+        showMessage("Network Error: You must be online to update role details in D1.", "error");
+        return;
+      }
       try {
         var resp = await fetch('/api/onboarding/roles/' + roleId, {
           method: 'PUT',
@@ -780,6 +820,10 @@
 
     async function deleteRole(roleId, roleName) {
       if (!validateOrgContext()) return;
+      if (!navigator.onLine) {
+        showMessage("Network Error: You must be online to delete roles from D1.", "error");
+        return;
+      }
       if (!confirm('Delete role "' + roleName + '"? Users assigned to this role will need to be reassigned.')) return;
       try {
         var resp = await fetch('/api/onboarding/roles/' + roleId, { 
@@ -811,15 +855,17 @@
       });
 
       var currentPerms = [];
-      try {
-        var resp = await fetch('/api/onboarding/roles/' + roleId + '/permissions', {
-          headers: { "x-org-id": activeOrgId || "" }
-        });
-        var data = await resp.json();
-        if (data.success && data.permissions) {
-          currentPerms = data.permissions.map(function(p) { return p.id || p.permission_id; });
-        }
-      } catch (e) {}
+      if (navigator.onLine) {
+        try {
+          var resp = await fetch('/api/onboarding/roles/' + roleId + '/permissions', {
+            headers: { "x-org-id": activeOrgId || "" }
+          });
+          var data = await resp.json();
+          if (data.success && data.permissions) {
+            currentPerms = data.permissions.map(function(p) { return p.id || p.permission_id; });
+          }
+        } catch (e) {}
+      }
 
       var permGroupsEl = document.getElementById('permGroups');
       permGroupsEl.textContent = '';
@@ -863,6 +909,10 @@
 
     async function savePermissions() {
       if (!validateOrgContext()) return;
+      if (!navigator.onLine) {
+        showMessage("Network Error: You must be online to save permission settings to Cloudflare D1.", "error");
+        return;
+      }
       if (!currentEditingRoleId) return;
       var checked = [];
       document.querySelectorAll('.rp-perm-checkbox:checked').forEach(function(cb) {
@@ -911,10 +961,21 @@
 
     async function saveAndContinue() {
       if (!validateOrgContext()) return;
+
+      // Rule 1: Offline Guard
+      if (!navigator.onLine) {
+        showMessage("Network Error: You must be connected to the internet to save roles & permissions to Cloudflare D1.", "error");
+        return;
+      }
+
+      var btnSave = document.getElementById("saveContinueBtn");
+      btnSave.disabled = true;
+      btnSave.textContent = "Saving to Database...";
+
       if (sessionRoles.length > 0) {
         for (var i = 0; i < sessionRoles.length; i++) {
           try {
-            await fetch('/api/onboarding/roles', {
+            var res = await fetch('/api/onboarding/roles', {
               method: 'POST',
               headers: { 
                 'Content-Type': 'application/json',
@@ -922,12 +983,35 @@
               },
               body: JSON.stringify({ name: sessionRoles[i].name, description: sessionRoles[i].description })
             });
-          } catch (e) {}
+            if (!res.ok) {
+              var errData = await res.json().catch(function() { return {}; });
+              showMessage("Failed to save role " + sessionRoles[i].name + ": " + (errData.error || "Save error"), "error");
+              btnSave.disabled = false;
+              btnSave.textContent = "Save & Continue →";
+              return;
+            }
+          } catch (e) {
+            showMessage("Server Error: " + e.message, "error");
+            btnSave.disabled = false;
+            btnSave.textContent = "Save & Continue →";
+            return;
+          }
         }
       }
-      localStorage.setItem('driven_step2_complete', 'true');
+
+      var allRoles = existingRoles.concat(sessionRoles);
+      localStorage.setItem("driven_roles", JSON.stringify(allRoles));
+      // Rule 2: Manual completion rule applied - removed step completion flag setting
+
       rpDirty = false;
-      window.location.href = '/app/dashboard/onboarding-dashboard.html';
+      sessionRoles = [];
+      await loadExistingRoles();
+      showMessage("Roles and permissions successfully saved to Cloudflare D1. Redirecting…", "success");
+      setTimeout(function() {
+        btnSave.disabled = false;
+        btnSave.textContent = "Save & Continue →";
+        window.location.href = '/app/dashboard/onboarding-dashboard.html';
+      }, 1500);
     }
 
     function showMessage(msg, type) {
