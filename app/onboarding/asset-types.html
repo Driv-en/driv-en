@@ -739,18 +739,14 @@
     var activeOrgId = "";
 
     function normalizeName(str) {
+      if (typeof str === 'object' && str !== null) {
+        str = str.asset_type_name || str.name || str.type || str.assetType || "";
+      }
       return String(str || "").trim().replace(/\s+/g, " ");
     }
 
-    /* Extraction helper to safely extract string values from D1 object rows */
     function extractAssetTypeName(item) {
-      if (!item) return "";
-      if (typeof item === "string") return normalizeName(item);
-      if (typeof item === "object") {
-        var raw = item.asset_type_name || item.name || item.type || item.assetType || "";
-        return typeof raw === "string" ? normalizeName(raw) : "";
-      }
-      return "";
+      return normalizeName(item);
     }
 
     function validateOrgContext() {
@@ -784,6 +780,7 @@
 
     /* Active User Presence Heartbeat */
     async function checkActivePresence() {
+      if (!navigator.onLine) return;
       try {
         var resp = await fetch("/api/onboarding/presence", {
           method: "POST",
@@ -961,8 +958,8 @@
 
         var rawSaved = [];
 
-        // 1. PRIMARY SOURCE: Query D1 Endpoint direct
-        if (orgId && orgId !== "default_org") {
+        // 1. PRIMARY SOURCE: Query D1 Endpoint direct when online
+        if (navigator.onLine && orgId && orgId !== "default_org") {
           try {
             var res = await fetch("/api/asset-types", { 
               method: "GET",
@@ -981,7 +978,7 @@
           }
         }
 
-        // 2. FALLBACK SOURCE: Only read from LocalStorage if network API yielded no records
+        // 2. FALLBACK SOURCE: Read from LocalStorage
         if (!rawSaved || rawSaved.length === 0) {
           try {
             var localRaw = localStorage.getItem("driven_asset_types");
@@ -1032,9 +1029,9 @@
       var statusEl = document.getElementById("atStepStatus");
       statusEl.style.color = "var(--error)";
 
-      // ENFORCE OFFLINE GUARD FOR MASTER DATA ONBOARDING
+      // RULE 1: ENFORCE OFFLINE GUARD FOR MASTER DATA ONBOARDING
       if (!navigator.onLine) {
-        statusEl.textContent = "Offline Mode Active: Internet connection is required to modify organization asset types. Please reconnect to save.";
+        statusEl.textContent = "Network Error: You must be connected to the internet to save asset type selections to Cloudflare D1.";
         return;
       }
 
@@ -1091,7 +1088,7 @@
 
         if (res.ok) {
           primarySaved = true;
-          // Local cache update only — task completion requires explicit 'Mark Complete' action on dashboard
+          // Local cache update — RULE 2: Manual completion rule applied (step completion flag omitted intentionally)
           localStorage.setItem("driven_asset_types", JSON.stringify(simpleSelectedList));
           localStorage.setItem("driven_asset_type_count", String(simpleSelectedList.length));
         } else {
