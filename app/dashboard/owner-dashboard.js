@@ -494,20 +494,21 @@ function renderSessionsTable() {
 
     var u = data.user;
 
-    // Verify Founder access supporting role_id and role text field variants
+ // Verify Founder access supporting role_id and role text field variants
+    var userEmail = (u && u.email) ? u.email.toLowerCase().trim() : '';
     var isFounder = (
-      u.role_id === 'RO-Founder' || 
-      u.role_id === 'RO-admin' || 
-      u.role === 'Founder' || 
-      u.role === 'DRIV-EN Founder' || 
-      u.role === 'RO-Founder' ||
-      u.email === 'jblood@digitalsafetyinspection.com'
+      userEmail === 'jblood@digitalsafetyinspection.com' ||
+      u.role_id === 'RO-Founder' ||
+      u.role_id === 'RO-admin' ||
+      u.role === 'Founder' ||
+      u.role === 'DRIV-EN Founder' ||
+      u.role === 'RO-Founder'
     );
-    
+
     var isDsiOrg = (
-      !u.org_id || 
-      u.org_id === 'org_dsi' || 
-      u.org_id === 'dsi' || 
+      !u.org_id ||
+      u.org_id === 'org_dsi' ||
+      u.org_id === 'dsi' ||
       u.org_id === 'default_org'
     );
 
