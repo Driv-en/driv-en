@@ -323,11 +323,11 @@
 
     <form id="login-form">
         <label for="email">Email Address<span class="required-star">*</span></label>
-        <input type="email" id="email" name="email" required />
+        <input type="email" id="email" name="email" autocomplete="username" required />
 
         <label for="password">Password<span class="required-star">*</span></label>
         <div class="password-wrapper">
-            <input type="password" id="password" name="password" required />
+            <input type="password" id="password" name="password" autocomplete="current-password" required />
             <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility()" title="Show/Hide password">
                 <span id="password-toggle-icon" style="color:#2563eb;font-size:12px;font-weight:600;">SHOW</span>
             </button>
@@ -438,46 +438,52 @@ document.addEventListener("DOMContentLoaded", async () => {
         password.classList.remove("error");
         errorBanner.style.display = "none";
 
-        const response = await fetch("/auth/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                email: email.value.trim(),
-                password: password.value.trim(),
-                remember: remember.checked
-            })
-        });
+        try {
+            const response = await fetch("/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email: email.value.trim(),
+                    password: password.value.trim(),
+                    remember: remember.checked
+                })
+            });
 
-        const result = await response.json();
+            const result = await response.json();
 
-        if (!result.success) {
-            if (result.error === "referrer_account") {
-                errorBanner.style.display = "none";
-                document.getElementById("referrer-redirect-banner").style.display = "block";
+            if (!result.success) {
+                if (result.error === "referrer_account") {
+                    errorBanner.style.display = "none";
+                    document.getElementById("referrer-redirect-banner").style.display = "block";
+                    email.classList.add("error");
+                    return;
+                }
+                errorBanner.textContent = result.error || "Invalid credentials.";
+                errorBanner.style.display = "block";
                 email.classList.add("error");
+                password.classList.add("error");
                 return;
             }
-            errorBanner.textContent = result.error || "Invalid credentials.";
+
+            if (result.must_change_password) {
+                window.location.href = "/public/change-password.html";
+                return;
+            }
+
+            // Prioritize server-directed location, fallback to role mapping
+            if (result.redirect) {
+                window.location.href = result.redirect;
+            } else if (result.role === "DRIV-EN Founder") {
+                window.location.href = "/app/dashboard/owner-dashboard.html";
+            } else if (result.role === "Admin") {
+                window.location.href = "/app/dashboard/admin.html";
+            } else {
+                window.location.href = "/app/dashboard/employee-dashboard.html";
+            }
+        } catch (err) {
+            console.error("Login submission error:", err);
+            errorBanner.textContent = "A network error occurred. Please try again.";
             errorBanner.style.display = "block";
-            email.classList.add("error");
-            password.classList.add("error");
-            return;
-        }
-
-        if (result.must_change_password) {
-            window.location.href = "/public/change-password.html";
-            return;
-        }
-
-        // Respect explicit backend redirect route or fallback to role logic
-        if (result.redirect) {
-            window.location.href = result.redirect;
-        } else if (result.role === "DRIV-EN Founder") {
-            window.location.href = "/app/dashboard/owner-dashboard.html";
-        } else if (result.role === "Admin") {
-            window.location.href = "/app/dashboard/admin.html";
-        } else {
-            window.location.href = "/app/dashboard/employee-dashboard.html";
         }
     });
 </script>
