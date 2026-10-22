@@ -1,9 +1,9 @@
 /**
  * sw.js — DRIV‑EN Service Worker
- * v15 — October 2026: Fix navigation caching & bypass dashboard/public auth routes
+ * v16 — October 2026: Fix navigation caching & bypass dashboard/public/referral auth routes
  */
 
-const CACHE = 'driv-en-v15';
+const CACHE = 'driv-en-v16';
 const STATIC_ASSETS = [
   '/app/shared/dashboard.css',
   '/app/shared/dashboard-common.js',
@@ -57,10 +57,11 @@ self.addEventListener('fetch', e => {
   const url = new URL(request.url);
   if (url.origin !== location.origin) return;
 
-  // 1. ALWAYS BYPASS SERVICE WORKER FOR AUTH, APIS, AND PROTECTED DASHBOARDS
+  // 1. ALWAYS BYPASS SERVICE WORKER FOR AUTH, APIS, REFERRALS, AND PROTECTED DASHBOARDS
   if (
     url.pathname.startsWith('/api/') || 
     url.pathname.startsWith('/auth/') ||
+    url.pathname.startsWith('/referral/') ||
     url.pathname.startsWith('/app/') ||
     url.pathname.startsWith('/public/')
   ) {
