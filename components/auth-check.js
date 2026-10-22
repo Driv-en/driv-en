@@ -10,7 +10,7 @@
 //      it also checks that the user has the Admin role.
 //   5. Founder accounts (jblood@digitalsafetyinspection.com / RO-Founder)
 //      bypass all role, task, and permission restrictions.
-//   6. User info is stored in window.drivenUser for other scripts to use.
+//   6. User info is stored in window.drivenUser and dispatches 'dashSessionLoaded'.
 // ==========================================
 
 (async function() {
@@ -24,7 +24,7 @@
     var data = await response.json();
 
     if (!data || !data.authenticated || !data.user) {
-      var requiredRole = document.body.getAttribute("data-required-role");
+      var requiredRole = document.body ? document.body.getAttribute("data-required-role") : null;
       if (requiredRole === "DRIV-EN Founder") {
         window.location.href = "/app/auth/founder-login.html";
       } else {
@@ -33,18 +33,29 @@
       return;
     }
 
-    // Store user info globally for other scripts to use
-    window.drivenUser = data.user;
-
+    // Identify founder account
     var userEmail = (data.user.email || "").toLowerCase().trim();
     var userRole = (data.user.role || "").toString();
     var userRoleId = (data.user.role_id || "").toString();
 
-    // FOUNDER & ADMIN OVERRIDE:
-    // Safe-pass platform admins, founders, and founder email addresses
     var isFounder = userEmail === "jblood@digitalsafetyinspection.com" ||
                     userRoleId === "RO-Founder" ||
                     userRole.toLowerCase().indexOf("founder") !== -1;
+
+    // Enforce org_dsi fallback for founder if org is missing or default
+    if (isFounder && (!data.user.org_id || data.user.org_id === "default_org")) {
+      data.user.org_id = "org_dsi";
+    }
+
+    // Store user info globally for other scripts to use
+    window.drivenUser = data.user;
+    window.dashUser = data.user;
+    if (data.user.org_id) {
+      localStorage.setItem("driven_customer_id", data.user.org_id);
+    }
+
+    // Notify any listening dashboard scripts that the session is verified
+    document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: data.user }));
 
     var isAdminRole = isFounder ||
                       ["admin", "administrator"].indexOf(userRole.toLowerCase()) !== -1;
@@ -62,7 +73,7 @@
     }
 
     // Check required role for standard users
-    var requiredRole = document.body.getAttribute("data-required-role");
+    var requiredRole = document.body ? document.body.getAttribute("data-required-role") : null;
     if (requiredRole) {
       if (!isAdminRole && userRole.toLowerCase() !== requiredRole.toLowerCase()) {
         window.location.href = "/app/auth/no-access.html";
@@ -71,7 +82,7 @@
     }
 
     // Check required onboarding task
-    var requiredTask = document.body.getAttribute("data-required-task");
+    var requiredTask = document.body ? document.body.getAttribute("data-required-task") : null;
     if (requiredTask && !isAdminRole) {
       var hasTask = await checkUserAssignedTask(data.user, requiredTask);
       if (!hasTask) {
@@ -81,7 +92,7 @@
     }
 
     // Check required permission
-    var requiredPermission = document.body.getAttribute("data-required-permission");
+    var requiredPermission = document.body ? document.body.getAttribute("data-required-permission") : null;
     if (requiredPermission && !isAdminRole) {
       var userPerms = data.user.permissions || [];
       var hasPermission = userPerms.some(function(p) {
@@ -95,7 +106,7 @@
 
   } catch (e) {
     console.error("Auth check error:", e.message);
-    var requiredRole = document.body.getAttribute("data-required-role");
+    var requiredRole = document.body ? document.body.getAttribute("data-required-role") : null;
     if (requiredRole === "DRIV-EN Founder") {
       window.location.href = "/app/auth/founder-login.html";
     } else {
