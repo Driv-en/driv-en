@@ -5,7 +5,7 @@
 //   1. Add this line to any page that needs protection:
 //      <script src="/components/auth-check.js"></script>
 //   2. The script checks /auth/session to see if the user is logged in.
-//   3. If not logged in, it redirects to the login page.
+//   3. If not logged in, it redirects to /public/login.html.
 //   4. If the page has data-required-role="Admin" on the <body> tag,
 //      it also checks that the user has the Admin role.
 //   5. Founder accounts (jblood@digitalsafetyinspection.com / RO-Founder)
@@ -24,12 +24,7 @@
     var data = await response.json();
 
     if (!data || !data.authenticated || !data.user) {
-      var requiredRole = document.body ? document.body.getAttribute("data-required-role") : null;
-      if (requiredRole === "DRIV-EN Founder") {
-        window.location.href = "/app/auth/founder-login.html";
-      } else {
-        window.location.href = "/public/login.html";
-      }
+      window.location.href = "/public/login.html";
       return;
     }
 
@@ -106,12 +101,7 @@
 
   } catch (e) {
     console.error("Auth check error:", e.message);
-    var requiredRole = document.body ? document.body.getAttribute("data-required-role") : null;
-    if (requiredRole === "DRIV-EN Founder") {
-      window.location.href = "/app/auth/founder-login.html";
-    } else {
-      window.location.href = "/public/login.html";
-    }
+    window.location.href = "/public/login.html";
   }
 })();
 
