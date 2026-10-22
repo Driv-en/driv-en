@@ -457,67 +457,71 @@ function renderSessionsTable() {
   tbody.innerHTML = sessRows;
 }
 
-// ---- Primary Auth Check Guard ----
-(async function() {
-  var u = null;
+// ---- Primary Auth Check Guard & Event Listening ----
+function verifyAndInitOwnerSession(u) {
+  if (!u) return;
 
-  try {
-    var resp = await fetch('/auth/session');
-    
-    // If auth worker fails or returns non-200, redirect to login
-    if (!resp.ok) { 
-      console.warn('Session API returned non-OK status:', resp.status);
-      window.location.href = '/public/login.html'; 
-      return; 
-    }
+  var userEmail = (u && u.email) ? String(u.email).toLowerCase().trim() : '';
+  var isFounder = (
+    userEmail === 'jblood@digitalsafetyinspection.com' ||
+    u.role_id === 'RO-Founder' ||
+    u.role_id === 'RO-admin' ||
+    u.role === 'Founder' ||
+    u.role === 'DRIV-EN Founder' ||
+    u.role === 'RO-Founder'
+  );
 
-    var data = await resp.json();
-    if (!data || !data.authenticated || !data.user) {
-      console.warn('Session invalid or unauthenticated:', data);
-      window.location.href = '/public/login.html';
-      return;
-    }
+  var isDsiOrg = (
+    !u.org_id ||
+    u.org_id === 'org_dsi' ||
+    u.org_id === 'dsi' ||
+    u.org_id === 'default_org'
+  );
 
-    u = data.user;
-
-    // Direct Founder Email / Role Override
-    var userEmail = (u && u.email) ? String(u.email).toLowerCase().trim() : '';
-    var isFounder = (
-      userEmail === 'jblood@digitalsafetyinspection.com' ||
-      u.role_id === 'RO-Founder' ||
-      u.role_id === 'RO-admin' ||
-      u.role === 'Founder' ||
-      u.role === 'DRIV-EN Founder' ||
-      u.role === 'RO-Founder'
-    );
-
-    var isDsiOrg = (
-      !u.org_id ||
-      u.org_id === 'org_dsi' ||
-      u.org_id === 'dsi' ||
-      u.org_id === 'default_org'
-    );
-
-    if (!isFounder || !isDsiOrg) {
-      console.warn('Founder verification failed for user:', u);
-      window.location.href = '/public/login.html';
-      return;
-    }
-
-    window.ownerUser = u;
-  } catch (e) {
-    console.error('Auth check network failure:', e);
-    // Silent recovery for debugging network drop-outs
+  if (!isFounder || !isDsiOrg) {
+    console.warn('Founder verification failed for user:', u);
+    window.location.href = '/public/login.html';
     return;
   }
 
-  // Run dashboard initialization safely outside the auth error catch block
+  window.ownerUser = u;
   try {
     initOwnerDashboard();
   } catch (err) {
     console.error('Dashboard initialization error:', err);
   }
-})();
+}
+
+// Event listener for async auth check completion
+document.addEventListener("dashSessionLoaded", function(e) {
+  var u = e.detail || window.drivenUser || window.ownerUser;
+  if (u) verifyAndInitOwnerSession(u);
+});
+
+// Fallback check if user object was set globally prior to script execution
+if (window.drivenUser || window.ownerUser) {
+  verifyAndInitOwnerSession(window.drivenUser || window.ownerUser);
+} else {
+  // Direct fetch fallback if auth-check script was omitted
+  (async function() {
+    try {
+      var resp = await fetch('/auth/session');
+      if (!resp.ok) { 
+        console.warn('Session API returned non-OK status:', resp.status);
+        window.location.href = '/public/login.html'; 
+        return; 
+      }
+      var data = await resp.json();
+      if (!data || !data.authenticated || !data.user) {
+        window.location.href = '/public/login.html';
+        return;
+      }
+      verifyAndInitOwnerSession(data.user);
+    } catch (e) {
+      console.error('Auth check network failure:', e);
+    }
+  })();
+}
 
 // ---- Init ----
 function initOwnerDashboard() {
@@ -624,7 +628,7 @@ function switchTab(tabName) {
   }
 }
 
-// ---- Load Partners (Safe No-Redirect Variant) ----
+// ---- Load Partners ----
 async function loadPartners() {
   var tbody = document.getElementById('partnersTableBody');
   if (!tbody) return;
