@@ -721,7 +721,7 @@
       </div>
     </div>
 
- <!-- Employees Tab -->
+    <!-- Employees Tab -->
     <div class="um-tab-content" id="tab-employees">
       <div class="um-search-card">
         <div class="um-search-row1">
@@ -966,6 +966,7 @@
   <script>
     var allUsers = [], allEmployees = [], allOrgRoles = [], allActivityLogs = [];
     var currentUserOrgId = null;
+    var activeModalType = 'emp';
 
     var paginationState = {
       emp: { currentPage: 1, pageSize: 10 },
@@ -1176,11 +1177,15 @@
       if (activeEl) { activeEl.textContent = sortState[type].dir === 'asc' ? '▲' : '▼'; }
     }
 
-    document.addEventListener('dashSessionLoaded', async function() {
+    async function initializeUserManagementPage() {
       makeTabsSticky();
 
-      var u = window.dashUser;
+      var u = window.dashUser || window.drivenUser;
+      if (!u) {
+        try { u = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user")); } catch(e) {}
+      }
       if (!u) { window.location.href = '/public/login.html'; return; }
+      window.dashUser = u;
       currentUserOrgId = u.org_id || localStorage.getItem('driven_org_id') || u.customerId;
 
       var existingTitle = document.querySelector('.dash-header-row1 .admin-header-title');
@@ -1243,7 +1248,10 @@
       // Attach Drag & Drop across static tables
       attachDragAndDropHeaders('roles', ROLE_COL_DEFS, renderRolesTable, renderRolesTable);
       attachDragAndDropHeaders('activity', ACT_COL_DEFS, renderActivityLogTable, renderActivityLogTable);
-    });
+    }
+
+    document.addEventListener('dashSessionLoaded', initializeUserManagementPage);
+    if (document.readyState !== 'loading') { initializeUserManagementPage(); }
 
     async function loadUsers() {
       try {
@@ -1257,7 +1265,6 @@
       renderUserTableHead();
       renderUserTable();
     }
-
     /* System Users Rendering - Emails rendered as plain text */
     function renderUserTable() {
       var tb = document.getElementById('userTableBody');
@@ -2103,7 +2110,10 @@
     }
 
     function goToMainDashboard() {
-      var user = window.dashUser;
+      var user = window.dashUser || window.drivenUser;
+      if (!user) {
+        try { user = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user")); } catch(e) {}
+      }
       if (!user) { window.location.href = '/public/login.html'; return; }
       var r = (user.role || '').toLowerCase();
       if (r === 'driv-en founder' || r === 'owner') window.location.href = '/app/dashboard/owner-dashboard.html';
