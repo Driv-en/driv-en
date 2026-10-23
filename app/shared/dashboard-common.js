@@ -135,30 +135,44 @@
     }
   }
 
-async function loadSession() {
-  try {
-    var response = await fetch("/auth/session", {headers: getAuthHeaders(), credentials: "include" });
-    
-    // FALLBACK FOR CACHED USER: Do not wipe local storage on initial 401 load
-    if (response.status === 401) {
-      console.warn("[DashboardCommon] /auth/session 401 received; falling back to cached user.");
-      var cachedUserStr = safeGetItem("driven_user");
-      if (cachedUserStr) {
-        try {
-          dashUser = JSON.parse(cachedUserStr);
-          window.dashUser = dashUser;
-          document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: dashUser }));
-          return true;
-        } catch(e) {}
+  async function loadSession() {
+    try {
+      var response = await fetch("/auth/session", { headers: getAuthHeaders(), credentials: "include" });
+      
+      // FALLBACK FOR CACHED USER: Do not wipe local storage on initial 401 load
+      if (response.status === 401) {
+        console.warn("[DashboardCommon] /auth/session 401 received; falling back to cached user.");
+        var cachedUserStr = safeGetItem("driven_user");
+        if (cachedUserStr) {
+          try {
+            dashUser = JSON.parse(cachedUserStr);
+            window.dashUser = dashUser;
+            document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: dashUser }));
+            return true;
+          } catch(e) {}
+        }
+        // Only logout if there is no cached session at all
+        safeRemoveItem("driven_session_token");
+        safeRemoveItem("driven_customer_id");
+        safeRemoveItem("driven_org_id");
+        window.location.href = "/public/login.html";
+        return false;
       }
-      // Only logout if there is no cached session at all
-      safeRemoveItem("driven_session_token");
-      safeRemoveItem("driven_customer_id");
-      safeRemoveItem("driven_org_id");
-      window.location.href = "/public/login.html";
-      return false;
-    }
-    
+
+      if (!response.ok) {
+        console.warn("[DashboardCommon] /auth/session non-OK status:", response.status);
+        var cachedUserFallback = safeGetItem("driven_user");
+        if (cachedUserFallback) {
+          try {
+            dashUser = JSON.parse(cachedUserFallback);
+            window.dashUser = dashUser;
+            document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: dashUser }));
+            return true;
+          } catch(e) {}
+        }
+        return false;
+      }
+
       var data = await response.json();
       if (data.authenticated && data.user) {
         dashUser = data.user;
@@ -224,7 +238,18 @@ async function loadSession() {
         document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: dashUser }));
         return true;
       }
-    } catch (e) { console.error("Session load error:", e.message); }
+    } catch (e) { 
+      console.error("Session load error:", e.message); 
+      var cachedErrUser = safeGetItem("driven_user");
+      if (cachedErrUser) {
+        try {
+          dashUser = JSON.parse(cachedErrUser);
+          window.dashUser = dashUser;
+          document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: dashUser }));
+          return true;
+        } catch(ex) {}
+      }
+    }
     return false;
   }
 
