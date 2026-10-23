@@ -118,7 +118,10 @@
       var data = await response.json();
       if (data.authenticated && data.user) {
         dashUser = data.user;
-        if (data.user.org_id) { safeSetItem("driven_customer_id", data.user.org_id); }
+        if (data.user.org_id) { 
+          safeSetItem("driven_customer_id", data.user.org_id); 
+          safeSetItem("driven_org_id", data.user.org_id); 
+        }
         var greetingEl = document.getElementById("dashGreetingText");
         if (greetingEl) {
           var firstName = data.user.first_name || "";
@@ -130,15 +133,15 @@
         if (data.user.org_name) { safeSetItem("driven_org_name", data.user.org_name); }
         window.dashUser = data.user;
 
-        var userRoleId = String(data.user.role_id || '').trim();
+        var userRoleId = String(data.user.role_id || '').trim().toLowerCase();
         var userRole = String(data.user.role || '').toLowerCase();
         var userEmail = String(data.user.email || '').toLowerCase().trim();
 
-        var isFounder = userRoleId === 'RO-Founder' ||
+        var isFounder = userRoleId === 'ro-founder' ||
                         userRole.indexOf('founder') !== -1 ||
                         userEmail === 'jblood@digitalsafetyinspection.com';
 
-        var isAdmin = !isFounder && (userRoleId === 'RO-admin' || userRole.indexOf('admin') !== -1);
+        var isAdmin = !isFounder && (userRoleId === 'ro-admin' || userRole.indexOf('admin') !== -1);
 
         var dashUrl;
         var savedOrigin = sessionStorage.getItem('driven_dashboard_origin');
@@ -239,15 +242,15 @@
     var user = window.dashUser;
     if (!user) { window.location.href = '/public/login.html'; return; }
 
-    var userRoleId = String(user.role_id || '').trim();
+    var userRoleId = String(user.role_id || '').trim().toLowerCase();
     var userRole = String(user.role || '').toLowerCase();
     var userEmail = String(user.email || '').toLowerCase().trim();
 
-    var isFounder = userRoleId === 'RO-Founder' ||
+    var isFounder = userRoleId === 'ro-founder' ||
                     userRole.indexOf('founder') !== -1 ||
                     userEmail === 'jblood@digitalsafetyinspection.com';
 
-    var isAdmin = !isFounder && (userRoleId === 'RO-admin' || userRole.indexOf('admin') !== -1);
+    var isAdmin = !isFounder && (userRoleId === 'ro-admin' || userRole.indexOf('admin') !== -1);
 
     if (isFounder) { 
       window.location.href = '/app/dashboard/owner-dashboard.html'; 
