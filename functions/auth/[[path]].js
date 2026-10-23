@@ -10,14 +10,16 @@ export async function onRequest(context) {
   const { request } = context;
   const url = new URL(request.url);
   const path = url.pathname;
+  const origin = request.headers.get('Origin') || '*';
 
   if (request.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': origin,
+        'Access-Control-Allow-Credentials': 'true',
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       },
     });
   }
@@ -40,9 +42,10 @@ export async function onRequest(context) {
     const response = await fetch(proxyUrl, proxyOptions);
 
     const respHeaders = new Headers(response.headers);
-    respHeaders.set('Access-Control-Allow-Origin', '*');
+    respHeaders.set('Access-Control-Allow-Origin', origin);
+    respHeaders.set('Access-Control-Allow-Credentials', 'true');
     respHeaders.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    respHeaders.set('Access-Control-Allow-Headers', 'Content-Type');
+    respHeaders.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     return new Response(response.body, {
       status: response.status,
