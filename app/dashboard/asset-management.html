@@ -1139,41 +1139,55 @@
 
             var u = window.dashUser;
             if (!u) { window.location.href = '/public/login.html'; return; }
-            var r = (u.role || '').toLowerCase();
-            var adm = r === 'admin' || r === 'administrator' || r.indexOf('founder') !== -1 || r === 'owner';
-            canModify = adm;
-            if (!adm) {
-                var ci = localStorage.getItem('driven_customer_id');
-                if (ci) {
-                    try {
-                        var kp = await fetch('/api/onboarding/key-personnel/list?customerId=' + encodeURIComponent(ci));
-                        var kd = await kp.json();
-                        if (kd.success && kd.keyPersonnel) {
-                            var me = u.email ? u.email.toLowerCase() : '';
-                            var mr = kd.keyPersonnel.find(function(k) { return k.email && k.email.toLowerCase() === me; });
-                            if (mr && mr.roles) {
-                                var mt = mr.roles.map(function(x) { return x.role; });
-                                canModify = mt.indexOf('Equipment') !== -1 || mt.indexOf('Assets') !== -1;
+
+            try {
+                var r = String(u.role || '').toLowerCase().trim();
+                canModify = r.indexOf('admin') !== -1 || r.indexOf('owner') !== -1 || r.indexOf('founder') !== -1;
+
+                if (!canModify) {
+                    var ci = localStorage.getItem('driven_customer_id');
+                    if (ci) {
+                        try {
+                            var kp = await fetch('/api/onboarding/key-personnel/list?customerId=' + encodeURIComponent(ci));
+                            var kd = await kp.json();
+                            if (kd.success && kd.keyPersonnel) {
+                                var me = u.email ? u.email.toLowerCase() : '';
+                                var mr = kd.keyPersonnel.find(function(k) { return k.email && k.email.toLowerCase() === me; });
+                                if (mr && mr.roles) {
+                                    var mt = mr.roles.map(function(x) { return x.role; });
+                                    canModify = mt.indexOf('Equipment') !== -1 || mt.indexOf('Assets') !== -1;
+                                }
                             }
+                        } catch (e) {
+                            if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report('asset-management.html: KP check failed — ' + (e.message || e), 'kp-permission-check', e && e.stack ? e.stack : null);
                         }
-                    } catch (e) {
-                        if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report('asset-management.html: KP check failed — ' + (e.message || e), 'kp-permission-check', e && e.stack ? e.stack : null);
                     }
                 }
-            }
-            if (!canModify) document.getElementById('addAssetForm').style.display = 'none';
-            var ha = 0, hi = setInterval(function() {
-                ha++;
-                if (fixHeaderLayout() || ha > 50) {
-                    clearInterval(hi);
-                    updateHeaderOffset();
+
+                if (!canModify) {
+                    var addForm = document.getElementById('addAssetForm');
+                    if (addForm) addForm.style.display = 'none';
                 }
-            }, 100);
-            initVisibleCols();
-            await syncSettings();
-            await loadAssets();
-            document.getElementById('amLoading').style.display = 'none';
-            
+
+                var ha = 0, hi = setInterval(function() {
+                    ha++;
+                    if (fixHeaderLayout() || ha > 50) {
+                        clearInterval(hi);
+                        updateHeaderOffset();
+                    }
+                }, 100);
+
+                initVisibleCols();
+                await Promise.allSettled([syncSettings(), loadAssets()]);
+
+            } catch (err) {
+                console.error('Asset initialization error:', err);
+            } finally {
+                // Guarantee loading overlay removal regardless of errors
+                var loader = document.getElementById('amLoading');
+                if (loader) loader.style.display = 'none';
+            }
+
             // Check URL parameters for tab and kpi routing
             var urlParams = new URLSearchParams(window.location.search);
             var initialTab = urlParams.get('tab') || 'overview';
@@ -1270,40 +1284,46 @@
 
         function buildMultiSelectPanels() {
             var pt = document.getElementById('panelTypes');
-            pt.innerHTML = '';
-            assetTypes.forEach(function(at) {
-                var nameVal = typeof at === 'object' ? (at.name || at.title || '') : String(at);
-                if (nameVal) {
-                    var lbl = document.createElement('label');
-                    lbl.className = 'am-multiselect-option';
-                    lbl.innerHTML = '<input type="checkbox" value="' + escapeHtml(nameVal) + '" onchange="onFilterChange()"> ' + escapeHtml(nameVal);
-                    pt.appendChild(lbl);
-                }
-            });
+            if (pt) {
+                pt.innerHTML = '';
+                assetTypes.forEach(function(at) {
+                    var nameVal = typeof at === 'object' ? (at.name || at.title || '') : String(at);
+                    if (nameVal) {
+                        var lbl = document.createElement('label');
+                        lbl.className = 'am-multiselect-option';
+                        lbl.innerHTML = '<input type="checkbox" value="' + escapeHtml(nameVal) + '" onchange="onFilterChange()"> ' + escapeHtml(nameVal);
+                        pt.appendChild(lbl);
+                    }
+                });
+            }
 
             var pp = document.getElementById('panelProjects');
-            pp.innerHTML = '';
-            projects.forEach(function(pr) {
-                var nameVal = typeof pr === 'object' ? (pr.name || pr.title || pr.project_name || '') : String(pr);
-                if (nameVal) {
-                    var lbl = document.createElement('label');
-                    lbl.className = 'am-multiselect-option';
-                    lbl.innerHTML = '<input type="checkbox" value="' + escapeHtml(nameVal) + '" onchange="onFilterChange()"> ' + escapeHtml(nameVal);
-                    pp.appendChild(lbl);
-                }
-            });
+            if (pp) {
+                pp.innerHTML = '';
+                projects.forEach(function(pr) {
+                    var nameVal = typeof pr === 'object' ? (pr.name || pr.title || pr.project_name || '') : String(pr);
+                    if (nameVal) {
+                        var lbl = document.createElement('label');
+                        lbl.className = 'am-multiselect-option';
+                        lbl.innerHTML = '<input type="checkbox" value="' + escapeHtml(nameVal) + '" onchange="onFilterChange()"> ' + escapeHtml(nameVal);
+                        pp.appendChild(lbl);
+                    }
+                });
+            }
 
             var pl = document.getElementById('panelLocations');
-            pl.innerHTML = '';
-            locations.forEach(function(lo) {
-                var nameVal = typeof lo === 'object' ? (lo.name || lo.title || lo.location_name || '') : String(lo);
-                if (nameVal) {
-                    var lbl = document.createElement('label');
-                    lbl.className = 'am-multiselect-option';
-                    lbl.innerHTML = '<input type="checkbox" value="' + escapeHtml(nameVal) + '" onchange="onFilterChange()"> ' + escapeHtml(nameVal);
-                    pl.appendChild(lbl);
-                }
-            });
+            if (pl) {
+                pl.innerHTML = '';
+                locations.forEach(function(lo) {
+                    var nameVal = typeof lo === 'object' ? (lo.name || lo.title || lo.location_name || '') : String(lo);
+                    if (nameVal) {
+                        var lbl = document.createElement('label');
+                        lbl.className = 'am-multiselect-option';
+                        lbl.innerHTML = '<input type="checkbox" value="' + escapeHtml(nameVal) + '" onchange="onFilterChange()"> ' + escapeHtml(nameVal);
+                        pl.appendChild(lbl);
+                    }
+                });
+            }
         }
 
         function toggleFilterPanel(panelId, event) {
@@ -1326,16 +1346,16 @@
             var l = getSelectedValues('panelLocations');
 
             var btnT = document.querySelector('#ddTypes .am-multiselect-btn');
-            btnT.textContent = t.length === 0 ? 'Types (All)' : 'Types (' + t.length + ')';
+            if (btnT) btnT.textContent = t.length === 0 ? 'Types (All)' : 'Types (' + t.length + ')';
 
             var btnS = document.querySelector('#ddStatuses .am-multiselect-btn');
-            btnS.textContent = s.length === 0 ? 'Statuses (All)' : 'Statuses (' + s.length + ')';
+            if (btnS) btnS.textContent = s.length === 0 ? 'Statuses (All)' : 'Statuses (' + s.length + ')';
 
             var btnP = document.querySelector('#ddProjects .am-multiselect-btn');
-            btnP.textContent = p.length === 0 ? 'Projects (All)' : 'Projects (' + p.length + ')';
+            if (btnP) btnP.textContent = p.length === 0 ? 'Projects (All)' : 'Projects (' + p.length + ')';
 
             var btnL = document.querySelector('#ddLocations .am-multiselect-btn');
-            btnL.textContent = l.length === 0 ? 'Locations (All)' : 'Locations (' + l.length + ')';
+            if (btnL) btnL.textContent = l.length === 0 ? 'Locations (All)' : 'Locations (' + l.length + ')';
         }
 
         function onFilterChange() {
@@ -1398,14 +1418,19 @@
             });
             var active = avail + inuse;
 
-            document.getElementById('kpiAvailable').textContent = avail;
-            document.getElementById('kpiInUse').textContent = inuse;
-            document.getElementById('kpiMaint').textContent = maint;
-            document.getElementById('kpiActive').textContent = active + ' / ' + total;
+            var elAvail = document.getElementById('kpiAvailable');
+            if (elAvail) elAvail.textContent = avail;
+            var elInUse = document.getElementById('kpiInUse');
+            if (elInUse) elInUse.textContent = inuse;
+            var elMaint = document.getElementById('kpiMaint');
+            if (elMaint) elMaint.textContent = maint;
+            var elActive = document.getElementById('kpiActive');
+            if (elActive) elActive.textContent = active + ' / ' + total;
         }
 
         async function loadAssets() {
             var tb = document.getElementById('amTableBody');
+            if (!tb) return;
             tb.textContent = '';
             var lr = document.createElement('tr');
             var lc = document.createElement('td');
@@ -1489,6 +1514,7 @@
 
         function renderTableHead() {
             var th = document.getElementById('amTableHead');
+            if (!th) return;
             th.textContent = '';
             var tr = document.createElement('tr');
             COL_DEFS.forEach(function(col) {
@@ -1604,7 +1630,9 @@
 
         function renderAssetTable() {
             var tb = document.getElementById('amTableBody');
-            var s = document.getElementById('amSearch').value.toLowerCase().trim();
+            if (!tb) return;
+            var searchEl = document.getElementById('amSearch');
+            var s = searchEl ? searchEl.value.toLowerCase().trim() : '';
             
             var selTypes = getSelectedValues('panelTypes');
             var selStatuses = getSelectedValues('panelStatuses');
@@ -1717,6 +1745,7 @@
 
         function renderPagination(ti, tp) {
             var c = document.getElementById('amPagination');
+            if (!c) return;
             c.textContent = '';
             if (ti === 0) return;
             var i = document.createElement('span');
@@ -1791,6 +1820,7 @@
         function toggleColPanel(e) {
             e.stopPropagation();
             var p = document.getElementById('amColPanel');
+            if (!p) return;
             p.classList.toggle('active');
             if (p.classList.contains('active')) {
                 renderColTogglePanel();
@@ -1804,6 +1834,7 @@
 
         function renderColTogglePanel() {
             var c = document.getElementById('amColToggleItems');
+            if (!c) return;
             c.textContent = '';
             COL_DEFS.forEach(function(col) {
                 var i = document.createElement('label');
@@ -1913,7 +1944,8 @@
         }
 
         function closeEditModal() {
-            document.getElementById('amEditModal').classList.remove('active');
+            var m = document.getElementById('amEditModal');
+            if (m) m.classList.remove('active');
             editingAssetId = null;
         }
 
@@ -1988,6 +2020,7 @@
 
         function openPrintModal() {
             var c = document.getElementById('amPrintCols');
+            if (!c) return;
             c.textContent = '';
             COL_DEFS.forEach(function(col) {
                 var i = document.createElement('label');
@@ -2000,7 +2033,8 @@
                 i.appendChild(document.createTextNode(col.label));
                 c.appendChild(i);
             });
-            document.getElementById('amPrintModal').classList.add('active');
+            var modal = document.getElementById('amPrintModal');
+            if (modal) modal.classList.add('active');
         }
 
         function doPrint() {
@@ -2027,10 +2061,12 @@
             });
             h += '</tbody></table></body></html>';
             var w = window.open('', '_blank');
-            w.document.write(h);
-            w.document.close();
-            w.focus();
-            setTimeout(function() { w.print(); }, 300);
+            if (w) {
+                w.document.write(h);
+                w.document.close();
+                w.focus();
+                setTimeout(function() { w.print(); }, 300);
+            }
             closeModal('amPrintModal');
         }
 
@@ -2038,6 +2074,7 @@
         function openExportModal(fmt) {
             exportFormat = fmt || 'csv';
             var c = document.getElementById('amExportCols');
+            if (!c) return;
             c.textContent = '';
             COL_DEFS.forEach(function(col) {
                 var i = document.createElement('label');
@@ -2050,14 +2087,17 @@
                 i.appendChild(document.createTextNode(col.label));
                 c.appendChild(i);
             });
+            var tEl = document.getElementById('amExportTitle');
+            var bEl = document.getElementById('amExportBtn');
             if (exportFormat === 'excel') {
-                document.getElementById('amExportTitle').textContent = 'Export to Excel';
-                document.getElementById('amExportBtn').textContent = 'Download Excel';
+                if (tEl) tEl.textContent = 'Export to Excel';
+                if (bEl) bEl.textContent = 'Download Excel';
             } else {
-                document.getElementById('amExportTitle').textContent = 'Export to CSV';
-                document.getElementById('amExportBtn').textContent = 'Download CSV';
+                if (tEl) tEl.textContent = 'Export to CSV';
+                if (bEl) bEl.textContent = 'Download CSV';
             }
-            document.getElementById('amExportModal').classList.add('active');
+            var modal = document.getElementById('amExportModal');
+            if (modal) modal.classList.add('active');
         }
 
         function doExport() {
@@ -2127,7 +2167,8 @@
         }
 
         function getFilteredSorted() {
-            var s = document.getElementById('amSearch').value.toLowerCase().trim();
+            var searchEl = document.getElementById('amSearch');
+            var s = searchEl ? searchEl.value.toLowerCase().trim() : '';
             var selTypes = getSelectedValues('panelTypes');
             var selStatuses = getSelectedValues('panelStatuses');
             var selProjects = getSelectedValues('panelProjects');
@@ -2170,12 +2211,16 @@
         }
 
         function closeModal(id) {
-            document.getElementById(id).classList.remove('active');
+            var el = document.getElementById(id);
+            if (el) el.classList.remove('active');
         }
 
-        document.getElementById('amEditModal').addEventListener('click', function(e) { if (e.target === this) closeEditModal(); });
-        document.getElementById('amPrintModal').addEventListener('click', function(e) { if (e.target === this) closeModal('amPrintModal'); });
-        document.getElementById('amExportModal').addEventListener('click', function(e) { if (e.target === this) closeModal('amExportModal'); });
+        var mEdit = document.getElementById('amEditModal');
+        if (mEdit) mEdit.addEventListener('click', function(e) { if (e.target === this) closeEditModal(); });
+        var mPrint = document.getElementById('amPrintModal');
+        if (mPrint) mPrint.addEventListener('click', function(e) { if (e.target === this) closeModal('amPrintModal'); });
+        var mExport = document.getElementById('amExportModal');
+        if (mExport) mExport.addEventListener('click', function(e) { if (e.target === this) closeModal('amExportModal'); });
 
         function switchTab(tab) {
             document.querySelectorAll('.am-tab').forEach(function(t) { t.classList.remove('active'); });
@@ -2193,19 +2238,13 @@
             if (amDirty) {
                 if (!confirm('You have unsaved changes. Click OK to leave without saving, or Cancel to stay.')) return;
             }
-            var so = sessionStorage.getItem('driven_dashboard_origin');
-            if (so) { window.location.href = so; return; }
-            if (document.referrer && document.referrer.indexOf('driv-en.com') !== -1) {
-                window.location.href = document.referrer;
-                return;
-            }
             var u = window.dashUser;
             if (u) {
-                var r = (u.role || '').toLowerCase();
-                if (r === 'driv-en founder' || r === 'owner') {
+                var r = String(u.role || '').toLowerCase();
+                if (r.indexOf('founder') !== -1 || r.indexOf('owner') !== -1) {
                     window.location.href = '/app/dashboard/owner-dashboard.html';
                     return;
-                } else if (r === 'admin') {
+                } else if (r.indexOf('admin') !== -1) {
                     window.location.href = '/app/dashboard/admin.html';
                     return;
                 } else {
@@ -2220,7 +2259,8 @@
             if (amDirty) {
                 if (!confirm('You have unsaved changes. Click OK to log out without saving, or Cancel to stay.')) return;
             }
-            dashLogout();
+            if (typeof dashLogout === 'function') dashLogout();
+            else window.location.href = '/public/login.html';
         }
 
         window.addEventListener('beforeunload', function(e) {
@@ -2266,12 +2306,15 @@
             setTimeout(function() { el.style.display = 'none'; }, 5000);
         }
 
-        document.getElementById('amAssetNumber').addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                addAsset();
-            }
-        });
+        var assetNumInput = document.getElementById('amAssetNumber');
+        if (assetNumInput) {
+            assetNumInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addAsset();
+                }
+            });
+        }
     </script>
     <script src="/app/shared/auth-check.js?v=13"></script>
 </body>
