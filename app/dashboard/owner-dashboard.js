@@ -459,31 +459,20 @@ function renderSessionsTable() {
 
 // ---- Primary Auth Check Guard & Event Listening ----
 function verifyAndInitOwnerSession(u) {
-  if (!u) return;
+  if (!u) {
+    window.location.href = '/public/login.html';
+    return;
+  }
 
-  var userEmail = String(u.email || '').toLowerCase().trim();
-  var userRole = String(u.role || '').toLowerCase().trim();
   var userRoleId = String(u.role_id || '').trim();
+  var userOrgId = String(u.org_id || '').trim();
 
-  var isFounder = (
-    userEmail === 'jblood@digitalsafetyinspection.com' ||
-    userRoleId === 'RO-Founder' ||
-    userRoleId === 'RO-admin' ||
-    userRole === 'founder' ||
-    userRole === 'driv-en founder' ||
-    userRole === 'ro-founder'
-  );
+  // Strict enforcement: Only RO-Founder role and org_dsi organization
+  var isFounderRole = userRoleId === 'RO-Founder';
+  var isDsiOrg = userOrgId === 'org_dsi';
 
-  var orgId = String(u.org_id || '').toLowerCase().trim();
-  var isDsiOrg = (
-    !orgId ||
-    orgId === 'org_dsi' ||
-    orgId === 'dsi' ||
-    orgId === 'default_org'
-  );
-
-  if (!isFounder || !isDsiOrg) {
-    console.warn('Founder verification failed for user:', u);
+  if (!isFounderRole || !isDsiOrg) {
+    console.warn('Owner Dashboard access denied. Requires role_id=RO-Founder and org_id=org_dsi:', u);
     window.location.href = '/public/login.html';
     return;
   }
