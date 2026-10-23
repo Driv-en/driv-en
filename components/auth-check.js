@@ -1,5 +1,5 @@
 // ==========================================
-// AUTH CHECK — Shared auth protection script (Updated v12)
+// AUTH CHECK — Shared auth protection script (Complete v13)
 // ==========================================
 
 (async function() {
@@ -10,7 +10,7 @@
     });
 
     if (!response.ok) {
-      console.warn("[AuthCheck] /auth/session returned non-OK status:", response.status);
+      console.warn("[AuthCheck] /auth/session returned status:", response.status);
       window.location.href = "/public/login.html";
       return;
     }
@@ -18,49 +18,43 @@
     var data = await response.json();
 
     if (!data || !data.authenticated || !data.user) {
-      console.warn("[AuthCheck] User is not authenticated");
+      console.warn("[AuthCheck] Session unauthenticated or user payload missing");
       window.location.href = "/public/login.html";
       return;
     }
 
-    // Identify founder account
-    var userEmail = (data.user.email || "").toLowerCase().trim();
-    var userRole = (data.user.role || "").toString();
-    var userRoleId = (data.user.role_id || "").toString();
+    var user = data.user;
+    var userEmail = (user.email || "").toLowerCase().trim();
+    var userRole = (user.role || "").toString().toLowerCase();
+    var userRoleId = (user.role_id || "").toString();
 
+    // Identify Founder & Admin privileges
     var isFounder = userEmail === "jblood@digitalsafetyinspection.com" ||
                     userRoleId === "RO-Founder" ||
-                    userRole.toLowerCase().indexOf("founder") !== -1;
+                    userRole.indexOf("founder") !== -1;
+
+    var isAdminRole = isFounder ||
+                      userRoleId === "RO-admin" ||
+                      ["admin", "administrator"].indexOf(userRole) !== -1;
 
     // Enforce org_dsi and RO-Founder override for founder
     if (isFounder) {
-      if (!data.user.org_id || data.user.org_id === "default_org") {
-        data.user.org_id = "org_dsi";
+      if (!user.org_id || user.org_id === "default_org") {
+        user.org_id = "org_dsi";
       }
-      data.user.role_id = "RO-Founder";
-      data.user.role = "DRIV-EN Founder";
+      user.role_id = "RO-Founder";
+      user.role = "DRIV-EN Founder";
     }
 
-    // Store user info globally for other scripts to use
-    window.drivenUser = data.user;
-    window.dashUser = data.user;
-    if (data.user.org_id) {
-      localStorage.setItem("driven_customer_id", data.user.org_id);
+    // Store user info globally for downstream scripts
+    window.drivenUser = user;
+    window.dashUser = user;
+    if (user.org_id) {
+      localStorage.setItem("driven_customer_id", user.org_id);
     }
 
-    // Notify any listening dashboard scripts that the session is verified
-    document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: data.user }));
-
-    // Page Specific Enforcement — Owner Dashboard Access
-    var isOwnerDashboard = window.location.pathname.indexOf("owner-dashboard") !== -1;
-    if (isOwnerDashboard && !isFounder) {
-      console.warn("[AuthCheck] Unauthorized access attempt to Owner Dashboard");
-      window.location.href = "/app/auth/no-access.html";
-      return;
-    }
-
-    var isAdminRole = isFounder ||
-                      ["admin", "administrator"].indexOf(userRole.toLowerCase()) !== -1;
+    // Dispatch event to notify dashboard modules
+    document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: user }));
 
     // Hide admin-only UI elements for standard users
     if (!isAdminRole) {
@@ -69,36 +63,55 @@
       });
     }
 
-    // If user is founder, allow immediate access to all routes
+    // Page Specific Enforcement
+    var currentPath = window.location.pathname.toLowerCase();
+    var isOwnerDashboard = currentPath.indexOf("owner-dashboard") !== -1;
+    var isAdminDashboard = currentPath.indexOf("admin") !== -1 && !isOwnerDashboard;
+
+    // Founder bypasses all route and attribute checks
     if (isFounder) {
+      return;
+    }
+
+    // Check Owner Dashboard Access (Requires Founder)
+    if (isOwnerDashboard && !isFounder) {
+      console.warn("[AuthCheck] Unauthorized access attempt to Owner Dashboard");
+      window.location.href = "/app/auth/no-access.html";
+      return;
+    }
+
+    // Check Admin Dashboard Access (Requires Admin)
+    if (isAdminDashboard && !isAdminRole) {
+      console.warn("[AuthCheck] Unauthorized access attempt to Admin Dashboard");
+      window.location.href = "/app/auth/no-access.html";
       return;
     }
 
     // Check required role for standard users
     var requiredRole = document.body ? document.body.getAttribute("data-required-role") : null;
     if (requiredRole) {
-      if (!isAdminRole && userRole.toLowerCase() !== requiredRole.toLowerCase()) {
+      if (!isAdminRole && userRole !== requiredRole.toLowerCase()) {
         window.location.href = "/app/auth/no-access.html";
         return;
       }
     }
 
-    // Check required onboarding task
+    // Check required onboarding task for standard users
     var requiredTask = document.body ? document.body.getAttribute("data-required-task") : null;
     if (requiredTask && !isAdminRole) {
-      var hasTask = await checkUserAssignedTask(data.user, requiredTask);
+      var hasTask = await checkUserAssignedTask(user, requiredTask);
       if (!hasTask) {
         window.location.href = "/app/auth/no-access.html";
         return;
       }
     }
 
-    // Check required permission
+    // Check required permission for standard users
     var requiredPermission = document.body ? document.body.getAttribute("data-required-permission") : null;
     if (requiredPermission && !isAdminRole) {
-      var userPerms = data.user.permissions || [];
+      var userPerms = user.permissions || [];
       var hasPermission = userPerms.some(function(p) {
-        return p.toLowerCase() === requiredPermission.toLowerCase();
+        return String(p).toLowerCase() === requiredPermission.toLowerCase();
       });
       if (!hasPermission) {
         window.location.href = "/app/auth/no-access.html";
