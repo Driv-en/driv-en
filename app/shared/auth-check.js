@@ -1,5 +1,5 @@
 // ============================================================================
-// AUTH CHECK — Shared auth protection script (v13 — Complete Session Sync)
+// AUTH CHECK — Shared auth protection script (v14 — Multi-Role & Complete Sync)
 // ============================================================================
 
 (async function() {
@@ -34,11 +34,11 @@
 
     // Identify Founder & Admin privileges
     var isFounder = userEmail === "jblood@digitalsafetyinspection.com" ||
-                    userRoleId === "RO-Founder" ||
+                    userRoleId.toLowerCase() === "ro-founder" ||
                     userRole.indexOf("founder") !== -1;
 
     var isAdminRole = isFounder ||
-                      userRoleId === "RO-admin" ||
+                      userRoleId.toLowerCase() === "ro-admin" ||
                       ["admin", "administrator"].indexOf(userRole) !== -1;
 
     // Enforce org_dsi and RO-Founder override for founder
@@ -55,6 +55,7 @@
     window.dashUser = user;
     if (user.org_id) {
       localStorage.setItem("driven_customer_id", user.org_id);
+      localStorage.setItem("driven_org_id", user.org_id);
     }
 
     // Dispatch event to notify dashboard modules
@@ -91,10 +92,15 @@
       return;
     }
 
-    // Check required role for standard users
+    // Check required role for standard users (Supports comma-separated lists)
     var requiredRole = document.body ? document.body.getAttribute("data-required-role") : null;
-    if (requiredRole) {
-      if (!isAdminRole && userRole !== requiredRole.toLowerCase()) {
+    if (requiredRole && !isAdminRole) {
+      var reqRoles = requiredRole.toLowerCase().split(",").map(function(r) { return r.trim(); });
+      var matchesRole = reqRoles.some(function(req) {
+        return userRole === req || userRoleId.toLowerCase() === req || userRole.indexOf(req) !== -1;
+      });
+      if (!matchesRole) {
+        console.warn("[AuthCheck] User role", userRole, "does not match required role(s):", requiredRole);
         window.location.href = "/app/auth/no-access.html";
         return;
       }
