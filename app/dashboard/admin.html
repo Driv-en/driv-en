@@ -688,20 +688,35 @@
     function showPageError() { var b=document.getElementById('pageErrorBanner'); if(b) b.classList.add('show'); }
     function dismissPageError() { var b=document.getElementById('pageErrorBanner'); if(b) b.classList.remove('show'); }
 
-    /* Session-Preserving Cross-Page Navigation */
+    /* Session Preservation mapped to users table (id primary key) */
     function preserveAndNavigate(event, targetUrl) {
-      if (event) event.preventDefault();
-      
-      var targetOrg = activeOrgId || localStorage.getItem("driven_org_id") || "org_dsi";
-      localStorage.setItem("driven_org_id", targetOrg);
-      
-      if (currentUserObj) {
-        localStorage.setItem("driven_user", JSON.stringify(currentUserObj));
-        if (currentUserObj.role || currentUserObj.role_id) {
-          localStorage.setItem("driven_role", currentUserObj.role || currentUserObj.role_id);
-        }
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
       }
       
+      var targetOrg = activeOrgId || localStorage.getItem("driven_org_id") || "org_dsi";
+      var userObj = currentUserObj || {};
+      
+      if (!userObj.id && userObj.user_id) {
+        userObj.id = userObj.user_id;
+      }
+
+      var userStr = JSON.stringify(userObj);
+      var roleVal = userObj.role_id || userObj.role || localStorage.getItem("driven_role") || "RO-admin";
+
+      // Sync identifiers to both localStorage and sessionStorage
+      localStorage.setItem("driven_org_id", targetOrg);
+      localStorage.setItem("driven_user", userStr);
+      localStorage.setItem("driven_role", roleVal);
+      if (userObj.id) {
+        localStorage.setItem("driven_user_id", userObj.id);
+      }
+
+      sessionStorage.setItem("driven_org_id", targetOrg);
+      sessionStorage.setItem("driven_user", userStr);
+      sessionStorage.setItem("driven_role", roleVal);
+
       window.location.href = targetUrl;
     }
 
@@ -748,6 +763,7 @@
       options = options || {};
       options.headers = options.headers || {};
       var storedUser = currentUserObj || window.dashUser || window.drivenUser || {};
+      options.headers["x-user-id"] = storedUser.id || localStorage.getItem("driven_user_id") || "";
       options.headers["x-org-id"] = activeOrgId || storedUser.org_id || localStorage.getItem("driven_org_id") || "";
       options.headers["x-user-role"] = "RO-admin";
 
@@ -1442,10 +1458,18 @@
 
       activeOrgId = user.org_id || localStorage.getItem("driven_org_id") || "org_dsi";
 
-      /* Ensure persistent auth state across page transfers */
+      /* Ensure persistent auth state across page transfers (users table mapping) */
+      if (!user.id && user.user_id) user.id = user.user_id;
+      var userStr = JSON.stringify(user);
+
       localStorage.setItem("driven_org_id", activeOrgId);
-      localStorage.setItem("driven_user", JSON.stringify(user));
+      localStorage.setItem("driven_user", userStr);
       localStorage.setItem("driven_role", roleVal);
+      if (user.id) localStorage.setItem("driven_user_id", user.id);
+
+      sessionStorage.setItem("driven_org_id", activeOrgId);
+      sessionStorage.setItem("driven_user", userStr);
+      sessionStorage.setItem("driven_role", roleVal);
 
       document.getElementById("welcome-name").textContent = user.first_name || user.email || "Admin";
       document.getElementById("welcome-company").textContent = user.org_name || localStorage.getItem("driven_org_name") || "Digital Safety Inspection, LLC";
