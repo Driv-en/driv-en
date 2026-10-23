@@ -1,5 +1,5 @@
 // ============================================================================
-// AUTH CHECK — Shared auth protection script (v16 — Full Safety & Sync)
+// AUTH CHECK — Shared auth protection script (v17 — Fail-Safe Storage Sync)
 // ============================================================================
 
 (async function() {
@@ -8,7 +8,7 @@
     return;
   }
 
-  // 1. FAST-PATH: Immediately hydrate session state from storage to avoid navigation flickering
+  // 1. FAST-PATH: Hydrate session state synchronously from storage
   var cachedUserStr = localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user");
   var cachedUser = null;
   try {
@@ -36,20 +36,20 @@
 
     var user = null;
 
-    if (response.ok) {
+    if (response && response.ok) {
       var data = await response.json();
       if (data && data.authenticated && data.user) {
         user = data.user;
       }
     }
 
-    // Fall back to cached session if network verification is delayed or offline
+    // Fall back to cached session if network verification fails, returns non-200, or is offline
     if (!user && cachedUser) {
       user = cachedUser;
     }
 
     if (!user) {
-      console.warn("[AuthCheck] Session unauthenticated or user payload missing");
+      console.warn("[AuthCheck] Session unauthenticated and no local fallback found");
       window.location.href = "/public/login.html";
       return;
     }
@@ -195,6 +195,8 @@ async function checkUserAssignedTask(user, taskName) {
       headers: headers,
       credentials: "include"
     });
+    
+    if (!response.ok) return false;
     var data = await response.json();
 
     if (!data || !data.success || !data.keyPersonnel) return false;
