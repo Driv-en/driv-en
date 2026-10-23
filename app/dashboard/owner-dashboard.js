@@ -461,21 +461,25 @@ function renderSessionsTable() {
 function verifyAndInitOwnerSession(u) {
   if (!u) return;
 
-  var userEmail = (u && u.email) ? String(u.email).toLowerCase().trim() : '';
+  var userEmail = String(u.email || '').toLowerCase().trim();
+  var userRole = String(u.role || '').toLowerCase().trim();
+  var userRoleId = String(u.role_id || '').trim();
+
   var isFounder = (
     userEmail === 'jblood@digitalsafetyinspection.com' ||
-    u.role_id === 'RO-Founder' ||
-    u.role_id === 'RO-admin' ||
-    u.role === 'Founder' ||
-    u.role === 'DRIV-EN Founder' ||
-    u.role === 'RO-Founder'
+    userRoleId === 'RO-Founder' ||
+    userRoleId === 'RO-admin' ||
+    userRole === 'founder' ||
+    userRole === 'driv-en founder' ||
+    userRole === 'ro-founder'
   );
 
+  var orgId = String(u.org_id || '').toLowerCase().trim();
   var isDsiOrg = (
-    !u.org_id ||
-    u.org_id === 'org_dsi' ||
-    u.org_id === 'dsi' ||
-    u.org_id === 'default_org'
+    !orgId ||
+    orgId === 'org_dsi' ||
+    orgId === 'dsi' ||
+    orgId === 'default_org'
   );
 
   if (!isFounder || !isDsiOrg) {
@@ -502,12 +506,14 @@ document.addEventListener("dashSessionLoaded", function(e) {
 if (window.drivenUser || window.ownerUser) {
   verifyAndInitOwnerSession(window.drivenUser || window.ownerUser);
 } else {
-  // Direct fetch fallback if auth-check script was omitted
+  // Direct fetch fallback ONLY if auth-check script was omitted
   (async function() {
     try {
       var resp = await fetch('/auth/session');
-      if (!resp.ok) { 
-        console.warn('Session API returned non-OK status:', resp.status);
+      var contentType = resp.headers.get('content-type') || '';
+      
+      if (!resp.ok || !contentType.includes('application/json')) { 
+        console.warn('Session API returned invalid or non-JSON status');
         window.location.href = '/public/login.html'; 
         return; 
       }
@@ -519,6 +525,7 @@ if (window.drivenUser || window.ownerUser) {
       verifyAndInitOwnerSession(data.user);
     } catch (e) {
       console.error('Auth check network failure:', e);
+      window.location.href = '/public/login.html';
     }
   })();
 }
