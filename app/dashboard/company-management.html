@@ -30,7 +30,21 @@
   .dash-customer-logo, .dash-customer-logo-placeholder { max-height:36px; max-width:80px; }
   .dash-driven-logo { max-height:40px; }
 }
-.cm-tab-bar { display:flex; gap:2px; max-width:1100px; margin:0 auto; padding:0 20px; overflow-x:auto; position:relative; z-index:1; background:#cbd5e1; border-bottom:2px solid #94a3b8; }
+.cm-tab-bar { 
+  display: flex !important; 
+  visibility: visible !important; 
+  opacity: 1 !important; 
+  position: sticky !important; 
+  top: 58px !important; 
+  z-index: 99 !important; 
+  gap: 2px; 
+  max-width: 1100px; 
+  margin: 0 auto; 
+  padding: 0 20px; 
+  overflow-x: auto; 
+  background: #cbd5e1; 
+  border-bottom: 2px solid #94a3b8; 
+}
 .cm-tab { background:#94a3b8; border:1px solid #64748b; border-bottom:none; border-radius:8px 8px 0 0; padding:10px 22px; font-size:15px; font-weight:500; color:#1e293b; cursor:pointer; white-space:nowrap; transition:color 200ms ease, background 200ms ease, margin-top 200ms ease; margin-top:4px; position:relative; z-index:1; }
 .cm-tab:hover { color:#0f172a; background:#a5b4c4; margin-top:2px; }
 .cm-tab.active { color:#1d4ed8; background:#e2e8f0; border-color:#64748b; margin-top:0; font-weight:600; z-index:2; }
@@ -110,6 +124,7 @@ document.addEventListener('dashSessionLoaded', async function() {
   if (!user) { window.location.href = '/public/login.html'; return; }
   document.getElementById('cmLoading').style.display = 'none';
   document.getElementById('tab-overview').style.display = 'block';
+  
   var headerAttempts = 0;
   var headerInterval = setInterval(function() {
     headerAttempts++;
@@ -117,13 +132,25 @@ document.addEventListener('dashSessionLoaded', async function() {
       clearInterval(headerInterval);
     }
   }, 100);
+
+  setTimeout(makeTabsSticky, 300);
 });
+
+function makeTabsSticky() {
+  var h = document.getElementById('dashHeader');
+  var tb = document.querySelector('.cm-tab-bar');
+  if (h && tb && h.nextElementSibling !== tb) {
+    h.parentNode.insertBefore(tb, h.nextSibling);
+  }
+}
+
 function switchTab(tab) {
   document.querySelectorAll('.cm-tab').forEach(function(t) { t.classList.remove('active'); });
   document.querySelectorAll('.cm-tab-content').forEach(function(c) { c.style.display = 'none'; });
   document.querySelector('.cm-tab[data-tab="' + tab + '"]').classList.add('active');
   document.getElementById('tab-' + tab).style.display = 'block';
 }
+
 function goToMainDashboard() {
   var savedOrigin = sessionStorage.getItem('driven_dashboard_origin');
   if (savedOrigin) { window.location.href = savedOrigin; return; }
@@ -143,6 +170,7 @@ function goToMainDashboard() {
   }
   window.location.href = '/app/dashboard/admin.html';
 }
+
 function fixHeaderLayout() {
   var header = document.querySelector('.dash-header');
   if (!header) return false;
