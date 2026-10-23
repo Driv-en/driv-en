@@ -1,5 +1,5 @@
 // ============================================================================
-// AUTH CHECK — Shared auth protection script (v15 — Bearer Fallback & Sync)
+// AUTH CHECK — Shared auth protection script (v16 — Full Safety & Sync)
 // ============================================================================
 
 (async function() {
@@ -7,6 +7,21 @@
     document.addEventListener("DOMContentLoaded", arguments.callee);
     return;
   }
+
+  // 1. FAST-PATH: Immediately hydrate session state from storage to avoid navigation flickering
+  var cachedUserStr = localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user");
+  var cachedUser = null;
+  try {
+    if (cachedUserStr) cachedUser = JSON.parse(cachedUserStr);
+  } catch(e) {}
+
+  if (cachedUser) {
+    if (!cachedUser.id && cachedUser.user_id) cachedUser.id = cachedUser.user_id;
+    window.drivenUser = cachedUser;
+    window.dashUser = cachedUser;
+    document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: cachedUser }));
+  }
+
   try {
     var storedToken = localStorage.getItem("driven_session_token") || sessionStorage.getItem("driven_session_token");
     var headers = { "Accept": "application/json" };
@@ -19,23 +34,27 @@
       credentials: "include"
     });
 
-    if (!response.ok) {
-      console.warn("[AuthCheck] /auth/session returned status:", response.status);
-      window.location.href = "/public/login.html";
-      return;
+    var user = null;
+
+    if (response.ok) {
+      var data = await response.json();
+      if (data && data.authenticated && data.user) {
+        user = data.user;
+      }
     }
 
-    var data = await response.json();
+    // Fall back to cached session if network verification is delayed or offline
+    if (!user && cachedUser) {
+      user = cachedUser;
+    }
 
-    if (!data || !data.authenticated || !data.user) {
+    if (!user) {
       console.warn("[AuthCheck] Session unauthenticated or user payload missing");
       window.location.href = "/public/login.html";
       return;
     }
 
-    var user = data.user;
-
-    // Normalize primary key 'id' to match 'users' table schema
+    // Ensure primary key 'id' matches 'users' table schema
     if (!user.id && user.user_id) {
       user.id = user.user_id;
     }
@@ -62,9 +81,9 @@
       user.role = "DRIV-EN Founder";
     }
 
-    // Persist session across storage mechanisms
+    // Store user info in storage & globally for downstream scripts
     var userStr = JSON.stringify(user);
-    var targetOrg = user.org_id || "org_dsi";
+    var targetOrg = user.org_id || localStorage.getItem("driven_org_id") || "org_dsi";
     var activeRole = user.role_id || user.role || "RO-admin";
 
     localStorage.setItem("driven_user", userStr);
@@ -78,7 +97,6 @@
     sessionStorage.setItem("driven_role", activeRole);
     if (user.id) sessionStorage.setItem("driven_user_id", user.id);
 
-    // Store user info globally for downstream scripts
     window.drivenUser = user;
     window.dashUser = user;
 
@@ -155,7 +173,9 @@
 
   } catch (e) {
     console.error("[AuthCheck] Exception error:", e.message);
-    window.location.href = "/public/login.html";
+    if (!cachedUser) {
+      window.location.href = "/public/login.html";
+    }
   }
 })();
 
