@@ -1,22 +1,16 @@
 // ==========================================
-// AUTH CHECK — Shared auth protection script
-// ==========================================
-// HOW IT WORKS:
-//   1. Add this line to any page that needs protection:
-//      <script src="/components/auth-check.js"></script>
-//   2. The script checks /auth/session to see if the user is logged in.
-//   3. If not logged in, it redirects to /public/login.html.
-//   4. If the page has data-required-role="Admin" on the <body> tag,
-//      it also checks that the user has the Admin role.
-//   5. Founder accounts (jblood@digitalsafetyinspection.com / RO-Founder)
-//      bypass all role, task, and permission restrictions.
-//   6. User info is stored in window.drivenUser and dispatches 'dashSessionLoaded'.
+// AUTH CHECK — Shared auth protection script (Updated v12)
 // ==========================================
 
 (async function() {
   try {
-    var response = await fetch("/auth/session");
+    var response = await fetch("/auth/session", {
+      headers: { "Accept": "application/json" },
+      credentials: "include"
+    });
+
     if (!response.ok) {
+      console.warn("[AuthCheck] /auth/session returned non-OK status:", response.status);
       window.location.href = "/public/login.html";
       return;
     }
@@ -24,6 +18,7 @@
     var data = await response.json();
 
     if (!data || !data.authenticated || !data.user) {
+      console.warn("[AuthCheck] User is not authenticated");
       window.location.href = "/public/login.html";
       return;
     }
@@ -37,9 +32,13 @@
                     userRoleId === "RO-Founder" ||
                     userRole.toLowerCase().indexOf("founder") !== -1;
 
-    // Enforce org_dsi fallback for founder if org is missing or default
-    if (isFounder && (!data.user.org_id || data.user.org_id === "default_org")) {
-      data.user.org_id = "org_dsi";
+    // Enforce org_dsi and RO-Founder override for founder
+    if (isFounder) {
+      if (!data.user.org_id || data.user.org_id === "default_org") {
+        data.user.org_id = "org_dsi";
+      }
+      data.user.role_id = "RO-Founder";
+      data.user.role = "DRIV-EN Founder";
     }
 
     // Store user info globally for other scripts to use
@@ -51,6 +50,14 @@
 
     // Notify any listening dashboard scripts that the session is verified
     document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: data.user }));
+
+    // Page Specific Enforcement — Owner Dashboard Access
+    var isOwnerDashboard = window.location.pathname.indexOf("owner-dashboard") !== -1;
+    if (isOwnerDashboard && !isFounder) {
+      console.warn("[AuthCheck] Unauthorized access attempt to Owner Dashboard");
+      window.location.href = "/app/auth/no-access.html";
+      return;
+    }
 
     var isAdminRole = isFounder ||
                       ["admin", "administrator"].indexOf(userRole.toLowerCase()) !== -1;
@@ -100,7 +107,7 @@
     }
 
   } catch (e) {
-    console.error("Auth check error:", e.message);
+    console.error("[AuthCheck] Exception error:", e.message);
     window.location.href = "/public/login.html";
   }
 })();
@@ -112,7 +119,9 @@ async function checkUserAssignedTask(user, taskName) {
   if (!user || !user.email || !user.org_id) return false;
 
   try {
-    var response = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(user.org_id));
+    var response = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(user.org_id), {
+      credentials: "include"
+    });
     var data = await response.json();
 
     if (!data || !data.success || !data.keyPersonnel) return false;
