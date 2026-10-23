@@ -804,7 +804,7 @@
         }
     </style>
 </head>
-<body data-page-title="Asset Management">
+<body data-page-title="Asset Management" data-required-permission="any">
     <div class="steel-bg"></div>
     <div class="steel-overlay"></div>
     <div id="dashHeader"></div>
@@ -1137,8 +1137,12 @@
             makeTabsSticky();
             setTimeout(makeTabsSticky, 300);
 
-            var u = window.dashUser;
+            var u = window.dashUser || window.drivenUser;
+            if (!u) {
+                try { u = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user")); } catch(e) {}
+            }
             if (!u) { window.location.href = '/public/login.html'; return; }
+            window.dashUser = u;
 
             try {
                 var r = String(u.role || '').toLowerCase().trim();
@@ -2238,21 +2242,20 @@
             if (amDirty) {
                 if (!confirm('You have unsaved changes. Click OK to leave without saving, or Cancel to stay.')) return;
             }
-            var u = window.dashUser;
-            if (u) {
-                var r = String(u.role || '').toLowerCase();
-                if (r.indexOf('founder') !== -1 || r.indexOf('owner') !== -1) {
-                    window.location.href = '/app/dashboard/owner-dashboard.html';
-                    return;
-                } else if (r.indexOf('admin') !== -1) {
-                    window.location.href = '/app/dashboard/admin.html';
-                    return;
-                } else {
-                    window.location.href = '/app/dashboard/employee-dashboard.html';
-                    return;
-                }
+            var u = window.dashUser || window.drivenUser;
+            if (!u) {
+                try { u = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user")); } catch(e) {}
             }
-            window.location.href = '/app/dashboard/admin.html';
+            if (!u) { window.location.href = '/public/login.html'; return; }
+
+            var r = String(u.role || '').toLowerCase();
+            if (r.indexOf('founder') !== -1 || r.indexOf('owner') !== -1) {
+                window.location.href = '/app/dashboard/owner-dashboard.html';
+            } else if (r.indexOf('admin') !== -1) {
+                window.location.href = '/app/dashboard/admin.html';
+            } else {
+                window.location.href = '/app/dashboard/employee-dashboard.html';
+            }
         }
 
         function confirmLogout() {
