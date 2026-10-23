@@ -1,5 +1,5 @@
 // ============================================================================
-// AUTH CHECK — Shared auth protection script (v14 — Multi-Role & Complete Sync)
+// AUTH CHECK — Shared auth protection script (v15 — Bearer Fallback & Sync)
 // ============================================================================
 
 (async function() {
@@ -8,8 +8,14 @@
     return;
   }
   try {
+    var storedToken = localStorage.getItem("driven_session_token");
+    var headers = { "Accept": "application/json" };
+    if (storedToken) {
+      headers["Authorization"] = "Bearer " + storedToken;
+    }
+
     var response = await fetch("/auth/session", {
-      headers: { "Accept": "application/json" },
+      headers: headers,
       credentials: "include"
     });
 
@@ -143,8 +149,12 @@ async function checkUserAssignedTask(user, taskName) {
   if (!user || !user.email || !orgId) return false;
 
   try {
+    var storedToken = localStorage.getItem("driven_session_token");
+    var headers = { "x-org-id": orgId };
+    if (storedToken) headers["Authorization"] = "Bearer " + storedToken;
+
     var response = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(orgId), {
-      headers: { "x-org-id": orgId },
+      headers: headers,
       credentials: "include"
     });
     var data = await response.json();
