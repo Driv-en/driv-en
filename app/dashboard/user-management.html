@@ -81,9 +81,11 @@
       margin-top: 2px;
     }
 
-    /* Secondary Tab Bar - Sticky Directly Below Header */
+/* Secondary Tab Bar - Sticky Directly Below Header */
     .um-tab-bar {
-      display: flex;
+      display: flex !important;
+      visibility: visible !important;
+      opacity: 1 !important;
       gap: 2px;
       width: 100%;
       max-width: 1100px;
@@ -1026,10 +1028,12 @@
     var visibleEmpCols = {}, empColWidths = {};
 
     /* Dynamic Tab Reparenting to ensure absolute stickiness inside header */
-    function makeTabsSticky() {
+  function makeTabsSticky() {
       var h = document.getElementById("dashHeader"), 
           tb = document.getElementById("umTabBar"); 
-      if (h && tb && !h.contains(tb)) h.appendChild(tb); 
+      if (h && tb && h.nextElementSibling !== tb) {
+        h.parentNode.insertBefore(tb, h.nextSibling);
+      }
     }
 
     function changePageSize(type, size) {
@@ -1177,8 +1181,9 @@
       if (activeEl) { activeEl.textContent = sortState[type].dir === 'asc' ? '▲' : '▼'; }
     }
 
-    async function initializeUserManagementPage() {
+async function initializeUserManagementPage() {
       makeTabsSticky();
+      setTimeout(makeTabsSticky, 300);
 
       var u = window.dashUser || window.drivenUser;
       if (!u) {
