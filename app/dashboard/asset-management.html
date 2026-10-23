@@ -1,2076 +1,2264 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<!-- ===== PAGE-SPECIFIC SEO ===== -->
-<title>DRIV‑EN | Project Management</title>
-<meta name="description" content="DRIV-EN — manage projects, project types, and clients.">
-<meta name="robots" content="noindex, nofollow">
-<link rel="canonical" href="https://www.driv-en.com/app/dashboard/project-management.html">
-
-<!-- Favicon -->
-<link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
-<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
-<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
-<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
-
-<!-- ===== SHARED DASHBOARD CSS ===== -->
-<link rel="stylesheet" href="/app/shared/dashboard.css?v=11">
-
-<!-- ===== DIAMOND-PLATE BACKGROUND ===== -->
-<link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
-
-<!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
-<script>
-(function() {
-  var saved = localStorage.getItem("driven-theme");
-  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  var theme = saved || system;
-  document.documentElement.setAttribute("data-theme", theme);
-})();
-</script>
-
-<style>
-:root {
-  --header-height: 60px;
-  --card-green-border: #16a34a;
-  --blue-line: #1e3a8a;
-  --primary-blue: #2563eb;
-  --primary-blue-hover: #1d4ed8;
-}
-
-/* ===== LOADING SCREEN ===== */
-.pm-loading { display:flex; align-items:center; justify-content:center; height:100vh; font-size:16px; color:var(--text-muted); }
-
-/* ===== HEADER OVERRIDE ===== */
-.dash-header-row3 { display:none !important; }
-#dashHeader .dash-theme-wrapper { display:none !important; }
-.dash-header-row2 { display:none !important; }
-
-#dashHeader {
-  position: -webkit-sticky !important;
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 100 !important;
-}
-
-@media (max-width:700px) {
-  .dash-customer-logo, .dash-customer-logo-placeholder { max-height:36px; max-width:80px; }
-  .dash-driven-logo { max-height:40px; }
-}
-
-/* ===== TAB BAR ===== */
-.pm-tab-bar {
-  display: flex !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  gap: 2px;
-  width: 100%;
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 0 20px;
-  overflow-x: auto;
-  position: -webkit-sticky !important;
-  position: sticky !important;
-  top: 58px !important;
-  z-index: 99 !important;
-  background: #cbd5e1;
-  border-bottom: 2px solid #94a3b8;
-  box-sizing: border-box;
-  -webkit-overflow-scrolling: touch;
-}
-
-@media screen and (max-width: 768px) {
-  :root { --header-height: 50px; }
-  .pm-tab-bar { top: 50px !important; padding: 0 8px; }
-}
-
-.pm-tab { background:#94a3b8; border:1px solid #64748b; border-bottom:none; border-radius:8px 8px 0 0; padding:10px 22px; font-size:15px; font-weight:500; color:#1e293b; cursor:pointer; white-space:nowrap; transition:color 200ms ease, background 200ms ease, margin-top 200ms ease; margin-top:4px; position:relative; z-index:1; }
-.pm-tab:hover { color:#0f172a; background:#a5b4c4; margin-top:2px; }
-.pm-tab.active { color:#1d4ed8; background:#e2e8f0; border-color:#64748b; margin-top:0; font-weight:600; z-index:2; }
-.pm-tab-dashboard { background:#2563eb; border:1px solid #1d4ed8; color:#fff; }
-.pm-tab-dashboard:hover { background:#1d4ed8; color:#fff; margin-top:2px; }
-.pm-tab-logout { background:#b91c1c; border:1px solid #dc2626; border-bottom:none; border-radius:8px 8px 0 0; padding:10px 22px; font-size:15px; font-weight:600; color:#fff; cursor:pointer; white-space:nowrap; margin-top:4px; margin-left:auto; position:relative; z-index:1; transition:background 200ms ease, margin-top 200ms ease; }
-.pm-tab-logout:hover { background:#dc2626; margin-top:2px; }
-.pm-tab-content { display:none; }
-.pm-tab-content.active { display:block; }
-
-/* ===== MAIN CONTAINER ===== */
-.pm-main { max-width: 1100px; margin: 20px auto; padding: 0 20px; position: relative; z-index: 1; }
-
-/* ===== WELCOME CARD ===== */
-.pm-welcome { background: var(--bg-card); border: 2px solid var(--card-green-border, #16a34a); border-radius: 8px; padding: 20px; margin-bottom: 16px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
-.pm-welcome h2 { margin: 0 0 4px 0; font-size: 20px; color: var(--text); }
-.pm-welcome p { margin: 0; font-size: 14px; color: var(--text-muted); }
-
-/* ===== OVERVIEW KPI CARDS ===== */
-.pm-kpi-grid { display: grid; grid-template-columns: repeat(2, minmax(140px, 1fr)); gap: 12px; width: 100%; margin-bottom: 16px; }
-.pm-kpi-card { background: var(--bg-card); border: 2px solid var(--card-green-border, #16a34a); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: border-color 150ms ease, transform 150ms ease, box-shadow 150ms ease; user-select: none; box-sizing: border-box; }
-.pm-kpi-card:hover, .pm-kpi-card:focus-visible { border-color: var(--primary-blue, #2563eb); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); outline: none; }
-.pm-kpi-card:active { transform: none; }
-.pm-kpi-number { font-size: 24px; font-weight: 700; line-height: 1.2; color: var(--text); }
-.pm-kpi-label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 4px; }
-
-/* ===== OVERVIEW SECTIONS ===== */
-.pm-overview-section { margin-bottom: 28px; }
-.pm-overview-section-title { font-size: 15px; font-weight: 700; color: var(--text); padding: 10px 0; border-bottom: 2px solid var(--border); margin-bottom: 0; display: flex; align-items: center; justify-content: space-between; }
-.pm-overview-section-title .count { font-size: 13px; font-weight: 400; color: var(--text-muted); }
-
-/* ===== SECTION HEADER ===== */
-.pm-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; background: var(--bg-card); }
-.pm-section-header h3 { margin: 0; font-size: 16px; color: var(--text); }
-.pm-record-count { font-size: 14px; color: var(--text-muted); }
-
-/* ===== TABLE ===== */
-.pm-table-scroll { max-height:500px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; background:var(--bg-card); }
-.pm-table { width:100%; border-collapse:collapse; font-size:14px; background:var(--bg-card); }
-.pm-table thead { position:sticky; top:0; background:var(--bg-header); z-index:2; }
-.pm-table th { padding:10px 16px; text-align:left; font-weight:600; color:var(--text); border-bottom:2px solid var(--border); white-space:nowrap; cursor:pointer; user-select:none; }
-.pm-table th:hover { background:var(--bg-input); }
-.pm-table th .pm-sort-arrow { font-size:11px; margin-left:4px; opacity:0.5; }
-.pm-table th.pm-sorted-asc .pm-sort-arrow, .pm-table th.pm-sorted-desc .pm-sort-arrow { opacity:1; color:var(--primary); }
-.pm-table td { padding:10px 16px; border-bottom:1px solid var(--border); color:var(--text); }
-.pm-table tr:hover td { background:var(--bg-input); }
-.pm-table .pm-actions { display:flex; gap:8px; white-space:nowrap; }
-.pm-table-btn { background:var(--bg-card); border:1.5px solid var(--card-green-border); color:var(--text); padding:6px 12px; border-radius:4px; font-size:13px; cursor:pointer; transition: all 150ms ease; }
-.pm-table-btn:hover { border-color:var(--primary-blue); color:var(--primary-blue); background: rgba(37,99,235,0.05); }
-.pm-table-btn.danger { color:var(--error); }
-.pm-table-btn.danger:hover { border-color:var(--error); }
-
-/* ===== STATUS BADGE ===== */
-.pm-badge { display:inline-block; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600; }
-.pm-badge-active { background:rgba(34,197,94,0.15); color:#16a34a; }
-.pm-badge-planning { background:rgba(59,130,246,0.15); color:#2563eb; }
-.pm-badge-on-hold { background:rgba(249,115,22,0.15); color:#ea580c; }
-.pm-badge-completed { background:rgba(139,92,246,0.15); color:#7c3aed; }
-.pm-badge-cancelled { background:rgba(239,68,68,0.15); color:#dc2626; }
-.pm-badge-inactive { background:rgba(107,114,128,0.15); color:#6b7280; }
-
-/* ===== FORM ===== */
-.pm-form-card { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:24px; margin-bottom:20px; }
-.pm-form-card h3 { margin:0 0 16px 0; font-size:16px; color:var(--text); }
-.pm-form-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:16px; }
-.pm-form-row { display:flex; flex-direction:column; border:1px solid #16a34a; border-radius:6px; padding:10px 12px; }
-.pm-form-row label { margin-bottom:4px; font-size:14px; color:var(--text); font-weight:600; }
-.pm-form-row label .pm-required { color:var(--error); }
-.pm-form-row input, .pm-form-row select, .pm-form-row textarea { padding:10px 12px; border:1px solid var(--border-input); border-radius:6px; font-size:14px; background:var(--bg-card); color:var(--text); box-sizing:border-box; font-family:inherit; }
-.pm-form-row input:focus, .pm-form-row select:focus, .pm-form-row textarea:focus { outline:none; border-color:var(--primary-blue); box-shadow:0 0 0 2px rgba(37,99,235,0.2); }
-.pm-hint { color:var(--text-muted); font-size:12px; margin-bottom:6px; }
-
-/* ===== BUTTONS ===== */
-.pm-btn-primary { background:var(--primary-blue); color:#fff; padding:10px 18px; border-radius:6px; font-size:15px; border:1px solid var(--primary-blue-hover); cursor:pointer; }
-.pm-btn-primary:hover { background:var(--primary-blue-hover); }
-.pm-btn-primary:disabled { opacity:0.6; cursor:not-allowed; }
-.pm-btn-secondary { background:var(--bg-card); color:var(--text); padding:10px 18px; border-radius:6px; font-size:15px; border:1px solid var(--border); cursor:pointer; }
-.pm-btn-secondary:hover { border-color:var(--primary-blue); color:var(--primary-blue); }
-.pm-btn-small { background:var(--bg-card); color:var(--text); padding:6px 12px; border-radius:4px; font-size:13px; border:1.5px solid var(--card-green-border); cursor:pointer; transition: all 150ms ease; }
-.pm-btn-small:hover { border-color:var(--primary-blue); color:var(--primary-blue); background: rgba(37,99,235,0.05); }
-
-/* ===== SEARCH & FILTER ROW ===== */
-.pm-search-row { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center; border:1px solid var(--border); border-radius:8px; padding:12px; background:var(--bg-card); }
-.pm-search-input { flex:1; min-width:200px; padding:10px 12px; border:1px solid var(--border-input); border-radius:6px; font-size:14px; background:var(--bg-card); color:var(--text); box-sizing:border-box; }
-.pm-search-input:focus { outline:none; border-color:var(--primary-blue); box-shadow:0 0 0 2px rgba(37,99,235,0.2); }
-.pm-filter-select { padding:10px 12px; border:1px solid var(--border-input); border-radius:6px; font-size:14px; background:var(--bg-card); color:var(--text); box-sizing:border-box; }
-
-/* ===== MESSAGES ===== */
-.pm-message { margin-bottom:16px; padding:12px 16px; border-radius:6px; font-size:14px; display:none; }
-.pm-message.error { background:rgba(239,68,68,0.1); color:#fca5a5; border:1px solid rgba(239,68,68,0.3); }
-.pm-message.success { background:rgba(34,197,94,0.1); color:#86efac; border:1px solid rgba(34,197,94,0.3); }
-
-/* ===== EMPTY STATE ===== */
-.pm-empty { text-align:center; padding:40px 20px; color:var(--text-muted); font-size:15px; }
-
-/* ===== PAGINATION ===== */
-.pm-pagination { display:flex; justify-content:space-between; align-items:center; margin-top:12px; flex-wrap:wrap; gap:8px; }
-.pm-page-info { font-size:13px; color:var(--text-muted); }
-.pm-page-btns { display:flex; gap:6px; }
-.pm-page-btn { background:var(--bg-card); border:1.5px solid var(--card-green-border); color:var(--text); padding:6px 12px; border-radius:4px; font-size:13px; cursor:pointer; transition: all 150ms ease; }
-.pm-page-btn:hover:not(:disabled) { border-color:var(--primary-blue); color:var(--primary-blue); }
-.pm-page-btn:disabled { opacity:0.4; cursor:not-allowed; border-color:var(--border); }
-.pm-page-btn.active { background:var(--primary-blue); color:#fff; border-color:var(--primary-blue); }
-
-/* ===== MODAL ===== */
-.pm-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px; box-sizing:border-box; }
-.pm-modal.active { display:flex; }
-.pm-modal-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:28px; max-width:600px; width:100%; max-height:85vh; overflow-y:auto; box-sizing:border-box; }
-.pm-modal-card h3 { margin:0 0 4px 0; font-size:20px; color:var(--text); }
-.pm-modal-card .pm-modal-subtitle { margin:0 0 20px 0; font-size:14px; color:var(--text-muted); }
-.pm-modal-actions { display:flex; gap:10px; margin-top:20px; flex-wrap:wrap; }
-
-/* ===== COLUMN TOGGLE PANEL ===== */
-.pm-col-toggle { display:none; position:absolute; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:16px; z-index:100; box-shadow:0 4px 12px rgba(0,0,0,0.15); max-height:400px; overflow-y:auto; min-width:220px; }
-.pm-col-toggle.active { display:block; }
-.pm-col-toggle-item { display:flex; align-items:center; gap:8px; padding:6px 0; font-size:14px; color:var(--text); cursor:pointer; }
-.pm-col-toggle-item input { cursor:pointer; }
-.pm-col-toggle-title { font-size:13px; font-weight:600; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px; }
-
-/* ===== CHECKBOX GRID (print/export) ===== */
-.pm-check-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px; margin:16px 0; }
-.pm-check-item { display:flex; align-items:center; gap:8px; font-size:14px; color:var(--text); cursor:pointer; }
-.pm-check-item input { cursor:pointer; }
-
-/* ===== RESPONSIVE ===== */
-@media (max-width:700px) {
-  .pm-main { padding:0 12px; margin:12px auto; }
-  .pm-tab { padding:10px 16px; font-size:14px; }
-  .pm-tab-logout { padding:10px 16px; font-size:14px; }
-  .pm-form-grid { grid-template-columns:1fr; }
-  .pm-table { font-size:13px; }
-  .pm-table th, .pm-table td { padding:8px 10px; }
-  .pm-kpi-grid { grid-template-columns:1fr; }
-  .pm-kpi-card { min-height:110px; }
-  .pm-kpi-number { font-size:28px; }
-  .pm-kpi-label { font-size:12px; }
-  .pm-check-grid { grid-template-columns:1fr; }
-}
-
-/* ===== PRINT STYLES ===== */
-@media print {
-  .pm-tab-bar, .pm-search-row, .pm-form-card, .pm-pagination, .pm-modal, #dashHeader, #dashFooter, .pm-section-header button, .pm-table-btn { display:none !important; }
-  .pm-table-scroll { max-height:none; overflow:visible; border:none; }
-  .pm-table { font-size:12px; }
-  .pm-table th { cursor:default; }
-  body { background:#fff; }
-  .pm-main { max-width:100%; }
-}
-</style>
-</head>
-<body data-page-title="Project Management">
-
-<!-- ===== DIAMOND-PLATE BACKGROUND ===== -->
-<div class="steel-bg"></div>
-<div class="steel-overlay"></div>
-
-<!-- ===== HEADER ===== -->
-<div id="dashHeader"></div>
-
-<!-- ===== TAB BAR ===== -->
-<div class="pm-tab-bar" id="pmTabBar">
-  <div class="pm-tab active" data-tab="overview" onclick="switchTab('overview')">Overview</div>
-  <div class="pm-tab" data-tab="projects" onclick="switchTab('projects')">Projects</div>
-  <div class="pm-tab" data-tab="addproject" onclick="switchTab('addproject')">Add New Project</div>
-  <div class="pm-tab" data-tab="types" onclick="switchTab('types')">Project Types</div>
-  <div class="pm-tab" data-tab="clients" onclick="switchTab('clients')">Clients</div>
-  <div class="pm-tab" data-tab="addclient" onclick="switchTab('addclient')">Add New Client</div>
-  <div class="pm-tab pm-tab-dashboard" onclick="goToMainDashboard()">&#8592; Dashboard</div>
-  <div class="pm-tab-logout" onclick="confirmLogout()">Logout</div>
-</div>
-
-<!-- ===== MAIN CONTENT ===== -->
-<div class="pm-main">
-  <div class="pm-loading" id="pmLoading">Loading project management...</div>
-
-  <!-- ===== OVERVIEW TAB ===== -->
-  <div class="pm-tab-content active" id="tab-overview" style="display:none;">
-    <div class="pm-welcome">
-      <h2>Project Management</h2>
-      <p>Manage projects, project types, and clients across your organization.</p>
-    </div>
-
-    <div class="pm-kpi-grid" id="pmKpiGrid">
-      <div class="pm-kpi-card" id="kpiCardTotalProjects">
-        <div class="pm-kpi-number" id="kpiTotalProjects">—</div>
-        <div class="pm-kpi-label">Total Projects</div>
-      </div>
-
-      <div class="pm-kpi-card" id="kpiCardTotalClients">
-        <div class="pm-kpi-number" id="kpiTotalClients">—</div>
-        <div class="pm-kpi-label">Total Clients</div>
-      </div>
-
-      <div class="pm-kpi-card" id="kpiCardActiveProjects">
-        <div class="pm-kpi-number" id="kpiActiveProjects">—</div>
-        <div class="pm-kpi-label">Active Projects</div>
-      </div>
-
-      <div class="pm-kpi-card" id="kpiCardCompletedProjects">
-        <div class="pm-kpi-number" id="kpiCompletedProjects">—</div>
-        <div class="pm-kpi-label">Completed Projects</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== PROJECTS TAB ===== -->
-  <div class="pm-tab-content" id="tab-projects" style="display:none;">
-    <div class="pm-welcome">
-      <h2>Projects</h2>
-      <p>View, add, and edit projects across your organization.</p>
-    </div>
-
-    <div id="pmProjectsMessage" class="pm-message"></div>
-
-    <div class="pm-section-header">
-      <h3>Project List</h3>
-      <span class="pm-record-count" id="pmProjectCount">0 projects</span>
-    </div>
-
-    <div class="pm-search-row">
-      <input type="text" class="pm-search-input" id="pmProjectSearch" placeholder="Search by project number, name, or location..." oninput="onProjectSearchInput()" />
-      <select class="pm-filter-select" id="pmProjectFilterStatus" onchange="renderProjectTable()">
-        <option value="">All Statuses</option>
-        <option value="Active">Active</option>
-        <option value="Planning">Planning</option>
-        <option value="On Hold">On Hold</option>
-        <option value="Completed">Completed</option>
-        <option value="Cancelled">Cancelled</option>
-        <option value="Inactive">Inactive</option>
-      </select>
-      <button class="pm-btn-small" onclick="toggleProjectColPanel(event)">Columns</button>
-      <button class="pm-btn-small" onclick="openProjectPrintModal()">Print</button>
-      <button class="pm-btn-small" onclick="openProjectExportModal('csv')">Export CSV</button>
-      <button class="pm-btn-small" onclick="openProjectExportModal('excel')">Export Excel</button>
-    </div>
-
-    <div class="pm-col-toggle" id="pmProjectColPanel">
-      <div class="pm-col-toggle-title">Show / Hide Columns</div>
-      <div id="pmProjectColToggleItems"></div>
-    </div>
-
-    <div class="pm-table-scroll">
-      <table class="pm-table" id="pmProjectTable">
-        <thead id="pmProjectTableHead"></thead>
-        <tbody id="pmProjectTableBody">
-          <tr><td class="pm-empty">Loading projects…</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="pm-pagination" id="pmProjectPagination"></div>
-  </div>
-
-  <!-- ===== ADD NEW PROJECT TAB ===== -->
-  <div class="pm-tab-content" id="tab-addproject" style="display:none;">
-    <div class="pm-welcome">
-      <h2>Add New Project</h2>
-      <p>Enter the details for a new project below.</p>
-    </div>
-
-    <div id="pmAddProjectMessage" class="pm-message"></div>
-
-    <div class="pm-form-card" id="addProjectForm">
-      <h3>New Project Details</h3>
-      <div class="pm-form-grid">
-        <div class="pm-form-row">
-          <label>Project Number <span class="pm-required">*</span></label>
-          <input type="text" id="pmProjectCode" placeholder="e.g., PRJ-001" maxlength="50" />
-          <div class="pm-hint">Unique project number. Duplicates are not allowed.</div>
-        </div>
-
-        <div class="pm-form-row">
-          <label>Project Name <span class="pm-required">*</span></label>
-          <input type="text" id="pmProjectName" placeholder="e.g., Site A Excavation" maxlength="200" />
-          <div class="pm-hint">Descriptive name for this project.</div>
-        </div>
-
-        <div class="pm-form-row">
-          <label>Status</label>
-          <select id="pmProjectStatus">
-            <option value="Active">Active</option>
-            <option value="Planning">Planning</option>
-            <option value="On Hold">On Hold</option>
-            <option value="Completed">Completed</option>
-            <option value="Cancelled">Cancelled</option>
-            <option value="Inactive">Inactive</option>
-          </select>
-          <div class="pm-hint">Current project status.</div>
-        </div>
-
-        <div class="pm-form-row">
-          <label>Location</label>
-          <input type="text" id="pmProjectLocation" placeholder="e.g., Dallas, TX" maxlength="200" />
-          <div class="pm-hint">Physical project location.</div>
-        </div>
-
-        <div class="pm-form-row">
-          <label>Expected Start Date</label>
-          <input type="date" id="pmExpectedStartDate" />
-          <div class="pm-hint">Planned project start date.</div>
-        </div>
-
-        <div class="pm-form-row">
-          <label>Actual Start Date</label>
-          <input type="date" id="pmActualStartDate" />
-          <div class="pm-hint">Actual project start date.</div>
-        </div>
-
-        <div class="pm-form-row">
-          <label>Expected Completion Date</label>
-          <input type="date" id="pmExpectedCompletionDate" />
-          <div class="pm-hint">Planned completion date.</div>
-        </div>
-
-        <div class="pm-form-row">
-          <label>Actual Completion Date</label>
-          <input type="date" id="pmActualCompletionDate" />
-          <div class="pm-hint">Actual completion date.</div>
-        </div>
-      </div>
-
-      <button class="pm-btn-primary" id="btnAddProject" onclick="addProject()">Add Project</button>
-    </div>
-  </div>
-
-  <!-- ===== PROJECT TYPES TAB ===== -->
-  <div class="pm-tab-content" id="tab-types" style="display:none;">
-    <div class="pm-welcome">
-      <h2>Project Types</h2>
-      <p>Define and manage project categories. These are used when creating or classifying projects.</p>
-    </div>
-    <div id="pmTypesMessage" class="pm-message"></div>
-
-    <div class="pm-form-card" id="addTypeForm">
-      <h3>Add Project Type</h3>
-      <div class="pm-form-grid">
-        <div class="pm-form-row">
-          <label>Type Name <span class="pm-required">*</span></label>
-          <input type="text" id="pmTypeName" placeholder="e.g., Commercial Construction" maxlength="100" />
-        </div>
-        <div class="pm-form-row">
-          <label>Description</label>
-          <input type="text" id="pmTypeDesc" placeholder="Brief description" maxlength="500" />
-        </div>
-      </div>
-      <button class="pm-btn-primary" onclick="addProjectType()">Add Type</button>
-    </div>
-
-    <div class="pm-section-header">
-      <h3>Project Type List</h3>
-      <span class="pm-record-count" id="pmTypeCount">0 types</span>
-    </div>
-
-    <div class="pm-table-scroll">
-      <table class="pm-table" id="pmTypeTable">
-        <thead><tr><th>Type Name</th><th>Description</th><th>Actions</th></tr></thead>
-        <tbody id="pmTypeTableBody"><tr><td class="pm-empty">Loading…</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- ===== CLIENTS TAB ===== -->
-  <div class="pm-tab-content" id="tab-clients" style="display:none;">
-    <div class="pm-welcome">
-      <h2>Clients</h2>
-      <p>View, add, and edit client information across your organization.</p>
-    </div>
-    <div id="pmClientsMessage" class="pm-message"></div>
-
-    <div class="pm-section-header">
-      <h3>Client List</h3>
-      <span class="pm-record-count" id="pmClientCount">0 clients</span>
-    </div>
-
-    <div class="pm-search-row">
-      <input type="text" class="pm-search-input" id="pmClientSearch" placeholder="Search by client name, contact, email, or company..." oninput="onClientSearchInput()" />
-      <select class="pm-filter-select" id="pmClientFilterStatus" onchange="renderClientTable()">
-        <option value="">All Statuses</option>
-        <option value="Active">Active</option>
-        <option value="Inactive">Inactive</option>
-        <option value="Pending">Pending</option>
-        <option value="Onboarding">Onboarding</option>
-      </select>
-      <button class="pm-btn-small" onclick="toggleClientColPanel(event)">Columns</button>
-      <button class="pm-btn-small" onclick="openClientPrintModal()">Print</button>
-      <button class="pm-btn-small" onclick="openClientExportModal('csv')">Export CSV</button>
-      <button class="pm-btn-small" onclick="openClientExportModal('excel')">Export Excel</button>
-    </div>
-
-    <div class="pm-col-toggle" id="pmClientColPanel">
-      <div class="pm-col-toggle-title">Show / Hide Columns</div>
-      <div id="pmClientColToggleItems"></div>
-    </div>
-
-    <div class="pm-table-scroll">
-      <table class="pm-table" id="pmClientTable">
-        <thead id="pmClientTableHead"></thead>
-        <tbody id="pmClientTableBody">
-          <tr><td class="pm-empty">Loading clients…</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="pm-pagination" id="pmClientPagination"></div>
-  </div>
-
-  <!-- ===== ADD NEW CLIENT TAB ===== -->
-  <div class="pm-tab-content" id="tab-addclient" style="display:none;">
-    <div class="pm-welcome">
-      <h2>Add New Client</h2>
-      <p>Enter the details for a new client below.</p>
-    </div>
-    <div id="pmAddClientMessage" class="pm-message"></div>
-
-    <div class="pm-form-card" id="addClientForm">
-      <h3>New Client Details</h3>
-      <div class="pm-form-grid">
-        <div class="pm-form-row">
-          <label>Client Name <span class="pm-required">*</span></label>
-          <input type="text" id="pmClientName" placeholder="e.g., Acme Construction" maxlength="200" />
-        </div>
-        <div class="pm-form-row">
-          <label>Contact Name <span class="pm-required">*</span></label>
-          <input type="text" id="pmContactName" placeholder="e.g., John Smith" maxlength="100" />
-        </div>
-        <div class="pm-form-row">
-          <label>Contact Email <span class="pm-required">*</span></label>
-          <input type="email" id="pmContactEmail" placeholder="e.g., john@acme.com" maxlength="200" />
-        </div>
-        <div class="pm-form-row">
-          <label>Contact Phone</label>
-          <input type="text" id="pmContactPhone" placeholder="e.g., 555-123-4567" maxlength="20" />
-        </div>
-        <div class="pm-form-row">
-          <label>Company</label>
-          <input type="text" id="pmCompany" placeholder="Company name" maxlength="200" />
-        </div>
-        <div class="pm-form-row">
-          <label>Industry</label>
-          <input type="text" id="pmIndustry" placeholder="e.g., Construction" maxlength="100" />
-        </div>
-        <div class="pm-form-row">
-          <label>Address</label>
-          <input type="text" id="pmAddress" placeholder="Street address" maxlength="500" />
-        </div>
-        <div class="pm-form-row">
-          <label>City</label>
-          <input type="text" id="pmCity" placeholder="City" maxlength="100" />
-        </div>
-        <div class="pm-form-row">
-          <label>State</label>
-          <input type="text" id="pmState" placeholder="State" maxlength="50" />
-        </div>
-        <div class="pm-form-row">
-          <label>Zip Code</label>
-          <input type="text" id="pmZip" placeholder="Zip code" maxlength="20" />
-        </div>
-        <div class="pm-form-row">
-          <label>Status</label>
-          <select id="pmClientStatus">
-            <option value="Active">Active</option>
-            <option value="Pending">Pending</option>
-            <option value="Onboarding">Onboarding</option>
-            <option value="Inactive">Inactive</option>
-          </select>
-        </div>
-        <div class="pm-form-row">
-          <label>Notes</label>
-          <textarea id="pmClientNotes" rows="2" placeholder="Additional notes" maxlength="2000"></textarea>
-        </div>
-      </div>
-      <button class="pm-btn-primary" id="btnAddClient" onclick="addClient()">Add Client</button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== EDIT PROJECT MODAL ===== -->
-<div id="pmEditProjectModal" class="pm-modal">
-  <div class="pm-modal-card">
-    <h3 id="pmEditProjectTitle">Edit Project</h3>
-    <p class="pm-modal-subtitle">Update the project details below.</p>
-
-    <div class="pm-form-grid">
-      <div class="pm-form-row">
-        <label>Project Number <span class="pm-required">*</span></label>
-        <input type="text" id="pmEditProjectCode" maxlength="50" />
-      </div>
-      <div class="pm-form-row">
-        <label>Project Name <span class="pm-required">*</span></label>
-        <input type="text" id="pmEditProjectName" maxlength="200" />
-      </div>
-      <div class="pm-form-row">
-        <label>Status</label>
-        <select id="pmEditProjectStatus">
-          <option value="Active">Active</option>
-          <option value="Planning">Planning</option>
-          <option value="On Hold">On Hold</option>
-          <option value="Completed">Completed</option>
-          <option value="Cancelled">Cancelled</option>
-          <option value="Inactive">Inactive</option>
-        </select>
-      </div>
-      <div class="pm-form-row">
-        <label>Location</label>
-        <input type="text" id="pmEditProjectLocation" maxlength="200" />
-      </div>
-      <div class="pm-form-row">
-        <label>Expected Start Date</label>
-        <input type="date" id="pmEditExpectedStartDate" />
-      </div>
-      <div class="pm-form-row">
-        <label>Actual Start Date</label>
-        <input type="date" id="pmEditActualStartDate" />
-      </div>
-      <div class="pm-form-row">
-        <label>Expected Completion Date</label>
-        <input type="date" id="pmEditExpectedCompletionDate" />
-      </div>
-      <div class="pm-form-row">
-        <label>Actual Completion Date</label>
-        <input type="date" id="pmEditActualCompletionDate" />
-      </div>
-    </div>
-
-    <div class="pm-modal-actions">
-      <button class="pm-btn-secondary" onclick="closeEditProjectModal()">Cancel</button>
-      <button class="pm-btn-primary" id="btnSaveEditProject" onclick="saveEditProject()">Save Changes</button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== EDIT CLIENT MODAL ===== -->
-<div id="pmEditClientModal" class="pm-modal">
-  <div class="pm-modal-card">
-    <h3 id="pmEditClientTitle">Edit Client</h3>
-    <p class="pm-modal-subtitle">Update the client details below.</p>
-
-    <div class="pm-form-grid">
-      <div class="pm-form-row">
-        <label>Client Name <span class="pm-required">*</span></label>
-        <input type="text" id="pmEditClientName" maxlength="200" />
-      </div>
-      <div class="pm-form-row">
-        <label>Contact Name <span class="pm-required">*</span></label>
-        <input type="text" id="pmEditContactName" maxlength="100" />
-      </div>
-      <div class="pm-form-row">
-        <label>Contact Email <span class="pm-required">*</span></label>
-        <input type="email" id="pmEditContactEmail" maxlength="200" />
-      </div>
-      <div class="pm-form-row">
-        <label>Contact Phone</label>
-        <input type="text" id="pmEditContactPhone" maxlength="20" />
-      </div>
-      <div class="pm-form-row">
-        <label>Company</label>
-        <input type="text" id="pmEditCompany" maxlength="200" />
-      </div>
-      <div class="pm-form-row">
-        <label>Industry</label>
-        <input type="text" id="pmEditIndustry" maxlength="100" />
-      </div>
-      <div class="pm-form-row">
-        <label>Address</label>
-        <input type="text" id="pmEditAddress" maxlength="500" />
-      </div>
-      <div class="pm-form-row">
-        <label>City</label>
-        <input type="text" id="pmEditCity" maxlength="100" />
-      </div>
-      <div class="pm-form-row">
-        <label>State</label>
-        <input type="text" id="pmEditState" maxlength="50" />
-      </div>
-      <div class="pm-form-row">
-        <label>Zip Code</label>
-        <input type="text" id="pmEditZip" maxlength="20" />
-      </div>
-      <div class="pm-form-row">
-        <label>Status</label>
-        <select id="pmEditClientStatus">
-          <option value="Active">Active</option>
-          <option value="Pending">Pending</option>
-          <option value="Onboarding">Onboarding</option>
-          <option value="Inactive">Inactive</option>
-        </select>
-      </div>
-      <div class="pm-form-row">
-        <label>Notes</label>
-        <textarea id="pmEditClientNotes" rows="2" maxlength="2000"></textarea>
-      </div>
-    </div>
-
-    <div class="pm-modal-actions">
-      <button class="pm-btn-secondary" onclick="closeEditClientModal()">Cancel</button>
-      <button class="pm-btn-primary" id="btnSaveEditClient" onclick="saveEditClient()">Save Changes</button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== EDIT PROJECT TYPE MODAL ===== -->
-<div id="pmEditTypeModal" class="pm-modal">
-  <div class="pm-modal-card">
-    <h3>Edit Project Type</h3>
-    <p class="pm-modal-subtitle">Update the project type details below.</p>
-
-    <div class="pm-form-grid">
-      <div class="pm-form-row">
-        <label>Type Name <span class="pm-required">*</span></label>
-        <input type="text" id="pmEditTypeName" maxlength="100" />
-      </div>
-      <div class="pm-form-row">
-        <label>Description</label>
-        <input type="text" id="pmEditTypeDesc" maxlength="500" />
-      </div>
-    </div>
-
-    <div class="pm-modal-actions">
-      <button class="pm-btn-secondary" onclick="closeEditTypeModal()">Cancel</button>
-      <button class="pm-btn-primary" onclick="saveEditProjectType()">Save Changes</button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== PRINT & EXPORT MODALS ===== -->
-<div id="pmProjectPrintModal" class="pm-modal">
-  <div class="pm-modal-card">
-    <h3>Print Project List</h3>
-    <p class="pm-modal-subtitle">Select which columns to include in the printout.</p>
-    <div class="pm-check-grid" id="pmProjectPrintCols"></div>
-    <div class="pm-modal-actions">
-      <button class="pm-btn-secondary" onclick="closeModal('pmProjectPrintModal')">Cancel</button>
-      <button class="pm-btn-primary" onclick="doProjectPrint()">Print</button>
-    </div>
-  </div>
-</div>
-
-<div id="pmProjectExportModal" class="pm-modal">
-  <div class="pm-modal-card">
-    <h3 id="pmProjectExportTitle">Export to CSV</h3>
-    <p class="pm-modal-subtitle">Select which columns to include in the export.</p>
-    <div class="pm-check-grid" id="pmProjectExportCols"></div>
-    <div class="pm-modal-actions">
-      <button class="pm-btn-secondary" onclick="closeModal('pmProjectExportModal')">Cancel</button>
-      <button class="pm-btn-primary" id="pmProjectExportBtn" onclick="doProjectExport()">Download CSV</button>
-    </div>
-  </div>
-</div>
-
-<div id="pmClientPrintModal" class="pm-modal">
-  <div class="pm-modal-card">
-    <h3>Print Client List</h3>
-    <p class="pm-modal-subtitle">Select which columns to include in the printout.</p>
-    <div class="pm-check-grid" id="pmClientPrintCols"></div>
-    <div class="pm-modal-actions">
-      <button class="pm-btn-secondary" onclick="closeModal('pmClientPrintModal')">Cancel</button>
-      <button class="pm-btn-primary" onclick="doClientPrint()">Print</button>
-    </div>
-  </div>
-</div>
-
-<div id="pmClientExportModal" class="pm-modal">
-  <div class="pm-modal-card">
-    <h3 id="pmClientExportTitle">Export to CSV</h3>
-    <p class="pm-modal-subtitle">Select which columns to include in the export.</p>
-    <div class="pm-check-grid" id="pmClientExportCols"></div>
-    <div class="pm-modal-actions">
-      <button class="pm-btn-secondary" onclick="closeModal('pmClientExportModal')">Cancel</button>
-      <button class="pm-btn-primary" id="pmClientExportBtn" onclick="doClientExport()">Download CSV</button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== FOOTER ===== -->
-<div id="dashFooter"></div>
-<!-- ===== SHARED DASHBOARD JS ===== -->
-<script src="/app/shared/dashboard-common.js?v=13"></script>
-
-<script>
-// ============================================================
-// PROJECT MANAGEMENT — Dashboard JavaScript Logic
-// ============================================================
-
-var allProjects = [];
-var allClients = [];
-var projectTypes = [];
-var editingProjectId = null;
-var editingClientId = null;
-var editingTypeIndex = null;
-var canModify = false;
-var pmDirty = false;
-
-// ===== PROJECT COLUMN DEFINITIONS =====
-var PROJECT_COL_DEFS = [
-  { key: 'projectNumber', label: 'Project Number', defaultVisible: true },
-  { key: 'name', label: 'Project Name', defaultVisible: true },
-  { key: 'status', label: 'Status', defaultVisible: true },
-  { key: 'expectedStartDate', label: 'Expected Start Date', defaultVisible: true },
-  { key: 'actualStartDate', label: 'Actual Start Date', defaultVisible: true },
-  { key: 'expectedCompletionDate', label: 'Expected Completion Date', defaultVisible: true },
-  { key: 'actualCompletionDate', label: 'Actual Completion Date', defaultVisible: true },
-  { key: 'location', label: 'Location', defaultVisible: false },
-  { key: 'createdAt', label: 'Created Date', defaultVisible: false }
-];
-
-// ===== CLIENT COLUMN DEFINITIONS =====
-var CLIENT_COL_DEFS = [
-  { key: 'clientName', label: 'Client Name', defaultVisible: true },
-  { key: 'contactName', label: 'Contact Name', defaultVisible: true },
-  { key: 'contactEmail', label: 'Email', defaultVisible: true },
-  { key: 'contactPhone', label: 'Phone', defaultVisible: true },
-  { key: 'company', label: 'Company', defaultVisible: true },
-  { key: 'industry', label: 'Industry', defaultVisible: false },
-  { key: 'city', label: 'City', defaultVisible: false },
-  { key: 'state', label: 'State', defaultVisible: false },
-  { key: 'status', label: 'Status', defaultVisible: true },
-  { key: 'createdAt', label: 'Created Date', defaultVisible: false }
-];
-
-// ===== SORTING & PAGINATION STATE =====
-var projectSortKey = 'projectNumber';
-var projectSortDir = 'asc';
-var projectPage = 1;
-var projectPageSize = 10;
-var projectVisibleCols = {};
-
-var clientSortKey = 'clientName';
-var clientSortDir = 'asc';
-var clientPage = 1;
-var clientPageSize = 10;
-var clientVisibleCols = {};
-
-function makeTabsSticky() {
-  var h = document.getElementById("dashHeader"),
-      tb = document.getElementById("pmTabBar");
-  if (h && tb && h.nextElementSibling !== tb) {
-    h.parentNode.insertBefore(tb, h.nextSibling);
-  }
-}
-
-function initVisibleCols() {
-  try {
-    var savedP = JSON.parse(localStorage.getItem('driven_pm_proj_cols') || '{}');
-    PROJECT_COL_DEFS.forEach(function(c) {
-      projectVisibleCols[c.key] = (savedP[c.key] !== undefined) ? savedP[c.key] : c.defaultVisible;
-    });
-  } catch(e) {
-    PROJECT_COL_DEFS.forEach(function(c) { projectVisibleCols[c.key] = c.defaultVisible; });
-  }
-  try {
-    var savedC = JSON.parse(localStorage.getItem('driven_pm_cli_cols') || '{}');
-    CLIENT_COL_DEFS.forEach(function(c) {
-      clientVisibleCols[c.key] = (savedC[c.key] !== undefined) ? savedC[c.key] : c.defaultVisible;
-    });
-  } catch(e) {
-    CLIENT_COL_DEFS.forEach(function(c) { clientVisibleCols[c.key] = c.defaultVisible; });
-  }
-}
-
-function saveProjectVisibleCols() {
-  try { localStorage.setItem('driven_pm_proj_cols', JSON.stringify(projectVisibleCols)); } catch(e) {}
-}
-function saveClientVisibleCols() {
-  try { localStorage.setItem('driven_pm_cli_cols', JSON.stringify(clientVisibleCols)); } catch(e) {}
-}
-
-document.addEventListener('dashSessionLoaded', async function() {
-  makeTabsSticky();
-  setTimeout(makeTabsSticky, 300);
-
-  var loadingElement = document.getElementById('pmLoading');
-  var overviewTab = document.getElementById('tab-overview');
-
-  try {
-    var user = window.dashUser || window.drivenUser;
-    if (!user) {
-      try { user = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user")); } catch(e) {}
-    }
-    if (!user) { window.location.href = '/public/login.html'; return; }
-    window.dashUser = user;
-
-    var role = String(user.role || '').toLowerCase();
-    var isAdmin = role === 'admin' || role === 'administrator' || role.indexOf('founder') !== -1 || role === 'owner';
-    canModify = isAdmin;
-
-    if (!isAdmin) {
-      var customerId = localStorage.getItem('driven_customer_id');
-      if (customerId) {
-        try {
-          var keyPersonnelResponse = await fetch('/api/onboarding/key-personnel/list?customerId=' + encodeURIComponent(customerId));
-          var keyPersonnelData = await keyPersonnelResponse.json();
-          if (keyPersonnelResponse.ok && keyPersonnelData.success && Array.isArray(keyPersonnelData.keyPersonnel)) {
-            var myEmail = user.email ? String(user.email).toLowerCase() : '';
-            var myRecord = keyPersonnelData.keyPersonnel.find(function(personnelRecord) {
-              return (personnelRecord.email && String(personnelRecord.email).toLowerCase() === myEmail);
-            });
-            if (myRecord && Array.isArray(myRecord.roles)) {
-              var myTasks = myRecord.roles.map(function(roleRecord) { return roleRecord.role; });
-              canModify = myTasks.indexOf('Projects') !== -1 || myTasks.indexOf('Clients') !== -1;
-            }
-          }
-        } catch (error) {
-          reportProjectManagementError('KP permission check failed: ' + (error.message || error), 'kp-permission-check', error && error.stack ? error.stack : null);
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DRIV‑EN | Asset Management</title>
+    <meta name="description" content="DRIV-EN — manage assets, inspections, work orders, and transfers.">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="canonical" href="https://www.driv-en.com/app/dashboard/asset-management.html">
+    <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+    <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+    <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+    <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
+    <link rel="stylesheet" href="/app/shared/dashboard.css?v=11">
+    <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
+    <script>
+        (function() {
+            var saved = localStorage.getItem("driven-theme");
+            var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+            var theme = saved || system;
+            document.documentElement.setAttribute("data-theme", theme);
+        })();
+    </script>
+    <style>
+        :root {
+            --header-height: 60px;
+            --card-green-border: #16a34a;
+            --blue-line: #1e3a8a;
         }
-      }
-    }
-
-    if (!canModify) {
-      ['addProjectForm', 'addClientForm', 'addTypeForm'].forEach(function(id) {
-        var el = document.getElementById(id);
-        if (el) el.style.display = 'none';
-      });
-    }
-
-    var headerAttempts = 0;
-    var headerInterval = setInterval(function() {
-      headerAttempts++;
-      if (fixHeaderLayout() || headerAttempts > 50) clearInterval(headerInterval);
-    }, 100);
-
-    initVisibleCols();
-
-    await Promise.allSettled([
-      loadProjectTypes(),
-      loadProjects(),
-      loadClients()
-    ]);
-
-    renderOverview();
-
-  } catch (error) {
-    reportProjectManagementError('Project Management initialization failed: ' + (error.message || error), 'project-management-initialization', error && error.stack ? error.stack : null);
-  } finally {
-    if (loadingElement) loadingElement.style.display = 'none';
-    if (overviewTab) overviewTab.style.display = 'block';
-  }
-});
-
-function normalizeProject(record) {
-  record = record || {};
-  var fields = (record.fields && typeof record.fields === 'object') ? record.fields : record;
-
-  var id = record.id || fields.id || ('prj-' + Math.random().toString(36).substr(2, 9));
-
-  var projectNumber = fields.project_number || fields.code || fields['Project Number'] || 
-                        fields['Company Project Number'] || fields['Project Code'] || 
-                        fields.company_project_number || fields.projectNumber || id;
-
-  var name = fields.name || fields.project_name || fields['Project Name'] || fields.projectName || 'Unnamed Project';
-  var status = fields.status || fields['Status'] || 'Active';
-  var location = fields.location || fields['Location'] || fields.address || '';
-
-  var expectedStart = fields.expected_start_date || fields['Expected Start Date'] || fields.expectedStartDate || '';
-  var actualStart = fields.actual_start_date || fields['Actual Start Date'] || fields.actualStartDate || '';
-  var expectedComp = fields.expected_completion_date || fields['Expected Completion Date'] || fields.expectedCompletionDate || '';
-  var actualComp = fields.actual_completion_date || fields['Actual Completion Date'] || fields.actualCompletionDate || '';
-  var createdAt = fields.created_at || fields['Created Date'] || fields.createdAt || '';
-
-  return {
-    id: String(id),
-    projectNumber: String(projectNumber || '—'),
-    name: String(name || 'Unnamed Project'),
-    status: String(status || 'Active'),
-    location: String(location || ''),
-    expectedStartDate: expectedStart ? String(expectedStart) : '',
-    actualStartDate: actualStart ? String(actualStart) : '',
-    expectedCompletionDate: expectedComp ? String(expectedComp) : '',
-    actualCompletionDate: actualComp ? String(actualComp) : '',
-    createdAt: createdAt ? String(createdAt) : ''
-  };
-}
-
-function normalizeClient(record) {
-  record = record || {};
-  var fields = (record.fields && typeof record.fields === 'object') ? record.fields : record;
-  return {
-    id: record.id || fields.id || ('cli-' + Math.random().toString(36).substr(2, 9)),
-    clientName: fields['Client Name'] || fields.clientName || fields.client_name || '',
-    contactName: fields['Contact Name'] || fields.contactName || fields.contact_name || '',
-    contactEmail: fields['Contact Email'] || fields.contactEmail || fields.contact_email || '',
-    contactPhone: fields['Contact Phone'] || fields.contactPhone || fields.contact_phone || '',
-    company: fields['Company'] || fields.company || '',
-    address: fields['Address'] || fields.address || '',
-    city: fields['City'] || fields.city || '',
-    state: fields['State'] || fields.state || '',
-    zip: fields['Zip Code'] || fields.zipCode || fields.zip_code || '',
-    country: fields['Country'] || fields.country || '',
-    industry: fields['Industry'] || fields.industry || '',
-    status: fields['Status'] || fields.status || 'Active',
-    notes: fields['Notes'] || fields.notes || '',
-    createdAt: fields['Created Date'] || fields.createdAt || fields.created_at || ''
-  };
-}
-
-async function loadProjects() {
-  try {
-    var response = await fetch('/api/Project');
-    if (response.status === 404) response = await fetch('/api/project');
-
-    var data = {};
-    try { data = await response.json(); } catch (e) { data = {}; }
-
-    var records = null;
-    if (Array.isArray(data)) {
-      records = data;
-    } else if (data && typeof data === 'object') {
-      records = data.projects || data.data || data.records || data.results || data.result;
-    }
-
-    if (response.ok && Array.isArray(records)) {
-      allProjects = records.map(normalizeProject);
-    } else {
-      allProjects = [];
-    }
-  } catch(error) {
-    console.error('loadProjects fetch error:', error);
-    allProjects = [];
-  }
-
-  try {
-    renderProjectTableHead();
-    renderProjectTable();
-    renderProjectColTogglePanel();
-    renderOverview();
-  } catch(error) {
-    console.error('Project rendering failed:', error);
-  }
-}
-
-async function loadClients() {
-  try {
-    var response = await fetch('/api/Clients');
-    if (response.status === 404) response = await fetch('/api/clients');
-
-    var data = {};
-    try { data = await response.json(); } catch (e) { data = {}; }
-
-    var records = null;
-    if (Array.isArray(data)) {
-      records = data;
-    } else if (data && typeof data === 'object') {
-      records = data.records || data.clients || data.data || data.results || data.result;
-    }
-
-    if (response.ok && Array.isArray(records)) {
-      allClients = records.map(normalizeClient);
-    } else {
-      allClients = [];
-    }
-  } catch (error) {
-    console.error('loadClients error:', error);
-    allClients = [];
-  }
-
-  try {
-    renderClientTableHead();
-    renderClientTable();
-    renderClientColTogglePanel();
-    renderOverview();
-  } catch (error) {
-    console.error('Client rendering failed:', error);
-  }
-}
-
-async function loadProjectTypes() {
-  try {
-    var res = await fetch('/auth/get-settings');
-    if (!res.ok) throw new Error('Settings fetch failed: ' + res.status);
-    var data = await res.json();
-    var settings = (data && data.settings) ? data.settings : {};
-    var raw = settings.project_types;
-    if (typeof raw === 'string') {
-      try { projectTypes = JSON.parse(raw); } catch(e) { projectTypes = []; }
-    } else if (Array.isArray(raw)) {
-      projectTypes = raw;
-    } else {
-      try { projectTypes = JSON.parse(localStorage.getItem('driven_project_types') || '[]'); } catch(e) { projectTypes = []; }
-    }
-  } catch(e) {
-    try { projectTypes = JSON.parse(localStorage.getItem('driven_project_types') || '[]'); } catch(e2) { projectTypes = []; }
-  }
-  renderProjectTypes();
-}
-
-async function saveProjectTypes() {
-  try {
-    var res = await fetch('/auth/save-settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ project_types: JSON.stringify(projectTypes) })
-    });
-    if (res.ok) {
-      try { localStorage.setItem('driven_project_types', JSON.stringify(projectTypes)); } catch(e) {}
-    }
-  } catch(e) { console.error('saveProjectTypes error:', e); }
-}
-
-function renderOverview() {
-  var totalProjectsElement = document.getElementById('kpiTotalProjects');
-  var activeProjectsElement = document.getElementById('kpiActiveProjects');
-  var completedProjectsElement = document.getElementById('kpiCompletedProjects');
-  var totalClientsElement = document.getElementById('kpiTotalClients');
-
-  var activeProjectCount = allProjects.filter(function(project) {
-    return String(project.status || '').trim().toLowerCase() === 'active';
-  }).length;
-
-  var completedProjectCount = allProjects.filter(function(project) {
-    return String(project.status || '').trim().toLowerCase() === 'completed';
-  }).length;
-
-  if (totalProjectsElement) totalProjectsElement.textContent = allProjects.length;
-  if (totalClientsElement) totalClientsElement.textContent = allClients.length;
-  if (activeProjectsElement) activeProjectsElement.textContent = activeProjectCount;
-  if (completedProjectsElement) completedProjectsElement.textContent = completedProjectCount;
-
-  initializeKpiNavigation();
-}
-
-function initializeKpiNavigation() {
-  configureKpiCard(document.getElementById('kpiCardTotalProjects'), 'Open all projects', function() {
-    switchTab('projects');
-    var statusFilter = document.getElementById('pmProjectFilterStatus');
-    if (statusFilter) statusFilter.value = '';
-    projectPage = 1; renderProjectTable();
-  });
-
-  configureKpiCard(document.getElementById('kpiCardTotalClients'), 'Open all clients', function() {
-    switchTab('clients');
-    var statusFilter = document.getElementById('pmClientFilterStatus');
-    if (statusFilter) statusFilter.value = '';
-    clientPage = 1; renderClientTable();
-  });
-
-  configureKpiCard(document.getElementById('kpiCardActiveProjects'), 'Open active projects', function() {
-    switchTab('projects');
-    var statusFilter = document.getElementById('pmProjectFilterStatus');
-    if (statusFilter) statusFilter.value = 'Active';
-    projectPage = 1; renderProjectTable();
-  });
-
-  configureKpiCard(document.getElementById('kpiCardCompletedProjects'), 'Open completed projects', function() {
-    switchTab('projects');
-    var statusFilter = document.getElementById('pmProjectFilterStatus');
-    if (statusFilter) statusFilter.value = 'Completed';
-    projectPage = 1; renderProjectTable();
-  });
-}
-
-function configureKpiCard(card, accessibilityLabel, navigationAction) {
-  if (!card) return;
-  card.setAttribute('role', 'button');
-  card.setAttribute('tabindex', '0');
-  card.setAttribute('aria-label', accessibilityLabel);
-  card.onclick = function() { executeKpiNavigation(navigationAction, accessibilityLabel); };
-  card.onkeydown = function(event) {
-    if (event.key !== 'Enter' && event.key !== ' ') return;
-    event.preventDefault();
-    executeKpiNavigation(navigationAction, accessibilityLabel);
-  };
-}
-
-function executeKpiNavigation(navigationAction, accessibilityLabel) {
-  try { navigationAction(); } catch (error) {
-    console.error('KPI navigation failed:', error);
-  }
-}
-
-function reportProjectManagementError(message, context, stackTrace) {
-  if (!window.DRIVENErrorHandler || typeof window.DRIVENErrorHandler.report !== 'function') {
-    console.error(message); return;
-  }
-  try {
-    window.DRIVENErrorHandler.report('project-management.html: ' + message, context, stackTrace);
-  } catch (loggingError) {
-    console.error('Failed to send project-management error to error log:', loggingError);
-  }
-}
-
-function statusBadgeHtml(status) {
-  if (!status) return '—';
-  var badgeClass = 'pm-badge pm-badge-' + String(status).trim().toLowerCase().replace(/\s+/g, '-');
-  return '<span class="' + badgeClass + '">' + escapeHtml(String(status)) + '</span>';
-}
-
-function renderProjectTableHead() {
-  var tableHead = document.getElementById('pmProjectTableHead');
-  if (!tableHead) return;
-  tableHead.textContent = '';
-  var headerRow = document.createElement('tr');
-
-  PROJECT_COL_DEFS.forEach(function(column) {
-    if (!projectVisibleCols[column.key]) return;
-    var headerCell = document.createElement('th');
-    headerCell.dataset.key = column.key;
-    headerCell.setAttribute('scope', 'col');
-    headerCell.setAttribute('tabindex', '0');
-    headerCell.setAttribute('role', 'button');
-    headerCell.setAttribute('aria-label', 'Sort by ' + column.label);
-
-    var label = document.createElement('span');
-    label.textContent = column.label;
-    headerCell.appendChild(label);
-
-    var sortArrow = document.createElement('span');
-    sortArrow.className = 'pm-sort-arrow';
-    if (projectSortKey === column.key) {
-      sortArrow.textContent = projectSortDir === 'asc' ? ' ▲' : ' ▼';
-      headerCell.classList.add(projectSortDir === 'asc' ? 'pm-sorted-asc' : 'pm-sorted-desc');
-    } else sortArrow.textContent = ' ↕';
-    headerCell.appendChild(sortArrow);
-    headerCell.addEventListener('click', function() { onProjectSortClick(column.key); });
-    headerRow.appendChild(headerCell);
-  });
-
-  if (canModify) {
-    var actionsHeader = document.createElement('th');
-    actionsHeader.textContent = 'Actions';
-    actionsHeader.style.cursor = 'default';
-    headerRow.appendChild(actionsHeader);
-  }
-  tableHead.appendChild(headerRow);
-}
-
-function onProjectSortClick(key) {
-  if (projectSortKey === key) projectSortDir = projectSortDir === 'asc' ? 'desc' : 'asc';
-  else { projectSortKey = key; projectSortDir = 'asc'; }
-  projectPage = 1;
-  renderProjectTableHead(); renderProjectTable();
-}
-
-var projectSearchTimer = null;
-function onProjectSearchInput() {
-  clearTimeout(projectSearchTimer);
-  projectSearchTimer = setTimeout(function() { projectPage = 1; renderProjectTable(); }, 200);
-}
-
-function isProjectDateColumn(columnKey) {
-  return columnKey === 'expectedStartDate' || columnKey === 'actualStartDate' || columnKey === 'expectedCompletionDate' || columnKey === 'actualCompletionDate' || columnKey === 'createdAt';
-}
-
-function getProjectDateSortValue(value) {
-  if (!value) return null;
-  var d = new Date(value);
-  return isNaN(d.getTime()) ? null : d.getTime();
-}
-
-function formatProjectDateDisplay(value) {
-  if (!value) return '—';
-  var str = String(value).trim();
-  var match = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (match) return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])).toLocaleDateString();
-  var d = new Date(value);
-  return isNaN(d.getTime()) ? str : d.toLocaleDateString();
-}
-
-function compareProjectRecords(projectA, projectB) {
-  var valA = projectA[projectSortKey], valB = projectB[projectSortKey];
-  var dir = projectSortDir === 'asc' ? 1 : -1;
-  if (isProjectDateColumn(projectSortKey)) {
-    var dA = getProjectDateSortValue(valA), dB = getProjectDateSortValue(valB);
-    if (dA === null && dB === null) return 0;
-    if (dA === null) return 1;
-    if (dB === null) return -1;
-    return (dA < dB ? -1 : 1) * dir;
-  }
-  return String(valA || '').localeCompare(String(valB || ''), undefined, { numeric: true, sensitivity: 'base' }) * dir;
-}
-
-function projectMatchesSearch(project, search) {
-  if (!search) return true;
-  return [project.projectNumber, project.name, project.status, project.location, project.expectedStartDate, project.actualStartDate, project.expectedCompletionDate, project.actualCompletionDate].some(function(v) {
-    return String(v || '').toLowerCase().indexOf(search) !== -1;
-  });
-}
-
-function renderProjectTable() {
-  var tableBody = document.getElementById('pmProjectTableBody');
-  var search = (document.getElementById('pmProjectSearch').value || '').toLowerCase().trim();
-  var filterStatus = document.getElementById('pmProjectFilterStatus').value;
-  var projectCount = document.getElementById('pmProjectCount');
-
-  var filtered = allProjects.filter(function(p) {
-    var mSearch = projectMatchesSearch(p, search);
-    var mStatus = !filterStatus || String(p.status || '').trim().toLowerCase() === filterStatus.trim().toLowerCase();
-    return mSearch && mStatus;
-  });
-
-  filtered.sort(compareProjectRecords);
-  if (projectCount) projectCount.textContent = filtered.length + ' project' + (filtered.length === 1 ? '' : 's');
-
-  var totalPages = Math.max(1, Math.ceil(filtered.length / projectPageSize));
-  if (projectPage > totalPages) projectPage = totalPages;
-  var startIdx = (projectPage - 1) * projectPageSize;
-  var pageItems = filtered.slice(startIdx, startIdx + projectPageSize);
-
-  tableBody.textContent = '';
-  if (filtered.length === 0) {
-    var tr = document.createElement('tr');
-    var td = document.createElement('td');
-    td.className = 'pm-empty';
-    td.textContent = allProjects.length === 0 ? 'No projects found. Add your first project using the form.' : 'No projects match filter criteria.';
-    tr.appendChild(td); tableBody.appendChild(tr);
-    renderPagination('pmProjectPagination', 0, 1, projectPage, projectPageSize, function(p) { projectPage = p; renderProjectTable(); }, function(sz) { projectPageSize = sz; projectPage = 1; renderProjectTable(); });
-    return;
-  }
-
-  pageItems.forEach(function(project) {
-    var row = document.createElement('tr');
-    PROJECT_COL_DEFS.forEach(function(col) {
-      if (!projectVisibleCols[col.key]) return;
-      var cell = document.createElement('td');
-      var val = project[col.key];
-      if (col.key === 'status' && val) cell.innerHTML = statusBadgeHtml(val);
-      else if (isProjectDateColumn(col.key)) cell.textContent = formatProjectDateDisplay(val);
-      else cell.textContent = (val !== undefined && val !== null && val !== '') ? String(val) : '—';
-      row.appendChild(cell);
-    });
-
-    if (canModify) {
-      var actionsCell = document.createElement('td');
-      actionsCell.className = 'pm-actions';
-      var editBtn = document.createElement('button');
-      editBtn.className = 'pm-table-btn';
-      editBtn.textContent = 'Edit';
-      editBtn.onclick = function() { openEditProjectModal(project.id); };
-      actionsCell.appendChild(editBtn);
-
-      var deleteBtn = document.createElement('button');
-      deleteBtn.className = 'pm-table-btn danger';
-      deleteBtn.textContent = 'Delete';
-      deleteBtn.onclick = function() { deleteProject(project.id); };
-      actionsCell.appendChild(deleteBtn);
-      row.appendChild(actionsCell);
-    }
-    tableBody.appendChild(row);
-  });
-
-  renderPagination('pmProjectPagination', filtered.length, totalPages, projectPage, projectPageSize, function(p) { projectPage = p; renderProjectTable(); }, function(sz) { projectPageSize = sz; projectPage = 1; renderProjectTable(); });
-}
-
-function renderClientTableHead() {
-  var thead = document.getElementById('pmClientTableHead');
-  if (!thead) return;
-  thead.textContent = '';
-  var tr = document.createElement('tr');
-  CLIENT_COL_DEFS.forEach(function(col) {
-    if (!clientVisibleCols[col.key]) return;
-    var th = document.createElement('th');
-    th.dataset.key = col.key;
-    th.textContent = col.label;
-    var arrow = document.createElement('span');
-    arrow.className = 'pm-sort-arrow';
-    if (clientSortKey === col.key) {
-      arrow.textContent = clientSortDir === 'asc' ? ' ▲' : ' ▼';
-      th.classList.add(clientSortDir === 'asc' ? 'pm-sorted-asc' : 'pm-sorted-desc');
-    } else arrow.textContent = ' ↕';
-    th.appendChild(arrow);
-    th.addEventListener('click', function() { onClientSortClick(col.key); });
-    tr.appendChild(th);
-  });
-  if (canModify) {
-    var thActions = document.createElement('th');
-    thActions.textContent = 'Actions';
-    thActions.style.cursor = 'default';
-    tr.appendChild(thActions);
-  }
-  thead.appendChild(tr);
-}
-
-function onClientSortClick(key) {
-  if (clientSortKey === key) clientSortDir = (clientSortDir === 'asc') ? 'desc' : 'asc';
-  else { clientSortKey = key; clientSortDir = 'asc'; }
-  clientPage = 1;
-  renderClientTableHead(); renderClientTable();
-}
-
-var clientSearchTimer = null;
-function onClientSearchInput() {
-  clearTimeout(clientSearchTimer);
-  clientSearchTimer = setTimeout(function() { clientPage = 1; renderClientTable(); }, 200);
-}
-
-function renderClientTable() {
-  var tbody = document.getElementById('pmClientTableBody');
-  var search = document.getElementById('pmClientSearch').value.toLowerCase().trim();
-  var filterStatus = document.getElementById('pmClientFilterStatus').value;
-
-  var filtered = allClients.filter(function(c) {
-    var matchesSearch = !search ||
-      (c.clientName && c.clientName.toLowerCase().indexOf(search) !== -1) ||
-      (c.contactName && c.contactName.toLowerCase().indexOf(search) !== -1) ||
-      (c.contactEmail && c.contactEmail.toLowerCase().indexOf(search) !== -1) ||
-      (c.company && c.company.toLowerCase().indexOf(search) !== -1);
-    var matchesStatus = !filterStatus || (c.status && c.status.toLowerCase() === filterStatus.toLowerCase());
-    return matchesSearch && matchesStatus;
-  });
-
-  filtered.sort(function(a, b) {
-    var va = String(a[clientSortKey] || '').toLowerCase();
-    var vb = String(b[clientSortKey] || '').toLowerCase();
-    if (va < vb) return clientSortDir === 'asc' ? -1 : 1;
-    if (va > vb) return clientSortDir === 'asc' ? 1 : -1;
-    return 0;
-  });
-
-  document.getElementById('pmClientCount').textContent = filtered.length + ' client' + (filtered.length === 1 ? '' : 's');
-  var totalPages = Math.max(1, Math.ceil(filtered.length / clientPageSize));
-  if (clientPage > totalPages) clientPage = totalPages;
-  var startIdx = (clientPage - 1) * clientPageSize;
-  var pageItems = filtered.slice(startIdx, startIdx + clientPageSize);
-
-  tbody.textContent = '';
-  if (filtered.length === 0) {
-    var tr = document.createElement('tr');
-    var td = document.createElement('td');
-    td.className = 'pm-empty';
-    td.textContent = allClients.length === 0 ? 'No clients found. Add your first client.' : 'No clients match search.';
-    tr.appendChild(td); tbody.appendChild(tr);
-    renderPagination('pmClientPagination', 0, 1, clientPage, clientPageSize, function(p) { clientPage = p; renderClientTable(); }, function(sz) { clientPageSize = sz; clientPage = 1; renderClientTable(); });
-    return;
-  }
-
-  pageItems.forEach(function(c) {
-    var tr = document.createElement('tr');
-    CLIENT_COL_DEFS.forEach(function(col) {
-      if (!clientVisibleCols[col.key]) return;
-      var td = document.createElement('td');
-      var val = c[col.key];
-      if (col.key === 'status' && val) td.innerHTML = statusBadgeHtml(val);
-      else if (col.key === 'createdAt') td.textContent = val ? new Date(val).toLocaleDateString() : '—';
-      else td.textContent = (val !== undefined && val !== null && val !== '') ? val : '—';
-      tr.appendChild(td);
-    });
-
-    if (canModify) {
-      var actionsTd = document.createElement('td');
-      actionsTd.className = 'pm-actions';
-      var btnEdit = document.createElement('button');
-      btnEdit.className = 'pm-table-btn';
-      btnEdit.textContent = 'Edit';
-      btnEdit.onclick = function() { openEditClientModal(c.id); };
-      actionsTd.appendChild(btnEdit);
-      tr.appendChild(actionsTd);
-    }
-    tbody.appendChild(tr);
-  });
-
-  renderPagination('pmClientPagination', filtered.length, totalPages, clientPage, clientPageSize, function(p) { clientPage = p; renderClientTable(); }, function(sz) { clientPageSize = sz; clientPage = 1; renderClientTable(); });
-}
-
-// ===== PROJECT CRUD ACTIONS =====
-async function addProject() {
-  if (!canModify) { showProjectMessage('You do not have permission to add projects.', 'error'); return; }
-  var code = document.getElementById('pmProjectCode').value.trim();
-  var name = document.getElementById('pmProjectName').value.trim();
-  var status = document.getElementById('pmProjectStatus').value;
-  var location = document.getElementById('pmProjectLocation').value.trim();
-  var expStart = document.getElementById('pmExpectedStartDate').value;
-  var actStart = document.getElementById('pmActualStartDate').value;
-  var expComp = document.getElementById('pmExpectedCompletionDate').value;
-  var actComp = document.getElementById('pmActualCompletionDate').value;
-
-  if (!code || !name) { showProjectMessage('Project Number and Name are required.', 'error'); return; }
-
-  var payload = {
-    project_number: code,
-    name: name,
-    status: status,
-    location: location,
-    expected_start_date: expStart,
-    actual_start_date: actStart,
-    expected_completion_date: expComp,
-    actual_completion_date: actComp
-  };
-
-  try {
-    var resp = await fetch('/api/Project', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    var data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || data.message || 'Save failed');
-
-    if (data.record || data.project) allProjects.push(normalizeProject(data.record || data.project));
-    else await loadProjects();
-
-    ['pmProjectCode','pmProjectName','pmProjectLocation','pmExpectedStartDate','pmActualStartDate','pmExpectedCompletionDate','pmActualCompletionDate'].forEach(function(id) {
-      document.getElementById(id).value = '';
-    });
-    document.getElementById('pmProjectStatus').value = 'Active';
-    showProjectMessage('Project "' + name + '" added.', 'success');
-    renderOverview();
-    switchTab('projects');
-  } catch(e) {
-    showProjectMessage('Failed to add project: ' + e.message, 'error');
-  }
-}
-
-function openEditProjectModal(projectId) {
-  var proj = allProjects.find(function(p) { return p.id === projectId; });
-  if (!proj) return;
-  editingProjectId = projectId;
-  document.getElementById('pmEditProjectCode').value = proj.projectNumber || '';
-  document.getElementById('pmEditProjectName').value = proj.name || '';
-  document.getElementById('pmEditProjectStatus').value = proj.status || 'Active';
-  document.getElementById('pmEditProjectLocation').value = proj.location || '';
-  document.getElementById('pmEditExpectedStartDate').value = proj.expectedStartDate || '';
-  document.getElementById('pmEditActualStartDate').value = proj.actualStartDate || '';
-  document.getElementById('pmEditExpectedCompletionDate').value = proj.expectedCompletionDate || '';
-  document.getElementById('pmEditActualCompletionDate').value = proj.actualCompletionDate || '';
-  document.getElementById('pmEditProjectModal').classList.add('active');
-}
-
-function closeEditProjectModal() {
-  document.getElementById('pmEditProjectModal').classList.remove('active');
-  editingProjectId = null;
-}
-
-async function saveEditProject() {
-  if (!canModify) { showProjectMessage('You do not have permission to modify projects.', 'error'); return; }
-  if (!editingProjectId) return;
-  var code = document.getElementById('pmEditProjectCode').value.trim();
-  var name = document.getElementById('pmEditProjectName').value.trim();
-  var status = document.getElementById('pmEditProjectStatus').value;
-  var location = document.getElementById('pmEditProjectLocation').value.trim();
-  var expStart = document.getElementById('pmEditExpectedStartDate').value;
-  var actStart = document.getElementById('pmEditActualStartDate').value;
-  var expComp = document.getElementById('pmEditExpectedCompletionDate').value;
-  var actComp = document.getElementById('pmEditActualCompletionDate').value;
-
-  if (!code || !name) { showProjectMessage('Project Number and Name are required.', 'error'); return; }
-
-  var payload = {
-    project_number: code,
-    name: name,
-    status: status,
-    location: location,
-    expected_start_date: expStart,
-    actual_start_date: actStart,
-    expected_completion_date: expComp,
-    actual_completion_date: actComp
-  };
-
-  try {
-    var resp = await fetch('/api/Project/' + encodeURIComponent(editingProjectId), {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    var data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || data.message || 'Update failed');
-
-    if (data.record || data.project) {
-      var updated = normalizeProject(data.record || data.project);
-      var idx = allProjects.findIndex(function(p) { return p.id === editingProjectId; });
-      if (idx !== -1) allProjects[idx] = updated;
-    } else {
-      await loadProjects();
-    }
-
-    showProjectMessage('Project updated.', 'success');
-    closeEditProjectModal();
-    renderProjectTable();
-    renderOverview();
-  } catch(e) {
-    showProjectMessage('Failed to update project: ' + e.message, 'error');
-  }
-}
-
-async function deleteProject(projectId) {
-  if (!canModify) { showProjectMessage('You do not have permission to delete projects.', 'error'); return; }
-  if (!confirm('Are you sure you want to delete this project?')) return;
-  try {
-    var resp = await fetch('/api/Project/' + encodeURIComponent(projectId), { method: 'DELETE' });
-    if (!resp.ok) throw new Error('Delete failed (' + resp.status + ')');
-    allProjects = allProjects.filter(function(p) { return p.id !== projectId; });
-    showProjectMessage('Project deleted.', 'success');
-    renderProjectTable();
-    renderOverview();
-  } catch(e) {
-    showProjectMessage('Failed to delete project: ' + e.message, 'error');
-  }
-}
-
-// ===== CLIENT CRUD ACTIONS =====
-async function addClient() {
-  if (!canModify) { showClientMessage('You do not have permission to add clients.', 'error'); return; }
-  var clientName = document.getElementById('pmClientName').value.trim();
-  var contactName = document.getElementById('pmContactName').value.trim();
-  var contactEmail = document.getElementById('pmContactEmail').value.trim();
-  var contactPhone = document.getElementById('pmContactPhone').value.trim();
-  var company = document.getElementById('pmCompany').value.trim();
-  var industry = document.getElementById('pmIndustry').value.trim();
-  var address = document.getElementById('pmAddress').value.trim();
-  var city = document.getElementById('pmCity').value.trim();
-  var state = document.getElementById('pmState').value.trim();
-  var zip = document.getElementById('pmZip').value.trim();
-  var status = document.getElementById('pmClientStatus').value;
-  var notes = document.getElementById('pmClientNotes').value.trim();
-
-  if (!clientName || !contactName || !contactEmail) {
-    showClientMessage('Client Name, Contact Name, and Contact Email are required.', 'error'); return;
-  }
-
-  var payload = {
-    client_name: clientName, contact_name: contactName, contact_email: contactEmail,
-    status: status, contact_phone: contactPhone, company: company,
-    industry: industry, address: address, city: city, state: state,
-    zip_code: zip, notes: notes
-  };
-
-  try {
-    var resp = await fetch('/api/onboarding/clients', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    var data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || data.message || 'Save failed (' + resp.status + ')');
-
-    if (data.record || data.client) allClients.push(normalizeClient(data.record || data.client));
-    else await loadClients();
-
-    ['pmClientName','pmContactName','pmContactEmail','pmContactPhone','pmCompany','pmIndustry','pmAddress','pmCity','pmState','pmZip','pmClientNotes'].forEach(function(id) {
-      document.getElementById(id).value = '';
-    });
-    document.getElementById('pmClientStatus').value = 'Active';
-    showClientMessage('Client "' + clientName + '" added.', 'success');
-    renderOverview();
-    switchTab('clients');
-  } catch(e) {
-    showClientMessage('Failed to add client: ' + e.message, 'error');
-  }
-}
-
-function openEditClientModal(clientId) {
-  var client = allClients.find(function(c) { return c.id === clientId; });
-  if (!client) return;
-  editingClientId = clientId;
-  document.getElementById('pmEditClientName').value = client.clientName || '';
-  document.getElementById('pmEditContactName').value = client.contactName || '';
-  document.getElementById('pmEditContactEmail').value = client.contactEmail || '';
-  document.getElementById('pmEditContactPhone').value = client.contactPhone || '';
-  document.getElementById('pmEditCompany').value = client.company || '';
-  document.getElementById('pmEditIndustry').value = client.industry || '';
-  document.getElementById('pmEditAddress').value = client.address || '';
-  document.getElementById('pmEditCity').value = client.city || '';
-  document.getElementById('pmEditState').value = client.state || '';
-  document.getElementById('pmEditZip').value = client.zip || '';
-  document.getElementById('pmEditClientStatus').value = client.status || 'Active';
-  document.getElementById('pmEditClientNotes').value = client.notes || '';
-  document.getElementById('pmEditClientModal').classList.add('active');
-}
-
-function closeEditClientModal() {
-  document.getElementById('pmEditClientModal').classList.remove('active');
-  editingClientId = null;
-}
-
-async function saveEditClient() {
-  if (!canModify) { showClientMessage('You do not have permission to modify clients.', 'error'); return; }
-  if (!editingClientId) return;
-  var clientName = document.getElementById('pmEditClientName').value.trim();
-  var contactName = document.getElementById('pmEditContactName').value.trim();
-  var contactEmail = document.getElementById('pmEditContactEmail').value.trim();
-  var contactPhone = document.getElementById('pmEditContactPhone').value.trim();
-  var company = document.getElementById('pmEditCompany').value.trim();
-  var industry = document.getElementById('pmEditIndustry').value.trim();
-  var address = document.getElementById('pmEditAddress').value.trim();
-  var city = document.getElementById('pmEditCity').value.trim();
-  var state = document.getElementById('pmEditState').value.trim();
-  var zip = document.getElementById('pmEditZip').value.trim();
-  var status = document.getElementById('pmEditClientStatus').value;
-  var notes = document.getElementById('pmEditClientNotes').value.trim();
-
-  if (!clientName || !contactName || !contactEmail) {
-    showClientMessage('Client Name, Contact Name, and Contact Email are required.', 'error'); return;
-  }
-
-  var payload = {
-    client_name: clientName, contact_name: contactName, contact_email: contactEmail,
-    status: status, contact_phone: contactPhone, company: company,
-    industry: industry, address: address, city: city, state: state,
-    zip_code: zip, notes: notes
-  };
-
-  try {
-    var resp = await fetch('/api/onboarding/clients/' + encodeURIComponent(editingClientId), {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    var data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || data.message || 'Update failed (' + resp.status + ')');
-
-    if (data.record || data.client) {
-      var updated = normalizeClient(data.record || data.client);
-      var idx = allClients.findIndex(function(c) { return c.id === editingClientId; });
-      if (idx !== -1) allClients[idx] = updated;
-    } else {
-      await loadClients();
-    }
-
-    showClientMessage('Client "' + clientName + '" updated.', 'success');
-    closeEditClientModal();
-    renderClientTable();
-    renderOverview();
-  } catch(e) {
-    showClientMessage('Failed to update client: ' + e.message, 'error');
-  }
-}
-
-// ===== PROJECT TYPES CRUD =====
-function renderProjectTypes() {
-  var tbody = document.getElementById('pmTypeTableBody');
-  document.getElementById('pmTypeCount').textContent = projectTypes.length + ' type' + (projectTypes.length === 1 ? '' : 's');
-  tbody.textContent = '';
-  if (projectTypes.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="3" class="pm-empty">No project types defined.</td></tr>'; return;
-  }
-  projectTypes.forEach(function(t, idx) {
-    var tr = document.createElement('tr');
-    tr.innerHTML = '<td>' + escapeHtml(t.name) + '</td><td>' + escapeHtml(t.description || '—') + '</td>';
-    if (canModify) {
-      var tdAct = document.createElement('td');
-      tdAct.className = 'pm-actions';
-      tdAct.innerHTML = '<button class="pm-table-btn" onclick="openEditTypeModal(' + idx + ')">Edit</button>' +
-                        '<button class="pm-table-btn danger" onclick="deleteProjectType(' + idx + ')">Delete</button>';
-      tr.appendChild(tdAct);
-    } else {
-      tr.innerHTML += '<td>—</td>';
-    }
-    tbody.appendChild(tr);
-  });
-}
-
-async function addProjectType() {
-  if (!canModify) { alert('You do not have permission to add project types.'); return; }
-  var name = document.getElementById('pmTypeName').value.trim();
-  var desc = document.getElementById('pmTypeDesc').value.trim();
-  if (!name) { alert('Type name is required.'); return; }
-  projectTypes.push({ name: name, description: desc });
-  await saveProjectTypes();
-  document.getElementById('pmTypeName').value = '';
-  document.getElementById('pmTypeDesc').value = '';
-  renderProjectTypes();
-}
-
-function openEditTypeModal(idx) {
-  editingTypeIndex = idx;
-  var t = projectTypes[idx];
-  if (!t) return;
-  document.getElementById('pmEditTypeName').value = t.name || '';
-  document.getElementById('pmEditTypeDesc').value = t.description || '';
-  document.getElementById('pmEditTypeModal').classList.add('active');
-}
-
-function closeEditTypeModal() {
-  document.getElementById('pmEditTypeModal').classList.remove('active');
-  editingTypeIndex = null;
-}
-
-async function saveEditProjectType() {
-  if (!canModify) { alert('You do not have permission to modify project types.'); return; }
-  if (editingTypeIndex === null) return;
-  var name = document.getElementById('pmEditTypeName').value.trim();
-  var desc = document.getElementById('pmEditTypeDesc').value.trim();
-  if (!name) { alert('Type name is required.'); return; }
-  projectTypes[editingTypeIndex] = { name: name, description: desc };
-  await saveProjectTypes();
-  closeEditTypeModal();
-  renderProjectTypes();
-}
-
-async function deleteProjectType(idx) {
-  if (!canModify) { alert('You do not have permission to delete project types.'); return; }
-  if (!confirm('Are you sure you want to delete this project type?')) return;
-  projectTypes.splice(idx, 1);
-  await saveProjectTypes();
-  renderProjectTypes();
-}
-
-// ===== COLUMN TOGGLE PANELS =====
-function toggleProjectColPanel(e) {
-  e.stopPropagation();
-  var panel = document.getElementById('pmProjectColPanel');
-  panel.classList.toggle('active');
-  if (panel.classList.contains('active')) renderProjectColTogglePanel();
-}
-
-function toggleClientColPanel(e) {
-  e.stopPropagation();
-  var panel = document.getElementById('pmClientColPanel');
-  panel.classList.toggle('active');
-  if (panel.classList.contains('active')) renderClientColTogglePanel();
-}
-
-document.addEventListener('click', function(e) {
-  var pCol = document.getElementById('pmProjectColPanel');
-  var cCol = document.getElementById('pmClientColPanel');
-  if (pCol && !pCol.contains(e.target)) pCol.classList.remove('active');
-  if (cCol && !cCol.contains(e.target)) cCol.classList.remove('active');
-});
-
-function renderProjectColTogglePanel() {
-  var div = document.getElementById('pmProjectColToggleItems');
-  if (!div) return;
-  div.textContent = '';
-  PROJECT_COL_DEFS.forEach(function(c) {
-    var lbl = document.createElement('label');
-    lbl.className = 'pm-col-toggle-item';
-    lbl.innerHTML = '<input type="checkbox" ' + (projectVisibleCols[c.key] ? 'checked' : '') + '> ' + escapeHtml(c.label);
-    lbl.querySelector('input').onchange = function(e) {
-      projectVisibleCols[c.key] = e.target.checked;
-      saveProjectVisibleCols();
-      renderProjectTableHead();
-      renderProjectTable();
-    };
-    div.appendChild(lbl);
-  });
-}
-
-function renderClientColTogglePanel() {
-  var div = document.getElementById('pmClientColToggleItems');
-  if (!div) return;
-  div.textContent = '';
-  CLIENT_COL_DEFS.forEach(function(c) {
-    var lbl = document.createElement('label');
-    lbl.className = 'pm-col-toggle-item';
-    lbl.innerHTML = '<input type="checkbox" ' + (clientVisibleCols[c.key] ? 'checked' : '') + '> ' + escapeHtml(c.label);
-    lbl.querySelector('input').onchange = function(e) {
-      clientVisibleCols[c.key] = e.target.checked;
-      saveClientVisibleCols();
-      renderClientTableHead();
-      renderClientTable();
-    };
-    div.appendChild(lbl);
-  });
-}
-
-// ===== EXPORT & PRINT HANDLERS =====
-var currentExportType = 'csv';
-function openProjectExportModal(type) {
-  currentExportType = type;
-  document.getElementById('pmProjectExportTitle').textContent = 'Export to ' + type.toUpperCase();
-  document.getElementById('pmProjectExportBtn').textContent = 'Download ' + type.toUpperCase();
-  var container = document.getElementById('pmProjectExportCols');
-  container.textContent = '';
-  PROJECT_COL_DEFS.forEach(function(c) {
-    var lbl = document.createElement('label');
-    lbl.className = 'pm-check-item';
-    lbl.innerHTML = '<input type="checkbox" value="' + c.key + '" ' + (projectVisibleCols[c.key] ? 'checked' : '') + '> ' + escapeHtml(c.label);
-    container.appendChild(lbl);
-  });
-  document.getElementById('pmProjectExportModal').classList.add('active');
-}
-
-function doProjectExport() {
-  var selected = Array.from(document.querySelectorAll('#pmProjectExportCols input:checked')).map(function(cb) { return cb.value; });
-  if (selected.length === 0) { alert('Select at least one column.'); return; }
-  var cols = PROJECT_COL_DEFS.filter(function(c) { return selected.indexOf(c.key) !== -1; });
-  var rows = [cols.map(function(c) { return '"' + c.label.replace(/"/g, '""') + '"'; }).join(',')];
-  allProjects.forEach(function(p) {
-    var row = cols.map(function(c) { var val = p[c.key] || ''; return '"' + String(val).replace(/"/g, '""') + '"'; });
-    rows.push(row.join(','));
-  });
-  var mime = currentExportType === 'excel' ? 'application/vnd.ms-excel' : 'text/csv';
-  var ext = currentExportType === 'excel' ? 'xls' : 'csv';
-  var blob = new Blob([rows.join('\n')], { type: mime + ';charset=utf-8;' });
-  var link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = 'projects.' + ext;
-  link.click();
-  closeModal('pmProjectExportModal');
-}
-
-function openProjectPrintModal() {
-  var container = document.getElementById('pmProjectPrintCols');
-  container.textContent = '';
-  PROJECT_COL_DEFS.forEach(function(c) {
-    var lbl = document.createElement('label');
-    lbl.className = 'pm-check-item';
-    lbl.innerHTML = '<input type="checkbox" value="' + c.key + '" ' + (projectVisibleCols[c.key] ? 'checked' : '') + '> ' + escapeHtml(c.label);
-    container.appendChild(lbl);
-  });
-  document.getElementById('pmProjectPrintModal').classList.add('active');
-}
-
-function doProjectPrint() { closeModal('pmProjectPrintModal'); window.print(); }
-
-function openClientExportModal(type) {
-  currentExportType = type;
-  document.getElementById('pmClientExportTitle').textContent = 'Export to ' + type.toUpperCase();
-  document.getElementById('pmClientExportBtn').textContent = 'Download ' + type.toUpperCase();
-  var container = document.getElementById('pmClientExportCols');
-  container.textContent = '';
-  CLIENT_COL_DEFS.forEach(function(c) {
-    var lbl = document.createElement('label');
-    lbl.className = 'pm-check-item';
-    lbl.innerHTML = '<input type="checkbox" value="' + c.key + '" ' + (clientVisibleCols[c.key] ? 'checked' : '') + '> ' + escapeHtml(c.label);
-    container.appendChild(lbl);
-  });
-  document.getElementById('pmClientExportModal').classList.add('active');
-}
-
-function doClientExport() {
-  var selected = Array.from(document.querySelectorAll('#pmClientExportCols input:checked')).map(function(cb) { return cb.value; });
-  if (selected.length === 0) { alert('Select at least one column.'); return; }
-  var cols = CLIENT_COL_DEFS.filter(function(c) { return selected.indexOf(c.key) !== -1; });
-  var rows = [cols.map(function(c) { return '"' + c.label.replace(/"/g, '""') + '"'; }).join(',')];
-  allClients.forEach(function(cli) {
-    var row = cols.map(function(c) { var val = cli[c.key] || ''; return '"' + String(val).replace(/"/g, '""') + '"'; });
-    rows.push(row.join(','));
-  });
-  var mime = currentExportType === 'excel' ? 'application/vnd.ms-excel' : 'text/csv';
-  var ext = currentExportType === 'excel' ? 'xls' : 'csv';
-  var blob = new Blob([rows.join('\n')], { type: mime + ';charset=utf-8;' });
-  var link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = 'clients.' + ext;
-  link.click();
-  closeModal('pmClientExportModal');
-}
-
-function openClientPrintModal() {
-  var container = document.getElementById('pmClientPrintCols');
-  container.textContent = '';
-  CLIENT_COL_DEFS.forEach(function(c) {
-    var lbl = document.createElement('label');
-    lbl.className = 'pm-check-item';
-    lbl.innerHTML = '<input type="checkbox" value="' + c.key + '" ' + (clientVisibleCols[c.key] ? 'checked' : '') + '> ' + escapeHtml(c.label);
-    container.appendChild(lbl);
-  });
-  document.getElementById('pmClientPrintModal').classList.add('active');
-}
-
-function doClientPrint() { closeModal('pmClientPrintModal'); window.print(); }
-
-function renderPagination(containerId, totalItems, totalPages, currentPage, pageSize, onPageChange, onPageSizeChange) {
-  var container = document.getElementById(containerId);
-  container.textContent = '';
-  if (totalItems === 0) return;
-
-  var info = document.createElement('span');
-  info.className = 'pm-page-info';
-  var startIdx = (currentPage - 1) * pageSize + 1;
-  var endIdx = Math.min(currentPage * pageSize, totalItems);
-  info.textContent = 'Showing ' + startIdx + '–' + endIdx + ' of ' + totalItems;
-  container.appendChild(info);
-
-  var sizeDiv = document.createElement('div');
-  sizeDiv.style.display = 'flex';
-  sizeDiv.style.alignItems = 'center';
-  sizeDiv.style.gap = '6px';
-  var sizeLabel = document.createElement('span');
-  sizeLabel.className = 'pm-page-info';
-  sizeLabel.textContent = 'Per page:';
-  sizeDiv.appendChild(sizeLabel);
-
-  var sizeSelect = document.createElement('select');
-  sizeSelect.className = 'pm-filter-select';
-  sizeSelect.style.padding = '4px 8px';
-  sizeSelect.style.fontSize = '13px';
-  [10, 25, 50].forEach(function(sz) {
-    var opt = document.createElement('option');
-    opt.value = sz; opt.textContent = sz;
-    if (sz === pageSize) opt.selected = true;
-    sizeSelect.appendChild(opt);
-  });
-  sizeSelect.addEventListener('change', function() { onPageSizeChange(parseInt(sizeSelect.value)); });
-  sizeDiv.appendChild(sizeSelect);
-  container.appendChild(sizeDiv);
-
-  var btnsDiv = document.createElement('div');
-  btnsDiv.className = 'pm-page-btns';
-  var btnPrev = document.createElement('button');
-  btnPrev.className = 'pm-page-btn';
-  btnPrev.textContent = '◀ Prev';
-  btnPrev.disabled = currentPage <= 1;
-  btnPrev.onclick = function() { onPageChange(currentPage - 1); };
-  btnsDiv.appendChild(btnPrev);
-
-  for (var p = 1; p <= totalPages; p++) {
-    var btn = document.createElement('button');
-    btn.className = 'pm-page-btn' + (p === currentPage ? ' active' : '');
-    btn.textContent = p;
-    btn.onclick = (function(page) { return function() { onPageChange(page); }; })(p);
-    btnsDiv.appendChild(btn);
-  }
-
-  var btnNext = document.createElement('button');
-  btnNext.className = 'pm-page-btn';
-  btnNext.textContent = 'Next ▶';
-  btnNext.disabled = currentPage >= totalPages;
-  btnNext.onclick = function() { onPageChange(currentPage + 1); };
-  btnsDiv.appendChild(btnNext);
-  container.appendChild(btnsDiv);
-}
-
-function switchTab(tab) {
-  document.querySelectorAll('.pm-tab').forEach(function(el) { el.classList.remove('active'); });
-  document.querySelectorAll('.pm-tab-content').forEach(function(el) { el.classList.remove('active'); el.style.display = 'none'; });
-
-  var tabBtn = document.querySelector('.pm-tab[data-tab="' + tab + '"]');
-  if (tabBtn) tabBtn.classList.add('active');
-
-  var tabContent = document.getElementById('tab-' + tab);
-  if (tabContent) {
-    tabContent.classList.add('active');
-    tabContent.style.display = 'block';
-  }
-
-  if (tab === 'overview') renderOverview();
-  if (tab === 'projects') { renderProjectTableHead(); renderProjectTable(); }
-  if (tab === 'clients') { renderClientTableHead(); renderClientTable(); }
-  if (tab === 'types') renderProjectTypes();
-}
-
-function goToMainDashboard() {
-  var user = window.dashUser;
-  if (!user) { window.location.href = '/public/login.html'; return; }
-  var role = String(user.role || '').toLowerCase();
-  if (role === 'driv-en founder' || role === 'owner') window.location.href = '/app/dashboard/owner-dashboard.html';
-  else if (role === 'admin' || role === 'administrator') window.location.href = '/app/dashboard/admin.html';
-  else window.location.href = '/app/dashboard/employee-dashboard.html';
-}
-
-function confirmLogout() {
-  if (typeof dashLogout === 'function') dashLogout();
-}
-
-function escapeHtml(value) {
-  var div = document.createElement('div');
-  div.textContent = value === undefined || value === null ? '' : String(value);
-  return div.innerHTML;
-}
-
-function showProjectMessage(message, type) {
-  var target = document.getElementById('pmProjectsMessage');
-  if (target) {
-    target.textContent = message;
-    target.className = 'pm-message ' + type;
-    target.style.display = 'block';
-    setTimeout(function(){ target.style.display = 'none'; }, 4000);
-  }
-}
-
-function showClientMessage(message, type) {
-  var target = document.getElementById('pmClientsMessage');
-  if (target) {
-    target.textContent = message;
-    target.className = 'pm-message ' + type;
-    target.style.display = 'block';
-    setTimeout(function(){ target.style.display = 'none'; }, 4000);
-  }
-}
-
-function closeModal(modalId) {
-  var modal = document.getElementById(modalId);
-  if (modal) modal.classList.remove('active');
-}
-
-function fixHeaderLayout() {
-  var header = document.querySelector('.dash-header');
-  if (!header) return false;
-  var row1 = header.querySelector('.dash-header-row1');
-  var row2 = header.querySelector('.dash-header-row2');
-  var row3 = header.querySelector('.dash-header-row3');
-  var heading = row2 ? row2.querySelector('h1') : null;
-  if (!row1 || !heading) return false;
-  if (heading.parentNode === row1) return true;
-  var drivenLogo = row1.querySelector('.dash-driven-logo');
-  if (drivenLogo) row1.insertBefore(heading, drivenLogo);
-  else row1.appendChild(heading);
-  row1.style.cssText = 'display:flex !important; justify-content:space-between !important; align-items:center !important; padding:8px 20px !important; gap:16px !important;';
-  heading.style.cssText = 'margin:0; font-size:20px; font-weight:600; text-align:center; flex:1;';
-  if (row2) row2.style.display = 'none';
-  if (row3) row3.style.display = 'none';
-  return true;
-}
-</script>
-<!-- ===== AUTH CHECK ===== -->
-<script src="/app/shared/auth-check.js?v=13"></script>
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+        }
+
+        .am-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-size: 16px;
+            color: var(--text-muted);
+        }
+        .dash-header-row3 { display: none !important; }
+        #dashHeader .dash-theme-wrapper { display: none !important; }
+        .dash-header-row2 { display: none !important; }
+
+        #dashHeader, .dash-header {
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 101 !important;
+            background: var(--bg-card);
+            width: 100%;
+            box-sizing: border-box;
+            border-bottom: 2px solid var(--card-green-border);
+        }
+
+        @media (max-width: 700px) {
+            .dash-customer-logo, .dash-customer-logo-placeholder {
+                max-height: 32px;
+                max-width: 70px;
+            }
+            .dash-driven-logo { max-height: 36px; }
+            #dashHeader .dash-header-row1 {
+                padding: 6px 12px !important;
+                gap: 8px !important;
+            }
+            #dashHeader h1 {
+                font-size: 16px !important;
+            }
+        }
+
+        .am-tab-bar {
+            display: flex;
+            gap: 2px;
+            width: 100%;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 16px;
+            overflow-x: auto;
+            position: sticky !important;
+            top: var(--header-height, 60px) !important;
+            z-index: 100 !important;
+            background: #cbd5e1;
+            border-bottom: 2px solid #94a3b8;
+            box-sizing: border-box;
+            -webkit-overflow-scrolling: touch;
+        }
+        .am-tab {
+            background: #94a3b8;
+            border: 1px solid #64748b;
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            padding: 10px 18px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #1e293b;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: color 200ms ease, background 200ms ease, margin-top 200ms ease;
+            margin-top: 4px;
+            position: relative;
+            z-index: 1;
+        }
+        .am-tab:hover {
+            color: #0f172a;
+            background: #a5b4c4;
+            margin-top: 2px;
+        }
+        .am-tab.active {
+            color: #1d4ed8;
+            background: #e2e8f0;
+            border-color: #64748b;
+            margin-top: 0;
+            font-weight: 600;
+            z-index: 2;
+        }
+        .am-tab-dashboard {
+            background: #2563eb;
+            border: 1px solid #1d4ed8;
+            color: #fff;
+        }
+        .am-tab-dashboard:hover {
+            background: #1d4ed8;
+            color: #fff;
+            margin-top: 2px;
+        }
+        .am-tab-logout {
+            background: #b91c1c;
+            border: 1px solid #dc2626;
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            padding: 10px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+            cursor: pointer;
+            white-space: nowrap;
+            margin-top: 4px;
+            margin-left: auto;
+            position: relative;
+            z-index: 1;
+            transition: background 200ms ease, margin-top 200ms ease;
+        }
+        .am-tab-logout:hover {
+            background: #dc2626;
+            margin-top: 2px;
+        }
+
+        .am-tab-content { display: none; }
+        .am-tab-content.active { display: block; }
+
+        .am-main {
+            width: 100%;
+            max-width: 1100px;
+            margin: 16px auto;
+            padding: 0 16px;
+            position: relative;
+            z-index: 1;
+            box-sizing: border-box;
+        }
+
+        .am-welcome {
+            background: var(--bg-card);
+            border: 2px solid var(--card-green-border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .am-welcome-text h2 {
+            margin: 0 0 6px 0;
+            font-size: 20px;
+            color: var(--text);
+        }
+        .am-welcome-text p {
+            margin: 0;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .am-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(85px, 1fr));
+            gap: 12px;
+            width: 100%;
+            margin-top: 12px;
+        }
+        .am-kpi-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 150ms ease, box-shadow 150ms ease;
+            user-select: none;
+        }
+        .am-kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        .am-kpi-card.kpi-active {
+            background: rgba(37, 99, 235, 0.1);
+            border-color: rgba(37, 99, 235, 0.4);
+        }
+        .am-kpi-card.kpi-available {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: rgba(34, 197, 94, 0.4);
+        }
+        .am-kpi-card.kpi-inuse {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: rgba(59, 130, 246, 0.4);
+        }
+        .am-kpi-card.kpi-maint {
+            background: rgba(249, 115, 22, 0.1);
+            border-color: rgba(249, 115, 22, 0.4);
+        }
+
+        .am-kpi-val {
+            font-size: 22px;
+            font-weight: 700;
+            line-height: 1.2;
+            color: var(--text);
+        }
+        .kpi-active .am-kpi-val { color: var(--primary); }
+        .kpi-available .am-kpi-val { color: #16a34a; }
+        .kpi-inuse .am-kpi-val { color: #2563eb; }
+        .kpi-maint .am-kpi-val { color: #ea580c; }
+
+        .am-kpi-lbl {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-top: 4px;
+        }
+
+        .am-placeholder {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+        .am-placeholder h3 {
+            font-size: 18px;
+            margin: 0 0 8px 0;
+            color: var(--text);
+        }
+        .am-placeholder p { font-size: 14px; margin: 0; }
+
+        .am-search-card {
+            background: var(--bg-card);
+            border: 2px solid var(--card-green-border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .am-search-row1 { width: 100%; }
+        .am-search-input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1.5px solid #2563eb;
+            border-radius: 6px;
+            font-size: 14px;
+            background: var(--bg-card);
+            color: var(--text);
+            box-sizing: border-box;
+            transition: all 150ms ease;
+        }
+        .am-search-input:focus {
+            outline: none;
+            border: 2.5px solid #1d4ed8;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+        }
+        
+        .am-filter-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        .am-multiselect-dd {
+            position: relative;
+        }
+        .am-multiselect-btn {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1.5px solid #2563eb;
+            border-radius: 6px;
+            font-size: 13px;
+            background: var(--bg-card);
+            color: var(--text);
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-sizing: border-box;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: all 150ms ease;
+        }
+        .am-multiselect-btn:hover {
+            border: 2.5px solid #1d4ed8;
+            color: #1d4ed8;
+            background: rgba(37, 99, 235, 0.05);
+        }
+        .am-multiselect-btn:after {
+            content: '▼';
+            font-size: 10px;
+            margin-left: 6px;
+            opacity: 0.6;
+        }
+        .am-multiselect-panel {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            min-width: 180px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 50;
+            max-height: 220px;
+            overflow-y: auto;
+            padding: 8px 10px;
+            box-sizing: border-box;
+            margin-top: 2px;
+        }
+        .am-multiselect-panel.active { display: block; }
+        .am-multiselect-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 0;
+            font-size: 13px;
+            color: var(--text);
+            cursor: pointer;
+        }
+        .am-multiselect-option input { cursor: pointer; }
+
+        .am-search-row3 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            width: 100%;
+        }
+        .am-btn-action {
+            background: var(--bg-card);
+            color: var(--text);
+            padding: 8px 6px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1.5px solid #2563eb;
+            cursor: pointer;
+            white-space: normal;
+            word-wrap: break-word;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 40px;
+            line-height: 1.2;
+            transition: all 150ms ease;
+            box-sizing: border-box;
+        }
+        .am-btn-action:hover {
+            border: 2.5px solid #1d4ed8;
+            color: #1d4ed8;
+            background: rgba(37, 99, 235, 0.05);
+        }
+
+        .am-table-card {
+            background: var(--bg-card);
+            border: 2px solid var(--card-green-border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        .am-table-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .am-table-card-title {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .am-table-scroll {
+            max-height: 500px;
+            overflow-x: auto;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-card);
+            -webkit-overflow-scrolling: touch;
+        }
+        .am-table {
+            width: max-content;
+            min-width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 14px;
+            background: var(--bg-card);
+            table-layout: fixed;
+        }
+        .am-table thead tr {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .am-table th {
+            position: sticky;
+            top: 0;
+            background: var(--bg-header, #f1f5f9);
+            z-index: 10;
+            padding: 10px 14px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text);
+            border-bottom: 2px solid var(--blue-line);
+            border-left: 1px solid var(--blue-line);
+            border-right: 1px solid var(--blue-line);
+            white-space: normal;
+            word-wrap: break-word;
+            cursor: pointer;
+            user-select: none;
+            vertical-align: middle;
+            box-sizing: border-box;
+        }
+        .am-table th:first-child { border-left: none; }
+        .am-table th:last-child { border-right: none; }
+        .am-table th:hover { background: var(--bg-input); }
+        .am-table th .am-sort-arrow {
+            font-size: 11px;
+            margin-left: 4px;
+            opacity: 0.5;
+        }
+        .am-table th.am-sorted-asc .am-sort-arrow,
+        .am-table th.am-sorted-desc .am-sort-arrow {
+            opacity: 1;
+            color: var(--primary);
+        }
+
+        .am-resizer {
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            width: 8px;
+            cursor: col-resize;
+            user-select: none;
+            touch-action: none;
+            z-index: 11;
+        }
+        .am-resizer:hover, .am-resizer.resizing {
+            background: var(--primary);
+            opacity: 0.6;
+        }
+
+        .am-table tbody tr {
+            border-top: 1px solid var(--blue-line);
+            border-bottom: 1px solid var(--blue-line);
+        }
+
+        .am-table td {
+            padding: 10px 14px;
+            border-top: 1px solid var(--blue-line);
+            border-bottom: 1px solid var(--blue-line);
+            border-left: 1px solid var(--border);
+            border-right: 1px solid var(--border);
+            color: var(--text);
+            white-space: normal;
+            word-wrap: break-word;
+            vertical-align: middle;
+            box-sizing: border-box;
+        }
+        .am-table td:first-child { border-left: none; }
+        .am-table td:last-child { border-right: none; }
+        .am-table tr:hover td { background: var(--bg-input); }
+        
+        .am-table td.am-actions {
+            border-top: 1px solid var(--blue-line);
+            border-bottom: 1px solid var(--blue-line);
+            border-left: 1px solid var(--border);
+            border-right: 1px solid var(--border);
+            display: table-cell;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+        .am-table .am-actions-wrap {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .am-table-btn {
+            background: var(--bg-card);
+            border: 1.5px solid #2563eb;
+            color: var(--text);
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 150ms ease;
+        }
+        .am-table-btn:hover {
+            border: 2px solid #1d4ed8;
+            color: #1d4ed8;
+            background: rgba(37, 99, 235, 0.05);
+        }
+
+        .am-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .am-badge-available { background: rgba(34, 197, 94, 0.15); color: #16a34a; }
+        .am-badge-in-use { background: rgba(59, 130, 246, 0.15); color: #2563eb; }
+        .am-badge-maintenance { background: rgba(249, 115, 22, 0.15); color: #ea580c; }
+        .am-badge-retired { background: rgba(107, 114, 128, 0.15); color: #6b7280; }
+        .am-badge-lost { background: rgba(239, 68, 68, 0.15); color: #dc2626; }
+        .am-badge-active { background: rgba(34, 197, 94, 0.15); color: #16a34a; }
+        .am-badge-inactive { background: rgba(107, 114, 128, 0.15); color: #6b7280; }
+        .am-badge-sold { background: rgba(139, 92, 246, 0.15); color: #7c3aed; }
+
+        .am-form-card {
+            background: var(--bg-card);
+            border: 2px solid var(--card-green-border);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .am-form-card h3 {
+            margin: 0 0 16px 0;
+            font-size: 16px;
+            color: var(--text);
+        }
+        .am-form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .am-form-row {
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 12px;
+        }
+        .am-form-row label {
+            margin-bottom: 4px;
+            font-size: 14px;
+            color: var(--text);
+            font-weight: 600;
+        }
+        .am-form-row label .am-required { color: var(--error); }
+        .am-form-row input, .am-form-row select {
+            padding: 10px 12px;
+            border: 1px solid var(--border-input);
+            border-radius: 6px;
+            font-size: 14px;
+            background: var(--bg-card);
+            color: var(--text);
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+        .am-form-row input:focus, .am-form-row select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+        }
+
+        .am-hint {
+            color: var(--text-muted);
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+        .am-btn-primary {
+            background: var(--primary);
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 6px;
+            font-size: 15px;
+            border: 1px solid var(--primary-hover);
+            cursor: pointer;
+        }
+        .am-btn-primary:hover { background: var(--primary-hover); }
+        .am-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .am-btn-secondary {
+            background: var(--bg-card);
+            color: var(--text);
+            padding: 10px 18px;
+            border-radius: 6px;
+            font-size: 15px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+        }
+        .am-btn-secondary:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .am-message {
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            display: none;
+        }
+        .am-message.error {
+            background: rgba(239, 68, 68, 0.1);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        .am-message.success {
+            background: rgba(34, 197, 94, 0.1);
+            color: #86efac;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .am-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+            font-size: 15px;
+        }
+        .am-pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .am-page-info {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .am-page-btns { display: flex; gap: 6px; }
+        .am-page-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .am-page-btn:hover:not(:disabled) {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        .am-page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .am-page-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        .am-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .am-modal.active { display: flex; }
+        .am-modal-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 28px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+        .am-modal-card h3 {
+            margin: 0 0 4px 0;
+            font-size: 20px;
+            color: var(--text);
+        }
+        .am-modal-card .am-modal-subtitle {
+            margin: 0 0 20px 0;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+        .am-modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .am-col-toggle {
+            display: none;
+            position: absolute;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            max-height: 400px;
+            overflow-y: auto;
+            min-width: 220px;
+        }
+        .am-col-toggle.active { display: block; }
+        .am-col-toggle-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
+            font-size: 14px;
+            color: var(--text);
+            cursor: pointer;
+        }
+        .am-col-toggle-item input { cursor: pointer; }
+        .am-col-toggle-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .am-check-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+            margin: 16px 0;
+        }
+        .am-check-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text);
+            cursor: pointer;
+        }
+        .am-check-item input { cursor: pointer; }
+
+        @media (max-width: 700px) {
+            .am-main { padding: 0 12px; margin: 12px auto; }
+            .am-welcome { flex-direction: column; align-items: flex-start; }
+            .am-kpi-grid { width: 100%; grid-template-columns: repeat(2, 1fr); }
+            .am-filter-grid { grid-template-columns: repeat(2, 1fr); }
+            .am-tab { padding: 8px 12px; font-size: 13px; }
+            .am-tab-logout { padding: 8px 12px; font-size: 13px; }
+            .am-form-grid { grid-template-columns: 1fr; }
+            .am-search-row3 { grid-template-columns: repeat(2, 1fr); }
+            .am-btn-action { font-size: 12px; padding: 6px 4px; min-height: 36px; }
+            .am-table { font-size: 13px; }
+            .am-table th, .am-table td { padding: 8px 10px; }
+            .am-check-grid { grid-template-columns: 1fr; }
+        }
+
+        @media print {
+            .am-tab-bar, .am-search-card, .am-form-card, .am-pagination, .am-modal, #dashHeader, #dashFooter, .am-table-btn {
+                display: none !important;
+            }
+            .am-table-scroll {
+                max-height: none;
+                overflow: visible;
+                border: none;
+            }
+            .am-table { font-size: 12px; table-layout: auto; }
+            .am-table th { cursor: default; }
+            body { background: #fff; }
+            .am-main { max-width: 100%; }
+        }
+    </style>
+</head>
+<body data-page-title="Asset Management">
+    <div class="steel-bg"></div>
+    <div class="steel-overlay"></div>
+    <div id="dashHeader"></div>
+
+    <div class="am-tab-bar" id="amTabBar">
+        <div class="am-tab active" data-tab="overview" onclick="switchTab('overview')">Overview</div>
+        <div class="am-tab" data-tab="assets" onclick="switchTab('assets')">Assets</div>
+        <div class="am-tab" data-tab="addasset" onclick="switchTab('addasset')">Add New Asset</div>
+        <div class="am-tab" data-tab="inspections" onclick="switchTab('inspections')">Asset Inspections</div>
+        <div class="am-tab" data-tab="workorders" onclick="switchTab('workorders')">Asset Work Orders</div>
+        <div class="am-tab" data-tab="transfers" onclick="switchTab('transfers')">Asset Transfers</div>
+        <div class="am-tab am-tab-dashboard" onclick="goToMainDashboard()">&#8592; Dashboard</div>
+        <div class="am-tab-logout" onclick="confirmLogout()">Logout</div>
+    </div>
+
+    <div class="am-main">
+        <div class="am-loading" id="amLoading">Loading asset management...</div>
+
+        <!-- Overview Tab -->
+        <div class="am-tab-content active" id="tab-overview">
+            <div class="am-welcome">
+                <div class="am-welcome-text">
+                    <h2>Asset Management Overview</h2>
+                    <p>High-level asset status and metrics across your organization.</p>
+                </div>
+                <div class="am-kpi-grid">
+                    <div class="am-kpi-card kpi-available" onclick="filterByKpi('Available')">
+                        <div class="am-kpi-val" id="kpiAvailable">0</div>
+                        <div class="am-kpi-lbl">Available</div>
+                    </div>
+                    <div class="am-kpi-card kpi-inuse" onclick="filterByKpi('In Use')">
+                        <div class="am-kpi-val" id="kpiInUse">0</div>
+                        <div class="am-kpi-lbl">In Use</div>
+                    </div>
+                    <div class="am-kpi-card kpi-maint" onclick="filterByKpi('Maintenance')">
+                        <div class="am-kpi-val" id="kpiMaint">0</div>
+                        <div class="am-kpi-lbl">Maintenance</div>
+                    </div>
+                    <div class="am-kpi-card kpi-active" onclick="filterByKpi('Active')">
+                        <div class="am-kpi-val" id="kpiActive">0 / 0</div>
+                        <div class="am-kpi-lbl">Active / Total</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Assets Tab -->
+        <div class="am-tab-content" id="tab-assets">
+            <div id="amMessage" class="am-message"></div>
+
+            <div class="am-search-card">
+                <div class="am-search-row1">
+                    <input type="text" class="am-search-input" id="amSearch" placeholder="Search by asset number, type, project, or location..." oninput="onSearchInput()" />
+                </div>
+                
+                <div class="am-filter-grid">
+                    <!-- Type MultiSelect -->
+                    <div class="am-multiselect-dd" id="ddTypes">
+                        <button class="am-multiselect-btn" onclick="toggleFilterPanel('panelTypes', event)">Types (All)</button>
+                        <div class="am-multiselect-panel" id="panelTypes"></div>
+                    </div>
+
+                    <!-- Status MultiSelect -->
+                    <div class="am-multiselect-dd" id="ddStatuses">
+                        <button class="am-multiselect-btn" onclick="toggleFilterPanel('panelStatuses', event)">Statuses (All)</button>
+                        <div class="am-multiselect-panel" id="panelStatuses">
+                            <label class="am-multiselect-option"><input type="checkbox" value="Available" onchange="onFilterChange()"> Available</label>
+                            <label class="am-multiselect-option"><input type="checkbox" value="In Use" onchange="onFilterChange()"> In Use</label>
+                            <label class="am-multiselect-option"><input type="checkbox" value="Maintenance" onchange="onFilterChange()"> Maintenance</label>
+                            <label class="am-multiselect-option"><input type="checkbox" value="Retired" onchange="onFilterChange()"> Retired</label>
+                            <label class="am-multiselect-option"><input type="checkbox" value="Lost" onchange="onFilterChange()"> Lost</label>
+                            <label class="am-multiselect-option"><input type="checkbox" value="Sold" onchange="onFilterChange()"> Sold</label>
+                        </div>
+                    </div>
+
+                    <!-- Project MultiSelect -->
+                    <div class="am-multiselect-dd" id="ddProjects">
+                        <button class="am-multiselect-btn" onclick="toggleFilterPanel('panelProjects', event)">Projects (All)</button>
+                        <div class="am-multiselect-panel" id="panelProjects"></div>
+                    </div>
+
+                    <!-- Location MultiSelect -->
+                    <div class="am-multiselect-dd" id="ddLocations">
+                        <button class="am-multiselect-btn" onclick="toggleFilterPanel('panelLocations', event)">Locations (All)</button>
+                        <div class="am-multiselect-panel" id="panelLocations"></div>
+                    </div>
+                </div>
+
+                <div class="am-search-row3">
+                    <button class="am-btn-action" onclick="toggleColPanel(event)">Columns</button>
+                    <button class="am-btn-action" onclick="openPrintModal()">Print</button>
+                    <button class="am-btn-action" onclick="openExportModal('csv')">Export CSV</button>
+                    <button class="am-btn-action" onclick="openExportModal('excel')">Export Excel</button>
+                </div>
+            </div>
+
+            <div class="am-col-toggle" id="amColPanel">
+                <div class="am-col-toggle-title">Show / Hide Columns</div>
+                <div id="amColToggleItems"></div>
+            </div>
+
+            <div class="am-table-card">
+                <div class="am-table-card-header">
+                    <h3 class="am-table-card-title">Asset List</h3>
+                </div>
+                <div class="am-table-scroll">
+                    <table class="am-table" id="amTable">
+                        <thead id="amTableHead"></thead>
+                        <tbody id="amTableBody">
+                            <tr><td class="am-empty">Loading assets…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="am-pagination" id="amPagination"></div>
+            </div>
+        </div>
+
+        <div class="am-tab-content" id="tab-addasset">
+            <div class="am-welcome">
+                <div class="am-welcome-text">
+                    <h2>Add New Asset</h2>
+                    <p>Enter the details for a new asset below.</p>
+                </div>
+            </div>
+            <div id="amAddMessage" class="am-message"></div>
+            <div class="am-form-card" id="addAssetForm">
+                <h3>New Asset Details</h3>
+                <div class="am-form-grid">
+                    <div class="am-form-row">
+                        <label>Asset Number <span class="am-required">*</span></label>
+                        <input type="text" id="amAssetNumber" placeholder="e.g., EQ-001" maxlength="100" />
+                        <div class="am-hint">Unique identifier — duplicates are not allowed</div>
+                    </div>
+                    <div class="am-form-row">
+                        <label>Asset Type <span class="am-required">*</span></label>
+                        <select id="amAssetType"><option value="">— Select Asset Type —</option></select>
+                        <div class="am-hint">From the Asset Types configured in onboarding</div>
+                    </div>
+                    <div class="am-form-row">
+                        <label>Current Meter Reading</label>
+                        <input type="number" id="amMeter" placeholder="e.g., 12500" min="0" />
+                        <div class="am-hint">Hours or miles on the meter. Recommended for preventative maintenance scheduling, but not required.</div>
+                    </div>
+                    <div class="am-form-row">
+                        <label>Status</label>
+                        <select id="amStatus">
+                            <option value="Available">Available</option>
+                            <option value="In Use">In Use</option>
+                            <option value="Maintenance">Maintenance</option>
+                            <option value="Retired">Retired</option>
+                            <option value="Lost">Lost</option>
+                            <option value="Sold">Sold</option>
+                        </select>
+                        <div class="am-hint">Current operational status of the asset</div>
+                    </div>
+                    <div class="am-form-row">
+                        <label>Current Project</label>
+                        <select id="amProject"><option value="">— None —</option></select>
+                        <div class="am-hint">Where this asset is currently assigned</div>
+                    </div>
+                    <div class="am-form-row">
+                        <label>Current Location</label>
+                        <select id="amLocation"><option value="">— None —</option></select>
+                        <div class="am-hint">Physical location of this asset</div>
+                    </div>
+                </div>
+                <button class="am-btn-primary" id="btnAddAsset" onclick="addAsset()">Add Asset</button>
+            </div>
+        </div>
+
+        <div class="am-tab-content" id="tab-inspections">
+            <div class="am-placeholder">
+                <h3>Asset Inspections</h3>
+                <p>This module will be available in a future update.</p>
+            </div>
+        </div>
+
+        <div class="am-tab-content" id="tab-workorders">
+            <div class="am-placeholder">
+                <h3>Asset Work Orders</h3>
+                <p>This module will be available in a future update.</p>
+            </div>
+        </div>
+
+        <div class="am-tab-content" id="tab-transfers">
+            <div class="am-placeholder">
+                <h3>Asset Transfers</h3>
+                <p>This module will be available in a future update.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="amEditModal" class="am-modal">
+        <div class="am-modal-card">
+            <h3 id="amEditTitle">Edit Asset</h3>
+            <p class="am-modal-subtitle">Update the asset details below.</p>
+            <div id="amEditMessage" class="am-message"></div>
+            <div class="am-form-grid">
+                <div class="am-form-row">
+                    <label>Asset Number <span class="am-required">*</span></label>
+                    <input type="text" id="amEditAssetNumber" maxlength="100" />
+                </div>
+                <div class="am-form-row">
+                    <label>Asset Type <span class="am-required">*</span></label>
+                    <select id="amEditAssetType"><option value="">— Select Asset Type —</option></select>
+                </div>
+                <div class="am-form-row">
+                    <label>Current Meter Reading</label>
+                    <input type="number" id="amEditMeter" min="0" />
+                </div>
+                <div class="am-form-row">
+                    <label>Status</label>
+                    <select id="amEditStatus">
+                        <option value="Available">Available</option>
+                        <option value="In Use">In Use</option>
+                        <option value="Maintenance">Maintenance</option>
+                        <option value="Retired">Retired</option>
+                        <option value="Lost">Lost</option>
+                        <option value="Sold">Sold</option>
+                    </select>
+                </div>
+                <div class="am-form-row">
+                    <label>Current Project</label>
+                    <select id="amEditProject"><option value="">— None —</option></select>
+                </div>
+                <div class="am-form-row">
+                    <label>Current Location</label>
+                    <select id="amEditLocation"><option value="">— None —</option></select>
+                </div>
+            </div>
+            <div class="am-modal-actions">
+                <button class="am-btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button class="am-btn-primary" id="btnSaveEdit" onclick="saveEditAsset()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print Modal -->
+    <div id="amPrintModal" class="am-modal">
+        <div class="am-modal-card">
+            <h3>Print Asset List</h3>
+            <p class="am-modal-subtitle">Select which columns to include in the printout.</p>
+            <div class="am-check-grid" id="amPrintCols"></div>
+            <div class="am-modal-actions">
+                <button class="am-btn-secondary" onclick="closeModal('amPrintModal')">Cancel</button>
+                <button class="am-btn-primary" onclick="doPrint()">Print</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div id="amExportModal" class="am-modal">
+        <div class="am-modal-card">
+            <h3 id="amExportTitle">Export to CSV</h3>
+            <p class="am-modal-subtitle">Select which columns to include in the export.</p>
+            <div class="am-check-grid" id="amExportCols"></div>
+            <div class="am-modal-actions">
+                <button class="am-btn-secondary" onclick="closeModal('amExportModal')">Cancel</button>
+                <button class="am-btn-primary" id="amExportBtn" onclick="doExport()">Download CSV</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="dashFooter"></div>
+    <script src="/app/shared/dashboard-common.js?v=13"></script>
+    <script>
+        var allAssets = [], assetTypes = [], projects = [], locations = [], editingAssetId = null, canModify = false, amDirty = false;
+        var COL_DEFS = [
+            { key: 'assetNumber', label: 'Asset Number', defaultVisible: true, defaultWidth: '130px' },
+            { key: 'type', label: 'Asset Type', defaultVisible: true, defaultWidth: '140px' },
+            { key: 'meter', label: 'Meter Reading', defaultVisible: true, defaultWidth: '120px' },
+            { key: 'status', label: 'Status', defaultVisible: true, defaultWidth: '110px' },
+            { key: 'project', label: 'Project', defaultVisible: true, defaultWidth: '130px' },
+            { key: 'location', label: 'Location', defaultVisible: true, defaultWidth: '130px' },
+            { key: 'serialNumber', label: 'Serial Number', defaultVisible: false, defaultWidth: '130px' },
+            { key: 'division', label: 'Division', defaultVisible: false, defaultWidth: '120px' },
+            { key: 'assignedTo', label: 'Assigned To', defaultVisible: false, defaultWidth: '130px' },
+            { key: 'condition', label: 'Condition', defaultVisible: false, defaultWidth: '110px' },
+            { key: 'createdAt', label: 'Created Date', defaultVisible: false, defaultWidth: '130px' }
+        ];
+        var sortKey = 'assetNumber', sortDir = 'asc', currentPage = 1, pageSize = 10, visibleCols = {}, colWidths = {};
+
+        function updateHeaderOffset() {
+            var h = document.getElementById('dashHeader') || document.querySelector('.dash-header');
+            if (h) {
+                var hh = h.getBoundingClientRect().height || 60;
+                document.documentElement.style.setProperty('--header-height', hh + 'px');
+            }
+        }
+        window.addEventListener('resize', updateHeaderOffset);
+
+        function initVisibleCols() {
+            try {
+                var s = JSON.parse(localStorage.getItem('driven_am_visible_cols') || '{}');
+                COL_DEFS.forEach(function(c) {
+                    visibleCols[c.key] = (s[c.key] !== undefined) ? s[c.key] : c.defaultVisible;
+                });
+            } catch (e) {
+                COL_DEFS.forEach(function(c) { visibleCols[c.key] = c.defaultVisible; });
+            }
+
+            try {
+                var w = JSON.parse(localStorage.getItem('driven_am_col_widths') || '{}');
+                COL_DEFS.forEach(function(c) {
+                    colWidths[c.key] = w[c.key] || c.defaultWidth;
+                });
+            } catch (e) {
+                COL_DEFS.forEach(function(c) { colWidths[c.key] = c.defaultWidth; });
+            }
+        }
+
+        function saveVisibleCols() {
+            try { localStorage.setItem('driven_am_visible_cols', JSON.stringify(visibleCols)); } catch (e) {}
+        }
+
+        function saveColWidths() {
+            try { localStorage.setItem('driven_am_col_widths', JSON.stringify(colWidths)); } catch (e) {}
+        }
+
+        document.addEventListener('dashSessionLoaded', async function() {
+            var u = window.dashUser;
+            if (!u) { window.location.href = '/public/login.html'; return; }
+            var r = (u.role || '').toLowerCase();
+            var adm = r === 'admin' || r === 'administrator' || r.indexOf('founder') !== -1 || r === 'owner';
+            canModify = adm;
+            if (!adm) {
+                var ci = localStorage.getItem('driven_customer_id');
+                if (ci) {
+                    try {
+                        var kp = await fetch('/api/onboarding/key-personnel/list?customerId=' + encodeURIComponent(ci));
+                        var kd = await kp.json();
+                        if (kd.success && kd.keyPersonnel) {
+                            var me = u.email ? u.email.toLowerCase() : '';
+                            var mr = kd.keyPersonnel.find(function(k) { return k.email && k.email.toLowerCase() === me; });
+                            if (mr && mr.roles) {
+                                var mt = mr.roles.map(function(x) { return x.role; });
+                                canModify = mt.indexOf('Equipment') !== -1 || mt.indexOf('Assets') !== -1;
+                            }
+                        }
+                    } catch (e) {
+                        if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report('asset-management.html: KP check failed — ' + (e.message || e), 'kp-permission-check', e && e.stack ? e.stack : null);
+                    }
+                }
+            }
+            if (!canModify) document.getElementById('addAssetForm').style.display = 'none';
+            var ha = 0, hi = setInterval(function() {
+                ha++;
+                if (fixHeaderLayout() || ha > 50) {
+                    clearInterval(hi);
+                    updateHeaderOffset();
+                }
+            }, 100);
+            initVisibleCols();
+            await syncSettings();
+            await loadAssets();
+            document.getElementById('amLoading').style.display = 'none';
+            
+            // Check URL parameters for tab and kpi routing
+            var urlParams = new URLSearchParams(window.location.search);
+            var initialTab = urlParams.get('tab') || 'overview';
+            var initialKpi = urlParams.get('kpi');
+
+            if (initialKpi) {
+                filterByKpi(initialKpi);
+            } else {
+                switchTab(initialTab);
+            }
+
+            updateHeaderOffset();
+        });
+
+        async function syncSettings() {
+            try {
+                var res = await fetch('/auth/get-settings');
+                if (!res.ok) throw new Error('Settings fetch failed: ' + res.status);
+                var data = await res.json();
+                var s = (data && data.settings) ? data.settings : {};
+                var rat = s.asset_types;
+                if (typeof rat === 'string') {
+                    try { assetTypes = JSON.parse(rat); } catch (e) { assetTypes = []; }
+                } else if (Array.isArray(rat)) {
+                    assetTypes = rat;
+                } else {
+                    try { assetTypes = JSON.parse(localStorage.getItem('driven_asset_types') || '[]'); } catch (e) { assetTypes = []; }
+                }
+                if (assetTypes.length > 0) try { localStorage.setItem('driven_asset_types', JSON.stringify(assetTypes)); } catch (e) {}
+
+                var rp = s.projects;
+                if (typeof rp === 'string') {
+                    try { projects = JSON.parse(rp); } catch (e) { projects = []; }
+                } else if (Array.isArray(rp)) {
+                    projects = rp;
+                } else {
+                    try { projects = JSON.parse(localStorage.getItem('driven_projects') || '[]'); } catch (e) { projects = []; }
+                }
+                if (projects.length > 0) try { localStorage.setItem('driven_projects', JSON.stringify(projects)); } catch (e) {}
+
+                var rl = s.locations;
+                if (typeof rl === 'string') {
+                    try { locations = JSON.parse(rl); } catch (e) { locations = []; }
+                } else if (Array.isArray(rl)) {
+                    locations = rl;
+                } else {
+                    try { locations = JSON.parse(localStorage.getItem('driven_locations') || '[]'); } catch (e) { locations = []; }
+                }
+                if (locations.length > 0) try { localStorage.setItem('driven_locations', JSON.stringify(locations)); } catch (e) {}
+            } catch (e) {
+                try { assetTypes = JSON.parse(localStorage.getItem('driven_asset_types') || '[]'); } catch (e2) { assetTypes = []; }
+                try { projects = JSON.parse(localStorage.getItem('driven_projects') || '[]'); } catch (e2) { projects = []; }
+                try { locations = JSON.parse(localStorage.getItem('driven_locations') || '[]'); } catch (e2) { locations = []; }
+                if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report('asset-management.html: syncSettings failed — ' + (e.message || e), 'syncSettings', e && e.stack ? e.stack : null);
+            }
+            populateDropdown('amAssetType', assetTypes);
+            populateDropdown('amProject', projects, true);
+            populateDropdown('amLocation', locations, true);
+            populateDropdown('amEditAssetType', assetTypes);
+            populateDropdown('amEditProject', projects, true);
+            populateDropdown('amEditLocation', locations, true);
+            
+            buildMultiSelectPanels();
+        }
+
+        function populateDropdown(id, items, includeNone) {
+            var sel = document.getElementById(id);
+            if (!sel) return;
+            var cv = sel.value;
+            sel.innerHTML = '';
+            if (includeNone) {
+                var n = document.createElement('option');
+                n.value = '';
+                n.textContent = '— None —';
+                sel.appendChild(n);
+            } else {
+                var p = document.createElement('option');
+                p.value = '';
+                p.textContent = '— Select —';
+                sel.appendChild(p);
+            }
+            items.forEach(function(item) {
+                var nameVal = typeof item === 'object' ? (item.name || item.title || item.project_name || '') : String(item);
+                if (nameVal) {
+                    var o = document.createElement('option');
+                    o.value = nameVal;
+                    o.textContent = nameVal;
+                    sel.appendChild(o);
+                }
+            });
+            var se = Array.from(sel.options).some(function(o) { return o.value === cv; });
+            sel.value = se ? cv : '';
+        }
+
+        function buildMultiSelectPanels() {
+            var pt = document.getElementById('panelTypes');
+            pt.innerHTML = '';
+            assetTypes.forEach(function(at) {
+                var nameVal = typeof at === 'object' ? (at.name || at.title || '') : String(at);
+                if (nameVal) {
+                    var lbl = document.createElement('label');
+                    lbl.className = 'am-multiselect-option';
+                    lbl.innerHTML = '<input type="checkbox" value="' + escapeHtml(nameVal) + '" onchange="onFilterChange()"> ' + escapeHtml(nameVal);
+                    pt.appendChild(lbl);
+                }
+            });
+
+            var pp = document.getElementById('panelProjects');
+            pp.innerHTML = '';
+            projects.forEach(function(pr) {
+                var nameVal = typeof pr === 'object' ? (pr.name || pr.title || pr.project_name || '') : String(pr);
+                if (nameVal) {
+                    var lbl = document.createElement('label');
+                    lbl.className = 'am-multiselect-option';
+                    lbl.innerHTML = '<input type="checkbox" value="' + escapeHtml(nameVal) + '" onchange="onFilterChange()"> ' + escapeHtml(nameVal);
+                    pp.appendChild(lbl);
+                }
+            });
+
+            var pl = document.getElementById('panelLocations');
+            pl.innerHTML = '';
+            locations.forEach(function(lo) {
+                var nameVal = typeof lo === 'object' ? (lo.name || lo.title || lo.location_name || '') : String(lo);
+                if (nameVal) {
+                    var lbl = document.createElement('label');
+                    lbl.className = 'am-multiselect-option';
+                    lbl.innerHTML = '<input type="checkbox" value="' + escapeHtml(nameVal) + '" onchange="onFilterChange()"> ' + escapeHtml(nameVal);
+                    pl.appendChild(lbl);
+                }
+            });
+        }
+
+        function toggleFilterPanel(panelId, event) {
+            event.stopPropagation();
+            var target = document.getElementById(panelId);
+            var isActive = target.classList.contains('active');
+            document.querySelectorAll('.am-multiselect-panel').forEach(function(p) { p.classList.remove('active'); });
+            if (!isActive) target.classList.add('active');
+        }
+
+        function getSelectedValues(panelId) {
+            var cbs = document.querySelectorAll('#' + panelId + ' input[type="checkbox"]:checked');
+            return Array.from(cbs).map(function(cb) { return cb.value.toLowerCase(); });
+        }
+
+        function updateMultiSelectButtons() {
+            var t = getSelectedValues('panelTypes');
+            var s = getSelectedValues('panelStatuses');
+            var p = getSelectedValues('panelProjects');
+            var l = getSelectedValues('panelLocations');
+
+            var btnT = document.querySelector('#ddTypes .am-multiselect-btn');
+            btnT.textContent = t.length === 0 ? 'Types (All)' : 'Types (' + t.length + ')';
+
+            var btnS = document.querySelector('#ddStatuses .am-multiselect-btn');
+            btnS.textContent = s.length === 0 ? 'Statuses (All)' : 'Statuses (' + s.length + ')';
+
+            var btnP = document.querySelector('#ddProjects .am-multiselect-btn');
+            btnP.textContent = p.length === 0 ? 'Projects (All)' : 'Projects (' + p.length + ')';
+
+            var btnL = document.querySelector('#ddLocations .am-multiselect-btn');
+            btnL.textContent = l.length === 0 ? 'Locations (All)' : 'Locations (' + l.length + ')';
+        }
+
+        function onFilterChange() {
+            updateMultiSelectButtons();
+            currentPage = 1;
+            renderAssetTable();
+        }
+
+        function filterByKpi(statusType) {
+            document.querySelectorAll('#panelStatuses input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
+            if (statusType === 'Available' || statusType === 'In Use' || statusType === 'Maintenance') {
+                var target = Array.from(document.querySelectorAll('#panelStatuses input[type="checkbox"]')).find(function(cb) {
+                    return cb.value.toLowerCase() === statusType.toLowerCase();
+                });
+                if (target) target.checked = true;
+            } else if (statusType === 'Active') {
+                document.querySelectorAll('#panelStatuses input[type="checkbox"]').forEach(function(cb) {
+                    if (cb.value === 'Available' || cb.value === 'In Use') cb.checked = true;
+                });
+            }
+            onFilterChange();
+            switchTab('assets');
+        }
+
+        function parseVal(val) {
+            if (val === undefined || val === null) return '';
+            if (Array.isArray(val)) return val.map(parseVal).filter(Boolean).join(', ');
+            if (typeof val === 'object') return val.name || val.title || val.project_name || val.location_name || '';
+            var str = String(val).trim();
+            return (str === 'null' || str === 'undefined') ? '' : str;
+        }
+
+        function normalizeAsset(r) {
+            var f = (r && r.fields && typeof r.fields === 'object') ? r.fields : (r || {});
+
+            return {
+                id: r.id || f.id || ('eq-' + Math.random().toString(36).substr(2, 9)),
+                assetNumber: parseVal(f.asset_number || f['Equipment ID'] || f['Equipment Name'] || f.assetNumber || f.name),
+                type: parseVal(f.category || f['Category'] || f.type || f.name || 'Unassigned'),
+                meter: (f.current_meter_reading !== undefined && f.current_meter_reading !== null) ? f.current_meter_reading : (f['Meter Reading'] || null),
+                status: parseVal(f.status || f['Status']) || 'Available',
+                project: parseVal(f.current_project || f['Project']),
+                location: parseVal(f.current_location || f['Location'] || f.location),
+                serialNumber: parseVal(f.serial_number || f['Serial Number']),
+                division: parseVal(f.division || f['Division']),
+                assignedTo: parseVal(f.owner_name || f['Assigned To']),
+                condition: parseVal(f.condition || f['Condition']),
+                createdAt: parseVal(f.created_at || f['Created Date'])
+            };
+        }
+
+        function updateKpi() {
+            var total = allAssets.length;
+            var avail = 0, inuse = 0, maint = 0;
+            allAssets.forEach(function(a) {
+                var st = (a.status || '').toLowerCase();
+                if (st === 'available') avail++;
+                else if (st === 'in use') inuse++;
+                else if (st === 'maintenance') maint++;
+            });
+            var active = avail + inuse;
+
+            document.getElementById('kpiAvailable').textContent = avail;
+            document.getElementById('kpiInUse').textContent = inuse;
+            document.getElementById('kpiMaint').textContent = maint;
+            document.getElementById('kpiActive').textContent = active + ' / ' + total;
+        }
+
+        async function loadAssets() {
+            var tb = document.getElementById('amTableBody');
+            tb.textContent = '';
+            var lr = document.createElement('tr');
+            var lc = document.createElement('td');
+            lc.className = 'am-empty';
+            lc.textContent = 'Loading assets…';
+            lr.appendChild(lc);
+            tb.appendChild(lr);
+            try {
+                var resp = await fetch('/api/Equipment');
+                if (resp.status === 404) resp = await fetch('/api/equipment');
+
+                var data = await resp.json();
+                var rawRecords = (data && data.records) ? data.records : (Array.isArray(data) ? data : (data.equipment || data.assets || []));
+                
+                if (resp.ok && Array.isArray(rawRecords)) {
+                    allAssets = rawRecords.map(normalizeAsset);
+                } else if (resp.status === 401) {
+                    allAssets = [];
+                    tb.textContent = '';
+                    var er = document.createElement('tr');
+                    var ec = document.createElement('td');
+                    ec.className = 'am-empty';
+                    ec.style.color = 'var(--error)';
+                    ec.textContent = 'Your session has expired. Please log in again.';
+                    er.appendChild(ec);
+                    tb.appendChild(er);
+                    updateKpi();
+                    renderTableHead();
+                    renderColTogglePanel();
+                    return;
+                } else if (resp.status === 403) {
+                    allAssets = [];
+                    tb.textContent = '';
+                    var er3 = document.createElement('tr');
+                    var ec3 = document.createElement('td');
+                    ec3.className = 'am-empty';
+                    ec3.style.color = 'var(--error)';
+                    ec3.textContent = 'You do not have permission to view assets.';
+                    er3.appendChild(ec3);
+                    tb.appendChild(er3);
+                    updateKpi();
+                    renderTableHead();
+                    renderColTogglePanel();
+                    return;
+                } else {
+                    allAssets = [];
+                    tb.textContent = '';
+                    var er2 = document.createElement('tr');
+                    var ec2 = document.createElement('td');
+                    ec2.className = 'am-empty';
+                    ec2.style.color = 'var(--error)';
+                    ec2.textContent = 'Failed to load assets (HTTP ' + resp.status + '). Please try again or contact support.';
+                    er2.appendChild(ec2);
+                    tb.appendChild(er2);
+                    updateKpi();
+                    renderTableHead();
+                    renderColTogglePanel();
+                    return;
+                }
+            } catch (e) {
+                console.error('loadAssets error:', e);
+                allAssets = [];
+                tb.textContent = '';
+                var er4 = document.createElement('tr');
+                var ec4 = document.createElement('td');
+                ec4.className = 'am-empty';
+                ec4.style.color = 'var(--error)';
+                ec4.textContent = 'Network error — could not reach the server. Please check your connection and try again.';
+                er4.appendChild(ec4);
+                tb.appendChild(er4);
+                updateKpi();
+                renderTableHead();
+                renderColTogglePanel();
+                return;
+            }
+            updateKpi();
+            renderTableHead();
+            renderAssetTable();
+            renderColTogglePanel();
+        }
+
+        function renderTableHead() {
+            var th = document.getElementById('amTableHead');
+            th.textContent = '';
+            var tr = document.createElement('tr');
+            COL_DEFS.forEach(function(col) {
+                if (!visibleCols[col.key]) return;
+                var h = document.createElement('th');
+                h.dataset.key = col.key;
+                h.style.width = colWidths[col.key] || col.defaultWidth;
+                
+                var titleText = document.createTextNode(col.label);
+                h.appendChild(titleText);
+
+                var a = document.createElement('span');
+                a.className = 'am-sort-arrow';
+                if (sortKey === col.key) {
+                    a.textContent = sortDir === 'asc' ? ' ▲' : ' ▼';
+                    h.classList.add(sortDir === 'asc' ? 'am-sorted-asc' : 'am-sorted-desc');
+                } else {
+                    a.textContent = ' ↕';
+                }
+                h.appendChild(a);
+                h.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('am-resizer')) return;
+                    onSortClick(col.key);
+                });
+
+                var resizer = document.createElement('div');
+                resizer.className = 'am-resizer';
+                resizer.addEventListener('mousedown', function(e) { initColumnResize(e, h, col.key); });
+                resizer.addEventListener('touchstart', function(e) { initColumnResize(e, h, col.key); }, { passive: false });
+                h.appendChild(resizer);
+
+                tr.appendChild(h);
+            });
+
+            if (canModify) {
+                var ha = document.createElement('th');
+                ha.textContent = 'Actions';
+                ha.style.width = '140px';
+                ha.style.cursor = 'default';
+                tr.appendChild(ha);
+            }
+            th.appendChild(tr);
+        }
+
+        function initColumnResize(e, th, colKey) {
+            e.stopPropagation();
+            e.preventDefault();
+            var resizer = e.target;
+            resizer.classList.add('resizing');
+
+            var startX = e.touches ? e.touches[0].pageX : e.pageX;
+            var startWidth = th.offsetWidth;
+            var colIndex = Array.from(th.parentNode.children).indexOf(th);
+
+            function onMove(me) {
+                var currentX = me.touches ? me.touches[0].pageX : me.pageX;
+                var newWidth = Math.max(60, startWidth + (currentX - startX)) + 'px';
+                
+                th.style.width = newWidth;
+                th.style.minWidth = newWidth;
+                th.style.maxWidth = newWidth;
+
+                var table = document.getElementById('amTable');
+                if (table) {
+                    var rows = table.querySelectorAll('tbody tr');
+                    rows.forEach(function(row) {
+                        var td = row.children[colIndex];
+                        if (td) {
+                            td.style.width = newWidth;
+                            td.style.minWidth = newWidth;
+                            td.style.maxWidth = newWidth;
+                        }
+                    });
+                }
+                colWidths[colKey] = newWidth;
+            }
+
+            function onEnd() {
+                resizer.classList.remove('resizing');
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onEnd);
+                document.removeEventListener('touchmove', onMove);
+                document.removeEventListener('touchend', onEnd);
+                saveColWidths();
+            }
+
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onEnd);
+            document.addEventListener('touchmove', onMove, { passive: false });
+            document.addEventListener('touchend', onEnd);
+        }
+
+        function onSortClick(key) {
+            if (sortKey === key) {
+                sortDir = (sortDir === 'asc') ? 'desc' : 'asc';
+            } else {
+                sortKey = key;
+                sortDir = 'asc';
+            }
+            currentPage = 1;
+            renderTableHead();
+            renderAssetTable();
+        }
+
+        var searchTimer = null;
+        function onSearchInput() {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(function() {
+                currentPage = 1;
+                renderAssetTable();
+            }, 200);
+        }
+
+        function renderAssetTable() {
+            var tb = document.getElementById('amTableBody');
+            var s = document.getElementById('amSearch').value.toLowerCase().trim();
+            
+            var selTypes = getSelectedValues('panelTypes');
+            var selStatuses = getSelectedValues('panelStatuses');
+            var selProjects = getSelectedValues('panelProjects');
+            var selLocations = getSelectedValues('panelLocations');
+
+            var filtered = allAssets.filter(function(a) {
+                var ms = !s || (a.assetNumber && a.assetNumber.toLowerCase().indexOf(s) !== -1) ||
+                               (a.type && a.type.toLowerCase().indexOf(s) !== -1) ||
+                               (a.project && a.project.toLowerCase().indexOf(s) !== -1) ||
+                               (a.location && a.location.toLowerCase().indexOf(s) !== -1);
+                
+                var mt = selTypes.length === 0 || (a.type && selTypes.indexOf(a.type.toLowerCase()) !== -1);
+                var mst = selStatuses.length === 0 || (a.status && selStatuses.indexOf(a.status.toLowerCase()) !== -1);
+                var mp = selProjects.length === 0 || (a.project && selProjects.indexOf(a.project.toLowerCase()) !== -1);
+                var ml = selLocations.length === 0 || (a.location && selLocations.indexOf(a.location.toLowerCase()) !== -1);
+
+                return ms && mt && mst && mp && ml;
+            });
+
+            filtered.sort(function(a, b) {
+                var va = a[sortKey] || '', vb = b[sortKey] || '';
+                if (sortKey === 'meter') {
+                    va = (va === null || va === '' || va === undefined) ? -1 : parseFloat(va);
+                    vb = (vb === null || vb === '' || vb === undefined) ? -1 : parseFloat(vb);
+                    return sortDir === 'asc' ? va - vb : vb - va;
+                }
+                va = String(va).toLowerCase();
+                vb = String(vb).toLowerCase();
+                if (va < vb) return sortDir === 'asc' ? -1 : 1;
+                if (va > vb) return sortDir === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            var tp = Math.max(1, Math.ceil(filtered.length / pageSize));
+            if (currentPage > tp) currentPage = tp;
+            var si = (currentPage - 1) * pageSize;
+            var pi = filtered.slice(si, si + pageSize);
+            tb.textContent = '';
+
+            if (filtered.length === 0) {
+                var tr = document.createElement('tr');
+                var td = document.createElement('td');
+                td.className = 'am-empty';
+                td.colSpan = COL_DEFS.filter(function(c) { return visibleCols[c.key]; }).length + (canModify ? 1 : 0);
+                td.textContent = allAssets.length === 0 ? 'No assets found. Use the Add New Asset tab to add your first asset.' : 'No assets match your search.';
+                tr.appendChild(td);
+                tb.appendChild(tr);
+                renderPagination(0, 1);
+                return;
+            }
+
+            pi.forEach(function(a) {
+                var tr = document.createElement('tr');
+                COL_DEFS.forEach(function(col) {
+                    if (!visibleCols[col.key]) return;
+                    var td = document.createElement('td');
+                    td.style.width = colWidths[col.key] || col.defaultWidth;
+                    var v = a[col.key];
+                    if (col.key === 'status' && v) {
+                        var b = document.createElement('span');
+                        b.className = 'am-badge am-badge-' + String(v).toLowerCase().replace(/\s+/g, '-');
+                        b.textContent = v;
+                        td.appendChild(b);
+                    } else if (col.key === 'type') {
+                        var ic = assetTypes.some(function(at) {
+                            var atName = typeof at === 'object' ? at.name : String(at);
+                            return atName && atName.toLowerCase() === String(v || '').toLowerCase();
+                        });
+                        if (v && ic) {
+                            td.textContent = v;
+                        } else if (v) {
+                            td.textContent = v;
+                            td.style.opacity = '0.5';
+                            td.title = 'This type is not in your configured asset types';
+                        } else {
+                            td.textContent = '—';
+                        }
+                    } else if (col.key === 'meter') {
+                        td.textContent = (v !== null && v !== undefined && v !== '') ? v : '—';
+                    } else {
+                        td.textContent = (v !== undefined && v !== null && v !== '') ? v : '—';
+                    }
+                    tr.appendChild(td);
+                });
+
+                if (canModify) {
+                    var atd = document.createElement('td');
+                    atd.className = 'am-actions';
+                    atd.style.width = '140px';
+                    
+                    var wrap = document.createElement('div');
+                    wrap.className = 'am-actions-wrap';
+
+                    var bve = document.createElement('button');
+                    bve.className = 'am-table-btn';
+                    bve.textContent = 'View / Edit';
+                    bve.addEventListener('click', function() { 
+                        window.location.href = '/app/asset/asset-detail.html?id=' + encodeURIComponent(a.id); 
+                    });
+                    wrap.appendChild(bve);
+
+                    atd.appendChild(wrap);
+                    tr.appendChild(atd);
+                }
+                tb.appendChild(tr);
+            });
+            renderPagination(filtered.length, tp);
+        }
+
+        function renderPagination(ti, tp) {
+            var c = document.getElementById('amPagination');
+            c.textContent = '';
+            if (ti === 0) return;
+            var i = document.createElement('span');
+            i.className = 'am-page-info';
+            var si = (currentPage - 1) * pageSize + 1;
+            var ei = Math.min(currentPage * pageSize, ti);
+            i.textContent = 'Showing ' + si + '–' + ei + ' of ' + ti;
+            c.appendChild(i);
+
+            var sd = document.createElement('div');
+            sd.style.display = 'flex';
+            sd.style.alignItems = 'center';
+            sd.style.gap = '6px';
+            var sl = document.createElement('span');
+            sl.className = 'am-page-info';
+            sl.textContent = 'Per page:';
+            sd.appendChild(sl);
+
+            var ss = document.createElement('select');
+            ss.className = 'am-filter-select';
+            ss.style.padding = '4px 8px';
+            ss.style.fontSize = '13px';
+            ss.style.width = 'auto';
+            [10, 25, 50].forEach(function(sz) {
+                var o = document.createElement('option');
+                o.value = sz;
+                o.textContent = sz;
+                if (sz === pageSize) o.selected = true;
+                ss.appendChild(o);
+            });
+            ss.addEventListener('change', function() {
+                pageSize = parseInt(ss.value);
+                currentPage = 1;
+                renderAssetTable();
+            });
+            sd.appendChild(ss);
+            c.appendChild(sd);
+
+            var bd = document.createElement('div');
+            bd.className = 'am-page-btns';
+            var bp = document.createElement('button');
+            bp.className = 'am-page-btn';
+            bp.textContent = '◀ Prev';
+            bp.disabled = currentPage <= 1;
+            bp.addEventListener('click', function() { currentPage--; renderAssetTable(); });
+            bd.appendChild(bp);
+
+            var mv = 7, sp = 1, ep = tp;
+            if (tp > mv) {
+                if (currentPage <= 4) { sp = 1; ep = mv; }
+                else if (currentPage >= tp - 3) { sp = tp - mv + 1; ep = tp; }
+                else { sp = currentPage - 3; ep = currentPage + 3; }
+            }
+            for (var p = sp; p <= ep; p++) {
+                var b = document.createElement('button');
+                b.className = 'am-page-btn' + (p === currentPage ? ' active' : '');
+                b.textContent = p;
+                b.addEventListener('click', (function(pg) {
+                    return function() { currentPage = pg; renderAssetTable(); };
+                })(p));
+                bd.appendChild(b);
+            }
+            var bn = document.createElement('button');
+            bn.className = 'am-page-btn';
+            bn.textContent = 'Next ▶';
+            bn.disabled = currentPage >= tp;
+            bn.addEventListener('click', function() { currentPage++; renderAssetTable(); });
+            bd.appendChild(bn);
+            c.appendChild(bd);
+        }
+
+        function toggleColPanel(e) {
+            e.stopPropagation();
+            var p = document.getElementById('amColPanel');
+            p.classList.toggle('active');
+            if (p.classList.contains('active')) {
+                renderColTogglePanel();
+                var b = e.target;
+                var r = b.getBoundingClientRect();
+                p.style.position = 'fixed';
+                p.style.top = (r.bottom + 4) + 'px';
+                p.style.left = r.left + 'px';
+            }
+        }
+
+        function renderColTogglePanel() {
+            var c = document.getElementById('amColToggleItems');
+            c.textContent = '';
+            COL_DEFS.forEach(function(col) {
+                var i = document.createElement('label');
+                i.className = 'am-col-toggle-item';
+                var cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.checked = visibleCols[col.key];
+                cb.addEventListener('change', function() {
+                    visibleCols[col.key] = cb.checked;
+                    saveVisibleCols();
+                    renderTableHead();
+                    renderAssetTable();
+                });
+                i.appendChild(cb);
+                i.appendChild(document.createTextNode(col.label));
+                c.appendChild(i);
+            });
+        }
+
+        document.addEventListener('click', function(e) {
+            var p = document.getElementById('amColPanel');
+            if (p && p.classList.contains('active') && !p.contains(e.target) && e.target.textContent !== 'Columns') p.classList.remove('active');
+            
+            if (!e.target.closest('.am-multiselect-dd')) {
+                document.querySelectorAll('.am-multiselect-panel').forEach(function(panel) { panel.classList.remove('active'); });
+            }
+        });
+
+        async function addAsset() {
+            var an = document.getElementById('amAssetNumber').value.trim();
+            var at = document.getElementById('amAssetType').value;
+            var m = document.getElementById('amMeter').value.trim();
+            var st = document.getElementById('amStatus').value;
+            var pr = document.getElementById('amProject').value;
+            var lo = document.getElementById('amLocation').value;
+
+            if (!an) { showMessage('Please enter an asset number.', 'error'); return; }
+            if (!at) { showMessage('Please select an asset type.', 'error'); return; }
+
+            var AS = ['available', 'in use', 'maintenance'];
+            var d = allAssets.find(function(a) { return a.assetNumber && a.assetNumber.toLowerCase() === an.toLowerCase(); });
+            if (d) {
+                var ds = (d.status || '').toLowerCase();
+                if (AS.indexOf(ds) !== -1) {
+                    showMessage('An asset with number "' + an + '" is already in use (' + (d.status || 'Active') + '). Asset numbers must be unique unless the existing asset is no longer active.', 'error');
+                    return;
+                } else {
+                    if (!confirm('Asset number "' + an + '" is currently used by an inactive asset (' + (d.status || 'unknown status') + ' — ' + (d.type || 'unknown type') + '). Some companies reuse numbers from assets that are no longer in service.\n\nClick OK to reuse this number, or Cancel to choose a different number.')) return;
+                }
+            }
+
+            var mv = null;
+            if (m !== '') {
+                mv = parseFloat(m);
+                if (isNaN(mv) || mv < 0) {
+                    showMessage('Meter Reading must be a valid number (0 or higher).', 'error');
+                    return;
+                }
+            }
+
+            var p = { asset_number: an, category: at, status: st, current_project: pr, current_location: lo };
+            if (mv !== null) p.current_meter_reading = mv;
+
+            try {
+                var resp = await fetch('/api/Equipment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(p)
+                });
+                var data = await resp.json();
+                if (!resp.ok) throw new Error(data.error || data.message || 'Save failed (' + resp.status + ')');
+                if (data.record) {
+                    allAssets.push(normalizeAsset(data.record));
+                } else {
+                    await loadAssets();
+                    showMessage('Asset "' + an + '" added.', 'success');
+                    return;
+                }
+                document.getElementById('amAssetNumber').value = '';
+                document.getElementById('amMeter').value = '';
+                document.getElementById('amAssetType').value = '';
+                document.getElementById('amStatus').value = 'Available';
+                document.getElementById('amProject').value = '';
+                document.getElementById('amLocation').value = '';
+                showMessage('Asset "' + an + '" added.', 'success');
+                updateKpi();
+                currentPage = 1;
+                renderAssetTable();
+                switchTab('assets');
+            } catch (e) {
+                showMessage('Failed to add asset: ' + e.message, 'error');
+                if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report('asset-management.html: addAsset failed — ' + (e.message || e), 'addAsset', e && e.stack ? e.stack : null);
+            }
+        }
+
+        function openEditModal(id) {
+            var a = allAssets.find(function(x) { return x.id === id; });
+            if (!a) return;
+            editingAssetId = id;
+            document.getElementById('amEditAssetNumber').value = a.assetNumber || '';
+            document.getElementById('amEditAssetType').value = a.type || '';
+            document.getElementById('amEditMeter').value = (a.meter !== null && a.meter !== undefined) ? a.meter : '';
+            document.getElementById('amEditStatus').value = a.status || 'Available';
+            document.getElementById('amEditProject').value = a.project || '';
+            document.getElementById('amEditLocation').value = a.location || '';
+            document.getElementById('amEditModal').classList.add('active');
+        }
+
+        function closeEditModal() {
+            document.getElementById('amEditModal').classList.remove('active');
+            editingAssetId = null;
+        }
+
+        async function saveEditAsset() {
+            if (!editingAssetId) return;
+            var an = document.getElementById('amEditAssetNumber').value.trim();
+            var at = document.getElementById('amEditAssetType').value;
+            var m = document.getElementById('amEditMeter').value.trim();
+            var st = document.getElementById('amEditStatus').value;
+            var pr = document.getElementById('amEditProject').value;
+            var lo = document.getElementById('amEditLocation').value;
+
+            if (!an) { showEditMessage('Asset number is required.', 'error'); return; }
+            if (!at) { showEditMessage('Asset type is required.', 'error'); return; }
+
+            var AS = ['available', 'in use', 'maintenance'];
+            var d = allAssets.find(function(a) { return a.id !== editingAssetId && a.assetNumber && a.assetNumber.toLowerCase() === an.toLowerCase(); });
+            if (d) {
+                var ds = (d.status || '').toLowerCase();
+                if (AS.indexOf(ds) !== -1) {
+                    showEditMessage('An asset with number "' + an + '" is already in use (' + (d.status || 'Active') + ').', 'error');
+                    return;
+                } else {
+                    if (!confirm('Asset number "' + an + '" is currently used by an inactive asset. Click OK to reuse, or Cancel.')) return;
+                }
+            }
+
+            var mv = null;
+            if (m !== '') {
+                mv = parseFloat(m);
+                if (isNaN(mv) || mv < 0) {
+                    showEditMessage('Meter Reading must be a valid number (0 or higher).', 'error');
+                    return;
+                }
+            }
+
+            var p = { asset_number: an, category: at, status: st, current_project: pr, current_location: lo };
+            if (mv !== null) p.current_meter_reading = mv;
+
+            try {
+                var resp = await fetch('/api/Equipment/' + encodeURIComponent(editingAssetId), {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(p)
+                });
+                var data = await resp.json();
+                if (!resp.ok) throw new Error(data.error || data.message || 'Update failed (' + resp.status + ')');
+                if (data.record) {
+                    var u = normalizeAsset(data.record);
+                    var i = allAssets.findIndex(function(a) { return a.id === editingAssetId; });
+                    if (i !== -1) allAssets[i] = u;
+                } else {
+                    var a = allAssets.find(function(x) { return x.id === editingAssetId; });
+                    if (a) {
+                        a.assetNumber = an;
+                        a.type = at;
+                        a.meter = mv;
+                        a.status = st;
+                        a.project = pr;
+                        a.location = lo;
+                    }
+                }
+                showMessage('Asset "' + an + '" updated.', 'success');
+                updateKpi();
+                closeEditModal();
+                renderAssetTable();
+            } catch (e) {
+                showEditMessage('Failed to update asset: ' + e.message, 'error');
+                if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report('asset-management.html: saveEditAsset failed — ' + (e.message || e), 'saveEditAsset', e && e.stack ? e.stack : null);
+            }
+        }
+
+        function openPrintModal() {
+            var c = document.getElementById('amPrintCols');
+            c.textContent = '';
+            COL_DEFS.forEach(function(col) {
+                var i = document.createElement('label');
+                i.className = 'am-check-item';
+                var cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.checked = visibleCols[col.key];
+                cb.dataset.key = col.key;
+                i.appendChild(cb);
+                i.appendChild(document.createTextNode(col.label));
+                c.appendChild(i);
+            });
+            document.getElementById('amPrintModal').classList.add('active');
+        }
+
+        function doPrint() {
+            var cbs = document.querySelectorAll('#amPrintCols input[type="checkbox"]');
+            var sc = [];
+            cbs.forEach(function(cb) {
+                if (cb.checked) {
+                    var col = COL_DEFS.find(function(c) { return c.key === cb.dataset.key; });
+                    if (col) sc.push(col);
+                }
+            });
+            if (sc.length === 0) { showMessage('Select at least one column to print.', 'error'); return; }
+            var f = getFilteredSorted();
+            var h = '<html><head><title>DRIV-EN Asset List</title><style>body{font-family:Arial,sans-serif;margin:20px;}h2{margin:0 0 16px 0;}table{width:100%;border-collapse:collapse;font-size:12px;}th{background:#e2e8f0;padding:8px 10px;text-align:left;border:1px solid #94a3b8;}td{padding:6px 10px;border:1px solid #cbd5e1;}.print-date{font-size:12px;color:#64748b;margin-bottom:12px;}</style></head><body><h2>DRIV-EN Asset List</h2><div class="print-date">Generated: ' + new Date().toLocaleString() + ' | Total: ' + f.length + ' assets</div><table><thead><tr>';
+            sc.forEach(function(col) { h += '<th>' + escapeHtml(col.label) + '</th>'; });
+            h += '</tr></thead><tbody>';
+            f.forEach(function(a) {
+                h += '<tr>';
+                sc.forEach(function(col) {
+                    var v = a[col.key];
+                    h += '<td>' + escapeHtml((v !== undefined && v !== null && v !== '') ? String(v) : '—') + '</td>';
+                });
+                h += '</tr>';
+            });
+            h += '</tbody></table></body></html>';
+            var w = window.open('', '_blank');
+            w.document.write(h);
+            w.document.close();
+            w.focus();
+            setTimeout(function() { w.print(); }, 300);
+            closeModal('amPrintModal');
+        }
+
+        var exportFormat = 'csv';
+        function openExportModal(fmt) {
+            exportFormat = fmt || 'csv';
+            var c = document.getElementById('amExportCols');
+            c.textContent = '';
+            COL_DEFS.forEach(function(col) {
+                var i = document.createElement('label');
+                i.className = 'am-check-item';
+                var cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.checked = visibleCols[col.key];
+                cb.dataset.key = col.key;
+                i.appendChild(cb);
+                i.appendChild(document.createTextNode(col.label));
+                c.appendChild(i);
+            });
+            if (exportFormat === 'excel') {
+                document.getElementById('amExportTitle').textContent = 'Export to Excel';
+                document.getElementById('amExportBtn').textContent = 'Download Excel';
+            } else {
+                document.getElementById('amExportTitle').textContent = 'Export to CSV';
+                document.getElementById('amExportBtn').textContent = 'Download CSV';
+            }
+            document.getElementById('amExportModal').classList.add('active');
+        }
+
+        function doExport() {
+            var cbs = document.querySelectorAll('#amExportCols input[type="checkbox"]');
+            var sc = [];
+            cbs.forEach(function(cb) {
+                if (cb.checked) {
+                    var col = COL_DEFS.find(function(c) { return c.key === cb.dataset.key; });
+                    if (col) sc.push(col);
+                }
+            });
+            if (sc.length === 0) { showMessage('Select at least one column to export.', 'error'); return; }
+            var f = getFilteredSorted();
+            var ds = new Date().toISOString().slice(0, 10);
+            var lb = exportFormat === 'excel' ? 'Excel' : 'CSV';
+
+            if (exportFormat === 'excel') {
+                var h = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Assets</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table border="1"><thead><tr>';
+                sc.forEach(function(col) { h += '<th style="background:#e2e8f0;font-weight:bold;">' + escapeHtml(col.label) + '</th>'; });
+                h += '</tr></thead><tbody>';
+                f.forEach(function(a) {
+                    h += '<tr>';
+                    sc.forEach(function(col) {
+                        var v = a[col.key];
+                        h += '<td>' + escapeHtml((v !== undefined && v !== null && v !== '') ? String(v) : '') + '</td>';
+                    });
+                    h += '</tr>';
+                });
+                h += '</tbody></table></body></html>';
+                var b = new Blob([h], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+                var u = URL.createObjectURL(b);
+                var l = document.createElement('a');
+                l.href = u;
+                l.download = 'driv-en-assets-' + ds + '.xls';
+                document.body.appendChild(l);
+                l.click();
+                document.body.removeChild(l);
+                URL.revokeObjectURL(u);
+            } else {
+                var csv = sc.map(function(c) { return csvEscape(c.label); }).join(',') + '\n';
+                f.forEach(function(a) {
+                    var row = sc.map(function(col) {
+                        var v = a[col.key];
+                        return csvEscape((v !== undefined && v !== null && v !== '') ? String(v) : '');
+                    });
+                    csv += row.join(',') + '\n';
+                });
+                var b = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                var u = URL.createObjectURL(b);
+                var l = document.createElement('a');
+                l.href = u;
+                l.download = 'driv-en-assets-' + ds + '.csv';
+                document.body.appendChild(l);
+                l.click();
+                document.body.removeChild(l);
+                URL.revokeObjectURL(u);
+            }
+            closeModal('amExportModal');
+            showMessage('Exported ' + f.length + ' assets to ' + lb + '.', 'success');
+        }
+
+        function csvEscape(v) {
+            if (v === null || v === undefined) return '';
+            var s = String(v);
+            if (s.indexOf(',') !== -1 || s.indexOf('"') !== -1 || s.indexOf('\n') !== -1) return '"' + s.replace(/"/g, '""') + '"';
+            return s;
+        }
+
+        function getFilteredSorted() {
+            var s = document.getElementById('amSearch').value.toLowerCase().trim();
+            var selTypes = getSelectedValues('panelTypes');
+            var selStatuses = getSelectedValues('panelStatuses');
+            var selProjects = getSelectedValues('panelProjects');
+            var selLocations = getSelectedValues('panelLocations');
+
+            var f = allAssets.filter(function(a) {
+                var ms = !s || (a.assetNumber && a.assetNumber.toLowerCase().indexOf(s) !== -1) ||
+                               (a.type && a.type.toLowerCase().indexOf(s) !== -1) ||
+                               (a.project && a.project.toLowerCase().indexOf(s) !== -1) ||
+                               (a.location && a.location.toLowerCase().indexOf(s) !== -1);
+                
+                var mt = selTypes.length === 0 || (a.type && selTypes.indexOf(a.type.toLowerCase()) !== -1);
+                var mst = selStatuses.length === 0 || (a.status && selStatuses.indexOf(a.status.toLowerCase()) !== -1);
+                var mp = selProjects.length === 0 || (a.project && selProjects.indexOf(a.project.toLowerCase()) !== -1);
+                var ml = selLocations.length === 0 || (a.location && selLocations.indexOf(a.location.toLowerCase()) !== -1);
+
+                return ms && mt && mst && mp && ml;
+            });
+
+            f.sort(function(a, b) {
+                var va = a[sortKey] || '', vb = b[sortKey] || '';
+                if (sortKey === 'meter') {
+                    va = (va === null || va === '' || va === undefined) ? -1 : parseFloat(va);
+                    vb = (vb === null || vb === '' || vb === undefined) ? -1 : parseFloat(vb);
+                    return sortDir === 'asc' ? va - vb : vb - va;
+                }
+                va = String(va).toLowerCase();
+                vb = String(vb).toLowerCase();
+                if (va < vb) return sortDir === 'asc' ? -1 : 1;
+                if (va > vb) return sortDir === 'asc' ? 1 : -1;
+                return 0;
+            });
+            return f;
+        }
+
+        function escapeHtml(s) {
+            var d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        document.getElementById('amEditModal').addEventListener('click', function(e) { if (e.target === this) closeEditModal(); });
+        document.getElementById('amPrintModal').addEventListener('click', function(e) { if (e.target === this) closeModal('amPrintModal'); });
+        document.getElementById('amExportModal').addEventListener('click', function(e) { if (e.target === this) closeModal('amExportModal'); });
+
+        function switchTab(tab) {
+            document.querySelectorAll('.am-tab').forEach(function(t) { t.classList.remove('active'); });
+            document.querySelectorAll('.am-tab-content').forEach(function(c) { c.style.display = 'none'; c.classList.remove('active'); });
+            var targetTab = document.querySelector('.am-tab[data-tab="' + tab + '"]');
+            if (targetTab) targetTab.classList.add('active');
+            var targetContent = document.getElementById('tab-' + tab);
+            if (targetContent) {
+                targetContent.style.display = 'block';
+                targetContent.classList.add('active');
+            }
+        }
+
+        function goToMainDashboard() {
+            if (amDirty) {
+                if (!confirm('You have unsaved changes. Click OK to leave without saving, or Cancel to stay.')) return;
+            }
+            var so = sessionStorage.getItem('driven_dashboard_origin');
+            if (so) { window.location.href = so; return; }
+            if (document.referrer && document.referrer.indexOf('driv-en.com') !== -1) {
+                window.location.href = document.referrer;
+                return;
+            }
+            var u = window.dashUser;
+            if (u) {
+                var r = (u.role || '').toLowerCase();
+                if (r === 'driv-en founder' || r === 'owner') {
+                    window.location.href = '/app/dashboard/owner-dashboard.html';
+                    return;
+                } else if (r === 'admin') {
+                    window.location.href = '/app/dashboard/admin.html';
+                    return;
+                } else {
+                    window.location.href = '/app/dashboard/employee-dashboard.html';
+                    return;
+                }
+            }
+            window.location.href = '/app/dashboard/admin.html';
+        }
+
+        function confirmLogout() {
+            if (amDirty) {
+                if (!confirm('You have unsaved changes. Click OK to log out without saving, or Cancel to stay.')) return;
+            }
+            dashLogout();
+        }
+
+        window.addEventListener('beforeunload', function(e) {
+            if (amDirty) {
+                e.preventDefault();
+                e.returnValue = 'You have unsaved changes.';
+            }
+        });
+
+        function fixHeaderLayout() {
+            var h = document.querySelector('.dash-header');
+            if (!h) return false;
+            var r1 = h.querySelector('.dash-header-row1');
+            var r2 = h.querySelector('.dash-header-row2');
+            var r3 = h.querySelector('.dash-header-row3');
+            var h1 = r2 ? r2.querySelector('h1') : null;
+            if (!r1 || !h1) return false;
+            if (h1.parentNode === r1) return true;
+            var dl = r1.querySelector('.dash-driven-logo');
+            r1.insertBefore(h1, dl);
+            r1.style.cssText = 'display:flex !important; justify-content:space-between !important; align-items:center !important; padding:8px 20px !important; gap:16px !important; width:100% !important; box-sizing:border-box !important;';
+            h1.style.cssText = 'margin:0; font-size:20px; font-weight:600; text-align:center; flex:1;';
+            if (r2) r2.style.display = 'none';
+            if (r3) r3.style.display = 'none';
+            return true;
+        }
+
+        function showMessage(msg, type) {
+            var el = document.getElementById('amMessage');
+            if (!el) return;
+            el.textContent = msg;
+            el.className = 'am-message ' + type;
+            el.style.display = 'block';
+            setTimeout(function() { el.style.display = 'none'; }, 5000);
+        }
+
+        function showEditMessage(msg, type) {
+            var el = document.getElementById('amEditMessage');
+            if (!el) return;
+            el.textContent = msg;
+            el.className = 'am-message ' + type;
+            el.style.display = 'block';
+            setTimeout(function() { el.style.display = 'none'; }, 5000);
+        }
+
+        document.getElementById('amAssetNumber').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addAsset();
+            }
+        });
+    </script>
+    <script src="/app/shared/auth-check.js?v=13"></script>
 </body>
 </html>
