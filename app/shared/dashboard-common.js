@@ -138,13 +138,27 @@
 async function loadSession() {
   try {
     var response = await fetch("/auth/session", {headers: getAuthHeaders(), credentials: "include" });
+    
+    // FALLBACK FOR CACHED USER: Do not wipe local storage on initial 401 load
     if (response.status === 401) {
+      console.warn("[DashboardCommon] /auth/session 401 received; falling back to cached user.");
+      var cachedUserStr = safeGetItem("driven_user");
+      if (cachedUserStr) {
+        try {
+          dashUser = JSON.parse(cachedUserStr);
+          window.dashUser = dashUser;
+          document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: dashUser }));
+          return true;
+        } catch(e) {}
+      }
+      // Only logout if there is no cached session at all
       safeRemoveItem("driven_session_token");
       safeRemoveItem("driven_customer_id");
       safeRemoveItem("driven_org_id");
       window.location.href = "/public/login.html";
       return false;
     }
+    
       var data = await response.json();
       if (data.authenticated && data.user) {
         dashUser = data.user;
