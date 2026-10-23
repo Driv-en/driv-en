@@ -135,19 +135,16 @@
     }
   }
 
-  async function loadSession() {
-    try {
-      var response = await fetch("/auth/session", { 
-        headers: getAuthHeaders(),
-        credentials: "include" 
-      });
-      if (response.status === 401) {
-        safeRemoveItem("driven_session_token");
-        safeRemoveItem("driven_customer_id");
-        safeRemoveItem("driven_org_id");
-        window.location.href = "/public/login.html";
-        return false;
-      }
+async function loadSession() {
+  try {
+    var response = await fetch("/auth/session", {headers: getAuthHeaders(), credentials: "include" });
+    if (response.status === 401) {
+      safeRemoveItem("driven_session_token");
+      safeRemoveItem("driven_customer_id");
+      safeRemoveItem("driven_org_id");
+      window.location.href = "/public/login.html";
+      return false;
+    }
       var data = await response.json();
       if (data.authenticated && data.user) {
         dashUser = data.user;
