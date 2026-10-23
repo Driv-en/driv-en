@@ -74,7 +74,7 @@
   overflow-x: auto;
   position: -webkit-sticky !important;
   position: sticky !important;
-  top: 58px !important;
+  top: var(--header-height) !important;
   z-index: 99 !important;
   background: #cbd5e1;
   border-bottom: 2px solid #94a3b8;
@@ -84,7 +84,7 @@
 
 @media screen and (max-width: 768px) {
   :root { --header-height: 50px; }
-  .pm-tab-bar { top: 50px !important; padding: 0 8px; }
+  .pm-tab-bar { top: var(--header-height) !important; padding: 0 8px; }
 }
 
 .pm-tab { background:#94a3b8; border:1px solid #64748b; border-bottom:none; border-radius:8px 8px 0 0; padding:10px 22px; font-size:15px; font-weight:500; color:#1e293b; cursor:pointer; white-space:nowrap; transition:color 200ms ease, background 200ms ease, margin-top 200ms ease; margin-top:4px; position:relative; z-index:1; }
@@ -929,7 +929,7 @@ function normalizeProject(record) {
   record = record || {};
   var fields = (record.fields && typeof record.fields === 'object') ? record.fields : record;
 
-  var id = record.id || fields.id || ('prj-' + Math.random().toString(36).substr(2, 9));
+  var id = record.id || fields.id || ('prj-' + (fields.project_number || fields.code || Date.now()));
 
   var projectNumber = fields.project_number || fields.code || fields['Project Number'] || 
                         fields['Company Project Number'] || fields['Project Code'] || 
@@ -962,8 +962,9 @@ function normalizeProject(record) {
 function normalizeClient(record) {
   record = record || {};
   var fields = (record.fields && typeof record.fields === 'object') ? record.fields : record;
+  var id = record.id || fields.id || ('cli-' + (fields.client_name || fields.contact_email || Date.now()));
   return {
-    id: record.id || fields.id || ('cli-' + Math.random().toString(36).substr(2, 9)),
+    id: String(id),
     clientName: fields['Client Name'] || fields.clientName || fields.client_name || '',
     contactName: fields['Contact Name'] || fields.contactName || fields.contact_name || '',
     contactEmail: fields['Contact Email'] || fields.contactEmail || fields.contact_email || '',
@@ -1707,20 +1708,45 @@ function renderProjectTypes() {
   document.getElementById('pmTypeCount').textContent = projectTypes.length + ' type' + (projectTypes.length === 1 ? '' : 's');
   tbody.textContent = '';
   if (projectTypes.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="3" class="pm-empty">No project types defined.</td></tr>'; return;
+    var trEmpty = document.createElement('tr');
+    var tdEmpty = document.createElement('td');
+    tdEmpty.colSpan = 3;
+    tdEmpty.className = 'pm-empty';
+    tdEmpty.textContent = 'No project types defined.';
+    trEmpty.appendChild(tdEmpty);
+    tbody.appendChild(trEmpty);
+    return;
   }
   projectTypes.forEach(function(t, idx) {
     var tr = document.createElement('tr');
-    tr.innerHTML = '<td>' + escapeHtml(t.name) + '</td><td>' + escapeHtml(t.description || '—') + '</td>';
+    
+    var tdName = document.createElement('td');
+    tdName.textContent = t.name || '';
+    tr.appendChild(tdName);
+
+    var tdDesc = document.createElement('td');
+    tdDesc.textContent = t.description || '—';
+    tr.appendChild(tdDesc);
+
+    var tdAct = document.createElement('td');
     if (canModify) {
-      var tdAct = document.createElement('td');
       tdAct.className = 'pm-actions';
-      tdAct.innerHTML = '<button class="pm-table-btn" onclick="openEditTypeModal(' + idx + ')">Edit</button>' +
-                        '<button class="pm-table-btn danger" onclick="deleteProjectType(' + idx + ')">Delete</button>';
-      tr.appendChild(tdAct);
+      
+      var editBtn = document.createElement('button');
+      editBtn.className = 'pm-table-btn';
+      editBtn.textContent = 'Edit';
+      editBtn.onclick = function() { openEditTypeModal(idx); };
+      tdAct.appendChild(editBtn);
+
+      var deleteBtn = document.createElement('button');
+      deleteBtn.className = 'pm-table-btn danger';
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.onclick = function() { deleteProjectType(idx); };
+      tdAct.appendChild(deleteBtn);
     } else {
-      tr.innerHTML += '<td>—</td>';
+      tdAct.textContent = '—';
     }
+    tr.appendChild(tdAct);
     tbody.appendChild(tr);
   });
 }
