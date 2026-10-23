@@ -460,19 +460,25 @@ function renderSessionsTable() {
 // ---- Primary Auth Check Guard & Event Listening ----
 function verifyAndInitOwnerSession(u) {
   if (!u) {
+    console.warn('No session user payload provided.');
     window.location.href = '/public/login.html';
     return;
   }
 
-  var userRoleId = String(u.role_id || '').trim();
-  var userOrgId = String(u.org_id || '').trim();
+  // Extract role_id and org_id with fallbacks for alternative property casings
+  var userRoleId = String(u.role_id || u.roleId || u.role || '').trim();
+  var userOrgId = String(u.org_id || u.orgId || u.organization_id || '').trim();
 
-  // Strict enforcement: Only RO-Founder role and org_dsi organization
+  // Strict enforcement: Only RO-Founder role_id and org_dsi org_id
   var isFounderRole = userRoleId === 'RO-Founder';
   var isDsiOrg = userOrgId === 'org_dsi';
 
   if (!isFounderRole || !isDsiOrg) {
-    console.warn('Owner Dashboard access denied. Requires role_id=RO-Founder and org_id=org_dsi:', u);
+    console.warn('Owner Dashboard access denied. Requires role_id="RO-Founder" and org_id="org_dsi". Received:', {
+      role_id: userRoleId,
+      org_id: userOrgId,
+      full_user: u
+    });
     window.location.href = '/public/login.html';
     return;
   }
