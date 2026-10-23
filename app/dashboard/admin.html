@@ -694,18 +694,27 @@
         event.preventDefault();
         event.stopPropagation();
       }
-      
-      var targetOrg = activeOrgId || localStorage.getItem("driven_org_id") || "org_dsi";
-      var userObj = currentUserObj || {};
-      
+
+      // Safely resolve the active user object from all available references
+      var userObj = currentUserObj || window.dashUser || window.drivenUser;
+      if (!userObj) {
+        try {
+          userObj = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user"));
+        } catch(e) {}
+      }
+
+      userObj = userObj || {};
+
+      // Ensure primary key `id` matches the `users` table schema
       if (!userObj.id && userObj.user_id) {
         userObj.id = userObj.user_id;
       }
 
+      var targetOrg = activeOrgId || userObj.org_id || localStorage.getItem("driven_org_id") || sessionStorage.getItem("driven_org_id") || "org_dsi";
+      var roleVal = userObj.role_id || userObj.role || localStorage.getItem("driven_role") || sessionStorage.getItem("driven_role") || "RO-admin";
       var userStr = JSON.stringify(userObj);
-      var roleVal = userObj.role_id || userObj.role || localStorage.getItem("driven_role") || "RO-admin";
 
-      // Sync identifiers to both localStorage and sessionStorage
+      // Synchronize session values to both localStorage and sessionStorage
       localStorage.setItem("driven_org_id", targetOrg);
       localStorage.setItem("driven_user", userStr);
       localStorage.setItem("driven_role", roleVal);
@@ -716,13 +725,16 @@
       sessionStorage.setItem("driven_org_id", targetOrg);
       sessionStorage.setItem("driven_user", userStr);
       sessionStorage.setItem("driven_role", roleVal);
+      if (userObj.id) {
+        sessionStorage.setItem("driven_user_id", userObj.id);
+      }
 
       window.location.href = targetUrl;
     }
 
     function validateOrgContext() {
       if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
-        activeOrgId = localStorage.getItem("driven_org_id") || "org_dsi";
+        activeOrgId = localStorage.getItem("driven_org_id") || sessionStorage.getItem("driven_org_id") || "org_dsi";
       }
       return true;
     }
@@ -763,8 +775,8 @@
       options = options || {};
       options.headers = options.headers || {};
       var storedUser = currentUserObj || window.dashUser || window.drivenUser || {};
-      options.headers["x-user-id"] = storedUser.id || localStorage.getItem("driven_user_id") || "";
-      options.headers["x-org-id"] = activeOrgId || storedUser.org_id || localStorage.getItem("driven_org_id") || "";
+      options.headers["x-user-id"] = storedUser.id || localStorage.getItem("driven_user_id") || sessionStorage.getItem("driven_user_id") || "";
+      options.headers["x-org-id"] = activeOrgId || storedUser.org_id || localStorage.getItem("driven_org_id") || sessionStorage.getItem("driven_org_id") || "";
       options.headers["x-user-role"] = "RO-admin";
 
       var controller = new AbortController();
@@ -1365,7 +1377,7 @@
 
     function loadTaskCompletions() {
       try {
-        taskCompletions = JSON.parse(localStorage.getItem("driven_task_completions") || "{}");
+        taskCompletions = JSON.parse(localStorage.getItem("driven_task_completions") || sessionStorage.getItem("driven_task_completions") || "{}");
       } catch(e) { taskCompletions = {}; }
     }
 
@@ -1442,7 +1454,7 @@
 
     async function startAdminApp(user) {
       if (!user) {
-        var savedUserStr = localStorage.getItem("driven_user");
+        var savedUserStr = localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user");
         if (savedUserStr) {
           try { user = JSON.parse(savedUserStr); } catch(e){}
         }
@@ -1456,7 +1468,7 @@
         return; 
       }
 
-      activeOrgId = user.org_id || localStorage.getItem("driven_org_id") || "org_dsi";
+      activeOrgId = user.org_id || localStorage.getItem("driven_org_id") || sessionStorage.getItem("driven_org_id") || "org_dsi";
 
       /* Ensure persistent auth state across page transfers (users table mapping) */
       if (!user.id && user.user_id) user.id = user.user_id;
@@ -1470,6 +1482,7 @@
       sessionStorage.setItem("driven_org_id", activeOrgId);
       sessionStorage.setItem("driven_user", userStr);
       sessionStorage.setItem("driven_role", roleVal);
+      if (user.id) sessionStorage.setItem("driven_user_id", user.id);
 
       document.getElementById("welcome-name").textContent = user.first_name || user.email || "Admin";
       document.getElementById("welcome-company").textContent = user.org_name || localStorage.getItem("driven_org_name") || "Digital Safety Inspection, LLC";
