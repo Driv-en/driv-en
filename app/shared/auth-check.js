@@ -8,7 +8,7 @@
     return;
   }
   try {
-    var storedToken = localStorage.getItem("driven_session_token");
+    var storedToken = localStorage.getItem("driven_session_token") || sessionStorage.getItem("driven_session_token");
     var headers = { "Accept": "application/json" };
     if (storedToken) {
       headers["Authorization"] = "Bearer " + storedToken;
@@ -34,17 +34,23 @@
     }
 
     var user = data.user;
+
+    // Normalize primary key 'id' to match 'users' table schema
+    if (!user.id && user.user_id) {
+      user.id = user.user_id;
+    }
+
     var userEmail = (user.email || "").toLowerCase().trim();
     var userRole = (user.role || "").toString().toLowerCase();
-    var userRoleId = (user.role_id || "").toString();
+    var userRoleId = (user.role_id || "").toString().toLowerCase();
 
     // Identify Founder & Admin privileges
     var isFounder = userEmail === "jblood@digitalsafetyinspection.com" ||
-                    userRoleId.toLowerCase() === "ro-founder" ||
+                    userRoleId === "ro-founder" ||
                     userRole.indexOf("founder") !== -1;
 
     var isAdminRole = isFounder ||
-                      userRoleId.toLowerCase() === "ro-admin" ||
+                      userRoleId === "ro-admin" ||
                       ["admin", "administrator"].indexOf(userRole) !== -1;
 
     // Enforce org_dsi and RO-Founder override for founder
@@ -56,13 +62,25 @@
       user.role = "DRIV-EN Founder";
     }
 
+    // Persist session across storage mechanisms
+    var userStr = JSON.stringify(user);
+    var targetOrg = user.org_id || "org_dsi";
+    var activeRole = user.role_id || user.role || "RO-admin";
+
+    localStorage.setItem("driven_user", userStr);
+    localStorage.setItem("driven_org_id", targetOrg);
+    localStorage.setItem("driven_customer_id", targetOrg);
+    localStorage.setItem("driven_role", activeRole);
+    if (user.id) localStorage.setItem("driven_user_id", user.id);
+
+    sessionStorage.setItem("driven_user", userStr);
+    sessionStorage.setItem("driven_org_id", targetOrg);
+    sessionStorage.setItem("driven_role", activeRole);
+    if (user.id) sessionStorage.setItem("driven_user_id", user.id);
+
     // Store user info globally for downstream scripts
     window.drivenUser = user;
     window.dashUser = user;
-    if (user.org_id) {
-      localStorage.setItem("driven_customer_id", user.org_id);
-      localStorage.setItem("driven_org_id", user.org_id);
-    }
 
     // Dispatch event to notify dashboard modules
     document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: user }));
@@ -103,7 +121,7 @@
     if (requiredRole && !isAdminRole) {
       var reqRoles = requiredRole.toLowerCase().split(",").map(function(r) { return r.trim(); });
       var matchesRole = reqRoles.some(function(req) {
-        return userRole === req || userRoleId.toLowerCase() === req || userRole.indexOf(req) !== -1;
+        return userRole === req || userRoleId === req || userRole.indexOf(req) !== -1;
       });
       if (!matchesRole) {
         console.warn("[AuthCheck] User role", userRole, "does not match required role(s):", requiredRole);
@@ -149,7 +167,7 @@ async function checkUserAssignedTask(user, taskName) {
   if (!user || !user.email || !orgId) return false;
 
   try {
-    var storedToken = localStorage.getItem("driven_session_token");
+    var storedToken = localStorage.getItem("driven_session_token") || sessionStorage.getItem("driven_session_token");
     var headers = { "x-org-id": orgId };
     if (storedToken) headers["Authorization"] = "Bearer " + storedToken;
 
