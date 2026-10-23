@@ -63,7 +63,9 @@
 
 /* ===== TAB BAR ===== */
 .pm-tab-bar {
-  display: flex;
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
   gap: 2px;
   width: 100%;
   max-width: 1100px;
@@ -337,6 +339,7 @@
 
     <div class="pm-pagination" id="pmProjectPagination"></div>
   </div>
+
   <!-- ===== ADD NEW PROJECT TAB ===== -->
   <div class="pm-tab-content" id="tab-addproject" style="display:none;">
     <div class="pm-welcome">
@@ -819,7 +822,9 @@ var clientVisibleCols = {};
 function makeTabsSticky() {
   var h = document.getElementById("dashHeader"),
       tb = document.getElementById("pmTabBar");
-  if (h && tb && !h.contains(tb)) h.appendChild(tb);
+  if (h && tb && h.nextElementSibling !== tb) {
+    h.parentNode.insertBefore(tb, h.nextSibling);
+  }
 }
 
 function initVisibleCols() {
@@ -850,12 +855,18 @@ function saveClientVisibleCols() {
 
 document.addEventListener('dashSessionLoaded', async function() {
   makeTabsSticky();
+  setTimeout(makeTabsSticky, 300);
+
   var loadingElement = document.getElementById('pmLoading');
   var overviewTab = document.getElementById('tab-overview');
 
   try {
-    var user = window.dashUser;
+    var user = window.dashUser || window.drivenUser;
+    if (!user) {
+      try { user = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user")); } catch(e) {}
+    }
     if (!user) { window.location.href = '/public/login.html'; return; }
+    window.dashUser = user;
 
     var role = String(user.role || '').toLowerCase();
     var isAdmin = role === 'admin' || role === 'administrator' || role.indexOf('founder') !== -1 || role === 'owner';
