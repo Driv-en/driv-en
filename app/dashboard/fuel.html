@@ -34,15 +34,17 @@
 
 /* Sticky Navigation Extensions */
 .fuel-tab-bar { 
-  display: flex; 
+  display: flex !important; 
+  visibility: visible !important;
+  opacity: 1 !important;
   gap: 2px; 
   max-width: 1100px; 
   margin: 0 auto; 
   padding: 0 20px; 
   overflow-x: auto; 
   position: sticky !important; 
-  top: 0; 
-  z-index: 100; 
+  top: 58px !important; 
+  z-index: 99 !important; 
   background: #cbd5e1; 
   border-bottom: 2px solid #94a3b8; 
   -webkit-overflow-scrolling: touch;
@@ -61,13 +63,13 @@
   padding: 0 20px; 
   overflow-x: auto; 
   position: sticky !important; 
-  top: 45px; 
-  z-index: 99; 
+  top: 102px !important; 
+  z-index: 98 !important; 
   background: #475569; 
   border-bottom: 2px solid #334155; 
   -webkit-overflow-scrolling: touch;
 }
-.fuel-subtab-bar.visible { display: flex; }
+.fuel-subtab-bar.visible { display: flex !important; }
 .fuel-subtab { background: #22c55e; border: 1px solid #16a34a; border-bottom: none; border-radius: 8px 8px 0 0; padding: 8px 18px; font-size: 14px; font-weight: 500; color: #fff; cursor: pointer; white-space: nowrap; transition: all 200ms ease; margin-top: 4px; position: relative; z-index: 1; }
 .fuel-subtab:hover { background: #16a34a; margin-top: 2px; }
 .fuel-subtab.active { background: #15803d; border-color: #22c55e; margin-top: 0; font-weight: 600; z-index: 2; }
@@ -79,7 +81,7 @@
 .fuel-tab-logout { background: #b91c1c; border: 1px solid #dc2626; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; position: relative; z-index: 1; transition: all 200ms ease; }
 .fuel-tab-logout:hover { background: #dc2626; margin-top: 2px; }
 .fuel-main { max-width: 1100px; margin: 20px auto; padding: 0 20px; position: relative; z-index: 1; }
-.section-heading { position: sticky; top: 90px; z-index: 5; background: var(--bg-card); border-bottom: 2px solid var(--border); padding: 12px 0; margin: 0 0 16px 0; font-size: 16px; font-weight: 700; color: var(--text); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.section-heading { position: sticky; top: 140px; z-index: 5; background: var(--bg-card); border-bottom: 2px solid var(--border); padding: 12px 0; margin: 0 0 16px 0; font-size: 16px; font-weight: 700; color: var(--text); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .section-heading-count { font-size: 13px; font-weight: 400; color: var(--text-muted); }
 .fuel-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
 .fuel-stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; text-align: center; }
@@ -392,21 +394,10 @@ function switchTxSubtab(subtabName){
 }
 
 function makeTabsSticky(){
-  var header = document.getElementById('dashHeader');
-  var tabBar = document.getElementById('fuelTabBar');
-  var tanksBar = document.getElementById('tanksSubtabBar');
-  var txBar = document.getElementById('txSubtabBar');
-  
-  if (header) {
-    if (tabBar && tabBar.parentNode !== header.parentNode) {
-      header.parentNode.insertBefore(tabBar, header.nextSibling);
-    }
-    if (tanksBar && tanksBar.parentNode !== header.parentNode) {
-      header.parentNode.insertBefore(tanksBar, tabBar.nextSibling);
-    }
-    if (txBar && txBar.parentNode !== header.parentNode) {
-      header.parentNode.insertBefore(txBar, tanksBar.nextSibling);
-    }
+  var h = document.getElementById('dashHeader');
+  var tb = document.getElementById('fuelTabBar');
+  if (h && tb && h.nextElementSibling !== tb) {
+    h.parentNode.insertBefore(tb, h.nextSibling);
   }
 }
 
@@ -602,7 +593,7 @@ function renderTxRows(txs){return txs.map(function(t){var date=t.transaction_dat
 function onTxFilter(containerId,searchText){txSearchText=searchText;reRenderTxTable(containerId);}
 function onTxLocationFilter(containerId,val){txLocationFilter=val;reRenderTxTable(containerId);}
 function onTxDateFilter(containerId,which,val){if(which==='from')txFromDate=val;else txToDate=val;reRenderTxTable(containerId);}
-function onTxSort(containerId,col){var container=document.getElementById(containerId);if(container._txSortCol===col){container._txSortDir=container._txSortDir==='asc'?'desc':'asc';}else{container._txSortCol=col;container._txSortDir='asc';}reRenderTxTable(containerId);}
+function onTxSort(containerId,col){var container=document.getElementById(containerId);if(container._txSortCol===col){container._txSortDir=container._txSortDir==='asc'?'desc':'asc';}else{container._txSortDir='asc';}reRenderTxTable(containerId);}
 function reRenderTxTable(containerId){var container=document.getElementById(containerId);var subtab=container.getAttribute('data-subtab')||'all';var txs=getTxForSubtab(subtab);var filtered=applyTxFilters(txs);var sorted=sortTransactions(filtered,container._txSortCol||'transaction_date',container._txSortDir||'desc');var tbody=container.querySelector('tbody');if(tbody)tbody.innerHTML=renderTxRows(sorted);var totalsDiv=document.getElementById(containerId+'-totals');if(totalsDiv){var totals=computeTxTotals(filtered);totalsDiv.innerHTML='<div class="tx-totals-bar"><div class="total-item"><span class="total-label">Records</span><span class="total-value">'+totals.txCount+'</span></div><div class="total-item"><span class="total-label">Total (Gallons)</span><span class="total-value gal">'+totals.totalGal.toFixed(2)+'</span></div><div class="total-item"><span class="total-label">Purchased (Gallons)</span><span class="total-value gal">'+totals.totalPurchases.toFixed(2)+'</span></div><div class="total-item"><span class="total-label">Transferred (Gallons)</span><span class="total-value gal">'+totals.totalIssues.toFixed(2)+'</span></div></div>';}
   var thead=container.querySelector('thead');
   if(thead){thead.querySelectorAll('th').forEach(function(th){th.classList.remove('sorted-asc','sorted-desc');var ind=th.querySelector('.sort-indicator');if(ind)ind.textContent='';});var col=container._txSortCol||'transaction_date';var dir=container._txSortDir||'desc';var thMap=['transaction_date','transaction_type','fuel_type','quantity','transferred_from','asset','person','project','location'];var idx=thMap.indexOf(col);if(idx>=0){var ths=thead.querySelectorAll('th');if(ths[idx]){ths[idx].classList.add(dir==='asc'?'sorted-asc':'sorted-desc');var ind=ths[idx].querySelector('.sort-indicator');if(ind)ind.textContent=dir==='asc'?'▲':'▼';}}}
@@ -1039,6 +1030,7 @@ async function init(){
       
       insertHeaderTitle();
       makeTabsSticky();
+      setTimeout(makeTabsSticky, 300);
       
       await loadTankTypes();
       await loadTanks();
