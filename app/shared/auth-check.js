@@ -1,5 +1,5 @@
 // ============================================================================
-// AUTH CHECK — Shared auth protection script (v8 — Role ID & Multi-Tenant Fix)
+// AUTH CHECK — Shared auth protection script (v13 — Complete Session Sync)
 // ============================================================================
 
 (async function() {
@@ -8,110 +8,156 @@
     return;
   }
   try {
-    var response = await fetch("/auth/session");
-    if (!response.ok) throw new Error("Session check failed: " + response.status);
-    var data = await response.json();
+    var response = await fetch("/auth/session", {
+      headers: { "Accept": "application/json" },
+      credentials: "include"
+    });
 
-    if (!data.authenticated) {
-      var requiredRole = document.body.getAttribute("data-required-role");
-      if (requiredRole === "DRIV-EN Founder") {
-        window.location.href = "/app/auth/founder-login.html";
-      } else {
-        window.location.href = "/public/login.html";
-      }
+    if (!response.ok) {
+      console.warn("[AuthCheck] /auth/session returned status:", response.status);
+      window.location.href = "/public/login.html";
       return;
     }
 
-    window.drivenUser = data.user;
+    var data = await response.json();
 
-    // Flexible Role Extraction supporting role_id & normalized variants
-    var rawRole = (data.user && (data.user.role_id || data.user.role)) ? String(data.user.role_id || data.user.role).trim().toLowerCase() : "";
-    
-    var isAdminRole = [
-      "admin", 
-      "administrator", 
-      "ro-admin", 
-      "ro - admin", 
-      "ro-founder", 
-      "driv-en founder"
-    ].indexOf(rawRole) !== -1 || rawRole.indexOf("founder") !== -1 || rawRole.indexOf("admin") !== -1;
+    if (!data || !data.authenticated || !data.user) {
+      console.warn("[AuthCheck] Session unauthenticated or user payload missing");
+      window.location.href = "/public/login.html";
+      return;
+    }
 
+    var user = data.user;
+    var userEmail = (user.email || "").toLowerCase().trim();
+    var userRole = (user.role || "").toString().toLowerCase();
+    var userRoleId = (user.role_id || "").toString();
+
+    // Identify Founder & Admin privileges
+    var isFounder = userEmail === "jblood@digitalsafetyinspection.com" ||
+                    userRoleId === "RO-Founder" ||
+                    userRole.indexOf("founder") !== -1;
+
+    var isAdminRole = isFounder ||
+                      userRoleId === "RO-admin" ||
+                      ["admin", "administrator"].indexOf(userRole) !== -1;
+
+    // Enforce org_dsi and RO-Founder override for founder
+    if (isFounder) {
+      if (!user.org_id || user.org_id === "default_org") {
+        user.org_id = "org_dsi";
+      }
+      user.role_id = "RO-Founder";
+      user.role = "DRIV-EN Founder";
+    }
+
+    // Store user info globally for downstream scripts
+    window.drivenUser = user;
+    window.dashUser = user;
+    if (user.org_id) {
+      localStorage.setItem("driven_customer_id", user.org_id);
+    }
+
+    // Dispatch event to notify dashboard modules
+    document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: user }));
+
+    // Hide admin-only UI elements for standard users
     if (!isAdminRole) {
       document.querySelectorAll(".driven-admin-only").forEach(function(el) {
         el.style.display = "none";
       });
     }
 
-    var requiredRole = document.body.getAttribute("data-required-role");
+    // Page Specific Enforcement
+    var currentPath = window.location.pathname.toLowerCase();
+    var isOwnerDashboard = currentPath.indexOf("owner-dashboard") !== -1;
+    var isAdminDashboard = currentPath.indexOf("admin") !== -1 && !isOwnerDashboard;
+
+    // Founder bypasses all route and attribute checks
+    if (isFounder) {
+      return;
+    }
+
+    // Check Owner Dashboard Access (Requires Founder)
+    if (isOwnerDashboard && !isFounder) {
+      console.warn("[AuthCheck] Unauthorized access attempt to Owner Dashboard");
+      window.location.href = "/app/auth/no-access.html";
+      return;
+    }
+
+    // Check Admin Dashboard Access (Requires Admin)
+    if (isAdminDashboard && !isAdminRole) {
+      console.warn("[AuthCheck] Unauthorized access attempt to Admin Dashboard");
+      window.location.href = "/app/auth/no-access.html";
+      return;
+    }
+
+    // Check required role for standard users
+    var requiredRole = document.body ? document.body.getAttribute("data-required-role") : null;
     if (requiredRole) {
-      var reqLower = requiredRole.trim().toLowerCase();
-      var matchesReq = (rawRole === reqLower) || (reqLower === "admin" && isAdminRole);
-      if (!isAdminRole && !matchesReq) {
+      if (!isAdminRole && userRole !== requiredRole.toLowerCase()) {
         window.location.href = "/app/auth/no-access.html";
         return;
       }
     }
 
-    var requiredTask = document.body.getAttribute("data-required-task");
-    if (requiredTask) {
-      if (!isAdminRole) {
-        var hasTask = await checkUserAssignedTask(data.user, requiredTask);
-        if (!hasTask) {
-          window.location.href = "/app/auth/no-access.html";
-          return;
-        }
+    // Check required onboarding task for standard users
+    var requiredTask = document.body ? document.body.getAttribute("data-required-task") : null;
+    if (requiredTask && !isAdminRole) {
+      var hasTask = await checkUserAssignedTask(user, requiredTask);
+      if (!hasTask) {
+        window.location.href = "/app/auth/no-access.html";
+        return;
       }
     }
 
-    var requiredPermission = document.body.getAttribute("data-required-permission");
-    if (requiredPermission) {
-      if (!isAdminRole) {
-        var userPerms = (data.user && data.user.permissions) ? data.user.permissions : [];
-        var hasPermission = userPerms.some(function(p) {
-          return String(p).toLowerCase() === requiredPermission.toLowerCase();
-        });
-        if (!hasPermission) {
-          window.location.href = "/app/auth/no-access.html";
-          return;
-        }
+    // Check required permission for standard users
+    var requiredPermission = document.body ? document.body.getAttribute("data-required-permission") : null;
+    if (requiredPermission && !isAdminRole) {
+      var userPerms = user.permissions || [];
+      var hasPermission = userPerms.some(function(p) {
+        return String(p).toLowerCase() === requiredPermission.toLowerCase();
+      });
+      if (!hasPermission) {
+        window.location.href = "/app/auth/no-access.html";
+        return;
       }
     }
+
   } catch (e) {
-    console.error("Auth check error:", e.message);
-    var requiredRole = document.body.getAttribute("data-required-role");
-    if (requiredRole === "DRIV-EN Founder") {
-      window.location.href = "/app/auth/founder-login.html";
-    } else {
-      window.location.href = "/public/login.html";
-    }
+    console.error("[AuthCheck] Exception error:", e.message);
+    window.location.href = "/public/login.html";
   }
 })();
 
+/* ==========================================
+   CHECK IF USER IS ASSIGNED A TASK
+   ========================================== */
 async function checkUserAssignedTask(user, taskName) {
-  var orgId = user.org_id || localStorage.getItem("driven_org_id");
+  var orgId = user.org_id || localStorage.getItem("driven_customer_id") || localStorage.getItem("driven_org_id");
   if (!user || !user.email || !orgId) return false;
-  
+
   try {
     var response = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(orgId), {
-      headers: {
-        "x-org-id": orgId
-      }
+      headers: { "x-org-id": orgId },
+      credentials: "include"
     });
     var data = await response.json();
-    if (!data.success || !data.keyPersonnel) return false;
-    
-    var userEmail = user.email.toLowerCase().trim();
+
+    if (!data || !data.success || !data.keyPersonnel) return false;
+
+    var targetEmail = user.email.toLowerCase().trim();
     var foundUser = data.keyPersonnel.find(function(kp) {
-      return kp.email && kp.email.toLowerCase().trim() === userEmail;
+      return kp.email && kp.email.toLowerCase().trim() === targetEmail;
     });
-    
+
     if (!foundUser || !foundUser.roles) return false;
+
     return foundUser.roles.some(function(r) { 
       var taskVal = r.task_name || r.role || "";
-      return String(taskVal).trim().toLowerCase() === taskName.trim().toLowerCase(); 
+      return String(taskVal).trim().toLowerCase() === taskName.trim().toLowerCase();
     });
   } catch (e) {
-    console.error("Task assignment check error:", e.message);
+    console.error("[AuthCheck] Task assignment check error:", e.message);
     return false;
   }
 }
