@@ -2,9 +2,11 @@
 (function() {
   'use strict';
   var dashUser = null;
+
   function safeGetItem(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
   function safeSetItem(key, value) { try { localStorage.setItem(key, value); } catch (e) { } }
   function safeRemoveItem(key) { try { localStorage.removeItem(key); } catch (e) { } }
+
   (function registerPWA() {
     if (!document.querySelector('link[rel="manifest"]')) {
       var manifestLink = document.createElement('link');
@@ -20,6 +22,7 @@
       });
     }
   })();
+
   (function loadErrorHandler() {
     if (window.DRIVENErrorHandler) return;
     var script = document.createElement('script');
@@ -27,10 +30,12 @@
     script.async = false;
     document.head.appendChild(script);
   })();
+
   function escapeHtml(str) {
     if (!str) return "";
     return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
+
   async function loadComponent(elementId, file) {
     try {
       var el = document.getElementById(elementId);
@@ -40,6 +45,7 @@
       el.innerHTML = html;
     } catch (e) { console.error("Failed to load component:", elementId, file, e.message); }
   }
+
   window.dashToggleTheme = function() {
     var current = document.documentElement.getAttribute("data-theme");
     var newTheme = current === "dark" ? "light" : "dark";
@@ -47,6 +53,7 @@
     safeSetItem("driven-theme", newTheme);
     updateThemeSwitch();
   };
+
   function updateThemeSwitch() {
     var current = document.documentElement.getAttribute("data-theme");
     var checkbox = document.getElementById("dashThemeCheckbox");
@@ -56,20 +63,23 @@
     if (labelLight) labelLight.classList.toggle("active", current === "light");
     if (labelDark) labelDark.classList.toggle("active", current === "dark");
   }
+
   window.dashLogout = async function() {
-    try { await fetch("/auth/logout", { method: "POST" }); } catch (e) { console.error("Logout error:", e.message); }
+    try { await fetch("/auth/logout", { method: "POST", credentials: "include" }); } catch (e) { console.error("Logout error:", e.message); }
     window.location.href = "/public/login.html";
   };
+
   function setPageTitle() {
     var title = document.body.getAttribute("data-page-title") || "Dashboard";
     var titleEl = document.getElementById("dashPageTitle");
     if (titleEl) titleEl.textContent = title;
   }
+
   async function loadCustomerLogo() {
     var area = document.getElementById("dashCustomerLogoArea");
     if (!area) return;
     try {
-      var logoRes = await fetch("/auth/get-logo");
+      var logoRes = await fetch("/auth/get-logo", { credentials: "include" });
       if (!logoRes.ok) throw new Error("Logo fetch failed: " + logoRes.status);
       var logoData = await logoRes.json();
       if (logoData.success && logoData.logo) {
@@ -101,9 +111,10 @@
       } catch (e) { console.warn("Fallback logo error:", e.message); }
     }
   }
+
   async function loadSession() {
     try {
-      var response = await fetch("/auth/session");
+      var response = await fetch("/auth/session", { credentials: "include" });
       var data = await response.json();
       if (data.authenticated && data.user) {
         dashUser = data.user;
@@ -118,16 +129,33 @@
         }
         if (data.user.org_name) { safeSetItem("driven_org_name", data.user.org_name); }
         window.dashUser = data.user;
-        var role = (data.user.role || '').toLowerCase();
+
+        var userRoleId = String(data.user.role_id || '').trim();
+        var userRole = String(data.user.role || '').toLowerCase();
+        var userEmail = String(data.user.email || '').toLowerCase().trim();
+
+        var isFounder = userRoleId === 'RO-Founder' ||
+                        userRole.indexOf('founder') !== -1 ||
+                        userEmail === 'jblood@digitalsafetyinspection.com';
+
+        var isAdmin = !isFounder && (userRoleId === 'RO-admin' || userRole.indexOf('admin') !== -1);
+
         var dashUrl;
         var savedOrigin = sessionStorage.getItem('driven_dashboard_origin');
-        if (savedOrigin) { dashUrl = savedOrigin; }
-        else if (role === 'owner') { dashUrl = '/app/dashboard/owner-dashboard.html'; }
-        else if (role === 'admin') { dashUrl = '/app/dashboard/admin.html'; }
-        else { dashUrl = '/app/dashboard/employee-dashboard.html'; }
+        if (savedOrigin) { 
+          dashUrl = savedOrigin; 
+        } else if (isFounder) { 
+          dashUrl = '/app/dashboard/owner-dashboard.html'; 
+        } else if (isAdmin) { 
+          dashUrl = '/app/dashboard/admin.html'; 
+        } else { 
+          dashUrl = '/app/dashboard/employee-dashboard.html'; 
+        }
+
         var homeBtn = document.getElementById('dashHomeBtn');
         if (homeBtn) { homeBtn.href = dashUrl; }
-        var currentPage = window.location.pathname;
+
+        var currentPage = window.location.pathname.toLowerCase();
         var isMainDashboard = currentPage.indexOf('/dashboard/') !== -1
           && currentPage.indexOf('/forms/') === -1
           && currentPage.indexOf('user-management') === -1
@@ -149,6 +177,7 @@
     } catch (e) { console.error("Session load error:", e.message); }
     return false;
   }
+
   async function init() {
     await loadComponent("dashHeader", "/app/shared/dashboard-header.html");
     setPageTitle();
@@ -157,8 +186,10 @@
     await loadSession();
     await loadComponent("dashFooter", "/app/shared/dashboard-footer.html");
   }
+
   if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", init); }
   else { init(); }
+
   document.addEventListener("dashSessionLoaded", function() { window.dashUser = dashUser; });
   var originalLoadSession = loadSession;
   loadSession = async function() {
@@ -166,13 +197,16 @@
     document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: dashUser }));
     return result;
   };
+
   var SESSION_REFRESH_MS = 30 * 60 * 1000;
   var sessionRefreshTimer = null;
   var lastSessionActivity = Date.now();
+
   function scheduleSessionRefresh() {
     if (sessionRefreshTimer) clearTimeout(sessionRefreshTimer);
     sessionRefreshTimer = setTimeout(refreshSessionToken, SESSION_REFRESH_MS);
   }
+
   async function refreshSessionToken() {
     try {
       var resp = await fetch("/auth/refresh", { method: "POST", credentials: "include" });
@@ -180,6 +214,7 @@
       else { console.warn("Session refresh failed:", resp.status); }
     } catch (e) { console.warn("Session refresh error:", e.message); }
   }
+
   function onSessionActivity() {
     var now = Date.now();
     if (now - lastSessionActivity > 60 * 1000) {
@@ -187,6 +222,7 @@
       scheduleSessionRefresh();
     }
   }
+
   document.addEventListener("dashSessionLoaded", function() {
     if (!dashUser) return;
     scheduleSessionRefresh();
@@ -194,6 +230,7 @@
       document.addEventListener(evt, onSessionActivity, { passive: true });
     });
   });
+
   window.goToMainDashboard = function() {
     try {
       var savedOrigin = sessionStorage.getItem('driven_dashboard_origin');
@@ -201,11 +238,26 @@
     } catch(e) {}
     var user = window.dashUser;
     if (!user) { window.location.href = '/public/login.html'; return; }
-    var role = (user.role || '').toLowerCase();
-    if (role === 'driv-en founder' || role === 'owner') { window.location.href = '/app/dashboard/owner-dashboard.html'; }
-    else if (role === 'admin' || role === 'administrator') { window.location.href = '/app/dashboard/admin.html'; }
-    else { window.location.href = '/app/dashboard/employee-dashboard.html'; }
+
+    var userRoleId = String(user.role_id || '').trim();
+    var userRole = String(user.role || '').toLowerCase();
+    var userEmail = String(user.email || '').toLowerCase().trim();
+
+    var isFounder = userRoleId === 'RO-Founder' ||
+                    userRole.indexOf('founder') !== -1 ||
+                    userEmail === 'jblood@digitalsafetyinspection.com';
+
+    var isAdmin = !isFounder && (userRoleId === 'RO-admin' || userRole.indexOf('admin') !== -1);
+
+    if (isFounder) { 
+      window.location.href = '/app/dashboard/owner-dashboard.html'; 
+    } else if (isAdmin) { 
+      window.location.href = '/app/dashboard/admin.html'; 
+    } else { 
+      window.location.href = '/app/dashboard/employee-dashboard.html'; 
+    }
   };
+
   /* ===== GLOBAL: ERROR RECOVERY BANNER + /api/log-error REPORTING ===== */
   window.addEventListener('error', function(e) {
     if (document.getElementById('driv-en-recovery-banner')) return;
@@ -230,6 +282,7 @@
     if (document.body) document.body.appendChild(banner);
     else document.documentElement.appendChild(banner);
   });
+
   /* ===== CATCH UNHANDLED PROMISE REJECTIONS ===== */
   window.addEventListener('unhandledrejection', function(e) {
     var errSrc = 'Unhandled Promise Rejection';
