@@ -74,7 +74,7 @@
 }
 </style>
 </head>
-<body data-page-title="Company Management">
+<body data-page-title="Company Management" data-required-permission="any">
 <div id="dashHeader"></div>
 <div class="cm-tab-bar">
   <div class="cm-tab active" data-tab="overview" onclick="switchTab('overview')">Overview</div>
@@ -120,8 +120,13 @@
 <script src="/app/shared/dashboard-common.js?v=13"></script>
 <script>
 document.addEventListener('dashSessionLoaded', async function() {
-  var user = window.dashUser;
+  var user = window.dashUser || window.drivenUser;
+  if (!user) {
+    try { user = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user")); } catch(e) {}
+  }
   if (!user) { window.location.href = '/public/login.html'; return; }
+  window.dashUser = user;
+
   document.getElementById('cmLoading').style.display = 'none';
   document.getElementById('tab-overview').style.display = 'block';
   
@@ -157,12 +162,15 @@ function goToMainDashboard() {
   if (document.referrer && document.referrer.indexOf('driv-en.com') !== -1) {
     window.location.href = document.referrer; return;
   }
-  var user = window.dashUser;
+  var user = window.dashUser || window.drivenUser;
+  if (!user) {
+    try { user = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user")); } catch(e) {}
+  }
   if (user) {
     var role = (user.role || '').toLowerCase();
-    if (role === 'driv-en founder' || role === 'owner') {
+    if (role.indexOf('founder') !== -1 || role.indexOf('owner') !== -1) {
       window.location.href = '/app/dashboard/owner-dashboard.html'; return;
-    } else if (role === 'admin') {
+    } else if (role.indexOf('admin') !== -1) {
       window.location.href = '/app/dashboard/admin.html'; return;
     } else {
       window.location.href = '/app/dashboard/employee-dashboard.html'; return;
