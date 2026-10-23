@@ -20,7 +20,7 @@ const WORKER_ROUTES = {
   'resend-verify':     'https://driv-en-auth.driv-en.workers.dev',
   '2fa':               'https://driv-en-auth.driv-en.workers.dev',
 
-  // DRIV-EN API Worker (driv-en-api — Project, Clients, Division, Equipment, Fuel Types, Asset Types, Locations, Users, Roles, AuditLog)
+  // DRIV-EN API Worker
   'project':           'https://driv-en-api.driv-en.workers.dev',
   'projects':          'https://driv-en-api.driv-en.workers.dev',
   'clients':           'https://driv-en-api.driv-en.workers.dev',
@@ -34,10 +34,10 @@ const WORKER_ROUTES = {
   'log-error':         'https://driv-en-api.driv-en.workers.dev',
   'audit-log':         'https://driv-en-api.driv-en.workers.dev',
 
-  // Onboarding & Key Personnel worker (onboarding-key-personnel)
+  // Onboarding worker
   'onboarding':        'https://onboarding-key-personnel.driv-en.workers.dev',
 
-  // Platform worker (driven-platform)
+  // Platform worker
   'error-log':         'https://driven-platform.driv-en.workers.dev',
   'users':             'https://driven-platform.driv-en.workers.dev',
   'permissions':       'https://driven-platform.driv-en.workers.dev',
@@ -45,25 +45,24 @@ const WORKER_ROUTES = {
   'user-activity':     'https://driven-platform.driv-en.workers.dev',
   'admin-safeguard':   'https://driven-platform.driv-en.workers.dev',
 
-  // Referral workers (driven-referral-api & driven-referral-signup)
+  // Referral workers
   'referral':          'https://driven-referral-api.driv-en.workers.dev',
   'referral-signup':   'https://driven-referral-signup.driv-en.workers.dev',
   'partners':          'https://driven-referral-api.driv-en.workers.dev'
 };
 
-/**
- * Main onRequest handler for Pages Functions
- */
 export async function onRequest(context) {
   const { request, params } = context;
   const url = new URL(request.url);
+  const origin = request.headers.get('Origin') || '*';
 
-  // Handle CORS preflight OPTIONS requests immediately
+  // Handle CORS preflight OPTIONS requests
   if (request.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': origin,
+        'Access-Control-Allow-Credentials': 'true',
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, PATCH',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, x-org-id, x-user-id',
         'Access-Control-Max-Age': '86400'
@@ -71,11 +70,8 @@ export async function onRequest(context) {
     });
   }
 
-  // Extract path components (params.path contains sub-path segments after /api/)
   const pathSegments = params.path || [];
   const primaryRoute = pathSegments[0] ? pathSegments[0].toLowerCase() : '';
-
-  // Find target worker base URL
   const targetWorkerBase = WORKER_ROUTES[primaryRoute];
 
   if (!targetWorkerBase) {
@@ -92,11 +88,9 @@ export async function onRequest(context) {
     );
   }
 
-  // Construct target URL — preserve /api/ prefix and exact path segment casing
   const fullPath = pathSegments.join('/');
   const targetUrl = `${targetWorkerBase}/api/${fullPath}${url.search}`;
 
-  // Clone headers and remove host header
   const proxyHeaders = new Headers(request.headers);
   proxyHeaders.delete('host');
 
@@ -105,17 +99,16 @@ export async function onRequest(context) {
     headers: proxyHeaders
   };
 
-  // Pass through request body for non-GET/HEAD methods
   if (request.method !== 'GET' && request.method !== 'HEAD') {
-    proxyOptions.body = request.body;
+    proxyOptions.body = await request.arrayBuffer();
   }
 
   try {
     const response = await fetch(targetUrl, proxyOptions);
 
-    // Attach CORS headers to proxy response
     const responseHeaders = new Headers(response.headers);
-    responseHeaders.set('Access-Control-Allow-Origin', '*');
+    responseHeaders.set('Access-Control-Allow-Origin', origin);
+    responseHeaders.set('Access-Control-Allow-Credentials', 'true');
     responseHeaders.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
     responseHeaders.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-org-id, x-user-id');
 
