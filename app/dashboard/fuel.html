@@ -173,7 +173,7 @@
 @media (max-width: 800px) { .purchase-form-grid { grid-template-columns: 1fr; } }
 </style>
 </head>
-<body data-page-title="Fuel Management" data-required-permission="fuel.view">
+<body data-page-title="Fuel Management" data-required-permission="any">
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
 <div id="dashHeader"></div>
@@ -181,7 +181,7 @@
   <button class="fuel-tab active" data-tab="tanks" onclick="switchTab('tanks')">Tanks</button>
   <button class="fuel-tab" data-tab="transactions" onclick="switchTab('transactions')">Transactions</button>
   <button class="fuel-tab" data-tab="alerts" onclick="switchTab('alerts')">Fuel Alerts</button>
-  <a class="fuel-tab-home" id="dashHomeLink" href="/app/dashboard/employee-dashboard.html">Dashboard</a>
+  <button class="fuel-tab-home" id="dashHomeLink" onclick="goToMainDashboard()">&#8592; Dashboard</button>
   <button class="fuel-tab-logout" onclick="dashLogout()">Logout</button>
 </div>
 <div id="fuelAlertBanner" style="display:none;max-width:1100px;margin:12px auto 0;padding:10px 16px;border-radius:8px;background:#fef3c7;border:1px solid #fcd34d;color:#78350f;font-size:13px;cursor:pointer;position:relative;z-index:1;" onclick="switchTab('alerts')">
@@ -410,6 +410,18 @@ function insertHeaderTitle(){
     var drivenLogo=row1.querySelector('.dash-driven-logo');
     if(drivenLogo)row1.insertBefore(title,drivenLogo);
   }
+}
+
+function goToMainDashboard() {
+  var user = window.dashUser || window.drivenUser;
+  if (!user) {
+    try { user = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user")); } catch(e) {}
+  }
+  if (!user) { window.location.href = '/public/login.html'; return; }
+  var r = (user.role || '').toLowerCase();
+  if (r === 'driv-en founder' || r === 'owner') window.location.href = '/app/dashboard/owner-dashboard.html';
+  else if (r === 'admin') window.location.href = '/app/dashboard/admin.html';
+  else window.location.href = '/app/dashboard/employee-dashboard.html';
 }
 
 window.dashLogout=async function(){
@@ -1015,19 +1027,21 @@ async function submitAdjust(tankId, currentQty, capacity) {
   }
 }
 
-var _initDone=false;
-async function init(){
-  async function startApp(){
-    if(_initDone)return;_initDone=true;
-    var user=window.dashUser;
-    if(!user){window.location.href='/public/login.html';return;}
+var _initDone = false;
+async function init() {
+  async function startApp() {
+    if (_initDone) return;
     
+    var user = window.dashUser || window.drivenUser;
+    if (!user) {
+      try { user = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user")); } catch(e) {}
+    }
+    if (!user) { window.location.href = '/public/login.html'; return; }
+    
+    _initDone = true;
+    window.dashUser = user;
+
     try {
-      var role=(user.role||'').toLowerCase();
-      var dashUrl=role==='admin'?'/app/dashboard/admin.html':'/app/dashboard/employee-dashboard.html';
-      var homeLink=document.getElementById('dashHomeLink');
-      if(homeLink)homeLink.href=dashUrl;
-      
       insertHeaderTitle();
       makeTabsSticky();
       setTimeout(makeTabsSticky, 300);
@@ -1042,13 +1056,15 @@ async function init(){
     } catch (err) {
       console.error('Initialization error:', err);
     } finally {
-      document.getElementById('loading').style.display='none';
-      document.getElementById('dashboard').style.display='block';
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
     }
   }
-  if(window.dashUser){startApp();return;}
-  document.addEventListener('dashSessionLoaded',startApp);
+
+  document.addEventListener('dashSessionLoaded', startApp);
+  if (document.readyState !== 'loading' || window.dashUser) { startApp(); }
 }
+
 init();
 </script>
 <script src="/app/shared/auth-check.js?v=13"></script>
