@@ -211,7 +211,7 @@
     }
   </style>
 </head>
-<body data-page-title="Admin Dashboard" data-required-role="Admin">
+<body data-page-title="Admin Dashboard" data-required-role="Admin,RO-admin,RO-Founder">
   <div class="steel-bg"></div>
   <div class="steel-overlay"></div>
   <div class="page-error-banner" id="pageErrorBanner">
@@ -1304,12 +1304,14 @@ async function loadDashboardStats() {
       if(h && sb && !h.contains(sb)) h.appendChild(sb);
     }
 
-    function insertHeaderTitle(){
+    function insertHeaderTitle(isFounder){
       var r = document.querySelector(".dash-header-row1");
-      if(r && !document.querySelector(".admin-header-title")) {
+      if(r) {
+        var existing = document.querySelector(".admin-header-title");
+        if(existing) existing.remove();
         var t = document.createElement("div");
         t.className = "admin-header-title";
-        t.textContent = "Admin Dashboard";
+        t.textContent = isFounder ? "Founder Admin View" : "Admin Dashboard";
         var logo = r.querySelector(".dash-driven-logo");
         if(logo) r.insertBefore(t, logo);
         else r.appendChild(t);
@@ -1322,13 +1324,14 @@ async function loadDashboardStats() {
         if (!user) { window.location.href = "/public/login.html"; return; }
 
         activeOrgId = user.org_id || localStorage.getItem("driven_org_id");
+        var isFounder = user.role_id === "RO-Founder" || user.role === "DRIV-EN Founder" || user.email === "jblood@digitalsafetyinspection.com";
 
-        document.getElementById("welcome-name").textContent = user.first_name || user.email || "Admin";
-        document.getElementById("welcome-company").textContent = user.org_name || localStorage.getItem("driven_org_name") || "—";
-        document.getElementById("welcome-role").textContent = user.role || user.role_id || "Admin";
+        document.getElementById("welcome-name").textContent = user.first_name || user.email || (isFounder ? "Founder" : "Admin");
+        document.getElementById("welcome-company").textContent = user.org_name || localStorage.getItem("driven_org_name") || "Digital Safety Inspection, LLC";
+        document.getElementById("welcome-role").textContent = user.role || user.role_id || (isFounder ? "DRIV-EN Founder" : "Admin");
         document.getElementById("welcome-email").textContent = user.email || "";
 
-        insertHeaderTitle();
+        insertHeaderTitle(isFounder);
         makeTabsSticky();
 
         try { await loadLogo(); } catch(e){}
