@@ -688,49 +688,55 @@
     function showPageError() { var b=document.getElementById('pageErrorBanner'); if(b) b.classList.add('show'); }
     function dismissPageError() { var b=document.getElementById('pageErrorBanner'); if(b) b.classList.remove('show'); }
 
-    /* Session Preservation mapped to users table (id primary key) */
-    function preserveAndNavigate(event, targetUrl) {
-      if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
+/* Session Preservation mapped to users table (id primary key) */
+function preserveAndNavigate(event, targetUrl) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
 
-      // Safely resolve the active user object from all available references
-      var userObj = currentUserObj || window.dashUser || window.drivenUser;
-      if (!userObj) {
-        try {
-          userObj = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user"));
-        } catch(e) {}
-      }
+  // Auto-append .html if targetUrl doesn't end with .html or query parameters
+  if (targetUrl && !targetUrl.endsWith('.html') && !targetUrl.includes('?')) {
+    targetUrl += '.html';
+  }
 
-      userObj = userObj || {};
+  // Safely resolve active user object
+  var userObj = currentUserObj || window.dashUser || window.drivenUser;
+  if (!userObj) {
+    try {
+      userObj = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user"));
+    } catch(e) {}
+  }
 
-      // Ensure primary key `id` matches the `users` table schema
-      if (!userObj.id && userObj.user_id) {
-        userObj.id = userObj.user_id;
-      }
+  userObj = userObj || {};
 
-      var targetOrg = activeOrgId || userObj.org_id || localStorage.getItem("driven_org_id") || sessionStorage.getItem("driven_org_id") || "org_dsi";
-      var roleVal = userObj.role_id || userObj.role || localStorage.getItem("driven_role") || sessionStorage.getItem("driven_role") || "RO-admin";
-      var userStr = JSON.stringify(userObj);
+  // Ensure primary key `id` matches the `users` table schema
+  if (!userObj.id && userObj.user_id) {
+    userObj.id = userObj.user_id;
+  }
 
-      // Synchronize session values to both localStorage and sessionStorage
-      localStorage.setItem("driven_org_id", targetOrg);
-      localStorage.setItem("driven_user", userStr);
-      localStorage.setItem("driven_role", roleVal);
-      if (userObj.id) {
-        localStorage.setItem("driven_user_id", userObj.id);
-      }
+  var targetOrg = activeOrgId || userObj.org_id || localStorage.getItem("driven_org_id") || "org_dsi";
+  // Always favor role_id ("RO-admin") over display role ("Admin")
+  var roleVal = userObj.role_id || localStorage.getItem("driven_role") || userObj.role || "RO-admin";
+  var userStr = JSON.stringify(userObj);
 
-      sessionStorage.setItem("driven_org_id", targetOrg);
-      sessionStorage.setItem("driven_user", userStr);
-      sessionStorage.setItem("driven_role", roleVal);
-      if (userObj.id) {
-        sessionStorage.setItem("driven_user_id", userObj.id);
-      }
+  // Sync identifiers to both localStorage and sessionStorage
+  localStorage.setItem("driven_org_id", targetOrg);
+  localStorage.setItem("driven_user", userStr);
+  localStorage.setItem("driven_role", roleVal);
+  if (userObj.id) {
+    localStorage.setItem("driven_user_id", userObj.id);
+  }
 
-      window.location.href = targetUrl;
-    }
+  sessionStorage.setItem("driven_org_id", targetOrg);
+  sessionStorage.setItem("driven_user", userStr);
+  sessionStorage.setItem("driven_role", roleVal);
+  if (userObj.id) {
+    sessionStorage.setItem("driven_user_id", userObj.id);
+  }
+
+  window.location.href = targetUrl;
+}
 
     function validateOrgContext() {
       if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
