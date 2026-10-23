@@ -1192,7 +1192,7 @@ function showError(msg) {
 }
 
 // =========================================================================
-// CUSTOMERS TAB LOGIC
+// CUSTOMERS TAB LOGIC (EXCLUDES ORG_DSI)
 // =========================================================================
 
 var allCustomers = [];
@@ -1213,8 +1213,13 @@ async function loadCustomers() {
     var data = await resp.json();
 
     if (data && data.success && data.customers) {
-      allCustomers = data.customers;
-      renderCustomerStats(data.customers);
+      // STRICT FILTER: Exclude the founder organization (org_dsi)
+      allCustomers = data.customers.filter(function(c) {
+        var orgId = String(c.org_id || c.customer_id || c.id || '').trim().toLowerCase();
+        return orgId !== 'org_dsi' && orgId !== 'dsi';
+      });
+
+      renderCustomerStats(allCustomers);
       customerCurrentPage = 1;
       renderCustomersTable();
     } else {
@@ -1244,9 +1249,17 @@ function renderCustomerStats(customers) {
 
 function getFilteredCustomers() {
   var queryEl = document.getElementById('customerSearchInput');
-  var query = queryEl && queryEl.value ? queryEl.value.toLowerCase() : '';
-  if (!query) return allCustomers;
-  return allCustomers.filter(function(c) {
+  var query = queryEl && queryEl.value ? queryEl.value.toLowerCase().trim() : '';
+
+  // Base list filtered to ensure org_dsi never slips through
+  var baseList = allCustomers.filter(function(c) {
+    var orgId = String(c.org_id || c.customer_id || c.id || '').trim().toLowerCase();
+    return orgId !== 'org_dsi' && orgId !== 'dsi';
+  });
+
+  if (!query) return baseList;
+
+  return baseList.filter(function(c) {
     var name = (c.company_name || c.organization_name || c.name || '').toLowerCase();
     var email = (c.admin_email || c.contact_email || c.email || '').toLowerCase();
     return name.indexOf(query) !== -1 || email.indexOf(query) !== -1;
