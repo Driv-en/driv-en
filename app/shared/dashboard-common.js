@@ -7,6 +7,15 @@
   function safeSetItem(key, value) { try { localStorage.setItem(key, value); } catch (e) { } }
   function safeRemoveItem(key) { try { localStorage.removeItem(key); } catch (e) { } }
 
+  function getAuthHeaders() {
+    var headers = {};
+    var token = safeGetItem("driven_session_token");
+    if (token) {
+      headers["Authorization"] = "Bearer " + token;
+    }
+    return headers;
+  }
+
   (function registerPWA() {
     if (!document.querySelector('link[rel="manifest"]')) {
       var manifestLink = document.createElement('link');
@@ -65,7 +74,18 @@
   }
 
   window.dashLogout = async function() {
-    try { await fetch("/auth/logout", { method: "POST", credentials: "include" }); } catch (e) { console.error("Logout error:", e.message); }
+    try { 
+      await fetch("/auth/logout", { 
+        method: "POST", 
+        headers: getAuthHeaders(),
+        credentials: "include" 
+      }); 
+    } catch (e) { 
+      console.error("Logout error:", e.message); 
+    }
+    safeRemoveItem("driven_session_token");
+    safeRemoveItem("driven_customer_id");
+    safeRemoveItem("driven_org_id");
     window.location.href = "/public/login.html";
   };
 
@@ -79,7 +99,10 @@
     var area = document.getElementById("dashCustomerLogoArea");
     if (!area) return;
     try {
-      var logoRes = await fetch("/auth/get-logo", { credentials: "include" });
+      var logoRes = await fetch("/auth/get-logo", { 
+        headers: getAuthHeaders(),
+        credentials: "include" 
+      });
       if (!logoRes.ok) throw new Error("Logo fetch failed: " + logoRes.status);
       var logoData = await logoRes.json();
       if (logoData.success && logoData.logo) {
@@ -114,7 +137,17 @@
 
   async function loadSession() {
     try {
-      var response = await fetch("/auth/session", { credentials: "include" });
+      var response = await fetch("/auth/session", { 
+        headers: getAuthHeaders(),
+        credentials: "include" 
+      });
+      if (response.status === 401) {
+        safeRemoveItem("driven_session_token");
+        safeRemoveItem("driven_customer_id");
+        safeRemoveItem("driven_org_id");
+        window.location.href = "/public/login.html";
+        return false;
+      }
       var data = await response.json();
       if (data.authenticated && data.user) {
         dashUser = data.user;
@@ -175,6 +208,9 @@
           && currentPage.indexOf('project-management') === -1
           && currentPage.indexOf('company-management') === -1;
         if (isMainDashboard) { sessionStorage.setItem('driven_dashboard_origin', currentPage); }
+        
+        // Dispatch session event immediately once session user is assigned
+        document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: dashUser }));
         return true;
       }
     } catch (e) { console.error("Session load error:", e.message); }
@@ -194,12 +230,6 @@
   else { init(); }
 
   document.addEventListener("dashSessionLoaded", function() { window.dashUser = dashUser; });
-  var originalLoadSession = loadSession;
-  loadSession = async function() {
-    var result = await originalLoadSession();
-    document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: dashUser }));
-    return result;
-  };
 
   var SESSION_REFRESH_MS = 30 * 60 * 1000;
   var sessionRefreshTimer = null;
@@ -212,9 +242,20 @@
 
   async function refreshSessionToken() {
     try {
-      var resp = await fetch("/auth/refresh", { method: "POST", credentials: "include" });
-      if (resp.ok) { scheduleSessionRefresh(); }
-      else { console.warn("Session refresh failed:", resp.status); }
+      var resp = await fetch("/auth/refresh", { 
+        method: "POST", 
+        headers: getAuthHeaders(),
+        credentials: "include" 
+      });
+      if (resp.ok) { 
+        var refreshData = await resp.json();
+        if (refreshData.token) {
+          safeSetItem("driven_session_token", refreshData.token);
+        }
+        scheduleSessionRefresh(); 
+      } else { 
+        console.warn("Session refresh failed:", resp.status); 
+      }
     } catch (e) { console.warn("Session refresh error:", e.message); }
   }
 
