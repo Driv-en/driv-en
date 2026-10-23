@@ -30,7 +30,7 @@
     .dash-header-row1 { padding:8px 20px !important; align-items:center; width: 100% !important; box-sizing: border-box; }
     .admin-header-title { flex:1; text-align:center; font-size:20px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     
-    /* Sticky Navigation Bars & Mobile Horizontal Scroll */
+    /* Mobile-Optimized Sticky Navigation Bars */
     .admin-tab-bar { 
       display: flex !important; 
       gap: 4px; 
@@ -39,14 +39,16 @@
       margin: 0 auto; 
       padding: 0 12px; 
       overflow-x: auto !important; 
+      position: -webkit-sticky !important;
       position: sticky !important; 
       top: 0px !important; 
-      z-index: 9999 !important; 
+      z-index: 99999 !important; 
       background: #cbd5e1; 
       border-bottom: 2px solid #94a3b8; 
       box-sizing: border-box; 
       -webkit-overflow-scrolling: touch; 
       white-space: nowrap;
+      will-change: transform;
     }
     :root[data-theme="dark"] .admin-tab-bar { background:#334155; border-bottom-color:#475569; }
 
@@ -85,14 +87,16 @@
       margin: 0 auto; 
       padding: 0 12px; 
       overflow-x: auto !important; 
+      position: -webkit-sticky !important;
       position: sticky !important; 
       top: 42px !important; 
-      z-index: 9998 !important; 
+      z-index: 99998 !important; 
       background: #475569; 
       border-bottom: 2px solid #334155; 
       box-sizing: border-box; 
       -webkit-overflow-scrolling: touch; 
       white-space: nowrap;
+      will-change: transform;
     }
     .admin-subtab-bar.visible { display:flex !important; }
     .admin-subtab { flex: 0 0 auto; background:#22c55e; border:1px solid #16a34a; border-bottom:none; border-radius:8px 8px 0 0; padding:8px 18px; font-size:14px; font-weight:500; color:#fff; cursor:pointer; white-space:nowrap; }
@@ -258,8 +262,7 @@
       .admin-subtab-blue { padding:6px 14px !important; font-size:12px !important; }
     }
   </style>
-</head>
-<body data-page-title="Admin Dashboard" data-required-role="RO-admin">
+</head> <body data-page-title="Admin Dashboard" data-required-role="RO-admin">
   <div class="steel-bg"></div>
   <div class="steel-overlay"></div>
   <div class="page-error-banner" id="pageErrorBanner">
@@ -664,10 +667,12 @@
     function showPageError() { var b=document.getElementById('pageErrorBanner'); if(b) b.classList.add('show'); }
     function dismissPageError() { var b=document.getElementById('pageErrorBanner'); if(b) b.classList.remove('show'); }
 
+    /* Fast, Unblocked Navigation Handler */
     function navigateTo(targetUrl) {
-      if (activeOrgId) {
-        localStorage.setItem("driven_org_id", activeOrgId);
+      if (!activeOrgId) {
+        activeOrgId = localStorage.getItem("driven_org_id") || "org_dsi";
       }
+      localStorage.setItem("driven_org_id", activeOrgId);
       window.location.href = targetUrl;
     }
 
@@ -695,7 +700,7 @@
     }
     window.addEventListener('error', function(e) { reportError('window.onerror', e.error || e.message); showPageError(); });
 
-    /* ===== Safe API Request Helper ===== */
+    /* ===== Safe Fast API Request Helper ===== */
     async function safeFetch(url, options) {
       options = options || {};
       options.headers = options.headers || {};
@@ -703,14 +708,20 @@
       options.headers["x-org-id"] = activeOrgId || storedUser.org_id || localStorage.getItem("driven_org_id") || "";
       options.headers["x-user-role"] = "RO-admin";
 
+      var controller = new AbortController();
+      var timeoutId = setTimeout(function() { controller.abort(); }, 5000);
+      options.signal = controller.signal;
+
       try {
         var res = await fetch(url, options);
+        clearTimeout(timeoutId);
         if (res.status === 401 || res.status === 403) {
-          console.warn("[AdminDashboard] Unauthorized response from:", url);
+          console.warn("[AdminDashboard] Session warning from:", url);
           return null;
         }
         return res;
       } catch (err) {
+        clearTimeout(timeoutId);
         reportError("safeFetch", err);
         return null;
       }
@@ -899,7 +910,6 @@
           fetchSafe(['/api/Clients?active_only=true', '/api/Clients', '/api/clients'])
         ]);
 
-        // 1. Employees
         var empData = results[0];
         var empList = empData.employees || empData.personnel || empData.users || empData.data || empData.records || (Array.isArray(empData) ? empData : []);
         var empCount = empList.filter(function(e) { 
@@ -912,21 +922,18 @@
         if (elEmp) elEmp.textContent = empCount;
         localStorage.setItem('driven_employee_count', empCount);
 
-        // 2. Projects
         var projData = results[1];
         var projList = projData.projects || projData.data || projData.records || (Array.isArray(projData) ? projData : []);
         var elProj = document.getElementById('stat-projects');
         if (elProj) elProj.textContent = projList.length;
         localStorage.setItem('driven_project_count', projList.length);
 
-        // 3. Assets / Equipment
         var assetData = results[2];
         var assetList = assetData.equipment || assetData.assets || assetData.data || assetData.records || (Array.isArray(assetData) ? assetData : []);
         var elEq = document.getElementById('stat-equipment');
         if (elEq) elEq.textContent = assetList.length;
         localStorage.setItem('driven_equipment_count', assetList.length);
 
-        // 4. Active Clients
         var clientData = results[3];
         var clientList = clientData.clients || clientData.records || clientData.data || clientData.results || (Array.isArray(clientData) ? clientData : []);
         var activeClients = clientList.filter(function(c) {
@@ -941,7 +948,6 @@
 
       } catch (e) {
         console.error('loadDashboardStats error:', e);
-        if (window.reportError) reportError('loadDashboardStats', e);
         var elE = document.getElementById('stat-employees'); if (elE) elE.textContent = localStorage.getItem('driven_employee_count') || '0';
         var elP = document.getElementById('stat-projects'); if (elP) elP.textContent = localStorage.getItem('driven_project_count') || '0';
         var elEq = document.getElementById('stat-equipment'); if (elEq) elEq.textContent = localStorage.getItem('driven_equipment_count') || '0';
@@ -1360,10 +1366,6 @@
     function closeCompleteModal(){ document.getElementById("confirmModal").classList.remove("active"); }
     function hideOnboardingTab(){ var t = document.querySelector('[data-tab="onboarding"]'); if(t) t.style.display = "none"; }
 
-    function makeTabsSticky(){
-      /* Native CSS sticky behavior on .admin-tab-bar / .admin-subtab-bar handles pinning automatically */
-    }
-
     function insertHeaderTitle(){
       var r = document.querySelector(".dash-header-row1");
       if(r) {
@@ -1401,19 +1403,21 @@
       document.getElementById("welcome-email").textContent = user.email || "";
 
       insertHeaderTitle();
-      makeTabsSticky();
 
-      try { await loadLogo(); } catch(e){}
-      try { await loadSettings(); } catch(e){}
-      try { await loadKeyPersonnel(); } catch(e){}
-      try { updateProgress(); } catch(e){}
-      try { updateThemeSwitch(); } catch(e){}
-      try { renderFormsTab(); } catch(e){}
-
+      /* Instantly Reveal UI First for Maximum Speed */
       document.getElementById("loading").style.display = "none";
       document.getElementById("dashboard").style.display = "block";
 
-      loadDashboardStats().catch(function(e){ reportError("init-loadDashboardStats", e); });
+      /* Non-blocking Async Loading */
+      setTimeout(function() {
+        loadLogo().catch(function(e){ reportError("loadLogo", e); });
+        loadSettings().catch(function(e){ reportError("loadSettings", e); });
+        loadKeyPersonnel().catch(function(e){ reportError("loadKeyPersonnel", e); });
+        updateProgress();
+        updateThemeSwitch();
+        renderFormsTab();
+        loadDashboardStats().catch(function(e){ reportError("init-loadDashboardStats", e); });
+      }, 0);
     }
 
     async function init() {
