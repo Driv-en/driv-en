@@ -1319,34 +1319,41 @@ async function loadDashboardStats() {
       }
     }
 
+    async function startAdminApp(user) {
+      if (!user) { window.location.href = "/public/login.html"; return; }
+
+      activeOrgId = user.org_id || localStorage.getItem("driven_org_id");
+      var isFounder = user.role_id === "RO-Founder" || user.role === "DRIV-EN Founder" || user.email === "jblood@digitalsafetyinspection.com";
+
+      document.getElementById("welcome-name").textContent = user.first_name || user.email || (isFounder ? "Founder" : "Admin");
+      document.getElementById("welcome-company").textContent = user.org_name || localStorage.getItem("driven_org_name") || "Digital Safety Inspection, LLC";
+      document.getElementById("welcome-role").textContent = user.role || user.role_id || (isFounder ? "DRIV-EN Founder" : "Admin");
+      document.getElementById("welcome-email").textContent = user.email || "";
+
+      insertHeaderTitle(isFounder);
+      makeTabsSticky();
+
+      try { await loadLogo(); } catch(e){}
+      try { await loadSettings(); } catch(e){}
+      try { await loadKeyPersonnel(); } catch(e){}
+      try { updateProgress(); } catch(e){}
+      try { updateThemeSwitch(); } catch(e){}
+      try { renderFormsTab(); } catch(e){}
+
+      document.getElementById("loading").style.display = "none";
+      document.getElementById("dashboard").style.display = "block";
+
+      loadDashboardStats().catch(function(e){ reportError("init-loadDashboardStats", e); });
+    }
+
     async function init() {
-      document.addEventListener("dashSessionLoaded", async function() {
-        var user = window.dashUser;
-        if (!user) { window.location.href = "/public/login.html"; return; }
-
-        activeOrgId = user.org_id || localStorage.getItem("driven_org_id");
-        var isFounder = user.role_id === "RO-Founder" || user.role === "DRIV-EN Founder" || user.email === "jblood@digitalsafetyinspection.com";
-
-        document.getElementById("welcome-name").textContent = user.first_name || user.email || (isFounder ? "Founder" : "Admin");
-        document.getElementById("welcome-company").textContent = user.org_name || localStorage.getItem("driven_org_name") || "Digital Safety Inspection, LLC";
-        document.getElementById("welcome-role").textContent = user.role || user.role_id || (isFounder ? "DRIV-EN Founder" : "Admin");
-        document.getElementById("welcome-email").textContent = user.email || "";
-
-        insertHeaderTitle(isFounder);
-        makeTabsSticky();
-
-        try { await loadLogo(); } catch(e){}
-        try { await loadSettings(); } catch(e){}
-        try { await loadKeyPersonnel(); } catch(e){}
-        try { updateProgress(); } catch(e){}
-        try { updateThemeSwitch(); } catch(e){}
-        try { renderFormsTab(); } catch(e){}
-
-        document.getElementById("loading").style.display = "none";
-        document.getElementById("dashboard").style.display = "block";
-
-        loadDashboardStats().catch(function(e){ reportError("init-loadDashboardStats", e); });
-      });
+      if (window.dashUser) {
+        startAdminApp(window.dashUser);
+      } else {
+        document.addEventListener("dashSessionLoaded", async function(e) {
+          startAdminApp(e.detail || window.dashUser);
+        });
+      }
 
       window.addEventListener("driven_completion_updated", function() {
         updateProgress();
