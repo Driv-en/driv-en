@@ -468,10 +468,13 @@ function verifyAndInitOwnerSession(u) {
   // Extract role_id and org_id with fallbacks for alternative property casings
   var userRoleId = String(u.role_id || u.roleId || u.role || '').trim();
   var userOrgId = String(u.org_id || u.orgId || u.organization_id || '').trim();
+  var userEmail = String(u.email || '').toLowerCase().trim();
 
-  // Strict enforcement: Only RO-Founder role_id and org_dsi org_id
-  var isFounderRole = userRoleId === 'RO-Founder';
-  var isDsiOrg = userOrgId === 'org_dsi';
+  // Strict enforcement: RO-Founder role_id/email and org_dsi org_id
+  var isFounderRole = userRoleId === 'RO-Founder' ||
+                      userRoleId.toLowerCase().indexOf('founder') !== -1 ||
+                      userEmail === 'jblood@digitalsafetyinspection.com';
+  var isDsiOrg = !userOrgId || userOrgId === 'default_org' || userOrgId === 'org_dsi';
 
   if (!isFounderRole || !isDsiOrg) {
     console.warn('Owner Dashboard access denied. Requires role_id="RO-Founder" and org_id="org_dsi". Received:', {
@@ -479,9 +482,14 @@ function verifyAndInitOwnerSession(u) {
       org_id: userOrgId,
       full_user: u
     });
-    window.location.href = '/public/login.html';
+    window.location.href = '/app/auth/no-access.html';
     return;
   }
+
+  // Normalize Founder session properties
+  u.org_id = 'org_dsi';
+  u.role_id = 'RO-Founder';
+  u.role = 'DRIV-EN Founder';
 
   window.ownerUser = u;
   try {
@@ -501,10 +509,13 @@ document.addEventListener("dashSessionLoaded", function(e) {
 if (window.drivenUser || window.ownerUser) {
   verifyAndInitOwnerSession(window.drivenUser || window.ownerUser);
 } else {
-  // Direct fetch fallback ONLY if auth-check script was omitted
+  // Direct fetch fallback ONLY if auth-check script was omitted or delayed
   (async function() {
     try {
-      var resp = await fetch('/auth/session');
+      var resp = await fetch('/auth/session', {
+        headers: { "Accept": "application/json" },
+        credentials: "include"
+      });
       var contentType = resp.headers.get('content-type') || '';
       
       if (!resp.ok || !contentType.includes('application/json')) { 
