@@ -142,6 +142,28 @@
 .ai-field-legend .swatch-green { background: #dcfce7; border-color: #86efac; }
 .ai-field-legend .swatch-orange { background: #fed7aa; border-color: #fb923c; }
 
+/* CUSTOM INPUT DROPDOWN ARROW */
+.input-with-arrow {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.input-with-arrow input {
+  width: 100%;
+  padding-right: 32px !important;
+}
+.input-with-arrow::after {
+  content: '';
+  position: absolute;
+  right: 12px;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid var(--text-muted, #64748b);
+}
+
 /* LINE ITEMS */
 .line-items-section { margin-bottom: 20px; }
 .line-items-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
@@ -758,7 +780,7 @@ function addLineItem(data) {
   var bulkTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'bulk' && (t.status === 'active' || !t.status); }));
   var dragupTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'dragup' && (t.status === 'active' || !t.status); }));
   var portableTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'portable' && (t.status === 'active' || !t.status); }));
-  var equipmentAssets = allAssets; // Include all retrieved organization assets
+  var equipmentAssets = allAssets;
 
   var assetMap = {};
   var datalistOptions = '';
@@ -812,7 +834,9 @@ function addLineItem(data) {
         '</select>' +
       '</div>' +
       '<div class="purchase-field"><label class="purchase-label">Asset <span style="color:#cc0000;">*</span></label>' +
-        '<input type="text" class="purchase-input line-destination" placeholder="Type to search…" list="' + lineId + '-assets" autocomplete="off" oninput="markFormDirty()">' +
+        '<div class="input-with-arrow">' +
+          '<input type="text" class="purchase-input line-destination" placeholder="Type to search…" list="' + lineId + '-assets" autocomplete="off" oninput="markFormDirty()">' +
+        '</div>' +
         '<datalist id="' + lineId + '-assets">' + datalistOptions + '</datalist>' +
       '</div>' +
       '<div class="purchase-field"><label class="purchase-label">Qty (gal) <span style="color:#cc0000;">*</span></label>' +
@@ -1405,6 +1429,7 @@ async function _doExtraction(file, previewContent, status, preview) {
     console.error('extractReceipt error:', e);
   }
 }
+
 function showConfidenceBanner(extracted) {
   var banner = document.getElementById('aiConfidenceBanner');
   var conf = extracted.confidence || 0;
