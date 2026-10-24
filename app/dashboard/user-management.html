@@ -30,12 +30,16 @@
       --primary-blue-hover: #1d4ed8;
     }
 
+    /* Force document level visibility so sticky calculations never fail */
     html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      overflow-x: hidden;
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+      height: auto !important;
+      min-height: 100% !important;
+      overflow-x: hidden !important;
       overflow-y: visible !important;
+      position: relative !important;
     }
 
     .admin-loading {
@@ -51,18 +55,21 @@
     .dash-header-row3 { display: none !important; }
     #dashHeader .dash-theme-wrapper { display: none !important; }
 
-    /* Sticky Header Bar - Locked to Top */
+    /* HARD LOCK: Main Sticky Header Bar at Absolute Top */
     #dashHeader {
+      display: block !important;
       position: -webkit-sticky !important;
       position: sticky !important;
       top: 0 !important;
-      left: 0;
-      right: 0;
-      z-index: 1000 !important;
-      width: 100%;
-      background: var(--bg-card, #ffffff);
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-      will-change: transform;
+      left: 0 !important;
+      right: 0 !important;
+      width: 100% !important;
+      z-index: 9999 !important;
+      background: var(--bg-card, #ffffff) !important;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1) !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      transform: translateZ(0); /* Hardware acceleration lock */
     }
 
     .dash-header-row1 {
@@ -89,7 +96,7 @@
       margin-top: 2px;
     }
 
-    /* Secondary Tab Bar - Fixed / Sticky Directly Below Header Bar */
+    /* Secondary Sticky Tab Navigation Bar (Stacked Directly Beneath Main Header Bar) */
     .um-tab-bar {
       display: flex !important;
       visibility: visible !important;
@@ -104,12 +111,12 @@
       position: -webkit-sticky !important;
       position: sticky !important;
       top: var(--header-height, 58px) !important;
-      z-index: 999 !important;
+      z-index: 9998 !important;
       background: #cbd5e1;
       border-bottom: 2px solid #94a3b8;
       box-sizing: border-box;
       -webkit-overflow-scrolling: touch;
-      will-change: transform, position;
+      transform: translateZ(0);
     }
 
     @media screen and (max-width: 768px) {
@@ -226,7 +233,7 @@
     .um-toast.error { background: #dc2626; }
     .um-toast.success { background: #16a34a; }
 
-    /* Header Card */
+    /* Welcome Banner */
     .um-welcome {
       background: var(--bg-card);
       border: 2px solid var(--card-green-border);
@@ -546,7 +553,7 @@
       width: 100%;
       height: 100%;
       background: rgba(0, 0, 0, 0.5);
-      z-index: 1000;
+      z-index: 10000;
       align-items: center;
       justify-content: center;
       padding: 20px;
@@ -586,7 +593,7 @@
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 16px;
-      z-index: 1000 !important;
+      z-index: 10000 !important;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
       max-height: 320px;
       overflow-y: auto;
@@ -1035,20 +1042,28 @@
     var visibleUserCols = {}, userColWidths = {};
     var visibleEmpCols = {}, empColWidths = {};
 
-    /* Measure Header & Set Dynamic Sticky Offset for Tabs */
+    /* Neutralize any ancestor container preventing sticky layout */
+    function sanitizeStickyAncestors() {
+      var node = document.getElementById("dashHeader");
+      while (node && node !== document.documentElement) {
+        if (node !== document.getElementById("dashHeader")) {
+          var style = window.getComputedStyle(node);
+          if (style.overflow !== 'visible' || style.overflowX !== 'visible' || style.overflowY !== 'visible') {
+            node.style.setProperty('overflow', 'visible', 'important');
+            node.style.setProperty('overflow-x', 'visible', 'important');
+            node.style.setProperty('overflow-y', 'visible', 'important');
+          }
+        }
+        node = node.parentElement;
+      }
+    }
+
+    /* Dynamic Measurement & Stacking Handler */
     function makeTabsSticky() {
+      sanitizeStickyAncestors();
       var h = document.getElementById("dashHeader");
       var tb = document.getElementById("umTabBar");
       if (h && tb) {
-        var parent = h.parentElement;
-        while (parent && parent !== document.body) {
-          var cs = window.getComputedStyle(parent);
-          if (cs.overflow === 'hidden' || cs.overflowX === 'hidden' || cs.overflowY === 'hidden') {
-            parent.style.overflow = 'visible';
-          }
-          parent = parent.parentElement;
-        }
-
         var rect = h.getBoundingClientRect();
         var hHeight = rect.height || (window.innerWidth <= 768 ? 50 : 58);
         document.documentElement.style.setProperty('--header-height', hHeight + 'px');
