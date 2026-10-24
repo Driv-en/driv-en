@@ -1310,6 +1310,7 @@ async function _doExtraction(file, previewContent, status, preview) {
       var fileTypeLabel = data.receipt && data.receipt.file_type === 'pdf' ? 'PDF' : 'Image';
       status.textContent = '✓ Extraction complete (' + confPct + '% confidence, ' + fileTypeLabel + ', ' + (data.processing_time_ms || 0) + 'ms)';
       document.getElementById('aiFieldLegend').style.display = 'flex';
+      
       if (data.extracted.vendor) {
         var vendorEl = document.getElementById('purchaseVendor');
         vendorEl.value = data.extracted.vendor;
@@ -1320,14 +1321,31 @@ async function _doExtraction(file, previewContent, status, preview) {
         dateEl.value = data.extracted.receipt_date;
         dateEl.classList.add('ai-extracted');
       }
+
+      // Handle Payment Type & Conditional Fields (Credit Card / Fleet Card / PO)
       if (data.extracted.payment_type) {
         var payEl = document.getElementById('purchasePaymentType');
         if (payEl) {
-          payEl.value = data.extracted.payment_type;
+          var normPay = String(data.extracted.payment_type).toLowerCase();
+          if (normPay.indexOf('fleet') !== -1) {
+            payEl.value = 'Fleet Card';
+          } else if (normPay.indexOf('credit') !== -1 || normPay.indexOf('card') !== -1 || normPay.indexOf('visa') !== -1 || normPay.indexOf('mastercard') !== -1 || normPay.indexOf('amex') !== -1) {
+            payEl.value = 'Credit Card';
+          } else if (normPay.indexOf('account') !== -1 || normPay.indexOf('po') !== -1) {
+            payEl.value = 'On Account';
+          } else if (normPay.indexOf('cash') !== -1) {
+            payEl.value = 'Cash';
+          } else if (normPay.indexOf('check') !== -1) {
+            payEl.value = 'Check';
+          } else {
+            payEl.value = data.extracted.payment_type;
+          }
           payEl.classList.add('ai-extracted');
-          handlePaymentTypeChange(payEl);
+          handlePaymentTypeChange(payEl); // Show/hide P.O. Number or Card Last 4
         }
       }
+
+      // Auto-populate Card Last 4 / Ref #
       if (data.extracted.card_last_4) {
         var cardEl = document.getElementById('purchaseCardLast4');
         if (cardEl) {
@@ -1335,6 +1353,16 @@ async function _doExtraction(file, previewContent, status, preview) {
           cardEl.classList.add('ai-extracted');
         }
       }
+
+      // Auto-populate PO Number if extracted
+      if (data.extracted.po_number) {
+        var poEl = document.getElementById('purchasePONumber');
+        if (poEl) {
+          poEl.value = data.extracted.po_number;
+          poEl.classList.add('ai-extracted');
+        }
+      }
+
       var rtExtracted = data.extracted.receipt_total || data.extracted.total_amount;
       if (rtExtracted) {
         var rtEl = document.getElementById('receiptTotal');
@@ -1377,7 +1405,6 @@ async function _doExtraction(file, previewContent, status, preview) {
     console.error('extractReceipt error:', e);
   }
 }
-
 function showConfidenceBanner(extracted) {
   var banner = document.getElementById('aiConfidenceBanner');
   var conf = extracted.confidence || 0;
