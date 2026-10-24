@@ -476,20 +476,28 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             if (result.must_change_password) {
-                window.location.href = "/public/change-password.html";
+                window.location.replace("/public/change-password.html");
                 return;
             }
 
-            // Prioritize server-directed location, fallback to role mapping
-            if (result.redirect) {
-                window.location.href = result.redirect;
-            } else if (result.user && (result.user.role_id === "RO-Founder" || result.user.role === "DRIV-EN Founder")) {
-                window.location.href = "/app/dashboard/owner-dashboard.html";
+            // Determine target path safely (Founder takes priority over standard redirect)
+            let targetPath = "";
+
+            if (result.user && (result.user.role_id === "RO-Founder" || result.user.role === "DRIV-EN Founder")) {
+                targetPath = "/app/dashboard/owner-dashboard.html";
+            } else if (result.redirect) {
+                targetPath = result.redirect;
             } else if (result.user && (result.user.role_id === "RO-admin" || result.user.role === "Admin")) {
-                window.location.href = "/app/dashboard/admin.html";
+                targetPath = "/app/dashboard/admin.html";
             } else {
-                window.location.href = "/app/dashboard/employee-dashboard.html";
+                targetPath = "/app/dashboard/employee-dashboard.html";
             }
+
+            // Small tick delay guarantees localStorage values are flushed before navigation begins
+            setTimeout(() => {
+                window.location.replace(targetPath);
+            }, 50);
+
         } catch (err) {
             console.error("Login submission error:", err);
             errorBanner.textContent = "A network error occurred. Please try again.";
