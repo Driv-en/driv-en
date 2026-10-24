@@ -946,7 +946,7 @@
       let c5 = parseListCount(responses[4], ["driven_divisions", "driven_division_count"]);
       if (c5 > 0) setCardKpi(5, c5 + " Divisions Configured");
 
-      let c6 = parseListCount(responses[5], ["driven_project_types", "driven_project_type_count"]);
+      let c6 = parseListCount(responses[6], ["driven_project_types", "driven_project_type_count"]);
       if (c6 > 0) setCardKpi(6, c6 + " Project Types Configured");
 
       let c7 = parseListCount(responses[6], ["driven_projects", "driven_project_count"]);
@@ -1042,38 +1042,90 @@
       }
     }
 
-    async function init() {
-      document.addEventListener("dashSessionLoaded", async function(e) {
-        var user = window.dashUser;
-        if (!user) { window.location.href = "/public/login.html"; return; }
-        currentUser = user;
-        activeOrgId = user.org_id || (e.detail && e.detail.org_id) || localStorage.getItem("driven_org_id") || "";
+    async function processSessionUser(user, orgIdDetail) {
+      if (!user) {
+        window.location.href = "/public/login.html";
+        return;
+      }
+      currentUser = user;
+      activeOrgId = user.org_id || orgIdDetail || localStorage.getItem("driven_org_id") || "";
 
-        var firstName = user.first_name || "";
-        var greeting = document.getElementById("greetingText");
-        if (firstName) { greeting.innerHTML = "Welcome, <strong>" + firstName + "</strong>"; }
-        var fullName = (user.first_name || "") + (user.last_name ? " " + user.last_name : "");
-        document.getElementById("account-name").textContent = fullName || user.email || "";
-        document.getElementById("account-email").textContent = user.email || "";
-        document.getElementById("account-role").textContent = user.role || "User";
-        insertHeaderTitle();
-        makeTabsSticky();
-        updateThemeSwitch();
-        var roleLower = (user.role) ? user.role.toLowerCase() : "";
-        if (roleLower === "admin" || roleLower === "administrator" || roleLower.indexOf("founder") !== -1) {
-          isAdmin = true;
-          var adminTabInit = document.getElementById("obTabBar").querySelector('[data-tab="admin"]');
-          if (adminTabInit) adminTabInit.style.display = "inline-block";
-          var kpBanner = document.getElementById("kpMarkCompleteBanner");
-          if (kpBanner) kpBanner.style.display = "none";
-        }
-        await loadSettings();
-        loadTaskCompletions();
-        await loadKeyPersonnel();
-        loadOnboardingKPIs();
-        document.getElementById("loading").style.display = "none";
-        document.getElementById("dashboard").style.display = "block";
+      localStorage.setItem("driven_user", JSON.stringify(user));
+      if (user.id) localStorage.setItem("driven_user_id", String(user.id));
+      if (activeOrgId) localStorage.setItem("driven_org_id", activeOrgId);
+      if (user.customer_id) localStorage.setItem("driven_customer_id", user.customer_id);
+
+      var firstName = user.first_name || "";
+      var greeting = document.getElementById("greetingText");
+      if (firstName) { greeting.innerHTML = "Welcome, <strong>" + firstName + "</strong>"; }
+      var fullName = (user.first_name || "") + (user.last_name ? " " + user.last_name : "");
+      document.getElementById("account-name").textContent = fullName || user.email || "";
+      document.getElementById("account-email").textContent = user.email || "";
+      document.getElementById("account-role").textContent = user.role || "User";
+      insertHeaderTitle();
+      makeTabsSticky();
+      updateThemeSwitch();
+      var roleLower = (user.role) ? user.role.toLowerCase() : "";
+      if (roleLower === "admin" || roleLower === "administrator" || roleLower.indexOf("founder") !== -1) {
+        isAdmin = true;
+        var adminTabInit = document.getElementById("obTabBar").querySelector('[data-tab="admin"]');
+        if (adminTabInit) adminTabInit.style.display = "inline-block";
+        var kpBanner = document.getElementById("kpMarkCompleteBanner");
+        if (kpBanner) kpBanner.style.display = "none";
+      }
+      await loadSettings();
+      loadTaskCompletions();
+      await loadKeyPersonnel();
+      loadOnboardingKPIs();
+      document.getElementById("loading").style.display = "none";
+      document.getElementById("dashboard").style.display = "block";
+    }
+
+    async function init() {
+      var sessionHandled = false;
+
+      document.addEventListener("dashSessionLoaded", async function(e) {
+        if (sessionHandled) return;
+        sessionHandled = true;
+        var user = window.dashUser;
+        var orgId = e.detail ? e.detail.org_id : "";
+        await processSessionUser(user, orgId);
       });
+
+      setTimeout(async function() {
+        if (sessionHandled) return;
+        try {
+          var res = await fetch("/auth/get-user");
+          if (res.ok) {
+            var data = await res.json();
+            if (data.success && data.user) {
+              sessionHandled = true;
+              window.dashUser = data.user;
+              await processSessionUser(data.user, data.user.org_id);
+              return;
+            }
+          }
+        } catch (e) {
+          console.error("Direct auth lookup error:", e);
+        }
+        
+        var savedUser = localStorage.getItem("driven_user");
+        if (!sessionHandled && savedUser) {
+          try {
+            var parsed = JSON.parse(savedUser);
+            if (parsed && parsed.email) {
+              sessionHandled = true;
+              window.dashUser = parsed;
+              await processSessionUser(parsed, parsed.org_id);
+              return;
+            }
+          } catch(e) {}
+        }
+        
+        if (!sessionHandled) {
+          window.location.href = "/public/login.html";
+        }
+      }, 500);
     }
 
     init();
