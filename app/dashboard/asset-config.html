@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Asset Configuration | DRIV-EN</title>
-  <link rel="stylesheet" href="styles/dashboard.css?v=10">
+  <link rel="stylesheet" href="/app/shared/dashboard.css?v=11">
   <style>
     :root {
       --bg-card: #ffffff;
@@ -64,7 +64,6 @@
       background: var(--bg-card);
     }
 
-    /* Toggle row styles */
     .toggle-row {
       display: flex;
       align-items: center;
@@ -122,6 +121,9 @@
     }
 
     .actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
+    .am-message { padding: 12px; border-radius: 6px; margin-bottom: 16px; font-size: 14px; display: none; }
+    .am-message.success { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+    .am-message.error { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
   </style>
 </head>
 <body>
@@ -132,7 +134,9 @@
     <a href="asset-management.html" class="btn-secondary">← Back to Asset Management</a>
   </div>
 
-  <!-- Mode & Selector Selection -->
+  <div id="statusMsg" class="am-message"></div>
+
+  <!-- Selection Controls -->
   <div class="card">
     <div class="grid-2">
       <div class="form-group">
@@ -147,9 +151,6 @@
         <label for="selectAsset">Select Asset Number</label>
         <select id="selectAsset" onchange="onAssetSelected()">
           <option value="">-- Choose Asset --</option>
-          <option value="EQ-101" data-type="Excavator">EQ-101 (Excavator)</option>
-          <option value="TRK-204" data-type="Service Truck">TRK-204 (Service Truck)</option>
-          <option value="GEN-005" data-type="Generator">GEN-005 (Generator)</option>
         </select>
       </div>
 
@@ -157,21 +158,15 @@
         <label for="selectType">Select Asset Type</label>
         <select id="selectType" onchange="onTypeSelected()">
           <option value="">-- Choose Type --</option>
-          <option value="Excavator">Excavator</option>
-          <option value="Service Truck">Service Truck</option>
-          <option value="Generator">Generator</option>
         </select>
       </div>
     </div>
   </div>
 
-  <!-- Dynamic Rules Config Engine -->
+  <!-- Dynamic Rules Panel -->
   <div class="card" id="configPanel" style="opacity: 0.5; pointer-events: none;">
-    <div class="mode-banner" id="modeBanner">
-      Editing default template rules for this asset category.
-    </div>
+    <div class="mode-banner" id="modeBanner">Select an option above to configure rules.</div>
 
-    <!-- Override Toggle for specific assets -->
     <div class="toggle-row" id="overrideRow" style="background: #f8fafc; padding: 12px; border-radius: 6px; margin-bottom: 16px;">
       <div>
         <div class="toggle-title">Override Asset Type Defaults</div>
@@ -184,7 +179,6 @@
     </div>
 
     <div id="formFields">
-      <!-- 1. Meter Tracking -->
       <div class="section-title">1. Usage & Meter Tracking</div>
       <div class="toggle-row">
         <div>
@@ -208,7 +202,6 @@
         </label>
       </div>
 
-      <!-- 2. Inspection Rules -->
       <div class="section-title">2. Inspection & Safety Triggers</div>
       <div class="form-group" style="margin-bottom: 12px;">
         <label for="inspectionTemplate">Inspection Checklist Template</label>
@@ -230,7 +223,6 @@
         </label>
       </div>
 
-      <!-- 3. Preventative Maintenance -->
       <div class="section-title">3. Preventative Maintenance (PM) Intervals</div>
       <div class="grid-2" style="margin-bottom: 12px;">
         <div class="form-group">
@@ -251,52 +243,143 @@
 </div>
 
 <script>
-  window.addEventListener('DOMContentLoaded', () => {
-    // Check if an asset number was passed via URL parameter
+  let allAssets = [];
+  let assetTypes = [];
+
+  window.addEventListener('DOMContentLoaded', async () => {
+    await loadInitialData();
+
     const urlParams = new URLSearchParams(window.location.search);
+    const target = urlParams.get('target');
     const assetNumber = urlParams.get('assetNumber');
-    if (assetNumber) {
+
+    if (target === 'template') {
+      document.getElementById('configTarget').value = 'template';
+      onTargetTypeChange();
+    } else if (assetNumber) {
       document.getElementById('selectAsset').value = assetNumber;
       onAssetSelected();
     }
   });
+
+  async function loadInitialData() {
+    try {
+      const resp = await fetch('/api/Equipment');
+      if (resp.ok) {
+        const data = await resp.json();
+        allAssets = data.records || data || [];
+        populateAssetDropdown();
+      }
+
+      const typesResp = await fetch('/auth/get-settings');
+      if (typesResp.ok) {
+        const tData = await typesResp.json();
+        assetTypes = tData.settings?.asset_types || [];
+        populateTypeDropdown();
+      }
+    } catch (e) {
+      console.error('Failed to load assets or types:', e);
+    }
+  }
+
+  function populateAssetDropdown() {
+    const sel = document.getElementById('selectAsset');
+    sel.innerHTML = '<option value="">-- Choose Asset --</option>';
+    allAssets.forEach(a => {
+      const num = a.asset_number || a.assetNumber || a.name;
+      const type = a.category || a.type || '';
+      if (num) {
+        const opt = document.createElement('option');
+        opt.value = num;
+        opt.setAttribute('data-type', type);
+        opt.textContent = `${num} ${type ? '(' + type + ')' : ''}`;
+        sel.appendChild(opt);
+      }
+    });
+  }
+
+  function populateTypeDropdown() {
+    const sel = document.getElementById('selectType');
+    sel.innerHTML = '<option value="">-- Choose Type --</option>';
+    assetTypes.forEach(t => {
+      const name = typeof t === 'object' ? t.name : String(t);
+      if (name) {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        sel.appendChild(opt);
+      }
+    });
+  }
 
   function onTargetTypeChange() {
     const target = document.getElementById('configTarget').value;
     document.getElementById('assetSelectGroup').style.display = target === 'specific' ? 'flex' : 'none';
     document.getElementById('typeSelectGroup').style.display = target === 'template' ? 'flex' : 'none';
     document.getElementById('overrideRow').style.display = target === 'specific' ? 'flex' : 'none';
-    
-    // Reset selection
+
     document.getElementById('selectAsset').value = '';
     document.getElementById('selectType').value = '';
     document.getElementById('configPanel').style.opacity = '0.5';
     document.getElementById('configPanel').style.pointerEvents = 'none';
   }
 
-  function onAssetSelected() {
+  async function onAssetSelected() {
+    const assetNum = document.getElementById('selectAsset').value;
+    if (!assetNum) return;
+
     const select = document.getElementById('selectAsset');
-    if (select.value) {
-      document.getElementById('configPanel').style.opacity = '1';
-      document.getElementById('configPanel').style.pointerEvents = 'auto';
-      document.getElementById('modeBanner').innerText = `Configuring specific rules for Asset: ${select.value}`;
-      toggleFormLock();
-    }
+    const assetType = select.options[select.selectedIndex]?.getAttribute('data-type') || '';
+
+    document.getElementById('configPanel').style.opacity = '1';
+    document.getElementById('configPanel').style.pointerEvents = 'auto';
+    document.getElementById('modeBanner').innerText = `Configuring specific rules for Asset: ${assetNum}`;
+
+    await fetchAndApplyConfig('specific', assetNum, assetType);
   }
 
-  function onTypeSelected() {
-    const select = document.getElementById('selectType');
-    if (select.value) {
-      document.getElementById('configPanel').style.opacity = '1';
-      document.getElementById('configPanel').style.pointerEvents = 'auto';
-      document.getElementById('modeBanner').innerText = `Editing default template rules for all ${select.value} assets.`;
-      enableForm();
+  async function onTypeSelected() {
+    const typeName = document.getElementById('selectType').value;
+    if (!typeName) return;
+
+    document.getElementById('configPanel').style.opacity = '1';
+    document.getElementById('configPanel').style.pointerEvents = 'auto';
+    document.getElementById('modeBanner').innerText = `Editing global template rules for: ${typeName}`;
+
+    await fetchAndApplyConfig('template', typeName);
+    enableForm();
+  }
+
+  async function fetchAndApplyConfig(targetType, key, assetType = '') {
+    try {
+      let url = `/api/asset-config?targetType=${targetType}&key=${encodeURIComponent(key)}`;
+      if (assetType) url += `&assetType=${encodeURIComponent(assetType)}`;
+
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (data.success && data.config) {
+        const c = data.config;
+        document.getElementById('overrideDefaults').checked = c.isOverride || false;
+        document.getElementById('trackHours').checked = c.trackHours ?? true;
+        document.getElementById('trackOdometer').checked = c.trackOdometer ?? false;
+        document.getElementById('inspectionTemplate').value = c.inspectionTemplate || 'heavy_machinery';
+        document.getElementById('autoWorkOrder').checked = c.autoWorkOrder ?? true;
+        document.getElementById('pmMeterInterval').value = c.pmMeterInterval || 250;
+        document.getElementById('pmCalendarInterval').value = c.pmCalendarInterval || 180;
+      } else {
+        document.getElementById('overrideDefaults').checked = false;
+      }
+      toggleFormLock();
+    } catch (e) {
+      console.error('Config fetch failed:', e);
     }
   }
 
   function toggleFormLock() {
-    const isOverride = document.getElementById('overrideDefaults').checked;
     const target = document.getElementById('configTarget').value;
+    const isOverride = document.getElementById('overrideDefaults').checked;
+
     if (target === 'specific' && !isOverride) {
       disableForm();
     } else {
@@ -305,17 +388,63 @@
   }
 
   function disableForm() {
-    const fields = document.querySelectorAll('#formFields input, #formFields select');
-    fields.forEach(f => f.disabled = true);
+    document.querySelectorAll('#formFields input, #formFields select').forEach(f => f.disabled = true);
   }
 
   function enableForm() {
-    const fields = document.querySelectorAll('#formFields input, #formFields select');
-    fields.forEach(f => f.disabled = false);
+    document.querySelectorAll('#formFields input, #formFields select').forEach(f => f.disabled = false);
   }
 
-  function saveConfiguration() {
-    alert('Configuration saved successfully!');
+  async function saveConfiguration() {
+    const targetType = document.getElementById('configTarget').value;
+    const key = targetType === 'specific' 
+      ? document.getElementById('selectAsset').value 
+      : document.getElementById('selectType').value;
+
+    if (!key) {
+      showMessage('Please select an asset or type before saving.', 'error');
+      return;
+    }
+
+    const payload = {
+      targetType,
+      key,
+      config: {
+        isOverride: document.getElementById('overrideDefaults').checked,
+        trackHours: document.getElementById('trackHours').checked,
+        trackOdometer: document.getElementById('trackOdometer').checked,
+        inspectionTemplate: document.getElementById('inspectionTemplate').value,
+        autoWorkOrder: document.getElementById('autoWorkOrder').checked,
+        pmMeterInterval: Number(document.getElementById('pmMeterInterval').value),
+        pmCalendarInterval: Number(document.getElementById('pmCalendarInterval').value),
+        updatedAt: new Date().toISOString()
+      }
+    };
+
+    try {
+      const resp = await fetch('/api/asset-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const resData = await resp.json();
+
+      if (resp.ok && resData.success) {
+        showMessage(`Configuration saved for ${key}`, 'success');
+      } else {
+        showMessage(resData.error || 'Failed to save configuration', 'error');
+      }
+    } catch (e) {
+      showMessage(`Save error: ${e.message}`, 'error');
+    }
+  }
+
+  function showMessage(msg, type) {
+    const el = document.getElementById('statusMsg');
+    el.textContent = msg;
+    el.className = `am-message ${type}`;
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 4000);
   }
 </script>
 
