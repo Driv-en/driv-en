@@ -42,7 +42,7 @@
     .admin-nav-sticky-container {
       position: -webkit-sticky !important;
       position: sticky !important;
-      top: 50px; /* Offset for Header Height */
+      top: 0px; /* Dynamically calculated by adjustStickyOffsets */
       z-index: 99999 !important;
       width: 100%;
       background: #cbd5e1;
@@ -93,7 +93,7 @@
     .admin-subtab-sticky-container {
       position: -webkit-sticky !important;
       position: sticky !important;
-      top: 92px; /* Offset below tab bar */
+      top: 0px; /* Dynamically calculated by adjustStickyOffsets */
       z-index: 99998 !important;
       width: 100%;
       background: #475569;
@@ -688,55 +688,50 @@
     function showPageError() { var b=document.getElementById('pageErrorBanner'); if(b) b.classList.add('show'); }
     function dismissPageError() { var b=document.getElementById('pageErrorBanner'); if(b) b.classList.remove('show'); }
 
-/* Session Preservation mapped to users table (id primary key) */
-function preserveAndNavigate(event, targetUrl) {
-  if (event) {
-    event.preventDefault();
-    event.stopPropagation();
-  }
+    /* Session Preservation mapped to users table (id primary key) */
+    function preserveAndNavigate(event, targetUrl) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
 
-  // Auto-append .html if targetUrl doesn't end with .html or query parameters
-  if (targetUrl && !targetUrl.endsWith('.html') && !targetUrl.includes('?')) {
-    targetUrl += '.html';
-  }
+      if (targetUrl && !targetUrl.endsWith('.html') && !targetUrl.includes('?')) {
+        targetUrl += '.html';
+      }
 
-  // Safely resolve active user object
-  var userObj = currentUserObj || window.dashUser || window.drivenUser;
-  if (!userObj) {
-    try {
-      userObj = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user"));
-    } catch(e) {}
-  }
+      var userObj = currentUserObj || window.dashUser || window.drivenUser;
+      if (!userObj) {
+        try {
+          userObj = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user"));
+        } catch(e) {}
+      }
 
-  userObj = userObj || {};
+      userObj = userObj || {};
 
-  // Ensure primary key `id` matches the `users` table schema
-  if (!userObj.id && userObj.user_id) {
-    userObj.id = userObj.user_id;
-  }
+      if (!userObj.id && userObj.user_id) {
+        userObj.id = userObj.user_id;
+      }
 
-  var targetOrg = activeOrgId || userObj.org_id || localStorage.getItem("driven_org_id") || "org_dsi";
-  // Always favor role_id ("RO-admin") over display role ("Admin")
-  var roleVal = userObj.role_id || localStorage.getItem("driven_role") || userObj.role || "RO-admin";
-  var userStr = JSON.stringify(userObj);
+      var targetOrg = activeOrgId || userObj.org_id || localStorage.getItem("driven_org_id") || "org_dsi";
+      var roleVal = userObj.role_id || localStorage.getItem("driven_role") || userObj.role || "RO-admin";
+      var userStr = JSON.stringify(userObj);
 
-  // Sync identifiers to both localStorage and sessionStorage
-  localStorage.setItem("driven_org_id", targetOrg);
-  localStorage.setItem("driven_user", userStr);
-  localStorage.setItem("driven_role", roleVal);
-  if (userObj.id) {
-    localStorage.setItem("driven_user_id", userObj.id);
-  }
+      localStorage.setItem("driven_org_id", targetOrg);
+      localStorage.setItem("driven_user", userStr);
+      localStorage.setItem("driven_role", roleVal);
+      if (userObj.id) {
+        localStorage.setItem("driven_user_id", userObj.id);
+      }
 
-  sessionStorage.setItem("driven_org_id", targetOrg);
-  sessionStorage.setItem("driven_user", userStr);
-  sessionStorage.setItem("driven_role", roleVal);
-  if (userObj.id) {
-    sessionStorage.setItem("driven_user_id", userObj.id);
-  }
+      sessionStorage.setItem("driven_org_id", targetOrg);
+      sessionStorage.setItem("driven_user", userStr);
+      sessionStorage.setItem("driven_role", roleVal);
+      if (userObj.id) {
+        sessionStorage.setItem("driven_user_id", userObj.id);
+      }
 
-  window.location.href = targetUrl;
-}
+      window.location.href = targetUrl;
+    }
 
     function validateOrgContext() {
       if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
@@ -762,16 +757,17 @@ function preserveAndNavigate(event, targetUrl) {
     }
     window.addEventListener('error', function(e) { reportError('window.onerror', e.error || e.message); showPageError(); });
 
-    /* Mobile Sticky Offset Calculator */
+    /* Dynamic Mobile & Desktop Sticky Offset Calculator */
     function adjustStickyOffsets() {
       var header = document.getElementById("dashHeader");
       var stickyContainer = document.getElementById("adminNavStickyContainer");
       var subtabContainer = document.getElementById("onboardingSubtabBar");
       if (header && stickyContainer) {
-        var headerHeight = header.offsetHeight || 50;
+        var headerHeight = header.getBoundingClientRect().height || header.offsetHeight || 50;
         stickyContainer.style.top = headerHeight + "px";
         if (subtabContainer) {
-          subtabContainer.style.top = (headerHeight + stickyContainer.offsetHeight) + "px";
+          var tabHeight = stickyContainer.getBoundingClientRect().height || stickyContainer.offsetHeight || 40;
+          subtabContainer.style.top = (headerHeight + tabHeight) + "px";
         }
       }
     }
@@ -1476,7 +1472,6 @@ function preserveAndNavigate(event, targetUrl) {
 
       activeOrgId = user.org_id || localStorage.getItem("driven_org_id") || sessionStorage.getItem("driven_org_id") || "org_dsi";
 
-      /* Ensure persistent auth state across page transfers (users table mapping) */
       if (!user.id && user.user_id) user.id = user.user_id;
       var userStr = JSON.stringify(user);
 
@@ -1500,6 +1495,8 @@ function preserveAndNavigate(event, targetUrl) {
       /* Instantly Reveal Dashboard UI */
       document.getElementById("loading").style.display = "none";
       document.getElementById("dashboard").style.display = "block";
+      
+      // Recalculate sticky offsets immediately after showing dashboard
       adjustStickyOffsets();
 
       /* Non-blocking Background Operations */
@@ -1525,9 +1522,14 @@ function preserveAndNavigate(event, targetUrl) {
       }
 
       window.addEventListener("resize", adjustStickyOffsets);
+      window.addEventListener("orientationchange", adjustStickyOffsets);
+      window.addEventListener("scroll", adjustStickyOffsets, { passive: true });
       window.addEventListener("driven_completion_updated", function() {
         updateProgress();
       });
+
+      // Recalculate on window load to ensure images/fonts in header don't alter sticky math
+      window.addEventListener("load", adjustStickyOffsets);
 
       if (syncChannel) {
         syncChannel.onmessage = function(msg) {
