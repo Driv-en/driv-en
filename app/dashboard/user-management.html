@@ -23,7 +23,7 @@
   </script>
   <style>
     :root {
-      --header-height: 60px;
+      --header-height: 58px;
       --card-green-border: #16a34a;
       --blue-line: #1e3a8a;
       --primary-blue: #2563eb;
@@ -34,6 +34,9 @@
       margin: 0;
       padding: 0;
       width: 100%;
+      overflow-x: hidden;
+      /* Ensure no parent html/body container breaks sticky positioning */
+      overflow-y: visible !important;
     }
 
     .admin-loading {
@@ -54,7 +57,9 @@
       position: -webkit-sticky !important;
       position: sticky !important;
       top: 0 !important;
-      z-index: 100 !important;
+      z-index: 1000 !important;
+      width: 100%;
+      background: var(--bg-card, #ffffff);
     }
 
     .dash-header-row1 {
@@ -81,7 +86,7 @@
       margin-top: 2px;
     }
 
-    /* Secondary Tab Bar - Sticky Directly Below Header Bar */
+    /* Secondary Tab Bar - Fixed / Sticky Directly Below Header Bar */
     .um-tab-bar {
       display: flex !important;
       visibility: visible !important;
@@ -92,18 +97,23 @@
       margin: 0 auto;
       padding: 0 16px;
       overflow-x: auto;
+      overflow-y: hidden;
       position: -webkit-sticky !important;
       position: sticky !important;
-      top: var(--header-height, 60px) !important;
-      z-index: 99 !important;
+      top: var(--header-height, 58px) !important;
+      z-index: 999 !important;
       background: #cbd5e1;
       border-bottom: 2px solid #94a3b8;
       box-sizing: border-box;
       -webkit-overflow-scrolling: touch;
+      /* Prevent clipping glitches during scroll on WebKit */
+      will-change: transform, position;
     }
 
     @media screen and (max-width: 768px) {
-      :root { --header-height: 50px; }
+      :root { 
+        --header-height: 50px; 
+      }
       .um-tab-bar {
         top: var(--header-height, 50px) !important;
         padding: 0 8px;
@@ -129,6 +139,7 @@
       margin-top: 4px;
       position: relative;
       z-index: 1;
+      flex-shrink: 0;
     }
 
     .um-tab:hover {
@@ -175,6 +186,7 @@
       position: relative;
       z-index: 1;
       transition: background 200ms ease, margin-top 200ms ease;
+      flex-shrink: 0;
     }
 
     .um-tab-logout:hover {
@@ -1027,17 +1039,35 @@
     var visibleUserCols = {}, userColWidths = {};
     var visibleEmpCols = {}, empColWidths = {};
 
-    /* Dynamic Tab Reparenting to ensure absolute stickiness directly below header */
+    /* Dynamic Header Measurement & Dynamic Tab Sticky Positioning */
     function makeTabsSticky() {
-      var h = document.getElementById("dashHeader"), 
-          tb = document.getElementById("umTabBar"); 
+      var h = document.getElementById("dashHeader");
+      var tb = document.getElementById("umTabBar");
       if (h && tb) {
-        if (h.contains && h.contains(tb)) return;
+        // Guarantee parent containers don't clip overflowing elements
+        var parent = h.parentElement;
+        while (parent && parent !== document.body) {
+          var cs = window.getComputedStyle(parent);
+          if (cs.overflow === 'hidden' || cs.overflowX === 'hidden' || cs.overflowY === 'hidden') {
+            parent.style.overflow = 'visible';
+          }
+          parent = parent.parentElement;
+        }
+
+        // Measure actual rendered pixel height of header dynamically
+        var rect = h.getBoundingClientRect();
+        var hHeight = rect.height || (window.innerWidth <= 768 ? 50 : 58);
+        document.documentElement.style.setProperty('--header-height', hHeight + 'px');
+
+        // Reparent immediately after header bar
         if (h.nextElementSibling !== tb) {
           h.parentNode.insertBefore(tb, h.nextSibling);
         }
       }
     }
+
+    window.addEventListener('resize', makeTabsSticky);
+    window.addEventListener('scroll', makeTabsSticky, { passive: true });
 
     function changePageSize(type, size) {
       paginationState[type].pageSize = parseInt(size, 10);
@@ -1186,7 +1216,8 @@
 
     async function initializeUserManagementPage() {
       makeTabsSticky();
-      setTimeout(makeTabsSticky, 300);
+      setTimeout(makeTabsSticky, 100);
+      setTimeout(makeTabsSticky, 500);
 
       var u = window.dashUser || window.drivenUser;
       if (!u) {
@@ -1273,7 +1304,8 @@
       renderUserTableHead();
       renderUserTable();
     }
-    /* System Users Rendering - Emails rendered as plain text */
+    
+    /* System Users Rendering */
     function renderUserTable() {
       var tb = document.getElementById('userTableBody');
       tb.textContent = '';
@@ -1333,7 +1365,7 @@
       });
     }
 
-    /* Employee Directory Rendering - Emails rendered as plain text */
+    /* Employee Directory Rendering */
     function renderEmpTable() {
       var tb = document.getElementById('empTableBody');
       tb.textContent = '';
