@@ -21,6 +21,33 @@
   document.documentElement.setAttribute("data-theme", theme);
 })();
 </script>
+
+<!-- EAGER SESSION CHECK (Runs before auth-check.js to prevent login redirect) -->
+<script>
+(async function() {
+  try {
+    var userStr = localStorage.getItem("driven_user");
+    var hasValidStorage = userStr && userStr !== "undefined" && userStr !== "null";
+    if (!hasValidStorage) {
+      var res = await fetch("/auth/get-user", { method: "GET", headers: { "Accept": "application/json" } });
+      if (res.ok) {
+        var data = await res.json();
+        if (data && (data.user || data.success)) {
+          var u = data.user || data;
+          window.dashUser = u;
+          localStorage.setItem("driven_user", JSON.stringify(u));
+          if (u.id) localStorage.setItem("driven_user_id", String(u.id));
+          if (u.org_id) localStorage.setItem("driven_org_id", u.org_id);
+          if (u.customer_id) localStorage.setItem("driven_customer_id", u.customer_id);
+        }
+      }
+    }
+  } catch(e) {
+    console.warn("Pre-auth session check failed:", e);
+  }
+})();
+</script>
+
 <style>
     .dash-header-row2 { display: none !important; }
     .dash-header-row3 { display: none !important; }
@@ -946,7 +973,7 @@
       let c5 = parseListCount(responses[4], ["driven_divisions", "driven_division_count"]);
       if (c5 > 0) setCardKpi(5, c5 + " Divisions Configured");
 
-      let c6 = parseListCount(responses[6], ["driven_project_types", "driven_project_type_count"]);
+      let c6 = parseListCount(responses[5], ["driven_project_types", "driven_project_type_count"]);
       if (c6 > 0) setCardKpi(6, c6 + " Project Types Configured");
 
       let c7 = parseListCount(responses[6], ["driven_projects", "driven_project_count"]);
@@ -1092,16 +1119,36 @@
         await processSessionUser(user, orgId);
       });
 
+      if (window.dashUser) {
+        sessionHandled = true;
+        await processSessionUser(window.dashUser, window.dashUser.org_id);
+        return;
+      }
+
+      var savedUser = localStorage.getItem("driven_user");
+      if (savedUser && savedUser !== "undefined") {
+        try {
+          var parsed = JSON.parse(savedUser);
+          if (parsed && parsed.email) {
+            sessionHandled = true;
+            window.dashUser = parsed;
+            await processSessionUser(parsed, parsed.org_id);
+            return;
+          }
+        } catch(e) {}
+      }
+
       setTimeout(async function() {
         if (sessionHandled) return;
         try {
           var res = await fetch("/auth/get-user");
           if (res.ok) {
             var data = await res.json();
-            if (data.success && data.user) {
+            if (data && (data.user || data.success)) {
+              var u = data.user || data;
               sessionHandled = true;
-              window.dashUser = data.user;
-              await processSessionUser(data.user, data.user.org_id);
+              window.dashUser = u;
+              await processSessionUser(u, u.org_id);
               return;
             }
           }
@@ -1109,23 +1156,10 @@
           console.error("Direct auth lookup error:", e);
         }
         
-        var savedUser = localStorage.getItem("driven_user");
-        if (!sessionHandled && savedUser) {
-          try {
-            var parsed = JSON.parse(savedUser);
-            if (parsed && parsed.email) {
-              sessionHandled = true;
-              window.dashUser = parsed;
-              await processSessionUser(parsed, parsed.org_id);
-              return;
-            }
-          } catch(e) {}
-        }
-        
         if (!sessionHandled) {
           window.location.href = "/public/login.html";
         }
-      }, 500);
+      }, 300);
     }
 
     init();
