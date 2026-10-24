@@ -169,7 +169,7 @@
 .line-items-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .line-items-header h4 { font-size: 15px; font-weight: 700; color: var(--text); margin: 0; }
 .line-item-row { background: var(--bg-step); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; position: relative; }
-.line-item-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 12px; align-items: end; }
+.line-item-grid { display: grid; grid-template-columns: 1fr 1.2fr 0.8fr 0.8fr 0.8fr auto; gap: 12px; align-items: end; }
 .line-item-grid .purchase-field { min-width: 0; }
 .line-item-remove { background: #fee2e2; border: 1px solid #cc0000; border-radius: 6px; padding: 10px 14px; font-size: 14px; font-weight: 600; color: #cc0000; cursor: pointer; white-space: nowrap; height: fit-content; }
 .line-item-remove:hover { background: #fecaca; }
@@ -817,8 +817,10 @@ function addLineItem(data) {
   var fuelType = (data && data.fuel_type) || 'diesel_onroad';
   var qty = (data && data.gallons) || '';
   var unitPrice = (data && data.unit_price) || '';
+  var meterReading = (data && data.meter_reading) || '';
   var qtyEsc = esc(qty);
   var unitPriceEsc = esc(unitPrice);
+  var meterReadingEsc = esc(meterReading);
 
   div.innerHTML =
     '<div class="line-item-grid">' +
@@ -844,6 +846,9 @@ function addLineItem(data) {
       '</div>' +
       '<div class="purchase-field"><label class="purchase-label">Cost/Gal <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(optional)</span></label>' +
         '<input type="number" class="purchase-input line-cpg" placeholder="$0.00" min="0" step="0.001" value="' + unitPriceEsc + '" oninput="recalcLine(\'' + lineId + '\'); markFormDirty()">' +
+      '</div>' +
+      '<div class="purchase-field"><label class="purchase-label">Meter Reading <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(optional)</span></label>' +
+        '<input type="number" class="purchase-input line-meter" placeholder="hrs/mi" min="0" step="0.1" value="' + meterReadingEsc + '" oninput="markFormDirty()">' +
       '</div>' +
       '<button class="line-item-remove" onclick="removeLineItem(\'' + lineId + '\')">✕</button>' +
     '</div>';
@@ -1402,7 +1407,7 @@ async function _doExtraction(file, previewContent, status, preview) {
         document.getElementById('lineItemsContainer').innerHTML = '';
         lineItemCount = 0;
         data.extracted.line_items.forEach(function(li) {
-          addLineItem({ fuel_type: li.fuel_type || 'diesel_onroad', gallons: li.gallons || li.quantity || '', unit_price: li.unit_price || '', amount: li.amount || '' });
+          addLineItem({ fuel_type: li.fuel_type || 'diesel_onroad', gallons: li.gallons || li.quantity || '', unit_price: li.unit_price || '', amount: li.amount || '', meter_reading: li.meter_reading || '' });
         });
         var lineRows = document.querySelectorAll('.line-item-row');
         data.extracted.line_items.forEach(function(li, idx) {
@@ -1411,6 +1416,7 @@ async function _doExtraction(file, previewContent, status, preview) {
             if (li.fuel_type) row.querySelector('.line-fuel-type').classList.add('ai-extracted');
             if (li.gallons || li.quantity) row.querySelector('.line-qty').classList.add('ai-extracted');
             if (li.unit_price) row.querySelector('.line-cpg').classList.add('ai-extracted');
+            if (li.meter_reading) row.querySelector('.line-meter').classList.add('ai-extracted');
             row.querySelector('.line-destination').classList.add('ai-needed');
           }
         });
@@ -1489,6 +1495,7 @@ async function submitPurchase() {
     var qty = parseFloat(row.querySelector('.line-qty').value);
     var fuelType = row.querySelector('.line-fuel-type').value;
     var cpg = parseFloat(row.querySelector('.line-cpg').value) || null;
+    var meterReading = parseFloat(row.querySelector('.line-meter').value) || null;
 
     if (!qty || qty <= 0 || !isFinite(qty)) { showPurchaseError('Line ' + (i + 1) + ': quantity (gallons) is required and must be > 0'); return; }
     if (!fuelType) { showPurchaseError('Line ' + (i + 1) + ': fuel type is required'); return; }
@@ -1507,7 +1514,8 @@ async function submitPurchase() {
       quantity: qty,
       to_entity_type: parts[0],
       to_entity_id: parts[1],
-      cost_per_gallon: cpg
+      cost_per_gallon: cpg,
+      meter_reading: meterReading
     };
     if (customProjectName) li.project_name = customProjectName;
     if (customAssetName) li.custom_asset_name = customAssetName;
@@ -1749,7 +1757,8 @@ async function loadAssets() {
         var dest = row.querySelector('.line-destination') ? row.querySelector('.line-destination').value : '';
         var qty = row.querySelector('.line-qty') ? row.querySelector('.line-qty').value : '';
         var cpg = row.querySelector('.line-cpg') ? row.querySelector('.line-cpg').value : '';
-        existingRows.push({ fuel_type: ft, dest: dest, gallons: qty, unit_price: cpg });
+        var meter = row.querySelector('.line-meter') ? row.querySelector('.line-meter').value : '';
+        existingRows.push({ fuel_type: ft, dest: dest, gallons: qty, unit_price: cpg, meter_reading: meter });
       });
       document.getElementById('lineItemsContainer').innerHTML = '';
       lineItemCount = 0;
