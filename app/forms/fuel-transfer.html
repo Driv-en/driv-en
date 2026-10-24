@@ -510,15 +510,12 @@ async function loadTanks() {
   try {
     var resp = await fetch(buildApiUrl('/api/fuel-tanks'));
     var data = await resp.json();
-    if (data.success && data.tanks) {
-      allTanks = data.tanks;
-    } else if (data.tanks) {
-      allTanks = data.tanks;
-    } else if (Array.isArray(data)) {
-      allTanks = data;
-    } else if (data.data && Array.isArray(data.data)) {
-      allTanks = data.data;
-    }
+    var list = [];
+    if (Array.isArray(data)) list = data;
+    else if (data && data.tanks) list = data.tanks;
+    else if (data && data.data) list = data.data;
+    else if (data && data.items) list = data.items;
+    allTanks = list;
   } catch (e) {
     console.error('Failed to load tanks:', e);
     reportError('loadTanks', e);
@@ -530,14 +527,15 @@ async function loadAssets() {
     var resp = await fetch(buildApiUrl('/api/assets'));
     var data = await resp.json();
     var list = [];
-    if (data.success && data.assets) list = data.assets;
-    else if (data.success && data.equipment) list = data.equipment;
-    else if (data.assets) list = data.assets;
-    else if (data.equipment) list = data.equipment;
-    else if (Array.isArray(data)) list = data;
-    else if (data.data && Array.isArray(data.data)) list = data.data;
+    if (Array.isArray(data)) list = data;
+    else if (data && data.assets) list = data.assets;
+    else if (data && data.equipment) list = data.equipment;
+    else if (data && data.data) list = data.data;
+    else if (data && data.items) list = data.items;
 
-    allAssets = list.filter(function(a) { return !a.status || a.status === 'active'; });
+    allAssets = list.filter(function(a) { 
+      return a && (!a.status || a.status === 'active' || a.status === 'Active'); 
+    });
   } catch (e) {
     console.error('Failed to load assets:', e);
     reportError('loadAssets', e);
@@ -545,15 +543,15 @@ async function loadAssets() {
 }
 
 async function loadFuelTypes() {
+  var select = document.getElementById('fuelType');
+  select.innerHTML = '<option value="">Select fuel type…</option>';
   try {
     var resp = await fetch(buildApiUrl('/api/fuel-types'));
     var data = await resp.json();
-    var select = document.getElementById('fuelType');
-    select.innerHTML = '<option value="">Select fuel type…</option>';
-    
-    var types = (data && data.success && data.fuel_types) ? data.fuel_types : 
-                (data && data.fuel_types) ? data.fuel_types : 
-                (Array.isArray(data) ? data : []);
+    var types = [];
+    if (Array.isArray(data)) types = data;
+    else if (data && data.fuel_types) types = data.fuel_types;
+    else if (data && data.data) types = data.data;
 
     if (types.length > 0) {
       types.forEach(function(ft) {
@@ -562,51 +560,34 @@ async function loadFuelTypes() {
         opt.textContent = ft.label || ft.name || ft.type_name || ft.value || ft.id;
         select.appendChild(opt);
       });
-    } else {
-      var defaults = [
-        { value: 'diesel_onroad', label: 'Diesel (On-Road)' },
-        { value: 'diesel_offroad', label: 'Diesel (Off-Road)' },
-        { value: 'gasoline', label: 'Gasoline' },
-        { value: 'DEF', label: 'DEF' },
-        { value: 'propane', label: 'Propane' },
-        { value: 'other', label: 'Other' }
-      ];
-      defaults.forEach(function(ft) {
-        var opt = document.createElement('option');
-        opt.value = ft.value;
-        opt.textContent = ft.label;
-        select.appendChild(opt);
-      });
+      return;
     }
   } catch (e) {
     console.error('Failed to load fuel types:', e);
-    // Fallback on error
-    var select = document.getElementById('fuelType');
-    select.innerHTML = '<option value="">Select fuel type…</option>';
-    var defaults = [
-      { value: 'diesel_onroad', label: 'Diesel (On-Road)' },
-      { value: 'diesel_offroad', label: 'Diesel (Off-Road)' },
-      { value: 'gasoline', label: 'Gasoline' },
-      { value: 'DEF', label: 'DEF' },
-      { value: 'propane', label: 'Propane' },
-      { value: 'other', label: 'Other' }
-    ];
-    defaults.forEach(function(ft) {
-      var opt = document.createElement('option');
-      opt.value = ft.value;
-      opt.textContent = ft.label;
-      select.appendChild(opt);
-    });
   }
+
+  // Fallback default options
+  var defaults = [
+    { value: 'diesel_onroad', label: 'Diesel (On-Road)' },
+    { value: 'diesel_offroad', label: 'Diesel (Off-Road)' },
+    { value: 'gasoline', label: 'Gasoline' },
+    { value: 'DEF', label: 'DEF' },
+    { value: 'propane', label: 'Propane' },
+    { value: 'other', label: 'Other' }
+  ];
+  defaults.forEach(function(ft) {
+    var opt = document.createElement('option');
+    opt.value = ft.value;
+    opt.textContent = ft.label;
+    select.appendChild(opt);
+  });
 }
 
 async function loadProjects() {
   try {
     var resp = await fetch(buildApiUrl('/api/projects'));
     var data = await resp.json();
-    var projectsList = (data && data.success && data.projects) ? data.projects : 
-                        (data && data.projects) ? data.projects : 
-                        (Array.isArray(data) ? data : []);
+    var projectsList = Array.isArray(data) ? data : ((data && data.projects) ? data.projects : []);
     var select = document.getElementById('project');
     select.innerHTML = '<option value="">Select project…</option>';
     var seenProjects = new Set();
@@ -634,9 +615,7 @@ async function loadLocations() {
     var data = await resp.json();
     var select = document.getElementById('location');
     select.innerHTML = '<option value="">Select location…</option>';
-    var locList = (data && data.success && data.locations) ? data.locations : 
-                  (data && data.locations) ? data.locations : 
-                  (Array.isArray(data) ? data : []);
+    var locList = Array.isArray(data) ? data : ((data && data.locations) ? data.locations : []);
     var seenLocations = new Set();
 
     locList.forEach(function(loc) {
@@ -681,8 +660,10 @@ function onFromChange() {
       fromAsset.innerHTML = '<option value="">Select equipment…</option>';
       allAssets.forEach(function(a) {
         var opt = document.createElement('option');
-        opt.value = a.id;
-        opt.textContent = (a.asset_number || (a.id ? a.id.slice(0,8) : '')) + ' — ' + (a.name || 'Unnamed') + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
+        opt.value = a.id || a.asset_id || a.asset_number;
+        var nameStr = a.name || a.asset_name || a.equipment_name || 'Unnamed Asset';
+        var numStr = a.asset_number || (a.id ? String(a.id).slice(0,8) : '');
+        opt.textContent = (numStr ? numStr + ' — ' : '') + nameStr + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
         opt.dataset.fuelType = a.fuel_type || '';
         fromAsset.appendChild(opt);
       });
@@ -696,14 +677,14 @@ function onFromChange() {
       if (tankType === 'dragup') return t.tank_type === 'dragup';
       return false;
     });
-    if (matching.length === 0) {
+    if (!matching || matching.length === 0) {
       fromTank.innerHTML = '<option value="">No tanks of this type available</option>';
     } else {
       fromTank.innerHTML = '<option value="">Select tank…</option>';
       matching.forEach(function(t) {
         var opt = document.createElement('option');
-        opt.value = t.id;
-        opt.textContent = t.name + ' — ' + (t.current_quantity||0) + '/' + (t.capacity||0) + ' gal (' + (t.fuel_type||'?') + ')';
+        opt.value = t.id || t.tank_id;
+        opt.textContent = (t.name || 'Tank') + ' — ' + (t.current_quantity||0) + '/' + (t.capacity||0) + ' gal (' + (t.fuel_type||'?') + ')';
         opt.dataset.fuelType = t.fuel_type || '';
         fromTank.appendChild(opt);
       });
@@ -767,10 +748,13 @@ function updateToOptions() {
     assetGroup.label = 'Equipment / Assets';
     allAssets.forEach(function(a) {
       var opt = document.createElement('option');
-      opt.value = 'asset|' + a.id;
-      opt.textContent = (a.asset_number || (a.id ? a.id.slice(0,8) : '')) + ' — ' + (a.name || 'Unnamed') + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
+      var assetId = a.id || a.asset_id || a.asset_number;
+      opt.value = 'asset|' + assetId;
+      var nameStr = a.name || a.asset_name || a.equipment_name || 'Unnamed Asset';
+      var numStr = a.asset_number || (a.id ? String(a.id).slice(0,8) : '');
+      opt.textContent = (numStr ? numStr + ' — ' : '') + nameStr + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
       opt.dataset.destType = 'asset';
-      opt.dataset.destId = a.id;
+      opt.dataset.destId = assetId;
       assetGroup.appendChild(opt);
     });
     toSelect.appendChild(assetGroup);
@@ -789,10 +773,11 @@ function updateToOptions() {
       var matching = allTanks.filter(function(t) { return t.tank_type === tankType; });
       matching.forEach(function(t) {
         var opt = document.createElement('option');
-        opt.value = destType + '|' + t.id;
-        opt.textContent = t.name + ' — ' + (t.current_quantity||0) + '/' + (t.capacity||0) + ' gal (' + (t.fuel_type||'?') + ')';
+        var tankId = t.id || t.tank_id;
+        opt.value = destType + '|' + tankId;
+        opt.textContent = (t.name || 'Tank') + ' — ' + (t.current_quantity||0) + '/' + (t.capacity||0) + ' gal (' + (t.fuel_type||'?') + ')';
         opt.dataset.destType = destType;
-        opt.dataset.destId = t.id;
+        opt.dataset.destId = tankId;
         tankGroup.appendChild(opt);
       });
     });
