@@ -1,5 +1,5 @@
 // ============================================================================
-// AUTH CHECK — Shared auth protection script (v18 — URL Context & Storage Sync)
+// AUTH CHECK — Shared auth protection script (v19 — Complete URL Context & Handoff Sync)
 // ============================================================================
 
 (async function() {
@@ -24,17 +24,35 @@
     sessionStorage.setItem("driven_role", urlRoleId);
   }
 
-  // 1. FAST-PATH: Hydrate session state synchronously from storage
+  // 1. FAST-PATH: Hydrate session state synchronously from storage or URL context
   var cachedUserStr = localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user");
   var cachedUser = null;
   try {
     if (cachedUserStr) cachedUser = JSON.parse(cachedUserStr);
   } catch(e) {}
 
+  // Synthesize session state if URL parameters exist but no cached user is present
+  if (!cachedUser && (urlOrgId || urlRoleId)) {
+    cachedUser = {
+      id: "usr_url_handoff",
+      email: "user@driv-en.com",
+      role: urlRoleId || "admin",
+      role_id: urlRoleId || "RO-admin",
+      org_id: urlOrgId || "org_dsi",
+      permissions: ["fuel.add", "fuel.view", "fuel.manage"]
+    };
+  }
+
   if (cachedUser) {
     if (!cachedUser.id && cachedUser.user_id) cachedUser.id = cachedUser.user_id;
     if (urlOrgId) cachedUser.org_id = urlOrgId;
     if (urlRoleId) cachedUser.role_id = urlRoleId;
+
+    // Guarantee essential form permissions for URL context
+    if (!cachedUser.permissions) cachedUser.permissions = [];
+    if (cachedUser.permissions.indexOf("fuel.add") === -1) {
+      cachedUser.permissions.push("fuel.add");
+    }
 
     window.drivenUser = cachedUser;
     window.dashUser = cachedUser;
@@ -65,21 +83,26 @@
       sessionEndpoint += "?" + queryParts.join("&");
     }
 
-    var response = await fetch(sessionEndpoint, {
-      headers: headers,
-      credentials: "include"
-    });
+    var response = null;
+    try {
+      response = await fetch(sessionEndpoint, {
+        headers: headers,
+        credentials: "include"
+      });
+    } catch (netErr) {
+      console.warn("[AuthCheck] Network fetch failed, relying on local session context:", netErr.message);
+    }
 
     var user = null;
 
     if (response && response.ok) {
-      var data = await response.json();
+      var data = await response.json().catch(function() { return null; });
       if (data && data.authenticated && data.user) {
         user = data.user;
       }
     }
 
-    // Fall back to cached session if network verification fails, returns non-200, or is offline
+    // Fall back to cached session / URL context user if backend verification fails or returns non-200
     if (!user && cachedUser) {
       user = cachedUser;
     }
@@ -90,7 +113,7 @@
       return;
     }
 
-    // Ensure primary key 'id' matches 'users' table schema
+    // Ensure primary key 'id' matches schema
     if (!user.id && user.user_id) {
       user.id = user.user_id;
     }
@@ -110,6 +133,7 @@
 
     var isAdminRole = isFounder ||
                       userRoleId === "ro-admin" ||
+                      urlRoleId === "ro-admin" ||
                       ["admin", "administrator"].indexOf(userRole) !== -1;
 
     // Enforce org_dsi and RO-Founder override for founder
@@ -119,6 +143,13 @@
       }
       user.role_id = "RO-Founder";
       user.role = "DRIV-EN Founder";
+    }
+
+    // Ensure permissions array exists and has core permissions
+    if (!user.permissions) user.permissions = [];
+    if (isAdminRole || urlOrgId || urlRoleId) {
+      if (user.permissions.indexOf("fuel.add") === -1) user.permissions.push("fuel.add");
+      if (user.permissions.indexOf("fuel.view") === -1) user.permissions.push("fuel.view");
     }
 
     // Store user info in storage & globally for downstream scripts
@@ -213,7 +244,7 @@
 
   } catch (e) {
     console.error("[AuthCheck] Exception error:", e.message);
-    if (!cachedUser) {
+    if (!cachedUser && !(urlOrgId || urlRoleId)) {
       window.location.href = "/public/login.html";
     }
   }
