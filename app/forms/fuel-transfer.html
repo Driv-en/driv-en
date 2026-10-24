@@ -493,32 +493,49 @@ document.getElementById('txDate').value = new Date().toISOString().split('T')[0]
 async function loadTanks() {
   try {
     var resp = await fetch(buildApiUrl('/api/fuel-tanks'), { headers: getFetchHeaders() });
+    if (!resp.ok) return;
     var data = await resp.json();
-    var list = Array.isArray(data) ? data : (data && data.tanks ? data.tanks : (data && data.data ? data.data : []));
-    allTanks = list;
+    var list = Array.isArray(data) ? data : (data && (data.records || data.tanks || data.data) ? (data.records || data.tanks || data.data) : []);
+    
+    allTanks = list.map(function(item) {
+      var f = item.fields || item;
+      return {
+        id: item.id || f.id,
+        name: f.name || f['Tank Name'] || f.tank_name || 'Tank',
+        tank_type: f.tank_type || f['Tank Type'] || f.type || 'bulk',
+        current_quantity: f.current_quantity || f['Current Quantity'] || 0,
+        capacity: f.capacity || f.Capacity || 0,
+        fuel_type: f.fuel_type || f['Fuel Type'] || ''
+      };
+    });
   } catch (e) {
     console.error('Failed to load tanks:', e);
     reportError('loadTanks', e);
   }
 }
 
-// ===== LOAD ASSETS (FROM ASSETS TABLE) =====
+// ===== LOAD ASSETS =====
 async function loadAssets() {
   try {
     var resp = await fetch(buildApiUrl('/api/assets'), { headers: getFetchHeaders() });
-    if (!resp.ok) throw new Error('API returned HTTP status ' + resp.status);
+    if (!resp.ok) resp = await fetch(buildApiUrl('/api/equipment'), { headers: getFetchHeaders() });
+    if (!resp.ok) return;
     
     var data = await resp.json();
-    var list = Array.isArray(data) ? data : (data && data.assets ? data.assets : (data && data.data ? data.data : []));
+    var list = Array.isArray(data) ? data : (data && (data.records || data.assets || data.equipment || data.data) ? (data.records || data.assets || data.equipment || data.data) : []);
 
-    // Filter active assets from the assets table
-    allAssets = list.filter(function(a) { 
-      if (!a) return false;
-      if (a.status !== undefined && a.status !== null) {
-        var s = String(a.status).toLowerCase();
-        return s === 'active' || s === '1' || s === 'true';
-      }
-      return true;
+    allAssets = list.map(function(item) {
+      var f = item.fields || item;
+      return {
+        id: item.id || f.id || f.asset_number || f['Equipment ID'],
+        asset_number: f['Equipment ID'] || f.asset_number || f.id || '',
+        name: f['Equipment Name'] || f.name || f.equipment_name || 'Unnamed Asset',
+        category: f['Category'] || f.category || '',
+        status: String(f['Status'] || f.status || 'active').toLowerCase(),
+        fuel_type: f['Fuel Type'] || f.fuel_type || ''
+      };
+    }).filter(function(a) {
+      return a.status === 'active' || a.status === '1' || a.status === 'true';
     });
   } catch (e) {
     console.error('Failed to load assets:', e);
@@ -526,7 +543,7 @@ async function loadAssets() {
   }
 }
 
-// ===== LOAD FUEL TYPES (FROM FUEL_TYPES TABLE ONLY) =====
+// ===== LOAD FUEL TYPES =====
 async function loadFuelTypes() {
   var select = document.getElementById('fuelType');
   select.innerHTML = '<option value="">Select fuel type…</option>';
@@ -535,20 +552,24 @@ async function loadFuelTypes() {
     if (!resp.ok) throw new Error('API returned HTTP status ' + resp.status);
     
     var data = await resp.json();
-    var types = Array.isArray(data) ? data : (data && data.fuel_types ? data.fuel_types : (data && data.data ? data.data : []));
+    var types = Array.isArray(data) ? data : (data && (data.records || data.fuelTypes || data.fuel_types || data.data) ? (data.records || data.fuelTypes || data.fuel_types || data.data) : []);
 
     if (types && types.length > 0) {
-      types.forEach(function(ft) {
+      types.forEach(function(item) {
+        var f = item.fields || item;
+        var val = f.fuel_code || f.code || f.id || f['Fuel Code'] || f['Fuel Name'] || f.fuel_name;
+        var label = f.fuel_name || f['Fuel Name'] || f.name || val;
+        
         var opt = document.createElement('option');
-        opt.value = ft.value || ft.id || ft.name || ft.code;
-        opt.textContent = ft.label || ft.name || ft.type_name || ft.value || ft.id;
+        opt.value = val;
+        opt.textContent = label;
         select.appendChild(opt);
       });
     } else {
       select.innerHTML = '<option value="">No fuel types configured in system</option>';
     }
   } catch (e) {
-    console.error('Failed to load fuel types from fuel_types table:', e);
+    console.error('Failed to load fuel types:', e);
     select.innerHTML = '<option value="">Error loading fuel types</option>';
     reportError('loadFuelTypes', e);
   }
@@ -558,15 +579,17 @@ async function loadFuelTypes() {
 async function loadProjects() {
   try {
     var resp = await fetch(buildApiUrl('/api/projects'), { headers: getFetchHeaders() });
+    if (!resp.ok) return;
     var data = await resp.json();
-    var projectsList = Array.isArray(data) ? data : ((data && data.projects) ? data.projects : (data && data.data ? data.data : []));
+    var projectsList = Array.isArray(data) ? data : (data && (data.records || data.projects || data.data) ? (data.records || data.projects || data.data) : []);
     var select = document.getElementById('project');
     select.innerHTML = '<option value="">Select project (optional)…</option>';
     var seenProjects = new Set();
     
     projectsList.forEach(function(p) {
-      var id = p.id || p.project_id;
-      var name = p.name || p.project_name || id;
+      var f = p.fields || p;
+      var id = p.id || f.id || f.project_id;
+      var name = f['Project Name'] || f.name || f.project_name || id;
       if (id && !seenProjects.has(id)) {
         seenProjects.add(id);
         var opt = document.createElement('option');
@@ -584,14 +607,16 @@ async function loadProjects() {
 async function loadLocations() {
   try {
     var resp = await fetch(buildApiUrl('/api/locations'), { headers: getFetchHeaders() });
+    if (!resp.ok) return;
     var data = await resp.json();
     var select = document.getElementById('location');
     select.innerHTML = '<option value="">Select location…</option>';
-    var locList = Array.isArray(data) ? data : ((data && data.locations) ? data.locations : (data && data.data ? data.data : []));
+    var locList = Array.isArray(data) ? data : (data && (data.records || data.locations || data.data) ? (data.records || data.locations || data.data) : []);
     var seenLocations = new Set();
 
     locList.forEach(function(loc) {
-      var val = typeof loc === 'string' ? loc : (loc.name || loc.id);
+      var f = loc.fields || loc;
+      var val = typeof loc === 'string' ? loc : (f['Location Name'] || f.name || f.id);
       if (val && !seenLocations.has(val)) {
         seenLocations.add(val);
         var opt = document.createElement('option');
@@ -781,7 +806,6 @@ function onToChange() {
   var meterReadingRow = document.getElementById('meterReadingRow');
   var meterReadingInput = document.getElementById('meterReading');
 
-  // Toggle Meter Reading Field when Asset is Selected
   if (destType === 'asset') {
     meterReadingRow.style.display = 'block';
     meterReadingInput.required = true;
