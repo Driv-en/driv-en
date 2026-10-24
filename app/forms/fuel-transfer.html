@@ -533,8 +533,17 @@ async function loadAssets() {
     else if (data && data.data) list = data.data;
     else if (data && data.items) list = data.items;
 
+    // Flexible asset filtering
     allAssets = list.filter(function(a) { 
-      return a && (!a.status || a.status === 'active' || a.status === 'Active'); 
+      if (!a) return false;
+      if (a.status !== undefined && a.status !== null) {
+        var s = String(a.status).toLowerCase();
+        return s === 'active' || s === '1' || s === 'true';
+      }
+      if (a.is_active !== undefined && a.is_active !== null) {
+        return a.is_active === true || a.is_active === 1 || String(a.is_active) === 'true';
+      }
+      return true; // Default to including if no status field is present
     });
   } catch (e) {
     console.error('Failed to load assets:', e);
@@ -660,10 +669,11 @@ function onFromChange() {
       fromAsset.innerHTML = '<option value="">Select equipment…</option>';
       allAssets.forEach(function(a) {
         var opt = document.createElement('option');
-        opt.value = a.id || a.asset_id || a.asset_number;
+        var assetId = a.id || a.asset_id || a.equipment_id || a.asset_number;
+        opt.value = assetId;
         var nameStr = a.name || a.asset_name || a.equipment_name || 'Unnamed Asset';
-        var numStr = a.asset_number || (a.id ? String(a.id).slice(0,8) : '');
-        opt.textContent = (numStr ? numStr + ' — ' : '') + nameStr + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
+        var numStr = a.asset_number || a.asset_num || (a.id ? String(a.id).slice(0,8) : '');
+        opt.textContent = (numStr && numStr !== nameStr ? numStr + ' — ' : '') + nameStr + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
         opt.dataset.fuelType = a.fuel_type || '';
         fromAsset.appendChild(opt);
       });
@@ -713,6 +723,7 @@ function onFromAssetChange() {
   } else {
     info.textContent = '';
   }
+  updateToOptions();
 }
 
 function onFromTankChange() {
@@ -739,25 +750,37 @@ function onFromTankChange() {
 // ===== TO DESTINATION LOGIC =====
 function updateToOptions() {
   var fromType = document.getElementById('fromSource').value;
+  var fromAssetId = document.getElementById('fromAsset').value;
   var toSelect = document.getElementById('toDest');
 
   toSelect.innerHTML = '<option value="">Select destination…</option>';
 
-  if (allAssets && allAssets.length > 0 && fromType !== 'asset') {
+  // Include Equipment/Assets as destinations unless it's selected as the source
+  if (allAssets && allAssets.length > 0) {
     var assetGroup = document.createElement('optgroup');
     assetGroup.label = 'Equipment / Assets';
+    var addedAssets = 0;
+
     allAssets.forEach(function(a) {
+      var assetId = a.id || a.asset_id || a.equipment_id || a.asset_number;
+      // Don't display the selected source asset as its own destination
+      if (fromType === 'asset' && fromAssetId && String(assetId) === String(fromAssetId)) {
+        return;
+      }
       var opt = document.createElement('option');
-      var assetId = a.id || a.asset_id || a.asset_number;
       opt.value = 'asset|' + assetId;
       var nameStr = a.name || a.asset_name || a.equipment_name || 'Unnamed Asset';
-      var numStr = a.asset_number || (a.id ? String(a.id).slice(0,8) : '');
-      opt.textContent = (numStr ? numStr + ' — ' : '') + nameStr + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
+      var numStr = a.asset_number || a.asset_num || (a.id ? String(a.id).slice(0,8) : '');
+      opt.textContent = (numStr && numStr !== nameStr ? numStr + ' — ' : '') + nameStr + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
       opt.dataset.destType = 'asset';
       opt.dataset.destId = assetId;
       assetGroup.appendChild(opt);
+      addedAssets++;
     });
-    toSelect.appendChild(assetGroup);
+
+    if (addedAssets > 0) {
+      toSelect.appendChild(assetGroup);
+    }
   }
 
   var tankDestTypes = [];
@@ -811,6 +834,7 @@ function getTransactionType(fromType, toType) {
   if (fromType === 'asset' && toType === 'bulk_tank') return 'return';
   if (fromType === 'asset' && toType === 'dragup_tank') return 'dragup_fill';
   if (fromType === 'asset' && toType === 'portable_can') return 'portable_fill';
+  if (fromType === 'asset' && toType === 'asset') return 'asset_transfer';
   return null;
 }
 
