@@ -322,6 +322,11 @@ var fuelPhotoSettings = { meter: false, asset: false };
 var fuelPhotos = { meter: null, asset: null };
 var fuelPhotoData = { meter: null, asset: null };
 
+function isMobileDevice() {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+         (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
+}
+
 function getUrlContextParams() {
   var params = new URLSearchParams(window.location.search);
   var context = {};
@@ -379,7 +384,7 @@ function reportError(source, err) {
 
 function checkDeviceLocation() {
   if (!navigator.geolocation) {
-    showLocationPopup('Your device does not support GPS location.');
+    if (isMobileDevice()) showLocationPopup('Your device does not support GPS location.');
     return;
   }
   navigator.geolocation.getCurrentPosition(
@@ -395,12 +400,14 @@ function checkDeviceLocation() {
     function(err) {
       deviceLocation = null;
       updateLocationStatus(false);
-      var msg = 'Location is required to submit forms. ';
-      if (err.code === 1) msg += 'You denied location access. Please enable it in device settings.';
-      else if (err.code === 2) msg += 'Location is unavailable. Check GPS connection.';
-      else if (err.code === 3) msg += 'Location request timed out. Please try again.';
-      else msg += 'Error: ' + err.message;
-      showLocationPopup(msg);
+      if (isMobileDevice()) {
+        var msg = 'Location is required to submit forms. ';
+        if (err.code === 1) msg += 'You denied location access. Please enable it in device settings.';
+        else if (err.code === 2) msg += 'Location is unavailable. Check GPS connection.';
+        else if (err.code === 3) msg += 'Location request timed out. Please try again.';
+        else msg += 'Error: ' + err.message;
+        showLocationPopup(msg);
+      }
     },
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
   );
@@ -409,6 +416,11 @@ function checkDeviceLocation() {
 function updateLocationStatus(hasLocation) {
   var banner = document.getElementById('locationStatusBanner');
   if (!banner) return;
+  if (!isMobileDevice()) {
+    banner.style.display = 'none';
+    return;
+  }
+  banner.style.display = 'block';
   if (hasLocation) {
     banner.className = 'location-banner ok';
     banner.innerHTML = '<strong>📍 Location:</strong> ' + deviceLocation.latitude.toFixed(6) + ', ' + deviceLocation.longitude.toFixed(6) + ' (±' + Math.round(deviceLocation.accuracy) + 'm)';
@@ -436,9 +448,8 @@ function hasDeviceLocation() {
 }
 
 function requireLocationOrPopup() {
+  if (!isMobileDevice()) return true;
   if (hasDeviceLocation()) return true;
-  var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
-  if (!isMobile) return true;
   showLocationPopup('Location is required to submit this form. Please enable location on your device and retry.');
   return false;
 }
@@ -1098,10 +1109,11 @@ async function initPage() {
   document.getElementById('loading').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
 
-  var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
-  if (isMobile && !hasDeviceLocation()) checkDeviceLocation();
-  var banner = document.getElementById('locationStatusBanner');
-  if (banner) banner.style.display = 'block';
+  if (isMobileDevice()) {
+    if (!hasDeviceLocation()) checkDeviceLocation();
+    var banner = document.getElementById('locationStatusBanner');
+    if (banner) banner.style.display = 'block';
+  }
 
   await Promise.all([
     loadTanks(),
