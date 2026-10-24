@@ -17,10 +17,25 @@
 
 <script>
 (function() {
+  // Synchronize theme
   var saved = localStorage.getItem("driven-theme");
   var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   var theme = saved || system;
   document.documentElement.setAttribute("data-theme", theme);
+
+  // Synchronize org_id and role_id into storage immediately before auth-check runs
+  var params = new URLSearchParams(window.location.search);
+  var orgId = params.get('org_id') || params.get('orgId') || params.get('customerId');
+  var roleId = params.get('role_id') || params.get('roleId') || params.get('role');
+  if (orgId) {
+    localStorage.setItem('driven_org_id', orgId);
+    localStorage.setItem('driven_customer_id', orgId);
+    sessionStorage.setItem('driven_org_id', orgId);
+  }
+  if (roleId) {
+    localStorage.setItem('driven_role', roleId);
+    sessionStorage.setItem('driven_role', roleId);
+  }
 })();
 </script>
 
@@ -373,8 +388,8 @@ var fuelPhotoData = { meter: null, asset: null };
 function getUrlContextParams() {
   var params = new URLSearchParams(window.location.search);
   var context = {};
-  var orgId = params.get('org_id');
-  var roleId = params.get('role_id');
+  var orgId = params.get('org_id') || params.get('orgId') || params.get('customerId') || localStorage.getItem('driven_org_id');
+  var roleId = params.get('role_id') || params.get('roleId') || params.get('role') || localStorage.getItem('driven_role');
   if (orgId) context.org_id = orgId;
   if (roleId) context.role_id = roleId;
   return context;
