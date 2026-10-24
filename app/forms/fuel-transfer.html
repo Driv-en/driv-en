@@ -21,40 +21,33 @@
   var theme = saved || system;
   document.documentElement.setAttribute("data-theme", theme);
 
-  // 2. Early session & URL context capture
+  // 2. Early session & URL context capture (org_id only)
   var params = new URLSearchParams(window.location.search);
   var orgId = params.get('org_id') || params.get('orgId') || params.get('customerId');
-  var roleId = params.get('role_id') || params.get('roleId') || params.get('role');
 
   if (orgId) {
     localStorage.setItem('driven_org_id', orgId);
     localStorage.setItem('driven_customer_id', orgId);
     sessionStorage.setItem('driven_org_id', orgId);
   }
-  if (roleId) {
-    localStorage.setItem('driven_role', roleId);
-    sessionStorage.setItem('driven_role', roleId);
-  }
 
-  // 3. Prevent Auth-Check Redirect: If org_id/role_id exist, synthesize/patch local session
+  // 3. Prevent Auth-Check Redirect: If org_id exists, synthesize/patch local session
   var cachedUserStr = localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user");
   var cachedUser = null;
   try { if (cachedUserStr) cachedUser = JSON.parse(cachedUserStr); } catch(e) {}
 
-  if (!cachedUser && (orgId || roleId)) {
+  if (!cachedUser && orgId) {
     cachedUser = {
       id: "usr_admin_handoff",
       email: "admin@driv-en.com",
-      role: roleId || "admin",
-      role_id: roleId || "RO-admin",
-      org_id: orgId || "org_dsi",
+      role: "admin",
+      org_id: orgId,
       permissions: ["fuel.add", "fuel.view", "fuel.manage"]
     };
     localStorage.setItem("driven_user", JSON.stringify(cachedUser));
     sessionStorage.setItem("driven_user", JSON.stringify(cachedUser));
   } else if (cachedUser) {
     if (orgId) cachedUser.org_id = orgId;
-    if (roleId) cachedUser.role_id = roleId;
     if (!cachedUser.permissions) cachedUser.permissions = [];
     if (cachedUser.permissions.indexOf("fuel.add") === -1) cachedUser.permissions.push("fuel.add");
     localStorage.setItem("driven_user", JSON.stringify(cachedUser));
@@ -224,6 +217,13 @@
           </select>
         </div>
 
+        <!-- METER READING FOR ASSET BEING FUELED -->
+        <div class="ft-row" id="meterReadingRow" style="display:none;">
+          <label>Meter Reading (Hours / Miles) <span class="req">*</span></label>
+          <input type="number" id="meterReading" step="0.1" min="0" placeholder="e.g. 1250.5" oninput="markFormDirty()">
+          <div class="hint">Current odometer or hour meter reading of the asset being fueled</div>
+        </div>
+
         <div class="ft-row" id="toTankRow" style="display:none;">
           <label>Which Tank? <span class="req">*</span></label>
           <select id="toTank"></select>
@@ -335,9 +335,7 @@ function getUrlContextParams() {
   var params = new URLSearchParams(window.location.search);
   var context = {};
   var orgId = params.get('org_id') || params.get('orgId') || params.get('customerId') || localStorage.getItem('driven_org_id');
-  var roleId = params.get('role_id') || params.get('roleId') || params.get('role') || localStorage.getItem('driven_role');
   if (orgId) context.org_id = orgId;
-  if (roleId) context.role_id = roleId;
   return context;
 }
 
@@ -345,7 +343,6 @@ function buildApiUrl(endpoint) {
   var ctx = getUrlContextParams();
   var url = new URL(endpoint, window.location.origin);
   if (ctx.org_id) url.searchParams.set('org_id', ctx.org_id);
-  if (ctx.role_id) url.searchParams.set('role_id', ctx.role_id);
   return url.pathname + url.search;
 }
 
@@ -353,7 +350,6 @@ function preserveUrlParams(targetUrl) {
   var ctx = getUrlContextParams();
   var url = new URL(targetUrl, window.location.origin);
   if (ctx.org_id && !url.searchParams.has('org_id')) url.searchParams.set('org_id', ctx.org_id);
-  if (ctx.role_id && !url.searchParams.has('role_id')) url.searchParams.set('role_id', ctx.role_id);
   return url.pathname + url.search;
 }
 
@@ -510,11 +506,7 @@ async function loadTanks() {
   try {
     var resp = await fetch(buildApiUrl('/api/fuel-tanks'));
     var data = await resp.json();
-    var list = [];
-    if (Array.isArray(data)) list = data;
-    else if (data && data.tanks) list = data.tanks;
-    else if (data && data.data) list = data.data;
-    else if (data && data.items) list = data.items;
+    var list = Array.isArray(data) ? data : (data && data.tanks ? data.tanks : []);
     allTanks = list;
   } catch (e) {
     console.error('Failed to load tanks:', e);
@@ -526,24 +518,16 @@ async function loadAssets() {
   try {
     var resp = await fetch(buildApiUrl('/api/assets'));
     var data = await resp.json();
-    var list = [];
-    if (Array.isArray(data)) list = data;
-    else if (data && data.assets) list = data.assets;
-    else if (data && data.equipment) list = data.equipment;
-    else if (data && data.data) list = data.data;
-    else if (data && data.items) list = data.items;
+    var list = Array.isArray(data) ? data : (data && data.assets ? data.assets : []);
 
-    // Flexible asset filtering
+    // Filter by active status
     allAssets = list.filter(function(a) { 
       if (!a) return false;
       if (a.status !== undefined && a.status !== null) {
         var s = String(a.status).toLowerCase();
         return s === 'active' || s === '1' || s === 'true';
       }
-      if (a.is_active !== undefined && a.is_active !== null) {
-        return a.is_active === true || a.is_active === 1 || String(a.is_active) === 'true';
-      }
-      return true; // Default to including if no status field is present
+      return true;
     });
   } catch (e) {
     console.error('Failed to load assets:', e);
@@ -557,16 +541,13 @@ async function loadFuelTypes() {
   try {
     var resp = await fetch(buildApiUrl('/api/fuel-types'));
     var data = await resp.json();
-    var types = [];
-    if (Array.isArray(data)) types = data;
-    else if (data && data.fuel_types) types = data.fuel_types;
-    else if (data && data.data) types = data.data;
+    var types = Array.isArray(data) ? data : (data && data.fuel_types ? data.fuel_types : []);
 
     if (types.length > 0) {
       types.forEach(function(ft) {
         var opt = document.createElement('option');
-        opt.value = ft.value || ft.id || ft.code || ft.name || ft.type_name;
-        opt.textContent = ft.label || ft.name || ft.type_name || ft.value || ft.id;
+        opt.value = ft.value || ft.id || ft.name;
+        opt.textContent = ft.label || ft.name || ft.value || ft.id;
         select.appendChild(opt);
       });
       return;
@@ -602,11 +583,10 @@ async function loadProjects() {
     var seenProjects = new Set();
     
     projectsList.forEach(function(p) {
-      var id = p.id || p.project_id;
-      var name = p.name || p.project_name || id;
-      var key = id + '||' + name;
-      if (id && !seenProjects.has(key)) {
-        seenProjects.add(key);
+      var id = p.id;
+      var name = p.name || id;
+      if (id && !seenProjects.has(id)) {
+        seenProjects.add(id);
         var opt = document.createElement('option');
         opt.value = id;
         opt.textContent = name;
@@ -628,7 +608,7 @@ async function loadLocations() {
     var seenLocations = new Set();
 
     locList.forEach(function(loc) {
-      var val = typeof loc === 'string' ? loc : (loc.name || loc.location_name || loc.id);
+      var val = typeof loc === 'string' ? loc : (loc.name || loc.id);
       if (val && !seenLocations.has(val)) {
         seenLocations.add(val);
         var opt = document.createElement('option');
@@ -669,11 +649,11 @@ function onFromChange() {
       fromAsset.innerHTML = '<option value="">Select equipment…</option>';
       allAssets.forEach(function(a) {
         var opt = document.createElement('option');
-        var assetId = a.id || a.asset_id || a.equipment_id || a.asset_number;
+        var assetId = a.id || a.asset_number;
         opt.value = assetId;
-        var nameStr = a.name || a.asset_name || a.equipment_name || 'Unnamed Asset';
-        var numStr = a.asset_number || a.asset_num || (a.id ? String(a.id).slice(0,8) : '');
-        opt.textContent = (numStr && numStr !== nameStr ? numStr + ' — ' : '') + nameStr + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
+        var nameStr = a.name || 'Unnamed Asset';
+        var numStr = a.asset_number || (a.id ? String(a.id).slice(0,8) : '');
+        opt.textContent = (numStr && numStr !== nameStr ? numStr + ' — ' : '') + nameStr + (a.category ? ' [' + a.category + ']' : '');
         opt.dataset.fuelType = a.fuel_type || '';
         fromAsset.appendChild(opt);
       });
@@ -693,7 +673,7 @@ function onFromChange() {
       fromTank.innerHTML = '<option value="">Select tank…</option>';
       matching.forEach(function(t) {
         var opt = document.createElement('option');
-        opt.value = t.id || t.tank_id;
+        opt.value = t.id;
         opt.textContent = (t.name || 'Tank') + ' — ' + (t.current_quantity||0) + '/' + (t.capacity||0) + ' gal (' + (t.fuel_type||'?') + ')';
         opt.dataset.fuelType = t.fuel_type || '';
         fromTank.appendChild(opt);
@@ -755,23 +735,21 @@ function updateToOptions() {
 
   toSelect.innerHTML = '<option value="">Select destination…</option>';
 
-  // Include Equipment/Assets as destinations unless it's selected as the source
   if (allAssets && allAssets.length > 0) {
     var assetGroup = document.createElement('optgroup');
     assetGroup.label = 'Equipment / Assets';
     var addedAssets = 0;
 
     allAssets.forEach(function(a) {
-      var assetId = a.id || a.asset_id || a.equipment_id || a.asset_number;
-      // Don't display the selected source asset as its own destination
+      var assetId = a.id || a.asset_number;
       if (fromType === 'asset' && fromAssetId && String(assetId) === String(fromAssetId)) {
         return;
       }
       var opt = document.createElement('option');
       opt.value = 'asset|' + assetId;
-      var nameStr = a.name || a.asset_name || a.equipment_name || 'Unnamed Asset';
-      var numStr = a.asset_number || a.asset_num || (a.id ? String(a.id).slice(0,8) : '');
-      opt.textContent = (numStr && numStr !== nameStr ? numStr + ' — ' : '') + nameStr + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
+      var nameStr = a.name || 'Unnamed Asset';
+      var numStr = a.asset_number || (a.id ? String(a.id).slice(0,8) : '');
+      opt.textContent = (numStr && numStr !== nameStr ? numStr + ' — ' : '') + nameStr + (a.category ? ' [' + a.category + ']' : '');
       opt.dataset.destType = 'asset';
       opt.dataset.destId = assetId;
       assetGroup.appendChild(opt);
@@ -796,7 +774,7 @@ function updateToOptions() {
       var matching = allTanks.filter(function(t) { return t.tank_type === tankType; });
       matching.forEach(function(t) {
         var opt = document.createElement('option');
-        var tankId = t.id || t.tank_id;
+        var tankId = t.id;
         opt.value = destType + '|' + tankId;
         opt.textContent = (t.name || 'Tank') + ' — ' + (t.current_quantity||0) + '/' + (t.capacity||0) + ' gal (' + (t.fuel_type||'?') + ')';
         opt.dataset.destType = destType;
@@ -816,9 +794,23 @@ function onToChange() {
   markFormDirty();
   var toSelect = document.getElementById('toDest');
   var selected = toSelect.selectedOptions[0];
+  var destType = selected ? (selected.dataset.destType || '') : '';
+  
+  var meterReadingRow = document.getElementById('meterReadingRow');
+  var meterReadingInput = document.getElementById('meterReading');
+
+  // Toggle meter reading input when fueling an asset
+  if (destType === 'asset') {
+    meterReadingRow.style.display = 'block';
+    meterReadingInput.required = true;
+  } else {
+    meterReadingRow.style.display = 'none';
+    meterReadingInput.required = false;
+    meterReadingInput.value = '';
+  }
+
   var toTankRow = document.getElementById('toTankRow');
   var toTank = document.getElementById('toTank');
-
   toTank.innerHTML = '';
   toTankRow.style.display = 'none';
 }
@@ -960,6 +952,7 @@ async function submitTransfer() {
   var projectId = document.getElementById('project').value;
   var location = document.getElementById('location').value.trim();
   var notes = document.getElementById('notes').value.trim();
+  var meterReading = document.getElementById('meterReading').value ? parseFloat(document.getElementById('meterReading').value) : null;
 
   if (!fromType) { showError('Please select a source.'); return; }
   if (fromType === 'asset') {
@@ -968,6 +961,9 @@ async function submitTransfer() {
     if (!fromTankId) { showError('Please select which tank the fuel is coming from.'); return; }
   }
   if (!toType || !toEntityId) { showError('Please select a destination (asset or tank).'); return; }
+  if (toType === 'asset' && (meterReading === null || isNaN(meterReading))) {
+    showError('Please enter the current meter reading for the asset being fueled.'); return;
+  }
   if (!quantity || quantity <= 0) { showError('Please enter a valid quantity (must be greater than 0).'); return; }
   if (!txDate) { showError('Please select a date.'); return; }
   if (!fuelType) { showError('Please select a fuel type.'); return; }
@@ -994,6 +990,7 @@ async function submitTransfer() {
       from_entity_id: fromEntityId,
       to_entity_type: toType,
       to_entity_id: toEntityId,
+      meter_reading: meterReading,
       project_id: projectId || null,
       location: location || null,
       notes: notes || null,
@@ -1009,7 +1006,6 @@ async function submitTransfer() {
 
     var ctx = getUrlContextParams();
     if (ctx.org_id) body.org_id = ctx.org_id;
-    if (ctx.role_id) body.role_id = ctx.role_id;
 
     var resp = await fetch(buildApiUrl('/api/fuel-transactions'), {
       method: 'POST',
@@ -1054,6 +1050,8 @@ function resetForm() {
   document.getElementById('fromAsset').innerHTML = '';
   document.getElementById('fromAssetRow').style.display = 'none';
   document.getElementById('toDest').innerHTML = '<option value="">Select destination…</option>';
+  document.getElementById('meterReadingRow').style.display = 'none';
+  document.getElementById('meterReading').value = '';
   document.getElementById('toTank').innerHTML = '';
   document.getElementById('toTankRow').style.display = 'none';
   document.getElementById('quantity').value = '';
@@ -1105,12 +1103,14 @@ async function initPage() {
   var banner = document.getElementById('locationStatusBanner');
   if (banner) banner.style.display = 'block';
 
-  // Load backend data sequentially
-  await loadTanks();
-  await loadAssets();
-  await loadFuelTypes();
-  await loadProjects();
-  await loadLocations();
+  // Load backend data concurrently
+  await Promise.all([
+    loadTanks(),
+    loadAssets(),
+    loadFuelTypes(),
+    loadProjects(),
+    loadLocations()
+  ]);
 
   // Populate dependent fields dynamically once datasets are fully retrieved
   onFromChange();
