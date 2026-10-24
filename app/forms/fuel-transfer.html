@@ -245,12 +245,6 @@
           <label>Fuel Type <span class="req">*</span></label>
           <select id="fuelType" required onchange="markFormDirty()">
             <option value="">Select fuel type…</option>
-            <option value="diesel_onroad">Diesel (On-Road)</option>
-            <option value="diesel_offroad">Diesel (Off-Road)</option>
-            <option value="gasoline">Gasoline</option>
-            <option value="DEF">DEF</option>
-            <option value="propane">Propane</option>
-            <option value="other">Other</option>
           </select>
         </div>
 
@@ -263,7 +257,9 @@
           </div>
           <div class="ft-row">
             <label>Location (optional)</label>
-            <input type="text" id="location" placeholder="Where this happened" oninput="markFormDirty()">
+            <select id="location" onchange="markFormDirty()">
+              <option value="">Select location…</option>
+            </select>
           </div>
         </div>
 
@@ -538,20 +534,91 @@ async function loadAssets() {
   }
 }
 
+async function loadFuelTypes() {
+  try {
+    var resp = await fetch(buildApiUrl('/api/fuel-types'));
+    var data = await resp.json();
+    var select = document.getElementById('fuelType');
+    select.innerHTML = '<option value="">Select fuel type…</option>';
+    
+    var types = data.success && data.fuel_types ? data.fuel_types : (Array.isArray(data) ? data : []);
+    if (types.length > 0) {
+      types.forEach(function(ft) {
+        var opt = document.createElement('option');
+        opt.value = ft.value || ft.id || ft.name || ft.code;
+        opt.textContent = ft.label || ft.name || ft.value || ft.id;
+        select.appendChild(opt);
+      });
+    } else {
+      // Fallback default options
+      var defaults = [
+        { value: 'diesel_onroad', label: 'Diesel (On-Road)' },
+        { value: 'diesel_offroad', label: 'Diesel (Off-Road)' },
+        { value: 'gasoline', label: 'Gasoline' },
+        { value: 'DEF', label: 'DEF' },
+        { value: 'propane', label: 'Propane' },
+        { value: 'other', label: 'Other' }
+      ];
+      defaults.forEach(function(ft) {
+        var opt = document.createElement('option');
+        opt.value = ft.value;
+        opt.textContent = ft.label;
+        select.appendChild(opt);
+      });
+    }
+  } catch (e) {
+    console.error('Failed to load fuel types:', e);
+  }
+}
+
 async function loadProjects() {
   try {
     var resp = await fetch(buildApiUrl('/api/projects'));
     var data = await resp.json();
     if (data.success && data.projects) {
       var select = document.getElementById('project');
+      select.innerHTML = '<option value="">Select project…</option>';
+      var seenProjects = new Set();
       data.projects.forEach(function(p) {
-        var opt = document.createElement('option');
-        opt.value = p.id;
-        opt.textContent = p.name || p.project_name || p.id;
-        select.appendChild(opt);
+        var id = p.id;
+        var name = p.name || p.project_name || p.id;
+        var key = id + '||' + name;
+        if (!seenProjects.has(key)) {
+          seenProjects.add(key);
+          var opt = document.createElement('option');
+          opt.value = id;
+          opt.textContent = name;
+          select.appendChild(opt);
+        }
       });
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error('Failed to load projects:', e);
+  }
+}
+
+async function loadLocations() {
+  try {
+    var resp = await fetch(buildApiUrl('/api/locations'));
+    var data = await resp.json();
+    var select = document.getElementById('location');
+    select.innerHTML = '<option value="">Select location…</option>';
+    if (data.success && data.locations) {
+      var seenLocations = new Set();
+      data.locations.forEach(function(loc) {
+        var val = typeof loc === 'string' ? loc : (loc.name || loc.id || loc.location_name);
+        if (val && !seenLocations.has(val)) {
+          seenLocations.add(val);
+          var opt = document.createElement('option');
+          opt.value = val;
+          opt.textContent = val;
+          select.appendChild(opt);
+        }
+      });
+    }
+  } catch (e) {
+    console.error('Failed to load locations:', e);
+  }
 }
 
 // ===== FROM SOURCE LOGIC =====
@@ -1003,7 +1070,9 @@ async function initPage() {
 
   await loadTanks();
   await loadAssets();
+  loadFuelTypes();
   loadProjects();
+  loadLocations();
   updateToOptions();
   loadFuelPhotoSettings();
 }
