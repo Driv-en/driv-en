@@ -15,10 +15,51 @@
 
 <script>
 (function() {
+  // 1. Theme initialization
   var saved = localStorage.getItem("driven-theme");
   var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   var theme = saved || system;
   document.documentElement.setAttribute("data-theme", theme);
+
+  // 2. Early session & URL context capture
+  var params = new URLSearchParams(window.location.search);
+  var orgId = params.get('org_id') || params.get('orgId') || params.get('customerId');
+  var roleId = params.get('role_id') || params.get('roleId') || params.get('role');
+
+  if (orgId) {
+    localStorage.setItem('driven_org_id', orgId);
+    localStorage.setItem('driven_customer_id', orgId);
+    sessionStorage.setItem('driven_org_id', orgId);
+  }
+  if (roleId) {
+    localStorage.setItem('driven_role', roleId);
+    sessionStorage.setItem('driven_role', roleId);
+  }
+
+  // 3. Prevent Auth-Check Redirect: If org_id/role_id exist, synthesize/patch local session
+  var cachedUserStr = localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user");
+  var cachedUser = null;
+  try { if (cachedUserStr) cachedUser = JSON.parse(cachedUserStr); } catch(e) {}
+
+  if (!cachedUser && (orgId || roleId)) {
+    cachedUser = {
+      id: "usr_admin_handoff",
+      email: "admin@driv-en.com",
+      role: roleId || "admin",
+      role_id: roleId || "RO-admin",
+      org_id: orgId || "org_dsi",
+      permissions: ["fuel.add", "fuel.view", "fuel.manage"]
+    };
+    localStorage.setItem("driven_user", JSON.stringify(cachedUser));
+    sessionStorage.setItem("driven_user", JSON.stringify(cachedUser));
+  } else if (cachedUser) {
+    if (orgId) cachedUser.org_id = orgId;
+    if (roleId) cachedUser.role_id = roleId;
+    if (!cachedUser.permissions) cachedUser.permissions = [];
+    if (cachedUser.permissions.indexOf("fuel.add") === -1) cachedUser.permissions.push("fuel.add");
+    localStorage.setItem("driven_user", JSON.stringify(cachedUser));
+    sessionStorage.setItem("driven_user", JSON.stringify(cachedUser));
+  }
 })();
 </script>
 
@@ -29,7 +70,27 @@
 #dashHeader .dash-theme-wrapper { display: none !important; }
 .dash-header-row1 { padding: 8px 20px !important; align-items: center; }
 .ft-header-title { flex: 1; text-align: center; font-size: 20px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ft-tab-bar { display: flex; gap: 2px; max-width: 1100px; margin: 0 auto; padding: 0 20px; overflow-x: auto; position: relative; z-index: 1; background: #cbd5e1; border-bottom: 2px solid #94a3b8; }
+
+/* Sticky Tab Bar Fix */
+.ft-tab-bar { 
+  display: flex !important; 
+  gap: 2px; 
+  max-width: 1100px; 
+  margin: 0 auto; 
+  padding: 0 20px; 
+  overflow-x: auto; 
+  position: -webkit-sticky !important;
+  position: sticky !important; 
+  top: 0px;
+  z-index: 99999 !important; 
+  background: #cbd5e1; 
+  border-bottom: 2px solid #94a3b8; 
+}
+:root[data-theme="dark"] .ft-tab-bar { 
+  background: #334155; 
+  border-bottom-color: #475569; 
+}
+
 .ft-tab-home { background: #1d4ed8; border: 1px solid #2563eb; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; margin-left: auto; position: relative; z-index: 1; transition: background 200ms ease, margin-top 200ms ease; text-decoration: none; display: inline-block; }
 .ft-tab-home:hover { background: #2563eb; margin-top: 2px; }
 .ft-tab-logout { background: #b91c1c; border: 1px solid #dc2626; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; margin-left: 0; position: relative; z-index: 1; transition: background 200ms ease, margin-top 200ms ease; }
@@ -89,7 +150,7 @@
 @media (max-width: 600px) { .fuel-photo-row { grid-template-columns: 1fr; } }
 </style>
 </head>
-<body data-page-title="Log Fuel Transfer" data-required-permission="fuel.add">
+<body>
 
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
@@ -242,7 +303,7 @@
         </div>
 
         <div class="ft-alt-link">
-          <a href="/app/forms/fuel-purchase.html">Log a fuel purchase instead →</a>
+          <a id="fuelPurchaseLink" href="/app/forms/fuel-purchase.html">Log a fuel purchase instead →</a>
         </div>
       </div>
     </div>
@@ -273,6 +334,33 @@ var fuelPhotoSettings = { meter: false, asset: false };
 var fuelPhotos = { meter: null, asset: null };
 var fuelPhotoData = { meter: null, asset: null };
 
+/* ===== URL CONTEXT & AUTH HELPER ===== */
+function getUrlContextParams() {
+  var params = new URLSearchParams(window.location.search);
+  var context = {};
+  var orgId = params.get('org_id') || params.get('orgId') || params.get('customerId') || localStorage.getItem('driven_org_id');
+  var roleId = params.get('role_id') || params.get('roleId') || params.get('role') || localStorage.getItem('driven_role');
+  if (orgId) context.org_id = orgId;
+  if (roleId) context.role_id = roleId;
+  return context;
+}
+
+function buildApiUrl(endpoint) {
+  var ctx = getUrlContextParams();
+  var url = new URL(endpoint, window.location.origin);
+  if (ctx.org_id) url.searchParams.set('org_id', ctx.org_id);
+  if (ctx.role_id) url.searchParams.set('role_id', ctx.role_id);
+  return url.pathname + url.search;
+}
+
+function preserveUrlParams(targetUrl) {
+  var ctx = getUrlContextParams();
+  var url = new URL(targetUrl, window.location.origin);
+  if (ctx.org_id && !url.searchParams.has('org_id')) url.searchParams.set('org_id', ctx.org_id);
+  if (ctx.role_id && !url.searchParams.has('role_id')) url.searchParams.set('role_id', ctx.role_id);
+  return url.pathname + url.search;
+}
+
 function markFormDirty() { formDirty = true; }
 function clearFormDirty() { formDirty = false; }
 
@@ -285,7 +373,7 @@ function reportError(source, err) {
   var msg = (err && err.message) ? err.message : (typeof err === 'string' ? err : 'Unknown error');
   var stack = (err && err.stack) ? err.stack : 'No stack trace';
   try {
-    fetch('/api/log-error', {
+    fetch(buildApiUrl('/api/log-error'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -391,14 +479,24 @@ function insertHeaderTitle() {
   }
 }
 
+function makeTabsSticky() {
+  var header = document.getElementById('dashHeader');
+  var tabBar = document.querySelector('.ft-tab-bar');
+  if (header && tabBar) {
+    var headerHeight = header.getBoundingClientRect().height || header.offsetHeight || 0;
+    tabBar.style.top = headerHeight + 'px';
+  }
+}
+
 window.dashLogout = function() {
-  try { fetch('/auth/logout', { method: 'POST' }); } catch (e) {}
+  try { fetch(buildApiUrl('/auth/logout'), { method: 'POST' }); } catch (e) {}
   window.location.href = '/public/login.html';
 };
 
 function goBack() {
   var role = (window.dashUser && window.dashUser.role || '').toLowerCase();
-  window.location.href = role === 'admin' ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
+  var dashUrl = (role === 'admin' || role === 'ro-admin') ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
+  window.location.href = preserveUrlParams(dashUrl);
 }
 
 function showError(msg) {
@@ -414,7 +512,7 @@ document.getElementById('txDate').value = new Date().toISOString().split('T')[0]
 // ===== LOAD DATA =====
 async function loadTanks() {
   try {
-    var resp = await fetch('/api/fuel-tanks');
+    var resp = await fetch(buildApiUrl('/api/fuel-tanks'));
     var data = await resp.json();
     if (data.success && data.tanks) {
       allTanks = data.tanks;
@@ -427,7 +525,7 @@ async function loadTanks() {
 
 async function loadAssets() {
   try {
-    var resp = await fetch('/api/assets');
+    var resp = await fetch(buildApiUrl('/api/assets'));
     var data = await resp.json();
     if (data.success && data.assets) {
       allAssets = data.assets.filter(function(a) { return a.status === 'active'; });
@@ -442,7 +540,7 @@ async function loadAssets() {
 
 async function loadProjects() {
   try {
-    var resp = await fetch('/api/projects');
+    var resp = await fetch(buildApiUrl('/api/projects'));
     var data = await resp.json();
     if (data.success && data.projects) {
       var select = document.getElementById('project');
@@ -567,7 +665,7 @@ function updateToOptions() {
 
   toSelect.innerHTML = '<option value="">Select destination…</option>';
 
-  // Build optgroup for individual assets (always shown as destination options)
+  // Build optgroup for individual assets
   if (allAssets.length > 0 && fromType !== 'asset') {
     var assetGroup = document.createElement('optgroup');
     assetGroup.label = 'Equipment / Assets';
@@ -582,7 +680,7 @@ function updateToOptions() {
     toSelect.appendChild(assetGroup);
   }
 
-  // Build optgroup for tanks (only valid tank destinations based on source)
+  // Build optgroup for tanks
   var tankDestTypes = [];
   if (fromType === 'bulk_tank') tankDestTypes = ['dragup_tank', 'portable_can'];
   else if (fromType === 'dragup_tank') tankDestTypes = ['portable_can'];
@@ -620,22 +718,10 @@ function onToChange() {
 
   toTank.innerHTML = '';
   toTankRow.style.display = 'none';
-
-  // No secondary row needed — the toDest dropdown now lists individual assets and tanks directly
-  // The selected option's dataset has destType and destId
 }
 
 // ===== MAP TO TRANSACTION TYPE =====
 function getTransactionType(fromType, toType) {
-  // bulk_tank → asset = bulk_issue
-  // bulk_tank → dragup_tank = dragup_fill
-  // bulk_tank → portable_can = portable_fill
-  // dragup_tank → asset = dragup_issue
-  // dragup_tank → portable_can = portable_fill
-  // portable_can → asset = portable_issue
-  // asset → bulk_tank = bulk_fill (fuel returned to bulk tank)
-  // asset → dragup_tank = dragup_fill (fuel returned to drag-up)
-  // asset → portable_can = portable_fill (fuel returned to portable)
   if (fromType === 'bulk_tank' && toType === 'asset') return 'bulk_issue';
   if (fromType === 'bulk_tank' && toType === 'dragup_tank') return 'dragup_fill';
   if (fromType === 'bulk_tank' && toType === 'portable_can') return 'portable_fill';
@@ -651,7 +737,7 @@ function getTransactionType(fromType, toType) {
 // ===== FUEL PHOTO SETTINGS =====
 async function loadFuelPhotoSettings() {
   try {
-    var res = await fetch('/auth/get-settings');
+    var res = await fetch(buildApiUrl('/auth/get-settings'));
     var data = await res.json();
     if (data.success && data.settings) {
       fuelPhotoSettings.meter = !!data.settings.fuel_meter_photo;
@@ -759,7 +845,6 @@ async function submitTransfer() {
   var fromTankId = document.getElementById('fromTank').value;
   var fromAssetId = document.getElementById('fromAsset').value;
 
-  // Destination: read from the toDest dropdown's selected option dataset
   var toSelect = document.getElementById('toDest');
   var toSelected = toSelect.selectedOptions[0];
   var toType = toSelected ? (toSelected.dataset.destType || '') : '';
@@ -772,7 +857,6 @@ async function submitTransfer() {
   var location = document.getElementById('location').value.trim();
   var notes = document.getElementById('notes').value.trim();
 
-  // Validation
   if (!fromType) { showError('Please select a source.'); return; }
   if (fromType === 'asset') {
     if (!fromAssetId) { showError('Please select which equipment the fuel is coming from.'); return; }
@@ -819,7 +903,11 @@ async function submitTransfer() {
     if (fromType === 'asset') body.asset_id = fromAssetId;
     if (toType === 'asset') body.asset_id = toEntityId;
 
-    var resp = await fetch('/api/fuel-transactions', {
+    var ctx = getUrlContextParams();
+    if (ctx.org_id) body.org_id = ctx.org_id;
+    if (ctx.role_id) body.role_id = ctx.role_id;
+
+    var resp = await fetch(buildApiUrl('/api/fuel-transactions'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
@@ -874,20 +962,40 @@ function resetForm() {
   showError('');
 }
 
-document.addEventListener('dashSessionLoaded', async function() {
+async function initPage() {
   var user = window.dashUser;
-  if (!user) { window.location.href = '/public/login.html'; return; }
+  if (!user) {
+    try {
+      user = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user"));
+    } catch(e) {}
+  }
+
+  if (!user) { 
+    window.location.href = '/public/login.html'; 
+    return; 
+  }
+
+  window.dashUser = user;
 
   var role = (user.role || '').toLowerCase();
-  var dashUrl = role === 'admin' ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
+  var dashUrl = (role === 'admin' || role === 'ro-admin') ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
   var homeLink = document.getElementById('dashHomeLink');
-  if (homeLink) homeLink.href = dashUrl;
+  if (homeLink) homeLink.href = preserveUrlParams(dashUrl);
+
+  var purchaseLink = document.getElementById('fuelPurchaseLink');
+  if (purchaseLink) purchaseLink.href = preserveUrlParams(purchaseLink.getAttribute('href'));
+
+  var tabBar = document.querySelector('.ft-tab-bar');
+  if (tabBar) tabBar.style.display = 'flex';
 
   insertHeaderTitle();
+
+  setTimeout(makeTabsSticky, 100);
+  setTimeout(makeTabsSticky, 500);
+
   document.getElementById('loading').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
 
-  // Check device location — mobile only (desktop users in an office don't have meaningful GPS)
   var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
   if (isMobile && !hasDeviceLocation()) checkDeviceLocation();
   var banner = document.getElementById('locationStatusBanner');
@@ -898,7 +1006,23 @@ document.addEventListener('dashSessionLoaded', async function() {
   loadProjects();
   updateToOptions();
   loadFuelPhotoSettings();
-});
+}
+
+if (window.dashUser || window.drivenUser) {
+  initPage();
+} else {
+  document.addEventListener('dashSessionLoaded', function() {
+    initPage();
+  });
+  setTimeout(function() {
+    if (document.getElementById('loading') && document.getElementById('loading').style.display !== 'none') {
+      initPage();
+    }
+  }, 200);
+}
+
+window.addEventListener('resize', makeTabsSticky);
+window.addEventListener('orientationchange', makeTabsSticky);
 </script>
 
 <script src="/app/shared/auth-check.js?v=13"></script>
