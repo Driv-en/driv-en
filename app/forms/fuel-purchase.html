@@ -301,6 +301,21 @@
           <input type="text" id="purchasePONumber" class="purchase-input" placeholder="Optional" oninput="markFormDirty()">
         </div>
         <div class="purchase-field">
+          <label class="purchase-label">Payment Type</label>
+          <select id="purchasePaymentType" class="purchase-input" onchange="markFormDirty()">
+            <option value="">Select payment type…</option>
+            <option value="Credit Card">Credit Card</option>
+            <option value="Fleet Card">Fleet Card</option>
+            <option value="Cash">Cash</option>
+            <option value="Check">Check</option>
+            <option value="On Account">On Account / PO</option>
+          </select>
+        </div>
+        <div class="purchase-field">
+          <label class="purchase-label">Card Last 4 / Ref #</label>
+          <input type="text" id="purchaseCardLast4" class="purchase-input" placeholder="e.g. 4242" maxlength="10" oninput="markFormDirty()">
+        </div>
+        <div class="purchase-field">
           <label class="purchase-label">User <span style="color:#cc0000;">*</span></label>
           <select id="purchasePerson" class="purchase-input" required onchange="markFormDirty()">
             <option value="">Select user…</option>
@@ -1268,6 +1283,20 @@ async function _doExtraction(file, previewContent, status, preview) {
         dateEl.value = data.extracted.receipt_date;
         dateEl.classList.add('ai-extracted');
       }
+      if (data.extracted.payment_type) {
+        var payEl = document.getElementById('purchasePaymentType');
+        if (payEl) {
+          payEl.value = data.extracted.payment_type;
+          payEl.classList.add('ai-extracted');
+        }
+      }
+      if (data.extracted.card_last_4) {
+        var cardEl = document.getElementById('purchaseCardLast4');
+        if (cardEl) {
+          cardEl.value = data.extracted.card_last_4;
+          cardEl.classList.add('ai-extracted');
+        }
+      }
       var rtExtracted = data.extracted.receipt_total || data.extracted.total_amount;
       if (rtExtracted) {
         var rtEl = document.getElementById('receiptTotal');
@@ -1341,6 +1370,10 @@ async function submitPurchase() {
   var person = personEl ? personEl.value.trim() : '';
   var vendor = document.getElementById('purchaseVendor').value;
   var notes = document.getElementById('purchaseNotes').value;
+  var paymentTypeEl = document.getElementById('purchasePaymentType');
+  var paymentType = paymentTypeEl ? paymentTypeEl.value.trim() : null;
+  var cardLast4El = document.getElementById('purchaseCardLast4');
+  var cardLast4 = cardLast4El ? cardLast4El.value.trim() : null;
 
   if (!date) { showPurchaseError('Date is required'); return; }
   if (!vendor || !vendor.trim()) { showPurchaseError('Vendor is required'); return; }
@@ -1453,6 +1486,8 @@ async function submitPurchase() {
     person: person || null,
     notes: notes || null,
     po_number: poNumber,
+    payment_type: paymentType,
+    card_last_4: cardLast4,
     project_id: projectId || null,
     receipt_r2_key: receiptR2Key,
     receipt_total: receiptTotal,
@@ -1540,6 +1575,9 @@ function clearPurchaseForm() {
   loadLocations();
   loadUsers();
   document.getElementById('purchaseVendor').value = '';
+  document.getElementById('purchasePONumber').value = '';
+  document.getElementById('purchasePaymentType').value = '';
+  document.getElementById('purchaseCardLast4').value = '';
   document.getElementById('purchaseProject').value = '';
   document.getElementById('purchaseNotes').value = '';
   document.getElementById('receiptPreview').style.display = 'none';
@@ -1551,7 +1589,7 @@ function clearPurchaseForm() {
   document.getElementById('aiConfidenceBanner').style.display = 'none';
   document.getElementById('aiConfidenceBanner').innerHTML = '';
   document.getElementById('aiFieldLegend').style.display = 'none';
-  document.querySelectorAll('.line-item-row .ai-extracted, .line-item-row .ai-needed').forEach(function(el) { el.classList.remove('ai-extracted'); el.classList.remove('ai-needed'); });
+  document.querySelectorAll('.line-item-row .ai-extracted, .line-item-row .ai-needed, .purchase-input.ai-extracted').forEach(function(el) { el.classList.remove('ai-extracted'); el.classList.remove('ai-needed'); });
   document.getElementById('purchaseResult').style.display = 'none';
   if (_objectUrl) { URL.revokeObjectURL(_objectUrl); _objectUrl = null; }
   receiptR2Key = null;
