@@ -199,7 +199,7 @@
 @media (max-width: 800px) { .purchase-form-grid { grid-template-columns: 1fr; } .line-item-grid { grid-template-columns: 1fr 1fr; } .fp-main { padding: 0 12px; margin: 12px auto; } .fuel-photo-row { grid-template-columns: 1fr; } }
 </style>
 </head>
-<body data-page-title="Log Fuel Purchase" data-required-permission="fuel.add">
+<body data-page-title="Log Fuel Purchase">
 
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
@@ -1633,12 +1633,23 @@ function initPurchaseForm() {
   recalcGrandTotal();
 }
 
-document.addEventListener('dashSessionLoaded', async function() {
+async function initPage() {
   var user = window.dashUser;
-  if (!user) { window.location.href = '/public/login.html'; return; }
+  if (!user) {
+    try {
+      user = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user"));
+    } catch(e) {}
+  }
+
+  if (!user) { 
+    window.location.href = '/public/login.html'; 
+    return; 
+  }
+
+  window.dashUser = user;
 
   var role = (user.role || '').toLowerCase();
-  var dashUrl = role === 'admin' ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
+  var dashUrl = (role === 'admin' || role === 'ro-admin') ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
   var homeLink = document.getElementById('dashHomeLink');
   if (homeLink) homeLink.href = preserveUrlParams(dashUrl);
 
@@ -1661,7 +1672,20 @@ document.addEventListener('dashSessionLoaded', async function() {
   await loadProjects();
   initPurchaseForm();
   loadFuelPhotoSettings();
-});
+}
+
+if (window.dashUser || window.drivenUser) {
+  initPage();
+} else {
+  document.addEventListener('dashSessionLoaded', function() {
+    initPage();
+  });
+  setTimeout(function() {
+    if (document.getElementById('loading') && document.getElementById('loading').style.display !== 'none') {
+      initPage();
+    }
+  }, 200);
+}
 </script>
 
 <script src="/app/shared/auth-check.js?v=13"></script>
