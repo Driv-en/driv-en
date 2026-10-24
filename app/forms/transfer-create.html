@@ -424,39 +424,48 @@ async function loadProjects(){
   } catch(e) {}
 }
 
-/* ===== DRIVERS / OPERATORS DROPDOWN ===== */
+/* ===== DRIVERS / OPERATORS DROPDOWN (FULL D1 ROSTER FETCH WITH FALLBACKS) ===== */
 async function loadDrivers() {
-  try {
-    var resp = await fetch(buildApiUrl('/api/users'));
-    var data = await resp.json();
-    var driverSelect = document.getElementById('carrierDriver');
-    if (driverSelect && driverSelect.tagName === 'SELECT') {
-      var html = '<option value="">Select driver / operator…</option>';
-      var seenDrivers = new Set();
-      var activeUserName = getUserDisplayName().trim();
+  var driverSelect = document.getElementById('carrierDriver');
+  if (!driverSelect || driverSelect.tagName !== 'SELECT') return;
 
-      var usersList = data.users || data.employees || data.people || [];
+  var seenDrivers = new Set();
+  var activeUserName = getUserDisplayName().trim();
 
-      // Always include current logged-in user if available
-      if (activeUserName) {
-        seenDrivers.add(activeUserName);
-        html += '<option value="' + esc(activeUserName) + '" selected>' + esc(activeUserName) + ' (You)</option>';
-      }
-
-      usersList.forEach(function(u) {
-        var name = u.full_name || u.name || ((u.first_name || u.firstName || '') + ' ' + (u.last_name || u.lastName || '')).trim() || u.email;
-        if (name && !seenDrivers.has(name)) {
-          seenDrivers.add(name);
-          html += '<option value="' + esc(name) + '">' + esc(name) + '</option>';
-        }
-      });
-
-      html += '<option value="__custom">+ Other (type manually)</option>';
-      driverSelect.innerHTML = html;
-    }
-  } catch(e) {
-    console.error('Failed to load drivers:', e);
+  var html = '<option value="">Select driver / operator…</option>';
+  if (activeUserName) {
+    seenDrivers.add(activeUserName);
+    html += '<option value="' + esc(activeUserName) + '" selected>' + esc(activeUserName) + ' (You)</option>';
   }
+
+  // Chain endpoints to query D1 organization users/employees
+  var endpoints = ['/api/users', '/api/employees', '/api/team'];
+  var usersList = [];
+
+  for (var i = 0; i < endpoints.length; i++) {
+    try {
+      var resp = await fetch(buildApiUrl(endpoints[i]));
+      var data = await resp.json();
+      var extracted = data.users || data.employees || data.data || data.team || data.members || data.people || [];
+      if (Array.isArray(extracted) && extracted.length > 0) {
+        usersList = extracted;
+        break;
+      }
+    } catch(e) {
+      console.warn('Endpoint failed:', endpoints[i], e);
+    }
+  }
+
+  usersList.forEach(function(u) {
+    var name = u.full_name || u.name || ((u.first_name || u.firstName || '') + ' ' + (u.last_name || u.lastName || '')).trim() || u.email;
+    if (name && !seenDrivers.has(name)) {
+      seenDrivers.add(name);
+      html += '<option value="' + esc(name) + '">' + esc(name) + '</option>';
+    }
+  });
+
+  html += '<option value="__custom">+ Other (type manually)</option>';
+  driverSelect.innerHTML = html;
 }
 
 async function submitTransfer(){
