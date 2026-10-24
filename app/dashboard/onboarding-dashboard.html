@@ -502,6 +502,7 @@
     var taskCompletions = {};
     var allKP = [];
     var activeOrgId = "";
+    var isProcessingSession = false;
 
     var STEP_DEFS = {
       1: { name: "roles-permissions", task: "Roles & Permissions", prereqs: [],     url: "/app/onboarding/roles-permissions.html" },
@@ -567,16 +568,17 @@
     function togglePopup(id) {
       var popup = document.getElementById(id);
       var overlay = document.getElementById("popupOverlay");
-      var isActive = popup.classList.contains("active");
+      var isActive = popup ? popup.classList.contains("active") : false;
       closeAllPopups();
-      if (!isActive) {
+      if (!isActive && popup && overlay) {
         popup.classList.add("active");
         overlay.classList.add("active");
       }
     }
     function closeAllPopups() {
       document.querySelectorAll(".ob-info-popup").forEach(function(p) { p.classList.remove("active"); });
-      document.getElementById("popupOverlay").classList.remove("active");
+      var overlay = document.getElementById("popupOverlay");
+      if (overlay) overlay.classList.remove("active");
     }
 
     function setStatus(id, statusClass, text) {
@@ -746,13 +748,15 @@
         if (!isStepVisible(def.name)) { el.style.display = "none"; continue; }
         el.style.display = "flex";
         var nameEl = el.querySelector(".ob-assigned-to-name");
-        var names = getAssignedNames(def.task);
-        if (names.length > 0) {
-          nameEl.textContent = names.join(", ");
-          nameEl.classList.remove("unassigned");
-        } else {
-          nameEl.textContent = "Not assigned";
-          nameEl.classList.add("unassigned");
+        if (nameEl) {
+          var names = getAssignedNames(def.task);
+          if (names.length > 0) {
+            nameEl.textContent = names.join(", ");
+            nameEl.classList.remove("unassigned");
+          } else {
+            nameEl.textContent = "Not assigned";
+            nameEl.classList.add("unassigned");
+          }
         }
       }
     }
@@ -971,17 +975,22 @@
           if (data.settings.onboarding_complete) {
             onboardingComplete = true;
             if (!isAdmin) {
-              document.getElementById("completeNotice").style.display = "block";
-              document.getElementById("tab-overview").style.display = "none";
+              var completeNotice = document.getElementById("completeNotice");
+              var tabOverview = document.getElementById("tab-overview");
+              if (completeNotice) completeNotice.style.display = "block";
+              if (tabOverview) tabOverview.style.display = "none";
               setTimeout(function() { window.location.href = "/app/dashboard/owner-dashboard.html"; }, 3000);
             }
           }
           var bt = data.settings.business_type;
           var naics = data.settings.naics_code;
           if (bt || naics) {
-            document.getElementById("obCompanyType").textContent = bt || "Not set";
-            document.getElementById("obCompanyNaics").textContent = naics || "Not set";
-            document.getElementById("companyInfoBar").style.display = "block";
+            var elBt = document.getElementById("obCompanyType");
+            var elNaics = document.getElementById("obCompanyNaics");
+            var infoBar = document.getElementById("companyInfoBar");
+            if (elBt) elBt.textContent = bt || "Not set";
+            if (elNaics) elNaics.textContent = naics || "Not set";
+            if (infoBar) infoBar.style.display = "block";
           }
         }
       } catch (e) { console.error("Settings load error:", e.message); }
@@ -992,7 +1001,7 @@
       var roleLower = (currentUser && currentUser.role) ? currentUser.role.toLowerCase() : "";
       if (currentUser && (roleLower === "admin" || roleLower === "administrator" || roleLower.indexOf("founder") !== -1)) {
         isAdmin = true;
-        var adminTab0 = document.getElementById("obTabBar").querySelector('[data-tab="admin"]');
+        var adminTab0 = document.querySelector('.ob-tab-bar [data-tab="admin"]');
         if (adminTab0) adminTab0.style.display = "inline-block";
       }
       var customerId = localStorage.getItem("driven_customer_id");
@@ -1010,7 +1019,7 @@
             if (!isAdmin) {
               isAdmin = false;
               assignedTasks = myRecord.roles.map(function(r) { return r.role || r.task_name; });
-              var adminTabHide = document.getElementById("obTabBar").querySelector('[data-tab="admin"]');
+              var adminTabHide = document.querySelector('.ob-tab-bar [data-tab="admin"]');
               if (adminTabHide) adminTabHide.style.display = "none";
             } else {
               assignedTasks = myRecord.roles.map(function(r) { return r.role || r.task_name; });
@@ -1035,11 +1044,18 @@
         title.textContent = "Onboarding Dashboard";
         var logoArea = document.getElementById("dashCustomerLogoArea");
         var drivenLogo = row1.querySelector(".dash-driven-logo");
-        if (logoArea && drivenLogo) { row1.insertBefore(title, drivenLogo); }
+        if (logoArea && drivenLogo) {
+          row1.insertBefore(title, drivenLogo);
+        } else {
+          row1.appendChild(title);
+        }
       }
     }
 
     async function processSessionUser(user, orgIdDetail) {
+      if (isProcessingSession) return;
+      isProcessingSession = true;
+
       try {
         if (!user) {
           window.location.href = "/public/login.html";
@@ -1055,18 +1071,24 @@
 
         var firstName = user.first_name || "";
         var greeting = document.getElementById("greetingText");
-        if (firstName) { greeting.innerHTML = "Welcome, <strong>" + firstName + "</strong>"; }
+        if (greeting && firstName) { greeting.innerHTML = "Welcome, <strong>" + firstName + "</strong>"; }
+        
         var fullName = (user.first_name || "") + (user.last_name ? " " + user.last_name : "");
-        document.getElementById("account-name").textContent = fullName || user.email || "";
-        document.getElementById("account-email").textContent = user.email || "";
-        document.getElementById("account-role").textContent = user.role || "User";
+        var accName = document.getElementById("account-name");
+        var accEmail = document.getElementById("account-email");
+        var accRole = document.getElementById("account-role");
+        if (accName) accName.textContent = fullName || user.email || "";
+        if (accEmail) accEmail.textContent = user.email || "";
+        if (accRole) accRole.textContent = user.role || "User";
+
         insertHeaderTitle();
         makeTabsSticky();
         updateThemeSwitch();
+
         var roleLower = (user.role) ? user.role.toLowerCase() : "";
         if (roleLower === "admin" || roleLower === "administrator" || roleLower.indexOf("founder") !== -1) {
           isAdmin = true;
-          var adminTabInit = document.getElementById("obTabBar").querySelector('[data-tab="admin"]');
+          var adminTabInit = document.querySelector('.ob-tab-bar [data-tab="admin"]');
           if (adminTabInit) adminTabInit.style.display = "inline-block";
           var kpBanner = document.getElementById("kpMarkCompleteBanner");
           if (kpBanner) kpBanner.style.display = "none";
@@ -1126,7 +1148,7 @@
     }
 
     document.addEventListener("dashSessionLoaded", async function(e) {
-      if (window.dashUser) {
+      if (window.dashUser && !isProcessingSession) {
         await processSessionUser(window.dashUser, e.detail ? e.detail.org_id : "");
       }
     });
