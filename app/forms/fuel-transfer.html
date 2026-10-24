@@ -512,8 +512,12 @@ async function loadTanks() {
     var data = await resp.json();
     if (data.success && data.tanks) {
       allTanks = data.tanks;
+    } else if (data.tanks) {
+      allTanks = data.tanks;
     } else if (Array.isArray(data)) {
       allTanks = data;
+    } else if (data.data && Array.isArray(data.data)) {
+      allTanks = data.data;
     }
   } catch (e) {
     console.error('Failed to load tanks:', e);
@@ -525,13 +529,15 @@ async function loadAssets() {
   try {
     var resp = await fetch(buildApiUrl('/api/assets'));
     var data = await resp.json();
-    if (data.success && data.assets) {
-      allAssets = data.assets.filter(function(a) { return !a.status || a.status === 'active'; });
-    } else if (data.success && data.equipment) {
-      allAssets = data.equipment.filter(function(a) { return !a.status || a.status === 'active'; });
-    } else if (Array.isArray(data)) {
-      allAssets = data.filter(function(a) { return !a.status || a.status === 'active'; });
-    }
+    var list = [];
+    if (data.success && data.assets) list = data.assets;
+    else if (data.success && data.equipment) list = data.equipment;
+    else if (data.assets) list = data.assets;
+    else if (data.equipment) list = data.equipment;
+    else if (Array.isArray(data)) list = data;
+    else if (data.data && Array.isArray(data.data)) list = data.data;
+
+    allAssets = list.filter(function(a) { return !a.status || a.status === 'active'; });
   } catch (e) {
     console.error('Failed to load assets:', e);
     reportError('loadAssets', e);
@@ -545,12 +551,15 @@ async function loadFuelTypes() {
     var select = document.getElementById('fuelType');
     select.innerHTML = '<option value="">Select fuel type…</option>';
     
-    var types = (data && data.success && data.fuel_types) ? data.fuel_types : (Array.isArray(data) ? data : []);
+    var types = (data && data.success && data.fuel_types) ? data.fuel_types : 
+                (data && data.fuel_types) ? data.fuel_types : 
+                (Array.isArray(data) ? data : []);
+
     if (types.length > 0) {
       types.forEach(function(ft) {
         var opt = document.createElement('option');
-        opt.value = ft.value || ft.id || ft.name || ft.code;
-        opt.textContent = ft.label || ft.name || ft.value || ft.id;
+        opt.value = ft.value || ft.id || ft.code || ft.name || ft.type_name;
+        opt.textContent = ft.label || ft.name || ft.type_name || ft.value || ft.id;
         select.appendChild(opt);
       });
     } else {
@@ -571,6 +580,23 @@ async function loadFuelTypes() {
     }
   } catch (e) {
     console.error('Failed to load fuel types:', e);
+    // Fallback on error
+    var select = document.getElementById('fuelType');
+    select.innerHTML = '<option value="">Select fuel type…</option>';
+    var defaults = [
+      { value: 'diesel_onroad', label: 'Diesel (On-Road)' },
+      { value: 'diesel_offroad', label: 'Diesel (Off-Road)' },
+      { value: 'gasoline', label: 'Gasoline' },
+      { value: 'DEF', label: 'DEF' },
+      { value: 'propane', label: 'Propane' },
+      { value: 'other', label: 'Other' }
+    ];
+    defaults.forEach(function(ft) {
+      var opt = document.createElement('option');
+      opt.value = ft.value;
+      opt.textContent = ft.label;
+      select.appendChild(opt);
+    });
   }
 }
 
@@ -578,7 +604,9 @@ async function loadProjects() {
   try {
     var resp = await fetch(buildApiUrl('/api/projects'));
     var data = await resp.json();
-    var projectsList = (data && data.success && data.projects) ? data.projects : (Array.isArray(data) ? data : []);
+    var projectsList = (data && data.success && data.projects) ? data.projects : 
+                        (data && data.projects) ? data.projects : 
+                        (Array.isArray(data) ? data : []);
     var select = document.getElementById('project');
     select.innerHTML = '<option value="">Select project…</option>';
     var seenProjects = new Set();
@@ -606,7 +634,9 @@ async function loadLocations() {
     var data = await resp.json();
     var select = document.getElementById('location');
     select.innerHTML = '<option value="">Select location…</option>';
-    var locList = (data && data.success && data.locations) ? data.locations : (Array.isArray(data) ? data : []);
+    var locList = (data && data.success && data.locations) ? data.locations : 
+                  (data && data.locations) ? data.locations : 
+                  (Array.isArray(data) ? data : []);
     var seenLocations = new Set();
 
     locList.forEach(function(loc) {
@@ -645,14 +675,14 @@ function onFromChange() {
 
   if (fromType === 'asset') {
     fromAssetRow.style.display = 'block';
-    if (allAssets.length === 0) {
+    if (!allAssets || allAssets.length === 0) {
       fromAsset.innerHTML = '<option value="">No equipment available</option>';
     } else {
       fromAsset.innerHTML = '<option value="">Select equipment…</option>';
       allAssets.forEach(function(a) {
         var opt = document.createElement('option');
         opt.value = a.id;
-        opt.textContent = (a.asset_number || a.id.slice(0,8)) + ' — ' + (a.name || 'Unnamed') + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
+        opt.textContent = (a.asset_number || (a.id ? a.id.slice(0,8) : '')) + ' — ' + (a.name || 'Unnamed') + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
         opt.dataset.fuelType = a.fuel_type || '';
         fromAsset.appendChild(opt);
       });
@@ -732,13 +762,13 @@ function updateToOptions() {
 
   toSelect.innerHTML = '<option value="">Select destination…</option>';
 
-  if (allAssets.length > 0 && fromType !== 'asset') {
+  if (allAssets && allAssets.length > 0 && fromType !== 'asset') {
     var assetGroup = document.createElement('optgroup');
     assetGroup.label = 'Equipment / Assets';
     allAssets.forEach(function(a) {
       var opt = document.createElement('option');
       opt.value = 'asset|' + a.id;
-      opt.textContent = (a.asset_number || a.id.slice(0,8)) + ' — ' + (a.name || 'Unnamed') + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
+      opt.textContent = (a.asset_number || (a.id ? a.id.slice(0,8) : '')) + ' — ' + (a.name || 'Unnamed') + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
       opt.dataset.destType = 'asset';
       opt.dataset.destId = a.id;
       assetGroup.appendChild(opt);
@@ -751,7 +781,7 @@ function updateToOptions() {
   else if (fromType === 'dragup_tank') tankDestTypes = ['portable_can'];
   else if (fromType === 'asset') tankDestTypes = ['bulk_tank', 'dragup_tank', 'portable_can'];
 
-  if (tankDestTypes.length > 0) {
+  if (tankDestTypes.length > 0 && allTanks && allTanks.length > 0) {
     var tankGroup = document.createElement('optgroup');
     tankGroup.label = 'Tanks';
     tankDestTypes.forEach(function(destType) {
@@ -1066,14 +1096,14 @@ async function initPage() {
   var banner = document.getElementById('locationStatusBanner');
   if (banner) banner.style.display = 'block';
 
-  // Load backend dropdown data sequentially
+  // Load backend data sequentially
   await loadTanks();
   await loadAssets();
   await loadFuelTypes();
   await loadProjects();
   await loadLocations();
 
-  // Trigger dropdown options population once assets & tanks are available
+  // Populate dependent fields dynamically once datasets are fully retrieved
   onFromChange();
   loadFuelPhotoSettings();
 }
