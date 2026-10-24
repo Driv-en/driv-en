@@ -1522,11 +1522,11 @@ function clearPurchaseForm() {
   if (locEl && locEl.tagName === 'INPUT') {
     var select = document.createElement('select');
     select.id = 'purchaseLocation';
-    select.className = 'purchase-input';
+    select.className = 'purchase-input ai-needed';
     select.setAttribute('onchange', 'handleLocationChange(this)');
     locEl.parentNode.replaceChild(select, locEl);
-    locEl = select;
   }
+
   var projEl = document.getElementById('purchaseProject');
   if (projEl && projEl.tagName === 'INPUT') {
     var projSelect = document.createElement('select');
@@ -1535,22 +1535,9 @@ function clearPurchaseForm() {
     projSelect.setAttribute('required', '');
     projSelect.setAttribute('onchange', 'handleProjectChange(this)');
     projEl.parentNode.replaceChild(projSelect, projEl);
-    projEl = projSelect;
   }
-  var locations = {};
-  allAssets.forEach(function(a) {
-    if (a.current_location && a.current_location.trim()) locations[a.current_location.trim()] = true;
-  });
-  allTanks.forEach(function(t) {
-    if (t.location && t.location.trim()) locations[t.location.trim()] = true;
-  });
-  var locHtml = '<option value="">Select location…</option>';
-  Object.keys(locations).sort().forEach(function(loc) {
-    locHtml += '<option value="' + esc(loc) + '">' + esc(loc) + '</option>';
-  });
-  locHtml += '<option value="__custom">+ Other (type manually)</option>';
-  if (locEl) locEl.innerHTML = locHtml;
 
+  loadLocations();
   loadUsers();
   document.getElementById('purchaseVendor').value = '';
   document.getElementById('purchaseProject').value = '';
@@ -1612,29 +1599,6 @@ async function loadAssets() {
     var assetsList = data.assets || data.data || [];
     allAssets = assetsList.filter(function(a) { return a.status === 'active' || !a.status; });
 
-    var locations = {};
-    allAssets.forEach(function(a) {
-      if (a.current_location && a.current_location.trim()) {
-        locations[a.current_location.trim()] = true;
-      }
-    });
-    allTanks.forEach(function(t) {
-      if (t.location && t.location.trim()) {
-        locations[t.location.trim()] = true;
-      }
-    });
-    var locSelect = document.getElementById('purchaseLocation');
-    if (locSelect) {
-      var currentVal = locSelect.value;
-      var html = '<option value="">Select location…</option>';
-      Object.keys(locations).sort().forEach(function(loc) {
-        html += '<option value="' + esc(loc) + '">' + esc(loc) + '</option>';
-      });
-      html += '<option value="__custom">+ Other (type manually)</option>';
-      locSelect.innerHTML = html;
-      if (currentVal) locSelect.value = currentVal;
-    }
-
     // Refresh existing line items to update asset datalists
     if (document.querySelectorAll('.line-item-row').length > 0) {
       var existingRows = [];
@@ -1659,6 +1623,35 @@ async function loadAssets() {
   } catch (e) {
     console.error('Error loading assets:', e.message);
     reportError('loadAssets', e);
+  }
+}
+
+async function loadLocations() {
+  var locSelect = document.getElementById('purchaseLocation');
+  if (!locSelect || locSelect.tagName !== 'SELECT') return;
+
+  try {
+    var endpoint = buildApiUrl('/api/locations') + '&limit=500&all=true';
+    var resp = await fetch(endpoint);
+    var data = await resp.json();
+
+    var locationsList = data.locations || data.data || [];
+    var currentVal = locSelect.value;
+    var html = '<option value="">Select location…</option>';
+
+    locationsList.forEach(function(loc) {
+      var name = loc.name || loc.location_name || loc.address || '';
+      if (name) {
+        html += '<option value="' + esc(name) + '">' + esc(name) + '</option>';
+      }
+    });
+
+    html += '<option value="__custom">+ Other (type manually)</option>';
+    locSelect.innerHTML = html;
+    if (currentVal) locSelect.value = currentVal;
+  } catch (e) {
+    console.error('Error loading locations:', e.message);
+    reportError('loadLocations', e);
   }
 }
 
@@ -1775,6 +1768,7 @@ async function initPage() {
   await loadTankTypes();
   await loadTanks();
   await loadAssets();
+  await loadLocations();
   await loadProjects();
   initPurchaseForm();
   loadFuelPhotoSettings();
