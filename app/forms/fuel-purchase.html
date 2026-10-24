@@ -346,7 +346,7 @@
       <div id="purchaseResult" style="display:none;"></div>
 
       <div class="fp-alt-link">
-        <a href="/app/forms/fuel-transfer.html">Transfer fuel instead →</a>
+        <a id="fuelTransferLink" href="/app/forms/fuel-transfer.html">Transfer fuel instead →</a>
         <p style="font-size:12px;color:var(--text-muted);margin:4px 0 0;">Use "Transfer fuel" when moving fuel between tanks or issuing fuel to equipment — not when purchasing from a vendor.</p>
       </div>
     </div>
@@ -368,6 +368,33 @@ var managerReviewFlags = [];
 var fuelPhotoSettings = { meter: false, asset: false };
 var fuelPhotos = { meter: null, asset: null };
 var fuelPhotoData = { meter: null, asset: null };
+
+/* ===== URL CONTEXT & AUTH HELPER ===== */
+function getUrlContextParams() {
+  var params = new URLSearchParams(window.location.search);
+  var context = {};
+  var orgId = params.get('org_id');
+  var roleId = params.get('role_id');
+  if (orgId) context.org_id = orgId;
+  if (roleId) context.role_id = roleId;
+  return context;
+}
+
+function buildApiUrl(endpoint) {
+  var ctx = getUrlContextParams();
+  var url = new URL(endpoint, window.location.origin);
+  if (ctx.org_id) url.searchParams.set('org_id', ctx.org_id);
+  if (ctx.role_id) url.searchParams.set('role_id', ctx.role_id);
+  return url.pathname + url.search;
+}
+
+function preserveUrlParams(targetUrl) {
+  var ctx = getUrlContextParams();
+  var url = new URL(targetUrl, window.location.origin);
+  if (ctx.org_id && !url.searchParams.has('org_id')) url.searchParams.set('org_id', ctx.org_id);
+  if (ctx.role_id && !url.searchParams.has('role_id')) url.searchParams.set('role_id', ctx.role_id);
+  return url.pathname + url.search;
+}
 
 function markFormDirty() { formDirty = true; }
 function clearFormDirty() { formDirty = false; }
@@ -395,7 +422,7 @@ function reportError(source, err) {
   if (_reportErrorInFlight) return;
   _reportErrorInFlight = true;
   try {
-    fetch('/api/log-error', {
+    fetch(buildApiUrl('/api/log-error'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -519,7 +546,7 @@ function makeTabsSticky() {
 }
 
 window.dashLogout = function() {
-  try { fetch('/auth/logout', { method: 'POST' }); } catch (e) {}
+  try { fetch(buildApiUrl('/auth/logout'), { method: 'POST' }); } catch (e) {}
   window.location.href = '/public/login.html';
 };
 
@@ -678,7 +705,7 @@ function recalcGrandTotal() {
 /* ===== FUEL PHOTO SETTINGS ===== */
 async function loadFuelPhotoSettings() {
   try {
-    var res = await fetch('/auth/get-settings');
+    var res = await fetch(buildApiUrl('/auth/get-settings'));
     var data = await res.json();
     if (data.success && data.settings) {
       fuelPhotoSettings.meter = !!data.settings.fuel_meter_photo;
@@ -1079,7 +1106,7 @@ async function _doExtraction(file, previewContent, status, preview) {
       reader.onerror = function() { reject(new Error('Failed to read file')) };
       reader.readAsDataURL(file);
     });
-    var resp = await fetch('/api/fuel-receipts/extract', {
+    var resp = await fetch(buildApiUrl('/api/fuel-receipts/extract'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ file: base64Data, fileName: file.name || 'receipt.jpg', fileType: file.type || 'image/jpeg' }),
@@ -1321,12 +1348,16 @@ async function submitPurchase() {
     }
   };
 
+  var ctx = getUrlContextParams();
+  if (ctx.org_id) body.org_id = ctx.org_id;
+  if (ctx.role_id) body.role_id = ctx.role_id;
+
   var submitBtn = document.querySelector('.purchase-submit-btn');
   submitBtn.disabled = true;
   submitBtn.textContent = 'Recording…';
 
   try {
-    var resp = await fetch('/api/fuel-purchases', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    var resp = await fetch(buildApiUrl('/api/fuel-purchases'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!resp.ok) { throw new Error('Server returned ' + resp.status); }
     var data = await resp.json();
     if (data.success) {
@@ -1432,7 +1463,7 @@ function clearPurchaseForm() {
 /* ===== LOAD DATA ===== */
 async function loadTanks() {
   try {
-    var resp = await fetch('/api/fuel-tanks');
+    var resp = await fetch(buildApiUrl('/api/fuel-tanks'));
     if (!resp.ok) throw new Error('Failed to load tanks: ' + resp.status);
     var data = await resp.json();
     if (data.success && data.tanks) allTanks = data.tanks;
@@ -1444,7 +1475,7 @@ async function loadTanks() {
 
 async function loadTankTypes() {
   try {
-    var resp = await fetch('/api/fuel-tank-types');
+    var resp = await fetch(buildApiUrl('/api/fuel-tank-types'));
     if (!resp.ok) throw new Error('Failed to load tank types: ' + resp.status);
     var data = await resp.json();
     if (data.success && data.tank_types) tankTypes = data.tank_types;
@@ -1456,7 +1487,7 @@ async function loadTankTypes() {
 
 async function loadAssets() {
   try {
-    var resp = await fetch('/api/assets');
+    var resp = await fetch(buildApiUrl('/api/assets'));
     if (!resp.ok) throw new Error('Failed to load assets: ' + resp.status);
     var data = await resp.json();
     if (data.success && data.assets) {
@@ -1517,7 +1548,7 @@ function handleProjectChange(sel) {
 
 async function loadProjects() {
   try {
-    var resp = await fetch('/api/projects');
+    var resp = await fetch(buildApiUrl('/api/projects'));
     if (!resp.ok) return;
     var data = await resp.json();
     if (data.success && data.projects) {
@@ -1568,7 +1599,10 @@ document.addEventListener('dashSessionLoaded', async function() {
   var role = (user.role || '').toLowerCase();
   var dashUrl = role === 'admin' ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
   var homeLink = document.getElementById('dashHomeLink');
-  if (homeLink) homeLink.href = dashUrl;
+  if (homeLink) homeLink.href = preserveUrlParams(dashUrl);
+
+  var transferLink = document.getElementById('fuelTransferLink');
+  if (transferLink) transferLink.href = preserveUrlParams(transferLink.getAttribute('href'));
 
   insertHeaderTitle();
   makeTabsSticky();
