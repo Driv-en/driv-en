@@ -758,10 +758,7 @@ function addLineItem(data) {
   var bulkTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'bulk' && (t.status === 'active' || !t.status); }));
   var dragupTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'dragup' && (t.status === 'active' || !t.status); }));
   var portableTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'portable' && (t.status === 'active' || !t.status); }));
-  var equipmentAssets = allAssets.filter(function(a) { 
-    var st = (a.status !== undefined && a.status !== null) ? String(a.status).toLowerCase() : '';
-    return st === '' || st === 'active' || st === '1' || st === 'true' || st === 'in_service' || st === 'available';
-  });
+  var equipmentAssets = allAssets; // Include all retrieved organization assets
 
   var assetMap = {};
   var datalistOptions = '';
@@ -1686,8 +1683,9 @@ async function loadAssets() {
     
     allAssets = assetsList.filter(function(a) { 
       if (!a) return false;
-      var st = (a.status !== undefined && a.status !== null) ? String(a.status).toLowerCase() : '';
-      return st === '' || st === 'active' || st === '1' || st === 'true' || st === 'in_service' || st === 'available'; 
+      var st = (a.status !== undefined && a.status !== null) ? String(a.status).toLowerCase().trim() : '';
+      // Filter out explicitly inactive/retired/decommissioned assets; allow all other active operational statuses
+      return st !== 'inactive' && st !== 'retired' && st !== 'decommissioned' && st !== 'sold' && st !== 'deleted' && st !== '0' && st !== 'false'; 
     });
 
     // Re-render asset datalists for all existing line items
