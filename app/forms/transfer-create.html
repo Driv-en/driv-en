@@ -424,7 +424,7 @@ async function loadProjects(){
   } catch(e) {}
 }
 
-/* ===== DRIVERS / OPERATORS DROPDOWN (FULL D1 ROSTER FETCH WITH FALLBACKS) ===== */
+/* ===== DRIVERS / OPERATORS DROPDOWN (QUERIES USERS TABLE IN DRIV-EN-DB ONLY) ===== */
 async function loadDrivers() {
   var driverSelect = document.getElementById('carrierDriver');
   if (!driverSelect || driverSelect.tagName !== 'SELECT') return;
@@ -438,31 +438,24 @@ async function loadDrivers() {
     html += '<option value="' + esc(activeUserName) + '" selected>' + esc(activeUserName) + ' (You)</option>';
   }
 
-  // Chain endpoints to query D1 organization users/employees
-  var endpoints = ['/api/users', '/api/employees', '/api/team'];
-  var usersList = [];
+  try {
+    // Hits driv-en-db users endpoint strictly with full limit parameters
+    var endpoint = buildApiUrl('/api/users') + '&limit=500&all=true';
+    var resp = await fetch(endpoint);
+    var data = await resp.json();
 
-  for (var i = 0; i < endpoints.length; i++) {
-    try {
-      var resp = await fetch(buildApiUrl(endpoints[i]));
-      var data = await resp.json();
-      var extracted = data.users || data.employees || data.data || data.team || data.members || data.people || [];
-      if (Array.isArray(extracted) && extracted.length > 0) {
-        usersList = extracted;
-        break;
+    var usersList = data.users || data.data || [];
+
+    usersList.forEach(function(u) {
+      var name = u.full_name || u.name || ((u.first_name || u.firstName || '') + ' ' + (u.last_name || u.lastName || '')).trim() || u.email;
+      if (name && !seenDrivers.has(name)) {
+        seenDrivers.add(name);
+        html += '<option value="' + esc(name) + '">' + esc(name) + '</option>';
       }
-    } catch(e) {
-      console.warn('Endpoint failed:', endpoints[i], e);
-    }
+    });
+  } catch(e) {
+    console.error('Failed to load drivers from driv-en-db users table:', e);
   }
-
-  usersList.forEach(function(u) {
-    var name = u.full_name || u.name || ((u.first_name || u.firstName || '') + ' ' + (u.last_name || u.lastName || '')).trim() || u.email;
-    if (name && !seenDrivers.has(name)) {
-      seenDrivers.add(name);
-      html += '<option value="' + esc(name) + '">' + esc(name) + '</option>';
-    }
-  });
 
   html += '<option value="__custom">+ Other (type manually)</option>';
   driverSelect.innerHTML = html;
