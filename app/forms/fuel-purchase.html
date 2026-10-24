@@ -326,8 +326,8 @@
           <input type="text" id="purchaseVendor" class="purchase-input" placeholder="e.g., Pacific Pride" oninput="markFormDirty()">
         </div>
         <div class="purchase-field" id="projectFieldWrap">
-          <label class="purchase-label">Project <span style="color:#cc0000;">*</span></label>
-          <select id="purchaseProject" class="purchase-input ai-needed" required onchange="handleProjectChange(this)">
+          <label class="purchase-label">Project</label>
+          <select id="purchaseProject" class="purchase-input" onchange="handleProjectChange(this)">
             <option value="">Select project…</option>
           </select>
         </div>
@@ -721,10 +721,10 @@ function addLineItem(data) {
   div.id = lineId;
   div.style.marginBottom = '12px';
 
-  var bulkTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'bulk' && t.status === 'active'; }));
-  var dragupTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'dragup' && t.status === 'active'; }));
-  var portableTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'portable' && t.status === 'active'; }));
-  var equipmentAssets = allAssets.filter(function(a) { return a.status === 'active'; });
+  var bulkTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'bulk' && (t.status === 'active' || !t.status); }));
+  var dragupTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'dragup' && (t.status === 'active' || !t.status); }));
+  var portableTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'portable' && (t.status === 'active' || !t.status); }));
+  var equipmentAssets = allAssets.filter(function(a) { return a.status === 'active' || a.status === '1' || !a.status; });
 
   var assetMap = {};
   var datalistOptions = '';
@@ -749,7 +749,9 @@ function addLineItem(data) {
     addAssetEntry('portable_can|' + t.id, label);
   });
   equipmentAssets.forEach(function(a) {
-    var label = (a.asset_number || a.id.slice(0,8)) + ' — ' + (a.name || 'Unnamed') + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
+    var assetNum = a.asset_number || a.asset_num || (a.id ? String(a.id).slice(0,8) : '');
+    var assetName = a.name || a.asset_name || a.title || 'Unnamed Asset';
+    var label = (assetNum ? assetNum + ' — ' : '') + assetName + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
     addAssetEntry('asset|' + a.id, label);
   });
 
@@ -1384,10 +1386,7 @@ async function submitPurchase() {
   var customProjectName = null;
   if (projectEl && projectEl.tagName === 'INPUT' && projectEl.getAttribute('data-custom') === 'true') {
     customProjectName = projectEl.value.trim();
-    if (!customProjectName) { showPurchaseError('Project is required'); return; }
     projectId = null;
-  } else {
-    if (!projectId) { showPurchaseError('Project is required'); return; }
   }
 
   var lineItems = [];
@@ -1566,8 +1565,7 @@ function clearPurchaseForm() {
   if (projEl && projEl.tagName === 'INPUT') {
     var projSelect = document.createElement('select');
     projSelect.id = 'purchaseProject';
-    projSelect.className = 'purchase-input ai-needed';
-    projSelect.setAttribute('required', '');
+    projSelect.className = 'purchase-input';
     projSelect.setAttribute('onchange', 'handleProjectChange(this)');
     projEl.parentNode.replaceChild(projSelect, projEl);
   }
@@ -1634,13 +1632,17 @@ async function loadAssets() {
     var resp = await fetch(endpoint);
     if (!resp.ok) throw new Error('Failed to load assets: ' + resp.status);
     var data = await resp.json();
-    var assetsList = data.assets || data.data || [];
-    allAssets = assetsList.filter(function(a) { return a.status === 'active' || !a.status; });
+    var assetsList = Array.isArray(data) ? data : (data.assets || data.data || []);
+    allAssets = assetsList.filter(function(a) { 
+      var st = (a.status !== undefined && a.status !== null) ? String(a.status).toLowerCase() : '';
+      return st === '' || st === 'active' || st === '1' || st === 'true'; 
+    });
 
-    // Refresh existing line items to update asset datalists
-    if (document.querySelectorAll('.line-item-row').length > 0) {
+    // Refresh line item options once assets are loaded
+    var rows = document.querySelectorAll('.line-item-row');
+    if (rows.length > 0) {
       var existingRows = [];
-      document.querySelectorAll('.line-item-row').forEach(function(row) {
+      rows.forEach(function(row) {
         var ft = row.querySelector('.line-fuel-type') ? row.querySelector('.line-fuel-type').value : 'diesel_onroad';
         var dest = row.querySelector('.line-destination') ? row.querySelector('.line-destination').value : '';
         var qty = row.querySelector('.line-qty') ? row.querySelector('.line-qty').value : '';
@@ -1737,10 +1739,8 @@ async function loadProjects() {
       if (wrap) {
         if (data.projects.length === 0) {
           wrap.style.display = 'none';
-          sel.removeAttribute('required');
         } else {
           wrap.style.display = '';
-          sel.setAttribute('required', '');
         }
       }
     }
