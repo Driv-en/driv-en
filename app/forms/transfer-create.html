@@ -153,7 +153,7 @@
           <div class="tc-section-title">From (current location)</div>
           <div class="tc-two-col">
             <div class="tc-row"><label>Project / Jobsite</label><select id="fromProject"><option value="">No project…</option></select></div>
-            <div class="tc-row"><label>Location</label><select id="fromLocation" onchange="handleLocationChange(this)"><option value="">Select location…</option></select></div>
+            <div class="tc-row"><label>Location</label><select id="fromLocation" onchange="handleCustomSelectChange(this, 'Type location name…')"><option value="">Select location…</option></select></div>
           </div>
         </div>
 
@@ -162,7 +162,7 @@
           <div class="tc-section-title">To (destination)</div>
           <div class="tc-two-col">
             <div class="tc-row"><label>Project / Jobsite</label><select id="toProject"><option value="">No project…</option></select></div>
-            <div class="tc-row"><label>Location <span class="req">*</span></label><select id="toLocation" required onchange="handleLocationChange(this)"><option value="">Select location…</option></select></div>
+            <div class="tc-row"><label>Location <span class="req">*</span></label><select id="toLocation" required onchange="handleCustomSelectChange(this, 'Type location name…')"><option value="">Select location…</option></select></div>
           </div>
         </div>
 
@@ -197,10 +197,12 @@
             <input type="text" id="carrierName" placeholder="Transport company">
           </div>
 
-          <!-- Shared Driver Field -->
+          <!-- Driver / Operator Dropdown -->
           <div class="tc-row">
             <label>Driver / Operator</label>
-            <input type="text" id="carrierDriver" placeholder="Who is driving / operating">
+            <select id="carrierDriver" onchange="handleCustomSelectChange(this, 'Type driver name…')">
+              <option value="">Select driver / operator…</option>
+            </select>
           </div>
         </div>
 
@@ -215,7 +217,6 @@
 <script src="/app/shared/dashboard-common.js?v=13"></script>
 <script>
 var deviceLocation = null;
-var allEquipmentList = [];
 
 function isMobileDevice() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
@@ -245,6 +246,17 @@ function preserveUrlParams(targetUrl) {
   if (ctx.org_id && !url.searchParams.has('org_id')) url.searchParams.set('org_id', ctx.org_id);
   if (ctx.role_id && !url.searchParams.has('role_id')) url.searchParams.set('role_id', ctx.role_id);
   return url.pathname + url.search;
+}
+
+function getUserDisplayName() {
+  if (window.dashUser) {
+    if (window.dashUser.full_name) return window.dashUser.full_name;
+    var fn = window.dashUser.first_name || window.dashUser.firstName || '';
+    var ln = window.dashUser.last_name || window.dashUser.lastName || '';
+    if (fn || ln) return [fn, ln].filter(Boolean).join(' ');
+    if (window.dashUser.name) return window.dashUser.name;
+  }
+  return window.dashUser && window.dashUser.email ? window.dashUser.email : '';
 }
 
 function reportError(source,err){var msg=(err&&err.message)?err.message:(typeof err==='string'?err:'Unknown error');var stack=(err&&err.stack)?err.stack:'No stack trace';try{fetch(buildApiUrl('/api/log-error'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source:'Transfer Create Form ('+source+')',message:msg,stack:stack,url:window.location.href,userAgent:navigator.userAgent})}).catch(function(){});}catch(e){console.error('Failed to report error:',e);}console.error('['+source+']',msg,stack);}
@@ -285,13 +297,13 @@ function onCarrierChange(){
   }
 }
 
-function handleLocationChange(sel) {
+function handleCustomSelectChange(sel, placeholderText) {
   if (sel.value === '__custom') {
     var input = document.createElement('input');
     input.type = 'text';
     input.id = sel.id;
     input.className = 'tc-row input';
-    input.placeholder = 'Type location name…';
+    input.placeholder = placeholderText || 'Type text…';
     if (sel.hasAttribute('required')) input.setAttribute('required', '');
     sel.parentNode.replaceChild(input, sel);
     input.focus();
@@ -412,6 +424,41 @@ async function loadProjects(){
   } catch(e) {}
 }
 
+/* ===== DRIVERS / OPERATORS DROPDOWN ===== */
+async function loadDrivers() {
+  try {
+    var resp = await fetch(buildApiUrl('/api/users'));
+    var data = await resp.json();
+    var driverSelect = document.getElementById('carrierDriver');
+    if (driverSelect && driverSelect.tagName === 'SELECT') {
+      var html = '<option value="">Select driver / operator…</option>';
+      var seenDrivers = new Set();
+      var activeUserName = getUserDisplayName().trim();
+
+      var usersList = data.users || data.employees || data.people || [];
+
+      // Always include current logged-in user if available
+      if (activeUserName) {
+        seenDrivers.add(activeUserName);
+        html += '<option value="' + esc(activeUserName) + '" selected>' + esc(activeUserName) + ' (You)</option>';
+      }
+
+      usersList.forEach(function(u) {
+        var name = u.full_name || u.name || ((u.first_name || u.firstName || '') + ' ' + (u.last_name || u.lastName || '')).trim() || u.email;
+        if (name && !seenDrivers.has(name)) {
+          seenDrivers.add(name);
+          html += '<option value="' + esc(name) + '">' + esc(name) + '</option>';
+        }
+      });
+
+      html += '<option value="__custom">+ Other (type manually)</option>';
+      driverSelect.innerHTML = html;
+    }
+  } catch(e) {
+    console.error('Failed to load drivers:', e);
+  }
+}
+
 async function submitTransfer(){
   if(!requireLocationOrPopup())return;
   showError('');
@@ -429,7 +476,9 @@ async function submitTransfer(){
   
   var carrierType = document.getElementById('carrierType').value;
   var carrierName = document.getElementById('carrierName').value.trim();
-  var carrierDriver = document.getElementById('carrierDriver').value.trim();
+  
+  var driverEl = document.getElementById('carrierDriver');
+  var carrierDriver = driverEl ? driverEl.value.trim() : '';
   
   var haulingVehicle = document.getElementById('haulingVehicle').value;
   var haulingTrailer = document.getElementById('haulingTrailer').value;
@@ -452,7 +501,7 @@ async function submitTransfer(){
       to_location: toLocation || null,
       carrier_type: carrierType,
       carrier_name: carrierType === 'third_party' ? (carrierName || null) : null,
-      carrier_driver: carrierDriver || null,
+      carrier_driver: (carrierDriver && carrierDriver !== '__custom') ? carrierDriver : null,
       hauling_vehicle_id: carrierType === 'internal' ? (haulingVehicle || null) : null,
       hauling_trailer_id: carrierType === 'internal' ? (haulingTrailer || null) : null,
       notes: notes || null,
@@ -494,11 +543,11 @@ function resetForm(){
   document.getElementById('toLocation').value = '';
   document.getElementById('carrierType').value = 'internal';
   document.getElementById('carrierName').value = '';
-  document.getElementById('carrierDriver').value = '';
   document.getElementById('haulingVehicle').value = '';
   document.getElementById('haulingTrailer').value = 'No Trailer';
   document.getElementById('notes').value = '';
   onCarrierChange();
+  loadDrivers();
   showError('');
 }
 
@@ -542,6 +591,7 @@ async function initPage() {
 
   await loadAssets();
   await loadProjects();
+  await loadDrivers();
 }
 
 if (window.dashUser || window.drivenUser) {
