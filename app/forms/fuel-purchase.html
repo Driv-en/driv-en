@@ -302,7 +302,9 @@
         </div>
         <div class="purchase-field">
           <label class="purchase-label">User <span style="color:#cc0000;">*</span></label>
-          <input type="text" id="purchasePerson" class="purchase-input" placeholder="auto-filled from session">
+          <select id="purchasePerson" class="purchase-input" required onchange="markFormDirty()">
+            <option value="">Select user…</option>
+          </select>
         </div>
         <div class="purchase-field">
           <label class="purchase-label">Vendor <span style="color:#cc0000;">*</span></label>
@@ -641,6 +643,57 @@ function localDate() {
   var m = String(d.getMonth() + 1).padStart(2, '0');
   var day = String(d.getDate()).padStart(2, '0');
   return y + '-' + m + '-' + day;
+}
+
+/* ===== USERS DROPDOWN ===== */
+async function loadUsers() {
+  var personSelect = document.getElementById('purchasePerson');
+  if (!personSelect || personSelect.tagName !== 'SELECT') return;
+
+  var seenUserIds = new Set();
+  var activeUser = window.dashUser || {};
+  var activeUserId = activeUser.id || activeUser.user_id;
+  var activeUserName = getUserDisplayName().trim();
+
+  var html = '<option value="">Select user…</option>';
+
+  if (activeUserId && activeUserName) {
+    seenUserIds.add(activeUserId);
+    html += '<option value="' + esc(activeUserName) + '" selected>' + esc(activeUserName) + ' (You)</option>';
+  }
+
+  try {
+    var endpoint = buildApiUrl('/api/users') + '&limit=500&all=true';
+    var resp = await fetch(endpoint);
+    var data = await resp.json();
+
+    var usersList = data.users || data.data || [];
+
+    var nameCounts = {};
+    usersList.forEach(function(u) {
+      var n = u.full_name || u.name || ((u.first_name || u.firstName || '') + ' ' + (u.last_name || u.lastName || '')).trim();
+      if (n) nameCounts[n] = (nameCounts[n] || 0) + 1;
+    });
+
+    usersList.forEach(function(u) {
+      if (!u.id || seenUserIds.has(u.id)) return;
+      seenUserIds.add(u.id);
+
+      var name = u.full_name || u.name || ((u.first_name || u.firstName || '') + ' ' + (u.last_name || u.lastName || '')).trim() || u.email;
+
+      if (nameCounts[name] > 1 && u.email) {
+        name = name + ' (' + u.email + ')';
+      }
+
+      if (name) {
+        html += '<option value="' + esc(name) + '">' + esc(name) + '</option>';
+      }
+    });
+  } catch(e) {
+    console.error('Failed to load users from driv-en-db users table:', e);
+  }
+
+  personSelect.innerHTML = html;
 }
 
 /* ===== LINE ITEMS ===== */
@@ -1284,13 +1337,14 @@ async function submitPurchase() {
   var date = document.getElementById('purchaseDate').value;
   var locationEl = document.getElementById('purchaseLocation');
   var location = locationEl ? locationEl.value.trim() : '';
-  var person = document.getElementById('purchasePerson').value;
+  var personEl = document.getElementById('purchasePerson');
+  var person = personEl ? personEl.value.trim() : '';
   var vendor = document.getElementById('purchaseVendor').value;
   var notes = document.getElementById('purchaseNotes').value;
 
   if (!date) { showPurchaseError('Date is required'); return; }
   if (!vendor || !vendor.trim()) { showPurchaseError('Vendor is required'); return; }
-  if (!person || !person.trim()) { showPurchaseError('User is required'); return; }
+  if (!person) { showPurchaseError('User is required'); return; }
 
   var projectEl = document.getElementById('purchaseProject');
   var projectId = projectEl ? projectEl.value.trim() : '';
@@ -1497,7 +1551,7 @@ function clearPurchaseForm() {
   locHtml += '<option value="__custom">+ Other (type manually)</option>';
   if (locEl) locEl.innerHTML = locHtml;
 
-  document.getElementById('purchasePerson').value = getUserDisplayName();
+  loadUsers();
   document.getElementById('purchaseVendor').value = '';
   document.getElementById('purchaseProject').value = '';
   document.getElementById('purchaseNotes').value = '';
@@ -1551,12 +1605,13 @@ async function loadTankTypes() {
 
 async function loadAssets() {
   try {
-    var resp = await fetch(buildApiUrl('/api/assets'));
+    var endpoint = buildApiUrl('/api/assets') + '&limit=500&all=true';
+    var resp = await fetch(endpoint);
     if (!resp.ok) throw new Error('Failed to load assets: ' + resp.status);
     var data = await resp.json();
-    if (data.success && data.assets) {
-      allAssets = data.assets.filter(function(a) { return a.status === 'active'; });
-    }
+    var assetsList = data.assets || data.data || [];
+    allAssets = assetsList.filter(function(a) { return a.status === 'active' || !a.status; });
+
     var locations = {};
     allAssets.forEach(function(a) {
       if (a.current_location && a.current_location.trim()) {
@@ -1578,6 +1633,28 @@ async function loadAssets() {
       html += '<option value="__custom">+ Other (type manually)</option>';
       locSelect.innerHTML = html;
       if (currentVal) locSelect.value = currentVal;
+    }
+
+    // Refresh existing line items to update asset datalists
+    if (document.querySelectorAll('.line-item-row').length > 0) {
+      var existingRows = [];
+      document.querySelectorAll('.line-item-row').forEach(function(row) {
+        var ft = row.querySelector('.line-fuel-type') ? row.querySelector('.line-fuel-type').value : 'diesel_onroad';
+        var dest = row.querySelector('.line-destination') ? row.querySelector('.line-destination').value : '';
+        var qty = row.querySelector('.line-qty') ? row.querySelector('.line-qty').value : '';
+        var cpg = row.querySelector('.line-cpg') ? row.querySelector('.line-cpg').value : '';
+        existingRows.push({ fuel_type: ft, dest: dest, gallons: qty, unit_price: cpg });
+      });
+      document.getElementById('lineItemsContainer').innerHTML = '';
+      lineItemCount = 0;
+      existingRows.forEach(function(r) {
+        addLineItem(r);
+        var lastRow = document.querySelector('.line-item-row:last-child');
+        if (lastRow && r.dest) {
+          var destInput = lastRow.querySelector('.line-destination');
+          if (destInput) destInput.value = r.dest;
+        }
+      });
     }
   } catch (e) {
     console.error('Error loading assets:', e.message);
@@ -1647,8 +1724,7 @@ function initPurchaseForm() {
   var dateField = document.getElementById('purchaseDate');
   if (dateField) dateField.value = today;
 
-  var userField = document.getElementById('purchasePerson');
-  if (userField) userField.value = getUserDisplayName();
+  loadUsers();
 
   document.getElementById('lineItemsContainer').innerHTML = '';
   lineItemCount = 0;
