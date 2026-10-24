@@ -147,9 +147,63 @@
       <div class="tc-card">
         <h2>Create Transfer Ticket</h2>
         <div class="tc-row"><label>Equipment to Transfer <span class="req">*</span></label><select id="assetId" required><option value="">Select equipment…</option></select><div class="hint">Search by asset number or name</div></div>
-        <div class="tc-section"><div class="tc-section-title">From (current location)</div><div class="tc-two-col"><div class="tc-row"><label>Project / Jobsite</label><select id="fromProject"><option value="">No project…</option></select></div><div class="tc-row"><label>Location</label><input type="text" id="fromLocation" placeholder="Yard, shop, site name…"></div></div></div>
-        <div class="tc-section"><div class="tc-section-title">To (destination)</div><div class="tc-two-col"><div class="tc-row"><label>Project / Jobsite</label><select id="toProject"><option value="">No project…</option></select></div><div class="tc-row"><label>Location <span class="req">*</span></label><input type="text" id="toLocation" placeholder="Where is it going?" required></div></div></div>
-        <div class="tc-section"><div class="tc-section-title">Carrier (who is moving it)</div><div class="tc-row"><label>Carrier Type</label><select id="carrierType" onchange="onCarrierChange()"><option value="internal">Internal (our crew)</option><option value="third_party">Third Party (hired transport)</option></select></div><div class="tc-two-col"><div class="tc-row" id="carrierNameRow" style="display:none;"><label>Carrier Company Name</label><input type="text" id="carrierName" placeholder="Transport company"></div><div class="tc-row"><label>Driver / Operator</label><input type="text" id="carrierDriver" placeholder="Who is driving / operating"></div></div></div>
+        
+        <!-- FROM SECTION -->
+        <div class="tc-section">
+          <div class="tc-section-title">From (current location)</div>
+          <div class="tc-two-col">
+            <div class="tc-row"><label>Project / Jobsite</label><select id="fromProject"><option value="">No project…</option></select></div>
+            <div class="tc-row"><label>Location</label><select id="fromLocation" onchange="handleLocationChange(this)"><option value="">Select location…</option></select></div>
+          </div>
+        </div>
+
+        <!-- TO SECTION -->
+        <div class="tc-section">
+          <div class="tc-section-title">To (destination)</div>
+          <div class="tc-two-col">
+            <div class="tc-row"><label>Project / Jobsite</label><select id="toProject"><option value="">No project…</option></select></div>
+            <div class="tc-row"><label>Location <span class="req">*</span></label><select id="toLocation" required onchange="handleLocationChange(this)"><option value="">Select location…</option></select></div>
+          </div>
+        </div>
+
+        <!-- CARRIER SECTION -->
+        <div class="tc-section">
+          <div class="tc-section-title">Carrier (who is moving it)</div>
+          <div class="tc-row">
+            <label>Carrier Type</label>
+            <select id="carrierType" onchange="onCarrierChange()">
+              <option value="internal">Internal (our crew)</option>
+              <option value="third_party">Third Party (hired transport)</option>
+            </select>
+          </div>
+
+          <!-- Internal Fields -->
+          <div id="internalCarrierFields">
+            <div class="tc-two-col">
+              <div class="tc-row">
+                <label>Hauling Vehicle</label>
+                <select id="haulingVehicle"><option value="">Select vehicle…</option></select>
+              </div>
+              <div class="tc-row">
+                <label>Trailer</label>
+                <select id="haulingTrailer"><option value="No Trailer">No Trailer</option></select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Third Party Fields -->
+          <div class="tc-row" id="thirdPartyCarrierFields" style="display:none;">
+            <label>Carrier Company Name</label>
+            <input type="text" id="carrierName" placeholder="Transport company">
+          </div>
+
+          <!-- Shared Driver Field -->
+          <div class="tc-row">
+            <label>Driver / Operator</label>
+            <input type="text" id="carrierDriver" placeholder="Who is driving / operating">
+          </div>
+        </div>
+
         <div class="tc-row"><label>Notes (optional)</label><textarea id="notes" placeholder="Any additional details about this transfer…"></textarea></div>
         <div class="tc-btn-row"><button class="tc-cancel-btn" onclick="goBack()">Cancel</button><button class="tc-submit-btn" id="submitBtn" onclick="submitTransfer()">Create Ticket</button></div>
       </div>
@@ -160,7 +214,8 @@
 <div id="dashFooter"></div>
 <script src="/app/shared/dashboard-common.js?v=13"></script>
 <script>
-var deviceLocation=null;
+var deviceLocation = null;
+var allEquipmentList = [];
 
 function isMobileDevice() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
@@ -214,71 +269,238 @@ function makeTabsSticky() {
 window.dashLogout=function(){try{fetch(buildApiUrl('/auth/logout'),{method:'POST'});}catch(e){}window.location.href='/public/login.html';};
 function goBack(){var role=(window.dashUser&&window.dashUser.role||'').toLowerCase();var dashUrl=(role==='admin'||role==='ro-admin')?'/app/dashboard/admin.html':'/app/dashboard/employee-dashboard.html';window.location.href=preserveUrlParams(dashUrl);}
 function showError(msg){var el=document.getElementById('errorBanner');if(!msg){el.style.display='none';return;}el.textContent=msg;el.style.display='block';}
-function onCarrierChange(){var type=document.getElementById('carrierType').value;var nameRow=document.getElementById('carrierNameRow');if(type==='third_party'){nameRow.style.display='block';}else{nameRow.style.display='none';document.getElementById('carrierName').value='';}}
 
-async function loadAssets(){try{var resp=await fetch(buildApiUrl('/api/equipment'));var data=await resp.json();if(data.success&&data.equipment){var select=document.getElementById('assetId');data.equipment.forEach(function(a){var opt=document.createElement('option');opt.value=a.id;opt.textContent=(a.asset_number||a.id.slice(0,8))+' — '+(a.name||'Unnamed');select.appendChild(opt);});}}catch(e){console.error('Failed to load equipment:',e);reportError('loadAssets',e);}}
-async function loadProjects(){try{var resp=await fetch(buildApiUrl('/api/projects'));var data=await resp.json();if(data.success&&data.projects){var fromSel=document.getElementById('fromProject');var toSel=document.getElementById('toProject');data.projects.forEach(function(p){var opt1=document.createElement('option');opt1.value=p.id;opt1.textContent=p.name||p.project_name||p.id;fromSel.appendChild(opt1);var opt2=document.createElement('option');opt2.value=p.id;opt2.textContent=p.name||p.project_name||p.id;toSel.appendChild(opt2);});}}catch(e){}}
+function onCarrierChange(){
+  var type = document.getElementById('carrierType').value;
+  var internalFields = document.getElementById('internalCarrierFields');
+  var thirdPartyFields = document.getElementById('thirdPartyCarrierFields');
+
+  if (type === 'third_party') {
+    internalFields.style.display = 'none';
+    thirdPartyFields.style.display = 'block';
+  } else {
+    internalFields.style.display = 'block';
+    thirdPartyFields.style.display = 'none';
+    document.getElementById('carrierName').value = '';
+  }
+}
+
+function handleLocationChange(sel) {
+  if (sel.value === '__custom') {
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.id = sel.id;
+    input.className = 'tc-row input';
+    input.placeholder = 'Type location name…';
+    if (sel.hasAttribute('required')) input.setAttribute('required', '');
+    sel.parentNode.replaceChild(input, sel);
+    input.focus();
+  }
+}
+
+/* ===== DEDUPLICATED ASSETS & VEHICLES ===== */
+async function loadAssets(){
+  try {
+    var resp = await fetch(buildApiUrl('/api/equipment'));
+    var data = await resp.json();
+    var rawList = data.equipment || data.assets || [];
+
+    var seenIds = new Set();
+    var assetSelect = document.getElementById('assetId');
+    var haulingVehicleSelect = document.getElementById('haulingVehicle');
+    var haulingTrailerSelect = document.getElementById('haulingTrailer');
+
+    assetSelect.innerHTML = '<option value="">Select equipment…</option>';
+    haulingVehicleSelect.innerHTML = '<option value="">Select vehicle…</option>';
+    haulingTrailerSelect.innerHTML = '<option value="No Trailer">No Trailer</option>';
+
+    var locationsSet = new Set();
+
+    rawList.forEach(function(a) {
+      if (!a.id || seenIds.has(a.id)) return;
+      seenIds.add(a.id);
+
+      var label = (a.asset_number || a.id.slice(0,8)) + ' — ' + (a.name || 'Unnamed');
+      var type = (a.category || a.type || a.asset_type || '').toLowerCase();
+
+      // Populate Equipment to Transfer
+      var opt = document.createElement('option');
+      opt.value = a.id;
+      opt.textContent = label;
+      assetSelect.appendChild(opt);
+
+      // Separate haul vehicles / trucks vs trailers vs standard equipment
+      if (type.includes('truck') || type.includes('vehicle') || type.includes('pickup') || type.includes('tractor')) {
+        var vOpt = document.createElement('option');
+        vOpt.value = a.id;
+        vOpt.textContent = label;
+        haulingVehicleSelect.appendChild(vOpt);
+      } else if (type.includes('trailer')) {
+        var tOpt = document.createElement('option');
+        tOpt.value = a.id;
+        tOpt.textContent = label;
+        haulingTrailerSelect.appendChild(tOpt);
+      }
+
+      // Collect locations
+      if (a.current_location && a.current_location.trim()) locationsSet.add(a.current_location.trim());
+      if (a.location && a.location.trim()) locationsSet.add(a.location.trim());
+    });
+
+    populateLocationDropdowns(Array.from(locationsSet));
+  } catch(e) {
+    console.error('Failed to load equipment:', e);
+    reportError('loadAssets', e);
+  }
+}
+
+/* ===== LOCATION DROPDOWNS ===== */
+function populateLocationDropdowns(locations) {
+  var fromLoc = document.getElementById('fromLocation');
+  var toLoc = document.getElementById('toLocation');
+
+  if (fromLoc && fromLoc.tagName === 'SELECT') {
+    var html = '<option value="">Select location…</option>';
+    locations.sort().forEach(function(loc) {
+      html += '<option value="' + esc(loc) + '">' + esc(loc) + '</option>';
+    });
+    html += '<option value="__custom">+ Other (type manually)</option>';
+    fromLoc.innerHTML = html;
+  }
+
+  if (toLoc && toLoc.tagName === 'SELECT') {
+    var html = '<option value="">Select location…</option>';
+    locations.sort().forEach(function(loc) {
+      html += '<option value="' + esc(loc) + '">' + esc(loc) + '</option>';
+    });
+    html += '<option value="__custom">+ Other (type manually)</option>';
+    toLoc.innerHTML = html;
+  }
+}
+
+/* ===== DEDUPLICATED PROJECTS ===== */
+async function loadProjects(){
+  try {
+    var resp = await fetch(buildApiUrl('/api/projects'));
+    var data = await resp.json();
+    if (data.success && data.projects) {
+      var fromSel = document.getElementById('fromProject');
+      var toSel = document.getElementById('toProject');
+
+      fromSel.innerHTML = '<option value="">No project…</option>';
+      toSel.innerHTML = '<option value="">No project…</option>';
+
+      var seenProjIds = new Set();
+
+      data.projects.forEach(function(p) {
+        if (!p.id || seenProjIds.has(p.id)) return;
+        seenProjIds.add(p.id);
+
+        var name = p.name || p.project_name || p.id;
+
+        var opt1 = document.createElement('option');
+        opt1.value = p.id;
+        opt1.textContent = name;
+        fromSel.appendChild(opt1);
+
+        var opt2 = document.createElement('option');
+        opt2.value = p.id;
+        opt2.textContent = name;
+        toSel.appendChild(opt2);
+      });
+    }
+  } catch(e) {}
+}
 
 async function submitTransfer(){
   if(!requireLocationOrPopup())return;
   showError('');
-  var assetId=document.getElementById('assetId').value;
-  var fromProjectId=document.getElementById('fromProject').value;
-  var fromLocation=document.getElementById('fromLocation').value.trim();
-  var toProjectId=document.getElementById('toProject').value;
-  var toLocation=document.getElementById('toLocation').value.trim();
-  var carrierType=document.getElementById('carrierType').value;
-  var carrierName=document.getElementById('carrierName').value.trim();
-  var carrierDriver=document.getElementById('carrierDriver').value.trim();
-  var notes=document.getElementById('notes').value.trim();
+  
+  var assetId = document.getElementById('assetId').value;
+  var fromProjectId = document.getElementById('fromProject').value;
+  
+  var fromLocEl = document.getElementById('fromLocation');
+  var fromLocation = fromLocEl ? fromLocEl.value.trim() : '';
+  
+  var toProjectId = document.getElementById('toProject').value;
+  
+  var toLocEl = document.getElementById('toLocation');
+  var toLocation = toLocEl ? toLocEl.value.trim() : '';
+  
+  var carrierType = document.getElementById('carrierType').value;
+  var carrierName = document.getElementById('carrierName').value.trim();
+  var carrierDriver = document.getElementById('carrierDriver').value.trim();
+  
+  var haulingVehicle = document.getElementById('haulingVehicle').value;
+  var haulingTrailer = document.getElementById('haulingTrailer').value;
+  
+  var notes = document.getElementById('notes').value.trim();
 
   if(!assetId){showError('Please select the equipment to transfer.');return;}
-  if(!toLocation){showError('Please enter the destination location.');return;}
+  if(!toLocation || toLocation === '__custom'){showError('Please enter or select the destination location.');return;}
 
-  var submitBtn=document.getElementById('submitBtn');
-  submitBtn.disabled=true;
-  submitBtn.textContent='Creating…';
+  var submitBtn = document.getElementById('submitBtn');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Creating…';
 
   try{
-    var body={
-      asset_id:assetId,
-      from_project_id:fromProjectId||null,
-      from_location:fromLocation||null,
-      to_project_id:toProjectId||null,
-      to_location:toLocation||null,
-      carrier_type:carrierType,
-      carrier_name:carrierName||null,
-      carrier_driver:carrierDriver||null,
-      notes:notes||null,
-      device_location:hasDeviceLocation()?deviceLocation:null
+    var body = {
+      asset_id: assetId,
+      from_project_id: fromProjectId || null,
+      from_location: fromLocation || null,
+      to_project_id: toProjectId || null,
+      to_location: toLocation || null,
+      carrier_type: carrierType,
+      carrier_name: carrierType === 'third_party' ? (carrierName || null) : null,
+      carrier_driver: carrierDriver || null,
+      hauling_vehicle_id: carrierType === 'internal' ? (haulingVehicle || null) : null,
+      hauling_trailer_id: carrierType === 'internal' ? (haulingTrailer || null) : null,
+      notes: notes || null,
+      device_location: hasDeviceLocation() ? deviceLocation : null
     };
 
     var ctx = getUrlContextParams();
     if (ctx.org_id) body.org_id = ctx.org_id;
     if (ctx.role_id) body.role_id = ctx.role_id;
 
-    var resp=await fetch(buildApiUrl('/api/transfers'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    var data=await resp.json();
+    var resp = await fetch(buildApiUrl('/api/transfers'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    var data = await resp.json();
 
-    if(data.success&&data.transfer){
-      document.getElementById('formView').style.display='none';
-      document.getElementById('successView').style.display='block';
-      document.getElementById('ticketNum').textContent=data.transfer.ticket_number;
-      var assetName=document.getElementById('assetId').selectedOptions[0].textContent;
-      document.getElementById('successMsg').textContent=assetName+' → '+toLocation;
-    }else{
-      showError(data.error||'Failed to create transfer ticket.');
+    if(data.success && data.transfer){
+      document.getElementById('formView').style.display = 'none';
+      document.getElementById('successView').style.display = 'block';
+      document.getElementById('ticketNum').textContent = data.transfer.ticket_number;
+      var assetName = document.getElementById('assetId').selectedOptions[0].textContent;
+      document.getElementById('successMsg').textContent = assetName + ' → ' + toLocation;
+    } else {
+      showError(data.error || 'Failed to create transfer ticket.');
     }
-  }catch(e){
-    showError('Network error: '+e.message);
-    reportError('submitTransfer',e);
-  }finally{
-    submitBtn.disabled=false;
-    submitBtn.textContent='Create Ticket';
+  } catch(e) {
+    showError('Network error: ' + e.message);
+    reportError('submitTransfer', e);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Create Ticket';
   }
 }
 
-function resetForm(){document.getElementById('formView').style.display='block';document.getElementById('successView').style.display='none';document.getElementById('assetId').value='';document.getElementById('fromProject').value='';document.getElementById('fromLocation').value='';document.getElementById('toProject').value='';document.getElementById('toLocation').value='';document.getElementById('carrierType').value='internal';document.getElementById('carrierName').value='';document.getElementById('carrierDriver').value='';document.getElementById('notes').value='';document.getElementById('carrierNameRow').style.display='none';showError('');}
+function resetForm(){
+  document.getElementById('formView').style.display = 'block';
+  document.getElementById('successView').style.display = 'none';
+  document.getElementById('assetId').value = '';
+  document.getElementById('fromProject').value = '';
+  document.getElementById('fromLocation').value = '';
+  document.getElementById('toProject').value = '';
+  document.getElementById('toLocation').value = '';
+  document.getElementById('carrierType').value = 'internal';
+  document.getElementById('carrierName').value = '';
+  document.getElementById('carrierDriver').value = '';
+  document.getElementById('haulingVehicle').value = '';
+  document.getElementById('haulingTrailer').value = 'No Trailer';
+  document.getElementById('notes').value = '';
+  onCarrierChange();
+  showError('');
+}
 
 async function initPage() {
   var user = window.dashUser;
@@ -319,7 +541,7 @@ async function initPage() {
   }
 
   await loadAssets();
-  loadProjects();
+  await loadProjects();
 }
 
 if (window.dashUser || window.drivenUser) {
