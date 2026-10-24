@@ -837,7 +837,7 @@ function addLineItem(data) {
       '</div>' +
       '<div class="purchase-field"><label class="purchase-label">Asset <span style="color:#cc0000;">*</span></label>' +
         '<div class="input-with-arrow">' +
-          '<input type="text" class="purchase-input line-destination" placeholder="Type to search…" list="' + lineId + '-assets" autocomplete="off" oninput="markFormDirty()">' +
+          '<input type="text" class="purchase-input line-destination ai-needed" placeholder="Type to search…" list="' + lineId + '-assets" autocomplete="off" oninput="markFormDirty()">' +
         '</div>' +
         '<datalist id="' + lineId + '-assets">' + datalistOptions + '</datalist>' +
       '</div>' +
@@ -847,8 +847,8 @@ function addLineItem(data) {
       '<div class="purchase-field"><label class="purchase-label">Cost/Gal <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(optional)</span></label>' +
         '<input type="number" class="purchase-input line-cpg" placeholder="$0.00" min="0" step="0.001" value="' + unitPriceEsc + '" oninput="recalcLine(\'' + lineId + '\'); markFormDirty()">' +
       '</div>' +
-      '<div class="purchase-field"><label class="purchase-label">Meter Reading <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(optional)</span></label>' +
-        '<input type="number" class="purchase-input line-meter" placeholder="hrs/mi" min="0" step="0.1" value="' + meterReadingEsc + '" oninput="markFormDirty()">' +
+      '<div class="purchase-field"><label class="purchase-label">Meter Reading <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(if machinery)</span></label>' +
+        '<input type="number" class="purchase-input line-meter ai-needed" placeholder="hrs/mi" min="0" step="0.1" value="' + meterReadingEsc + '" oninput="markFormDirty()">' +
       '</div>' +
       '<button class="line-item-remove" onclick="removeLineItem(\'' + lineId + '\')">✕</button>' +
     '</div>';
@@ -1495,7 +1495,8 @@ async function submitPurchase() {
     var qty = parseFloat(row.querySelector('.line-qty').value);
     var fuelType = row.querySelector('.line-fuel-type').value;
     var cpg = parseFloat(row.querySelector('.line-cpg').value) || null;
-    var meterReading = parseFloat(row.querySelector('.line-meter').value) || null;
+    var meterReadingVal = row.querySelector('.line-meter').value.trim();
+    var meterReading = parseFloat(meterReadingVal);
 
     if (!qty || qty <= 0 || !isFinite(qty)) { showPurchaseError('Line ' + (i + 1) + ': quantity (gallons) is required and must be > 0'); return; }
     if (!fuelType) { showPurchaseError('Line ' + (i + 1) + ': fuel type is required'); return; }
@@ -1509,13 +1510,23 @@ async function submitPurchase() {
     }
 
     var parts = dest.split('|');
+    var entityType = parts[0];
+
+    // Meter reading is mandatory if destination is an equipment asset
+    if (entityType === 'asset') {
+      if (!meterReadingVal || isNaN(meterReading) || meterReading < 0) {
+        showPurchaseError('Line ' + (i + 1) + ': Meter Reading is required when fueling machinery/equipment.');
+        return;
+      }
+    }
+
     var li = {
       fuel_type: fuelType,
       quantity: qty,
-      to_entity_type: parts[0],
+      to_entity_type: entityType,
       to_entity_id: parts[1],
       cost_per_gallon: cpg,
-      meter_reading: meterReading
+      meter_reading: !isNaN(meterReading) ? meterReading : null
     };
     if (customProjectName) li.project_name = customProjectName;
     if (customAssetName) li.custom_asset_name = customAssetName;
