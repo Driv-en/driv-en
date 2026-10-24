@@ -629,7 +629,7 @@
   
   <div id="dashFooter"></div>
   
-  <script src="/app/shared/auth-check.js?v=15"></script>
+  <script src="/app/shared/auth-check.js?v=19"></script>
   <script src="/app/shared/dashboard-common.js?v=15"></script>
   <script>
     var orgSettings = {};
@@ -688,7 +688,7 @@
     function showPageError() { var b=document.getElementById('pageErrorBanner'); if(b) b.classList.add('show'); }
     function dismissPageError() { var b=document.getElementById('pageErrorBanner'); if(b) b.classList.remove('show'); }
 
-    /* Session Preservation mapped to users table (id primary key) */
+    /* Explicit Session Preservation with URL Context appending mapped to users table schema */
     function preserveAndNavigate(event, targetUrl) {
       if (event) {
         event.preventDefault();
@@ -730,7 +730,11 @@
         sessionStorage.setItem("driven_user_id", userObj.id);
       }
 
-      window.location.href = targetUrl;
+      // Explicitly append session query params so target forms/dashboards always retain context
+      var querySeparator = targetUrl.includes('?') ? '&' : '?';
+      var finalUrl = targetUrl + querySeparator + "org_id=" + encodeURIComponent(targetOrg) + "&role_id=" + encodeURIComponent(roleVal);
+
+      window.location.href = finalUrl;
     }
 
     function validateOrgContext() {
@@ -1463,8 +1467,10 @@
       }
 
       currentUserObj = user;
-      var roleVal = String((user && (user.role_id || user.role)) || "").trim();
-      if (!user || roleVal !== "RO-admin") { 
+      var roleVal = String((user && (user.role_id || user.role)) || "").trim().toLowerCase();
+      var isAllowedAdmin = roleVal === "ro-admin" || roleVal === "admin" || roleVal.indexOf("founder") !== -1;
+
+      if (!user || !isAllowedAdmin) { 
         console.warn("[AdminDashboard] Guard rejected role:", roleVal);
         window.location.href = "/public/login.html"; 
         return; 
@@ -1477,12 +1483,12 @@
 
       localStorage.setItem("driven_org_id", activeOrgId);
       localStorage.setItem("driven_user", userStr);
-      localStorage.setItem("driven_role", roleVal);
+      localStorage.setItem("driven_role", user.role_id || user.role || "RO-admin");
       if (user.id) localStorage.setItem("driven_user_id", user.id);
 
       sessionStorage.setItem("driven_org_id", activeOrgId);
       sessionStorage.setItem("driven_user", userStr);
-      sessionStorage.setItem("driven_role", roleVal);
+      sessionStorage.setItem("driven_role", user.role_id || user.role || "RO-admin");
       if (user.id) sessionStorage.setItem("driven_user_id", user.id);
 
       document.getElementById("welcome-name").textContent = user.first_name || user.email || "Admin";
