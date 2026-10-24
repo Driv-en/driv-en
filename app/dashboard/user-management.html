@@ -81,7 +81,7 @@
       margin-top: 2px;
     }
 
-/* Secondary Tab Bar - Sticky Directly Below Header */
+    /* Secondary Tab Bar - Sticky Directly Below Header Bar */
     .um-tab-bar {
       display: flex !important;
       visibility: visible !important;
@@ -94,7 +94,7 @@
       overflow-x: auto;
       position: -webkit-sticky !important;
       position: sticky !important;
-      top: 58px !important;
+      top: var(--header-height, 60px) !important;
       z-index: 99 !important;
       background: #cbd5e1;
       border-bottom: 2px solid #94a3b8;
@@ -105,7 +105,7 @@
     @media screen and (max-width: 768px) {
       :root { --header-height: 50px; }
       .um-tab-bar {
-        top: 50px !important;
+        top: var(--header-height, 50px) !important;
         padding: 0 8px;
       }
       .um-tab {
@@ -1027,12 +1027,15 @@
     var visibleUserCols = {}, userColWidths = {};
     var visibleEmpCols = {}, empColWidths = {};
 
-    /* Dynamic Tab Reparenting to ensure absolute stickiness inside header */
-  function makeTabsSticky() {
+    /* Dynamic Tab Reparenting to ensure absolute stickiness directly below header */
+    function makeTabsSticky() {
       var h = document.getElementById("dashHeader"), 
           tb = document.getElementById("umTabBar"); 
-      if (h && tb && h.nextElementSibling !== tb) {
-        h.parentNode.insertBefore(tb, h.nextSibling);
+      if (h && tb) {
+        if (h.contains && h.contains(tb)) return;
+        if (h.nextElementSibling !== tb) {
+          h.parentNode.insertBefore(tb, h.nextSibling);
+        }
       }
     }
 
@@ -1181,7 +1184,7 @@
       if (activeEl) { activeEl.textContent = sortState[type].dir === 'asc' ? '▲' : '▼'; }
     }
 
-async function initializeUserManagementPage() {
+    async function initializeUserManagementPage() {
       makeTabsSticky();
       setTimeout(makeTabsSticky, 300);
 
