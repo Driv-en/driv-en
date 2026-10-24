@@ -22,32 +22,6 @@
 })();
 </script>
 
-<!-- EAGER SESSION CHECK (Runs before auth-check.js to prevent login redirect) -->
-<script>
-(async function() {
-  try {
-    var userStr = localStorage.getItem("driven_user");
-    var hasValidStorage = userStr && userStr !== "undefined" && userStr !== "null";
-    if (!hasValidStorage) {
-      var res = await fetch("/auth/get-user", { method: "GET", headers: { "Accept": "application/json" } });
-      if (res.ok) {
-        var data = await res.json();
-        if (data && (data.user || data.success)) {
-          var u = data.user || data;
-          window.dashUser = u;
-          localStorage.setItem("driven_user", JSON.stringify(u));
-          if (u.id) localStorage.setItem("driven_user_id", String(u.id));
-          if (u.org_id) localStorage.setItem("driven_org_id", u.org_id);
-          if (u.customer_id) localStorage.setItem("driven_customer_id", u.customer_id);
-        }
-      }
-    }
-  } catch(e) {
-    console.warn("Pre-auth session check failed:", e);
-  }
-})();
-</script>
-
 <style>
     .dash-header-row2 { display: none !important; }
     .dash-header-row3 { display: none !important; }
@@ -662,10 +636,6 @@
       return names;
     }
 
-    function autoDetectCompletion(stepNum) {
-      return false;
-    }
-
     function isTaskFullyComplete(stepNum) {
       var def = STEP_DEFS[stepNum];
       var taskName = def.task;
@@ -1070,97 +1040,96 @@
     }
 
     async function processSessionUser(user, orgIdDetail) {
-      if (!user) {
-        window.location.href = "/public/login.html";
-        return;
-      }
-      currentUser = user;
-      activeOrgId = user.org_id || orgIdDetail || localStorage.getItem("driven_org_id") || "";
+      try {
+        if (!user) {
+          window.location.href = "/public/login.html";
+          return;
+        }
+        currentUser = user;
+        activeOrgId = user.org_id || orgIdDetail || localStorage.getItem("driven_org_id") || "";
 
-      localStorage.setItem("driven_user", JSON.stringify(user));
-      if (user.id) localStorage.setItem("driven_user_id", String(user.id));
-      if (activeOrgId) localStorage.setItem("driven_org_id", activeOrgId);
-      if (user.customer_id) localStorage.setItem("driven_customer_id", user.customer_id);
+        localStorage.setItem("driven_user", JSON.stringify(user));
+        if (user.id) localStorage.setItem("driven_user_id", String(user.id));
+        if (activeOrgId) localStorage.setItem("driven_org_id", activeOrgId);
+        if (user.customer_id) localStorage.setItem("driven_customer_id", user.customer_id);
 
-      var firstName = user.first_name || "";
-      var greeting = document.getElementById("greetingText");
-      if (firstName) { greeting.innerHTML = "Welcome, <strong>" + firstName + "</strong>"; }
-      var fullName = (user.first_name || "") + (user.last_name ? " " + user.last_name : "");
-      document.getElementById("account-name").textContent = fullName || user.email || "";
-      document.getElementById("account-email").textContent = user.email || "";
-      document.getElementById("account-role").textContent = user.role || "User";
-      insertHeaderTitle();
-      makeTabsSticky();
-      updateThemeSwitch();
-      var roleLower = (user.role) ? user.role.toLowerCase() : "";
-      if (roleLower === "admin" || roleLower === "administrator" || roleLower.indexOf("founder") !== -1) {
-        isAdmin = true;
-        var adminTabInit = document.getElementById("obTabBar").querySelector('[data-tab="admin"]');
-        if (adminTabInit) adminTabInit.style.display = "inline-block";
-        var kpBanner = document.getElementById("kpMarkCompleteBanner");
-        if (kpBanner) kpBanner.style.display = "none";
+        var firstName = user.first_name || "";
+        var greeting = document.getElementById("greetingText");
+        if (firstName) { greeting.innerHTML = "Welcome, <strong>" + firstName + "</strong>"; }
+        var fullName = (user.first_name || "") + (user.last_name ? " " + user.last_name : "");
+        document.getElementById("account-name").textContent = fullName || user.email || "";
+        document.getElementById("account-email").textContent = user.email || "";
+        document.getElementById("account-role").textContent = user.role || "User";
+        insertHeaderTitle();
+        makeTabsSticky();
+        updateThemeSwitch();
+        var roleLower = (user.role) ? user.role.toLowerCase() : "";
+        if (roleLower === "admin" || roleLower === "administrator" || roleLower.indexOf("founder") !== -1) {
+          isAdmin = true;
+          var adminTabInit = document.getElementById("obTabBar").querySelector('[data-tab="admin"]');
+          if (adminTabInit) adminTabInit.style.display = "inline-block";
+          var kpBanner = document.getElementById("kpMarkCompleteBanner");
+          if (kpBanner) kpBanner.style.display = "none";
+        }
+        await loadSettings();
+        loadTaskCompletions();
+        await loadKeyPersonnel();
+        loadOnboardingKPIs();
+      } finally {
+        var loadingEl = document.getElementById("loading");
+        var dashEl = document.getElementById("dashboard");
+        if (loadingEl) loadingEl.style.display = "none";
+        if (dashEl) dashEl.style.display = "block";
       }
-      await loadSettings();
-      loadTaskCompletions();
-      await loadKeyPersonnel();
-      loadOnboardingKPIs();
-      document.getElementById("loading").style.display = "none";
-      document.getElementById("dashboard").style.display = "block";
+    }
+
+    async function fetchUserSession() {
+      try {
+        var res = await fetch("/auth/get-user");
+        if (res.ok) {
+          var data = await res.json();
+          if (data && (data.user || data.success)) {
+            return data.user || data;
+          }
+        }
+      } catch(e) {
+        console.error("Session lookup error:", e);
+      }
+      return null;
     }
 
     async function init() {
-      var sessionHandled = false;
+      var user = window.dashUser;
 
-      document.addEventListener("dashSessionLoaded", async function(e) {
-        if (sessionHandled) return;
-        sessionHandled = true;
-        var user = window.dashUser;
-        var orgId = e.detail ? e.detail.org_id : "";
-        await processSessionUser(user, orgId);
-      });
-
-      if (window.dashUser) {
-        sessionHandled = true;
-        await processSessionUser(window.dashUser, window.dashUser.org_id);
-        return;
-      }
-
-      var savedUser = localStorage.getItem("driven_user");
-      if (savedUser && savedUser !== "undefined") {
-        try {
-          var parsed = JSON.parse(savedUser);
-          if (parsed && parsed.email) {
-            sessionHandled = true;
-            window.dashUser = parsed;
-            await processSessionUser(parsed, parsed.org_id);
-            return;
-          }
-        } catch(e) {}
-      }
-
-      setTimeout(async function() {
-        if (sessionHandled) return;
-        try {
-          var res = await fetch("/auth/get-user");
-          if (res.ok) {
-            var data = await res.json();
-            if (data && (data.user || data.success)) {
-              var u = data.user || data;
-              sessionHandled = true;
-              window.dashUser = u;
-              await processSessionUser(u, u.org_id);
-              return;
+      if (!user) {
+        var savedUser = localStorage.getItem("driven_user");
+        if (savedUser && savedUser !== "undefined" && savedUser !== "null") {
+          try {
+            var parsed = JSON.parse(savedUser);
+            if (parsed && parsed.email) {
+              user = parsed;
             }
-          }
-        } catch (e) {
-          console.error("Direct auth lookup error:", e);
+          } catch(e) {}
         }
-        
-        if (!sessionHandled) {
-          window.location.href = "/public/login.html";
-        }
-      }, 300);
+      }
+
+      if (!user) {
+        user = await fetchUserSession();
+      }
+
+      if (user) {
+        window.dashUser = user;
+        await processSessionUser(user, user.org_id);
+      } else {
+        window.location.href = "/public/login.html";
+      }
     }
+
+    document.addEventListener("dashSessionLoaded", async function(e) {
+      if (window.dashUser) {
+        await processSessionUser(window.dashUser, e.detail ? e.detail.org_id : "");
+      }
+    });
 
     init();
 </script>
