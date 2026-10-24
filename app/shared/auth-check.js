@@ -1,11 +1,27 @@
 // ============================================================================
-// AUTH CHECK — Shared auth protection script (v17 — Fail-Safe Storage Sync)
+// AUTH CHECK — Shared auth protection script (v18 — URL Context & Storage Sync)
 // ============================================================================
 
 (async function() {
   if (!document.body) {
     document.addEventListener("DOMContentLoaded", arguments.callee);
     return;
+  }
+
+  // 0. CAPTURE URL CONTEXT PARAMS (org_id / role_id)
+  var urlParams = new URLSearchParams(window.location.search);
+  var urlOrgId = urlParams.get("org_id") || urlParams.get("orgId") || urlParams.get("customerId");
+  var urlRoleId = urlParams.get("role_id") || urlParams.get("roleId") || urlParams.get("role");
+
+  // Save explicit URL context params to storage immediately
+  if (urlOrgId) {
+    localStorage.setItem("driven_org_id", urlOrgId);
+    localStorage.setItem("driven_customer_id", urlOrgId);
+    sessionStorage.setItem("driven_org_id", urlOrgId);
+  }
+  if (urlRoleId) {
+    localStorage.setItem("driven_role", urlRoleId);
+    sessionStorage.setItem("driven_role", urlRoleId);
   }
 
   // 1. FAST-PATH: Hydrate session state synchronously from storage
@@ -17,6 +33,9 @@
 
   if (cachedUser) {
     if (!cachedUser.id && cachedUser.user_id) cachedUser.id = cachedUser.user_id;
+    if (urlOrgId) cachedUser.org_id = urlOrgId;
+    if (urlRoleId) cachedUser.role_id = urlRoleId;
+
     window.drivenUser = cachedUser;
     window.dashUser = cachedUser;
     document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: cachedUser }));
@@ -29,7 +48,24 @@
       headers["Authorization"] = "Bearer " + storedToken;
     }
 
-    var response = await fetch("/auth/session", {
+    var activeOrgId = urlOrgId || (cachedUser && cachedUser.org_id) || localStorage.getItem("driven_org_id");
+    if (activeOrgId) {
+      headers["x-org-id"] = activeOrgId;
+    }
+    if (urlRoleId) {
+      headers["x-role-id"] = urlRoleId;
+    }
+
+    // Build auth session endpoint with query params
+    var sessionEndpoint = "/auth/session";
+    var queryParts = [];
+    if (urlOrgId) queryParts.push("org_id=" + encodeURIComponent(urlOrgId));
+    if (urlRoleId) queryParts.push("role_id=" + encodeURIComponent(urlRoleId));
+    if (queryParts.length > 0) {
+      sessionEndpoint += "?" + queryParts.join("&");
+    }
+
+    var response = await fetch(sessionEndpoint, {
       headers: headers,
       credentials: "include"
     });
@@ -58,6 +94,10 @@
     if (!user.id && user.user_id) {
       user.id = user.user_id;
     }
+
+    // Allow URL params to override session user context if explicitly passed
+    if (urlOrgId) user.org_id = urlOrgId;
+    if (urlRoleId) user.role_id = urlRoleId;
 
     var userEmail = (user.email || "").toLowerCase().trim();
     var userRole = (user.role || "").toString().toLowerCase();
