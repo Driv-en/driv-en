@@ -296,13 +296,10 @@
           <label class="purchase-label">Date <span style="color:#cc0000;">*</span></label>
           <input type="date" id="purchaseDate" class="purchase-input" onchange="markFormDirty()">
         </div>
-        <div class="purchase-field">
-          <label class="purchase-label">P.O. Number</label>
-          <input type="text" id="purchasePONumber" class="purchase-input" placeholder="Optional" oninput="markFormDirty()">
-        </div>
+
         <div class="purchase-field">
           <label class="purchase-label">Payment Type</label>
-          <select id="purchasePaymentType" class="purchase-input" onchange="markFormDirty()">
+          <select id="purchasePaymentType" class="purchase-input ai-needed" onchange="handlePaymentTypeChange(this); markFormDirty()">
             <option value="">Select payment type…</option>
             <option value="Credit Card">Credit Card</option>
             <option value="Fleet Card">Fleet Card</option>
@@ -311,26 +308,36 @@
             <option value="On Account">On Account / PO</option>
           </select>
         </div>
-        <div class="purchase-field">
+
+        <div class="purchase-field" id="poNumberWrap" style="display:none;">
+          <label class="purchase-label">P.O. Number</label>
+          <input type="text" id="purchasePONumber" class="purchase-input" placeholder="Optional" oninput="markFormDirty()">
+        </div>
+
+        <div class="purchase-field" id="cardLast4Wrap" style="display:none;">
           <label class="purchase-label">Card Last 4 / Ref #</label>
           <input type="text" id="purchaseCardLast4" class="purchase-input" placeholder="e.g. 4242" maxlength="10" oninput="markFormDirty()">
         </div>
+
         <div class="purchase-field">
           <label class="purchase-label">User <span style="color:#cc0000;">*</span></label>
           <select id="purchasePerson" class="purchase-input" required onchange="markFormDirty()">
             <option value="">Select user…</option>
           </select>
         </div>
+
         <div class="purchase-field">
           <label class="purchase-label">Vendor <span style="color:#cc0000;">*</span></label>
           <input type="text" id="purchaseVendor" class="purchase-input" placeholder="e.g., Pacific Pride" oninput="markFormDirty()">
         </div>
+
         <div class="purchase-field" id="projectFieldWrap">
           <label class="purchase-label">Project</label>
-          <select id="purchaseProject" class="purchase-input" onchange="handleProjectChange(this)">
+          <select id="purchaseProject" class="purchase-input ai-needed" onchange="handleProjectChange(this)">
             <option value="">Select project…</option>
           </select>
         </div>
+
         <div class="purchase-field">
           <label class="purchase-label">Location (if applicable)</label>
           <select id="purchaseLocation" class="purchase-input ai-needed" onchange="handleLocationChange(this)">
@@ -480,6 +487,33 @@ function clearFormDirty() { formDirty = false; }
 window.addEventListener('beforeunload', function(e) {
   if (formDirty) { e.preventDefault(); e.returnValue = ''; }
 });
+
+/* ===== PAYMENT TYPE TOGGLES ===== */
+function handlePaymentTypeChange(selectEl) {
+  var val = (selectEl ? selectEl.value : '').trim();
+  var poWrap = document.getElementById('poNumberWrap');
+  var cardWrap = document.getElementById('cardLast4Wrap');
+
+  if (poWrap) {
+    if (val === 'On Account' || val === 'On Account / PO') {
+      poWrap.style.display = 'flex';
+    } else {
+      poWrap.style.display = 'none';
+      var poInp = document.getElementById('purchasePONumber');
+      if (poInp) poInp.value = '';
+    }
+  }
+
+  if (cardWrap) {
+    if (val === 'Credit Card' || val === 'Fleet Card') {
+      cardWrap.style.display = 'flex';
+    } else {
+      cardWrap.style.display = 'none';
+      var cardInp = document.getElementById('purchaseCardLast4');
+      if (cardInp) cardInp.value = '';
+    }
+  }
+}
 
 /* ===== CLIENT-SIDE ERROR REPORTING ===== */
 var _reportErrorInFlight = false;
@@ -724,7 +758,10 @@ function addLineItem(data) {
   var bulkTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'bulk' && (t.status === 'active' || !t.status); }));
   var dragupTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'dragup' && (t.status === 'active' || !t.status); }));
   var portableTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'portable' && (t.status === 'active' || !t.status); }));
-  var equipmentAssets = allAssets.filter(function(a) { return a.status === 'active' || a.status === '1' || !a.status; });
+  var equipmentAssets = allAssets.filter(function(a) { 
+    var st = (a.status !== undefined && a.status !== null) ? String(a.status).toLowerCase() : '';
+    return st === '' || st === 'active' || st === '1' || st === 'true' || st === 'in_service' || st === 'available';
+  });
 
   var assetMap = {};
   var datalistOptions = '';
@@ -749,10 +786,11 @@ function addLineItem(data) {
     addAssetEntry('portable_can|' + t.id, label);
   });
   equipmentAssets.forEach(function(a) {
-    var assetNum = a.asset_number || a.asset_num || (a.id ? String(a.id).slice(0,8) : '');
-    var assetName = a.name || a.asset_name || a.title || 'Unnamed Asset';
+    var assetNum = a.asset_number || a.asset_num || a.asset_id || a.unit_number || a.code || (a.id ? String(a.id).slice(0,8) : '');
+    var assetName = a.name || a.asset_name || a.title || a.description || [a.year, a.make, a.model].filter(Boolean).join(' ') || 'Unnamed Asset';
+    var assetId = a.id || a.asset_id || a.uuid || assetNum;
     var label = (assetNum ? assetNum + ' — ' : '') + assetName + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
-    addAssetEntry('asset|' + a.id, label);
+    addAssetEntry('asset|' + assetId, label);
   });
 
   div.dataset.assetMap = JSON.stringify(assetMap);
@@ -1103,7 +1141,7 @@ function _attachCropEvents(stage, cropBox, imgW, imgH) {
     } else if (resizing) {
       var newX = startBoxX, newY = startBoxY, newW = startBoxW, newH = startBoxH;
       if (resizePos.indexOf('e') !== -1) newW = Math.max(40, Math.min(_cropState.dispW - startBoxX, startBoxW + dx));
-      if (resizePos.indexOf('s') !== -1) newH = Math.max(40, Math.min(_cropState.dispH - startBoxY, startBoxH + dy));
+      if (resizePos.indexOf('s') !== -1) newH = Math.max(40, Math.min(_cropState.dispH - startBoxH, startBoxH + dy));
       if (resizePos.indexOf('w') !== -1) {
         var maxDx = startBoxW - 40;
         var realDx = Math.max(-startBoxX, Math.min(maxDx, dx));
@@ -1290,6 +1328,7 @@ async function _doExtraction(file, previewContent, status, preview) {
         if (payEl) {
           payEl.value = data.extracted.payment_type;
           payEl.classList.add('ai-extracted');
+          handlePaymentTypeChange(payEl);
         }
       }
       if (data.extracted.card_last_4) {
@@ -1565,7 +1604,7 @@ function clearPurchaseForm() {
   if (projEl && projEl.tagName === 'INPUT') {
     var projSelect = document.createElement('select');
     projSelect.id = 'purchaseProject';
-    projSelect.className = 'purchase-input';
+    projSelect.className = 'purchase-input ai-needed';
     projSelect.setAttribute('onchange', 'handleProjectChange(this)');
     projEl.parentNode.replaceChild(projSelect, projEl);
   }
@@ -1575,6 +1614,7 @@ function clearPurchaseForm() {
   document.getElementById('purchaseVendor').value = '';
   document.getElementById('purchasePONumber').value = '';
   document.getElementById('purchasePaymentType').value = '';
+  handlePaymentTypeChange(document.getElementById('purchasePaymentType'));
   document.getElementById('purchaseCardLast4').value = '';
   document.getElementById('purchaseProject').value = '';
   document.getElementById('purchaseNotes').value = '';
@@ -1587,7 +1627,7 @@ function clearPurchaseForm() {
   document.getElementById('aiConfidenceBanner').style.display = 'none';
   document.getElementById('aiConfidenceBanner').innerHTML = '';
   document.getElementById('aiFieldLegend').style.display = 'none';
-  document.querySelectorAll('.line-item-row .ai-extracted, .line-item-row .ai-needed, .purchase-input.ai-extracted').forEach(function(el) { el.classList.remove('ai-extracted'); el.classList.remove('ai-needed'); });
+  document.querySelectorAll('.line-item-row .ai-extracted, .line-item-row .ai-needed, .purchase-input.ai-extracted').forEach(function(el) { el.classList.remove('ai-extracted'); });
   document.getElementById('purchaseResult').style.display = 'none';
   if (_objectUrl) { URL.revokeObjectURL(_objectUrl); _objectUrl = null; }
   receiptR2Key = null;
@@ -1630,15 +1670,27 @@ async function loadAssets() {
   try {
     var endpoint = buildApiUrl('/api/assets') + '&limit=500&all=true';
     var resp = await fetch(endpoint);
+    if (!resp.ok) {
+      // Fallback request without org_id params if endpoint fails
+      resp = await fetch('/api/assets');
+    }
     if (!resp.ok) throw new Error('Failed to load assets: ' + resp.status);
     var data = await resp.json();
-    var assetsList = Array.isArray(data) ? data : (data.assets || data.data || []);
+    
+    var assetsList = [];
+    if (Array.isArray(data)) {
+      assetsList = data;
+    } else if (data && typeof data === 'object') {
+      assetsList = data.assets || data.data || data.items || data.rows || [];
+    }
+    
     allAssets = assetsList.filter(function(a) { 
+      if (!a) return false;
       var st = (a.status !== undefined && a.status !== null) ? String(a.status).toLowerCase() : '';
-      return st === '' || st === 'active' || st === '1' || st === 'true'; 
+      return st === '' || st === 'active' || st === '1' || st === 'true' || st === 'in_service' || st === 'available'; 
     });
 
-    // Refresh line item options once assets are loaded
+    // Re-render asset datalists for all existing line items
     var rows = document.querySelectorAll('.line-item-row');
     if (rows.length > 0) {
       var existingRows = [];
@@ -1700,7 +1752,7 @@ function handleLocationChange(sel) {
     var input = document.createElement('input');
     input.type = 'text';
     input.id = 'purchaseLocation';
-    input.className = 'purchase-input';
+    input.className = 'purchase-input ai-needed';
     input.placeholder = 'Type location name';
     sel.parentNode.replaceChild(input, sel);
     input.focus();
@@ -1712,7 +1764,7 @@ function handleProjectChange(sel) {
     var input = document.createElement('input');
     input.type = 'text';
     input.id = 'purchaseProject';
-    input.className = 'purchase-input';
+    input.className = 'purchase-input ai-needed';
     input.placeholder = 'Type new project name';
     input.setAttribute('data-custom', 'true');
     sel.parentNode.replaceChild(input, sel);
