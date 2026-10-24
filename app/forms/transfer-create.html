@@ -162,6 +162,10 @@
 <script>
 var deviceLocation=null;
 
+function isMobileDevice() {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
+}
+
 function getUrlContextParams() {
   var params = new URLSearchParams(window.location.search);
   var context = {};
@@ -194,7 +198,7 @@ function updateLocationStatus(hasLocation){var banner=document.getElementById('l
 function showLocationPopup(message){var overlay=document.getElementById('locationPopupOverlay');var msgEl=document.getElementById('locationPopupMessage');if(!overlay||!msgEl)return;msgEl.innerHTML='<p style="font-size:15px;margin:0 0 16px;">'+esc(message)+'</p><div style="background:#f4f4f4;border-radius:8px;padding:14px;margin-bottom:12px;"><p style="font-weight:600;margin:0 0 8px;">How to enable location:</p><p style="margin:0 0 6px;"><strong>iPhone/iPad (iOS):</strong> Settings → Privacy & Security → Location Services → ON → Find your browser → set to "While Using"</p><p style="margin:0 0 6px;"><strong>Android:</strong> Settings → Location → ON → App permissions → your browser → Allow only while using the app</p><p style="margin:0 0 6px;"><strong>Chrome (Desktop):</strong> Click the location icon in the address bar → Site settings → Location → Allow → Reload</p><p style="margin:0;"><strong>Firefox (Desktop):</strong> Settings → Privacy & Security → Permissions → Location → Settings → Allow</p></div><p style="font-size:13px;color:#666;margin:0;">After enabling, click "Retry" to capture your location.</p>';overlay.style.display='flex';}
 function closeLocationPopup(){var overlay=document.getElementById('locationPopupOverlay');if(overlay)overlay.style.display='none';}
 function hasDeviceLocation(){return deviceLocation!==null&&deviceLocation.latitude!==undefined&&deviceLocation.longitude!==undefined;}
-function requireLocationOrPopup(){if(hasDeviceLocation())return true;var isMobile=/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)||(navigator.maxTouchPoints>0&&window.innerWidth<1024);if(!isMobile)return true;showLocationPopup('Location is required to submit this form. Please enable location on your device and retry.');return false;}
+function requireLocationOrPopup(){if(hasDeviceLocation())return true;if(!isMobileDevice())return true;showLocationPopup('Location is required to submit this form. Please enable location on your device and retry.');return false;}
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function insertHeaderTitle(){var row1=document.querySelector('.dash-header-row1');if(row1&&!document.querySelector('.tc-header-title')){var title=document.createElement('div');title.className='tc-header-title';title.textContent='Create Transfer Ticket';var logoArea=document.getElementById('dashCustomerLogoArea');var drivenLogo=row1.querySelector('.dash-driven-logo');if(logoArea&&drivenLogo)row1.insertBefore(title,drivenLogo);}}
 
@@ -307,9 +311,12 @@ async function initPage() {
   document.getElementById('loading').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
 
-  if (!hasDeviceLocation()) checkDeviceLocation();
-  var banner = document.getElementById('locationStatusBanner');
-  if (banner) banner.style.display = 'block';
+  // Request location ONLY on mobile devices
+  if (isMobileDevice()) {
+    if (!hasDeviceLocation()) checkDeviceLocation();
+    var banner = document.getElementById('locationStatusBanner');
+    if (banner) banner.style.display = 'block';
+  }
 
   await loadAssets();
   loadProjects();
