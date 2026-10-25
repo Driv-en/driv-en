@@ -7,7 +7,7 @@ export async function onRequest(context) {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-org-id'
   };
 
   if (method === 'OPTIONS') {
@@ -16,7 +16,7 @@ export async function onRequest(context) {
 
   // Predefined granular component schemas per asset category
   const CATEGORY_SCHEMAS = {
-    "Excavator": {
+    "excavator": {
       sections: [
         {
           title: "1. Usage & Engine Metrics",
@@ -51,7 +51,7 @@ export async function onRequest(context) {
         }
       ]
     },
-    "Class 8 Semi Truck": {
+    "class8semitruck": {
       sections: [
         {
           title: "1. Road Mileage & DOT Compliance",
@@ -77,7 +77,7 @@ export async function onRequest(context) {
         }
       ]
     },
-    "Generator": {
+    "generator": {
       sections: [
         {
           title: "1. Run Time & Telemetry",
@@ -103,7 +103,7 @@ export async function onRequest(context) {
         }
       ]
     },
-    "Default": {
+    "default": {
       sections: [
         {
           title: "1. Meter & Usage Tracking",
@@ -129,34 +129,42 @@ export async function onRequest(context) {
     }
   };
 
+  // Helper function to normalize category string lookup
+  function normalizeCategoryKey(str) {
+    if (!str) return "default";
+    return String(str).toLowerCase().replace(/[^a-z0-9]/g, "");
+  }
+
   try {
     if (method === 'GET') {
       const targetType = url.searchParams.get('targetType') || 'specific';
       const key = url.searchParams.get('key');
-      const assetType = url.searchParams.get('assetType') || key || 'Default';
+      const rawAssetType = url.searchParams.get('assetType') || key || 'default';
 
-      if (!key) {
-        return new Response(JSON.stringify({ error: 'Missing key parameter' }), { status: 400, headers });
+      // Require key ONLY if requesting a specific asset profile
+      if (targetType === 'specific' && !key) {
+        return new Response(JSON.stringify({ 
+          error: "Missing required 'key' parameter for targetType 'specific'" 
+        }), { status: 400, headers });
       }
 
-      // 1. Resolve Schema based on Asset Category
-      const schemaKey = Object.keys(CATEGORY_SCHEMAS).find(k => k.toLowerCase() === assetType.toLowerCase()) || 'Default';
+      // 1. Resolve Schema based on normalized Asset Category
+      const normKey = normalizeCategoryKey(rawAssetType);
+      const schemaKey = Object.keys(CATEGORY_SCHEMAS).find(k => k === normKey) || 'default';
       const schema = CATEGORY_SCHEMAS[schemaKey];
 
-      // 2. Fetch Saved Config Values from KV
-      const storageKey = `config:${targetType}:${key.toLowerCase()}`;
+      // 2. Fetch Saved Config Values from KV (if bound)
       let savedConfig = null;
 
-      if (env.DRIVEN_KV) {
+      if (env.DRIVEN_KV && key) {
+        const storageKey = `config:${targetType}:${key.toLowerCase()}`;
         savedConfig = await env.DRIVEN_KV.get(storageKey, { type: 'json' });
       }
 
       // Fallback to Category Template if specific override doesn't exist yet
-      if (!savedConfig && targetType === 'specific' && assetType) {
-        const templateKey = `config:template:${assetType.toLowerCase()}`;
-        if (env.DRIVEN_KV) {
-          savedConfig = await env.DRIVEN_KV.get(templateKey, { type: 'json' });
-        }
+      if (!savedConfig && targetType === 'specific' && rawAssetType && env.DRIVEN_KV) {
+        const templateKey = `config:template:${normalizeCategoryKey(rawAssetType)}`;
+        savedConfig = await env.DRIVEN_KV.get(templateKey, { type: 'json' });
       }
 
       return new Response(JSON.stringify({
@@ -168,20 +176,34 @@ export async function onRequest(context) {
     }
 
     if (method === 'POST') {
-      const body = await request.json();
-      const { targetType, key, config } = body;
+      let body;
+      try {
+        body = await request.json();
+      } catch (jsonErr) {
+        return new Response(JSON.stringify({ error: 'Invalid JSON payload in request body' }), { status: 400, headers });
+      }
 
-      if (!targetType || !key || !config) {
-        return new Response(JSON.stringify({ error: 'Missing required payload parameters' }), { status: 400, headers });
+      const { targetType, key, config } = body || {};
+
+      if (!targetType || !key || config === undefined) {
+        return new Response(JSON.stringify({ 
+          error: "Missing required payload parameters: 'targetType', 'key', and 'config' must be supplied" 
+        }), { status: 400, headers });
+      }
+
+      if (!env.DRIVEN_KV) {
+        return new Response(JSON.stringify({ 
+          error: "KV storage binding 'DRIVEN_KV' is not configured on this environment" 
+        }), { status: 500, headers });
       }
 
       const storageKey = `config:${targetType}:${key.toLowerCase()}`;
+      await env.DRIVEN_KV.put(storageKey, JSON.stringify(config));
 
-      if (env.DRIVEN_KV) {
-        await env.DRIVEN_KV.put(storageKey, JSON.stringify(config));
-      }
-
-      return new Response(JSON.stringify({ success: true, message: 'Configuration saved successfully' }), { status: 200, headers });
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: 'Configuration saved successfully' 
+      }), { status: 200, headers });
     }
 
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers });
