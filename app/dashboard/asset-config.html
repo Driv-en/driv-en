@@ -7,6 +7,9 @@
   <meta name="description" content="DRIV-EN — configure inspection rules, telemetry thresholds, and asset defaults.">
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+  <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+  <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+  <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
   <link rel="stylesheet" href="/app/shared/dashboard.css?v=11">
   <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
   <script>
@@ -225,11 +228,14 @@
 </head>
 <body data-page-title="Asset Configuration" data-required-permission="any">
 
+  <!-- Diamond Plate Background Overlay -->
   <div class="steel-bg"></div>
   <div class="steel-overlay"></div>
 
+  <!-- Standard Header -->
   <div id="dashHeader"></div>
 
+  <!-- Sticky Top Navigation Bar -->
   <div class="top-nav-bar">
     <a href="asset-management.html" class="btn-secondary">← Back to Asset Management</a>
     <button class="btn-action" onclick="openCopyModal()">Copy Config From Another Asset</button>
@@ -239,6 +245,7 @@
   <div class="config-container">
     <div id="statusMsg" class="am-message"></div>
 
+    <!-- Selection Controls -->
     <div class="card">
       <div class="grid-2">
         <div class="form-group">
@@ -265,6 +272,7 @@
       </div>
     </div>
 
+    <!-- Dynamic Schema Rules Panel -->
     <div class="card" id="configPanel" style="opacity: 0.5; pointer-events: none;">
       <div class="mode-banner" id="modeBanner">Select an option above to configure rules.</div>
 
@@ -279,6 +287,7 @@
         </label>
       </div>
 
+      <!-- Dynamic Schema Form Container -->
       <div id="dynamicSchemaFields"></div>
 
       <div class="actions">
@@ -456,9 +465,13 @@
       try {
         let url = `${API_ENDPOINT}?targetType=${targetType}&key=${encodeURIComponent(key)}&assetType=${encodeURIComponent(assetType)}`;
         const res = await apiFetch(url);
-        const data = await res.json();
+        let data = null;
 
-        if (data.success && data.schema && data.schema.sections) {
+        if (res.ok) {
+          data = await res.json();
+        }
+
+        if (data && data.success && data.schema && data.schema.sections) {
           currentSchema = data.schema;
           renderDynamicForm(data.schema, data.config);
 
@@ -469,7 +482,19 @@
           }
           toggleFormLock();
         } else {
-          showMessage("Could not load category schema options.", "error");
+          // Fallback: Query API for default schema template if exact key match is missed
+          let fallbackUrl = `${API_ENDPOINT}?targetType=${targetType}&key=${encodeURIComponent(key)}&assetType=default`;
+          const fallbackRes = await apiFetch(fallbackUrl);
+          if (fallbackRes.ok) {
+            const fallbackData = await fallbackRes.json();
+            if (fallbackData && fallbackData.schema && fallbackData.schema.sections) {
+              currentSchema = fallbackData.schema;
+              renderDynamicForm(fallbackData.schema, fallbackData.config || (data ? data.config : null));
+              toggleFormLock();
+              return;
+            }
+          }
+          showMessage("Unable to load category schema options.", "error");
         }
       } catch (e) {
         console.error('Failed to load dynamic schema:', e);
