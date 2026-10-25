@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>DRIV‑EN | Asset Configuration</title>
-  <meta name="description" content="DRIV-EN — configure inspection rules, PM schedules, and asset defaults.">
+  <title>DRIV‑EN | Asset Configuration Rules</title>
+  <meta name="description" content="DRIV-EN — configure inspection rules, telemetry thresholds, and asset defaults.">
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
   <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
@@ -281,6 +281,7 @@
     let allAssets = [];
     let assetTypes = [];
     let currentSchema = null;
+    let activeOrgId = null;
 
     const API_ENDPOINT = '/api/asset-config';
     const FALLBACK_API_ENDPOINT = 'https://asset-config-api.driv-en.workers.dev/api/asset-config';
@@ -305,7 +306,7 @@
       if (h1.parentNode === r1) return true;
       var dl = r1.querySelector('.dash-driven-logo');
       r1.insertBefore(h1, dl);
-      r1.style.cssText = 'display:flex !important; justify-space-between !important; align-items:center !important; padding:8px 20px !important; gap:16px !important; width:100% !important; box-sizing:border-box !important; background:#cbd5e1 !important; border-bottom:2px solid #94a3b8 !important;';
+      r1.style.cssText = 'display:flex !important; justify-content:space-between !important; align-items:center !important; padding:8px 20px !important; gap:16px !important; width:100% !important; box-sizing:border-box !important; background:#cbd5e1 !important; border-bottom:2px solid #94a3b8 !important;';
       h1.style.cssText = 'margin:0; font-size:20px; font-weight:600; text-align:center; flex:1; color:#0f172a;';
       if (r2) r2.style.display = 'none';
       if (r3) r3.style.display = 'none';
@@ -313,6 +314,9 @@
     }
 
     document.addEventListener('dashSessionLoaded', async () => {
+      var u = window.dashUser || window.drivenUser;
+      activeOrgId = (u && u.org_id && u.org_id !== "default_org") ? u.org_id : (localStorage.getItem("driven_org_id") || "org_dsi");
+
       var ha = 0, hi = setInterval(function() {
         ha++;
         if (fixHeaderLayout() || ha > 50) { clearInterval(hi); updateHeaderOffset(); }
@@ -336,17 +340,21 @@
 
     async function loadInitialData() {
       try {
-        const resp = await fetch('/api/Equipment');
+        const resp = await apiFetch('/api/equipment');
         if (resp.ok) {
           const data = await resp.json();
-          allAssets = data.records || data || [];
+          allAssets = data.records || data.equipment || data || [];
           populateAssetDropdown();
         }
 
-        const typesResp = await fetch('/auth/get-settings');
+        const typesResp = await apiFetch('/api/asset-types');
         if (typesResp.ok) {
           const tData = await typesResp.json();
-          assetTypes = tData.settings?.asset_types || ['Excavator', 'Class 8 Semi Truck', 'Generator'];
+          const typeList = tData.assetTypes || tData.records || tData || [];
+          assetTypes = typeList.map(t => typeof t === 'object' ? (t.asset_type_name || t.name || t.type) : t);
+          if (assetTypes.length === 0) {
+            assetTypes = ['Excavator', 'Class 8 Semi Truck', 'Generator'];
+          }
           populateTypeDropdown();
         }
       } catch (e) {
@@ -358,7 +366,7 @@
       const sel = document.getElementById('selectAsset');
       sel.innerHTML = '<option value="">-- Choose Asset --</option>';
       allAssets.forEach(a => {
-        const num = a.asset_number || a.assetNumber || a.name;
+        const num = a.asset_number || a.assetNumber || a.name || a.id;
         const type = a.category || a.type || 'Default';
         if (num) {
           const opt = document.createElement('option');
@@ -423,16 +431,23 @@
     }
 
     async function apiFetch(url, options = {}) {
+      options.headers = options.headers || {};
+      if (activeOrgId) {
+        options.headers['x-org-id'] = activeOrgId;
+      }
       try {
         let resp = await fetch(url, options);
-        if (resp.status === 404 && url.startsWith('/api/')) {
+        if (resp.status === 404 && url.startsWith('/api/asset-config')) {
           const fallbackUrl = FALLBACK_API_ENDPOINT + url.replace('/api/asset-config', '');
           resp = await fetch(fallbackUrl, options);
         }
         return resp;
       } catch (err) {
-        const fallbackUrl = FALLBACK_API_ENDPOINT + url.replace('/api/asset-config', '');
-        return await fetch(fallbackUrl, options);
+        if (url.startsWith('/api/asset-config')) {
+          const fallbackUrl = FALLBACK_API_ENDPOINT + url.replace('/api/asset-config', '');
+          return await fetch(fallbackUrl, options);
+        }
+        throw err;
       }
     }
 
