@@ -7,9 +7,6 @@
   <meta name="description" content="DRIV-EN — configure inspection rules, telemetry thresholds, and asset defaults.">
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
-  <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
-  <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
-  <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
   <link rel="stylesheet" href="/app/shared/dashboard.css?v=11">
   <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
   <script>
@@ -91,6 +88,19 @@
     }
     .btn-secondary:hover { background: #1d4ed8; }
 
+    .btn-action {
+      background: #0d9488;
+      color: #ffffff;
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: none;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 150ms ease;
+    }
+    .btn-action:hover { background: #0f766e; }
+
     .btn-logout {
       background: #b91c1c;
       color: #ffffff;
@@ -165,7 +175,7 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
       color: var(--primary);
-      margin-top: 18px;
+      margin-top: 22px;
       margin-bottom: 12px;
       border-bottom: 2px solid #e2e8f0;
       padding-bottom: 4px;
@@ -197,32 +207,38 @@
     .am-message.success { background: rgba(34, 197, 94, 0.15); color: #15803d; border: 1px solid #86efac; }
     .am-message.error { background: rgba(239, 68, 68, 0.15); color: #b91c1c; border: 1px solid #fca5a5; }
 
+    /* Copy Modal Styling */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000;
+    }
+    .modal-card {
+      background: #fff; padding: 24px; border-radius: 8px; max-width: 500px; width: 90%; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
     @media (max-width: 700px) {
       .grid-2 { grid-template-columns: 1fr; }
-      .top-nav-bar { padding: 8px 12px; }
+      .top-nav-bar { padding: 8px 12px; flex-wrap: wrap; gap: 8px; }
       .config-container { padding: 0 12px 20px 12px; }
     }
   </style>
 </head>
 <body data-page-title="Asset Configuration" data-required-permission="any">
 
-  <!-- Diamond Plate Background Overlay -->
   <div class="steel-bg"></div>
   <div class="steel-overlay"></div>
 
-  <!-- Standard Gray Header with Centered Title -->
   <div id="dashHeader"></div>
 
-  <!-- Sticky Top Navigation Bar -->
   <div class="top-nav-bar">
     <a href="asset-management.html" class="btn-secondary">← Back to Asset Management</a>
+    <button class="btn-action" onclick="openCopyModal()">Copy Config From Another Asset</button>
     <button class="btn-logout" onclick="confirmLogout()">Logout</button>
   </div>
 
   <div class="config-container">
     <div id="statusMsg" class="am-message"></div>
 
-    <!-- Selection Controls -->
     <div class="card">
       <div class="grid-2">
         <div class="form-group">
@@ -249,7 +265,6 @@
       </div>
     </div>
 
-    <!-- Dynamic Schema Rules Panel -->
     <div class="card" id="configPanel" style="opacity: 0.5; pointer-events: none;">
       <div class="mode-banner" id="modeBanner">Select an option above to configure rules.</div>
 
@@ -264,11 +279,30 @@
         </label>
       </div>
 
-      <!-- Container where dynamic components render -->
       <div id="dynamicSchemaFields"></div>
 
       <div class="actions">
         <button class="btn-primary" id="btnSaveConfig" onclick="saveConfiguration()">Save Configuration</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Copy Config Modal -->
+  <div class="modal-overlay" id="copyModal">
+    <div class="modal-card">
+      <h3 style="margin-top: 0;">Copy Asset Configuration</h3>
+      <p style="font-size: 13px; color: var(--text-muted);">Select a source asset of the same category to clone its parts, tire specs, and overrides.</p>
+      
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label for="copySourceAsset">Select Source Asset</label>
+        <select id="copySourceAsset">
+          <option value="">-- Choose Source Asset --</option>
+        </select>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn-secondary" style="background: #64748b;" onclick="closeCopyModal()">Cancel</button>
+        <button class="btn-action" onclick="executeCopyConfig()">Copy & Apply</button>
       </div>
     </div>
   </div>
@@ -283,26 +317,6 @@
     let activeOrgId = null;
 
     const API_ENDPOINT = '/api/asset-config';
-    const FALLBACK_API_ENDPOINT = 'https://asset-config-api.driv-en.workers.dev/api/asset-config';
-
-    // Clean special characters and map categories down to primary keys
-    function mapCategoryToSchemaKey(rawName) {
-      if (!rawName) return "default";
-      const s = String(rawName).toLowerCase().replace(/[^a-z0-9]/g, " ");
-
-      if (s.includes("excavator")) return "excavator";
-      if (s.includes("truck") || s.includes("semi") || s.includes("class 8") || s.includes("tractor") || s.includes("dump")) {
-        if (s.includes("pickup") || s.includes("sedan") || s.includes("suv") || s.includes("utv") || s.includes("van")) {
-          return "lightfleet";
-        }
-        return "class8semitruck";
-      }
-      if (s.includes("rig") || s.includes("drill") || s.includes("derrick")) return "drillingrig";
-      if (s.includes("crane") || s.includes("lift") || s.includes("forklift")) return "crane";
-      if (s.includes("generator") || s.includes("welder") || s.includes("compressor") || s.includes("pump")) return "generator";
-      if (s.includes("trailer")) return "trailer";
-      return "default";
-    }
 
     function updateHeaderOffset() {
       const h = document.getElementById('dashHeader') || document.querySelector('.dash-header');
@@ -313,32 +327,9 @@
     }
     window.addEventListener('resize', updateHeaderOffset);
 
-    function fixHeaderLayout() {
-      var h = document.querySelector('.dash-header');
-      if (!h) return false;
-      var r1 = h.querySelector('.dash-header-row1');
-      var r2 = h.querySelector('.dash-header-row2');
-      var r3 = h.querySelector('.dash-header-row3');
-      var h1 = r2 ? r2.querySelector('h1') : null;
-      if (!r1 || !h1) return false;
-      if (h1.parentNode === r1) return true;
-      var dl = r1.querySelector('.dash-driven-logo');
-      r1.insertBefore(h1, dl);
-      r1.style.cssText = 'display:flex !important; justify-space-between !important; align-items:center !important; padding:8px 20px !important; gap:16px !important; width:100% !important; box-sizing:border-box !important; background:#cbd5e1 !important; border-bottom:2px solid #94a3b8 !important;';
-      h1.style.cssText = 'margin:0; font-size:20px; font-weight:600; text-align:center; flex:1; color:#0f172a;';
-      if (r2) r2.style.display = 'none';
-      if (r3) r3.style.display = 'none';
-      return true;
-    }
-
     document.addEventListener('dashSessionLoaded', async () => {
       var u = window.dashUser || window.drivenUser;
       activeOrgId = (u && u.org_id && u.org_id !== "default_org") ? u.org_id : (localStorage.getItem("driven_org_id") || "org_dsi");
-
-      var ha = 0, hi = setInterval(function() {
-        ha++;
-        if (fixHeaderLayout() || ha > 50) { clearInterval(hi); updateHeaderOffset(); }
-      }, 100);
 
       updateHeaderOffset();
       await loadInitialData();
@@ -362,7 +353,7 @@
         if (resp.ok) {
           const data = await resp.json();
           allAssets = data.records || data.equipment || data || [];
-          populateAssetDropdown();
+          populateAssetDropdowns();
         }
 
         const typesResp = await apiFetch('/api/asset-types');
@@ -370,9 +361,6 @@
           const tData = await typesResp.json();
           const typeList = tData.assetTypes || tData.records || tData || [];
           assetTypes = typeList.map(t => typeof t === 'object' ? (t.asset_type_name || t.name || t.type) : t);
-          if (assetTypes.length === 0) {
-            assetTypes = ['Excavator', 'Class 8 Semi Truck', 'Generator'];
-          }
           populateTypeDropdown();
         }
       } catch (e) {
@@ -380,9 +368,13 @@
       }
     }
 
-    function populateAssetDropdown() {
+    function populateAssetDropdowns() {
       const sel = document.getElementById('selectAsset');
+      const copySel = document.getElementById('copySourceAsset');
+      
       sel.innerHTML = '<option value="">-- Choose Asset --</option>';
+      copySel.innerHTML = '<option value="">-- Choose Source Asset --</option>';
+
       allAssets.forEach(a => {
         const num = a.asset_number || a.assetNumber || a.name || a.id;
         const type = a.category || a.type || 'Default';
@@ -392,6 +384,9 @@
           opt.setAttribute('data-type', type);
           opt.textContent = `${num} (${type})`;
           sel.appendChild(opt);
+
+          const copyOpt = opt.cloneNode(true);
+          copySel.appendChild(copyOpt);
         }
       });
     }
@@ -429,26 +424,23 @@
 
       const select = document.getElementById('selectAsset');
       const rawType = select.options[select.selectedIndex]?.getAttribute('data-type') || 'Default';
-      const schemaTypeKey = mapCategoryToSchemaKey(rawType);
 
       document.getElementById('configPanel').style.opacity = '1';
       document.getElementById('configPanel').style.pointerEvents = 'auto';
-      document.getElementById('modeBanner').innerText = `Configuring rules for Asset: ${assetNum} (Category: ${rawType})`;
+      document.getElementById('modeBanner').innerText = `Configuring rules for Asset: ${assetNum} (${rawType})`;
 
-      await fetchAndRenderSchema('specific', assetNum, schemaTypeKey);
+      await fetchAndRenderSchema('specific', assetNum, rawType);
     }
 
     async function onTypeSelected() {
       const typeName = document.getElementById('selectType').value;
       if (!typeName) return;
 
-      const schemaTypeKey = mapCategoryToSchemaKey(typeName);
-
       document.getElementById('configPanel').style.opacity = '1';
       document.getElementById('configPanel').style.pointerEvents = 'auto';
       document.getElementById('modeBanner').innerText = `Editing global category schema for: ${typeName}`;
 
-      await fetchAndRenderSchema('template', typeName, schemaTypeKey);
+      await fetchAndRenderSchema('template', typeName, typeName);
       enableForm();
     }
 
@@ -457,33 +449,16 @@
       if (activeOrgId) {
         options.headers['x-org-id'] = activeOrgId;
       }
-      try {
-        let resp = await fetch(url, options);
-        if (resp.status === 404 && url.startsWith('/api/asset-config')) {
-          const fallbackUrl = FALLBACK_API_ENDPOINT + url.replace('/api/asset-config', '');
-          resp = await fetch(fallbackUrl, options);
-        }
-        return resp;
-      } catch (err) {
-        if (url.startsWith('/api/asset-config')) {
-          const fallbackUrl = FALLBACK_API_ENDPOINT + url.replace('/api/asset-config', '');
-          return await fetch(fallbackUrl, options);
-        }
-        throw err;
-      }
+      return fetch(url, options);
     }
 
     async function fetchAndRenderSchema(targetType, key, assetType = '') {
       try {
         let url = `${API_ENDPOINT}?targetType=${targetType}&key=${encodeURIComponent(key)}&assetType=${encodeURIComponent(assetType)}`;
         const res = await apiFetch(url);
-        
-        let data = null;
-        if (res.ok) {
-          data = await res.json();
-        }
+        const data = await res.json();
 
-        if (data && data.success && data.schema && data.schema.sections) {
+        if (data.success && data.schema && data.schema.sections) {
           currentSchema = data.schema;
           renderDynamicForm(data.schema, data.config);
 
@@ -494,41 +469,7 @@
           }
           toggleFormLock();
         } else {
-          // Automatic Fallback Query: Load default schema template
-          let fallbackUrl = `${API_ENDPOINT}?targetType=${targetType}&key=${encodeURIComponent(key)}&assetType=default`;
-          const fallbackRes = await apiFetch(fallbackUrl);
-          if (fallbackRes.ok) {
-            const fallbackData = await fallbackRes.json();
-            if (fallbackData && fallbackData.schema && fallbackData.schema.sections) {
-              currentSchema = fallbackData.schema;
-              renderDynamicForm(fallbackData.schema, fallbackData.config || (data ? data.config : null));
-              toggleFormLock();
-              return;
-            }
-          }
-          
-          // Emergency Fallback Render (Guarantees fields render even if API/KV fails)
-          const emergencySchema = {
-            sections: [
-              {
-                title: "1. Meter & Usage Tracking",
-                fields: [
-                  { id: "trackHours", label: "Track Engine Hours", type: "toggle", default: true, desc: "Require engine hours" },
-                  { id: "trackOdometer", label: "Track Mileage / Odometer", type: "toggle", default: false, desc: "Require mileage" }
-                ]
-              },
-              {
-                title: "2. Maintenance Schedule",
-                fields: [
-                  { id: "pmMeterInterval", label: "PM Meter Interval (Hours)", type: "number", default: 250, desc: "Service interval in hours" },
-                  { id: "pmCalendarInterval", label: "PM Calendar Interval (Days)", type: "number", default: 180, desc: "Service interval in days" }
-                ]
-              }
-            ]
-          };
-          currentSchema = emergencySchema;
-          renderDynamicForm(emergencySchema, data ? data.config : null);
-          toggleFormLock();
+          showMessage("Could not load category schema options.", "error");
         }
       } catch (e) {
         console.error('Failed to load dynamic schema:', e);
@@ -554,7 +495,7 @@
         container.appendChild(secTitle);
 
         section.fields.forEach(field => {
-          const val = values[field.id] !== undefined ? values[field.id] : field.default;
+          const val = values[field.id] !== undefined ? values[field.id] : (field.default !== undefined ? field.default : '');
 
           if (field.type === 'toggle') {
             const row = document.createElement('div');
@@ -577,6 +518,16 @@
             row.innerHTML = `
               <label for="field_${field.id}">${field.label}</label>
               <input type="number" id="field_${field.id}" value="${val}">
+              <span style="font-size: 12px; color: var(--text-muted);">${field.desc || ''}</span>
+            `;
+            container.appendChild(row);
+          } else if (field.type === 'text') {
+            const row = document.createElement('div');
+            row.className = 'form-group';
+            row.style.marginBottom = '12px';
+            row.innerHTML = `
+              <label for="field_${field.id}">${field.label}</label>
+              <input type="text" id="field_${field.id}" value="${val}" placeholder="${field.desc || ''}">
               <span style="font-size: 12px; color: var(--text-muted);">${field.desc || ''}</span>
             `;
             container.appendChild(row);
@@ -625,17 +576,21 @@
           sec.fields.forEach(field => {
             const el = document.getElementById(`field_${field.id}`);
             if (el) {
-              rules[field.id] = field.type === 'toggle' ? el.checked : Number(el.value);
+              rules[field.id] = field.type === 'toggle' ? el.checked : (field.type === 'number' ? Number(el.value) : el.value);
             }
           });
         });
       }
+
+      const select = document.getElementById('selectAsset');
+      const rawType = select.options[select.selectedIndex]?.getAttribute('data-type') || '';
 
       const payload = {
         targetType,
         key,
         config: {
           isOverride: document.getElementById('overrideDefaults').checked,
+          assetType: rawType,
           rules,
           updatedAt: new Date().toISOString()
         }
@@ -651,7 +606,7 @@
         const resData = await resp.json();
 
         if (resp.ok && resData.success) {
-          showMessage(`Dynamic configuration saved for ${key}!`, 'success');
+          showMessage(`Configuration saved successfully for ${key}!`, 'success');
         } else {
           showMessage(resData.error || 'Failed to save configuration.', 'error');
         }
@@ -660,6 +615,56 @@
       } finally {
         btn.disabled = false;
         btn.textContent = 'Save Configuration';
+      }
+    }
+
+    function openCopyModal() {
+      const targetKey = document.getElementById('selectAsset').value;
+      if (!targetKey) {
+        showMessage('Please select a destination asset first before copying configuration.', 'error');
+        return;
+      }
+      document.getElementById('copyModal').style.display = 'flex';
+    }
+
+    function closeCopyModal() {
+      document.getElementById('copyModal').style.display = 'none';
+    }
+
+    async function executeCopyConfig() {
+      const sourceKey = document.getElementById('copySourceAsset').value;
+      const targetKey = document.getElementById('selectAsset').value;
+      
+      const select = document.getElementById('selectAsset');
+      const targetAssetType = select.options[select.selectedIndex]?.getAttribute('data-type') || '';
+
+      if (!sourceKey) {
+        alert('Please choose a source asset.');
+        return;
+      }
+
+      try {
+        const resp = await apiFetch(API_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'copyConfig',
+            sourceKey,
+            key: targetKey,
+            targetAssetType
+          })
+        });
+
+        const data = await resp.json();
+        if (resp.ok && data.success) {
+          closeCopyModal();
+          showMessage(data.message, 'success');
+          await onAssetSelected();
+        } else {
+          alert(data.error || 'Copy failed.');
+        }
+      } catch (e) {
+        alert('Error copying configuration: ' + e.message);
       }
     }
 
