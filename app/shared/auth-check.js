@@ -39,7 +39,7 @@
       role: urlRoleId || "admin",
       role_id: urlRoleId || "RO-admin",
       org_id: urlOrgId || "org_dsi",
-      permissions: ["fuel.add", "fuel.view", "fuel.manage"]
+      permissions: ["fuel.add", "fuel.view", "fuel.manage", "can_edit_assets"]
     };
   }
 
@@ -47,6 +47,11 @@
     if (!cachedUser.id && cachedUser.user_id) cachedUser.id = cachedUser.user_id;
     if (urlOrgId) cachedUser.org_id = urlOrgId;
     if (urlRoleId) cachedUser.role_id = urlRoleId;
+
+    // Ensure org_id has fallback if missing in object
+    if (!cachedUser.org_id || cachedUser.org_id === "default_org") {
+      cachedUser.org_id = localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id") || "org_dsi";
+    }
 
     // Guarantee essential form permissions for URL context
     if (!cachedUser.permissions) cachedUser.permissions = [];
@@ -66,7 +71,7 @@
       headers["Authorization"] = "Bearer " + storedToken;
     }
 
-    var activeOrgId = urlOrgId || (cachedUser && cachedUser.org_id) || localStorage.getItem("driven_org_id");
+    var activeOrgId = urlOrgId || (cachedUser && cachedUser.org_id) || localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id");
     if (activeOrgId) {
       headers["x-org-id"] = activeOrgId;
     }
@@ -153,9 +158,11 @@
     }
 
     // Store user info in storage & globally for downstream scripts
-    var userStr = JSON.stringify(user);
-    var targetOrg = user.org_id || localStorage.getItem("driven_org_id") || "org_dsi";
+    var targetOrg = user.org_id || localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id") || "org_dsi";
+    user.org_id = targetOrg;
     var activeRole = user.role_id || user.role || "RO-admin";
+
+    var userStr = JSON.stringify(user);
 
     localStorage.setItem("driven_user", userStr);
     localStorage.setItem("driven_org_id", targetOrg);
