@@ -471,6 +471,28 @@
   <div class="ac-main">
     <div id="acMessage" class="ac-message"></div>
 
+    <!-- Target Context Selection Box (Individual Asset vs Asset-Type Global Default) -->
+    <div class="ac-card" style="border-color: #2563eb; background: rgba(37, 99, 235, 0.04);">
+      <div class="ac-card-header">
+        <h3 class="ac-card-title" style="color:#2563eb;">🎯 Configuration Scope & Target Selection</h3>
+      </div>
+      <div class="ac-grid">
+        <div class="ac-field-group">
+          <label>Select Target Configuration Scope</label>
+          <select id="cfgScopeTarget" onchange="onScopeTargetChange()">
+            <option value="asset">Specific Asset Profile Configuration</option>
+            <option value="type">Asset-Type Global Defaults</option>
+          </select>
+        </div>
+        <div class="ac-field-group" id="grpAssetTypeSelect" style="display:none;">
+          <label>Select Asset Type Category</label>
+          <select id="cfgAssetTypeSelect" onchange="onAssetTypeCategoryChange()">
+            <option value="">-- Select Asset Type --</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
     <!-- Section 1: OEM Technical Specifications & Drive Configuration -->
     <div class="ac-card">
       <div class="ac-card-header">
@@ -675,10 +697,12 @@
 
   <script>
     var currentAssetId = null;
+    var currentAssetType = null;
     var activeOrgId = null;
     var activeUserId = null;
     var humanAssetNumber = "";
     var pmScheduleItems = [];
+    var isBootstrapped = false;
 
     // Storage Listener to sync theme toggles in real-time across tabs/headers
     window.addEventListener('storage', function(e) {
@@ -718,13 +742,45 @@
     // URL Query Parameter Parsing
     var urlParams = new URLSearchParams(window.location.search);
     currentAssetId = urlParams.get('id') || urlParams.get('asset_id');
+    currentAssetType = urlParams.get('asset_type') || urlParams.get('type');
+
+    function extractRecords(data) {
+      if (Array.isArray(data)) return data;
+      if (!data || typeof data !== "object") return [];
+      return data.assetTypes || data.records || data.equipment || data.data || data.results || [];
+    }
+
+    // Helper to resolve org_id with comprehensive fallbacks
+    function resolveActiveOrgId(u) {
+      var urlOrg = urlParams.get('org_id') || urlParams.get('orgId') || urlParams.get('customerId');
+      if (urlOrg && urlOrg !== "default_org") return urlOrg;
+      
+      if (u && u.org_id && u.org_id !== "default_org") return u.org_id;
+      if (u && u.customer_id && u.customer_id !== "default_org") return u.customer_id;
+      
+      var lsOrg = localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id");
+      if (lsOrg && lsOrg !== "default_org") return lsOrg;
+
+      var ssOrg = sessionStorage.getItem("driven_org_id");
+      if (ssOrg && ssOrg !== "default_org") return ssOrg;
+
+      var email = (u && u.email) ? u.email.toLowerCase() : "";
+      var roleId = (u && u.role_id) ? String(u.role_id).toLowerCase() : "";
+      if (email === "jblood@digitalsafetyinspection.com" || roleId === "ro-founder") {
+        return "org_dsi";
+      }
+
+      return null;
+    }
 
     // Strict Multi-Tenant Execution Guardrail & Init
-    document.addEventListener("dashSessionLoaded", async function(e) {
-      var u = window.dashUser;
+    async function initAssetConfig(e) {
+      if (isBootstrapped) return;
+
+      var u = (e && e.detail) ? e.detail : (window.dashUser || window.drivenUser);
       
       // Multi-Tenant Isolation Check
-      activeOrgId = (u && u.org_id && u.org_id !== "default_org") ? u.org_id : null;
+      activeOrgId = resolveActiveOrgId(u);
       activeUserId = (u && u.id) ? u.id : null;
 
       if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "") {
@@ -743,6 +799,9 @@
         document.querySelector(".ac-save-bar").style.display = "none";
         return;
       }
+
+      isBootstrapped = true;
+      document.querySelector(".ac-main").style.opacity = "1";
 
       // Fix Header Layout & Adjust Height Offset
       var ha = 0, hi = setInterval(function() {
@@ -764,16 +823,31 @@
       setInterval(checkActivePresence, 5000);
       
       loadFuelTypesDropdown();
+      await loadAssetTypesDropdown();
       await loadParentAssetsDropdown();
 
-      if (currentAssetId) {
+      // Check if target scope is asset or asset-type global
+      if (currentAssetType && !currentAssetId) {
+        document.getElementById("cfgScopeTarget").value = "type";
+        onScopeTargetChange();
+        document.getElementById("cfgAssetTypeSelect").value = currentAssetType;
+        await fetchAssetTypeGlobalConfig(currentAssetType);
+      } else if (currentAssetId) {
+        document.getElementById("cfgScopeTarget").value = "asset";
+        onScopeTargetChange();
         await fetchAssetConfiguration(currentAssetId);
       } else {
         document.getElementById("txtAssetTitle").textContent = "New Asset Configuration";
       }
 
       updateHeaderOffset();
-    });
+    }
+
+    document.addEventListener("dashSessionLoaded", initAssetConfig);
+
+    if (window.dashUser || window.drivenUser) {
+      initAssetConfig();
+    }
 
     function reportClientError(msg, context, err) {
       if (window.DRIVENErrorHandler) {
@@ -843,6 +917,51 @@
     window.addEventListener("pagehide", sendPresenceUnload);
     window.addEventListener("beforeunload", sendPresenceUnload);
 
+    // Toggle Scope Target between Individual Asset & Global Asset-Type Defaults
+    function onScopeTargetChange() {
+      var scope = document.getElementById("cfgScopeTarget").value;
+      var grpAssetType = document.getElementById("grpAssetTypeSelect");
+
+      if (scope === "type") {
+        grpAssetType.style.display = "flex";
+      } else {
+        grpAssetType.style.display = "none";
+        if (currentAssetId) {
+          fetchAssetConfiguration(currentAssetId);
+        }
+      }
+    }
+
+    async function onAssetTypeCategoryChange() {
+      var typeVal = document.getElementById("cfgAssetTypeSelect").value;
+      if (!typeVal) return;
+      await fetchAssetTypeGlobalConfig(typeVal);
+    }
+
+    // Populate Asset Types Dropdown
+    async function loadAssetTypesDropdown() {
+      try {
+        var resp = await fetch("/api/asset-types", { headers: { "x-org-id": activeOrgId } });
+        if (resp.ok) {
+          var data = await resp.json();
+          var list = extractRecords(data);
+          var sel = document.getElementById("cfgAssetTypeSelect");
+          sel.innerHTML = '<option value="">-- Select Asset Type --</option>';
+          list.forEach(function(item) {
+            var name = item.asset_type_name || item.name || item.type;
+            if (name) {
+              var opt = document.createElement("option");
+              opt.value = name;
+              opt.textContent = name;
+              sel.appendChild(opt);
+            }
+          });
+        }
+      } catch (e) {
+        reportClientError("Failed loading asset types", "loadAssetTypesDropdown", e);
+      }
+    }
+
     // Populate Standard System Fuel Types Directly
     function loadFuelTypesDropdown() {
       var defaultTypes = ["Ultra-Low Sulfur Diesel (ULSD)", "Unleaded Gasoline (Regular)", "Unleaded Gasoline (Premium)", "Electric / Battery (EV)", "Hybrid (Diesel/Electric)", "Propane / LPG", "Compressed Natural Gas (CNG)", "Biodiesel (B20)"];
@@ -887,7 +1006,47 @@
       }
     }
 
-    // Load Existing Asset Configuration Data
+    // Load Global Category Defaults
+    async function fetchAssetTypeGlobalConfig(assetTypeName) {
+      try {
+        var resp = await fetch("/api/asset-types/config?type=" + encodeURIComponent(assetTypeName), {
+          headers: { "x-org-id": activeOrgId }
+        });
+        
+        document.getElementById("txtAssetTitle").textContent = "Asset-Type Global Defaults: " + assetTypeName;
+
+        if (resp.ok) {
+          var data = await resp.json();
+          var rec = data.record || data.config || data;
+
+          document.getElementById("cfgMake").value = rec.make || "";
+          document.getElementById("cfgModel").value = rec.model || "";
+          document.getElementById("cfgYear").value = rec.year || "";
+          document.getElementById("cfgSerial").value = rec.serial_number || "";
+          document.getElementById("cfgDrive").value = rec.drive_configuration || "";
+          document.getElementById("cfgFuelType").value = rec.fuel_type || "";
+          
+          document.getElementById("cfgEngineOil").value = rec.engine_oil_spec || "";
+          document.getElementById("cfgHydraulicFluid").value = rec.hydraulic_fluid_spec || "";
+          document.getElementById("cfgCoolant").value = rec.coolant_spec || "";
+          document.getElementById("cfgDefTank").value = rec.def_capacity || "";
+          document.getElementById("cfgFuelCap").value = rec.fuel_capacity || "";
+          document.getElementById("cfgTransmission").value = rec.transmission_fluid_spec || "";
+
+          if (rec.pm_schedules && Array.isArray(rec.pm_schedules)) {
+            pmScheduleItems = rec.pm_schedules;
+            renderPmSchedulesTable();
+          } else {
+            pmScheduleItems = [];
+            renderPmSchedulesTable();
+          }
+        }
+      } catch (e) {
+        reportClientError("Fetch asset-type global config failed", "fetchAssetTypeGlobalConfig", e);
+      }
+    }
+
+    // Load Existing Specific Asset Configuration Data
     async function fetchAssetConfiguration(assetId) {
       try {
         var resp = await fetch("/api/equipment/" + encodeURIComponent(assetId), {
@@ -922,6 +1081,9 @@
 
         if (rec.pm_schedules && Array.isArray(rec.pm_schedules)) {
           pmScheduleItems = rec.pm_schedules;
+          renderPmSchedulesTable();
+        } else {
+          pmScheduleItems = [];
           renderPmSchedulesTable();
         }
       } catch (e) {
@@ -1029,11 +1191,8 @@
 
     // Save Complete Configuration
     async function saveConfigurationData() {
-      if (!currentAssetId) {
-        displayMessage("Cannot save configuration without an active Asset ID.", "error");
-        return;
-      }
-
+      var scope = document.getElementById("cfgScopeTarget").value;
+      var endpoint = "";
       var payload = {
         make: document.getElementById("cfgMake").value.trim(),
         model: document.getElementById("cfgModel").value.trim(),
@@ -1054,8 +1213,23 @@
         pm_schedules: pmScheduleItems
       };
 
+      if (scope === "type") {
+        var selectedType = document.getElementById("cfgAssetTypeSelect").value;
+        if (!selectedType) {
+          displayMessage("Please select an Asset Type Category to save global defaults.", "error");
+          return;
+        }
+        endpoint = "/api/asset-types/config?type=" + encodeURIComponent(selectedType);
+      } else {
+        if (!currentAssetId) {
+          displayMessage("Cannot save configuration without an active Asset ID.", "error");
+          return;
+        }
+        endpoint = "/api/equipment/" + encodeURIComponent(currentAssetId);
+      }
+
       try {
-        var resp = await fetch("/api/equipment/" + encodeURIComponent(currentAssetId), {
+        var resp = await fetch(endpoint, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
