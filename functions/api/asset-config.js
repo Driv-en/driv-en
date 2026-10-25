@@ -15,7 +15,7 @@ export async function onRequest(context) {
   }
 
   // =========================================================================
-  // GRANULAR CONFIGURATION SCHEMAS FOR ALL 100+ INDIVIDUAL EQUIPMENT TYPES
+  // GRANULAR CONFIGURATION SCHEMAS FOR ALL INDIVIDUAL EQUIPMENT TYPES
   // =========================================================================
   const CATEGORY_SCHEMAS = {
 
@@ -25,19 +25,73 @@ export async function onRequest(context) {
     "pickup": {
       sections: [
         {
-          title: "1. Mileage & Telematics",
+          title: "1. Usage, Telematics & Engine Compartment",
           fields: [
-            { id: "trackOdometer", label: "Track Odometer Mileage", type: "toggle", default: true, desc: "Require entry during pre-trip inspections" },
-            { id: "tpmsThreshold", label: "TPMS Low Pressure Warning (PSI)", type: "number", default: 35, desc: "Alert when tire pressure drops below limit" },
-            { id: "fourWheelDriveCheck", label: "Require 4WD Transfer Case & Hub Engagement Check", type: "toggle", default: true, desc: "Seasonal check for 4x4 engagement" }
+            { id: "trackOdometer", label: "Track Odometer Mileage", type: "toggle", default: true, desc: "Require mileage entry during pre-trip checks" },
+            { id: "oilLevelCheck", label: "Require Engine Oil Level & Fluid Leak Audit", type: "toggle", default: true, desc: "Inspect dipstick level and valve cover/pan leaks" },
+            { id: "coolantSystemCheck", label: "Coolant Reservoir & Hose Swell Inspection", type: "toggle", default: true, desc: "Check coolant level and upper/lower radiator hoses" },
+            { id: "driveBeltCheck", label: "Serpentine Belt & Tensioner Inspection", type: "toggle", default: true, desc: "Check belt for cracking, fraying, or tension loss" },
+            { id: "batteryTerminalCheck", label: "Battery Hold-down & Terminal Corrosion Check", type: "toggle", default: true, desc: "Inspect hold-down clamp and cable tightness" }
           ]
         },
         {
-          title: "2. Maintenance Schedules",
+          title: "2. Steering, Suspension & Drivetrain",
           fields: [
-            { id: "pmMilesInterval", label: "Engine Oil & Filter Change (Miles)", type: "number", default: 5000, desc: "Standard oil service interval" },
-            { id: "tireRotationMiles", label: "Tire Rotation & Balance (Miles)", type: "number", default: 7500, desc: "Tire rotation interval" },
-            { id: "brakePadCheckMiles", label: "Brake Lining & Rotor Audit (Miles)", type: "number", default: 15000, desc: "Brake pad wear inspection" }
+            { id: "steeringLinkagePlay", label: "Tie-Rod & Drag Link Play Audit", type: "toggle", default: true, desc: "Inspect steering shaft and tie-rod boots for play" },
+            { id: "suspensionLeafCheck", label: "Leaf Spring & Shock Absorber Leak Audit", type: "toggle", default: true, desc: "Check for cracked spring leaves and shock fluid leaks" },
+            { id: "fourWheelDriveCheck", label: "Require 4WD Actuator & Transfer Case Engagement Check", type: "toggle", default: true, desc: "Test 4x4 engagement and check differential seals" },
+            { id: "driveshaftUjointCheck", label: "Driveshaft U-Joint & Slip Yoke Play Audit", type: "toggle", default: true, desc: "Inspect needle bearings and driveshaft slop" }
+          ]
+        },
+        {
+          title: "3. Wheels, Tires & Braking System",
+          fields: [
+            { id: "tpmsThreshold", label: "TPMS Low Pressure Warning Alert (PSI)", type: "number", default: 35, desc: "Alert when tire pressure falls below PSI threshold" },
+            { id: "minSteerTread32nd", label: "Steer Tire Min Tread Depth (1/32 in)", type: "number", default: 4, desc: "OSHA/DOT minimum steer tire tread depth" },
+            { id: "minDriveTread32nd", label: "Rear Tire Min Tread Depth (1/32 in)", type: "number", default: 2, desc: "OSHA/DOT minimum drive tire tread depth" },
+            { id: "lugNutTorqueCheck", label: "Wheel Rim Integrity & Lug Nut Torque Audit", type: "toggle", default: true, desc: "Inspect rim cracks and present/torqued lug nuts" },
+            { id: "brakePadMinThicknessMm", label: "Brake Pad Minimum Lining Thickness (mm)", type: "number", default: 3, desc: "Trigger replacement prompt when lining reaches threshold" }
+          ]
+        },
+        {
+          title: "4. Cab Controls & OSHA Safety Devices",
+          fields: [
+            { id: "seatBeltWebbingCheck", label: "OSHA Seat Belt Webbing & Latching Test", type: "toggle", default: true, desc: "Mandatory check per 29 CFR 1926.601(b)(9)" },
+            { id: "backupAlarmCheck", label: "Audible Backup Alarm & Horn Function Test", type: "toggle", default: true, desc: "Mandatory check per 29 CFR 1926.601(b)(4)" },
+            { id: "windshieldDefrosterCheck", label: "Windshield Glass, Wiper Blade & Defroster Audit", type: "toggle", default: true, desc: "Verify clear field of vision and defroster airflow" },
+            { id: "parkingBrakeHoldTest", label: "Parking Brake Incline Hold Test", type: "toggle", default: true, desc: "Verify parking brake holds truck firm on incline" }
+          ]
+        },
+        {
+          title: "5. Exterior Lighting & Body Integrity",
+          fields: [
+            { id: "exteriorLightingAudit", label: "Headlight, Brake, Tail & Hazard Light Check", type: "toggle", default: true, desc: "Inspect all high/low beams, signals, and hazards" },
+            { id: "bodyCrossmemberCheck", label: "Frame Crossmember Rust & Door Latch Audit", type: "toggle", default: true, desc: "Inspect structural frame crossmembers and door locks" }
+          ]
+        },
+        {
+          title: "6. Truck Bed, Cargo & Hitch Coupling",
+          fields: [
+            { id: "headacheRackCheck", label: "Headache Rack / Cab Guard Security Audit", type: "toggle", default: true, desc: "Verify cab protector mounting bolts" },
+            { id: "bedAnchorDringCheck", label: "Bed Tie-Down Anchor & D-Ring Inspection", type: "toggle", default: true, desc: "Inspect cargo securement anchors for cracks" },
+            { id: "receiverHitchBoltCheck", label: "Class III/IV/V Receiver & Gooseneck Puck Audit", type: "toggle", default: true, desc: "Inspect frame mounting bolts and safety chain loops" },
+            { id: "trailerPlugSevenWayCheck", label: "7-Way / 4-Way Electrical Trailer Connector Check", type: "toggle", default: true, desc: "Inspect trailer plug pins and spring cover lock" }
+          ]
+        },
+        {
+          title: "7. Emergency Equipment On-Board",
+          fields: [
+            { id: "fireExtinguisherCheck", label: "Fire Extinguisher Gauge & Tag Inspection", type: "toggle", default: true, desc: "Verify gauge in green zone, pin sealed, and mounted" },
+            { id: "dotTrianglesCheck", label: "OSHA / DOT Emergency Reflective Triangles Check", type: "toggle", default: true, desc: "Verify set of 3 reflective triangles inside cab" },
+            { id: "firstAidKitCheck", label: "OSHA Compliant First Aid Kit Presence Check", type: "toggle", default: true, desc: "Ensure stocked first aid kit in cab" }
+          ]
+        },
+        {
+          title: "8. Preventative Maintenance (PM) Schedules",
+          fields: [
+            { id: "pmMilesInterval", label: "Engine Oil & Filter Change Interval (Miles)", type: "number", default: 5000, desc: "Standard oil change threshold" },
+            { id: "tireRotationMiles", label: "Tire Rotation & Balance Schedule (Miles)", type: "number", default: 7500, desc: "Tire rotation interval" },
+            { id: "brakePadCheckMiles", label: "Brake Lining & Rotor Service Interval (Miles)", type: "number", default: 15000, desc: "Comprehensive brake wear inspection" }
           ]
         }
       ]
@@ -914,7 +968,7 @@ export async function onRequest(context) {
     const s = String(str).toLowerCase().trim();
 
     // Section 1: Light & Medium Fleet
-    if (s.includes("pickup")) return "pickup";
+    if (s.includes("pickup") || s.includes("f-150") || s.includes("f-250") || s.includes("f-350") || s.includes("silverado") || s.includes("ram 1500") || s.includes("sierra")) return "pickup";
     if (s.includes("medium vocational") || s.includes("cab-chassis")) return "medtruck";
     if (s.includes("utv") || s.includes("buggy") || s.includes("side-by-side")) return "utv";
     if (s.includes("sedan") || s.includes("passenger car") || s.includes("suv") || s.includes("crossover")) return "sedan";
