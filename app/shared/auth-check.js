@@ -1,12 +1,9 @@
 // ============================================================================
-// AUTH CHECK — Shared auth protection script (v19 — Complete URL Context & Handoff Sync)
+// AUTH CHECK — Shared auth protection script (v20 — Hardened Multi-Tenant Session)
 // ============================================================================
 
 (async function() {
-  if (!document.body) {
-    document.addEventListener("DOMContentLoaded", arguments.callee);
-    return;
-  }
+  "use strict";
 
   // 0. CAPTURE URL CONTEXT PARAMS (org_id / role_id)
   var urlParams = new URLSearchParams(window.location.search);
@@ -24,24 +21,12 @@
     sessionStorage.setItem("driven_role", urlRoleId);
   }
 
-  // 1. FAST-PATH: Hydrate session state synchronously from storage or URL context
+  // 1. FAST-PATH: Hydrate session state synchronously from cached real user
   var cachedUserStr = localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user");
   var cachedUser = null;
   try {
     if (cachedUserStr) cachedUser = JSON.parse(cachedUserStr);
   } catch(e) {}
-
-  // Synthesize session state if URL parameters exist but no cached user is present
-  if (!cachedUser && (urlOrgId || urlRoleId)) {
-    cachedUser = {
-      id: "usr_url_handoff",
-      email: "user@driv-en.com",
-      role: urlRoleId || "admin",
-      role_id: urlRoleId || "RO-admin",
-      org_id: urlOrgId || "org_dsi",
-      permissions: ["fuel.add", "fuel.view", "fuel.manage", "can_edit_assets"]
-    };
-  }
 
   if (cachedUser) {
     if (!cachedUser.id && cachedUser.user_id) cachedUser.id = cachedUser.user_id;
@@ -53,11 +38,7 @@
       cachedUser.org_id = localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id") || "org_dsi";
     }
 
-    // Guarantee essential form permissions for URL context
     if (!cachedUser.permissions) cachedUser.permissions = [];
-    if (cachedUser.permissions.indexOf("fuel.add") === -1) {
-      cachedUser.permissions.push("fuel.add");
-    }
 
     window.drivenUser = cachedUser;
     window.dashUser = cachedUser;
@@ -95,7 +76,7 @@
         credentials: "include"
       });
     } catch (netErr) {
-      console.warn("[AuthCheck] Network fetch failed, relying on local session context:", netErr.message);
+      console.warn("[AuthCheck] Network fetch failed, relying on valid local session context:", netErr.message);
     }
 
     var user = null;
@@ -107,13 +88,13 @@
       }
     }
 
-    // Fall back to cached session / URL context user if backend verification fails or returns non-200
+    // Fall back to actual cached user session if backend verification network fails
     if (!user && cachedUser) {
       user = cachedUser;
     }
 
     if (!user) {
-      console.warn("[AuthCheck] Session unauthenticated and no local fallback found");
+      console.warn("[AuthCheck] Session unauthenticated and no valid cached session found");
       window.location.href = "/public/login.html";
       return;
     }
@@ -123,7 +104,7 @@
       user.id = user.user_id;
     }
 
-    // Allow URL params to override session user context if explicitly passed
+    // Allow URL params to pass context hints to active session
     if (urlOrgId) user.org_id = urlOrgId;
     if (urlRoleId) user.role_id = urlRoleId;
 
@@ -150,12 +131,8 @@
       user.role = "DRIV-EN Founder";
     }
 
-    // Ensure permissions array exists and has core permissions
+    // Ensure permissions array exists
     if (!user.permissions) user.permissions = [];
-    if (isAdminRole || urlOrgId || urlRoleId) {
-      if (user.permissions.indexOf("fuel.add") === -1) user.permissions.push("fuel.add");
-      if (user.permissions.indexOf("fuel.view") === -1) user.permissions.push("fuel.view");
-    }
 
     // Store user info in storage & globally for downstream scripts
     var targetOrg = user.org_id || localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id") || "org_dsi";
@@ -251,7 +228,7 @@
 
   } catch (e) {
     console.error("[AuthCheck] Exception error:", e.message);
-    if (!cachedUser && !(urlOrgId || urlRoleId)) {
+    if (!cachedUser) {
       window.location.href = "/public/login.html";
     }
   }
