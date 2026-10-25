@@ -285,10 +285,11 @@
     const API_ENDPOINT = '/api/asset-config';
     const FALLBACK_API_ENDPOINT = 'https://asset-config-api.driv-en.workers.dev/api/asset-config';
 
-    // Map onboarding dropdown string labels to worker category keys
+    // Clean special characters and map categories down to primary keys
     function mapCategoryToSchemaKey(rawName) {
       if (!rawName) return "default";
-      const s = String(rawName).toLowerCase();
+      const s = String(rawName).toLowerCase().replace(/[^a-z0-9]/g, " ");
+
       if (s.includes("excavator")) return "excavator";
       if (s.includes("truck") || s.includes("semi") || s.includes("class 8") || s.includes("tractor") || s.includes("dump")) {
         if (s.includes("pickup") || s.includes("sedan") || s.includes("suv") || s.includes("utv") || s.includes("van")) {
@@ -323,7 +324,7 @@
       if (h1.parentNode === r1) return true;
       var dl = r1.querySelector('.dash-driven-logo');
       r1.insertBefore(h1, dl);
-      r1.style.cssText = 'display:flex !important; justify-content:space-between !important; align-items:center !important; padding:8px 20px !important; gap:16px !important; width:100% !important; box-sizing:border-box !important; background:#cbd5e1 !important; border-bottom:2px solid #94a3b8 !important;';
+      r1.style.cssText = 'display:flex !important; justify-space-between !important; align-items:center !important; padding:8px 20px !important; gap:16px !important; width:100% !important; box-sizing:border-box !important; background:#cbd5e1 !important; border-bottom:2px solid #94a3b8 !important;';
       h1.style.cssText = 'margin:0; font-size:20px; font-weight:600; text-align:center; flex:1; color:#0f172a;';
       if (r2) r2.style.display = 'none';
       if (r3) r3.style.display = 'none';
@@ -419,6 +420,7 @@
       document.getElementById('selectType').value = '';
       document.getElementById('configPanel').style.opacity = '0.5';
       document.getElementById('configPanel').style.pointerEvents = 'none';
+      document.getElementById('dynamicSchemaFields').innerHTML = '';
     }
 
     async function onAssetSelected() {
@@ -475,9 +477,13 @@
       try {
         let url = `${API_ENDPOINT}?targetType=${targetType}&key=${encodeURIComponent(key)}&assetType=${encodeURIComponent(assetType)}`;
         const res = await apiFetch(url);
-        const data = await res.json();
+        
+        let data = null;
+        if (res.ok) {
+          data = await res.json();
+        }
 
-        if (data.success && data.schema && data.schema.sections) {
+        if (data && data.success && data.schema && data.schema.sections) {
           currentSchema = data.schema;
           renderDynamicForm(data.schema, data.config);
 
@@ -488,18 +494,41 @@
           }
           toggleFormLock();
         } else {
-          // Automatic Fallback to Default Schema whenever a primary key fails
+          // Automatic Fallback Query: Load default schema template
           let fallbackUrl = `${API_ENDPOINT}?targetType=${targetType}&key=${encodeURIComponent(key)}&assetType=default`;
           const fallbackRes = await apiFetch(fallbackUrl);
-          const fallbackData = await fallbackRes.json();
-
-          if (fallbackData.success && fallbackData.schema) {
-            currentSchema = fallbackData.schema;
-            renderDynamicForm(fallbackData.schema, fallbackData.config || data.config);
-            toggleFormLock();
-          } else {
-            showMessage("Could not load schema options for selected category.", "error");
+          if (fallbackRes.ok) {
+            const fallbackData = await fallbackRes.json();
+            if (fallbackData && fallbackData.schema && fallbackData.schema.sections) {
+              currentSchema = fallbackData.schema;
+              renderDynamicForm(fallbackData.schema, fallbackData.config || (data ? data.config : null));
+              toggleFormLock();
+              return;
+            }
           }
+          
+          // Emergency Fallback Render (Guarantees fields render even if API/KV fails)
+          const emergencySchema = {
+            sections: [
+              {
+                title: "1. Meter & Usage Tracking",
+                fields: [
+                  { id: "trackHours", label: "Track Engine Hours", type: "toggle", default: true, desc: "Require engine hours" },
+                  { id: "trackOdometer", label: "Track Mileage / Odometer", type: "toggle", default: false, desc: "Require mileage" }
+                ]
+              },
+              {
+                title: "2. Maintenance Schedule",
+                fields: [
+                  { id: "pmMeterInterval", label: "PM Meter Interval (Hours)", type: "number", default: 250, desc: "Service interval in hours" },
+                  { id: "pmCalendarInterval", label: "PM Calendar Interval (Days)", type: "number", default: 180, desc: "Service interval in days" }
+                ]
+              }
+            ]
+          };
+          currentSchema = emergencySchema;
+          renderDynamicForm(emergencySchema, data ? data.config : null);
+          toggleFormLock();
         }
       } catch (e) {
         console.error('Failed to load dynamic schema:', e);
