@@ -471,7 +471,8 @@
           data = await res.json();
         }
 
-        if (data && data.schema && data.schema.sections) {
+        // Render schema if valid schema object exists (data.config can safely be null)
+        if (data && data.schema && data.schema.sections && data.schema.sections.length > 0) {
           currentSchema = data.schema;
           renderDynamicForm(data.schema, data.config);
 
@@ -481,21 +482,23 @@
             document.getElementById('overrideDefaults').checked = false;
           }
           toggleFormLock();
-        } else {
-          // Automatic Fallback: Fetch default template if specific asset schema lookup is missed
-          let fallbackUrl = `${API_ENDPOINT}?targetType=${targetType}&key=${encodeURIComponent(key)}&assetType=default`;
-          const fallbackRes = await apiFetch(fallbackUrl);
-          if (fallbackRes.ok) {
-            const fallbackData = await fallbackRes.json();
-            if (fallbackData && fallbackData.schema && fallbackData.schema.sections) {
-              currentSchema = fallbackData.schema;
-              renderDynamicForm(fallbackData.schema, fallbackData.config || (data ? data.config : null));
-              toggleFormLock();
-              return;
-            }
-          }
-          showMessage("Unable to load category schema options.", "error");
+          return;
         }
+
+        // Automatic Fallback: Fetch default template if specific asset schema lookup is missed
+        let fallbackUrl = `${API_ENDPOINT}?targetType=${targetType}&key=${encodeURIComponent(key)}&assetType=default`;
+        const fallbackRes = await apiFetch(fallbackUrl);
+        if (fallbackRes.ok) {
+          const fallbackData = await fallbackRes.json();
+          if (fallbackData && fallbackData.schema && fallbackData.schema.sections) {
+            currentSchema = fallbackData.schema;
+            renderDynamicForm(fallbackData.schema, fallbackData.config || (data ? data.config : null));
+            toggleFormLock();
+            return;
+          }
+        }
+
+        showMessage("Unable to load category schema options.", "error");
       } catch (e) {
         console.error('Failed to load dynamic schema:', e);
         showMessage("Error fetching schema: " + e.message, "error");
