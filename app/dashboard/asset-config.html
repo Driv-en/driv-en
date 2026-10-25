@@ -296,7 +296,7 @@
         }
         return "class8semitruck";
       }
-      if (s.includes("rig") || s.includes("drill")) return "drillingrig";
+      if (s.includes("rig") || s.includes("drill") || s.includes("derrick")) return "drillingrig";
       if (s.includes("crane") || s.includes("lift") || s.includes("forklift")) return "crane";
       if (s.includes("generator") || s.includes("welder") || s.includes("compressor") || s.includes("pump")) return "generator";
       if (s.includes("trailer")) return "trailer";
@@ -477,7 +477,7 @@
         const res = await apiFetch(url);
         const data = await res.json();
 
-        if (data.success && data.schema) {
+        if (data.success && data.schema && data.schema.sections) {
           currentSchema = data.schema;
           renderDynamicForm(data.schema, data.config);
 
@@ -488,7 +488,18 @@
           }
           toggleFormLock();
         } else {
-          showMessage("Could not load schema options for selected category.", "error");
+          // Automatic Fallback to Default Schema whenever a primary key fails
+          let fallbackUrl = `${API_ENDPOINT}?targetType=${targetType}&key=${encodeURIComponent(key)}&assetType=default`;
+          const fallbackRes = await apiFetch(fallbackUrl);
+          const fallbackData = await fallbackRes.json();
+
+          if (fallbackData.success && fallbackData.schema) {
+            currentSchema = fallbackData.schema;
+            renderDynamicForm(fallbackData.schema, fallbackData.config || data.config);
+            toggleFormLock();
+          } else {
+            showMessage("Could not load schema options for selected category.", "error");
+          }
         }
       } catch (e) {
         console.error('Failed to load dynamic schema:', e);
