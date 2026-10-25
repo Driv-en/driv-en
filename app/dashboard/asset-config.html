@@ -41,7 +41,6 @@
       color: var(--text); 
     }
 
-    /* ===== STICKY GRAY HEADER & TOP NAV BAR ===== */
     .dash-header-row3 { display: none !important; }
     #dashHeader .dash-theme-wrapper { display: none !important; }
     .dash-header-row2 { display: none !important; }
@@ -286,6 +285,24 @@
     const API_ENDPOINT = '/api/asset-config';
     const FALLBACK_API_ENDPOINT = 'https://asset-config-api.driv-en.workers.dev/api/asset-config';
 
+    // Map onboarding dropdown string labels to worker category keys
+    function mapCategoryToSchemaKey(rawName) {
+      if (!rawName) return "default";
+      const s = String(rawName).toLowerCase();
+      if (s.includes("excavator")) return "excavator";
+      if (s.includes("truck") || s.includes("semi") || s.includes("class 8") || s.includes("tractor") || s.includes("dump")) {
+        if (s.includes("pickup") || s.includes("sedan") || s.includes("suv") || s.includes("utv") || s.includes("van")) {
+          return "lightfleet";
+        }
+        return "class8semitruck";
+      }
+      if (s.includes("rig") || s.includes("drill")) return "drillingrig";
+      if (s.includes("crane") || s.includes("lift") || s.includes("forklift")) return "crane";
+      if (s.includes("generator") || s.includes("welder") || s.includes("compressor") || s.includes("pump")) return "generator";
+      if (s.includes("trailer")) return "trailer";
+      return "default";
+    }
+
     function updateHeaderOffset() {
       const h = document.getElementById('dashHeader') || document.querySelector('.dash-header');
       if (h) {
@@ -409,24 +426,27 @@
       if (!assetNum) return;
 
       const select = document.getElementById('selectAsset');
-      const assetType = select.options[select.selectedIndex]?.getAttribute('data-type') || 'Default';
+      const rawType = select.options[select.selectedIndex]?.getAttribute('data-type') || 'Default';
+      const schemaTypeKey = mapCategoryToSchemaKey(rawType);
 
       document.getElementById('configPanel').style.opacity = '1';
       document.getElementById('configPanel').style.pointerEvents = 'auto';
-      document.getElementById('modeBanner').innerText = `Configuring rules for Asset: ${assetNum} (Category: ${assetType})`;
+      document.getElementById('modeBanner').innerText = `Configuring rules for Asset: ${assetNum} (Category: ${rawType})`;
 
-      await fetchAndRenderSchema('specific', assetNum, assetType);
+      await fetchAndRenderSchema('specific', assetNum, schemaTypeKey);
     }
 
     async function onTypeSelected() {
       const typeName = document.getElementById('selectType').value;
       if (!typeName) return;
 
+      const schemaTypeKey = mapCategoryToSchemaKey(typeName);
+
       document.getElementById('configPanel').style.opacity = '1';
       document.getElementById('configPanel').style.pointerEvents = 'auto';
       document.getElementById('modeBanner').innerText = `Editing global category schema for: ${typeName}`;
 
-      await fetchAndRenderSchema('template', typeName, typeName);
+      await fetchAndRenderSchema('template', typeName, schemaTypeKey);
       enableForm();
     }
 
@@ -467,9 +487,12 @@
             document.getElementById('overrideDefaults').checked = false;
           }
           toggleFormLock();
+        } else {
+          showMessage("Could not load schema options for selected category.", "error");
         }
       } catch (e) {
         console.error('Failed to load dynamic schema:', e);
+        showMessage("Error fetching schema: " + e.message, "error");
       }
     }
 
@@ -478,6 +501,11 @@
       container.innerHTML = '';
 
       const values = savedConfig?.rules || {};
+
+      if (!schema || !schema.sections || schema.sections.length === 0) {
+        container.innerHTML = '<div style="padding:16px; color:var(--text-muted);">No schema rules available for this selection.</div>';
+        return;
+      }
 
       schema.sections.forEach(section => {
         const secTitle = document.createElement('div');
