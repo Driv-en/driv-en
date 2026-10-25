@@ -3,16 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>DRIV‑EN | Dynamic Asset Configuration</title>
+  <title>DRIV‑EN | Asset Configuration</title>
+  <meta name="description" content="DRIV-EN — configure inspection rules, PM schedules, and asset defaults.">
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+  <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+  <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+  <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
   <link rel="stylesheet" href="/app/shared/dashboard.css?v=11">
   <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
   <script>
     (function() {
       var saved = localStorage.getItem("driven-theme");
       var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-      document.documentElement.setAttribute("data-theme", saved || system);
+      var theme = saved || system;
+      document.documentElement.setAttribute("data-theme", theme);
     })();
   </script>
   <style>
@@ -28,10 +33,18 @@
       --text-muted: #64748b;
     }
 
-    html, body { margin: 0; padding: 0; width: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: var(--text); }
+    html, body { 
+      margin: 0; 
+      padding: 0; 
+      width: 100%; 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+      color: var(--text); 
+    }
 
     /* ===== STICKY GRAY HEADER & TOP NAV BAR ===== */
-    .dash-header-row3, #dashHeader .dash-theme-wrapper, .dash-header-row2 { display: none !important; }
+    .dash-header-row3 { display: none !important; }
+    #dashHeader .dash-theme-wrapper { display: none !important; }
+    .dash-header-row2 { display: none !important; }
     
     #dashHeader, .dash-header {
       position: sticky !important;
@@ -68,33 +81,67 @@
     }
 
     .btn-secondary {
-      background: #2563eb; color: #ffffff; padding: 8px 16px; border-radius: 6px;
-      text-decoration: none; font-weight: 600; font-size: 13px;
+      background: #2563eb;
+      color: #ffffff;
+      padding: 8px 16px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 13px;
+      transition: background 150ms ease;
     }
     .btn-secondary:hover { background: #1d4ed8; }
 
     .btn-logout {
-      background: #b91c1c; color: #ffffff; padding: 8px 16px; border-radius: 6px;
-      border: 1px solid #dc2626; font-weight: 600; font-size: 13px; cursor: pointer;
+      background: #b91c1c;
+      color: #ffffff;
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid #dc2626;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 150ms ease;
     }
     .btn-logout:hover { background: #dc2626; }
 
-    .config-container { max-width: 1100px; margin: 0 auto; padding: 0 16px 24px 16px; box-sizing: border-box; position: relative; z-index: 1; }
+    .config-container { 
+      max-width: 1100px; 
+      margin: 0 auto; 
+      padding: 0 16px 24px 16px; 
+      box-sizing: border-box; 
+      position: relative;
+      z-index: 1;
+    }
     
     .card {
-      background: var(--bg-card); border: 2px solid var(--card-green-border);
-      border-radius: 8px; padding: 20px 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      background: var(--bg-card);
+      border: 2px solid var(--card-green-border);
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
 
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .form-group { display: flex; flex-direction: column; gap: 6px; }
+    
     label { font-size: 14px; font-weight: 600; }
     select, input[type="text"], input[type="number"] {
-      padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; background: var(--bg-card); color: var(--text);
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      background: var(--bg-card);
+      color: var(--text);
     }
 
     .toggle-row {
-      display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid #e2e8f0;
     }
     .toggle-row:last-child { border-bottom: none; }
     .toggle-title { font-size: 14px; font-weight: 600; }
@@ -114,15 +161,35 @@
     input:checked + .slider:before { transform: translateX(20px); }
 
     .section-title {
-      font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
-      color: var(--primary); margin-top: 18px; margin-bottom: 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--primary);
+      margin-top: 18px;
+      margin-bottom: 12px;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 4px;
     }
 
-    .mode-banner { background: #eff6ff; border-left: 4px solid var(--primary); padding: 12px 16px; border-radius: 4px; margin-bottom: 16px; font-size: 14px; }
+    .mode-banner {
+      background: #eff6ff;
+      border-left: 4px solid var(--primary);
+      padding: 12px 16px;
+      border-radius: 4px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
 
     .btn-primary {
-      background: var(--primary); color: #ffffff; padding: 10px 20px; border: none;
-      border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer;
+      background: var(--primary);
+      color: #ffffff;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
     }
     .btn-primary:hover { background: var(--primary-hover); }
 
@@ -130,11 +197,17 @@
     .am-message { padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; font-size: 14px; display: none; }
     .am-message.success { background: rgba(34, 197, 94, 0.15); color: #15803d; border: 1px solid #86efac; }
     .am-message.error { background: rgba(239, 68, 68, 0.15); color: #b91c1c; border: 1px solid #fca5a5; }
+
+    @media (max-width: 700px) {
+      .grid-2 { grid-template-columns: 1fr; }
+      .top-nav-bar { padding: 8px 12px; }
+      .config-container { padding: 0 12px 20px 12px; }
+    }
   </style>
 </head>
 <body data-page-title="Asset Configuration" data-required-permission="any">
 
-  <!-- Diamond Plate Background -->
+  <!-- Diamond Plate Background Overlay -->
   <div class="steel-bg"></div>
   <div class="steel-overlay"></div>
 
@@ -177,7 +250,7 @@
       </div>
     </div>
 
-    <!-- Dynamic Schema Form Container -->
+    <!-- Dynamic Schema Rules Panel -->
     <div class="card" id="configPanel" style="opacity: 0.5; pointer-events: none;">
       <div class="mode-banner" id="modeBanner">Select an option above to configure rules.</div>
 
@@ -192,7 +265,7 @@
         </label>
       </div>
 
-      <!-- DYNAMIC SCHEMA RENDER TARGET -->
+      <!-- Container where dynamic components render -->
       <div id="dynamicSchemaFields"></div>
 
       <div class="actions">
@@ -226,6 +299,7 @@
       if (!h) return false;
       var r1 = h.querySelector('.dash-header-row1');
       var r2 = h.querySelector('.dash-header-row2');
+      var r3 = h.querySelector('.dash-header-row3');
       var h1 = r2 ? r2.querySelector('h1') : null;
       if (!r1 || !h1) return false;
       if (h1.parentNode === r1) return true;
@@ -234,6 +308,7 @@
       r1.style.cssText = 'display:flex !important; justify-space-between !important; align-items:center !important; padding:8px 20px !important; gap:16px !important; width:100% !important; box-sizing:border-box !important; background:#cbd5e1 !important; border-bottom:2px solid #94a3b8 !important;';
       h1.style.cssText = 'margin:0; font-size:20px; font-weight:600; text-align:center; flex:1; color:#0f172a;';
       if (r2) r2.style.display = 'none';
+      if (r3) r3.style.display = 'none';
       return true;
     }
 
@@ -245,6 +320,18 @@
 
       updateHeaderOffset();
       await loadInitialData();
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const target = urlParams.get('target');
+      const assetNumber = urlParams.get('assetNumber');
+
+      if (target === 'template') {
+        document.getElementById('configTarget').value = 'template';
+        onTargetTypeChange();
+      } else if (assetNumber) {
+        document.getElementById('selectAsset').value = assetNumber;
+        onAssetSelected();
+      }
     });
 
     async function loadInitialData() {
@@ -263,7 +350,7 @@
           populateTypeDropdown();
         }
       } catch (e) {
-        console.error('Failed to load assets/types:', e);
+        console.error('Failed to load assets or types:', e);
       }
     }
 
@@ -358,7 +445,7 @@
         if (data.success && data.schema) {
           currentSchema = data.schema;
           renderDynamicForm(data.schema, data.config);
-          
+
           if (data.config) {
             document.getElementById('overrideDefaults').checked = data.config.isOverride || false;
           } else {
@@ -449,7 +536,6 @@
       btn.disabled = true;
       btn.textContent = 'Saving...';
 
-      // Collect values dynamically from schema
       const rules = {};
       if (currentSchema) {
         currentSchema.sections.forEach(sec => {
