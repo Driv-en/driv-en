@@ -41,18 +41,28 @@
       color: var(--text); 
     }
 
-    /* ===== STICKY HEADER & TOP BAR ===== */
+    /* ===== STICKY GRAY HEADER & TOP NAV BAR ===== */
     .dash-header-row3 { display: none !important; }
     #dashHeader .dash-theme-wrapper { display: none !important; }
     .dash-header-row2 { display: none !important; }
+    
     #dashHeader, .dash-header {
       position: sticky !important;
       top: 0 !important;
       z-index: 101 !important;
-      background: var(--bg-card);
+      background: #cbd5e1 !important;
       width: 100%;
       box-sizing: border-box;
-      border-bottom: 2px solid var(--card-green-border);
+      border-bottom: 2px solid #94a3b8 !important;
+    }
+
+    #dashHeader h1, .dash-header h1 {
+      text-align: center !important;
+      margin: 0 auto !important;
+      font-size: 20px !important;
+      font-weight: 600 !important;
+      color: #0f172a !important;
+      flex: 1;
     }
 
     .top-nav-bar {
@@ -61,7 +71,7 @@
       z-index: 100 !important;
       background: #cbd5e1;
       border-bottom: 2px solid #94a3b8;
-      padding: 10px 16px;
+      padding: 8px 16px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -69,8 +79,6 @@
       margin: 0 auto 16px auto;
       box-sizing: border-box;
     }
-
-    .top-nav-bar h2 { margin: 0; font-size: 18px; color: #0f172a; }
 
     .btn-secondary {
       background: #2563eb;
@@ -83,6 +91,19 @@
       transition: background 150ms ease;
     }
     .btn-secondary:hover { background: #1d4ed8; }
+
+    .btn-logout {
+      background: #b91c1c;
+      color: #ffffff;
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid #dc2626;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 150ms ease;
+    }
+    .btn-logout:hover { background: #dc2626; }
 
     .config-container { 
       max-width: 1100px; 
@@ -180,7 +201,6 @@
     @media (max-width: 700px) {
       .grid-2 { grid-template-columns: 1fr; }
       .top-nav-bar { padding: 8px 12px; }
-      .top-nav-bar h2 { font-size: 16px; }
       .config-container { padding: 0 12px 20px 12px; }
     }
   </style>
@@ -191,13 +211,13 @@
   <div class="steel-bg"></div>
   <div class="steel-overlay"></div>
 
-  <!-- Standard Header -->
+  <!-- Standard Gray Header with Centered Title -->
   <div id="dashHeader"></div>
 
   <!-- Sticky Top Navigation Bar -->
   <div class="top-nav-bar">
-    <h2>Asset Configuration Setup</h2>
     <a href="asset-management.html" class="btn-secondary">← Back to Asset Management</a>
+    <button class="btn-logout" onclick="confirmLogout()">Logout</button>
   </div>
 
   <div class="config-container">
@@ -328,7 +348,30 @@
     }
     window.addEventListener('resize', updateHeaderOffset);
 
+    function fixHeaderLayout() {
+      var h = document.querySelector('.dash-header');
+      if (!h) return false;
+      var r1 = h.querySelector('.dash-header-row1');
+      var r2 = h.querySelector('.dash-header-row2');
+      var r3 = h.querySelector('.dash-header-row3');
+      var h1 = r2 ? r2.querySelector('h1') : null;
+      if (!r1 || !h1) return false;
+      if (h1.parentNode === r1) return true;
+      var dl = r1.querySelector('.dash-driven-logo');
+      r1.insertBefore(h1, dl);
+      r1.style.cssText = 'display:flex !important; justify-space-between !important; align-items:center !important; padding:8px 20px !important; gap:16px !important; width:100% !important; box-sizing:border-box !important; background:#cbd5e1 !important; border-bottom:2px solid #94a3b8 !important;';
+      h1.style.cssText = 'margin:0; font-size:20px; font-weight:600; text-align:center; flex:1; color:#0f172a;';
+      if (r2) r2.style.display = 'none';
+      if (r3) r3.style.display = 'none';
+      return true;
+    }
+
     document.addEventListener('dashSessionLoaded', async () => {
+      var ha = 0, hi = setInterval(function() {
+        ha++;
+        if (fixHeaderLayout() || ha > 50) { clearInterval(hi); updateHeaderOffset(); }
+      }, 100);
+
       updateHeaderOffset();
       await loadInitialData();
 
@@ -542,6 +585,11 @@
         btn.disabled = false;
         btn.textContent = 'Save Configuration';
       }
+    }
+
+    function confirmLogout() {
+      if (typeof dashLogout === 'function') dashLogout();
+      else window.location.href = '/public/login.html';
     }
 
     function showMessage(msg, type) {
