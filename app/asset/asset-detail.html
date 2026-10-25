@@ -675,6 +675,7 @@
         var activeOrgId = null;
         var canEditAssets = false;
         var isEditMode = false;
+        var isBootstrapped = false;
         
         // Truth vs Working Copy Separation to prevent state mutation bugs
         var originalAssetRecord = null;
@@ -726,12 +727,37 @@
             return data.employees || data.personnel || data.key_personnel || data.records || data.assetTypes || data.projects || data.divisions || data.locations || data.users || data.data || data.results || [];
         }
 
+        // Helper to resolve org_id with comprehensive fallbacks
+        function resolveActiveOrgId(u) {
+            var urlOrg = urlParams.get('org_id') || urlParams.get('orgId') || urlParams.get('customerId');
+            if (urlOrg && urlOrg !== "default_org") return urlOrg;
+            
+            if (u && u.org_id && u.org_id !== "default_org") return u.org_id;
+            if (u && u.customer_id && u.customer_id !== "default_org") return u.customer_id;
+            
+            var lsOrg = localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id");
+            if (lsOrg && lsOrg !== "default_org") return lsOrg;
+
+            var ssOrg = sessionStorage.getItem("driven_org_id");
+            if (ssOrg && ssOrg !== "default_org") return ssOrg;
+
+            var email = (u && u.email) ? u.email.toLowerCase() : "";
+            var roleId = (u && u.role_id) ? String(u.role_id).toLowerCase() : "";
+            if (email === "jblood@digitalsafetyinspection.com" || roleId === "ro-founder") {
+                return "org_dsi";
+            }
+
+            return null;
+        }
+
         // Strict Multi-Tenant Execution Guardrail & Boot
-        document.addEventListener("dashSessionLoaded", async function(e) {
-            var u = window.dashUser;
+        async function initAssetDetail(e) {
+            if (isBootstrapped) return;
+
+            var u = (e && e.detail) ? e.detail : (window.dashUser || window.drivenUser);
             
             // Multi-Tenant Isolation Verification
-            activeOrgId = (u && u.org_id && u.org_id !== "default_org") ? u.org_id : null;
+            activeOrgId = resolveActiveOrgId(u);
 
             if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "") {
                 var errMsg = "Invalid multi-tenant session context. Execution halted to prevent data leaks.";
@@ -747,10 +773,13 @@
                 return;
             }
 
+            isBootstrapped = true;
+            document.querySelector(".ad-main").style.opacity = "1";
+
             // Role Permission Check: Admin or Authorized Asset Manager
-            var rpRoleId = u ? (u.role_id || u.role) : "";
-            var rpIsAdmin = (rpRoleId === "RO-admin" || u.is_admin === true);
-            canEditAssets = rpIsAdmin || (u.permissions && u.permissions.can_edit_assets === true);
+            var rpRoleId = u ? (u.role_id || u.role || "") : "";
+            var rpIsAdmin = (rpRoleId === "RO-admin" || rpRoleId === "RO-Founder" || (u && u.is_admin === true));
+            canEditAssets = rpIsAdmin || (u && u.permissions && u.permissions.can_edit_assets === true);
 
             if (canEditAssets) {
                 var btnToggle = document.getElementById("btnToggleEdit");
@@ -794,7 +823,14 @@
             }
 
             updateHeaderOffset();
-        });
+        }
+
+        document.addEventListener("dashSessionLoaded", initAssetDetail);
+
+        // Fallback initialization check if event already fired prior to listener attachment
+        if (window.dashUser || window.drivenUser) {
+            initAssetDetail();
+        }
 
         function displayMessage(msg, type) {
             var el = document.getElementById("adMessage");
