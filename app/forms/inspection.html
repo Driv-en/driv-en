@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -115,6 +114,19 @@
 .tc-error-banner{background:#ffdddd;color:#cc0000;padding:10px 14px;border-radius:6px;margin-bottom:16px;font-size:14px;display:none;}
 .tc-section{margin-top:24px;padding-top:20px;border-top:1px solid var(--border);}
 .tc-section-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px;}
+
+/* Dynamic Config Field Rows */
+.checklist-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.checklist-item-row:last-child { border-bottom: none; }
+.checklist-item-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.checklist-item-desc { font-size: 12px; color: var(--text-muted); }
+
 @media(max-width:600px){.tc-two-col{grid-template-columns:1fr;}.tc-main{padding:0 12px;margin:12px auto;}}
 .location-banner{border-radius:8px;margin:12px 20px;padding:10px 16px;font-size:13px;line-height:1.5;}
 .location-banner.ok{background:#dcfce7;border:1px solid #16a34a;color:#15803d;}
@@ -152,7 +164,7 @@
         <!-- EQUIPMENT SELECTION -->
         <div class="tc-row">
           <label>Equipment / Asset <span class="req">*</span></label>
-          <select id="assetId" required>
+          <select id="assetId" required onchange="onAssetSelectedChange()">
             <option value="">Select equipment…</option>
           </select>
           <div class="hint">Search by asset number or name</div>
@@ -195,11 +207,17 @@
           </div>
         </div>
 
+        <!-- DYNAMIC ASSET CONFIGURATION CHECKLIST -->
+        <div class="tc-section" id="dynamicChecklistContainer" style="display:none;">
+          <div class="tc-section-title" id="dynamicChecklistTitle">Asset Verification Checklist</div>
+          <div id="dynamicChecklistFields"></div>
+        </div>
+
         <!-- NOTES & COMMENTS -->
         <div class="tc-section">
-          <div class="tc-section-title">Notes & Checklist Items</div>
+          <div class="tc-section-title">Notes & Defect Details</div>
           <div class="tc-row">
-            <label>Inspection Notes / Defect Details</label>
+            <label>Inspection Notes / Findings</label>
             <textarea id="notes" placeholder="Describe any issues, repairs needed, or general findings…"></textarea>
           </div>
         </div>
@@ -230,6 +248,8 @@
 <script src="/app/shared/dashboard-common.js?v=13"></script>
 <script>
 var deviceLocation = null;
+var rawAssetsList = [];
+var activeAssetRules = {};
 
 function isMobileDevice() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
@@ -300,19 +320,25 @@ async function loadAssets(){
   try {
     var resp = await fetch(buildApiUrl('/api/equipment'));
     var data = await resp.json();
-    var rawList = data.equipment || data.assets || [];
+    rawAssetsList = data.equipment || data.assets || data.records || [];
 
     var seenIds = new Set();
     var assetSelect = document.getElementById('assetId');
     assetSelect.innerHTML = '<option value="">Select equipment…</option>';
 
-    rawList.forEach(function(a) {
-      if (!a.id || seenIds.has(a.id)) return;
-      seenIds.add(a.id);
+    rawAssetsList.forEach(function(a) {
+      var id = a.id || a.asset_number || a.assetNumber;
+      if (!id || seenIds.has(id)) return;
+      seenIds.add(id);
 
-      var label = (a.asset_number || a.id.slice(0,8)) + ' — ' + (a.name || 'Unnamed');
+      var num = a.asset_number || a.assetNumber || id;
+      var type = a.category || a.type || 'Default';
+      var label = num + ' — ' + (a.name || 'Unnamed') + ' (' + type + ')';
+
       var opt = document.createElement('option');
-      opt.value = a.id;
+      opt.value = id;
+      opt.setAttribute('data-num', num);
+      opt.setAttribute('data-type', type);
       opt.textContent = label;
       assetSelect.appendChild(opt);
     });
@@ -320,6 +346,81 @@ async function loadAssets(){
     console.error('Failed to load equipment:', e);
     reportError('loadAssets', e);
   }
+}
+
+/* ===== DYNAMIC CONFIGURATION FETCH & RENDER ===== */
+async function onAssetSelectedChange() {
+  var sel = document.getElementById('assetId');
+  var container = document.getElementById('dynamicChecklistContainer');
+  var fieldsDiv = document.getElementById('dynamicChecklistFields');
+
+  if (!sel.value) {
+    container.style.display = 'none';
+    fieldsDiv.innerHTML = '';
+    activeAssetRules = {};
+    return;
+  }
+
+  var selectedOpt = sel.options[sel.selectedIndex];
+  var assetNum = selectedOpt.getAttribute('data-num') || sel.value;
+  var assetType = selectedOpt.getAttribute('data-type') || 'Default';
+
+  try {
+    var url = buildApiUrl('/api/asset-config') + '&targetType=specific&key=' + encodeURIComponent(assetNum) + '&assetType=' + encodeURIComponent(assetType);
+    var res = await fetch(url);
+    var data = await res.json();
+
+    if (data && data.schema && data.schema.sections) {
+      activeAssetRules = data.config?.rules || {};
+      renderDynamicChecklist(data.schema, activeAssetRules);
+      container.style.display = 'block';
+    } else {
+      container.style.display = 'none';
+      fieldsDiv.innerHTML = '';
+    }
+  } catch (err) {
+    console.error('Failed to load asset inspection schema:', err);
+    container.style.display = 'none';
+  }
+}
+
+function renderDynamicChecklist(schema, savedRules) {
+  var fieldsDiv = document.getElementById('dynamicChecklistFields');
+  fieldsDiv.innerHTML = '';
+
+  schema.sections.forEach(function(section) {
+    var secHeader = document.createElement('div');
+    secHeader.style.cssText = 'font-weight:700; font-size:13px; text-transform:uppercase; color:var(--primary); margin:16px 0 8px 0; border-bottom:1px solid var(--border); padding-bottom:4px;';
+    secHeader.textContent = section.title;
+    fieldsDiv.appendChild(secHeader);
+
+    section.fields.forEach(function(field) {
+      var val = savedRules[field.id] !== undefined ? savedRules[field.id] : (field.default !== undefined ? field.default : '');
+
+      if (field.type === 'toggle') {
+        var row = document.createElement('div');
+        row.className = 'checklist-item-row';
+        row.innerHTML = '<div>' +
+          '<div class="checklist-item-title">' + esc(field.label) + '</div>' +
+          '<div class="checklist-item-desc">' + esc(field.desc || '') + '</div>' +
+        '</div>' +
+        '<select id="check_' + field.id + '" style="width:auto; padding:6px 10px;">' +
+          '<option value="pass" ' + (val ? 'selected' : '') + '>Pass / OK</option>' +
+          '<option value="fail">Defect / Fail</option>' +
+          '<option value="na">N/A</option>' +
+        '</select>';
+        fieldsDiv.appendChild(row);
+      } else if (field.type === 'text' || field.type === 'number') {
+        var rowGroup = document.createElement('div');
+        rowGroup.className = 'tc-row';
+        rowGroup.style.marginBottom = '12px';
+        rowGroup.innerHTML = '<label for="check_' + field.id + '">' + esc(field.label) + '</label>' +
+          '<input type="' + (field.type === 'number' ? 'number' : 'text') + '" id="check_' + field.id + '" value="' + esc(val) + '" placeholder="' + esc(field.desc || '') + '">' +
+          '<div class="hint">' + esc(field.desc || '') + '</div>';
+        fieldsDiv.appendChild(rowGroup);
+      }
+    });
+  });
 }
 
 /* ===== LOAD INSPECTORS ===== */
@@ -370,6 +471,13 @@ async function submitInspection(){
 
   if(!assetId){showError('Please select equipment to inspect.');return;}
 
+  // Collect dynamic checklist responses
+  var checklistResults = {};
+  document.querySelectorAll('#dynamicChecklistFields [id^="check_"]').forEach(function(el) {
+    var fieldKey = el.id.replace('check_', '');
+    checklistResults[fieldKey] = el.type === 'checkbox' ? el.checked : el.value;
+  });
+
   var submitBtn = document.getElementById('submitBtn');
   submitBtn.disabled = true;
   submitBtn.textContent = 'Submitting…';
@@ -382,6 +490,7 @@ async function submitInspection(){
       meter_reading: meterReading ? Number(meterReading) : null,
       inspector_name: inspector || null,
       notes: notes || null,
+      checklist_results: checklistResults,
       device_location: hasDeviceLocation() ? deviceLocation : null
     };
 
@@ -414,6 +523,8 @@ function resetForm(){
   document.getElementById('formView').style.display = 'block';
   document.getElementById('successView').style.display = 'none';
   document.getElementById('assetId').value = '';
+  document.getElementById('dynamicChecklistContainer').style.display = 'none';
+  document.getElementById('dynamicChecklistFields').innerHTML = '';
   document.getElementById('inspectionType').value = 'pre_trip';
   document.getElementById('inspectionStatus').value = 'pass';
   document.getElementById('meterReading').value = '';
