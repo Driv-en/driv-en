@@ -15,6 +15,9 @@
   <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
   <!-- Leaflet Map CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <!-- Leaflet MarkerCluster CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
   <script>
     (function() {
       var saved = localStorage.getItem("driven-theme");
@@ -435,7 +438,7 @@
         <ol style="padding-left: 20px;">
           <li><strong>KPI Metrics:</strong> Click any KPI box (e.g., <em>Available</em>) on the overview tab to quickly jump to and filter the asset table.</li>
           <li><strong>Searching & Filtering:</strong> Combine multi-select dropdowns (Types, Statuses, Projects, Locations) with text search for instant results.</li>
-          <li><strong>Map View:</strong> Switch to the <em>Asset Location</em> tab to view active pins with asset numbers, last reported addresses, and Street View links. Use the mode toggle to view Form Activity vs. Project Assignments.</li>
+          <li><strong>Map View:</strong> Switch to the <em>Asset Location</em> tab to view active pins with asset numbers, last reported addresses, and Street View links. Use the mode toggle to view Form Activity vs. Project Assignments. Multiple assets at the same location are clustered together showing the asset count.</li>
           <li><strong>Adding Assets:</strong> Use the <em>+ Quick Add Asset</em> tab to create new entries. Duplicate active asset numbers are automatically prevented.</li>
           <li><strong>Exporting:</strong> Download full or filtered asset lists formatted for Excel or CSV via the action buttons.</li>
         </ol>
@@ -530,9 +533,11 @@
 
   <!-- Leaflet JS for Map rendering -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Leaflet MarkerCluster JS -->
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script src="/app/shared/dashboard-common.js?v=13"></script>
   <script>
-    var allAssets = [], assetTypes = [], projects = [], locations = [], divisions = [], operators = [], editingAssetId = null, canModify = false, amDirty = false, amMapInstance = null, amMarkers = [], mapMode = 'forms';
+    var allAssets = [], assetTypes = [], projects = [], locations = [], divisions = [], operators = [], editingAssetId = null, canModify = false, amDirty = false, amMapInstance = null, amClusterGroup = null, mapMode = 'forms';
     var COL_DEFS = [
       { key: 'assetNumber', label: 'Asset Number', defaultVisible: true, defaultWidth: '130px' },
       { key: 'type', label: 'Asset Type', defaultVisible: true, defaultWidth: '140px' },
@@ -1208,7 +1213,7 @@
       renderColTogglePanel();
     }
 
-    /* ===== MAP INITIALIZATION & RENDERING WITH MODE TOGGLE ===== */
+    /* ===== MAP INITIALIZATION & RENDERING WITH CLUSTERING ===== */
     function setMapMode(mode) {
       mapMode = mode;
       var btnF = document.getElementById('btnMapForms');
@@ -1235,15 +1240,26 @@
         maxZoom: 19,
         attribution: '© OpenStreetMap contributors'
       }).addTo(amMapInstance);
+
+      if (typeof L.markerClusterGroup === 'function') {
+        amClusterGroup = L.markerClusterGroup({
+          spiderfyOnMaxZoom: true,
+          showCoverageOnHover: false,
+          zoomToBoundsOnClick: true,
+          maxClusterRadius: 35
+        });
+        amMapInstance.addLayer(amClusterGroup);
+      }
+
       renderAssetMapPins();
     }
 
     function renderAssetMapPins() {
       if (!amMapInstance) return;
-      amMarkers.forEach(function(m) {
-        amMapInstance.removeLayer(m);
-      });
-      amMarkers = [];
+      
+      if (amClusterGroup) {
+        amClusterGroup.clearLayers();
+      }
       var bounds = [];
 
       allAssets.forEach(function(a) {
@@ -1291,10 +1307,13 @@
           '</div>' +
         '</div>';
 
-        var marker = L.marker([latitude, longitude], { icon: pinIcon })
-          .addTo(amMapInstance)
-          .bindPopup(popupContent);
-        amMarkers.push(marker);
+        var marker = L.marker([latitude, longitude], { icon: pinIcon }).bindPopup(popupContent);
+
+        if (amClusterGroup) {
+          amClusterGroup.addLayer(marker);
+        } else {
+          marker.addTo(amMapInstance);
+        }
       });
 
       if (bounds.length > 0) {
