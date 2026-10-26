@@ -28,7 +28,8 @@
     .dash-header-row3 { display: none !important; }
     #dashHeader .dash-theme-wrapper { display: none !important; }
     .dash-header-row2 { display: none !important; }
-    #dashHeader, .dash-header {position: sticky !important; top: 0 !important; z-index: 101 !important; background: var(--bg-card); width: 100%; box-sizing: border-box; border-bottom: 2px solid var(--card-green-border); }
+    #dashHeader, .dash-header {position: sticky !important; top: 0 !important; z-index: 101 !important; background: var(--bg-header, #e2e8f0) !important; width: 100%; box-sizing: border-box; border-bottom: 2px solid var(--card-green-border); }
+    :root[data-theme="dark"] #dashHeader, :root[data-theme="dark"] .dash-header { background: #1e293b !important; }
     @media (max-width: 700px) {
       .dash-customer-logo, .dash-customer-logo-placeholder {max-height: 32px; max-width: 70px; }
       .dash-driven-logo { max-height: 36px; }
@@ -429,6 +430,12 @@
     ];
     var sortKey = 'assetNumber', sortDir = 'asc', currentPage = 1, pageSize = 10, visibleCols = {}, colWidths = {};
 
+    function extractRecords(data) {
+      if (Array.isArray(data)) return data;
+      if (!data || typeof data !== "object") return [];
+      return data.projects || data.records || data.data || data.results || [];
+    }
+
     function makeTabsSticky() {
       var h = document.getElementById("dashHeader"), tb = document.getElementById("amTabBar");
       if (h && tb && h.nextElementSibling !== tb) { h.parentNode.insertBefore(tb, h.nextSibling); }
@@ -504,7 +511,7 @@
         }, 100);
 
         initVisibleCols();
-        await Promise.allSettled([syncSettings(), loadAssets()]);
+        await Promise.allSettled([syncSettings(), loadProjectsDirect(), loadAssets()]);
       } catch (err) {
         console.error('Asset initialization error:', err);
       } finally {
@@ -518,6 +525,24 @@
       if (initialKpi) { filterByKpi(initialKpi); } else { switchTab(initialTab); }
       updateHeaderOffset();
     });
+
+    async function loadProjectsDirect() {
+      try {
+        var resp = await fetch('/api/projects');
+        if (resp.ok) {
+          var data = await resp.json();
+          var list = extractRecords(data);
+          if (list && list.length > 0) {
+            projects = list;
+            populateDropdown('amProject', projects, true);
+            populateDropdown('amEditProject', projects, true);
+            buildMultiSelectPanels();
+          }
+        }
+      } catch (e) {
+        console.error('Direct projects fetch failed:', e);
+      }
+    }
 
     async function syncSettings() {
       try {
@@ -581,7 +606,9 @@
         sel.appendChild(p);
       }
       items.forEach(function(item) {
-        var nameVal = typeof item === 'object' ? (item.asset_type_name || item.name || item.title || item.project_name || '') : String(item);
+        var prjNum = typeof item === 'object' ? (item.project_number || item.code || '') : '';
+        var prjName = typeof item === 'object' ? (item.name || item.title || item.project_name || '') : String(item);
+        var nameVal = prjNum && prjName ? (prjNum + " — " + prjName) : (prjNum || prjName);
         if (nameVal) {
           var o = document.createElement('option');
           o.value = nameVal;
@@ -611,7 +638,9 @@
       if (pp) {
         pp.innerHTML = '';
         projects.forEach(function(pr) {
-          var nameVal = typeof pr === 'object' ? (pr.name || pr.title || pr.project_name || '') : String(pr);
+          var prjNum = typeof pr === 'object' ? (pr.project_number || pr.code || '') : '';
+          var prjName = typeof pr === 'object' ? (pr.name || pr.title || pr.project_name || '') : String(pr);
+          var nameVal = prjNum && prjName ? (prjNum + " — " + prjName) : (prjNum || prjName);
           if (nameVal) {
             var lbl = document.createElement('label');
             lbl.className = 'am-multiselect-option';
@@ -687,8 +716,6 @@
 
     function normalizeAsset(r) {
       var f = (r && r.fields && typeof r.fields === 'object') ? r.fields : (r || {});
-      
-      // Strict extraction for Asset Type (Category) from D1 row object
       var rawType = f.asset_type || f.category || f['Category'] || f['Asset Type'] || 'Unassigned';
 
       return {
