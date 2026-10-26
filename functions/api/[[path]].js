@@ -107,18 +107,23 @@ export async function onRequest(context) {
         if (bodyText) {
           const bodyJson = JSON.parse(bodyText);
 
-          // Normalize category / asset_type across worker payload key variants
-          const normalizedCategory = bodyJson.category || bodyJson.asset_type || bodyJson.type || null;
-          bodyJson.category = normalizedCategory;
-          bodyJson.asset_type = normalizedCategory;
-          bodyJson.type = normalizedCategory;
+          // Standardize asset_type column name across worker payload key variants
+          const normalizedAssetType = bodyJson.asset_type || bodyJson.category || bodyJson.type || null;
+          delete bodyJson.category; // Ensure non-existent D1 column is completely removed
+          bodyJson.asset_type = normalizedAssetType;
+          bodyJson.type = normalizedAssetType;
 
-          // Convert empty string foreign keys to null to avoid D1 constraint violations
+          // Schema field alignments
+          bodyJson.make_oem = bodyJson.make_oem || bodyJson.make || null;
+          bodyJson.serial_number = bodyJson.serial_number || bodyJson.serial || null;
+          bodyJson.current_meter_reading = bodyJson.current_meter_reading !== undefined ? bodyJson.current_meter_reading : (bodyJson.current_meter !== undefined ? bodyJson.current_meter : null);
+          bodyJson.assigned_division = bodyJson.assigned_division || bodyJson.division_id || bodyJson.division || null;
+          bodyJson.assigned_operator = bodyJson.assigned_operator || bodyJson.operator_id || bodyJson.operator || null;
+
+          // Foreign Key & Constraint Safeguards
           bodyJson.project_id = bodyJson.project_id ? bodyJson.project_id : null;
-          bodyJson.division_id = bodyJson.division_id ? bodyJson.division_id : null;
-          bodyJson.location = bodyJson.location || bodyJson.location_id ? (bodyJson.location || bodyJson.location_id) : null;
-          bodyJson.location_id = bodyJson.location;
-          bodyJson.operator_id = bodyJson.operator_id ? bodyJson.operator_id : null;
+          bodyJson.current_location = bodyJson.current_location || bodyJson.location_id || bodyJson.location || null;
+          bodyJson.location_id = bodyJson.current_location;
 
           const updatedBody = JSON.stringify(bodyJson);
           proxyOptions.body = updatedBody;
