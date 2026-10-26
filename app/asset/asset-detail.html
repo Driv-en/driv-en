@@ -1133,8 +1133,8 @@
             document.getElementById("valModel").textContent = rec.model || "—";
             document.getElementById("inpModel").value = rec.model || "";
 
-            // Serial / VIN
-            var sn = rec.serial_number || rec.serialNumber || "—";
+            // Serial / VIN (Checking serial column variants)
+            var sn = rec.serial || rec.serial_number || rec.serialNumber || rec.serial_no || "—";
             document.getElementById("valSerial").textContent = sn;
             document.getElementById("inpSerial").value = sn !== "—" ? sn : "";
 
@@ -1216,7 +1216,10 @@
 
             var meterRaw = document.getElementById("inpMeter").value;
             var parsedMeter = meterRaw === "" ? null : parseFloat(meterRaw);
+            var serialVal = document.getElementById("inpSerial").value.trim();
+            var locVal = document.getElementById("inpLocation").value;
 
+            // Schema-aligned Payload to match Cloudflare D1 table columns
             var payload = {
                 id: currentAssetId,
                 asset_number: document.getElementById("inpAssetNumber").value.trim(),
@@ -1224,11 +1227,13 @@
                 status: document.getElementById("inpStatus").value,
                 make: document.getElementById("inpMake").value.trim(),
                 model: document.getElementById("inpModel").value.trim(),
-                serial_number: document.getElementById("inpSerial").value.trim(),
+                serial: serialVal, // D1 table column
+                serial_number: serialVal, // Fallback binding
                 current_meter: isNaN(parsedMeter) ? null : parsedMeter,
                 project_id: document.getElementById("inpProject").value,
                 division_id: document.getElementById("inpDivision").value,
-                location: document.getElementById("inpLocation").value,
+                location: locVal,
+                location_id: locVal,
                 operator_id: document.getElementById("inpOperator").value,
                 drive_configuration: document.getElementById("inpDriveConfig").value.trim()
             };
