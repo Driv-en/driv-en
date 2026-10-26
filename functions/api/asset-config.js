@@ -25,7 +25,7 @@ export async function onRequest(context) {
       { id: "tireSizeDrive", label: "Rear / Drive Tire Size Specification", type: "text", default: "LT275/70R18", desc: "Manufacturer spec drive tire size" },
       { id: "tirePsiDriveRecommended", label: "Rear / Drive Recommended Cold Inflation (PSI)", type: "number", default: 65, desc: "Door-jamb recommended PSI" },
       { id: "tpmsThresholdLowPsi", label: "TPMS Low Inflation Alarm Trigger (PSI)", type: "number", default: 50, desc: "Telemetry alert threshold" },
-      { id: "isDuallyConfiguration", label: "Dually Rear Axle Setup (Dual Wheels Per Side)", type: "toggle", default: false, desc: "Enable 4-tire tracking on rear axle" },
+      { id: "isDuallyConfiguration", label: "Dually Rear Axle Setup (1-Ton Dual Wheels)", type: "toggle", default: false, desc: "Enable 4-tire tracking on rear axle" },
       { id: "minSteerTread32nd", label: "OSHA / DOT Minimum Steer Tire Tread Depth (1/32 in)", type: "number", default: 4, desc: "Out-of-service limit (4/32 in min)" },
       { id: "minDriveTread32nd", label: "OSHA / DOT Minimum Drive Tire Tread Depth (1/32 in)", type: "number", default: 2, desc: "Out-of-service limit (2/32 in min)" }
     ];
@@ -51,11 +51,16 @@ export async function onRequest(context) {
     title: "Consumable Parts, Quantities & Replacement Numbers",
     fields: [
       { id: "partEngineOilFilter", label: "Engine Oil Filter Part #", type: "text", default: "", desc: "OEM or aftermarket filter code" },
-      { id: "partEngineOilQty", label: "Engine Oil Capacity (Quarts / Gallons)", type: "text", default: "", desc: "e.g., 15 Quarts 15W-40" },
+      { id: "partEngineOilQty", label: "Engine Oil Capacity & Spec (Quarts / Gallons)", type: "text", default: "6 Qt / 5W-30 Full Synthetic", desc: "Engine oil spec and volume" },
+      { id: "partTransFluidTypeQty", label: "Transmission Fluid Spec & Capacity", type: "text", default: "12 Qt / Dexron VI", desc: "Fluid specification and fill capacity" },
+      { id: "partBrakeFluidTypeQty", label: "Brake Fluid Spec & Capacity", type: "text", default: "32 oz / DOT 3", desc: "Fluid specification and fill capacity" },
+      { id: "partCoolantTypeQty", label: "Engine Coolant Spec & Capacity", type: "text", default: "14 Qt / 50/50 OAT", desc: "Antifreeze spec and capacity" },
       { id: "partFuelFilterPrimary", label: "Primary Fuel Filter / Water Separator Part #", type: "text", default: "", desc: "Primary fuel filter code" },
       { id: "partFuelFilterSecondary", label: "Secondary Fuel Filter Part #", type: "text", default: "", desc: "Secondary fuel filter code" },
       { id: "partAirFilterPrimary", label: "Primary Air Intake Filter Part #", type: "text", default: "", desc: "Engine intake filter" },
       { id: "partAirFilterSecondary", label: "Secondary / Safety Air Filter Part #", type: "text", default: "", desc: "Inner safety filter code" },
+      { id: "partCabinAirFilter", label: "Cabin HVAC Air Filter Part #", type: "text", default: "", desc: "Cabin filter code" },
+      { id: "partWiperBlades", label: "Wiper Blade Set Part #", type: "text", default: "", desc: "Driver & passenger wiper sizes/part numbers" },
       { id: "partHydraulicFilterMain", label: "Main Hydraulic Return / Pressure Filter Part #", type: "text", default: "", desc: "Hydraulic filter number" },
       { id: "partHydraulicOilQty", label: "Hydraulic Reservoir Fluid Capacity (Gallons)", type: "text", default: "", desc: "Total fluid volume" },
       { id: "partBrakePadsFront", label: "Front Brake Pad Set Part # & Quantity", type: "text", default: "", desc: "Front brake pad kit spec" },
@@ -68,11 +73,12 @@ export async function onRequest(context) {
     const baseLights = [
       { id: "lightHeadlightsLowHigh", label: "Low & High Beam Headlights", type: "toggle", default: true, desc: "Illumination check" },
       { id: "lightBrakeAndTail", label: "Tail Lights & Stop / Brake Lights", type: "toggle", default: true, desc: "Rear illumination check" },
-      { id: "lightTurnSignalsHazards", label: "Turn Signals & 4-Way Emergency Hazard Flashers", type: "toggle", default: true, desc: "Directional indicators" },
+      { id: "lightTurnSignalsHazards", label: "Turn Signals, Blinkers & 4-Way Emergency Hazard Flashers", type: "toggle", default: true, desc: "Directional indicators" },
       { id: "lightClearanceMarker", label: "Clearance, Side Marker & ID Lights (>80 in wide)", type: "toggle", default: true, desc: "DOT width marker lights" },
       { id: "lightLicensePlate", label: "License Plate Tag Light", type: "toggle", default: true, desc: "Rear tag illumination" },
-      { id: "lightReverseBackup", label: "Reverse Lights & Backup Alarm Audible Signal", type: "toggle", default: true, desc: "OSHA 1926.601 required backup warning" },
+      { id: "lightReverseBackup", label: "Reverse Backup Lights & Audible Alarm Signal", type: "toggle", default: true, desc: "OSHA 1926.601 required backup warning" },
       { id: "lightStrobeBeacon", label: "Amber Strobe Light / Rotating Beacon", type: "toggle", default: true, desc: "OSHA jobsite hazard warning light" },
+      { id: "lightOtherAuxiliary", label: "Auxiliary & Other Lights Not Listed Above", type: "toggle", default: true, desc: "Inspect light bars, beacons, work lights, and clearance lights" },
       ...customLights
     ];
 
@@ -96,8 +102,8 @@ export async function onRequest(context) {
       { id: "seatBeltMandate", label: "OSHA / MSHA Seat Belt Functional & Webbing Inspection", type: "toggle", default: true, desc: "Mandatory check per 29 CFR 1926.601(b)(9) / MSHA 30 CFR 56.14130" },
       { id: "hornAudible200ft", label: "Audible Warning Horn (Audible at 200 ft)", type: "toggle", default: true, desc: "OSHA 1926.601(b)(1) compliance" },
       { id: "fireExtinguisherCharged", label: "On-Board Fire Extinguisher (Gauge Green, Sealed & Mounted)", type: "toggle", default: true, desc: "OSHA 29 CFR 1926.150 / MSHA 30 CFR 56.4201" },
-      { id: "dotReflectiveTriangles", label: "Set of 3 DOT Emergency Reflective Triangles / Flares", type: "toggle", default: true, desc: "OSHA/DOT emergency breakdown kit" },
       { id: "firstAidKitStocked", label: "OSHA / MSHA Compliant Stocked First Aid Kit", type: "toggle", default: true, desc: "29 CFR 1926.50 / 30 CFR 56.15001" },
+      { id: "dotReflectiveTriangles", label: "Set of 3 DOT Emergency Reflective Triangles / Flares", type: "toggle", default: true, desc: "OSHA/DOT emergency breakdown kit" },
       { id: "wheelChocksPair", label: "Pair of Heavy Duty Wheel Chocks Present", type: "toggle", default: true, desc: "Required parking containment" }
     ]
   });
@@ -113,22 +119,35 @@ export async function onRequest(context) {
     "pickup": {
       sections: [
         {
-          title: "1. Usage, Telematics & Engine Compartment",
+          title: "1. Light Pickup Truck Baseline & Cab Specifications",
           fields: [
-            { id: "trackOdometer", label: "Track Odometer Mileage", type: "toggle", default: true, desc: "Require mileage entry during pre-trip checks" },
+            { id: "cabStyle", label: "Cab Configuration Style", type: "text", default: "Crew Cab", desc: "Single Cab, Extended Cab, Crew Cab" },
+            { id: "bedType", label: "Bed Type & Setup", type: "text", default: "Standard Bed", desc: "Short Bed, Long Bed, Utility Bed, Flatbed" },
+            { id: "transmissionType", label: "Transmission Type", type: "text", default: "Automatic", desc: "Automatic / Manual" },
+            { id: "fuelType", label: "Fuel Type", type: "text", default: "Gasoline", desc: "Gasoline, Diesel, Flex Fuel, EV" },
+            { id: "hasWinch", label: "Equipped with Auxiliary Winch", type: "toggle", default: false, desc: "Enable winch configuration" },
+            { id: "trackOdometer", label: "Track Odometer Mileage", type: "toggle", default: true, desc: "Require mileage entry during pre-trip checks" }
+          ]
+        },
+        {
+          title: "2. Engine Compartment, HVAC & Controls Inspection",
+          fields: [
+            { id: "inspectACHeaterDefroster", label: "Audit HVAC (Air Conditioner, Heater, Defroster)", type: "toggle", default: true, desc: "Require check for heating, cooling, and window defrosting" },
+            { id: "inspectWipersWashers", label: "Audit Windshield Wipers & Washers", type: "toggle", default: true, desc: "Check wiper blade condition and washer fluid spray" },
             { id: "oilLevelCheck", label: "Require Engine Oil Level & Fluid Leak Audit", type: "toggle", default: true, desc: "Inspect dipstick level and valve cover/pan leaks" },
-            { id: "coolantSystemCheck", label: "Coolant Reservoir & Hose Swell Inspection", type: "toggle", default: true, desc: "Check coolant level and upper/lower radiator hoses" },
+            { id: "coolantSystemCheck", label: "Coolant Reservoir & Hose Swell Inspection", type: "toggle", default: true, desc: "Check coolant level and radiator hoses" },
             { id: "driveBeltCheck", label: "Serpentine Belt & Tensioner Inspection", type: "toggle", default: true, desc: "Check belt for cracking, fraying, or tension loss" },
             { id: "batteryTerminalCheck", label: "Battery Hold-down & Terminal Corrosion Check", type: "toggle", default: true, desc: "Inspect hold-down clamp and cable tightness" }
           ]
         },
         {
-          title: "2. Steering, Suspension & Drivetrain",
+          title: "3. Steering, Suspension, Drivetrain & Winch Audit",
           fields: [
             { id: "steeringLinkagePlay", label: "Tie-Rod & Drag Link Play Audit", type: "toggle", default: true, desc: "Inspect steering shaft and tie-rod boots for play" },
             { id: "suspensionLeafCheck", label: "Leaf Spring & Shock Absorber Leak Audit", type: "toggle", default: true, desc: "Check for cracked spring leaves and shock fluid leaks" },
             { id: "fourWheelDriveCheck", label: "Require 4WD Actuator & Transfer Case Engagement Check", type: "toggle", default: true, desc: "Test 4x4 engagement and check differential seals" },
-            { id: "driveshaftUjointCheck", label: "Driveshaft U-Joint & Slip Yoke Play Audit", type: "toggle", default: true, desc: "Inspect needle bearings and driveshaft slop" }
+            { id: "driveshaftUjointCheck", label: "Driveshaft U-Joint & Slip Yoke Play Audit", type: "toggle", default: true, desc: "Inspect needle bearings and driveshaft slop" },
+            { id: "inspectWinchOperation", label: "Audit Winch Cable & Remote Control", type: "toggle", default: false, desc: "Inspect winch cable tension, spooling, and controller" }
           ]
         },
         createTireConfigurationSection('standard_2axle'),
@@ -139,7 +158,7 @@ export async function onRequest(context) {
         ]),
         createOshaMandatesSection(),
         {
-          title: "6. Truck Bed, Cargo Securement & Towing Hitch",
+          title: "7. Truck Bed, Cargo Securement & Towing Hitch",
           fields: [
             { id: "headacheRackCheck", label: "Headache Rack / Cab Guard Security Audit", type: "toggle", default: true, desc: "Verify cab protector mounting bolts" },
             { id: "bedAnchorDringCheck", label: "Bed Tie-Down Anchor & D-Ring Inspection", type: "toggle", default: true, desc: "Inspect cargo securement anchors for cracks" },
@@ -149,7 +168,7 @@ export async function onRequest(context) {
         },
         createConsumablePartsSection(),
         {
-          title: "8. Preventative Maintenance (PM) Schedules",
+          title: "9. Preventative Maintenance (PM) Schedules",
           fields: [
             { id: "pmMilesInterval", label: "Engine Oil & Filter Change Interval (Miles)", type: "number", default: 5000, desc: "Standard oil change threshold" },
             { id: "tireRotationMiles", label: "Tire Rotation & Balance Schedule (Miles)", type: "number", default: 7500, desc: "Tire rotation interval" },
