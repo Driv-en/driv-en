@@ -994,29 +994,31 @@ export async function onRequest(context) {
   try {
     if (method === 'GET') {
       const targetType = url.searchParams.get('targetType') || 'specific';
-      const key = url.searchParams.get('key');
+      const key = url.searchParams.get('key') || '';
       const rawAssetType = url.searchParams.get('assetType') || key || 'default';
 
-      if (targetType === 'specific' && !key) {
-        return new Response(JSON.stringify({ 
-          error: "Missing required 'key' parameter for targetType 'specific'" 
-        }), { status: 400, headers });
-      }
-
       const normKey = normalizeCategoryKey(rawAssetType);
-      const schemaKey = Object.keys(CATEGORY_SCHEMAS).find(k => k === normKey) || 'default';
+      const schemaKey = CATEGORY_SCHEMAS[normKey] ? normKey : 'default';
       const schema = CATEGORY_SCHEMAS[schemaKey] || CATEGORY_SCHEMAS['default'];
 
       let savedConfig = null;
 
       if (env.DRIVEN_KV && key) {
-        const storageKey = `config:${targetType}:${key.toLowerCase()}`;
-        savedConfig = await env.DRIVEN_KV.get(storageKey, { type: 'json' });
+        try {
+          const storageKey = `config:${targetType}:${key.toLowerCase()}`;
+          savedConfig = await env.DRIVEN_KV.get(storageKey, { type: 'json' });
+        } catch (e) {
+          console.error("Error fetching specific config from KV:", e);
+        }
       }
 
       if (!savedConfig && targetType === 'specific' && rawAssetType && env.DRIVEN_KV) {
-        const templateKey = `config:template:${normalizeCategoryKey(rawAssetType)}`;
-        savedConfig = await env.DRIVEN_KV.get(templateKey, { type: 'json' });
+        try {
+          const templateKey = `config:template:${normalizeCategoryKey(rawAssetType)}`;
+          savedConfig = await env.DRIVEN_KV.get(templateKey, { type: 'json' });
+        } catch (e) {
+          console.error("Error fetching template fallback from KV:", e);
+        }
       }
 
       return new Response(JSON.stringify({
