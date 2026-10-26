@@ -242,8 +242,35 @@
     .am-check-item { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text); cursor: pointer; }
     .am-check-item input { cursor: pointer; }
 
-    /* ===== MAP STYLES ===== */
+    /* ===== MAP TOGGLE & STYLING ===== */
     .am-map-card { background: var(--bg-card); border: 2px solid var(--card-green-border); border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+    .am-map-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 12px; }
+    .am-map-header h3 { margin: 0; font-size: 16px; color: var(--text); }
+    
+    .am-map-toggle-group {
+      display: inline-flex;
+      background: var(--bg-input);
+      padding: 3px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .am-map-toggle-btn {
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 150ms ease;
+    }
+    .am-map-toggle-btn.active {
+      background: #2563eb;
+      color: #ffffff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
     #amMap { width: 100%; height: 550px; border-radius: 6px; border: 1px solid var(--border); z-index: 1; }
     .am-map-pin {
       background: #2563eb;
@@ -276,6 +303,9 @@
       .am-table th, .am-table td { padding: 8px 10px; }
       .am-check-grid { grid-template-columns: 1fr; }
       #amMap { height: 400px; }
+      .am-map-header { flex-direction: column; align-items: flex-start; }
+      .am-map-toggle-group { width: 100%; }
+      .am-map-toggle-btn { flex: 1; text-align: center; }
     }
     @media print {
       .am-tab-bar, .am-search-card, .am-form-card, .am-pagination, .am-modal, #dashHeader, #dashFooter, .am-table-btn { display: none !important; }
@@ -405,10 +435,17 @@
       <div class="am-welcome">
         <div class="am-welcome-text">
           <h2>Asset Location Map</h2>
-          <p>Real-time equipment locations mapped from inspections, fueling logs, transfers, and work orders.</p>
+          <p>Toggle between real-time field activity and project/location assignments to analyze asset distribution.</p>
         </div>
       </div>
       <div class="am-map-card">
+        <div class="am-map-header">
+          <h3>Interactive Asset Map</h3>
+          <div class="am-map-toggle-group">
+            <button class="am-map-toggle-btn active" id="btnMapForms" onclick="setMapMode('forms')">📋 Form Activity (Fueling/Inspections/Transfers/WO)</button>
+            <button class="am-map-toggle-btn" id="btnMapProjects" onclick="setMapMode('projects')">🏗️ Project / Location Assignment</button>
+          </div>
+        </div>
         <div id="amMap"></div>
       </div>
     </div>
@@ -506,7 +543,7 @@
         <ol style="padding-left: 20px;">
           <li><strong>KPI Metrics:</strong> Click any KPI box (e.g., <em>Available</em>) on the overview tab to quickly jump to and filter the asset table.</li>
           <li><strong>Searching & Filtering:</strong> Combine multi-select dropdowns (Types, Statuses, Projects, Locations) with text search for instant results.</li>
-          <li><strong>Map View:</strong> Switch to the <em>Asset Location</em> tab to view active pins with asset numbers, last reported addresses, and Street View links.</li>
+          <li><strong>Map View:</strong> Switch to the <em>Asset Location</em> tab to view active pins with asset numbers, last reported addresses, and Street View links. Use the mode toggle to view Form Activity vs. Project Assignments.</li>
           <li><strong>Adding Assets:</strong> Use the <em>+ Quick Add Asset</em> tab to create new entries. Duplicate active asset numbers are automatically prevented.</li>
           <li><strong>Exporting:</strong> Download full or filtered asset lists formatted for Excel or CSV via the action buttons.</li>
         </ol>
@@ -602,7 +639,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="/app/shared/dashboard-common.js?v=13"></script>
   <script>
-    var allAssets = [], assetTypes = [], projects = [], locations = [], divisions = [], operators = [], editingAssetId = null, canModify = false, amDirty = false, amMapInstance = null, amMarkers = [];
+    var allAssets = [], assetTypes = [], projects = [], locations = [], divisions = [], operators = [], editingAssetId = null, canModify = false, amDirty = false, amMapInstance = null, amMarkers = [], mapMode = 'forms';
     var COL_DEFS = [
       { key: 'assetNumber', label: 'Asset Number', defaultVisible: true, defaultWidth: '130px' },
       { key: 'type', label: 'Asset Type', defaultVisible: true, defaultWidth: '140px' },
@@ -621,7 +658,7 @@
     function extractRecords(data) {
       if (Array.isArray(data)) return data;
       if (!data || typeof data !== "object") return [];
-      return data.projects || data.records || data.users || data.data || data.results || [];
+      return data.projects || data.records || data.users || data.inspections || data.transfers || data.workOrders || data.fuelLogs || data.data || data.results || [];
     }
 
     function makeTabsSticky() {
@@ -740,7 +777,6 @@
         var ci = u.customerId || u.customer_id || localStorage.getItem('driven_customer_id');
         if (!ci) return;
 
-        // Fetch user records using multi-tenant tenant key scope
         var resp = await fetch('/api/users?customerId=' + encodeURIComponent(ci));
         if (!resp.ok) {
           resp = await fetch('/api/onboarding/key-personnel/list?customerId=' + encodeURIComponent(ci));
@@ -774,7 +810,7 @@
           populateDropdown('amEditAssignedOperator', operators, true);
         }
       } catch (e) {
-        console.error('Failed to load active operators with multi-tenant isolation:', e);
+        console.error('Failed to load active operators:', e);
       }
     }
 
@@ -973,14 +1009,138 @@
         location: parseVal(f.current_location || f['Location'] || f.location),
         lat: f.latitude || f.lat || null,
         lng: f.longitude || f.lng || null,
-        lastReportedSource: f.last_location_source || f['Last Source'] || 'Inspection Log',
-        lastReportedTime: f.last_location_time || f['Last Time'] || 'Recent',
+        
+        // Base Assigned Location State
+        baseProject: parseVal(f.current_project || f['Project']),
+        baseLocation: parseVal(f.current_location || f['Location'] || f.location),
+        baseLat: f.latitude || f.lat || null,
+        baseLng: f.longitude || f.lng || null,
+        baseTimeDisplay: new Date(f.updated_at || f['Last Updated'] || f.created_at || Date.now()).toLocaleString(),
+        
+        // Dynamic Activity Overwrite State
+        lastReportedSource: 'Project Assignment',
+        lastReportedTime: f.updated_at || f['Last Updated'] || f.created_at || new Date().toISOString(),
+        formLat: null,
+        formLng: null,
+        formLocation: null,
+        formProject: null,
+        formSource: null,
+        formTimeDisplay: null,
+
         serialNumber: parseVal(f.serial_number || f['Serial Number']),
         division: parseVal(r.division_name_resolved || f.division_name || f.division || f['Division'] || f.assigned_division),
         assignedTo: parseVal(f.owner_name || f.assigned_operator || f['Assigned Operator'] || f['Assigned To']),
         condition: parseVal(f.condition || f['Condition']),
         createdAt: parseVal(f.created_at || f['Created Date'])
       };
+    }
+
+    /* Dynamic Activity History Engine */
+    async function applyLatestLocationActivity(assets) {
+      try {
+        var ci = localStorage.getItem('driven_customer_id');
+        var query = ci ? '?customerId=' + encodeURIComponent(ci) : '';
+
+        var [projRes, inspRes, transRes, woRes, fuelRes] = await Promise.allSettled([
+          fetch('/api/projects' + query),
+          fetch('/api/inspections' + query),
+          fetch('/api/transfers' + query),
+          fetch('/api/work-orders' + query),
+          fetch('/api/fueling' + query)
+        ]);
+
+        var activities = [];
+
+        async function parseResponse(res, sourceName, numKey, locKey, latKey, lngKey, timeKey, projKey) {
+          if (res.status === 'fulfilled' && res.value.ok) {
+            try {
+              var data = await res.value.json();
+              var list = extractRecords(data);
+              list.forEach(function(item) {
+                var f = item.fields || item;
+                var assetNum = f[numKey] || f.asset_number || f.equipment_id;
+                var time = f[timeKey] || f.timestamp || f.created_at || f.date || f.updated_at || f.assignment_date;
+                var lat = f[latKey] || f.latitude || f.lat;
+                var lng = f[lngKey] || f.longitude || f.lng;
+                var loc = f[locKey] || f.location || f.address || f.destination_location || f.site_address;
+                var proj = projKey ? f[projKey] : (f.project || f.project_name || f.current_project);
+
+                if (assetNum && time && (lat || lng || loc || proj)) {
+                  activities.push({
+                    assetNumber: String(assetNum).trim().toLowerCase(),
+                    source: sourceName,
+                    time: new Date(time).getTime(),
+                    timeDisplay: new Date(time).toLocaleString(),
+                    lat: lat ? parseFloat(lat) : null,
+                    lng: lng ? parseFloat(lng) : null,
+                    location: loc ? String(loc) : null,
+                    project: proj ? String(proj) : null
+                  });
+                }
+              });
+            } catch (e) { console.error('Error parsing ' + sourceName, e); }
+          }
+        }
+
+        await parseResponse(projRes, 'Project Assignment', 'asset_number', 'site_address', 'latitude', 'longitude', 'updated_at', 'project_name');
+        await parseResponse(inspRes, 'Inspection Log', 'equipment_id', 'inspection_location', 'latitude', 'longitude', 'inspection_date', 'project');
+        await parseResponse(transRes, 'Transfer Log', 'asset_number', 'destination_location', 'destination_lat', 'destination_lng', 'transfer_date', 'destination_project');
+        await parseResponse(woRes, 'Work Order', 'asset_number', 'site_location', 'latitude', 'longitude', 'created_at', 'project_name');
+        await parseResponse(fuelRes, 'Fueling Record', 'asset_number', 'fuel_site', 'latitude', 'longitude', 'fuel_date', 'project');
+
+        assets.forEach(function(a) {
+          if (!a.assetNumber) return;
+          var key = a.assetNumber.trim().toLowerCase();
+          var assetLogs = activities.filter(function(act) { return act.assetNumber === key; });
+
+          var maxFormTime = 0;
+          var maxProjTime = a.lastReportedTime ? new Date(a.lastReportedTime).getTime() : 0;
+
+          assetLogs.forEach(function(log) {
+            if (isNaN(log.time)) return;
+
+            if (log.source === 'Project Assignment') {
+              if (log.time > maxProjTime) {
+                maxProjTime = log.time;
+                if (log.project) a.baseProject = log.project;
+                if (log.location) a.baseLocation = log.location;
+                if (log.lat !== null && !isNaN(log.lat)) a.baseLat = log.lat;
+                if (log.lng !== null && !isNaN(log.lng)) a.baseLng = log.lng;
+                a.baseTimeDisplay = log.timeDisplay;
+              }
+            } else {
+              if (log.time > maxFormTime) {
+                maxFormTime = log.time;
+                a.formSource = log.source;
+                a.formTimeDisplay = log.timeDisplay;
+                if (log.lat !== null && !isNaN(log.lat)) a.formLat = log.lat;
+                if (log.lng !== null && !isNaN(log.lng)) a.formLng = log.lng;
+                if (log.location) a.formLocation = log.location;
+                if (log.project) a.formProject = log.project;
+              }
+            }
+          });
+
+          // Whichever occurred last across all events
+          if (maxFormTime > maxProjTime) {
+            a.lastReportedSource = a.formSource;
+            a.lastReportedTime = a.formTimeDisplay;
+            if (a.formLat !== null) a.lat = a.formLat;
+            if (a.formLng !== null) a.lng = a.formLng;
+            if (a.formLocation) a.location = a.formLocation;
+            if (a.formProject) a.project = a.formProject;
+          } else {
+            a.lastReportedSource = 'Project Assignment';
+            a.lastReportedTime = a.baseTimeDisplay;
+            if (a.baseLat !== null) a.lat = a.baseLat;
+            if (a.baseLng !== null) a.lng = a.baseLng;
+            if (a.baseLocation) a.location = a.baseLocation;
+            if (a.baseProject) a.project = a.baseProject;
+          }
+        });
+      } catch (err) {
+        console.error('Failed to aggregate dynamic location history:', err);
+      }
     }
 
     function updateKpi() {
@@ -1021,6 +1181,7 @@
         var rawRecords = (data && data.records) ? data.records : (Array.isArray(data) ? data : (data.equipment || data.assets || []));
         if (resp.ok && Array.isArray(rawRecords)) {
           allAssets = rawRecords.map(normalizeAsset);
+          await applyLatestLocationActivity(allAssets);
         } else if (resp.status === 401) {
           allAssets = [];
           tb.textContent = '';
@@ -1074,7 +1235,22 @@
       renderColTogglePanel();
     }
 
-    /* ===== MAP INITIALIZATION & RENDERING ===== */
+    /* ===== MAP INITIALIZATION & RENDERING WITH MODE TOGGLE ===== */
+    function setMapMode(mode) {
+      mapMode = mode;
+      var btnF = document.getElementById('btnMapForms');
+      var btnP = document.getElementById('btnMapProjects');
+
+      if (mode === 'projects') {
+        if (btnP) btnP.classList.add('active');
+        if (btnF) btnF.classList.remove('active');
+      } else {
+        if (btnF) btnF.classList.add('active');
+        if (btnP) btnP.classList.remove('active');
+      }
+      renderAssetMapPins();
+    }
+
     function initAssetMap() {
       if (amMapInstance) {
         amMapInstance.invalidateSize();
@@ -1101,8 +1277,24 @@
       var bounds = [];
 
       allAssets.forEach(function(a) {
-        var latitude = parseFloat(a.lat);
-        var longitude = parseFloat(a.lng);
+        var latitude, longitude, displayLocation, displayProject, displaySource, displayTime;
+
+        if (mapMode === 'projects') {
+          latitude = parseFloat(a.baseLat);
+          longitude = parseFloat(a.baseLng);
+          displayLocation = a.baseLocation || 'Unassigned Location';
+          displayProject = a.baseProject || 'Unassigned Project';
+          displaySource = 'Project Assignment';
+          displayTime = a.baseTimeDisplay || 'Active Record';
+        } else {
+          // Default to latest Form Activity, fall back to base project location if no form exists
+          latitude = parseFloat(a.formLat !== null ? a.formLat : a.lat);
+          longitude = parseFloat(a.formLng !== null ? a.formLng : a.lng);
+          displayLocation = a.formLocation || a.location || 'Unassigned';
+          displayProject = a.formProject || a.project || 'None';
+          displaySource = a.formSource || a.lastReportedSource || 'Asset Record';
+          displayTime = a.formTimeDisplay || a.lastReportedTime || 'Recent';
+        }
 
         if (isNaN(latitude) || isNaN(longitude)) {
           latitude = 35.0 + (Math.random() * 8.0);
@@ -1123,10 +1315,10 @@
         var popupContent = '<div class="am-map-popup">' +
           '<h4>' + escapeHtml(a.assetNumber || 'Asset') + ' — ' + escapeHtml(a.type || 'Equipment') + '</h4>' +
           '<p><strong>Status:</strong> ' + escapeHtml(a.status || 'Available') + '</p>' +
-          '<p><strong>Project:</strong> ' + escapeHtml(a.project || 'None') + '</p>' +
-          '<p><strong>Location:</strong> ' + escapeHtml(a.location || 'Unassigned') + '</p>' +
+          '<p><strong>Project:</strong> ' + escapeHtml(displayProject) + '</p>' +
+          '<p><strong>Location:</strong> ' + escapeHtml(displayLocation) + '</p>' +
           '<p><strong>GPS:</strong> ' + latitude.toFixed(5) + ', ' + longitude.toFixed(5) + '</p>' +
-          '<p class="popup-meta">Last reported via ' + escapeHtml(a.lastReportedSource) + ' (' + escapeHtml(a.lastReportedTime) + ')</p>' +
+          '<p class="popup-meta">Last reported via <strong>' + escapeHtml(displaySource) + '</strong> (' + escapeHtml(displayTime) + ')</p>' +
           '<div style="margin-top:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">' +
             '<a href="' + streetViewUrl + '" target="_blank" rel="noopener noreferrer" class="am-table-btn" style="background:#16a34a; color:#fff; border-color:#15803d; font-size:11px; padding:4px 8px; text-decoration:none;">📷 View Street View</a>' +
             '<a href="/app/asset/asset-detail.html?id=' + encodeURIComponent(a.id) + '" style="color:#2563eb; font-weight:600; text-decoration:none; font-size:12px;">Asset Details →</a>' +
