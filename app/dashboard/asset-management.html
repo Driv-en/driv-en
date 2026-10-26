@@ -621,7 +621,7 @@
     function extractRecords(data) {
       if (Array.isArray(data)) return data;
       if (!data || typeof data !== "object") return [];
-      return data.projects || data.records || data.data || data.results || [];
+      return data.projects || data.records || data.users || data.data || data.results || [];
     }
 
     function makeTabsSticky() {
@@ -673,23 +673,21 @@
       try {
         var r = String(u.role || '').toLowerCase().trim();
         canModify = r.indexOf('admin') !== -1 || r.indexOf('owner') !== -1 || r.indexOf('founder') !== -1;
-        if (!canModify) {
-          var ci = localStorage.getItem('driven_customer_id');
-          if (ci) {
-            try {
-              var kp = await fetch('/api/onboarding/key-personnel/list?customerId=' + encodeURIComponent(ci));
-              var kd = await kp.json();
-              if (kd.success && kd.keyPersonnel) {
-                var me = u.email ? u.email.toLowerCase() : '';
-                var mr = kd.keyPersonnel.find(function(k) { return k.email && k.email.toLowerCase() === me; });
-                if (mr && mr.roles) {
-                  var mt = mr.roles.map(function(x) { return x.role; });
-                  canModify = mt.indexOf('Equipment') !== -1 || mt.indexOf('Assets') !== -1;
-                }
+        var ci = u.customerId || u.customer_id || localStorage.getItem('driven_customer_id');
+        if (!canModify && ci) {
+          try {
+            var kp = await fetch('/api/onboarding/key-personnel/list?customerId=' + encodeURIComponent(ci));
+            var kd = await kp.json();
+            if (kd.success && kd.keyPersonnel) {
+              var me = u.email ? u.email.toLowerCase() : '';
+              var mr = kd.keyPersonnel.find(function(k) { return k.email && k.email.toLowerCase() === me; });
+              if (mr && mr.roles) {
+                var mt = mr.roles.map(function(x) { return x.role; });
+                canModify = mt.indexOf('Equipment') !== -1 || mt.indexOf('Assets') !== -1;
               }
-            } catch (e) {
-              if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report('asset-management.html: KP check failed — ' + (e.message || e), 'kp-permission-check', e && e.stack ? e.stack : null);
             }
+          } catch (e) {
+            if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report('asset-management.html: KP check failed — ' + (e.message || e), 'kp-permission-check', e && e.stack ? e.stack : null);
           }
         }
         if (!canModify) {
@@ -738,18 +736,45 @@
 
     async function loadActiveOperators() {
       try {
-        var ci = localStorage.getItem('driven_customer_id');
-        if (ci) {
-          var resp = await fetch('/api/onboarding/key-personnel/list?customerId=' + encodeURIComponent(ci));
+        var u = window.dashUser || window.drivenUser || {};
+        var ci = u.customerId || u.customer_id || localStorage.getItem('driven_customer_id');
+        if (!ci) return;
+
+        // Fetch user records using multi-tenant tenant key scope
+        var resp = await fetch('/api/users?customerId=' + encodeURIComponent(ci));
+        if (!resp.ok) {
+          resp = await fetch('/api/onboarding/key-personnel/list?customerId=' + encodeURIComponent(ci));
+        }
+
+        if (resp.ok) {
           var data = await resp.json();
-          if (data.success && Array.isArray(data.keyPersonnel)) {
-            operators = data.keyPersonnel.map(function(k) { return k.name || (k.firstName + ' ' + k.lastName) || k.email; }).filter(Boolean);
-            populateDropdown('amAssignedOperator', operators, true);
-            populateDropdown('amEditAssignedOperator', operators, true);
-          }
+          var rawList = extractRecords(data);
+          var names = [];
+
+          rawList.forEach(function(item) {
+            var active = (item.status === undefined || item.status === null || String(item.status).toLowerCase() === 'active') && !item.disabled;
+            if (!active) return;
+
+            var fname = item.first_name || item.firstName || '';
+            var lname = item.last_name || item.lastName || '';
+            var fullName = (fname + ' ' + lname).trim();
+
+            if (!fullName) {
+              fullName = item.full_name || item.fullName || item.name || item.email || '';
+            }
+
+            if (fullName && names.indexOf(fullName) === -1) {
+              names.push(fullName);
+            }
+          });
+
+          names.sort();
+          operators = names;
+          populateDropdown('amAssignedOperator', operators, true);
+          populateDropdown('amEditAssignedOperator', operators, true);
         }
       } catch (e) {
-        console.error('Failed to load operators:', e);
+        console.error('Failed to load active operators with multi-tenant isolation:', e);
       }
     }
 
