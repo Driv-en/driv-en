@@ -180,6 +180,17 @@
     .am-map-popup p { margin: 2px 0; font-size: 12px; color: #475569; }
     .am-map-popup .popup-meta { margin-top: 6px; font-size: 11px; color: #64748b; font-style: italic; }
 
+    /* ===== STREET VIEW IN-SCREEN OVERLAY STYLES ===== */
+    .streetview-modal-card { max-width: 950px; width: 95%; height: 85vh; display: flex; flex-direction: column; padding: 20px; gap: 12px; }
+    .streetview-grid { display: grid; grid-template-columns: 1fr 320px; gap: 16px; flex: 1; min-height: 0; }
+    #streetViewFrame { width: 100%; height: 100%; border: none; border-radius: 8px; background: #000; }
+    .streetview-adjust-panel { display: flex; flex-direction: column; gap: 8px; background: var(--bg-input); padding: 12px; border-radius: 8px; border: 1px solid var(--border); }
+    #streetViewAdjustMap { width: 100%; flex: 1; min-height: 200px; border-radius: 6px; border: 1px solid var(--border); }
+
+    @media (max-width: 800px) {
+      .streetview-grid { grid-template-columns: 1fr; grid-template-rows: 1fr 220px; }
+    }
+
     @media (max-width: 700px) {
       .am-main { padding: 0 12px; margin: 12px auto; }
       .am-welcome { flex-direction: column; align-items: flex-start; }
@@ -503,6 +514,27 @@
     </div>
   </div>
 
+  <!-- In-Screen Street View & Location Adjuster Modal -->
+  <div id="amStreetViewModal" class="am-modal">
+    <div class="am-modal-card streetview-modal-card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <h3 id="streetViewAssetTitle">Asset Street View</h3>
+          <p class="am-modal-subtitle" style="margin:0;">Drag the pin on the map to adjust location if imagery is blocked or off-road.</p>
+        </div>
+        <button class="am-btn-secondary" onclick="closeModal('amStreetViewModal')" style="padding:4px 12px; font-weight:bold;">✕ Close</button>
+      </div>
+      <div class="streetview-grid">
+        <iframe id="streetViewFrame" allowfullscreen></iframe>
+        <div class="streetview-adjust-panel">
+          <div style="font-size:12px; font-weight:600; color:var(--text);">📍 Fine-Tune Pin Position</div>
+          <div id="streetViewAdjustMap"></div>
+          <div style="font-size:11px; color:var(--text-muted);" id="streetViewCoordDisplay">Lat: 0.00000, Lng: 0.00000</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Print Modal -->
   <div id="amPrintModal" class="am-modal">
     <div class="am-modal-card">
@@ -538,6 +570,8 @@
   <script src="/app/shared/dashboard-common.js?v=13"></script>
   <script>
     var allAssets = [], assetTypes = [], projects = [], locations = [], divisions = [], operators = [], editingAssetId = null, canModify = false, amDirty = false, amMapInstance = null, amClusterGroup = null, mapMode = 'forms';
+    var adjustMapInstance = null, adjustMarker = null, activeStreetViewAsset = null;
+
     var COL_DEFS = [
       { key: 'assetNumber', label: 'Asset Number', defaultVisible: true, defaultWidth: '130px' },
       { key: 'type', label: 'Asset Type', defaultVisible: true, defaultWidth: '140px' },
@@ -1286,7 +1320,6 @@
         }
 
         bounds.push([latitude, longitude]);
-        var streetViewUrl = 'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=' + latitude + ',' + longitude;
         var pinIcon = L.divIcon({
           className: 'am-map-pin-container',
           html: '<div class="am-map-pin">' + escapeHtml(a.assetNumber || 'EQ') + '</div>',
@@ -1302,7 +1335,7 @@
           '<p><strong>GPS:</strong> ' + latitude.toFixed(5) + ', ' + longitude.toFixed(5) + '</p>' +
           '<p class="popup-meta">Last reported via <strong>' + escapeHtml(displaySource) + '</strong> (' + escapeHtml(displayTime) + ')</p>' +
           '<div style="margin-top:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">' +
-            '<a href="' + streetViewUrl + '" target="_blank" rel="noopener noreferrer" class="am-table-btn" style="background:#16a34a; color:#fff; border-color:#15803d; font-size:11px; padding:4px 8px; text-decoration:none;">📷 View Street View</a>' +
+            '<button onclick="openStreetViewModal(\'' + escapeHtml(a.id) + '\', ' + latitude + ', ' + longitude + ')" class="am-table-btn" style="background:#16a34a; color:#fff; border-color:#15803d; font-size:11px; padding:4px 8px; cursor:pointer;">📷 View Street View</button>' +
             '<a href="/app/asset/asset-detail.html?id=' + encodeURIComponent(a.id) + '" style="color:#2563eb; font-weight:600; text-decoration:none; font-size:12px;">Asset Details →</a>' +
           '</div>' +
         '</div>';
@@ -1318,6 +1351,78 @@
 
       if (bounds.length > 0) {
         amMapInstance.fitBounds(bounds, { padding: [40, 40] });
+      }
+    }
+
+    /* ===== IN-SCREEN STREET VIEW OVERLAY & DRAGGABLE PIN ADJUSTER ===== */
+    function openStreetViewModal(assetId, lat, lng) {
+      activeStreetViewAsset = allAssets.find(function(a) { return a.id === assetId; });
+      var titleEl = document.getElementById('streetViewAssetTitle');
+      if (titleEl && activeStreetViewAsset) {
+        titleEl.textContent = (activeStreetViewAsset.assetNumber || 'Asset') + ' Street View';
+      }
+
+      openModal('amStreetViewModal');
+      updateStreetViewIframe(lat, lng);
+
+      setTimeout(function() {
+        initAdjustMap(lat, lng);
+      }, 200);
+    }
+
+    function updateStreetViewIframe(lat, lng) {
+      var iframe = document.getElementById('streetViewFrame');
+      var disp = document.getElementById('streetViewCoordDisplay');
+      if (disp) disp.textContent = 'Lat: ' + lat.toFixed(5) + ', Lng: ' + lng.toFixed(5);
+      if (iframe) {
+        iframe.src = 'https://maps.google.com/maps?q=&layer=c&cbll=' + lat + ',' + lng + '&cbp=11,0,0,0,0&output=svembed';
+      }
+    }
+
+    function initAdjustMap(lat, lng) {
+      var mapContainer = document.getElementById('streetViewAdjustMap');
+      if (!mapContainer || typeof L === 'undefined') return;
+
+      if (adjustMapInstance) {
+        adjustMapInstance.invalidateSize();
+        adjustMapInstance.setView([lat, lng], 17);
+        if (adjustMarker) adjustMarker.setLatLng([lat, lng]);
+        return;
+      }
+
+      adjustMapInstance = L.map('streetViewAdjustMap').setView([lat, lng], 17);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19
+      }).addTo(adjustMapInstance);
+
+      adjustMarker = L.marker([lat, lng], { draggable: true }).addTo(adjustMapInstance);
+
+      adjustMarker.on('dragend', function(e) {
+        var coord = e.target.getLatLng();
+        onPinAdjusted(coord.lat, coord.lng);
+      });
+
+      adjustMapInstance.on('click', function(e) {
+        var coord = e.latlng;
+        adjustMarker.setLatLng(coord);
+        onPinAdjusted(coord.lat, coord.lng);
+      });
+    }
+
+    function onPinAdjusted(newLat, newLng) {
+      updateStreetViewIframe(newLat, newLng);
+
+      if (activeStreetViewAsset) {
+        if (mapMode === 'projects') {
+          activeStreetViewAsset.baseLat = newLat;
+          activeStreetViewAsset.baseLng = newLng;
+        } else {
+          activeStreetViewAsset.formLat = newLat;
+          activeStreetViewAsset.formLng = newLng;
+          activeStreetViewAsset.lat = newLat;
+          activeStreetViewAsset.lng = newLng;
+        }
+        renderAssetMapPins();
       }
     }
 
@@ -2049,6 +2154,9 @@
 
     var mEdit = document.getElementById('amEditModal');
     if (mEdit) mEdit.addEventListener('click', function(e) { if (e.target === this) closeEditModal(); });
+
+    var mStreet = document.getElementById('amStreetViewModal');
+    if (mStreet) mStreet.addEventListener('click', function(e) { if (e.target === this) closeModal('amStreetViewModal'); });
 
     var mPrint = document.getElementById('amPrintModal');
     if (mPrint) mPrint.addEventListener('click', function(e) { if (e.target === this) closeModal('amPrintModal'); });
