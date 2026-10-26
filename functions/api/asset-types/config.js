@@ -51,13 +51,15 @@ export async function onRequest(context) {
           cab_type, cab_style, mobility_type, drive_configuration, transmission_type,
           wheel_setup, num_axles, fuel_type, pto_setup, winch_setup, winch_rating,
           aux_hydraulics, engine_oil_spec, hydraulic_fluid_spec, coolant_spec,
-          def_capacity, fuel_capacity, transmission_fluid_spec, pm_schedules_json, updated_at
+          def_capacity, fuel_capacity, transmission_fluid_spec, brake_fluid_spec,
+          cabin_filter_spec, wiper_blades_spec, pm_schedules_json, updated_at
         ) VALUES (
           ?, ?, ?, ?, ?, ?, ?,
           ?, ?, ?, ?, ?,
           ?, ?, ?, ?, ?, ?,
           ?, ?, ?, ?,
-          ?, ?, ?, ?, CURRENT_TIMESTAMP
+          ?, ?, ?, ?,
+          ?, ?, ?, CURRENT_TIMESTAMP
         )
         ON CONFLICT(org_id, asset_type_name) DO UPDATE SET
           make = excluded.make,
@@ -82,6 +84,9 @@ export async function onRequest(context) {
           def_capacity = excluded.def_capacity,
           fuel_capacity = excluded.fuel_capacity,
           transmission_fluid_spec = excluded.transmission_fluid_spec,
+          brake_fluid_spec = excluded.brake_fluid_spec,
+          cabin_filter_spec = excluded.cabin_filter_spec,
+          wiper_blades_spec = excluded.wiper_blades_spec,
           pm_schedules_json = excluded.pm_schedules_json,
           updated_at = CURRENT_TIMESTAMP
       `).bind(
@@ -110,6 +115,9 @@ export async function onRequest(context) {
         body.def_capacity !== undefined ? body.def_capacity : null, 
         body.fuel_capacity !== undefined ? body.fuel_capacity : null, 
         body.transmission_fluid_spec !== undefined ? body.transmission_fluid_spec : null,
+        body.brake_fluid_spec !== undefined ? body.brake_fluid_spec : null,
+        body.cabin_filter_spec !== undefined ? body.cabin_filter_spec : null,
+        body.wiper_blades_spec !== undefined ? body.wiper_blades_spec : null,
         JSON.stringify(body.pm_schedules || [])
       ).run();
 
