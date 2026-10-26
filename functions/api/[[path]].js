@@ -100,7 +100,39 @@ export async function onRequest(context) {
   };
 
   if (request.method !== 'GET' && request.method !== 'HEAD') {
-    proxyOptions.body = await request.arrayBuffer();
+    // Intercept equipment payload mutations to sanitize schema inputs
+    if (primaryRoute === 'equipment' && (request.method === 'PUT' || request.method === 'POST')) {
+      try {
+        const bodyText = await request.text();
+        if (bodyText) {
+          const bodyJson = JSON.parse(bodyText);
+
+          // Normalize category / asset_type across worker payload key variants
+          const normalizedCategory = bodyJson.category || bodyJson.asset_type || bodyJson.type || null;
+          bodyJson.category = normalizedCategory;
+          bodyJson.asset_type = normalizedCategory;
+          bodyJson.type = normalizedCategory;
+
+          // Convert empty string foreign keys to null to avoid D1 constraint violations
+          bodyJson.project_id = bodyJson.project_id ? bodyJson.project_id : null;
+          bodyJson.division_id = bodyJson.division_id ? bodyJson.division_id : null;
+          bodyJson.location = bodyJson.location || bodyJson.location_id ? (bodyJson.location || bodyJson.location_id) : null;
+          bodyJson.location_id = bodyJson.location;
+          bodyJson.operator_id = bodyJson.operator_id ? bodyJson.operator_id : null;
+
+          const updatedBody = JSON.stringify(bodyJson);
+          proxyOptions.body = updatedBody;
+          proxyHeaders.set('Content-Type', 'application/json');
+          proxyHeaders.set('Content-Length', String(new TextEncoder().encode(updatedBody).length));
+        } else {
+          proxyOptions.body = await request.arrayBuffer();
+        }
+      } catch (e) {
+        proxyOptions.body = await request.arrayBuffer();
+      }
+    } else {
+      proxyOptions.body = await request.arrayBuffer();
+    }
   }
 
   try {
