@@ -428,7 +428,7 @@ function mapPayloadToD1(tableConfig, payload) {
     'category', 'asset_type', 'type', 'serial', 'current_meter', 'project_id',
     'division_id', 'location_id', 'operator_id', 'location',
     'make', 'model', 'drive_configuration', 'assigned_division', 'assigned_operator',
-    'current_location', 'current_meter_reading', 'make_oem', 'year', 'current_project', 'project_name', 'location_name'
+    'current_location', 'current_meter_reading', 'make_oem', 'year', 'current_project', 'project_name', 'location_name', 'division_name'
   ]);
 
   for (const [key, val] of Object.entries(payload)) {
@@ -467,7 +467,7 @@ function formatRecord(row, tableConfig) {
     }
   }
 
-  // Fallback map display names for project and location
+  // Fallback map display names for project, location, and division
   if (tableConfig.d1Table === 'assets') {
     if (row.project_name && (!fields.current_project || fields.current_project === row.project_id)) {
       fields.current_project = row.project_name;
@@ -476,6 +476,14 @@ function formatRecord(row, tableConfig) {
     if (row.location_name_resolved && (!fields.current_location || fields.current_location === row.location_id)) {
       fields.current_location = row.location_name_resolved;
       record.current_location = row.location_name_resolved;
+    }
+    if (row.division_name_resolved) {
+      fields.division_name = row.division_name_resolved;
+      record.division_name = row.division_name_resolved;
+      if (!fields.assigned_division || fields.assigned_division === row.assigned_division) {
+        fields.division = row.division_name_resolved;
+        record.division = row.division_name_resolved;
+      }
     }
   }
   
@@ -758,10 +766,11 @@ export default {
         try {
           await ensureTableSchema(env.DB, 'assets');
           const sql = `
-            SELECT a.*, p.name AS project_name, l.name AS location_name_resolved 
+            SELECT a.*, p.name AS project_name, l.name AS location_name_resolved, d.name AS division_name_resolved 
             FROM assets a 
             LEFT JOIN projects p ON a.project_id = p.id 
             LEFT JOIN locations l ON a.location_id = l.id 
+            LEFT JOIN divisions d ON a.assigned_division = d.id OR a.assigned_division = d.name
             WHERE a.org_id = ? 
             ORDER BY a.asset_number ASC
           `;
@@ -872,10 +881,11 @@ export default {
         let sql = 'SELECT * FROM ' + d1Table + ' WHERE org_id = ? ORDER BY created_at DESC';
         if (d1Table === 'assets') {
           sql = `
-            SELECT a.*, p.name AS project_name, l.name AS location_name_resolved 
+            SELECT a.*, p.name AS project_name, l.name AS location_name_resolved, d.name AS division_name_resolved 
             FROM assets a 
             LEFT JOIN projects p ON a.project_id = p.id 
             LEFT JOIN locations l ON a.location_id = l.id 
+            LEFT JOIN divisions d ON a.assigned_division = d.id OR a.assigned_division = d.name
             WHERE a.org_id = ? 
             ORDER BY a.asset_number ASC
           `;
@@ -903,10 +913,11 @@ export default {
         let sql = 'SELECT * FROM ' + d1Table + ' WHERE id = ? AND org_id = ?';
         if (d1Table === 'assets') {
           sql = `
-            SELECT a.*, p.name AS project_name, l.name AS location_name_resolved 
+            SELECT a.*, p.name AS project_name, l.name AS location_name_resolved, d.name AS division_name_resolved 
             FROM assets a 
             LEFT JOIN projects p ON a.project_id = p.id 
             LEFT JOIN locations l ON a.location_id = l.id 
+            LEFT JOIN divisions d ON a.assigned_division = d.id OR a.assigned_division = d.name
             WHERE a.id = ? AND a.org_id = ?
           `;
         }
@@ -977,10 +988,11 @@ export default {
         let fetchSql = 'SELECT * FROM ' + d1Table + ' WHERE id = ? AND org_id = ?';
         if (d1Table === 'assets') {
           fetchSql = `
-            SELECT a.*, p.name AS project_name, l.name AS location_name_resolved 
+            SELECT a.*, p.name AS project_name, l.name AS location_name_resolved, d.name AS division_name_resolved 
             FROM assets a 
             LEFT JOIN projects p ON a.project_id = p.id 
             LEFT JOIN locations l ON a.location_id = l.id 
+            LEFT JOIN divisions d ON a.assigned_division = d.id OR a.assigned_division = d.name
             WHERE a.id = ? AND a.org_id = ?
           `;
         }
