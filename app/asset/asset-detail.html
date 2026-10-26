@@ -681,10 +681,30 @@
         var originalAssetRecord = null;
         var workingAssetRecord = {};
 
+        // Helper function to build Request Headers with full fallback credentials
+        function getAuthHeaders(additionalHeaders) {
+            var headers = Object.assign({
+                "Content-Type": "application/json",
+                "x-org-id": activeOrgId || ""
+            }, additionalHeaders || {});
+
+            var token = localStorage.getItem("driven_token") || localStorage.getItem("auth_token") || sessionStorage.getItem("driven_token");
+            if (token) {
+                headers["Authorization"] = "Bearer " + token;
+            }
+
+            var user = window.dashUser || window.drivenUser;
+            if (user && user.id) {
+                headers["x-user-id"] = user.id;
+            }
+
+            return headers;
+        }
+
         // Storage Listener to sync theme toggles in real-time across tabs/headers
         window.addEventListener('storage', function(e) {
             if (e.key === 'driven-theme' && e.newValue) {
-                document.documentElement.setAttribute('data-theme', e.newValue);
+                document.documentElement.setAttribute("data-theme", e.newValue);
             }
         });
 
@@ -850,7 +870,7 @@
         // Dropdown Loaders
         async function loadAssetTypesDropdown() {
             try {
-                var resp = await fetch("/api/asset-types", { headers: { "x-org-id": activeOrgId } });
+                var resp = await fetch("/api/asset-types", { headers: getAuthHeaders() });
                 if (resp.ok) {
                     var data = await resp.json();
                     var list = extractRecords(data);
@@ -873,7 +893,7 @@
 
         async function loadProjectsDropdown() {
             try {
-                var resp = await fetch("/api/projects", { headers: { "x-org-id": activeOrgId } });
+                var resp = await fetch("/api/projects", { headers: getAuthHeaders() });
                 if (resp.ok) {
                     var data = await resp.json();
                     var list = extractRecords(data);
@@ -897,7 +917,7 @@
 
         async function loadDivisionsDropdown() {
             try {
-                var resp = await fetch("/api/division", { headers: { "x-org-id": activeOrgId } });
+                var resp = await fetch("/api/division", { headers: getAuthHeaders() });
                 if (resp.ok) {
                     var data = await resp.json();
                     var list = extractRecords(data);
@@ -924,7 +944,7 @@
             var list = [];
             for (var i = 0; i < endpoints.length; i++) {
                 try {
-                    var resp = await fetch(endpoints[i], { headers: { "x-org-id": activeOrgId } });
+                    var resp = await fetch(endpoints[i], { headers: getAuthHeaders() });
                     if (resp.ok) {
                         var data = await resp.json();
                         list = extractRecords(data);
@@ -952,7 +972,7 @@
 
             for (var i = 0; i < endpoints.length; i++) {
                 try {
-                    var resp = await fetch(endpoints[i], { headers: { "x-org-id": activeOrgId } });
+                    var resp = await fetch(endpoints[i], { headers: getAuthHeaders() });
                     if (resp.ok) {
                         var data = await resp.json();
                         var records = extractRecords(data);
@@ -1028,7 +1048,7 @@
             } else {
                 fetch("/api/onboarding/presence", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json", "x-org-id": activeOrgId },
+                    headers: getAuthHeaders(),
                     body: payload,
                     keepalive: true
                 }).catch(function() {});
@@ -1040,10 +1060,7 @@
             try {
                 var resp = await fetch("/api/onboarding/presence", {
                     method: "POST",
-                    headers: { 
-                        "Content-Type": "application/json",
-                        "x-org-id": activeOrgId
-                    },
+                    headers: getAuthHeaders(),
                     body: JSON.stringify({ page: "Asset Detail" })
                 });
                 if (resp.ok) {
@@ -1075,7 +1092,7 @@
         async function loadAssetDetails(assetId) {
             try {
                 var resp = await fetch("/api/equipment/" + encodeURIComponent(assetId), {
-                    headers: { "x-org-id": activeOrgId }
+                    headers: getAuthHeaders()
                 });
                 if (!resp.ok) throw new Error("HTTP " + resp.status);
                 
@@ -1217,16 +1234,28 @@
             };
 
             try {
+                // Try primary PUT endpoint first
                 var resp = await fetch("/api/equipment/" + encodeURIComponent(currentAssetId), {
                     method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "x-org-id": activeOrgId
-                    },
+                    headers: getAuthHeaders(),
                     body: JSON.stringify(payload)
                 });
 
-                if (!resp.ok) throw new Error("HTTP " + resp.status);
+                // Fallback to POST if PUT is not allowed or fails with 405/404
+                if (!resp.ok && (resp.status === 405 || resp.status === 404)) {
+                    resp = await fetch("/api/equipment/" + encodeURIComponent(currentAssetId), {
+                        method: "POST",
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify(payload)
+                    });
+                }
+
+                if (!resp.ok) {
+                    var errData = {};
+                    try { errData = await resp.json(); } catch(e) {}
+                    var errDetails = errData.message || errData.error || ("HTTP " + resp.status);
+                    throw new Error(errDetails);
+                }
 
                 // Commit working payload to immutable server record
                 originalAssetRecord = JSON.parse(JSON.stringify(Object.assign({}, workingAssetRecord, payload)));
@@ -1238,7 +1267,7 @@
 
             } catch (err) {
                 reportClientError("Failed updating asset profile", "saveAssetDetails", err);
-                displayMessage("Failed to save changes. Please try again.", "error");
+                displayMessage("Failed to save changes: " + (err.message || "Please try again."), "error");
             } finally {
                 if (btn) {
                     btn.disabled = false;
@@ -1251,7 +1280,7 @@
         async function loadOpenInspectionIssues(assetId) {
             try {
                 var resp = await fetch("/api/equipment/" + encodeURIComponent(assetId) + "/open-issues", {
-                    headers: { "x-org-id": activeOrgId }
+                    headers: getAuthHeaders()
                 });
 
                 if (resp.ok) {
