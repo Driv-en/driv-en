@@ -428,7 +428,7 @@ function mapPayloadToD1(tableConfig, payload) {
     'category', 'asset_type', 'type', 'serial', 'current_meter', 'project_id',
     'division_id', 'location_id', 'operator_id', 'location',
     'make', 'model', 'drive_configuration', 'assigned_division', 'assigned_operator',
-    'current_location', 'current_meter_reading', 'make_oem', 'year', 'current_project'
+    'current_location', 'current_meter_reading', 'make_oem', 'year', 'current_project', 'project_name', 'location_name'
   ]);
 
   for (const [key, val] of Object.entries(payload)) {
