@@ -442,8 +442,8 @@
           </div>
           <div class="am-form-row">
             <label>Assigned Operator</label>
-            <input type="text" id="amAssignedOperator" placeholder="e.g., John Doe" maxlength="100" />
-            <div class="am-hint">Primary personnel responsible or assigned</div>
+            <select id="amAssignedOperator"><option value="">— None —</option></select>
+            <div class="am-hint">Primary active personnel responsible or assigned</div>
           </div>
           <div class="am-form-row">
             <label>Current Meter Reading</label>
@@ -538,7 +538,7 @@
         </div>
         <div class="am-form-row">
           <label>Assigned Operator</label>
-          <input type="text" id="amEditAssignedOperator" maxlength="100" />
+          <select id="amEditAssignedOperator"><option value="">— None —</option></select>
         </div>
         <div class="am-form-row">
           <label>Current Meter Reading</label>
@@ -602,7 +602,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="/app/shared/dashboard-common.js?v=13"></script>
   <script>
-    var allAssets = [], assetTypes = [], projects = [], locations = [], divisions = [], editingAssetId = null, canModify = false, amDirty = false, amMapInstance = null, amMarkers = [];
+    var allAssets = [], assetTypes = [], projects = [], locations = [], divisions = [], operators = [], editingAssetId = null, canModify = false, amDirty = false, amMapInstance = null, amMarkers = [];
     var COL_DEFS = [
       { key: 'assetNumber', label: 'Asset Number', defaultVisible: true, defaultWidth: '130px' },
       { key: 'type', label: 'Asset Type', defaultVisible: true, defaultWidth: '140px' },
@@ -703,7 +703,7 @@
         }, 100);
 
         initVisibleCols();
-        await Promise.allSettled([syncSettings(), loadProjectsDirect(), loadAssets()]);
+        await Promise.allSettled([syncSettings(), loadProjectsDirect(), loadAssets(), loadActiveOperators()]);
       } catch (err) {
         console.error('Asset initialization error:', err);
       } finally {
@@ -733,6 +733,23 @@
         }
       } catch (e) {
         console.error('Direct projects fetch failed:', e);
+      }
+    }
+
+    async function loadActiveOperators() {
+      try {
+        var ci = localStorage.getItem('driven_customer_id');
+        if (ci) {
+          var resp = await fetch('/api/onboarding/key-personnel/list?customerId=' + encodeURIComponent(ci));
+          var data = await resp.json();
+          if (data.success && Array.isArray(data.keyPersonnel)) {
+            operators = data.keyPersonnel.map(function(k) { return k.name || (k.firstName + ' ' + k.lastName) || k.email; }).filter(Boolean);
+            populateDropdown('amAssignedOperator', operators, true);
+            populateDropdown('amEditAssignedOperator', operators, true);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load operators:', e);
       }
     }
 
@@ -783,10 +800,12 @@
       populateDropdown('amProject', projects, true);
       populateDropdown('amLocation', locations, true);
       populateDropdown('amDivision', divisions, true);
+      populateDropdown('amAssignedOperator', operators, true);
       populateDropdown('amEditAssetType', assetTypes);
       populateDropdown('amEditProject', projects, true);
       populateDropdown('amEditLocation', locations, true);
       populateDropdown('amEditDivision', divisions, true);
+      populateDropdown('amEditAssignedOperator', operators, true);
       buildMultiSelectPanels();
     }
 
@@ -1426,7 +1445,7 @@
       var an = document.getElementById('amAssetNumber').value.trim();
       var at = document.getElementById('amAssetType').value;
       var dv = document.getElementById('amDivision').value;
-      var op = document.getElementById('amAssignedOperator').value.trim();
+      var op = document.getElementById('amAssignedOperator').value;
       var m = document.getElementById('amMeter').value.trim();
       var st = document.getElementById('amStatus').value;
       var pr = document.getElementById('amProject').value;
@@ -1526,7 +1545,7 @@
       var an = document.getElementById('amEditAssetNumber').value.trim();
       var at = document.getElementById('amEditAssetType').value;
       var dv = document.getElementById('amEditDivision').value;
-      var op = document.getElementById('amEditAssignedOperator').value.trim();
+      var op = document.getElementById('amEditAssignedOperator').value;
       var m = document.getElementById('amEditMeter').value.trim();
       var st = document.getElementById('amEditStatus').value;
       var pr = document.getElementById('amEditProject').value;
