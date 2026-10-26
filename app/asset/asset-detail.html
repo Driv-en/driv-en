@@ -596,7 +596,7 @@
                 </div>
                 <div class="ad-grid">
                     <div class="ad-metric-box">
-                        <span class="ad-metric-label">Assigned Project</span>
+                        <span class="ad-metric-label">Current Project Number</span>
                         <span class="ad-metric-value" id="valProject">—</span>
                         <select id="inpProject" class="ad-input" style="display:none;">
                             <option value="">-- Unassigned / Yard --</option>
@@ -900,12 +900,20 @@
                     var sel = document.getElementById("inpProject");
                     sel.innerHTML = '<option value="">-- Unassigned / Yard --</option>';
                     list.forEach(function(item) {
-                        var name = item.project_name || item.name || item.title;
-                        var id = item.id || name;
-                        if (name) {
+                        var prjId = item.id;
+                        var prjNum = item.project_number || item.code || "";
+                        var prjName = item.name || item.project_name || "";
+
+                        // Format as "PRJ-1042 — West Highway Expansion" or fallback to name/number
+                        var displayText = prjNum && prjName ? (prjNum + " — " + prjName) : (prjNum || prjName);
+
+                        if (displayText && prjId) {
                             var opt = document.createElement("option");
-                            opt.value = id;
-                            opt.textContent = name;
+                            opt.value = prjId; // Store foreign key ID
+                            opt.textContent = displayText;
+                            // Store individual attributes as data properties for quick lookup
+                            opt.setAttribute("data-project-number", prjNum);
+                            opt.setAttribute("data-project-name", prjName);
                             sel.appendChild(opt);
                         }
                     });
@@ -1147,9 +1155,19 @@
             document.getElementById("valMeter").textContent = mtrVal !== "" ? mtrVal + " hrs" : "—";
             document.getElementById("inpMeter").value = mtrVal;
 
-            // Project
-            var prjName = matchDropdownValue("inpProject", rec.project_id || rec.project, rec.project_name || rec.project);
-            document.getElementById("valProject").textContent = prjName;
+            // Current Project Number (Foreign key match against ID or fallback string)
+            var prjValue = rec.project_id || rec.project;
+            var prjName = matchDropdownValue("inpProject", prjValue, rec.project_number || rec.project_name || rec.project);
+            
+            var prjSelect = document.getElementById("inpProject");
+            var selectedOpt = prjSelect.options[prjSelect.selectedIndex];
+            if (selectedOpt && selectedOpt.value) {
+                var pNum = selectedOpt.getAttribute("data-project-number");
+                var pName = selectedOpt.getAttribute("data-project-name");
+                document.getElementById("valProject").textContent = pNum ? (pNum + " (" + pName + ")") : prjName;
+            } else {
+                document.getElementById("valProject").textContent = prjName || "—";
+            }
 
             // Division
             var divName = matchDropdownValue("inpDivision", rec.assigned_division || rec.division_id || rec.division, rec.division_name || rec.division);
