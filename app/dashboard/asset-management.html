@@ -581,7 +581,7 @@
         sel.appendChild(p);
       }
       items.forEach(function(item) {
-        var nameVal = typeof item === 'object' ? (item.name || item.title || item.project_name || '') : String(item);
+        var nameVal = typeof item === 'object' ? (item.asset_type_name || item.name || item.title || item.project_name || '') : String(item);
         if (nameVal) {
           var o = document.createElement('option');
           o.value = nameVal;
@@ -598,7 +598,7 @@
       if (pt) {
         pt.innerHTML = '';
         assetTypes.forEach(function(at) {
-          var nameVal = typeof at === 'object' ? (at.name || at.title || '') : String(at);
+          var nameVal = typeof at === 'object' ? (at.asset_type_name || at.name || at.title || '') : String(at);
           if (nameVal) {
             var lbl = document.createElement('label');
             lbl.className = 'am-multiselect-option';
@@ -680,17 +680,21 @@
     function parseVal(val) {
       if (val === undefined || val === null) return '';
       if (Array.isArray(val)) return val.map(parseVal).filter(Boolean).join(', ');
-      if (typeof val === 'object') return val.name || val.title || val.project_name || val.location_name || '';
+      if (typeof val === 'object') return val.asset_type_name || val.name || val.title || val.project_name || val.location_name || '';
       var str = String(val).trim();
       return (str === 'null' || str === 'undefined') ? '' : str;
     }
 
     function normalizeAsset(r) {
       var f = (r && r.fields && typeof r.fields === 'object') ? r.fields : (r || {});
+      
+      // Strict extraction for Asset Type (Category) from D1 row object
+      var rawType = f.asset_type || f.category || f['Category'] || f['Asset Type'] || 'Unassigned';
+
       return {
         id: r.id || f.id || ('eq-' + Math.random().toString(36).substr(2, 9)),
-        assetNumber: parseVal(f.asset_number || f['Equipment ID'] || f['Equipment Name'] || f.assetNumber || f.name),
-        type: parseVal(f.category || f['Category'] || f.type || f.name || 'Unassigned'),
+        assetNumber: parseVal(f.asset_number || f['Equipment ID'] || f['Equipment Name'] || f.assetNumber),
+        type: parseVal(rawType),
         meter: (f.current_meter_reading !== undefined && f.current_meter_reading !== null) ? f.current_meter_reading : (f['Meter Reading'] || null),
         status: parseVal(f.status || f['Status']) || 'Available',
         project: parseVal(f.current_project || f['Project']),
@@ -960,11 +964,11 @@
             td.appendChild(b);
           } else if (col.key === 'type') {
             var ic = assetTypes.some(function(at) {
-              var atName = typeof at === 'object' ? at.name : String(at);
+              var atName = typeof at === 'object' ? (at.asset_type_name || at.name) : String(at);
               return atName && atName.toLowerCase() === String(v || '').toLowerCase();
             });
             if (v && ic) { td.textContent = v; }
-            else if (v) { td.textContent = v; td.style.opacity = '0.5'; td.title = 'This type is not in your configured asset types'; }
+            else if (v) { td.textContent = v; td.style.opacity = '0.85'; }
             else { td.textContent = '—'; }
           } else if (col.key === 'meter') {
             td.textContent = (v !== null && v !== undefined && v !== '') ? v : '—';
@@ -1144,7 +1148,7 @@
         if (isNaN(mv) || mv < 0) { showMessage('Meter Reading must be a valid number (0 or higher).', 'error'); return; }
       }
 
-      var p = { asset_number: an, category: at, status: st, current_project: pr, current_location: lo };
+      var p = { asset_number: an, category: at, asset_type: at, status: st, current_project: pr, current_location: lo };
       if (mv !== null) p.current_meter_reading = mv;
 
       try {
@@ -1228,7 +1232,7 @@
         if (isNaN(mv) || mv < 0) { showEditMessage('Meter Reading must be a valid number (0 or higher).', 'error'); return; }
       }
 
-      var p = { asset_number: an, category: at, status: st, current_project: pr, current_location: lo };
+      var p = { asset_number: an, category: at, asset_type: at, status: st, current_project: pr, current_location: lo };
       if (mv !== null) p.current_meter_reading = mv;
 
       try {
