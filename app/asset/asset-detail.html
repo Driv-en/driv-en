@@ -1117,8 +1117,8 @@
             document.getElementById("valAssetNumber").textContent = num;
             document.getElementById("inpAssetNumber").value = num;
 
-            // Category
-            var catName = matchDropdownValue("inpCategory", rec.category || rec.asset_type || rec.type, rec.category);
+            // Asset Type / Category
+            var catName = matchDropdownValue("inpCategory", rec.asset_type || rec.type || rec.category, rec.asset_type || rec.category);
             document.getElementById("valCategory").textContent = catName;
 
             // Operational Status
@@ -1127,19 +1127,23 @@
             document.getElementById("inpStatus").value = st;
 
             // Make & Model
-            document.getElementById("valMake").textContent = rec.make || "—";
-            document.getElementById("inpMake").value = rec.make || "";
+            var makeVal = rec.make_oem || rec.make || "";
+            document.getElementById("valMake").textContent = makeVal || "—";
+            document.getElementById("inpMake").value = makeVal;
 
-            document.getElementById("valModel").textContent = rec.model || "—";
-            document.getElementById("inpModel").value = rec.model || "";
+            var modelVal = rec.model || "";
+            document.getElementById("valModel").textContent = modelVal || "—";
+            document.getElementById("inpModel").value = modelVal;
 
             // Serial / VIN (Checking serial column variants)
-            var sn = rec.serial || rec.serial_number || rec.serialNumber || rec.serial_no || "—";
+            var sn = rec.serial_number || rec.serial || rec.serialNumber || rec.serial_no || "—";
             document.getElementById("valSerial").textContent = sn;
             document.getElementById("inpSerial").value = sn !== "—" ? sn : "";
 
             // Meter (Preserve null vs 0 accurately)
-            var mtrVal = rec.current_meter !== undefined && rec.current_meter !== null ? rec.current_meter : "";
+            var mtrVal = (rec.current_meter_reading !== undefined && rec.current_meter_reading !== null)
+                ? rec.current_meter_reading 
+                : (rec.current_meter !== undefined && rec.current_meter !== null ? rec.current_meter : "");
             document.getElementById("valMeter").textContent = mtrVal !== "" ? mtrVal + " hrs" : "—";
             document.getElementById("inpMeter").value = mtrVal;
 
@@ -1148,15 +1152,15 @@
             document.getElementById("valProject").textContent = prjName;
 
             // Division
-            var divName = matchDropdownValue("inpDivision", rec.division_id || rec.division, rec.division_name || rec.division);
+            var divName = matchDropdownValue("inpDivision", rec.assigned_division || rec.division_id || rec.division, rec.division_name || rec.division);
             document.getElementById("valDivision").textContent = divName;
 
             // Location
-            var locName = matchDropdownValue("inpLocation", rec.location_id || rec.location, rec.location_name || rec.location);
+            var locName = matchDropdownValue("inpLocation", rec.location_id || rec.current_location || rec.location, rec.location_name || rec.location);
             document.getElementById("valLocation").textContent = locName;
 
             // Operator
-            var opName = matchDropdownValue("inpOperator", rec.operator_id || rec.assigned_operator || rec.operator, rec.operator_name);
+            var opName = matchDropdownValue("inpOperator", rec.assigned_operator || rec.operator_id || rec.operator, rec.operator_name);
             document.getElementById("valOperator").textContent = opName;
 
             // Drive Configuration
@@ -1223,29 +1227,27 @@
             var divVal = document.getElementById("inpDivision").value;
             var opVal = document.getElementById("inpOperator").value;
 
-            // Schema-aligned Payload to match Cloudflare D1 table columns with fallbacks
+            // Strict Schema-Aligned Payload matching the Cloudflare D1 `assets` table
             var payload = {
                 id: currentAssetId,
                 asset_number: document.getElementById("inpAssetNumber").value.trim(),
-                category: catVal,
-                asset_type: catVal, // Fallback binding for worker schemas
-                type: catVal,       // Fallback binding for legacy endpoints
+                asset_type: catVal,
+                type: catVal,
                 status: document.getElementById("inpStatus").value,
-                make: document.getElementById("inpMake").value.trim(),
+                make_oem: document.getElementById("inpMake").value.trim(),
                 model: document.getElementById("inpModel").value.trim(),
-                serial: serialVal, // D1 table column
-                serial_number: serialVal, // Fallback binding
-                current_meter: isNaN(parsedMeter) ? null : parsedMeter,
+                serial_number: serialVal,
+                current_meter_reading: isNaN(parsedMeter) ? null : parsedMeter,
                 project_id: prjVal ? prjVal : null,
-                division_id: divVal ? divVal : null,
-                location: locVal ? locVal : null,
+                assigned_division: divVal ? divVal : null,
+                current_location: locVal ? locVal : null,
                 location_id: locVal ? locVal : null,
-                operator_id: opVal ? opVal : null,
+                assigned_operator: opVal ? opVal : null,
                 drive_configuration: document.getElementById("inpDriveConfig").value.trim()
             };
 
             try {
-                // Try primary PUT endpoint first
+                // Primary PUT endpoint
                 var resp = await fetch("/api/equipment/" + encodeURIComponent(currentAssetId), {
                     method: "PUT",
                     headers: getAuthHeaders(),
