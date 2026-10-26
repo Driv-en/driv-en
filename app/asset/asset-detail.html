@@ -904,14 +904,12 @@
                         var prjNum = item.project_number || item.code || "";
                         var prjName = item.name || item.project_name || "";
 
-                        // Format as "PRJ-1042 — West Highway Expansion" or fallback to name/number
                         var displayText = prjNum && prjName ? (prjNum + " — " + prjName) : (prjNum || prjName);
 
                         if (displayText && prjId) {
                             var opt = document.createElement("option");
-                            opt.value = prjId; // Store foreign key ID
+                            opt.value = prjId;
                             opt.textContent = displayText;
-                            // Store individual attributes as data properties for quick lookup
                             opt.setAttribute("data-project-number", prjNum);
                             opt.setAttribute("data-project-name", prjName);
                             sel.appendChild(opt);
@@ -1156,8 +1154,8 @@
             document.getElementById("inpMeter").value = mtrVal;
 
             // Current Project Number (Foreign key match against ID or fallback string)
-            var prjValue = rec.project_id || rec.project;
-            var prjName = matchDropdownValue("inpProject", prjValue, rec.project_number || rec.project_name || rec.project);
+            var prjValue = rec.project_id || rec.current_project || rec.project;
+            var prjName = matchDropdownValue("inpProject", prjValue, rec.current_project || rec.project_number || rec.project_name || rec.project);
             
             var prjSelect = document.getElementById("inpProject");
             var selectedOpt = prjSelect.options[prjSelect.selectedIndex];
@@ -1239,13 +1237,22 @@
             var meterRaw = document.getElementById("inpMeter").value;
             var parsedMeter = meterRaw === "" ? null : parseFloat(meterRaw);
             var serialVal = document.getElementById("inpSerial").value.trim();
-            var locVal = document.getElementById("inpLocation").value;
+            var locSelect = document.getElementById("inpLocation");
             var catVal = document.getElementById("inpCategory").value;
-            var prjVal = document.getElementById("inpProject").value;
+            var prjSelect = document.getElementById("inpProject");
             var divVal = document.getElementById("inpDivision").value;
             var opVal = document.getElementById("inpOperator").value;
 
-            // Strict Schema-Aligned Payload matching the Cloudflare D1 `assets` table
+            var selectedPrjOpt = prjSelect.options[prjSelect.selectedIndex];
+            var selectedLocOpt = locSelect.options[locSelect.selectedIndex];
+
+            var prjIdVal = prjSelect.value ? prjSelect.value : null;
+            var prjNameVal = (selectedPrjOpt && selectedPrjOpt.value) ? selectedPrjOpt.textContent.trim() : null;
+
+            var locIdVal = locSelect.value ? locSelect.value : null;
+            var locNameVal = (selectedLocOpt && selectedLocOpt.value) ? selectedLocOpt.textContent.trim() : null;
+
+            // Strict Schema-Aligned Payload matching Cloudflare D1 `assets` table
             var payload = {
                 id: currentAssetId,
                 asset_number: document.getElementById("inpAssetNumber").value.trim(),
@@ -1256,10 +1263,13 @@
                 model: document.getElementById("inpModel").value.trim(),
                 serial_number: serialVal,
                 current_meter_reading: isNaN(parsedMeter) ? null : parsedMeter,
-                project_id: prjVal ? prjVal : null,
+                project_id: prjIdVal,
+                current_project: prjNameVal,
+                project_name: prjNameVal,
                 assigned_division: divVal ? divVal : null,
-                current_location: locVal ? locVal : null,
-                location_id: locVal ? locVal : null,
+                current_location: locNameVal,
+                location_id: locIdVal,
+                location_name: locNameVal,
                 assigned_operator: opVal ? opVal : null,
                 drive_configuration: document.getElementById("inpDriveConfig").value.trim()
             };
