@@ -1024,7 +1024,7 @@
       };
     }
 
-    /* Dynamic Activity History Engine */
+/* Dynamic Activity History Engine */
     async function applyLatestLocationActivity(assets) {
       try {
         var ci = localStorage.getItem('driven_customer_id');
@@ -1111,17 +1111,40 @@
           if (!a.assetNumber) return;
           var key = a.assetNumber.trim().toLowerCase();
 
-          // Store full chronological GPS history for breadcrumbs
-          a.locationHistory = activities
-            .filter(function(act) { return act.assetNumber === key && act.lat !== null && act.lng !== null; })
-            .sort(function(x, y) { return x.time - y.time; });
-
           if ((a.baseLat === null || a.baseLng === null) && a.baseProject && projectCoords[a.baseProject.toLowerCase()]) {
             a.baseLat = projectCoords[a.baseProject.toLowerCase()].lat;
             a.baseLng = projectCoords[a.baseProject.toLowerCase()].lng;
           }
 
           var assetLogs = activities.filter(function(act) { return act.assetNumber === key; });
+
+          // Also fall back project coordinates if activity had missing coords initially
+          assetLogs.forEach(function(log) {
+            if ((log.lat === null || log.lng === null) && log.project && projectCoords[log.project.toLowerCase()]) {
+              log.lat = projectCoords[log.project.toLowerCase()].lat;
+              log.lng = projectCoords[log.project.toLowerCase()].lng;
+            }
+          });
+
+          // Include current base project location as a fallback waypoint if no form activity exists
+          if (assetLogs.length === 0 && a.baseLat !== null && a.baseLng !== null) {
+            assetLogs.push({
+              assetNumber: key,
+              source: 'Project Assignment',
+              time: a.lastReportedTime ? new Date(a.lastReportedTime).getTime() : Date.now(),
+              timeDisplay: a.baseTimeDisplay || 'Assigned Location',
+              lat: a.baseLat,
+              lng: a.baseLng,
+              location: a.baseLocation,
+              project: a.baseProject
+            });
+          }
+
+          // Build full chronological GPS history AFTER coordinate resolution & fallbacks
+          a.locationHistory = assetLogs
+            .filter(function(act) { return act.lat !== null && act.lng !== null && !isNaN(act.lat) && !isNaN(act.lng); })
+            .sort(function(x, y) { return x.time - y.time; });
+
           var maxFormTime = 0;
           var maxProjTime = a.lastReportedTime ? new Date(a.lastReportedTime).getTime() : 0;
 
