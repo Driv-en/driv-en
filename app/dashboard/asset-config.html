@@ -369,7 +369,7 @@
           <label for="attachmentTrackingMode">Attachment Tracking Mode</label>
           <select id="attachmentTrackingMode" onchange="toggleAttachmentTrackingUI()">
             <option value="integrated">Integrated Chassis Body (No Separate Asset ID)</option>
-            <option value="linked">Link Standinside Attachment Asset #</option>
+            <option value="linked">Link Standalone Attachment Asset #</option>
           </select>
         </div>
 
@@ -625,6 +625,7 @@
           const data = await resp.json();
           allAssets = extractRecords(data);
           populateAssetDropdowns();
+          populateLinkedAttachmentDropdown();
         }
 
         const typesResp = await apiFetch('/api/asset-types');
@@ -682,6 +683,22 @@
       });
     }
 
+    function populateLinkedAttachmentDropdown() {
+      const sel = document.getElementById('linkedAttachmentAssetId');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">-- Choose Attachment Asset --</option>';
+
+      allAssets.forEach(a => {
+        const num = a.asset_number || a.assetNumber || a.name || a.id;
+        if (num && (Number(a.is_attachment) === 1 || (a.allowed_category && a.allowed_category !== 'none'))) {
+          const opt = document.createElement('option');
+          opt.value = num;
+          opt.textContent = `${num} - ${a.name || a.make_oem || 'Attachment'}`;
+          sel.appendChild(opt);
+        }
+      });
+    }
+
     function onTargetTypeChange() {
       const target = document.getElementById('configTarget').value;
       document.getElementById('assetSelectGroup').style.display = target === 'specific' ? 'flex' : 'none';
@@ -723,7 +740,6 @@
       document.getElementById('configPanel').style.pointerEvents = 'auto';
       document.getElementById('modeBanner').innerText = `Editing Global Defaults for Category: ${typeName}`;
 
-      // Pass typeName as both key and assetType so backend normalizes it properly
       await fetchAndRenderSchema('template', typeName, typeName);
     }
 
@@ -765,7 +781,113 @@
       if (config.parts) partsList = config.parts;
       
       document.getElementById('overrideDefaults').checked = config.isOverride || false;
+
+      if (config.attachment) {
+        document.getElementById('selectAttachment').value = config.attachment || 'none';
+        onAttachmentChanged();
+        if (config.attachmentTrackingMode) {
+          document.getElementById('attachmentTrackingMode').value = config.attachmentTrackingMode;
+          toggleAttachmentTrackingUI();
+        }
+        if (config.linkedAttachmentAssetId) {
+          document.getElementById('linkedAttachmentAssetId').value = config.linkedAttachmentAssetId;
+        }
+        if (config.attachmentMountState) {
+          document.getElementById('attachmentMountState').value = config.attachmentMountState;
+        }
+      }
+
       renderCompositeForm(schema, config.rules || {});
+    }
+
+    function onAttachmentChanged() {
+      const val = document.getElementById('selectAttachment').value;
+      const metaRow = document.getElementById('attachmentMetaRow');
+      if (metaRow) {
+        metaRow.style.display = (val && val !== 'none') ? 'grid' : 'none';
+      }
+    }
+
+    function toggleAttachmentTrackingUI() {
+      const mode = document.getElementById('attachmentTrackingMode').value;
+      const picker = document.getElementById('linkedAssetPickerGroup');
+      if (picker) {
+        picker.style.display = mode === 'linked' ? 'flex' : 'none';
+      }
+    }
+
+    function onLinkedAttachmentSelected() {
+      const id = document.getElementById('linkedAttachmentAssetId').value;
+      if (id) {
+        showMessage(`Linked attachment asset #${id} configured.`, 'success');
+      }
+    }
+
+    function promptAddCustomAttachment() {
+      const name = prompt("Enter Custom Attachment Name (e.g. Hydro-Vac Boom, 50-Ton Crane Block):");
+      if (name && name.trim()) {
+        const val = name.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
+        const sel = document.getElementById('selectAttachment');
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = name.trim();
+        sel.appendChild(opt);
+        sel.value = val;
+        onAttachmentChanged();
+      }
+    }
+
+    function openQuickAddAttachmentModal() {
+      document.getElementById('quickAddAttachmentModal').style.display = 'flex';
+    }
+
+    function closeQuickAddAttachmentModal() {
+      document.getElementById('quickAddAttachmentModal').style.display = 'none';
+    }
+
+    async function saveNewAttachmentAsset() {
+      const assetNum = document.getElementById('newAttAssetNumber').value.trim();
+      const category = document.getElementById('newAttAllowedCategory').value;
+      const serial = document.getElementById('newAttSerialNum').value.trim();
+      const make = document.getElementById('newAttMake').value.trim();
+      const model = document.getElementById('newAttModel').value.trim();
+
+      if (!assetNum) {
+        alert('Please enter an attachment asset number.');
+        return;
+      }
+
+      const payload = {
+        asset_number: assetNum,
+        name: `${make} ${model} (${assetNum})`.trim(),
+        asset_type: 'Attachment',
+        is_attachment: 1,
+        allowed_category: category,
+        serial_number: serial,
+        make_oem: make,
+        model: model,
+        status: 'active'
+      };
+
+      try {
+        const resp = await apiFetch('/api/assets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (resp.ok) {
+          closeQuickAddAttachmentModal();
+          showMessage(`Registered attachment ${assetNum} successfully!`, 'success');
+          await loadInitialData();
+          document.getElementById('linkedAttachmentAssetId').value = assetNum;
+        } else {
+          const err = await resp.json().catch(() => ({}));
+          alert(err.error || err.message || 'Failed to create attachment asset.');
+        }
+      } catch (e) {
+        alert('Error creating attachment: ' + e.message);
+      }
     }
 
     function renderCompositeForm(schema, savedRules = {}) {
@@ -997,6 +1119,10 @@
         key,
         config: {
           isOverride: document.getElementById('overrideDefaults').checked,
+          attachment: document.getElementById('selectAttachment').value,
+          attachmentTrackingMode: document.getElementById('attachmentTrackingMode').value,
+          linkedAttachmentAssetId: document.getElementById('linkedAttachmentAssetId').value,
+          attachmentMountState: document.getElementById('attachmentMountState').value,
           rules,
           customFields: customFieldsList.filter(f => f.key && f.key.trim() !== ''),
           parts: partsList.filter(p => p.component || p.oemPart || p.crossPart),
