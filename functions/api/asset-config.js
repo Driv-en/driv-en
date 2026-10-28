@@ -938,43 +938,54 @@ export async function onRequest(context) {
     if (!str) return "default";
     const s = String(str).toLowerCase().trim();
 
+    // Highway / Pickup / Commercial Vehicles
     if (s.includes("pickup") || s.includes("f-150") || s.includes("f-250") || s.includes("f-350") || s.includes("silverado") || s.includes("ram 1500") || s.includes("sierra")) return "pickup";
-    if (s.includes("medium vocational") || s.includes("cab-chassis")) return "medtruck";
-    if (s.includes("utv") || s.includes("buggy") || s.includes("side-by-side")) return "utv";
-    if (s.includes("sedan") || s.includes("passenger car") || s.includes("suv") || s.includes("crossover")) return "sedan";
-    if (s.includes("cargo van") || s.includes("passenger van") || s.includes("shuttle")) return "cargovan";
-    if (s.includes("day cab") || s.includes("sleeper") || s.includes("semi")) return "class8semitruck";
+    if (s.includes("highway motor vehicles") || s.includes("class 8") || s.includes("semi") || s.includes("day cab") || s.includes("sleeper")) return "class8semitruck";
+    if (s.includes("medium vocational") || s.includes("cab-chassis") || s.includes("medium truck")) return "medtruck";
     if (s.includes("dump truck")) return "dumptruck";
-    if (s.includes("service / utility") || s.includes("bucket")) return "servicetruck";
+    if (s.includes("service / utility") || s.includes("service truck") || s.includes("bucket")) return "servicetruck";
     if (s.includes("vacuum") || s.includes("hydro-vac")) return "vactruck";
     if (s.includes("concrete mixer")) return "mixertruck";
-    if (s.includes("rolligon")) return "rolligon";
-    if (s.includes("tracked dump") || s.includes("morooka") || s.includes("panther") || s.includes("vibroseis")) return "trackedcarrier";
-    if (s.includes("boom lift") || s.includes("vertical mast")) return "boomlift";
-    if (s.includes("scissor lift")) return "scissorlift";
-    if (s.includes("drilling rig")) return "drillingrig";
-    if (s.includes("workover") || s.includes("pulling unit")) return "workoverrig";
-    if (s.includes("coiled tubing")) return "coiledtubing";
-    if (s.includes("mud pump")) return "mudpump";
-    if (s.includes("blowout preventer") || s.includes("bop stack")) return "bopstack";
+    if (s.includes("cargo van") || s.includes("passenger van") || s.includes("shuttle")) return "cargovan";
+    if (s.includes("sedan") || s.includes("passenger car") || s.includes("suv") || s.includes("crossover")) return "sedan";
+    if (s.includes("utv") || s.includes("buggy") || s.includes("side-by-side")) return "utv";
+
+    // Earthmoving & Heavy Equipment
+    if (s.includes("dozer") || s.includes("dozers & heavy tracked")) return "dozer";
     if (s.includes("excavator")) return "excavator";
-    if (s.includes("dozer")) return "dozer";
-    if (s.includes("wheel loader") || s.includes("skid steer") || s.includes("backhoe") || s.includes("articulated dump")) return "loader";
-    if (s.includes("motor grader")) return "grader";
+    if (s.includes("wheel loader") || s.includes("skid steer") || s.includes("backhoe") || s.includes("articulated dump") || s.includes("loader")) return "loader";
+    if (s.includes("motor grader") || s.includes("grader")) return "grader";
     if (s.includes("paver") || s.includes("milling") || s.includes("reclaimer")) return "paver";
+
+    // Drilling, Rigs & Foundation
+    if (s.includes("drilling rig") || s.includes("rigs")) return "drillingrig";
     if (s.includes("directional drill") || s.includes("hdd")) return "hdd";
     if (s.includes("pile driver")) return "piledriver";
-    if (s.includes("asphalt plant")) return "asphaltplant";
-    if (s.includes("concrete batch plant")) return "concreteplant";
+    if (s.includes("coiled tubing")) return "coiledtubing";
+    if (s.includes("workover") || s.includes("pulling unit")) return "workoverrig";
+    if (s.includes("mud pump")) return "mudpump";
+    if (s.includes("blowout preventer") || s.includes("bop stack")) return "bopstack";
+
+    // Lifting & Aerial Platforms
+    if (s.includes("crane") || s.includes("gantry")) return "crane";
+    if (s.includes("boom lift") || s.includes("vertical mast")) return "boomlift";
+    if (s.includes("scissor lift")) return "scissorlift";
+    if (s.includes("forklift") || s.includes("telehandler")) return "forklift";
+
+    // Mining, Forestry & Ag
+    if (s.includes("mining") || s.includes("mine haul")) return "minehaul";
+    if (s.includes("rock crusher") || s.includes("crusher")) return "crusher";
+    if (s.includes("agricultural tractor") || s.includes("ag tractor") || s.includes("combine")) return "agtractor";
     if (s.includes("sideboom")) return "sideboom";
     if (s.includes("mulcher")) return "mulcher";
     if (s.includes("feller buncher")) return "fellerbuncher";
     if (s.includes("skidder")) return "skidder";
-    if (s.includes("agricultural tractor") || s.includes("combine")) return "agtractor";
-    if (s.includes("crane") || s.includes("gantry")) return "crane";
-    if (s.includes("forklift") || s.includes("telehandler")) return "forklift";
-    if (s.includes("mine haul")) return "minehaul";
-    if (s.includes("rock crusher")) return "crusher";
+
+    // Auxiliary & Specialty
+    if (s.includes("rolligon")) return "rolligon";
+    if (s.includes("tracked dump") || s.includes("morooka") || s.includes("panther") || s.includes("vibroseis")) return "trackedcarrier";
+    if (s.includes("asphalt plant")) return "asphaltplant";
+    if (s.includes("concrete batch plant")) return "concreteplant";
     if (s.includes("welder")) return "shopwelder";
     if (s.includes("press brake") || s.includes("ironworker")) return "pressbrake";
     if (s.includes("generator") || s.includes("light tower")) return "generator";
@@ -1000,16 +1011,19 @@ export async function onRequest(context) {
 
       if (env.DRIVEN_KV && key) {
         try {
-          const storageKey = `config:${targetType}:${key.toLowerCase()}`;
+          const storageKey = targetType === 'template'
+            ? `config:template:${normKey}`
+            : `config:specific:${key.toLowerCase().trim()}`;
+            
           savedConfig = await env.DRIVEN_KV.get(storageKey, { type: 'json' });
         } catch (e) {
           console.error("Error fetching specific config from KV:", e);
         }
       }
 
-      if (!savedConfig && targetType === 'specific' && rawAssetType && env.DRIVEN_KV) {
+      if (!savedConfig && targetType === 'specific' && env.DRIVEN_KV) {
         try {
-          const templateKey = `config:template:${normalizeCategoryKey(rawAssetType)}`;
+          const templateKey = `config:template:${normKey}`;
           savedConfig = await env.DRIVEN_KV.get(templateKey, { type: 'json' });
         } catch (e) {
           console.error("Error fetching template fallback from KV:", e);
@@ -1048,7 +1062,7 @@ export async function onRequest(context) {
           }), { status: 500, headers });
         }
 
-        const sourceStorageKey = `config:specific:${sourceKey.toLowerCase()}`;
+        const sourceStorageKey = `config:specific:${sourceKey.toLowerCase().trim()}`;
         const sourceConfigData = await env.DRIVEN_KV.get(sourceStorageKey, { type: 'json' });
 
         if (!sourceConfigData) {
@@ -1066,7 +1080,7 @@ export async function onRequest(context) {
           }), { status: 400, headers });
         }
 
-        const destStorageKey = `config:specific:${key.toLowerCase()}`;
+        const destStorageKey = `config:specific:${key.toLowerCase().trim()}`;
         await env.DRIVEN_KV.put(destStorageKey, JSON.stringify(sourceConfigData));
 
         return new Response(JSON.stringify({ 
@@ -1087,7 +1101,10 @@ export async function onRequest(context) {
         }), { status: 500, headers });
       }
 
-      const storageKey = `config:${targetType}:${key.toLowerCase()}`;
+      const storageKey = targetType === 'template'
+        ? `config:template:${normalizeCategoryKey(key)}`
+        : `config:specific:${key.toLowerCase().trim()}`;
+
       await env.DRIVEN_KV.put(storageKey, JSON.stringify(config));
 
       return new Response(JSON.stringify({ 
