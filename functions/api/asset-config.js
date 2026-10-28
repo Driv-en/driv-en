@@ -129,9 +129,6 @@ export async function onRequest(context) {
   // =========================================================================
   const CATEGORY_SCHEMAS = {
 
-    // -----------------------------------------------------------------------
-    // SECTION 1: LIGHT & MEDIUM FLEET VEHICLES
-    // -----------------------------------------------------------------------
     "pickup": {
       sections: [
         {
@@ -267,9 +264,6 @@ export async function onRequest(context) {
       ]
     },
 
-    // -----------------------------------------------------------------------
-    // SECTION 2: HEAVY VOCATIONAL TRUCKS & TRACTORS (CLASS 7-8)
-    // -----------------------------------------------------------------------
     "class8semitruck": {
       sections: [
         {
@@ -369,9 +363,6 @@ export async function onRequest(context) {
       ]
     },
 
-    // -----------------------------------------------------------------------
-    // SECTION 3: OFF-ROAD EXTREME TERRAIN TRANSPORT
-    // -----------------------------------------------------------------------
     "rolligon": {
       sections: [
         {
@@ -403,9 +394,6 @@ export async function onRequest(context) {
       ]
     },
 
-    // -----------------------------------------------------------------------
-    // SECTION 4: AERIAL WORK PLATFORMS & LIFTING
-    // -----------------------------------------------------------------------
     "boomlift": {
       sections: [
         {
@@ -441,9 +429,6 @@ export async function onRequest(context) {
       ]
     },
 
-    // -----------------------------------------------------------------------
-    // SECTION 5 & 6: DRILLING RIGS & SUB-COMPONENTS
-    // -----------------------------------------------------------------------
     "drillingrig": {
       sections: [
         {
@@ -524,9 +509,6 @@ export async function onRequest(context) {
       ]
     },
 
-    // -----------------------------------------------------------------------
-    // SECTION 7: EARTHMOVING, PAVING & ROADWORK
-    // -----------------------------------------------------------------------
     "excavator": {
       sections: [
         {
@@ -618,9 +600,6 @@ export async function onRequest(context) {
       ]
     },
 
-    // -----------------------------------------------------------------------
-    // SECTION 8: DEEP FOUNDATION, BORING & TUNNELING
-    // -----------------------------------------------------------------------
     "hdd": {
       sections: [
         {
@@ -651,9 +630,6 @@ export async function onRequest(context) {
       ]
     },
 
-    // -----------------------------------------------------------------------
-    // SECTION 9: PLANTS & PRODUCTION FACILITIES
-    // -----------------------------------------------------------------------
     "asphaltplant": {
       sections: [
         {
@@ -684,9 +660,6 @@ export async function onRequest(context) {
       ]
     },
 
-    // -----------------------------------------------------------------------
-    // SECTION 10 & 11: PIPELINE, FORESTRY & AGRICULTURE
-    // -----------------------------------------------------------------------
     "sideboom": {
       sections: [
         {
@@ -765,9 +738,6 @@ export async function onRequest(context) {
       ]
     },
 
-    // -----------------------------------------------------------------------
-    // SECTION 12 & 13: CRANES, LIFTING & MINING
-    // -----------------------------------------------------------------------
     "crane": {
       sections: [
         {
@@ -838,9 +808,6 @@ export async function onRequest(context) {
       ]
     },
 
-    // -----------------------------------------------------------------------
-    // SECTION 14, 15, 16: FABRICATION, REFINERIES & UTILITIES
-    // -----------------------------------------------------------------------
     "shopwelder": {
       sections: [
         {
@@ -931,9 +898,6 @@ export async function onRequest(context) {
       ]
     },
 
-    // -----------------------------------------------------------------------
-    // SECTION 17: TRAILERS & TRANSPORT EQUIPMENT
-    // -----------------------------------------------------------------------
     "trailer": {
       sections: [
         {
@@ -953,9 +917,6 @@ export async function onRequest(context) {
       ]
     },
 
-    // -----------------------------------------------------------------------
-    // DEFAULT FALLBACK SCHEMA
-    // -----------------------------------------------------------------------
     "default": {
       sections: [
         {
@@ -973,7 +934,6 @@ export async function onRequest(context) {
     }
   };
 
-  // Direct Normalizer
   function normalizeCategoryKey(str) {
     if (!str) return "default";
     const s = String(str).toLowerCase().trim();
@@ -1075,7 +1035,6 @@ export async function onRequest(context) {
 
       const { targetType, key, config, action, sourceKey, targetAssetType } = body || {};
 
-      // ASSET OVERRIDE CLONING / COPY-PASTE ROUTE
       if (action === 'copyConfig') {
         if (!sourceKey || !key) {
           return new Response(JSON.stringify({ 
