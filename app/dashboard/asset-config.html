@@ -958,27 +958,29 @@
       }
     });
 
-    async function fetchOrganizationSettings() {
-      try {
-        const uomResp = await apiFetch('/api/units-of-measure');
-        if (uomResp.ok) {
-          const data = await uomResp.json();
-          if (data && data.uom) {
-            orgUOM = { ...orgUOM, ...data.uom };
-          }
-        }
-
-        const orgResp = await apiFetch('/api/organization-settings');
-        if (orgResp.ok) {
-          const oData = await orgResp.json();
-          if (oData && oData.country) {
-            orgCountry = String(oData.country).toUpperCase().trim();
-          }
-        }
-      } catch (e) {
-        console.warn('Using default UOM and country settings due to API fallback:', e);
-      }
+async function fetchOrganizationSettings() {
+  try {
+    const uomResp = await apiFetch('/api/units-of-measure');
+    if (uomResp.ok) {
+      const data = await uomResp.json();
+      if (data && data.uom) orgUOM = { ...orgUOM, ...data.uom };
     }
+
+    // Pass org_id in query string as well to avoid 400 parameter errors
+    const orgResp = await apiFetch(`/api/organization-settings?org_id=${encodeURIComponent(activeOrgId)}`);
+    if (orgResp.ok) {
+      const oData = await orgResp.json();
+      const foundCountry = oData.country || oData.org_country || (oData.org && oData.org.country);
+      if (foundCountry) {
+        orgCountry = String(foundCountry).toUpperCase().trim();
+      }
+    } else {
+      console.warn(`organization-settings returned status ${orgResp.status}`);
+    }
+  } catch (e) {
+    console.warn('Using default UOM and country settings due to API fallback:', e);
+  }
+}
 
     function openInstructionsModal() { document.getElementById('instructionsModal').style.display = 'flex'; }
     function closeInstructionsModal() { document.getElementById('instructionsModal').style.display = 'none'; }
