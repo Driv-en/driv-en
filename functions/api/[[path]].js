@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// DRIV-EN API Worker — D1-only CRUD (v18.5 — Schema Aligned)
+// DRIV-EN API Worker — D1-only CRUD (v18.6 — Schema & Category Aligned)
 // Route: /api/* and /api/log-error
 // ═══════════════════════════════════════════════════════════════════
 // BINDINGS:
@@ -414,14 +414,12 @@ function toPrimitiveString(val) {
 function mapPayloadToD1(tableConfig, payload) {
   const d1Row = {};
 
-  // 1. Map explicitly defined fields from fieldMap
   for (const [apiFieldName, d1Column] of Object.entries(tableConfig.fieldMap)) {
     if (payload[apiFieldName] !== undefined) {
       d1Row[d1Column] = toPrimitiveString(payload[apiFieldName]);
     }
   }
 
-  // 2. Ignore payload key aliases/fallbacks to prevent SQL "no such column" errors
   const validColNameRegex = /^[a-z0-9_]+$/;
   const ignoredKeys = new Set([
     'id', 'org_id', 'user_id', 'created_by', 'updated_by',
@@ -441,7 +439,6 @@ function mapPayloadToD1(tableConfig, payload) {
     }
   }
 
-  // 3. Set default values for missing required columns
   if (tableConfig.defaults) {
     for (const [col, val] of Object.entries(tableConfig.defaults)) {
       if (d1Row[col] === undefined) d1Row[col] = toPrimitiveString(val);
@@ -467,7 +464,6 @@ function formatRecord(row, tableConfig) {
     }
   }
 
-  // Fallback map display names for project, location, and division
   if (tableConfig.d1Table === 'assets') {
     if (row.project_name && (!fields.current_project || fields.current_project === row.project_id)) {
       fields.current_project = row.project_name;
@@ -749,6 +745,53 @@ export default {
         return await handleLogError(env, body);
       } catch (e) {
         return json({ success: false, error: e.message }, 500);
+      }
+    }
+
+    // Direct Endpoint: Asset Types / Categories Handling
+    if (path === '/api/asset-types' || path === '/api/asset-types/' || path === '/api/asset_types') {
+      const authCtx = await getAuthContext(request, env);
+      const orgId = authCtx.orgId || 'org_dsi';
+
+      if (method === 'GET') {
+        try {
+          await ensureTableSchema(env.DB, 'asset_types');
+
+          let records = [];
+          if (env.DB) {
+            const { results } = await env.DB.prepare(`
+              SELECT asset_type_name FROM asset_types WHERE org_id = ? OR org_id = 'system'
+              UNION
+              SELECT asset_type_name FROM asset_type_defaults WHERE org_id = ? OR org_id = 'system'
+              ORDER BY asset_type_name ASC
+            `).bind(orgId, orgId).all();
+
+            records = results || [];
+          }
+
+          if (!records || records.length === 0) {
+            const defaultCategories = [
+              "Pickup Truck",
+              "Highway Motor Vehicles (Classes 1–8)",
+              "Medium Vocational / Service Truck",
+              "Earthmoving — Dozers & Heavy Tracked Equipment",
+              "Earthmoving — Wheel Loaders, Graders & Backhoes",
+              "Excavator",
+              "Mining, Drilling & Rigging",
+              "Cranes & Aerial Lifts",
+              "Stationary & Engine Plants",
+              "Auxiliary Tools, Pumps & Light Towers",
+              "Trailers & Towables"
+            ];
+            records = defaultCategories.map(cat => ({ asset_type_name: cat }));
+          }
+
+          const tableConfig = resolveTableConfig('AssetTypes');
+          const formatted = records.map(r => formatRecord(r, tableConfig));
+          return json({ success: true, records: formatted, assetTypes: records, data: records });
+        } catch (e) {
+          return json({ success: true, records: [], assetTypes: [], data: [] });
+        }
       }
     }
 
