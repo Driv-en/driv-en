@@ -1,10 +1,11 @@
 // ═══════════════════════════════════════════════════════════════════
-// DRIV-EN API Worker — D1-only CRUD (v18.6 — Schema & Category Aligned)
+// DRIV-EN API Worker — D1-only CRUD (v18.7 — Schema, Category & Asset Config Aligned)
 // Route: /api/* and /api/log-error
 // ═══════════════════════════════════════════════════════════════════
 // BINDINGS:
 //   - D1: DB → driv-en-db
 //   - D1: EMPLOYEES_DB → employees-db (optional)
+//   - KV: DRIVEN_KV / ASSET_CONFIG_KV (optional)
 //   - Secret: JWT_SECRET (shared with auth worker)
 // ═══════════════════════════════════════════════════════════════════
 
@@ -252,6 +253,15 @@ const TABLE_MAP = {
       'is_custom':       'is_custom',
     },
   },
+  'asset-config': {
+    d1Table: 'asset_type_defaults',
+    aliases: ['asset_config', 'assetconfig', 'asset-configuration', 'AssetConfig'],
+    fieldMap: {
+      'Asset Type Name': 'asset_type_name',
+      'asset_type_name': 'asset_type_name',
+      'PM Schedules':    'pm_schedules_json',
+    },
+  },
   'Users': {
     d1Table: 'users',
     aliases: ['users', 'Users', 'employees', 'Employees'],
@@ -318,6 +328,69 @@ function json(data, status) {
     status: status || 200,
     headers: { 'Content-Type': 'application/json', ...corsHeaders },
   });
+}
+
+function normalizeCategoryKey(str) {
+  if (!str) return "default";
+  const s = String(str).toLowerCase().trim();
+
+  // Highway / Pickup / Commercial Vehicles
+  if (s.includes("pickup") || s.includes("f-150") || s.includes("f-250") || s.includes("f-350") || s.includes("silverado") || s.includes("ram 1500") || s.includes("sierra")) return "pickup";
+  if (s.includes("highway motor vehicles") || s.includes("class 8") || s.includes("semi") || s.includes("day cab") || s.includes("sleeper")) return "class8semitruck";
+  if (s.includes("medium vocational") || s.includes("cab-chassis") || s.includes("medium truck")) return "medtruck";
+  if (s.includes("dump truck")) return "dumptruck";
+  if (s.includes("service / utility") || s.includes("service truck") || s.includes("bucket")) return "servicetruck";
+  if (s.includes("vacuum") || s.includes("hydro-vac")) return "vactruck";
+  if (s.includes("concrete mixer")) return "mixertruck";
+  if (s.includes("cargo van") || s.includes("passenger van") || s.includes("shuttle")) return "cargovan";
+  if (s.includes("sedan") || s.includes("passenger car") || s.includes("suv") || s.includes("crossover")) return "sedan";
+  if (s.includes("utv") || s.includes("buggy") || s.includes("side-by-side")) return "utv";
+
+  // Earthmoving & Heavy Equipment
+  if (s.includes("dozer") || s.includes("dozers & heavy tracked")) return "dozer";
+  if (s.includes("excavator")) return "excavator";
+  if (s.includes("wheel loader") || s.includes("skid steer") || s.includes("backhoe") || s.includes("articulated dump") || s.includes("loader")) return "loader";
+  if (s.includes("motor grader") || s.includes("grader")) return "grader";
+  if (s.includes("paver") || s.includes("milling") || s.includes("reclaimer")) return "paver";
+
+  // Drilling, Rigs & Foundation
+  if (s.includes("drilling rig") || s.includes("rigs")) return "drillingrig";
+  if (s.includes("directional drill") || s.includes("hdd")) return "hdd";
+  if (s.includes("pile driver")) return "piledriver";
+  if (s.includes("coiled tubing")) return "coiledtubing";
+  if (s.includes("workover") || s.includes("pulling unit")) return "workoverrig";
+  if (s.includes("mud pump")) return "mudpump";
+  if (s.includes("blowout preventer") || s.includes("bop stack")) return "bopstack";
+
+  // Lifting & Aerial Platforms
+  if (s.includes("crane") || s.includes("gantry")) return "crane";
+  if (s.includes("boom lift") || s.includes("vertical mast")) return "boomlift";
+  if (s.includes("scissor lift")) return "scissorlift";
+  if (s.includes("forklift") || s.includes("telehandler")) return "forklift";
+
+  // Mining, Forestry & Ag
+  if (s.includes("mining") || s.includes("mine haul")) return "minehaul";
+  if (s.includes("rock crusher") || s.includes("crusher")) return "crusher";
+  if (s.includes("agricultural tractor") || s.includes("ag tractor") || s.includes("combine")) return "agtractor";
+  if (s.includes("sideboom")) return "sideboom";
+  if (s.includes("mulcher")) return "mulcher";
+  if (s.includes("feller buncher")) return "fellerbuncher";
+  if (s.includes("skidder")) return "skidder";
+
+  // Auxiliary & Specialty
+  if (s.includes("rolligon")) return "rolligon";
+  if (s.includes("tracked dump") || s.includes("morooka") || s.includes("panther") || s.includes("vibroseis")) return "trackedcarrier";
+  if (s.includes("asphalt plant")) return "asphaltplant";
+  if (s.includes("concrete batch plant")) return "concreteplant";
+  if (s.includes("welder")) return "shopwelder";
+  if (s.includes("press brake") || s.includes("ironworker")) return "pressbrake";
+  if (s.includes("generator") || s.includes("light tower")) return "generator";
+  if (s.includes("air compressor")) return "aircomp";
+  if (s.includes("pump")) return "centrifugalpump";
+  if (s.includes("pressure vessel") || s.includes("heat exchanger") || s.includes("boiler")) return "pressurevessel";
+  if (s.includes("trailer") || s.includes("flatbed") || s.includes("lowboy")) return "trailer";
+
+  return "default";
 }
 
 function base64UrlDecode(str) {
@@ -746,6 +819,102 @@ export default {
       } catch (e) {
         return json({ success: false, error: e.message }, 500);
       }
+    }
+
+    // Direct Endpoint: Asset Config Handling
+    if (path === '/api/asset-config' || path === '/api/asset-config/') {
+      const countryParam = (url.searchParams.get('country') || request.headers.get('x-country') || 'US').toUpperCase().trim();
+      const isCanada = countryParam === 'CA';
+      const kvStore = env.DRIVEN_KV || env.ASSET_CONFIG_KV;
+
+      if (method === 'GET') {
+        const targetType = url.searchParams.get('targetType') || 'specific';
+        const key = url.searchParams.get('key') || '';
+        const rawAssetType = url.searchParams.get('assetType') || key || 'default';
+
+        const normKey = normalizeCategoryKey(rawAssetType);
+        
+        let savedConfig = null;
+
+        if (kvStore && key) {
+          try {
+            const storageKey = targetType === 'template'
+              ? `config:template:${normKey}`
+              : `config:specific:${key.toLowerCase().trim()}`;
+              
+            savedConfig = await kvStore.get(storageKey, { type: 'json' });
+          } catch (e) {
+            console.error("Error fetching config from KV:", e);
+          }
+        }
+
+        if (!savedConfig && targetType === 'specific' && kvStore) {
+          try {
+            const templateKey = `config:template:${normKey}`;
+            savedConfig = await kvStore.get(templateKey, { type: 'json' });
+          } catch (e) {
+            console.error("Error fetching template fallback from KV:", e);
+          }
+        }
+
+        return json({
+          success: true,
+          jurisdiction: isCanada ? 'CA' : 'US',
+          schemaKey: normKey,
+          schema: { sections: [] },
+          config: savedConfig || null
+        });
+      }
+
+      if (method === 'POST') {
+        let body;
+        try {
+          body = await request.json();
+        } catch (jsonErr) {
+          return json({ error: 'Invalid JSON payload in request body' }, 400);
+        }
+
+        const { targetType, key, config, action, sourceKey } = body || {};
+
+        if (action === 'copyConfig') {
+          if (!sourceKey || !key) {
+            return json({ error: "Copy operation requires 'sourceKey' and 'key'" }, 400);
+          }
+          if (!kvStore) {
+            return json({ error: "KV storage binding is not configured" }, 500);
+          }
+
+          const sourceStorageKey = `config:specific:${sourceKey.toLowerCase().trim()}`;
+          const sourceConfigData = await kvStore.get(sourceStorageKey, { type: 'json' });
+
+          if (!sourceConfigData) {
+            return json({ error: `Source asset configuration '${sourceKey}' was not found.` }, 404);
+          }
+
+          const destStorageKey = `config:specific:${key.toLowerCase().trim()}`;
+          await kvStore.put(destStorageKey, JSON.stringify(sourceConfigData));
+
+          return json({ success: true, message: `Successfully cloned configuration from '${sourceKey}' to '${key}'.` });
+        }
+
+        if (!targetType || !key || config === undefined) {
+          return json({ error: "Missing required payload parameters: 'targetType', 'key', and 'config' must be supplied" }, 400);
+        }
+
+        if (!kvStore) {
+          return json({ error: "KV storage binding is not configured on this environment" }, 500);
+        }
+
+        const storageKey = targetType === 'template'
+          ? `config:template:${normalizeCategoryKey(key)}`
+          : `config:specific:${key.toLowerCase().trim()}`;
+
+        await kvStore.put(storageKey, JSON.stringify(config));
+
+        return json({ success: true, message: 'Configuration saved successfully' });
+      }
+
+      return json({ error: 'Method not allowed' }, 405);
     }
 
     // Direct Endpoint: Asset Types / Categories Handling
