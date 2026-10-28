@@ -399,7 +399,7 @@
 <main class="dash-main">
   <div class="dash-card print-hide">
     <h2>Add Assets <span class="eq-count-badge" id="eqCount">0</span></h2>
-    <p class="eq-subtitle">Add all equipment, vehicles, trailers, and machinery into DRIV‑EN. Assets are tracked in inspection logs, work orders, maintenance schedules, and project dispatching.</p>
+    <p class="eq-subtitle">Add all equipment, vehicles, trailers, attachments, and machinery into DRIV‑EN. Assets are tracked in inspection logs, work orders, maintenance schedules, and project dispatching.</p>
     <p class="eq-subtitle"><strong>Required:</strong> Asset ID and Asset Name/Description.</p>
   </div>
 
@@ -416,19 +416,44 @@
       <div class="eq-form-grid">
         <div class="eq-form-field">
           <label>Asset ID / Unit #<span class="eq-required-star">*</span></label>
-          <input type="text" id="eqUnitNo" class="dash-input" placeholder="e.g. TRK-101, EX-202">
+          <input type="text" id="eqUnitNo" class="dash-input" placeholder="e.g. TRK-101, EX-202, HAMMER-01">
         </div>
         <div class="eq-form-field">
           <label>Asset Name / Description<span class="eq-required-star">*</span></label>
           <input type="text" id="eqName" class="dash-input" placeholder="e.g. CAT 320 Hydraulic Excavator">
         </div>
         <div class="eq-form-field">
-          <label>Asset Type<span class="eq-required-star">*</span></label>
+          <label>Asset Type / Category<span class="eq-required-star">*</span></label>
           <select id="eqCategory" class="dash-input">
             <option value="">— Select Asset Type —</option>
           </select>
           <div class="eq-hint">Pulls from Asset Types task</div>
         </div>
+
+        <!-- NEW: Is Attachment Field -->
+        <div class="eq-form-field">
+          <label>Is Attachment / Vocational Body?</label>
+          <select id="eqIsAttachment" class="dash-input" onchange="toggleAllowedCategoryField()">
+            <option value="0">No (Standard Chassis / Primary Unit)</option>
+            <option value="1">Yes (Attachment / Vocational Body)</option>
+          </select>
+          <div class="eq-hint">Enable if unit swaps between parent chassis</div>
+        </div>
+
+        <!-- NEW: Allowed Compatible Category Field -->
+        <div class="eq-form-field" id="allowedCategoryGroup" style="display: none;">
+          <label>Compatible Target Category</label>
+          <select id="eqAllowedCategory" class="dash-input">
+            <option value="all">Universal / Compatible Across All Categories</option>
+            <option value="highway">Highway Motor Vehicles (Classes 1–8)</option>
+            <option value="earthmoving">Earthmoving & Construction Equipment</option>
+            <option value="mining">Mining, Drilling & Rigging</option>
+            <option value="stationary">Stationary & Engine Plants</option>
+            <option value="auxiliary">Auxiliary Tools, Pumps & Light Towers</option>
+          </select>
+          <div class="eq-hint">Restricts attachment picker dropdowns to this category</div>
+        </div>
+
         <div class="eq-form-field">
           <label>Make / Manufacturer</label>
           <input type="text" id="eqMake" class="dash-input" placeholder="e.g. Caterpillar, Peterbilt">
@@ -509,7 +534,7 @@
     <div class="dash-card">
       <h3>Bulk Upload Assets</h3>
       <p class="eq-subtitle">Download the Excel template, fill in your asset inventory, then upload it here. Asset ID and Name/Description are required for every row. <strong>CSV files are also supported.</strong></p>
-      <p class="eq-subtitle"><strong>Template instructions:</strong> Row 1 contains column headers (do NOT delete them). Columns: Asset ID, Name, Asset Type, Make, Model, Year, Serial #, Meter, Division, Project, Location.</p>
+      <p class="eq-subtitle"><strong>Template instructions:</strong> Row 1 contains column headers (do NOT delete them). Columns: Asset ID, Name, Asset Type, Is Attachment (1/0), Compatible Category, Make, Model, Year, Serial #, Meter, Division, Project, Location.</p>
       <button onclick="downloadEquipmentTemplate()" class="eq-bulk-link" style="cursor:pointer;border:none;font-size:14px;">⬇ Download Asset-Mass-Upload-v1.0.xlsx</button>
       <div class="eq-form-field" style="max-width:400px;"><label>Upload Completed Template</label><input type="file" id="bulkFile" accept=".xlsx,.csv" class="eq-bulk-file-input"></div>
       <button id="btnProcessBulk" class="eq-btn-primary">Process Upload</button>
@@ -561,6 +586,11 @@
     var existingEqCountEl = document.getElementById("existingEqCount");
     var statusBulk = document.getElementById("statusBulk");
     var bulkPreview = document.getElementById("bulkPreview");
+
+    function toggleAllowedCategoryField() {
+      var isAtt = document.getElementById("eqIsAttachment").value;
+      document.getElementById("allowedCategoryGroup").style.display = (isAtt === "1") ? "flex" : "none";
+    }
 
     function normalizeName(str) { 
       if (typeof str === 'object' && str !== null) {
@@ -788,6 +818,10 @@
       document.getElementById("eqUnitNo").value = item.unitNo || "";
       document.getElementById("eqName").value = item.name || "";
       document.getElementById("eqCategory").value = item.category || "";
+      document.getElementById("eqIsAttachment").value = (item.isAttachment === 1 || item.isAttachment === "1") ? "1" : "0";
+      document.getElementById("eqAllowedCategory").value = item.allowedCategory || "all";
+      toggleAllowedCategoryField();
+
       document.getElementById("eqMake").value = item.make || "";
       document.getElementById("eqModel").value = item.model || "";
       document.getElementById("eqYear").value = item.year || "";
@@ -843,12 +877,12 @@
 
       if (navigator.onLine) {
         try {
-          var resp = await fetch("/api/equipment", {
+          var resp = await fetch("/api/assets", {
             headers: { "x-org-id": activeOrgId || "" }
           });
           if (resp.ok) {
             var data = await resp.json();
-            var rawList = data.records || data.equipment || data.data || (Array.isArray(data) ? data : []);
+            var rawList = data.records || data.assets || data.equipment || data.data || (Array.isArray(data) ? data : []);
             existingEquipment = rawList.map(function(item) {
               var rec = item.fields ? Object.assign({ id: item.id }, item.fields) : item;
               return {
@@ -856,6 +890,8 @@
                 unitNo: normalizeName(rec.asset_number || rec.unitNo || rec.unit_no || rec.asset_id),
                 name: normalizeName(rec.name || rec.description || rec.asset_name),
                 category: normalizeName(rec.category || rec.category_name || rec.asset_type),
+                isAttachment: Number(rec.is_attachment || 0),
+                allowedCategory: normalizeName(rec.allowed_category || "all"),
                 make: normalizeName(rec.make),
                 model: normalizeName(rec.model),
                 year: normalizeName(rec.year),
@@ -883,6 +919,8 @@
           unitNo: normalizeName(rec.unitNo || rec.asset_number || rec.unit_no || rec.asset_id),
           name: normalizeName(rec.name || rec.description || rec.asset_name),
           category: normalizeName(rec.category || rec.category_name || rec.asset_type),
+          isAttachment: Number(rec.isAttachment || rec.is_attachment || 0),
+          allowedCategory: normalizeName(rec.allowedCategory || rec.allowed_category || "all"),
           make: normalizeName(rec.make),
           model: normalizeName(rec.model),
           year: normalizeName(rec.year),
@@ -928,10 +966,10 @@
         { label: "Asset ID " + (existingSortCol === 'unitNo' ? (existingSortAsc ? '▲' : '▼') : ''), key: "unitNo" },
         { label: "Description " + (existingSortCol === 'name' ? (existingSortAsc ? '▲' : '▼') : ''), key: "name" },
         { label: "Asset Type " + (existingSortCol === 'category' ? (existingSortAsc ? '▲' : '▼') : ''), key: "category" },
+        { label: "Attachment?", key: "isAttachment" },
         { label: "Make " + (existingSortCol === 'make' ? (existingSortAsc ? '▲' : '▼') : ''), key: "make" },
         { label: "Model " + (existingSortCol === 'model' ? (existingSortAsc ? '▲' : '▼') : ''), key: "model" },
         { label: "Year " + (existingSortCol === 'year' ? (existingSortAsc ? '▲' : '▼') : ''), key: "year" },
-        { label: "Serial # " + (existingSortCol === 'serial' ? (existingSortAsc ? '▲' : '▼') : ''), key: "serial" },
         { label: "Current Location " + (existingSortCol === 'location' ? (existingSortAsc ? '▲' : '▼') : ''), key: "location" },
         { label: "Action", key: "" }
       ];
@@ -954,7 +992,9 @@
       var tbody = document.createElement("tbody");
       paged.forEach(function(item, index) {
         var row = document.createElement("tr");
-        [item.unitNo, item.name, item.category, item.make, item.model, item.year, item.serial, item.location].forEach(function(val) {
+        var attLabel = item.isAttachment === 1 ? ("Yes (" + item.allowedCategory + ")") : "No";
+
+        [item.unitNo, item.name, item.category, attLabel, item.make, item.model, item.year, item.location].forEach(function(val) {
           var cell = document.createElement("td");
           cell.textContent = (val && val !== "undefined" && val !== "null") ? val : "—";
           row.appendChild(cell);
@@ -1042,6 +1082,7 @@
         { label: "Asset ID " + (sessionSortCol === 'unitNo' ? (sessionSortAsc ? '▲' : '▼') : ''), key: "unitNo" },
         { label: "Description " + (sessionSortCol === 'name' ? (sessionSortAsc ? '▲' : '▼') : ''), key: "name" },
         { label: "Asset Type " + (sessionSortCol === 'category' ? (sessionSortAsc ? '▲' : '▼') : ''), key: "category" },
+        { label: "Attachment?", key: "isAttachment" },
         { label: "Make " + (sessionSortCol === 'make' ? (sessionSortAsc ? '▲' : '▼') : ''), key: "make" },
         { label: "Model " + (sessionSortCol === 'model' ? (sessionSortAsc ? '▲' : '▼') : ''), key: "model" },
         { label: "Year " + (sessionSortCol === 'year' ? (sessionSortAsc ? '▲' : '▼') : ''), key: "year" },
@@ -1066,7 +1107,9 @@
       var tbody = document.createElement("tbody");
       paged.forEach(function(item, index) {
         var row = document.createElement("tr");
-        [item.unitNo, item.name, item.category, item.make, item.model, item.year].forEach(function(val) { 
+        var attLabel = item.isAttachment === 1 ? ("Yes (" + item.allowedCategory + ")") : "No";
+
+        [item.unitNo, item.name, item.category, attLabel, item.make, item.model, item.year].forEach(function(val) { 
           var cell = document.createElement("td"); 
           cell.textContent = val || "—"; 
           row.appendChild(cell); 
@@ -1151,6 +1194,9 @@
       var unitNo = normalizeName(document.getElementById("eqUnitNo").value);
       var name = normalizeName(document.getElementById("eqName").value);
       var category = normalizeName(document.getElementById("eqCategory").value);
+      var isAttachment = Number(document.getElementById("eqIsAttachment").value || 0);
+      var allowedCategory = document.getElementById("eqAllowedCategory").value || "all";
+
       var make = normalizeName(document.getElementById("eqMake").value);
       var model = normalizeName(document.getElementById("eqModel").value);
       var year = normalizeName(document.getElementById("eqYear").value);
@@ -1175,8 +1221,8 @@
       }
 
       var eqObj = { 
-        unitNo: unitNo, name: name, category: category, make: make, model: model, 
-        year: year, serial: serial, meter: meter, division: division, project: project, location: location, 
+        unitNo: unitNo, name: name, category: category, isAttachment: isAttachment, allowedCategory: allowedCategory,
+        make: make, model: model, year: year, serial: serial, meter: meter, division: division, project: project, location: location, 
         customerId: localStorage.getItem("driven_customer_id") || "" 
       };
 
@@ -1205,6 +1251,10 @@
       document.getElementById("eqUnitNo").value = ""; 
       document.getElementById("eqName").value = ""; 
       document.getElementById("eqCategory").value = ""; 
+      document.getElementById("eqIsAttachment").value = "0";
+      document.getElementById("eqAllowedCategory").value = "all";
+      toggleAllowedCategoryField();
+
       document.getElementById("eqMake").value = ""; 
       document.getElementById("eqModel").value = ""; 
       document.getElementById("eqYear").value = ""; 
@@ -1265,6 +1315,8 @@
               unitNo: normalizeName(row[reqId]), 
               name: normalizeName(row[reqName]), 
               category: normalizeName(row[reqCat] || ""), 
+              isAttachment: Number(row["Is Attachment"] || row["is_attachment"] || 0),
+              allowedCategory: normalizeName(row["Compatible Category"] || row["allowed_category"] || "all"),
               make: normalizeName(row["Make"] || ""), 
               model: normalizeName(row["Model"] || ""), 
               year: normalizeName(row["Year"] || ""), 
@@ -1281,7 +1333,7 @@
           var pTable = document.createElement("table"); 
           var pThead = document.createElement("thead"); 
           var pHeadRow = document.createElement("tr");
-          ["Asset ID", "Description", "Asset Type", "Make", "Model"].forEach(function(h) { var pTh = document.createElement("th"); pTh.textContent = h; pHeadRow.appendChild(pTh); });
+          ["Asset ID", "Description", "Asset Type", "Attachment?", "Make", "Model"].forEach(function(h) { var pTh = document.createElement("th"); pTh.textContent = h; pHeadRow.appendChild(pTh); });
           pThead.appendChild(pHeadRow); pTable.appendChild(pThead); 
 
           var pTbody = document.createElement("tbody");
@@ -1290,8 +1342,9 @@
             var pC1 = document.createElement("td"); pC1.textContent = item.unitNo; pRow.appendChild(pC1); 
             var pC2 = document.createElement("td"); pC2.textContent = item.name; pRow.appendChild(pC2); 
             var pC3 = document.createElement("td"); pC3.textContent = item.category || "—"; pRow.appendChild(pC3); 
-            var pC4 = document.createElement("td"); pC4.textContent = item.make || "—"; pRow.appendChild(pC4); 
-            var pC5 = document.createElement("td"); pC5.textContent = item.model || "—"; pRow.appendChild(pC5); 
+            var pC4 = document.createElement("td"); pC4.textContent = item.isAttachment === 1 ? "Yes" : "No"; pRow.appendChild(pC4); 
+            var pC5 = document.createElement("td"); pC5.textContent = item.make || "—"; pRow.appendChild(pC5); 
+            var pC6 = document.createElement("td"); pC6.textContent = item.model || "—"; pRow.appendChild(pC6); 
             pTbody.appendChild(pRow); 
           });
           pTable.appendChild(pTbody); bulkPreview.appendChild(pTable);
@@ -1329,16 +1382,22 @@
         for (var i = 0; i < equipment.length; i++) {
           var eq = equipment[i];
           var payload = {
-            "Equipment Name": eq.name,
-            "Equipment ID": eq.unitNo,
-            "Category": eq.category,
-            "Status": "active",
-            "Location": eq.location,
-            "Serial Number": eq.serial,
-            "Division": eq.division,
-            "Project": eq.project
+            "asset_number": eq.unitNo,
+            "name": eq.name,
+            "category": eq.category,
+            "is_attachment": eq.isAttachment,
+            "allowed_category": eq.allowedCategory,
+            "make": eq.make,
+            "model": eq.model,
+            "year": eq.year,
+            "serial_number": eq.serial,
+            "meter": eq.meter,
+            "division": eq.division,
+            "project": eq.project,
+            "location": eq.location,
+            "status": "active"
           };
-          var res = await fetch("/api/equipment", { 
+          var res = await fetch("/api/assets", { 
             method: "POST", 
             headers: { 
               "Content-Type": "application/json",
@@ -1376,8 +1435,8 @@
     });
 
     function downloadEquipmentTemplate() {
-      var ws = XLSX.utils.aoa_to_sheet([["Asset ID", "Name", "Asset Type", "Make", "Model", "Year", "Serial #", "Meter", "Division", "Project", "Location"]]);
-      ws["!cols"] = [{ wch: 16 }, { wch: 35 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 10 }, { wch: 25 }, { wch: 12 }, { wch: 25 }, { wch: 25 }, { wch: 25 }];
+      var ws = XLSX.utils.aoa_to_sheet([["Asset ID", "Name", "Asset Type", "Is Attachment", "Compatible Category", "Make", "Model", "Year", "Serial #", "Meter", "Division", "Project", "Location"]]);
+      ws["!cols"] = [{ wch: 16 }, { wch: 35 }, { wch: 20 }, { wch: 14 }, { wch: 22 }, { wch: 20 }, { wch: 20 }, { wch: 10 }, { wch: 25 }, { wch: 12 }, { wch: 25 }, { wch: 25 }, { wch: 25 }];
       downloadXlsxWithFrozenHeader(ws, "Assets", "Asset-Mass-Upload-v1.0.xlsx");
     }
 
