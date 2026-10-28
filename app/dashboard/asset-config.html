@@ -334,18 +334,18 @@
         </div>
       </div>
 
-      <!-- Relational Attachment Registration & Mounting Row -->
+      <!-- Category-Constrained Attachment Asset Link Bar -->
       <div id="attachmentMetaRow" style="display: none; margin-top: 16px; padding-top: 16px; border-top: 1px dashed #cbd5e1;" class="grid-3">
         <div class="form-group">
-          <label for="attachmentTrackingMode">Attachment Asset Tracking Mode</label>
+          <label for="attachmentTrackingMode">Attachment Tracking Mode</label>
           <select id="attachmentTrackingMode" onchange="toggleAttachmentTrackingUI()">
             <option value="integrated">Integrated Chassis Body (No Separate Asset ID)</option>
-            <option value="linked">Link Standalone Asset Number from Asset List</option>
+            <option value="linked">Link Standalone Attachment Asset #</option>
           </select>
         </div>
 
         <div class="form-group" id="linkedAssetPickerGroup" style="display: none;">
-          <label for="linkedAttachmentAssetId">Select Attachment Asset #</label>
+          <label for="linkedAttachmentAssetId">Select Category Attachment Asset #</label>
           <div style="display: flex; gap: 6px;">
             <select id="linkedAttachmentAssetId" onchange="onLinkedAttachmentSelected()" style="flex: 1;">
               <option value="">-- Choose Attachment Asset --</option>
@@ -355,7 +355,7 @@
         </div>
 
         <div class="form-group">
-          <label for="attachmentMountState">Current Attachment Status</label>
+          <label for="attachmentMountState">Current Mounting Status</label>
           <select id="attachmentMountState">
             <option value="mounted">Mounted On Chassis Unit</option>
             <option value="unmounted">Unmounted / Sitting In Yard</option>
@@ -399,15 +399,27 @@
     </div>
   </div>
 
-  <!-- Quick-Register Attachment Modal -->
+  <!-- Quick-Register Category-Constrained Attachment Modal -->
   <div class="modal-overlay" id="quickAddAttachmentModal">
     <div class="modal-card">
-      <h3 style="margin-top: 0;">Quick-Register New Attachment Asset</h3>
-      <p style="font-size: 13px; color: var(--text-muted);">Creates a discrete standalone asset in your asset table so PTO hours and maintenance history persist even if swapped between chassis.</p>
+      <h3 style="margin-top: 0;">Quick-Register Category Attachment Asset</h3>
+      <p style="font-size: 13px; color: var(--text-muted);">Creates a standalone attachment record linked specifically to this asset category.</p>
       
       <div class="form-group" style="margin-bottom: 12px;">
         <label for="newAttAssetNumber">Attachment Asset Number *</label>
         <input type="text" id="newAttAssetNumber" placeholder="e.g. VAC-102, CRANE-88, HAMMER-04">
+      </div>
+
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label for="newAttAllowedCategory">Compatible Target Asset Category</label>
+        <select id="newAttAllowedCategory">
+          <option value="highway">Highway Motor Vehicles (Classes 1–8)</option>
+          <option value="earthmoving">Earthmoving & Construction Equipment</option>
+          <option value="mining">Mining, Drilling & Rigging</option>
+          <option value="stationary">Stationary & Engine Plants</option>
+          <option value="auxiliary">Auxiliary Tools, Pumps & Light Towers</option>
+          <option value="all">Universal / Compatible Across All Categories</option>
+        </select>
       </div>
 
       <div class="form-group" style="margin-bottom: 12px;">
@@ -755,18 +767,16 @@
     function populateAssetDropdowns() {
       const sel = document.getElementById('selectAsset');
       const copySel = document.getElementById('copySourceAsset');
-      const linkedAttSel = document.getElementById('linkedAttachmentAssetId');
       
       sel.innerHTML = '<option value="">-- Choose Asset Unit --</option>';
       copySel.innerHTML = '<option value="">-- Choose Source Asset --</option>';
-      linkedAttSel.innerHTML = '<option value="">-- Choose Attachment Asset --</option>';
 
       allAssets.forEach(a => {
         const num = a.asset_number || a.assetNumber || a.name || a.id;
         const type = a.category || a.type || 'Default';
-        const serial = a.serial_number || a.vin || '';
         
-        if (num) {
+        // Filter primary asset selection list to main chassis units (is_attachment !== 1)
+        if (num && Number(a.is_attachment) !== 1) {
           const opt = document.createElement('option');
           opt.value = num;
           opt.setAttribute('data-type', type);
@@ -775,6 +785,23 @@
 
           const copyOpt = opt.cloneNode(true);
           copySel.appendChild(copyOpt);
+        }
+      });
+    }
+
+    function populateLinkedAttachmentDropdown(categoryKey) {
+      const linkedAttSel = document.getElementById('linkedAttachmentAssetId');
+      linkedAttSel.innerHTML = '<option value="">-- Choose Attachment Asset --</option>';
+
+      allAssets.forEach(a => {
+        const isAtt = Number(a.is_attachment) === 1 || String(a.category).toLowerCase().includes('attachment');
+        const allowedCat = String(a.allowed_category || 'all').toLowerCase();
+        
+        // Filter attachment dropdown strictly to attachments matching the active asset category
+        if (isAtt && (allowedCat === 'all' || allowedCat === categoryKey)) {
+          const num = a.asset_number || a.assetNumber || a.name || a.id;
+          const type = a.category || a.type || 'Attachment';
+          const serial = a.serial_number || a.vin || '';
 
           const attOpt = document.createElement('option');
           attOpt.value = num;
@@ -855,6 +882,8 @@
         select.value = "none";
       }
 
+      // Re-populate and filter standalone attachment asset options by active category
+      populateLinkedAttachmentDropdown(categoryKey);
       toggleAttachmentMetaBar();
     }
 
@@ -901,6 +930,13 @@
     }
 
     function openQuickAddAttachmentModal() {
+      const targetLevel = document.getElementById('configTarget').value;
+      const rawType = targetLevel === 'specific'
+        ? (document.getElementById('selectAsset').options[document.getElementById('selectAsset').selectedIndex]?.getAttribute('data-type') || '')
+        : document.getElementById('selectType').value;
+
+      const categoryKey = mapTypeToMasterCategory(rawType);
+      document.getElementById('newAttAllowedCategory').value = categoryKey;
       document.getElementById('quickAddAttachmentModal').style.display = 'flex';
     }
 
@@ -917,6 +953,7 @@
       const serial = document.getElementById('newAttSerialNum').value.trim();
       const make = document.getElementById('newAttMake').value.trim();
       const model = document.getElementById('newAttModel').value.trim();
+      const allowedCat = document.getElementById('newAttAllowedCategory').value;
 
       if (!assetNum) {
         alert("Attachment Asset Number is required.");
@@ -929,7 +966,8 @@
         make: make,
         model: model,
         category: "Attachment / Body",
-        is_attachment: 1
+        is_attachment: 1,
+        allowed_category: allowedCat
       };
 
       try {
@@ -943,6 +981,13 @@
           closeQuickAddAttachmentModal();
           showMessage(`Registered attachment asset ${assetNum}!`, 'success');
           await loadInitialData();
+          
+          const targetLevel = document.getElementById('configTarget').value;
+          const rawType = targetLevel === 'specific'
+            ? (document.getElementById('selectAsset').options[document.getElementById('selectAsset').selectedIndex]?.getAttribute('data-type') || '')
+            : document.getElementById('selectType').value;
+
+          populateLinkedAttachmentDropdown(mapTypeToMasterCategory(rawType));
           document.getElementById('attachmentTrackingMode').value = "linked";
           toggleAttachmentTrackingUI();
           document.getElementById('linkedAttachmentAssetId').value = assetNum;
