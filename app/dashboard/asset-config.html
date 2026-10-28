@@ -325,13 +325,31 @@
 
         <div class="form-group" id="attachmentGroup">
           <label for="selectAttachment">Vocational Body / Attachment Overlay</label>
-          <select id="selectAttachment" onchange="onAttachmentChanged()">
-            <option value="none">None (Standard Chassis / Base Unit)</option>
-            <option value="hydrovac">Hydrovac / Vacuum Suction Unit</option>
-            <option value="concrete_mixer">Concrete Mixer Drum Body</option>
-            <option value="boom_bucket">Knuckle Boom / Aerial Bucket</option>
-            <option value="service_crane">Service Body & Crane</option>
-            <option value="dump_body">Telescopic Dump Bed / Hooklift</option>
+          <div style="display: flex; gap: 6px;">
+            <select id="selectAttachment" onchange="onAttachmentChanged()" style="flex: 1;">
+              <option value="none">None (Standard Chassis / Base Unit)</option>
+            </select>
+            <button type="button" class="btn-small-add" style="padding: 0 10px; font-size: 16px;" title="Add Custom Attachment" onclick="promptAddCustomAttachment()">+</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Independent Attachment Tracking Metadata Bar -->
+      <div id="attachmentMetaRow" style="display: none; margin-top: 16px; padding-top: 16px; border-top: 1px dashed #cbd5e1;" class="grid-3">
+        <div class="form-group">
+          <label for="attachmentAssetNum">Attachment Asset Number (If Tracked Separately)</label>
+          <input type="text" id="attachmentAssetNum" placeholder="e.g. #VAC-102 or #CRANE-88">
+        </div>
+        <div class="form-group">
+          <label for="attachmentSerialNum">Attachment Serial / VIN Number</label>
+          <input type="text" id="attachmentSerialNum" placeholder="Manufacturer Serial #">
+        </div>
+        <div class="form-group">
+          <label for="attachmentMountState">Current Attachment Status</label>
+          <select id="attachmentMountState">
+            <option value="mounted">Mounted On Chassis Unit</option>
+            <option value="unmounted">Unmounted / Sitting In Yard</option>
+            <option value="in_shop">In Shop for Overhaul / Swap</option>
           </select>
         </div>
       </div>
@@ -400,8 +418,60 @@
     let currentSchema = null;
     let activeOrgId = null;
     let customItemsList = [];
+    let userCustomAttachments = {};
 
     const API_ENDPOINT = '/api/asset-config';
+
+    // Comprehensive Pre-Loaded Category Attachments
+    const CATEGORY_ATTACHMENTS = {
+      highway: [
+        { value: "none", label: "None (Standard Chassis / Base Unit)" },
+        { value: "box_bed", label: "Dry Freight / Insulated Box Body" },
+        { value: "flatbed_tilt", label: "Flatbed / Tilt-Deck Rollback Body" },
+        { value: "rolloff_hooklift", label: "Roll-Off Hoist / Hooklift Frame" },
+        { value: "hydrovac", label: "Hydrovac / Vacuum Suction Unit" },
+        { value: "concrete_mixer", label: "Concrete Mixer Drum Body" },
+        { value: "boom_bucket", label: "Knuckle Boom / Aerial Bucket" },
+        { value: "service_crane", label: "Service Body & Crane" },
+        { value: "dump_body", label: "Telescopic Dump Bed / Grain Body" },
+        { value: "refuse_compactor", label: "Refuse / Garbage Compactor Body" },
+        { value: "fuel_lube", label: "Fuel Tanker & Lube Dispensing Body" },
+        { value: "water_tanker", label: "Water Tanker & Spray Bar Body" }
+      ],
+      earthmoving: [
+        { value: "none", label: "None (Standard Bucket / Blade)" },
+        { value: "hydraulic_breaker", label: "Hydraulic Breaker / Hammer" },
+        { value: "grapple_shear", label: "Hydraulic Grapple / Demolition Shears / Thumb" },
+        { value: "auger_drill", label: "Auger / Earth Drill Attachment" },
+        { value: "tiltrotator", label: "Tiltrotator / Quick-Coupler System" },
+        { value: "cold_planer", label: "Cold Planer / Asphalt Milling Head" },
+        { value: "wheel_trencher", label: "Rock Saw / Wheel Trencher" },
+        { value: "mulching_head", label: "Forestry Mulcher / Brush Cutter Head" }
+      ],
+      mining: [
+        { value: "none", label: "None (Standard Rig / Hauler)" },
+        { value: "fire_suppression", label: "Automatic Fire Suppression System" },
+        { value: "bop_accumulator", label: "Blowout Preventer (BOP) & Accumulator Unit" },
+        { value: "top_drive_swivel", label: "Top Drive System & Power Swivel" },
+        { value: "high_pressure_manifold", label: "High-Pressure Manifold & Mud Pump Skid" },
+        { value: "shale_shaker", label: "Shale Shaker & Solids Control System" }
+      ],
+      stationary: [
+        { value: "none", label: "None (Standard Skid / Station)" },
+        { value: "welding_leads", label: "Heavy Duty Lead Reels & Remote Control" },
+        { value: "skid_trailer", label: "Towable Highway Trailer / Running Gear" },
+        { value: "sound_enclosure", label: "Acoustic Attenuation / Weather Enclosure" },
+        { value: "air_dryer_skid", label: "Desiccant Air Dryer & Filter Skid" },
+        { value: "vru_flare", label: "Vapor Recovery Unit (VRU) & Flare Stack" }
+      ],
+      auxiliary: [
+        { value: "none", label: "None (Standard Frame / Tank)" },
+        { value: "vac_lifter", label: "Vacuum Pipe Lifter Attachment" },
+        { value: "pintle_hitch", label: "Heavy Duty Tag / Pintle Hitch Assembly" },
+        { value: "generator_light_tower", label: "Auxiliary Generator & Mast Light Tower" },
+        { value: "chemical_injection", label: "Portable Chemical Injection Skid" }
+      ]
+    };
 
     // Master Schemas covering ALL Asset Categories
     const MASTER_CATEGORY_SCHEMAS = {
@@ -469,7 +539,7 @@
         ]
       },
       stationary: {
-        title: "Stationary, Plant & Process Facility Equipment Baseline",
+        title: "Stationary, Plant & Engine-Driven Equipment Baseline",
         sections: [
           {
             title: "1. OSHA General Industry Standards (29 CFR 1910)",
@@ -480,9 +550,9 @@
             ]
           },
           {
-            title: "2. Plant Run-Time Service Intervals",
+            title: "2. Operating Run-Time Service Intervals",
             fields: [
-              { id: "pmHoursInterval", label: "Run-Time Service Interval (Hours)", type: "number", default: 500, desc: "Primary run-hour maintenance threshold" }
+              { id: "pmHoursInterval", label: "Run-Time Service Interval (Hours)", type: "number", default: 250, desc: "Primary engine/compressor run-hour maintenance threshold" }
             ]
           }
         ]
@@ -508,6 +578,27 @@
     };
 
     const ATTACHMENT_OVERLAYS = {
+      box_bed: {
+        title: "Box Bed / Insulated Cargo Body Overlay",
+        fields: [
+          { id: "box_door_seals", label: "Rear Roll-Up / Swing Door Latch & Weather Seals", type: "toggle", default: true, desc: "Inspect door lock rods and rubber seals" },
+          { id: "box_interior_light", label: "Interior Cargo LED Lighting & E-Track Anchors", type: "toggle", default: true, desc: "Inspect cargo dome lights and wall tie-down rails" }
+        ]
+      },
+      flatbed_tilt: {
+        title: "Flatbed / Tilt-Deck Rollback Overlay",
+        fields: [
+          { id: "winch_cable_check", label: "Rollback Hydraulic Winch Cable & Remote", type: "toggle", default: true, desc: "Check cable fraying and hydraulic winch engagement" },
+          { id: "deck_lock_pins", label: "Tilt Deck Safety Lock Pins & Hydraulic Cylinders", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Verify mechanical deck locking pins during transport" }
+        ]
+      },
+      rolloff_hooklift: {
+        title: "Roll-Off Hoist / Hooklift Overlay",
+        fields: [
+          { id: "rolloff_cable_straps", label: "Hoist Cable / Hook Arm & Container Hold-Down Locks", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Inspect main lift cable, hook latch, and pneumatic container locks" },
+          { id: "tarper_arm_check", label: "Automatic Tarping System Arms & Motor", type: "toggle", default: true, desc: "Check tarp arm springs and motor function" }
+        ]
+      },
       hydrovac: {
         title: "Hydrovac / Suction Attachment Overlay",
         fields: [
@@ -541,6 +632,25 @@
         title: "Telescopic Dump Bed Overlay",
         fields: [
           { id: "pto_track_enable", label: "Enable PTO Hoist Hour Tracking", type: "toggle", default: true, desc: "Track hoist cylinder hours" }
+        ]
+      },
+      welding_leads: {
+        title: "Heavy Duty Lead Reels & Remote Overlay",
+        fields: [
+          { id: "lead_reel_insulation", label: "Welding Lead Insulation & Quick-Disconnect Check", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Inspect cable jackets for cuts or exposed copper" },
+          { id: "remote_dial_check", label: "Amperage Remote Control & Rheostat Check", type: "toggle", default: true, desc: "Test fine-current control dial" }
+        ]
+      },
+      skid_trailer: {
+        title: "Towable Running Gear & Trailer Axle Overlay",
+        fields: [
+          { id: "trailer_hitch_chains", label: "Safety Chains & Safety Pin Check", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Inspect hitch latch and dual safety chains" }
+        ]
+      },
+      hydraulic_breaker: {
+        title: "Hydraulic Breaker / Hammer Overlay",
+        fields: [
+          { id: "breaker_chisel_wear", label: "Hammer Chisel Point Wear & Accumulator Nitrogen Pressure", type: "toggle", default: true, desc: "Inspect tool bushing grease and nitrogen charge" }
         ]
       }
     };
@@ -664,12 +774,82 @@
       return "highway";
     }
 
+    function updateAttachmentDropdown(rawType) {
+      const categoryKey = mapTypeToMasterCategory(rawType);
+      const select = document.getElementById("selectAttachment");
+      const currentVal = select.value;
+
+      select.innerHTML = "";
+      const defaultOptions = CATEGORY_ATTACHMENTS[categoryKey] || CATEGORY_ATTACHMENTS.highway;
+      const customOptions = userCustomAttachments[categoryKey] || [];
+
+      defaultOptions.forEach(opt => {
+        const el = document.createElement("option");
+        el.value = opt.value;
+        el.textContent = opt.label;
+        select.appendChild(el);
+      });
+
+      customOptions.forEach(opt => {
+        const el = document.createElement("option");
+        el.value = opt.value;
+        el.textContent = `★ ${opt.label}`;
+        select.appendChild(el);
+      });
+
+      const allValues = [...defaultOptions, ...customOptions].map(o => o.value);
+      if (allValues.includes(currentVal)) {
+        select.value = currentVal;
+      } else {
+        select.value = "none";
+      }
+
+      toggleAttachmentMetaBar();
+    }
+
+    function toggleAttachmentMetaBar() {
+      const currentVal = document.getElementById("selectAttachment").value;
+      const metaRow = document.getElementById("attachmentMetaRow");
+      if (currentVal !== "none") {
+        metaRow.style.display = "grid";
+      } else {
+        metaRow.style.display = "none";
+      }
+    }
+
+    function promptAddCustomAttachment() {
+      const targetLevel = document.getElementById('configTarget').value;
+      const rawType = targetLevel === 'specific'
+        ? (document.getElementById('selectAsset').options[document.getElementById('selectAsset').selectedIndex]?.getAttribute('data-type') || '')
+        : document.getElementById('selectType').value;
+
+      if (!rawType) {
+        alert("Please select a vehicle or asset category first before adding a custom attachment.");
+        return;
+      }
+
+      const attachmentName = prompt("Enter the name for the new custom body or attachment:");
+      if (!attachmentName || !attachmentName.trim()) return;
+
+      const categoryKey = mapTypeToMasterCategory(rawType);
+      const cleanValue = "custom_att_" + Date.now();
+
+      if (!userCustomAttachments[categoryKey]) userCustomAttachments[categoryKey] = [];
+      userCustomAttachments[categoryKey].push({ value: cleanValue, label: attachmentName.trim() });
+
+      updateAttachmentDropdown(rawType);
+      document.getElementById("selectAttachment").value = cleanValue;
+      onAttachmentChanged();
+    }
+
     async function onAssetSelected() {
       const assetNum = document.getElementById('selectAsset').value;
       if (!assetNum) return;
 
       const select = document.getElementById('selectAsset');
       const rawType = select.options[select.selectedIndex]?.getAttribute('data-type') || 'Default';
+
+      updateAttachmentDropdown(rawType);
 
       document.getElementById('configPanel').style.opacity = '1';
       document.getElementById('configPanel').style.pointerEvents = 'auto';
@@ -682,6 +862,8 @@
       const typeName = document.getElementById('selectType').value;
       if (!typeName) return;
 
+      updateAttachmentDropdown(typeName);
+
       document.getElementById('configPanel').style.opacity = '1';
       document.getElementById('configPanel').style.pointerEvents = 'auto';
       document.getElementById('modeBanner').innerText = `Editing Global Defaults for Category: ${typeName}`;
@@ -691,6 +873,7 @@
     }
 
     function onAttachmentChanged() {
+      toggleAttachmentMetaBar();
       const targetLevel = document.getElementById('configTarget').value;
       const keyName = targetLevel === 'specific' ? document.getElementById('selectAsset').value : document.getElementById('selectType').value;
       renderCompositeForm(null, keyName);
@@ -713,8 +896,21 @@
         if (res.ok) data = await res.json();
 
         if (data && data.config) {
+          if (data.config.userCustomAttachments) {
+            userCustomAttachments = data.config.userCustomAttachments;
+            updateAttachmentDropdown(assetType);
+          }
           if (data.config.attachment) {
             document.getElementById('selectAttachment').value = data.config.attachment;
+          }
+          if (data.config.attachmentAssetNum) {
+            document.getElementById('attachmentAssetNum').value = data.config.attachmentAssetNum;
+          }
+          if (data.config.attachmentSerialNum) {
+            document.getElementById('attachmentSerialNum').value = data.config.attachmentSerialNum;
+          }
+          if (data.config.attachmentMountState) {
+            document.getElementById('attachmentMountState').value = data.config.attachmentMountState;
           }
           if (data.config.customItems) {
             customItemsList = data.config.customItems;
@@ -765,6 +961,22 @@
         overlay.fields.forEach(field => {
           renderFieldRow(container, field, savedRules);
         });
+      } else if (attachmentKey.startsWith("custom_att_")) {
+        const select = document.getElementById("selectAttachment");
+        const customLabel = select.options[select.selectedIndex]?.textContent.replace("★ ", "") || "Custom Attachment";
+        
+        const secTitle = document.createElement('div');
+        secTitle.className = 'section-title';
+        secTitle.textContent = `3. ${customLabel} (Custom Attachment Overlay)`;
+        container.appendChild(secTitle);
+
+        renderFieldRow(container, {
+          id: "custom_att_pto_track",
+          label: `Enable Operating Hour / PTO Tracking for ${customLabel}`,
+          type: "toggle",
+          default: true,
+          desc: "Track operating runtime for auxiliary attachment"
+        }, savedRules);
       }
 
       renderCustomItemRows();
@@ -847,11 +1059,11 @@
     }
 
     function disableForm() {
-      document.querySelectorAll('#dynamicSchemaFields input:not([disabled]), #dynamicSchemaFields select, #customItemsContainer input').forEach(f => f.disabled = true);
+      document.querySelectorAll('#dynamicSchemaFields input:not([disabled]), #dynamicSchemaFields select, #customItemsContainer input, #attachmentMetaRow input, #attachmentMetaRow select').forEach(f => f.disabled = true);
     }
 
     function enableForm() {
-      document.querySelectorAll('#dynamicSchemaFields input, #dynamicSchemaFields select, #customItemsContainer input').forEach(f => {
+      document.querySelectorAll('#dynamicSchemaFields input, #dynamicSchemaFields select, #customItemsContainer input, #attachmentMetaRow input, #attachmentMetaRow select').forEach(f => {
         if (!f.hasAttribute('disabled')) {
           f.disabled = false;
         }
@@ -887,6 +1099,10 @@
         config: {
           isOverride: document.getElementById('overrideDefaults').checked,
           attachment: document.getElementById('selectAttachment').value,
+          attachmentAssetNum: document.getElementById('attachmentAssetNum').value,
+          attachmentSerialNum: document.getElementById('attachmentSerialNum').value,
+          attachmentMountState: document.getElementById('attachmentMountState').value,
+          userCustomAttachments,
           rules,
           customItems: customItemsList.filter(item => item.trim() !== ''),
           updatedAt: new Date().toISOString()
