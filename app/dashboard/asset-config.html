@@ -369,7 +369,7 @@
           <label for="attachmentTrackingMode">Attachment Tracking Mode</label>
           <select id="attachmentTrackingMode" onchange="toggleAttachmentTrackingUI()">
             <option value="integrated">Integrated Chassis Body (No Separate Asset ID)</option>
-            <option value="linked">Link Standalone Attachment Asset #</option>
+            <option value="linked">Link Standinside Attachment Asset #</option>
           </select>
         </div>
 
@@ -723,23 +723,29 @@
       document.getElementById('configPanel').style.pointerEvents = 'auto';
       document.getElementById('modeBanner').innerText = `Editing Global Defaults for Category: ${typeName}`;
 
+      // Pass typeName as both key and assetType so backend normalizes it properly
       await fetchAndRenderSchema('template', typeName, typeName);
     }
 
     async function fetchAndRenderSchema(targetType, key, assetType = '') {
       try {
+        const resolvedAssetType = assetType || key || 'default';
+
         const params = new URLSearchParams({
-          targetType,
-          key,
-          assetType,
-          country: orgCountry,
-          vol: orgUOM.volume || 'gal',
-          press: orgUOM.pressure || 'psi',
-          dist: orgUOM.distance || 'mi'
+          targetType: targetType || 'specific',
+          key: key || 'default',
+          assetType: resolvedAssetType,
+          country: orgCountry || 'US',
+          vol: (orgUOM && orgUOM.volume) ? orgUOM.volume : 'gal',
+          press: (orgUOM && orgUOM.pressure) ? orgUOM.pressure : 'psi',
+          dist: (orgUOM && orgUOM.distance) ? orgUOM.distance : 'mi'
         });
 
         const res = await apiFetch(`${API_ENDPOINT}?${params.toString()}`);
-        if (!res.ok) throw new Error(`Schema request failed with status ${res.status}`);
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          throw new Error(errBody.error || `Schema request failed with status ${res.status}`);
+        }
 
         const data = await res.json();
         const schema = data.schema || { sections: [] };
