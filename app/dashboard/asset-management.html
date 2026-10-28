@@ -337,12 +337,12 @@
       </div>
     </div>
 
-    <!-- Asset Location Tab -->
+<!-- Asset Location Tab -->
     <div class="am-tab-content" id="tab-location">
       <div class="am-welcome">
         <div class="am-welcome-text">
           <h2>Asset Location Map</h2>
-          <p>Toggle between real-time field activity and project/location assignments to analyze asset distribution.</p>
+          <p>Toggle between real-time field activity, project/location assignments, and breadcrumb trails to analyze asset distribution.</p>
         </div>
       </div>
       <div class="am-map-card">
@@ -351,6 +351,7 @@
           <div class="am-map-toggle-group">
             <button class="am-map-toggle-btn active" id="btnMapForms" onclick="setMapMode('forms')">📋 Form Activity (Fueling/Inspections/Transfers/WO)</button>
             <button class="am-map-toggle-btn" id="btnMapProjects" onclick="setMapMode('projects')">🏗️ Project / Location Assignment</button>
+            <button class="am-map-toggle-btn" id="btnMapBreadcrumbs" onclick="setMapMode('breadcrumbs')">📍 Breadcrumb Trail</button>
           </div>
         </div>
         <div id="amMap"></div>
@@ -570,7 +571,7 @@
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script src="/app/shared/dashboard-common.js?v=13"></script>
   <script>
-    var allAssets = [], assetTypes = [], projects = [], locations = [], divisions = [], operators = [], editingAssetId = null, canModify = false, amDirty = false, amMapInstance = null, amClusterGroup = null, mapMode = 'forms';
+    var allAssets = [], assetTypes = [], projects = [], locations = [], divisions = [], operators = [], editingAssetId = null, canModify = false, amDirty = false, amMapInstance = null, amClusterGroup = null, mapMode = 'forms', breadcrumbLayers = [];
     var adjustMapInstance = null, adjustMarker = null, activeStreetViewAsset = null;
 
     var COL_DEFS = [
@@ -1086,9 +1087,14 @@
         await parseResponse(woRes, 'Work Order', 'asset_number', 'site_location', 'latitude', 'longitude', 'created_at', 'project_name');
         await parseResponse(fuelRes, 'Fueling Record', 'asset_number', 'fuel_site', 'latitude', 'longitude', 'fuel_date', 'project');
 
-        assets.forEach(function(a) {
-          if (!a.assetNumber) return;
-          var key = a.assetNumber.trim().toLowerCase();
+assets.forEach(function(a) {
+  if (!a.assetNumber) return;
+  var key = a.assetNumber.trim().toLowerCase();
+
+  // Store full chronological GPS history for breadcrumbs
+  a.locationHistory = activities
+    .filter(function(act) { return act.assetNumber === key && act.lat !== null && act.lng !== null; })
+    .sort(function(x, y) { return x.time - y.time; });
 
           if ((a.baseLat === null || a.baseLng === null) && a.baseProject && projectCoords[a.baseProject.toLowerCase()]) {
             a.baseLat = projectCoords[a.baseProject.toLowerCase()].lat;
@@ -1248,19 +1254,33 @@
       renderColTogglePanel();
     }
 
-    /* ===== MAP INITIALIZATION & RENDERING WITH SINGLE PROJECT PINS & SPIDERIFYING ===== */
+/* ===== MAP INITIALIZATION & RENDERING WITH SINGLE PROJECT PINS & SPIDERIFYING ===== */
     function setMapMode(mode) {
       mapMode = mode;
       var btnF = document.getElementById('btnMapForms');
       var btnP = document.getElementById('btnMapProjects');
+      var btnB = document.getElementById('btnMapBreadcrumbs');
+
+      // Clear breadcrumbs if switching away from breadcrumb mode
+      if (mode !== 'breadcrumbs' && typeof breadcrumbLayers !== 'undefined') {
+        breadcrumbLayers.forEach(function(layer) { amMapInstance.removeLayer(layer); });
+        breadcrumbLayers = [];
+      }
+
+      if (btnF) btnF.classList.remove('active');
+      if (btnP) btnP.classList.remove('active');
+      if (btnB) btnB.classList.remove('active');
+
       if (mode === 'projects') {
         if (btnP) btnP.classList.add('active');
-        if (btnF) btnF.classList.remove('active');
+        renderAssetMapPins();
+      } else if (mode === 'breadcrumbs') {
+        if (btnB) btnB.classList.add('active');
+        renderBreadcrumbTrails();
       } else {
         if (btnF) btnF.classList.add('active');
-        if (btnP) btnP.classList.remove('active');
+        renderAssetMapPins();
       }
-      renderAssetMapPins();
     }
 
     function initAssetMap() {
@@ -1286,12 +1306,22 @@
         amMapInstance.addLayer(amClusterGroup);
       }
 
-      renderAssetMapPins();
+      if (mapMode === 'breadcrumbs') {
+        renderBreadcrumbTrails();
+      } else {
+        renderAssetMapPins();
+      }
     }
 
     function renderAssetMapPins() {
       if (!amMapInstance) return;
       
+      // Clear breadcrumb layers when rendering standard pins
+      if (typeof breadcrumbLayers !== 'undefined' && breadcrumbLayers.length > 0) {
+        breadcrumbLayers.forEach(function(layer) { amMapInstance.removeLayer(layer); });
+        breadcrumbLayers = [];
+      }
+
       if (amClusterGroup) {
         amClusterGroup.clearLayers();
       }
@@ -1408,6 +1438,70 @@
 
       if (bounds.length > 0) {
         amMapInstance.fitBounds(bounds, { padding: [40, 40] });
+      }
+    }
+
+/* ===== BREADCRUMB LOCATION TRAIL RENDERER ===== */
+    function renderBreadcrumbTrails() {
+      if (!amMapInstance) return;
+
+      // Clear existing breadcrumb layers
+      if (typeof breadcrumbLayers !== 'undefined' && breadcrumbLayers.length > 0) {
+        breadcrumbLayers.forEach(function(layer) { amMapInstance.removeLayer(layer); });
+        breadcrumbLayers = [];
+      }
+
+      // Clear marker clusters when rendering breadcrumbs
+      if (amClusterGroup) {
+        amClusterGroup.clearLayers();
+      }
+
+      var allBounds = [];
+
+      allAssets.forEach(function(a) {
+        var history = a.locationHistory || [];
+        if (history.length === 0) return;
+
+        var latLngs = history.map(function(pt) { return [pt.lat, pt.lng]; });
+
+        // Draw dashed path line connecting waypoints
+        var polyline = L.polyline(latLngs, {
+          color: '#2563eb',
+          weight: 3,
+          opacity: 0.7,
+          dashArray: '6, 6'
+        }).addTo(amMapInstance);
+        
+        breadcrumbLayers.push(polyline);
+
+        // Draw individual waypoint dots
+        history.forEach(function(pt, idx) {
+          allBounds.push([pt.lat, pt.lng]);
+          var isLatest = (idx === history.length - 1);
+          
+          var dotIcon = L.divIcon({
+            className: 'am-breadcrumb-dot',
+            html: '<div style="background:' + (isLatest ? '#dc2626' : '#2563eb') + '; width:' + (isLatest ? '12px' : '8px') + '; height:' + (isLatest ? '12px' : '8px') + '; border-radius:50%; border: 2px solid #fff; box-shadow: 0 0 4px rgba(0,0,0,0.3);"></div>',
+            iconSize: [12, 12],
+            iconAnchor: [6, 6]
+          });
+
+          var marker = L.marker([pt.lat, pt.lng], { icon: dotIcon }).bindPopup(
+            '<div class="am-map-popup">' +
+              '<h4>📍 ' + escapeHtml(a.assetNumber || 'Asset') + ' Waypoint</h4>' +
+              '<p><strong>Source:</strong> ' + escapeHtml(pt.source) + '</p>' +
+              '<p><strong>Time:</strong> ' + escapeHtml(pt.timeDisplay) + '</p>' +
+              '<p><strong>Location:</strong> ' + escapeHtml(pt.location || 'N/A') + '</p>' +
+              '<p><strong>GPS:</strong> ' + pt.lat.toFixed(5) + ', ' + pt.lng.toFixed(5) + '</p>' +
+            '</div>'
+          ).addTo(amMapInstance);
+
+          breadcrumbLayers.push(marker);
+        });
+      });
+
+      if (allBounds.length > 0) {
+        amMapInstance.fitBounds(allBounds, { padding: [40, 40] });
       }
     }
 
