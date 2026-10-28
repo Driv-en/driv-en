@@ -329,21 +329,31 @@
             <select id="selectAttachment" onchange="onAttachmentChanged()" style="flex: 1;">
               <option value="none">None (Standard Chassis / Base Unit)</option>
             </select>
-            <button type="button" class="btn-small-add" style="padding: 0 10px; font-size: 16px;" title="Add Custom Attachment" onclick="promptAddCustomAttachment()">+</button>
+            <button type="button" class="btn-small-add" style="padding: 0 10px; font-size: 16px;" title="Add Custom Category Attachment" onclick="promptAddCustomAttachment()">+</button>
           </div>
         </div>
       </div>
 
-      <!-- Independent Attachment Tracking Metadata Bar -->
+      <!-- Relational Attachment Registration & Mounting Row -->
       <div id="attachmentMetaRow" style="display: none; margin-top: 16px; padding-top: 16px; border-top: 1px dashed #cbd5e1;" class="grid-3">
         <div class="form-group">
-          <label for="attachmentAssetNum">Attachment Asset Number (If Tracked Separately)</label>
-          <input type="text" id="attachmentAssetNum" placeholder="e.g. #VAC-102 or #CRANE-88">
+          <label for="attachmentTrackingMode">Attachment Asset Tracking Mode</label>
+          <select id="attachmentTrackingMode" onchange="toggleAttachmentTrackingUI()">
+            <option value="integrated">Integrated Chassis Body (No Separate Asset ID)</option>
+            <option value="linked">Link Standalone Asset Number from Asset List</option>
+          </select>
         </div>
-        <div class="form-group">
-          <label for="attachmentSerialNum">Attachment Serial / VIN Number</label>
-          <input type="text" id="attachmentSerialNum" placeholder="Manufacturer Serial #">
+
+        <div class="form-group" id="linkedAssetPickerGroup" style="display: none;">
+          <label for="linkedAttachmentAssetId">Select Attachment Asset #</label>
+          <div style="display: flex; gap: 6px;">
+            <select id="linkedAttachmentAssetId" onchange="onLinkedAttachmentSelected()" style="flex: 1;">
+              <option value="">-- Choose Attachment Asset --</option>
+            </select>
+            <button type="button" class="btn-action" style="padding: 0 10px; font-size: 12px; white-space: nowrap;" onclick="openQuickAddAttachmentModal()">+ Register New</button>
+          </div>
         </div>
+
         <div class="form-group">
           <label for="attachmentMountState">Current Attachment Status</label>
           <select id="attachmentMountState">
@@ -389,6 +399,40 @@
     </div>
   </div>
 
+  <!-- Quick-Register Attachment Modal -->
+  <div class="modal-overlay" id="quickAddAttachmentModal">
+    <div class="modal-card">
+      <h3 style="margin-top: 0;">Quick-Register New Attachment Asset</h3>
+      <p style="font-size: 13px; color: var(--text-muted);">Creates a discrete standalone asset in your asset table so PTO hours and maintenance history persist even if swapped between chassis.</p>
+      
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label for="newAttAssetNumber">Attachment Asset Number *</label>
+        <input type="text" id="newAttAssetNumber" placeholder="e.g. VAC-102, CRANE-88, HAMMER-04">
+      </div>
+
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label for="newAttSerialNum">Serial / VIN Number</label>
+        <input type="text" id="newAttSerialNum" placeholder="Manufacturer Serial Number">
+      </div>
+
+      <div class="grid-2" style="margin-bottom: 16px;">
+        <div class="form-group">
+          <label for="newAttMake">Make / Manufacturer</label>
+          <input type="text" id="newAttMake" placeholder="e.g. Vactor, Terex, NPK">
+        </div>
+        <div class="form-group">
+          <label for="newAttModel">Model Number</label>
+          <input type="text" id="newAttModel" placeholder="e.g. 2100i, BT70, GH-6">
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn-secondary" style="background: #64748b;" onclick="closeQuickAddAttachmentModal()">Cancel</button>
+        <button class="btn-action" onclick="saveNewAttachmentAsset()">Save Attachment to Assets Table</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Copy Config Modal -->
   <div class="modal-overlay" id="copyModal">
     <div class="modal-card">
@@ -422,7 +466,6 @@
 
     const API_ENDPOINT = '/api/asset-config';
 
-    // Comprehensive Pre-Loaded Category Attachments
     const CATEGORY_ATTACHMENTS = {
       highway: [
         { value: "none", label: "None (Standard Chassis / Base Unit)" },
@@ -473,7 +516,6 @@
       ]
     };
 
-    // Master Schemas covering ALL Asset Categories
     const MASTER_CATEGORY_SCHEMAS = {
       highway: {
         title: "Highway Motor Vehicle Baseline (Classes 1–8)",
@@ -686,7 +728,7 @@
 
     async function loadInitialData() {
       try {
-        const resp = await apiFetch('/api/equipment');
+        const resp = await apiFetch('/api/assets');
         if (resp.ok) {
           const data = await resp.json();
           allAssets = extractRecords(data);
@@ -707,19 +749,23 @@
     function extractRecords(data) {
       if (Array.isArray(data)) return data;
       if (!data || typeof data !== "object") return [];
-      return data.records || data.assetTypes || data.equipment || data.data || [];
+      return data.records || data.assetTypes || data.assets || data.data || [];
     }
 
     function populateAssetDropdowns() {
       const sel = document.getElementById('selectAsset');
       const copySel = document.getElementById('copySourceAsset');
+      const linkedAttSel = document.getElementById('linkedAttachmentAssetId');
       
       sel.innerHTML = '<option value="">-- Choose Asset Unit --</option>';
       copySel.innerHTML = '<option value="">-- Choose Source Asset --</option>';
+      linkedAttSel.innerHTML = '<option value="">-- Choose Attachment Asset --</option>';
 
       allAssets.forEach(a => {
         const num = a.asset_number || a.assetNumber || a.name || a.id;
         const type = a.category || a.type || 'Default';
+        const serial = a.serial_number || a.vin || '';
+        
         if (num) {
           const opt = document.createElement('option');
           opt.value = num;
@@ -729,6 +775,11 @@
 
           const copyOpt = opt.cloneNode(true);
           copySel.appendChild(copyOpt);
+
+          const attOpt = document.createElement('option');
+          attOpt.value = num;
+          attOpt.textContent = `${num} — ${type} ${serial ? '(SN: ' + serial + ')' : ''}`;
+          linkedAttSel.appendChild(attOpt);
         }
       });
     }
@@ -812,9 +863,16 @@
       const metaRow = document.getElementById("attachmentMetaRow");
       if (currentVal !== "none") {
         metaRow.style.display = "grid";
+        toggleAttachmentTrackingUI();
       } else {
         metaRow.style.display = "none";
       }
+    }
+
+    function toggleAttachmentTrackingUI() {
+      const mode = document.getElementById("attachmentTrackingMode").value;
+      const picker = document.getElementById("linkedAssetPickerGroup");
+      picker.style.display = mode === "linked" ? "flex" : "none";
     }
 
     function promptAddCustomAttachment() {
@@ -840,6 +898,66 @@
       updateAttachmentDropdown(rawType);
       document.getElementById("selectAttachment").value = cleanValue;
       onAttachmentChanged();
+    }
+
+    function openQuickAddAttachmentModal() {
+      document.getElementById('quickAddAttachmentModal').style.display = 'flex';
+    }
+
+    function closeQuickAddAttachmentModal() {
+      document.getElementById('quickAddAttachmentModal').style.display = 'none';
+      document.getElementById('newAttAssetNumber').value = '';
+      document.getElementById('newAttSerialNum').value = '';
+      document.getElementById('newAttMake').value = '';
+      document.getElementById('newAttModel').value = '';
+    }
+
+    async function saveNewAttachmentAsset() {
+      const assetNum = document.getElementById('newAttAssetNumber').value.trim();
+      const serial = document.getElementById('newAttSerialNum').value.trim();
+      const make = document.getElementById('newAttMake').value.trim();
+      const model = document.getElementById('newAttModel').value.trim();
+
+      if (!assetNum) {
+        alert("Attachment Asset Number is required.");
+        return;
+      }
+
+      const payload = {
+        asset_number: assetNum,
+        serial_number: serial,
+        make: make,
+        model: model,
+        category: "Attachment / Body",
+        is_attachment: 1
+      };
+
+      try {
+        const resp = await apiFetch('/api/assets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (resp.ok) {
+          closeQuickAddAttachmentModal();
+          showMessage(`Registered attachment asset ${assetNum}!`, 'success');
+          await loadInitialData();
+          document.getElementById('attachmentTrackingMode').value = "linked";
+          toggleAttachmentTrackingUI();
+          document.getElementById('linkedAttachmentAssetId').value = assetNum;
+        } else {
+          alert("Failed to create attachment asset record.");
+        }
+      } catch (e) {
+        alert("Error creating attachment asset: " + e.message);
+      }
+    }
+
+    function onLinkedAttachmentSelected() {
+      const selectedAttId = document.getElementById('linkedAttachmentAssetId').value;
+      if (!selectedAttId) return;
+      console.log(`Linked attachment ${selectedAttId} to parent asset.`);
     }
 
     async function onAssetSelected() {
@@ -903,11 +1021,11 @@
           if (data.config.attachment) {
             document.getElementById('selectAttachment').value = data.config.attachment;
           }
-          if (data.config.attachmentAssetNum) {
-            document.getElementById('attachmentAssetNum').value = data.config.attachmentAssetNum;
+          if (data.config.attachmentTrackingMode) {
+            document.getElementById('attachmentTrackingMode').value = data.config.attachmentTrackingMode;
           }
-          if (data.config.attachmentSerialNum) {
-            document.getElementById('attachmentSerialNum').value = data.config.attachmentSerialNum;
+          if (data.config.linkedAttachmentAssetId) {
+            document.getElementById('linkedAttachmentAssetId').value = data.config.linkedAttachmentAssetId;
           }
           if (data.config.attachmentMountState) {
             document.getElementById('attachmentMountState').value = data.config.attachmentMountState;
@@ -1099,8 +1217,8 @@
         config: {
           isOverride: document.getElementById('overrideDefaults').checked,
           attachment: document.getElementById('selectAttachment').value,
-          attachmentAssetNum: document.getElementById('attachmentAssetNum').value,
-          attachmentSerialNum: document.getElementById('attachmentSerialNum').value,
+          attachmentTrackingMode: document.getElementById('attachmentTrackingMode').value,
+          linkedAttachmentAssetId: document.getElementById('linkedAttachmentAssetId').value,
           attachmentMountState: document.getElementById('attachmentMountState').value,
           userCustomAttachments,
           rules,
