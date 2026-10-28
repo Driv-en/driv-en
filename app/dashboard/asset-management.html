@@ -355,7 +355,7 @@
           </div>
         </div>
 
-        <!-- Breadcrumb Filter Controls (Hidden until Breadcrumb Trail mode is active) -->
+        <!-- Breadcrumb Filter Controls -->
         <div id="breadcrumbFilterRow" style="display: none; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; background: var(--bg-input); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
           <div style="display: flex; flex-direction: column; gap: 4px;">
             <label style="font-size: 12px; font-weight: 600; color: var(--text);">Select Asset:</label>
@@ -400,6 +400,31 @@
             <select id="amAssetType"><option value="">— Select Asset Type —</option></select>
             <div class="am-hint">From the Asset Types configured in system settings</div>
           </div>
+
+          <!-- Is Attachment Field -->
+          <div class="am-form-row">
+            <label>Is Attachment / Vocational Body?</label>
+            <select id="amIsAttachment" onchange="toggleQuickAddAllowedCategory()">
+              <option value="0">No (Standard Chassis / Primary Unit)</option>
+              <option value="1">Yes (Attachment / Vocational Body)</option>
+            </select>
+            <div class="am-hint">Enable if unit swaps between parent chassis</div>
+          </div>
+
+          <!-- Compatible Target Category Field -->
+          <div class="am-form-row" id="amAllowedCategoryRow" style="display: none;">
+            <label>Compatible Target Category</label>
+            <select id="amAllowedCategory">
+              <option value="all">Universal / Compatible Across All Categories</option>
+              <option value="highway">Highway Motor Vehicles (Classes 1–8)</option>
+              <option value="earthmoving">Earthmoving & Construction Equipment</option>
+              <option value="mining">Mining, Drilling & Rigging</option>
+              <option value="stationary">Stationary & Engine Plants</option>
+              <option value="auxiliary">Auxiliary Tools, Pumps & Light Towers</option>
+            </select>
+            <div class="am-hint">Restricts attachment picker dropdowns to this category</div>
+          </div>
+
           <div class="am-form-row">
             <label>Division</label>
             <select id="amDivision"><option value="">— None —</option></select>
@@ -497,6 +522,31 @@
           <label>Asset Type <span class="am-required">*</span></label>
           <select id="amEditAssetType"><option value="">— Select Asset Type —</option></select>
         </div>
+
+        <!-- Is Attachment Field -->
+        <div class="am-form-row">
+          <label>Is Attachment / Vocational Body?</label>
+          <select id="amEditIsAttachment" onchange="toggleEditAllowedCategory()">
+            <option value="0">No (Standard Chassis / Primary Unit)</option>
+            <option value="1">Yes (Attachment / Vocational Body)</option>
+          </select>
+          <div class="am-hint">Enable if unit swaps between parent chassis</div>
+        </div>
+
+        <!-- Compatible Target Category Field -->
+        <div class="am-form-row" id="amEditAllowedCategoryRow" style="display: none;">
+          <label>Compatible Target Category</label>
+          <select id="amEditAllowedCategory">
+            <option value="all">Universal / Compatible Across All Categories</option>
+            <option value="highway">Highway Motor Vehicles (Classes 1–8)</option>
+            <option value="earthmoving">Earthmoving & Construction Equipment</option>
+            <option value="mining">Mining, Drilling & Rigging</option>
+            <option value="stationary">Stationary & Engine Plants</option>
+            <option value="auxiliary">Auxiliary Tools, Pumps & Light Towers</option>
+          </select>
+          <div class="am-hint">Restricts attachment picker dropdowns to this category</div>
+        </div>
+
         <div class="am-form-row">
           <label>Division</label>
           <select id="amEditDivision"><option value="">— None —</option></select>
@@ -536,7 +586,7 @@
     </div>
   </div>
 
-  <!-- In-Screen Street View & Location Adjuster Modal -->
+  <!-- In-Screen Street View Modal -->
   <div id="amStreetViewModal" class="am-modal">
     <div class="am-modal-card streetview-modal-card">
       <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -597,6 +647,8 @@
     var COL_DEFS = [
       { key: 'assetNumber', label: 'Asset Number', defaultVisible: true, defaultWidth: '130px' },
       { key: 'type', label: 'Asset Type', defaultVisible: true, defaultWidth: '140px' },
+      { key: 'isAttachment', label: 'Is Attachment', defaultVisible: false, defaultWidth: '120px' },
+      { key: 'allowedCategory', label: 'Allowed Category', defaultVisible: false, defaultWidth: '140px' },
       { key: 'meter', label: 'Meter Reading', defaultVisible: true, defaultWidth: '120px' },
       { key: 'status', label: 'Status', defaultVisible: true, defaultWidth: '110px' },
       { key: 'project', label: 'Project', defaultVisible: true, defaultWidth: '130px' },
@@ -992,6 +1044,8 @@
         id: r.id || f.id || ('eq-' + Math.random().toString(36).substr(2, 9)),
         assetNumber: parseVal(f.asset_number || f['Equipment ID'] || f['Equipment Name'] || f.assetNumber),
         type: parseVal(rawType),
+        isAttachment: Number(f.is_attachment || f.isAttachment || 0),
+        allowedCategory: parseVal(f.allowed_category || f.allowedCategory || 'all'),
         meter: (f.current_meter_reading !== undefined && f.current_meter_reading !== null) ? f.current_meter_reading : (f['Meter Reading'] || null),
         status: parseVal(f.status || f['Status']) || 'Available',
         project: parseVal(f.current_project || f['Project']),
@@ -999,14 +1053,12 @@
         lat: f.latitude || f.lat || null,
         lng: f.longitude || f.lng || null,
         
-        // Base Assigned Location State
         baseProject: parseVal(f.current_project || f['Project']),
         baseLocation: parseVal(f.current_location || f['Location'] || f.location),
         baseLat: (f.latitude || f.lat) ? parseFloat(f.latitude || f.lat) : null,
         baseLng: (f.longitude || f.lng) ? parseFloat(f.longitude || f.lng) : null,
         baseTimeDisplay: new Date(rawTime).toLocaleString(),
         
-        // Dynamic Activity Overwrite State
         lastReportedSource: 'Project Assignment',
         lastReportedTime: rawTime,
         formLat: null,
@@ -1024,7 +1076,7 @@
       };
     }
 
-/* Dynamic Activity History Engine */
+    /* Dynamic Activity History Engine */
     async function applyLatestLocationActivity(assets) {
       try {
         var ci = localStorage.getItem('driven_customer_id');
@@ -1118,7 +1170,6 @@
 
           var assetLogs = activities.filter(function(act) { return act.assetNumber === key; });
 
-          // Also fall back project coordinates if activity had missing coords initially
           assetLogs.forEach(function(log) {
             if ((log.lat === null || log.lng === null) && log.project && projectCoords[log.project.toLowerCase()]) {
               log.lat = projectCoords[log.project.toLowerCase()].lat;
@@ -1126,7 +1177,6 @@
             }
           });
 
-          // Include current base project location as a fallback waypoint if no form activity exists
           if (assetLogs.length === 0 && a.baseLat !== null && a.baseLng !== null) {
             assetLogs.push({
               assetNumber: key,
@@ -1140,7 +1190,6 @@
             });
           }
 
-          // Build full chronological GPS history AFTER coordinate resolution & fallbacks
           a.locationHistory = assetLogs
             .filter(function(act) { return act.lat !== null && act.lng !== null && !isNaN(act.lat) && !isNaN(act.lng); })
             .sort(function(x, y) { return x.time - y.time; });
@@ -1190,6 +1239,109 @@
         });
       } catch (err) {
         console.error('Failed to aggregate dynamic location history:', err);
+      }
+    }
+
+    function toggleQuickAddAllowedCategory() {
+      var isAtt = document.getElementById('amIsAttachment').value;
+      var row = document.getElementById('amAllowedCategoryRow');
+      if (row) row.style.display = (isAtt === '1') ? 'flex' : 'none';
+    }
+
+    function toggleEditAllowedCategory() {
+      var isAtt = document.getElementById('amEditIsAttachment').value;
+      var row = document.getElementById('amEditAllowedCategoryRow');
+      if (row) row.style.display = (isAtt === '1') ? 'flex' : 'none';
+    }
+
+    async function addAsset() {
+      var an = document.getElementById('amAssetNumber').value.trim();
+      var at = document.getElementById('amAssetType').value;
+      var isAtt = Number(document.getElementById('amIsAttachment').value || 0);
+      var allowedCat = document.getElementById('amAllowedCategory').value || 'all';
+      var dv = document.getElementById('amDivision').value;
+      var op = document.getElementById('amAssignedOperator').value;
+      var m = document.getElementById('amMeter').value.trim();
+      var st = document.getElementById('amStatus').value;
+      var pr = document.getElementById('amProject').value;
+      var lo = document.getElementById('amLocation').value;
+
+      if (!an) { showMessage('Please enter an asset number.', 'error'); return; }
+      if (!at) { showMessage('Please select an asset type.', 'error'); return; }
+
+      var AS = ['available', 'in use', 'maintenance'];
+      var d = allAssets.find(function(a) { return a.assetNumber && a.assetNumber.toLowerCase() === an.toLowerCase(); });
+      if (d) {
+        var ds = (d.status || '').toLowerCase();
+        if (AS.indexOf(ds) !== -1) {
+          showMessage('An asset with number "' + an + '" is already in use (' + (d.status || 'Active') + '). Asset numbers must be unique unless the existing asset is no longer active.', 'error');
+          return;
+        } else {
+          if (!confirm('Asset number "' + an + '" is currently used by an inactive asset (' + (d.status || 'unknown status') + ' — ' + (d.type || 'unknown type') + '). Some companies reuse numbers from assets that are no longer in service.\n\nClick OK to reuse this number, or Cancel to choose a different number.')) return;
+        }
+      }
+
+      var mv = null;
+      if (m !== '') {
+        mv = parseFloat(m);
+        if (isNaN(mv) || mv < 0) {
+          showMessage('Meter Reading must be a valid number (0 or higher).', 'error');
+          return;
+        }
+      }
+
+      var p = {
+        asset_number: an,
+        category: at,
+        asset_type: at,
+        is_attachment: isAtt,
+        allowed_category: allowedCat,
+        division_name: dv,
+        assigned_operator: op,
+        owner_name: op,
+        status: st,
+        current_project: pr,
+        current_location: lo
+      };
+      if (mv !== null) p.current_meter_reading = mv;
+
+      try {
+        var resp = await fetch('/api/Equipment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(p)
+        });
+        var data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || data.message || 'Save failed (' + resp.status + ')');
+
+        if (data.record) {
+          allAssets.push(normalizeAsset(data.record));
+        } else {
+          await loadAssets();
+          showMessage('Asset "' + an + '" added.', 'success');
+          return;
+        }
+
+        document.getElementById('amAssetNumber').value = '';
+        document.getElementById('amAssetType').value = '';
+        document.getElementById('amIsAttachment').value = '0';
+        document.getElementById('amAllowedCategory').value = 'all';
+        toggleQuickAddAllowedCategory();
+        document.getElementById('amDivision').value = '';
+        document.getElementById('amAssignedOperator').value = '';
+        document.getElementById('amMeter').value = '';
+        document.getElementById('amStatus').value = 'Available';
+        document.getElementById('amProject').value = '';
+        document.getElementById('amLocation').value = '';
+
+        showMessage('Asset "' + an + '" added.', 'success');
+        updateKpi();
+        currentPage = 1;
+        renderAssetTable();
+        switchTab('assets');
+      } catch (e) {
+        showMessage('Failed to add asset: ' + e.message, 'error');
+        if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report('asset-management.html: addAsset failed — ' + (e.message || e), 'addAsset', e && e.stack ? e.stack : null);
       }
     }
 
@@ -1588,7 +1740,7 @@
       }
     }
 
-    /* ===== IN-SCREEN STREET VIEW OVERLAY & DRAGGABLE PIN ADJUSTER ===== */
+    /* ===== STREET VIEW & DRAGGABLE PIN ADJUSTER ===== */
     function openStreetViewModal(assetId, lat, lng) {
       activeStreetViewAsset = allAssets.find(function(a) { return a.id === assetId; });
       var titleEl = document.getElementById('streetViewAssetTitle');
@@ -1839,6 +1991,10 @@
             b.className = 'am-badge am-badge-' + String(v).toLowerCase().replace(/\s+/g, '-');
             b.textContent = v;
             td.appendChild(b);
+          } else if (col.key === 'isAttachment') {
+            td.textContent = (v === 1 || v === '1') ? 'Yes' : 'No';
+          } else if (col.key === 'allowedCategory') {
+            td.textContent = (v && v !== 'all') ? v : 'Universal (All)';
           } else if (col.key === 'type') {
             var ic = assetTypes.some(function(at) {
               var atName = typeof at === 'object' ? (at.asset_type_name || at.name) : String(at);
@@ -1869,9 +2025,9 @@
 
           var bve = document.createElement('button');
           bve.className = 'am-table-btn';
-          bve.textContent = 'View / Edit';
+          bve.textContent = 'Edit';
           bve.addEventListener('click', function() {
-            window.location.href = '/app/asset/asset-detail.html?id=' + encodeURIComponent(a.id);
+            openEditModal(a.id);
           });
 
           var bcfg = document.createElement('a');
@@ -2013,87 +2169,22 @@
       }
     });
 
-    async function addAsset() {
-      var an = document.getElementById('amAssetNumber').value.trim();
-      var at = document.getElementById('amAssetType').value;
-      var dv = document.getElementById('amDivision').value;
-      var op = document.getElementById('amAssignedOperator').value;
-      var m = document.getElementById('amMeter').value.trim();
-      var st = document.getElementById('amStatus').value;
-      var pr = document.getElementById('amProject').value;
-      var lo = document.getElementById('amLocation').value;
-
-      if (!an) { showMessage('Please enter an asset number.', 'error'); return; }
-      if (!at) { showMessage('Please select an asset type.', 'error'); return; }
-
-      var AS = ['available', 'in use', 'maintenance'];
-      var d = allAssets.find(function(a) { return a.assetNumber && a.assetNumber.toLowerCase() === an.toLowerCase(); });
-      if (d) {
-        var ds = (d.status || '').toLowerCase();
-        if (AS.indexOf(ds) !== -1) {
-          showMessage('An asset with number "' + an + '" is already in use (' + (d.status || 'Active') + '). Asset numbers must be unique unless the existing asset is no longer active.', 'error');
-          return;
-        } else {
-          if (!confirm('Asset number "' + an + '" is currently used by an inactive asset (' + (d.status || 'unknown status') + ' — ' + (d.type || 'unknown type') + '). Some companies reuse numbers from assets that are no longer in service.\n\nClick OK to reuse this number, or Cancel to choose a different number.')) return;
-        }
-      }
-
-      var mv = null;
-      if (m !== '') {
-        mv = parseFloat(m);
-        if (isNaN(mv) || mv < 0) {
-          showMessage('Meter Reading must be a valid number (0 or higher).', 'error');
-          return;
-        }
-      }
-
-      var p = {
-        asset_number: an, category: at, asset_type: at, division_name: dv, assigned_operator: op, owner_name: op, status: st, current_project: pr, current_location: lo
-      };
-      if (mv !== null) p.current_meter_reading = mv;
-
-      try {
-        var resp = await fetch('/api/Equipment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(p)
-        });
-        var data = await resp.json();
-        if (!resp.ok) throw new Error(data.error || data.message || 'Save failed (' + resp.status + ')');
-
-        if (data.record) {
-          allAssets.push(normalizeAsset(data.record));
-        } else {
-          await loadAssets();
-          showMessage('Asset "' + an + '" added.', 'success');
-          return;
-        }
-
-        document.getElementById('amAssetNumber').value = '';
-        document.getElementById('amDivision').value = '';
-        document.getElementById('amAssignedOperator').value = '';
-        document.getElementById('amMeter').value = '';
-        document.getElementById('amAssetType').value = '';
-        document.getElementById('amStatus').value = 'Available';
-        document.getElementById('amProject').value = '';
-        document.getElementById('amLocation').value = '';
-        showMessage('Asset "' + an + '" added.', 'success');
-        updateKpi();
-        currentPage = 1;
-        renderAssetTable();
-        switchTab('assets');
-      } catch (e) {
-        showMessage('Failed to add asset: ' + e.message, 'error');
-        if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report('asset-management.html: addAsset failed — ' + (e.message || e), 'addAsset', e && e.stack ? e.stack : null);
-      }
-    }
-
     function openEditModal(id) {
       var a = allAssets.find(function(x) { return x.id === id; });
       if (!a) return;
       editingAssetId = id;
+      
+      var msgEl = document.getElementById('amEditMessage');
+      if (msgEl) msgEl.style.display = 'none';
+
       document.getElementById('amEditAssetNumber').value = a.assetNumber || '';
       document.getElementById('amEditAssetType').value = a.type || '';
+      
+      // Load attachment flags & update visibility
+      document.getElementById('amEditIsAttachment').value = (a.isAttachment === 1 || a.isAttachment === '1') ? '1' : '0';
+      document.getElementById('amEditAllowedCategory').value = a.allowedCategory || 'all';
+      toggleEditAllowedCategory();
+
       document.getElementById('amEditDivision').value = a.division || '';
       document.getElementById('amEditAssignedOperator').value = a.assignedTo || '';
       document.getElementById('amEditMeter').value = (a.meter !== null && a.meter !== undefined) ? a.meter : '';
@@ -2113,6 +2204,11 @@
       if (!editingAssetId) return;
       var an = document.getElementById('amEditAssetNumber').value.trim();
       var at = document.getElementById('amEditAssetType').value;
+      
+      // Pull attachment form fields
+      var isAtt = Number(document.getElementById('amEditIsAttachment').value || 0);
+      var allowedCat = document.getElementById('amEditAllowedCategory').value || 'all';
+      
       var dv = document.getElementById('amEditDivision').value;
       var op = document.getElementById('amEditAssignedOperator').value;
       var m = document.getElementById('amEditMeter').value.trim();
@@ -2145,7 +2241,17 @@
       }
 
       var p = {
-        asset_number: an, category: at, asset_type: at, division_name: dv, assigned_operator: op, owner_name: op, status: st, current_project: pr, current_location: lo
+        asset_number: an,
+        category: at,
+        asset_type: at,
+        is_attachment: isAtt,
+        allowed_category: allowedCat,
+        division_name: dv,
+        assigned_operator: op,
+        owner_name: op,
+        status: st,
+        current_project: pr,
+        current_location: lo
       };
       if (mv !== null) p.current_meter_reading = mv;
 
@@ -2165,7 +2271,16 @@
         } else {
           var a = allAssets.find(function(x) { return x.id === editingAssetId; });
           if (a) {
-            a.assetNumber = an; a.type = at; a.division = dv; a.assignedTo = op; a.meter = mv; a.status = st; a.project = pr; a.location = lo;
+            a.assetNumber = an;
+            a.type = at;
+            a.isAttachment = isAtt;
+            a.allowedCategory = allowedCat;
+            a.division = dv;
+            a.assignedTo = op;
+            a.meter = mv;
+            a.status = st;
+            a.project = pr;
+            a.location = lo;
           }
         }
 
