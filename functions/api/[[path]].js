@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// DRIV-EN API Worker — D1 & KV Asset Configuration (v18.9 — Schema Aligned)
+// DRIV-EN API Worker — D1 & KV Asset Configuration (v19.0 — Clean)
 // Route: /api/* and /api/log-error
 // ═══════════════════════════════════════════════════════════════════
 // BINDINGS:
@@ -141,7 +141,7 @@ const TABLE_MAP = {
     },
     defaults: { status: 'Active' },
   },
-'equipment': {
+  'equipment': {
     d1Table: 'assets',
     aliases: ['assets', 'Equipment', 'Assets', 'asset', 'equipment'],
     fieldMap: {
@@ -292,15 +292,51 @@ const TABLE_MAP = {
     d1Table: 'asset_types',
     aliases: ['asset_types', 'asset-types', 'AssetTypes', 'assettypes'],
     fieldMap: {
-      'Asset Type Code': 'asset_type_code',
-      'asset_type_code': 'asset_type_code',
-      'Asset Type Name': 'asset_type_name',
-      'asset_type_name': 'asset_type_name',
-      'Category Group':  'category_group',
-      'category_group':  'category_group',
-      'Is Custom':       'is_custom',
-      'is_custom':       'is_custom',
+      'Asset Type Code':             'asset_type_code',
+      'asset_type_code':             'asset_type_code',
+      'Asset Type Name':             'asset_type_name',
+      'asset_type_name':             'asset_type_name',
+      'Category Group':              'category_group',
+      'category_group':              'category_group',
+      'Is Custom':                   'is_custom',
+      'is_custom':                   'is_custom',
+      'default_pm_hours_interval':   'default_pm_hours_interval',
+      'default_pm_miles_interval':   'default_pm_miles_interval',
+      'track_pto_hours':             'track_pto_hours',
+      'track_tpms_telemetry':        'track_tpms_telemetry',
+      'default_engine_make_model':   'default_engine_make_model',
+      'default_drive_type':          'default_drive_type',
+      'default_is_dually':           'default_is_dually',
+      'default_trans_type':          'default_trans_type',
+      'default_diff_rear_end':        'default_diff_rear_end',
+      'default_transfer_case':       'default_transfer_case',
+      'default_fluid_engine_oil':    'default_fluid_engine_oil',
+      'default_fluid_engine_oil_qty':'default_fluid_engine_oil_qty',
+      'default_fluid_trans':         'default_fluid_trans',
+      'default_fluid_diff':          'default_fluid_diff',
+      'default_fluid_coolant':       'default_fluid_coolant',
+      'default_fluid_hydraulics':     'default_fluid_hydraulics',
+      'default_fluid_final_drives':  'default_fluid_final_drives',
+      'default_fluid_def':           'default_fluid_def',
+      'default_brake_system_type':   'default_brake_system_type',
+      'default_tire_size_steer':     'default_tire_size_steer',
+      'default_tire_psi_steer':      'default_tire_psi_steer',
+      'default_tire_size_drive':     'default_tire_size_drive',
+      'default_tire_psi_drive':      'default_tire_psi_drive',
+      'default_track_sag_spec':      'default_track_sag_spec',
+      'default_lighting_headlights': 'default_lighting_headlights',
+      'default_lighting_aux':        'default_lighting_aux',
+      'default_camera_system':       'default_camera_system',
+      'default_mirrors_type':        'default_mirrors_type',
+      'default_winch_installed':     'default_winch_installed',
+      'default_handrails_steps':     'default_handrails_steps',
+      'default_belts_serpentine':    'default_belts_serpentine',
+      'default_inspection_rules':    'default_inspection_rules',
+      'default_custom_items':        'default_custom_items',
+      'default_parts_inventory':     'default_parts_inventory',
+      'allowed_attachments':         'allowed_attachments'
     },
+    defaults: { category_group: 'General', is_custom: 0 }
   },
   'Users': {
     d1Table: 'users',
@@ -613,16 +649,19 @@ function mapPayloadToD1(tableConfig, payload) {
     }
   }
 
-  // 2. Pass through valid column names while skipping system-managed columns
+  // 2. Strict field mapping validation: Only pass through valid database columns
   const validColNameRegex = /^[a-z0-9_]+$/;
   const ignoredKeys = new Set([
     'id', 'org_id', 'user_id', 'created_by', 'updated_by', 'created_at', 'updated_at'
   ]);
 
+  const validTableColumns = new Set(Object.values(tableConfig.fieldMap));
+
   for (const [key, val] of Object.entries(payload)) {
     if (
       d1Row[key] === undefined &&
       validColNameRegex.test(key) &&
+      validTableColumns.has(key) &&
       !ignoredKeys.has(key)
     ) {
       d1Row[key] = toPrimitiveString(val);
@@ -718,7 +757,42 @@ async function ensureTableSchema(db, d1Table) {
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           created_by TEXT,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          updated_by TEXT
+          updated_by TEXT,
+          default_pm_hours_interval INTEGER DEFAULT 250,
+          default_pm_miles_interval INTEGER DEFAULT 7500,
+          track_pto_hours INTEGER DEFAULT 0,
+          track_tpms_telemetry INTEGER DEFAULT 1,
+          default_engine_make_model TEXT,
+          default_drive_type TEXT,
+          default_is_dually INTEGER DEFAULT 0,
+          default_trans_type TEXT,
+          default_diff_rear_end TEXT,
+          default_transfer_case TEXT,
+          default_fluid_engine_oil TEXT,
+          default_fluid_engine_oil_qty TEXT,
+          default_fluid_trans TEXT,
+          default_fluid_diff TEXT,
+          default_fluid_coolant TEXT,
+          default_fluid_hydraulics TEXT,
+          default_fluid_final_drives TEXT,
+          default_fluid_def TEXT,
+          default_brake_system_type TEXT,
+          default_tire_size_steer TEXT,
+          default_tire_psi_steer INTEGER DEFAULT 110,
+          default_tire_size_drive TEXT,
+          default_tire_psi_drive INTEGER DEFAULT 100,
+          default_track_sag_spec TEXT,
+          default_lighting_headlights TEXT,
+          default_lighting_aux TEXT,
+          default_camera_system TEXT,
+          default_mirrors_type TEXT,
+          default_winch_installed INTEGER DEFAULT 0,
+          default_handrails_steps INTEGER DEFAULT 1,
+          default_belts_serpentine TEXT,
+          default_inspection_rules TEXT,
+          default_custom_items TEXT,
+          default_parts_inventory TEXT,
+          allowed_attachments TEXT
         )
       `).run();
     } else if (d1Table === 'asset_type_defaults') {
@@ -742,7 +816,49 @@ async function ensureTableSchema(db, d1Table) {
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           brake_fluid_spec TEXT,
           cabin_filter_spec TEXT,
-          wiper_blades_spec TEXT
+          wiper_blades_spec TEXT,
+          category_group TEXT,
+          subcategory TEXT,
+          gvwr_lbs REAL,
+          gcwr_lbs REAL,
+          operating_weight_lbs REAL,
+          payload_capacity_lbs REAL,
+          cab_type TEXT,
+          cab_style TEXT,
+          mobility_type TEXT,
+          engine_make TEXT,
+          engine_model TEXT,
+          engine_displacement_l REAL,
+          transmission_type TEXT,
+          transmission_speeds INTEGER,
+          wheel_setup TEXT,
+          num_axles INTEGER,
+          pto_setup TEXT,
+          winch_setup TEXT,
+          winch_rating TEXT,
+          aux_hydraulics TEXT,
+          engine_oil_filter_spec TEXT,
+          primary_fuel_filter_spec TEXT,
+          secondary_fuel_filter_spec TEXT,
+          primary_air_filter_spec TEXT,
+          secondary_air_filter_spec TEXT,
+          hydraulic_filter_spec TEXT,
+          transmission_filter_spec TEXT,
+          coolant_filter_spec TEXT,
+          brake_pads_front_spec TEXT,
+          brake_pads_rear_spec TEXT,
+          serpentine_belt_spec TEXT,
+          tire_size_steer TEXT,
+          tire_psi_steer REAL,
+          tire_size_drive TEXT,
+          tire_psi_drive REAL,
+          tire_size_trailer TEXT,
+          tire_psi_trailer REAL,
+          min_steer_tread_depth REAL,
+          min_drive_tread_depth REAL,
+          min_trailer_tread_depth REAL,
+          inspection_toggles_json TEXT,
+          custom_fields_json TEXT
         )
       `).run();
     } else if (d1Table === 'projects') {
@@ -761,7 +877,7 @@ async function ensureTableSchema(db, d1Table) {
           updated_by TEXT
         )
       `).run();
-} else if (d1Table === 'assets') {
+    } else if (d1Table === 'assets') {
       await db.prepare(`
         CREATE TABLE IF NOT EXISTS assets (
           id TEXT PRIMARY KEY,
@@ -846,10 +962,12 @@ async function ensureTableSchema(db, d1Table) {
           user_custom_attachments TEXT
         )
       `).run();
-    }
+
       try {
         await db.prepare('ALTER TABLE assets ADD COLUMN current_project TEXT').run();
-      } catch (e) {}
+      } catch (e) {
+        // Column already exists
+      }
     } else if (d1Table === 'fuel_tanks') {
       await db.prepare(`
         CREATE TABLE IF NOT EXISTS fuel_tanks (
