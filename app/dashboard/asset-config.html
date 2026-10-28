@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>DRIV‑EN | Universal Asset Configuration Rules</title>
-  <meta name="description" content="DRIV-EN — Configure regulatory inspection rules, multi-meter PM thresholds, and global defaults across all asset categories.">
+  <meta name="description" content="DRIV-EN — Configure regulatory inspection rules, multi-meter PM thresholds, and fluid capacities across all asset categories.">
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
   <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
@@ -372,7 +372,7 @@
       <div class="toggle-row" id="overrideRow" style="background: var(--bg-input); padding: 12px; border-radius: 6px; margin-bottom: 16px;">
         <div>
           <div class="toggle-title">Override Category Global Defaults</div>
-          <div class="toggle-desc">Enable to apply customized inspection thresholds to this individual unit.</div>
+          <div class="toggle-desc">Enable to apply customized inspection thresholds and fluid specs to this individual unit.</div>
         </div>
         <label class="switch">
           <input type="checkbox" id="overrideDefaults" onchange="toggleFormLock()">
@@ -414,7 +414,7 @@
         <label for="newAttAllowedCategory">Compatible Target Asset Category</label>
         <select id="newAttAllowedCategory">
           <option value="highway">Highway Motor Vehicles (Classes 1–8)</option>
-          <option value="earthmoving">Earthmoving & Construction Equipment</option>
+          <option value="earthmoving">Earthmoving & Heavy Construction Equipment</option>
           <option value="mining">Mining, Drilling & Rigging</option>
           <option value="stationary">Stationary & Engine Plants</option>
           <option value="auxiliary">Auxiliary Tools, Pumps & Light Towers</option>
@@ -449,7 +449,7 @@
   <div class="modal-overlay" id="copyModal">
     <div class="modal-card">
       <h3 style="margin-top: 0;">Copy Asset Configuration</h3>
-      <p style="font-size: 13px; color: var(--text-muted);">Select a source asset to clone its parts, intervals, and inspection settings.</p>
+      <p style="font-size: 13px; color: var(--text-muted);">Select a source asset to clone its inspection checks, fluid specs, and PM settings directly to the current unit.</p>
       
       <div class="form-group" style="margin-bottom: 16px;">
         <label for="copySourceAsset">Select Source Asset</label>
@@ -460,7 +460,7 @@
 
       <div style="display: flex; justify-content: flex-end; gap: 10px;">
         <button class="btn-secondary" style="background: #64748b;" onclick="closeCopyModal()">Cancel</button>
-        <button class="btn-action" onclick="executeCopyConfig()">Copy & Apply</button>
+        <button class="btn-action" onclick="executeCopyConfig()">Copy & Apply Configuration</button>
       </div>
     </div>
   </div>
@@ -471,7 +471,6 @@
   <script>
     let allAssets = [];
     let assetTypes = [];
-    let currentSchema = null;
     let activeOrgId = null;
     let customItemsList = [];
     let userCustomAttachments = {};
@@ -488,46 +487,36 @@
         { value: "concrete_mixer", label: "Concrete Mixer Drum Body" },
         { value: "boom_bucket", label: "Knuckle Boom / Aerial Bucket" },
         { value: "service_crane", label: "Service Body & Crane" },
-        { value: "dump_body", label: "Telescopic Dump Bed / Grain Body" },
-        { value: "refuse_compactor", label: "Refuse / Garbage Compactor Body" },
-        { value: "fuel_lube", label: "Fuel Tanker & Lube Dispensing Body" },
-        { value: "water_tanker", label: "Water Tanker & Spray Bar Body" }
+        { value: "dump_body", label: "Telescopic Dump Bed / Grain Body" }
       ],
       earthmoving: [
-        { value: "none", label: "None (Standard Bucket / Blade)" },
+        { value: "none", label: "None (Standard Bucket / Dozer Blade)" },
         { value: "hydraulic_breaker", label: "Hydraulic Breaker / Hammer" },
-        { value: "grapple_shear", label: "Hydraulic Grapple / Demolition Shears / Thumb" },
+        { value: "ripper_tooth", label: "Rear Multi-Shank / Single-Shank Ripper" },
+        { value: "winch_assembly", label: "Rear Hydraulic Towing Winch" },
         { value: "auger_drill", label: "Auger / Earth Drill Attachment" },
-        { value: "tiltrotator", label: "Tiltrotator / Quick-Coupler System" },
-        { value: "cold_planer", label: "Cold Planer / Asphalt Milling Head" },
-        { value: "wheel_trencher", label: "Rock Saw / Wheel Trencher" },
-        { value: "mulching_head", label: "Forestry Mulcher / Brush Cutter Head" }
+        { value: "tiltrotator", label: "Tiltrotator / Quick-Coupler System" }
       ],
       mining: [
-        { value: "none", label: "None (Standard Rig / Hauler)" },
+        { value: "none", label: "None (Standard Rig / Heavy Hauler)" },
         { value: "fire_suppression", label: "Automatic Fire Suppression System" },
-        { value: "bop_accumulator", label: "Blowout Preventer (BOP) & Accumulator Unit" },
         { value: "top_drive_swivel", label: "Top Drive System & Power Swivel" },
-        { value: "high_pressure_manifold", label: "High-Pressure Manifold & Mud Pump Skid" },
-        { value: "shale_shaker", label: "Shale Shaker & Solids Control System" }
+        { value: "high_pressure_manifold", label: "High-Pressure Manifold & Mud Pump Skid" }
       ],
       stationary: [
         { value: "none", label: "None (Standard Skid / Station)" },
         { value: "welding_leads", label: "Heavy Duty Lead Reels & Remote Control" },
         { value: "skid_trailer", label: "Towable Highway Trailer / Running Gear" },
-        { value: "sound_enclosure", label: "Acoustic Attenuation / Weather Enclosure" },
-        { value: "air_dryer_skid", label: "Desiccant Air Dryer & Filter Skid" },
-        { value: "vru_flare", label: "Vapor Recovery Unit (VRU) & Flare Stack" }
+        { value: "sound_enclosure", label: "Acoustic Attenuation Enclosure" }
       ],
       auxiliary: [
         { value: "none", label: "None (Standard Frame / Tank)" },
-        { value: "vac_lifter", label: "Vacuum Pipe Lifter Attachment" },
         { value: "pintle_hitch", label: "Heavy Duty Tag / Pintle Hitch Assembly" },
-        { value: "generator_light_tower", label: "Auxiliary Generator & Mast Light Tower" },
-        { value: "chemical_injection", label: "Portable Chemical Injection Skid" }
+        { value: "generator_light_tower", label: "Auxiliary Generator & Mast Light Tower" }
       ]
     };
 
+    // Category-Specific Baseline Inspection & PM Fluid Schemas
     const MASTER_CATEGORY_SCHEMAS = {
       highway: {
         title: "Highway Motor Vehicle Baseline (Classes 1–8)",
@@ -536,58 +525,81 @@
             title: "1. Federal DOT / OSHA Compliance Checks (49 CFR § 396.11)",
             fields: [
               { id: "dot_brakes", label: "Service & Air / Hydraulic Brake Systems", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Test pedal travel, air loss rate, and low-pressure warning" },
-              { id: "dot_steering", label: "Steering Mechanism & Power Fluid", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Inspect tie-rods, steering box, and fluid level" },
+              { id: "dot_steering", label: "Steering Mechanism & Power Steering Fluid", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Inspect tie-rods, steering box, and fluid level" },
               { id: "dot_lighting", label: "Lighting, Turn Signals & Brake Lamps", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Verify illumination across all head, tail, signal, and marker lights" },
               { id: "dot_tires_rims", label: "Tires, Dual Rims & Wheel Fasteners", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Check tread depth (4/32 steer, 2/32 drive) and lug tightness" },
-              { id: "dot_emergency_kit", label: "Reflective Triangles & Charged Fire Extinguisher", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Verify 3 DOT reflective triangles and green-gauge extinguisher" }
+              { id: "dot_emergency_kit", label: "Reflective Triangles & Charged Fire Extinguisher", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Verify 3 DOT reflective triangles and charged fire extinguisher" }
             ]
           },
           {
-            title: "2. Maintenance Schedules & Telematics Triggers",
+            title: "2. Maintenance Intervals & Telematics Triggers",
             fields: [
               { id: "pmMilesInterval", label: "Engine Oil Service Interval (Miles)", type: "number", default: 7500, desc: "Road mileage service threshold" },
               { id: "pmHoursInterval", label: "Engine Operating Time Interval (Hours)", type: "number", default: 250, desc: "Engine-hour service threshold" }
+            ]
+          },
+          {
+            title: "3. Preventative Maintenance Fluid Specifications",
+            fields: [
+              { id: "fluid_engine_oil", label: "Engine Oil Specification & Viscosity", type: "text", default: "15W-40 CK-4 Heavy Duty", desc: "e.g. 15W-40, 10W-30 Synthetic Blend" },
+              { id: "fluid_engine_oil_qty", label: "Engine Oil Capacity (Quarts/Gallons)", type: "text", default: "12 Gal (48 Qt)", desc: "Specify total crankcase capacity with filter" },
+              { id: "fluid_coolant", label: "Coolant / Antifreeze Type & Capacity", type: "text", default: "50/50 ELC Red (10 Gal)", desc: "e.g. Extended Life Coolant Organic Acid Tech" },
+              { id: "fluid_trans", label: "Transmission Fluid Spec & Capacity", type: "text", default: "TES-295 Synthetic (18 Qt)", desc: "Automatic or Manual gearbox fluid spec" },
+              { id: "fluid_def", label: "Diesel Exhaust Fluid (DEF) Capacity", type: "text", default: "10 Gallons", desc: "DEF tank size for emissions tier" }
             ]
           }
         ]
       },
       earthmoving: {
-        title: "Earthmoving & Heavy Civil Construction Machinery Baseline",
+        title: "Earthmoving & Construction Equipment Baseline (Dozers, Excavators, Loaders)",
         sections: [
           {
-            title: "1. OSHA Heavy Construction Safety (29 CFR 1926.602)",
+            title: "1. Heavy Equipment Safety Checks (OSHA 29 CFR 1926.602)",
             fields: [
-              { id: "osha_rops_fops", label: "ROPS / FOPS Protective Structure Integrity", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Check rollover cab posts and mounting bolts for damage" },
-              { id: "osha_travel_alarm", label: "Reverse Travel Warning Alarm & Horn", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Audible backup alarm audible above jobsite noise" },
-              { id: "osha_hyd_cylinders", label: "Hydraulic Cylinder Rods, Hoses & Couplers", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Inspect lift/tilt cylinders for leaks, pitting, or hose blisters" },
-              { id: "osha_quick_coupler", label: "Bucket / Attachment Quick-Coupler Safety Lock", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Verify mechanical safety pin or hydraulic wedge lock is engaged" }
+              { id: "osha_rops_fops", label: "ROPS / FOPS Canopy & Seatbelt Integrity", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Check rollover cab structure, mounting bolts, and 3-inch seatbelt" },
+              { id: "osha_travel_alarm", label: "Reverse Backup Warning Alarm & Horn", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Verify backup alarm is audible over jobsite engine noise" },
+              { id: "osha_hyd_cylinders", label: "Hydraulic Cylinder Rods, Hoses & Couplers", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Inspect lift, tilt, and ripper cylinders for leaks, pitting, or hose blisters" },
+              { id: "dozer_tracks_undercarriage", label: "Undercarriage, Track Tension & Sprockets", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Inspect track SAG tension, rollers, idlers, and grousers (No highway tires)" },
+              { id: "dozer_blade_ripper", label: "Blade Cutting Edge, End Bits & Rear Attachment", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Check blade corner bits, C-frame pivot pins, and hydraulic lockouts" }
             ]
           },
           {
-            title: "2. Hour-Based Maintenance Schedules",
+            title: "2. Operating Run-Time Maintenance Schedules",
             fields: [
-              { id: "pmHoursInterval", label: "Engine & Hydraulic Filter Change (Operating Hours)", type: "number", default: 250, desc: "Primary engine-hour service trigger" },
-              { id: "undercarriageCheckHours", label: "Track Tension & Sprocket Wear Audit (Hours)", type: "number", default: 500, desc: "Track SAG measurement and roller check" }
+              { id: "pmHoursInterval", label: "Engine & Hydraulic Filter Change (Hours)", type: "number", default: 250, desc: "Primary operating hour trigger" },
+              { id: "undercarriageCheckHours", label: "Track Tension & Undercarriage Wear Audit (Hours)", type: "number", default: 500, desc: "Measure track SAG and roller wear" }
+            ]
+          },
+          {
+            title: "3. Preventative Maintenance Fluid Specifications",
+            fields: [
+              { id: "fluid_engine_oil", label: "Engine Oil Specification & Viscosity", type: "text", default: "15W-40 CK-4 Diesel", desc: "Heavy duty diesel crankcase oil spec" },
+              { id: "fluid_engine_oil_qty", label: "Engine Oil Capacity", type: "text", default: "7.5 Gallons (30 Quarts)", desc: "Crankcase capacity with filter change" },
+              { id: "fluid_hydraulics", label: "Hydraulic System Fluid Spec & Capacity", type: "text", default: "ISO VG 46 / 28 Gallons", desc: "Main hydraulic reservoir fluid specification" },
+              { id: "fluid_final_drives", label: "Final Drive / Transmission Oil Spec & Qty", type: "text", default: "SAE 50 TO-4 / 4.5 Gal per side", desc: "Left and right planetary final drive oil" },
+              { id: "fluid_coolant", label: "Engine Coolant Spec & Capacity", type: "text", default: "Extended Life Coolant / 8.5 Gallons", desc: "Heavy duty diesel coolant specification" }
             ]
           }
         ]
       },
       mining: {
-        title: "Heavy Mining, Quarrying & Drilling Equipment Baseline",
+        title: "Heavy Mining, Quarrying & Drilling Baseline",
         sections: [
           {
             title: "1. MSHA Mandated Safety Checks (30 CFR Part 56/57)",
             fields: [
-              { id: "msha_e_stop", label: "Emergency Engine Stop / RigSaver Shut-Off", type: "toggle", default: true, locked: true, badge: "MSHA Mandatory", desc: "Test manual and air-intake cutoff switches" },
+              { id: "msha_e_stop", label: "Emergency Engine Stop / RigSaver Shut-Off", type: "toggle", default: true, locked: true, badge: "MSHA Mandatory", desc: "Test manual emergency stop and air-intake cutoff switches" },
               { id: "msha_fire_suppression", label: "Automatic / Manual Fire Suppression System", type: "toggle", default: true, locked: true, badge: "MSHA Mandatory", desc: "Inspect actuator pins, pressure gauges, and discharge nozzles" },
               { id: "msha_guards", label: "Pinch-Point, Flywheel & Driveshaft Safety Guards", type: "toggle", default: true, locked: true, badge: "MSHA Mandatory", desc: "Ensure all rotating shafts and belt guards are bolted in place" }
             ]
           },
           {
-            title: "2. Severe Duty Maintenance Schedules",
+            title: "2. Maintenance Schedules & Fluid Specifications",
             fields: [
-              { id: "pmHoursInterval", label: "Engine & Severe Duty Filter Change (Hours)", type: "number", default: 250, desc: "Primary operating hour trigger" },
-              { id: "fluidSamplingHours", label: "Engine Oil & Hydraulic Fluid Lab Analysis (Hours)", type: "number", default: 500, desc: "Oil sampling interval" }
+              { id: "pmHoursInterval", label: "Severe Duty Engine & Filter Change (Hours)", type: "number", default: 250, desc: "Primary engine operating hour trigger" },
+              { id: "fluid_engine_oil", label: "Engine Oil Specification & Viscosity", type: "text", default: "15W-40 CK-4 Mining Duty", desc: "Crankcase oil specification" },
+              { id: "fluid_engine_oil_qty", label: "Engine Oil Capacity", type: "text", default: "15 Gallons", desc: "Total crankcase oil capacity" },
+              { id: "fluid_hydraulics", label: "Hydraulic System Spec & Capacity", type: "text", default: "ISO VG 68 / 60 Gallons", desc: "High pressure hydraulic reservoir spec" }
             ]
           }
         ]
@@ -604,9 +616,11 @@
             ]
           },
           {
-            title: "2. Operating Run-Time Service Intervals",
+            title: "2. Operating Run-Time Service Intervals & Fluids",
             fields: [
-              { id: "pmHoursInterval", label: "Run-Time Service Interval (Hours)", type: "number", default: 250, desc: "Primary engine/compressor run-hour maintenance threshold" }
+              { id: "pmHoursInterval", label: "Run-Time Service Interval (Hours)", type: "number", default: 250, desc: "Compressor / engine run-hour maintenance threshold" },
+              { id: "fluid_engine_oil", label: "Engine / Compressor Oil Spec & Viscosity", type: "text", default: "SAE 30 / ISO VG 100", desc: "Lube oil specification" },
+              { id: "fluid_engine_oil_qty", label: "Lube Oil Capacity", type: "text", default: "5 Gallons", desc: "Crankcase capacity" }
             ]
           }
         ]
@@ -622,9 +636,11 @@
             ]
           },
           {
-            title: "2. Service Thresholds",
+            title: "2. Service Thresholds & Fluids",
             fields: [
-              { id: "pmHoursInterval", label: "Generator / Pump Service Interval (Hours)", type: "number", default: 250, desc: "Auxiliary engine maintenance trigger" }
+              { id: "pmHoursInterval", label: "Generator / Pump Service Interval (Hours)", type: "number", default: 250, desc: "Auxiliary engine maintenance trigger" },
+              { id: "fluid_engine_oil", label: "Engine Oil Spec & Viscosity", type: "text", default: "10W-30 Full Synthetic", desc: "Small engine oil specification" },
+              { id: "fluid_engine_oil_qty", label: "Engine Oil Capacity", type: "text", default: "1.5 Quarts", desc: "Sump capacity" }
             ]
           }
         ]
@@ -632,79 +648,23 @@
     };
 
     const ATTACHMENT_OVERLAYS = {
-      box_bed: {
-        title: "Box Bed / Insulated Cargo Body Overlay",
+      ripper_tooth: {
+        title: "Rear Dozer Ripper Tooth Attachment Overlay",
         fields: [
-          { id: "box_door_seals", label: "Rear Roll-Up / Swing Door Latch & Weather Seals", type: "toggle", default: true, desc: "Inspect door lock rods and rubber seals" },
-          { id: "box_interior_light", label: "Interior Cargo LED Lighting & E-Track Anchors", type: "toggle", default: true, desc: "Inspect cargo dome lights and wall tie-down rails" }
+          { id: "ripper_pins", label: "Ripper Shank Pins & Tooth Pocket Wear", type: "toggle", default: true, desc: "Inspect ripper tip wear and hydraulic shank pins" }
         ]
       },
-      flatbed_tilt: {
-        title: "Flatbed / Tilt-Deck Rollback Overlay",
+      winch_assembly: {
+        title: "Rear Hydraulic Towing Winch Overlay",
         fields: [
-          { id: "winch_cable_check", label: "Rollback Hydraulic Winch Cable & Remote", type: "toggle", default: true, desc: "Check cable fraying and hydraulic winch engagement" },
-          { id: "deck_lock_pins", label: "Tilt Deck Safety Lock Pins & Hydraulic Cylinders", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Verify mechanical deck locking pins during transport" }
-        ]
-      },
-      rolloff_hooklift: {
-        title: "Roll-Off Hoist / Hooklift Overlay",
-        fields: [
-          { id: "rolloff_cable_straps", label: "Hoist Cable / Hook Arm & Container Hold-Down Locks", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Inspect main lift cable, hook latch, and pneumatic container locks" },
-          { id: "tarper_arm_check", label: "Automatic Tarping System Arms & Motor", type: "toggle", default: true, desc: "Check tarp arm springs and motor function" }
+          { id: "winch_cable", label: "Winch Cable Wire Rope & Hydraulic Control", type: "toggle", default: true, desc: "Check wire cable fraying, drum freespool, and hydraulic brake" }
         ]
       },
       hydrovac: {
         title: "Hydrovac / Suction Attachment Overlay",
         fields: [
           { id: "pto_track_enable", label: "Enable PTO Hour Meter Tracking", type: "toggle", default: true, desc: "Track vacuum blower / water pump runtime" },
-          { id: "pto_pm_hours", label: "Blower & Hydraulic Service (PTO Hours)", type: "number", default: 150, desc: "Blower oil change threshold" },
-          { id: "osha_vac_blower", label: "Vacuum Blower Filter & Pressure Relief Valve", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Inspect intake silencer and pressure relief valve" }
-        ]
-      },
-      concrete_mixer: {
-        title: "Concrete Mixer Drum Overlay",
-        fields: [
-          { id: "pto_track_enable", label: "Enable PTO Drum Hour Tracking", type: "toggle", default: true, desc: "Track drum hydraulic drive hours" },
-          { id: "pto_pm_hours", label: "Drum Drive Planetary Gearbox Service (PTO Hours)", type: "number", default: 200, desc: "Gearbox oil service threshold" }
-        ]
-      },
-      boom_bucket: {
-        title: "Knuckle Boom / Aerial Bucket Overlay",
-        fields: [
-          { id: "pto_track_enable", label: "Enable PTO Hydraulic Hour Tracking", type: "toggle", default: true, desc: "Track hydraulic lift pump runtime" },
-          { id: "ansi_dielectric", label: "Dielectric Insulation Testing Tag Valid", type: "toggle", default: true, locked: true, badge: "ANSI A92.2", desc: "Verify annual insulation cert tag" }
-        ]
-      },
-      service_crane: {
-        title: "Service Crane & Compressor Body Overlay",
-        fields: [
-          { id: "pto_track_enable", label: "Enable Crane / Compressor Hour Tracking", type: "toggle", default: true, desc: "Track auxiliary equipment runtime" },
-          { id: "crane_rope", label: "Crane Wire Rope, Hook & Safety Latch", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Inspect wire cable fraying and safety latch" }
-        ]
-      },
-      dump_body: {
-        title: "Telescopic Dump Bed Overlay",
-        fields: [
-          { id: "pto_track_enable", label: "Enable PTO Hoist Hour Tracking", type: "toggle", default: true, desc: "Track hoist cylinder hours" }
-        ]
-      },
-      welding_leads: {
-        title: "Heavy Duty Lead Reels & Remote Overlay",
-        fields: [
-          { id: "lead_reel_insulation", label: "Welding Lead Insulation & Quick-Disconnect Check", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Inspect cable jackets for cuts or exposed copper" },
-          { id: "remote_dial_check", label: "Amperage Remote Control & Rheostat Check", type: "toggle", default: true, desc: "Test fine-current control dial" }
-        ]
-      },
-      skid_trailer: {
-        title: "Towable Running Gear & Trailer Axle Overlay",
-        fields: [
-          { id: "trailer_hitch_chains", label: "Safety Chains & Safety Pin Check", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Inspect hitch latch and dual safety chains" }
-        ]
-      },
-      hydraulic_breaker: {
-        title: "Hydraulic Breaker / Hammer Overlay",
-        fields: [
-          { id: "breaker_chisel_wear", label: "Hammer Chisel Point Wear & Accumulator Nitrogen Pressure", type: "toggle", default: true, desc: "Inspect tool bushing grease and nitrogen charge" }
+          { id: "pto_pm_hours", label: "Blower & Hydraulic Service (PTO Hours)", type: "number", default: 150, desc: "Blower oil change threshold" }
         ]
       }
     };
@@ -775,7 +735,6 @@
         const num = a.asset_number || a.assetNumber || a.name || a.id;
         const type = a.category || a.type || 'Default';
         
-        // Filter primary asset dropdown to chassis/base units (is_attachment !== 1)
         if (num && Number(a.is_attachment) !== 1) {
           const opt = document.createElement('option');
           opt.value = num;
@@ -797,7 +756,6 @@
         const isAtt = Number(a.is_attachment) === 1 || String(a.category).toLowerCase().includes('attachment');
         const allowedCat = String(a.allowed_category || 'all').toLowerCase();
         
-        // Strictly filter available attachments by active category key ('highway', 'earthmoving', etc.) or 'all'
         if (isAtt && (allowedCat === 'all' || allowedCat === categoryKey)) {
           const num = a.asset_number || a.assetNumber || a.name || a.id;
           const type = a.category || a.type || 'Attachment';
@@ -840,13 +798,14 @@
       renderCustomItemRows();
     }
 
+    // Accurately Map Asset Category Names to Target Baselines
     function mapTypeToMasterCategory(rawType) {
       if (!rawType) return "highway";
       const s = String(rawType).toLowerCase();
 
-      if (s.includes("excavator") || s.includes("dozer") || s.includes("loader") || s.includes("grader") || s.includes("backhoe") || s.includes("paver") || s.includes("compactor") || s.includes("skid steer")) return "earthmoving";
+      if (s.includes("dozer") || s.includes("excavator") || s.includes("loader") || s.includes("grader") || s.includes("backhoe") || s.includes("paver") || s.includes("compactor") || s.includes("skid steer") || s.includes("earthmoving")) return "earthmoving";
       if (s.includes("mine") || s.includes("haul truck") || s.includes("crusher") || s.includes("drill") || s.includes("workover") || s.includes("rig") || s.includes("coiled tubing") || s.includes("bop")) return "mining";
-      if (s.includes("generator") || s.includes("compressor") || s.includes("pump") || s.includes("boiler") || s.includes("vessel") || s.includes("welder") || s.includes("press brake")) return "stationary";
+      if (s.includes("generator") || s.includes("compressor") || s.includes("pump") || s.includes("boiler") || s.includes("vessel") || s.includes("welder")) return "stationary";
       if (s.includes("trailer") || s.includes("light tower") || s.includes("attachment")) return "auxiliary";
 
       return "highway";
@@ -882,7 +841,6 @@
         select.value = "none";
       }
 
-      // Re-populate standalone attachment options using the category filter columns
       populateLinkedAttachmentDropdown(categoryKey);
       toggleAttachmentMetaBar();
     }
@@ -911,11 +869,11 @@
         : document.getElementById('selectType').value;
 
       if (!rawType) {
-        alert("Please select a vehicle or asset category first before adding a custom attachment.");
+        alert("Please select an asset or category first before adding a custom attachment.");
         return;
       }
 
-      const attachmentName = prompt("Enter the name for the new custom body or attachment:");
+      const attachmentName = prompt("Enter the name for the custom body or attachment:");
       if (!attachmentName || !attachmentName.trim()) return;
 
       const categoryKey = mapTypeToMasterCategory(rawType);
@@ -1059,31 +1017,11 @@
         if (res.ok) data = await res.json();
 
         if (data && data.config) {
-          if (data.config.userCustomAttachments) {
-            userCustomAttachments = data.config.userCustomAttachments;
-            updateAttachmentDropdown(assetType);
-          }
-          if (data.config.attachment) {
-            document.getElementById('selectAttachment').value = data.config.attachment;
-          }
-          if (data.config.attachmentTrackingMode) {
-            document.getElementById('attachmentTrackingMode').value = data.config.attachmentTrackingMode;
-          }
-          if (data.config.linkedAttachmentAssetId) {
-            document.getElementById('linkedAttachmentAssetId').value = data.config.linkedAttachmentAssetId;
-          }
-          if (data.config.attachmentMountState) {
-            document.getElementById('attachmentMountState').value = data.config.attachmentMountState;
-          }
-          if (data.config.customItems) {
-            customItemsList = data.config.customItems;
-          }
-          document.getElementById('overrideDefaults').checked = data.config.isOverride || false;
+          applyConfigToUI(data.config, assetType);
         } else {
           document.getElementById('overrideDefaults').checked = false;
+          renderCompositeForm(null, assetType);
         }
-
-        renderCompositeForm(data ? data.config : null, assetType);
         toggleFormLock();
 
       } catch (e) {
@@ -1091,6 +1029,30 @@
         renderCompositeForm(null, assetType);
         toggleFormLock();
       }
+    }
+
+    function applyConfigToUI(config, assetType = '') {
+      if (config.userCustomAttachments) {
+        userCustomAttachments = config.userCustomAttachments;
+        updateAttachmentDropdown(assetType);
+      }
+      if (config.attachment) {
+        document.getElementById('selectAttachment').value = config.attachment;
+      }
+      if (config.attachmentTrackingMode) {
+        document.getElementById('attachmentTrackingMode').value = config.attachmentTrackingMode;
+      }
+      if (config.linkedAttachmentAssetId) {
+        document.getElementById('linkedAttachmentAssetId').value = config.linkedAttachmentAssetId;
+      }
+      if (config.attachmentMountState) {
+        document.getElementById('attachmentMountState').value = config.attachmentMountState;
+      }
+      if (config.customItems) {
+        customItemsList = config.customItems;
+      }
+      document.getElementById('overrideDefaults').checked = config.isOverride || false;
+      renderCompositeForm(config, assetType);
     }
 
     function renderCompositeForm(savedConfig = null, rawType = "") {
@@ -1118,28 +1080,12 @@
         const overlay = ATTACHMENT_OVERLAYS[attachmentKey];
         const secTitle = document.createElement('div');
         secTitle.className = 'section-title';
-        secTitle.textContent = `3. ${overlay.title}`;
+        secTitle.textContent = `4. ${overlay.title}`;
         container.appendChild(secTitle);
 
         overlay.fields.forEach(field => {
           renderFieldRow(container, field, savedRules);
         });
-      } else if (attachmentKey.startsWith("custom_att_")) {
-        const select = document.getElementById("selectAttachment");
-        const customLabel = select.options[select.selectedIndex]?.textContent.replace("★ ", "") || "Custom Attachment";
-        
-        const secTitle = document.createElement('div');
-        secTitle.className = 'section-title';
-        secTitle.textContent = `3. ${customLabel} (Custom Attachment Overlay)`;
-        container.appendChild(secTitle);
-
-        renderFieldRow(container, {
-          id: "custom_att_pto_track",
-          label: `Enable Operating Hour / PTO Tracking for ${customLabel}`,
-          type: "toggle",
-          default: true,
-          desc: "Track operating runtime for auxiliary attachment"
-        }, savedRules);
       }
 
       renderCustomItemRows();
@@ -1307,6 +1253,7 @@
       document.getElementById('copyModal').style.display = 'none';
     }
 
+    // Fully Functional Client + Server Copy Configuration Handler
     async function executeCopyConfig() {
       const sourceKey = document.getElementById('copySourceAsset').value;
       const targetKey = document.getElementById('selectAsset').value;
@@ -1317,23 +1264,44 @@
       }
 
       try {
-        const resp = await apiFetch(API_ENDPOINT, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'copyConfig',
-            sourceKey,
-            key: targetKey
-          })
-        });
+        // Fetch full config from source asset
+        const select = document.getElementById('selectAsset');
+        const rawType = select.options[select.selectedIndex]?.getAttribute('data-type') || 'Default';
 
-        const data = await resp.json();
-        if (resp.ok && data.success) {
+        const sourceResp = await apiFetch(`${API_ENDPOINT}?targetType=specific&key=${encodeURIComponent(sourceKey)}&assetType=${encodeURIComponent(rawType)}`);
+        let sourceConfig = null;
+
+        if (sourceResp.ok) {
+          const resData = await sourceResp.json();
+          sourceConfig = resData.config;
+        }
+
+        if (sourceConfig) {
+          // Clone source config onto active target unit
+          sourceConfig.isOverride = true; // Enable override for target asset
+          applyConfigToUI(sourceConfig, rawType);
           closeCopyModal();
-          showMessage(data.message, 'success');
-          await onAssetSelected();
+          showMessage(`Copied rules and fluid specs from ${sourceKey} to ${targetKey}! Remember to click 'Save Configuration'.`, 'success');
         } else {
-          alert(data.error || 'Copy failed.');
+          // Try API direct copy endpoint fallback
+          const resp = await apiFetch(API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'copyConfig',
+              sourceKey,
+              key: targetKey
+            })
+          });
+
+          const data = await resp.json();
+          if (resp.ok && data.success) {
+            closeCopyModal();
+            showMessage(data.message || 'Configuration copied successfully!', 'success');
+            await onAssetSelected();
+          } else {
+            alert(data.error || 'Copy failed. Source asset has no saved configuration.');
+          }
         }
       } catch (e) {
         alert('Error copying configuration: ' + e.message);
