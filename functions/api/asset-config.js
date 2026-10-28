@@ -15,19 +15,35 @@ export async function onRequest(context) {
   }
 
   // =========================================================================
+  // JURISDICTION & UNIT CONFIGURATION CONTEXT
+  // =========================================================================
+  const countryParam = (url.searchParams.get('country') || request.headers.get('x-country') || 'US').toUpperCase().trim();
+  const isCanada = countryParam === 'CA';
+
+  // Dynamic Units
+  const uomVol = url.searchParams.get('vol') === 'L' || isCanada ? 'Liters' : 'Gallons';
+  const uomPress = (url.searchParams.get('press') || 'PSI').toUpperCase();
+  const uomDist = url.searchParams.get('dist') === 'km' || isCanada ? 'Kilometers' : 'Miles';
+  const uomDepth = isCanada ? 'mm' : '1/32 in';
+
+  // Dynamic Badges & Authority References
+  const roadAuth = isCanada ? 'NSC Standard 11' : 'DOT';
+  const workAuth = isCanada ? 'CCOHS / COR' : 'OSHA / MSHA';
+
+  // =========================================================================
   // UNIVERSAL REUSABLE SECTION GENERATORS
   // =========================================================================
 
   const createTireConfigurationSection = (configType = 'standard_2axle') => {
     let fields = [
       { id: "tireSizeSteer", label: "Front / Steer Tire Size Specification", type: "text", default: "LT275/70R18", desc: "Manufacturer spec steer tire size" },
-      { id: "tirePsiSteerRecommended", label: "Front / Steer Recommended Cold Inflation (PSI)", type: "number", default: 60, desc: "Door-jamb recommended PSI" },
+      { id: "tirePsiSteerRecommended", label: `Front / Steer Recommended Cold Inflation (${uomPress})`, type: "number", default: 60, desc: "Door-jamb recommended inflation" },
       { id: "tireSizeDrive", label: "Rear / Drive Tire Size Specification", type: "text", default: "LT275/70R18", desc: "Manufacturer spec drive tire size" },
-      { id: "tirePsiDriveRecommended", label: "Rear / Drive Recommended Cold Inflation (PSI)", type: "number", default: 65, desc: "Door-jamb recommended PSI" },
-      { id: "tpmsThresholdLowPsi", label: "TPMS Low Inflation Alarm Trigger (PSI)", type: "number", default: 50, desc: "Telemetry alert threshold" },
+      { id: "tirePsiDriveRecommended", label: `Rear / Drive Recommended Cold Inflation (${uomPress})`, type: "number", default: 65, desc: "Door-jamb recommended inflation" },
+      { id: "tpmsThresholdLowPsi", label: `TPMS Low Inflation Alarm Trigger (${uomPress})`, type: "number", default: 50, desc: "Telemetry alert threshold" },
       { id: "isDuallyConfiguration", label: "Dually Rear Axle Setup (1-Ton Dual Wheels)", type: "toggle", default: false, desc: "Enable 4-tire tracking on rear axle" },
-      { id: "minSteerTread32nd", label: "OSHA / DOT Minimum Steer Tire Tread Depth (1/32 in)", type: "number", default: 4, desc: "Out-of-service limit (4/32 in min)" },
-      { id: "minDriveTread32nd", label: "OSHA / DOT Minimum Drive Tire Tread Depth (1/32 in)", type: "number", default: 2, desc: "Out-of-service limit (2/32 in min)" }
+      { id: "minSteerTread32nd", label: `${workAuth} / ${roadAuth} Minimum Steer Tire Tread Depth (${uomDepth})`, type: "number", default: isCanada ? 3 : 4, desc: `Out-of-service limit (${isCanada ? '3 mm' : '4/32 in'} min)` },
+      { id: "minDriveTread32nd", label: `${workAuth} / ${roadAuth} Minimum Drive Tire Tread Depth (${uomDepth})`, type: "number", default: isCanada ? 2 : 2, desc: `Out-of-service limit (${isCanada ? '2 mm' : '2/32 in'} min)` }
     ];
 
     if (configType === 'multi_axle_trailer') {
@@ -35,8 +51,8 @@ export async function onRequest(context) {
         { id: "axleCount", label: "Trailer Axle Quantity", type: "number", default: 2, desc: "Total number of trailer axles (1-4)" },
         { id: "isDuallyTrailer", label: "Dually Axle Setup (Dual Wheels Per Side)", type: "toggle", default: false, desc: "Enable inner/outer position tracking" },
         { id: "trailerTireSize", label: "Trailer Tire Size Spec (ST / LT)", type: "text", default: "ST235/80R16", desc: "Trailer tire size rating" },
-        { id: "trailerTirePsiRecommended", label: "Trailer Recommended Cold Inflation (PSI)", type: "number", default: 80, desc: "Spec inflation pressure" },
-        { id: "minTrailerTread32nd", label: "OSHA / DOT Minimum Trailer Tread Depth (1/32 in)", type: "number", default: 2, desc: "Legal minimum tread" },
+        { id: "trailerTirePsiRecommended", label: `Trailer Recommended Cold Inflation (${uomPress})`, type: "number", default: 80, desc: "Spec inflation pressure" },
+        { id: "minTrailerTread32nd", label: `${workAuth} / ${roadAuth} Minimum Trailer Tread Depth (${uomDepth})`, type: "number", default: isCanada ? 2 : 2, desc: "Legal minimum tread" },
         { id: "trackSpecificTirePositions", label: "Enable Individual Wheel Position Tracking", type: "toggle", default: true, desc: "Track wear/replacements per position (Axle 1 L/R, Axle 2 L/R, Inner/Outer)" }
       ];
     }
@@ -51,10 +67,10 @@ export async function onRequest(context) {
     title: "Consumable Parts, Quantities & Replacement Numbers",
     fields: [
       { id: "partEngineOilFilter", label: "Engine Oil Filter Part #", type: "text", default: "", desc: "OEM or aftermarket filter code" },
-      { id: "partEngineOilQty", label: "Engine Oil Capacity & Spec (Quarts / Gallons)", type: "text", default: "6 Qt / 5W-30 Full Synthetic", desc: "Engine oil spec and volume" },
-      { id: "partTransFluidTypeQty", label: "Transmission Fluid Spec & Capacity", type: "text", default: "12 Qt / Dexron VI", desc: "Fluid specification and fill capacity" },
-      { id: "partBrakeFluidTypeQty", label: "Brake Fluid Spec & Capacity", type: "text", default: "32 oz / DOT 3", desc: "Fluid specification and fill capacity" },
-      { id: "partCoolantTypeQty", label: "Engine Coolant Spec & Capacity", type: "text", default: "14 Qt / 50/50 OAT", desc: "Antifreeze spec and capacity" },
+      { id: "partEngineOilQty", label: `Engine Oil Capacity & Spec (${uomVol})`, type: "text", default: isCanada ? "5.7 L / 5W-30 Full Synthetic" : "6 Qt / 5W-30 Full Synthetic", desc: "Engine oil spec and volume" },
+      { id: "partTransFluidTypeQty", label: `Transmission Fluid Spec & Capacity (${uomVol})`, type: "text", default: isCanada ? "11.4 L / Dexron VI" : "12 Qt / Dexron VI", desc: "Fluid specification and fill capacity" },
+      { id: "partBrakeFluidTypeQty", label: `Brake Fluid Spec & Capacity (${uomVol})`, type: "text", default: isCanada ? "1 L / DOT 3" : "32 oz / DOT 3", desc: "Fluid specification and fill capacity" },
+      { id: "partCoolantTypeQty", label: `Engine Coolant Spec & Capacity (${uomVol})`, type: "text", default: isCanada ? "13.2 L / 50/50 OAT" : "14 Qt / 50/50 OAT", desc: "Antifreeze spec and capacity" },
       { id: "partFuelFilterPrimary", label: "Primary Fuel Filter / Water Separator Part #", type: "text", default: "", desc: "Primary fuel filter code" },
       { id: "partFuelFilterSecondary", label: "Secondary Fuel Filter Part #", type: "text", default: "", desc: "Secondary fuel filter code" },
       { id: "partAirFilterPrimary", label: "Primary Air Intake Filter Part #", type: "text", default: "", desc: "Engine intake filter" },
@@ -62,7 +78,7 @@ export async function onRequest(context) {
       { id: "partCabinAirFilter", label: "Cabin HVAC Air Filter Part #", type: "text", default: "", desc: "Cabin filter code" },
       { id: "partWiperBlades", label: "Wiper Blade Set Part #", type: "text", default: "", desc: "Driver & passenger wiper sizes/part numbers" },
       { id: "partHydraulicFilterMain", label: "Main Hydraulic Return / Pressure Filter Part #", type: "text", default: "", desc: "Hydraulic filter number" },
-      { id: "partHydraulicOilQty", label: "Hydraulic Reservoir Fluid Capacity (Gallons)", type: "text", default: "", desc: "Total fluid volume" },
+      { id: "partHydraulicOilQty", label: `Hydraulic Reservoir Fluid Capacity (${uomVol})`, type: "text", default: "", desc: "Total fluid volume" },
       { id: "partBrakePadsFront", label: "Front Brake Pad Set Part # & Quantity", type: "text", default: "", desc: "Front brake pad kit spec" },
       { id: "partBrakePadsRear", label: "Rear Brake Pad Set / Shoe Kit Part #", type: "text", default: "", desc: "Rear brake kit spec" },
       { id: "partSerpentineBelt", label: "Main Engine Serpentine Belt Part #", type: "text", default: "", desc: "Drive belt part number" }
@@ -74,19 +90,19 @@ export async function onRequest(context) {
       { id: "lightHeadlightsLowHigh", label: "Low & High Beam Headlights", type: "toggle", default: true, desc: "Illumination check" },
       { id: "lightBrakeAndTail", label: "Tail Lights & Stop / Brake Lights", type: "toggle", default: true, desc: "Rear illumination check" },
       { id: "lightTurnSignalsHazards", label: "Turn Signals, Blinkers & 4-Way Emergency Hazard Flashers", type: "toggle", default: true, desc: "Directional indicators" },
-      { id: "lightClearanceMarker", label: "Clearance, Side Marker & ID Lights (>80 in wide)", type: "toggle", default: true, desc: "DOT width marker lights" },
+      { id: "lightClearanceMarker", label: "Clearance, Side Marker & ID Lights (>2.03 m / 80 in wide)", type: "toggle", default: true, desc: `${roadAuth} width marker lights` },
       { id: "lightLicensePlate", label: "License Plate Tag Light", type: "toggle", default: true, desc: "Rear tag illumination" },
-      { id: "lightReverseBackup", label: "Reverse Backup Lights & Audible Alarm Signal", type: "toggle", default: true, desc: "OSHA 1926.601 required backup warning" },
-      { id: "lightStrobeBeacon", label: "Amber Strobe Light / Rotating Beacon", type: "toggle", default: true, desc: "OSHA jobsite hazard warning light" },
+      { id: "lightReverseBackup", label: "Reverse Backup Lights & Audible Alarm Signal", type: "toggle", default: true, desc: `${workAuth} required backup warning` },
+      { id: "lightStrobeBeacon", label: "Amber Strobe Light / Rotating Beacon", type: "toggle", default: true, desc: `${workAuth} jobsite hazard warning light` },
       { id: "lightOtherAuxiliary", label: "Auxiliary & Other Lights Not Listed Above", type: "toggle", default: true, desc: "Inspect light bars, beacons, work lights, and clearance lights" },
       ...customLights
     ];
 
     const basePlacards = [
-      { id: "placardDotHazmat", label: "DOT Hazmat Placards & Class Identification Signs", type: "toggle", default: false, desc: "When carrying hazardous goods" },
-      { id: "signEmergencyStop", label: "E-Stop Safety Labeling & Machine Cut-Off Signage", type: "toggle", default: true, desc: "OSHA/MSHA required red E-stop signage" },
-      { id: "signMaxPayloadCapacity", label: "Max Load Capacity / Towing Rating Warning Decal", type: "toggle", default: true, desc: "OSHA rating decal on frame/cab" },
-      { id: "signSlowMovingVehicle", label: "Slow Moving Vehicle (SMV) Triangle Emblem", type: "toggle", default: false, desc: "Required for assets operating under 25 mph" },
+      { id: "placardDotHazmat", label: `${roadAuth} Hazmat Placards & Class Identification Signs`, type: "toggle", default: false, desc: "When carrying hazardous goods (TDG / DOT)" },
+      { id: "signEmergencyStop", label: "E-Stop Safety Labeling & Machine Cut-Off Signage", type: "toggle", default: true, desc: `${workAuth} required red E-stop signage` },
+      { id: "signMaxPayloadCapacity", label: "Max Load Capacity / Towing Rating Warning Decal", type: "toggle", default: true, desc: `${workAuth} rating decal on frame/cab` },
+      { id: "signSlowMovingVehicle", label: "Slow Moving Vehicle (SMV) Triangle Emblem", type: "toggle", default: false, desc: "Required for assets operating under 40 km/h (25 mph)" },
       ...customPlacards
     ];
 
@@ -97,19 +113,19 @@ export async function onRequest(context) {
   };
 
   const createOshaMandatesSection = () => ({
-    title: "OSHA / MSHA Mandated Safety Devices & Emergency Equipment",
+    title: isCanada ? "Canadian NSC Standard 11 & CCOHS Mandated Safety Devices" : "OSHA / MSHA Mandated Safety Devices & Emergency Equipment",
     fields: [
-      { id: "seatBeltMandate", label: "OSHA / MSHA Seat Belt Functional & Webbing Inspection", type: "toggle", default: true, desc: "Mandatory check per 29 CFR 1926.601(b)(9) / MSHA 30 CFR 56.14130" },
-      { id: "hornAudible200ft", label: "Audible Warning Horn (Audible at 200 ft)", type: "toggle", default: true, desc: "OSHA 1926.601(b)(1) compliance" },
-      { id: "fireExtinguisherCharged", label: "On-Board Fire Extinguisher (Gauge Green, Sealed & Mounted)", type: "toggle", default: true, desc: "OSHA 29 CFR 1926.150 / MSHA 30 CFR 56.4201" },
-      { id: "firstAidKitStocked", label: "OSHA / MSHA Compliant Stocked First Aid Kit", type: "toggle", default: true, desc: "29 CFR 1926.50 / 30 CFR 56.15001" },
-      { id: "dotReflectiveTriangles", label: "Set of 3 DOT Emergency Reflective Triangles / Flares", type: "toggle", default: true, desc: "OSHA/DOT emergency breakdown kit" },
+      { id: "seatBeltMandate", label: `${workAuth} Seat Belt Functional & Webbing Inspection`, type: "toggle", default: true, desc: isCanada ? "Mandatory check per CCOHS / NSC Standard 11" : "Mandatory check per 29 CFR 1926.601(b)(9) / MSHA 30 CFR 56.14130" },
+      { id: "hornAudible200ft", label: "Audible Warning Horn Operational (Audible at 60 m / 200 ft)", type: "toggle", default: true, desc: `${workAuth} compliance` },
+      { id: "fireExtinguisherCharged", label: "On-Board Fire Extinguisher (Gauge Green, Sealed & Mounted)", type: "toggle", default: true, desc: `${workAuth} safety requirement` },
+      { id: "firstAidKitStocked", label: `${workAuth} Compliant Stocked First Aid Kit`, type: "toggle", default: true, desc: "Required pre-shift emergency inventory" },
+      { id: "dotReflectiveTriangles", label: `Set of 3 ${roadAuth} Emergency Reflective Triangles / Flares`, type: "toggle", default: true, desc: `${roadAuth} emergency breakdown kit` },
       { id: "wheelChocksPair", label: "Pair of Heavy Duty Wheel Chocks Present", type: "toggle", default: true, desc: "Required parking containment" }
     ]
   });
 
   // =========================================================================
-  // GRANULAR CONFIGURATION SCHEMAS FOR ALL 100+ EQUIPMENT TYPES
+  // GRANULAR CONFIGURATION SCHEMAS FOR ALL EQUIPMENT TYPES
   // =========================================================================
   const CATEGORY_SCHEMAS = {
 
@@ -126,7 +142,7 @@ export async function onRequest(context) {
             { id: "transmissionType", label: "Transmission Type", type: "text", default: "Automatic", desc: "Automatic / Manual" },
             { id: "fuelType", label: "Fuel Type", type: "text", default: "Gasoline", desc: "Gasoline, Diesel, Flex Fuel, EV" },
             { id: "hasWinch", label: "Equipped with Auxiliary Winch", type: "toggle", default: false, desc: "Enable winch configuration" },
-            { id: "trackOdometer", label: "Track Odometer Mileage", type: "toggle", default: true, desc: "Require mileage entry during pre-trip checks" }
+            { id: "trackOdometer", label: `Track Odometer Mileage (${uomDist})`, type: "toggle", default: true, desc: "Require mileage entry during pre-trip checks" }
           ]
         },
         {
@@ -170,9 +186,9 @@ export async function onRequest(context) {
         {
           title: "9. Preventative Maintenance (PM) Schedules",
           fields: [
-            { id: "pmMilesInterval", label: "Engine Oil & Filter Change Interval (Miles)", type: "number", default: 5000, desc: "Standard oil change threshold" },
-            { id: "tireRotationMiles", label: "Tire Rotation & Balance Schedule (Miles)", type: "number", default: 7500, desc: "Tire rotation interval" },
-            { id: "brakePadCheckMiles", label: "Brake Lining & Rotor Service Interval (Miles)", type: "number", default: 15000, desc: "Comprehensive brake wear inspection" }
+            { id: "pmMilesInterval", label: `Engine Oil & Filter Change Interval (${uomDist})`, type: "number", default: isCanada ? 8000 : 5000, desc: "Standard oil change threshold" },
+            { id: "tireRotationMiles", label: `Tire Rotation & Balance Schedule (${uomDist})`, type: "number", default: isCanada ? 12000 : 7500, desc: "Tire rotation interval" },
+            { id: "brakePadCheckMiles", label: `Brake Lining & Rotor Service Interval (${uomDist})`, type: "number", default: isCanada ? 24000 : 15000, desc: "Comprehensive brake wear inspection" }
           ]
         }
       ]
@@ -183,7 +199,7 @@ export async function onRequest(context) {
         {
           title: "1. Vocational Mileage & Aux Hydraulics",
           fields: [
-            { id: "trackOdometer", label: "Track Odometer Mileage", type: "toggle", default: true, desc: "Log odometer mileage" },
+            { id: "trackOdometer", label: `Track Odometer (${uomDist})`, type: "toggle", default: true, desc: "Log odometer reading" },
             { id: "trackPtoHours", label: "Track PTO / Auxiliary Engine Hours", type: "toggle", default: true, desc: "Separate PTO runtime from road mileage" },
             { id: "hydraulicLiftCheck", label: "Hydraulic Hoist / Lift Pressure Test", type: "toggle", default: true, desc: "Flag bed/lift pump pressure drops" }
           ]
@@ -195,7 +211,7 @@ export async function onRequest(context) {
         {
           title: "5. Service Intervals",
           fields: [
-            { id: "pmMilesInterval", label: "Medium Diesel Oil Service (Miles)", type: "number", default: 7500, desc: "Engine PM schedule" },
+            { id: "pmMilesInterval", label: `Medium Diesel Oil Service (${uomDist})`, type: "number", default: isCanada ? 12000 : 7500, desc: "Engine PM schedule" },
             { id: "ptoHydraulicServiceHours", label: "PTO Hydraulic Fluid Change (Hours)", type: "number", default: 500, desc: "Hydraulic system service" }
           ]
         }
@@ -224,8 +240,8 @@ export async function onRequest(context) {
         {
           title: "1. Fleet Usage & Maintenance",
           fields: [
-            { id: "trackOdometer", label: "Track Mileage / Odometer", type: "toggle", default: true, desc: "Require mileage tracking" },
-            { id: "cabinFilterInterval", label: "Cabin & Air Filter Replacement (Miles)", type: "number", default: 15000, desc: "HVAC maintenance" }
+            { id: "trackOdometer", label: `Track Odometer (${uomDist})`, type: "toggle", default: true, desc: "Require distance tracking" },
+            { id: "cabinFilterInterval", label: `Cabin & Air Filter Replacement (${uomDist})`, type: "number", default: isCanada ? 24000 : 15000, desc: "HVAC maintenance" }
           ]
         },
         createTireConfigurationSection('standard_2axle'),
@@ -240,7 +256,7 @@ export async function onRequest(context) {
         {
           title: "1. Payload & Cargo Door Safety",
           fields: [
-            { id: "trackOdometer", label: "Track Mileage", type: "toggle", default: true, desc: "Log odometer miles" },
+            { id: "trackOdometer", label: `Track Distance (${uomDist})`, type: "toggle", default: true, desc: "Log odometer" },
             { id: "cargoTieDownCheck", label: "Cargo Lashing & Partition Wall Audit", type: "toggle", default: true, desc: "Inspect load containment anchors" }
           ]
         },
@@ -259,8 +275,8 @@ export async function onRequest(context) {
         {
           title: "1. Highway Compliance & Telematics",
           fields: [
-            { id: "trackOdometer", label: "Track Mileage / Odometer", type: "toggle", default: true, desc: "Log mileage for DOT & IFTA" },
-            { id: "dotAnnualInspectionDays", label: "DOT Annual Inspection Alert Window (Days)", type: "number", default: 30, desc: "Advance warning prior to cert expiry" },
+            { id: "trackOdometer", label: `Track Distance (${uomDist})`, type: "toggle", default: true, desc: `Log distance for ${roadAuth} & IFTA` },
+            { id: "dotAnnualInspectionDays", label: `${roadAuth} Annual Inspection Alert Window (Days)`, type: "number", default: 30, desc: "Advance warning prior to cert expiry" },
             { id: "eldSyncRequired", label: "Require ELD Telematics Synchronization", type: "toggle", default: true, desc: "Enforce HOS log validation" }
           ]
         },
@@ -278,7 +294,7 @@ export async function onRequest(context) {
         {
           title: "6. Maintenance Schedules",
           fields: [
-            { id: "pmMilesInterval", label: "Heavy Diesel Oil Service (Miles)", type: "number", default: 15000, desc: "Engine oil change limit" },
+            { id: "pmMilesInterval", label: `Heavy Diesel Oil Service (${uomDist})`, type: "number", default: isCanada ? 25000 : 15000, desc: "Engine oil change limit" },
             { id: "pmCalendarInterval", label: "Chassis Grease & Safety Limit (Days)", type: "number", default: 90, desc: "Quarterly chassis lube cycle" }
           ]
         }
@@ -290,10 +306,10 @@ export async function onRequest(context) {
         {
           title: "1. Dump Body & Hydraulic Hoist",
           fields: [
-            { id: "trackOdometer", label: "Track Odometer Mileage", type: "toggle", default: true, desc: "Log mileage" },
+            { id: "trackOdometer", label: `Track Distance (${uomDist})`, type: "toggle", default: true, desc: "Log reading" },
             { id: "trackPtoHours", label: "Track PTO Hoist Operating Hours", type: "toggle", default: true, desc: "Log hydraulic dump time" },
             { id: "tailgateLatchCheck", label: "Require Tailgate Air Latch Lock Test", type: "toggle", default: true, desc: "Prevent accidental dumping on road" },
-            { id: "dumpBodySafetyPin", label: "OSHA Required Dump Body Safety Support Lock Pin", type: "toggle", default: true, desc: "29 CFR 1926.600(a)(6) requirement" }
+            { id: "dumpBodySafetyPin", label: `${workAuth} Required Dump Body Safety Support Lock Pin`, type: "toggle", default: true, desc: "Mechanical safety prop requirement" }
           ]
         },
         createTireConfigurationSection('standard_2axle'),
@@ -308,7 +324,7 @@ export async function onRequest(context) {
         {
           title: "1. Mounted Crane & Air Compressor PTO",
           fields: [
-            { id: "trackOdometer", label: "Track Mileage", type: "toggle", default: true, desc: "Log odometer mileage" },
+            { id: "trackOdometer", label: `Track Distance (${uomDist})`, type: "toggle", default: true, desc: "Log odometer reading" },
             { id: "trackPtoHours", label: "Track PTO Crane / Compressor Hours", type: "toggle", default: true, desc: "Log auxiliary engine hours" },
             { id: "craneLmiTest", label: "Mounted Service Crane Overload LMI Test", type: "toggle", default: true, desc: "Verify crane overload cut-off" }
           ]
@@ -326,7 +342,7 @@ export async function onRequest(context) {
           title: "1. Hydro-Vac & Blower Metrics",
           fields: [
             { id: "trackPtoHours", label: "Track Blower & Vacuum Engine Hours", type: "toggle", default: true, desc: "Record high-CFM blower runtime" },
-            { id: "waterPressureCheck", label: "Monitor High-Pressure Water Pump (PSI)", type: "toggle", default: true, desc: "Flag pressure washer drops" },
+            { id: "waterPressureCheck", label: `Monitor High-Pressure Water Pump (${uomPress})`, type: "toggle", default: true, desc: "Flag pressure washer drops" },
             { id: "debrisTankLatchCheck", label: "Debris Tank Rear Door Seal Audit", type: "toggle", default: true, desc: "Prevent slurry leaks during transit" }
           ]
         },
@@ -362,7 +378,7 @@ export async function onRequest(context) {
           title: "1. Low-Ground-Pressure Tires & Articulation",
           fields: [
             { id: "trackHours", label: "Track Operating Hours", type: "toggle", default: true, desc: "Record engine run hours" },
-            { id: "lowPressureTirePsi", label: "LGP Bag Tire Inflation Threshold (PSI)", type: "number", default: 5, desc: "Ultra-low pressure audit for tundra/swamp" }
+            { id: "lowPressureTirePsi", label: `LGP Bag Tire Inflation Threshold (${uomPress})`, type: "number", default: 5, desc: "Ultra-low pressure audit for tundra/swamp" }
           ]
         },
         createTireConfigurationSection('standard_2axle'),
@@ -402,7 +418,7 @@ export async function onRequest(context) {
         },
         createTireConfigurationSection('standard_2axle'),
         createLightingAndPlacardsSection([], [
-          { id: "signPlatformCapacity", label: "Platform Max Occupancy & Capacity Decal", type: "toggle", default: true, desc: "ANSI A92.20 decal" }
+          { id: "signPlatformCapacity", label: "Platform Max Occupancy & Capacity Decal", type: "toggle", default: true, desc: isCanada ? "CSA B354 / CCOHS decal" : "ANSI A92.20 decal" }
         ]),
         createOshaMandatesSection(),
         createConsumablePartsSection()
@@ -434,7 +450,7 @@ export async function onRequest(context) {
           title: "1. Rig Power & Drawworks Telematics",
           fields: [
             { id: "trackHours", label: "Track Rig Engine & Drawworks Hours", type: "toggle", default: true, desc: "Log engine run hours" },
-            { id: "crownSaverTest", label: "Require Crown-Saver Safety Cut-off Test", type: "toggle", default: true, desc: "API RP 54 / OSHA requirement" }
+            { id: "crownSaverTest", label: "Require Crown-Saver Safety Cut-off Test", type: "toggle", default: true, desc: `${workAuth} / API RP 54 requirement` }
           ]
         },
         {
@@ -470,7 +486,7 @@ export async function onRequest(context) {
           title: "1. Injector Head & Reel Fatigue",
           fields: [
             { id: "trackHours", label: "Track Power Pack Hours", type: "toggle", default: true, desc: "Record unit run hours" },
-            { id: "stringFatigueLog", label: "Require Coiled Tubing String Running Fatigue Log", type: "toggle", default: true, desc: "Log footage run per cycle" }
+            { id: "stringFatigueLog", label: "Require Coiled Tubing String Running Fatigue Log", type: "toggle", default: true, desc: "Log depth run per cycle" }
           ]
         },
         createLightingAndPlacardsSection(),
@@ -485,7 +501,7 @@ export async function onRequest(context) {
           title: "1. Triplex / Quintuplex Fluid End",
           fields: [
             { id: "trackHours", label: "Track Pump Operating Hours", type: "toggle", default: true, desc: "Log stroke hours" },
-            { id: "dischargePulsationDampener", label: "Pulsation Dampener Nitrogen Pre-Charge (PSI)", type: "number", default: 750, desc: "Check dampener bladder charge" }
+            { id: "dischargePulsationDampener", label: `Pulsation Dampener Nitrogen Pre-Charge (${uomPress})`, type: "number", default: 750, desc: "Check dampener bladder charge" }
           ]
         },
         createLightingAndPlacardsSection(),
@@ -611,7 +627,7 @@ export async function onRequest(context) {
           title: "1. Thrust & Mud Pressure Telemetry",
           fields: [
             { id: "trackHours", label: "Track Drill Rig Engine Hours", type: "toggle", default: true, desc: "Log operating runtime" },
-            { id: "drillingMudFlowRate", label: "Monitor Mud Pump Pressure & Flow (GPM)", type: "toggle", default: true, desc: "Flag downhole circulation loss" }
+            { id: "drillingMudFlowRate", label: `Monitor Mud Pump Pressure & Flow (LPM / GPM)`, type: "toggle", default: true, desc: "Flag downhole circulation loss" }
           ]
         },
         createLightingAndPlacardsSection(),
@@ -644,7 +660,7 @@ export async function onRequest(context) {
           title: "1. Dryer Drum, Burner & Baghouse",
           fields: [
             { id: "trackHours", label: "Track Plant Burner Run Hours", type: "toggle", default: true, desc: "Log dryer drum runtime" },
-            { id: "baghouseDifferentialPressure", label: "Baghouse Differential Pressure Limit (In. W.C.)", type: "number", default: 6, desc: "Flag filter bag blinding" }
+            { id: "baghouseDifferentialPressure", label: "Baghouse Differential Pressure Limit (kPa / In. W.C.)", type: "number", default: 6, desc: "Flag filter bag blinding" }
           ]
         },
         createLightingAndPlacardsSection(),
@@ -742,7 +758,7 @@ export async function onRequest(context) {
         },
         createTireConfigurationSection('standard_2axle'),
         createLightingAndPlacardsSection([], [
-          { id: "signSlowMovingVehicleEmblem", label: "OSHA / ASAE Slow Moving Vehicle (SMV) Triangle Emblem", type: "toggle", default: true, desc: "Required for road transport" }
+          { id: "signSlowMovingVehicleEmblem", label: "Slow Moving Vehicle (SMV) Triangle Emblem", type: "toggle", default: true, desc: "Required for road transport under 40 km/h (25 mph)" }
         ]),
         createOshaMandatesSection(),
         createConsumablePartsSection()
@@ -758,14 +774,14 @@ export async function onRequest(context) {
           title: "1. Wire Rope & Structural Safety",
           fields: [
             { id: "trackHours", label: "Track Crane Engine & PTO Hours", type: "toggle", default: true, desc: "Record engine and PTO time" },
-            { id: "lmiTestRequired", label: "Load Moment Indicator (LMI) Calibration Test", type: "toggle", default: true, desc: "OSHA 1926.1412 electronic test" },
+            { id: "lmiTestRequired", label: "Load Moment Indicator (LMI) Calibration Test", type: "toggle", default: true, desc: `${workAuth} electronic test` },
             { id: "wireRopeInspectionDays", label: "Wire Rope & Sheave Inspection Window (Days)", type: "number", default: 7, desc: "Weekly wire rope audit" },
-            { id: "annualCraneCertDays", label: "OSHA Certified 3rd-Party Annual Inspection Alert (Days)", type: "number", default: 30, desc: "Subpart CC compliance" }
+            { id: "annualCraneCertDays", label: `${workAuth} Certified 3rd-Party Annual Inspection Alert (Days)`, type: "number", default: 30, desc: "Annual crane certification" }
           ]
         },
         createTireConfigurationSection('standard_2axle'),
         createLightingAndPlacardsSection([], [
-          { id: "signLoadChartPosted", label: "OSHA Certified Load Chart Posted in Cab", type: "toggle", default: true, desc: "OSHA 1926.1412 requirement" }
+          { id: "signLoadChartPosted", label: "Certified Load Chart Posted in Cab", type: "toggle", default: true, desc: `${workAuth} load chart posting requirement` }
         ]),
         createOshaMandatesSection(),
         createConsumablePartsSection()
@@ -778,13 +794,13 @@ export async function onRequest(context) {
           title: "1. Mast, Chain & Load Guard Checks",
           fields: [
             { id: "trackHours", label: "Track Hour Meter", type: "toggle", default: true, desc: "Log run time" },
-            { id: "forkWearCheck", label: "Fork Blade Heel Thickness Audit (Max 10% Wear)", type: "toggle", default: true, desc: "OSHA 1910.178 / ANSI B56.1" },
+            { id: "forkWearCheck", label: "Fork Blade Heel Thickness Audit (Max 10% Wear)", type: "toggle", default: true, desc: `${workAuth} / B56 safety limit` },
             { id: "chainTensionCheck", label: "Mast Lifting Chain Tension Audit", type: "toggle", default: true, desc: "Inspect lift chains" }
           ]
         },
         createTireConfigurationSection('standard_2axle'),
         createLightingAndPlacardsSection([], [
-          { id: "signForkliftCapacity", label: "Capacity Data Plate Clear & Legible", type: "toggle", default: true, desc: "OSHA 1910.178 requirement" }
+          { id: "signForkliftCapacity", label: "Capacity Data Plate Clear & Legible", type: "toggle", default: true, desc: `${workAuth} requirement` }
         ]),
         createOshaMandatesSection(),
         createConsumablePartsSection()
@@ -797,7 +813,7 @@ export async function onRequest(context) {
           title: "1. Ultra-Class Haulage & Retarder Brakes",
           fields: [
             { id: "trackHours", label: "Track Engine & Wheel Motor Hours", type: "toggle", default: true, desc: "Log operating time" },
-            { id: "gridBrakeRetarderCheck", label: "Dynamic Electric Grid Retarder Function Test", type: "toggle", default: true, desc: "MSHA 30 CFR 56 downhill brake check" }
+            { id: "gridBrakeRetarderCheck", label: "Dynamic Electric Grid Retarder Function Test", type: "toggle", default: true, desc: `${workAuth} downhill brake check` }
           ]
         },
         createTireConfigurationSection('standard_2axle'),
@@ -846,7 +862,7 @@ export async function onRequest(context) {
           title: "1. Hydraulic Ram & Guarding",
           fields: [
             { id: "trackHours", label: "Track Power-On Hours", type: "toggle", default: true, desc: "Log operating time" },
-            { id: "lightCurtainTest", label: "Presence-Sensing Light Curtain Safety Test", type: "toggle", default: true, desc: "OSHA 1910.217 mandatory test" }
+            { id: "lightCurtainTest", label: "Presence-Sensing Light Curtain Safety Test", type: "toggle", default: true, desc: `${workAuth} machine guarding test` }
           ]
         },
         createLightingAndPlacardsSection(),
@@ -861,7 +877,7 @@ export async function onRequest(context) {
           title: "1. Power Telemetry & Run Time",
           fields: [
             { id: "trackHours", label: "Track Engine Operating Hours", type: "toggle", default: true, desc: "Record run duration" },
-            { id: "autoTestExercise", label: "Weekly Auto-Exercise Test Log", type: "toggle", default: true, desc: "NFPA 110 exercise check" },
+            { id: "autoTestExercise", label: "Weekly Auto-Exercise Test Log", type: "toggle", default: true, desc: "Emergency backup exercise check" },
             { id: "loadBankIntervalDays", label: "Load Bank Test Schedule (Days)", type: "number", default: 365, desc: "Annual full load test" }
           ]
         },
@@ -877,7 +893,7 @@ export async function onRequest(context) {
           title: "1. Pressure Vessel & Air Filters",
           fields: [
             { id: "trackHours", label: "Track Compressor Operating Hours", type: "toggle", default: true, desc: "Log run time" },
-            { id: "autoDrainValvetest", label: "Air Receiver Tank Auto-Drain Valve Check", type: "toggle", default: true, desc: "OSHA 1910.169 moisture purge" }
+            { id: "autoDrainValvetest", label: "Air Receiver Tank Auto-Drain Valve Check", type: "toggle", default: true, desc: "Moisture purge verification" }
           ]
         },
         createLightingAndPlacardsSection(),
@@ -907,7 +923,7 @@ export async function onRequest(context) {
           title: "1. Pressure Relief & Thickness Inspections",
           fields: [
             { id: "srvPopTestDays", label: "Safety Relief Valve (SRV) Pop Test Schedule (Days)", type: "number", default: 365, desc: "Annual relief valve bench cert" },
-            { id: "utThicknessScanDays", label: "UT Shell & Head Thickness Scan Schedule (Days)", type: "number", default: 1825, desc: "5-year API 510 thickness audit" }
+            { id: "utThicknessScanDays", label: "UT Shell & Head Thickness Scan Schedule (Days)", type: "number", default: 1825, desc: "5-year shell thickness audit" }
           ]
         },
         createLightingAndPlacardsSection(),
@@ -923,14 +939,14 @@ export async function onRequest(context) {
         {
           title: "1. Trailer Braking & Mechanical Coupling",
           fields: [
-            { id: "emergencyBreakawayBattery", label: "Emergency Breakaway Battery & Cable Engagement Test", type: "toggle", default: true, desc: "OSHA/DOT brake breakaway test" },
+            { id: "emergencyBreakawayBattery", label: "Emergency Breakaway Battery & Cable Engagement Test", type: "toggle", default: true, desc: `${roadAuth} brake breakaway test` },
             { id: "kingpinPintleRingWear", label: "Kingpin / Pintle Ring Wear Gauge Inspection", type: "toggle", default: true, desc: "Coupling tolerance audit" },
             { id: "safetyChainsGrade70", label: "Grade 70 Safety Chain & Clevis Hook Latch Audit", type: "toggle", default: true, desc: "Inspect safety chain loops" }
           ]
         },
         createTireConfigurationSection('multi_axle_trailer'),
         createLightingAndPlacardsSection([
-          { id: "lightConspicuityTape", label: "DOT C2 Reflective Conspicuity Tape Audit", type: "toggle", default: true, desc: "FMCSA 100% perimeter tape" }
+          { id: "lightConspicuityTape", label: `${roadAuth} Reflective Conspicuity Tape Audit`, type: "toggle", default: true, desc: "100% perimeter tape inspection" }
         ]),
         createOshaMandatesSection(),
         createConsumablePartsSection()
@@ -946,7 +962,7 @@ export async function onRequest(context) {
           title: "1. Usage & Meter Telematics",
           fields: [
             { id: "trackHours", label: "Track Operating Hours", type: "toggle", default: true, desc: "Hour meter logging" },
-            { id: "trackOdometer", label: "Track Odometer Mileage", type: "toggle", default: false, desc: "Log mileage" }
+            { id: "trackOdometer", label: `Track Odometer (${uomDist})`, type: "toggle", default: false, desc: "Log reading" }
           ]
         },
         createTireConfigurationSection('standard_2axle'),
@@ -1042,6 +1058,7 @@ export async function onRequest(context) {
 
       return new Response(JSON.stringify({
         success: true,
+        jurisdiction: isCanada ? 'CA' : 'US',
         schemaKey,
         schema,
         config: savedConfig || null
