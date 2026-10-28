@@ -606,19 +606,17 @@ function toPrimitiveString(val) {
 function mapPayloadToD1(tableConfig, payload) {
   const d1Row = {};
 
+  // 1. Map explicitly defined fields from fieldMap
   for (const [apiFieldName, d1Column] of Object.entries(tableConfig.fieldMap)) {
     if (payload[apiFieldName] !== undefined) {
       d1Row[d1Column] = toPrimitiveString(payload[apiFieldName]);
     }
   }
 
+  // 2. Pass through valid column names while skipping system-managed columns
   const validColNameRegex = /^[a-z0-9_]+$/;
   const ignoredKeys = new Set([
-    'id', 'org_id', 'user_id', 'created_by', 'updated_by',
-    'category', 'asset_type', 'type', 'serial', 'current_meter', 'project_id',
-    'division_id', 'location_id', 'operator_id', 'location',
-    'make', 'model', 'drive_configuration', 'assigned_division', 'assigned_operator',
-    'current_location', 'current_meter_reading', 'make_oem', 'year', 'current_project', 'project_name', 'location_name', 'division_name'
+    'id', 'org_id', 'user_id', 'created_by', 'updated_by', 'created_at', 'updated_at'
   ]);
 
   for (const [key, val] of Object.entries(payload)) {
@@ -631,6 +629,7 @@ function mapPayloadToD1(tableConfig, payload) {
     }
   }
 
+  // 3. Set default values for missing required columns
   if (tableConfig.defaults) {
     for (const [col, val] of Object.entries(tableConfig.defaults)) {
       if (d1Row[col] === undefined) d1Row[col] = toPrimitiveString(val);
