@@ -1,11 +1,11 @@
 // ═══════════════════════════════════════════════════════════════════
-// DRIV-EN API Worker — D1-only CRUD (v18.7 — Schema, Category & Asset Config Aligned)
+// DRIV-EN API Worker — D1 & KV Asset Configuration (v18.9 — Schema Aligned)
 // Route: /api/* and /api/log-error
 // ═══════════════════════════════════════════════════════════════════
 // BINDINGS:
 //   - D1: DB → driv-en-db
 //   - D1: EMPLOYEES_DB → employees-db (optional)
-//   - KV: DRIVEN_KV / ASSET_CONFIG_KV (optional)
+//   - KV: DRIVEN_KV / ASSET_CONFIG_KV
 //   - Secret: JWT_SECRET (shared with auth worker)
 // ═══════════════════════════════════════════════════════════════════
 
@@ -253,15 +253,6 @@ const TABLE_MAP = {
       'is_custom':       'is_custom',
     },
   },
-  'asset-config': {
-    d1Table: 'asset_type_defaults',
-    aliases: ['asset_config', 'assetconfig', 'asset-configuration', 'AssetConfig'],
-    fieldMap: {
-      'Asset Type Name': 'asset_type_name',
-      'asset_type_name': 'asset_type_name',
-      'PM Schedules':    'pm_schedules_json',
-    },
-  },
   'Users': {
     d1Table: 'users',
     aliases: ['users', 'Users', 'employees', 'Employees'],
@@ -334,7 +325,6 @@ function normalizeCategoryKey(str) {
   if (!str) return "default";
   const s = String(str).toLowerCase().trim();
 
-  // Highway / Pickup / Commercial Vehicles
   if (s.includes("pickup") || s.includes("f-150") || s.includes("f-250") || s.includes("f-350") || s.includes("silverado") || s.includes("ram 1500") || s.includes("sierra")) return "pickup";
   if (s.includes("highway motor vehicles") || s.includes("class 8") || s.includes("semi") || s.includes("day cab") || s.includes("sleeper")) return "class8semitruck";
   if (s.includes("medium vocational") || s.includes("cab-chassis") || s.includes("medium truck")) return "medtruck";
@@ -346,14 +336,12 @@ function normalizeCategoryKey(str) {
   if (s.includes("sedan") || s.includes("passenger car") || s.includes("suv") || s.includes("crossover")) return "sedan";
   if (s.includes("utv") || s.includes("buggy") || s.includes("side-by-side")) return "utv";
 
-  // Earthmoving & Heavy Equipment
   if (s.includes("dozer") || s.includes("dozers & heavy tracked")) return "dozer";
   if (s.includes("excavator")) return "excavator";
   if (s.includes("wheel loader") || s.includes("skid steer") || s.includes("backhoe") || s.includes("articulated dump") || s.includes("loader")) return "loader";
   if (s.includes("motor grader") || s.includes("grader")) return "grader";
   if (s.includes("paver") || s.includes("milling") || s.includes("reclaimer")) return "paver";
 
-  // Drilling, Rigs & Foundation
   if (s.includes("drilling rig") || s.includes("rigs")) return "drillingrig";
   if (s.includes("directional drill") || s.includes("hdd")) return "hdd";
   if (s.includes("pile driver")) return "piledriver";
@@ -362,13 +350,11 @@ function normalizeCategoryKey(str) {
   if (s.includes("mud pump")) return "mudpump";
   if (s.includes("blowout preventer") || s.includes("bop stack")) return "bopstack";
 
-  // Lifting & Aerial Platforms
   if (s.includes("crane") || s.includes("gantry")) return "crane";
   if (s.includes("boom lift") || s.includes("vertical mast")) return "boomlift";
   if (s.includes("scissor lift")) return "scissorlift";
   if (s.includes("forklift") || s.includes("telehandler")) return "forklift";
 
-  // Mining, Forestry & Ag
   if (s.includes("mining") || s.includes("mine haul")) return "minehaul";
   if (s.includes("rock crusher") || s.includes("crusher")) return "crusher";
   if (s.includes("agricultural tractor") || s.includes("ag tractor") || s.includes("combine")) return "agtractor";
@@ -377,7 +363,6 @@ function normalizeCategoryKey(str) {
   if (s.includes("feller buncher")) return "fellerbuncher";
   if (s.includes("skidder")) return "skidder";
 
-  // Auxiliary & Specialty
   if (s.includes("rolligon")) return "rolligon";
   if (s.includes("tracked dump") || s.includes("morooka") || s.includes("panther") || s.includes("vibroseis")) return "trackedcarrier";
   if (s.includes("asphalt plant")) return "asphaltplant";
@@ -391,6 +376,91 @@ function normalizeCategoryKey(str) {
   if (s.includes("trailer") || s.includes("flatbed") || s.includes("lowboy")) return "trailer";
 
   return "default";
+}
+
+function buildCategorySchema(normKey, isCanada) {
+  const uomVol = isCanada ? 'Liters' : 'Gallons';
+  const uomPress = 'PSI';
+  const uomDist = isCanada ? 'Kilometers' : 'Miles';
+  const uomDepth = isCanada ? 'mm' : '1/32 in';
+  const roadAuth = isCanada ? 'NSC Standard 11' : 'DOT';
+  const workAuth = isCanada ? 'CCOHS / COR' : 'OSHA / MSHA';
+
+  const tireSection = {
+    title: "Wheel Position, Tire Specs & Pressure Telematics",
+    fields: [
+      { id: "tireSizeSteer", label: "Front / Steer Tire Size Specification", type: "text", default: "LT275/70R18", desc: "Manufacturer spec steer tire size" },
+      { id: "tirePsiSteerRecommended", label: `Front / Steer Recommended Cold Inflation (${uomPress})`, type: "number", default: 60, desc: "Door-jamb recommended inflation" },
+      { id: "tireSizeDrive", label: "Rear / Drive Tire Size Specification", type: "text", default: "LT275/70R18", desc: "Manufacturer spec drive tire size" },
+      { id: "tirePsiDriveRecommended", label: `Rear / Drive Recommended Cold Inflation (${uomPress})`, type: "number", default: 65, desc: "Door-jamb recommended inflation" },
+      { id: "tpmsThresholdLowPsi", label: `TPMS Low Inflation Alarm Trigger (${uomPress})`, type: "number", default: 50, desc: "Telemetry alert threshold" },
+      { id: "isDuallyConfiguration", label: "Dually Rear Axle Setup (1-Ton Dual Wheels)", type: "toggle", default: false, desc: "Enable 4-tire tracking on rear axle" },
+      { id: "minSteerTread32nd", label: `${workAuth} / ${roadAuth} Minimum Steer Tire Tread Depth (${uomDepth})`, type: "number", default: isCanada ? 3 : 4, desc: `Out-of-service limit` },
+      { id: "minDriveTread32nd", label: `${workAuth} / ${roadAuth} Minimum Drive Tire Tread Depth (${uomDepth})`, type: "number", default: 2, desc: `Out-of-service limit` }
+    ]
+  };
+
+  const consumableSection = {
+    title: "Consumable Parts, Quantities & Replacement Numbers",
+    fields: [
+      { id: "partEngineOilFilter", label: "Engine Oil Filter Part #", type: "text", default: "", desc: "OEM or aftermarket filter code" },
+      { id: "partEngineOilQty", label: `Engine Oil Capacity & Spec (${uomVol})`, type: "text", default: isCanada ? "5.7 L / 5W-30 Full Synthetic" : "6 Qt / 5W-30 Full Synthetic", desc: "Engine oil spec and volume" },
+      { id: "partTransFluidTypeQty", label: `Transmission Fluid Spec & Capacity (${uomVol})`, type: "text", default: isCanada ? "11.4 L / Dexron VI" : "12 Qt / Dexron VI", desc: "Fluid specification and fill capacity" },
+      { id: "partBrakeFluidTypeQty", label: `Brake Fluid Spec & Capacity (${uomVol})`, type: "text", default: isCanada ? "1 L / DOT 3" : "32 oz / DOT 3", desc: "Fluid specification and fill capacity" },
+      { id: "partCoolantTypeQty", label: `Engine Coolant Spec & Capacity (${uomVol})`, type: "text", default: isCanada ? "13.2 L / 50/50 OAT" : "14 Qt / 50/50 OAT", desc: "Antifreeze spec and capacity" },
+      { id: "partFuelFilterPrimary", label: "Primary Fuel Filter / Water Separator Part #", type: "text", default: "", desc: "Primary fuel filter code" },
+      { id: "partFuelFilterSecondary", label: "Secondary Fuel Filter Part #", type: "text", default: "", desc: "Secondary fuel filter code" },
+      { id: "partAirFilterPrimary", label: "Primary Air Intake Filter Part #", type: "text", default: "", desc: "Engine intake filter" },
+      { id: "partAirFilterSecondary", label: "Secondary / Safety Air Filter Part #", type: "text", default: "", desc: "Inner safety filter code" },
+      { id: "partCabinAirFilter", label: "Cabin HVAC Air Filter Part #", type: "text", default: "", desc: "Cabin filter code" },
+      { id: "partWiperBlades", label: "Wiper Blade Set Part #", type: "text", default: "", desc: "Driver & passenger wiper sizes/part numbers" },
+      { id: "partHydraulicFilterMain", label: "Main Hydraulic Return / Pressure Filter Part #", type: "text", default: "", desc: "Hydraulic filter number" },
+      { id: "partHydraulicOilQty", label: `Hydraulic Reservoir Fluid Capacity (${uomVol})`, type: "text", default: "", desc: "Total fluid volume" },
+      { id: "partBrakePadsFront", label: "Front Brake Pad Set Part # & Quantity", type: "text", default: "", desc: "Front brake pad kit spec" },
+      { id: "partBrakePadsRear", label: "Rear Brake Pad Set / Shoe Kit Part #", type: "text", default: "", desc: "Rear brake kit spec" },
+      { id: "partSerpentineBelt", label: "Main Engine Serpentine Belt Part #", type: "text", default: "", desc: "Drive belt part number" }
+    ]
+  };
+
+  const lightingSection = {
+    title: "Lighting Systems, Required Placards & Safety Signage",
+    fields: [
+      { id: "lightHeadlightsLowHigh", label: "Low & High Beam Headlights", type: "toggle", default: true, desc: "Illumination check" },
+      { id: "lightBrakeAndTail", label: "Tail Lights & Stop / Brake Lights", type: "toggle", default: true, desc: "Rear illumination check" },
+      { id: "lightTurnSignalsHazards", label: "Turn Signals, Blinkers & 4-Way Emergency Hazard Flashers", type: "toggle", default: true, desc: "Directional indicators" },
+      { id: "lightClearanceMarker", label: "Clearance, Side Marker & ID Lights (>2.03 m / 80 in wide)", type: "toggle", default: true, desc: `${roadAuth} width marker lights` },
+      { id: "lightLicensePlate", label: "License Plate Tag Light", type: "toggle", default: true, desc: "Rear tag illumination" },
+      { id: "lightReverseBackup", label: "Reverse Backup Lights & Audible Alarm Signal", type: "toggle", default: true, desc: `${workAuth} required backup warning` },
+      { id: "lightStrobeBeacon", label: "Amber Strobe Light / Rotating Beacon", type: "toggle", default: true, desc: `${workAuth} jobsite hazard warning light` },
+      { id: "placardDotHazmat", label: `${roadAuth} Hazmat Placards & Class Identification Signs`, type: "toggle", default: false, desc: "When carrying hazardous goods" },
+      { id: "signEmergencyStop", label: "E-Stop Safety Labeling & Machine Cut-Off Signage", type: "toggle", default: true, desc: `${workAuth} required red E-stop signage` }
+    ]
+  };
+
+  const oshaSection = {
+    title: isCanada ? "Canadian NSC Standard 11 & CCOHS Mandated Safety Devices" : "OSHA / MSHA Mandated Safety Devices & Emergency Equipment",
+    fields: [
+      { id: "seatBeltMandate", label: `${workAuth} Seat Belt Functional & Webbing Inspection`, type: "toggle", default: true, desc: "Mandatory pre-shift safety restraint inspection" },
+      { id: "hornAudible200ft", label: "Audible Warning Horn Operational (Audible at 60 m / 200 ft)", type: "toggle", default: true, desc: `${workAuth} compliance` },
+      { id: "fireExtinguisherCharged", label: "On-Board Fire Extinguisher (Gauge Green, Sealed & Mounted)", type: "toggle", default: true, desc: `${workAuth} safety requirement` },
+      { id: "firstAidKitStocked", label: `${workAuth} Compliant Stocked First Aid Kit`, type: "toggle", default: true, desc: "Required pre-shift emergency inventory" },
+      { id: "dotReflectiveTriangles", label: `Set of 3 ${roadAuth} Emergency Reflective Triangles / Flares`, type: "toggle", default: true, desc: `${roadAuth} emergency breakdown kit` },
+      { id: "wheelChocksPair", label: "Pair of Heavy Duty Wheel Chocks Present", type: "toggle", default: true, desc: "Required parking containment" }
+    ]
+  };
+
+  const usageSection = {
+    title: "1. Usage & Meter Telematics",
+    fields: [
+      { id: "trackOdometer", label: `Track Odometer Mileage (${uomDist})`, type: "toggle", default: true, desc: "Log reading during pre-trip checks" },
+      { id: "trackHours", label: "Track Operating Hours", type: "toggle", default: true, desc: "Hour meter logging" },
+      { id: "pmMilesInterval", label: `Engine Oil Service Interval (${uomDist})`, type: "number", default: isCanada ? 8000 : 5000, desc: "Service threshold" }
+    ]
+  };
+
+  return {
+    sections: [usageSection, tireSection, lightingSection, oshaSection, consumableSection]
+  };
 }
 
 function base64UrlDecode(str) {
@@ -601,6 +671,30 @@ async function ensureTableSchema(db, d1Table) {
           created_by TEXT,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_by TEXT
+        )
+      `).run();
+    } else if (d1Table === 'asset_type_defaults') {
+      await db.prepare(`
+        CREATE TABLE IF NOT EXISTS asset_type_defaults (
+          id TEXT PRIMARY KEY,
+          org_id TEXT NOT NULL,
+          asset_type_name TEXT NOT NULL,
+          make TEXT,
+          model TEXT,
+          drive_configuration TEXT,
+          fuel_type TEXT,
+          engine_oil_spec TEXT,
+          hydraulic_fluid_spec TEXT,
+          coolant_spec TEXT,
+          def_capacity TEXT,
+          fuel_capacity TEXT,
+          transmission_fluid_spec TEXT,
+          pm_schedules_json TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          brake_fluid_spec TEXT,
+          cabin_filter_spec TEXT,
+          wiper_blades_spec TEXT
         )
       `).run();
     } else if (d1Table === 'projects') {
@@ -821,7 +915,7 @@ export default {
       }
     }
 
-    // Direct Endpoint: Asset Config Handling
+    // Direct Endpoint: Dedicated Asset Schema Configuration Handling (Bypasses TABLE_MAP)
     if (path === '/api/asset-config' || path === '/api/asset-config/') {
       const countryParam = (url.searchParams.get('country') || request.headers.get('x-country') || 'US').toUpperCase().trim();
       const isCanada = countryParam === 'CA';
@@ -833,7 +927,8 @@ export default {
         const rawAssetType = url.searchParams.get('assetType') || key || 'default';
 
         const normKey = normalizeCategoryKey(rawAssetType);
-        
+        const schema = buildCategorySchema(normKey, isCanada);
+
         let savedConfig = null;
 
         if (kvStore && key) {
@@ -861,7 +956,7 @@ export default {
           success: true,
           jurisdiction: isCanada ? 'CA' : 'US',
           schemaKey: normKey,
-          schema: { sections: [] },
+          schema: schema,
           config: savedConfig || null
         });
       }
