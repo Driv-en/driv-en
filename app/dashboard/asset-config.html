@@ -35,6 +35,7 @@
       --badge-osha: #9a3412;
       --badge-msha: #b91c1c;
       --badge-custom: #047857;
+      --badge-uom: #475569;
     }
 
     html, body { 
@@ -190,6 +191,7 @@
     .badge-osha { background-color: var(--badge-osha); }
     .badge-msha { background-color: var(--badge-msha); }
     .badge-custom { background-color: var(--badge-custom); }
+    .badge-uom { background-color: var(--badge-uom); font-size: 9px; padding: 1px 4px; }
 
     .switch { position: relative; display: inline-block; width: 42px; height: 22px; }
     .switch input { opacity: 0; width: 0; height: 0; }
@@ -573,6 +575,65 @@
     let partsList = [];
     let userCustomAttachments = {};
 
+    // Dynamic Organization Units of Measure & Operational Country Jurisdiction
+    let orgUOM = {
+      distance: 'mi',       // mi, km
+      pressure: 'psi',      // psi, bar, kPa
+      volume: 'gal',        // gal, L, imp_gal
+      length: 'ft',         // ft, m, mm
+      weight: 'lbs'         // lbs, kg, t
+    };
+    let orgCountry = 'US';  // US, CA, AU, GB, EU
+
+    // Jurisdiction-Aware Regulatory Authorities
+    const REGULATORY_AUTHORITIES = {
+      US: {
+        roadTitle: "5. Federal DOT / OSHA Compliance & DVIR Inspection Rules (49 CFR § 396.11)",
+        roadBadge: "DOT Mandatory",
+        workBadge: "OSHA Mandatory",
+        mineBadge: "MSHA Mandatory",
+        heavyEarthTitle: "4. Heavy Earthmoving Safety Checks (OSHA 29 CFR 1926.602)",
+        mineTitle: "1. MSHA Mandated Safety Checks (30 CFR Part 56/57)",
+        generalTitle: "1. OSHA General Industry Standards (29 CFR 1910)"
+      },
+      CA: {
+        roadTitle: "5. Canadian NSC Standard 11 Compliance & Daily Vehicle Inspection Rules",
+        roadBadge: "NSC Mandatory",
+        workBadge: "CCOHS / COR Mandatory",
+        mineBadge: "Provincial Mining Regulation",
+        heavyEarthTitle: "4. Heavy Earthmoving Safety Checks (CCOHS / Provincial OH&S)",
+        mineTitle: "1. Provincial Mining & Reclamation Safety Regulations",
+        generalTitle: "1. Canadian Occupational Health & Safety Regulations (COHSR)"
+      },
+      AU: {
+        roadTitle: "5. Australian NHVR Heavy Vehicle Daily Inspection & Roadworthiness Rules",
+        roadBadge: "NHVR Mandatory",
+        workBadge: "Safe Work Australia",
+        mineBadge: "Resources Safety Mandatory",
+        heavyEarthTitle: "4. Heavy Earthmoving Safety Checks (Safe Work Australia Standards)",
+        mineTitle: "1. Mining Health & Safety Authority Mandated Checks",
+        generalTitle: "1. WHS General Work Health & Safety Regulations"
+      },
+      GB: {
+        roadTitle: "5. UK DVSA Heavy Vehicle Daily Walkaround Inspection Rules",
+        roadBadge: "DVSA Mandatory",
+        workBadge: "HSE Mandatory",
+        mineBadge: "HSE Quarries Regulations",
+        heavyEarthTitle: "4. Heavy Earthmoving Safety Checks (HSE PUWER & LOLER Standards)",
+        mineTitle: "1. Health & Safety Executive (Quarries Regulations 1999)",
+        generalTitle: "1. Health & Safety at Work Act (HSE General Standards)"
+      },
+      EU: {
+        roadTitle: "5. EU Roadworthiness & Vehicle Inspection Rules (Directive 2014/45/EU)",
+        roadBadge: "EU Roadworthiness",
+        workBadge: "EU-OSHA Mandatory",
+        mineBadge: "EU Mining Directive",
+        heavyEarthTitle: "4. Heavy Machinery Safety Checks (CE & EU Directives)",
+        mineTitle: "1. European Mining & Extraction Safety Regulations",
+        generalTitle: "1. EU Directive 89/391/EEC General Safety Standards"
+      }
+    };
+
     const API_ENDPOINT = '/api/asset-config';
 
     const CATEGORY_ATTACHMENTS = {
@@ -664,181 +725,189 @@
       ]
     };
 
-    const MASTER_CATEGORY_SCHEMAS = {
-      highway: {
-        title: "Highway Motor Vehicle Baseline (Classes 1–8)",
-        sections: [
-          {
-            title: "1. Powertrain & Drivetrain Specifications",
-            fields: [
-              { id: "engine_make_model", label: "Engine Make, Model & Tier", type: "text", default: "Cummins X15 / Detroit DD15" },
-              { id: "drive_type", label: "Drivetrain Configuration", type: "select", options: ["2WD", "4WD", "AWD", "6x4 Dual Drive", "8x4 Heavy Haul"], default: "2WD" },
-              { id: "is_dually", label: "Dually Rear Axle Assembly", type: "toggle", default: false },
-              { id: "trans_type", label: "Transmission Type", type: "select", options: ["Automatic (Allison/Eaton)", "Manual (10-Speed)", "Manual (13-Speed)", "Manual (18-Speed)"], default: "Automatic (Allison/Eaton)" },
-              { id: "diff_rear_end", label: "Rear-End / Differential Spec", type: "text", default: "Meritor 40,000 lbs (3.55 Ratio)" },
-              { id: "transfer_case", label: "Transfer Case / Inter-Axle Lock", type: "text", default: "Inter-Axle Lock Differential" }
-            ]
-          },
-          {
-            title: "2. Fluids, Lubricants & Air Filter Specs",
-            fields: [
-              { id: "fluid_engine_oil", label: "Engine Oil Spec & Viscosity", type: "text", default: "15W-40 CK-4 Heavy Duty" },
-              { id: "fluid_engine_oil_qty", label: "Engine Oil Capacity", type: "text", default: "12 Gallons (48 Quarts)" },
-              { id: "engine_service_interval", label: "Engine Oil Service Interval", type: "text", default: "15,000 Miles / 300 Hours" },
-              { id: "air_filter_mfr_part", label: "Engine Air Filter (Mfr & Part #)", type: "text", default: "Donaldson P608280 / Fleetguard AF26103" },
-              { id: "cabin_filter_mfr_part", label: "Cabin HVAC Air Filter (Mfr & Part #)", type: "text", default: "Baldwin PA4939 / Wix 24812" },
-              { id: "fluid_trans", label: "Transmission Fluid Spec & Capacity", type: "text", default: "Allison TES-295 (18 Quarts)" },
-              { id: "trans_service_interval", label: "Transmission Service Interval", type: "text", default: "50,000 Miles" },
-              { id: "fluid_diff", label: "Differential / Rear-End Lube Spec", type: "text", default: "75W-90 Synthetic Gear Lube" },
-              { id: "diff_service_interval", label: "Differential Service Interval", type: "text", default: "100,000 Miles" },
-              { id: "fluid_coolant", label: "Antifreeze / Coolant Type & Capacity", type: "text", default: "50/50 ELC Red (10 Gallons)" },
-              { id: "fluid_def", label: "Diesel Exhaust Fluid (DEF) Capacity", type: "text", default: "10 Gallons" }
-            ]
-          },
-          {
-            title: "3. Running Gear, Brakes & Tire Telemetry",
-            fields: [
-              { id: "brake_system_type", label: "Primary Brake System", type: "select", options: ["Air Disc Brakes", "Air S-Cam Drum", "Hydraulic Disc", "Hydraulic Drum"], default: "Air S-Cam Drum" },
-              { id: "tire_size_steer", label: "Steer Tire Size", type: "text", default: "295/75R22.5" },
-              { id: "tire_psi_steer", label: "Steer Tire Recommended PSI", type: "number", default: 110 },
-              { id: "tire_size_drive", label: "Drive Tire Size", type: "text", default: "11R22.5" },
-              { id: "tire_psi_drive", label: "Drive Tire Recommended PSI", type: "number", default: 100 },
-              { id: "tpms_telemetry", label: "Tire Telemetry / TPMS Sensors Enabled", type: "toggle", default: true, desc: "Real-time pressure & temperature tracking synced via telematics gateway" }
-            ]
-          },
-          {
-            title: "4. Winch, Crane, Lighting & Optics",
-            fields: [
-              { id: "winch_installed", label: "Auxiliary Winch / Crane Unit Installed", type: "toggle", default: false },
-              { id: "winch_cable_size", label: "Winch / Crane Cable Diameter", type: "select", options: ["None / N/A", "3/8 inch", "1/2 inch", "5/8 inch", "3/4 inch", "1 inch Synthetic"], default: "None / N/A" },
-              { id: "winch_cable_length", label: "Winch Cable Working Length", type: "text", default: "150 FT Wire Rope" },
-              { id: "lighting_headlights", label: "Headlight System Type", type: "select", options: ["LED Sealed Beam", "Halogen H4", "HID Xenon"], default: "LED Sealed Beam" },
-              { id: "camera_system", label: "Camera System Installed", type: "select", options: ["None", "Rear Backup Camera", "360 Dash & Side Array"], default: "360 Dash & Side Array" }
-            ]
-          },
-          {
-            title: "5. Federal DOT / OSHA Compliance & DVIR Inspection Rules (49 CFR § 396.11)",
-            fields: [
-              { id: "dot_brakes", label: "Service & Air / Hydraulic Brake Systems", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Test pedal travel, air loss rate, and low-pressure warning" },
-              { id: "dot_brake_lights", label: "Brake Lights & High-Mount Stop Lamps", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Verify illumination upon brake pedal compression" },
-              { id: "dot_turn_signals", label: "Turn Signals & 4-Way Emergency Hazards", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Test left/right signals and emergency hazard flasher sequence" },
-              { id: "dot_backup_lights", label: "Reverse Backup Lamps & Backup Alarm", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Verify backup light illumination and reverse warning sound" },
-              { id: "dot_license_plate_light", label: "License Plate Illumination Light", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Verify rear license plate bulb is functional" },
-              { id: "dot_license_plate_tag", label: "License Plate Mounted & Valid Registration Tag", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Confirm state license plate is securely attached with current decal" },
-              { id: "dot_steering", label: "Steering Mechanism & Power Steering Fluid", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Inspect tie-rods, steering box, and fluid level" },
-              { id: "dot_tires_rims", label: "Tires, Dual Rims & Wheel Fasteners", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Check tread depth (4/32 steer, 2/32 drive) and lug tightness" },
-              { id: "dot_emergency_kit", label: "Reflective Triangles & Charged Fire Extinguisher", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Verify 3 DOT reflective triangles and charged fire extinguisher" }
-            ]
-          }
-        ]
-      },
-      dozer_excavator: {
-        title: "Earthmoving — Dozers & Heavy Tracked Equipment Baseline",
-        sections: [
-          {
-            title: "1. Engine & Hydrostatic Powertrain Specifications",
-            fields: [
-              { id: "engine_make_model", label: "Engine Model & Tier", type: "text", default: "Cat C9.3B Tier 4 Final / Cummins QSL9" },
-              { id: "drive_type", label: "Undercarriage Traction Assembly", type: "select", options: ["Steel Tracked (Sealed & Lubricated)", "Heavy Duty SystemOne Tracks", "Rubber Tracked"], default: "Steel Tracked (Sealed & Lubricated)" },
-              { id: "trans_type", label: "Transmission / Hydrostatic Drive", type: "select", options: ["Hydrostatic Dual-Path", "Powershift (3-Speed)", "Direct Drive"], default: "Hydrostatic Dual-Path" }
-            ]
-          },
-          {
-            title: "2. Fluids, Lubricants & Air Filter Specs",
-            fields: [
-              { id: "fluid_engine_oil", label: "Engine Oil Spec & Viscosity", type: "text", default: "15W-40 CK-4 Heavy Duty Diesel" },
-              { id: "fluid_engine_oil_qty", label: "Engine Oil Capacity", type: "text", default: "7.5 Gallons (30 Quarts)" },
-              { id: "air_filter_mfr_part", label: "Engine Air Outer Filter (Mfr & Part #)", type: "text", default: "Cat 110-6326 / Donaldson P532503" },
-              { id: "air_inner_filter_mfr_part", label: "Engine Air Inner Safety Filter", type: "text", default: "Cat 110-6331 / Donaldson P533882" },
-              { id: "cabin_filter_mfr_part", label: "Cabin HVAC Air Filter (Mfr & Part #)", type: "text", default: "Cat 245-7823 / Wix 49088" },
-              { id: "fluid_hydraulics", label: "Hydraulic System Spec & Capacity", type: "text", default: "ISO VG 46 Anti-Wear (28 Gallons)" },
-              { id: "fluid_final_drives", label: "Final Drive Gear Oil Spec & Qty", type: "text", default: "SAE 50 TO-4 (4.5 Gal per side)" }
-            ]
-          },
-          {
-            title: "3. Track SAG, Winch Cable & Undercarriage Inspection",
-            fields: [
-              { id: "track_tension_sag", label: "Track SAG / Tension Specification", type: "text", default: "1.5 to 2.0 inches SAG" },
-              { id: "undercarriage_type", label: "Undercarriage Component Spec", type: "text", default: "Heavy Duty Sealed & Lubricated Tracks (SALT)" },
-              { id: "winch_installed", label: "Rear Towing Recovery Winch Installed", type: "toggle", default: true },
-              { id: "winch_cable_size", label: "Winch Wire Rope Cable Diameter Size", type: "select", options: ["3/4 inch", "7/8 inch", "1 inch", "1-1/8 inch Heavy Swaged"], default: "7/8 inch" },
-              { id: "winch_cable_length", label: "Winch Cable Working Length", type: "text", default: "200 FT High-Strength Steel Cable" }
-            ]
-          },
-          {
-            title: "4. Heavy Earthmoving Safety Checks (OSHA 29 CFR 1926.602)",
-            fields: [
-              { id: "osha_rops_fops", label: "ROPS / FOPS Canopy & Seatbelt Integrity", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Check rollover cab structure, mounting bolts, and 3-inch seatbelt" },
-              { id: "osha_travel_alarm", label: "Reverse Backup Warning Alarm & Horn", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Verify backup alarm is audible over jobsite engine noise" },
-              { id: "osha_hyd_cylinders", label: "Hydraulic Cylinder Rods, Hoses & Couplers", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Inspect lift, tilt, and ripper cylinders for leaks, pitting, or hose blisters" },
-              { id: "dozer_tracks_undercarriage", label: "Undercarriage, Track Tension & Sprockets", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Inspect track SAG tension, rollers, idlers, and grousers" },
-              { id: "dozer_blade_ripper", label: "Blade Cutting Edge, End Bits & Rear Attachment", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Check blade corner bits, C-frame pivot pins, and hydraulic lockouts" }
-            ]
-          }
-        ]
-      },
-      wheel_loader_grader: {
-        title: "Earthmoving — Wheel Loaders, Graders & Backhoes Baseline",
-        sections: [
-          {
-            title: "1. Powertrain & Axle Specifications",
-            fields: [
-              { id: "engine_make_model", label: "Engine Model & Tier", type: "text", default: "Cat C7.1 / Cummins QSB6.7" },
-              { id: "drive_type", label: "Drivetrain Configuration", type: "select", options: ["4WD Articulated Wheel", "All-Wheel Drive (AWD)", "2WD / 4WD Backhoe"], default: "4WD Articulated Wheel" }
-            ]
-          },
-          {
-            title: "2. Fluids & Filter Specs",
-            fields: [
-              { id: "fluid_engine_oil", label: "Engine Oil Spec & Viscosity", type: "text", default: "15W-40 CK-4 Heavy Duty" },
-              { id: "air_filter_mfr_part", label: "Engine Air Filter (Mfr & Part #)", type: "text", default: "Donaldson P608533 / Cat 110-6326" },
-              { id: "cabin_filter_mfr_part", label: "Cabin Fresh Air Filter", type: "text", default: "Cat 110-6331 / Wix 49088" },
-              { id: "fluid_hydraulics", label: "Hydraulic Fluid Spec & Capacity", type: "text", default: "ISO VG 46 Anti-Wear (35 Gallons)" }
-            ]
-          }
-        ]
-      },
-      mining: {
-        title: "Heavy Mining, Quarrying & Drilling Baseline",
-        sections: [
-          {
-            title: "1. MSHA Mandated Safety Checks (30 CFR Part 56/57)",
-            fields: [
-              { id: "msha_e_stop", label: "Emergency Engine Stop / RigSaver Shut-Off", type: "toggle", default: true, locked: true, badge: "MSHA Mandatory", desc: "Test manual emergency stop and air-intake cutoff switches" },
-              { id: "msha_fire_suppression", label: "Automatic / Manual Fire Suppression System", type: "toggle", default: true, locked: true, badge: "MSHA Mandatory", desc: "Inspect actuator pins, pressure gauges, and discharge nozzles" }
-            ]
-          }
-        ]
-      },
-      stationary: {
-        title: "Stationary, Plant & Engine-Driven Equipment Baseline",
-        sections: [
-          {
-            title: "1. OSHA General Industry Standards (29 CFR 1910)",
-            fields: [
-              { id: "osha_grounding", label: "Electrical Grounding Strap & Bonding Connection", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Verify ground wire continuity to earth ground" }
-            ]
-          }
-        ]
-      },
-      auxiliary: {
-        title: "Auxiliary Field Tools, Pumps & Trailer Units Baseline",
-        sections: [
-          {
-            title: "1. Towing & Safety Checks",
-            fields: [
-              { id: "tow_hitch_chains", label: "Pintle / Ball Hitch & Safety Chains", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Check hitch lock, safety chains, and breakaway cable" }
-            ]
-          }
-        ]
-      }
-    };
+    function getMasterCategorySchemas() {
+      const auth = REGULATORY_AUTHORITIES[orgCountry] || REGULATORY_AUTHORITIES.US;
+      const distUnit = orgUOM.distance === 'km' ? 'Kilometers' : 'Miles';
+      const volUnit = orgUOM.volume === 'L' ? 'Liters' : (orgUOM.volume === 'imp_gal' ? 'Imp. Gallons' : 'Gallons');
+      const pressUnit = orgUOM.pressure ? orgUOM.pressure.toUpperCase() : 'PSI';
+      const lenUnit = orgUOM.length === 'm' ? 'Meters' : 'FT';
+
+      return {
+        highway: {
+          title: "Highway Motor Vehicle Baseline (Classes 1–8)",
+          sections: [
+            {
+              title: "1. Powertrain & Drivetrain Specifications",
+              fields: [
+                { id: "engine_make_model", label: "Engine Make, Model & Tier", type: "text", default: "Cummins X15 / Detroit DD15" },
+                { id: "drive_type", label: "Drivetrain Configuration", type: "select", options: ["2WD", "4WD", "AWD", "6x4 Dual Drive", "8x4 Heavy Haul"], default: "2WD" },
+                { id: "is_dually", label: "Dually Rear Axle Assembly", type: "toggle", default: false },
+                { id: "trans_type", label: "Transmission Type", type: "select", options: ["Automatic (Allison/Eaton)", "Manual (10-Speed)", "Manual (13-Speed)", "Manual (18-Speed)"], default: "Automatic (Allison/Eaton)" },
+                { id: "diff_rear_end", label: "Rear-End / Differential Spec", type: "text", default: "Meritor 40,000 lbs (3.55 Ratio)" },
+                { id: "transfer_case", label: "Transfer Case / Inter-Axle Lock", type: "text", default: "Inter-Axle Lock Differential" }
+              ]
+            },
+            {
+              title: "2. Fluids, Lubricants & Air Filter Specs",
+              fields: [
+                { id: "fluid_engine_oil", label: "Engine Oil Spec & Viscosity", type: "text", default: "15W-40 CK-4 Heavy Duty" },
+                { id: "fluid_engine_oil_qty", label: `Engine Oil Capacity (${volUnit})`, type: "text", default: `12 ${volUnit}` },
+                { id: "engine_service_interval", label: `Engine Oil Service Interval (${distUnit} / Hours)`, type: "text", default: `15,000 ${distUnit} / 300 Hours` },
+                { id: "air_filter_mfr_part", label: "Engine Air Filter (Mfr & Part #)", type: "text", default: "Donaldson P608280 / Fleetguard AF26103" },
+                { id: "cabin_filter_mfr_part", label: "Cabin HVAC Air Filter (Mfr & Part #)", type: "text", default: "Baldwin PA4939 / Wix 24812" },
+                { id: "fluid_trans", label: "Transmission Fluid Spec & Capacity", type: "text", default: `Allison TES-295 (18 Quarts / ${volUnit})` },
+                { id: "trans_service_interval", label: `Transmission Service Interval (${distUnit})`, type: "text", default: `50,000 ${distUnit}` },
+                { id: "fluid_diff", label: "Differential / Rear-End Lube Spec", type: "text", default: "75W-90 Synthetic Gear Lube" },
+                { id: "diff_service_interval", label: `Differential Service Interval (${distUnit})`, type: "text", default: `100,000 ${distUnit}` },
+                { id: "fluid_coolant", label: "Antifreeze / Coolant Type & Capacity", type: "text", default: `50/50 ELC Red (10 ${volUnit})` },
+                { id: "fluid_def", label: `Diesel Exhaust Fluid (DEF) Capacity (${volUnit})`, type: "text", default: `10 ${volUnit}` }
+              ]
+            },
+            {
+              title: "3. Running Gear, Brakes & Tire Telemetry",
+              fields: [
+                { id: "brake_system_type", label: "Primary Brake System", type: "select", options: ["Air Disc Brakes", "Air S-Cam Drum", "Hydraulic Disc", "Hydraulic Drum"], default: "Air S-Cam Drum" },
+                { id: "tire_size_steer", label: "Steer Tire Size", type: "text", default: "295/75R22.5" },
+                { id: "tire_psi_steer", label: `Steer Tire Recommended Pressure (${pressUnit})`, type: "number", default: pressUnit === 'KPA' ? 760 : (pressUnit === 'BAR' ? 7.6 : 110) },
+                { id: "tire_size_drive", label: "Drive Tire Size", type: "text", default: "11R22.5" },
+                { id: "tire_psi_drive", label: `Drive Tire Recommended Pressure (${pressUnit})`, type: "number", default: pressUnit === 'KPA' ? 690 : (pressUnit === 'BAR' ? 6.9 : 100) },
+                { id: "tpms_telemetry", label: "Tire Telemetry / TPMS Sensors Enabled", type: "toggle", default: true, desc: "Real-time pressure & temperature tracking synced via telematics gateway" }
+              ]
+            },
+            {
+              title: "4. Winch, Crane, Lighting & Optics",
+              fields: [
+                { id: "winch_installed", label: "Auxiliary Winch / Crane Unit Installed", type: "toggle", default: false },
+                { id: "winch_cable_size", label: "Winch / Crane Cable Diameter", type: "select", options: ["None / N/A", "3/8 inch (10mm)", "1/2 inch (13mm)", "5/8 inch (16mm)", "3/4 inch (19mm)", "1 inch Synthetic"], default: "None / N/A" },
+                { id: "winch_cable_length", label: `Winch Cable Working Length (${lenUnit})`, type: "text", default: `150 ${lenUnit} Wire Rope` },
+                { id: "lighting_headlights", label: "Headlight System Type", type: "select", options: ["LED Sealed Beam", "Halogen H4", "HID Xenon"], default: "LED Sealed Beam" },
+                { id: "camera_system", label: "Camera System Installed", type: "select", options: ["None", "Rear Backup Camera", "360 Dash & Side Array"], default: "360 Dash & Side Array" }
+              ]
+            },
+            {
+              title: auth.roadTitle,
+              fields: [
+                { id: "dot_brakes", label: "Service & Air / Hydraulic Brake Systems", type: "toggle", default: true, locked: true, badge: auth.roadBadge, desc: "Test pedal travel, air loss rate, and low-pressure warning" },
+                { id: "dot_brake_lights", label: "Brake Lights & High-Mount Stop Lamps", type: "toggle", default: true, locked: true, badge: auth.roadBadge, desc: "Verify illumination upon brake pedal compression" },
+                { id: "dot_turn_signals", label: "Turn Signals & 4-Way Emergency Hazards", type: "toggle", default: true, locked: true, badge: auth.roadBadge, desc: "Test left/right signals and emergency hazard flasher sequence" },
+                { id: "dot_backup_lights", label: "Reverse Backup Lamps & Backup Alarm", type: "toggle", default: true, locked: true, badge: auth.roadBadge, desc: "Verify backup light illumination and reverse warning sound" },
+                { id: "dot_license_plate_light", label: "License Plate Illumination Light", type: "toggle", default: true, locked: true, badge: auth.roadBadge, desc: "Verify rear license plate bulb is functional" },
+                { id: "dot_license_plate_tag", label: "License Plate Mounted & Valid Registration Tag", type: "toggle", default: true, locked: true, badge: auth.roadBadge, desc: "Confirm state/provincial license plate is securely attached with current decal" },
+                { id: "dot_steering", label: "Steering Mechanism & Power Steering Fluid", type: "toggle", default: true, locked: true, badge: auth.roadBadge, desc: "Inspect tie-rods, steering box, and fluid level" },
+                { id: "dot_tires_rims", label: "Tires, Dual Rims & Wheel Fasteners", type: "toggle", default: true, locked: true, badge: auth.roadBadge, desc: "Check tread depth and lug tightness" },
+                { id: "dot_emergency_kit", label: "Reflective Triangles & Charged Fire Extinguisher", type: "toggle", default: true, locked: true, badge: auth.workBadge, desc: "Verify safety triangles and charged fire extinguisher" }
+              ]
+            }
+          ]
+        },
+        dozer_excavator: {
+          title: "Earthmoving — Dozers & Heavy Tracked Equipment Baseline",
+          sections: [
+            {
+              title: "1. Engine & Hydrostatic Powertrain Specifications",
+              fields: [
+                { id: "engine_make_model", label: "Engine Model & Tier", type: "text", default: "Cat C9.3B Tier 4 Final / Cummins QSL9" },
+                { id: "drive_type", label: "Undercarriage Traction Assembly", type: "select", options: ["Steel Tracked (Sealed & Lubricated)", "Heavy Duty SystemOne Tracks", "Rubber Tracked"], default: "Steel Tracked (Sealed & Lubricated)" },
+                { id: "trans_type", label: "Transmission / Hydrostatic Drive", type: "select", options: ["Hydrostatic Dual-Path", "Powershift (3-Speed)", "Direct Drive"], default: "Hydrostatic Dual-Path" }
+              ]
+            },
+            {
+              title: "2. Fluids, Lubricants & Air Filter Specs",
+              fields: [
+                { id: "fluid_engine_oil", label: "Engine Oil Spec & Viscosity", type: "text", default: "15W-40 CK-4 Heavy Duty Diesel" },
+                { id: "fluid_engine_oil_qty", label: `Engine Oil Capacity (${volUnit})`, type: "text", default: `7.5 ${volUnit}` },
+                { id: "air_filter_mfr_part", label: "Engine Air Outer Filter (Mfr & Part #)", type: "text", default: "Cat 110-6326 / Donaldson P532503" },
+                { id: "air_inner_filter_mfr_part", label: "Engine Air Inner Safety Filter", type: "text", default: "Cat 110-6331 / Donaldson P533882" },
+                { id: "cabin_filter_mfr_part", label: "Cabin HVAC Air Filter (Mfr & Part #)", type: "text", default: "Cat 245-7823 / Wix 49088" },
+                { id: "fluid_hydraulics", label: `Hydraulic System Spec & Capacity (${volUnit})`, type: "text", default: `ISO VG 46 Anti-Wear (28 ${volUnit})` },
+                { id: "fluid_final_drives", label: "Final Drive Gear Oil Spec & Qty", type: "text", default: `SAE 50 TO-4 (4.5 ${volUnit} per side)` }
+              ]
+            },
+            {
+              title: "3. Track SAG, Winch Cable & Undercarriage Inspection",
+              fields: [
+                { id: "track_tension_sag", label: "Track SAG / Tension Specification", type: "text", default: "1.5 to 2.0 inches (40-50mm) SAG" },
+                { id: "undercarriage_type", label: "Undercarriage Component Spec", type: "text", default: "Heavy Duty Sealed & Lubricated Tracks (SALT)" },
+                { id: "winch_installed", label: "Rear Towing Recovery Winch Installed", type: "toggle", default: true },
+                { id: "winch_cable_size", label: "Winch Wire Rope Cable Diameter Size", type: "select", options: ["3/4 inch (19mm)", "7/8 inch (22mm)", "1 inch (25mm)", "1-1/8 inch Heavy Swaged"], default: "7/8 inch (22mm)" },
+                { id: "winch_cable_length", label: `Winch Cable Working Length (${lenUnit})`, type: "text", default: `200 ${lenUnit} High-Strength Steel Cable` }
+              ]
+            },
+            {
+              title: auth.heavyEarthTitle,
+              fields: [
+                { id: "osha_rops_fops", label: "ROPS / FOPS Canopy & Seatbelt Integrity", type: "toggle", default: true, locked: true, badge: auth.workBadge, desc: "Check rollover cab structure, mounting bolts, and safety seatbelt" },
+                { id: "osha_travel_alarm", label: "Reverse Backup Warning Alarm & Horn", type: "toggle", default: true, locked: true, badge: auth.workBadge, desc: "Verify backup alarm is audible over jobsite engine noise" },
+                { id: "osha_hyd_cylinders", label: "Hydraulic Cylinder Rods, Hoses & Couplers", type: "toggle", default: true, locked: true, badge: auth.workBadge, desc: "Inspect lift, tilt, and ripper cylinders for leaks, pitting, or hose blisters" },
+                { id: "dozer_tracks_undercarriage", label: "Undercarriage, Track Tension & Sprockets", type: "toggle", default: true, locked: true, badge: auth.workBadge, desc: "Inspect track SAG tension, rollers, idlers, and grousers" },
+                { id: "dozer_blade_ripper", label: "Blade Cutting Edge, End Bits & Rear Attachment", type: "toggle", default: true, locked: true, badge: auth.workBadge, desc: "Check blade corner bits, C-frame pivot pins, and hydraulic lockouts" }
+              ]
+            }
+          ]
+        },
+        wheel_loader_grader: {
+          title: "Earthmoving — Wheel Loaders, Graders & Backhoes Baseline",
+          sections: [
+            {
+              title: "1. Powertrain & Axle Specifications",
+              fields: [
+                { id: "engine_make_model", label: "Engine Model & Tier", type: "text", default: "Cat C7.1 / Cummins QSB6.7" },
+                { id: "drive_type", label: "Drivetrain Configuration", type: "select", options: ["4WD Articulated Wheel", "All-Wheel Drive (AWD)", "2WD / 4WD Backhoe"], default: "4WD Articulated Wheel" }
+              ]
+            },
+            {
+              title: "2. Fluids & Filter Specs",
+              fields: [
+                { id: "fluid_engine_oil", label: "Engine Oil Spec & Viscosity", type: "text", default: "15W-40 CK-4 Heavy Duty" },
+                { id: "air_filter_mfr_part", label: "Engine Air Filter (Mfr & Part #)", type: "text", default: "Donaldson P608533 / Cat 110-6326" },
+                { id: "cabin_filter_mfr_part", label: "Cabin Fresh Air Filter", type: "text", default: "Cat 110-6331 / Wix 49088" },
+                { id: "fluid_hydraulics", label: `Hydraulic Fluid Spec & Capacity (${volUnit})`, type: "text", default: `ISO VG 46 Anti-Wear (35 ${volUnit})` }
+              ]
+            }
+          ]
+        },
+        mining: {
+          title: "Heavy Mining, Quarrying & Drilling Baseline",
+          sections: [
+            {
+              title: auth.mineTitle,
+              fields: [
+                { id: "msha_e_stop", label: "Emergency Engine Stop / RigSaver Shut-Off", type: "toggle", default: true, locked: true, badge: auth.mineBadge, desc: "Test manual emergency stop and air-intake cutoff switches" },
+                { id: "msha_fire_suppression", label: "Automatic / Manual Fire Suppression System", type: "toggle", default: true, locked: true, badge: auth.mineBadge, desc: "Inspect actuator pins, pressure gauges, and discharge nozzles" }
+              ]
+            }
+          ]
+        },
+        stationary: {
+          title: "Stationary, Plant & Engine-Driven Equipment Baseline",
+          sections: [
+            {
+              title: auth.generalTitle,
+              fields: [
+                { id: "osha_grounding", label: "Electrical Grounding Strap & Bonding Connection", type: "toggle", default: true, locked: true, badge: auth.workBadge, desc: "Verify ground wire continuity to earth ground" }
+              ]
+            }
+          ]
+        },
+        auxiliary: {
+          title: "Auxiliary Field Tools, Pumps & Trailer Units Baseline",
+          sections: [
+            {
+              title: "1. Towing & Safety Checks",
+              fields: [
+                { id: "tow_hitch_chains", label: "Pintle / Ball Hitch & Safety Chains", type: "toggle", default: true, locked: true, badge: auth.roadBadge, desc: "Check hitch lock, safety chains, and breakaway cable" }
+              ]
+            }
+          ]
+        }
+      };
+    }
 
     const ATTACHMENT_OVERLAYS = {
       winch_assembly: {
         title: "Rear Hydraulic Towing Recovery Winch Overlay",
         fields: [
-          { id: "winch_cable_size", label: "Winch Cable Wire Rope Diameter Size", type: "select", options: ["1/2 inch", "5/8 inch", "3/4 inch", "7/8 inch", "1 inch"], default: "3/4 inch" },
+          { id: "winch_cable_size", label: "Winch Cable Wire Rope Diameter Size", type: "select", options: ["1/2 inch (13mm)", "5/8 inch (16mm)", "3/4 inch (19mm)", "7/8 inch (22mm)", "1 inch (25mm)"], default: "3/4 inch (19mm)" },
           { id: "winch_cable_length", label: "Winch Cable Working Length", type: "text", default: "175 FT Wire Rope" },
           { id: "winch_cable_insp", label: "Winch Wire Rope Cable & Brake Inspection", type: "toggle", default: true, desc: "Inspect wire rope fraying, drum freespool, and hydraulic brake lock" }
         ]
@@ -846,7 +915,7 @@
       winch_crane_hybrid: {
         title: "Service Body Crane & Recovery Winch Overlay",
         fields: [
-          { id: "crane_cable_size", label: "Crane Hoist Cable Diameter Size", type: "select", options: ["3/8 inch", "1/2 inch", "5/8 inch"], default: "3/8 inch" },
+          { id: "crane_cable_size", label: "Crane Hoist Cable Diameter Size", type: "select", options: ["3/8 inch (10mm)", "1/2 inch (13mm)", "5/8 inch (16mm)"], default: "3/8 inch (10mm)" },
           { id: "crane_cable_length", label: "Crane Hoist Cable Length", type: "text", default: "120 FT Swaged Wire Rope" },
           { id: "crane_anti_two_block", label: "Crane Anti-Two-Block Switch & LMI Warning", type: "toggle", default: true, desc: "Verify limit switch and load indicator function" }
         ]
@@ -873,6 +942,7 @@
       activeOrgId = (u && u.org_id && u.org_id !== "default_org") ? u.org_id : (localStorage.getItem("driven_org_id") || "org_dsi");
 
       updateHeaderOffset();
+      await fetchOrganizationSettings();
       await loadInitialData();
 
       const urlParams = new URLSearchParams(window.location.search);
@@ -887,6 +957,28 @@
         onAssetSelected();
       }
     });
+
+    async function fetchOrganizationSettings() {
+      try {
+        const uomResp = await apiFetch('/api/units-of-measure');
+        if (uomResp.ok) {
+          const data = await uomResp.json();
+          if (data && data.uom) {
+            orgUOM = { ...orgUOM, ...data.uom };
+          }
+        }
+
+        const orgResp = await apiFetch('/api/organization-settings');
+        if (orgResp.ok) {
+          const oData = await orgResp.json();
+          if (oData && oData.country) {
+            orgCountry = String(oData.country).toUpperCase().trim();
+          }
+        }
+      } catch (e) {
+        console.warn('Using default UOM and country settings due to API fallback:', e);
+      }
+    }
 
     function openInstructionsModal() { document.getElementById('instructionsModal').style.display = 'flex'; }
     function closeInstructionsModal() { document.getElementById('instructionsModal').style.display = 'none'; }
@@ -1283,7 +1375,8 @@
       container.innerHTML = '';
 
       const categoryKey = mapTypeToMasterCategory(rawType);
-      const baseSchema = MASTER_CATEGORY_SCHEMAS[categoryKey] || MASTER_CATEGORY_SCHEMAS["highway"];
+      const masterSchemas = getMasterCategorySchemas();
+      const baseSchema = masterSchemas[categoryKey] || masterSchemas["highway"];
       const attachmentKey = document.getElementById('selectAttachment').value;
 
       const savedRules = savedConfig?.rules || {};
@@ -1323,8 +1416,8 @@
       let badgeHTML = '';
       if (field.badge) {
         let bClass = 'badge-dot';
-        if (field.badge.includes('OSHA') || field.badge.includes('ANSI')) bClass = 'badge-osha';
-        if (field.badge.includes('MSHA')) bClass = 'badge-msha';
+        if (field.badge.includes('OSHA') || field.badge.includes('CCOHS') || field.badge.includes('Safe Work') || field.badge.includes('HSE')) bClass = 'badge-osha';
+        if (field.badge.includes('MSHA') || field.badge.includes('Mining')) bClass = 'badge-msha';
         badgeHTML = `<span class="badge ${bClass}">${field.badge}</span>`;
       }
 
