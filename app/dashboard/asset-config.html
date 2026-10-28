@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>DRIV‑EN | Asset Configuration Rules</title>
-  <meta name="description" content="DRIV-EN — configure inspection rules, telemetry thresholds, and asset defaults.">
+  <title>DRIV‑EN | Universal Asset Configuration Rules</title>
+  <meta name="description" content="DRIV-EN — Configure regulatory inspection rules, multi-meter PM thresholds, and global defaults across all asset categories.">
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
   <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
@@ -31,6 +31,10 @@
       --primary-hover: #1d4ed8;
       --text: #0f172a;
       --text-muted: #64748b;
+      --badge-dot: #1e3a8a;
+      --badge-osha: #9a3412;
+      --badge-msha: #b91c1c;
+      --badge-custom: #047857;
     }
 
     html, body { 
@@ -41,9 +45,7 @@
       color: var(--text); 
     }
 
-    .dash-header-row3 { display: none !important; }
-    #dashHeader .dash-theme-wrapper { display: none !important; }
-    .dash-header-row2 { display: none !important; }
+    .dash-header-row3, .dash-header-row2, #dashHeader .dash-theme-wrapper { display: none !important; }
     
     #dashHeader, .dash-header {
       position: sticky !important;
@@ -136,6 +138,7 @@
     }
 
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
     .form-group { display: flex; flex-direction: column; gap: 6px; }
     
     label { font-size: 14px; font-weight: 600; }
@@ -156,8 +159,22 @@
       border-bottom: 1px solid #e2e8f0;
     }
     .toggle-row:last-child { border-bottom: none; }
-    .toggle-title { font-size: 14px; font-weight: 600; }
-    .toggle-desc { font-size: 12px; color: var(--text-muted); }
+    .toggle-title { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .toggle-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+    .badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #ffffff;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-dot { background-color: var(--badge-dot); }
+    .badge-osha { background-color: var(--badge-osha); }
+    .badge-msha { background-color: var(--badge-msha); }
+    .badge-custom { background-color: var(--badge-custom); }
 
     .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
     .switch input { opacity: 0; width: 0; height: 0; }
@@ -193,6 +210,22 @@
       font-size: 14px;
     }
 
+    .custom-items-wrapper {
+      background: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      border-radius: 6px;
+      padding: 16px;
+      margin-top: 12px;
+    }
+
+    .custom-item-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .custom-item-row input[type="text"] { flex: 1; }
+
     .btn-primary {
       background: var(--primary);
       color: #ffffff;
@@ -205,12 +238,32 @@
     }
     .btn-primary:hover { background: var(--primary-hover); }
 
+    .btn-small-add {
+      background: #059669;
+      color: #fff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-small-remove {
+      background: #dc2626;
+      color: #fff;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
     .actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
     .am-message { padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; font-size: 14px; display: none; }
     .am-message.success { background: rgba(34, 197, 94, 0.15); color: #15803d; border: 1px solid #86efac; }
     .am-message.error { background: rgba(239, 68, 68, 0.15); color: #b91c1c; border: 1px solid #fca5a5; }
 
-    /* Copy Modal Styling */
     .modal-overlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000;
@@ -220,7 +273,7 @@
     }
 
     @media (max-width: 700px) {
-      .grid-2 { grid-template-columns: 1fr; }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
       .top-nav-bar { padding: 8px 12px; flex-wrap: wrap; gap: 8px; }
       .config-container { padding: 0 12px 20px 12px; }
     }
@@ -238,7 +291,7 @@
   <!-- Sticky Top Navigation Bar -->
   <div class="top-nav-bar">
     <a href="/app/dashboard/asset-management.html" class="btn-secondary">← Back to Asset Management</a>
-    <button class="btn-action" onclick="openCopyModal()">Copy Config From Another Asset</button>
+    <button class="btn-action" onclick="openCopyModal()">Copy Asset Rules</button>
     <button class="btn-logout" onclick="confirmLogout()">Logout</button>
   </div>
 
@@ -247,26 +300,38 @@
 
     <!-- Selection Controls -->
     <div class="card">
-      <div class="grid-2">
+      <div class="grid-3">
         <div class="form-group">
-          <label for="configTarget">Select Target Configuration</label>
+          <label for="configTarget">Select Target Level</label>
           <select id="configTarget" onchange="onTargetTypeChange()">
-            <option value="specific">Specific Asset Overrides</option>
-            <option value="template">Asset-Type Global Defaults</option>
+            <option value="specific">Specific Asset Unit Overrides</option>
+            <option value="template">D1 Asset-Type Global Defaults</option>
           </select>
         </div>
 
         <div class="form-group" id="assetSelectGroup">
-          <label for="selectAsset">Select Asset Number</label>
+          <label for="selectAsset">Select Specific Asset Number</label>
           <select id="selectAsset" onchange="onAssetSelected()">
-            <option value="">-- Choose Asset --</option>
+            <option value="">-- Choose Asset Unit --</option>
           </select>
         </div>
 
         <div class="form-group" id="typeSelectGroup" style="display: none;">
-          <label for="selectType">Select Asset Type</label>
+          <label for="selectType">Select D1 Asset Type</label>
           <select id="selectType" onchange="onTypeSelected()">
-            <option value="">-- Choose Type --</option>
+            <option value="">-- Loading D1 Asset Types... --</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="attachmentGroup">
+          <label for="selectAttachment">Vocational Body / Attachment Overlay</label>
+          <select id="selectAttachment" onchange="onAttachmentChanged()">
+            <option value="none">None (Standard Chassis / Base Unit)</option>
+            <option value="hydrovac">Hydrovac / Vacuum Suction Unit</option>
+            <option value="concrete_mixer">Concrete Mixer Drum Body</option>
+            <option value="boom_bucket">Knuckle Boom / Aerial Bucket</option>
+            <option value="service_crane">Service Body & Crane</option>
+            <option value="dump_body">Telescopic Dump Bed / Hooklift</option>
           </select>
         </div>
       </div>
@@ -278,8 +343,8 @@
 
       <div class="toggle-row" id="overrideRow" style="background: var(--bg-input); padding: 12px; border-radius: 6px; margin-bottom: 16px;">
         <div>
-          <div class="toggle-title">Override Asset Type Defaults</div>
-          <div class="toggle-desc">Enable to customize rules specific to this individual machine.</div>
+          <div class="toggle-title">Override Category Global Defaults</div>
+          <div class="toggle-desc">Enable to apply customized inspection thresholds to this individual unit.</div>
         </div>
         <label class="switch">
           <input type="checkbox" id="overrideDefaults" onchange="toggleFormLock()">
@@ -289,6 +354,16 @@
 
       <!-- Dynamic Schema Form Container -->
       <div id="dynamicSchemaFields"></div>
+
+      <!-- User Custom Inspection Item Builder -->
+      <div class="section-title">Company / Site Custom Inspection Items</div>
+      <div class="custom-items-wrapper">
+        <p style="font-size: 13px; color: var(--text-muted); margin-top: 0;">
+          Add company-specific or site checklist items (e.g., "Check company decal," "Inspect site VHF radio"). Regulatory checks above are enforced by law and cannot be disabled.
+        </p>
+        <div id="customItemsContainer"></div>
+        <button type="button" class="btn-small-add" onclick="addCustomItemRow()">+ Add Custom Check Item</button>
+      </div>
 
       <div class="actions">
         <button class="btn-primary" id="btnSaveConfig" onclick="saveConfiguration()">Save Configuration</button>
@@ -300,7 +375,7 @@
   <div class="modal-overlay" id="copyModal">
     <div class="modal-card">
       <h3 style="margin-top: 0;">Copy Asset Configuration</h3>
-      <p style="font-size: 13px; color: var(--text-muted);">Select a source asset of the same category to clone its parts, tire specs, and overrides.</p>
+      <p style="font-size: 13px; color: var(--text-muted);">Select a source asset to clone its parts, intervals, and inspection settings.</p>
       
       <div class="form-group" style="margin-bottom: 16px;">
         <label for="copySourceAsset">Select Source Asset</label>
@@ -324,126 +399,150 @@
     let assetTypes = [];
     let currentSchema = null;
     let activeOrgId = null;
+    let customItemsList = [];
 
     const API_ENDPOINT = '/api/asset-config';
 
-    // Local default schema guaranteed to prevent "Unable to load category schema options"
-    const DEFAULT_FALLBACK_SCHEMA = {
-      sections: [
-        {
-          title: "1. Light Pickup Truck Baseline & Cab Specifications",
-          fields: [
-            { id: "cabStyle", label: "Cab Configuration Style", type: "text", default: "Crew Cab", desc: "Single Cab, Extended Cab, Crew Cab" },
-            { id: "bedType", label: "Bed Type & Setup", type: "text", default: "Standard Bed", desc: "Short Bed, Long Bed, Utility Bed, Flatbed" },
-            { id: "transmissionType", label: "Transmission Type", type: "text", default: "Automatic", desc: "Automatic / Manual" },
-            { id: "fuelType", label: "Fuel Type", type: "text", default: "Gasoline", desc: "Gasoline, Diesel, Flex Fuel, EV" },
-            { id: "hasWinch", label: "Equipped with Auxiliary Winch", type: "toggle", default: false, desc: "Enable winch configuration" },
-            { id: "trackOdometer", label: "Track Odometer Mileage", type: "toggle", default: true, desc: "Require mileage entry during pre-trip checks" }
-          ]
-        },
-        {
-          title: "2. Engine Compartment, HVAC & Controls Inspection",
-          fields: [
-            { id: "inspectACHeaterDefroster", label: "Audit HVAC (Air Conditioner, Heater, Defroster)", type: "toggle", default: true, desc: "Require check for heating, cooling, and window defrosting" },
-            { id: "inspectWipersWashers", label: "Audit Windshield Wipers & Washers", type: "toggle", default: true, desc: "Check wiper blade condition and washer fluid spray" },
-            { id: "oilLevelCheck", label: "Require Engine Oil Level & Fluid Leak Audit", type: "toggle", default: true, desc: "Inspect dipstick level and valve cover/pan leaks" },
-            { id: "coolantSystemCheck", label: "Coolant Reservoir & Hose Swell Inspection", type: "toggle", default: true, desc: "Check coolant level and radiator hoses" },
-            { id: "driveBeltCheck", label: "Serpentine Belt & Tensioner Inspection", type: "toggle", default: true, desc: "Check belt for cracking, fraying, or tension loss" },
-            { id: "batteryTerminalCheck", label: "Battery Hold-down & Terminal Corrosion Check", type: "toggle", default: true, desc: "Inspect hold-down clamp and cable tightness" }
-          ]
-        },
-        {
-          title: "3. Steering, Suspension, Drivetrain & Winch Audit",
-          fields: [
-            { id: "steeringLinkagePlay", label: "Tie-Rod & Drag Link Play Audit", type: "toggle", default: true, desc: "Inspect steering shaft and tie-rod boots for play" },
-            { id: "suspensionLeafCheck", label: "Leaf Spring & Shock Absorber Leak Audit", type: "toggle", default: true, desc: "Check for cracked spring leaves and shock fluid leaks" },
-            { id: "fourWheelDriveCheck", label: "Require 4WD Actuator & Transfer Case Engagement Check", type: "toggle", default: true, desc: "Test 4x4 engagement and check differential seals" },
-            { id: "driveshaftUjointCheck", label: "Driveshaft U-Joint & Slip Yoke Play Audit", type: "toggle", default: true, desc: "Inspect needle bearings and driveshaft slop" },
-            { id: "inspectWinchOperation", label: "Audit Winch Cable & Remote Control", type: "toggle", default: false, desc: "Inspect winch cable tension, spooling, and controller" }
-          ]
-        },
-        {
-          title: "4. Wheel Position, Tire Specs & Pressure Telematics",
-          fields: [
-            { id: "tireSizeSteer", label: "Front / Steer Tire Size Specification", type: "text", default: "LT275/70R18", desc: "Manufacturer spec steer tire size" },
-            { id: "tirePsiSteerRecommended", label: "Front / Steer Recommended Cold Inflation (PSI)", type: "number", default: 60, desc: "Door-jamb recommended PSI" },
-            { id: "tireSizeDrive", label: "Rear / Drive Tire Size Specification", type: "text", default: "LT275/70R18", desc: "Manufacturer spec drive tire size" },
-            { id: "tirePsiDriveRecommended", label: "Rear / Drive Recommended Cold Inflation (PSI)", type: "number", default: 65, desc: "Door-jamb recommended PSI" },
-            { id: "tpmsThresholdLowPsi", label: "TPMS Low Inflation Alarm Trigger (PSI)", type: "number", default: 50, desc: "Telemetry alert threshold" },
-            { id: "isDuallyConfiguration", label: "Dually Rear Axle Setup (1-Ton Dual Wheels)", type: "toggle", default: false, desc: "Enable 4-tire tracking on rear axle" },
-            { id: "minSteerTread32nd", label: "OSHA / DOT Minimum Steer Tire Tread Depth (1/32 in)", type: "number", default: 4, desc: "Out-of-service limit (4/32 in min)" },
-            { id: "minDriveTread32nd", label: "OSHA / DOT Minimum Drive Tire Tread Depth (1/32 in)", type: "number", default: 2, desc: "Out-of-service limit (2/32 in min)" }
-          ]
-        },
-        {
-          title: "5. Lighting Systems, Required Placards & Safety Signage",
-          fields: [
-            { id: "lightHeadlightsLowHigh", label: "Low & High Beam Headlights", type: "toggle", default: true, desc: "Illumination check" },
-            { id: "lightBrakeAndTail", label: "Tail Lights & Stop / Brake Lights", type: "toggle", default: true, desc: "Rear illumination check" },
-            { id: "lightTurnSignalsHazards", label: "Turn Signals, Blinkers & 4-Way Emergency Hazard Flashers", type: "toggle", default: true, desc: "Directional indicators" },
-            { id: "lightClearanceMarker", label: "Clearance, Side Marker & ID Lights (>80 in wide)", type: "toggle", default: true, desc: "DOT width marker lights" },
-            { id: "lightLicensePlate", label: "License Plate Tag Light", type: "toggle", default: true, desc: "Rear tag illumination" },
-            { id: "lightReverseBackup", label: "Reverse Backup Lights & Audible Alarm Signal", type: "toggle", default: true, desc: "OSHA 1926.601 required backup warning" },
-            { id: "lightStrobeBeacon", label: "Amber Strobe Light / Rotating Beacon", type: "toggle", default: true, desc: "OSHA jobsite hazard warning light" },
-            { id: "lightOtherAuxiliary", label: "Auxiliary & Other Lights Not Listed Above", type: "toggle", default: true, desc: "Inspect light bars, beacons, work lights, and clearance lights" },
-            { id: "lightWorkBed", label: "Truck Bed Utility Work Light", type: "toggle", default: true, desc: "Bed area illumination" },
-            { id: "placardDotHazmat", label: "DOT Hazmat Placards & Class Identification Signs", type: "toggle", default: false, desc: "When carrying hazardous goods" },
-            { id: "signEmergencyStop", label: "E-Stop Safety Labeling & Machine Cut-Off Signage", type: "toggle", default: true, desc: "OSHA/MSHA required red E-stop signage" },
-            { id: "signMaxPayloadCapacity", label: "Max Load Capacity / Towing Rating Warning Decal", type: "toggle", default: true, desc: "OSHA rating decal on frame/cab" },
-            { id: "signSlowMovingVehicle", label: "Slow Moving Vehicle (SMV) Triangle Emblem", type: "toggle", default: false, desc: "Required for assets operating under 25 mph" },
-            { id: "signFuelType", label: "Diesel Fuel / Gasoline Only Fuel Cap Decal", type: "toggle", default: true, desc: "Misfuel prevention signage" }
-          ]
-        },
-        {
-          title: "6. OSHA / MSHA Mandated Safety Devices & Emergency Equipment",
-          fields: [
-            { id: "seatBeltMandate", label: "OSHA / MSHA Seat Belt Functional & Webbing Inspection", type: "toggle", default: true, desc: "Mandatory check per 29 CFR 1926.601(b)(9) / MSHA 30 CFR 56.14130" },
-            { id: "hornAudible200ft", label: "Audible Warning Horn (Audible at 200 ft)", type: "toggle", default: true, desc: "OSHA 1926.601(b)(1) compliance" },
-            { id: "fireExtinguisherCharged", label: "On-Board Fire Extinguisher (Gauge Green, Sealed & Mounted)", type: "toggle", default: true, desc: "OSHA 29 CFR 1926.150 / MSHA 30 CFR 56.4201" },
-            { id: "firstAidKitStocked", label: "OSHA / MSHA Compliant Stocked First Aid Kit", type: "toggle", default: true, desc: "29 CFR 1926.50 / 30 CFR 56.15001" },
-            { id: "dotReflectiveTriangles", label: "Set of 3 DOT Emergency Reflective Triangles / Flares", type: "toggle", default: true, desc: "OSHA/DOT emergency breakdown kit" },
-            { id: "wheelChocksPair", label: "Pair of Heavy Duty Wheel Chocks Present", type: "toggle", default: true, desc: "Required parking containment" }
-          ]
-        },
-        {
-          title: "7. Truck Bed, Cargo Securement & Towing Hitch",
-          fields: [
-            { id: "headacheRackCheck", label: "Headache Rack / Cab Guard Security Audit", type: "toggle", default: true, desc: "Verify cab protector mounting bolts" },
-            { id: "bedAnchorDringCheck", label: "Bed Tie-Down Anchor & D-Ring Inspection", type: "toggle", default: true, desc: "Inspect cargo securement anchors for cracks" },
-            { id: "receiverHitchBoltCheck", label: "Class III/IV/V Receiver & Gooseneck Puck Audit", type: "toggle", default: true, desc: "Inspect frame mounting bolts and safety chain loops" },
-            { id: "trailerPlugSevenWayCheck", label: "7-Way / 4-Way Electrical Trailer Connector Check", type: "toggle", default: true, desc: "Inspect trailer plug pins and spring cover lock" }
-          ]
-        },
-        {
-          title: "8. Consumable Parts, Quantities & Replacement Numbers",
-          fields: [
-            { id: "partEngineOilFilter", label: "Engine Oil Filter Part #", type: "text", default: "", desc: "OEM or aftermarket filter code" },
-            { id: "partEngineOilQty", label: "Engine Oil Capacity & Spec (Quarts / Gallons)", type: "text", default: "6 Qt / 5W-30 Full Synthetic", desc: "Engine oil spec and volume" },
-            { id: "partTransFluidTypeQty", label: "Transmission Fluid Spec & Capacity", type: "text", default: "12 Qt / Dexron VI", desc: "Fluid specification and fill capacity" },
-            { id: "partBrakeFluidTypeQty", label: "Brake Fluid Spec & Capacity", type: "text", default: "32 oz / DOT 3", desc: "Fluid specification and fill capacity" },
-            { id: "partCoolantTypeQty", label: "Engine Coolant Spec & Capacity", type: "text", default: "14 Qt / 50/50 OAT", desc: "Antifreeze spec and capacity" },
-            { id: "partFuelFilterPrimary", label: "Primary Fuel Filter / Water Separator Part #", type: "text", default: "", desc: "Primary fuel filter code" },
-            { id: "partFuelFilterSecondary", label: "Secondary Fuel Filter Part #", type: "text", default: "", desc: "Secondary fuel filter code" },
-            { id: "partAirFilterPrimary", label: "Primary Air Intake Filter Part #", type: "text", default: "", desc: "Engine intake filter" },
-            { id: "partAirFilterSecondary", label: "Secondary / Safety Air Filter Part #", type: "text", default: "", desc: "Inner safety filter code" },
-            { id: "partCabinAirFilter", label: "Cabin HVAC Air Filter Part #", type: "text", default: "", desc: "Cabin filter code" },
-            { id: "partWiperBlades", label: "Wiper Blade Set Part #", type: "text", default: "", desc: "Driver & passenger wiper sizes/part numbers" },
-            { id: "partHydraulicFilterMain", label: "Main Hydraulic Return / Pressure Filter Part #", type: "text", default: "", desc: "Hydraulic filter number" },
-            { id: "partHydraulicOilQty", label: "Hydraulic Reservoir Fluid Capacity (Gallons)", type: "text", default: "", desc: "Total fluid volume" },
-            { id: "partBrakePadsFront", label: "Front Brake Pad Set Part # & Quantity", type: "text", default: "", desc: "Front brake pad kit spec" },
-            { id: "partBrakePadsRear", label: "Rear Brake Pad Set / Shoe Kit Part #", type: "text", default: "", desc: "Rear brake kit spec" },
-            { id: "partSerpentineBelt", label: "Main Engine Serpentine Belt Part #", type: "text", default: "", desc: "Drive belt part number" }
-          ]
-        },
-        {
-          title: "9. Preventative Maintenance (PM) Schedules",
-          fields: [
-            { id: "pmMilesInterval", label: "Engine Oil & Filter Change Interval (Miles)", type: "number", default: 5000, desc: "Standard oil change threshold" },
-            { id: "tireRotationMiles", label: "Tire Rotation & Balance Schedule (Miles)", type: "number", default: 7500, desc: "Tire rotation interval" },
-            { id: "brakePadCheckMiles", label: "Brake Lining & Rotor Service Interval (Miles)", type: "number", default: 15000, desc: "Comprehensive brake wear inspection" }
-          ]
-        }
-      ]
+    // Master Schemas covering ALL D1 Asset Types
+    const MASTER_CATEGORY_SCHEMAS = {
+      highway: {
+        title: "Highway Motor Vehicle Baseline (Classes 1–8)",
+        sections: [
+          {
+            title: "1. Federal DOT / OSHA Compliance Checks (49 CFR § 396.11)",
+            fields: [
+              { id: "dot_brakes", label: "Service & Air / Hydraulic Brake Systems", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Test pedal travel, air loss rate, and low-pressure warning" },
+              { id: "dot_steering", label: "Steering Mechanism & Power Fluid", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Inspect tie-rods, steering box, and fluid level" },
+              { id: "dot_lighting", label: "Lighting, Turn Signals & Brake Lamps", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Verify illumination across all head, tail, signal, and marker lights" },
+              { id: "dot_tires_rims", label: "Tires, Dual Rims & Wheel Fasteners", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Check tread depth (4/32 steer, 2/32 drive) and lug tightness" },
+              { id: "dot_emergency_kit", label: "Reflective Triangles & Charged Fire Extinguisher", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Verify 3 DOT reflective triangles and green-gauge extinguisher" }
+            ]
+          },
+          {
+            title: "2. Maintenance Schedules & Telematics Triggers",
+            fields: [
+              { id: "pmMilesInterval", label: "Engine Oil Service Interval (Miles)", type: "number", default: 7500, desc: "Road mileage service threshold" },
+              { id: "pmHoursInterval", label: "Engine Operating Time Interval (Hours)", type: "number", default: 250, desc: "Engine-hour service threshold" }
+            ]
+          }
+        ]
+      },
+      earthmoving: {
+        title: "Earthmoving & Heavy Civil Construction Machinery Baseline",
+        sections: [
+          {
+            title: "1. OSHA Heavy Construction Safety (29 CFR 1926.602)",
+            fields: [
+              { id: "osha_rops_fops", label: "ROPS / FOPS Protective Structure Integrity", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Check rollover cab posts and mounting bolts for damage" },
+              { id: "osha_travel_alarm", label: "Reverse Travel Warning Alarm & Horn", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Audible backup alarm audible above jobsite noise" },
+              { id: "osha_hyd_cylinders", label: "Hydraulic Cylinder Rods, Hoses & Couplers", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Inspect lift/tilt cylinders for leaks, pitting, or hose blisters" },
+              { id: "osha_quick_coupler", label: "Bucket / Attachment Quick-Coupler Safety Lock", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Verify mechanical safety pin or hydraulic wedge lock is engaged" }
+            ]
+          },
+          {
+            title: "2. Hour-Based Maintenance Schedules",
+            fields: [
+              { id: "pmHoursInterval", label: "Engine & Hydraulic Filter Change (Operating Hours)", type: "number", default: 250, desc: "Primary engine-hour service trigger" },
+              { id: "undercarriageCheckHours", label: "Track Tension & Sprocket Wear Audit (Hours)", type: "number", default: 500, desc: "Track SAG measurement and roller check" }
+            ]
+          }
+        ]
+      },
+      mining: {
+        title: "Heavy Mining, Quarrying & Drilling Equipment Baseline",
+        sections: [
+          {
+            title: "1. MSHA Mandated Safety Checks (30 CFR Part 56/57)",
+            fields: [
+              { id: "msha_e_stop", label: "Emergency Engine Stop / RigSaver Shut-Off", type: "toggle", default: true, locked: true, badge: "MSHA Mandatory", desc: "Test manual and air-intake cutoff switches" },
+              { id: "msha_fire_suppression", label: "Automatic / Manual Fire Suppression System", type: "toggle", default: true, locked: true, badge: "MSHA Mandatory", desc: "Inspect actuator pins, pressure gauges, and discharge nozzles" },
+              { id: "msha_guards", label: "Pinch-Point, Flywheel & Driveshaft Safety Guards", type: "toggle", default: true, locked: true, badge: "MSHA Mandatory", desc: "Ensure all rotating shafts and belt guards are bolted in place" }
+            ]
+          },
+          {
+            title: "2. Severe Duty Maintenance Schedules",
+            fields: [
+              { id: "pmHoursInterval", label: "Engine & Severe Duty Filter Change (Hours)", type: "number", default: 250, desc: "Primary operating hour trigger" },
+              { id: "fluidSamplingHours", label: "Engine Oil & Hydraulic Fluid Lab Analysis (Hours)", type: "number", default: 500, desc: "Oil sampling interval" }
+            ]
+          }
+        ]
+      },
+      stationary: {
+        title: "Stationary, Plant & Process Facility Equipment Baseline",
+        sections: [
+          {
+            title: "1. OSHA General Industry Standards (29 CFR 1910)",
+            fields: [
+              { id: "osha_grounding", label: "Electrical Grounding Strap & Bonding Connection", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Verify ground wire continuity to earth ground" },
+              { id: "osha_relief_valves", label: "Pressure Relief Valves & Safety Cut-Offs", type: "toggle", default: true, locked: true, badge: "ASME / OSHA", desc: "Inspect pressure relief levers and auto-shutdown switches" },
+              { id: "osha_belt_guards", label: "Pulley & Compressor Belt Safety Enclosures", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Verify zero exposed moving belts" }
+            ]
+          },
+          {
+            title: "2. Plant Run-Time Service Intervals",
+            fields: [
+              { id: "pmHoursInterval", label: "Run-Time Service Interval (Hours)", type: "number", default: 500, desc: "Primary run-hour maintenance threshold" }
+            ]
+          }
+        ]
+      },
+      auxiliary: {
+        title: "Auxiliary Field Tools, Pumps & Trailer Units Baseline",
+        sections: [
+          {
+            title: "1. Towing & Structural Safety Checks",
+            fields: [
+              { id: "tow_hitch_chains", label: "Pintle / Ball Hitch & Safety Chains", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Check hitch lock, safety chains, and breakaway cable" },
+              { id: "trailer_lights", label: "Trailer Stop, Tail & Clearance Lights", type: "toggle", default: true, locked: true, badge: "DOT Mandatory", desc: "Check 7-way plug electrical light function" }
+            ]
+          },
+          {
+            title: "2. Service Thresholds",
+            fields: [
+              { id: "pmHoursInterval", label: "Generator / Pump Service Interval (Hours)", type: "number", default: 250, desc: "Auxiliary engine maintenance trigger" }
+            ]
+          }
+        ]
+      }
+    };
+
+    const ATTACHMENT_OVERLAYS = {
+      hydrovac: {
+        title: "Hydrovac / Suction Attachment Overlay",
+        fields: [
+          { id: "pto_track_enable", label: "Enable PTO Hour Meter Tracking", type: "toggle", default: true, desc: "Track vacuum blower / water pump runtime" },
+          { id: "pto_pm_hours", label: "Blower & Hydraulic Service (PTO Hours)", type: "number", default: 150, desc: "Blower oil change threshold" },
+          { id: "osha_vac_blower", label: "Vacuum Blower Filter & Pressure Relief Valve", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Inspect intake silencer and pressure relief valve" }
+        ]
+      },
+      concrete_mixer: {
+        title: "Concrete Mixer Drum Overlay",
+        fields: [
+          { id: "pto_track_enable", label: "Enable PTO Drum Hour Tracking", type: "toggle", default: true, desc: "Track drum hydraulic drive hours" },
+          { id: "pto_pm_hours", label: "Drum Drive Planetary Gearbox Service (PTO Hours)", type: "number", default: 200, desc: "Gearbox oil service threshold" }
+        ]
+      },
+      boom_bucket: {
+        title: "Knuckle Boom / Aerial Bucket Overlay",
+        fields: [
+          { id: "pto_track_enable", label: "Enable PTO Hydraulic Hour Tracking", type: "toggle", default: true, desc: "Track hydraulic lift pump runtime" },
+          { id: "ansi_dielectric", label: "Dielectric Insulation Testing Tag Valid", type: "toggle", default: true, locked: true, badge: "ANSI A92.2", desc: "Verify annual insulation cert tag" }
+        ]
+      },
+      service_crane: {
+        title: "Service Crane & Compressor Body Overlay",
+        fields: [
+          { id: "pto_track_enable", label: "Enable Crane / Compressor Hour Tracking", type: "toggle", default: true, desc: "Track auxiliary equipment runtime" },
+          { id: "crane_rope", label: "Crane Wire Rope, Hook & Safety Latch", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Inspect wire cable fraying and safety latch" }
+        ]
+      },
+      dump_body: {
+        title: "Telescopic Dump Bed Overlay",
+        fields: [
+          { id: "pto_track_enable", label: "Enable PTO Hoist Hour Tracking", type: "toggle", default: true, desc: "Track hoist cylinder hours" }
+        ]
+      }
     };
 
     function updateHeaderOffset() {
@@ -480,15 +579,14 @@
         const resp = await apiFetch('/api/equipment');
         if (resp.ok) {
           const data = await resp.json();
-          allAssets = data.records || data.equipment || data || [];
+          allAssets = extractRecords(data);
           populateAssetDropdowns();
         }
 
         const typesResp = await apiFetch('/api/asset-types');
         if (typesResp.ok) {
           const tData = await typesResp.json();
-          const typeList = tData.assetTypes || tData.records || tData || [];
-          assetTypes = typeList.map(t => typeof t === 'object' ? (t.asset_type_name || t.name || t.type) : t);
+          assetTypes = extractRecords(tData);
           populateTypeDropdown();
         }
       } catch (e) {
@@ -496,11 +594,17 @@
       }
     }
 
+    function extractRecords(data) {
+      if (Array.isArray(data)) return data;
+      if (!data || typeof data !== "object") return [];
+      return data.records || data.assetTypes || data.equipment || data.data || [];
+    }
+
     function populateAssetDropdowns() {
       const sel = document.getElementById('selectAsset');
       const copySel = document.getElementById('copySourceAsset');
       
-      sel.innerHTML = '<option value="">-- Choose Asset --</option>';
+      sel.innerHTML = '<option value="">-- Choose Asset Unit --</option>';
       copySel.innerHTML = '<option value="">-- Choose Source Asset --</option>';
 
       allAssets.forEach(a => {
@@ -521,9 +625,9 @@
 
     function populateTypeDropdown() {
       const sel = document.getElementById('selectType');
-      sel.innerHTML = '<option value="">-- Choose Type --</option>';
+      sel.innerHTML = '<option value="">-- Choose D1 Asset Type --</option>';
       assetTypes.forEach(t => {
-        const name = typeof t === 'object' ? (t.name || t.title || '') : String(t);
+        const name = typeof t === 'object' ? (t.asset_type_name || t.name || t.type || '') : String(t);
         if (name) {
           const opt = document.createElement('option');
           opt.value = name;
@@ -544,58 +648,20 @@
       document.getElementById('configPanel').style.opacity = '0.5';
       document.getElementById('configPanel').style.pointerEvents = 'none';
       document.getElementById('dynamicSchemaFields').innerHTML = '';
+      customItemsList = [];
+      renderCustomItemRows();
     }
 
-    function cleanCategoryKey(raw) {
-      if (!raw) return "default";
-      const s = String(raw).toLowerCase().trim();
+    function mapTypeToMasterCategory(rawType) {
+      if (!rawType) return "highway";
+      const s = String(rawType).toLowerCase();
 
-      if (s.includes("pickup") || s.includes("f-150") || s.includes("f-250") || s.includes("f-350") || s.includes("silverado") || s.includes("ram 1500") || s.includes("sierra")) return "pickup";
-      if (s.includes("medium vocational") || s.includes("cab-chassis")) return "medtruck";
-      if (s.includes("utv") || s.includes("buggy") || s.includes("side-by-side")) return "utv";
-      if (s.includes("sedan") || s.includes("passenger car") || s.includes("suv") || s.includes("crossover")) return "sedan";
-      if (s.includes("cargo van") || s.includes("passenger van") || s.includes("shuttle")) return "cargovan";
-      if (s.includes("day cab") || s.includes("sleeper") || s.includes("semi")) return "class8semitruck";
-      if (s.includes("dump truck")) return "dumptruck";
-      if (s.includes("service / utility") || s.includes("bucket")) return "servicetruck";
-      if (s.includes("vacuum") || s.includes("hydro-vac")) return "vactruck";
-      if (s.includes("concrete mixer")) return "mixertruck";
-      if (s.includes("rolligon")) return "rolligon";
-      if (s.includes("tracked dump") || s.includes("morooka") || s.includes("panther") || s.includes("vibroseis")) return "trackedcarrier";
-      if (s.includes("boom lift") || s.includes("vertical mast")) return "boomlift";
-      if (s.includes("scissor lift")) return "scissorlift";
-      if (s.includes("drilling rig")) return "drillingrig";
-      if (s.includes("workover") || s.includes("pulling unit")) return "workoverrig";
-      if (s.includes("coiled tubing")) return "coiledtubing";
-      if (s.includes("mud pump")) return "mudpump";
-      if (s.includes("blowout preventer") || s.includes("bop stack")) return "bopstack";
-      if (s.includes("excavator")) return "excavator";
-      if (s.includes("dozer")) return "dozer";
-      if (s.includes("wheel loader") || s.includes("skid steer") || s.includes("backhoe") || s.includes("articulated dump")) return "loader";
-      if (s.includes("motor grader")) return "grader";
-      if (s.includes("paver") || s.includes("milling") || s.includes("reclaimer")) return "paver";
-      if (s.includes("directional drill") || s.includes("hdd")) return "hdd";
-      if (s.includes("pile driver")) return "piledriver";
-      if (s.includes("asphalt plant")) return "asphaltplant";
-      if (s.includes("concrete batch plant")) return "concreteplant";
-      if (s.includes("sideboom")) return "sideboom";
-      if (s.includes("mulcher")) return "mulcher";
-      if (s.includes("feller buncher")) return "fellerbuncher";
-      if (s.includes("skidder")) return "skidder";
-      if (s.includes("agricultural tractor") || s.includes("combine")) return "agtractor";
-      if (s.includes("crane") || s.includes("gantry")) return "crane";
-      if (s.includes("forklift") || s.includes("telehandler")) return "forklift";
-      if (s.includes("mine haul")) return "minehaul";
-      if (s.includes("rock crusher")) return "crusher";
-      if (s.includes("welder")) return "shopwelder";
-      if (s.includes("press brake") || s.includes("ironworker")) return "pressbrake";
-      if (s.includes("generator") || s.includes("light tower")) return "generator";
-      if (s.includes("air compressor")) return "aircomp";
-      if (s.includes("pump")) return "centrifugalpump";
-      if (s.includes("pressure vessel") || s.includes("heat exchanger") || s.includes("boiler")) return "pressurevessel";
-      if (s.includes("trailer") || s.includes("flatbed") || s.includes("lowboy")) return "trailer";
+      if (s.includes("excavator") || s.includes("dozer") || s.includes("loader") || s.includes("grader") || s.includes("backhoe") || s.includes("paver") || s.includes("compactor") || s.includes("skid steer")) return "earthmoving";
+      if (s.includes("mine") || s.includes("haul truck") || s.includes("crusher") || s.includes("drill") || s.includes("workover") || s.includes("rig") || s.includes("coiled tubing") || s.includes("bop")) return "mining";
+      if (s.includes("generator") || s.includes("compressor") || s.includes("pump") || s.includes("boiler") || s.includes("vessel") || s.includes("welder") || s.includes("press brake")) return "stationary";
+      if (s.includes("trailer") || s.includes("light tower") || s.includes("attachment")) return "auxiliary";
 
-      return "default";
+      return "highway";
     }
 
     async function onAssetSelected() {
@@ -607,21 +673,27 @@
 
       document.getElementById('configPanel').style.opacity = '1';
       document.getElementById('configPanel').style.pointerEvents = 'auto';
-      document.getElementById('modeBanner').innerText = `Configuring rules for Asset: ${assetNum} (${rawType})`;
+      document.getElementById('modeBanner').innerText = `Configuring Rules for Asset Unit: ${assetNum} (${rawType})`;
 
-      await fetchAndRenderSchema('specific', assetNum, cleanCategoryKey(rawType));
+      await fetchAndRenderSchema('specific', assetNum, rawType);
     }
 
-    async function onTypeSelected() {
+    function onTypeSelected() {
       const typeName = document.getElementById('selectType').value;
       if (!typeName) return;
 
       document.getElementById('configPanel').style.opacity = '1';
       document.getElementById('configPanel').style.pointerEvents = 'auto';
-      document.getElementById('modeBanner').innerText = `Editing global category schema for: ${typeName}`;
+      document.getElementById('modeBanner').innerText = `Editing Global Defaults for D1 Type: ${typeName}`;
 
-      await fetchAndRenderSchema('template', typeName, cleanCategoryKey(typeName));
+      renderCompositeForm(null, typeName);
       enableForm();
+    }
+
+    function onAttachmentChanged() {
+      const targetLevel = document.getElementById('configTarget').value;
+      const keyName = targetLevel === 'specific' ? document.getElementById('selectAsset').value : document.getElementById('selectType').value;
+      renderCompositeForm(null, keyName);
     }
 
     async function apiFetch(url, options = {}) {
@@ -638,92 +710,128 @@
         const res = await apiFetch(url);
         let data = null;
 
-        if (res.ok) {
-          data = await res.json();
-        }
+        if (res.ok) data = await res.json();
 
-        if (data && data.schema && data.schema.sections && data.schema.sections.length > 0) {
-          currentSchema = data.schema;
-          renderDynamicForm(data.schema, data.config);
-
-          if (data.config) {
-            document.getElementById('overrideDefaults').checked = data.config.isOverride || false;
-          } else {
-            document.getElementById('overrideDefaults').checked = false;
+        if (data && data.config) {
+          if (data.config.attachment) {
+            document.getElementById('selectAttachment').value = data.config.attachment;
           }
-          toggleFormLock();
-          return;
+          if (data.config.customItems) {
+            customItemsList = data.config.customItems;
+          }
+          document.getElementById('overrideDefaults').checked = data.config.isOverride || false;
+        } else {
+          document.getElementById('overrideDefaults').checked = false;
         }
 
-        // Render fallback default schema cleanly without displaying error message
-        currentSchema = DEFAULT_FALLBACK_SCHEMA;
-        renderDynamicForm(DEFAULT_FALLBACK_SCHEMA, data ? data.config : null);
+        renderCompositeForm(data ? data.config : null, assetType);
         toggleFormLock();
 
       } catch (e) {
-        console.error('Failed to load dynamic schema, using fallback:', e);
-        currentSchema = DEFAULT_FALLBACK_SCHEMA;
-        renderDynamicForm(DEFAULT_FALLBACK_SCHEMA, null);
+        console.error('Failed to load asset schema:', e);
+        renderCompositeForm(null, assetType);
         toggleFormLock();
       }
     }
 
-    function renderDynamicForm(schema, savedConfig) {
+    function renderCompositeForm(savedConfig = null, rawType = "") {
       const container = document.getElementById('dynamicSchemaFields');
       container.innerHTML = '';
 
-      const values = savedConfig?.rules || {};
+      const categoryKey = mapTypeToMasterCategory(rawType);
+      const baseSchema = MASTER_CATEGORY_SCHEMAS[categoryKey] || MASTER_CATEGORY_SCHEMAS["highway"];
+      const attachmentKey = document.getElementById('selectAttachment').value;
 
-      if (!schema || !schema.sections || schema.sections.length === 0) {
-        container.innerHTML = '<div style="padding:16px; color:var(--text-muted);">No schema rules available for this selection.</div>';
-        return;
-      }
+      const savedRules = savedConfig?.rules || {};
 
-      schema.sections.forEach(section => {
+      baseSchema.sections.forEach(sec => {
         const secTitle = document.createElement('div');
         secTitle.className = 'section-title';
-        secTitle.textContent = section.title;
+        secTitle.textContent = sec.title;
         container.appendChild(secTitle);
 
-        section.fields.forEach(field => {
-          const val = values[field.id] !== undefined ? values[field.id] : (field.default !== undefined ? field.default : '');
-
-          if (field.type === 'toggle') {
-            const row = document.createElement('div');
-            row.className = 'toggle-row';
-            row.innerHTML = `
-              <div>
-                <div class="toggle-title">${field.label}</div>
-                <div class="toggle-desc">${field.desc || ''}</div>
-              </div>
-              <label class="switch">
-                <input type="checkbox" id="field_${field.id}" ${val ? 'checked' : ''}>
-                <span class="slider"></span>
-              </label>
-            `;
-            container.appendChild(row);
-          } else if (field.type === 'number') {
-            const row = document.createElement('div');
-            row.className = 'form-group';
-            row.style.marginBottom = '12px';
-            row.innerHTML = `
-              <label for="field_${field.id}">${field.label}</label>
-              <input type="number" id="field_${field.id}" value="${val}">
-              <span style="font-size: 12px; color: var(--text-muted);">${field.desc || ''}</span>
-            `;
-            container.appendChild(row);
-          } else if (field.type === 'text') {
-            const row = document.createElement('div');
-            row.className = 'form-group';
-            row.style.marginBottom = '12px';
-            row.innerHTML = `
-              <label for="field_${field.id}">${field.label}</label>
-              <input type="text" id="field_${field.id}" value="${val}" placeholder="${field.desc || ''}">
-              <span style="font-size: 12px; color: var(--text-muted);">${field.desc || ''}</span>
-            `;
-            container.appendChild(row);
-          }
+        sec.fields.forEach(field => {
+          renderFieldRow(container, field, savedRules);
         });
+      });
+
+      if (attachmentKey !== 'none' && ATTACHMENT_OVERLAYS[attachmentKey]) {
+        const overlay = ATTACHMENT_OVERLAYS[attachmentKey];
+        const secTitle = document.createElement('div');
+        secTitle.className = 'section-title';
+        secTitle.textContent = `3. ${overlay.title}`;
+        container.appendChild(secTitle);
+
+        overlay.fields.forEach(field => {
+          renderFieldRow(container, field, savedRules);
+        });
+      }
+
+      renderCustomItemRows();
+    }
+
+    function renderFieldRow(container, field, savedRules) {
+      const val = savedRules[field.id] !== undefined ? savedRules[field.id] : (field.default !== undefined ? field.default : '');
+      const isLocked = field.locked || false;
+
+      let badgeHTML = '';
+      if (field.badge) {
+        let bClass = 'badge-dot';
+        if (field.badge.includes('OSHA') || field.badge.includes('ANSI')) bClass = 'badge-osha';
+        if (field.badge.includes('MSHA')) bClass = 'badge-msha';
+        badgeHTML = `<span class="badge ${bClass}">${field.badge}</span>`;
+      }
+
+      if (field.type === 'toggle') {
+        const row = document.createElement('div');
+        row.className = 'toggle-row';
+        row.innerHTML = `
+          <div>
+            <div class="toggle-title">${field.label} ${badgeHTML}</div>
+            <div class="toggle-desc">${field.desc || ''}</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="field_${field.id}" ${val ? 'checked' : ''} ${isLocked ? 'disabled' : ''}>
+            <span class="slider"></span>
+          </label>
+        `;
+        container.appendChild(row);
+      } else if (field.type === 'number' || field.type === 'text') {
+        const row = document.createElement('div');
+        row.className = 'form-group';
+        row.style.marginBottom = '12px';
+        row.innerHTML = `
+          <label for="field_${field.id}">${field.label} ${badgeHTML}</label>
+          <input type="${field.type}" id="field_${field.id}" value="${val}" ${isLocked ? 'disabled' : ''}>
+          <span style="font-size: 12px; color: var(--text-muted);">${field.desc || ''}</span>
+        `;
+        container.appendChild(row);
+      }
+    }
+
+    function addCustomItemRow(labelValue = "") {
+      customItemsList.push(labelValue);
+      renderCustomItemRows();
+    }
+
+    function removeCustomItemRow(index) {
+      customItemsList.splice(index, 1);
+      renderCustomItemRows();
+    }
+
+    function renderCustomItemRows() {
+      const container = document.getElementById('customItemsContainer');
+      container.innerHTML = '';
+
+      customItemsList.forEach((itemText, index) => {
+        const row = document.createElement('div');
+        row.className = 'custom-item-row';
+        row.innerHTML = `
+          <span class="badge badge-custom">Custom</span>
+          <input type="text" value="${itemText}" placeholder="Enter check item name..." onchange="customItemsList[${index}] = this.value">
+          <button type="button" class="btn-small-remove" onclick="removeCustomItemRow(${index})">Remove</button>
+        `;
+        container.appendChild(row);
       });
     }
 
@@ -739,11 +847,15 @@
     }
 
     function disableForm() {
-      document.querySelectorAll('#dynamicSchemaFields input, #dynamicSchemaFields select').forEach(f => f.disabled = true);
+      document.querySelectorAll('#dynamicSchemaFields input:not([disabled]), #dynamicSchemaFields select, #customItemsContainer input').forEach(f => f.disabled = true);
     }
 
     function enableForm() {
-      document.querySelectorAll('#dynamicSchemaFields input, #dynamicSchemaFields select').forEach(f => f.disabled = false);
+      document.querySelectorAll('#dynamicSchemaFields input, #dynamicSchemaFields select, #customItemsContainer input').forEach(f => {
+        if (!f.hasAttribute('disabled')) {
+          f.disabled = false;
+        }
+      });
     }
 
     async function saveConfiguration() {
@@ -754,35 +866,29 @@
         : document.getElementById('selectType').value;
 
       if (!key) {
-        showMessage('Please select an asset or type before saving.', 'error');
+        showMessage('Please select an asset or D1 asset type before saving.', 'error');
         return;
       }
 
       btn.disabled = true;
-      btn.textContent = 'Saving...';
+      btn.textContent = 'Saving Defaults...';
 
       const rules = {};
-      if (currentSchema) {
-        currentSchema.sections.forEach(sec => {
-          sec.fields.forEach(field => {
-            const el = document.getElementById(`field_${field.id}`);
-            if (el) {
-              rules[field.id] = field.type === 'toggle' ? el.checked : (field.type === 'number' ? Number(el.value) : el.value);
-            }
-          });
-        });
-      }
-
-      const select = document.getElementById('selectAsset');
-      const rawType = select.options[select.selectedIndex]?.getAttribute('data-type') || '';
+      document.querySelectorAll('#dynamicSchemaFields input').forEach(el => {
+        if (el.id.startsWith('field_')) {
+          const fieldId = el.id.replace('field_', '');
+          rules[fieldId] = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? Number(el.value) : el.value);
+        }
+      });
 
       const payload = {
         targetType,
         key,
         config: {
           isOverride: document.getElementById('overrideDefaults').checked,
-          assetType: rawType,
+          attachment: document.getElementById('selectAttachment').value,
           rules,
+          customItems: customItemsList.filter(item => item.trim() !== ''),
           updatedAt: new Date().toISOString()
         }
       };
@@ -797,7 +903,7 @@
         const resData = await resp.json();
 
         if (resp.ok && resData.success) {
-          showMessage(`Configuration saved successfully for ${key}!`, 'success');
+          showMessage(`Global rules saved successfully for ${key}!`, 'success');
         } else {
           showMessage(resData.error || 'Failed to save configuration.', 'error');
         }
@@ -812,7 +918,7 @@
     function openCopyModal() {
       const targetKey = document.getElementById('selectAsset').value;
       if (!targetKey) {
-        showMessage('Please select a destination asset first before copying configuration.', 'error');
+        showMessage('Please select a destination asset unit first before copying configuration.', 'error');
         return;
       }
       document.getElementById('copyModal').style.display = 'flex';
@@ -825,9 +931,6 @@
     async function executeCopyConfig() {
       const sourceKey = document.getElementById('copySourceAsset').value;
       const targetKey = document.getElementById('selectAsset').value;
-      
-      const select = document.getElementById('selectAsset');
-      const targetAssetType = select.options[select.selectedIndex]?.getAttribute('data-type') || '';
 
       if (!sourceKey) {
         alert('Please choose a source asset.');
@@ -841,8 +944,7 @@
           body: JSON.stringify({
             action: 'copyConfig',
             sourceKey,
-            key: targetKey,
-            targetAssetType
+            key: targetKey
           })
         });
 
