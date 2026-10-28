@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>DRIV‑EN | Universal Asset Configuration Rules</title>
-  <meta name="description" content="DRIV-EN — Configure regulatory inspection rules, multi-meter PM thresholds, component specs, and cross-referenced parts inventory across all asset categories.">
+  <meta name="description" content="DRIV-EN — Configure regulatory inspection rules, multi-meter PM thresholds, component specs, custom fields, and cross-referenced parts inventory tailored precisely per asset type.">
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
   <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
@@ -240,7 +240,7 @@
       text-align: left;
     }
     .parts-table th { background: #f1f5f9; font-weight: 600; }
-    .parts-table input { width: 100%; box-sizing: border-box; }
+    .parts-table input, .parts-table select { width: 100%; box-sizing: border-box; }
 
     .btn-primary {
       background: var(--primary);
@@ -399,26 +399,36 @@
       <!-- Dynamic Schema Form Container -->
       <div id="dynamicSchemaFields"></div>
 
+      <!-- User-Defined Custom Asset Spec / Tracking Fields -->
+      <div class="section-title">Asset-Specific Custom Tracking Fields</div>
+      <div class="custom-items-wrapper" style="margin-bottom: 20px;">
+        <p style="font-size: 13px; color: var(--text-muted); margin-top: 0;">
+          Add specialized spec fields or tracking metrics specific to this unit or category (e.g., "GPS Receiver Model", "Blade Width", "Winched Pull Rating").
+        </p>
+        <div id="customFieldsContainer"></div>
+        <button type="button" class="btn-small-add" onclick="addCustomFieldRow()">+ Add Custom Tracking Field</button>
+      </div>
+
       <!-- Cross-Referenced Parts Table -->
       <div class="section-title">Cross-Referenced Replacement Parts Inventory</div>
-      <p style="font-size: 12px; color: var(--text-muted); margin-top: -6px;">Manage OEM part numbers, filters, belts, and cross-referenced aftermarket equivalents for quick field maintenance.</p>
+      <p style="font-size: 12px; color: var(--text-muted); margin-top: -6px;">Select a component type to auto-populate OEM specs from above, then enter aftermarket cross-references.</p>
       
       <table class="parts-table" id="partsTable">
         <thead>
           <tr>
-            <th>Component Type</th>
-            <th>OEM Brand / Spec</th>
-            <th>OEM Part #</th>
-            <th>Cross-Ref Brand</th>
-            <th>Cross-Ref Part #</th>
-            <th>Action</th>
+            <th style="width: 25%;">Component Type</th>
+            <th style="width: 20%;">OEM Brand / Spec</th>
+            <th style="width: 18%;">OEM Part #</th>
+            <th style="width: 18%;">Cross-Ref Brand</th>
+            <th style="width: 18%;">Cross-Ref Part #</th>
+            <th style="width: 6%;">Action</th>
           </tr>
         </thead>
         <tbody id="partsTableBody"></tbody>
       </table>
       <button type="button" class="btn-small-add" style="margin-top: 10px;" onclick="addPartRow()">+ Add Replacement Part</button>
 
-      <!-- User Custom Inspection Item Builder -->
+      <!-- User Custom Inspection Checklist Items -->
       <div class="section-title">Company / Site Custom Inspection Items</div>
       <div class="custom-items-wrapper">
         <p style="font-size: 13px; color: var(--text-muted); margin-top: 0;">
@@ -449,7 +459,8 @@
         <label for="newAttAllowedCategory">Compatible Target Asset Category</label>
         <select id="newAttAllowedCategory">
           <option value="highway">Highway Motor Vehicles (Classes 1–8)</option>
-          <option value="earthmoving">Earthmoving & Heavy Construction Equipment</option>
+          <option value="dozer_excavator">Earthmoving — Dozers & Heavy Tracked Equipment</option>
+          <option value="wheel_loader_grader">Earthmoving — Wheel Loaders, Graders & Backhoes</option>
           <option value="mining">Mining, Drilling & Rigging</option>
           <option value="stationary">Stationary & Engine Plants</option>
           <option value="auxiliary">Auxiliary Tools, Pumps & Light Towers</option>
@@ -508,6 +519,7 @@
     let assetTypes = [];
     let activeOrgId = null;
     let customItemsList = [];
+    let customFieldsList = []; // Asset-specific user custom key-value tracking fields
     let partsList = [];
     let userCustomAttachments = {};
 
@@ -525,24 +537,26 @@
         { value: "service_crane", label: "Service Body & Crane" },
         { value: "dump_body", label: "Telescopic Dump Bed / Grain Body" }
       ],
-      earthmoving: [
-        { value: "none", label: "None (Standard Bucket / Dozer Blade)" },
-        { value: "hydraulic_breaker", label: "Hydraulic Breaker / Hammer" },
-        { value: "ripper_tooth", label: "Rear Multi-Shank / Single-Shank Ripper" },
+      dozer_excavator: [
+        { value: "none", label: "None (Standard Dozer Blade / Bucket)" },
+        { value: "ripper_tooth", label: "Rear Single / Multi-Shank Heavy Ripper" },
         { value: "winch_assembly", label: "Rear Hydraulic Towing Winch" },
-        { value: "auger_drill", label: "Auger / Earth Drill Attachment" },
+        { value: "hydraulic_breaker", label: "Hydraulic Breaker / Hammer" },
         { value: "tiltrotator", label: "Tiltrotator / Quick-Coupler System" }
+      ],
+      wheel_loader_grader: [
+        { value: "none", label: "None (Standard Bucket / Moldboard)" },
+        { value: "snow_plow", label: "Front V-Plow / Snow Wing" },
+        { value: "grapple_forks", label: "Logging / Pipe Grapple Forks" }
       ],
       mining: [
         { value: "none", label: "None (Standard Rig / Heavy Hauler)" },
         { value: "fire_suppression", label: "Automatic Fire Suppression System" },
-        { value: "top_drive_swivel", label: "Top Drive System & Power Swivel" },
-        { value: "high_pressure_manifold", label: "High-Pressure Manifold & Mud Pump Skid" }
+        { value: "top_drive_swivel", label: "Top Drive System & Power Swivel" }
       ],
       stationary: [
         { value: "none", label: "None (Standard Skid / Station)" },
         { value: "welding_leads", label: "Heavy Duty Lead Reels & Remote Control" },
-        { value: "skid_trailer", label: "Towable Highway Trailer / Running Gear" },
         { value: "sound_enclosure", label: "Acoustic Attenuation Enclosure" }
       ],
       auxiliary: [
@@ -552,7 +566,53 @@
       ]
     };
 
-    // Category-Specific Baseline Inspection & Detailed Component Schemas
+    // Granular Asset-Type Component Dropdowns for Parts Inventory
+    const COMPONENT_DROPDOWNS = {
+      highway: [
+        { name: "Engine Oil Filter", specField: "fluid_engine_oil", partField: "part_engine_oil_filter" },
+        { name: "Fuel Primary / Water Separator", specField: "engine_make_model", partField: "part_fuel_primary" },
+        { name: "Fuel Secondary Filter", specField: "engine_make_model", partField: "part_fuel_secondary" },
+        { name: "Transmission Filter", specField: "fluid_trans", partField: "part_trans_filter" },
+        { name: "Differential / Gear Lube", specField: "fluid_diff", partField: "part_diff_lube" },
+        { name: "Engine Coolant / Antifreeze", specField: "fluid_coolant", partField: "part_coolant" },
+        { name: "Air Brake Cartridge", specField: "brake_system_type", partField: "part_air_dryer" },
+        { name: "Serpentine Belt", specField: "belts_serpentine", partField: "part_serpentine_belt" }
+      ],
+      dozer_excavator: [
+        { name: "Engine Oil Filter", specField: "fluid_engine_oil", partField: "part_engine_oil_filter" },
+        { name: "Fuel Primary / Water Separator", specField: "engine_make_model", partField: "part_fuel_primary" },
+        { name: "Fuel Secondary Filter", specField: "engine_make_model", partField: "part_fuel_secondary" },
+        { name: "Hydraulic Return Filter", specField: "fluid_hydraulics", partField: "part_hyd_return_filter" },
+        { name: "Hydraulic Pilot Filter", specField: "fluid_hydraulics", partField: "part_hyd_pilot_filter" },
+        { name: "Final Drive Gear Lube", specField: "fluid_final_drives", partField: "part_final_drive_lube" },
+        { name: "Engine Air Outer Element", specField: "engine_make_model", partField: "part_air_outer" },
+        { name: "Engine Air Inner Safety Element", specField: "engine_make_model", partField: "part_air_inner" },
+        { name: "Blade Cutting Edge / End Bits", specField: "undercarriage_type", partField: "part_cutting_edge" },
+        { name: "Track Rollers / Idlers", specField: "undercarriage_type", partField: "part_track_roller" }
+      ],
+      wheel_loader_grader: [
+        { name: "Engine Oil Filter", specField: "fluid_engine_oil", partField: "part_engine_oil_filter" },
+        { name: "Transmission Filter", specField: "fluid_trans", partField: "part_trans_filter" },
+        { name: "Hydraulic Filter", specField: "fluid_hydraulics", partField: "part_hyd_filter" },
+        { name: "Planetary Axle Lube", specField: "fluid_diff", partField: "part_axle_lube" },
+        { name: "Air Cleaner Element", specField: "engine_make_model", partField: "part_air_filter" }
+      ],
+      mining: [
+        { name: "Severe Duty Engine Filter", specField: "fluid_engine_oil", partField: "part_mine_engine_filter" },
+        { name: "High Pressure Hydraulic Filter", specField: "fluid_hydraulics", partField: "part_mine_hyd_filter" },
+        { name: "Fire Suppression Bottle", specField: "msha_fire_suppression", partField: "part_fire_bottle" }
+      ],
+      stationary: [
+        { name: "Lube Oil Filter", specField: "fluid_engine_oil", partField: "part_stat_oil_filter" },
+        { name: "Compressor Separator Element", specField: "fluid_engine_oil", partField: "part_air_sep" }
+      ],
+      auxiliary: [
+        { name: "Small Engine Oil Filter", specField: "fluid_engine_oil", partField: "part_aux_oil_filter" },
+        { name: "Engine Air Filter", specField: "engine_make_model", partField: "part_aux_air_filter" }
+      ]
+    };
+
+    // Category & Asset-Type Specific Baseline Inspection & Detailed Component Schemas
     const MASTER_CATEGORY_SCHEMAS = {
       highway: {
         title: "Highway Motor Vehicle Baseline (Classes 1–8)",
@@ -618,22 +678,22 @@
           }
         ]
       },
-      earthmoving: {
-        title: "Earthmoving & Heavy Construction Equipment Baseline (Dozers, Excavators, Loaders)",
+      dozer_excavator: {
+        title: "Earthmoving — Dozers & Heavy Tracked Equipment Baseline",
         sections: [
           {
-            title: "1. Engine & Drivetrain Specifications",
+            title: "1. Engine & Hydrostatic Powertrain Specifications",
             fields: [
-              { id: "engine_make_model", label: "Engine Model & Tier", type: "text", default: "Cat C9.3B Tier 4 Final" },
-              { id: "drive_type", label: "Undercarriage / Traction Type", type: "select", options: ["Steel Tracked (Dozer/Excavator)", "Rubber Tracked", "4WD Articulated Wheel"], default: "Steel Tracked (Dozer/Excavator)" },
+              { id: "engine_make_model", label: "Engine Model & Tier", type: "text", default: "Cat C9.3B Tier 4 Final / Cummins QSL9" },
+              { id: "drive_type", label: "Undercarriage Traction Assembly", type: "select", options: ["Steel Tracked (Sealed & Lubricated)", "Heavy Duty SystemOne Tracks", "Rubber Tracked"], default: "Steel Tracked (Sealed & Lubricated)" },
               { id: "trans_type", label: "Transmission / Hydrostatic Drive", type: "select", options: ["Hydrostatic Dual-Path", "Powershift (3-Speed)", "Direct Drive"], default: "Hydrostatic Dual-Path" },
-              { id: "diff_rear_end", label: "Final Drives / Planetary Axles", type: "text", default: "Heavy Duty Planetary Final Drives" }
+              { id: "diff_rear_end", label: "Final Drives / Planetary Axles", type: "text", default: "Heavy Duty Triple Reduction Final Drives" }
             ]
           },
           {
             title: "2. Fluids, Lubricants & Service Capacities",
             fields: [
-              { id: "fluid_engine_oil", label: "Engine Oil Spec & Viscosity", type: "text", default: "15W-40 CK-4 Diesel" },
+              { id: "fluid_engine_oil", label: "Engine Oil Spec & Viscosity", type: "text", default: "15W-40 CK-4 Heavy Duty Diesel" },
               { id: "fluid_engine_oil_qty", label: "Engine Oil Capacity", type: "text", default: "7.5 Gallons (30 Quarts)" },
               { id: "engine_service_interval", label: "Engine Service Interval (Hours)", type: "text", default: "250 Operating Hours" },
               { id: "fluid_hydraulics", label: "Hydraulic System Spec & Capacity", type: "text", default: "ISO VG 46 Anti-Wear (28 Gallons)" },
@@ -643,15 +703,15 @@
             ]
           },
           {
-            title: "3. Brakes, Tracks & Undercarriage Inspection",
+            title: "3. Track Tension, Undercarriage & Brakes (No Tires)",
             fields: [
-              { id: "brake_system_type", label: "Brake System", type: "select", options: ["Wet Multiple-Disc Parking Brake", "Hydraulic Dynamic Braking"], default: "Wet Multiple-Disc Parking Brake" },
+              { id: "brake_system_type", label: "Primary Parking / Holding Brakes", type: "select", options: ["Wet Multiple-Disc Spring-Applied", "Hydrostatic Dynamic Braking"], default: "Wet Multiple-Disc Spring-Applied" },
               { id: "track_tension_sag", label: "Track SAG / Tension Specification", type: "text", default: "1.5 to 2.0 inches SAG" },
-              { id: "undercarriage_type", label: "Undercarriage Component Audit", type: "text", default: "Heavy Duty Sealed & Lubricated Tracks (SALT)" }
+              { id: "undercarriage_type", label: "Undercarriage Component Spec", type: "text", default: "Heavy Duty Sealed & Lubricated Tracks (SALT)" }
             ]
           },
           {
-            title: "4. Lighting, Auxiliaries, Attachments & Ergonomics",
+            title: "4. Lighting, Optics, ROPS & Operator Controls",
             fields: [
               { id: "lighting_aux", label: "LED Work Light Array", type: "text", default: "High-Lumen Cab Front/Rear + Blade Lights" },
               { id: "camera_system", label: "Camera & Proximity Detection", type: "select", options: ["None", "Rear Vision Camera", "Radar / AI Object Detection System"], default: "Radar / AI Object Detection System" },
@@ -661,13 +721,43 @@
             ]
           },
           {
-            title: "5. Heavy Equipment Safety Checks (OSHA 29 CFR 1926.602)",
+            title: "5. Heavy Earthmoving Safety Checks (OSHA 29 CFR 1926.602)",
             fields: [
               { id: "osha_rops_fops", label: "ROPS / FOPS Canopy & Seatbelt Integrity", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Check rollover cab structure, mounting bolts, and 3-inch seatbelt" },
               { id: "osha_travel_alarm", label: "Reverse Backup Warning Alarm & Horn", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Verify backup alarm is audible over jobsite engine noise" },
               { id: "osha_hyd_cylinders", label: "Hydraulic Cylinder Rods, Hoses & Couplers", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Inspect lift, tilt, and ripper cylinders for leaks, pitting, or hose blisters" },
-              { id: "dozer_tracks_undercarriage", label: "Undercarriage, Track Tension & Sprockets", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Inspect track SAG tension, rollers, idlers, and grousers (No highway tires)" },
+              { id: "dozer_tracks_undercarriage", label: "Undercarriage, Track Tension & Sprockets", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Inspect track SAG tension, rollers, idlers, and grousers" },
               { id: "dozer_blade_ripper", label: "Blade Cutting Edge, End Bits & Rear Attachment", type: "toggle", default: true, locked: true, badge: "OSHA Mandatory", desc: "Check blade corner bits, C-frame pivot pins, and hydraulic lockouts" }
+            ]
+          }
+        ]
+      },
+      wheel_loader_grader: {
+        title: "Earthmoving — Wheel Loaders, Graders & Backhoes Baseline",
+        sections: [
+          {
+            title: "1. Powertrain & Axle Specifications",
+            fields: [
+              { id: "engine_make_model", label: "Engine Model & Tier", type: "text", default: "Cat C7.1 / Cummins QSB6.7" },
+              { id: "drive_type", label: "Drivetrain Configuration", type: "select", options: ["4WD Articulated Wheel", "All-Wheel Drive (AWD)", "2WD / 4WD Backhoe"], default: "4WD Articulated Wheel" },
+              { id: "trans_type", label: "Transmission Type", type: "select", options: ["Powershift Transmission", "Hydrostatic Drive"], default: "Powershift Transmission" }
+            ]
+          },
+          {
+            title: "2. Fluids, Lubricants & Capacities",
+            fields: [
+              { id: "fluid_engine_oil", label: "Engine Oil Spec & Viscosity", type: "text", default: "15W-40 CK-4 Heavy Duty" },
+              { id: "fluid_engine_oil_qty", label: "Engine Oil Capacity", type: "text", default: "5.5 Gallons" },
+              { id: "fluid_trans", label: "Transmission Fluid Spec", type: "text", default: "Cat TO-4 / Allison C4" },
+              { id: "fluid_hydraulics", label: "Hydraulic Fluid Spec & Capacity", type: "text", default: "ISO VG 46 Anti-Wear (35 Gallons)" }
+            ]
+          },
+          {
+            title: "3. Heavy Tires & Brakes",
+            fields: [
+              { id: "brake_system_type", label: "Brake System", type: "select", options: ["Hydraulic Enclosed Wet Disc", "Air Over Hydraulic Disc"], default: "Hydraulic Enclosed Wet Disc" },
+              { id: "tire_size_drive", label: "Loader / Grader Tire Size", type: "text", default: "23.5R25 L3" },
+              { id: "tire_psi_drive", label: "Recommended Tire Inflation PSI", type: "number", default: 45 }
             ]
           }
         ]
@@ -823,7 +913,7 @@
 
       allAssets.forEach(a => {
         const num = a.asset_number || a.assetNumber || a.name || a.id;
-        const type = a.category || a.type || 'Default';
+        const type = a.category || a.type || a.asset_type || 'Default';
         
         if (num && Number(a.is_attachment) !== 1) {
           const opt = document.createElement('option');
@@ -843,7 +933,7 @@
       linkedAttSel.innerHTML = '<option value="">-- Choose Attachment Asset --</option>';
 
       allAssets.forEach(a => {
-        const isAtt = Number(a.is_attachment) === 1 || String(a.category).toLowerCase().includes('attachment');
+        const isAtt = Number(a.is_attachment) === 1 || String(a.category || '').toLowerCase().includes('attachment');
         const allowedCat = String(a.allowed_category || 'all').toLowerCase();
         
         if (isAtt && (allowedCat === 'all' || allowedCat === categoryKey)) {
@@ -885,16 +975,20 @@
       document.getElementById('configPanel').style.pointerEvents = 'none';
       document.getElementById('dynamicSchemaFields').innerHTML = '';
       customItemsList = [];
+      customFieldsList = [];
       partsList = [];
       renderCustomItemRows();
+      renderCustomFieldRows();
       renderPartsRows();
     }
 
+    // Granular Category Resolver
     function mapTypeToMasterCategory(rawType) {
       if (!rawType) return "highway";
       const s = String(rawType).toLowerCase();
 
-      if (s.includes("dozer") || s.includes("excavator") || s.includes("loader") || s.includes("grader") || s.includes("backhoe") || s.includes("paver") || s.includes("compactor") || s.includes("skid steer") || s.includes("earthmoving")) return "earthmoving";
+      if (s.includes("dozer") || s.includes("excavator") || s.includes("crawler") || s.includes("tracked")) return "dozer_excavator";
+      if (s.includes("loader") || s.includes("grader") || s.includes("backhoe") || s.includes("paver") || s.includes("skid steer") || s.includes("earthmoving")) return "wheel_loader_grader";
       if (s.includes("mine") || s.includes("haul truck") || s.includes("crusher") || s.includes("drill") || s.includes("workover") || s.includes("rig") || s.includes("coiled tubing") || s.includes("bop")) return "mining";
       if (s.includes("generator") || s.includes("compressor") || s.includes("pump") || s.includes("boiler") || s.includes("vessel") || s.includes("welder")) return "stationary";
       if (s.includes("trailer") || s.includes("light tower") || s.includes("attachment")) return "auxiliary";
@@ -1087,8 +1181,12 @@
     function onAttachmentChanged() {
       toggleAttachmentMetaBar();
       const targetLevel = document.getElementById('configTarget').value;
+      const rawType = targetLevel === 'specific'
+        ? (document.getElementById('selectAsset').options[document.getElementById('selectAsset').selectedIndex]?.getAttribute('data-type') || '')
+        : document.getElementById('selectType').value;
       const keyName = targetLevel === 'specific' ? document.getElementById('selectAsset').value : document.getElementById('selectType').value;
-      renderCompositeForm(null, keyName);
+      renderCompositeForm(null, rawType);
+      toggleFormLock();
     }
 
     async function apiFetch(url, options = {}) {
@@ -1142,6 +1240,9 @@
       if (config.customItems) {
         customItemsList = config.customItems;
       }
+      if (config.customFields) {
+        customFieldsList = config.customFields;
+      }
       if (config.parts) {
         partsList = config.parts;
       }
@@ -1182,7 +1283,8 @@
         });
       }
 
-      renderPartsRows();
+      renderCustomFieldRows();
+      renderPartsRows(categoryKey);
       renderCustomItemRows();
     }
 
@@ -1207,7 +1309,7 @@
             <div class="toggle-desc">${field.desc || ''}</div>
           </div>
           <label class="switch">
-            <input type="checkbox" id="field_${field.id}" ${val ? 'checked' : ''} ${isLocked ? 'disabled' : ''}>
+            <input type="checkbox" id="field_${field.id}" ${val ? 'checked' : ''} ${isLocked ? 'data-locked="true"' : ''}>
             <span class="slider"></span>
           </label>
         `;
@@ -1219,7 +1321,7 @@
         const optsHTML = (field.options || []).map(o => `<option value="${o}" ${val === o ? 'selected' : ''}>${o}</option>`).join('');
         row.innerHTML = `
           <label for="field_${field.id}">${field.label} ${badgeHTML}</label>
-          <select id="field_${field.id}" ${isLocked ? 'disabled' : ''}>${optsHTML}</select>
+          <select id="field_${field.id}" ${isLocked ? 'data-locked="true"' : ''}>${optsHTML}</select>
           <span style="font-size: 12px; color: var(--text-muted);">${field.desc || ''}</span>
         `;
         container.appendChild(row);
@@ -1229,49 +1331,124 @@
         row.style.marginBottom = '12px';
         row.innerHTML = `
           <label for="field_${field.id}">${field.label} ${badgeHTML}</label>
-          <input type="${field.type}" id="field_${field.id}" value="${val}" ${isLocked ? 'disabled' : ''}>
+          <input type="${field.type}" id="field_${field.id}" value="${val}" ${isLocked ? 'data-locked="true"' : ''}>
           <span style="font-size: 12px; color: var(--text-muted);">${field.desc || ''}</span>
         `;
         container.appendChild(row);
       }
     }
 
+    // Auto-Populating Replacement Parts Row Generator
     function addPartRow(comp = "", oemB = "", oemP = "", crossB = "", crossP = "") {
       partsList.push({ component: comp, oemBrand: oemB, oemPart: oemP, crossBrand: crossB, crossPart: crossP });
-      renderPartsRows();
+      const targetLevel = document.getElementById('configTarget').value;
+      const rawType = targetLevel === 'specific'
+        ? (document.getElementById('selectAsset').options[document.getElementById('selectAsset').selectedIndex]?.getAttribute('data-type') || '')
+        : document.getElementById('selectType').value;
+      renderPartsRows(mapTypeToMasterCategory(rawType));
+      toggleFormLock();
     }
 
     function removePartRow(index) {
       partsList.splice(index, 1);
-      renderPartsRows();
+      const targetLevel = document.getElementById('configTarget').value;
+      const rawType = targetLevel === 'specific'
+        ? (document.getElementById('selectAsset').options[document.getElementById('selectAsset').selectedIndex]?.getAttribute('data-type') || '')
+        : document.getElementById('selectType').value;
+      renderPartsRows(mapTypeToMasterCategory(rawType));
+      toggleFormLock();
     }
 
-    function renderPartsRows() {
+    function onPartComponentChanged(index, selectedCompName) {
+      const targetLevel = document.getElementById('configTarget').value;
+      const rawType = targetLevel === 'specific'
+        ? (document.getElementById('selectAsset').options[document.getElementById('selectAsset').selectedIndex]?.getAttribute('data-type') || '')
+        : document.getElementById('selectType').value;
+      const categoryKey = mapTypeToMasterCategory(rawType);
+      const dropdownDefs = COMPONENT_DROPDOWNS[categoryKey] || COMPONENT_DROPDOWNS.highway;
+
+      const compDef = dropdownDefs.find(c => c.name === selectedCompName);
+      partsList[index].component = selectedCompName;
+
+      if (compDef) {
+        const specInput = document.getElementById(`field_${compDef.specField}`);
+        partsList[index].oemBrand = specInput ? specInput.value : '';
+        partsList[index].oemPart = `OEM-${compDef.partField.toUpperCase().replace('PART_', '')}`;
+      }
+      renderPartsRows(categoryKey);
+      toggleFormLock();
+    }
+
+    function renderPartsRows(categoryKey = "highway") {
       const tbody = document.getElementById('partsTableBody');
       tbody.innerHTML = '';
 
+      const dropdownOptions = COMPONENT_DROPDOWNS[categoryKey] || COMPONENT_DROPDOWNS.highway;
+
       partsList.forEach((p, idx) => {
         const tr = document.createElement('tr');
+        
+        let selectHTML = `<select onchange="onPartComponentChanged(${idx}, this.value)">`;
+        selectHTML += `<option value="">-- Choose Component --</option>`;
+        dropdownOptions.forEach(opt => {
+          selectHTML += `<option value="${opt.name}" ${p.component === opt.name ? 'selected' : ''}>${opt.name}</option>`;
+        });
+        selectHTML += `<option value="Custom Component" ${p.component === 'Custom Component' ? 'selected' : ''}>Custom Component...</option>`;
+        selectHTML += `</select>`;
+
         tr.innerHTML = `
-          <td><input type="text" value="${p.component || ''}" placeholder="e.g. Engine Oil Filter" onchange="partsList[${idx}].component = this.value"></td>
-          <td><input type="text" value="${p.oemBrand || ''}" placeholder="e.g. Fleetguard / Cat" onchange="partsList[${idx}].oemBrand = this.value"></td>
-          <td><input type="text" value="${p.oemPart || ''}" placeholder="e.g. LF14000NN" onchange="partsList[${idx}].oemPart = this.value"></td>
-          <td><input type="text" value="${p.crossBrand || ''}" placeholder="e.g. Baldwin / Wix" onchange="partsList[${idx}].crossBrand = this.value"></td>
-          <td><input type="text" value="${p.crossPart || ''}" placeholder="e.g. BD7154" onchange="partsList[${idx}].crossPart = this.value"></td>
+          <td>${selectHTML}</td>
+          <td><input type="text" value="${p.oemBrand || ''}" placeholder="Auto-populated OEM Spec" onchange="partsList[${idx}].oemBrand = this.value"></td>
+          <td><input type="text" value="${p.oemPart || ''}" placeholder="OEM Part #" onchange="partsList[${idx}].oemPart = this.value"></td>
+          <td><input type="text" value="${p.crossBrand || ''}" placeholder="e.g. Baldwin / Donaldson" onchange="partsList[${idx}].crossBrand = this.value"></td>
+          <td><input type="text" value="${p.crossPart || ''}" placeholder="e.g. P550388" onchange="partsList[${idx}].crossPart = this.value"></td>
           <td><button type="button" class="btn-small-remove" onclick="removePartRow(${idx})">Remove</button></td>
         `;
         tbody.appendChild(tr);
       });
     }
 
+    // User Custom Tracking Field Builders
+    function addCustomFieldRow(key = "", val = "") {
+      customFieldsList.push({ key, value: val });
+      renderCustomFieldRows();
+      toggleFormLock();
+    }
+
+    function removeCustomFieldRow(index) {
+      customFieldsList.splice(index, 1);
+      renderCustomFieldRows();
+      toggleFormLock();
+    }
+
+    function renderCustomFieldRows() {
+      const container = document.getElementById('customFieldsContainer');
+      container.innerHTML = '';
+
+      customFieldsList.forEach((f, index) => {
+        const row = document.createElement('div');
+        row.className = 'custom-item-row';
+        row.innerHTML = `
+          <span class="badge badge-custom">Spec</span>
+          <input type="text" value="${f.key || ''}" placeholder="Field Label (e.g. GPS Tracker ID, Blade Width)..." onchange="customFieldsList[${index}].key = this.value" style="flex: 1;">
+          <input type="text" value="${f.value || ''}" placeholder="Field Value..." onchange="customFieldsList[${index}].value = this.value" style="flex: 1;">
+          <button type="button" class="btn-small-remove" onclick="removeCustomFieldRow(${index})">Remove</button>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    // User Custom Inspection Checklist Item Builders
     function addCustomItemRow(labelValue = "") {
       customItemsList.push(labelValue);
       renderCustomItemRows();
+      toggleFormLock();
     }
 
     function removeCustomItemRow(index) {
       customItemsList.splice(index, 1);
       renderCustomItemRows();
+      toggleFormLock();
     }
 
     function renderCustomItemRows() {
@@ -1282,7 +1459,7 @@
         const row = document.createElement('div');
         row.className = 'custom-item-row';
         row.innerHTML = `
-          <span class="badge badge-custom">Custom</span>
+          <span class="badge badge-custom">Custom Check</span>
           <input type="text" value="${itemText}" placeholder="Enter check item name..." onchange="customItemsList[${index}] = this.value">
           <button type="button" class="btn-small-remove" onclick="removeCustomItemRow(${index})">Remove</button>
         `;
@@ -1290,6 +1467,7 @@
       });
     }
 
+    // Corrected Form Lock Toggle Logic
     function toggleFormLock() {
       const target = document.getElementById('configTarget').value;
       const isOverride = document.getElementById('overrideDefaults').checked;
@@ -1302,12 +1480,16 @@
     }
 
     function disableForm() {
-      document.querySelectorAll('#dynamicSchemaFields input:not([disabled]), #dynamicSchemaFields select, #customItemsContainer input, #partsTableBody input, #attachmentMetaRow input, #attachmentMetaRow select').forEach(f => f.disabled = true);
+      document.querySelectorAll('#dynamicSchemaFields input, #dynamicSchemaFields select, #customFieldsContainer input, #customItemsContainer input, #partsTableBody input, #partsTableBody select, #attachmentMetaRow input, #attachmentMetaRow select').forEach(f => {
+        f.disabled = true;
+      });
     }
 
     function enableForm() {
-      document.querySelectorAll('#dynamicSchemaFields input, #dynamicSchemaFields select, #customItemsContainer input, #partsTableBody input, #attachmentMetaRow input, #attachmentMetaRow select').forEach(f => {
-        if (!f.hasAttribute('disabled')) {
+      document.querySelectorAll('#dynamicSchemaFields input, #dynamicSchemaFields select, #customFieldsContainer input, #customItemsContainer input, #partsTableBody input, #partsTableBody select, #attachmentMetaRow input, #attachmentMetaRow select').forEach(f => {
+        if (f.getAttribute('data-locked') === 'true') {
+          f.disabled = true; // Enforce law-mandated safety toggles
+        } else {
           f.disabled = false;
         }
       });
@@ -1326,7 +1508,7 @@
       }
 
       btn.disabled = true;
-      btn.textContent = 'Saving Defaults...';
+      btn.textContent = 'Saving Configuration...';
 
       const rules = {};
       document.querySelectorAll('#dynamicSchemaFields input, #dynamicSchemaFields select').forEach(el => {
@@ -1347,6 +1529,7 @@
           attachmentMountState: document.getElementById('attachmentMountState').value,
           userCustomAttachments,
           rules,
+          customFields: customFieldsList.filter(f => f.key && f.key.trim() !== ''),
           parts: partsList.filter(p => p.component || p.oemPart || p.crossPart),
           customItems: customItemsList.filter(item => item.trim() !== ''),
           updatedAt: new Date().toISOString()
@@ -1363,7 +1546,7 @@
         const resData = await resp.json();
 
         if (resp.ok && resData.success) {
-          showMessage(`Global rules saved successfully for ${key}!`, 'success');
+          showMessage(`Configuration saved successfully for ${key}!`, 'success');
         } else {
           showMessage(resData.error || 'Failed to save configuration.', 'error');
         }
