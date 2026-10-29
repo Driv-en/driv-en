@@ -532,25 +532,166 @@ function normalizeCategoryKey(str) {
   return "default";
 }
 
-function buildCategorySchema(normKey, isCanada) {
-  const uomVol = isCanada ? 'Liters' : 'Gallons';
-  const uomPress = 'PSI';
-  const uomDist = isCanada ? 'Kilometers' : 'Miles';
-  const uomDepth = isCanada ? 'mm' : '1/32 in';
-  const roadAuth = isCanada ? 'NSC Standard 11' : 'DOT';
-  const workAuth = isCanada ? 'CCOHS / COR' : 'OSHA / MSHA';
+function getJurisdictionRules(countryCode) {
+  const code = String(countryCode || 'US').toUpperCase().trim();
+
+  switch (code) {
+    case 'CA':
+      return {
+        country: 'CA',
+        workAuth: 'CCOHS / COR',
+        roadAuth: 'NSC / Provincial',
+        roadStandard: 'Canadian NSC Standard 11',
+        uomVol: 'Liters',
+        uomPress: 'kPa / PSI',
+        uomDist: 'Kilometers',
+        uomDepth: 'mm',
+        minSteerTread: 3,
+        minDriveTread: 2
+      };
+    case 'GB':
+    case 'UK':
+      return {
+        country: 'UK',
+        workAuth: 'HSE',
+        roadAuth: 'DVSA / DfT',
+        roadStandard: 'DVSA Walkaround Standard',
+        uomVol: 'Liters',
+        uomPress: 'Bar / PSI',
+        uomDist: 'Miles',
+        uomDepth: 'mm',
+        minSteerTread: 1.6,
+        minDriveTread: 1.6
+      };
+    case 'AU':
+      return {
+        country: 'AU',
+        workAuth: 'Safe Work Australia',
+        roadAuth: 'NHVR',
+        roadStandard: 'NHVR Heavy Vehicle Standard',
+        uomVol: 'Liters',
+        uomPress: 'kPa / PSI',
+        uomDist: 'Kilometers',
+        uomDepth: 'mm',
+        minSteerTread: 1.5,
+        minDriveTread: 1.5
+      };
+    case 'NZ':
+      return {
+        country: 'NZ',
+        workAuth: 'WorkSafe NZ',
+        roadAuth: 'Waka Kotahi (NZTA)',
+        roadStandard: 'NZTA Safety Standard',
+        uomVol: 'Liters',
+        uomPress: 'PSI',
+        uomDist: 'Kilometers',
+        uomDepth: 'mm',
+        minSteerTread: 1.5,
+        minDriveTread: 1.5
+      };
+    case 'MX':
+      return {
+        country: 'MX',
+        workAuth: 'STPS',
+        roadAuth: 'SICT',
+        roadStandard: 'NOM-068-SCT-2 Standard',
+        uomVol: 'Liters',
+        uomPress: 'PSI',
+        uomDist: 'Kilometers',
+        uomDepth: 'mm',
+        minSteerTread: 3,
+        minDriveTread: 2
+      };
+    case 'BR':
+      return {
+        country: 'BR',
+        workAuth: 'MTE / NR-12',
+        roadAuth: 'SENATRAN',
+        roadStandard: 'CONTRAN Standard',
+        uomVol: 'Liters',
+        uomPress: 'PSI',
+        uomDist: 'Kilometers',
+        uomDepth: 'mm',
+        minSteerTread: 1.6,
+        minDriveTread: 1.6
+      };
+    case 'DE':
+    case 'FR':
+    case 'ES':
+    case 'IT':
+    case 'NL':
+    case 'BE':
+    case 'EU':
+      return {
+        country: 'EU',
+        workAuth: 'EU-OSHA',
+        roadAuth: 'CEMT / National Transport Authority',
+        roadStandard: 'EU Directive 2014/47 Inspection',
+        uomVol: 'Liters',
+        uomPress: 'Bar',
+        uomDist: 'Kilometers',
+        uomDepth: 'mm',
+        minSteerTread: 1.6,
+        minDriveTread: 1.6
+      };
+    case 'ZA':
+      return {
+        country: 'ZA',
+        workAuth: 'Dept of Employment & Labour',
+        roadAuth: 'RTMC / DoT',
+        roadStandard: 'SANS 10047 Standard',
+        uomVol: 'Liters',
+        uomPress: 'kPa',
+        uomDist: 'Kilometers',
+        uomDepth: 'mm',
+        minSteerTread: 1,
+        minDriveTread: 1
+      };
+    case 'AE':
+    case 'SA':
+      return {
+        country: 'GCC',
+        workAuth: 'MoHRE / MISA',
+        roadAuth: 'RTA / TGA',
+        roadStandard: 'GSO Transport Safety Standard',
+        uomVol: 'Liters',
+        uomPress: 'PSI',
+        uomDist: 'Kilometers',
+        uomDepth: 'mm',
+        minSteerTread: 2,
+        minDriveTread: 2
+      };
+    case 'US':
+    default:
+      return {
+        country: 'US',
+        workAuth: 'OSHA / MSHA',
+        roadAuth: 'DOT / FMCSA',
+        roadStandard: 'FMCSA Pre-Trip Standard',
+        uomVol: 'Gallons',
+        uomPress: 'PSI',
+        uomDist: 'Miles',
+        uomDepth: '1/32 in',
+        minSteerTread: 4,
+        minDriveTread: 2
+      };
+  }
+}
+
+function buildCategorySchema(normKey, countryParam) {
+  const rules = getJurisdictionRules(countryParam);
 
   const tireSection = {
     title: "Wheel Position, Tire Specs & Pressure Telematics",
     fields: [
       { id: "tireSizeSteer", label: "Front / Steer Tire Size Specification", type: "text", default: "LT275/70R18", desc: "Manufacturer spec steer tire size" },
-      { id: "tirePsiSteerRecommended", label: `Front / Steer Recommended Cold Inflation (${uomPress})`, type: "number", default: 60, desc: "Door-jamb recommended inflation" },
+      { id: "tirePsiSteerRecommended", label: `Front / Steer Recommended Cold Inflation (${rules.uomPress})`, type: "number", default: 60, desc: "Door-jamb recommended inflation" },
       { id: "tireSizeDrive", label: "Rear / Drive Tire Size Specification", type: "text", default: "LT275/70R18", desc: "Manufacturer spec drive tire size" },
-      { id: "tirePsiDriveRecommended", label: `Rear / Drive Recommended Cold Inflation (${uomPress})`, type: "number", default: 65, desc: "Door-jamb recommended inflation" },
-      { id: "tpmsThresholdLowPsi", label: `TPMS Low Inflation Alarm Trigger (${uomPress})`, type: "number", default: 50, desc: "Telemetry alert threshold" },
-      { id: "isDuallyConfiguration", label: "Dually Rear Axle Setup (1-Ton Dual Wheels)", type: "toggle", default: false, desc: "Enable 4-tire tracking on rear axle" },
-      { id: "minSteerTread32nd", label: `${workAuth} / ${roadAuth} Minimum Steer Tire Tread Depth (${uomDepth})`, type: "number", default: isCanada ? 3 : 4, desc: "Out-of-service limit" },
-      { id: "minDriveTread32nd", label: `${workAuth} / ${roadAuth} Minimum Drive Tire Tread Depth (${uomDepth})`, type: "number", default: 2, desc: "Out-of-service limit" }
+      { id: "tirePsiDriveRecommended", label: `Rear / Drive Recommended Cold Inflation (${rules.uomPress})`, type: "number", default: 65, desc: "Door-jamb recommended inflation" },
+      { id: "tpmsThresholdLowPsi", label: `TPMS Low Inflation Alarm Trigger (${rules.uomPress})`, type: "number", default: 50, desc: "Telemetry alert threshold" },
+      { id: "isDuallyConfiguration", label: "Dually Rear Axle Setup (Dual Wheels)", type: "toggle", default: false, desc: "Enable 4-tire tracking on rear axle" },
+      { id: "minSteerTread", label: `${rules.workAuth} / ${rules.roadAuth} Minimum Steer Tire Tread Depth (${rules.uomDepth})`, type: "number", default: rules.minSteerTread, desc: "Out-of-service limit" },
+      { id: "minDriveTread", label: `${rules.workAuth} / ${rules.roadAuth} Minimum Drive Tire Tread Depth (${rules.uomDepth})`, type: "number", default: rules.minDriveTread, desc: "Out-of-service limit" }
     ]
   };
 
@@ -558,10 +699,10 @@ function buildCategorySchema(normKey, isCanada) {
     title: "Consumable Parts, Quantities & Replacement Numbers",
     fields: [
       { id: "partEngineOilFilter", label: "Engine Oil Filter Part #", type: "text", default: "", desc: "OEM or aftermarket filter code" },
-      { id: "partEngineOilQty", label: `Engine Oil Capacity & Spec (${uomVol})`, type: "text", default: isCanada ? "5.7 L / 5W-30 Full Synthetic" : "6 Qt / 5W-30 Full Synthetic", desc: "Engine oil spec and volume" },
-      { id: "partTransFluidTypeQty", label: `Transmission Fluid Spec & Capacity (${uomVol})`, type: "text", default: isCanada ? "11.4 L / Dexron VI" : "12 Qt / Dexron VI", desc: "Fluid specification and fill capacity" },
-      { id: "partBrakeFluidTypeQty", label: `Brake Fluid Spec & Capacity (${uomVol})`, type: "text", default: isCanada ? "1 L / DOT 3" : "32 oz / DOT 3", desc: "Fluid specification and fill capacity" },
-      { id: "partCoolantTypeQty", label: `Engine Coolant Spec & Capacity (${uomVol})`, type: "text", default: isCanada ? "13.2 L / 50/50 OAT" : "14 Qt / 50/50 OAT", desc: "Antifreeze spec and capacity" },
+      { id: "partEngineOilQty", label: `Engine Oil Capacity & Spec (${rules.uomVol})`, type: "text", default: rules.country === 'US' ? "6 Qt / 5W-30 Full Synthetic" : "5.7 L / 5W-30 Full Synthetic", desc: "Engine oil spec and volume" },
+      { id: "partTransFluidTypeQty", label: `Transmission Fluid Spec & Capacity (${rules.uomVol})`, type: "text", default: rules.country === 'US' ? "12 Qt / Dexron VI" : "11.4 L / Dexron VI", desc: "Fluid specification and fill capacity" },
+      { id: "partBrakeFluidTypeQty", label: `Brake Fluid Spec & Capacity (${rules.uomVol})`, type: "text", default: rules.country === 'US' ? "32 oz / DOT 3" : "1 L / DOT 3", desc: "Fluid specification and fill capacity" },
+      { id: "partCoolantTypeQty", label: `Engine Coolant Spec & Capacity (${rules.uomVol})`, type: "text", default: rules.country === 'US' ? "14 Qt / 50/50 OAT" : "13.2 L / 50/50 OAT", desc: "Antifreeze spec and capacity" },
       { id: "partFuelFilterPrimary", label: "Primary Fuel Filter / Water Separator Part #", type: "text", default: "", desc: "Primary fuel filter code" },
       { id: "partFuelFilterSecondary", label: "Secondary Fuel Filter Part #", type: "text", default: "", desc: "Secondary fuel filter code" },
       { id: "partAirFilterPrimary", label: "Primary Air Intake Filter Part #", type: "text", default: "", desc: "Engine intake filter" },
@@ -569,7 +710,7 @@ function buildCategorySchema(normKey, isCanada) {
       { id: "partCabinAirFilter", label: "Cabin HVAC Air Filter Part #", type: "text", default: "", desc: "Cabin filter code" },
       { id: "partWiperBlades", label: "Wiper Blade Set Part #", type: "text", default: "", desc: "Driver & passenger wiper sizes/part numbers" },
       { id: "partHydraulicFilterMain", label: "Main Hydraulic Return / Pressure Filter Part #", type: "text", default: "", desc: "Hydraulic filter number" },
-      { id: "partHydraulicOilQty", label: `Hydraulic Reservoir Fluid Capacity (${uomVol})`, type: "text", default: "", desc: "Total fluid volume" },
+      { id: "partHydraulicOilQty", label: `Hydraulic Reservoir Fluid Capacity (${rules.uomVol})`, type: "text", default: "", desc: "Total fluid volume" },
       { id: "partBrakePadsFront", label: "Front Brake Pad Set Part # & Quantity", type: "text", default: "", desc: "Front brake pad kit spec" },
       { id: "partBrakePadsRear", label: "Rear Brake Pad Set / Shoe Kit Part #", type: "text", default: "", desc: "Rear brake kit spec" },
       { id: "partSerpentineBelt", label: "Main Engine Serpentine Belt Part #", type: "text", default: "", desc: "Drive belt part number" }
@@ -581,34 +722,34 @@ function buildCategorySchema(normKey, isCanada) {
     fields: [
       { id: "lightHeadlightsLowHigh", label: "Low & High Beam Headlights", type: "toggle", default: true, desc: "Illumination check" },
       { id: "lightBrakeAndTail", label: "Tail Lights & Stop / Brake Lights", type: "toggle", default: true, desc: "Rear illumination check" },
-      { id: "lightTurnSignalsHazards", label: "Turn Signals, Blinkers & 4-Way Emergency Hazard Flashers", type: "toggle", default: true, desc: "Directional indicators" },
-      { id: "lightClearanceMarker", label: "Clearance, Side Marker & ID Lights (>2.03 m / 80 in wide)", type: "toggle", default: true, desc: `${roadAuth} width marker lights` },
+      { id: "lightTurnSignalsHazards", label: "Turn Signals & 4-Way Emergency Hazard Flashers", type: "toggle", default: true, desc: "Directional indicators" },
+      { id: "lightClearanceMarker", label: "Clearance, Side Marker & ID Lights", type: "toggle", default: true, desc: `${rules.roadAuth} width marker lights` },
       { id: "lightLicensePlate", label: "License Plate Tag Light", type: "toggle", default: true, desc: "Rear tag illumination" },
-      { id: "lightReverseBackup", label: "Reverse Backup Lights & Audible Alarm Signal", type: "toggle", default: true, desc: `${workAuth} required backup warning` },
-      { id: "lightStrobeBeacon", label: "Amber Strobe Light / Rotating Beacon", type: "toggle", default: true, desc: `${workAuth} jobsite hazard warning light` },
-      { id: "placardDotHazmat", label: `${roadAuth} Hazmat Placards & Class Identification Signs`, type: "toggle", default: false, desc: "When carrying hazardous goods" },
-      { id: "signEmergencyStop", label: "E-Stop Safety Labeling & Machine Cut-Off Signage", type: "toggle", default: true, desc: `${workAuth} required red E-stop signage` }
+      { id: "lightReverseBackup", label: "Reverse Backup Lights & Audible Alarm Signal", type: "toggle", default: true, desc: `${rules.workAuth} required backup warning` },
+      { id: "lightStrobeBeacon", label: "Amber Strobe Light / Rotating Beacon", type: "toggle", default: true, desc: `${rules.workAuth} jobsite hazard warning light` },
+      { id: "placardHazmat", label: `${rules.roadAuth} Dangerous Goods / Hazmat Placards`, type: "toggle", default: false, desc: "When carrying hazardous materials" },
+      { id: "signEmergencyStop", label: "E-Stop Safety Labeling & Machine Cut-Off Signage", type: "toggle", default: true, desc: `${rules.workAuth} required red E-stop signage` }
     ]
   };
 
   const oshaSection = {
-    title: isCanada ? "Canadian NSC Standard 11 & CCOHS Mandated Safety Devices" : "OSHA / MSHA Mandated Safety Devices & Emergency Equipment",
+    title: `${rules.roadStandard} & ${rules.workAuth} Mandated Safety Devices`,
     fields: [
-      { id: "seatBeltMandate", label: `${workAuth} Seat Belt Functional & Webbing Inspection`, type: "toggle", default: true, desc: "Mandatory pre-shift safety restraint inspection" },
-      { id: "hornAudible200ft", label: "Audible Warning Horn Operational (Audible at 60 m / 200 ft)", type: "toggle", default: true, desc: `${workAuth} compliance` },
-      { id: "fireExtinguisherCharged", label: "On-Board Fire Extinguisher (Gauge Green, Sealed & Mounted)", type: "toggle", default: true, desc: `${workAuth} safety requirement` },
-      { id: "firstAidKitStocked", label: `${workAuth} Compliant Stocked First Aid Kit`, type: "toggle", default: true, desc: "Required pre-shift emergency inventory" },
-      { id: "dotReflectiveTriangles", label: `Set of 3 ${roadAuth} Emergency Reflective Triangles / Flares`, type: "toggle", default: true, desc: `${roadAuth} emergency breakdown kit` },
+      { id: "seatBeltMandate", label: `${rules.workAuth} Seat Belt Functional & Webbing Inspection`, type: "toggle", default: true, desc: "Mandatory pre-shift safety restraint inspection" },
+      { id: "hornAudible200ft", label: "Audible Warning Horn Operational", type: "toggle", default: true, desc: `${rules.workAuth} compliance` },
+      { id: "fireExtinguisherCharged", label: "On-Board Fire Extinguisher (Charged & Mounted)", type: "toggle", default: true, desc: `${rules.workAuth} safety requirement` },
+      { id: "firstAidKitStocked", label: `${rules.workAuth} Compliant Stocked First Aid Kit`, type: "toggle", default: true, desc: "Required pre-shift emergency inventory" },
+      { id: "roadReflectiveTriangles", label: `Set of Emergency Reflective Triangles / Flares`, type: "toggle", default: true, desc: `${rules.roadAuth} emergency breakdown kit` },
       { id: "wheelChocksPair", label: "Pair of Heavy Duty Wheel Chocks Present", type: "toggle", default: true, desc: "Required parking containment" }
     ]
   };
 
   const usageSection = {
-    title: "1. Usage & Meter Telematics",
+    title: "Usage & Meter Telematics",
     fields: [
-      { id: "trackOdometer", label: `Track Odometer Mileage (${uomDist})`, type: "toggle", default: true, desc: "Log reading during pre-trip checks" },
+      { id: "trackOdometer", label: `Track Odometer Mileage (${rules.uomDist})`, type: "toggle", default: true, desc: "Log reading during pre-trip checks" },
       { id: "trackHours", label: "Track Operating Hours", type: "toggle", default: true, desc: "Hour meter logging" },
-      { id: "pmMilesInterval", label: `Engine Oil Service Interval (${uomDist})`, type: "number", default: isCanada ? 8000 : 5000, desc: "Service threshold" }
+      { id: "pmMilesInterval", label: `Engine Oil Service Interval (${rules.uomDist})`, type: "number", default: rules.country === 'US' ? 5000 : 8000, desc: "Service threshold" }
     ]
   };
 
@@ -616,7 +757,6 @@ function buildCategorySchema(normKey, isCanada) {
     sections: [usageSection, tireSection, lightingSection, oshaSection, consumableSection]
   };
 }
-
 function base64UrlDecode(str) {
   let input = str.replace(/-/g, '+').replace(/_/g, '/');
   while (input.length % 4) input += '=';
