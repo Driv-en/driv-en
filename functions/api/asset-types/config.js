@@ -61,7 +61,7 @@ export async function onRequest(context) {
           ?, ?, ?, ?,
           ?, ?, ?, CURRENT_TIMESTAMP
         )
-        ON CONFLICT(org_id, asset_type_name) DO UPDATE SET
+        ON CONFLICT(id) DO UPDATE SET
           make = excluded.make,
           model = excluded.model,
           year = excluded.year,
