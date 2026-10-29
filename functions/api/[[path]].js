@@ -1132,7 +1132,7 @@ export default {
     }
 
     // Direct Endpoint: Dedicated Asset Schema Configuration Handling (Bypasses TABLE_MAP)
-    if (path === '/api/asset-config' || path === '/api/asset-config/') {
+    if (path.startsWith('/api/asset-config')) {
       const countryParam = (url.searchParams.get('country') || request.headers.get('x-country') || 'US').toUpperCase().trim();
       const isCanada = countryParam === 'CA';
       const kvStore = env.DRIVEN_KV || env.ASSET_CONFIG_KV;
