@@ -10,6 +10,16 @@
 // ═══════════════════════════════════════════════════════════════════
 
 const TABLE_MAP = {
+  'asset-config': {
+    d1Table: 'asset_config',
+    aliases: ['asset-config', 'asset_config', 'assetConfig'],
+    fieldMap: {},
+  },
+  'organization-settings': {
+    d1Table: 'organization_settings',
+    aliases: ['organization-settings', 'organization_settings', 'org-settings'],
+    fieldMap: {},
+  },
   'project': {
     d1Table: 'projects',
     aliases: ['projects', 'Project', 'Projects'],
@@ -1077,62 +1087,14 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const method = request.method;
-    const path = url.pathname;
+    const path = url.pathname.replace(/\/$/, ''); // Normalize trailing slashes
 
     if (method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
 
-    if (path.startsWith('/api/admin')) {
-      try {
-        const adminWorkerUrl = new URL(request.url);
-        adminWorkerUrl.hostname = 'driven-admin-api.driv-en.workers.dev';
-
-        const reqHeaders = new Headers(request.headers);
-        reqHeaders.set('Host', adminWorkerUrl.hostname);
-        reqHeaders.set('X-Forwarded-Host', url.hostname);
-
-        const proxyReq = new Request(adminWorkerUrl.toString(), {
-          method: request.method,
-          headers: reqHeaders,
-          body: (request.method !== 'GET' && request.method !== 'HEAD') ? request.body : null,
-          redirect: 'follow'
-        });
-
-        const response = await fetch(proxyReq);
-        const respHeaders = new Headers(response.headers);
-        Object.entries(corsHeaders).forEach(([k, v]) => respHeaders.set(k, v));
-
-        return new Response(response.body, {
-          status: response.status,
-          statusText: response.statusText,
-          headers: respHeaders
-        });
-      } catch (err) {
-        console.error('Failed to proxy request to driven-admin-api:', err.message);
-        return json({ success: false, error: 'Admin Service Proxy Failure' }, 502);
-      }
-    }
-
-    if (path === '/' && method === 'GET') {
-      return json({
-        status: 'ok',
-        service: 'DRIV-EN API Worker (D1)',
-        tables: Object.keys(TABLE_MAP)
-      });
-    }
-
-    if (path === '/api/log-error' && method === 'POST') {
-      try {
-        const body = await request.json();
-        return await handleLogError(env, body);
-      } catch (e) {
-        return json({ success: false, error: e.message }, 500);
-      }
-    }
-
     // Direct Endpoint: Dedicated Asset Schema Configuration Handling (Bypasses TABLE_MAP)
-    if (path.startsWith('/api/asset-config')) {
+    if (path === '/api/asset-config' || path.startsWith('/api/asset-config/')) {
       const countryParam = (url.searchParams.get('country') || request.headers.get('x-country') || 'US').toUpperCase().trim();
       const isCanada = countryParam === 'CA';
       const kvStore = env.DRIVEN_KV || env.ASSET_CONFIG_KV;
@@ -1228,8 +1190,56 @@ export default {
       return json({ error: 'Method not allowed' }, 405);
     }
 
+    if (path.startsWith('/api/admin')) {
+      try {
+        const adminWorkerUrl = new URL(request.url);
+        adminWorkerUrl.hostname = 'driven-admin-api.driv-en.workers.dev';
+
+        const reqHeaders = new Headers(request.headers);
+        reqHeaders.set('Host', adminWorkerUrl.hostname);
+        reqHeaders.set('X-Forwarded-Host', url.hostname);
+
+        const proxyReq = new Request(adminWorkerUrl.toString(), {
+          method: request.method,
+          headers: reqHeaders,
+          body: (request.method !== 'GET' && request.method !== 'HEAD') ? request.body : null,
+          redirect: 'follow'
+        });
+
+        const response = await fetch(proxyReq);
+        const respHeaders = new Headers(response.headers);
+        Object.entries(corsHeaders).forEach(([k, v]) => respHeaders.set(k, v));
+
+        return new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: respHeaders
+        });
+      } catch (err) {
+        console.error('Failed to proxy request to driven-admin-api:', err.message);
+        return json({ success: false, error: 'Admin Service Proxy Failure' }, 502);
+      }
+    }
+
+    if (path === '' || path === '/' && method === 'GET') {
+      return json({
+        status: 'ok',
+        service: 'DRIV-EN API Worker (D1)',
+        tables: Object.keys(TABLE_MAP)
+      });
+    }
+
+    if (path === '/api/log-error' && method === 'POST') {
+      try {
+        const body = await request.json();
+        return await handleLogError(env, body);
+      } catch (e) {
+        return json({ success: false, error: e.message }, 500);
+      }
+    }
+
     // Direct Endpoint: Asset Types / Categories Handling
-    if (path === '/api/asset-types' || path === '/api/asset-types/' || path === '/api/asset_types') {
+    if (path === '/api/asset-types' || path === '/api/asset_types') {
       const authCtx = await getAuthContext(request, env);
       const orgId = authCtx.orgId || 'org_dsi';
 
@@ -1276,7 +1286,7 @@ export default {
     }
 
     // Direct Endpoint: Assets / Equipment Handling
-    if (path === '/api/assets' || path === '/api/assets/' || path === '/api/equipment') {
+    if (path === '/api/assets' || path === '/api/equipment') {
       const authCtx = await getAuthContext(request, env);
       const orgId = authCtx.orgId;
 
@@ -1309,7 +1319,7 @@ export default {
     }
 
     // Direct Endpoint: Fuel Types Batch & Direct Table Retrieval
-    if (path === '/api/fuel-types' || path === '/api/fuel-types/' || path === '/api/fuel_types') {
+    if (path === '/api/fuel-types' || path === '/api/fuel_types') {
       const authCtx = await getAuthContext(request, env);
       const orgId = authCtx.orgId;
       const userId = authCtx.userId;
