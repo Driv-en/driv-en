@@ -433,28 +433,25 @@
       };
     }
 
-    /* Dynamic Activity History Engine */
+/* Dynamic Activity History Engine */
     async function applyLatestLocationActivity(assets) {
       try {
-        var ci = localStorage.getItem('driven_customer_id');
+        var ci = localStorage.getItem('driven_customer_id') || 'org_test';
         var query = ci ? '?customerId=' + encodeURIComponent(ci) : '';
 
-        // Build common request options including context headers
-        var reqOptions = {
-          headers: {
-            'Content-Type': 'application/json',
-            'x-customer-id': ci || '',
-            'x-org-id': ci || ''
-          }
+        var reqHeaders = {
+          'x-customer-id': ci,
+          'x-org-id': ci
         };
 
         var [projRes, inspRes, transRes, woRes, fuelRes] = await Promise.allSettled([
-          fetch('/api/projects' + query, reqOptions),
-          fetch('/api/inspections' + query, reqOptions),
-          fetch('/api/transfers' + query, reqOptions),
-          fetch('/api/work-orders' + query, reqOptions),
-          fetch('/api/fueling' + query, reqOptions)
+          fetch('/api/projects' + query, { headers: reqHeaders }),
+          fetch('/api/inspections' + query, { headers: reqHeaders }),
+          fetch('/api/transfers' + query, { headers: reqHeaders }),
+          fetch('/api/work-orders' + query, { headers: reqHeaders }),
+          fetch('/api/fueling' + query, { headers: reqHeaders })
         ]);
+
         var projectCoords = {};
         if (projRes.status === 'fulfilled' && projRes.value.ok) {
           try {
@@ -481,7 +478,7 @@
 
         var activities = [];
         async function parseResponse(res, sourceName, numKey, locKey, latKey, lngKey, timeKey, projKey) {
-          if (res.status === 'fulfilled' && res.value.ok) {
+          if (res.status === 'fulfilled' && res.value && res.value.ok) {
             try {
               var data = await res.value.clone().json();
               var list = extractRecords(data);
@@ -513,7 +510,7 @@
                 }
               });
             } catch (e) {
-              console.error('Error parsing ' + sourceName, e);
+              console.warn('Could not parse response for ' + sourceName, e);
             }
           }
         }
@@ -523,7 +520,6 @@
         await parseResponse(transRes, 'Transfer Log', 'asset_number', 'destination_location', 'destination_lat', 'destination_lng', 'transfer_date', 'destination_project');
         await parseResponse(woRes, 'Work Order', 'asset_number', 'site_location', 'latitude', 'longitude', 'created_at', 'project_name');
         await parseResponse(fuelRes, 'Fueling Record', 'asset_number', 'fuel_site', 'latitude', 'longitude', 'fuel_date', 'project');
-
         assets.forEach(function(a) {
           if (!a.assetNumber) return;
           var key = a.assetNumber.trim().toLowerCase();
