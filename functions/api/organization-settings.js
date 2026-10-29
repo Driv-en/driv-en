@@ -21,7 +21,7 @@ export async function onRequest(context) {
   }
 
   try {
-    // ─── GET: FETCH ORGANIZATION SETTINGS ───────────────────── ──────
+    // ─── GET: FETCH ORGANIZATION SETTINGS ───────────────────────────
     if (method === 'GET') {
       const row = await env.DB.prepare(
         'SELECT * FROM org_settings WHERE org_id = ?'
