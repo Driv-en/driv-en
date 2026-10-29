@@ -439,14 +439,22 @@
         var ci = localStorage.getItem('driven_customer_id');
         var query = ci ? '?customerId=' + encodeURIComponent(ci) : '';
 
-        var [projRes, inspRes, transRes, woRes, fuelRes] = await Promise.allSettled([
-          fetch('/api/projects' + query),
-          fetch('/api/inspections' + query),
-          fetch('/api/transfers' + query),
-          fetch('/api/work-orders' + query),
-          fetch('/api/fueling' + query)
-        ]);
+        // Build common request options including context headers
+        var reqOptions = {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-customer-id': ci || '',
+            'x-org-id': ci || ''
+          }
+        };
 
+        var [projRes, inspRes, transRes, woRes, fuelRes] = await Promise.allSettled([
+          fetch('/api/projects' + query, reqOptions),
+          fetch('/api/inspections' + query, reqOptions),
+          fetch('/api/transfers' + query, reqOptions),
+          fetch('/api/work-orders' + query, reqOptions),
+          fetch('/api/fueling' + query, reqOptions)
+        ]);
         var projectCoords = {};
         if (projRes.status === 'fulfilled' && projRes.value.ok) {
           try {
