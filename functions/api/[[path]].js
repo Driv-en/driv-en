@@ -784,8 +784,20 @@ function formatRecord(row, tableConfig) {
 }
 
 async function ensureTableSchema(db, d1Table) {
+  if (!db) return;
   try {
-    if (d1Table === 'org_settings') {
+    if (d1Table === 'asset_configuration' || d1Table === 'asset_config') {
+      await db.prepare(`
+        CREATE TABLE IF NOT EXISTS asset_configuration (
+          id TEXT PRIMARY KEY,
+          org_id TEXT NOT NULL,
+          asset_type TEXT,
+          config_json TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `).run().catch(e => console.warn('asset_configuration schema warning:', e.message));
+    } else if (d1Table === 'org_settings') {
       await db.prepare(`
         CREATE TABLE IF NOT EXISTS org_settings (
           id TEXT PRIMARY KEY,
@@ -800,7 +812,7 @@ async function ensureTableSchema(db, d1Table) {
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
-      `).run();
+      `).run().catch(e => console.warn('org_settings schema warning:', e.message));
     } else if (d1Table === 'inspections') {
       await db.prepare(`
         CREATE TABLE IF NOT EXISTS inspections (
@@ -814,7 +826,7 @@ async function ensureTableSchema(db, d1Table) {
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_by TEXT
         )
-      `).run();
+      `).run().catch(e => console.warn('inspections schema warning:', e.message));
     } else if (d1Table === 'transfers') {
       await db.prepare(`
         CREATE TABLE IF NOT EXISTS transfers (
@@ -828,7 +840,7 @@ async function ensureTableSchema(db, d1Table) {
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_by TEXT
         )
-      `).run();
+      `).run().catch(e => console.warn('transfers schema warning:', e.message));
     } else if (d1Table === 'work_orders') {
       await db.prepare(`
         CREATE TABLE IF NOT EXISTS work_orders (
@@ -842,7 +854,7 @@ async function ensureTableSchema(db, d1Table) {
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_by TEXT
         )
-      `).run();
+      `).run().catch(e => console.warn('work_orders schema warning:', e.message));
     } else if (d1Table === 'clients') {
       await db.prepare(`
         CREATE TABLE IF NOT EXISTS clients (
@@ -867,7 +879,7 @@ async function ensureTableSchema(db, d1Table) {
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_by TEXT
         )
-      `).run();
+      `).run().catch(e => console.warn('clients schema warning:', e.message));
     } else if (d1Table === 'asset_types') {
       await db.prepare(`
         CREATE TABLE IF NOT EXISTS asset_types (
@@ -918,7 +930,7 @@ async function ensureTableSchema(db, d1Table) {
           default_parts_inventory TEXT,
           allowed_attachments TEXT
         )
-      `).run();
+      `).run().catch(e => console.warn('asset_types schema warning:', e.message));
     } else if (d1Table === 'asset_type_defaults') {
       await db.prepare(`
         CREATE TABLE IF NOT EXISTS asset_type_defaults (
@@ -984,7 +996,7 @@ async function ensureTableSchema(db, d1Table) {
           inspection_toggles_json TEXT,
           custom_fields_json TEXT
         )
-      `).run();
+      `).run().catch(e => console.warn('asset_type_defaults schema warning:', e.message));
     } else if (d1Table === 'projects') {
       await db.prepare(`
         CREATE TABLE IF NOT EXISTS projects (
@@ -1000,7 +1012,7 @@ async function ensureTableSchema(db, d1Table) {
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_by TEXT
         )
-      `).run();
+      `).run().catch(e => console.warn('projects schema warning:', e.message));
     } else if (d1Table === 'assets') {
       await db.prepare(`
         CREATE TABLE IF NOT EXISTS assets (
@@ -1085,7 +1097,7 @@ async function ensureTableSchema(db, d1Table) {
           custom_items TEXT,
           user_custom_attachments TEXT
         )
-      `).run();
+      `).run().catch(e => console.warn('assets schema warning:', e.message));
 
       try {
         await db.prepare('ALTER TABLE assets ADD COLUMN current_project TEXT').run();
@@ -1108,17 +1120,17 @@ async function ensureTableSchema(db, d1Table) {
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_by TEXT
         )
-      `).run();
+      `).run().catch(e => console.warn('fuel_tanks schema warning:', e.message));
     } else if (d1Table === 'fuel_transactions') {
       await db.prepare(`
         CREATE TABLE IF NOT EXISTS fuel_transactions (
           id TEXT PRIMARY KEY,
           org_id TEXT NOT NULL,
           user_id TEXT,
-          transaction_type TEXT NOT NULL,
-          fuel_type TEXT NOT NULL,
-          quantity REAL NOT NULL,
-          transaction_date TEXT NOT NULL,
+          transaction_type TEXT,
+          fuel_type TEXT,
+          quantity REAL,
+          transaction_date TEXT,
           submission_timestamp TEXT,
           from_entity_type TEXT,
           from_entity_id TEXT,
@@ -1135,7 +1147,7 @@ async function ensureTableSchema(db, d1Table) {
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           created_by TEXT
         )
-      `).run();
+      `).run().catch(e => console.warn('fuel_transactions schema warning:', e.message));
     } else if (d1Table === 'fuel_types') {
       await db.prepare(`
         CREATE TABLE IF NOT EXISTS fuel_types (
@@ -1151,7 +1163,7 @@ async function ensureTableSchema(db, d1Table) {
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_by TEXT
         )
-      `).run();
+      `).run().catch(e => console.warn('fuel_types schema warning:', e.message));
     }
   } catch (e) {
     console.warn(`Schema auto-creation warning for ${d1Table}: ${e.message}`);
