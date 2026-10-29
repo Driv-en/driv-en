@@ -16,9 +16,25 @@ const TABLE_MAP = {
     fieldMap: {},
   },
   'organization-settings': {
-    d1Table: 'organization_settings',
-    aliases: ['organization-settings', 'organization_settings', 'org-settings'],
-    fieldMap: {},
+    d1Table: 'org_settings',
+    aliases: ['organization-settings', 'organization_settings', 'org_settings', 'org-settings'],
+    fieldMap: {
+      'Organization Name': 'name',
+      'name':              'name',
+      'Country':           'country',
+      'country':           'country',
+      'Volume Unit':       'volume_unit',
+      'volume_unit':       'volume_unit',
+      'Pressure Unit':     'pressure_unit',
+      'pressure_unit':     'pressure_unit',
+      'Distance Unit':     'distance_unit',
+      'distance_unit':     'distance_unit',
+      'Timezone':          'timezone',
+      'timezone':          'timezone',
+      'Currency':          'currency',
+      'currency':          'currency',
+    },
+    defaults: { country: 'US', volume_unit: 'gal', pressure_unit: 'psi', distance_unit: 'mi' },
   },
   'project': {
     d1Table: 'projects',
@@ -729,7 +745,23 @@ function formatRecord(row, tableConfig) {
 
 async function ensureTableSchema(db, d1Table) {
   try {
-    if (d1Table === 'clients') {
+    if (d1Table === 'org_settings') {
+      await db.prepare(`
+        CREATE TABLE IF NOT EXISTS org_settings (
+          id TEXT PRIMARY KEY,
+          org_id TEXT NOT NULL UNIQUE,
+          name TEXT,
+          country TEXT DEFAULT 'US',
+          volume_unit TEXT DEFAULT 'gal',
+          pressure_unit TEXT DEFAULT 'psi',
+          distance_unit TEXT DEFAULT 'mi',
+          timezone TEXT DEFAULT 'America/New_York',
+          currency TEXT DEFAULT 'USD',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `).run();
+    } else if (d1Table === 'clients') {
       await db.prepare(`
         CREATE TABLE IF NOT EXISTS clients (
           id TEXT PRIMARY KEY,
@@ -1093,7 +1125,7 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
 
-    // Direct Endpoint: Dedicated Asset Schema Configuration Handling (Bypasses TABLE_MAP)
+    // Direct Endpoint: Asset Configuration
     if (path === '/api/asset-config' || path.startsWith('/api/asset-config/')) {
       const countryParam = (url.searchParams.get('country') || request.headers.get('x-country') || 'US').toUpperCase().trim();
       const isCanada = countryParam === 'CA';
@@ -1188,6 +1220,38 @@ export default {
       }
 
       return json({ error: 'Method not allowed' }, 405);
+    }
+
+    // Direct Endpoint: Organization Settings
+    if (path === '/api/organization-settings' || path.startsWith('/api/organization-settings/')) {
+      const authCtx = await getAuthContext(request, env);
+      const orgId = authCtx.orgId || url.searchParams.get('org_id') || 'org_test';
+
+      if (method === 'GET') {
+        try {
+          await ensureTableSchema(env.DB, 'org_settings');
+          const row = await env.DB.prepare(
+            'SELECT * FROM org_settings WHERE org_id = ?'
+          ).bind(orgId).first();
+
+          const defaultSettings = {
+            org_id: orgId,
+            country: 'US',
+            volume_unit: 'gal',
+            pressure_unit: 'psi',
+            distance_unit: 'mi',
+            timezone: 'America/New_York',
+            currency: 'USD'
+          };
+
+          return json({ success: true, settings: row || defaultSettings, record: row || defaultSettings });
+        } catch (e) {
+          return json({ 
+            success: true, 
+            settings: { org_id: orgId, country: 'US', volume_unit: 'gal', pressure_unit: 'psi', distance_unit: 'mi' } 
+          });
+        }
+      }
     }
 
     if (path.startsWith('/api/admin')) {
