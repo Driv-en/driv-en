@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════ 
-// DRIV-EN API Worker — D1 & KV Asset Configuration (updated 10-29-26 @ 9:59AM CST)
+// DRIV-EN API Worker — D1 & KV Asset Configuration (updated 10-29-26 @ 10:05AM CST)
 // Route: /api/* and /api/log-error
 // ═══════════════════════════════════════════════════════════════════
 
@@ -262,6 +262,26 @@ const TABLE_MAP = {
       'user_custom_attachments':    'user_custom_attachments'
     },
     defaults: { status: 'active', ownership_type: 'company' },
+  },
+  'inspections': {
+    d1Table: 'inspections',
+    aliases: ['inspections', 'inspection', 'Inspections', 'Inspection'],
+    fieldMap: {},
+  },
+  'transfers': {
+    d1Table: 'transfers',
+    aliases: ['transfers', 'transfer', 'Transfers', 'Transfer'],
+    fieldMap: {},
+  },
+  'work-orders': {
+    d1Table: 'work_orders',
+    aliases: ['work-orders', 'work_orders', 'workorders', 'WorkOrders', 'work-order'],
+    fieldMap: {},
+  },
+  'fueling': {
+    d1Table: 'fuel_transactions',
+    aliases: ['fueling', 'fuel_transactions', 'fuel-transactions', 'Fueling'],
+    fieldMap: {},
   },
   'fuel-types': {
     d1Table: 'fuel_types',
@@ -750,6 +770,48 @@ async function ensureTableSchema(db, d1Table) {
           currency TEXT DEFAULT 'USD',
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `).run();
+    } else if (d1Table === 'inspections') {
+      await db.prepare(`
+        CREATE TABLE IF NOT EXISTS inspections (
+          id TEXT PRIMARY KEY,
+          org_id TEXT NOT NULL,
+          user_id TEXT,
+          asset_id TEXT,
+          status TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          created_by TEXT,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_by TEXT
+        )
+      `).run();
+    } else if (d1Table === 'transfers') {
+      await db.prepare(`
+        CREATE TABLE IF NOT EXISTS transfers (
+          id TEXT PRIMARY KEY,
+          org_id TEXT NOT NULL,
+          user_id TEXT,
+          asset_id TEXT,
+          status TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          created_by TEXT,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_by TEXT
+        )
+      `).run();
+    } else if (d1Table === 'work_orders') {
+      await db.prepare(`
+        CREATE TABLE IF NOT EXISTS work_orders (
+          id TEXT PRIMARY KEY,
+          org_id TEXT NOT NULL,
+          user_id TEXT,
+          asset_id TEXT,
+          status TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          created_by TEXT,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_by TEXT
         )
       `).run();
     } else if (d1Table === 'clients') {
@@ -1479,7 +1541,7 @@ export async function onRequest(context) {
     return json({ error: 'Method not allowed' }, 405);
   }
 
-  // Generic Routing for Tables (clients, projects, divisions, locations, fuel-tanks, fuel-transactions, etc.)
+  // Generic Routing for Tables (clients, projects, divisions, locations, fuel-tanks, fuel-transactions, inspections, transfers, work-orders, fueling, etc.)
   const match = path.match(/^\/api\/([^/]+)(?:\/([^/]+))?$/);
   if (!match) return json({ error: 'Not found' }, 404);
 
@@ -1533,7 +1595,11 @@ export async function onRequest(context) {
         unitsOfMeasure: records,
         equipment: records,
         assets: records,
-        tanks: records
+        tanks: records,
+        inspections: records,
+        transfers: records,
+        workOrders: records,
+        fueling: records
       });
     }
 
