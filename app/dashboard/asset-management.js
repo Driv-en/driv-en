@@ -436,8 +436,8 @@
 /* Dynamic Activity History Engine */
     async function applyLatestLocationActivity(assets) {
       try {
-        var ci = localStorage.getItem('driven_customer_id') || 'org_test';
-        var query = ci ? '?customerId=' + encodeURIComponent(ci) : '';
+        var ci = localStorage.getItem('driven_customer_id') || localStorage.getItem('driven_org_id') || 'org_test';
+        var query = '?org_id=' + encodeURIComponent(ci) + '&customerId=' + encodeURIComponent(ci);
 
         var reqHeaders = {
           'x-customer-id': ci,
