@@ -1,12 +1,6 @@
 // ═══════════════════════════════════════════════════════════════════ 
-// DRIV-EN API Worker — D1 & KV Asset Configuration (v19.0 — Clean)
+// DRIV-EN API Worker — D1 & KV Asset Configuration (updated 10-29-26 @ 9:59AM CST)
 // Route: /api/* and /api/log-error
-// ═══════════════════════════════════════════════════════════════════
-// BINDINGS:
-//   - D1: DB → driv-en-db
-//   - D1: EMPLOYEES_DB → employees-db (optional)
-//   - KV: DRIVEN_KV / ASSET_CONFIG_KV
-//   - Secret: JWT_SECRET (shared with auth worker)
 // ═══════════════════════════════════════════════════════════════════
 
 const TABLE_MAP = {
@@ -668,14 +662,12 @@ function toPrimitiveString(val) {
 function mapPayloadToD1(tableConfig, payload) {
   const d1Row = {};
 
-  // 1. Map explicitly defined fields from fieldMap
   for (const [apiFieldName, d1Column] of Object.entries(tableConfig.fieldMap)) {
     if (payload[apiFieldName] !== undefined) {
       d1Row[d1Column] = toPrimitiveString(payload[apiFieldName]);
     }
   }
 
-  // 2. Strict field mapping validation: Only pass through valid database columns
   const validColNameRegex = /^[a-z0-9_]+$/;
   const ignoredKeys = new Set([
     'id', 'org_id', 'user_id', 'created_by', 'updated_by', 'created_at', 'updated_at'
@@ -694,7 +686,6 @@ function mapPayloadToD1(tableConfig, payload) {
     }
   }
 
-  // 3. Set default values for missing required columns
   if (tableConfig.defaults) {
     for (const [col, val] of Object.entries(tableConfig.defaults)) {
       if (d1Row[col] === undefined) d1Row[col] = toPrimitiveString(val);
@@ -1115,351 +1106,316 @@ async function logTenantContextError(env, path, request) {
   }
 }
 
-export default {
-  async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-    const method = request.method;
-    const path = url.pathname.replace(/\/$/, ''); // Normalize trailing slashes
+export async function onRequest(context) {
+  const { request, env } = context;
+  const url = new URL(request.url);
+  const method = request.method;
+  const path = url.pathname.replace(/\/$/, ''); // Normalize trailing slashes
 
-    if (method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: corsHeaders });
-    }
+  if (method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
 
-    // Direct Endpoint: Asset Configuration
-    if (path === '/api/asset-config' || path.startsWith('/api/asset-config/')) {
-      const countryParam = (url.searchParams.get('country') || request.headers.get('x-country') || 'US').toUpperCase().trim();
-      const isCanada = countryParam === 'CA';
-      const kvStore = env.DRIVEN_KV || env.ASSET_CONFIG_KV;
+  // Direct Endpoint: Asset Configuration
+  if (path === '/api/asset-config' || path.startsWith('/api/asset-config/')) {
+    const countryParam = (url.searchParams.get('country') || request.headers.get('x-country') || 'US').toUpperCase().trim();
+    const isCanada = countryParam === 'CA';
+    const kvStore = env.DRIVEN_KV || env.ASSET_CONFIG_KV;
 
-      if (method === 'GET') {
-        const targetType = url.searchParams.get('targetType') || 'specific';
-        const key = url.searchParams.get('key') || '';
-        const rawAssetType = url.searchParams.get('assetType') || key || 'default';
+    if (method === 'GET') {
+      const targetType = url.searchParams.get('targetType') || 'specific';
+      const key = url.searchParams.get('key') || '';
+      const rawAssetType = url.searchParams.get('assetType') || key || 'default';
 
-        const normKey = normalizeCategoryKey(rawAssetType);
-        const schema = buildCategorySchema(normKey, isCanada);
+      const normKey = normalizeCategoryKey(rawAssetType);
+      const schema = buildCategorySchema(normKey, isCanada);
 
-        let savedConfig = null;
+      let savedConfig = null;
 
-        if (kvStore && key) {
-          try {
-            const storageKey = targetType === 'template'
-              ? `config:template:${normKey}`
-              : `config:specific:${key.toLowerCase().trim()}`;
-              
-            savedConfig = await kvStore.get(storageKey, { type: 'json' });
-          } catch (e) {
-            console.error("Error fetching config from KV:", e);
-          }
-        }
-
-        if (!savedConfig && targetType === 'specific' && kvStore) {
-          try {
-            const templateKey = `config:template:${normKey}`;
-            savedConfig = await kvStore.get(templateKey, { type: 'json' });
-          } catch (e) {
-            console.error("Error fetching template fallback from KV:", e);
-          }
-        }
-
-        return json({
-          success: true,
-          jurisdiction: isCanada ? 'CA' : 'US',
-          schemaKey: normKey,
-          schema: schema,
-          config: savedConfig || null
-        });
-      }
-
-      if (method === 'POST') {
-        let body;
+      if (kvStore && key) {
         try {
-          body = await request.json();
-        } catch (jsonErr) {
-          return json({ error: 'Invalid JSON payload in request body' }, 400);
-        }
-
-        const { targetType, key, config, action, sourceKey } = body || {};
-
-        if (action === 'copyConfig') {
-          if (!sourceKey || !key) {
-            return json({ error: "Copy operation requires 'sourceKey' and 'key'" }, 400);
-          }
-          if (!kvStore) {
-            return json({ error: "KV storage binding is not configured" }, 500);
-          }
-
-          const sourceStorageKey = `config:specific:${sourceKey.toLowerCase().trim()}`;
-          const sourceConfigData = await kvStore.get(sourceStorageKey, { type: 'json' });
-
-          if (!sourceConfigData) {
-            return json({ error: `Source asset configuration '${sourceKey}' was not found.` }, 404);
-          }
-
-          const destStorageKey = `config:specific:${key.toLowerCase().trim()}`;
-          await kvStore.put(destStorageKey, JSON.stringify(sourceConfigData));
-
-          return json({ success: true, message: `Successfully cloned configuration from '${sourceKey}' to '${key}'.` });
-        }
-
-        if (!targetType || !key || config === undefined) {
-          return json({ error: "Missing required payload parameters: 'targetType', 'key', and 'config' must be supplied" }, 400);
-        }
-
-        if (!kvStore) {
-          return json({ error: "KV storage binding is not configured on this environment" }, 500);
-        }
-
-        const storageKey = targetType === 'template'
-          ? `config:template:${normalizeCategoryKey(key)}`
-          : `config:specific:${key.toLowerCase().trim()}`;
-
-        await kvStore.put(storageKey, JSON.stringify(config));
-
-        return json({ success: true, message: 'Configuration saved successfully' });
-      }
-
-      return json({ error: 'Method not allowed' }, 405);
-    }
-
-    // Direct Endpoint: Organization Settings
-    if (path === '/api/organization-settings' || path.startsWith('/api/organization-settings/')) {
-      const authCtx = await getAuthContext(request, env);
-      const orgId = authCtx.orgId || url.searchParams.get('org_id') || 'org_test';
-
-      if (method === 'GET') {
-        try {
-          await ensureTableSchema(env.DB, 'org_settings');
-          const row = await env.DB.prepare(
-            'SELECT * FROM org_settings WHERE org_id = ?'
-          ).bind(orgId).first();
-
-          const defaultSettings = {
-            org_id: orgId,
-            country: 'US',
-            volume_unit: 'gal',
-            pressure_unit: 'psi',
-            distance_unit: 'mi',
-            timezone: 'America/New_York',
-            currency: 'USD'
-          };
-
-          return json({ success: true, settings: row || defaultSettings, record: row || defaultSettings });
+          const storageKey = targetType === 'template'
+            ? `config:template:${normKey}`
+            : `config:specific:${key.toLowerCase().trim()}`;
+            
+          savedConfig = await kvStore.get(storageKey, { type: 'json' });
         } catch (e) {
-          return json({ 
-            success: true, 
-            settings: { org_id: orgId, country: 'US', volume_unit: 'gal', pressure_unit: 'psi', distance_unit: 'mi' } 
-          });
+          console.error("Error fetching config from KV:", e);
         }
       }
-    }
 
-    if (path.startsWith('/api/admin')) {
-      try {
-        const adminWorkerUrl = new URL(request.url);
-        adminWorkerUrl.hostname = 'driven-admin-api.driv-en.workers.dev';
-
-        const reqHeaders = new Headers(request.headers);
-        reqHeaders.set('Host', adminWorkerUrl.hostname);
-        reqHeaders.set('X-Forwarded-Host', url.hostname);
-
-        const proxyReq = new Request(adminWorkerUrl.toString(), {
-          method: request.method,
-          headers: reqHeaders,
-          body: (request.method !== 'GET' && request.method !== 'HEAD') ? request.body : null,
-          redirect: 'follow'
-        });
-
-        const response = await fetch(proxyReq);
-        const respHeaders = new Headers(response.headers);
-        Object.entries(corsHeaders).forEach(([k, v]) => respHeaders.set(k, v));
-
-        return new Response(response.body, {
-          status: response.status,
-          statusText: response.statusText,
-          headers: respHeaders
-        });
-      } catch (err) {
-        console.error('Failed to proxy request to driven-admin-api:', err.message);
-        return json({ success: false, error: 'Admin Service Proxy Failure' }, 502);
+      if (!savedConfig && targetType === 'specific' && kvStore) {
+        try {
+          const templateKey = `config:template:${normKey}`;
+          savedConfig = await kvStore.get(templateKey, { type: 'json' });
+        } catch (e) {
+          console.error("Error fetching template fallback from KV:", e);
+        }
       }
-    }
 
-    if (path === '' || path === '/' && method === 'GET') {
       return json({
-        status: 'ok',
-        service: 'DRIV-EN API Worker (D1)',
-        tables: Object.keys(TABLE_MAP)
+        success: true,
+        jurisdiction: isCanada ? 'CA' : 'US',
+        schemaKey: normKey,
+        schema: schema,
+        config: savedConfig || null
       });
     }
 
-    if (path === '/api/log-error' && method === 'POST') {
+    if (method === 'POST') {
+      let body;
       try {
-        const body = await request.json();
-        return await handleLogError(env, body);
+        body = await request.json();
+      } catch (jsonErr) {
+        return json({ error: 'Invalid JSON payload in request body' }, 400);
+      }
+
+      const { targetType, key, config, action, sourceKey } = body || {};
+
+      if (action === 'copyConfig') {
+        if (!sourceKey || !key) {
+          return json({ error: "Copy operation requires 'sourceKey' and 'key'" }, 400);
+        }
+        if (!kvStore) {
+          return json({ error: "KV storage binding is not configured" }, 500);
+        }
+
+        const sourceStorageKey = `config:specific:${sourceKey.toLowerCase().trim()}`;
+        const sourceConfigData = await kvStore.get(sourceStorageKey, { type: 'json' });
+
+        if (!sourceConfigData) {
+          return json({ error: `Source asset configuration '${sourceKey}' was not found.` }, 404);
+        }
+
+        const destStorageKey = `config:specific:${key.toLowerCase().trim()}`;
+        await kvStore.put(destStorageKey, JSON.stringify(sourceConfigData));
+
+        return json({ success: true, message: `Successfully cloned configuration from '${sourceKey}' to '${key}'.` });
+      }
+
+      if (!targetType || !key || config === undefined) {
+        return json({ error: "Missing required payload parameters: 'targetType', 'key', and 'config' must be supplied" }, 400);
+      }
+
+      if (!kvStore) {
+        return json({ error: "KV storage binding is not configured on this environment" }, 500);
+      }
+
+      const storageKey = targetType === 'template'
+        ? `config:template:${normalizeCategoryKey(key)}`
+        : `config:specific:${key.toLowerCase().trim()}`;
+
+      await kvStore.put(storageKey, JSON.stringify(config));
+
+      return json({ success: true, message: 'Configuration saved successfully' });
+    }
+
+    return json({ error: 'Method not allowed' }, 405);
+  }
+
+  // Direct Endpoint: Organization Settings
+  if (path === '/api/organization-settings' || path.startsWith('/api/organization-settings/')) {
+    const authCtx = await getAuthContext(request, env);
+    const orgId = authCtx.orgId || url.searchParams.get('org_id') || 'org_test';
+
+    if (method === 'GET') {
+      try {
+        await ensureTableSchema(env.DB, 'org_settings');
+        const row = await env.DB.prepare(
+          'SELECT * FROM org_settings WHERE org_id = ?'
+        ).bind(orgId).first();
+
+        const defaultSettings = {
+          org_id: orgId,
+          country: 'US',
+          volume_unit: 'gal',
+          pressure_unit: 'psi',
+          distance_unit: 'mi',
+          timezone: 'America/New_York',
+          currency: 'USD'
+        };
+
+        return json({ success: true, settings: row || defaultSettings, record: row || defaultSettings });
       } catch (e) {
-        return json({ success: false, error: e.message }, 500);
-      }
-    }
-
-    // Direct Endpoint: Asset Types / Categories Handling
-    if (path === '/api/asset-types' || path === '/api/asset_types') {
-      const authCtx = await getAuthContext(request, env);
-      const orgId = authCtx.orgId || 'org_dsi';
-
-      if (method === 'GET') {
-        try {
-          await ensureTableSchema(env.DB, 'asset_types');
-
-          let records = [];
-          if (env.DB) {
-            const { results } = await env.DB.prepare(`
-              SELECT asset_type_name FROM asset_types WHERE org_id = ? OR org_id = 'system'
-              UNION
-              SELECT asset_type_name FROM asset_type_defaults WHERE org_id = ? OR org_id = 'system'
-              ORDER BY asset_type_name ASC
-            `).bind(orgId, orgId).all();
-
-            records = results || [];
-          }
-
-          if (!records || records.length === 0) {
-            const defaultCategories = [
-              "Pickup Truck",
-              "Highway Motor Vehicles (Classes 1–8)",
-              "Medium Vocational / Service Truck",
-              "Earthmoving — Dozers & Heavy Tracked Equipment",
-              "Earthmoving — Wheel Loaders, Graders & Backhoes",
-              "Excavator",
-              "Mining, Drilling & Rigging",
-              "Cranes & Aerial Lifts",
-              "Stationary & Engine Plants",
-              "Auxiliary Tools, Pumps & Light Towers",
-              "Trailers & Towables"
-            ];
-            records = defaultCategories.map(cat => ({ asset_type_name: cat }));
-          }
-
-          const tableConfig = resolveTableConfig('AssetTypes');
-          const formatted = records.map(r => formatRecord(r, tableConfig));
-          return json({ success: true, records: formatted, assetTypes: records, data: records });
-        } catch (e) {
-          return json({ success: true, records: [], assetTypes: [], data: [] });
-        }
-      }
-    }
-
-    // Direct Endpoint: Assets / Equipment Handling
-    if (path === '/api/assets' || path === '/api/equipment') {
-      const authCtx = await getAuthContext(request, env);
-      const orgId = authCtx.orgId;
-
-      if (!orgId) {
-        await logTenantContextError(env, path, request);
-        return json({ error: true, message: 'Multi-tenant authentication error: Organization context missing.' }, 401);
-      }
-
-      if (method === 'GET') {
-        try {
-          await ensureTableSchema(env.DB, 'assets');
-          const sql = `
-            SELECT a.*, p.name AS project_name, l.name AS location_name_resolved, d.name AS division_name_resolved 
-            FROM assets a 
-            LEFT JOIN projects p ON a.project_id = p.id 
-            LEFT JOIN locations l ON a.location_id = l.id 
-            LEFT JOIN divisions d ON a.assigned_division = d.id OR a.assigned_division = d.name
-            WHERE a.org_id = ? 
-            ORDER BY a.asset_number ASC
-          `;
-          const { results } = await env.DB.prepare(sql).bind(orgId).all();
-
-          const tableConfig = resolveTableConfig('equipment');
-          const records = (results || []).map(r => formatRecord(r, tableConfig));
-          return json({ success: true, records, assets: records, equipment: records, data: records });
-        } catch (e) {
-          return json({ success: true, records: [], assets: [], equipment: [], data: [] });
-        }
-      }
-    }
-
-    // Direct Endpoint: Fuel Types Batch & Direct Table Retrieval
-    if (path === '/api/fuel-types' || path === '/api/fuel_types') {
-      const authCtx = await getAuthContext(request, env);
-      const orgId = authCtx.orgId;
-      const userId = authCtx.userId;
-      const userEmail = authCtx.userEmail;
-
-      if (!orgId) {
-        await logTenantContextError(env, path, request);
         return json({ 
-          error: true, 
-          message: 'Multi-tenant authentication error: Organization context missing.' 
-        }, 401);
+          success: true, 
+          settings: { org_id: orgId, country: 'US', volume_unit: 'gal', pressure_unit: 'psi', distance_unit: 'mi' } 
+        });
       }
-
-      if (method === 'GET') {
-        try {
-          await ensureTableSchema(env.DB, 'fuel_types');
-          const { results } = await env.DB.prepare(
-            'SELECT * FROM fuel_types WHERE org_id = ? ORDER BY fuel_name ASC'
-          ).bind(orgId).all();
-
-          const records = results || [];
-          return json({ success: true, records, fuelTypes: records, data: records });
-        } catch (e) {
-          return json({ success: true, records: [], fuelTypes: [], data: [] });
-        }
-      }
-
-      if (method === 'POST') {
-        try {
-          await ensureTableSchema(env.DB, 'fuel_types');
-
-          const body = await request.json();
-          let rawTypes = body.fuelTypes || body.fuel_types || body.records || body.selectedFuelTypes || body;
-
-          let itemsList = Array.isArray(rawTypes) ? rawTypes : (typeof rawTypes === 'object' && rawTypes !== null ? Object.values(rawTypes) : []);
-          const stmts = [env.DB.prepare('DELETE FROM fuel_types WHERE org_id = ?').bind(orgId)];
-
-          const now = new Date().toISOString();
-          for (const item of itemsList) {
-            const cleanName = toPrimitiveString(item);
-            if (!cleanName) continue;
-
-            const code = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 50);
-            const desc = (typeof item === 'object' && item.description) ? toPrimitiveString(item.description) : cleanName;
-            const isCustom = (typeof item === 'object' && item.is_custom !== undefined) ? (item.is_custom ? 1 : 0) : 1;
-
-            stmts.push(
-              env.DB.prepare(
-                'INSERT INTO fuel_types (id, org_id, user_id, fuel_code, fuel_name, description, is_custom, created_at, created_by, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-              ).bind(crypto.randomUUID(), orgId, userId, code, cleanName, desc, isCustom, now, userEmail, now, userEmail)
-            );
-          }
-
-          await env.DB.batch(stmts);
-          return json({ success: true, count: itemsList.length, org_id: orgId });
-        } catch (e) {
-          return json({ success: true, count: 0, warning: e.message, org_id: orgId });
-        }
-      }
-
-      return json({ error: 'Method not allowed' }, 405);
     }
 
-    // Generic Routing for Tables (clients, projects, divisions, locations, fuel-tanks, fuel-transactions, etc.)
-    const match = path.match(/^\/api\/([^/]+)(?:\/([^/]+))?$/);
-    if (!match) return json({ error: 'Not found' }, 404);
+    if (method === 'PUT' || method === 'POST') {
+      try {
+        await ensureTableSchema(env.DB, 'org_settings');
+        const body = await request.json();
+        const id = body.id || `org_set_${orgId}`;
 
-    const requestedTable = decodeURIComponent(match[1]);
-    const recordId = match[2] ? decodeURIComponent(match[2]) : null;
+        const name = body.name !== undefined ? body.name : null;
+        const country = body.country || 'US';
+        const volumeUnit = body.volume_unit || body.volumeUnit || 'gal';
+        const pressureUnit = body.pressure_unit || body.pressureUnit || 'psi';
+        const distanceUnit = body.distance_unit || body.distanceUnit || 'mi';
+        const timezone = body.timezone || 'America/New_York';
+        const currency = body.currency || 'USD';
 
-    const tableConfig = resolveTableConfig(requestedTable);
-    if (!tableConfig) {
-      return json({ error: 'Unknown table: ' + requestedTable, availableTables: Object.keys(TABLE_MAP) }, 400);
+        await env.DB.prepare(`
+          INSERT INTO org_settings (
+            id, org_id, name, country, volume_unit, pressure_unit, distance_unit, timezone, currency, updated_at
+          ) VALUES (
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP
+          )
+          ON CONFLICT(org_id) DO UPDATE SET
+            name = excluded.name,
+            country = excluded.country,
+            volume_unit = excluded.volume_unit,
+            pressure_unit = excluded.pressure_unit,
+            distance_unit = excluded.distance_unit,
+            timezone = excluded.timezone,
+            currency = excluded.currency,
+            updated_at = CURRENT_TIMESTAMP
+        `).bind(id, orgId, name, country, volumeUnit, pressureUnit, distanceUnit, timezone, currency).run();
+
+        const updatedRow = await env.DB.prepare(
+          'SELECT * FROM org_settings WHERE org_id = ?'
+        ).bind(orgId).first();
+
+        return json({ success: true, settings: updatedRow, record: updatedRow });
+      } catch (e) {
+        return json({ success: false, error: e.message || 'Failed to save settings' }, 500);
+      }
+    }
+  }
+
+  if (path.startsWith('/api/admin')) {
+    try {
+      const adminWorkerUrl = new URL(request.url);
+      adminWorkerUrl.hostname = 'driven-admin-api.driv-en.workers.dev';
+
+      const reqHeaders = new Headers(request.headers);
+      reqHeaders.set('Host', adminWorkerUrl.hostname);
+      reqHeaders.set('X-Forwarded-Host', url.hostname);
+
+      const proxyReq = new Request(adminWorkerUrl.toString(), {
+        method: request.method,
+        headers: reqHeaders,
+        body: (request.method !== 'GET' && request.method !== 'HEAD') ? request.body : null,
+        redirect: 'follow'
+      });
+
+      const response = await fetch(proxyReq);
+      const respHeaders = new Headers(response.headers);
+      Object.entries(corsHeaders).forEach(([k, v]) => respHeaders.set(k, v));
+
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: respHeaders
+      });
+    } catch (err) {
+      console.error('Failed to proxy request to driven-admin-api:', err.message);
+      return json({ success: false, error: 'Admin Service Proxy Failure' }, 502);
+    }
+  }
+
+  if (path === '' || path === '/' || (path === '/api' && method === 'GET')) {
+    return json({
+      status: 'ok',
+      service: 'DRIV-EN API Worker (D1)',
+      tables: Object.keys(TABLE_MAP)
+    });
+  }
+
+  if (path === '/api/log-error' && method === 'POST') {
+    try {
+      const body = await request.json();
+      return await handleLogError(env, body);
+    } catch (e) {
+      return json({ success: false, error: e.message }, 500);
+    }
+  }
+
+  // Direct Endpoint: Asset Types / Categories Handling
+  if (path === '/api/asset-types' || path === '/api/asset_types') {
+    const authCtx = await getAuthContext(request, env);
+    const orgId = authCtx.orgId || 'org_dsi';
+
+    if (method === 'GET') {
+      try {
+        await ensureTableSchema(env.DB, 'asset_types');
+
+        let records = [];
+        if (env.DB) {
+          const { results } = await env.DB.prepare(`
+            SELECT asset_type_name FROM asset_types WHERE org_id = ? OR org_id = 'system'
+            UNION
+            SELECT asset_type_name FROM asset_type_defaults WHERE org_id = ? OR org_id = 'system'
+            ORDER BY asset_type_name ASC
+          `).bind(orgId, orgId).all();
+
+          records = results || [];
+        }
+
+        if (!records || records.length === 0) {
+          const defaultCategories = [
+            "Pickup Truck",
+            "Highway Motor Vehicles (Classes 1–8)",
+            "Medium Vocational / Service Truck",
+            "Earthmoving — Dozers & Heavy Tracked Equipment",
+            "Earthmoving — Wheel Loaders, Graders & Backhoes",
+            "Excavator",
+            "Mining, Drilling & Rigging",
+            "Cranes & Aerial Lifts",
+            "Stationary & Engine Plants",
+            "Auxiliary Tools, Pumps & Light Towers",
+            "Trailers & Towables"
+          ];
+          records = defaultCategories.map(cat => ({ asset_type_name: cat }));
+        }
+
+        const tableConfig = resolveTableConfig('AssetTypes');
+        const formatted = records.map(r => formatRecord(r, tableConfig));
+        return json({ success: true, records: formatted, assetTypes: records, data: records });
+      } catch (e) {
+        return json({ success: true, records: [], assetTypes: [], data: [] });
+      }
+    }
+  }
+
+  // Direct Endpoint: Assets / Equipment Handling
+  if (path === '/api/assets' || path === '/api/equipment') {
+    const authCtx = await getAuthContext(request, env);
+    const orgId = authCtx.orgId;
+
+    if (!orgId) {
+      await logTenantContextError(env, path, request);
+      return json({ error: true, message: 'Multi-tenant authentication error: Organization context missing.' }, 401);
     }
 
-    const d1Table = tableConfig.d1Table;
+    if (method === 'GET') {
+      try {
+        await ensureTableSchema(env.DB, 'assets');
+        const sql = `
+          SELECT a.*, p.name AS project_name, l.name AS location_name_resolved, d.name AS division_name_resolved 
+          FROM assets a 
+          LEFT JOIN projects p ON a.project_id = p.id 
+          LEFT JOIN locations l ON a.location_id = l.id 
+          LEFT JOIN divisions d ON a.assigned_division = d.id OR a.assigned_division = d.name
+          WHERE a.org_id = ? 
+          ORDER BY a.asset_number ASC
+        `;
+        const { results } = await env.DB.prepare(sql).bind(orgId).all();
+
+        const tableConfig = resolveTableConfig('equipment');
+        const records = (results || []).map(r => formatRecord(r, tableConfig));
+        return json({ success: true, records, assets: records, equipment: records, data: records });
+      } catch (e) {
+        return json({ success: true, records: [], assets: [], equipment: [], data: [] });
+      }
+    }
+  }
+
+  // Direct Endpoint: Fuel Types Batch & Direct Table Retrieval
+  if (path === '/api/fuel-types' || path === '/api/fuel_types') {
     const authCtx = await getAuthContext(request, env);
     const orgId = authCtx.orgId;
     const userId = authCtx.userId;
@@ -1467,163 +1423,242 @@ export default {
 
     if (!orgId) {
       await logTenantContextError(env, path, request);
-      return json({ error: 'Multi-tenant error: Organization context missing' }, 401);
+      return json({ 
+        error: true, 
+        message: 'Multi-tenant authentication error: Organization context missing.' 
+      }, 401);
     }
 
-    await ensureTableSchema(env.DB, d1Table);
-
-    try {
-      // LIST
-      if (method === 'GET' && !recordId) {
-        let sql = 'SELECT * FROM ' + d1Table + ' WHERE org_id = ? ORDER BY created_at DESC';
-        if (d1Table === 'assets') {
-          sql = `
-            SELECT a.*, p.name AS project_name, l.name AS location_name_resolved, d.name AS division_name_resolved 
-            FROM assets a 
-            LEFT JOIN projects p ON a.project_id = p.id 
-            LEFT JOIN locations l ON a.location_id = l.id 
-            LEFT JOIN divisions d ON a.assigned_division = d.id OR a.assigned_division = d.name
-            WHERE a.org_id = ? 
-            ORDER BY a.asset_number ASC
-          `;
-        }
-        const result = await env.DB.prepare(sql).bind(orgId).all();
-        const records = (result.results || []).map(r => formatRecord(r, tableConfig));
-        return json({ 
-          success: true, 
-          records, 
-          data: records, 
-          clients: records, 
-          divisions: records, 
-          locations: records, 
-          projects: records, 
-          projectTypes: records,
-          unitsOfMeasure: records,
-          equipment: records,
-          assets: records,
-          tanks: records
-        });
-      }
-
-      // GET ONE
-      if (method === 'GET' && recordId) {
-        let sql = 'SELECT * FROM ' + d1Table + ' WHERE id = ? AND org_id = ?';
-        if (d1Table === 'assets') {
-          sql = `
-            SELECT a.*, p.name AS project_name, l.name AS location_name_resolved, d.name AS division_name_resolved 
-            FROM assets a 
-            LEFT JOIN projects p ON a.project_id = p.id 
-            LEFT JOIN locations l ON a.location_id = l.id 
-            LEFT JOIN divisions d ON a.assigned_division = d.id OR a.assigned_division = d.name
-            WHERE a.id = ? AND a.org_id = ?
-          `;
-        }
-        const row = await env.DB.prepare(sql).bind(recordId, orgId).first();
-        if (row) return json({ success: true, record: formatRecord(row, tableConfig) });
-        return json({ error: 'Record not found' }, 404);
-      }
-
-      // CREATE
-      if (method === 'POST' && !recordId) {
-        const body = await request.json();
-        const d1Row = mapPayloadToD1(tableConfig, body);
-
-        const id = body.id || crypto.randomUUID();
-        const now = new Date().toISOString();
-
-        const cols = ['id', 'org_id', 'user_id'];
-        const vals = [id, orgId, userId];
-
-        for (const [col, val] of Object.entries(d1Row)) {
-          if (col === 'id' || col === 'org_id' || col === 'user_id' || col === 'created_by' || col === 'updated_by') continue;
-          cols.push(col);
-          vals.push(val);
-        }
-
-        cols.push('created_at');
-        vals.push(now);
-        cols.push('created_by');
-        vals.push(userEmail);
-        cols.push('updated_at');
-        vals.push(now);
-        cols.push('updated_by');
-        vals.push(userEmail);
-
-        await env.DB.prepare(
-          'INSERT INTO ' + d1Table + ' (' + cols.join(', ') + ') VALUES (' + cols.map(() => '?').join(', ') + ')'
-        ).bind(...vals).run();
-
-        const row = await env.DB.prepare('SELECT * FROM ' + d1Table + ' WHERE id = ? AND org_id = ?').bind(id, orgId).first();
-        return json({ success: true, record: formatRecord(row, tableConfig) }, 201);
-      }
-
-      // UPDATE
-      if ((method === 'PUT' || method === 'PATCH') && recordId) {
-        const body = await request.json();
-        const d1Row = mapPayloadToD1(tableConfig, body);
-
-        const sets = [];
-        const values = [];
-        for (const [col, val] of Object.entries(d1Row)) {
-          if (col === 'id' || col === 'org_id' || col === 'user_id' || col === 'created_at' || col === 'created_by' || col === 'updated_at' || col === 'updated_by') continue;
-          sets.push(col + ' = ?');
-          values.push(val);
-        }
-        if (sets.length === 0) return json({ error: 'No fields to update' }, 400);
-
-        sets.push('updated_at = ?');
-        values.push(new Date().toISOString());
-        sets.push('updated_by = ?');
-        values.push(userEmail);
-
-        values.push(recordId);
-        values.push(orgId);
-
-        let sql = 'UPDATE ' + d1Table + ' SET ' + sets.join(', ') + ' WHERE id = ? AND org_id = ?';
-        await env.DB.prepare(sql).bind(...values).run();
-
-        let fetchSql = 'SELECT * FROM ' + d1Table + ' WHERE id = ? AND org_id = ?';
-        if (d1Table === 'assets') {
-          fetchSql = `
-            SELECT a.*, p.name AS project_name, l.name AS location_name_resolved, d.name AS division_name_resolved 
-            FROM assets a 
-            LEFT JOIN projects p ON a.project_id = p.id 
-            LEFT JOIN locations l ON a.location_id = l.id 
-            LEFT JOIN divisions d ON a.assigned_division = d.id OR a.assigned_division = d.name
-            WHERE a.id = ? AND a.org_id = ?
-          `;
-        }
-        const row = await env.DB.prepare(fetchSql).bind(recordId, orgId).first();
-        return json({ success: true, record: formatRecord(row, tableConfig) });
-      }
-
-      // DELETE
-      if (method === 'DELETE' && recordId) {
-        let sql = 'DELETE FROM ' + d1Table + ' WHERE id = ? AND org_id = ?';
-        const result = await env.DB.prepare(sql).bind(recordId, orgId).run();
-        if (result.meta.changes === 0) return json({ error: 'Record not found' }, 404);
-        return json({ success: true, id: recordId });
-      }
-
-      return json({ error: 'Method not allowed' }, 405);
-    } catch (e) {
-      console.error('API error:', e.message);
+    if (method === 'GET') {
       try {
-        await env.DB.prepare(
-          'INSERT INTO error_log (id, source, error_message, stack_trace, severity, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-        ).bind(
-          crypto.randomUUID(),
-          'API Worker (' + requestedTable + ':' + method + ')',
-          e.message,
-          e.stack || null,
-          'error',
-          new Date().toISOString()
-        ).run();
-      } catch (logErr) {
-        console.error('Error logging failure:', logErr.message);
+        await ensureTableSchema(env.DB, 'fuel_types');
+        const { results } = await env.DB.prepare(
+          'SELECT * FROM fuel_types WHERE org_id = ? ORDER BY fuel_name ASC'
+        ).bind(orgId).all();
+
+        const records = results || [];
+        return json({ success: true, records, fuelTypes: records, data: records });
+      } catch (e) {
+        return json({ success: true, records: [], fuelTypes: [], data: [] });
+      }
+    }
+
+    if (method === 'POST') {
+      try {
+        await ensureTableSchema(env.DB, 'fuel_types');
+
+        const body = await request.json();
+        let rawTypes = body.fuelTypes || body.fuel_types || body.records || body.selectedFuelTypes || body;
+
+        let itemsList = Array.isArray(rawTypes) ? rawTypes : (typeof rawTypes === 'object' && rawTypes !== null ? Object.values(rawTypes) : []);
+        const stmts = [env.DB.prepare('DELETE FROM fuel_types WHERE org_id = ?').bind(orgId)];
+
+        const now = new Date().toISOString();
+        for (const item of itemsList) {
+          const cleanName = toPrimitiveString(item);
+          if (!cleanName) continue;
+
+          const code = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 50);
+          const desc = (typeof item === 'object' && item.description) ? toPrimitiveString(item.description) : cleanName;
+          const isCustom = (typeof item === 'object' && item.is_custom !== undefined) ? (item.is_custom ? 1 : 0) : 1;
+
+          stmts.push(
+            env.DB.prepare(
+              'INSERT INTO fuel_types (id, org_id, user_id, fuel_code, fuel_name, description, is_custom, created_at, created_by, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            ).bind(crypto.randomUUID(), orgId, userId, code, cleanName, desc, isCustom, now, userEmail, now, userEmail)
+          );
+        }
+
+        await env.DB.batch(stmts);
+        return json({ success: true, count: itemsList.length, org_id: orgId });
+      } catch (e) {
+        return json({ success: true, count: 0, warning: e.message, org_id: orgId });
+      }
+    }
+
+    return json({ error: 'Method not allowed' }, 405);
+  }
+
+  // Generic Routing for Tables (clients, projects, divisions, locations, fuel-tanks, fuel-transactions, etc.)
+  const match = path.match(/^\/api\/([^/]+)(?:\/([^/]+))?$/);
+  if (!match) return json({ error: 'Not found' }, 404);
+
+  const requestedTable = decodeURIComponent(match[1]);
+  const recordId = match[2] ? decodeURIComponent(match[2]) : null;
+
+  const tableConfig = resolveTableConfig(requestedTable);
+  if (!tableConfig) {
+    return json({ error: 'Unknown table: ' + requestedTable, availableTables: Object.keys(TABLE_MAP) }, 400);
+  }
+
+  const d1Table = tableConfig.d1Table;
+  const authCtx = await getAuthContext(request, env);
+  const orgId = authCtx.orgId;
+  const userId = authCtx.userId;
+  const userEmail = authCtx.userEmail;
+
+  if (!orgId) {
+    await logTenantContextError(env, path, request);
+    return json({ error: 'Multi-tenant error: Organization context missing' }, 401);
+  }
+
+  await ensureTableSchema(env.DB, d1Table);
+
+  try {
+    // LIST
+    if (method === 'GET' && !recordId) {
+      let sql = 'SELECT * FROM ' + d1Table + ' WHERE org_id = ? ORDER BY created_at DESC';
+      if (d1Table === 'assets') {
+        sql = `
+          SELECT a.*, p.name AS project_name, l.name AS location_name_resolved, d.name AS division_name_resolved 
+          FROM assets a 
+          LEFT JOIN projects p ON a.project_id = p.id 
+          LEFT JOIN locations l ON a.location_id = l.id 
+          LEFT JOIN divisions d ON a.assigned_division = d.id OR a.assigned_division = d.name
+          WHERE a.org_id = ? 
+          ORDER BY a.asset_number ASC
+        `;
+      }
+      const result = await env.DB.prepare(sql).bind(orgId).all();
+      const records = (result.results || []).map(r => formatRecord(r, tableConfig));
+      return json({ 
+        success: true, 
+        records, 
+        data: records, 
+        clients: records, 
+        divisions: records, 
+        locations: records, 
+        projects: records, 
+        projectTypes: records,
+        unitsOfMeasure: records,
+        equipment: records,
+        assets: records,
+        tanks: records
+      });
+    }
+
+    // GET ONE
+    if (method === 'GET' && recordId) {
+      let sql = 'SELECT * FROM ' + d1Table + ' WHERE id = ? AND org_id = ?';
+      if (d1Table === 'assets') {
+        sql = `
+          SELECT a.*, p.name AS project_name, l.name AS location_name_resolved, d.name AS division_name_resolved 
+          FROM assets a 
+          LEFT JOIN projects p ON a.project_id = p.id 
+          LEFT JOIN locations l ON a.location_id = l.id 
+          LEFT JOIN divisions d ON a.assigned_division = d.id OR a.assigned_division = d.name
+          WHERE a.id = ? AND a.org_id = ?
+        `;
+      }
+      const row = await env.DB.prepare(sql).bind(recordId, orgId).first();
+      if (row) return json({ success: true, record: formatRecord(row, tableConfig) });
+      return json({ error: 'Record not found' }, 404);
+    }
+
+    // CREATE
+    if (method === 'POST' && !recordId) {
+      const body = await request.json();
+      const d1Row = mapPayloadToD1(tableConfig, body);
+
+      const id = body.id || crypto.randomUUID();
+      const now = new Date().toISOString();
+
+      const cols = ['id', 'org_id', 'user_id'];
+      const vals = [id, orgId, userId];
+
+      for (const [col, val] of Object.entries(d1Row)) {
+        if (col === 'id' || col === 'org_id' || col === 'user_id' || col === 'created_by' || col === 'updated_by') continue;
+        cols.push(col);
+        vals.push(val);
       }
 
-      return json({ error: true, message: e.message }, 500);
+      cols.push('created_at');
+      vals.push(now);
+      cols.push('created_by');
+      vals.push(userEmail);
+      cols.push('updated_at');
+      vals.push(now);
+      cols.push('updated_by');
+      vals.push(userEmail);
+
+      await env.DB.prepare(
+        'INSERT INTO ' + d1Table + ' (' + cols.join(', ') + ') VALUES (' + cols.map(() => '?').join(', ') + ')'
+      ).bind(...vals).run();
+
+      const row = await env.DB.prepare('SELECT * FROM ' + d1Table + ' WHERE id = ? AND org_id = ?').bind(id, orgId).first();
+      return json({ success: true, record: formatRecord(row, tableConfig) }, 201);
     }
+
+    // UPDATE
+    if ((method === 'PUT' || method === 'PATCH') && recordId) {
+      const body = await request.json();
+      const d1Row = mapPayloadToD1(tableConfig, body);
+
+      const sets = [];
+      const values = [];
+      for (const [col, val] of Object.entries(d1Row)) {
+        if (col === 'id' || col === 'org_id' || col === 'user_id' || col === 'created_at' || col === 'created_by' || col === 'updated_at' || col === 'updated_by') continue;
+        sets.push(col + ' = ?');
+        values.push(val);
+      }
+      if (sets.length === 0) return json({ error: 'No fields to update' }, 400);
+
+      sets.push('updated_at = ?');
+      values.push(new Date().toISOString());
+      sets.push('updated_by = ?');
+      values.push(userEmail);
+
+      values.push(recordId);
+      values.push(orgId);
+
+      let sql = 'UPDATE ' + d1Table + ' SET ' + sets.join(', ') + ' WHERE id = ? AND org_id = ?';
+      await env.DB.prepare(sql).bind(...values).run();
+
+      let fetchSql = 'SELECT * FROM ' + d1Table + ' WHERE id = ? AND org_id = ?';
+      if (d1Table === 'assets') {
+        fetchSql = `
+          SELECT a.*, p.name AS project_name, l.name AS location_name_resolved, d.name AS division_name_resolved 
+          FROM assets a 
+          LEFT JOIN projects p ON a.project_id = p.id 
+          LEFT JOIN locations l ON a.location_id = l.id 
+          LEFT JOIN divisions d ON a.assigned_division = d.id OR a.assigned_division = d.name
+          WHERE a.id = ? AND a.org_id = ?
+        `;
+      }
+      const row = await env.DB.prepare(fetchSql).bind(recordId, orgId).first();
+      return json({ success: true, record: formatRecord(row, tableConfig) });
+    }
+
+    // DELETE
+    if (method === 'DELETE' && recordId) {
+      let sql = 'DELETE FROM ' + d1Table + ' WHERE id = ? AND org_id = ?';
+      const result = await env.DB.prepare(sql).bind(recordId, orgId).run();
+      if (result.meta.changes === 0) return json({ error: 'Record not found' }, 404);
+      return json({ success: true, id: recordId });
+    }
+
+    return json({ error: 'Method not allowed' }, 405);
+  } catch (e) {
+    console.error('API error:', e.message);
+    try {
+      await env.DB.prepare(
+        'INSERT INTO error_log (id, source, error_message, stack_trace, severity, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+      ).bind(
+        crypto.randomUUID(),
+        'API Worker (' + requestedTable + ':' + method + ')',
+        e.message,
+        e.stack || null,
+        'error',
+        new Date().toISOString()
+      ).run();
+    } catch (logErr) {
+      console.error('Error logging failure:', logErr.message);
+    }
+
+    return json({ error: true, message: e.message }, 500);
   }
+}
+
+export default {
+  fetch: (req, env, ctx) => onRequest({ request: req, env, ctx })
 };
