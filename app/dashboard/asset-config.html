@@ -556,6 +556,69 @@
 
     const API_ENDPOINT = '/api/asset-config';
 
+    // Comprehensive list of asset categories matching app/onboarding/asset-types.html
+    const DEFAULT_ONBOARDING_ASSET_TYPES = [
+      // Mobile Fleets & Motor Vehicles
+      "Pickup Truck (1/2-Ton, 3/4-Ton, 1-Ton)",
+      "Highway Motor Vehicles (Classes 1–8)",
+      "Medium Vocational / Cab & Chassis",
+      "Dump Truck (Standard, Tandem, Tri-Axle, Articulated)",
+      "Service / Utility Truck & Crane Body",
+      "Vacuum & Hydro-Vac Truck",
+      "Concrete Mixer Truck",
+      "Cargo & Passenger Van / Shuttle",
+      "Passenger Car, SUV & Crossover",
+      "UTV, Buggy & Side-by-Side",
+
+      // Heavy Machinery & Earthmoving
+      "Dozer & Heavy Tracked Equipment",
+      "Excavator - Standard / Heavy (>6 MT)",
+      "Wheel Loader, Skid Steer & Backhoe",
+      "Motor Grader",
+      "Asphalt Paver, Road Milling & Reclaimer",
+
+      // Mining, Drilling & Oilfield Gear
+      "Drilling Rig - Land, Crawler & Portable",
+      "Horizontal Directional Drill (HDD)",
+      "Pile Driving Rig & Vibratory Hammer",
+      "Coiled Tubing Unit & Injector Head",
+      "Workover Rig & Pulling Unit",
+      "Triplex / Duplex Mud Pump Skid",
+      "Blowout Preventer (BOP Stack) & Manifold",
+
+      // Lifting, Material Handling & Cranes
+      "Crane - All-Terrain, Crawler, Rough-Terrain & Boom Truck",
+      "Self-Propelled Boom Lift (Articulating / Telescopic)",
+      "Scissor Lift (Electric / Rough Terrain)",
+      "Forklift (Warehouse / Rough Terrain / Telehandler)",
+
+      // Specialty Heavy Industry & Forestry
+      "Mine Haul Truck (Rigid & Articulated Frame)",
+      "Rock Crusher, Screen & Conveyor Plant",
+      "Agricultural Tractor & Combine Harvester",
+      "Pipeline Sideboom / Pipe Layer",
+      "Forestry Mulcher & Masticator",
+      "Feller Buncher & Forestry Harvester",
+      "Timber Skidder (Wheel / Track)",
+
+      // Amphibious, Off-Grid & Specialized Tracked Carriers
+      "Amphibious All-Terrain Carrier (Rolligon, Quad-Track)",
+      "Tracked Utility Dump & Personnel Carrier (Morooka / Panther)",
+
+      // Fixed Infrastructure, Plants & Shop Tools
+      "Asphalt Batch Plant & Drum Mixer",
+      "Concrete Batch Plant & Pugmill",
+      "Industrial Shop Welder & Wire Feeder",
+      "CNC Press Brake, Shear & Ironworker",
+      "Stationary Generator & Mobile Light Tower",
+      "Rotary Screw Air Compressor (Stationary / Portable)",
+      "Centrifugal & Diaphragm Fluid Transfer Pump",
+      "Pressure Vessel, Heat Exchanger & Boiler Skid",
+
+      // Trailers & Towable Bodies
+      "Trailers & Towables (Flatbed, Lowboy, Tanker, Enclosed)"
+    ];
+
     function updateHeaderOffset() {
       const h = document.getElementById('dashHeader') || document.querySelector('.dash-header');
       if (h) {
@@ -632,10 +695,11 @@
         if (typesResp.ok) {
           const tData = await typesResp.json();
           assetTypes = extractRecords(tData);
-          populateTypeDropdown();
         }
+        populateTypeDropdown();
       } catch (e) {
         console.error('Failed to load assets or categories:', e);
+        populateTypeDropdown(); // Fallback to onboarding asset types
       }
     }
 
@@ -672,14 +736,21 @@
     function populateTypeDropdown() {
       const sel = document.getElementById('selectType');
       sel.innerHTML = '<option value="">-- Choose Asset Category --</option>';
+
+      const categorySet = new Set(DEFAULT_ONBOARDING_ASSET_TYPES);
+
       assetTypes.forEach(t => {
         const name = typeof t === 'object' ? (t.asset_type_name || t.name || t.type || '') : String(t);
-        if (name) {
-          const opt = document.createElement('option');
-          opt.value = name;
-          opt.textContent = name;
-          sel.appendChild(opt);
+        if (name && name.trim()) {
+          categorySet.add(name.trim());
         }
+      });
+
+      Array.from(categorySet).sort().forEach(catName => {
+        const opt = document.createElement('option');
+        opt.value = catName;
+        opt.textContent = catName;
+        sel.appendChild(opt);
       });
     }
 
@@ -733,29 +804,30 @@
     }
 
     async function onTypeSelected() {
-      const typeName = document.getElementById('selectType').value;
+      const select = document.getElementById('selectType');
+      const typeName = select.value;
       if (!typeName) return;
 
       document.getElementById('configPanel').style.opacity = '1';
       document.getElementById('configPanel').style.pointerEvents = 'auto';
       document.getElementById('modeBanner').innerText = `Editing Global Defaults for Category: ${typeName}`;
 
-      await fetchAndRenderSchema('template', typeName, typeName);
+      const cleanKey = typeName.trim();
+      await fetchAndRenderSchema('template', cleanKey, cleanKey);
     }
 
     async function fetchAndRenderSchema(targetType, key, assetType = '') {
       try {
         const resolvedAssetType = assetType || key || 'default';
 
-        const params = new URLSearchParams({
-          targetType: targetType || 'specific',
-          key: key || 'default',
-          assetType: resolvedAssetType,
-          country: orgCountry || 'US',
-          vol: (orgUOM && orgUOM.volume) ? orgUOM.volume : 'gal',
-          press: (orgUOM && orgUOM.pressure) ? orgUOM.pressure : 'psi',
-          dist: (orgUOM && orgUOM.distance) ? orgUOM.distance : 'mi'
-        });
+        const params = new URLSearchParams();
+        params.set('targetType', targetType || 'specific');
+        params.set('key', key || 'default');
+        params.set('assetType', resolvedAssetType);
+        params.set('country', orgCountry || 'US');
+        params.set('vol', (orgUOM && orgUOM.volume) ? orgUOM.volume : 'gal');
+        params.set('press', (orgUOM && orgUOM.pressure) ? orgUOM.pressure : 'psi');
+        params.set('dist', (orgUOM && orgUOM.distance) ? orgUOM.distance : 'mi');
 
         const res = await apiFetch(`${API_ENDPOINT}?${params.toString()}`);
         if (!res.ok) {
