@@ -630,13 +630,13 @@ function parseCookies(cookieHeader) {
 }
 
 async function getAuthContext(request, env) {
-  let orgId = request.headers.get('x-org-id');
+  const url = new URL(request.url);
+  let orgId = request.headers.get('x-org-id') || request.headers.get('x-customer-id');
   let userId = request.headers.get('x-user-id');
   let userEmail = request.headers.get('x-user-email') || 'system';
 
-  const url = new URL(request.url);
   if (!orgId) {
-    orgId = url.searchParams.get('org_id') || url.searchParams.get('orgId');
+    orgId = url.searchParams.get('org_id') || url.searchParams.get('orgId') || url.searchParams.get('customerId') || url.searchParams.get('customer_id');
   }
 
   if (env.JWT_SECRET) {
