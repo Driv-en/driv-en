@@ -297,16 +297,28 @@ const TABLE_MAP = {
       'created_at':   'created_at'
     },
   },
-  'fueling': {
+'fueling': {
     d1Table: 'fuel_transactions',
-    aliases: ['fueling', 'fuel_transactions', 'fuel-transactions', 'Fueling'],
+    aliases: [
+      'fueling', 
+      'fuel_transactions', 
+      'fuel-transactions', 
+      'fueltransactions', 
+      'Fueling', 
+      'FuelTransactions', 
+      'fuel-transaction'
+    ],
     fieldMap: {
+      'Transaction Type': 'transaction_type',
       'transaction_type': 'transaction_type',
+      'Fuel Type':        'fuel_type',
       'fuel_type':        'fuel_type',
+      'Quantity':         'quantity',
       'quantity':         'quantity',
       'transaction_date': 'transaction_date',
       'asset_id':         'asset_id',
       'asset_number':     'asset_id',
+      'Meter Reading':    'meter_reading',
       'meter_reading':    'meter_reading',
       'fuel_site':        'location',
       'location':         'location'
@@ -344,18 +356,6 @@ const TABLE_MAP = {
       'fuel_type':        'fuel_type'
     },
     defaults: { current_quantity: 0 }
-  },
-  'fuel-transactions': {
-    d1Table: 'fuel_transactions',
-    aliases: ['fuel_transactions', 'fueltransactions', 'FuelTransactions', 'fuel-transaction'],
-    fieldMap: {
-      'Transaction Type': 'transaction_type',
-      'transaction_type': 'transaction_type',
-      'Quantity':         'quantity',
-      'quantity':         'quantity',
-      'Meter Reading':    'meter_reading',
-      'meter_reading':    'meter_reading'
-    }
   },
   'AssetTypes': {
     d1Table: 'asset_types',
