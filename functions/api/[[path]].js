@@ -549,8 +549,8 @@ function buildCategorySchema(normKey, isCanada) {
       { id: "tirePsiDriveRecommended", label: `Rear / Drive Recommended Cold Inflation (${uomPress})`, type: "number", default: 65, desc: "Door-jamb recommended inflation" },
       { id: "tpmsThresholdLowPsi", label: `TPMS Low Inflation Alarm Trigger (${uomPress})`, type: "number", default: 50, desc: "Telemetry alert threshold" },
       { id: "isDuallyConfiguration", label: "Dually Rear Axle Setup (1-Ton Dual Wheels)", type: "toggle", default: false, desc: "Enable 4-tire tracking on rear axle" },
-      { id: "minSteerTread32nd", label: `${workAuth} / ${roadAuth} Minimum Steer Tire Tread Depth (${uomDepth})`, type: "number", default: isCanada ? 3 : 4, desc: `Out-of-service limit` },
-      { id: "minDriveTread32nd", label: `${workAuth} / ${roadAuth} Minimum Drive Tire Tread Depth (${uomDepth})`, type: "number", default: 2, desc: `Out-of-service limit` }
+      { id: "minSteerTread32nd", label: `${workAuth} / ${roadAuth} Minimum Steer Tire Tread Depth (${uomDepth})`, type: "number", default: isCanada ? 3 : 4, desc: "Out-of-service limit" },
+      { id: "minDriveTread32nd", label: `${workAuth} / ${roadAuth} Minimum Drive Tire Tread Depth (${uomDepth})`, type: "number", default: 2, desc: "Out-of-service limit" }
     ]
   };
 
@@ -1277,15 +1277,6 @@ export async function onRequest(context) {
         }
       }
 
-      if (!savedConfig && targetType === 'specific' && kvStore) {
-        try {
-          const templateKey = `config:template:${normKey}`;
-          savedConfig = await kvStore.get(templateKey, { type: 'json' });
-        } catch (e) {
-          console.error("Error fetching template fallback from KV:", e);
-        }
-      }
-
       return json({
         success: true,
         jurisdiction: isCanada ? 'CA' : 'US',
@@ -1300,45 +1291,22 @@ export async function onRequest(context) {
       try {
         body = await request.json();
       } catch (jsonErr) {
-        return json({ error: 'Invalid JSON payload in request body' }, 400);
+        return json({ error: 'Invalid JSON payload' }, 400);
       }
 
-      const { targetType, key, config, action, sourceKey } = body || {};
+      const { targetType, key, config } = body || {};
 
-      if (action === 'copyConfig') {
-        if (!sourceKey || !key) {
-          return json({ error: "Copy operation requires 'sourceKey' and 'key'" }, 400);
-        }
-        if (!kvStore) {
-          return json({ error: "KV storage binding is not configured" }, 500);
-        }
-
-        const sourceStorageKey = `config:specific:${sourceKey.toLowerCase().trim()}`;
-        const sourceConfigData = await kvStore.get(sourceStorageKey, { type: 'json' });
-
-        if (!sourceConfigData) {
-          return json({ error: `Source asset configuration '${sourceKey}' was not found.` }, 404);
-        }
-
-        const destStorageKey = `config:specific:${key.toLowerCase().trim()}`;
-        await kvStore.put(destStorageKey, JSON.stringify(sourceConfigData));
-
-        return json({ success: true, message: `Successfully cloned configuration from '${sourceKey}' to '${key}'.` });
+      if (!targetType || !key || !config) {
+        return json({ error: "Missing required parameters: 'targetType', 'key', and 'config' required" }, 400);
       }
 
-      if (!targetType || !key || config === undefined) {
-        return json({ error: "Missing required payload parameters: 'targetType', 'key', and 'config' must be supplied" }, 400);
+      if (kvStore) {
+        const storageKey = targetType === 'template'
+          ? `config:template:${normalizeCategoryKey(key)}`
+          : `config:specific:${key.toLowerCase().trim()}`;
+
+        await kvStore.put(storageKey, JSON.stringify(config));
       }
-
-      if (!kvStore) {
-        return json({ error: "KV storage binding is not configured on this environment" }, 500);
-      }
-
-      const storageKey = targetType === 'template'
-        ? `config:template:${normalizeCategoryKey(key)}`
-        : `config:specific:${key.toLowerCase().trim()}`;
-
-      await kvStore.put(storageKey, JSON.stringify(config));
 
       return json({ success: true, message: 'Configuration saved successfully' });
     }
