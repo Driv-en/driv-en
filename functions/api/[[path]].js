@@ -5,8 +5,8 @@
 
 const TABLE_MAP = {
   'asset-config': {
-    d1Table: 'asset_config',
-    aliases: ['asset-config', 'asset_config', 'assetConfig'],
+    d1Table: 'asset_configuration',
+    aliases: ['asset-config', 'asset_config', 'assetConfig', 'asset_configuration'],
     fieldMap: {},
   },
   'organization-settings': {
