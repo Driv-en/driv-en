@@ -266,22 +266,51 @@ const TABLE_MAP = {
   'inspections': {
     d1Table: 'inspections',
     aliases: ['inspections', 'inspection', 'Inspections', 'Inspection'],
-    fieldMap: {},
+    fieldMap: {
+      'asset_id':            'asset_id',
+      'equipment_id':        'asset_id',
+      'asset_number':        'asset_id',
+      'status':              'status',
+      'inspection_date':     'created_at',
+      'inspection_location': 'created_by'
+    },
   },
   'transfers': {
     d1Table: 'transfers',
     aliases: ['transfers', 'transfer', 'Transfers', 'Transfer'],
-    fieldMap: {},
+    fieldMap: {
+      'asset_id':             'asset_id',
+      'asset_number':         'asset_id',
+      'status':               'status',
+      'destination_location': 'status',
+      'transfer_date':        'created_at'
+    },
   },
   'work-orders': {
     d1Table: 'work_orders',
     aliases: ['work-orders', 'work_orders', 'workorders', 'WorkOrders', 'work-order'],
-    fieldMap: {},
+    fieldMap: {
+      'asset_id':     'asset_id',
+      'asset_number': 'asset_id',
+      'status':       'status',
+      'site_location':'status',
+      'created_at':   'created_at'
+    },
   },
   'fueling': {
     d1Table: 'fuel_transactions',
     aliases: ['fueling', 'fuel_transactions', 'fuel-transactions', 'Fueling'],
-    fieldMap: {},
+    fieldMap: {
+      'transaction_type': 'transaction_type',
+      'fuel_type':        'fuel_type',
+      'quantity':         'quantity',
+      'transaction_date': 'transaction_date',
+      'asset_id':         'asset_id',
+      'asset_number':     'asset_id',
+      'meter_reading':    'meter_reading',
+      'fuel_site':        'location',
+      'location':         'location'
+    },
   },
   'fuel-types': {
     d1Table: 'fuel_types',
@@ -435,7 +464,7 @@ function resolveTableConfig(requestedTable) {
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, Cookie, x-org-id, x-user-id, x-user-email',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, Cookie, x-org-id, x-customer-id, x-user-id, x-user-email',
   'Access-Control-Allow-Credentials': 'true',
 };
 
