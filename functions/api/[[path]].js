@@ -1249,7 +1249,7 @@ export async function onRequest(context) {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
-  // Direct Endpoint: Asset Configuration
+// Direct Endpoint: Asset Configuration
   if (path === '/api/asset-config' || path.startsWith('/api/asset-config/')) {
     const countryParam = (url.searchParams.get('country') || request.headers.get('x-country') || 'US').toUpperCase().trim();
     const isCanada = countryParam === 'CA';
@@ -1349,7 +1349,11 @@ export async function onRequest(context) {
   // Direct Endpoint: Organization Settings
   if (path === '/api/organization-settings' || path.startsWith('/api/organization-settings/')) {
     const authCtx = await getAuthContext(request, env);
-    const orgId = authCtx.orgId || url.searchParams.get('org_id') || 'org_test';
+    const orgId = authCtx.orgId || url.searchParams.get('org_id') || url.searchParams.get('customerId') || url.searchParams.get('customer_id');
+
+    if (!orgId) {
+      return json({ error: true, message: 'Organization ID context missing' }, 400);
+    }
 
     if (method === 'GET') {
       try {
@@ -1470,14 +1474,14 @@ export async function onRequest(context) {
   // Direct Endpoint: Asset Types / Categories Handling
   if (path === '/api/asset-types' || path === '/api/asset_types') {
     const authCtx = await getAuthContext(request, env);
-    const orgId = authCtx.orgId || 'org_dsi';
+    const orgId = authCtx.orgId || url.searchParams.get('org_id') || url.searchParams.get('customerId');
 
     if (method === 'GET') {
       try {
         await ensureTableSchema(env.DB, 'asset_types');
 
         let records = [];
-        if (env.DB) {
+        if (env.DB && orgId) {
           const { results } = await env.DB.prepare(`
             SELECT asset_type_name FROM asset_types WHERE org_id = ? OR org_id = 'system'
             UNION
@@ -1517,7 +1521,7 @@ export async function onRequest(context) {
   // Direct Endpoint: Assets / Equipment Handling
   if (path === '/api/assets' || path === '/api/equipment') {
     const authCtx = await getAuthContext(request, env);
-    const orgId = authCtx.orgId;
+    const orgId = authCtx.orgId || url.searchParams.get('org_id') || url.searchParams.get('customerId');
 
     if (!orgId) {
       await logTenantContextError(env, path, request);
@@ -1550,7 +1554,7 @@ export async function onRequest(context) {
   // Direct Endpoint: Fuel Types Batch & Direct Table Retrieval
   if (path === '/api/fuel-types' || path === '/api/fuel_types') {
     const authCtx = await getAuthContext(request, env);
-    const orgId = authCtx.orgId;
+    const orgId = authCtx.orgId || url.searchParams.get('org_id') || url.searchParams.get('customerId');
     const userId = authCtx.userId;
     const userEmail = authCtx.userEmail;
 
@@ -1626,7 +1630,7 @@ export async function onRequest(context) {
 
   const d1Table = tableConfig.d1Table;
   const authCtx = await getAuthContext(request, env);
-  const orgId = authCtx.orgId;
+  const orgId = authCtx.orgId || url.searchParams.get('org_id') || url.searchParams.get('customerId') || url.searchParams.get('customer_id');
   const userId = authCtx.userId;
   const userEmail = authCtx.userEmail;
 
@@ -1638,7 +1642,7 @@ export async function onRequest(context) {
   await ensureTableSchema(env.DB, d1Table);
 
   try {
-// LIST
+    // LIST
     if (method === 'GET' && !recordId) {
       let sql = 'SELECT * FROM ' + d1Table + ' WHERE org_id = ?';
       
@@ -1660,9 +1664,8 @@ export async function onRequest(context) {
       try {
         result = await env.DB.prepare(sql).bind(orgId).all();
       } catch (dbErr) {
-        // Safe fallback if optional table columns or indexes don't exist yet
         try {
-          result = await env.DB.prepare('SELECT * FROM ' + d1Table).all();
+          result = await env.DB.prepare('SELECT * FROM ' + d1Table + ' WHERE org_id = ?').bind(orgId).all();
         } catch (fallbackErr) {
           result = { results: [] };
         }
