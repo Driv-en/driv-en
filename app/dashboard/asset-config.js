@@ -70,9 +70,13 @@ function updateHeaderOffset() {
 }
 
 function bindDOMEvents() {
-  // Top Nav Buttons
+  // Purpose & Instructions Modal Buttons
+  document.getElementById('btnPurpose')?.addEventListener('click', openPurposeModal);
+  document.getElementById('btnClosePurpose')?.addEventListener('click', closePurposeModal);
   document.getElementById('btnInstructions')?.addEventListener('click', openInstructionsModal);
   document.getElementById('btnCloseInstructions')?.addEventListener('click', closeInstructionsModal);
+
+  // Copy & Action Buttons
   document.getElementById('btnOpenCopy')?.addEventListener('click', openCopyModal);
   document.getElementById('btnCloseCopy')?.addEventListener('click', closeCopyModal);
   document.getElementById('btnExecuteCopy')?.addEventListener('click', executeCopyConfig);
@@ -480,7 +484,6 @@ function addPartRow(comp = "", oemB = "", oemP = "", crossB = "", crossP = "") {
   renderPartsRows();
   toggleFormLock();
 
-  // UX Improvement: Auto-focus the newly added row
   const tbody = document.getElementById('partsTableBody');
   if (tbody && tbody.lastElementChild) {
     const firstInput = tbody.lastElementChild.querySelector('input');
@@ -527,7 +530,6 @@ function addCustomFieldRow(key = "", val = "") {
   renderCustomFieldRows();
   toggleFormLock();
 
-  // UX Improvement: Auto-focus the newly added custom field
   const container = document.getElementById('customFieldsContainer');
   if (container && container.lastElementChild) {
     const firstInput = container.lastElementChild.querySelector('input');
@@ -570,7 +572,6 @@ function addCustomItemRow(labelValue = "") {
   renderCustomItemRows();
   toggleFormLock();
 
-  // UX Improvement: Auto-focus newly created checklist item
   const container = document.getElementById('customItemsContainer');
   if (container && container.lastElementChild) {
     const input = container.lastElementChild.querySelector('input');
@@ -691,6 +692,16 @@ async function saveConfiguration() {
     btn.disabled = false;
     btn.textContent = 'Save Complete Asset Configuration';
   }
+}
+
+function openPurposeModal() {
+  const modal = document.getElementById('purposeModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closePurposeModal() {
+  const modal = document.getElementById('purposeModal');
+  if (modal) modal.style.display = 'none';
 }
 
 function openInstructionsModal() {
