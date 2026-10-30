@@ -363,8 +363,10 @@ const TABLE_MAP = {
     fieldMap: {
       'Asset Type Code':             'asset_type_code',
       'asset_type_code':             'asset_type_code',
+      'code':                        'asset_type_code',
       'Asset Type Name':             'asset_type_name',
       'asset_type_name':             'asset_type_name',
+      'name':                        'asset_type_name',
       'Category Group':              'category_group',
       'category_group':              'category_group',
       'Is Custom':                   'is_custom',
@@ -880,6 +882,12 @@ function mapPayloadToD1(tableConfig, payload) {
     for (const [col, val] of Object.entries(tableConfig.defaults)) {
       if (d1Row[col] === undefined) d1Row[col] = toPrimitiveString(val);
     }
+  }
+
+  // Safety Fallback: Guarantee asset_type_code is never NULL for asset_types table
+  if (tableConfig.d1Table === 'asset_types' && !d1Row.asset_type_code) {
+    const cleanName = d1Row.asset_type_name || payload.name || payload.asset_type_name || 'CUSTOM_ASSET';
+    d1Row.asset_type_code = String(cleanName).toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   }
 
   return d1Row;
@@ -1580,7 +1588,7 @@ export async function onRequest(context) {
   }
 
   // Direct Endpoint: Asset Types Batch & Direct Table Retrieval
-  if (path === '/api/asset-types' || path === '/api/asset_types') {
+  if (path === '/api/asset-types' || path === '/api/asset_types' || path.startsWith('/api/asset-types/') || path.startsWith('/api/asset_types/')) {
     const authCtx = await getAuthContext(request, env);
     const orgId = authCtx.orgId || url.searchParams.get('org_id') || url.searchParams.get('customerId');
     const userId = authCtx.userId;
