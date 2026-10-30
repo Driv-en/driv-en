@@ -1,5 +1,5 @@
-// ═══════════════════════════════════════════════════════════════════ 
-// DRIV-EN API Worker — D1 & KV Asset Configuration (updated 10-29-26 @ 10:05AM CST)
+// ═══════════════════════════════════════════════════════════════════
+// DRIV-EN API Worker — D1 & KV Asset Configuration
 // Route: /api/* and /api/log-error
 // ═══════════════════════════════════════════════════════════════════
 
@@ -297,7 +297,7 @@ const TABLE_MAP = {
       'created_at':   'created_at'
     },
   },
-'fueling': {
+  'fueling': {
     d1Table: 'fuel_transactions',
     aliases: [
       'fueling', 
@@ -757,6 +757,7 @@ function buildCategorySchema(normKey, countryParam) {
     sections: [usageSection, tireSection, lightingSection, oshaSection, consumableSection]
   };
 }
+
 function base64UrlDecode(str) {
   let input = str.replace(/-/g, '+').replace(/_/g, '/');
   while (input.length % 4) input += '=';
@@ -821,7 +822,6 @@ async function getAuthContext(request, env) {
     }
   }
 
-  // Fallback default organization for test environments instead of throwing null
   if (!orgId || orgId === 'null' || orgId === 'undefined') {
     orgId = 'org_test';
   }
@@ -1389,7 +1389,7 @@ export async function onRequest(context) {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
-// Direct Endpoint: Asset Configuration
+  // Direct Endpoint: Asset Configuration
   if (path === '/api/asset-config' || path.startsWith('/api/asset-config/')) {
     const countryParam = (url.searchParams.get('country') || request.headers.get('x-country') || 'US').toUpperCase().trim();
     const isCanada = countryParam === 'CA';
@@ -1579,10 +1579,20 @@ export async function onRequest(context) {
     }
   }
 
-  // Direct Endpoint: Asset Types / Categories Handling
+  // Direct Endpoint: Asset Types Batch & Direct Table Retrieval
   if (path === '/api/asset-types' || path === '/api/asset_types') {
     const authCtx = await getAuthContext(request, env);
     const orgId = authCtx.orgId || url.searchParams.get('org_id') || url.searchParams.get('customerId');
+    const userId = authCtx.userId;
+    const userEmail = authCtx.userEmail;
+
+    if (!orgId) {
+      await logTenantContextError(env, path, request);
+      return json({ 
+        error: true, 
+        message: 'Multi-tenant authentication error: Organization context missing.' 
+      }, 401);
+    }
 
     if (method === 'GET') {
       try {
@@ -1591,11 +1601,8 @@ export async function onRequest(context) {
         let records = [];
         if (env.DB && orgId) {
           const { results } = await env.DB.prepare(`
-            SELECT asset_type_name FROM asset_types WHERE org_id = ? OR org_id = 'system'
-            UNION
-            SELECT asset_type_name FROM asset_type_defaults WHERE org_id = ? OR org_id = 'system'
-            ORDER BY asset_type_name ASC
-          `).bind(orgId, orgId).all();
+            SELECT * FROM asset_types WHERE org_id = ? OR org_id = 'system' ORDER BY category_group ASC, asset_type_name ASC
+          `).bind(orgId).all();
 
           records = results || [];
         }
@@ -1624,6 +1631,60 @@ export async function onRequest(context) {
         return json({ success: true, records: [], assetTypes: [], data: [] });
       }
     }
+
+    if (method === 'POST') {
+      try {
+        await ensureTableSchema(env.DB, 'asset_types');
+
+        const body = await request.json();
+        let rawTypes = body.assetTypes || body.asset_types || body.records || body;
+
+        let itemsList = Array.isArray(rawTypes) ? rawTypes : (typeof rawTypes === 'object' && rawTypes !== null ? Object.values(rawTypes) : []);
+        
+        const now = new Date().toISOString();
+        const stmts = [];
+
+        for (const item of itemsList) {
+          const cleanName = typeof item === 'object' ? (item.asset_type_name || item.name || '') : String(item);
+          if (!cleanName || cleanName === '[object Object]') continue;
+
+          // Guarantees non-null code value to prevent SQLite NOT NULL constraint failures
+          const code = (typeof item === 'object' && item.asset_type_code)
+            ? item.asset_type_code
+            : cleanName.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+
+          const categoryGroup = (typeof item === 'object' && item.category_group) ? item.category_group : 'General';
+          const isCustom = (typeof item === 'object' && item.is_custom !== undefined) ? (item.is_custom ? 1 : 0) : 0;
+          const id = (typeof item === 'object' && item.id) ? item.id : crypto.randomUUID();
+
+          stmts.push(
+            env.DB.prepare(`
+              INSERT INTO asset_types (
+                id, org_id, user_id, asset_type_code, asset_type_name, category_group, is_custom, created_at, created_by, updated_at, updated_by
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ON CONFLICT(id) DO UPDATE SET
+                asset_type_code = excluded.asset_type_code,
+                asset_type_name = excluded.asset_type_name,
+                category_group = excluded.category_group,
+                is_custom = excluded.is_custom,
+                updated_at = excluded.updated_at,
+                updated_by = excluded.updated_by
+            `).bind(id, orgId, userId, code, cleanName, categoryGroup, isCustom, now, userEmail, now, userEmail)
+          );
+        }
+
+        if (stmts.length > 0) {
+          await env.DB.batch(stmts);
+        }
+
+        return json({ success: true, count: itemsList.length, org_id: orgId });
+      } catch (e) {
+        console.error('Asset types save exception:', e.message);
+        return json({ success: false, error: e.message, org_id: orgId }, 500);
+      }
+    }
+
+    return json({ error: 'Method not allowed' }, 405);
   }
 
   // Direct Endpoint: Assets / Equipment Handling
@@ -1724,7 +1785,7 @@ export async function onRequest(context) {
     return json({ error: 'Method not allowed' }, 405);
   }
 
-  // Generic Routing for Tables (clients, projects, divisions, locations, fuel-tanks, fuel-transactions, inspections, transfers, work-orders, fueling, etc.)
+  // Generic Routing for Tables
   const match = path.match(/^\/api\/([^/]+)(?:\/([^/]+))?$/);
   if (!match) return json({ error: 'Not found' }, 404);
 
