@@ -462,11 +462,20 @@ async function saveAssetTypes(e) {
       }
     }
 
+    var code = generateAssetTypeCode(val, cb.id);
+
+    // Complete property mapping to satisfy API Worker / D1 schema regardless of field naming convention
     selectedPayload.push({
-      asset_type_code: generateAssetTypeCode(val, cb.id),
+      asset_type_code: code,
+      assetTypeCode: code,
+      code: code,
       asset_type_name: val,
+      assetTypeName: val,
+      name: val,
       category_group: categoryGroup,
-      is_custom: cb.id.startsWith("custom_at_") ? 1 : 0
+      categoryGroup: categoryGroup,
+      is_custom: cb.id.startsWith("custom_at_") ? 1 : 0,
+      isCustom: cb.id.startsWith("custom_at_") ? 1 : 0
     });
   });
 
@@ -494,7 +503,11 @@ async function saveAssetTypes(e) {
         "x-org-id": activeOrgId,
         "x-user-id": String(userId || "")
       },
-      body: JSON.stringify({ assetTypes: selectedPayload })
+      body: JSON.stringify({
+        assetTypes: selectedPayload,
+        records: selectedPayload,
+        items: selectedPayload
+      })
     });
 
     if (res.ok) {
