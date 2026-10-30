@@ -26,36 +26,44 @@ function escapeHtmlAttr(str) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  bindDOMEvents();
-  bindModalBackdropsAndKeydown();
+  try {
+    bindDOMEvents();
+    bindModalBackdropsAndKeydown();
+  } catch (err) {
+    console.error('Failed to bind event handlers on DOMContentLoaded:', err);
+  }
 });
 
 document.addEventListener('dashSessionLoaded', async () => {
-  const u = window.dashUser || window.drivenUser;
-  activeOrgId = (u && u.org_id && u.org_id !== 'default_org') 
-    ? u.org_id 
-    : (localStorage.getItem('driven_org_id') || 'org_dsi');
+  try {
+    const u = window.dashUser || window.drivenUser;
+    activeOrgId = (u && u.org_id && u.org_id !== 'default_org') 
+      ? u.org_id 
+      : (localStorage.getItem('driven_org_id') || 'org_dsi');
 
-  updateHeaderOffset();
-  await fetchOrganizationSettings();
-  await loadInitialData();
+    updateHeaderOffset();
+    await fetchOrganizationSettings();
+    await loadInitialData();
 
-  const urlParams = new URLSearchParams(window.location.search);
-  const target = urlParams.get('target');
-  const assetNumber = urlParams.get('assetNumber');
+    const urlParams = new URLSearchParams(window.location.search);
+    const target = urlParams.get('target');
+    const assetNumber = urlParams.get('assetNumber');
 
-  if (target === 'template') {
-    const configTargetEl = document.getElementById('configTarget');
-    if (configTargetEl) {
-      configTargetEl.value = 'template';
-      onTargetTypeChange();
+    if (target === 'template') {
+      const configTargetEl = document.getElementById('configTarget');
+      if (configTargetEl) {
+        configTargetEl.value = 'template';
+        onTargetTypeChange();
+      }
+    } else if (assetNumber) {
+      const selectAssetEl = document.getElementById('selectAsset');
+      if (selectAssetEl) {
+        selectAssetEl.value = assetNumber;
+        onAssetSelected();
+      }
     }
-  } else if (assetNumber) {
-    const selectAssetEl = document.getElementById('selectAsset');
-    if (selectAssetEl) {
-      selectAssetEl.value = assetNumber;
-      onAssetSelected();
-    }
+  } catch (err) {
+    console.error('Error handling dashSessionLoaded:', err);
   }
 });
 
@@ -372,16 +380,18 @@ function onLinkedAttachmentSelected() {
 }
 
 function promptAddCustomAttachment() {
-  const name = prompt("Enter Custom Attachment Name (e.g., Hydro-Vac Boom, Concrete Mixer Drum):");
+  const name = window.prompt("Enter Custom Attachment Name (e.g., Hydro-Vac Boom, Concrete Mixer Drum):");
   if (name && name.trim()) {
     const val = name.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
     const sel = document.getElementById('selectAttachment');
-    const opt = document.createElement('option');
-    opt.value = val;
-    opt.textContent = name.trim();
-    sel.appendChild(opt);
-    sel.value = val;
-    onAttachmentChanged();
+    if (sel) {
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = name.trim();
+      sel.appendChild(opt);
+      sel.value = val;
+      onAttachmentChanged();
+    }
   }
 }
 
@@ -465,7 +475,7 @@ function renderFieldRow(container, field, savedRules) {
 
 function handleDropdownCustomAdd(selectEl) {
   if (selectEl.value === '__add_custom_opt__') {
-    const newOpt = prompt("Enter new specification option name:");
+    const newOpt = window.prompt("Enter new specification option name:");
     if (newOpt && newOpt.trim()) {
       const optVal = newOpt.trim();
       const option = document.createElement("option");
@@ -480,7 +490,7 @@ function handleDropdownCustomAdd(selectEl) {
 }
 
 function addPartRow(comp = "", oemB = "", oemP = "", crossB = "", crossP = "") {
-  partsList.push({ component: comp, oemBrand: oemB, oemPart: oemP, crossBrand: crossB, crossPart: crossP });
+  partsList = [...partsList, { component: comp, oemBrand: oemB, oemPart: oemP, crossBrand: crossB, crossPart: crossP }];
   renderPartsRows();
   toggleFormLock();
 
@@ -492,7 +502,7 @@ function addPartRow(comp = "", oemB = "", oemP = "", crossB = "", crossP = "") {
 }
 
 function removePartRow(index) {
-  partsList.splice(index, 1);
+  partsList = partsList.filter((_, idx) => idx !== index);
   renderPartsRows();
   toggleFormLock();
 }
@@ -505,11 +515,11 @@ function renderPartsRows() {
   partsList.forEach((p, idx) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><input type="text" value="${escapeHtmlAttr(p.component)}" placeholder="Component Name"></td>
-      <td><input type="text" value="${escapeHtmlAttr(p.oemBrand)}" placeholder="OEM Brand Spec"></td>
-      <td><input type="text" value="${escapeHtmlAttr(p.oemPart)}" placeholder="OEM Part #"></td>
-      <td><input type="text" value="${escapeHtmlAttr(p.crossBrand)}" placeholder="e.g. Baldwin / Donaldson"></td>
-      <td><input type="text" value="${escapeHtmlAttr(p.crossPart)}" placeholder="e.g. P550388"></td>
+      <td><input type="text" value="${escapeHtmlAttr(p.component || '')}" placeholder="Component Name"></td>
+      <td><input type="text" value="${escapeHtmlAttr(p.oemBrand || '')}" placeholder="OEM Brand Spec"></td>
+      <td><input type="text" value="${escapeHtmlAttr(p.oemPart || '')}" placeholder="OEM Part #"></td>
+      <td><input type="text" value="${escapeHtmlAttr(p.crossBrand || '')}" placeholder="e.g. Baldwin / Donaldson"></td>
+      <td><input type="text" value="${escapeHtmlAttr(p.crossPart || '')}" placeholder="e.g. P550388"></td>
       <td><button type="button" class="btn-small-remove">Remove</button></td>
     `;
 
@@ -526,7 +536,7 @@ function renderPartsRows() {
 }
 
 function addCustomFieldRow(key = "", val = "") {
-  customFieldsList.push({ key, value: val });
+  customFieldsList = [...customFieldsList, { key, value: val }];
   renderCustomFieldRows();
   toggleFormLock();
 
@@ -538,7 +548,7 @@ function addCustomFieldRow(key = "", val = "") {
 }
 
 function removeCustomFieldRow(index) {
-  customFieldsList.splice(index, 1);
+  customFieldsList = customFieldsList.filter((_, idx) => idx !== index);
   renderCustomFieldRows();
   toggleFormLock();
 }
@@ -553,8 +563,8 @@ function renderCustomFieldRows() {
     row.className = 'custom-item-row';
     row.innerHTML = `
       <span class="badge badge-custom">Spec</span>
-      <input type="text" value="${escapeHtmlAttr(f.key)}" placeholder="Field Label..." style="flex: 1;">
-      <input type="text" value="${escapeHtmlAttr(f.value)}" placeholder="Field Value..." style="flex: 1;">
+      <input type="text" value="${escapeHtmlAttr(f.key || '')}" placeholder="Field Label..." style="flex: 1;">
+      <input type="text" value="${escapeHtmlAttr(f.value || '')}" placeholder="Field Value..." style="flex: 1;">
       <button type="button" class="btn-small-remove">Remove</button>
     `;
 
@@ -568,7 +578,7 @@ function renderCustomFieldRows() {
 }
 
 function addCustomItemRow(labelValue = "") {
-  customItemsList.push(labelValue);
+  customItemsList = [...customItemsList, labelValue];
   renderCustomItemRows();
   toggleFormLock();
 
@@ -580,7 +590,7 @@ function addCustomItemRow(labelValue = "") {
 }
 
 function removeCustomItemRow(index) {
-  customItemsList.splice(index, 1);
+  customItemsList = customItemsList.filter((_, idx) => idx !== index);
   renderCustomItemRows();
   toggleFormLock();
 }
@@ -595,7 +605,7 @@ function renderCustomItemRows() {
     row.className = 'custom-item-row';
     row.innerHTML = `
       <span class="badge badge-custom">Custom Check</span>
-      <input type="text" value="${escapeHtmlAttr(itemText)}" placeholder="Enter check item name...">
+      <input type="text" value="${escapeHtmlAttr(itemText || '')}" placeholder="Enter check item name...">
       <button type="button" class="btn-small-remove">Remove</button>
     `;
 
@@ -732,7 +742,7 @@ async function saveNewAttachmentAsset() {
   const model = document.getElementById('newAttModel').value.trim();
 
   if (!assetNum) {
-    alert('Please enter an attachment asset number.');
+    showMessage('Please enter an attachment asset number.', 'error');
     return;
   }
 
@@ -762,10 +772,10 @@ async function saveNewAttachmentAsset() {
       document.getElementById('linkedAttachmentAssetId').value = assetNum;
     } else {
       const err = await resp.json().catch(() => ({}));
-      alert(err.error || err.message || 'Failed to create attachment asset.');
+      showMessage(err.error || err.message || 'Failed to create attachment asset.', 'error');
     }
   } catch (e) {
-    alert('Error creating attachment: ' + e.message);
+    showMessage('Error creating attachment: ' + e.message, 'error');
   }
 }
 
@@ -789,7 +799,7 @@ async function executeCopyConfig() {
   const targetKey = document.getElementById('selectAsset').value;
 
   if (!sourceKey) {
-    alert('Please choose a source asset.');
+    showMessage('Please choose a source asset.', 'error');
     return;
   }
 
@@ -806,10 +816,10 @@ async function executeCopyConfig() {
       showMessage(data.message || 'Configuration copied successfully!', 'success');
       await onAssetSelected();
     } else {
-      alert(data.error || 'Copy failed. Source asset has no saved configuration.');
+      showMessage(data.error || 'Copy failed. Source asset has no saved configuration.', 'error');
     }
   } catch (e) {
-    alert('Error copying configuration: ' + e.message);
+    showMessage('Error copying configuration: ' + e.message, 'error');
   }
 }
 
