@@ -15,6 +15,15 @@ function normalizeName(str) {
 }
 
 /**
+ * Standardizes key matching to prevent standard types from becoming custom tags.
+ */
+function toMatchKey(str) {
+  return normalizeName(str)
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+/**
  * Generates a clean, unique code string to satisfy D1 NOT NULL constraints on `asset_type_code`.
  */
 function generateAssetTypeCode(name, elementId) {
@@ -101,14 +110,14 @@ function addCustomAssetType() {
   notice.style.display = "none";
   if (!val) return;
 
-  var checkClean = val.toLowerCase();
+  var matchKey = toMatchKey(val);
   var matchedCheckbox = null;
   var allDefaults = document.querySelectorAll(".at-grid:not(#customAssetGrid) input[type='checkbox']");
 
   allDefaults.forEach(function(cb) {
-    var valText = String(cb.value || "").toLowerCase();
-    var lblText = String(cb.nextElementSibling ? cb.nextElementSibling.textContent : "").toLowerCase();
-    if (valText === checkClean || lblText === checkClean || (checkClean.length >= 3 && (valText.indexOf(checkClean) !== -1 || lblText.indexOf(checkClean) !== -1))) {
+    var valKey = toMatchKey(cb.value);
+    var lblKey = toMatchKey(cb.nextElementSibling ? cb.nextElementSibling.textContent : "");
+    if (valKey === matchKey || lblKey === matchKey || (matchKey.length >= 4 && (valKey.includes(matchKey) || lblKey.includes(matchKey)))) {
       matchedCheckbox = cb;
     }
   });
@@ -139,7 +148,7 @@ function addCustomAssetType() {
   }
 
   var existsCustom = customAssetTypes.some(function(c) {
-    return String(c || "").toLowerCase() === checkClean;
+    return toMatchKey(c) === matchKey;
   });
 
   if (existsCustom) {
@@ -245,17 +254,39 @@ async function loadSavedAssetTypes() {
     localStorage.setItem("driven_asset_type_count", String(normalizedSaved.length));
 
     customAssetTypes = [];
-    var defaultVals = [];
 
-    document.querySelectorAll(".at-grid:not(#customAssetGrid) input[type='checkbox']").forEach(function(cb) {
+    // Map all static checkboxes and build a lookup table of normalized keys
+    var defaultCheckboxes = document.querySelectorAll(".at-grid:not(#customAssetGrid) input[type='checkbox']");
+    var standardKeys = {};
+
+    defaultCheckboxes.forEach(function(cb) {
       var cbVal = normalizeName(cb.value);
-      defaultVals.push(cbVal);
-      cb.checked = normalizedSaved.indexOf(cbVal) !== -1;
+      var key = toMatchKey(cbVal);
+      standardKeys[key] = cb;
+      cb.checked = false; // reset baseline before loading saved values
     });
 
-    normalizedSaved.forEach(function(itemStr) {
-      if (defaultVals.indexOf(itemStr) === -1 && customAssetTypes.indexOf(itemStr) === -1) {
-        customAssetTypes.push(itemStr);
+    // Match saved types back to standard options first
+    normalizedSaved.forEach(function(savedItem) {
+      var savedKey = toMatchKey(savedItem);
+      var matchedCb = standardKeys[savedKey];
+
+      // Fuzzy check if exact normalized key match failed
+      if (!matchedCb) {
+        for (var key in standardKeys) {
+          if (savedKey.length >= 4 && (key.includes(savedKey) || savedKey.includes(key))) {
+            matchedCb = standardKeys[key];
+            break;
+          }
+        }
+      }
+
+      if (matchedCb) {
+        matchedCb.checked = true;
+      } else {
+        if (!customAssetTypes.some(function(c) { return toMatchKey(c) === savedKey; })) {
+          customAssetTypes.push(savedItem);
+        }
       }
     });
 
@@ -295,7 +326,7 @@ async function saveAssetTypes() {
     }
 
     selectedPayload.push({
-      asset_type_code: generateAssetTypeCode(val, cb.id), // Solves NOT NULL D1 constraint
+      asset_type_code: generateAssetTypeCode(val, cb.id),
       asset_type_name: val,
       category_group: categoryGroup,
       is_custom: cb.id.startsWith("custom_at_") ? 1 : 0
