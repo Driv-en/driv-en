@@ -514,11 +514,11 @@ function renderPartsRows() {
     `;
 
     const inputs = tr.querySelectorAll('input');
-    inputs[0].addEventListener('change', (e) => { partsList[idx].component = e.target.value; });
-    inputs[1].addEventListener('change', (e) => { partsList[idx].oemBrand = e.target.value; });
-    inputs[2].addEventListener('change', (e) => { partsList[idx].oemPart = e.target.value; });
-    inputs[3].addEventListener('change', (e) => { partsList[idx].crossBrand = e.target.value; });
-    inputs[4].addEventListener('change', (e) => { partsList[idx].crossPart = e.target.value; });
+    inputs[0].addEventListener('input', (e) => { partsList[idx].component = e.target.value; });
+    inputs[1].addEventListener('input', (e) => { partsList[idx].oemBrand = e.target.value; });
+    inputs[2].addEventListener('input', (e) => { partsList[idx].oemPart = e.target.value; });
+    inputs[3].addEventListener('input', (e) => { partsList[idx].crossBrand = e.target.value; });
+    inputs[4].addEventListener('input', (e) => { partsList[idx].crossPart = e.target.value; });
 
     tr.querySelector('.btn-small-remove').addEventListener('click', () => removePartRow(idx));
     tbody.appendChild(tr);
@@ -559,8 +559,8 @@ function renderCustomFieldRows() {
     `;
 
     const inputs = row.querySelectorAll('input');
-    inputs[0].addEventListener('change', (e) => { customFieldsList[index].key = e.target.value; });
-    inputs[1].addEventListener('change', (e) => { customFieldsList[index].value = e.target.value; });
+    inputs[0].addEventListener('input', (e) => { customFieldsList[index].key = e.target.value; });
+    inputs[1].addEventListener('input', (e) => { customFieldsList[index].value = e.target.value; });
     row.querySelector('.btn-small-remove').addEventListener('click', () => removeCustomFieldRow(index));
 
     container.appendChild(row);
@@ -599,7 +599,7 @@ function renderCustomItemRows() {
       <button type="button" class="btn-small-remove">Remove</button>
     `;
 
-    row.querySelector('input').addEventListener('change', (e) => { customItemsList[index] = e.target.value; });
+    row.querySelector('input').addEventListener('input', (e) => { customItemsList[index] = e.target.value; });
     row.querySelector('.btn-small-remove').addEventListener('click', () => removeCustomItemRow(index));
 
     container.appendChild(row);
