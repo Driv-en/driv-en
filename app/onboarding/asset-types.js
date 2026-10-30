@@ -6,6 +6,8 @@
 var atDirty = false;
 var customAssetTypes = [];
 var activeOrgId = "";
+var activeModal = null;
+var lastActiveElement = null;
 
 function normalizeName(str) {
   if (typeof str === 'object' && str !== null) {
@@ -101,6 +103,49 @@ function doPrintAssetTypes() {
   document.title = orgName + " | Selected Asset Types";
   window.print();
   setTimeout(function() { document.title = origTitle; }, 500);
+}
+
+/* Modal Focus Management & Accessibility Functions */
+function openModal(modalEl, closeBtnEl) {
+  if (!modalEl) return;
+  lastActiveElement = document.activeElement;
+  activeModal = modalEl;
+  modalEl.style.display = "flex";
+
+  if (closeBtnEl) {
+    setTimeout(function() { closeBtnEl.focus(); }, 50);
+  }
+}
+
+function closeModal(modalEl) {
+  if (!modalEl) return;
+  modalEl.style.display = "none";
+  if (activeModal === modalEl) activeModal = null;
+  if (lastActiveElement && typeof lastActiveElement.focus === 'function') {
+    lastActiveElement.focus();
+  }
+}
+
+function trapModalFocus(e) {
+  if (!activeModal || e.key !== 'Tab') return;
+
+  var focusables = activeModal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+  if (focusables.length === 0) return;
+
+  var firstEl = focusables[0];
+  var lastEl = focusables[focusables.length - 1];
+
+  if (e.shiftKey) {
+    if (document.activeElement === firstEl) {
+      e.preventDefault();
+      lastEl.focus();
+    }
+  } else {
+    if (document.activeElement === lastEl) {
+      e.preventDefault();
+      firstEl.focus();
+    }
+  }
 }
 
 function addCustomAssetType() {
@@ -255,7 +300,6 @@ async function loadSavedAssetTypes() {
 
     customAssetTypes = [];
 
-    // Map all static checkboxes and build a lookup table of normalized keys
     var defaultCheckboxes = document.querySelectorAll(".at-grid:not(#customAssetGrid) input[type='checkbox']");
     var standardKeys = {};
 
@@ -263,15 +307,13 @@ async function loadSavedAssetTypes() {
       var cbVal = normalizeName(cb.value);
       var key = toMatchKey(cbVal);
       standardKeys[key] = cb;
-      cb.checked = false; // reset baseline before loading saved values
+      cb.checked = false;
     });
 
-    // Match saved types back to standard options first
     normalizedSaved.forEach(function(savedItem) {
       var savedKey = toMatchKey(savedItem);
       var matchedCb = standardKeys[savedKey];
 
-      // Fuzzy check if exact normalized key match failed
       if (!matchedCb) {
         for (var key in standardKeys) {
           if (savedKey.length >= 4 && (key.includes(savedKey) || savedKey.includes(key))) {
@@ -296,7 +338,8 @@ async function loadSavedAssetTypes() {
   }
 }
 
-async function saveAssetTypes() {
+async function saveAssetTypes(e) {
+  if (e && typeof e.preventDefault === 'function') e.preventDefault();
   if (!validateOrgContext()) return;
 
   var statusEl = document.getElementById("atStepStatus");
@@ -342,8 +385,10 @@ async function saveAssetTypes() {
   var userId = userObj.id || localStorage.getItem("driven_user_id");
 
   var btnSave = document.getElementById("btnSaveAt");
-  btnSave.disabled = true;
-  btnSave.textContent = "Saving to Database...";
+  if (btnSave) {
+    btnSave.disabled = true;
+    btnSave.textContent = "Saving to Database...";
+  }
 
   var primarySaved = false;
 
@@ -373,7 +418,7 @@ async function saveAssetTypes() {
   if (primarySaved) {
     statusEl.style.color = "var(--success,#16a34a)";
     statusEl.textContent = selectedPayload.length + " asset type(s) saved under " + activeOrgId + ". Redirecting…";
-    btnSave.textContent = "Saved ✓";
+    if (btnSave) btnSave.textContent = "Saved ✓";
     atDirty = false;
 
     if (window.BroadcastChannel) {
@@ -384,21 +429,25 @@ async function saveAssetTypes() {
     }
 
     setTimeout(function() {
-      btnSave.disabled = false;
-      btnSave.textContent = "Save & Continue";
+      if (btnSave) {
+        btnSave.disabled = false;
+        btnSave.textContent = "Save & Continue";
+      }
       window.location.href = "/app/dashboard/onboarding-dashboard.html";
     }, 1200);
   } else {
     statusEl.style.color = "var(--error)";
     statusEl.textContent = "Server save failed. Please check your connection and try again.";
-    btnSave.disabled = false;
-    btnSave.textContent = "Save & Continue";
+    if (btnSave) {
+      btnSave.disabled = false;
+      btnSave.textContent = "Save & Continue";
+    }
   }
 }
 
 function initEventHandlers() {
-  var btnSave = document.getElementById("btnSaveAt");
-  if (btnSave) btnSave.addEventListener("click", saveAssetTypes);
+  var form = document.getElementById("assetTypesForm");
+  if (form) form.addEventListener("submit", saveAssetTypes);
 
   var btnPrint = document.getElementById("btnPrintSelection");
   if (btnPrint) btnPrint.addEventListener("click", doPrintAssetTypes);
@@ -442,7 +491,7 @@ function initEventHandlers() {
     cb.addEventListener("change", function() { atDirty = true; });
   });
 
-  // Help Modals Binding
+  // Help Modals Binding & Accessibility
   var btnPurpose = document.getElementById("btnPurpose");
   var btnClosePurpose = document.getElementById("btnClosePurpose");
   var purposeModal = document.getElementById("purposeModal");
@@ -451,22 +500,23 @@ function initEventHandlers() {
   var btnCloseInstructions = document.getElementById("btnCloseInstructions");
   var instructionsModal = document.getElementById("instructionsModal");
 
-  if (btnPurpose && purposeModal) btnPurpose.addEventListener("click", function() { purposeModal.style.display = "flex"; });
-  if (btnClosePurpose && purposeModal) btnClosePurpose.addEventListener("click", function() { purposeModal.style.display = "none"; });
+  if (btnPurpose && purposeModal) btnPurpose.addEventListener("click", function() { openModal(purposeModal, btnClosePurpose); });
+  if (btnClosePurpose && purposeModal) btnClosePurpose.addEventListener("click", function() { closeModal(purposeModal); });
 
-  if (btnInstructions && instructionsModal) btnInstructions.addEventListener("click", function() { instructionsModal.style.display = "flex"; });
-  if (btnCloseInstructions && instructionsModal) btnCloseInstructions.addEventListener("click", function() { instructionsModal.style.display = "none"; });
+  if (btnInstructions && instructionsModal) btnInstructions.addEventListener("click", function() { openModal(instructionsModal, btnCloseInstructions); });
+  if (btnCloseInstructions && instructionsModal) btnCloseInstructions.addEventListener("click", function() { closeModal(instructionsModal); });
 
   document.querySelectorAll("#purposeModal, #instructionsModal").forEach(function(modal) {
     modal.addEventListener("click", function(e) {
-      if (e.target === modal) modal.style.display = "none";
+      if (e.target === modal) closeModal(modal);
     });
   });
 
   document.addEventListener("keydown", function(e) {
-    if (e.key === "Escape") {
-      if (purposeModal) purposeModal.style.display = "none";
-      if (instructionsModal) instructionsModal.style.display = "none";
+    if (e.key === "Escape" && activeModal) {
+      closeModal(activeModal);
+    } else {
+      trapModalFocus(e);
     }
   });
 }
