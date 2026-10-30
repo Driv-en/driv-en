@@ -30,7 +30,7 @@
   let customerSortField = 'company_name';
   let customerSortAsc = true;
 
-  // In-memory caching flags to prevent slow re-fetching on tab switches
+  // Tab cache flags to prevent slow re-fetching on tab switches
   const tabLoaded = {
     referrers: false,
     customers: false,
@@ -115,6 +115,7 @@
     const reader = new FileReader();
     reader.onload = function(e) {
       const logoData = e.target.result;
+
       fetch(adminApi('/app-settings'), {
         method: 'POST',
         headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
@@ -144,7 +145,7 @@
     .finally(() => loadOwnerLogo());
   }
 
-  /* ===== TAB NAVIGATION & FAST SWITCHING ===== */
+  /* ===== TAB NAVIGATION ===== */
 
   function switchTab(tabName) {
     closeCustomerDetail();
@@ -171,238 +172,830 @@
     }
   }
 
-  /* ===== VISITORS TAB ===== */
+  /* ===== REFERRERS TAB LOGIC ===== */
 
-  const PAGE_PATH_MAP = {
-    '/': 'Home', '/website/': 'Home', '/website/index.html': 'Home', '/index.html': 'Home',
-    '/website/about.html': 'About', '/about.html': 'About', '/website/modules.html': 'Platform Suites',
-    '/modules.html': 'Platform Suites', '/website/module-selection.html': 'Module Selection',
-    '/module-selection.html': 'Module Selection', '/website/cart.html': 'Cart', '/cart.html': 'Cart',
-    '/website/checkout.html': 'Checkout', '/checkout.html': 'Checkout', '/website/referral-signup.html': 'Referral Program',
-    '/referral-signup.html': 'Referral Program', '/website/safety.html': 'Safety', '/safety.html': 'Safety',
-    '/website/equipment.html': 'Equipment', '/equipment.html': 'Equipment', '/website/project.html': 'Project',
-    '/project.html': 'Project', '/website/roadmap.html': 'Roadmap', '/roadmap.html': 'Roadmap',
-    '/website/legal/privacy.html': 'Privacy Policy', '/website/legal/terms.html': 'Terms of Service',
-    '/website/legal/refund.html': 'Refund Policy', '/app/dashboard/referrer-dashboard.html': 'Referrer Dashboard',
-    '/app/dashboard/owner-dashboard.html': 'Owner Dashboard', '/app/dashboard/onboarding-dashboard.html': 'Onboarding Dashboard'
-  };
-
-  function pagePathToName(path) {
-    if (!path || path === '/') return 'Home';
-    if (PAGE_PATH_MAP[path]) return PAGE_PATH_MAP[path];
-    if (PAGE_PATH_MAP['/website/' + path.replace(/^\//, '')]) return PAGE_PATH_MAP['/website/' + path.replace(/^\//, '')];
-    if (PAGE_PATH_MAP[path.replace('/website/', '/')]) return PAGE_PATH_MAP[path.replace('/website/', '/')];
-    const cleaned = path.replace('/website/', '').replace(/^\//, '').replace('.html', '');
-    if (cleaned === 'index' || cleaned === '') return 'Home';
-    return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-  }
-
-  async function loadVisitors(presetDays, presetName) {
-    try {
-      const startEl = document.getElementById('visitorDateStart');
-      const endEl = document.getElementById('visitorDateEnd');
-      let startDate, endDate;
-
-      if (presetName === 'today') {
-        const now = new Date();
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-        endDate = now.toISOString();
-        if (startEl) startEl.value = startDate.split('T')[0];
-        if (endEl) endEl.value = endDate.split('T')[0];
-      } else if (presetName === 'yesterday') {
-        const y = new Date();
-        y.setDate(y.getDate() - 1);
-        startDate = new Date(y.getFullYear(), y.getMonth(), y.getDate()).toISOString();
-        endDate = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 23, 59, 59).toISOString();
-        if (startEl) startEl.value = startDate.split('T')[0];
-        if (endEl) endEl.value = startDate.split('T')[0];
-      } else if (presetName === 'week') {
-        const w = new Date();
-        const day = w.getDay();
-        const diff = w.getDate() - day + (day === 0 ? -6 : 1);
-        const weekStart = new Date(w);
-        weekStart.setDate(diff);
-        startDate = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate()).toISOString();
-        endDate = w.toISOString();
-        if (startEl) startEl.value = startDate.split('T')[0];
-        if (endEl) endEl.value = endDate.split('T')[0];
-      } else if (presetName === 'month') {
-        const m = new Date();
-        startDate = new Date(m.getFullYear(), m.getMonth(), 1).toISOString();
-        endDate = m.toISOString();
-        if (startEl) startEl.value = startDate.split('T')[0];
-        if (endEl) endEl.value = endDate.split('T')[0];
-      } else if (presetDays) {
-        const end = new Date();
-        const start = new Date();
-        start.setDate(start.getDate() - parseInt(presetDays));
-        startDate = start.toISOString();
-        endDate = end.toISOString();
-        if (startEl) startEl.value = startDate.split('T')[0];
-        if (endEl) endEl.value = endDate.split('T')[0];
-      } else {
-        const startVal = startEl ? startEl.value : '';
-        const endVal = endEl ? endEl.value : '';
-        if (startVal && endVal) {
-          startDate = new Date(startVal + 'T00:00:00Z').toISOString();
-          endDate = new Date(endVal + 'T23:59:59Z').toISOString();
-        } else {
-          const end = new Date();
-          const start = new Date();
-          start.setDate(start.getDate() - 30);
-          startDate = start.toISOString();
-          endDate = end.toISOString();
-          if (startEl) startEl.value = startDate.split('T')[0];
-          if (endEl) endEl.value = endDate.split('T')[0];
-        }
-      }
-
-      const tbody = document.getElementById('visitorsTableBody');
-      if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">Loading visitors...</td></tr>';
-
-      const headers = getAuthHeaders();
-      const [summaryResp, listResp, sessResp] = await Promise.allSettled([
-        fetch(adminApi(`/site-visitors?summary=true&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`), { headers }),
-        fetch(adminApi(`/site-visitors?limit=1000&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`), { headers }),
-        fetch(adminApi(`/site-visitors?sessions=true&limit=1000&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`), { headers })
-      ]);
-
-      if (summaryResp.status === 'fulfilled' && summaryResp.value.ok) {
-        const summaryData = await summaryResp.value.json();
-        if (summaryData.success && summaryData.summary) {
-          const s = summaryData.summary;
-          document.getElementById('visitorTotalVisits').textContent = s.totalVisits || 0;
-          document.getElementById('visitorUniqueVisitors').textContent = s.uniqueVisitors || 0;
-          document.getElementById('visitorUniqueSessions').textContent = s.uniqueSessions || 0;
-          document.getElementById('visitorUniqueCountries').textContent = s.uniqueCountries || 0;
-          document.getElementById('visitorReferralVisits').textContent = s.referralVisits || 0;
-          document.getElementById('visitorTopDevice').textContent = (s.deviceBreakdown && s.deviceBreakdown[0]) ? s.deviceBreakdown[0].device_type : '—';
-          document.getElementById('visitorTopBrowser').textContent = (s.browserBreakdown && s.browserBreakdown[0]) ? s.browserBreakdown[0].browser : '—';
-          document.getElementById('visitorTopOS').textContent = (s.osBreakdown && s.osBreakdown[0]) ? s.osBreakdown[0].os : '—';
-
-          const pagesHtml = (s.topPages || []).map(p => `
-            <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">
-              <span style="color:var(--text);">${escapeHtml(pagePathToName(p.page_path))}</span>
-              <span style="color:var(--text-muted);">${p.count}</span>
-            </div>
-          `).join('');
-          document.getElementById('visitorTopPages').innerHTML = pagesHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
-
-          const countriesHtml = (s.topCountries || []).map(c => `
-            <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">
-              <span style="color:var(--text);">${escapeHtml(c.country || 'Unknown')}</span>
-              <span style="color:var(--text-muted);">${c.count}</span>
-            </div>
-          `).join('');
-          document.getElementById('visitorTopCountries').innerHTML = countriesHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
-
-          const browsersHtml = (s.browserBreakdown || []).map(b => `
-            <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">
-              <span style="color:var(--text);text-transform:capitalize;">${escapeHtml(b.browser)}</span>
-              <span style="color:var(--text-muted);">${b.count}</span>
-            </div>
-          `).join('');
-          document.getElementById('visitorBrowsers').innerHTML = browsersHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
-
-          const osHtml = (s.osBreakdown || []).map(o => `
-            <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">
-              <span style="color:var(--text);text-transform:capitalize;">${escapeHtml(o.os)}</span>
-              <span style="color:var(--text-muted);">${o.count}</span>
-            </div>
-          `).join('');
-          document.getElementById('visitorOS').innerHTML = osHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
-        }
-      }
-
-      if (listResp.status === 'fulfilled' && listResp.value.ok) {
-        const listData = await listResp.value.json();
-        allVisitors = (listData.success && listData.visitors) ? listData.visitors : [];
-        renderVisitorTable();
-      }
-
-      if (sessResp.status === 'fulfilled' && sessResp.value.ok) {
-        const sessData = await sessResp.value.json();
-        allSessions = (sessData.success && sessData.sessions) ? sessData.sessions : [];
-        renderSessionsTable();
-      }
-
-      tabLoaded.visitors = true;
-    } catch (e) {
-      console.error('loadVisitors error:', e);
-    }
-  }
-
-  function sortVisitors(column) {
-    if (visitorSortColumn === column) {
-      visitorSortDirection = visitorSortDirection === 'asc' ? 'desc' : 'asc';
-    } else {
-      visitorSortColumn = column;
-      visitorSortDirection = 'asc';
-    }
-    renderVisitorTable();
-  }
-
-  function renderVisitorTable() {
-    const tbody = document.getElementById('visitorsTableBody');
+  async function loadPartners() {
+    const tbody = document.getElementById('partnersTableBody');
     if (!tbody) return;
-    if (!allVisitors || allVisitors.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No visitor data for this date range.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading…</td></tr>';
+
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = '';
+
+    try {
+      const resp = await fetch(adminApi('/referral-partners'), { headers: getAuthHeaders() });
+      if (!resp || !resp.ok) {
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">Referral partner service unavailable.</td></tr>';
+        return;
+      }
+      const data = await resp.json();
+
+      if (data && data.success && data.partners) {
+        allPartners = data.partners;
+        renderStats(data.partners);
+        updateSortIndicators();
+        renderTable(data.partners);
+        tabLoaded.referrers = true;
+      } else {
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">No referral partners found.</td></tr>';
+        if (data && data.error) showError(data.error);
+      }
+    } catch (e) {
+      console.error('Load partners failed:', e);
+      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">Failed to load partners.</td></tr>';
+    }
+  }
+
+  function renderStats(partners) {
+    const total = partners.length;
+    const pending = partners.filter(p => p.status === 'Pending').length;
+    const approved = partners.filter(p => p.status === 'Approved').length;
+    const rejected = partners.filter(p => p.status === 'Rejected').length;
+
+    const elTotal = document.getElementById('statTotal');
+    const elPending = document.getElementById('statPending');
+    const elApproved = document.getElementById('statApproved');
+    const elRejected = document.getElementById('statRejected');
+
+    if (elTotal) elTotal.textContent = total;
+    if (elPending) elPending.textContent = pending;
+    if (elApproved) elApproved.textContent = approved;
+    if (elRejected) elRejected.textContent = rejected;
+  }
+
+  function renderTable(partners) {
+    const tbody = document.getElementById('partnersTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (partners.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">No referral partners yet.</td></tr>';
       return;
     }
 
-    const sorted = allVisitors.slice().sort((a, b) => {
-      let aVal = a[visitorSortColumn] || '';
-      let bVal = b[visitorSortColumn] || '';
-      const dir = visitorSortDirection === 'asc' ? 1 : -1;
-      return aVal < bVal ? -1 * dir : aVal > bVal ? 1 * dir : 0;
+    partners = sortPartners(partners);
+
+    partners.forEach(p => {
+      const row = document.createElement('tr');
+      row.dataset.name = (p.partner_name || '').toLowerCase();
+      row.dataset.email = (p.partner_email || '').toLowerCase();
+
+      if (p.status === 'Approved' && p.active === 0) {
+        row.classList.add('partner-row-inactive');
+      }
+
+      let statusBadge = '';
+      if (p.status === 'Approved') {
+        statusBadge = '<span class="dash-badge dash-badge-success">Approved</span>';
+        if (p.active === 0) {
+          statusBadge += ' <span class="dash-badge dash-badge-muted">Inactive</span>';
+        }
+      } else if (p.status === 'Pending') {
+        statusBadge = '<span class="dash-badge dash-badge-warning">Pending</span>';
+      } else if (p.status === 'Pending W-9 Review') {
+        statusBadge = '<span class="dash-badge dash-badge-warning">W-9 Review</span>';
+      } else if (p.status === 'Rejected') {
+        statusBadge = '<span class="dash-badge dash-badge-danger">Rejected</span>';
+      } else {
+        statusBadge = '<span class="dash-badge dash-badge-muted">' + escapeHtml(p.status || 'Unknown') + '</span>';
+      }
+
+      let w9Cell = '';
+      if (p.w9_attachment && !String(p.w9_attachment).startsWith('DEBUG:')) {
+        w9Cell = '<button class="owner-action-btn owner-btn-w9" data-action="view-w9" data-id="' + escapeHtml(p.id) + '">View W-9</button>';
+      } else {
+        w9Cell = '<span style="color:var(--text-muted);font-size:13px;">No W-9</span>';
+      }
+
+      let w9StatusCell = '';
+      if (!p.w9_attachment || String(p.w9_attachment).startsWith('DEBUG:')) {
+        w9StatusCell = '<span class="dash-badge dash-badge-muted">None</span>';
+      } else if (p.w9_expiration_date) {
+        const expDate = new Date(p.w9_expiration_date + 'T23:59:59');
+        if (expDate < new Date()) {
+          w9StatusCell = '<span class="dash-badge dash-badge-danger">Expired</span>';
+        } else {
+          w9StatusCell = '<span class="dash-badge dash-badge-success">Current</span>';
+        }
+      } else {
+        w9StatusCell = '<span class="dash-badge dash-badge-warning">No Expiry Set</span>';
+      }
+
+      const codeCell = p.referral_code ? '<span style="font-family:monospace;font-weight:600;color:var(--primary);">' + escapeHtml(p.referral_code) + '</span>' : '<span style="color:var(--text-muted);">—</span>';
+
+      let achCell = '';
+      if (p.bank_name && p.account_number_last4) {
+        achCell = '<span class="dash-badge dash-badge-success" title="' + escapeHtml(p.bank_name) + ' ••••' + escapeHtml(p.account_number_last4) + '">On File</span>';
+      } else if (p.has_voided_check) {
+        achCell = '<span class="dash-badge dash-badge-success" title="Voided check uploaded">Check</span>';
+      } else {
+        achCell = '<span class="dash-badge dash-badge-muted">None</span>';
+      }
+
+      let lastReferredCell = '—';
+      if (p.last_referred) {
+        lastReferredCell = new Date(p.last_referred).toLocaleDateString();
+      }
+
+      const emailCell = p.partner_email
+        ? '<a href="mailto:' + escapeHtml(p.partner_email) + '" class="partner-email-link">' + escapeHtml(p.partner_email) + '</a>'
+        : '—';
+
+      let actions = '';
+      if (p.status === 'Pending') {
+        actions = '<button class="owner-action-btn owner-btn-approve" data-action="approve" data-id="' + escapeHtml(p.id) + '" data-name="' + escapeHtml(p.partner_name) + '">Approve</button>';
+        actions += '<button class="owner-action-btn owner-btn-reject" data-action="reject" data-id="' + escapeHtml(p.id) + '" data-name="' + escapeHtml(p.partner_name) + '">Reject</button>';
+      } else if (p.status === 'Pending W-9 Review') {
+        actions = '<button class="owner-action-btn owner-btn-approve" data-action="reapprove" data-id="' + escapeHtml(p.id) + '" data-name="' + escapeHtml(p.partner_name) + '">Re-Approve</button>';
+      } else if (p.status === 'Approved') {
+        if (p.active === 1) {
+          actions = '<button class="owner-action-btn owner-btn-deactivate" data-action="toggle-active" data-id="' + escapeHtml(p.id) + '" data-name="' + escapeHtml(p.partner_name) + '">Deactivate</button>';
+        } else {
+          actions = '<button class="owner-action-btn owner-btn-activate" data-action="toggle-active" data-id="' + escapeHtml(p.id) + '" data-name="' + escapeHtml(p.partner_name) + '">Activate</button>';
+        }
+      } else {
+        actions = '<span style="color:var(--text-muted);">—</span>';
+      }
+
+      const date = p.created_at ? new Date(p.created_at).toLocaleDateString() : '—';
+
+      row.innerHTML =
+        '<td>' + escapeHtml(p.partner_name || '—') + '</td>' +
+        '<td>' + emailCell + '</td>' +
+        '<td>' + escapeHtml(p.partner_phone || '—') + '</td>' +
+        '<td>' + statusBadge + '</td>' +
+        '<td>' + codeCell + '</td>' +
+        '<td>' + w9Cell + '</td>' +
+        '<td>' + w9StatusCell + '</td>' +
+        '<td>' + achCell + '</td>' +
+        '<td>' + lastReferredCell + '</td>' +
+        '<td>' + date + '</td>' +
+        '<td>' + actions + '</td>';
+
+      tbody.appendChild(row);
     });
 
-    tbody.innerHTML = sorted.map(v => `
-      <tr>
-        <td style="white-space:nowrap;">${new Date(v.created_at).toLocaleString()}</td>
-        <td>${escapeHtml(pagePathToName(v.page_path))}</td>
-        <td>${escapeHtml(v.country || '—')}</td>
-        <td style="text-transform:capitalize;">${escapeHtml(v.device_type || '—')}</td>
-        <td style="text-transform:capitalize;">${escapeHtml(v.browser || '—')}</td>
-        <td style="text-transform:capitalize;">${escapeHtml(v.os || '—')}</td>
-        <td>${escapeHtml(v.referral_code || '—')}</td>
-        <td>${escapeHtml(v.external_referrer || '—')}</td>
-        <td>${v.time_on_page ? v.time_on_page + 's' : '—'}</td>
-      </tr>
-    `).join('');
-  }
-
-  function sortSessions(column) {
-    if (sessionSortColumn === column) {
-      sessionSortDirection = sessionSortDirection === 'asc' ? 'desc' : 'asc';
-    } else {
-      sessionSortColumn = column;
-      sessionSortDirection = 'asc';
+    const btns = tbody.querySelectorAll('[data-action]');
+    for (let b = 0; b < btns.length; b++) {
+      btns[b].addEventListener('click', function() {
+        const action = this.getAttribute('data-action');
+        const id = this.getAttribute('data-id');
+        const name = this.getAttribute('data-name') || '';
+        if (action === 'approve') openApproveModal(id, name);
+        else if (action === 'reject') openRejectModal(id, name);
+        else if (action === 'reapprove') reapproveW9(id, name);
+        else if (action === 'toggle-active') toggleActive(id, name);
+        else if (action === 'view-w9') viewW9(id);
+      });
     }
-    renderSessionsTable();
   }
 
-  function renderSessionsTable() {
-    const tbody = document.getElementById('sessionsTableBody');
-    if (!tbody) return;
-    if (!allSessions || allSessions.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No session data.</td></tr>';
+  function filterPartners() {
+    const searchEl = document.getElementById('searchInput');
+    if (!searchEl) return;
+    const query = searchEl.value.toLowerCase();
+    const rows = document.querySelectorAll('#partnersTableBody tr');
+    rows.forEach(row => {
+      const name = row.dataset.name || '';
+      const email = row.dataset.email || '';
+      row.style.display = (name.indexOf(query) !== -1 || email.indexOf(query) !== -1) ? '' : 'none';
+    });
+  }
+
+  function sortBy(column) {
+    if (sortColumn === column) {
+      sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortColumn = column;
+      sortDirection = 'asc';
+    }
+    updateSortIndicators();
+    renderTable(allPartners);
+  }
+
+  function updateSortIndicators() {
+    document.querySelectorAll('.sortable').forEach(th => {
+      th.classList.remove('active', 'asc');
+      if (th.dataset.sort === sortColumn) {
+        th.classList.add('active');
+        if (sortDirection === 'asc') th.classList.add('asc');
+      }
+    });
+  }
+
+  function getW9SortValue(p) {
+    if (!p.w9_attachment || String(p.w9_attachment).startsWith('DEBUG:')) return 0;
+    if (p.w9_expiration_date) {
+      const expDate = new Date(p.w9_expiration_date + 'T23:59:59');
+      if (expDate < new Date()) return 1;
+      return 2;
+    }
+    return 3;
+  }
+
+  function sortPartners(partners) {
+    const col = sortColumn;
+    const dir = sortDirection === 'asc' ? 1 : -1;
+    return partners.slice().sort((a, b) => {
+      let aVal, bVal;
+      if (col === 'w9_status') {
+        aVal = getW9SortValue(a);
+        bVal = getW9SortValue(b);
+      } else if (col === 'created_at' || col === 'last_referred') {
+        aVal = (a[col] || '');
+        bVal = (b[col] || '');
+        if (!aVal && bVal) return 1;
+        if (aVal && !bVal) return -1;
+        if (!aVal && !bVal) return 0;
+      } else {
+        aVal = String(a[col] || '').toLowerCase();
+        bVal = String(b[col] || '').toLowerCase();
+      }
+      if (aVal < bVal) return -1 * dir;
+      if (aVal > bVal) return 1 * dir;
+      return 0;
+    });
+  }
+
+  function viewW9(partnerId) {
+    window.open(adminApi('/w9-download?partnerId=' + encodeURIComponent(partnerId)), '_blank');
+  }
+
+  /* ===== APPROVE & REJECT MODALS ===== */
+
+  function generateReferralCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = 'DRV-';
+    for (let i = 0; i < 6; i++) {
+      code += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return code;
+  }
+
+  function defaultW9Expiration() {
+    return new Date().getFullYear() + '-12-31';
+  }
+
+  function openApproveModal(partnerId, partnerName) {
+    currentApprovePartnerId = partnerId;
+    const nameEl = document.getElementById('approvePartnerName');
+    const codeEl = document.getElementById('approveReferralCode');
+    const expEl = document.getElementById('approveW9Expiration');
+    const modalEl = document.getElementById('approveModal');
+
+    if (nameEl) nameEl.textContent = partnerName || '—';
+    if (codeEl) codeEl.value = generateReferralCode();
+    if (expEl) expEl.value = defaultW9Expiration();
+    if (modalEl) modalEl.classList.add('active');
+  }
+
+  function closeApproveModal() {
+    const modalEl = document.getElementById('approveModal');
+    if (modalEl) modalEl.classList.remove('active');
+    currentApprovePartnerId = null;
+  }
+
+  async function confirmApprove() {
+    const partnerId = currentApprovePartnerId;
+    const codeEl = document.getElementById('approveReferralCode');
+    const expEl = document.getElementById('approveW9Expiration');
+    const referralCode = codeEl ? codeEl.value.trim() : '';
+    const w9Expiration = expEl ? expEl.value : '';
+
+    if (!partnerId) return;
+    if (!referralCode) {
+      showError('Referral code is required.');
       return;
     }
 
-    tbody.innerHTML = allSessions.map(s => `
-      <tr>
-        <td style="white-space:nowrap;">${new Date(s.firstVisit).toLocaleString()}</td>
-        <td>${s.pages ? s.pages.length : 0}</td>
-        <td style="max-width:300px;">${(s.pages || []).map(p => escapeHtml(pagePathToName(p.pagePath))).join(', ')}</td>
-        <td>${s.totalTimeOnSite ? s.totalTimeOnSite + 's' : '—'}</td>
-        <td>${escapeHtml(s.country || '—')}</td>
-        <td style="text-transform:capitalize;">${escapeHtml(s.deviceType || '—')}</td>
-        <td style="text-transform:capitalize;">${escapeHtml(s.browser || '—')}</td>
-        <td style="text-transform:capitalize;">${escapeHtml(s.os || '—')}</td>
-        <td>${escapeHtml(s.referralCode || '—')}</td>
-      </tr>
-    `).join('');
+    const confirmBtn = document.querySelector('#approveModal .owner-modal-confirm');
+    if (confirmBtn) {
+      confirmBtn.textContent = 'Approving…';
+      confirmBtn.disabled = true;
+    }
+
+    try {
+      const resp = await fetch(adminApi('/referral-partners'), {
+        method: 'POST',
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          action: 'approve',
+          partnerId: partnerId,
+          referralCode: referralCode,
+          w9ExpirationDate: w9Expiration
+        })
+      });
+      if (!resp || !resp.ok) {
+        showError('Failed to approve partner.');
+        return;
+      }
+      const data = await resp.json();
+
+      if (data && data.success) {
+        closeApproveModal();
+        loadPartners();
+        if (data.emailSent === false) {
+          showError('Partner approved, but email failed: ' + (data.emailError || 'Unknown error'));
+        } else {
+          showError('');
+        }
+      } else {
+        showError(data ? data.error : 'Failed to approve partner.');
+      }
+    } catch (e) {
+      showError('Network error. Please try again.');
+    } finally {
+      if (confirmBtn) {
+        confirmBtn.textContent = 'Approve Partner';
+        confirmBtn.disabled = false;
+      }
+    }
+  }
+
+  function openRejectModal(partnerId, partnerName) {
+    currentRejectPartnerId = partnerId;
+    const nameEl = document.getElementById('rejectPartnerName');
+    const reasonEl = document.getElementById('rejectReason');
+    const modalEl = document.getElementById('rejectModal');
+
+    if (nameEl) nameEl.textContent = partnerName || '—';
+    if (reasonEl) reasonEl.value = '';
+    if (modalEl) modalEl.classList.add('active');
+  }
+
+  function closeRejectModal() {
+    const modalEl = document.getElementById('rejectModal');
+    if (modalEl) modalEl.classList.remove('active');
+    currentRejectPartnerId = null;
+  }
+
+  async function confirmReject() {
+    const partnerId = currentRejectPartnerId;
+    const reasonEl = document.getElementById('rejectReason');
+    const reason = reasonEl ? reasonEl.value.trim() : '';
+
+    if (!partnerId) return;
+
+    const confirmBtn = document.querySelector('#rejectModal .owner-modal-confirm');
+    if (confirmBtn) {
+      confirmBtn.textContent = 'Rejecting…';
+      confirmBtn.disabled = true;
+    }
+
+    try {
+      const resp = await fetch(adminApi('/referral-partners'), {
+        method: 'POST',
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ action: 'reject', partnerId: partnerId, reason: reason })
+      });
+      if (!resp || !resp.ok) {
+        showError('Failed to reject partner.');
+        return;
+      }
+      const data = await resp.json();
+
+      if (data && data.success) {
+        closeRejectModal();
+        loadPartners();
+      } else {
+        showError(data ? data.error : 'Failed to reject partner.');
+      }
+    } catch (e) {
+      showError('Network error. Please try again.');
+    } finally {
+      if (confirmBtn) {
+        confirmBtn.textContent = 'Reject Partner';
+        confirmBtn.disabled = false;
+      }
+    }
+  }
+
+  async function reapproveW9(partnerId, partnerName) {
+    if (!confirm('Re-approve ' + partnerName + '? Their referral link will be reactivated.')) return;
+    try {
+      const resp = await fetch(adminApi('/referral-partners'), {
+        method: 'POST',
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ action: 'reapprove_w9', partnerId: partnerId })
+      });
+      if (!resp || !resp.ok) {
+        showError('Failed to re-approve partner.');
+        return;
+      }
+      const data = await resp.json();
+      if (data && data.success) {
+        showError(data.message || 'Partner re-approved');
+        loadPartners();
+      } else {
+        showError(data ? data.error : 'Failed to re-approve');
+      }
+    } catch (e) {
+      showError('Network error. Please try again.');
+    }
+  }
+
+  async function toggleActive(partnerId, partnerName) {
+    if (!confirm('Toggle active state for ' + partnerName + '?')) return;
+    try {
+      const resp = await fetch(adminApi('/referral-partners'), {
+        method: 'POST',
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ action: 'toggle_active', partnerId: partnerId })
+      });
+      if (!resp || !resp.ok) {
+        showError('Failed to toggle active state.');
+        return;
+      }
+      const data = await resp.json();
+      if (data && data.success) {
+        showError(data.message || 'State toggled');
+        loadPartners();
+      } else {
+        showError(data ? data.error : 'Failed to toggle state');
+      }
+    } catch (e) {
+      showError('Network error. Please try again.');
+    }
+  }
+
+  /* ===== CUSTOMERS TAB LOGIC ===== */
+
+  async function loadCustomers() {
+    const listEl = document.getElementById('customerList');
+    if (!listEl) return;
+    listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading customers…</div>';
+
+    try {
+      const resp = await fetch(adminApi('/customers'), { headers: getAuthHeaders() });
+      if (!resp || !resp.ok) {
+        listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><p>Customer management service unavailable.</p></div>';
+        return;
+      }
+      const data = await resp.json();
+
+      if (data && data.success && data.customers) {
+        allCustomers = data.customers.filter(c => {
+          const orgId = String(c.org_id || c.customer_id || c.id || '').trim().toLowerCase();
+          return orgId !== 'org_dsi' && orgId !== 'dsi';
+        });
+
+        renderCustomerStats(allCustomers);
+        customerCurrentPage = 1;
+        renderCustomersTable();
+        tabLoaded.customers = true;
+      } else {
+        listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><p>' + (data ? data.error : 'No customers found.') + '</p></div>';
+      }
+    } catch (e) {
+      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><p>Failed to load customers.</p></div>';
+    }
+  }
+
+  function renderCustomerStats(customers) {
+    const total = customers.length;
+    const active = customers.filter(c => c.subscription_status === 'active').length;
+    const trial = customers.filter(c => c.subscription_status === 'trial' || c.subscription_status === 'trialing').length;
+    const pending = customers.filter(c => !c.subscription_status || c.subscription_status === 'pending' || c.subscription_status === 'inactive').length;
+
+    document.getElementById('custStatTotal').textContent = total;
+    document.getElementById('custStatActive').textContent = active;
+    document.getElementById('custStatTrial').textContent = trial;
+    document.getElementById('custStatPending').textContent = pending;
+  }
+
+  function getFilteredCustomers() {
+    const queryEl = document.getElementById('customerSearchInput');
+    const query = queryEl && queryEl.value ? queryEl.value.toLowerCase().trim() : '';
+
+    const baseList = allCustomers.filter(c => {
+      const orgId = String(c.org_id || c.customer_id || c.id || '').trim().toLowerCase();
+      return orgId !== 'org_dsi' && orgId !== 'dsi';
+    });
+
+    if (!query) return baseList;
+
+    return baseList.filter(c => {
+      const name = (c.company_name || c.organization_name || c.name || '').toLowerCase();
+      const email = (c.admin_email || c.contact_email || c.email || '').toLowerCase();
+      return name.indexOf(query) !== -1 || email.indexOf(query) !== -1;
+    });
+  }
+
+  function renderCustomersTable() {
+    const listEl = document.getElementById('customerList');
+    if (!listEl) return;
+    const filtered = getFilteredCustomers();
+    const totalPages = Math.ceil(filtered.length / customerPageSize);
+    if (customerCurrentPage > totalPages) customerCurrentPage = totalPages || 1;
+    const startIdx = (customerCurrentPage - 1) * customerPageSize;
+    const pageData = filtered.slice(startIdx, startIdx + customerPageSize);
+
+    if (filtered.length === 0) {
+      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><p>No customers registered yet.</p></div>';
+      return;
+    }
+
+    let html = '<div class="owner-table-wrap" style="overflow-x:auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:0 4px;">';
+    html += '<table class="owner-data-table" style="width:100%;border-collapse:collapse;font-size:14px;background:#ffffff;">';
+    html += '<thead><tr style="border-bottom:2px solid #e2e8f0;text-align:left;background:#f8fafc;">';
+    html += '<th style="padding:10px 8px;cursor:pointer;color:#334155;" id="thCustName">Customer Name</th>';
+    html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Employees</th>';
+    html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Assets</th>';
+    html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Inspections</th>';
+    html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Completed PMs</th>';
+    html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Completed WOs</th>';
+    html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Equipment Transfers</th>';
+    html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Fuel Purchases</th>';
+    html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Receipts (AI)</th>';
+    html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Manuals (AI)</th>';
+    html += '</tr></thead><tbody>';
+
+    for (let i = 0; i < pageData.length; i++) {
+      const c = pageData[i];
+      const name = escapeHtml(c.company_name || c.organization_name || c.name || 'Unknown');
+      const idx = startIdx + i;
+      html += `<tr class="owner-customer-row" data-idx="${idx}" style="cursor:pointer;border-bottom:1px solid #e2e8f0;color:#1e293b;">`;
+      html += `<td style="padding:10px 8px;font-weight:500;color:#1e293b;">${name}</td>`;
+      html += `<td style="padding:10px 8px;text-align:center;color:#334155;">${c.employee_count || 0}</td>`;
+      html += `<td style="padding:10px 8px;text-align:center;color:#334155;">${c.asset_count || 0}</td>`;
+      html += `<td style="padding:10px 8px;text-align:center;color:#334155;">${c.inspection_count || 0}</td>`;
+      html += `<td style="padding:10px 8px;text-align:center;color:#334155;">${c.pm_count || 0}</td>`;
+      html += `<td style="padding:10px 8px;text-align:center;color:#334155;">${c.wo_count || 0}</td>`;
+      html += `<td style="padding:10px 8px;text-align:center;color:#334155;">${c.transfer_count || 0}</td>`;
+      html += `<td style="padding:10px 8px;text-align:center;color:#334155;">${c.fuel_count || 0}</td>`;
+      html += `<td style="padding:10px 8px;text-align:center;color:#334155;">${c.receipt_count || 0}</td>`;
+      html += `<td style="padding:10px 8px;text-align:center;color:#334155;">${c.manual_count || 0}</td>`;
+      html += `</tr>`;
+    }
+
+    let totEmp = 0, totAsset = 0, totInsp = 0, totPM = 0, totWO = 0, totTransfer = 0, totFuel = 0, totReceipt = 0, totManual = 0;
+    filtered.forEach(c => {
+      totEmp += c.employee_count || 0;
+      totAsset += c.asset_count || 0;
+      totInsp += c.inspection_count || 0;
+      totPM += c.pm_count || 0;
+      totWO += c.wo_count || 0;
+      totTransfer += c.transfer_count || 0;
+      totFuel += c.fuel_count || 0;
+      totReceipt += c.receipt_count || 0;
+      totManual += c.manual_count || 0;
+    });
+
+    html += '<tr style="border-top:2px solid #e2e8f0;font-weight:700;background:#f8fafc;color:#1e293b;">';
+    html += `<td style="padding:10px 8px;color:#1e293b;">TOTAL (${filtered.length} customers)</td>`;
+    html += `<td style="padding:10px 8px;text-align:center;color:#334155;">${totEmp}</td>`;
+    html += `<td style="padding:10px 8px;text-align:center;color:#334155;">${totAsset}</td>`;
+    html += `<td style="padding:10px 8px;text-align:center;color:#334155;">${totInsp}</td>`;
+    html += `<td style="padding:10px 8px;text-align:center;color:#334155;">${totPM}</td>`;
+    html += `<td style="padding:10px 8px;text-align:center;color:#334155;">${totWO}</td>`;
+    html += `<td style="padding:10px 8px;text-align:center;color:#334155;">${totTransfer}</td>`;
+    html += `<td style="padding:10px 8px;text-align:center;color:#334155;">${totFuel}</td>`;
+    html += `<td style="padding:10px 8px;text-align:center;color:#334155;">${totReceipt}</td>`;
+    html += `<td style="padding:10px 8px;text-align:center;color:#334155;">${totManual}</td>`;
+    html += '</tr>';
+
+    html += '</tbody></table></div>';
+
+    if (totalPages > 1) {
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;">';
+      html += `<span style="font-size:13px;color:var(--text-muted);">Page ${customerCurrentPage} of ${totalPages} (${filtered.length} customers)</span>`;
+      html += '<div>';
+      if (customerCurrentPage > 1) {
+        html += `<button class="owner-refresh-btn" id="btnCustPrev" style="margin-right:8px;">← Prev</button>`;
+      }
+      if (customerCurrentPage < totalPages) {
+        html += `<button class="owner-refresh-btn" id="btnCustNext">Next →</button>`;
+      }
+      html += '</div></div>';
+    }
+
+    listEl.innerHTML = html;
+
+    listEl.querySelectorAll('.owner-customer-row').forEach(row => {
+      row.addEventListener('click', () => {
+        showCustomerDetail(parseInt(row.getAttribute('data-idx'), 10));
+      });
+    });
+
+    const thName = document.getElementById('thCustName');
+    if (thName) {
+      thName.addEventListener('click', () => sortByCustomerField('company_name'));
+    }
+
+    const btnPrev = document.getElementById('btnCustPrev');
+    if (btnPrev) {
+      btnPrev.addEventListener('click', () => {
+        customerCurrentPage--;
+        renderCustomersTable();
+      });
+    }
+
+    const btnNext = document.getElementById('btnCustNext');
+    if (btnNext) {
+      btnNext.addEventListener('click', () => {
+        customerCurrentPage++;
+        renderCustomersTable();
+      });
+    }
+  }
+
+  function sortByCustomerField(field) {
+    if (customerSortField === field) { customerSortAsc = !customerSortAsc; }
+    else { customerSortField = field; customerSortAsc = true; }
+    allCustomers.sort((a, b) => {
+      const va = (a[field] || '').toString().toLowerCase();
+      const vb = (b[field] || '').toString().toLowerCase();
+      if (va < vb) return customerSortAsc ? -1 : 1;
+      if (va > vb) return customerSortAsc ? 1 : -1;
+      return 0;
+    });
+    customerCurrentPage = 1;
+    renderCustomersTable();
+  }
+
+  function showCustomerDetail(idx) {
+    const c = getFilteredCustomers()[idx] || allCustomers[idx];
+    if (!c) return;
+
+    const modal = document.getElementById('customerDetailModal');
+    if (!modal) return;
+
+    let modules = c.activated_modules;
+    try { modules = JSON.parse(modules || '[]'); } catch(e) { modules = modules ? [modules] : []; }
+    const moduleStr = modules.length ? modules.join(', ') : '—';
+
+    const subDate = c.activation_date ? new Date(c.activation_date).toLocaleDateString() : '—';
+    const expDate = c.expiration_date ? new Date(c.expiration_date).toLocaleDateString() : '—';
+    const createdDate = c.created_at ? new Date(c.created_at).toLocaleDateString() : '—';
+
+    let html = '<div style="background:#ffffff;color:#1e293b;border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.35);">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
+    html += '<h3 style="margin:0;color:#1e293b;">' + escapeHtml(c.company_name || c.organization_name || c.name || 'Unknown') + '</h3>';
+    html += '<button id="btnCloseCustDetail" style="background:none;border:none;font-size:26px;cursor:pointer;color:#64748b;line-height:1;">×</button>';
+    html += '</div>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;font-size:14px;color:#334155;">';
+    html += '<div><strong>Customer #/OrgID:</strong><br>' + escapeHtml(c.customer_id || c.org_id || '—') + '</div>';
+    html += '<div><strong>Subscription Date:</strong><br>' + subDate + '</div>';
+    html += '<div><strong>Expiration Date:</strong><br>' + expDate + '</div>';
+    html += '<div><strong>Modules:</strong><br>' + escapeHtml(moduleStr) + '</div>';
+    html += '<div><strong>Subscription Status:</strong><br>' + escapeHtml(c.subscription_status || c.customer_status || '—') + '</div>';
+    html += '<div><strong>Subscription Type:</strong><br>' + escapeHtml(c.subscription_type || '—') + '</div>';
+    html += '<div><strong>Admin Email:</strong><br>' + escapeHtml(c.admin_email || c.contact_email || '—') + '</div>';
+    html += '<div><strong>Admin Phone:</strong><br>' + escapeHtml(c.admin_phone || '—') + '</div>';
+    html += '<div><strong>Address:</strong><br>' + escapeHtml([c.billing_address, c.city, c.state, c.zip].filter(Boolean).join(', ') || '—') + '</div>';
+    html += '<div><strong>Date Added:</strong><br>' + createdDate + '</div>';
+    if (c.referrer) {
+      html += '<div><strong>Referrer:</strong><br>' + escapeHtml(c.referrer) + '</div>';
+    }
+    html += '<div><strong>Employees:</strong><br>' + (c.employee_count || 0) + '</div>';
+    html += '<div><strong>Assets:</strong><br>' + (c.asset_count || 0) + '</div>';
+    html += '<div><strong>Inspections:</strong><br>' + (c.inspection_count || 0) + '</div>';
+    html += '<div><strong>Completed PMs:</strong><br>' + (c.pm_count || 0) + '</div>';
+    html += '<div><strong>Work Orders:</strong><br>' + (c.wo_count || 0) + '</div>';
+    html += '<div><strong>Equipment Transfers:</strong><br>' + (c.transfer_count || 0) + '</div>';
+    html += '<div><strong>Fuel Purchases:</strong><br>' + (c.fuel_count || 0) + '</div>';
+    html += '<div><strong>Receipts (AI):</strong><br>' + (c.receipt_count || 0) + '</div>';
+    html += '<div><strong>Manuals (AI):</strong><br>' + (c.manual_count || 0) + '</div>';
+    html += '<div><strong>Orders:</strong><br>' + (c.order_count || 0) + '</div>';
+    html += '</div></div>';
+
+    modal.innerHTML = html;
+    modal.style.display = 'flex';
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.background = 'rgba(0,0,0,0.55)';
+    modal.style.zIndex = '9999';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+
+    const closeBtn = document.getElementById('btnCloseCustDetail');
+    if (closeBtn) closeBtn.addEventListener('click', closeCustomerDetail);
+
+    modal.onclick = function(e) {
+      if (e.target === modal) closeCustomerDetail();
+    };
+  }
+
+  function closeCustomerDetail() {
+    const modal = document.getElementById('customerDetailModal');
+    if (modal) { modal.style.display = 'none'; modal.innerHTML = ''; }
+  }
+
+  /* ===== SYSTEM STATUS & AI USAGE ===== */
+
+  async function loadSystemStatus() {
+    const lastCheckEl = document.getElementById('sysLastCheck');
+    if (lastCheckEl) lastCheckEl.textContent = new Date().toLocaleString();
+
+    const endpoints = [
+      { id: 'sysWorkerAuth', url: '/auth/session' },
+      { id: 'sysWorkerReferral', url: '/referral/session' },
+      { id: 'sysWorkerCheckout', url: '/api/health' },
+      { id: 'sysPagesFunctions', url: '/api/admin/referral-partners' }
+    ];
+
+    for (let i = 0; i < endpoints.length; i++) {
+      const ep = endpoints[i];
+      const el = document.getElementById(ep.id);
+      if (!el) continue;
+
+      el.textContent = 'Checking...';
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        const resp = await fetch(ep.url, { signal: controller.signal, headers: getAuthHeaders() });
+        clearTimeout(timeout);
+        el.textContent = 'OK (' + resp.status + ')';
+        if (el.parentElement && el.parentElement.querySelector('.sys-status-dot')) {
+          el.parentElement.querySelector('.sys-status-dot').className = 'sys-status-dot sys-dot-ok';
+        }
+      } catch (e) {
+        el.textContent = 'Unreachable';
+        if (el.parentElement && el.parentElement.querySelector('.sys-status-dot')) {
+          el.parentElement.querySelector('.sys-status-dot').className = 'sys-status-dot sys-dot-warn';
+        }
+      }
+    }
+
+    try {
+      const resp = await fetch(adminApi('/referral-partners'), { headers: getAuthHeaders() });
+      if (resp && resp.ok) {
+        const data = await resp.json();
+        const sysPartnersEl = document.getElementById('sysD1Partners');
+        if (data && data.success && data.partners && sysPartnersEl) {
+          sysPartnersEl.textContent = data.partners.length + ' rows';
+        }
+      }
+    } catch (e) {}
+
+    try {
+      const vResp = await fetch(adminApi('/site-visitors?summary=true'), { headers: getAuthHeaders() });
+      if (vResp && vResp.ok) {
+        const vData = await vResp.json();
+        const sysVisitorsEl = document.getElementById('sysD1Visitors');
+        if (vData && vData.success && vData.summary && sysVisitorsEl) {
+          sysVisitorsEl.textContent = (vData.summary.totalVisits || 0) + ' rows';
+        }
+      }
+    } catch (e) {}
+
+    tabLoaded.system = true;
+  }
+
+  async function loadAIUsage() {
+    try {
+      const resp = await fetch(adminApi('/customers'), { headers: getAuthHeaders() });
+      const detailEl = document.getElementById('ai-usage-detail');
+      if (!resp || !resp.ok) {
+        if (detailEl) detailEl.textContent = 'No AI usage data available yet.';
+        return;
+      }
+      const data = await resp.json();
+      if (!data || !data.success || !data.customers) {
+        if (detailEl) detailEl.textContent = 'No AI usage data available yet.';
+        return;
+      }
+
+      const customers = data.customers;
+      let totReceipts = 0, totManuals = 0, totExtractions = 0;
+      customers.forEach(c => {
+        totReceipts += c.receipt_count || 0;
+        totManuals += c.manual_count || 0;
+        totExtractions += (c.extraction_receipt_count || 0) + (c.extraction_manual_count || 0);
+      });
+
+      const statExtEl = document.getElementById('ai-stat-extractions');
+      const statSuccEl = document.getElementById('ai-stat-success');
+      const statFailEl = document.getElementById('ai-stat-failed');
+
+      if (statExtEl) statExtEl.textContent = totReceipts + totManuals;
+      if (statSuccEl) statSuccEl.textContent = totReceipts;
+      if (statFailEl) statFailEl.textContent = totManuals;
+
+      if (detailEl) {
+        let html = '<strong>AI Extraction Summary (All Customers)</strong><br>';
+        html += 'Receipt uploads (AI): ' + totReceipts + '<br>';
+        html += 'Manual uploads (AI): ' + totManuals + '<br>';
+        html += 'Total AI extractions: ' + totExtractions + '<br><br>';
+        html += '<strong>Per Customer:</strong>';
+        html += '<div style="margin-top:8px;max-height:200px;overflow-y:auto;">';
+        customers.forEach(c => {
+          const name = c.company_name || 'Unknown';
+          const rc = c.receipt_count || 0;
+          const mc = c.manual_count || 0;
+          if (rc > 0 || mc > 0) {
+            html += '<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;">';
+            html += escapeHtml(name) + ' — Receipts: ' + rc + ' · Manuals: ' + mc;
+            html += '</div>';
+          }
+        });
+        html += '</div>';
+        detailEl.innerHTML = html;
+      }
+    } catch (e) {}
   }
 
   /* ===== ERROR LOGS TAB (HIGH-VOLUME LOG UNLOCKING) ===== */
@@ -413,19 +1006,23 @@
     listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading error logs...</div>';
 
     try {
+      // Query 2000 log entries to fix the hard cap
       const resp = await fetch(adminApi('/issues?limit=2000&all=true'), { headers: getAuthHeaders() });
-      if (!resp.ok) throw new Error('Failed to fetch issues');
-
+      if (!resp || !resp.ok) {
+        listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Unable to Load Error Logs</h3><p>Could not reach the error endpoint.</p></div>';
+        return;
+      }
       const data = await resp.json();
+
       if (data && data.success && data.issues) {
         allIssues = data.issues;
-        populateSourceFilter(allIssues);
-        renderIssueStats(allIssues);
-        renderIssues(allIssues);
+        populateSourceFilter(data.issues);
+        renderIssueStats(data.issues);
+        renderIssues(data.issues);
         tabLoaded.issues = true;
       }
     } catch (e) {
-      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Unable to Load Error Logs</h3><p>Could not load issues data.</p></div>';
+      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Unable to Load Error Logs</h3><p>Network error fetching issues.</p></div>';
     }
   }
 
@@ -434,95 +1031,153 @@
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
     const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-    document.getElementById('issueStatTotal').textContent = issues.length;
-    document.getElementById('issueStatToday').textContent = issues.filter(i => i.created_at >= todayStart).length;
-    document.getElementById('issueStatWeek').textContent = issues.filter(i => i.created_at >= weekStart).length;
-    document.getElementById('issueStatResolved').textContent = issues.filter(i => i.resolved === 1).length;
+    const totalEl = document.getElementById('issueStatTotal');
+    const todayEl = document.getElementById('issueStatToday');
+    const weekEl = document.getElementById('issueStatWeek');
+    const resEl = document.getElementById('issueStatResolved');
+
+    if (totalEl) totalEl.textContent = issues.length;
+    if (todayEl) todayEl.textContent = issues.filter(i => i.created_at >= todayStart).length;
+    if (weekEl) weekEl.textContent = issues.filter(i => i.created_at >= weekStart).length;
+    if (resEl) resEl.textContent = issues.filter(i => i.resolved === 1).length;
   }
 
   function populateSourceFilter(issues) {
     const sel = document.getElementById('issueSourceFilter');
     if (!sel) return;
+    const current = sel.value;
     const sources = Array.from(new Set(issues.map(i => i.source || 'unknown'))).sort();
-    sel.innerHTML = '<option value="all">All Sources</option>' + sources.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+    let html = '<option value="all">All Sources</option>';
+    sources.forEach(s => {
+      html += '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>';
+    });
+    sel.innerHTML = html;
+    if (sources.indexOf(current) !== -1) sel.value = current;
+  }
+
+  function getIssueStatusFilter() {
+    const sel = document.getElementById('issueStatusFilter');
+    return sel ? sel.value : 'all';
+  }
+
+  function clearIssueFilters() {
+    const statusSel = document.getElementById('issueStatusFilter');
+    const sourceSel = document.getElementById('issueSourceFilter');
+    const msgInput = document.getElementById('issueMsgFilter');
+    const dateFrom = document.getElementById('issueDateFrom');
+    const dateTo = document.getElementById('issueDateTo');
+    if (statusSel) statusSel.value = 'all';
+    if (sourceSel) sourceSel.value = 'all';
+    if (msgInput) msgInput.value = '';
+    if (dateFrom) dateFrom.value = '';
+    if (dateTo) dateTo.value = '';
+    renderIssues(allIssues);
   }
 
   function renderIssues(issues) {
     const listEl = document.getElementById('issueList');
     if (!listEl) return;
+
     if (issues.length === 0) {
-      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors</h3><p>No logged errors found.</p></div>';
+      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors</h3><p>No errors have been logged.</p></div>';
       return;
     }
 
-    let html = `
-      <table class="dash-table" style="width:100%;">
-        <thead>
-          <tr>
-            <th>Status</th>
-            <th>Error Message</th>
-            <th>Source</th>
-            <th>Date</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
+    const statusFilter = getIssueStatusFilter();
+    const sourceFilterEl = document.getElementById('issueSourceFilter');
+    const sourceFilter = sourceFilterEl ? sourceFilterEl.value : 'all';
+    const msgInput = document.getElementById('issueMsgFilter');
+    const msgQuery = msgInput ? msgInput.value.toLowerCase() : '';
+    const dateFromEl = document.getElementById('issueDateFrom');
+    const dateToEl = document.getElementById('issueDateTo');
+    const dateFrom = dateFromEl && dateFromEl.value ? new Date(dateFromEl.value + 'T00:00:00').getTime() : null;
+    const dateTo = dateToEl && dateToEl.value ? new Date(dateToEl.value + 'T23:59:59').getTime() : null;
 
-    html += issues.map(i => `
-      <tr class="issue-row ${i.resolved === 1 ? 'partner-row-inactive' : ''}">
-        <td>${i.resolved === 1 ? '<span class="dash-badge dash-badge-success">Resolved</span>' : '<span class="dash-badge dash-badge-danger">Open</span>'}</td>
-        <td style="font-weight:600;">${escapeHtml(i.error_message || 'Unknown error')}</td>
-        <td><span class="issue-card-source">${escapeHtml(i.source || 'unknown')}</span></td>
-        <td style="white-space:nowrap;font-size:13px;color:var(--text-muted);">${new Date(i.created_at).toLocaleString()}</td>
-        <td>
-          <button class="owner-action-btn owner-btn-w9" data-copy-id="${i.id}">Copy</button>
-          <button class="owner-action-btn owner-btn-activate" data-resolve-id="${i.id}">${i.resolved === 1 ? 'Reopen' : 'Resolve'}</button>
-        </td>
-      </tr>
-    `).join('');
+    const filtered = issues.filter(i => {
+      if (statusFilter === 'open' && i.resolved === 1) return false;
+      if (statusFilter === 'resolved' && i.resolved !== 1) return false;
+      if (sourceFilter !== 'all' && (i.source || 'unknown') !== sourceFilter) return false;
+      if (msgQuery && ((i.error_message || '').toLowerCase().indexOf(msgQuery) === -1)) return false;
+      if (dateFrom || dateTo) {
+        const t = i.created_at ? new Date(i.created_at).getTime() : null;
+        if (!t) return false;
+        if (dateFrom && t < dateFrom) return false;
+        if (dateTo && t > dateTo) return false;
+      }
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors Match Filters</h3></div>';
+      return;
+    }
+
+    let html = '<table class="dash-table" style="width:100%;">';
+    html += '<thead><tr><th></th><th>Status</th><th>Error Message</th><th>Source</th><th>Date</th><th>Actions</th></tr></thead><tbody>';
+
+    filtered.forEach(i => {
+      const time = i.created_at ? new Date(i.created_at).toLocaleString() : '—';
+      const isResolved = i.resolved === 1;
+      const safeId = escapeHtml(i.id);
+      const isExpanded = (issueExpandedId === i.id);
+
+      const statusBadge = isResolved
+        ? '<span class="dash-badge dash-badge-success">Resolved</span>'
+        : '<span class="dash-badge dash-badge-danger">Open</span>';
+
+      html += `<tr class="issue-row ${isResolved ? 'partner-row-inactive' : ''}" data-error-id="${safeId}" style="cursor:pointer;">`;
+      html += `<td style="text-align:center;font-size:12px;color:var(--text-muted);">${isExpanded ? '▼' : '▶'}</td>`;
+      html += `<td>${statusBadge}</td>`;
+      html += `<td style="font-weight:600;">${escapeHtml(i.error_message || 'Unknown error')}</td>`;
+      html += `<td><span class="issue-card-source">${escapeHtml(i.source || 'unknown')}</span></td>`;
+      html += `<td style="white-space:nowrap;font-size:13px;color:var(--text-muted);">${time}</td>`;
+      html += `<td style="white-space:nowrap;">`;
+      if (!isResolved) {
+        html += `<button class="owner-action-btn owner-btn-w9" data-action="copy" data-id="${safeId}">Copy</button>`;
+      }
+      html += `<button class="owner-action-btn ${isResolved ? 'owner-btn-activate' : 'owner-btn-deactivate'}" data-action="resolve" data-id="${safeId}" data-resolved="${!isResolved}">${isResolved ? 'Reopen' : 'Resolve'}</button>`;
+      html += `</td></tr>`;
+
+      if (isExpanded) {
+        html += `<tr class="issue-detail-row" style="background:var(--bg-input);">`;
+        html += `<td></td><td colspan="5"><div style="padding:12px 16px;">`;
+        html += `<div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;"><strong>Error ID:</strong> ${safeId}</div>`;
+        if (i.stack_trace) {
+          html += `<pre style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;color:var(--text);white-space:pre-wrap;">${escapeHtml(i.stack_trace)}</pre>`;
+        }
+        html += `</div></td></tr>`;
+      }
+    });
 
     html += '</tbody></table>';
     listEl.innerHTML = html;
 
-    listEl.querySelectorAll('[data-resolve-id]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const id = e.target.getAttribute('data-resolve-id');
-        toggleIssueResolve(id);
-      });
-    });
-
-    listEl.querySelectorAll('[data-copy-id]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const id = e.target.getAttribute('data-copy-id');
-        copyIssue(id, e.target);
-      });
-    });
-  }
-
-  async function toggleIssueResolve(id) {
-    const issue = allIssues.find(i => i.id == id);
-    if (!issue) return;
-    const newStatus = issue.resolved === 1 ? false : true;
-
-    try {
-      const resp = await fetch(adminApi('/issues'), {
-        method: 'POST',
-        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ id, resolved: newStatus })
-      });
-      if (resp.ok) {
-        issue.resolved = newStatus ? 1 : 0;
-        renderIssueStats(allIssues);
+    listEl.querySelectorAll('.issue-row').forEach(row => {
+      row.addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+        const id = row.getAttribute('data-error-id');
+        issueExpandedId = (issueExpandedId === id) ? null : id;
         renderIssues(allIssues);
-      }
-    } catch (e) {
-      showError('Failed to update issue status');
-    }
+      });
+    });
+
+    listEl.querySelectorAll('[data-action="copy"]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        copyIssue(btn.getAttribute('data-id'), btn);
+      });
+    });
+
+    listEl.querySelectorAll('[data-action="resolve"]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        resolveIssue(btn.getAttribute('data-id'), btn.getAttribute('data-resolved') === 'true');
+      });
+    });
   }
 
   function copyIssue(errorId, btn) {
-    const issue = allIssues.find(i => i.id == errorId);
+    const issue = allIssues.find(i => i.id === errorId);
     if (!issue) return;
 
     let text = '=== DRIV-EN ERROR LOG ENTRY ===\n';
@@ -530,7 +1185,7 @@
     text += 'Source: ' + (issue.source || 'N/A') + '\n';
     text += 'Timestamp: ' + (issue.created_at || 'N/A') + '\n';
     text += '\n--- ERROR MESSAGE ---\n' + (issue.error_message || 'No message') + '\n';
-    text += '\n--- STACK TRACE ---\n' + (issue.stack_trace || 'No stack trace') + '\n';
+    text += '\n--- STACK TRACE ---\n' + (issue.stack_trace || 'No stack trace available') + '\n';
 
     navigator.clipboard.writeText(text).then(() => {
       btn.textContent = '✓ Copied!';
@@ -538,146 +1193,50 @@
     });
   }
 
-  /* ===== PARTNERS & CUSTOMERS ===== */
-
-  async function loadPartners() {
-    const tbody = document.getElementById('partnersTableBody');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading…</td></tr>';
-
+  async function resolveIssue(id, resolved) {
     try {
-      const resp = await fetch(adminApi('/referral-partners'), { headers: getAuthHeaders() });
-      if (!resp.ok) return;
-      const data = await resp.json();
-      if (data && data.success && data.partners) {
-        allPartners = data.partners;
-        renderStats(allPartners);
-        renderTable(allPartners);
-        tabLoaded.referrers = true;
+      const resp = await fetch(adminApi('/issues'), {
+        method: 'POST',
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ id: id, resolved: resolved })
+      });
+      if (resp && resp.ok) {
+        const issue = allIssues.find(i => i.id === id);
+        if (issue) issue.resolved = resolved ? 1 : 0;
+        renderIssueStats(allIssues);
+        renderIssues(allIssues);
       }
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) {}
   }
 
-  function renderStats(partners) {
-    document.getElementById('statTotal').textContent = partners.length;
-    document.getElementById('statPending').textContent = partners.filter(p => p.status === 'Pending').length;
-    document.getElementById('statApproved').textContent = partners.filter(p => p.status === 'Approved').length;
-    document.getElementById('statRejected').textContent = partners.filter(p => p.status === 'Rejected').length;
-  }
+  /* ===== TEAM MEMBERS & ACCESS LOGIC ===== */
 
-  function renderTable(partners) {
-    const tbody = document.getElementById('partnersTableBody');
-    if (!tbody) return;
-    if (partners.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">No referral partners found.</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = partners.map(p => `
-      <tr>
-        <td>${escapeHtml(p.partner_name || '—')}</td>
-        <td>${escapeHtml(p.partner_email || '—')}</td>
-        <td>${escapeHtml(p.partner_phone || '—')}</td>
-        <td><span class="dash-badge dash-badge-success">${escapeHtml(p.status || 'Pending')}</span></td>
-        <td><code>${escapeHtml(p.referral_code || '—')}</code></td>
-        <td>${p.w9_attachment ? '<button class="owner-action-btn owner-btn-w9">View W-9</button>' : '<span style="color:var(--text-muted);">None</span>'}</td>
-        <td><span class="dash-badge dash-badge-success">Current</span></td>
-        <td><span class="dash-badge dash-badge-success">On File</span></td>
-        <td>${p.last_referred ? new Date(p.last_referred).toLocaleDateString() : '—'}</td>
-        <td>${p.created_at ? new Date(p.created_at).toLocaleDateString() : '—'}</td>
-        <td>
-          <button class="owner-action-btn owner-btn-approve">Approve</button>
-          <button class="owner-action-btn owner-btn-reject">Reject</button>
-        </td>
-      </tr>
-    `).join('');
-  }
-
-  async function loadCustomers() {
-    const listEl = document.getElementById('customerList');
-    if (listEl) listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading customers…</div>';
-
-    try {
-      const resp = await fetch(adminApi('/customers'), { headers: getAuthHeaders() });
-      if (!resp.ok) return;
-      const data = await resp.json();
-      if (data && data.success && data.customers) {
-        allCustomers = data.customers.filter(c => {
-          const orgId = String(c.org_id || c.customer_id || c.id || '').trim().toLowerCase();
-          return orgId !== 'org_dsi' && orgId !== 'dsi';
-        });
-        renderCustomerStats(allCustomers);
-        renderCustomersTable();
-        tabLoaded.customers = true;
-      }
-    } catch (e) {
-      if (listEl) listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><p>Unable to load customers.</p></div>';
-    }
-  }
-
-  function renderCustomerStats(customers) {
-    document.getElementById('custStatTotal').textContent = customers.length;
-    document.getElementById('custStatActive').textContent = customers.filter(c => c.subscription_status === 'active').length;
-    document.getElementById('custStatTrial').textContent = customers.filter(c => c.subscription_status === 'trial').length;
-    document.getElementById('custStatPending').textContent = customers.filter(c => !c.subscription_status || c.subscription_status === 'pending').length;
-  }
-
-  function renderCustomersTable() {
-    const listEl = document.getElementById('customerList');
+  async function loadTeamMembers() {
+    const listEl = document.getElementById('teamAccessList');
     if (!listEl) return;
-    if (allCustomers.length === 0) {
-      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><p>No customers registered.</p></div>';
-      return;
-    }
 
-    listEl.innerHTML = `
-      <div class="owner-table-wrap">
-        <table class="dash-table">
-          <thead>
-            <tr>
-              <th>Customer Name</th>
-              <th>Employees</th>
-              <th>Assets</th>
-              <th>Inspections</th>
-              <th>PMs</th>
-              <th>WOs</th>
-              <th>Transfers</th>
-              <th>Fuel</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${allCustomers.map(c => `
-              <tr>
-                <td>${escapeHtml(c.company_name || c.name || 'Unknown')}</td>
-                <td>${c.employee_count || 0}</td>
-                <td>${c.asset_count || 0}</td>
-                <td>${c.inspection_count || 0}</td>
-                <td>${c.pm_count || 0}</td>
-                <td>${c.wo_count || 0}</td>
-                <td>${c.transfer_count || 0}</td>
-                <td>${c.fuel_count || 0}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-    `;
+    try {
+      const resp = await fetch('/auth/team-members', { headers: getAuthHeaders() });
+      if (!resp || !resp.ok) {
+        listEl.innerHTML = '<p style="color:var(--text-muted);font-size:14px;">Team access endpoint unavailable.</p>';
+        return;
+      }
+      const data = await resp.json();
+
+      if (data && data.success && data.members) {
+        listEl.innerHTML = data.members.map(m => `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid var(--border);">
+            <div>
+              <div style="font-size:15px;font-weight:600;color:var(--text);">${escapeHtml(m.full_name || m.email)}</div>
+              <div style="font-size:13px;color:var(--text-muted);">${escapeHtml(m.email)}</div>
+            </div>
+          </div>
+        `).join('');
+      }
+    } catch (e) {}
   }
 
-  /* ===== SYSTEM STATUS & AI USAGE ===== */
-
-  async function loadSystemStatus() {
-    const lastCheck = document.getElementById('sysLastCheck');
-    if (lastCheck) lastCheck.textContent = new Date().toLocaleString();
-    tabLoaded.system = true;
-  }
-
-  async function loadAIUsage() {}
-
-  async function loadTeamMembers() {}
-
-  /* ===== HELPERS & UTILITIES ===== */
+  /* ===== UTILITIES & HELPERS ===== */
 
   function escapeHtml(str) {
     const div = document.createElement('div');
@@ -692,11 +1251,6 @@
     el.textContent = msg;
     el.style.display = 'block';
     setTimeout(() => { el.style.display = 'none'; }, 6000);
-  }
-
-  function closeCustomerDetail() {
-    const modal = document.getElementById('customerDetailModal');
-    if (modal) { modal.style.display = 'none'; modal.innerHTML = ''; }
   }
 
   async function ownerLogout() {
@@ -727,19 +1281,60 @@
     if (logoRemove) logoRemove.addEventListener('click', removeLogo);
 
     const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-      searchInput.addEventListener('input', () => {
-        const query = searchInput.value.toLowerCase();
-        const filtered = allPartners.filter(p => 
-          (p.partner_name || '').toLowerCase().includes(query) || 
-          (p.partner_email || '').toLowerCase().includes(query)
-        );
-        renderTable(filtered);
+    if (searchInput) searchInput.addEventListener('input', filterPartners);
+
+    const btnRefreshPartners = document.getElementById('btnRefreshPartners');
+    if (btnRefreshPartners) btnRefreshPartners.addEventListener('click', loadPartners);
+
+    const btnRefreshCust = document.getElementById('btnRefreshCust');
+    if (btnRefreshCust) btnRefreshCust.addEventListener('click', loadCustomers);
+
+    const btnRefreshIssues = document.getElementById('btnRefreshIssues');
+    if (btnRefreshIssues) btnRefreshIssues.addEventListener('click', loadIssues);
+
+    const btnClearIssues = document.getElementById('btnClearIssues');
+    if (btnClearIssues) btnClearIssues.addEventListener('click', clearIssueFilters);
+
+    const approveModal = document.getElementById('approveModal');
+    if (approveModal) {
+      approveModal.addEventListener('click', (e) => { if (e.target === approveModal) closeApproveModal(); });
+    }
+
+    const btnCancelApprove = document.getElementById('btnCancelApprove');
+    if (btnCancelApprove) btnCancelApprove.addEventListener('click', closeApproveModal);
+
+    const btnConfirmApprove = document.getElementById('btnConfirmApprove');
+    if (btnConfirmApprove) btnConfirmApprove.addEventListener('click', confirmApprove);
+
+    const rejectModal = document.getElementById('rejectModal');
+    if (rejectModal) {
+      rejectModal.addEventListener('click', (e) => { if (e.target === rejectModal) closeRejectModal(); });
+    }
+
+    const btnCancelReject = document.getElementById('btnCancelReject');
+    if (btnCancelReject) btnCancelReject.addEventListener('click', closeRejectModal);
+
+    const btnConfirmReject = document.getElementById('btnConfirmReject');
+    if (btnConfirmReject) btnConfirmReject.addEventListener('click', confirmReject);
+
+    const btnRegenCode = document.getElementById('btnRegenCode');
+    if (btnRegenCode) {
+      btnRegenCode.addEventListener('click', () => {
+        const codeEl = document.getElementById('approveReferralCode');
+        if (codeEl) codeEl.value = generateReferralCode();
       });
     }
+
+    // Sortable Headers
+    document.querySelectorAll('.sortable').forEach(th => {
+      th.addEventListener('click', () => {
+        const col = th.getAttribute('data-sort');
+        if (col) sortBy(col);
+      });
+    });
   }
 
-  /* ===== IDEMPOTENT INITIALIZATION ===== */
+  /* ===== SESSION INITIALIZATION ===== */
 
   async function processFounderSession(user) {
     if (!user) {
