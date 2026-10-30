@@ -12,6 +12,7 @@ let customFieldsList = [];
 let partsList = [];
 let orgUOM = { distance: 'mi', pressure: 'psi', volume: 'gal' };
 let orgCountry = 'US';
+let currentFetchRequestId = 0; // Tracks latest request to prevent out-of-order race conditions
 const API_ENDPOINT = '/api/asset-config';
 
 // Security Helper: Escape HTML attributes to prevent breakage on quotes and XSS
@@ -257,7 +258,23 @@ function populateLinkedAttachmentDropdown() {
   });
 }
 
+function resetAttachmentControlsToDefault() {
+  const selectAtt = document.getElementById('selectAttachment');
+  const attMode = document.getElementById('attachmentTrackingMode');
+  const linkedAttId = document.getElementById('linkedAttachmentAssetId');
+  const attMountState = document.getElementById('attachmentMountState');
+
+  if (selectAtt) selectAtt.value = 'none';
+  if (attMode) attMode.value = 'integrated';
+  if (linkedAttId) linkedAttId.value = '';
+  if (attMountState) attMountState.value = 'mounted';
+
+  onAttachmentChanged();
+  toggleAttachmentTrackingUI();
+}
+
 function onTargetTypeChange() {
+  currentFetchRequestId++; // Invalidate any in-flight requests
   const target = document.getElementById('configTarget').value;
   document.getElementById('assetSelectGroup').style.display = target === 'specific' ? 'flex' : 'none';
   document.getElementById('typeSelectGroup').style.display = target === 'template' ? 'flex' : 'none';
@@ -268,6 +285,7 @@ function onTargetTypeChange() {
   document.getElementById('configPanel').style.pointerEvents = 'none';
   document.getElementById('dynamicSchemaFields').innerHTML = '';
 
+  resetAttachmentControlsToDefault();
   customItemsList = [];
   customFieldsList = [];
   partsList = [];
@@ -302,6 +320,9 @@ async function onTypeSelected() {
 }
 
 async function fetchAndRenderSchema(targetType, key, assetType = '') {
+  // Capture request ID to guard against out-of-order race conditions
+  const requestId = ++currentFetchRequestId;
+
   try {
     const params = new URLSearchParams({
       targetType: targetType || 'specific',
@@ -314,43 +335,58 @@ async function fetchAndRenderSchema(targetType, key, assetType = '') {
     });
 
     const res = await apiFetch(`${API_ENDPOINT}?${params.toString()}`);
+    
+    // Ignore stale response if user selected another asset while fetch was pending
+    if (requestId !== currentFetchRequestId) return;
+
     if (!res.ok) {
       const errBody = await res.json().catch(() => ({}));
       throw new Error(errBody.error || `Schema request failed (${res.status})`);
     }
 
     const data = await res.json();
+    
+    // Double check request ID post JSON parsing
+    if (requestId !== currentFetchRequestId) return;
+
     const schema = data.schema || { sections: [] };
     const savedConfig = data.config || {};
 
     applyConfigToUI(savedConfig, schema);
     toggleFormLock();
   } catch (e) {
-    console.error('Failed to load asset schema:', e);
-    showMessage(`Error loading schema: ${e.message}`, 'error');
+    if (requestId === currentFetchRequestId) {
+      console.error('Failed to load asset schema:', e);
+      showMessage(`Error loading schema: ${e.message}`, 'error');
+    }
   }
 }
 
-function applyConfigToUI(config, schema) {
-  customItemsList = config.customItems ? [...config.customItems] : [];
-  customFieldsList = config.customFields ? [...config.customFields] : [];
-  partsList = config.parts ? [...config.parts] : [];
+function applyConfigToUI(config = {}, schema = {}) {
+  // 1. Reset all attachment controls to defaults to prevent stale values from persisting across asset switches
+  resetAttachmentControlsToDefault();
 
-  document.getElementById('overrideDefaults').checked = config.isOverride || false;
+  // 2. Set dynamic arrays
+  customItemsList = Array.isArray(config.customItems) ? [...config.customItems] : [];
+  customFieldsList = Array.isArray(config.customFields) ? [...config.customFields] : [];
+  partsList = Array.isArray(config.parts) ? [...config.parts] : [];
 
+  document.getElementById('overrideDefaults').checked = !!config.isOverride;
+
+  // 3. Apply saved attachment settings if present
   if (config.attachment) {
     document.getElementById('selectAttachment').value = config.attachment || 'none';
     onAttachmentChanged();
-    if (config.attachmentTrackingMode) {
-      document.getElementById('attachmentTrackingMode').value = config.attachmentTrackingMode;
-      toggleAttachmentTrackingUI();
-    }
-    if (config.linkedAttachmentAssetId) {
-      document.getElementById('linkedAttachmentAssetId').value = config.linkedAttachmentAssetId;
-    }
-    if (config.attachmentMountState) {
-      document.getElementById('attachmentMountState').value = config.attachmentMountState;
-    }
+  }
+  if (config.attachmentTrackingMode) {
+    document.getElementById('attachmentTrackingMode').value = config.attachmentTrackingMode;
+    toggleAttachmentTrackingUI();
+  }
+  if (config.linkedAttachmentAssetId) {
+    document.getElementById('linkedAttachmentAssetId').value = config.linkedAttachmentAssetId;
+  }
+  if (config.attachmentMountState) {
+    document.getElementById('attachmentMountState').value = config.attachmentMountState;
   }
 
   renderCompositeForm(schema, config.rules || {});
