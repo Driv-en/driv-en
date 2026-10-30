@@ -8,6 +8,7 @@ var customAssetTypes = [];
 var activeOrgId = "";
 var activeModal = null;
 var lastActiveElement = null;
+var isInitialized = false;
 
 function normalizeName(str) {
   if (typeof str === 'object' && str !== null) {
@@ -27,14 +28,14 @@ function toMatchKey(str) {
 
 /**
  * Flexible keyword matcher to correlate saved backend strings with static HTML inputs.
- * Ensures Skid Steer, Excavator, Dozer, Welder, and Generator map back to standard checkboxes.
+ * Handles nested structure label extraction reliably.
  */
 function isStandardMatch(savedStr, standardValue, standardLabel) {
   var sKey = toMatchKey(savedStr);
   var vKey = toMatchKey(standardValue);
   var lKey = toMatchKey(standardLabel);
 
-  if (sKey === vKey || sKey === lKey) return true;
+  if (sKey === vKey || (lKey && sKey === lKey)) return true;
 
   // Specific key term checks
   var keyTerms = [
@@ -48,12 +49,12 @@ function isStandardMatch(savedStr, standardValue, standardLabel) {
   for (var i = 0; i < keyTerms.length; i++) {
     var terms = keyTerms[i];
     var matchSaved = terms.every(function(t) { return sKey.indexOf(t) !== -1; });
-    var matchStandard = terms.every(function(t) { return vKey.indexOf(t) !== -1 || lKey.indexOf(t) !== -1; });
+    var matchStandard = terms.every(function(t) { return vKey.indexOf(t) !== -1 || (lKey && lKey.indexOf(t) !== -1); });
     if (matchSaved && matchStandard) return true;
   }
 
   // Length-bounded substring matching
-  if (sKey.length >= 4 && (vKey.indexOf(sKey) !== -1 || sKey.indexOf(vKey) !== -1 || lKey.indexOf(sKey) !== -1 || sKey.indexOf(lKey) !== -1)) {
+  if (sKey.length >= 4 && (vKey.indexOf(sKey) !== -1 || sKey.indexOf(vKey) !== -1 || (lKey && (lKey.indexOf(sKey) !== -1 || sKey.indexOf(lKey) !== -1)))) {
     return true;
   }
 
@@ -151,7 +152,7 @@ function openModal(modalEl, closeBtnEl) {
   modalEl.style.display = "flex";
 
   if (!closeBtnEl) {
-    closeBtnEl = modalEl.querySelector("button.btn-secondary, button");
+    closeBtnEl = modalEl.querySelector("button.at-btn-secondary, button");
   }
   if (closeBtnEl) {
     setTimeout(function() { closeBtnEl.focus(); }, 50);
@@ -204,7 +205,8 @@ function addCustomAssetType() {
 
   allDefaults.forEach(function(cb) {
     var valStr = cb.value;
-    var lblStr = cb.nextElementSibling ? cb.nextElementSibling.textContent : "";
+    var parentItem = cb.closest('.at-checkbox-item');
+    var lblStr = parentItem ? parentItem.textContent : "";
     if (isStandardMatch(val, valStr, lblStr)) {
       matchedCheckbox = cb;
     }
@@ -289,6 +291,7 @@ function renderCustomAssetTypes() {
     lbl.htmlFor = "custom_at_" + index;
     lbl.textContent = name;
 
+    // Fixed Form Submission Bypass (explicit type="button")
     var btn = document.createElement("button");
     btn.type = "button";
     btn.className = "at-btn-remove-custom";
@@ -296,6 +299,7 @@ function renderCustomAssetTypes() {
     btn.title = "Remove custom type";
     btn.addEventListener("click", function(e) {
       e.preventDefault();
+      e.stopPropagation();
       removeCustomAssetType(index);
     });
 
@@ -345,7 +349,6 @@ async function loadSavedAssetTypes() {
     customAssetTypes = [];
     var defaultCheckboxes = document.querySelectorAll(".at-grid:not(#customAssetGrid) input[type='checkbox']");
 
-    // Reset all standard checkboxes before mapping
     defaultCheckboxes.forEach(function(cb) {
       cb.checked = false;
     });
@@ -353,11 +356,11 @@ async function loadSavedAssetTypes() {
     normalizedSaved.forEach(function(savedItem) {
       var matchedCb = null;
 
-      // Check against each standard grid item
       defaultCheckboxes.forEach(function(cb) {
         if (matchedCb) return;
         var cbVal = cb.value;
-        var cbLabel = cb.nextElementSibling ? cb.nextElementSibling.textContent : "";
+        var parentItem = cb.closest('.at-checkbox-item');
+        var cbLabel = parentItem ? parentItem.textContent : "";
         if (isStandardMatch(savedItem, cbVal, cbLabel)) {
           matchedCb = cb;
         }
@@ -561,6 +564,28 @@ function initEventHandlers() {
   });
 }
 
+function runInitializationSequence(eDetail) {
+  if (isInitialized) return;
+  isInitialized = true;
+
+  var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
+  activeOrgId = userObj.org_id || (eDetail && eDetail.org_id) || localStorage.getItem("driven_org_id") || "";
+
+  var row1 = document.querySelector(".dash-header-row1");
+  if (row1 && !document.querySelector(".at-header-title")) {
+    var title = document.createElement("div");
+    title.className = "at-header-title";
+    title.textContent = "Onboarding — Asset Types";
+    var drivenLogo = row1.querySelector(".dash-driven-logo");
+    if (drivenLogo) row1.insertBefore(title, drivenLogo);
+  }
+
+  initEventHandlers();
+  loadSavedAssetTypes();
+  checkActivePresence();
+  setInterval(checkActivePresence, 5000);
+}
+
 window.addEventListener("pagehide", sendPresenceUnload);
 window.addEventListener("beforeunload", function(e) {
   sendPresenceUnload();
@@ -575,26 +600,19 @@ document.addEventListener("visibilitychange", function() {
   else if (document.visibilityState === "visible") checkActivePresence();
 });
 
-document.addEventListener("dashSessionLoaded", async function(e) {
-  var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
-  activeOrgId = userObj.org_id || (e.detail && e.detail.org_id) || localStorage.getItem("driven_org_id") || "";
-
-  var row1 = document.querySelector(".dash-header-row1");
-  if (row1 && !document.querySelector(".at-header-title")) {
-    var title = document.createElement("div");
-    title.className = "at-header-title";
-    title.textContent = "Onboarding — Asset Types";
-    var drivenLogo = row1.querySelector(".dash-driven-logo");
-    if (drivenLogo) row1.insertBefore(title, drivenLogo);
-  }
-
-  initEventHandlers();
-  await loadSavedAssetTypes();
-  checkActivePresence();
-  setInterval(checkActivePresence, 5000);
+document.addEventListener("dashSessionLoaded", function(e) {
+  runInitializationSequence(e.detail);
 });
 
+/* Fallback Initializer if dashSessionLoaded is delayed/blocked */
 document.addEventListener("DOMContentLoaded", function() {
   var yEl = document.getElementById("dashFooterYear");
   if (yEl) yEl.textContent = new Date().getFullYear();
+
+  setTimeout(function() {
+    if (!isInitialized) {
+      console.warn("dashSessionLoaded timeout fallback triggered.");
+      runInitializationSequence(null);
+    }
+  }, 1500);
 });
