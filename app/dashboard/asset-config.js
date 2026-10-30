@@ -1,7 +1,7 @@
 /**
  * DRIV-EN Asset Configuration Controller
  * Path: /app/dashboard/asset-config.js
- * Strictly enforces zero-inline script security architecture.
+ * Strictly enforces zero-inline script security architecture & robust input sanitization.
  */
 
 let allAssets = [];
@@ -14,8 +14,20 @@ let orgUOM = { distance: 'mi', pressure: 'psi', volume: 'gal' };
 let orgCountry = 'US';
 const API_ENDPOINT = '/api/asset-config';
 
+// Security Helper: Escape HTML attributes to prevent breakage on quotes and XSS
+function escapeHtmlAttr(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   bindDOMEvents();
+  bindModalBackdropsAndKeydown();
 });
 
 document.addEventListener('dashSessionLoaded', async () => {
@@ -33,11 +45,17 @@ document.addEventListener('dashSessionLoaded', async () => {
   const assetNumber = urlParams.get('assetNumber');
 
   if (target === 'template') {
-    document.getElementById('configTarget').value = 'template';
-    onTargetTypeChange();
+    const configTargetEl = document.getElementById('configTarget');
+    if (configTargetEl) {
+      configTargetEl.value = 'template';
+      onTargetTypeChange();
+    }
   } else if (assetNumber) {
-    document.getElementById('selectAsset').value = assetNumber;
-    onAssetSelected();
+    const selectAssetEl = document.getElementById('selectAsset');
+    if (selectAssetEl) {
+      selectAssetEl.value = assetNumber;
+      onAssetSelected();
+    }
   }
 });
 
@@ -78,6 +96,26 @@ function bindDOMEvents() {
   document.getElementById('btnAddPart')?.addEventListener('click', () => addPartRow());
   document.getElementById('btnAddCustomCheck')?.addEventListener('click', () => addCustomItemRow());
   document.getElementById('btnSaveConfig')?.addEventListener('click', saveConfiguration);
+}
+
+function bindModalBackdropsAndKeydown() {
+  // Close modals on clicking overlay backdrop
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        overlay.style.display = 'none';
+      }
+    });
+  });
+
+  // Close modals on pressing Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-overlay').forEach(modal => {
+        modal.style.display = 'none';
+      });
+    }
+  });
 }
 
 async function apiFetch(url, options = {}) {
@@ -282,9 +320,9 @@ async function fetchAndRenderSchema(targetType, key, assetType = '') {
 }
 
 function applyConfigToUI(config, schema) {
-  if (config.customItems) customItemsList = config.customItems;
-  if (config.customFields) customFieldsList = config.customFields;
-  if (config.parts) partsList = config.parts;
+  customItemsList = config.customItems ? [...config.customItems] : [];
+  customFieldsList = config.customFields ? [...config.customFields] : [];
+  partsList = config.parts ? [...config.parts] : [];
 
   document.getElementById('overrideDefaults').checked = config.isOverride || false;
 
@@ -365,7 +403,8 @@ function renderCompositeForm(schema, savedRules = {}) {
 }
 
 function renderFieldRow(container, field, savedRules) {
-  const val = savedRules[field.id] !== undefined ? savedRules[field.id] : (field.default !== undefined ? field.default : '');
+  const rawVal = savedRules[field.id] !== undefined ? savedRules[field.id] : (field.default !== undefined ? field.default : '');
+  const val = escapeHtmlAttr(rawVal);
   const isLocked = field.locked || false;
 
   let badgeHTML = '';
@@ -373,7 +412,7 @@ function renderFieldRow(container, field, savedRules) {
     let bClass = 'badge-dot';
     if (field.badge.includes('OSHA') || field.badge.includes('CCOHS')) bClass = 'badge-osha';
     if (field.badge.includes('MSHA') || field.badge.includes('Mining')) bClass = 'badge-msha';
-    badgeHTML = `<span class="badge ${bClass}">${field.badge}</span>`;
+    badgeHTML = `<span class="badge ${bClass}">${escapeHtmlAttr(field.badge)}</span>`;
   }
 
   if (field.type === 'toggle') {
@@ -381,11 +420,11 @@ function renderFieldRow(container, field, savedRules) {
     row.className = 'toggle-row';
     row.innerHTML = `
       <div>
-        <div class="toggle-title">${field.label} ${badgeHTML}</div>
-        <div class="toggle-desc">${field.desc || ''}</div>
+        <div class="toggle-title">${escapeHtmlAttr(field.label)} ${badgeHTML}</div>
+        <div class="toggle-desc">${escapeHtmlAttr(field.desc || '')}</div>
       </div>
       <label class="switch">
-        <input type="checkbox" id="field_${field.id}" ${val ? 'checked' : ''} ${isLocked ? 'data-locked="true"' : ''}>
+        <input type="checkbox" id="field_${field.id}" ${rawVal ? 'checked' : ''} ${isLocked ? 'data-locked="true"' : ''}>
         <span class="slider"></span>
       </label>
     `;
@@ -395,13 +434,13 @@ function renderFieldRow(container, field, savedRules) {
     row.className = 'form-group';
     row.style.marginBottom = '12px';
 
-    let optsHTML = (field.options || []).map(o => `<option value="${o}" ${val === o ? 'selected' : ''}>${o}</option>`).join('');
+    let optsHTML = (field.options || []).map(o => `<option value="${escapeHtmlAttr(o)}" ${rawVal === o ? 'selected' : ''}>${escapeHtmlAttr(o)}</option>`).join('');
     optsHTML += `<option value="__add_custom_opt__" style="font-weight: bold; color: var(--primary);">+ Add Custom Option...</option>`;
 
     row.innerHTML = `
-      <label for="field_${field.id}">${field.label} ${badgeHTML}</label>
+      <label for="field_${field.id}">${escapeHtmlAttr(field.label)} ${badgeHTML}</label>
       <select id="field_${field.id}" ${isLocked ? 'data-locked="true"' : ''}>${optsHTML}</select>
-      <span style="font-size: 12px; color: var(--text-muted);">${field.desc || ''}</span>
+      <span style="font-size: 12px; color: var(--text-muted);">${escapeHtmlAttr(field.desc || '')}</span>
     `;
     container.appendChild(row);
 
@@ -412,9 +451,9 @@ function renderFieldRow(container, field, savedRules) {
     row.className = 'form-group';
     row.style.marginBottom = '12px';
     row.innerHTML = `
-      <label for="field_${field.id}">${field.label} ${badgeHTML}</label>
+      <label for="field_${field.id}">${escapeHtmlAttr(field.label)} ${badgeHTML}</label>
       <input type="${field.type}" id="field_${field.id}" value="${val}" ${isLocked ? 'data-locked="true"' : ''}>
-      <span style="font-size: 12px; color: var(--text-muted);">${field.desc || ''}</span>
+      <span style="font-size: 12px; color: var(--text-muted);">${escapeHtmlAttr(field.desc || '')}</span>
     `;
     container.appendChild(row);
   }
@@ -440,6 +479,13 @@ function addPartRow(comp = "", oemB = "", oemP = "", crossB = "", crossP = "") {
   partsList.push({ component: comp, oemBrand: oemB, oemPart: oemP, crossBrand: crossB, crossPart: crossP });
   renderPartsRows();
   toggleFormLock();
+
+  // UX Improvement: Auto-focus the newly added row
+  const tbody = document.getElementById('partsTableBody');
+  if (tbody && tbody.lastElementChild) {
+    const firstInput = tbody.lastElementChild.querySelector('input');
+    if (firstInput) firstInput.focus();
+  }
 }
 
 function removePartRow(index) {
@@ -456,11 +502,11 @@ function renderPartsRows() {
   partsList.forEach((p, idx) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><input type="text" value="${p.component || ''}" placeholder="Component Name"></td>
-      <td><input type="text" value="${p.oemBrand || ''}" placeholder="OEM Brand Spec"></td>
-      <td><input type="text" value="${p.oemPart || ''}" placeholder="OEM Part #"></td>
-      <td><input type="text" value="${p.crossBrand || ''}" placeholder="e.g. Baldwin / Donaldson"></td>
-      <td><input type="text" value="${p.crossPart || ''}" placeholder="e.g. P550388"></td>
+      <td><input type="text" value="${escapeHtmlAttr(p.component)}" placeholder="Component Name"></td>
+      <td><input type="text" value="${escapeHtmlAttr(p.oemBrand)}" placeholder="OEM Brand Spec"></td>
+      <td><input type="text" value="${escapeHtmlAttr(p.oemPart)}" placeholder="OEM Part #"></td>
+      <td><input type="text" value="${escapeHtmlAttr(p.crossBrand)}" placeholder="e.g. Baldwin / Donaldson"></td>
+      <td><input type="text" value="${escapeHtmlAttr(p.crossPart)}" placeholder="e.g. P550388"></td>
       <td><button type="button" class="btn-small-remove">Remove</button></td>
     `;
 
@@ -480,6 +526,13 @@ function addCustomFieldRow(key = "", val = "") {
   customFieldsList.push({ key, value: val });
   renderCustomFieldRows();
   toggleFormLock();
+
+  // UX Improvement: Auto-focus the newly added custom field
+  const container = document.getElementById('customFieldsContainer');
+  if (container && container.lastElementChild) {
+    const firstInput = container.lastElementChild.querySelector('input');
+    if (firstInput) firstInput.focus();
+  }
 }
 
 function removeCustomFieldRow(index) {
@@ -498,8 +551,8 @@ function renderCustomFieldRows() {
     row.className = 'custom-item-row';
     row.innerHTML = `
       <span class="badge badge-custom">Spec</span>
-      <input type="text" value="${f.key || ''}" placeholder="Field Label..." style="flex: 1;">
-      <input type="text" value="${f.value || ''}" placeholder="Field Value..." style="flex: 1;">
+      <input type="text" value="${escapeHtmlAttr(f.key)}" placeholder="Field Label..." style="flex: 1;">
+      <input type="text" value="${escapeHtmlAttr(f.value)}" placeholder="Field Value..." style="flex: 1;">
       <button type="button" class="btn-small-remove">Remove</button>
     `;
 
@@ -516,6 +569,13 @@ function addCustomItemRow(labelValue = "") {
   customItemsList.push(labelValue);
   renderCustomItemRows();
   toggleFormLock();
+
+  // UX Improvement: Auto-focus newly created checklist item
+  const container = document.getElementById('customItemsContainer');
+  if (container && container.lastElementChild) {
+    const input = container.lastElementChild.querySelector('input');
+    if (input) input.focus();
+  }
 }
 
 function removeCustomItemRow(index) {
@@ -534,7 +594,7 @@ function renderCustomItemRows() {
     row.className = 'custom-item-row';
     row.innerHTML = `
       <span class="badge badge-custom">Custom Check</span>
-      <input type="text" value="${itemText}" placeholder="Enter check item name...">
+      <input type="text" value="${escapeHtmlAttr(itemText)}" placeholder="Enter check item name...">
       <button type="button" class="btn-small-remove">Remove</button>
     `;
 
@@ -584,7 +644,14 @@ async function saveConfiguration() {
   document.querySelectorAll('#dynamicSchemaFields input, #dynamicSchemaFields select').forEach(el => {
     if (el.id.startsWith('field_')) {
       const fieldId = el.id.replace('field_', '');
-      rules[fieldId] = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? Number(el.value) : el.value);
+      if (el.type === 'checkbox') {
+        rules[fieldId] = el.checked;
+      } else if (el.type === 'number') {
+        const numVal = Number(el.value);
+        rules[fieldId] = (el.value === '' || isNaN(numVal)) ? null : numVal;
+      } else {
+        rules[fieldId] = el.value;
+      }
     }
   });
 
@@ -600,7 +667,7 @@ async function saveConfiguration() {
       rules,
       customFields: customFieldsList.filter(f => f.key && f.key.trim() !== ''),
       parts: partsList.filter(p => p.component || p.oemPart || p.crossPart),
-      customItems: customItemsList.filter(item => item.trim() !== ''),
+      customItems: customItemsList.filter(item => typeof item === 'string' && item.trim() !== ''),
       updatedAt: new Date().toISOString()
     }
   };
@@ -627,19 +694,23 @@ async function saveConfiguration() {
 }
 
 function openInstructionsModal() {
-  document.getElementById('instructionsModal').style.display = 'flex';
+  const modal = document.getElementById('instructionsModal');
+  if (modal) modal.style.display = 'flex';
 }
 
 function closeInstructionsModal() {
-  document.getElementById('instructionsModal').style.display = 'none';
+  const modal = document.getElementById('instructionsModal');
+  if (modal) modal.style.display = 'none';
 }
 
 function openQuickAddAttachmentModal() {
-  document.getElementById('quickAddAttachmentModal').style.display = 'flex';
+  const modal = document.getElementById('quickAddAttachmentModal');
+  if (modal) modal.style.display = 'flex';
 }
 
 function closeQuickAddAttachmentModal() {
-  document.getElementById('quickAddAttachmentModal').style.display = 'none';
+  const modal = document.getElementById('quickAddAttachmentModal');
+  if (modal) modal.style.display = 'none';
 }
 
 async function saveNewAttachmentAsset() {
@@ -693,11 +764,13 @@ function openCopyModal() {
     showMessage('Please select a destination asset unit first before copying configuration.', 'error');
     return;
   }
-  document.getElementById('copyModal').style.display = 'flex';
+  const modal = document.getElementById('copyModal');
+  if (modal) modal.style.display = 'flex';
 }
 
 function closeCopyModal() {
-  document.getElementById('copyModal').style.display = 'none';
+  const modal = document.getElementById('copyModal');
+  if (modal) modal.style.display = 'none';
 }
 
 async function executeCopyConfig() {
