@@ -38,10 +38,16 @@
       --badge-uom: #475569;
     }
 
+    *, *:before, *:after {
+      box-sizing: border-box;
+    }
+
     html, body { 
       margin: 0; 
       padding: 0; 
       width: 100%; 
+      max-width: 100vw;
+      overflow-x: hidden;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
       color: var(--text); 
     }
@@ -79,6 +85,7 @@
       align-items: center;
       max-width: 1200px;
       margin: 0 auto 16px auto;
+      width: 100%;
       box-sizing: border-box;
     }
 
@@ -135,6 +142,7 @@
 
     .config-container { 
       max-width: 1200px; 
+      width: 100%;
       margin: 0 auto; 
       padding: 0 16px 24px 16px; 
       box-sizing: border-box; 
@@ -149,13 +157,15 @@
       padding: 20px 24px;
       margin-bottom: 20px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      width: 100%;
+      box-sizing: border-box;
     }
 
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
     .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
     
-    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; width: 100%; }
     
     label { font-size: 13px; font-weight: 600; }
     select, input[type="text"], input[type="number"] {
@@ -165,6 +175,8 @@
       font-size: 13px;
       background: var(--bg-card);
       color: var(--text);
+      width: 100%;
+      box-sizing: border-box;
     }
 
     .toggle-row {
@@ -173,6 +185,7 @@
       justify-content: space-between;
       padding: 10px 0;
       border-bottom: 1px solid #e2e8f0;
+      width: 100%;
     }
     .toggle-row:last-child { border-bottom: none; }
     .toggle-title { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
@@ -193,7 +206,7 @@
     .badge-custom { background-color: var(--badge-custom); }
     .badge-uom { background-color: var(--badge-uom); font-size: 9px; padding: 1px 4px; }
 
-    .switch { position: relative; display: inline-block; width: 42px; height: 22px; }
+    .switch { position: relative; display: inline-block; width: 42px; height: 22px; flex-shrink: 0; }
     .switch input { opacity: 0; width: 0; height: 0; }
     .slider {
       position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
@@ -233,6 +246,8 @@
       border-radius: 6px;
       padding: 16px;
       margin-top: 12px;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     .custom-item-row {
@@ -240,13 +255,21 @@
       gap: 10px;
       align-items: center;
       margin-bottom: 8px;
+      width: 100%;
     }
     .custom-item-row input[type="text"] { flex: 1; }
 
+    .parts-table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      margin-top: 10px;
+    }
+
     .parts-table {
       width: 100%;
+      min-width: 600px;
       border-collapse: collapse;
-      margin-top: 10px;
       font-size: 13px;
     }
     .parts-table th, .parts-table td {
@@ -288,6 +311,7 @@
       border-radius: 4px;
       font-size: 12px;
       cursor: pointer;
+      flex-shrink: 0;
     }
 
     .actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
@@ -298,15 +322,23 @@
     .modal-overlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000;
+      padding: 12px; box-sizing: border-box;
     }
     .modal-card {
-      background: #fff; padding: 24px; border-radius: 8px; max-width: 600px; width: 90%; max-height: 85vh; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      background: #fff; padding: 24px; border-radius: 8px; max-width: 600px; width: 100%; max-height: 85vh; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      box-sizing: border-box;
     }
 
+    /* Mobile Responsive Boundary Enforcement */
     @media (max-width: 768px) {
       .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
-      .top-nav-bar { padding: 8px 12px; flex-wrap: wrap; gap: 8px; }
+      .top-nav-bar { padding: 8px 12px; flex-wrap: wrap; gap: 8px; justify-content: center; }
+      .top-nav-bar > div { flex-wrap: wrap; justify-content: center; width: 100%; }
       .config-container { padding: 0 12px 20px 12px; }
+      .card { padding: 16px; }
+      .actions { justify-content: center; width: 100%; }
+      .btn-primary { width: 100%; }
+      .custom-item-row { flex-wrap: wrap; }
     }
   </style>
 </head>
@@ -319,8 +351,9 @@
 
   <div class="top-nav-bar">
     <a href="/app/dashboard/asset-management.html" class="btn-secondary">← Back to Asset Management</a>
-    <div style="display: flex; gap: 8px;">
-      <button class="btn-info" id="btnInstructions">Purpose & Instructions</button>
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <button class="btn-info" id="btnPurpose">Purpose</button>
+      <button class="btn-info" id="btnInstructions">Instructions</button>
       <button class="btn-action" id="btnOpenCopy">Copy Asset Rules</button>
       <button class="btn-logout" id="btnLogout">Logout</button>
     </div>
@@ -422,19 +455,21 @@
       <div class="section-title">Cross-Referenced Replacement Parts Inventory</div>
       <p style="font-size: 12px; color: var(--text-muted); margin-top: -6px;">Select a component type to auto-populate OEM specs from above, then enter aftermarket cross-references.</p>
       
-      <table class="parts-table" id="partsTable">
-        <thead>
-          <tr>
-            <th style="width: 25%;">Component Type</th>
-            <th style="width: 20%;">OEM Brand / Spec</th>
-            <th style="width: 18%;">OEM Part #</th>
-            <th style="width: 18%;">Cross-Ref Brand</th>
-            <th style="width: 18%;">Cross-Ref Part #</th>
-            <th style="width: 6%;">Action</th>
-          </tr>
-        </thead>
-        <tbody id="partsTableBody"></tbody>
-      </table>
+      <div class="parts-table-wrapper">
+        <table class="parts-table" id="partsTable">
+          <thead>
+            <tr>
+              <th style="width: 25%;">Component Type</th>
+              <th style="width: 20%;">OEM Brand / Spec</th>
+              <th style="width: 18%;">OEM Part #</th>
+              <th style="width: 18%;">Cross-Ref Brand</th>
+              <th style="width: 18%;">Cross-Ref Part #</th>
+              <th style="width: 6%;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="partsTableBody"></tbody>
+        </table>
+      </div>
       <button type="button" class="btn-small-add" id="btnAddPart" style="margin-top: 10px;">+ Add Replacement Part</button>
 
       <div class="section-title">Company / Site Custom Inspection Items</div>
@@ -452,24 +487,32 @@
     </div>
   </div>
 
+  <!-- Dedicated Purpose Modal -->
+  <div class="modal-overlay" id="purposeModal" role="dialog" aria-modal="true" aria-labelledby="modalPurposeTitle">
+    <div class="modal-card">
+      <h3 id="modalPurposeTitle" style="margin-top: 0; color: var(--primary);">Page Purpose</h3>
+      <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+        This page serves as the central specification and regulatory rules engine for your fleet. The technical rules, fluid capacities, PM thresholds, and parts cross-references configured here build the exact mobile inspection checklists (DVIR), preventative maintenance alerts, and inventory lookup tables used by drivers, operators, and mechanics in the field.
+      </p>
+      <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+        <button class="btn-secondary" id="btnClosePurpose">Got It, Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dedicated Instructions Modal -->
   <div class="modal-overlay" id="instructionsModal" role="dialog" aria-modal="true" aria-labelledby="modalInstructionsTitle">
     <div class="modal-card">
-      <h3 id="modalInstructionsTitle" style="margin-top: 0; color: var(--primary);">Purpose & Page Instructions</h3>
-      <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">
-        This page acts as the central master configuration engine for your fleet. The settings and specifications configured here build the exact inspection checklists (DVIR), PM maintenance triggers, parts cross-referencing, and telematics thresholds across your entire system.
-      </p>
-      
-      <h4 style="margin: 12px 0 6px 0; font-size: 14px;">How to Use This Page:</h4>
+      <h3 id="modalInstructionsTitle" style="margin-top: 0; color: var(--primary);">How to Use This Page</h3>
       <ol style="font-size: 13px; color: var(--text); padding-left: 20px; line-height: 1.6;">
-        <li><strong>Choose Target Level:</strong> Select <em>Category Global Defaults</em> to set standard baseline rules for an entire equipment class (e.g., Dozers), or <em>Specific Asset Unit Overrides</em> to customize a single unit (e.g., DZ-101).</li>
-        <li><strong>Enable Override:</strong> When configuring a specific unit, toggle <em>"Override Category Global Defaults"</em> to unlock all fields for editing.</li>
-        <li><strong>Select Attachments:</strong> Attach vocational bodies (e.g., winches, rippers, cranes) to dynamically load required specs like cable size and winch ratings.</li>
-        <li><strong>Configure Technical Specs & Parts:</strong> Fill in powertrain, fluids, filters (air/cabin), and cross-referenced replacement parts. Dropdowns feature a <em>"+ Add Custom Option..."</em> feature if a spec isn't listed.</li>
-        <li><strong>Save Configuration:</strong> Click <em>"Save Complete Asset Configuration"</em> to lock in rules for driver inspections and PM alerts.</li>
+        <li><strong>Select Target Level:</strong> Choose <em>Category Global Defaults</em> to define baseline rules for an entire equipment class (e.g., Dozers), or <em>Specific Asset Unit Overrides</em> to configure an individual unit (e.g., DZ-101).</li>
+        <li><strong>Enable Override:</strong> When configuring a specific unit, toggle <em>"Override Category Global Defaults"</em> to unlock form fields for editing.</li>
+        <li><strong>Configure Overlays & Attachments:</strong> Select vocational bodies (e.g., Hydro-Vac, Crane, Mixer) to automatically append component checks and fluid capacities.</li>
+        <li><strong>Enter Technical Specs & Parts:</strong> Input powertrain specs, fluids, and filter part numbers. Use aftermarket cross-references to simplify shop replacements.</li>
+        <li><strong>Save Configuration:</strong> Click <em>"Save Complete Asset Configuration"</em> to lock in rules across driver mobile apps and maintenance dashboards.</li>
       </ol>
-
       <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
-        <button class="btn-secondary" id="btnCloseInstructions">Got It, Close Instructions</button>
+        <button class="btn-secondary" id="btnCloseInstructions">Close Instructions</button>
       </div>
     </div>
   </div>
@@ -542,7 +585,7 @@
   <div id="dashFooter"></div>
 
   <script src="/app/shared/dashboard-common.js?v=13"></script>
-  <script src="/app/dashboard/asset-config.js?v=2"></script>
+  <script src="/app/dashboard/asset-config.js?v=3"></script>
   <script src="/app/shared/auth-check.js?v=13"></script>
 </body>
 </html>
