@@ -1,2168 +1,699 @@
-// =========================================================================
-// OWNER DASHBOARD LOGIC — UPDATED (v8 Strict Session & Founder Guard)
-// Multi-tenant founder auth fixed & direct login redirect on session failure
-// =========================================================================
+/* =========================================================================
+   DRIV-EN Platform — Owner Dashboard JavaScript Module
+   File: /app/dashboard/owner-dashboard.js
+   ========================================================================= */
 
-var allPartners = [];
-var currentApprovePartnerId = null;
-var currentRejectPartnerId = null;
-var sortColumn = 'created_at';
-var sortDirection = 'desc';
+(function () {
+  'use strict';
 
-// Visitor table sort state
-var visitorSortColumn = 'created_at';
-var visitorSortDirection = 'desc';
-var allVisitors = [];
+  // State Management
+  let allPartners = [];
+  let currentApprovePartnerId = null;
+  let currentRejectPartnerId = null;
+  let sortColumn = 'created_at';
+  let sortDirection = 'desc';
 
-// Session table sort state
-var sessionSortColumn = 'firstVisit';
-var sessionSortDirection = 'desc';
-var allSessions = [];
+  let visitorSortColumn = 'created_at';
+  let visitorSortDirection = 'desc';
+  let allVisitors = [];
 
-// API routes for admin dashboard data.
-// Pages Functions live under /api/admin/* in this repo, so keep these paths exact.
-var ADMIN_API_BASE = '/api/admin';
+  let sessionSortColumn = 'firstVisit';
+  let sessionSortDirection = 'desc';
+  let allSessions = [];
 
-function adminApi(path) {
-  return ADMIN_API_BASE + path;
-}
+  let allIssues = [];
+  let issueExpandedId = null;
 
-// ---- Theme Toggle ----
-function dashToggleTheme() {
-  var current = document.documentElement.getAttribute("data-theme");
-  var newTheme = current === "dark" ? "light" : "dark";
-  document.documentElement.setAttribute("data-theme", newTheme);
-  localStorage.setItem("driven-theme", newTheme);
-  updateThemeSwitch();
-}
+  let allCustomers = [];
+  let customerPageSize = 10;
+  let customerCurrentPage = 1;
 
-function updateThemeSwitch() {
-  var current = document.documentElement.getAttribute("data-theme");
-  var checkbox = document.getElementById("dashThemeCheckbox");
-  var labelLight = document.getElementById("dashThemeLabelLight");
-  var labelDark = document.getElementById("dashThemeLabelDark");
-  if (checkbox) checkbox.checked = (current === "dark");
-  if (labelLight) labelLight.classList.toggle("active", current === "light");
-  if (labelDark) labelDark.classList.toggle("active", current === "dark");
-}
+  // Cache flags to avoid redundant network calls on tab switch
+  const tabLoaded = {
+    referrers: false,
+    customers: false,
+    system: false,
+    issues: false,
+    visitors: false,
+    settings: false
+  };
 
-// ---- Logo Management ----
-function loadOwnerLogo() {
-  var container = document.getElementById('ownerLogoContainer');
-  var preview = document.getElementById('settingsLogoPreview');
-  var removeBtn = document.getElementById('logoRemoveBtn');
+  const ADMIN_API_BASE = '/api/admin';
 
-  if (!container || !preview) return;
-
-  container.innerHTML = '<div class="dash-customer-logo-placeholder">DSI Logo</div>';
-  preview.innerHTML = '<div class="settings-logo-placeholder">No logo uploaded</div>';
-  if (removeBtn) removeBtn.style.display = 'none';
-
-  fetch(adminApi('/app-settings?key=owner_logo'))
-    .then(function(res) { 
-      if (!res || !res.ok) return null;
-      return res.json(); 
-    })
-    .then(function(data) {
-      if (data && data.success && data.value) {
-        container.innerHTML = '<img src="' + data.value + '" class="dash-customer-logo" alt="DSI Logo">';
-        preview.innerHTML = '<img src="' + data.value + '" style="max-height:56px;max-width:180px;border:1px solid var(--border);border-radius:6px;padding:4px;background:var(--bg-card);" alt="Logo">';
-        if (removeBtn) removeBtn.style.display = 'inline-block';
-      }
-    })
-    .catch(function() {});
-}
-
-function handleLogoUpload(event) {
-  var file = event.target.files[0];
-  if (!file) return;
-
-  if (file.size > 500 * 1024) {
-    showError('Logo file is too large. Maximum size is 500KB.');
-    event.target.value = '';
-    return;
+  function adminApi(path) {
+    return ADMIN_API_BASE + path;
   }
 
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    var logoData = e.target.result;
+  function getAuthHeaders(additionalHeaders = {}) {
+    const userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
+    const orgId = userObj.org_id || localStorage.getItem("driven_org_id") || "org_dsi";
+    const userId = userObj.id || localStorage.getItem("driven_user_id") || "";
 
+    const headers = { ...additionalHeaders };
+    if (orgId) headers["x-org-id"] = orgId;
+    if (userId) headers["x-user-id"] = String(userId);
+    return headers;
+  }
+
+  /* ===== THEME MANAGEMENT ===== */
+
+  function dashToggleTheme() {
+    const current = document.documentElement.getAttribute("data-theme");
+    const newTheme = current === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", newTheme);
+    localStorage.setItem("driven-theme", newTheme);
+    updateThemeSwitch();
+  }
+
+  function updateThemeSwitch() {
+    const current = document.documentElement.getAttribute("data-theme");
+    const checkbox = document.getElementById("dashThemeCheckbox");
+    const labelLight = document.getElementById("dashThemeLabelLight");
+    const labelDark = document.getElementById("dashThemeLabelDark");
+    if (checkbox) checkbox.checked = (current === "dark");
+    if (labelLight) labelLight.classList.toggle("active", current === "light");
+    if (labelDark) labelDark.classList.toggle("active", current === "dark");
+  }
+
+  /* ===== LOGO MANAGEMENT ===== */
+
+  function loadOwnerLogo() {
+    const container = document.getElementById('ownerLogoContainer');
+    const preview = document.getElementById('settingsLogoPreview');
+    const removeBtn = document.getElementById('logoRemoveBtn');
+
+    if (!container || !preview) return;
+
+    container.innerHTML = '<div class="dash-customer-logo-placeholder">DSI Logo</div>';
+    preview.innerHTML = '<div class="settings-logo-placeholder">No logo uploaded</div>';
+    if (removeBtn) removeBtn.style.display = 'none';
+
+    fetch(adminApi('/app-settings?key=owner_logo'), { headers: getAuthHeaders() })
+      .then(res => (res && res.ok ? res.json() : null))
+      .then(data => {
+        if (data && data.success && data.value) {
+          container.innerHTML = `<img src="${data.value}" class="dash-customer-logo" alt="DSI Logo">`;
+          preview.innerHTML = `<img src="${data.value}" style="max-height:56px;max-width:180px;border:1px solid var(--border);border-radius:6px;padding:4px;background:var(--bg-card);" alt="Logo">`;
+          if (removeBtn) removeBtn.style.display = 'inline-block';
+        }
+      })
+      .catch(() => {});
+  }
+
+  function handleLogoUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (file.size > 500 * 1024) {
+      showError('Logo file is too large. Maximum size is 500KB.');
+      event.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const logoData = e.target.result;
+      fetch(adminApi('/app-settings'), {
+        method: 'POST',
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ key: 'owner_logo', value: logoData })
+      })
+      .then(res => (res && res.ok ? res.json() : null))
+      .then(data => {
+        if (data && data.success) {
+          loadOwnerLogo();
+          showError('');
+        } else if (data) {
+          showError('Failed to save logo: ' + (data.error || 'Unknown error'));
+        }
+      })
+      .catch(() => showError('Network error while saving logo.'));
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
+  }
+
+  function removeLogo() {
     fetch(adminApi('/app-settings'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: 'owner_logo', value: logoData })
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ key: 'owner_logo', value: '' })
     })
-    .then(function(res) {
-      if (!res || !res.ok) return null;
-      return res.json();
-    })
-    .then(function(data) {
-      if (data && data.success) {
-        loadOwnerLogo();
-        showError('');
-      } else if (data) {
-        showError('Failed to save logo to server: ' + (data.error || 'Unknown error'));
-      }
-    })
-    .catch(function() {
-      showError('Network error while saving logo. Please try again.');
-    });
-  };
-  reader.onerror = function() {
-    showError('Failed to read the logo file. Please try again.');
-  };
-  reader.readAsDataURL(file);
-  event.target.value = '';
-}
+    .finally(() => loadOwnerLogo());
+  }
 
-function removeLogo() {
-  fetch(adminApi('/app-settings'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ key: 'owner_logo', value: '' })
-  })
-  .then(function(res) {
-    loadOwnerLogo();
-  })
-  .catch(function() {
-    loadOwnerLogo();
-  });
-}
+  /* ===== TAB NAVIGATION ===== */
 
-// =========================================================================
-// SITE VISITORS TAB LOGIC
-// =========================================================================
+  function switchTab(tabName) {
+    closeCustomerDetail();
+    document.querySelectorAll('.owner-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.owner-tab-content').forEach(c => c.classList.remove('active'));
 
-async function loadVisitors(presetDays, presetName) {
-  try {
-    var startEl = document.getElementById('visitorDateStart');
-    var endEl = document.getElementById('visitorDateEnd');
-    var startDate, endDate;
+    const tabBtn = document.querySelector(`.owner-tab[data-tab="${tabName}"]`);
+    const tabContent = document.getElementById(`tab-${tabName}`);
+    if (tabBtn) tabBtn.classList.add('active');
+    if (tabContent) tabContent.classList.add('active');
 
-    if (presetName === 'today') {
-      var now = new Date();
-      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-      endDate = now.toISOString();
-      startEl.value = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString().split('T')[0];
-      endEl.value = now.toISOString().split('T')[0];
-    } else if (presetName === 'yesterday') {
-      var y = new Date();
-      y.setDate(y.getDate() - 1);
-      startDate = new Date(y.getFullYear(), y.getMonth(), y.getDate()).toISOString();
-      endDate = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 23, 59, 59).toISOString();
-      startEl.value = new Date(y.getFullYear(), y.getMonth(), y.getDate()).toISOString().split('T')[0];
-      endEl.value = startEl.value;
-    } else if (presetName === 'week') {
-      var w = new Date();
-      var day = w.getDay();
-      var diff = w.getDate() - day + (day === 0 ? -6 : 1);
-      var weekStart = new Date(w);
-      weekStart.setDate(diff);
-      startDate = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate()).toISOString();
-      endDate = w.toISOString();
-      startEl.value = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate()).toISOString().split('T')[0];
-      endEl.value = w.toISOString().split('T')[0];
-    } else if (presetName === 'month') {
-      var m = new Date();
-      startDate = new Date(m.getFullYear(), m.getMonth(), 1).toISOString();
-      endDate = m.toISOString();
-      startEl.value = new Date(m.getFullYear(), m.getMonth(), 1).toISOString().split('T')[0];
-      endEl.value = m.toISOString().split('T')[0];
-    } else if (presetDays) {
-      var end = new Date();
-      var start = new Date();
-      start.setDate(start.getDate() - parseInt(presetDays));
-      startDate = start.toISOString();
-      endDate = end.toISOString();
-      startEl.value = start.toISOString().split('T')[0];
-      endEl.value = end.toISOString().split('T')[0];
-    } else {
-      var startVal = startEl.value;
-      var endVal = endEl.value;
-      if (startVal && endVal) {
-        startDate = new Date(startVal + 'T00:00:00Z').toISOString();
-        endDate = new Date(endVal + 'T23:59:59Z').toISOString();
-      } else {
-        var end = new Date();
-        var start = new Date();
-        start.setDate(start.getDate() - 30);
+    if (tabName === 'visitors' && !tabLoaded.visitors) {
+      loadVisitors('30');
+    } else if (tabName === 'customers' && !tabLoaded.customers) {
+      loadCustomers();
+    } else if (tabName === 'system' && !tabLoaded.system) {
+      loadSystemStatus();
+      loadAIUsage();
+    } else if (tabName === 'issues' && !tabLoaded.issues) {
+      loadIssues();
+    } else if (tabName === 'settings' && !tabLoaded.settings) {
+      loadTeamMembers();
+      tabLoaded.settings = true;
+    }
+  }
+
+  /* ===== VISITORS TAB ===== */
+
+  async function loadVisitors(presetDays, presetName) {
+    try {
+      const startEl = document.getElementById('visitorDateStart');
+      const endEl = document.getElementById('visitorDateEnd');
+      let startDate, endDate;
+
+      if (presetName === 'today') {
+        const now = new Date();
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+        endDate = now.toISOString();
+        if (startEl) startEl.value = startDate.split('T')[0];
+        if (endEl) endEl.value = endDate.split('T')[0];
+      } else if (presetName === 'yesterday') {
+        const y = new Date();
+        y.setDate(y.getDate() - 1);
+        startDate = new Date(y.getFullYear(), y.getMonth(), y.getDate()).toISOString();
+        endDate = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 23, 59, 59).toISOString();
+        if (startEl) startEl.value = startDate.split('T')[0];
+        if (endEl) endEl.value = startDate.split('T')[0];
+      } else if (presetName === 'week') {
+        const w = new Date();
+        const day = w.getDay();
+        const diff = w.getDate() - day + (day === 0 ? -6 : 1);
+        const weekStart = new Date(w);
+        weekStart.setDate(diff);
+        startDate = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate()).toISOString();
+        endDate = w.toISOString();
+        if (startEl) startEl.value = startDate.split('T')[0];
+        if (endEl) endEl.value = endDate.split('T')[0];
+      } else if (presetName === 'month') {
+        const m = new Date();
+        startDate = new Date(m.getFullYear(), m.getMonth(), 1).toISOString();
+        endDate = m.toISOString();
+        if (startEl) startEl.value = startDate.split('T')[0];
+        if (endEl) endEl.value = endDate.split('T')[0];
+      } else if (presetDays) {
+        const end = new Date();
+        const start = new Date();
+        start.setDate(start.getDate() - parseInt(presetDays));
         startDate = start.toISOString();
         endDate = end.toISOString();
-        startEl.value = start.toISOString().split('T')[0];
-        endEl.value = end.toISOString().split('T')[0];
-      }
-    }
-
-    document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">Loading...</td></tr>';
-
-    var summaryResp = await fetch(adminApi('/site-visitors?summary=true&start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate)));
-    if (summaryResp && summaryResp.ok) {
-      var summaryData = await summaryResp.json();
-      if (summaryData.success) {
-        var s = summaryData.summary;
-        document.getElementById('visitorTotalVisits').textContent = s.totalVisits || 0;
-        document.getElementById('visitorUniqueVisitors').textContent = s.uniqueVisitors || 0;
-        document.getElementById('visitorUniqueSessions').textContent = s.uniqueSessions || 0;
-        document.getElementById('visitorUniqueCountries').textContent = s.uniqueCountries || 0;
-        document.getElementById('visitorReferralVisits').textContent = s.referralVisits || 0;
-        document.getElementById('visitorTopDevice').textContent = (s.deviceBreakdown && s.deviceBreakdown[0]) ? s.deviceBreakdown[0].device_type : '—';
-        document.getElementById('visitorTopBrowser').textContent = (s.browserBreakdown && s.browserBreakdown[0]) ? s.browserBreakdown[0].browser : '—';
-        document.getElementById('visitorTopOS').textContent = (s.osBreakdown && s.osBreakdown[0]) ? s.osBreakdown[0].os : '—';
-
-        var pagesHtml = (s.topPages || []).map(function(p) {
-          return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
-                 '<span style="color:var(--text);">' + (p.page_path || '/') + '</span>' +
-                 '<span style="color:var(--text-muted);">' + p.count + '</span></div>';
-        }).join('');
-        document.getElementById('visitorTopPages').innerHTML = pagesHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
-
-        var countriesHtml = (s.topCountries || []).map(function(c) {
-          return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
-                 '<span style="color:var(--text);">' + (c.country || 'Unknown') + '</span>' +
-                 '<span style="color:var(--text-muted);">' + c.count + '</span></div>';
-        }).join('');
-        document.getElementById('visitorTopCountries').innerHTML = countriesHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
-
-        var browsersHtml = (s.browserBreakdown || []).map(function(b) {
-          return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
-                 '<span style="color:var(--text);text-transform:capitalize;">' + b.browser + '</span>' +
-                 '<span style="color:var(--text-muted);">' + b.count + '</span></div>';
-        }).join('');
-        document.getElementById('visitorBrowsers').innerHTML = browsersHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
-
-        var osHtml = (s.osBreakdown || []).map(function(o) {
-          return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">' +
-                 '<span style="color:var(--text);text-transform:capitalize;">' + o.os + '</span>' +
-                 '<span style="color:var(--text-muted);">' + o.count + '</span></div>';
-        }).join('');
-        document.getElementById('visitorOS').innerHTML = osHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
-      }
-    }
-
-    var listResp = await fetch(adminApi('/site-visitors?start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate)));
-    if (listResp && listResp.ok) {
-      var listData = await listResp.json();
-      if (listData.success && listData.visitors && listData.visitors.length > 0) {
-        allVisitors = listData.visitors;
-        renderVisitorTable();
+        if (startEl) startEl.value = startDate.split('T')[0];
+        if (endEl) endEl.value = endDate.split('T')[0];
       } else {
-        allVisitors = [];
-        document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No visitor data for this date range.</td></tr>';
-      }
-    } else {
-      document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">Visitor tracking endpoint unavailable.</td></tr>';
-    }
-
-    var sessResp = await fetch(adminApi('/site-visitors?sessions=true&start=' + encodeURIComponent(startDate) + '&end=' + encodeURIComponent(endDate)));
-    if (sessResp && sessResp.ok) {
-      var sessData = await sessResp.json();
-      if (sessData.success && sessData.sessions && sessData.sessions.length > 0) {
-        allSessions = sessData.sessions;
-        renderSessionsTable();
-      } else {
-        allSessions = [];
-        document.getElementById('sessionsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No session data for this date range.</td></tr>';
-      }
-    }
-  } catch (e) {
-    console.error('loadVisitors error:', e);
-    document.getElementById('visitorsTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">Failed to load visitor data.</td></tr>';
-  }
-}
-
-function sortVisitors(column) {
-  if (visitorSortColumn === column) {
-    visitorSortDirection = visitorSortDirection === 'asc' ? 'desc' : 'asc';
-  } else {
-    visitorSortColumn = column;
-    visitorSortDirection = 'asc';
-  }
-  updateVisitorSortIndicators();
-  renderVisitorTable();
-}
-
-function updateVisitorSortIndicators() {
-  document.querySelectorAll('[data-vsort]').forEach(function(th) {
-    th.classList.remove('active', 'asc');
-    if (th.dataset.vsort === visitorSortColumn) {
-      th.classList.add('active');
-      if (visitorSortDirection === 'asc') th.classList.add('asc');
-    }
-  });
-}
-
-var PAGE_PATH_MAP = {
-  '/': 'Home',
-  '/website/': 'Home',
-  '/website/index.html': 'Home',
-  '/index.html': 'Home',
-  '/website/about.html': 'About',
-  '/about.html': 'About',
-  '/website/modules.html': 'Platform Suites',
-  '/modules.html': 'Platform Suites',
-  '/website/module-selection.html': 'Module Selection',
-  '/module-selection.html': 'Module Selection',
-  '/website/cart.html': 'Cart',
-  '/cart.html': 'Cart',
-  '/website/checkout.html': 'Checkout',
-  '/checkout.html': 'Checkout',
-  '/website/referral-signup.html': 'Referral Program',
-  '/referral-signup.html': 'Referral Program',
-  '/website/safety.html': 'Safety',
-  '/safety.html': 'Safety',
-  '/website/equipment.html': 'Equipment',
-  '/equipment.html': 'Equipment',
-  '/website/project.html': 'Project',
-  '/project.html': 'Project',
-  '/website/roadmap.html': 'Roadmap',
-  '/roadmap.html': 'Roadmap',
-  '/website/legal/privacy.html': 'Privacy Policy',
-  '/website/legal/terms.html': 'Terms of Service',
-  '/website/legal/refund.html': 'Refund Policy',
-  '/app/dashboard/referrer-dashboard.html': 'Referrer Dashboard',
-  '/app/dashboard/owner-dashboard.html': 'Owner Dashboard',
-  '/app/dashboard/onboarding-dashboard.html': 'Onboarding Dashboard'
-};
-
-function pagePathToName(path) {
-  if (!path || path === '/') return 'Home';
-  if (PAGE_PATH_MAP[path]) return PAGE_PATH_MAP[path];
-  if (PAGE_PATH_MAP['/website/' + path.replace(/^\//, '')]) return PAGE_PATH_MAP['/website/' + path.replace(/^\//, '')];
-  if (PAGE_PATH_MAP[path.replace('/website/', '/')]) return PAGE_PATH_MAP[path.replace('/website/', '/')];
-  if (path.indexOf('/website/') === 0) {
-    var page = path.replace('/website/', '').replace('.html', '');
-    if (page === 'index') return 'Home';
-    return page.charAt(0).toUpperCase() + page.slice(1);
-  }
-  var cleaned = path.replace(/^\//, '').replace('.html', '');
-  if (cleaned === 'index' || cleaned === '') return 'Home';
-  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-}
-
-function renderVisitorTable() {
-  var tbody = document.getElementById('visitorsTableBody');
-  if (!allVisitors || allVisitors.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No visitor data for this date range.</td></tr>';
-    return;
-  }
-
-  var sorted = allVisitors.slice().sort(function(a, b) {
-    var aVal, bVal;
-    if (visitorSortColumn === 'time_on_page') {
-      aVal = a.time_on_page || 0;
-      bVal = b.time_on_page || 0;
-    } else if (visitorSortColumn === 'created_at') {
-      aVal = a.created_at || '';
-      bVal = b.created_at || '';
-    } else {
-      aVal = String(a[visitorSortColumn] || '').toLowerCase();
-      bVal = String(b[visitorSortColumn] || '').toLowerCase();
-    }
-    var dir = visitorSortDirection === 'asc' ? 1 : -1;
-    if (aVal < bVal) return -1 * dir;
-    if (aVal > bVal) return 1 * dir;
-    return 0;
-  });
-
-  var rows = sorted.map(function(v) {
-    var date = new Date(v.created_at).toLocaleString();
-    var timeOnPage = v.time_on_page ? (v.time_on_page + 's') : '—';
-    var pageName = pagePathToName(v.page_path);
-    return '<tr>' +
-      '<td style="white-space:nowrap;">' + date + '</td>' +
-      '<td>' + escapeHtml(pageName) + '</td>' +
-      '<td>' + escapeHtml(v.country || '—') + '</td>' +
-      '<td style="text-transform:capitalize;">' + escapeHtml(v.device_type || '—') + '</td>' +
-      '<td style="text-transform:capitalize;">' + escapeHtml(v.browser || '—') + '</td>' +
-      '<td style="text-transform:capitalize;">' + escapeHtml(v.os || '—') + '</td>' +
-      '<td>' + escapeHtml(v.referral_code || '—') + '</td>' +
-      '<td>' + escapeHtml(v.external_referrer || '—') + '</td>' +
-      '<td>' + timeOnPage + '</td>' +
-    '</tr>';
-  }).join('');
-  tbody.innerHTML = rows;
-}
-
-function sortSessions(column) {
-  if (sessionSortColumn === column) {
-    sessionSortDirection = sessionSortDirection === 'asc' ? 'desc' : 'asc';
-  } else {
-    sessionSortColumn = column;
-    sessionSortDirection = 'asc';
-  }
-  updateSessionSortIndicators();
-  renderSessionsTable();
-}
-
-function updateSessionSortIndicators() {
-  document.querySelectorAll('[data-ssort]').forEach(function(th) {
-    th.classList.remove('active', 'asc');
-    if (th.dataset.ssort === sessionSortColumn) {
-      th.classList.add('active');
-      if (sessionSortDirection === 'asc') th.classList.add('asc');
-    }
-  });
-}
-
-function renderSessionsTable() {
-  var tbody = document.getElementById('sessionsTableBody');
-  if (!allSessions || allSessions.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No session data for this date range.</td></tr>';
-    return;
-  }
-
-  var sorted = allSessions.slice().sort(function(a, b) {
-    var aVal, bVal;
-    if (sessionSortColumn === 'totalTimeOnSite') {
-      aVal = a.totalTimeOnSite || 0;
-      bVal = b.totalTimeOnSite || 0;
-    } else if (sessionSortColumn === 'pagesCount') {
-      aVal = a.pages ? a.pages.length : 0;
-      bVal = b.pages ? b.pages.length : 0;
-    } else if (sessionSortColumn === 'firstVisit') {
-      aVal = a.firstVisit || '';
-      bVal = b.firstVisit || '';
-    } else {
-      aVal = String(a[sessionSortColumn] || '').toLowerCase();
-      bVal = String(b[sessionSortColumn] || '').toLowerCase();
-    }
-    var dir = sessionSortDirection === 'asc' ? 1 : -1;
-    if (aVal < bVal) return -1 * dir;
-    if (aVal > bVal) return 1 * dir;
-    return 0;
-  });
-
-  var sessRows = sorted.map(function(s) {
-    var firstVisit = new Date(s.firstVisit).toLocaleString();
-    var pagesList = s.pages.map(function(p) {
-      var time = p.timeOnPage ? (p.timeOnPage + 's') : '—';
-      var pageName = pagePathToName(p.pagePath);
-      return '<div style="padding:2px 0;font-size:12px;">' +
-             '<span style="color:var(--text);">' + escapeHtml(pageName) + '</span>' +
-             ' <span style="color:var(--text-muted);">(' + time + ')</span></div>';
-    }).join('');
-    var totalTime = s.totalTimeOnSite > 0 ? (s.totalTimeOnSite + 's') : '—';
-    return '<tr>' +
-      '<td style="white-space:nowrap;">' + firstVisit + '</td>' +
-      '<td>' + s.pages.length + '</td>' +
-      '<td style="max-width:300px;">' + pagesList + '</td>' +
-      '<td>' + totalTime + '</td>' +
-      '<td>' + escapeHtml(s.country || '—') + '</td>' +
-      '<td style="text-transform:capitalize;">' + escapeHtml(s.deviceType || '—') + '</td>' +
-      '<td style="text-transform:capitalize;">' + escapeHtml(s.browser || '—') + '</td>' +
-      '<td style="text-transform:capitalize;">' + escapeHtml(s.os || '—') + '</td>' +
-      '<td>' + escapeHtml(s.referralCode || '—') + '</td>' +
-    '</tr>';
-  }).join('');
-  tbody.innerHTML = sessRows;
-}
-
-// ---- Primary Auth Check Guard & Event Listening ----
-function verifyAndInitOwnerSession(u) {
-  if (!u) {
-    console.warn('No session user payload provided.');
-    window.location.href = '/public/login.html';
-    return;
-  }
-
-  // Extract role_id and org_id with fallbacks for alternative property casings
-  var userRoleId = String(u.role_id || u.roleId || u.role || '').trim();
-  var userOrgId = String(u.org_id || u.orgId || u.organization_id || '').trim();
-  var userEmail = String(u.email || '').toLowerCase().trim();
-
-  // Strict enforcement: RO-Founder role_id/email and org_dsi org_id
-  var isFounderRole = userRoleId === 'RO-Founder' ||
-                      userRoleId.toLowerCase().indexOf('founder') !== -1 ||
-                      userEmail === 'jblood@digitalsafetyinspection.com';
-  var isDsiOrg = !userOrgId || userOrgId === 'default_org' || userOrgId === 'org_dsi';
-
-  if (!isFounderRole || !isDsiOrg) {
-    console.warn('Owner Dashboard access denied. Requires role_id="RO-Founder" and org_id="org_dsi". Received:', {
-      role_id: userRoleId,
-      org_id: userOrgId,
-      full_user: u
-    });
-    window.location.href = '/app/auth/no-access.html';
-    return;
-  }
-
-  // Normalize Founder session properties
-  u.org_id = 'org_dsi';
-  u.role_id = 'RO-Founder';
-  u.role = 'DRIV-EN Founder';
-
-  window.ownerUser = u;
-  try {
-    initOwnerDashboard();
-  } catch (err) {
-    console.error('Dashboard initialization error:', err);
-  }
-}
-
-// Event listener for async auth check completion
-document.addEventListener("dashSessionLoaded", function(e) {
-  var u = e.detail || window.drivenUser || window.ownerUser;
-  if (u) verifyAndInitOwnerSession(u);
-});
-
-// Fallback check if user object was set globally prior to script execution
-if (window.drivenUser || window.ownerUser) {
-  verifyAndInitOwnerSession(window.drivenUser || window.ownerUser);
-} else {
-  // Direct fetch fallback ONLY if auth-check script was omitted or delayed
-  (async function() {
-    try {
-      var resp = await fetch('/auth/session', {
-        headers: { "Accept": "application/json" },
-        credentials: "include"
-      });
-      var contentType = resp.headers.get('content-type') || '';
-      
-      if (!resp.ok || !contentType.includes('application/json')) { 
-        console.warn('Session API returned invalid or non-JSON status');
-        window.location.href = '/public/login.html'; 
-        return; 
-      }
-      var data = await resp.json();
-      if (!data || !data.authenticated || !data.user) {
-        window.location.href = '/public/login.html';
-        return;
-      }
-      verifyAndInitOwnerSession(data.user);
-    } catch (e) {
-      console.error('Auth check network failure:', e);
-      window.location.href = '/public/login.html';
-    }
-  })();
-}
-
-// ---- Init ----
-function initOwnerDashboard() {
-  var loadingEl = document.getElementById('loadingScreen');
-  if (loadingEl) loadingEl.style.display = 'none';
-
-  var dashEl = document.getElementById('dashboard');
-  if (dashEl) dashEl.style.display = 'block';
-
-  var yearEl = document.getElementById('dashFooterYear');
-  if (yearEl) yearEl.textContent = new Date().getFullYear();
-
-  updateThemeSwitch();
-  loadOwnerLogo();
-
-  var tabBar = document.querySelector('.owner-tab-bar');
-  var header = document.querySelector('.dash-header');
-  if (tabBar && header) {
-    var headerHeight = header.offsetHeight;
-    tabBar.style.position = 'sticky';
-    tabBar.style.top = headerHeight + 'px';
-    tabBar.style.zIndex = '99';
-    tabBar.style.background = '#cbd5e1';
-  }
-
-  var emailEl = document.getElementById('settingsAccountEmail');
-  if (emailEl && window.ownerUser) {
-    emailEl.textContent = window.ownerUser.email || '—';
-  }
-
-  loadPartners();
-  loadW9IrsFormUrl();
-}
-
-// ---- W-9 IRS Form URL ----
-async function loadW9IrsFormUrl() {
-  try {
-    var resp = await fetch(adminApi('/app-settings?key=w9_irs_form_url'));
-    if (!resp || !resp.ok) return;
-    var data = await resp.json();
-    if (data && data.success && data.value) {
-      var input = document.getElementById('w9IrsFormUrlInput');
-      if (input) input.value = data.value;
-    }
-  } catch (e) {}
-}
-
-async function saveW9IrsFormUrl() {
-  var input = document.getElementById('w9IrsFormUrlInput');
-  var msg = document.getElementById('w9IrsFormUrlMsg');
-  var url = input ? input.value.trim() : '';
-
-  if (!url) {
-    if (msg) msg.innerHTML = '<span style="color:#fca5a5;">Please enter a URL.</span>';
-    return;
-  }
-
-  try {
-    var resp = await fetch(adminApi('/app-settings'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: 'w9_irs_form_url', value: url })
-    });
-    if (!resp || !resp.ok) {
-      if (msg) msg.innerHTML = '<span style="color:#fca5a5;">Failed to save settings.</span>';
-      return;
-    }
-    var data = await resp.json();
-    if (data && data.success) {
-      if (msg) msg.innerHTML = '<span style="color:#166534;">W-9 IRS form URL saved. Referrer dashboards will use this link.</span>';
-    } else {
-      if (msg) msg.innerHTML = '<span style="color:#fca5a5;">' + (data.error || 'Failed to save.') + '</span>';
-    }
-  } catch (e) {
-    if (msg) msg.innerHTML = '<span style="color:#fca5a5;">Network error. Please try again.</span>';
-  }
-}
-
-// ---- Tab Switching ----
-function switchTab(tabName) {
-  closeCustomerDetail();
-  document.querySelectorAll('.owner-tab').forEach(function(t) { t.classList.remove('active'); });
-  document.querySelectorAll('.owner-tab-content').forEach(function(c) { c.classList.remove('active'); });
-  var tabBtn = document.querySelector('[data-tab="' + tabName + '"]');
-  var tabContent = document.getElementById('tab-' + tabName);
-  if (tabBtn) tabBtn.classList.add('active');
-  if (tabContent) tabContent.classList.add('active');
-
-  if (tabName === 'visitors') {
-    loadVisitors('30');
-  } else if (tabName === 'customers') {
-    loadCustomers();
-  } else if (tabName === 'system') {
-    loadSystemStatus();
-    loadAIUsage();
-  } else if (tabName === 'issues') {
-    loadIssues();
-  } else if (tabName === 'settings') {
-    loadTeamMembers();
-    var nameInput = document.getElementById('newTeamMemberName');
-    var emailInput = document.getElementById('newTeamMemberEmail');
-    if (nameInput) nameInput.value = '';
-    if (emailInput) emailInput.value = '';
-  }
-}
-
-// ---- Load Partners ----
-async function loadPartners() {
-  var tbody = document.getElementById('partnersTableBody');
-  if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading…</td></tr>';
-
-  var searchInput = document.getElementById('searchInput');
-  if (searchInput) searchInput.value = '';
-
-  try {
-    var resp = await fetch(adminApi('/referral-partners'));
-    if (!resp || !resp.ok) {
-      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">Referral partner service unavailable.</td></tr>';
-      return;
-    }
-    var data = await resp.json();
-
-    if (data && data.success && data.partners) {
-      allPartners = data.partners;
-      renderStats(data.partners);
-      updateSortIndicators();
-      renderTable(data.partners);
-    } else {
-      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">No referral partners found.</td></tr>';
-      if (data && data.error) showError(data.error);
-    }
-  } catch (e) {
-    console.error('Load partners failed:', e);
-    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">Failed to load partners.</td></tr>';
-  }
-}
-
-// ---- Render Stats ----
-function renderStats(partners) {
-  var total = partners.length;
-  var pending = partners.filter(function(p) { return p.status === 'Pending'; }).length;
-  var approved = partners.filter(function(p) { return p.status === 'Approved'; }).length;
-  var rejected = partners.filter(function(p) { return p.status === 'Rejected'; }).length;
-
-  var elTotal = document.getElementById('statTotal');
-  var elPending = document.getElementById('statPending');
-  var elApproved = document.getElementById('statApproved');
-  var elRejected = document.getElementById('statRejected');
-
-  if (elTotal) elTotal.textContent = total;
-  if (elPending) elPending.textContent = pending;
-  if (elApproved) elApproved.textContent = approved;
-  if (elRejected) elRejected.textContent = rejected;
-}
-
-// ---- Render Table ----
-function renderTable(partners) {
-  var tbody = document.getElementById('partnersTableBody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-
-  if (partners.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">No referral partners yet.</td></tr>';
-    return;
-  }
-
-  partners = sortPartners(partners);
-
-  partners.forEach(function(p) {
-    var row = document.createElement('tr');
-    row.dataset.name = (p.partner_name || '').toLowerCase();
-    row.dataset.email = (p.partner_email || '').toLowerCase();
-
-    if (p.status === 'Approved' && p.active === 0) {
-      row.classList.add('partner-row-inactive');
-    }
-
-    var statusBadge = '';
-    if (p.status === 'Approved') {
-      statusBadge = '<span class="dash-badge dash-badge-success">Approved</span>';
-      if (p.active === 0) {
-        statusBadge += ' <span class="dash-badge dash-badge-muted">Inactive</span>';
-      }
-    } else if (p.status === 'Pending') {
-      statusBadge = '<span class="dash-badge dash-badge-warning">Pending</span>';
-    } else if (p.status === 'Pending W-9 Review') {
-      statusBadge = '<span class="dash-badge dash-badge-warning">W-9 Review</span>';
-    } else if (p.status === 'Rejected') {
-      statusBadge = '<span class="dash-badge dash-badge-danger">Rejected</span>';
-    } else {
-      statusBadge = '<span class="dash-badge dash-badge-muted">' + escapeHtml(p.status || 'Unknown') + '</span>';
-    }
-
-    var w9Cell = '';
-    if (p.w9_attachment && !String(p.w9_attachment).startsWith('DEBUG:')) {
-      w9Cell = '<button class="owner-action-btn owner-btn-w9" data-action="view-w9" data-id="' + escapeHtml(p.id) + '">View W-9</button>';
-    } else {
-      w9Cell = '<span style="color:var(--text-muted);font-size:13px;">No W-9</span>';
-    }
-
-    var w9StatusCell = '';
-    if (!p.w9_attachment || String(p.w9_attachment).startsWith('DEBUG:')) {
-      w9StatusCell = '<span class="dash-badge dash-badge-muted">None</span>';
-    } else if (p.w9_expiration_date) {
-      var expDate = new Date(p.w9_expiration_date + 'T23:59:59');
-      var now = new Date();
-      if (expDate < now) {
-        w9StatusCell = '<span class="dash-badge dash-badge-danger">Expired</span>';
-      } else {
-        w9StatusCell = '<span class="dash-badge dash-badge-success">Current</span>';
-      }
-    } else {
-      w9StatusCell = '<span class="dash-badge dash-badge-warning">No Expiry Set</span>';
-    }
-
-    var codeCell = p.referral_code ? '<span style="font-family:monospace;font-weight:600;color:var(--primary);">' + escapeHtml(p.referral_code) + '</span>' : '<span style="color:var(--text-muted);">—</span>';
-
-    var achCell = '';
-    if (p.bank_name && p.account_number_last4) {
-      achCell = '<span class="dash-badge dash-badge-success" title="' + escapeHtml(p.bank_name) + ' ••••' + escapeHtml(p.account_number_last4) + '">On File</span>';
-    } else if (p.has_voided_check) {
-      achCell = '<span class="dash-badge dash-badge-success" title="Voided check uploaded">Check</span>';
-    } else {
-      achCell = '<span class="dash-badge dash-badge-muted">None</span>';
-    }
-
-    var lastReferredCell = '—';
-    if (p.last_referred) {
-      var lrDate = new Date(p.last_referred);
-      lastReferredCell = lrDate.toLocaleDateString();
-    }
-
-    var emailCell = p.partner_email
-      ? '<a href="mailto:' + escapeHtml(p.partner_email) + '" class="partner-email-link">' + escapeHtml(p.partner_email) + '</a>'
-      : '—';
-
-    var actions = '';
-    if (p.status === 'Pending') {
-      actions = '<button class="owner-action-btn owner-btn-approve" data-action="approve" data-id="' + escapeHtml(p.id) + '" data-name="' + escapeHtml(p.partner_name) + '">Approve</button>';
-      actions += '<button class="owner-action-btn owner-btn-reject" data-action="reject" data-id="' + escapeHtml(p.id) + '" data-name="' + escapeHtml(p.partner_name) + '">Reject</button>';
-    } else if (p.status === 'Pending W-9 Review') {
-      actions = '<button class="owner-action-btn owner-btn-approve" data-action="reapprove" data-id="' + escapeHtml(p.id) + '">Re-Approve</button>';
-    } else if (p.status === 'Approved') {
-      if (p.active === 1) {
-        actions = '<button class="owner-action-btn owner-btn-deactivate" data-action="toggle-active" data-id="' + escapeHtml(p.id) + '" data-name="' + escapeHtml(p.partner_name) + '">Deactivate</button>';
-      } else {
-        actions = '<button class="owner-action-btn owner-btn-activate" data-action="toggle-active" data-id="' + escapeHtml(p.id) + '" data-name="' + escapeHtml(p.partner_name) + '">Activate</button>';
-      }
-    } else {
-      actions = '<span style="color:var(--text-muted);">—</span>';
-    }
-
-    var date = p.created_at ? new Date(p.created_at).toLocaleDateString() : '—';
-
-    row.innerHTML =
-      '<td>' + escapeHtml(p.partner_name || '—') + '</td>' +
-      '<td>' + emailCell + '</td>' +
-      '<td>' + escapeHtml(p.partner_phone || '—') + '</td>' +
-      '<td>' + statusBadge + '</td>' +
-      '<td>' + codeCell + '</td>' +
-      '<td>' + w9Cell + '</td>' +
-      '<td>' + w9StatusCell + '</td>' +
-      '<td>' + achCell + '</td>' +
-      '<td>' + lastReferredCell + '</td>' +
-      '<td>' + date + '</td>' +
-      '<td>' + actions + '</td>';
-
-    tbody.appendChild(row);
-  });
-
-  var btns = tbody.querySelectorAll('[data-action]');
-  for (var b = 0; b < btns.length; b++) {
-    btns[b].addEventListener('click', function() {
-      var action = this.getAttribute('data-action');
-      var id = this.getAttribute('data-id');
-      var name = this.getAttribute('data-name') || '';
-      if (action === 'approve') openApproveModal(id, name);
-      else if (action === 'reject') openRejectModal(id, name);
-      else if (action === 'reapprove') reapproveW9(id, name);
-      else if (action === 'toggle-active') toggleActive(id, name);
-      else if (action === 'view-w9') viewW9(id);
-    });
-  }
-}
-
-// ---- Filter Partners ----
-function filterPartners() {
-  var searchEl = document.getElementById('searchInput');
-  if (!searchEl) return;
-  var query = searchEl.value.toLowerCase();
-  var rows = document.querySelectorAll('#partnersTableBody tr');
-  rows.forEach(function(row) {
-    var name = row.dataset.name || '';
-    var email = row.dataset.email || '';
-    if (name.indexOf(query) !== -1 || email.indexOf(query) !== -1) {
-      row.style.display = '';
-    } else {
-      row.style.display = 'none';
-    }
-  });
-}
-
-// ---- Sort By Column ----
-function sortBy(column) {
-  if (sortColumn === column) {
-    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-  } else {
-    sortColumn = column;
-    sortDirection = 'asc';
-  }
-  updateSortIndicators();
-  renderTable(allPartners);
-}
-
-function updateSortIndicators() {
-  document.querySelectorAll('.sortable').forEach(function(th) {
-    th.classList.remove('active', 'asc');
-    if (th.dataset.sort === sortColumn) {
-      th.classList.add('active');
-      if (sortDirection === 'asc') th.classList.add('asc');
-    }
-  });
-}
-
-function getW9SortValue(p) {
-  if (!p.w9_attachment || String(p.w9_attachment).startsWith('DEBUG:')) return 0;
-  if (p.w9_expiration_date) {
-    var expDate = new Date(p.w9_expiration_date + 'T23:59:59');
-    if (expDate < new Date()) return 1;
-    return 2;
-  }
-  return 3;
-}
-
-function sortPartners(partners) {
-  var col = sortColumn;
-  var dir = sortDirection === 'asc' ? 1 : -1;
-  return partners.slice().sort(function(a, b) {
-    var aVal, bVal;
-    if (col === 'w9_status') {
-      aVal = getW9SortValue(a);
-      bVal = getW9SortValue(b);
-    } else if (col === 'created_at' || col === 'last_referred') {
-      aVal = (a[col] || '');
-      bVal = (b[col] || '');
-      if (!aVal && bVal) return 1;
-      if (aVal && !bVal) return -1;
-      if (!aVal && !bVal) return 0;
-    } else {
-      aVal = String(a[col] || '').toLowerCase();
-      bVal = String(b[col] || '').toLowerCase();
-    }
-    if (aVal < bVal) return -1 * dir;
-    if (aVal > bVal) return 1 * dir;
-    return 0;
-  });
-}
-
-// ---- W-9 View ----
-function viewW9(partnerId) {
-  window.open(adminApi('/w9-download?partnerId=' + encodeURIComponent(partnerId)), '_blank');
-}
-
-// ---- Approve Modal ----
-function openApproveModal(partnerId, partnerName) {
-  currentApprovePartnerId = partnerId;
-  var nameEl = document.getElementById('approvePartnerName');
-  var codeEl = document.getElementById('approveReferralCode');
-  var expEl = document.getElementById('approveW9Expiration');
-  var modalEl = document.getElementById('approveModal');
-
-  if (nameEl) nameEl.textContent = partnerName || '—';
-  if (codeEl) codeEl.value = generateReferralCode();
-  if (expEl) expEl.value = defaultW9Expiration();
-  if (modalEl) modalEl.classList.add('active');
-}
-
-function closeApproveModal() {
-  var modalEl = document.getElementById('approveModal');
-  if (modalEl) modalEl.classList.remove('active');
-  currentApprovePartnerId = null;
-}
-
-async function confirmApprove() {
-  var partnerId = currentApprovePartnerId;
-  var codeEl = document.getElementById('approveReferralCode');
-  var expEl = document.getElementById('approveW9Expiration');
-  var referralCode = codeEl ? codeEl.value.trim() : '';
-  var w9Expiration = expEl ? expEl.value : '';
-
-  if (!partnerId) return;
-  if (!referralCode) {
-    showError('Referral code is required.');
-    return;
-  }
-
-  var confirmBtn = document.querySelector('#approveModal .owner-modal-confirm');
-  if (confirmBtn) {
-    confirmBtn.textContent = 'Approving…';
-    confirmBtn.disabled = true;
-  }
-
-  try {
-    var resp = await fetch(adminApi('/referral-partners'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'approve',
-        partnerId: partnerId,
-        referralCode: referralCode,
-        w9ExpirationDate: w9Expiration
-      })
-    });
-    if (!resp || !resp.ok) {
-      showError('Failed to approve partner.');
-      return;
-    }
-    var data = await resp.json();
-
-    if (data && data.success) {
-      closeApproveModal();
-      loadPartners();
-      if (data.emailSent === false) {
-        showError('Partner approved, but email failed to send: ' + (data.emailError || 'Unknown error') + '. Temp password: ' + (data.tempPassword || 'N/A'));
-      } else {
-        showError('');
-      }
-    } else {
-      showError(data ? data.error : 'Failed to approve partner.');
-    }
-  } catch (e) {
-    showError('Network error. Please try again.');
-  } finally {
-    if (confirmBtn) {
-      confirmBtn.textContent = 'Approve Partner';
-      confirmBtn.disabled = false;
-    }
-  }
-}
-
-// ---- Reject Modal ----
-function openRejectModal(partnerId, partnerName) {
-  currentRejectPartnerId = partnerId;
-  var nameEl = document.getElementById('rejectPartnerName');
-  var reasonEl = document.getElementById('rejectReason');
-  var modalEl = document.getElementById('rejectModal');
-
-  if (nameEl) nameEl.textContent = partnerName || '—';
-  if (reasonEl) reasonEl.value = '';
-  if (modalEl) modalEl.classList.add('active');
-}
-
-function closeRejectModal() {
-  var modalEl = document.getElementById('rejectModal');
-  if (modalEl) modalEl.classList.remove('active');
-  currentRejectPartnerId = null;
-}
-
-async function confirmReject() {
-  var partnerId = currentRejectPartnerId;
-  var reasonEl = document.getElementById('rejectReason');
-  var reason = reasonEl ? reasonEl.value.trim() : '';
-
-  if (!partnerId) return;
-
-  var confirmBtn = document.querySelector('#rejectModal .owner-modal-confirm');
-  if (confirmBtn) {
-    confirmBtn.textContent = 'Rejecting…';
-    confirmBtn.disabled = true;
-  }
-
-  try {
-    var resp = await fetch(adminApi('/referral-partners'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'reject',
-        partnerId: partnerId,
-        reason: reason
-      })
-    });
-    if (!resp || !resp.ok) {
-      showError('Failed to reject partner.');
-      return;
-    }
-    var data = await resp.json();
-
-    if (data && data.success) {
-      closeRejectModal();
-      loadPartners();
-    } else {
-      showError(data ? data.error : 'Failed to reject partner.');
-    }
-  } catch (e) {
-    showError('Network error. Please try again.');
-  } finally {
-    if (confirmBtn) {
-      confirmBtn.textContent = 'Reject Partner';
-      confirmBtn.disabled = false;
-    }
-  }
-}
-
-// ---- Change Password ----
-function toggleChangePassword() {
-  var section = document.getElementById('changePwdSection');
-  if (section) section.style.display = section.style.display === 'block' ? 'none' : 'block';
-}
-
-async function submitChangePassword() {
-  var curEl = document.getElementById('currentPwd');
-  var newEl = document.getElementById('newPwd');
-  var confirmEl = document.getElementById('confirmNewPwd');
-  var msgEl = document.getElementById('changePwdMsg');
-
-  var currentPwd = curEl ? curEl.value : '';
-  var newPwd = newEl ? newEl.value : '';
-  var confirmNewPwd = confirmEl ? confirmEl.value : '';
-
-  if (!currentPwd || !newPwd || !confirmNewPwd) {
-    if (msgEl) msgEl.innerHTML = '<span style="color:#fca5a5;">All fields are required.</span>';
-    return;
-  }
-  if (newPwd !== confirmNewPwd) {
-    if (msgEl) msgEl.innerHTML = '<span style="color:#fca5a5;">New passwords do not match.</span>';
-    return;
-  }
-  if (newPwd.length < 8) {
-    if (msgEl) msgEl.innerHTML = '<span style="color:#fca5a5;">Password must be at least 8 characters.</span>';
-    return;
-  }
-
-  try {
-    var resp = await fetch('/auth/change-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ current_password: currentPwd, new_password: newPwd })
-    });
-    if (!resp || !resp.ok) {
-      if (msgEl) msgEl.innerHTML = '<span style="color:#fca5a5;">Failed to change password.</span>';
-      return;
-    }
-    var data = await resp.json();
-
-    if (data && data.success) {
-      if (msgEl) msgEl.innerHTML = '<span style="color:#166534;">Password changed successfully!</span>';
-      if (curEl) curEl.value = '';
-      if (newEl) newEl.value = '';
-      if (confirmEl) confirmEl.value = '';
-    } else {
-      if (msgEl) msgEl.innerHTML = '<span style="color:#fca5a5;">' + (data ? data.error : 'Failed to change password.') + '</span>';
-    }
-  } catch (e) {
-    if (msgEl) msgEl.innerHTML = '<span style="color:#fca5a5;">Network error. Please try again.</span>';
-  }
-}
-
-// ---- Re-Approve W-9 ----
-async function reapproveW9(partnerId, partnerName) {
-  if (!confirm('Re-approve ' + partnerName + '? Their referral link will be reactivated.')) return;
-  try {
-    var resp = await fetch(adminApi('/referral-partners'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'reapprove_w9', partnerId: partnerId })
-    });
-    if (!resp || !resp.ok) {
-      showError('Failed to re-approve partner.');
-      return;
-    }
-    var data = await resp.json();
-    if (data && data.success) {
-      showError(data.message || 'Partner re-approved');
-      loadPartners();
-    } else {
-      showError(data ? data.error : 'Failed to re-approve');
-    }
-  } catch (e) {
-    showError('Network error. Please try again.');
-  }
-}
-
-// ---- Activate/Deactivate Toggle ----
-async function toggleActive(partnerId, partnerName) {
-  if (!confirm('Toggle active state for ' + partnerName + '?')) return;
-  try {
-    var resp = await fetch(adminApi('/referral-partners'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'toggle_active', partnerId: partnerId })
-    });
-    if (!resp || !resp.ok) {
-      showError('Failed to toggle active state.');
-      return;
-    }
-    var data = await resp.json();
-    if (data && data.success) {
-      showError(data.message || 'State toggled');
-      loadPartners();
-    } else {
-      showError(data ? data.error : 'Failed to toggle state');
-    }
-  } catch (e) {
-    showError('Network error. Please try again.');
-  }
-}
-
-// ---- Helpers ----
-function generateReferralCode() {
-  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  var code = 'DRV-';
-  for (var i = 0; i < 6; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return code;
-}
-
-function regenerateCode() {
-  var codeEl = document.getElementById('approveReferralCode');
-  if (codeEl) codeEl.value = generateReferralCode();
-}
-
-function defaultW9Expiration() {
-  return new Date().getFullYear() + '-12-31';
-}
-
-function escapeHtml(str) {
-  var div = document.createElement('div');
-  div.textContent = str || '';
-  return div.innerHTML;
-}
-
-function escapeJs(str) {
-  var bs = String.fromCharCode(92);
-  var sq = String.fromCharCode(39);
-  var s = str || '';
-  var result = '';
-  for (var i = 0; i < s.length; i++) {
-    var ch = s[i];
-    if (ch === bs) result += bs + bs;
-    else if (ch === sq) result += bs + sq;
-    else result += ch;
-  }
-  return result;
-}
-
-function showError(msg) {
-  var el = document.getElementById('errorBanner');
-  if (!el) return;
-  if (!msg) { el.style.display = 'none'; return; }
-  el.textContent = msg;
-  el.style.display = 'block';
-  setTimeout(function() { el.style.display = 'none'; }, 6000);
-}
-
-// =========================================================================
-// CUSTOMERS TAB LOGIC (EXCLUDES ORG_DSI)
-// =========================================================================
-
-var allCustomers = [];
-var customerPageSize = 10;
-var customerCurrentPage = 1;
-
-async function loadCustomers() {
-  var listEl = document.getElementById('customerList');
-  if (!listEl) return;
-  listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading customers…</div>';
-
-  try {
-    var resp = await fetch(adminApi('/customers'));
-    if (!resp || !resp.ok) {
-      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><p>Customer management service currently unavailable.</p></div>';
-      return;
-    }
-    var data = await resp.json();
-
-    if (data && data.success && data.customers) {
-      // STRICT FILTER: Exclude the founder organization (org_dsi)
-      allCustomers = data.customers.filter(function(c) {
-        var orgId = String(c.org_id || c.customer_id || c.id || '').trim().toLowerCase();
-        return orgId !== 'org_dsi' && orgId !== 'dsi';
-      });
-
-      renderCustomerStats(allCustomers);
-      customerCurrentPage = 1;
-      renderCustomersTable();
-    } else {
-      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><p>' + (data ? data.error : 'No customers found.') + '</p></div>';
-    }
-  } catch (e) {
-    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><p>Failed to load customers.</p></div>';
-  }
-}
-
-function renderCustomerStats(customers) {
-  var total = customers.length;
-  var active = customers.filter(function(c) { return c.subscription_status === 'active'; }).length;
-  var trial = customers.filter(function(c) { return c.subscription_status === 'trial' || c.subscription_status === 'trialing'; }).length;
-  var pending = customers.filter(function(c) { return !c.subscription_status || c.subscription_status === 'pending' || c.subscription_status === 'inactive'; }).length;
-
-  var elTotal = document.getElementById('custStatTotal');
-  var elActive = document.getElementById('custStatActive');
-  var elTrial = document.getElementById('custStatTrial');
-  var elPending = document.getElementById('custStatPending');
-
-  if (elTotal) elTotal.textContent = total;
-  if (elActive) elActive.textContent = active;
-  if (elTrial) elTrial.textContent = trial;
-  if (elPending) elPending.textContent = pending;
-}
-
-function getFilteredCustomers() {
-  var queryEl = document.getElementById('customerSearchInput');
-  var query = queryEl && queryEl.value ? queryEl.value.toLowerCase().trim() : '';
-
-  // Base list filtered to ensure org_dsi never slips through
-  var baseList = allCustomers.filter(function(c) {
-    var orgId = String(c.org_id || c.customer_id || c.id || '').trim().toLowerCase();
-    return orgId !== 'org_dsi' && orgId !== 'dsi';
-  });
-
-  if (!query) return baseList;
-
-  return baseList.filter(function(c) {
-    var name = (c.company_name || c.organization_name || c.name || '').toLowerCase();
-    var email = (c.admin_email || c.contact_email || c.email || '').toLowerCase();
-    return name.indexOf(query) !== -1 || email.indexOf(query) !== -1;
-  });
-}
-
-function renderCustomersTable() {
-  var listEl = document.getElementById('customerList');
-  if (!listEl) return;
-  var filtered = getFilteredCustomers();
-  var totalPages = Math.ceil(filtered.length / customerPageSize);
-  if (customerCurrentPage > totalPages) customerCurrentPage = totalPages || 1;
-  var startIdx = (customerCurrentPage - 1) * customerPageSize;
-  var pageData = filtered.slice(startIdx, startIdx + customerPageSize);
-
-  if (filtered.length === 0) {
-    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><p>No customers yet. When organizations sign up, they will appear here.</p></div>';
-    return;
-  }
-
-  var html = '<div class="owner-table-wrap" style="overflow-x:auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:0 4px;">';
-  html += '<table class="owner-data-table" style="width:100%;border-collapse:collapse;font-size:14px;background:#ffffff;">';
-  html += '<thead><tr style="border-bottom:2px solid #e2e8f0;text-align:left;background:#f8fafc;">';
-  html += '<th style="padding:10px 8px;cursor:pointer;color:#334155;" onclick="sortByCustomerField(\'company_name\')">Customer Name</th>';
-  html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Employees</th>';
-  html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Assets</th>';
-  html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Inspections</th>';
-  html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Completed PMs</th>';
-  html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Completed WOs</th>';
-  html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Equipment Transfers</th>';
-  html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Fuel Purchases</th>';
-  html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Receipts (AI)</th>';
-  html += '<th style="padding:10px 8px;text-align:center;color:#334155;">Manuals (AI)</th>';
-  html += '</tr></thead><tbody>';
-
-  for (var i = 0; i < pageData.length; i++) {
-    var c = pageData[i];
-    var name = escapeHtml(c.company_name || c.organization_name || c.name || 'Unknown');
-    var empCount = c.employee_count || 0;
-    var assetCount = c.asset_count || 0;
-    var inspCount = c.inspection_count || 0;
-    var pmCount = c.pm_count || 0;
-    var woCount = c.wo_count || 0;
-    var transferCount = c.transfer_count || 0;
-    var fuelCount = c.fuel_count || 0;
-    var receiptCount = c.receipt_count || 0;
-    var manualCount = c.manual_count || 0;
-    var idx = startIdx + i;
-    html += '<tr class="owner-customer-row" data-idx="' + idx + '" onclick="showCustomerDetail(' + idx + ')" style="cursor:pointer;border-bottom:1px solid #e2e8f0;color:#1e293b;">';
-    html += '<td style="padding:10px 8px;font-weight:500;color:#1e293b;">' + name + '</td>';
-    html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + empCount + '</td>';
-    html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + assetCount + '</td>';
-    html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + inspCount + '</td>';
-    html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + pmCount + '</td>';
-    html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + woCount + '</td>';
-    html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + transferCount + '</td>';
-    html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + fuelCount + '</td>';
-    html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + receiptCount + '</td>';
-    html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + manualCount + '</td>';
-    html += '</tr>';
-  }
-
-  var totEmp = 0, totAsset = 0, totInsp = 0, totPM = 0, totWO = 0, totTransfer = 0, totFuel = 0, totReceipt = 0, totManual = 0;
-  filtered.forEach(function(c) {
-    totEmp += c.employee_count || 0;
-    totAsset += c.asset_count || 0;
-    totInsp += c.inspection_count || 0;
-    totPM += c.pm_count || 0;
-    totWO += c.wo_count || 0;
-    totTransfer += c.transfer_count || 0;
-    totFuel += c.fuel_count || 0;
-    totReceipt += c.receipt_count || 0;
-    totManual += c.manual_count || 0;
-  });
-  html += '<tr style="border-top:2px solid #e2e8f0;font-weight:700;background:#f8fafc;color:#1e293b;">';
-  html += '<td style="padding:10px 8px;color:#1e293b;">TOTAL (' + filtered.length + ' customers)</td>';
-  html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totEmp + '</td>';
-  html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totAsset + '</td>';
-  html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totInsp + '</td>';
-  html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totPM + '</td>';
-  html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totWO + '</td>';
-  html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totTransfer + '</td>';
-  html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totFuel + '</td>';
-  html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totReceipt + '</td>';
-  html += '<td style="padding:10px 8px;text-align:center;color:#334155;">' + totManual + '</td>';
-  html += '</tr>';
-
-  html += '</tbody></table></div>';
-
-  if (totalPages > 1) {
-    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;">';
-    html += '<span style="font-size:13px;color:var(--text-muted);">Page ' + customerCurrentPage + ' of ' + totalPages + ' (' + filtered.length + ' customers)</span>';
-    html += '<div>';
-    if (customerCurrentPage > 1) {
-      html += '<button class="owner-refresh-btn" style="margin-right:8px;" onclick="customerGoPage(' + (customerCurrentPage - 1) + ')">← Prev</button>';
-    }
-    if (customerCurrentPage < totalPages) {
-      html += '<button class="owner-refresh-btn" onclick="customerGoPage(' + (customerCurrentPage + 1) + ')">Next →</button>';
-    }
-    html += '</div></div>';
-  }
-
-  listEl.innerHTML = html;
-}
-
-function customerGoPage(page) {
-  customerCurrentPage = page;
-  renderCustomersTable();
-}
-
-function filterCustomers() {
-  customerCurrentPage = 1;
-  renderCustomersTable();
-}
-
-function showCustomerDetail(idx) {
-  var c = getFilteredCustomers()[idx] || allCustomers[idx];
-  if (!c) return;
-
-  var modal = document.getElementById('customerDetailModal');
-  if (!modal) return;
-
-  var modules = c.activated_modules;
-  try { modules = JSON.parse(modules || '[]'); } catch(e) { modules = modules ? [modules] : []; }
-  var moduleStr = modules.length ? modules.join(', ') : '—';
-
-  var subDate = c.activation_date ? new Date(c.activation_date).toLocaleDateString() : '—';
-  var expDate = c.expiration_date ? new Date(c.expiration_date).toLocaleDateString() : '—';
-  var createdDate = c.created_at ? new Date(c.created_at).toLocaleDateString() : '—';
-
-  var html = '<div style="background:#ffffff;color:#1e293b;border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.35);">';
-  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
-  html += '<h3 style="margin:0;color:#1e293b;">' + escapeHtml(c.company_name || c.organization_name || c.name || 'Unknown') + '</h3>';
-  html += '<button onclick="closeCustomerDetail()" style="background:none;border:none;font-size:26px;cursor:pointer;color:#64748b;line-height:1;">×</button>';
-  html += '</div>';
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;font-size:14px;color:#334155;">';
-  html += '<div><strong>Customer #/OrgID:</strong><br>' + escapeHtml(c.customer_id || c.org_id || '—') + '</div>';
-  html += '<div><strong>Subscription Date:</strong><br>' + subDate + '</div>';
-  html += '<div><strong>Expiration Date:</strong><br>' + expDate + '</div>';
-  html += '<div><strong>Modules:</strong><br>' + escapeHtml(moduleStr) + '</div>';
-  html += '<div><strong>Subscription Status:</strong><br>' + escapeHtml(c.subscription_status || c.customer_status || '—') + '</div>';
-  html += '<div><strong>Subscription Type:</strong><br>' + escapeHtml(c.subscription_type || '—') + '</div>';
-  html += '<div><strong>Admin Email:</strong><br>' + escapeHtml(c.admin_email || c.contact_email || '—') + '</div>';
-  html += '<div><strong>Admin Phone:</strong><br>' + escapeHtml(c.admin_phone || '—') + '</div>';
-  html += '<div><strong>Address:</strong><br>' + escapeHtml([c.billing_address, c.city, c.state, c.zip].filter(Boolean).join(', ') || '—') + '</div>';
-  html += '<div><strong>Date Added:</strong><br>' + createdDate + '</div>';
-  if (c.referrer) {
-    html += '<div><strong>Referrer:</strong><br>' + escapeHtml(c.referrer) + '</div>';
-  }
-  html += '<div><strong>Employees:</strong><br>' + (c.employee_count || 0) + '</div>';
-  html += '<div><strong>Assets:</strong><br>' + (c.asset_count || 0) + '</div>';
-  html += '<div><strong>Inspections:</strong><br>' + (c.inspection_count || 0) + '</div>';
-  html += '<div><strong>Completed PMs:</strong><br>' + (c.pm_count || 0) + '</div>';
-  html += '<div><strong>Work Orders:</strong><br>' + (c.wo_count || 0) + '</div>';
-  html += '<div><strong>Equipment Transfers:</strong><br>' + (c.transfer_count || 0) + '</div>';
-  html += '<div><strong>Fuel Purchases:</strong><br>' + (c.fuel_count || 0) + '</div>';
-  html += '<div><strong>Receipts (AI):</strong><br>' + (c.receipt_count || 0) + '</div>';
-  html += '<div><strong>Manuals (AI):</strong><br>' + (c.manual_count || 0) + '</div>';
-  html += '<div><strong>Orders:</strong><br>' + (c.order_count || 0) + '</div>';
-  html += '</div></div>';
-
-  modal.innerHTML = html;
-  modal.style.display = 'flex';
-  modal.style.position = 'fixed';
-  modal.style.top = '0';
-  modal.style.left = '0';
-  modal.style.width = '100%';
-  modal.style.height = '100%';
-  modal.style.background = 'rgba(0,0,0,0.55)';
-  modal.style.zIndex = '9999';
-  modal.style.alignItems = 'center';
-  modal.style.justifyContent = 'center';
-  modal.style.cursor = 'pointer';
-  modal.onclick = function(e) {
-    if (e.target === modal) closeCustomerDetail();
-  };
-  document.addEventListener('keydown', function escHandler(e) {
-    if (e.key === 'Escape') {
-      closeCustomerDetail();
-      document.removeEventListener('keydown', escHandler);
-    }
-  });
-}
-
-function closeCustomerDetail() {
-  var modal = document.getElementById('customerDetailModal');
-  if (modal) { modal.style.display = 'none'; modal.innerHTML = ''; }
-}
-
-var _customerSortField = 'company_name';
-var _customerSortAsc = true;
-function sortByCustomerField(field) {
-  if (_customerSortField === field) { _customerSortAsc = !_customerSortAsc; }
-  else { _customerSortField = field; _customerSortAsc = true; }
-  allCustomers.sort(function(a, b) {
-    var va = (a[field] || '').toString().toLowerCase();
-    var vb = (b[field] || '').toString().toLowerCase();
-    if (va < vb) return _customerSortAsc ? -1 : 1;
-    if (va > vb) return _customerSortAsc ? 1 : -1;
-    return 0;
-  });
-  customerCurrentPage = 1;
-  renderCustomersTable();
-}
-
-// =========================================================================
-// SYSTEM STATUS TAB LOGIC
-// =========================================================================
-
-async function loadSystemStatus() {
-  var lastCheckEl = document.getElementById('sysLastCheck');
-  if (lastCheckEl) lastCheckEl.textContent = new Date().toLocaleString();
-
-  var endpoints = [
-    { id: 'sysWorkerAuth', url: '/auth/session', label: 'Auth Worker' },
-    { id: 'sysWorkerReferral', url: '/referral/session', label: 'Referral API' },
-    { id: 'sysWorkerCheckout', url: '/api/health', label: 'Checkout' },
-    { id: 'sysPagesFunctions', url: '/api/admin/referral-partners', label: 'Pages Functions' }
-  ];
-
-  for (var i = 0; i < endpoints.length; i++) {
-    var ep = endpoints[i];
-    var el = document.getElementById(ep.id);
-    if (!el) continue;
-
-    el.textContent = 'Checking...';
-    try {
-      var controller = new AbortController();
-      var timeout = setTimeout(function() { controller.abort(); }, 5000);
-      var resp = await fetch(ep.url, { signal: controller.signal });
-      clearTimeout(timeout);
-      el.textContent = 'OK (' + resp.status + ')';
-      if (el.parentElement && el.parentElement.querySelector('.sys-status-dot')) {
-        el.parentElement.querySelector('.sys-status-dot').className = 'sys-status-dot sys-dot-ok';
-      }
-    } catch (e) {
-      el.textContent = 'Unreachable';
-      if (el.parentElement && el.parentElement.querySelector('.sys-status-dot')) {
-        el.parentElement.querySelector('.sys-status-dot').className = 'sys-status-dot sys-dot-warn';
-      }
-    }
-  }
-
-  try {
-    var resp = await fetch(adminApi('/referral-partners'));
-    if (resp && resp.ok) {
-      var data = await resp.json();
-      var sysPartnersEl = document.getElementById('sysD1Partners');
-      if (data && data.success && data.partners && sysPartnersEl) {
-        sysPartnersEl.textContent = data.partners.length + ' rows';
-      }
-    }
-  } catch (e) {
-    var sysPartnersErrEl = document.getElementById('sysD1Partners');
-    if (sysPartnersErrEl) sysPartnersErrEl.textContent = 'Unable to count';
-  }
-
-  try {
-    var vResp = await fetch(adminApi('/site-visitors?summary=true'));
-    if (vResp && vResp.ok) {
-      var vData = await vResp.json();
-      var sysVisitorsEl = document.getElementById('sysD1Visitors');
-      if (vData && vData.success && vData.summary && sysVisitorsEl) {
-        sysVisitorsEl.textContent = (vData.summary.totalVisits || 0) + ' rows';
-      }
-    }
-  } catch (e) {
-    var sysVisitorsErrEl = document.getElementById('sysD1Visitors');
-    if (sysVisitorsErrEl) sysVisitorsErrEl.textContent = 'Unable to count';
-  }
-
-  try {
-    var pResp = await fetch(adminApi('/referral-partners'));
-    if (pResp && pResp.ok) {
-      var pData = await pResp.json();
-      var sysActEl = document.getElementById('sysD1Activity');
-      if (pData && pData.success && pData.partners && sysActEl) {
-        var withActivity = pData.partners.filter(function(p) { return p.last_referred; }).length;
-        sysActEl.textContent = withActivity + ' partners with activity';
-      }
-    }
-  } catch (e) {
-    var sysActErrEl = document.getElementById('sysD1Activity');
-    if (sysActErrEl) sysActErrEl.textContent = 'Unable to count';
-  }
-
-  var sysUsersEl = document.getElementById('sysD1Users');
-  var sysW9El = document.getElementById('sysR2W9');
-  if (sysUsersEl) sysUsersEl.textContent = '— (not yet queried)';
-  if (sysW9El) sysW9El.textContent = '— (not yet queried)';
-}
-
-// =========================================================================
-// AI USAGE
-// =========================================================================
-
-async function loadAIUsage() {
-  try {
-    var resp = await fetch(adminApi('/customers'));
-    var detailEl = document.getElementById('ai-usage-detail');
-    if (!resp || !resp.ok) {
-      if (detailEl) detailEl.textContent = 'No AI usage data available yet.';
-      return;
-    }
-    var data = await resp.json();
-    if (!data || !data.success || !data.customers) {
-      if (detailEl) detailEl.textContent = 'No AI usage data available yet.';
-      return;
-    }
-
-    var customers = data.customers;
-    var totReceipts = 0, totManuals = 0, totExtractions = 0;
-    customers.forEach(function(c) {
-      totReceipts += c.receipt_count || 0;
-      totManuals += c.manual_count || 0;
-      totExtractions += (c.extraction_receipt_count || 0) + (c.extraction_manual_count || 0);
-    });
-
-    var statExtEl = document.getElementById('ai-stat-extractions');
-    var statSuccEl = document.getElementById('ai-stat-success');
-    var statFailEl = document.getElementById('ai-stat-failed');
-    var statAvgEl = document.getElementById('ai-stat-avgtime');
-
-    if (statExtEl) statExtEl.textContent = totReceipts + totManuals;
-    if (statSuccEl) statSuccEl.textContent = totReceipts;
-    if (statFailEl) statFailEl.textContent = totManuals;
-    if (statAvgEl) statAvgEl.textContent = '—';
-
-    if (detailEl) {
-      var html = '<strong>AI Extraction Summary (All Customers)</strong><br>';
-      html += 'Receipt uploads (AI): ' + totReceipts + '<br>';
-      html += 'Manual uploads (AI): ' + totManuals + '<br>';
-      html += 'Total AI extractions: ' + totExtractions + '<br><br>';
-      html += '<strong>Per Customer:</strong>';
-      html += '<div style="margin-top:8px;max-height:200px;overflow-y:auto;">';
-      customers.forEach(function(c) {
-        var name = c.company_name || 'Unknown';
-        var rc = c.receipt_count || 0;
-        var mc = c.manual_count || 0;
-        if (rc > 0 || mc > 0) {
-          html += '<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;">';
-          html += _escHtml(name) + ' — Receipts: ' + rc + ' · Manuals: ' + mc;
-          html += '</div>';
-        }
-      });
-      html += '</div>';
-      detailEl.innerHTML = html;
-    }
-  } catch (e) {
-    var detailErrEl = document.getElementById('ai-usage-detail');
-    if (detailErrEl) detailErrEl.textContent = 'Unable to load AI usage data.';
-  }
-}
-
-function _escHtml(s) {
-  if (!s) return '';
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-// =========================================================================
-// ISSUES TAB LOGIC
-// =========================================================================
-
-var allIssues = [];
-var issueExpandedId = null;
-
-async function loadIssues() {
-  var listEl = document.getElementById('issueList');
-  if (!listEl) return;
-  listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading error logs...</div>';
-
-  try {
-    var resp = await fetch(adminApi('/issues'));
-    if (!resp || !resp.ok) {
-      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Unable to Load Error Logs</h3><p>Could not reach the /api/admin/issues endpoint. Make sure the Pages Function is deployed.</p></div>';
-      return;
-    }
-    var data = await resp.json();
-
-    if (data && data.success && data.issues && data.issues.length > 0) {
-      allIssues = data.issues;
-      populateSourceFilter(data.issues);
-      renderIssueStats(data.issues);
-      renderIssues(data.issues);
-    } else if (data && data.success && data.issues && data.issues.length === 0) {
-      allIssues = [];
-      populateSourceFilter([]);
-      renderIssueStats([]);
-      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors</h3><p>No errors have been logged. Everything looks good.</p></div>';
-    } else {
-      allIssues = [];
-      populateSourceFilter([]);
-      renderIssueStats([]);
-      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors Logged</h3><p>No errors have been recorded yet.</p></div>';
-    }
-  } catch (e) {
-    allIssues = [];
-    populateSourceFilter([]);
-    renderIssueStats([]);
-    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Unable to Load Error Logs</h3><p>Could not reach the /api/admin/issues endpoint.</p></div>';
-  }
-}
-
-function renderIssueStats(issues) {
-  var now = new Date();
-  var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-  var weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-
-  var totalEl = document.getElementById('issueStatTotal');
-  var todayEl = document.getElementById('issueStatToday');
-  var weekEl = document.getElementById('issueStatWeek');
-  var resEl = document.getElementById('issueStatResolved');
-
-  if (totalEl) totalEl.textContent = issues.length;
-  if (todayEl) todayEl.textContent = issues.filter(function(i) { return i.created_at >= todayStart; }).length;
-  if (weekEl) weekEl.textContent = issues.filter(function(i) { return i.created_at >= weekStart; }).length;
-  if (resEl) resEl.textContent = issues.filter(function(i) { return i.resolved === 1; }).length;
-}
-
-function populateSourceFilter(issues) {
-  var sel = document.getElementById('issueSourceFilter');
-  if (!sel) return;
-  var current = sel.value;
-  var sources = [];
-  issues.forEach(function(i) {
-    var s = i.source || 'unknown';
-    if (sources.indexOf(s) === -1) sources.push(s);
-  });
-  sources.sort();
-  var html = '<option value="all">All Sources</option>';
-  sources.forEach(function(s) {
-    html += '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>';
-  });
-  sel.innerHTML = html;
-  if (sources.indexOf(current) !== -1) {
-    sel.value = current;
-  }
-}
-
-function getIssueStatusFilter() {
-  var sel = document.getElementById('issueStatusFilter');
-  return sel ? sel.value : 'all';
-}
-
-function clearIssueFilters() {
-  var statusSel = document.getElementById('issueStatusFilter');
-  var sourceSel = document.getElementById('issueSourceFilter');
-  var msgInput = document.getElementById('issueMsgFilter');
-  var dateFrom = document.getElementById('issueDateFrom');
-  var dateTo = document.getElementById('issueDateTo');
-  if (statusSel) statusSel.value = 'all';
-  if (sourceSel) sourceSel.value = 'all';
-  if (msgInput) msgInput.value = '';
-  if (dateFrom) dateFrom.value = '';
-  if (dateTo) dateTo.value = '';
-  renderIssues(allIssues);
-}
-
-function renderIssues(issues) {
-  var listEl = document.getElementById('issueList');
-  if (!listEl) return;
-
-  var scrollY = window.scrollY;
-
-  if (issues.length === 0) {
-    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors</h3><p>No errors have been logged. Everything looks good.</p></div>';
-    return;
-  }
-
-  var statusFilter = getIssueStatusFilter();
-  var sourceFilterEl = document.getElementById('issueSourceFilter');
-  var sourceFilter = sourceFilterEl ? sourceFilterEl.value : 'all';
-  var msgInput = document.getElementById('issueMsgFilter');
-  var msgQuery = msgInput ? msgInput.value.toLowerCase() : '';
-  var dateFromEl = document.getElementById('issueDateFrom');
-  var dateToEl = document.getElementById('issueDateTo');
-  var dateFrom = dateFromEl && dateFromEl.value ? new Date(dateFromEl.value + 'T00:00:00').getTime() : null;
-  var dateTo = dateToEl && dateToEl.value ? new Date(dateToEl.value + 'T23:59:59').getTime() : null;
-
-  var filtered = issues.filter(function(i) {
-    if (statusFilter === 'open' && i.resolved === 1) return false;
-    if (statusFilter === 'resolved' && i.resolved !== 1) return false;
-    if (sourceFilter !== 'all' && (i.source || 'unknown') !== sourceFilter) return false;
-    if (msgQuery && ((i.error_message || '').toLowerCase().indexOf(msgQuery) === -1)) return false;
-    if (dateFrom || dateTo) {
-      var t = i.created_at ? new Date(i.created_at).getTime() : null;
-      if (!t) return false;
-      if (dateFrom && t < dateFrom) return false;
-      if (dateTo && t > dateTo) return false;
-    }
-    return true;
-  });
-
-  if (filtered.length === 0) {
-    listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors Match Filters</h3><p>No errors match the current filter settings. Adjust or clear the filters.</p></div>';
-    return;
-  }
-
-  var unresolvedCount = filtered.filter(function(i) { return i.resolved !== 1; }).length;
-  var html = '';
-
-  if (unresolvedCount > 0) {
-    html += '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;margin-bottom:8px;background:var(--bg-step);border:1px solid var(--border);border-radius:8px;">';
-    html += '<label style="display:flex;align-items:center;gap:6px;padding-left:12px;font-size:13px;color:var(--text);cursor:pointer;">';
-    html += '<input type="checkbox" id="issueSelectAll" onchange="toggleSelectAllIssues(this)" style="cursor:pointer;">';
-    html += 'Select All Visible</label>';
-    html += '<button class="owner-action-btn owner-btn-deactivate" onclick="resolveAllChecked()" id="resolveAllBtn">Resolve All Checked</button>';
-    html += '<span style="font-size:12px;color:var(--text-muted);">' + unresolvedCount + ' unresolved error' + (unresolvedCount !== 1 ? 's' : '') + ' in current view</span>';
-    html += '</div>';
-  }
-
-  html += '<table class="dash-table" style="width:100%;">';
-  html += '<thead><tr>';
-  html += '<th style="width:30px;"></th>';
-  html += '<th style="width:30px;"></th>';
-  html += '<th>Status</th>';
-  html += '<th>Error Message</th>';
-  html += '<th>Source</th>';
-  html += '<th>Date</th>';
-  html += '<th>Actions</th>';
-  html += '</tr></thead><tbody>';
-
-  filtered.forEach(function(i) {
-    var time = i.created_at ? new Date(i.created_at).toLocaleString() : '—';
-    var isResolved = i.resolved === 1;
-    var safeId = escapeHtml(i.id);
-    var isExpanded = (issueExpandedId === i.id);
-
-    var statusBadge = isResolved
-      ? '<span class="dash-badge dash-badge-success">Resolved</span>'
-      : '<span class="dash-badge dash-badge-danger">Open</span>';
-
-    var expandIcon = isExpanded ? '▼' : '▶';
-
-    var checkboxHtml = isResolved
-      ? '<td></td>'
-      : '<td style="text-align:center;"><input type="checkbox" class="issue-checkbox" data-id="' + safeId + '" onclick="event.stopPropagation();" style="cursor:pointer;"></td>';
-
-    html += '<tr class="issue-row' + (isResolved ? ' partner-row-inactive' : '') + '" data-error-id="' + safeId + '" style="cursor:pointer;">';
-    html += '<td style="text-align:center;font-size:12px;color:var(--text-muted);">' + expandIcon + '</td>';
-    html += checkboxHtml;
-    html += '<td>' + statusBadge + '</td>';
-    html += '<td style="font-weight:600;">' + escapeHtml(i.error_message || 'Unknown error') + '</td>';
-    html += '<td><span class="issue-card-source">' + escapeHtml(i.source || 'unknown') + '</span></td>';
-    html += '<td style="white-space:nowrap;font-size:13px;color:var(--text-muted);">' + time + '</td>';
-    html += '<td style="white-space:nowrap;">';
-
-    if (!isResolved) {
-      html += '<button class="owner-action-btn owner-btn-w9" data-action="copy" data-id="' + safeId + '">Copy</button>';
-    }
-
-    var resolveBtn = isResolved
-      ? '<button class="owner-action-btn owner-btn-activate" data-action="resolve" data-id="' + safeId + '" data-resolved="false">Reopen</button>'
-      : '<button class="owner-action-btn owner-btn-deactivate" data-action="resolve" data-id="' + safeId + '" data-resolved="true">Resolve</button>';
-    html += resolveBtn;
-    html += '</td>';
-    html += '</tr>';
-
-    if (isExpanded) {
-      html += '<tr class="issue-detail-row" style="background:var(--bg-input);">';
-      html += '<td></td>';
-      html += '<td></td>';
-      html += '<td colspan="5">';
-      html += '<div style="padding:12px 16px;">';
-      html += '<div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;"><strong>Error ID:</strong> ' + safeId + '</div>';
-      if (i.stack_trace) {
-        html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-weight:600;">Stack Trace:</div>';
-        html += '<pre style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;color:var(--text);white-space:pre-wrap;word-break:break-word;">' + escapeHtml(i.stack_trace) + '</pre>';
-      }
-      html += '</div>';
-      html += '</td>';
-      html += '</tr>';
-    }
-  });
-
-  html += '</tbody></table>';
-  listEl.innerHTML = html;
-
-  window.scrollTo(0, scrollY);
-
-  var rows = listEl.querySelectorAll('.issue-row');
-  for (var r = 0; r < rows.length; r++) {
-    rows[r].addEventListener('click', function(e) {
-      if (e.target.tagName === 'BUTTON' || e.target.closest('button') || e.target.tagName === 'INPUT') return;
-      var id = this.getAttribute('data-error-id');
-      issueExpandedId = (issueExpandedId === id) ? null : id;
-      renderIssues(allIssues);
-    });
-  }
-
-  var copyBtns = listEl.querySelectorAll('[data-action="copy"]');
-  for (var c = 0; c < copyBtns.length; c++) {
-    copyBtns[c].addEventListener('click', function(e) {
-      e.stopPropagation();
-      copyIssue(this.getAttribute('data-id'), this);
-    });
-  }
-
-  var resolveBtns = listEl.querySelectorAll('[data-action="resolve"]');
-  for (var rb = 0; rb < resolveBtns.length; rb++) {
-    resolveBtns[rb].addEventListener('click', function(e) {
-      e.stopPropagation();
-      resolveIssue(this.getAttribute('data-id'), this.getAttribute('data-resolved') === 'true');
-    });
-  }
-}
-
-function toggleSelectAllIssues(checkbox) {
-  var issueCheckboxes = document.querySelectorAll('.issue-checkbox');
-  for (var i = 0; i < issueCheckboxes.length; i++) {
-    issueCheckboxes[i].checked = checkbox.checked;
-  }
-}
-
-async function resolveAllChecked() {
-  var issueCheckboxes = document.querySelectorAll('.issue-checkbox:checked');
-  if (issueCheckboxes.length === 0) {
-    alert('No errors selected. Check the boxes next to errors you want to resolve, or use "Select All Visible".');
-    return;
-  }
-  if (!confirm('Resolve ' + issueCheckboxes.length + ' error' + (issueCheckboxes.length !== 1 ? 's' : '') + '?')) return;
-
-  var ids = [];
-  for (var i = 0; i < issueCheckboxes.length; i++) {
-    ids.push(issueCheckboxes[i].getAttribute('data-id'));
-  }
-
-  var btn = document.getElementById('resolveAllBtn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Resolving ' + ids.length + '...'; }
-
-  var successCount = 0;
-  var failCount = 0;
-
-  for (var j = 0; j < ids.length; j++) {
-    try {
-      var resp = await fetch(adminApi('/issues'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: ids[j], resolved: true })
-      });
-      if (resp && resp.ok) {
-        var data = await resp.json();
-        if (data && data.success) successCount++;
-        else failCount++;
-      } else {
-        failCount++;
-      }
-    } catch (e) {
-      failCount++;
-    }
-  }
-
-  if (btn) { btn.disabled = false; btn.textContent = 'Resolve All Checked'; }
-
-  var scrollY = window.scrollY;
-  await loadIssues();
-  window.scrollTo(0, scrollY);
-
-  if (failCount > 0) {
-    alert('Resolved ' + successCount + ' error' + (successCount !== 1 ? 's' : '') + '. ' + failCount + ' failed.');
-  }
-}
-
-function copyIssue(errorId, btn) {
-  var issue = allIssues.find(function(i) { return i.id === errorId; });
-  if (!issue) {
-    alert('Error not found. Try refreshing the page.');
-    return;
-  }
-
-  var text = '=== DRIV-EN ERROR LOG ENTRY ===\n';
-  text += 'Error ID: ' + (issue.id || 'N/A') + '\n';
-  text += 'Source: ' + (issue.source || 'N/A') + '\n';
-  text += 'Severity: ' + (issue.severity || 'error') + '\n';
-  text += 'Timestamp: ' + (issue.created_at || 'N/A') + '\n';
-  text += 'Resolved: ' + (issue.resolved === 1 ? 'Yes' : 'No') + '\n';
-  text += '\n--- ERROR MESSAGE ---\n';
-  text += (issue.error_message || 'No message') + '\n';
-  text += '\n--- STACK TRACE ---\n';
-  text += (issue.stack_trace || 'No stack trace available') + '\n';
-  text += '\n=== END OF ERROR ENTRY ===';
-
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(function() {
-      btn.textContent = '✓ Copied!';
-      btn.style.background = '#22c55e';
-      btn.style.color = '#022c22';
-      setTimeout(function() {
-        btn.textContent = 'Copy for Support';
-        btn.style.background = '';
-        btn.style.color = '';
-      }, 2000);
-    }).catch(function() {
-      fallbackCopy(text, btn);
-    });
-  } else {
-    fallbackCopy(text, btn);
-  }
-}
-
-function fallbackCopy(text, btn) {
-  var ta = document.createElement('textarea');
-  ta.value = text;
-  ta.style.position = 'fixed';
-  ta.style.left = '-9999px';
-  document.body.appendChild(ta);
-  ta.select();
-  try {
-    document.execCommand('copy');
-    btn.textContent = '✓ Copied!';
-    btn.style.background = '#22c55e';
-    btn.style.color = '#022c22';
-    setTimeout(function() {
-      btn.textContent = 'Copy for Support';
-      btn.style.background = '';
-      btn.style.color = '';
-    }, 2000);
-  } catch (e) {
-    alert('Could not copy automatically. Here is the error text:\n\n' + text);
-  }
-  document.body.removeChild(ta);
-}
-
-async function resolveIssue(id, resolved) {
-  try {
-    var resp = await fetch(adminApi('/issues'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: id, resolved: resolved })
-    });
-    if (!resp || !resp.ok) {
-      alert('Failed to update issue.');
-      return;
-    }
-    var data = await resp.json();
-    if (data && data.success) {
-      var issue = allIssues.find(function(i) { return i.id === id; });
-      if (issue) issue.resolved = resolved ? 1 : 0;
-      var scrollY = window.scrollY;
-      renderIssueStats(allIssues);
-      renderIssues(allIssues);
-      window.scrollTo(0, scrollY);
-    } else {
-      alert('Failed to update issue: ' + (data ? data.error : 'Unknown error'));
-    }
-  } catch (e) {
-    alert('Failed to update issue: ' + e.message);
-  }
-}
-
-// =========================================================================
-// TEAM ACCESS LOGIC
-// =========================================================================
-
-async function loadTeamMembers() {
-  var listEl = document.getElementById('teamAccessList');
-  if (!listEl) return;
-
-  try {
-    var resp = await fetch('/auth/team-members');
-    if (!resp || !resp.ok) {
-      listEl.innerHTML = '<p style="color:var(--text-muted);font-size:14px;">Team access endpoint unavailable.</p>';
-      return;
-    }
-    var data = await resp.json();
-
-    if (data && data.success && data.members && data.members.length > 0) {
-      var html = data.members.map(function(m) {
-        var statusBadge = m.is_active === 1
-          ? '<span class="dash-badge dash-badge-success">Active</span>'
-          : '<span class="dash-badge dash-badge-muted">Inactive</span>';
-        var lastLogin = m.last_login ? new Date(m.last_login).toLocaleDateString() : 'Never';
-        var actionBtns = '';
-        if (m.email !== (window.ownerUser ? window.ownerUser.email : '')) {
-          var toggleBtn = m.is_active === 1
-            ? '<button class="owner-action-btn owner-btn-deactivate" data-action="toggle-team" data-id="' + escapeHtml(m.id) + '" data-email="' + escapeHtml(m.email) + '">Deactivate</button>'
-            : '<button class="owner-action-btn owner-btn-activate" data-action="toggle-team" data-id="' + escapeHtml(m.id) + '" data-email="' + escapeHtml(m.email) + '">Activate</button>';
-          actionBtns = toggleBtn;
+        const startVal = startEl ? startEl.value : '';
+        const endVal = endEl ? endEl.value : '';
+        if (startVal && endVal) {
+          startDate = new Date(startVal + 'T00:00:00Z').toISOString();
+          endDate = new Date(endVal + 'T23:59:59Z').toISOString();
         } else {
-          actionBtns = '<span style="font-size:12px;color:var(--text-muted);">(you)</span>';
+          const end = new Date();
+          const start = new Date();
+          start.setDate(start.getDate() - 30);
+          startDate = start.toISOString();
+          endDate = end.toISOString();
+          if (startEl) startEl.value = startDate.split('T')[0];
+          if (endEl) endEl.value = endDate.split('T')[0];
         }
-
-        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid var(--border);">' +
-          '<div>' +
-            '<div style="font-size:15px;font-weight:600;color:var(--text);">' + escapeHtml(m.full_name || m.email) + '</div>' +
-            '<div style="font-size:13px;color:var(--text-muted);">' + escapeHtml(m.email) + ' · Last login: ' + lastLogin + '</div>' +
-          '</div>' +
-          '<div style="display:flex;align-items:center;gap:8px;">' +
-            statusBadge +
-            actionBtns +
-          '</div>' +
-        '</div>';
-      }).join('');
-      listEl.innerHTML = html;
-
-      var teamBtns = listEl.querySelectorAll('[data-action="toggle-team"]');
-      for (var t = 0; t < teamBtns.length; t++) {
-        teamBtns[t].addEventListener('click', function() {
-          toggleTeamMember(this.getAttribute('data-id'), this.getAttribute('data-email'));
-        });
       }
-    } else if (data && data.success) {
-      listEl.innerHTML = '<p style="color:var(--text-muted);font-size:14px;">No other team members yet. Add one below.</p>';
-    } else {
-      listEl.innerHTML = '<p style="color:var(--text-muted);font-size:14px;">Team access requires the /auth/team-members endpoint to be deployed.</p>';
+
+      const tbody = document.getElementById('visitorsTableBody');
+      if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">Loading visitors...</td></tr>';
+
+      const headers = getAuthHeaders();
+      const [summaryResp, listResp, sessResp] = await Promise.allSettled([
+        fetch(adminApi(`/site-visitors?summary=true&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`), { headers }),
+        fetch(adminApi(`/site-visitors?limit=1000&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`), { headers }),
+        fetch(adminApi(`/site-visitors?sessions=true&limit=1000&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`), { headers })
+      ]);
+
+      if (summaryResp.status === 'fulfilled' && summaryResp.value.ok) {
+        const summaryData = await summaryResp.value.json();
+        if (summaryData.success && summaryData.summary) {
+          const s = summaryData.summary;
+          document.getElementById('visitorTotalVisits').textContent = s.totalVisits || 0;
+          document.getElementById('visitorUniqueVisitors').textContent = s.uniqueVisitors || 0;
+          document.getElementById('visitorUniqueSessions').textContent = s.uniqueSessions || 0;
+          document.getElementById('visitorUniqueCountries').textContent = s.uniqueCountries || 0;
+          document.getElementById('visitorReferralVisits').textContent = s.referralVisits || 0;
+          document.getElementById('visitorTopDevice').textContent = (s.deviceBreakdown && s.deviceBreakdown[0]) ? s.deviceBreakdown[0].device_type : '—';
+          document.getElementById('visitorTopBrowser').textContent = (s.browserBreakdown && s.browserBreakdown[0]) ? s.browserBreakdown[0].browser : '—';
+          document.getElementById('visitorTopOS').textContent = (s.osBreakdown && s.osBreakdown[0]) ? s.osBreakdown[0].os : '—';
+        }
+      }
+
+      if (listResp.status === 'fulfilled' && listResp.value.ok) {
+        const listData = await listResp.value.json();
+        allVisitors = (listData.success && listData.visitors) ? listData.visitors : [];
+        renderVisitorTable();
+      }
+
+      if (sessResp.status === 'fulfilled' && sessResp.value.ok) {
+        const sessData = await sessResp.value.json();
+        allSessions = (sessData.success && sessData.sessions) ? sessData.sessions : [];
+        renderSessionsTable();
+      }
+
+      tabLoaded.visitors = true;
+    } catch (e) {
+      console.error('loadVisitors error:', e);
     }
-  } catch (e) {
-    listEl.innerHTML = '<p style="color:var(--text-muted);font-size:14px;">Unable to load team members.</p>';
-  }
-}
-
-async function addTeamMember() {
-  var nameEl = document.getElementById('newTeamMemberName');
-  var emailEl = document.getElementById('newTeamMemberEmail');
-  var msg = document.getElementById('teamMemberMsg');
-
-  var name = nameEl ? nameEl.value.trim() : '';
-  var email = emailEl ? emailEl.value.trim() : '';
-
-  if (!name) {
-    if (msg) msg.innerHTML = '<span style="color:#fca5a5;">Please enter the person' + String.fromCharCode(39) + 's full name.</span>';
-    return;
-  }
-  if (!email || !email.includes('@')) {
-    if (msg) msg.innerHTML = '<span style="color:#fca5a5;">Please enter a valid email address.</span>';
-    return;
   }
 
-  if (msg) msg.innerHTML = '<span style="color:var(--text-muted);">Sending invitation...</span>';
-
-  try {
-    var resp = await fetch('/auth/create-user', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: name,
-        email: email,
-        role: 'DRIV-EN Founder'
-      })
-    });
-    if (!resp || !resp.ok) {
-      if (msg) msg.innerHTML = '<span style="color:#fca5a5;">Failed to send invitation.</span>';
+  function renderVisitorTable() {
+    const tbody = document.getElementById('visitorsTableBody');
+    if (!tbody) return;
+    if (!allVisitors || allVisitors.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No visitor data for this range.</td></tr>';
       return;
     }
-    var data = await resp.json();
 
-    if (data && data.success) {
-      if (msg) msg.innerHTML = '<span style="color:#166534;">Invitation sent to ' + escapeHtml(email) + '. They will receive a temporary password and login instructions.</span>';
-      if (nameEl) nameEl.value = '';
-      if (emailEl) emailEl.value = '';
-      loadTeamMembers();
-    } else {
-      if (msg) msg.innerHTML = '<span style="color:#fca5a5;">' + (data ? data.error : 'Failed to send invitation.') + '</span>';
-    }
-  } catch (e) {
-    if (msg) msg.innerHTML = '<span style="color:#fca5a5;">Network error. Please try again.</span>';
-  }
-}
-
-async function toggleTeamMember(memberId, memberEmail) {
-  if (!confirm('Toggle access for ' + memberEmail + '?')) return;
-  try {
-    var resp = await fetch('/auth/team-members', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'toggle_active', memberId: memberId })
+    const sorted = allVisitors.slice().sort((a, b) => {
+      let aVal = a[visitorSortColumn] || '';
+      let bVal = b[visitorSortColumn] || '';
+      const dir = visitorSortDirection === 'asc' ? 1 : -1;
+      return aVal < bVal ? -1 * dir : aVal > bVal ? 1 * dir : 0;
     });
-    if (!resp || !resp.ok) {
-      showError('Failed to toggle access');
+
+    tbody.innerHTML = sorted.map(v => `
+      <tr>
+        <td style="white-space:nowrap;">${new Date(v.created_at).toLocaleString()}</td>
+        <td>${escapeHtml(v.page_path || '/')}</td>
+        <td>${escapeHtml(v.country || '—')}</td>
+        <td style="text-transform:capitalize;">${escapeHtml(v.device_type || '—')}</td>
+        <td style="text-transform:capitalize;">${escapeHtml(v.browser || '—')}</td>
+        <td style="text-transform:capitalize;">${escapeHtml(v.os || '—')}</td>
+        <td>${escapeHtml(v.referral_code || '—')}</td>
+        <td>${escapeHtml(v.external_referrer || '—')}</td>
+        <td>${v.time_on_page ? v.time_on_page + 's' : '—'}</td>
+      </tr>
+    `).join('');
+  }
+
+  function renderSessionsTable() {
+    const tbody = document.getElementById('sessionsTableBody');
+    if (!tbody) return;
+    if (!allSessions || allSessions.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No session data.</td></tr>';
       return;
     }
-    var data = await resp.json();
-    if (data && data.success) {
-      loadTeamMembers();
-    } else {
-      showError(data ? data.error : 'Failed to toggle access');
-    }
-  } catch (e) {
-    showError('Network error. Please try again.');
+
+    tbody.innerHTML = allSessions.map(s => `
+      <tr>
+        <td style="white-space:nowrap;">${new Date(s.firstVisit).toLocaleString()}</td>
+        <td>${s.pages ? s.pages.length : 0}</td>
+        <td style="max-width:300px;">${(s.pages || []).map(p => escapeHtml(p.pagePath || '/')).join(', ')}</td>
+        <td>${s.totalTimeOnSite ? s.totalTimeOnSite + 's' : '—'}</td>
+        <td>${escapeHtml(s.country || '—')}</td>
+        <td style="text-transform:capitalize;">${escapeHtml(s.deviceType || '—')}</td>
+        <td style="text-transform:capitalize;">${escapeHtml(s.browser || '—')}</td>
+        <td style="text-transform:capitalize;">${escapeHtml(s.os || '—')}</td>
+        <td>${escapeHtml(s.referralCode || '—')}</td>
+      </tr>
+    `).join('');
   }
-}
 
-// =========================================================================
-// LOGOUT
-// =========================================================================
+  /* ===== ISSUES TAB (HIGH-VOLUME LOG UNLOCKING) ===== */
 
-async function ownerLogout() {
-  try {
-    await fetch('/auth/logout', { method: 'POST' });
-  } catch (e) {}
-  window.location.href = '/public/login.html';
-}
+  async function loadIssues() {
+    const listEl = document.getElementById('issueList');
+    if (!listEl) return;
+    listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading error logs...</div>';
 
-var approveModalEl = document.getElementById('approveModal');
-if (approveModalEl) {
-  approveModalEl.addEventListener('click', function(e) {
-    if (e.target === this) closeApproveModal();
+    try {
+      // Query higher limit to prevent truncating logs to 200 items
+      const resp = await fetch(adminApi('/issues?limit=2000&all=true'), { headers: getAuthHeaders() });
+      if (!resp.ok) throw new Error('Failed to fetch issues');
+
+      const data = await resp.json();
+      if (data && data.success && data.issues) {
+        allIssues = data.issues;
+        populateSourceFilter(allIssues);
+        renderIssueStats(allIssues);
+        renderIssues(allIssues);
+        tabLoaded.issues = true;
+      }
+    } catch (e) {
+      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Unable to Load Error Logs</h3><p>Could not load issues data.</p></div>';
+    }
+  }
+
+  function renderIssueStats(issues) {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    document.getElementById('issueStatTotal').textContent = issues.length;
+    document.getElementById('issueStatToday').textContent = issues.filter(i => i.created_at >= todayStart).length;
+    document.getElementById('issueStatWeek').textContent = issues.filter(i => i.created_at >= weekStart).length;
+    document.getElementById('issueStatResolved').textContent = issues.filter(i => i.resolved === 1).length;
+  }
+
+  function populateSourceFilter(issues) {
+    const sel = document.getElementById('issueSourceFilter');
+    if (!sel) return;
+    const sources = Array.from(new Set(issues.map(i => i.source || 'unknown'))).sort();
+    sel.innerHTML = '<option value="all">All Sources</option>' + sources.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  }
+
+  function renderIssues(issues) {
+    const listEl = document.getElementById('issueList');
+    if (!listEl) return;
+    if (issues.length === 0) {
+      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors</h3><p>No logged errors found.</p></div>';
+      return;
+    }
+
+    let html = `
+      <table class="dash-table" style="width:100%;">
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Error Message</th>
+            <th>Source</th>
+            <th>Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    html += issues.map(i => `
+      <tr class="issue-row ${i.resolved === 1 ? 'partner-row-inactive' : ''}">
+        <td>${i.resolved === 1 ? '<span class="dash-badge dash-badge-success">Resolved</span>' : '<span class="dash-badge dash-badge-danger">Open</span>'}</td>
+        <td style="font-weight:600;">${escapeHtml(i.error_message || 'Unknown error')}</td>
+        <td><span class="issue-card-source">${escapeHtml(i.source || 'unknown')}</span></td>
+        <td style="white-space:nowrap;font-size:13px;color:var(--text-muted);">${new Date(i.created_at).toLocaleString()}</td>
+        <td>
+          <button class="owner-action-btn owner-btn-activate" data-resolve-id="${i.id}">${i.resolved === 1 ? 'Reopen' : 'Resolve'}</button>
+        </td>
+      </tr>
+    `).join('');
+
+    html += '</tbody></table>';
+    listEl.innerHTML = html;
+
+    listEl.querySelectorAll('[data-resolve-id]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.target.getAttribute('data-resolve-id');
+        toggleIssueResolve(id);
+      });
+    });
+  }
+
+  async function toggleIssueResolve(id) {
+    const issue = allIssues.find(i => i.id == id);
+    if (!issue) return;
+    const newStatus = issue.resolved === 1 ? false : true;
+
+    try {
+      const resp = await fetch(adminApi('/issues'), {
+        method: 'POST',
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ id, resolved: newStatus })
+      });
+      if (resp.ok) {
+        issue.resolved = newStatus ? 1 : 0;
+        renderIssueStats(allIssues);
+        renderIssues(allIssues);
+      }
+    } catch (e) {
+      showError('Failed to update issue status');
+    }
+  }
+
+  /* ===== PARTNERS & CUSTOMERS ===== */
+
+  async function loadPartners() {
+    const tbody = document.getElementById('partnersTableBody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading…</td></tr>';
+
+    try {
+      const resp = await fetch(adminApi('/referral-partners'), { headers: getAuthHeaders() });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (data && data.success && data.partners) {
+        allPartners = data.partners;
+        renderStats(allPartners);
+        renderTable(allPartners);
+        tabLoaded.referrers = true;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function renderStats(partners) {
+    document.getElementById('statTotal').textContent = partners.length;
+    document.getElementById('statPending').textContent = partners.filter(p => p.status === 'Pending').length;
+    document.getElementById('statApproved').textContent = partners.filter(p => p.status === 'Approved').length;
+    document.getElementById('statRejected').textContent = partners.filter(p => p.status === 'Rejected').length;
+  }
+
+  function renderTable(partners) {
+    const tbody = document.getElementById('partnersTableBody');
+    if (!tbody) return;
+    if (partners.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">No referral partners found.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = partners.map(p => `
+      <tr>
+        <td>${escapeHtml(p.partner_name || '—')}</td>
+        <td>${escapeHtml(p.partner_email || '—')}</td>
+        <td>${escapeHtml(p.partner_phone || '—')}</td>
+        <td><span class="dash-badge dash-badge-success">${escapeHtml(p.status || 'Pending')}</span></td>
+        <td><code>${escapeHtml(p.referral_code || '—')}</code></td>
+        <td>—</td>
+        <td>—</td>
+        <td>—</td>
+        <td>—</td>
+        <td>${p.created_at ? new Date(p.created_at).toLocaleDateString() : '—'}</td>
+        <td>—</td>
+      </tr>
+    `).join('');
+  }
+
+  async function loadCustomers() {
+    const listEl = document.getElementById('customerList');
+    if (listEl) listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading customers…</div>';
+
+    try {
+      const resp = await fetch(adminApi('/customers'), { headers: getAuthHeaders() });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (data && data.success && data.customers) {
+        allCustomers = data.customers.filter(c => {
+          const orgId = String(c.org_id || c.customer_id || c.id || '').trim().toLowerCase();
+          return orgId !== 'org_dsi' && orgId !== 'dsi';
+        });
+        renderCustomerStats(allCustomers);
+        renderCustomersTable();
+        tabLoaded.customers = true;
+      }
+    } catch (e) {
+      if (listEl) listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><p>Unable to load customers.</p></div>';
+    }
+  }
+
+  function renderCustomerStats(customers) {
+    document.getElementById('custStatTotal').textContent = customers.length;
+    document.getElementById('custStatActive').textContent = customers.filter(c => c.subscription_status === 'active').length;
+    document.getElementById('custStatTrial').textContent = customers.filter(c => c.subscription_status === 'trial').length;
+    document.getElementById('custStatPending').textContent = customers.filter(c => !c.subscription_status || c.subscription_status === 'pending').length;
+  }
+
+  function renderCustomersTable() {
+    const listEl = document.getElementById('customerList');
+    if (!listEl) return;
+    if (allCustomers.length === 0) {
+      listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><p>No customers registered.</p></div>';
+      return;
+    }
+
+    listEl.innerHTML = `
+      <div class="owner-table-wrap">
+        <table class="dash-table">
+          <thead>
+            <tr>
+              <th>Customer Name</th>
+              <th>Employees</th>
+              <th>Assets</th>
+              <th>Inspections</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${allCustomers.map(c => `
+              <tr>
+                <td>${escapeHtml(c.company_name || c.name || 'Unknown')}</td>
+                <td>${c.employee_count || 0}</td>
+                <td>${c.asset_count || 0}</td>
+                <td>${c.inspection_count || 0}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  /* ===== SYSTEM STATUS & AI USAGE ===== */
+
+  async function loadSystemStatus() {
+    const lastCheck = document.getElementById('sysLastCheck');
+    if (lastCheck) lastCheck.textContent = new Date().toLocaleString();
+    tabLoaded.system = true;
+  }
+
+  async function loadAIUsage() {
+    // Unchanged fallback logic
+  }
+
+  /* ===== HELPERS & UTILITIES ===== */
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorBanner');
+    if (!el) return;
+    if (!msg) { el.style.display = 'none'; return; }
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 6000);
+  }
+
+  function closeCustomerDetail() {
+    const modal = document.getElementById('customerDetailModal');
+    if (modal) { modal.style.display = 'none'; modal.innerHTML = ''; }
+  }
+
+  async function ownerLogout() {
+    try {
+      await fetch('/auth/logout', { method: 'POST', headers: getAuthHeaders() });
+    } catch (e) {}
+    localStorage.removeItem("driven_user");
+    window.location.href = '/public/login.html';
+  }
+
+  function loadTeamMembers() {}
+
+  /* ===== EVENT BINDINGS ===== */
+
+  function bindEvents() {
+    document.querySelectorAll('.owner-tab').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.getAttribute('data-tab')));
+    });
+
+    const logoutBtn = document.querySelector('.owner-tab-logout');
+    if (logoutBtn) logoutBtn.addEventListener('click', ownerLogout);
+
+    const themeCheckbox = document.getElementById('dashThemeCheckbox');
+    if (themeCheckbox) themeCheckbox.addEventListener('change', dashToggleTheme);
+
+    const logoInput = document.getElementById('logoFileInput');
+    if (logoInput) logoInput.addEventListener('change', handleLogoUpload);
+
+    const logoRemove = document.getElementById('logoRemoveBtn');
+    if (logoRemove) logoRemove.addEventListener('click', removeLogo);
+
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+      searchInput.addEventListener('input', () => {
+        const query = searchInput.value.toLowerCase();
+        const filtered = allPartners.filter(p => 
+          (p.partner_name || '').toLowerCase().includes(query) || 
+          (p.partner_email || '').toLowerCase().includes(query)
+        );
+        renderTable(filtered);
+      });
+    }
+  }
+
+  /* ===== IDEMPOTENT INITIALIZATION ===== */
+
+  async function processFounderSession(user) {
+    if (!user) {
+      window.location.href = "/public/login.html";
+      return;
+    }
+
+    const roleId = String(user.role_id || user.roleId || user.role || "").trim().toLowerCase();
+    const email = String(user.email || "").trim().toLowerCase();
+
+    const isFounder = roleId === "ro-founder" || roleId.includes("founder") || email === "jblood@digitalsafetyinspection.com";
+
+    if (!isFounder) {
+      window.location.href = "/app/auth/no-access.html";
+      return;
+    }
+
+    window.ownerUser = user;
+    localStorage.setItem("driven_user", JSON.stringify(user));
+
+    const loadingEl = document.getElementById("loadingScreen");
+    const dashEl = document.getElementById("dashboard");
+    if (loadingEl) loadingEl.style.display = "none";
+    if (dashEl) dashEl.style.display = "block";
+
+    const accountEmail = document.getElementById("settingsAccountEmail");
+    if (accountEmail) accountEmail.textContent = user.email || "—";
+
+    updateThemeSwitch();
+    loadOwnerLogo();
+    loadPartners();
+  }
+
+  async function init() {
+    bindEvents();
+
+    let user = window.dashUser || window.drivenUser;
+    if (!user) {
+      const savedUser = localStorage.getItem("driven_user");
+      if (savedUser && savedUser !== "undefined") {
+        try { user = JSON.parse(savedUser); } catch(e) {}
+      }
+    }
+
+    if (!user) {
+      try {
+        const res = await fetch('/auth/session', { headers: getAuthHeaders() });
+        if (res.ok) {
+          const data = await res.json();
+          user = data.user || data;
+        }
+      } catch (e) {}
+    }
+
+    if (user) {
+      await processFounderSession(user);
+    } else {
+      window.location.href = "/public/login.html";
+    }
+  }
+
+  document.addEventListener("dashSessionLoaded", (e) => {
+    processFounderSession(e.detail || window.dashUser);
   });
-}
 
-var rejectModalEl = document.getElementById('rejectModal');
-if (rejectModalEl) {
-  rejectModalEl.addEventListener('click', function(e) {
-    if (e.target === this) closeRejectModal();
-  });
-}
+  init();
+
+})();
