@@ -86,6 +86,29 @@ function generateAssetTypeCode(name, elementId) {
     .replace(/^_+|_+$/g, "") || "CUSTOM_ASSET_TYPE";
 }
 
+/**
+ * Generates a clean, unique code string to satisfy D1 NOT NULL constraints on `asset_type_code`.
+ */
+function generateAssetTypeCode(name, elementId) {
+  // 1. If an explicitly assigned DOM element ID exists (e.g. "at_sedan"), use it directly
+  if (elementId && typeof elementId === "string" && elementId.startsWith("at_")) {
+    return elementId.toUpperCase();
+  }
+
+  // 2. Fall back to sanitizing the name string (converting slashes, spaces, and special chars to underscores)
+  var cleanCode = String(name || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  // 3. Fallback safeguard to guarantee non-null / non-empty value for D1 SQL constraint
+  if (!cleanCode) {
+    cleanCode = "ASSET_TYPE_" + Date.now();
+  }
+
+  return cleanCode;
+}
+
 function validateOrgContext() {
   if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
     var statusEl = document.getElementById("atStepStatus");
