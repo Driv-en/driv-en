@@ -17,12 +17,47 @@ function normalizeName(str) {
 }
 
 /**
- * Standardizes key matching to prevent standard types from becoming custom tags.
+ * Clean string for string key mapping.
  */
 function toMatchKey(str) {
   return normalizeName(str)
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
+}
+
+/**
+ * Flexible keyword matcher to correlate saved backend strings with static HTML inputs.
+ * Ensures Skid Steer, Excavator, Dozer, Welder, and Generator map back to standard checkboxes.
+ */
+function isStandardMatch(savedStr, standardValue, standardLabel) {
+  var sKey = toMatchKey(savedStr);
+  var vKey = toMatchKey(standardValue);
+  var lKey = toMatchKey(standardLabel);
+
+  if (sKey === vKey || sKey === lKey) return true;
+
+  // Specific key term checks
+  var keyTerms = [
+    ["skid", "steer"],
+    ["excavator"],
+    ["dozer"],
+    ["welder"],
+    ["generator"]
+  ];
+
+  for (var i = 0; i < keyTerms.length; i++) {
+    var terms = keyTerms[i];
+    var matchSaved = terms.every(function(t) { return sKey.indexOf(t) !== -1; });
+    var matchStandard = terms.every(function(t) { return vKey.indexOf(t) !== -1 || lKey.indexOf(t) !== -1; });
+    if (matchSaved && matchStandard) return true;
+  }
+
+  // Length-bounded substring matching
+  if (sKey.length >= 4 && (vKey.indexOf(sKey) !== -1 || sKey.indexOf(vKey) !== -1 || lKey.indexOf(sKey) !== -1 || sKey.indexOf(lKey) !== -1)) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -107,17 +142,26 @@ function doPrintAssetTypes() {
 
 /* Modal Focus Management & Accessibility Functions */
 function openModal(modalEl, closeBtnEl) {
+  if (typeof modalEl === 'string') {
+    modalEl = document.getElementById(modalEl);
+  }
   if (!modalEl) return;
   lastActiveElement = document.activeElement;
   activeModal = modalEl;
   modalEl.style.display = "flex";
 
+  if (!closeBtnEl) {
+    closeBtnEl = modalEl.querySelector("button.btn-secondary, button");
+  }
   if (closeBtnEl) {
     setTimeout(function() { closeBtnEl.focus(); }, 50);
   }
 }
 
 function closeModal(modalEl) {
+  if (typeof modalEl === 'string') {
+    modalEl = document.getElementById(modalEl);
+  }
   if (!modalEl) return;
   modalEl.style.display = "none";
   if (activeModal === modalEl) activeModal = null;
@@ -155,14 +199,13 @@ function addCustomAssetType() {
   notice.style.display = "none";
   if (!val) return;
 
-  var matchKey = toMatchKey(val);
   var matchedCheckbox = null;
   var allDefaults = document.querySelectorAll(".at-grid:not(#customAssetGrid) input[type='checkbox']");
 
   allDefaults.forEach(function(cb) {
-    var valKey = toMatchKey(cb.value);
-    var lblKey = toMatchKey(cb.nextElementSibling ? cb.nextElementSibling.textContent : "");
-    if (valKey === matchKey || lblKey === matchKey || (matchKey.length >= 4 && (valKey.includes(matchKey) || lblKey.includes(matchKey)))) {
+    var valStr = cb.value;
+    var lblStr = cb.nextElementSibling ? cb.nextElementSibling.textContent : "";
+    if (isStandardMatch(val, valStr, lblStr)) {
       matchedCheckbox = cb;
     }
   });
@@ -192,6 +235,7 @@ function addCustomAssetType() {
     }
   }
 
+  var matchKey = toMatchKey(val);
   var existsCustom = customAssetTypes.some(function(c) {
     return toMatchKey(c) === matchKey;
   });
@@ -299,34 +343,30 @@ async function loadSavedAssetTypes() {
     localStorage.setItem("driven_asset_type_count", String(normalizedSaved.length));
 
     customAssetTypes = [];
-
     var defaultCheckboxes = document.querySelectorAll(".at-grid:not(#customAssetGrid) input[type='checkbox']");
-    var standardKeys = {};
 
+    // Reset all standard checkboxes before mapping
     defaultCheckboxes.forEach(function(cb) {
-      var cbVal = normalizeName(cb.value);
-      var key = toMatchKey(cbVal);
-      standardKeys[key] = cb;
       cb.checked = false;
     });
 
     normalizedSaved.forEach(function(savedItem) {
-      var savedKey = toMatchKey(savedItem);
-      var matchedCb = standardKeys[savedKey];
+      var matchedCb = null;
 
-      if (!matchedCb) {
-        for (var key in standardKeys) {
-          if (savedKey.length >= 4 && (key.includes(savedKey) || savedKey.includes(key))) {
-            matchedCb = standardKeys[key];
-            break;
-          }
+      // Check against each standard grid item
+      defaultCheckboxes.forEach(function(cb) {
+        if (matchedCb) return;
+        var cbVal = cb.value;
+        var cbLabel = cb.nextElementSibling ? cb.nextElementSibling.textContent : "";
+        if (isStandardMatch(savedItem, cbVal, cbLabel)) {
+          matchedCb = cb;
         }
-      }
+      });
 
       if (matchedCb) {
         matchedCb.checked = true;
       } else {
-        if (!customAssetTypes.some(function(c) { return toMatchKey(c) === savedKey; })) {
+        if (!customAssetTypes.some(function(c) { return toMatchKey(c) === toMatchKey(savedItem); })) {
           customAssetTypes.push(savedItem);
         }
       }
