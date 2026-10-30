@@ -8,7 +8,7 @@ var customAssetTypes = [];
 var activeOrgId = "";
 var activeModal = null;
 var lastActiveElement = null;
-var isInitialized = false;
+var isEventsInitialized = false;
 
 function normalizeName(str) {
   if (typeof str === 'object' && str !== null) {
@@ -27,8 +27,22 @@ function toMatchKey(str) {
 }
 
 /**
+ * Helper to extract pristine text content from a checkbox item container
+ * without including action button glyphs (like the removal cross '✕').
+ */
+function getCheckboxItemLabelText(cb) {
+  var parent = cb.closest('.at-checkbox-item');
+  if (!parent) return "";
+  
+  var clone = parent.cloneNode(true);
+  var removeBtns = clone.querySelectorAll('.at-btn-remove-custom, button');
+  removeBtns.forEach(function(btn) { btn.remove(); });
+  
+  return clone.textContent.trim();
+}
+
+/**
  * Flexible keyword matcher to correlate saved backend strings with static HTML inputs.
- * Handles nested structure label extraction reliably.
  */
 function isStandardMatch(savedStr, standardValue, standardLabel) {
   var sKey = toMatchKey(savedStr);
@@ -37,7 +51,6 @@ function isStandardMatch(savedStr, standardValue, standardLabel) {
 
   if (sKey === vKey || (lKey && sKey === lKey)) return true;
 
-  // Specific key term checks
   var keyTerms = [
     ["skid", "steer"],
     ["excavator"],
@@ -53,7 +66,6 @@ function isStandardMatch(savedStr, standardValue, standardLabel) {
     if (matchSaved && matchStandard) return true;
   }
 
-  // Length-bounded substring matching
   if (sKey.length >= 4 && (vKey.indexOf(sKey) !== -1 || sKey.indexOf(vKey) !== -1 || (lKey && (lKey.indexOf(sKey) !== -1 || sKey.indexOf(lKey) !== -1)))) {
     return true;
   }
@@ -103,7 +115,7 @@ function sendPresenceUnload() {
 }
 
 async function checkActivePresence() {
-  if (!navigator.onLine) return;
+  if (!navigator.onLine || !activeOrgId) return;
   try {
     var resp = await fetch("/api/onboarding/presence", {
       method: "POST",
@@ -131,6 +143,14 @@ async function checkActivePresence() {
       }
     }
   } catch (e) {}
+}
+
+function startPresencePolling() {
+  if (window.presenceInterval) {
+    clearInterval(window.presenceInterval);
+  }
+  checkActivePresence();
+  window.presenceInterval = setInterval(checkActivePresence, 5000);
 }
 
 function doPrintAssetTypes() {
@@ -196,6 +216,8 @@ function trapModalFocus(e) {
 function addCustomAssetType() {
   var input = document.getElementById("customAssetInput");
   var notice = document.getElementById("customCheckNotice");
+  if (!input || !notice) return;
+
   var val = normalizeName(input.value);
   notice.style.display = "none";
   if (!val) return;
@@ -205,8 +227,7 @@ function addCustomAssetType() {
 
   allDefaults.forEach(function(cb) {
     var valStr = cb.value;
-    var parentItem = cb.closest('.at-checkbox-item');
-    var lblStr = parentItem ? parentItem.textContent : "";
+    var lblStr = getCheckboxItemLabelText(cb);
     if (isStandardMatch(val, valStr, lblStr)) {
       matchedCheckbox = cb;
     }
@@ -265,6 +286,8 @@ function removeCustomAssetType(index) {
 function renderCustomAssetTypes() {
   var grid = document.getElementById("customAssetGrid");
   var header = document.getElementById("customSectionHeader");
+  if (!grid || !header) return;
+
   grid.textContent = "";
 
   if (customAssetTypes.length === 0) {
@@ -291,12 +314,12 @@ function renderCustomAssetTypes() {
     lbl.htmlFor = "custom_at_" + index;
     lbl.textContent = name;
 
-    // Fixed Form Submission Bypass (explicit type="button")
     var btn = document.createElement("button");
     btn.type = "button";
     btn.className = "at-btn-remove-custom";
-    btn.innerHTML = "✕";
+    btn.innerHTML = '<span aria-hidden="true">✕</span>';
     btn.title = "Remove custom type";
+    btn.setAttribute("aria-label", "Remove " + name);
     btn.addEventListener("click", function(e) {
       e.preventDefault();
       e.stopPropagation();
@@ -359,8 +382,7 @@ async function loadSavedAssetTypes() {
       defaultCheckboxes.forEach(function(cb) {
         if (matchedCb) return;
         var cbVal = cb.value;
-        var parentItem = cb.closest('.at-checkbox-item');
-        var cbLabel = parentItem ? parentItem.textContent : "";
+        var cbLabel = getCheckboxItemLabelText(cb);
         if (isStandardMatch(savedItem, cbVal, cbLabel)) {
           matchedCb = cb;
         }
@@ -386,6 +408,8 @@ async function saveAssetTypes(e) {
   if (!validateOrgContext()) return;
 
   var statusEl = document.getElementById("atStepStatus");
+  if (!statusEl) return;
+  
   statusEl.style.color = "var(--error)";
 
   if (!navigator.onLine) {
@@ -405,9 +429,13 @@ async function saveAssetTypes(e) {
     var categoryGroup = "General";
     var parentGrid = cb.closest('.at-grid');
     if (parentGrid) {
-      var prevHeader = parentGrid.previousElementSibling;
-      if (prevHeader && prevHeader.classList.contains('at-section-heading')) {
-        categoryGroup = prevHeader.textContent.replace(/^[^\w\s]+/, '').trim();
+      var prev = parentGrid.previousElementSibling;
+      while (prev) {
+        if (prev.classList && prev.classList.contains('at-section-heading')) {
+          categoryGroup = prev.textContent.replace(/^[^\w\s]+/, '').trim();
+          break;
+        }
+        prev = prev.previousElementSibling;
       }
     }
 
@@ -489,6 +517,9 @@ async function saveAssetTypes(e) {
 }
 
 function initEventHandlers() {
+  if (isEventsInitialized) return;
+  isEventsInitialized = true;
+
   var form = document.getElementById("assetTypesForm");
   if (form) form.addEventListener("submit", saveAssetTypes);
 
@@ -564,10 +595,7 @@ function initEventHandlers() {
   });
 }
 
-function runInitializationSequence(eDetail) {
-  if (isInitialized) return;
-  isInitialized = true;
-
+function processSessionInit(eDetail) {
   var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
   activeOrgId = userObj.org_id || (eDetail && eDetail.org_id) || localStorage.getItem("driven_org_id") || "";
 
@@ -580,10 +608,8 @@ function runInitializationSequence(eDetail) {
     if (drivenLogo) row1.insertBefore(title, drivenLogo);
   }
 
-  initEventHandlers();
   loadSavedAssetTypes();
-  checkActivePresence();
-  setInterval(checkActivePresence, 5000);
+  startPresencePolling();
 }
 
 window.addEventListener("pagehide", sendPresenceUnload);
@@ -600,19 +626,12 @@ document.addEventListener("visibilitychange", function() {
   else if (document.visibilityState === "visible") checkActivePresence();
 });
 
-document.addEventListener("dashSessionLoaded", function(e) {
-  runInitializationSequence(e.detail);
-});
-
-/* Fallback Initializer if dashSessionLoaded is delayed/blocked */
 document.addEventListener("DOMContentLoaded", function() {
   var yEl = document.getElementById("dashFooterYear");
   if (yEl) yEl.textContent = new Date().getFullYear();
+  initEventHandlers();
+});
 
-  setTimeout(function() {
-    if (!isInitialized) {
-      console.warn("dashSessionLoaded timeout fallback triggered.");
-      runInitializationSequence(null);
-    }
-  }, 1500);
+document.addEventListener("dashSessionLoaded", function(e) {
+  processSessionInit(e.detail);
 });
