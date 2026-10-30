@@ -112,7 +112,6 @@ function bindDOMEvents() {
 }
 
 function bindModalBackdropsAndKeydown() {
-  // Close modals on clicking overlay backdrop
   document.querySelectorAll('.modal-overlay').forEach(overlay => {
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) {
@@ -121,7 +120,6 @@ function bindModalBackdropsAndKeydown() {
     });
   });
 
-  // Close modals on pressing Escape key
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       document.querySelectorAll('.modal-overlay').forEach(modal => {
@@ -156,7 +154,27 @@ async function fetchOrganizationSettings() {
     }
   } catch (e) {
     console.warn('Using default UOM and country settings:', e);
+  } finally {
+    updateJurisdictionBannerUI();
   }
+}
+
+function updateJurisdictionBannerUI() {
+  const textEl = document.getElementById('activeJurisdictionText');
+  const distEl = document.getElementById('uomDistanceBadge');
+  const pressEl = document.getElementById('uomPressureBadge');
+  const volEl = document.getElementById('uomVolumeBadge');
+
+  let stdText = 'United States (DOT / OSHA / MSHA)';
+  if (orgCountry === 'CA') stdText = 'Canada (NSC Standard 11 / CCOHS)';
+  else if (orgCountry === 'AU' || orgCountry === 'NZ') stdText = 'Australasia (NHVR / WHS Code)';
+  else if (['GB', 'DE', 'FR', 'ES', 'IT', 'NL', 'SE', 'NO', 'FI'].includes(orgCountry)) stdText = 'UK & Europe (DVSA / EU Directives)';
+  else if (orgCountry !== 'US') stdText = `${orgCountry} (ISO Universal Fleet Standard)`;
+
+  if (textEl) textEl.textContent = stdText;
+  if (distEl) distEl.textContent = (orgUOM.distance || 'mi').toUpperCase();
+  if (pressEl) pressEl.textContent = (orgUOM.pressure || 'psi').toUpperCase();
+  if (volEl) volEl.textContent = (orgUOM.volume || 'gal').toUpperCase();
 }
 
 async function loadInitialData() {
@@ -274,7 +292,7 @@ function resetAttachmentControlsToDefault() {
 }
 
 function onTargetTypeChange() {
-  currentFetchRequestId++; // Invalidate any in-flight requests
+  currentFetchRequestId++;
   const target = document.getElementById('configTarget').value;
   document.getElementById('assetSelectGroup').style.display = target === 'specific' ? 'flex' : 'none';
   document.getElementById('typeSelectGroup').style.display = target === 'template' ? 'flex' : 'none';
@@ -320,7 +338,6 @@ async function onTypeSelected() {
 }
 
 async function fetchAndRenderSchema(targetType, key, assetType = '') {
-  // Capture request ID to guard against out-of-order race conditions
   const requestId = ++currentFetchRequestId;
 
   try {
@@ -336,7 +353,6 @@ async function fetchAndRenderSchema(targetType, key, assetType = '') {
 
     const res = await apiFetch(`${API_ENDPOINT}?${params.toString()}`);
     
-    // Ignore stale response if user selected another asset while fetch was pending
     if (requestId !== currentFetchRequestId) return;
 
     if (!res.ok) {
@@ -346,7 +362,6 @@ async function fetchAndRenderSchema(targetType, key, assetType = '') {
 
     const data = await res.json();
     
-    // Double check request ID post JSON parsing
     if (requestId !== currentFetchRequestId) return;
 
     const schema = data.schema || { sections: [] };
@@ -363,17 +378,14 @@ async function fetchAndRenderSchema(targetType, key, assetType = '') {
 }
 
 function applyConfigToUI(config = {}, schema = {}) {
-  // 1. Reset all attachment controls to defaults to prevent stale values from persisting across asset switches
   resetAttachmentControlsToDefault();
 
-  // 2. Set dynamic arrays
   customItemsList = Array.isArray(config.customItems) ? [...config.customItems] : [];
   customFieldsList = Array.isArray(config.customFields) ? [...config.customFields] : [];
   partsList = Array.isArray(config.parts) ? [...config.parts] : [];
 
   document.getElementById('overrideDefaults').checked = !!config.isOverride;
 
-  // 3. Apply saved attachment settings if present
   if (config.attachment) {
     document.getElementById('selectAttachment').value = config.attachment || 'none';
     onAttachmentChanged();
