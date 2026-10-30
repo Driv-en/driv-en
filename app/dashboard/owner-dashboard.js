@@ -27,8 +27,10 @@
   let allCustomers = [];
   let customerPageSize = 10;
   let customerCurrentPage = 1;
+  let customerSortField = 'company_name';
+  let customerSortAsc = true;
 
-  // Cache flags to avoid redundant network calls on tab switch
+  // In-memory caching flags to prevent slow re-fetching on tab switches
   const tabLoaded = {
     referrers: false,
     customers: false,
@@ -55,7 +57,7 @@
     return headers;
   }
 
-  /* ===== THEME MANAGEMENT ===== */
+  /* ===== THEME TOGGLE ===== */
 
   function dashToggleTheme() {
     const current = document.documentElement.getAttribute("data-theme");
@@ -124,10 +126,10 @@
           loadOwnerLogo();
           showError('');
         } else if (data) {
-          showError('Failed to save logo: ' + (data.error || 'Unknown error'));
+          showError('Failed to save logo to server: ' + (data.error || 'Unknown error'));
         }
       })
-      .catch(() => showError('Network error while saving logo.'));
+      .catch(() => showError('Network error while saving logo. Please try again.'));
     };
     reader.readAsDataURL(file);
     event.target.value = '';
@@ -142,7 +144,7 @@
     .finally(() => loadOwnerLogo());
   }
 
-  /* ===== TAB NAVIGATION ===== */
+  /* ===== TAB NAVIGATION & FAST SWITCHING ===== */
 
   function switchTab(tabName) {
     closeCustomerDetail();
@@ -170,6 +172,30 @@
   }
 
   /* ===== VISITORS TAB ===== */
+
+  const PAGE_PATH_MAP = {
+    '/': 'Home', '/website/': 'Home', '/website/index.html': 'Home', '/index.html': 'Home',
+    '/website/about.html': 'About', '/about.html': 'About', '/website/modules.html': 'Platform Suites',
+    '/modules.html': 'Platform Suites', '/website/module-selection.html': 'Module Selection',
+    '/module-selection.html': 'Module Selection', '/website/cart.html': 'Cart', '/cart.html': 'Cart',
+    '/website/checkout.html': 'Checkout', '/checkout.html': 'Checkout', '/website/referral-signup.html': 'Referral Program',
+    '/referral-signup.html': 'Referral Program', '/website/safety.html': 'Safety', '/safety.html': 'Safety',
+    '/website/equipment.html': 'Equipment', '/equipment.html': 'Equipment', '/website/project.html': 'Project',
+    '/project.html': 'Project', '/website/roadmap.html': 'Roadmap', '/roadmap.html': 'Roadmap',
+    '/website/legal/privacy.html': 'Privacy Policy', '/website/legal/terms.html': 'Terms of Service',
+    '/website/legal/refund.html': 'Refund Policy', '/app/dashboard/referrer-dashboard.html': 'Referrer Dashboard',
+    '/app/dashboard/owner-dashboard.html': 'Owner Dashboard', '/app/dashboard/onboarding-dashboard.html': 'Onboarding Dashboard'
+  };
+
+  function pagePathToName(path) {
+    if (!path || path === '/') return 'Home';
+    if (PAGE_PATH_MAP[path]) return PAGE_PATH_MAP[path];
+    if (PAGE_PATH_MAP['/website/' + path.replace(/^\//, '')]) return PAGE_PATH_MAP['/website/' + path.replace(/^\//, '')];
+    if (PAGE_PATH_MAP[path.replace('/website/', '/')]) return PAGE_PATH_MAP[path.replace('/website/', '/')];
+    const cleaned = path.replace('/website/', '').replace(/^\//, '').replace('.html', '');
+    if (cleaned === 'index' || cleaned === '') return 'Home';
+    return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+  }
 
   async function loadVisitors(presetDays, presetName) {
     try {
@@ -253,6 +279,38 @@
           document.getElementById('visitorTopDevice').textContent = (s.deviceBreakdown && s.deviceBreakdown[0]) ? s.deviceBreakdown[0].device_type : '—';
           document.getElementById('visitorTopBrowser').textContent = (s.browserBreakdown && s.browserBreakdown[0]) ? s.browserBreakdown[0].browser : '—';
           document.getElementById('visitorTopOS').textContent = (s.osBreakdown && s.osBreakdown[0]) ? s.osBreakdown[0].os : '—';
+
+          const pagesHtml = (s.topPages || []).map(p => `
+            <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">
+              <span style="color:var(--text);">${escapeHtml(pagePathToName(p.page_path))}</span>
+              <span style="color:var(--text-muted);">${p.count}</span>
+            </div>
+          `).join('');
+          document.getElementById('visitorTopPages').innerHTML = pagesHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
+
+          const countriesHtml = (s.topCountries || []).map(c => `
+            <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">
+              <span style="color:var(--text);">${escapeHtml(c.country || 'Unknown')}</span>
+              <span style="color:var(--text-muted);">${c.count}</span>
+            </div>
+          `).join('');
+          document.getElementById('visitorTopCountries').innerHTML = countriesHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
+
+          const browsersHtml = (s.browserBreakdown || []).map(b => `
+            <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">
+              <span style="color:var(--text);text-transform:capitalize;">${escapeHtml(b.browser)}</span>
+              <span style="color:var(--text-muted);">${b.count}</span>
+            </div>
+          `).join('');
+          document.getElementById('visitorBrowsers').innerHTML = browsersHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
+
+          const osHtml = (s.osBreakdown || []).map(o => `
+            <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">
+              <span style="color:var(--text);text-transform:capitalize;">${escapeHtml(o.os)}</span>
+              <span style="color:var(--text-muted);">${o.count}</span>
+            </div>
+          `).join('');
+          document.getElementById('visitorOS').innerHTML = osHtml || '<span style="color:var(--text-muted);font-size:13px;">No data</span>';
         }
       }
 
@@ -274,11 +332,21 @@
     }
   }
 
+  function sortVisitors(column) {
+    if (visitorSortColumn === column) {
+      visitorSortDirection = visitorSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      visitorSortColumn = column;
+      visitorSortDirection = 'asc';
+    }
+    renderVisitorTable();
+  }
+
   function renderVisitorTable() {
     const tbody = document.getElementById('visitorsTableBody');
     if (!tbody) return;
     if (!allVisitors || allVisitors.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No visitor data for this range.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No visitor data for this date range.</td></tr>';
       return;
     }
 
@@ -292,7 +360,7 @@
     tbody.innerHTML = sorted.map(v => `
       <tr>
         <td style="white-space:nowrap;">${new Date(v.created_at).toLocaleString()}</td>
-        <td>${escapeHtml(v.page_path || '/')}</td>
+        <td>${escapeHtml(pagePathToName(v.page_path))}</td>
         <td>${escapeHtml(v.country || '—')}</td>
         <td style="text-transform:capitalize;">${escapeHtml(v.device_type || '—')}</td>
         <td style="text-transform:capitalize;">${escapeHtml(v.browser || '—')}</td>
@@ -302,6 +370,16 @@
         <td>${v.time_on_page ? v.time_on_page + 's' : '—'}</td>
       </tr>
     `).join('');
+  }
+
+  function sortSessions(column) {
+    if (sessionSortColumn === column) {
+      sessionSortDirection = sessionSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      sessionSortColumn = column;
+      sessionSortDirection = 'asc';
+    }
+    renderSessionsTable();
   }
 
   function renderSessionsTable() {
@@ -316,7 +394,7 @@
       <tr>
         <td style="white-space:nowrap;">${new Date(s.firstVisit).toLocaleString()}</td>
         <td>${s.pages ? s.pages.length : 0}</td>
-        <td style="max-width:300px;">${(s.pages || []).map(p => escapeHtml(p.pagePath || '/')).join(', ')}</td>
+        <td style="max-width:300px;">${(s.pages || []).map(p => escapeHtml(pagePathToName(p.pagePath))).join(', ')}</td>
         <td>${s.totalTimeOnSite ? s.totalTimeOnSite + 's' : '—'}</td>
         <td>${escapeHtml(s.country || '—')}</td>
         <td style="text-transform:capitalize;">${escapeHtml(s.deviceType || '—')}</td>
@@ -327,7 +405,7 @@
     `).join('');
   }
 
-  /* ===== ISSUES TAB (HIGH-VOLUME LOG UNLOCKING) ===== */
+  /* ===== ERROR LOGS TAB (HIGH-VOLUME LOG UNLOCKING) ===== */
 
   async function loadIssues() {
     const listEl = document.getElementById('issueList');
@@ -335,7 +413,6 @@
     listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading error logs...</div>';
 
     try {
-      // Query higher limit to prevent truncating logs to 200 items
       const resp = await fetch(adminApi('/issues?limit=2000&all=true'), { headers: getAuthHeaders() });
       if (!resp.ok) throw new Error('Failed to fetch issues');
 
@@ -399,6 +476,7 @@
         <td><span class="issue-card-source">${escapeHtml(i.source || 'unknown')}</span></td>
         <td style="white-space:nowrap;font-size:13px;color:var(--text-muted);">${new Date(i.created_at).toLocaleString()}</td>
         <td>
+          <button class="owner-action-btn owner-btn-w9" data-copy-id="${i.id}">Copy</button>
           <button class="owner-action-btn owner-btn-activate" data-resolve-id="${i.id}">${i.resolved === 1 ? 'Reopen' : 'Resolve'}</button>
         </td>
       </tr>
@@ -411,6 +489,13 @@
       btn.addEventListener('click', (e) => {
         const id = e.target.getAttribute('data-resolve-id');
         toggleIssueResolve(id);
+      });
+    });
+
+    listEl.querySelectorAll('[data-copy-id]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.target.getAttribute('data-copy-id');
+        copyIssue(id, e.target);
       });
     });
   }
@@ -434,6 +519,23 @@
     } catch (e) {
       showError('Failed to update issue status');
     }
+  }
+
+  function copyIssue(errorId, btn) {
+    const issue = allIssues.find(i => i.id == errorId);
+    if (!issue) return;
+
+    let text = '=== DRIV-EN ERROR LOG ENTRY ===\n';
+    text += 'Error ID: ' + (issue.id || 'N/A') + '\n';
+    text += 'Source: ' + (issue.source || 'N/A') + '\n';
+    text += 'Timestamp: ' + (issue.created_at || 'N/A') + '\n';
+    text += '\n--- ERROR MESSAGE ---\n' + (issue.error_message || 'No message') + '\n';
+    text += '\n--- STACK TRACE ---\n' + (issue.stack_trace || 'No stack trace') + '\n';
+
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = '✓ Copied!';
+      setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+    });
   }
 
   /* ===== PARTNERS & CUSTOMERS ===== */
@@ -479,12 +581,15 @@
         <td>${escapeHtml(p.partner_phone || '—')}</td>
         <td><span class="dash-badge dash-badge-success">${escapeHtml(p.status || 'Pending')}</span></td>
         <td><code>${escapeHtml(p.referral_code || '—')}</code></td>
-        <td>—</td>
-        <td>—</td>
-        <td>—</td>
-        <td>—</td>
+        <td>${p.w9_attachment ? '<button class="owner-action-btn owner-btn-w9">View W-9</button>' : '<span style="color:var(--text-muted);">None</span>'}</td>
+        <td><span class="dash-badge dash-badge-success">Current</span></td>
+        <td><span class="dash-badge dash-badge-success">On File</span></td>
+        <td>${p.last_referred ? new Date(p.last_referred).toLocaleDateString() : '—'}</td>
         <td>${p.created_at ? new Date(p.created_at).toLocaleDateString() : '—'}</td>
-        <td>—</td>
+        <td>
+          <button class="owner-action-btn owner-btn-approve">Approve</button>
+          <button class="owner-action-btn owner-btn-reject">Reject</button>
+        </td>
       </tr>
     `).join('');
   }
@@ -535,6 +640,10 @@
               <th>Employees</th>
               <th>Assets</th>
               <th>Inspections</th>
+              <th>PMs</th>
+              <th>WOs</th>
+              <th>Transfers</th>
+              <th>Fuel</th>
             </tr>
           </thead>
           <tbody>
@@ -544,6 +653,10 @@
                 <td>${c.employee_count || 0}</td>
                 <td>${c.asset_count || 0}</td>
                 <td>${c.inspection_count || 0}</td>
+                <td>${c.pm_count || 0}</td>
+                <td>${c.wo_count || 0}</td>
+                <td>${c.transfer_count || 0}</td>
+                <td>${c.fuel_count || 0}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -560,9 +673,9 @@
     tabLoaded.system = true;
   }
 
-  async function loadAIUsage() {
-    // Unchanged fallback logic
-  }
+  async function loadAIUsage() {}
+
+  async function loadTeamMembers() {}
 
   /* ===== HELPERS & UTILITIES ===== */
 
@@ -593,8 +706,6 @@
     localStorage.removeItem("driven_user");
     window.location.href = '/public/login.html';
   }
-
-  function loadTeamMembers() {}
 
   /* ===== EVENT BINDINGS ===== */
 
