@@ -13,14 +13,6 @@
 <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
 <link rel="stylesheet" href="/app/shared/dashboard.css?v=10">
 <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
-<script>
-(function() {
-  var saved = localStorage.getItem("driven-theme");
-  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  var theme = saved || system;
-  document.documentElement.setAttribute("data-theme", theme);
-})();
-</script>
 
 <style>
     .dash-header-row2 { display: none !important; }
@@ -64,21 +56,20 @@
     .ob-btn-guide { display: inline-flex; align-items: center; gap: 6px; background: var(--bg-card); border: 1.5px solid #2563eb; color: #1d4ed8; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 200ms ease; }
     .ob-btn-guide:hover { background: #1d4ed8; color: #ffffff; }
 
-    /* MODAL WINDOW STYLES */
-    .ob-guide-modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
-    .ob-guide-modal-overlay.active { display: flex; }
-    .ob-guide-modal-card { background: var(--bg-card); border: 2px solid var(--border); border-radius: 12px; max-width: 640px; width: 100%; max-height: 85vh; overflow-y: auto; padding: 24px; position: relative; box-shadow: 0 12px 32px rgba(0,0,0,0.3); animation: modalFadeIn 200ms ease-out; }
-    @keyframes modalFadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-    .ob-guide-modal-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
-    .ob-guide-modal-header h3 { margin: 0; font-size: 18px; color: var(--text); font-weight: 700; display: flex; align-items: center; gap: 8px; }
-    .ob-guide-modal-close { background: none; border: none; font-size: 22px; color: var(--text-muted); cursor: pointer; padding: 0 6px; line-height: 1; border-radius: 4px; }
-    .ob-guide-modal-close:hover { color: var(--text); background: var(--bg-step); }
-    .ob-guide-modal-body { font-size: 14px; color: var(--text-muted); line-height: 1.6; }
-    .ob-guide-modal-body p { margin: 0 0 12px 0; }
-    .ob-guide-modal-body ul, .ob-guide-modal-body ol { margin: 0 0 16px 0; padding-left: 20px; }
-    .ob-guide-modal-body li { margin-bottom: 8px; }
-    .ob-guide-modal-body strong { color: var(--text); }
-    .ob-guide-modal-footer { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; }
+    /* UI MODAL STANDARD STYLING */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 10000; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
+    .modal-overlay.active { display: flex; }
+    .modal-card { background: var(--bg-card); border: 2px solid var(--border); border-radius: 12px; max-width: 640px; width: 100%; max-height: 85vh; overflow-y: auto; padding: 24px; position: relative; box-shadow: 0 12px 32px rgba(0,0,0,0.3); }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+    .modal-title { margin: 0; font-size: 18px; color: var(--text); font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .modal-close-icon { background: none; border: none; font-size: 22px; color: var(--text-muted); cursor: pointer; padding: 0 6px; line-height: 1; border-radius: 4px; }
+    .modal-close-icon:hover { color: var(--text); background: var(--bg-step); }
+    .modal-body { font-size: 14px; color: var(--text-muted); line-height: 1.6; }
+    .modal-body p { margin: 0 0 12px 0; }
+    .modal-body ul, .modal-body ol { margin: 0 0 16px 0; padding-left: 20px; }
+    .modal-body li { margin-bottom: 8px; }
+    .modal-body strong { color: var(--text); }
+    .modal-footer { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; }
 
     .ob-step-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 20px; }
     .ob-step-card { background: var(--bg-step); border: 2px solid #16a34a; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 10px; position: relative; transition: border-color 200ms ease, box-shadow 200ms ease; }
@@ -169,13 +160,16 @@
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
 <div id="dashHeader"></div>
+
 <div class="ob-tab-bar" id="obTabBar">
-  <button class="ob-tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
-  <button class="ob-tab" data-tab="settings" onclick="switchTab('settings')">Settings</button>
-  <button class="ob-tab-admin" data-tab="admin" onclick="window.location.href='/app/dashboard/admin.html'">Admin Dashboard</button>
-  <button class="ob-tab-logout" onclick="dashLogout()">Logout</button>
+  <button class="ob-tab active" data-tab="overview">Overview</button>
+  <button class="ob-tab" data-tab="settings">Settings</button>
+  <button class="ob-tab-admin" data-tab="admin">Admin Dashboard</button>
+  <button class="ob-tab-logout">Logout</button>
 </div>
+
 <div id="loading" style="display:flex;align-items:center;justify-content:center;height:100vh;font-size:16px;color:var(--text-muted);">Checking session…</div>
+
 <div id="dashboard" style="display:none;">
   <div class="ob-complete-notice" id="completeNotice" style="display:none;">
     <div class="ob-complete-notice-card">
@@ -183,12 +177,13 @@
       <p>Your organization's onboarding has been verified as complete by your Admin. You now have access to your assigned dashboard.</p>
     </div>
   </div>
+
   <div class="ob-tab-content active" id="tab-overview">
     <div class="ob-greeting-bar">
       <div class="ob-greeting-text" id="greetingText">Welcome</div>
       <div class="ob-header-guide-actions">
-        <button class="ob-btn-guide" onclick="openGuideModal('modalPurpose')">ⓘ Purpose</button>
-        <button class="ob-btn-guide" onclick="openGuideModal('modalInstructions')">📋 Instructions</button>
+        <button class="ob-btn-guide" id="btnPurposeModal">ⓘ Purpose</button>
+        <button class="ob-btn-guide" id="btnInstructionsModal">📋 Instructions</button>
       </div>
     </div>
     <div class="ob-main">
@@ -217,10 +212,10 @@
             <div class="ob-assigned-to" id="assigned-step1"><span class="ob-assigned-to-label">Assigned:</span><span class="ob-assigned-to-name unassigned">Not assigned</span></div>
             <button id="btn-step1" class="ob-btn-primary">Open Roles &amp; Permissions</button>
             <div class="ob-card-footer-row">
-              <button id="btn-complete-step1" class="ob-btn-complete" onclick="markTaskComplete(1)" style="display:none;">✓ Mark Complete</button>
-              <button class="ob-info-btn" onclick="togglePopup('popup-rp')">Info Needed</button>
+              <button id="btn-complete-step1" class="ob-btn-complete" style="display:none;">✓ Mark Complete</button>
+              <button class="ob-info-btn" id="btn-info-rp">Info Needed</button>
               <div class="ob-info-popup" id="popup-rp">
-                <button class="ob-info-popup-close" onclick="togglePopup('popup-rp')">&times;</button>
+                <button class="ob-info-popup-close">&times;</button>
                 <strong>Roles &amp; Permissions Summary</strong><br>
                 Define operational roles (e.g., Fleet Manager, Inspector, Mechanic, Operator) and set system access permissions across modules.
               </div>
@@ -238,10 +233,10 @@
             <div class="ob-assigned-to" id="assigned-step2"><span class="ob-assigned-to-label">Assigned:</span><span class="ob-assigned-to-name unassigned">Not assigned</span></div>
             <button id="btn-step2" class="ob-btn-primary">Open Employees</button>
             <div class="ob-card-footer-row">
-              <button id="btn-complete-step2" class="ob-btn-complete" onclick="markTaskComplete(2)" style="display:none;">✓ Mark Complete</button>
-              <button class="ob-info-btn" onclick="togglePopup('popup-emp')">Info Needed</button>
+              <button id="btn-complete-step2" class="ob-btn-complete" style="display:none;">✓ Mark Complete</button>
+              <button class="ob-info-btn" id="btn-info-emp">Info Needed</button>
               <div class="ob-info-popup" id="popup-emp">
-                <button class="ob-info-popup-close" onclick="togglePopup('popup-emp')">&times;</button>
+                <button class="ob-info-popup-close">&times;</button>
                 <strong>Employees Summary</strong><br>
                 Add all workforce personnel who perform inspections, PMs, asset transfers, fuel logging, and work orders. <span id="popup-emp-prereq"></span>
               </div>
@@ -259,10 +254,10 @@
             <div class="ob-assigned-to" id="assigned-step3"><span class="ob-assigned-to-label">Assigned:</span><span class="ob-assigned-to-name unassigned">Not assigned</span></div>
             <button id="btn-step3" class="ob-btn-primary">Open Locations</button>
             <div class="ob-card-footer-row">
-              <button id="btn-complete-step3" class="ob-btn-complete" onclick="markTaskComplete(3)" style="display:none;">✓ Mark Complete</button>
-              <button class="ob-info-btn" onclick="togglePopup('popup-loc')">Info Needed</button>
+              <button id="btn-complete-step3" class="ob-btn-complete" style="display:none;">✓ Mark Complete</button>
+              <button class="ob-info-btn" id="btn-info-loc">Info Needed</button>
               <div class="ob-info-popup" id="popup-loc">
-                <button class="ob-info-popup-close" onclick="togglePopup('popup-loc')">&times;</button>
+                <button class="ob-info-popup-close">&times;</button>
                 <strong>Locations Summary</strong><br>
                 Register physical operating sites: plants, mines, yards, job sites, terminals, warehouses, and offices.
               </div>
@@ -279,10 +274,10 @@
             <div class="ob-assigned-to" id="assigned-step4"><span class="ob-assigned-to-label">Assigned:</span><span class="ob-assigned-to-name unassigned">Not assigned</span></div>
             <button id="btn-step4" class="ob-btn-primary">Open Clients</button>
             <div class="ob-card-footer-row">
-              <button id="btn-complete-step4" class="ob-btn-complete" onclick="markTaskComplete(4)" style="display:none;">✓ Mark Complete</button>
-              <button class="ob-info-btn" onclick="togglePopup('popup-client')">Info Needed</button>
+              <button id="btn-complete-step4" class="ob-btn-complete" style="display:none;">✓ Mark Complete</button>
+              <button class="ob-info-btn" id="btn-info-client">Info Needed</button>
               <div class="ob-info-popup" id="popup-client">
-                <button class="ob-info-popup-close" onclick="togglePopup('popup-client')">&times;</button>
+                <button class="ob-info-popup-close">&times;</button>
                 <strong>Clients Summary</strong><br>
                 Add client names and customer organizations for project tracking and billing relationships. Required before creating Projects.
               </div>
@@ -299,10 +294,10 @@
             <div class="ob-assigned-to" id="assigned-step5"><span class="ob-assigned-to-label">Assigned:</span><span class="ob-assigned-to-name unassigned">Not assigned</span></div>
             <button id="btn-step5" class="ob-btn-primary">Open Divisions</button>
             <div class="ob-card-footer-row">
-              <button id="btn-complete-step5" class="ob-btn-complete" onclick="markTaskComplete(5)" style="display:none;">✓ Mark Complete</button>
-              <button class="ob-info-btn" onclick="togglePopup('popup-div')">Info Needed</button>
+              <button id="btn-complete-step5" class="ob-btn-complete" style="display:none;">✓ Mark Complete</button>
+              <button class="ob-info-btn" id="btn-info-div">Info Needed</button>
               <div class="ob-info-popup" id="popup-div">
-                <button class="ob-info-popup-close" onclick="togglePopup('popup-div')">&times;</button>
+                <button class="ob-info-popup-close">&times;</button>
                 <strong>Divisions Summary</strong><br>
                 Establish internal company divisions, business units, or profit centers used for asset costing and reporting.
               </div>
@@ -319,10 +314,10 @@
             <div class="ob-assigned-to" id="assigned-step6"><span class="ob-assigned-to-label">Assigned:</span><span class="ob-assigned-to-name unassigned">Not assigned</span></div>
             <button id="btn-step6" class="ob-btn-primary">Open Project Types</button>
             <div class="ob-card-footer-row">
-              <button id="btn-complete-step6" class="ob-btn-complete" onclick="markTaskComplete(6)" style="display:none;">✓ Mark Complete</button>
-              <button class="ob-info-btn" onclick="togglePopup('popup-pt')">Info Needed</button>
+              <button id="btn-complete-step6" class="ob-btn-complete" style="display:none;">✓ Mark Complete</button>
+              <button class="ob-info-btn" id="btn-info-pt">Info Needed</button>
               <div class="ob-info-popup" id="popup-pt">
-                <button class="ob-info-popup-close" onclick="togglePopup('popup-pt')">&times;</button>
+                <button class="ob-info-popup-close">&times;</button>
                 <strong>Project Types Summary</strong><br>
                 Define categories representing the nature of work performed (e.g., Civil, Commercial, Maintenance, Turnaround).
               </div>
@@ -340,10 +335,10 @@
             <div class="ob-assigned-to" id="assigned-step7"><span class="ob-assigned-to-label">Assigned:</span><span class="ob-assigned-to-name unassigned">Not assigned</span></div>
             <button id="btn-step7" class="ob-btn-primary" disabled>Open Projects</button>
             <div class="ob-card-footer-row">
-              <button id="btn-complete-step7" class="ob-btn-complete" onclick="markTaskComplete(7)" style="display:none;">✓ Mark Complete</button>
-              <button class="ob-info-btn" onclick="togglePopup('popup-proj')">Info Needed</button>
+              <button id="btn-complete-step7" class="ob-btn-complete" style="display:none;">✓ Mark Complete</button>
+              <button class="ob-info-btn" id="btn-info-proj">Info Needed</button>
               <div class="ob-info-popup" id="popup-proj">
-                <button class="ob-info-popup-close" onclick="togglePopup('popup-proj')">&times;</button>
+                <button class="ob-info-popup-close">&times;</button>
                 <strong>Projects Summary</strong><br>
                 Add active and upcoming projects. <span id="popup-proj-prereq">Each project links a Client, Division, and Project Type — Clients must be completed first.</span>
               </div>
@@ -360,10 +355,10 @@
             <div class="ob-assigned-to" id="assigned-step8"><span class="ob-assigned-to-label">Assigned:</span><span class="ob-assigned-to-name unassigned">Not assigned</span></div>
             <button id="btn-step8" class="ob-btn-primary">Open Fuels, Fluids &amp; Energy</button>
             <div class="ob-card-footer-row">
-              <button id="btn-complete-step8" class="ob-btn-complete" onclick="markTaskComplete(8)" style="display:none;">✓ Mark Complete</button>
-              <button class="ob-info-btn" onclick="togglePopup('popup-ft')">Info Needed</button>
+              <button id="btn-complete-step8" class="ob-btn-complete" style="display:none;">✓ Mark Complete</button>
+              <button class="ob-info-btn" id="btn-info-ft">Info Needed</button>
               <div class="ob-info-popup" id="popup-ft">
-                <button class="ob-info-popup-close" onclick="togglePopup('popup-ft')">&times;</button>
+                <button class="ob-info-popup-close">&times;</button>
                 <strong>Fuels, Fluids &amp; Energy Summary</strong><br>
                 Select fuel types, oils, hydraulic fluids, DEF, coolants, and energy sources (ULSD, Regular/Premium Gas, EV, Hybrid, Propane, CNG, Biodiesel, engine oils, and custom fluid grades) consumed by your equipment.
               </div>
@@ -380,10 +375,10 @@
             <div class="ob-assigned-to" id="assigned-step9"><span class="ob-assigned-to-label">Assigned:</span><span class="ob-assigned-to-name unassigned">Not assigned</span></div>
             <button id="btn-step9" class="ob-btn-primary">Open Units of Measure</button>
             <div class="ob-card-footer-row">
-              <button id="btn-complete-step9" class="ob-btn-complete" onclick="markTaskComplete(9)" style="display:none;">✓ Mark Complete</button>
-              <button class="ob-info-btn" onclick="togglePopup('popup-um')">Info Needed</button>
+              <button id="btn-complete-step9" class="ob-btn-complete" style="display:none;">✓ Mark Complete</button>
+              <button class="ob-info-btn" id="btn-info-um">Info Needed</button>
               <div class="ob-info-popup" id="popup-um">
-                <button class="ob-info-popup-close" onclick="togglePopup('popup-um')">&times;</button>
+                <button class="ob-info-popup-close">&times;</button>
                 <strong>Units of Measure Summary</strong><br>
                 Select liquid volume units (Gallons, Liters, Barrels, Quarts), distance/usage counters (Miles, Kilometers, Hours), weight metrics (Tons, Pounds, Kilograms), pressure (PSI, Bar), and electrical units (kWh) across SAE and Metric domains.
               </div>
@@ -400,10 +395,10 @@
             <div class="ob-assigned-to" id="assigned-step10"><span class="ob-assigned-to-label">Assigned:</span><span class="ob-assigned-to-name unassigned">Not assigned</span></div>
             <button id="btn-step10" class="ob-btn-primary">Open Asset Types</button>
             <div class="ob-card-footer-row">
-              <button id="btn-complete-step10" class="ob-btn-complete" onclick="markTaskComplete(10)" style="display:none;">✓ Mark Complete</button>
-              <button class="ob-info-btn" onclick="togglePopup('popup-at')">Info Needed</button>
+              <button id="btn-complete-step10" class="ob-btn-complete" style="display:none;">✓ Mark Complete</button>
+              <button class="ob-info-btn" id="btn-info-at">Info Needed</button>
               <div class="ob-info-popup" id="popup-at">
-                <button class="ob-info-popup-close" onclick="togglePopup('popup-at')">&times;</button>
+                <button class="ob-info-popup-close">&times;</button>
                 <strong>Asset Types Summary</strong><br>
                 Select primary asset categories (Earthmoving, Hauling, Lifting, Power Generation, Vehicles, Attachments) to standardize fleet classification. Drive/mobility details are configured later.
               </div>
@@ -421,10 +416,10 @@
             <div class="ob-assigned-to" id="assigned-step11"><span class="ob-assigned-to-label">Assigned:</span><span class="ob-assigned-to-name unassigned">Not assigned</span></div>
             <button id="btn-step11" class="ob-btn-primary" disabled>Open Assets</button>
             <div class="ob-card-footer-row">
-              <button id="btn-complete-step11" class="ob-btn-complete" onclick="markTaskComplete(11)" style="display:none;">✓ Mark Complete</button>
-              <button class="ob-info-btn" onclick="togglePopup('popup-assets')">Info Needed</button>
+              <button id="btn-complete-step11" class="ob-btn-complete" style="display:none;">✓ Mark Complete</button>
+              <button class="ob-info-btn" id="btn-info-assets">Info Needed</button>
               <div class="ob-info-popup" id="popup-assets">
-                <button class="ob-info-popup-close" onclick="togglePopup('popup-assets')">&times;</button>
+                <button class="ob-info-popup-close">&times;</button>
                 <strong>Assets Summary</strong><br>
                 Register equipment units, machinery, vehicles, and tools into the master directory. <span id="popup-assets-prereq">Requires Asset Types to be completed first.</span>
               </div>
@@ -442,7 +437,7 @@
         <h3>Appearance</h3>
         <div class="theme-switch-wrapper" title="Toggle light/dark mode">
           <span class="theme-switch-label" id="theme-label-light">Light Mode</span>
-          <label class="theme-switch"><input type="checkbox" id="theme-checkbox" onchange="toggleTheme()"><span class="theme-slider"></span></label>
+          <label class="theme-switch"><input type="checkbox" id="theme-checkbox"><span class="theme-slider"></span></label>
           <span class="theme-switch-label" id="theme-label-dark">Dark Mode</span>
         </div>
       </div>
@@ -451,20 +446,20 @@
         <div class="account-row"><span>Name:</span> <span id="account-name"></span></div>
         <div class="account-row"><span>Email:</span> <span id="account-email"></span></div>
         <div class="account-row"><span>Role:</span> <span id="account-role"></span></div>
-        <button class="ob-btn-primary" style="background:transparent;border:1px solid var(--primary);color:var(--primary);padding:10px 20px;" onclick="window.location.href='/app/auth/change-password.html'">Change Password</button>
+        <button class="ob-btn-primary" id="btnChangePassword" style="background:transparent;border:1px solid var(--primary);color:var(--primary);padding:10px 20px;">Change Password</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- PURPOSE MODAL -->
-<div class="ob-guide-modal-overlay" id="modalPurpose" onclick="closeGuideModalOnClickOut(event, 'modalPurpose')">
-  <div class="ob-guide-modal-card">
-    <div class="ob-guide-modal-header">
-      <h3>ⓘ Onboarding Purpose</h3>
-      <button class="ob-guide-modal-close" onclick="closeGuideModal('modalPurpose')">&times;</button>
+<!-- STANDARD PURPOSE MODAL -->
+<div id="purposeModal" class="modal-overlay" aria-hidden="true" role="dialog" aria-labelledby="purposeModalTitle">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 id="purposeModalTitle" class="modal-title">ⓘ Purpose: Onboarding Dashboard</h3>
+      <button class="modal-close-icon purpose-close" aria-label="Close dialog">×</button>
     </div>
-    <div class="ob-guide-modal-body">
+    <div class="modal-body">
       <p>The <strong>Onboarding Dashboard</strong> establishes the core operational directory and master data for your organization in the <strong>DRIV‑EN Platform</strong>.</p>
       <p>By completing these tasks, you configure the foundational relationships that drive your everyday fleet operations:</p>
       <ul>
@@ -474,20 +469,20 @@
       </ul>
       <p>Once all assigned onboarding tasks are finished, your organization seamlessly transitions to full operational capability on your live dashboard.</p>
     </div>
-    <div class="ob-guide-modal-footer">
-      <button class="ob-btn-primary" onclick="closeGuideModal('modalPurpose')">Got It</button>
+    <div class="modal-footer">
+      <button class="ob-btn-primary purpose-close">Got It</button>
     </div>
   </div>
 </div>
 
-<!-- INSTRUCTIONS MODAL -->
-<div class="ob-guide-modal-overlay" id="modalInstructions" onclick="closeGuideModalOnClickOut(event, 'modalInstructions')">
-  <div class="ob-guide-modal-card">
-    <div class="ob-guide-modal-header">
-      <h3>📋 Onboarding Instructions</h3>
-      <button class="ob-guide-modal-close" onclick="closeGuideModal('modalInstructions')">&times;</button>
+<!-- STANDARD INSTRUCTIONS MODAL -->
+<div id="instructionsModal" class="modal-overlay" aria-hidden="true" role="dialog" aria-labelledby="instructionsModalTitle">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 id="instructionsModalTitle" class="modal-title">📋 Instructions</h3>
+      <button class="modal-close-icon instructions-close" aria-label="Close dialog">×</button>
     </div>
-    <div class="ob-guide-modal-body">
+    <div class="modal-body">
       <p>Follow these steps to complete your organization's onboarding setup:</p>
       <ol>
         <li><strong>Review Your Task Assignments:</strong> Check the <em>Assigned:</em> line on each card. You are responsible for completing the tasks assigned to your name.</li>
@@ -497,689 +492,17 @@
         <li><strong>Multi-User Verification:</strong> If a task is assigned to multiple Key Personnel, all assigned team members must click <strong>"Mark Complete"</strong> for the card to finalize.</li>
       </ol>
     </div>
-    <div class="ob-guide-modal-footer">
-      <button class="ob-btn-primary" onclick="closeGuideModal('modalInstructions')">Got It</button>
+    <div class="modal-footer">
+      <button class="ob-btn-primary instructions-close">Got It</button>
     </div>
   </div>
 </div>
 
-<div class="popup-overlay" id="popupOverlay" onclick="closeAllPopups()"></div>
+<div class="popup-overlay" id="popupOverlay"></div>
 <div id="dashFooter"></div>
+
 <script src="/app/shared/dashboard-common.js?v=13"></script>
-<script>
-    /* ===== ONBOARDING DASHBOARD — PAGE-SPECIFIC JAVASCRIPT ===== */
-
-    var currentUser = null;
-    var isAdmin = false;
-    var assignedTasks = [];
-    var stepCompletion = {};
-    var stepVisibility = {};
-    var onboardingComplete = false;
-    var taskCompletions = {};
-    var allKP = [];
-    var activeOrgId = "";
-    var isProcessingSession = false;
-
-    var STEP_DEFS = {
-      1: { name: "roles-permissions", task: "Roles & Permissions", prereqs: [],     url: "/app/onboarding/roles-permissions.html" },
-      2: { name: "employees",         task: "Employees",           prereqs: [1],    url: "/app/onboarding/employees.html" },
-      3: { name: "locations",         task: "Locations",           prereqs: [],     url: "/app/onboarding/locations.html" },
-      4: { name: "clients",           task: "Clients",             prereqs: [],     url: "/app/onboarding/clients.html" },
-      5: { name: "divisions",         task: "Divisions",           prereqs: [],     url: "/app/onboarding/divisions.html" },
-      6: { name: "project-types",     task: "Project Types",       prereqs: [],     url: "/app/onboarding/project-types.html" },
-      7: { name: "projects",          task: "Projects",            prereqs: [4],    url: "/app/onboarding/projects.html" },
-      8: { name: "fuel-types",        task: "Fuels, Fluids & Energy", prereqs: [],  url: "/app/onboarding/fuel-types.html" },
-      9: { name: "units-of-measure",  task: "Units of Measure",    prereqs: [],     url: "/app/onboarding/units-of-measure.html" },
-      10:{ name: "asset-types",       task: "Asset Types",         prereqs: [],     url: "/app/onboarding/asset-types.html" },
-      11:{ name: "assets",            task: "Assets",              prereqs: [10],   url: "/app/onboarding/equipment.html" }
-    };
-
-    /* GUIDE MODALS LOGIC */
-    function openGuideModal(id) {
-      var m = document.getElementById(id);
-      if (m) m.classList.add('active');
-    }
-    function closeGuideModal(id) {
-      var m = document.getElementById(id);
-      if (m) m.classList.remove('active');
-    }
-    function closeGuideModalOnClickOut(event, id) {
-      if (event.target && event.target.id === id) {
-        closeGuideModal(id);
-      }
-    }
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') {
-        closeGuideModal('modalPurpose');
-        closeGuideModal('modalInstructions');
-      }
-    });
-
-    function switchTab(tabName) {
-      document.querySelectorAll('.ob-tab').forEach(function(t) { t.classList.remove('active'); });
-      document.querySelectorAll('.ob-tab-content').forEach(function(c) { c.classList.remove('active'); });
-      var tabBtn = document.querySelector('[data-tab="' + tabName + '"]');
-      if (tabBtn) tabBtn.classList.add('active');
-      var tabContent = document.getElementById('tab-' + tabName);
-      if (tabContent) tabContent.classList.add('active');
-    }
-
-    function toggleTheme() {
-      var current = document.documentElement.getAttribute("data-theme");
-      var newTheme = current === "dark" ? "light" : "dark";
-      document.documentElement.setAttribute("data-theme", newTheme);
-      localStorage.setItem("driven-theme", newTheme);
-      updateThemeSwitch();
-    }
-    function updateThemeSwitch() {
-      var current = document.documentElement.getAttribute("data-theme");
-      var checkbox = document.getElementById("theme-checkbox");
-      var labelLight = document.getElementById("theme-label-light");
-      var labelDark = document.getElementById("theme-label-dark");
-      if (checkbox) checkbox.checked = (current === "dark");
-      if (labelLight) labelLight.classList.toggle('active', current === 'light');
-      if (labelDark) labelDark.classList.toggle('active', current === 'dark');
-    }
-
-    function togglePopup(id) {
-      var popup = document.getElementById(id);
-      var overlay = document.getElementById("popupOverlay");
-      var isActive = popup ? popup.classList.contains("active") : false;
-      closeAllPopups();
-      if (!isActive && popup && overlay) {
-        popup.classList.add("active");
-        overlay.classList.add("active");
-      }
-    }
-    function closeAllPopups() {
-      document.querySelectorAll(".ob-info-popup").forEach(function(p) { p.classList.remove("active"); });
-      var overlay = document.getElementById("popupOverlay");
-      if (overlay) overlay.classList.remove("active");
-    }
-
-    function setStatus(id, statusClass, text) {
-      var el = document.getElementById(id);
-      if (!el) return;
-      el.className = "ob-step-status " + statusClass;
-      el.textContent = text;
-    }
-    function setButton(stepNum, enabled, url) {
-      var btn = document.getElementById("btn-step" + stepNum);
-      if (!btn) return;
-      if (enabled && url) {
-        btn.disabled = false;
-        btn.onclick = function() { window.location.href = url; };
-      } else {
-        btn.disabled = true;
-        btn.onclick = null;
-      }
-    }
-
-    function loadTaskCompletions() {
-      try {
-        taskCompletions = JSON.parse(localStorage.getItem("driven_task_completions") || "{}");
-      } catch (e) {
-        taskCompletions = {};
-      }
-    }
-    function saveTaskCompletions() {
-      localStorage.setItem("driven_task_completions", JSON.stringify(taskCompletions));
-    }
-    function getAssignedEmails(taskName) {
-      var emails = [];
-      allKP.forEach(function(kp) {
-        if (kp.roles) {
-          for (var i = 0; i < kp.roles.length; i++) {
-            if (kp.roles[i].role === taskName || kp.roles[i].task_name === taskName) {
-              emails.push(kp.email.toLowerCase());
-              break;
-            }
-          }
-        }
-      });
-      return emails;
-    }
-    function getAssignedNames(taskName) {
-      var names = [];
-      allKP.forEach(function(kp) {
-        if (kp.roles) {
-          for (var i = 0; i < kp.roles.length; i++) {
-            if (kp.roles[i].role === taskName || kp.roles[i].task_name === taskName) {
-              names.push(kp.name || kp.email);
-              break;
-            }
-          }
-        }
-      });
-      return names;
-    }
-
-    function isTaskFullyComplete(stepNum) {
-      var def = STEP_DEFS[stepNum];
-      var taskName = def.task;
-      
-      if (localStorage.getItem("driven_step_" + def.name + "_complete") === "true") {
-        return true;
-      }
-
-      var assignedEmails = getAssignedEmails(taskName);
-      if (assignedEmails.length === 0) {
-        var completions = taskCompletions[taskName] || [];
-        return completions.length > 0;
-      }
-      var completions = taskCompletions[taskName] || [];
-      for (var i = 0; i < assignedEmails.length; i++) {
-        if (completions.indexOf(assignedEmails[i]) === -1) return false;
-      }
-      return true;
-    }
-
-    function markTaskComplete(stepNum) {
-      var def = STEP_DEFS[stepNum];
-      var taskName = def.task;
-      var myEmail = (currentUser && currentUser.email) ? currentUser.email.toLowerCase() : "";
-      if (!taskCompletions[taskName]) taskCompletions[taskName] = [];
-      if (taskCompletions[taskName].indexOf(myEmail) === -1) {
-        taskCompletions[taskName].push(myEmail);
-      }
-      localStorage.setItem("driven_step_" + def.name + "_complete", "true");
-      saveTaskCompletions();
-      updateStepStatus(stepNum);
-      checkAllComplete();
-    }
-
-    function updateCompleteButton(stepNum) {
-      var btn = document.getElementById("btn-complete-step" + stepNum);
-      if (!btn) return;
-      var def = STEP_DEFS[stepNum];
-      var taskName = def.task;
-      var myEmail = (currentUser && currentUser.email) ? currentUser.email.toLowerCase() : "";
-
-      var completions = taskCompletions[taskName] || [];
-      var isAlreadyComplete = completions.indexOf(myEmail) !== -1 || localStorage.getItem("driven_step_" + def.name + "_complete") === "true";
-
-      if (isAlreadyComplete) {
-        btn.style.display = "inline-block"; 
-        btn.classList.add("done");
-        btn.textContent = "✓ You marked complete"; 
-        btn.disabled = true; 
-        return;
-      }
-      if (def.prereqs.length > 0 && !checkPrereqs(stepNum)) {
-        btn.style.display = "inline-block"; 
-        btn.classList.remove("done"); 
-        btn.disabled = true;
-        var prereqNames = getVisiblePrereqNames(stepNum).join(", ");
-        btn.textContent = "🔒 Mark Complete — Requires " + prereqNames; 
-        return;
-      }
-      btn.style.display = "inline-block"; 
-      btn.classList.remove("done"); 
-      btn.disabled = false;
-      var assignedEmails = getAssignedEmails(taskName);
-      if (assignedEmails.length > 1) {
-        var doneCount = assignedEmails.filter(function(e) { return completions.indexOf(e) !== -1; }).length;
-        btn.textContent = "✓ Mark Complete (" + doneCount + "/" + assignedEmails.length + " done)";
-      } else { 
-        btn.textContent = "✓ Mark Complete"; 
-      }
-    }
-
-    function checkAllComplete() {
-      var allDone = true;
-      for (var i = 1; i <= 11; i++) {
-        if (!isStepVisible(STEP_DEFS[i].name)) continue;
-        if (!isTaskFullyComplete(i)) { allDone = false; break; }
-      }
-      return allDone;
-    }
-
-    function getVisiblePrereqNames(stepNum) {
-      var prereqs = STEP_DEFS[stepNum].prereqs;
-      var names = [];
-      prereqs.forEach(function(p) {
-        var pDef = STEP_DEFS[p];
-        if (isStepVisible(pDef.name)) { names.push(pDef.task); }
-      });
-      return names;
-    }
-    function checkPrereqs(stepNum) {
-      var prereqs = STEP_DEFS[stepNum].prereqs;
-      return prereqs.every(function(p) {
-        if (!isStepVisible(STEP_DEFS[p].name)) return true;
-        return stepCompletion[p] === true;
-      });
-    }
-
-    function isStepVisible(stepKey) {
-      if (Object.keys(stepVisibility).length === 0) return true;
-      return stepVisibility[stepKey] !== false;
-    }
-
-    function updateAssignedLabels() {
-      for (var i = 1; i <= 11; i++) {
-        var def = STEP_DEFS[i];
-        var el = document.getElementById("assigned-step" + i);
-        if (!el) continue;
-        if (!isStepVisible(def.name)) { el.style.display = "none"; continue; }
-        el.style.display = "flex";
-        var nameEl = el.querySelector(".ob-assigned-to-name");
-        if (nameEl) {
-          var names = getAssignedNames(def.task);
-          if (names.length > 0) {
-            nameEl.textContent = names.join(", ");
-            nameEl.classList.remove("unassigned");
-          } else {
-            nameEl.textContent = "Not assigned";
-            nameEl.classList.add("unassigned");
-          }
-        }
-      }
-    }
-
-    function updateStepStatus(stepNum) {
-      var def = STEP_DEFS[stepNum];
-      var statusId = "status-step" + stepNum;
-      var completeBtn = document.getElementById("btn-complete-step" + stepNum);
-      var reqBanner = document.getElementById("banner-step" + stepNum);
-
-      if (!isStepVisible(def.name)) {
-        var card = document.querySelector('[data-step-key="' + def.name + '"]');
-        if (card) card.classList.add("hidden");
-        return;
-      }
-      var fullyComplete = isTaskFullyComplete(stepNum);
-
-      if (reqBanner) {
-        reqBanner.style.display = fullyComplete ? "none" : "block";
-      }
-
-      if (isAdmin) {
-        if (fullyComplete) {
-          setStatus(statusId, "ob-completed", "Completed");
-          setButton(stepNum, true, def.url);
-        } else if (def.prereqs.length > 0 && !checkPrereqs(stepNum)) {
-          setStatus(statusId, "ob-locked-prereq", "Locked");
-          setButton(stepNum, true, def.url);
-        } else {
-          setStatus(statusId, "ob-ready", "Ready");
-          setButton(stepNum, true, def.url);
-        }
-        updateCompleteButton(stepNum);
-        return;
-      }
-      var hasTask = assignedTasks.indexOf(def.task) !== -1;
-      if (!hasTask) {
-        setStatus(statusId, "ob-not-assigned", "Not Assigned");
-        setButton(stepNum, false);
-        if (completeBtn) completeBtn.style.display = "none";
-        return;
-      }
-      if (fullyComplete) {
-        setStatus(statusId, "ob-completed", "Completed");
-        setButton(stepNum, true, def.url);
-      } else if (def.prereqs.length > 0 && !checkPrereqs(stepNum)) {
-        setStatus(statusId, "ob-locked-prereq", "Locked");
-        setButton(stepNum, true, def.url);
-      } else {
-        setStatus(statusId, "ob-ready", "Ready");
-        setButton(stepNum, true, def.url);
-      }
-      updateCompleteButton(stepNum);
-    }
-
-    function updateAllSteps() {
-      for (var i = 1; i <= 11; i++) { stepCompletion[i] = isTaskFullyComplete(i); }
-      for (var i = 1; i <= 11; i++) { updateStepStatus(i); }
-      updateAssignedLabels();
-      updatePrereqPopups();
-    }
-
-    function updatePrereqPopups() {
-      var popupEmp = document.getElementById("popup-emp-prereq");
-      if (popupEmp) {
-        var names2p = getVisiblePrereqNames(2);
-        popupEmp.textContent = names2p.length > 0 ? "Requires: " + names2p.join(", ") + " must be completed first." : "";
-      }
-      var popup7 = document.getElementById("popup-proj-prereq");
-      if (popup7) {
-        var names7 = getVisiblePrereqNames(7);
-        popup7.textContent = names7.length > 0 ? "Requires: " + names7.join(", ") + " must be completed first." : "";
-      }
-      var popupAssets = document.getElementById("popup-assets-prereq");
-      if (popupAssets) {
-        var names11 = getVisiblePrereqNames(11);
-        popupAssets.textContent = names11.length > 0 ? "Requires: " + names11.join(", ") + " must be completed first." : "";
-      }
-    }
-
-    async function loadOnboardingKPIs() {
-      var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
-      var orgId = activeOrgId || userObj.org_id || localStorage.getItem("driven_org_id");
-      var userId = userObj.id || localStorage.getItem("driven_user_id");
-      var customerId = localStorage.getItem("driven_customer_id") || "";
-
-      if (!orgId || orgId === "default_org") return;
-
-      var headers = {
-        "x-org-id": orgId,
-        "x-user-id": String(userId || "")
-      };
-
-      function setCardKpi(stepNum, text) {
-        var row = document.getElementById("kpiRow" + stepNum);
-        var val = document.getElementById("kpiVal" + stepNum);
-        if (row && val) {
-          val.textContent = text;
-          row.style.cssText = "display: flex !important; visibility: visible !important; opacity: 1 !important;";
-        }
-      }
-
-      function getLocalCount(localKeys) {
-        if (!localKeys) return 0;
-        for (var i = 0; i < localKeys.length; i++) {
-          var raw = localStorage.getItem(localKeys[i]);
-          if (raw) {
-            try {
-              var parsed = JSON.parse(raw);
-              if (Array.isArray(parsed)) return parsed.length;
-            } catch(e) {
-              var num = parseInt(raw, 10);
-              if (!isNaN(num) && num > 0) return num;
-            }
-          }
-        }
-        return 0;
-      }
-
-      function parseListCount(res, localKeys) {
-        var count = getLocalCount(localKeys);
-        if (count > 0) return count;
-
-        if (res && res.status === "fulfilled" && res.value && res.value.ok) {
-          try {
-            var data = res.value._data;
-            if (data) {
-              var list = data.records || data.data || data.users || data.employees || data.projectTypes || data.units || data.unitsOfMeasure || data.assetTypes || data.fuelTypes || data.roles || data.locations || data.clients || data.divisions || data.projects || data.equipment || (Array.isArray(data) ? data : []);
-              if (Array.isArray(list)) count = list.length;
-              else if (typeof list === "object") count = Object.keys(list).length;
-            }
-          } catch(e) {}
-        }
-        return count;
-      }
-
-      const requests = [
-        fetch("/api/roles" + (customerId ? "?customerId=" + encodeURIComponent(customerId) : ""), { headers }),
-        fetch("/api/users", { headers }),
-        fetch("/api/locations", { headers }),
-        fetch("/api/clients", { headers }),
-        fetch("/api/divisions", { headers }),
-        fetch("/api/project-types", { headers }),
-        fetch("/api/projects", { headers }),
-        fetch("/api/fuel-types", { headers }),
-        fetch("/api/units-of-measure", { headers }),
-        fetch("/api/asset-types", { headers }),
-        fetch("/api/equipment", { headers })
-      ];
-
-      const responses = await Promise.allSettled(requests);
-
-      for (let i = 0; i < responses.length; i++) {
-        if (responses[i].status === "fulfilled" && responses[i].value.ok) {
-          try {
-            responses[i].value._data = await responses[i].value.json();
-          } catch(e) {}
-        }
-      }
-
-      let c1 = parseListCount(responses[0], ["driven_roles", "driven_role_count"]);
-      if (c1 === 0 && (isAdmin || allKP.length > 0)) c1 = 5;
-      if (c1 > 0) setCardKpi(1, c1 + " Roles Configured");
-
-      let c2 = getLocalCount(["driven_employee_count", "driven_employees", "driven_employees_count"]);
-      if (c2 === 0 && responses[1].status === "fulfilled" && responses[1].value && responses[1].value.ok) {
-        try {
-          var uData = responses[1].value._data;
-          var uList = uData.records || uData.users || uData.employees || uData.data || (Array.isArray(uData) ? uData : []);
-          if (Array.isArray(uList)) {
-            var activeEmps = uList.filter(function(u) {
-              var uOrg = u.org_id || u.orgId;
-              var isActive = u.is_active !== undefined ? (u.is_active == 1 || u.is_active === true) : true;
-              return isActive && (!uOrg || uOrg === orgId);
-            });
-            c2 = activeEmps.length;
-          }
-        } catch(e) {}
-      }
-      if (c2 > 0) setCardKpi(2, c2 + " Employees Active");
-
-      let c3 = parseListCount(responses[2], ["driven_locations", "driven_location_count"]);
-      if (c3 > 0) setCardKpi(3, c3 + " Locations Registered");
-
-      let c4 = parseListCount(responses[3], ["driven_clients", "driven_client_count"]);
-      if (c4 > 0) setCardKpi(4, c4 + " Clients Registered");
-
-      let c5 = parseListCount(responses[4], ["driven_divisions", "driven_division_count"]);
-      if (c5 > 0) setCardKpi(5, c5 + " Divisions Configured");
-
-      let c6 = parseListCount(responses[5], ["driven_project_types", "driven_project_type_count"]);
-      if (c6 > 0) setCardKpi(6, c6 + " Project Types Configured");
-
-      let c7 = parseListCount(responses[6], ["driven_projects", "driven_project_count"]);
-      if (c7 > 0) setCardKpi(7, c7 + " Active Projects");
-
-      let c8 = parseListCount(responses[7], ["driven_fuel_types", "driven_fuel_count", "driven_fuel_type_count"]);
-      if (c8 > 0) setCardKpi(8, c8 + " Fuel Types Selected");
-
-      let c9 = parseListCount(responses[8], ["driven_units_of_measure", "driven_units_count", "driven_uom_count", "driven_unit_count"]);
-      if (c9 > 0) setCardKpi(9, c9 + " Units Configured");
-
-      let c10 = parseListCount(responses[9], ["driven_asset_types", "driven_asset_type_count"]);
-      if (c10 > 0) setCardKpi(10, c10 + " Categories Configured");
-
-      let c11 = parseListCount(responses[10], ["driven_equipment", "driven_equipment_count"]);
-      if (c11 > 0) setCardKpi(11, c11 + " Assets Registered");
-    }
-
-    async function loadSettings() {
-      try {
-        var res = await fetch("/auth/get-settings");
-        var data = await res.json();
-        if (data.success && data.settings) {
-          if (data.settings.step_visibility) { stepVisibility = data.settings.step_visibility; }
-          if (data.settings.onboarding_complete) {
-            onboardingComplete = true;
-            if (!isAdmin) {
-              var completeNotice = document.getElementById("completeNotice");
-              var tabOverview = document.getElementById("tab-overview");
-              if (completeNotice) completeNotice.style.display = "block";
-              if (tabOverview) tabOverview.style.display = "none";
-              setTimeout(function() { window.location.href = "/app/dashboard/owner-dashboard.html"; }, 3000);
-            }
-          }
-          var bt = data.settings.business_type;
-          var naics = data.settings.naics_code;
-          if (bt || naics) {
-            var elBt = document.getElementById("obCompanyType");
-            var elNaics = document.getElementById("obCompanyNaics");
-            var infoBar = document.getElementById("companyInfoBar");
-            if (elBt) elBt.textContent = bt || "Not set";
-            if (elNaics) elNaics.textContent = naics || "Not set";
-            if (infoBar) infoBar.style.display = "block";
-          }
-        }
-      } catch (e) { console.error("Settings load error:", e.message); }
-      updateAllSteps();
-    }
-
-    async function loadKeyPersonnel() {
-      var roleLower = (currentUser && currentUser.role) ? currentUser.role.toLowerCase() : "";
-      if (currentUser && (roleLower === "admin" || roleLower === "administrator" || roleLower.indexOf("founder") !== -1)) {
-        isAdmin = true;
-        var adminTab0 = document.querySelector('.ob-tab-bar [data-tab="admin"]');
-        if (adminTab0) adminTab0.style.display = "inline-block";
-      }
-      var customerId = localStorage.getItem("driven_customer_id");
-      if (!customerId) { updateAllSteps(); return; }
-      try {
-        var response = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(customerId));
-        var data = await response.json();
-        if (data.success && data.keyPersonnel) {
-          allKP = data.keyPersonnel;
-          var myEmail = (currentUser && currentUser.email) ? currentUser.email.toLowerCase() : "";
-          var myRecord = data.keyPersonnel.find(function(kp) {
-            return kp.email && kp.email.toLowerCase() === myEmail;
-          });
-          if (myRecord) {
-            if (!isAdmin) {
-              isAdmin = false;
-              assignedTasks = myRecord.roles.map(function(r) { return r.role || r.task_name; });
-              var adminTabHide = document.querySelector('.ob-tab-bar [data-tab="admin"]');
-              if (adminTabHide) adminTabHide.style.display = "none";
-            } else {
-              assignedTasks = myRecord.roles.map(function(r) { return r.role || r.task_name; });
-            }
-          }
-        }
-      } catch (e) { console.error("Key personnel load error:", e.message); }
-      updateAllSteps();
-    }
-
-    function makeTabsSticky() {
-      var header = document.getElementById("dashHeader");
-      var tabBar = document.getElementById("obTabBar");
-      if (header && tabBar) {
-        var headerRect = header.getBoundingClientRect();
-        var headerBottom = headerRect.bottom > 0 ? headerRect.bottom : (header.offsetHeight || 0);
-        tabBar.style.top = headerBottom + "px";
-      }
-    }
-
-    function insertHeaderTitle() {
-      var row1 = document.querySelector(".dash-header-row1");
-      if (row1 && !document.querySelector(".ob-header-title")) {
-        var title = document.createElement("div");
-        title.className = "ob-header-title";
-        title.textContent = "Onboarding Dashboard";
-        var logoArea = document.getElementById("dashCustomerLogoArea");
-        var drivenLogo = row1.querySelector(".dash-driven-logo");
-        if (logoArea && drivenLogo) {
-          row1.insertBefore(title, drivenLogo);
-        } else {
-          row1.appendChild(title);
-        }
-      }
-    }
-
-    async function processSessionUser(user, orgIdDetail) {
-      if (isProcessingSession) return;
-      isProcessingSession = true;
-
-      try {
-        if (!user) {
-          window.location.href = "/public/login.html";
-          return;
-        }
-        currentUser = user;
-        activeOrgId = user.org_id || orgIdDetail || localStorage.getItem("driven_org_id") || "";
-
-        localStorage.setItem("driven_user", JSON.stringify(user));
-        if (user.id) localStorage.setItem("driven_user_id", String(user.id));
-        if (activeOrgId) localStorage.setItem("driven_org_id", activeOrgId);
-        if (user.customer_id) localStorage.setItem("driven_customer_id", user.customer_id);
-
-        var firstName = user.first_name || "";
-        var greeting = document.getElementById("greetingText");
-        if (greeting && firstName) { greeting.innerHTML = "Welcome, <strong>" + firstName + "</strong>"; }
-        
-        var fullName = (user.first_name || "") + (user.last_name ? " " + user.last_name : "");
-        var accName = document.getElementById("account-name");
-        var accEmail = document.getElementById("account-email");
-        var accRole = document.getElementById("account-role");
-        if (accName) accName.textContent = fullName || user.email || "";
-        if (accEmail) accEmail.textContent = user.email || "";
-        if (accRole) accRole.textContent = user.role || "User";
-
-        insertHeaderTitle();
-        makeTabsSticky();
-        updateThemeSwitch();
-
-        var roleLower = (user.role) ? user.role.toLowerCase() : "";
-        if (roleLower === "admin" || roleLower === "administrator" || roleLower.indexOf("founder") !== -1) {
-          isAdmin = true;
-          var adminTabInit = document.querySelector('.ob-tab-bar [data-tab="admin"]');
-          if (adminTabInit) adminTabInit.style.display = "inline-block";
-          var kpBanner = document.getElementById("kpMarkCompleteBanner");
-          if (kpBanner) kpBanner.style.display = "none";
-        }
-        await loadSettings();
-        loadTaskCompletions();
-        await loadKeyPersonnel();
-        loadOnboardingKPIs();
-      } finally {
-        var loadingEl = document.getElementById("loading");
-        var dashEl = document.getElementById("dashboard");
-        if (loadingEl) loadingEl.style.display = "none";
-        if (dashEl) dashEl.style.display = "block";
-      }
-    }
-
-    async function fetchUserSession() {
-      try {
-        var res = await fetch("/auth/get-user");
-        if (res.ok) {
-          var data = await res.json();
-          if (data && (data.user || data.success)) {
-            return data.user || data;
-          }
-        }
-      } catch(e) {
-        console.error("Session lookup error:", e);
-      }
-      return null;
-    }
-
-    async function init() {
-      var user = window.dashUser;
-
-      if (!user) {
-        var savedUser = localStorage.getItem("driven_user");
-        if (savedUser && savedUser !== "undefined" && savedUser !== "null") {
-          try {
-            var parsed = JSON.parse(savedUser);
-            if (parsed && parsed.email) {
-              user = parsed;
-            }
-          } catch(e) {}
-        }
-      }
-
-      if (!user) {
-        user = await fetchUserSession();
-      }
-
-      if (user) {
-        window.dashUser = user;
-        await processSessionUser(user, user.org_id);
-      } else {
-        window.location.href = "/public/login.html";
-      }
-    }
-
-    document.addEventListener("dashSessionLoaded", async function(e) {
-      if (window.dashUser && !isProcessingSession) {
-        await processSessionUser(window.dashUser, e.detail ? e.detail.org_id : "");
-      }
-    });
-
-    window.addEventListener("resize", makeTabsSticky);
-    window.addEventListener("scroll", makeTabsSticky);
-
-    init();
-</script>
-
-<!-- ===== AUTH CHECK ===== -->
+<script src="/app/dashboard/onboarding-dashboard.js?v=1"></script>
 <script src="/components/auth-check.js"></script>
 </body>
 </html>
