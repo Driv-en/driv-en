@@ -13,14 +13,6 @@
   <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
   <link rel="stylesheet" href="/app/shared/dashboard.css?v=10">
   <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
-  <script>
-    (function() {
-      var saved = localStorage.getItem("driven-theme");
-      var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-      var theme = saved || system;
-      document.documentElement.setAttribute("data-theme", theme);
-    })();
-  </script>
   <style>
     .admin-loading { display:flex; align-items:center; justify-content:center; height:100vh; font-size:16px; color:var(--text-muted); }
     .dash-header-row2 { display:none !important; }
@@ -282,7 +274,7 @@
   <div class="steel-bg"></div>
   <div class="steel-overlay"></div>
   <div class="page-error-banner" id="pageErrorBanner">
-    ⚠️ A page error occurred. The DRIV-EN team has been notified. <a onclick="dismissPageError()">Dismiss</a>
+    ⚠️ A page error occurred. The DRIV-EN team has been notified. <a id="btnDismissError">Dismiss</a>
   </div>
   
   <!-- Full Width Header -->
@@ -291,20 +283,20 @@
   <!-- Sticky Container Main Tabs Navigation -->
   <div class="admin-nav-sticky-container" id="adminNavStickyContainer">
     <div class="admin-tab-bar" id="adminTabBar">
-      <button class="admin-tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
-      <button class="admin-tab" data-tab="forms" onclick="switchTab('forms')">Forms</button>
-      <button class="admin-tab" data-tab="settings" onclick="switchTab('settings')">Settings</button>
-      <button class="admin-tab" data-tab="onboarding" onclick="switchTab('onboarding')">Onboarding</button>
-      <button class="admin-tab-logout" onclick="dashLogout()">Logout</button>
+      <button type="button" class="admin-tab active" data-tab="overview" id="tabBtnOverview">Overview</button>
+      <button type="button" class="admin-tab" data-tab="forms" id="tabBtnForms">Forms</button>
+      <button type="button" class="admin-tab" data-tab="settings" id="tabBtnSettings">Settings</button>
+      <button type="button" class="admin-tab" data-tab="onboarding" id="tabBtnOnboarding">Onboarding</button>
+      <button type="button" class="admin-tab-logout" id="btnAdminLogout">Logout</button>
     </div>
   </div>
   
   <!-- Sticky Container Subtabs Navigation Bar -->
   <div class="admin-subtab-sticky-container" id="onboardingSubtabBar">
     <div class="admin-subtab-bar">
-      <button class="admin-subtab active" data-subtab="visibility" onclick="switchOnboardingSubtab('visibility')">Task Visibility</button>
-      <button class="admin-subtab" data-subtab="kp" onclick="switchOnboardingSubtab('kp')">Key Personnel</button>
-      <a class="admin-subtab admin-subtab-blue" href="/app/dashboard/onboarding-dashboard.html" onclick="preserveAndNavigate(event, '/app/dashboard/onboarding-dashboard.html')">View Onboarding Dashboard →</a>
+      <button type="button" class="admin-subtab active" data-subtab="visibility" id="subtabBtnVisibility">Task Visibility</button>
+      <button type="button" class="admin-subtab" data-subtab="kp" id="subtabBtnKp">Key Personnel</button>
+      <a class="admin-subtab admin-subtab-blue" href="/app/dashboard/onboarding-dashboard.html" id="linkOnboardingDash">View Onboarding Dashboard →</a>
     </div>
   </div>
   
@@ -321,7 +313,7 @@
               <div class="theme-switch-wrapper" title="Toggle light/dark mode">
                 <span class="theme-switch-label" id="theme-label-light">Light Mode</span>
                 <label class="theme-switch">
-                  <input type="checkbox" id="theme-checkbox" onchange="toggleTheme()">
+                  <input type="checkbox" id="theme-checkbox">
                   <span class="theme-slider"></span>
                 </label>
                 <span class="theme-switch-label" id="theme-label-dark">Dark Mode</span>
@@ -333,42 +325,42 @@
             <div class="welcome-detail-row welcome-company-row"><span class="welcome-detail-label">Company:</span> <span id="welcome-company"></span></div>
             <div class="welcome-detail-row welcome-role-row"><span class="welcome-detail-label">Role:</span> <span id="welcome-role"></span></div>
             <div class="welcome-detail-row welcome-email-row"><span class="welcome-detail-label">Email:</span> <span id="welcome-email"></span></div>
-            <a href="/app/auth/change-password.html" class="settings-save-btn welcome-change-password" onclick="preserveAndNavigate(event, '/app/auth/change-password.html')">Change Password</a>
+            <a href="/app/auth/change-password.html" class="settings-save-btn welcome-change-password" id="linkChangePassword">Change Password</a>
           </div>
         </div>
         
         <div class="admin-stats" id="overviewCards">
-          <a href="/app/dashboard/user-management.html" class="admin-stat-card" onclick="preserveAndNavigate(event, '/app/dashboard/user-management.html')">
+          <a href="/app/dashboard/user-management.html" class="admin-stat-card" id="cardEmployees">
             <div class="admin-stat-number" id="stat-employees">—</div>
             <div class="admin-stat-label">Employees</div>
             <div class="admin-stat-desc">Manage employees, roles, permissions, and account access.</div>
             <div class="admin-stat-link">Open Employee Management →</div>
           </a>
-          <a href="/app/dashboard/project-management.html" class="admin-stat-card" onclick="preserveAndNavigate(event, '/app/dashboard/project-management.html')">
+          <a href="/app/dashboard/project-management.html" class="admin-stat-card" id="cardProjects">
             <div class="admin-stat-number" id="stat-projects">—</div>
             <div class="admin-stat-label">Projects</div>
             <div class="admin-stat-desc">Manage projects, project types, and clients.</div>
             <div class="admin-stat-link">Open Project Management →</div>
           </a>
-          <a href="/app/dashboard/asset-management.html" class="admin-stat-card" onclick="preserveAndNavigate(event, '/app/dashboard/asset-management.html')">
+          <a href="/app/dashboard/asset-management.html" class="admin-stat-card" id="cardEquipment">
             <div class="admin-stat-number" id="stat-equipment">—</div>
             <div class="admin-stat-label">Assets</div>
             <div class="admin-stat-desc">Manage assets, inspections, work orders, and transfers.</div>
             <div class="admin-stat-link">Open Asset Management →</div>
           </a>
-          <a href="/app/dashboard/project-management.html" class="admin-stat-card" onclick="preserveAndNavigate(event, '/app/dashboard/project-management.html')">
+          <a href="/app/dashboard/project-management.html" class="admin-stat-card" id="cardClients">
             <div class="admin-stat-number" id="stat-clients">—</div>
             <div class="admin-stat-label">Clients</div>
             <div class="admin-stat-desc">Manage clients and customer organizations.</div>
             <div class="admin-stat-link">Open Project Management →</div>
           </a>
-          <a href="/app/dashboard/fuel.html" class="admin-stat-card" onclick="preserveAndNavigate(event, '/app/dashboard/fuel.html')">
+          <a href="/app/dashboard/fuel.html" class="admin-stat-card" id="cardFuel">
             <div class="admin-stat-number" style="font-size:18px;">Fuel</div>
             <div class="admin-stat-label">Fuel Management</div>
             <div class="admin-stat-desc">Tank levels, fuel transactions, alerts, inventory tracking.</div>
             <div class="admin-stat-link">Open Fuel Management →</div>
           </a>
-          <a href="/app/dashboard/company-management.html" class="admin-stat-card" onclick="preserveAndNavigate(event, '/app/dashboard/company-management.html')">
+          <a href="/app/dashboard/company-management.html" class="admin-stat-card" id="cardCompany">
             <div class="admin-stat-number" style="font-size:18px;">Company</div>
             <div class="admin-stat-label">Company Management</div>
             <div class="admin-stat-desc">Manage divisions, locations, and company-wide settings.</div>
@@ -398,9 +390,9 @@
           <div class="logo-upload-area">
             <div class="logo-preview" id="logoPreview">No logo</div>
             <div>
-              <input type="file" id="logoFile" accept="image/png,image/jpeg,image/svg+xml" style="display:none;" onchange="handleLogoUpload()">
-              <button class="logo-upload-btn" onclick="document.getElementById('logoFile').click()">Upload Logo</button>
-              <button class="logo-remove-btn" id="logoRemoveBtn" style="display:none;" onclick="handleLogoRemove()">Remove Logo</button>
+              <input type="file" id="logoFile" accept="image/png,image/jpeg,image/svg+xml" style="display:none;">
+              <button type="button" class="logo-upload-btn" id="btnTriggerLogoUpload">Upload Logo</button>
+              <button type="button" class="logo-remove-btn" id="logoRemoveBtn" style="display:none;">Remove Logo</button>
               <div class="logo-status" id="logoStatus"></div>
             </div>
           </div>
@@ -412,7 +404,7 @@
             <div class="settings-label">Type</div>
             <div class="settings-field">
               <div class="bt-inline-row">
-                <select id="businessTypeSelect" onchange="onBusinessTypeChange()">
+                <select id="businessTypeSelect">
                   <option value="">— Select business type —</option>
                   <option value="Construction">Construction</option>
                   <option value="Manufacturing">Manufacturing</option>
@@ -429,7 +421,7 @@
                   <option value="Food & Beverage Processing">Food &amp; Beverage Processing</option>
                   <option value="General Services">General Services</option>
                 </select>
-                <button class="settings-save-btn" id="saveSettingsBtn" onclick="saveSettings()">Save</button>
+                <button type="button" class="settings-save-btn" id="saveSettingsBtn">Save</button>
               </div>
               <div class="settings-hint">Auto-configures which onboarding tasks are visible. Override individual tasks in the Onboarding tab.</div>
               <div class="settings-status" id="settingsStatus"></div>
@@ -443,8 +435,8 @@
             <div class="settings-label">NAICS Code</div>
             <div class="settings-field">
               <div class="bt-inline-row">
-                <input type="text" id="naicsInput" placeholder="e.g., 236220" maxlength="6" onchange="onNaicsChange()">
-                <button class="settings-save-btn" id="saveNaicsBtn" onclick="saveSettings()">Save</button>
+                <input type="text" id="naicsInput" placeholder="e.g., 236220" maxlength="6">
+                <button type="button" class="settings-save-btn" id="saveNaicsBtn">Save</button>
               </div>
               <div class="settings-hint">North American Industry Classification System code for your business.</div>
               <div class="settings-status" id="naicsStatus"></div>
@@ -458,7 +450,7 @@
             <div class="settings-label">Currency</div>
             <div class="settings-field">
               <div class="bt-inline-row">
-                <select id="currencySelect" onchange="onCurrencyChange()">
+                <select id="currencySelect">
                   <option value="">— Select currency —</option>
                   <option value="USD">USD — US Dollar ($)</option>
                   <option value="EUR">EUR — Euro (€)</option>
@@ -481,7 +473,7 @@
                   <option value="HKD">HKD — Hong Kong Dollar (HK$)</option>
                   <option value="NZD">NZD — New Zealand Dollar (NZ$)</option>
                 </select>
-                <button class="settings-save-btn" id="saveCurrencyBtn" onclick="saveSettings()">Save</button>
+                <button type="button" class="settings-save-btn" id="saveCurrencyBtn">Save</button>
               </div>
               <div class="settings-hint">Used for fuel costs, asset values, and financial reporting across DRIV‑EN.</div>
               <div class="settings-status" id="currencyStatus"></div>
@@ -498,7 +490,7 @@
               <div class="theme-switch-wrapper">
                 <span class="theme-switch-label" id="fuelMeterPhotoLabel">Off</span>
                 <label class="toggle-switch">
-                  <input type="checkbox" id="fuelMeterPhotoToggle" onchange="onFuelPhotoToggleChange()">
+                  <input type="checkbox" id="fuelMeterPhotoToggle">
                   <span class="toggle-slider"></span>
                 </label>
               </div>
@@ -511,7 +503,7 @@
               <div class="theme-switch-wrapper">
                 <span class="theme-switch-label" id="fuelAssetPhotoLabel">Off</span>
                 <label class="toggle-switch">
-                  <input type="checkbox" id="fuelAssetPhotoToggle" onchange="onFuelPhotoToggleChange()">
+                  <input type="checkbox" id="fuelAssetPhotoToggle">
                   <span class="toggle-slider"></span>
                 </label>
               </div>
@@ -524,14 +516,14 @@
               <div class="theme-switch-wrapper">
                 <span class="theme-switch-label" id="locationReqLabel">Off</span>
                 <label class="toggle-switch">
-                  <input type="checkbox" id="locationReqToggle" onchange="onLocationReqToggleChange()">
+                  <input type="checkbox" id="locationReqToggle">
                   <span class="toggle-slider"></span>
                 </label>
               </div>
               <div class="settings-hint">When ON, forms require location access — a popup asks the user to enable location before proceeding. When OFF, forms complete without location data and no popup appears.</div>
             </div>
           </div>
-          <button class="settings-save-btn" id="saveTogglesBtn" onclick="saveToggles()">Save Toggles</button>
+          <button type="button" class="settings-save-btn" id="saveTogglesBtn">Save Toggles</button>
           <div class="settings-status" id="togglesStatus"></div>
         </div>
       </div>
@@ -547,14 +539,14 @@
           </div>
           <div class="progress-text" id="progressText">0 of 0 tasks complete</div>
           <div class="ob-progress-btns">
-            <button class="progress-complete-btn" id="markCompleteBtn" onclick="showCompleteModal()">Mark Onboarding Complete</button>
-            <button class="reopen-onboarding-btn" id="reopenOnboardingBtn" style="display:none;" onclick="reopenOnboarding()">Reopen Onboarding</button>
+            <button type="button" class="progress-complete-btn" id="markCompleteBtn">Mark Onboarding Complete</button>
+            <button type="button" class="reopen-onboarding-btn" id="reopenOnboardingBtn" style="display:none;">Reopen Onboarding</button>
           </div>
           <div class="onboarding-complete-panel" id="onboardingCompletePanel">
             <h3>🎉 Onboarding Complete</h3>
             <p>All onboarding tasks have been closed by your Key Personnel.</p>
             <p class="complete-note"><strong>Next step:</strong> Click below to finalize onboarding. This activates all employee accounts and sends welcome launch emails.</p>
-            <button class="finalize-onboarding-btn" id="finalizeOnboardingBtn" onclick="finalizeCompanyOnboarding()">Finalize Onboarding &amp; Unlock Dashboards</button>
+            <button type="button" class="finalize-onboarding-btn" id="finalizeOnboardingBtn">Finalize Onboarding &amp; Unlock Dashboards</button>
           </div>
         </div>
         
@@ -562,12 +554,12 @@
           <div class="settings-section">
             <div class="settings-section-title-row">
               <h3>Task Visibility</h3>
-              <button class="settings-save-btn" onclick="saveStepVisibility()">Save Visibility</button>
+              <button type="button" class="settings-save-btn" id="btnSaveStepVisibilityTop">Save Visibility</button>
             </div>
             <div class="visibility-warning" id="visibilityWarning" style="display:none;">⚠ You have unsaved visibility changes. Click <strong>Save Visibility</strong> before switching tabs.</div>
             <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px 0;line-height:1.6;">Control which onboarding tasks appear on the Onboarding Dashboard. Tasks are auto-configured based on your business type, but you can override them individually here.</p>
             <div class="step-toggle-list" id="stepToggleList"></div>
-            <button class="settings-save-btn" style="margin-top:16px;" onclick="saveStepVisibility()">Save Visibility</button>
+            <button type="button" class="settings-save-btn" id="btnSaveStepVisibilityBottom" style="margin-top:16px;">Save Visibility</button>
             <div class="settings-status" id="visibilityStatus"></div>
           </div>
         </div>
@@ -588,28 +580,28 @@
             <div style="margin-bottom:12px;">
               <label style="font-size:14px;font-weight:600;color:var(--text);display:block;margin-bottom:6px;">Select tasks for this person:</label>
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px 16px;">
-                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Employees" onchange="updateKpTaskCount()" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Employees</label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Locations" onchange="updateKpTaskCount()" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Locations</label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Clients" onchange="updateKpTaskCount()" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Clients</label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Divisions" onchange="updateKpTaskCount()" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Divisions</label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Project Types" onchange="updateKpTaskCount()" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Project Types</label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Projects" onchange="updateKpTaskCount()" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Projects</label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Fuels, Fluids & Energy" onchange="updateKpTaskCount()" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Fuels, Fluids &amp; Energy</label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Units of Measure" onchange="updateKpTaskCount()" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Units of Measure</label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Asset Types" onchange="updateKpTaskCount()" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Asset Types</label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Assets" onchange="updateKpTaskCount()" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Assets</label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Roles & Permissions" onchange="updateKpTaskCount()" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Roles &amp; Permissions</label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);border-top:1px solid var(--border);padding-top:4px;margin-top:2px;"><input type="checkbox" id="kpTaskSelectAll" onchange="toggleSelectAllKpTasks(this.checked)" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Select All</label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Employees" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Employees</label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Locations" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Locations</label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Clients" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Clients</label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Divisions" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Divisions</label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Project Types" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Project Types</label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Projects" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Projects</label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Fuels, Fluids & Energy" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Fuels, Fluids &amp; Energy</label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Units of Measure" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Units of Measure</label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Asset Types" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Asset Types</label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Assets" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Assets</label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);"><input type="checkbox" class="kp-task-cb" value="Roles & Permissions" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Roles &amp; Permissions</label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);border-top:1px solid var(--border);padding-top:4px;margin-top:2px;"><input type="checkbox" id="kpTaskSelectAll" style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;">Select All</label>
               </div>
               <div id="kpTaskCount" style="font-size:13px;font-weight:600;color:var(--primary);margin-top:6px;">0 tasks selected</div>
             </div>
             
-            <button class="kp-add-btn" id="kpAddBtn" onclick="addKeyPersonnel()">Add Key Personnel</button>
+            <button type="button" class="kp-add-btn" id="kpAddBtn">Add Key Personnel</button>
             <div class="kp-list" id="kpListContainer">
               <div class="kp-list-title">Assigned Key Personnel:</div>
               <div id="kpListBody"><div class="kp-loading">Loading…</div></div>
             </div>
-            <button class="settings-save-btn" id="kpCompleteBtn" style="margin-top:16px;display:none;" onclick="saveKeyPersonnelToDB()">Send Invitations &amp; Create Accounts</button>
+            <button type="button" class="settings-save-btn" id="kpCompleteBtn" style="margin-top:16px;display:none;">Send Invitations &amp; Create Accounts</button>
           </div>
         </div>
       </div>
@@ -621,8 +613,8 @@
       <h3>Mark Onboarding Complete?</h3>
       <p>Once you confirm, the Onboarding tab will no longer be accessible. You can reopen onboarding later from the Settings tab if needed.</p>
       <div>
-        <button class="confirm-btn-cancel" onclick="closeCompleteModal()">Cancel</button>
-        <button class="confirm-btn-confirm" onclick="markOnboardingComplete()">Confirm &amp; Complete</button>
+        <button type="button" class="confirm-btn-cancel" id="btnCancelCompleteModal">Cancel</button>
+        <button type="button" class="confirm-btn-confirm" id="btnConfirmCompleteModal">Confirm &amp; Complete</button>
       </div>
     </div>
   </div>
@@ -631,922 +623,6 @@
   
   <script src="/app/shared/auth-check.js?v=19"></script>
   <script src="/app/shared/dashboard-common.js?v=15"></script>
-  <script>
-    var orgSettings = {};
-    var stepVisibility = {};
-    var keyPersonnel = [];
-    var pendingKP = [];
-    var onboardingComplete = false;
-    var settingsDirty = false;
-    var visibilityDirty = false;
-    var activeOrgId = null;
-    var currentUserObj = null;
-    var taskCompletions = {};
-    var syncChannel = window.BroadcastChannel ? new BroadcastChannel("driven_onboarding_sync") : null;
-
-    var BUSINESS_TYPE_DEFAULTS = {
-      "Construction": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
-      "Manufacturing": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
-      "Chemical": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
-      "Oil & Gas": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
-      "Transportation": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
-      "Warehousing": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
-      "Fabrication": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
-      "Logistics / Supply Chain": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
-      "Utilities & Energy": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
-      "Mining & Aggregates": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
-      "Agriculture": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
-      "Environmental Services": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
-      "Food & Beverage Processing": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
-      "General Services": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true}
-    };
-
-    var STEP_DEFS = [
-      { key:"roles-permissions", label:"Roles & Permissions", desc:"Define roles and access levels", locked:true },
-      { key:"employees", label:"Employees", desc:"Add all employees", locked:true },
-      { key:"locations", label:"Locations", desc:"Plants, mines, facilities, warehouses, job sites", locked:false },
-      { key:"clients", label:"Clients", desc:"Add clients and customer organizations", locked:false },
-      { key:"divisions", label:"Divisions", desc:"Internal divisions or business units", locked:false },
-      { key:"project-types", label:"Project Types", desc:"Types of work your organization performs", locked:false },
-      { key:"projects", label:"Projects", desc:"Active, completed, or upcoming projects", locked:false },
-      { key:"fuel-types", label:"Fuels, Fluids & Energy", desc:"Types of fuel and fluids your organization uses", locked:true },
-      { key:"units-of-measure", label:"Units of Measure", desc:"Volume, weight, distance, and metric units", locked:true },
-      { key:"asset-types", label:"Asset Types", desc:"Primary equipment and machine categories", locked:true },
-      { key:"assets", label:"Assets", desc:"Assets and equipment to maintain", locked:true }
-    ];
-
-    var FORMS = [
-      { key:'fuel_log', label:'Log Fuel Purchase', desc:'Record a fuel purchase with receipt AI extraction', link:'/app/forms/fuel-purchase.html' },
-      { key:'fuel_transfer', label:'Log Fuel Transfer', desc:'Transfer fuel between tanks or issue to equipment', link:'/app/forms/fuel-transfer.html' },
-      { key:'transfer_create', label:'Create Transfer', desc:'Start an equipment transfer ticket', link:'/app/forms/transfer-create.html' },
-      { key:'wo_create', label:'Create Work Order', desc:'Submit a maintenance request', link:'/app/forms/work-order-create.html' },
-      { key:'inspection_add', label:'Add Inspection', desc:'Record an equipment inspection', link:'/app/forms/inspection.html' },
-      { key:'pm_add', label:'Add PM', desc:'Create a preventive maintenance task', link:'/app/forms/pm.html' }
-    ];
-
-    function esc(s) { if(!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-    function showPageError() { var b=document.getElementById('pageErrorBanner'); if(b) b.classList.add('show'); }
-    function dismissPageError() { var b=document.getElementById('pageErrorBanner'); if(b) b.classList.remove('show'); }
-
-    /* Explicit Session Preservation with URL Context appending mapped to users table schema */
-    function preserveAndNavigate(event, targetUrl) {
-      if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-
-      if (targetUrl && !targetUrl.endsWith('.html') && !targetUrl.includes('?')) {
-        targetUrl += '.html';
-      }
-
-      var userObj = currentUserObj || window.dashUser || window.drivenUser;
-      if (!userObj) {
-        try {
-          userObj = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user"));
-        } catch(e) {}
-      }
-
-      userObj = userObj || {};
-
-      if (!userObj.id && userObj.user_id) {
-        userObj.id = userObj.user_id;
-      }
-
-      var targetOrg = activeOrgId || userObj.org_id || localStorage.getItem("driven_org_id") || "org_dsi";
-      var roleVal = userObj.role_id || localStorage.getItem("driven_role") || userObj.role || "RO-admin";
-      var userStr = JSON.stringify(userObj);
-
-      localStorage.setItem("driven_org_id", targetOrg);
-      localStorage.setItem("driven_user", userStr);
-      localStorage.setItem("driven_role", roleVal);
-      if (userObj.id) {
-        localStorage.setItem("driven_user_id", userObj.id);
-      }
-
-      sessionStorage.setItem("driven_org_id", targetOrg);
-      sessionStorage.setItem("driven_user", userStr);
-      sessionStorage.setItem("driven_role", roleVal);
-      if (userObj.id) {
-        sessionStorage.setItem("driven_user_id", userObj.id);
-      }
-
-      // Explicitly append session query params so target forms/dashboards always retain context
-      var querySeparator = targetUrl.includes('?') ? '&' : '?';
-      var finalUrl = targetUrl + querySeparator + "org_id=" + encodeURIComponent(targetOrg) + "&role_id=" + encodeURIComponent(roleVal);
-
-      window.location.href = finalUrl;
-    }
-
-    function validateOrgContext() {
-      if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
-        activeOrgId = localStorage.getItem("driven_org_id") || sessionStorage.getItem("driven_org_id") || "org_dsi";
-      }
-      return true;
-    }
-
-    function reportError(source, err) {
-      var msg = (err && err.message) ? err.message : (typeof err === 'string' ? err : 'Unknown error');
-      var stack = (err && err.stack) ? err.stack : 'No stack trace';
-      try {
-        fetch('/api/log-error', {
-          method:'POST',
-          headers:{
-            'Content-Type':'application/json',
-            'x-org-id': activeOrgId || ""
-          },
-          body:JSON.stringify({source:'Admin Dashboard ('+source+')', message:msg, stack:stack, url:window.location.href, userAgent:navigator.userAgent })
-        }).catch(function(){});
-      } catch(e) {}
-      console.error('['+source+']', msg, stack);
-    }
-    window.addEventListener('error', function(e) { reportError('window.onerror', e.error || e.message); showPageError(); });
-
-    /* Dynamic Mobile & Desktop Sticky Offset Calculator */
-    function adjustStickyOffsets() {
-      var header = document.getElementById("dashHeader");
-      var stickyContainer = document.getElementById("adminNavStickyContainer");
-      var subtabContainer = document.getElementById("onboardingSubtabBar");
-      if (header && stickyContainer) {
-        var headerHeight = header.getBoundingClientRect().height || header.offsetHeight || 50;
-        stickyContainer.style.top = headerHeight + "px";
-        if (subtabContainer) {
-          var tabHeight = stickyContainer.getBoundingClientRect().height || stickyContainer.offsetHeight || 40;
-          subtabContainer.style.top = (headerHeight + tabHeight) + "px";
-        }
-      }
-    }
-
-    /* ===== Safe Fast API Request Helper ===== */
-    async function safeFetch(url, options) {
-      options = options || {};
-      options.headers = options.headers || {};
-      var storedUser = currentUserObj || window.dashUser || window.drivenUser || {};
-      options.headers["x-user-id"] = storedUser.id || localStorage.getItem("driven_user_id") || sessionStorage.getItem("driven_user_id") || "";
-      options.headers["x-org-id"] = activeOrgId || storedUser.org_id || localStorage.getItem("driven_org_id") || sessionStorage.getItem("driven_org_id") || "";
-      options.headers["x-user-role"] = "RO-admin";
-
-      var controller = new AbortController();
-      var timeoutId = setTimeout(function() { controller.abort(); }, 4000);
-      options.signal = controller.signal;
-
-      try {
-        var res = await fetch(url, options);
-        clearTimeout(timeoutId);
-        if (res.status === 401 || res.status === 403) {
-          console.warn("[AdminDashboard] Session warning from:", url);
-          return null;
-        }
-        return res;
-      } catch (err) {
-        clearTimeout(timeoutId);
-        reportError("safeFetch", err);
-        return null;
-      }
-    }
-
-    /* ===== Global Key Personnel Helper Functions ===== */
-    function toggleSelectAllKpTasks(checked) {
-      document.querySelectorAll('.kp-task-cb').forEach(function(cb) { cb.checked = checked; });
-      updateKpTaskCount();
-    }
-
-    function updateKpTaskCount() {
-      var cbs = document.querySelectorAll('.kp-task-cb:checked');
-      var totalCbs = document.querySelectorAll('.kp-task-cb');
-      var selectAll = document.getElementById('kpTaskSelectAll');
-      if (selectAll) selectAll.checked = (cbs.length === totalCbs.length && totalCbs.length > 0);
-      var counter = document.getElementById('kpTaskCount');
-      if (counter) counter.textContent = cbs.length + ' task' + (cbs.length === 1 ? '' : 's') + ' selected';
-    }
-
-    function addKeyPersonnel() {
-      if (!validateOrgContext()) return;
-      var name = document.getElementById("kpName").value.trim();
-      var email = document.getElementById("kpEmail").value.trim();
-      var selectedCbs = document.querySelectorAll('.kp-task-cb:checked');
-      var selectedTasks = Array.from(selectedCbs).map(function(cb) { return cb.value; });
-
-      if(!name || !email) {
-        alert("Please enter both Full Name and Email Address.");
-        return;
-      }
-      if(selectedTasks.length === 0) {
-        alert("Please select at least one task for this person.");
-        return;
-      }
-
-      var parts = name.split(' ');
-      var fn = parts[0] || '';
-      var ln = parts.slice(1).join(' ') || '';
-
-      pendingKP.push({
-        firstName: fn,
-        lastName: ln,
-        name: name,
-        email: email,
-        tasks: selectedTasks
-      });
-
-      document.getElementById("kpName").value = "";
-      document.getElementById("kpEmail").value = "";
-      document.querySelectorAll('.kp-task-cb').forEach(function(cb) { cb.checked = false; });
-      var selectAll = document.getElementById("kpTaskSelectAll");
-      if (selectAll) selectAll.checked = false;
-      updateKpTaskCount();
-      renderKeyPersonnel();
-    }
-
-    function removeKpTask(personIdx, taskIdx) {
-      var target = personIdx < keyPersonnel.length ? keyPersonnel[personIdx] : pendingKP[personIdx - keyPersonnel.length];
-      var tasks = target.tasks || (target.roles ? target.roles.map(function(r){return r.role;}) : [target.task]);
-      tasks.splice(taskIdx, 1);
-      target.tasks = tasks;
-      delete target.roles;
-      delete target.task;
-      renderKeyPersonnel();
-    }
-
-    async function removeKpPerson(personIdx) {
-      if (!validateOrgContext()) return;
-      if(personIdx < keyPersonnel.length) {
-        var kp = keyPersonnel[personIdx];
-        if(kp.employeeId || kp.id) {
-          try {
-            await safeFetch("/api/onboarding/key-personnel/revoke", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ employeeId: kp.employeeId || kp.id, revokeAll: true })
-            });
-          } catch(e) { reportError("removeKpPerson", e); }
-        }
-        keyPersonnel.splice(personIdx, 1);
-      } else {
-        pendingKP.splice(personIdx - keyPersonnel.length, 1);
-      }
-      renderKeyPersonnel();
-    }
-
-    async function saveKeyPersonnelToDB() {
-      if (!validateOrgContext()) return;
-      var allKPToSave = keyPersonnel.concat(pendingKP);
-      if (allKPToSave.length === 0) {
-        alert("No key personnel to save.");
-        return;
-      }
-
-      var btn = document.getElementById("kpCompleteBtn");
-      if (btn) {
-        btn.disabled = true;
-        btn.textContent = "Creating Accounts & Sending Emails…";
-      }
-
-      try {
-        var resComplete = await safeFetch("/api/onboarding/key-personnel/complete", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ keyPersonnel: allKPToSave })
-        });
-
-        if (!resComplete) return;
-        var dComplete = await resComplete.json();
-
-        if (resComplete.ok && dComplete.success) {
-          alert("Key personnel accounts created and invitation emails sent successfully!");
-          keyPersonnel = allKPToSave;
-          pendingKP = [];
-          await loadKeyPersonnel();
-          notifySync();
-        } else {
-          var errorDetails = (dComplete.results || [])
-            .filter(function(r) { return r.error; })
-            .map(function(r) { return (r.email || "Item") + ": " + r.error; })
-            .join("\n");
-
-          var errorMsg = dComplete.error || errorDetails || "An unknown error occurred during save.";
-          alert("Warning/Error during save:\n\n" + errorMsg);
-        }
-      } catch(e) {
-        reportError("saveKeyPersonnelToDB", e);
-        alert("Error sending invitations: " + e.message);
-      } finally {
-        if (btn) {
-          btn.disabled = false;
-          btn.textContent = "Send Invitations & Create Accounts";
-        }
-      }
-    }
-
-    async function finalizeCompanyOnboarding() {
-      if (!validateOrgContext()) return;
-      if (!confirm("Are you ready to finalize onboarding? This will activate all regular employees and send them welcome emails.")) return;
-      var finalizeBtn = document.getElementById('finalizeOnboardingBtn');
-      var originalText = finalizeBtn.innerText;
-      finalizeBtn.innerText = "Finalizing & Emailing...";
-      finalizeBtn.disabled = true;
-
-      try {
-        var res = await safeFetch('/api/onboarding/finalize', { method: 'POST' });
-        if (res) {
-          var data = await res.json();
-          if (data.success) {
-            document.getElementById('onboardingCompletePanel').classList.add('show');
-            finalizeBtn.style.display = 'none';
-            alert(`Onboarding Complete! Welcome emails sent to ${data.totalEmployees} employees.`);
-          } else {
-            alert("Failed to finalize onboarding: " + data.error);
-          }
-        }
-      } catch (err) {
-        console.error("Error finalizing:", err);
-        alert("A network error occurred while finalizing.");
-      } finally {
-        finalizeBtn.innerText = originalText;
-        finalizeBtn.disabled = false;
-      }
-    }
-
-    async function loadDashboardStats() {
-      var fetchSafe = function(urls) {
-        var urlList = Array.isArray(urls) ? urls : [urls];
-        var tryFetch = async function(idx) {
-          if (idx >= urlList.length) return {};
-          try {
-            var r = await safeFetch(urlList[idx]);
-            if (r && r.ok) return await r.json();
-          } catch(e) {}
-          return tryFetch(idx + 1);
-        };
-        return tryFetch(0);
-      };
-
-      try {
-        var results = await Promise.all([
-          fetchSafe(['/api/onboarding/employees/list', '/api/users']),
-          fetchSafe(['/api/Project', '/api/projects']),
-          fetchSafe(['/api/Equipment', '/api/equipment']),
-          fetchSafe(['/api/Clients?active_only=true', '/api/Clients', '/api/clients'])
-        ]);
-
-        var empData = results[0];
-        var empList = empData.employees || empData.personnel || empData.users || empData.data || empData.records || (Array.isArray(empData) ? empData : []);
-        var empCount = empList.filter(function(e) { 
-          var st = e.status !== undefined ? e.status : (e.is_active !== undefined ? e.is_active : e.employment_status);
-          if (typeof st === "string") st = st.toLowerCase();
-          return st === 1 || st === '1' || st === 'active' || st === true; 
-        }).length;
-
-        var elEmp = document.getElementById('stat-employees');
-        if (elEmp) elEmp.textContent = empCount;
-        localStorage.setItem('driven_employee_count', empCount);
-
-        var projData = results[1];
-        var projList = projData.projects || projData.data || projData.records || (Array.isArray(projData) ? projData : []);
-        var elProj = document.getElementById('stat-projects');
-        if (elProj) elProj.textContent = projList.length;
-        localStorage.setItem('driven_project_count', projList.length);
-
-        var assetData = results[2];
-        var assetList = assetData.equipment || assetData.assets || assetData.data || assetData.records || (Array.isArray(assetData) ? assetData : []);
-        var elEq = document.getElementById('stat-equipment');
-        if (elEq) elEq.textContent = assetList.length;
-        localStorage.setItem('driven_equipment_count', assetList.length);
-
-        var clientData = results[3];
-        var clientList = clientData.clients || clientData.records || clientData.data || clientData.results || (Array.isArray(clientData) ? clientData : []);
-        var activeClients = clientList.filter(function(c) {
-          var st = c.status !== undefined ? c.status : (c.is_active !== undefined ? c.is_active : c.active);
-          if (typeof st === "string") st = st.toLowerCase();
-          return st === undefined || st === null || st === 1 || st === '1' || st === 'active' || st === true;
-        }).length;
-
-        var elCli = document.getElementById('stat-clients');
-        if (elCli) elCli.textContent = activeClients;
-        localStorage.setItem('driven_client_count', activeClients);
-
-      } catch (e) {
-        console.error('loadDashboardStats error:', e);
-        var elE = document.getElementById('stat-employees'); if (elE) elE.textContent = localStorage.getItem('driven_employee_count') || '0';
-        var elP = document.getElementById('stat-projects'); if (elP) elP.textContent = localStorage.getItem('driven_project_count') || '0';
-        var elEq = document.getElementById('stat-equipment'); if (elEq) elEq.textContent = localStorage.getItem('driven_equipment_count') || '0';
-        var elC = document.getElementById('stat-clients'); if (elC) elC.textContent = localStorage.getItem('driven_client_count') || '0';
-      }
-    }
-
-    function renderFormsTab() {
-      var c = document.getElementById('adminFormsTabLinks');
-      if (!c) return;
-      c.innerHTML = FORMS.map(function(f) {
-        return '<a href="' + f.link + '" class="emp-form-card" onclick="preserveAndNavigate(event, \'' + f.link + '\')">' +
-          '<div style="font-weight:600;font-size:15px;margin-bottom:6px;">' + esc(f.label) + '</div>' +
-          '<div style="font-size:13px;color:var(--text-muted);line-height:1.4;">' + esc(f.desc) + '</div>' +
-          '</a>';
-      }).join('');
-    }
-
-    function switchTab(tabName) {
-      if(visibilityDirty && document.getElementById('tab-onboarding').classList.contains('active') && tabName!=='onboarding') {
-        if(!confirm("You have unsaved Task Visibility changes.\n\nClick Cancel to go back and save them, or OK to discard.")) return;
-        clearVisibilityDirty();
-      }
-      if(settingsDirty && document.getElementById('tab-settings').classList.contains('active') && tabName!=='settings') {
-        if(!confirm("You have unsaved changes in Settings.\n\nClick Cancel to go back and save them, or OK to discard.")) return;
-        clearSettingsDirty();
-      }
-      document.querySelectorAll('.admin-tab').forEach(function(t){t.classList.remove('active');});
-      document.querySelectorAll('.admin-tab-content').forEach(function(c){c.classList.remove('active');});
-      document.querySelector('[data-tab="'+tabName+'"]').classList.add('active');
-      document.getElementById('tab-'+tabName).classList.add('active');
-
-      var obBar = document.getElementById('onboardingSubtabBar');
-      if(obBar) obBar.classList.toggle('visible', tabName==='onboarding');
-      if(tabName==='forms') renderFormsTab();
-      adjustStickyOffsets();
-    }
-
-    function switchOnboardingSubtab(subtabName) {
-      if(visibilityDirty && document.getElementById('onboarding-subtab-visibility').classList.contains('active') && subtabName!=='visibility') {
-        if(!confirm("You have unsaved Task Visibility changes.\n\nClick Cancel to go back and save them, or OK to discard.")) return;
-        clearVisibilityDirty();
-      }
-      document.querySelectorAll('#onboardingSubtabBar .admin-subtab').forEach(function(t){t.classList.remove('active');});
-      document.querySelectorAll('.admin-subtab-content[id^="onboarding-subtab-"]').forEach(function(c){c.classList.remove('active');});
-      document.querySelector('#onboardingSubtabBar [data-subtab="'+subtabName+'"]').classList.add('active');
-      document.getElementById('onboarding-subtab-'+subtabName).classList.add('active');
-    }
-
-    function toggleTheme() {
-      var current = document.documentElement.getAttribute("data-theme");
-      var newTheme = current === "dark" ? "light" : "dark";
-      document.documentElement.setAttribute("data-theme", newTheme);
-      localStorage.setItem("driven-theme", newTheme);
-      updateThemeSwitch();
-    }
-
-    function updateThemeSwitch() {
-      var current = document.documentElement.getAttribute("data-theme");
-      var cb = document.getElementById("theme-checkbox");
-      var ll = document.getElementById("theme-label-light");
-      var ld = document.getElementById("theme-label-dark");
-      if(cb) cb.checked = (current === "dark");
-      if(ll) ll.classList.toggle("active", current === "light");
-      if(ld) ld.classList.toggle("active", current === "dark");
-    }
-
-    async function loadLogo() {
-      var p = document.getElementById("logoPreview"), r = document.getElementById("logoRemoveBtn");
-      if (!p) return;
-      try {
-        var res = await safeFetch("/auth/get-logo");
-        if (!res || !res.ok) throw new Error("Logo fetch failed");
-        var d = await res.json();
-        if(d.success && d.logo) {
-          localStorage.setItem("driven_customer_logo", d.logo);
-          p.innerHTML = '<img src="' + d.logo + '" alt="Logo" style="max-height:60px;max-width:140px;object-fit:contain;">';
-          p.style.border = "none";
-          if(r) r.style.display = "inline-block";
-        } else {
-          p.innerHTML = "No logo";
-          p.style.border = "2px dashed var(--border)";
-          if(r) r.style.display = "none";
-        }
-      } catch(e) {
-        var ll = localStorage.getItem("driven_customer_logo");
-        if(ll) {
-          p.innerHTML = '<img src="' + ll + '" alt="Logo" style="max-height:60px;max-width:140px;object-fit:contain;">';
-          p.style.border = "none";
-          if(r) r.style.display = "inline-block";
-        } else {
-          p.innerHTML = "No logo";
-          p.style.border = "2px dashed var(--border)";
-          if(r) r.style.display = "none";
-        }
-      }
-    }
-
-    async function handleLogoUpload() {
-      if (!validateOrgContext()) return;
-      var f = document.getElementById("logoFile").files[0];
-      if(!f) return;
-      if(f.size > 500000) {
-        document.getElementById("logoStatus").textContent = "File too large. Max 500KB.";
-        document.getElementById("logoStatus").style.color = "var(--error)";
-        return;
-      }
-      var rd = new FileReader();
-      rd.onload = async function(e) {
-        var du = e.target.result;
-        localStorage.setItem("driven_customer_logo", du);
-        try {
-          var sr = await safeFetch("/auth/save-logo", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ logo_data: du })
-          });
-          if (sr) {
-            var sd = await sr.json();
-            if(sd.success) {
-              document.getElementById("logoStatus").textContent = "Logo uploaded.";
-              document.getElementById("logoStatus").style.color = "var(--success,#16a34a)";
-            }
-          }
-        } catch(ex) { reportError("handleLogoUpload", ex); }
-        await loadLogo();
-      };
-      rd.readAsDataURL(f);
-    }
-
-    async function handleLogoRemove() {
-      if (!validateOrgContext()) return;
-      try {
-        await safeFetch("/auth/save-logo", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ logo_data: "" })
-        });
-        localStorage.removeItem("driven_customer_logo");
-        document.getElementById("logoStatus").textContent = "Logo removed.";
-      } catch(e) { reportError("handleLogoRemove", e); }
-      await loadLogo();
-    }
-
-    async function loadSettings() {
-      try {
-        var res = await safeFetch("/auth/get-settings");
-        if (res) {
-          var data = await res.json();
-          if(data.success && data.settings) {
-            orgSettings = data.settings;
-            if(data.settings.business_type) document.getElementById("businessTypeSelect").value = data.settings.business_type;
-            if(data.settings.naics_code) document.getElementById("naicsInput").value = data.settings.naics_code;
-            if(data.settings.currency && document.getElementById("currencySelect")) document.getElementById("currencySelect").value = data.settings.currency;
-            if(data.settings.step_visibility && typeof data.settings.step_visibility==='object' && !Array.isArray(data.settings.step_visibility)) stepVisibility = data.settings.step_visibility;
-            if(data.settings.task_completions) {
-              taskCompletions = data.settings.task_completions;
-              localStorage.setItem("driven_task_completions", JSON.stringify(taskCompletions));
-            }
-            if(data.settings.onboarding_complete) {
-              onboardingComplete = true;
-              hideOnboardingTab();
-            }
-          } else {
-            applyBusinessTypeDefaults();
-          }
-        } else {
-          applyBusinessTypeDefaults();
-        }
-      } catch(e) {
-        reportError("loadSettings", e);
-        applyBusinessTypeDefaults();
-      }
-      renderStepToggles();
-      updateProgress();
-    }
-
-    function markSettingsDirty(){ settingsDirty = true; }
-    function clearSettingsDirty(){ settingsDirty = false; }
-    function markVisibilityDirty(){
-      visibilityDirty = true;
-      var w = document.getElementById('visibilityWarning');
-      if(w) w.style.display = 'block';
-    }
-    function clearVisibilityDirty(){
-      visibilityDirty = false;
-      var w = document.getElementById('visibilityWarning');
-      if(w) w.style.display = 'none';
-    }
-
-    async function saveSettings() {
-      if (!validateOrgContext()) return;
-      var bt = document.getElementById("businessTypeSelect").value,
-          naics = document.getElementById("naicsInput").value.trim(),
-          cur = document.getElementById("currencySelect") ? document.getElementById("currencySelect").value : "USD";
-      try {
-        var res = await safeFetch("/auth/save-settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ settings: { business_type: bt, naics_code: naics, currency: cur } })
-        });
-        if (res) {
-          var d = await res.json();
-          if(d.success) {
-            orgSettings.business_type = bt;
-            orgSettings.naics_code = naics;
-            orgSettings.currency = cur;
-            document.getElementById("settingsStatus").textContent = "Saved.";
-            notifySync();
-          }
-        }
-      } catch(e) { reportError("saveSettings", e); }
-      clearSettingsDirty();
-    }
-
-    function onNaicsChange(){ markSettingsDirty(); }
-    function onCurrencyChange(){ markSettingsDirty(); }
-    function onFuelPhotoToggleChange() { markSettingsDirty(); }
-    function onLocationReqToggleChange() { markSettingsDirty(); }
-
-    async function saveToggles() {
-      if (!validateOrgContext()) return;
-      var mp = document.getElementById("fuelMeterPhotoToggle") ? document.getElementById("fuelMeterPhotoToggle").checked : false;
-      var ap = document.getElementById("fuelAssetPhotoToggle") ? document.getElementById("fuelAssetPhotoToggle").checked : false;
-      var lr = document.getElementById("locationReqToggle") ? document.getElementById("locationReqToggle").checked : false;
-      try {
-        await safeFetch("/auth/save-settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ settings: { fuel_meter_photo: mp, fuel_asset_photo: ap, location_request: lr } })
-        });
-        document.getElementById("togglesStatus").textContent = "Toggles saved.";
-      } catch(e) { reportError("saveToggles", e); }
-    }
-
-    function applyBusinessTypeDefaults() {
-      if(!stepVisibility || typeof stepVisibility !== 'object') stepVisibility = {};
-      var bt = document.getElementById("businessTypeSelect").value;
-      if(bt && BUSINESS_TYPE_DEFAULTS[bt]) {
-        var df = BUSINESS_TYPE_DEFAULTS[bt];
-        for(var k in df) {
-          if(!stepVisibility._manualOverrides || !stepVisibility._manualOverrides[k]) stepVisibility[k] = df[k];
-        }
-      }
-    }
-
-    function onBusinessTypeChange() {
-      var bt = document.getElementById("businessTypeSelect").value;
-      if(bt && BUSINESS_TYPE_DEFAULTS[bt]) {
-        var df = BUSINESS_TYPE_DEFAULTS[bt];
-        for(var k in df) stepVisibility[k] = df[k];
-        stepVisibility._manualOverrides = {};
-      }
-      markSettingsDirty();
-      renderStepToggles();
-    }
-
-    function renderStepToggles() {
-      if(!stepVisibility || typeof stepVisibility !== 'object') stepVisibility = {};
-      var c = document.getElementById("stepToggleList");
-      if(!c) return;
-      c.innerHTML = STEP_DEFS.map(function(s) {
-        var v = stepVisibility[s.key] !== false,
-            ck = v ? "checked" : "",
-            dis = s.locked ? "disabled" : "",
-            ll = s.locked ? '<span class="step-toggle-locked">(always on)</span>' : "";
-        return '<div class="step-toggle-row"><div><div class="step-toggle-name">' + s.label + ' ' + ll + '</div><div class="step-toggle-desc">' + s.desc + '</div></div><label class="toggle-switch"><input type="checkbox" ' + ck + ' ' + dis + ' onchange="onToggleChange(\'' + s.key + '\',this.checked)"><span class="toggle-slider"></span></label></div>';
-      }).join("");
-    }
-
-    function onToggleChange(k, v) {
-      if(!stepVisibility || typeof stepVisibility !== 'object') stepVisibility = {};
-      stepVisibility[k] = v;
-      if(!stepVisibility._manualOverrides) stepVisibility._manualOverrides = {};
-      stepVisibility._manualOverrides[k] = true;
-      markVisibilityDirty();
-    }
-
-    async function saveStepVisibility() {
-      if (!validateOrgContext()) return;
-      var st = document.getElementById("visibilityStatus");
-      try {
-        var res = await safeFetch("/auth/save-settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ settings: { step_visibility: stepVisibility } })
-        });
-        if (res) {
-          var d = await res.json();
-          if(d.success && st) {
-            st.textContent = "Visibility saved.";
-            st.style.color = "var(--success,#16a34a)";
-          }
-        }
-        clearVisibilityDirty();
-        renderStepToggles();
-        updateProgress();
-        notifySync();
-      } catch(e) { reportError("saveStepVisibility", e); }
-    }
-
-    async function loadKeyPersonnel() {
-      try {
-        var res = await safeFetch("/api/onboarding/key-personnel/list");
-        if (res) {
-          var d = await res.json();
-          if(d.success && d.keyPersonnel) {
-            keyPersonnel = d.keyPersonnel.map(function(kp) {
-              return {
-                employeeId: kp.employeeId || kp.id,
-                name: kp.name,
-                email: kp.email,
-                role_id: kp.role_id,
-                tasks: kp.roles ? kp.roles.map(function(r) { return r.role || r.task_name; }) : []
-              };
-            });
-          }
-        }
-      } catch(e) { reportError("loadKeyPersonnel", e); }
-      renderKeyPersonnel();
-    }
-
-    function renderKeyPersonnel() {
-      var all = keyPersonnel.concat(pendingKP);
-      var container = document.getElementById("kpListBody");
-      var completeBtn = document.getElementById("kpCompleteBtn");
-      var unsavedBanner = document.getElementById("kpUnsavedBanner");
-
-      if(unsavedBanner) unsavedBanner.style.display = pendingKP.length > 0 ? "flex" : "none";
-      if(completeBtn) completeBtn.style.display = pendingKP.length > 0 ? "inline-block" : "none";
-
-      if(all.length === 0) {
-        container.innerHTML = '<div class="kp-loading">No key personnel assigned yet.</div>';
-        return;
-      }
-
-      container.innerHTML = all.map(function(kp, personIdx) {
-        var tasks = kp.tasks || (kp.roles ? kp.roles.map(function(r){return r.role || r.task_name;}) : (kp.task ? [kp.task] : []));
-        var isPending = personIdx >= keyPersonnel.length;
-        var chips = tasks.map(function(t, taskIdx) {
-          return '<div class="kp-task-chip">' + esc(t) + ' <button onclick="removeKpTask(' + personIdx + ', ' + taskIdx + ')" title="Remove task">×</button></div>';
-        }).join("");
-
-        return '<div class="kp-person-row">' +
-          '<div class="kp-person-info">' +
-          '<div class="kp-person-name">' + esc(kp.name || 'Unknown') + (isPending ? ' <span style="font-size:11px;color:#d97706;font-weight:normal;">(Pending Save)</span>' : '') + '</div>' +
-          '<div class="kp-person-email">' + esc(kp.email || '') + '</div>' +
-          '<div class="kp-person-tasks">' + (chips || '<span style="font-size:12px;color:var(--text-muted);italic;">No tasks assigned</span>') + '</div>' +
-          '</div>' +
-          '<div class="kp-person-actions">' +
-          '<button class="kp-person-remove" onclick="removeKpPerson(' + personIdx + ')">Remove Person</button>' +
-          '</div>' +
-          '</div>';
-      }).join("");
-    }
-
-    function loadTaskCompletions() {
-      try {
-        taskCompletions = JSON.parse(localStorage.getItem("driven_task_completions") || sessionStorage.getItem("driven_task_completions") || "{}");
-      } catch(e) { taskCompletions = {}; }
-    }
-
-    function adminIsTaskComplete(taskKey) {
-      var mapKeyToTask = {
-        "roles-permissions": "Roles & Permissions",
-        "employees": "Employees",
-        "locations": "Locations",
-        "clients": "Clients",
-        "divisions": "Divisions",
-        "project-types": "Project Types",
-        "projects": "Projects",
-        "fuel-types": "Fuels, Fluids & Energy",
-        "units-of-measure": "Units of Measure",
-        "asset-types": "Asset Types",
-        "assets": "Assets"
-      };
-
-      var taskName = mapKeyToTask[taskKey];
-      if (!taskName) return false;
-
-      var completions = taskCompletions[taskName] || [];
-      var assignedEmails = [];
-
-      var all = keyPersonnel.concat(pendingKP);
-      all.forEach(function(kp) {
-        var tasks = kp.tasks || (kp.roles ? kp.roles.map(function(r){return r.role || r.task_name;}) : (kp.task ? [kp.task] : []));
-        if (tasks.indexOf(taskName) !== -1 && kp.email) {
-          assignedEmails.push(kp.email.toLowerCase());
-        }
-      });
-
-      if (assignedEmails.length === 0) {
-        return completions.length > 0;
-      }
-
-      for (var i = 0; i < assignedEmails.length; i++) {
-        if (completions.indexOf(assignedEmails[i]) === -1) return false;
-      }
-      return true;
-    }
-
-    function updateProgress() {
-      loadTaskCompletions();
-      var vs = STEP_DEFS.filter(function(s){return stepVisibility[s.key] !== false;}), comp = 0;
-      vs.forEach(function(s){ if(adminIsTaskComplete(s.key)) comp++; });
-      var tot = vs.length, pct = tot > 0 ? Math.round((comp / tot) * 100) : 0;
-      document.getElementById("progressBarFill").style.width = pct + "%";
-      document.getElementById("progressText").textContent = comp + " of " + tot + " tasks complete";
-    }
-
-    function notifySync() {
-      window.dispatchEvent(new CustomEvent("driven_completion_updated"));
-      if (syncChannel) syncChannel.postMessage({ type: "driven_completion_updated" });
-    }
-
-    function showCompleteModal(){ document.getElementById("confirmModal").classList.add("active"); }
-    function closeCompleteModal(){ document.getElementById("confirmModal").classList.remove("active"); }
-    function hideOnboardingTab(){ var t = document.querySelector('[data-tab="onboarding"]'); if(t) t.style.display = "none"; }
-
-    function insertHeaderTitle(){
-      var r = document.querySelector(".dash-header-row1");
-      if(r) {
-        var existing = document.querySelector(".admin-header-title");
-        if(existing) existing.remove();
-        var t = document.createElement("div");
-        t.className = "admin-header-title";
-        t.textContent = "Admin Dashboard";
-        var logo = r.querySelector(".dash-driven-logo");
-        if(logo) r.insertBefore(t, logo);
-        else r.appendChild(t);
-      }
-    }
-
-    async function startAdminApp(user) {
-      if (!user) {
-        var savedUserStr = localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user");
-        if (savedUserStr) {
-          try { user = JSON.parse(savedUserStr); } catch(e){}
-        }
-      }
-
-      currentUserObj = user;
-      var roleVal = String((user && (user.role_id || user.role)) || "").trim().toLowerCase();
-      var isAllowedAdmin = roleVal === "ro-admin" || roleVal === "admin" || roleVal.indexOf("founder") !== -1;
-
-      if (!user || !isAllowedAdmin) { 
-        console.warn("[AdminDashboard] Guard rejected role:", roleVal);
-        window.location.href = "/public/login.html"; 
-        return; 
-      }
-
-      activeOrgId = user.org_id || localStorage.getItem("driven_org_id") || sessionStorage.getItem("driven_org_id") || "org_dsi";
-
-      if (!user.id && user.user_id) user.id = user.user_id;
-      var userStr = JSON.stringify(user);
-
-      localStorage.setItem("driven_org_id", activeOrgId);
-      localStorage.setItem("driven_user", userStr);
-      localStorage.setItem("driven_role", user.role_id || user.role || "RO-admin");
-      if (user.id) localStorage.setItem("driven_user_id", user.id);
-
-      sessionStorage.setItem("driven_org_id", activeOrgId);
-      sessionStorage.setItem("driven_user", userStr);
-      sessionStorage.setItem("driven_role", user.role_id || user.role || "RO-admin");
-      if (user.id) sessionStorage.setItem("driven_user_id", user.id);
-
-      document.getElementById("welcome-name").textContent = user.first_name || user.email || "Admin";
-      document.getElementById("welcome-company").textContent = user.org_name || localStorage.getItem("driven_org_name") || "Digital Safety Inspection, LLC";
-      document.getElementById("welcome-role").textContent = user.role || user.role_id || "RO-admin";
-      document.getElementById("welcome-email").textContent = user.email || "";
-
-      insertHeaderTitle();
-
-      /* Instantly Reveal Dashboard UI */
-      document.getElementById("loading").style.display = "none";
-      document.getElementById("dashboard").style.display = "block";
-      
-      // Recalculate sticky offsets immediately after showing dashboard
-      adjustStickyOffsets();
-
-      /* Non-blocking Background Operations */
-      setTimeout(function() {
-        loadLogo().catch(function(e){ reportError("loadLogo", e); });
-        loadSettings().catch(function(e){ reportError("loadSettings", e); });
-        loadKeyPersonnel().catch(function(e){ reportError("loadKeyPersonnel", e); });
-        updateProgress();
-        updateThemeSwitch();
-        renderFormsTab();
-        loadDashboardStats().catch(function(e){ reportError("init-loadDashboardStats", e); });
-      }, 0);
-    }
-
-    async function init() {
-      var current = window.dashUser || window.drivenUser;
-      if (current) {
-        startAdminApp(current);
-      } else {
-        document.addEventListener("dashSessionLoaded", async function(e) {
-          startAdminApp(e.detail || window.dashUser || window.drivenUser);
-        });
-      }
-
-      window.addEventListener("resize", adjustStickyOffsets);
-      window.addEventListener("orientationchange", adjustStickyOffsets);
-      window.addEventListener("scroll", adjustStickyOffsets, { passive: true });
-      window.addEventListener("driven_completion_updated", function() {
-        updateProgress();
-      });
-
-      // Recalculate on window load to ensure images/fonts in header don't alter sticky math
-      window.addEventListener("load", adjustStickyOffsets);
-
-      if (syncChannel) {
-        syncChannel.onmessage = function(msg) {
-          if (msg.data && msg.data.type === "driven_completion_updated") {
-            updateProgress();
-          }
-        };
-      }
-    }
-
-    init();
-  </script>
+  <script src="/app/dashboard/admin.js?v=1"></script>
 </body>
 </html>
