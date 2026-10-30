@@ -320,9 +320,9 @@
   <div class="top-nav-bar">
     <a href="/app/dashboard/asset-management.html" class="btn-secondary">← Back to Asset Management</a>
     <div style="display: flex; gap: 8px;">
-      <button class="btn-info" onclick="openInstructionsModal()">Purpose & Instructions</button>
-      <button class="btn-action" onclick="openCopyModal()">Copy Asset Rules</button>
-      <button class="btn-logout" onclick="confirmLogout()">Logout</button>
+      <button class="btn-info" id="btnInstructions">Purpose & Instructions</button>
+      <button class="btn-action" id="btnOpenCopy">Copy Asset Rules</button>
+      <button class="btn-logout" id="btnLogout">Logout</button>
     </div>
   </div>
 
@@ -333,7 +333,7 @@
       <div class="grid-3">
         <div class="form-group">
           <label for="configTarget">Select Target Level</label>
-          <select id="configTarget" onchange="onTargetTypeChange()">
+          <select id="configTarget">
             <option value="specific">Specific Asset Unit Overrides</option>
             <option value="template">Asset Category Global Defaults</option>
           </select>
@@ -341,14 +341,14 @@
 
         <div class="form-group" id="assetSelectGroup">
           <label for="selectAsset">Select Specific Asset Number</label>
-          <select id="selectAsset" onchange="onAssetSelected()">
+          <select id="selectAsset">
             <option value="">-- Choose Asset Unit --</option>
           </select>
         </div>
 
         <div class="form-group" id="typeSelectGroup" style="display: none;">
           <label for="selectType">Select Asset Category</label>
-          <select id="selectType" onchange="onTypeSelected()">
+          <select id="selectType">
             <option value="">-- Loading Asset Categories... --</option>
           </select>
         </div>
@@ -356,10 +356,10 @@
         <div class="form-group" id="attachmentGroup">
           <label for="selectAttachment">Vocational Body / Attachment Overlay</label>
           <div style="display: flex; gap: 6px;">
-            <select id="selectAttachment" onchange="onAttachmentChanged()" style="flex: 1;">
+            <select id="selectAttachment" style="flex: 1;">
               <option value="none">None (Standard Chassis / Base Unit)</option>
             </select>
-            <button type="button" class="btn-small-add" style="padding: 0 10px; font-size: 16px;" title="Add Custom Category Attachment" onclick="promptAddCustomAttachment()">+</button>
+            <button type="button" class="btn-small-add" id="btnAddCustomAttachment" style="padding: 0 10px; font-size: 16px;" title="Add Custom Category Attachment">+</button>
           </div>
         </div>
       </div>
@@ -367,7 +367,7 @@
       <div id="attachmentMetaRow" style="display: none; margin-top: 16px; padding-top: 16px; border-top: 1px dashed #cbd5e1;" class="grid-3">
         <div class="form-group">
           <label for="attachmentTrackingMode">Attachment Tracking Mode</label>
-          <select id="attachmentTrackingMode" onchange="toggleAttachmentTrackingUI()">
+          <select id="attachmentTrackingMode">
             <option value="integrated">Integrated Chassis Body (No Separate Asset ID)</option>
             <option value="linked">Link Standalone Attachment Asset #</option>
           </select>
@@ -376,10 +376,10 @@
         <div class="form-group" id="linkedAssetPickerGroup" style="display: none;">
           <label for="linkedAttachmentAssetId">Select Category Attachment Asset #</label>
           <div style="display: flex; gap: 6px;">
-            <select id="linkedAttachmentAssetId" onchange="onLinkedAttachmentSelected()" style="flex: 1;">
+            <select id="linkedAttachmentAssetId" style="flex: 1;">
               <option value="">-- Choose Attachment Asset --</option>
             </select>
-            <button type="button" class="btn-action" style="padding: 0 10px; font-size: 12px; white-space: nowrap;" onclick="openQuickAddAttachmentModal()">+ Register New</button>
+            <button type="button" class="btn-action" id="btnOpenQuickAddAttachment" style="padding: 0 10px; font-size: 12px; white-space: nowrap;">+ Register New</button>
           </div>
         </div>
 
@@ -403,7 +403,7 @@
           <div class="toggle-desc">Enable to apply customized inspection thresholds, component specs, and fluid specs to this unit.</div>
         </div>
         <label class="switch">
-          <input type="checkbox" id="overrideDefaults" onchange="toggleFormLock()">
+          <input type="checkbox" id="overrideDefaults">
           <span class="slider"></span>
         </label>
       </div>
@@ -416,7 +416,7 @@
           Add specialized spec fields or tracking metrics specific to this unit or category (e.g., "GPS Receiver Model", "Blade Width", "Winched Pull Rating").
         </p>
         <div id="customFieldsContainer"></div>
-        <button type="button" class="btn-small-add" onclick="addCustomFieldRow()">+ Add Custom Tracking Field</button>
+        <button type="button" class="btn-small-add" id="btnAddCustomField">+ Add Custom Tracking Field</button>
       </div>
 
       <div class="section-title">Cross-Referenced Replacement Parts Inventory</div>
@@ -435,7 +435,7 @@
         </thead>
         <tbody id="partsTableBody"></tbody>
       </table>
-      <button type="button" class="btn-small-add" style="margin-top: 10px;" onclick="addPartRow()">+ Add Replacement Part</button>
+      <button type="button" class="btn-small-add" id="btnAddPart" style="margin-top: 10px;">+ Add Replacement Part</button>
 
       <div class="section-title">Company / Site Custom Inspection Items</div>
       <div class="custom-items-wrapper">
@@ -443,11 +443,11 @@
           Add company-specific or site checklist items (e.g., "Check company decal," "Inspect site VHF radio"). Regulatory checks above are enforced by law and cannot be disabled.
         </p>
         <div id="customItemsContainer"></div>
-        <button type="button" class="btn-small-add" onclick="addCustomItemRow()">+ Add Custom Check Item</button>
+        <button type="button" class="btn-small-add" id="btnAddCustomCheck">+ Add Custom Check Item</button>
       </div>
 
       <div class="actions">
-        <button class="btn-primary" id="btnSaveConfig" onclick="saveConfiguration()">Save Complete Asset Configuration</button>
+        <button class="btn-primary" id="btnSaveConfig">Save Complete Asset Configuration</button>
       </div>
     </div>
   </div>
@@ -469,7 +469,7 @@
       </ol>
 
       <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
-        <button class="btn-secondary" onclick="closeInstructionsModal()">Got It, Close Instructions</button>
+        <button class="btn-secondary" id="btnCloseInstructions">Got It, Close Instructions</button>
       </div>
     </div>
   </div>
@@ -514,8 +514,8 @@
       </div>
 
       <div style="display: flex; justify-content: flex-end; gap: 10px;">
-        <button class="btn-secondary" style="background: #64748b;" onclick="closeQuickAddAttachmentModal()">Cancel</button>
-        <button class="btn-action" onclick="saveNewAttachmentAsset()">Save Attachment to Assets Table</button>
+        <button class="btn-secondary" id="btnCloseQuickAddAttachment" style="background: #64748b;">Cancel</button>
+        <button class="btn-action" id="btnSaveQuickAttachment">Save Attachment to Assets Table</button>
       </div>
     </div>
   </div>
@@ -533,8 +533,8 @@
       </div>
 
       <div style="display: flex; justify-content: flex-end; gap: 10px;">
-        <button class="btn-secondary" style="background: #64748b;" onclick="closeCopyModal()">Cancel</button>
-        <button class="btn-action" onclick="executeCopyConfig()">Copy & Apply Configuration</button>
+        <button class="btn-secondary" id="btnCloseCopy" style="background: #64748b;">Cancel</button>
+        <button class="btn-action" id="btnExecuteCopy">Copy & Apply Configuration</button>
       </div>
     </div>
   </div>
@@ -542,702 +542,7 @@
   <div id="dashFooter"></div>
 
   <script src="/app/shared/dashboard-common.js?v=13"></script>
-  <script>
-    let allAssets = [];
-    let assetTypes = [];
-    let activeOrgId = null;
-    let customItemsList = [];
-    let customFieldsList = [];
-    let partsList = [];
-    let userCustomAttachments = {};
-
-    let orgUOM = { distance: 'mi', pressure: 'psi', volume: 'gal' };
-    let orgCountry = 'US';
-
-    const API_ENDPOINT = '/api/asset-config';
-
-    function updateHeaderOffset() {
-      const h = document.getElementById('dashHeader') || document.querySelector('.dash-header');
-      if (h) {
-        const hh = h.getBoundingClientRect().height || 60;
-        document.documentElement.style.setProperty('--header-height', hh + 'px');
-      }
-    }
-    window.addEventListener('resize', updateHeaderOffset);
-
-    document.addEventListener('dashSessionLoaded', async () => {
-      var u = window.dashUser || window.drivenUser;
-      activeOrgId = (u && u.org_id && u.org_id !== "default_org") ? u.org_id : (localStorage.getItem("driven_org_id") || "org_dsi");
-
-      updateHeaderOffset();
-      await fetchOrganizationSettings();
-      await loadInitialData();
-
-      const urlParams = new URLSearchParams(window.location.search);
-      const target = urlParams.get('target');
-      const assetNumber = urlParams.get('assetNumber');
-
-      if (target === 'template') {
-        document.getElementById('configTarget').value = 'template';
-        onTargetTypeChange();
-      } else if (assetNumber) {
-        document.getElementById('selectAsset').value = assetNumber;
-        onAssetSelected();
-      }
-    });
-
-    async function apiFetch(url, options = {}) {
-      options.headers = options.headers || {};
-      if (activeOrgId) {
-        options.headers['x-org-id'] = activeOrgId;
-      }
-      return fetch(url, options);
-    }
-
-    async function fetchOrganizationSettings() {
-      try {
-        const uomResp = await apiFetch('/api/units-of-measure');
-        if (uomResp.ok) {
-          const data = await uomResp.json();
-          if (data && data.uom) orgUOM = { ...orgUOM, ...data.uom };
-        }
-
-        const orgResp = await apiFetch(`/api/organization-settings?org_id=${encodeURIComponent(activeOrgId)}`);
-        if (orgResp.ok) {
-          const oData = await orgResp.json();
-          const foundCountry = oData.country || oData.org_country || (oData.org && oData.org.country);
-          if (foundCountry) {
-            orgCountry = String(foundCountry).toUpperCase().trim();
-          }
-        }
-      } catch (e) {
-        console.warn('Using default UOM and country settings:', e);
-      }
-    }
-
-    function openInstructionsModal() { document.getElementById('instructionsModal').style.display = 'flex'; }
-    function closeInstructionsModal() { document.getElementById('instructionsModal').style.display = 'none'; }
-
-    async function loadInitialData() {
-      try {
-        const resp = await apiFetch('/api/assets');
-        if (resp.ok) {
-          const data = await resp.json();
-          allAssets = extractRecords(data);
-          populateAssetDropdowns();
-          populateLinkedAttachmentDropdown();
-        }
-
-        // Fetches categories specific to activeOrgId from the asset_types / asset_type_defaults tables in D1
-        const typesResp = await apiFetch('/api/asset-types');
-        if (typesResp.ok) {
-          const tData = await typesResp.json();
-          assetTypes = extractRecords(tData);
-        }
-        populateTypeDropdown();
-      } catch (e) {
-        console.error('Failed to load assets or categories:', e);
-        populateTypeDropdown();
-      }
-    }
-
-    function extractRecords(data) {
-      if (Array.isArray(data)) return data;
-      if (!data || typeof data !== "object") return [];
-      return data.records || data.assetTypes || data.assets || data.data || [];
-    }
-
-    function populateAssetDropdowns() {
-      const sel = document.getElementById('selectAsset');
-      const copySel = document.getElementById('copySourceAsset');
-      
-      sel.innerHTML = '<option value="">-- Choose Asset Unit --</option>';
-      copySel.innerHTML = '<option value="">-- Choose Source Asset --</option>';
-
-      allAssets.forEach(a => {
-        const num = a.asset_number || a.assetNumber || a.name || a.id;
-        const type = a.category || a.type || a.asset_type || 'Default';
-        
-        if (num && Number(a.is_attachment) !== 1) {
-          const opt = document.createElement('option');
-          opt.value = num;
-          opt.setAttribute('data-type', type);
-          opt.textContent = `${num} (${type})`;
-          sel.appendChild(opt);
-
-          const copyOpt = opt.cloneNode(true);
-          copySel.appendChild(copyOpt);
-        }
-      });
-    }
-
-    function populateTypeDropdown() {
-      const sel = document.getElementById('selectType');
-      sel.innerHTML = '<option value="">-- Choose Asset Category --</option>';
-
-      const categorySet = new Set();
-
-      // Populate exclusively from DB records fetched for this org_id (includes onboarding choices & custom added types)
-      assetTypes.forEach(t => {
-        const name = typeof t === 'object' ? (t.asset_type_name || t.name || t.type || '') : String(t);
-        if (name && name.trim()) {
-          categorySet.add(name.trim());
-        }
-      });
-
-      // Fallback: If asset_types table has not been explicitly seeded, extract unique types directly from registered fleet assets
-      if (categorySet.size === 0 && allAssets.length > 0) {
-        allAssets.forEach(a => {
-          const cat = a.category || a.type || a.asset_type;
-          if (cat && cat.trim() && cat !== 'Default') {
-            categorySet.add(cat.trim());
-          }
-        });
-      }
-
-      if (categorySet.size === 0) {
-        sel.innerHTML = '<option value="">-- No Categories Configured for Organization --</option>';
-        return;
-      }
-
-      Array.from(categorySet).sort().forEach(catName => {
-        const opt = document.createElement('option');
-        opt.value = catName;
-        opt.textContent = catName;
-        sel.appendChild(opt);
-      });
-    }
-
-    function populateLinkedAttachmentDropdown() {
-      const sel = document.getElementById('linkedAttachmentAssetId');
-      if (!sel) return;
-      sel.innerHTML = '<option value="">-- Choose Attachment Asset --</option>';
-
-      allAssets.forEach(a => {
-        const num = a.asset_number || a.assetNumber || a.name || a.id;
-        if (num && (Number(a.is_attachment) === 1 || (a.allowed_category && a.allowed_category !== 'none'))) {
-          const opt = document.createElement('option');
-          opt.value = num;
-          opt.textContent = `${num} - ${a.name || a.make_oem || 'Attachment'}`;
-          sel.appendChild(opt);
-        }
-      });
-    }
-
-    function onTargetTypeChange() {
-      const target = document.getElementById('configTarget').value;
-      document.getElementById('assetSelectGroup').style.display = target === 'specific' ? 'flex' : 'none';
-      document.getElementById('typeSelectGroup').style.display = target === 'template' ? 'flex' : 'none';
-      document.getElementById('overrideRow').style.display = target === 'specific' ? 'flex' : 'none';
-
-      document.getElementById('selectAsset').value = '';
-      document.getElementById('selectType').value = '';
-      document.getElementById('configPanel').style.opacity = '0.5';
-      document.getElementById('configPanel').style.pointerEvents = 'none';
-      document.getElementById('dynamicSchemaFields').innerHTML = '';
-      customItemsList = [];
-      customFieldsList = [];
-      partsList = [];
-      renderCustomItemRows();
-      renderCustomFieldRows();
-      renderPartsRows();
-    }
-
-    async function onAssetSelected() {
-      const assetNum = document.getElementById('selectAsset').value;
-      if (!assetNum) return;
-
-      const select = document.getElementById('selectAsset');
-      const rawType = select.options[select.selectedIndex]?.getAttribute('data-type') || 'Default';
-
-      document.getElementById('configPanel').style.opacity = '1';
-      document.getElementById('configPanel').style.pointerEvents = 'auto';
-      document.getElementById('modeBanner').innerText = `Configuring Rules for Asset Unit: ${assetNum} (${rawType})`;
-
-      await fetchAndRenderSchema('specific', assetNum, rawType);
-    }
-
-    async function onTypeSelected() {
-      const select = document.getElementById('selectType');
-      const typeName = select.value;
-      if (!typeName) return;
-
-      document.getElementById('configPanel').style.opacity = '1';
-      document.getElementById('configPanel').style.pointerEvents = 'auto';
-      document.getElementById('modeBanner').innerText = `Editing Global Defaults for Category: ${typeName}`;
-
-      const cleanKey = typeName.trim();
-      await fetchAndRenderSchema('template', cleanKey, cleanKey);
-    }
-
-    async function fetchAndRenderSchema(targetType, key, assetType = '') {
-      try {
-        const resolvedAssetType = assetType || key || 'default';
-
-        const params = new URLSearchParams();
-        params.set('targetType', targetType || 'specific');
-        params.set('key', key || 'default');
-        params.set('assetType', resolvedAssetType);
-        params.set('country', orgCountry || 'US');
-        params.set('vol', (orgUOM && orgUOM.volume) ? orgUOM.volume : 'gal');
-        params.set('press', (orgUOM && orgUOM.pressure) ? orgUOM.pressure : 'psi');
-        params.set('dist', (orgUOM && orgUOM.distance) ? orgUOM.distance : 'mi');
-
-        const res = await apiFetch(`${API_ENDPOINT}?${params.toString()}`);
-        if (!res.ok) {
-          const errBody = await res.json().catch(() => ({}));
-          throw new Error(errBody.error || `Schema request failed with status ${res.status}`);
-        }
-
-        const data = await res.json();
-        const schema = data.schema || { sections: [] };
-        const savedConfig = data.config || {};
-
-        applyConfigToUI(savedConfig, schema);
-        toggleFormLock();
-      } catch (e) {
-        console.error('Failed to load asset schema:', e);
-        showMessage(`Error loading schema: ${e.message}`, 'error');
-      }
-    }
-
-    function applyConfigToUI(config, schema) {
-      if (config.customItems) customItemsList = config.customItems;
-      if (config.customFields) customFieldsList = config.customFields;
-      if (config.parts) partsList = config.parts;
-      
-      document.getElementById('overrideDefaults').checked = config.isOverride || false;
-
-      if (config.attachment) {
-        document.getElementById('selectAttachment').value = config.attachment || 'none';
-        onAttachmentChanged();
-        if (config.attachmentTrackingMode) {
-          document.getElementById('attachmentTrackingMode').value = config.attachmentTrackingMode;
-          toggleAttachmentTrackingUI();
-        }
-        if (config.linkedAttachmentAssetId) {
-          document.getElementById('linkedAttachmentAssetId').value = config.linkedAttachmentAssetId;
-        }
-        if (config.attachmentMountState) {
-          document.getElementById('attachmentMountState').value = config.attachmentMountState;
-        }
-      }
-
-      renderCompositeForm(schema, config.rules || {});
-    }
-
-    function onAttachmentChanged() {
-      const val = document.getElementById('selectAttachment').value;
-      const metaRow = document.getElementById('attachmentMetaRow');
-      if (metaRow) {
-        metaRow.style.display = (val && val !== 'none') ? 'grid' : 'none';
-      }
-    }
-
-    function toggleAttachmentTrackingUI() {
-      const mode = document.getElementById('attachmentTrackingMode').value;
-      const picker = document.getElementById('linkedAssetPickerGroup');
-      if (picker) {
-        picker.style.display = mode === 'linked' ? 'flex' : 'none';
-      }
-    }
-
-    function onLinkedAttachmentSelected() {
-      const id = document.getElementById('linkedAttachmentAssetId').value;
-      if (id) {
-        showMessage(`Linked attachment asset #${id} configured.`, 'success');
-      }
-    }
-
-    function promptAddCustomAttachment() {
-      const name = prompt("Enter Custom Attachment Name (e.g. Hydro-Vac Boom, 50-Ton Crane Block):");
-      if (name && name.trim()) {
-        const val = name.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
-        const sel = document.getElementById('selectAttachment');
-        const opt = document.createElement('option');
-        opt.value = val;
-        opt.textContent = name.trim();
-        sel.appendChild(opt);
-        sel.value = val;
-        onAttachmentChanged();
-      }
-    }
-
-    function openQuickAddAttachmentModal() {
-      document.getElementById('quickAddAttachmentModal').style.display = 'flex';
-    }
-
-    function closeQuickAddAttachmentModal() {
-      document.getElementById('quickAddAttachmentModal').style.display = 'none';
-    }
-
-    async function saveNewAttachmentAsset() {
-      const assetNum = document.getElementById('newAttAssetNumber').value.trim();
-      const category = document.getElementById('newAttAllowedCategory').value;
-      const serial = document.getElementById('newAttSerialNum').value.trim();
-      const make = document.getElementById('newAttMake').value.trim();
-      const model = document.getElementById('newAttModel').value.trim();
-
-      if (!assetNum) {
-        alert('Please enter an attachment asset number.');
-        return;
-      }
-
-      const payload = {
-        asset_number: assetNum,
-        name: `${make} ${model} (${assetNum})`.trim(),
-        asset_type: 'Attachment',
-        is_attachment: 1,
-        allowed_category: category,
-        serial_number: serial,
-        make_oem: make,
-        model: model,
-        status: 'active'
-      };
-
-      try {
-        const resp = await apiFetch('/api/assets', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (resp.ok) {
-          closeQuickAddAttachmentModal();
-          showMessage(`Registered attachment ${assetNum} successfully!`, 'success');
-          await loadInitialData();
-          document.getElementById('linkedAttachmentAssetId').value = assetNum;
-        } else {
-          const err = await resp.json().catch(() => ({}));
-          alert(err.error || err.message || 'Failed to create attachment asset.');
-        }
-      } catch (e) {
-        alert('Error creating attachment: ' + e.message);
-      }
-    }
-
-    function renderCompositeForm(schema, savedRules = {}) {
-      const container = document.getElementById('dynamicSchemaFields');
-      container.innerHTML = '';
-
-      if (!schema || !schema.sections) return;
-
-      schema.sections.forEach(sec => {
-        const secTitle = document.createElement('div');
-        secTitle.className = 'section-title';
-        secTitle.textContent = sec.title;
-        container.appendChild(secTitle);
-
-        sec.fields.forEach(field => {
-          renderFieldRow(container, field, savedRules);
-        });
-      });
-
-      renderCustomFieldRows();
-      renderPartsRows();
-      renderCustomItemRows();
-    }
-
-    function renderFieldRow(container, field, savedRules) {
-      const val = savedRules[field.id] !== undefined ? savedRules[field.id] : (field.default !== undefined ? field.default : '');
-      const isLocked = field.locked || false;
-
-      let badgeHTML = '';
-      if (field.badge) {
-        let bClass = 'badge-dot';
-        if (field.badge.includes('OSHA') || field.badge.includes('CCOHS') || field.badge.includes('COR')) bClass = 'badge-osha';
-        if (field.badge.includes('MSHA') || field.badge.includes('Mining')) bClass = 'badge-msha';
-        badgeHTML = `<span class="badge ${bClass}">${field.badge}</span>`;
-      }
-
-      if (field.type === 'toggle') {
-        const row = document.createElement('div');
-        row.className = 'toggle-row';
-        row.innerHTML = `
-          <div>
-            <div class="toggle-title">${field.label} ${badgeHTML}</div>
-            <div class="toggle-desc">${field.desc || ''}</div>
-          </div>
-          <label class="switch">
-            <input type="checkbox" id="field_${field.id}" ${val ? 'checked' : ''} ${isLocked ? 'data-locked="true"' : ''}>
-            <span class="slider"></span>
-          </label>
-        `;
-        container.appendChild(row);
-      } else if (field.type === 'select') {
-        const row = document.createElement('div');
-        row.className = 'form-group';
-        row.style.marginBottom = '12px';
-        
-        let optsHTML = (field.options || []).map(o => `<option value="${o}" ${val === o ? 'selected' : ''}>${o}</option>`).join('');
-        optsHTML += `<option value="__add_custom_opt__" style="font-weight: bold; color: var(--primary);">+ Add Custom Option...</option>`;
-        
-        row.innerHTML = `
-          <label for="field_${field.id}">${field.label} ${badgeHTML}</label>
-          <select id="field_${field.id}" onchange="handleDropdownCustomAdd(this)" ${isLocked ? 'data-locked="true"' : ''}>${optsHTML}</select>
-          <span style="font-size: 12px; color: var(--text-muted);">${field.desc || ''}</span>
-        `;
-        container.appendChild(row);
-      } else if (field.type === 'number' || field.type === 'text') {
-        const row = document.createElement('div');
-        row.className = 'form-group';
-        row.style.marginBottom = '12px';
-        row.innerHTML = `
-          <label for="field_${field.id}">${field.label} ${badgeHTML}</label>
-          <input type="${field.type}" id="field_${field.id}" value="${val}" ${isLocked ? 'data-locked="true"' : ''}>
-          <span style="font-size: 12px; color: var(--text-muted);">${field.desc || ''}</span>
-        `;
-        container.appendChild(row);
-      }
-    }
-
-    function handleDropdownCustomAdd(selectEl) {
-      if (selectEl.value === '__add_custom_opt__') {
-        const newOpt = prompt("Enter new specification option name:");
-        if (newOpt && newOpt.trim()) {
-          const optVal = newOpt.trim();
-          const option = document.createElement("option");
-          option.value = optVal;
-          option.textContent = optVal;
-          selectEl.insertBefore(option, selectEl.lastElementChild);
-          selectEl.value = optVal;
-        } else {
-          selectEl.selectedIndex = 0;
-        }
-      }
-    }
-
-    function addPartRow(comp = "", oemB = "", oemP = "", crossB = "", crossP = "") {
-      partsList.push({ component: comp, oemBrand: oemB, oemPart: oemP, crossBrand: crossB, crossPart: crossP });
-      renderPartsRows();
-      toggleFormLock();
-    }
-
-    function removePartRow(index) {
-      partsList.splice(index, 1);
-      renderPartsRows();
-      toggleFormLock();
-    }
-
-    function renderPartsRows() {
-      const tbody = document.getElementById('partsTableBody');
-      tbody.innerHTML = '';
-
-      partsList.forEach((p, idx) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><input type="text" value="${p.component || ''}" placeholder="Component Name" onchange="partsList[${idx}].component = this.value"></td>
-          <td><input type="text" value="${p.oemBrand || ''}" placeholder="OEM Brand Spec" onchange="partsList[${idx}].oemBrand = this.value"></td>
-          <td><input type="text" value="${p.oemPart || ''}" placeholder="OEM Part #" onchange="partsList[${idx}].oemPart = this.value"></td>
-          <td><input type="text" value="${p.crossBrand || ''}" placeholder="e.g. Baldwin / Donaldson" onchange="partsList[${idx}].crossBrand = this.value"></td>
-          <td><input type="text" value="${p.crossPart || ''}" placeholder="e.g. P550388" onchange="partsList[${idx}].crossPart = this.value"></td>
-          <td><button type="button" class="btn-small-remove" onclick="removePartRow(${idx})">Remove</button></td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    function addCustomFieldRow(key = "", val = "") {
-      customFieldsList.push({ key, value: val });
-      renderCustomFieldRows();
-      toggleFormLock();
-    }
-
-    function removeCustomFieldRow(index) {
-      customFieldsList.splice(index, 1);
-      renderCustomFieldRows();
-      toggleFormLock();
-    }
-
-    function renderCustomFieldRows() {
-      const container = document.getElementById('customFieldsContainer');
-      container.innerHTML = '';
-
-      customFieldsList.forEach((f, index) => {
-        const row = document.createElement('div');
-        row.className = 'custom-item-row';
-        row.innerHTML = `
-          <span class="badge badge-custom">Spec</span>
-          <input type="text" value="${f.key || ''}" placeholder="Field Label..." onchange="customFieldsList[${index}].key = this.value" style="flex: 1;">
-          <input type="text" value="${f.value || ''}" placeholder="Field Value..." onchange="customFieldsList[${index}].value = this.value" style="flex: 1;">
-          <button type="button" class="btn-small-remove" onclick="removeCustomFieldRow(${index})">Remove</button>
-        `;
-        container.appendChild(row);
-      });
-    }
-
-    function addCustomItemRow(labelValue = "") {
-      customItemsList.push(labelValue);
-      renderCustomItemRows();
-      toggleFormLock();
-    }
-
-    function removeCustomItemRow(index) {
-      customItemsList.splice(index, 1);
-      renderCustomItemRows();
-      toggleFormLock();
-    }
-
-    function renderCustomItemRows() {
-      const container = document.getElementById('customItemsContainer');
-      container.innerHTML = '';
-
-      customItemsList.forEach((itemText, index) => {
-        const row = document.createElement('div');
-        row.className = 'custom-item-row';
-        row.innerHTML = `
-          <span class="badge badge-custom">Custom Check</span>
-          <input type="text" value="${itemText}" placeholder="Enter check item name..." onchange="customItemsList[${index}] = this.value">
-          <button type="button" class="btn-small-remove" onclick="removeCustomItemRow(${index})">Remove</button>
-        `;
-        container.appendChild(row);
-      });
-    }
-
-    function toggleFormLock() {
-      const target = document.getElementById('configTarget').value;
-      const isOverride = document.getElementById('overrideDefaults').checked;
-
-      if (target === 'specific' && !isOverride) {
-        disableForm();
-      } else {
-        enableForm();
-      }
-    }
-
-    function disableForm() {
-      document.querySelectorAll('#dynamicSchemaFields input, #dynamicSchemaFields select, #customFieldsContainer input, #customItemsContainer input, #partsTableBody input, #partsTableBody select').forEach(f => {
-        f.disabled = true;
-      });
-    }
-
-    function enableForm() {
-      document.querySelectorAll('#dynamicSchemaFields input, #dynamicSchemaFields select, #customFieldsContainer input, #customItemsContainer input, #partsTableBody input, #partsTableBody select').forEach(f => {
-        f.disabled = f.getAttribute('data-locked') === 'true';
-      });
-    }
-
-    async function saveConfiguration() {
-      const btn = document.getElementById('btnSaveConfig');
-      const targetType = document.getElementById('configTarget').value;
-      const key = targetType === 'specific' 
-        ? document.getElementById('selectAsset').value 
-        : document.getElementById('selectType').value;
-
-      if (!key) {
-        showMessage('Please select an asset unit or category before saving.', 'error');
-        return;
-      }
-
-      btn.disabled = true;
-      btn.textContent = 'Saving Configuration...';
-
-      const rules = {};
-      document.querySelectorAll('#dynamicSchemaFields input, #dynamicSchemaFields select').forEach(el => {
-        if (el.id.startsWith('field_')) {
-          const fieldId = el.id.replace('field_', '');
-          rules[fieldId] = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? Number(el.value) : el.value);
-        }
-      });
-
-      const payload = {
-        targetType,
-        key,
-        config: {
-          isOverride: document.getElementById('overrideDefaults').checked,
-          attachment: document.getElementById('selectAttachment').value,
-          attachmentTrackingMode: document.getElementById('attachmentTrackingMode').value,
-          linkedAttachmentAssetId: document.getElementById('linkedAttachmentAssetId').value,
-          attachmentMountState: document.getElementById('attachmentMountState').value,
-          rules,
-          customFields: customFieldsList.filter(f => f.key && f.key.trim() !== ''),
-          parts: partsList.filter(p => p.component || p.oemPart || p.crossPart),
-          customItems: customItemsList.filter(item => item.trim() !== ''),
-          updatedAt: new Date().toISOString()
-        }
-      };
-
-      try {
-        const resp = await apiFetch(API_ENDPOINT, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        const resData = await resp.json();
-
-        if (resp.ok && resData.success) {
-          showMessage(`Configuration saved successfully for ${key}!`, 'success');
-        } else {
-          showMessage(resData.error || 'Failed to save configuration.', 'error');
-        }
-      } catch (e) {
-        showMessage(`Save error: ${e.message}`, 'error');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Save Complete Asset Configuration';
-      }
-    }
-
-    function openCopyModal() {
-      const targetKey = document.getElementById('selectAsset').value;
-      if (!targetKey) {
-        showMessage('Please select a destination asset unit first before copying configuration.', 'error');
-        return;
-      }
-      document.getElementById('copyModal').style.display = 'flex';
-    }
-
-    function closeCopyModal() {
-      document.getElementById('copyModal').style.display = 'none';
-    }
-
-    async function executeCopyConfig() {
-      const sourceKey = document.getElementById('copySourceAsset').value;
-      const targetKey = document.getElementById('selectAsset').value;
-
-      if (!sourceKey) {
-        alert('Please choose a source asset.');
-        return;
-      }
-
-      try {
-        const resp = await apiFetch(API_ENDPOINT, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'copyConfig',
-            sourceKey,
-            key: targetKey
-          })
-        });
-
-        const data = await resp.json();
-        if (resp.ok && data.success) {
-          closeCopyModal();
-          showMessage(data.message || 'Configuration copied successfully!', 'success');
-          await onAssetSelected();
-        } else {
-          alert(data.error || 'Copy failed. Source asset has no saved configuration.');
-        }
-      } catch (e) {
-        alert('Error copying configuration: ' + e.message);
-      }
-    }
-
-    function confirmLogout() {
-      if (typeof dashLogout === 'function') dashLogout();
-      else window.location.href = '/public/login.html';
-    }
-
-    function showMessage(msg, type) {
-      const el = document.getElementById('statusMsg');
-      el.textContent = msg;
-      el.className = `am-message ${type}`;
-      el.style.display = 'block';
-      setTimeout(() => { el.style.display = 'none'; }, 5000);
-    }
-  </script>
+  <script src="/app/dashboard/asset-config.js?v=1"></script>
   <script src="/app/shared/auth-check.js?v=13"></script>
 </body>
 </html>
