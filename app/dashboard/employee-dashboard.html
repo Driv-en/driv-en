@@ -18,19 +18,9 @@
 <!-- ===== DIAMOND-PLATE BACKGROUND ===== -->
 <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
 
-<!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
-<script>
-(function() {
-  var saved = localStorage.getItem("driven-theme");
-  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  var theme = saved || system;
-  document.documentElement.setAttribute("data-theme", theme);
-})();
-</script>
-
 <style>
 /* ===== LOADING SCREEN ===== */
-.emp-loading{display:flex;align-items:center;justify-content:center;height:60vh;font-size:16px;color:var(--text-muted);}
+.emp-loading { display:flex; align-items:center; justify-content:center; height:60vh; font-size:16px; color:var(--text-muted); }
 
 /* ===== ONE-LINE HEADER ===== */
 .dash-header-row2 { display: none !important; }
@@ -48,7 +38,7 @@
   text-overflow: ellipsis;
 }
 
-/* ===== TAB BAR (matches admin dashboard) ===== */
+/* ===== TAB BAR ===== */
 .emp-tab-bar {
   display: flex;
   gap: 2px;
@@ -176,7 +166,7 @@
 .emp-empty h3 { font-size: 18px; margin: 0 0 8px 0; color: var(--text); }
 .emp-empty p { font-size: 14px; margin: 0; }
 
-/* ===== FORM LINKS SECTION (for field employees) ===== */
+/* ===== FORM LINKS SECTION ===== */
 .emp-form-links {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -195,6 +185,43 @@
 .emp-form-link:hover { border-color: var(--primary); }
 .emp-form-link-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
 .emp-form-link-desc { font-size: 12px; color: var(--text-muted); }
+
+/* ===== STANDARDIZED MODAL DIALOG STYLES ===== */
+.modal-backdrop {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999; opacity: 0; visibility: hidden;
+  transition: opacity 200ms ease, visibility 200ms ease;
+}
+.modal-backdrop.active { opacity: 1; visibility: visible; }
+.modal-dialog {
+  background: var(--bg-card, #ffffff); border: 1px solid var(--border, #cbd5e1);
+  border-radius: 12px; max-width: 550px; width: 90%; max-height: 85vh;
+  display: flex; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+  transform: translateY(-10px); transition: transform 200ms ease;
+}
+.modal-backdrop.active .modal-dialog { transform: translateY(0); }
+.modal-header {
+  padding: 16px 20px; border-bottom: 1px solid var(--border, #e2e8f0);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modal-header h3 { margin: 0; font-size: 18px; color: var(--text, #0f172a); }
+.modal-close-btn {
+  background: transparent; border: none; font-size: 20px; cursor: pointer;
+  color: var(--text-muted, #64748b); padding: 4px; border-radius: 4px;
+}
+.modal-close-btn:hover { color: var(--text, #0f172a); }
+.modal-body { padding: 20px; overflow-y: auto; font-size: 14px; color: var(--text, #334155); line-height: 1.5; }
+.modal-footer {
+  padding: 12px 20px; border-top: 1px solid var(--border, #e2e8f0);
+  display: flex; justify-content: flex-end; gap: 8px;
+}
+.btn-modal-close {
+  background: #64748b; color: #fff; border: none; padding: 8px 16px;
+  border-radius: 6px; font-weight: 500; cursor: pointer;
+}
+.btn-modal-close:hover { background: #475569; }
 
 /* ===== MOBILE RESPONSIVE ===== */
 @media (max-width: 800px) {
@@ -218,9 +245,11 @@
 
 <!-- ===== TAB BAR ===== -->
 <div class="emp-tab-bar" id="empTabBar">
-  <button class="emp-tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
-  <button class="emp-tab" data-tab="forms" onclick="switchTab('forms')">Forms</button>
-  <button class="emp-tab-logout" onclick="dashLogout()">Logout</button>
+  <button type="button" class="emp-tab active" data-tab="overview">Overview</button>
+  <button type="button" class="emp-tab" data-tab="forms">Forms</button>
+  <button type="button" class="emp-tab" id="btnPurposeHelp" aria-label="View Purpose">Purpose</button>
+  <button type="button" class="emp-tab" id="btnInstructionsHelp" aria-label="View Instructions">Instructions</button>
+  <button type="button" class="emp-tab-logout" id="btnLogout">Logout</button>
 </div>
 
 <!-- ===== LOADING SCREEN ===== -->
@@ -239,7 +268,7 @@
         <p id="welcome-role">Your dashboard shows the modules and tools you have access to.</p>
       </div>
 
-      <!-- STATS GRID (populated based on permissions) -->
+      <!-- STATS GRID -->
       <div class="emp-stats" id="empStats" style="display:none;">
         <div class="emp-stat-card"><div class="emp-stat-number" id="stat-projects">0</div><div class="emp-stat-label">My Projects</div></div>
         <div class="emp-stat-card"><div class="emp-stat-number" id="stat-equipment">0</div><div class="emp-stat-label">Equipment</div></div>
@@ -251,13 +280,13 @@
       <div class="emp-section-title">Modules</div>
       <div class="emp-module-grid" id="empModules"></div>
 
-      <!-- FORM LINKS (for field employees without dashboard view permissions) -->
+      <!-- FORM LINKS -->
       <div id="empFormLinksSection" style="display:none; margin-top:28px;">
         <div class="emp-section-title">Quick Forms</div>
         <div class="emp-form-links" id="empFormLinks"></div>
       </div>
 
-      <!-- EMPTY STATE (if user has no permissions at all) -->
+      <!-- EMPTY STATE -->
       <div id="empEmpty" class="emp-empty" style="display:none;">
         <h3>No Modules Assigned</h3>
         <p>You don't have access to any modules yet. Contact your administrator to request access.</p>
@@ -283,336 +312,48 @@
 
 </div>
 
+<!-- ===== STANDARDIZED PURPOSE MODAL ===== -->
+<div class="modal-backdrop" id="purposeModal" aria-hidden="true" role="dialog" aria-labelledby="purposeModalTitle">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 id="purposeModalTitle">Purpose</h3>
+      <button type="button" class="modal-close-btn" data-dismiss="modal" aria-label="Close modal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p>The Employee Dashboard provides tailored access to field modules, quick data entry forms, and active work metrics according to your assigned user permissions.</p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-modal-close" data-dismiss="modal">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== STANDARDIZED INSTRUCTIONS MODAL ===== -->
+<div class="modal-backdrop" id="instructionsModal" aria-hidden="true" role="dialog" aria-labelledby="instructionsModalTitle">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 id="instructionsModalTitle">Instructions</h3>
+      <button type="button" class="modal-close-btn" data-dismiss="modal" aria-label="Close modal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <ul>
+        <li>Select <strong>Overview</strong> to view active operational summary metrics and launch authorized modules.</li>
+        <li>Switch to the <strong>Forms</strong> tab to view quick-access operational submission tools.</li>
+        <li>Use <strong>Logout</strong> at any time to terminate your user session.</li>
+      </ul>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-modal-close" data-dismiss="modal">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== FOOTER ===== -->
 <div id="dashFooter"></div>
 
-<!-- ===== SHARED DASHBOARD JS ===== -->
+<!-- ===== DEPENDENCIES & EXTERNAL JS ===== -->
 <script src="/app/shared/dashboard-common.js?v=11"></script>
-
-<script>
-/* ===== MODULE DEFINITIONS ===== */
-/* Each module: key, label, description, link, requiredPermission (any of these) */
-/* If user has ANY of the required permissions, the module card shows */
-var MODULES = [
-  {
-    key: 'fuel',
-    label: 'Fuel Management',
-    desc: 'Tank levels, fuel transactions, inventory tracking, and ownership badges.',
-    link: '/app/dashboard/fuel.html',
-    perms: ['fuel.view', 'fuel.add', 'fuel.edit', 'fuel.delete']
-  },
-  {
-    key: 'fuel_alerts',
-    label: 'Fuel Alerts',
-    desc: 'Capacity flags, consumption anomalies, and notification settings.',
-    link: '/app/dashboard/fuel-alerts.html',
-    perms: ['fuel_flags.view', 'fuel_flags.resolve']
-  },
-  {
-    key: 'transfers',
-    label: 'Transfers',
-    desc: 'Equipment transfer tickets, status tracking, and delivery event trails.',
-    link: '/app/dashboard/transfers.html',
-    perms: ['transfer.view', 'transfer.add', 'transfer.edit', 'transfer.delete']
-  },
-  {
-    key: 'work_orders',
-    label: 'Work Orders',
-    desc: 'Maintenance tickets, checklists, parts tracking, and completion status.',
-    link: '/app/dashboard/work-orders.html',
-    perms: ['wo.view', 'wo.add', 'wo.edit', 'wo.delete', 'wo.assign', 'wo.clock', 'wo.template_view', 'wo.template_add', 'workorders.view', 'workorders.add', 'workorders.edit', 'workorders.delete']
-  },
-  {
-    key: 'equipment',
-    label: 'Equipment',
-    desc: 'Manage fleet, assignments, meter readings, and service history.',
-    link: null, /* No standalone dashboard yet — link added when built */
-    perms: ['equipment.view', 'equipment.add', 'equipment.edit', 'equipment.delete', 'equipment.meter']
-  },
-  {
-    key: 'inspections',
-    label: 'Inspections',
-    desc: 'View, create, and manage equipment inspections.',
-    link: null,
-    perms: ['inspections.view', 'inspections.add', 'inspections.edit', 'inspections.delete']
-  },
-  {
-    key: 'pm',
-    label: 'Preventive Maintenance',
-    desc: 'PM schedules, intervals, and upcoming service reminders.',
-    link: null,
-    perms: ['pm.view', 'pm.add', 'pm.edit', 'pm.delete']
-  },
-  {
-    key: 'safety',
-    label: 'Safety',
-    desc: 'Safety forms, compliance documentation, and hazard reports.',
-    link: null,
-    perms: ['safety.view', 'safety.add', 'safety.edit', 'safety.approve']
-  },
-  {
-    key: 'projects',
-    label: 'Projects',
-    desc: 'View, create, and manage projects and jobsites.',
-    link: null,
-    perms: ['project.view', 'project.add', 'project.edit', 'project.view_all', 'projects.view', 'projects.add', 'projects.edit', 'projects.delete']
-  },
-  {
-    key: 'employees',
-    label: 'Employees',
-    desc: 'View and manage employee records.',
-    link: null,
-    perms: ['employees.view', 'employees.add', 'employees.edit', 'employees.delete']
-  },
-  {
-    key: 'users',
-    label: 'Employee Management',
-    desc: 'Manage users, roles, and permissions.',
-    link: '/app/dashboard/user-management.html',
-    perms: ['users.view', 'users.add', 'users.edit', 'users.delete', 'user.manage']
-  },
-  {
-    key: 'reports',
-    label: 'Reports',
-    desc: 'View and export operational reports.',
-    link: null,
-    perms: ['reports.view', 'reports.export']
-  },
-  {
-    key: 'extraction',
-    label: 'AI Extraction',
-    desc: 'Submit files for AI extraction and review results.',
-    link: null,
-    perms: ['extraction.view', 'extraction.add', 'extraction.review']
-  },
-  {
-    key: 'settings',
-    label: 'Company Settings',
-    desc: 'View and edit company settings and configuration.',
-    link: null,
-    perms: ['settings.view', 'settings.edit', 'org_settings.edit']
-  }
-];
-
-/* ===== FORM DEFINITIONS (for field employees) ===== */
-/* These are quick-access form links shown to users who have .add permissions
-   but may not have .view permissions (field workers who enter data but don't manage dashboards) */
-var FORMS = [
-  { key: 'fuel_log', label: 'Log Fuel Purchase', desc: 'Record a fuel purchase', link: '/app/forms/fuel-purchase.html', perm: 'fuel.add' },
-  { key: 'fuel_transfer', label: 'Log Fuel Transfer', desc: 'Transfer fuel between tanks or to equipment', link: '/app/forms/fuel-transfer.html', perm: 'fuel.add' },
-  { key: 'transfer_create', label: 'Create Transfer', desc: 'Start an equipment transfer ticket', link: '/app/forms/transfer-create.html', perm: 'transfer.add' },
-  { key: 'wo_create', label: 'Create Work Order', desc: 'Submit a maintenance request', link: '/app/forms/work-order-create.html', perm: 'wo.add' },
-  { key: 'inspection_add', label: 'Add Inspection', desc: 'Record an equipment inspection', link: '/app/forms/inspection.html', perm: 'inspections.add' },
-  { key: 'safety_add', label: 'Safety Form', desc: 'Submit a safety form or hazard report', link: '/app/forms/safety.html', perm: 'safety.add' },
-  { key: 'pm_add', label: 'Add PM', desc: 'Create a preventive maintenance task', link: '/app/forms/pm.html', perm: 'pm.add' }
-];
-
-/* ===== STATE ===== */
-var userPermissions = [];
-
-/* ===== HELPERS ===== */
-function hasPermission(perm) {
-  return userPermissions.indexOf(perm) !== -1;
-}
-
-function hasAnyPermission(perms) {
-  for (var i = 0; i < perms.length; i++) {
-    if (hasPermission(perms[i])) return true;
-  }
-  return false;
-}
-
-function esc(s) {
-  if (!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
-
-/* ===== RENDER MODULES ===== */
-function renderModules() {
-  var container = document.getElementById('empModules');
-  var visibleModules = MODULES.filter(function(m) { return hasAnyPermission(m.perms); });
-
-  if (visibleModules.length === 0) {
-    container.innerHTML = '';
-    document.getElementById('empEmpty').style.display = 'block';
-    return;
-  }
-
-  container.innerHTML = visibleModules.map(function(m) {
-    var cardContent =
-      '<div class="emp-module-title">' + esc(m.label) + '</div>' +
-      '<div class="emp-module-body">' + esc(m.desc) + '</div>';
-    if (m.link) {
-      return '<div class="emp-module-card" onclick="window.location.href=\'' + m.link + '\'">' +
-        cardContent + '<div class="emp-module-link">Open &rarr;</div></div>';
-    } else {
-      return '<div class="emp-module-card" style="opacity:0.7;cursor:default;" title="Dashboard coming soon">' +
-        cardContent + '<div class="emp-module-link" style="color:var(--text-muted);">Coming soon</div></div>';
-    }
-  }).join('');
-}
-
-/* ===== RENDER FORM LINKS ===== */
-function renderFormLinks() {
-  var container = document.getElementById('empFormLinks');
-  var section = document.getElementById('empFormLinksSection');
-  var visibleForms = FORMS.filter(function(f) { return hasPermission(f.perm); });
-
-  if (visibleForms.length === 0) {
-    section.style.display = 'none';
-    return;
-  }
-
-  section.style.display = 'block';
-  container.innerHTML = visibleForms.map(function(f) {
-    return '<a class="emp-form-link" href="' + f.link + '">' +
-      '<div class="emp-form-link-title">' + esc(f.label) + '</div>' +
-      '<div class="emp-form-link-desc">' + esc(f.desc) + '</div></a>';
-  }).join('');
-}
-
-/* ===== RENDER FORMS TAB ===== */
-function renderFormsTab() {
-  var container = document.getElementById('empFormsTabLinks');
-  var empty = document.getElementById('empFormsEmpty');
-  var visibleForms = FORMS.filter(function(f) { return hasPermission(f.perm); });
-
-  if (visibleForms.length === 0) {
-    container.innerHTML = '';
-    empty.style.display = 'block';
-    return;
-  }
-
-  empty.style.display = 'none';
-  container.innerHTML = visibleForms.map(function(f) {
-    return '<a class="emp-form-link" href="' + f.link + '">' +
-      '<div class="emp-form-link-title">' + esc(f.label) + '</div>' +
-      '<div class="emp-form-link-desc">' + esc(f.desc) + '</div></a>';
-  }).join('');
-}
-
-/* ===== LOAD STATS (based on permissions) ===== */
-async function loadStats() {
-  var showStats = false;
-
-  if (hasAnyPermission(['project.view', 'project.view_all', 'projects.view'])) {
-    showStats = true;
-    try {
-      var resp = await fetch('/api/projects?mine=1');
-      var data = await resp.json();
-      if (data.success) document.getElementById('stat-projects').textContent = (data.projects || []).length;
-    } catch (e) {}
-  }
-
-  if (hasAnyPermission(['equipment.view', 'equipment.add', 'equipment.edit'])) {
-    showStats = true;
-    try {
-      var resp = await fetch('/api/equipment');
-      var data = await resp.json();
-      if (data.success) document.getElementById('stat-equipment').textContent = (data.equipment || []).length;
-    } catch (e) {}
-  }
-
-  if (hasAnyPermission(['wo.view', 'workorders.view'])) {
-    showStats = true;
-    try {
-      var resp = await fetch('/api/work-orders?status=open');
-      var data = await resp.json();
-      if (data.success) document.getElementById('stat-workorders').textContent = (data.work_orders || []).length;
-    } catch (e) {}
-  }
-
-  if (hasAnyPermission(['transfer.view'])) {
-    showStats = true;
-    try {
-      var resp = await fetch('/api/transfers?status=open');
-      var data = await resp.json();
-      if (data.success) document.getElementById('stat-transfers').textContent = (data.transfers || []).length;
-    } catch (e) {}
-  }
-
-  if (showStats) document.getElementById('empStats').style.display = 'grid';
-}
-
-/* ===== TAB SWITCHING ===== */
-function switchTab(tabName) {
-  document.querySelectorAll('.emp-tab').forEach(function(t) { t.classList.remove('active'); });
-  document.querySelectorAll('.emp-tab-content').forEach(function(c) { c.classList.remove('active'); });
-  var tabBtn = document.querySelector('[data-tab="' + tabName + '"]');
-  if (tabBtn) tabBtn.classList.add('active');
-  var tabContent = document.getElementById('tab-' + tabName);
-  if (tabContent) tabContent.classList.add('active');
-  if (tabName === 'forms') renderFormsTab();
-}
-
-/* ===== HEADER TITLE ===== */
-function insertHeaderTitle() {
-  var row1 = document.querySelector('.dash-header-row1');
-  if (row1 && !document.querySelector('.emp-header-title')) {
-    var title = document.createElement('div');
-    title.className = 'emp-header-title';
-    title.textContent = 'Dashboard';
-    var logoArea = document.getElementById('dashCustomerLogoArea');
-    var drivenLogo = row1.querySelector('.dash-driven-logo');
-    if (logoArea && drivenLogo) row1.insertBefore(title, drivenLogo);
-  }
-}
-
-/* ===== LOGOUT OVERRIDE ===== */
-window.dashLogout = function() {
-  try { fetch('/auth/logout', { method: 'POST' }); } catch (e) {}
-  window.location.href = '/public/login.html';
-};
-
-/* ===== INIT ===== */
-async function init() {
-  document.addEventListener('dashSessionLoaded', async function() {
-    var user = window.dashUser;
-    if (!user) { window.location.href = '/public/login.html'; return; }
-
-    // Admin role goes to admin.html
-    var role = (user.role || '').toLowerCase();
-    if (role === 'admin') {
-      window.location.href = '/app/dashboard/admin.html';
-      return;
-    }
-
-    // DRIV-EN Founder goes to owner-dashboard.html
-    if (role === 'driv-en founder' || role === 'owner') {
-      window.location.href = '/app/dashboard/owner-dashboard.html';
-      return;
-    }
-
-    userPermissions = user.permissions || [];
-
-    // Welcome message — includes company name like the admin dashboard
-    var firstName = user.first_name || user.full_name || '';
-    var orgName = user.org_name || '';
-    var welcomeEl = document.getElementById('welcome-name');
-    if (firstName && orgName) {
-      welcomeEl.innerHTML = esc(firstName) + ' <span style="font-weight:400;color:var(--text-muted);font-size:18px;">&mdash; ' + esc(orgName) + '</span>';
-    } else {
-      welcomeEl.textContent = firstName || user.email;
-    }
-    document.getElementById('welcome-role').textContent =
-      'Role: ' + (user.role || 'Employee') + ' &mdash; Your dashboard shows the modules and tools you have access to.';
-
-    insertHeaderTitle();
-
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('dashboard').style.display = 'block';
-
-    renderModules();
-    renderFormLinks();
-    renderFormsTab();
-    loadStats();
-  });
-}
-
-init();
-</script>
-
-<!-- ===== AUTH CHECK ===== -->
+<script src="/app/dashboard/employee-dashboard.js?v=1"></script>
 <script src="/app/shared/auth-check.js?v=8"></script>
 <script src="/components/nav.js?v=5"></script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" data-cf-beacon='{"token":"aed8feab3b60404ba88ec92f026bbcd6"}' crossorigin="anonymous"></script>
