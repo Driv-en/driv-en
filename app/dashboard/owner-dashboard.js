@@ -1269,7 +1269,7 @@
       const time = i.created_at ? new Date(i.created_at).toLocaleDateString() + ' ' + new Date(i.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '—';
       const isResolved = i.resolved === 1;
       const safeId = escapeHtml(i.id);
-      const isExpanded = (issueExpandedId === i.id);
+      const isExpanded = (String(issueExpandedId) === String(i.id));
 
       const statusBadge = isResolved
         ? '<span class="dash-badge dash-badge-success">Resolved</span>'
@@ -1313,7 +1313,7 @@
       row.addEventListener('click', (e) => {
         if (e.target.tagName === 'BUTTON' || e.target.closest('button') || e.target.tagName === 'INPUT') return;
         const id = row.getAttribute('data-error-id');
-        issueExpandedId = (issueExpandedId === id) ? null : id;
+        issueExpandedId = (String(issueExpandedId) === String(id)) ? null : id;
         renderIssues(allIssues);
       });
     });
@@ -1341,23 +1341,28 @@
     }
 
     const ids = Array.from(checkedCbs).map(cb => cb.getAttribute('data-id'));
-    for (const id of ids) {
-      try {
-        await fetch(adminApi('/issues'), {
-          method: 'POST',
-          headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
-          body: JSON.stringify({ id: id, resolved: true })
-        });
-        const issue = allIssues.find(i => i.id === id);
-        if (issue) issue.resolved = 1;
-      } catch (e) {}
-    }
+
+    // Optimistically update local state & render UI immediately
+    ids.forEach(id => {
+      const issue = allIssues.find(i => String(i.id) === String(id));
+      if (issue) issue.resolved = 1;
+    });
+
     renderIssueStats(allIssues);
     renderIssues(allIssues);
+
+    // Run parallel resolution requests
+    await Promise.allSettled(ids.map(id =>
+      fetch(adminApi('/issues'), {
+        method: 'POST',
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ id: id, resolved: true })
+      })
+    ));
   }
 
   function copyIssue(errorId, btn) {
-    const issue = allIssues.find(i => i.id === errorId);
+    const issue = allIssues.find(i => String(i.id) === String(errorId));
     if (!issue) return;
 
     let text = '=== DRIV-EN ERROR LOG ENTRY ===\n';
@@ -1374,18 +1379,18 @@
   }
 
   async function resolveIssue(id, resolved) {
+    // Immediate UI update
+    const issue = allIssues.find(i => String(i.id) === String(id));
+    if (issue) issue.resolved = resolved ? 1 : 0;
+    renderIssueStats(allIssues);
+    renderIssues(allIssues);
+
     try {
-      const resp = await fetch(adminApi('/issues'), {
+      await fetch(adminApi('/issues'), {
         method: 'POST',
         headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ id: id, resolved: resolved })
       });
-      if (resp && resp.ok) {
-        const issue = allIssues.find(i => i.id === id);
-        if (issue) issue.resolved = resolved ? 1 : 0;
-        renderIssueStats(allIssues);
-        renderIssues(allIssues);
-      }
     } catch (e) {}
   }
 
