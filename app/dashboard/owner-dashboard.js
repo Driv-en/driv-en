@@ -884,6 +884,115 @@
     if (modal) { modal.style.display = 'none'; modal.innerHTML = ''; }
   }
 
+  /* ===== SITE VISITORS TAB LOGIC ===== */
+
+  async function loadVisitors(daysPreset, customFilter) {
+    let url = adminApi('/site-visitors');
+    const startEl = document.getElementById('visitorDateStart');
+    const endEl = document.getElementById('visitorDateEnd');
+
+    if (customFilter === 'today') {
+      const today = new Date().toISOString().split('T')[0];
+      url += `?start=${today}&end=${today}`;
+    } else if (customFilter === 'yesterday') {
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      const yest = d.toISOString().split('T')[0];
+      url += `?start=${yest}&end=${yest}`;
+    } else if (customFilter === 'week') {
+      url += `?days=7`;
+    } else if (daysPreset) {
+      url += `?days=${daysPreset}`;
+    } else if (startEl && endEl && startEl.value && endEl.value) {
+      url += `?start=${startEl.value}&end=${endEl.value}`;
+    }
+
+    try {
+      const resp = await fetch(url, { headers: getAuthHeaders() });
+      if (!resp || !resp.ok) return;
+      const data = await resp.json();
+
+      if (data && data.success) {
+        if (data.summary) {
+          document.getElementById('visitorTotalVisits').textContent = data.summary.totalVisits || 0;
+          document.getElementById('visitorUniqueVisitors').textContent = data.summary.uniqueVisitors || 0;
+          document.getElementById('visitorUniqueSessions').textContent = data.summary.uniqueSessions || 0;
+          document.getElementById('visitorUniqueCountries').textContent = data.summary.uniqueCountries || 0;
+          document.getElementById('visitorReferralVisits').textContent = data.summary.referralVisits || 0;
+          document.getElementById('visitorTopDevice').textContent = data.summary.topDevice || '—';
+          document.getElementById('visitorTopBrowser').textContent = data.summary.topBrowser || '—';
+          document.getElementById('visitorTopOS').textContent = data.summary.topOS || '—';
+        }
+        allVisitors = data.visitors || [];
+        allSessions = data.sessions || [];
+        renderVisitorsTable();
+        renderVisitorSessions();
+        tabLoaded.visitors = true;
+      }
+    } catch (e) {
+      console.error('Load visitors failed:', e);
+    }
+  }
+
+  function renderVisitorsTable() {
+    const tbody = document.getElementById('visitorsTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (allVisitors.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:20px 0;">No visitor records found.</td></tr>';
+      return;
+    }
+
+    allVisitors.forEach(v => {
+      const row = document.createElement('tr');
+      const dateStr = v.created_at ? new Date(v.created_at).toLocaleString() : '—';
+      row.innerHTML = `
+        <td>${dateStr}</td>
+        <td>${escapeHtml(v.page_path || '/')}</td>
+        <td>${escapeHtml(v.country || 'Unknown')}</td>
+        <td>${escapeHtml(v.device_type || 'Desktop')}</td>
+        <td>${escapeHtml(v.browser || '—')}</td>
+        <td>${escapeHtml(v.os || '—')}</td>
+        <td>${escapeHtml(v.referral_code || '—')}</td>
+        <td>${escapeHtml(v.utm_source || 'Direct')}</td>
+        <td>${v.duration_seconds ? v.duration_seconds + 's' : '—'}</td>
+      `;
+      tbody.appendChild(row);
+    });
+  }
+
+  function renderVisitorSessions() {
+    const tbody = document.getElementById('sessionsTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (allSessions.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:20px 0;">No visitor session data found.</td></tr>';
+      return;
+    }
+
+    allSessions.forEach(s => {
+      const row = document.createElement('tr');
+      const firstVisit = s.firstVisit ? new Date(s.firstVisit).toLocaleString() : '—';
+      row.innerHTML = `
+        <td>${firstVisit}</td>
+        <td>${s.pageCount || 1}</td>
+        <td>${escapeHtml(s.entryPage || '/')}</td>
+        <td>${s.durationSeconds ? s.durationSeconds + 's' : '—'}</td>
+        <td>${escapeHtml(s.country || 'Unknown')}</td>
+        <td>${escapeHtml(s.deviceType || 'Desktop')}</td>
+        <td>${escapeHtml(s.browser || '—')}</td>
+        <td>${escapeHtml(s.os || '—')}</td>
+        <td>${escapeHtml(s.referralCode || '—')}</td>
+      `;
+      tbody.appendChild(row);
+    });
+  }
+
+  // Make loadVisitors accessible to inline onclick handlers in HTML
+  window.loadVisitors = loadVisitors;
+
   /* ===== SYSTEM STATUS & AI USAGE ===== */
 
   async function loadSystemStatus() {
@@ -1006,7 +1115,6 @@
     listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading error logs...</div>';
 
     try {
-      // Query 2000 log entries to fix the hard cap
       const resp = await fetch(adminApi('/issues?limit=2000&all=true'), { headers: getAuthHeaders() });
       if (!resp || !resp.ok) {
         listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Unable to Load Error Logs</h3><p>Could not reach the error endpoint.</p></div>';
@@ -1342,10 +1450,11 @@
       return;
     }
 
-    const roleId = String(user.role_id || user.roleId || user.role || "").trim().toLowerCase();
-    const email = String(user.email || "").trim().toLowerCase();
+    const roleId = String(user.role_id || user.roleId || user.role || "").trim();
+    const orgId = String(user.org_id || user.orgId || "").trim();
 
-    const isFounder = roleId === "ro-founder" || roleId.includes("founder") || email === "jblood@digitalsafetyinspection.com";
+    // Strict Founder authorization: role_id must equal 'RO-Founder' and org_id must equal 'org_dsi'
+    const isFounder = (roleId.toUpperCase() === "RO-FOUNDER") && (orgId.toLowerCase() === "org_dsi");
 
     if (!isFounder) {
       window.location.href = "/app/auth/no-access.html";
