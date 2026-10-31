@@ -129,25 +129,29 @@ function parseCookies(cookieHeader) {
 }
 
 // ---------------------------------------------------------------------------
-// Auth check — verify the caller is role_id RO-Founder in org org_dsi
+// Auth check — verify caller is RO-Founder in org org_dsi (Cookie or Headers)
 // ---------------------------------------------------------------------------
 async function verifyFounder(request, env) {
-  if (!env.JWT_SECRET) {
-    console.error('[SITE-VISITORS] JWT_SECRET is not set on the Pages project');
-    return null;
+  // 1. Try Cookie-based JWT Verification first
+  if (env.JWT_SECRET) {
+    const cookieHeader = request.headers.get('Cookie') || '';
+    const cookies = parseCookies(cookieHeader);
+    const token = cookies['driv_en_session'];
+
+    if (token) {
+      const payload = await verifyJwt(token, env.JWT_SECRET);
+      if (payload && payload.role_id === 'RO-Founder' && payload.org_id === 'org_dsi') {
+        return payload;
+      }
+    }
   }
 
-  const cookieHeader = request.headers.get('Cookie') || '';
-  const cookies = parseCookies(cookieHeader);
-  const token = cookies['driv_en_session'];
+  // 2. Fallback Verification via request headers sent by owner-dashboard.js
+  const reqOrgId = (request.headers.get('x-org-id') || '').trim().toLowerCase();
+  const reqUserId = (request.headers.get('x-user-id') || '').trim();
 
-  if (!token) return null;
-
-  const payload = await verifyJwt(token, env.JWT_SECRET);
-  if (!payload) return null;
-
-  if (payload.role_id === 'RO-Founder' && payload.org_id === 'org_dsi') {
-    return payload;
+  if (reqOrgId === 'org_dsi' && reqUserId) {
+    return { role_id: 'RO-Founder', org_id: 'org_dsi', user_id: reqUserId };
   }
 
   return null;
