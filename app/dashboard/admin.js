@@ -447,6 +447,20 @@ function renderFormsTab() {
   });
 }
 
+function renderOnboardingUomDisplays() {
+  var distEl = document.getElementById("uom-distance-display");
+  var volEl = document.getElementById("uom-volume-display");
+  var pressEl = document.getElementById("uom-pressure-display");
+
+  var distVal = orgSettings.uom_distance || localStorage.getItem("driven_uom_distance") || "Miles (mi)";
+  var volVal = orgSettings.uom_volume || localStorage.getItem("driven_uom_volume") || "US Gallons (gal)";
+  var pressVal = orgSettings.uom_pressure || localStorage.getItem("driven_uom_pressure") || "PSI";
+
+  if (distEl) distEl.textContent = distVal;
+  if (volEl) volEl.textContent = volVal;
+  if (pressEl) pressEl.textContent = pressVal;
+}
+
 function switchTab(tabName) {
   var activeObTab = document.getElementById('tab-onboarding');
   var activeSetTab = document.getElementById('tab-settings');
@@ -472,6 +486,7 @@ function switchTab(tabName) {
   var obBar = document.getElementById('onboardingSubtabBar');
   if(obBar) obBar.classList.toggle('visible', tabName==='onboarding');
   if(tabName==='forms') renderFormsTab();
+  if(tabName==='settings') renderOnboardingUomDisplays();
   adjustStickyOffsets();
 }
 
@@ -605,9 +620,18 @@ async function loadSettings() {
         var nInput = document.getElementById("naicsInput");
         var cSelect = document.getElementById("currencySelect");
 
+        var mpToggle = document.getElementById("fuelMeterPhotoToggle");
+        var apToggle = document.getElementById("fuelAssetPhotoToggle");
+        var lrToggle = document.getElementById("locationReqToggle");
+
         if(data.settings.business_type && bSelect) bSelect.value = data.settings.business_type;
         if(data.settings.naics_code && nInput) nInput.value = data.settings.naics_code;
         if(data.settings.currency && cSelect) cSelect.value = data.settings.currency;
+
+        if(mpToggle && data.settings.fuel_meter_photo !== undefined) mpToggle.checked = Boolean(data.settings.fuel_meter_photo);
+        if(apToggle && data.settings.fuel_asset_photo !== undefined) apToggle.checked = Boolean(data.settings.fuel_asset_photo);
+        if(lrToggle && data.settings.location_request !== undefined) lrToggle.checked = Boolean(data.settings.location_request);
+
         if(data.settings.step_visibility && typeof data.settings.step_visibility==='object' && !Array.isArray(data.settings.step_visibility)) stepVisibility = data.settings.step_visibility;
         if(data.settings.task_completions) {
           taskCompletions = data.settings.task_completions;
@@ -628,6 +652,7 @@ async function loadSettings() {
     applyBusinessTypeDefaults();
   }
   renderStepToggles();
+  renderOnboardingUomDisplays();
   updateProgress();
 }
 
@@ -1024,6 +1049,21 @@ function attachEventHandlers() {
   var cSelect = document.getElementById("currencySelect");
   if (cSelect) {
     cSelect.addEventListener('change', onCurrencyChange);
+  }
+
+  var mpToggle = document.getElementById("fuelMeterPhotoToggle");
+  if (mpToggle) {
+    mpToggle.addEventListener('change', onFuelPhotoToggleChange);
+  }
+
+  var apToggle = document.getElementById("fuelAssetPhotoToggle");
+  if (apToggle) {
+    apToggle.addEventListener('change', onFuelPhotoToggleChange);
+  }
+
+  var lrToggle = document.getElementById("locationReqToggle");
+  if (lrToggle) {
+    lrToggle.addEventListener('change', onLocationReqToggleChange);
   }
 
   var btnSaveSettings = document.getElementById("saveSettingsBtn");
