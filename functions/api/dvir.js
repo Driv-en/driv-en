@@ -132,30 +132,51 @@ export async function onRequest(context) {
         return new Response(JSON.stringify({ error: "Invalid JSON payload" }), { status: 400, headers });
       }
 
-      const { assetNumber, driverId, status, defectsFound, inspectionData } = body || {};
+      const { assetNumber, driverId, status, defectsFound, inspectionData, remarks } = body || {};
 
       if (!assetNumber || !status) {
         return new Response(JSON.stringify({ error: "Missing required fields: 'assetNumber' and 'status'" }), { status: 400, headers });
       }
 
+      const hasDefects = Array.isArray(defectsFound) && defectsFound.length > 0;
+      const finalStatus = hasDefects ? 'defects_found' : (status || 'pass');
+      const timestamp = Date.now();
+
       const dvirRecord = {
-        id: `dvir_${Date.now()}`,
+        id: `dvir_${timestamp}`,
         assetNumber,
         driverId: driverId || 'unknown_driver',
-        status, // 'pass', 'satisfactory', 'defects_found', 'out_of_service'
+        status: finalStatus,
         defectsFound: defectsFound || [],
         inspectionData: inspectionData || {},
+        remarks: remarks || '',
         country: countryParam,
-        createdAt: new Date().toISOString()
+        workOrderCreated: false,
+        createdAt: new Date(timestamp).toISOString()
       };
 
       if (kvStore) {
-        await kvStore.put(`dvir:${assetNumber.toLowerCase().trim()}:${Date.now()}`, JSON.stringify(dvirRecord));
+        await kvStore.put(`dvir:${assetNumber.toLowerCase().trim()}:${timestamp}`, JSON.stringify(dvirRecord));
+
+        if (hasDefects) {
+          await kvStore.put(`dvir:defects:${assetNumber.toLowerCase().trim()}`, JSON.stringify({
+            assetNumber,
+            latestDvirId: dvirRecord.id,
+            defectsCount: defectsFound.length,
+            defects: defectsFound,
+            remarks: remarks || '',
+            reportedAt: dvirRecord.createdAt,
+            workOrderCreated: false
+          }));
+        }
       }
 
       return new Response(JSON.stringify({
         success: true,
-        message: "DVIR log successfully recorded",
+        message: hasDefects 
+          ? "DVIR submitted with defects. Asset flagged for maintenance review." 
+          : "DVIR inspection logged successfully with zero defects.",
+        hasDefects,
         dvir: dvirRecord
       }), { status: 200, headers });
     }
