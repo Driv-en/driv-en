@@ -1,27 +1,11 @@
 // ============================================================================
 // Pages Function: /api/admin/site-visitors
 // ============================================================================
-// PURPOSE: Admin API for the Owner Dashboard's "Site Visitors" tab.
-//   GET /api/admin/site-visitors          — List visitors with optional date range
-//   GET /api/admin/site-visitors?start=ISO&end=ISO  — Filter by date range
-//   GET /api/admin/site-visitors?summary=true       — Get summary stats only
-//   GET /api/admin/site-visitors?sessions=true     — Get visitor sessions grouped
-//
-// AUTH: Verifies the caller is logged in as DRIV-EN Founder by parsing
-//   the driv_en_session JWT cookie directly using Web Crypto API.
-//   Requires JWT_SECRET to be set as a secret on the Pages project.
-//
-// PAGES PROJECT BINDINGS:
-//   - D1: DB → driv-en-db
-//   - Secret: JWT_SECRET (same value as the auth worker)
-//
-// LAST UPDATED: September 7, 2026
-// ============================================================================
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': 'https://www.driv-en.com',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Cookie',
+  'Access-Control-Allow-Headers': 'Content-Type, Cookie, x-org-id, x-user-id',
   'Access-Control-Allow-Credentials': 'true',
   'Access-Control-Max-Age': '86400'
 };
@@ -34,8 +18,7 @@ function jsonResponse(obj, status) {
 }
 
 // ---------------------------------------------------------------------------
-// logError — writes to error_log D1 table (Error Logs tab)
-// Captures: source, error message, stack trace, request URL, method, user agent
+// logError — writes to error_log D1 table
 // ---------------------------------------------------------------------------
 async function logError(env, source, err, request) {
   try {
@@ -56,9 +39,8 @@ async function logError(env, source, err, request) {
           '\nMethod: ' + request.method +
           '\nPath: ' + url.pathname +
           '\nUser-Agent: ' + (request.headers.get('User-Agent') || 'N/A') +
-          '\nCF-Ray: ' + (request.headers.get('CF-Ray') || 'N/A') +
           '\nTime: ' + new Date().toISOString();
-      } catch (u) { /* ignore */ }
+      } catch (u) {}
     }
     await env.DB.prepare(
       `INSERT INTO error_log (id, source, error_message, stack_trace, severity, resolved, created_at)
@@ -71,7 +53,7 @@ async function logError(env, source, err, request) {
 }
 
 // ---------------------------------------------------------------------------
-// JWT helpers — parse and verify the session cookie directly
+// JWT helpers
 // ---------------------------------------------------------------------------
 function base64UrlDecode(str) {
   str = str.replace(/-/g, '+').replace(/_/g, '/');
@@ -110,7 +92,6 @@ async function verifyJwt(token, secret) {
     if (payload.exp && Math.floor(Date.now() / 1000) >= payload.exp) return null;
     return payload;
   } catch (e) {
-    console.error('[SITE-VISITORS] JWT verify error:', e.message);
     return null;
   }
 }
@@ -129,10 +110,10 @@ function parseCookies(cookieHeader) {
 }
 
 // ---------------------------------------------------------------------------
-// Auth check — verify caller is RO-Founder in org org_dsi (Cookie or Headers)
+// Auth check — Cookie JWT or Fallback Custom Headers
 // ---------------------------------------------------------------------------
 async function verifyFounder(request, env) {
-  // 1. Try Cookie-based JWT Verification first
+  // 1. Cookie-based JWT Verification
   if (env.JWT_SECRET) {
     const cookieHeader = request.headers.get('Cookie') || '';
     const cookies = parseCookies(cookieHeader);
@@ -140,13 +121,13 @@ async function verifyFounder(request, env) {
 
     if (token) {
       const payload = await verifyJwt(token, env.JWT_SECRET);
-      if (payload && payload.role_id === 'RO-Founder' && payload.org_id === 'org_dsi') {
+      if (payload && (payload.role_id === 'RO-Founder' || payload.role_id === 'RO_Founder') && payload.org_id === 'org_dsi') {
         return payload;
       }
     }
   }
 
-  // 2. Fallback Verification via request headers sent by owner-dashboard.js
+  // 2. Fallback Header Verification (sent by owner-dashboard.js)
   const reqOrgId = (request.headers.get('x-org-id') || '').trim().toLowerCase();
   const reqUserId = (request.headers.get('x-user-id') || '').trim();
 
@@ -158,7 +139,7 @@ async function verifyFounder(request, env) {
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/admin/site-visitors — List visitors with optional date range
+// GET /api/admin/site-visitors — Main Visitor Query Handler
 // ---------------------------------------------------------------------------
 async function handleListVisitors(request, env) {
   const user = await verifyFounder(request, env);
@@ -170,7 +151,6 @@ async function handleListVisitors(request, env) {
     const url = new URL(request.url);
     const params = url.searchParams;
 
-    // Parse date range (optional)
     let startDate = params.get('start');
     let endDate = params.get('end');
 
@@ -183,28 +163,24 @@ async function handleListVisitors(request, env) {
       endDate = new Date().toISOString();
     }
 
-    // If sessions=true, return session-grouped data
     if (params.get('sessions') === 'true') {
       return await handleSessions(request, env, startDate, endDate);
     }
 
-    // If summary=true, return aggregate stats only
     if (params.get('summary') === 'true') {
       return await handleSummary(request, env, startDate, endDate);
     }
 
-    // Get total count
     const countResult = await env.DB.prepare(
       `SELECT COUNT(*) as total FROM site_visitors WHERE created_at >= ? AND created_at <= ?`
     ).bind(startDate, endDate).first();
 
     const total = countResult?.total || 0;
 
-    // Get visitors (limited to 500 most recent)
     const visitorsResult = await env.DB.prepare(
       `SELECT id, session_id, visitor_id, page_path, country, device_type, browser, os, 
               referral_code, utm_source, utm_medium, utm_campaign, 
-              external_referrer, time_on_page, created_at
+              external_referrer, time_on_page as duration_seconds, created_at
        FROM site_visitors 
        WHERE created_at >= ? AND created_at <= ?
        ORDER BY created_at DESC
@@ -221,19 +197,13 @@ async function handleListVisitors(request, env) {
 
   } catch (e) {
     console.error('[SITE-VISITORS] List failed:', e.message);
-    await logError(env, 'pages:site-visitors (list)', e);
+    await logError(env, 'pages:site-visitors (list)', e, request);
     return jsonResponse({ success: false, error: 'Failed to load visitors: ' + e.message }, 500);
   }
 }
 
-// ---------------------------------------------------------------------------
-// Session-grouped data — groups page visits by session_id, showing each
-// page visited and total time on site per session
-// ---------------------------------------------------------------------------
 async function handleSessions(request, env, startDate, endDate) {
   try {
-    // Get all visits in the date range, ordered by session and time
-    // Group by session_id if available, otherwise by visitor_id
     const result = await env.DB.prepare(
       `SELECT id, session_id, visitor_id, page_path, country, device_type, browser, os,
               referral_code, external_referrer, time_on_page, created_at
@@ -245,12 +215,11 @@ async function handleSessions(request, env, startDate, endDate) {
     ).bind(startDate, endDate).all();
 
     const visits = result.results || [];
-
-    // Group by session_id (fall back to visitor_id if session_id is empty)
     const sessionsMap = {};
+
     for (const v of visits) {
       var groupKey = (v.session_id && v.session_id !== '') ? v.session_id : v.visitor_id;
-      if (!groupKey) continue; // skip records with neither
+      if (!groupKey) continue;
       if (!sessionsMap[groupKey]) {
         sessionsMap[groupKey] = {
           sessionId: v.session_id || v.visitor_id || '',
@@ -278,10 +247,7 @@ async function handleSessions(request, env, startDate, endDate) {
       if (v.created_at > sess.lastVisit) sess.lastVisit = v.created_at;
     }
 
-    // Convert to array and sort by most recent first
-    const sessions = Object.values(sessionsMap).sort(function(a, b) {
-      return b.lastVisit.localeCompare(a.lastVisit);
-    });
+    const sessions = Object.values(sessionsMap).sort((a, b) => b.lastVisit.localeCompare(a.lastVisit));
 
     return jsonResponse({
       success: true,
@@ -293,14 +259,11 @@ async function handleSessions(request, env, startDate, endDate) {
 
   } catch (e) {
     console.error('[SITE-VISITORS] Sessions failed:', e.message);
-    await logError(env, 'pages:site-visitors (sessions)', e);
+    await logError(env, 'pages:site-visitors (sessions)', e, request);
     return jsonResponse({ success: false, error: 'Failed to load sessions: ' + e.message }, 500);
   }
 }
 
-// ---------------------------------------------------------------------------
-// Summary stats — aggregate data for dashboard cards
-// ---------------------------------------------------------------------------
 async function handleSummary(request, env, startDate, endDate) {
   try {
     const totalResult = await env.DB.prepare(
@@ -353,13 +316,11 @@ async function handleSummary(request, env, startDate, endDate) {
        GROUP BY external_referrer ORDER BY count DESC LIMIT 10`
     ).bind(startDate, endDate).all();
 
-    // Unique sessions count
     const sessionsResult = await env.DB.prepare(
       `SELECT COUNT(DISTINCT session_id) as count FROM site_visitors 
        WHERE created_at >= ? AND created_at <= ? AND session_id IS NOT NULL AND session_id != ''`
     ).bind(startDate, endDate).first();
 
-    // Unique visitors count (by visitor_id — persistent across sessions)
     const uniqueVisitorsResult = await env.DB.prepare(
       `SELECT COUNT(DISTINCT visitor_id) as count FROM site_visitors 
        WHERE created_at >= ? AND created_at <= ? AND visitor_id IS NOT NULL AND visitor_id != ''`
@@ -386,14 +347,11 @@ async function handleSummary(request, env, startDate, endDate) {
 
   } catch (e) {
     console.error('[SITE-VISITORS] Summary failed:', e.message);
-    await logError(env, 'pages:site-visitors (summary)', e);
+    await logError(env, 'pages:site-visitors (summary)', e, request);
     return jsonResponse({ success: false, error: 'Failed to load summary: ' + e.message }, 500);
   }
 }
 
-// ---------------------------------------------------------------------------
-// Main handler
-// ---------------------------------------------------------------------------
 export async function onRequestGet(context) {
   const { request, env } = context;
   return handleListVisitors(request, env);
