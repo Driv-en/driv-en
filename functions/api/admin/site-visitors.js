@@ -113,7 +113,6 @@ function parseCookies(cookieHeader) {
 // Auth check — Cookie JWT or Fallback Custom Headers
 // ---------------------------------------------------------------------------
 async function verifyFounder(request, env) {
-  // 1. Cookie-based JWT Verification
   if (env.JWT_SECRET) {
     const cookieHeader = request.headers.get('Cookie') || '';
     const cookies = parseCookies(cookieHeader);
@@ -127,7 +126,6 @@ async function verifyFounder(request, env) {
     }
   }
 
-  // 2. Fallback Header Verification (sent by owner-dashboard.js)
   const reqOrgId = (request.headers.get('x-org-id') || '').trim().toLowerCase();
   const reqUserId = (request.headers.get('x-user-id') || '').trim();
 
@@ -218,7 +216,7 @@ async function handleSessions(request, env, startDate, endDate) {
     const sessionsMap = {};
 
     for (const v of visits) {
-      var groupKey = (v.session_id && v.session_id !== '') ? v.session_id : v.visitor_id;
+      const groupKey = (v.session_id && v.session_id !== '') ? v.session_id : v.visitor_id;
       if (!groupKey) continue;
       if (!sessionsMap[groupKey]) {
         sessionsMap[groupKey] = {
