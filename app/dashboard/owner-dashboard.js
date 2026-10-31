@@ -1255,10 +1255,10 @@
     html += '<col style="width:4%;">';
     html += '<col style="width:4%;">';
     html += '<col style="width:12%;">';
-    html += '<col style="width:42%;">';
+    html += '<col style="width:40%;">';
     html += '<col style="width:14%;">';
     html += '<col style="width:12%;">';
-    html += '<col style="width:12%;">';
+    html += '<col style="width:14%;">';
     html += '</colgroup>';
     html += '<thead><tr>';
     html += '<th style="text-align:center;"><input type="checkbox" id="selectAllIssues"></th>';
@@ -1283,9 +1283,7 @@
       html += `<td><span class="issue-card-source">${escapeHtml(i.source || 'unknown')}</span></td>`;
       html += `<td style="font-size:12px;color:#475569;">${time}</td>`;
       html += `<td>`;
-      if (!isResolved) {
-        html += `<button class="owner-action-btn owner-btn-w9" data-action="copy" data-id="${safeId}">Copy</button>`;
-      }
+      html += `<button class="owner-action-btn owner-btn-w9" data-action="copy" data-id="${safeId}">Copy</button>`;
       html += `<button class="owner-action-btn ${isResolved ? 'owner-btn-activate' : 'owner-btn-deactivate'}" data-action="resolve" data-id="${safeId}" data-resolved="${!isResolved}">${isResolved ? 'Reopen' : 'Resolve'}</button>`;
       html += `</td></tr>`;
 
