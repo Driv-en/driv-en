@@ -70,7 +70,7 @@ function dismissPageError() {
   if(b) b.classList.remove('show'); 
 }
 
-/* Explicit Session Preservation with URL Context appending mapped to users table schema */
+/* Explicit Session Preservation with URL Context appending */
 function preserveAndNavigate(event, targetUrl) {
   if (event) {
     event.preventDefault();
@@ -112,7 +112,6 @@ function preserveAndNavigate(event, targetUrl) {
     sessionStorage.setItem("driven_user_id", userObj.id);
   }
 
-  // Explicitly append session query params so target forms/dashboards always retain context
   var querySeparator = targetUrl.includes('?') ? '&' : '?';
   var finalUrl = targetUrl + querySeparator + "org_id=" + encodeURIComponent(targetOrg) + "&role_id=" + encodeURIComponent(roleVal);
 
@@ -152,6 +151,9 @@ function adjustStickyOffsets() {
   var header = document.getElementById("dashHeader");
   var stickyContainer = document.getElementById("adminNavStickyContainer");
   var subtabContainer = document.getElementById("onboardingSubtabBar");
+  if (header) {
+    header.style.backgroundColor = "#ffffff";
+  }
   if (header && stickyContainer) {
     var headerHeight = header.getBoundingClientRect().height || header.offsetHeight || 50;
     stickyContainer.style.top = headerHeight + "px";
@@ -207,8 +209,12 @@ function updateKpTaskCount() {
 
 function addKeyPersonnel() {
   if (!validateOrgContext()) return;
-  var name = document.getElementById("kpName").value.trim();
-  var email = document.getElementById("kpEmail").value.trim();
+  var nameEl = document.getElementById("kpName");
+  var emailEl = document.getElementById("kpEmail");
+  if (!nameEl || !emailEl) return;
+
+  var name = nameEl.value.trim();
+  var email = emailEl.value.trim();
   var selectedCbs = document.querySelectorAll('.kp-task-cb:checked');
   var selectedTasks = Array.from(selectedCbs).map(function(cb) { return cb.value; });
 
@@ -233,8 +239,8 @@ function addKeyPersonnel() {
     tasks: selectedTasks
   });
 
-  document.getElementById("kpName").value = "";
-  document.getElementById("kpEmail").value = "";
+  nameEl.value = "";
+  emailEl.value = "";
   document.querySelectorAll('.kp-task-cb').forEach(function(cb) { cb.checked = false; });
   var selectAll = document.getElementById("kpTaskSelectAll");
   if (selectAll) selectAll.checked = false;
@@ -326,17 +332,20 @@ async function finalizeCompanyOnboarding() {
   if (!validateOrgContext()) return;
   if (!confirm("Are you ready to finalize onboarding? This will activate all regular employees and send them welcome emails.")) return;
   var finalizeBtn = document.getElementById('finalizeOnboardingBtn');
-  var originalText = finalizeBtn.innerText;
-  finalizeBtn.innerText = "Finalizing & Emailing...";
-  finalizeBtn.disabled = true;
+  var originalText = finalizeBtn ? finalizeBtn.innerText : "";
+  if (finalizeBtn) {
+    finalizeBtn.innerText = "Finalizing & Emailing...";
+    finalizeBtn.disabled = true;
+  }
 
   try {
     var res = await safeFetch('/api/onboarding/finalize', { method: 'POST' });
     if (res) {
       var data = await res.json();
       if (data.success) {
-        document.getElementById('onboardingCompletePanel').classList.add('show');
-        finalizeBtn.style.display = 'none';
+        var completePanel = document.getElementById('onboardingCompletePanel');
+        if (completePanel) completePanel.classList.add('show');
+        if (finalizeBtn) finalizeBtn.style.display = 'none';
         alert(`Onboarding Complete! Welcome emails sent to ${data.totalEmployees} employees.`);
       } else {
         alert("Failed to finalize onboarding: " + data.error);
@@ -346,8 +355,10 @@ async function finalizeCompanyOnboarding() {
     console.error("Error finalizing:", err);
     alert("A network error occurred while finalizing.");
   } finally {
-    finalizeBtn.innerText = originalText;
-    finalizeBtn.disabled = false;
+    if (finalizeBtn) {
+      finalizeBtn.innerText = originalText;
+      finalizeBtn.disabled = false;
+    }
   }
 }
 
@@ -373,7 +384,7 @@ async function loadDashboardStats() {
       fetchSafe(['/api/Clients?active_only=true', '/api/Clients', '/api/clients'])
     ]);
 
-    var empData = results[0];
+    var empData = results[0] || {};
     var empList = empData.employees || empData.personnel || empData.users || empData.data || empData.records || (Array.isArray(empData) ? empData : []);
     var empCount = empList.filter(function(e) { 
       var st = e.status !== undefined ? e.status : (e.is_active !== undefined ? e.is_active : e.employment_status);
@@ -385,19 +396,19 @@ async function loadDashboardStats() {
     if (elEmp) elEmp.textContent = empCount;
     localStorage.setItem('driven_employee_count', empCount);
 
-    var projData = results[1];
+    var projData = results[1] || {};
     var projList = projData.projects || projData.data || projData.records || (Array.isArray(projData) ? projData : []);
     var elProj = document.getElementById('stat-projects');
     if (elProj) elProj.textContent = projList.length;
     localStorage.setItem('driven_project_count', projList.length);
 
-    var assetData = results[2];
+    var assetData = results[2] || {};
     var assetList = assetData.equipment || assetData.assets || assetData.data || assetData.records || (Array.isArray(assetData) ? assetData : []);
     var elEq = document.getElementById('stat-equipment');
     if (elEq) elEq.textContent = assetList.length;
     localStorage.setItem('driven_equipment_count', assetList.length);
 
-    var clientData = results[3];
+    var clientData = results[3] || {};
     var clientList = clientData.clients || clientData.records || clientData.data || clientData.results || (Array.isArray(clientData) ? clientData : []);
     var activeClients = clientList.filter(function(c) {
       var st = c.status !== undefined ? c.status : (c.is_active !== undefined ? c.is_active : c.active);
@@ -422,26 +433,40 @@ function renderFormsTab() {
   var c = document.getElementById('adminFormsTabLinks');
   if (!c) return;
   c.innerHTML = FORMS.map(function(f) {
-    return '<a href="' + f.link + '" class="emp-form-card" onclick="preserveAndNavigate(event, \'' + f.link + '\')">' +
+    return '<a href="' + f.link + '" class="emp-form-card" data-link="' + f.link + '">' +
       '<div style="font-weight:600;font-size:15px;margin-bottom:6px;">' + esc(f.label) + '</div>' +
       '<div style="font-size:13px;color:var(--text-muted);line-height:1.4;">' + esc(f.desc) + '</div>' +
       '</a>';
   }).join('');
+
+  c.querySelectorAll('.emp-form-card').forEach(function(card) {
+    card.addEventListener('click', function(e) {
+      preserveAndNavigate(e, this.getAttribute('data-link'));
+    });
+  });
 }
 
 function switchTab(tabName) {
-  if(visibilityDirty && document.getElementById('tab-onboarding').classList.contains('active') && tabName!=='onboarding') {
+  var activeObTab = document.getElementById('tab-onboarding');
+  var activeSetTab = document.getElementById('tab-settings');
+
+  if(visibilityDirty && activeObTab && activeObTab.classList.contains('active') && tabName!=='onboarding') {
     if(!confirm("You have unsaved Task Visibility changes.\n\nClick Cancel to go back and save them, or OK to discard.")) return;
     clearVisibilityDirty();
   }
-  if(settingsDirty && document.getElementById('tab-settings').classList.contains('active') && tabName!=='settings') {
+  if(settingsDirty && activeSetTab && activeSetTab.classList.contains('active') && tabName!=='settings') {
     if(!confirm("You have unsaved changes in Settings.\n\nClick Cancel to go back and save them, or OK to discard.")) return;
     clearSettingsDirty();
   }
-  document.querySelectorAll('.admin-tab').forEach(function(t){t.classList.remove('active');});
-  document.querySelectorAll('.admin-tab-content').forEach(function(c){c.classList.remove('active');});
-  document.querySelector('[data-tab="'+tabName+'"]').classList.add('active');
-  document.getElementById('tab-'+tabName).classList.add('active');
+
+  document.querySelectorAll('.admin-tab').forEach(function(t){ t.classList.remove('active'); });
+  document.querySelectorAll('.admin-tab-content').forEach(function(c){ c.classList.remove('active'); });
+
+  var targetTabBtn = document.querySelector('.admin-tab[data-tab="'+tabName+'"]');
+  var targetTabContent = document.getElementById('tab-'+tabName);
+
+  if(targetTabBtn) targetTabBtn.classList.add('active');
+  if(targetTabContent) targetTabContent.classList.add('active');
 
   var obBar = document.getElementById('onboardingSubtabBar');
   if(obBar) obBar.classList.toggle('visible', tabName==='onboarding');
@@ -450,18 +475,24 @@ function switchTab(tabName) {
 }
 
 function switchOnboardingSubtab(subtabName) {
-  if(visibilityDirty && document.getElementById('onboarding-subtab-visibility').classList.contains('active') && subtabName!=='visibility') {
+  var visTab = document.getElementById('onboarding-subtab-visibility');
+  if(visibilityDirty && visTab && visTab.classList.contains('active') && subtabName!=='visibility') {
     if(!confirm("You have unsaved Task Visibility changes.\n\nClick Cancel to go back and save them, or OK to discard.")) return;
     clearVisibilityDirty();
   }
+
   document.querySelectorAll('#onboardingSubtabBar .admin-subtab').forEach(function(t){t.classList.remove('active');});
   document.querySelectorAll('.admin-subtab-content[id^="onboarding-subtab-"]').forEach(function(c){c.classList.remove('active');});
-  document.querySelector('#onboardingSubtabBar [data-subtab="'+subtabName+'"]').classList.add('active');
-  document.getElementById('onboarding-subtab-'+subtabName).classList.add('active');
+
+  var targetSubtabBtn = document.querySelector('#onboardingSubtabBar [data-subtab="'+subtabName+'"]');
+  var targetSubtabContent = document.getElementById('onboarding-subtab-'+subtabName);
+
+  if(targetSubtabBtn) targetSubtabBtn.classList.add('active');
+  if(targetSubtabContent) targetSubtabContent.classList.add('active');
 }
 
 function toggleTheme() {
-  var current = document.documentElement.getAttribute("data-theme");
+  var current = document.documentElement.getAttribute("data-theme") || "light";
   var newTheme = current === "dark" ? "light" : "dark";
   document.documentElement.setAttribute("data-theme", newTheme);
   localStorage.setItem("driven-theme", newTheme);
@@ -469,7 +500,7 @@ function toggleTheme() {
 }
 
 function updateThemeSwitch() {
-  var current = document.documentElement.getAttribute("data-theme");
+  var current = document.documentElement.getAttribute("data-theme") || "light";
   var cb = document.getElementById("theme-checkbox");
   var ll = document.getElementById("theme-label-light");
   var ld = document.getElementById("theme-label-dark");
@@ -492,7 +523,7 @@ async function loadLogo() {
       if(r) r.style.display = "inline-block";
     } else {
       p.innerHTML = "No logo";
-      p.style.border = "2px dashed var(--border)";
+      p.style.border = "2px dashed var(--border,#cbd5e1)";
       if(r) r.style.display = "none";
     }
   } catch(e) {
@@ -503,7 +534,7 @@ async function loadLogo() {
       if(r) r.style.display = "inline-block";
     } else {
       p.innerHTML = "No logo";
-      p.style.border = "2px dashed var(--border)";
+      p.style.border = "2px dashed var(--border,#cbd5e1)";
       if(r) r.style.display = "none";
     }
   }
@@ -511,13 +542,19 @@ async function loadLogo() {
 
 async function handleLogoUpload() {
   if (!validateOrgContext()) return;
-  var f = document.getElementById("logoFile").files[0];
-  if(!f) return;
+  var logoInput = document.getElementById("logoFile");
+  if (!logoInput || !logoInput.files || !logoInput.files[0]) return;
+  var f = logoInput.files[0];
+  var statusEl = document.getElementById("logoStatus");
+
   if(f.size > 500000) {
-    document.getElementById("logoStatus").textContent = "File too large. Max 500KB.";
-    document.getElementById("logoStatus").style.color = "var(--error)";
+    if(statusEl) {
+      statusEl.textContent = "File too large. Max 500KB.";
+      statusEl.style.color = "var(--error,#ef4444)";
+    }
     return;
   }
+
   var rd = new FileReader();
   rd.onload = async function(e) {
     var du = e.target.result;
@@ -530,9 +567,9 @@ async function handleLogoUpload() {
       });
       if (sr) {
         var sd = await sr.json();
-        if(sd.success) {
-          document.getElementById("logoStatus").textContent = "Logo uploaded.";
-          document.getElementById("logoStatus").style.color = "var(--success,#16a34a)";
+        if(sd.success && statusEl) {
+          statusEl.textContent = "Logo uploaded.";
+          statusEl.style.color = "var(--success,#16a34a)";
         }
       }
     } catch(ex) { reportError("handleLogoUpload", ex); }
@@ -550,7 +587,8 @@ async function handleLogoRemove() {
       body: JSON.stringify({ logo_data: "" })
     });
     localStorage.removeItem("driven_customer_logo");
-    document.getElementById("logoStatus").textContent = "Logo removed.";
+    var statusEl = document.getElementById("logoStatus");
+    if(statusEl) statusEl.textContent = "Logo removed.";
   } catch(e) { reportError("handleLogoRemove", e); }
   await loadLogo();
 }
@@ -562,9 +600,13 @@ async function loadSettings() {
       var data = await res.json();
       if(data.success && data.settings) {
         orgSettings = data.settings;
-        if(data.settings.business_type) document.getElementById("businessTypeSelect").value = data.settings.business_type;
-        if(data.settings.naics_code) document.getElementById("naicsInput").value = data.settings.naics_code;
-        if(data.settings.currency && document.getElementById("currencySelect")) document.getElementById("currencySelect").value = data.settings.currency;
+        var bSelect = document.getElementById("businessTypeSelect");
+        var nInput = document.getElementById("naicsInput");
+        var cSelect = document.getElementById("currencySelect");
+
+        if(data.settings.business_type && bSelect) bSelect.value = data.settings.business_type;
+        if(data.settings.naics_code && nInput) nInput.value = data.settings.naics_code;
+        if(data.settings.currency && cSelect) cSelect.value = data.settings.currency;
         if(data.settings.step_visibility && typeof data.settings.step_visibility==='object' && !Array.isArray(data.settings.step_visibility)) stepVisibility = data.settings.step_visibility;
         if(data.settings.task_completions) {
           taskCompletions = data.settings.task_completions;
@@ -605,9 +647,9 @@ function clearVisibilityDirty(){
 
 async function saveSettings() {
   if (!validateOrgContext()) return;
-  var bt = document.getElementById("businessTypeSelect").value,
-      naics = document.getElementById("naicsInput").value.trim(),
-      cur = document.getElementById("currencySelect") ? document.getElementById("currencySelect").value : "USD";
+  var bt = document.getElementById("businessTypeSelect") ? document.getElementById("businessTypeSelect").value : "";
+  var naics = document.getElementById("naicsInput") ? document.getElementById("naicsInput").value.trim() : "";
+  var cur = document.getElementById("currencySelect") ? document.getElementById("currencySelect").value : "USD";
   try {
     var res = await safeFetch("/auth/save-settings", {
       method: "POST",
@@ -620,7 +662,8 @@ async function saveSettings() {
         orgSettings.business_type = bt;
         orgSettings.naics_code = naics;
         orgSettings.currency = cur;
-        document.getElementById("settingsStatus").textContent = "Saved.";
+        var sStatus = document.getElementById("settingsStatus");
+        if(sStatus) sStatus.textContent = "Saved.";
         notifySync();
       }
     }
@@ -644,13 +687,15 @@ async function saveToggles() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ settings: { fuel_meter_photo: mp, fuel_asset_photo: ap, location_request: lr } })
     });
-    document.getElementById("togglesStatus").textContent = "Toggles saved.";
+    var tStatus = document.getElementById("togglesStatus");
+    if(tStatus) tStatus.textContent = "Toggles saved.";
   } catch(e) { reportError("saveToggles", e); }
 }
 
 function applyBusinessTypeDefaults() {
   if(!stepVisibility || typeof stepVisibility !== 'object') stepVisibility = {};
-  var bt = document.getElementById("businessTypeSelect").value;
+  var bEl = document.getElementById("businessTypeSelect");
+  var bt = bEl ? bEl.value : "";
   if(bt && BUSINESS_TYPE_DEFAULTS[bt]) {
     var df = BUSINESS_TYPE_DEFAULTS[bt];
     for(var k in df) {
@@ -660,7 +705,8 @@ function applyBusinessTypeDefaults() {
 }
 
 function onBusinessTypeChange() {
-  var bt = document.getElementById("businessTypeSelect").value;
+  var bEl = document.getElementById("businessTypeSelect");
+  var bt = bEl ? bEl.value : "";
   if(bt && BUSINESS_TYPE_DEFAULTS[bt]) {
     var df = BUSINESS_TYPE_DEFAULTS[bt];
     for(var k in df) stepVisibility[k] = df[k];
@@ -679,8 +725,15 @@ function renderStepToggles() {
         ck = v ? "checked" : "",
         dis = s.locked ? "disabled" : "",
         ll = s.locked ? '<span class="step-toggle-locked">(always on)</span>' : "";
-    return '<div class="step-toggle-row"><div><div class="step-toggle-name">' + s.label + ' ' + ll + '</div><div class="step-toggle-desc">' + s.desc + '</div></div><label class="toggle-switch"><input type="checkbox" ' + ck + ' ' + dis + ' onchange="onToggleChange(\'' + s.key + '\',this.checked)"><span class="toggle-slider"></span></label></div>';
+    return '<div class="step-toggle-row"><div><div class="step-toggle-name">' + s.label + ' ' + ll + '</div><div class="step-toggle-desc">' + s.desc + '</div></div><label class="toggle-switch"><input type="checkbox" ' + ck + ' ' + dis + ' data-stepkey="' + s.key + '"><span class="toggle-slider"></span></label></div>';
   }).join("");
+
+  c.querySelectorAll('input[type="checkbox"]').forEach(function(inp) {
+    inp.addEventListener('change', function() {
+      var key = this.getAttribute('data-stepkey');
+      onToggleChange(key, this.checked);
+    });
+  });
 }
 
 function onToggleChange(k, v) {
@@ -741,6 +794,8 @@ function renderKeyPersonnel() {
   var completeBtn = document.getElementById("kpCompleteBtn");
   var unsavedBanner = document.getElementById("kpUnsavedBanner");
 
+  if(!container) return;
+
   if(unsavedBanner) unsavedBanner.style.display = pendingKP.length > 0 ? "flex" : "none";
   if(completeBtn) completeBtn.style.display = pendingKP.length > 0 ? "inline-block" : "none";
 
@@ -753,7 +808,7 @@ function renderKeyPersonnel() {
     var tasks = kp.tasks || (kp.roles ? kp.roles.map(function(r){return r.role || r.task_name;}) : (kp.task ? [kp.task] : []));
     var isPending = personIdx >= keyPersonnel.length;
     var chips = tasks.map(function(t, taskIdx) {
-      return '<div class="kp-task-chip">' + esc(t) + ' <button onclick="removeKpTask(' + personIdx + ', ' + taskIdx + ')" title="Remove task">×</button></div>';
+      return '<div class="kp-task-chip">' + esc(t) + ' <button class="btn-remove-kptask" data-person="' + personIdx + '" data-task="' + taskIdx + '" title="Remove task">×</button></div>';
     }).join("");
 
     return '<div class="kp-person-row">' +
@@ -763,10 +818,25 @@ function renderKeyPersonnel() {
       '<div class="kp-person-tasks">' + (chips || '<span style="font-size:12px;color:var(--text-muted);italic;">No tasks assigned</span>') + '</div>' +
       '</div>' +
       '<div class="kp-person-actions">' +
-      '<button class="kp-person-remove" onclick="removeKpPerson(' + personIdx + ')">Remove Person</button>' +
+      '<button class="kp-person-remove" data-person="' + personIdx + '">Remove Person</button>' +
       '</div>' +
       '</div>';
   }).join("");
+
+  container.querySelectorAll('.btn-remove-kptask').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var pIdx = parseInt(this.getAttribute('data-person'), 10);
+      var tIdx = parseInt(this.getAttribute('data-task'), 10);
+      removeKpTask(pIdx, tIdx);
+    });
+  });
+
+  container.querySelectorAll('.kp-person-remove').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var pIdx = parseInt(this.getAttribute('data-person'), 10);
+      removeKpPerson(pIdx);
+    });
+  });
 }
 
 function loadTaskCompletions() {
@@ -819,8 +889,10 @@ function updateProgress() {
   var vs = STEP_DEFS.filter(function(s){return stepVisibility[s.key] !== false;}), comp = 0;
   vs.forEach(function(s){ if(adminIsTaskComplete(s.key)) comp++; });
   var tot = vs.length, pct = tot > 0 ? Math.round((comp / tot) * 100) : 0;
-  document.getElementById("progressBarFill").style.width = pct + "%";
-  document.getElementById("progressText").textContent = comp + " of " + tot + " tasks complete";
+  var fillEl = document.getElementById("progressBarFill");
+  var textEl = document.getElementById("progressText");
+  if (fillEl) fillEl.style.width = pct + "%";
+  if (textEl) textEl.textContent = comp + " of " + tot + " tasks complete";
 }
 
 function notifySync() {
@@ -828,21 +900,161 @@ function notifySync() {
   if (syncChannel) syncChannel.postMessage({ type: "driven_completion_updated" });
 }
 
-function showCompleteModal(){ document.getElementById("confirmModal").classList.add("active"); }
-function closeCompleteModal(){ document.getElementById("confirmModal").classList.remove("active"); }
-function hideOnboardingTab(){ var t = document.querySelector('[data-tab="onboarding"]'); if(t) t.style.display = "none"; }
+function showCompleteModal(){ 
+  var m = document.getElementById("confirmModal");
+  if(m) m.classList.add("active"); 
+}
+
+function closeCompleteModal(){ 
+  var m = document.getElementById("confirmModal");
+  if(m) m.classList.remove("active"); 
+}
+
+function hideOnboardingTab(){ 
+  var t = document.querySelector('.admin-tab[data-tab="onboarding"]'); 
+  if(t) t.style.display = "none"; 
+}
 
 function insertHeaderTitle(){
   var r = document.querySelector(".dash-header-row1");
   if(r) {
+    r.style.position = "relative";
+    r.style.display = "flex";
+    r.style.alignItems = "center";
+    r.style.justifyContent = "space-between";
+
     var existing = document.querySelector(".admin-header-title");
     if(existing) existing.remove();
     var t = document.createElement("div");
     t.className = "admin-header-title";
     t.textContent = "Admin Dashboard";
-    var logo = r.querySelector(".dash-driven-logo");
-    if(logo) r.insertBefore(t, logo);
-    else r.appendChild(t);
+    t.style.position = "absolute";
+    t.style.left = "50%";
+    t.style.transform = "translateX(-50%)";
+    t.style.fontWeight = "700";
+    t.style.fontSize = "18px";
+    t.style.color = "var(--text-main,#0f172a)";
+
+    r.appendChild(t);
+  }
+}
+
+function injectGlobalUIStyles() {
+  if (document.getElementById("driven-admin-ui-styles")) return;
+  var style = document.createElement("style");
+  style.id = "driven-admin-ui-styles";
+  style.textContent = `
+    #dashHeader {
+      background-color: #ffffff !important;
+      border-bottom: 1px solid var(--border, #e2e8f0);
+    }
+    .admin-card, .emp-form-card, .kp-person-row, .step-toggle-row, .card, .stat-card {
+      background-color: var(--card-bg, #ffffff) !important;
+      border: 1px solid var(--border, #e2e8f0);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .btn-change-password, #changePasswordBtn {
+      background-color: #16a34a !important;
+      color: #ffffff !important;
+      border: none !important;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .btn-change-password:hover, #changePasswordBtn:hover {
+      background-color: #15803d !important;
+    }
+    .theme-toggle-container {
+      display: inline-flex;
+      align-items: center;
+      border: 2px solid var(--border, #94a3b8);
+      border-radius: 20px;
+      padding: 2px 6px;
+      background: var(--bg-secondary, #f1f5f9);
+    }
+    .theme-switch input:checked + .toggle-slider {
+      background-color: #2563eb;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function attachEventHandlers() {
+  document.querySelectorAll('.admin-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      var tabName = this.getAttribute('data-tab');
+      if (tabName) switchTab(tabName);
+    });
+  });
+
+  document.querySelectorAll('#onboardingSubtabBar .admin-subtab').forEach(function(subtab) {
+    subtab.addEventListener('click', function() {
+      var subtabName = this.getAttribute('data-subtab');
+      if (subtabName) switchOnboardingSubtab(subtabName);
+    });
+  });
+
+  var themeCb = document.getElementById("theme-checkbox");
+  if(themeCb) {
+    themeCb.addEventListener('change', toggleTheme);
+  }
+
+  var logoFile = document.getElementById("logoFile");
+  if (logoFile) {
+    logoFile.addEventListener('change', handleLogoUpload);
+  }
+
+  var logoRemove = document.getElementById("logoRemoveBtn");
+  if (logoRemove) {
+    logoRemove.addEventListener('click', handleLogoRemove);
+  }
+
+  var bSelect = document.getElementById("businessTypeSelect");
+  if (bSelect) {
+    bSelect.addEventListener('change', onBusinessTypeChange);
+  }
+
+  var nInput = document.getElementById("naicsInput");
+  if (nInput) {
+    nInput.addEventListener('input', onNaicsChange);
+  }
+
+  var cSelect = document.getElementById("currencySelect");
+  if (cSelect) {
+    cSelect.addEventListener('change', onCurrencyChange);
+  }
+
+  var btnSaveSettings = document.getElementById("btnSaveSettings");
+  if (btnSaveSettings) {
+    btnSaveSettings.addEventListener('click', saveSettings);
+  }
+
+  var btnSaveVisibility = document.getElementById("btnSaveVisibility");
+  if (btnSaveVisibility) {
+    btnSaveVisibility.addEventListener('click', saveStepVisibility);
+  }
+
+  var btnAddKp = document.getElementById("btnAddKp");
+  if (btnAddKp) {
+    btnAddKp.addEventListener('click', addKeyPersonnel);
+  }
+
+  var kpSelectAll = document.getElementById("kpTaskSelectAll");
+  if (kpSelectAll) {
+    kpSelectAll.addEventListener('change', function() {
+      toggleSelectAllKpTasks(this.checked);
+    });
+  }
+
+  var kpCompleteBtn = document.getElementById("kpCompleteBtn");
+  if (kpCompleteBtn) {
+    kpCompleteBtn.addEventListener('click', saveKeyPersonnelToDB);
+  }
+
+  var finalizeBtn = document.getElementById("finalizeOnboardingBtn");
+  if (finalizeBtn) {
+    finalizeBtn.addEventListener('click', finalizeCompanyOnboarding);
   }
 }
 
@@ -879,33 +1091,47 @@ async function startAdminApp(user) {
   sessionStorage.setItem("driven_role", user.role_id || user.role || "RO-admin");
   if (user.id) sessionStorage.setItem("driven_user_id", user.id);
 
-  document.getElementById("welcome-name").textContent = user.first_name || user.email || "Admin";
-  document.getElementById("welcome-company").textContent = user.org_name || localStorage.getItem("driven_org_name") || "Digital Safety Inspection, LLC";
-  document.getElementById("welcome-role").textContent = user.role || user.role_id || "RO-admin";
-  document.getElementById("welcome-email").textContent = user.email || "";
+  var elName = document.getElementById("welcome-name");
+  var elComp = document.getElementById("welcome-company");
+  var elRole = document.getElementById("welcome-role");
+  var elMail = document.getElementById("welcome-email");
 
+  if(elName) elName.textContent = user.first_name || user.email || "Admin";
+  if(elComp) elComp.textContent = user.org_name || localStorage.getItem("driven_org_name") || "Digital Safety Inspection, LLC";
+  if(elRole) elRole.textContent = user.role || user.role_id || "RO-admin";
+  if(elMail) elMail.textContent = user.email || "";
+
+  injectGlobalUIStyles();
   insertHeaderTitle();
+  attachEventHandlers();
 
-  /* Instantly Reveal Dashboard UI */
-  document.getElementById("loading").style.display = "none";
-  document.getElementById("dashboard").style.display = "block";
+  /* Reveal Dashboard UI */
+  var loadingEl = document.getElementById("loading");
+  var dashEl = document.getElementById("dashboard");
+  if (loadingEl) loadingEl.style.display = "none";
+  if (dashEl) dashEl.style.display = "block";
   
-  // Recalculate sticky offsets immediately after showing dashboard
   adjustStickyOffsets();
 
-  /* Non-blocking Background Operations */
+  /* Load Initial Data and Stats */
+  loadLogo().catch(function(e){ reportError("loadLogo", e); });
+  loadSettings().catch(function(e){ reportError("loadSettings", e); });
+  loadKeyPersonnel().catch(function(e){ reportError("loadKeyPersonnel", e); });
+  updateProgress();
+  updateThemeSwitch();
+  renderFormsTab();
+  
+  // High-reliability KPI load sequence
+  await loadDashboardStats().catch(function(e){ reportError("init-loadDashboardStats", e); });
   setTimeout(function() {
-    loadLogo().catch(function(e){ reportError("loadLogo", e); });
-    loadSettings().catch(function(e){ reportError("loadSettings", e); });
-    loadKeyPersonnel().catch(function(e){ reportError("loadKeyPersonnel", e); });
-    updateProgress();
-    updateThemeSwitch();
-    renderFormsTab();
-    loadDashboardStats().catch(function(e){ reportError("init-loadDashboardStats", e); });
-  }, 0);
+    loadDashboardStats().catch(function(e){ reportError("init-loadDashboardStats-retry", e); });
+  }, 1000);
 }
 
 async function init() {
+  var savedTheme = localStorage.getItem("driven-theme") || "light";
+  document.documentElement.setAttribute("data-theme", savedTheme);
+
   var current = window.dashUser || window.drivenUser;
   if (current) {
     startAdminApp(current);
@@ -922,7 +1148,6 @@ async function init() {
     updateProgress();
   });
 
-  // Recalculate on window load to ensure images/fonts in header don't alter sticky math
   window.addEventListener("load", adjustStickyOffsets);
 
   if (syncChannel) {
