@@ -47,6 +47,7 @@ var STEP_DEFS = [
 ];
 
 var FORMS = [
+  { key:'dvir_form', label:'Driver Vehicle Inspection (DVIR)', desc:'Complete pre-trip or post-trip statutory road safety inspection', link:'/app/forms/dvir.html' },
   { key:'fuel_log', label:'Log Fuel Purchase', desc:'Record a fuel purchase with receipt AI extraction', link:'/app/forms/fuel-purchase.html' },
   { key:'fuel_transfer', label:'Log Fuel Transfer', desc:'Transfer fuel between tanks or issue to equipment', link:'/app/forms/fuel-transfer.html' },
   { key:'transfer_create', label:'Create Transfer', desc:'Start an equipment transfer ticket', link:'/app/forms/transfer-create.html' },
