@@ -1025,17 +1025,37 @@ function attachEventHandlers() {
     cSelect.addEventListener('change', onCurrencyChange);
   }
 
-  var btnSaveSettings = document.getElementById("btnSaveSettings");
+  var btnSaveSettings = document.getElementById("saveSettingsBtn");
   if (btnSaveSettings) {
     btnSaveSettings.addEventListener('click', saveSettings);
   }
 
-  var btnSaveVisibility = document.getElementById("btnSaveVisibility");
-  if (btnSaveVisibility) {
-    btnSaveVisibility.addEventListener('click', saveStepVisibility);
+  var btnSaveNaics = document.getElementById("saveNaicsBtn");
+  if (btnSaveNaics) {
+    btnSaveNaics.addEventListener('click', saveSettings);
   }
 
-  var btnAddKp = document.getElementById("btnAddKp");
+  var btnSaveCurrency = document.getElementById("saveCurrencyBtn");
+  if (btnSaveCurrency) {
+    btnSaveCurrency.addEventListener('click', saveSettings);
+  }
+
+  var btnSaveToggles = document.getElementById("saveTogglesBtn");
+  if (btnSaveToggles) {
+    btnSaveToggles.addEventListener('click', saveToggles);
+  }
+
+  var btnSaveVisibilityTop = document.getElementById("btnSaveStepVisibilityTop");
+  if (btnSaveVisibilityTop) {
+    btnSaveVisibilityTop.addEventListener('click', saveStepVisibility);
+  }
+
+  var btnSaveVisibilityBottom = document.getElementById("btnSaveStepVisibilityBottom");
+  if (btnSaveVisibilityBottom) {
+    btnSaveVisibilityBottom.addEventListener('click', saveStepVisibility);
+  }
+
+  var btnAddKp = document.getElementById("kpAddBtn");
   if (btnAddKp) {
     btnAddKp.addEventListener('click', addKeyPersonnel);
   }
@@ -1056,6 +1076,24 @@ function attachEventHandlers() {
   if (finalizeBtn) {
     finalizeBtn.addEventListener('click', finalizeCompanyOnboarding);
   }
+
+  var btnDismissErr = document.getElementById("btnDismissError");
+  if (btnDismissErr) {
+    btnDismissErr.addEventListener('click', dismissPageError);
+  }
+
+  var btnLogout = document.getElementById("btnAdminLogout");
+  if (btnLogout) {
+    btnLogout.addEventListener('click', function() {
+      if (typeof window.drivenLogout === 'function') {
+        window.drivenLogout();
+      } else {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = '/app/auth/login.html';
+      }
+    });
+  }
 }
 
 async function startAdminApp(user) {
@@ -1072,7 +1110,7 @@ async function startAdminApp(user) {
 
   if (!user || !isAllowedAdmin) { 
     console.warn("[AdminDashboard] Guard rejected role:", roleVal);
-    window.location.href = "/public/login.html"; 
+    window.location.href = "/app/auth/login.html"; 
     return; 
   }
 
