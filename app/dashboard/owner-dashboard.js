@@ -60,7 +60,7 @@
   /* ===== THEME TOGGLE ===== */
 
   function dashToggleTheme() {
-    const current = document.documentElement.getAttribute("data-theme");
+    const current = document.documentElement.getAttribute("data-theme") || "light";
     const newTheme = current === "dark" ? "light" : "dark";
     document.documentElement.setAttribute("data-theme", newTheme);
     localStorage.setItem("driven-theme", newTheme);
@@ -68,7 +68,8 @@
   }
 
   function updateThemeSwitch() {
-    const current = document.documentElement.getAttribute("data-theme");
+    const current = document.documentElement.getAttribute("data-theme") || localStorage.getItem("driven-theme") || "light";
+    document.documentElement.setAttribute("data-theme", current);
     const checkbox = document.getElementById("dashThemeCheckbox");
     const labelLight = document.getElementById("dashThemeLabelLight");
     const labelDark = document.getElementById("dashThemeLabelDark");
@@ -695,7 +696,7 @@
       return;
     }
 
-    let html = '<div class="owner-table-wrap" style="overflow-x:auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:0 4px;">';
+    let html = '<div class="owner-table-wrap" style="overflow-x:auto;background:#ffffff;border:1px solid #10b981;border-radius:8px;padding:0 4px;">';
     html += '<table class="owner-data-table" style="width:100%;border-collapse:collapse;font-size:14px;background:#ffffff;">';
     html += '<thead><tr style="border-bottom:2px solid #e2e8f0;text-align:left;background:#f8fafc;">';
     html += '<th style="padding:10px 8px;cursor:pointer;color:#334155;" id="thCustName">Customer Name</th>';
@@ -922,6 +923,8 @@
           document.getElementById('visitorTopDevice').textContent = data.summary.topDevice || '—';
           document.getElementById('visitorTopBrowser').textContent = data.summary.topBrowser || '—';
           document.getElementById('visitorTopOS').textContent = data.summary.topOS || '—';
+
+          renderVisitorBreakdowns(data.summary);
         }
         allVisitors = data.visitors || [];
         allSessions = data.sessions || [];
@@ -932,6 +935,33 @@
     } catch (e) {
       console.error('Load visitors failed:', e);
     }
+  }
+
+  function renderVisitorBreakdowns(summary) {
+    renderSimpleList('visitorTopPages', summary.topPages, 'page_path', 'count');
+    renderSimpleList('visitorTopCountries', summary.topCountries, 'country', 'count');
+    renderSimpleList('visitorBrowsers', summary.browserBreakdown, 'browser', 'count');
+    renderSimpleList('visitorOS', summary.osBreakdown, 'os', 'count');
+  }
+
+  function renderSimpleList(elementId, items, keyField, countField) {
+    const container = document.getElementById(elementId);
+    if (!container) return;
+    if (!items || !items.length) {
+      container.innerHTML = '<div style="font-size:12px;color:#64748b;margin-top:8px;">No data</div>';
+      return;
+    }
+    let html = '<div style="margin-top:8px;font-size:13px;text-align:left;">';
+    items.slice(0, 5).forEach(item => {
+      const label = escapeHtml(item[keyField] || 'Direct / Unknown');
+      const count = item[countField] || 0;
+      html += `<div style="display:flex;justify-space-between;padding:3px 0;border-bottom:1px solid #f1f5f9;">
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;">${label}</span>
+        <strong style="margin-left:auto;">${count}</strong>
+      </div>`;
+    });
+    html += '</div>';
+    container.innerHTML = html;
   }
 
   function renderVisitorsTable() {
@@ -977,9 +1007,9 @@
       const firstVisit = s.firstVisit ? new Date(s.firstVisit).toLocaleString() : '—';
       row.innerHTML = `
         <td>${firstVisit}</td>
-        <td>${s.pageCount || 1}</td>
-        <td>${escapeHtml(s.entryPage || '/')}</td>
-        <td>${s.durationSeconds ? s.durationSeconds + 's' : '—'}</td>
+        <td>${s.pageCount || (s.pages ? s.pages.length : 1)}</td>
+        <td>${escapeHtml(s.entryPage || (s.pages && s.pages[0] ? s.pages[0].pagePath : '/'))}</td>
+        <td>${s.durationSeconds || s.totalTimeOnSite ? (s.durationSeconds || s.totalTimeOnSite) + 's' : '—'}</td>
         <td>${escapeHtml(s.country || 'Unknown')}</td>
         <td>${escapeHtml(s.deviceType || 'Desktop')}</td>
         <td>${escapeHtml(s.browser || '—')}</td>
@@ -1107,7 +1137,7 @@
     } catch (e) {}
   }
 
-  /* ===== ERROR LOGS TAB (HIGH-VOLUME LOG UNLOCKING) ===== */
+  /* ===== ERROR LOGS TAB & BULK SELECTION ===== */
 
   async function loadIssues() {
     const listEl = document.getElementById('issueList');
@@ -1221,7 +1251,10 @@
     }
 
     let html = '<table class="dash-table" style="width:100%;">';
-    html += '<thead><tr><th></th><th>Status</th><th>Error Message</th><th>Source</th><th>Date</th><th>Actions</th></tr></thead><tbody>';
+    html += '<thead><tr>';
+    html += '<th style="width:36px;text-align:center;"><input type="checkbox" id="selectAllIssues"></th>';
+    html += '<th style="width:30px;"></th><th>Status</th><th>Error Message</th><th>Source</th><th>Date</th><th>Actions</th>';
+    html += '</tr></thead><tbody>';
 
     filtered.forEach(i => {
       const time = i.created_at ? new Date(i.created_at).toLocaleString() : '—';
@@ -1234,6 +1267,7 @@
         : '<span class="dash-badge dash-badge-danger">Open</span>';
 
       html += `<tr class="issue-row ${isResolved ? 'partner-row-inactive' : ''}" data-error-id="${safeId}" style="cursor:pointer;">`;
+      html += `<td style="text-align:center;" onclick="event.stopPropagation();"><input type="checkbox" class="issue-checkbox" data-id="${safeId}"></td>`;
       html += `<td style="text-align:center;font-size:12px;color:var(--text-muted);">${isExpanded ? '▼' : '▶'}</td>`;
       html += `<td>${statusBadge}</td>`;
       html += `<td style="font-weight:600;">${escapeHtml(i.error_message || 'Unknown error')}</td>`;
@@ -1248,7 +1282,7 @@
 
       if (isExpanded) {
         html += `<tr class="issue-detail-row" style="background:var(--bg-input);">`;
-        html += `<td></td><td colspan="5"><div style="padding:12px 16px;">`;
+        html += `<td></td><td></td><td colspan="5"><div style="padding:12px 16px;">`;
         html += `<div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;"><strong>Error ID:</strong> ${safeId}</div>`;
         if (i.stack_trace) {
           html += `<pre style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;color:var(--text);white-space:pre-wrap;">${escapeHtml(i.stack_trace)}</pre>`;
@@ -1260,9 +1294,17 @@
     html += '</tbody></table>';
     listEl.innerHTML = html;
 
+    const selectAllCb = document.getElementById('selectAllIssues');
+    if (selectAllCb) {
+      selectAllCb.addEventListener('change', (e) => {
+        const checked = e.target.checked;
+        document.querySelectorAll('.issue-checkbox').forEach(cb => { cb.checked = checked; });
+      });
+    }
+
     listEl.querySelectorAll('.issue-row').forEach(row => {
       row.addEventListener('click', (e) => {
-        if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+        if (e.target.tagName === 'BUTTON' || e.target.closest('button') || e.target.tagName === 'INPUT') return;
         const id = row.getAttribute('data-error-id');
         issueExpandedId = (issueExpandedId === id) ? null : id;
         renderIssues(allIssues);
@@ -1282,6 +1324,29 @@
         resolveIssue(btn.getAttribute('data-id'), btn.getAttribute('data-resolved') === 'true');
       });
     });
+  }
+
+  async function resolveSelectedIssues() {
+    const checkedCbs = document.querySelectorAll('.issue-checkbox:checked');
+    if (!checkedCbs || checkedCbs.length === 0) {
+      alert('Please select at least one error log to resolve.');
+      return;
+    }
+
+    const ids = Array.from(checkedCbs).map(cb => cb.getAttribute('data-id'));
+    for (const id of ids) {
+      try {
+        await fetch(adminApi('/issues'), {
+          method: 'POST',
+          headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ id: id, resolved: true })
+        });
+        const issue = allIssues.find(i => i.id === id);
+        if (issue) issue.resolved = 1;
+      } catch (e) {}
+    }
+    renderIssueStats(allIssues);
+    renderIssues(allIssues);
   }
 
   function copyIssue(errorId, btn) {
@@ -1402,6 +1467,9 @@
 
     const btnClearIssues = document.getElementById('btnClearIssues');
     if (btnClearIssues) btnClearIssues.addEventListener('click', clearIssueFilters);
+
+    const btnResolveSelected = document.getElementById('btnResolveSelectedIssues');
+    if (btnResolveSelected) btnResolveSelected.addEventListener('click', resolveSelectedIssues);
 
     const approveModal = document.getElementById('approveModal');
     if (approveModal) {
