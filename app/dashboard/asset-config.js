@@ -134,6 +134,9 @@ async function apiFetch(url, options = {}) {
   if (activeOrgId) {
     options.headers['x-org-id'] = activeOrgId;
   }
+  if (orgCountry) {
+    options.headers['x-country'] = orgCountry;
+  }
   return fetch(url, options);
 }
 
@@ -159,17 +162,19 @@ async function fetchOrganizationSettings() {
   }
 }
 
-function updateJurisdictionBannerUI() {
+function updateJurisdictionBannerUI(dynamicJurisdiction = null) {
   const textEl = document.getElementById('activeJurisdictionText');
   const distEl = document.getElementById('uomDistanceBadge');
   const pressEl = document.getElementById('uomPressureBadge');
   const volEl = document.getElementById('uomVolumeBadge');
 
+  const countryCode = (dynamicJurisdiction || orgCountry || 'US').toUpperCase().trim();
+
   let stdText = 'United States (DOT / OSHA / MSHA)';
-  if (orgCountry === 'CA') stdText = 'Canada (NSC Standard 11 / CCOHS)';
-  else if (orgCountry === 'AU' || orgCountry === 'NZ') stdText = 'Australasia (NHVR / WHS Code)';
-  else if (['GB', 'DE', 'FR', 'ES', 'IT', 'NL', 'SE', 'NO', 'FI'].includes(orgCountry)) stdText = 'UK & Europe (DVSA / EU Directives)';
-  else if (orgCountry !== 'US') stdText = `${orgCountry} (ISO Universal Fleet Standard)`;
+  if (countryCode === 'CA') stdText = 'Canada (NSC Standard 11 / CCOHS)';
+  else if (['AU', 'NZ'].includes(countryCode)) stdText = 'Australasia (NHVR / WHS Code)';
+  else if (['GB', 'DE', 'FR', 'ES', 'IT', 'NL', 'SE', 'NO', 'FI'].includes(countryCode)) stdText = 'UK & Europe (DVSA / EU Directives)';
+  else if (countryCode !== 'US') stdText = `${countryCode} (ISO Universal Fleet Standard)`;
 
   if (textEl) textEl.textContent = stdText;
   if (distEl) distEl.textContent = (orgUOM.distance || 'mi').toUpperCase();
@@ -364,6 +369,10 @@ async function fetchAndRenderSchema(targetType, key, assetType = '') {
     
     if (requestId !== currentFetchRequestId) return;
 
+    if (data.jurisdiction) {
+      updateJurisdictionBannerUI(data.jurisdiction);
+    }
+
     const schema = data.schema || { sections: [] };
     const savedConfig = data.config || {};
 
@@ -472,7 +481,7 @@ function renderFieldRow(container, field, savedRules) {
   let badgeHTML = '';
   if (field.badge) {
     let bClass = 'badge-dot';
-    if (field.badge.includes('OSHA') || field.badge.includes('CCOHS')) bClass = 'badge-osha';
+    if (field.badge.includes('OSHA') || field.badge.includes('CCOHS') || field.badge.includes('WHS') || field.badge.includes('HSE')) bClass = 'badge-osha';
     if (field.badge.includes('MSHA') || field.badge.includes('Mining')) bClass = 'badge-msha';
     badgeHTML = `<span class="badge ${bClass}">${escapeHtmlAttr(field.badge)}</span>`;
   }
