@@ -955,7 +955,7 @@
     items.slice(0, 5).forEach(item => {
       const label = escapeHtml(item[keyField] || 'Direct / Unknown');
       const count = item[countField] || 0;
-      html += `<div style="display:flex;justify-space-between;padding:3px 0;border-bottom:1px solid #f1f5f9;">
+      html += `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9;">
         <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;">${label}</span>
         <strong style="margin-left:auto;">${count}</strong>
       </div>`;
