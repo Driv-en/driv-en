@@ -24,13 +24,13 @@
       z-index: 1;
     }
     
-    /* Header & Sticky Tab Bar Setup */
+    /* Sticky Header - Gray Background */
     .dash-header {
       position: sticky;
       top: 0;
       z-index: 100;
-      background: #ffffff;
-      border-bottom: 1px solid #e2e8f0;
+      background: #e2e8f0 !important; /* Gray Header */
+      border-bottom: 1px solid #cbd5e1;
     }
     .dash-header-row2, .dash-header-row3 { display: none !important; }
     .dash-header-row1 {
@@ -49,18 +49,30 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+
+    /* Sticky Tab Bar - Span Full Body Width */
     .owner-tab-bar {
       display: flex;
       gap: 2px;
+      width: 100%;
       max-width: 100%;
+      box-sizing: border-box;
       margin: 0 auto;
-      padding: 0 20px;
+      padding: 0 16px;
       overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
       position: sticky;
       top: 57px; /* Sticky right beneath header */
       z-index: 99;
       background: #cbd5e1;
       border-bottom: 2px solid #94a3b8;
+    }
+    .owner-tab-bar::-webkit-scrollbar {
+      height: 4px;
+    }
+    .owner-tab-bar::-webkit-scrollbar-thumb {
+      background: #94a3b8;
+      border-radius: 4px;
     }
     .owner-tab {
       background: #94a3b8;
@@ -114,6 +126,7 @@
       padding: 20px; 
       box-shadow: 0 4px 6px -1px rgba(0,0,0,0.06) !important;
       color: #0f172a !important;
+      box-sizing: border-box;
     }
 
     .dash-card *, .owner-stat-card *, .settings-section *, .sys-status-card *, .owner-table-wrap * {
@@ -124,7 +137,7 @@
     .owner-stat-number { font-size: 32px; font-weight: 700; color: #0f172a !important; }
     .owner-stat-label { font-size: 13px; color: #475569 !important; margin-top: 4px; font-weight: 600; }
     
-    .owner-search-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .owner-search-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
     .owner-search-bar input,
     .owner-tab-content input[type="text"],
     .owner-tab-content input[type="date"],
@@ -135,15 +148,20 @@
       font-size: 14px; 
       background: #ffffff !important; 
       color: #0f172a !important; 
+      box-sizing: border-box;
     }
     .owner-refresh-btn { background: #ffffff !important; border: 1px solid #10b981 !important; color: #0f172a !important; padding: 10px 16px; border-radius: 6px; font-size: 14px; cursor: pointer; white-space: nowrap; font-weight: 500; }
     .owner-refresh-btn:hover { background: #f0fdf4 !important; border-color: #059669 !important; color: #059669 !important; }
     
-    /* Horizontal Scrollable Table Wrapper */
+    /* Scrollable Table Container for ALL Tabs (Including Error Logs) */
     .owner-table-wrap {
       overflow-x: auto !important;
+      -webkit-overflow-scrolling: touch;
+      width: 100%;
       max-width: 100%;
       display: block;
+      box-sizing: border-box;
+      border-radius: 8px;
     }
     .dash-table { width: 100%; border-collapse: collapse; background: #ffffff !important; white-space: nowrap; }
     .dash-table th { background: #f8fafc !important; color: #334155 !important; border-bottom: 2px solid #e2e8f0 !important; padding: 12px 14px; text-align: left; }
@@ -168,7 +186,7 @@
     .owner-btn-w9 { background: #ffffff !important; color: #2563eb !important; border-color: #2563eb !important; }
     .owner-btn-w9:hover { background: #2563eb !important; color: #fff !important; }
     
-    /* System Status Row Alignment (Non-wrapping 2-column layout) */
+    /* System Status Alignment */
     .sys-status-row {
       display: flex !important;
       justify-content: space-between !important;
@@ -212,7 +230,17 @@
     input:checked + .slider { background-color: #10b981; }
     input:checked + .slider:before { transform: translateX(22px); }
 
-    @media (max-width: 800px) { .owner-stats { grid-template-columns: repeat(2, 1fr); } }
+    /* Mobile Responsive Optimizations */
+    @media (max-width: 800px) { 
+      .owner-stats { grid-template-columns: repeat(2, 1fr); gap: 10px; } 
+      .dash-main { padding: 12px !important; }
+      .owner-header-title { font-size: 16px; }
+      .owner-search-bar input { width: 100%; }
+      .owner-tab { padding: 8px 14px; font-size: 14px; }
+    }
+    @media (max-width: 480px) {
+      .owner-stats { grid-template-columns: 1fr; }
+    }
 </style>
 </head>
 
@@ -246,7 +274,7 @@
     <button class="owner-tab-logout">Logout</button>
   </div>
 
-  <main class="dash-main">
+  <main class="dash-main" style="padding: 20px 16px;">
 
     <div id="errorBanner" class="owner-error-banner"></div>
 
@@ -359,7 +387,7 @@
         <select id="issueSourceFilter">
           <option value="all">All Sources</option>
         </select>
-        <input type="text" id="issueMsgFilter" placeholder="Filter by message..." style="flex:1;">
+        <input type="text" id="issueMsgFilter" placeholder="Filter by message..." style="flex:1;min-width:180px;">
         <input type="date" id="issueDateFrom">
         <input type="date" id="issueDateTo">
         <button class="owner-refresh-btn" id="btnResolveSelectedIssues" style="background:#10b981!important;color:#ffffff!important;border-color:#059669!important;">✓ Resolve Selected</button>
@@ -367,7 +395,10 @@
         <button class="owner-refresh-btn" id="btnRefreshIssues">↻ Refresh</button>
       </div>
 
-      <div id="issueList"></div>
+      <!-- Wrapped inside owner-table-wrap for horizontal scrolling -->
+      <div class="owner-table-wrap">
+        <div id="issueList"></div>
+      </div>
     </div>
 
     <!-- MARKETING TAB -->
@@ -403,7 +434,7 @@
         <div class="owner-stat-card"><div class="owner-stat-label">Top OS</div><div class="owner-stat-number" id="visitorTopOS">—</div></div>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-bottom:24px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px;">
         <div class="owner-stat-card"><div class="owner-stat-label">Top Pages</div><div id="visitorTopPages"></div></div>
         <div class="owner-stat-card"><div class="owner-stat-label">Top Countries</div><div id="visitorTopCountries"></div></div>
         <div class="owner-stat-card"><div class="owner-stat-label">Browsers</div><div id="visitorBrowsers"></div></div>
