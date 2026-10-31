@@ -1250,14 +1250,23 @@
       return;
     }
 
-    let html = '<table class="dash-table" style="width:100%;">';
+    let html = '<table class="issues-table">';
+    html += '<colgroup>';
+    html += '<col style="width:4%;">';
+    html += '<col style="width:4%;">';
+    html += '<col style="width:12%;">';
+    html += '<col style="width:42%;">';
+    html += '<col style="width:14%;">';
+    html += '<col style="width:12%;">';
+    html += '<col style="width:12%;">';
+    html += '</colgroup>';
     html += '<thead><tr>';
-    html += '<th style="width:36px;text-align:center;"><input type="checkbox" id="selectAllIssues"></th>';
-    html += '<th style="width:30px;"></th><th>Status</th><th>Error Message</th><th>Source</th><th>Date</th><th>Actions</th>';
+    html += '<th style="text-align:center;"><input type="checkbox" id="selectAllIssues"></th>';
+    html += '<th></th><th>Status</th><th>Error Message</th><th>Source</th><th>Date</th><th>Actions</th>';
     html += '</tr></thead><tbody>';
 
     filtered.forEach(i => {
-      const time = i.created_at ? new Date(i.created_at).toLocaleString() : '—';
+      const time = i.created_at ? new Date(i.created_at).toLocaleDateString() + ' ' + new Date(i.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '—';
       const isResolved = i.resolved === 1;
       const safeId = escapeHtml(i.id);
       const isExpanded = (issueExpandedId === i.id);
@@ -1270,10 +1279,10 @@
       html += `<td style="text-align:center;" onclick="event.stopPropagation();"><input type="checkbox" class="issue-checkbox" data-id="${safeId}"></td>`;
       html += `<td style="text-align:center;font-size:12px;color:var(--text-muted);">${isExpanded ? '▼' : '▶'}</td>`;
       html += `<td>${statusBadge}</td>`;
-      html += `<td style="font-weight:600;">${escapeHtml(i.error_message || 'Unknown error')}</td>`;
+      html += `<td class="col-msg" style="font-weight:600;">${escapeHtml(i.error_message || 'Unknown error')}</td>`;
       html += `<td><span class="issue-card-source">${escapeHtml(i.source || 'unknown')}</span></td>`;
-      html += `<td style="white-space:nowrap;font-size:13px;color:var(--text-muted);">${time}</td>`;
-      html += `<td style="white-space:nowrap;">`;
+      html += `<td style="font-size:12px;color:#475569;">${time}</td>`;
+      html += `<td>`;
       if (!isResolved) {
         html += `<button class="owner-action-btn owner-btn-w9" data-action="copy" data-id="${safeId}">Copy</button>`;
       }
@@ -1281,11 +1290,11 @@
       html += `</td></tr>`;
 
       if (isExpanded) {
-        html += `<tr class="issue-detail-row" style="background:var(--bg-input);">`;
-        html += `<td></td><td></td><td colspan="5"><div style="padding:12px 16px;">`;
-        html += `<div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;"><strong>Error ID:</strong> ${safeId}</div>`;
+        html += `<tr class="issue-detail-row" style="background:#f8fafc;">`;
+        html += `<td colspan="7"><div style="padding:12px 16px;">`;
+        html += `<div style="font-size:13px;color:#475569;margin-bottom:8px;"><strong>Error ID:</strong> ${safeId}</div>`;
         if (i.stack_trace) {
-          html += `<pre style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;color:var(--text);white-space:pre-wrap;">${escapeHtml(i.stack_trace)}</pre>`;
+          html += `<pre style="background:#ffffff;border:1px solid #cbd5e1;border-radius:6px;padding:12px;font-size:12px;color:#0f172a;white-space:pre-wrap;word-break:break-all;">${escapeHtml(i.stack_trace)}</pre>`;
         }
         html += `</div></td></tr>`;
       }
