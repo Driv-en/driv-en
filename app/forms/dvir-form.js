@@ -168,7 +168,15 @@ window.openPriorModal = function() {
     defectsArr = [];
   }
 
-  const hasDefects = p.status === 'defects_found' || (Array.isArray(defectsArr) && defectsArr.length > 0);
+  const isOOS = p.status === 'out_of_service';
+  const hasDefects = p.status === 'defects_found' || isOOS || (Array.isArray(defectsArr) && defectsArr.length > 0);
+
+  let statusBadge = '<span style="color:#15803d; font-weight:700;">✅ Satisfactory</span>';
+  if (isOOS) {
+    statusBadge = '<span style="color:#b91c1c; font-weight:800;">🚨 PLACED OUT-OF-SERVICE</span>';
+  } else if (hasDefects) {
+    statusBadge = '<span style="color:#b45309; font-weight:700;">⚠️ Defects Found (Maintenance Required)</span>';
+  }
 
   content.innerHTML = `
     <div style="background:#f1f5f9; padding:10px; border-radius:6px; margin-bottom:12px;">
@@ -179,14 +187,13 @@ window.openPriorModal = function() {
     </div>
 
     <div style="margin-bottom:12px;">
-      <strong>Overall Condition:</strong> 
-      ${hasDefects ? '<span style="color:#b91c1c; font-weight:700;">⚠️ Defects Found</span>' : '<span style="color:#15803d; font-weight:700;">✅ Satisfactory</span>'}
+      <strong>Overall Condition:</strong> ${statusBadge}
     </div>
 
     ${hasDefects ? `
-      <div style="background:#fef2f2; border:1px solid #fca5a5; padding:10px; border-radius:6px; margin-bottom:12px;">
-        <strong style="color:#991b1b;">Reported Defects / Remarks:</strong>
-        <p style="margin:4px 0 0 0; color:#7f1d1d;">${esc(p.remarks || 'No detailed remarks provided.')}</p>
+      <div style="background:${isOOS ? '#fef2f2' : '#fffbeb'}; border:1px solid ${isOOS ? '#fca5a5' : '#fcd34d'}; padding:10px; border-radius:6px; margin-bottom:12px;">
+        <strong style="color:${isOOS ? '#991b1b' : '#92400e'};">Reported Defects / Remarks:</strong>
+        <p style="margin:4px 0 0 0; color:${isOOS ? '#7f1d1d' : '#78350f'};">${esc(p.remarks || 'No detailed remarks provided.')}</p>
       </div>
 
       <div style="background:#f0fdf4; border:1px solid #86efac; padding:10px; border-radius:6px; margin-bottom:12px;">
@@ -232,13 +239,26 @@ window.openRoadsideInspectionMode = function() {
   const locationStr = (city && state) ? `${city}, ${state}` : 'Current Terminal / Site';
   const nowStr = new Date().toLocaleString();
 
+  const activeDefectStatus = document.querySelector('input[name="defectStatus"]:checked')?.value || 'no_defects';
+
+  let currentStatusBadge = '<span style="color:#15803d; font-weight:700;">✅ Certified Safe for Operation</span>';
+  if (activeDefectStatus === 'out_of_service') {
+    currentStatusBadge = '<span style="color:#b91c1c; font-weight:800;">🚨 OUT-OF-SERVICE (UNSAFE TO OPERATE)</span>';
+  } else if (activeDefectStatus === 'defects_found') {
+    currentStatusBadge = '<span style="color:#b45309; font-weight:700;">⚠️ Defects Logged (Maintenance Required)</span>';
+  }
+
   let priorStatusHtml = '<span style="color:#16a34a; font-weight:700;">✅ Safe / No Prior Defects Reported</span>';
   let repairCertHtml = 'N/A — No Open Repairs Required';
 
   if (priorInspectionLoaded) {
-    const pDefects = priorInspectionLoaded.status === 'defects_found';
+    const isPriorOOS = priorInspectionLoaded.status === 'out_of_service';
+    const pDefects = priorInspectionLoaded.status === 'defects_found' || isPriorOOS;
     if (pDefects) {
-      priorStatusHtml = '<span style="color:#dc2626; font-weight:700;">⚠️ Defect Previously Reported</span>';
+      priorStatusHtml = isPriorOOS 
+        ? '<span style="color:#b91c1c; font-weight:700;">🚨 Prior Out-of-Service Declaration</span>'
+        : '<span style="color:#dc2626; font-weight:700;">⚠️ Defect Previously Reported</span>';
+
       repairCertHtml = priorInspectionLoaded.repair_certified
         ? `<span style="color:#16a34a; font-weight:700;">✅ Certified Repaired on ${new Date(priorInspectionLoaded.updated_at || priorInspectionLoaded.created_at).toLocaleDateString()}</span>`
         : `<span style="color:#b45309; font-weight:700;">⚠️ Repairs Certified Safe Prior to Departure</span>`;
@@ -250,6 +270,12 @@ window.openRoadsideInspectionMode = function() {
       <h3 style="margin:0 0 6px 0; font-size:16px; color:#1e40af;">COMMERCIAL VEHICLE COMPLIANCE SUMMARY</h3>
       <div style="font-size:12px; color:#1e3a8a;">FMCSA 49 CFR § 396.11 & § 396.13 Electronic Inspection Record</div>
     </div>
+
+    ${activeDefectStatus === 'out_of_service' ? `
+      <div style="background:#fef2f2; border:2px solid #dc2626; padding:12px; border-radius:6px; color:#991b1b; font-weight:700; text-align:center; margin-bottom:16px;">
+        🚨 COMMERCIAL VEHICLE PLACED OUT-OF-SERVICE (§ 396.11)
+      </div>
+    ` : ''}
 
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
       <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:12px; border-radius:6px;">
@@ -277,7 +303,7 @@ window.openRoadsideInspectionMode = function() {
       </tr>
       <tr style="border-bottom:1px solid #e2e8f0;">
         <td style="padding:8px 0; color:#64748b; font-weight:600;">Current Safety Status:</td>
-        <td style="padding:8px 0; text-align:right;">✅ Certified Safe for Operation</td>
+        <td style="padding:8px 0; text-align:right;">${currentStatusBadge}</td>
       </tr>
       <tr style="border-bottom:1px solid #e2e8f0;">
         <td style="padding:8px 0; color:#64748b; font-weight:600;">§ 396.13 Prior DVIR Status:</td>
@@ -568,11 +594,19 @@ async function onDVIRAssetChange() {
     if (priorDetails) {
       if (priorInspectionLoaded) {
         const pDate = new Date(priorInspectionLoaded.created_at).toLocaleString();
-        const pDefects = priorInspectionLoaded.status === 'defects_found';
+        const isOOS = priorInspectionLoaded.status === 'out_of_service';
+        const pDefects = priorInspectionLoaded.status === 'defects_found' || isOOS;
+
+        let statusStr = '✅ Satisfactory (No Defects)';
+        if (isOOS) {
+          statusStr = '<span style="color:#b91c1c;font-weight:800;">🚨 PLACED OUT-OF-SERVICE</span>';
+        } else if (pDefects) {
+          statusStr = '<span style="color:#dc2626;font-weight:700;">⚠️ Defects Previously Reported</span>';
+        }
 
         priorDetails.innerHTML = `
           <strong>Last Recorded Inspection:</strong> ${pDate}<br>
-          <strong>Status:</strong> ${pDefects ? '<span style="color:#dc2626;font-weight:700;">⚠️ Defects Previously Reported</span>' : '✅ Satisfactory (No Defects)'}<br>
+          <strong>Status:</strong> ${statusStr}<br>
           <button type="button" onclick="openPriorModal()" style="margin-top:8px; padding:6px 14px; background:#2563eb; color:#fff; border:none; border-radius:4px; font-weight:600; cursor:pointer; font-size:12px;">
             🔍 View Full Prior DVIR Details
           </button>
@@ -680,15 +714,19 @@ function updateOverallDefectState() {
 
   const noDefectsRadio = document.querySelector('input[name="defectStatus"][value="no_defects"]');
   const defectsFoundRadio = document.querySelector('input[name="defectStatus"][value="defects_found"]');
+  const oosRadio = document.querySelector('input[name="defectStatus"][value="out_of_service"]');
 
-  if (hasFailures && defectsFoundRadio) {
-    defectsFoundRadio.checked = true;
-  } else if (!hasFailures && noDefectsRadio) {
+  if (hasFailures) {
+    if (defectsFoundRadio && !oosRadio?.checked) {
+      defectsFoundRadio.checked = true;
+    }
+  } else if (!hasFailures && noDefectsRadio && !oosRadio?.checked) {
     noDefectsRadio.checked = true;
   }
 
-  if (defectsFoundRadio) {
-    defectsFoundRadio.dispatchEvent(new Event('change'));
+  const activeRadio = document.querySelector('input[name="defectStatus"]:checked');
+  if (activeRadio) {
+    activeRadio.dispatchEvent(new Event('change'));
   }
 }
 
@@ -768,8 +806,8 @@ async function submitDVIRForm(e) {
 
   const selectedDefectStatus = document.querySelector('input[name="defectStatus"]:checked')?.value || (defects.length > 0 ? 'defects_found' : 'no_defects');
 
-  if (selectedDefectStatus === 'defects_found' && !remarks) {
-    showStatusMessage('Inspector Remarks are required when defects are reported.', true);
+  if ((selectedDefectStatus === 'defects_found' || selectedDefectStatus === 'out_of_service') && !remarks) {
+    showStatusMessage('Inspector Remarks are required when defects or Out-of-Service conditions are reported.', true);
     return;
   }
 
@@ -804,7 +842,7 @@ async function submitDVIRForm(e) {
     state: state,
     site_location: siteLocation,
     location: combinedLocation,
-    status: selectedDefectStatus === 'defects_found' || defects.length > 0 ? 'defects_found' : 'pass',
+    status: selectedDefectStatus === 'no_defects' ? 'pass' : selectedDefectStatus,
     defects_count: defects.length,
     defects_json: JSON.stringify(defects),
     defects_found_json: JSON.stringify(defects),
@@ -842,9 +880,12 @@ async function submitDVIRForm(e) {
     const result = await res.json();
 
     if (result.success) {
-      const msg = unlistedFlag 
-        ? 'Inspection submitted! Unlisted equipment was flagged for Fleet Manager review.' 
-        : 'Inspection logged successfully under 49 CFR Part 396!';
+      let msg = 'Inspection logged successfully under 49 CFR Part 396!';
+      if (selectedDefectStatus === 'out_of_service') {
+        msg = '🚨 Out-of-Service inspection logged! Vehicle placed OUT-OF-SERVICE and maintenance notified.';
+      } else if (unlistedFlag) {
+        msg = 'Inspection submitted! Unlisted equipment was flagged for Fleet Manager review.';
+      }
       showStatusMessage(msg);
 
       document.getElementById('dvirInspectionForm').reset();
@@ -855,6 +896,9 @@ async function submitDVIRForm(e) {
 
       document.getElementById('powerUnitUnlistedNotice').style.display = 'none';
       document.getElementById('trailerUnlistedNotice').style.display = 'none';
+
+      const oosBanner = document.getElementById('oosWarningBanner');
+      if (oosBanner) oosBanner.style.display = 'none';
 
       selectedAssetId = '';
       selectedAssetNumber = '';
