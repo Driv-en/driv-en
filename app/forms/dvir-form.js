@@ -196,9 +196,14 @@ async function onDVIRAssetChange() {
       country: activeOrgCountry
     });
 
+    const ctxParams = getUrlContextParams();
     const res = await fetch(endpointUrl, {
       method: 'GET',
-      headers: { 'x-country': activeOrgCountry, 'Content-Type': 'application/json' }
+      headers: { 
+        'x-country': activeOrgCountry, 
+        'Content-Type': 'application/json',
+        ...(ctxParams.org_id ? { 'x-org-id': ctxParams.org_id } : {})
+      }
     });
 
     if (!res.ok) {
@@ -399,11 +404,13 @@ async function submitDVIRForm(e) {
   }
 
   try {
+    const ctxParams = getUrlContextParams();
     const res = await fetch(buildApiUrl('/api/dvir'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-country': activeOrgCountry
+        'x-country': activeOrgCountry,
+        ...(ctxParams.org_id ? { 'x-org-id': ctxParams.org_id } : {})
       },
       body: JSON.stringify(payload)
     });
