@@ -1,6 +1,6 @@
-/**
- * Cloudflare Pages Function: /api/dvir
- * Multi-Tenant Isolated & 49 CFR Part 396 Compliant
+/** 
+ * Cloudflare Pages Function: /api/dvir 
+ * Multi-Tenant Isolated & 49 CFR Part 396 Compliant 
  */
 
 export async function onRequest(context) {
@@ -20,7 +20,11 @@ export async function onRequest(context) {
   }
 
   // 1. Extract and enforce Organization Context (Tenant Isolation)
-  const orgId = request.headers.get('x-org-id') || url.searchParams.get('org_id') || url.searchParams.get('orgId') || 'default_org';
+  const orgId = request.headers.get('x-org-id') || url.searchParams.get('org_id') || url.searchParams.get('orgId') || null;
+
+  if (!orgId) {
+    return new Response(JSON.stringify({ error: "Multi-tenant context missing (org_id required)" }), { status: 401, headers });
+  }
 
   const countryParam = (url.searchParams.get('country') || request.headers.get('x-country') || 'US').toUpperCase().trim();
   const isCanada = countryParam === 'CA';
@@ -48,7 +52,7 @@ export async function onRequest(context) {
 
   const kvStore = env.DRIVEN_KV || env.ASSET_CONFIG_KV;
 
-  // Multi-tenant database initialization
+  // Multi-tenant database initialization helper
   async function ensureDvirTable() {
     if (!env.DB) return;
     try {
@@ -239,7 +243,6 @@ export async function onRequest(context) {
         }
       }
 
-      // KV key namespacing by organization ID
       if (kvStore) {
         const lookupKey = (assetNumber || assetId).toLowerCase().trim();
         await kvStore.put(`dvir:${orgId}:${lookupKey}:${timestamp}`, JSON.stringify(dvirRecord));
