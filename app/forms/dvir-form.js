@@ -156,7 +156,16 @@ window.openPriorModal = function() {
 
   const p = priorInspectionLoaded;
   const pDate = new Date(p.created_at).toLocaleString();
-  const hasDefects = p.status === 'defects_found' || (Array.isArray(p.defects_found) && p.defects_found.length > 0);
+  
+  // Safely parse defects_found whether returned as JSON string or array
+  let defectsArr = [];
+  try {
+    defectsArr = typeof p.defects_found === 'string' ? JSON.parse(p.defects_found) : (p.defects_found || []);
+  } catch (e) {
+    defectsArr = [];
+  }
+
+  const hasDefects = p.status === 'defects_found' || (Array.isArray(defectsArr) && defectsArr.length > 0);
 
   content.innerHTML = `
     <div style="background:#f1f5f9; padding:10px; border-radius:6px; margin-bottom:12px;">
@@ -206,6 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const assetInput = document.getElementById('dvirAssetInput');
   if (assetInput) {
     assetInput.addEventListener('change', onDVIRAssetChange);
+    assetInput.addEventListener('input', onDVIRAssetChange);
     assetInput.addEventListener('blur', onDVIRAssetChange);
   }
 
@@ -408,7 +418,6 @@ async function onDVIRAssetChange() {
     selectedAssetNumber = val.split('—')[0].trim();
   }
 
-  // GUARANTEE § 396.13 PRIOR REVIEW BOX VISIBILITY
   if (priorBox) priorBox.style.display = 'block';
 
   if (container) container.innerHTML = '<p style="font-size: 13px; color: var(--text-muted);">Loading statutory 49 CFR Part 396 checklist...</p>';
@@ -655,27 +664,39 @@ async function submitDVIRForm(e) {
     flagged_for_manager: true
   } : null;
 
-  // Fully aligned schema payload targeting SQLite D1 column types
+  // Extract user ID/email from local storage context
+  let userId = null;
+  let userEmail = null;
+  try {
+    const u = JSON.parse(localStorage.getItem('driven_user') || '{}');
+    userId = u.id || u.user_id || u.sub || null;
+    userEmail = u.email || null;
+  } catch (e) {}
+
+  // Single-table aligned payload matching dvir_inspections schema
   const payload = {
     asset_id: selectedAssetId || powerUnitVal,
     asset_number: selectedAssetNumber || powerUnitVal,
-    trailer_number: trailerNumber,
-    driver_signature: driverSignature,
+    trailer_number: trailerNumber || null,
     inspection_type: inspectionType,
     meter_reading: meterReading,
+    driver_signature: driverSignature,
+    status: selectedDefectStatus === 'defects_found' || defects.length > 0 ? 'defects_found' : 'pass',
+    has_defects: defects.length > 0 ? 1 : 0,
     city: city,
     state: state,
     site_location: siteLocation,
     location: combinedLocation,
-    status: selectedDefectStatus === 'defects_found' || defects.length > 0 ? 'defects_found' : 'pass',
-    defects_found: JSON.stringify(defects),
-    inspection_data: JSON.stringify(inspectionData),
-    remarks: remarks,
+    device_location_json: deviceLocation ? JSON.stringify(deviceLocation) : null,
+    defects_found_json: JSON.stringify(defects),
+    inspection_data_json: JSON.stringify(inspectionData),
+    remarks: remarks || '',
     prior_review_acknowledged: priorReviewChk ? (priorReviewChk.checked ? 1 : 0) : 1,
     certified: 1,
     unlisted_flag: unlistedFlag,
     unlisted_details_json: unlistedDetails ? JSON.stringify(unlistedDetails) : null,
-    device_location: JSON.stringify(deviceLocation)
+    user_id: userId,
+    created_by: userEmail || driverSignature
   };
 
   const btnSubmit = document.getElementById('btnSubmitDVIR');
