@@ -65,14 +65,22 @@ function checkDeviceLocation() {
 function updateLocationStatus(hasLocation) {
   const banner = document.getElementById('locationStatusBanner');
   if (!banner) return;
-  if (hasLocation) {
+  
+  banner.style.display = 'block';
+  
+  if (hasLocation && deviceLocation) {
     banner.className = 'location-banner ok';
-    banner.style.display = 'block';
     banner.innerHTML = `<strong>📍 Location Tagged:</strong> ${deviceLocation.latitude.toFixed(6)}, ${deviceLocation.longitude.toFixed(6)} (±${Math.round(deviceLocation.accuracy)}m)`;
   } else {
     banner.className = 'location-banner warn';
-    banner.style.display = 'block';
-    banner.innerHTML = `<strong>⚠️ Device Location OFF</strong> — Click to retry <button type="button" onclick="checkDeviceLocation()" style="margin-left:8px;padding:4px 12px;border:1px solid #b45309;border-radius:4px;background:#fef3c7;color:#78350f;cursor:pointer;font-size:12px;">Retry Location</button>`;
+    banner.innerHTML = `<strong>⚠️ Device Location OFF</strong> — Click to retry `;
+    
+    const retryBtn = document.createElement('button');
+    retryBtn.type = 'button';
+    retryBtn.textContent = 'Retry Location';
+    retryBtn.style.cssText = 'margin-left:8px;padding:4px 12px;border:1px solid #b45309;border-radius:4px;background:#fef3c7;color:#78350f;cursor:pointer;font-size:12px;';
+    retryBtn.addEventListener('click', checkDeviceLocation);
+    banner.appendChild(retryBtn);
   }
 }
 
@@ -103,7 +111,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const u = JSON.parse(localStorage.getItem('driven_user') || '{}');
       const name = u.full_name || u.name || [u.first_name, u.last_name].filter(Boolean).join(' ');
       if (name) driverSigInput.value = name;
-    } catch(e) {}
+    } catch (e) {
+      console.warn('Unable to load stored user name:', e);
+    }
   }
 
   if (isMobileDevice()) {
@@ -121,7 +131,10 @@ async function loadDVIRAssets() {
     const fetchUrl = buildApiUrl('/api/assets', { limit: '500', all: 'true' });
 
     let resp = await fetch(fetchUrl);
-    if (!resp.ok) { resp = await fetch('/api/assets'); }
+    if (!resp.ok) {
+      // Fallback with context parameters preserved
+      resp = await fetch(buildApiUrl('/api/assets'));
+    }
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
     const data = await resp.json();
@@ -140,6 +153,9 @@ async function loadDVIRAssets() {
         const typeAttr = a.asset_type || a.type || 'vehicle';
         return `<option value="${esc(a.id)}" data-asset-num="${esc(assetNum)}" data-type="${esc(typeAttr)}">${esc(assetNum)} — ${esc(name)}</option>`;
       }).join('');
+
+    // Trigger state sync if browser pre-selected an option
+    onDVIRAssetChange();
   } catch (err) {
     console.error('Error loading DVIR asset list:', err);
   }
@@ -152,7 +168,11 @@ async function onDVIRAssetChange() {
   const container = document.getElementById('dvirChecklistContainer');
   const priorBox = document.getElementById('priorReviewBox');
 
+  // Clear previous inspection state when changing selection
+  priorInspectionLoaded = null;
+
   if (!selectedAssetId) {
+    selectedAssetNumber = '';
     if (container) container.innerHTML = '<p style="font-size: 13px; color: var(--text-muted);">Please select a power unit above to generate the statutory checklist.</p>';
     if (priorBox) priorBox.style.display = 'none';
     return;
@@ -188,8 +208,8 @@ async function onDVIRAssetChange() {
 
     const data = await res.json();
     if (data.success) {
-      currentChecklist = data.checklist;
-      priorInspectionLoaded = data.priorInspection;
+      currentChecklist = data.checklist || [];
+      priorInspectionLoaded = data.priorInspection || null;
 
       // Render 49 CFR § 396.13 Prior Driver Inspection Review
       if (priorBox) {
@@ -231,20 +251,51 @@ function renderDVIRChecklist(dvirData) {
   (dvirData.checklist || []).forEach(sec => {
     const secEl = document.createElement('div');
     secEl.className = 'dvir-section';
-    secEl.innerHTML = `<h4 class="section-title">${esc(sec.title)}</h4>`;
+    
+    const titleEl = document.createElement('h4');
+    titleEl.className = 'section-title';
+    titleEl.textContent = sec.title;
+    secEl.appendChild(titleEl);
 
     (sec.items || []).forEach(item => {
       const row = document.createElement('div');
       row.className = 'toggle-row';
-      row.innerHTML = `
-        <div>
-          <div class="toggle-title">${esc(item.label)}</div>
-        </div>
-        <div style="display: flex; gap: 12px; align-items: center; flex-shrink: 0;">
-          <label style="font-size:13px;cursor:pointer;"><input type="radio" name="item_${item.id}" value="pass" checked onchange="updateOverallDefectState()"> Pass</label>
-          <label style="font-size:13px;cursor:pointer;"><input type="radio" name="item_${item.id}" value="fail" onchange="updateOverallDefectState()"> Fail</label>
-        </div>
-      `;
+
+      const titleDiv = document.createElement('div');
+      const itemTitle = document.createElement('div');
+      itemTitle.className = 'toggle-title';
+      itemTitle.textContent = item.label;
+      titleDiv.appendChild(itemTitle);
+
+      const toggleOptions = document.createElement('div');
+      toggleOptions.style.cssText = 'display: flex; gap: 12px; align-items: center; flex-shrink: 0;';
+
+      const passLabel = document.createElement('label');
+      passLabel.style.cssText = 'font-size:13px;cursor:pointer;';
+      const passRadio = document.createElement('input');
+      passRadio.type = 'radio';
+      passRadio.name = `item_${item.id}`;
+      passRadio.value = 'pass';
+      passRadio.checked = true;
+      passRadio.addEventListener('change', updateOverallDefectState);
+      passLabel.appendChild(passRadio);
+      passLabel.appendChild(document.createTextNode(' Pass'));
+
+      const failLabel = document.createElement('label');
+      failLabel.style.cssText = 'font-size:13px;cursor:pointer;';
+      const failRadio = document.createElement('input');
+      failRadio.type = 'radio';
+      failRadio.name = `item_${item.id}`;
+      failRadio.value = 'fail';
+      failRadio.addEventListener('change', updateOverallDefectState);
+      failLabel.appendChild(failRadio);
+      failLabel.appendChild(document.createTextNode(' Fail'));
+
+      toggleOptions.appendChild(passLabel);
+      toggleOptions.appendChild(failLabel);
+
+      row.appendChild(titleDiv);
+      row.appendChild(toggleOptions);
       secEl.appendChild(row);
     });
 
@@ -284,7 +335,7 @@ async function submitDVIRForm(e) {
 
   const meterInput = document.getElementById('dvirMeterReading');
   const meterReading = meterInput ? parseFloat(meterInput.value) : null;
-  if (!meterReading || isNaN(meterReading) || meterReading < 0) {
+  if (meterReading === null || isNaN(meterReading) || meterReading < 0) {
     showStatusMessage('Odometer / Engine Hour Reading is required.', true);
     return;
   }
@@ -336,7 +387,7 @@ async function submitDVIRForm(e) {
     status: selectedDefectStatus === 'defects_found' || defects.length > 0 ? 'defects_found' : 'pass',
     defects_found: defects,
     remarks: remarks,
-    prior_review_acknowledged: priorReviewChk ? priorReviewChk.checked : true,
+    prior_review_acknowledged: priorInspectionLoaded ? (priorReviewChk ? priorReviewChk.checked : false) : true,
     certified: true,
     device_location: hasDeviceLocation() ? deviceLocation : null
   };
@@ -364,9 +415,15 @@ async function submitDVIRForm(e) {
       showStatusMessage('DVIR inspection logged successfully under 49 CFR Part 396!');
       document.getElementById('dvirInspectionForm').reset();
       document.getElementById('dvirChecklistContainer').innerHTML = '<p style="font-size: 13px; color: var(--text-muted);">Please select a power unit above to generate the statutory checklist.</p>';
-      document.getElementById('priorReviewBox').style.display = 'none';
+      
+      const priorBox = document.getElementById('priorReviewBox');
+      if (priorBox) priorBox.style.display = 'none';
+      
+      // Clean up local application state
       selectedAssetId = '';
       selectedAssetNumber = '';
+      currentChecklist = [];
+      priorInspectionLoaded = null;
     } else {
       showStatusMessage(result.error || 'Failed to submit DVIR inspection.', true);
     }
