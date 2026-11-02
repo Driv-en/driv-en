@@ -12,8 +12,8 @@
   <link rel="stylesheet" href="../shared/dashboard.css?v=11">
   <link rel="stylesheet" href="../../styles/diamond-plate.css?v=2">
 
-  <!-- Load authentication check prior to page execution/rendering to protect sensitive content -->
-  <script src="../shared/auth-check.js?v=13"></script>
+  <!-- Shared auth check script -->
+  <script src="../shared/auth-check.js?v=13" defer></script>
 
   <script>
   (function() {
@@ -122,32 +122,28 @@
         <div class="prior-review-box" id="priorReviewBox">
           <div style="font-weight: 700; margin-bottom: 4px;">⚠️ 49 CFR § 396.13 Prior Driver Inspection Review Required</div>
           <div id="priorReviewDetails">Checking prior inspection logs for this asset...</div>
-          <label style="display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; cursor: pointer; font-weight: 600;">
+          <label for="chkReviewAcknowledged" style="display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; cursor: pointer; font-weight: 600;">
             <input type="checkbox" id="chkReviewAcknowledged">
             I certify that I have reviewed the previous DVIR and verified any required repair certifications.
           </label>
         </div>
 
         <div class="form-grid-2">
-          <!-- Power Unit: Searchable Datalist (Select or Type Custom) -->
+          <!-- Power Unit -->
           <div class="form-group">
             <label for="dvirAssetInput">Power Unit (Truck / Tractor) *</label>
             <input type="text" id="dvirAssetInput" list="powerUnitOptions" placeholder="Select or type power unit #..." autocomplete="off" required>
-            <datalist id="powerUnitOptions">
-              <!-- Populated dynamically from power unit assets -->
-            </datalist>
+            <datalist id="powerUnitOptions"></datalist>
             <div id="powerUnitUnlistedNotice" class="unlisted-notice">
               ⚠️ <strong>Unlisted Unit Flagged:</strong> Fleet/Equipment Manager will be notified to review and add this power unit to inventory.
             </div>
           </div>
 
-          <!-- Towed Unit: Searchable Datalist with Pre-populated Standard Towables -->
+          <!-- Towed Unit -->
           <div class="form-group">
             <label for="dvirTrailerNumber">Towed Unit / Trailer Number (if applicable)</label>
             <input type="text" id="dvirTrailerNumber" list="trailerOptions" placeholder="Select or type trailer #..." autocomplete="off">
-            <datalist id="trailerOptions">
-              <!-- Populated dynamically + fallback standard towables -->
-            </datalist>
+            <datalist id="trailerOptions"></datalist>
             <div id="trailerUnlistedNotice" class="unlisted-notice">
               ⚠️ <strong>Unlisted Towed Unit Flagged:</strong> Fleet/Equipment Manager will be notified to review and add this towed unit to inventory.
             </div>
@@ -170,7 +166,6 @@
           </div>
         </div>
 
-        <!-- Split Location Inputs -->
         <div class="form-grid-3">
           <div class="form-group">
             <label for="dvirCity">Inspection City *</label>
@@ -187,7 +182,6 @@
             <input type="text" id="dvirLocation" list="locationOptions" placeholder="Select or type site name..." autocomplete="off">
             <datalist id="locationOptions">
               <option value="Not Applicable">Not Applicable</option>
-              <!-- Populated dynamically from locations & projects -->
             </datalist>
           </div>
         </div>
@@ -219,7 +213,7 @@
         </div>
 
         <div class="form-group" style="margin-bottom: 20px;">
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+          <label for="dvirSignOff" style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
             <input type="checkbox" id="dvirSignOff" required>
             <span>I certify that this vehicle/equipment has been inspected in accordance with 49 CFR Part 396 regulations. *</span>
           </label>
@@ -326,6 +320,17 @@
         radio.addEventListener('change', updateDefectValidation);
       });
       updateDefectValidation();
+
+      // Form submission fallback handler
+      var form = document.getElementById('dvirInspectionForm');
+      if (form && typeof window.handleDvirSubmit !== 'function') {
+        form.addEventListener('submit', function(e) {
+          if (!e.defaultPrevented) {
+            e.preventDefault();
+            console.warn('DVIR custom submission handler from dvir-form.js was not ready.');
+          }
+        });
+      }
 
       setTimeout(makeTabsSticky, 100);
       setTimeout(makeTabsSticky, 300);
