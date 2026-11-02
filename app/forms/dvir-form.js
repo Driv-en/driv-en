@@ -78,13 +78,13 @@ function buildApiUrl(endpoint, extraParams = {}) {
   return url.toString();
 }
 
-function isMobileDevice() {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-    (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
-}
-
+// Mandatory Location Service Check (Runs on both Mobile and Laptops/Desktops)
 function checkDeviceLocation() {
-  if (!navigator.geolocation) return;
+  if (!navigator.geolocation) {
+    updateLocationStatus(false, 'Geolocation is not supported by your browser/device.');
+    return;
+  }
+
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       deviceLocation = {
@@ -97,13 +97,18 @@ function checkDeviceLocation() {
     },
     (err) => {
       deviceLocation = null;
-      updateLocationStatus(false);
+      let reason = 'Location access denied or unavailable.';
+      if (err.code === err.PERMISSION_DENIED) reason = 'Location access permission was denied.';
+      else if (err.code === err.POSITION_UNAVAILABLE) reason = 'Location position unavailable.';
+      else if (err.code === err.TIMEOUT) reason = 'Location request timed out.';
+      
+      updateLocationStatus(false, reason);
     },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
   );
 }
 
-function updateLocationStatus(hasLocation) {
+function updateLocationStatus(hasLocation, errorDetails = '') {
   const banner = document.getElementById('locationStatusBanner');
   if (!banner) return;
   
@@ -111,15 +116,15 @@ function updateLocationStatus(hasLocation) {
   
   if (hasLocation && deviceLocation) {
     banner.className = 'location-banner ok';
-    banner.innerHTML = `<strong>📍 Location Tagged:</strong> ${deviceLocation.latitude.toFixed(6)}, ${deviceLocation.longitude.toFixed(6)} (±${Math.round(deviceLocation.accuracy)}m)`;
+    banner.innerHTML = `<strong>📍 Mandatory Device Location Tagged:</strong> ${deviceLocation.latitude.toFixed(6)}, ${deviceLocation.longitude.toFixed(6)} (±${Math.round(deviceLocation.accuracy)}m)`;
   } else {
     banner.className = 'location-banner warn';
-    banner.innerHTML = `<strong>⚠️ Device Location OFF</strong> — Click to retry `;
+    banner.innerHTML = `<strong>⚠️ Device Location Required:</strong> ${errorDetails || 'Location is turned off or blocked.'} `;
     
     const retryBtn = document.createElement('button');
     retryBtn.type = 'button';
-    retryBtn.textContent = 'Retry Location';
-    retryBtn.style.cssText = 'margin-left:8px;padding:4px 12px;border:1px solid #b45309;border-radius:4px;background:#fef3c7;color:#78350f;cursor:pointer;font-size:12px;';
+    retryBtn.textContent = 'Enable / Retry Location';
+    retryBtn.style.cssText = 'margin-left:8px;padding:4px 12px;border:1px solid #b45309;border-radius:4px;background:#fef3c7;color:#78350f;cursor:pointer;font-size:12px;font-weight:600;';
     retryBtn.addEventListener('click', checkDeviceLocation);
     banner.appendChild(retryBtn);
   }
@@ -216,9 +221,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  if (isMobileDevice()) {
-    checkDeviceLocation();
-  }
+  // Mandatory location detection on form initialization (runs on all hardware)
+  checkDeviceLocation();
 
   loadDVIRAssets();
   loadLocationOptions();
@@ -549,6 +553,13 @@ function showStatusMessage(msg, isError = false) {
 async function submitDVIRForm(e) {
   e.preventDefault();
 
+  // Enforce Mandatory Device Geolocation Check
+  if (!hasDeviceLocation()) {
+    showStatusMessage('Mandatory Device Location is required to submit DVIR. Please click "Enable / Retry Location" in the top banner.', true);
+    checkDeviceLocation();
+    return;
+  }
+
   const powerUnitVal = document.getElementById('dvirAssetInput')?.value.trim() || '';
   if (!powerUnitVal) {
     showStatusMessage('Please select or enter a power unit before submitting.', true);
@@ -640,7 +651,7 @@ async function submitDVIRForm(e) {
     certified: true,
     unlisted_flag: unlistedFlag,
     unlisted_details: unlistedDetails,
-    device_location: hasDeviceLocation() ? deviceLocation : null
+    device_location: deviceLocation
   };
 
   const btnSubmit = document.getElementById('btnSubmitDVIR');
@@ -683,6 +694,9 @@ async function submitDVIRForm(e) {
       selectedAssetNumber = '';
       currentChecklist = [];
       priorInspectionLoaded = null;
+
+      // Re-trigger location verification for subsequent form submissions
+      checkDeviceLocation();
     } else {
       showStatusMessage(result.error || 'Failed to submit inspection.', true);
     }
