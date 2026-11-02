@@ -13,6 +13,17 @@ let priorInspectionLoaded = null;
 let loadedPowerUnitsMap = new Map();
 let loadedTrailersMap = new Map();
 
+// Statutory CVSA / FMCSA Out-of-Service Critical Components
+const CRITICAL_OOS_ITEM_IDS = [
+  'serviceBrakes', 
+  'parkingBrake', 
+  'steeringMechanism', 
+  'tires', 
+  'wheelsRims', 
+  'couplingDevices', 
+  'exhaustSystem'
+];
+
 // Standard Towable / Trailer Categories (Fallback list if database returns empty)
 const DEFAULT_TOWABLE_UNITS = [
   "TRL-101 — Flatbed Trailer (48ft / 53ft)",
@@ -709,19 +720,25 @@ function renderDVIRChecklist(checklistData) {
 }
 
 function updateOverallDefectState() {
-  const hasFailures = Array.from(document.querySelectorAll('#dvirChecklistContainer input[type="radio"]:checked'))
-    .some(input => input.value === 'fail');
+  const failedInputs = Array.from(document.querySelectorAll('#dvirChecklistContainer input[type="radio"][value="fail"]:checked'));
+  const hasFailures = failedInputs.length > 0;
+
+  // Check if any failed item is in the statutory Critical Out-of-Service list
+  const hasCriticalOOS = failedInputs.some(input => {
+    const itemId = input.name.replace('item_', '');
+    return CRITICAL_OOS_ITEM_IDS.includes(itemId);
+  });
 
   const noDefectsRadio = document.querySelector('input[name="defectStatus"][value="no_defects"]');
   const defectsFoundRadio = document.querySelector('input[name="defectStatus"][value="defects_found"]');
   const oosRadio = document.querySelector('input[name="defectStatus"][value="out_of_service"]');
 
-  if (hasFailures) {
-    if (defectsFoundRadio && !oosRadio?.checked) {
-      defectsFoundRadio.checked = true;
-    }
-  } else if (!hasFailures && noDefectsRadio && !oosRadio?.checked) {
-    noDefectsRadio.checked = true;
+  if (hasCriticalOOS) {
+    if (oosRadio) oosRadio.checked = true;
+  } else if (hasFailures) {
+    if (defectsFoundRadio) defectsFoundRadio.checked = true;
+  } else if (!hasFailures) {
+    if (noDefectsRadio) noDefectsRadio.checked = true;
   }
 
   const activeRadio = document.querySelector('input[name="defectStatus"]:checked');
