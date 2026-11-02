@@ -21,7 +21,6 @@ function getUrlContextParams() {
   return context;
 }
 
-// Safely builds API URLs without query parameter collision or formatting bugs
 function buildApiUrl(endpoint, extraParams = {}) {
   const ctx = getUrlContextParams();
   const url = new URL(endpoint, window.location.origin);
@@ -104,7 +103,6 @@ document.addEventListener('DOMContentLoaded', () => {
     form.addEventListener('submit', submitDVIRForm);
   }
 
-  // Pre-fill signature with logged-in user name if available
   const driverSigInput = document.getElementById('dvirDriverSignature');
   if (driverSigInput) {
     try {
@@ -141,14 +139,12 @@ async function loadDVIRAssets() {
     const data = await resp.json();
     let assetsList = Array.isArray(data) ? data : (data.assets || data.data || data.items || []);
 
-    // Filter to active assets
     const activeAssets = assetsList.filter(a => {
       if (!a) return false;
       const st = String(a.status || '').toLowerCase().trim();
       return st !== 'inactive' && st !== 'retired' && st !== 'decommissioned' && st !== 'sold' && st !== 'deleted' && st !== '0';
     });
 
-    // 1. Power Units: Active & DOT Regulated (dot_regulated === 1)
     const powerUnits = activeAssets.filter(a => {
       const isDotRegulated = a.dot_regulated !== undefined ? (Number(a.dot_regulated) === 1 || a.dot_regulated === true) : 
                             (a.requires_dvir !== undefined ? (Number(a.requires_dvir) === 1 || a.requires_dvir === true) : true);
@@ -164,7 +160,6 @@ async function loadDVIRAssets() {
         return `<option value="${esc(a.id)}" data-asset-num="${esc(assetNum)}" data-type="${esc(typeAttr)}" data-meter="${esc(meterVal)}">${esc(assetNum)} — ${esc(name)}</option>`;
       }).join('');
 
-    // 2. Trailers / Towed Units: Populates <datalist id="trailerOptions">
     if (trailerDatalist) {
       const trailerUnits = activeAssets.filter(a => {
         const type = String(a.asset_type || a.type || '').toLowerCase();
@@ -212,7 +207,6 @@ async function loadLocationOptions() {
       });
     }
 
-    // Deduplicate options list
     const uniqueOptions = [...new Set(options)];
     locDatalist.innerHTML = uniqueOptions.map(opt => `<option value="${esc(opt)}"></option>`).join('');
   } catch (e) {
@@ -244,7 +238,6 @@ async function onDVIRAssetChange() {
   const rawType = (selectedOption ? selectedOption.getAttribute('data-type') : null) || 'default';
   const prefilledMeter = selectedOption ? selectedOption.getAttribute('data-meter') : '';
 
-  // Auto-fill odometer/engine hours if available, while leaving it fully editable
   if (meterInput && prefilledMeter) {
     meterInput.value = prefilledMeter;
   }
@@ -409,6 +402,13 @@ async function submitDVIRForm(e) {
     return;
   }
 
+  const city = document.getElementById('dvirCity')?.value.trim() || '';
+  const state = document.getElementById('dvirState')?.value.trim() || '';
+  if (!city || !state) {
+    showStatusMessage('Inspection City and State are required for 49 CFR § 396.11 compliance.', true);
+    return;
+  }
+
   const driverSigInput = document.getElementById('dvirDriverSignature');
   const driverSignature = driverSigInput ? driverSigInput.value.trim() : '';
   if (!driverSignature) {
@@ -441,7 +441,8 @@ async function submitDVIRForm(e) {
 
   const trailerNumber = document.getElementById('dvirTrailerNumber')?.value.trim() || '';
   const inspectionType = document.getElementById('inspectionType')?.value || 'pre_trip';
-  const location = document.getElementById('dvirLocation')?.value.trim() || '';
+  const siteLocation = document.getElementById('dvirLocation')?.value.trim() || '';
+  const combinedLocation = `${city}, ${state}${siteLocation ? ` (${siteLocation})` : ''}`;
   const remarks = document.getElementById('dvirRemarks')?.value.trim() || '';
   const selectedDefectStatus = document.querySelector('input[name="defectStatus"]:checked')?.value || (defects.length > 0 ? 'defects_found' : 'no_defects');
 
@@ -452,7 +453,10 @@ async function submitDVIRForm(e) {
     driver_signature: driverSignature,
     inspection_type: inspectionType,
     meter_reading: meterReading,
-    location: location,
+    city: city,
+    state: state,
+    site_location: siteLocation,
+    location: combinedLocation,
     status: selectedDefectStatus === 'defects_found' || defects.length > 0 ? 'defects_found' : 'pass',
     defects_found: defects,
     remarks: remarks,
