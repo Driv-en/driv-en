@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DRIV-EN | Driver Vehicle Inspection Report (DVIR - 49 CFR Part 396)</title>
   <meta name="description" content="FMCSA 49 CFR Part 396 compliant Driver Vehicle Inspection Report (DVIR) pre-trip and post-trip checklist submission.">
   <meta name="robots" content="noindex, nofollow">
@@ -11,6 +11,9 @@
   <link rel="icon" type="image/png" href="../../assets/icons/favicon-180.png?v=2026">
   <link rel="stylesheet" href="../shared/dashboard.css?v=11">
   <link rel="stylesheet" href="../../styles/diamond-plate.css?v=2">
+
+  <!-- Load authentication check prior to page execution/rendering to protect sensitive content -->
+  <script src="../shared/auth-check.js?v=13"></script>
 
   <script>
   (function() {
@@ -173,7 +176,7 @@
         </div>
 
         <div class="form-group">
-          <label for="dvirRemarks">Inspector Remarks / Defect Details</label>
+          <label for="dvirRemarks" id="lblDvirRemarks">Inspector Remarks / Defect Details</label>
           <textarea id="dvirRemarks" rows="3" placeholder="Describe any defects found, safety concerns, or maintenance details..."></textarea>
         </div>
 
@@ -198,7 +201,6 @@
 
   <script src="../shared/dashboard-common.js?v=13"></script>
   <script src="dvir-form.js?v=4"></script>
-  <script src="../shared/auth-check.js?v=13"></script>
   <script>
     function getUrlContextParams() {
       var params = new URLSearchParams(window.location.search);
@@ -239,8 +241,11 @@
       }
     }
 
-    window.dashLogout = function() {
-      try { fetch('/auth/logout', { method: 'POST' }); } catch (e) {}
+    // Fixed: Await asynchronous logout fetch before completing page navigation
+    window.dashLogout = async function() {
+      try { 
+        await fetch('/auth/logout', { method: 'POST' }); 
+      } catch (e) {}
       window.location.href = '/public/login.html';
     };
 
@@ -253,6 +258,27 @@
       
       var homeLink = document.getElementById('dashHomeLink');
       if (homeLink) homeLink.href = preserveUrlParams(dashUrl);
+
+      // Handle FMCSA 49 CFR 396.11 dynamic validation for defects
+      var defectRadios = document.querySelectorAll('input[name="defectStatus"]');
+      var dvirRemarks = document.getElementById('dvirRemarks');
+      var lblDvirRemarks = document.getElementById('lblDvirRemarks');
+
+      function updateDefectValidation() {
+        var selected = document.querySelector('input[name="defectStatus"]:checked');
+        if (selected && selected.value === 'defects_found') {
+          dvirRemarks.required = true;
+          lblDvirRemarks.textContent = 'Inspector Remarks / Defect Details *';
+        } else {
+          dvirRemarks.required = false;
+          lblDvirRemarks.textContent = 'Inspector Remarks / Defect Details';
+        }
+      }
+
+      defectRadios.forEach(function(radio) {
+        radio.addEventListener('change', updateDefectValidation);
+      });
+      updateDefectValidation();
 
       setTimeout(makeTabsSticky, 100);
       setTimeout(makeTabsSticky, 300);
