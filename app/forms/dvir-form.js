@@ -21,7 +21,7 @@ function getUrlContextParams() {
   return context;
 }
 
-// Fixed: Safely builds absolute URLs with query parameters without creating duplicate '?' symbols
+// Safely builds API URLs without query parameter collision or formatting bugs
 function buildApiUrl(endpoint, extraParams = {}) {
   const ctx = getUrlContextParams();
   const url = new URL(endpoint, window.location.origin);
@@ -31,7 +31,7 @@ function buildApiUrl(endpoint, extraParams = {}) {
   
   for (const [k, v] of Object.entries(extraParams)) {
     if (v !== undefined && v !== null && v !== '') {
-      url.searchParams.set(k, v);
+      url.searchParams.set(k, String(v).trim());
     }
   }
   return url.toString();
@@ -159,15 +159,19 @@ async function onDVIRAssetChange() {
   }
 
   const selectedOption = assetSelect.options[assetSelect.selectedIndex];
-  selectedAssetNumber = selectedOption ? (selectedOption.getAttribute('data-asset-num') || selectedAssetId) : selectedAssetId;
-  const rawType = selectedOption ? (selectedOption.getAttribute('data-type') || 'default') : 'default';
+  
+  // Parameter Fallback Guard: Guarantees assetNumber is non-empty to prevent HTTP 400
+  selectedAssetNumber = (selectedOption ? selectedOption.getAttribute('data-asset-num') : null) || selectedAssetId || (selectedOption ? selectedOption.text.split('—')[0].trim() : 'UNIT-1');
+  const rawType = (selectedOption ? selectedOption.getAttribute('data-type') : null) || 'default';
 
   if (container) container.innerHTML = '<p style="font-size: 13px; color: var(--text-muted);">Loading statutory 49 CFR Part 396 checklist...</p>';
 
   try {
     const endpointUrl = buildApiUrl('/api/dvir', {
       assetNumber: selectedAssetNumber,
+      asset_number: selectedAssetNumber,
       assetId: selectedAssetId,
+      asset_id: selectedAssetId,
       assetType: rawType,
       country: activeOrgCountry
     });
@@ -178,7 +182,8 @@ async function onDVIRAssetChange() {
     });
 
     if (!res.ok) {
-      throw new Error(`Server returned HTTP status ${res.status}`);
+      const errBody = await res.json().catch(() => ({}));
+      throw new Error(errBody.error || `HTTP ${res.status}`);
     }
 
     const data = await res.json();
