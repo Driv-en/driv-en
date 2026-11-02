@@ -76,6 +76,7 @@ export async function onRequest(context) {
           defects_count INTEGER DEFAULT 0,
           has_defects INTEGER DEFAULT 0,
           defects_found_json TEXT,
+          defects_json TEXT,
           inspection_data_json TEXT,
           remarks TEXT,
           prior_review_acknowledged INTEGER DEFAULT 0,
@@ -93,8 +94,13 @@ export async function onRequest(context) {
           updated_by TEXT
         )`
       ).run();
+
+      // Ensure defects_json and defects_found_json columns exist on pre-existing table instances
+      await env.DB.prepare(`ALTER TABLE dvir_inspections ADD COLUMN defects_json TEXT`).run().catch(() => {});
+      await env.DB.prepare(`ALTER TABLE dvir_inspections ADD COLUMN defects_found_json TEXT`).run().catch(() => {});
+      await env.DB.prepare(`ALTER TABLE dvir_inspections ADD COLUMN defects_count INTEGER DEFAULT 0`).run().catch(() => {});
     } catch (e) {
-      console.warn('[DVIR-INIT] Table creation warning:', e.message);
+      console.warn('[DVIR-INIT] Table creation/schema migration warning:', e.message);
     }
   }
 
@@ -119,7 +125,7 @@ export async function onRequest(context) {
             `SELECT 
                id, org_id, asset_id, asset_number, trailer_number, driver_signature, 
                inspection_type, meter_reading, city, state, location, status, 
-               defects_found_json, remarks, repair_certified, repair_remarks, 
+               defects_found_json, defects_json, remarks, repair_certified, repair_remarks, 
                repair_signature, created_at 
              FROM dvir_inspections 
              WHERE org_id = ? 
@@ -128,10 +134,15 @@ export async function onRequest(context) {
           ).bind(orgId, assetNumber || assetId || '', assetId || assetNumber || '').first();
 
           // Standardize defects_found field for client compatibility
-          if (priorInspection && priorInspection.defects_found_json) {
-            try {
-              priorInspection.defects_found = JSON.parse(priorInspection.defects_found_json);
-            } catch (e) {
+          if (priorInspection) {
+            const rawDefectsJson = priorInspection.defects_json || priorInspection.defects_found_json;
+            if (rawDefectsJson) {
+              try {
+                priorInspection.defects_found = typeof rawDefectsJson === 'string' ? JSON.parse(rawDefectsJson) : rawDefectsJson;
+              } catch (e) {
+                priorInspection.defects_found = [];
+              }
+            } else {
               priorInspection.defects_found = [];
             }
           }
@@ -206,12 +217,13 @@ export async function onRequest(context) {
       const siteLocation = body.site_location || body.siteLocation || 'Not Applicable';
       const location = body.location || `${city}, ${state}${siteLocation && siteLocation !== 'Not Applicable' ? ` (${siteLocation})` : ''}`;
       
-      // Parse defects_found whether passed as raw array or JSON string
+      // Parse defects_found whether passed as raw array, defects_json, or defects_found_json
       let defectsFound = [];
-      if (body.defects_found_json) {
-        try { defectsFound = typeof body.defects_found_json === 'string' ? JSON.parse(body.defects_found_json) : body.defects_found_json; } catch(e){}
-      } else if (body.defects_found || body.defectsFound) {
-        defectsFound = typeof body.defects_found === 'string' ? JSON.parse(body.defects_found) : (body.defects_found || body.defectsFound || []);
+      const rawDefects = body.defects_json || body.defects_found_json || body.defects_found || body.defectsFound || [];
+      if (typeof rawDefects === 'string') {
+        try { defectsFound = JSON.parse(rawDefects); } catch(e){ defectsFound = []; }
+      } else if (Array.isArray(rawDefects)) {
+        defectsFound = rawDefects;
       }
 
       // Parse inspection_data key-values
@@ -245,13 +257,16 @@ export async function onRequest(context) {
         return new Response(JSON.stringify({ error: "49 CFR § 396.11(b) requires a driver digital signature." }), { status: 400, headers });
       }
 
-      const hasDefects = (Array.isArray(defectsFound) && defectsFound.length > 0) || body.status === 'defects_found';
+      const defectsCount = body.defects_count !== undefined ? Number(body.defects_count) : defectsFound.length;
+      const hasDefects = defectsCount > 0 || body.status === 'defects_found';
       const finalStatus = hasDefects ? 'defects_found' : 'pass';
       
       const timestamp = Date.now();
       const dvirId = `dvir_${timestamp}`;
       const createdAt = new Date(timestamp).toISOString();
       const createdBy = body.created_by || body.createdBy || userEmailFromContext(request) || driverSignature;
+
+      const defectsJsonStr = JSON.stringify(defectsFound);
 
       const dvirRecord = {
         id: dvirId,
@@ -269,10 +284,11 @@ export async function onRequest(context) {
         site_location: siteLocation,
         location: location,
         status: finalStatus,
-        defects_count: defectsFound.length,
+        defects_count: defectsCount,
         has_defects: hasDefects ? 1 : 0,
         defects_found: defectsFound,
-        defects_found_json: JSON.stringify(defectsFound),
+        defects_found_json: defectsJsonStr,
+        defects_json: defectsJsonStr,
         inspection_data: inspectionData,
         inspection_data_json: JSON.stringify(inspectionData),
         remarks: remarks,
@@ -294,13 +310,13 @@ export async function onRequest(context) {
             `INSERT INTO dvir_inspections (
               id, org_id, user_id, asset_id, asset_number, trailer_number, driver_id, driver_signature,
               inspection_type, meter_reading, city, state, site_location, location, status, defects_count,
-              has_defects, defects_found_json, inspection_data_json, remarks, prior_review_acknowledged,
+              has_defects, defects_found_json, defects_json, inspection_data_json, remarks, prior_review_acknowledged,
               certified, unlisted_flag, unlisted_details_json, country, device_location_json, created_at, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           ).bind(
             dvirId, orgId, userId, assetId, assetNumber, trailerNumber, driverId, driverSignature,
-            inspectionType, meterReading || 0, city, state, siteLocation, location, finalStatus, defectsFound.length,
-            hasDefects ? 1 : 0, JSON.stringify(defectsFound), JSON.stringify(inspectionData), remarks, priorReviewAcknowledged,
+            inspectionType, meterReading ?? 0, city, state, siteLocation, location, finalStatus, defectsCount,
+            hasDefects ? 1 : 0, defectsJsonStr, defectsJsonStr, JSON.stringify(inspectionData), remarks, priorReviewAcknowledged,
             certified, unlistedFlag, unlistedDetails, countryParam, deviceLocation, createdAt, createdBy
           ).run();
 
