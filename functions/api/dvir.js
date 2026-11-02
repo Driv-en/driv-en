@@ -1,6 +1,6 @@
 /**
  * Cloudflare Pages Function: /api/dvir
- * Compliant with 49 CFR Part 396  (FMCSA statutory DVIR & inspection requirements)
+ * Compliant with 49 CFR Part 396 (FMCSA statutory DVIR & inspection requirements)
  */
 
 export async function onRequest(context) {
@@ -66,7 +66,7 @@ export async function onRequest(context) {
              FROM dvir_inspections 
              WHERE (asset_number = ? OR asset_id = ?) 
              ORDER BY created_at DESC LIMIT 1`
-          ).bind(assetNumber || '', assetId || '').first();
+          ).bind(assetNumber || assetId || '', assetId || assetNumber || '').first();
         } catch (e) {
           console.warn('[DVIR-GET] Non-fatal DB lookup warning:', e.message);
         }
