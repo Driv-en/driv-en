@@ -1,12 +1,13 @@
 /** 
  * Cloudflare Pages Function: /api/dvir 
  * Multi-Tenant Isolated & 49 CFR Part 396 Compliant 
+ * File: /functions/api/dvir.js
  */
 
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
-  const method = request.method;
+  const method = request.method.toUpperCase();
 
   const headers = {
     'Content-Type': 'application/json',
@@ -25,6 +26,7 @@ export async function onRequest(context) {
     return new Response(JSON.stringify({ error: "Multi-tenant context missing (org_id required)" }), { status: 401, headers });
   }
 
+  // Regional Jurisdictions & Regulatory Context
   const countryParam = (url.searchParams.get('country') || request.headers.get('x-country') || 'US').toUpperCase().trim();
   const isCanada = countryParam === 'CA';
   const isAustralasia = ['AU', 'NZ'].includes(countryParam);
@@ -68,10 +70,12 @@ export async function onRequest(context) {
           meter_reading REAL,
           city TEXT,
           state TEXT,
+          site_location TEXT,
           location TEXT,
           status TEXT,
-          defects_count INTEGER,
-          defects_json TEXT,
+          defects_count INTEGER DEFAULT 0,
+          has_defects INTEGER DEFAULT 0,
+          defects_found_json TEXT,
           inspection_data_json TEXT,
           remarks TEXT,
           prior_review_acknowledged INTEGER DEFAULT 0,
@@ -83,7 +87,10 @@ export async function onRequest(context) {
           unlisted_details_json TEXT,
           country TEXT,
           device_location_json TEXT,
-          created_at TEXT
+          created_at TEXT,
+          created_by TEXT,
+          updated_at TEXT,
+          updated_by TEXT
         )`
       ).run();
     } catch (e) {
@@ -92,6 +99,9 @@ export async function onRequest(context) {
   }
 
   try {
+    // ------------------------------------------------------------------
+    // GET: Query Prior Inspection Logs for 49 CFR § 396.13 Review Box
+    // ------------------------------------------------------------------
     if (method === 'GET') {
       const assetNumber = url.searchParams.get('assetNumber') || url.searchParams.get('asset_number');
       const assetId = url.searchParams.get('assetId') || url.searchParams.get('asset_id');
@@ -102,15 +112,29 @@ export async function onRequest(context) {
 
       await ensureDvirTable();
 
-      let priorDefects = null;
+      let priorInspection = null;
       if (env.DB) {
         try {
-          priorDefects = await env.DB.prepare(
-            `SELECT id, status, defects_json, remarks, created_at, repair_certified, repair_remarks 
+          priorInspection = await env.DB.prepare(
+            `SELECT 
+               id, org_id, asset_id, asset_number, trailer_number, driver_signature, 
+               inspection_type, meter_reading, city, state, location, status, 
+               defects_found_json, remarks, repair_certified, repair_remarks, 
+               repair_signature, created_at 
              FROM dvir_inspections 
-             WHERE org_id = ? AND (asset_number = ? OR asset_id = ?) 
+             WHERE org_id = ? 
+               AND (LOWER(asset_number) = LOWER(?) OR LOWER(asset_id) = LOWER(?)) 
              ORDER BY created_at DESC LIMIT 1`
           ).bind(orgId, assetNumber || assetId || '', assetId || assetNumber || '').first();
+
+          // Standardize defects_found field for client compatibility
+          if (priorInspection && priorInspection.defects_found_json) {
+            try {
+              priorInspection.defects_found = JSON.parse(priorInspection.defects_found_json);
+            } catch (e) {
+              priorInspection.defects_found = [];
+            }
+          }
         } catch (e) {
           console.warn('[DVIR-GET] Non-fatal DB lookup warning:', e.message);
         }
@@ -151,12 +175,15 @@ export async function onRequest(context) {
         jurisdiction: countryParam,
         authorities: { roadAuth, workAuth },
         cfrCompliance: "49 CFR Part 396 Compliant",
-        priorInspection: priorDefects || null,
+        priorInspection: priorInspection || null,
         units: { uomDist, uomPress, uomDepth },
         checklist: checklistSections
       }), { status: 200, headers });
     }
 
+    // ------------------------------------------------------------------
+    // POST: Save DVIR Inspection Payload
+    // ------------------------------------------------------------------
     if (method === 'POST') {
       let body;
       try {
@@ -165,26 +192,50 @@ export async function onRequest(context) {
         return new Response(JSON.stringify({ error: "Invalid JSON payload" }), { status: 400, headers });
       }
 
+      // Flexible extraction supporting camelCase and snake_case properties
       const assetNumber = body.asset_number || body.assetNumber;
       const assetId = body.asset_id || body.assetId || assetNumber;
       const trailerNumber = body.trailer_number || body.trailerNumber || null;
-      const driverId = body.driver_id || body.driverId || request.headers.get('x-user-id') || 'unknown_driver';
+      const userId = body.user_id || body.userId || null;
+      const driverId = body.driver_id || body.driverId || userId || request.headers.get('x-user-id') || 'unknown_driver';
       const driverSignature = body.driver_signature || body.driverSignature || '';
       const inspectionType = body.inspection_type || body.inspectionType || 'pre_trip';
       const meterReading = body.meter_reading !== undefined ? body.meter_reading : body.meterReading;
       const city = body.city || '';
       const state = body.state || '';
       const siteLocation = body.site_location || body.siteLocation || 'Not Applicable';
-      const location = body.location || `${city}, ${state}`;
-      const status = body.status || 'pass';
-      const defectsFound = body.defects_found || body.defectsFound || [];
-      const inspectionData = body.inspection_data || body.inspectionData || {};
+      const location = body.location || `${city}, ${state}${siteLocation && siteLocation !== 'Not Applicable' ? ` (${siteLocation})` : ''}`;
+      
+      // Parse defects_found whether passed as raw array or JSON string
+      let defectsFound = [];
+      if (body.defects_found_json) {
+        try { defectsFound = typeof body.defects_found_json === 'string' ? JSON.parse(body.defects_found_json) : body.defects_found_json; } catch(e){}
+      } else if (body.defects_found || body.defectsFound) {
+        defectsFound = typeof body.defects_found === 'string' ? JSON.parse(body.defects_found) : (body.defects_found || body.defectsFound || []);
+      }
+
+      // Parse inspection_data key-values
+      let inspectionData = {};
+      if (body.inspection_data_json) {
+        try { inspectionData = typeof body.inspection_data_json === 'string' ? JSON.parse(body.inspection_data_json) : body.inspection_data_json; } catch(e){}
+      } else {
+        inspectionData = body.inspection_data || body.inspectionData || {};
+      }
+
       const remarks = body.remarks || '';
-      const priorReviewAcknowledged = body.prior_review_acknowledged ? 1 : 0;
-      const certified = body.certified ? 1 : 0;
-      const unlistedFlag = body.unlisted_flag ? 1 : 0;
-      const unlistedDetails = body.unlisted_details || null;
-      const deviceLocation = body.device_location || body.deviceLocation || null;
+      const priorReviewAcknowledged = (body.prior_review_acknowledged || body.priorReviewAcknowledged) ? 1 : 0;
+      const certified = (body.certified !== undefined) ? (body.certified ? 1 : 0) : 1;
+      
+      const unlistedFlag = (body.unlisted_flag || body.unlistedFlag) ? 1 : 0;
+      let unlistedDetails = body.unlisted_details_json || body.unlisted_details || body.unlistedDetails || null;
+      if (typeof unlistedDetails === 'object' && unlistedDetails !== null) {
+        unlistedDetails = JSON.stringify(unlistedDetails);
+      }
+
+      let deviceLocation = body.device_location_json || body.device_location || body.deviceLocation || null;
+      if (typeof deviceLocation === 'object' && deviceLocation !== null) {
+        deviceLocation = JSON.stringify(deviceLocation);
+      }
 
       if (!assetNumber && !assetId) {
         return new Response(JSON.stringify({ error: "Missing required asset identifier" }), { status: 400, headers });
@@ -194,15 +245,18 @@ export async function onRequest(context) {
         return new Response(JSON.stringify({ error: "49 CFR § 396.11(b) requires a driver digital signature." }), { status: 400, headers });
       }
 
-      const hasDefects = Array.isArray(defectsFound) && defectsFound.length > 0;
-      const finalStatus = hasDefects ? 'defects_found' : status;
+      const hasDefects = (Array.isArray(defectsFound) && defectsFound.length > 0) || body.status === 'defects_found';
+      const finalStatus = hasDefects ? 'defects_found' : 'pass';
+      
       const timestamp = Date.now();
       const dvirId = `dvir_${timestamp}`;
       const createdAt = new Date(timestamp).toISOString();
+      const createdBy = body.created_by || body.createdBy || userEmailFromContext(request) || driverSignature;
 
       const dvirRecord = {
         id: dvirId,
         org_id: orgId,
+        user_id: userId,
         asset_id: assetId,
         asset_number: assetNumber,
         trailer_number: trailerNumber,
@@ -212,10 +266,15 @@ export async function onRequest(context) {
         meter_reading: meterReading,
         city: city,
         state: state,
+        site_location: siteLocation,
         location: location,
         status: finalStatus,
+        defects_count: defectsFound.length,
+        has_defects: hasDefects ? 1 : 0,
         defects_found: defectsFound,
+        defects_found_json: JSON.stringify(defectsFound),
         inspection_data: inspectionData,
+        inspection_data_json: JSON.stringify(inspectionData),
         remarks: remarks,
         prior_review_acknowledged: priorReviewAcknowledged,
         certified: certified,
@@ -223,7 +282,8 @@ export async function onRequest(context) {
         unlisted_details: unlistedDetails,
         country: countryParam,
         device_location: deviceLocation,
-        created_at: createdAt
+        created_at: createdAt,
+        created_by: createdBy
       };
 
       await ensureDvirTable();
@@ -232,16 +292,16 @@ export async function onRequest(context) {
         try {
           await env.DB.prepare(
             `INSERT INTO dvir_inspections (
-              id, org_id, asset_id, asset_number, trailer_number, driver_id, driver_signature,
-              inspection_type, meter_reading, city, state, location, status, defects_count, defects_json,
-              inspection_data_json, remarks, prior_review_acknowledged, certified, unlisted_flag, unlisted_details_json, country,
-              device_location_json, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+              id, org_id, user_id, asset_id, asset_number, trailer_number, driver_id, driver_signature,
+              inspection_type, meter_reading, city, state, site_location, location, status, defects_count,
+              has_defects, defects_found_json, inspection_data_json, remarks, prior_review_acknowledged,
+              certified, unlisted_flag, unlisted_details_json, country, device_location_json, created_at, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           ).bind(
-            dvirId, orgId, assetId, assetNumber, trailerNumber, driverId, driverSignature,
-            inspectionType, meterReading || 0, city, state, location, finalStatus, defectsFound.length,
-            JSON.stringify(defectsFound), JSON.stringify(inspectionData), remarks,
-            priorReviewAcknowledged, certified, unlistedFlag, JSON.stringify(unlistedDetails), countryParam, JSON.stringify(deviceLocation), createdAt
+            dvirId, orgId, userId, assetId, assetNumber, trailerNumber, driverId, driverSignature,
+            inspectionType, meterReading || 0, city, state, siteLocation, location, finalStatus, defectsFound.length,
+            hasDefects ? 1 : 0, JSON.stringify(defectsFound), JSON.stringify(inspectionData), remarks, priorReviewAcknowledged,
+            certified, unlistedFlag, unlistedDetails, countryParam, deviceLocation, createdAt, createdBy
           ).run();
 
           // Log unlisted asset warning to error_log for Equipment / Fleet Manager audit review
@@ -252,7 +312,7 @@ export async function onRequest(context) {
               crypto.randomUUID(),
               'DVIR Inspection Form (Unlisted Unit Flag)',
               `Unlisted Unit Logged: Power Unit "${assetNumber}" or Towed Unit "${trailerNumber}" submitted by ${driverSignature}.`,
-              JSON.stringify(unlistedDetails),
+              unlistedDetails || '{}',
               'warning',
               createdAt
             ).run().catch(() => {});
@@ -282,4 +342,16 @@ export async function onRequest(context) {
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message || "Server error" }), { status: 500, headers });
   }
+}
+
+function userEmailFromContext(request) {
+  try {
+    const authHeader = request.headers.get('Authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.email || payload.sub || null;
+    }
+  } catch (e) {}
+  return null;
 }
