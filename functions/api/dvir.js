@@ -1,6 +1,6 @@
 /**
  * Cloudflare Pages Function: /api/dvir
- * Compliant with 49 CFR Part 396 (FMCSA statutory DVIR & inspection requirements)
+ * Compliant with 49 CFR Part 396  (FMCSA statutory DVIR & inspection requirements)
  */
 
 export async function onRequest(context) {
