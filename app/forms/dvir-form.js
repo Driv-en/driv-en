@@ -377,6 +377,11 @@ function updateOverallDefectState() {
   } else if (!hasFailures && noDefectsRadio) {
     noDefectsRadio.checked = true;
   }
+
+  // Trigger input event to re-evaluate mandatory validation on remarks field
+  if (defectsFoundRadio) {
+    defectsFoundRadio.dispatchEvent(new Event('change'));
+  }
 }
 
 function showStatusMessage(msg, isError = false) {
@@ -446,6 +451,11 @@ async function submitDVIRForm(e) {
   const remarks = document.getElementById('dvirRemarks')?.value.trim() || '';
   const selectedDefectStatus = document.querySelector('input[name="defectStatus"]:checked')?.value || (defects.length > 0 ? 'defects_found' : 'no_defects');
 
+  if (selectedDefectStatus === 'defects_found' && !remarks) {
+    showStatusMessage('Inspector Remarks are required when defects are reported.', true);
+    return;
+  }
+
   const payload = {
     asset_id: selectedAssetId,
     asset_number: selectedAssetNumber,
@@ -459,6 +469,7 @@ async function submitDVIRForm(e) {
     location: combinedLocation,
     status: selectedDefectStatus === 'defects_found' || defects.length > 0 ? 'defects_found' : 'pass',
     defects_found: defects,
+    inspection_data: inspectionData,
     remarks: remarks,
     prior_review_acknowledged: priorInspectionLoaded ? (priorReviewChk ? priorReviewChk.checked : false) : true,
     certified: true,
@@ -507,7 +518,7 @@ async function submitDVIRForm(e) {
   } finally {
     if (btnSubmit) {
       btnSubmit.disabled = false;
-      btnSubmit.textContent = 'Submit Completed Inspection';
+      btnSubmit.textContent = 'Submit Completed DVIR';
     }
   }
 }
