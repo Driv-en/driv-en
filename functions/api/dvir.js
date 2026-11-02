@@ -19,7 +19,6 @@ export async function onRequest(context) {
     return new Response(null, { headers, status: 204 });
   }
 
-  // 1. Extract and enforce Organization Context (Tenant Isolation)
   const orgId = request.headers.get('x-org-id') || url.searchParams.get('org_id') || url.searchParams.get('orgId') || null;
 
   if (!orgId) {
@@ -52,7 +51,6 @@ export async function onRequest(context) {
 
   const kvStore = env.DRIVEN_KV || env.ASSET_CONFIG_KV;
 
-  // Multi-tenant database initialization helper
   async function ensureDvirTable() {
     if (!env.DB) return;
     try {
@@ -67,6 +65,8 @@ export async function onRequest(context) {
           driver_signature TEXT,
           inspection_type TEXT,
           meter_reading REAL,
+          city TEXT,
+          state TEXT,
           location TEXT,
           status TEXT,
           defects_count INTEGER,
@@ -89,9 +89,6 @@ export async function onRequest(context) {
   }
 
   try {
-    // =========================================================================
-    // GET: FETCH COMPLIANT CHECKLIST & TENANT-SCORED PRIOR DEFECTS
-    // =========================================================================
     if (method === 'GET') {
       const assetNumber = url.searchParams.get('assetNumber') || url.searchParams.get('asset_number');
       const assetId = url.searchParams.get('assetId') || url.searchParams.get('asset_id');
@@ -102,7 +99,6 @@ export async function onRequest(context) {
 
       await ensureDvirTable();
 
-      // Tenant-isolated query filtering by org_id AND asset identifier
       let priorDefects = null;
       if (env.DB) {
         try {
@@ -158,9 +154,6 @@ export async function onRequest(context) {
       }), { status: 200, headers });
     }
 
-    // =========================================================================
-    // POST: SUBMIT COMPLIANT DVIR WITH TENANT BINDING
-    // =========================================================================
     if (method === 'POST') {
       let body;
       try {
@@ -176,7 +169,10 @@ export async function onRequest(context) {
       const driverSignature = body.driver_signature || body.driverSignature || '';
       const inspectionType = body.inspection_type || body.inspectionType || 'pre_trip';
       const meterReading = body.meter_reading !== undefined ? body.meter_reading : body.meterReading;
-      const location = body.location || '';
+      const city = body.city || '';
+      const state = body.state || '';
+      const siteLocation = body.site_location || body.siteLocation || '';
+      const location = body.location || `${city}, ${state}`;
       const status = body.status || 'pass';
       const defectsFound = body.defects_found || body.defectsFound || [];
       const inspectionData = body.inspection_data || body.inspectionData || {};
@@ -209,6 +205,8 @@ export async function onRequest(context) {
         driver_signature: driverSignature,
         inspection_type: inspectionType,
         meter_reading: meterReading,
+        city: city,
+        state: state,
         location: location,
         status: finalStatus,
         defects_found: defectsFound,
@@ -228,13 +226,13 @@ export async function onRequest(context) {
           await env.DB.prepare(
             `INSERT INTO dvir_inspections (
               id, org_id, asset_id, asset_number, trailer_number, driver_id, driver_signature,
-              inspection_type, meter_reading, location, status, defects_count, defects_json,
+              inspection_type, meter_reading, city, state, location, status, defects_count, defects_json,
               inspection_data_json, remarks, prior_review_acknowledged, certified, country,
               device_location_json, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           ).bind(
             dvirId, orgId, assetId, assetNumber, trailerNumber, driverId, driverSignature,
-            inspectionType, meterReading || 0, location, finalStatus, defectsFound.length,
+            inspectionType, meterReading || 0, city, state, location, finalStatus, defectsFound.length,
             JSON.stringify(defectsFound), JSON.stringify(inspectionData), remarks,
             priorReviewAcknowledged, certified, countryParam, JSON.stringify(deviceLocation), createdAt
           ).run();
