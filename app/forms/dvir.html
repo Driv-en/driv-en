@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DRIV-EN | Driver Vehicle Inspection Report (DVIR - 49 CFR Part 396)</title>
-  <meta name="description" content="FMCSA 49 CFR Part 396 compliant Driver Vehicle Inspection Report (DVIR) pre-trip and post-trip checklist submission with Roadside Inspection Mode.">
+  <meta name="description" content="FMCSA 49 CFR Part 396 compliant Driver Vehicle Inspection Report (DVIR) pre-trip and post-trip checklist submission with Out-of-Service tracking and Roadside Inspection Mode.">
   <meta name="robots" content="noindex, nofollow">
   <link rel="canonical" href="https://www.driv-en.com/app/forms/dvir.html">
   <link rel="icon" type="image/png" href="../../assets/icons/favicon.png?v=2026" sizes="48x48">
@@ -39,17 +39,54 @@
       --primary-hover: #1d4ed8;
       --text: #0f172a;
       --text-muted: #64748b;
+      --header-height: 50px;
     }
 
     *, *:before, *:after { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; width: 100%; max-width: 100vw; overflow-x: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: var(--text); }
+    
+    /* overflow-x: clip prevents horizontal scrolling without breaking sticky positioning on desktop/mobile */
+    html, body { 
+      margin: 0; 
+      padding: 0; 
+      width: 100%; 
+      max-width: 100vw; 
+      overflow-x: clip; 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+      color: var(--text); 
+    }
 
-    #dashHeader { position: sticky !important; top: 0 !important; z-index: 100000 !important; background: #ffffff !important; border-bottom: 1px solid var(--border); width: 100%; }
+    /* Sticky Header Bar (Desktop & Mobile) */
+    #dashHeader { 
+      position: -webkit-sticky !important;
+      position: sticky !important; 
+      top: 0 !important; 
+      z-index: 100000 !important; 
+      background: #ffffff !important; 
+      border-bottom: 1px solid var(--border); 
+      width: 100%; 
+    }
+    
     .dash-header-row2, .dash-header-row3, #dashHeader .dash-theme-wrapper { display: none !important; }
     .dash-header-row1 { padding: 8px 16px !important; align-items: center; }
     .dvir-header-title { flex: 1; text-align: center; font-size: 18px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-    .dvir-tab-bar { display: flex !important; justify-content: space-between !important; align-items: center !important; width: 100%; max-width: 1100px; margin: 0 auto; padding: 0 16px; position: sticky !important; top: 50px; z-index: 99999 !important; background: #cbd5e1; border-bottom: 2px solid #94a3b8; box-sizing: border-box; }
+    /* Sticky Action Bar pinned directly beneath top header */
+    .dvir-tab-bar { 
+      display: flex !important; 
+      justify-content: space-between !important; 
+      align-items: center !important; 
+      width: 100%; 
+      max-width: 1100px; 
+      margin: 0 auto; 
+      padding: 0 16px; 
+      position: -webkit-sticky !important;
+      position: sticky !important; 
+      top: var(--header-height, 50px); 
+      z-index: 99999 !important; 
+      background: #cbd5e1; 
+      border-bottom: 2px solid #94a3b8; 
+      box-sizing: border-box; 
+    }
     :root[data-theme="dark"] .dvir-tab-bar { background: #334155; border-bottom-color: #475569; }
 
     .dvir-tab-home { background: #1d4ed8; border: 1px solid #2563eb; border-bottom: none; border-radius: 8px 8px 0 0; padding: 8px 18px; font-size: 14px; font-weight: 600; color: #fff; text-decoration: none; display: inline-block; }
@@ -69,8 +106,10 @@
     .prior-review-box { background: #fffbeb; border: 1px solid #f59e0b; border-radius: 6px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #78350f; display: none; }
     .unlisted-notice { background: #fef2f2; border: 1px solid #fca5a5; border-radius: 6px; padding: 10px 14px; margin-top: 6px; font-size: 12px; color: #991b1b; display: none; }
 
-    .defect-radio-group { display: flex; gap: 16px; align-items: center; padding: 10px 14px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; flex-wrap: wrap; }
-    .defect-radio-group label { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+    .defect-radio-group { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; }
+    .defect-radio-group label { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+
+    .oos-warning-banner { background: #fef2f2; border: 2px solid #dc2626; border-radius: 6px; padding: 12px 16px; font-size: 13px; color: #991b1b; line-height: 1.5; margin-top: 8px; display: none; }
 
     .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e2e8f0; width: 100%; gap: 12px; }
     .toggle-row:last-child { border-bottom: none; }
@@ -196,10 +235,21 @@
         </div>
 
         <div class="form-group" style="margin-top: 20px;">
-          <label>Defect Condition Status *</label>
+          <label>Defect Condition & Operational Status *</label>
           <div class="defect-radio-group">
-            <label><input type="radio" name="defectStatus" value="no_defects" checked> ✅ No Defects Found (Vehicle Safe to Operate)</label>
-            <label><input type="radio" name="defectStatus" value="defects_found"> ⚠️ Defects Found (Safety Defect Reported)</label>
+            <label style="color:#15803d;">
+              <input type="radio" name="defectStatus" value="no_defects" checked> ✅ No Defects Found (Vehicle Safe to Operate)
+            </label>
+            <label style="color:#b45309;">
+              <input type="radio" name="defectStatus" value="defects_found"> ⚠️ Defects Found (Safe to Operate — Maintenance Required)
+            </label>
+            <label style="color:#b91c1c;">
+              <input type="radio" name="defectStatus" value="out_of_service"> 🚨 CRITICAL SAFETY DEFECT — VEHICLE PLACED OUT-OF-SERVICE (UNSAFE TO OPERATE)
+            </label>
+          </div>
+
+          <div id="oosWarningBanner" class="oos-warning-banner">
+            🚨 <strong>OUT-OF-SERVICE (OOS) DECLARATION:</strong> Under FMCSA 49 CFR § 396.11(c), this commercial vehicle or trailer is certified unsafe for operation. It must be placed OUT-OF-SERVICE and repaired before dispatch or highway transit.
           </div>
         </div>
 
@@ -304,10 +354,9 @@
 
     function makeTabsSticky() {
       var header = document.getElementById('dashHeader');
-      var tabBar = document.getElementById('dvirTabBar');
-      if (header && tabBar) {
-        var headerHeight = header.getBoundingClientRect().height || header.offsetHeight || 50;
-        tabBar.style.top = headerHeight + 'px';
+      if (header) {
+        var headerHeight = header.offsetHeight || header.getBoundingClientRect().height || 50;
+        document.documentElement.style.setProperty('--header-height', headerHeight + 'px');
       }
     }
 
@@ -329,15 +378,24 @@
       var defectRadios = document.querySelectorAll('input[name="defectStatus"]');
       var dvirRemarks = document.getElementById('dvirRemarks');
       var lblDvirRemarks = document.getElementById('lblDvirRemarks');
+      var oosBanner = document.getElementById('oosWarningBanner');
 
       function updateDefectValidation() {
         var selected = document.querySelector('input[name="defectStatus"]:checked');
-        if (selected && selected.value === 'defects_found') {
+        var val = selected ? selected.value : 'no_defects';
+
+        if (val === 'defects_found' || val === 'out_of_service') {
           dvirRemarks.required = true;
-          lblDvirRemarks.textContent = 'Inspector Remarks / Defect Details *';
+          lblDvirRemarks.textContent = val === 'out_of_service' 
+            ? 'Inspector Remarks / Critical Out-of-Service Details *' 
+            : 'Inspector Remarks / Defect Details *';
         } else {
           dvirRemarks.required = false;
           lblDvirRemarks.textContent = 'Inspector Remarks / Defect Details';
+        }
+
+        if (oosBanner) {
+          oosBanner.style.display = (val === 'out_of_service') ? 'block' : 'none';
         }
       }
 
@@ -346,8 +404,14 @@
       });
       updateDefectValidation();
 
+      makeTabsSticky();
       setTimeout(makeTabsSticky, 100);
       setTimeout(makeTabsSticky, 300);
+
+      var headerEl = document.getElementById('dashHeader');
+      if (headerEl && typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(makeTabsSticky).observe(headerEl);
+      }
     });
 
     window.addEventListener('resize', makeTabsSticky);
