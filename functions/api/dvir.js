@@ -57,9 +57,7 @@ export async function onRequest(context) {
         return new Response(JSON.stringify({ error: "Query parameter 'assetNumber' or 'assetId' is required" }), { status: 400, headers });
       }
 
-      const lookupKey = (assetNumber || assetId).toLowerCase().trim();
-
-      // Fetch last DVIR defect log to satisfy § 396.13 driver review requirement
+      // Safe prior defects lookup (defensively isolated so GET won't throw 500 if DB table is uninitialized)
       let priorDefects = null;
       if (env.DB) {
         try {
@@ -69,7 +67,9 @@ export async function onRequest(context) {
              WHERE (asset_number = ? OR asset_id = ?) 
              ORDER BY created_at DESC LIMIT 1`
           ).bind(assetNumber || '', assetId || '').first();
-        } catch (e) {}
+        } catch (e) {
+          console.warn('[DVIR-GET] Non-fatal DB lookup warning:', e.message);
+        }
       }
 
       // Mandatory 49 CFR § 396.11(a)(1) Minimum Statutory Items Checklist
