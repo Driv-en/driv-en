@@ -58,6 +58,7 @@ export async function onRequest(context) {
         `CREATE TABLE IF NOT EXISTS dvir_inspections (
           id TEXT PRIMARY KEY,
           org_id TEXT NOT NULL,
+          user_id TEXT,
           asset_id TEXT,
           asset_number TEXT,
           trailer_number TEXT,
