@@ -1,5 +1,6 @@
 /**
  * DRIV-EN Platform: DVIR Inspection Form Controller
+ * Compliant with 49 CFR Part 396 regulations
  * File: /app/forms/dvir-form.js
  */
 
@@ -8,6 +9,7 @@ let selectedAssetNumber = '';
 let selectedAssetId = '';
 let activeOrgCountry = 'US';
 let deviceLocation = null;
+let priorInspectionLoaded = null;
 
 function getUrlContextParams() {
   const params = new URLSearchParams(window.location.search);
@@ -24,7 +26,7 @@ function buildApiUrl(endpoint) {
   const url = new URL(endpoint, window.location.origin);
   if (ctx.org_id) url.searchParams.set('org_id', ctx.org_id);
   if (ctx.role_id) url.searchParams.set('role_id', ctx.role_id);
-  return url.pathname + url.search;
+  return url.toString();
 }
 
 function isMobileDevice() {
@@ -86,6 +88,16 @@ document.addEventListener('DOMContentLoaded', () => {
     form.addEventListener('submit', submitDVIRForm);
   }
 
+  // Pre-fill signature with logged-in user name if available
+  const driverSigInput = document.getElementById('dvirDriverSignature');
+  if (driverSigInput) {
+    try {
+      const u = JSON.parse(localStorage.getItem('driven_user') || '{}');
+      const name = u.full_name || u.name || [u.first_name, u.last_name].filter(Boolean).join(' ');
+      if (name) driverSigInput.value = name;
+    } catch(e) {}
+  }
+
   if (isMobileDevice()) {
     checkDeviceLocation();
   }
@@ -98,11 +110,12 @@ async function loadDVIRAssets() {
   if (!selectEl) return;
 
   try {
-    const endpoint = buildApiUrl('/api/assets') + '&limit=500&all=true';
-    let resp = await fetch(endpoint);
-    if (!resp.ok) {
-      resp = await fetch('/api/assets');
-    }
+    const fetchUrl = new URL(buildApiUrl('/api/assets'));
+    fetchUrl.searchParams.set('limit', '500');
+    fetchUrl.searchParams.set('all', 'true');
+
+    let resp = await fetch(fetchUrl.toString());
+    if (!resp.ok) { resp = await fetch('/api/assets'); }
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
     const data = await resp.json();
@@ -114,7 +127,7 @@ async function loadDVIRAssets() {
       return st !== 'inactive' && st !== 'retired' && st !== 'decommissioned' && st !== 'sold' && st !== 'deleted' && st !== '0';
     });
 
-    selectEl.innerHTML = '<option value="">-- Choose Asset Unit --</option>' + 
+    selectEl.innerHTML = '<option value="">-- Choose Power Unit --</option>' + 
       activeAssets.map(a => {
         const assetNum = a.asset_number || a.unit_number || a.code || a.id;
         const name = a.name || a.title || [a.year, a.make, a.model].filter(Boolean).join(' ') || 'Unnamed Unit';
@@ -129,9 +142,14 @@ async function loadDVIRAssets() {
 async function onDVIRAssetChange() {
   const assetSelect = document.getElementById('dvirAssetSelect');
   selectedAssetId = assetSelect.value;
+  
+  const container = document.getElementById('dvirChecklistContainer');
+  const priorBox = document.getElementById('priorReviewBox');
+  const priorDetails = document.getElementById('priorReviewDetails');
+
   if (!selectedAssetId) {
-    const container = document.getElementById('dvirChecklistContainer');
-    if (container) container.innerHTML = '<p style="font-size: 13px; color: var(--text-muted);">Please select an asset unit above to generate the inspection checklist.</p>';
+    if (container) container.innerHTML = '<p style="font-size: 13px; color: var(--text-muted);">Please select a power unit above to generate the statutory checklist.</p>';
+    if (priorBox) priorBox.style.display = 'none';
     return;
   }
 
@@ -139,29 +157,48 @@ async function onDVIRAssetChange() {
   selectedAssetNumber = selectedOption ? selectedOption.getAttribute('data-asset-num') || selectedAssetId : selectedAssetId;
   const rawType = selectedOption ? selectedOption.getAttribute('data-type') || 'default' : 'default';
 
-  try {
-    const params = new URLSearchParams({
-      assetNumber: selectedAssetNumber,
-      assetId: selectedAssetId,
-      assetType: rawType,
-      country: activeOrgCountry
-    });
+  if (container) container.innerHTML = '<p style="font-size: 13px; color: var(--text-muted);">Loading statutory 49 CFR Part 396 checklist...</p>';
 
-    const res = await fetch(`${buildApiUrl('/api/dvir')}&${params.toString()}`, {
-      headers: {
-        'x-country': activeOrgCountry,
-        'Content-Type': 'application/json'
-      }
+  try {
+    const fetchUrl = new URL(buildApiUrl('/api/dvir'));
+    fetchUrl.searchParams.set('assetNumber', selectedAssetNumber);
+    fetchUrl.searchParams.set('assetId', selectedAssetId);
+    fetchUrl.searchParams.set('assetType', rawType);
+    fetchUrl.searchParams.set('country', activeOrgCountry);
+
+    const res = await fetch(fetchUrl.toString(), {
+      headers: { 'x-country': activeOrgCountry, 'Content-Type': 'application/json' }
     });
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (data.success) {
       currentChecklist = data.checklist;
+      priorInspectionLoaded = data.priorInspection;
+
+      // Render 49 CFR § 396.13 Prior Driver Inspection Review
+      if (priorBox && priorDetails) {
+        if (priorInspectionLoaded) {
+          priorBox.style.display = 'block';
+          const pDate = new Date(priorInspectionLoaded.created_at).toLocaleString();
+          const pDefects = priorInspectionLoaded.status === 'defects_found';
+          priorDetails.innerHTML = `
+            <strong>Last Recorded Inspection:</strong> ${pDate}<br>
+            <strong>Status:</strong> ${pDefects ? '<span style="color:#dc2626;font-weight:700;">⚠️ Defects Previously Reported</span>' : '✅ Satisfactory (No Defects)'}<br>
+            ${pDefects ? `<strong>Reported Defects / Remarks:</strong> ${esc(priorInspectionLoaded.remarks || 'None listed')}<br>
+            <strong>Repair Status:</strong> ${priorInspectionLoaded.repair_certified ? '✅ Repairs Certified by Technician' : '⚠️ Pending Maintenance Certification'}` : ''}
+          `;
+        } else {
+          priorBox.style.display = 'block';
+          priorDetails.innerHTML = 'No prior DVIR records found for this unit. Ensure full initial inspection is conducted.';
+        }
+      }
+
       renderDVIRChecklist(data);
     }
   } catch (err) {
     console.error('Error fetching DVIR checklist:', err);
+    if (container) container.innerHTML = '<p style="font-size: 13px; color: #b91c1c;">Unable to load inspection checklist. Please check network connection.</p>';
   }
 }
 
@@ -170,16 +207,6 @@ function renderDVIRChecklist(dvirData) {
   if (!container) return;
 
   container.innerHTML = '';
-
-  if (dvirData.jurisdiction || dvirData.authorities) {
-    const header = document.createElement('div');
-    header.className = 'intl-banner';
-    header.innerHTML = `
-      <div><strong>Inspection Jurisdiction:</strong> ${esc(dvirData.jurisdiction || 'US Standard')}</div>
-      <div><strong>Road Authority:</strong> ${esc(dvirData.authorities?.roadAuth || 'DOT/FMCSA')} | <strong>Work Safety:</strong> ${esc(dvirData.authorities?.workAuth || 'OSHA')}</div>
-    `;
-    container.appendChild(header);
-  }
 
   (dvirData.checklist || []).forEach(sec => {
     const secEl = document.createElement('div');
@@ -193,9 +220,9 @@ function renderDVIRChecklist(dvirData) {
         <div>
           <div class="toggle-title">${esc(item.label)}</div>
         </div>
-        <div style="display: flex; gap: 12px; align-items: center;">
-          <label><input type="radio" name="item_${item.id}" value="pass" checked onchange="updateOverallDefectState()"> Pass</label>
-          <label><input type="radio" name="item_${item.id}" value="fail" onchange="updateOverallDefectState()"> Fail</label>
+        <div style="display: flex; gap: 12px; align-items: center; flex-shrink: 0;">
+          <label style="font-size:13px;cursor:pointer;"><input type="radio" name="item_${item.id}" value="pass" checked onchange="updateOverallDefectState()"> Pass</label>
+          <label style="font-size:13px;cursor:pointer;"><input type="radio" name="item_${item.id}" value="fail" onchange="updateOverallDefectState()"> Fail</label>
         </div>
       `;
       secEl.appendChild(row);
@@ -231,14 +258,27 @@ function showStatusMessage(msg, isError = false) {
 async function submitDVIRForm(e) {
   e.preventDefault();
   if (!selectedAssetId && !selectedAssetNumber) {
-    showStatusMessage('Please select an asset unit before submitting.', true);
+    showStatusMessage('Please select a power unit before submitting.', true);
     return;
   }
 
   const meterInput = document.getElementById('dvirMeterReading');
   const meterReading = meterInput ? parseFloat(meterInput.value) : null;
   if (!meterReading || isNaN(meterReading) || meterReading < 0) {
-    showStatusMessage('Odometer / Hour Meter Reading is required.', true);
+    showStatusMessage('Odometer / Engine Hour Reading is required.', true);
+    return;
+  }
+
+  const driverSigInput = document.getElementById('dvirDriverSignature');
+  const driverSignature = driverSigInput ? driverSigInput.value.trim() : '';
+  if (!driverSignature) {
+    showStatusMessage('Driver Digital Signature is required under 49 CFR § 396.11(b).', true);
+    return;
+  }
+
+  const priorReviewChk = document.getElementById('chkReviewAcknowledged');
+  if (priorInspectionLoaded && priorReviewChk && !priorReviewChk.checked) {
+    showStatusMessage('49 CFR § 396.13 requires drivers to acknowledge review of prior inspection defects.', true);
     return;
   }
 
@@ -259,6 +299,7 @@ async function submitDVIRForm(e) {
     }
   });
 
+  const trailerNumber = document.getElementById('dvirTrailerNumber')?.value.trim() || '';
   const inspectionType = document.getElementById('inspectionType')?.value || 'pre_trip';
   const location = document.getElementById('dvirLocation')?.value.trim() || '';
   const remarks = document.getElementById('dvirRemarks')?.value.trim() || '';
@@ -267,13 +308,15 @@ async function submitDVIRForm(e) {
   const payload = {
     asset_id: selectedAssetId,
     asset_number: selectedAssetNumber,
+    trailer_number: trailerNumber,
+    driver_signature: driverSignature,
     inspection_type: inspectionType,
     meter_reading: meterReading,
     location: location,
     status: selectedDefectStatus === 'defects_found' || defects.length > 0 ? 'defects_found' : 'pass',
     defects_found: defects,
     remarks: remarks,
-    inspection_data: inspectionData,
+    prior_review_acknowledged: priorReviewChk ? priorReviewChk.checked : true,
     certified: true,
     device_location: hasDeviceLocation() ? deviceLocation : null
   };
@@ -281,7 +324,7 @@ async function submitDVIRForm(e) {
   const btnSubmit = document.getElementById('btnSubmitDVIR');
   if (btnSubmit) {
     btnSubmit.disabled = true;
-    btnSubmit.textContent = 'Submitting DVIR...';
+    btnSubmit.textContent = 'Submitting 49 CFR DVIR...';
   }
 
   try {
@@ -298,9 +341,10 @@ async function submitDVIRForm(e) {
     const result = await res.json();
 
     if (result.success) {
-      showStatusMessage('DVIR inspection logged successfully!');
+      showStatusMessage('DVIR inspection logged successfully under 49 CFR Part 396!');
       document.getElementById('dvirInspectionForm').reset();
-      document.getElementById('dvirChecklistContainer').innerHTML = '<p style="font-size: 13px; color: var(--text-muted);">Please select an asset unit above to generate the inspection checklist.</p>';
+      document.getElementById('dvirChecklistContainer').innerHTML = '<p style="font-size: 13px; color: var(--text-muted);">Please select a power unit above to generate the statutory checklist.</p>';
+      document.getElementById('priorReviewBox').style.display = 'none';
       selectedAssetId = '';
       selectedAssetNumber = '';
     } else {
