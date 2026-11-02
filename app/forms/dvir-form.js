@@ -134,6 +134,60 @@ function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+function openPriorModal() {
+  const modal = document.getElementById('priorDvirModal');
+  const content = document.getElementById('priorDvirModalContent');
+  if (!modal || !content || !priorInspectionLoaded) return;
+
+  const p = priorInspectionLoaded;
+  const pDate = new Date(p.created_at).toLocaleString();
+  const hasDefects = p.status === 'defects_found';
+
+  content.innerHTML = `
+    <div style="background:#f1f5f9; padding:10px; border-radius:6px; margin-bottom:12px;">
+      <strong>Asset Number:</strong> ${esc(p.asset_number || selectedAssetNumber)}<br>
+      <strong>Inspection Date:</strong> ${pDate}<br>
+      <strong>Inspection Type:</strong> ${(p.inspection_type || 'pre_trip').toUpperCase()}<br>
+      <strong>Location:</strong> ${esc(p.location || 'N/A')}
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <strong>Overall Condition:</strong> 
+      ${hasDefects ? '<span style="color:#b91c1c; font-weight:700;">⚠️ Defects Found</span>' : '<span style="color:#15803d; font-weight:700;">✅ Satisfactory</span>'}
+    </div>
+
+    ${hasDefects ? `
+      <div style="background:#fef2f2; border:1px solid #fca5a5; padding:10px; border-radius:6px; margin-bottom:12px;">
+        <strong style="color:#991b1b;">Reported Defects / Remarks:</strong>
+        <p style="margin:4px 0 0 0; color:#7f1d1d;">${esc(p.remarks || 'No detailed remarks provided.')}</p>
+      </div>
+
+      <div style="background:#f0fdf4; border:1px solid #86efac; padding:10px; border-radius:6px; margin-bottom:12px;">
+        <strong style="color:#166534;">Repair Certification Status:</strong><br>
+        ${p.repair_certified 
+          ? `<span style="color:#15803d; font-weight:600;">✅ Repairs Certified</span><br><em>Notes: ${esc(p.repair_remarks || 'Repairs completed.')}</em>` 
+          : `<span style="color:#b45309; font-weight:600;">⚠️ Repairs Pending Technician Certification</span>`}
+        <div style="font-size:11px; color:#64748b; margin-top:4px;">(Work Orders module integration pending)</div>
+      </div>
+    ` : `
+      <div style="background:#f0fdf4; padding:10px; border-radius:6px; color:#166534; margin-bottom:12px;">
+        Vehicle was certified safe to operate with no reported safety defects.
+      </div>
+    `}
+
+    <div style="font-size:12px; color:#64748b; border-top:1px solid #e2e8f0; padding-top:8px;">
+      <strong>Signed Digitally By:</strong> ${esc(p.driver_signature || 'Driver on File')}
+    </div>
+  `;
+
+  modal.style.display = 'flex';
+}
+
+function closePriorModal() {
+  const modal = document.getElementById('priorDvirModal');
+  if (modal) modal.style.display = 'none';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const assetInput = document.getElementById('dvirAssetInput');
   if (assetInput) {
@@ -226,7 +280,6 @@ async function loadDVIRAssets() {
         return `<option value="${esc(tText)}"></option>`;
       }).join('');
 
-      // Append default standard towables so drivers always have selectable options
       DEFAULT_TOWABLE_UNITS.forEach(tow => {
         const key = tow.split('—')[0].trim().toLowerCase();
         loadedTrailersMap.set(key, { is_default_fallback: true });
@@ -376,11 +429,13 @@ async function onDVIRAssetChange() {
         priorBox.style.display = 'block';
         const pDate = new Date(priorInspectionLoaded.created_at).toLocaleString();
         const pDefects = priorInspectionLoaded.status === 'defects_found';
+
         priorDetails.innerHTML = `
           <strong>Last Recorded Inspection:</strong> ${pDate}<br>
           <strong>Status:</strong> ${pDefects ? '<span style="color:#dc2626;font-weight:700;">⚠️ Defects Previously Reported</span>' : '✅ Satisfactory (No Defects)'}<br>
-          ${pDefects ? `<strong>Reported Defects / Remarks:</strong> ${esc(priorInspectionLoaded.remarks || 'None listed')}<br>
-          <strong>Repair Status:</strong> ${priorInspectionLoaded.repair_certified ? '✅ Repairs Certified by Technician' : '⚠️ Pending Maintenance Certification'}` : ''}
+          <button type="button" onclick="openPriorModal()" style="margin-top:8px; padding:6px 14px; background:#2563eb; color:#fff; border:none; border-radius:4px; font-weight:600; cursor:pointer; font-size:12px;">
+            🔍 View Full Prior DVIR Details
+          </button>
         `;
       } else if (priorDetails) {
         priorBox.style.display = 'block';
@@ -556,7 +611,6 @@ async function submitDVIRForm(e) {
     return;
   }
 
-  // Detect unlisted entries to flag for Fleet / Equipment Manager review
   const isUnlistedPowerUnit = !loadedPowerUnitsMap.has(powerUnitVal.toLowerCase());
   const isUnlistedTrailer = trailerNumber ? !Array.from(loadedTrailersMap.keys()).some(k => trailerNumber.toLowerCase() === k || trailerNumber.toLowerCase().startsWith(k)) : false;
 
