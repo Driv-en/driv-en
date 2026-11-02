@@ -121,10 +121,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   loadDVIRAssets();
+  loadLocationOptions();
 });
 
 async function loadDVIRAssets() {
   const selectEl = document.getElementById('dvirAssetSelect');
+  const trailerDatalist = document.getElementById('trailerOptions');
   if (!selectEl) return;
 
   try {
@@ -132,7 +134,6 @@ async function loadDVIRAssets() {
 
     let resp = await fetch(fetchUrl);
     if (!resp.ok) {
-      // Fallback with context parameters preserved
       resp = await fetch(buildApiUrl('/api/assets'));
     }
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -140,31 +141,82 @@ async function loadDVIRAssets() {
     const data = await resp.json();
     let assetsList = Array.isArray(data) ? data : (data.assets || data.data || data.items || []);
 
-    // Filter to active assets that are DOT On-Road Regulated (dot_regulated === 1)
+    // Filter to active assets
     const activeAssets = assetsList.filter(a => {
       if (!a) return false;
       const st = String(a.status || '').toLowerCase().trim();
-      const isActive = st !== 'inactive' && st !== 'retired' && st !== 'decommissioned' && st !== 'sold' && st !== 'deleted' && st !== '0';
-      
-      // Strict check: includes assets where dot_regulated/requires_dvir is true or 1
+      return st !== 'inactive' && st !== 'retired' && st !== 'decommissioned' && st !== 'sold' && st !== 'deleted' && st !== '0';
+    });
+
+    // 1. Power Units: Active & DOT Regulated (dot_regulated === 1)
+    const powerUnits = activeAssets.filter(a => {
       const isDotRegulated = a.dot_regulated !== undefined ? (Number(a.dot_regulated) === 1 || a.dot_regulated === true) : 
                             (a.requires_dvir !== undefined ? (Number(a.requires_dvir) === 1 || a.requires_dvir === true) : true);
-
-      return isActive && isDotRegulated;
+      return isDotRegulated;
     });
 
     selectEl.innerHTML = '<option value="">-- Choose Power Unit --</option>' + 
-      activeAssets.map(a => {
+      powerUnits.map(a => {
         const assetNum = a.asset_number || a.unit_number || a.code || a.id;
         const name = a.name || a.title || [a.year, a.make, a.model].filter(Boolean).join(' ') || 'Unnamed Unit';
         const typeAttr = a.asset_type || a.type || 'vehicle';
-        return `<option value="${esc(a.id)}" data-asset-num="${esc(assetNum)}" data-type="${esc(typeAttr)}">${esc(assetNum)} — ${esc(name)}</option>`;
+        const meterVal = a.current_meter_reading !== undefined ? a.current_meter_reading : (a.current_meter || '');
+        return `<option value="${esc(a.id)}" data-asset-num="${esc(assetNum)}" data-type="${esc(typeAttr)}" data-meter="${esc(meterVal)}">${esc(assetNum)} — ${esc(name)}</option>`;
       }).join('');
 
-    // Trigger state sync if browser pre-selected an option
+    // 2. Trailers / Towed Units: Populates <datalist id="trailerOptions">
+    if (trailerDatalist) {
+      const trailerUnits = activeAssets.filter(a => {
+        const type = String(a.asset_type || a.type || '').toLowerCase();
+        return type.includes('trailer') || type.includes('towed') || type.includes('dolly') || type.includes('chassis');
+      });
+
+      trailerDatalist.innerHTML = trailerUnits.map(t => {
+        const tNum = t.asset_number || t.unit_number || t.code || t.id;
+        const tName = t.name || t.title || 'Trailer';
+        return `<option value="${esc(tNum)}">${esc(tNum)} — ${esc(tName)}</option>`;
+      }).join('');
+    }
+
     onDVIRAssetChange();
   } catch (err) {
     console.error('Error loading DVIR asset list:', err);
+  }
+}
+
+async function loadLocationOptions() {
+  const locDatalist = document.getElementById('locationOptions');
+  if (!locDatalist) return;
+
+  try {
+    const locRes = await fetch(buildApiUrl('/api/locations'));
+    const projRes = await fetch(buildApiUrl('/api/projects'));
+    
+    let options = [];
+
+    if (locRes.ok) {
+      const locData = await locRes.json();
+      const locs = Array.isArray(locData) ? locData : (locData.locations || locData.records || locData.data || []);
+      locs.forEach(l => {
+        const locName = l.name || l.location_name || l.Location;
+        if (locName) options.push(locName);
+      });
+    }
+
+    if (projRes.ok) {
+      const projData = await projRes.json();
+      const projs = Array.isArray(projData) ? projData : (projData.projects || projData.records || projData.data || []);
+      projs.forEach(p => {
+        const projName = p.name || p.project_name || p.Project;
+        if (projName) options.push(projName);
+      });
+    }
+
+    // Deduplicate options list
+    const uniqueOptions = [...new Set(options)];
+    locDatalist.innerHTML = uniqueOptions.map(opt => `<option value="${esc(opt)}"></option>`).join('');
+  } catch (e) {
+    console.warn('Unable to load location datalist options:', e);
   }
 }
 
@@ -174,12 +226,13 @@ async function onDVIRAssetChange() {
   
   const container = document.getElementById('dvirChecklistContainer');
   const priorBox = document.getElementById('priorReviewBox');
+  const meterInput = document.getElementById('dvirMeterReading');
 
-  // Clear previous inspection state when changing selection
   priorInspectionLoaded = null;
 
   if (!selectedAssetId) {
     selectedAssetNumber = '';
+    if (meterInput) meterInput.value = '';
     if (container) container.innerHTML = '<p style="font-size: 13px; color: var(--text-muted);">Please select a power unit above to generate the statutory checklist.</p>';
     if (priorBox) priorBox.style.display = 'none';
     return;
@@ -187,9 +240,14 @@ async function onDVIRAssetChange() {
 
   const selectedOption = assetSelect.options[assetSelect.selectedIndex];
   
-  // Parameter Fallback Guard: Guarantees assetNumber is non-empty to prevent HTTP 400
   selectedAssetNumber = (selectedOption ? selectedOption.getAttribute('data-asset-num') : null) || selectedAssetId || (selectedOption ? selectedOption.text.split('—')[0].trim() : 'UNIT-1');
   const rawType = (selectedOption ? selectedOption.getAttribute('data-type') : null) || 'default';
+  const prefilledMeter = selectedOption ? selectedOption.getAttribute('data-meter') : '';
+
+  // Auto-fill odometer/engine hours if available, while leaving it fully editable
+  if (meterInput && prefilledMeter) {
+    meterInput.value = prefilledMeter;
+  }
 
   if (container) container.innerHTML = '<p style="font-size: 13px; color: var(--text-muted);">Loading statutory 49 CFR Part 396 checklist...</p>';
 
@@ -223,7 +281,6 @@ async function onDVIRAssetChange() {
       currentChecklist = data.checklist || [];
       priorInspectionLoaded = data.priorInspection || null;
 
-      // Render 49 CFR § 396.13 Prior Driver Inspection Review
       if (priorBox) {
         const priorDetails = document.getElementById('priorReviewDetails');
         if (priorInspectionLoaded && priorDetails) {
@@ -433,7 +490,6 @@ async function submitDVIRForm(e) {
       const priorBox = document.getElementById('priorReviewBox');
       if (priorBox) priorBox.style.display = 'none';
       
-      // Clean up local application state
       selectedAssetId = '';
       selectedAssetNumber = '';
       currentChecklist = [];
