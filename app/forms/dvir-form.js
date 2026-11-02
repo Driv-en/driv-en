@@ -21,11 +21,19 @@ function getUrlContextParams() {
   return context;
 }
 
-function buildApiUrl(endpoint) {
+// Fixed: Safely builds absolute URLs with query parameters without creating duplicate '?' symbols
+function buildApiUrl(endpoint, extraParams = {}) {
   const ctx = getUrlContextParams();
   const url = new URL(endpoint, window.location.origin);
+  
   if (ctx.org_id) url.searchParams.set('org_id', ctx.org_id);
   if (ctx.role_id) url.searchParams.set('role_id', ctx.role_id);
+  
+  for (const [k, v] of Object.entries(extraParams)) {
+    if (v !== undefined && v !== null && v !== '') {
+      url.searchParams.set(k, v);
+    }
+  }
   return url.toString();
 }
 
@@ -110,11 +118,9 @@ async function loadDVIRAssets() {
   if (!selectEl) return;
 
   try {
-    const fetchUrl = new URL(buildApiUrl('/api/assets'));
-    fetchUrl.searchParams.set('limit', '500');
-    fetchUrl.searchParams.set('all', 'true');
+    const fetchUrl = buildApiUrl('/api/assets', { limit: '500', all: 'true' });
 
-    let resp = await fetch(fetchUrl.toString());
+    let resp = await fetch(fetchUrl);
     if (!resp.ok) { resp = await fetch('/api/assets'); }
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
@@ -141,11 +147,10 @@ async function loadDVIRAssets() {
 
 async function onDVIRAssetChange() {
   const assetSelect = document.getElementById('dvirAssetSelect');
-  selectedAssetId = assetSelect.value;
+  selectedAssetId = assetSelect ? assetSelect.value : '';
   
   const container = document.getElementById('dvirChecklistContainer');
   const priorBox = document.getElementById('priorReviewBox');
-  const priorDetails = document.getElementById('priorReviewDetails');
 
   if (!selectedAssetId) {
     if (container) container.innerHTML = '<p style="font-size: 13px; color: var(--text-muted);">Please select a power unit above to generate the statutory checklist.</p>';
@@ -154,31 +159,37 @@ async function onDVIRAssetChange() {
   }
 
   const selectedOption = assetSelect.options[assetSelect.selectedIndex];
-  selectedAssetNumber = selectedOption ? selectedOption.getAttribute('data-asset-num') || selectedAssetId : selectedAssetId;
-  const rawType = selectedOption ? selectedOption.getAttribute('data-type') || 'default' : 'default';
+  selectedAssetNumber = selectedOption ? (selectedOption.getAttribute('data-asset-num') || selectedAssetId) : selectedAssetId;
+  const rawType = selectedOption ? (selectedOption.getAttribute('data-type') || 'default') : 'default';
 
   if (container) container.innerHTML = '<p style="font-size: 13px; color: var(--text-muted);">Loading statutory 49 CFR Part 396 checklist...</p>';
 
   try {
-    const fetchUrl = new URL(buildApiUrl('/api/dvir'));
-    fetchUrl.searchParams.set('assetNumber', selectedAssetNumber);
-    fetchUrl.searchParams.set('assetId', selectedAssetId);
-    fetchUrl.searchParams.set('assetType', rawType);
-    fetchUrl.searchParams.set('country', activeOrgCountry);
+    const endpointUrl = buildApiUrl('/api/dvir', {
+      assetNumber: selectedAssetNumber,
+      assetId: selectedAssetId,
+      assetType: rawType,
+      country: activeOrgCountry
+    });
 
-    const res = await fetch(fetchUrl.toString(), {
+    const res = await fetch(endpointUrl, {
+      method: 'GET',
       headers: { 'x-country': activeOrgCountry, 'Content-Type': 'application/json' }
     });
 
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      throw new Error(`Server returned HTTP status ${res.status}`);
+    }
+
     const data = await res.json();
     if (data.success) {
       currentChecklist = data.checklist;
       priorInspectionLoaded = data.priorInspection;
 
       // Render 49 CFR § 396.13 Prior Driver Inspection Review
-      if (priorBox && priorDetails) {
-        if (priorInspectionLoaded) {
+      if (priorBox) {
+        const priorDetails = document.getElementById('priorReviewDetails');
+        if (priorInspectionLoaded && priorDetails) {
           priorBox.style.display = 'block';
           const pDate = new Date(priorInspectionLoaded.created_at).toLocaleString();
           const pDefects = priorInspectionLoaded.status === 'defects_found';
@@ -188,17 +199,21 @@ async function onDVIRAssetChange() {
             ${pDefects ? `<strong>Reported Defects / Remarks:</strong> ${esc(priorInspectionLoaded.remarks || 'None listed')}<br>
             <strong>Repair Status:</strong> ${priorInspectionLoaded.repair_certified ? '✅ Repairs Certified by Technician' : '⚠️ Pending Maintenance Certification'}` : ''}
           `;
-        } else {
+        } else if (priorDetails) {
           priorBox.style.display = 'block';
           priorDetails.innerHTML = 'No prior DVIR records found for this unit. Ensure full initial inspection is conducted.';
         }
       }
 
       renderDVIRChecklist(data);
+    } else {
+      throw new Error(data.error || 'Checklist failed to load');
     }
   } catch (err) {
     console.error('Error fetching DVIR checklist:', err);
-    if (container) container.innerHTML = '<p style="font-size: 13px; color: #b91c1c;">Unable to load inspection checklist. Please check network connection.</p>';
+    if (container) {
+      container.innerHTML = `<p style="font-size: 13px; color: #b91c1c;">Unable to load inspection checklist (${esc(err.message)}). Please check network connection.</p>`;
+    }
   }
 }
 
