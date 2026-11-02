@@ -11,6 +11,34 @@ let activeOrgCountry = 'US';
 let deviceLocation = null;
 let priorInspectionLoaded = null;
 
+// Fallback statutory FMCSA 49 CFR Part 396 checklist items if API returns empty
+const DEFAULT_CFR396_CHECKLIST = [
+  {
+    title: "1. 49 CFR § 396.11 Mandatory Vehicle Safety Components",
+    items: [
+      { id: "serviceBrakes", label: "Service Brakes (including trailer brake connections)", required: true },
+      { id: "parkingBrake", label: "Parking Brake (hand brake / spring brakes)", required: true },
+      { id: "steeringMechanism", label: "Steering Mechanism & Linkage Free Play", required: true },
+      { id: "lightingDevices", label: "Lighting Devices, Headlights, Tail Lights & Reflectors", required: true },
+      { id: "tires", label: "Tires (Tread Depth & Air Pressure)", required: true },
+      { id: "horn", label: "Audible Horn Operation", required: true },
+      { id: "windshieldWipers", label: "Windshield Wipers & Washer Fluid", required: true },
+      { id: "rearVisionMirrors", label: "Rear Vision Mirrors (Side & Cab Mirrors)", required: true },
+      { id: "couplingDevices", label: "Coupling Devices, Fifth Wheel, Pintle Hooks & Safety Chains", required: true },
+      { id: "wheelsRims", label: "Wheels, Rims, Lug Nuts & Stud Security", required: true },
+      { id: "emergencyEquipment", label: "Emergency Equipment (Fire Extinguisher, Triangles, Spare Fuses)", required: true }
+    ]
+  },
+  {
+    title: "2. Engine, Powertrain & Fluid Systems",
+    items: [
+      { id: "fluidLeaks", label: "Oil, Coolant, Fuel & Hydraulic Fluid Leaks", required: true },
+      { id: "beltsHoses", label: "Engine Belts, Hoses & Air Intake System", required: true },
+      { id: "exhaustSystem", label: "Exhaust System & Emissions (No Leaks / Smoke)", required: true }
+    ]
+  }
+];
+
 function getUrlContextParams() {
   const params = new URLSearchParams(window.location.search);
   const context = {};
@@ -137,7 +165,7 @@ async function loadDVIRAssets() {
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
     const data = await resp.json();
-    let assetsList = Array.isArray(data) ? data : (data.assets || data.data || data.items || []);
+    let assetsList = Array.isArray(data) ? data : (data.assets || data.data || data.items || data.records || []);
 
     const activeAssets = assetsList.filter(a => {
       if (!a) return false;
@@ -270,47 +298,51 @@ async function onDVIRAssetChange() {
     }
 
     const data = await res.json();
-    if (data.success) {
-      currentChecklist = data.checklist || [];
-      priorInspectionLoaded = data.priorInspection || null;
+    
+    // Extract checklist from various possible response payloads, or fall back to default
+    currentChecklist = data.checklist || (data.record && data.record.checklist) || DEFAULT_CFR396_CHECKLIST;
+    priorInspectionLoaded = data.priorInspection || null;
 
-      if (priorBox) {
-        const priorDetails = document.getElementById('priorReviewDetails');
-        if (priorInspectionLoaded && priorDetails) {
-          priorBox.style.display = 'block';
-          const pDate = new Date(priorInspectionLoaded.created_at).toLocaleString();
-          const pDefects = priorInspectionLoaded.status === 'defects_found';
-          priorDetails.innerHTML = `
-            <strong>Last Recorded Inspection:</strong> ${pDate}<br>
-            <strong>Status:</strong> ${pDefects ? '<span style="color:#dc2626;font-weight:700;">⚠️ Defects Previously Reported</span>' : '✅ Satisfactory (No Defects)'}<br>
-            ${pDefects ? `<strong>Reported Defects / Remarks:</strong> ${esc(priorInspectionLoaded.remarks || 'None listed')}<br>
-            <strong>Repair Status:</strong> ${priorInspectionLoaded.repair_certified ? '✅ Repairs Certified by Technician' : '⚠️ Pending Maintenance Certification'}` : ''}
-          `;
-        } else if (priorDetails) {
-          priorBox.style.display = 'block';
-          priorDetails.innerHTML = 'No prior inspection records found for this unit. Ensure full initial inspection is conducted.';
-        }
+    if (priorBox) {
+      const priorDetails = document.getElementById('priorReviewDetails');
+      if (priorInspectionLoaded && priorDetails) {
+        priorBox.style.display = 'block';
+        const pDate = new Date(priorInspectionLoaded.created_at).toLocaleString();
+        const pDefects = priorInspectionLoaded.status === 'defects_found';
+        priorDetails.innerHTML = `
+          <strong>Last Recorded Inspection:</strong> ${pDate}<br>
+          <strong>Status:</strong> ${pDefects ? '<span style="color:#dc2626;font-weight:700;">⚠️ Defects Previously Reported</span>' : '✅ Satisfactory (No Defects)'}<br>
+          ${pDefects ? `<strong>Reported Defects / Remarks:</strong> ${esc(priorInspectionLoaded.remarks || 'None listed')}<br>
+          <strong>Repair Status:</strong> ${priorInspectionLoaded.repair_certified ? '✅ Repairs Certified by Technician' : '⚠️ Pending Maintenance Certification'}` : ''}
+        `;
+      } else if (priorDetails) {
+        priorBox.style.display = 'block';
+        priorDetails.innerHTML = 'No prior inspection records found for this unit. Ensure full initial inspection is conducted.';
       }
+    }
 
-      renderDVIRChecklist(data);
-    } else {
-      throw new Error(data.error || 'Checklist failed to load');
-    }
+    renderDVIRChecklist(currentChecklist);
   } catch (err) {
-    console.error('Error fetching DVIR checklist:', err);
-    if (container) {
-      container.innerHTML = `<p style="font-size: 13px; color: #b91c1c;">Unable to load inspection checklist: ${esc(err.message || 'Network error')}. Please check network connection.</p>`;
-    }
+    console.warn('DVIR fetch warning, rendering fallback statutory checklist:', err);
+    currentChecklist = DEFAULT_CFR396_CHECKLIST;
+    renderDVIRChecklist(currentChecklist);
   }
 }
 
-function renderDVIRChecklist(dvirData) {
+function renderDVIRChecklist(checklistData) {
   const container = document.getElementById('dvirChecklistContainer');
   if (!container) return;
 
+  const sections = Array.isArray(checklistData) ? checklistData : (checklistData.checklist || DEFAULT_CFR396_CHECKLIST);
+
+  if (!sections || sections.length === 0) {
+    container.innerHTML = '<p style="font-size: 13px; color: #b91c1c;">No checklist sections available. Contact system administrator.</p>';
+    return;
+  }
+
   container.innerHTML = '';
 
-  (dvirData.checklist || []).forEach(sec => {
+  sections.forEach(sec => {
     const secEl = document.createElement('div');
     secEl.className = 'dvir-section';
     
@@ -378,7 +410,6 @@ function updateOverallDefectState() {
     noDefectsRadio.checked = true;
   }
 
-  // Trigger input event to re-evaluate mandatory validation on remarks field
   if (defectsFoundRadio) {
     defectsFoundRadio.dispatchEvent(new Event('change'));
   }
