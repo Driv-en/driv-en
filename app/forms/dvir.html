@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DRIV-EN | Driver Vehicle Inspection Report (DVIR - 49 CFR Part 396)</title>
-  <meta name="description" content="FMCSA 49 CFR Part 396 compliant Driver Vehicle Inspection Report (DVIR) pre-trip and post-trip checklist submission.">
+  <meta name="description" content="FMCSA 49 CFR Part 396 compliant Driver Vehicle Inspection Report (DVIR) pre-trip and post-trip checklist submission with Roadside Inspection Mode.">
   <meta name="robots" content="noindex, nofollow">
   <link rel="canonical" href="https://www.driv-en.com/app/forms/dvir.html">
   <link rel="icon" type="image/png" href="../../assets/icons/favicon.png?v=2026" sizes="48x48">
@@ -12,7 +12,6 @@
   <link rel="stylesheet" href="../shared/dashboard.css?v=11">
   <link rel="stylesheet" href="../../styles/diamond-plate.css?v=2">
 
-  <!-- Shared auth check script -->
   <script src="../shared/auth-check.js?v=13" defer></script>
 
   <script>
@@ -54,6 +53,7 @@
     :root[data-theme="dark"] .dvir-tab-bar { background: #334155; border-bottom-color: #475569; }
 
     .dvir-tab-home { background: #1d4ed8; border: 1px solid #2563eb; border-bottom: none; border-radius: 8px 8px 0 0; padding: 8px 18px; font-size: 14px; font-weight: 600; color: #fff; text-decoration: none; display: inline-block; }
+    .dvir-tab-roadside { background: #059669; border: 1px solid #10b981; border-bottom: none; border-radius: 8px 8px 0 0; padding: 8px 16px; font-size: 13px; font-weight: 700; color: #fff; cursor: pointer; }
     .dvir-tab-logout { background: #b91c1c; border: 1px solid #dc2626; border-bottom: none; border-radius: 8px 8px 0 0; padding: 8px 18px; font-size: 14px; font-weight: 600; color: #fff; cursor: pointer; }
 
     .form-container { max-width: 800px; width: 100%; margin: 16px auto; padding: 0 12px 24px 12px; box-sizing: border-box; }
@@ -103,6 +103,7 @@
 
   <div class="dvir-tab-bar" id="dvirTabBar">
     <a class="dvir-tab-home" id="dashHomeLink" href="/app/dashboard/employee-dashboard.html">Dashboard</a>
+    <button type="button" class="dvir-tab-roadside" onclick="openRoadsideInspectionMode()">🛡️ Roadside Inspection Mode</button>
     <button type="button" class="dvir-tab-logout" onclick="dashLogout()">Logout</button>
   </div>
 
@@ -231,11 +232,37 @@
         <span>📋 Statutory Prior Inspection Record (§ 396.13)</span>
         <button type="button" onclick="closePriorModal()" style="background:none; border:none; color:#fff; font-size:20px; font-weight:bold; cursor:pointer;">&times;</button>
       </div>
-      <div id="priorDvirModalContent" style="padding:16px; overflow-y:auto; font-size:13px; line-height:1.6; color:var(--text);">
-        <!-- Content populated dynamically by dvir-form.js -->
-      </div>
+      <div id="priorDvirModalContent" style="padding:16px; overflow-y:auto; font-size:13px; line-height:1.6; color:var(--text);"></div>
       <div style="padding:12px 16px; background:#f8fafc; border-top:1px solid #e2e8f0; text-align:right;">
         <button type="button" onclick="closePriorModal()" style="background:var(--primary); color:#fff; border:none; padding:8px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Close & Confirm Review</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dedicated Roadside Inspection Presentation Overlay (Law Enforcement View) -->
+  <div id="roadsideModeOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#0f172a; z-index:9999999; align-items:center; justify-content:center; padding:12px;">
+    <div style="background:#ffffff; max-width:650px; width:100%; height:92vh; border-radius:10px; box-shadow:0 15px 35px rgba(0,0,0,0.5); display:flex; flex-direction:column; overflow:hidden;">
+      <div style="background:#059669; color:#fff; padding:14px 18px; font-weight:800; font-size:16px; display:flex; justify-content:space-between; align-items:center;">
+        <span>🛡️ ROADSIDE LAW ENFORCEMENT INSPECTION MODE</span>
+        <button type="button" onclick="closeRoadsideInspectionMode()" style="background:#047857; border:1px solid #065f46; color:#fff; padding:6px 14px; border-radius:4px; font-size:12px; font-weight:700; cursor:pointer;">🔒 Exit Mode</button>
+      </div>
+      <div id="roadsideBodyContent" style="padding:20px; overflow-y:auto; flex:1;"></div>
+      <div style="padding:10px 16px; background:#f1f5f9; border-top:1px solid #cbd5e1; text-align:center; font-size:11px; color:#64748b;">
+        🔒 Display locked for roadside inspection. Driver PIN required to return to dispatcher controls.
+      </div>
+    </div>
+  </div>
+
+  <!-- Security PIN Prompt for Exit -->
+  <div id="roadsidePinPrompt" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.85); z-index:10000000; align-items:center; justify-content:center;">
+    <div style="background:#fff; padding:24px; border-radius:8px; max-width:320px; width:100%; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.3);">
+      <h4 style="margin:0 0 8px 0; font-size:16px;">Driver PIN Required</h4>
+      <p style="font-size:12px; color:#64748b; margin-bottom:16px;">Enter 4-digit PIN to unlock full driver interface:</p>
+      <input type="password" id="roadsidePinInput" maxlength="4" style="text-align:center; font-size:24px; letter-spacing:8px; padding:8px; margin-bottom:12px;" autofocus>
+      <div id="roadsidePinError" style="color:#b91c1c; font-size:12px; display:none; margin-bottom:12px;">Incorrect PIN. Try again.</div>
+      <div style="display:flex; gap:8px;">
+        <button type="button" onclick="document.getElementById('roadsidePinPrompt').style.display='none';" style="flex:1; padding:8px; background:#cbd5e1; border:none; border-radius:4px; font-weight:600;">Cancel</button>
+        <button type="button" onclick="verifyRoadsidePin()" style="flex:1; padding:8px; background:#16a34a; color:#fff; border:none; border-radius:4px; font-weight:600;">Unlock</button>
       </div>
     </div>
   </div>
@@ -243,7 +270,7 @@
   <div id="dashFooter"></div>
 
   <script src="../shared/dashboard-common.js?v=13"></script>
-  <script src="dvir-form.js?v=8"></script>
+  <script src="dvir-form.js?v=9"></script>
   <script>
     function getUrlContextParams() {
       var params = new URLSearchParams(window.location.search);
@@ -285,9 +312,7 @@
     }
 
     window.dashLogout = async function() {
-      try { 
-        await fetch('/auth/logout', { method: 'POST' }); 
-      } catch (e) {}
+      try { await fetch('/auth/logout', { method: 'POST' }); } catch (e) {}
       window.location.href = '/public/login.html';
     };
 
@@ -321,7 +346,6 @@
       });
       updateDefectValidation();
 
-      // Form submission fallback handler
       var form = document.getElementById('dvirInspectionForm');
       if (form) {
         form.addEventListener('submit', function(e) {
