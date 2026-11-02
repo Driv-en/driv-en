@@ -78,7 +78,6 @@ function buildApiUrl(endpoint, extraParams = {}) {
   return url.toString();
 }
 
-// Mandatory Location Service Check (Runs on both Mobile and Laptops/Desktops)
 function checkDeviceLocation() {
   if (!navigator.geolocation) {
     updateLocationStatus(false, 'Geolocation is not supported by your browser/device.');
@@ -139,10 +138,21 @@ function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function openPriorModal() {
+window.openPriorModal = function() {
   const modal = document.getElementById('priorDvirModal');
   const content = document.getElementById('priorDvirModalContent');
-  if (!modal || !content || !priorInspectionLoaded) return;
+  if (!modal || !content) return;
+
+  if (!priorInspectionLoaded) {
+    content.innerHTML = `
+      <div style="background:#fef3c7; border:1px solid #fcd34d; padding:12px; border-radius:6px; color:#78350f;">
+        <strong>Notice:</strong> No prior inspection record was found in the database for power unit <strong>${esc(selectedAssetNumber)}</strong>.
+        <br><br>Ensure a full initial 49 CFR Part 396 pre-trip inspection is completed today.
+      </div>
+    `;
+    modal.style.display = 'flex';
+    return;
+  }
 
   const p = priorInspectionLoaded;
   const pDate = new Date(p.created_at).toLocaleString();
@@ -186,18 +196,18 @@ function openPriorModal() {
   `;
 
   modal.style.display = 'flex';
-}
+};
 
-function closePriorModal() {
+window.closePriorModal = function() {
   const modal = document.getElementById('priorDvirModal');
   if (modal) modal.style.display = 'none';
-}
+};
 
 document.addEventListener('DOMContentLoaded', () => {
   const assetInput = document.getElementById('dvirAssetInput');
   if (assetInput) {
     assetInput.addEventListener('change', onDVIRAssetChange);
-    assetInput.addEventListener('input', checkPowerUnitUnlistedFlag);
+    assetInput.addEventListener('input', onDVIRAssetChange);
   }
 
   const trailerInput = document.getElementById('dvirTrailerNumber');
@@ -221,9 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Mandatory location detection on form initialization (runs on all hardware)
   checkDeviceLocation();
-
   loadDVIRAssets();
   loadLocationOptions();
 });
@@ -374,6 +382,7 @@ async function onDVIRAssetChange() {
 
   const container = document.getElementById('dvirChecklistContainer');
   const priorBox = document.getElementById('priorReviewBox');
+  const priorDetails = document.getElementById('priorReviewDetails');
   const meterInput = document.getElementById('dvirMeterReading');
 
   priorInspectionLoaded = null;
@@ -399,6 +408,9 @@ async function onDVIRAssetChange() {
     selectedAssetId = `UNLISTED_${val.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`;
     selectedAssetNumber = val.split('—')[0].trim();
   }
+
+  // GUARANTEE § 396.13 PRIOR REVIEW BOX VISIBILITY
+  if (priorBox) priorBox.style.display = 'block';
 
   if (container) container.innerHTML = '<p style="font-size: 13px; color: var(--text-muted);">Loading statutory 49 CFR Part 396 checklist...</p>';
 
@@ -427,10 +439,8 @@ async function onDVIRAssetChange() {
     currentChecklist = data.checklist || (data.record && data.record.checklist) || DEFAULT_CFR396_CHECKLIST;
     priorInspectionLoaded = data.priorInspection || null;
 
-    if (priorBox) {
-      const priorDetails = document.getElementById('priorReviewDetails');
-      if (priorInspectionLoaded && priorDetails) {
-        priorBox.style.display = 'block';
+    if (priorDetails) {
+      if (priorInspectionLoaded) {
         const pDate = new Date(priorInspectionLoaded.created_at).toLocaleString();
         const pDefects = priorInspectionLoaded.status === 'defects_found';
 
@@ -441,9 +451,14 @@ async function onDVIRAssetChange() {
             🔍 View Full Prior DVIR Details
           </button>
         `;
-      } else if (priorDetails) {
-        priorBox.style.display = 'block';
-        priorDetails.innerHTML = 'No prior inspection records found for this unit. Ensure full initial inspection is conducted.';
+      } else {
+        priorDetails.innerHTML = `
+          No prior inspection records found for <strong>${esc(selectedAssetNumber)}</strong>. Ensure a full initial inspection is conducted today.
+          <br>
+          <button type="button" onclick="openPriorModal()" style="margin-top:8px; padding:6px 14px; background:#64748b; color:#fff; border:none; border-radius:4px; font-weight:600; cursor:pointer; font-size:12px;">
+            🔍 View Status Details
+          </button>
+        `;
       }
     }
 
@@ -452,6 +467,16 @@ async function onDVIRAssetChange() {
     console.warn('DVIR fetch warning, rendering fallback statutory checklist:', err);
     currentChecklist = DEFAULT_CFR396_CHECKLIST;
     renderDVIRChecklist(currentChecklist);
+
+    if (priorDetails) {
+      priorDetails.innerHTML = `
+        No prior inspection logs retrieved from server for <strong>${esc(selectedAssetNumber)}</strong>.
+        <br>
+        <button type="button" onclick="openPriorModal()" style="margin-top:8px; padding:6px 14px; background:#64748b; color:#fff; border:none; border-radius:4px; font-weight:600; cursor:pointer; font-size:12px;">
+          🔍 View Status Details
+        </button>
+      `;
+    }
   }
 }
 
@@ -553,7 +578,6 @@ function showStatusMessage(msg, isError = false) {
 async function submitDVIRForm(e) {
   e.preventDefault();
 
-  // Enforce Mandatory Device Geolocation Check
   if (!hasDeviceLocation()) {
     showStatusMessage('Mandatory Device Location is required to submit DVIR. Please click "Enable / Retry Location" in the top banner.', true);
     checkDeviceLocation();
@@ -588,7 +612,7 @@ async function submitDVIRForm(e) {
   }
 
   const priorReviewChk = document.getElementById('chkReviewAcknowledged');
-  if (priorInspectionLoaded && priorReviewChk && !priorReviewChk.checked) {
+  if (priorReviewChk && !priorReviewChk.checked) {
     showStatusMessage('49 CFR § 396.13 requires drivers to acknowledge review of prior inspection defects.', true);
     return;
   }
@@ -647,7 +671,7 @@ async function submitDVIRForm(e) {
     defects_found: defects,
     inspection_data: inspectionData,
     remarks: remarks,
-    prior_review_acknowledged: priorInspectionLoaded ? (priorReviewChk ? priorReviewChk.checked : false) : true,
+    prior_review_acknowledged: priorReviewChk ? priorReviewChk.checked : true,
     certified: true,
     unlisted_flag: unlistedFlag,
     unlisted_details: unlistedDetails,
@@ -695,7 +719,6 @@ async function submitDVIRForm(e) {
       currentChecklist = [];
       priorInspectionLoaded = null;
 
-      // Re-trigger location verification for subsequent form submissions
       checkDeviceLocation();
     } else {
       showStatusMessage(result.error || 'Failed to submit inspection.', true);
