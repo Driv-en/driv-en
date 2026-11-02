@@ -1,6 +1,6 @@
 /**
  * DRIV-EN Platform: DVIR Inspection Form Controller
- * Compliant with 49 CFR Part 396 regulations
+ * Compliant with FMCSA 49 CFR Part 396 regulations
  * File: /app/forms/dvir-form.js
  */
 
@@ -25,7 +25,7 @@ const DEFAULT_TOWABLE_UNITS = [
   "TRL-108 — Converter Dolly / Pintle Hitch Trailer"
 ];
 
-// Fallback statutory FMCSA 49 CFR Part 396 checklist items if API returns empty
+// Fallback statutory FMCSA 49 CFR Part 396 checklist items
 const DEFAULT_CFR396_CHECKLIST = [
   {
     title: "1. 49 CFR § 396.11 Mandatory Vehicle Safety Components",
@@ -156,7 +156,7 @@ window.openPriorModal = function() {
 
   const p = priorInspectionLoaded;
   const pDate = new Date(p.created_at).toLocaleString();
-  const hasDefects = p.status === 'defects_found';
+  const hasDefects = p.status === 'defects_found' || (Array.isArray(p.defects_found) && p.defects_found.length > 0);
 
   content.innerHTML = `
     <div style="background:#f1f5f9; padding:10px; border-radius:6px; margin-bottom:12px;">
@@ -182,7 +182,6 @@ window.openPriorModal = function() {
         ${p.repair_certified 
           ? `<span style="color:#15803d; font-weight:600;">✅ Repairs Certified</span><br><em>Notes: ${esc(p.repair_remarks || 'Repairs completed.')}</em>` 
           : `<span style="color:#b45309; font-weight:600;">⚠️ Repairs Pending Technician Certification</span>`}
-        <div style="font-size:11px; color:#64748b; margin-top:4px;">(Work Orders module integration pending)</div>
       </div>
     ` : `
       <div style="background:#f0fdf4; padding:10px; border-radius:6px; color:#166534; margin-bottom:12px;">
@@ -207,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const assetInput = document.getElementById('dvirAssetInput');
   if (assetInput) {
     assetInput.addEventListener('change', onDVIRAssetChange);
-    assetInput.addEventListener('input', onDVIRAssetChange);
+    assetInput.addEventListener('blur', onDVIRAssetChange);
   }
 
   const trailerInput = document.getElementById('dvirTrailerNumber');
@@ -656,6 +655,7 @@ async function submitDVIRForm(e) {
     flagged_for_manager: true
   } : null;
 
+  // Fully aligned schema payload targeting SQLite D1 column types
   const payload = {
     asset_id: selectedAssetId || powerUnitVal,
     asset_number: selectedAssetNumber || powerUnitVal,
@@ -668,14 +668,14 @@ async function submitDVIRForm(e) {
     site_location: siteLocation,
     location: combinedLocation,
     status: selectedDefectStatus === 'defects_found' || defects.length > 0 ? 'defects_found' : 'pass',
-    defects_found: defects,
-    inspection_data: inspectionData,
+    defects_found: JSON.stringify(defects),
+    inspection_data: JSON.stringify(inspectionData),
     remarks: remarks,
-    prior_review_acknowledged: priorReviewChk ? priorReviewChk.checked : true,
-    certified: true,
+    prior_review_acknowledged: priorReviewChk ? (priorReviewChk.checked ? 1 : 0) : 1,
+    certified: 1,
     unlisted_flag: unlistedFlag,
-    unlisted_details: unlistedDetails,
-    device_location: deviceLocation
+    unlisted_details_json: unlistedDetails ? JSON.stringify(unlistedDetails) : null,
+    device_location: JSON.stringify(deviceLocation)
   };
 
   const btnSubmit = document.getElementById('btnSubmitDVIR');
