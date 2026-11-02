@@ -258,8 +258,16 @@ export async function onRequest(context) {
       }
 
       const defectsCount = body.defects_count !== undefined ? Number(body.defects_count) : defectsFound.length;
-      const hasDefects = defectsCount > 0 || body.status === 'defects_found';
-      const finalStatus = hasDefects ? 'defects_found' : 'pass';
+      
+      // Preserve explicit out_of_service status sent from client
+      let finalStatus = 'pass';
+      if (body.status === 'out_of_service') {
+        finalStatus = 'out_of_service';
+      } else if (defectsCount > 0 || body.status === 'defects_found') {
+        finalStatus = 'defects_found';
+      }
+
+      const hasDefects = finalStatus === 'out_of_service' || finalStatus === 'defects_found' || defectsCount > 0;
       
       const timestamp = Date.now();
       const dvirId = `dvir_${timestamp}`;
@@ -346,7 +354,9 @@ export async function onRequest(context) {
 
       return new Response(JSON.stringify({
         success: true,
-        message: unlistedFlag 
+        message: finalStatus === 'out_of_service'
+          ? "Out-of-Service inspection logged! Vehicle placed OUT-OF-SERVICE."
+          : unlistedFlag 
           ? "DVIR submitted! Unlisted unit flagged for Fleet Manager review." 
           : "DVIR inspection logged successfully under 49 CFR Part 396.",
         unlistedFlagged: Boolean(unlistedFlag),
