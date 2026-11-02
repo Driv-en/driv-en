@@ -79,6 +79,8 @@ export async function onRequest(context) {
           repair_certified INTEGER DEFAULT 0,
           repair_remarks TEXT,
           repair_signature TEXT,
+          unlisted_flag INTEGER DEFAULT 0,
+          unlisted_details_json TEXT,
           country TEXT,
           device_location_json TEXT,
           created_at TEXT
@@ -172,7 +174,7 @@ export async function onRequest(context) {
       const meterReading = body.meter_reading !== undefined ? body.meter_reading : body.meterReading;
       const city = body.city || '';
       const state = body.state || '';
-      const siteLocation = body.site_location || body.siteLocation || '';
+      const siteLocation = body.site_location || body.siteLocation || 'Not Applicable';
       const location = body.location || `${city}, ${state}`;
       const status = body.status || 'pass';
       const defectsFound = body.defects_found || body.defectsFound || [];
@@ -180,6 +182,8 @@ export async function onRequest(context) {
       const remarks = body.remarks || '';
       const priorReviewAcknowledged = body.prior_review_acknowledged ? 1 : 0;
       const certified = body.certified ? 1 : 0;
+      const unlistedFlag = body.unlisted_flag ? 1 : 0;
+      const unlistedDetails = body.unlisted_details || null;
       const deviceLocation = body.device_location || body.deviceLocation || null;
 
       if (!assetNumber && !assetId) {
@@ -215,6 +219,8 @@ export async function onRequest(context) {
         remarks: remarks,
         prior_review_acknowledged: priorReviewAcknowledged,
         certified: certified,
+        unlisted_flag: unlistedFlag,
+        unlisted_details: unlistedDetails,
         country: countryParam,
         device_location: deviceLocation,
         created_at: createdAt
@@ -228,15 +234,30 @@ export async function onRequest(context) {
             `INSERT INTO dvir_inspections (
               id, org_id, asset_id, asset_number, trailer_number, driver_id, driver_signature,
               inspection_type, meter_reading, city, state, location, status, defects_count, defects_json,
-              inspection_data_json, remarks, prior_review_acknowledged, certified, country,
+              inspection_data_json, remarks, prior_review_acknowledged, certified, unlisted_flag, unlisted_details_json, country,
               device_location_json, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           ).bind(
             dvirId, orgId, assetId, assetNumber, trailerNumber, driverId, driverSignature,
             inspectionType, meterReading || 0, city, state, location, finalStatus, defectsFound.length,
             JSON.stringify(defectsFound), JSON.stringify(inspectionData), remarks,
-            priorReviewAcknowledged, certified, countryParam, JSON.stringify(deviceLocation), createdAt
+            priorReviewAcknowledged, certified, unlistedFlag, JSON.stringify(unlistedDetails), countryParam, JSON.stringify(deviceLocation), createdAt
           ).run();
+
+          // Log unlisted asset warning to error_log for Equipment / Fleet Manager audit review
+          if (unlistedFlag) {
+            await env.DB.prepare(
+              `INSERT INTO error_log (id, source, error_message, stack_trace, severity, created_at) VALUES (?, ?, ?, ?, ?, ?)`
+            ).bind(
+              crypto.randomUUID(),
+              'DVIR Inspection Form (Unlisted Unit Flag)',
+              `Unlisted Unit Logged: Power Unit "${assetNumber}" or Towed Unit "${trailerNumber}" submitted by ${driverSignature}.`,
+              JSON.stringify(unlistedDetails),
+              'warning',
+              createdAt
+            ).run().catch(() => {});
+          }
+
         } catch (dbErr) {
           console.error('[DVIR-CFR396] D1 storage error:', dbErr.message);
         }
@@ -249,10 +270,10 @@ export async function onRequest(context) {
 
       return new Response(JSON.stringify({
         success: true,
-        message: hasDefects 
-          ? "DVIR submitted with defects. Asset flagged for maintenance certification under 49 CFR § 396.11(a)(3)." 
+        message: unlistedFlag 
+          ? "DVIR submitted! Unlisted unit flagged for Fleet Manager review." 
           : "DVIR inspection logged successfully under 49 CFR Part 396.",
-        hasDefects,
+        unlistedFlagged: Boolean(unlistedFlag),
         dvir: dvirRecord
       }), { status: 200, headers });
     }
