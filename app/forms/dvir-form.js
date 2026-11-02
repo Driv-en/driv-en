@@ -140,10 +140,17 @@ async function loadDVIRAssets() {
     const data = await resp.json();
     let assetsList = Array.isArray(data) ? data : (data.assets || data.data || data.items || []);
 
+    // Filter to active assets that are DOT On-Road Regulated (dot_regulated === 1)
     const activeAssets = assetsList.filter(a => {
       if (!a) return false;
       const st = String(a.status || '').toLowerCase().trim();
-      return st !== 'inactive' && st !== 'retired' && st !== 'decommissioned' && st !== 'sold' && st !== 'deleted' && st !== '0';
+      const isActive = st !== 'inactive' && st !== 'retired' && st !== 'decommissioned' && st !== 'sold' && st !== 'deleted' && st !== '0';
+      
+      // Strict check: includes assets where dot_regulated/requires_dvir is true or 1
+      const isDotRegulated = a.dot_regulated !== undefined ? (Number(a.dot_regulated) === 1 || a.dot_regulated === true) : 
+                            (a.requires_dvir !== undefined ? (Number(a.requires_dvir) === 1 || a.requires_dvir === true) : true);
+
+      return isActive && isDotRegulated;
     });
 
     selectEl.innerHTML = '<option value="">-- Choose Power Unit --</option>' + 
@@ -231,7 +238,7 @@ async function onDVIRAssetChange() {
           `;
         } else if (priorDetails) {
           priorBox.style.display = 'block';
-          priorDetails.innerHTML = 'No prior DVIR records found for this unit. Ensure full initial inspection is conducted.';
+          priorDetails.innerHTML = 'No prior inspection records found for this unit. Ensure full initial inspection is conducted.';
         }
       }
 
@@ -242,7 +249,7 @@ async function onDVIRAssetChange() {
   } catch (err) {
     console.error('Error fetching DVIR checklist:', err);
     if (container) {
-      container.innerHTML = `<p style="font-size: 13px; color: #b91c1c;">Unable to load inspection checklist (${esc(err.message)}). Please check network connection.</p>`;
+      container.innerHTML = `<p style="font-size: 13px; color: #b91c1c;">Unable to load inspection checklist: ${esc(err.message || 'Network error')}. Please check network connection.</p>`;
     }
   }
 }
@@ -400,7 +407,7 @@ async function submitDVIRForm(e) {
   const btnSubmit = document.getElementById('btnSubmitDVIR');
   if (btnSubmit) {
     btnSubmit.disabled = true;
-    btnSubmit.textContent = 'Submitting 49 CFR DVIR...';
+    btnSubmit.textContent = 'Submitting 49 CFR Inspection...';
   }
 
   try {
@@ -419,7 +426,7 @@ async function submitDVIRForm(e) {
     const result = await res.json();
 
     if (result.success) {
-      showStatusMessage('DVIR inspection logged successfully under 49 CFR Part 396!');
+      showStatusMessage('Inspection logged successfully under 49 CFR Part 396!');
       document.getElementById('dvirInspectionForm').reset();
       document.getElementById('dvirChecklistContainer').innerHTML = '<p style="font-size: 13px; color: var(--text-muted);">Please select a power unit above to generate the statutory checklist.</p>';
       
@@ -432,15 +439,15 @@ async function submitDVIRForm(e) {
       currentChecklist = [];
       priorInspectionLoaded = null;
     } else {
-      showStatusMessage(result.error || 'Failed to submit DVIR inspection.', true);
+      showStatusMessage(result.error || 'Failed to submit inspection.', true);
     }
   } catch (err) {
-    console.error('Error submitting DVIR:', err);
+    console.error('Error submitting DVIR inspection:', err);
     showStatusMessage(`Submission error: ${err.message}`, true);
   } finally {
     if (btnSubmit) {
       btnSubmit.disabled = false;
-      btnSubmit.textContent = 'Submit Completed DVIR';
+      btnSubmit.textContent = 'Submit Completed Inspection';
     }
   }
 }
