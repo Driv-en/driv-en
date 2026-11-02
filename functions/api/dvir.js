@@ -1,6 +1,6 @@
 /**
  * Cloudflare Pages Function: /api/dvir
- * Compliant with 49 CFR Part 396 (FMCSA statutory DVIR & inspection requirements)
+ * Multi-Tenant Isolated & 49 CFR Part 396 Compliant
  */
 
 export async function onRequest(context) {
@@ -18,6 +18,9 @@ export async function onRequest(context) {
   if (method === 'OPTIONS') {
     return new Response(null, { headers, status: 204 });
   }
+
+  // 1. Extract and enforce Organization Context (Tenant Isolation)
+  const orgId = request.headers.get('x-org-id') || url.searchParams.get('org_id') || url.searchParams.get('orgId') || 'default_org';
 
   const countryParam = (url.searchParams.get('country') || request.headers.get('x-country') || 'US').toUpperCase().trim();
   const isCanada = countryParam === 'CA';
@@ -45,9 +48,45 @@ export async function onRequest(context) {
 
   const kvStore = env.DRIVEN_KV || env.ASSET_CONFIG_KV;
 
+  // Multi-tenant database initialization
+  async function ensureDvirTable() {
+    if (!env.DB) return;
+    try {
+      await env.DB.prepare(
+        `CREATE TABLE IF NOT EXISTS dvir_inspections (
+          id TEXT PRIMARY KEY,
+          org_id TEXT NOT NULL,
+          asset_id TEXT,
+          asset_number TEXT,
+          trailer_number TEXT,
+          driver_id TEXT,
+          driver_signature TEXT,
+          inspection_type TEXT,
+          meter_reading REAL,
+          location TEXT,
+          status TEXT,
+          defects_count INTEGER,
+          defects_json TEXT,
+          inspection_data_json TEXT,
+          remarks TEXT,
+          prior_review_acknowledged INTEGER DEFAULT 0,
+          certified INTEGER DEFAULT 1,
+          repair_certified INTEGER DEFAULT 0,
+          repair_remarks TEXT,
+          repair_signature TEXT,
+          country TEXT,
+          device_location_json TEXT,
+          created_at TEXT
+        )`
+      ).run();
+    } catch (e) {
+      console.warn('[DVIR-INIT] Table creation warning:', e.message);
+    }
+  }
+
   try {
     // =========================================================================
-    // GET: FETCH COMPLIANT CHECKLIST & PRIOR DEFECT STATUS (§ 396.13)
+    // GET: FETCH COMPLIANT CHECKLIST & TENANT-SCORED PRIOR DEFECTS
     // =========================================================================
     if (method === 'GET') {
       const assetNumber = url.searchParams.get('assetNumber') || url.searchParams.get('asset_number');
@@ -57,22 +96,23 @@ export async function onRequest(context) {
         return new Response(JSON.stringify({ error: "Query parameter 'assetNumber' or 'assetId' is required" }), { status: 400, headers });
       }
 
-      // Safe prior defects lookup (defensively isolated so GET won't throw 500 if DB table is uninitialized)
+      await ensureDvirTable();
+
+      // Tenant-isolated query filtering by org_id AND asset identifier
       let priorDefects = null;
       if (env.DB) {
         try {
           priorDefects = await env.DB.prepare(
             `SELECT id, status, defects_json, remarks, created_at, repair_certified, repair_remarks 
              FROM dvir_inspections 
-             WHERE (asset_number = ? OR asset_id = ?) 
+             WHERE org_id = ? AND (asset_number = ? OR asset_id = ?) 
              ORDER BY created_at DESC LIMIT 1`
-          ).bind(assetNumber || assetId || '', assetId || assetNumber || '').first();
+          ).bind(orgId, assetNumber || assetId || '', assetId || assetNumber || '').first();
         } catch (e) {
           console.warn('[DVIR-GET] Non-fatal DB lookup warning:', e.message);
         }
       }
 
-      // Mandatory 49 CFR § 396.11(a)(1) Minimum Statutory Items Checklist
       const checklistSections = [
         {
           title: "1. 49 CFR § 396.11 Mandatory Vehicle Safety Components",
@@ -102,6 +142,7 @@ export async function onRequest(context) {
 
       return new Response(JSON.stringify({
         success: true,
+        orgId,
         assetNumber: assetNumber || assetId,
         assetId: assetId || assetNumber,
         jurisdiction: countryParam,
@@ -114,7 +155,7 @@ export async function onRequest(context) {
     }
 
     // =========================================================================
-    // POST: SUBMIT COMPLIANT DVIR (§ 396.11(a) & (b))
+    // POST: SUBMIT COMPLIANT DVIR WITH TENANT BINDING
     // =========================================================================
     if (method === 'POST') {
       let body;
@@ -156,6 +197,7 @@ export async function onRequest(context) {
 
       const dvirRecord = {
         id: dvirId,
+        org_id: orgId,
         asset_id: assetId,
         asset_number: assetNumber,
         trailer_number: trailerNumber,
@@ -175,45 +217,19 @@ export async function onRequest(context) {
         created_at: createdAt
       };
 
-      // Ensure D1 Table matches 49 CFR Part 396 requirements
+      await ensureDvirTable();
+
       if (env.DB) {
         try {
           await env.DB.prepare(
-            `CREATE TABLE IF NOT EXISTS dvir_inspections (
-              id TEXT PRIMARY KEY,
-              asset_id TEXT,
-              asset_number TEXT,
-              trailer_number TEXT,
-              driver_id TEXT,
-              driver_signature TEXT,
-              inspection_type TEXT,
-              meter_reading REAL,
-              location TEXT,
-              status TEXT,
-              defects_count INTEGER,
-              defects_json TEXT,
-              inspection_data_json TEXT,
-              remarks TEXT,
-              prior_review_acknowledged INTEGER DEFAULT 0,
-              certified INTEGER DEFAULT 1,
-              repair_certified INTEGER DEFAULT 0,
-              repair_remarks TEXT,
-              repair_signature TEXT,
-              country TEXT,
-              device_location_json TEXT,
-              created_at TEXT
-            )`
-          ).run();
-
-          await env.DB.prepare(
             `INSERT INTO dvir_inspections (
-              id, asset_id, asset_number, trailer_number, driver_id, driver_signature,
+              id, org_id, asset_id, asset_number, trailer_number, driver_id, driver_signature,
               inspection_type, meter_reading, location, status, defects_count, defects_json,
               inspection_data_json, remarks, prior_review_acknowledged, certified, country,
               device_location_json, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           ).bind(
-            dvirId, assetId, assetNumber, trailerNumber, driverId, driverSignature,
+            dvirId, orgId, assetId, assetNumber, trailerNumber, driverId, driverSignature,
             inspectionType, meterReading || 0, location, finalStatus, defectsFound.length,
             JSON.stringify(defectsFound), JSON.stringify(inspectionData), remarks,
             priorReviewAcknowledged, certified, countryParam, JSON.stringify(deviceLocation), createdAt
@@ -223,9 +239,10 @@ export async function onRequest(context) {
         }
       }
 
+      // KV key namespacing by organization ID
       if (kvStore) {
         const lookupKey = (assetNumber || assetId).toLowerCase().trim();
-        await kvStore.put(`dvir:${lookupKey}:${timestamp}`, JSON.stringify(dvirRecord));
+        await kvStore.put(`dvir:${orgId}:${lookupKey}:${timestamp}`, JSON.stringify(dvirRecord));
       }
 
       return new Response(JSON.stringify({
