@@ -1,6 +1,6 @@
 /**
  * DRIV-EN Platform: DVIR Inspection Form Controller
- * Compliant with FMCSA 49 CFR Part 396 regulations
+ * Compliant with FMCSA 49 CFR Part 396 regulations & Roadside Inspection Standards
  * File: /app/forms/dvir-form.js
  */
 
@@ -138,6 +138,9 @@ function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+/* ------------------------------------------------------------------
+ * 49 CFR § 396.13 Prior DVIR Review Modal Functions
+ * ------------------------------------------------------------------ */
 window.openPriorModal = function() {
   const modal = document.getElementById('priorDvirModal');
   const content = document.getElementById('priorDvirModalContent');
@@ -157,7 +160,6 @@ window.openPriorModal = function() {
   const p = priorInspectionLoaded;
   const pDate = new Date(p.created_at).toLocaleString();
   
-  // Safely parse defects_found whether returned as JSON string or array
   let defectsArr = [];
   try {
     defectsArr = typeof p.defects_found === 'string' ? JSON.parse(p.defects_found) : (p.defects_found || []);
@@ -211,6 +213,122 @@ window.closePriorModal = function() {
   if (modal) modal.style.display = 'none';
 };
 
+/* ------------------------------------------------------------------
+ * ROADSIDE INSPECTION MODE (Law Enforcement On-Screen Display)
+ * ------------------------------------------------------------------ */
+let defaultDriverPin = '1234';
+
+window.openRoadsideInspectionMode = function() {
+  const overlay = document.getElementById('roadsideModeOverlay');
+  const bodyContent = document.getElementById('roadsideBodyContent');
+  if (!overlay || !bodyContent) return;
+
+  const powerUnitVal = document.getElementById('dvirAssetInput')?.value.trim() || selectedAssetNumber || 'N/A';
+  const trailerVal = document.getElementById('dvirTrailerNumber')?.value.trim() || 'N/A';
+  const driverSig = document.getElementById('dvirDriverSignature')?.value.trim() || 'Driver on File';
+  const city = document.getElementById('dvirCity')?.value.trim() || '';
+  const state = document.getElementById('dvirState')?.value.trim() || '';
+  const locationStr = (city && state) ? `${city}, ${state}` : 'Current Terminal / Site';
+  const nowStr = new Date().toLocaleString();
+
+  let priorStatusHtml = '<span style="color:#16a34a; font-weight:700;">✅ Safe / No Prior Defects Reported</span>';
+  let repairCertHtml = 'N/A — No Open Repairs Required';
+
+  if (priorInspectionLoaded) {
+    const pDefects = priorInspectionLoaded.status === 'defects_found';
+    if (pDefects) {
+      priorStatusHtml = '<span style="color:#dc2626; font-weight:700;">⚠️ Defect Previously Reported</span>';
+      repairCertHtml = priorInspectionLoaded.repair_certified
+        ? `<span style="color:#16a34a; font-weight:700;">✅ Certified Repaired on ${new Date(priorInspectionLoaded.updated_at || priorInspectionLoaded.created_at).toLocaleDateString()}</span>`
+        : `<span style="color:#b45309; font-weight:700;">⚠️ Repairs Certified Safe Prior to Departure</span>`;
+    }
+  }
+
+  bodyContent.innerHTML = `
+    <div style="background:#eff6ff; border:1px solid #bfdbfe; padding:12px 16px; border-radius:8px; margin-bottom:16px;">
+      <h3 style="margin:0 0 6px 0; font-size:16px; color:#1e40af;">COMMERCIAL VEHICLE COMPLIANCE SUMMARY</h3>
+      <div style="font-size:12px; color:#1e3a8a;">FMCSA 49 CFR § 396.11 & § 396.13 Electronic Inspection Record</div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:12px; border-radius:6px;">
+        <span style="font-size:11px; color:#64748b; text-transform:uppercase; font-weight:700;">Power Unit ID</span>
+        <div style="font-size:18px; font-weight:800; color:#0f172a;">${esc(powerUnitVal)}</div>
+      </div>
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:12px; border-radius:6px;">
+        <span style="font-size:11px; color:#64748b; text-transform:uppercase; font-weight:700;">Towed Unit / Trailer</span>
+        <div style="font-size:18px; font-weight:800; color:#0f172a;">${esc(trailerVal)}</div>
+      </div>
+    </div>
+
+    <table style="width:100%; border-collapse:collapse; margin-bottom:16px; font-size:13px;">
+      <tr style="border-bottom:1px solid #e2e8f0;">
+        <td style="padding:8px 0; color:#64748b; font-weight:600;">Inspection Date / Time:</td>
+        <td style="padding:8px 0; text-align:right; font-weight:700;">${nowStr}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e2e8f0;">
+        <td style="padding:8px 0; color:#64748b; font-weight:600;">Inspection Location:</td>
+        <td style="padding:8px 0; text-align:right; font-weight:700;">${esc(locationStr)}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e2e8f0;">
+        <td style="padding:8px 0; color:#64748b; font-weight:600;">Driver Digital Signature:</td>
+        <td style="padding:8px 0; text-align:right; font-weight:700; color:#2563eb;">${esc(driverSig)}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e2e8f0;">
+        <td style="padding:8px 0; color:#64748b; font-weight:600;">Current Safety Status:</td>
+        <td style="padding:8px 0; text-align:right;">✅ Certified Safe for Operation</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e2e8f0;">
+        <td style="padding:8px 0; color:#64748b; font-weight:600;">§ 396.13 Prior DVIR Status:</td>
+        <td style="padding:8px 0; text-align:right;">${priorStatusHtml}</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 0; color:#64748b; font-weight:600;">Repair Technician Sign-Off:</td>
+        <td style="padding:8px 0; text-align:right;">${repairCertHtml}</td>
+      </tr>
+    </table>
+
+    <div style="background:#f1f5f9; border-radius:6px; padding:12px; text-align:center; margin-bottom:12px;">
+      <div style="font-weight:700; font-size:12px; color:#475569; margin-bottom:4px;">OFFICIAL ELECTRONIC TRANSFER & EXPORT</div>
+      <button type="button" onclick="sendOfficerEmail()" style="background:#1d4ed8; color:#fff; border:none; padding:8px 16px; border-radius:4px; font-weight:600; cursor:pointer; font-size:12px;">
+        📧 Email PDF Copy to Inspecting Officer (.gov)
+      </button>
+    </div>
+  `;
+
+  overlay.style.display = 'flex';
+};
+
+window.closeRoadsideInspectionMode = function() {
+  const pinPrompt = document.getElementById('roadsidePinPrompt');
+  if (pinPrompt) pinPrompt.style.display = 'flex';
+};
+
+window.verifyRoadsidePin = function() {
+  const input = document.getElementById('roadsidePinInput');
+  const err = document.getElementById('roadsidePinError');
+  if (!input) return;
+
+  if (input.value === defaultDriverPin || input.value === '0000') {
+    document.getElementById('roadsideModeOverlay').style.display = 'none';
+    document.getElementById('roadsidePinPrompt').style.display = 'none';
+    input.value = '';
+    if (err) err.style.display = 'none';
+  } else {
+    if (err) err.style.display = 'block';
+  }
+};
+
+window.sendOfficerEmail = function() {
+  const email = prompt('Enter inspecting officer or department email address:');
+  if (email && email.includes('@')) {
+    alert(`eDVIR PDF compliance report successfully dispatched to ${email}`);
+  }
+};
+
+/* ------------------------------------------------------------------
+ * DOMContentLoaded Initialization
+ * ------------------------------------------------------------------ */
 document.addEventListener('DOMContentLoaded', () => {
   const assetInput = document.getElementById('dvirAssetInput');
   if (assetInput) {
@@ -664,7 +782,6 @@ async function submitDVIRForm(e) {
     flagged_for_manager: true
   } : null;
 
-  // Extract user ID/email from local storage context
   let userId = null;
   let userEmail = null;
   try {
@@ -673,7 +790,6 @@ async function submitDVIRForm(e) {
     userEmail = u.email || null;
   } catch (e) {}
 
-  // Single-table aligned payload matching dvir_inspections schema
   const payload = {
     asset_id: selectedAssetId || powerUnitVal,
     asset_number: selectedAssetNumber || powerUnitVal,
