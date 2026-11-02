@@ -162,7 +162,8 @@ window.openPriorModal = function() {
   
   let defectsArr = [];
   try {
-    defectsArr = typeof p.defects_found === 'string' ? JSON.parse(p.defects_found) : (p.defects_found || []);
+    const rawDefects = p.defects_json || p.defects_found_json || p.defects_found || [];
+    defectsArr = typeof rawDefects === 'string' ? JSON.parse(rawDefects) : rawDefects;
   } catch (e) {
     defectsArr = [];
   }
@@ -333,7 +334,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const assetInput = document.getElementById('dvirAssetInput');
   if (assetInput) {
     assetInput.addEventListener('change', onDVIRAssetChange);
-    assetInput.addEventListener('input', onDVIRAssetChange);
     assetInput.addEventListener('blur', onDVIRAssetChange);
   }
 
@@ -765,6 +765,7 @@ async function submitDVIRForm(e) {
   const siteLocation = document.getElementById('dvirLocation')?.value.trim() || 'Not Applicable';
   const combinedLocation = `${city}, ${state}${siteLocation && siteLocation !== 'Not Applicable' ? ` (${siteLocation})` : ''}`;
   const remarks = document.getElementById('dvirRemarks')?.value.trim() || '';
+
   const selectedDefectStatus = document.querySelector('input[name="defectStatus"]:checked')?.value || (defects.length > 0 ? 'defects_found' : 'no_defects');
 
   if (selectedDefectStatus === 'defects_found' && !remarks) {
@@ -790,25 +791,29 @@ async function submitDVIRForm(e) {
     userEmail = u.email || null;
   } catch (e) {}
 
+  // Standardized payload matching D1 dvir_inspections schema
   const payload = {
     asset_id: selectedAssetId || powerUnitVal,
     asset_number: selectedAssetNumber || powerUnitVal,
     trailer_number: trailerNumber || null,
+    driver_id: userId || null,
+    driver_signature: driverSignature,
     inspection_type: inspectionType,
     meter_reading: meterReading,
-    driver_signature: driverSignature,
-    status: selectedDefectStatus === 'defects_found' || defects.length > 0 ? 'defects_found' : 'pass',
-    has_defects: defects.length > 0 ? 1 : 0,
     city: city,
     state: state,
     site_location: siteLocation,
     location: combinedLocation,
-    device_location_json: deviceLocation ? JSON.stringify(deviceLocation) : null,
+    status: selectedDefectStatus === 'defects_found' || defects.length > 0 ? 'defects_found' : 'pass',
+    defects_count: defects.length,
+    defects_json: JSON.stringify(defects),
     defects_found_json: JSON.stringify(defects),
     inspection_data_json: JSON.stringify(inspectionData),
     remarks: remarks || '',
     prior_review_acknowledged: priorReviewChk ? (priorReviewChk.checked ? 1 : 0) : 1,
     certified: 1,
+    country: activeOrgCountry,
+    device_location_json: deviceLocation ? JSON.stringify(deviceLocation) : null,
     unlisted_flag: unlistedFlag,
     unlisted_details_json: unlistedDetails ? JSON.stringify(unlistedDetails) : null,
     user_id: userId,
