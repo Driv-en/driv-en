@@ -1,6 +1,6 @@
 /**
  * Cloudflare Pages Function: /api/send-dvir-email
- * Sends official DVIR compliance email via Resend API
+ * Sends official DVIR compliance email via Resend API 
  * File: /functions/api/send-dvir-email.js
  */
 
