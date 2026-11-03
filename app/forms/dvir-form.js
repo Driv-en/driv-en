@@ -386,7 +386,11 @@ window.openRoadsideInspectionMode = function() {
   const city = document.getElementById('dvirCity')?.value.trim() || '';
   const state = document.getElementById('dvirState')?.value.trim() || '';
   const locationStr = (city && state) ? `${city}, ${state}` : 'Current Terminal / Site';
-  const nowStr = new Date().toLocaleString();
+
+  // Display today's actual inspection submission time, or fallback to current time
+  const inspectionTimeVal = priorInspectionLoaded?.created_at 
+    ? new Date(priorInspectionLoaded.created_at).toLocaleString() 
+    : new Date().toLocaleString();
 
   const activeDefectStatus = document.querySelector('input[name="defectStatus"]:checked')?.value || 'no_defects';
 
