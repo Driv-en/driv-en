@@ -1,6 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════
-// DRIV-EN API Worker — D1 & KV Asset Configuration
-// Route: /api/* and /api/log-error
+// DRIV-EN API Worker — Production-Grade D1 & KV Pages Function Router
+// File: functions/api/[[path]].js
+// Route: /api/* (Catch-All Router)
 // ═══════════════════════════════════════════════════════════════════
 
 const TABLE_MAP = {
@@ -453,6 +454,9 @@ const TABLE_MAP = {
   },
 };
 
+// Global in-memory lifecycle cache for DB migrations
+const migratedTables = new Set();
+
 function resolveTableConfig(requestedTable) {
   if (!requestedTable) return null;
   const target = String(requestedTable).toLowerCase().trim();
@@ -466,8 +470,9 @@ function resolveTableConfig(requestedTable) {
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, Cookie, x-org-id, x-customer-id, x-user-id, x-user-email',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, Cookie, x-org-id, x-customer-id, x-user-id, x-user-email, x-country',
   'Access-Control-Allow-Credentials': 'true',
+  'Access-Control-Max-Age': '86400',
 };
 
 function json(data, status) {
@@ -884,7 +889,6 @@ function mapPayloadToD1(tableConfig, payload) {
     }
   }
 
-  // Safety Fallback: Guarantee asset_type_code is never NULL for asset_types table
   if (tableConfig.d1Table === 'asset_types' && !d1Row.asset_type_code) {
     const cleanName = d1Row.asset_type_name || payload.name || payload.asset_type_name || 'CUSTOM_ASSET';
     d1Row.asset_type_code = String(cleanName).toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -932,10 +936,77 @@ function formatRecord(row, tableConfig) {
   return record;
 }
 
+// Utility: Executes statements in chunks of 100 to abide by Cloudflare D1's 128 batch limit
+async function executeD1BatchChunks(db, stmts, chunkSize = 100) {
+  if (!stmts || stmts.length === 0) return;
+  for (let i = 0; i < stmts.length; i += chunkSize) {
+    const chunk = stmts.slice(i, i + chunkSize);
+    await db.batch(chunk);
+  }
+}
+
 async function ensureTableSchema(db, d1Table) {
-  if (!db) return;
+  if (!db || migratedTables.has(d1Table)) return;
+
   try {
-    if (d1Table === 'asset_configuration' || d1Table === 'asset_config') {
+    if (d1Table === 'dvir_inspections') {
+      await db.prepare(
+        `CREATE TABLE IF NOT EXISTS dvir_inspections (
+          id TEXT PRIMARY KEY,
+          org_id TEXT NOT NULL,
+          user_id TEXT,
+          asset_id TEXT,
+          asset_number TEXT,
+          trailer_number TEXT,
+          driver_id TEXT,
+          driver_signature TEXT,
+          inspection_type TEXT,
+          meter_reading REAL,
+          city TEXT,
+          state TEXT,
+          site_location TEXT,
+          location TEXT,
+          status TEXT,
+          defects_count INTEGER DEFAULT 0,
+          has_defects INTEGER DEFAULT 0,
+          defects_found_json TEXT,
+          defects_json TEXT,
+          inspection_data_json TEXT,
+          remarks TEXT,
+          prior_review_acknowledged INTEGER DEFAULT 0,
+          certified INTEGER DEFAULT 1,
+          repair_certified INTEGER DEFAULT 0,
+          repair_remarks TEXT,
+          repair_signature TEXT,
+          unlisted_flag INTEGER DEFAULT 0,
+          unlisted_details_json TEXT,
+          country TEXT,
+          device_location_json TEXT,
+          created_at TEXT,
+          created_by TEXT,
+          updated_at TEXT,
+          updated_by TEXT
+        )`
+      ).run();
+
+      const migrationStatements = [
+        `ALTER TABLE dvir_inspections ADD COLUMN user_id TEXT`,
+        `ALTER TABLE dvir_inspections ADD COLUMN site_location TEXT`,
+        `ALTER TABLE dvir_inspections ADD COLUMN location TEXT`,
+        `ALTER TABLE dvir_inspections ADD COLUMN defects_json TEXT`,
+        `ALTER TABLE dvir_inspections ADD COLUMN defects_found_json TEXT`,
+        `ALTER TABLE dvir_inspections ADD COLUMN defects_count INTEGER DEFAULT 0`,
+        `ALTER TABLE dvir_inspections ADD COLUMN has_defects INTEGER DEFAULT 0`,
+        `ALTER TABLE dvir_inspections ADD COLUMN repair_certified INTEGER DEFAULT 0`,
+        `ALTER TABLE dvir_inspections ADD COLUMN repair_remarks TEXT`,
+        `ALTER TABLE dvir_inspections ADD COLUMN repair_signature TEXT`,
+        `ALTER TABLE dvir_inspections ADD COLUMN created_by TEXT`,
+        `ALTER TABLE dvir_inspections ADD COLUMN updated_at TEXT`,
+        `ALTER TABLE dvir_inspections ADD COLUMN updated_by TEXT`
+      ].map(query => db.prepare(query));
+
+      await db.batch(migrationStatements).catch(() => {});
+    } else if (d1Table === 'asset_configuration' || d1Table === 'asset_config') {
       await db.prepare(`
         CREATE TABLE IF NOT EXISTS asset_configuration (
           id TEXT PRIMARY KEY,
@@ -1271,11 +1342,7 @@ async function ensureTableSchema(db, d1Table) {
         )
       `).run().catch(e => console.warn('assets schema warning:', e.message));
 
-      try {
-        await db.prepare('ALTER TABLE assets ADD COLUMN current_project TEXT').run();
-      } catch (e) {
-        // Column already exists
-      }
+      await db.prepare('ALTER TABLE assets ADD COLUMN current_project TEXT').run().catch(() => {});
     } else if (d1Table === 'fuel_tanks') {
       await db.prepare(`
         CREATE TABLE IF NOT EXISTS fuel_tanks (
@@ -1343,6 +1410,8 @@ async function ensureTableSchema(db, d1Table) {
         )
       `).run().catch(e => console.warn('fuel_types schema warning:', e.message));
     }
+
+    migratedTables.add(d1Table);
   } catch (e) {
     console.warn(`Schema auto-creation warning for ${d1Table}: ${e.message}`);
   }
@@ -1390,19 +1459,15 @@ async function logTenantContextError(env, path, request) {
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
-  const method = request.method;
+  const method = request.method.toUpperCase();
 
-  // Normalize path by stripping trailing slashes and redundant route components
   const path = url.pathname.toLowerCase().replace(/\/$/, '');
 
   if (method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
-  // -------------------------------------------------------------------
   // Direct Endpoint: Send DVIR Officer Email via Resend
-  // Safe short-circuit path logic for single catch-all routing
-  // -------------------------------------------------------------------
   if (path === '/api/send-dvir-email' || path === '/send-dvir-email' || path.endsWith('/send-dvir-email')) {
     if (method !== 'POST') {
       return json({ error: 'Method not allowed' }, 405);
@@ -1507,6 +1572,287 @@ export async function onRequest(context) {
     } catch (err) {
       return json({ success: false, error: err.message }, 500);
     }
+  }
+
+  // Direct Endpoint: DVIR Inspection Form & CFR 396 Lookup
+  if (path === '/api/dvir' || path === '/dvir' || path.endsWith('/dvir')) {
+    const authCtx = await getAuthContext(request, env);
+    const orgId = authCtx.orgId || url.searchParams.get('org_id') || url.searchParams.get('orgId');
+
+    if (!orgId) {
+      return json({ error: "Multi-tenant context missing (org_id required)" }, 401);
+    }
+
+    const countryParam = (url.searchParams.get('country') || request.headers.get('x-country') || 'US').toUpperCase().trim();
+    const isCanada = countryParam === 'CA';
+    const isAustralasia = ['AU', 'NZ'].includes(countryParam);
+    const isEurope = ['GB', 'DE', 'FR', 'ES', 'IT', 'NL', 'SE', 'NO', 'FI'].includes(countryParam);
+    const isMetricRegion = isCanada || isAustralasia || isEurope || countryParam !== 'US';
+
+    const uomDist = (url.searchParams.get('dist') === 'km' || isMetricRegion) ? 'Kilometers' : 'Miles';
+    const uomPress = (url.searchParams.get('press') || (isMetricRegion ? 'kPa' : 'PSI')).toUpperCase();
+    const uomDepth = isMetricRegion ? 'mm' : '1/32 in';
+
+    let roadAuth = 'DOT / FMCSA';
+    let workAuth = 'OSHA / MSHA';
+
+    if (isCanada) {
+      roadAuth = 'NSC Standard 11';
+      workAuth = 'CCOHS / COR';
+    } else if (isAustralasia) {
+      roadAuth = 'NHVR';
+      workAuth = 'WHS Code';
+    } else if (isEurope) {
+      roadAuth = 'DVSA / EU Directives';
+      workAuth = 'HSE / EU-OSHA';
+    }
+
+    const kvStore = env.DRIVEN_KV || env.ASSET_CONFIG_KV;
+    await ensureTableSchema(env.DB, 'dvir_inspections');
+
+    if (method === 'GET') {
+      const assetNumber = url.searchParams.get('assetNumber') || url.searchParams.get('asset_number');
+      const assetId = url.searchParams.get('assetId') || url.searchParams.get('asset_id');
+
+      if (!assetNumber && !assetId) {
+        return json({ error: "Query parameter 'assetNumber' or 'assetId' is required" }, 400);
+      }
+
+      let priorInspection = null;
+      if (env.DB) {
+        try {
+          priorInspection = await env.DB.prepare(
+            `SELECT 
+               id, org_id, asset_id, asset_number, trailer_number, driver_signature, 
+               inspection_type, meter_reading, city, state, location, status, 
+               defects_found_json, defects_json, remarks, repair_certified, repair_remarks, 
+               repair_signature, created_at 
+             FROM dvir_inspections 
+             WHERE org_id = ? 
+               AND (LOWER(asset_number) = LOWER(?) OR LOWER(asset_id) = LOWER(?)) 
+             ORDER BY created_at DESC LIMIT 1`
+          ).bind(orgId, assetNumber || assetId || '', assetId || assetNumber || '').first();
+
+          if (priorInspection) {
+            const rawDefectsJson = priorInspection.defects_json || priorInspection.defects_found_json;
+            if (rawDefectsJson) {
+              try {
+                priorInspection.defects_found = typeof rawDefectsJson === 'string' ? JSON.parse(rawDefectsJson) : rawDefectsJson;
+              } catch (e) {
+                priorInspection.defects_found = [];
+              }
+            } else {
+              priorInspection.defects_found = [];
+            }
+          }
+        } catch (e) {
+          console.warn('[DVIR-GET] Non-fatal DB lookup warning:', e.message);
+        }
+      }
+
+      const checklistSections = [
+        {
+          title: "1. 49 CFR § 396.11 Mandatory Vehicle Safety Components",
+          items: [
+            { id: "serviceBrakes", label: "Service Brakes (including trailer brake connections)", required: true },
+            { id: "parkingBrake", label: "Parking Brake (hand brake / spring brakes)", required: true },
+            { id: "steeringMechanism", label: "Steering Mechanism & Linkage Free Play", required: true },
+            { id: "lightingDevices", label: "Lighting Devices, Headlights, Tail Lights & Reflectors", required: true },
+            { id: "tires", label: `Tires (Tread Depth: Steer ≥ ${isMetricRegion ? '3mm' : '4/32"'}, Drive ≥ ${isMetricRegion ? '2mm' : '2/32"'})`, required: true },
+            { id: "horn", label: "Audible Horn Operation", required: true },
+            { id: "windshieldWipers", label: "Windshield Wipers & Washer Fluid", required: true },
+            { id: "rearVisionMirrors", label: "Rear Vision Mirrors (Side & Cab Mirrors)", required: true },
+            { id: "couplingDevices", label: "Coupling Devices, Fifth Wheel, Pintle Hooks & Safety Chains", required: true },
+            { id: "wheelsRims", label: "Wheels, Rims, Lug Nuts & Stud Security", required: true },
+            { id: "emergencyEquipment", label: "Emergency Equipment (Fire Extinguisher, Triangles, Spare Fuses)", required: true }
+          ]
+        },
+        {
+          title: "2. Engine, Powertrain & Fluid Systems",
+          items: [
+            { id: "fluidLeaks", label: "Oil, Coolant, Fuel & Hydraulic Fluid Leaks", required: true },
+            { id: "beltsHoses", label: "Engine Belts, Hoses & Air Intake System", required: true },
+            { id: "exhaustSystem", label: "Exhaust System & Emissions (No Leaks / Smoke)", required: true }
+          ]
+        }
+      ];
+
+      return json({
+        success: true,
+        orgId,
+        assetNumber: assetNumber || assetId,
+        assetId: assetId || assetNumber,
+        jurisdiction: countryParam,
+        authorities: { roadAuth, workAuth },
+        cfrCompliance: "49 CFR Part 396 Compliant",
+        priorInspection: priorInspection || null,
+        units: { uomDist, uomPress, uomDepth },
+        checklist: checklistSections
+      });
+    }
+
+    if (method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch (e) {
+        return json({ error: "Invalid JSON payload" }, 400);
+      }
+
+      const assetNumber = body.asset_number || body.assetNumber;
+      const assetId = body.asset_id || body.assetId || assetNumber;
+      const trailerNumber = body.trailer_number || body.trailerNumber || null;
+      const userId = body.user_id || body.userId || authCtx.userId;
+      const driverId = body.driver_id || body.driverId || userId || request.headers.get('x-user-id') || 'unknown_driver';
+      const driverSignature = body.driver_signature || body.driverSignature || '';
+      const inspectionType = body.inspection_type || body.inspectionType || 'pre_trip';
+      const meterReading = body.meter_reading !== undefined ? body.meter_reading : body.meterReading;
+      const city = body.city || '';
+      const state = body.state || '';
+      const siteLocation = body.site_location || body.siteLocation || 'Not Applicable';
+      const location = body.location || `${city}, ${state}${siteLocation && siteLocation !== 'Not Applicable' ? ` (${siteLocation})` : ''}`;
+
+      let defectsFound = [];
+      const rawDefects = body.defects_json || body.defects_found_json || body.defects_found || body.defectsFound || [];
+      if (typeof rawDefects === 'string') {
+        try { defectsFound = JSON.parse(rawDefects); } catch(e){ defectsFound = []; }
+      } else if (Array.isArray(rawDefects)) {
+        defectsFound = rawDefects;
+      }
+
+      let inspectionData = {};
+      if (body.inspection_data_json) {
+        try { inspectionData = typeof body.inspection_data_json === 'string' ? JSON.parse(body.inspection_data_json) : body.inspection_data_json; } catch(e){}
+      } else {
+        inspectionData = body.inspection_data || body.inspectionData || {};
+      }
+
+      const remarks = body.remarks || '';
+      const priorReviewAcknowledged = (body.prior_review_acknowledged || body.priorReviewAcknowledged) ? 1 : 0;
+      const certified = (body.certified !== undefined) ? (body.certified ? 1 : 0) : 1;
+      
+      const unlistedFlag = (body.unlisted_flag || body.unlistedFlag) ? 1 : 0;
+      let unlistedDetails = body.unlisted_details_json || body.unlisted_details || body.unlistedDetails || null;
+      if (typeof unlistedDetails === 'object' && unlistedDetails !== null) {
+        unlistedDetails = JSON.stringify(unlistedDetails);
+      }
+
+      let deviceLocation = body.device_location_json || body.device_location || body.deviceLocation || null;
+      if (typeof deviceLocation === 'object' && deviceLocation !== null) {
+        deviceLocation = JSON.stringify(deviceLocation);
+      }
+
+      if (!assetNumber && !assetId) {
+        return json({ error: "Missing required asset identifier" }, 400);
+      }
+
+      if (!driverSignature) {
+        return json({ error: "49 CFR § 396.11(b) requires a driver digital signature." }, 400);
+      }
+
+      const defectsCount = body.defects_count !== undefined ? Number(body.defects_count) : defectsFound.length;
+      
+      let finalStatus = 'pass';
+      if (body.status === 'out_of_service') {
+        finalStatus = 'out_of_service';
+      } else if (defectsCount > 0 || body.status === 'defects_found') {
+        finalStatus = 'defects_found';
+      }
+
+      const hasDefects = finalStatus === 'out_of_service' || finalStatus === 'defects_found' || defectsCount > 0;
+      
+      const timestamp = Date.now();
+      const dvirId = `dvir_${timestamp}`;
+      const createdAt = new Date(timestamp).toISOString();
+      const createdBy = authCtx.userEmail || driverSignature;
+      const defectsJsonStr = JSON.stringify(defectsFound);
+
+      const dvirRecord = {
+        id: dvirId,
+        org_id: orgId,
+        user_id: userId,
+        asset_id: assetId,
+        asset_number: assetNumber,
+        trailer_number: trailerNumber,
+        driver_id: driverId,
+        driver_signature: driverSignature,
+        inspection_type: inspectionType,
+        meter_reading: meterReading,
+        city: city,
+        state: state,
+        site_location: siteLocation,
+        location: location,
+        status: finalStatus,
+        defects_count: defectsCount,
+        has_defects: hasDefects ? 1 : 0,
+        defects_found: defectsFound,
+        defects_found_json: defectsJsonStr,
+        defects_json: defectsJsonStr,
+        inspection_data: inspectionData,
+        inspection_data_json: JSON.stringify(inspectionData),
+        remarks: remarks,
+        prior_review_acknowledged: priorReviewAcknowledged,
+        certified: certified,
+        unlisted_flag: unlistedFlag,
+        unlisted_details: unlistedDetails,
+        country: countryParam,
+        device_location: deviceLocation,
+        created_at: createdAt,
+        created_by: createdBy
+      };
+
+      if (env.DB) {
+        try {
+          await env.DB.prepare(
+            `INSERT INTO dvir_inspections (
+              id, org_id, user_id, asset_id, asset_number, trailer_number, driver_id, driver_signature,
+              inspection_type, meter_reading, city, state, site_location, location, status, defects_count,
+              has_defects, defects_found_json, defects_json, inspection_data_json, remarks, prior_review_acknowledged,
+              certified, unlisted_flag, unlisted_details_json, country, device_location_json, created_at, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).bind(
+            dvirId, orgId, userId, assetId, assetNumber, trailerNumber, driverId, driverSignature,
+            inspectionType, meterReading ?? 0, city, state, siteLocation, location, finalStatus, defectsCount,
+            hasDefects ? 1 : 0, defectsJsonStr, defectsJsonStr, JSON.stringify(inspectionData), remarks, priorReviewAcknowledged,
+            certified, unlistedFlag, unlistedDetails, countryParam, deviceLocation, createdAt, createdBy
+          ).run();
+
+          if (unlistedFlag) {
+            await env.DB.prepare(
+              `INSERT INTO error_log (id, source, error_message, stack_trace, severity, created_at) VALUES (?, ?, ?, ?, ?, ?)`
+            ).bind(
+              crypto.randomUUID(),
+              'DVIR Inspection Form (Unlisted Unit Flag)',
+              `Unlisted Unit Logged: Power Unit "${assetNumber}" or Towed Unit "${trailerNumber}" submitted by ${driverSignature}.`,
+              unlistedDetails || '{}',
+              'warning',
+              createdAt
+            ).run().catch(() => {});
+          }
+
+        } catch (dbErr) {
+          console.error('[DVIR-CFR396] D1 storage error:', dbErr.message);
+        }
+      }
+
+      if (kvStore) {
+        const lookupKey = (assetNumber || assetId).toLowerCase().trim();
+        await kvStore.put(`dvir:${orgId}:${lookupKey}:${timestamp}`, JSON.stringify(dvirRecord));
+      }
+
+      return json({
+        success: true,
+        message: finalStatus === 'out_of_service'
+          ? "Out-of-Service inspection logged! Vehicle placed OUT-OF-SERVICE."
+          : unlistedFlag 
+          ? "DVIR submitted! Unlisted unit flagged for Fleet Manager review." 
+          : "DVIR inspection logged successfully under 49 CFR Part 396.",
+        unlistedFlagged: Boolean(unlistedFlag),
+        dvir: dvirRecord
+      });
+    }
+
+    return json({ error: "Method not allowed" }, 405);
   }
 
   // Direct Endpoint: Asset Configuration
@@ -1759,16 +2105,19 @@ export async function onRequest(context) {
         const body = await request.json();
         let rawTypes = body.assetTypes || body.asset_types || body.records || body;
 
-        let itemsList = Array.isArray(rawTypes) ? rawTypes : (typeof rawTypes === 'object' && rawTypes !== null ? Object.values(rawTypes) : []);
+        let itemsList = Array.isArray(rawTypes) 
+          ? rawTypes 
+          : (typeof rawTypes === 'object' && rawTypes !== null ? Object.values(rawTypes) : []);
         
         const now = new Date().toISOString();
         const stmts = [];
 
         for (const item of itemsList) {
+          if (!item) continue;
+
           const cleanName = typeof item === 'object' ? (item.asset_type_name || item.name || '') : String(item);
           if (!cleanName || cleanName === '[object Object]') continue;
 
-          // Guarantees non-null code value to prevent SQLite NOT NULL constraint failures
           const code = (typeof item === 'object' && item.asset_type_code)
             ? item.asset_type_code
             : cleanName.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -1794,7 +2143,7 @@ export async function onRequest(context) {
         }
 
         if (stmts.length > 0) {
-          await env.DB.batch(stmts);
+          await executeD1BatchChunks(env.DB, stmts, 100);
         }
 
         return json({ success: true, count: itemsList.length, org_id: orgId });
@@ -1876,11 +2225,16 @@ export async function onRequest(context) {
         const body = await request.json();
         let rawTypes = body.fuelTypes || body.fuel_types || body.records || body.selectedFuelTypes || body;
 
-        let itemsList = Array.isArray(rawTypes) ? rawTypes : (typeof rawTypes === 'object' && rawTypes !== null ? Object.values(rawTypes) : []);
+        let itemsList = Array.isArray(rawTypes) 
+          ? rawTypes 
+          : (typeof rawTypes === 'object' && rawTypes !== null ? Object.values(rawTypes) : []);
+
         const stmts = [env.DB.prepare('DELETE FROM fuel_types WHERE org_id = ?').bind(orgId)];
 
         const now = new Date().toISOString();
         for (const item of itemsList) {
+          if (!item) continue;
+
           const cleanName = toPrimitiveString(item);
           if (!cleanName) continue;
 
@@ -1895,7 +2249,7 @@ export async function onRequest(context) {
           );
         }
 
-        await env.DB.batch(stmts);
+        await executeD1BatchChunks(env.DB, stmts, 100);
         return json({ success: true, count: itemsList.length, org_id: orgId });
       } catch (e) {
         return json({ success: true, count: 0, warning: e.message, org_id: orgId });
@@ -2007,22 +2361,22 @@ export async function onRequest(context) {
       const id = body.id || crypto.randomUUID();
       const now = new Date().toISOString();
 
-      const cols = ['id', 'org_id', 'user_id'];
+      const cols = ['"id"', '"org_id"', '"user_id"'];
       const vals = [id, orgId, userId];
 
       for (const [col, val] of Object.entries(d1Row)) {
         if (col === 'id' || col === 'org_id' || col === 'user_id' || col === 'created_by' || col === 'updated_by') continue;
-        cols.push(col);
+        cols.push(`"${col}"`);
         vals.push(val);
       }
 
-      cols.push('created_at');
+      cols.push('"created_at"');
       vals.push(now);
-      cols.push('created_by');
+      cols.push('"created_by"');
       vals.push(userEmail);
-      cols.push('updated_at');
+      cols.push('"updated_at"');
       vals.push(now);
-      cols.push('updated_by');
+      cols.push('"updated_by"');
       vals.push(userEmail);
 
       await env.DB.prepare(
@@ -2042,14 +2396,14 @@ export async function onRequest(context) {
       const values = [];
       for (const [col, val] of Object.entries(d1Row)) {
         if (col === 'id' || col === 'org_id' || col === 'user_id' || col === 'created_at' || col === 'created_by' || col === 'updated_at' || col === 'updated_by') continue;
-        sets.push(col + ' = ?');
+        sets.push(`"${col}" = ?`);
         values.push(val);
       }
       if (sets.length === 0) return json({ error: 'No fields to update' }, 400);
 
-      sets.push('updated_at = ?');
+      sets.push('"updated_at" = ?');
       values.push(new Date().toISOString());
-      sets.push('updated_by = ?');
+      sets.push('"updated_by" = ?');
       values.push(userEmail);
 
       values.push(recordId);
