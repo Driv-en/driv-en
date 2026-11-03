@@ -712,11 +712,14 @@ async function onDVIRAssetChange() {
   if (container) container.innerHTML = '<p style="font-size: 13px; color: var(--text-muted);">Loading statutory 49 CFR Part 396 checklist...</p>';
 
   try {
+// Extract strictly the unit code before fetching prior inspection records
+    const cleanAssetNum = (selectedAssetNumber || val || '').split('—')[0].trim();
+
     const endpointUrl = buildApiUrl('/api/dvir', {
-      assetNumber: selectedAssetNumber,
-      asset_number: selectedAssetNumber,
-      assetId: selectedAssetId,
-      asset_id: selectedAssetId,
+      assetNumber: cleanAssetNum,
+      asset_number: cleanAssetNum,
+      assetId: selectedAssetId || cleanAssetNum,
+      asset_id: selectedAssetId || cleanAssetNum,
       country: activeOrgCountry
     });
 
