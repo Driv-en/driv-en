@@ -11,13 +11,12 @@
  * (US, CA, AU, EU), prior inspection log queries for Section 396.13, and D1 (`dvir_inspections`) / KV persistence.
  * 
  * CURRENT STATUS:
- * 100% of this logic has been merged into `functions/api/[[path]].js` (lines 464–678).
- * This stub safely delegates all traffic to `[[path]].js` without deleting the file.
- * To restore original logic, view Git commit history for this file.
+ * 100% of this logic has been merged into `functions/api/[[path]].js`.
+ * This stub dynamically delegates execution to `[[path]].js` without module path syntax errors.
  */
 
-import { onRequest as catchAllOnRequest } from './[[path]].js';
-
 export async function onRequest(context) {
-  return catchAllOnRequest(context);
+  // Dynamically import [[path]].js to bypass static ES module bundler bracket errors
+  const masterRouter = await import('./[[path]].js');
+  return masterRouter.onRequest(context);
 }
