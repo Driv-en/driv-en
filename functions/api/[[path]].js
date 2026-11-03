@@ -2099,7 +2099,3 @@ export async function onRequest(context) {
     return json({ error: true, message: e.message }, 500);
   }
 }
-
-export default {
-  fetch: (req, env, ctx) => onRequest({ request: req, env, ctx })
-};
