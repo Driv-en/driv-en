@@ -357,10 +357,65 @@ window.verifyRoadsidePin = function() {
   }
 };
 
-window.sendOfficerEmail = function() {
+window.sendOfficerEmail = async function() {
   const email = prompt('Enter inspecting officer or department email address:');
-  if (email && email.includes('@')) {
-    alert(`eDVIR PDF compliance report successfully dispatched to ${email}`);
+  if (!email || !email.trim()) return;
+
+  const cleanEmail = email.trim();
+  if (!cleanEmail.includes('@')) {
+    alert('Please enter a valid email address.');
+    return;
+  }
+
+  const powerUnitVal = document.getElementById('dvirAssetInput')?.value.trim() || selectedAssetNumber || 'N/A';
+  const trailerVal = document.getElementById('dvirTrailerNumber')?.value.trim() || 'N/A';
+  const driverSig = document.getElementById('dvirDriverSignature')?.value.trim() || 'Driver on File';
+  const city = document.getElementById('dvirCity')?.value.trim() || '';
+  const state = document.getElementById('dvirState')?.value.trim() || '';
+  const locationStr = (city && state) ? `${city}, ${state}` : 'Current Terminal / Site';
+  const activeDefectStatus = document.querySelector('input[name="defectStatus"]:checked')?.value || 'no_defects';
+  const remarksVal = document.getElementById('dvirRemarks')?.value.trim() || '';
+
+  const failedItems = Array.from(document.querySelectorAll('#dvirChecklistContainer input[type="radio"][value="fail"]:checked'))
+    .map(input => input.name.replace('item_', ''));
+
+  const sendBtn = document.querySelector('#roadsideBodyContent button');
+  if (sendBtn) {
+    sendBtn.disabled = true;
+    sendBtn.textContent = '⏳ Sending via Resend...';
+  }
+
+  try {
+    const res = await fetch(buildApiUrl('/api/send-dvir-email'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        officerEmail: cleanEmail,
+        powerUnit: powerUnitVal,
+        trailer: trailerVal,
+        driverSignature: driverSig,
+        location: locationStr,
+        status: activeDefectStatus,
+        defects: failedItems,
+        remarks: remarksVal
+      })
+    });
+
+    const result = await res.json();
+
+    if (res.ok && result.success) {
+      alert(`✅ eDVIR compliance report successfully dispatched to ${cleanEmail}!`);
+    } else {
+      alert(`❌ Failed to send email: ${result.error || 'Server error'}`);
+    }
+  } catch (err) {
+    console.error('Resend dispatch error:', err);
+    alert(`❌ Network error while attempting to send email: ${err.message}`);
+  } finally {
+    if (sendBtn) {
+      sendBtn.disabled = false;
+      sendBtn.textContent = '📧 Email PDF Copy to Inspecting Officer (.gov)';
+    }
   }
 };
 
@@ -736,9 +791,9 @@ function updateOverallDefectState() {
   if (hasCriticalOOS) {
     if (oosRadio) oosRadio.checked = true;
   } else if (hasFailures) {
-    if (defectsFoundRadio) defectsFoundRadio.checked = true;
+    if (defectsFoundRadio && !oosRadio?.checked) defectsFoundRadio.checked = true;
   } else if (!hasFailures) {
-    if (noDefectsRadio) noDefectsRadio.checked = true;
+    if (noDefectsRadio && !oosRadio?.checked) noDefectsRadio.checked = true;
   }
 
   const activeRadio = document.querySelector('input[name="defectStatus"]:checked');
