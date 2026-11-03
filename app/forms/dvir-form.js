@@ -524,9 +524,13 @@ window.sendOfficerEmail = async function() {
   }
 
   try {
+    const ctxParams = getUrlContextParams();
     const res = await fetch('/api/send-dvir-email', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        ...(ctxParams.org_id ? { 'x-org-id': ctxParams.org_id } : {})
+      },
       body: JSON.stringify({
         officerEmail: cleanEmail,
         powerUnit: powerUnitVal,
