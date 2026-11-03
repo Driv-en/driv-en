@@ -684,6 +684,7 @@ function getJurisdictionRules(countryCode) {
       };
   }
 }
+
 function buildCategorySchema(normKey, countryParam) {
   const rules = getJurisdictionRules(countryParam);
 
@@ -1459,6 +1460,7 @@ async function logTenantContextError(env, path, request) {
     console.error('Failed to write tenant error log:', e.message);
   }
 }
+
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
@@ -1559,6 +1561,10 @@ export async function onRequest(context) {
         </html>
       `;
 
+      const fromAddress = env.RESEND_FROM_EMAIL
+        ? (env.RESEND_FROM_EMAIL.includes('<') ? env.RESEND_FROM_EMAIL : `DRIV-EN Compliance <${env.RESEND_FROM_EMAIL}>`)
+        : 'DRIV-EN Compliance <noreply@driv-en.com>';
+
       const resendRes = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -1566,7 +1572,7 @@ export async function onRequest(context) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          from: env.RESEND_FROM_EMAIL || 'DRIV-EN Compliance <noreply@driv-en.com>',
+          from: fromAddress,
           to: [officerEmail.trim()],
           subject: `Official DVIR Vehicle Inspection Report — Unit #${powerUnit}`,
           html: htmlContent
