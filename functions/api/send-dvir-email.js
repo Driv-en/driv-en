@@ -162,7 +162,7 @@ export async function onRequestPost(context) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'DRIV-EN Compliance <inspections@driv-en.com>',
+        from: 'DRIV-EN Compliance <noreply@driv-en.com>',
         to: [officerEmail],
         subject: `[DVIR Compliance Record] Asset #${safePowerUnit} — ${isOOS ? 'OUT-OF-SERVICE' : 'Inspection Summary'}`,
         html: htmlContent
