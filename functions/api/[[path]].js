@@ -1391,7 +1391,9 @@ export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const method = request.method;
-  const path = url.pathname.replace(/\/$/, ''); // Normalize trailing slashes
+
+  // Normalize path by stripping trailing slashes and redundant route components
+  const path = url.pathname.toLowerCase().replace(/\/$/, '');
 
   if (method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: corsHeaders });
@@ -1399,8 +1401,9 @@ export async function onRequest(context) {
 
   // -------------------------------------------------------------------
   // Direct Endpoint: Send DVIR Officer Email via Resend
+  // Safe short-circuit path logic for single catch-all routing
   // -------------------------------------------------------------------
-  if (path === '/api/send-dvir-email' || path === '/api/send-dvir-email/') {
+  if (path === '/api/send-dvir-email' || path === '/send-dvir-email' || path.endsWith('/send-dvir-email')) {
     if (method !== 'POST') {
       return json({ error: 'Method not allowed' }, 405);
     }
