@@ -387,7 +387,7 @@ window.openRoadsideInspectionMode = function() {
   const state = document.getElementById('dvirState')?.value.trim() || '';
   const locationStr = (city && state) ? `${city}, ${state}` : 'Current Terminal / Site';
 
-  // Display today's actual inspection submission time, or fallback to current time
+  // Display actual recorded inspection submission timestamp, or fallback to current time
   const inspectionTimeVal = priorInspectionLoaded?.created_at 
     ? new Date(priorInspectionLoaded.created_at).toLocaleString() 
     : new Date().toLocaleString();
@@ -444,7 +444,7 @@ window.openRoadsideInspectionMode = function() {
     <table style="width:100%; border-collapse:collapse; margin-bottom:16px; font-size:13px;">
       <tr style="border-bottom:1px solid #e2e8f0;">
         <td style="padding:8px 0; color:#64748b; font-weight:600;">Inspection Date / Time:</td>
-        <td style="padding:8px 0; text-align:right; font-weight:700;">${nowStr}</td>
+        <td style="padding:8px 0; text-align:right; font-weight:700;">${inspectionTimeVal}</td>
       </tr>
       <tr style="border-bottom:1px solid #e2e8f0;">
         <td style="padding:8px 0; color:#64748b; font-weight:600;">Inspection Location:</td>
@@ -467,6 +467,12 @@ window.openRoadsideInspectionMode = function() {
         <td style="padding:8px 0; text-align:right;">${repairCertHtml}</td>
       </tr>
     </table>
+
+    <div style="margin-bottom:16px; text-align:center;">
+      <button type="button" onclick="openPriorModal()" style="background:#0284c7; color:#fff; border:none; padding:8px 16px; border-radius:4px; font-weight:600; cursor:pointer; font-size:12px;">
+        📋 View § 396.13 Prior DVIR & Repair Certification Details
+      </button>
+    </div>
 
     <div style="background:#f1f5f9; border-radius:6px; padding:12px; text-align:center; margin-bottom:12px;">
       <div style="font-weight:700; font-size:12px; color:#475569; margin-bottom:4px;">OFFICIAL ELECTRONIC TRANSFER & EXPORT</div>
@@ -716,7 +722,7 @@ async function onDVIRAssetChange() {
   if (container) container.innerHTML = '<p style="font-size: 13px; color: var(--text-muted);">Loading statutory 49 CFR Part 396 checklist...</p>';
 
   try {
-// Extract strictly the unit code before fetching prior inspection records
+    // Strip description suffix to query strictly against unit numbers in D1 (e.g. "TRK-101")
     const cleanAssetNum = (selectedAssetNumber || val || '').split('—')[0].trim();
 
     const endpointUrl = buildApiUrl('/api/dvir', {
