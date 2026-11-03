@@ -1,6 +1,6 @@
 /**
  * Cloudflare Pages Function: /api/send-dvir-email
- * Sends official DVIR compliance email via Resend API 
+ * Sends official DVIR compliance email via Resend API
  * File: /functions/api/send-dvir-email.js
  */
 
@@ -84,7 +84,6 @@ export async function onRequestPost(context) {
     const hasDefects = status === 'defects_found' || isOOS;
     const nowStr = new Date().toLocaleString();
 
-    // Map defect keys to friendly human-readable component labels
     let defectsListHtml = '';
     if (Array.isArray(defects) && defects.length > 0) {
       defectsListHtml = `
