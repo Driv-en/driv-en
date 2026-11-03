@@ -1473,8 +1473,7 @@ export async function onRequest(context) {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
-  // 🚨 TOP-LEVEL ROUTE CHECK: Send DVIR Officer Email via Resend
-  // Placed at the very top of routing logic to prevent fallthrough into D1 table mapping
+  // DIRECT DISPATCH: Send DVIR Officer Email via Resend
   if (
     path === '/api/send-dvir-email' || 
     path === '/send-dvir-email' || 
@@ -1515,10 +1514,10 @@ export async function onRequest(context) {
         exhaustSystem: "Exhaust System & Emissions (No Leaks / Smoke)"
       };
 
-      const esc = (s) => !s ? '' : String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      const escStr = (s) => !s ? '' : String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
       const defectsList = Array.isArray(defects) && defects.length > 0
-        ? defects.map(id => `<li><strong>${esc(ITEM_LABELS[id] || id)}</strong></li>`).join('')
+        ? defects.map(id => `<li><strong>${escStr(ITEM_LABELS[id] || id)}</strong></li>`).join('')
         : '<li><em>No specific defect items selected.</em></li>';
 
       let statusBadge = '<span style="color:#15803d; font-weight:bold;">✅ Certified Safe for Operation</span>';
@@ -1539,10 +1538,10 @@ export async function onRequest(context) {
             <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 16px 0;">
             
             <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-              <tr><td style="padding: 6px 0; color: #64748b;">Power Unit ID:</td><td style="font-weight: bold; text-align: right;">${esc(powerUnit)}</td></tr>
-              <tr><td style="padding: 6px 0; color: #64748b;">Trailer / Towed Unit:</td><td style="font-weight: bold; text-align: right;">${esc(trailer || 'N/A')}</td></tr>
-              <tr><td style="padding: 6px 0; color: #64748b;">Inspection Location:</td><td style="text-align: right;">${esc(location)}</td></tr>
-              <tr><td style="padding: 6px 0; color: #64748b;">Driver Signature:</td><td style="color: #2563eb; font-weight: bold; text-align: right;">${esc(driverSignature)}</td></tr>
+              <tr><td style="padding: 6px 0; color: #64748b;">Power Unit ID:</td><td style="font-weight: bold; text-align: right;">${escStr(powerUnit || 'N/A')}</td></tr>
+              <tr><td style="padding: 6px 0; color: #64748b;">Trailer / Towed Unit:</td><td style="font-weight: bold; text-align: right;">${escStr(trailer || 'N/A')}</td></tr>
+              <tr><td style="padding: 6px 0; color: #64748b;">Inspection Location:</td><td style="text-align: right;">${escStr(location || 'N/A')}</td></tr>
+              <tr><td style="padding: 6px 0; color: #64748b;">Driver Signature:</td><td style="color: #2563eb; font-weight: bold; text-align: right;">${escStr(driverSignature || 'N/A')}</td></tr>
               <tr><td style="padding: 6px 0; color: #64748b;">Compliance Status:</td><td style="text-align: right;">${statusBadge}</td></tr>
             </table>
 
@@ -1550,7 +1549,7 @@ export async function onRequest(context) {
               <div style="margin-top: 20px; background: #fffbeb; border: 1px solid #fcd34d; padding: 12px; border-radius: 6px;">
                 <h4 style="margin: 0 0 8px 0; color: #92400e;">Logbook Reported Defect Items:</h4>
                 <ul style="margin: 0; padding-left: 20px; color: #78350f;">${defectsList}</ul>
-                ${remarks ? `<p style="margin: 8px 0 0 0; font-size: 13px;"><strong>Inspector Remarks:</strong> ${esc(remarks)}</p>` : ''}
+                ${remarks ? `<p style="margin: 8px 0 0 0; font-size: 13px;"><strong>Inspector Remarks:</strong> ${escStr(remarks)}</p>` : ''}
               </div>
             ` : ''}
 
@@ -1561,9 +1560,8 @@ export async function onRequest(context) {
         </html>
       `;
 
-      const fromAddress = env.RESEND_FROM_EMAIL
-        ? (env.RESEND_FROM_EMAIL.includes('<') ? env.RESEND_FROM_EMAIL : `DRIV-EN Compliance <${env.RESEND_FROM_EMAIL}>`)
-        : 'DRIV-EN Compliance <noreply@driv-en.com>';
+      const rawFrom = env.RESEND_FROM_EMAIL || 'noreply@driv-en.com';
+      const fromAddress = rawFrom.includes('<') ? rawFrom : `DRIV-EN Compliance <${rawFrom}>`;
 
       const resendRes = await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -1574,7 +1572,7 @@ export async function onRequest(context) {
         body: JSON.stringify({
           from: fromAddress,
           to: [officerEmail.trim()],
-          subject: `Official DVIR Vehicle Inspection Report — Unit #${powerUnit}`,
+          subject: `Official DVIR Vehicle Inspection Report — Unit #${powerUnit || 'N/A'}`,
           html: htmlContent
         })
       });
@@ -1589,7 +1587,7 @@ export async function onRequest(context) {
       return json({ success: false, error: err.message }, 500);
     }
   }
-
+  
   // Direct Endpoint: DVIR Inspection Form & CFR 396 Lookup
   if (path === '/api/dvir' || path === '/dvir') {
     const authCtx = await getAuthContext(request, env);
