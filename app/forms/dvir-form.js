@@ -12,6 +12,7 @@ let deviceLocation = null;
 let priorInspectionLoaded = null;
 let loadedPowerUnitsMap = new Map();
 let loadedTrailersMap = new Map();
+let defaultDriverPin = '1234';
 
 // Statutory CVSA / FMCSA Out-of-Service Critical Components
 const CRITICAL_OOS_ITEM_IDS = [
@@ -64,6 +65,14 @@ const DEFAULT_CFR396_CHECKLIST = [
   }
 ];
 
+/* ------------------------------------------------------------------
+ * Utility Functions & Helpers
+ * ------------------------------------------------------------------ */
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function getUrlContextParams() {
   const params = new URLSearchParams(window.location.search);
   const context = {};
@@ -87,6 +96,38 @@ function buildApiUrl(endpoint, extraParams = {}) {
     }
   }
   return url.toString();
+}
+
+function checkPowerUnitUnlistedFlag() {
+  const input = document.getElementById('dvirAssetInput');
+  const notice = document.getElementById('powerUnitUnlistedNotice');
+  if (!input || !notice) return;
+
+  const val = input.value.trim().toLowerCase();
+  if (val && !loadedPowerUnitsMap.has(val)) {
+    notice.style.display = 'block';
+  } else {
+    notice.style.display = 'none';
+  }
+}
+
+function checkTrailerUnlistedFlag() {
+  const input = document.getElementById('dvirTrailerNumber');
+  const notice = document.getElementById('trailerUnlistedNotice');
+  if (!input || !notice) return;
+
+  const val = input.value.trim().toLowerCase();
+  if (!val) {
+    notice.style.display = 'none';
+    return;
+  }
+
+  const isMatched = Array.from(loadedTrailersMap.keys()).some(k => val === k || val.startsWith(k));
+  if (!isMatched) {
+    notice.style.display = 'block';
+  } else {
+    notice.style.display = 'none';
+  }
 }
 
 function checkDeviceLocation() {
@@ -144,9 +185,108 @@ function hasDeviceLocation() {
   return deviceLocation !== null && deviceLocation.latitude !== undefined && deviceLocation.longitude !== undefined;
 }
 
-function esc(s) {
-  if (!s) return '';
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+function updateOverallDefectState() {
+  const failedInputs = Array.from(document.querySelectorAll('#dvirChecklistContainer input[type="radio"][value="fail"]:checked'));
+  const hasFailures = failedInputs.length > 0;
+
+  const hasCriticalOOS = failedInputs.some(input => {
+    const itemId = input.name.replace('item_', '');
+    return CRITICAL_OOS_ITEM_IDS.includes(itemId);
+  });
+
+  const noDefectsRadio = document.querySelector('input[name="defectStatus"][value="no_defects"]');
+  const defectsFoundRadio = document.querySelector('input[name="defectStatus"][value="defects_found"]');
+  const oosRadio = document.querySelector('input[name="defectStatus"][value="out_of_service"]');
+
+  if (hasCriticalOOS) {
+    if (oosRadio) oosRadio.checked = true;
+  } else if (hasFailures) {
+    if (defectsFoundRadio && !oosRadio?.checked) defectsFoundRadio.checked = true;
+  } else if (!hasFailures) {
+    if (noDefectsRadio && !oosRadio?.checked) noDefectsRadio.checked = true;
+  }
+
+  const activeRadio = document.querySelector('input[name="defectStatus"]:checked');
+  if (activeRadio) {
+    activeRadio.dispatchEvent(new Event('change'));
+  }
+}
+
+function renderDVIRChecklist(checklistData) {
+  const container = document.getElementById('dvirChecklistContainer');
+  if (!container) return;
+
+  const sections = Array.isArray(checklistData) ? checklistData : (checklistData.checklist || DEFAULT_CFR396_CHECKLIST);
+
+  if (!sections || sections.length === 0) {
+    container.innerHTML = '<p style="font-size: 13px; color: #b91c1c;">No checklist sections available. Contact system administrator.</p>';
+    return;
+  }
+
+  container.innerHTML = '';
+
+  sections.forEach(sec => {
+    const secEl = document.createElement('div');
+    secEl.className = 'dvir-section';
+    
+    const titleEl = document.createElement('h4');
+    titleEl.className = 'section-title';
+    titleEl.textContent = sec.title;
+    secEl.appendChild(titleEl);
+
+    (sec.items || []).forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'toggle-row';
+
+      const titleDiv = document.createElement('div');
+      const itemTitle = document.createElement('div');
+      itemTitle.className = 'toggle-title';
+      itemTitle.textContent = item.label;
+      titleDiv.appendChild(itemTitle);
+
+      const toggleOptions = document.createElement('div');
+      toggleOptions.style.cssText = 'display: flex; gap: 12px; align-items: center; flex-shrink: 0;';
+
+      const passLabel = document.createElement('label');
+      passLabel.style.cssText = 'font-size:13px;cursor:pointer;';
+      const passRadio = document.createElement('input');
+      passRadio.type = 'radio';
+      passRadio.name = `item_${item.id}`;
+      passRadio.value = 'pass';
+      passRadio.checked = true;
+      passRadio.addEventListener('change', updateOverallDefectState);
+      passLabel.appendChild(passRadio);
+      passLabel.appendChild(document.createTextNode(' Pass'));
+
+      const failLabel = document.createElement('label');
+      failLabel.style.cssText = 'font-size:13px;cursor:pointer;';
+      const failRadio = document.createElement('input');
+      failRadio.type = 'radio';
+      failRadio.name = `item_${item.id}`;
+      failRadio.value = 'fail';
+      failRadio.addEventListener('change', updateOverallDefectState);
+      failLabel.appendChild(failRadio);
+      failLabel.appendChild(document.createTextNode(' Fail'));
+
+      toggleOptions.appendChild(passLabel);
+      toggleOptions.appendChild(failLabel);
+
+      row.appendChild(titleDiv);
+      row.appendChild(toggleOptions);
+      secEl.appendChild(row);
+    });
+
+    container.appendChild(secEl);
+  });
+}
+
+function showStatusMessage(msg, isError = false) {
+  const statusEl = document.getElementById('statusMsg');
+  if (!statusEl) return;
+  statusEl.className = `am-message ${isError ? 'error' : 'success'}`;
+  statusEl.textContent = msg;
+  statusEl.style.display = 'block';
+  setTimeout(() => { statusEl.style.display = 'none'; }, 6000);
 }
 
 /* ------------------------------------------------------------------
@@ -235,8 +375,6 @@ window.closePriorModal = function() {
 /* ------------------------------------------------------------------
  * ROADSIDE INSPECTION MODE (Law Enforcement On-Screen Display)
  * ------------------------------------------------------------------ */
-let defaultDriverPin = '1234';
-
 window.openRoadsideInspectionMode = function() {
   const overlay = document.getElementById('roadsideModeOverlay');
   const bodyContent = document.getElementById('roadsideBodyContent');
@@ -420,41 +558,8 @@ window.sendOfficerEmail = async function() {
 };
 
 /* ------------------------------------------------------------------
- * DOMContentLoaded Initialization
+ * Data Loaders & Asset Callbacks
  * ------------------------------------------------------------------ */
-document.addEventListener('DOMContentLoaded', () => {
-  const assetInput = document.getElementById('dvirAssetInput');
-  if (assetInput) {
-    assetInput.addEventListener('change', onDVIRAssetChange);
-    assetInput.addEventListener('blur', onDVIRAssetChange);
-  }
-
-  const trailerInput = document.getElementById('dvirTrailerNumber');
-  if (trailerInput) {
-    trailerInput.addEventListener('input', checkTrailerUnlistedFlag);
-  }
-
-  const form = document.getElementById('dvirInspectionForm');
-  if (form) {
-    form.addEventListener('submit', submitDVIRForm);
-  }
-
-  const driverSigInput = document.getElementById('dvirDriverSignature');
-  if (driverSigInput) {
-    try {
-      const u = JSON.parse(localStorage.getItem('driven_user') || '{}');
-      const name = u.full_name || u.name || [u.first_name, u.last_name].filter(Boolean).join(' ');
-      if (name) driverSigInput.value = name;
-    } catch (e) {
-      console.warn('Unable to load stored user name:', e);
-    }
-  }
-
-  checkDeviceLocation();
-  loadDVIRAssets();
-  loadLocationOptions();
-});
-
 async function loadDVIRAssets() {
   const powerDatalist = document.getElementById('powerUnitOptions');
   const trailerDatalist = document.getElementById('trailerOptions');
@@ -525,38 +630,6 @@ async function loadDVIRAssets() {
     if (trailerDatalist) {
       trailerDatalist.innerHTML = DEFAULT_TOWABLE_UNITS.map(tow => `<option value="${esc(tow)}"></option>`).join('');
     }
-  }
-}
-
-function checkPowerUnitUnlistedFlag() {
-  const input = document.getElementById('dvirAssetInput');
-  const notice = document.getElementById('powerUnitUnlistedNotice');
-  if (!input || !notice) return;
-
-  const val = input.value.trim().toLowerCase();
-  if (val && !loadedPowerUnitsMap.has(val)) {
-    notice.style.display = 'block';
-  } else {
-    notice.style.display = 'none';
-  }
-}
-
-function checkTrailerUnlistedFlag() {
-  const input = document.getElementById('dvirTrailerNumber');
-  const notice = document.getElementById('trailerUnlistedNotice');
-  if (!input || !notice) return;
-
-  const val = input.value.trim().toLowerCase();
-  if (!val) {
-    notice.style.display = 'none';
-    return;
-  }
-
-  const isMatched = Array.from(loadedTrailersMap.keys()).some(k => val === k || val.startsWith(k));
-  if (!isMatched) {
-    notice.style.display = 'block';
-  } else {
-    notice.style.display = 'none';
   }
 }
 
@@ -706,111 +779,6 @@ async function onDVIRAssetChange() {
   }
 }
 
-function renderDVIRChecklist(checklistData) {
-  const container = document.getElementById('dvirChecklistContainer');
-  if (!container) return;
-
-  const sections = Array.isArray(checklistData) ? checklistData : (checklistData.checklist || DEFAULT_CFR396_CHECKLIST);
-
-  if (!sections || sections.length === 0) {
-    container.innerHTML = '<p style="font-size: 13px; color: #b91c1c;">No checklist sections available. Contact system administrator.</p>';
-    return;
-  }
-
-  container.innerHTML = '';
-
-  sections.forEach(sec => {
-    const secEl = document.createElement('div');
-    secEl.className = 'dvir-section';
-    
-    const titleEl = document.createElement('h4');
-    titleEl.className = 'section-title';
-    titleEl.textContent = sec.title;
-    secEl.appendChild(titleEl);
-
-    (sec.items || []).forEach(item => {
-      const row = document.createElement('div');
-      row.className = 'toggle-row';
-
-      const titleDiv = document.createElement('div');
-      const itemTitle = document.createElement('div');
-      itemTitle.className = 'toggle-title';
-      itemTitle.textContent = item.label;
-      titleDiv.appendChild(itemTitle);
-
-      const toggleOptions = document.createElement('div');
-      toggleOptions.style.cssText = 'display: flex; gap: 12px; align-items: center; flex-shrink: 0;';
-
-      const passLabel = document.createElement('label');
-      passLabel.style.cssText = 'font-size:13px;cursor:pointer;';
-      const passRadio = document.createElement('input');
-      passRadio.type = 'radio';
-      passRadio.name = `item_${item.id}`;
-      passRadio.value = 'pass';
-      passRadio.checked = true;
-      passRadio.addEventListener('change', updateOverallDefectState);
-      passLabel.appendChild(passRadio);
-      passLabel.appendChild(document.createTextNode(' Pass'));
-
-      const failLabel = document.createElement('label');
-      failLabel.style.cssText = 'font-size:13px;cursor:pointer;';
-      const failRadio = document.createElement('input');
-      failRadio.type = 'radio';
-      failRadio.name = `item_${item.id}`;
-      failRadio.value = 'fail';
-      failRadio.addEventListener('change', updateOverallDefectState);
-      failLabel.appendChild(failRadio);
-      failLabel.appendChild(document.createTextNode(' Fail'));
-
-      toggleOptions.appendChild(passLabel);
-      toggleOptions.appendChild(failLabel);
-
-      row.appendChild(titleDiv);
-      row.appendChild(toggleOptions);
-      secEl.appendChild(row);
-    });
-
-    container.appendChild(secEl);
-  });
-}
-
-function updateOverallDefectState() {
-  const failedInputs = Array.from(document.querySelectorAll('#dvirChecklistContainer input[type="radio"][value="fail"]:checked'));
-  const hasFailures = failedInputs.length > 0;
-
-  // Check if any failed item is in the statutory Critical Out-of-Service list
-  const hasCriticalOOS = failedInputs.some(input => {
-    const itemId = input.name.replace('item_', '');
-    return CRITICAL_OOS_ITEM_IDS.includes(itemId);
-  });
-
-  const noDefectsRadio = document.querySelector('input[name="defectStatus"][value="no_defects"]');
-  const defectsFoundRadio = document.querySelector('input[name="defectStatus"][value="defects_found"]');
-  const oosRadio = document.querySelector('input[name="defectStatus"][value="out_of_service"]');
-
-  if (hasCriticalOOS) {
-    if (oosRadio) oosRadio.checked = true;
-  } else if (hasFailures) {
-    if (defectsFoundRadio && !oosRadio?.checked) defectsFoundRadio.checked = true;
-  } else if (!hasFailures) {
-    if (noDefectsRadio && !oosRadio?.checked) noDefectsRadio.checked = true;
-  }
-
-  const activeRadio = document.querySelector('input[name="defectStatus"]:checked');
-  if (activeRadio) {
-    activeRadio.dispatchEvent(new Event('change'));
-  }
-}
-
-function showStatusMessage(msg, isError = false) {
-  const statusEl = document.getElementById('statusMsg');
-  if (!statusEl) return;
-  statusEl.className = `am-message ${isError ? 'error' : 'success'}`;
-  statusEl.textContent = msg;
-  statusEl.style.display = 'block';
-  setTimeout(() => { statusEl.style.display = 'none'; }, 6000);
-}
-
 async function submitDVIRForm(e) {
   e.preventDefault();
 
@@ -901,7 +869,6 @@ async function submitDVIRForm(e) {
     userEmail = u.email || null;
   } catch (e) {}
 
-  // Standardized payload matching D1 dvir_inspections schema
   const payload = {
     asset_id: selectedAssetId || powerUnitVal,
     asset_number: selectedAssetNumber || powerUnitVal,
@@ -991,3 +958,39 @@ async function submitDVIRForm(e) {
     }
   }
 }
+
+/* ------------------------------------------------------------------
+ * DOMContentLoaded Initialization
+ * ------------------------------------------------------------------ */
+document.addEventListener('DOMContentLoaded', () => {
+  const assetInput = document.getElementById('dvirAssetInput');
+  if (assetInput) {
+    assetInput.addEventListener('change', onDVIRAssetChange);
+    assetInput.addEventListener('blur', onDVIRAssetChange);
+  }
+
+  const trailerInput = document.getElementById('dvirTrailerNumber');
+  if (trailerInput) {
+    trailerInput.addEventListener('input', checkTrailerUnlistedFlag);
+  }
+
+  const form = document.getElementById('dvirInspectionForm');
+  if (form) {
+    form.addEventListener('submit', submitDVIRForm);
+  }
+
+  const driverSigInput = document.getElementById('dvirDriverSignature');
+  if (driverSigInput) {
+    try {
+      const u = JSON.parse(localStorage.getItem('driven_user') || '{}');
+      const name = u.full_name || u.name || [u.first_name, u.last_name].filter(Boolean).join(' ');
+      if (name) driverSigInput.value = name;
+    } catch (e) {
+      console.warn('Unable to load stored user name:', e);
+    }
+  }
+
+  checkDeviceLocation();
+  loadDVIRAssets();
+  loadLocationOptions();
+});
