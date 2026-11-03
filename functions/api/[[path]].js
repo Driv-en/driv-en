@@ -684,7 +684,6 @@ function getJurisdictionRules(countryCode) {
       };
   }
 }
-
 function buildCategorySchema(normKey, countryParam) {
   const rules = getJurisdictionRules(countryParam);
 
@@ -1460,7 +1459,6 @@ async function logTenantContextError(env, path, request) {
     console.error('Failed to write tenant error log:', e.message);
   }
 }
-
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
@@ -1473,7 +1471,8 @@ export async function onRequest(context) {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
-  // Direct Endpoint: Send DVIR Officer Email via Resend
+  // 🚨 TOP-LEVEL ROUTE CHECK: Send DVIR Officer Email via Resend
+  // Placed at the very top of routing logic to prevent fallthrough into D1 table mapping
   if (
     path === '/api/send-dvir-email' || 
     path === '/send-dvir-email' || 
@@ -1567,7 +1566,7 @@ export async function onRequest(context) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          from: 'DRIV-EN Compliance <noreply@driv-en.com>',
+          from: env.RESEND_FROM_EMAIL || 'DRIV-EN Compliance <noreply@driv-en.com>',
           to: [officerEmail.trim()],
           subject: `Official DVIR Vehicle Inspection Report — Unit #${powerUnit}`,
           html: htmlContent
@@ -2278,7 +2277,7 @@ export async function onRequest(context) {
     return json({ error: 'Method not allowed' }, 405);
   }
 
-  // Generic Routing for Tables
+  // Generic Routing for Dynamic Tables
   const match = path.match(/^\/api\/([^/]+)(?:\/([^/]+))?$/);
   if (!match) return json({ error: 'Not found' }, 404);
 
@@ -2299,13 +2298,12 @@ export async function onRequest(context) {
     'fuel_types'
   ]);
 
-// ADD THIS DIRECT GUARD RIGHT AFTER EXCLUDED_API_ROUTES:
-if (
-  requestedTable.toLowerCase().includes('send-dvir-email') || 
-  requestedTable.toLowerCase().includes('send_dvir_email')
-) {
-  return json({ error: 'Endpoint handled by primary router or method not allowed' }, 404);
-}
+  if (
+    requestedTable.toLowerCase().includes('send-dvir-email') || 
+    requestedTable.toLowerCase().includes('send_dvir_email')
+  ) {
+    return json({ error: 'Endpoint handled by primary router or method not allowed' }, 404);
+  }
   
   if (EXCLUDED_API_ROUTES.has(requestedTable.toLowerCase())) {
     return json({ error: 'Not found' }, 404);
