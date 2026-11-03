@@ -1474,7 +1474,12 @@ export async function onRequest(context) {
   }
 
   // Direct Endpoint: Send DVIR Officer Email via Resend
-  if (path === '/api/send-dvir-email' || path === '/send-dvir-email') {
+  if (
+    path === '/api/send-dvir-email' || 
+    path === '/send-dvir-email' || 
+    path.endsWith('/send-dvir-email') ||
+    path.includes('send-dvir-email')
+  ) {
     if (method !== 'POST') {
       return json({ error: 'Method not allowed' }, 405);
     }
@@ -2282,8 +2287,16 @@ export async function onRequest(context) {
 
   // Prevent internal API routes from entering table mapping logic
   const EXCLUDED_API_ROUTES = new Set([
-    'send-dvir-email', 'dvir', 'asset-config', 'organization-settings', 
-    'log-error', 'asset-types', 'asset_types', 'fuel-types', 'fuel_types'
+    'send-dvir-email', 
+    'send_dvir_email',
+    'dvir', 
+    'asset-config', 
+    'organization-settings', 
+    'log-error', 
+    'asset-types', 
+    'asset_types', 
+    'fuel-types', 
+    'fuel_types'
   ]);
 
   if (EXCLUDED_API_ROUTES.has(requestedTable.toLowerCase())) {
