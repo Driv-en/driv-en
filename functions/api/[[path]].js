@@ -2306,9 +2306,10 @@ export async function onRequest(context) {
 
   if (
     requestedTable.toLowerCase().includes('send-dvir-email') || 
-    requestedTable.toLowerCase().includes('send_dvir_email')
+    requestedTable.toLowerCase().includes('send_dvir_email') ||
+    EXCLUDED_API_ROUTES.has(requestedTable.toLowerCase())
   ) {
-    return json({ error: 'Endpoint handled by primary router or method not allowed' }, 404);
+    return json({ success: false, error: 'Endpoint handled by standalone Pages Function or method not allowed' }, 405);
   }
   
   if (EXCLUDED_API_ROUTES.has(requestedTable.toLowerCase())) {
