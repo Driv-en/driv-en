@@ -840,19 +840,22 @@ async function getAuthContext(request, env) {
   };
 }
 
-function toPrimitiveString(val) {
+function toPrimitiveString(val, keyName = '') {
   if (val === null || val === undefined) return null;
   if (typeof val === 'number') return val;
   if (typeof val === 'boolean') return val ? 1 : 0;
+
+  // JSON Column Guard: Automatically stringify nested objects or array/JSON designated columns
+  if (typeof val === 'object' || (keyName && (keyName.endsWith('_json') || keyName.includes('config_') || keyName.includes('rules') || keyName.includes('inventory')))) {
+    try {
+      return JSON.stringify(val);
+    } catch (e) {
+      return null;
+    }
+  }
+
   if (typeof val === 'string') return val.trim() === '' ? null : val.trim();
 
-  if (Array.isArray(val)) {
-    const items = val.map(item => toPrimitiveString(item)).filter(Boolean);
-    return items.length > 0 ? items.join(', ') : null;
-  }
-  if (typeof val === 'object') {
-    return val.asset_type_name || val.fuel_name || val.name || val.type || val.category || val.asset_type_code || val.code || val.label || JSON.stringify(val);
-  }
   return String(val).trim();
 }
 
@@ -861,7 +864,7 @@ function mapPayloadToD1(tableConfig, payload) {
 
   for (const [apiFieldName, d1Column] of Object.entries(tableConfig.fieldMap)) {
     if (payload[apiFieldName] !== undefined) {
-      d1Row[d1Column] = toPrimitiveString(payload[apiFieldName]);
+      d1Row[d1Column] = toPrimitiveString(payload[apiFieldName], d1Column);
     }
   }
 
@@ -879,13 +882,13 @@ function mapPayloadToD1(tableConfig, payload) {
       validTableColumns.has(key) &&
       !ignoredKeys.has(key)
     ) {
-      d1Row[key] = toPrimitiveString(val);
+      d1Row[key] = toPrimitiveString(val, key);
     }
   }
 
   if (tableConfig.defaults) {
     for (const [col, val] of Object.entries(tableConfig.defaults)) {
-      if (d1Row[col] === undefined) d1Row[col] = toPrimitiveString(val);
+      if (d1Row[col] === undefined) d1Row[col] = toPrimitiveString(val, col);
     }
   }
 
@@ -936,8 +939,8 @@ function formatRecord(row, tableConfig) {
   return record;
 }
 
-// Utility: Executes statements in chunks of 100 to abide by Cloudflare D1's 128 batch limit
-async function executeD1BatchChunks(db, stmts, chunkSize = 100) {
+// Utility: Executes statements in chunks of 25 to protect against D1 parameter & batch limits
+async function executeD1BatchChunks(db, stmts, chunkSize = 25) {
   if (!stmts || stmts.length === 0) return;
   for (let i = 0; i < stmts.length; i += chunkSize) {
     const chunk = stmts.slice(i, i + chunkSize);
@@ -1003,9 +1006,11 @@ async function ensureTableSchema(db, d1Table) {
         `ALTER TABLE dvir_inspections ADD COLUMN created_by TEXT`,
         `ALTER TABLE dvir_inspections ADD COLUMN updated_at TEXT`,
         `ALTER TABLE dvir_inspections ADD COLUMN updated_by TEXT`
-      ].map(query => db.prepare(query));
+      ];
 
-      await db.batch(migrationStatements).catch(() => {});
+      for (const statement of migrationStatements) {
+        await db.prepare(statement).run().catch(() => {});
+      }
     } else if (d1Table === 'asset_configuration' || d1Table === 'asset_config') {
       await db.prepare(`
         CREATE TABLE IF NOT EXISTS asset_configuration (
@@ -1461,14 +1466,15 @@ export async function onRequest(context) {
   const url = new URL(request.url);
   const method = request.method.toUpperCase();
 
-  const path = url.pathname.toLowerCase().replace(/\/$/, '');
+  // Normalize path by lowercasing and removing trailing slashes
+  const path = url.pathname.toLowerCase().replace(/\/+$/, '') || '/';
 
   if (method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   // Direct Endpoint: Send DVIR Officer Email via Resend
-  if (path === '/api/send-dvir-email' || path === '/send-dvir-email' || path.endsWith('/send-dvir-email')) {
+  if (path === '/api/send-dvir-email' || path === '/send-dvir-email') {
     if (method !== 'POST') {
       return json({ error: 'Method not allowed' }, 405);
     }
@@ -1575,7 +1581,7 @@ export async function onRequest(context) {
   }
 
   // Direct Endpoint: DVIR Inspection Form & CFR 396 Lookup
-  if (path === '/api/dvir' || path === '/dvir' || path.endsWith('/dvir')) {
+  if (path === '/api/dvir' || path === '/dvir') {
     const authCtx = await getAuthContext(request, env);
     const orgId = authCtx.orgId || url.searchParams.get('org_id') || url.searchParams.get('orgId');
 
@@ -1959,6 +1965,8 @@ export async function onRequest(context) {
       try {
         await ensureTableSchema(env.DB, 'org_settings');
         const body = await request.json();
+        
+        // Use a deterministic ID per tenant to prevent primary key index churn on upserts
         const id = body.id || `org_set_${orgId}`;
 
         const name = body.name !== undefined ? body.name : null;
@@ -2036,7 +2044,7 @@ export async function onRequest(context) {
     });
   }
 
-  if (path === '/api/log-error' && method === 'POST') {
+  if ((path === '/api/log-error' || path === '/log-error') && method === 'POST') {
     try {
       const body = await request.json();
       return await handleLogError(env, body);
@@ -2143,7 +2151,7 @@ export async function onRequest(context) {
         }
 
         if (stmts.length > 0) {
-          await executeD1BatchChunks(env.DB, stmts, 100);
+          await executeD1BatchChunks(env.DB, stmts, 25);
         }
 
         return json({ success: true, count: itemsList.length, org_id: orgId });
@@ -2249,10 +2257,16 @@ export async function onRequest(context) {
           );
         }
 
-        await executeD1BatchChunks(env.DB, stmts, 100);
+        // Atomic Execution: If payload is within parameter binding thresholds (under ~20 items), batch together atomically
+        if (stmts.length <= 25) {
+          await env.DB.batch(stmts);
+        } else {
+          await executeD1BatchChunks(env.DB, stmts, 25);
+        }
+
         return json({ success: true, count: itemsList.length, org_id: orgId });
       } catch (e) {
-        return json({ success: true, count: 0, warning: e.message, org_id: orgId });
+        return json({ success: false, error: e.message, org_id: orgId }, 500);
       }
     }
 
@@ -2265,6 +2279,16 @@ export async function onRequest(context) {
 
   const requestedTable = decodeURIComponent(match[1]);
   const recordId = match[2] ? decodeURIComponent(match[2]) : null;
+
+  // Prevent internal API routes from entering table mapping logic
+  const EXCLUDED_API_ROUTES = new Set([
+    'send-dvir-email', 'dvir', 'asset-config', 'organization-settings', 
+    'log-error', 'asset-types', 'asset_types', 'fuel-types', 'fuel_types'
+  ]);
+
+  if (EXCLUDED_API_ROUTES.has(requestedTable.toLowerCase())) {
+    return json({ error: 'Not found' }, 404);
+  }
 
   const tableConfig = resolveTableConfig(requestedTable);
   if (!tableConfig) {
