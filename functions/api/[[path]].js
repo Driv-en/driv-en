@@ -2299,6 +2299,14 @@ export async function onRequest(context) {
     'fuel_types'
   ]);
 
+// ADD THIS DIRECT GUARD RIGHT AFTER EXCLUDED_API_ROUTES:
+if (
+  requestedTable.toLowerCase().includes('send-dvir-email') || 
+  requestedTable.toLowerCase().includes('send_dvir_email')
+) {
+  return json({ error: 'Endpoint handled by primary router or method not allowed' }, 404);
+}
+  
   if (EXCLUDED_API_ROUTES.has(requestedTable.toLowerCase())) {
     return json({ error: 'Not found' }, 404);
   }
