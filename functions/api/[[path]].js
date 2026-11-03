@@ -1473,12 +1473,11 @@ export async function onRequest(context) {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
-  // DIRECT DISPATCH: Send DVIR Officer Email via Resend
+// DIRECT DISPATCH: Send DVIR Officer Email via Resend
   if (
     path === '/api/send-dvir-email' || 
     path === '/send-dvir-email' || 
-    path.endsWith('/send-dvir-email') ||
-    path.includes('send-dvir-email')
+    path.endsWith('/send-dvir-email')
   ) {
     if (method !== 'POST') {
       return json({ error: 'Method not allowed' }, 405);
@@ -1494,7 +1493,7 @@ export async function onRequest(context) {
 
       const resendApiKey = env.RESEND_API_KEY;
       if (!resendApiKey) {
-        return json({ success: false, error: 'RESEND_API_KEY environment variable is not configured.' }, 500);
+        return json({ success: false, error: 'RESEND_API_KEY environment variable is missing.' }, 500);
       }
 
       const ITEM_LABELS = {
