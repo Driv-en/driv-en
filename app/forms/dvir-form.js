@@ -386,7 +386,7 @@ window.sendOfficerEmail = async function() {
   }
 
   try {
-    const res = await fetch(buildApiUrl('/api/send-dvir-email'), {
+    const res = await fetch('/api/send-dvir-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
