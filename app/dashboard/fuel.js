@@ -1,4 +1,3 @@
-
 /* ==========================================================================
    DRIV-EN Platform — Fuel Management Dashboard JavaScript Module
    File: /app/dashboard/fuel.js
@@ -67,6 +66,12 @@
         user = JSON.parse(localStorage.getItem('driven_user') || sessionStorage.getItem('driven_user'));
       } catch (e) {}
     }
+    if (user) {
+      const storedTheme = user.theme || localStorage.getItem('driven-theme');
+      if (storedTheme) {
+        document.documentElement.setAttribute('data-theme', storedTheme);
+      }
+    }
     return user;
   }
 
@@ -132,7 +137,8 @@
 
   function makeTabsSticky() {
     const h = document.getElementById('dashHeader');
-    const tb = document.getElementById('fuelTabBar');
+    const wrapper = document.querySelector('.fuel-tab-bar-wrapper');
+    const tb = wrapper || document.getElementById('fuelTabBar');
     if (h && tb && h.nextElementSibling !== tb) {
       h.parentNode.insertBefore(tb, h.nextSibling);
     }
@@ -143,9 +149,12 @@
     if (row1 && !document.querySelector('.fuel-header-title')) {
       const title = document.createElement('div');
       title.className = 'fuel-header-title';
+      title.style.display = 'inline-flex';
+      title.style.alignItems = 'center';
       title.textContent = 'Fuel Management';
       const drivenLogo = row1.querySelector('.dash-driven-logo');
       if (drivenLogo) row1.insertBefore(title, drivenLogo);
+      else row1.appendChild(title);
     }
   }
 
@@ -239,6 +248,7 @@
       reportError('loadTankTypes', e);
     }
   }
+/* ===== DYNAMIC SUBTABS & TANK TABLES ===== */
 
   function generateDynamicSubtabs() {
     const bar = document.getElementById('tanksSubtabBar');
@@ -298,19 +308,19 @@
 
   function renderTankRows(tanks) {
     return tanks.map(t =>
-      `<tr><td style="font-weight:600;">${esc(t.name || '')}</td><td>${esc(t.fuel_type || '—')}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td>${safeNum(t.capacity)} gal</td><td>${esc(t.location || '—')}</td><td>${ownershipBadge(t)}</td><td>${statusBadge(t)}</td></tr>`
+      `<tr><td style="font-weight:600;color:var(--text);">${esc(t.name || '')}</td><td style="color:var(--text);">${esc(t.fuel_type || '—')}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td style="color:var(--text);">${safeNum(t.capacity)} gal</td><td style="color:var(--text);">${esc(t.location || '—')}</td><td>${ownershipBadge(t)}</td><td>${statusBadge(t)}</td></tr>`
     ).join('');
   }
 
   function renderTankTable(tanks, containerId) {
     const container = document.getElementById(containerId);
     if (tanks.length === 0) {
-      container.innerHTML = '<div class="empty-state">No tanks found.</div>';
+      container.innerHTML = '<div class="empty-state" style="color:var(--text-muted);">No tanks found.</div>';
       return;
     }
     const filterBarId = `${containerId}-filter`;
     const tableId = `${containerId}-table`;
-    container.innerHTML = `<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="${filterBarId}" placeholder="Name, fuel, location…" style="flex:1;min-width:180px;"></div><div class="fuel-table-wrap"><table class="fuel-table" id="${tableId}"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Level</th><th>Capacity</th><th>Location</th><th>Ownership</th><th>Status</th></tr></thead><tbody id="${tableId}-body">${renderTankRows(tanks)}</tbody></table></div>`;
+    container.innerHTML = `<div class="fuel-filter-bar"><span class="fuel-filter-label" style="color:var(--text);">Search:</span><input type="text" id="${filterBarId}" placeholder="Name, fuel, location…" style="flex:1;min-width:180px;background:var(--bg-card);color:var(--text);border:1px solid var(--border-green, #16a34a);border-radius:6px;padding:6px 10px;"></div><div class="fuel-table-wrap"><table class="fuel-table" id="${tableId}"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Level</th><th>Capacity</th><th>Location</th><th>Ownership</th><th>Status</th></tr></thead><tbody id="${tableId}-body">${renderTankRows(tanks)}</tbody></table></div>`;
 
     container._tankSortCol = 'name';
     container._tankSortDir = 'asc';
@@ -341,7 +351,7 @@
     let headingText = getTankTypeDisplayName(`${subtab}_tank`);
     if (subtab === 'equipment') headingText = 'Equipment';
     headingText += ' Tanks';
-    container.innerHTML = `<div class="section-heading">${esc(headingText)} <span class="section-heading-count">${tanks.length} tank${tanks.length !== 1 ? 's' : ''}</span></div>`;
+    container.innerHTML = `<div class="section-heading" style="color:var(--text);">${esc(headingText)} <span class="section-heading-count" style="color:var(--text-muted);">${tanks.length} tank${tanks.length !== 1 ? 's' : ''}</span></div>`;
     const innerDiv = document.createElement('div');
     innerDiv.id = `${containerId}-inner`;
     container.appendChild(innerDiv);
@@ -496,55 +506,55 @@
       } else {
         statsContainer.innerHTML = fuelKeys.map(ft => {
           const d = fuelTypeTotals[ft];
-          return `<div class="fuel-stat-card"><div class="fuel-stat-number">${d.gallons.toLocaleString()}</div><div class="fuel-stat-label">${esc(ft)} (${d.tankCount} bulk tank${d.tankCount !== 1 ? 's' : ''})</div></div>`;
+          return `<div class="fuel-stat-card"><div class="fuel-stat-number" style="color:var(--text);">${d.gallons.toLocaleString()}</div><div class="fuel-stat-label" style="color:var(--text-muted);">${esc(ft)} (${d.tankCount} bulk tank${d.tankCount !== 1 ? 's' : ''})</div></div>`;
         }).join('');
       }
     }
 
     let html = '';
     if (bulkTanks.length > 0) {
-      html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-barrel')} ${esc(getTankTypeDisplayName('bulk_tank'))} <span class="count">(${bulkTanks.length})</span></div>`;
+      html += `<div class="overview-section"><div class="overview-section-title" style="color:var(--text);">${iconSvg('icon-barrel')} ${esc(getTankTypeDisplayName('bulk_tank'))} <span class="count" style="color:var(--text-muted);">(${bulkTanks.length})</span></div>`;
       html += '<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>Fuel Purchased</th><th>Fuel Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th><th>Action</th></tr></thead><tbody>';
       bulkTanks.forEach(t => {
         const totals = computeBulkTankTotals(t.id, f.location, f.fromDate, f.toDate);
-        html += `<tr><td style="font-weight:600;">${esc(t.name || '')}</td><td>${esc(t.fuel_type || '—')}</td><td>${safeNum(t.capacity)} gal</td><td style="font-weight:600;">${totals.purchased.toLocaleString()} gal</td><td style="font-weight:600;">${totals.dispensed.toLocaleString()} gal</td><td style="font-weight:700;color:var(--primary);">${safeNum(t.current_quantity)} gal</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td>${esc(t.location || '—')}</td><td><button class="adjust-btn" data-id="${t.id}" data-name="${esc(t.name || '')}" data-qty="${safeNum(t.current_quantity)}" data-cap="${safeNum(t.capacity)}" style="padding:4px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;">Adjust</button></td></tr>`;
+        html += `<tr><td style="font-weight:600;color:var(--text);">${esc(t.name || '')}</td><td style="color:var(--text);">${esc(t.fuel_type || '—')}</td><td style="color:var(--text);">${safeNum(t.capacity)} gal</td><td style="font-weight:600;color:var(--text);">${totals.purchased.toLocaleString()} gal</td><td style="font-weight:600;color:var(--text);">${totals.dispensed.toLocaleString()} gal</td><td style="font-weight:700;color:var(--border-green, #16a34a);">${safeNum(t.current_quantity)} gal</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td style="color:var(--text);">${esc(t.location || '—')}</td><td><button class="adjust-btn" data-id="${t.id}" data-name="${esc(t.name || '')}" data-qty="${safeNum(t.current_quantity)}" data-cap="${safeNum(t.capacity)}" style="padding:4px 10px;font-size:12px;border:1px solid var(--border-green, #16a34a);border-radius:6px;background:var(--bg-card, #ffffff);color:var(--text);cursor:pointer;">Adjust</button></td></tr>`;
       });
       html += '</tbody></table></div></div>';
     }
 
     if (dragupTanks.length > 0) {
-      html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-dragup-tank')} ${esc(getTankTypeDisplayName('dragup_tank'))} <span class="count">(${dragupTanks.length})</span></div>`;
+      html += `<div class="overview-section"><div class="overview-section-title" style="color:var(--text);">${iconSvg('icon-dragup-tank')} ${esc(getTankTypeDisplayName('dragup_tank'))} <span class="count" style="color:var(--text-muted);">(${dragupTanks.length})</span></div>`;
       html += '<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>Gallons Filled</th><th>Gallons Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th></tr></thead><tbody>';
       dragupTanks.forEach(t => {
         const totals = computeDragupTankTotals(t.id, f.location, f.fromDate, f.toDate);
-        html += `<tr><td style="font-weight:600;">${esc(t.name || '')}</td><td>${esc(t.fuel_type || '—')}</td><td>${safeNum(t.capacity)} gal</td><td style="font-weight:600;">${totals.filled.toLocaleString()} gal</td><td style="font-weight:600;">${totals.dispensed.toLocaleString()} gal</td><td style="font-weight:700;color:var(--primary);">${safeNum(t.current_quantity)} gal</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td>${esc(t.location || '—')}</td></tr>`;
+        html += `<tr><td style="font-weight:600;color:var(--text);">${esc(t.name || '')}</td><td style="color:var(--text);">${esc(t.fuel_type || '—')}</td><td style="color:var(--text);">${safeNum(t.capacity)} gal</td><td style="font-weight:600;color:var(--text);">${totals.filled.toLocaleString()} gal</td><td style="font-weight:600;color:var(--text);">${totals.dispensed.toLocaleString()} gal</td><td style="font-weight:700;color:var(--border-green, #16a34a);">${safeNum(t.current_quantity)} gal</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td style="color:var(--text);">${esc(t.location || '—')}</td></tr>`;
       });
       html += '</tbody></table></div></div>';
     }
 
     if (equipmentTanks.length > 0) {
-      html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-equipment')} ${esc(getTankTypeDisplayName('equipment'))} <span class="count">(${equipmentTanks.length})</span></div>`;
+      html += `<div class="overview-section"><div class="overview-section-title" style="color:var(--text);">${iconSvg('icon-equipment')} ${esc(getTankTypeDisplayName('equipment'))} <span class="count" style="color:var(--text-muted);">(${equipmentTanks.length})</span></div>`;
       html += '<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Asset #</th><th>Name</th><th>Fuel Type</th><th>Total Gallons Fueled</th><th>Location</th></tr></thead><tbody>';
       equipmentTanks.forEach(a => {
         const totalFueled = computeAssetFuelTotal(a.id, f.location, f.fromDate, f.toDate);
-        html += `<tr><td style="font-weight:600;">${esc(a.asset_number || '')}</td><td>${esc(a.name || '—')}</td><td>${esc(a.fuel_type || '—')}</td><td style="font-weight:700;color:var(--primary);">${totalFueled.toLocaleString()} gal</td><td>${esc(a.current_location || '—')}</td></tr>`;
+        html += `<tr><td style="font-weight:600;color:var(--text);">${esc(a.asset_number || '')}</td><td style="color:var(--text);">${esc(a.name || '—')}</td><td style="color:var(--text);">${esc(a.fuel_type || '—')}</td><td style="font-weight:700;color:var(--border-green, #16a34a);">${totalFueled.toLocaleString()} gal</td><td style="color:var(--text);">${esc(a.current_location || '—')}</td></tr>`;
       });
       html += '</tbody></table></div></div>';
     }
 
     const projectTotals = computePortableProjectTotals(f.location, f.fromDate, f.toDate);
     if (projectTotals.length > 0) {
-      html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-jerrycan')} ${esc(getTankTypeDisplayName('portable_can'))} <span class="count">(per project)</span></div>`;
+      html += `<div class="overview-section"><div class="overview-section-title" style="color:var(--text);">${iconSvg('icon-jerrycan')} ${esc(getTankTypeDisplayName('portable_can'))} <span class="count" style="color:var(--text-muted);">(per project)</span></div>`;
       html += '<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Gas Can (Project)</th><th>Gallons Put In Cans</th><th>Gallons Dispensed</th><th># Transactions</th></tr></thead><tbody>';
       projectTotals.forEach(p => {
         const canLabel = 'Gas Can – ' + esc(p.project_name || 'Unassigned');
-        html += `<tr><td style="font-weight:600;">${canLabel}</td><td style="font-weight:700;color:var(--primary);">${p.total_filled.toLocaleString()} gal</td><td style="font-weight:600;">${p.total_issued.toLocaleString()} gal</td><td>${p.tx_count}</td></tr>`;
+        html += `<tr><td style="font-weight:600;color:var(--text);">${canLabel}</td><td style="font-weight:700;color:var(--border-green, #16a34a);">${p.total_filled.toLocaleString()} gal</td><td style="font-weight:600;color:var(--text);">${p.total_issued.toLocaleString()} gal</td><td style="color:var(--text);">${p.tx_count}</td></tr>`;
       });
       html += '</tbody></table></div></div>';
     }
 
     if (bulkTanks.length === 0 && dragupTanks.length === 0 && equipmentTanks.length === 0 && projectTotals.length === 0) {
-      html = '<div class="empty-state">No fuel tanks or transactions found. Set up tanks in the Fuel Management dashboard to get started.</div>';
+      html = '<div class="empty-state" style="color:var(--text-muted);">No fuel tanks or transactions found. Set up tanks in the Fuel Management dashboard to get started.</div>';
     }
 
     container.innerHTML = html;
@@ -605,7 +615,7 @@
       reportError('loadTanks', e);
       const container = document.getElementById('overviewContainer');
       if (container) {
-        container.innerHTML = '<div class="empty-state" style="color:#cc0000;">⚠️ Error loading fuel data: ' + esc(e.message) + '<br><br>Please refresh the page or try again later.</div>';
+        container.innerHTML = '<div class="empty-state" style="color:var(--text-danger, #cc0000);">⚠️ Error loading fuel data: ' + esc(e.message) + '<br><br>Please refresh the page or try again later.</div>';
       }
     }
   }
@@ -683,14 +693,14 @@
       const date = t.transaction_date ? esc(new Date(t.transaction_date).toLocaleDateString()) : '—';
       const qty = safeNum(t.quantity).toFixed(2);
       const from = getTransferredFrom(t);
-      return `<tr class="tx-row-clickable" data-tx-id="${t.id}" title="Click for details"><td>${date}</td><td>${esc(txTypeLabel(t.transaction_type))}</td><td>${esc(t.fuel_type || '—')}</td><td style="font-weight:600;color:var(--primary);">${qty}</td><td>${esc(from)}</td><td>${esc(t.asset_name || t.asset_number || '—')}</td><td>${esc(t.person || '—')}</td><td>${esc(t.project_name || '—')}</td><td>${esc(t.location || '—')}</td></tr>`;
+      return `<tr class="tx-row-clickable" data-tx-id="${t.id}" title="Click for details"><td style="color:var(--text);">${date}</td><td style="color:var(--text);">${esc(txTypeLabel(t.transaction_type))}</td><td style="color:var(--text);">${esc(t.fuel_type || '—')}</td><td style="font-weight:600;color:var(--border-green, #16a34a);">${qty}</td><td style="color:var(--text);">${esc(from)}</td><td style="color:var(--text);">${esc(t.asset_name || t.asset_number || '—')}</td><td style="color:var(--text);">${esc(t.person || '—')}</td><td style="color:var(--text);">${esc(t.project_name || '—')}</td><td style="color:var(--text);">${esc(t.location || '—')}</td></tr>`;
     }).join('');
   }
 
   function renderTxTable(txs, containerId) {
     const container = document.getElementById(containerId);
     if (txs.length === 0 && !txSearchText && !txLocationFilter && !txFromDate && !txToDate) {
-      container.innerHTML = '<div class="empty-state">No transactions found.</div>';
+      container.innerHTML = '<div class="empty-state" style="color:var(--text-muted);">No transactions found.</div>';
       return;
     }
     const filterId = `${containerId}-filter`;
@@ -703,12 +713,11 @@
     const txLocs = getTxLocations();
     const locOptions = '<option value="">All Locations</option>' + txLocs.map(l => `<option value="${esc(l)}"${txLocationFilter === l ? ' selected' : ''}>${esc(l)}</option>`).join('');
 
-    container.innerHTML = `<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="${filterId}" placeholder="Type, fuel, asset, person, project…" style="flex:1;min-width:140px;" value="${esc(txSearchText)}"><span class="fuel-filter-label">Location:</span><select id="${locFilterId}">${locOptions}</select><span class="fuel-filter-label">From:</span><input type="date" id="${fromId}" value="${esc(txFromDate)}"><span class="fuel-filter-label">To:</span><input type="date" id="${toId}" value="${esc(txToDate)}"><button class="print-btn" id="${printBtnId}">🖨 Print Table</button></div><div id="${containerId}-totals"></div><div class="fuel-table-wrap"><table class="fuel-table" id="${tableId}"><thead><tr><th data-col="transaction_date">Date <span class="sort-indicator"></span></th><th data-col="transaction_type">Type <span class="sort-indicator"></span></th><th data-col="fuel_type">Fuel <span class="sort-indicator"></span></th><th data-col="quantity">Qty <span class="sort-indicator"></span></th><th data-col="transferred_from">From <span class="sort-indicator"></span></th><th data-col="asset">Equipment <span class="sort-indicator"></span></th><th data-col="person">Person <span class="sort-indicator"></span></th><th data-col="project">Project <span class="sort-indicator"></span></th><th data-col="location">Location <span class="sort-indicator"></span></th></tr></thead><tbody>${renderTxRows(txs)}</tbody></table></div>`;
+    container.innerHTML = `<div class="fuel-filter-bar"><span class="fuel-filter-label" style="color:var(--text);">Search:</span><input type="text" id="${filterId}" placeholder="Type, fuel, asset, person, project…" style="flex:1;min-width:140px;background:var(--bg-card);color:var(--text);border:1px solid var(--border-green, #16a34a);border-radius:6px;padding:6px 10px;" value="${esc(txSearchText)}"><span class="fuel-filter-label" style="color:var(--text);">Location:</span><select id="${locFilterId}" style="background:var(--bg-card);color:var(--text);border:1px solid var(--border-green, #16a34a);border-radius:6px;padding:6px 10px;">${locOptions}</select><span class="fuel-filter-label" style="color:var(--text);">From:</span><input type="date" id="${fromId}" style="background:var(--bg-card);color:var(--text);border:1px solid var(--border-green, #16a34a);border-radius:6px;padding:6px 10px;" value="${esc(txFromDate)}"><span class="fuel-filter-label" style="color:var(--text);">To:</span><input type="date" id="${toId}" style="background:var(--bg-card);color:var(--text);border:1px solid var(--border-green, #16a34a);border-radius:6px;padding:6px 10px;" value="${esc(txToDate)}"><button class="print-btn" id="${printBtnId}" style="padding:6px 12px;border:1px solid var(--border-green, #16a34a);border-radius:6px;background:var(--bg-card, #ffffff);color:var(--text);cursor:pointer;">🖨 Print Table</button></div><div id="${containerId}-totals"></div><div class="fuel-table-wrap"><table class="fuel-table" id="${tableId}"><thead><tr><th data-col="transaction_date">Date <span class="sort-indicator"></span></th><th data-col="transaction_type">Type <span class="sort-indicator"></span></th><th data-col="fuel_type">Fuel <span class="sort-indicator"></span></th><th data-col="quantity">Qty <span class="sort-indicator"></span></th><th data-col="transferred_from">From <span class="sort-indicator"></span></th><th data-col="asset">Equipment <span class="sort-indicator"></span></th><th data-col="person">Person <span class="sort-indicator"></span></th><th data-col="project">Project <span class="sort-indicator"></span></th><th data-col="location">Location <span class="sort-indicator"></span></th></tr></thead><tbody>${renderTxRows(txs)}</tbody></table></div>`;
 
     container._txSortCol = 'transaction_date';
     container._txSortDir = 'desc';
 
-    // Attach event listeners
     document.getElementById(filterId).addEventListener('input', (e) => onTxFilter(containerId, e.target.value));
     document.getElementById(locFilterId).addEventListener('change', (e) => onTxLocationFilter(containerId, e.target.value));
     document.getElementById(fromId).addEventListener('change', (e) => onTxDateFilter(containerId, 'from', e.target.value));
@@ -796,7 +805,7 @@
     const totalsDiv = document.getElementById(`${containerId}-totals`);
     if (totalsDiv) {
       const totals = computeTxTotals(filtered);
-      totalsDiv.innerHTML = `<div class="tx-totals-bar"><div class="total-item"><span class="total-label">Records</span><span class="total-value">${totals.txCount}</span></div><div class="total-item"><span class="total-label">Total (Gallons)</span><span class="total-value gal">${totals.totalGal.toFixed(2)}</span></div><div class="total-item"><span class="total-label">Purchased (Gallons)</span><span class="total-value gal">${totals.totalPurchases.toFixed(2)}</span></div><div class="total-item"><span class="total-label">Transferred (Gallons)</span><span class="total-value gal">${totals.totalIssues.toFixed(2)}</span></div></div>`;
+      totalsDiv.innerHTML = `<div class="tx-totals-bar"><div class="total-item"><span class="total-label" style="color:var(--text-muted);">Records</span><span class="total-value" style="color:var(--text);">${totals.txCount}</span></div><div class="total-item"><span class="total-label" style="color:var(--text-muted);">Total (Gallons)</span><span class="total-value gal" style="color:var(--text);">${totals.totalGal.toFixed(2)}</span></div><div class="total-item"><span class="total-label" style="color:var(--text-muted);">Purchased (Gallons)</span><span class="total-value gal" style="color:var(--text);">${totals.totalPurchases.toFixed(2)}</span></div><div class="total-item"><span class="total-label" style="color:var(--text-muted);">Transferred (Gallons)</span><span class="total-value gal" style="color:var(--text);">${totals.totalIssues.toFixed(2)}</span></div></div>`;
     }
     const thead = container.querySelector('thead');
     if (thead) {
@@ -826,7 +835,7 @@
     const container = document.getElementById(containerId);
     container.setAttribute('data-subtab', subtab);
     const headingText = subtab === 'all' ? 'All Fuel Transactions' : subtab === 'purchase' ? 'Fuel Purchases' : subtab === 'issue' ? 'Issues to Equipment' : 'Tank Transfers & Fills';
-    container.innerHTML = `<div class="section-heading">${headingText} <span class="section-heading-count">${txs.length} record${txs.length !== 1 ? 's' : ''}</span></div>`;
+    container.innerHTML = `<div class="section-heading" style="color:var(--text);">${headingText} <span class="section-heading-count" style="color:var(--text-muted);">${txs.length} record${txs.length !== 1 ? 's' : ''}</span></div>`;
     const innerDiv = document.createElement('div');
     innerDiv.id = `${containerId}-inner`;
     innerDiv.setAttribute('data-subtab', subtab);
@@ -871,9 +880,9 @@
   }
 
   function flagSeverityClass(sev) {
-    if (sev === 'critical') return 'background:#fee2e2;border-color:#cc0000;color:#cc0000;';
-    if (sev === 'warning') return 'background:#fef3c7;border-color:#fcd34d;color:#78350f;';
-    return 'background:#eff6ff;border-color:#93c5fd;color:#1e3a5f;';
+    if (sev === 'critical') return 'background:var(--bg-card);border:1px solid var(--border-danger, #ef4444);color:var(--text-danger, #ef4444);';
+    if (sev === 'warning') return 'background:var(--bg-card);border:1px solid var(--border-warning, #f59e0b);color:var(--text-warning, #f59e0b);';
+    return 'background:var(--bg-card);border:1px solid var(--border-green, #16a34a);color:var(--text);';
   }
 
   function renderAlerts() {
@@ -883,7 +892,7 @@
     const statusFilter = (document.getElementById('alertsStatusFilter') || {}).value || 'open';
 
     if (!_flagsLoaded) {
-      container.innerHTML = '<div class="empty-state">Loading alerts…</div>';
+      container.innerHTML = '<div class="empty-state" style="color:var(--text-muted);">Loading alerts…</div>';
       fetch('/api/fuel-flags' + (statusFilter ? '?status=' + statusFilter : ''), { headers: getAuthHeaders() })
         .then(r => r.json())
         .then(data => {
@@ -891,7 +900,7 @@
           renderAlerts();
         })
         .catch(e => {
-          container.innerHTML = `<div class="empty-state" style="color:#cc0000;">Error loading alerts: ${esc(e.message)}</div>`;
+          container.innerHTML = `<div class="empty-state" style="color:var(--text-danger, #cc0000);">Error loading alerts: ${esc(e.message)}</div>`;
         });
       return;
     }
@@ -904,7 +913,7 @@
     if (countEl) countEl.textContent = `${flags.length} alert${flags.length !== 1 ? 's' : ''}`;
 
     if (flags.length === 0) {
-      container.innerHTML = '<div class="empty-state">✅ No fuel alerts. All clear.</div>';
+      container.innerHTML = '<div class="empty-state" style="color:var(--text-muted);">✅ No fuel alerts. All clear.</div>';
       return;
     }
 
@@ -917,35 +926,35 @@
       const sevStyle = flagSeverityClass(f.severity);
       const isManagerReview = f.flag_type === 'manager_review';
 
-      let html = '<div style="border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;background:var(--bg-card);">';
+      let html = '<div style="border:1px solid var(--border-green, #16a34a);border-radius:8px;padding:16px;margin-bottom:12px;background:var(--bg-card);color:var(--text);">';
       html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:8px;">';
       html += `<div><span style="font-size:12px;padding:2px 8px;border-radius:4px;font-weight:600;${sevStyle}">${esc(flagTypeLabel(f.flag_type))}</span>`;
-      if (f.status === 'resolved') { html += ' <span style="font-size:12px;padding:2px 8px;border-radius:4px;background:#dcfce7;color:#15803d;font-weight:600;">RESOLVED</span>'; }
+      if (f.status === 'resolved') { html += ' <span style="font-size:12px;padding:2px 8px;border-radius:4px;background:var(--bg-card);border:1px solid var(--border-green, #16a34a);color:var(--border-green, #16a34a);font-weight:600;">RESOLVED</span>'; }
       html += '</div>';
       html += `<div style="font-size:12px;color:var(--text-muted);">${esc(new Date(f.created_at).toLocaleString())}</div>`;
       html += '</div>';
-      html += `<div style="font-size:14px;margin-bottom:8px;">${esc(f.message || 'No message')}</div>`;
+      html += `<div style="font-size:14px;margin-bottom:8px;color:var(--text);">${esc(f.message || 'No message')}</div>`;
       if (details.field) {
-        html += `<div style="font-size:13px;color:var(--text-muted);margin-bottom:4px;"><strong>Field:</strong> ${esc(details.field)}`;
-        if (details.value) html += ` | <strong>Value:</strong> ${esc(details.value)}`;
-        if (details.reason) html += ` | <strong>Reason:</strong> ${esc(details.reason)}`;
-        if (details.line) html += ` | <strong>Line:</strong> ${details.line}`;
+        html += `<div style="font-size:13px;color:var(--text-muted);margin-bottom:4px;"><strong style="color:var(--text);">Field:</strong> ${esc(details.field)}`;
+        if (details.value) html += ` | <strong style="color:var(--text);">Value:</strong> ${esc(details.value)}`;
+        if (details.reason) html += ` | <strong style="color:var(--text);">Reason:</strong> ${esc(details.reason)}`;
+        if (details.line) html += ` | <strong style="color:var(--text);">Line:</strong> ${details.line}`;
         html += '</div>';
       }
-      if (f.asset_name) html += `<div style="font-size:13px;color:var(--text-muted);"><strong>Asset:</strong> ${esc(f.asset_name)}</div>`;
-      if (f.tank_name) html += `<div style="font-size:13px;color:var(--text-muted);"><strong>Tank:</strong> ${esc(f.tank_name)}</div>`;
+      if (f.asset_name) html += `<div style="font-size:13px;color:var(--text-muted);"><strong style="color:var(--text);">Asset:</strong> ${esc(f.asset_name)}</div>`;
+      if (f.tank_name) html += `<div style="font-size:13px;color:var(--text-muted);"><strong style="color:var(--text);">Tank:</strong> ${esc(f.tank_name)}</div>`;
       if (f.status === 'open') {
         html += '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">';
         if (isManagerReview && canEdit) {
           if (details.field === 'project' || details.field === 'location') {
-            html += `<button class="btn-resolve-add" data-id="${f.id}" data-field="${esc(details.field || '')}" data-value="${esc(details.value || '')}" style="padding:8px 16px;border:none;border-radius:6px;background:#16a34a;color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Add & Resolve</button>`;
+            html += `<button class="btn-resolve-add" data-id="${f.id}" data-field="${esc(details.field || '')}" data-value="${esc(details.value || '')}" style="padding:8px 16px;border:1px solid var(--border-green, #16a34a);border-radius:6px;background:var(--bg-card, #ffffff);color:var(--text);cursor:pointer;font-size:13px;font-weight:600;">Add & Resolve</button>`;
           } else if (details.field === 'asset') {
-            html += `<button class="btn-resolve-add" data-id="${f.id}" data-field="${esc(details.field || '')}" data-value="${esc(details.value || '')}" style="padding:8px 16px;border:none;border-radius:6px;background:#16a34a;color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Add Asset & Resolve</button>`;
+            html += `<button class="btn-resolve-add" data-id="${f.id}" data-field="${esc(details.field || '')}" data-value="${esc(details.value || '')}" style="padding:8px 16px;border:1px solid var(--border-green, #16a34a);border-radius:6px;background:var(--bg-card, #ffffff);color:var(--text);cursor:pointer;font-size:13px;font-weight:600;">Add Asset & Resolve</button>`;
           }
         }
-        html += `<button class="btn-resolve-flag" data-id="${f.id}" style="padding:8px 16px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:13px;font-weight:600;">Resolve</button>`;
+        html += `<button class="btn-resolve-flag" data-id="${f.id}" style="padding:8px 16px;border:1px solid var(--border-green, #16a34a);border-radius:6px;background:var(--bg-card, #ffffff);color:var(--text);cursor:pointer;font-size:13px;font-weight:600;">Resolve</button>`;
         if (!canEdit) {
-          html += `<button class="btn-forward-flag" data-id="${f.id}" data-type="${esc(f.flag_type || '')}" style="padding:8px 16px;border:1px solid #93c5fd;border-radius:6px;background:#eff6ff;color:#1e3a5f;cursor:pointer;font-size:13px;font-weight:600;">Forward</button>`;
+          html += `<button class="btn-forward-flag" data-id="${f.id}" data-type="${esc(f.flag_type || '')}" style="padding:8px 16px;border:1px solid var(--border-green, #16a34a);border-radius:6px;background:var(--bg-card, #ffffff);color:var(--text);cursor:pointer;font-size:13px;font-weight:600;">Forward</button>`;
         }
         html += '</div>';
       }
@@ -958,7 +967,6 @@
       return html;
     }).join('');
 
-    // Event Delegation / Binding for dynamic alert buttons
     container.querySelectorAll('.btn-resolve-add').forEach(btn => {
       btn.addEventListener('click', (e) => {
         resolveWithAdd(e.target.getAttribute('data-id'), e.target.getAttribute('data-field'), e.target.getAttribute('data-value'));
@@ -1107,7 +1115,7 @@
       .then(data => {
         if (data.success && data.notifications) {
           panel.innerHTML = data.notifications.map(n => {
-            return `<div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;"><div style="font-weight:600;color:var(--text);">${esc(n.title || '')}</div><div style="color:var(--text-muted);margin-top:2px;">${esc(n.message || '')}</div><div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${esc(new Date(n.created_at).toLocaleString())}</div>${n.read_at ? '' : ` <button class="btn-mark-read" data-id="${n.id}" style="margin-top:6px;padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:12px;">Mark read</button>`}</div>`;
+            return `<div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;background:var(--bg-card);color:var(--text);"><div style="font-weight:600;color:var(--text);">${esc(n.title || '')}</div><div style="color:var(--text-muted);margin-top:2px;">${esc(n.message || '')}</div><div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${esc(new Date(n.created_at).toLocaleString())}</div>${n.read_at ? '' : ` <button class="btn-mark-read" data-id="${n.id}" style="margin-top:6px;padding:4px 10px;border:1px solid var(--border-green, #16a34a);border-radius:4px;background:var(--bg-card, #ffffff);color:var(--text);cursor:pointer;font-size:12px;">Mark read</button>`}</div>`;
           }).join('') || '<div style="padding:16px;color:var(--text-muted);font-size:13px;">No notifications.</div>';
 
           panel.querySelectorAll('.btn-mark-read').forEach(btn => {
@@ -1155,7 +1163,7 @@
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;';
     const modal = document.createElement('div');
-    modal.style.cssText = 'background:var(--bg-card);border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.5);';
+    modal.style.cssText = 'background:var(--bg-card);border:1px solid var(--border-green, #16a34a);border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.5);';
 
     const rows = [
       ['Date', tx.transaction_date ? new Date(tx.transaction_date).toLocaleString() : '—'],
@@ -1176,15 +1184,15 @@
     ];
 
     let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><h3 style="margin:0;font-size:18px;color:var(--text);">Transaction Details</h3><button class="modal-close-btn" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-muted);">×</button></div>';
-    html += '<div style="display:grid;grid-template-columns:140px 1fr;gap:8px 12px;font-size:14px;">';
+    html += '<div style="display:grid;grid-template-columns:140px 1fr;gap:8px 12px;font-size:14px;border-bottom:1px solid var(--border);padding-bottom:12px;">';
     rows.forEach(r => {
       html += `<div style="font-weight:600;color:var(--text-muted);">${r[0]}</div><div style="color:var(--text);">${esc(r[1])}</div>`;
     });
     html += '</div>';
     if (tx.receipt_r2_key) {
-      html += `<div style="margin-top:16px;"><a href="/api/fuel-receipts/${tx.id}" target="_blank" style="color:var(--primary);font-size:13px;font-weight:600;">View Receipt →</a></div>`;
+      html += `<div style="margin-top:16px;"><a href="/api/fuel-receipts/${tx.id}" target="_blank" style="color:var(--border-green, #16a34a);font-size:13px;font-weight:600;">View Receipt →</a></div>`;
     }
-    html += `<div style="margin-top:20px;display:flex;gap:8px;justify-content:flex-end;"><button class="btn-print-detail" style="padding:8px 16px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:13px;font-weight:600;">Print</button><button class="modal-close-btn" style="padding:8px 16px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:13px;">Close</button></div>`;
+    html += `<div style="margin-top:20px;display:flex;gap:8px;justify-content:flex-end;"><button class="btn-print-detail" style="padding:8px 16px;border:1px solid var(--border-green, #16a34a);border-radius:6px;background:var(--bg-card, #ffffff);color:var(--text);cursor:pointer;font-size:13px;font-weight:600;">Print</button><button class="modal-close-btn" style="padding:8px 16px;border:1px solid var(--border-green, #16a34a);border-radius:6px;background:var(--bg-card, #ffffff);color:var(--text);cursor:pointer;font-size:13px;">Close</button></div>`;
 
     modal.innerHTML = html;
     overlay.appendChild(modal);
@@ -1205,7 +1213,7 @@
     const overlay = document.createElement('div');
     overlay.id = 'adjustModalOverlay';
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;';
-    overlay.innerHTML = `<div style="background:var(--bg-card);border-radius:12px;padding:24px;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.3);"><h3 style="margin:0 0 4px;font-size:18px;color:var(--text);">Adjust Tank: ${esc(tankName)}</h3><p style="margin:0 0 16px;font-size:13px;color:var(--text-muted);">Current: ${currentQty} gal / Capacity: ${capacity} gal</p><div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Adjustment Amount (gal) <span style="color:#cc0000;">*</span></label><input type="number" id="adjustAmount" step="0.01" placeholder="Positive for overage, negative for shortage" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;"></div><div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Reason <span style="color:#cc0000;">*</span></label><select id="adjustReason" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;"><option value="">Select reason…</option><option value="Shortage — fuel theft suspected">Shortage — fuel theft suspected</option><option value="Shortage — evaporation/spillage">Shortage — evaporation/spillage</option><option value="Shortage — meter calibration error">Shortage — meter calibration error</option><option value="Overage — delivery overfill">Overage — delivery overfill</option><option value="Overage — meter calibration error">Overage — meter calibration error</option><option value="Overage — fuel returned to tank">Overage — fuel returned to tank</option><option value="Physical inventory count adjustment">Physical inventory count adjustment</option><option value="__custom">+ Other (type manually)</option></select></div><div id="adjustCustomReason" style="display:none;margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Custom Reason <span style="color:#cc0000;">*</span></label><input type="text" id="adjustCustomReasonText" placeholder="Type reason" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;"></div><div style="margin-bottom:16px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Notes (optional)</label><textarea id="adjustNotes" rows="2" placeholder="Additional details" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;resize:vertical;"></textarea></div><div style="display:flex;gap:12px;justify-content:flex-end;"><button id="adjustCancelBtn" style="padding:10px 20px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:14px;">Cancel</button><button id="adjustSubmitBtn" style="padding:10px 24px;border:none;border-radius:6px;background:var(--primary);color:#fff;cursor:pointer;font-size:14px;font-weight:600;">Submit Adjustment</button></div></div>`;
+    overlay.innerHTML = `<div style="background:var(--bg-card);border:1px solid var(--border-green, #16a34a);border-radius:12px;padding:24px;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.3);"><h3 style="margin:0 0 4px;font-size:18px;color:var(--text);">Adjust Tank: ${esc(tankName)}</h3><p style="margin:0 0 16px;font-size:13px;color:var(--text-muted);">Current: ${currentQty} gal / Capacity: ${capacity} gal</p><div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text);">Adjustment Amount (gal) <span style="color:var(--text-danger, #cc0000);">*</span></label><input type="number" id="adjustAmount" step="0.01" placeholder="Positive for overage, negative for shortage" style="width:100%;padding:10px;background:var(--bg-card);color:var(--text);border:1px solid var(--border-green, #16a34a);border-radius:6px;font-size:14px;box-sizing:border-box;"></div><div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text);">Reason <span style="color:var(--text-danger, #cc0000);">*</span></label><select id="adjustReason" style="width:100%;padding:10px;background:var(--bg-card);color:var(--text);border:1px solid var(--border-green, #16a34a);border-radius:6px;font-size:14px;box-sizing:border-box;"><option value="">Select reason…</option><option value="Shortage — fuel theft suspected">Shortage — fuel theft suspected</option><option value="Shortage — evaporation/spillage">Shortage — evaporation/spillage</option><option value="Shortage — meter calibration error">Shortage — meter calibration error</option><option value="Overage — delivery overfill">Overage — delivery overfill</option><option value="Overage — meter calibration error">Overage — meter calibration error</option><option value="Overage — fuel returned to tank">Overage — fuel returned to tank</option><option value="Physical inventory count adjustment">Physical inventory count adjustment</option><option value="__custom">+ Other (type manually)</option></select></div><div id="adjustCustomReason" style="display:none;margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text);">Custom Reason <span style="color:var(--text-danger, #cc0000);">*</span></label><input type="text" id="adjustCustomReasonText" placeholder="Type reason" style="width:100%;padding:10px;background:var(--bg-card);color:var(--text);border:1px solid var(--border-green, #16a34a);border-radius:6px;font-size:14px;box-sizing:border-box;"></div><div style="margin-bottom:16px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text);">Notes (optional)</label><textarea id="adjustNotes" rows="2" placeholder="Additional details" style="width:100%;padding:10px;background:var(--bg-card);color:var(--text);border:1px solid var(--border-green, #16a34a);border-radius:6px;font-size:14px;box-sizing:border-box;resize:vertical;"></textarea></div><div style="display:flex;gap:12px;justify-content:flex-end;"><button id="adjustCancelBtn" style="padding:10px 20px;border:1px solid var(--border-green, #16a34a);border-radius:6px;background:var(--bg-card, #ffffff);color:var(--text);cursor:pointer;font-size:14px;">Cancel</button><button id="adjustSubmitBtn" style="padding:10px 24px;border:1px solid var(--border-green, #16a34a);border-radius:6px;background:var(--border-green, #16a34a);color:#ffffff;cursor:pointer;font-size:14px;font-weight:600;">Submit Adjustment</button></div></div>`;
 
     document.body.appendChild(overlay);
 
@@ -1268,7 +1276,7 @@
     }
   }
 
-  /* ===== STANDARD DIALOG & HELP MODALS (PURPOSE & INSTRUCTIONS) ===== */
+  /* ===== STANDARD DIALOG & HELP MODALS ===== */
 
   function setupHelpModals() {
     const setupModal = (modalId, triggerBtnId, closeClass) => {
@@ -1324,7 +1332,6 @@
   /* ===== INITIALIZATION ===== */
 
   function bindStaticEvents() {
-    // Top Bar Tabs
     document.querySelectorAll('.fuel-tab').forEach(btn => {
       btn.addEventListener('click', () => switchTab(btn.getAttribute('data-tab')));
     });
@@ -1341,7 +1348,6 @@
     const notifBell = document.getElementById('fuelNotifBell');
     if (notifBell) notifBell.addEventListener('click', toggleNotifications);
 
-    // Tanks Overview Filters
     const locFilter = document.getElementById('overviewLocationFilter');
     if (locFilter) locFilter.addEventListener('change', renderOverview);
 
@@ -1357,17 +1363,14 @@
     const printOverviewBtn = document.getElementById('btnPrintOverview');
     if (printOverviewBtn) printOverviewBtn.addEventListener('click', printOverview);
 
-    // Tanks Subtabs
     document.querySelectorAll('#tanksSubtabBar .fuel-subtab').forEach(btn => {
       btn.addEventListener('click', () => switchTankSubtab(btn.getAttribute('data-subtab')));
     });
 
-    // Transactions Subtabs
     document.querySelectorAll('#txSubtabBar .fuel-subtab').forEach(btn => {
       btn.addEventListener('click', () => switchTxSubtab(btn.getAttribute('data-subtab')));
     });
 
-    // Fuel Alerts Filters
     const flagTypeFilter = document.getElementById('alertsFlagTypeFilter');
     if (flagTypeFilter) flagTypeFilter.addEventListener('change', renderAlerts);
 
