@@ -72,7 +72,6 @@ function dismissPageError() {
   if(b) b.classList.remove('show');
 }
 
-/* Explicit Session Preservation with URL Context appending */
 function preserveAndNavigate(event, targetUrl) {
   if (event) {
     event.preventDefault();
@@ -148,7 +147,6 @@ window.addEventListener('error', function(e) {
   showPageError();
 });
 
-/* Dynamic Mobile & Desktop Sticky Offset Calculator */
 function adjustStickyOffsets() {
   var header = document.getElementById("dashHeader");
   var stickyContainer = document.getElementById("adminNavStickyContainer");
@@ -166,7 +164,6 @@ function adjustStickyOffsets() {
   }
 }
 
-/* ===== Safe Fast API Request Helper ===== */
 async function safeFetch(url, options) {
   options = options || {};
   options.headers = options.headers || {};
@@ -194,7 +191,6 @@ async function safeFetch(url, options) {
   }
 }
 
-/* ===== Global Key Personnel Helper Functions ===== */
 function toggleSelectAllKpTasks(checked) {
   document.querySelectorAll('.kp-task-cb').forEach(function(cb) { cb.checked = checked; });
   updateKpTaskCount();
@@ -286,6 +282,7 @@ async function removeKpPerson(personIdx) {
   }
   renderKeyPersonnel();
 }
+
 async function saveKeyPersonnelToDB() {
   if (!validateOrgContext()) return;
   var allKPToSave = keyPersonnel.concat(pendingKP);
@@ -354,7 +351,7 @@ async function finalizeCompanyOnboarding() {
         var completePanel = document.getElementById('onboardingCompletePanel');
         if (completePanel) completePanel.classList.add('show');
         if (finalizeBtn) finalizeBtn.style.display = 'none';
-        alert(`Onboarding Complete! Welcome emails sent to ${data.totalEmployees} employees.`);
+        alert("Onboarding Complete! Welcome emails sent to " + data.totalEmployees + " employees.");
       } else {
         alert("Failed to finalize onboarding: " + data.error);
       }
@@ -532,6 +529,7 @@ function updateThemeSwitch() {
   if(ll) ll.classList.toggle("active", current === "light");
   if(ld) ld.classList.toggle("active", current === "dark");
 }
+
 function renderLogoPreview(preview, logo, removeButton) {
   preview.textContent = "";
   if (typeof logo === "string" && logo) {
@@ -789,6 +787,7 @@ async function saveToggles() {
     }
   }
 }
+
 function applyBusinessTypeDefaults() {
   if(!stepVisibility || typeof stepVisibility !== 'object') stepVisibility = {};
   var bEl = document.getElementById("businessTypeSelect");
@@ -1019,6 +1018,7 @@ function hideOnboardingTab(){
   var t = document.querySelector('.admin-tab[data-tab="onboarding"]');
   if(t) t.style.display = "none";
 }
+
 function insertHeaderTitle(){
   var r = document.querySelector(".dash-header-row1");
   if(r) {
@@ -1047,40 +1047,7 @@ function injectGlobalUIStyles() {
   if (document.getElementById("driven-admin-ui-styles")) return;
   var style = document.createElement("style");
   style.id = "driven-admin-ui-styles";
-  style.textContent = `
-    #dashHeader {
-      background-color: #ffffff !important;
-      border-bottom: 1px solid var(--border, #e2e8f0);
-    }
-    .admin-card, .emp-form-card, .kp-person-row, .step-toggle-row, .card, .stat-card {
-      background-color: var(--card-bg, #ffffff) !important;
-      border: 1px solid var(--border, #e2e8f0);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-    .btn-change-password, #changePasswordBtn {
-      background-color: #16a34a !important;
-      color: #ffffff !important;
-      border: none !important;
-      font-weight: 600;
-      padding: 8px 16px;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    .btn-change-password:hover, #changePasswordBtn:hover {
-      background-color: #15803d !important;
-    }
-    .theme-toggle-container {
-      display: inline-flex;
-      align-items: center;
-      border: 2px solid var(--border, #94a3b8);
-      border-radius: 20px;
-      padding: 2px 6px;
-      background: var(--bg-secondary, #f1f5f9);
-    }
-    .theme-switch input:checked + .toggle-slider {
-      background-color: #2563eb;
-    }
-  `;
+  style.textContent = "#dashHeader { background-color: #ffffff !important; border-bottom: 1px solid var(--border, #e2e8f0); } .admin-card, .emp-form-card, .kp-person-row, .step-toggle-row, .card, .stat-card { background-color: var(--card-bg, #ffffff) !important; border: 1px solid var(--border, #e2e8f0); box-shadow: 0 1px 3px rgba(0,0,0,0.05); } .btn-change-password, #changePasswordBtn { background-color: #16a34a !important; color: #ffffff !important; border: none !important; font-weight: 600; padding: 8px 16px; border-radius: 6px; cursor: pointer; } .btn-change-password:hover, #changePasswordBtn:hover { background-color: #15803d !important; } .theme-toggle-container { display: inline-flex; items: center; border: 2px solid var(--border, #94a3b8); border-radius: 20px; padding: 2px 6px; background: var(--bg-secondary, #f1f5f9); } .theme-switch input:checked + .toggle-slider { background-color: #2563eb; }";
   document.head.appendChild(style);
 }
 
