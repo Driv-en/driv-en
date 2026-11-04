@@ -874,21 +874,28 @@ async function saveStepVisibility() {
 async function loadKeyPersonnel() {
   try {
     var res = await safeFetch("/api/onboarding/key-personnel/list");
-    if (res) {
+    if (res && res.ok) {
       var d = await res.json();
-      if(d.success && d.keyPersonnel) {
+      if (d && d.success && Array.isArray(d.keyPersonnel)) {
         keyPersonnel = d.keyPersonnel.map(function(kp) {
           return {
             employeeId: kp.employeeId || kp.id,
-            name: kp.name,
-            email: kp.email,
-            role_id: kp.role_id,
-            tasks: kp.roles ? kp.roles.map(function(r) { return r.role || r.task_name; }) : []
+            name: kp.name || [kp.first_name, kp.last_name].filter(Boolean).join(" ") || "Unknown",
+            email: kp.email || "",
+            role_id: kp.role_id || "Unassigned",
+            tasks: Array.isArray(kp.roles) ? kp.roles.map(function(r) { return r.role || r.task_name || r; }) : []
           };
         });
+      } else {
+        keyPersonnel = [];
       }
+    } else {
+      keyPersonnel = [];
     }
-  } catch(e) { reportError("loadKeyPersonnel", e); }
+  } catch(e) { 
+    reportError("loadKeyPersonnel", e); 
+    keyPersonnel = [];
+  }
   renderKeyPersonnel();
 }
 
