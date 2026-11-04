@@ -70,6 +70,42 @@ function getDefaultRedirect(user) {
     return "/app/dashboard/employee-dashboard.html";
 }
 
+function showError(message) {
+    const errorBanner = document.getElementById("error-banner");
+    if (!errorBanner) return;
+
+    errorBanner.textContent = message;
+    errorBanner.style.display = "block";
+}
+
+function hideError() {
+    const errorBanner = document.getElementById("error-banner");
+    if (errorBanner) errorBanner.style.display = "none";
+}
+
+function completeLogin(result) {
+    // These values are for client-side display only, not authorization.
+    if (result.user?.org_id) {
+        try {
+            localStorage.setItem("driven_customer_id", result.user.org_id);
+            localStorage.setItem("driven_org_id", result.user.org_id);
+        } catch (error) {
+            console.warn("Could not save client-side organization context:", error);
+        }
+    }
+
+    if (result.must_change_password || result.user?.must_change_password) {
+        window.location.replace("/public/change-password.html");
+        return;
+    }
+
+    const targetPath =
+        getSafeRedirectPath(result.redirect) ||
+        getDefaultRedirect(result.user);
+
+    window.location.replace(targetPath);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     // Load shared page components without delaying the login handlers.
     Promise.all([
@@ -79,6 +115,23 @@ document.addEventListener("DOMContentLoaded", () => {
         const yearEl = document.getElementById("footer-year");
         if (yearEl) yearEl.textContent = new Date().getFullYear();
     });
+
+    const loginForm = document.getElementById("login-form");
+    const twoFactorStep = document.getElementById("twofa-step");
+    const twoFactorCode = document.getElementById("login-2fa-code");
+    const verifyTwoFactorButton = document.getElementById("verify-2fa-btn");
+    const backToLoginButton = document.getElementById("back-to-login");
+    const referrerBanner = document.getElementById("referrer-redirect-banner");
+
+    let loginChallengeToken = null;
+
+    function resetTwoFactorStep() {
+        loginChallengeToken = null;
+
+        if (twoFactorCode) twoFactorCode.value = "";
+        if (twoFactorStep) twoFactorStep.hidden = true;
+        if (loginForm) loginForm.hidden = false;
+    }
 
     const forgotLink = document.getElementById("forgot-link");
     if (forgotLink) {
@@ -113,7 +166,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    const loginForm = document.getElementById("login-form");
     if (loginForm) {
         loginForm.addEventListener("submit", async (event) => {
             event.preventDefault();
@@ -121,22 +173,17 @@ document.addEventListener("DOMContentLoaded", () => {
             const email = document.getElementById("email");
             const password = document.getElementById("password");
             const remember = document.getElementById("remember");
-            const errorBanner = document.getElementById("error-banner");
-            const referrerBanner = document.getElementById("referrer-redirect-banner");
             const submitBtn = document.getElementById("submit-btn");
 
             if (!email || !password) {
                 console.error("Login form is missing its email or password field.");
-                if (errorBanner) {
-                    errorBanner.textContent = "The login form is unavailable. Please reload the page.";
-                    errorBanner.style.display = "block";
-                }
+                showError("The login form is unavailable. Please reload the page.");
                 return;
             }
 
             email.classList.remove("error");
             password.classList.remove("error");
-            if (errorBanner) errorBanner.style.display = "none";
+            hideError();
             if (referrerBanner) referrerBanner.style.display = "none";
 
             if (submitBtn) {
@@ -165,49 +212,126 @@ document.addEventListener("DOMContentLoaded", () => {
                         return;
                     }
 
-                    if (errorBanner) {
-                        errorBanner.textContent =
-                            result?.error || "Invalid credentials. Please try again.";
-                        errorBanner.style.display = "block";
-                    }
+                    showError(result?.error || "Invalid credentials. Please try again.");
                     email.classList.add("error");
                     password.classList.add("error");
                     return;
                 }
 
-                // These values are for client-side display only, not authorization.
-                if (result.user?.org_id) {
-                    try {
-                        localStorage.setItem("driven_customer_id", result.user.org_id);
-                        localStorage.setItem("driven_org_id", result.user.org_id);
-                    } catch (error) {
-                        console.warn("Could not save client-side organization context:", error);
+                if (result.requires_2fa) {
+                    if (typeof result.challenge_token !== "string" || !result.challenge_token) {
+                        showError("Two-factor sign-in could not be started. Please try again.");
+                        return;
                     }
-                }
 
-                if (result.must_change_password) {
-                    window.location.replace("/public/change-password.html");
+                    loginChallengeToken = result.challenge_token;
+                    password.value = "";
+                    loginForm.hidden = true;
+
+                    if (twoFactorStep) {
+                        twoFactorStep.hidden = false;
+                        twoFactorCode?.focus();
+                    }
                     return;
                 }
 
-                const targetPath =
-                    getSafeRedirectPath(result.redirect) ||
-                    getDefaultRedirect(result.user);
-
-                window.location.replace(targetPath);
+                completeLogin(result);
             } catch (error) {
                 console.error("Login submission error:", error);
-                if (errorBanner) {
-                    errorBanner.textContent =
-                        "A network error occurred. Please check your internet connection and try again.";
-                    errorBanner.style.display = "block";
-                }
+                showError(
+                    "A network error occurred. Please check your internet connection and try again."
+                );
             } finally {
                 if (submitBtn) {
                     submitBtn.disabled = false;
                     submitBtn.textContent = "Login";
                 }
             }
+        });
+    }
+
+    async function submitTwoFactorCode() {
+        const code = twoFactorCode?.value.trim() || "";
+
+        hideError();
+
+        if (!loginChallengeToken) {
+            resetTwoFactorStep();
+            showError("Your verification session expired. Please log in again.");
+            return;
+        }
+
+        if (!code) {
+            showError("Enter your authenticator or backup code.");
+            twoFactorCode?.focus();
+            return;
+        }
+
+        if (verifyTwoFactorButton) {
+            verifyTwoFactorButton.disabled = true;
+            verifyTwoFactorButton.textContent = "Verifying...";
+        }
+
+        try {
+            const response = await fetch("/auth/login-2fa", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({
+                    challenge_token: loginChallengeToken,
+                    code
+                })
+            });
+
+            const result = await readJsonResponse(response);
+
+            if (!response.ok || !result?.success) {
+                // The challenge is invalid or expired, so the user must start over.
+                if (response.status === 401 && /challenge/i.test(result?.error || "")) {
+                    resetTwoFactorStep();
+                }
+
+                showError(result?.error || "Invalid verification code. Please try again.");
+
+                if (loginChallengeToken) {
+                    twoFactorCode?.select();
+                }
+                return;
+            }
+
+            loginChallengeToken = null;
+            completeLogin(result);
+        } catch (error) {
+            console.error("Two-factor verification error:", error);
+            showError(
+                "A network error occurred. Please check your internet connection and try again."
+            );
+        } finally {
+            if (verifyTwoFactorButton) {
+                verifyTwoFactorButton.disabled = false;
+                verifyTwoFactorButton.textContent = "Verify and sign in";
+            }
+        }
+    }
+
+    if (verifyTwoFactorButton) {
+        verifyTwoFactorButton.addEventListener("click", submitTwoFactorCode);
+    }
+
+    if (twoFactorCode) {
+        twoFactorCode.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                submitTwoFactorCode();
+            }
+        });
+    }
+
+    if (backToLoginButton) {
+        backToLoginButton.addEventListener("click", () => {
+            resetTwoFactorStep();
+            hideError();
+            document.getElementById("email")?.focus();
         });
     }
 });
