@@ -764,7 +764,6 @@ function buildCategorySchema(normKey, countryParam) {
     sections: [usageSection, tireSection, lightingSection, oshaSection, consumableSection]
   };
 }
-
 function base64UrlDecode(str) {
   let input = str.replace(/-/g, '+').replace(/_/g, '/');
   while (input.length % 4) input += '=';
@@ -1460,7 +1459,6 @@ async function logTenantContextError(env, path, request) {
     console.error('Failed to write tenant error log:', e.message);
   }
 }
-
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
@@ -1473,7 +1471,7 @@ export async function onRequest(context) {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
-// DIRECT DISPATCH: Send DVIR Officer Email via Resend
+  // DIRECT DISPATCH: Send DVIR Officer Email via Resend
   if (
     path === '/api/send-dvir-email' || 
     path === '/send-dvir-email' || 
@@ -2059,7 +2057,6 @@ export async function onRequest(context) {
       return json({ success: false, error: e.message }, 500);
     }
   }
-
   // Direct Endpoint: Asset Types Batch & Direct Table Retrieval
   if (path === '/api/asset-types' || path === '/api/asset_types' || path.startsWith('/api/asset-types/') || path.startsWith('/api/asset_types/')) {
     const authCtx = await getAuthContext(request, env);
@@ -2307,10 +2304,6 @@ export async function onRequest(context) {
     EXCLUDED_API_ROUTES.has(requestedTable.toLowerCase())
   ) {
     return json({ success: false, error: 'Endpoint handled by standalone Pages Function or method not allowed' }, 405);
-  }
-  
-  if (EXCLUDED_API_ROUTES.has(requestedTable.toLowerCase())) {
-    return json({ error: 'Not found' }, 404);
   }
 
   const tableConfig = resolveTableConfig(requestedTable);
