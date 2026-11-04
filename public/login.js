@@ -93,7 +93,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     credentials: "include",
                     body: JSON.stringify({
                         email: email.value.trim(),
-                        password: password.value.trim(),
+                        password: password.value, // Untrimmed password
                         remember: remember.checked
                     })
                 });
@@ -116,10 +116,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     return;
                 }
 
-                // Save session token and org context to local storage
-                if (result.token) {
-                    localStorage.setItem("driven_session_token", result.token);
-                }
+                // Authentication token is stored in Secure, HttpOnly, SameSite cookies via backend response.
+                // Non-sensitive context can be saved for initial rendering.
                 if (result.user && result.user.org_id) {
                     localStorage.setItem("driven_customer_id", result.user.org_id);
                     localStorage.setItem("driven_org_id", result.user.org_id);
@@ -144,7 +142,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     targetPath = "/app/dashboard/employee-dashboard.html";
                 }
 
-                // Small tick delay guarantees localStorage values are flushed before navigation begins
                 setTimeout(() => {
                     window.location.replace(targetPath);
                 }, 50);
