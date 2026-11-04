@@ -1131,7 +1131,7 @@ function attachEventHandlers() {
       } else {
         localStorage.clear();
         sessionStorage.clear();
-        window.location.href = '/app/auth/login.html';
+        window.location.href = '/public/login.html';
       }
     });
   }
@@ -1151,7 +1151,7 @@ async function startAdminApp(user) {
 
   if (!user || !isAllowedAdmin) { 
     console.warn("[AdminDashboard] Guard rejected role:", roleVal);
-    window.location.href = "/app/auth/login.html"; 
+    window.location.href = "/public/login.html"; 
     return; 
   }
 
