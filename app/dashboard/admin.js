@@ -510,6 +510,10 @@ function switchOnboardingSubtab(subtabName) {
 
   if(targetSubtabBtn) targetSubtabBtn.classList.add('active');
   if(targetSubtabContent) targetSubtabContent.classList.add('active');
+
+  if (subtabName === 'kp' || subtabName === 'key-personnel') {
+    renderKeyPersonnel();
+  }
 }
 
 function toggleTheme() {
@@ -901,7 +905,9 @@ async function loadKeyPersonnel() {
 
 function renderKeyPersonnel() {
   var all = keyPersonnel.concat(pendingKP);
-  var container = document.getElementById("kpListBody");
+  var container = document.getElementById("kpListBody") || 
+                  document.getElementById("keyPersonnelList") || 
+                  document.getElementById("kpList");
   var completeBtn = document.getElementById("kpCompleteBtn");
   var unsavedBanner = document.getElementById("kpUnsavedBanner");
 
