@@ -9,6 +9,7 @@ var keyPersonnel = [];
 var pendingKP = [];
 var onboardingComplete = false;
 var settingsDirty = false;
+var togglesDirty = false;
 var visibilityDirty = false;
 var activeOrgId = null;
 var currentUserObj = null;
@@ -56,19 +57,19 @@ var FORMS = [
   { key:'pm_add', label:'Add PM', desc:'Create a preventive maintenance task', link:'/app/forms/pm.html' }
 ];
 
-function esc(s) { 
-  if(!s) return ''; 
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); 
+function esc(s) {
+  if(!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-function showPageError() { 
-  var b = document.getElementById('pageErrorBanner'); 
-  if(b) b.classList.add('show'); 
+function showPageError() {
+  var b = document.getElementById('pageErrorBanner');
+  if(b) b.classList.add('show');
 }
 
-function dismissPageError() { 
-  var b = document.getElementById('pageErrorBanner'); 
-  if(b) b.classList.remove('show'); 
+function dismissPageError() {
+  var b = document.getElementById('pageErrorBanner');
+  if(b) b.classList.remove('show');
 }
 
 /* Explicit Session Preservation with URL Context appending */
@@ -142,9 +143,9 @@ function reportError(source, err) {
   console.error('['+source+']', msg, stack);
 }
 
-window.addEventListener('error', function(e) { 
-  reportError('window.onerror', e.error || e.message); 
-  showPageError(); 
+window.addEventListener('error', function(e) {
+  reportError('window.onerror', e.error || e.message);
+  showPageError();
 });
 
 /* Dynamic Mobile & Desktop Sticky Offset Calculator */
@@ -265,12 +266,19 @@ async function removeKpPerson(personIdx) {
     var kp = keyPersonnel[personIdx];
     if(kp.employeeId || kp.id) {
       try {
-        await safeFetch("/api/onboarding/key-personnel/revoke", {
+        var res = await safeFetch("/api/onboarding/key-personnel/revoke", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ employeeId: kp.employeeId || kp.id, revokeAll: true })
         });
-      } catch(e) { reportError("removeKpPerson", e); }
+        if (!res || !res.ok) {
+          throw new Error("The key personnel account could not be revoked.");
+        }
+      } catch(e) {
+        reportError("removeKpPerson", e);
+        alert(e.message || "The key personnel account could not be revoked.");
+        return;
+      }
     }
     keyPersonnel.splice(personIdx, 1);
   } else {
@@ -278,7 +286,6 @@ async function removeKpPerson(personIdx) {
   }
   renderKeyPersonnel();
 }
-
 async function saveKeyPersonnelToDB() {
   if (!validateOrgContext()) return;
   var allKPToSave = keyPersonnel.concat(pendingKP);
@@ -387,10 +394,10 @@ async function loadDashboardStats() {
 
     var empData = results[0] || {};
     var empList = empData.employees || empData.personnel || empData.users || empData.data || empData.records || (Array.isArray(empData) ? empData : []);
-    var empCount = empList.filter(function(e) { 
+    var empCount = empList.filter(function(e) {
       var st = e.status !== undefined ? e.status : (e.is_active !== undefined ? e.is_active : e.employment_status);
       if (typeof st === "string") st = st.toLowerCase();
-      return st === 1 || st === '1' || st === 'active' || st === true; 
+      return st === 1 || st === '1' || st === 'active' || st === true;
     }).length;
 
     var elEmp = document.getElementById('stat-employees');
@@ -469,9 +476,10 @@ function switchTab(tabName) {
     if(!confirm("You have unsaved Task Visibility changes.\n\nClick Cancel to go back and save them, or OK to discard.")) return;
     clearVisibilityDirty();
   }
-  if(settingsDirty && activeSetTab && activeSetTab.classList.contains('active') && tabName!=='settings') {
+  if((settingsDirty || togglesDirty) && activeSetTab && activeSetTab.classList.contains('active') && tabName!=='settings') {
     if(!confirm("You have unsaved changes in Settings.\n\nClick Cancel to go back and save them, or OK to discard.")) return;
     clearSettingsDirty();
+    clearTogglesDirty();
   }
 
   document.querySelectorAll('.admin-tab').forEach(function(t){ t.classList.remove('active'); });
@@ -524,6 +532,24 @@ function updateThemeSwitch() {
   if(ll) ll.classList.toggle("active", current === "light");
   if(ld) ld.classList.toggle("active", current === "dark");
 }
+function renderLogoPreview(preview, logo, removeButton) {
+  preview.textContent = "";
+  if (typeof logo === "string" && logo) {
+    var img = document.createElement("img");
+    img.src = logo;
+    img.alt = "Logo";
+    img.style.maxHeight = "60px";
+    img.style.maxWidth = "140px";
+    img.style.objectFit = "contain";
+    preview.appendChild(img);
+    preview.style.border = "none";
+    if (removeButton) removeButton.style.display = "inline-block";
+  } else {
+    preview.textContent = "No logo";
+    preview.style.border = "2px dashed var(--border,#cbd5e1)";
+    if (removeButton) removeButton.style.display = "none";
+  }
+}
 
 async function loadLogo() {
   var p = document.getElementById("logoPreview"), r = document.getElementById("logoRemoveBtn");
@@ -534,25 +560,12 @@ async function loadLogo() {
     var d = await res.json();
     if(d.success && d.logo) {
       localStorage.setItem("driven_customer_logo", d.logo);
-      p.innerHTML = '<img src="' + d.logo + '" alt="Logo" style="max-height:60px;max-width:140px;object-fit:contain;">';
-      p.style.border = "none";
-      if(r) r.style.display = "inline-block";
+      renderLogoPreview(p, d.logo, r);
     } else {
-      p.innerHTML = "No logo";
-      p.style.border = "2px dashed var(--border,#cbd5e1)";
-      if(r) r.style.display = "none";
+      renderLogoPreview(p, "", r);
     }
   } catch(e) {
-    var ll = localStorage.getItem("driven_customer_logo");
-    if(ll) {
-      p.innerHTML = '<img src="' + ll + '" alt="Logo" style="max-height:60px;max-width:140px;object-fit:contain;">';
-      p.style.border = "none";
-      if(r) r.style.display = "inline-block";
-    } else {
-      p.innerHTML = "No logo";
-      p.style.border = "2px dashed var(--border,#cbd5e1)";
-      if(r) r.style.display = "none";
-    }
+    renderLogoPreview(p, localStorage.getItem("driven_customer_logo"), r);
   }
 }
 
@@ -596,17 +609,27 @@ async function handleLogoUpload() {
 
 async function handleLogoRemove() {
   if (!validateOrgContext()) return;
+  var statusEl = document.getElementById("logoStatus");
   try {
-    await safeFetch("/auth/save-logo", {
+    var res = await safeFetch("/auth/save-logo", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ logo_data: "" })
     });
+    if (!res || !res.ok) throw new Error("Logo could not be removed.");
+    var data = await res.json();
+    if (!data.success) throw new Error(data.error || "Logo could not be removed.");
+
     localStorage.removeItem("driven_customer_logo");
-    var statusEl = document.getElementById("logoStatus");
     if(statusEl) statusEl.textContent = "Logo removed.";
-  } catch(e) { reportError("handleLogoRemove", e); }
-  await loadLogo();
+    await loadLogo();
+  } catch(e) {
+    reportError("handleLogoRemove", e);
+    if (statusEl) {
+      statusEl.textContent = e.message || "Logo could not be removed.";
+      statusEl.style.color = "var(--error,#ef4444)";
+    }
+  }
 }
 
 async function loadSettings() {
@@ -668,16 +691,18 @@ function checkBusinessTypeRequired() {
   }
 }
 
-function markSettingsDirty(){ settingsDirty = true; }
-function clearSettingsDirty(){ settingsDirty = false; }
+function markSettingsDirty() { settingsDirty = true; }
+function clearSettingsDirty() { settingsDirty = false; }
+function markTogglesDirty() { togglesDirty = true; }
+function clearTogglesDirty() { togglesDirty = false; }
 
-function markVisibilityDirty(){
+function markVisibilityDirty() {
   visibilityDirty = true;
   var w = document.getElementById('visibilityWarning');
   if(w) w.style.display = 'block';
 }
 
-function clearVisibilityDirty(){
+function clearVisibilityDirty() {
   visibilityDirty = false;
   var w = document.getElementById('visibilityWarning');
   if(w) w.style.display = 'none';
@@ -689,8 +714,9 @@ async function saveSettings() {
   var bt = bEl ? bEl.value : "";
   var naics = document.getElementById("naicsInput") ? document.getElementById("naicsInput").value.trim() : "";
   var cur = document.getElementById("currencySelect") ? document.getElementById("currencySelect").value : "USD";
+  var sStatus = document.getElementById("settingsStatus");
 
-  if (!bt || bt === "" || bt === "null") {
+  if (!bt || bt === "null") {
     alert("Please select a Business Type before saving settings.");
     if (bEl) {
       bEl.style.border = "2px solid #ef4444";
@@ -705,43 +731,64 @@ async function saveSettings() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ settings: { business_type: bt, naics_code: naics, currency: cur } })
     });
-    if (res) {
-      var d = await res.json();
-      if(d.success) {
-        orgSettings.business_type = bt;
-        orgSettings.naics_code = naics;
-        orgSettings.currency = cur;
-        if (bEl) bEl.style.border = "";
-        var sStatus = document.getElementById("settingsStatus");
-        if(sStatus) sStatus.textContent = "Saved.";
-        notifySync();
-      }
+    if (!res || !res.ok) throw new Error("Settings could not be saved.");
+    var d = await res.json();
+    if (!d.success) throw new Error(d.error || "Settings could not be saved.");
+
+    orgSettings.business_type = bt;
+    orgSettings.naics_code = naics;
+    orgSettings.currency = cur;
+    if (bEl) bEl.style.border = "";
+    if(sStatus) {
+      sStatus.textContent = "Saved.";
+      sStatus.style.color = "var(--success,#16a34a)";
     }
-  } catch(e) { reportError("saveSettings", e); }
-  clearSettingsDirty();
+    clearSettingsDirty();
+    notifySync();
+  } catch(e) {
+    reportError("saveSettings", e);
+    if (sStatus) {
+      sStatus.textContent = e.message || "Settings could not be saved.";
+      sStatus.style.color = "var(--error,#ef4444)";
+    }
+  }
 }
 
 function onNaicsChange(){ markSettingsDirty(); }
 function onCurrencyChange(){ markSettingsDirty(); }
-function onFuelPhotoToggleChange() { markSettingsDirty(); }
-function onLocationReqToggleChange() { markSettingsDirty(); }
+function onFuelPhotoToggleChange() { markTogglesDirty(); }
+function onLocationReqToggleChange() { markTogglesDirty(); }
 
 async function saveToggles() {
   if (!validateOrgContext()) return;
   var mp = document.getElementById("fuelMeterPhotoToggle") ? document.getElementById("fuelMeterPhotoToggle").checked : false;
   var ap = document.getElementById("fuelAssetPhotoToggle") ? document.getElementById("fuelAssetPhotoToggle").checked : false;
   var lr = document.getElementById("locationReqToggle") ? document.getElementById("locationReqToggle").checked : false;
+  var tStatus = document.getElementById("togglesStatus");
+
   try {
-    await safeFetch("/auth/save-settings", {
+    var res = await safeFetch("/auth/save-settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ settings: { fuel_meter_photo: mp, fuel_asset_photo: ap, location_request: lr } })
     });
-    var tStatus = document.getElementById("togglesStatus");
-    if(tStatus) tStatus.textContent = "Toggles saved.";
-  } catch(e) { reportError("saveToggles", e); }
-}
+    if (!res || !res.ok) throw new Error("Toggles could not be saved.");
+    var data = await res.json();
+    if (!data.success) throw new Error(data.error || "Toggles could not be saved.");
 
+    if(tStatus) {
+      tStatus.textContent = "Toggles saved.";
+      tStatus.style.color = "var(--success,#16a34a)";
+    }
+    clearTogglesDirty();
+  } catch(e) {
+    reportError("saveToggles", e);
+    if (tStatus) {
+      tStatus.textContent = e.message || "Toggles could not be saved.";
+      tStatus.style.color = "var(--error,#ef4444)";
+    }
+  }
+}
 function applyBusinessTypeDefaults() {
   if(!stepVisibility || typeof stepVisibility !== 'object') stepVisibility = {};
   var bEl = document.getElementById("businessTypeSelect");
@@ -804,18 +851,25 @@ async function saveStepVisibility() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ settings: { step_visibility: stepVisibility } })
     });
-    if (res) {
-      var d = await res.json();
-      if(d.success && st) {
-        st.textContent = "Visibility saved.";
-        st.style.color = "var(--success,#16a34a)";
-      }
+    if (!res || !res.ok) throw new Error("Visibility settings could not be saved.");
+    var d = await res.json();
+    if (!d.success) throw new Error(d.error || "Visibility settings could not be saved.");
+
+    if(st) {
+      st.textContent = "Visibility saved.";
+      st.style.color = "var(--success,#16a34a)";
     }
     clearVisibilityDirty();
     renderStepToggles();
     updateProgress();
     notifySync();
-  } catch(e) { reportError("saveStepVisibility", e); }
+  } catch(e) {
+    reportError("saveStepVisibility", e);
+    if (st) {
+      st.textContent = e.message || "Visibility settings could not be saved.";
+      st.style.color = "var(--error,#ef4444)";
+    }
+  }
 }
 
 async function loadKeyPersonnel() {
@@ -951,21 +1005,20 @@ function notifySync() {
   if (syncChannel) syncChannel.postMessage({ type: "driven_completion_updated" });
 }
 
-function showCompleteModal(){ 
+function showCompleteModal(){
   var m = document.getElementById("confirmModal");
-  if(m) m.classList.add("active"); 
+  if(m) m.classList.add("active");
 }
 
-function closeCompleteModal(){ 
+function closeCompleteModal(){
   var m = document.getElementById("confirmModal");
-  if(m) m.classList.remove("active"); 
+  if(m) m.classList.remove("active");
 }
 
-function hideOnboardingTab(){ 
-  var t = document.querySelector('.admin-tab[data-tab="onboarding"]'); 
-  if(t) t.style.display = "none"; 
+function hideOnboardingTab(){
+  var t = document.querySelector('.admin-tab[data-tab="onboarding"]');
+  if(t) t.style.display = "none";
 }
-
 function insertHeaderTitle(){
   var r = document.querySelector(".dash-header-row1");
   if(r) {
@@ -1178,10 +1231,10 @@ async function startAdminApp(user) {
   var roleVal = String((user && (user.role_id || user.role)) || "").trim().toLowerCase();
   var isAllowedAdmin = roleVal === "ro-admin" || roleVal === "admin" || roleVal.indexOf("founder") !== -1;
 
-  if (!user || !isAllowedAdmin) { 
+  if (!user || !isAllowedAdmin) {
     console.warn("[AdminDashboard] Guard rejected role:", roleVal);
-    window.location.href = "/public/login.html"; 
-    return; 
+    window.location.href = "/public/login.html";
+    return;
   }
 
   activeOrgId = user.org_id || localStorage.getItem("driven_org_id") || sessionStorage.getItem("driven_org_id") || "org_dsi";
@@ -1218,7 +1271,7 @@ async function startAdminApp(user) {
   var dashEl = document.getElementById("dashboard");
   if (loadingEl) loadingEl.style.display = "none";
   if (dashEl) dashEl.style.display = "block";
-  
+
   adjustStickyOffsets();
 
   /* Load Initial Data and Stats */
@@ -1228,7 +1281,7 @@ async function startAdminApp(user) {
   updateProgress();
   updateThemeSwitch();
   renderFormsTab();
-  
+
   // High-reliability KPI load sequence
   await loadDashboardStats().catch(function(e){ reportError("init-loadDashboardStats", e); });
   setTimeout(function() {
