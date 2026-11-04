@@ -1,11 +1,11 @@
 // ============================================================
 // DRIV-EN Auth Worker (D1 + Multi-tenant)
 // Routes:
-//   POST /auth/login           — validate credentials, issue cookies
-//   POST /auth/change-password — change temp password on first login
-//   GET  /auth/session         — validate current session token
-//   POST /auth/logout          — clear cookies
-//   POST /auth/refresh         — issue new session from refresh token
+//   POST /public/login           — validate credentials, issue cookies
+//   POST /public/change-password — change temp password on first login
+//   GET  /public/session         — validate current session token
+//   POST /public/logout          — clear cookies
+//   POST /public/refresh         — issue new session from refresh token
 // ============================================================
 
 // ---------- Configuration ----------
@@ -155,7 +155,7 @@ function json(data, status = 200, extraHeaders = {}) {
 // Route handlers
 // ============================================================
 
-// ---------- POST /auth/login ----------
+// ---------- POST /public/login ----------
 async function handleLogin(request, env) {
     let body;
     try {
@@ -236,7 +236,7 @@ async function handleLogin(request, env) {
     }, 200, { "Set-Cookie": setCookies.join(", ") });
 }
 
-// ---------- POST /auth/change-password ----------
+// ---------- POST /public/change-password ----------
 async function handleChangePassword(request, env) {
     let body;
     try {
@@ -304,7 +304,7 @@ async function handleChangePassword(request, env) {
     });
 }
 
-// ---------- GET /auth/session ----------
+// ---------- GET /public/session ----------
 async function handleSession(request, env) {
     const cookies = parseCookies(request.headers.get("Cookie"));
     const token = cookies[COOKIE_SESSION];
@@ -329,7 +329,7 @@ async function handleSession(request, env) {
     }, 200);
 }
 
-// ---------- POST /auth/logout ----------
+// ---------- POST /public/logout ----------
 async function handleLogout() {
     const headers = {
         "Set-Cookie": `${clearCookie(COOKIE_SESSION)}, ${clearCookie(COOKIE_REFRESH)}`
@@ -337,7 +337,7 @@ async function handleLogout() {
     return json({ success: true }, 200, headers);
 }
 
-// ---------- POST /auth/refresh ----------
+// ---------- POST /public/refresh ----------
 async function handleRefresh(request, env) {
     const cookies = parseCookies(request.headers.get("Cookie"));
     const refreshToken = cookies[COOKIE_REFRESH];
@@ -406,15 +406,15 @@ export default {
         }
 
         // Route matching
-        if (path === "/auth/login" && method === "POST")
+        if (path === "/public/login" && method === "POST")
             return handleLogin(request, env);
-        if (path === "/auth/change-password" && method === "POST")
+        if (path === "/public/change-password" && method === "POST")
             return handleChangePassword(request, env);
-        if (path === "/auth/session" && method === "GET")
+        if (path === "/public/session" && method === "GET")
             return handleSession(request, env);
-        if (path === "/auth/logout" && method === "POST")
+        if (path === "/public/logout" && method === "POST")
             return handleLogout();
-        if (path === "/auth/refresh" && method === "POST")
+        if (path === "/public/refresh" && method === "POST")
             return handleRefresh(request, env);
 
         return json({ error: "Not found" }, 404);
