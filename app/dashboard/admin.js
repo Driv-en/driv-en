@@ -9,12 +9,28 @@ var keyPersonnel = [];
 var pendingKP = [];
 var onboardingComplete = false;
 var settingsDirty = false;
-var togglesDirty = false;
 var visibilityDirty = false;
 var activeOrgId = null;
 var currentUserObj = null;
 var taskCompletions = {};
 var syncChannel = window.BroadcastChannel ? new BroadcastChannel("driven_onboarding_sync") : null;
+
+var BUSINESS_TYPE_DEFAULTS = {
+  "Construction": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+  "Manufacturing": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+  "Chemical": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+  "Oil & Gas": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+  "Transportation": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+  "Warehousing": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+  "Fabrication": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+  "Logistics / Supply Chain": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+  "Utilities & Energy": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+  "Mining & Aggregates": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+  "Agriculture": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+  "Environmental Services": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+  "Food & Beverage Processing": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
+  "General Services": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":false,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true}
+};
 
 var STEP_DEFS = [
   { key:"roles-permissions", label:"Roles & Permissions", desc:"Define roles and access levels", locked:true },
@@ -152,60 +168,28 @@ function adjustStickyOffsets() {
 /* ===== Safe Fast API Request Helper ===== */
 async function safeFetch(url, options) {
   options = options || {};
-
+  options.headers = options.headers || {};
   var storedUser = currentUserObj || window.dashUser || window.drivenUser || {};
-  var headers = new Headers(options.headers || {});
-  headers.set(
-    "x-user-id",
-    storedUser.id ||
-      localStorage.getItem("driven_user_id") ||
-      sessionStorage.getItem("driven_user_id") ||
-      ""
-  );
-  headers.set(
-    "x-org-id",
-    activeOrgId ||
-      storedUser.org_id ||
-      localStorage.getItem("driven_org_id") ||
-      sessionStorage.getItem("driven_org_id") ||
-      ""
-  );
-  headers.set("x-user-role", "RO-admin");
+  options.headers["x-user-id"] = storedUser.id || localStorage.getItem("driven_user_id") || sessionStorage.getItem("driven_user_id") || "";
+  options.headers["x-org-id"] = activeOrgId || storedUser.org_id || localStorage.getItem("driven_org_id") || sessionStorage.getItem("driven_org_id") || "";
+  options.headers["x-user-role"] = "RO-admin";
 
   var controller = new AbortController();
-  var timeoutId = setTimeout(function() {
-    controller.abort();
-  }, 4000);
-
-  var externalSignal = options.signal;
-  var abortFromCaller = function() {
-    controller.abort();
-  };
-
-  if (externalSignal) {
-    if (externalSignal.aborted) {
-      controller.abort();
-    } else {
-      externalSignal.addEventListener("abort", abortFromCaller, { once: true });
-    }
-  }
+  var timeoutId = setTimeout(function() { controller.abort(); }, 4000);
+  options.signal = controller.signal;
 
   try {
-    return await fetch(
-      url,
-      Object.assign({}, options, {
-        headers: headers,
-        signal: controller.signal
-      })
-    );
-  } catch (err) {
-    reportError("safeFetch", err);
-    throw err;
-  } finally {
+    var res = await fetch(url, options);
     clearTimeout(timeoutId);
-    if (externalSignal) {
-      externalSignal.removeEventListener("abort", abortFromCaller);
+    if (res.status === 401 || res.status === 403) {
+      console.warn("[AdminDashboard] Session warning from:", url);
+      return null;
     }
+    return res;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    reportError("safeFetch", err);
+    return null;
   }
 }
 
@@ -485,11 +469,8 @@ function switchTab(tabName) {
     if(!confirm("You have unsaved Task Visibility changes.\n\nClick Cancel to go back and save them, or OK to discard.")) return;
     clearVisibilityDirty();
   }
-  if ((settingsDirty || togglesDirty) &&
-      activeSetTab &&
-      activeSetTab.classList.contains("active") &&
-      tabName !== "settings") {
-    if (!confirm("You have unsaved changes in Settings.\n\nClick Cancel to go back and save them, or OK to discard.")) return;
+  if(settingsDirty && activeSetTab && activeSetTab.classList.contains('active') && tabName!=='settings') {
+    if(!confirm("You have unsaved changes in Settings.\n\nClick Cancel to go back and save them, or OK to discard.")) return;
     clearSettingsDirty();
   }
 
@@ -544,175 +525,88 @@ function updateThemeSwitch() {
   if(ld) ld.classList.toggle("active", current === "dark");
 }
 
-function renderLogoPreview(container, logo, removeButton) {
-  container.replaceChildren();
-
-  var isDataImage =
-    typeof logo === "string" &&
-    /^data:image\/(?:png|jpeg|gif|webp);base64,/i.test(logo);
-
-  var isSameOriginUrl = false;
-  if (typeof logo === "string" && logo && !isDataImage) {
-    try {
-      isSameOriginUrl = new URL(logo, window.location.origin).origin === window.location.origin;
-    } catch (e) {
-      isSameOriginUrl = false;
-    }
-  }
-
-  if (isDataImage || isSameOriginUrl) {
-    var image = document.createElement("img");
-    image.src = logo;
-    image.alt = "Logo";
-    image.style.maxHeight = "60px";
-    image.style.maxWidth = "140px";
-    image.style.objectFit = "contain";
-    container.appendChild(image);
-    container.style.border = "none";
-    if (removeButton) removeButton.style.display = "inline-block";
-    return;
-  }
-
-  container.textContent = "No logo";
-  container.style.border = "2px dashed var(--border,#cbd5e1)";
-  if (removeButton) removeButton.style.display = "none";
-}
-
 async function loadLogo() {
-  var preview = document.getElementById("logoPreview");
-  var removeButton = document.getElementById("logoRemoveBtn");
-  if (!preview) return;
-
+  var p = document.getElementById("logoPreview"), r = document.getElementById("logoRemoveBtn");
+  if (!p) return;
   try {
     var res = await safeFetch("/auth/get-logo");
-    if (!res.ok) {
-      throw new Error("Logo fetch failed (HTTP " + res.status + ").");
-    }
-
-    var data = await res.json();
-    if (data.success && data.logo) {
-      localStorage.setItem("driven_customer_logo", data.logo);
-      renderLogoPreview(preview, data.logo, removeButton);
+    if (!res || !res.ok) throw new Error("Logo fetch failed");
+    var d = await res.json();
+    if(d.success && d.logo) {
+      localStorage.setItem("driven_customer_logo", d.logo);
+      p.innerHTML = '<img src="' + d.logo + '" alt="Logo" style="max-height:60px;max-width:140px;object-fit:contain;">';
+      p.style.border = "none";
+      if(r) r.style.display = "inline-block";
     } else {
-      renderLogoPreview(preview, "", removeButton);
+      p.innerHTML = "No logo";
+      p.style.border = "2px dashed var(--border,#cbd5e1)";
+      if(r) r.style.display = "none";
     }
-  } catch (err) {
-    var storedLogo = localStorage.getItem("driven_customer_logo");
-    renderLogoPreview(preview, storedLogo || "", removeButton);
+  } catch(e) {
+    var ll = localStorage.getItem("driven_customer_logo");
+    if(ll) {
+      p.innerHTML = '<img src="' + ll + '" alt="Logo" style="max-height:60px;max-width:140px;object-fit:contain;">';
+      p.style.border = "none";
+      if(r) r.style.display = "inline-block";
+    } else {
+      p.innerHTML = "No logo";
+      p.style.border = "2px dashed var(--border,#cbd5e1)";
+      if(r) r.style.display = "none";
+    }
   }
 }
 
 async function handleLogoUpload() {
   if (!validateOrgContext()) return;
-
   var logoInput = document.getElementById("logoFile");
+  if (!logoInput || !logoInput.files || !logoInput.files[0]) return;
+  var f = logoInput.files[0];
   var statusEl = document.getElementById("logoStatus");
-  var file = logoInput && logoInput.files && logoInput.files[0];
-  if (!file) return;
 
-  if (!/^image\/(?:png|jpeg|gif|webp)$/i.test(file.type)) {
-    if (statusEl) {
-      statusEl.textContent = "Choose a PNG, JPEG, GIF, or WebP image.";
-      statusEl.style.color = "var(--error,#ef4444)";
-    }
-    return;
-  }
-
-  if (file.size > 500000) {
-    if (statusEl) {
+  if(f.size > 500000) {
+    if(statusEl) {
       statusEl.textContent = "File too large. Max 500KB.";
       statusEl.style.color = "var(--error,#ef4444)";
     }
     return;
   }
 
-  var reader = new FileReader();
-
-  reader.onerror = function() {
-    if (statusEl) {
-      statusEl.textContent = "Unable to read the selected logo.";
-      statusEl.style.color = "var(--error,#ef4444)";
-    }
-  };
-
-  reader.onload = async function(event) {
-    var logoData = event.target && event.target.result;
-    if (typeof logoData !== "string" ||
-        !/^data:image\/(?:png|jpeg|gif|webp);base64,/i.test(logoData)) {
-      if (statusEl) {
-        statusEl.textContent = "The selected file is not a supported image.";
-        statusEl.style.color = "var(--error,#ef4444)";
-      }
-      return;
-    }
-
+  var rd = new FileReader();
+  rd.onload = async function(e) {
+    var du = e.target.result;
+    localStorage.setItem("driven_customer_logo", du);
     try {
-      var res = await safeFetch("/auth/save-logo", {
+      var sr = await safeFetch("/auth/save-logo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ logo_data: logoData })
+        body: JSON.stringify({ logo_data: du })
       });
-      var data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Logo upload failed.");
+      if (sr) {
+        var sd = await sr.json();
+        if(sd.success && statusEl) {
+          statusEl.textContent = "Logo uploaded.";
+          statusEl.style.color = "var(--success,#16a34a)";
+        }
       }
-
-      localStorage.setItem("driven_customer_logo", logoData);
-      renderLogoPreview(
-        document.getElementById("logoPreview"),
-        logoData,
-        document.getElementById("logoRemoveBtn")
-      );
-
-      if (statusEl) {
-        statusEl.textContent = "Logo uploaded.";
-        statusEl.style.color = "var(--success,#16a34a)";
-      }
-    } catch (err) {
-      reportError("handleLogoUpload", err);
-      if (statusEl) {
-        statusEl.textContent = "Logo upload failed.";
-        statusEl.style.color = "var(--error,#ef4444)";
-      }
-    }
+    } catch(ex) { reportError("handleLogoUpload", ex); }
+    await loadLogo();
   };
-
-  reader.readAsDataURL(file);
+  rd.readAsDataURL(f);
 }
 
 async function handleLogoRemove() {
   if (!validateOrgContext()) return;
-
-  var statusEl = document.getElementById("logoStatus");
-
   try {
-    var res = await safeFetch("/auth/save-logo", {
+    await safeFetch("/auth/save-logo", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ logo_data: "" })
     });
-    var data = await res.json();
-
-    if (!res.ok || !data.success) {
-      throw new Error(data.error || "Logo removal failed.");
-    }
-
     localStorage.removeItem("driven_customer_logo");
-    renderLogoPreview(
-      document.getElementById("logoPreview"),
-      "",
-      document.getElementById("logoRemoveBtn")
-    );
-
-    if (statusEl) statusEl.textContent = "Logo removed.";
-  } catch (err) {
-    reportError("handleLogoRemove", err);
-    if (statusEl) {
-      statusEl.textContent = "Logo removal failed.";
-      statusEl.style.color = "var(--error,#ef4444)";
-    }
-  }
+    var statusEl = document.getElementById("logoStatus");
+    if(statusEl) statusEl.textContent = "Logo removed.";
+  } catch(e) { reportError("handleLogoRemove", e); }
+  await loadLogo();
 }
 
 async function loadSettings() {
@@ -747,184 +641,601 @@ async function loadSettings() {
           onboardingComplete = true;
           hideOnboardingTab();
         }
+      } else {
+        applyBusinessTypeDefaults();
       }
+    } else {
+      applyBusinessTypeDefaults();
     }
   } catch(e) {
     reportError("loadSettings", e);
+    applyBusinessTypeDefaults();
   }
   renderStepToggles();
   renderOnboardingUomDisplays();
   updateProgress();
 }
 
-function markSettingsDirty() {
-  settingsDirty = true;
-}
+function markSettingsDirty(){ settingsDirty = true; }
+function clearSettingsDirty(){ settingsDirty = false; }
 
-function markTogglesDirty() {
-  togglesDirty = true;
-}
-
-function clearSettingsDirty() {
-  settingsDirty = false;
-  togglesDirty = false;
-}
-
-function markVisibilityDirty() {
+function markVisibilityDirty(){
   visibilityDirty = true;
-  var warning = document.getElementById("visibilityWarning");
-  if (warning) warning.style.display = "block";
+  var w = document.getElementById('visibilityWarning');
+  if(w) w.style.display = 'block';
 }
 
-function clearVisibilityDirty() {
+function clearVisibilityDirty(){
   visibilityDirty = false;
-  var warning = document.getElementById("visibilityWarning");
-  if (warning) warning.style.display = "none";
+  var w = document.getElementById('visibilityWarning');
+  if(w) w.style.display = 'none';
 }
 
 async function saveSettings() {
   if (!validateOrgContext()) return;
-
-  var businessType = document.getElementById("businessTypeSelect");
-  var naicsInput = document.getElementById("naicsInput");
-  var currencySelect = document.getElementById("currencySelect");
-
+  var bt = document.getElementById("businessTypeSelect") ? document.getElementById("businessTypeSelect").value : "";
+  var naics = document.getElementById("naicsInput") ? document.getElementById("naicsInput").value.trim() : "";
+  var cur = document.getElementById("currencySelect") ? document.getElementById("currencySelect").value : "USD";
   try {
     var res = await safeFetch("/auth/save-settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        settings: {
-          business_type: businessType ? businessType.value : "",
-          naics_code: naicsInput ? naicsInput.value.trim() : "",
-          currency: currencySelect ? currencySelect.value : "USD"
-        }
-      })
+      body: JSON.stringify({ settings: { business_type: bt, naics_code: naics, currency: cur } })
     });
-    var data = await res.json();
-
-    if (!res.ok || !data.success) {
-      throw new Error(data.error || "Settings save was rejected.");
+    if (res) {
+      var d = await res.json();
+      if(d.success) {
+        orgSettings.business_type = bt;
+        orgSettings.naics_code = naics;
+        orgSettings.currency = cur;
+        var sStatus = document.getElementById("settingsStatus");
+        if(sStatus) sStatus.textContent = "Saved.";
+        notifySync();
+      }
     }
-
-    orgSettings.business_type = businessType ? businessType.value : "";
-    orgSettings.naics_code = naicsInput ? naicsInput.value.trim() : "";
-    orgSettings.currency = currencySelect ? currencySelect.value : "USD";
-
-    var status = document.getElementById("settingsStatus");
-    if (status) status.textContent = "Saved.";
-
-    settingsDirty = false;
-    notifySync();
-  } catch (err) {
-    reportError("saveSettings", err);
-    var status = document.getElementById("settingsStatus");
-    if (status) status.textContent = "Save failed. Your changes are still unsaved.";
-  }
+  } catch(e) { reportError("saveSettings", e); }
+  clearSettingsDirty();
 }
 
-function onNaicsChange() {
-  markSettingsDirty();
-}
-
-function onCurrencyChange() {
-  markSettingsDirty();
-}
-
-function onFuelPhotoToggleChange() {
-  markTogglesDirty();
-}
-
-function onLocationReqToggleChange() {
-  markTogglesDirty();
-}
+function onNaicsChange(){ markSettingsDirty(); }
+function onCurrencyChange(){ markSettingsDirty(); }
+function onFuelPhotoToggleChange() { markSettingsDirty(); }
+function onLocationReqToggleChange() { markSettingsDirty(); }
 
 async function saveToggles() {
   if (!validateOrgContext()) return;
-
-  var meterPhoto = document.getElementById("fuelMeterPhotoToggle");
-  var assetPhoto = document.getElementById("fuelAssetPhotoToggle");
-  var locationReq = document.getElementById("locationReqToggle");
-
+  var mp = document.getElementById("fuelMeterPhotoToggle") ? document.getElementById("fuelMeterPhotoToggle").checked : false;
+  var ap = document.getElementById("fuelAssetPhotoToggle") ? document.getElementById("fuelAssetPhotoToggle").checked : false;
+  var lr = document.getElementById("locationReqToggle") ? document.getElementById("locationReqToggle").checked : false;
   try {
-    var res = await safeFetch("/auth/save-settings", {
+    await safeFetch("/auth/save-settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        settings: {
-          fuel_meter_photo: meterPhoto ? meterPhoto.checked : false,
-          fuel_asset_photo: assetPhoto ? assetPhoto.checked : false,
-          location_request: locationReq ? locationReq.checked : false
-        }
-      })
+      body: JSON.stringify({ settings: { fuel_meter_photo: mp, fuel_asset_photo: ap, location_request: lr } })
     });
-    var data = await res.json();
+    var tStatus = document.getElementById("togglesStatus");
+    if(tStatus) tStatus.textContent = "Toggles saved.";
+  } catch(e) { reportError("saveToggles", e); }
+}
 
-    if (!res.ok || !data.success) {
-      throw new Error(data.error || "Toggle save was rejected.");
+function applyBusinessTypeDefaults() {
+  if(!stepVisibility || typeof stepVisibility !== 'object') stepVisibility = {};
+  var bEl = document.getElementById("businessTypeSelect");
+  var bt = bEl ? bEl.value : "";
+  if(bt && BUSINESS_TYPE_DEFAULTS[bt]) {
+    var df = BUSINESS_TYPE_DEFAULTS[bt];
+    for(var k in df) {
+      if(!stepVisibility._manualOverrides || !stepVisibility._manualOverrides[k]) stepVisibility[k] = df[k];
     }
-
-    togglesDirty = false;
-    var status = document.getElementById("togglesStatus");
-    if (status) status.textContent = "Toggles saved.";
-  } catch (err) {
-    reportError("saveToggles", err);
-    var status = document.getElementById("togglesStatus");
-    if (status) status.textContent = "Save failed. Your changes are still unsaved.";
   }
+}
+
+function onBusinessTypeChange() {
+  var bEl = document.getElementById("businessTypeSelect");
+  var bt = bEl ? bEl.value : "";
+  if(bt && BUSINESS_TYPE_DEFAULTS[bt]) {
+    var df = BUSINESS_TYPE_DEFAULTS[bt];
+    for(var k in df) stepVisibility[k] = df[k];
+    stepVisibility._manualOverrides = {};
+  }
+  markSettingsDirty();
+  renderStepToggles();
+}
+
+function renderStepToggles() {
+  if(!stepVisibility || typeof stepVisibility !== 'object') stepVisibility = {};
+  var c = document.getElementById("stepToggleList");
+  if(!c) return;
+  c.innerHTML = STEP_DEFS.map(function(s) {
+    var v = stepVisibility[s.key] !== false,
+        ck = v ? "checked" : "",
+        dis = s.locked ? "disabled" : "",
+        ll = s.locked ? '<span class="step-toggle-locked">(always on)</span>' : "";
+    return '<div class="step-toggle-row"><div><div class="step-toggle-name">' + s.label + ' ' + ll + '</div><div class="step-toggle-desc">' + s.desc + '</div></div><label class="toggle-switch"><input type="checkbox" ' + ck + ' ' + dis + ' data-stepkey="' + s.key + '"><span class="toggle-slider"></span></label></div>';
+  }).join("");
+
+  c.querySelectorAll('input[type="checkbox"]').forEach(function(inp) {
+    inp.addEventListener('change', function() {
+      var key = this.getAttribute('data-stepkey');
+      onToggleChange(key, this.checked);
+    });
+  });
+}
+
+function onToggleChange(k, v) {
+  if(!stepVisibility || typeof stepVisibility !== 'object') stepVisibility = {};
+  stepVisibility[k] = v;
+  if(!stepVisibility._manualOverrides) stepVisibility._manualOverrides = {};
+  stepVisibility._manualOverrides[k] = true;
+  markVisibilityDirty();
 }
 
 async function saveStepVisibility() {
   if (!validateOrgContext()) return;
-
-  var status = document.getElementById("visibilityStatus");
-
+  var st = document.getElementById("visibilityStatus");
   try {
     var res = await safeFetch("/auth/save-settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ settings: { step_visibility: stepVisibility } })
     });
-    var data = await res.json();
-
-    if (!res.ok || !data.success) {
-      throw new Error(data.error || "Visibility save was rejected.");
+    if (res) {
+      var d = await res.json();
+      if(d.success && st) {
+        st.textContent = "Visibility saved.";
+        st.style.color = "var(--success,#16a34a)";
+      }
     }
-
-    if (status) {
-      status.textContent = "Visibility saved.";
-      status.style.color = "var(--success,#16a34a)";
-    }
-
     clearVisibilityDirty();
     renderStepToggles();
     updateProgress();
     notifySync();
-  } catch (err) {
-    reportError("saveStepVisibility", err);
-    if (status) {
-      status.textContent = "Save failed. Your changes are still unsaved.";
-      status.style.color = "var(--error,#ef4444)";
+  } catch(e) { reportError("saveStepVisibility", e); }
+}
+
+async function loadKeyPersonnel() {
+  try {
+    var res = await safeFetch("/api/onboarding/key-personnel/list");
+    if (res) {
+      var d = await res.json();
+      if(d.success && d.keyPersonnel) {
+        keyPersonnel = d.keyPersonnel.map(function(kp) {
+          return {
+            employeeId: kp.employeeId || kp.id,
+            name: kp.name,
+            email: kp.email,
+            role_id: kp.role_id,
+            tasks: kp.roles ? kp.roles.map(function(r) { return r.role || r.task_name; }) : []
+          };
+        });
+      }
     }
+  } catch(e) { reportError("loadKeyPersonnel", e); }
+  renderKeyPersonnel();
+}
+
+function renderKeyPersonnel() {
+  var all = keyPersonnel.concat(pendingKP);
+  var container = document.getElementById("kpListBody");
+  var completeBtn = document.getElementById("kpCompleteBtn");
+  var unsavedBanner = document.getElementById("kpUnsavedBanner");
+
+  if(!container) return;
+
+  if(unsavedBanner) unsavedBanner.style.display = pendingKP.length > 0 ? "flex" : "none";
+  if(completeBtn) completeBtn.style.display = pendingKP.length > 0 ? "inline-block" : "none";
+
+  if(all.length === 0) {
+    container.innerHTML = '<div class="kp-loading">No key personnel assigned yet.</div>';
+    return;
+  }
+
+  container.innerHTML = all.map(function(kp, personIdx) {
+    var tasks = kp.tasks || (kp.roles ? kp.roles.map(function(r){return r.role || r.task_name;}) : (kp.task ? [kp.task] : []));
+    var isPending = personIdx >= keyPersonnel.length;
+    var chips = tasks.map(function(t, taskIdx) {
+      return '<div class="kp-task-chip">' + esc(t) + ' <button class="btn-remove-kptask" data-person="' + personIdx + '" data-task="' + taskIdx + '" title="Remove task">×</button></div>';
+    }).join("");
+
+    return '<div class="kp-person-row">' +
+      '<div class="kp-person-info">' +
+      '<div class="kp-person-name">' + esc(kp.name || 'Unknown') + (isPending ? ' <span style="font-size:11px;color:#d97706;font-weight:normal;">(Pending Save)</span>' : '') + '</div>' +
+      '<div class="kp-person-email">' + esc(kp.email || '') + '</div>' +
+      '<div class="kp-person-tasks">' + (chips || '<span style="font-size:12px;color:var(--text-muted);italic;">No tasks assigned</span>') + '</div>' +
+      '</div>' +
+      '<div class="kp-person-actions">' +
+      '<button class="kp-person-remove" data-person="' + personIdx + '">Remove Person</button>' +
+      '</div>' +
+      '</div>';
+  }).join("");
+
+  container.querySelectorAll('.btn-remove-kptask').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var pIdx = parseInt(this.getAttribute('data-person'), 10);
+      var tIdx = parseInt(this.getAttribute('data-task'), 10);
+      removeKpTask(pIdx, tIdx);
+    });
+  });
+
+  container.querySelectorAll('.kp-person-remove').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var pIdx = parseInt(this.getAttribute('data-person'), 10);
+      removeKpPerson(pIdx);
+    });
+  });
+}
+
+function loadTaskCompletions() {
+  try {
+    taskCompletions = JSON.parse(localStorage.getItem("driven_task_completions") || sessionStorage.getItem("driven_task_completions") || "{}");
+  } catch(e) { taskCompletions = {}; }
+}
+
+function adminIsTaskComplete(taskKey) {
+  var mapKeyToTask = {
+    "roles-permissions": "Roles & Permissions",
+    "employees": "Employees",
+    "locations": "Locations",
+    "clients": "Clients",
+    "divisions": "Divisions",
+    "project-types": "Project Types",
+    "projects": "Projects",
+    "fuel-types": "Fuels, Fluids & Energy",
+    "units-of-measure": "Units of Measure",
+    "asset-types": "Asset Types",
+    "assets": "Assets"
+  };
+
+  var taskName = mapKeyToTask[taskKey];
+  if (!taskName) return false;
+
+  var completions = taskCompletions[taskName] || [];
+  var assignedEmails = [];
+
+  var all = keyPersonnel.concat(pendingKP);
+  all.forEach(function(kp) {
+    var tasks = kp.tasks || (kp.roles ? kp.roles.map(function(r){return r.role || r.task_name;}) : (kp.task ? [kp.task] : []));
+    if (tasks.indexOf(taskName) !== -1 && kp.email) {
+      assignedEmails.push(kp.email.toLowerCase());
+    }
+  });
+
+  if (assignedEmails.length === 0) {
+    return completions.length > 0;
+  }
+
+  for (var i = 0; i < assignedEmails.length; i++) {
+    if (completions.indexOf(assignedEmails[i]) === -1) return false;
+  }
+  return true;
+}
+
+function updateProgress() {
+  loadTaskCompletions();
+  var vs = STEP_DEFS.filter(function(s){return stepVisibility[s.key] !== false;}), comp = 0;
+  vs.forEach(function(s){ if(adminIsTaskComplete(s.key)) comp++; });
+  var tot = vs.length, pct = tot > 0 ? Math.round((comp / tot) * 100) : 0;
+  var fillEl = document.getElementById("progressBarFill");
+  var textEl = document.getElementById("progressText");
+  if (fillEl) fillEl.style.width = pct + "%";
+  if (textEl) textEl.textContent = comp + " of " + tot + " tasks complete";
+}
+
+function notifySync() {
+  window.dispatchEvent(new CustomEvent("driven_completion_updated"));
+  if (syncChannel) syncChannel.postMessage({ type: "driven_completion_updated" });
+}
+
+function showCompleteModal(){ 
+  var m = document.getElementById("confirmModal");
+  if(m) m.classList.add("active"); 
+}
+
+function closeCompleteModal(){ 
+  var m = document.getElementById("confirmModal");
+  if(m) m.classList.remove("active"); 
+}
+
+function hideOnboardingTab(){ 
+  var t = document.querySelector('.admin-tab[data-tab="onboarding"]'); 
+  if(t) t.style.display = "none"; 
+}
+
+function insertHeaderTitle(){
+  var r = document.querySelector(".dash-header-row1");
+  if(r) {
+    r.style.position = "relative";
+    r.style.display = "flex";
+    r.style.alignItems = "center";
+    r.style.justifyContent = "space-between";
+
+    var existing = document.querySelector(".admin-header-title");
+    if(existing) existing.remove();
+    var t = document.createElement("div");
+    t.className = "admin-header-title";
+    t.textContent = "Admin Dashboard";
+    t.style.position = "absolute";
+    t.style.left = "50%";
+    t.style.transform = "translateX(-50%)";
+    t.style.fontWeight = "700";
+    t.style.fontSize = "18px";
+    t.style.color = "var(--text-main,#0f172a)";
+
+    r.appendChild(t);
   }
 }
 
-var adminAppStarted = false;
-async function startAdminApp(user) {
-  if (adminAppStarted) return;
-
-  // Set the guard after validation succeeds
-  adminAppStarted = true;
-
-  // Remainder of startAdminApp initialization logic
+function injectGlobalUIStyles() {
+  if (document.getElementById("driven-admin-ui-styles")) return;
+  var style = document.createElement("style");
+  style.id = "driven-admin-ui-styles";
+  style.textContent = `
+    #dashHeader {
+      background-color: #ffffff !important;
+      border-bottom: 1px solid var(--border, #e2e8f0);
+    }
+    .admin-card, .emp-form-card, .kp-person-row, .step-toggle-row, .card, .stat-card {
+      background-color: var(--card-bg, #ffffff) !important;
+      border: 1px solid var(--border, #e2e8f0);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .btn-change-password, #changePasswordBtn {
+      background-color: #16a34a !important;
+      color: #ffffff !important;
+      border: none !important;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .btn-change-password:hover, #changePasswordBtn:hover {
+      background-color: #15803d !important;
+    }
+    .theme-toggle-container {
+      display: inline-flex;
+      align-items: center;
+      border: 2px solid var(--border, #94a3b8);
+      border-radius: 20px;
+      padding: 2px 6px;
+      background: var(--bg-secondary, #f1f5f9);
+    }
+    .theme-switch input:checked + .toggle-slider {
+      background-color: #2563eb;
+    }
+  `;
+  document.head.appendChild(style);
 }
 
 function attachEventHandlers() {
-  var mpToggle = document.getElementById("fuelMeterPhotoToggle");
-  var apToggle = document.getElementById("fuelAssetPhotoToggle");
-  var lrToggle = document.getElementById("locationReqToggle");
+  document.querySelectorAll('.admin-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      var tabName = this.getAttribute('data-tab');
+      if (tabName) switchTab(tabName);
+    });
+  });
 
-  if (mpToggle) mpToggle.addEventListener("change", onFuelPhotoToggleChange);
-  if (apToggle) apToggle.addEventListener("change", onFuelPhotoToggleChange);
-  if (lrToggle) lrToggle.addEventListener("change", onLocationReqToggleChange);
+  document.querySelectorAll('#onboardingSubtabBar .admin-subtab').forEach(function(subtab) {
+    subtab.addEventListener('click', function() {
+      var subtabName = this.getAttribute('data-subtab');
+      if (subtabName) switchOnboardingSubtab(subtabName);
+    });
+  });
+
+  var themeCb = document.getElementById("theme-checkbox");
+  if(themeCb) {
+    themeCb.addEventListener('change', toggleTheme);
+  }
+
+  var logoFile = document.getElementById("logoFile");
+  if (logoFile) {
+    logoFile.addEventListener('change', handleLogoUpload);
+  }
+
+  var logoRemove = document.getElementById("logoRemoveBtn");
+  if (logoRemove) {
+    logoRemove.addEventListener('click', handleLogoRemove);
+  }
+
+  var bSelect = document.getElementById("businessTypeSelect");
+  if (bSelect) {
+    bSelect.addEventListener('change', onBusinessTypeChange);
+  }
+
+  var nInput = document.getElementById("naicsInput");
+  if (nInput) {
+    nInput.addEventListener('input', onNaicsChange);
+  }
+
+  var cSelect = document.getElementById("currencySelect");
+  if (cSelect) {
+    cSelect.addEventListener('change', onCurrencyChange);
+  }
+
+  var mpToggle = document.getElementById("fuelMeterPhotoToggle");
+  if (mpToggle) {
+    mpToggle.addEventListener('change', onFuelPhotoToggleChange);
+  }
+
+  var apToggle = document.getElementById("fuelAssetPhotoToggle");
+  if (apToggle) {
+    apToggle.addEventListener('change', onFuelPhotoToggleChange);
+  }
+
+  var lrToggle = document.getElementById("locationReqToggle");
+  if (lrToggle) {
+    lrToggle.addEventListener('change', onLocationReqToggleChange);
+  }
+
+  var btnSaveSettings = document.getElementById("saveSettingsBtn");
+  if (btnSaveSettings) {
+    btnSaveSettings.addEventListener('click', saveSettings);
+  }
+
+  var btnSaveNaics = document.getElementById("saveNaicsBtn");
+  if (btnSaveNaics) {
+    btnSaveNaics.addEventListener('click', saveSettings);
+  }
+
+  var btnSaveCurrency = document.getElementById("saveCurrencyBtn");
+  if (btnSaveCurrency) {
+    btnSaveCurrency.addEventListener('click', saveSettings);
+  }
+
+  var btnSaveToggles = document.getElementById("saveTogglesBtn");
+  if (btnSaveToggles) {
+    btnSaveToggles.addEventListener('click', saveToggles);
+  }
+
+  var btnSaveVisibilityTop = document.getElementById("btnSaveStepVisibilityTop");
+  if (btnSaveVisibilityTop) {
+    btnSaveVisibilityTop.addEventListener('click', saveStepVisibility);
+  }
+
+  var btnSaveVisibilityBottom = document.getElementById("btnSaveStepVisibilityBottom");
+  if (btnSaveVisibilityBottom) {
+    btnSaveVisibilityBottom.addEventListener('click', saveStepVisibility);
+  }
+
+  var btnAddKp = document.getElementById("kpAddBtn");
+  if (btnAddKp) {
+    btnAddKp.addEventListener('click', addKeyPersonnel);
+  }
+
+  var kpSelectAll = document.getElementById("kpTaskSelectAll");
+  if (kpSelectAll) {
+    kpSelectAll.addEventListener('change', function() {
+      toggleSelectAllKpTasks(this.checked);
+    });
+  }
+
+  var kpCompleteBtn = document.getElementById("kpCompleteBtn");
+  if (kpCompleteBtn) {
+    kpCompleteBtn.addEventListener('click', saveKeyPersonnelToDB);
+  }
+
+  var finalizeBtn = document.getElementById("finalizeOnboardingBtn");
+  if (finalizeBtn) {
+    finalizeBtn.addEventListener('click', finalizeCompanyOnboarding);
+  }
+
+  var btnDismissErr = document.getElementById("btnDismissError");
+  if (btnDismissErr) {
+    btnDismissErr.addEventListener('click', dismissPageError);
+  }
+
+  var btnLogout = document.getElementById("btnAdminLogout");
+  if (btnLogout) {
+    btnLogout.addEventListener('click', function() {
+      if (typeof window.drivenLogout === 'function') {
+        window.drivenLogout();
+      } else {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = '/public/login.html';
+      }
+    });
+  }
 }
+
+async function startAdminApp(user) {
+  if (!user) {
+    var savedUserStr = localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user");
+    if (savedUserStr) {
+      try { user = JSON.parse(savedUserStr); } catch(e){}
+    }
+  }
+
+  currentUserObj = user;
+  var roleVal = String((user && (user.role_id || user.role)) || "").trim().toLowerCase();
+  var isAllowedAdmin = roleVal === "ro-admin" || roleVal === "admin" || roleVal.indexOf("founder") !== -1;
+
+  if (!user || !isAllowedAdmin) { 
+    console.warn("[AdminDashboard] Guard rejected role:", roleVal);
+    window.location.href = "/public/login.html"; 
+    return; 
+  }
+
+  activeOrgId = user.org_id || localStorage.getItem("driven_org_id") || sessionStorage.getItem("driven_org_id") || "org_dsi";
+
+  if (!user.id && user.user_id) user.id = user.user_id;
+  var userStr = JSON.stringify(user);
+
+  localStorage.setItem("driven_org_id", activeOrgId);
+  localStorage.setItem("driven_user", userStr);
+  localStorage.setItem("driven_role", user.role_id || user.role || "RO-admin");
+  if (user.id) localStorage.setItem("driven_user_id", user.id);
+
+  sessionStorage.setItem("driven_org_id", activeOrgId);
+  sessionStorage.setItem("driven_user", userStr);
+  sessionStorage.setItem("driven_role", user.role_id || user.role || "RO-admin");
+  if (user.id) sessionStorage.setItem("driven_user_id", user.id);
+
+  var elName = document.getElementById("welcome-name");
+  var elComp = document.getElementById("welcome-company");
+  var elRole = document.getElementById("welcome-role");
+  var elMail = document.getElementById("welcome-email");
+
+  if(elName) elName.textContent = user.first_name || user.email || "Admin";
+  if(elComp) elComp.textContent = user.org_name || localStorage.getItem("driven_org_name") || "Digital Safety Inspection, LLC";
+  if(elRole) elRole.textContent = user.role || user.role_id || "RO-admin";
+  if(elMail) elMail.textContent = user.email || "";
+
+  injectGlobalUIStyles();
+  insertHeaderTitle();
+  attachEventHandlers();
+
+  /* Reveal Dashboard UI */
+  var loadingEl = document.getElementById("loading");
+  var dashEl = document.getElementById("dashboard");
+  if (loadingEl) loadingEl.style.display = "none";
+  if (dashEl) dashEl.style.display = "block";
+  
+  adjustStickyOffsets();
+
+  /* Load Initial Data and Stats */
+  loadLogo().catch(function(e){ reportError("loadLogo", e); });
+  loadSettings().catch(function(e){ reportError("loadSettings", e); });
+  loadKeyPersonnel().catch(function(e){ reportError("loadKeyPersonnel", e); });
+  updateProgress();
+  updateThemeSwitch();
+  renderFormsTab();
+  
+  // High-reliability KPI load sequence
+  await loadDashboardStats().catch(function(e){ reportError("init-loadDashboardStats", e); });
+  setTimeout(function() {
+    loadDashboardStats().catch(function(e){ reportError("init-loadDashboardStats-retry", e); });
+  }, 1000);
+}
+
+async function init() {
+  var savedTheme = localStorage.getItem("driven-theme") || "light";
+  document.documentElement.setAttribute("data-theme", savedTheme);
+
+  var current = window.dashUser || window.drivenUser;
+  if (current) {
+    startAdminApp(current);
+  } else {
+    document.addEventListener("dashSessionLoaded", async function(e) {
+      startAdminApp(e.detail || window.dashUser || window.drivenUser);
+    });
+  }
+
+  window.addEventListener("resize", adjustStickyOffsets);
+  window.addEventListener("orientationchange", adjustStickyOffsets);
+  window.addEventListener("scroll", adjustStickyOffsets, { passive: true });
+  window.addEventListener("driven_completion_updated", function() {
+    updateProgress();
+  });
+
+  window.addEventListener("load", adjustStickyOffsets);
+
+  if (syncChannel) {
+    syncChannel.onmessage = function(msg) {
+      if (msg.data && msg.data.type === "driven_completion_updated") {
+        updateProgress();
+      }
+    };
+  }
+}
+
+init();
