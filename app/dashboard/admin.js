@@ -654,6 +654,18 @@ async function loadSettings() {
   renderStepToggles();
   renderOnboardingUomDisplays();
   updateProgress();
+  checkBusinessTypeRequired();
+}
+
+function checkBusinessTypeRequired() {
+  var bt = orgSettings.business_type;
+  var bEl = document.getElementById("businessTypeSelect");
+  if (bEl && (!bt || bt === "" || bt === "null")) {
+    switchTab('settings');
+    bEl.style.border = "2px solid #ef4444";
+    bEl.focus();
+    alert("Please select a Business Type to configure default settings for your organization.");
+  }
 }
 
 function markSettingsDirty(){ settingsDirty = true; }
@@ -673,9 +685,20 @@ function clearVisibilityDirty(){
 
 async function saveSettings() {
   if (!validateOrgContext()) return;
-  var bt = document.getElementById("businessTypeSelect") ? document.getElementById("businessTypeSelect").value : "";
+  var bEl = document.getElementById("businessTypeSelect");
+  var bt = bEl ? bEl.value : "";
   var naics = document.getElementById("naicsInput") ? document.getElementById("naicsInput").value.trim() : "";
   var cur = document.getElementById("currencySelect") ? document.getElementById("currencySelect").value : "USD";
+
+  if (!bt || bt === "" || bt === "null") {
+    alert("Please select a Business Type before saving settings.");
+    if (bEl) {
+      bEl.style.border = "2px solid #ef4444";
+      bEl.focus();
+    }
+    return;
+  }
+
   try {
     var res = await safeFetch("/auth/save-settings", {
       method: "POST",
@@ -688,6 +711,7 @@ async function saveSettings() {
         orgSettings.business_type = bt;
         orgSettings.naics_code = naics;
         orgSettings.currency = cur;
+        if (bEl) bEl.style.border = "";
         var sStatus = document.getElementById("settingsStatus");
         if(sStatus) sStatus.textContent = "Saved.";
         notifySync();
@@ -737,6 +761,7 @@ function onBusinessTypeChange() {
     var df = BUSINESS_TYPE_DEFAULTS[bt];
     for(var k in df) stepVisibility[k] = df[k];
     stepVisibility._manualOverrides = {};
+    bEl.style.border = "";
   }
   markSettingsDirty();
   renderStepToggles();
@@ -1125,14 +1150,18 @@ function attachEventHandlers() {
 
   var btnLogout = document.getElementById("btnAdminLogout");
   if (btnLogout) {
-    btnLogout.addEventListener('click', function() {
-      if (typeof window.drivenLogout === 'function') {
-        window.drivenLogout();
-      } else {
-        localStorage.clear();
-        sessionStorage.clear();
-        window.location.href = '/public/login.html';
+    btnLogout.addEventListener('click', function(e) {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
       }
+      localStorage.clear();
+      sessionStorage.clear();
+
+      if (typeof window.drivenLogout === 'function') {
+        try { window.drivenLogout(); } catch(err){}
+      }
+      window.location.href = '/public/login.html';
     });
   }
 }
