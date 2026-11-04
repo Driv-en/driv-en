@@ -70,44 +70,7 @@ function getDefaultRedirect(user) {
     return "/app/dashboard/employee-dashboard.html";
 }
 
-function showError(message) {
-    const errorBanner = document.getElementById("error-banner");
-    if (!errorBanner) return;
-
-    errorBanner.textContent = message;
-    errorBanner.style.display = "block";
-}
-
-function hideError() {
-    const errorBanner = document.getElementById("error-banner");
-    if (errorBanner) errorBanner.style.display = "none";
-}
-
-function completeLogin(result) {
-    // These values are for client-side display only, not authorization.
-    if (result.user?.org_id) {
-        try {
-            localStorage.setItem("driven_customer_id", result.user.org_id);
-            localStorage.setItem("driven_org_id", result.user.org_id);
-        } catch (error) {
-            console.warn("Could not save client-side organization context:", error);
-        }
-    }
-
-    if (result.must_change_password || result.user?.must_change_password) {
-        window.location.replace("/public/change-password.html");
-        return;
-    }
-
-    const targetPath =
-        getSafeRedirectPath(result.redirect) ||
-        getDefaultRedirect(result.user);
-
-    window.location.replace(targetPath);
-}
-
 document.addEventListener("DOMContentLoaded", () => {
-    // Load shared page components without delaying the login handlers.
     Promise.all([
         loadComponent("header", "/components/header.html"),
         loadComponent("footer", "/components/footer.html")
@@ -116,16 +79,53 @@ document.addEventListener("DOMContentLoaded", () => {
         if (yearEl) yearEl.textContent = new Date().getFullYear();
     });
 
+    const errorBanner = document.getElementById("error-banner");
+    const referrerBanner = document.getElementById("referrer-redirect-banner");
     const loginForm = document.getElementById("login-form");
     const twoFactorStep = document.getElementById("twofa-step");
     const twoFactorCode = document.getElementById("login-2fa-code");
     const verifyTwoFactorButton = document.getElementById("verify-2fa-btn");
     const backToLoginButton = document.getElementById("back-to-login");
-    const referrerBanner = document.getElementById("referrer-redirect-banner");
 
     let loginChallengeToken = null;
 
-    function resetTwoFactorStep() {
+    function showError(message) {
+        if (!errorBanner) return;
+        errorBanner.textContent = message;
+        errorBanner.style.display = "block";
+    }
+
+    function hideError() {
+        if (errorBanner) errorBanner.style.display = "none";
+    }
+
+    function completeLogin(result) {
+        // These values are for client-side display only, not authorization.
+        if (result.user?.org_id) {
+            try {
+                localStorage.setItem("driven_customer_id", result.user.org_id);
+                localStorage.setItem("driven_org_id", result.user.org_id);
+            } catch (error) {
+                console.warn(
+                    "Could not save client-side organization context:",
+                    error
+                );
+            }
+        }
+
+        if (result.must_change_password || result.user?.must_change_password) {
+            window.location.replace("/public/change-password.html");
+            return;
+        }
+
+        const targetPath =
+            getSafeRedirectPath(result.redirect) ||
+            getDefaultRedirect(result.user);
+
+        window.location.replace(targetPath);
+    }
+
+    function returnToPasswordLogin() {
         loginChallengeToken = null;
 
         if (twoFactorCode) twoFactorCode.value = "";
@@ -142,7 +142,9 @@ document.addEventListener("DOMContentLoaded", () => {
             const email = emailEl?.value.trim() || "";
 
             if (!email) {
-                alert("Please enter your email address first, then click Forgot Password.");
+                alert(
+                    "Please enter your email address first, then click Forgot Password."
+                );
                 emailEl?.focus();
                 return;
             }
@@ -155,13 +157,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
 
                 if (response.ok) {
-                    alert(`If an account exists for ${email}, a password reset link has been sent.`);
+                    alert(
+                        `If an account exists for ${email}, a password reset link has been sent.`
+                    );
                 } else {
                     alert("Could not process the request. Please try again later.");
                 }
             } catch (error) {
                 console.error("Forgot password error:", error);
-                alert("Could not process the request. Please check your connection and try again.");
+                alert(
+                    "Could not process the request. Please check your connection and try again."
+                );
             }
         });
     }
@@ -173,22 +179,27 @@ document.addEventListener("DOMContentLoaded", () => {
             const email = document.getElementById("email");
             const password = document.getElementById("password");
             const remember = document.getElementById("remember");
-            const submitBtn = document.getElementById("submit-btn");
+            const submitButton = document.getElementById("submit-btn");
 
             if (!email || !password) {
                 console.error("Login form is missing its email or password field.");
-                showError("The login form is unavailable. Please reload the page.");
+                showError(
+                    "The login form is unavailable. Please reload the page."
+                );
                 return;
             }
 
             email.classList.remove("error");
             password.classList.remove("error");
             hideError();
-            if (referrerBanner) referrerBanner.style.display = "none";
 
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.textContent = "Authenticating...";
+            if (referrerBanner) {
+                referrerBanner.style.display = "none";
+            }
+
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.textContent = "Authenticating...";
             }
 
             try {
@@ -207,31 +218,53 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 if (!response.ok || !result?.success) {
                     if (result?.error === "referrer_account") {
-                        if (referrerBanner) referrerBanner.style.display = "block";
+                        if (referrerBanner) {
+                            referrerBanner.style.display = "block";
+                        }
                         email.classList.add("error");
                         return;
                     }
 
-                    showError(result?.error || "Invalid credentials. Please try again.");
+                    showError(
+                        result?.error ||
+                        "Invalid credentials. Please try again."
+                    );
                     email.classList.add("error");
                     password.classList.add("error");
                     return;
                 }
 
                 if (result.requires_2fa) {
-                    if (typeof result.challenge_token !== "string" || !result.challenge_token) {
-                        showError("Two-factor sign-in could not be started. Please try again.");
+                    if (
+                        typeof result.challenge_token !== "string" ||
+                        !result.challenge_token
+                    ) {
+                        showError(
+                            "Two-factor sign-in could not be started. Please try again."
+                        );
+                        return;
+                    }
+
+                    if (!twoFactorStep || !twoFactorCode || !verifyTwoFactorButton) {
+                        console.error(
+                            "Two-factor login response received, but the verification form is missing."
+                        );
+                        showError(
+                            "Two-factor sign-in is unavailable on this page. Please reload and try again."
+                        );
                         return;
                     }
 
                     loginChallengeToken = result.challenge_token;
                     password.value = "";
                     loginForm.hidden = true;
+                    twoFactorStep.hidden = false;
 
-                    if (twoFactorStep) {
-                        twoFactorStep.hidden = false;
-                        twoFactorCode?.focus();
-                    }
+                    // Backup codes contain hexadecimal letters as well as digits.
+                    twoFactorCode.inputMode = "text";
+                    twoFactorCode.autocapitalize = "none";
+                    twoFactorCode.spellcheck = false;
+                    twoFactorCode.focus();
                     return;
                 }
 
@@ -242,35 +275,33 @@ document.addEventListener("DOMContentLoaded", () => {
                     "A network error occurred. Please check your internet connection and try again."
                 );
             } finally {
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = "Login";
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.textContent = "Login";
                 }
             }
         });
     }
 
     async function submitTwoFactorCode() {
-        const code = twoFactorCode?.value.trim() || "";
-
-        hideError();
-
         if (!loginChallengeToken) {
-            resetTwoFactorStep();
+            returnToPasswordLogin();
             showError("Your verification session expired. Please log in again.");
+            document.getElementById("email")?.focus();
             return;
         }
 
+        const code = twoFactorCode?.value.trim();
         if (!code) {
             showError("Enter your authenticator or backup code.");
             twoFactorCode?.focus();
             return;
         }
 
-        if (verifyTwoFactorButton) {
-            verifyTwoFactorButton.disabled = true;
-            verifyTwoFactorButton.textContent = "Verifying...";
-        }
+        hideError();
+
+        verifyTwoFactorButton.disabled = true;
+        verifyTwoFactorButton.textContent = "Verifying...";
 
         try {
             const response = await fetch("/auth/login-2fa", {
@@ -279,23 +310,25 @@ document.addEventListener("DOMContentLoaded", () => {
                 credentials: "include",
                 body: JSON.stringify({
                     challenge_token: loginChallengeToken,
-                    code
+                    // TOTP codes are numeric; lowercasing also supports hex backup codes.
+                    code: code.toLowerCase()
                 })
             });
 
             const result = await readJsonResponse(response);
 
             if (!response.ok || !result?.success) {
-                // The challenge is invalid or expired, so the user must start over.
-                if (response.status === 401 && /challenge/i.test(result?.error || "")) {
-                    resetTwoFactorStep();
-                }
+                const message =
+                    result?.error ||
+                    "Invalid verification code. Please try again.";
 
-                showError(result?.error || "Invalid verification code. Please try again.");
-
-                if (loginChallengeToken) {
+                if (/challenge/i.test(message)) {
+                    returnToPasswordLogin();
+                } else {
                     twoFactorCode?.select();
                 }
+
+                showError(message);
                 return;
             }
 
@@ -304,13 +337,11 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (error) {
             console.error("Two-factor verification error:", error);
             showError(
-                "A network error occurred. Please check your internet connection and try again."
+                "A network error occurred. Please check your connection and try again."
             );
         } finally {
-            if (verifyTwoFactorButton) {
-                verifyTwoFactorButton.disabled = false;
-                verifyTwoFactorButton.textContent = "Verify and sign in";
-            }
+            verifyTwoFactorButton.disabled = false;
+            verifyTwoFactorButton.textContent = "Verify and sign in";
         }
     }
 
@@ -329,7 +360,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (backToLoginButton) {
         backToLoginButton.addEventListener("click", () => {
-            resetTwoFactorStep();
+            returnToPasswordLogin();
             hideError();
             document.getElementById("email")?.focus();
         });
@@ -341,10 +372,16 @@ if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
         navigator.serviceWorker.register("/sw.js")
             .then((registration) => {
-                console.log("[DRIV-EN] Service worker registered:", registration.scope);
+                console.log(
+                    "[DRIV-EN] Service worker registered:",
+                    registration.scope
+                );
             })
             .catch((error) => {
-                console.warn("[DRIV-EN] Service worker registration failed:", error);
+                console.warn(
+                    "[DRIV-EN] Service worker registration failed:",
+                    error
+                );
             });
     });
 }
