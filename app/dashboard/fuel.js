@@ -550,7 +550,7 @@ function insertHeaderTitle() {
     let html = '';
     if (bulkTanks.length > 0) {
       html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-barrel')} ${esc(getTankTypeDisplayName('bulk_tank'))} <span class="count">(${bulkTanks.length})</span></div>`;
-      html += '<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>Fuel Purchased</th><th>Fuel Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th><th>Action</th></tr></thead><tbody>';
+      html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>Fuel Purchased</th><th>Fuel Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th><th>Action</th></tr></thead><tbody>'`;
       bulkTanks.forEach(t => {
         const totals = computeBulkTankTotals(t.id, f.location, f.fromDate, f.toDate);
         html += `<tr><td style="font-weight:600;">${esc(t.name || '')}</td><td>${esc(t.fuel_type || '—')}</td><td>${safeNum(t.capacity)} ${UOM.abbr}</td><td style="font-weight:600;">${totals.purchased.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:600;">${totals.dispensed.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:700;color:var(--primary);">${safeNum(t.current_quantity)} ${UOM.abbr}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td>${esc(t.location || '—')}</td><td><button class="adjust-btn" data-id="${t.id}" data-name="${esc(t.name || '')}" data-qty="${safeNum(t.current_quantity)}" data-cap="${safeNum(t.capacity)}" style="padding:4px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;">Adjust</button></td></tr>`;
@@ -560,7 +560,7 @@ function insertHeaderTitle() {
 
     if (dragupTanks.length > 0) {
       html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-dragup-tank')} ${esc(getTankTypeDisplayName('dragup_tank'))} <span class="count">(${dragupTanks.length})</span></div>`;
-      html += '<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>${UOM.plural} Filled</th><th>${UOM.plural} Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th></tr></thead><tbody>';
+      html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>${UOM.plural} Filled</th><th>${UOM.plural} Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th></tr></thead><tbody>`;
       dragupTanks.forEach(t => {
         const totals = computeDragupTankTotals(t.id, f.location, f.fromDate, f.toDate);
         html += `<tr><td style="font-weight:600;">${esc(t.name || '')}</td><td>${esc(t.fuel_type || '—')}</td><td>${safeNum(t.capacity)} ${UOM.abbr}</td><td style="font-weight:600;">${totals.filled.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:600;">${totals.dispensed.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:700;color:var(--primary);">${safeNum(t.current_quantity)} ${UOM.abbr}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td>${esc(t.location || '—')}</td></tr>`;
@@ -570,7 +570,7 @@ function insertHeaderTitle() {
 
     if (equipmentTanks.length > 0) {
       html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-equipment')} ${esc(getTankTypeDisplayName('equipment'))} <span class="count">(${equipmentTanks.length})</span></div>`;
-      html += '<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Asset #</th><th>Name</th><th>Fuel Type</th><th>Total ${UOM.plural} Fueled</th><th>Location</th></tr></thead><tbody>';
+      html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Asset #</th><th>Name</th><th>Fuel Type</th><th>Total ${UOM.plural} Fueled</th><th>Location</th></tr></thead><tbody>'`;
       equipmentTanks.forEach(a => {
         const totalFueled = computeAssetFuelTotal(a.id, f.location, f.fromDate, f.toDate);
         html += `<tr><td style="font-weight:600;">${esc(a.asset_number || '')}</td><td>${esc(a.name || '—')}</td><td>${esc(a.fuel_type || '—')}</td><td style="font-weight:700;color:var(--primary);">${totalFueled.toLocaleString()} ${UOM.abbr}</td><td>${esc(a.current_location || '—')}</td></tr>`;
@@ -581,7 +581,7 @@ function insertHeaderTitle() {
     const projectTotals = computePortableProjectTotals(f.location, f.fromDate, f.toDate);
     if (projectTotals.length > 0) {
       html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-jerrycan')} ${esc(getTankTypeDisplayName('portable_can'))} <span class="count">(per project)</span></div>`;
-      html += '<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Gas Can (Project)</th><th>${UOM.plural} Put In Cans</th><th>${UOM.plural} Dispensed</th><th># Transactions</th></tr></thead><tbody>';
+      html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Gas Can (Project)</th><th>${UOM.plural} Put In Cans</th><th>${UOM.plural} Dispensed</th><th># Transactions</th></tr></thead><tbody>'`;
       projectTotals.forEach(p => {
         const canLabel = 'Gas Can – ' + esc(p.project_name || 'Unassigned');
         html += `<tr><td style="font-weight:600;">${canLabel}</td><td style="font-weight:700;color:var(--primary);">${p.total_filled.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:600;">${p.total_issued.toLocaleString()} ${UOM.abbr}</td><td>${p.tx_count}</td></tr>`;
@@ -645,7 +645,7 @@ async function loadTanks() {
       }
       if (results[2].status === 'fulfilled' && results[2].value.ok) {
         const txData = await results[2].value.json();
-        allTransactions = txData.transactions || [];
+        allTransactions = txData.transactions || txData.records || txData.data || [];
       }
 
       populateLocationFilter();
@@ -891,7 +891,8 @@ async function loadTanks() {
     try {
       const resp = await fetch('/api/fuel-flags?status=open', { headers: getAuthHeaders() });
       const data = await resp.json();
-      if (data.success && data.flags) { allFlags = data.flags; }
+      const flagList = data.flags || data.records || data.data;
+      if (Array.isArray(flagList)) { allFlags = flagList; }
     } catch (e) {
       console.error('loadFlags error:', e.message);
       reportError('loadFlags', e);
