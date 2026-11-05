@@ -240,6 +240,10 @@ async function requirePermission(session, permissionName, env) {
     }
   }
 
+  // Roles with a wildcard fallback (Admin) are never blocked by partial role_permissions rows
+  const wildcardKey = Object.keys(FALLBACK_PERMISSIONS).find(k => k.toLowerCase() === roleKey);
+  if (wildcardKey && FALLBACK_PERMISSIONS[wildcardKey].includes("*")) return true;
+
   // 3. Role permission check
   if (roleId && env && env.DB) {
     try {
