@@ -216,6 +216,46 @@
       margin-top:2px;
     }
 
+    /* Colored Pills Container for Tab Information Modals */
+    .admin-pill-bar {
+      max-width: 1100px;
+      margin: 16px auto 0 auto;
+      padding: 0 20px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      box-sizing: border-box;
+    }
+    .pill-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 16px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 150ms ease-in-out;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .pill-btn-purpose {
+      background-color: #0284c7;
+      color: #ffffff;
+      border-color: #0369a1;
+    }
+    .pill-btn-purpose:hover {
+      background-color: #0369a1;
+    }
+    .pill-btn-instructions {
+      background-color: #8b5cf6;
+      color: #ffffff;
+      border-color: #7c3aed;
+    }
+    .pill-btn-instructions:hover {
+      background-color: #7c3aed;
+    }
+
     .admin-tab-content { display:none; }
     .admin-tab-content.active { display:block; }
     .admin-subtab-content { display:none; }
@@ -507,6 +547,19 @@
     .confirm-btn-cancel { background:var(--bg-step, #f8fafc); border:1px solid var(--border, #cbd5e1); color:var(--text); padding:10px 20px; border-radius:6px; font-size:15px; cursor:pointer; margin:0 6px; }
     .confirm-btn-cancel:hover { border-color:var(--primary); }
 
+    /* Modal Overlay Styles for Purpose and Instructions */
+    .info-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.7); z-index:100001; align-items:center; justify-content:center; }
+    .info-modal.active { display:flex; }
+    .info-modal-card { max-width:600px; width:90%; max-height:85vh; background:#ffffff; border:2px solid #64748b; border-radius:12px; padding:24px; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
+    :root[data-theme="dark"] .info-modal-card { background:#1e293b; border-color:#475569; }
+    .info-modal-header { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border, #cbd5e1); padding-bottom:12px; margin-bottom:16px; }
+    .info-modal-header h3 { margin:0; font-size:18px; color:var(--text, #0f172a); }
+    .info-modal-close { background:transparent; border:none; font-size:20px; font-weight:700; color:var(--text-muted, #64748b); cursor:pointer; }
+    .info-modal-close:hover { color:var(--text, #0f172a); }
+    .info-modal-body { overflow-y:auto; font-size:14px; color:var(--text, #0f172a); line-height:1.6; padding-right:8px; }
+    .info-modal-body ol, .info-modal-body ul { padding-left:20px; margin:8px 0; }
+    .info-modal-body li { margin-bottom:8px; }
+
     .page-error-banner { display:none; position:sticky; top:0; z-index:999; background:#fef2f2; border:1px solid #dc2626; color:#991b1b; padding:10px 20px; font-size:14px; text-align:center; }
     .page-error-banner.show { display:block; }
     .page-error-banner a { color:#dc2626; cursor:pointer; text-decoration:underline; }
@@ -526,6 +579,7 @@
       .admin-tab-logout { padding:8px 14px !important; font-size:13px !important; }
       .admin-subtab { padding:6px 14px !important; font-size:12px !important; }
       .admin-subtab-blue { padding:6px 14px !important; font-size:12px !important; }
+      .admin-pill-bar { padding: 0 12px; margin-top: 12px; }
     }
   </style>
   <script src="/app/shared/theme-init.js"></script>
@@ -558,6 +612,16 @@
       <button type="button" class="admin-subtab" data-subtab="kp" id="subtabBtnKp">Key Personnel</button>
       <a class="admin-subtab admin-subtab-blue" href="/app/dashboard/onboarding-dashboard.html" id="linkOnboardingDash">View Onboarding Dashboard →</a>
     </div>
+  </div>
+
+  <!-- Colored Pill Action Buttons Below Nav and Above Main Body -->
+  <div class="admin-pill-bar" id="adminTabPillContainer">
+    <button type="button" class="pill-btn pill-btn-purpose" id="btnTabPurpose">
+      ℹ️ Purpose
+    </button>
+    <button type="button" class="pill-btn pill-btn-instructions" id="btnTabInstructions">
+      📖 Instructions
+    </button>
   </div>
 
   <div id="loading" class="admin-loading">Checking session…</div>
@@ -894,6 +958,32 @@
 
   </div>
 
+  <!-- Purpose Modal Overlay -->
+  <div class="info-modal" id="modalPurpose">
+    <div class="info-modal-card">
+      <div class="info-modal-header">
+        <h3 id="modalPurposeTitle">Purpose</h3>
+        <button type="button" class="info-modal-close" id="btnClosePurposeModal">&times;</button>
+      </div>
+      <div class="info-modal-body" id="modalPurposeBody">
+        <!-- Injected via JavaScript based on active tab -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Instructions Modal Overlay -->
+  <div class="info-modal" id="modalInstructions">
+    <div class="info-modal-card">
+      <div class="info-modal-header">
+        <h3 id="modalInstructionsTitle">Instructions</h3>
+        <button type="button" class="info-modal-close" id="btnCloseInstructionsModal">&times;</button>
+      </div>
+      <div class="info-modal-body" id="modalInstructionsBody">
+        <!-- Injected via JavaScript based on active tab -->
+      </div>
+    </div>
+  </div>
+
   <!-- Confirmation Dialog Overlay -->
   <div class="confirm-modal" id="confirmModal">
     <div class="confirm-card">
@@ -934,6 +1024,157 @@
           }
         });
       }
+
+      // Context-Aware Content Repository for Modals
+      const modalContentMap = {
+        overview: {
+          purpose: "The **Overview Tab** serves as the primary navigation hub and high-level metric center for DRIV-EN administrators. It provides immediate access to core management portals, user session details, global theme controls, and direct links to critical operational areas.",
+          instructions: `
+            <ol>
+              <li><strong>Navigate Modules:</strong> Click any stat card (Employees, Projects, Assets, Clients, Fuel Management, Company) to jump directly into the management module for that sector.</li>
+              <li><strong>Toggle Workspace Theme:</strong> Use the Light/Dark switch at the top right to adjust display contrast for high- or low-light environments.</li>
+              <li><strong>Security Account Management:</strong> Click the <strong>Change Password</strong> button within your profile card to securely update your operational access credentials.</li>
+            </ol>
+          `
+        },
+        forms: {
+          purpose: "The **Forms Tab** centralizes field compliance, safety checks, and inspection workflows. Administrators can directly launch mandatory operational forms—such as DVIR inspections—and review current submission protocols.",
+          instructions: `
+            <ol>
+              <li><strong>Select Inspection Form:</strong> Click on the desired form card (e.g., <em>Driver Vehicle Inspection Report</em>) to open the form completion workflow.</li>
+              <li><strong>Complete Compliance Checklist:</strong> Fill in mandatory vehicle/asset checks, record faults, and provide digital sign-offs.</li>
+              <li><strong>Submit & Sync:</strong> Submit the completed form to broadcast real-time condition reports across the DRIV-EN platform.</li>
+            </ol>
+          `
+        },
+        settings: {
+          purpose: "The **Settings Tab** enables administrators to define company profile parameters, set financial currencies, upload operational logos, enforce telematics/photo verification standards, and verify synchronized Units of Measure.",
+          instructions: `
+            <ol>
+              <li><strong>Update Company Profile:</strong> Choose your Primary Sector, enter your NAICS Code, set your Currency, and click <strong>Save Profile Settings</strong>.</li>
+              <li><strong>Upload Company Logo:</strong> Click <strong>Upload Logo</strong>, select your high-res PNG or SVG file, and verify preview rendering.</li>
+              <li><strong>Enforce Form Verification Rules:</strong> Toggle requirements for Meter Photos, Asset Photos, or GPS Location Tagging. Click <strong>Save Requirements Toggles</strong> to push updates to field devices.</li>
+              <li><strong>Units of Measure Verification:</strong> Review the system-wide distance, volume, and pressure units inherited from Onboarding.</li>
+            </ol>
+          `
+        },
+        visibility: {
+          purpose: "The **Task Visibility Matrix Subtab** gives administrators granular control over which onboarding setup steps are visible or required for company personnel during initial account deployment.",
+          instructions: `
+            <ol>
+              <li><strong>Review Visibility Toggles:</strong> Scroll through the list of setup steps (Roles, Employees, Assets, Locations, etc.).</li>
+              <li><strong>Adjust Step Visibility:</strong> Toggle the switch next to any task to show or hide that step in user onboarding flows.</li>
+              <li><strong>Commit Changes:</strong> Click <strong>Save Visibility Matrix</strong> (located at top and bottom) to store your setup matrix.</li>
+            </ol>
+          `
+        },
+        kp: {
+          purpose: "The **Key Personnel Directory Subtab** allows admins to assign key team leaders to oversee individual setup tasks, ensuring accountability during system initialization.",
+          instructions: `
+            <ol>
+              <li><strong>Fill Team Member Info:</strong> Enter the Full Name and Email Address of the designated key staff member.</li>
+              <li><strong>Assign Tasks:</strong> Check the specific setup tasks they are responsible for (or click <strong>Select All Tasks</strong>).</li>
+              <li><strong>Add Member:</strong> Click <strong>+ Add Personnel Member</strong> to stage the entry.</li>
+              <li><strong>Send Invitations:</strong> Click <strong>Send Invitations & Create Accounts</strong> to dispatch onboarding access emails.</li>
+            </ol>
+          `
+        },
+        fuel: {
+          purpose: "The **Fuel Management & Tank Adjustment** module facilitates real-time inventory tracking, bulk fuel delivery records, tank reconciliation, and manual tank volume adjustments to correct inventory discrepancies.",
+          instructions: `
+            <p><strong>Tank Adjustment Action Instructions:</strong></p>
+            <ol>
+              <li><strong>Locate Bulk Fuel Tank:</strong> Navigate to the <em>Fuel Management</em> dashboard card and select the target fuel storage unit or mobile bowser.</li>
+              <li><strong>Initiate Adjustment:</strong> Click the <strong>Adjust Tank Level</strong> button next to the relevant tank.</li>
+              <li><strong>Record Physical Dip/Reading:</strong> Enter the precise physical volume measurement (e.g., sticking/dip reading or automatic tank gauge figure).</li>
+              <li><strong>Select Variance Reason:</strong> Select the adjustment category (e.g., <em>Physical Dip Reconciliation, Fuel Delivery Correction, Thermal Expansion/Contraction, Calibration Variance, Leak/Spill</em>).</li>
+              <li><strong>Provide Detailed Audit Notes:</strong> Enter mandatory explanatory notes detailing why the manual balance override is occurring.</li>
+              <li><strong>Submit Tank Adjustment:</strong> Click <strong>Confirm Adjustment</strong> to update the system stock balance and generate an automated audit log entry.</li>
+            </ol>
+          `
+        }
+      };
+
+      // Identify Current Active Context (Tab or Subtab)
+      function getActiveContext() {
+        const activeSubtab = document.querySelector('.admin-subtab-sticky-container.visible .admin-subtab.active');
+        if (activeSubtab) {
+          const subtabKey = activeSubtab.getAttribute('data-subtab');
+          if (modalContentMap[subtabKey]) return subtabKey;
+        }
+
+        const activeTab = document.querySelector('.admin-tab.active');
+        if (activeTab) {
+          const tabKey = activeTab.getAttribute('data-tab');
+          if (modalContentMap[tabKey]) return tabKey;
+        }
+
+        return 'overview';
+      }
+
+      // Dynamic Context Label Formatting
+      function getContextTitle(key) {
+        const labels = {
+          overview: "Overview",
+          forms: "Forms Module",
+          settings: "Company Settings",
+          visibility: "Task Visibility Matrix",
+          kp: "Key Personnel Directory",
+          fuel: "Fuel Management & Tank Adjustments"
+        };
+        return labels[key] || "Dashboard";
+      }
+
+      // Modal Elements
+      const modalPurpose = document.getElementById('modalPurpose');
+      const modalInstructions = document.getElementById('modalInstructions');
+      const modalPurposeTitle = document.getElementById('modalPurposeTitle');
+      const modalInstructionsTitle = document.getElementById('modalInstructionsTitle');
+      const modalPurposeBody = document.getElementById('modalPurposeBody');
+      const modalInstructionsBody = document.getElementById('modalInstructionsBody');
+
+      // Open Purpose Modal
+      document.getElementById('btnTabPurpose').addEventListener('click', () => {
+        const contextKey = getActiveContext();
+        const title = getContextTitle(contextKey);
+        const content = modalContentMap[contextKey] || modalContentMap.overview;
+
+        modalPurposeTitle.textContent = `${title} — Purpose`;
+        modalPurposeBody.innerHTML = content.purpose;
+        modalPurpose.classList.add('active');
+      });
+
+      // Open Instructions Modal
+      document.getElementById('btnTabInstructions').addEventListener('click', () => {
+        const contextKey = getActiveContext();
+        const title = getContextTitle(contextKey);
+        const content = modalContentMap[contextKey] || modalContentMap.overview;
+
+        modalInstructionsTitle.textContent = `${title} — Instructions`;
+        
+        // Append fuel tank adjustment guidance if viewing fuel card context
+        let bodyHtml = content.instructions;
+        if (contextKey === 'overview') {
+          bodyHtml += "<hr style='margin:16px 0; border:0; border-top:1px solid var(--border,#cbd5e1);'>" + modalContentMap.fuel.instructions;
+        }
+        
+        modalInstructionsBody.innerHTML = bodyHtml;
+        modalInstructions.classList.add('active');
+      });
+
+      // Close Modals
+      document.getElementById('btnClosePurposeModal').addEventListener('click', () => {
+        modalPurpose.classList.remove('active');
+      });
+      document.getElementById('btnCloseInstructionsModal').addEventListener('click', () => {
+        modalInstructions.classList.remove('active');
+      });
+
+      // Outside Click Close
+      window.addEventListener('click', (e) => {
+        if (e.target === modalPurpose) modalPurpose.classList.remove('active');
+        if (e.target === modalInstructions) modalInstructions.classList.remove('active');
+      });
     });
   </script>
 </body>
