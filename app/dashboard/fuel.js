@@ -103,7 +103,6 @@
     let user = getUserSession();
     const headers = { ...additionalHeaders };
     
-    // Check window.dashUser or window.drivenUser directly if storage JSON parse fails
     if (!user && window.dashUser) user = window.dashUser;
     if (!user && window.drivenUser) user = window.drivenUser;
 
@@ -164,6 +163,49 @@
   function txMatchesLocation(tx, locFilter) {
     if (!locFilter) return true;
     return (tx.location || '').trim() === locFilter;
+  }
+
+  // Format person name cleanly instead of displaying raw emails
+  function formatPersonName(tx) {
+    const raw = tx.person_name || tx.person || tx.created_by_name || '';
+    if (!raw) return '—';
+    if (raw.indexOf('@') !== -1) {
+      const parts = raw.split('@')[0].split('.');
+      return parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+    }
+    return raw;
+  }
+
+  // Resolve target asset, gas can, or destination tank for transfers/fills
+  function getTxAssetTarget(t) {
+    if (t.asset_name) return t.asset_name;
+    if (t.asset_number) return t.asset_number;
+    if (t.to_entity_name) return t.to_entity_name;
+    
+    // Check tank matching by target ID
+    if (t.to_entity_id) {
+      const targetTank = allTanks.find(x => x.id === t.to_entity_id);
+      if (targetTank) return targetTank.name || targetTank.asset_number || t.to_entity_id;
+    }
+
+    // Default Fallback Labels for Can & Tank Fills if unspecified
+    if (t.transaction_type === 'portable_fill') {
+      return t.project_name ? `Gas Can – ${t.project_name}` : 'Gas Can';
+    }
+    if (t.transaction_type === 'dragup_fill') {
+      return 'Mobile / Drag-up Tank';
+    }
+
+    return '—';
+  }
+
+  function getTransferredFrom(t) {
+    if (t.transaction_type === 'purchase') return '—';
+    if (t.from_entity_type === 'vendor') return 'Vendor';
+    if (t.from_entity_name) return t.from_entity_name;
+    const tank = allTanks.find(x => x.id === t.from_entity_id);
+    if (tank) return tank.name || tank.asset_number || t.from_entity_id || '—';
+    return t.from_entity_id || '—';
   }
 
   /* ===== HEADER & NAVIGATION ===== */
@@ -385,7 +427,7 @@
     if (!container) return;
     container.setAttribute('data-subtab', subtab);
     let headingText = getTankTypeDisplayName(`${subtab}_tank`);
-    if (subtab === 'equipment') headingText = 'Equipment';
+    if (subtab === 'equipment') headingText = 'Asset';
     headingText += ' Tanks';
     container.innerHTML = `<div class="section-heading">${esc(headingText)} <span class="section-heading-count">${tanks.length} tank${tanks.length !== 1 ? 's' : ''}</span></div>`;
     const innerDiv = document.createElement('div');
@@ -610,7 +652,6 @@
   async function loadTanks() {
     try {
       const headers = getAuthHeaders();
-      // Debug check: warn in console if organization headers are missing
       if (!headers['x-org-id']) {
         console.warn('[DRIV-EN] Organization ID header missing. User session may not be ready.');
       }
@@ -702,7 +743,9 @@
       if (fromD && (t.transaction_date || '') < fromD) return false;
       if (toD && (t.transaction_date || '') > toD + 'T23:59:59') return false;
       if (s) {
-        const hay = [t.transaction_type, t.fuel_type, t.asset_name, t.asset_number, t.person, t.project_name, t.location].filter(Boolean).join(' ').toLowerCase();
+        const personName = formatPersonName(t);
+        const assetTarget = getTxAssetTarget(t);
+        const hay = [t.transaction_type, t.fuel_type, assetTarget, personName, t.project_name, t.location].filter(Boolean).join(' ').toLowerCase();
         if (hay.indexOf(s) === -1) return false;
       }
       return true;
@@ -721,21 +764,14 @@
     return { totalGal, totalPurchases, totalIssues, txCount: txs.length };
   }
 
-  function getTransferredFrom(t) {
-    if (t.transaction_type === 'purchase') return '—';
-    if (t.from_entity_type === 'vendor') return 'Vendor';
-    if (t.from_entity_name) return t.from_entity_name;
-    const tank = allTanks.find(x => x.id === t.from_entity_id);
-    if (tank) return tank.name || tank.asset_number || t.from_entity_id || '—';
-    return t.from_entity_id || '—';
-  }
-
   function renderTxRows(txs) {
     return txs.map(t => {
       const date = t.transaction_date ? esc(new Date(t.transaction_date).toLocaleDateString()) : '—';
       const qty = safeNum(t.quantity).toFixed(2);
       const from = getTransferredFrom(t);
-      return `<tr class="tx-row-clickable" data-tx-id="${t.id}" title="Click for details"><td>${date}</td><td>${esc(txTypeLabel(t.transaction_type))}</td><td>${esc(t.fuel_type || '—')}</td><td style="font-weight:600;color:var(--primary);">${qty}</td><td>${esc(from)}</td><td>${esc(t.asset_name || t.asset_number || '—')}</td><td>${esc(t.person || '—')}</td><td>${esc(t.project_name || '—')}</td><td>${esc(t.location || '—')}</td></tr>`;
+      const assetTarget = getTxAssetTarget(t);
+      const personName = formatPersonName(t);
+      return `<tr class="tx-row-clickable" data-tx-id="${t.id}" title="Click for details"><td>${date}</td><td>${esc(txTypeLabel(t.transaction_type))}</td><td>${esc(t.fuel_type || '—')}</td><td style="font-weight:600;color:var(--primary);">${qty}</td><td>${esc(from)}</td><td>${esc(assetTarget)}</td><td>${esc(personName)}</td><td>${esc(t.project_name || '—')}</td><td>${esc(t.location || '—')}</td></tr>`;
     }).join('');
   }
 
@@ -755,7 +791,7 @@
     const txLocs = getTxLocations();
     const locOptions = '<option value="">All Locations</option>' + txLocs.map(l => `<option value="${esc(l)}"${txLocationFilter === l ? ' selected' : ''}>${esc(l)}</option>`).join('');
 
-    container.innerHTML = `<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="${filterId}" placeholder="Type, fuel, asset, person, project…" style="flex:1;min-width:140px;" value="${esc(txSearchText)}"><span class="fuel-filter-label">Location:</span><select id="${locFilterId}">${locOptions}</select><span class="fuel-filter-label">From:</span><input type="date" id="${fromId}" value="${esc(txFromDate)}"><span class="fuel-filter-label">To:</span><input type="date" id="${toId}" value="${esc(txToDate)}"><button class="print-btn" id="${printBtnId}">🖨 Print Table</button></div><div id="${containerId}-totals"></div><div class="fuel-table-wrap"><table class="fuel-table" id="${tableId}"><thead><tr><th data-col="transaction_date">Date <span class="sort-indicator"></span></th><th data-col="transaction_type">Type <span class="sort-indicator"></span></th><th data-col="fuel_type">Fuel <span class="sort-indicator"></span></th><th data-col="quantity">Qty <span class="sort-indicator"></span></th><th data-col="transferred_from">From <span class="sort-indicator"></span></th><th data-col="asset">Equipment <span class="sort-indicator"></span></th><th data-col="person">Person <span class="sort-indicator"></span></th><th data-col="project">Project <span class="sort-indicator"></span></th><th data-col="location">Location <span class="sort-indicator"></span></th></tr></thead><tbody>${renderTxRows(txs)}</tbody></table></div>`;
+    container.innerHTML = `<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="${filterId}" placeholder="Type, fuel, asset, person, project…" style="flex:1;min-width:140px;" value="${esc(txSearchText)}"><span class="fuel-filter-label">Location:</span><select id="${locFilterId}">${locOptions}</select><span class="fuel-filter-label">From:</span><input type="date" id="${fromId}" value="${esc(txFromDate)}"><span class="fuel-filter-label">To:</span><input type="date" id="${toId}" value="${esc(txToDate)}"><button class="print-btn" id="${printBtnId}">🖨 Print Table</button></div><div id="${containerId}-totals"></div><div class="fuel-table-wrap"><table class="fuel-table" id="${tableId}"><thead><tr><th data-col="transaction_date">Date <span class="sort-indicator"></span></th><th data-col="transaction_type">Type <span class="sort-indicator"></span></th><th data-col="fuel_type">Fuel <span class="sort-indicator"></span></th><th data-col="quantity">Qty <span class="sort-indicator"></span></th><th data-col="transferred_from">From <span class="sort-indicator"></span></th><th data-col="asset">Asset <span class="sort-indicator"></span></th><th data-col="person">Person <span class="sort-indicator"></span></th><th data-col="project">Project <span class="sort-indicator"></span></th><th data-col="location">Location <span class="sort-indicator"></span></th></tr></thead><tbody>${renderTxRows(txs)}</tbody></table></div>`;
 
     container._txSortCol = 'transaction_date';
     container._txSortDir = 'desc';
@@ -811,9 +847,9 @@
       else if (col === 'fuel_type') { av = (a.fuel_type || '').toLowerCase(); bv = (b.fuel_type || '').toLowerCase(); }
       else if (col === 'quantity') { av = a.quantity || 0; bv = b.quantity || 0; }
       else if (col === 'transferred_from') { av = (getTransferredFrom(a) || '').toLowerCase(); bv = (getTransferredFrom(b) || '').toLowerCase(); }
-      else if (col === 'asset') { av = (a.asset_name || a.asset_number || '').toLowerCase(); bv = (b.asset_name || b.asset_number || '').toLowerCase(); }
+      else if (col === 'asset') { av = (getTxAssetTarget(a) || '').toLowerCase(); bv = (getTxAssetTarget(b) || '').toLowerCase(); }
       else if (col === 'project') { av = (a.project_name || '').toLowerCase(); bv = (b.project_name || '').toLowerCase(); }
-      else if (col === 'person') { av = (a.person || '').toLowerCase(); bv = (b.person || '').toLowerCase(); }
+      else if (col === 'person') { av = (formatPersonName(a) || '').toLowerCase(); bv = (formatPersonName(b) || '').toLowerCase(); }
       else if (col === 'location') { av = (a.location || '').toLowerCase(); bv = (b.location || '').toLowerCase(); }
       else { av = a.transaction_date || ''; bv = b.transaction_date || ''; }
 
@@ -876,7 +912,7 @@
     const containerId = subtab === 'all' ? 'allTxContainer' : subtab === 'purchase' ? 'purchaseTxContainer' : subtab === 'issue' ? 'issueTxContainer' : 'transferTxContainer';
     const container = document.getElementById(containerId);
     container.setAttribute('data-subtab', subtab);
-    const headingText = subtab === 'all' ? 'All Fuel Transactions' : subtab === 'purchase' ? 'Fuel Purchases' : subtab === 'issue' ? 'Issues to Equipment' : 'Tank Transfers & Fills';
+    const headingText = subtab === 'all' ? 'All Fuel Transactions' : subtab === 'purchase' ? 'Fuel Purchases' : subtab === 'issue' ? 'Issues to Assets' : 'Tank Transfers & Fills';
     container.innerHTML = `<div class="section-heading">${headingText} <span class="section-heading-count">${txs.length} record${txs.length !== 1 ? 's' : ''}</span></div>`;
     const innerDiv = document.createElement('div');
     innerDiv.id = `${containerId}-inner`;
@@ -1215,8 +1251,8 @@
       ['Type', txTypeLabel(tx.transaction_type)],
       ['Fuel Type', tx.fuel_type || '—'],
       ['Quantity', safeNum(tx.quantity).toFixed(2)],
-      ['Equipment', tx.asset_name || tx.asset_number || '—'],
-      ['Person', tx.person || '—'],
+      ['Asset', getTxAssetTarget(tx)],
+      ['Person', formatPersonName(tx)],
       ['Project', tx.project_name || '—'],
       ['Location', tx.location || '—'],
       ['From', tx.from_entity_type ? (tx.from_entity_type.replace(/_/g, ' ') + ' — ' + (tx.from_entity_name || tx.from_entity_id || '')) : '—'],
@@ -1348,13 +1384,13 @@
     },
     transactions: {
       title: "Transactions",
-      purpose: "<p>The <strong>Transactions Tab</strong> logs every fuel event, including vendor purchases, bulk tank fills, equipment dispenses, and project transfers.</p>",
+      purpose: "<p>The <strong>Transactions Tab</strong> logs every fuel event, including vendor purchases, bulk tank fills, asset dispenses, and project transfers.</p>",
       instructions: `
         <h4 style="margin:0 0 8px 0; color:var(--text);">Filtering & Auditing Transactions:</h4>
         <ol>
           <li><strong>Search Bar:</strong> Type an asset number, driver name, project name, or fuel type to filter matching entries in real time.</li>
           <li><strong>Location & Date Filters:</strong> Isolate fuel logs by specific work location or timeframe.</li>
-          <li><strong>Column Sorting:</strong> Click any table column header (<em>Date, Type, Fuel, Qty, From, Equipment, Person, Project, Location</em>) to sort ascending or descending.</li>
+          <li><strong>Column Sorting:</strong> Click any table column header (<em>Date, Type, Fuel, Qty, From, Asset, Person, Project, Location</em>) to sort ascending or descending.</li>
           <li><strong>Inspect Detail:</strong> Click any transaction row to open full receipts, PO numbers, and cost breakdowns.</li>
         </ol>
       `
