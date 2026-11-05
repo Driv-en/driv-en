@@ -209,7 +209,7 @@
     return t.from_entity_id || '—';
   }
 
-  /* ===== DRILL-DOWN MODAL ===== */
+  /* ===== DRILL-DOWN / HISTORY MODAL ===== */
 
   function showEntityHistoryModal(entityType, entityId, entityName) {
     const f = getOverviewFilters();
@@ -229,17 +229,17 @@
     });
 
     const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;';
     
     const modal = document.createElement('div');
-    modal.style.cssText = 'background:var(--bg-card,#ffffff);border-radius:12px;padding:24px;max-width:850px;width:92%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.5);';
+    modal.style.cssText = 'background:var(--fuel-card-bg,#ffffff);border-radius:12px;padding:24px;max-width:850px;width:92%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.5);border:2px solid #64748b;box-sizing:border-box;';
 
-    let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">`;
-    html += `<h3 style="margin:0;font-size:18px;color:var(--text);">Transaction History: ${esc(entityName)}</h3>`;
-    html += `<button class="modal-close-btn" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-muted);">×</button></div>`;
+    let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border,#cbd5e1);padding-bottom:12px;">`;
+    html += `<h3 style="margin:0;font-size:18px;font-weight:700;color:var(--text,#0f172a);">Transaction History: ${esc(entityName)}</h3>`;
+    html += `<button class="modal-close-btn" style="background:none;border:none;font-size:24px;font-weight:700;cursor:pointer;color:var(--text-muted,#64748b);">×</button></div>`;
 
     if (relevantTxs.length === 0) {
-      html += `<div style="padding:20px;text-align:center;color:var(--text-muted);">No transactions found for this record matching current filters.</div>`;
+      html += `<div style="padding:20px;text-align:center;color:var(--text-muted,#64748b);">No transactions found for this record matching current filters.</div>`;
     } else {
       html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Date</th><th>Type</th><th>Fuel</th><th>Qty (${UOM.abbr})</th><th>From</th><th>To/Asset</th><th>Person</th><th>Project</th></tr></thead><tbody>`;
       relevantTxs.forEach(t => {
@@ -249,7 +249,7 @@
       html += `</tbody></table></div>`;
     }
 
-    html += `<div style="margin-top:20px;display:flex;justify-content:flex-end;"><button class="modal-close-btn" style="padding:8px 16px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:13px;">Close</button></div>`;
+    html += `<div style="margin-top:20px;display:flex;justify-content:flex-end;"><button class="modal-close-btn print-btn" style="padding:8px 16px;font-size:13px;">Close</button></div>`;
 
     modal.innerHTML = html;
     overlay.appendChild(modal);
@@ -1341,9 +1341,9 @@
     const tx = allTransactions.find(t => t.id === txId);
     if (!tx) return;
     const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;';
     const modal = document.createElement('div');
-    modal.style.cssText = 'background:var(--fuel-card-bg,#ffffff);border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.5);';
+    modal.style.cssText = 'background:var(--fuel-card-bg,#ffffff);border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.5);border:2px solid #64748b;box-sizing:border-box;';
 
     const rows = [
       ['Date', tx.transaction_date ? new Date(tx.transaction_date).toLocaleString() : '—'],
@@ -1363,7 +1363,7 @@
       ["Created", tx.created_at ? new Date(tx.created_at).toLocaleString() : "—"],
     ];
 
-    let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><h3 style="margin:0;font-size:18px;color:var(--text);">Transaction Details</h3><button class="modal-close-btn" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-muted);">×</button></div>';
+    let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border,#cbd5e1);padding-bottom:12px;"><h3 style="margin:0;font-size:18px;font-weight:700;color:var(--text,#0f172a);">Transaction Details</h3><button class="modal-close-btn" style="background:none;border:none;font-size:24px;font-weight:700;cursor:pointer;color:var(--text-muted,#64748b);">×</button></div>';
     html += '<div style="display:grid;grid-template-columns:140px 1fr;gap:8px 12px;font-size:14px;">';
     rows.forEach(r => {
       html += `<div style="font-weight:600;color:var(--text-muted);">${r[0]}</div><div style="color:var(--text);">${esc(r[1])}</div>`;
@@ -1372,7 +1372,7 @@
     if (tx.receipt_r2_key) {
       html += `<div style="margin-top:16px;"><a href="/api/fuel-receipts/${tx.id}" target="_blank" style="color:var(--primary);font-size:13px;font-weight:600;">View Receipt →</a></div>`;
     }
-    html += `<div style="margin-top:20px;display:flex;gap:8px;justify-content:flex-end;"><button class="btn-print-detail" style="padding:8px 16px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:13px;font-weight:600;">Print</button><button class="modal-close-btn" style="padding:8px 16px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:13px;">Close</button></div>`;
+    html += `<div style="margin-top:20px;display:flex;gap:8px;justify-content:flex-end;"><button class="btn-print-detail print-btn" style="padding:8px 16px;font-size:13px;font-weight:600;">Print</button><button class="modal-close-btn print-btn" style="padding:8px 16px;font-size:13px;">Close</button></div>`;
 
     modal.innerHTML = html;
     overlay.appendChild(modal);
@@ -1392,8 +1392,8 @@
   function showAdjustModal(tankId, tankName, currentQty, capacity) {
     const overlay = document.createElement('div');
     overlay.id = 'adjustModalOverlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;';
-    overlay.innerHTML = `<div style="background:var(--fuel-card-bg,#ffffff);opacity:1;border:1px solid var(--border);border-radius:12px;padding:24px;max-width:480px;width:90%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.3);"><h3 style="margin:0 0 4px;font-size:18px;color:var(--text);">Adjust Tank: ${esc(tankName)}</h3><p style="margin:0 0 16px;font-size:13px;color:var(--text-muted);">Current: ${currentQty} ${UOM.abbr} / Capacity: ${capacity} ${UOM.abbr}</p><div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Adjustment Amount (${UOM.abbr}) <span style="color:#cc0000;">*</span></label><input type="number" id="adjustAmount" step="0.01" placeholder="Positive for overage, negative for shortage" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;"></div><div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Reason <span style="color:#cc0000;">*</span></label><select id="adjustReason" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;"><option value="">Select reason…</option><option value="Shortage — fuel theft suspected">Shortage — fuel theft suspected</option><option value="Shortage — evaporation/spillage">Shortage — evaporation/spillage</option><option value="Shortage — meter calibration error">Shortage — meter calibration error</option><option value="Overage — delivery overfill">Overage — delivery overfill</option><option value="Overage — meter calibration error">Overage — meter calibration error</option><option value="Overage — fuel returned to tank">Overage — fuel returned to tank</option><option value="Physical inventory count adjustment">Physical inventory count adjustment</option><option value="__custom">+ Other (type manually)</option></select></div><div id="adjustCustomReason" style="display:none;margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Custom Reason <span style="color:#cc0000;">*</span></label><input type="text" id="adjustCustomReasonText" placeholder="Type reason" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;"></div><div style="margin-bottom:16px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Notes (optional)</label><textarea id="adjustNotes" rows="2" placeholder="Additional details" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;resize:vertical;"></textarea></div><div style="display:flex;gap:12px;justify-content:flex-end;"><button id="adjustCancelBtn" style="padding:10px 20px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:14px;">Cancel</button><button id="adjustSubmitBtn" style="padding:10px 24px;border:none;border-radius:6px;background:var(--primary);color:#fff;cursor:pointer;font-size:14px;font-weight:600;">Submit Adjustment</button></div></div>`;
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `<div style="background:var(--fuel-card-bg,#ffffff);opacity:1;border:2px solid #64748b;border-radius:12px;padding:24px;max-width:480px;width:90%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.3);box-sizing:border-box;"><h3 style="margin:0 0 4px;font-size:18px;font-weight:700;color:var(--text,#0f172a);">Adjust Tank: ${esc(tankName)}</h3><p style="margin:0 0 16px;font-size:13px;color:var(--text-muted,#64748b);">Current: ${currentQty} ${UOM.abbr} / Capacity: ${capacity} ${UOM.abbr}</p><div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Adjustment Amount (${UOM.abbr}) <span style="color:#cc0000;">*</span></label><input type="number" id="adjustAmount" step="0.01" placeholder="Positive for overage, negative for shortage" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;"></div><div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Reason <span style="color:#cc0000;">*</span></label><select id="adjustReason" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;"><option value="">Select reason…</option><option value="Shortage — fuel theft suspected">Shortage — fuel theft suspected</option><option value="Shortage — evaporation/spillage">Shortage — evaporation/spillage</option><option value="Shortage — meter calibration error">Shortage — meter calibration error</option><option value="Overage — delivery overfill">Overage — delivery overfill</option><option value="Overage — meter calibration error">Overage — meter calibration error</option><option value="Overage — fuel returned to tank">Overage — fuel returned to tank</option><option value="Physical inventory count adjustment">Physical inventory count adjustment</option><option value="__custom">+ Other (type manually)</option></select></div><div id="adjustCustomReason" style="display:none;margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Custom Reason <span style="color:#cc0000;">*</span></label><input type="text" id="adjustCustomReasonText" placeholder="Type reason" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;"></div><div style="margin-bottom:16px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Notes (optional)</label><textarea id="adjustNotes" rows="2" placeholder="Additional details" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;resize:vertical;"></textarea></div><div style="display:flex;gap:12px;justify-content:flex-end;"><button id="adjustCancelBtn" style="padding:10px 20px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:14px;">Cancel</button><button id="adjustSubmitBtn" style="padding:10px 24px;border:none;border-radius:6px;background:var(--primary);color:#fff;cursor:pointer;font-size:14px;font-weight:600;">Submit Adjustment</button></div></div>`;
 
     document.body.appendChild(overlay);
 
@@ -1456,7 +1456,7 @@
     }
   }
 
-  /* ===== STANDARD DIALOG & HELP MODALS (PURPOSE & INSTRUCTIONS) ===== */
+  /* ===== DYNAMIC MODALS (PURPOSE & INSTRUCTIONS) ===== */
 
   const fuelModalContentMap = {
     tanks: {
@@ -1518,70 +1518,54 @@
     return 'tanks';
   }
 
+  function showHelpModal(modalType) {
+    const tabKey = getActiveTabKey();
+    const tabData = fuelModalContentMap[tabKey] || fuelModalContentMap.tanks;
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;';
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = 'background:var(--fuel-card-bg,#ffffff);border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.5);border:2px solid #64748b;box-sizing:border-box;';
+
+    const titleText = modalType === 'purpose' ? `Purpose: ${tabData.title}` : `Instructions: ${tabData.title}`;
+    const bodyContent = modalType === 'purpose' ? tabData.purpose : tabData.instructions;
+
+    let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border,#cbd5e1);padding-bottom:12px;">`;
+    html += `<h3 style="margin:0;font-size:18px;font-weight:700;color:var(--text,#0f172a);">${esc(titleText)}</h3>`;
+    html += `<button class="modal-close-btn" style="background:none;border:none;font-size:24px;font-weight:700;cursor:pointer;color:var(--text-muted,#64748b);">×</button></div>`;
+
+    html += `<div style="font-size:14px;color:var(--text,#0f172a);line-height:1.6;">${bodyContent}</div>`;
+    html += `<div style="margin-top:20px;display:flex;justify-content:flex-end;"><button class="modal-close-btn print-btn" style="padding:8px 16px;font-size:13px;">Close</button></div>`;
+
+    modal.innerHTML = html;
+    overlay.appendChild(modal);
+
+    const closeModal = () => overlay.remove();
+
+    modal.querySelectorAll('.modal-close-btn').forEach(btn => btn.addEventListener('click', closeModal));
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+    
+    document.addEventListener('keydown', function escHandler(e) {
+      if (e.key === 'Escape') {
+        closeModal();
+        document.removeEventListener('keydown', escHandler);
+      }
+    });
+
+    document.body.appendChild(overlay);
+  }
+
   function setupHelpModals() {
-    const setupModal = (modalId, triggerBtnId, closeClass, modalType) => {
-      const modal = document.getElementById(modalId);
-      const trigger = document.getElementById(triggerBtnId);
-      if (!modal) return;
+    const purposeBtn = document.getElementById('purposeBtn');
+    if (purposeBtn) {
+      purposeBtn.addEventListener('click', () => showHelpModal('purpose'));
+    }
 
-      const openModal = () => {
-        const tabKey = getActiveTabKey();
-        const tabData = fuelModalContentMap[tabKey] || fuelModalContentMap.tanks;
-
-        if (modalType === 'purpose') {
-          const titleEl = document.getElementById('purposeModalTitle');
-          const bodyEl = document.getElementById('modalPurposeBody');
-          if (titleEl) titleEl.textContent = `Purpose: ${tabData.title}`;
-          if (bodyEl) bodyEl.innerHTML = tabData.purpose;
-        } else if (modalType === 'instructions') {
-          const titleEl = document.getElementById('instructionsModalTitle');
-          const bodyEl = document.getElementById('modalInstructionsBody');
-          if (titleEl) titleEl.textContent = `Instructions: ${tabData.title}`;
-          if (bodyEl) bodyEl.innerHTML = tabData.instructions;
-        }
-
-        modal.classList.add('active');
-        modal.setAttribute('aria-hidden', 'false');
-        const firstFocusable = modal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
-        if (firstFocusable) firstFocusable.focus();
-      };
-
-      const closeModal = () => {
-        modal.classList.remove('active');
-        modal.setAttribute('aria-hidden', 'true');
-        if (trigger) trigger.focus();
-      };
-
-      if (trigger) trigger.addEventListener('click', openModal);
-
-      modal.querySelectorAll(`.${closeClass}`).forEach(btn => {
-        btn.addEventListener('click', closeModal);
-      });
-
-      modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeModal();
-      });
-
-      modal.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeModal();
-        if (e.key === 'Tab') {
-          const focusables = Array.from(modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'));
-          if (focusables.length === 0) return;
-          const first = focusables[0];
-          const last = focusables[focusables.length - 1];
-          if (e.shiftKey && document.activeElement === first) {
-            last.focus();
-            e.preventDefault();
-          } else if (!e.shiftKey && document.activeElement === last) {
-            first.focus();
-            e.preventDefault();
-          }
-        }
-      });
-    };
-
-    setupModal('purposeModal', 'purposeBtn', 'purpose-close', 'purpose');
-    setupModal('instructionsModal', 'instructionsBtn', 'instructions-close', 'instructions');
+    const instructionsBtn = document.getElementById('instructionsBtn');
+    if (instructionsBtn) {
+      instructionsBtn.addEventListener('click', () => showHelpModal('instructions'));
+    }
   }
 
   /* ===== INITIALIZATION ===== */
