@@ -209,6 +209,56 @@
     return t.from_entity_id || '—';
   }
 
+  /* ===== DRILL-DOWN MODAL ===== */
+
+  function showEntityHistoryModal(entityType, entityId, entityName) {
+    const f = getOverviewFilters();
+    let relevantTxs = allTransactions.filter(tx => {
+      if (!txMatchesLocation(tx, f.location)) return false;
+      if (!txInDateRange(tx, f.fromDate, f.toDate)) return false;
+
+      if (entityType === 'asset') {
+        return tx.asset_id === entityId || tx.to_entity_id === entityId;
+      } else if (entityType === 'tank') {
+        return tx.from_entity_id === entityId || tx.to_entity_id === entityId;
+      } else if (entityType === 'portable') {
+        return (tx.transaction_type === 'portable_fill' || tx.transaction_type === 'portable_issue') &&
+               (tx.project_name === entityId || (entityId === 'Unassigned' && !tx.project_name));
+      }
+      return false;
+    });
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;';
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = 'background:var(--bg-card,#ffffff);border-radius:12px;padding:24px;max-width:850px;width:92%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.5);';
+
+    let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">`;
+    html += `<h3 style="margin:0;font-size:18px;color:var(--text);">Transaction History: ${esc(entityName)}</h3>`;
+    html += `<button class="modal-close-btn" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-muted);">×</button></div>`;
+
+    if (relevantTxs.length === 0) {
+      html += `<div style="padding:20px;text-align:center;color:var(--text-muted);">No transactions found for this record matching current filters.</div>`;
+    } else {
+      html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Date</th><th>Type</th><th>Fuel</th><th>Qty (${UOM.abbr})</th><th>From</th><th>To/Asset</th><th>Person</th><th>Project</th></tr></thead><tbody>`;
+      relevantTxs.forEach(t => {
+        const date = t.transaction_date ? new Date(t.transaction_date).toLocaleDateString() : '—';
+        html += `<tr><td>${date}</td><td>${esc(txTypeLabel(t.transaction_type))}</td><td>${esc(t.fuel_type || '—')}</td><td style="font-weight:700;color:var(--primary);">${safeNum(t.quantity).toFixed(2)}</td><td>${esc(getTransferredFrom(t))}</td><td>${esc(getTxAssetTarget(t))}</td><td>${esc(formatPersonName(t))}</td><td>${esc(t.project_name || '—')}</td></tr>`;
+      });
+      html += `</tbody></table></div>`;
+    }
+
+    html += `<div style="margin-top:20px;display:flex;justify-content:flex-end;"><button class="modal-close-btn" style="padding:8px 16px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:13px;">Close</button></div>`;
+
+    modal.innerHTML = html;
+    overlay.appendChild(modal);
+
+    modal.querySelectorAll('.modal-close-btn').forEach(btn => btn.addEventListener('click', () => overlay.remove()));
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+  }
+
   /* ===== HEADER & NAVIGATION ===== */
 
   function makeTabsSticky() {
@@ -519,7 +569,6 @@
     return { filled, dispensed };
   }
 
-  // Include direct vendor purchases fueling an asset alongside issues
   function computeAssetFuelTotal(assetId, locFilter, fromDate, toDate) {
     let total = 0;
     allTransactions.forEach(tx => {
@@ -598,12 +647,13 @@
     }
 
     let html = '';
+
     if (bulkTanks.length > 0) {
       html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-barrel')} ${esc(getTankTypeDisplayName('bulk_tank'))} <span class="count">(${bulkTanks.length})</span></div>`;
       html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>Fuel Purchased</th><th>Fuel Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th><th>Action</th></tr></thead><tbody>`;
       bulkTanks.forEach(t => {
         const totals = computeBulkTankTotals(t.id, f.location, f.fromDate, f.toDate);
-        html += `<tr><td style="font-weight:600;">${esc(t.name || '')}</td><td>${esc(t.fuel_type || '—')}</td><td>${safeNum(t.capacity)} ${UOM.abbr}</td><td style="font-weight:600;">${totals.purchased.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:600;">${totals.dispensed.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:700;color:var(--primary);">${safeNum(t.current_quantity)} ${UOM.abbr}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td>${esc(t.location || '—')}</td><td><button class="adjust-btn" data-id="${t.id}" data-name="${esc(t.name || '')}" data-qty="${safeNum(t.current_quantity)}" data-cap="${safeNum(t.capacity)}" style="padding:4px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;">Adjust</button></td></tr>`;
+        html += `<tr class="drilldown-row" data-type="tank" data-id="${t.id}" data-name="${esc(t.name || '')}" style="cursor:pointer;"><td style="font-weight:600;color:var(--primary);">${esc(t.name || '')} 🔍</td><td>${esc(t.fuel_type || '—')}</td><td>${safeNum(t.capacity)} ${UOM.abbr}</td><td style="font-weight:600;">${totals.purchased.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:600;">${totals.dispensed.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:700;color:var(--primary);">${safeNum(t.current_quantity)} ${UOM.abbr}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td>${esc(t.location || '—')}</td><td><button class="adjust-btn" data-id="${t.id}" data-name="${esc(t.name || '')}" data-qty="${safeNum(t.current_quantity)}" data-cap="${safeNum(t.capacity)}" style="padding:4px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;">Adjust</button></td></tr>`;
       });
       html += '</tbody></table></div></div>';
     }
@@ -613,7 +663,7 @@
       html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>${UOM.plural} Filled</th><th>${UOM.plural} Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th></tr></thead><tbody>`;
       dragupTanks.forEach(t => {
         const totals = computeDragupTankTotals(t.id, f.location, f.fromDate, f.toDate);
-        html += `<tr><td style="font-weight:600;">${esc(t.name || '')}</td><td>${esc(t.fuel_type || '—')}</td><td>${safeNum(t.capacity)} ${UOM.abbr}</td><td style="font-weight:600;">${totals.filled.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:600;">${totals.dispensed.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:700;color:var(--primary);">${safeNum(t.current_quantity)} ${UOM.abbr}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td>${esc(t.location || '—')}</td></tr>`;
+        html += `<tr class="drilldown-row" data-type="tank" data-id="${t.id}" data-name="${esc(t.name || '')}" style="cursor:pointer;"><td style="font-weight:600;color:var(--primary);">${esc(t.name || '')} 🔍</td><td>${esc(t.fuel_type || '—')}</td><td>${safeNum(t.capacity)} ${UOM.abbr}</td><td style="font-weight:600;">${totals.filled.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:600;">${totals.dispensed.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:700;color:var(--primary);">${safeNum(t.current_quantity)} ${UOM.abbr}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td>${esc(t.location || '—')}</td></tr>`;
       });
       html += '</tbody></table></div></div>';
     }
@@ -623,7 +673,7 @@
       html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Asset #</th><th>Name</th><th>Fuel Type</th><th>Total ${UOM.plural} Fueled</th><th>Location</th></tr></thead><tbody>`;
       equipmentTanks.forEach(a => {
         const totalFueled = computeAssetFuelTotal(a.id, f.location, f.fromDate, f.toDate);
-        html += `<tr><td style="font-weight:600;">${esc(a.asset_number || '')}</td><td>${esc(a.name || '—')}</td><td>${esc(a.fuel_type || '—')}</td><td style="font-weight:700;color:var(--primary);">${totalFueled.toLocaleString()} ${UOM.abbr}</td><td>${esc(a.current_location || '—')}</td></tr>`;
+        html += `<tr class="drilldown-row" data-type="asset" data-id="${a.id}" data-name="${esc((a.asset_number ? a.asset_number + ' — ' : '') + a.name)}" style="cursor:pointer;"><td style="font-weight:600;color:var(--primary);">${esc(a.asset_number || '')} 🔍</td><td>${esc(a.name || '—')}</td><td>${esc(a.fuel_type || '—')}</td><td style="font-weight:700;color:var(--primary);">${totalFueled.toLocaleString()} ${UOM.abbr}</td><td>${esc(a.current_location || '—')}</td></tr>`;
       });
       html += '</tbody></table></div></div>';
     }
@@ -634,7 +684,7 @@
       html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Gas Can (Project)</th><th>${UOM.plural} Put In Cans</th><th>${UOM.plural} Dispensed</th><th># Transactions</th></tr></thead><tbody>`;
       projectTotals.forEach(p => {
         const canLabel = 'Gas Can – ' + esc(p.project_name || 'Unassigned');
-        html += `<tr><td style="font-weight:600;">${canLabel}</td><td style="font-weight:700;color:var(--primary);">${p.total_filled.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:600;">${p.total_issued.toLocaleString()} ${UOM.abbr}</td><td>${p.tx_count}</td></tr>`;
+        html += `<tr class="drilldown-row" data-type="portable" data-id="${esc(p.project_name)}" data-name="${canLabel}" style="cursor:pointer;"><td style="font-weight:600;color:var(--primary);">${canLabel} 🔍</td><td style="font-weight:700;color:var(--primary);">${p.total_filled.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:600;">${p.total_issued.toLocaleString()} ${UOM.abbr}</td><td>${p.tx_count}</td></tr>`;
       });
       html += '</tbody></table></div></div>';
     }
@@ -645,8 +695,21 @@
 
     container.innerHTML = html;
 
+    // Bind Drill-Down Clicks
+    container.querySelectorAll('.drilldown-row').forEach(row => {
+      row.addEventListener('click', (e) => {
+        if (e.target.classList.contains('adjust-btn')) return;
+        const type = row.getAttribute('data-type');
+        const id = row.getAttribute('data-id');
+        const name = row.getAttribute('data-name');
+        showEntityHistoryModal(type, id, name);
+      });
+    });
+
+    // Bind Adjust Buttons
     container.querySelectorAll('.adjust-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
+        e.stopPropagation();
         const id = e.target.getAttribute('data-id');
         const name = e.target.getAttribute('data-name');
         const qty = parseFloat(e.target.getAttribute('data-qty'));
@@ -726,7 +789,6 @@
     return labels[type] || (type || '').replace(/_/g, ' ');
   }
 
-  // Subtab filtering updated to account for direct asset purchases
   function getTxForSubtab(subtab) {
     if (subtab === 'all') return allTransactions;
     if (subtab === 'purchase') return allTransactions.filter(t => t.transaction_type === 'purchase');
@@ -985,7 +1047,6 @@
     return 'background:#eff6ff;border-color:#93c5fd;color:#1e3a5f;';
   }
 
-  // Render Person, Asset, Project, and Location info directly inside Alert cards
   function renderAlerts() {
     const container = document.getElementById('alertsContainer');
     if (!container) return;
@@ -1024,14 +1085,12 @@
     const canEdit = user && (user.role === 'admin' || user.role === 'manager');
 
     container.innerHTML = flags.map(f => {
-      // Parse details if JSON string
       let details = {};
       try { details = typeof f.details === 'string' ? JSON.parse(f.details) : (f.details || {}); } catch (e) {}
 
       const sevStyle = flagSeverityClass(f.severity);
       const isManagerReview = f.flag_type === 'manager_review';
 
-      // Resolve display attributes across flag record and details payload
       const personDisplay = formatPersonName({ 
         person: f.person || f.person_name || f.created_by_name || details.person || details.submitted_by || details.user 
       });
@@ -1048,7 +1107,6 @@
       html += '</div>';
       html += `<div style="font-size:14px;margin-bottom:8px;">${esc(f.message || 'No message')}</div>`;
 
-      // Operational Context Block
       html += '<div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:4px 12px;background:var(--bg-step);padding:8px 12px;border-radius:6px;">';
       html += `<div><strong>Submitted By:</strong> ${esc(personDisplay)}</div>`;
       html += `<div><strong>Asset:</strong> ${esc(assetDisplay)}</div>`;
