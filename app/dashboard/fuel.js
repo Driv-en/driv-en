@@ -219,13 +219,13 @@
       if (!txMatchesLocation(tx, f.location)) return false;
       if (!txInDateRange(tx, f.fromDate, f.toDate)) return false;
 
-      if (entityType === 'asset') {
+      if (entityType === 'asset' || entityType === 'equipment') {
         return tx.asset_id === entityId || tx.to_entity_id === entityId;
-      } else if (entityType === 'tank') {
+      } else if (entityType === 'tank' || entityType === 'bulk' || entityType === 'dragup') {
         return tx.from_entity_id === entityId || tx.to_entity_id === entityId;
       } else if (entityType === 'portable') {
         return (tx.transaction_type === 'portable_fill' || tx.transaction_type === 'portable_issue') &&
-               (tx.project_name === entityId || (entityId === 'Unassigned' && !tx.project_name));
+               (tx.project_name === entityId || (entityId === 'Unassigned' && !tx.project_name) || tx.to_entity_id === entityId);
       }
       return false;
     });
@@ -362,11 +362,13 @@
   /* ===== TANK TYPE & DYNAMIC SUBTABS ===== */
 
   function getTankTypeDisplayName(systemKey) {
+    if (systemKey === 'portable_can' || systemKey === 'portable') return 'Portable Cans';
     const t = tankTypes.find(tt => tt.system_key === systemKey);
     return t ? t.display_name : systemKey;
   }
 
   function getTankTypeShortName(systemKey) {
+    if (systemKey === 'portable_can' || systemKey === 'portable') return 'Portable Cans';
     const name = getTankTypeDisplayName(systemKey);
     if (name.length > 15) return name.split(' ')[0];
     return name;
@@ -439,13 +441,15 @@
     return dedupTanks(allTanks.filter(t => t.tank_type === subtab));
   }
 
-  function renderTankRows(tanks) {
-    return tanks.map(t =>
-      `<tr><td style="font-weight:600;color:var(--primary);">${esc(t.name || t.asset_number || '—')} 🔍</td><td>${esc(t.fuel_type || '—')}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || t.fuel_tank_capacity || 0)}</td><td>${safeNum(t.capacity || t.fuel_tank_capacity)} ${UOM.abbr}</td><td>${esc(t.location || t.current_location || '—')}</td><td>${ownershipBadge(t)}</td><td>${statusBadge(t)}</td></tr>`
-    ).join('');
+  function renderTankRows(tanks, subtab) {
+    return tanks.map(t => {
+      const id = t.id || t.asset_number || t.name;
+      const name = t.name || t.asset_number || '—';
+      return `<tr class="subtab-drilldown-row" data-subtab="${subtab}" data-id="${id}" data-name="${esc(name)}" style="cursor:pointer;"><td style="font-weight:600;color:var(--primary);">${esc(name)} 🔍</td><td>${esc(t.fuel_type || '—')}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || t.fuel_tank_capacity || 0)}</td><td>${safeNum(t.capacity || t.fuel_tank_capacity)} ${UOM.abbr}</td><td>${esc(t.location || t.current_location || '—')}</td><td>${ownershipBadge(t)}</td><td>${statusBadge(t)}</td></tr>`;
+    }).join('');
   }
 
-  function renderTankTable(tanks, containerId) {
+  function renderTankTable(tanks, containerId, subtab) {
     const container = document.getElementById(containerId);
     if (!container) return;
     if (tanks.length === 0) {
@@ -454,7 +458,7 @@
     }
     const filterBarId = `${containerId}-filter`;
     const tableId = `${containerId}-table`;
-    container.innerHTML = `<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="${filterBarId}" placeholder="Name, fuel, location…" style="flex:1;min-width:180px;"></div><div class="fuel-table-wrap"><table class="fuel-table" id="${tableId}"><thead><tr><th>Tank / Asset</th><th>Fuel Type</th><th>Level</th><th>Capacity</th><th>Location</th><th>Ownership</th><th>Status</th></tr></thead><tbody id="${tableId}-body">${renderTankRows(tanks)}</tbody></table></div>`;
+    container.innerHTML = `<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="${filterBarId}" placeholder="Name, fuel, location…" style="flex:1;min-width:180px;"></div><div class="fuel-table-wrap"><table class="fuel-table" id="${tableId}"><thead><tr><th>Tank / Asset</th><th>Fuel Type</th><th>Level</th><th>Capacity</th><th>Location</th><th>Ownership</th><th>Status</th></tr></thead><tbody id="${tableId}-body">${renderTankRows(tanks, subtab)}</tbody></table></div>`;
 
     container._tankSortCol = 'name';
     container._tankSortDir = 'asc';
@@ -464,6 +468,15 @@
     if (filterInput) {
       filterInput.addEventListener('input', (e) => onTankFilter(containerId, e.target.value));
     }
+
+    container.querySelectorAll('.subtab-drilldown-row').forEach(row => {
+      row.addEventListener('click', () => {
+        const s = row.getAttribute('data-subtab');
+        const id = row.getAttribute('data-id');
+        const name = row.getAttribute('data-name');
+        showEntityHistoryModal(s, id, name);
+      });
+    });
   }
 
   function onTankFilter(containerId, searchText) {
@@ -474,7 +487,17 @@
     const tanks = getTanksForSubtab(subtab);
     const filtered = filterTanks(tanks, searchText);
     const tbody = container.querySelector('tbody');
-    if (tbody) tbody.innerHTML = renderTankRows(filtered);
+    if (tbody) {
+      tbody.innerHTML = renderTankRows(filtered, subtab);
+      container.querySelectorAll('.subtab-drilldown-row').forEach(row => {
+        row.addEventListener('click', () => {
+          const s = row.getAttribute('data-subtab');
+          const id = row.getAttribute('data-id');
+          const name = row.getAttribute('data-name');
+          showEntityHistoryModal(s, id, name);
+        });
+      });
+    }
   }
 
   function renderTanksForSubtab(subtab) {
@@ -483,14 +506,17 @@
     const container = document.getElementById(containerId);
     if (!container) return;
     container.setAttribute('data-subtab', subtab);
-    let headingText = getTankTypeDisplayName(`${subtab}_tank`);
-    if (subtab === 'equipment') headingText = 'Asset';
-    headingText += ' Tanks';
-    container.innerHTML = `<div class="section-heading">${esc(headingText)} <span class="section-heading-count">${tanks.length} tank${tanks.length !== 1 ? 's' : ''}</span></div>`;
+
+    let headingText = subtab === 'portable' ? 'Portable Cans' : (subtab === 'equipment' ? 'Equipment' : getTankTypeDisplayName(`${subtab}_tank`));
+    if (subtab !== 'portable' && subtab !== 'equipment') headingText += ' Tanks';
+
+    // Applied .fuel-stat-card styling to individual subtab title cards with rounded corners and proper padding
+    container.innerHTML = `<div class="fuel-stat-card" style="text-align:left;margin-bottom:16px;padding:16px 20px;"><div style="font-size:18px;font-weight:700;color:var(--text,#0f172a);display:flex;align-items:center;justify-content:space-between;"><span>${esc(headingText)}</span><span style="font-size:13px;font-weight:600;color:var(--text-muted,#64748b);">${tanks.length} record${tanks.length !== 1 ? 's' : ''}</span></div></div>`;
+    
     const innerDiv = document.createElement('div');
     innerDiv.id = `${containerId}-inner`;
     container.appendChild(innerDiv);
-    renderTankTable(tanks, innerDiv.id);
+    renderTankTable(tanks, innerDiv.id, subtab);
   }
 
   function getAllLocations() {
@@ -652,43 +678,44 @@
 
     let html = '';
 
+    // Removed magnifying glasses and row click handlers on Tank Overview tab as requested
     if (bulkTanks.length > 0) {
-      html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-barrel')} ${esc(getTankTypeDisplayName('bulk_tank'))} <span class="count">(${bulkTanks.length})</span></div>`;
+      html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-barrel')} Bulk Storage Tanks <span class="count">(${bulkTanks.length})</span></div>`;
       html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>Fuel Purchased</th><th>Fuel Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th><th>Action</th></tr></thead><tbody>`;
       bulkTanks.forEach(t => {
         const totals = computeBulkTankTotals(t.id, f.location, f.fromDate, f.toDate);
-        html += `<tr class="drilldown-row" data-type="tank" data-id="${t.id}" data-name="${esc(t.name || '')}" style="cursor:pointer;"><td style="font-weight:600;color:var(--primary);">${esc(t.name || '')} 🔍</td><td>${esc(t.fuel_type || '—')}</td><td>${safeNum(t.capacity)} ${UOM.abbr}</td><td style="font-weight:600;">${totals.purchased.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:600;">${totals.dispensed.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:700;color:var(--primary);">${safeNum(t.current_quantity)} ${UOM.abbr}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td>${esc(t.location || '—')}</td><td><button class="adjust-btn" data-id="${t.id}" data-name="${esc(t.name || '')}" data-qty="${safeNum(t.current_quantity)}" data-cap="${safeNum(t.capacity)}" style="padding:4px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;">Adjust</button></td></tr>`;
+        html += `<tr><td style="font-weight:600;">${esc(t.name || '')}</td><td>${esc(t.fuel_type || '—')}</td><td>${safeNum(t.capacity)} ${UOM.abbr}</td><td style="font-weight:600;">${totals.purchased.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:600;">${totals.dispensed.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:700;color:var(--primary);">${safeNum(t.current_quantity)} ${UOM.abbr}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td>${esc(t.location || '—')}</td><td><button class="adjust-btn" data-id="${t.id}" data-name="${esc(t.name || '')}" data-qty="${safeNum(t.current_quantity)}" data-cap="${safeNum(t.capacity)}" style="padding:4px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;">Adjust</button></td></tr>`;
       });
       html += '</tbody></table></div></div>';
     }
 
     if (dragupTanks.length > 0) {
-      html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-dragup-tank')} ${esc(getTankTypeDisplayName('dragup_tank'))} <span class="count">(${dragupTanks.length})</span></div>`;
+      html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-dragup-tank')} Mobile / Drag-up Tanks <span class="count">(${dragupTanks.length})</span></div>`;
       html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>${UOM.plural} Filled</th><th>${UOM.plural} Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th></tr></thead><tbody>`;
       dragupTanks.forEach(t => {
         const totals = computeDragupTankTotals(t.id, f.location, f.fromDate, f.toDate);
-        html += `<tr class="drilldown-row" data-type="tank" data-id="${t.id}" data-name="${esc(t.name || '')}" style="cursor:pointer;"><td style="font-weight:600;color:var(--primary);">${esc(t.name || '')} 🔍</td><td>${esc(t.fuel_type || '—')}</td><td>${safeNum(t.capacity)} ${UOM.abbr}</td><td style="font-weight:600;">${totals.filled.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:600;">${totals.dispensed.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:700;color:var(--primary);">${safeNum(t.current_quantity)} ${UOM.abbr}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td>${esc(t.location || '—')}</td></tr>`;
+        html += `<tr><td style="font-weight:600;">${esc(t.name || '')}</td><td>${esc(t.fuel_type || '—')}</td><td>${safeNum(t.capacity)} ${UOM.abbr}</td><td style="font-weight:600;">${totals.filled.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:600;">${totals.dispensed.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:700;color:var(--primary);">${safeNum(t.current_quantity)} ${UOM.abbr}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td>${esc(t.location || '—')}</td></tr>`;
       });
       html += '</tbody></table></div></div>';
     }
 
     if (equipmentTanks.length > 0) {
-      html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-equipment')} ${esc(getTankTypeDisplayName('equipment'))} <span class="count">(${equipmentTanks.length})</span></div>`;
+      html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-equipment')} Equipment Assets <span class="count">(${equipmentTanks.length})</span></div>`;
       html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Asset #</th><th>Name</th><th>Fuel Type</th><th>Total ${UOM.plural} Fueled</th><th>Location</th></tr></thead><tbody>`;
       equipmentTanks.forEach(a => {
         const totalFueled = computeAssetFuelTotal(a.id, f.location, f.fromDate, f.toDate);
-        html += `<tr class="drilldown-row" data-type="asset" data-id="${a.id}" data-name="${esc((a.asset_number ? a.asset_number + ' — ' : '') + a.name)}" style="cursor:pointer;"><td style="font-weight:600;color:var(--primary);">${esc(a.asset_number || '')} 🔍</td><td>${esc(a.name || '—')}</td><td>${esc(a.fuel_type || '—')}</td><td style="font-weight:700;color:var(--primary);">${totalFueled.toLocaleString()} ${UOM.abbr}</td><td>${esc(a.current_location || '—')}</td></tr>`;
+        html += `<tr><td style="font-weight:600;">${esc(a.asset_number || '')}</td><td>${esc(a.name || '—')}</td><td>${esc(a.fuel_type || '—')}</td><td style="font-weight:700;color:var(--primary);">${totalFueled.toLocaleString()} ${UOM.abbr}</td><td>${esc(a.current_location || '—')}</td></tr>`;
       });
       html += '</tbody></table></div></div>';
     }
 
     const projectTotals = computePortableProjectTotals(f.location, f.fromDate, f.toDate);
     if (projectTotals.length > 0) {
-      html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-jerrycan')} ${esc(getTankTypeDisplayName('portable_can'))} <span class="count">(per project)</span></div>`;
+      html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-jerrycan')} Portable Cans <span class="count">(per project)</span></div>`;
       html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Gas Can (Project)</th><th>${UOM.plural} Put In Cans</th><th>${UOM.plural} Dispensed</th><th># Transactions</th></tr></thead><tbody>`;
       projectTotals.forEach(p => {
         const canLabel = 'Gas Can – ' + esc(p.project_name || 'Unassigned');
-        html += `<tr class="drilldown-row" data-type="portable" data-id="${esc(p.project_name)}" data-name="${canLabel}" style="cursor:pointer;"><td style="font-weight:600;color:var(--primary);">${canLabel} 🔍</td><td style="font-weight:700;color:var(--primary);">${p.total_filled.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:600;">${p.total_issued.toLocaleString()} ${UOM.abbr}</td><td>${p.tx_count}</td></tr>`;
+        html += `<tr><td style="font-weight:600;">${canLabel}</td><td style="font-weight:700;color:var(--primary);">${p.total_filled.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:600;">${p.total_issued.toLocaleString()} ${UOM.abbr}</td><td>${p.tx_count}</td></tr>`;
       });
       html += '</tbody></table></div></div>';
     }
@@ -698,17 +725,6 @@
     }
 
     container.innerHTML = html;
-
-    // Bind Drill-Down Clicks
-    container.querySelectorAll('.drilldown-row').forEach(row => {
-      row.addEventListener('click', (e) => {
-        if (e.target.classList.contains('adjust-btn')) return;
-        const type = row.getAttribute('data-type');
-        const id = row.getAttribute('data-id');
-        const name = row.getAttribute('data-name');
-        showEntityHistoryModal(type, id, name);
-      });
-    });
 
     // Bind Adjust Buttons
     container.querySelectorAll('.adjust-btn').forEach(btn => {
@@ -737,7 +753,6 @@
         allTanks = tanksData.tanks || tanksData.records || tanksData.data || [];
       }
       
-      // Clean Equipment asset extraction without legacy Airtable properties
       if (results[1].status === 'fulfilled' && results[1].value.ok) {
         const assetsData = await results[1].value.json();
         const rawList = assetsData.records || assetsData.equipment || assetsData.assets || assetsData.data || (Array.isArray(assetsData) ? assetsData : []);
@@ -868,14 +883,9 @@
       const assetTarget = getTxAssetTarget(t);
       const personName = formatPersonName(t);
       
-      // Determine which column receives the magnifying glass icon per tab view
+      // Purchases subtab correctly places magnifying glass in the Asset / Target column
       let fromTd = `<td>${esc(from)}</td>`;
       let assetTd = `<td style="font-weight:600;color:var(--primary);">${esc(assetTarget)} 🔍</td>`;
-      
-      if (subtab === 'purchase') {
-        fromTd = `<td style="font-weight:600;color:var(--primary);">${esc(from)} 🔍</td>`;
-        assetTd = `<td>${esc(assetTarget)}</td>`;
-      }
 
       return `<tr class="tx-row-clickable" data-tx-id="${t.id}" title="Click for details"><td>${date}</td><td>${esc(txTypeLabel(t.transaction_type))}</td><td>${esc(t.fuel_type || '—')}</td><td style="font-weight:600;color:var(--primary);">${qty}</td>${fromTd}${assetTd}<td>${esc(personName)}</td><td>${esc(t.project_name || '—')}</td><td>${esc(t.location || '—')}</td></tr>`;
     }).join('');
@@ -1124,7 +1134,8 @@
         person: f.person || f.person_name || f.created_by_name || details.person || details.submitted_by || details.user || details.submittedBy 
       });
 
-      const assetDisplay = f.asset_name || f.asset_number || details.asset_name || details.asset || details.custom_asset_name || (details.field === 'asset' ? details.value : null) || '—';
+      // Fixed Asset field extraction to pull correctly across top-level properties and nested details objects
+      const assetDisplay = f.asset_name || f.asset_number || details.asset_name || details.asset || details.custom_asset_name || details.asset_number || (details.field === 'asset' ? details.value : null) || '—';
 
       const projectDisplay = f.project_name || details.project_name || details.project || (details.field === 'project' ? details.value : null) || '—';
 
@@ -1495,21 +1506,23 @@
       title: "Fuel Tanks",
       purpose: "<p>The <strong>Fuel Management Dashboard</strong> provides real-time visibility into bulk fuel storage inventory, tank capacities, fuel grades, and current dip levels across all operational sites.</p>",
       instructions: `
+        <h4 style="margin:0 0 8px 0; color:var(--text);">Tank Subtab Drill-Downs:</h4>
+        <p>Switch to any individual tank subtab (<strong>Bulk Storage Tanks, Mobile / Drag-up Tanks, Portable Cans, or Equipment</strong>) and click the magnifying glass (🔍) on any row to open the complete transaction history for that item.</p>
+        <hr style="margin:16px 0; border:0; border-top:1px solid var(--border,#cbd5e1);">
         <h4 style="margin:0 0 8px 0; color:var(--text);">Using Tank Filters:</h4>
         <ol>
-          <li><strong>Location Filter:</strong> Select a specific yard or jobsite from the dropdown to isolate local inventory and total fuel cards.</li>
+          <li><strong>Location Filter:</strong> Select a specific yard or jobsite from the dropdown to isolate local inventory.</li>
           <li><strong>Date Range Filter:</strong> Set <em>From</em> and <em>To</em> dates to evaluate fuel dispenses and purchases logged over a specific period.</li>
-          <li><strong>Clear Filter:</strong> Click <em>Clear</em> to reset all parameters and view company-wide tank totals.</li>
+          <li><strong>Clear Filter:</strong> Click <em>Clear</em> to reset all parameters.</li>
         </ol>
         <hr style="margin:16px 0; border:0; border-top:1px solid var(--border,#cbd5e1);">
         <h4 style="margin:0 0 8px 0; color:var(--text);">Tank Adjustment Action Instructions:</h4>
         <ol>
-          <li><strong>Locate Tank:</strong> Select the bulk fuel storage unit or bowser requiring level reconciliation from the <em>Tank Overview</em> table.</li>
+          <li><strong>Locate Tank:</strong> Select the bulk fuel storage unit requiring reconciliation from the <em>Tank Overview</em> table.</li>
           <li><strong>Initiate Adjustment:</strong> Click the blue <strong>Adjust</strong> button next to the relevant tank row.</li>
-          <li><strong>Record Physical Reading:</strong> Input the exact adjustment amount (positive number for overage, negative number for shortage based on physical dipstick/ATG reading).</li>
-          <li><strong>Select Variance Reason:</strong> Choose the primary reason for adjustment (e.g., <em>Shortage — fuel theft suspected, Evaporation/spillage, Meter calibration error, Overage — delivery overfill, Physical inventory count adjustment</em>).</li>
-          <li><strong>Provide Audit Notes:</strong> Enter mandatory explanatory notes detailing why the manual balance override is taking place.</li>
-          <li><strong>Submit Adjustment:</strong> Click <strong>Submit Adjustment</strong> to update current inventory levels and automatically record an audit log entry.</li>
+          <li><strong>Record Reading:</strong> Input the exact adjustment amount (positive for overage, negative for shortage).</li>
+          <li><strong>Select Reason & Notes:</strong> Provide a reason and required notes explaining the manual override.</li>
+          <li><strong>Submit Adjustment:</strong> Click <strong>Submit Adjustment</strong> to record audit log entries and update balances.</li>
         </ol>
       `
     },
@@ -1517,12 +1530,14 @@
       title: "Transactions",
       purpose: "<p>The <strong>Transactions Tab</strong> logs every fuel event, including vendor purchases, bulk tank fills, asset dispenses, and project transfers.</p>",
       instructions: `
-        <h4 style="margin:0 0 8px 0; color:var(--text);">Filtering & Auditing Transactions:</h4>
+        <h4 style="margin:0 0 8px 0; color:var(--text);">Transaction Inspection & Drill-Downs:</h4>
+        <p>You can click the magnifying glass (🔍) or any row across all transaction subtabs (<strong>All Transactions, Purchases, Issues to Assets, Tank Transfers & Fills</strong>) to inspect detailed receipt records, PO numbers, and cost breakdowns.</p>
+        <hr style="margin:16px 0; border:0; border-top:1px solid var(--border,#cbd5e1);">
+        <h4 style="margin:0 0 8px 0; color:var(--text);">Filtering & Auditing:</h4>
         <ol>
-          <li><strong>Search Bar:</strong> Type an asset number, driver name, project name, or fuel type to filter matching entries in real time.</li>
+          <li><strong>Search Bar:</strong> Filter records by asset, driver, project, or fuel type in real time.</li>
           <li><strong>Location & Date Filters:</strong> Isolate fuel logs by specific work location or timeframe.</li>
-          <li><strong>Column Sorting:</strong> Click any table column header (<em>Date, Type, Fuel, Qty, From, Asset, Person, Project, Location</em>) to sort ascending or descending.</li>
-          <li><strong>Inspect Detail:</strong> Click any transaction row to open full receipts, PO numbers, and cost breakdowns.</li>
+          <li><strong>Column Sorting:</strong> Click any table column header to sort ascending or descending.</li>
         </ol>
       `
     },
@@ -1532,10 +1547,10 @@
       instructions: `
         <h4 style="margin:0 0 8px 0; color:var(--text);">Managing & Resolving Alerts:</h4>
         <ol>
-          <li><strong>Filter Alerts:</strong> Filter open flags by <em>Type</em> (Manager Review, Capacity Exceeded, Consumption Anomaly) or <em>Status</em> (Open / Resolved).</li>
-          <li><strong>Add & Resolve (Managers/Admins):</strong> Click <strong>Add & Resolve</strong> on missing entity flags. This creates the missing project/asset in the system, resolves the flag, and automatically notifies the submitter.</li>
+          <li><strong>Filter Alerts:</strong> Filter open flags by <em>Type</em> or <em>Status</em>.</li>
+          <li><strong>Add & Resolve (Managers/Admins):</strong> Click <strong>Add & Resolve</strong> on missing entity flags. This creates the missing item in the system, resolves the alert, and notifies the submitter.</li>
           <li><strong>Manual Resolve:</strong> Click <strong>Resolve</strong> and provide notes once an anomaly has been verified.</li>
-          <li><strong>Forward Flag:</strong> If you lack edit permissions, click <strong>Forward</strong> to route the alert to an authorized manager's notifications.</li>
+          <li><strong>Forward Flag:</strong> Click <strong>Forward</strong> to route the alert to an authorized manager's notifications.</li>
         </ol>
       `
     }
@@ -1662,7 +1677,6 @@
       _initDone = true;
       window.dashUser = user;
 
-      // Ensure theme preference is synchronized immediately on app load (reads driven-theme or driven_theme)
       const savedTheme = localStorage.getItem('driven-theme') || localStorage.getItem('driven_theme') || (user && user.theme) || 'light';
       document.documentElement.setAttribute('data-theme', savedTheme);
 
