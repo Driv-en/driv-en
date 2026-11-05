@@ -24,7 +24,7 @@
   /* ===== HELPER & UTILITY FUNCTIONS ===== */
 
   function esc(s) {
-    if (!s) return '';
+    if (s === null || s === undefined) return '';
     return String(s)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -38,7 +38,7 @@
     return Number.isFinite(n) ? n : 0;
   }
 
-  // Volume unit pulled from the customer's units_of_measure (selected during onboarding)
+  // Volume unit pulled from customer units_of_measure
   let UOM = { plural: 'Gallons', singular: 'Gallon', abbr: 'gal', lower: 'gallons' };
 
   function uomFromName(name) {
@@ -130,18 +130,20 @@
   }
 
   const ALLOWED_OWNERSHIP = ['company', 'employee', 'rental'];
-  const ALLOWED_STATUS = ['active', 'inactive'];
 
   function ownershipBadge(t) {
-    if (!t.ownership_type || t.ownership_type === 'company') return '';
-    const ot = ALLOWED_OWNERSHIP.indexOf(t.ownership_type) !== -1 ? t.ownership_type : 'company';
+    const otRaw = (t.ownership_type || '').toLowerCase();
+    if (!otRaw || otRaw === 'company') return '';
+    const ot = ALLOWED_OWNERSHIP.indexOf(otRaw) !== -1 ? otRaw : 'company';
     if (ot === 'company') return '';
     return `<span class="ownership-badge ${ot}">${esc(ot)}${t.owner_name ? ': ' + esc(t.owner_name) : ''}</span>`;
   }
 
   function statusBadge(t) {
-    const s = ALLOWED_STATUS.indexOf(t.status || 'active') !== -1 ? (t.status || 'active') : 'inactive';
-    return `<span class="status-badge ${s}">${esc(s)}</span>`;
+    const rawStatus = String(t.status || '').trim().toLowerCase();
+    const isInactive = /inactive|out of service|retired|archived/.test(rawStatus);
+    const statusText = isInactive ? 'inactive' : 'active';
+    return `<span class="status-badge ${statusText}">${esc(statusText)}</span>`;
   }
 
   function parseDate(s) {
@@ -439,19 +441,20 @@
 
   function renderTankRows(tanks) {
     return tanks.map(t =>
-      `<tr><td style="font-weight:600;">${esc(t.name || '')}</td><td>${esc(t.fuel_type || '—')}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td>${safeNum(t.capacity)} ${UOM.abbr}</td><td>${esc(t.location || '—')}</td><td>${ownershipBadge(t)}</td><td>${statusBadge(t)}</td></tr>`
+      `<tr><td style="font-weight:600;">${esc(t.name || t.asset_number || '—')}</td><td>${esc(t.fuel_type || '—')}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || t.fuel_tank_capacity || 0)}</td><td>${safeNum(t.capacity || t.fuel_tank_capacity)} ${UOM.abbr}</td><td>${esc(t.location || t.current_location || '—')}</td><td>${ownershipBadge(t)}</td><td>${statusBadge(t)}</td></tr>`
     ).join('');
   }
 
   function renderTankTable(tanks, containerId) {
     const container = document.getElementById(containerId);
+    if (!container) return;
     if (tanks.length === 0) {
       container.innerHTML = '<div class="empty-state">No tanks found.</div>';
       return;
     }
     const filterBarId = `${containerId}-filter`;
     const tableId = `${containerId}-table`;
-    container.innerHTML = `<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="${filterBarId}" placeholder="Name, fuel, location…" style="flex:1;min-width:180px;"></div><div class="fuel-table-wrap"><table class="fuel-table" id="${tableId}"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Level</th><th>Capacity</th><th>Location</th><th>Ownership</th><th>Status</th></tr></thead><tbody id="${tableId}-body">${renderTankRows(tanks)}</tbody></table></div>`;
+    container.innerHTML = `<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="${filterBarId}" placeholder="Name, fuel, location…" style="flex:1;min-width:180px;"></div><div class="fuel-table-wrap"><table class="fuel-table" id="${tableId}"><thead><tr><th>Tank / Asset</th><th>Fuel Type</th><th>Level</th><th>Capacity</th><th>Location</th><th>Ownership</th><th>Status</th></tr></thead><tbody id="${tableId}-body">${renderTankRows(tanks)}</tbody></table></div>`;
 
     container._tankSortCol = 'name';
     container._tankSortDir = 'asc';
@@ -465,6 +468,7 @@
 
   function onTankFilter(containerId, searchText) {
     const container = document.getElementById(containerId);
+    if (!container) return;
     container._tankSearch = searchText;
     const subtab = container.getAttribute('data-subtab') || 'all';
     const tanks = getTanksForSubtab(subtab);
@@ -515,9 +519,9 @@
   }
 
   function clearOverviewFilters() {
-    document.getElementById('overviewLocationFilter').value = '';
-    document.getElementById('overviewFromDate').value = '';
-    document.getElementById('overviewToDate').value = '';
+    if (document.getElementById('overviewLocationFilter')) document.getElementById('overviewLocationFilter').value = '';
+    if (document.getElementById('overviewFromDate')) document.getElementById('overviewFromDate').value = '';
+    if (document.getElementById('overviewToDate')) document.getElementById('overviewToDate').value = '';
     renderOverview();
   }
 
@@ -722,10 +726,6 @@
   async function loadTanks() {
     try {
       const headers = getAuthHeaders();
-      if (!headers['x-org-id']) {
-        console.warn('[DRIV-EN] Organization ID header missing. User session may not be ready.');
-      }
-
       const results = await Promise.allSettled([
         fetch('/api/fuel-tanks', { headers }),
         fetch('/api/Equipment', { headers }),
@@ -734,25 +734,38 @@
 
       if (results[0].status === 'fulfilled' && results[0].value.ok) {
         const tanksData = await results[0].value.json();
-        allTanks = tanksData.tanks || [];
+        allTanks = tanksData.tanks || tanksData.records || tanksData.data || [];
       }
+      
+      // Clean Equipment asset extraction without legacy Airtable properties
       if (results[1].status === 'fulfilled' && results[1].value.ok) {
         const assetsData = await results[1].value.json();
-        allAssets = (assetsData.records || assetsData.assets || assetsData.data || []).map(r => {
-          const f = r.fields || r;
+        const rawList = assetsData.records || assetsData.equipment || assetsData.assets || assetsData.data || (Array.isArray(assetsData) ? assetsData : []);
+        
+        allAssets = rawList.map(r => {
+          const item = r.fields || r;
+          
+          const rawStatus = String(item.status || item.state || 'active').trim().toLowerCase();
+          const isInactive = /inactive|out of service|retired|archived/.test(rawStatus);
+          const computedStatus = isInactive ? 'inactive' : 'active';
+
           return {
-            id: r.id || f.id,
-            name: f['Equipment Name'] || f.name || f.equipment_name || '',
-            asset_number: f['Equipment ID'] || f.asset_number || f.asset_num || '',
-            fuel_tank_capacity: safeNum(f['Fuel Tank Capacity'] || f.fuel_tank_capacity || f.capacity),
-            fuel_type: f['Fuel Type'] || f.fuel_type || '',
-            status: (f['Status'] || f.status || 'active').toLowerCase(),
-            current_location: f['Location'] || f.location || f.current_location || '',
-            ownership_type: f['Condition'] || f.ownership_type || '',
-            owner_name: f['Assigned To'] || f.owner_name || ''
+            id: item.id || r.id,
+            name: item.name || item.equipment_name || item.asset_name || 'Equipment Unit',
+            asset_number: item.asset_number || item.equipment_id || item.asset_num || '',
+            capacity: safeNum(item.fuel_tank_capacity || item.capacity || 0),
+            fuel_tank_capacity: safeNum(item.fuel_tank_capacity || item.capacity || 0),
+            current_quantity: safeNum(item.current_quantity || item.current_qty || 0),
+            fuel_type: item.fuel_type || 'Diesel',
+            status: computedStatus,
+            current_location: item.location || item.current_location || item.jobsite || '',
+            location: item.location || item.current_location || item.jobsite || '',
+            ownership_type: item.ownership_type || item.ownership || 'company',
+            owner_name: item.owner_name || item.assigned_to || item.operator || ''
           };
         });
       }
+
       if (results[2].status === 'fulfilled' && results[2].value.ok) {
         const txData = await results[2].value.json();
         allTransactions = txData.transactions || txData.records || txData.data || [];
@@ -860,6 +873,7 @@
 
   function renderTxTable(txs, containerId) {
     const container = document.getElementById(containerId);
+    if (!container) return;
     if (txs.length === 0 && !txSearchText && !txLocationFilter && !txFromDate && !txToDate) {
       container.innerHTML = '<div class="empty-state">No transactions found.</div>';
       return;
@@ -944,6 +958,7 @@
 
   function onTxSort(containerId, col) {
     const container = document.getElementById(containerId);
+    if (!container) return;
     if (container._txSortCol === col) {
       container._txSortDir = container._txSortDir === 'asc' ? 'desc' : 'asc';
     } else {
@@ -954,6 +969,7 @@
 
   function reRenderTxTable(containerId) {
     const container = document.getElementById(containerId);
+    if (!container) return;
     const subtab = container.getAttribute('data-subtab') || 'all';
     const txs = getTxForSubtab(subtab);
     const filtered = applyTxFilters(txs);
@@ -994,6 +1010,7 @@
     const txs = getTxForSubtab(subtab);
     const containerId = subtab === 'all' ? 'allTxContainer' : subtab === 'purchase' ? 'purchaseTxContainer' : subtab === 'issue' ? 'issueTxContainer' : 'transferTxContainer';
     const container = document.getElementById(containerId);
+    if (!container) return;
     container.setAttribute('data-subtab', subtab);
     const headingText = subtab === 'all' ? 'All Fuel Transactions' : subtab === 'purchase' ? 'Fuel Purchases' : subtab === 'issue' ? 'Issues to Assets' : 'Tank Transfers & Fills';
     container.innerHTML = `<div class="section-heading">${headingText} <span class="section-heading-count">${txs.length} record${txs.length !== 1 ? 's' : ''}</span></div>`;
@@ -1086,21 +1103,22 @@
 
     container.innerHTML = flags.map(f => {
       let details = {};
-      try { details = typeof f.details === 'string' ? JSON.parse(f.details) : (f.details || {}); } catch (e) {}
+      try { 
+        details = typeof f.details === 'string' ? JSON.parse(f.details) : (f.details || {}); 
+      } catch (e) {}
 
       const sevStyle = flagSeverityClass(f.severity);
       const isManagerReview = f.flag_type === 'manager_review';
 
-      // Correctly extract fields even when submitted inside details object or flagged value
       const personDisplay = formatPersonName({ 
-        person: f.person || f.person_name || f.created_by_name || details.person || details.submitted_by || details.user 
+        person: f.person || f.person_name || f.created_by_name || details.person || details.submitted_by || details.user || details.submittedBy 
       });
 
-      const assetDisplay = f.asset_name || f.asset_number || details.asset_name || details.asset || details.custom_asset_name || (details.field === 'asset' ? details.value : '—');
+      const assetDisplay = f.asset_name || f.asset_number || details.asset_name || details.asset || details.custom_asset_name || (details.field === 'asset' ? details.value : null) || '—';
 
-      const projectDisplay = f.project_name || details.project_name || details.project || (details.field === 'project' ? details.value : '—');
+      const projectDisplay = f.project_name || details.project_name || details.project || (details.field === 'project' ? details.value : null) || '—';
 
-      const locationDisplay = f.location || details.location || (details.field === 'location' ? details.value : '—');
+      const locationDisplay = f.location || details.location || (details.field === 'location' ? details.value : null) || '—';
 
       let html = '<div style="border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;background:var(--bg-card);">';
       html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:8px;">';
@@ -1634,10 +1652,9 @@
       _initDone = true;
       window.dashUser = user;
 
-      // Sync theme preference to html root element
-      if (user.theme) {
-        document.documentElement.setAttribute('data-theme', user.theme);
-      }
+      // Ensure theme preference is synchronized immediately on app load (reads driven-theme or driven_theme)
+      const savedTheme = localStorage.getItem('driven-theme') || localStorage.getItem('driven_theme') || (user && user.theme) || 'light';
+      document.documentElement.setAttribute('data-theme', savedTheme);
 
       try {
         bindStaticEvents();
