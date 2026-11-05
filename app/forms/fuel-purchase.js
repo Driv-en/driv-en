@@ -1269,7 +1269,6 @@ function clearPurchaseForm() {
   document.getElementById('purchasePaymentType').value = '';
   handlePaymentTypeChange(document.getElementById('purchasePaymentType'));
   document.getElementById('purchaseCardLast4').value = '';
-  document.getElementById('purchaseProject').value = '';
   document.getElementById('purchaseNotes').value = '';
   document.getElementById('receiptTotal').value = '';
   document.getElementById('receiptItems').value = '';
