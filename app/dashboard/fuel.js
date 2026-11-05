@@ -165,7 +165,6 @@
     return (tx.location || '').trim() === locFilter;
   }
 
-  // Format person name cleanly instead of displaying raw emails
   function formatPersonName(tx) {
     const raw = tx.person_name || tx.person || tx.created_by_name || '';
     if (!raw) return '—';
@@ -176,19 +175,19 @@
     return raw;
   }
 
-  // Resolve target asset, gas can, or destination tank for transfers/fills
   function getTxAssetTarget(t) {
     if (t.asset_name) return t.asset_name;
     if (t.asset_number) return t.asset_number;
     if (t.to_entity_name) return t.to_entity_name;
     
-    // Check tank matching by target ID
     if (t.to_entity_id) {
+      const targetAsset = allAssets.find(x => x.id === t.to_entity_id);
+      if (targetAsset) return (targetAsset.asset_number ? targetAsset.asset_number + ' — ' : '') + targetAsset.name;
+
       const targetTank = allTanks.find(x => x.id === t.to_entity_id);
       if (targetTank) return targetTank.name || targetTank.asset_number || t.to_entity_id;
     }
 
-    // Default Fallback Labels for Can & Tank Fills if unspecified
     if (t.transaction_type === 'portable_fill') {
       return t.project_name ? `Gas Can – ${t.project_name}` : 'Gas Can';
     }
@@ -200,8 +199,8 @@
   }
 
   function getTransferredFrom(t) {
-    if (t.transaction_type === 'purchase') return '—';
-    if (t.from_entity_type === 'vendor') return 'Vendor';
+    if (t.transaction_type === 'purchase') return t.vendor || 'Vendor';
+    if (t.from_entity_type === 'vendor') return t.from_entity_name || t.vendor || 'Vendor';
     if (t.from_entity_name) return t.from_entity_name;
     const tank = allTanks.find(x => x.id === t.from_entity_id);
     if (tank) return tank.name || tank.asset_number || t.from_entity_id || '—';
@@ -270,9 +269,11 @@
     if (tanksBar) tanksBar.classList.toggle('visible', tabName === 'tanks');
     if (txBar) txBar.classList.toggle('visible', tabName === 'transactions');
 
-    if (tabName === 'transactions' && !window._txLoaded) {
+    if (tabName === 'transactions') {
       window._txLoaded = true;
-      renderTxForSubtab('all');
+      const activeSubtabBtn = document.querySelector('#txSubtabBar .fuel-subtab.active');
+      const activeSubtab = activeSubtabBtn ? activeSubtabBtn.getAttribute('data-subtab') : 'all';
+      renderTxForSubtab(activeSubtab);
     }
     if (tabName === 'alerts') {
       renderAlerts();
@@ -380,7 +381,7 @@
   }
 
   function getTanksForSubtab(subtab) {
-    if (subtab === 'equipment') return allAssets.filter(a => a.fuel_tank_capacity && a.fuel_tank_capacity > 0);
+    if (subtab === 'equipment') return allAssets;
     return dedupTanks(allTanks.filter(t => t.tank_type === subtab));
   }
 
@@ -516,13 +517,17 @@
     return { filled, dispensed };
   }
 
+  // UPDATED: Include purchases made directly to equipment assets
   function computeAssetFuelTotal(assetId, locFilter, fromDate, toDate) {
     let total = 0;
     allTransactions.forEach(tx => {
-      if (tx.asset_id !== assetId) return;
+      const isTargetAsset = (tx.asset_id === assetId || tx.to_entity_id === assetId);
+      if (!isTargetAsset) return;
+
       const type = tx.transaction_type;
       if (!type) return;
-      if (type === 'bulk_issue' || type === 'dragup_issue' || type === 'portable_issue') {
+
+      if (type === 'bulk_issue' || type === 'dragup_issue' || type === 'portable_issue' || type === 'purchase') {
         if (!txMatchesLocation(tx, locFilter)) return;
         if (!txInDateRange(tx, fromDate, toDate)) return;
         total += safeNum(tx.quantity);
@@ -566,7 +571,9 @@
     });
     const bulkTanks = filteredTanks.filter(t => t.tank_type === 'bulk');
     const dragupTanks = filteredTanks.filter(t => t.tank_type === 'dragup');
-    const equipmentTanks = filteredAssets.filter(a => a.fuel_tank_capacity && a.fuel_tank_capacity > 0);
+
+    // UPDATED: Show all equipment assets in overview table
+    const equipmentTanks = filteredAssets;
 
     const fuelTypeTotals = {};
     bulkTanks.forEach(t => {
@@ -637,7 +644,6 @@
 
     container.innerHTML = html;
 
-    // Event binding for adjust buttons
     container.querySelectorAll('.adjust-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const id = e.target.getAttribute('data-id');
@@ -668,18 +674,18 @@
       }
       if (results[1].status === 'fulfilled' && results[1].value.ok) {
         const assetsData = await results[1].value.json();
-        allAssets = (assetsData.records || []).map(r => {
-          const f = r.fields || {};
+        allAssets = (assetsData.records || assetsData.assets || assetsData.data || []).map(r => {
+          const f = r.fields || r;
           return {
-            id: r.id,
-            name: f['Equipment Name'] || '',
-            asset_number: f['Equipment ID'] || '',
-            fuel_tank_capacity: safeNum(f['Fuel Tank Capacity']),
-            fuel_type: f['Fuel Type'] || '',
-            status: (f['Status'] || 'active').toLowerCase(),
-            current_location: f['Location'] || '',
-            ownership_type: f['Condition'] || '',
-            owner_name: f['Assigned To'] || ''
+            id: r.id || f.id,
+            name: f['Equipment Name'] || f.name || f.equipment_name || '',
+            asset_number: f['Equipment ID'] || f.asset_number || f.asset_num || '',
+            fuel_tank_capacity: safeNum(f['Fuel Tank Capacity'] || f.fuel_tank_capacity || f.capacity),
+            fuel_type: f['Fuel Type'] || f.fuel_type || '',
+            status: (f['Status'] || f.status || 'active').toLowerCase(),
+            current_location: f['Location'] || f.location || f.current_location || '',
+            ownership_type: f['Condition'] || f.ownership_type || '',
+            owner_name: f['Assigned To'] || f.owner_name || ''
           };
         });
       }
@@ -719,11 +725,12 @@
     return labels[type] || (type || '').replace(/_/g, ' ');
   }
 
+  // UPDATED: Include purchases in purchase and transfer subtabs
   function getTxForSubtab(subtab) {
     if (subtab === 'all') return allTransactions;
     if (subtab === 'purchase') return allTransactions.filter(t => t.transaction_type === 'purchase');
-    if (subtab === 'issue') return allTransactions.filter(t => t.transaction_type === 'bulk_issue' || t.transaction_type === 'dragup_issue' || t.transaction_type === 'portable_issue');
-    if (subtab === 'transfer') return allTransactions.filter(t => t.transaction_type === 'return' || t.transaction_type === 'dragup_fill' || t.transaction_type === 'portable_fill' || t.transaction_type === 'bulk_issue' || t.transaction_type === 'dragup_issue' || t.transaction_type === 'portable_issue');
+    if (subtab === 'issue') return allTransactions.filter(t => t.transaction_type === 'bulk_issue' || t.transaction_type === 'dragup_issue' || t.transaction_type === 'portable_issue' || (t.transaction_type === 'purchase' && t.to_entity_type === 'asset'));
+    if (subtab === 'transfer') return allTransactions.filter(t => t.transaction_type === 'return' || t.transaction_type === 'dragup_fill' || t.transaction_type === 'portable_fill' || t.transaction_type === 'bulk_issue' || t.transaction_type === 'dragup_issue' || t.transaction_type === 'portable_issue' || t.transaction_type === 'purchase');
     return allTransactions;
   }
 
@@ -745,7 +752,7 @@
       if (s) {
         const personName = formatPersonName(t);
         const assetTarget = getTxAssetTarget(t);
-        const hay = [t.transaction_type, t.fuel_type, assetTarget, personName, t.project_name, t.location].filter(Boolean).join(' ').toLowerCase();
+        const hay = [t.transaction_type, t.fuel_type, assetTarget, personName, t.project_name, t.location, t.vendor].filter(Boolean).join(' ').toLowerCase();
         if (hay.indexOf(s) === -1) return false;
       }
       return true;
@@ -964,6 +971,7 @@
     return 'background:#eff6ff;border-color:#93c5fd;color:#1e3a5f;';
   }
 
+  // UPDATED: Render Person, Asset, Project, and Location info directly inside Alert cards
   function renderAlerts() {
     const container = document.getElementById('alertsContainer');
     if (!container) return;
@@ -1007,6 +1015,11 @@
       const sevStyle = flagSeverityClass(f.severity);
       const isManagerReview = f.flag_type === 'manager_review';
 
+      const personDisplay = formatPersonName({ person: f.person || f.person_name || f.created_by_name || details.person || details.submitted_by });
+      const assetDisplay = f.asset_name || f.asset_number || details.asset_name || details.asset || '—';
+      const projectDisplay = f.project_name || details.project_name || details.project || '—';
+      const locationDisplay = f.location || details.location || '—';
+
       let html = '<div style="border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;background:var(--bg-card);">';
       html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:8px;">';
       html += `<div><span style="font-size:12px;padding:2px 8px;border-radius:4px;font-weight:600;${sevStyle}">${esc(flagTypeLabel(f.flag_type))}</span>`;
@@ -1015,15 +1028,24 @@
       html += `<div style="font-size:12px;color:var(--text-muted);">${esc(new Date(f.created_at).toLocaleString())}</div>`;
       html += '</div>';
       html += `<div style="font-size:14px;margin-bottom:8px;">${esc(f.message || 'No message')}</div>`;
+
+      // Operational Context Block
+      html += '<div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:4px 12px;background:var(--bg-step);padding:8px 12px;border-radius:6px;">';
+      html += `<div><strong>Submitted By:</strong> ${esc(personDisplay)}</div>`;
+      html += `<div><strong>Asset:</strong> ${esc(assetDisplay)}</div>`;
+      html += `<div><strong>Project:</strong> ${esc(projectDisplay)}</div>`;
+      html += `<div><strong>Location:</strong> ${esc(locationDisplay)}</div>`;
+      if (f.tank_name) html += `<div><strong>Tank:</strong> ${esc(f.tank_name)}</div>`;
+      html += '</div>';
+
       if (details.field) {
-        html += `<div style="font-size:13px;color:var(--text-muted);margin-bottom:4px;"><strong>Field:</strong> ${esc(details.field)}`;
+        html += `<div style="font-size:13px;color:var(--text-muted);margin-bottom:4px;"><strong>Flagged Field:</strong> ${esc(details.field)}`;
         if (details.value) html += ` | <strong>Value:</strong> ${esc(details.value)}`;
         if (details.reason) html += ` | <strong>Reason:</strong> ${esc(details.reason)}`;
         if (details.line) html += ` | <strong>Line:</strong> ${details.line}`;
         html += '</div>';
       }
-      if (f.asset_name) html += `<div style="font-size:13px;color:var(--text-muted);"><strong>Asset:</strong> ${esc(f.asset_name)}</div>`;
-      if (f.tank_name) html += `<div style="font-size:13px;color:var(--text-muted);"><strong>Tank:</strong> ${esc(f.tank_name)}</div>`;
+
       if (f.status === 'open') {
         html += '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">';
         if (isManagerReview && canEdit) {
@@ -1255,7 +1277,7 @@
       ['Person', formatPersonName(tx)],
       ['Project', tx.project_name || '—'],
       ['Location', tx.location || '—'],
-      ['From', tx.from_entity_type ? (tx.from_entity_type.replace(/_/g, ' ') + ' — ' + (tx.from_entity_name || tx.from_entity_id || '')) : '—'],
+      ['From', getTransferredFrom(tx)],
       ['To', tx.to_entity_type ? (tx.to_entity_type.replace(/_/g, ' ') + ' — ' + (tx.to_entity_name || tx.to_entity_id || '')) : '—'],
       ["Cost/" + UOM.singular, tx.cost_per_gallon != null ? "$" + parseFloat(tx.cost_per_gallon).toFixed(3) : "—"],
       ["Receipt Total", tx.receipt_total != null ? "$" + parseFloat(tx.receipt_total).toFixed(2) : "—"],
