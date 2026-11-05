@@ -1091,12 +1091,16 @@
       const sevStyle = flagSeverityClass(f.severity);
       const isManagerReview = f.flag_type === 'manager_review';
 
+      // Correctly extract fields even when submitted inside details object or flagged value
       const personDisplay = formatPersonName({ 
         person: f.person || f.person_name || f.created_by_name || details.person || details.submitted_by || details.user 
       });
-      const assetDisplay = f.asset_name || f.asset_number || details.asset_name || details.asset || details.custom_asset_name || '—';
-      const projectDisplay = f.project_name || details.project_name || details.project || '—';
-      const locationDisplay = f.location || details.location || '—';
+
+      const assetDisplay = f.asset_name || f.asset_number || details.asset_name || details.asset || details.custom_asset_name || (details.field === 'asset' ? details.value : '—');
+
+      const projectDisplay = f.project_name || details.project_name || details.project || (details.field === 'project' ? details.value : '—');
+
+      const locationDisplay = f.location || details.location || (details.field === 'location' ? details.value : '—');
 
       let html = '<div style="border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;background:var(--bg-card);">';
       html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:8px;">';
@@ -1629,6 +1633,11 @@
 
       _initDone = true;
       window.dashUser = user;
+
+      // Sync theme preference to html root element
+      if (user.theme) {
+        document.documentElement.setAttribute('data-theme', user.theme);
+      }
 
       try {
         bindStaticEvents();
