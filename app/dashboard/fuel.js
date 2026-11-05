@@ -401,7 +401,6 @@
       const btn = document.createElement('button');
       btn.className = 'fuel-subtab';
       btn.setAttribute('data-subtab', subtabKey);
-      btn.addEventListener('click', () => switchTankSubtab(subtabKey));
       btn.textContent = getTankTypeShortName(tt.system_key);
       bar.appendChild(btn);
 
@@ -442,7 +441,6 @@
       const portableTanks = allTanks.filter(t => t.tank_type === 'portable' || t.tank_type === 'portable_can');
       if (portableTanks.length > 0) return dedupTanks(portableTanks);
 
-      // Fallback: build synthetic items from transactions if no explicit portable tanks are returned
       const projectMap = {};
       allTransactions.forEach(tx => {
         if (tx.transaction_type === 'portable_fill' || tx.transaction_type === 'portable_issue') {
@@ -462,7 +460,6 @@
     return dedupTanks(allTanks.filter(t => t.tank_type === subtab));
   }
 
-  // 3-Column Portable Can rendering with magnifying glass on Project
   function renderTankRows(tanks, subtab) {
     if (subtab === 'portable') {
       return tanks.map(t => {
@@ -557,7 +554,6 @@
     let headingText = subtab === 'portable' ? 'Portable Cans' : (subtab === 'equipment' ? 'Equipment' : getTankTypeDisplayName(`${subtab}_tank`));
     if (subtab !== 'portable' && subtab !== 'equipment') headingText += ' Tanks';
 
-    // Standardized green-bordered card header matching platform theme
     container.innerHTML = `<div class="fuel-stat-card" style="text-align:left;margin-bottom:16px;padding:16px 20px;border:1px solid #16a34a;border-radius:10px;"><div style="font-size:18px;font-weight:700;color:var(--text,#0f172a);display:flex;align-items:center;justify-content:space-between;"><span>${esc(headingText)}</span><span style="font-size:13px;font-weight:600;color:var(--text-muted,#64748b);">${tanks.length} record${tanks.length !== 1 ? 's' : ''}</span></div></div>`;
     
     const innerDiv = document.createElement('div');
@@ -1079,7 +1075,6 @@
     container.setAttribute('data-subtab', subtab);
     const headingText = subtab === 'all' ? 'All Fuel Transactions' : subtab === 'purchase' ? 'Fuel Purchases' : subtab === 'issue' ? 'Issues to Assets' : 'Tank Transfers & Fills';
     
-    // Standardized green-bordered title card matching Tanks subtabs
     container.innerHTML = `<div class="fuel-stat-card" style="text-align:left;margin-bottom:16px;padding:16px 20px;border:1px solid #16a34a;border-radius:10px;"><div style="font-size:18px;font-weight:700;color:var(--text,#0f172a);display:flex;align-items:center;justify-content:space-between;"><span>${esc(headingText)}</span><span style="font-size:13px;font-weight:600;color:var(--text-muted,#64748b);">${txs.length} record${txs.length !== 1 ? 's' : ''}</span></div></div>`;
 
     const innerDiv = document.createElement('div');
@@ -1182,7 +1177,6 @@
         person: f.person || f.person_name || f.created_by_name || details.person || details.submitted_by || details.user || details.submittedBy || details.payload?.person_name
       });
 
-      // Thorough field extraction to ensure Asset is reliably populated across all API payload models
       const rawAsset = f.asset_name || f.asset_number || details.asset_name || details.custom_asset_name || details.asset || details.asset_number ||
                        details.payload?.custom_asset_name || details.payload?.asset_name || details.payload?.asset_number || details.payload?.asset ||
                        details.transaction_payload?.asset_name || details.transaction_payload?.custom_asset_name ||
@@ -1202,7 +1196,6 @@
 
       const locationDisplay = rawLocation ? String(rawLocation).trim() : '—';
 
-      // Standardized green-bordered alert card with proper rounded corners and side padding
       let html = '<div class="fuel-stat-card" style="text-align:left;margin-bottom:16px;padding:20px;border:1px solid #16a34a;border-radius:10px;background:var(--bg-card);">';
       html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:8px;">';
       html += `<div><span style="font-size:12px;padding:2px 8px;border-radius:4px;font-weight:600;${sevStyle}">${esc(flagTypeLabel(f.flag_type))}</span>`;
@@ -1715,9 +1708,17 @@
     const printOverviewBtn = document.getElementById('btnPrintOverview');
     if (printOverviewBtn) printOverviewBtn.addEventListener('click', printOverview);
 
-    document.querySelectorAll('#tanksSubtabBar .fuel-subtab').forEach(btn => {
-      btn.addEventListener('click', () => switchTankSubtab(btn.getAttribute('data-subtab')));
-    });
+    // Event Delegation for Tanks Subtabs (handles static & dynamically inserted subtabs)
+    const tanksSubtabBar = document.getElementById('tanksSubtabBar');
+    if (tanksSubtabBar) {
+      tanksSubtabBar.addEventListener('click', (e) => {
+        const btn = e.target.closest('.fuel-subtab');
+        if (btn) {
+          const subtabKey = btn.getAttribute('data-subtab');
+          if (subtabKey) switchTankSubtab(subtabKey);
+        }
+      });
+    }
 
     document.querySelectorAll('#txSubtabBar .fuel-subtab').forEach(btn => {
       btn.addEventListener('click', () => switchTxSubtab(btn.getAttribute('data-subtab')));
