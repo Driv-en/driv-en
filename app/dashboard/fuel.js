@@ -1,6 +1,7 @@
 /* ==========================================================================
    DRIV-EN Platform — Fuel Management Dashboard JavaScript Module
    File: /app/dashboard/fuel.js
+   Part 1 of 3
    ========================================================================== */
 
 (function () {
@@ -268,8 +269,7 @@
       dynamicContainer.appendChild(content);
     });
   }
-
-  /* ===== TANK OVERVIEW & FILTERING ===== */
+   /* ===== TANK OVERVIEW & FILTERING ===== */
 
   function dedupTanks(tanks) {
     const seen = {};
@@ -608,8 +608,7 @@
       }
     }
   }
-
-  /* ===== TRANSACTIONS TAB ===== */
+   /* ===== TRANSACTIONS TAB ===== */
 
   function txTypeLabel(type) {
     const labels = {
@@ -707,7 +706,6 @@
     container._txSortCol = 'transaction_date';
     container._txSortDir = 'desc';
 
-    // Attach event listeners
     document.getElementById(filterId).addEventListener('input', (e) => onTxFilter(containerId, e.target.value));
     document.getElementById(locFilterId).addEventListener('change', (e) => onTxLocationFilter(containerId, e.target.value));
     document.getElementById(fromId).addEventListener('change', (e) => onTxDateFilter(containerId, 'from', e.target.value));
@@ -957,7 +955,6 @@
       return html;
     }).join('');
 
-    // Event Delegation / Binding for dynamic alert buttons
     container.querySelectorAll('.btn-resolve-add').forEach(btn => {
       btn.addEventListener('click', (e) => {
         resolveWithAdd(e.target.getAttribute('data-id'), e.target.getAttribute('data-field'), e.target.getAttribute('data-value'));
@@ -1323,7 +1320,6 @@
   /* ===== INITIALIZATION ===== */
 
   function bindStaticEvents() {
-    // Top Bar Tabs
     document.querySelectorAll('.fuel-tab').forEach(btn => {
       btn.addEventListener('click', () => switchTab(btn.getAttribute('data-tab')));
     });
@@ -1340,7 +1336,6 @@
     const notifBell = document.getElementById('fuelNotifBell');
     if (notifBell) notifBell.addEventListener('click', toggleNotifications);
 
-    // Tanks Overview Filters
     const locFilter = document.getElementById('overviewLocationFilter');
     if (locFilter) locFilter.addEventListener('change', renderOverview);
 
@@ -1356,17 +1351,14 @@
     const printOverviewBtn = document.getElementById('btnPrintOverview');
     if (printOverviewBtn) printOverviewBtn.addEventListener('click', printOverview);
 
-    // Tanks Subtabs
     document.querySelectorAll('#tanksSubtabBar .fuel-subtab').forEach(btn => {
       btn.addEventListener('click', () => switchTankSubtab(btn.getAttribute('data-subtab')));
     });
 
-    // Transactions Subtabs
     document.querySelectorAll('#txSubtabBar .fuel-subtab').forEach(btn => {
       btn.addEventListener('click', () => switchTxSubtab(btn.getAttribute('data-subtab')));
     });
 
-    // Fuel Alerts Filters
     const flagTypeFilter = document.getElementById('alertsFlagTypeFilter');
     if (flagTypeFilter) flagTypeFilter.addEventListener('change', renderAlerts);
 
