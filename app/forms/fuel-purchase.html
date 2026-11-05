@@ -694,8 +694,12 @@ function getUserDisplayName() {
     var ln = window.dashUser.last_name || window.dashUser.lastName || '';
     if (fn || ln) return [fn, ln].filter(Boolean).join(' ');
     if (window.dashUser.name) return window.dashUser.name;
+    if (window.dashUser.email) {
+      var parts = window.dashUser.email.split('@')[0].split('.');
+      return parts.map(function(p) { return p.charAt(0).toUpperCase() + p.slice(1); }).join(' ');
+    }
   }
-  return window.dashUser && window.dashUser.email ? window.dashUser.email : '';
+  return '';
 }
 
 function dedupTanks(tanks) {
@@ -743,6 +747,10 @@ async function loadUsers() {
     var nameCounts = {};
     usersList.forEach(function(u) {
       var n = u.full_name || u.name || ((u.first_name || u.firstName || '') + ' ' + (u.last_name || u.lastName || '')).trim();
+      if (!n && u.email) {
+        var parts = u.email.split('@')[0].split('.');
+        n = parts.map(function(p) { return p.charAt(0).toUpperCase() + p.slice(1); }).join(' ');
+      }
       if (n) nameCounts[n] = (nameCounts[n] || 0) + 1;
     });
 
@@ -750,7 +758,11 @@ async function loadUsers() {
       if (!u.id || seenUserIds.has(u.id)) return;
       seenUserIds.add(u.id);
 
-      var name = u.full_name || u.name || ((u.first_name || u.firstName || '') + ' ' + (u.last_name || u.lastName || '')).trim() || u.email;
+      var name = u.full_name || u.name || ((u.first_name || u.firstName || '') + ' ' + (u.last_name || u.lastName || '')).trim();
+      if (!name && u.email) {
+        var parts = u.email.split('@')[0].split('.');
+        name = parts.map(function(p) { return p.charAt(0).toUpperCase() + p.slice(1); }).join(' ');
+      }
 
       if (nameCounts[name] > 1 && u.email) {
         name = name + ' (' + u.email + ')';
