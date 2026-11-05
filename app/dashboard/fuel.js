@@ -550,7 +550,7 @@
     let html = '';
     if (bulkTanks.length > 0) {
       html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-barrel')} ${esc(getTankTypeDisplayName('bulk_tank'))} <span class="count">(${bulkTanks.length})</span></div>`;
-      html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>Fuel Purchased</th><th>Fuel Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th><th>Action</th></tr></thead><tbody>'`;
+      html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>Fuel Purchased</th><th>Fuel Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th><th>Action</th></tr></thead><tbody>`;
       bulkTanks.forEach(t => {
         const totals = computeBulkTankTotals(t.id, f.location, f.fromDate, f.toDate);
         html += `<tr><td style="font-weight:600;">${esc(t.name || '')}</td><td>${esc(t.fuel_type || '—')}</td><td>${safeNum(t.capacity)} ${UOM.abbr}</td><td style="font-weight:600;">${totals.purchased.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:600;">${totals.dispensed.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:700;color:var(--primary);">${safeNum(t.current_quantity)} ${UOM.abbr}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td>${esc(t.location || '—')}</td><td><button class="adjust-btn" data-id="${t.id}" data-name="${esc(t.name || '')}" data-qty="${safeNum(t.current_quantity)}" data-cap="${safeNum(t.capacity)}" style="padding:4px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;">Adjust</button></td></tr>`;
@@ -570,7 +570,7 @@
 
     if (equipmentTanks.length > 0) {
       html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-equipment')} ${esc(getTankTypeDisplayName('equipment'))} <span class="count">(${equipmentTanks.length})</span></div>`;
-      html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Asset #</th><th>Name</th><th>Fuel Type</th><th>Total ${UOM.plural} Fueled</th><th>Location</th></tr></thead><tbody>'`;
+      html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Asset #</th><th>Name</th><th>Fuel Type</th><th>Total ${UOM.plural} Fueled</th><th>Location</th></tr></thead><tbody>`;
       equipmentTanks.forEach(a => {
         const totalFueled = computeAssetFuelTotal(a.id, f.location, f.fromDate, f.toDate);
         html += `<tr><td style="font-weight:600;">${esc(a.asset_number || '')}</td><td>${esc(a.name || '—')}</td><td>${esc(a.fuel_type || '—')}</td><td style="font-weight:700;color:var(--primary);">${totalFueled.toLocaleString()} ${UOM.abbr}</td><td>${esc(a.current_location || '—')}</td></tr>`;
@@ -581,7 +581,7 @@
     const projectTotals = computePortableProjectTotals(f.location, f.fromDate, f.toDate);
     if (projectTotals.length > 0) {
       html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-jerrycan')} ${esc(getTankTypeDisplayName('portable_can'))} <span class="count">(per project)</span></div>`;
-      html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Gas Can (Project)</th><th>${UOM.plural} Put In Cans</th><th>${UOM.plural} Dispensed</th><th># Transactions</th></tr></thead><tbody>'`;
+      html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Gas Can (Project)</th><th>${UOM.plural} Put In Cans</th><th>${UOM.plural} Dispensed</th><th># Transactions</th></tr></thead><tbody>`;
       projectTotals.forEach(p => {
         const canLabel = 'Gas Can – ' + esc(p.project_name || 'Unassigned');
         html += `<tr><td style="font-weight:600;">${canLabel}</td><td style="font-weight:700;color:var(--primary);">${p.total_filled.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:600;">${p.total_issued.toLocaleString()} ${UOM.abbr}</td><td>${p.tx_count}</td></tr>`;
@@ -1323,13 +1323,88 @@
 
   /* ===== STANDARD DIALOG & HELP MODALS (PURPOSE & INSTRUCTIONS) ===== */
 
+  const fuelModalContentMap = {
+    tanks: {
+      title: "Fuel Tanks",
+      purpose: "<p>The <strong>Fuel Management Dashboard</strong> provides real-time visibility into bulk fuel storage inventory, tank capacities, fuel grades, and current dip levels across all operational sites.</p>",
+      instructions: `
+        <h4 style="margin:0 0 8px 0; color:var(--text);">Using Tank Filters:</h4>
+        <ol>
+          <li><strong>Location Filter:</strong> Select a specific yard or jobsite from the dropdown to isolate local inventory and total fuel cards.</li>
+          <li><strong>Date Range Filter:</strong> Set <em>From</em> and <em>To</em> dates to evaluate fuel dispenses and purchases logged over a specific period.</li>
+          <li><strong>Clear Filter:</strong> Click <em>Clear</em> to reset all parameters and view company-wide tank totals.</li>
+        </ol>
+        <hr style="margin:16px 0; border:0; border-top:1px solid var(--border,#cbd5e1);">
+        <h4 style="margin:0 0 8px 0; color:var(--text);">Tank Adjustment Action Instructions:</h4>
+        <ol>
+          <li><strong>Locate Tank:</strong> Select the bulk fuel storage unit or bowser requiring level reconciliation from the <em>Tank Overview</em> table.</li>
+          <li><strong>Initiate Adjustment:</strong> Click the blue <strong>Adjust</strong> button next to the relevant tank row.</li>
+          <li><strong>Record Physical Reading:</strong> Input the exact adjustment amount (positive number for overage, negative number for shortage based on physical dipstick/ATG reading).</li>
+          <li><strong>Select Variance Reason:</strong> Choose the primary reason for adjustment (e.g., <em>Shortage — fuel theft suspected, Evaporation/spillage, Meter calibration error, Overage — delivery overfill, Physical inventory count adjustment</em>).</li>
+          <li><strong>Provide Audit Notes:</strong> Enter mandatory explanatory notes detailing why the manual balance override is taking place.</li>
+          <li><strong>Submit Adjustment:</strong> Click <strong>Submit Adjustment</strong> to update current inventory levels and automatically record an audit log entry.</li>
+        </ol>
+      `
+    },
+    transactions: {
+      title: "Transactions",
+      purpose: "<p>The <strong>Transactions Tab</strong> logs every fuel event, including vendor purchases, bulk tank fills, equipment dispenses, and project transfers.</p>",
+      instructions: `
+        <h4 style="margin:0 0 8px 0; color:var(--text);">Filtering & Auditing Transactions:</h4>
+        <ol>
+          <li><strong>Search Bar:</strong> Type an asset number, driver name, project name, or fuel type to filter matching entries in real time.</li>
+          <li><strong>Location & Date Filters:</strong> Isolate fuel logs by specific work location or timeframe.</li>
+          <li><strong>Column Sorting:</strong> Click any table column header (<em>Date, Type, Fuel, Qty, From, Equipment, Person, Project, Location</em>) to sort ascending or descending.</li>
+          <li><strong>Inspect Detail:</strong> Click any transaction row to open full receipts, PO numbers, and cost breakdowns.</li>
+        </ol>
+      `
+    },
+    alerts: {
+      title: "Fuel Alerts",
+      purpose: "<p>The <strong>Fuel Alerts Tab</strong> captures operational flags, unlisted field entries (missing assets, projects, or locations), capacity overages, and consumption anomalies requiring manager review.</p>",
+      instructions: `
+        <h4 style="margin:0 0 8px 0; color:var(--text);">Managing & Resolving Alerts:</h4>
+        <ol>
+          <li><strong>Filter Alerts:</strong> Filter open flags by <em>Type</em> (Manager Review, Capacity Exceeded, Consumption Anomaly) or <em>Status</em> (Open / Resolved).</li>
+          <li><strong>Add & Resolve (Managers/Admins):</strong> Click <strong>Add & Resolve</strong> on missing entity flags. This creates the missing project/asset in the system, resolves the flag, and automatically notifies the submitter.</li>
+          <li><strong>Manual Resolve:</strong> Click <strong>Resolve</strong> and provide notes once an anomaly has been verified.</li>
+          <li><strong>Forward Flag:</strong> If you lack edit permissions, click <strong>Forward</strong> to route the alert to an authorized manager's notifications.</li>
+        </ol>
+      `
+    }
+  };
+
+  function getActiveTabKey() {
+    const activeTab = document.querySelector('.fuel-tab.active');
+    if (activeTab) {
+      const key = activeTab.getAttribute('data-tab');
+      if (fuelModalContentMap[key]) return key;
+    }
+    return 'tanks';
+  }
+
   function setupHelpModals() {
-    const setupModal = (modalId, triggerBtnId, closeClass) => {
+    const setupModal = (modalId, triggerBtnId, closeClass, modalType) => {
       const modal = document.getElementById(modalId);
       const trigger = document.getElementById(triggerBtnId);
       if (!modal) return;
 
       const openModal = () => {
+        const tabKey = getActiveTabKey();
+        const tabData = fuelModalContentMap[tabKey] || fuelModalContentMap.tanks;
+
+        if (modalType === 'purpose') {
+          const titleEl = document.getElementById('purposeModalTitle');
+          const bodyEl = document.getElementById('modalPurposeBody');
+          if (titleEl) titleEl.textContent = `Purpose: ${tabData.title}`;
+          if (bodyEl) bodyEl.innerHTML = tabData.purpose;
+        } else if (modalType === 'instructions') {
+          const titleEl = document.getElementById('instructionsModalTitle');
+          const bodyEl = document.getElementById('modalInstructionsBody');
+          if (titleEl) titleEl.textContent = `Instructions: ${tabData.title}`;
+          if (bodyEl) bodyEl.innerHTML = tabData.instructions;
+        }
+
         modal.classList.add('active');
         modal.setAttribute('aria-hidden', 'false');
         const firstFocusable = modal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
@@ -1370,8 +1445,8 @@
       });
     };
 
-    setupModal('purposeModal', 'purposeBtn', 'purpose-close');
-    setupModal('instructionsModal', 'instructionsBtn', 'instructions-close');
+    setupModal('purposeModal', 'purposeBtn', 'purpose-close', 'purpose');
+    setupModal('instructionsModal', 'instructionsBtn', 'instructions-close', 'instructions');
   }
 
   /* ===== INITIALIZATION ===== */
