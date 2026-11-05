@@ -166,7 +166,9 @@
   }
 
   function formatPersonName(tx) {
-    const raw = tx.person_name || tx.person || tx.created_by_name || '';
+    const raw = (typeof tx === 'object' && tx !== null)
+      ? (tx.person || tx.person_name || tx.created_by_name || tx.submitted_by || tx.user || '')
+      : (tx || '');
     if (!raw) return '—';
     if (raw.indexOf('@') !== -1) {
       const parts = raw.split('@')[0].split('.');
@@ -517,7 +519,7 @@
     return { filled, dispensed };
   }
 
-  // UPDATED: Include purchases made directly to equipment assets
+  // Include direct vendor purchases fueling an asset alongside issues
   function computeAssetFuelTotal(assetId, locFilter, fromDate, toDate) {
     let total = 0;
     allTransactions.forEach(tx => {
@@ -572,7 +574,6 @@
     const bulkTanks = filteredTanks.filter(t => t.tank_type === 'bulk');
     const dragupTanks = filteredTanks.filter(t => t.tank_type === 'dragup');
 
-    // UPDATED: Show all equipment assets in overview table
     const equipmentTanks = filteredAssets;
 
     const fuelTypeTotals = {};
@@ -725,12 +726,25 @@
     return labels[type] || (type || '').replace(/_/g, ' ');
   }
 
-  // UPDATED: Include purchases in purchase and transfer subtabs
+  // Subtab filtering updated to account for direct asset purchases
   function getTxForSubtab(subtab) {
     if (subtab === 'all') return allTransactions;
     if (subtab === 'purchase') return allTransactions.filter(t => t.transaction_type === 'purchase');
-    if (subtab === 'issue') return allTransactions.filter(t => t.transaction_type === 'bulk_issue' || t.transaction_type === 'dragup_issue' || t.transaction_type === 'portable_issue' || (t.transaction_type === 'purchase' && t.to_entity_type === 'asset'));
-    if (subtab === 'transfer') return allTransactions.filter(t => t.transaction_type === 'return' || t.transaction_type === 'dragup_fill' || t.transaction_type === 'portable_fill' || t.transaction_type === 'bulk_issue' || t.transaction_type === 'dragup_issue' || t.transaction_type === 'portable_issue' || t.transaction_type === 'purchase');
+    if (subtab === 'issue') return allTransactions.filter(t => 
+      t.transaction_type === 'bulk_issue' || 
+      t.transaction_type === 'dragup_issue' || 
+      t.transaction_type === 'portable_issue' || 
+      (t.transaction_type === 'purchase' && (t.to_entity_type === 'asset' || t.asset_id || t.to_entity_id))
+    );
+    if (subtab === 'transfer') return allTransactions.filter(t => 
+      t.transaction_type === 'return' || 
+      t.transaction_type === 'dragup_fill' || 
+      t.transaction_type === 'portable_fill' || 
+      t.transaction_type === 'bulk_issue' || 
+      t.transaction_type === 'dragup_issue' || 
+      t.transaction_type === 'portable_issue' || 
+      t.transaction_type === 'purchase'
+    );
     return allTransactions;
   }
 
@@ -971,7 +985,7 @@
     return 'background:#eff6ff;border-color:#93c5fd;color:#1e3a5f;';
   }
 
-  // UPDATED: Render Person, Asset, Project, and Location info directly inside Alert cards
+  // Render Person, Asset, Project, and Location info directly inside Alert cards
   function renderAlerts() {
     const container = document.getElementById('alertsContainer');
     if (!container) return;
@@ -1010,13 +1024,18 @@
     const canEdit = user && (user.role === 'admin' || user.role === 'manager');
 
     container.innerHTML = flags.map(f => {
+      // Parse details if JSON string
       let details = {};
-      try { details = JSON.parse(f.details || '{}'); } catch (e) {}
+      try { details = typeof f.details === 'string' ? JSON.parse(f.details) : (f.details || {}); } catch (e) {}
+
       const sevStyle = flagSeverityClass(f.severity);
       const isManagerReview = f.flag_type === 'manager_review';
 
-      const personDisplay = formatPersonName({ person: f.person || f.person_name || f.created_by_name || details.person || details.submitted_by });
-      const assetDisplay = f.asset_name || f.asset_number || details.asset_name || details.asset || '—';
+      // Resolve display attributes across flag record and details payload
+      const personDisplay = formatPersonName({ 
+        person: f.person || f.person_name || f.created_by_name || details.person || details.submitted_by || details.user 
+      });
+      const assetDisplay = f.asset_name || f.asset_number || details.asset_name || details.asset || details.custom_asset_name || '—';
       const projectDisplay = f.project_name || details.project_name || details.project || '—';
       const locationDisplay = f.location || details.location || '—';
 
