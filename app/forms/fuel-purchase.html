@@ -1555,24 +1555,32 @@ async function submitPurchase() {
   var photoFlags = managerReviewFlags.filter(function(f) { return f.field === 'meter_photo' || f.field === 'asset_photo'; });
   managerReviewFlags = [];
 
+  // Prepare base context for manager review flags so alert cards render all fields
   var locEl = document.getElementById('purchaseLocation');
+  var baseFlagContext = {
+    person: person || null,
+    location: (locEl && locEl.value) ? locEl.value.trim() : (location || null),
+    project_name: customProjectName || (projectEl && projectEl.options && projectEl.selectedIndex >= 0 ? projectEl.options[projectEl.selectedIndex].text : null),
+    asset_name: lineItems.map(function(li){ return li.custom_asset_name || li.to_entity_id; }).filter(Boolean).join(', ')
+  };
+
   if (locEl && locEl.tagName === 'INPUT') {
-    managerReviewFlags.push({ field: 'location', value: locEl.value, reason: 'Custom location typed manually (not from list)' });
+    managerReviewFlags.push(Object.assign({}, baseFlagContext, { field: 'location', value: locEl.value, reason: 'Custom location typed manually (not from list)' }));
   }
 
   if (customProjectName) {
-    managerReviewFlags.push({ field: 'project', value: customProjectName, reason: 'New project typed manually (not from list) — manager must add project and update record' });
+    managerReviewFlags.push(Object.assign({}, baseFlagContext, { field: 'project', value: customProjectName, reason: 'New project typed manually (not from list) — manager must add project and update record' }));
   }
 
   for (var j = 0; j < lineItems.length; j++) {
     var row = rows[j];
     var fuelEl = row.querySelector('.line-fuel-type');
     if (fuelEl && fuelEl.getAttribute('data-custom') === 'true') {
-      managerReviewFlags.push({ field: 'fuel_type', line: j + 1, value: fuelEl.value, reason: 'Custom fuel type typed manually (not from list)' });
+      managerReviewFlags.push(Object.assign({}, baseFlagContext, { field: 'fuel_type', line: j + 1, value: fuelEl.value, reason: 'Custom fuel type typed manually (not from list)' }));
       lineItems[j].fuel_type = fuelEl.value;
     }
     if (lineItems[j].custom_asset_name) {
-      managerReviewFlags.push({ field: 'asset', line: j + 1, value: lineItems[j].custom_asset_name, reason: 'Custom asset typed manually (not in asset list) — manager must add asset and update record' });
+      managerReviewFlags.push(Object.assign({}, baseFlagContext, { field: 'asset', line: j + 1, value: lineItems[j].custom_asset_name, reason: 'Custom asset typed manually (not in asset list) — manager must add asset and update record' }));
     }
   }
 
@@ -1586,15 +1594,15 @@ async function submitPurchase() {
   var poNumber = poNumberInput ? poNumberInput.value.trim() || null : null;
 
   if (window._receiptHasNonFuelItems) {
-    managerReviewFlags.push({ field: 'receipt_items', value: 'Receipt includes items besides fuel', reason: 'AI detected non-fuel items on the receipt — manager should review for cost control / project costing' });
+    managerReviewFlags.push(Object.assign({}, baseFlagContext, { field: 'receipt_items', value: 'Receipt includes items besides fuel', reason: 'AI detected non-fuel items on the receipt — manager should review for cost control / project costing' }));
   }
 
   if (window._receiptMismatch) {
-    managerReviewFlags.push({ field: 'receipt_mismatch', value: 'Receipt Total does not match Grand Fuel Total', reason: 'Receipt Total ('+(receiptTotal||'?')+') differs from Grand Fuel Total — manager should verify the receipt and line items' });
+    managerReviewFlags.push(Object.assign({}, baseFlagContext, { field: 'receipt_mismatch', value: 'Receipt Total does not match Grand Fuel Total', reason: 'Receipt Total ('+(receiptTotal||'?')+') differs from Grand Fuel Total — manager should verify the receipt and line items' }));
   }
 
-  // Re-apply photo flags
-  photoFlags.forEach(function(f) { managerReviewFlags.push(f); });
+  // Re-apply photo flags with base context attached
+  photoFlags.forEach(function(f) { managerReviewFlags.push(Object.assign({}, baseFlagContext, f)); });
 
   var body = {
     vendor: vendor || null,
