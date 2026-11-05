@@ -348,19 +348,19 @@
 <div id="loading" class="fuel-loading">Checking session…</div>
 
 <div id="dashboard" style="display:none;">
+  <!-- Global Pill Action Buttons bar visible across Tanks, Transactions, and Alerts -->
+  <div class="admin-pill-bar" id="fuelTabPillContainer">
+    <button type="button" class="pill-btn pill-btn-purpose" id="purposeBtn">
+      ℹ️ Purpose
+    </button>
+    <button type="button" class="pill-btn pill-btn-instructions" id="instructionsBtn">
+      📖 Instructions
+    </button>
+  </div>
+
   <div class="fuel-tab-content active" id="tab-tanks"><div class="fuel-main">
     <div class="fuel-subtab-bar visible" id="tanksSubtabBar">
       <button class="fuel-subtab active" data-subtab="overview">Tank Overview</button>
-    </div>
-
-    <!-- Colored Pill Action Buttons Located Below Subtabs -->
-    <div class="admin-pill-bar" id="fuelTabPillContainer">
-      <button type="button" class="pill-btn pill-btn-purpose" id="purposeBtn">
-        ℹ️ Purpose
-      </button>
-      <button type="button" class="pill-btn pill-btn-instructions" id="instructionsBtn">
-        📖 Instructions
-      </button>
     </div>
 
     <div class="fuel-subtab-content active" id="tanks-subtab-overview">
@@ -439,7 +439,7 @@
       <button class="modal-close-icon purpose-close" aria-label="Close dialog">×</button>
     </div>
     <div class="modal-body" id="modalPurposeBody">
-      <!-- Populated dynamically via JS based on active tab -->
+      <!-- Populated dynamically via fuel.js based on active tab -->
     </div>
     <div class="modal-footer">
       <button class="print-btn purpose-close">Close</button>
@@ -455,7 +455,7 @@
       <button class="modal-close-icon instructions-close" aria-label="Close dialog">×</button>
     </div>
     <div class="modal-body" id="modalInstructionsBody">
-      <!-- Populated dynamically via JS based on active tab -->
+      <!-- Populated dynamically via fuel.js based on active tab -->
     </div>
     <div class="modal-footer">
       <button class="print-btn instructions-close">Close</button>
@@ -522,97 +522,6 @@
   window.addEventListener('orientationchange', sync);
 })();
 </script>
-
-<script>
-/* Context-Aware Tab Information Mapping */
-document.addEventListener('DOMContentLoaded', () => {
-  const fuelTabContentMap = {
-    tanks: {
-      title: "Fuel Tanks",
-      purpose: "<p>The <strong>Tanks Tab</strong> provides real-time visibility into bulk fuel storage inventory, tank capacities, fuel grades, and current dip levels across all operational sites.</p>",
-      instructions: `
-        <h4 style="margin:0 0 8px 0; color:var(--text);">Using Tank Filters:</h4>
-        <ol>
-          <li><strong>Location Filter:</strong> Select a specific yard or jobsite from the dropdown to isolate local inventory and total fuel cards.</li>
-          <li><strong>Date Range Filter:</strong> Set <em>From</em> and <em>To</em> dates to evaluate fuel dispenses and purchases logged over a specific period.</li>
-          <li><strong>Clear Filter:</strong> Click <em>Clear</em> to reset all parameters and view company-wide tank totals.</li>
-        </ol>
-        <hr style="margin:16px 0; border:0; border-top:1px solid var(--border,#cbd5e1);">
-        <h4 style="margin:0 0 8px 0; color:var(--text);">Tank Adjustment Action Instructions:</h4>
-        <ol>
-          <li><strong>Locate Tank:</strong> Find the bulk fuel tank or mobile bowser requiring level reconciliation.</li>
-          <li><strong>Initiate Adjustment:</strong> Click the blue <strong>Adjust</strong> button in the tank's row.</li>
-          <li><strong>Record Reading:</strong> Enter the exact adjustment quantity (positive for overage, negative for shortage based on physical dipstick/ATG readings).</li>
-          <li><strong>Select Variance Reason:</strong> Choose the primary reason for adjustment (e.g., <em>Shortage — fuel theft, Evaporation, Overage — delivery overfill, Physical count adjustment</em>).</li>
-          <li><strong>Provide Notes:</strong> Enter mandatory explanatory notes detailing why the balance override is occurring.</li>
-          <li><strong>Submit:</strong> Click <strong>Submit Adjustment</strong> to reconcile inventory levels and log an audit entry.</li>
-        </ol>
-      `
-    },
-    transactions: {
-      title: "Transactions",
-      purpose: "<p>The <strong>Transactions Tab</strong> logs every fuel event, including vendor purchases, bulk tank fills, equipment dispenses, and project transfers.</p>",
-      instructions: `
-        <h4 style="margin:0 0 8px 0; color:var(--text);">Filtering & Auditing Transactions:</h4>
-        <ol>
-          <li><strong>Search Bar:</strong> Type an asset number, driver name, project name, or fuel type to filter matching entries in real time.</li>
-          <li><strong>Location & Date Filters:</strong> Isolate fuel logs by specific work location or timeframe.</li>
-          <li><strong>Column Sorting:</strong> Click any table column header (<em>Date, Type, Fuel, Qty, From, Equipment, Person, Project, Location</em>) to sort ascending or descending.</li>
-          <li><strong>Inspect Detail:</strong> Click any transaction row to open full receipts, PO numbers, and cost breakdowns.</li>
-        </ol>
-      `
-    },
-    alerts: {
-      title: "Fuel Alerts",
-      purpose: "<p>The <strong>Fuel Alerts Tab</strong> captures operational flags, unlisted field entries (missing assets, projects, or locations), capacity overages, and consumption anomalies requiring manager review.</p>",
-      instructions: `
-        <h4 style="margin:0 0 8px 0; color:var(--text);">Managing & Resolving Alerts:</h4>
-        <ol>
-          <li><strong>Filter Alerts:</strong> Filter open flags by <em>Type</em> (Manager Review, Capacity Exceeded, Consumption Anomaly) or <em>Status</em> (Open / Resolved).</li>
-          <li><strong>Add & Resolve (Managers/Admins):</strong> Click <strong>Add & Resolve</strong> on missing entity flags. This creates the missing project/asset in the system, resolves the flag, and automatically notifies the submitter.</li>
-          <li><strong>Manual Resolve:</strong> Click <strong>Resolve</strong> and provide notes once an anomaly has been verified.</li>
-          <li><strong>Forward Flag:</strong> If you lack edit permissions, click <strong>Forward</strong> to route the alert to an authorized manager's notifications.</li>
-        </ol>
-      `
-    }
-  };
-
-  function getActiveTabKey() {
-    const activeTab = document.querySelector('.fuel-tab.active');
-    if (activeTab) {
-      const key = activeTab.getAttribute('data-tab');
-      if (fuelTabContentMap[key]) return key;
-    }
-    return 'tanks';
-  }
-
-  const purposeBtn = document.getElementById('purposeBtn');
-  const instructionsBtn = document.getElementById('instructionsBtn');
-  const purposeModal = document.getElementById('purposeModal');
-  const instructionsModal = document.getElementById('instructionsModal');
-
-  if (purposeBtn) {
-    purposeBtn.addEventListener('click', () => {
-      const key = getActiveTabKey();
-      const info = fuelTabContentMap[key];
-      document.getElementById('purposeModalTitle').textContent = `Purpose: ${info.title}`;
-      document.getElementById('modalPurposeBody').innerHTML = info.purpose;
-      purposeModal.classList.add('active');
-    });
-  }
-
-  if (instructionsBtn) {
-    instructionsBtn.addEventListener('click', () => {
-      const key = getActiveTabKey();
-      const info = fuelTabContentMap[key];
-      document.getElementById('instructionsModalTitle').textContent = `Instructions: ${info.title}`;
-      document.getElementById('modalInstructionsBody').innerHTML = info.instructions;
-      instructionsModal.classList.add('active');
-    });
-  }
-});
-</script>
-
 <script src="/app/shared/dashboard-common.js?v=15"></script>
 <script src="/app/dashboard/fuel.js?v=4"></script>
 <script src="/app/shared/auth-check.js?v=13"></script>
