@@ -506,7 +506,7 @@ export default {
 
       // ── GET /fuel-tanks — List ──
       if (path === "/fuel-tanks" && method === "GET") {
-        if (!await requirePermission(session, PERM.FUEL_VIEW, env)) return json({ success: false, error: "Insufficient permissions" }, 403);
+        if (!await requirePermission(session, PERM.FUEL_VIEW, env)) return json({ success: false, error: "Insufficient permissions", debug: { role: session && session.role, role_id: session && session.role_id, user_id: session && session.user_id, email: session && session.email, org_id: session && session.org_id, keys: session ? Object.keys(session) : null } }, 403);
         const tankType = url.searchParams.get("tank_type");
         const status = url.searchParams.get("status");
         let query = "SELECT * FROM fuel_tanks WHERE org_id = ?";
@@ -520,7 +520,7 @@ export default {
 
       // ── POST /fuel-tanks — Create ──
       if (path === "/fuel-tanks" && method === "POST") {
-        if (!await requirePermission(session, PERM.FUEL_EDIT, env)) return json({ success: false, error: "Insufficient permissions" }, 403);
+        if (!await requirePermission(session, PERM.FUEL_EDIT, env)) return json({ success: false, error: "Insufficient permissions", debug: { role: session && session.role, role_id: session && session.role_id, user_id: session && session.user_id, email: session && session.email, org_id: session && session.org_id, keys: session ? Object.keys(session) : null } }, 403);
         const body = await request.json();
         const { name, tank_type, fuel_type, capacity, current_quantity, unit, asset_id, location, ownership_type, owner_name, owner_employee_id } = body;
         if (!name) return json({ success: false, error: "name is required" }, 400);
@@ -550,7 +550,7 @@ export default {
       // ── GET /fuel-tanks/:id — Single tank + recent transactions ──
       const tankMatch = path.match(/^\/fuel-tanks\/([^/]+)$/);
       if (tankMatch && method === "GET") {
-        if (!await requirePermission(session, PERM.FUEL_VIEW, env)) return json({ success: false, error: "Insufficient permissions" }, 403);
+        if (!await requirePermission(session, PERM.FUEL_VIEW, env)) return json({ success: false, error: "Insufficient permissions", debug: { role: session && session.role, role_id: session && session.role_id, user_id: session && session.user_id, email: session && session.email, org_id: session && session.org_id, keys: session ? Object.keys(session) : null } }, 403);
         const tankId = tankMatch[1];
         const tank = await env.DB.prepare("SELECT * FROM fuel_tanks WHERE id = ? AND org_id = ?").bind(tankId, org_id).first();
         if (!tank) return json({ success: false, error: "Tank not found" }, 404);
@@ -564,7 +564,7 @@ export default {
 
       // ── PUT /fuel-tanks/:id — Update ──
       if (tankMatch && method === "PUT") {
-        if (!await requirePermission(session, PERM.FUEL_EDIT, env)) return json({ success: false, error: "Insufficient permissions" }, 403);
+        if (!await requirePermission(session, PERM.FUEL_EDIT, env)) return json({ success: false, error: "Insufficient permissions", debug: { role: session && session.role, role_id: session && session.role_id, user_id: session && session.user_id, email: session && session.email, org_id: session && session.org_id, keys: session ? Object.keys(session) : null } }, 403);
         const tankId = tankMatch[1];
         const body = await request.json();
         const { name, fuel_type, capacity, current_quantity, unit, location, status, ownership_type, owner_name, owner_employee_id } = body;
@@ -598,7 +598,7 @@ export default {
 
       // ── DELETE /fuel-tanks/:id — Deactivate ──
       if (tankMatch && method === "DELETE") {
-        if (!await requirePermission(session, PERM.FUEL_EDIT, env)) return json({ success: false, error: "Insufficient permissions" }, 403);
+        if (!await requirePermission(session, PERM.FUEL_EDIT, env)) return json({ success: false, error: "Insufficient permissions", debug: { role: session && session.role, role_id: session && session.role_id, user_id: session && session.user_id, email: session && session.email, org_id: session && session.org_id, keys: session ? Object.keys(session) : null } }, 403);
         const tankId = tankMatch[1];
         const tank = await env.DB.prepare("SELECT * FROM fuel_tanks WHERE id = ? AND org_id = ?").bind(tankId, org_id).first();
         if (!tank) return json({ success: false, error: "Tank not found" }, 404);
@@ -611,7 +611,7 @@ export default {
       // fuel_flags (flag_type 'tank_adjustment', shown on the Fuel Alerts tab).
       const tankAdjustMatch = path.match(/^\/fuel-tanks\/([^/]+)\/adjust$/);
       if (tankAdjustMatch && method === "POST") {
-        if (!await requirePermission(session, PERM.FUEL_EDIT, env)) return json({ success: false, error: "Insufficient permissions" }, 403);
+        if (!await requirePermission(session, PERM.FUEL_EDIT, env)) return json({ success: false, error: "Insufficient permissions", debug: { role: session && session.role, role_id: session && session.role_id, user_id: session && session.user_id, email: session && session.email, org_id: session && session.org_id, keys: session ? Object.keys(session) : null } }, 403);
         const tankId = tankAdjustMatch[1];
         const body = await request.json();
         const { adjustment_amount, reason, person, notes } = body;
@@ -690,7 +690,7 @@ export default {
 
       // ── GET /fuel-transactions — List ──
       if (path === "/fuel-transactions" && method === "GET") {
-        if (!await requirePermission(session, PERM.FUEL_VIEW, env)) return json({ success: false, error: "Insufficient permissions" }, 403);
+        if (!await requirePermission(session, PERM.FUEL_VIEW, env)) return json({ success: false, error: "Insufficient permissions", debug: { role: session && session.role, role_id: session && session.role_id, user_id: session && session.user_id, email: session && session.email, org_id: session && session.org_id, keys: session ? Object.keys(session) : null } }, 403);
         const assetId = url.searchParams.get("asset_id");
         const projectId = url.searchParams.get("project_id");
         const txType = url.searchParams.get("type");
@@ -710,7 +710,7 @@ export default {
 
       // ── POST /fuel-transactions — Create (atomic tank update) ──
       if (path === "/fuel-transactions" && method === "POST") {
-        if (!await requirePermission(session, PERM.FUEL_ADD, env)) return json({ success: false, error: "Insufficient permissions" }, 403);
+        if (!await requirePermission(session, PERM.FUEL_ADD, env)) return json({ success: false, error: "Insufficient permissions", debug: { role: session && session.role, role_id: session && session.role_id, user_id: session && session.user_id, email: session && session.email, org_id: session && session.org_id, keys: session ? Object.keys(session) : null } }, 403);
         const body = await request.json();
         const { transaction_type, fuel_type, quantity, from_entity_type, from_entity_id, to_entity_type, to_entity_id, asset_id, project_id, person, location, receipt_r2_key, receipt_url, transaction_date, notes, cost_per_gallon, total_cost, vendor, device_location } = body;
 
@@ -888,7 +888,7 @@ export default {
       // ── GET /fuel-transactions/:id — Single transaction ──
       const txMatch = path.match(/^\/fuel-transactions\/([^/]+)$/);
       if (txMatch && method === "GET") {
-        if (!await requirePermission(session, PERM.FUEL_VIEW, env)) return json({ success: false, error: "Insufficient permissions" }, 403);
+        if (!await requirePermission(session, PERM.FUEL_VIEW, env)) return json({ success: false, error: "Insufficient permissions", debug: { role: session && session.role, role_id: session && session.role_id, user_id: session && session.user_id, email: session && session.email, org_id: session && session.org_id, keys: session ? Object.keys(session) : null } }, 403);
         const txId = txMatch[1];
         const tx = await env.DB.prepare(
           "SELECT ft.*, a.asset_number, a.name AS asset_name, p.name AS project_name FROM fuel_transactions ft LEFT JOIN assets a ON ft.asset_id = a.id LEFT JOIN projects p ON ft.project_id = p.id WHERE ft.id = ? AND ft.org_id = ?"
@@ -903,7 +903,7 @@ export default {
 
       // ── POST /fuel-purchases — Create multi-line purchase ──
       if (path === "/fuel-purchases" && method === "POST") {
-        if (!await requirePermission(session, PERM.FUEL_ADD, env)) return json({ success: false, error: "Insufficient permissions" }, 403);
+        if (!await requirePermission(session, PERM.FUEL_ADD, env)) return json({ success: false, error: "Insufficient permissions", debug: { role: session && session.role, role_id: session && session.role_id, user_id: session && session.user_id, email: session && session.email, org_id: session && session.org_id, keys: session ? Object.keys(session) : null } }, 403);
         const body = await request.json();
         const { vendor, purchase_date, location, person, notes, receipt_r2_key, receipt_total, receipt_items, po_number, line_items, manager_review_flags, device_location } = body;
 
@@ -1023,7 +1023,7 @@ export default {
 
       // ── GET /fuel-purchases — List purchases ──
       if (path === "/fuel-purchases" && method === "GET") {
-        if (!await requirePermission(session, PERM.FUEL_VIEW, env)) return json({ success: false, error: "Insufficient permissions" }, 403);
+        if (!await requirePermission(session, PERM.FUEL_VIEW, env)) return json({ success: false, error: "Insufficient permissions", debug: { role: session && session.role, role_id: session && session.role_id, user_id: session && session.user_id, email: session && session.email, org_id: session && session.org_id, keys: session ? Object.keys(session) : null } }, 403);
         const result = await env.DB.prepare(
           "SELECT * FROM fuel_purchases WHERE org_id = ? ORDER BY purchase_date DESC LIMIT 100"
         ).bind(org_id).all();
@@ -1033,7 +1033,7 @@ export default {
       // ── GET /fuel-purchases/:id — Single purchase with line items ──
       const purchaseMatch = path.match(/^\/fuel-purchases\/([^/]+)$/);
       if (purchaseMatch && method === "GET") {
-        if (!await requirePermission(session, PERM.FUEL_VIEW, env)) return json({ success: false, error: "Insufficient permissions" }, 403);
+        if (!await requirePermission(session, PERM.FUEL_VIEW, env)) return json({ success: false, error: "Insufficient permissions", debug: { role: session && session.role, role_id: session && session.role_id, user_id: session && session.user_id, email: session && session.email, org_id: session && session.org_id, keys: session ? Object.keys(session) : null } }, 403);
         const purchaseId = purchaseMatch[1];
         const purchase = await env.DB.prepare(
           "SELECT * FROM fuel_purchases WHERE id = ? AND org_id = ?"
@@ -1057,7 +1057,7 @@ export default {
 
       // ── POST /fuel-receipts/upload — Upload receipt photo to R2 ──
       if (path === "/fuel-receipts/upload" && method === "POST") {
-        if (!await requirePermission(session, PERM.FUEL_ADD, env)) return json({ success: false, error: "Insufficient permissions" }, 403);
+        if (!await requirePermission(session, PERM.FUEL_ADD, env)) return json({ success: false, error: "Insufficient permissions", debug: { role: session && session.role, role_id: session && session.role_id, user_id: session && session.user_id, email: session && session.email, org_id: session && session.org_id, keys: session ? Object.keys(session) : null } }, 403);
         const contentType = request.headers.get("Content-Type") || "";
         if (!contentType.includes("multipart/form-data")) {
           return json({ success: false, error: "multipart/form-data required (got: " + contentType.substring(0, 100) + ")" }, 400);
@@ -1085,7 +1085,7 @@ export default {
 
       // ── POST /fuel-receipts/extract — Upload receipt (image or PDF) + AI extraction ──
       if (path === "/fuel-receipts/extract" && method === "POST") {
-        if (!await requirePermission(session, PERM.FUEL_ADD, env)) return json({ success: false, error: "Insufficient permissions" }, 403);
+        if (!await requirePermission(session, PERM.FUEL_ADD, env)) return json({ success: false, error: "Insufficient permissions", debug: { role: session && session.role, role_id: session && session.role_id, user_id: session && session.user_id, email: session && session.email, org_id: session && session.org_id, keys: session ? Object.keys(session) : null } }, 403);
         const contentType = request.headers.get("Content-Type") || "";
 
         let fileBytes, fileName, fileType, imageDataUrl;
@@ -1353,7 +1353,7 @@ export default {
 
       // ── GET /fuel-receipts — List ──
       if (path === "/fuel-receipts" && method === "GET") {
-        if (!await requirePermission(session, PERM.FUEL_VIEW, env)) return json({ success: false, error: "Insufficient permissions" }, 403);
+        if (!await requirePermission(session, PERM.FUEL_VIEW, env)) return json({ success: false, error: "Insufficient permissions", debug: { role: session && session.role, role_id: session && session.role_id, user_id: session && session.user_id, email: session && session.email, org_id: session && session.org_id, keys: session ? Object.keys(session) : null } }, 403);
         const result = await env.DB.prepare(
           "SELECT * FROM fuel_receipts WHERE org_id = ? ORDER BY uploaded_at DESC LIMIT 100"
         ).bind(org_id).all();
@@ -1363,7 +1363,7 @@ export default {
       // ── GET /fuel-receipts/:id — Single receipt ──
       const receiptMatch = path.match(/^\/fuel-receipts\/([^/]+)$/);
       if (receiptMatch && method === "GET") {
-        if (!await requirePermission(session, PERM.FUEL_VIEW, env)) return json({ success: false, error: "Insufficient permissions" }, 403);
+        if (!await requirePermission(session, PERM.FUEL_VIEW, env)) return json({ success: false, error: "Insufficient permissions", debug: { role: session && session.role, role_id: session && session.role_id, user_id: session && session.user_id, email: session && session.email, org_id: session && session.org_id, keys: session ? Object.keys(session) : null } }, 403);
         const receiptId = receiptMatch[1];
         const receipt = await env.DB.prepare("SELECT * FROM fuel_receipts WHERE id = ? AND org_id = ?").bind(receiptId, org_id).first();
         if (!receipt) return json({ success: false, error: "Receipt not found" }, 404);
@@ -1386,7 +1386,7 @@ export default {
 
       // ── GET /fuel-flags — List flags (optional ?status=, ?flag_type=) ──
       if (path === "/fuel-flags" && method === "GET") {
-        if (!await requirePermission(session, PERM.FUEL_FLAGS_VIEW, env)) return json({ success: false, error: "Insufficient permissions" }, 403);
+        if (!await requirePermission(session, PERM.FUEL_FLAGS_VIEW, env)) return json({ success: false, error: "Insufficient permissions", debug: { role: session && session.role, role_id: session && session.role_id, user_id: session && session.user_id, email: session && session.email, org_id: session && session.org_id, keys: session ? Object.keys(session) : null } }, 403);
         const flagStatus = url.searchParams.get("status");
         const flagType = url.searchParams.get("flag_type");
         let query = "SELECT ff.*, a.asset_number, a.name AS asset_name, t.name AS tank_name FROM fuel_flags ff LEFT JOIN assets a ON ff.asset_id = a.id LEFT JOIN fuel_tanks t ON ff.tank_id = t.id WHERE ff.org_id = ?";
@@ -1401,7 +1401,7 @@ export default {
       // ── PUT /fuel-flags/:id/resolve — Resolve a flag ──
       const flagResolveMatch = path.match(/^\/fuel-flags\/([^/]+)\/resolve$/);
       if (flagResolveMatch && method === "PUT") {
-        if (!await requirePermission(session, PERM.FUEL_FLAGS_RESOLVE, env)) return json({ success: false, error: "Insufficient permissions" }, 403);
+        if (!await requirePermission(session, PERM.FUEL_FLAGS_RESOLVE, env)) return json({ success: false, error: "Insufficient permissions", debug: { role: session && session.role, role_id: session && session.role_id, user_id: session && session.user_id, email: session && session.email, org_id: session && session.org_id, keys: session ? Object.keys(session) : null } }, 403);
         const flagId = flagResolveMatch[1];
         const body = await request.json();
         const now = new Date().toISOString();
@@ -1420,7 +1420,7 @@ export default {
       // ── POST /fuel-flags/:id/add-and-resolve ──
       const flagAddResolveMatch = path.match(/^\/fuel-flags\/([^/]+)\/add-and-resolve$/);
       if (flagAddResolveMatch && method === "POST") {
-        if (!await requirePermission(session, PERM.FUEL_FLAGS_RESOLVE, env)) return json({ success: false, error: "Insufficient permissions" }, 403);
+        if (!await requirePermission(session, PERM.FUEL_FLAGS_RESOLVE, env)) return json({ success: false, error: "Insufficient permissions", debug: { role: session && session.role, role_id: session && session.role_id, user_id: session && session.user_id, email: session && session.email, org_id: session && session.org_id, keys: session ? Object.keys(session) : null } }, 403);
         const flagId = flagAddResolveMatch[1];
         const body = await request.json();
         const now = new Date().toISOString();
@@ -1522,7 +1522,7 @@ export default {
 
       // ── POST /notifications/forward ──
       if (path === "/notifications/forward" && method === "POST") {
-        if (!await requirePermission(session, PERM.FUEL_FLAGS_RESOLVE, env)) return json({ success: false, error: "Insufficient permissions" }, 403);
+        if (!await requirePermission(session, PERM.FUEL_FLAGS_RESOLVE, env)) return json({ success: false, error: "Insufficient permissions", debug: { role: session && session.role, role_id: session && session.role_id, user_id: session && session.user_id, email: session && session.email, org_id: session && session.org_id, keys: session ? Object.keys(session) : null } }, 403);
         const body = await request.json();
         const now = new Date().toISOString();
         const { flag_id, recipient_email, note } = body;
@@ -1563,7 +1563,7 @@ export default {
 
       // ── PUT /org-settings ──
       if (path === "/org-settings" && method === "PUT") {
-        if (!await requirePermission(session, PERM.ORG_SETTINGS_EDIT, env)) return json({ success: false, error: "Insufficient permissions" }, 403);
+        if (!await requirePermission(session, PERM.ORG_SETTINGS_EDIT, env)) return json({ success: false, error: "Insufficient permissions", debug: { role: session && session.role, role_id: session && session.role_id, user_id: session && session.user_id, email: session && session.email, org_id: session && session.org_id, keys: session ? Object.keys(session) : null } }, 403);
         const body = await request.json();
         const now = new Date().toISOString();
         const { notify_capacity_flags_email, notify_equipment_manager_email, notify_consumption_flags_email, notify_employee_tank_flags_email } = body;
@@ -1607,7 +1607,7 @@ export default {
 
       // ── POST /fuel-tank-types ──
       if (path === "/fuel-tank-types" && method === "POST") {
-        if (!await requirePermission(session, PERM.FUEL_EDIT, env)) return json({ success: false, error: "Insufficient permissions" }, 403);
+        if (!await requirePermission(session, PERM.FUEL_EDIT, env)) return json({ success: false, error: "Insufficient permissions", debug: { role: session && session.role, role_id: session && session.role_id, user_id: session && session.user_id, email: session && session.email, org_id: session && session.org_id, keys: session ? Object.keys(session) : null } }, 403);
         const body = await request.json();
         const { system_key, display_name, sort_order } = body;
         if (!system_key) return json({ success: false, error: "system_key is required" }, 400);
@@ -1633,7 +1633,7 @@ export default {
       // ── PUT /fuel-tank-types/:id ──
       const tankTypeMatch = path.match(/^\/fuel-tank-types\/([^/]+)$/);
       if (tankTypeMatch && method === "PUT") {
-        if (!await requirePermission(session, PERM.FUEL_EDIT, env)) return json({ success: false, error: "Insufficient permissions" }, 403);
+        if (!await requirePermission(session, PERM.FUEL_EDIT, env)) return json({ success: false, error: "Insufficient permissions", debug: { role: session && session.role, role_id: session && session.role_id, user_id: session && session.user_id, email: session && session.email, org_id: session && session.org_id, keys: session ? Object.keys(session) : null } }, 403);
         const typeId = tankTypeMatch[1];
         const body = await request.json();
         const { display_name, is_active, sort_order } = body;
