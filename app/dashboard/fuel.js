@@ -246,7 +246,7 @@
       html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Date</th><th>Type</th><th>Fuel</th><th>Qty (${UOM.abbr})</th><th>From</th><th>To/Asset</th><th>Person</th><th>Project</th></tr></thead><tbody>`;
       relevantTxs.forEach(t => {
         const date = t.transaction_date ? new Date(t.transaction_date).toLocaleDateString() : '—';
-        html += `<tr><td>${date}</td><td>${esc(txTypeLabel(t.transaction_type))}</td><td>${esc(t.fuel_type || '—')}</td><td style="font-weight:700;color:var(--primary);">${safeNum(t.quantity).toFixed(2)}</td><td>${esc(getTransferredFrom(t))}</td><td>${esc(getTxAssetTarget(t))}</td><td>${esc(formatPersonName(t))}</td><td>${esc(t.project_name || '—')}</td></tr>`;
+        html += `<tr><td>${date}</td><td>${esc(txTypeLabel(t.transaction_type))}</td><td>${esc(t.fuel_type || '—')}</td><td style="font-weight:700;color:var(--primary);">${safeNum(t.quantity).toFixed(2)}</td><td>${esc(getTransferredFrom(t))}</td><td style="font-weight:600;color:var(--primary);">${esc(getTxAssetTarget(t))} 🔍</td><td>${esc(formatPersonName(t))}</td><td>${esc(t.project_name || '—')}</td></tr>`;
       });
       html += `</tbody></table></div>`;
     }
@@ -441,7 +441,7 @@
 
   function renderTankRows(tanks) {
     return tanks.map(t =>
-      `<tr><td style="font-weight:600;">${esc(t.name || t.asset_number || '—')}</td><td>${esc(t.fuel_type || '—')}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || t.fuel_tank_capacity || 0)}</td><td>${safeNum(t.capacity || t.fuel_tank_capacity)} ${UOM.abbr}</td><td>${esc(t.location || t.current_location || '—')}</td><td>${ownershipBadge(t)}</td><td>${statusBadge(t)}</td></tr>`
+      `<tr><td style="font-weight:600;color:var(--primary);">${esc(t.name || t.asset_number || '—')} 🔍</td><td>${esc(t.fuel_type || '—')}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || t.fuel_tank_capacity || 0)}</td><td>${safeNum(t.capacity || t.fuel_tank_capacity)} ${UOM.abbr}</td><td>${esc(t.location || t.current_location || '—')}</td><td>${ownershipBadge(t)}</td><td>${statusBadge(t)}</td></tr>`
     ).join('');
   }
 
@@ -860,18 +860,28 @@
     return { totalGal, totalPurchases, totalIssues, txCount: txs.length };
   }
 
-  function renderTxRows(txs) {
+  function renderTxRows(txs, subtab) {
     return txs.map(t => {
       const date = t.transaction_date ? esc(new Date(t.transaction_date).toLocaleDateString()) : '—';
       const qty = safeNum(t.quantity).toFixed(2);
       const from = getTransferredFrom(t);
       const assetTarget = getTxAssetTarget(t);
       const personName = formatPersonName(t);
-      return `<tr class="tx-row-clickable" data-tx-id="${t.id}" title="Click for details"><td>${date}</td><td>${esc(txTypeLabel(t.transaction_type))}</td><td>${esc(t.fuel_type || '—')}</td><td style="font-weight:600;color:var(--primary);">${qty}</td><td>${esc(from)}</td><td>${esc(assetTarget)}</td><td>${esc(personName)}</td><td>${esc(t.project_name || '—')}</td><td>${esc(t.location || '—')}</td></tr>`;
+      
+      // Determine which column receives the magnifying glass icon per tab view
+      let fromTd = `<td>${esc(from)}</td>`;
+      let assetTd = `<td style="font-weight:600;color:var(--primary);">${esc(assetTarget)} 🔍</td>`;
+      
+      if (subtab === 'purchase') {
+        fromTd = `<td style="font-weight:600;color:var(--primary);">${esc(from)} 🔍</td>`;
+        assetTd = `<td>${esc(assetTarget)}</td>`;
+      }
+
+      return `<tr class="tx-row-clickable" data-tx-id="${t.id}" title="Click for details"><td>${date}</td><td>${esc(txTypeLabel(t.transaction_type))}</td><td>${esc(t.fuel_type || '—')}</td><td style="font-weight:600;color:var(--primary);">${qty}</td>${fromTd}${assetTd}<td>${esc(personName)}</td><td>${esc(t.project_name || '—')}</td><td>${esc(t.location || '—')}</td></tr>`;
     }).join('');
   }
 
-  function renderTxTable(txs, containerId) {
+  function renderTxTable(txs, containerId, subtab) {
     const container = document.getElementById(containerId);
     if (!container) return;
     if (txs.length === 0 && !txSearchText && !txLocationFilter && !txFromDate && !txToDate) {
@@ -888,7 +898,7 @@
     const txLocs = getTxLocations();
     const locOptions = '<option value="">All Locations</option>' + txLocs.map(l => `<option value="${esc(l)}"${txLocationFilter === l ? ' selected' : ''}>${esc(l)}</option>`).join('');
 
-    container.innerHTML = `<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="${filterId}" placeholder="Type, fuel, asset, person, project…" style="flex:1;min-width:140px;" value="${esc(txSearchText)}"><span class="fuel-filter-label">Location:</span><select id="${locFilterId}">${locOptions}</select><span class="fuel-filter-label">From:</span><input type="date" id="${fromId}" value="${esc(txFromDate)}"><span class="fuel-filter-label">To:</span><input type="date" id="${toId}" value="${esc(txToDate)}"><button class="print-btn" id="${printBtnId}">🖨 Print Table</button></div><div id="${containerId}-totals"></div><div class="fuel-table-wrap"><table class="fuel-table" id="${tableId}"><thead><tr><th data-col="transaction_date">Date <span class="sort-indicator"></span></th><th data-col="transaction_type">Type <span class="sort-indicator"></span></th><th data-col="fuel_type">Fuel <span class="sort-indicator"></span></th><th data-col="quantity">Qty <span class="sort-indicator"></span></th><th data-col="transferred_from">From <span class="sort-indicator"></span></th><th data-col="asset">Asset <span class="sort-indicator"></span></th><th data-col="person">Person <span class="sort-indicator"></span></th><th data-col="project">Project <span class="sort-indicator"></span></th><th data-col="location">Location <span class="sort-indicator"></span></th></tr></thead><tbody>${renderTxRows(txs)}</tbody></table></div>`;
+    container.innerHTML = `<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="${filterId}" placeholder="Type, fuel, asset, person, project…" style="flex:1;min-width:140px;" value="${esc(txSearchText)}"><span class="fuel-filter-label">Location:</span><select id="${locFilterId}">${locOptions}</select><span class="fuel-filter-label">From:</span><input type="date" id="${fromId}" value="${esc(txFromDate)}"><span class="fuel-filter-label">To:</span><input type="date" id="${toId}" value="${esc(txToDate)}"><button class="print-btn" id="${printBtnId}">🖨 Print Table</button></div><div id="${containerId}-totals"></div><div class="fuel-table-wrap"><table class="fuel-table" id="${tableId}"><thead><tr><th data-col="transaction_date">Date <span class="sort-indicator"></span></th><th data-col="transaction_type">Type <span class="sort-indicator"></span></th><th data-col="fuel_type">Fuel <span class="sort-indicator"></span></th><th data-col="quantity">Qty <span class="sort-indicator"></span></th><th data-col="transferred_from">From <span class="sort-indicator"></span></th><th data-col="asset">Asset / Target <span class="sort-indicator"></span></th><th data-col="person">Person <span class="sort-indicator"></span></th><th data-col="project">Project <span class="sort-indicator"></span></th><th data-col="location">Location <span class="sort-indicator"></span></th></tr></thead><tbody>${renderTxRows(txs, subtab)}</tbody></table></div>`;
 
     container._txSortCol = 'transaction_date';
     container._txSortDir = 'desc';
@@ -976,7 +986,7 @@
     const sorted = sortTransactions(filtered, container._txSortCol || 'transaction_date', container._txSortDir || 'desc');
     const tbody = container.querySelector('tbody');
     if (tbody) {
-      tbody.innerHTML = renderTxRows(sorted);
+      tbody.innerHTML = renderTxRows(sorted, subtab);
       bindTxRowClicks(container);
     }
     const totalsDiv = document.getElementById(`${containerId}-totals`);
@@ -1018,7 +1028,7 @@
     innerDiv.id = `${containerId}-inner`;
     innerDiv.setAttribute('data-subtab', subtab);
     container.appendChild(innerDiv);
-    renderTxTable(txs, innerDiv.id);
+    renderTxTable(txs, innerDiv.id, subtab);
   }
 
   /* ===== FUEL ALERTS TAB ===== */
