@@ -70,13 +70,22 @@
     return user;
   }
 
-  function getAuthHeaders(additionalHeaders = {}) {
-    const user = getUserSession();
+function getAuthHeaders(additionalHeaders = {}) {
+    let user = getUserSession();
     const headers = { ...additionalHeaders };
+    
+    // Check window.dashUser or window.drivenUser directly if storage JSON parse fails
+    if (!user && window.dashUser) user = window.dashUser;
+    if (!user && window.drivenUser) user = window.drivenUser;
+
     if (user) {
-      if (user.org_id || user.orgId) headers['x-org-id'] = user.org_id || user.orgId;
-      if (user.id || user.userId) headers['x-user-id'] = user.id || user.userId;
+      const orgId = user.org_id || user.orgId || user.organization_id;
+      const userId = user.id || user.userId || user.user_id;
+
+      if (orgId) headers['x-org-id'] = String(orgId);
+      if (userId) headers['x-user-id'] = String(userId);
     }
+    
     return headers;
   }
 
@@ -560,13 +569,20 @@
     });
   }
 
-  async function loadTanks() {
+async function loadTanks() {
     try {
+      const headers = getAuthHeaders();
+      // Debug check: warn in console if organization headers are missing
+      if (!headers['x-org-id']) {
+        console.warn('[DRIV-EN] Organization ID header missing. User session may not be ready.');
+      }
+
       const results = await Promise.allSettled([
-        fetch('/api/fuel-tanks', { headers: getAuthHeaders() }),
-        fetch('/api/Equipment', { headers: getAuthHeaders() }),
-        fetch('/api/fuel-transactions', { headers: getAuthHeaders() })
+        fetch('/api/fuel-tanks', { headers }),
+        fetch('/api/Equipment', { headers }),
+        fetch('/api/fuel-transactions', { headers })
       ]);
+      // ... rest of loadTanks stays the same
 
       if (results[0].status === 'fulfilled' && results[0].value.ok) {
         const tanksData = await results[0].value.json();
