@@ -1072,16 +1072,35 @@
     const containerId = subtab === 'all' ? 'allTxContainer' : subtab === 'purchase' ? 'purchaseTxContainer' : subtab === 'issue' ? 'issueTxContainer' : 'transferTxContainer';
     const container = document.getElementById(containerId);
     if (!container) return;
+
     container.setAttribute('data-subtab', subtab);
     const headingText = subtab === 'all' ? 'All Fuel Transactions' : subtab === 'purchase' ? 'Fuel Purchases' : subtab === 'issue' ? 'Issues to Assets' : 'Tank Transfers & Fills';
-    
-    container.innerHTML = `<div class="fuel-stat-card" style="text-align:left;margin-bottom:16px;padding:16px 20px;border:1px solid #16a34a;border-radius:10px;"><div style="font-size:18px;font-weight:700;color:var(--text,#0f172a);display:flex;align-items:center;justify-content:space-between;"><span>${esc(headingText)}</span><span style="font-size:13px;font-weight:600;color:var(--text-muted,#64748b);">${txs.length} record${txs.length !== 1 ? 's' : ''}</span></div></div>`;
 
-    const innerDiv = document.createElement('div');
-    innerDiv.id = `${containerId}-inner`;
-    innerDiv.setAttribute('data-subtab', subtab);
-    container.appendChild(innerDiv);
-    renderTxTable(txs, innerDiv.id, subtab);
+    const innerId = `${containerId}-inner`;
+    let innerDiv = document.getElementById(innerId);
+
+    // Build the structural header shell ONLY once to avoid DOM churn
+    if (!innerDiv) {
+      container.innerHTML = `
+        <div class="fuel-stat-card" style="text-align:left;margin-bottom:16px;padding:16px 20px;border:1px solid #16a34a;border-radius:10px;">
+          <div style="font-size:18px;font-weight:700;color:var(--text,#0f172a);display:flex;align-items:center;justify-content:space-between;">
+            <span>${esc(headingText)}</span>
+            <span class="subtab-record-count" style="font-size:13px;font-weight:600;color:var(--text-muted,#64748b);"></span>
+          </div>
+        </div>
+        <div id="${innerId}" data-subtab="${subtab}"></div>
+      `;
+      innerDiv = document.getElementById(innerId);
+    }
+
+    // Update count in place without replacing the header node
+    const countEl = container.querySelector('.subtab-record-count');
+    if (countEl) {
+      countEl.textContent = `${txs.length} record${txs.length !== 1 ? 's' : ''}`;
+    }
+
+    // Render/update only the inner data table & controls
+    renderTxTable(txs, innerId, subtab);
   }
 
   /* ===== FUEL ALERTS TAB ===== */
@@ -1708,7 +1727,7 @@
     const printOverviewBtn = document.getElementById('btnPrintOverview');
     if (printOverviewBtn) printOverviewBtn.addEventListener('click', printOverview);
 
-    // Event Delegation for Tanks Subtabs (handles static & dynamically inserted subtabs)
+    // Event Delegation for Tanks Subtabs
     const tanksSubtabBar = document.getElementById('tanksSubtabBar');
     if (tanksSubtabBar) {
       tanksSubtabBar.addEventListener('click', (e) => {
@@ -1720,9 +1739,17 @@
       });
     }
 
-    document.querySelectorAll('#txSubtabBar .fuel-subtab').forEach(btn => {
-      btn.addEventListener('click', () => switchTxSubtab(btn.getAttribute('data-subtab')));
-    });
+    // Event Delegation for Transactions Subtabs
+    const txSubtabBar = document.getElementById('txSubtabBar');
+    if (txSubtabBar) {
+      txSubtabBar.addEventListener('click', (e) => {
+        const btn = e.target.closest('.fuel-subtab');
+        if (btn) {
+          const subtabKey = btn.getAttribute('data-subtab');
+          if (subtabKey) switchTxSubtab(subtabKey);
+        }
+      });
+    }
 
     const flagTypeFilter = document.getElementById('alertsFlagTypeFilter');
     if (flagTypeFilter) flagTypeFilter.addEventListener('change', renderAlerts);
