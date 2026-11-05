@@ -2316,7 +2316,7 @@ export async function onRequest(context) {
 
   const tableConfig = resolveTableConfig(requestedTable);
   if (!tableConfig) {
-    return json({ error: 'Unknown table: ' + requestedTable, availableTables: Object.keys(TABLE_MAP) }, 400);
+    return json({ error: 'Unknown table: ' + requestedTable, fuelWorkerBound: !!env.FUEL_WORKER, envKeys: Object.keys(env || {}), availableTables: Object.keys(TABLE_MAP) }, 400);
   }
 
   const d1Table = tableConfig.d1Table;
