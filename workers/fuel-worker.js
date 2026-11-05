@@ -204,8 +204,27 @@ async function requirePermission(session, permissionName, env) {
   // 1. Founder bypass
   if (session.role === "DRIV-EN Founder") return true;
 
-  const userId = session.user_id;
-  const roleId = session.role_id;
+  let userId = session.user_id;
+  let roleId = session.role_id;
+  let roleName = session.role;
+
+  // The login JWT only carries email/org_id/role, so resolve ids from the users table.
+  if ((!userId || !roleId) && session.email && env && env.DB) {
+    try {
+      const u = await env.DB.prepare(
+        "SELECT u.id AS user_id, u.role_id AS role_id, r.name AS role_name FROM users u LEFT JOIN roles r ON r.id = u.role_id WHERE LOWER(u.email) = LOWER(?) LIMIT 1"
+      ).bind(session.email).first();
+      if (u) {
+        userId = userId || u.user_id;
+        roleId = roleId || u.role_id;
+        roleName = roleName || u.role_name;
+      }
+    } catch (e) {
+      // Fall through with whatever the session provides
+    }
+  }
+  const roleKey = String(roleName || "").trim().toLowerCase();
+  if (roleKey === "driv-en founder") return true;
 
   // 2. User override check (granted=1 allow, granted=0 deny)
   if (userId && env && env.DB) {
@@ -240,7 +259,8 @@ async function requirePermission(session, permissionName, env) {
   }
 
   // 4. Hardcoded fallback
-  const fallback = FALLBACK_PERMISSIONS[session.role];
+  const fallbackKey = Object.keys(FALLBACK_PERMISSIONS).find(k => k.toLowerCase() === roleKey);
+  const fallback = fallbackKey ? FALLBACK_PERMISSIONS[fallbackKey] : null;
   if (!fallback) return false;
   if (fallback.includes("*")) return true;
   return fallback.includes(permissionName);
