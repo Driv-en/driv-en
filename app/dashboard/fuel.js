@@ -1,7 +1,6 @@
 /* ==========================================================================
    DRIV-EN Platform — Fuel Management Dashboard JavaScript Module
    File: /app/dashboard/fuel.js
-   Part 1 of 3
    ========================================================================== */
 
 (function () {
@@ -100,7 +99,7 @@
     return user;
   }
 
-function getAuthHeaders(additionalHeaders = {}) {
+  function getAuthHeaders(additionalHeaders = {}) {
     let user = getUserSession();
     const headers = { ...additionalHeaders };
     
@@ -177,7 +176,7 @@ function getAuthHeaders(additionalHeaders = {}) {
     }
   }
 
-function insertHeaderTitle() {
+  function insertHeaderTitle() {
     const row1 = document.querySelector('.dash-header-row1');
     if (!row1) return;
 
@@ -316,7 +315,8 @@ function insertHeaderTitle() {
       dynamicContainer.appendChild(content);
     });
   }
-   /* ===== TANK OVERVIEW & FILTERING ===== */
+
+  /* ===== TANK OVERVIEW & FILTERING ===== */
 
   function dedupTanks(tanks) {
     const seen = {};
@@ -607,7 +607,7 @@ function insertHeaderTitle() {
     });
   }
 
-async function loadTanks() {
+  async function loadTanks() {
     try {
       const headers = getAuthHeaders();
       // Debug check: warn in console if organization headers are missing
@@ -620,7 +620,6 @@ async function loadTanks() {
         fetch('/api/Equipment', { headers }),
         fetch('/api/fuel-transactions', { headers })
       ]);
-      // ... rest of loadTanks stays the same
 
       if (results[0].status === 'fulfilled' && results[0].value.ok) {
         const tanksData = await results[0].value.json();
@@ -662,7 +661,8 @@ async function loadTanks() {
       }
     }
   }
-   /* ===== TRANSACTIONS TAB ===== */
+
+  /* ===== TRANSACTIONS TAB ===== */
 
   function txTypeLabel(type) {
     const labels = {
