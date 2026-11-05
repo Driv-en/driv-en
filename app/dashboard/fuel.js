@@ -147,15 +147,23 @@ function getAuthHeaders(additionalHeaders = {}) {
     }
   }
 
-  function insertHeaderTitle() {
+function insertHeaderTitle() {
     const row1 = document.querySelector('.dash-header-row1');
-    if (row1 && !document.querySelector('.fuel-header-title')) {
-      const title = document.createElement('div');
+    if (!row1) return;
+
+    let title = row1.querySelector('.fuel-header-title');
+    if (!title) {
+      title = document.createElement('div');
       title.className = 'fuel-header-title';
-      title.textContent = 'Fuel Management';
+      
       const drivenLogo = row1.querySelector('.dash-driven-logo');
-      if (drivenLogo) row1.insertBefore(title, drivenLogo);
+      if (drivenLogo) {
+        row1.insertBefore(title, drivenLogo);
+      } else {
+        row1.appendChild(title);
+      }
     }
+    title.textContent = 'Fuel Management';
   }
 
   function goToMainDashboard() {
