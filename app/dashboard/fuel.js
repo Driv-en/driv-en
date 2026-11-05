@@ -133,7 +133,7 @@
     return (tx.location || '').trim() === locFilter;
   }
 
-  /* ===== STICKY NAVIGATION & HEADER TITLE HANDLERS ===== */
+/* ===== STICKY NAVIGATION & HEADER TITLE HANDLERS ===== */
 
   function makeTabsSticky() {
     const updatePositions = () => {
@@ -142,42 +142,19 @@
 
       if (!h || !wrapper) return;
 
-      // 1. Lock Header Bar to absolute top
-      h.style.position = 'fixed';
-      h.style.top = '0px';
-      h.style.left = '0px';
-      h.style.right = '0px';
-      h.style.width = '100vw';
-      h.style.zIndex = '10000';
-
-      const headerHeight = Math.round(h.getBoundingClientRect().height) || h.offsetHeight || 54;
-      
-      // 2. Lock Tab Bar Wrapper directly beneath Header Bar
-      wrapper.style.position = 'fixed';
+      const headerHeight = Math.round(h.getBoundingClientRect().height) || 54;
       wrapper.style.top = headerHeight + 'px';
-      wrapper.style.left = '0px';
-      wrapper.style.right = '0px';
-      wrapper.style.width = '100vw';
-      wrapper.style.zIndex = '9999';
 
-      const wrapperHeight = Math.round(wrapper.getBoundingClientRect().height) || wrapper.offsetHeight || 44;
+      const wrapperHeight = Math.round(wrapper.getBoundingClientRect().height) || 44;
       const totalSubtabTop = headerHeight + wrapperHeight;
 
-      // 3. Lock Subtab Bars directly beneath Tab Bar
       document.querySelectorAll('.fuel-subtab-bar').forEach(stb => {
-        stb.style.position = 'fixed';
         stb.style.top = totalSubtabTop + 'px';
-        stb.style.left = '0px';
-        stb.style.right = '0px';
-        stb.style.width = '100vw';
-        stb.style.zIndex = '9998';
       });
 
-      // 4. Update body padding-top dynamically so content is never covered
       const subtabVisible = document.querySelector('.fuel-subtab-bar.visible');
       const subtabHeight = subtabVisible ? (Math.round(subtabVisible.getBoundingClientRect().height) || 36) : 0;
-      const totalHeaderPadding = totalSubtabTop + subtabHeight;
-      document.body.style.paddingTop = totalHeaderPadding + 'px';
+      document.body.style.paddingTop = (totalSubtabTop + subtabHeight + 12) + 'px';
     };
 
     updatePositions();
@@ -187,60 +164,51 @@
 
   function insertHeaderTitle() {
     const attachTitle = () => {
-      let container = document.querySelector('.dash-header-row1');
-      if (!container) {
+      let row = document.querySelector('.dash-header-row1');
+      if (!row) {
         const header = document.getElementById('dashHeader');
-        if (header) container = header.querySelector('div') || header;
+        if (!header) return;
+        row = header.querySelector('div') || header;
       }
 
-      if (container) {
-        // Enforce 3-column layout containers
-        let leftCol = container.querySelector('.fuel-header-left');
-        let titleEl = container.querySelector('.fuel-header-title');
-        let rightCol = container.querySelector('.fuel-header-right');
+      // Exit early if 3-column layout is already attached to avoid infinite re-renders
+      if (row.querySelector('.fuel-header-title')) return;
 
-        if (!leftCol) {
-          leftCol = document.createElement('div');
-          leftCol.className = 'fuel-header-left';
+      const leftCol = document.createElement('div');
+      leftCol.className = 'fuel-header-left';
+
+      const titleEl = document.createElement('div');
+      titleEl.className = 'fuel-header-title';
+      titleEl.textContent = 'Fuel Management';
+
+      const rightCol = document.createElement('div');
+      rightCol.className = 'fuel-header-right';
+
+      const existingChildren = Array.from(row.childNodes);
+      existingChildren.forEach(node => {
+        if (node.nodeType === 1 && (node.classList.contains('dash-driven-logo') || node.id === 'drivenNavClose')) {
+          rightCol.appendChild(node);
+        } else if (node.nodeType === 1) {
+          leftCol.appendChild(node);
         }
-        if (!rightCol) {
-          rightCol = document.createElement('div');
-          rightCol.className = 'fuel-header-right';
-        }
-        if (!titleEl) {
-          titleEl = document.createElement('div');
-          titleEl.className = 'fuel-header-title';
-          titleEl.textContent = 'Fuel Management';
-        }
+      });
 
-        // Re-organize elements injected by nav.js into 3 columns
-        const nodes = Array.from(container.childNodes).filter(n => 
-          n !== leftCol && n !== titleEl && n !== rightCol
-        );
-
-        nodes.forEach(node => {
-          if (node.classList && (node.classList.contains('dash-driven-logo') || node.id === 'drivenNavClose')) {
-            rightCol.appendChild(node);
-          } else {
-            leftCol.appendChild(node);
-          }
-        });
-
-        // Clear and append in exact order: Left | Center | Right
-        container.innerHTML = '';
-        container.appendChild(leftCol);
-        container.appendChild(titleEl);
-        container.appendChild(rightCol);
-      }
+      row.innerHTML = '';
+      row.appendChild(leftCol);
+      row.appendChild(titleEl);
+      row.appendChild(rightCol);
     };
 
     attachTitle();
 
     const headerEl = document.getElementById('dashHeader');
     if (headerEl) {
-      const observer = new MutationObserver(() => {
-        attachTitle();
-        makeTabsSticky();
+      const observer = new MutationObserver((mutations) => {
+        const needsUpdate = mutations.some(m => !m.target.classList || !m.target.classList.contains('fuel-header-title'));
+        if (needsUpdate) {
+          attachTitle();
+          makeTabsSticky();
+        }
       });
       observer.observe(headerEl, { childList: true, subtree: true });
     }
