@@ -142,34 +142,42 @@
 
       if (!h || !wrapper) return;
 
-      h.style.position = 'sticky';
+      // 1. Lock Header Bar to absolute top
+      h.style.position = 'fixed';
       h.style.top = '0px';
-      h.style.zIndex = '1000';
+      h.style.left = '0px';
+      h.style.right = '0px';
+      h.style.width = '100vw';
+      h.style.zIndex = '10000';
 
-      if (h.nextElementSibling !== wrapper) {
-        h.parentNode.insertBefore(wrapper, h.nextSibling);
-      }
-
-      const headerHeight = Math.round(h.getBoundingClientRect().height) || h.offsetHeight || 52;
+      const headerHeight = Math.round(h.getBoundingClientRect().height) || h.offsetHeight || 54;
       
-      wrapper.style.position = 'sticky';
+      // 2. Lock Tab Bar Wrapper directly beneath Header Bar
+      wrapper.style.position = 'fixed';
       wrapper.style.top = headerHeight + 'px';
-      wrapper.style.zIndex = '999';
-      wrapper.style.background = 'var(--bg-card, #e2e8f0)';
+      wrapper.style.left = '0px';
+      wrapper.style.right = '0px';
+      wrapper.style.width = '100vw';
+      wrapper.style.zIndex = '9999';
 
       const wrapperHeight = Math.round(wrapper.getBoundingClientRect().height) || wrapper.offsetHeight || 44;
       const totalSubtabTop = headerHeight + wrapperHeight;
 
+      // 3. Lock Subtab Bars directly beneath Tab Bar
       document.querySelectorAll('.fuel-subtab-bar').forEach(stb => {
-        stb.style.position = 'sticky';
+        stb.style.position = 'fixed';
         stb.style.top = totalSubtabTop + 'px';
-        stb.style.zIndex = '998';
-        stb.style.background = 'var(--bg-card, #e2e8f0)';
+        stb.style.left = '0px';
+        stb.style.right = '0px';
+        stb.style.width = '100vw';
+        stb.style.zIndex = '9998';
       });
 
-      document.querySelectorAll('.section-heading').forEach(sh => {
-        sh.style.top = (totalSubtabTop + 32) + 'px';
-      });
+      // 4. Update body padding-top dynamically so content is never covered
+      const subtabVisible = document.querySelector('.fuel-subtab-bar.visible');
+      const subtabHeight = subtabVisible ? (Math.round(subtabVisible.getBoundingClientRect().height) || 36) : 0;
+      const totalHeaderPadding = totalSubtabTop + subtabHeight;
+      document.body.style.paddingTop = totalHeaderPadding + 'px';
     };
 
     updatePositions();
@@ -186,19 +194,43 @@
       }
 
       if (container) {
+        // Enforce 3-column layout containers
+        let leftCol = container.querySelector('.fuel-header-left');
         let titleEl = container.querySelector('.fuel-header-title');
+        let rightCol = container.querySelector('.fuel-header-right');
+
+        if (!leftCol) {
+          leftCol = document.createElement('div');
+          leftCol.className = 'fuel-header-left';
+        }
+        if (!rightCol) {
+          rightCol = document.createElement('div');
+          rightCol.className = 'fuel-header-right';
+        }
         if (!titleEl) {
           titleEl = document.createElement('div');
           titleEl.className = 'fuel-header-title';
           titleEl.textContent = 'Fuel Management';
-          
-          const logo = container.querySelector('.dash-driven-logo') || container.firstElementChild;
-          if (logo && logo.nextSibling) {
-            container.insertBefore(titleEl, logo.nextSibling);
-          } else {
-            container.appendChild(titleEl);
-          }
         }
+
+        // Re-organize elements injected by nav.js into 3 columns
+        const nodes = Array.from(container.childNodes).filter(n => 
+          n !== leftCol && n !== titleEl && n !== rightCol
+        );
+
+        nodes.forEach(node => {
+          if (node.classList && (node.classList.contains('dash-driven-logo') || node.id === 'drivenNavClose')) {
+            rightCol.appendChild(node);
+          } else {
+            leftCol.appendChild(node);
+          }
+        });
+
+        // Clear and append in exact order: Left | Center | Right
+        container.innerHTML = '';
+        container.appendChild(leftCol);
+        container.appendChild(titleEl);
+        container.appendChild(rightCol);
       }
     };
 
@@ -253,6 +285,8 @@
     if (tanksBar) tanksBar.classList.toggle('visible', tabName === 'tanks');
     if (txBar) txBar.classList.toggle('visible', tabName === 'transactions');
 
+    makeTabsSticky();
+
     if (tabName === 'transactions' && !window._txLoaded) {
       window._txLoaded = true;
       renderTxForSubtab('all');
@@ -286,8 +320,7 @@
     if (content) content.classList.add('active');
     renderTxForSubtab(subtabName);
   }
-
-  /* ===== TANK TYPE & DYNAMIC SUBTABS ===== */
+   /* ===== TANK TYPE & DYNAMIC SUBTABS ===== */
 
   function getTankTypeDisplayName(systemKey) {
     const t = tankTypes.find(tt => tt.system_key === systemKey);
@@ -740,8 +773,7 @@
     });
     return { totalGal, totalPurchases, totalIssues, txCount: txs.length };
   }
-
-  function getTransferredFrom(t) {
+   function getTransferredFrom(t) {
     if (t.transaction_type === 'purchase') return '—';
     if (t.from_entity_type === 'vendor') return 'Vendor';
     if (t.from_entity_name) return t.from_entity_name;
