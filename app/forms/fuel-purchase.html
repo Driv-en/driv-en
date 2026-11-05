@@ -537,6 +537,23 @@ function handlePaymentTypeChange(selectEl) {
   }
 }
 
+/* ===== RECEIPT TOTAL MISMATCH CHECK ===== */
+function checkReceiptMismatch() {
+  var receiptTotalInput = document.getElementById('receiptTotal');
+  var notice = document.getElementById('receiptMismatchNotice');
+  if (!receiptTotalInput || !notice) return;
+  var rt = parseFloat(receiptTotalInput.value);
+  var totalText = document.getElementById('grandTotal').textContent.replace('$', '').replace(',', '');
+  var gt = parseFloat(totalText);
+  if (!isNaN(rt) && !isNaN(gt) && Math.abs(rt - gt) > 0.05) {
+    notice.style.display = 'block';
+    window._receiptMismatch = true;
+  } else {
+    notice.style.display = 'none';
+    window._receiptMismatch = false;
+  }
+}
+
 /* ===== CLIENT-SIDE ERROR REPORTING ===== */
 var _reportErrorInFlight = false;
 function reportError(source, err) {
@@ -906,10 +923,11 @@ function recalcGrandTotal() {
   });
   var totalEl = document.getElementById('grandTotal');
   if (!totalEl) return;
-  if (!hasAnyQty) { totalEl.textContent = '$0.00'; return; }
-  if (!hasAnyPrice) { totalEl.textContent = '—'; totalEl.style.color = 'var(--text-muted)'; return; }
+  if (!hasAnyQty) { totalEl.textContent = '$0.00'; checkReceiptMismatch(); return; }
+  if (!hasAnyPrice) { totalEl.textContent = '—'; totalEl.style.color = 'var(--text-muted)'; checkReceiptMismatch(); return; }
   totalEl.style.color = 'var(--primary)';
   totalEl.textContent = '$' + total.toFixed(2);
+  checkReceiptMismatch();
 }
 
 /* ===== FUEL PHOTO SETTINGS ===== */
@@ -1706,6 +1724,10 @@ function clearPurchaseForm() {
   document.getElementById('purchaseCardLast4').value = '';
   document.getElementById('purchaseProject').value = '';
   document.getElementById('purchaseNotes').value = '';
+  document.getElementById('receiptTotal').value = '';
+  document.getElementById('receiptItems').value = '';
+  document.getElementById('receiptMismatchNotice').style.display = 'none';
+  document.getElementById('receiptNonFuelNotice').style.display = 'none';
   document.getElementById('receiptPreview').style.display = 'none';
   document.getElementById('receiptPreviewContent').innerHTML = '';
   document.getElementById('receiptExtractStatus').textContent = '';
@@ -1719,6 +1741,8 @@ function clearPurchaseForm() {
   document.getElementById('purchaseResult').style.display = 'none';
   if (_objectUrl) { URL.revokeObjectURL(_objectUrl); _objectUrl = null; }
   receiptR2Key = null;
+  window._receiptMismatch = false;
+  window._receiptHasNonFuelItems = false;
   managerReviewFlags = [];
   // Clear fuel photos
   removeFuelPhoto('meter');
@@ -1759,7 +1783,6 @@ async function loadAssets() {
     var endpoint = buildApiUrl('/api/assets') + '&limit=500&all=true';
     var resp = await fetch(endpoint);
     if (!resp.ok) {
-      // Fallback request without org_id params if endpoint fails
       resp = await fetch('/api/assets');
     }
     if (!resp.ok) throw new Error('Failed to load assets: ' + resp.status);
@@ -1775,7 +1798,6 @@ async function loadAssets() {
     allAssets = assetsList.filter(function(a) { 
       if (!a) return false;
       var st = (a.status !== undefined && a.status !== null) ? String(a.status).toLowerCase().trim() : '';
-      // Filter out explicitly inactive/retired/decommissioned assets; allow all other active operational statuses
       return st !== 'inactive' && st !== 'retired' && st !== 'decommissioned' && st !== 'sold' && st !== 'deleted' && st !== '0' && st !== 'false'; 
     });
 
@@ -1928,13 +1950,11 @@ async function initPage() {
   var transferLink = document.getElementById('fuelTransferLink');
   if (transferLink) transferLink.href = preserveUrlParams(transferLink.getAttribute('href'));
 
-  // Ensure tabs container remains visible
   var tabBar = document.querySelector('.fp-tab-bar');
   if (tabBar) tabBar.style.display = 'flex';
 
   insertHeaderTitle();
 
-  // Recalculate sticky placement after header elements render
   setTimeout(makeTabsSticky, 100);
   setTimeout(makeTabsSticky, 500);
 
