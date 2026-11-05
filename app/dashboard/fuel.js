@@ -39,6 +39,36 @@
     return Number.isFinite(n) ? n : 0;
   }
 
+  // Volume unit pulled from the customer's units_of_measure (selected during onboarding)
+  let UOM = { plural: 'Gallons', singular: 'Gallon', abbr: 'gal', lower: 'gallons' };
+
+  function uomFromName(name) {
+    const n = String(name || '').toLowerCase();
+    if (/imperial/.test(n)) return { plural: 'Imperial Gallons', singular: 'Imperial Gallon', abbr: 'imp gal', lower: 'imperial gallons' };
+    if (/liter|litre/.test(n) && !/per\s|\/|lph|lpm/.test(n)) return { plural: 'Liters', singular: 'Liter', abbr: 'L', lower: 'liters' };
+    if (/gallon/.test(n) && !/per\s|gph|gpm/.test(n)) return { plural: 'Gallons', singular: 'Gallon', abbr: 'gal', lower: 'gallons' };
+    return null;
+  }
+
+  async function loadUnitOfMeasure() {
+    try {
+      const resp = await fetch('/api/units-of-measure', { headers: getAuthHeaders() });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      const list = data.records || data.unitsOfMeasure || data.data || (Array.isArray(data) ? data : []);
+      for (const item of list) {
+        const u = uomFromName(typeof item === 'string' ? item : (item.name || item.unit_name || item.unit));
+        if (u) { UOM = u; return; }
+      }
+    } catch (e) {
+      console.warn('Unit of measure load failed, defaulting to gallons:', e.message);
+    }
+  }
+
+  function applyUomToStaticText() {
+    document.querySelectorAll('.uom-lower').forEach(el => { el.textContent = UOM.lower; });
+  }
+
   function reportError(source, err) {
     const msg = (err && err.message) ? err.message : (typeof err === 'string' ? err : 'Unknown error');
     const stack = (err && err.stack) ? err.stack : 'No stack trace';
@@ -314,7 +344,7 @@ function insertHeaderTitle() {
 
   function renderTankRows(tanks) {
     return tanks.map(t =>
-      `<tr><td style="font-weight:600;">${esc(t.name || '')}</td><td>${esc(t.fuel_type || '—')}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td>${safeNum(t.capacity)} gal</td><td>${esc(t.location || '—')}</td><td>${ownershipBadge(t)}</td><td>${statusBadge(t)}</td></tr>`
+      `<tr><td style="font-weight:600;">${esc(t.name || '')}</td><td>${esc(t.fuel_type || '—')}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td>${safeNum(t.capacity)} ${UOM.abbr}</td><td>${esc(t.location || '—')}</td><td>${ownershipBadge(t)}</td><td>${statusBadge(t)}</td></tr>`
     ).join('');
   }
 
@@ -512,7 +542,7 @@ function insertHeaderTitle() {
       } else {
         statsContainer.innerHTML = fuelKeys.map(ft => {
           const d = fuelTypeTotals[ft];
-          return `<div class="fuel-stat-card"><div class="fuel-stat-number">${d.gallons.toLocaleString()}</div><div class="fuel-stat-label">${esc(ft)} (${d.tankCount} bulk tank${d.tankCount !== 1 ? 's' : ''})</div></div>`;
+          return `<div class="fuel-stat-card"><div class="fuel-stat-number">${d.gallons.toLocaleString()} ${UOM.abbr}</div><div class="fuel-stat-label">${esc(ft)} (${d.tankCount} bulk tank${d.tankCount !== 1 ? 's' : ''})</div></div>`;
         }).join('');
       }
     }
@@ -523,27 +553,27 @@ function insertHeaderTitle() {
       html += '<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>Fuel Purchased</th><th>Fuel Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th><th>Action</th></tr></thead><tbody>';
       bulkTanks.forEach(t => {
         const totals = computeBulkTankTotals(t.id, f.location, f.fromDate, f.toDate);
-        html += `<tr><td style="font-weight:600;">${esc(t.name || '')}</td><td>${esc(t.fuel_type || '—')}</td><td>${safeNum(t.capacity)} gal</td><td style="font-weight:600;">${totals.purchased.toLocaleString()} gal</td><td style="font-weight:600;">${totals.dispensed.toLocaleString()} gal</td><td style="font-weight:700;color:var(--primary);">${safeNum(t.current_quantity)} gal</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td>${esc(t.location || '—')}</td><td><button class="adjust-btn" data-id="${t.id}" data-name="${esc(t.name || '')}" data-qty="${safeNum(t.current_quantity)}" data-cap="${safeNum(t.capacity)}" style="padding:4px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;">Adjust</button></td></tr>`;
+        html += `<tr><td style="font-weight:600;">${esc(t.name || '')}</td><td>${esc(t.fuel_type || '—')}</td><td>${safeNum(t.capacity)} ${UOM.abbr}</td><td style="font-weight:600;">${totals.purchased.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:600;">${totals.dispensed.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:700;color:var(--primary);">${safeNum(t.current_quantity)} ${UOM.abbr}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td>${esc(t.location || '—')}</td><td><button class="adjust-btn" data-id="${t.id}" data-name="${esc(t.name || '')}" data-qty="${safeNum(t.current_quantity)}" data-cap="${safeNum(t.capacity)}" style="padding:4px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;">Adjust</button></td></tr>`;
       });
       html += '</tbody></table></div></div>';
     }
 
     if (dragupTanks.length > 0) {
       html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-dragup-tank')} ${esc(getTankTypeDisplayName('dragup_tank'))} <span class="count">(${dragupTanks.length})</span></div>`;
-      html += '<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>Gallons Filled</th><th>Gallons Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th></tr></thead><tbody>';
+      html += '<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>${UOM.plural} Filled</th><th>${UOM.plural} Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th></tr></thead><tbody>';
       dragupTanks.forEach(t => {
         const totals = computeDragupTankTotals(t.id, f.location, f.fromDate, f.toDate);
-        html += `<tr><td style="font-weight:600;">${esc(t.name || '')}</td><td>${esc(t.fuel_type || '—')}</td><td>${safeNum(t.capacity)} gal</td><td style="font-weight:600;">${totals.filled.toLocaleString()} gal</td><td style="font-weight:600;">${totals.dispensed.toLocaleString()} gal</td><td style="font-weight:700;color:var(--primary);">${safeNum(t.current_quantity)} gal</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td>${esc(t.location || '—')}</td></tr>`;
+        html += `<tr><td style="font-weight:600;">${esc(t.name || '')}</td><td>${esc(t.fuel_type || '—')}</td><td>${safeNum(t.capacity)} ${UOM.abbr}</td><td style="font-weight:600;">${totals.filled.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:600;">${totals.dispensed.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:700;color:var(--primary);">${safeNum(t.current_quantity)} ${UOM.abbr}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || 0)}</td><td>${esc(t.location || '—')}</td></tr>`;
       });
       html += '</tbody></table></div></div>';
     }
 
     if (equipmentTanks.length > 0) {
       html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-equipment')} ${esc(getTankTypeDisplayName('equipment'))} <span class="count">(${equipmentTanks.length})</span></div>`;
-      html += '<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Asset #</th><th>Name</th><th>Fuel Type</th><th>Total Gallons Fueled</th><th>Location</th></tr></thead><tbody>';
+      html += '<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Asset #</th><th>Name</th><th>Fuel Type</th><th>Total ${UOM.plural} Fueled</th><th>Location</th></tr></thead><tbody>';
       equipmentTanks.forEach(a => {
         const totalFueled = computeAssetFuelTotal(a.id, f.location, f.fromDate, f.toDate);
-        html += `<tr><td style="font-weight:600;">${esc(a.asset_number || '')}</td><td>${esc(a.name || '—')}</td><td>${esc(a.fuel_type || '—')}</td><td style="font-weight:700;color:var(--primary);">${totalFueled.toLocaleString()} gal</td><td>${esc(a.current_location || '—')}</td></tr>`;
+        html += `<tr><td style="font-weight:600;">${esc(a.asset_number || '')}</td><td>${esc(a.name || '—')}</td><td>${esc(a.fuel_type || '—')}</td><td style="font-weight:700;color:var(--primary);">${totalFueled.toLocaleString()} ${UOM.abbr}</td><td>${esc(a.current_location || '—')}</td></tr>`;
       });
       html += '</tbody></table></div></div>';
     }
@@ -551,10 +581,10 @@ function insertHeaderTitle() {
     const projectTotals = computePortableProjectTotals(f.location, f.fromDate, f.toDate);
     if (projectTotals.length > 0) {
       html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-jerrycan')} ${esc(getTankTypeDisplayName('portable_can'))} <span class="count">(per project)</span></div>`;
-      html += '<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Gas Can (Project)</th><th>Gallons Put In Cans</th><th>Gallons Dispensed</th><th># Transactions</th></tr></thead><tbody>';
+      html += '<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Gas Can (Project)</th><th>${UOM.plural} Put In Cans</th><th>${UOM.plural} Dispensed</th><th># Transactions</th></tr></thead><tbody>';
       projectTotals.forEach(p => {
         const canLabel = 'Gas Can – ' + esc(p.project_name || 'Unassigned');
-        html += `<tr><td style="font-weight:600;">${canLabel}</td><td style="font-weight:700;color:var(--primary);">${p.total_filled.toLocaleString()} gal</td><td style="font-weight:600;">${p.total_issued.toLocaleString()} gal</td><td>${p.tx_count}</td></tr>`;
+        html += `<tr><td style="font-weight:600;">${canLabel}</td><td style="font-weight:700;color:var(--primary);">${p.total_filled.toLocaleString()} ${UOM.abbr}</td><td style="font-weight:600;">${p.total_issued.toLocaleString()} ${UOM.abbr}</td><td>${p.tx_count}</td></tr>`;
       });
       html += '</tbody></table></div></div>';
     }
@@ -817,7 +847,7 @@ async function loadTanks() {
     const totalsDiv = document.getElementById(`${containerId}-totals`);
     if (totalsDiv) {
       const totals = computeTxTotals(filtered);
-      totalsDiv.innerHTML = `<div class="tx-totals-bar"><div class="total-item"><span class="total-label">Records</span><span class="total-value">${totals.txCount}</span></div><div class="total-item"><span class="total-label">Total (Gallons)</span><span class="total-value gal">${totals.totalGal.toFixed(2)}</span></div><div class="total-item"><span class="total-label">Purchased (Gallons)</span><span class="total-value gal">${totals.totalPurchases.toFixed(2)}</span></div><div class="total-item"><span class="total-label">Transferred (Gallons)</span><span class="total-value gal">${totals.totalIssues.toFixed(2)}</span></div></div>`;
+      totalsDiv.innerHTML = `<div class="tx-totals-bar"><div class="total-item"><span class="total-label">Records</span><span class="total-value">${totals.txCount}</span></div><div class="total-item"><span class="total-label">Total (${UOM.plural})</span><span class="total-value gal">${totals.totalGal.toFixed(2)}</span></div><div class="total-item"><span class="total-label">Purchased (${UOM.plural})</span><span class="total-value gal">${totals.totalPurchases.toFixed(2)}</span></div><div class="total-item"><span class="total-label">Transferred (${UOM.plural})</span><span class="total-value gal">${totals.totalIssues.toFixed(2)}</span></div></div>`;
     }
     const thead = container.querySelector('thead');
     if (thead) {
@@ -1175,7 +1205,7 @@ async function loadTanks() {
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;';
     const modal = document.createElement('div');
-    modal.style.cssText = 'background:var(--bg-card);border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.5);';
+    modal.style.cssText = 'background:var(--fuel-card-bg,#ffffff);border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.5);';
 
     const rows = [
       ['Date', tx.transaction_date ? new Date(tx.transaction_date).toLocaleString() : '—'],
@@ -1188,7 +1218,7 @@ async function loadTanks() {
       ['Location', tx.location || '—'],
       ['From', tx.from_entity_type ? (tx.from_entity_type.replace(/_/g, ' ') + ' — ' + (tx.from_entity_name || tx.from_entity_id || '')) : '—'],
       ['To', tx.to_entity_type ? (tx.to_entity_type.replace(/_/g, ' ') + ' — ' + (tx.to_entity_name || tx.to_entity_id || '')) : '—'],
-      ["Cost/Gal", tx.cost_per_gallon != null ? "$" + parseFloat(tx.cost_per_gallon).toFixed(3) : "—"],
+      ["Cost/" + UOM.singular, tx.cost_per_gallon != null ? "$" + parseFloat(tx.cost_per_gallon).toFixed(3) : "—"],
       ["Receipt Total", tx.receipt_total != null ? "$" + parseFloat(tx.receipt_total).toFixed(2) : "—"],
       ["PO Number", tx.po_number || "—"],
       ["Notes", tx.notes || "—"],
@@ -1225,7 +1255,7 @@ async function loadTanks() {
     const overlay = document.createElement('div');
     overlay.id = 'adjustModalOverlay';
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;';
-    overlay.innerHTML = `<div style="background:var(--bg-card);border-radius:12px;padding:24px;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.3);"><h3 style="margin:0 0 4px;font-size:18px;color:var(--text);">Adjust Tank: ${esc(tankName)}</h3><p style="margin:0 0 16px;font-size:13px;color:var(--text-muted);">Current: ${currentQty} gal / Capacity: ${capacity} gal</p><div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Adjustment Amount (gal) <span style="color:#cc0000;">*</span></label><input type="number" id="adjustAmount" step="0.01" placeholder="Positive for overage, negative for shortage" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;"></div><div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Reason <span style="color:#cc0000;">*</span></label><select id="adjustReason" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;"><option value="">Select reason…</option><option value="Shortage — fuel theft suspected">Shortage — fuel theft suspected</option><option value="Shortage — evaporation/spillage">Shortage — evaporation/spillage</option><option value="Shortage — meter calibration error">Shortage — meter calibration error</option><option value="Overage — delivery overfill">Overage — delivery overfill</option><option value="Overage — meter calibration error">Overage — meter calibration error</option><option value="Overage — fuel returned to tank">Overage — fuel returned to tank</option><option value="Physical inventory count adjustment">Physical inventory count adjustment</option><option value="__custom">+ Other (type manually)</option></select></div><div id="adjustCustomReason" style="display:none;margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Custom Reason <span style="color:#cc0000;">*</span></label><input type="text" id="adjustCustomReasonText" placeholder="Type reason" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;"></div><div style="margin-bottom:16px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Notes (optional)</label><textarea id="adjustNotes" rows="2" placeholder="Additional details" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;resize:vertical;"></textarea></div><div style="display:flex;gap:12px;justify-content:flex-end;"><button id="adjustCancelBtn" style="padding:10px 20px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:14px;">Cancel</button><button id="adjustSubmitBtn" style="padding:10px 24px;border:none;border-radius:6px;background:var(--primary);color:#fff;cursor:pointer;font-size:14px;font-weight:600;">Submit Adjustment</button></div></div>`;
+    overlay.innerHTML = `<div style="background:var(--fuel-card-bg,#ffffff);opacity:1;border:1px solid var(--border);border-radius:12px;padding:24px;max-width:480px;width:90%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.3);"><h3 style="margin:0 0 4px;font-size:18px;color:var(--text);">Adjust Tank: ${esc(tankName)}</h3><p style="margin:0 0 16px;font-size:13px;color:var(--text-muted);">Current: ${currentQty} ${UOM.abbr} / Capacity: ${capacity} ${UOM.abbr}</p><div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Adjustment Amount (${UOM.abbr}) <span style="color:#cc0000;">*</span></label><input type="number" id="adjustAmount" step="0.01" placeholder="Positive for overage, negative for shortage" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;"></div><div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Reason <span style="color:#cc0000;">*</span></label><select id="adjustReason" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;"><option value="">Select reason…</option><option value="Shortage — fuel theft suspected">Shortage — fuel theft suspected</option><option value="Shortage — evaporation/spillage">Shortage — evaporation/spillage</option><option value="Shortage — meter calibration error">Shortage — meter calibration error</option><option value="Overage — delivery overfill">Overage — delivery overfill</option><option value="Overage — meter calibration error">Overage — meter calibration error</option><option value="Overage — fuel returned to tank">Overage — fuel returned to tank</option><option value="Physical inventory count adjustment">Physical inventory count adjustment</option><option value="__custom">+ Other (type manually)</option></select></div><div id="adjustCustomReason" style="display:none;margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Custom Reason <span style="color:#cc0000;">*</span></label><input type="text" id="adjustCustomReasonText" placeholder="Type reason" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;"></div><div style="margin-bottom:16px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Notes (optional)</label><textarea id="adjustNotes" rows="2" placeholder="Additional details" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;resize:vertical;"></textarea></div><div style="display:flex;gap:12px;justify-content:flex-end;"><button id="adjustCancelBtn" style="padding:10px 20px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:14px;">Cancel</button><button id="adjustSubmitBtn" style="padding:10px 24px;border:none;border-radius:6px;background:var(--primary);color:#fff;cursor:pointer;font-size:14px;font-weight:600;">Submit Adjustment</button></div></div>`;
 
     document.body.appendChild(overlay);
 
@@ -1257,8 +1287,8 @@ async function loadTanks() {
     if (isNaN(amount) || amount === 0) { alert('Adjustment amount must be a non-zero number.'); return; }
     if (!reason || !reason.trim()) { alert('Reason is required.'); return; }
     const newQty = currentQty + amount;
-    if (newQty < 0) { alert('Adjustment would result in negative quantity (' + newQty + ' gal). Current: ' + currentQty + ', adjustment: ' + amount); return; }
-    if (capacity > 0 && newQty > capacity) { alert('Adjustment would exceed tank capacity (' + capacity + ' gal). New quantity would be: ' + newQty); return; }
+    if (newQty < 0) { alert('Adjustment would result in negative quantity (' + newQty + ' ' + UOM.abbr + '). Current: ' + currentQty + ', adjustment: ' + amount); return; }
+    if (capacity > 0 && newQty > capacity) { alert('Adjustment would exceed tank capacity (' + capacity + ' ' + UOM.abbr + '). New quantity would be: ' + newQty); return; }
 
     const btn = event.target;
     btn.disabled = true;
@@ -1274,7 +1304,7 @@ async function loadTanks() {
       const data = await resp.json();
       if (data.success) {
         closeAdjustModal();
-        alert('Tank adjusted successfully. New quantity: ' + data.adjustment.new_quantity + ' gal.');
+        alert('Tank adjusted successfully. New quantity: ' + data.adjustment.new_quantity + ' ' + UOM.abbr + '.');
         loadTanks();
       } else {
         alert('Error: ' + (data.error || 'Unknown error'));
@@ -1407,9 +1437,12 @@ async function loadTanks() {
         bindStaticEvents();
         setupHelpModals();
         insertHeaderTitle();
+        [300, 1000, 2500].forEach(ms => setTimeout(insertHeaderTitle, ms));
         makeTabsSticky();
         setTimeout(makeTabsSticky, 300);
 
+        await loadUnitOfMeasure();
+        applyUomToStaticText();
         await loadTankTypes();
         await loadTanks();
 
