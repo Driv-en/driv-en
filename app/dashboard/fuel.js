@@ -133,30 +133,92 @@
     return (tx.location || '').trim() === locFilter;
   }
 
-  /* ===== HEADER & NAVIGATION ===== */
+  /* ===== STICKY NAVIGATION & HEADER TITLE HANDLERS ===== */
 
   function makeTabsSticky() {
-    const h = document.getElementById('dashHeader');
-    const wrapper = document.querySelector('.fuel-tab-bar-wrapper');
-    const tb = wrapper || document.getElementById('fuelTabBar');
-    if (h && tb && h.nextElementSibling !== tb) {
-      h.parentNode.insertBefore(tb, h.nextSibling);
-    }
+    const updatePositions = () => {
+      const h = document.getElementById('dashHeader');
+      const wrapper = document.querySelector('.fuel-tab-bar-wrapper');
+
+      if (!h || !wrapper) return;
+
+      h.style.position = 'sticky';
+      h.style.top = '0px';
+      h.style.zIndex = '1000';
+
+      if (h.nextElementSibling !== wrapper) {
+        h.parentNode.insertBefore(wrapper, h.nextSibling);
+      }
+
+      const headerHeight = Math.round(h.getBoundingClientRect().height) || h.offsetHeight || 52;
+      
+      wrapper.style.position = 'sticky';
+      wrapper.style.top = headerHeight + 'px';
+      wrapper.style.zIndex = '999';
+      wrapper.style.background = 'var(--bg-card, #e2e8f0)';
+
+      const wrapperHeight = Math.round(wrapper.getBoundingClientRect().height) || wrapper.offsetHeight || 44;
+      const totalSubtabTop = headerHeight + wrapperHeight;
+
+      document.querySelectorAll('.fuel-subtab-bar').forEach(stb => {
+        stb.style.position = 'sticky';
+        stb.style.top = totalSubtabTop + 'px';
+        stb.style.zIndex = '998';
+        stb.style.background = 'var(--bg-card, #e2e8f0)';
+      });
+
+      document.querySelectorAll('.section-heading').forEach(sh => {
+        sh.style.top = (totalSubtabTop + 32) + 'px';
+      });
+    };
+
+    updatePositions();
+    window.addEventListener('resize', updatePositions);
+    window.addEventListener('orientationchange', updatePositions);
   }
 
   function insertHeaderTitle() {
-    const row1 = document.querySelector('.dash-header-row1');
-    if (row1 && !document.querySelector('.fuel-header-title')) {
-      const title = document.createElement('div');
-      title.className = 'fuel-header-title';
-      title.style.display = 'inline-flex';
-      title.style.alignItems = 'center';
-      title.textContent = 'Fuel Management';
-      const drivenLogo = row1.querySelector('.dash-driven-logo');
-      if (drivenLogo) row1.insertBefore(title, drivenLogo);
-      else row1.appendChild(title);
+    const attachTitle = () => {
+      let container = document.querySelector('.dash-header-row1');
+      if (!container) {
+        const header = document.getElementById('dashHeader');
+        if (header) container = header.querySelector('div') || header;
+      }
+
+      if (container) {
+        let titleEl = container.querySelector('.fuel-header-title');
+        if (!titleEl) {
+          titleEl = document.createElement('div');
+          titleEl.className = 'fuel-header-title';
+          titleEl.textContent = 'Fuel Management';
+          
+          const logo = container.querySelector('.dash-driven-logo') || container.firstElementChild;
+          if (logo && logo.nextSibling) {
+            container.insertBefore(titleEl, logo.nextSibling);
+          } else {
+            container.appendChild(titleEl);
+          }
+        }
+      }
+    };
+
+    attachTitle();
+
+    const headerEl = document.getElementById('dashHeader');
+    if (headerEl) {
+      const observer = new MutationObserver(() => {
+        attachTitle();
+        makeTabsSticky();
+      });
+      observer.observe(headerEl, { childList: true, subtree: true });
     }
+
+    setTimeout(attachTitle, 150);
+    setTimeout(attachTitle, 500);
+    setTimeout(attachTitle, 1200);
   }
+
+  /* ===== NAVIGATION & TAB SWITCHING ===== */
 
   function goToMainDashboard() {
     const user = getUserSession();
@@ -248,7 +310,8 @@
       reportError('loadTankTypes', e);
     }
   }
-/* ===== DYNAMIC SUBTABS & TANK TABLES ===== */
+
+  /* ===== DYNAMIC SUBTABS & TANK TABLES ===== */
 
   function generateDynamicSubtabs() {
     const bar = document.getElementById('tanksSubtabBar');
@@ -559,7 +622,6 @@
 
     container.innerHTML = html;
 
-    // Event binding for adjust buttons
     container.querySelectorAll('.adjust-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const id = e.target.getAttribute('data-id');
@@ -1396,7 +1458,6 @@
         setupHelpModals();
         insertHeaderTitle();
         makeTabsSticky();
-        setTimeout(makeTabsSticky, 300);
 
         await loadTankTypes();
         await loadTanks();
