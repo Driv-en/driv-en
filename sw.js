@@ -57,13 +57,11 @@ self.addEventListener('fetch', e => {
   const url = new URL(request.url);
   if (url.origin !== location.origin) return;
 
-  // 1. ALWAYS BYPASS SERVICE WORKER FOR AUTH, APIS, REFERRALS, AND PROTECTED DASHBOARDS
+  // 1. ALWAYS BYPASS SERVICE WORKER FOR AUTH, APIS, AND REFERRALS
   if (
     url.pathname.startsWith('/api/') || 
     url.pathname.startsWith('/auth/') ||
-    url.pathname.startsWith('/referral/') ||
-    url.pathname.startsWith('/app/') ||
-    url.pathname.startsWith('/public/')
+    url.pathname.startsWith('/referral/')
   ) {
     return; // Pass through directly to network
   }
