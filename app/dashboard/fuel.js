@@ -243,10 +243,10 @@
     if (relevantTxs.length === 0) {
       html += `<div style="padding:20px;text-align:center;color:var(--text-muted,#64748b);">No transactions found for this record matching current filters.</div>`;
     } else {
-      html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Date</th><th>Type</th><th>Fuel</th><th>Qty (${UOM.abbr})</th><th>From</th><th>To/Asset</th><th>Person</th><th>Project</th></tr></thead><tbody>`;
+      html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Date</th><th>Type</th><th>Fuel</th><th>Qty (${UOM.abbr})</th><th>From</th><th>To/Asset</th><th>Person</th><th>Project</th><th>Location</th></tr></thead><tbody>`;
       relevantTxs.forEach(t => {
         const date = t.transaction_date ? new Date(t.transaction_date).toLocaleDateString() : '—';
-        html += `<tr><td>${date}</td><td>${esc(txTypeLabel(t.transaction_type))}</td><td>${esc(t.fuel_type || '—')}</td><td style="font-weight:700;color:var(--primary);">${safeNum(t.quantity).toFixed(2)}</td><td>${esc(getTransferredFrom(t))}</td><td style="font-weight:600;color:var(--primary);">${esc(getTxAssetTarget(t))} 🔍</td><td>${esc(formatPersonName(t))}</td><td>${esc(t.project_name || '—')}</td></tr>`;
+        html += `<tr><td>${date}</td><td>${esc(txTypeLabel(t.transaction_type))}</td><td>${esc(t.fuel_type || '—')}</td><td style="font-weight:700;color:var(--primary);">${safeNum(t.quantity).toFixed(2)}</td><td>${esc(getTransferredFrom(t))}</td><td style="font-weight:600;">${esc(getTxAssetTarget(t))}</td><td>${esc(formatPersonName(t))}</td><td style="font-weight:600;color:var(--primary);">${esc(t.project_name || 'Unassigned')}</td><td>${esc(t.location || '—')}</td></tr>`;
       });
       html += `</tbody></table></div>`;
     }
@@ -431,21 +431,63 @@
     if (!search) return tanks;
     const s = search.toLowerCase();
     return tanks.filter(t => {
-      const hay = [t.name, t.tank_type, t.fuel_type, t.location, t.status, t.owner_name, t.ownership_type].filter(Boolean).join(' ').toLowerCase();
+      const hay = [t.name, t.tank_type, t.fuel_type, t.location, t.status, t.owner_name, t.ownership_type, t.project_name].filter(Boolean).join(' ').toLowerCase();
       return hay.indexOf(s) !== -1;
     });
   }
 
   function getTanksForSubtab(subtab) {
     if (subtab === 'equipment') return allAssets;
+    if (subtab === 'portable') {
+      const portableTanks = allTanks.filter(t => t.tank_type === 'portable' || t.tank_type === 'portable_can');
+      if (portableTanks.length > 0) return dedupTanks(portableTanks);
+
+      // Fallback: build synthetic items from transactions if no explicit portable tanks are returned
+      const projectMap = {};
+      allTransactions.forEach(tx => {
+        if (tx.transaction_type === 'portable_fill' || tx.transaction_type === 'portable_issue') {
+          const proj = tx.project_name || 'Unassigned';
+          if (!projectMap[proj]) {
+            projectMap[proj] = {
+              id: proj,
+              name: 'Gas Can – ' + proj,
+              project_name: proj,
+              status: 'active'
+            };
+          }
+        }
+      });
+      return Object.values(projectMap);
+    }
     return dedupTanks(allTanks.filter(t => t.tank_type === subtab));
   }
 
+  // 3-Column Portable Can rendering with magnifying glass on Project
   function renderTankRows(tanks, subtab) {
+    if (subtab === 'portable') {
+      return tanks.map(t => {
+        const canName = t.name || (t.project_name ? 'Gas Can – ' + t.project_name : 'Gas Can');
+        const projName = t.project_name || t.id || 'Unassigned';
+        return `<tr class="subtab-drilldown-row" data-subtab="portable" data-id="${esc(projName)}" data-name="${esc(canName)}" style="cursor:pointer;">
+          <td style="font-weight:600;">${esc(canName)}</td>
+          <td style="font-weight:600;color:var(--primary);">${esc(projName)} 🔍</td>
+          <td>${statusBadge(t)}</td>
+        </tr>`;
+      }).join('');
+    }
+
     return tanks.map(t => {
       const id = t.id || t.asset_number || t.name;
       const name = t.name || t.asset_number || '—';
-      return `<tr class="subtab-drilldown-row" data-subtab="${subtab}" data-id="${id}" data-name="${esc(name)}" style="cursor:pointer;"><td style="font-weight:600;color:var(--primary);">${esc(name)} 🔍</td><td>${esc(t.fuel_type || '—')}</td><td>${tankLevelHtml(t.current_quantity || 0, t.capacity || t.fuel_tank_capacity || 0)}</td><td>${safeNum(t.capacity || t.fuel_tank_capacity)} ${UOM.abbr}</td><td>${esc(t.location || t.current_location || '—')}</td><td>${ownershipBadge(t)}</td><td>${statusBadge(t)}</td></tr>`;
+      return `<tr class="subtab-drilldown-row" data-subtab="${subtab}" data-id="${id}" data-name="${esc(name)}" style="cursor:pointer;">
+        <td style="font-weight:600;color:var(--primary);">${esc(name)} 🔍</td>
+        <td>${esc(t.fuel_type || '—')}</td>
+        <td>${tankLevelHtml(t.current_quantity || 0, t.capacity || t.fuel_tank_capacity || 0)}</td>
+        <td>${safeNum(t.capacity || t.fuel_tank_capacity)} ${UOM.abbr}</td>
+        <td>${esc(t.location || t.current_location || '—')}</td>
+        <td>${ownershipBadge(t)}</td>
+        <td>${statusBadge(t)}</td>
+      </tr>`;
     }).join('');
   }
 
@@ -458,7 +500,12 @@
     }
     const filterBarId = `${containerId}-filter`;
     const tableId = `${containerId}-table`;
-    container.innerHTML = `<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="${filterBarId}" placeholder="Name, fuel, location…" style="flex:1;min-width:180px;"></div><div class="fuel-table-wrap"><table class="fuel-table" id="${tableId}"><thead><tr><th>Tank / Asset</th><th>Fuel Type</th><th>Level</th><th>Capacity</th><th>Location</th><th>Ownership</th><th>Status</th></tr></thead><tbody id="${tableId}-body">${renderTankRows(tanks, subtab)}</tbody></table></div>`;
+
+    const tableHeaders = subtab === 'portable'
+      ? `<thead><tr><th>Portable Can</th><th>Project</th><th>Status</th></tr></thead>`
+      : `<thead><tr><th>Tank / Asset</th><th>Fuel Type</th><th>Level</th><th>Capacity</th><th>Location</th><th>Ownership</th><th>Status</th></tr></thead>`;
+
+    container.innerHTML = `<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="${filterBarId}" placeholder="Name, project, location…" style="flex:1;min-width:180px;"></div><div class="fuel-table-wrap"><table class="fuel-table" id="${tableId}">${tableHeaders}<tbody id="${tableId}-body">${renderTankRows(tanks, subtab)}</tbody></table></div>`;
 
     container._tankSortCol = 'name';
     container._tankSortDir = 'asc';
@@ -510,8 +557,8 @@
     let headingText = subtab === 'portable' ? 'Portable Cans' : (subtab === 'equipment' ? 'Equipment' : getTankTypeDisplayName(`${subtab}_tank`));
     if (subtab !== 'portable' && subtab !== 'equipment') headingText += ' Tanks';
 
-    // Applied .fuel-stat-card styling to individual subtab title cards with rounded corners and proper padding
-    container.innerHTML = `<div class="fuel-stat-card" style="text-align:left;margin-bottom:16px;padding:16px 20px;"><div style="font-size:18px;font-weight:700;color:var(--text,#0f172a);display:flex;align-items:center;justify-content:space-between;"><span>${esc(headingText)}</span><span style="font-size:13px;font-weight:600;color:var(--text-muted,#64748b);">${tanks.length} record${tanks.length !== 1 ? 's' : ''}</span></div></div>`;
+    // Standardized green-bordered card header matching platform theme
+    container.innerHTML = `<div class="fuel-stat-card" style="text-align:left;margin-bottom:16px;padding:16px 20px;border:1px solid #16a34a;border-radius:10px;"><div style="font-size:18px;font-weight:700;color:var(--text,#0f172a);display:flex;align-items:center;justify-content:space-between;"><span>${esc(headingText)}</span><span style="font-size:13px;font-weight:600;color:var(--text-muted,#64748b);">${tanks.length} record${tanks.length !== 1 ? 's' : ''}</span></div></div>`;
     
     const innerDiv = document.createElement('div');
     innerDiv.id = `${containerId}-inner`;
@@ -678,7 +725,6 @@
 
     let html = '';
 
-    // Removed magnifying glasses and row click handlers on Tank Overview tab as requested
     if (bulkTanks.length > 0) {
       html += `<div class="overview-section"><div class="overview-section-title">${iconSvg('icon-barrel')} Bulk Storage Tanks <span class="count">(${bulkTanks.length})</span></div>`;
       html += `<div class="fuel-table-wrap"><table class="fuel-table"><thead><tr><th>Tank Name</th><th>Fuel Type</th><th>Capacity</th><th>Fuel Purchased</th><th>Fuel Dispensed</th><th>Current Qty</th><th>Level</th><th>Location</th><th>Action</th></tr></thead><tbody>`;
@@ -883,7 +929,6 @@
       const assetTarget = getTxAssetTarget(t);
       const personName = formatPersonName(t);
       
-      // Purchases subtab correctly places magnifying glass in the Asset / Target column
       let fromTd = `<td>${esc(from)}</td>`;
       let assetTd = `<td style="font-weight:600;color:var(--primary);">${esc(assetTarget)} 🔍</td>`;
 
@@ -1033,7 +1078,10 @@
     if (!container) return;
     container.setAttribute('data-subtab', subtab);
     const headingText = subtab === 'all' ? 'All Fuel Transactions' : subtab === 'purchase' ? 'Fuel Purchases' : subtab === 'issue' ? 'Issues to Assets' : 'Tank Transfers & Fills';
-    container.innerHTML = `<div class="section-heading">${headingText} <span class="section-heading-count">${txs.length} record${txs.length !== 1 ? 's' : ''}</span></div>`;
+    
+    // Standardized green-bordered title card matching Tanks subtabs
+    container.innerHTML = `<div class="fuel-stat-card" style="text-align:left;margin-bottom:16px;padding:16px 20px;border:1px solid #16a34a;border-radius:10px;"><div style="font-size:18px;font-weight:700;color:var(--text,#0f172a);display:flex;align-items:center;justify-content:space-between;"><span>${esc(headingText)}</span><span style="font-size:13px;font-weight:600;color:var(--text-muted,#64748b);">${txs.length} record${txs.length !== 1 ? 's' : ''}</span></div></div>`;
+
     const innerDiv = document.createElement('div');
     innerDiv.id = `${containerId}-inner`;
     innerDiv.setAttribute('data-subtab', subtab);
@@ -1131,17 +1179,31 @@
       const isManagerReview = f.flag_type === 'manager_review';
 
       const personDisplay = formatPersonName({ 
-        person: f.person || f.person_name || f.created_by_name || details.person || details.submitted_by || details.user || details.submittedBy 
+        person: f.person || f.person_name || f.created_by_name || details.person || details.submitted_by || details.user || details.submittedBy || details.payload?.person_name
       });
 
-      // Fixed Asset field extraction to pull correctly across top-level properties and nested details objects
-      const assetDisplay = f.asset_name || f.asset_number || details.asset_name || details.asset || details.custom_asset_name || details.asset_number || (details.field === 'asset' ? details.value : null) || '—';
+      // Thorough field extraction to ensure Asset is reliably populated across all API payload models
+      const rawAsset = f.asset_name || f.asset_number || details.asset_name || details.custom_asset_name || details.asset || details.asset_number ||
+                       details.payload?.custom_asset_name || details.payload?.asset_name || details.payload?.asset_number || details.payload?.asset ||
+                       details.transaction_payload?.asset_name || details.transaction_payload?.custom_asset_name ||
+                       (details.field === 'asset' ? details.value : null);
 
-      const projectDisplay = f.project_name || details.project_name || details.project || (details.field === 'project' ? details.value : null) || '—';
+      const assetDisplay = rawAsset ? String(rawAsset).trim() : '—';
 
-      const locationDisplay = f.location || details.location || (details.field === 'location' ? details.value : null) || '—';
+      const rawProject = f.project_name || details.project_name || details.custom_project_name || details.project ||
+                         details.payload?.custom_project_name || details.payload?.project_name || details.payload?.project ||
+                         details.transaction_payload?.project_name || (details.field === 'project' ? details.value : null);
 
-      let html = '<div style="border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;background:var(--bg-card);">';
+      const projectDisplay = rawProject ? String(rawProject).trim() : '—';
+
+      const rawLocation = f.location || details.location || details.custom_location_name ||
+                          details.payload?.custom_location_name || details.payload?.location ||
+                          details.transaction_payload?.location || (details.field === 'location' ? details.value : null);
+
+      const locationDisplay = rawLocation ? String(rawLocation).trim() : '—';
+
+      // Standardized green-bordered alert card with proper rounded corners and side padding
+      let html = '<div class="fuel-stat-card" style="text-align:left;margin-bottom:16px;padding:20px;border:1px solid #16a34a;border-radius:10px;background:var(--bg-card);">';
       html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:8px;">';
       html += `<div><span style="font-size:12px;padding:2px 8px;border-radius:4px;font-weight:600;${sevStyle}">${esc(flagTypeLabel(f.flag_type))}</span>`;
       if (f.status === 'resolved') { html += ' <span style="font-size:12px;padding:2px 8px;border-radius:4px;background:#dcfce7;color:#15803d;font-weight:600;">RESOLVED</span>'; }
@@ -1588,31 +1650,35 @@
     modal.innerHTML = html;
     overlay.appendChild(modal);
 
-    const closeModal = () => overlay.remove();
+    const closeModal = () => {
+      overlay.remove();
+      document.removeEventListener('keydown', escHandler);
+    };
+
+    function escHandler(e) {
+      if (e.key === 'Escape') closeModal();
+    }
+
+    document.addEventListener('keydown', escHandler);
 
     modal.querySelectorAll('.modal-close-btn').forEach(btn => btn.addEventListener('click', closeModal));
     overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
-    
-    document.addEventListener('keydown', function escHandler(e) {
-      if (e.key === 'Escape') {
-        closeModal();
-        document.removeEventListener('keydown', escHandler);
-      }
-    });
 
     document.body.appendChild(overlay);
   }
 
   function setupHelpModals() {
-    const purposeBtn = document.getElementById('purposeBtn');
-    if (purposeBtn) {
-      purposeBtn.addEventListener('click', () => showHelpModal('purpose'));
-    }
-
-    const instructionsBtn = document.getElementById('instructionsBtn');
-    if (instructionsBtn) {
-      instructionsBtn.addEventListener('click', () => showHelpModal('instructions'));
-    }
+    document.addEventListener('click', (e) => {
+      const purposeBtn = e.target.closest('#purposeBtn');
+      if (purposeBtn) {
+        showHelpModal('purpose');
+        return;
+      }
+      const instructionsBtn = e.target.closest('#instructionsBtn');
+      if (instructionsBtn) {
+        showHelpModal('instructions');
+      }
+    });
   }
 
   /* ===== INITIALIZATION ===== */
@@ -1677,7 +1743,13 @@
       _initDone = true;
       window.dashUser = user;
 
-      const savedTheme = localStorage.getItem('driven-theme') || localStorage.getItem('driven_theme') || (user && user.theme) || 'light';
+      const savedTheme = localStorage.getItem('driven-theme') ||
+                         localStorage.getItem('driven_theme') ||
+                         sessionStorage.getItem('driven-theme') ||
+                         sessionStorage.getItem('driven_theme') ||
+                         (user && (user.theme || user.driven_theme)) ||
+                         'light';
+
       document.documentElement.setAttribute('data-theme', savedTheme);
 
       try {
