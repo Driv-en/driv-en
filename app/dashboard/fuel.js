@@ -133,7 +133,7 @@
     return (tx.location || '').trim() === locFilter;
   }
 
-/* ===== STICKY NAVIGATION & HEADER TITLE HANDLERS ===== */
+  /* ===== STICKY NAVIGATION & HEADER TITLE HANDLERS ===== */
 
   function makeTabsSticky() {
     const updatePositions = () => {
@@ -142,19 +142,34 @@
 
       if (!h || !wrapper) return;
 
-      const headerHeight = Math.round(h.getBoundingClientRect().height) || 54;
-      wrapper.style.top = headerHeight + 'px';
+      h.style.position = 'sticky';
+      h.style.top = '0px';
+      h.style.zIndex = '1000';
 
-      const wrapperHeight = Math.round(wrapper.getBoundingClientRect().height) || 44;
+      if (h.nextElementSibling !== wrapper) {
+        h.parentNode.insertBefore(wrapper, h.nextSibling);
+      }
+
+      const headerHeight = Math.round(h.getBoundingClientRect().height) || h.offsetHeight || 52;
+      
+      wrapper.style.position = 'sticky';
+      wrapper.style.top = headerHeight + 'px';
+      wrapper.style.zIndex = '999';
+      wrapper.style.background = 'var(--bg-card, #e2e8f0)';
+
+      const wrapperHeight = Math.round(wrapper.getBoundingClientRect().height) || wrapper.offsetHeight || 44;
       const totalSubtabTop = headerHeight + wrapperHeight;
 
       document.querySelectorAll('.fuel-subtab-bar').forEach(stb => {
+        stb.style.position = 'sticky';
         stb.style.top = totalSubtabTop + 'px';
+        stb.style.zIndex = '998';
+        stb.style.background = 'var(--bg-card, #e2e8f0)';
       });
 
-      const subtabVisible = document.querySelector('.fuel-subtab-bar.visible');
-      const subtabHeight = subtabVisible ? (Math.round(subtabVisible.getBoundingClientRect().height) || 36) : 0;
-      document.body.style.paddingTop = (totalSubtabTop + subtabHeight + 12) + 'px';
+      document.querySelectorAll('.section-heading').forEach(sh => {
+        sh.style.top = (totalSubtabTop + 32) + 'px';
+      });
     };
 
     updatePositions();
@@ -164,51 +179,36 @@
 
   function insertHeaderTitle() {
     const attachTitle = () => {
-      let row = document.querySelector('.dash-header-row1');
-      if (!row) {
+      let container = document.querySelector('.dash-header-row1');
+      if (!container) {
         const header = document.getElementById('dashHeader');
-        if (!header) return;
-        row = header.querySelector('div') || header;
+        if (header) container = header.querySelector('div') || header;
       }
 
-      // Exit early if 3-column layout is already attached to avoid infinite re-renders
-      if (row.querySelector('.fuel-header-title')) return;
-
-      const leftCol = document.createElement('div');
-      leftCol.className = 'fuel-header-left';
-
-      const titleEl = document.createElement('div');
-      titleEl.className = 'fuel-header-title';
-      titleEl.textContent = 'Fuel Management';
-
-      const rightCol = document.createElement('div');
-      rightCol.className = 'fuel-header-right';
-
-      const existingChildren = Array.from(row.childNodes);
-      existingChildren.forEach(node => {
-        if (node.nodeType === 1 && (node.classList.contains('dash-driven-logo') || node.id === 'drivenNavClose')) {
-          rightCol.appendChild(node);
-        } else if (node.nodeType === 1) {
-          leftCol.appendChild(node);
+      if (container) {
+        let titleEl = container.querySelector('.fuel-header-title');
+        if (!titleEl) {
+          titleEl = document.createElement('div');
+          titleEl.className = 'fuel-header-title';
+          titleEl.textContent = 'Fuel Management';
+          
+          const logo = container.querySelector('.dash-driven-logo') || container.firstElementChild;
+          if (logo && logo.nextSibling) {
+            container.insertBefore(titleEl, logo.nextSibling);
+          } else {
+            container.appendChild(titleEl);
+          }
         }
-      });
-
-      row.innerHTML = '';
-      row.appendChild(leftCol);
-      row.appendChild(titleEl);
-      row.appendChild(rightCol);
+      }
     };
 
     attachTitle();
 
     const headerEl = document.getElementById('dashHeader');
     if (headerEl) {
-      const observer = new MutationObserver((mutations) => {
-        const needsUpdate = mutations.some(m => !m.target.classList || !m.target.classList.contains('fuel-header-title'));
-        if (needsUpdate) {
-          attachTitle();
-          makeTabsSticky();
-        }
+      const observer = new MutationObserver(() => {
+        attachTitle();
+        makeTabsSticky();
       });
       observer.observe(headerEl, { childList: true, subtree: true });
     }
@@ -253,8 +253,6 @@
     if (tanksBar) tanksBar.classList.toggle('visible', tabName === 'tanks');
     if (txBar) txBar.classList.toggle('visible', tabName === 'transactions');
 
-    makeTabsSticky();
-
     if (tabName === 'transactions' && !window._txLoaded) {
       window._txLoaded = true;
       renderTxForSubtab('all');
@@ -288,7 +286,8 @@
     if (content) content.classList.add('active');
     renderTxForSubtab(subtabName);
   }
-   /* ===== TANK TYPE & DYNAMIC SUBTABS ===== */
+
+  /* ===== TANK TYPE & DYNAMIC SUBTABS ===== */
 
   function getTankTypeDisplayName(systemKey) {
     const t = tankTypes.find(tt => tt.system_key === systemKey);
@@ -741,7 +740,8 @@
     });
     return { totalGal, totalPurchases, totalIssues, txCount: txs.length };
   }
-   function getTransferredFrom(t) {
+
+  function getTransferredFrom(t) {
     if (t.transaction_type === 'purchase') return '—';
     if (t.from_entity_type === 'vendor') return 'Vendor';
     if (t.from_entity_name) return t.from_entity_name;
