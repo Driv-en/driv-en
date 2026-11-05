@@ -2,20 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DRIV‑EN | Fuel Management</title>
 <meta name="description" content="DRIV-EN fuel management — tank levels, transactions, and fuel inventory.">
 <meta name="robots" content="noindex, nofollow">
 <link rel="canonical" href="https://www.driv-en.com/app/dashboard/fuel.html">
-
-<!-- Theme Initialization (Prevents FOUC & Syncs Dark/Light Mode) -->
-<script>
-  (function() {
-    var savedTheme = localStorage.getItem("driven-theme") || "light";
-    document.documentElement.setAttribute("data-theme", savedTheme);
-  })();
-</script>
-
 <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
 <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
 <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
@@ -25,253 +16,96 @@
 <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
 
 <style>
-/* Prevent horizontal page shift on mobile */
-html, body {
-  width: 100%;
-  max-width: 100%;
-  overflow-x: hidden;
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-*, *:before, *:after {
-  box-sizing: inherit;
-}
-
 .fuel-loading { display: flex; align-items: center; justify-content: center; height: 60vh; font-size: 16px; color: var(--text-muted); }
 .dash-header-row2 { display: none !important; }
 .dash-header-row3 { display: none !important; }
-
-/* Sticky Header Bar — Solid Gray Theme Background */
-#dashHeader { 
-  position: sticky !important; 
-  top: 0 !important; 
-  z-index: 1000 !important; 
-  background: var(--bg-step, #cbd5e1) !important; 
-  width: 100% !important;
-  max-width: 100vw !important;
-  left: 0 !important;
-  right: 0 !important;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  border-bottom: 1px solid var(--border-green, #16a34a);
-}
 #dashHeader .dash-theme-wrapper { display: none !important; }
+.dash-header-row1 { padding: 8px 20px !important; align-items: center; }
+.fuel-header-title { flex: 1; text-align: center; font-size: 20px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* 3-Column Header Grid Layout: Left (Logo), Center (Title), Right (DRIV-EN Logo/Controls) */
-.dash-header-row1 { 
-  display: grid !important;
-  grid-template-columns: 1fr auto 1fr !important;
-  align-items: center !important; 
-  padding: 8px 16px !important; 
-  position: relative !important; 
-  background: var(--bg-step, #cbd5e1) !important;
-  min-height: 52px;
-  width: 100% !important;
-  max-width: 100% !important;
-}
-
-/* Left Column Alignment for Customer Logo */
-.dash-header-row1 > *:first-child {
-  justify-self: start !important;
-}
-
-/* Right Column Alignment for DRIV-EN Logo / Navigation Controls */
-.dash-header-row1 > *:last-child {
-  justify-self: end !important;
-}
-
-/* Middle Column: Page Title (Centered) */
-.fuel-header-title { 
-  grid-column: 2 !important;
-  justify-self: center !important;
-  font-size: 18px !important; 
-  font-weight: 700 !important; 
-  color: var(--text, #1e293b) !important; 
-  white-space: nowrap !important; 
-  overflow: hidden !important; 
-  text-overflow: ellipsis !important; 
-  text-align: center !important;
-  z-index: 10 !important;
-}
-
-/* Sticky Main Tab Bar Wrapper — Solid Gray Theme Background */
-.fuel-tab-bar-wrapper {
-  position: sticky !important;
-  top: 52px; /* Calculated dynamically via fuel.js */
-  z-index: 999 !important;
-  background: var(--bg-step, #cbd5e1) !important;
-  border-bottom: 2px solid var(--border-green, #16a34a);
-  width: 100% !important;
-  max-width: 100vw !important;
-  left: 0 !important;
-  right: 0 !important;
-}
-
+/* Sticky Navigation Extensions */
 .fuel-tab-bar { 
   display: flex !important; 
   visibility: visible !important;
   opacity: 1 !important;
-  gap: 4px; 
+  gap: 2px; 
   max-width: 1100px; 
   margin: 0 auto; 
-  padding: 6px 12px 0 12px; 
+  padding: 0 20px; 
   overflow-x: auto; 
+  position: sticky !important; 
+  top: 58px !important; 
+  z-index: 99 !important; 
+  background: #cbd5e1; 
+  border-bottom: 2px solid #94a3b8; 
   -webkit-overflow-scrolling: touch;
-  background: var(--bg-step, #cbd5e1) !important;
-  scrollbar-width: none;
 }
-.fuel-tab-bar::-webkit-scrollbar { display: none; }
-
-.fuel-tab { 
-  background: var(--bg-card, #e2e8f0); 
-  border: 1px solid var(--border-green, #16a34a); 
-  border-bottom: none; 
-  border-radius: 8px 8px 0 0; 
-  padding: 8px 16px; 
-  font-size: 14px; 
-  font-weight: 500; 
-  color: var(--text, #1e293b); 
-  cursor: pointer; 
-  white-space: nowrap; 
-  transition: all 200ms ease; 
-  margin-top: 4px; 
-  position: relative; 
-  z-index: 1; 
-  flex-shrink: 0;
-}
-
-.fuel-tab:hover { 
-  color: var(--text, #0f172a); 
-  background: var(--border, #94a3b8); 
-  margin-top: 2px; 
-}
-
-.fuel-tab.active { 
-  color: #ffffff; 
-  background: var(--primary, #16a34a); 
-  border-color: var(--border-green, #15803d); 
-  margin-top: 0; 
-  font-weight: 600; 
-  z-index: 2; 
-}
-
+.fuel-tab { background: #94a3b8; border: 1px solid #64748b; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 500; color: #1e293b; cursor: pointer; white-space: nowrap; transition: all 200ms ease; margin-top: 4px; position: relative; z-index: 1; }
+.fuel-tab:hover { color: #0f172a; background: #a5b4c4; margin-top: 2px; }
+.fuel-tab.active { color: #1d4ed8; background: #e2e8f0; border-color: #64748b; margin-top: 0; font-weight: 600; z-index: 2; }
 .fuel-tab-content { display: none; }
 .fuel-tab-content.active { display: block; }
 
-/* Sticky Subtab Bar — Solid Gray Theme Background */
 .fuel-subtab-bar { 
   display: none; 
   gap: 2px; 
   max-width: 1100px; 
   margin: 0 auto; 
-  padding: 4px 12px 0 12px; 
+  padding: 0 20px; 
   overflow-x: auto; 
   position: sticky !important; 
-  top: 96px; /* Calculated dynamically via fuel.js */
-  z-index: 998 !important; 
-  background: var(--bg-step, #cbd5e1) !important; 
-  border-bottom: 2px solid var(--border-green, #16a34a); 
+  top: 102px !important; 
+  z-index: 98 !important; 
+  background: #475569; 
+  border-bottom: 2px solid #334155; 
   -webkit-overflow-scrolling: touch;
-  width: 100% !important;
-  scrollbar-width: none;
 }
-.fuel-subtab-bar::-webkit-scrollbar { display: none; }
-
 .fuel-subtab-bar.visible { display: flex !important; }
-
-.fuel-subtab { 
-  background: var(--bg-card, #e2e8f0); 
-  border: 1px solid var(--border-green, #16a34a); 
-  border-bottom: none; 
-  border-radius: 6px 6px 0 0; 
-  padding: 6px 14px; 
-  font-size: 13px; 
-  font-weight: 500; 
-  color: var(--text, #1e293b); 
-  cursor: pointer; 
-  white-space: nowrap; 
-  transition: all 200ms ease; 
-  margin-top: 4px; 
-  position: relative; 
-  z-index: 1; 
-  flex-shrink: 0;
-}
-
-.fuel-subtab:hover { background: var(--border, #94a3b8); margin-top: 2px; }
-.fuel-subtab.active { background: #15803d; border-color: #22c55e; color: #fff; margin-top: 0; font-weight: 600; z-index: 2; }
+.fuel-subtab { background: #22c55e; border: 1px solid #16a34a; border-bottom: none; border-radius: 8px 8px 0 0; padding: 8px 18px; font-size: 14px; font-weight: 500; color: #fff; cursor: pointer; white-space: nowrap; transition: all 200ms ease; margin-top: 4px; position: relative; z-index: 1; }
+.fuel-subtab:hover { background: #16a34a; margin-top: 2px; }
+.fuel-subtab.active { background: #15803d; border-color: #22c55e; margin-top: 0; font-weight: 600; z-index: 2; }
 .fuel-subtab-content { display: none; }
-.fuel-subtab-content.active { display: block; margin-top: 16px; }
+.fuel-subtab-content.active { display: block; margin-top: 20px; }
 
-.fuel-tab-home { background: #1d4ed8; border: 1px solid #2563eb; border-bottom: none; border-radius: 8px 8px 0 0; padding: 8px 16px; font-size: 14px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; margin-left: auto; position: relative; z-index: 1; transition: all 200ms ease; text-decoration: none; display: inline-block; flex-shrink: 0; }
+.fuel-tab-home { background: #1d4ed8; border: 1px solid #2563eb; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; margin-left: auto; position: relative; z-index: 1; transition: all 200ms ease; text-decoration: none; display: inline-block; }
 .fuel-tab-home:hover { background: #2563eb; margin-top: 2px; }
-.fuel-tab-logout { background: #b91c1c; border: 1px solid #dc2626; border-bottom: none; border-radius: 8px 8px 0 0; padding: 8px 16px; font-size: 14px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; position: relative; z-index: 1; transition: all 200ms ease; flex-shrink: 0; }
+.fuel-tab-logout { background: #b91c1c; border: 1px solid #dc2626; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; position: relative; z-index: 1; transition: all 200ms ease; }
 .fuel-tab-logout:hover { background: #dc2626; margin-top: 2px; }
-.fuel-main { max-width: 1100px; margin: 16px auto; padding: 0 16px; position: relative; z-index: 1; }
-.section-heading { position: sticky; top: 0; z-index: 5; background: var(--bg-card); border-bottom: 2px solid var(--border-green, #16a34a); padding: 10px 0; margin: 0 0 16px 0; font-size: 16px; font-weight: 700; color: var(--text); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.fuel-main { max-width: 1100px; margin: 20px auto; padding: 0 20px; position: relative; z-index: 1; }
+.section-heading { position: sticky; top: 140px; z-index: 5; background: var(--bg-card); border-bottom: 2px solid var(--border); padding: 12px 0; margin: 0 0 16px 0; font-size: 16px; font-weight: 700; color: var(--text); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .section-heading-count { font-size: 13px; font-weight: 400; color: var(--text-muted); }
-
-/* Solid Cards & Tables */
 .fuel-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-.fuel-stat-card { 
-  background: var(--bg-card, #ffffff); 
-  border: 1px solid var(--border-green, #16a34a); 
-  border-radius: 8px; 
-  padding: 16px; 
-  text-align: center; 
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
-.fuel-stat-number { font-size: 28px; font-weight: 700; color: var(--text); }
-.fuel-stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-
+.fuel-stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; text-align: center; }
+.fuel-stat-number { font-size: 32px; font-weight: 700; color: var(--text); }
+.fuel-stat-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
 .fuel-filter-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
-.fuel-filter-bar select, .fuel-filter-bar input { padding: 8px 12px; font-size: 13px; border: 1px solid var(--border-green, #16a34a); border-radius: 6px; background: var(--bg-card, #ffffff); color: var(--text); box-sizing: border-box; }
-.fuel-filter-bar select:focus, .fuel-filter-bar input:focus { outline: none; border-color: var(--primary, #16a34a); }
+.fuel-filter-bar select, .fuel-filter-bar input { padding: 8px 12px; font-size: 13px; border: 1px solid var(--border-input, var(--border)); border-radius: 6px; background: var(--bg-step); color: var(--text); box-sizing: border-box; }
+.fuel-filter-bar select:focus, .fuel-filter-bar input:focus { outline: none; border-color: var(--primary); }
 .fuel-filter-label { font-size: 13px; color: var(--text-muted); font-weight: 600; }
-
-.info-banner { 
-  background: var(--bg-card, #ffffff); 
-  border: 1px solid var(--border-green, #16a34a); 
-  border-radius: 8px; 
-  padding: 14px 18px; 
-  margin-bottom: 20px; 
-  font-size: 13px; 
-  color: var(--text); 
-  line-height: 1.6; 
-}
-.info-banner strong { color: var(--primary, #16a34a); }
-.info-banner.warn { background: var(--bg-card, #ffffff); border-color: #fcd34d; color: var(--text); }
+.info-banner { background: #eff6ff; border: 1px solid #93c5fd; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; font-size: 13px; color: #1e3a5f; line-height: 1.6; }
+.info-banner strong { color: #1d4ed8; }
+.info-banner.warn { background: #fef3c7; border-color: #fcd34d; color: #78350f; }
 .info-banner.warn strong { color: #b45309; }
 .info-banner ul { margin: 6px 0 0 18px; padding: 0; }
 .info-banner li { margin-bottom: 2px; }
-
-.fuel-table-wrap { 
-  overflow-x: auto; 
-  -webkit-overflow-scrolling: touch; 
-  border: 1px solid var(--border-green, #16a34a); 
-  border-radius: 8px; 
-  background: var(--bg-card, #ffffff); 
-  width: 100%;
-}
-.fuel-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 600px; }
-.fuel-table thead { background: var(--bg-step, #f8fafc); }
-.fuel-table th { padding: 10px 12px; text-align: left; font-weight: 600; color: var(--text); border-bottom: 1px solid var(--border-green, #16a34a); white-space: nowrap; cursor: pointer; user-select: none; }
-.fuel-table th:hover { background: var(--border, #cbd5e1); }
+.fuel-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); }
+.fuel-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 700px; }
+.fuel-table thead { background: var(--bg-step); }
+.fuel-table th { padding: 10px 14px; text-align: left; font-weight: 600; color: var(--text); border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; }
+.fuel-table th:hover { background: var(--border); }
 .fuel-table th .sort-indicator { font-size: 10px; margin-left: 4px; opacity: 0.5; }
 .fuel-table th.sorted-asc .sort-indicator { opacity: 1; }
 .fuel-table th.sorted-desc .sort-indicator { opacity: 1; }
-
-.print-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 13px; font-weight: 600; border: 1px solid var(--border-green, #16a34a); border-radius: 6px; background: var(--bg-card, #ffffff); color: var(--text); cursor: pointer; transition: background 200ms; }
-.print-btn:hover { background: var(--bg-step); }
+.print-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 13px; font-weight: 600; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-step); color: var(--text); cursor: pointer; transition: background 200ms; }
+.print-btn:hover { background: var(--border); }
 .tx-row-clickable { cursor: pointer; }
 .tx-row-clickable:hover { background: var(--bg-step); }
-.fuel-table td { padding: 10px 12px; border-bottom: 1px solid var(--border, #e2e8f0); color: var(--text); white-space: nowrap; }
+.fuel-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text); white-space: nowrap; }
 .fuel-table tbody tr { transition: background 150ms ease; }
 .fuel-table tbody tr:hover { background: var(--bg-step); }
 .fuel-table tbody tr:last-child td { border-bottom: none; }
-
-.tank-level-mini { display: flex; align-items: center; gap: 8px; min-width: 120px; }
-.tank-level-bar { flex: 1; height: 16px; background: var(--border); border-radius: 4px; overflow: hidden; min-width: 70px; }
+.tank-level-mini { display: flex; align-items: center; gap: 8px; min-width: 140px; }
+.tank-level-bar { flex: 1; height: 16px; background: var(--border); border-radius: 4px; overflow: hidden; min-width: 80px; }
 .tank-level-fill { height: 100%; background: linear-gradient(90deg, #0066cc, #00aa44); transition: width .5s; }
 .tank-level-fill.low { background: linear-gradient(90deg, #cc0000, #ff6600); }
 .tank-level-text { font-size: 11px; font-weight: 600; color: var(--text); white-space: nowrap; }
@@ -281,35 +115,22 @@ html, body {
 .status-badge { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600; text-transform: uppercase; white-space: nowrap; }
 .status-badge.active { background: #dcfce7; color: #15803d; border: 1px solid #16a34a; }
 .status-badge.inactive { background: var(--border); color: var(--text-muted); border: 1px solid var(--border); }
-.overview-section { margin-bottom: 24px; }
-.overview-section-title { font-size: 15px; font-weight: 700; color: var(--text); padding: 8px 0; border-bottom: 2px solid var(--border-green, #16a34a); margin-bottom: 0; display: flex; align-items: center; gap: 8px; }
+.overview-section { margin-bottom: 28px; }
+.overview-section-title { font-size: 15px; font-weight: 700; color: var(--text); padding: 10px 0; border-bottom: 2px solid var(--border); margin-bottom: 0; display: flex; align-items: center; gap: 8px; }
 .overview-section-title .count { font-size: 13px; font-weight: 400; color: var(--text-muted); }
-.overview-section-title svg { width: 20px; height: 20px; flex-shrink: 0; }
-.tx-totals-bar { display: flex; gap: 12px; flex-wrap: wrap; background: var(--bg-card, #ffffff); border: 1px solid var(--border-green, #16a34a); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; align-items: center; }
+.overview-section-title svg { width: 22px; height: 22px; flex-shrink: 0; }
+.tx-totals-bar { display: flex; gap: 16px; flex-wrap: wrap; background: var(--bg-step); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; align-items: center; }
 .tx-totals-bar .total-item { display: flex; flex-direction: column; gap: 2px; }
 .tx-totals-bar .total-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
-.tx-totals-bar .total-value { font-size: 16px; font-weight: 700; color: var(--text); }
-.tx-totals-bar .total-value.gal { color: var(--primary, #16a34a); }
-.empty-state { text-align: center; padding: 30px 16px; color: var(--text-muted); font-size: 14px; }
-
-/* Responsive Mobile Layout Adjustments */
-@media (max-width: 768px) { 
-  .fuel-stats { grid-template-columns: repeat(2, 1fr); gap: 10px; } 
-  .fuel-main { padding: 0 10px; margin: 10px auto; } 
-  .fuel-tab, .fuel-tab-home, .fuel-tab-logout { padding: 8px 12px; font-size: 13px; } 
-  .fuel-header-title { font-size: 15px !important; }
-  .dash-header-row1 { padding: 6px 10px !important; min-height: 44px; }
-}
-
-@media (max-width: 480px) {
-  .fuel-stats { grid-template-columns: 1fr; }
-  .fuel-header-title { font-size: 14px !important; }
-}
+.tx-totals-bar .total-value { font-size: 18px; font-weight: 700; color: var(--text); }
+.tx-totals-bar .total-value.gal { color: var(--primary); }
+.empty-state { text-align: center; padding: 40px; color: var(--text-muted); font-size: 14px; }
+@media (max-width: 800px) { .fuel-stats { grid-template-columns: repeat(2, 1fr); } .fuel-main { padding: 0 12px; margin: 12px auto; } .fuel-tab, .fuel-tab-home, .fuel-tab-logout { padding: 10px 16px; font-size: 14px; } }
 
 /* UI Modal Standard Styling */
 .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); z-index: 10000; align-items: center; justify-content: center; }
 .modal-overlay.active { display: flex; }
-.modal-card { background: var(--bg-card); border-radius: 12px; padding: 20px; max-width: 560px; width: 92%; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 40px rgba(0,0,0,0.5); border: 1px solid var(--border-green, #16a34a); }
+.modal-card { background: var(--bg-card); border-radius: 12px; padding: 24px; max-width: 560px; width: 90%; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 40px rgba(0,0,0,0.5); border: 1px solid var(--border); }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .modal-title { margin: 0; font-size: 18px; font-weight: 700; color: var(--text); }
 .modal-close-icon { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted); }
@@ -322,14 +143,12 @@ html, body {
 <div class="steel-overlay"></div>
 <div id="dashHeader"></div>
 
-<div class="fuel-tab-bar-wrapper">
-  <div class="fuel-tab-bar" id="fuelTabBar">
-    <button class="fuel-tab active" data-tab="tanks">Tanks</button>
-    <button class="fuel-tab" data-tab="transactions">Transactions</button>
-    <button class="fuel-tab" data-tab="alerts">Fuel Alerts</button>
-    <button class="fuel-tab-home" id="dashHomeLink">&#8592; Dashboard</button>
-    <button class="fuel-tab-logout">Logout</button>
-  </div>
+<div class="fuel-tab-bar" id="fuelTabBar">
+  <button class="fuel-tab active" data-tab="tanks">Tanks</button>
+  <button class="fuel-tab" data-tab="transactions">Transactions</button>
+  <button class="fuel-tab" data-tab="alerts">Fuel Alerts</button>
+  <button class="fuel-tab-home" id="dashHomeLink">&#8592; Dashboard</button>
+  <button class="fuel-tab-logout">Logout</button>
 </div>
 
 <div id="fuelAlertBanner" style="display:none;max-width:1100px;margin:12px auto 0;padding:10px 16px;border-radius:8px;background:#fef3c7;border:1px solid #fcd34d;color:#78350f;font-size:13px;cursor:pointer;position:relative;z-index:1;">
@@ -357,7 +176,7 @@ html, body {
         <input type="date" id="overviewFromDate">
         <span class="fuel-filter-label">To:</span>
         <input type="date" id="overviewToDate">
-        <button id="btnClearOverviewFilters" style="padding:8px 12px;font-size:13px;border:1px solid var(--border-green, #16a34a);border-radius:6px;background:var(--bg-card);color:var(--text);cursor:pointer;">Clear</button>
+        <button id="btnClearOverviewFilters" style="padding:8px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;">Clear</button>
         <button class="print-btn" id="btnPrintOverview">🖨 Print</button>
       </div>
       <div class="info-banner" id="bulkTankNote">
