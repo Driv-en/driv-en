@@ -937,9 +937,11 @@ async function loadTanks() {
     if (!_flagsLoaded) {
       container.innerHTML = '<div class="empty-state">Loading alerts…</div>';
       fetch('/api/fuel-flags' + (statusFilter ? '?status=' + statusFilter : ''), { headers: getAuthHeaders() })
-        .then(r => r.json())
+        .then(r => { if (!r.ok) throw new Error('Alerts service returned ' + r.status); return r.json(); })
         .then(data => {
-          if (data.success && data.flags) { allFlags = data.flags; _flagsLoaded = true; }
+          const list = data.flags || data.records || data.data;
+          if (Array.isArray(list)) allFlags = list;
+          _flagsLoaded = true;
           renderAlerts();
         })
         .catch(e => {

@@ -1471,6 +1471,14 @@ export async function onRequest(context) {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
+  // FUEL WORKER: forward fuel endpoints to the standalone fuel worker (service binding FUEL_WORKER).
+  // The worker authenticates with the driv_en_session cookie, so the request is passed through unchanged.
+  if (env.FUEL_WORKER && /^\/api\/(fuel-(tanks|transactions|purchases|receipts|flags|tank-types)|notifications|module-subscriptions)(\/|$)/.test(path)) {
+    const workerUrl = new URL(request.url);
+    workerUrl.pathname = workerUrl.pathname.replace(/^\/api/, '');
+    return env.FUEL_WORKER.fetch(new Request(workerUrl.toString(), request));
+  }
+
   // DIRECT DISPATCH: Send DVIR Officer Email via Resend
   if (
     path === '/api/send-dvir-email' || 
