@@ -12,6 +12,7 @@
  * loading (users, locations, projects, assets), mobile-specific GPS location 
  * verification, and payment/PO type management.
  */
+
 var allTanks = [];
 var allAssets = [];
 var tankTypes = [];
@@ -93,7 +94,9 @@ function checkReceiptMismatch() {
   var notice = document.getElementById('receiptMismatchNotice');
   if (!receiptTotalInput || !notice) return;
   var rt = parseFloat(receiptTotalInput.value);
-  var totalText = document.getElementById('grandTotal').textContent.replace('$', '').replace(',', '');
+  var grandTotalEl = document.getElementById('grandTotal');
+  if (!grandTotalEl) return;
+  var totalText = grandTotalEl.textContent.replace('$', '').replace(',', '');
   var gt = parseFloat(totalText);
   if (!isNaN(rt) && !isNaN(gt) && Math.abs(rt - gt) > 0.05) {
     notice.style.display = 'block';
@@ -331,7 +334,7 @@ async function loadUsers() {
   var html = '<option value="">Select user…</option>';
 
   if (activeUserId && activeUserName) {
-    seenUserIds.add(activeUserId);
+    seenUserIds.add(String(activeUserId));
     html += '<option value="' + esc(activeUserName) + '" selected>' + esc(activeUserName) + ' (You)</option>';
   }
 
@@ -353,8 +356,9 @@ async function loadUsers() {
     });
 
     usersList.forEach(function(u) {
-      if (!u.id || seenUserIds.has(u.id)) return;
-      seenUserIds.add(u.id);
+      var uIdStr = String(u.id || u.user_id || '');
+      if (!uIdStr || seenUserIds.has(uIdStr)) return;
+      seenUserIds.add(uIdStr);
 
       var name = u.full_name || u.name || ((u.first_name || u.firstName || '') + ' ' + (u.last_name || u.lastName || '')).trim();
       if (!name && u.email) {
@@ -382,6 +386,7 @@ function addLineItem(data) {
   lineItemCount++;
   var lineId = 'line-' + lineItemCount;
   var container = document.getElementById('lineItemsContainer');
+  if (!container) return;
   var div = document.createElement('div');
   div.className = 'line-item-row';
   div.id = lineId;
@@ -595,14 +600,14 @@ async function handleFuelPhotoUpload(input, type) {
   reader.onload = function(e) {
     fuelPhotoData[type] = e.target.result;
     var preview = document.getElementById(type + 'PhotoPreview');
-    preview.innerHTML = '<img src="' + e.target.result + '" alt="' + type + ' photo">';
+    if (preview) preview.innerHTML = '<img src="' + e.target.result + '" alt="' + type + ' photo">';
     var removeBtn = document.getElementById(type + 'PhotoRemove');
     if (removeBtn) removeBtn.style.display = 'inline-block';
     markFormDirty();
   };
   reader.readAsDataURL(file);
   var photoDate = await getExifDate(file);
-  var formDate = document.getElementById('purchaseDate').value;
+  var formDate = document.getElementById('purchaseDate') ? document.getElementById('purchaseDate').value : '';
   fuelPhotos[type] = { file: file, exifDate: photoDate };
   if (photoDate && formDate) {
     if (photoDate !== formDate) {
@@ -886,13 +891,15 @@ async function handleReceiptUpload(input) {
   var preview = document.getElementById('receiptPreview');
   var previewContent = document.getElementById('receiptPreviewContent');
   var status = document.getElementById('receiptExtractStatus');
-  preview.style.display = 'block';
+  if (preview) preview.style.display = 'block';
   var isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
   if (isPdf) {
-    previewContent.innerHTML = '<div class="receipt-pdf-icon">📄</div><p style="font-size:14px;font-weight:600;margin:8px 0 0;">' + esc(file.name) + '</p><p style="font-size:12px;color:var(--text-muted);">PDF document</p>';
+    if (previewContent) previewContent.innerHTML = '<div class="receipt-pdf-icon">📄</div><p style="font-size:14px;font-weight:600;margin:8px 0 0;">' + esc(file.name) + '</p><p style="font-size:12px;color:var(--text-muted);">PDF document</p>';
   } else {
-    status.className = 'receipt-extract-status loading';
-    status.textContent = 'Crop the receipt area for best results…';
+    if (status) {
+      status.className = 'receipt-extract-status loading';
+      status.textContent = 'Crop the receipt area for best results…';
+    }
     showCropOverlay(file, function(croppedFile) {
       _doExtraction(croppedFile, previewContent, status, preview);
     });
@@ -914,11 +921,14 @@ async function _doExtraction(file, previewContent, status, preview) {
   if (!isPdf) {
     if (_objectUrl) { URL.revokeObjectURL(_objectUrl); _objectUrl = null; }
     _objectUrl = URL.createObjectURL(file);
-    previewContent.innerHTML = '<img class="receipt-preview-img" src="' + _objectUrl + '">';
+    if (previewContent) previewContent.innerHTML = '<img class="receipt-preview-img" src="' + _objectUrl + '">';
   }
-  status.className = 'receipt-extract-status loading';
-  status.textContent = 'Uploading & extracting receipt data with AI…';
-  document.getElementById('aiConfidenceBanner').style.display = 'none';
+  if (status) {
+    status.className = 'receipt-extract-status loading';
+    status.textContent = 'Uploading & extracting receipt data with AI…';
+  }
+  var confBanner = document.getElementById('aiConfidenceBanner');
+  if (confBanner) confBanner.style.display = 'none';
   try {
     var base64Data = await new Promise(function(resolve, reject) {
       var reader = new FileReader();
@@ -937,35 +947,42 @@ async function _doExtraction(file, previewContent, status, preview) {
       var errMsg = 'Server returned ' + resp.status;
       var errCode = '';
       try { var errJson = JSON.parse(errBody); if (errJson.error) errMsg = errJson.error; if (errJson.code) errCode = errJson.code; } catch(e) {}
-      if (errCode === 'IMAGE_TOO_LARGE' || errMsg.toLowerCase().indexOf('too large') !== -1 || errMsg.toLowerCase().indexOf('max size') !== -1) {
+      if (status) {
+        if (errCode === 'IMAGE_TOO_LARGE' || errMsg.toLowerCase().indexOf('too large') !== -1 || errMsg.toLowerCase().indexOf('max size') !== -1) {
+          status.className = 'receipt-extract-status error';
+          status.innerHTML = '⚠ Image is too large for AI processing. Please crop the receipt to show only the text area, then try again.';
+          return;
+        }
+        if (resp.status === 401 || resp.status === 403) {
+          status.className = 'receipt-extract-status error';
+          status.textContent = '✗ Your session has expired. Please save your work, then refresh the page and log in again.';
+          return;
+        }
         status.className = 'receipt-extract-status error';
-        status.innerHTML = '⚠ Image is too large for AI processing. Please crop the receipt to show only the text area, then try again.';
-        return;
+        status.textContent = '✗ Could not process the receipt: ' + errMsg;
       }
-      if (resp.status === 401 || resp.status === 403) {
-        status.className = 'receipt-extract-status error';
-        status.textContent = '✗ Your session has expired. Please save your work, then refresh the page and log in again.';
-        return;
-      }
-      status.className = 'receipt-extract-status error';
-      status.textContent = '✗ Could not process the receipt: ' + errMsg;
       return;
     }
     var data = await resp.json();
     if (data.success && data.extracted) {
       if (_currentExtractionId !== thisReqId) { return; }
       if (data.receipt && data.receipt.r2_key) { receiptR2Key = data.receipt.r2_key; }
-      status.className = 'receipt-extract-status success';
-      var conf = data.extracted.confidence || 0;
-      var confPct = Math.round(conf * 100);
-      var fileTypeLabel = data.receipt && data.receipt.file_type === 'pdf' ? 'PDF' : 'Image';
-      status.textContent = '✓ Extraction complete (' + confPct + '% confidence, ' + fileTypeLabel + ', ' + (data.processing_time_ms || 0) + 'ms)';
-      document.getElementById('aiFieldLegend').style.display = 'flex';
+      if (status) {
+        status.className = 'receipt-extract-status success';
+        var conf = data.extracted.confidence || 0;
+        var confPct = Math.round(conf * 100);
+        var fileTypeLabel = data.receipt && data.receipt.file_type === 'pdf' ? 'PDF' : 'Image';
+        status.textContent = '✓ Extraction complete (' + confPct + '% confidence, ' + fileTypeLabel + ', ' + (data.processing_time_ms || 0) + 'ms)';
+      }
+      var fieldLegend = document.getElementById('aiFieldLegend');
+      if (fieldLegend) fieldLegend.style.display = 'flex';
       
       if (data.extracted.vendor) {
         var vendorEl = document.getElementById('purchaseVendor');
-        vendorEl.value = data.extracted.vendor;
-        vendorEl.classList.add('ai-extracted');
+        if (vendorEl) {
+          vendorEl.value = data.extracted.vendor;
+          vendorEl.classList.add('ai-extracted');
+        }
       }
 
       // Store extracted Vendor Address fields
@@ -1036,7 +1053,8 @@ async function _doExtraction(file, previewContent, status, preview) {
         if (notice) notice.style.display = 'block';
       }
       if (data.extracted.line_items && data.extracted.line_items.length > 0) {
-        document.getElementById('lineItemsContainer').innerHTML = '';
+        var lineContainer = document.getElementById('lineItemsContainer');
+        if (lineContainer) lineContainer.innerHTML = '';
         lineItemCount = 0;
         data.extracted.line_items.forEach(function(li) {
           addLineItem({ fuel_type: li.fuel_type || 'diesel_onroad', gallons: li.gallons || li.quantity || '', unit_price: li.unit_price || '', amount: li.amount || '', meter_reading: li.meter_reading || '' });
@@ -1056,20 +1074,25 @@ async function _doExtraction(file, previewContent, status, preview) {
       showConfidenceBanner(data.extracted);
       recalcGrandTotal();
     } else {
-      status.className = 'receipt-extract-status error';
-      status.textContent = '✗ Extraction completed but no data was recognized. Try cropping the receipt more tightly around the text.';
+      if (status) {
+        status.className = 'receipt-extract-status error';
+        status.textContent = '✗ Extraction completed but no data was recognized. Try cropping the receipt more tightly around the text.';
+      }
     }
   } catch (e) {
     if (e.name === 'AbortError') { return; }
     if (thisReqId !== _currentExtractionId) { return; }
-    status.className = 'receipt-extract-status error';
-    status.textContent = '✗ Error: ' + e.message;
+    if (status) {
+      status.className = 'receipt-extract-status error';
+      status.textContent = '✗ Error: ' + e.message;
+    }
     console.error('extractReceipt error:', e);
   }
 }
 
 function showConfidenceBanner(extracted) {
   var banner = document.getElementById('aiConfidenceBanner');
+  if (!banner) return;
   var conf = extracted.confidence || 0;
   var confPct = Math.round(conf * 100);
   var lowFields = extracted.low_confidence_fields || [];
@@ -1091,13 +1114,16 @@ async function submitPurchase() {
   if (!requireLocationOrPopup()) return;
   if (!validateFuelPhotos()) return;
 
-  var date = document.getElementById('purchaseDate').value;
+  var dateEl = document.getElementById('purchaseDate');
+  var date = dateEl ? dateEl.value : '';
   var locationEl = document.getElementById('purchaseLocation');
   var location = locationEl ? locationEl.value.trim() : '';
   var personEl = document.getElementById('purchasePerson');
   var person = personEl ? personEl.value.trim() : '';
-  var vendor = document.getElementById('purchaseVendor').value;
-  var notes = document.getElementById('purchaseNotes').value;
+  var vendorEl = document.getElementById('purchaseVendor');
+  var vendor = vendorEl ? vendorEl.value : '';
+  var notesEl = document.getElementById('purchaseNotes');
+  var notes = notesEl ? notesEl.value : '';
   var paymentTypeEl = document.getElementById('purchasePaymentType');
   var paymentType = paymentTypeEl ? paymentTypeEl.value.trim() : null;
   var cardLast4El = document.getElementById('purchaseCardLast4');
@@ -1130,7 +1156,7 @@ async function submitPurchase() {
   for (var i = 0; i < rows.length; i++) {
     var row = rows[i];
     var destInput = row.querySelector('.line-destination');
-    var destLabel = destInput.value.trim();
+    var destLabel = destInput ? destInput.value.trim() : '';
     var assetMap = {};
     try { assetMap = JSON.parse(row.dataset.assetMap || '{}'); } catch(e) {}
     var dest = assetMap[destLabel] || '';
@@ -1281,8 +1307,10 @@ async function submitPurchase() {
   if (ctx.role_id) body.role_id = ctx.role_id;
 
   var submitBtn = document.querySelector('.purchase-submit-btn');
-  submitBtn.disabled = true;
-  submitBtn.textContent = 'Recording…';
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Recording…';
+  }
 
   try {
     var resp = await fetch(buildApiUrl('/api/fuel-purchases'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -1299,13 +1327,16 @@ async function submitPurchase() {
     showPurchaseError('Error: ' + e.message);
     reportError('submitPurchase', e);
   } finally {
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Record Purchase';
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Record Purchase';
+    }
   }
 }
 
 function showPurchaseSuccess(purchase) {
   var result = document.getElementById('purchaseResult');
+  if (!result) return;
   result.className = 'purchase-result-success';
   var lineCount = purchase.line_items ? purchase.line_items.length : 0;
   var msg = 'Purchase recorded: ' + lineCount + ' line item' + (lineCount !== 1 ? 's' : '');
@@ -1318,6 +1349,7 @@ function showPurchaseSuccess(purchase) {
 
 function showPurchaseError(msg) {
   var result = document.getElementById('purchaseResult');
+  if (!result) return;
   result.className = 'purchase-result-error';
   result.textContent = '✗ ' + msg;
   result.style.display = 'block';
@@ -1326,7 +1358,8 @@ function showPurchaseError(msg) {
 
 function clearPurchaseForm() {
   clearFormDirty();
-  document.getElementById('purchaseDate').value = localDate();
+  var dateEl = document.getElementById('purchaseDate');
+  if (dateEl) dateEl.value = localDate();
 
   var locEl = document.getElementById('purchaseLocation');
   if (locEl && locEl.tagName === 'INPUT') {
@@ -1350,27 +1383,52 @@ function clearPurchaseForm() {
   loadProjects();
   loadUsers();
 
-  document.getElementById('purchaseVendor').value = '';
-  document.getElementById('purchasePONumber').value = '';
-  document.getElementById('purchasePaymentType').value = '';
+  var setVal = function(id, val) {
+    var el = document.getElementById(id);
+    if (el) el.value = val;
+  };
+
+  setVal('purchaseVendor', '');
+  setVal('purchasePONumber', '');
+  setVal('purchasePaymentType', '');
   handlePaymentTypeChange(document.getElementById('purchasePaymentType'));
-  document.getElementById('purchaseCardLast4').value = '';
-  document.getElementById('purchaseNotes').value = '';
-  document.getElementById('receiptTotal').value = '';
-  document.getElementById('receiptItems').value = '';
-  document.getElementById('receiptMismatchNotice').style.display = 'none';
-  document.getElementById('receiptNonFuelNotice').style.display = 'none';
-  document.getElementById('receiptPreview').style.display = 'none';
-  document.getElementById('receiptPreviewContent').innerHTML = '';
-  document.getElementById('receiptExtractStatus').textContent = '';
-  document.getElementById('receiptExtractStatus').className = 'receipt-extract-status';
-  document.getElementById('receiptCameraInput').value = '';
-  document.getElementById('receiptFileInput').value = '';
-  document.getElementById('aiConfidenceBanner').style.display = 'none';
-  document.getElementById('aiConfidenceBanner').innerHTML = '';
-  document.getElementById('aiFieldLegend').style.display = 'none';
+  setVal('purchaseCardLast4', '');
+  setVal('purchaseNotes', '');
+  setVal('receiptTotal', '');
+  setVal('receiptItems', '');
+
+  var notice = document.getElementById('receiptMismatchNotice');
+  if (notice) notice.style.display = 'none';
+  var nonFuelNotice = document.getElementById('receiptNonFuelNotice');
+  if (nonFuelNotice) nonFuelNotice.style.display = 'none';
+  var rPreview = document.getElementById('receiptPreview');
+  if (rPreview) rPreview.style.display = 'none';
+  var rContent = document.getElementById('receiptPreviewContent');
+  if (rContent) rContent.innerHTML = '';
+
+  var status = document.getElementById('receiptExtractStatus');
+  if (status) {
+    status.textContent = '';
+    status.className = 'receipt-extract-status';
+  }
+
+  setVal('receiptCameraInput', '');
+  setVal('receiptFileInput', '');
+
+  var confBanner = document.getElementById('aiConfidenceBanner');
+  if (confBanner) {
+    confBanner.style.display = 'none';
+    confBanner.innerHTML = '';
+  }
+
+  var legend = document.getElementById('aiFieldLegend');
+  if (legend) legend.style.display = 'none';
+
   document.querySelectorAll('.line-item-row .ai-extracted, .line-item-row .ai-needed, .purchase-input.ai-extracted').forEach(function(el) { el.classList.remove('ai-extracted'); });
-  document.getElementById('purchaseResult').style.display = 'none';
+
+  var result = document.getElementById('purchaseResult');
+  if (result) result.style.display = 'none';
+
   if (_objectUrl) { URL.revokeObjectURL(_objectUrl); _objectUrl = null; }
   receiptR2Key = null;
   window._receiptMismatch = false;
@@ -1379,7 +1437,9 @@ function clearPurchaseForm() {
   managerReviewFlags = [];
   removeFuelPhoto('meter');
   removeFuelPhoto('asset');
-  document.getElementById('lineItemsContainer').innerHTML = '';
+
+  var lineContainer = document.getElementById('lineItemsContainer');
+  if (lineContainer) lineContainer.innerHTML = '';
   lineItemCount = 0;
   addLineItem();
   recalcGrandTotal();
@@ -1458,7 +1518,8 @@ async function loadAssets() {
           }
         });
       });
-      document.getElementById('lineItemsContainer').innerHTML = '';
+      var lineContainer = document.getElementById('lineItemsContainer');
+      if (lineContainer) lineContainer.innerHTML = '';
       lineItemCount = 0;
       existingRows.forEach(function(r) {
         addLineItem(r);
@@ -1570,7 +1631,8 @@ function initPurchaseForm() {
 
   loadUsers();
 
-  document.getElementById('lineItemsContainer').innerHTML = '';
+  var lineContainer = document.getElementById('lineItemsContainer');
+  if (lineContainer) lineContainer.innerHTML = '';
   lineItemCount = 0;
   addLineItem();
   recalcGrandTotal();
@@ -1616,8 +1678,10 @@ async function initPage() {
     checkDeviceLocation();
   }
 
-  document.getElementById('loading').style.display = 'none';
-  document.getElementById('dashboard').style.display = 'block';
+  var loadingEl = document.getElementById('loading');
+  if (loadingEl) loadingEl.style.display = 'none';
+  var dashEl = document.getElementById('dashboard');
+  if (dashEl) dashEl.style.display = 'block';
 
   await loadTankTypes();
   await loadTanks();
@@ -1636,7 +1700,8 @@ function setupInitListeners() {
       initPage();
     });
     setTimeout(function() {
-      if (document.getElementById('loading') && document.getElementById('loading').style.display !== 'none') {
+      var loadingEl = document.getElementById('loading');
+      if (loadingEl && loadingEl.style.display !== 'none') {
         initPage();
       }
     }, 200);
