@@ -10,7 +10,8 @@
  * receipt OCR data extraction (with cropping interface), dynamic multi-line 
  * item tracking, EXIF metadata validation for photo uploads, dynamic option 
  * loading (users, locations, projects, assets), mobile-specific GPS location 
- * verification, and payment/PO type management.
+ * verification, payment/PO type management, vendor address auto-population,
+ * and mandatory Payment Type selection before receipt upload.
  */
 
 var allTanks = [];
@@ -88,6 +89,24 @@ function handlePaymentTypeChange(selectEl) {
   }
 }
 
+/* ===== REQUIRE PAYMENT TYPE BEFORE UPLOADING RECEIPT ===== */
+function triggerReceiptCapture(type) {
+  var payEl = document.getElementById('purchasePaymentType');
+  var val = payEl ? payEl.value.trim() : '';
+  if (!val) {
+    alert('Please select a Payment Type before taking or uploading a receipt photo.');
+    if (payEl) payEl.focus();
+    return;
+  }
+  if (type === 'camera') {
+    var camInput = document.getElementById('receiptCameraInput');
+    if (camInput) camInput.click();
+  } else if (type === 'file') {
+    var fileInput = document.getElementById('receiptFileInput');
+    if (fileInput) fileInput.click();
+  }
+}
+
 /* ===== RECEIPT TOTAL MISMATCH CHECK ===== */
 function checkReceiptMismatch() {
   var receiptTotalInput = document.getElementById('receiptTotal');
@@ -143,7 +162,10 @@ function reportError(source, err) {
 
 /* ===== DEVICE LOCATION CHECK (MOBILE ONLY) ===== */
 function checkDeviceLocation() {
+  // STRICTLY BLOCK ON DESKTOP
   if (!isMobileDevice()) {
+    deviceLocation = null;
+    updateLocationStatus(false);
     return;
   }
   if (!navigator.geolocation) {
@@ -182,7 +204,7 @@ function updateLocationStatus(hasLocation) {
     return;
   }
   banner.style.display = 'block';
-  if (hasLocation) {
+  if (hasLocation && deviceLocation) {
     banner.className = 'location-banner ok';
     banner.innerHTML = '<strong>📍 Location:</strong> ' + deviceLocation.latitude.toFixed(6) + ', ' + deviceLocation.longitude.toFixed(6) + ' (±' + Math.round(deviceLocation.accuracy) + 'm)';
   } else {
@@ -265,18 +287,20 @@ function makeTabsSticky() {
   document.body.style.width = '100%';
 
   if (header) {
+    header.style.position = '-webkit-sticky';
     header.style.position = 'sticky';
     header.style.top = '0';
-    header.style.zIndex = '100';
+    header.style.zIndex = '100000';
     header.style.width = '100%';
     header.style.boxSizing = 'border-box';
   }
 
   if (tabBar) {
     var headerHeight = header ? (header.getBoundingClientRect().height || header.offsetHeight || 0) : 0;
+    tabBar.style.position = '-webkit-sticky';
     tabBar.style.position = 'sticky';
     tabBar.style.top = headerHeight + 'px';
-    tabBar.style.zIndex = '99';
+    tabBar.style.zIndex = '99999';
     tabBar.style.width = '100%';
     tabBar.style.boxSizing = 'border-box';
   }
@@ -915,6 +939,15 @@ function _performCrop(file, img, state) {
 }
 
 async function handleReceiptUpload(input) {
+  var payEl = document.getElementById('purchasePaymentType');
+  var payVal = payEl ? payEl.value.trim() : '';
+  if (!payVal) {
+    alert('Please select a Payment Type before taking or uploading a receipt photo.');
+    if (input) input.value = '';
+    if (payEl) payEl.focus();
+    return;
+  }
+
   var file = input.files[0];
   if (!file) return;
   var preview = document.getElementById('receiptPreview');
@@ -1014,12 +1047,37 @@ async function _doExtraction(file, previewContent, status, preview) {
         }
       }
 
+      // VENDOR ADDRESS POPULATION
       _extractedVendorLocation = {
-        vendor_address: data.extracted.vendor_address || null,
-        vendor_city: data.extracted.vendor_city || null,
-        vendor_state: data.extracted.vendor_state || null,
-        vendor_zip: data.extracted.vendor_zip || null
+        vendor_address: data.extracted.vendor_address || data.extracted.address || null,
+        vendor_city: data.extracted.vendor_city || data.extracted.city || null,
+        vendor_state: data.extracted.vendor_state || data.extracted.state || null,
+        vendor_zip: data.extracted.vendor_zip || data.extracted.zip || null
       };
+
+      var addrEl = document.getElementById('purchaseVendorAddress');
+      if (addrEl && _extractedVendorLocation.vendor_address) {
+        addrEl.value = _extractedVendorLocation.vendor_address;
+        addrEl.classList.add('ai-extracted');
+      }
+
+      var cityEl = document.getElementById('purchaseVendorCity');
+      if (cityEl && _extractedVendorLocation.vendor_city) {
+        cityEl.value = _extractedVendorLocation.vendor_city;
+        cityEl.classList.add('ai-extracted');
+      }
+
+      var stateEl = document.getElementById('purchaseVendorState');
+      if (stateEl && _extractedVendorLocation.vendor_state) {
+        stateEl.value = _extractedVendorLocation.vendor_state;
+        stateEl.classList.add('ai-extracted');
+      }
+
+      var zipEl = document.getElementById('purchaseVendorZip');
+      if (zipEl && _extractedVendorLocation.vendor_zip) {
+        zipEl.value = _extractedVendorLocation.vendor_zip;
+        zipEl.classList.add('ai-extracted');
+      }
 
       var extractedDate = data.extracted.receipt_date || data.extracted.date;
       if (extractedDate) {
@@ -1150,6 +1208,17 @@ async function submitPurchase() {
   var person = personEl ? personEl.value.trim() : '';
   var vendorEl = document.getElementById('purchaseVendor');
   var vendor = vendorEl ? vendorEl.value : '';
+
+  var vendorAddrEl = document.getElementById('purchaseVendorAddress');
+  var vendorCityEl = document.getElementById('purchaseVendorCity');
+  var vendorStateEl = document.getElementById('purchaseVendorState');
+  var vendorZipEl = document.getElementById('purchaseVendorZip');
+
+  var vendorAddress = vendorAddrEl ? vendorAddrEl.value.trim() : (_extractedVendorLocation.vendor_address || null);
+  var vendorCity = vendorCityEl ? vendorCityEl.value.trim() : (_extractedVendorLocation.vendor_city || null);
+  var vendorState = vendorStateEl ? vendorStateEl.value.trim() : (_extractedVendorLocation.vendor_state || null);
+  var vendorZip = vendorZipEl ? vendorZipEl.value.trim() : (_extractedVendorLocation.vendor_zip || null);
+
   var notesEl = document.getElementById('purchaseNotes');
   var notes = notesEl ? notesEl.value : '';
   var paymentTypeEl = document.getElementById('purchasePaymentType');
@@ -1300,10 +1369,10 @@ async function submitPurchase() {
 
   var body = {
     vendor: vendor || null,
-    vendor_address: _extractedVendorLocation.vendor_address || null,
-    vendor_city: _extractedVendorLocation.vendor_city || null,
-    vendor_state: _extractedVendorLocation.vendor_state || null,
-    vendor_zip: _extractedVendorLocation.vendor_zip || null,
+    vendor_address: vendorAddress,
+    vendor_city: vendorCity,
+    vendor_state: vendorState,
+    vendor_zip: vendorZip,
     purchase_date: date + 'T08:00:00Z',
     fuel_date: date,
     fuel_site: location || null,
@@ -1417,6 +1486,10 @@ function clearPurchaseForm() {
   };
 
   setVal('purchaseVendor', '');
+  setVal('purchaseVendorAddress', '');
+  setVal('purchaseVendorCity', '');
+  setVal('purchaseVendorState', '');
+  setVal('purchaseVendorZip', '');
   setVal('purchasePONumber', '');
   setVal('purchasePaymentType', '');
   handlePaymentTypeChange(document.getElementById('purchasePaymentType'));
@@ -1750,6 +1823,7 @@ window.recalcLine = recalcLine;
 window.markFormDirty = markFormDirty;
 window.removeLineItem = removeLineItem;
 window.handleReceiptUpload = handleReceiptUpload;
+window.triggerReceiptCapture = triggerReceiptCapture;
 window.handleFuelPhotoUpload = handleFuelPhotoUpload;
 window.removeFuelPhoto = removeFuelPhoto;
 window.submitPurchase = submitPurchase;
