@@ -1175,15 +1175,24 @@
     const countEl = document.getElementById('alertsCount');
     if (countEl) countEl.textContent = `${flags.length} alert${flags.length !== 1 ? 's' : ''}`;
 
+    let html = `
+      <div class="fuel-stat-card" style="text-align:left;margin-bottom:16px;padding:16px 20px;border:1px solid #16a34a;border-radius:10px;">
+        <div style="font-size:18px;font-weight:700;color:var(--text,#0f172a);display:flex;align-items:center;justify-content:space-between;">
+          <span>Fuel Alerts</span>
+          <span style="font-size:13px;font-weight:600;color:var(--text-muted,#64748b);">${flags.length} alert${flags.length !== 1 ? 's' : ''}</span>
+        </div>
+      </div>
+    `;
+
     if (flags.length === 0) {
-      container.innerHTML = '<div class="empty-state">✅ No fuel alerts. All clear.</div>';
+      container.innerHTML = html + '<div class="empty-state">✅ No fuel alerts. All clear.</div>';
       return;
     }
 
     const user = getUserSession();
     const canEdit = user && (user.role === 'admin' || user.role === 'manager');
 
-    container.innerHTML = flags.map(f => {
+    html += flags.map(f => {
       let details = {};
       try { 
         details = typeof f.details === 'string' ? JSON.parse(f.details) : (f.details || {}); 
@@ -1215,54 +1224,56 @@
 
       const locationDisplay = rawLocation ? String(rawLocation).trim() : '—';
 
-      let html = '<div class="fuel-stat-card" style="text-align:left;margin-bottom:16px;padding:20px;border:1px solid #16a34a;border-radius:10px;background:var(--bg-card);">';
-      html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:8px;">';
-      html += `<div><span style="font-size:12px;padding:2px 8px;border-radius:4px;font-weight:600;${sevStyle}">${esc(flagTypeLabel(f.flag_type))}</span>`;
-      if (f.status === 'resolved') { html += ' <span style="font-size:12px;padding:2px 8px;border-radius:4px;background:#dcfce7;color:#15803d;font-weight:600;">RESOLVED</span>'; }
-      html += '</div>';
-      html += `<div style="font-size:12px;color:var(--text-muted);">${esc(new Date(f.created_at).toLocaleString())}</div>`;
-      html += '</div>';
-      html += `<div style="font-size:14px;margin-bottom:8px;">${esc(f.message || 'No message')}</div>`;
+      let cardHtml = '<div class="fuel-stat-card" style="text-align:left;margin-bottom:16px;padding:20px;border:1px solid #16a34a;border-radius:10px;background:var(--bg-card);">';
+      cardHtml += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:8px;">';
+      cardHtml += `<div><span style="font-size:12px;padding:2px 8px;border-radius:4px;font-weight:600;${sevStyle}">${esc(flagTypeLabel(f.flag_type))}</span>`;
+      if (f.status === 'resolved') { cardHtml += ' <span style="font-size:12px;padding:2px 8px;border-radius:4px;background:#dcfce7;color:#15803d;font-weight:600;">RESOLVED</span>'; }
+      cardHtml += '</div>';
+      cardHtml += `<div style="font-size:12px;color:var(--text-muted);">${esc(new Date(f.created_at).toLocaleString())}</div>`;
+      cardHtml += '</div>';
+      cardHtml += `<div style="font-size:14px;margin-bottom:8px;">${esc(f.message || 'No message')}</div>`;
 
-      html += '<div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:4px 12px;background:var(--bg-step);padding:8px 12px;border-radius:6px;">';
-      html += `<div><strong>Submitted By:</strong> ${esc(personDisplay)}</div>`;
-      html += `<div><strong>Asset:</strong> ${esc(assetDisplay)}</div>`;
-      html += `<div><strong>Project:</strong> ${esc(projectDisplay)}</div>`;
-      html += `<div><strong>Location:</strong> ${esc(locationDisplay)}</div>`;
-      if (f.tank_name) html += `<div><strong>Tank:</strong> ${esc(f.tank_name)}</div>`;
-      html += '</div>';
+      cardHtml += '<div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:4px 12px;background:var(--bg-step);padding:8px 12px;border-radius:6px;">';
+      cardHtml += `<div><strong>Submitted By:</strong> ${esc(personDisplay)}</div>`;
+      cardHtml += `<div><strong>Asset:</strong> ${esc(assetDisplay)}</div>`;
+      cardHtml += `<div><strong>Project:</strong> ${esc(projectDisplay)}</div>`;
+      cardHtml += `<div><strong>Location:</strong> ${esc(locationDisplay)}</div>`;
+      if (f.tank_name) cardHtml += `<div><strong>Tank:</strong> ${esc(f.tank_name)}</div>`;
+      cardHtml += '</div>';
 
       if (details.field) {
-        html += `<div style="font-size:13px;color:var(--text-muted);margin-bottom:4px;"><strong>Flagged Field:</strong> ${esc(details.field)}`;
-        if (details.value) html += ` | <strong>Value:</strong> ${esc(details.value)}`;
-        if (details.reason) html += ` | <strong>Reason:</strong> ${esc(details.reason)}`;
-        if (details.line) html += ` | <strong>Line:</strong> ${details.line}`;
-        html += '</div>';
+        cardHtml += `<div style="font-size:13px;color:var(--text-muted);margin-bottom:4px;"><strong>Flagged Field:</strong> ${esc(details.field)}`;
+        if (details.value) cardHtml += ` | <strong>Value:</strong> ${esc(details.value)}`;
+        if (details.reason) cardHtml += ` | <strong>Reason:</strong> ${esc(details.reason)}`;
+        if (details.line) cardHtml += ` | <strong>Line:</strong> ${details.line}`;
+        cardHtml += '</div>';
       }
 
       if (f.status === 'open') {
-        html += '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">';
+        cardHtml += '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">';
         if (isManagerReview && canEdit) {
           if (details.field === 'project' || details.field === 'location') {
-            html += `<button class="btn-resolve-add" data-id="${f.id}" data-field="${esc(details.field || '')}" data-value="${esc(details.value || '')}" style="padding:8px 16px;border:none;border-radius:6px;background:#16a34a;color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Add & Resolve</button>`;
+            cardHtml += `<button class="btn-resolve-add" data-id="${f.id}" data-field="${esc(details.field || '')}" data-value="${esc(details.value || '')}" style="padding:8px 16px;border:none;border-radius:6px;background:#16a34a;color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Add & Resolve</button>`;
           } else if (details.field === 'asset') {
-            html += `<button class="btn-resolve-add" data-id="${f.id}" data-field="${esc(details.field || '')}" data-value="${esc(details.value || '')}" style="padding:8px 16px;border:none;border-radius:6px;background:#16a34a;color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Add Asset & Resolve</button>`;
+            cardHtml += `<button class="btn-resolve-add" data-id="${f.id}" data-field="${esc(details.field || '')}" data-value="${esc(details.value || '')}" style="padding:8px 16px;border:none;border-radius:6px;background:#16a34a;color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Add Asset & Resolve</button>`;
           }
         }
-        html += `<button class="btn-resolve-flag" data-id="${f.id}" style="padding:8px 16px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:13px;font-weight:600;">Resolve</button>`;
+        cardHtml += `<button class="btn-resolve-flag" data-id="${f.id}" style="padding:8px 16px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:13px;font-weight:600;">Resolve</button>`;
         if (!canEdit) {
-          html += `<button class="btn-forward-flag" data-id="${f.id}" data-type="${esc(f.flag_type || '')}" style="padding:8px 16px;border:1px solid #93c5fd;border-radius:6px;background:#eff6ff;color:#1e3a5f;cursor:pointer;font-size:13px;font-weight:600;">Forward</button>`;
+          cardHtml += `<button class="btn-forward-flag" data-id="${f.id}" data-type="${esc(f.flag_type || '')}" style="padding:8px 16px;border:1px solid #93c5fd;border-radius:6px;background:#eff6ff;color:#1e3a5f;cursor:pointer;font-size:13px;font-weight:600;">Forward</button>`;
         }
-        html += '</div>';
+        cardHtml += '</div>';
       }
       if (f.status === 'resolved') {
-        html += `<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">Resolved by ${esc(f.resolved_by || '—')} on ${esc(f.resolved_at ? new Date(f.resolved_at).toLocaleString() : '—')}`;
-        if (f.resolution_notes) html += ` — ${esc(f.resolution_notes)}`;
-        html += '</div>';
+        cardHtml += `<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">Resolved by ${esc(f.resolved_by || '—')} on ${esc(f.resolved_at ? new Date(f.resolved_at).toLocaleString() : '—')}`;
+        if (f.resolution_notes) cardHtml += ` — ${esc(f.resolution_notes)}`;
+        cardHtml += '</div>';
       }
-      html += '</div>';
-      return html;
+      cardHtml += '</div>';
+      return cardHtml;
     }).join('');
+
+    container.innerHTML = html;
 
     container.querySelectorAll('.btn-resolve-add').forEach(btn => {
       btn.addEventListener('click', (e) => {
