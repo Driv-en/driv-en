@@ -661,8 +661,7 @@ function getExifDate(file) {
 }
 
 /**
- * FIX 3: Client-side Image Resizing & Compression via Canvas
- * Reduces 5MB raw camera captures to ~150-400KB base64 payloads
+ * Client-side Image Resizing & Compression via Canvas
  */
 function compressImage(dataUrl, maxWidth, maxHeight, quality) {
   return new Promise(function(resolve) {
@@ -694,9 +693,6 @@ function compressImage(dataUrl, maxWidth, maxHeight, quality) {
   });
 }
 
-/**
- * FIX 1: Dynamic EXIF Re-validation on Form Date Change
- */
 function revalidateExifDates() {
   markFormDirty();
   var formDate = document.getElementById('txDate').value;
@@ -730,17 +726,18 @@ async function handleFuelPhotoUpload(input, type) {
   managerReviewFlags = managerReviewFlags.filter(function(f) { return f.field !== type + '_photo'; });
 
   var reader = new FileReader();
-  reader.onload = async function(e) {
+  reader.onload = function(e) {
     var rawDataUrl = e.target.result;
-    // Compress photo to maximum 1200x1200 resolution at 85% quality
-    var compressedDataUrl = await compressImage(rawDataUrl, 1200, 1200, 0.85);
-    
-    fuelPhotoData[type] = compressedDataUrl;
-    var preview = document.getElementById(type + 'PhotoPreview');
-    preview.innerHTML = '<img src="' + compressedDataUrl + '" alt="' + type + ' photo">';
-    var removeBtn = document.getElementById(type + 'PhotoRemove');
-    if (removeBtn) removeBtn.style.display = 'inline-block';
-    markFormDirty();
+    compressImage(rawDataUrl, 1200, 1200, 0.85).then(function(compressedDataUrl) {
+      fuelPhotoData[type] = compressedDataUrl;
+      var preview = document.getElementById(type + 'PhotoPreview');
+      if (preview) preview.innerHTML = '<img src="' + compressedDataUrl + '" alt="' + type + ' photo">';
+      var removeBtn = document.getElementById(type + 'PhotoRemove');
+      if (removeBtn) removeBtn.style.display = 'inline-block';
+      markFormDirty();
+    }).catch(function(err) {
+      console.error('Image compression error:', err);
+    });
   };
   reader.readAsDataURL(file);
 
