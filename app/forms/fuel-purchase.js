@@ -160,11 +160,12 @@ function reportError(source, err) {
   } catch (e) { _reportErrorInFlight = false; }
 }
 
-/* ===== DEVICE LOCATION CHECK (MOBILE ONLY) ===== */
+/* ===== DEVICE LOCATION CHECK (DESKTOP BYPASS GUARANTEED) ===== */
 function checkDeviceLocation() {
-  // STRICTLY BLOCK ON DESKTOP
+  // STRICTLY BYPASS AND CLEAR PROMPTS ON DESKTOP DEVICES
   if (!isMobileDevice()) {
     deviceLocation = null;
+    closeLocationPopup();
     updateLocationStatus(false);
     return;
   }
@@ -225,8 +226,8 @@ function showLocationPopup(message) {
     '<p style="margin:0 0 6px;"><strong>Android:</strong> Settings → Location → ON → App permissions → Browser → "Allow only while using the app"</p>';
 
   msgEl.innerHTML = 
-    '<p style="font-size:15px;margin:0 0 16px;color:var(--text-main, #ffffff);">' + esc(message) + '</p>' +
-    '<div style="background:var(--card-bg, #1e293b);border:1px solid var(--border-color, #334155);border-radius:8px;padding:14px;margin-bottom:12px;color:var(--text-main, #f8fafc);">' +
+    '<p style="font-size:15px;margin:0 0 16px;color:var(--text, #ffffff);">' + esc(message) + '</p>' +
+    '<div style="background:var(--bg-card, #1e293b);border:1px solid var(--border, #334155);border-radius:8px;padding:14px;margin-bottom:12px;color:var(--text, #f8fafc);">' +
       '<p style="font-weight:600;margin:0 0 8px;color:var(--primary, #38bdf8);">How to enable location:</p>' +
       instructionsHtml +
     '</div>' +
@@ -252,7 +253,7 @@ function requireLocationOrPopup() {
 }
 
 function isMobileDevice() {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0 && window.innerWidth <= 800);
 }
 
 function esc(s) {
@@ -266,14 +267,14 @@ function getTankTypeDisplayName(systemKey){
 }
 
 function insertHeaderTitle() {
-  var row1 = document.querySelector('.dash-header-row1');
-  if (row1 && !document.querySelector('.fp-header-title')) {
+  var header = document.getElementById('dashHeader');
+  if (!header) return;
+  var row1 = header.querySelector('.dash-header-row1');
+  if (row1 && !document.getElementById('dashHeaderTitle')) {
     var title = document.createElement('div');
-    title.className = 'fp-header-title';
+    title.id = 'dashHeaderTitle';
     title.textContent = 'Log Fuel Purchase';
-    var logoArea = document.getElementById('dashCustomerLogoArea');
-    var drivenLogo = row1.querySelector('.dash-driven-logo');
-    if (logoArea && drivenLogo) row1.insertBefore(title, drivenLogo);
+    row1.appendChild(title);
   }
 }
 
@@ -517,7 +518,7 @@ function addLineItem(data) {
         '<input type="number" class="purchase-input line-meter ai-needed" placeholder="hrs/mi" min="0" step="0.1" value="' + meterReadingEsc + '" oninput="markFormDirty()">' +
       '</div>' +
       '<div class="purchase-field remove-action-wrap">' +
-        '<button class="btn-delete-line" style="background:#dc2626;color:#ffffff;border:none;border-radius:6px;padding:10px 16px;font-weight:600;font-size:13px;cursor:pointer;width:100%;box-shadow:0 1px 3px rgba(0,0,0,0.2);" onclick="removeLineItem(\'' + lineId + '\')">Delete</button>' +
+        '<button class="btn-delete-line" style="background:#dc2626 !important;color:#ffffff !important;border:none;border-radius:6px;padding:10px 16px;font-weight:600;font-size:13px;cursor:pointer;width:100%;box-shadow:0 1px 3px rgba(0,0,0,0.2);" onclick="removeLineItem(\'' + lineId + '\')">Delete</button>' +
       '</div>' +
     '</div>';
 
@@ -550,8 +551,8 @@ function recalcLine(lineId) {
     input.type = 'text';
     input.className = 'purchase-input line-fuel-type';
     input.placeholder = 'Type fuel name';
-    input.style.color = 'var(--text-main, #ffffff)';
-    input.style.backgroundColor = 'var(--input-bg, #0f172a)';
+    input.style.color = 'var(--text, #ffffff)';
+    input.style.backgroundColor = 'var(--bg-step, #0f172a)';
     input.setAttribute('data-custom', 'true');
     input.oninput = function() { markFormDirty(); };
     fuelSelect.parentNode.replaceChild(input, fuelSelect);
@@ -991,6 +992,7 @@ async function _doExtraction(file, previewContent, status, preview) {
   }
   var confBanner = document.getElementById('aiConfidenceBanner');
   if (confBanner) confBanner.style.display = 'none';
+
   try {
     var base64Data = await new Promise(function(resolve, reject) {
       var reader = new FileReader();
@@ -998,17 +1000,23 @@ async function _doExtraction(file, previewContent, status, preview) {
       reader.onerror = function() { reject(new Error('Failed to read file')); };
       reader.readAsDataURL(file);
     });
+
+    // ROBUST API EXTRACTION HANDLING (NO UNCAUGHT API ERRORS)
     var resp = await fetch(buildApiUrl('/api/fuel-receipts/extract'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ file: base64Data, fileName: file.name || 'receipt.jpg', fileType: file.type || 'image/jpeg' }),
       signal: fetchSignal
+    }).catch(function(netErr) {
+      return { ok: false, status: 503, text: function() { return Promise.resolve(netErr.message || 'Network timeout'); } };
     });
+
     if (!resp.ok) {
       var errBody = await resp.text().catch(function() { return ''; });
-      var errMsg = 'Server returned ' + resp.status;
+      var errMsg = 'Server returned ' + (resp.status || 'Error');
       var errCode = '';
       try { var errJson = JSON.parse(errBody); if (errJson.error) errMsg = errJson.error; if (errJson.code) errCode = errJson.code; } catch(e) {}
+      
       if (status) {
         if (errCode === 'IMAGE_TOO_LARGE' || errMsg.toLowerCase().indexOf('too large') !== -1 || errMsg.toLowerCase().indexOf('max size') !== -1) {
           status.className = 'receipt-extract-status error';
@@ -1021,11 +1029,20 @@ async function _doExtraction(file, previewContent, status, preview) {
           return;
         }
         status.className = 'receipt-extract-status error';
-        status.textContent = '✗ Could not process the receipt: ' + errMsg;
+        status.textContent = '✗ Something went wrong extracting data. Please fill out the form manually below or try another image.';
       }
       return;
     }
-    var data = await resp.json();
+
+    var data = await resp.json().catch(function() { return null; });
+    if (!data) {
+      if (status) {
+        status.className = 'receipt-extract-status error';
+        status.textContent = '✗ Unable to parse server response. Please proceed with manual entry.';
+      }
+      return;
+    }
+
     if (data.success && data.extracted) {
       if (_currentExtractionId !== thisReqId) { return; }
       if (data.receipt && data.receipt.r2_key) { receiptR2Key = data.receipt.r2_key; }
@@ -1047,7 +1064,7 @@ async function _doExtraction(file, previewContent, status, preview) {
         }
       }
 
-      // VENDOR ADDRESS POPULATION
+      // VENDOR ADDRESS & LOCATION AUTO-POPULATION
       _extractedVendorLocation = {
         vendor_address: data.extracted.vendor_address || data.extracted.address || null,
         vendor_city: data.extracted.vendor_city || data.extracted.city || null,
@@ -1170,7 +1187,7 @@ async function _doExtraction(file, previewContent, status, preview) {
     if (thisReqId !== _currentExtractionId) { return; }
     if (status) {
       status.className = 'receipt-extract-status error';
-      status.textContent = '✗ Error: ' + e.message;
+      status.textContent = '✗ Processing encountered a non-critical issue. Please review and enter any missing data manually.';
     }
     console.error('extractReceipt error:', e);
   }
@@ -1672,8 +1689,8 @@ function handleLocationChange(sel) {
     input.type = 'text';
     input.id = 'purchaseLocation';
     input.className = 'purchase-input ai-needed';
-    input.style.color = 'var(--text-main, #ffffff)';
-    input.style.backgroundColor = 'var(--input-bg, #0f172a)';
+    input.style.color = 'var(--text, #ffffff)';
+    input.style.backgroundColor = 'var(--bg-step, #0f172a)';
     input.placeholder = 'Type location name';
     sel.parentNode.replaceChild(input, sel);
     input.focus();
@@ -1686,8 +1703,8 @@ function handleProjectChange(sel) {
     input.type = 'text';
     input.id = 'purchaseProject';
     input.className = 'purchase-input ai-needed';
-    input.style.color = 'var(--text-main, #ffffff)';
-    input.style.backgroundColor = 'var(--input-bg, #0f172a)';
+    input.style.color = 'var(--text, #ffffff)';
+    input.style.backgroundColor = 'var(--bg-step, #0f172a)';
     input.placeholder = 'Type new project name';
     input.setAttribute('data-custom', 'true');
     sel.parentNode.replaceChild(input, sel);
@@ -1775,9 +1792,8 @@ async function initPage() {
   setTimeout(makeTabsSticky, 100);
   setTimeout(makeTabsSticky, 500);
 
-  if (isMobileDevice() && !hasDeviceLocation()) {
-    checkDeviceLocation();
-  }
+  // AUTOMATICALLY CLEAR/CHECK LOCATION STATUS ACCORDING TO DEVICE TYPE
+  checkDeviceLocation();
 
   var loadingEl = document.getElementById('loading');
   if (loadingEl) loadingEl.style.display = 'none';
