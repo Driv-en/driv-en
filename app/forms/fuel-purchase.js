@@ -169,16 +169,23 @@ function showLocationPopup(message) {
   var overlay = document.getElementById('locationPopupOverlay');
   var msgEl = document.getElementById('locationPopupMessage');
   if (!overlay || !msgEl) return;
-  msgEl.innerHTML = '<p style="font-size:15px;margin:0 0 16px;">' + esc(message) + '</p>' +
-    '<div style="background:#f4f4f4;border-radius:8px;padding:14px;margin-bottom:12px;">' +
-    '<p style="font-weight:600;margin:0 0 8px;">How to enable location:</p>' +
-    '<p style="margin:0 0 6px;"><strong>iPhone/iPad (iOS):</strong> Settings → Privacy & Security → Location Services → ON → Find your browser (Safari/Chrome) → set to "While Using"</p>' +
-    '<p style="margin:0 0 6px;"><strong>Android:</strong> Settings → Location → ON → App permissions → your browser → Allow only while using the app</p>' +
-    '<p style="margin:0 0 6px;"><strong>Chrome (Desktop):</strong> Click the location icon in the address bar → Site settings → Location → Allow → Reload</p>' +
-    '<p style="margin:0 0 6px;"><strong>Edge (Desktop):</strong> Settings → Cookies and site permissions → Location → Allow</p>' +
-    '<p style="margin:0;"><strong>Firefox (Desktop):</strong> Settings → Privacy & Security → Permissions → Location → Settings → Allow</p>' +
+
+  var isMobile = isMobileDevice();
+  var instructionsHtml = isMobile ? 
+    '<p style="margin:0 0 6px;"><strong>iPhone/iPad (iOS):</strong> Settings → Privacy & Security → Location Services → ON → Browser → "While Using"</p>' +
+    '<p style="margin:0 0 6px;"><strong>Android:</strong> Settings → Location → ON → App permissions → Browser → "Allow only while using the app"</p>' :
+    '<p style="margin:0 0 6px;"><strong>Chrome:</strong> Click lock/tune icon in address bar → Site settings → Location → Allow → Reload</p>' +
+    '<p style="margin:0 0 6px;"><strong>Edge:</strong> Click lock icon in address bar → Permissions for this site → Location → Allow</p>' +
+    '<p style="margin:0 0 6px;"><strong>Firefox:</strong> Click lock icon in address bar → Permissions → Location → Allow</p>';
+
+  msgEl.innerHTML = 
+    '<p style="font-size:15px;margin:0 0 16px;color:var(--text-main, #ffffff);">' + esc(message) + '</p>' +
+    '<div style="background:var(--card-bg, #1e293b);border:1px solid var(--border-color, #334155);border-radius:8px;padding:14px;margin-bottom:12px;color:var(--text-main, #f8fafc);">' +
+      '<p style="font-weight:600;margin:0 0 8px;color:var(--primary, #38bdf8);">How to enable location:</p>' +
+      instructionsHtml +
     '</div>' +
-    '<p style="font-size:13px;color:#666;margin:0;">After enabling, click "Retry" to capture your location. Forms cannot be submitted without location.</p>';
+    '<p style="font-size:13px;color:var(--text-muted, #94a3b8);margin:0;">After enabling, click "Retry" to capture your location. Forms cannot be submitted without location.</p>';
+
   overlay.style.display = 'flex';
 }
 
@@ -193,7 +200,7 @@ function hasDeviceLocation() {
 
 function requireLocationOrPopup() {
   if (hasDeviceLocation()) return true;
-  var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
+  var isMobile = isMobileDevice();
   if (!isMobile) return true;
   showLocationPopup('Location is required to submit this form. Please enable location on your device and retry.');
   return false;
@@ -373,7 +380,6 @@ function addLineItem(data) {
     var assetName = a.name || a.asset_name || a.title || a.description || [a.year, a.make, a.model].filter(Boolean).join(' ') || 'Unnamed Asset';
     var assetId = a.id || a.asset_id || a.uuid || assetNum;
     var label = (assetNum ? assetNum + ' — ' : '') + assetName + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
-    // Store both assetId and assetNum in mapping value
     addAssetEntry('asset|' + assetId + '|' + assetNum, label);
   });
 
@@ -401,9 +407,7 @@ function addLineItem(data) {
         '</select>' +
       '</div>' +
       '<div class="purchase-field"><label class="purchase-label">Asset <span style="color:#cc0000;">*</span></label>' +
-        '<div class="input-with-arrow">' +
-          '<input type="text" class="purchase-input line-destination ai-needed" placeholder="Type to search…" list="' + lineId + '-assets" autocomplete="off" oninput="markFormDirty()">' +
-        '</div>' +
+        '<input type="text" class="purchase-input line-destination ai-needed" placeholder="Type to search…" list="' + lineId + '-assets" autocomplete="off" oninput="markFormDirty()">' +
         '<datalist id="' + lineId + '-assets">' + datalistOptions + '</datalist>' +
       '</div>' +
       '<div class="purchase-field"><label class="purchase-label">Qty (gal) <span style="color:#cc0000;">*</span></label>' +
@@ -415,7 +419,9 @@ function addLineItem(data) {
       '<div class="purchase-field"><label class="purchase-label">Meter Reading <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(if machinery)</span></label>' +
         '<input type="number" class="purchase-input line-meter ai-needed" placeholder="hrs/mi" min="0" step="0.1" value="' + meterReadingEsc + '" oninput="markFormDirty()">' +
       '</div>' +
-      '<button class="line-item-remove" onclick="removeLineItem(\'' + lineId + '\')">✕</button>' +
+      '<div class="purchase-field remove-action-wrap">' +
+        '<button class="btn-delete-line" style="background:#dc2626;color:#ffffff;border:none;border-radius:6px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer;width:100%;" onclick="removeLineItem(\'' + lineId + '\')">Delete</button>' +
+      '</div>' +
     '</div>';
 
   container.appendChild(div);
@@ -447,6 +453,8 @@ function recalcLine(lineId) {
     input.type = 'text';
     input.className = 'purchase-input line-fuel-type';
     input.placeholder = 'Type fuel name';
+    input.style.color = 'var(--text-main, #ffffff)';
+    input.style.backgroundColor = 'var(--input-bg, #0f172a)';
     input.setAttribute('data-custom', 'true');
     input.oninput = function() { markFormDirty(); };
     fuelSelect.parentNode.replaceChild(input, fuelSelect);
@@ -920,10 +928,15 @@ async function _doExtraction(file, previewContent, status, preview) {
         vendorEl.value = data.extracted.vendor;
         vendorEl.classList.add('ai-extracted');
       }
-      if (data.extracted.receipt_date) {
+
+      var extractedDate = data.extracted.receipt_date || data.extracted.date;
+      if (extractedDate) {
         var dateEl = document.getElementById('purchaseDate');
-        dateEl.value = data.extracted.receipt_date;
-        dateEl.classList.add('ai-extracted');
+        if (dateEl) {
+          dateEl.value = extractedDate;
+          dateEl.classList.add('ai-extracted');
+          dateEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
       }
 
       if (data.extracted.payment_type) {
@@ -1107,7 +1120,6 @@ async function submitPurchase() {
       }
     }
 
-    // Set line item payload properties including all 29 db fields alignment
     var li = {
       fuel_type: fuelType,
       quantity: qty,
@@ -1446,6 +1458,8 @@ function handleLocationChange(sel) {
     input.type = 'text';
     input.id = 'purchaseLocation';
     input.className = 'purchase-input ai-needed';
+    input.style.color = 'var(--text-main, #ffffff)';
+    input.style.backgroundColor = 'var(--input-bg, #0f172a)';
     input.placeholder = 'Type location name';
     sel.parentNode.replaceChild(input, sel);
     input.focus();
@@ -1458,6 +1472,8 @@ function handleProjectChange(sel) {
     input.type = 'text';
     input.id = 'purchaseProject';
     input.className = 'purchase-input ai-needed';
+    input.style.color = 'var(--text-main, #ffffff)';
+    input.style.backgroundColor = 'var(--input-bg, #0f172a)';
     input.placeholder = 'Type new project name';
     input.setAttribute('data-custom', 'true');
     sel.parentNode.replaceChild(input, sel);
