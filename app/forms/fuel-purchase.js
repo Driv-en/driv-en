@@ -144,7 +144,6 @@ function reportError(source, err) {
 /* ===== DEVICE LOCATION CHECK (MOBILE ONLY) ===== */
 function checkDeviceLocation() {
   if (!isMobileDevice()) {
-    // Desktop devices bypass location checks completely
     return;
   }
   if (!navigator.geolocation) {
@@ -179,7 +178,7 @@ function updateLocationStatus(hasLocation) {
   var banner = document.getElementById('locationStatusBanner');
   if (!banner) return;
   if (!isMobileDevice()) {
-    banner.style.display = 'none'; // Hide banner on desktop
+    banner.style.display = 'none';
     return;
   }
   banner.style.display = 'block';
@@ -193,7 +192,7 @@ function updateLocationStatus(hasLocation) {
 }
 
 function showLocationPopup(message) {
-  if (!isMobileDevice()) return; // Do not display modal on desktop
+  if (!isMobileDevice()) return;
   
   var overlay = document.getElementById('locationPopupOverlay');
   var msgEl = document.getElementById('locationPopupMessage');
@@ -224,7 +223,7 @@ function hasDeviceLocation() {
 }
 
 function requireLocationOrPopup() {
-  if (!isMobileDevice()) return true; // Always allow desktop submission without location
+  if (!isMobileDevice()) return true;
   if (hasDeviceLocation()) return true;
   showLocationPopup('Location is required to submit this form on a mobile device. Please enable location on your device and retry.');
   return false;
@@ -381,6 +380,73 @@ async function loadUsers() {
   personSelect.innerHTML = html;
 }
 
+/* ===== BUILD ASSET SELECT OPTIONS ===== */
+function buildAssetOptionsHtml() {
+  var bulkTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'bulk' && (t.status === 'active' || !t.status); }));
+  var dragupTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'dragup' && (t.status === 'active' || !t.status); }));
+  var portableTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'portable' && (t.status === 'active' || !t.status); }));
+  var equipmentAssets = allAssets;
+
+  var html = '<option value="">Select asset/tank…</option>';
+
+  if (bulkTanks.length > 0) {
+    html += '<optgroup label="Bulk Tanks">';
+    bulkTanks.forEach(function(t) {
+      var label = t.name + (t.fuel_type ? ' (' + t.fuel_type + ')' : '') + (t.location ? ' — ' + t.location : '');
+      html += '<option value="bulk_tank|' + esc(t.id) + '">' + esc(label) + '</option>';
+    });
+    html += '</optgroup>';
+  }
+
+  if (dragupTanks.length > 0) {
+    html += '<optgroup label="Drag-Up Tanks">';
+    dragupTanks.forEach(function(t) {
+      var label = t.name + (t.fuel_type ? ' (' + t.fuel_type + ')' : '') + (t.location ? ' — ' + t.location : '');
+      html += '<option value="dragup_tank|' + esc(t.id) + '">' + esc(label) + '</option>';
+    });
+    html += '</optgroup>';
+  }
+
+  if (portableTanks.length > 0) {
+    html += '<optgroup label="Portable Cans">';
+    portableTanks.forEach(function(t) {
+      var label = t.name + (t.fuel_type ? ' (' + t.fuel_type + ')' : '') + (t.location ? ' — ' + t.location : '');
+      html += '<option value="portable_can|' + esc(t.id) + '">' + esc(label) + '</option>';
+    });
+    html += '</optgroup>';
+  }
+
+  if (equipmentAssets.length > 0) {
+    html += '<optgroup label="Equipment / Machinery">';
+    equipmentAssets.forEach(function(a) {
+      var assetNum = a.asset_number || a.asset_num || a.asset_id || a.unit_number || a.code || (a.id ? String(a.id).slice(0,8) : '');
+      var assetName = a.name || a.asset_name || a.title || a.description || [a.year, a.make, a.model].filter(Boolean).join(' ') || 'Unnamed Asset';
+      var assetId = a.id || a.asset_id || a.uuid || assetNum;
+      var label = (assetNum ? assetNum + ' — ' : '') + assetName + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
+      html += '<option value="asset|' + esc(assetId) + '|' + esc(assetNum) + '">' + esc(label) + '</option>';
+    });
+    html += '</optgroup>';
+  }
+
+  html += '<option value="__custom">+ Other (type manually)</option>';
+  return html;
+}
+
+function handleAssetChange(selectEl) {
+  if (selectEl.value === '__custom') {
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'purchase-input line-destination ai-needed';
+    input.placeholder = 'Type asset/vehicle name';
+    input.setAttribute('data-custom', 'true');
+    input.oninput = function() { markFormDirty(); };
+    selectEl.parentNode.replaceChild(input, selectEl);
+    input.focus();
+  } else {
+    markFormDirty();
+  }
+}
+
 /* ===== LINE ITEMS ===== */
 function addLineItem(data) {
   lineItemCount++;
@@ -390,44 +456,6 @@ function addLineItem(data) {
   var div = document.createElement('div');
   div.className = 'line-item-row';
   div.id = lineId;
-  div.style.marginBottom = '12px';
-
-  var bulkTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'bulk' && (t.status === 'active' || !t.status); }));
-  var dragupTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'dragup' && (t.status === 'active' || !t.status); }));
-  var portableTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'portable' && (t.status === 'active' || !t.status); }));
-  var equipmentAssets = allAssets;
-
-  var assetMap = {};
-  var datalistOptions = '';
-
-  function addAssetEntry(value, label) {
-    assetMap[label] = value;
-    datalistOptions += '<option value="' + esc(label) + '">';
-  }
-
-  addAssetEntry('__custom_asset', '+ Other (type manually)');
-
-  bulkTanks.forEach(function(t) {
-    var label = t.name + (t.fuel_type ? ' (' + t.fuel_type + ')' : '') + (t.location ? ' — ' + t.location : '');
-    addAssetEntry('bulk_tank|' + t.id, label);
-  });
-  dragupTanks.forEach(function(t) {
-    var label = t.name + (t.fuel_type ? ' (' + t.fuel_type + ')' : '') + (t.location ? ' — ' + t.location : '');
-    addAssetEntry('dragup_tank|' + t.id, label);
-  });
-  portableTanks.forEach(function(t) {
-    var label = t.name + (t.fuel_type ? ' (' + t.fuel_type + ')' : '') + (t.location ? ' — ' + t.location : '');
-    addAssetEntry('portable_can|' + t.id, label);
-  });
-  equipmentAssets.forEach(function(a) {
-    var assetNum = a.asset_number || a.asset_num || a.asset_id || a.unit_number || a.code || (a.id ? String(a.id).slice(0,8) : '');
-    var assetName = a.name || a.asset_name || a.title || a.description || [a.year, a.make, a.model].filter(Boolean).join(' ') || 'Unnamed Asset';
-    var assetId = a.id || a.asset_id || a.uuid || assetNum;
-    var label = (assetNum ? assetNum + ' — ' : '') + assetName + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
-    addAssetEntry('asset|' + assetId + '|' + assetNum, label);
-  });
-
-  div.dataset.assetMap = JSON.stringify(assetMap);
 
   var fuelType = (data && data.fuel_type) || 'diesel_onroad';
   var qty = (data && data.gallons) || '';
@@ -451,8 +479,9 @@ function addLineItem(data) {
         '</select>' +
       '</div>' +
       '<div class="purchase-field"><label class="purchase-label">Asset <span style="color:#cc0000;">*</span></label>' +
-        '<input type="text" class="purchase-input line-destination ai-needed" placeholder="Type to search…" list="' + lineId + '-assets" autocomplete="off" oninput="markFormDirty()">' +
-        '<datalist id="' + lineId + '-assets">' + datalistOptions + '</datalist>' +
+        '<select class="purchase-input line-destination ai-needed" onchange="handleAssetChange(this)">' +
+          buildAssetOptionsHtml() +
+        '</select>' +
       '</div>' +
       '<div class="purchase-field"><label class="purchase-label">Qty (gal) <span style="color:#cc0000;">*</span></label>' +
         '<input type="number" class="purchase-input line-qty" placeholder="0" min="0" step="0.01" value="' + qtyEsc + '" oninput="recalcLine(\'' + lineId + '\'); markFormDirty()">' +
@@ -464,7 +493,7 @@ function addLineItem(data) {
         '<input type="number" class="purchase-input line-meter ai-needed" placeholder="hrs/mi" min="0" step="0.1" value="' + meterReadingEsc + '" oninput="markFormDirty()">' +
       '</div>' +
       '<div class="purchase-field remove-action-wrap">' +
-        '<button class="btn-delete-line" style="background:#dc2626;color:#ffffff;border:none;border-radius:6px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer;width:100%;" onclick="removeLineItem(\'' + lineId + '\')">Delete</button>' +
+        '<button class="btn-delete-line" style="background:#dc2626;color:#ffffff;border:none;border-radius:6px;padding:10px 16px;font-weight:600;font-size:13px;cursor:pointer;width:100%;box-shadow:0 1px 3px rgba(0,0,0,0.2);" onclick="removeLineItem(\'' + lineId + '\')">Delete</button>' +
       '</div>' +
     '</div>';
 
@@ -985,7 +1014,6 @@ async function _doExtraction(file, previewContent, status, preview) {
         }
       }
 
-      // Store extracted Vendor Address fields
       _extractedVendorLocation = {
         vendor_address: data.extracted.vendor_address || null,
         vendor_city: data.extracted.vendor_city || null,
@@ -1156,10 +1184,7 @@ async function submitPurchase() {
   for (var i = 0; i < rows.length; i++) {
     var row = rows[i];
     var destInput = row.querySelector('.line-destination');
-    var destLabel = destInput ? destInput.value.trim() : '';
-    var assetMap = {};
-    try { assetMap = JSON.parse(row.dataset.assetMap || '{}'); } catch(e) {}
-    var dest = assetMap[destLabel] || '';
+    var destVal = destInput ? destInput.value.trim() : '';
     var qty = parseFloat(row.querySelector('.line-qty').value);
     var fuelType = row.querySelector('.line-fuel-type').value;
     var cpg = parseFloat(row.querySelector('.line-cpg').value) || null;
@@ -1169,22 +1194,25 @@ async function submitPurchase() {
     if (!qty || qty <= 0 || !isFinite(qty)) { showPurchaseError('Line ' + (i + 1) + ': quantity (gallons) is required and must be > 0'); return; }
     if (!fuelType) { showPurchaseError('Line ' + (i + 1) + ': fuel type is required'); return; }
 
+    var dest = '';
     var customAssetName = null;
-    if (!dest) {
-      if (!destLabel || destLabel === '+ Other (type manually)') {
-        showPurchaseError('Line ' + (i + 1) + ': asset is required (select from the list or type the asset name)'); return;
+
+    if (destInput && destInput.tagName === 'INPUT' && destInput.getAttribute('data-custom') === 'true') {
+      customAssetName = destVal;
+      if (!customAssetName) {
+        showPurchaseError('Line ' + (i + 1) + ': asset name is required'); return;
       }
-      customAssetName = destLabel;
+    } else {
+      dest = destVal;
+      if (!dest || dest === '__custom') {
+        showPurchaseError('Line ' + (i + 1) + ': asset is required'); return;
+      }
     }
 
     var parts = dest.split('|');
-    var entityType = parts[0];
+    var entityType = parts[0] || 'custom';
     var entityId = parts[1] || null;
     var assetNum = parts[2] || null;
-
-    if (!assetNum && destLabel && destLabel.indexOf(' — ') !== -1) {
-      assetNum = destLabel.split(' — ')[0].trim();
-    }
 
     if (entityType === 'asset') {
       if (!meterReadingVal || isNaN(meterReading) || meterReading < 0) {
@@ -1729,6 +1757,7 @@ window.clearPurchaseForm = clearPurchaseForm;
 window.handlePaymentTypeChange = handlePaymentTypeChange;
 window.handleLocationChange = handleLocationChange;
 window.handleProjectChange = handleProjectChange;
+window.handleAssetChange = handleAssetChange;
 window.closeLocationPopup = closeLocationPopup;
 window.checkDeviceLocation = checkDeviceLocation;
 window.addLineItem = addLineItem;
