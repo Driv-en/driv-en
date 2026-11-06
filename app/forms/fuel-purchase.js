@@ -283,33 +283,11 @@ function insertHeaderTitle() {
   }
 }
 
-/* ===== STICKY HEADER & FULL WIDTH OVERFLOW FIX ===== */
+/* ===== FULL WIDTH OVERFLOW LOCK ===== */
 function makeTabsSticky() {
-  var header = document.getElementById('dashHeader');
-  var tabBar = document.querySelector('.fp-tab-bar');
-
   document.documentElement.style.overflowX = 'hidden';
   document.body.style.overflowX = 'hidden';
   document.body.style.width = '100%';
-
-  if (header) {
-    header.style.position = '-webkit-sticky';
-    header.style.position = 'sticky';
-    header.style.top = '0';
-    header.style.zIndex = '100000';
-    header.style.width = '100%';
-    header.style.boxSizing = 'border-box';
-  }
-
-  if (tabBar) {
-    var headerHeight = header ? (header.getBoundingClientRect().height || header.offsetHeight || 0) : 0;
-    tabBar.style.position = '-webkit-sticky';
-    tabBar.style.position = 'sticky';
-    tabBar.style.top = headerHeight + 'px';
-    tabBar.style.zIndex = '99999';
-    tabBar.style.width = '100%';
-    tabBar.style.boxSizing = 'border-box';
-  }
 }
 
 window.dashLogout = function() {
@@ -1850,7 +1828,7 @@ async function initPage() {
   if (tabBar) tabBar.style.display = 'flex';
 
   insertHeaderTitle();
-  setTimeout(makeTabsSticky, 100);
+  makeTabsSticky();
 
   // 3. Asynchronous Data Loading
   try { await loadTankTypes(); } catch(e) { console.warn('Tank types error:', e); }
