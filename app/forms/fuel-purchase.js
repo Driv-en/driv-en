@@ -7,7 +7,7 @@
  * mobile and desktop devices in a PWA (Progressive Web App) environment. 
  * Features include multi-tenant isolation via URL/auth context parameters, 
  * theme (dark/light) carryover from the main user dashboard, automated AI 
- * receipt OCR data extraction (with cropping interface), dynamic multi-line 
+ * receipt OCR data extraction (with fixed modal cropping interface), dynamic multi-line 
  * item tracking, EXIF metadata validation for photo uploads, dynamic option 
  * loading (users, locations, projects, assets), mobile-specific GPS location 
  * verification, payment/PO type management, vendor address auto-population,
@@ -160,7 +160,7 @@ function reportError(source, err) {
   } catch (e) { _reportErrorInFlight = false; }
 }
 
-/* ===== DEVICE LOCATION CHECK (DESKTOP BYPASS GUARANTEED) ===== */
+/* ===== DEVICE LOCATION CHECK ===== */
 function checkDeviceLocation() {
   if (!isMobileDevice()) {
     deviceLocation = null;
@@ -404,7 +404,7 @@ async function loadUsers() {
       }
     });
   } catch(e) {
-    console.warn('Failed to load users from driv-en-db users table:', e);
+    console.warn('Failed to load users:', e);
   }
 
   personSelect.innerHTML = html;
@@ -739,7 +739,7 @@ function resizeImage(file, maxDim) {
   });
 }
 
-/* ===== CROP OVERLAY ===== */
+/* ===== CROP OVERLAY (FIXED VIEWPORT MODAL) ===== */
 var _cropState = null;
 
 function showCropOverlay(file, callback) {
@@ -755,76 +755,114 @@ function showCropOverlay(file, callback) {
 function _buildCropUI(file, img, imgUrl, callback) {
   var existing = document.getElementById('cropOverlay');
   if (existing) existing.remove();
+
   var overlay = document.createElement('div');
   overlay.id = 'cropOverlay';
   overlay.className = 'crop-overlay';
+
   var modal = document.createElement('div');
   modal.className = 'crop-modal';
+
   var title = document.createElement('h3');
+  title.style.margin = '0 0 8px 0';
   title.textContent = 'Crop Receipt';
   modal.appendChild(title);
+
   var desc = document.createElement('p');
-  desc.innerHTML = '<strong>How to crop:</strong> Drag the <strong>green corners</strong> to resize the box around the receipt text. Drag inside to move. Click "Use Full Image" to skip cropping.';
+  desc.style.cssText = 'font-size:12px;color:var(--text-muted,#94a3b8);margin:0 0 12px 0;';
+  desc.innerHTML = 'Drag the <strong>green corners</strong> to resize around the receipt text. Drag inside to move.';
   modal.appendChild(desc);
+
   var stage = document.createElement('div');
   stage.className = 'crop-stage';
+
   var imgEl = document.createElement('img');
   imgEl.src = imgUrl;
   stage.appendChild(imgEl);
-  var imgW = img.width, imgH = img.height;
-  var dispW, dispH;
+
   var cropBox = document.createElement('div');
   cropBox.className = 'crop-box';
   stage.appendChild(cropBox);
+
   ['nw', 'ne', 'sw', 'se'].forEach(function(pos) {
     var h = document.createElement('div');
     h.className = 'crop-handle ' + pos;
     h.dataset.pos = pos;
     cropBox.appendChild(h);
   });
+
   modal.appendChild(stage);
+
   var actions = document.createElement('div');
   actions.className = 'crop-actions';
+
   var cancelBtn = document.createElement('button');
   cancelBtn.className = 'crop-btn crop-btn-cancel';
   cancelBtn.textContent = 'Cancel';
-  cancelBtn.onclick = function() { overlay.remove(); URL.revokeObjectURL(imgUrl); _cropState = null; };
+  cancelBtn.onclick = function() { 
+    document.body.style.overflow = '';
+    overlay.remove(); 
+    URL.revokeObjectURL(imgUrl); 
+    _cropState = null; 
+  };
+
   var fullBtn = document.createElement('button');
   fullBtn.className = 'crop-btn crop-btn-secondary';
   fullBtn.textContent = 'Use Full Image';
   fullBtn.onclick = function() {
-    overlay.remove(); URL.revokeObjectURL(imgUrl); _cropState = null;
+    document.body.style.overflow = '';
+    overlay.remove(); 
+    URL.revokeObjectURL(imgUrl); 
+    _cropState = null;
     _resizeImageAsync(file, 1024).then(function(resized) { callback(resized); });
   };
+
   var cropBtn = document.createElement('button');
   cropBtn.className = 'crop-btn crop-btn-primary';
   cropBtn.textContent = 'Crop & Extract';
   cropBtn.onclick = function() {
-    if (!_cropState) { overlay.remove(); URL.revokeObjectURL(imgUrl); callback(file); return; }
+    document.body.style.overflow = '';
+    if (!_cropState) { 
+      overlay.remove(); 
+      URL.revokeObjectURL(imgUrl); 
+      callback(file); 
+      return; 
+    }
     var cropped = _performCrop(file, img, _cropState);
-    overlay.remove(); URL.revokeObjectURL(imgUrl); _cropState = null;
+    overlay.remove(); 
+    URL.revokeObjectURL(imgUrl); 
+    _cropState = null;
     callback(cropped);
   };
+
   actions.appendChild(cancelBtn);
   actions.appendChild(fullBtn);
   actions.appendChild(cropBtn);
   modal.appendChild(actions);
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
-  requestAnimationFrame(function() {
-    dispW = imgEl.clientWidth;
-    dispH = imgEl.clientHeight;
-    var boxW = dispW * 0.8;
-    var boxH = dispH * 0.8;
-    var boxX = (dispW - boxW) / 2;
-    var boxY = (dispH - boxH) / 2;
-    cropBox.style.left = boxX + 'px';
-    cropBox.style.top = boxY + 'px';
-    cropBox.style.width = boxW + 'px';
-    cropBox.style.height = boxH + 'px';
-    _cropState = { boxX: boxX, boxY: boxY, boxW: boxW, boxH: boxH, dispW: dispW, dispH: dispH, imgW: imgW, imgH: imgH };
-    _attachCropEvents(stage, cropBox, imgW, imgH);
-  });
+
+  // Lock parent page scrolling during active crop session
+  document.body.style.overflow = 'hidden';
+
+  imgEl.onload = function() {
+    requestAnimationFrame(function() {
+      var dispW = imgEl.clientWidth || stage.clientWidth;
+      var dispH = imgEl.clientHeight || stage.clientHeight;
+      var boxW = dispW * 0.8;
+      var boxH = dispH * 0.8;
+      var boxX = (dispW - boxW) / 2;
+      var boxY = (dispH - boxH) / 2;
+
+      cropBox.style.left = boxX + 'px';
+      cropBox.style.top = boxY + 'px';
+      cropBox.style.width = boxW + 'px';
+      cropBox.style.height = boxH + 'px';
+
+      _cropState = { boxX: boxX, boxY: boxY, boxW: boxW, boxH: boxH, dispW: dispW, dispH: dispH, imgW: img.width, imgH: img.height };
+      _attachCropEvents(stage, cropBox, img.width, img.height);
+    });
+  };
 }
 
 function _attachCropEvents(stage, cropBox, imgW, imgH) {
@@ -832,6 +870,7 @@ function _attachCropEvents(stage, cropBox, imgW, imgH) {
   var resizing = false;
   var resizePos = null;
   var startX, startY, startBoxX, startBoxY, startBoxW, startBoxH;
+
   function onDown(e) {
     e.preventDefault();
     var touch = e.touches ? e.touches[0] : e;
@@ -841,6 +880,7 @@ function _attachCropEvents(stage, cropBox, imgW, imgH) {
     if (e.target.classList.contains('crop-handle')) { resizing = true; resizePos = e.target.dataset.pos; }
     else if (e.target === cropBox) { dragging = true; }
   }
+
   function onMove(e) {
     if (!dragging && !resizing) return;
     e.preventDefault();
@@ -872,7 +912,9 @@ function _attachCropEvents(stage, cropBox, imgW, imgH) {
     cropBox.style.width = _cropState.boxW + 'px';
     cropBox.style.height = _cropState.boxH + 'px';
   }
+
   function onUp() { dragging = false; resizing = false; }
+
   cropBox.addEventListener('mousedown', onDown);
   cropBox.addEventListener('touchstart', onDown, { passive: false });
   document.addEventListener('mousemove', onMove);
@@ -1762,13 +1804,13 @@ async function initPage() {
   if (_pageInitialized) return;
   _pageInitialized = true;
 
-  // 1. Immediately reveal UI to prevent stuck loading screen
+  // 1. Reveal UI immediately to prevent loading stalls
   var loadingEl = document.getElementById('loading');
   if (loadingEl) loadingEl.style.display = 'none';
   var dashEl = document.getElementById('dashboard');
   if (dashEl) dashEl.style.display = 'block';
 
-  // 2. Strict Multi-Tenant Auth Resolution
+  // 2. Multi-Tenant Auth Resolution
   var ctx = getUrlContextParams();
   var user = window.dashUser;
   if (!user) {
@@ -1810,7 +1852,7 @@ async function initPage() {
   insertHeaderTitle();
   setTimeout(makeTabsSticky, 100);
 
-  // 3. Non-blocking asynchronous data loading
+  // 3. Asynchronous Data Loading
   try { await loadTankTypes(); } catch(e) { console.warn('Tank types error:', e); }
   try { await loadTanks(); } catch(e) { console.warn('Tanks error:', e); }
   try { await loadAssets(); } catch(e) { console.warn('Assets error:', e); }
