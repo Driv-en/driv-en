@@ -28,7 +28,7 @@ var fuelPhotos = { meter: null, asset: null };
 var fuelPhotoData = { meter: null, asset: null };
 var _extractedVendorLocation = {};
 
-/* ===== URL CONTEXT & AUTH HELPER ===== */
+/* ===== URL CONTEXT & MULTI-TENANT AUTH HELPER ===== */
 function getUrlContextParams() {
   var params = new URLSearchParams(window.location.search);
   var context = {};
@@ -162,7 +162,6 @@ function reportError(source, err) {
 
 /* ===== DEVICE LOCATION CHECK (DESKTOP BYPASS GUARANTEED) ===== */
 function checkDeviceLocation() {
-  // STRICTLY BYPASS AND CLEAR PROMPTS ON DESKTOP DEVICES
   if (!isMobileDevice()) {
     deviceLocation = null;
     closeLocationPopup();
@@ -1763,6 +1762,14 @@ async function initPage() {
   if (_pageInitialized) return;
   _pageInitialized = true;
 
+  // 1. Immediately reveal UI to prevent stuck loading screen
+  var loadingEl = document.getElementById('loading');
+  if (loadingEl) loadingEl.style.display = 'none';
+  var dashEl = document.getElementById('dashboard');
+  if (dashEl) dashEl.style.display = 'block';
+
+  // 2. Strict Multi-Tenant Auth Resolution
+  var ctx = getUrlContextParams();
   var user = window.dashUser;
   if (!user) {
     try {
@@ -1770,25 +1777,26 @@ async function initPage() {
     } catch(e) {}
   }
 
-  // FALLBACK AUTHORIZATION FOR PARAM HANDOFF
+  if (!user && (ctx.org_id || ctx.role_id)) {
+    user = {
+      id: "usr_dynamic_session",
+      role: ctx.role_id || "admin",
+      org_id: ctx.org_id
+    };
+  }
+
+  if (user && ctx.org_id) {
+    user.org_id = ctx.org_id;
+  }
+
   if (!user) { 
-    var ctx = getUrlContextParams();
-    if (ctx.org_id || ctx.role_id) {
-      user = {
-        id: "usr_admin_handoff",
-        email: "admin@driv-en.com",
-        role: ctx.role_id || "admin",
-        org_id: ctx.org_id || "org_dsi"
-      };
-    } else {
-      window.location.href = '/public/login.html'; 
-      return; 
-    }
+    window.location.href = '/public/login.html'; 
+    return; 
   }
 
   window.dashUser = user;
 
-  var role = (user.role || '').toLowerCase();
+  var role = ((user && user.role) || ctx.role_id || '').toLowerCase();
   var dashUrl = (role === 'admin' || role === 'ro-admin') ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
   var homeLink = document.getElementById('dashHomeLink');
   if (homeLink) homeLink.href = preserveUrlParams(dashUrl);
@@ -1800,11 +1808,9 @@ async function initPage() {
   if (tabBar) tabBar.style.display = 'flex';
 
   insertHeaderTitle();
-
   setTimeout(makeTabsSticky, 100);
-  setTimeout(makeTabsSticky, 500);
 
-  // SAFE UNCAUGHT-EXCEPTION PROTECTED API LOADS
+  // 3. Non-blocking asynchronous data loading
   try { await loadTankTypes(); } catch(e) { console.warn('Tank types error:', e); }
   try { await loadTanks(); } catch(e) { console.warn('Tanks error:', e); }
   try { await loadAssets(); } catch(e) { console.warn('Assets error:', e); }
@@ -1813,28 +1819,22 @@ async function initPage() {
 
   initPurchaseForm();
   try { loadFuelPhotoSettings(); } catch(e) {}
-
   checkDeviceLocation();
-
-  var loadingEl = document.getElementById('loading');
-  if (loadingEl) loadingEl.style.display = 'none';
-  var dashEl = document.getElementById('dashboard');
-  if (dashEl) dashEl.style.display = 'block';
 }
 
 function setupInitListeners() {
-  if (window.dashUser || window.drivenUser) {
+  var initialized = false;
+  function triggerInit() {
+    if (initialized) return;
+    initialized = true;
     initPage();
+  }
+
+  if (window.dashUser || window.drivenUser) {
+    triggerInit();
   } else {
-    document.addEventListener('dashSessionLoaded', function() {
-      initPage();
-    });
-    setTimeout(function() {
-      var loadingEl = document.getElementById('loading');
-      if (loadingEl && loadingEl.style.display !== 'none') {
-        initPage();
-      }
-    }, 200);
+    document.addEventListener('dashSessionLoaded', triggerInit);
+    setTimeout(triggerInit, 300);
   }
 }
 
