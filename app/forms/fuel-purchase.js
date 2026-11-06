@@ -419,7 +419,6 @@ function addLineItem(data) {
 
   container.appendChild(div);
 
-  // Restore AI highlighting classes if passed during re-render (e.g. from loadAssets)
   if (data && data.classes) {
     if (data.classes.fuelType) div.querySelector('.line-fuel-type').className = data.classes.fuelType;
     if (data.classes.dest) div.querySelector('.line-destination').className = data.classes.dest;
@@ -653,7 +652,7 @@ function _buildCropUI(file, img, imgUrl, callback) {
   title.textContent = 'Crop Receipt';
   modal.appendChild(title);
   var desc = document.createElement('p');
-  desc.innerHTML = '<strong>How to crop:</strong> Drag the <strong>green corners</strong> (the small green squares at each corner) to resize the box around the receipt text. Drag anywhere inside the box to move it. The area inside the green box is what the AI will read — everything outside is cut away. Click "Use Full Image" to skip cropping.';
+  desc.innerHTML = '<strong>How to crop:</strong> Drag the <strong>green corners</strong> to resize the box around the receipt text. Drag inside to move. Click "Use Full Image" to skip cropping.';
   modal.appendChild(desc);
   var stage = document.createElement('div');
   stage.className = 'crop-stage';
@@ -926,7 +925,6 @@ async function _doExtraction(file, previewContent, status, preview) {
         dateEl.classList.add('ai-extracted');
       }
 
-      // Handle Payment Type & Conditional Fields (Credit Card / Fleet Card / PO)
       if (data.extracted.payment_type) {
         var payEl = document.getElementById('purchasePaymentType');
         if (payEl) {
@@ -945,11 +943,10 @@ async function _doExtraction(file, previewContent, status, preview) {
             payEl.value = data.extracted.payment_type;
           }
           payEl.classList.add('ai-extracted');
-          handlePaymentTypeChange(payEl); // Show/hide P.O. Number or Card Last 4
+          handlePaymentTypeChange(payEl);
         }
       }
 
-      // Auto-populate Card Last 4 / Ref #
       if (data.extracted.card_last_4) {
         var cardEl = document.getElementById('purchaseCardLast4');
         if (cardEl) {
@@ -958,7 +955,6 @@ async function _doExtraction(file, previewContent, status, preview) {
         }
       }
 
-      // Auto-populate PO Number if extracted
       if (data.extracted.po_number) {
         var poEl = document.getElementById('purchasePONumber');
         if (poEl) {
@@ -1086,8 +1082,8 @@ async function submitPurchase() {
 
     var parts = dest.split('|');
     var entityType = parts[0];
+    var entityId = parts[1] || null;
 
-    // Meter reading is mandatory if destination is an equipment asset
     if (entityType === 'asset') {
       if (!meterReadingVal || isNaN(meterReading) || meterReading < 0) {
         showPurchaseError('Line ' + (i + 1) + ': Meter Reading is required when fueling machinery/equipment.');
@@ -1095,11 +1091,13 @@ async function submitPurchase() {
       }
     }
 
+    // FIX: Set asset_id explicitly when entityType is 'asset'
     var li = {
       fuel_type: fuelType,
       quantity: qty,
       to_entity_type: entityType,
-      to_entity_id: parts[1],
+      to_entity_id: entityId,
+      asset_id: entityType === 'asset' ? entityId : null,
       cost_per_gallon: cpg,
       meter_reading: !isNaN(meterReading) ? meterReading : null
     };
@@ -1114,17 +1112,15 @@ async function submitPurchase() {
   lineItems.forEach(function(li) { totalQty += li.quantity; });
   if (totalQty <= 0) { showPurchaseError('Total quantity must be greater than zero'); return; }
 
-  // Save photo flags before clearing
   var photoFlags = managerReviewFlags.filter(function(f) { return f.field === 'meter_photo' || f.field === 'asset_photo'; });
   managerReviewFlags = [];
 
-  // Prepare base context for manager review flags so alert cards render all fields
   var locEl = document.getElementById('purchaseLocation');
   var baseFlagContext = {
     person: person || null,
     location: (locEl && locEl.value) ? locEl.value.trim() : (location || null),
     project_name: customProjectName || (projectEl && projectEl.options && projectEl.selectedIndex >= 0 ? projectEl.options[projectEl.selectedIndex].text : null),
-    asset_name: lineItems.map(function(li){ return li.custom_asset_name || li.to_entity_id; }).filter(Boolean).join(', ')
+    asset_name: lineItems.map(function(li){ return li.custom_asset_name || (li.asset_id ? 'Asset #' + li.asset_id : null); }).filter(Boolean).join(', ')
   };
 
   if (locEl && locEl.tagName === 'INPUT') {
@@ -1164,7 +1160,6 @@ async function submitPurchase() {
     managerReviewFlags.push(Object.assign({}, baseFlagContext, { field: 'receipt_mismatch', value: 'Receipt Total does not match Grand Fuel Total', reason: 'Receipt Total ('+(receiptTotal||'?')+') differs from Grand Fuel Total — manager should verify the receipt and line items' }));
   }
 
-  // Re-apply photo flags with base context attached
   photoFlags.forEach(function(f) { managerReviewFlags.push(Object.assign({}, baseFlagContext, f)); });
 
   var body = {
@@ -1290,7 +1285,6 @@ function clearPurchaseForm() {
   window._receiptMismatch = false;
   window._receiptHasNonFuelItems = false;
   managerReviewFlags = [];
-  // Clear fuel photos
   removeFuelPhoto('meter');
   removeFuelPhoto('asset');
   document.getElementById('lineItemsContainer').innerHTML = '';
@@ -1347,7 +1341,6 @@ async function loadAssets() {
       return st !== 'inactive' && st !== 'retired' && st !== 'decommissioned' && st !== 'sold' && st !== 'deleted' && st !== '0' && st !== 'false'; 
     });
 
-    // Re-render asset datalists for all existing line items (preserving values & AI CSS highlight classes)
     var rows = document.querySelectorAll('.line-item-row');
     if (rows.length > 0) {
       var existingRows = [];
@@ -1563,7 +1556,7 @@ if (document.readyState === 'loading') {
 window.addEventListener('resize', makeTabsSticky);
 window.addEventListener('orientationchange', makeTabsSticky);
 
-/* ===== EXPOSE HANDLERS TO WINDOW OBJECT FOR INLINE EVENTS & MODULE SAFETY ===== */
+/* ===== EXPOSE HANDLERS ===== */
 window.recalcLine = recalcLine;
 window.markFormDirty = markFormDirty;
 window.removeLineItem = removeLineItem;
