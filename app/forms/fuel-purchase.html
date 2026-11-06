@@ -97,7 +97,16 @@ html, body {
 .dash-header-row2 { display: none !important; }
 .dash-header-row3 { display: none !important; }
 #dashHeader .dash-theme-wrapper { display: none !important; }
-#dashHeader { width: 100% !important; max-width: 100vw !important; box-sizing: border-box; }
+#dashHeader { 
+  width: 100% !important; 
+  max-width: 100vw !important; 
+  box-sizing: border-box;
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 100000 !important;
+  background: var(--bg-card, #1e293b);
+}
 .dash-header-row1 { padding: 8px 16px !important; align-items: center; width: 100% !important; max-width: 100vw !important; box-sizing: border-box; }
 .fp-header-title { flex: 1; text-align: center; font-size: 20px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
@@ -114,7 +123,7 @@ html, body {
   overflow-x: hidden !important; 
   position: -webkit-sticky !important;
   position: sticky !important; 
-  top: 0px;
+  top: 50px;
   z-index: 99999 !important; 
   background: #cbd5e1; 
   border-bottom: 2px solid #94a3b8; 
@@ -137,7 +146,7 @@ html, body {
   cursor: pointer; 
   white-space: nowrap; 
   margin-top: 4px; 
-  margin-right: auto; /* Pushes everything else to the right */
+  margin-right: auto;
   position: relative; 
   z-index: 1; 
   transition: all 200ms ease; 
@@ -157,7 +166,7 @@ html, body {
   cursor: pointer; 
   white-space: nowrap; 
   margin-top: 4px; 
-  margin-left: auto; /* Ensures anchor to the right edge */
+  margin-left: auto;
   position: relative; 
   z-index: 1; 
   transition: all 200ms ease; 
@@ -216,7 +225,7 @@ html, body {
 
 .line-item-row { 
   background: var(--bg-step); 
-  border: 2px solid #16a34a !important; /* Prominent green border for easy identification */
+  border: 2px solid #16a34a !important;
   border-radius: 8px; 
   padding: 16px; 
   margin-bottom: 16px; 
@@ -228,6 +237,8 @@ html, body {
 .line-item-grid .purchase-field { min-width: 0; }
 .add-line-btn { background: #e2e8f0; border: 1px solid #64748b; border-radius: 8px; padding: 10px 20px; font-size: 14px; font-weight: 600; color: #1e293b; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
 .add-line-btn:hover { background: #cbd5e1; }
+.btn-delete-line { background: #dc2626 !important; color: #ffffff !important; border: none; border-radius: 6px; padding: 10px 16px; font-weight: 600; font-size: 13px; cursor: pointer; width: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+.btn-delete-line:hover { background: #b91c1c !important; }
 .grand-total-bar { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin: 16px 0; padding: 12px 20px; background: var(--bg-step); border: 1px solid var(--border); border-radius: 8px; }
 .grand-total-bar .label { font-size: 14px; font-weight: 600; color: var(--text-muted); }
 .grand-total-bar .value { font-size: 24px; font-weight: 700; color: var(--primary); }
@@ -347,11 +358,11 @@ html, body {
           <div class="purchase-upload-buttons">
             <input type="file" id="receiptCameraInput" accept="image/jpeg,image/png,image/webp" capture="environment" style="display:none;" onchange="handleReceiptUpload(this)">
             <input type="file" id="receiptFileInput" accept="image/jpeg,image/png,image/webp,application/pdf" style="display:none;" onchange="handleReceiptUpload(this)">
-            <button class="purchase-upload-btn" onclick="document.getElementById('receiptCameraInput').click()">
+            <button class="purchase-upload-btn" onclick="triggerReceiptCapture('camera')">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
               Take Photo
             </button>
-            <button class="purchase-upload-btn secondary" onclick="document.getElementById('receiptFileInput').click()">
+            <button class="purchase-upload-btn secondary" onclick="triggerReceiptCapture('file')">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
               Upload File
             </button>
@@ -378,7 +389,7 @@ html, body {
         </div>
 
         <div class="purchase-field">
-          <label class="purchase-label">Payment Type</label>
+          <label class="purchase-label">Payment Type <span style="color:#cc0000;">*</span></label>
           <select id="purchasePaymentType" class="purchase-input ai-needed" onchange="handlePaymentTypeChange(this); markFormDirty()">
             <option value="">Select payment type…</option>
             <option value="Credit Card">Credit Card</option>
@@ -409,6 +420,28 @@ html, body {
         <div class="purchase-field">
           <label class="purchase-label">Vendor <span style="color:#cc0000;">*</span></label>
           <input type="text" id="purchaseVendor" class="purchase-input" placeholder="e.g., Pacific Pride" oninput="markFormDirty()">
+        </div>
+
+        <!-- Vendor Address Auto-Populated Fields -->
+        <div class="purchase-field purchase-field-full">
+          <label class="purchase-label">Vendor Address</label>
+          <input type="text" id="purchaseVendorAddress" class="purchase-input" placeholder="Auto-populated from receipt if available" oninput="markFormDirty()">
+        </div>
+
+        <div class="purchase-field">
+          <label class="purchase-label">Vendor City</label>
+          <input type="text" id="purchaseVendorCity" class="purchase-input" placeholder="Auto-populated" oninput="markFormDirty()">
+        </div>
+
+        <div class="purchase-field" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div>
+            <label class="purchase-label">State</label>
+            <input type="text" id="purchaseVendorState" class="purchase-input" placeholder="e.g. TX" maxlength="2" oninput="markFormDirty()">
+          </div>
+          <div>
+            <label class="purchase-label">ZIP</label>
+            <input type="text" id="purchaseVendorZip" class="purchase-input" placeholder="e.g. 77001" maxlength="10" oninput="markFormDirty()">
+          </div>
         </div>
 
         <div class="purchase-field" id="projectFieldWrap">
