@@ -373,7 +373,8 @@ function addLineItem(data) {
     var assetName = a.name || a.asset_name || a.title || a.description || [a.year, a.make, a.model].filter(Boolean).join(' ') || 'Unnamed Asset';
     var assetId = a.id || a.asset_id || a.uuid || assetNum;
     var label = (assetNum ? assetNum + ' — ' : '') + assetName + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
-    addAssetEntry('asset|' + assetId, label);
+    // Store both assetId and assetNum in mapping value
+    addAssetEntry('asset|' + assetId + '|' + assetNum, label);
   });
 
   div.dataset.assetMap = JSON.stringify(assetMap);
@@ -1048,10 +1049,20 @@ async function submitPurchase() {
 
   var projectEl = document.getElementById('purchaseProject');
   var projectId = projectEl ? projectEl.value.trim() : '';
+  var projectName = null;
   var customProjectName = null;
-  if (projectEl && projectEl.tagName === 'INPUT' && projectEl.getAttribute('data-custom') === 'true') {
-    customProjectName = projectEl.value.trim();
-    projectId = null;
+
+  if (projectEl) {
+    if (projectEl.tagName === 'INPUT' && projectEl.getAttribute('data-custom') === 'true') {
+      customProjectName = projectEl.value.trim();
+      projectName = customProjectName;
+      projectId = null;
+    } else if (projectEl.options && projectEl.selectedIndex >= 0) {
+      projectName = projectEl.options[projectEl.selectedIndex].text;
+      if (projectName === 'Select project…' || projectName === '+ Other (type manually)') {
+        projectName = null;
+      }
+    }
   }
 
   var lineItems = [];
@@ -1083,6 +1094,11 @@ async function submitPurchase() {
     var parts = dest.split('|');
     var entityType = parts[0];
     var entityId = parts[1] || null;
+    var assetNum = parts[2] || null;
+
+    if (!assetNum && destLabel && destLabel.indexOf(' — ') !== -1) {
+      assetNum = destLabel.split(' — ')[0].trim();
+    }
 
     if (entityType === 'asset') {
       if (!meterReadingVal || isNaN(meterReading) || meterReading < 0) {
@@ -1091,15 +1107,22 @@ async function submitPurchase() {
       }
     }
 
-    // FIX: Set asset_id explicitly when entityType is 'asset'
+    // Set line item payload properties including all 29 db fields alignment
     var li = {
       fuel_type: fuelType,
       quantity: qty,
       to_entity_type: entityType,
       to_entity_id: entityId,
       asset_id: entityType === 'asset' ? entityId : null,
+      asset_number: assetNum || (entityType === 'asset' ? entityId : null),
+      project_id: projectId || null,
+      project: projectName || null,
+      fuel_date: date,
+      fuel_site: location || null,
       cost_per_gallon: cpg,
-      meter_reading: !isNaN(meterReading) ? meterReading : null
+      meter_reading: !isNaN(meterReading) ? meterReading : null,
+      latitude: (hasDeviceLocation() && deviceLocation.latitude) ? deviceLocation.latitude : null,
+      longitude: (hasDeviceLocation() && deviceLocation.longitude) ? deviceLocation.longitude : null
     };
     if (customProjectName) li.project_name = customProjectName;
     if (customAssetName) li.custom_asset_name = customAssetName;
@@ -1119,8 +1142,8 @@ async function submitPurchase() {
   var baseFlagContext = {
     person: person || null,
     location: (locEl && locEl.value) ? locEl.value.trim() : (location || null),
-    project_name: customProjectName || (projectEl && projectEl.options && projectEl.selectedIndex >= 0 ? projectEl.options[projectEl.selectedIndex].text : null),
-    asset_name: lineItems.map(function(li){ return li.custom_asset_name || (li.asset_id ? 'Asset #' + li.asset_id : null); }).filter(Boolean).join(', ')
+    project_name: projectName || customProjectName,
+    asset_name: lineItems.map(function(li){ return li.custom_asset_name || (li.asset_number ? 'Asset #' + li.asset_number : (li.asset_id ? 'Asset #' + li.asset_id : null)); }).filter(Boolean).join(', ')
   };
 
   if (locEl && locEl.tagName === 'INPUT') {
@@ -1165,6 +1188,8 @@ async function submitPurchase() {
   var body = {
     vendor: vendor || null,
     purchase_date: date + 'T08:00:00Z',
+    fuel_date: date,
+    fuel_site: location || null,
     submission_timestamp: new Date().toISOString(),
     location: location || null,
     person: person || null,
@@ -1173,11 +1198,14 @@ async function submitPurchase() {
     payment_type: paymentType,
     card_last_4: cardLast4,
     project_id: projectId || null,
+    project: projectName || null,
     receipt_r2_key: receiptR2Key,
     receipt_total: receiptTotal,
     receipt_items: receiptItems,
     line_items: lineItems,
     device_location: hasDeviceLocation() ? deviceLocation : null,
+    latitude: (hasDeviceLocation() && deviceLocation.latitude) ? deviceLocation.latitude : null,
+    longitude: (hasDeviceLocation() && deviceLocation.longitude) ? deviceLocation.longitude : null,
     manager_review_flags: managerReviewFlags,
     fuel_photos: {
       meter: fuelPhotoData.meter || null,
