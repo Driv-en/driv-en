@@ -1,3 +1,17 @@
+/**
+ * File: fuel-purchase.js
+ * Date Revised: March 6, 2026
+ *
+ * Purpose:
+ * Handles client-side logic for logging and submitting fuel purchases across 
+ * mobile and desktop devices in a PWA (Progressive Web App) environment. 
+ * Features include multi-tenant isolation via URL/auth context parameters, 
+ * theme (dark/light) carryover from the main user dashboard, automated AI 
+ * receipt OCR data extraction (with cropping interface), dynamic multi-line 
+ * item tracking, EXIF metadata validation for photo uploads, dynamic option 
+ * loading (users, locations, projects, assets), mobile-specific GPS location 
+ * verification, and payment/PO type management.
+ */
 var allTanks = [];
 var allAssets = [];
 var tankTypes = [];
@@ -10,6 +24,7 @@ var managerReviewFlags = [];
 var fuelPhotoSettings = { meter: false, asset: false };
 var fuelPhotos = { meter: null, asset: null };
 var fuelPhotoData = { meter: null, asset: null };
+var _extractedVendorLocation = {};
 
 /* ===== URL CONTEXT & AUTH HELPER ===== */
 function getUrlContextParams() {
@@ -123,8 +138,12 @@ function reportError(source, err) {
   } catch (e) { _reportErrorInFlight = false; }
 }
 
-/* ===== DEVICE LOCATION CHECK ===== */
+/* ===== DEVICE LOCATION CHECK (MOBILE ONLY) ===== */
 function checkDeviceLocation() {
+  if (!isMobileDevice()) {
+    // Desktop devices bypass location checks completely
+    return;
+  }
   if (!navigator.geolocation) {
     showLocationPopup('Your device does not support GPS location. Please use a device with location capabilities.');
     return;
@@ -142,7 +161,7 @@ function checkDeviceLocation() {
     function(err) {
       deviceLocation = null;
       updateLocationStatus(false);
-      var msg = 'Location is required to submit forms. ';
+      var msg = 'Location is required to submit forms on mobile. ';
       if (err.code === 1) msg += 'You denied location access. Please enable it in your device settings.';
       else if (err.code === 2) msg += 'Location is unavailable. Check your GPS or network connection.';
       else if (err.code === 3) msg += 'Location request timed out. Please try again.';
@@ -156,6 +175,11 @@ function checkDeviceLocation() {
 function updateLocationStatus(hasLocation) {
   var banner = document.getElementById('locationStatusBanner');
   if (!banner) return;
+  if (!isMobileDevice()) {
+    banner.style.display = 'none'; // Hide banner on desktop
+    return;
+  }
+  banner.style.display = 'block';
   if (hasLocation) {
     banner.className = 'location-banner ok';
     banner.innerHTML = '<strong>📍 Location:</strong> ' + deviceLocation.latitude.toFixed(6) + ', ' + deviceLocation.longitude.toFixed(6) + ' (±' + Math.round(deviceLocation.accuracy) + 'm)';
@@ -166,17 +190,15 @@ function updateLocationStatus(hasLocation) {
 }
 
 function showLocationPopup(message) {
+  if (!isMobileDevice()) return; // Do not display modal on desktop
+  
   var overlay = document.getElementById('locationPopupOverlay');
   var msgEl = document.getElementById('locationPopupMessage');
   if (!overlay || !msgEl) return;
 
-  var isMobile = isMobileDevice();
-  var instructionsHtml = isMobile ? 
+  var instructionsHtml = 
     '<p style="margin:0 0 6px;"><strong>iPhone/iPad (iOS):</strong> Settings → Privacy & Security → Location Services → ON → Browser → "While Using"</p>' +
-    '<p style="margin:0 0 6px;"><strong>Android:</strong> Settings → Location → ON → App permissions → Browser → "Allow only while using the app"</p>' :
-    '<p style="margin:0 0 6px;"><strong>Chrome:</strong> Click lock/tune icon in address bar → Site settings → Location → Allow → Reload</p>' +
-    '<p style="margin:0 0 6px;"><strong>Edge:</strong> Click lock icon in address bar → Permissions for this site → Location → Allow</p>' +
-    '<p style="margin:0 0 6px;"><strong>Firefox:</strong> Click lock icon in address bar → Permissions → Location → Allow</p>';
+    '<p style="margin:0 0 6px;"><strong>Android:</strong> Settings → Location → ON → App permissions → Browser → "Allow only while using the app"</p>';
 
   msgEl.innerHTML = 
     '<p style="font-size:15px;margin:0 0 16px;color:var(--text-main, #ffffff);">' + esc(message) + '</p>' +
@@ -184,7 +206,7 @@ function showLocationPopup(message) {
       '<p style="font-weight:600;margin:0 0 8px;color:var(--primary, #38bdf8);">How to enable location:</p>' +
       instructionsHtml +
     '</div>' +
-    '<p style="font-size:13px;color:var(--text-muted, #94a3b8);margin:0;">After enabling, click "Retry" to capture your location. Forms cannot be submitted without location.</p>';
+    '<p style="font-size:13px;color:var(--text-muted, #94a3b8);margin:0;">After enabling, click "Retry" to capture your location.</p>';
 
   overlay.style.display = 'flex';
 }
@@ -199,10 +221,9 @@ function hasDeviceLocation() {
 }
 
 function requireLocationOrPopup() {
+  if (!isMobileDevice()) return true; // Always allow desktop submission without location
   if (hasDeviceLocation()) return true;
-  var isMobile = isMobileDevice();
-  if (!isMobile) return true;
-  showLocationPopup('Location is required to submit this form. Please enable location on your device and retry.');
+  showLocationPopup('Location is required to submit this form on a mobile device. Please enable location on your device and retry.');
   return false;
 }
 
@@ -237,7 +258,6 @@ function makeTabsSticky() {
   var header = document.getElementById('dashHeader');
   var tabBar = document.querySelector('.fp-tab-bar');
 
-  // Prevent horizontal page scrolling on mobile
   document.documentElement.style.overflowX = 'hidden';
   document.body.style.overflowX = 'hidden';
   document.body.style.width = '100%';
@@ -627,7 +647,7 @@ function validateFuelPhotos() {
   return true;
 }
 
-/* ===== RECEIPT UPLOAD ===== */
+/* ===== RECEIPT UPLOAD & EXTRACTION ===== */
 function resizeImage(file, maxDim) {
   return new Promise(function(resolve, reject) {
     if (!file.type.startsWith('image/')) { resolve(file); return; }
@@ -948,6 +968,14 @@ async function _doExtraction(file, previewContent, status, preview) {
         vendorEl.classList.add('ai-extracted');
       }
 
+      // Store extracted Vendor Address fields
+      _extractedVendorLocation = {
+        vendor_address: data.extracted.vendor_address || null,
+        vendor_city: data.extracted.vendor_city || null,
+        vendor_state: data.extracted.vendor_state || null,
+        vendor_zip: data.extracted.vendor_zip || null
+      };
+
       var extractedDate = data.extracted.receipt_date || data.extracted.date;
       if (extractedDate) {
         var dateEl = document.getElementById('purchaseDate');
@@ -1218,6 +1246,10 @@ async function submitPurchase() {
 
   var body = {
     vendor: vendor || null,
+    vendor_address: _extractedVendorLocation.vendor_address || null,
+    vendor_city: _extractedVendorLocation.vendor_city || null,
+    vendor_state: _extractedVendorLocation.vendor_state || null,
+    vendor_zip: _extractedVendorLocation.vendor_zip || null,
     purchase_date: date + 'T08:00:00Z',
     fuel_date: date,
     fuel_site: location || null,
@@ -1343,6 +1375,7 @@ function clearPurchaseForm() {
   receiptR2Key = null;
   window._receiptMismatch = false;
   window._receiptHasNonFuelItems = false;
+  _extractedVendorLocation = {};
   managerReviewFlags = [];
   removeFuelPhoto('meter');
   removeFuelPhoto('asset');
@@ -1579,9 +1612,9 @@ async function initPage() {
   setTimeout(makeTabsSticky, 100);
   setTimeout(makeTabsSticky, 500);
 
-  if (!hasDeviceLocation() && isMobileDevice()) checkDeviceLocation();
-  var banner = document.getElementById('locationStatusBanner');
-  if (banner) banner.style.display = 'block';
+  if (isMobileDevice() && !hasDeviceLocation()) {
+    checkDeviceLocation();
+  }
 
   document.getElementById('loading').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
