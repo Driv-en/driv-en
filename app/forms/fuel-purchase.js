@@ -876,7 +876,7 @@ async function _doExtraction(file, previewContent, status, preview) {
     var base64Data = await new Promise(function(resolve, reject) {
       var reader = new FileReader();
       reader.onload = function() { resolve(reader.result); };
-      reader.onerror = function() { reject(new Error('Failed to read file')) };
+      reader.onerror = function() { reject(new Error('Failed to read file')); };
       reader.readAsDataURL(file);
     });
     var resp = await fetch(buildApiUrl('/api/fuel-receipts/extract'), {
@@ -905,8 +905,8 @@ async function _doExtraction(file, previewContent, status, preview) {
       return;
     }
     var data = await resp.json();
-    if (data.success && data.extracted && _currentExtractionId !== thisReqId) { return; }
     if (data.success && data.extracted) {
+      if (_currentExtractionId !== thisReqId) { return; }
       if (data.receipt && data.receipt.r2_key) { receiptR2Key = data.receipt.r2_key; }
       status.className = 'receipt-extract-status success';
       var conf = data.extracted.confidence || 0;
