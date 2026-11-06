@@ -437,6 +437,7 @@ function onFromChange() {
         var numStr = a.asset_number || (a.id ? String(a.id).slice(0,8) : '');
         opt.textContent = (numStr && numStr !== nameStr ? numStr + ' — ' : '') + nameStr + (a.category ? ' [' + a.category + ']' : '');
         opt.dataset.fuelType = a.fuel_type || '';
+        opt.dataset.assetNumber = numStr || assetId;
         fromAsset.appendChild(opt);
       });
     }
@@ -533,6 +534,7 @@ function updateToOptions() {
       opt.textContent = (numStr && numStr !== nameStr ? numStr + ' — ' : '') + nameStr + (a.category ? ' [' + a.category + ']' : '');
       opt.dataset.destType = 'asset';
       opt.dataset.destId = assetId;
+      opt.dataset.assetNumber = numStr || assetId;
       assetGroup.appendChild(opt);
       addedAssets++;
     });
@@ -794,7 +796,9 @@ async function submitTransfer(e) {
   var quantity = parseFloat(document.getElementById('quantity').value);
   var txDate = document.getElementById('txDate').value;
   var fuelType = document.getElementById('fuelType').value;
-  var projectId = document.getElementById('project').value;
+  var projectSelect = document.getElementById('project');
+  var projectId = projectSelect ? projectSelect.value : '';
+  var projectName = (projectSelect && projectSelect.selectedIndex > 0) ? projectSelect.options[projectSelect.selectedIndex].textContent : null;
   var location = document.getElementById('location').value.trim();
   var notes = document.getElementById('notes').value.trim();
   var meterReading = document.getElementById('meterReading').value ? parseFloat(document.getElementById('meterReading').value) : null;
@@ -818,6 +822,16 @@ async function submitTransfer(e) {
     showError('Invalid transfer combination. Please check your selections.'); return;
   }
 
+  // Extract asset number for associated asset
+  var assetNumber = null;
+  if (toType === 'asset' && toSelected) {
+    assetNumber = toSelected.dataset.assetNumber || toEntityId;
+  } else if (fromType === 'asset') {
+    var fromAssetSelect = document.getElementById('fromAsset');
+    var selectedFrom = fromAssetSelect ? fromAssetSelect.selectedOptions[0] : null;
+    assetNumber = selectedFrom ? (selectedFrom.dataset.assetNumber || fromAssetId) : fromAssetId;
+  }
+
   isSubmitting = true;
   var submitBtn = document.getElementById('submitBtn');
   submitBtn.disabled = true;
@@ -830,6 +844,8 @@ async function submitTransfer(e) {
       fuel_type: fuelType,
       quantity: quantity,
       transaction_date: txDate,
+      fuel_date: txDate,
+      fuel_site: location || null,
       submission_timestamp: new Date().toISOString(),
       from_entity_type: fromType,
       from_entity_id: fromEntityId,
@@ -837,9 +853,13 @@ async function submitTransfer(e) {
       to_entity_id: toEntityId,
       meter_reading: meterReading,
       project_id: projectId || null,
+      project: projectName || null,
+      asset_number: assetNumber || null,
       location: location || null,
       notes: notes || null,
       device_location: hasDeviceLocation() ? deviceLocation : null,
+      latitude: (hasDeviceLocation() && deviceLocation.latitude) ? deviceLocation.latitude : null,
+      longitude: (hasDeviceLocation() && deviceLocation.longitude) ? deviceLocation.longitude : null,
       manager_review_flags: managerReviewFlags,
       fuel_photos: {
         meter: fuelPhotoData.meter || null,
