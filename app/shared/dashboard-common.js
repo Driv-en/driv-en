@@ -51,14 +51,17 @@
       var el = document.getElementById(elementId);
       if (!el) return;
       var existingTitle = el.querySelector('#dashHeaderTitle');
+      var existingTabBar = el.querySelector('.fp-tab-bar');
       var response = await fetch(file);
       var html = await response.text();
       el.innerHTML = html;
-      if (existingTitle) {
-        var row1 = el.querySelector('.dash-header-row1');
-        if (row1 && !row1.querySelector('#dashHeaderTitle')) {
-          row1.appendChild(existingTitle);
-        }
+      
+      var row1 = el.querySelector('.dash-header-row1');
+      if (existingTitle && row1 && !row1.querySelector('#dashHeaderTitle')) {
+        row1.appendChild(existingTitle);
+      }
+      if (existingTabBar && !el.querySelector('.fp-tab-bar')) {
+        el.appendChild(existingTabBar);
       }
     } catch (e) { console.error("Failed to load component:", elementId, file, e.message); }
   }
