@@ -297,7 +297,7 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-/* ===== PROTECTED CENTERED HEADER TITLE ===== */
+/* ===== DYNAMIC WRAP & RESPONSIVE HEADER TITLE ===== */
 function insertHeaderTitle() {
   var title = document.getElementById('dashHeaderTitle');
   if (!title) {
@@ -309,12 +309,24 @@ function insertHeaderTitle() {
     }
   }
   if (title) {
+    var screenW = window.innerWidth;
     title.textContent = 'Fuel Purchase Form';
     title.style.display = 'block';
-    title.style.whiteSpace = 'nowrap';
-    title.style.overflow = 'hidden';
-    title.style.textOverflow = 'ellipsis';
-    title.style.maxWidth = '60%';
+    title.style.whiteSpace = 'normal';
+    title.style.wordWrap = 'break-word';
+    title.style.lineHeight = '1.2';
+    title.style.textAlign = 'center';
+
+    if (screenW <= 480) {
+      title.style.fontSize = '14px';
+      title.style.maxWidth = '50%';
+    } else if (screenW <= 800) {
+      title.style.fontSize = '16px';
+      title.style.maxWidth = '55%';
+    } else {
+      title.style.fontSize = '18px';
+      title.style.maxWidth = '60%';
+    }
   }
 }
 
@@ -1770,8 +1782,14 @@ if (document.readyState === 'loading') {
   setupInitListeners();
 }
 
-window.addEventListener('resize', makeTabsSticky);
-window.addEventListener('orientationchange', makeTabsSticky);
+window.addEventListener('resize', function() {
+  makeTabsSticky();
+  insertHeaderTitle();
+});
+window.addEventListener('orientationchange', function() {
+  makeTabsSticky();
+  insertHeaderTitle();
+});
 
 /* ===== EXPOSE HANDLERS ===== */
 window.recalcLine = recalcLine;
