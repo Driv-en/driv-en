@@ -301,28 +301,30 @@ function esc(s) {
 function fitHeaderTitle(el) {
   if (!el) return;
 
-  // 1. Force clear any 'nowrap' or clipping set by common dashboard scripts
-  el.style.position = 'absolute';
-  el.style.left = '50%';
-  el.style.transform = 'translateX(-50%)';
-  el.style.maxWidth = '50%';
-  el.style.whiteSpace = 'normal';       /* Allows multi-line wrapping */
-  el.style.wordBreak = 'break-word';     /* Prevents word overflow */
-  el.style.overflow = 'visible';        /* Shows second/third lines */
-  el.style.textOverflow = 'clip';
-  el.style.textAlign = 'center';
-  el.style.lineHeight = '1.15';
+  // 1. Force remove non-wrapping and clipping properties
+  el.style.setProperty('white-space', 'normal', 'important');
+  el.style.setProperty('word-break', 'break-word', 'important');
+  el.style.setProperty('overflow-wrap', 'break-word', 'important');
+  el.style.setProperty('overflow', 'visible', 'important');
+  el.style.setProperty('text-overflow', 'clip', 'important');
+  el.style.setProperty('position', 'absolute', 'important');
+  el.style.setProperty('left', '50%', 'important');
+  el.style.setProperty('top', '50%', 'important');
+  el.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
+  el.style.setProperty('max-width', '50%', 'important');
+  el.style.setProperty('text-align', 'center', 'important');
 
-  // 2. Adjust font size dynamically based on screen width
+  // 2. Adjust line-height for clean multi-line display
   var screenW = window.innerWidth;
   if (screenW <= 380) {
     el.style.fontSize = '12px';
+    el.style.lineHeight = '1.15';
   } else if (screenW <= 600) {
     el.style.fontSize = '14px';
-  } else if (screenW <= 900) {
-    el.style.fontSize = '16px';
+    el.style.lineHeight = '1.2';
   } else {
     el.style.fontSize = '18px';
+    el.style.lineHeight = '1.25';
   }
 }
 
