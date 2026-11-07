@@ -3,16 +3,15 @@
  * Date Revised: March 7, 2026
  *
  * Purpose:
- * Handles client-side logic for logging and submitting fuel purchases across 
- * mobile and desktop devices in a PWA (Progressive Web App) environment. 
- * Features include multi-tenant isolation via URL/auth context parameters, 
- * theme carryover from the main user dashboard, automated AI receipt OCR data 
- * extraction (with fixed viewport modal cropping interface), dynamic multi-line 
- * item tracking, dynamic option loading (users, locations, projects, assets), 
- * mobile-specific GPS location verification, payment/PO type management, card 
- * vendor selection/extraction, vendor address auto-population, mandatory 
- * payment type selection prior to receipt upload, optional photo upload management 
- * (meter & asset photos), meter regression checks, and tenant-wide settings enforcement.
+ * Client-side logic for logging fuel purchases across mobile and desktop devices.
+ * Architectural updates incorporated:
+ * 1. Asset-First Line Flow (Asset/Tank positioned as field #1 with async background
+ *    meter reading fetching and DOM banner updates).
+ * 2. Per-Line Photo Attestation (Asset & Meter photos managed per line item in linePhotosMap).
+ * 3. No Automated Line Subtotal / Cost-Per-Gallon Math forcing (preserves raw manual receipts).
+ * 4. Strict Sequential Line Stepping: Asset -> Fuel Type -> Qty -> Cost/Gal -> Meter -> Photos.
+ * 5. Full code completeness retaining crop overlay, AI OCR, GPS, settings enforcement,
+ *    and multi-tenant auth context.
  */
 
 var allTanks = [];
@@ -25,6 +24,9 @@ var deviceLocation = null;
 var formDirty = false;
 var managerReviewFlags = [];
 
+// Per-line photo storage map: linePhotosMap[lineId] = { asset: base64, meter: base64 }
+var linePhotosMap = {};
+
 // Multi-tenant Admin Toggle Settings state
 var systemSettings = {
   requireMeterPhoto: false,
@@ -32,9 +34,6 @@ var systemSettings = {
   requireGpsLocation: false
 };
 
-var fuelPhotoSettings = { meter: false, asset: false };
-var fuelPhotos = { meter: null, asset: null };
-var fuelPhotoData = { meter: null, asset: null };
 var _extractedVendorLocation = {};
 
 /* ===== DEVICE DETECTION ===== */
@@ -71,23 +70,10 @@ async function loadTenantSettings() {
 }
 
 function applySettingUIConstraints() {
-  var meterPhotoWrap = document.getElementById('meterPhotoWrap') || document.getElementById('meterPhotoContainer');
-  if (meterPhotoWrap) {
-    meterPhotoWrap.style.display = systemSettings.requireMeterPhoto ? 'block' : 'none';
-  }
-
-  var assetPhotoWrap = document.getElementById('assetPhotoWrap') || document.getElementById('assetPhotoContainer');
-  if (assetPhotoWrap) {
-    assetPhotoWrap.style.display = systemSettings.requireAssetPhoto ? 'block' : 'none';
-  }
-
-  var meterInputs = document.querySelectorAll('.line-meter');
-  meterInputs.forEach(function(input) {
-    if (systemSettings.requireMeterPhoto) {
-      input.setAttribute('data-photo-required', 'true');
-    } else {
-      input.removeAttribute('data-photo-required');
-    }
+  // Update all existing line items with photo requirement badges/labels
+  document.querySelectorAll('.line-item-row').forEach(function(row) {
+    var lineId = row.id;
+    updateLinePhotoRequirementsUI(lineId);
   });
 
   var banner = document.getElementById('locationStatusBanner');
@@ -100,8 +86,40 @@ function applySettingUIConstraints() {
   }
 }
 
-/* ===== PHOTO CAPTURE & PREVIEW HANDLERS ===== */
-function handlePhotoUpload(type, input) {
+function updateLinePhotoRequirementsUI(lineId) {
+  var row = document.getElementById(lineId);
+  if (!row) return;
+
+  var assetReqSpan = row.querySelector('.req-asset-photo-star');
+  if (assetReqSpan) {
+    assetReqSpan.style.display = systemSettings.requireAssetPhoto ? 'inline' : 'none';
+  }
+
+  var meterReqSpan = row.querySelector('.req-meter-photo-star');
+  if (meterReqSpan) {
+    meterReqSpan.style.display = systemSettings.requireMeterPhoto ? 'inline' : 'none';
+  }
+
+  var meterInput = row.querySelector('.line-meter');
+  if (meterInput) {
+    if (systemSettings.requireMeterPhoto) {
+      meterInput.setAttribute('data-photo-required', 'true');
+    } else {
+      meterInput.removeAttribute('data-photo-required');
+    }
+  }
+}
+
+/* ===== PER-LINE PHOTO CAPTURE & PREVIEW HANDLERS ===== */
+function triggerLinePhotoCapture(lineId, photoType) {
+  var inputId = 'linePhotoInput_' + photoType + '_' + lineId;
+  var inputEl = document.getElementById(inputId);
+  if (inputEl) {
+    inputEl.click();
+  }
+}
+
+function handleLinePhotoUpload(lineId, photoType, input) {
   if (!input || !input.files || !input.files[0]) return;
   var file = input.files[0];
 
@@ -109,32 +127,36 @@ function handlePhotoUpload(type, input) {
     var reader = new FileReader();
     reader.onload = function(e) {
       var base64 = e.target.result;
-      fuelPhotos[type] = base64;
-      fuelPhotoData[type] = resizedFile;
 
-      var previewEl = document.getElementById(type + 'PhotoPreview');
+      if (!linePhotosMap[lineId]) {
+        linePhotosMap[lineId] = { asset: null, meter: null };
+      }
+      linePhotosMap[lineId][photoType] = base64;
+
+      var previewEl = document.getElementById('linePhotoPreview_' + photoType + '_' + lineId);
       if (previewEl) {
         previewEl.src = base64;
         previewEl.style.display = 'block';
       }
-      var statusEl = document.getElementById(type + 'PhotoStatus');
-      if (statusEl) {
-        statusEl.textContent = '✓ Photo captured';
-        statusEl.className = 'photo-status-ok';
+
+      var cardEl = document.getElementById('linePhotoCard_' + photoType + '_' + lineId);
+      if (cardEl) {
+        cardEl.classList.add('has-photo');
       }
+
+      var btnEl = document.getElementById('linePhotoBtn_' + photoType + '_' + lineId);
+      if (btnEl) {
+        btnEl.textContent = '✓ Retake ' + (photoType === 'asset' ? 'Asset' : 'Meter') + ' Photo';
+        btnEl.style.background = '#15803d';
+        btnEl.style.borderColor = '#16a34a';
+      }
+
       markFormDirty();
     };
     reader.readAsDataURL(resizedFile);
   }).catch(function(err) {
-    reportError('handlePhotoUpload (' + type + ')', err);
+    reportError('handleLinePhotoUpload (' + lineId + ', ' + photoType + ')', err);
   });
-}
-
-function triggerPhotoCapture(type) {
-  var inputEl = document.getElementById(type + 'PhotoInput');
-  if (inputEl) {
-    inputEl.click();
-  }
 }
 
 /* ===== ENHANCED DATE PARSER ===== */
@@ -142,7 +164,6 @@ function parseToIsoDate(str) {
   if (!str) return null;
   var s = String(str).trim().toUpperCase();
 
-  // Strip time portions (e.g., "03/07/2026 02:15 PM" -> "03/07/2026")
   s = s.split('T')[0].split(' ')[0].replace(/,/g, '');
 
   var months = {
@@ -152,13 +173,11 @@ function parseToIsoDate(str) {
     JULY: '07', AUGUST: '08', SEPTEMBER: '09', OCTOBER: '10', NOVEMBER: '11', DECEMBER: '12'
   };
 
-  // 1. Standard ISO (YYYY-MM-DD)
   var isoMatch = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
   if (isoMatch) {
     return isoMatch[1] + '-' + String(isoMatch[2]).padStart(2, '0') + '-' + String(isoMatch[3]).padStart(2, '0');
   }
 
-  // 2. US Format (MM/DD/YYYY or MM/DD/YY)
   var usMatch = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/);
   if (usMatch) {
     var m = String(usMatch[1]).padStart(2, '0');
@@ -168,7 +187,6 @@ function parseToIsoDate(str) {
     return y + '-' + m + '-' + d;
   }
 
-  // 3. Text Month Format (e.g., "07-MAR-2026" or "MAR-07-2026")
   var alphaMatch = s.match(/^(\d{1,2})[-/\s]+([A-Z]{3,9})[-/\s]+(\d{2,4})/) ||
                    s.match(/^([A-Z]{3,9})[-/\s]+(\d{1,2})[-/\s]+(\d{2,4})/);
   if (alphaMatch) {
@@ -257,6 +275,7 @@ async function validateMeterReading(assetId, inputReading) {
         return {
           valid: false,
           lastReading: lastReading,
+          unit: data.unit || data.uom || 'hrs',
           message: 'Meter reading (' + inputReading + ') is lower than previous recorded reading (' + lastReading + ').'
         };
       }
@@ -378,7 +397,7 @@ function reportError(source, err) {
   } catch (e) { _reportErrorInFlight = false; }
 }
 
-/* ===== DEVICE LOCATION CHECK (iOS PWA WATCHPOSITION & FALLBACK FIX) ===== */
+/* ===== DEVICE LOCATION CHECK ===== */
 function checkDeviceLocation() {
   if (!isMobileDevice() && !systemSettings.requireGpsLocation) {
     deviceLocation = null;
@@ -533,7 +552,7 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-/* ===== DYNAMIC AUTO-FITTING & FLEXIBLE HEADER TITLE ===== */
+/* ===== HEADER STYLING & TITLE SAFETY ===== */
 function fitHeaderTitle(el) {
   if (!el) return;
 
@@ -567,7 +586,6 @@ function insertHeaderTitle() {
   }
 }
 
-/* ===== STICKY HEADER SAFEGUARD ===== */
 function makeTabsSticky() {
   var dashHeader = document.getElementById('dashHeader');
   if (dashHeader) {
@@ -728,7 +746,15 @@ function buildAssetOptionsHtml() {
   return html;
 }
 
-function handleAssetChange(selectEl) {
+/* ===== ASSET SELECTION & ASYNC METER CONTEXT FETCH ===== */
+async function handleAssetChange(selectEl, lineId) {
+  var row = document.getElementById(lineId);
+  if (!row) return;
+
+  var banner = row.querySelector('.prev-meter-banner');
+  var meterInput = row.querySelector('.line-meter');
+  var meterLabel = row.querySelector('.line-meter-label');
+
   if (selectEl.value === '__custom') {
     var input = document.createElement('input');
     input.type = 'text';
@@ -737,18 +763,67 @@ function handleAssetChange(selectEl) {
     input.setAttribute('data-custom', 'true');
     input.oninput = function() { markFormDirty(); };
     selectEl.parentNode.replaceChild(input, selectEl);
+    if (banner) banner.style.display = 'none';
+    if (meterLabel) meterLabel.innerHTML = 'Meter Reading <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(hrs/mi)</span>';
     input.focus();
+    return;
+  }
+
+  markFormDirty();
+
+  var parts = (selectEl.value || '').split('|');
+  var entityType = parts[0];
+  var entityId = parts[1];
+
+  if (entityType === 'asset' && entityId) {
+    if (banner) {
+      banner.style.display = 'block';
+      banner.innerHTML = 'Fetching historical meter context…';
+    }
+
+    try {
+      var resp = await safeFetch(buildApiUrl('/api/assets/' + entityId + '/latest-meter'));
+      if (resp && resp.ok) {
+        var data = await resp.json();
+        var reading = data.latest_reading ?? data.reading ?? null;
+        var unit = (data.unit || data.uom || data.meter_unit || 'hrs').toLowerCase();
+
+        if (meterLabel) {
+          meterLabel.innerHTML = 'Meter Reading (' + esc(unit) + ') <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(if machinery)</span>';
+        }
+        if (meterInput) {
+          meterInput.placeholder = unit;
+        }
+
+        if (banner) {
+          if (reading !== null && reading !== undefined) {
+            banner.innerHTML = '<strong>Previous Meter Reading:</strong> ' + esc(String(reading)) + ' ' + esc(unit) + ' (Recorded: ' + esc(data.date || 'Recent') + ')';
+          } else {
+            banner.innerHTML = '<strong>Previous Meter Reading:</strong> No previous reading recorded for this asset.';
+          }
+        }
+      } else {
+        if (banner) banner.style.display = 'none';
+      }
+    } catch (e) {
+      console.warn('Error loading latest meter reading:', e);
+      if (banner) banner.style.display = 'none';
+    }
   } else {
-    markFormDirty();
+    if (banner) banner.style.display = 'none';
+    if (meterLabel) meterLabel.innerHTML = 'Meter Reading <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(if machinery)</span>';
   }
 }
 
-/* ===== LINE ITEMS ===== */
+/* ===== SEQUENTIAL STEPPING LINE ITEMS WITH PER-LINE PHOTOS ===== */
 function addLineItem(data) {
   lineItemCount++;
   var lineId = 'line-' + lineItemCount;
   var container = document.getElementById('lineItemsContainer');
   if (!container) return;
+
+  linePhotosMap[lineId] = { asset: null, meter: null };
+
   var div = document.createElement('div');
   div.className = 'line-item-row';
   div.id = lineId;
@@ -762,8 +837,23 @@ function addLineItem(data) {
   var meterReadingEsc = esc(meterReading);
 
   div.innerHTML =
+    '<div class="line-item-header-bar">' +
+      '<span class="line-item-title">Line Item #' + lineItemCount + '</span>' +
+      '<button class="btn-delete-line" onclick="removeLineItem(\'' + lineId + '\')">Delete Line</button>' +
+    '</div>' +
+
+    '<div class="prev-meter-banner" id="prevMeterBanner_' + lineId + '"></div>' +
+
     '<div class="line-item-grid">' +
-      '<div class="purchase-field"><label class="purchase-label">Fuel Type <span style="color:#cc0000;">*</span></label>' +
+      '<!-- STEP 1: ASSET / TANK -->' +
+      '<div class="purchase-field"><label class="purchase-label">1. Asset / Tank <span style="color:#cc0000;">*</span></label>' +
+        '<select class="purchase-input line-destination ai-needed" onchange="handleAssetChange(this, \'' + lineId + '\')">' +
+          buildAssetOptionsHtml() +
+        '</select>' +
+      '</div>' +
+
+      '<!-- STEP 2: FUEL TYPE -->' +
+      '<div class="purchase-field"><label class="purchase-label">2. Fuel Type <span style="color:#cc0000;">*</span></label>' +
         '<select class="purchase-input line-fuel-type" onchange="recalcLine(\'' + lineId + '\'); markFormDirty()">' +
           '<option value="diesel_onroad"' + (fuelType === 'diesel_onroad' || fuelType === 'diesel' ? ' selected' : '') + '>Diesel (On-Road)</option>' +
           '<option value="diesel_offroad"' + (fuelType === 'diesel_offroad' ? ' selected' : '') + '>Diesel (Off-Road)</option>' +
@@ -774,22 +864,37 @@ function addLineItem(data) {
           '<option value="__custom_fuel"' + (fuelType === '__custom_fuel' ? ' selected' : '') + '>+ Other (type manually)</option>' +
         '</select>' +
       '</div>' +
-      '<div class="purchase-field"><label class="purchase-label">Asset <span style="color:#cc0000;">*</span></label>' +
-        '<select class="purchase-input line-destination ai-needed" onchange="handleAssetChange(this)">' +
-          buildAssetOptionsHtml() +
-        '</select>' +
-      '</div>' +
-      '<div class="purchase-field"><label class="purchase-label">Qty (gal) <span style="color:#cc0000;">*</span></label>' +
+
+      '<!-- STEP 3: QUANTITY -->' +
+      '<div class="purchase-field"><label class="purchase-label">3. Qty (gal) <span style="color:#cc0000;">*</span></label>' +
         '<input type="number" class="purchase-input line-qty" placeholder="0" min="0" step="0.01" value="' + qtyEsc + '" oninput="recalcLine(\'' + lineId + '\'); markFormDirty()">' +
       '</div>' +
-      '<div class="purchase-field"><label class="purchase-label">Cost/Gal <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(optional)</span></label>' +
+
+      '<!-- STEP 4: COST PER GALLON -->' +
+      '<div class="purchase-field"><label class="purchase-label">4. Cost/Gal <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(optional)</span></label>' +
         '<input type="number" class="purchase-input line-cpg" placeholder="$0.00" min="0" step="0.001" value="' + unitPriceEsc + '" oninput="recalcLine(\'' + lineId + '\'); markFormDirty()">' +
       '</div>' +
-      '<div class="purchase-field"><label class="purchase-label">Meter Reading <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(if machinery)</span></label>' +
+
+      '<!-- STEP 5: METER READING -->' +
+      '<div class="purchase-field" style="grid-column: 1 / -1;"><label class="purchase-label line-meter-label">5. Meter Reading <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(if machinery)</span></label>' +
         '<input type="number" class="purchase-input line-meter ai-needed" placeholder="hrs/mi" min="0" step="0.1" value="' + meterReadingEsc + '" oninput="markFormDirty()">' +
       '</div>' +
-      '<div class="purchase-field remove-action-wrap">' +
-        '<button class="btn-delete-line" onclick="removeLineItem(\'' + lineId + '\')">Delete</button>' +
+    '</div>' +
+
+    '<!-- PER-LINE PHOTO ATTESTATION CARDS -->' +
+    '<div class="line-photos-grid">' +
+      '<div class="line-photo-card" id="linePhotoCard_asset_' + lineId + '">' +
+        '<label class="purchase-label" style="display:block;margin-bottom:6px;">Asset Photo <span class="req-asset-photo-star" style="color:#cc0000;display:' + (systemSettings.requireAssetPhoto ? 'inline' : 'none') + ';">*</span></label>' +
+        '<input type="file" id="linePhotoInput_asset_' + lineId + '" accept="image/*" capture="environment" style="display:none;" onchange="handleLinePhotoUpload(\'' + lineId + '\', \'asset\', this)">' +
+        '<button type="button" class="btn-line-photo" id="linePhotoBtn_asset_' + lineId + '" onclick="triggerLinePhotoCapture(\'' + lineId + '\', \'asset\')">📷 Take Asset Photo</button>' +
+        '<img id="linePhotoPreview_asset_' + lineId + '" class="line-photo-preview" alt="Asset Preview">' +
+      '</div>' +
+
+      '<div class="line-photo-card" id="linePhotoCard_meter_' + lineId + '">' +
+        '<label class="purchase-label" style="display:block;margin-bottom:6px;">Meter Photo <span class="req-meter-photo-star" style="color:#cc0000;display:' + (systemSettings.requireMeterPhoto ? 'inline' : 'none') + ';">*</span></label>' +
+        '<input type="file" id="linePhotoInput_meter_' + lineId + '" accept="image/*" capture="environment" style="display:none;" onchange="handleLinePhotoUpload(\'' + lineId + '\', \'meter\', this)">' +
+        '<button type="button" class="btn-line-photo" id="linePhotoBtn_meter_' + lineId + '" onclick="triggerLinePhotoCapture(\'' + lineId + '\', \'meter\')">📷 Take Meter Photo</button>' +
+        '<img id="linePhotoPreview_meter_' + lineId + '" class="line-photo-preview" alt="Meter Preview">' +
       '</div>' +
     '</div>';
 
@@ -803,12 +908,14 @@ function addLineItem(data) {
     if (data.classes.meter) div.querySelector('.line-meter').className = data.classes.meter;
   }
 
+  updateLinePhotoRequirementsUI(lineId);
   recalcGrandTotal();
 }
 
 function removeLineItem(lineId) {
   var el = document.getElementById(lineId);
   if (el) el.remove();
+  delete linePhotosMap[lineId];
   recalcGrandTotal();
   if (document.querySelectorAll('.line-item-row').length === 0) addLineItem();
 }
@@ -852,7 +959,7 @@ function recalcGrandTotal() {
   checkReceiptMismatch();
 }
 
-/* ===== CROP OVERLAY ===== */
+/* ===== RECEIPT CROP OVERLAY ===== */
 var _cropState = null;
 
 function showCropOverlay(file, callback) {
@@ -1274,7 +1381,6 @@ async function _doExtraction(file, previewContent, status, preview) {
         zipEl.classList.add('ai-extracted');
       }
 
-      // Robust Extracted Date Parsing & Fallback Logic
       var rawDate = data.extracted.receipt_date || data.extracted.date || data.extracted.transaction_date || data.extracted.purchase_date;
       var isoDate = parseToIsoDate(rawDate);
       var dateEl = document.getElementById('purchaseDate');
@@ -1352,6 +1458,7 @@ async function _doExtraction(file, previewContent, status, preview) {
         var lineContainer = document.getElementById('lineItemsContainer');
         if (lineContainer) lineContainer.innerHTML = '';
         lineItemCount = 0;
+        linePhotosMap = {};
         data.extracted.line_items.forEach(function(li) {
           addLineItem({ fuel_type: li.fuel_type || 'diesel_onroad', gallons: li.gallons || li.quantity || '', unit_price: li.unit_price || '', amount: li.amount || '', meter_reading: li.meter_reading || '' });
         });
@@ -1405,7 +1512,7 @@ function showConfidenceBanner(extracted) {
   banner.style.display = 'block';
 }
 
-/* ===== SUBMIT PURCHASE ===== */
+/* ===== SUBMIT PURCHASE WITH PER-LINE ATTESTATION VALIDATIONS ===== */
 async function submitPurchase() {
   if (!requireLocationOrPopup()) return;
 
@@ -1441,16 +1548,6 @@ async function submitPurchase() {
   if (!vendor || !vendor.trim()) { showPurchaseError('Vendor is required'); return; }
   if (!person) { showPurchaseError('User is required'); return; }
 
-  if (systemSettings.requireAssetPhoto && !fuelPhotos.asset) {
-    showPurchaseError('Photo of the asset is required per company settings.');
-    return;
-  }
-
-  if (systemSettings.requireMeterPhoto && !fuelPhotos.meter) {
-    showPurchaseError('Photo of the meter reading is required per company settings.');
-    return;
-  }
-
   var projectEl = document.getElementById('purchaseProject');
   var projectId = projectEl ? projectEl.value.trim() : '';
   var projectName = null;
@@ -1476,6 +1573,8 @@ async function submitPurchase() {
 
   for (var i = 0; i < rows.length; i++) {
     var row = rows[i];
+    var lineId = row.id;
+
     var destInput = row.querySelector('.line-destination');
     var destVal = destInput ? destInput.value.trim() : '';
     var qty = parseFloat(row.querySelector('.line-qty').value);
@@ -1484,8 +1583,13 @@ async function submitPurchase() {
     var meterReadingVal = row.querySelector('.line-meter').value.trim();
     var meterReading = parseFloat(meterReadingVal);
 
-    if (!qty || qty <= 0 || !isFinite(qty)) { showPurchaseError('Line ' + (i + 1) + ': quantity (gallons) is required and must be > 0'); return; }
-    if (!fuelType) { showPurchaseError('Line ' + (i + 1) + ': fuel type is required'); return; }
+    if (!destVal || destVal === '__custom') {
+      showPurchaseError('Line Item #' + (i + 1) + ': Asset / Tank selection is required.');
+      return;
+    }
+
+    if (!fuelType) { showPurchaseError('Line Item #' + (i + 1) + ': fuel type is required'); return; }
+    if (!qty || qty <= 0 || !isFinite(qty)) { showPurchaseError('Line Item #' + (i + 1) + ': quantity (gallons) is required and must be > 0'); return; }
 
     var dest = '';
     var customAssetName = null;
@@ -1493,13 +1597,10 @@ async function submitPurchase() {
     if (destInput && destInput.tagName === 'INPUT' && destInput.getAttribute('data-custom') === 'true') {
       customAssetName = destVal;
       if (!customAssetName) {
-        showPurchaseError('Line ' + (i + 1) + ': asset name is required'); return;
+        showPurchaseError('Line Item #' + (i + 1) + ': asset name is required'); return;
       }
     } else {
       dest = destVal;
-      if (!dest || dest === '__custom') {
-        showPurchaseError('Line ' + (i + 1) + ': asset is required'); return;
-      }
     }
 
     var parts = dest.split('|');
@@ -1509,17 +1610,15 @@ async function submitPurchase() {
 
     if (entityType === 'asset' || systemSettings.requireMeterPhoto) {
       if (!meterReadingVal || isNaN(meterReading) || meterReading < 0) {
-        showPurchaseError('Line ' + (i + 1) + ': Meter Reading is required.');
+        showPurchaseError('Line Item #' + (i + 1) + ': Meter Reading is required.');
         return;
       }
 
-      // Check for Meter Reading Regression / Typo Safeguard
       if (entityId) {
         var meterCheck = await validateMeterReading(entityId, meterReading);
         if (!meterCheck.valid) {
-          // 1. Alert user & verify if lower reading is intentional
           var confirmLower = confirm(
-            '⚠️ METER READING WARNING:\n\n' + 
+            '⚠️ METER READING WARNING (Line Item #' + (i + 1) + '):\n\n' + 
             meterCheck.message + '\n\n' +
             'Did you replace the meter, swap the cluster, or is this lower reading intentional?\n\n' +
             '• Click "OK" to provide a mandatory explanation note and proceed.\n' +
@@ -1527,43 +1626,52 @@ async function submitPurchase() {
           );
 
           if (!confirmLower) {
-            showPurchaseError('Line ' + (i + 1) + ': Please correct the meter reading.');
-            return; // Stop submission for correction
+            showPurchaseError('Line Item #' + (i + 1) + ': Please correct the meter reading.');
+            return;
           }
 
-          // 2. Prompt for mandatory explanation note
           var reasonNote = prompt(
-            'REQUIRED EXPLANATION:\n\n' +
+            'REQUIRED EXPLANATION (Line Item #' + (i + 1) + '):\n\n' +
             'Please enter the reason for the lower meter reading (e.g., "Meter replaced at 4,500 hrs" or "New gauge installed"):',
             ''
           );
 
           if (!reasonNote || !reasonNote.trim()) {
-            showPurchaseError('Line ' + (i + 1) + ': An explanation note is required when entering a lower meter reading.');
-            return; // Stop submission if note is omitted
+            showPurchaseError('Line Item #' + (i + 1) + ': An explanation note is required when entering a lower meter reading.');
+            return;
           }
 
           var cleanReason = reasonNote.trim();
 
-          // 3. Attach reason to main transaction notes
           if (notes) {
-            notes += ' | METER ROLLBACK REASON: ' + cleanReason;
+            notes += ' | LINE ' + (i + 1) + ' METER ROLLBACK REASON: ' + cleanReason;
           } else {
-            notes = 'METER ROLLBACK REASON: ' + cleanReason;
+            notes = 'LINE ' + (i + 1) + ' METER ROLLBACK REASON: ' + cleanReason;
           }
 
-          // 4. Record audit flag to fuel_flags table
           managerReviewFlags.push({
             field: 'meter_reading',
             line: i + 1,
             value: meterReading,
             previous_value: meterCheck.lastReading,
-            reason: 'Meter reading (' + meterReading + ') is lower than previous recorded reading (' + meterCheck.lastReading + '). User Explanation: ' + cleanReason,
+            reason: 'Line #' + (i + 1) + ' meter reading (' + meterReading + ') is lower than previous recorded reading (' + meterCheck.lastReading + '). User Explanation: ' + cleanReason,
             flag_type: 'meter_anomaly',
             severity: 'warning'
           });
         }
       }
+    }
+
+    var linePhotoSet = linePhotosMap[lineId] || { asset: null, meter: null };
+
+    if (systemSettings.requireAssetPhoto && !linePhotoSet.asset) {
+      showPurchaseError('Line Item #' + (i + 1) + ': Photo of the asset is required per tenant settings.');
+      return;
+    }
+
+    if (systemSettings.requireMeterPhoto && !linePhotoSet.meter) {
+      showPurchaseError('Line Item #' + (i + 1) + ': Photo of the meter reading is required per tenant settings.');
+      return;
     }
 
     var li = {
@@ -1580,6 +1688,8 @@ async function submitPurchase() {
       fuel_site: location || null,
       cost_per_gallon: cpg,
       meter_reading: !isNaN(meterReading) ? meterReading : null,
+      asset_photo: linePhotoSet.asset || null,
+      meter_photo: linePhotoSet.meter || null,
       source: 'fuel_purchase',
       latitude: (hasDeviceLocation() && deviceLocation.latitude) ? deviceLocation.latitude : null,
       longitude: (hasDeviceLocation() && deviceLocation.longitude) ? deviceLocation.longitude : null
@@ -1664,13 +1774,6 @@ async function submitPurchase() {
     receipt_total: receiptTotal,
     receipt_items: receiptItems,
     line_items: lineItems,
-
-    fuel_photos: {
-      meter: fuelPhotos.meter || null,
-      asset: fuelPhotos.asset || null
-    },
-    meter_photo: fuelPhotos.meter || null,
-    asset_photo: fuelPhotos.asset || null,
 
     device_location: hasDeviceLocation() ? deviceLocation : null,
     latitude: (hasDeviceLocation() && deviceLocation.latitude) ? deviceLocation.latitude : null,
@@ -1796,18 +1899,6 @@ function clearPurchaseForm() {
 
   setVal('receiptCameraInput', '');
   setVal('receiptFileInput', '');
-  setVal('meterPhotoInput', '');
-  setVal('assetPhotoInput', '');
-
-  var meterPreview = document.getElementById('meterPhotoPreview');
-  if (meterPreview) { meterPreview.src = ''; meterPreview.style.display = 'none'; }
-  var assetPreview = document.getElementById('assetPhotoPreview');
-  if (assetPreview) { assetPreview.src = ''; assetPreview.style.display = 'none'; }
-
-  var meterStatus = document.getElementById('meterPhotoStatus');
-  if (meterStatus) { meterStatus.textContent = ''; meterStatus.className = ''; }
-  var assetStatus = document.getElementById('assetPhotoStatus');
-  if (assetStatus) { assetStatus.textContent = ''; assetStatus.className = ''; }
 
   var confBanner = document.getElementById('aiConfidenceBanner');
   if (confBanner) {
@@ -1827,8 +1918,7 @@ function clearPurchaseForm() {
   receiptR2Key = null;
   window._receiptMismatch = false;
   window._receiptHasNonFuelItems = false;
-  fuelPhotos = { meter: null, asset: null };
-  fuelPhotoData = { meter: null, asset: null };
+  linePhotosMap = {};
   _extractedVendorLocation = {};
   managerReviewFlags = [];
 
@@ -1918,7 +2008,10 @@ async function loadAssets() {
         var lastRow = document.querySelector('.line-item-row:last-child');
         if (lastRow && r.dest) {
           var destInput = lastRow.querySelector('.line-destination');
-          if (destInput) destInput.value = r.dest;
+          if (destInput) {
+            destInput.value = r.dest;
+            handleAssetChange(destInput, lastRow.id);
+          }
         }
       });
     }
@@ -2024,6 +2117,7 @@ function initPurchaseForm() {
   var lineContainer = document.getElementById('lineItemsContainer');
   if (lineContainer) lineContainer.innerHTML = '';
   lineItemCount = 0;
+  linePhotosMap = {};
   addLineItem();
   recalcGrandTotal();
 }
@@ -2129,8 +2223,8 @@ window.markFormDirty = markFormDirty;
 window.removeLineItem = removeLineItem;
 window.handleReceiptUpload = handleReceiptUpload;
 window.triggerReceiptCapture = triggerReceiptCapture;
-window.handlePhotoUpload = handlePhotoUpload;
-window.triggerPhotoCapture = triggerPhotoCapture;
+window.triggerLinePhotoCapture = triggerLinePhotoCapture;
+window.handleLinePhotoUpload = handleLinePhotoUpload;
 window.submitPurchase = submitPurchase;
 window.clearPurchaseForm = clearPurchaseForm;
 window.handlePaymentTypeChange = handlePaymentTypeChange;
