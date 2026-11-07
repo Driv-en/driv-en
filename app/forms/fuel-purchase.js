@@ -28,6 +28,12 @@ var fuelPhotos = { meter: null, asset: null };
 var fuelPhotoData = { meter: null, asset: null };
 var _extractedVendorLocation = {};
 
+/* ===== DEVICE DETECTION ===== */
+function isMobileDevice() {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+         (navigator.maxTouchPoints > 0 && window.innerWidth <= 800);
+}
+
 /* ===== URL CONTEXT & MULTI-TENANT AUTH HELPER ===== */
 function getUrlContextParams() {
   var params = new URLSearchParams(window.location.search);
@@ -249,10 +255,6 @@ function requireLocationOrPopup() {
   if (hasDeviceLocation()) return true;
   showLocationPopup('Location is required to submit this form on a mobile device. Please enable location on your device and retry.');
   return false;
-}
-
-function isMobileDevice() {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0 && window.innerWidth <= 800);
 }
 
 function esc(s) {
@@ -669,7 +671,6 @@ function _buildCropUI(file, img, imgUrl, callback) {
 
   imgEl.onload = function() {
     requestAnimationFrame(function() {
-      // Calculate true image rendering boundaries inside crop-stage
       var dispW = imgEl.offsetWidth;
       var dispH = imgEl.offsetHeight;
       var imgLeft = imgEl.offsetLeft;
@@ -789,11 +790,9 @@ function _performCrop(file, img, imgEl, stage, state) {
   var imgLeft = imgEl.offsetLeft;
   var imgTop = imgEl.offsetTop;
 
-  // Scale factors mapping displayed image pixels to original natural image resolution
   var scaleX = img.naturalWidth / dispW;
   var scaleY = img.naturalHeight / dispH;
 
-  // Correct offset relative to image position inside container
   var relativeBoxX = state.boxX - imgLeft;
   var relativeBoxY = state.boxY - imgTop;
 
@@ -1106,7 +1105,6 @@ function showConfidenceBanner(extracted) {
 /* ===== SUBMIT PURCHASE ===== */
 async function submitPurchase() {
   if (!requireLocationOrPopup()) return;
-  if (!validateFuelPhotos()) return;
 
   var dateEl = document.getElementById('purchaseDate');
   var date = dateEl ? dateEl.value : '';
@@ -1225,7 +1223,6 @@ async function submitPurchase() {
   lineItems.forEach(function(li) { totalQty += li.quantity; });
   if (totalQty <= 0) { showPurchaseError('Total quantity must be greater than zero'); return; }
 
-  var photoFlags = managerReviewFlags.filter(function(f) { return f.field === 'meter_photo' || f.field === 'asset_photo'; });
   managerReviewFlags = [];
 
   var locEl = document.getElementById('purchaseLocation');
@@ -1273,8 +1270,6 @@ async function submitPurchase() {
     managerReviewFlags.push(Object.assign({}, baseFlagContext, { field: 'receipt_mismatch', value: 'Receipt Total does not match Grand Fuel Total', reason: 'Receipt Total ('+(receiptTotal||'?')+') differs from Grand Fuel Total — manager should verify the receipt and line items' }));
   }
 
-  photoFlags.forEach(function(f) { managerReviewFlags.push(Object.assign({}, baseFlagContext, f)); });
-
   var body = {
     vendor: vendor || null,
     vendor_address: vendorAddress,
@@ -1300,11 +1295,7 @@ async function submitPurchase() {
     device_location: hasDeviceLocation() ? deviceLocation : null,
     latitude: (hasDeviceLocation() && deviceLocation.latitude) ? deviceLocation.latitude : null,
     longitude: (hasDeviceLocation() && deviceLocation.longitude) ? deviceLocation.longitude : null,
-    manager_review_flags: managerReviewFlags,
-    fuel_photos: {
-      meter: fuelPhotoData.meter || null,
-      asset: fuelPhotoData.asset || null
-    }
+    manager_review_flags: managerReviewFlags
   };
 
   var ctx = getUrlContextParams();
@@ -1444,8 +1435,6 @@ function clearPurchaseForm() {
   window._receiptHasNonFuelItems = false;
   _extractedVendorLocation = {};
   managerReviewFlags = [];
-  removeFuelPhoto('meter');
-  removeFuelPhoto('asset');
 
   var lineContainer = document.getElementById('lineItemsContainer');
   if (lineContainer) lineContainer.innerHTML = '';
@@ -1702,7 +1691,6 @@ async function initPage() {
   try { await loadProjects(); } catch(e) { console.warn('Projects error:', e); }
 
   initPurchaseForm();
-  try { loadFuelPhotoSettings(); } catch(e) {}
   checkDeviceLocation();
 }
 
@@ -1737,8 +1725,6 @@ window.markFormDirty = markFormDirty;
 window.removeLineItem = removeLineItem;
 window.handleReceiptUpload = handleReceiptUpload;
 window.triggerReceiptCapture = triggerReceiptCapture;
-window.handleFuelPhotoUpload = handleFuelPhotoUpload;
-window.removeFuelPhoto = removeFuelPhoto;
 window.submitPurchase = submitPurchase;
 window.clearPurchaseForm = clearPurchaseForm;
 window.handlePaymentTypeChange = handlePaymentTypeChange;
