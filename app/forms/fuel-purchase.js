@@ -11,7 +11,8 @@
  * item tracking, EXIF metadata validation for photo uploads, dynamic option 
  * loading (users, locations, projects, assets), mobile-specific GPS location 
  * verification, payment/PO type management, card vendor selection/extraction,
- * vendor address auto-population, and mandatory Payment Type selection before receipt upload.
+ * vendor address auto-population, mandatory Payment Type selection before receipt upload,
+ * and tenant-wide settings enforcement (meter photo, asset photo, GPS location).
  */
 
 var allTanks = [];
@@ -23,6 +24,14 @@ var _objectUrl = null;
 var deviceLocation = null;
 var formDirty = false;
 var managerReviewFlags = [];
+
+// Multi-tenant Admin Toggle Settings state
+var systemSettings = {
+  requireMeterPhoto: false,
+  requireAssetPhoto: false,
+  requireGpsLocation: false
+};
+
 var fuelPhotoSettings = { meter: false, asset: false };
 var fuelPhotos = { meter: null, asset: null };
 var fuelPhotoData = { meter: null, asset: null };
@@ -34,12 +43,55 @@ function isMobileDevice() {
          (navigator.maxTouchPoints > 0 && window.innerWidth <= 800);
 }
 
-/* ===== DATE PARSER (FORMATS OCR DATES TO YYYY-MM-DD FOR INPUT TYPE="DATE") ===== */
+/* ===== LOAD TENANT SETTINGS FROM /auth/get-settings ===== */
+async function loadTenantSettings() {
+  try {
+    var resp = await safeFetch(buildApiUrl('/auth/get-settings'));
+    if (resp && resp.ok) {
+      var data = await resp.json();
+      if (data.success && data.settings) {
+        var s = data.settings;
+        systemSettings.requireMeterPhoto = Boolean(s.fuel_meter_photo);
+        systemSettings.requireAssetPhoto = Boolean(s.fuel_asset_photo);
+        systemSettings.requireGpsLocation = Boolean(s.location_request);
+      }
+    }
+  } catch (e) {
+    console.warn('Could not load settings from server, checking fallback:', e);
+    systemSettings.requireMeterPhoto = localStorage.getItem('setting_fuel_meter_photo') === 'true';
+    systemSettings.requireAssetPhoto = localStorage.getItem('setting_fuel_asset_photo') === 'true';
+    systemSettings.requireGpsLocation = localStorage.getItem('setting_location_request') === 'true';
+  }
+  applySettingUIConstraints();
+}
+
+function applySettingUIConstraints() {
+  // Enforce meter photo label indicators dynamically
+  var meterInputs = document.querySelectorAll('.line-meter');
+  meterInputs.forEach(function(input) {
+    if (systemSettings.requireMeterPhoto) {
+      input.setAttribute('data-photo-required', 'true');
+    } else {
+      input.removeAttribute('data-photo-required');
+    }
+  });
+
+  // Display location status banner if location tagging is toggled on or on mobile
+  var banner = document.getElementById('locationStatusBanner');
+  if (banner) {
+    if (systemSettings.requireGpsLocation || isMobileDevice()) {
+      banner.style.display = 'block';
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+}
+
+/* ===== DATE PARSER ===== */
 function parseToIsoDate(str) {
   if (!str) return null;
   var s = String(str).trim();
   
-  // Handles MM/DD/YY or MM/DD/YYYY formats (e.g., 8/13/26 or 08/13/2026)
   var slashMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
   if (slashMatch) {
     var m = String(slashMatch[1]).padStart(2, '0');
@@ -49,7 +101,6 @@ function parseToIsoDate(str) {
     return y + '-' + m + '-' + d;
   }
   
-  // Handles already ISO-formatted dates (YYYY-MM-DD)
   var isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (isoMatch) return isoMatch[0];
 
@@ -81,6 +132,29 @@ function preserveUrlParams(targetUrl) {
   if (ctx.org_id && !url.searchParams.has('org_id')) url.searchParams.set('org_id', ctx.org_id);
   if (ctx.role_id && !url.searchParams.has('role_id')) url.searchParams.set('role_id', ctx.role_id);
   return url.pathname + url.search;
+}
+
+async function safeFetch(url, options) {
+  options = options || {};
+  options.headers = options.headers || {};
+  var storedUser = window.dashUser || window.drivenUser || {};
+  var orgId = getUrlContextParams().org_id || storedUser.org_id || localStorage.getItem("driven_org_id") || "";
+  options.headers["x-user-id"] = storedUser.id || localStorage.getItem("driven_user_id") || "";
+  options.headers["x-org-id"] = orgId;
+  
+  var controller = new AbortController();
+  var timeoutId = setTimeout(function() { controller.abort(); }, 8000);
+  options.signal = controller.signal;
+  
+  try {
+    var res = await fetch(url, options);
+    clearTimeout(timeoutId);
+    return res;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    reportError("safeFetch", err);
+    return null;
+  }
 }
 
 function markFormDirty() { formDirty = true; }
@@ -180,7 +254,7 @@ function reportError(source, err) {
       lowerMsg.indexOf('401') !== -1 ||
       lowerMsg.indexOf('forbidden') !== -1 ||
       lowerMsg.indexOf('403') !== -1) {
-    console.warn('[' + source + '] Suppressed error report for auth-related error (no redirect):', msg);
+    console.warn('[' + source + '] Suppressed error report for auth-related error:', msg);
     return;
   }
   if (_reportErrorInFlight) return;
@@ -203,7 +277,7 @@ function reportError(source, err) {
 
 /* ===== DEVICE LOCATION CHECK ===== */
 function checkDeviceLocation() {
-  if (!isMobileDevice()) {
+  if (!isMobileDevice() && !systemSettings.requireGpsLocation) {
     deviceLocation = null;
     closeLocationPopup();
     updateLocationStatus(false);
@@ -226,8 +300,8 @@ function checkDeviceLocation() {
     function(err) {
       deviceLocation = null;
       updateLocationStatus(false);
-      var msg = 'Location is required to submit forms on mobile. ';
-      if (err.code === 1) msg += 'You denied location access. Please enable it in your device settings.';
+      var msg = 'Location is required to submit forms. ';
+      if (err.code === 1) msg += 'You denied location access. Please enable it in your browser settings.';
       else if (err.code === 2) msg += 'Location is unavailable. Check your GPS or network connection.';
       else if (err.code === 3) msg += 'Location request timed out. Please try again.';
       else msg += 'Error: ' + err.message;
@@ -240,7 +314,7 @@ function checkDeviceLocation() {
 function updateLocationStatus(hasLocation) {
   var banner = document.getElementById('locationStatusBanner');
   if (!banner) return;
-  if (!isMobileDevice()) {
+  if (!isMobileDevice() && !systemSettings.requireGpsLocation) {
     banner.style.display = 'none';
     return;
   }
@@ -255,7 +329,7 @@ function updateLocationStatus(hasLocation) {
 }
 
 function showLocationPopup(message) {
-  if (!isMobileDevice()) return;
+  if (!isMobileDevice() && !systemSettings.requireGpsLocation) return;
   
   var overlay = document.getElementById('locationPopupOverlay');
   var msgEl = document.getElementById('locationPopupMessage');
@@ -263,7 +337,7 @@ function showLocationPopup(message) {
 
   var instructionsHtml = 
     '<p style="margin:0 0 6px;"><strong>iPhone/iPad (iOS):</strong> Settings → Privacy & Security → Location Services → ON → Browser → "While Using"</p>' +
-    '<p style="margin:0 0 6px;"><strong>Android:</strong> Settings → Location → ON → App permissions → Browser → "Allow only while using the app"</p>';
+    '<p style="margin:0 0 6px;"><strong>Android / Desktop:</strong> Browser Settings → Site Settings → Location → Allow Access</p>';
 
   msgEl.innerHTML = 
     '<p style="font-size:15px;margin:0 0 16px;color:var(--text, #ffffff);">' + esc(message) + '</p>' +
@@ -286,9 +360,9 @@ function hasDeviceLocation() {
 }
 
 function requireLocationOrPopup() {
-  if (!isMobileDevice()) return true;
+  if (!systemSettings.requireGpsLocation && !isMobileDevice()) return true;
   if (hasDeviceLocation()) return true;
-  showLocationPopup('Location is required to submit this form on a mobile device. Please enable location on your device and retry.');
+  showLocationPopup('Location is required to submit this form per company settings. Please enable location services and retry.');
   return false;
 }
 
@@ -301,13 +375,11 @@ function esc(s) {
 function fitHeaderTitle(el) {
   if (!el) return;
 
-  // Clear absolute positioning so grid engine centers the box
   el.style.setProperty('position', 'relative', 'important');
   el.style.setProperty('left', 'auto', 'important');
   el.style.setProperty('transform', 'none', 'important');
   el.style.setProperty('margin', '0 auto', 'important');
   
-  // Enforce multi-line word wrapping and centered text
   el.style.setProperty('white-space', 'normal', 'important');
   el.style.setProperty('word-break', 'break-word', 'important');
   el.style.setProperty('overflow-wrap', 'break-word', 'important');
@@ -401,7 +473,7 @@ async function loadUsers() {
 
   try {
     var endpoint = buildApiUrl('/api/users') + '&limit=500&all=true';
-    var resp = await fetch(endpoint);
+    var resp = await safeFetch(endpoint);
     var data = await resp.json();
 
     var usersList = data.users || data.data || [];
@@ -618,7 +690,7 @@ function recalcGrandTotal() {
   checkReceiptMismatch();
 }
 
-/* ===== ACCURATE CROP OVERLAY (CORRECTED MAPPING) ===== */
+/* ===== CROP OVERLAY ===== */
 var _cropState = null;
 
 function showCropOverlay(file, callback) {
@@ -1040,7 +1112,6 @@ async function _doExtraction(file, previewContent, status, preview) {
         zipEl.classList.add('ai-extracted');
       }
 
-      /* Extract date with ISO conversion for HTML date inputs */
       var rawDate = data.extracted.receipt_date || data.extracted.date || data.extracted.transaction_date || data.extracted.purchase_date;
       var isoDate = parseToIsoDate(rawDate);
       if (isoDate) {
@@ -1202,6 +1273,12 @@ async function submitPurchase() {
   if (!vendor || !vendor.trim()) { showPurchaseError('Vendor is required'); return; }
   if (!person) { showPurchaseError('User is required'); return; }
 
+  // Check required Asset photo toggle
+  if (systemSettings.requireAssetPhoto && !fuelPhotos.asset) {
+    showPurchaseError('Photo of the asset is required per system settings.');
+    return;
+  }
+
   var projectEl = document.getElementById('purchaseProject');
   var projectId = projectEl ? projectEl.value.trim() : '';
   var projectName = null;
@@ -1255,11 +1332,18 @@ async function submitPurchase() {
     var entityId = parts[1] || null;
     var assetNum = parts[2] || null;
 
-    if (entityType === 'asset') {
+    // Check meter reading requirements based on asset type or system settings
+    if (entityType === 'asset' || systemSettings.requireMeterPhoto) {
       if (!meterReadingVal || isNaN(meterReading) || meterReading < 0) {
-        showPurchaseError('Line ' + (i + 1) + ': Meter Reading is required when fueling machinery/equipment.');
+        showPurchaseError('Line ' + (i + 1) + ': Meter Reading is required.');
         return;
       }
+    }
+
+    // Check Meter Photo requirement toggle
+    if (systemSettings.requireMeterPhoto && !fuelPhotos.meter) {
+      showPurchaseError('Photo of the meter is required per system settings.');
+      return;
     }
 
     var li = {
@@ -1359,6 +1443,8 @@ async function submitPurchase() {
     receipt_total: receiptTotal,
     receipt_items: receiptItems,
     line_items: lineItems,
+    meter_photo: fuelPhotos.meter || null,
+    asset_photo: fuelPhotos.asset || null,
     device_location: hasDeviceLocation() ? deviceLocation : null,
     latitude: (hasDeviceLocation() && deviceLocation.latitude) ? deviceLocation.latitude : null,
     longitude: (hasDeviceLocation() && deviceLocation.longitude) ? deviceLocation.longitude : null,
@@ -1377,8 +1463,8 @@ async function submitPurchase() {
   }
 
   try {
-    var resp = await fetch(buildApiUrl('/api/fuel-purchases'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    if (!resp.ok) { throw new Error('Server returned ' + resp.status); }
+    var resp = await safeFetch(buildApiUrl('/api/fuel-purchases'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!resp || !resp.ok) { throw new Error('Server returned error on purchase submission'); }
     var data = await resp.json();
     if (data.success) {
       clearFormDirty();
@@ -1502,6 +1588,8 @@ function clearPurchaseForm() {
   receiptR2Key = null;
   window._receiptMismatch = false;
   window._receiptHasNonFuelItems = false;
+  fuelPhotos = { meter: null, asset: null };
+  fuelPhotoData = { meter: null, asset: null };
   _extractedVendorLocation = {};
   managerReviewFlags = [];
 
@@ -1515,8 +1603,8 @@ function clearPurchaseForm() {
 /* ===== LOAD DATA ===== */
 async function loadTanks() {
   try {
-    var resp = await fetch(buildApiUrl('/api/fuel-tanks'));
-    if (!resp.ok) throw new Error('Failed to load tanks: ' + resp.status);
+    var resp = await safeFetch(buildApiUrl('/api/fuel-tanks'));
+    if (!resp || !resp.ok) throw new Error('Failed to load tanks');
     var data = await resp.json();
     if (data.success && data.tanks) allTanks = data.tanks;
   } catch (e) {
@@ -1526,8 +1614,8 @@ async function loadTanks() {
 
 async function loadTankTypes() {
   try {
-    var resp = await fetch(buildApiUrl('/api/fuel-tank-types'));
-    if (!resp.ok) throw new Error('Failed to load tank types: ' + resp.status);
+    var resp = await safeFetch(buildApiUrl('/api/fuel-tank-types'));
+    if (!resp || !resp.ok) throw new Error('Failed to load tank types');
     var data = await resp.json();
     if (data.success && data.tank_types) tankTypes = data.tank_types;
   } catch (e) {
@@ -1538,11 +1626,11 @@ async function loadTankTypes() {
 async function loadAssets() {
   try {
     var endpoint = buildApiUrl('/api/assets') + '&limit=500&all=true';
-    var resp = await fetch(endpoint);
-    if (!resp.ok) {
-      resp = await fetch('/api/assets');
+    var resp = await safeFetch(endpoint);
+    if (!resp || !resp.ok) {
+      resp = await safeFetch('/api/assets');
     }
-    if (!resp.ok) throw new Error('Failed to load assets: ' + resp.status);
+    if (!resp || !resp.ok) throw new Error('Failed to load assets');
     var data = await resp.json();
     
     var assetsList = [];
@@ -1606,7 +1694,7 @@ async function loadLocations() {
 
   try {
     var endpoint = buildApiUrl('/api/locations') + '&limit=500&all=true';
-    var resp = await fetch(endpoint);
+    var resp = await safeFetch(endpoint);
     var data = await resp.json();
 
     var locationsList = data.locations || data.data || [];
@@ -1659,8 +1747,8 @@ function handleProjectChange(sel) {
 
 async function loadProjects() {
   try {
-    var resp = await fetch(buildApiUrl('/api/projects'));
-    if (!resp.ok) return;
+    var resp = await safeFetch(buildApiUrl('/api/projects'));
+    if (!resp || !resp.ok) return;
     var data = await resp.json();
     if (data.success && data.projects) {
       var sel = document.getElementById('purchaseProject');
@@ -1752,6 +1840,8 @@ async function initPage() {
 
   insertHeaderTitle();
   makeTabsSticky();
+
+  await loadTenantSettings();
 
   try { await loadTankTypes(); } catch(e) { console.warn('Tank types error:', e); }
   try { await loadTanks(); } catch(e) { console.warn('Tanks error:', e); }
