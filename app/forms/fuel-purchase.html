@@ -173,6 +173,7 @@ html, body {
   background: #cbd5e1; 
   border-top: 1px solid #94a3b8;
   border-bottom: 2px solid #94a3b8; 
+  gap: 8px;
 }
 :root[data-theme="dark"] .fp-tab-bar { 
   background: #334155; 
@@ -200,6 +201,44 @@ html, body {
   display: inline-block; 
 }
 .fp-tab-home:hover { background: #2563eb; }
+
+/* ACTION BUTTONS BELOW TAB BAR WITH COLOR & ICONS */
+.modal-btn-group-tab {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+}
+.btn-purpose, .btn-instructions {
+  border-radius: 8px 8px 0 0;
+  border-bottom: none;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 150ms ease;
+  white-space: nowrap;
+}
+.btn-purpose {
+  background: #0284c7;
+  border: 1px solid #0369a1;
+  color: #ffffff;
+}
+.btn-purpose:hover {
+  background: #0369a1;
+}
+.btn-instructions {
+  background: #0d9488;
+  border: 1px solid #0f766e;
+  color: #ffffff;
+}
+.btn-instructions:hover {
+  background: #0f766e;
+}
+
 .fp-tab-logout { 
   background: #b91c1c; 
   border: 1px solid #dc2626; 
@@ -220,25 +259,8 @@ html, body {
 .fp-tab-logout:hover { background: #dc2626; }
 
 .fp-main { max-width: 1100px; margin: 20px auto; padding: 0 16px; position: relative; z-index: 1; width: 100%; box-sizing: border-box; }
-.section-heading { background: var(--bg-card); border-bottom: 2px solid var(--border); padding: 12px 0; margin: 0 0 16px 0; font-size: 16px; font-weight: 700; color: var(--text); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.section-heading-count { font-size: 13px; font-weight: 400; color: var(--text-muted); }
-
-/* MODAL HEADER BUTTONS */
-.modal-btn-group { display: flex; gap: 8px; }
-.btn-purpose, .btn-instructions {
-  background: var(--bg-step, #334155);
-  color: var(--text, #f8fafc);
-  border: 1px solid var(--border, #475569);
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 150ms;
-}
-.btn-purpose:hover, .btn-instructions:hover {
-  background: var(--border, #475569);
-}
+.section-heading { background: var(--bg-card); border-bottom: 2px solid var(--border); padding: 12px 0; margin: 0 0 16px 0; font-size: 18px; font-weight: 700; color: var(--text); }
+.section-subtitle-text { font-size: 13px; color: var(--text-muted); margin: -4px 0 16px 0; display: block; }
 
 /* PURCHASE FORM */
 .purchase-form-container { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 24px; width: 100%; box-sizing: border-box; }
@@ -471,6 +493,7 @@ select.line-destination, select.line-destination option, select.line-destination
   .fp-main { padding: 0 12px; margin: 12px auto; } 
   .fuel-photo-row { grid-template-columns: 1fr; } 
   #dashHeaderTitle { font-size: 16px; }
+  .modal-btn-group-tab { flex-wrap: wrap; }
 }
 </style>
 </head>
@@ -493,6 +516,13 @@ select.line-destination, select.line-destination option, select.line-destination
 
   <div class="fp-tab-bar">
     <a class="fp-tab-home" id="dashHomeLink" href="/app/dashboard/employee-dashboard.html">← Dashboard</a>
+
+    <!-- ITEM 1: PURPOSE & INSTRUCTION BUTTONS MOVED BELOW TAB BAR WITH COLORS & ICONS -->
+    <div class="modal-btn-group-tab">
+      <button class="btn-purpose" onclick="openModal('purposeModal')">📋 Form Purpose</button>
+      <button class="btn-instructions" onclick="openModal('instructionsModal')">📖 Instructions</button>
+    </div>
+
     <button class="fp-tab-logout" onclick="dashLogout()">Logout</button>
   </div>
 </div>
@@ -518,17 +548,23 @@ select.line-destination, select.line-destination option, select.line-destination
 
   <div class="fp-main">
     <div class="purchase-form-container">
-      <div class="section-heading">
-        <div>
-          Record Fuel Purchase 
-          <span class="section-heading-count">Upload a receipt for AI extraction or enter manually</span>
-        </div>
-        <!-- PURPOSE & INSTRUCTION BUTTONS -->
-        <div class="modal-btn-group">
-          <button class="btn-purpose" onclick="openModal('purposeModal')">Form Purpose</button>
-          <button class="btn-instructions" onclick="openModal('instructionsModal')">Instructions</button>
-        </div>
+      <div class="section-heading">Record Fuel Purchase</div>
+
+      <!-- ITEM 2: PAYMENT TYPE MOVED ABOVE UPLOAD RECEIPT CARD -->
+      <div class="purchase-field" style="margin-bottom: 20px;">
+        <label class="purchase-label">Payment Type <span style="color:#cc0000;">*</span></label>
+        <select id="purchasePaymentType" class="purchase-input ai-needed" onchange="handlePaymentTypeChange(this); markFormDirty()">
+          <option value="">Select payment type…</option>
+          <option value="Credit Card">Credit Card</option>
+          <option value="Fleet Card">Fleet Card</option>
+          <option value="Cash">Cash</option>
+          <option value="Check">Check</option>
+          <option value="On Account">On Account / PO</option>
+        </select>
       </div>
+
+      <!-- ITEM 3: SUBTITLE LINE MOVED BELOW PAYMENT TYPE & ABOVE UPLOAD RECEIPT CARD -->
+      <span class="section-subtitle-text">Upload a receipt for AI extraction or enter manually</span>
 
       <!-- Receipt Upload Section -->
       <div class="purchase-upload-section">
@@ -571,18 +607,6 @@ select.line-destination, select.line-destination option, select.line-destination
         <div class="purchase-field">
           <label class="purchase-label">Date <span style="color:#cc0000;">*</span></label>
           <input type="date" id="purchaseDate" class="purchase-input" onchange="markFormDirty()">
-        </div>
-
-        <div class="purchase-field">
-          <label class="purchase-label">Payment Type <span style="color:#cc0000;">*</span></label>
-          <select id="purchasePaymentType" class="purchase-input ai-needed" onchange="handlePaymentTypeChange(this); markFormDirty()">
-            <option value="">Select payment type…</option>
-            <option value="Credit Card">Credit Card</option>
-            <option value="Fleet Card">Fleet Card</option>
-            <option value="Cash">Cash</option>
-            <option value="Check">Check</option>
-            <option value="On Account">On Account / PO</option>
-          </select>
         </div>
 
         <div class="purchase-field" id="poNumberWrap" style="display:none;">
@@ -726,6 +750,7 @@ select.line-destination, select.line-destination option, select.line-destination
   <div class="generic-modal">
     <h3>Instructions</h3>
     <ul>
+      <li>Select your <strong>Payment Type</strong> prior to taking or uploading a receipt.</li>
       <li>Upload a clear receipt image or PDF to auto-fill line items and vendor information.</li>
       <li>Review all highlighted fields to verify correct extraction of quantities and prices.</li>
       <li>If buying for multiple assets or projects on one receipt, use the "Add Line" button.</li>
