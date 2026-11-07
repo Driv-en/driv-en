@@ -347,7 +347,7 @@ function reportError(source, err) {
   } catch (e) { _reportErrorInFlight = false; }
 }
 
-/* ===== DEVICE LOCATION CHECK (WITH IOS & GEOLOCATION FIXES) ===== */
+/* ===== DEVICE LOCATION CHECK (iOS PWA WATCHPOSITION & FALLBACK FIX) ===== */
 function checkDeviceLocation() {
   if (!isMobileDevice() && !systemSettings.requireGpsLocation) {
     deviceLocation = null;
@@ -356,7 +356,7 @@ function checkDeviceLocation() {
     return;
   }
   if (!navigator.geolocation) {
-    showLocationPopup('Your device does not support GPS location. Please use a device with location capabilities.');
+    showLocationPopup('Your device does not support GPS location.');
     return;
   }
 
@@ -367,12 +367,16 @@ function checkDeviceLocation() {
     banner.innerHTML = '<strong>⌛ Acquiring GPS location...</strong>';
   }
 
-  // iOS-Optimized Location Options:
-  // Uses maximumAge to allow cached cell/Wi-Fi location fallback when indoors
-  var optionsHighAccuracy = { enableHighAccuracy: true, timeout: 12000, maximumAge: 10000 };
-  var optionsLowAccuracy = { enableHighAccuracy: false, timeout: 15000, maximumAge: 30000 };
+  var locationResolved = false;
+
+  // Options: allows cell/Wi-Fi positioning fallback if indoor hardware GPS times out
+  var optionsHigh = { enableHighAccuracy: true, timeout: 10000, maximumAge: 15000 };
+  var optionsLow = { enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 };
 
   function handleSuccess(pos) {
+    if (locationResolved) return;
+    locationResolved = true;
+
     deviceLocation = {
       latitude: pos.coords.latitude,
       longitude: pos.coords.longitude,
@@ -384,23 +388,61 @@ function checkDeviceLocation() {
   }
 
   function handleFinalError(err) {
+    if (locationResolved) return;
+    locationResolved = true;
+
     deviceLocation = null;
     updateLocationStatus(false);
+    
     var msg = 'Location is required to submit forms. ';
-    if (err.code === 1) msg += 'You denied location access. Please enable it in your browser settings.';
-    else if (err.code === 2) msg += 'Location is unavailable. Check your GPS signal or network connection.';
-    else if (err.code === 3) msg += 'Location request timed out. Please tap Retry again.';
-    else msg += 'Error: ' + (err.message || 'Unknown location error.');
+    if (err.code === 1) {
+      msg += 'Location access denied in iOS/Browser settings. Tap "Retry Location" after enabling permissions.';
+    } else if (err.code === 2) {
+      msg += 'GPS signal unavailable. Move near a window or check cellular data.';
+    } else if (err.code === 3) {
+      msg += 'Location request timed out. Please tap "Retry Location".';
+    } else {
+      msg += 'Error: ' + (err.message || 'Unknown location error.');
+    }
+    
     showLocationPopup(msg);
   }
 
+  // 1. Primary high-accuracy request
   navigator.geolocation.getCurrentPosition(
     handleSuccess,
     function(err) {
-      console.warn('High accuracy GPS failed/timed out (' + err.message + '). Trying low-accuracy fallback...');
-      navigator.geolocation.getCurrentPosition(handleSuccess, handleFinalError, optionsLowAccuracy);
+      console.warn('High accuracy location failed/timed out (' + err.message + '). Trying low-accuracy fallback...');
+      
+      // 2. Secondary low-accuracy request (Cell/Wi-Fi triangulation)
+      navigator.geolocation.getCurrentPosition(
+        handleSuccess,
+        function(lowErr) {
+          // 3. Ultimate fallback: watchPosition stream for stubborn iOS WebKit standalone containers
+          var watchId = navigator.geolocation.watchPosition(
+            function(pos) {
+              navigator.geolocation.clearWatch(watchId);
+              handleSuccess(pos);
+            },
+            function(watchErr) {
+              navigator.geolocation.clearWatch(watchId);
+              handleFinalError(watchErr);
+            },
+            optionsLow
+          );
+
+          // Watchdog timer to clear watchPosition after 10s
+          setTimeout(function() {
+            navigator.geolocation.clearWatch(watchId);
+            if (!locationResolved) {
+              handleFinalError(lowErr);
+            }
+          }, 10000);
+        },
+        optionsLow
+      );
     },
-    optionsHighAccuracy
+    optionsHigh
   );
 }
 window.checkDeviceLocationImpl = checkDeviceLocation;
@@ -430,7 +472,7 @@ function showLocationPopup(message) {
   if (!overlay || !msgEl) return;
 
   var instructionsHtml = 
-    '<p style="margin:0 0 6px;"><strong>iPhone/iPad (iOS):</strong> Settings → Privacy & Security → Location Services → ON → Safari Websites → "While Using"</p>' +
+    '<p style="margin:0 0 6px;"><strong>iPhone/iPad (iOS):</strong> Settings → Privacy & Security → Location Services → ON → Safari Websites (or App Name) → "While Using"</p>' +
     '<p style="margin:0 0 6px;"><strong>Android / Desktop:</strong> Browser Settings → Site Settings → Location → Allow Access</p>';
 
   msgEl.innerHTML = 
@@ -439,7 +481,7 @@ function showLocationPopup(message) {
       '<p style="font-weight:600;margin:0 0 8px;color:var(--primary, #38bdf8);">How to enable location:</p>' +
       instructionsHtml +
     '</div>' +
-    '<p style="font-size:13px;color:var(--text-muted, #94a3b8);margin:0;">After enabling, click "Retry" to capture your location.</p>';
+    '<p style="font-size:13px;color:var(--text-muted, #94a3b8);margin:0;">After enabling, click "Retry Location" to capture your coordinates.</p>';
 
   overlay.style.display = 'flex';
 }
