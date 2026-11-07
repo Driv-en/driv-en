@@ -43,21 +43,27 @@ function isMobileDevice() {
          (navigator.maxTouchPoints > 0 && window.innerWidth <= 800);
 }
 
-/* ===== LOAD TENANT SETTINGS FROM /auth/get-settings ===== */
+/* ===== LOAD TENANT SETTINGS FROM CLOUDFLARE WORKER /auth/get-settings ===== */
 async function loadTenantSettings() {
   try {
     var resp = await safeFetch(buildApiUrl('/auth/get-settings'));
     if (resp && resp.ok) {
       var data = await resp.json();
-      if (data.success && data.settings) {
-        var s = data.settings;
-        systemSettings.requireMeterPhoto = Boolean(s.fuel_meter_photo);
-        systemSettings.requireAssetPhoto = Boolean(s.fuel_asset_photo);
-        systemSettings.requireGpsLocation = Boolean(s.location_request);
-      }
+      var s = data.settings || data.company_settings || data.data || {};
+      
+      // Flexible resolution for backend key variations (snake_case, camelCase, prefixed)
+      systemSettings.requireMeterPhoto = Boolean(
+        s.fuel_meter_photo ?? s.require_meter_photo ?? s.meter_photo_required ?? localStorage.getItem('setting_fuel_meter_photo') === 'true'
+      );
+      systemSettings.requireAssetPhoto = Boolean(
+        s.fuel_asset_photo ?? s.require_asset_photo ?? s.asset_photo_required ?? localStorage.getItem('setting_fuel_asset_photo') === 'true'
+      );
+      systemSettings.requireGpsLocation = Boolean(
+        s.location_request ?? s.require_location ?? s.gps_location_required ?? localStorage.getItem('setting_location_request') === 'true'
+      );
     }
   } catch (e) {
-    console.warn('Could not load settings from server, checking fallback:', e);
+    console.warn('Could not load settings from Cloudflare Worker, checking local fallback:', e);
     systemSettings.requireMeterPhoto = localStorage.getItem('setting_fuel_meter_photo') === 'true';
     systemSettings.requireAssetPhoto = localStorage.getItem('setting_fuel_asset_photo') === 'true';
     systemSettings.requireGpsLocation = localStorage.getItem('setting_location_request') === 'true';
@@ -76,7 +82,7 @@ function applySettingUIConstraints() {
     }
   });
 
-  // Display location status banner if location tagging is toggled on or on mobile
+  // Display location status banner if toggled in settings OR running on a mobile device
   var banner = document.getElementById('locationStatusBanner');
   if (banner) {
     if (systemSettings.requireGpsLocation || isMobileDevice()) {
@@ -277,6 +283,7 @@ function reportError(source, err) {
 
 /* ===== DEVICE LOCATION CHECK (WITH IOS FALLBACK) ===== */
 function checkDeviceLocation() {
+  // Exclude non-mobile devices UNLESS mandatory GPS settings are enabled
   if (!isMobileDevice() && !systemSettings.requireGpsLocation) {
     deviceLocation = null;
     closeLocationPopup();
@@ -321,7 +328,7 @@ function checkDeviceLocation() {
     showLocationPopup(msg);
   }
 
-  // Attempt High Accuracy first, then fallback to Low Accuracy on error/timeout
+  // Two-tier fallback: Try High-Accuracy GPS lock first, fall back to low-accuracy Wi-Fi/Cell triangulation for iOS
   navigator.geolocation.getCurrentPosition(
     handleSuccess,
     function(err) {
@@ -385,9 +392,10 @@ function hasDeviceLocation() {
 }
 
 function requireLocationOrPopup() {
-  if (!systemSettings.requireGpsLocation && !isMobileDevice()) return true;
+  // Only require location if on a mobile device OR if company settings mandate GPS location
+  if (!isMobileDevice() && !systemSettings.requireGpsLocation) return true;
   if (hasDeviceLocation()) return true;
-  showLocationPopup('Location is required to submit this form per company settings. Please enable location services and retry.');
+  showLocationPopup('Location is required to submit this form per company settings / mobile policy. Please enable location services and retry.');
   return false;
 }
 
@@ -1264,6 +1272,7 @@ function showConfidenceBanner(extracted) {
 
 /* ===== SUBMIT PURCHASE ===== */
 async function submitPurchase() {
+  // Enforce device location check if on mobile OR enabled via Cloudflare Worker settings
   if (!requireLocationOrPopup()) return;
 
   var dateEl = document.getElementById('purchaseDate');
@@ -1298,9 +1307,15 @@ async function submitPurchase() {
   if (!vendor || !vendor.trim()) { showPurchaseError('Vendor is required'); return; }
   if (!person) { showPurchaseError('User is required'); return; }
 
-  // Check required Asset photo toggle
+  // Enforce mandatory Asset Photo if toggled in settings
   if (systemSettings.requireAssetPhoto && !fuelPhotos.asset) {
-    showPurchaseError('Photo of the asset is required per system settings.');
+    showPurchaseError('Photo of the asset is required per company settings.');
+    return;
+  }
+
+  // Enforce mandatory Meter Photo if toggled in settings
+  if (systemSettings.requireMeterPhoto && !fuelPhotos.meter) {
+    showPurchaseError('Photo of the meter reading is required per company settings.');
     return;
   }
 
@@ -1363,12 +1378,6 @@ async function submitPurchase() {
         showPurchaseError('Line ' + (i + 1) + ': Meter Reading is required.');
         return;
       }
-    }
-
-    // Check Meter Photo requirement toggle
-    if (systemSettings.requireMeterPhoto && !fuelPhotos.meter) {
-      showPurchaseError('Photo of the meter is required per system settings.');
-      return;
     }
 
     var li = {
