@@ -34,6 +34,28 @@ function isMobileDevice() {
          (navigator.maxTouchPoints > 0 && window.innerWidth <= 800);
 }
 
+/* ===== DATE PARSER (FORMATS OCR DATES TO YYYY-MM-DD FOR INPUT TYPE="DATE") ===== */
+function parseToIsoDate(str) {
+  if (!str) return null;
+  var s = String(str).trim();
+  
+  // Handles MM/DD/YY or MM/DD/YYYY formats (e.g., 8/13/26 or 08/13/2026)
+  var slashMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (slashMatch) {
+    var m = String(slashMatch[1]).padStart(2, '0');
+    var d = String(slashMatch[2]).padStart(2, '0');
+    var y = slashMatch[3];
+    if (y.length === 2) y = '20' + y;
+    return y + '-' + m + '-' + d;
+  }
+  
+  // Handles already ISO-formatted dates (YYYY-MM-DD)
+  var isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) return isoMatch[0];
+
+  return null;
+}
+
 /* ===== URL CONTEXT & MULTI-TENANT AUTH HELPER ===== */
 function getUrlContextParams() {
   var params = new URLSearchParams(window.location.search);
@@ -986,11 +1008,13 @@ async function _doExtraction(file, previewContent, status, preview) {
         zipEl.classList.add('ai-extracted');
       }
 
-      var extractedDate = data.extracted.receipt_date || data.extracted.date;
-      if (extractedDate) {
+      /* Extract date with ISO conversion for HTML date inputs */
+      var rawDate = data.extracted.receipt_date || data.extracted.date || data.extracted.transaction_date || data.extracted.purchase_date;
+      var isoDate = parseToIsoDate(rawDate);
+      if (isoDate) {
         var dateEl = document.getElementById('purchaseDate');
         if (dateEl) {
-          dateEl.value = extractedDate;
+          dateEl.value = isoDate;
           dateEl.classList.add('ai-extracted');
           dateEl.dispatchEvent(new Event('change', { bubbles: true }));
         }
