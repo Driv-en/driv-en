@@ -57,6 +57,65 @@ var FORMS = [
   { key:'pm_add', label:'Add PM', desc:'Create a preventive maintenance task', link:'/app/forms/pm.html' }
 ];
 
+// ==========================================
+// MODAL REPOSITORY & CONTEXT HELPERS
+// ==========================================
+
+var MODAL_CONTENT_MAP = {
+  overview: {
+    purpose: "The <strong>Overview Tab</strong> serves as the primary navigation hub and high-level metric center for DRIV-EN administrators. It provides immediate access to core management portals, user session details, global theme controls, and direct links to critical operational areas.",
+    instructions: "<ol><li><strong>Navigate Modules:</strong> Click any stat card (Employees, Projects, Assets, Clients, Fuel Management, Company) to jump directly into the management module for that sector.</li><li><strong>Toggle Workspace Theme:</strong> Use the Light/Dark switch at the top right to adjust display contrast for high- or low-light environments.</li><li><strong>Security Account Management:</strong> Click the <strong>Change Password</strong> button within your profile card to securely update your operational access credentials.</li></ol>"
+  },
+  forms: {
+    purpose: "The <strong>Forms Tab</strong> centralizes field compliance, safety checks, and inspection workflows. Administrators can directly launch mandatory operational forms—such as DVIR inspections—and review current submission protocols.",
+    instructions: "<ol><li><strong>Select Inspection Form:</strong> Click on the desired form card (e.g., <em>Driver Vehicle Inspection Report</em>) to open the form completion workflow.</li><li><strong>Complete Compliance Checklist:</strong> Fill in mandatory vehicle/asset checks, record faults, and provide digital sign-offs.</li><li><strong>Submit & Sync:</strong> Submit the completed form to broadcast real-time condition reports across the DRIV-EN platform.</li></ol>"
+  },
+  settings: {
+    purpose: "The <strong>Settings Tab</strong> enables administrators to define company profile parameters, set financial currencies, upload operational logos, enforce telematics/photo verification standards, and verify synchronized Units of Measure.",
+    instructions: "<ol><li><strong>Update Company Profile:</strong> Choose your Primary Sector, enter your NAICS Code, set your Currency, and click <strong>Save Profile Settings</strong>.</li><li><strong>Upload Company Logo:</strong> Click <strong>Upload Logo</strong>, select your high-res PNG or SVG file, and verify preview rendering.</li><li><strong>Enforce Form Verification Rules:</strong> Toggle requirements for Meter Photos, Asset Photos, or GPS Location Tagging. Click <strong>Save Requirements Toggles</strong> to push updates to field devices.</li><li><strong>Units of Measure Verification:</strong> Review the system-wide distance, volume, and pressure units inherited from Onboarding.</li></ol>"
+  },
+  visibility: {
+    purpose: "The <strong>Task Visibility Matrix Subtab</strong> gives administrators granular control over which onboarding setup steps are visible or required for company personnel during initial account deployment.",
+    instructions: "<ol><li><strong>Review Visibility Toggles:</strong> Scroll through the list of setup steps (Roles, Employees, Assets, Locations, etc.).</li><li><strong>Adjust Step Visibility:</strong> Toggle the switch next to any task to show or hide that step in user onboarding flows.</li><li><strong>Commit Changes:</strong> Click <strong>Save Visibility Matrix</strong> (located at top and bottom) to store your setup matrix.</li></ol>"
+  },
+  kp: {
+    purpose: "The <strong>Key Personnel Directory Subtab</strong> allows admins to assign key team leaders to oversee individual setup tasks, ensuring accountability during system initialization.",
+    instructions: "<ol><li><strong>Fill Team Member Info:</strong> Enter the Full Name and Email Address of the designated key staff member.</li><li><strong>Assign Tasks:</strong> Check the specific setup tasks they are responsible for (or click <strong>Select All Tasks</strong>).</li><li><strong>Add Member:</strong> Click <strong>+ Add Personnel Member</strong> to stage the entry.</li><li><strong>Send Invitations:</strong> Click <strong>Send Invitations & Create Accounts</strong> to dispatch onboarding access emails.</li></ol>"
+  },
+  fuel: {
+    purpose: "The <strong>Fuel Management & Tank Adjustment</strong> module facilitates real-time inventory tracking, bulk fuel delivery records, tank reconciliation, and manual tank volume adjustments to correct inventory discrepancies.",
+    instructions: "<p><strong>Tank Adjustment Action Instructions:</strong></p><ol><li><strong>Locate Bulk Fuel Tank:</strong> Navigate to the <em>Fuel Management</em> dashboard card and select the target fuel storage unit or mobile bowser.</li><li><strong>Initiate Adjustment:</strong> Click the <strong>Adjust Tank Level</strong> button next to the relevant tank.</li><li><strong>Record Physical Dip/Reading:</strong> Enter the precise physical volume measurement (e.g., sticking/dip reading or automatic tank gauge figure).</li><li><strong>Select Variance Reason:</strong> Select the adjustment category (e.g., <em>Physical Dip Reconciliation, Fuel Delivery Correction, Thermal Expansion/Contraction, Calibration Variance, Leak/Spill</em>).</li><li><strong>Provide Detailed Audit Notes:</strong> Enter mandatory explanatory notes detailing why the manual balance override is occurring.</li><li><strong>Submit Tank Adjustment:</strong> Click <strong>Confirm Adjustment</strong> to update the system stock balance and generate an automated audit log entry.</li></ol>"
+  }
+};
+
+function getActiveContext() {
+  var activeSubtab = document.querySelector('.admin-subtab-sticky-container.visible .admin-subtab.active');
+  if (activeSubtab) {
+    var subtabKey = activeSubtab.getAttribute('data-subtab');
+    if (MODAL_CONTENT_MAP[subtabKey]) return subtabKey;
+  }
+
+  var activeTab = document.querySelector('.admin-tab.active');
+  if (activeTab) {
+    var tabKey = activeTab.getAttribute('data-tab');
+    if (MODAL_CONTENT_MAP[tabKey]) return tabKey;
+  }
+
+  return 'overview';
+}
+
+function getContextTitle(key) {
+  var labels = {
+    overview: "Overview",
+    forms: "Forms Module",
+    settings: "Company Settings",
+    visibility: "Task Visibility Matrix",
+    kp: "Key Personnel Directory",
+    fuel: "Fuel Management & Tank Adjustments"
+  };
+  return labels[key] || "Dashboard";
+}
+
 function esc(s) {
   if(!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -778,6 +837,11 @@ async function saveToggles() {
     var data = await res.json();
     if (!data.success) throw new Error(data.error || "Toggles could not be saved.");
 
+    // Update LocalStorage cache so field forms have immediate access
+    localStorage.setItem('setting_fuel_meter_photo', mp);
+    localStorage.setItem('setting_fuel_asset_photo', ap);
+    localStorage.setItem('setting_location_request', lr);
+
     if(tStatus) {
       tStatus.textContent = "Toggles saved.";
       tStatus.style.color = "var(--success,#16a34a)";
@@ -1077,6 +1141,75 @@ function attachEventHandlers() {
       var subtabName = this.getAttribute('data-subtab');
       if (subtabName) switchOnboardingSubtab(subtabName);
     });
+  });
+
+  // Modal Purpose Button Handler
+  var btnPurpose = document.getElementById('btnTabPurpose');
+  if (btnPurpose) {
+    btnPurpose.addEventListener('click', function() {
+      var modalPurpose = document.getElementById('modalPurpose');
+      var modalPurposeTitle = document.getElementById('modalPurposeTitle');
+      var modalPurposeBody = document.getElementById('modalPurposeBody');
+      if (!modalPurpose) return;
+
+      var contextKey = getActiveContext();
+      var title = getContextTitle(contextKey);
+      var content = MODAL_CONTENT_MAP[contextKey] || MODAL_CONTENT_MAP.overview;
+
+      if (modalPurposeTitle) modalPurposeTitle.textContent = title + " — Purpose";
+      if (modalPurposeBody) modalPurposeBody.innerHTML = content.purpose;
+      modalPurpose.classList.add('active');
+    });
+  }
+
+  // Modal Instructions Button Handler
+  var btnInstructions = document.getElementById('btnTabInstructions');
+  if (btnInstructions) {
+    btnInstructions.addEventListener('click', function() {
+      var modalInstructions = document.getElementById('modalInstructions');
+      var modalInstructionsTitle = document.getElementById('modalInstructionsTitle');
+      var modalInstructionsBody = document.getElementById('modalInstructionsBody');
+      if (!modalInstructions) return;
+
+      var contextKey = getActiveContext();
+      var title = getContextTitle(contextKey);
+      var content = MODAL_CONTENT_MAP[contextKey] || MODAL_CONTENT_MAP.overview;
+
+      if (modalInstructionsTitle) modalInstructionsTitle.textContent = title + " — Instructions";
+      
+      var bodyHtml = content.instructions;
+      if (contextKey === 'overview') {
+        bodyHtml += "<hr style='margin:16px 0; border:0; border-top:1px solid var(--border,#cbd5e1);'>" + MODAL_CONTENT_MAP.fuel.instructions;
+      }
+      
+      if (modalInstructionsBody) modalInstructionsBody.innerHTML = bodyHtml;
+      modalInstructions.classList.add('active');
+    });
+  }
+
+  // Modal Close Buttons
+  var btnClosePurpose = document.getElementById('btnClosePurposeModal');
+  if (btnClosePurpose) {
+    btnClosePurpose.addEventListener('click', function() {
+      var modalPurpose = document.getElementById('modalPurpose');
+      if (modalPurpose) modalPurpose.classList.remove('active');
+    });
+  }
+
+  var btnCloseInstructions = document.getElementById('btnCloseInstructionsModal');
+  if (btnCloseInstructions) {
+    btnCloseInstructions.addEventListener('click', function() {
+      var modalInstructions = document.getElementById('modalInstructions');
+      if (modalInstructions) modalInstructions.classList.remove('active');
+    });
+  }
+
+  // Modal Backdrop Click Dismiss
+  window.addEventListener('click', function(e) {
+    var modalPurpose = document.getElementById('modalPurpose');
+    var modalInstructions = document.getElementById('modalInstructions');
+    if (e.target === modalPurpose) modalPurpose.classList.remove('active');
+    if (e.target === modalInstructions) modalInstructions.classList.remove('active');
   });
 
   var themeCb = document.getElementById("theme-checkbox");
