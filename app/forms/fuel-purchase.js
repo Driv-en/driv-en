@@ -72,7 +72,19 @@ async function loadTenantSettings() {
 }
 
 function applySettingUIConstraints() {
-  // Enforce meter photo label indicators dynamically
+  // Toggle Meter Photo input visibility based on company settings
+  var meterPhotoWrap = document.getElementById('meterPhotoWrap') || document.getElementById('meterPhotoContainer');
+  if (meterPhotoWrap) {
+    meterPhotoWrap.style.display = systemSettings.requireMeterPhoto ? 'block' : 'none';
+  }
+
+  // Toggle Asset Photo input visibility based on company settings
+  var assetPhotoWrap = document.getElementById('assetPhotoWrap') || document.getElementById('assetPhotoContainer');
+  if (assetPhotoWrap) {
+    assetPhotoWrap.style.display = systemSettings.requireAssetPhoto ? 'block' : 'none';
+  }
+
+  // Enforce line-item meter photo indicators
   var meterInputs = document.querySelectorAll('.line-meter');
   meterInputs.forEach(function(input) {
     if (systemSettings.requireMeterPhoto) {
