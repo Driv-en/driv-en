@@ -305,11 +305,11 @@ function insertHeaderTitle() {
     if (row1) {
       title = document.createElement('div');
       title.id = 'dashHeaderTitle';
-      title.textContent = 'Log Fuel Purchase';
+      title.textContent = 'Fuel Purchase Form';
       row1.appendChild(title);
     }
   } else {
-    title.textContent = 'Log Fuel Purchase';
+    title.textContent = 'Fuel Purchase Form';
     title.style.display = 'block';
   }
 }
