@@ -360,15 +360,24 @@ function checkDeviceLocation() {
     return;
   }
 
-  var optionsHighAccuracy = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
-  var optionsLowAccuracy = { enableHighAccuracy: false, timeout: 15000, maximumAge: 0 };
+  var banner = document.getElementById('locationStatusBanner');
+  if (banner) {
+    banner.style.display = 'block';
+    banner.className = 'location-banner warn';
+    banner.innerHTML = '<strong>⌛ Acquiring GPS location...</strong>';
+  }
+
+  // iOS-Optimized Location Options:
+  // Uses maximumAge to allow cached cell/Wi-Fi location fallback when indoors
+  var optionsHighAccuracy = { enableHighAccuracy: true, timeout: 12000, maximumAge: 10000 };
+  var optionsLowAccuracy = { enableHighAccuracy: false, timeout: 15000, maximumAge: 30000 };
 
   function handleSuccess(pos) {
     deviceLocation = {
       latitude: pos.coords.latitude,
       longitude: pos.coords.longitude,
       accuracy: pos.coords.accuracy,
-      timestamp: new Date().toISOString()
+      timestamp: new Date(pos.timestamp || Date.now()).toISOString()
     };
     closeLocationPopup();
     updateLocationStatus(true);
@@ -379,16 +388,16 @@ function checkDeviceLocation() {
     updateLocationStatus(false);
     var msg = 'Location is required to submit forms. ';
     if (err.code === 1) msg += 'You denied location access. Please enable it in your browser settings.';
-    else if (err.code === 2) msg += 'Location is unavailable. Check your GPS or network connection.';
-    else if (err.code === 3) msg += 'Location request timed out. Please try again.';
-    else msg += 'Error: ' + err.message;
+    else if (err.code === 2) msg += 'Location is unavailable. Check your GPS signal or network connection.';
+    else if (err.code === 3) msg += 'Location request timed out. Please tap Retry again.';
+    else msg += 'Error: ' + (err.message || 'Unknown location error.');
     showLocationPopup(msg);
   }
 
   navigator.geolocation.getCurrentPosition(
     handleSuccess,
     function(err) {
-      console.warn('High accuracy GPS failed on device (' + err.message + '). Trying low-accuracy fallback...');
+      console.warn('High accuracy GPS failed/timed out (' + err.message + '). Trying low-accuracy fallback...');
       navigator.geolocation.getCurrentPosition(handleSuccess, handleFinalError, optionsLowAccuracy);
     },
     optionsHighAccuracy
@@ -421,7 +430,7 @@ function showLocationPopup(message) {
   if (!overlay || !msgEl) return;
 
   var instructionsHtml = 
-    '<p style="margin:0 0 6px;"><strong>iPhone/iPad (iOS):</strong> Settings → Privacy & Security → Location Services → ON → Browser → "While Using"</p>' +
+    '<p style="margin:0 0 6px;"><strong>iPhone/iPad (iOS):</strong> Settings → Privacy & Security → Location Services → ON → Safari Websites → "While Using"</p>' +
     '<p style="margin:0 0 6px;"><strong>Android / Desktop:</strong> Browser Settings → Site Settings → Location → Allow Access</p>';
 
   msgEl.innerHTML = 
