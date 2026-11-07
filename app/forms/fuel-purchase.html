@@ -900,13 +900,12 @@ function handlePhotoUpload(type, input) {
   reader.readAsDataURL(file);
 }
 
-// Desktop bypass for Device Location requirement
+// Device Location check delegate — routes directly to fuel-purchase.js implementation
 function checkDeviceLocation() {
-  if (typeof isMobileDevice === 'function' && !isMobileDevice()) {
-    if (typeof deviceLocation !== 'undefined') deviceLocation = null;
-    var banner = document.getElementById('locationStatusBanner');
-    if (banner) banner.style.display = 'none';
-    return;
+  if (typeof window.checkDeviceLocationImpl === 'function') {
+    window.checkDeviceLocationImpl();
+  } else if (typeof requestLocationAccess === 'function') {
+    requestLocationAccess();
   }
 }
 
@@ -921,9 +920,11 @@ function closeModal(id) {
   if (modal) modal.style.display = 'none';
 }
 
-// Guardrail: Enforce "Fuel Purchase Form" against dynamic overrides
+// Guardrail: Enforce "Fuel Purchase Form" against dynamic overrides & trigger device location
 document.addEventListener("DOMContentLoaded", function() {
-  checkDeviceLocation();
+  if (typeof checkDeviceLocation === 'function') {
+    checkDeviceLocation();
+  }
 
   var TARGET_TITLE = "Fuel Purchase Form";
   var headerTitle = document.getElementById('dashHeaderTitle');
