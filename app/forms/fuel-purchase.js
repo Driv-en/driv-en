@@ -297,7 +297,36 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-/* ===== DYNAMIC WRAP & RESPONSIVE HEADER TITLE ===== */
+/* ===== DYNAMIC AUTO-FITTING & FLEXIBLE HEADER TITLE ===== */
+function fitHeaderTitle(el) {
+  if (!el) return;
+
+  // 1. Allow standard wrapping & flexible boundaries
+  el.style.position = 'static';
+  el.style.transform = 'none';
+  el.style.flex = '1 1 auto';
+  el.style.maxWidth = '100%';
+  el.style.whiteSpace = 'normal';
+  el.style.wordBreak = 'break-word';
+  el.style.textAlign = 'center';
+
+  // 2. Dynamic font scaling calculated against viewport width
+  var screenW = window.innerWidth;
+  if (screenW <= 380) {
+    el.style.fontSize = '13px';
+    el.style.lineHeight = '1.15';
+  } else if (screenW <= 600) {
+    el.style.fontSize = '15px';
+    el.style.lineHeight = '1.2';
+  } else if (screenW <= 900) {
+    el.style.fontSize = '17px';
+    el.style.lineHeight = '1.25';
+  } else {
+    el.style.fontSize = '20px';
+    el.style.lineHeight = '1.3';
+  }
+}
+
 function insertHeaderTitle() {
   var title = document.getElementById('dashHeaderTitle');
   if (!title) {
@@ -309,24 +338,8 @@ function insertHeaderTitle() {
     }
   }
   if (title) {
-    var screenW = window.innerWidth;
     title.textContent = 'Fuel Purchase Form';
-    title.style.display = 'block';
-    title.style.whiteSpace = 'normal';
-    title.style.wordWrap = 'break-word';
-    title.style.lineHeight = '1.2';
-    title.style.textAlign = 'center';
-
-    if (screenW <= 480) {
-      title.style.fontSize = '14px';
-      title.style.maxWidth = '50%';
-    } else if (screenW <= 800) {
-      title.style.fontSize = '16px';
-      title.style.maxWidth = '55%';
-    } else {
-      title.style.fontSize = '18px';
-      title.style.maxWidth = '60%';
-    }
+    fitHeaderTitle(title);
   }
 }
 
