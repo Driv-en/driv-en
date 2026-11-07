@@ -301,31 +301,22 @@ function esc(s) {
 function fitHeaderTitle(el) {
   if (!el) return;
 
-  // 1. Force remove non-wrapping and clipping properties
+  // Clear absolute positioning and apply flexible layout rules
+  el.style.setProperty('position', 'relative', 'important');
+  el.style.setProperty('left', 'auto', 'important');
+  el.style.setProperty('transform', 'none', 'important');
+  el.style.setProperty('flex', '1 1 auto', 'important');
+  el.style.setProperty('width', '0', 'important');
+  el.style.setProperty('min-width', '0', 'important');
+  
+  // Force word wrapping
   el.style.setProperty('white-space', 'normal', 'important');
   el.style.setProperty('word-break', 'break-word', 'important');
   el.style.setProperty('overflow-wrap', 'break-word', 'important');
   el.style.setProperty('overflow', 'visible', 'important');
   el.style.setProperty('text-overflow', 'clip', 'important');
-  el.style.setProperty('position', 'absolute', 'important');
-  el.style.setProperty('left', '50%', 'important');
-  el.style.setProperty('top', '50%', 'important');
-  el.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
-  el.style.setProperty('max-width', '50%', 'important');
   el.style.setProperty('text-align', 'center', 'important');
-
-  // 2. Adjust line-height for clean multi-line display
-  var screenW = window.innerWidth;
-  if (screenW <= 380) {
-    el.style.fontSize = '12px';
-    el.style.lineHeight = '1.15';
-  } else if (screenW <= 600) {
-    el.style.fontSize = '14px';
-    el.style.lineHeight = '1.2';
-  } else {
-    el.style.fontSize = '18px';
-    el.style.lineHeight = '1.25';
-  }
+  el.style.setProperty('line-height', '1.15', 'important');
 }
 
 function insertHeaderTitle() {
