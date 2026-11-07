@@ -282,9 +282,8 @@ function insertHeaderTitle() {
   }
 }
 
-/* ===== STICKY HEADER SAFEGUARD (SAFE FOR WEBKIT/SAFARI & CHROME) ===== */
+/* ===== STICKY HEADER SAFEGUARD ===== */
 function makeTabsSticky() {
-  // Ensured no ancestor overflow overrides occur here so sticky header remains functioning
   var dashHeader = document.getElementById('dashHeader');
   if (dashHeader) {
     dashHeader.style.position = '-webkit-sticky';
@@ -824,7 +823,6 @@ function _buildCropUI(file, img, imgUrl, callback) {
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
 
-  // Lock parent page scrolling strictly during active crop modal
   document.body.style.overflow = 'hidden';
 
   imgEl.onload = function() {
