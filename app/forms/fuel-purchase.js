@@ -10,8 +10,8 @@
  * receipt OCR data extraction (with fixed viewport modal cropping interface), dynamic multi-line 
  * item tracking, EXIF metadata validation for photo uploads, dynamic option 
  * loading (users, locations, projects, assets), mobile-specific GPS location 
- * verification, payment/PO type management, vendor address auto-population,
- * and mandatory Payment Type selection before receipt upload.
+ * verification, payment/PO type management, card vendor selection/extraction,
+ * vendor address auto-population, and mandatory Payment Type selection before receipt upload.
  */
 
 var allTanks = [];
@@ -90,11 +90,12 @@ window.addEventListener('beforeunload', function(e) {
   if (formDirty) { e.preventDefault(); e.returnValue = ''; }
 });
 
-/* ===== PAYMENT TYPE TOGGLES ===== */
+/* ===== PAYMENT TYPE & CARD VENDOR TOGGLES ===== */
 function handlePaymentTypeChange(selectEl) {
   var val = (selectEl ? selectEl.value : '').trim();
   var poWrap = document.getElementById('poNumberWrap');
   var cardWrap = document.getElementById('cardLast4Wrap');
+  var vendorWrap = document.getElementById('cardVendorWrap');
 
   if (poWrap) {
     if (val === 'On Account' || val === 'On Account / PO') {
@@ -106,13 +107,25 @@ function handlePaymentTypeChange(selectEl) {
     }
   }
 
+  var isCard = (val === 'Credit Card' || val === 'Fleet Card');
+
   if (cardWrap) {
-    if (val === 'Credit Card' || val === 'Fleet Card') {
+    if (isCard) {
       cardWrap.style.display = 'flex';
     } else {
       cardWrap.style.display = 'none';
       var cardInp = document.getElementById('purchaseCardLast4');
       if (cardInp) cardInp.value = '';
+    }
+  }
+
+  if (vendorWrap) {
+    if (isCard) {
+      vendorWrap.style.display = 'flex';
+    } else {
+      vendorWrap.style.display = 'none';
+      var vendorInp = document.getElementById('purchaseCardVendor');
+      if (vendorInp) vendorInp.value = '';
     }
   }
 }
@@ -1042,6 +1055,14 @@ async function _doExtraction(file, previewContent, status, preview) {
         }
       }
 
+      if (data.extracted.card_vendor) {
+        var cardVendorEl = document.getElementById('purchaseCardVendor');
+        if (cardVendorEl) {
+          cardVendorEl.value = data.extracted.card_vendor;
+          cardVendorEl.classList.add('ai-extracted');
+        }
+      }
+
       if (data.extracted.card_last_4) {
         var cardEl = document.getElementById('purchaseCardLast4');
         if (cardEl) {
@@ -1061,7 +1082,7 @@ async function _doExtraction(file, previewContent, status, preview) {
       var rtExtracted = data.extracted.receipt_total || data.extracted.total_amount;
       if (rtExtracted) {
         var rtEl = document.getElementById('receiptTotal');
-        if (rtEl) { rtEl.value = rtExtracted; rtEl.classList.add('ai-extracted'); }
+        if (rtEl) { rtEl.value = parseFloat(rtExtracted).toFixed(2); rtEl.classList.add('ai-extracted'); }
       }
       window._receiptHasNonFuelItems = false;
       if (data.extracted.has_non_fuel_items || (data.extracted.non_fuel_items && data.extracted.non_fuel_items.length > 0)) {
@@ -1153,6 +1174,8 @@ async function submitPurchase() {
   var notes = notesEl ? notesEl.value : '';
   var paymentTypeEl = document.getElementById('purchasePaymentType');
   var paymentType = paymentTypeEl ? paymentTypeEl.value.trim() : null;
+  var cardVendorEl = document.getElementById('purchaseCardVendor');
+  var cardVendor = cardVendorEl ? cardVendorEl.value.trim() : null;
   var cardLast4El = document.getElementById('purchaseCardLast4');
   var cardLast4 = cardLast4El ? cardLast4El.value.trim() : null;
 
@@ -1258,27 +1281,27 @@ async function submitPurchase() {
   };
 
   if (locEl && locEl.tagName === 'INPUT') {
-    managerReviewFlags.push(Object.assign({}, baseFlagContext, { field: 'location', value: locEl.value, reason: 'Custom location typed manually (not from list)' }));
+    managerReviewFlags.push(Object.assign({}, baseFlagContext, { field: 'location', value: locEl.value, reason: 'Custom location typed manually (not from list)', flag_type: 'manager_review', severity: 'info' }));
   }
 
   if (customProjectName) {
-    managerReviewFlags.push(Object.assign({}, baseFlagContext, { field: 'project', value: customProjectName, reason: 'New project typed manually (not from list) — manager must add project and update record' }));
+    managerReviewFlags.push(Object.assign({}, baseFlagContext, { field: 'project', value: customProjectName, reason: 'New project typed manually (not from list) — manager must add project and update record', flag_type: 'manager_review', severity: 'info' }));
   }
 
   for (var j = 0; j < lineItems.length; j++) {
     var row = rows[j];
     var fuelEl = row.querySelector('.line-fuel-type');
     if (fuelEl && fuelEl.getAttribute('data-custom') === 'true') {
-      managerReviewFlags.push(Object.assign({}, baseFlagContext, { field: 'fuel_type', line: j + 1, value: fuelEl.value, reason: 'Custom fuel type typed manually (not from list)' }));
+      managerReviewFlags.push(Object.assign({}, baseFlagContext, { field: 'fuel_type', line: j + 1, value: fuelEl.value, reason: 'Custom fuel type typed manually (not from list)', flag_type: 'manager_review', severity: 'info' }));
       lineItems[j].fuel_type = fuelEl.value;
     }
     if (lineItems[j].custom_asset_name) {
-      managerReviewFlags.push(Object.assign({}, baseFlagContext, { field: 'asset', line: j + 1, value: lineItems[j].custom_asset_name, reason: 'Custom asset typed manually (not in asset list) — manager must add asset and update record' }));
+      managerReviewFlags.push(Object.assign({}, baseFlagContext, { field: 'asset', line: j + 1, value: lineItems[j].custom_asset_name, reason: 'Custom asset typed manually (not in asset list) — manager must add asset and update record', flag_type: 'manager_review', severity: 'info' }));
     }
   }
 
   var receiptTotalInput = document.getElementById('receiptTotal');
-  var receiptTotal = receiptTotalInput ? parseFloat(receiptTotalInput.value) || null : null;
+  var receiptTotal = receiptTotalInput ? parseFloat(parseFloat(receiptTotalInput.value).toFixed(2)) || null : null;
 
   var receiptItemsInput = document.getElementById('receiptItems');
   var receiptItems = receiptItemsInput ? receiptItemsInput.value.trim() || null : null;
@@ -1287,11 +1310,11 @@ async function submitPurchase() {
   var poNumber = poNumberInput ? poNumberInput.value.trim() || null : null;
 
   if (window._receiptHasNonFuelItems) {
-    managerReviewFlags.push(Object.assign({}, baseFlagContext, { field: 'receipt_items', value: 'Receipt includes items besides fuel', reason: 'AI detected non-fuel items on the receipt — manager should review for cost control / project costing' }));
+    managerReviewFlags.push(Object.assign({}, baseFlagContext, { field: 'receipt_items', value: 'Receipt includes items besides fuel', reason: 'AI detected non-fuel items on the receipt — manager should review for cost control / project costing', flag_type: 'manager_review', severity: 'info' }));
   }
 
   if (window._receiptMismatch) {
-    managerReviewFlags.push(Object.assign({}, baseFlagContext, { field: 'receipt_mismatch', value: 'Receipt Total does not match Grand Fuel Total', reason: 'Receipt Total ('+(receiptTotal||'?')+') differs from Grand Fuel Total — manager should verify the receipt and line items' }));
+    managerReviewFlags.push(Object.assign({}, baseFlagContext, { field: 'receipt_mismatch', value: 'Receipt Total does not match Grand Fuel Total', reason: 'Receipt Total ('+(receiptTotal||'?')+') differs from Grand Fuel Total — manager should verify the receipt and line items', flag_type: 'manager_review', severity: 'warning' }));
   }
 
   var body = {
@@ -1309,6 +1332,7 @@ async function submitPurchase() {
     notes: notes || null,
     po_number: poNumber,
     payment_type: paymentType,
+    card_vendor: cardVendor,
     card_last_4: cardLast4,
     project_id: projectId || null,
     project: projectName || null,
@@ -1319,7 +1343,8 @@ async function submitPurchase() {
     device_location: hasDeviceLocation() ? deviceLocation : null,
     latitude: (hasDeviceLocation() && deviceLocation.latitude) ? deviceLocation.latitude : null,
     longitude: (hasDeviceLocation() && deviceLocation.longitude) ? deviceLocation.longitude : null,
-    manager_review_flags: managerReviewFlags
+    manager_review_flags: managerReviewFlags,
+    flags: managerReviewFlags
   };
 
   var ctx = getUrlContextParams();
@@ -1415,8 +1440,9 @@ function clearPurchaseForm() {
   setVal('purchaseVendorZip', '');
   setVal('purchasePONumber', '');
   setVal('purchasePaymentType', '');
-  handlePaymentTypeChange(document.getElementById('purchasePaymentType'));
+  setVal('purchaseCardVendor', '');
   setVal('purchaseCardLast4', '');
+  handlePaymentTypeChange(document.getElementById('purchasePaymentType'));
   setVal('purchaseNotes', '');
   setVal('receiptTotal', '');
   setVal('receiptItems', '');
