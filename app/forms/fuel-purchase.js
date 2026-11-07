@@ -137,22 +137,53 @@ function triggerPhotoCapture(type) {
   }
 }
 
-/* ===== DATE PARSER ===== */
+/* ===== ENHANCED DATE PARSER ===== */
 function parseToIsoDate(str) {
   if (!str) return null;
-  var s = String(str).trim();
-  
-  var slashMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
-  if (slashMatch) {
-    var m = String(slashMatch[1]).padStart(2, '0');
-    var d = String(slashMatch[2]).padStart(2, '0');
-    var y = slashMatch[3];
+  var s = String(str).trim().toUpperCase();
+
+  // Strip time portions (e.g., "03/07/2026 02:15 PM" -> "03/07/2026")
+  s = s.split('T')[0].split(' ')[0].replace(/,/g, '');
+
+  var months = {
+    JAN: '01', FEB: '02', MAR: '03', APR: '04', MAY: '05', JUN: '06',
+    JUL: '07', AUG: '08', SEP: '09', OCT: '10', NOV: '11', DEC: '12',
+    JANUARY: '01', FEBRUARY: '02', MARCH: '03', APRIL: '04', JUNE: '06',
+    JULY: '07', AUGUST: '08', SEPTEMBER: '09', OCTOBER: '10', NOVEMBER: '11', DECEMBER: '12'
+  };
+
+  // 1. Standard ISO (YYYY-MM-DD)
+  var isoMatch = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (isoMatch) {
+    return isoMatch[1] + '-' + String(isoMatch[2]).padStart(2, '0') + '-' + String(isoMatch[3]).padStart(2, '0');
+  }
+
+  // 2. US Format (MM/DD/YYYY or MM/DD/YY)
+  var usMatch = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/);
+  if (usMatch) {
+    var m = String(usMatch[1]).padStart(2, '0');
+    var d = String(usMatch[2]).padStart(2, '0');
+    var y = usMatch[3];
     if (y.length === 2) y = '20' + y;
     return y + '-' + m + '-' + d;
   }
-  
-  var isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (isoMatch) return isoMatch[0];
+
+  // 3. Text Month Format (e.g., "07-MAR-2026" or "MAR-07-2026")
+  var alphaMatch = s.match(/^(\d{1,2})[-/\s]+([A-Z]{3,9})[-/\s]+(\d{2,4})/) ||
+                   s.match(/^([A-Z]{3,9})[-/\s]+(\d{1,2})[-/\s]+(\d{2,4})/);
+  if (alphaMatch) {
+    var part1 = alphaMatch[1];
+    var part2 = alphaMatch[2];
+    var year = alphaMatch[3];
+    if (year.length === 2) year = '20' + year;
+
+    var monthNum = months[part1] || months[part2];
+    var dayNum = months[part1] ? part2 : part1;
+
+    if (monthNum && dayNum) {
+      return year + '-' + monthNum + '-' + String(dayNum).padStart(2, '0');
+    }
+  }
 
   return null;
 }
@@ -369,7 +400,6 @@ function checkDeviceLocation() {
 
   var locationResolved = false;
 
-  // Options: allows cell/Wi-Fi positioning fallback if indoor hardware GPS times out
   var optionsHigh = { enableHighAccuracy: true, timeout: 10000, maximumAge: 15000 };
   var optionsLow = { enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 };
 
@@ -408,17 +438,14 @@ function checkDeviceLocation() {
     showLocationPopup(msg);
   }
 
-  // 1. Primary high-accuracy request
   navigator.geolocation.getCurrentPosition(
     handleSuccess,
     function(err) {
       console.warn('High accuracy location failed/timed out (' + err.message + '). Trying low-accuracy fallback...');
       
-      // 2. Secondary low-accuracy request (Cell/Wi-Fi triangulation)
       navigator.geolocation.getCurrentPosition(
         handleSuccess,
         function(lowErr) {
-          // 3. Ultimate fallback: watchPosition stream for stubborn iOS WebKit standalone containers
           var watchId = navigator.geolocation.watchPosition(
             function(pos) {
               navigator.geolocation.clearWatch(watchId);
@@ -431,7 +458,6 @@ function checkDeviceLocation() {
             optionsLow
           );
 
-          // Watchdog timer to clear watchPosition after 10s
           setTimeout(function() {
             navigator.geolocation.clearWatch(watchId);
             if (!locationResolved) {
@@ -1487,7 +1513,6 @@ async function submitPurchase() {
         return;
       }
 
-      // Check for Meter Reading Regression / Typo Safeguard
       if (entityId) {
         var meterCheck = await validateMeterReading(entityId, meterReading);
         if (!meterCheck.valid) {
