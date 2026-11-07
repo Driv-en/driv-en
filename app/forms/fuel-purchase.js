@@ -301,29 +301,28 @@ function esc(s) {
 function fitHeaderTitle(el) {
   if (!el) return;
 
-  // 1. Allow standard wrapping & flexible boundaries
-  el.style.position = 'static';
-  el.style.transform = 'none';
-  el.style.flex = '1 1 auto';
-  el.style.maxWidth = '100%';
-  el.style.whiteSpace = 'normal';
-  el.style.wordBreak = 'break-word';
+  // 1. Force clear any 'nowrap' or clipping set by common dashboard scripts
+  el.style.position = 'absolute';
+  el.style.left = '50%';
+  el.style.transform = 'translateX(-50%)';
+  el.style.maxWidth = '50%';
+  el.style.whiteSpace = 'normal';       /* Allows multi-line wrapping */
+  el.style.wordBreak = 'break-word';     /* Prevents word overflow */
+  el.style.overflow = 'visible';        /* Shows second/third lines */
+  el.style.textOverflow = 'clip';
   el.style.textAlign = 'center';
+  el.style.lineHeight = '1.15';
 
-  // 2. Dynamic font scaling calculated against viewport width
+  // 2. Adjust font size dynamically based on screen width
   var screenW = window.innerWidth;
   if (screenW <= 380) {
-    el.style.fontSize = '13px';
-    el.style.lineHeight = '1.15';
+    el.style.fontSize = '12px';
   } else if (screenW <= 600) {
-    el.style.fontSize = '15px';
-    el.style.lineHeight = '1.2';
+    el.style.fontSize = '14px';
   } else if (screenW <= 900) {
-    el.style.fontSize = '17px';
-    el.style.lineHeight = '1.25';
+    el.style.fontSize = '16px';
   } else {
-    el.style.fontSize = '20px';
-    el.style.lineHeight = '1.3';
+    el.style.fontSize = '18px';
   }
 }
 
