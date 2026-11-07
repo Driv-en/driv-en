@@ -305,12 +305,16 @@ function insertHeaderTitle() {
     if (row1) {
       title = document.createElement('div');
       title.id = 'dashHeaderTitle';
-      title.textContent = 'Fuel Purchase Form';
       row1.appendChild(title);
     }
-  } else {
+  }
+  if (title) {
     title.textContent = 'Fuel Purchase Form';
     title.style.display = 'block';
+    title.style.whiteSpace = 'nowrap';
+    title.style.overflow = 'hidden';
+    title.style.textOverflow = 'ellipsis';
+    title.style.maxWidth = '60%';
   }
 }
 
