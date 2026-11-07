@@ -275,7 +275,7 @@ function reportError(source, err) {
   } catch (e) { _reportErrorInFlight = false; }
 }
 
-/* ===== DEVICE LOCATION CHECK ===== */
+/* ===== DEVICE LOCATION CHECK (WITH IOS FALLBACK) ===== */
 function checkDeviceLocation() {
   if (!isMobileDevice() && !systemSettings.requireGpsLocation) {
     deviceLocation = null;
@@ -287,27 +287,52 @@ function checkDeviceLocation() {
     showLocationPopup('Your device does not support GPS location. Please use a device with location capabilities.');
     return;
   }
+
+  var optionsHighAccuracy = {
+    enableHighAccuracy: true,
+    timeout: 6000,
+    maximumAge: 30000
+  };
+
+  var optionsLowAccuracy = {
+    enableHighAccuracy: false,
+    timeout: 10000,
+    maximumAge: 60000
+  };
+
+  function handleSuccess(pos) {
+    deviceLocation = {
+      latitude: pos.coords.latitude,
+      longitude: pos.coords.longitude,
+      accuracy: pos.coords.accuracy,
+      timestamp: new Date().toISOString()
+    };
+    updateLocationStatus(true);
+  }
+
+  function handleFinalError(err) {
+    deviceLocation = null;
+    updateLocationStatus(false);
+    var msg = 'Location is required to submit forms. ';
+    if (err.code === 1) msg += 'You denied location access. Please enable it in your browser settings.';
+    else if (err.code === 2) msg += 'Location is unavailable. Check your GPS or network connection.';
+    else if (err.code === 3) msg += 'Location request timed out. Please try again.';
+    else msg += 'Error: ' + err.message;
+    showLocationPopup(msg);
+  }
+
+  // Attempt High Accuracy first, then fallback to Low Accuracy on error/timeout
   navigator.geolocation.getCurrentPosition(
-    function(pos) {
-      deviceLocation = {
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
-        accuracy: pos.coords.accuracy,
-        timestamp: new Date().toISOString()
-      };
-      updateLocationStatus(true);
-    },
+    handleSuccess,
     function(err) {
-      deviceLocation = null;
-      updateLocationStatus(false);
-      var msg = 'Location is required to submit forms. ';
-      if (err.code === 1) msg += 'You denied location access. Please enable it in your browser settings.';
-      else if (err.code === 2) msg += 'Location is unavailable. Check your GPS or network connection.';
-      else if (err.code === 3) msg += 'Location request timed out. Please try again.';
-      else msg += 'Error: ' + err.message;
-      showLocationPopup(msg);
+      console.warn('High accuracy GPS failed on device (' + err.message + '). Trying low-accuracy fallback...');
+      navigator.geolocation.getCurrentPosition(
+        handleSuccess,
+        handleFinalError,
+        optionsLowAccuracy
+      );
     },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    optionsHighAccuracy
   );
 }
 
