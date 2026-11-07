@@ -301,15 +301,13 @@ function esc(s) {
 function fitHeaderTitle(el) {
   if (!el) return;
 
-  // Clear absolute positioning and apply flexible layout rules
+  // Clear absolute positioning so grid engine centers the box
   el.style.setProperty('position', 'relative', 'important');
   el.style.setProperty('left', 'auto', 'important');
   el.style.setProperty('transform', 'none', 'important');
-  el.style.setProperty('flex', '1 1 auto', 'important');
-  el.style.setProperty('width', '0', 'important');
-  el.style.setProperty('min-width', '0', 'important');
+  el.style.setProperty('margin', '0 auto', 'important');
   
-  // Force word wrapping
+  // Enforce multi-line word wrapping and centered text
   el.style.setProperty('white-space', 'normal', 'important');
   el.style.setProperty('word-break', 'break-word', 'important');
   el.style.setProperty('overflow-wrap', 'break-word', 'important');
