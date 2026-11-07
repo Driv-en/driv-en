@@ -278,7 +278,7 @@ html body #dashHeader .dash-driven-logo img {
 }
 .fp-tab-logout:hover { background: #dc2626; }
 
-/* ADMIN PILL BAR LAYOUT (POSITIONED DIRECTLY BELOW TAB BAR MATCHING ADMIN.HTML) */
+/* ADMIN PILL BAR LAYOUT */
 .admin-pill-bar {
   display: flex;
   gap: 12px;
@@ -290,7 +290,7 @@ html body #dashHeader .dash-driven-logo img {
   z-index: 1;
 }
 
-/* PILL BUTTON STYLING MATCHING ADMIN.HTML */
+/* PILL BUTTON STYLING */
 .pill-btn {
   border-radius: 9999px;
   padding: 6px 16px;
@@ -370,6 +370,14 @@ html body #dashHeader .dash-driven-logo img {
   color: var(--text, #f8fafc);
 }
 .purchase-input:focus { outline: none; border-color: var(--primary); }
+
+/* PHOTO CAPTURE SECTION STYLING */
+.fuel-photo-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; }
+.photo-upload-card { background: var(--bg-step, #1e293b); border: 2px dashed var(--border, #334155); border-radius: 8px; padding: 16px; text-align: center; position: relative; transition: border-color 200ms ease; }
+.photo-upload-card:hover { border-color: var(--primary, #38bdf8); }
+.photo-upload-card.has-photo { border-style: solid; border-color: #22c55e; background: rgba(34, 197, 94, 0.05); }
+.photo-preview-box { margin-top: 10px; max-height: 180px; overflow: hidden; border-radius: 6px; display: none; }
+.photo-preview-box img { width: 100%; height: 160px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border, #334155); }
 
 .ai-confidence-banner { background: #eff6ff; border: 1px solid #93c5fd; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #1e3a5f; }
 .ai-confidence-banner.low { background: #fef3c7; border-color: #fcd34d; color: #78350f; }
@@ -457,7 +465,7 @@ select.line-destination, select.line-destination option, select.line-destination
 .generic-modal p, .generic-modal ul { font-size: 14px; line-height: 1.6; color: var(--text-muted, #cbd5e1); }
 .generic-modal-close { margin-top: 16px; background: #475569; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; float: right; }
 
-/* ===== FIXED CROP RECEIPT OVERLAY & GREEN HANDLES ===== */
+/* FIXED CROP RECEIPT OVERLAY & GREEN HANDLES */
 .crop-overlay {
   position: fixed !important;
   top: 0 !important;
@@ -594,7 +602,7 @@ select.line-destination, select.line-destination option, select.line-destination
     <button class="pill-btn pill-btn-instructions" onclick="openModal('instructionsModal')">📖 Instructions</button>
   </div>
 
-  <!-- ===== DEVICE LOCATION POPUP ===== -->
+  <!-- DEVICE LOCATION POPUP -->
   <div id="locationPopupOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;">
     <div style="background:#fff;border-radius:12px;padding:24px;max-width:500px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
       <h3 style="margin:0 0 16px;font-size:18px;color:#cc0000;">⚠️ Device Location Required</h3>
@@ -606,7 +614,7 @@ select.line-destination, select.line-destination option, select.line-destination
     </div>
   </div>
 
-  <!-- ===== LOCATION STATUS BANNER ===== -->
+  <!-- LOCATION STATUS BANNER -->
   <div id="locationStatusBanner" class="location-banner warn" style="display:none;margin:0 auto;max-width:1100px;padding:10px 20px;font-size:13px;"></div>
 
   <div class="fp-main">
@@ -737,6 +745,35 @@ select.line-destination, select.line-destination option, select.line-destination
         </div>
       </div>
 
+      <!-- PHOTO CAPTURE SECTION FOR SETTING TOGGLE ENFORCEMENT -->
+      <div class="purchase-field purchase-field-full" style="margin-bottom: 24px;">
+        <label class="purchase-label">Photo Verification <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(Required photos based on company settings)</span></label>
+        <div class="fuel-photo-row">
+          <!-- Meter Photo Card -->
+          <div class="photo-upload-card" id="meterPhotoCard">
+            <span style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Meter Photo</span>
+            <input type="file" id="meterPhotoInput" accept="image/*" capture="environment" style="display:none;" onchange="handlePhotoUpload('meter', this)">
+            <button type="button" class="purchase-upload-btn secondary" style="font-size:12px;padding:6px 14px;" onclick="document.getElementById('meterPhotoInput').click()">
+              📸 Take Meter Photo
+            </button>
+            <div id="meterPhotoPreview" class="photo-preview-box">
+              <img id="meterPhotoImg" src="" alt="Meter Preview">
+            </div>
+          </div>
+          <!-- Asset Photo Card -->
+          <div class="photo-upload-card" id="assetPhotoCard">
+            <span style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Asset Photo</span>
+            <input type="file" id="assetPhotoInput" accept="image/*" capture="environment" style="display:none;" onchange="handlePhotoUpload('asset', this)">
+            <button type="button" class="purchase-upload-btn secondary" style="font-size:12px;padding:6px 14px;" onclick="document.getElementById('assetPhotoInput').click()">
+              📸 Take Asset Photo
+            </button>
+            <div id="assetPhotoPreview" class="photo-preview-box">
+              <img id="assetPhotoImg" src="" alt="Asset Preview">
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- AI Confidence Banner (shown after extraction) -->
       <div id="aiConfidenceBanner" style="display:none;" class="ai-confidence-banner"></div>
 
@@ -833,9 +870,33 @@ select.line-destination, select.line-destination option, select.line-destination
 <script src="/components/nav.js?v=2026_v5"></script>
 <script src="./fuel-purchase.js?v=2026_v5"></script>
 
-<!-- MODAL HELPERS, LOCATION BYPASS & STRICT TITLE OVERRIDE OBSERVER -->
+<!-- MODAL HELPERS, PHOTO CAPTURE & TITLE OVERRIDE OBSERVER -->
 <script>
 /* <![CDATA[ */
+// Photo Upload Preview Handler
+function handlePhotoUpload(type, input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var dataUrl = e.target.result;
+    if (typeof fuelPhotos !== 'undefined') {
+      fuelPhotos[type] = dataUrl;
+    }
+    var card = document.getElementById(type + 'PhotoCard');
+    var preview = document.getElementById(type + 'PhotoPreview');
+    var img = document.getElementById(type + 'PhotoImg');
+
+    if (card) card.classList.add('has-photo');
+    if (img) img.src = dataUrl;
+    if (preview) preview.style.display = 'block';
+
+    if (typeof markFormDirty === 'function') markFormDirty();
+  };
+  reader.readAsDataURL(file);
+}
+
 // Desktop bypass for Device Location requirement
 function checkDeviceLocation() {
   if (typeof isMobileDevice === 'function' && !isMobileDevice()) {
@@ -857,7 +918,7 @@ function closeModal(id) {
   if (modal) modal.style.display = 'none';
 }
 
-// Guardrail: Enforce "Fuel Purchase Form" against dynamic overrides (nav.js / dashboard-common.js)
+// Guardrail: Enforce "Fuel Purchase Form" against dynamic overrides
 document.addEventListener("DOMContentLoaded", function() {
   checkDeviceLocation();
 
@@ -867,7 +928,6 @@ document.addEventListener("DOMContentLoaded", function() {
   if (headerTitle) {
     headerTitle.textContent = TARGET_TITLE;
 
-    // Observe and intercept any runtime changes by shared component scripts
     var observer = new MutationObserver(function() {
       if (headerTitle.textContent !== TARGET_TITLE) {
         headerTitle.textContent = TARGET_TITLE;
