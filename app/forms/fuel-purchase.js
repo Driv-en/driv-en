@@ -12,7 +12,7 @@
  * mobile-specific GPS location verification, payment/PO type management, card 
  * vendor selection/extraction, vendor address auto-population, mandatory 
  * payment type selection prior to receipt upload, optional photo upload management 
- * (meter & asset photos), and tenant-wide settings enforcement.
+ * (meter & asset photos), meter regression checks, and tenant-wide settings enforcement.
  */
 
 var allTanks = [];
@@ -51,7 +51,6 @@ async function loadTenantSettings() {
       var data = await resp.json();
       var s = data.settings || data.company_settings || data.data || {};
       
-      // Flexible resolution for backend key variations (snake_case, camelCase, prefixed)
       systemSettings.requireMeterPhoto = Boolean(
         s.fuel_meter_photo ?? s.require_meter_photo ?? s.meter_photo_required ?? localStorage.getItem('setting_fuel_meter_photo') === 'true'
       );
@@ -72,19 +71,16 @@ async function loadTenantSettings() {
 }
 
 function applySettingUIConstraints() {
-  // Toggle Meter Photo input visibility based on company settings
   var meterPhotoWrap = document.getElementById('meterPhotoWrap') || document.getElementById('meterPhotoContainer');
   if (meterPhotoWrap) {
     meterPhotoWrap.style.display = systemSettings.requireMeterPhoto ? 'block' : 'none';
   }
 
-  // Toggle Asset Photo input visibility based on company settings
   var assetPhotoWrap = document.getElementById('assetPhotoWrap') || document.getElementById('assetPhotoContainer');
   if (assetPhotoWrap) {
     assetPhotoWrap.style.display = systemSettings.requireAssetPhoto ? 'block' : 'none';
   }
 
-  // Enforce line-item meter photo indicators
   var meterInputs = document.querySelectorAll('.line-meter');
   meterInputs.forEach(function(input) {
     if (systemSettings.requireMeterPhoto) {
@@ -94,7 +90,6 @@ function applySettingUIConstraints() {
     }
   });
 
-  // Display location status banner if toggled in settings OR running on a mobile device
   var banner = document.getElementById('locationStatusBanner');
   if (banner) {
     if (systemSettings.requireGpsLocation || isMobileDevice()) {
@@ -218,6 +213,28 @@ function clearFormDirty() { formDirty = false; }
 window.addEventListener('beforeunload', function(e) {
   if (formDirty) { e.preventDefault(); e.returnValue = ''; }
 });
+
+/* ===== METER READING VALIDATION HELPER ===== */
+async function validateMeterReading(assetId, inputReading) {
+  if (!assetId || !inputReading || isNaN(inputReading)) return { valid: true };
+  try {
+    var resp = await safeFetch(buildApiUrl('/api/assets/' + assetId + '/latest-meter'));
+    if (resp && resp.ok) {
+      var data = await resp.json();
+      var lastReading = parseFloat(data.latest_reading || data.reading || 0);
+      if (lastReading > 0 && parseFloat(inputReading) < lastReading) {
+        return {
+          valid: false,
+          lastReading: lastReading,
+          message: 'Meter reading (' + inputReading + ') is lower than previous recorded reading (' + lastReading + ').'
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('Could not verify meter reading history:', e);
+  }
+  return { valid: true };
+}
 
 /* ===== PAYMENT TYPE & CARD VENDOR TOGGLES ===== */
 function handlePaymentTypeChange(selectEl) {
@@ -1339,13 +1356,11 @@ async function submitPurchase() {
   if (!vendor || !vendor.trim()) { showPurchaseError('Vendor is required'); return; }
   if (!person) { showPurchaseError('User is required'); return; }
 
-  // Enforce mandatory Asset Photo if toggled in settings
   if (systemSettings.requireAssetPhoto && !fuelPhotos.asset) {
     showPurchaseError('Photo of the asset is required per company settings.');
     return;
   }
 
-  // Enforce mandatory Meter Photo if toggled in settings
   if (systemSettings.requireMeterPhoto && !fuelPhotos.meter) {
     showPurchaseError('Photo of the meter reading is required per company settings.');
     return;
@@ -1369,8 +1384,11 @@ async function submitPurchase() {
     }
   }
 
+  managerReviewFlags = [];
+  var locEl = document.getElementById('purchaseLocation');
   var lineItems = [];
   var rows = document.querySelectorAll('.line-item-row');
+
   for (var i = 0; i < rows.length; i++) {
     var row = rows[i];
     var destInput = row.querySelector('.line-destination');
@@ -1409,6 +1427,21 @@ async function submitPurchase() {
         showPurchaseError('Line ' + (i + 1) + ': Meter Reading is required.');
         return;
       }
+
+      // Check for Meter Reading Regression / Typo Safeguard
+      if (entityId) {
+        var meterCheck = await validateMeterReading(entityId, meterReading);
+        if (!meterCheck.valid) {
+          managerReviewFlags.push({
+            field: 'meter_reading',
+            line: i + 1,
+            value: meterReading,
+            reason: meterCheck.message,
+            flag_type: 'meter_anomaly',
+            severity: 'warning'
+          });
+        }
+      }
     }
 
     var li = {
@@ -1420,10 +1453,12 @@ async function submitPurchase() {
       asset_number: assetNum || (entityType === 'asset' ? entityId : null),
       project_id: projectId || null,
       project: projectName || null,
+      project_name: projectName || customProjectName || null,
       fuel_date: date,
       fuel_site: location || null,
       cost_per_gallon: cpg,
       meter_reading: !isNaN(meterReading) ? meterReading : null,
+      source: 'fuel_purchase',
       latitude: (hasDeviceLocation() && deviceLocation.latitude) ? deviceLocation.latitude : null,
       longitude: (hasDeviceLocation() && deviceLocation.longitude) ? deviceLocation.longitude : null
     };
@@ -1438,9 +1473,6 @@ async function submitPurchase() {
   lineItems.forEach(function(li) { totalQty += li.quantity; });
   if (totalQty <= 0) { showPurchaseError('Total quantity must be greater than zero'); return; }
 
-  managerReviewFlags = [];
-
-  var locEl = document.getElementById('purchaseLocation');
   var baseFlagContext = {
     person: person || null,
     location: (locEl && locEl.value) ? locEl.value.trim() : (location || null),
@@ -1486,6 +1518,7 @@ async function submitPurchase() {
   }
 
   var body = {
+    source: 'fuel_purchase',
     vendor: vendor || null,
     vendor_address: vendorAddress,
     vendor_city: vendorCity,
@@ -1504,12 +1537,12 @@ async function submitPurchase() {
     card_last_4: cardLast4,
     project_id: projectId || null,
     project: projectName || null,
+    project_name: projectName || customProjectName || null,
     receipt_r2_key: receiptR2Key,
     receipt_total: receiptTotal,
     receipt_items: receiptItems,
     line_items: lineItems,
 
-    // Photo Payloads (passed directly & as nested fuel_photos)
     fuel_photos: {
       meter: fuelPhotos.meter || null,
       asset: fuelPhotos.asset || null
