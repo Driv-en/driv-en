@@ -6,13 +6,13 @@
  * Handles client-side logic for logging and submitting fuel purchases across 
  * mobile and desktop devices in a PWA (Progressive Web App) environment. 
  * Features include multi-tenant isolation via URL/auth context parameters, 
- * theme (dark/light) carryover from the main user dashboard, automated AI 
- * receipt OCR data extraction (with fixed viewport modal cropping interface), dynamic multi-line 
- * item tracking, EXIF metadata validation for photo uploads, dynamic option 
- * loading (users, locations, projects, assets), mobile-specific GPS location 
- * verification, payment/PO type management, card vendor selection/extraction,
- * vendor address auto-population, mandatory Payment Type selection before receipt upload,
- * photo upload management (meter & asset photos), and tenant-wide settings enforcement.
+ * theme carryover from the main user dashboard, automated AI receipt OCR data 
+ * extraction (with fixed viewport modal cropping interface), dynamic multi-line 
+ * item tracking, dynamic option loading (users, locations, projects, assets), 
+ * mobile-specific GPS location verification, payment/PO type management, card 
+ * vendor selection/extraction, vendor address auto-population, mandatory 
+ * payment type selection prior to receipt upload, optional photo upload management 
+ * (meter & asset photos), and tenant-wide settings enforcement.
  */
 
 var allTanks = [];
