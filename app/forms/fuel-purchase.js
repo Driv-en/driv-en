@@ -347,7 +347,7 @@ function reportError(source, err) {
   } catch (e) { _reportErrorInFlight = false; }
 }
 
-/* ===== DEVICE LOCATION CHECK (WITH IOS FALLBACK) ===== */
+/* ===== DEVICE LOCATION CHECK (WITH IOS & GEOLOCATION FIXES) ===== */
 function checkDeviceLocation() {
   if (!isMobileDevice() && !systemSettings.requireGpsLocation) {
     deviceLocation = null;
@@ -360,8 +360,8 @@ function checkDeviceLocation() {
     return;
   }
 
-  var optionsHighAccuracy = { enableHighAccuracy: true, timeout: 6000, maximumAge: 30000 };
-  var optionsLowAccuracy = { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 };
+  var optionsHighAccuracy = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
+  var optionsLowAccuracy = { enableHighAccuracy: false, timeout: 15000, maximumAge: 0 };
 
   function handleSuccess(pos) {
     deviceLocation = {
@@ -370,6 +370,7 @@ function checkDeviceLocation() {
       accuracy: pos.coords.accuracy,
       timestamp: new Date().toISOString()
     };
+    closeLocationPopup();
     updateLocationStatus(true);
   }
 
@@ -393,6 +394,7 @@ function checkDeviceLocation() {
     optionsHighAccuracy
   );
 }
+window.checkDeviceLocationImpl = checkDeviceLocation;
 
 function updateLocationStatus(hasLocation) {
   var banner = document.getElementById('locationStatusBanner');
@@ -1195,15 +1197,21 @@ async function _doExtraction(file, previewContent, status, preview) {
         zipEl.classList.add('ai-extracted');
       }
 
+      // Robust Extracted Date Parsing & Fallback Logic
       var rawDate = data.extracted.receipt_date || data.extracted.date || data.extracted.transaction_date || data.extracted.purchase_date;
       var isoDate = parseToIsoDate(rawDate);
-      if (isoDate) {
-        var dateEl = document.getElementById('purchaseDate');
-        if (dateEl) {
+      var dateEl = document.getElementById('purchaseDate');
+      if (dateEl) {
+        if (isoDate) {
           dateEl.value = isoDate;
           dateEl.classList.add('ai-extracted');
-          dateEl.dispatchEvent(new Event('change', { bubbles: true }));
+          dateEl.classList.remove('ai-needed');
+        } else {
+          dateEl.value = localDate();
+          dateEl.classList.add('ai-needed');
+          dateEl.classList.remove('ai-extracted');
         }
+        dateEl.dispatchEvent(new Event('change', { bubbles: true }));
       }
 
       if (data.extracted.payment_type) {
