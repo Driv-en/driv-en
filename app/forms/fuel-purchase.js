@@ -12,7 +12,7 @@
  * loading (users, locations, projects, assets), mobile-specific GPS location 
  * verification, payment/PO type management, card vendor selection/extraction,
  * vendor address auto-population, mandatory Payment Type selection before receipt upload,
- * and tenant-wide settings enforcement (meter photo, asset photo, GPS location).
+ * photo upload management (meter & asset photos), and tenant-wide settings enforcement.
  */
 
 var allTanks = [];
@@ -90,6 +90,43 @@ function applySettingUIConstraints() {
     } else {
       banner.style.display = 'none';
     }
+  }
+}
+
+/* ===== PHOTO CAPTURE & PREVIEW HANDLERS ===== */
+function handlePhotoUpload(type, input) {
+  if (!input || !input.files || !input.files[0]) return;
+  var file = input.files[0];
+
+  _resizeImageAsync(file, 1200).then(function(resizedFile) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var base64 = e.target.result;
+      fuelPhotos[type] = base64;
+      fuelPhotoData[type] = resizedFile;
+
+      var previewEl = document.getElementById(type + 'PhotoPreview');
+      if (previewEl) {
+        previewEl.src = base64;
+        previewEl.style.display = 'block';
+      }
+      var statusEl = document.getElementById(type + 'PhotoStatus');
+      if (statusEl) {
+        statusEl.textContent = '✓ Photo captured';
+        statusEl.className = 'photo-status-ok';
+      }
+      markFormDirty();
+    };
+    reader.readAsDataURL(resizedFile);
+  }).catch(function(err) {
+    reportError('handlePhotoUpload (' + type + ')', err);
+  });
+}
+
+function triggerPhotoCapture(type) {
+  var inputEl = document.getElementById(type + 'PhotoInput');
+  if (inputEl) {
+    inputEl.click();
   }
 }
 
@@ -283,7 +320,6 @@ function reportError(source, err) {
 
 /* ===== DEVICE LOCATION CHECK (WITH IOS FALLBACK) ===== */
 function checkDeviceLocation() {
-  // Exclude non-mobile devices UNLESS mandatory GPS settings are enabled
   if (!isMobileDevice() && !systemSettings.requireGpsLocation) {
     deviceLocation = null;
     closeLocationPopup();
@@ -295,17 +331,8 @@ function checkDeviceLocation() {
     return;
   }
 
-  var optionsHighAccuracy = {
-    enableHighAccuracy: true,
-    timeout: 6000,
-    maximumAge: 30000
-  };
-
-  var optionsLowAccuracy = {
-    enableHighAccuracy: false,
-    timeout: 10000,
-    maximumAge: 60000
-  };
+  var optionsHighAccuracy = { enableHighAccuracy: true, timeout: 6000, maximumAge: 30000 };
+  var optionsLowAccuracy = { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 };
 
   function handleSuccess(pos) {
     deviceLocation = {
@@ -328,16 +355,11 @@ function checkDeviceLocation() {
     showLocationPopup(msg);
   }
 
-  // Two-tier fallback: Try High-Accuracy GPS lock first, fall back to low-accuracy Wi-Fi/Cell triangulation for iOS
   navigator.geolocation.getCurrentPosition(
     handleSuccess,
     function(err) {
       console.warn('High accuracy GPS failed on device (' + err.message + '). Trying low-accuracy fallback...');
-      navigator.geolocation.getCurrentPosition(
-        handleSuccess,
-        handleFinalError,
-        optionsLowAccuracy
-      );
+      navigator.geolocation.getCurrentPosition(handleSuccess, handleFinalError, optionsLowAccuracy);
     },
     optionsHighAccuracy
   );
@@ -392,7 +414,6 @@ function hasDeviceLocation() {
 }
 
 function requireLocationOrPopup() {
-  // Only require location if on a mobile device OR if company settings mandate GPS location
   if (!isMobileDevice() && !systemSettings.requireGpsLocation) return true;
   if (hasDeviceLocation()) return true;
   showLocationPopup('Location is required to submit this form per company settings / mobile policy. Please enable location services and retry.');
@@ -1272,7 +1293,6 @@ function showConfidenceBanner(extracted) {
 
 /* ===== SUBMIT PURCHASE ===== */
 async function submitPurchase() {
-  // Enforce device location check if on mobile OR enabled via Cloudflare Worker settings
   if (!requireLocationOrPopup()) return;
 
   var dateEl = document.getElementById('purchaseDate');
@@ -1372,7 +1392,6 @@ async function submitPurchase() {
     var entityId = parts[1] || null;
     var assetNum = parts[2] || null;
 
-    // Check meter reading requirements based on asset type or system settings
     if (entityType === 'asset' || systemSettings.requireMeterPhoto) {
       if (!meterReadingVal || isNaN(meterReading) || meterReading < 0) {
         showPurchaseError('Line ' + (i + 1) + ': Meter Reading is required.');
@@ -1477,8 +1496,15 @@ async function submitPurchase() {
     receipt_total: receiptTotal,
     receipt_items: receiptItems,
     line_items: lineItems,
+
+    // Photo Payloads (passed directly & as nested fuel_photos)
+    fuel_photos: {
+      meter: fuelPhotos.meter || null,
+      asset: fuelPhotos.asset || null
+    },
     meter_photo: fuelPhotos.meter || null,
     asset_photo: fuelPhotos.asset || null,
+
     device_location: hasDeviceLocation() ? deviceLocation : null,
     latitude: (hasDeviceLocation() && deviceLocation.latitude) ? deviceLocation.latitude : null,
     longitude: (hasDeviceLocation() && deviceLocation.longitude) ? deviceLocation.longitude : null,
@@ -1603,6 +1629,18 @@ function clearPurchaseForm() {
 
   setVal('receiptCameraInput', '');
   setVal('receiptFileInput', '');
+  setVal('meterPhotoInput', '');
+  setVal('assetPhotoInput', '');
+
+  var meterPreview = document.getElementById('meterPhotoPreview');
+  if (meterPreview) { meterPreview.src = ''; meterPreview.style.display = 'none'; }
+  var assetPreview = document.getElementById('assetPhotoPreview');
+  if (assetPreview) { assetPreview.src = ''; assetPreview.style.display = 'none'; }
+
+  var meterStatus = document.getElementById('meterPhotoStatus');
+  if (meterStatus) { meterStatus.textContent = ''; meterStatus.className = ''; }
+  var assetStatus = document.getElementById('assetPhotoStatus');
+  if (assetStatus) { assetStatus.textContent = ''; assetStatus.className = ''; }
 
   var confBanner = document.getElementById('aiConfidenceBanner');
   if (confBanner) {
@@ -1924,6 +1962,8 @@ window.markFormDirty = markFormDirty;
 window.removeLineItem = removeLineItem;
 window.handleReceiptUpload = handleReceiptUpload;
 window.triggerReceiptCapture = triggerReceiptCapture;
+window.handlePhotoUpload = handlePhotoUpload;
+window.triggerPhotoCapture = triggerPhotoCapture;
 window.submitPurchase = submitPurchase;
 window.clearPurchaseForm = clearPurchaseForm;
 window.handlePaymentTypeChange = handlePaymentTypeChange;
