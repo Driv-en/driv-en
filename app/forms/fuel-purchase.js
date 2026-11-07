@@ -1513,14 +1513,52 @@ async function submitPurchase() {
         return;
       }
 
+      // Check for Meter Reading Regression / Typo Safeguard
       if (entityId) {
         var meterCheck = await validateMeterReading(entityId, meterReading);
         if (!meterCheck.valid) {
+          // 1. Alert user & verify if lower reading is intentional
+          var confirmLower = confirm(
+            '⚠️ METER READING WARNING:\n\n' + 
+            meterCheck.message + '\n\n' +
+            'Did you replace the meter, swap the cluster, or is this lower reading intentional?\n\n' +
+            '• Click "OK" to provide a mandatory explanation note and proceed.\n' +
+            '• Click "Cancel" to go back and correct the meter reading.'
+          );
+
+          if (!confirmLower) {
+            showPurchaseError('Line ' + (i + 1) + ': Please correct the meter reading.');
+            return; // Stop submission for correction
+          }
+
+          // 2. Prompt for mandatory explanation note
+          var reasonNote = prompt(
+            'REQUIRED EXPLANATION:\n\n' +
+            'Please enter the reason for the lower meter reading (e.g., "Meter replaced at 4,500 hrs" or "New gauge installed"):',
+            ''
+          );
+
+          if (!reasonNote || !reasonNote.trim()) {
+            showPurchaseError('Line ' + (i + 1) + ': An explanation note is required when entering a lower meter reading.');
+            return; // Stop submission if note is omitted
+          }
+
+          var cleanReason = reasonNote.trim();
+
+          // 3. Attach reason to main transaction notes
+          if (notes) {
+            notes += ' | METER ROLLBACK REASON: ' + cleanReason;
+          } else {
+            notes = 'METER ROLLBACK REASON: ' + cleanReason;
+          }
+
+          // 4. Record audit flag to fuel_flags table
           managerReviewFlags.push({
             field: 'meter_reading',
             line: i + 1,
             value: meterReading,
-            reason: meterCheck.message,
+            previous_value: meterCheck.lastReading,
+            reason: 'Meter reading (' + meterReading + ') is lower than previous recorded reading (' + meterCheck.lastReading + '). User Explanation: ' + cleanReason,
             flag_type: 'meter_anomaly',
             severity: 'warning'
           });
