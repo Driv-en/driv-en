@@ -7,7 +7,7 @@
  * mobile and desktop devices in a PWA (Progressive Web App) environment. 
  * Features include multi-tenant isolation via URL/auth context parameters, 
  * theme (dark/light) carryover from the main user dashboard, automated AI 
- * receipt OCR data extraction (with fixed modal cropping interface), dynamic multi-line 
+ * receipt OCR data extraction (with fixed viewport modal cropping interface), dynamic multi-line 
  * item tracking, EXIF metadata validation for photo uploads, dynamic option 
  * loading (users, locations, projects, assets), mobile-specific GPS location 
  * verification, payment/PO type management, vendor address auto-population,
@@ -258,11 +258,6 @@ function isMobileDevice() {
 function esc(s) {
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
-
-function getTankTypeDisplayName(systemKey){
-  var t = tankTypes.find(function(tt) { return tt.system_key === systemKey; });
-  return t ? t.display_name : systemKey;
 }
 
 /* ===== PROTECTED CENTERED HEADER TITLE ===== */
@@ -567,160 +562,7 @@ function recalcGrandTotal() {
   checkReceiptMismatch();
 }
 
-/* ===== FUEL PHOTO SETTINGS ===== */
-async function loadFuelPhotoSettings() {
-  try {
-    var res = await fetch(buildApiUrl('/auth/get-settings'));
-    var data = await res.json();
-    if (data.success && data.settings) {
-      fuelPhotoSettings.meter = !!data.settings.fuel_meter_photo;
-      fuelPhotoSettings.asset = !!data.settings.fuel_asset_photo;
-      var section = document.getElementById('fuelPhotoSection');
-      var banner = document.getElementById('fuelPhotoBanner');
-      var meterBox = document.getElementById('meterPhotoBox');
-      var assetBox = document.getElementById('assetPhotoBox');
-      if (fuelPhotoSettings.meter || fuelPhotoSettings.asset) {
-        if (section) section.style.display = 'block';
-        if (banner) banner.style.display = 'block';
-        if (meterBox) meterBox.style.display = fuelPhotoSettings.meter ? 'block' : 'none';
-        if (assetBox) assetBox.style.display = fuelPhotoSettings.asset ? 'block' : 'none';
-      }
-    }
-  } catch (e) { console.warn('Fuel photo settings load error:', e.message); }
-}
-
-/* ===== EXIF DATE EXTRACTION ===== */
-function getExifDate(file) {
-  return new Promise(function(resolve) {
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      try {
-        var bytes = new Uint8Array(e.target.result);
-        if (bytes[0] !== 0xFF || bytes[1] !== 0xD8) { resolve(null); return; }
-        var i = 2;
-        while (i < bytes.length) {
-          if (bytes[i] !== 0xFF) { i++; continue; }
-          var marker = bytes[i + 1];
-          var size = (bytes[i + 2] << 8) | bytes[i + 3];
-          if (marker === 0xE1) {
-            var exifData = bytes.subarray(i + 4, i + 2 + size);
-            var str = '';
-            for (var j = 0; j < exifData.length && j < 65536; j++) {
-              str += String.fromCharCode(exifData[j]);
-            }
-            var dateMatch = str.match(/(\d{4}):(\d{2}):(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/);
-            if (dateMatch) {
-              resolve(dateMatch[1] + '-' + dateMatch[2] + '-' + dateMatch[3]);
-            } else { resolve(null); }
-            return;
-          }
-          i += 2 + size;
-        }
-        resolve(null);
-      } catch (e) { resolve(null); }
-    };
-    reader.onerror = function() { resolve(null); };
-    reader.readAsArrayBuffer(file);
-  });
-}
-
-/* ===== HANDLE FUEL PHOTO UPLOAD ===== */
-async function handleFuelPhotoUpload(input, type) {
-  var file = input.files[0];
-  if (!file) return;
-  if (!['image/jpeg', 'image/png'].some(function(t) { return file.type === t; })) {
-    alert('Please upload a JPEG or PNG image.');
-    return;
-  }
-  if (file.size > 5000000) {
-    alert('Photo is too large. Max 5MB.');
-    return;
-  }
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    fuelPhotoData[type] = e.target.result;
-    var preview = document.getElementById(type + 'PhotoPreview');
-    if (preview) preview.innerHTML = '<img src="' + e.target.result + '" alt="' + type + ' photo">';
-    var removeBtn = document.getElementById(type + 'PhotoRemove');
-    if (removeBtn) removeBtn.style.display = 'inline-block';
-    markFormDirty();
-  };
-  reader.readAsDataURL(file);
-  var photoDate = await getExifDate(file);
-  var formDate = document.getElementById('purchaseDate') ? document.getElementById('purchaseDate').value : '';
-  fuelPhotos[type] = { file: file, exifDate: photoDate };
-  if (photoDate && formDate) {
-    if (photoDate !== formDate) {
-      managerReviewFlags.push({
-        field: type + '_photo',
-        value: 'Photo date (' + photoDate + ') does not match form date (' + formDate + ')',
-        reason: 'Photo date (' + photoDate + ') does not match form date (' + formDate + ') — possible old photo. Manager should review.'
-      });
-    }
-  } else if (!photoDate) {
-    managerReviewFlags.push({
-      field: type + '_photo',
-      value: 'EXIF date could not be verified',
-      reason: 'Photo date could not be verified (EXIF metadata missing). Manager should review.'
-    });
-  }
-}
-
-/* ===== REMOVE FUEL PHOTO ===== */
-function removeFuelPhoto(type) {
-  fuelPhotoData[type] = null;
-  fuelPhotos[type] = null;
-  var preview = document.getElementById(type + 'PhotoPreview');
-  if (preview) preview.innerHTML = '';
-  var removeBtn = document.getElementById(type + 'PhotoRemove');
-  if (removeBtn) removeBtn.style.display = 'none';
-  var input = document.getElementById(type + 'PhotoInput');
-  if (input) input.value = '';
-  managerReviewFlags = managerReviewFlags.filter(function(f) { return f.field !== type + '_photo'; });
-}
-
-/* ===== VALIDATE FUEL PHOTOS BEFORE SUBMIT ===== */
-function validateFuelPhotos() {
-  if (fuelPhotoSettings.meter && !fuelPhotoData.meter) {
-    alert('A meter photo is required. Please take a photo of the meter/gauge before submitting.');
-    return false;
-  }
-  if (fuelPhotoSettings.asset && !fuelPhotoData.asset) {
-    alert('An asset photo is required. Please take a photo of the asset/equipment before submitting.');
-    return false;
-  }
-  return true;
-}
-
-/* ===== RECEIPT UPLOAD & EXTRACTION ===== */
-function resizeImage(file, maxDim) {
-  return new Promise(function(resolve, reject) {
-    if (!file.type.startsWith('image/')) { resolve(file); return; }
-    var img = new Image();
-    var url = URL.createObjectURL(file);
-    img.onload = function() {
-      URL.revokeObjectURL(url);
-      var w = img.width, h = img.height;
-      if (w <= maxDim && h <= maxDim) { resolve(file); return; }
-      var scale = Math.min(maxDim / w, maxDim / h);
-      var cw = Math.round(w * scale), ch = Math.round(h * scale);
-      var canvas = document.createElement('canvas');
-      canvas.width = cw; canvas.height = ch;
-      var ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, cw, ch);
-      canvas.toBlob(function(blob) {
-        if (blob) {
-          var resized = new File([blob], file.name || 'receipt.jpg', { type: 'image/jpeg' });
-          resolve(resized);
-        } else { resolve(file); }
-      }, 'image/jpeg', 0.70);
-    };
-    img.onerror = function() { URL.revokeObjectURL(url); resolve(file); };
-    img.src = url;
-  });
-}
-
-/* ===== CROP OVERLAY (FIXED VIEWPORT MODAL) ===== */
+/* ===== ACCURATE CROP OVERLAY (CORRECTED MAPPING) ===== */
 var _cropState = null;
 
 function showCropOverlay(file, callback) {
@@ -751,7 +593,7 @@ function _buildCropUI(file, img, imgUrl, callback) {
 
   var desc = document.createElement('p');
   desc.style.cssText = 'font-size:12px;color:var(--text-muted,#94a3b8);margin:0 0 12px 0;';
-  desc.innerHTML = 'Drag the <strong>green corners</strong> to resize around the receipt text. Drag inside to move.';
+  desc.innerHTML = 'Drag the <strong>green corners</strong> to highlight receipt text. Drag inside to move.';
   modal.appendChild(desc);
 
   var stage = document.createElement('div');
@@ -809,7 +651,7 @@ function _buildCropUI(file, img, imgUrl, callback) {
       callback(file); 
       return; 
     }
-    var cropped = _performCrop(file, img, _cropState);
+    var cropped = _performCrop(file, img, imgEl, stage, _cropState);
     overlay.remove(); 
     URL.revokeObjectURL(imgUrl); 
     _cropState = null;
@@ -827,25 +669,29 @@ function _buildCropUI(file, img, imgUrl, callback) {
 
   imgEl.onload = function() {
     requestAnimationFrame(function() {
-      var dispW = imgEl.clientWidth || stage.clientWidth;
-      var dispH = imgEl.clientHeight || stage.clientHeight;
+      // Calculate true image rendering boundaries inside crop-stage
+      var dispW = imgEl.offsetWidth;
+      var dispH = imgEl.offsetHeight;
+      var imgLeft = imgEl.offsetLeft;
+      var imgTop = imgEl.offsetTop;
+
       var boxW = dispW * 0.8;
       var boxH = dispH * 0.8;
-      var boxX = (dispW - boxW) / 2;
-      var boxY = (dispH - boxH) / 2;
+      var boxX = imgLeft + (dispW - boxW) / 2;
+      var boxY = imgTop + (dispH - boxH) / 2;
 
       cropBox.style.left = boxX + 'px';
       cropBox.style.top = boxY + 'px';
       cropBox.style.width = boxW + 'px';
       cropBox.style.height = boxH + 'px';
 
-      _cropState = { boxX: boxX, boxY: boxY, boxW: boxW, boxH: boxH, dispW: dispW, dispH: dispH, imgW: img.width, imgH: img.height };
-      _attachCropEvents(stage, cropBox, img.width, img.height);
+      _cropState = { boxX: boxX, boxY: boxY, boxW: boxW, boxH: boxH, dispW: dispW, dispH: dispH, imgLeft: imgLeft, imgTop: imgTop };
+      _attachCropEvents(stage, imgEl, cropBox);
     });
   };
 }
 
-function _attachCropEvents(stage, cropBox, imgW, imgH) {
+function _attachCropEvents(stage, imgEl, cropBox) {
   var dragging = false;
   var resizing = false;
   var resizePos = null;
@@ -867,21 +713,27 @@ function _attachCropEvents(stage, cropBox, imgW, imgH) {
     var touch = e.touches ? e.touches[0] : e;
     var dx = touch.clientX - startX;
     var dy = touch.clientY - startY;
+
+    var minX = imgEl.offsetLeft;
+    var minY = imgEl.offsetTop;
+    var maxX = minX + imgEl.offsetWidth;
+    var maxY = minY + imgEl.offsetHeight;
+
     if (dragging) {
-      _cropState.boxX = Math.max(0, Math.min(_cropState.dispW - _cropState.boxW, startBoxX + dx));
-      _cropState.boxY = Math.max(0, Math.min(_cropState.dispH - _cropState.boxH, startBoxY + dy));
+      _cropState.boxX = Math.max(minX, Math.min(maxX - _cropState.boxW, startBoxX + dx));
+      _cropState.boxY = Math.max(minY, Math.min(maxY - _cropState.boxH, startBoxY + dy));
     } else if (resizing) {
       var newX = startBoxX, newY = startBoxY, newW = startBoxW, newH = startBoxH;
-      if (resizePos.indexOf('e') !== -1) newW = Math.max(40, Math.min(_cropState.dispW - startBoxX, startBoxW + dx));
-      if (resizePos.indexOf('s') !== -1) newH = Math.max(40, Math.min(_cropState.dispH - startBoxH, startBoxH + dy));
+      if (resizePos.indexOf('e') !== -1) newW = Math.max(40, Math.min(maxX - startBoxX, startBoxW + dx));
+      if (resizePos.indexOf('s') !== -1) newH = Math.max(40, Math.min(maxY - startBoxY, startBoxH + dy));
       if (resizePos.indexOf('w') !== -1) {
         var maxDx = startBoxW - 40;
-        var realDx = Math.max(-startBoxX, Math.min(maxDx, dx));
+        var realDx = Math.max(minX - startBoxX, Math.min(maxDx, dx));
         newX = startBoxX + realDx; newW = startBoxW - realDx;
       }
       if (resizePos.indexOf('n') !== -1) {
         var maxDy = startBoxH - 40;
-        var realDy = Math.max(-startBoxY, Math.min(maxDy, dy));
+        var realDy = Math.max(minY - startBoxY, Math.min(maxDy, dy));
         newY = startBoxY + realDy; newH = startBoxH - realDy;
       }
       _cropState.boxX = newX; _cropState.boxY = newY;
@@ -931,41 +783,55 @@ function _resizeImageAsync(file, maxDim) {
   });
 }
 
-function _performCrop(file, img, state) {
-  var scaleX = state.imgW / state.dispW;
-  var scaleY = state.imgH / state.dispH;
-  var sx = Math.round(state.boxX * scaleX);
-  var sy = Math.round(state.boxY * scaleY);
+function _performCrop(file, img, imgEl, stage, state) {
+  var dispW = imgEl.offsetWidth;
+  var dispH = imgEl.offsetHeight;
+  var imgLeft = imgEl.offsetLeft;
+  var imgTop = imgEl.offsetTop;
+
+  // Scale factors mapping displayed image pixels to original natural image resolution
+  var scaleX = img.naturalWidth / dispW;
+  var scaleY = img.naturalHeight / dispH;
+
+  // Correct offset relative to image position inside container
+  var relativeBoxX = state.boxX - imgLeft;
+  var relativeBoxY = state.boxY - imgTop;
+
+  var sx = Math.round(relativeBoxX * scaleX);
+  var sy = Math.round(relativeBoxY * scaleY);
   var sw = Math.round(state.boxW * scaleX);
   var sh = Math.round(state.boxH * scaleY);
-  sx = Math.max(0, Math.min(state.imgW - 1, sx));
-  sy = Math.max(0, Math.min(state.imgH - 1, sy));
-  sw = Math.max(1, Math.min(state.imgW - sx, sw));
-  sh = Math.max(1, Math.min(state.imgH - sy, sh));
+
+  sx = Math.max(0, Math.min(img.naturalWidth - 1, sx));
+  sy = Math.max(0, Math.min(img.naturalHeight - 1, sy));
+  sw = Math.max(1, Math.min(img.naturalWidth - sx, sw));
+  sh = Math.max(1, Math.min(img.naturalHeight - sy, sh));
+
   var canvas = document.createElement('canvas');
   canvas.width = sw; canvas.height = sh;
   var ctx = canvas.getContext('2d');
   ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
-  var maxDim = 1024;
+
+  var maxDim = 1200;
   var finalW = sw, finalH = sh;
   if (sw > maxDim || sh > maxDim) {
     var scale = Math.min(maxDim / sw, maxDim / sh);
     finalW = Math.round(sw * scale); finalH = Math.round(sh * scale);
-  }
-  if (finalW !== sw || finalH !== sh) {
     var resizeCanvas = document.createElement('canvas');
     resizeCanvas.width = finalW; resizeCanvas.height = finalH;
     var rctx = resizeCanvas.getContext('2d');
     rctx.drawImage(canvas, 0, 0, sw, sh, 0, 0, finalW, finalH);
     canvas = resizeCanvas;
   }
-  var dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+  var dataUrl = canvas.toDataURL('image/jpeg', 0.90);
   var byteString = atob(dataUrl.split(',')[1]);
   var arr = new Uint8Array(byteString.length);
   for (var i = 0; i < byteString.length; i++) arr[i] = byteString.charCodeAt(i);
   return new File([arr], file.name || 'receipt.jpg', { type: 'image/jpeg' });
 }
 
+/* ===== RECEIPT UPLOAD & EXTRACTION ===== */
 async function handleReceiptUpload(input) {
   var payEl = document.getElementById('purchasePaymentType');
   var payVal = payEl ? payEl.value.trim() : '';
@@ -1090,7 +956,6 @@ async function _doExtraction(file, previewContent, status, preview) {
         }
       }
 
-      // VENDOR ADDRESS & LOCATION AUTO-POPULATION
       _extractedVendorLocation = {
         vendor_address: data.extracted.vendor_address || data.extracted.address || null,
         vendor_city: data.extracted.vendor_city || data.extracted.city || null,
@@ -1784,13 +1649,11 @@ async function initPage() {
   if (_pageInitialized) return;
   _pageInitialized = true;
 
-  // 1. Reveal UI immediately to prevent loading stalls
   var loadingEl = document.getElementById('loading');
   if (loadingEl) loadingEl.style.display = 'none';
   var dashEl = document.getElementById('dashboard');
   if (dashEl) dashEl.style.display = 'block';
 
-  // 2. Multi-Tenant Auth Resolution
   var ctx = getUrlContextParams();
   var user = window.dashUser;
   if (!user) {
@@ -1832,7 +1695,6 @@ async function initPage() {
   insertHeaderTitle();
   makeTabsSticky();
 
-  // 3. Asynchronous Data Loading
   try { await loadTankTypes(); } catch(e) { console.warn('Tank types error:', e); }
   try { await loadTanks(); } catch(e) { console.warn('Tanks error:', e); }
   try { await loadAssets(); } catch(e) { console.warn('Assets error:', e); }
