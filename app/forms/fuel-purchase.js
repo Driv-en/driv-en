@@ -274,7 +274,6 @@ function insertHeaderTitle() {
       title = document.createElement('div');
       title.id = 'dashHeaderTitle';
       title.textContent = 'Log Fuel Purchase';
-      title.style.cssText = 'position: absolute !important; left: 50% !important; transform: translateX(-50%) !important; font-size: 20px; font-weight: 700; color: var(--text, #f8fafc); margin: 0; text-align: center; white-space: nowrap; pointer-events: none; z-index: 10;';
       row1.appendChild(title);
     }
   } else {
@@ -283,11 +282,16 @@ function insertHeaderTitle() {
   }
 }
 
-/* ===== FULL WIDTH OVERFLOW LOCK ===== */
+/* ===== STICKY HEADER SAFEGUARD (SAFE FOR WEBKIT/SAFARI & CHROME) ===== */
 function makeTabsSticky() {
-  document.documentElement.style.overflowX = 'hidden';
-  document.body.style.overflowX = 'hidden';
-  document.body.style.width = '100%';
+  // Ensured no ancestor overflow overrides occur here so sticky header remains functioning
+  var dashHeader = document.getElementById('dashHeader');
+  if (dashHeader) {
+    dashHeader.style.position = '-webkit-sticky';
+    dashHeader.style.position = 'sticky';
+    dashHeader.style.top = '0';
+    dashHeader.style.zIndex = '100000';
+  }
 }
 
 window.dashLogout = function() {
@@ -501,7 +505,7 @@ function addLineItem(data) {
         '<input type="number" class="purchase-input line-meter ai-needed" placeholder="hrs/mi" min="0" step="0.1" value="' + meterReadingEsc + '" oninput="markFormDirty()">' +
       '</div>' +
       '<div class="purchase-field remove-action-wrap">' +
-        '<button class="btn-delete-line" style="background:#dc2626 !important;color:#ffffff !important;border:none;border-radius:6px;padding:10px 16px;font-weight:600;font-size:13px;cursor:pointer;width:100%;box-shadow:0 1px 3px rgba(0,0,0,0.2);" onclick="removeLineItem(\'' + lineId + '\')">Delete</button>' +
+        '<button class="btn-delete-line" onclick="removeLineItem(\'' + lineId + '\')">Delete</button>' +
       '</div>' +
     '</div>';
 
@@ -820,7 +824,7 @@ function _buildCropUI(file, img, imgUrl, callback) {
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
 
-  // Lock parent page scrolling during active crop session
+  // Lock parent page scrolling strictly during active crop modal
   document.body.style.overflow = 'hidden';
 
   imgEl.onload = function() {
