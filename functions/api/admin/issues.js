@@ -138,12 +138,17 @@ async function handleListIssues(request, env) {
       )`
     ).run();
 
+    // Dynamically parse limit from query parameters (defaults to 2000, capped at 5000)
+    const url = new URL(request.url);
+    const reqLimit = parseInt(url.searchParams.get('limit') || '2000', 10);
+    const limit = Math.min(Math.max(isNaN(reqLimit) ? 2000 : reqLimit, 1), 5000);
+
     const result = await env.DB.prepare(
       `SELECT id, source, error_message, stack_trace, severity, resolved, created_at
        FROM error_log
        ORDER BY created_at DESC
-       LIMIT 500`
-    ).all();
+       LIMIT ?`
+    ).bind(limit).all();
 
     return jsonResponse({ success: true, issues: result.results || [] }, 200);
   } catch (e) {
