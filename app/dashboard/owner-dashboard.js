@@ -888,28 +888,44 @@
   /* ===== SITE VISITORS TAB LOGIC ===== */
 
   async function loadVisitors(daysPreset, customFilter) {
-    let url = adminApi('/site-visitors?limit=2000');
+    let baseUrl = adminApi('/site-visitors');
+    const params = new URLSearchParams();
+    params.set('limit', '2000');
+
     const startEl = document.getElementById('visitorDateStart');
     const endEl = document.getElementById('visitorDateEnd');
 
     if (customFilter === 'today') {
       const today = new Date().toISOString().split('T')[0];
-      url += `&start=${today}&end=${today}`;
+      params.set('start', today);
+      params.set('end', today);
+      if (startEl) startEl.value = today;
+      if (endEl) endEl.value = today;
     } else if (customFilter === 'yesterday') {
       const d = new Date();
       d.setDate(d.getDate() - 1);
       const yest = d.toISOString().split('T')[0];
-      url += `&start=${yest}&end=${yest}`;
+      params.set('start', yest);
+      params.set('end', yest);
+      if (startEl) startEl.value = yest;
+      if (endEl) endEl.value = yest;
     } else if (customFilter === 'week') {
-      url += `&days=7`;
+      params.set('days', '7');
+      if (startEl) startEl.value = '';
+      if (endEl) endEl.value = '';
     } else if (daysPreset) {
-      url += `&days=${daysPreset}`;
+      params.set('days', String(daysPreset));
+      if (startEl) startEl.value = '';
+      if (endEl) endEl.value = '';
     } else if (startEl && endEl && startEl.value && endEl.value) {
-      url += `&start=${startEl.value}&end=${endEl.value}`;
+      params.set('start', startEl.value);
+      params.set('end', endEl.value);
     }
 
+    const fullUrl = `${baseUrl}?${params.toString()}`;
+
     try {
-      const resp = await fetch(url, { headers: getAuthHeaders() });
+      const resp = await fetch(fullUrl, { headers: getAuthHeaders() });
       if (!resp || !resp.ok) return;
       const data = await resp.json();
 
