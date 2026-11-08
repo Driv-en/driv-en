@@ -931,6 +931,9 @@
       if (endVal) params.set('end', endVal);
     }
 
+    // Append cache-busting timestamp to prevent Cloudflare Edge Caching
+    params.set('_t', Date.now().toString());
+
     const fullUrl = `${baseUrl}?${params.toString()}`;
 
     try {
