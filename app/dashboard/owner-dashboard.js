@@ -1158,8 +1158,11 @@
         renderIssueStats(data.issues);
         renderIssues(data.issues);
         tabLoaded.issues = true;
+      } else {
+        listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>No Errors Found</h3><p>' + (data ? escapeHtml(data.error || '') : '') + '</p></div>';
       }
     } catch (e) {
+      console.error('Failed to load error logs:', e);
       listEl.innerHTML = '<div class="owner-coming-soon" style="padding:40px 0;"><h3>Unable to Load Error Logs</h3><p>Network error fetching issues.</p></div>';
     }
   }
