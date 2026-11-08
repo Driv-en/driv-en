@@ -1,5 +1,5 @@
 // ==========================================
-// AUTH CHECK — Shared auth protection script (Complete v13)
+// AUTH CHECK — Shared auth protection script
 // ==========================================
 
 (async function() {
@@ -28,13 +28,14 @@
     var userRole = (user.role || "").toString().toLowerCase();
     var userRoleId = (user.role_id || "").toString();
 
-    // Identify Founder & Admin privileges
-    var isFounder = userEmail === "jblood@digitalsafetyinspection.com" ||
-                    userRoleId === "RO-Founder" ||
-                    userRole.indexOf("founder") !== -1;
+    // Identify Founder & Admin privileges (No hardcoded emails; case-insensitive role ID check)
+    var isFounder = user.org_id === "org_dsi" && (
+      userRoleId.toLowerCase() === "ro-founder" ||
+      userRole.indexOf("founder") !== -1
+    );
 
     var isAdminRole = isFounder ||
-                      userRoleId === "RO-admin" ||
+                      userRoleId.toLowerCase() === "ro-admin" ||
                       ["admin", "administrator"].indexOf(userRole) !== -1;
 
     // Enforce org_dsi and RO-Founder override for founder
