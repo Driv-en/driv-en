@@ -17,9 +17,6 @@ function jsonResponse(obj, status) {
   });
 }
 
-// ---------------------------------------------------------------------------
-// logError — writes to error_log D1 table
-// ---------------------------------------------------------------------------
 async function logError(env, source, err, request) {
   try {
     await env.DB.prepare(
@@ -52,9 +49,6 @@ async function logError(env, source, err, request) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// JWT helpers
-// ---------------------------------------------------------------------------
 function base64UrlDecode(str) {
   str = str.replace(/-/g, '+').replace(/_/g, '/');
   while (str.length % 4) str += '=';
@@ -109,9 +103,6 @@ function parseCookies(cookieHeader) {
   return cookies;
 }
 
-// ---------------------------------------------------------------------------
-// Auth check — Cookie JWT or Fallback Custom Headers
-// ---------------------------------------------------------------------------
 async function verifyFounder(request, env) {
   if (env.JWT_SECRET) {
     const cookieHeader = request.headers.get('Cookie') || '';
@@ -152,11 +143,8 @@ async function handleListVisitors(request, env) {
     const days = params.get('days');
     let start = params.get('start');
     let end = params.get('end');
-    
-    // Increased default limit to 5000 to prevent row truncation
     const limit = Math.min(parseInt(params.get('limit') || '5000', 10), 10000);
 
-    // Extract YYYY-MM-DD format for direct SQLite date comparisons
     let startDateStr, endDateStr;
 
     if (start || end) {
@@ -183,25 +171,24 @@ async function handleListVisitors(request, env) {
       return await handleSummary(request, env, startDateStr, endDateStr);
     }
 
-    // 1. Fetch visitors using SQLite strftime date range matching
+    // Direct SQLite date query matching formatted YYYY-MM-DD bounds
     const visitorsResult = await env.DB.prepare(
       `SELECT id, session_id, visitor_id, page_path, country, device_type, browser, os, 
               referral_code, utm_source, utm_medium, utm_campaign, 
               external_referrer, time_on_page as duration_seconds, created_at
        FROM site_visitors 
-       WHERE strftime('%Y-%m-%d', created_at) >= ? 
-         AND strftime('%Y-%m-%d', created_at) <= ?
+       WHERE date(created_at) >= date(?) 
+         AND date(created_at) <= date(?)
        ORDER BY created_at DESC
        LIMIT ?`
     ).bind(startDateStr, endDateStr, limit).all();
 
     const visitors = visitorsResult.results || [];
 
-    // 2. Compute Summary Metrics dynamically from total matched DB rows
     const totalCountResult = await env.DB.prepare(
       `SELECT COUNT(*) as total FROM site_visitors 
-       WHERE strftime('%Y-%m-%d', created_at) >= ? 
-         AND strftime('%Y-%m-%d', created_at) <= ?`
+       WHERE date(created_at) >= date(?) 
+         AND date(created_at) <= date(?)`
     ).bind(startDateStr, endDateStr).first();
 
     const totalVisits = totalCountResult?.total || visitors.length;
@@ -230,23 +217,23 @@ async function handleListVisitors(request, env) {
     const topBrowser = browserBreakdown[0]?.browser || '—';
     const topOS = osBreakdown[0]?.os || '—';
 
-    // 3. Compute Daily Trend Chart for full requested date range
+    // Daily Trend Chart query
     const chartResult = await env.DB.prepare(
-      `SELECT strftime('%Y-%m-%d', created_at) AS visit_date, COUNT(*) AS count
+      `SELECT date(created_at) AS visit_date, COUNT(*) AS count
        FROM site_visitors
-       WHERE strftime('%Y-%m-%d', created_at) >= ? 
-         AND strftime('%Y-%m-%d', created_at) <= ?
-       GROUP BY strftime('%Y-%m-%d', created_at)
+       WHERE date(created_at) >= date(?) 
+         AND date(created_at) <= date(?)
+       GROUP BY date(created_at)
        ORDER BY visit_date ASC`
     ).bind(startDateStr, endDateStr).all();
 
-    // 4. Compute Sessions for filtered range
+    // Visitor Sessions query
     const sessionsResult = await env.DB.prepare(
       `SELECT id, session_id, visitor_id, page_path, country, device_type, browser, os,
               referral_code, external_referrer, time_on_page, created_at
        FROM site_visitors
-       WHERE strftime('%Y-%m-%d', created_at) >= ? 
-         AND strftime('%Y-%m-%d', created_at) <= ?
+       WHERE date(created_at) >= date(?) 
+         AND date(created_at) <= date(?)
          AND ((session_id IS NOT NULL AND session_id != '') OR (visitor_id IS NOT NULL AND visitor_id != ''))
        ORDER BY COALESCE(NULLIF(session_id, ''), visitor_id), created_at ASC
        LIMIT 5000`
@@ -324,8 +311,8 @@ async function handleSessions(request, env, startDateStr, endDateStr) {
       `SELECT id, session_id, visitor_id, page_path, country, device_type, browser, os,
               referral_code, external_referrer, time_on_page, created_at
        FROM site_visitors
-       WHERE strftime('%Y-%m-%d', created_at) >= ? 
-         AND strftime('%Y-%m-%d', created_at) <= ?
+       WHERE date(created_at) >= date(?) 
+         AND date(created_at) <= date(?)
          AND ((session_id IS NOT NULL AND session_id != '') OR (visitor_id IS NOT NULL AND visitor_id != ''))
        ORDER BY COALESCE(NULLIF(session_id, ''), visitor_id), created_at ASC
        LIMIT 5000`
@@ -387,63 +374,63 @@ async function handleSummary(request, env, startDateStr, endDateStr) {
 
     const totalResult = await env.DB.prepare(
       `SELECT COUNT(*) as total FROM site_visitors 
-       WHERE strftime('%Y-%m-%d', created_at) >= ? AND strftime('%Y-%m-%d', created_at) <= ?`
+       WHERE date(created_at) >= date(?) AND date(created_at) <= date(?)`
     ).bind(...bindParams).first();
 
     const countriesResult = await env.DB.prepare(
       `SELECT COUNT(DISTINCT country) as count FROM site_visitors 
-       WHERE strftime('%Y-%m-%d', created_at) >= ? AND strftime('%Y-%m-%d', created_at) <= ? AND country IS NOT NULL`
+       WHERE date(created_at) >= date(?) AND date(created_at) <= date(?) AND country IS NOT NULL`
     ).bind(...bindParams).first();
 
     const deviceResult = await env.DB.prepare(
       `SELECT device_type, COUNT(*) as count FROM site_visitors 
-       WHERE strftime('%Y-%m-%d', created_at) >= ? AND strftime('%Y-%m-%d', created_at) <= ?
+       WHERE date(created_at) >= date(?) AND date(created_at) <= date(?)
        GROUP BY device_type ORDER BY count DESC`
     ).bind(...bindParams).all();
 
     const browserResult = await env.DB.prepare(
       `SELECT browser, COUNT(*) as count FROM site_visitors 
-       WHERE strftime('%Y-%m-%d', created_at) >= ? AND strftime('%Y-%m-%d', created_at) <= ?
+       WHERE date(created_at) >= date(?) AND date(created_at) <= date(?)
        GROUP BY browser ORDER BY count DESC`
     ).bind(...bindParams).all();
 
     const osResult = await env.DB.prepare(
       `SELECT os, COUNT(*) as count FROM site_visitors 
-       WHERE strftime('%Y-%m-%d', created_at) >= ? AND strftime('%Y-%m-%d', created_at) <= ?
+       WHERE date(created_at) >= date(?) AND date(created_at) <= date(?)
        GROUP BY os ORDER BY count DESC`
     ).bind(...bindParams).all();
 
     const pagesResult = await env.DB.prepare(
       `SELECT page_path, COUNT(*) as count FROM site_visitors 
-       WHERE strftime('%Y-%m-%d', created_at) >= ? AND strftime('%Y-%m-%d', created_at) <= ?
+       WHERE date(created_at) >= date(?) AND date(created_at) <= date(?)
        GROUP BY page_path ORDER BY count DESC LIMIT 10`
     ).bind(...bindParams).all();
 
     const topCountriesResult = await env.DB.prepare(
       `SELECT country, COUNT(*) as count FROM site_visitors 
-       WHERE strftime('%Y-%m-%d', created_at) >= ? AND strftime('%Y-%m-%d', created_at) <= ? AND country IS NOT NULL
+       WHERE date(created_at) >= date(?) AND date(created_at) <= date(?) AND country IS NOT NULL
        GROUP BY country ORDER BY count DESC LIMIT 10`
     ).bind(...bindParams).all();
 
     const referralResult = await env.DB.prepare(
       `SELECT COUNT(*) as count FROM site_visitors 
-       WHERE strftime('%Y-%m-%d', created_at) >= ? AND strftime('%Y-%m-%d', created_at) <= ? AND referral_code IS NOT NULL`
+       WHERE date(created_at) >= date(?) AND date(created_at) <= date(?) AND referral_code IS NOT NULL`
     ).bind(...bindParams).first();
 
     const referrersResult = await env.DB.prepare(
       `SELECT external_referrer, COUNT(*) as count FROM site_visitors 
-       WHERE strftime('%Y-%m-%d', created_at) >= ? AND strftime('%Y-%m-%d', created_at) <= ? AND external_referrer IS NOT NULL
+       WHERE date(created_at) >= date(?) AND date(created_at) <= date(?) AND external_referrer IS NOT NULL
        GROUP BY external_referrer ORDER BY count DESC LIMIT 10`
     ).bind(...bindParams).all();
 
     const sessionsResult = await env.DB.prepare(
       `SELECT COUNT(DISTINCT session_id) as count FROM site_visitors 
-       WHERE strftime('%Y-%m-%d', created_at) >= ? AND strftime('%Y-%m-%d', created_at) <= ? AND session_id IS NOT NULL AND session_id != ''`
+       WHERE date(created_at) >= date(?) AND date(created_at) <= date(?) AND session_id IS NOT NULL AND session_id != ''`
     ).bind(...bindParams).first();
 
     const uniqueVisitorsResult = await env.DB.prepare(
       `SELECT COUNT(DISTINCT visitor_id) as count FROM site_visitors 
-       WHERE strftime('%Y-%m-%d', created_at) >= ? AND strftime('%Y-%m-%d', created_at) <= ? AND visitor_id IS NOT NULL AND visitor_id != ''`
+       WHERE date(created_at) >= date(?) AND date(created_at) <= date(?) AND visitor_id IS NOT NULL AND visitor_id != ''`
     ).bind(...bindParams).first();
 
     return jsonResponse({
