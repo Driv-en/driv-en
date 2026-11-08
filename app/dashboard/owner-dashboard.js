@@ -897,16 +897,16 @@
 
     if (customFilter === 'today') {
       const today = new Date().toISOString().split('T')[0];
-      params.set('start', today);
-      params.set('end', today);
+      params.set('start', `${today}T00:00:00.000Z`);
+      params.set('end', `${today}T23:59:59.999Z`);
       if (startEl) startEl.value = today;
       if (endEl) endEl.value = today;
     } else if (customFilter === 'yesterday') {
       const d = new Date();
       d.setDate(d.getDate() - 1);
       const yest = d.toISOString().split('T')[0];
-      params.set('start', yest);
-      params.set('end', yest);
+      params.set('start', `${yest}T00:00:00.000Z`);
+      params.set('end', `${yest}T23:59:59.999Z`);
       if (startEl) startEl.value = yest;
       if (endEl) endEl.value = yest;
     } else if (customFilter === 'week') {
@@ -918,11 +918,15 @@
       if (startEl) startEl.value = '';
       if (endEl) endEl.value = '';
     } else {
-      // Direct custom date picker resolution
+      // Direct custom date picker resolution formatted to full ISO timestamps
       const startVal = startEl ? startEl.value : '';
       const endVal = endEl ? endEl.value : '';
-      if (startVal) params.set('start', startVal);
-      if (endVal) params.set('end', endVal);
+      if (startVal) {
+        params.set('start', startVal.includes('T') ? startVal : `${startVal}T00:00:00.000Z`);
+      }
+      if (endVal) {
+        params.set('end', endVal.includes('T') ? endVal : `${endVal}T23:59:59.999Z`);
+      }
     }
 
     const fullUrl = `${baseUrl}?${params.toString()}`;
@@ -961,7 +965,7 @@
         renderVisitorsTable();
         renderVisitorSessions();
 
-        // Render Canvas Bar Chart dynamically
+        // Canvas Bar Chart Dynamic Reset & Draw
         const chartData = (data.dailyChart && data.dailyChart.length > 0)
           ? data.dailyChart 
           : extractDailyCountsFromVisitors(allVisitors);
@@ -994,11 +998,9 @@
 
     if (!container) return;
 
-    // Dynamically insert or retrieve canvas if missing
-    if (!canvas) {
-      container.innerHTML = '<canvas id="visitorChartCanvas" style="width:100%;height:220px;"></canvas>';
-      canvas = document.getElementById('visitorChartCanvas');
-    }
+    // Dynamically re-create canvas element to flush outdated context states
+    container.innerHTML = '<canvas id="visitorChartCanvas" style="width:100%;height:220px;"></canvas>';
+    canvas = document.getElementById('visitorChartCanvas');
 
     if (!canvas) return;
 
@@ -1635,25 +1637,13 @@
     const btnResolveSelected = document.getElementById('btnResolveSelectedIssues');
     if (btnResolveSelected) btnResolveSelected.addEventListener('click', resolveSelectedIssues);
 
-    // Filter Visitors Button Binding
+    // Explicit Filter Visitors Button Binding
     const btnFilterVisitors = document.getElementById('btnFilterVisitors');
     if (btnFilterVisitors) {
       btnFilterVisitors.addEventListener('click', () => loadVisitors());
     }
 
-    // Quick filter preset buttons for site visitors
-    document.querySelectorAll('[data-visitor-filter]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const filter = e.target.getAttribute('data-visitor-filter');
-        if (filter === 'today' || filter === 'yesterday') {
-          loadVisitors(null, filter);
-        } else {
-          loadVisitors(filter);
-        }
-      });
-    });
-
-    // Auto-trigger loadVisitors on input change when both custom dates are present
+    // Direct listener for Date Pickers
     const startEl = document.getElementById('visitorDateStart');
     const endEl = document.getElementById('visitorDateEnd');
     if (startEl && endEl) {
