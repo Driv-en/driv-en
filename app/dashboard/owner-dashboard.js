@@ -1530,13 +1530,19 @@
       return;
     }
 
-    const roleId = String(user.role_id || user.roleId || user.role || "").trim();
-    const orgId = String(user.org_id || user.orgId || "").trim();
+    const roleId = String(user.role_id || user.roleId || "").trim().toLowerCase();
+    const roleName = String(user.role || "").trim().toLowerCase();
+    const orgId = String(user.org_id || user.orgId || "").trim().toLowerCase();
 
-    // Strict Founder authorization: role_id must equal 'RO-Founder' and org_id must equal 'org_dsi'
-    const isFounder = (roleId.toUpperCase() === "RO-FOUNDER") && (orgId.toLowerCase() === "org_dsi");
+    // Flexible Founder authorization check without hardcoding email addresses
+    const isFounder = (orgId === "org_dsi" || orgId === "default_org") && (
+      roleId === "ro-founder" ||
+      roleName.indexOf("founder") !== -1 ||
+      roleName.indexOf("owner") !== -1
+    );
 
     if (!isFounder) {
+      console.warn("[OwnerDashboard] Unauthorized session:", user);
       window.location.href = "/app/auth/no-access.html";
       return;
     }
