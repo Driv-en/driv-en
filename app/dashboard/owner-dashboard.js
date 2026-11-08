@@ -888,24 +888,24 @@
   /* ===== SITE VISITORS TAB LOGIC ===== */
 
   async function loadVisitors(daysPreset, customFilter) {
-    let url = adminApi('/site-visitors');
+    let url = adminApi('/site-visitors?limit=2000');
     const startEl = document.getElementById('visitorDateStart');
     const endEl = document.getElementById('visitorDateEnd');
 
     if (customFilter === 'today') {
       const today = new Date().toISOString().split('T')[0];
-      url += `?start=${today}&end=${today}`;
+      url += `&start=${today}&end=${today}`;
     } else if (customFilter === 'yesterday') {
       const d = new Date();
       d.setDate(d.getDate() - 1);
       const yest = d.toISOString().split('T')[0];
-      url += `?start=${yest}&end=${yest}`;
+      url += `&start=${yest}&end=${yest}`;
     } else if (customFilter === 'week') {
-      url += `?days=7`;
+      url += `&days=7`;
     } else if (daysPreset) {
-      url += `?days=${daysPreset}`;
+      url += `&days=${daysPreset}`;
     } else if (startEl && endEl && startEl.value && endEl.value) {
-      url += `?start=${startEl.value}&end=${endEl.value}`;
+      url += `&start=${startEl.value}&end=${endEl.value}`;
     }
 
     try {
@@ -930,11 +930,115 @@
         allSessions = data.sessions || [];
         renderVisitorsTable();
         renderVisitorSessions();
+
+        // Render daily visitor trend chart
+        renderVisitorChart(data.dailyChart || extractDailyCountsFromVisitors(allVisitors));
+
         tabLoaded.visitors = true;
       }
     } catch (e) {
       console.error('Load visitors failed:', e);
     }
+  }
+
+  function extractDailyCountsFromVisitors(visitors) {
+    const countsByDate = {};
+    visitors.forEach(v => {
+      if (!v.created_at) return;
+      const d = v.created_at.split('T')[0];
+      countsByDate[d] = (countsByDate[d] || 0) + 1;
+    });
+    return Object.keys(countsByDate).sort().map(date => ({
+      visit_date: date,
+      count: countsByDate[date]
+    }));
+  }
+
+  function renderVisitorChart(dailyData) {
+    const canvas = document.getElementById('visitorChartCanvas');
+    const container = document.getElementById('visitorChartContainer');
+    if (!canvas || !container) return;
+
+    const width = container.clientWidth || 600;
+    const height = container.clientHeight || 220;
+    canvas.width = width * window.devicePixelRatio;
+    canvas.height = height * window.devicePixelRatio;
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    ctx.clearRect(0, 0, width, height);
+
+    if (!dailyData || dailyData.length === 0) {
+      ctx.fillStyle = '#64748b';
+      ctx.font = '14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('No visitor trend data available for this range', width / 2, height / 2);
+      return;
+    }
+
+    const padding = { top: 25, right: 20, bottom: 35, left: 45 };
+    const chartW = width - padding.left - padding.right;
+    const chartH = height - padding.top - padding.bottom;
+
+    const maxVal = Math.max(...dailyData.map(d => d.count), 5);
+    const barWidth = Math.max(Math.min((chartW / dailyData.length) * 0.65, 36), 6);
+    const stepX = chartW / dailyData.length;
+
+    // Gridlines & Y-axis labels
+    const gridSteps = 4;
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#64748b';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'right';
+
+    for (let i = 0; i <= gridSteps; i++) {
+      const val = Math.round((maxVal / gridSteps) * i);
+      const y = padding.top + chartH - (i / gridSteps) * chartH;
+      ctx.beginPath();
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(width - padding.right, y);
+      ctx.stroke();
+      ctx.fillText(val.toString(), padding.left - 8, y + 4);
+    }
+
+    // Bars & X-axis Labels
+    dailyData.forEach((item, idx) => {
+      const barH = (item.count / maxVal) * chartH;
+      const x = padding.left + (idx * stepX) + (stepX - barWidth) / 2;
+      const y = padding.top + chartH - barH;
+
+      const grad = ctx.createLinearGradient(0, y, 0, y + barH);
+      grad.addColorStop(0, '#10b981');
+      grad.addColorStop(1, '#059669');
+
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      if (ctx.roundRect) {
+        ctx.roundRect(x, y, barWidth, barH, [4, 4, 0, 0]);
+      } else {
+        ctx.rect(x, y, barWidth, barH);
+      }
+      ctx.fill();
+
+      if (barWidth >= 14) {
+        ctx.fillStyle = '#0f172a';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(item.count.toString(), x + barWidth / 2, y - 5);
+      }
+
+      const labelFrequency = Math.ceil(dailyData.length / 10);
+      if (idx % labelFrequency === 0 || idx === dailyData.length - 1) {
+        ctx.fillStyle = '#64748b';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        const dateFormatted = item.visit_date ? item.visit_date.slice(5) : '';
+        ctx.fillText(dateFormatted, x + barWidth / 2, height - 10);
+      }
+    });
   }
 
   function renderVisitorBreakdowns(summary) {
