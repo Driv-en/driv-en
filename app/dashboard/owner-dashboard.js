@@ -930,25 +930,40 @@
       const data = await resp.json();
 
       if (data && data.success) {
+        // Update stats tiles
+        const setTxt = (id, val) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = val !== undefined ? val : '—';
+        };
+
         if (data.summary) {
-          document.getElementById('visitorTotalVisits').textContent = data.summary.totalVisits || 0;
-          document.getElementById('visitorUniqueVisitors').textContent = data.summary.uniqueVisitors || 0;
-          document.getElementById('visitorUniqueSessions').textContent = data.summary.uniqueSessions || 0;
-          document.getElementById('visitorUniqueCountries').textContent = data.summary.uniqueCountries || 0;
-          document.getElementById('visitorReferralVisits').textContent = data.summary.referralVisits || 0;
-          document.getElementById('visitorTopDevice').textContent = data.summary.topDevice || '—';
-          document.getElementById('visitorTopBrowser').textContent = data.summary.topBrowser || '—';
-          document.getElementById('visitorTopOS').textContent = data.summary.topOS || '—';
+          setTxt('visitorTotalVisits', data.summary.totalVisits || 0);
+          setTxt('visitorUniqueVisitors', data.summary.uniqueVisitors || 0);
+          setTxt('visitorUniqueSessions', data.summary.uniqueSessions || 0);
+          setTxt('visitorUniqueCountries', data.summary.uniqueCountries || 0);
+          setTxt('visitorReferralVisits', data.summary.referralVisits || 0);
+          setTxt('visitorTopDevice', data.summary.topDevice || '—');
+          setTxt('visitorTopBrowser', data.summary.topBrowser || '—');
+          setTxt('visitorTopOS', data.summary.topOS || '—');
 
           renderVisitorBreakdowns(data.summary);
+        } else {
+          renderVisitorBreakdowns({});
         }
+
         allVisitors = data.visitors || [];
         allSessions = data.sessions || [];
+
+        // Render filtered tables
         renderVisitorsTable();
         renderVisitorSessions();
 
-        // Render daily visitor trend chart
-        renderVisitorChart(data.dailyChart || extractDailyCountsFromVisitors(allVisitors));
+        // Render Canvas Bar Chart dynamically
+        const chartData = data.dailyChart && data.dailyChart.length > 0 
+          ? data.dailyChart 
+          : extractDailyCountsFromVisitors(allVisitors);
+
+        renderVisitorChart(chartData);
 
         tabLoaded.visitors = true;
       }
@@ -971,26 +986,37 @@
   }
 
   function renderVisitorChart(dailyData) {
-    const canvas = document.getElementById('visitorChartCanvas');
+    let canvas = document.getElementById('visitorChartCanvas');
     const container = document.getElementById('visitorChartContainer');
-    if (!canvas || !container) return;
+
+    if (!container) return;
+
+    // Dynamically insert or retrieve canvas if missing
+    if (!canvas) {
+      container.innerHTML = '<canvas id="visitorChartCanvas" style="width:100%;height:220px;"></canvas>';
+      canvas = document.getElementById('visitorChartCanvas');
+    }
+
+    if (!canvas) return;
 
     const width = container.clientWidth || 600;
     const height = container.clientHeight || 220;
-    canvas.width = width * window.devicePixelRatio;
-    canvas.height = height * window.devicePixelRatio;
+    const ratio = window.devicePixelRatio || 1;
+
+    canvas.width = width * ratio;
+    canvas.height = height * ratio;
     canvas.style.width = width + 'px';
     canvas.style.height = height + 'px';
 
     const ctx = canvas.getContext('2d');
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    ctx.scale(ratio, ratio);
     ctx.clearRect(0, 0, width, height);
 
     if (!dailyData || dailyData.length === 0) {
       ctx.fillStyle = '#64748b';
       ctx.font = '14px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('No visitor trend data available for this range', width / 2, height / 2);
+      ctx.fillText('No visitor trend data available for this date range', width / 2, height / 2);
       return;
     }
 
@@ -999,8 +1025,8 @@
     const chartH = height - padding.top - padding.bottom;
 
     const maxVal = Math.max(...dailyData.map(d => d.count), 5);
-    const barWidth = Math.max(Math.min((chartW / dailyData.length) * 0.65, 36), 6);
     const stepX = chartW / dailyData.length;
+    const barWidth = Math.max(Math.min(stepX * 0.65, 36), 6);
 
     // Gridlines & Y-axis labels
     const gridSteps = 4;
@@ -1039,7 +1065,7 @@
       }
       ctx.fill();
 
-      if (barWidth >= 14) {
+      if (barWidth >= 12) {
         ctx.fillStyle = '#0f172a';
         ctx.font = '10px sans-serif';
         ctx.textAlign = 'center';
@@ -1058,10 +1084,10 @@
   }
 
   function renderVisitorBreakdowns(summary) {
-    renderSimpleList('visitorTopPages', summary.topPages, 'page_path', 'count');
-    renderSimpleList('visitorTopCountries', summary.topCountries, 'country', 'count');
-    renderSimpleList('visitorBrowsers', summary.browserBreakdown, 'browser', 'count');
-    renderSimpleList('visitorOS', summary.osBreakdown, 'os', 'count');
+    renderSimpleList('visitorTopPages', summary ? summary.topPages : [], 'page_path', 'count');
+    renderSimpleList('visitorTopCountries', summary ? summary.topCountries : [], 'country', 'count');
+    renderSimpleList('visitorBrowsers', summary ? summary.browserBreakdown : [], 'browser', 'count');
+    renderSimpleList('visitorOS', summary ? summary.osBreakdown : [], 'os', 'count');
   }
 
   function renderSimpleList(elementId, items, keyField, countField) {
@@ -1090,7 +1116,7 @@
     tbody.innerHTML = '';
 
     if (allVisitors.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:20px 0;">No visitor records found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:20px 0;">No visitor records found for this period.</td></tr>';
       return;
     }
 
@@ -1118,7 +1144,7 @@
     tbody.innerHTML = '';
 
     if (allSessions.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:20px 0;">No visitor session data found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:20px 0;">No visitor session data found for this period.</td></tr>';
       return;
     }
 
@@ -1605,6 +1631,19 @@
 
     const btnResolveSelected = document.getElementById('btnResolveSelectedIssues');
     if (btnResolveSelected) btnResolveSelected.addEventListener('click', resolveSelectedIssues);
+
+    // Filter Visitors Button Binding
+    const btnFilterVisitors = document.getElementById('btnFilterVisitors');
+    if (btnFilterVisitors) {
+      btnFilterVisitors.addEventListener('click', () => loadVisitors());
+    }
+
+    const startEl = document.getElementById('visitorDateStart');
+    const endEl = document.getElementById('visitorDateEnd');
+    if (startEl && endEl) {
+      startEl.addEventListener('change', () => { if (startEl.value && endEl.value) loadVisitors(); });
+      endEl.addEventListener('change', () => { if (startEl.value && endEl.value) loadVisitors(); });
+    }
 
     const approveModal = document.getElementById('approveModal');
     if (approveModal) {
