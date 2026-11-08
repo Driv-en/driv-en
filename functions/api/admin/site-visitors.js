@@ -149,15 +149,26 @@ async function handleListVisitors(request, env) {
     const url = new URL(request.url);
     const params = url.searchParams;
 
-    let startDate = params.get('start');
-    let endDate = params.get('end');
+    const days = params.get('days');
+    let start = params.get('start');
+    let end = params.get('end');
+    const limit = Math.min(parseInt(params.get('limit') || '2000', 10), 5000);
 
-    if (!startDate) {
+    // Normalize date ranges
+    let startDate, endDate;
+    if (start && end) {
+      startDate = start.includes('T') ? start : `${start}T00:00:00.000Z`;
+      endDate = end.includes('T') ? end : `${end}T23:59:59.999Z`;
+    } else if (days) {
+      const numDays = parseInt(days, 10) || 30;
+      const d = new Date();
+      d.setDate(d.getDate() - numDays);
+      startDate = d.toISOString();
+      endDate = new Date().toISOString();
+    } else {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       startDate = thirtyDaysAgo.toISOString();
-    }
-    if (!endDate) {
       endDate = new Date().toISOString();
     }
 
@@ -169,12 +180,7 @@ async function handleListVisitors(request, env) {
       return await handleSummary(request, env, startDate, endDate);
     }
 
-    const countResult = await env.DB.prepare(
-      `SELECT COUNT(*) as total FROM site_visitors WHERE created_at >= ? AND created_at <= ?`
-    ).bind(startDate, endDate).first();
-
-    const total = countResult?.total || 0;
-
+    // 1. Fetch visitors within date bounds up to specified limit
     const visitorsResult = await env.DB.prepare(
       `SELECT id, session_id, visitor_id, page_path, country, device_type, browser, os, 
               referral_code, utm_source, utm_medium, utm_campaign, 
@@ -182,13 +188,113 @@ async function handleListVisitors(request, env) {
        FROM site_visitors 
        WHERE created_at >= ? AND created_at <= ?
        ORDER BY created_at DESC
-       LIMIT 500`
+       LIMIT ?`
+    ).bind(startDate, endDate, limit).all();
+
+    const visitors = visitorsResult.results || [];
+
+    // 2. Compute Summary Metrics dynamically from the filtered dataset
+    const totalVisits = visitors.length;
+    const uniqueVisitors = new Set(visitors.map(v => v.visitor_id || v.session_id || v.id).filter(Boolean)).size;
+    const uniqueSessions = new Set(visitors.map(v => v.session_id || v.visitor_id).filter(Boolean)).size;
+    const uniqueCountries = new Set(visitors.map(v => v.country).filter(Boolean)).size;
+    const referralVisits = visitors.filter(v => v.referral_code || (v.utm_source && v.utm_source !== 'Direct')).length;
+
+    const getTop = (arr, key) => {
+      const counts = {};
+      arr.forEach(item => {
+        const val = item[key] || 'Unknown';
+        counts[val] = (counts[val] || 0) + 1;
+      });
+      return Object.keys(counts)
+        .map(k => ({ [key]: k, count: counts[k] }))
+        .sort((a, b) => b.count - a.count);
+    };
+
+    const topPages = getTop(visitors, 'page_path');
+    const topCountries = getTop(visitors, 'country');
+    const browserBreakdown = getTop(visitors, 'browser');
+    const osBreakdown = getTop(visitors, 'os');
+
+    const topDevice = getTop(visitors, 'device_type')[0]?.device_type || '—';
+    const topBrowser = browserBreakdown[0]?.browser || '—';
+    const topOS = osBreakdown[0]?.os || '—';
+
+    // 3. Compute Daily Trend Chart
+    const chartResult = await env.DB.prepare(
+      `SELECT DATE(created_at) AS visit_date, COUNT(*) AS count
+       FROM site_visitors
+       WHERE created_at >= ? AND created_at <= ?
+       GROUP BY DATE(created_at)
+       ORDER BY visit_date ASC`
     ).bind(startDate, endDate).all();
+
+    // 4. Compute Sessions for filtered range
+    const sessionsResult = await env.DB.prepare(
+      `SELECT id, session_id, visitor_id, page_path, country, device_type, browser, os,
+              referral_code, external_referrer, time_on_page, created_at
+       FROM site_visitors
+       WHERE created_at >= ? AND created_at <= ?
+         AND ((session_id IS NOT NULL AND session_id != '') OR (visitor_id IS NOT NULL AND visitor_id != ''))
+       ORDER BY COALESCE(NULLIF(session_id, ''), visitor_id), created_at ASC
+       LIMIT 2000`
+    ).bind(startDate, endDate).all();
+
+    const visits = sessionsResult.results || [];
+    const sessionsMap = {};
+
+    for (const v of visits) {
+      const groupKey = (v.session_id && v.session_id !== '') ? v.session_id : v.visitor_id;
+      if (!groupKey) continue;
+      if (!sessionsMap[groupKey]) {
+        sessionsMap[groupKey] = {
+          sessionId: v.session_id || v.visitor_id || '',
+          visitorId: v.visitor_id || '',
+          pages: [],
+          firstVisit: v.created_at,
+          lastVisit: v.created_at,
+          totalTimeOnSite: 0,
+          country: v.country,
+          deviceType: v.device_type,
+          browser: v.browser,
+          os: v.os,
+          referralCode: v.referral_code,
+          externalReferrer: v.external_referrer
+        };
+      }
+      const sess = sessionsMap[groupKey];
+      sess.pages.push({
+        pagePath: v.page_path,
+        timeOnPage: v.time_on_page || null,
+        visitedAt: v.created_at
+      });
+      if (v.time_on_page) sess.totalTimeOnSite += v.time_on_page;
+      if (v.created_at < sess.firstVisit) sess.firstVisit = v.created_at;
+      if (v.created_at > sess.lastVisit) sess.lastVisit = v.created_at;
+    }
+
+    const sessions = Object.values(sessionsMap).sort((a, b) => b.lastVisit.localeCompare(a.lastVisit));
 
     return jsonResponse({
       success: true,
-      total: total,
-      visitors: visitorsResult.results || [],
+      total: totalVisits,
+      summary: {
+        totalVisits,
+        uniqueVisitors,
+        uniqueSessions,
+        uniqueCountries,
+        referralVisits,
+        topDevice,
+        topBrowser,
+        topOS,
+        topPages,
+        topCountries,
+        browserBreakdown,
+        osBreakdown
+      },
+      visitors: visitors,
+      sessions: sessions,
+      dailyChart: chartResult.results || [],
       startDate: startDate,
       endDate: endDate
     });
