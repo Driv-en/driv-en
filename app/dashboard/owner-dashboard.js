@@ -917,9 +917,12 @@
       params.set('days', String(daysPreset));
       if (startEl) startEl.value = '';
       if (endEl) endEl.value = '';
-    } else if (startEl && endEl && startEl.value && endEl.value) {
-      params.set('start', startEl.value);
-      params.set('end', endEl.value);
+    } else {
+      // Direct custom date picker resolution
+      const startVal = startEl ? startEl.value : '';
+      const endVal = endEl ? endEl.value : '';
+      if (startVal) params.set('start', startVal);
+      if (endVal) params.set('end', endVal);
     }
 
     const fullUrl = `${baseUrl}?${params.toString()}`;
@@ -930,10 +933,10 @@
       const data = await resp.json();
 
       if (data && data.success) {
-        // Update stats tiles
+        // Update stat tiles
         const setTxt = (id, val) => {
           const el = document.getElementById(id);
-          if (el) el.textContent = val !== undefined ? val : '—';
+          if (el) el.textContent = val !== undefined && val !== null ? val : '—';
         };
 
         if (data.summary) {
@@ -959,7 +962,7 @@
         renderVisitorSessions();
 
         // Render Canvas Bar Chart dynamically
-        const chartData = data.dailyChart && data.dailyChart.length > 0 
+        const chartData = (data.dailyChart && data.dailyChart.length > 0)
           ? data.dailyChart 
           : extractDailyCountsFromVisitors(allVisitors);
 
@@ -1638,11 +1641,24 @@
       btnFilterVisitors.addEventListener('click', () => loadVisitors());
     }
 
+    // Quick filter preset buttons for site visitors
+    document.querySelectorAll('[data-visitor-filter]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const filter = e.target.getAttribute('data-visitor-filter');
+        if (filter === 'today' || filter === 'yesterday') {
+          loadVisitors(null, filter);
+        } else {
+          loadVisitors(filter);
+        }
+      });
+    });
+
+    // Auto-trigger loadVisitors on input change when both custom dates are present
     const startEl = document.getElementById('visitorDateStart');
     const endEl = document.getElementById('visitorDateEnd');
     if (startEl && endEl) {
-      startEl.addEventListener('change', () => { if (startEl.value && endEl.value) loadVisitors(); });
-      endEl.addEventListener('change', () => { if (startEl.value && endEl.value) loadVisitors(); });
+      startEl.addEventListener('change', () => loadVisitors());
+      endEl.addEventListener('change', () => loadVisitors());
     }
 
     const approveModal = document.getElementById('approveModal');
