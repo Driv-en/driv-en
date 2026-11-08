@@ -152,7 +152,9 @@ async function handleListVisitors(request, env) {
     const days = params.get('days');
     let start = params.get('start');
     let end = params.get('end');
-    const limit = Math.min(parseInt(params.get('limit') || '2000', 10), 5000);
+    
+    // Increased default limit to 5000 to prevent row truncation
+    const limit = Math.min(parseInt(params.get('limit') || '5000', 10), 10000);
 
     // Extract YYYY-MM-DD format for direct SQLite date comparisons
     let startDateStr, endDateStr;
@@ -195,8 +197,14 @@ async function handleListVisitors(request, env) {
 
     const visitors = visitorsResult.results || [];
 
-    // 2. Compute Summary Metrics dynamically from filtered dataset
-    const totalVisits = visitors.length;
+    // 2. Compute Summary Metrics dynamically from total matched DB rows
+    const totalCountResult = await env.DB.prepare(
+      `SELECT COUNT(*) as total FROM site_visitors 
+       WHERE strftime('%Y-%m-%d', created_at) >= ? 
+         AND strftime('%Y-%m-%d', created_at) <= ?`
+    ).bind(startDateStr, endDateStr).first();
+
+    const totalVisits = totalCountResult?.total || visitors.length;
     const uniqueVisitors = new Set(visitors.map(v => v.visitor_id || v.session_id || v.id).filter(Boolean)).size;
     const uniqueSessions = new Set(visitors.map(v => v.session_id || v.visitor_id).filter(Boolean)).size;
     const uniqueCountries = new Set(visitors.map(v => v.country).filter(Boolean)).size;
@@ -222,7 +230,7 @@ async function handleListVisitors(request, env) {
     const topBrowser = browserBreakdown[0]?.browser || '—';
     const topOS = osBreakdown[0]?.os || '—';
 
-    // 3. Compute Daily Trend Chart for date range
+    // 3. Compute Daily Trend Chart for full requested date range
     const chartResult = await env.DB.prepare(
       `SELECT strftime('%Y-%m-%d', created_at) AS visit_date, COUNT(*) AS count
        FROM site_visitors
@@ -241,7 +249,7 @@ async function handleListVisitors(request, env) {
          AND strftime('%Y-%m-%d', created_at) <= ?
          AND ((session_id IS NOT NULL AND session_id != '') OR (visitor_id IS NOT NULL AND visitor_id != ''))
        ORDER BY COALESCE(NULLIF(session_id, ''), visitor_id), created_at ASC
-       LIMIT 2000`
+       LIMIT 5000`
     ).bind(startDateStr, endDateStr).all();
 
     const visits = sessionsResult.results || [];
@@ -320,7 +328,7 @@ async function handleSessions(request, env, startDateStr, endDateStr) {
          AND strftime('%Y-%m-%d', created_at) <= ?
          AND ((session_id IS NOT NULL AND session_id != '') OR (visitor_id IS NOT NULL AND visitor_id != ''))
        ORDER BY COALESCE(NULLIF(session_id, ''), visitor_id), created_at ASC
-       LIMIT 2000`
+       LIMIT 5000`
     ).bind(startDateStr, endDateStr).all();
 
     const visits = result.results || [];
