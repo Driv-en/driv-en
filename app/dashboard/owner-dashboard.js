@@ -890,23 +890,23 @@
   async function loadVisitors(daysPreset, customFilter) {
     let baseUrl = adminApi('/site-visitors');
     const params = new URLSearchParams();
-    params.set('limit', '2000');
+    params.set('limit', '5000');
 
     const startEl = document.getElementById('visitorDateStart');
     const endEl = document.getElementById('visitorDateEnd');
 
     if (customFilter === 'today') {
       const today = new Date().toISOString().split('T')[0];
-      params.set('start', `${today}T00:00:00.000Z`);
-      params.set('end', `${today}T23:59:59.999Z`);
+      params.set('start', today);
+      params.set('end', today);
       if (startEl) startEl.value = today;
       if (endEl) endEl.value = today;
     } else if (customFilter === 'yesterday') {
       const d = new Date();
       d.setDate(d.getDate() - 1);
       const yest = d.toISOString().split('T')[0];
-      params.set('start', `${yest}T00:00:00.000Z`);
-      params.set('end', `${yest}T23:59:59.999Z`);
+      params.set('start', yest);
+      params.set('end', yest);
       if (startEl) startEl.value = yest;
       if (endEl) endEl.value = yest;
     } else if (customFilter === 'week') {
@@ -918,15 +918,10 @@
       if (startEl) startEl.value = '';
       if (endEl) endEl.value = '';
     } else {
-      // Direct custom date picker resolution formatted to full ISO timestamps
       const startVal = startEl ? startEl.value : '';
       const endVal = endEl ? endEl.value : '';
-      if (startVal) {
-        params.set('start', startVal.includes('T') ? startVal : `${startVal}T00:00:00.000Z`);
-      }
-      if (endVal) {
-        params.set('end', endVal.includes('T') ? endVal : `${endVal}T23:59:59.999Z`);
-      }
+      if (startVal) params.set('start', startVal);
+      if (endVal) params.set('end', endVal);
     }
 
     const fullUrl = `${baseUrl}?${params.toString()}`;
@@ -937,7 +932,6 @@
       const data = await resp.json();
 
       if (data && data.success) {
-        // Update stat tiles
         const setTxt = (id, val) => {
           const el = document.getElementById(id);
           if (el) el.textContent = val !== undefined && val !== null ? val : '—';
@@ -961,11 +955,9 @@
         allVisitors = data.visitors || [];
         allSessions = data.sessions || [];
 
-        // Render filtered tables
         renderVisitorsTable();
         renderVisitorSessions();
 
-        // Canvas Bar Chart Dynamic Reset & Draw
         const chartData = (data.dailyChart && data.dailyChart.length > 0)
           ? data.dailyChart 
           : extractDailyCountsFromVisitors(allVisitors);
@@ -998,7 +990,6 @@
 
     if (!container) return;
 
-    // Dynamically re-create canvas element to flush outdated context states
     container.innerHTML = '<canvas id="visitorChartCanvas" style="width:100%;height:220px;"></canvas>';
     canvas = document.getElementById('visitorChartCanvas');
 
@@ -1033,7 +1024,6 @@
     const stepX = chartW / dailyData.length;
     const barWidth = Math.max(Math.min(stepX * 0.65, 36), 6);
 
-    // Gridlines & Y-axis labels
     const gridSteps = 4;
     ctx.strokeStyle = '#e2e8f0';
     ctx.lineWidth = 1;
@@ -1051,7 +1041,6 @@
       ctx.fillText(val.toString(), padding.left - 8, y + 4);
     }
 
-    // Bars & X-axis Labels
     dailyData.forEach((item, idx) => {
       const barH = (item.count / maxVal) * chartH;
       const x = padding.left + (idx * stepX) + (stepX - barWidth) / 2;
@@ -1171,7 +1160,6 @@
     });
   }
 
-  // Make loadVisitors accessible to inline onclick handlers in HTML
   window.loadVisitors = loadVisitors;
 
   /* ===== SYSTEM STATUS & AI USAGE ===== */
@@ -1496,7 +1484,6 @@
 
     const ids = Array.from(checkedCbs).map(cb => cb.getAttribute('data-id'));
 
-    // Optimistically update local state & render UI immediately
     ids.forEach(id => {
       const issue = allIssues.find(i => String(i.id) === String(id));
       if (issue) issue.resolved = 1;
@@ -1505,7 +1492,6 @@
     renderIssueStats(allIssues);
     renderIssues(allIssues);
 
-    // Run parallel resolution requests
     await Promise.allSettled(ids.map(id =>
       fetch(adminApi('/issues'), {
         method: 'POST',
@@ -1533,7 +1519,6 @@
   }
 
   async function resolveIssue(id, resolved) {
-    // Immediate UI update
     const issue = allIssues.find(i => String(i.id) === String(id));
     if (issue) issue.resolved = resolved ? 1 : 0;
     renderIssueStats(allIssues);
@@ -1637,13 +1622,24 @@
     const btnResolveSelected = document.getElementById('btnResolveSelectedIssues');
     if (btnResolveSelected) btnResolveSelected.addEventListener('click', resolveSelectedIssues);
 
-    // Explicit Filter Visitors Button Binding
+    // Filter Visitors Button Binding
     const btnFilterVisitors = document.getElementById('btnFilterVisitors');
     if (btnFilterVisitors) {
       btnFilterVisitors.addEventListener('click', () => loadVisitors());
     }
 
-    // Direct listener for Date Pickers
+    // Direct binding for preset data attribute buttons
+    document.querySelectorAll('[data-visitor-filter]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const filterVal = btn.getAttribute('data-visitor-filter');
+        if (filterVal === 'today' || filterVal === 'yesterday' || filterVal === 'week') {
+          loadVisitors(null, filterVal);
+        } else {
+          loadVisitors(filterVal);
+        }
+      });
+    });
+
     const startEl = document.getElementById('visitorDateStart');
     const endEl = document.getElementById('visitorDateEnd');
     if (startEl && endEl) {
@@ -1681,7 +1677,6 @@
       });
     }
 
-    // Sortable Headers
     document.querySelectorAll('.sortable').forEach(th => {
       th.addEventListener('click', () => {
         const col = th.getAttribute('data-sort');
@@ -1702,7 +1697,6 @@
     const roleName = String(user.role || "").trim().toLowerCase();
     const orgId = String(user.org_id || user.orgId || "").trim().toLowerCase();
 
-    // Flexible Founder authorization check without hardcoding email addresses
     const isFounder = (orgId === "org_dsi" || orgId === "default_org") && (
       roleId === "ro-founder" ||
       roleName.indexOf("founder") !== -1 ||
