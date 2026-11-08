@@ -190,47 +190,113 @@
         '</tr></thead><tbody>' + rows + '</tbody></table></div>';
   }
 
-  async function loadVisitors() {
+  async function loadVisitors(params) {
     var container = document.getElementById('visitors-content');
     if (!container) return;
-    container.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">Loading visitors...</div>';
+    
+    // Read filter parameters if not explicitly provided
+    params = params || {};
+    var daysEl = document.getElementById('visitor-filter-days');
+    var startEl = document.getElementById('visitor-filter-start');
+    var endEl = document.getElementById('visitor-filter-end');
+    var limitEl = document.getElementById('visitor-filter-limit');
+
+    var query = new URLSearchParams();
+    
+    var limit = params.limit || (limitEl ? limitEl.value : 500);
+    query.append('limit', limit);
+
+    var days = params.days || (daysEl ? daysEl.value : '');
+    var start = params.start || (startEl ? startEl.value : '');
+    var end = params.end || (endEl ? endEl.value : '');
+
+    if (days && days !== 'custom') {
+      query.append('days', days);
+    } else {
+      if (start) query.append('start', start);
+      if (end) query.append('end', end);
+    }
+
+    var tableContainer = document.getElementById('visitors-table-container');
+    if (tableContainer) {
+      tableContainer.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">Loading visitors...</div>';
+    } else {
+      container.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">Loading visitors...</div>';
+    }
+
     try {
-      var res = await fetch('/api/admin/visitors?limit=50', { credentials: 'include' });
+      var res = await fetch('/api/admin/site-visitors?' + query.toString(), { credentials: 'include' });
       var data = await res.json();
-      if (!data.success) { container.innerHTML = '<div style="text-align:center;padding:40px;color:#cc0000;">' + (data.error || 'Failed to load visitors') + '</div>'; return; }
-      renderVisitors(data.visitors);
+      if (!data.success) { 
+        var errHtml = '<div style="text-align:center;padding:40px;color:#cc0000;">' + (data.error || 'Failed to load visitors') + '</div>';
+        if (tableContainer) tableContainer.innerHTML = errHtml;
+        else container.innerHTML = errHtml;
+        return; 
+      }
+      renderVisitors(data.visitors || data.site_visitors || [], { days: days, start: start, end: end, limit: limit });
     } catch (err) {
-      container.innerHTML = '<div style="text-align:center;padding:40px;color:#cc0000;">Failed to load. The DRIV-EN team has been notified.</div>';
+      var failHtml = '<div style="text-align:center;padding:40px;color:#cc0000;">Failed to load. The DRIV-EN team has been notified.</div>';
+      if (tableContainer) tableContainer.innerHTML = failHtml;
+      else container.innerHTML = failHtml;
       if (window.DRIVENErrorHandler) DRIVENErrorHandler.report('Failed to load visitors', 'owner-dashboard-visitors', err.stack);
     }
   }
 
-  function renderVisitors(visitors) {
+  function renderVisitors(visitors, filters) {
     var container = document.getElementById('visitors-content');
     if (!container) return;
-    if (!visitors || visitors.length === 0) {
-      container.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">No visitor data found.</div>';
-      return;
-    }
-    var rows = visitors.map(function (v) {
+    
+    filters = filters || {};
+    var currentDays = filters.days || '30';
+    var currentStart = filters.start || '';
+    var currentEnd = filters.end || '';
+    var currentLimit = filters.limit || '500';
+
+    var rows = (visitors || []).map(function (v) {
       return '<tr style="border-bottom:1px solid #eee;">' +
-        '<td style="padding:10px 12px;font-size:12px;color:#999;">' + fmtDateTime(v.created_at) + '</td>' +
-        '<td style="padding:10px 12px;font-size:13px;">' + (v.page_path || '—') + '</td>' +
+        '<td style="padding:10px 12px;font-size:12px;color:#999;">' + fmtDateTime(v.created_at || v.timestamp) + '</td>' +
+        '<td style="padding:10px 12px;font-size:13px;">' + (v.page_path || v.path || '—') + '</td>' +
         '<td style="padding:10px 12px;font-size:13px;">' + (v.country || '—') + '</td>' +
-        '<td style="padding:10px 12px;font-size:13px;">' + (v.device_type || '—') + '</td>' +
+        '<td style="padding:10px 12px;font-size:13px;">' + (v.device_type || v.device || '—') + '</td>' +
         '<td style="padding:10px 12px;font-size:13px;">' + (v.browser || '—') + '</td>' +
         '<td style="padding:10px 12px;font-size:13px;">' + (v.os || '—') + '</td>' +
         '<td style="padding:10px 12px;font-size:13px;">' + (v.referral_code || '—') + '</td>' +
         '<td style="padding:10px 12px;font-size:13px;">' + (v.utm_source || '—') + '</td>' +
-        '<td style="padding:10px 12px;font-size:13px;">' + (v.time_on_page || '—') + '</td>' +
+        '<td style="padding:10px 12px;font-size:13px;">' + (v.time_on_page ? v.time_on_page + 's' : '—') + '</td>' +
       '</tr>';
     }).join('');
+
+    var tableBody = rows.length > 0 ? rows : '<tr><td colspan="9" style="text-align:center;padding:40px;color:#999;">No visitor data found for the selected range.</td></tr>';
+
     container.innerHTML =
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
+      '<div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px;">' +
         '<div style="font-size:16px;font-weight:600;">Site Visitors (' + visitors.length + ')</div>' +
-        '<button onclick="window.OWNER_DASH.refreshVisitors()" style="padding:8px 16px;background:#00b140;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;">Refresh</button>' +
+        '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:13px;">' +
+          '<label style="color:#666;">Range:</label>' +
+          '<select id="visitor-filter-days" onchange="window.OWNER_DASH.handleVisitorFilterChange()" style="padding:6px 10px;border:1px solid #ccc;border-radius:4px;font-size:13px;">' +
+            '<option value="1"' + (currentDays === '1' ? ' selected' : '') + '>Last 24 Hours</option>' +
+            '<option value="7"' + (currentDays === '7' ? ' selected' : '') + '>Last 7 Days</option>' +
+            '<option value="30"' + (currentDays === '30' ? ' selected' : '') + '>Last 30 Days</option>' +
+            '<option value="90"' + (currentDays === '90' ? ' selected' : '') + '>Last 90 Days</option>' +
+            '<option value="custom"' + (currentDays === 'custom' || (currentStart || currentEnd) ? ' selected' : '') + '>Custom Range</option>' +
+          '</select>' +
+          '<div id="visitor-custom-date-container" style="display:' + (currentDays === 'custom' || (currentStart || currentEnd) ? 'flex' : 'none') + ';gap:6px;align-items:center;">' +
+            '<input type="date" id="visitor-filter-start" value="' + currentStart + '" style="padding:5px;border:1px solid #ccc;border-radius:4px;font-size:12px;">' +
+            '<span style="color:#999;">to</span>' +
+            '<input type="date" id="visitor-filter-end" value="' + currentEnd + '" style="padding:5px;border:1px solid #ccc;border-radius:4px;font-size:12px;">' +
+          '</div>' +
+          '<label style="color:#666;margin-left:8px;">Max Records:</label>' +
+          '<select id="visitor-filter-limit" style="padding:6px 10px;border:1px solid #ccc;border-radius:4px;font-size:13px;">' +
+            '<option value="100"' + (currentLimit === '100' ? ' selected' : '') + '>100</option>' +
+            '<option value="500"' + (currentLimit === '500' ? ' selected' : '') + '>500</option>' +
+            '<option value="1000"' + (currentLimit === '1000' ? ' selected' : '') + '>1,000</option>' +
+            '<option value="5000"' + (currentLimit === '5000' ? ' selected' : '') + '>5,000</option>' +
+            '<option value="10000"' + (currentLimit === '10000' ? ' selected' : '') + '>10,000</option>' +
+          '</select>' +
+          '<button onclick="window.OWNER_DASH.refreshVisitors()" style="padding:6px 14px;background:#00b140;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600;">Apply / Refresh</button>' +
+        '</div>' +
       '</div>' +
-      '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+      '<div id="visitors-table-container" style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">' +
         '<thead><tr style="background:#f8fafc;border-bottom:2px solid #e0e0e0;">' +
           '<th style="padding:10px 12px;text-align:left;font-size:12px;color:#666;text-transform:uppercase;">Time</th>' +
           '<th style="padding:10px 12px;text-align:left;font-size:12px;color:#666;text-transform:uppercase;">Page</th>' +
@@ -241,7 +307,15 @@
           '<th style="padding:10px 12px;text-align:left;font-size:12px;color:#666;text-transform:uppercase;">Ref Code</th>' +
           '<th style="padding:10px 12px;text-align:left;font-size:12px;color:#666;text-transform:uppercase;">UTM Source</th>' +
           '<th style="padding:10px 12px;text-align:left;font-size:12px;color:#666;text-transform:uppercase;">Time on Page</th>' +
-        '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+        '</tr></thead><tbody>' + tableBody + '</tbody></table></div>';
+  }
+
+  function handleVisitorFilterChange() {
+    var daysEl = document.getElementById('visitor-filter-days');
+    var customContainer = document.getElementById('visitor-custom-date-container');
+    if (daysEl && customContainer) {
+      customContainer.style.display = daysEl.value === 'custom' ? 'flex' : 'none';
+    }
   }
 
   async function loadLogo() {
@@ -344,6 +418,7 @@
     toggleErrorDetail: toggleErrorDetail,
     refreshErrorLogs: loadErrorLogs,
     refreshVisitors: loadVisitors,
+    handleVisitorFilterChange: handleVisitorFilterChange,
     toggleMember: toggleMember,
     loadTeamMembers: loadTeamMembers
   };
