@@ -895,8 +895,15 @@
     const startEl = document.getElementById('visitorDateStart');
     const endEl = document.getElementById('visitorDateEnd');
 
+    const getLocalYYYYMMDD = (d = new Date()) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
     if (customFilter === 'today') {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalYYYYMMDD();
       params.set('start', today);
       params.set('end', today);
       if (startEl) startEl.value = today;
@@ -904,7 +911,7 @@
     } else if (customFilter === 'yesterday') {
       const d = new Date();
       d.setDate(d.getDate() - 1);
-      const yest = d.toISOString().split('T')[0];
+      const yest = getLocalYYYYMMDD(d);
       params.set('start', yest);
       params.set('end', yest);
       if (startEl) startEl.value = yest;
