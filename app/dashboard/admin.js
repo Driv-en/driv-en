@@ -93,7 +93,6 @@ var MODAL_CONTENT_MAP = {
 };
 
 function getActiveContext() {
-  // Check subtab active status first if onboarding tab is open
   var onboardingTab = document.getElementById('tab-onboarding');
   if (onboardingTab && onboardingTab.classList.contains('active')) {
     var activeSubtab = document.querySelector('#onboardingSubtabBar .admin-subtab.active');
@@ -105,7 +104,6 @@ function getActiveContext() {
     return 'onboarding';
   }
 
-  // Check main tab active status
   var activeTab = document.querySelector('.admin-tab.active');
   if (activeTab) {
     var tabKey = activeTab.getAttribute('data-tab');
@@ -1150,25 +1148,46 @@ function insertHeaderTitle(){
   var r = header.querySelector(".dash-header-row1");
   if(!r) return;
 
-  // Remove ALL existing title elements inside the header to prevent duplication.
-  // The shared header HTML (loaded by dashboard-common.js) may contain its own
-  // title element (e.g. #dashHeaderTitle / #dashPageTitle) that setPageTitle()
-  // already filled with "Admin Dashboard". We remove every title-like element
-  // so only the single .admin-header-title below remains.
-  var existingTitles = header.querySelectorAll(
-    ".admin-header-title, #dashHeaderTitle, #dashPageTitle, .dash-page-title, .dash-header-title"
-  );
-  existingTitles.forEach(function(el) { el.remove(); });
+  // ── Idempotency check ──────────────────────────────────────────
+  // If row1 already has exactly the 3 desired children in the correct
+  // order (customer logo, admin-header-title, driven logo), do nothing.
+  // This prevents flicker on repeat calls.
+  var kids = Array.from(r.children);
+  if (kids.length === 3 &&
+      kids[0].id === "dashCustomerLogoArea" &&
+      kids[1].classList.contains("admin-header-title") &&
+      kids[1].textContent === "Admin Dashboard" &&
+      kids[2].classList.contains("dash-driven-logo")) {
+    return;
+  }
 
-  // Create a single title element. The CSS rule for .admin-header-title
-  // places it in grid-column: 2 (centered) with text-align: center.
-  // We intentionally do NOT override the grid display or set inline positioning
-  // styles — the 3-column grid from the <style> block in admin.html handles
-  // layout: customer logo (col 1, left), title (col 2, center), DRIV-EN logo (col 3, right).
+  // ── Grab the two logo elements before we nuke everything else ──
+  // We grab references first so the DOM nodes survive the clear below.
+  var customerLogo = r.querySelector("#dashCustomerLogoArea");
+  var drivenLogo   = r.querySelector(".dash-driven-logo");
+
+  // ── Remove ALL children from row1 ──────────────────────────────
+  // The shared header HTML (dashboard-header.html) injects its own
+  // title element with an unknown class/ID.  Rather than trying to
+  // guess every possible selector, we simply wipe the row and rebuild
+  // it with only the three elements we want.  This guarantees there
+  // is exactly one title — no duplicates — and exactly three grid
+  // items so nothing wraps to a second row.
+  while (r.firstChild) {
+    r.removeChild(r.firstChild);
+  }
+
+  // ── Rebuild row1: logo (col 1) · title (col 2) · logo (col 3) ───
+  // CSS rules in admin.html place each item in its grid column and
+  // lock every item to grid-row: 1, so all three share the same row.
+  if (customerLogo) r.appendChild(customerLogo);
+
   var t = document.createElement("div");
   t.className = "admin-header-title";
   t.textContent = "Admin Dashboard";
   r.appendChild(t);
+
+  if (drivenLogo) r.appendChild(drivenLogo);
 }
 
 function injectGlobalUIStyles() {
@@ -1423,6 +1442,7 @@ async function startAdminApp(user) {
 
   injectGlobalUIStyles();
   insertHeaderTitle();
+  setTimeout(insertHeaderTitle, 500);
   attachEventHandlers();
 
   /* Reveal Dashboard UI */
