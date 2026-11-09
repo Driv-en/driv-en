@@ -68,10 +68,6 @@ var FORMS = [
   { key: 'pm_add', label: 'Add PM', desc: 'Create a preventive maintenance task', link: '/app/forms/pm.html' }
 ];
 
-// ==========================================
-// MODAL REPOSITORY & CONTEXT HELPERS
-// ==========================================
-
 var MODAL_CONTENT_MAP = {
   overview: {
     purpose: 'The <strong>Overview Tab</strong> serves as the central command hub for DRIV-EN administrators. It provides high-level system metrics, user profile data, display contrast controls, and quick-launch gateways to essential administrative portals.',
@@ -355,16 +351,19 @@ async function loadDashboardStats() {
     var elEmp = document.getElementById('stat-employees');
     if (elEmp) elEmp.textContent = empCount;
     localStorage.setItem('driven_employee_count', empCount);
+
     var projData = results[1] || {};
     var projList = projData.projects || projData.data || projData.records || (Array.isArray(projData) ? projData : []);
     var elProj = document.getElementById('stat-projects');
     if (elProj) elProj.textContent = projList.length;
     localStorage.setItem('driven_project_count', projList.length);
+
     var assetData = results[2] || {};
     var assetList = assetData.equipment || assetData.assets || assetData.data || assetData.records || (Array.isArray(assetData) ? assetData : []);
     var elEq = document.getElementById('stat-equipment');
     if (elEq) elEq.textContent = assetList.length;
     localStorage.setItem('driven_equipment_count', assetList.length);
+
     var clientData = results[3] || {};
     var clientList = clientData.clients || clientData.records || clientData.data || clientData.results || (Array.isArray(clientData) ? clientData : []);
     var activeClients = clientList.filter(function(c) {
@@ -794,17 +793,10 @@ function openModal(modalId) { var modal = document.getElementById(modalId); if (
 function closeModal(modalId) { var modal = document.getElementById(modalId); if (modal) { modal.classList.remove('active', 'show'); modal.style.display = 'none'; } }
 function hideOnboardingTab() { var t = document.querySelector('.admin-tab[data-tab="onboarding"]'); if (t) t.style.display = 'none'; }
 
-// ==========================================
-// HEADER TITLE - inserts between the two logos on the same row
-// Uses .page-header-title class (per build notes) and checks for
-// existing title from theme-init.js before inserting.
-// ==========================================
 function insertHeaderTitle() {
   var row1 = document.querySelector('.dash-header-row1');
   if (!row1) return;
-  // Check if theme-init.js already inserted the title
   if (document.querySelector('.page-header-title')) return;
-  // Check for legacy admin-header-title
   if (document.querySelector('.admin-header-title')) return;
   var title = document.createElement('div');
   title.className = 'page-header-title';
@@ -894,8 +886,6 @@ function attachEventHandlers() {
   if (btnSaveToggles) { btnSaveToggles.addEventListener('click', saveToggles); }
   var btnSaveVisibilityTop = document.getElementById('btnSaveStepVisibilityTop');
   if (btnSaveVisibilityTop) { btnSaveVisibilityTop.addEventListener('click', saveStepVisibility); }
-  var btnSaveVisibilityBottom = document.getElementById('btnSaveStepVisibilityBottom');
-  if (btnSaveVisibilityBottom) { btnSaveVisibilityBottom.addEventListener('click', saveStepVisibility); }
   var btnAddKp = document.getElementById('kpAddBtn');
   if (btnAddKp) { btnAddKp.addEventListener('click', addKeyPersonnel); }
   var kpSelectAll = document.getElementById('kpTaskSelectAll');
@@ -927,11 +917,10 @@ async function startAdminApp(user) {
     if (savedUserStr) { try { user = JSON.parse(savedUserStr); } catch (e) { /* noop */ } }
   }
 
-  // If still no user, return without redirecting - let the polling handle it
   if (!user) { console.warn('[AdminDashboard] No user found - startAdminApp cannot proceed.'); return; }
 
   currentUserObj = user;
-  var roleVal = String((user && (user.role || user.role_id)) || '').trim().toLowerCase();
+  var roleVal = String((user && (user.role || user.role_id)) || '').trim().toLowerCase().replace(/_/g, '-');
   var isAllowedAdmin = roleVal === 'admin' || roleVal === 'ro-admin';
   if (!isAllowedAdmin) {
     console.warn('[AdminDashboard] Guard rejected role:', roleVal);
@@ -939,7 +928,7 @@ async function startAdminApp(user) {
     window.location.href = '/public/login.html';
     return;
   }
-  activeOrgId = user.org_id || user.customer_id || '';
+  activeOrgId = user.org_id || user.customer_id || localStorage.getItem('driven_org_id') || sessionStorage.getItem('driven_org_id') || '';
   if (!activeOrgId || activeOrgId === 'default_org' || activeOrgId === 'null') {
     adminAppStarted = true;
     window.location.href = '/public/login.html';
@@ -957,10 +946,16 @@ async function startAdminApp(user) {
   if (user.id) localStorage.setItem('driven_user_id', user.id);
   sessionStorage.setItem('driven_org_id', activeOrgId);
   sessionStorage.setItem('driven_user', userStr);
-  if (userRole) sessionStorage.setItem('driven_role', userRole);
+  sessionStorage.setItem('driven_role', userRole);
   if (user.id) sessionStorage.setItem('driven_user_id', user.id);
 
-  // Greeting
+  // Synchronously reveal Dashboard UI upfront
+  var loadingEl = document.getElementById('loading');
+  var dashEl = document.getElementById('dashboard');
+  if (loadingEl) loadingEl.style.display = 'none';
+  if (dashEl) dashEl.style.display = 'block';
+
+  // Greeting Populate
   var firstName = user.first_name || user.email;
   var orgName = user.org_name || localStorage.getItem('driven_org_name') || '';
   var welcomeEl = document.getElementById('welcome-name');
@@ -976,18 +971,12 @@ async function startAdminApp(user) {
   var elMail = document.getElementById('welcome-email');
   if (elMail) elMail.textContent = user.email || '';
 
-  // Wrap initialization in try/catch so the loading screen is ALWAYS hidden
   try { injectGlobalUIStyles(); insertHeaderTitle(); attachEventHandlers(); }
   catch (e) { reportError('startAdminApp-init', e); }
 
-  // Reveal Dashboard UI - always do this, even if init threw
-  var loadingEl = document.getElementById('loading');
-  var dashEl = document.getElementById('dashboard');
-  if (loadingEl) loadingEl.style.display = 'none';
-  if (dashEl) dashEl.style.display = 'block';
   adjustStickyOffsets();
 
-  // Load Initial Data and Stats
+  // Load data asynchronously
   loadLogo().catch(function(e) { reportError('loadLogo', e); });
   loadSettings().catch(function(e) { reportError('loadSettings', e); });
   loadKeyPersonnel().catch(function(e) { reportError('loadKeyPersonnel', e); });
@@ -1002,7 +991,6 @@ async function init() {
   var savedTheme = localStorage.getItem('driven-theme') || 'light';
   document.documentElement.setAttribute('data-theme', savedTheme);
 
-  // Attach event listeners early (before any async operations)
   window.addEventListener('resize', adjustStickyOffsets);
   window.addEventListener('orientationchange', adjustStickyOffsets);
   window.addEventListener('scroll', adjustStickyOffsets, { passive: true });
@@ -1014,20 +1002,16 @@ async function init() {
     };
   }
 
-  // Helper: try to extract user from localStorage/sessionStorage
   function getUserFromStorage() {
     var s = localStorage.getItem('driven_user') || sessionStorage.getItem('driven_user');
     if (s) { try { return JSON.parse(s); } catch (e) { return null; } }
     return null;
   }
 
-  // 1) Try all synchronous sources first (window globals + storage)
+  // Check sync sources immediately
   var current = window.dashUser || window.drivenUser || getUserFromStorage();
   if (current) { startAdminApp(current); return; }
 
-  // 2) Listen for dashSessionLoaded on both document and window
-  //    (dashboard-common.js dispatches on document, but we listen on both
-  //    to be safe against any future changes)
   var onSessionLoaded = function(e) {
     var u = (e && e.detail) || window.dashUser || window.drivenUser || getUserFromStorage();
     if (u) startAdminApp(u);
@@ -1035,7 +1019,6 @@ async function init() {
   document.addEventListener('dashSessionLoaded', onSessionLoaded);
   window.addEventListener('dashSessionLoaded', onSessionLoaded);
 
-  // 3) Poll for the session to resolve (checks window globals AND storage)
   var pollAttempts = 0;
   var pollTimer = setInterval(function() {
     pollAttempts++;
@@ -1043,16 +1026,20 @@ async function init() {
     if (u) {
       clearInterval(pollTimer);
       startAdminApp(u);
-    } else if (pollAttempts >= 40) { // 40 x 250ms = 10 seconds
+    } else if (pollAttempts >= 20) { // Poll every 250ms up to 5s max
       clearInterval(pollTimer);
-      // Final attempt from storage before giving up
       var lastResort = getUserFromStorage();
-      if (lastResort) { startAdminApp(lastResort); }
-      else { window.location.href = '/public/login.html'; }
+      if (lastResort) {
+        startAdminApp(lastResort);
+      } else {
+        var loadingEl = document.getElementById('loading');
+        var dashEl = document.getElementById('dashboard');
+        if (loadingEl) loadingEl.style.display = 'none';
+        if (dashEl) dashEl.style.display = 'block';
+      }
     }
   }, 250);
 
-  // 4) Last-resort fallback: try again on window load
   window.addEventListener('load', function() {
     if (!adminAppStarted) {
       var u = window.dashUser || window.drivenUser || getUserFromStorage();
