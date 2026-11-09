@@ -166,8 +166,18 @@ function preserveAndNavigate(event, targetUrl) {
     userObj.id = userObj.user_id;
   }
 
-  var targetOrg = activeOrgId || userObj.org_id || localStorage.getItem("driven_org_id") || "org_dsi";
-  var roleVal = userObj.role_id || localStorage.getItem("driven_role") || userObj.role || "RO-admin";
+  var targetOrg = activeOrgId || userObj.org_id || localStorage.getItem("driven_org_id") || sessionStorage.getItem("driven_org_id");
+  if (!targetOrg || targetOrg === "default_org" || targetOrg === "null") {
+    window.location.href = "/public/login.html";
+    return;
+  }
+
+  var roleVal = userObj.role_id || userObj.role || localStorage.getItem("driven_role") || sessionStorage.getItem("driven_role");
+  if (!roleVal) {
+    window.location.href = "/public/login.html";
+    return;
+  }
+
   var userStr = JSON.stringify(userObj);
 
   localStorage.setItem("driven_org_id", targetOrg);
@@ -192,7 +202,11 @@ function preserveAndNavigate(event, targetUrl) {
 
 function validateOrgContext() {
   if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
-    activeOrgId = localStorage.getItem("driven_org_id") || sessionStorage.getItem("driven_org_id") || "org_dsi";
+    activeOrgId = localStorage.getItem("driven_org_id") || sessionStorage.getItem("driven_org_id") || "";
+  }
+  if (!activeOrgId) {
+    window.location.href = "/public/login.html";
+    return false;
   }
   return true;
 }
@@ -241,7 +255,8 @@ async function safeFetch(url, options) {
   var storedUser = currentUserObj || window.dashUser || window.drivenUser || {};
   options.headers["x-user-id"] = storedUser.id || localStorage.getItem("driven_user_id") || sessionStorage.getItem("driven_user_id") || "";
   options.headers["x-org-id"] = activeOrgId || storedUser.org_id || localStorage.getItem("driven_org_id") || sessionStorage.getItem("driven_org_id") || "";
-  options.headers["x-user-role"] = "RO-admin";
+  var userRole = storedUser.role_id || storedUser.role || localStorage.getItem("driven_role") || sessionStorage.getItem("driven_role") || "";
+  if (userRole) options.headers["x-user-role"] = userRole;
 
   var controller = new AbortController();
   var timeoutId = setTimeout(function() { controller.abort(); }, 4000);
@@ -1007,7 +1022,7 @@ function renderKeyPersonnel() {
       '<div class="kp-person-info">' +
       '<div class="kp-person-name">' + esc(kp.name || 'Unknown') + (isPending ? ' <span style="font-size:11px;color:#d97706;font-weight:normal;">(Pending Save)</span>' : '') + '</div>' +
       '<div class="kp-person-email">' + esc(kp.email || '') + '</div>' +
-      '<div class="kp-person-tasks">' + (chips || '<span style="font-size:12px;color:var(--text-muted);italic;">No tasks assigned</span>') + '</div>' +
+      '<div class="kp-person-tasks">' + (chips || '<span style="font-size:12px;color:var(--text-muted);font-style:italic;">No tasks assigned</span>') + '</div>' +
       '</div>' +
       '<div class="kp-person-actions">' +
       '<button class="kp-person-remove" data-person="' + personIdx + '">Remove Person</button>' +
@@ -1371,7 +1386,7 @@ async function startAdminApp(user) {
 
   currentUserObj = user;
   var roleVal = String((user && (user.role_id || user.role)) || "").trim().toLowerCase();
-  var isAllowedAdmin = roleVal === "ro-admin" || roleVal === "admin" || roleVal.indexOf("founder") !== -1;
+  var isAllowedAdmin = roleVal === "ro-admin" || roleVal === "admin";
 
   if (!user || !isAllowedAdmin) {
     console.warn("[AdminDashboard] Guard rejected role:", roleVal);
@@ -1379,19 +1394,24 @@ async function startAdminApp(user) {
     return;
   }
 
-  activeOrgId = user.org_id || localStorage.getItem("driven_org_id") || sessionStorage.getItem("driven_org_id") || "org_dsi";
+  activeOrgId = user.org_id || localStorage.getItem("driven_org_id") || sessionStorage.getItem("driven_org_id");
+  if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
+    window.location.href = "/public/login.html";
+    return;
+  }
 
   if (!user.id && user.user_id) user.id = user.user_id;
   var userStr = JSON.stringify(user);
+  var userRole = user.role_id || user.role || "";
 
   localStorage.setItem("driven_org_id", activeOrgId);
   localStorage.setItem("driven_user", userStr);
-  localStorage.setItem("driven_role", user.role_id || user.role || "RO-admin");
+  if (userRole) localStorage.setItem("driven_role", userRole);
   if (user.id) localStorage.setItem("driven_user_id", user.id);
 
   sessionStorage.setItem("driven_org_id", activeOrgId);
   sessionStorage.setItem("driven_user", userStr);
-  sessionStorage.setItem("driven_role", user.role_id || user.role || "RO-admin");
+  if (userRole) sessionStorage.setItem("driven_role", userRole);
   if (user.id) sessionStorage.setItem("driven_user_id", user.id);
 
   var elName = document.getElementById("welcome-name");
@@ -1400,8 +1420,8 @@ async function startAdminApp(user) {
   var elMail = document.getElementById("welcome-email");
 
   if(elName) elName.textContent = user.first_name || user.email || "Admin";
-  if(elComp) elComp.textContent = user.org_name || localStorage.getItem("driven_org_name") || "Digital Safety Inspection, LLC";
-  if(elRole) elRole.textContent = user.role || user.role_id || "RO-admin";
+  if(elComp) elComp.textContent = user.org_name || localStorage.getItem("driven_org_name") || "";
+  if(elRole) elRole.textContent = user.role || user.role_id || "";
   if(elMail) elMail.textContent = user.email || "";
 
   injectGlobalUIStyles();
