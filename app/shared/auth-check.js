@@ -1,5 +1,5 @@
 // ============================================================================
-// AUTH CHECK — Shared auth protection script (v20 — Hardened Multi-Tenant Session)
+// AUTH CHECK — Shared auth protection script (v21 — Hardened Multi-Tenant Session)
 // ============================================================================
 
 (async function() {
@@ -35,7 +35,7 @@
 
     // Ensure org_id has fallback if missing in object
     if (!cachedUser.org_id || cachedUser.org_id === "default_org") {
-      cachedUser.org_id = localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id") || "org_dsi";
+      cachedUser.org_id = localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id") || "";
     }
 
     if (!cachedUser.permissions) cachedUser.permissions = [];
@@ -112,14 +112,15 @@
     var userRole = (user.role || "").toString().toLowerCase();
     var userRoleId = (user.role_id || "").toString().toLowerCase();
 
-    // Identify Founder & Admin privileges
-    var isFounder = userEmail === "jblood@digitalsafetyinspection.com" ||
-                    userRoleId === "ro-founder" ||
-                    userRole.indexOf("founder") !== -1;
+    // Identify Founder (requires org_dsi AND founder role — no hardcoded email)
+    var isFounder = user.org_id === "org_dsi" && (
+      userRoleId === "ro-founder" ||
+      userRole.indexOf("founder") !== -1
+    );
 
+    // Identify Admin privileges (no URL-param spoofing)
     var isAdminRole = isFounder ||
                       userRoleId === "ro-admin" ||
-                      urlRoleId === "ro-admin" ||
                       ["admin", "administrator"].indexOf(userRole) !== -1;
 
     // Enforce org_dsi and RO-Founder override for founder
@@ -135,21 +136,26 @@
     if (!user.permissions) user.permissions = [];
 
     // Store user info in storage & globally for downstream scripts
-    var targetOrg = user.org_id || localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id") || "org_dsi";
+    var targetOrg = user.org_id || localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id") || "";
+    if (!targetOrg) {
+      console.warn("[AuthCheck] No valid org_id found — redirecting to login");
+      window.location.href = "/public/login.html";
+      return;
+    }
     user.org_id = targetOrg;
-    var activeRole = user.role_id || user.role || "RO-admin";
+    var activeRole = user.role_id || user.role || "";
 
     var userStr = JSON.stringify(user);
 
     localStorage.setItem("driven_user", userStr);
     localStorage.setItem("driven_org_id", targetOrg);
     localStorage.setItem("driven_customer_id", targetOrg);
-    localStorage.setItem("driven_role", activeRole);
+    if (activeRole) localStorage.setItem("driven_role", activeRole);
     if (user.id) localStorage.setItem("driven_user_id", user.id);
 
     sessionStorage.setItem("driven_user", userStr);
     sessionStorage.setItem("driven_org_id", targetOrg);
-    sessionStorage.setItem("driven_role", activeRole);
+    if (activeRole) sessionStorage.setItem("driven_role", activeRole);
     if (user.id) sessionStorage.setItem("driven_user_id", user.id);
 
     window.drivenUser = user;
