@@ -63,39 +63,49 @@ var FORMS = [
 
 var MODAL_CONTENT_MAP = {
   overview: {
-    purpose: "The <strong>Overview Tab</strong> serves as the primary navigation hub and high-level metric center for DRIV-EN administrators. It provides immediate access to core management portals, user session details, global theme controls, and direct links to critical operational areas.",
-    instructions: "<ol><li><strong>Navigate Modules:</strong> Click any stat card (Employees, Projects, Assets, Clients, Fuel Management, Company) to jump directly into the management module for that sector.</li><li><strong>Toggle Workspace Theme:</strong> Use the Light/Dark switch at the top right to adjust display contrast for high- or low-light environments.</li><li><strong>Security Account Management:</strong> Click the <strong>Change Password</strong> button within your profile card to securely update your operational access credentials.</li></ol>"
+    purpose: "The <strong>Overview Tab</strong> serves as the central command hub for DRIV-EN administrators. It provides high-level system metrics, user profile data, display contrast controls, and quick-launch gateways to essential administrative portals.",
+    instructions: "<ol><li><strong>Monitor Dashboard Metrics:</strong> View live count summaries for active Employees, Projects, Assets, and Clients. Click any card to navigate directly to its module.</li><li><strong>Account Management:</strong> Review your logged-in administrator credentials and manage your account credentials via the <strong>Change Password</strong> option.</li><li><strong>Workspace Customization:</strong> Use the Light/Dark mode switch in the top header to adjust visual preferences for high-light or night operations.</li></ol>"
   },
-  forms: {
-    purpose: "The <strong>Forms Tab</strong> centralizes field compliance, safety checks, and inspection workflows. Administrators can directly launch mandatory operational forms—such as DVIR inspections—and review current submission protocols.",
-    instructions: "<ol><li><strong>Select Inspection Form:</strong> Click on the desired form card (e.g., <em>Driver Vehicle Inspection Report</em>) to open the form completion workflow.</li><li><strong>Complete Compliance Checklist:</strong> Fill in mandatory vehicle/asset checks, record faults, and provide digital sign-offs.</li><li><strong>Submit & Sync:</strong> Submit the completed form to broadcast real-time condition reports across the DRIV-EN platform.</li></ol>"
-  },
-  settings: {
-    purpose: "The <strong>Settings Tab</strong> enables administrators to define company profile parameters, set financial currencies, upload operational logos, enforce telematics/photo verification standards, and verify synchronized Units of Measure.",
-    instructions: "<ol><li><strong>Update Company Profile:</strong> Choose your Primary Sector, enter your NAICS Code, set your Currency, and click <strong>Save Profile Settings</strong>.</li><li><strong>Upload Company Logo:</strong> Click <strong>Upload Logo</strong>, select your high-res PNG or SVG file, and verify preview rendering.</li><li><strong>Enforce Form Verification Rules:</strong> Toggle requirements for Meter Photos, Asset Photos, or GPS Location Tagging. Click <strong>Save Requirements Toggles</strong> to push updates to field devices.</li><li><strong>Units of Measure Verification:</strong> Review the system-wide distance, volume, and pressure units inherited from Onboarding.</li></ol>"
+  onboarding: {
+    purpose: "The <strong>Onboarding Hub</strong> coordinates initial platform deployment, setup step tracking, team assignments, and final company activation across all operational modules.",
+    instructions: "<ol><li><strong>Track Global Setup Progress:</strong> Review the overall setup completion progress bar at the top of the onboarding interface.</li><li><strong>Navigate Subtabs:</strong> Switch between the <em>Task Visibility Matrix</em> to configure required steps and the <em>Key Personnel Directory</em> to assign responsible staff.</li><li><strong>Finalize Deployment:</strong> Once all required setup tasks are complete, click <strong>Finalize Company Onboarding</strong> to activate regular accounts and dispatch welcome emails.</li></ol>"
   },
   visibility: {
-    purpose: "The <strong>Task Visibility Matrix Subtab</strong> gives administrators granular control over which onboarding setup steps are visible or required for company personnel during initial account deployment.",
-    instructions: "<ol><li><strong>Review Visibility Toggles:</strong> Scroll through the list of setup steps (Roles, Employees, Assets, Locations, etc.).</li><li><strong>Adjust Step Visibility:</strong> Toggle the switch next to any task to show or hide that step in user onboarding flows.</li><li><strong>Commit Changes:</strong> Click <strong>Save Visibility Matrix</strong> (located at top and bottom) to store your setup matrix.</li></ol>"
+    purpose: "The <strong>Task Visibility Matrix Subtab</strong> empowers administrators to customize setup workflows by enabling or disabling specific onboarding steps based on company industry and operational scope.",
+    instructions: "<ol><li><strong>Review Available Setup Steps:</strong> Scroll through operational setup modules such as Locations, Clients, Divisions, Project Types, and Assets.</li><li><strong>Modify Step Access:</strong> Toggle the switch next to optional steps to make them visible or hidden in user onboarding flows. (Locked steps remain enforced by system defaults).</li><li><strong>Save Configuration:</strong> Click <strong>Save Visibility Matrix</strong> to apply changes across field and administrative portals.</li></ol>"
   },
   kp: {
-    purpose: "The <strong>Key Personnel Directory Subtab</strong> allows admins to assign key team leaders to oversee individual setup tasks, ensuring accountability during system initialization.",
-    instructions: "<ol><li><strong>Fill Team Member Info:</strong> Enter the Full Name and Email Address of the designated key staff member.</li><li><strong>Assign Tasks:</strong> Check the specific setup tasks they are responsible for (or click <strong>Select All Tasks</strong>).</li><li><strong>Add Member:</strong> Click <strong>+ Add Personnel Member</strong> to stage the entry.</li><li><strong>Send Invitations:</strong> Click <strong>Send Invitations & Create Accounts</strong> to dispatch onboarding access emails.</li></ol>"
+    purpose: "The <strong>Key Personnel Directory Subtab</strong> allows admins to delegate setup tasks to specific staff leaders, track completion by employee, and send setup access invitations.",
+    instructions: "<ol><li><strong>Enter Staff Details:</strong> Provide the Full Name and Email Address for the delegated key team member.</li><li><strong>Delegate Tasks:</strong> Select the specific setup steps (e.g., Asset Setup, Fuel Types, Employees) that person is responsible for filling out.</li><li><strong>Stage Member:</strong> Click <strong>+ Add Personnel Member</strong> to add the staged user to your pending directory.</li><li><strong>Send Invitations:</strong> Click <strong>Send Invitations & Create Accounts</strong> to dispatch onboarding credentials and activation emails.</li></ol>"
+  },
+  forms: {
+    purpose: "The <strong>Forms Tab</strong> centralizes access to statutory compliance records, safety inspections, work request generation, and field data logging workflows.",
+    instructions: "<ol><li><strong>Select Operational Form:</strong> Click on the targeted card (e.g., <em>DVIR</em>, <em>Log Fuel Purchase</em>, <em>Create Work Order</em>) to initiate the workflow.</li><li><strong>Complete Field Requirements:</strong> Fill in mandatory equipment identifiers, readings, checklist inspections, or photo attachments.</li><li><strong>Submit & Sync:</strong> Submit the completed document to store the record in central cloud storage and update asset audit trails.</li></ol>"
+  },
+  settings: {
+    purpose: "The <strong>Settings Tab</strong> allows administrators to configure primary business classification settings, upload corporate assets, set system units of measure, and enforce strict form verification rules.",
+    instructions: "<ol><li><strong>Configure Business Profile:</strong> Select your Primary Industry Sector, set NAICS code, and choose your preferred operational currency. Click <strong>Save Profile Settings</strong>.</li><li><strong>Branding Assets:</strong> Upload a high-resolution corporate PNG/SVG logo (max 500KB) to customize digital reports and field application headers.</li><li><strong>Form Verification Controls:</strong> Enable or disable mandatory field requirements for Meter Photos, Asset Photos, or GPS Location Tagging. Click <strong>Save Requirements Toggles</strong>.</li><li><strong>Verify Measurement Units:</strong> Review system distance, volume, and pressure units inherited during initial system configuration.</li></ol>"
   },
   fuel: {
-    purpose: "The <strong>Fuel Management & Tank Adjustment</strong> module facilitates real-time inventory tracking, bulk fuel delivery records, tank reconciliation, and manual tank volume adjustments to correct inventory discrepancies.",
-    instructions: "<p><strong>Tank Adjustment Action Instructions:</strong></p><ol><li><strong>Locate Bulk Fuel Tank:</strong> Navigate to the <em>Fuel Management</em> dashboard card and select the target fuel storage unit or mobile bowser.</li><li><strong>Initiate Adjustment:</strong> Click the <strong>Adjust Tank Level</strong> button next to the relevant tank.</li><li><strong>Record Physical Dip/Reading:</strong> Enter the precise physical volume measurement (e.g., sticking/dip reading or automatic tank gauge figure).</li><li><strong>Select Variance Reason:</strong> Select the adjustment category (e.g., <em>Physical Dip Reconciliation, Fuel Delivery Correction, Thermal Expansion/Contraction, Calibration Variance, Leak/Spill</em>).</li><li><strong>Provide Detailed Audit Notes:</strong> Enter mandatory explanatory notes detailing why the manual balance override is occurring.</li><li><strong>Submit Tank Adjustment:</strong> Click <strong>Confirm Adjustment</strong> to update the system stock balance and generate an automated audit log entry.</li></ol>"
+    purpose: "The <strong>Fuel Management & Tank Adjustment</strong> module handles real-time fluid balance monitoring, bulk delivery logs, fuel burn audits, and inventory dip overrides.",
+    instructions: "<p><strong>Tank Adjustment Action Steps:</strong></p><ol><li><strong>Select Tank/Bowser:</strong> Locate the bulk storage unit or mobile fuel asset from the fuel dashboard.</li><li><strong>Initiate Level Override:</strong> Click <strong>Adjust Tank Level</strong> next to the selected container.</li><li><strong>Enter Measured Volume:</strong> Input accurate dipstick or automatic gauge readings.</li><li><strong>Document Variance Reason:</strong> Choose the primary reason code (e.g., <em>Dip Reconciliation, Calibration Variance, Spill/Loss</em>) and provide audit log notes.</li><li><strong>Confirm Override:</strong> Click <strong>Confirm Adjustment</strong> to update system inventory records.</li></ol>"
   }
 };
 
 function getActiveContext() {
-  var activeSubtab = document.querySelector('.admin-subtab.active, #onboardingSubtabBar .admin-subtab.active');
-  if (activeSubtab) {
-    var subtabKey = activeSubtab.getAttribute('data-subtab');
-    if (subtabKey === 'key-personnel') subtabKey = 'kp';
-    if (MODAL_CONTENT_MAP[subtabKey]) return subtabKey;
+  // Check subtab active status first if onboarding tab is open
+  var onboardingTab = document.getElementById('tab-onboarding');
+  if (onboardingTab && onboardingTab.classList.contains('active')) {
+    var activeSubtab = document.querySelector('#onboardingSubtabBar .admin-subtab.active');
+    if (activeSubtab) {
+      var subtabKey = activeSubtab.getAttribute('data-subtab');
+      if (subtabKey === 'key-personnel' || subtabKey === 'kp') return 'kp';
+      if (subtabKey === 'visibility') return 'visibility';
+    }
+    return 'onboarding';
   }
 
+  // Check main tab active status
   var activeTab = document.querySelector('.admin-tab.active');
   if (activeTab) {
     var tabKey = activeTab.getAttribute('data-tab');
@@ -108,10 +118,11 @@ function getActiveContext() {
 function getContextTitle(key) {
   var labels = {
     overview: "Overview",
-    forms: "Forms Module",
-    settings: "Company Settings",
+    onboarding: "Onboarding Hub",
     visibility: "Task Visibility Matrix",
     kp: "Key Personnel Directory",
+    forms: "Forms Module",
+    settings: "Company Settings",
     fuel: "Fuel Management & Tank Adjustments"
   };
   return labels[key] || "Dashboard";
