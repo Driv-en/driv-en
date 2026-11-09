@@ -150,12 +150,14 @@ window.addEventListener('error', function(e) { reportError('window.onerror', e.e
 
 function preserveAndNavigate(event, targetUrl) {
   if (event) { event.preventDefault(); event.stopPropagation(); }
+  // FIX #4 (Gemini): Clear pending KP so beforeunload doesn't fire on deliberate navigation
+  pendingKP = [];
   if (targetUrl && !targetUrl.endsWith('.html') && !targetUrl.includes('?')) { targetUrl += '.html'; }
   var userObj = currentUserObj || window.dashUser || window.drivenUser;
   if (!userObj) { try { userObj = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user")); } catch(e) {} }
   userObj = userObj || {};
   if (!userObj.id && userObj.user_id) { userObj.id = userObj.user_id; }
-  var targetOrg = activeOrgId || userObj.org_id || localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id") || sessionStorage.getItem("driven_org_id");
+  var targetOrg = activeOrgId || userObj.org_id || "";
   if (!targetOrg || targetOrg === "default_org" || targetOrg === "null") { window.location.href = "/public/login.html"; return; }
   var roleVal = userObj.role_id || userObj.role || localStorage.getItem("driven_role") || sessionStorage.getItem("driven_role");
   if (!roleVal) { window.location.href = "/public/login.html"; return; }
@@ -170,7 +172,7 @@ function preserveAndNavigate(event, targetUrl) {
 
 function validateOrgContext() {
   if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
-    activeOrgId = localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id") || sessionStorage.getItem("driven_org_id") || "";
+    activeOrgId = localStorage.getItem("driven_org_id") || sessionStorage.getItem("driven_org_id") || "";
   }
   if (!activeOrgId) { window.location.href = "/public/login.html"; return false; }
   return true;
@@ -195,7 +197,8 @@ async function safeFetch(url, options) {
   options.headers = options.headers || {};
   var storedUser = currentUserObj || window.dashUser || window.drivenUser || {};
   options.headers["x-user-id"] = storedUser.id || localStorage.getItem("driven_user_id") || sessionStorage.getItem("driven_user_id") || "";
-  options.headers["x-org-id"] = activeOrgId || storedUser.org_id || localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id") || sessionStorage.getItem("driven_org_id") || "";
+  // FIX #2 (Gemini): Rely on server payload org_id only — no localStorage fallbacks
+  options.headers["x-org-id"] = activeOrgId || storedUser.org_id || "";
   var userRole = storedUser.role || storedUser.role_id || localStorage.getItem("driven_role") || sessionStorage.getItem("driven_role") || "";
   if (userRole) options.headers["x-user-role"] = userRole;
   var controller = new AbortController();
@@ -786,6 +789,9 @@ function attachEventHandlers() {
   var apToggle = document.getElementById("fuelAssetPhotoToggle"); if (apToggle) { apToggle.addEventListener('change', onFuelPhotoToggleChange); }
   var lrToggle = document.getElementById("locationReqToggle"); if (lrToggle) { lrToggle.addEventListener('change', onLocationReqToggleChange); }
   var btnSaveSettings = document.getElementById("saveSettingsBtn"); if (btnSaveSettings) { btnSaveSettings.addEventListener('click', saveSettings); }
+  // FIX #3 (Gemini): Restore secondary save button listeners
+  var btnSaveNaics = document.getElementById("saveNaicsBtn"); if (btnSaveNaics) { btnSaveNaics.addEventListener('click', saveSettings); }
+  var btnSaveCurrency = document.getElementById("saveCurrencyBtn"); if (btnSaveCurrency) { btnSaveCurrency.addEventListener('click', saveSettings); }
   var btnSaveToggles = document.getElementById("saveTogglesBtn"); if (btnSaveToggles) { btnSaveToggles.addEventListener('click', saveToggles); }
   var btnSaveVisibilityTop = document.getElementById("btnSaveStepVisibilityTop"); if (btnSaveVisibilityTop) { btnSaveVisibilityTop.addEventListener('click', saveStepVisibility); }
   var btnSaveVisibilityBottom = document.getElementById("btnSaveStepVisibilityBottom"); if (btnSaveVisibilityBottom) { btnSaveVisibilityBottom.addEventListener('click', saveStepVisibility); }
@@ -797,6 +803,8 @@ function attachEventHandlers() {
   var btnLogout = document.getElementById("btnAdminLogout");
   if (btnLogout) { btnLogout.addEventListener('click', function(e) {
     if (e) { e.preventDefault(); e.stopPropagation(); }
+    // FIX #4 (Gemini): Clear pending KP so beforeunload doesn't fire on deliberate logout
+    pendingKP = [];
     localStorage.clear(); sessionStorage.clear();
     if (typeof window.drivenLogout === 'function') { try { window.drivenLogout(); } catch(err){} }
     window.location.href = '/public/login.html';
@@ -809,12 +817,15 @@ async function startAdminApp(user) {
     if (savedUserStr) { try { user = JSON.parse(savedUserStr); } catch(e){} }
   }
   currentUserObj = user;
-  // Use user.role FIRST (string like "Admin"), then fall back to role_id
+  // FIX #1 (Gemini): Strict role check — admin.html is tenant-level only.
+  // Founders manage platform operations via owner-dashboard, not here.
+  // Use user.role FIRST (string like "Admin"), then fall back to role_id.
   var roleVal = String((user && (user.role || user.role_id)) || "").trim().toLowerCase();
-  var isAllowedAdmin = roleVal === "admin" || roleVal === "administrator" || roleVal === "ro-admin" || roleVal.indexOf("founder") !== -1;
+  var isAllowedAdmin = roleVal === "admin" || roleVal === "ro-admin";
   if (!user || !isAllowedAdmin) { console.warn("[AdminDashboard] Guard rejected role:", roleVal); window.location.href = "/public/login.html"; return; }
-  // Also check driven_customer_id (dashboard-common.js stores org_id under that key)
-  activeOrgId = user.org_id || user.customer_id || localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id") || sessionStorage.getItem("driven_org_id");
+  // FIX #2 (Gemini): Rely solely on server payload org_id — no localStorage fallbacks
+  // that could leak a previous session's tenant ID across logins.
+  activeOrgId = user.org_id || user.customer_id || "";
   if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") { window.location.href = "/public/login.html"; return; }
   if (!user.id && user.user_id) user.id = user.user_id;
   var userStr = JSON.stringify(user); var userRole = user.role || user.role_id || "";
@@ -854,15 +865,43 @@ async function startAdminApp(user) {
 async function init() {
   var savedTheme = localStorage.getItem("driven-theme") || "light";
   document.documentElement.setAttribute("data-theme", savedTheme);
+
   var current = window.dashUser || window.drivenUser;
-  if (current) { startAdminApp(current); }
-  else { document.addEventListener("dashSessionLoaded", async function(e) { startAdminApp(e.detail || window.dashUser || window.drivenUser); }); }
+  if (current) {
+    startAdminApp(current);
+  } else {
+    document.addEventListener("dashSessionLoaded", async function(e) {
+      startAdminApp(e.detail || window.dashUser || window.drivenUser);
+    });
+
+    // FIX #5 (Gemini): Race-condition fallback. If dashSessionLoaded fired
+    // before this listener attached, poll briefly for the session to resolve
+    // instead of freezing on "Checking session…".
+    var pollAttempts = 0;
+    var pollTimer = setInterval(function() {
+      pollAttempts++;
+      var u = window.dashUser || window.drivenUser;
+      if (u) {
+        clearInterval(pollTimer);
+        startAdminApp(u);
+      } else if (pollAttempts >= 20) {
+        clearInterval(pollTimer);
+        window.location.href = "/public/login.html";
+      }
+    }, 250);
+  }
+
   window.addEventListener("resize", adjustStickyOffsets);
   window.addEventListener("orientationchange", adjustStickyOffsets);
   window.addEventListener("scroll", adjustStickyOffsets, { passive: true });
   window.addEventListener("driven_completion_updated", function() { updateProgress(); });
   window.addEventListener("load", adjustStickyOffsets);
-  if (syncChannel) { syncChannel.onmessage = function(msg) { if (msg.data && msg.data.type === "driven_completion_updated") { updateProgress(); } }; }
+  if (syncChannel) {
+    syncChannel.onmessage = function(msg) {
+      if (msg.data && msg.data.type === "driven_completion_updated") { updateProgress(); }
+    };
+  }
 }
 
 init();
+
