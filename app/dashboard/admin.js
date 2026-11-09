@@ -14,6 +14,7 @@ var visibilityDirty = false;
 var activeOrgId = null;
 var currentUserObj = null;
 var taskCompletions = {};
+var adminAppStarted = false;
 var syncChannel = window.BroadcastChannel ? new BroadcastChannel("driven_onboarding_sync") : null;
 
 // Warn before leaving the page if there are unsaved pending KP assignments
@@ -150,7 +151,6 @@ window.addEventListener('error', function(e) { reportError('window.onerror', e.e
 
 function preserveAndNavigate(event, targetUrl) {
   if (event) { event.preventDefault(); event.stopPropagation(); }
-  // FIX #4 (Gemini): Clear pending KP so beforeunload doesn't fire on deliberate navigation
   pendingKP = [];
   if (targetUrl && !targetUrl.endsWith('.html') && !targetUrl.includes('?')) { targetUrl += '.html'; }
   var userObj = currentUserObj || window.dashUser || window.drivenUser;
@@ -197,7 +197,6 @@ async function safeFetch(url, options) {
   options.headers = options.headers || {};
   var storedUser = currentUserObj || window.dashUser || window.drivenUser || {};
   options.headers["x-user-id"] = storedUser.id || localStorage.getItem("driven_user_id") || sessionStorage.getItem("driven_user_id") || "";
-  // FIX #2 (Gemini): Rely on server payload org_id only — no localStorage fallbacks
   options.headers["x-org-id"] = activeOrgId || storedUser.org_id || "";
   var userRole = storedUser.role || storedUser.role_id || localStorage.getItem("driven_role") || sessionStorage.getItem("driven_role") || "";
   if (userRole) options.headers["x-user-role"] = userRole;
@@ -294,7 +293,7 @@ async function finalizeCompanyOnboarding() {
       var data = await res.json();
       if (data.success) {
         var completePanel = document.getElementById('onboardingCompletePanel');
-        if (completePanel) completePanel.classList.add('show');
+        if (completePanel) completePanel.style.display = 'block';
         if (finalizeBtn) finalizeBtn.style.display = 'none';
         alert("Onboarding Complete! Welcome emails sent to " + data.totalEmployees + " employees.");
       } else { alert("Failed to finalize onboarding: " + data.error); }
@@ -414,6 +413,7 @@ function switchOnboardingSubtab(subtabName) {
   if(targetSubtabBtn) targetSubtabBtn.classList.add('active');
   if(targetSubtabContent) targetSubtabContent.classList.add('active');
   if (subtabName === 'kp' || subtabName === 'key-personnel') { renderKeyPersonnel(); }
+  adjustStickyOffsets();
 }
 
 function toggleTheme() {
@@ -728,24 +728,24 @@ function hideOnboardingTab() { var t = document.querySelector('.admin-tab[data-t
 
 // ==========================================
 // HEADER TITLE — inserts between the two logos on the same row
+// Uses .page-header-title class (per build notes) and checks for
+// existing title from theme-init.js before inserting.
 // ==========================================
 function insertHeaderTitle() {
   var row1 = document.querySelector(".dash-header-row1");
-  if (row1 && !document.querySelector(".admin-header-title")) {
-    var title = document.createElement("div");
-    title.className = "admin-header-title";
-    title.textContent = "Admin Dashboard";
-    var logoArea = document.getElementById("dashCustomerLogoArea");
-    var drivenLogo = row1.querySelector(".dash-driven-logo");
-    if (logoArea && drivenLogo) { row1.insertBefore(title, drivenLogo); }
-    else { row1.appendChild(title); }
-  }
+  if (!row1) return;
+  // Check if theme-init.js already inserted the title
+  if (document.querySelector(".page-header-title")) return;
+  // Check for legacy admin-header-title
+  if (document.querySelector(".admin-header-title")) return;
+  var title = document.createElement("div");
+  title.className = "page-header-title";
+  title.textContent = document.body.getAttribute("data-page-title") || "Admin Dashboard";
+  var logoArea = document.getElementById("dashCustomerLogoArea");
+  var drivenLogo = row1.querySelector(".dash-driven-logo");
+  if (logoArea && drivenLogo) { row1.insertBefore(title, drivenLogo); }
+  else { row1.appendChild(title); }
 }
-
-// NOTE: makeTabsSticky() is intentionally NOT included.
-// The HTML already wraps the tab bar in <div class="admin-nav-sticky-container">
-// with position:sticky CSS. Moving the tab bar into #dashHeader would cause
-// dashboard-common.js's loadComponent("dashHeader",...) to overwrite it.
 
 function injectGlobalUIStyles() {
   if (document.getElementById("driven-admin-ui-styles")) return;
@@ -789,7 +789,6 @@ function attachEventHandlers() {
   var apToggle = document.getElementById("fuelAssetPhotoToggle"); if (apToggle) { apToggle.addEventListener('change', onFuelPhotoToggleChange); }
   var lrToggle = document.getElementById("locationReqToggle"); if (lrToggle) { lrToggle.addEventListener('change', onLocationReqToggleChange); }
   var btnSaveSettings = document.getElementById("saveSettingsBtn"); if (btnSaveSettings) { btnSaveSettings.addEventListener('click', saveSettings); }
-  // FIX #3 (Gemini): Restore secondary save button listeners
   var btnSaveNaics = document.getElementById("saveNaicsBtn"); if (btnSaveNaics) { btnSaveNaics.addEventListener('click', saveSettings); }
   var btnSaveCurrency = document.getElementById("saveCurrencyBtn"); if (btnSaveCurrency) { btnSaveCurrency.addEventListener('click', saveSettings); }
   var btnSaveToggles = document.getElementById("saveTogglesBtn"); if (btnSaveToggles) { btnSaveToggles.addEventListener('click', saveToggles); }
@@ -803,36 +802,49 @@ function attachEventHandlers() {
   var btnLogout = document.getElementById("btnAdminLogout");
   if (btnLogout) { btnLogout.addEventListener('click', function(e) {
     if (e) { e.preventDefault(); e.stopPropagation(); }
-    // FIX #4 (Gemini): Clear pending KP so beforeunload doesn't fire on deliberate logout
     pendingKP = [];
     localStorage.clear(); sessionStorage.clear();
-    if (typeof window.drivenLogout === 'function') { try { window.drivenLogout(); } catch(err){} }
+    if (typeof window.dashLogout === 'function') { try { window.dashLogout(); } catch(err){} }
     window.location.href = '/public/login.html';
   }); }
 }
 
 async function startAdminApp(user) {
+  if (adminAppStarted) return;
+
   if (!user) {
     var savedUserStr = localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user");
     if (savedUserStr) { try { user = JSON.parse(savedUserStr); } catch(e){} }
   }
+
+  // If still no user, return without redirecting — let the polling handle it
+  if (!user) { console.warn("[AdminDashboard] No user found — startAdminApp cannot proceed."); return; }
+
   currentUserObj = user;
-  // FIX #1 (Gemini): Strict role check — admin.html is tenant-level only.
-  // Founders manage platform operations via owner-dashboard, not here.
-  // Use user.role FIRST (string like "Admin"), then fall back to role_id.
   var roleVal = String((user && (user.role || user.role_id)) || "").trim().toLowerCase();
   var isAllowedAdmin = roleVal === "admin" || roleVal === "ro-admin";
-  if (!user || !isAllowedAdmin) { console.warn("[AdminDashboard] Guard rejected role:", roleVal); window.location.href = "/public/login.html"; return; }
-  // FIX #2 (Gemini): Rely solely on server payload org_id — no localStorage fallbacks
-  // that could leak a previous session's tenant ID across logins.
+  if (!isAllowedAdmin) {
+    console.warn("[AdminDashboard] Guard rejected role:", roleVal);
+    adminAppStarted = true;
+    window.location.href = "/public/login.html";
+    return;
+  }
   activeOrgId = user.org_id || user.customer_id || "";
-  if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") { window.location.href = "/public/login.html"; return; }
+  if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
+    adminAppStarted = true;
+    window.location.href = "/public/login.html";
+    return;
+  }
+
+  adminAppStarted = true;
+
   if (!user.id && user.user_id) user.id = user.user_id;
   var userStr = JSON.stringify(user); var userRole = user.role || user.role_id || "";
   localStorage.setItem("driven_org_id", activeOrgId); localStorage.setItem("driven_user", userStr);
   if (userRole) localStorage.setItem("driven_role", userRole); if (user.id) localStorage.setItem("driven_user_id", user.id);
   sessionStorage.setItem("driven_org_id", activeOrgId); sessionStorage.setItem("driven_user", userStr);
   if (userRole) sessionStorage.setItem("driven_role", userRole); if (user.id) sessionStorage.setItem("driven_user_id", user.id);
+
   // Greeting
   var firstName = user.first_name || user.email;
   var orgName = user.org_name || localStorage.getItem("driven_org_name") || "";
@@ -845,14 +857,17 @@ async function startAdminApp(user) {
   var elComp = document.getElementById("welcome-company"); if(elComp) elComp.textContent = orgName;
   var elRole = document.getElementById("welcome-role"); if(elRole) elRole.textContent = user.role || user.role_id || "";
   var elMail = document.getElementById("welcome-email"); if(elMail) elMail.textContent = user.email || "";
+
   // Wrap initialization in try/catch so the loading screen is ALWAYS hidden
   try { injectGlobalUIStyles(); insertHeaderTitle(); attachEventHandlers(); }
   catch(e) { reportError("startAdminApp-init", e); }
+
   /* Reveal Dashboard UI — always do this, even if init threw */
   var loadingEl = document.getElementById("loading"); var dashEl = document.getElementById("dashboard");
   if (loadingEl) loadingEl.style.display = "none";
   if (dashEl) dashEl.style.display = "block";
   adjustStickyOffsets();
+
   /* Load Initial Data and Stats */
   loadLogo().catch(function(e){ reportError("loadLogo", e); });
   loadSettings().catch(function(e){ reportError("loadSettings", e); });
@@ -866,31 +881,7 @@ async function init() {
   var savedTheme = localStorage.getItem("driven-theme") || "light";
   document.documentElement.setAttribute("data-theme", savedTheme);
 
-  var current = window.dashUser || window.drivenUser;
-  if (current) {
-    startAdminApp(current);
-  } else {
-    document.addEventListener("dashSessionLoaded", async function(e) {
-      startAdminApp(e.detail || window.dashUser || window.drivenUser);
-    });
-
-    // FIX #5 (Gemini): Race-condition fallback. If dashSessionLoaded fired
-    // before this listener attached, poll briefly for the session to resolve
-    // instead of freezing on "Checking session…".
-    var pollAttempts = 0;
-    var pollTimer = setInterval(function() {
-      pollAttempts++;
-      var u = window.dashUser || window.drivenUser;
-      if (u) {
-        clearInterval(pollTimer);
-        startAdminApp(u);
-      } else if (pollAttempts >= 20) {
-        clearInterval(pollTimer);
-        window.location.href = "/public/login.html";
-      }
-    }, 250);
-  }
-
+  // Attach event listeners early (before any async operations)
   window.addEventListener("resize", adjustStickyOffsets);
   window.addEventListener("orientationchange", adjustStickyOffsets);
   window.addEventListener("scroll", adjustStickyOffsets, { passive: true });
@@ -901,7 +892,52 @@ async function init() {
       if (msg.data && msg.data.type === "driven_completion_updated") { updateProgress(); }
     };
   }
+
+  // Helper: try to extract user from localStorage/sessionStorage
+  function getUserFromStorage() {
+    var s = localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user");
+    if (s) { try { return JSON.parse(s); } catch(e){} }
+    return null;
+  }
+
+  // 1) Try all synchronous sources first (window globals + storage)
+  var current = window.dashUser || window.drivenUser || getUserFromStorage();
+  if (current) { startAdminApp(current); return; }
+
+  // 2) Listen for dashSessionLoaded on both document and window
+  //    (dashboard-common.js dispatches on document, but we listen on both
+  //    to be safe against any future changes)
+  var onSessionLoaded = function(e) {
+    var u = (e && e.detail) || window.dashUser || window.drivenUser || getUserFromStorage();
+    if (u) startAdminApp(u);
+  };
+  document.addEventListener("dashSessionLoaded", onSessionLoaded);
+  window.addEventListener("dashSessionLoaded", onSessionLoaded);
+
+  // 3) Poll for the session to resolve (checks window globals AND storage)
+  var pollAttempts = 0;
+  var pollTimer = setInterval(function() {
+    pollAttempts++;
+    var u = window.dashUser || window.drivenUser || getUserFromStorage();
+    if (u) {
+      clearInterval(pollTimer);
+      startAdminApp(u);
+    } else if (pollAttempts >= 40) { // 40 × 250ms = 10 seconds
+      clearInterval(pollTimer);
+      // Final attempt from storage before giving up
+      var lastResort = getUserFromStorage();
+      if (lastResort) { startAdminApp(lastResort); }
+      else { window.location.href = "/public/login.html"; }
+    }
+  }, 250);
+
+  // 4) Last-resort fallback: try again on window load
+  window.addEventListener("load", function() {
+    if (!adminAppStarted) {
+      var u = window.dashUser || window.drivenUser || getUserFromStorage();
+      if (u) startAdminApp(u);
+    }
+  });
 }
 
 init();
-
