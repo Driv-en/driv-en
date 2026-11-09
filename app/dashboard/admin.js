@@ -16,6 +16,14 @@ var currentUserObj = null;
 var taskCompletions = {};
 var syncChannel = window.BroadcastChannel ? new BroadcastChannel("driven_onboarding_sync") : null;
 
+// Warn before leaving the page if there are unsaved pending KP assignments
+window.addEventListener("beforeunload", function(e) {
+  if (pendingKP.length > 0) {
+    e.preventDefault();
+    e.returnValue = "You have unsaved Key Personnel assignments.";
+  }
+});
+
 var BUSINESS_TYPE_DEFAULTS = {
   "Construction": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":true,"projects":true,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
   "Manufacturing": {"roles-permissions":true,"employees":true,"locations":true,"clients":true,"divisions":true,"project-types":false,"projects":false,"assets":true,"fuel-types":true,"units-of-measure":true,"asset-types":true},
@@ -141,6 +149,27 @@ function dismissPageError() {
   if(b) b.classList.remove('show');
 }
 
+function reportError(source, err) {
+  var msg = (err && err.message) ? err.message : (typeof err === 'string' ? err : 'Unknown error');
+  var stack = (err && err.stack) ? err.stack : 'No stack trace';
+  try {
+    fetch('/api/log-error', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-org-id': activeOrgId || ""
+      },
+      body:JSON.stringify({source:'Admin Dashboard ('+source+')', message:msg, stack:stack, url:window.location.href, userAgent:navigator.userAgent })
+    }).catch(function(){});
+  } catch(e) {}
+  console.error('['+source+']', msg, stack);
+}
+
+window.addEventListener('error', function(e) {
+  reportError('window.onerror', e.error || e.message);
+  showPageError();
+});
+
 function preserveAndNavigate(event, targetUrl) {
   if (event) {
     event.preventDefault();
@@ -209,36 +238,15 @@ function validateOrgContext() {
   return true;
 }
 
-function reportError(source, err) {
-  var msg = (err && err.message) ? err.message : (typeof err === 'string' ? err : 'Unknown error');
-  var stack = (err && err.stack) ? err.stack : 'No stack trace';
-  try {
-    fetch('/api/log-error', {
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'x-org-id': activeOrgId || ""
-      },
-      body:JSON.stringify({source:'Admin Dashboard ('+source+')', message:msg, stack:stack, url:window.location.href, userAgent:navigator.userAgent })
-    }).catch(function(){});
-  } catch(e) {}
-  console.error('['+source+']', msg, stack);
-}
-
-window.addEventListener('error', function(e) {
-  reportError('window.onerror', e.error || e.message);
-  showPageError();
-});
-
 function adjustStickyOffsets() {
   var header = document.getElementById("dashHeader");
-  var stickyContainer = document.getElementById("adminNavStickyContainer");
+  var tabBar = document.getElementById("adminTabBar");
   var subtabContainer = document.getElementById("onboardingSubtabBar");
-  if (header && stickyContainer) {
+  if (header && tabBar) {
     var headerHeight = header.getBoundingClientRect().height || header.offsetHeight || 50;
-    stickyContainer.style.top = headerHeight + "px";
+    tabBar.style.top = headerHeight + "px";
     if (subtabContainer) {
-      var tabHeight = stickyContainer.getBoundingClientRect().height || stickyContainer.offsetHeight || 40;
+      var tabHeight = tabBar.getBoundingClientRect().height || tabBar.offsetHeight || 40;
       subtabContainer.style.top = (headerHeight + tabHeight) + "px";
     }
   }
@@ -250,7 +258,7 @@ async function safeFetch(url, options) {
   var storedUser = currentUserObj || window.dashUser || window.drivenUser || {};
   options.headers["x-user-id"] = storedUser.id || localStorage.getItem("driven_user_id") || sessionStorage.getItem("driven_user_id") || "";
   options.headers["x-org-id"] = activeOrgId || storedUser.org_id || localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id") || sessionStorage.getItem("driven_org_id") || "";
-  var userRole = storedUser.role_id || storedUser.role || localStorage.getItem("driven_role") || sessionStorage.getItem("driven_role") || "";
+  var userRole = storedUser.role || storedUser.role_id || localStorage.getItem("driven_role") || sessionStorage.getItem("driven_role") || "";
   if (userRole) options.headers["x-user-role"] = userRole;
 
   var controller = new AbortController();
@@ -1143,14 +1151,43 @@ function hideOnboardingTab(){
   if(t) t.style.display = "none";
 }
 
-function insertHeaderTitle(){
-  var r = document.querySelector(".dash-header-row1");
-  if (!r) return;
-  if (r.querySelector(".page-header-title")) return;
-  var t = document.createElement("div");
-  t.className = "page-header-title";
-  t.textContent = document.body.getAttribute("data-page-title") || "Admin Dashboard";
-  r.appendChild(t);
+// ==========================================
+// HEADER TITLE — inserts between the two logos on the same row
+// ==========================================
+function insertHeaderTitle() {
+  var row1 = document.querySelector(".dash-header-row1");
+  if (row1 && !document.querySelector(".admin-header-title")) {
+    var title = document.createElement("div");
+    title.className = "admin-header-title";
+    title.textContent = "Admin Dashboard";
+    // Insert between customer logo area and DRIV-EN logo
+    var logoArea = document.getElementById("dashCustomerLogoArea");
+    var drivenLogo = row1.querySelector(".dash-driven-logo");
+    if (logoArea && drivenLogo) {
+      row1.insertBefore(title, drivenLogo);
+    } else {
+      row1.appendChild(title);
+    }
+  }
+}
+
+// ==========================================
+// STICKY TABS — moves tab bars into the shared header
+// ==========================================
+function makeTabsSticky() {
+  var header = document.getElementById("dashHeader");
+  var tabBar = document.getElementById("adminTabBar");
+  if (header && tabBar && !header.contains(tabBar)) {
+    header.appendChild(tabBar);
+  }
+  var settingsSubtabBar = document.getElementById("settingsSubtabBar");
+  var onboardingSubtabBar = document.getElementById("onboardingSubtabBar");
+  if (header && settingsSubtabBar && !header.contains(settingsSubtabBar)) {
+    header.appendChild(settingsSubtabBar);
+  }
+  if (header && onboardingSubtabBar && !header.contains(onboardingSubtabBar)) {
+    header.appendChild(onboardingSubtabBar);
+  }
 }
 
 function injectGlobalUIStyles() {
@@ -1361,9 +1398,10 @@ async function startAdminApp(user) {
 
   currentUserObj = user;
 
-  // FIX 1: Expanded role check — matches dashboard-common.js pattern.
-  // Accepts "admin", "administrator", "ro-admin", and any role containing "founder".
-  var roleVal = String((user && (user.role_id || user.role)) || "").trim().toLowerCase();
+  // FIX: Use user.role FIRST (string like "Admin"), then fall back to role_id.
+  // The session API returns role as a string ("Admin", "Administrator", etc.)
+  // and role_id may be numeric — checking role_id first caused false rejections.
+  var roleVal = String((user && (user.role || user.role_id)) || "").trim().toLowerCase();
   var isAllowedAdmin = roleVal === "admin" || roleVal === "administrator" || roleVal === "ro-admin" || roleVal.indexOf("founder") !== -1;
 
   if (!user || !isAllowedAdmin) {
@@ -1372,7 +1410,7 @@ async function startAdminApp(user) {
     return;
   }
 
-  // FIX 2: Also check driven_customer_id (dashboard-common.js stores org_id under that key)
+  // Also check driven_customer_id (dashboard-common.js stores org_id under that key)
   activeOrgId = user.org_id || user.customer_id || localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id") || sessionStorage.getItem("driven_org_id");
   if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
     window.location.href = "/public/login.html";
@@ -1381,7 +1419,7 @@ async function startAdminApp(user) {
 
   if (!user.id && user.user_id) user.id = user.user_id;
   var userStr = JSON.stringify(user);
-  var userRole = user.role_id || user.role || "";
+  var userRole = user.role || user.role_id || "";
 
   localStorage.setItem("driven_org_id", activeOrgId);
   localStorage.setItem("driven_user", userStr);
@@ -1393,21 +1431,26 @@ async function startAdminApp(user) {
   if (userRole) sessionStorage.setItem("driven_role", userRole);
   if (user.id) sessionStorage.setItem("driven_user_id", user.id);
 
-  var elName = document.getElementById("welcome-name");
-  var elComp = document.getElementById("welcome-company");
-  var elRole = document.getElementById("welcome-role");
-  var elMail = document.getElementById("welcome-email");
+  // Greeting — include the company name
+  var firstName = user.first_name || user.email;
+  var orgName = user.org_name || localStorage.getItem("driven_org_name") || "";
+  var welcomeEl = document.getElementById("welcome-name");
+  if (welcomeEl) {
+    welcomeEl.textContent = orgName ? (firstName + " — " + orgName) : firstName;
+  }
+  var accountNameEl = document.getElementById("account-name");
+  if (accountNameEl) {
+    accountNameEl.textContent = user.first_name ? (user.first_name + " " + (user.last_name || "")) : user.email;
+  }
+  var emailEl = document.getElementById("account-email");
+  if (emailEl) emailEl.textContent = user.email || "";
 
-  if(elName) elName.textContent = user.first_name || user.email || "Admin";
-  if(elComp) elComp.textContent = user.org_name || localStorage.getItem("driven_org_name") || "";
-  if(elRole) elRole.textContent = user.role || user.role_id || "";
-  if(elMail) elMail.textContent = user.email || "";
-
-  // FIX 3: Wrap initialization in try/catch so the loading screen is
+  // Wrap initialization in try/catch so the loading screen is
   // ALWAYS hidden even if something throws.
   try {
     injectGlobalUIStyles();
     insertHeaderTitle();
+    makeTabsSticky();
     attachEventHandlers();
   } catch(e) {
     reportError("startAdminApp-init", e);
