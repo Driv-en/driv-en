@@ -38,10 +38,12 @@
     const userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
     const orgId = activeOrgId || userObj.org_id || localStorage.getItem("driven_org_id") || "";
     const userId = userObj.id || localStorage.getItem("driven_user_id") || "";
+    const userRole = userObj.role_id || userObj.role || localStorage.getItem("driven_role") || "";
 
     const headers = { ...additionalHeaders };
     if (orgId) headers["x-org-id"] = orgId;
     if (userId) headers["x-user-id"] = String(userId);
+    if (userRole) headers["x-user-role"] = userRole;
     return headers;
   }
 
@@ -76,18 +78,14 @@
 
   function insertHeaderTitle() {
     const row1 = document.querySelector(".dash-header-row1");
-    if (row1 && !document.querySelector(".ob-header-title")) {
-      const title = document.createElement("div");
-      title.className = "ob-header-title";
-      title.textContent = "Onboarding Dashboard";
-      const logoArea = document.getElementById("dashCustomerLogoArea");
-      const drivenLogo = row1.querySelector(".dash-driven-logo");
-      if (logoArea && drivenLogo) {
-        row1.insertBefore(title, drivenLogo);
-      } else {
-        row1.appendChild(title);
-      }
-    }
+    if (!row1) return;
+    // Skip if theme-init.js already inserted the title
+    if (row1.querySelector(".page-header-title")) return;
+    // Fallback: insert title if theme-init.js didn't
+    const title = document.createElement("div");
+    title.className = "page-header-title";
+    title.textContent = document.body.getAttribute("data-page-title") || "Onboarding Dashboard";
+    row1.appendChild(title);
   }
 
   /* ===== THEME MANAGEMENT ===== */
@@ -532,7 +530,7 @@
             const tabOverview = document.getElementById("tab-overview");
             if (completeNotice) completeNotice.style.display = "block";
             if (tabOverview) tabOverview.style.display = "none";
-            setTimeout(() => { window.location.href = "/app/dashboard/owner-dashboard.html"; }, 3000);
+            setTimeout(() => { window.location.href = "/app/dashboard/employee-dashboard.html"; }, 3000);
           }
         }
         const bt = data.settings.business_type;
@@ -552,7 +550,11 @@
 
   async function loadKeyPersonnel() {
     const roleLower = (currentUser && currentUser.role) ? currentUser.role.toLowerCase() : "";
-    if (currentUser && (roleLower === "admin" || roleLower === "administrator" || roleLower.indexOf("founder") !== -1)) {
+    const roleLowerId = (currentUser && currentUser.role_id) ? currentUser.role_id.toLowerCase() : "";
+    const isFounder = currentUser && currentUser.org_id === "org_dsi" && (
+      roleLowerId === "ro-founder" || roleLower.indexOf("founder") !== -1
+    );
+    if (currentUser && (roleLower === "admin" || roleLower === "administrator" || isFounder)) {
       isAdmin = true;
       const adminTab0 = document.querySelector('.ob-tab-bar [data-tab="admin"]');
       if (adminTab0) adminTab0.style.display = "inline-block";
@@ -748,7 +750,11 @@
       updateThemeSwitch();
 
       const roleLower = (user.role) ? user.role.toLowerCase() : "";
-      if (roleLower === "admin" || roleLower === "administrator" || roleLower.indexOf("founder") !== -1) {
+      const roleLowerId = (user.role_id) ? user.role_id.toLowerCase() : "";
+      const isFounder = user.org_id === "org_dsi" && (
+        roleLowerId === "ro-founder" || roleLower.indexOf("founder") !== -1
+      );
+      if (roleLower === "admin" || roleLower === "administrator" || isFounder) {
         isAdmin = true;
         const adminTabInit = document.querySelector('.ob-tab-bar [data-tab="admin"]');
         if (adminTabInit) adminTabInit.style.display = "inline-block";
