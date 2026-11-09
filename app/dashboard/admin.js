@@ -89,9 +89,10 @@ var MODAL_CONTENT_MAP = {
 };
 
 function getActiveContext() {
-  var activeSubtab = document.querySelector('.admin-subtab-sticky-container.visible .admin-subtab.active');
+  var activeSubtab = document.querySelector('.admin-subtab.active, #onboardingSubtabBar .admin-subtab.active');
   if (activeSubtab) {
     var subtabKey = activeSubtab.getAttribute('data-subtab');
+    if (subtabKey === 'key-personnel') subtabKey = 'kp';
     if (MODAL_CONTENT_MAP[subtabKey]) return subtabKey;
   }
 
@@ -837,7 +838,6 @@ async function saveToggles() {
     var data = await res.json();
     if (!data.success) throw new Error(data.error || "Toggles could not be saved.");
 
-    // Update LocalStorage cache so field forms have immediate access
     localStorage.setItem('setting_fuel_meter_photo', mp);
     localStorage.setItem('setting_fuel_asset_photo', ap);
     localStorage.setItem('setting_location_request', lr);
@@ -1083,12 +1083,34 @@ function notifySync() {
 
 function showCompleteModal(){
   var m = document.getElementById("confirmModal");
-  if(m) m.classList.add("active");
+  if(m) {
+    m.classList.add("active");
+    m.style.display = "flex";
+  }
 }
 
 function closeCompleteModal(){
   var m = document.getElementById("confirmModal");
-  if(m) m.classList.remove("active");
+  if(m) {
+    m.classList.remove("active");
+    m.style.display = "none";
+  }
+}
+
+function openModal(modalId) {
+  var modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.add('active', 'show');
+    modal.style.display = 'flex';
+  }
+}
+
+function closeModal(modalId) {
+  var modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.remove('active', 'show');
+    modal.style.display = 'none';
+  }
 }
 
 function hideOnboardingTab(){
@@ -1146,11 +1168,10 @@ function attachEventHandlers() {
   // Modal Purpose Button Handler
   var btnPurpose = document.getElementById('btnTabPurpose');
   if (btnPurpose) {
-    btnPurpose.addEventListener('click', function() {
-      var modalPurpose = document.getElementById('modalPurpose');
+    btnPurpose.addEventListener('click', function(e) {
+      if (e) e.preventDefault();
       var modalPurposeTitle = document.getElementById('modalPurposeTitle');
       var modalPurposeBody = document.getElementById('modalPurposeBody');
-      if (!modalPurpose) return;
 
       var contextKey = getActiveContext();
       var title = getContextTitle(contextKey);
@@ -1158,18 +1179,17 @@ function attachEventHandlers() {
 
       if (modalPurposeTitle) modalPurposeTitle.textContent = title + " — Purpose";
       if (modalPurposeBody) modalPurposeBody.innerHTML = content.purpose;
-      modalPurpose.classList.add('active');
+      openModal('modalPurpose');
     });
   }
 
   // Modal Instructions Button Handler
   var btnInstructions = document.getElementById('btnTabInstructions');
   if (btnInstructions) {
-    btnInstructions.addEventListener('click', function() {
-      var modalInstructions = document.getElementById('modalInstructions');
+    btnInstructions.addEventListener('click', function(e) {
+      if (e) e.preventDefault();
       var modalInstructionsTitle = document.getElementById('modalInstructionsTitle');
       var modalInstructionsBody = document.getElementById('modalInstructionsBody');
-      if (!modalInstructions) return;
 
       var contextKey = getActiveContext();
       var title = getContextTitle(contextKey);
@@ -1183,7 +1203,7 @@ function attachEventHandlers() {
       }
       
       if (modalInstructionsBody) modalInstructionsBody.innerHTML = bodyHtml;
-      modalInstructions.classList.add('active');
+      openModal('modalInstructions');
     });
   }
 
@@ -1191,16 +1211,14 @@ function attachEventHandlers() {
   var btnClosePurpose = document.getElementById('btnClosePurposeModal');
   if (btnClosePurpose) {
     btnClosePurpose.addEventListener('click', function() {
-      var modalPurpose = document.getElementById('modalPurpose');
-      if (modalPurpose) modalPurpose.classList.remove('active');
+      closeModal('modalPurpose');
     });
   }
 
   var btnCloseInstructions = document.getElementById('btnCloseInstructionsModal');
   if (btnCloseInstructions) {
     btnCloseInstructions.addEventListener('click', function() {
-      var modalInstructions = document.getElementById('modalInstructions');
-      if (modalInstructions) modalInstructions.classList.remove('active');
+      closeModal('modalInstructions');
     });
   }
 
@@ -1208,8 +1226,8 @@ function attachEventHandlers() {
   window.addEventListener('click', function(e) {
     var modalPurpose = document.getElementById('modalPurpose');
     var modalInstructions = document.getElementById('modalInstructions');
-    if (e.target === modalPurpose) modalPurpose.classList.remove('active');
-    if (e.target === modalInstructions) modalInstructions.classList.remove('active');
+    if (e.target === modalPurpose) closeModal('modalPurpose');
+    if (e.target === modalInstructions) closeModal('modalInstructions');
   });
 
   var themeCb = document.getElementById("theme-checkbox");
