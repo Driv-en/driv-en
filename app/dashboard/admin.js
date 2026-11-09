@@ -1145,27 +1145,30 @@ function hideOnboardingTab(){
 }
 
 function insertHeaderTitle(){
-  var r = document.querySelector(".dash-header-row1");
-  if(r) {
-    r.style.position = "relative";
-    r.style.display = "flex";
-    r.style.alignItems = "center";
-    r.style.justifyContent = "space-between";
+  var header = document.getElementById("dashHeader");
+  if(!header) return;
+  var r = header.querySelector(".dash-header-row1");
+  if(!r) return;
 
-    var existing = document.querySelector(".admin-header-title");
-    if(existing) existing.remove();
-    var t = document.createElement("div");
-    t.className = "admin-header-title";
-    t.textContent = "Admin Dashboard";
-    t.style.position = "absolute";
-    t.style.left = "50%";
-    t.style.transform = "translateX(-50%)";
-    t.style.fontWeight = "700";
-    t.style.fontSize = "18px";
-    t.style.color = "var(--text-main,#0f172a)";
+  // Remove ALL existing title elements inside the header to prevent duplication.
+  // The shared header HTML (loaded by dashboard-common.js) may contain its own
+  // title element (e.g. #dashHeaderTitle / #dashPageTitle) that setPageTitle()
+  // already filled with "Admin Dashboard". We remove every title-like element
+  // so only the single .admin-header-title below remains.
+  var existingTitles = header.querySelectorAll(
+    ".admin-header-title, #dashHeaderTitle, #dashPageTitle, .dash-page-title, .dash-header-title"
+  );
+  existingTitles.forEach(function(el) { el.remove(); });
 
-    r.appendChild(t);
-  }
+  // Create a single title element. The CSS rule for .admin-header-title
+  // places it in grid-column: 2 (centered) with text-align: center.
+  // We intentionally do NOT override the grid display or set inline positioning
+  // styles — the 3-column grid from the <style> block in admin.html handles
+  // layout: customer logo (col 1, left), title (col 2, center), DRIV-EN logo (col 3, right).
+  var t = document.createElement("div");
+  t.className = "admin-header-title";
+  t.textContent = "Admin Dashboard";
+  r.appendChild(t);
 }
 
 function injectGlobalUIStyles() {
