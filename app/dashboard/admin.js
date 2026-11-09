@@ -1142,54 +1142,6 @@ function hideOnboardingTab(){
   if(t) t.style.display = "none";
 }
 
-function insertHeaderTitle(){
-  var header = document.getElementById("dashHeader");
-  if(!header) return;
-  var r = header.querySelector(".dash-header-row1");
-  if(!r) return;
-
-  // ── Idempotency check ──────────────────────────────────────────
-  // If row1 already has exactly the 3 desired children in the correct
-  // order (customer logo, admin-header-title, driven logo), do nothing.
-  // This prevents flicker on repeat calls.
-  var kids = Array.from(r.children);
-  if (kids.length === 3 &&
-      kids[0].id === "dashCustomerLogoArea" &&
-      kids[1].classList.contains("admin-header-title") &&
-      kids[1].textContent === "Admin Dashboard" &&
-      kids[2].classList.contains("dash-driven-logo")) {
-    return;
-  }
-
-  // ── Grab the two logo elements before we nuke everything else ──
-  // We grab references first so the DOM nodes survive the clear below.
-  var customerLogo = r.querySelector("#dashCustomerLogoArea");
-  var drivenLogo   = r.querySelector(".dash-driven-logo");
-
-  // ── Remove ALL children from row1 ──────────────────────────────
-  // The shared header HTML (dashboard-header.html) injects its own
-  // title element with an unknown class/ID.  Rather than trying to
-  // guess every possible selector, we simply wipe the row and rebuild
-  // it with only the three elements we want.  This guarantees there
-  // is exactly one title — no duplicates — and exactly three grid
-  // items so nothing wraps to a second row.
-  while (r.firstChild) {
-    r.removeChild(r.firstChild);
-  }
-
-  // ── Rebuild row1: logo (col 1) · title (col 2) · logo (col 3) ───
-  // CSS rules in admin.html place each item in its grid column and
-  // lock every item to grid-row: 1, so all three share the same row.
-  if (customerLogo) r.appendChild(customerLogo);
-
-  var t = document.createElement("div");
-  t.className = "admin-header-title";
-  t.textContent = "Admin Dashboard";
-  r.appendChild(t);
-
-  if (drivenLogo) r.appendChild(drivenLogo);
-}
-
 function injectGlobalUIStyles() {
   if (document.getElementById("driven-admin-ui-styles")) return;
   var style = document.createElement("style");
@@ -1441,8 +1393,6 @@ async function startAdminApp(user) {
   if(elMail) elMail.textContent = user.email || "";
 
   injectGlobalUIStyles();
-  insertHeaderTitle();
-  setTimeout(insertHeaderTitle, 500);
   attachEventHandlers();
 
   /* Reveal Dashboard UI */
