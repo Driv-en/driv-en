@@ -1,5 +1,5 @@
 // ============================================================================
-// AUTH CHECK — Shared auth protection script (v21 — Hardened Multi-Tenant Session)
+// AUTH CHECK — Shared auth protection script (v21 — Hardened Multi-Tenant Session) 
 // ============================================================================
 // LEGACY FILE — This is a duplicate of /app/shared/auth-check.js kept for
 // backward compatibility with pages that have not yet been migrated.
