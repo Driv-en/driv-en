@@ -93,7 +93,6 @@ var MODAL_CONTENT_MAP = {
 };
 
 function getActiveContext() {
-  // Check subtab active status first if onboarding tab is open
   var onboardingTab = document.getElementById('tab-onboarding');
   if (onboardingTab && onboardingTab.classList.contains('active')) {
     var activeSubtab = document.querySelector('#onboardingSubtabBar .admin-subtab.active');
@@ -105,7 +104,6 @@ function getActiveContext() {
     return 'onboarding';
   }
 
-  // Check main tab active status
   var activeTab = document.querySelector('.admin-tab.active');
   if (activeTab) {
     var tabKey = activeTab.getAttribute('data-tab');
@@ -166,7 +164,7 @@ function preserveAndNavigate(event, targetUrl) {
     userObj.id = userObj.user_id;
   }
 
-  var targetOrg = activeOrgId || userObj.org_id || localStorage.getItem("driven_org_id") || sessionStorage.getItem("driven_org_id");
+  var targetOrg = activeOrgId || userObj.org_id || localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id") || sessionStorage.getItem("driven_org_id");
   if (!targetOrg || targetOrg === "default_org" || targetOrg === "null") {
     window.location.href = "/public/login.html";
     return;
@@ -202,7 +200,7 @@ function preserveAndNavigate(event, targetUrl) {
 
 function validateOrgContext() {
   if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
-    activeOrgId = localStorage.getItem("driven_org_id") || sessionStorage.getItem("driven_org_id") || "";
+    activeOrgId = localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id") || sessionStorage.getItem("driven_org_id") || "";
   }
   if (!activeOrgId) {
     window.location.href = "/public/login.html";
@@ -236,9 +234,6 @@ function adjustStickyOffsets() {
   var header = document.getElementById("dashHeader");
   var stickyContainer = document.getElementById("adminNavStickyContainer");
   var subtabContainer = document.getElementById("onboardingSubtabBar");
-  if (header) {
-    header.style.backgroundColor = "#ffffff";
-  }
   if (header && stickyContainer) {
     var headerHeight = header.getBoundingClientRect().height || header.offsetHeight || 50;
     stickyContainer.style.top = headerHeight + "px";
@@ -254,7 +249,7 @@ async function safeFetch(url, options) {
   options.headers = options.headers || {};
   var storedUser = currentUserObj || window.dashUser || window.drivenUser || {};
   options.headers["x-user-id"] = storedUser.id || localStorage.getItem("driven_user_id") || sessionStorage.getItem("driven_user_id") || "";
-  options.headers["x-org-id"] = activeOrgId || storedUser.org_id || localStorage.getItem("driven_org_id") || sessionStorage.getItem("driven_org_id") || "";
+  options.headers["x-org-id"] = activeOrgId || storedUser.org_id || localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id") || sessionStorage.getItem("driven_org_id") || "";
   var userRole = storedUser.role_id || storedUser.role || localStorage.getItem("driven_role") || sessionStorage.getItem("driven_role") || "";
   if (userRole) options.headers["x-user-role"] = userRole;
 
@@ -515,7 +510,7 @@ async function loadDashboardStats() {
     console.error('loadDashboardStats error:', e);
     var elE = document.getElementById('stat-employees'); if (elE) elE.textContent = localStorage.getItem('driven_employee_count') || '0';
     var elP = document.getElementById('stat-projects'); if (elP) elP.textContent = localStorage.getItem('driven_project_count') || '0';
-    var elEq = document.getElementById('stat-equipment'); if (elEq) elEq.textContent = localStorage.getItem('driven_equipment_count') || '0';
+    var elEq2 = document.getElementById('stat-equipment'); if (elEq2) elEq2.textContent = localStorage.getItem('driven_equipment_count') || '0';
     var elC = document.getElementById('stat-clients'); if (elC) elC.textContent = localStorage.getItem('driven_client_count') || '0';
   }
 }
@@ -621,6 +616,7 @@ function updateThemeSwitch() {
 }
 
 function renderLogoPreview(preview, logo, removeButton) {
+  if (!preview) return;
   preview.textContent = "";
   if (typeof logo === "string" && logo) {
     var img = document.createElement("img");
@@ -743,7 +739,12 @@ async function loadSettings() {
         if(apToggle && data.settings.fuel_asset_photo !== undefined) apToggle.checked = Boolean(data.settings.fuel_asset_photo);
         if(lrToggle && data.settings.location_request !== undefined) lrToggle.checked = Boolean(data.settings.location_request);
 
-        if(data.settings.step_visibility && typeof data.settings.step_visibility==='object' && !Array.isArray(data.settings.step_visibility)) stepVisibility = data.settings.step_visibility;
+        if(data.settings.step_visibility && typeof data.settings.step_visibility==='object' && !Array.isArray(data.settings.step_visibility)) {
+          stepVisibility = data.settings.step_visibility;
+        } else {
+          stepVisibility = {};
+          applyBusinessTypeDefaults();
+        }
         if(data.settings.task_completions) {
           taskCompletions = data.settings.task_completions;
           localStorage.setItem("driven_task_completions", JSON.stringify(taskCompletions));
@@ -772,10 +773,7 @@ function checkBusinessTypeRequired() {
   var bt = orgSettings.business_type;
   var bEl = document.getElementById("businessTypeSelect");
   if (bEl && (!bt || bt === "" || bt === "null")) {
-    switchTab('settings');
     bEl.style.border = "2px solid #ef4444";
-    bEl.focus();
-    alert("Please select a Business Type to configure default settings for your organization.");
   }
 }
 
@@ -938,6 +936,7 @@ function onToggleChange(k, v) {
 async function saveStepVisibility() {
   if (!validateOrgContext()) return;
   var st = document.getElementById("visibilityStatus");
+  if(!stepVisibility || typeof stepVisibility !== 'object') stepVisibility = {};
   try {
     var res = await safeFetch("/auth/save-settings", {
       method: "POST",
@@ -1146,33 +1145,19 @@ function hideOnboardingTab(){
 
 function insertHeaderTitle(){
   var r = document.querySelector(".dash-header-row1");
-  if(r) {
-    r.style.position = "relative";
-    r.style.display = "flex";
-    r.style.alignItems = "center";
-    r.style.justifyContent = "space-between";
-
-    var existing = document.querySelector(".admin-header-title");
-    if(existing) existing.remove();
-    var t = document.createElement("div");
-    t.className = "admin-header-title";
-    t.textContent = "Admin Dashboard";
-    t.style.position = "absolute";
-    t.style.left = "50%";
-    t.style.transform = "translateX(-50%)";
-    t.style.fontWeight = "700";
-    t.style.fontSize = "18px";
-    t.style.color = "var(--text-main,#0f172a)";
-
-    r.appendChild(t);
-  }
+  if (!r) return;
+  if (r.querySelector(".page-header-title")) return;
+  var t = document.createElement("div");
+  t.className = "page-header-title";
+  t.textContent = document.body.getAttribute("data-page-title") || "Admin Dashboard";
+  r.appendChild(t);
 }
 
 function injectGlobalUIStyles() {
   if (document.getElementById("driven-admin-ui-styles")) return;
   var style = document.createElement("style");
   style.id = "driven-admin-ui-styles";
-  style.textContent = "#dashHeader { background-color: #ffffff !important; border-bottom: 1px solid var(--border, #e2e8f0); } .emp-form-card { border: 2px solid #16a34a !important; background-color: var(--card-bg, #ffffff) !important; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: border-color 200ms ease, box-shadow 200ms ease; } .emp-form-card:hover { border-color: #2563eb !important; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2) !important; } .admin-card, .kp-person-row, .step-toggle-row, .card, .stat-card { background-color: var(--card-bg, #ffffff) !important; border: 1px solid var(--border, #e2e8f0); box-shadow: 0 1px 3px rgba(0,0,0,0.05); } .btn-change-password, #changePasswordBtn { background-color: #16a34a !important; color: #ffffff !important; border: none !important; font-weight: 600; padding: 8px 16px; border-radius: 6px; cursor: pointer; } .btn-change-password:hover, #changePasswordBtn:hover { background-color: #15803d !important; } .theme-toggle-container { display: inline-flex; items: center; border: 2px solid var(--border, #94a3b8); border-radius: 20px; padding: 2px 6px; background: var(--bg-secondary, #f1f5f9); } .theme-switch input:checked + .toggle-slider { background-color: #2563eb; }";
+  style.textContent = ".emp-form-card { border: 2px solid #16a34a !important; background-color: var(--card-bg, #ffffff) !important; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: border-color 200ms ease, box-shadow 200ms ease; } .emp-form-card:hover { border-color: #2563eb !important; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2) !important; } .admin-card, .kp-person-row, .step-toggle-row, .card, .stat-card { background-color: var(--card-bg, #ffffff) !important; border: 1px solid var(--border, #e2e8f0); box-shadow: 0 1px 3px rgba(0,0,0,0.05); } .btn-change-password, #changePasswordBtn { background-color: #16a34a !important; color: #ffffff !important; border: none !important; font-weight: 600; padding: 8px 16px; border-radius: 6px; cursor: pointer; } .btn-change-password:hover, #changePasswordBtn:hover { background-color: #15803d !important; } .theme-toggle-container { display: inline-flex; align-items: center; border: 2px solid var(--border, #94a3b8); border-radius: 20px; padding: 2px 6px; background: var(--bg-secondary, #f1f5f9); } .theme-switch input:checked + .toggle-slider { background-color: #2563eb; }";
   document.head.appendChild(style);
 }
 
@@ -1191,7 +1176,6 @@ function attachEventHandlers() {
     });
   });
 
-  // Modal Purpose Button Handler
   var btnPurpose = document.getElementById('btnTabPurpose');
   if (btnPurpose) {
     btnPurpose.addEventListener('click', function(e) {
@@ -1209,7 +1193,6 @@ function attachEventHandlers() {
     });
   }
 
-  // Modal Instructions Button Handler
   var btnInstructions = document.getElementById('btnTabInstructions');
   if (btnInstructions) {
     btnInstructions.addEventListener('click', function(e) {
@@ -1227,7 +1210,6 @@ function attachEventHandlers() {
     });
   }
 
-  // Modal Close Buttons
   var btnClosePurpose = document.getElementById('btnClosePurposeModal');
   if (btnClosePurpose) {
     btnClosePurpose.addEventListener('click', function() {
@@ -1242,7 +1224,6 @@ function attachEventHandlers() {
     });
   }
 
-  // Modal Backdrop Click Dismiss
   window.addEventListener('click', function(e) {
     var modalPurpose = document.getElementById('modalPurpose');
     var modalInstructions = document.getElementById('modalInstructions');
@@ -1379,8 +1360,11 @@ async function startAdminApp(user) {
   }
 
   currentUserObj = user;
+
+  // FIX 1: Expanded role check — matches dashboard-common.js pattern.
+  // Accepts "admin", "administrator", "ro-admin", and any role containing "founder".
   var roleVal = String((user && (user.role_id || user.role)) || "").trim().toLowerCase();
-  var isAllowedAdmin = roleVal === "ro-admin" || roleVal === "admin";
+  var isAllowedAdmin = roleVal === "admin" || roleVal === "administrator" || roleVal === "ro-admin" || roleVal.indexOf("founder") !== -1;
 
   if (!user || !isAllowedAdmin) {
     console.warn("[AdminDashboard] Guard rejected role:", roleVal);
@@ -1388,7 +1372,8 @@ async function startAdminApp(user) {
     return;
   }
 
-  activeOrgId = user.org_id || localStorage.getItem("driven_org_id") || sessionStorage.getItem("driven_org_id");
+  // FIX 2: Also check driven_customer_id (dashboard-common.js stores org_id under that key)
+  activeOrgId = user.org_id || user.customer_id || localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id") || sessionStorage.getItem("driven_org_id");
   if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
     window.location.href = "/public/login.html";
     return;
@@ -1418,11 +1403,17 @@ async function startAdminApp(user) {
   if(elRole) elRole.textContent = user.role || user.role_id || "";
   if(elMail) elMail.textContent = user.email || "";
 
-  injectGlobalUIStyles();
-  insertHeaderTitle();
-  attachEventHandlers();
+  // FIX 3: Wrap initialization in try/catch so the loading screen is
+  // ALWAYS hidden even if something throws.
+  try {
+    injectGlobalUIStyles();
+    insertHeaderTitle();
+    attachEventHandlers();
+  } catch(e) {
+    reportError("startAdminApp-init", e);
+  }
 
-  /* Reveal Dashboard UI */
+  /* Reveal Dashboard UI — always do this, even if init threw */
   var loadingEl = document.getElementById("loading");
   var dashEl = document.getElementById("dashboard");
   if (loadingEl) loadingEl.style.display = "none";
@@ -1430,7 +1421,7 @@ async function startAdminApp(user) {
 
   adjustStickyOffsets();
 
-  /* Load Initial Data and Stats */
+  /* Load Initial Data and Stats — all wrapped in .catch() */
   loadLogo().catch(function(e){ reportError("loadLogo", e); });
   loadSettings().catch(function(e){ reportError("loadSettings", e); });
   loadKeyPersonnel().catch(function(e){ reportError("loadKeyPersonnel", e); });
