@@ -1222,13 +1222,7 @@ function attachEventHandlers() {
       var content = MODAL_CONTENT_MAP[contextKey] || MODAL_CONTENT_MAP.overview;
 
       if (modalInstructionsTitle) modalInstructionsTitle.textContent = title + " — Instructions";
-      
-      var bodyHtml = content.instructions;
-      if (contextKey === 'overview') {
-        bodyHtml += "<hr style='margin:16px 0; border:0; border-top:1px solid var(--border,#cbd5e1);'>" + MODAL_CONTENT_MAP.fuel.instructions;
-      }
-      
-      if (modalInstructionsBody) modalInstructionsBody.innerHTML = bodyHtml;
+      if (modalInstructionsBody) modalInstructionsBody.innerHTML = content.instructions;
       openModal('modalInstructions');
     });
   }
