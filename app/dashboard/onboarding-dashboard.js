@@ -710,8 +710,11 @@
       });
     });
 
+    // Sticky tab bar recalculation on all viewport changes
     window.addEventListener("resize", makeTabsSticky);
+    window.addEventListener("orientationchange", makeTabsSticky);
     window.addEventListener("scroll", makeTabsSticky);
+    window.addEventListener("load", makeTabsSticky);
   }
 
   /* ===== SESSION PROCESSING ===== */
