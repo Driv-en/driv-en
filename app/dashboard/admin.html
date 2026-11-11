@@ -37,15 +37,23 @@
       border-bottom-color: var(--border, #475569);
     }
 
+    /* ===== HIDE OLD 3-ROW HEADER ROWS =====
+       The service worker may inject a stale dashboard-header.html with
+       Row 2 (title) and Row 3 (utility bar). Hide them via CSS so they
+       never flash on screen, even before rebuildHeader() runs. */
+    .dash-header-row2, .dash-header-row3, .dash-utility-bar { display: none !important; }
+
     /* Sticky Navigation Container & Mobile Layout */
     .admin-nav-sticky-container {
       position: -webkit-sticky !important;
       position: sticky !important;
       top: 56px; /* Offset below header — adjusted dynamically by adjustStickyOffsets() */
       z-index: 99999 !important;
-      width: 100%;
+      max-width: 1100px;
+      margin: 0 auto;
       background: #cbd5e1;
       border-bottom: 2px solid #94a3b8;
+      border-radius: 0 0 8px 8px;
     }
     :root[data-theme="dark"] .admin-nav-sticky-container {
       background:#334155;
@@ -120,9 +128,11 @@
       position: sticky !important;
       top: 100px; /* Offset below header + nav — adjusted dynamically by adjustStickyOffsets() */
       z-index: 99998 !important;
-      width: 100%;
+      max-width: 1100px;
+      margin: 0 auto;
       background: #475569;
       border-bottom: 2px solid #334155;
+      border-radius: 0 0 8px 8px;
       display: none;
     }
     :root[data-theme="dark"] .admin-subtab-sticky-container {
@@ -289,13 +299,17 @@
       border-color:#64748b;
     }
     .admin-welcome h2 { margin:0; font-size:20px; color:var(--text, #0f172a); }
-    .admin-welcome p { margin:6px 0 0; font-size:14px; color:var(--text-muted, #64748b); }
+    .admin-welcome p { margin:6px 0 0; font-size:14px; color:#1e293b !important; }
+    :root[data-theme="dark"] .admin-welcome p { color:#cbd5e1 !important; }
 
     .admin-welcome .welcome-detail {
       display:grid; gap:2px; font-size:13px; color:var(--text-muted); margin-top:0;
     }
     .welcome-detail-row { display:flex; align-items:center; gap:6px; }
-    .welcome-detail-label { font-weight:600; color:var(--text); }
+    .welcome-detail-label { font-weight:600; color:#475569 !important; }
+    :root[data-theme="dark"] .welcome-detail-label { color:#94a3b8 !important; }
+    .welcome-detail-row { color:#1e293b !important; }
+    :root[data-theme="dark"] .welcome-detail-row { color:#e2e8f0 !important; }
 
     .welcome-details-grid {
       display:grid;
@@ -416,6 +430,13 @@
     .toggle-switch input:checked + .toggle-slider { background:#16a34a; }
     .toggle-switch input:checked + .toggle-slider:before { transform:translateX(22px); }
     .toggle-switch input:disabled + .toggle-slider { opacity:0.5; }
+
+    /* ===== STEP TOGGLE COLORS (Task Visibility Matrix) =====
+       Red when off, green when on. Locked/required steps keep the
+       shaded (opacity 0.5) effect. */
+    #stepToggleList .toggle-slider { background:#ef4444 !important; }
+    #stepToggleList .toggle-switch input:checked + .toggle-slider { background:#16a34a !important; }
+    #stepToggleList .toggle-switch input:disabled + .toggle-slider { opacity:0.5; background:#16a34a !important; }
 
     .step-toggle-row {
       display:flex;
@@ -641,7 +662,16 @@
     </div>
   </div>
 
-  <!-- ===== WELCOME + THEME BAR (below tab bar, above content) ===== -->
+  <!-- ===== ONBOARDING SUBTAB BAR (sticky below tab bar, above welcome card) ===== -->
+  <div class="admin-subtab-sticky-container" id="onboardingSubtabBar">
+    <div class="admin-subtab-bar" role="tablist" aria-label="Onboarding sub-sections">
+      <div class="admin-subtab active" id="subtabbtn-visibility" data-subtab="visibility" role="tab" aria-selected="true" aria-controls="onboarding-subtab-visibility" tabindex="0">Task Visibility Matrix</div>
+      <div class="admin-subtab" id="subtabbtn-kp" data-subtab="kp" role="tab" aria-selected="false" aria-controls="onboarding-subtab-kp" tabindex="0">Key Personnel Directory</div>
+      <div class="admin-subtab" id="subtabbtn-dashboard" data-subtab="dashboard" role="tab" aria-selected="false" aria-controls="onboarding-subtab-dashboard" tabindex="0">Onboarding Dashboard</div>
+    </div>
+  </div>
+
+  <!-- ===== WELCOME + THEME BAR (below subtab bar, above content) ===== -->
   <div class="admin-welcome-bar" id="adminWelcomeBar">
     <div class="admin-welcome">
       <div class="admin-welcome-top">
@@ -672,14 +702,6 @@
         </div>
         <a href="/app/auth/change-password.html" class="welcome-change-password">Change Password</a>
       </div>
-    </div>
-  </div>
-
-  <div class="admin-subtab-sticky-container" id="onboardingSubtabBar">
-    <div class="admin-subtab-bar" role="tablist" aria-label="Onboarding sub-sections">
-      <div class="admin-subtab active" id="subtabbtn-visibility" data-subtab="visibility" role="tab" aria-selected="true" aria-controls="onboarding-subtab-visibility" tabindex="0">Task Visibility Matrix</div>
-      <div class="admin-subtab" id="subtabbtn-kp" data-subtab="kp" role="tab" aria-selected="false" aria-controls="onboarding-subtab-kp" tabindex="0">Key Personnel Directory</div>
-      <div class="admin-subtab" id="subtabbtn-dashboard" data-subtab="dashboard" role="tab" aria-selected="false" aria-controls="onboarding-subtab-dashboard" tabindex="0">Onboarding Dashboard</div>
     </div>
   </div>
 
@@ -1003,6 +1025,6 @@
 
   <script src="/app/shared/auth-check.js"></script>
   <script src="/app/shared/dashboard-common.js?v=20"></script>
-  <script src="/app/dashboard/admin.js?v=16"></script>
+  <script src="/app/dashboard/admin.js?v=17"></script>
 </body>
 </html>
