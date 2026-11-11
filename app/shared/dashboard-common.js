@@ -150,8 +150,17 @@
   // Reads the page title from <body data-page-title="...">
   // and inserts it into the header's <h1 id="dashPageTitle">
   // If no data-page-title is set, defaults to "Dashboard"
+  // Also removes any duplicate #dashPageTitle elements that may exist
+  // if an old version of dashboard-header.html is still cached on the server.
   function setPageTitle() {
     var title = document.body.getAttribute("data-page-title") || "Dashboard";
+    var allTitles = document.querySelectorAll("#dashPageTitle");
+    if (allTitles.length > 1) {
+      console.warn("[Header] Found " + allTitles.length + " #dashPageTitle elements — removing duplicates");
+      for (var i = 1; i < allTitles.length; i++) {
+        allTitles[i].remove();
+      }
+    }
     var titleEl = document.getElementById("dashPageTitle");
     if (titleEl) titleEl.textContent = title;
   }
