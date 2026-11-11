@@ -61,6 +61,13 @@
     console.log('[TestDashboard] Header loaded:', header ? header.children.length + ' child element(s)' : 'MISSING');
     console.log('[TestDashboard] Footer loaded:', footer ? 'yes' : 'MISSING');
     console.log('[TestDashboard] Page title element:', title ? '"' + title.textContent + '"' : 'MISSING');
+
+    // Check sticky position
+    if (header) {
+      var stickyPos = getComputedStyle(header).position;
+      var stickyBottom = getComputedStyle(header).bottom;
+      console.log('[TestDashboard] Header position:', stickyPos, 'bottom:', stickyBottom);
+    }
     console.log('[TestDashboard] Customer logo area:', logoArea ? 'present' : 'MISSING');
 
     // Check for leftover utility bar elements (should NOT exist in header)
