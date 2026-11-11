@@ -62,11 +62,16 @@
     console.log('[TestDashboard] Footer loaded:', footer ? 'yes' : 'MISSING');
     console.log('[TestDashboard] Page title element:', title ? '"' + title.textContent + '"' : 'MISSING');
 
-    // Check sticky position
+    // Check sticky position — should be sticky to the TOP
     if (header) {
       var stickyPos = getComputedStyle(header).position;
-      var stickyBottom = getComputedStyle(header).bottom;
-      console.log('[TestDashboard] Header position:', stickyPos, 'bottom:', stickyBottom);
+      var stickyTop = getComputedStyle(header).top;
+      console.log('[TestDashboard] Header position:', stickyPos, 'top:', stickyTop);
+      if (stickyPos === 'sticky' && stickyTop === '0px') {
+        console.log('[TestDashboard] ✓ Header is sticky to the top');
+      } else {
+        console.warn('[TestDashboard] WARNING: Header is not sticky-top (position:' + stickyPos + ' top:' + stickyTop + ')');
+      }
     }
     console.log('[TestDashboard] Customer logo area:', logoArea ? 'present' : 'MISSING');
 
