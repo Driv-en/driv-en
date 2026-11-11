@@ -380,6 +380,7 @@ function switchOnboardingSubtab(subtabName) {
   var targetSubtabBtn = document.querySelector('#onboardingSubtabBar [data-subtab="' + subtabName + '"]'); var targetSubtabContent = document.getElementById('onboarding-subtab-' + subtabName);
   if (targetSubtabBtn) targetSubtabBtn.classList.add('active'); if (targetSubtabContent) targetSubtabContent.classList.add('active');
   if (subtabName === 'kp' || subtabName === 'key-personnel') { renderKeyPersonnel(); }
+  if (subtabName === 'dashboard') { /* Onboarding Dashboard subtab — link is in the HTML */ }
   adjustStickyOffsets();
 }
 
@@ -608,7 +609,7 @@ async function startAdminApp(user) {
   var elComp = document.getElementById('welcome-company'); if (elComp) elComp.textContent = orgName;
   var elRole = document.getElementById('welcome-role'); if (elRole) elRole.textContent = user.role || user.role_id || '';
   var elMail = document.getElementById('welcome-email'); if (elMail) elMail.textContent = user.email || '';
-  try { injectGlobalUIStyles(); insertHeaderTitle(); attachEventHandlers(); } catch (e) { reportError('startAdminApp-init', e); }
+  try { injectGlobalUIStyles(); attachEventHandlers(); } catch (e) { reportError('startAdminApp-init', e); }
   var loadingEl = document.getElementById('loading'); var dashEl = document.getElementById('dashboard');
   if (loadingEl) loadingEl.style.display = 'none'; if (dashEl) dashEl.style.display = 'block';
   adjustStickyOffsets();
