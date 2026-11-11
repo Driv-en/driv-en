@@ -1,6 +1,30 @@
 /* ==========================================================================
    DRIV‑EN DASHBOARD CSS — Shared across all dashboard pages
-   ========================================================================== */
+   ==========================================================================
+   This file is loaded by every dashboard page via:
+   <link rel="stylesheet" href="/styles/dashboard.css?v=1">
+
+   It contains:
+   - Base reset and layout
+   - Light/dark theme variables
+   - Dashboard header (3-row layout: logos, title, toggle+logout)
+   - Theme slide switch (Light Mode / Dark Mode)
+   - Common dashboard elements (cards, buttons, inputs, tables, badges)
+   - Mobile responsive rules
+
+   PAGE-SPECIFIC STYLES:
+   Do NOT add page-specific styles here. Add them in a <style> block
+   in the individual page's <head> section. Use the "page-" prefix
+   for page-specific class names to avoid conflicts.
+
+   VERSION:
+  v5 — November 11, 2026: Restructured header to single-row layout (logo | title | logo)
+       with utility bar below (theme toggle, greeting, dashboard + logout).
+       Removed 3-row layout (row2/row3). CSP compliant — no inline handlers.
+  Bump the ?v= number in the <link> tag when you change this file.
+  Example: dashboard.css?v=1 → dashboard.css?v=2
+  ========================================================================== */
+
 
 /* ===== BASE RESET ===== */
 *, *::before, *::after {
@@ -12,7 +36,10 @@ html {
   margin: 0;
   padding: 0;
   width: 100%;
-  overflow-x: hidden;
+  overflow-x: hidden;  /* Moved from body to html so body doesn't become
+                           a scroll container, which would break position:sticky
+                           on #dashHeader. html handles horizontal overflow
+                           without interfering with sticky positioning. */
 }
 
 body {
@@ -20,7 +47,12 @@ body {
   margin: 0;
   padding: 0;
   width: 100%;
-  background: transparent !important;
+  /* Do NOT put overflow-x: hidden here — it breaks position:sticky.
+     It's on html instead. */
+}
+
+body {
+  background: var(--bg-page);
   color: var(--text);
   transition: background 200ms ease, color 200ms ease;
 }
@@ -29,26 +61,31 @@ input, textarea, button, select {
   font-family: inherit;
 }
 
+
 /* ===== THEME VARIABLES (light/dark mode) ===== */
+/* These variables are used by ALL dashboard pages.
+   The theme is set on the <html> element via data-theme="light" or "dark".
+   The theme toggle script in dashboard-common.js switches between them. */
+
 :root[data-theme="light"] {
-  --bg-page:      #d1d5db;
-  --bg-card:      #ffffff;
-  --bg-input:     #ffffff;
-  --bg-header:    #e5e7eb;
-  --bg-step:      #ffffff;
-  --bg-hover:     #e5e7eb;
+  --bg-page:      #d1d5db;   /* Page background — light gray steel */
+  --bg-card:      #ffffff;   /* Card background */
+  --bg-input:     #ffffff;   /* Input field background */
+  --bg-header:    #e5e7eb;   /* Header background */
+  --bg-step:      #ffffff;   /* Step card background */
+  --bg-hover:     #e5e7eb;   /* Hover background */
 
-  --text:         #1e293b;
-  --text-muted:   #64748b;
+  --text:         #1e293b;   /* Primary text color */
+  --text-muted:   #64748b;   /* Secondary/muted text color */
 
-  --border:       #e2e8f0;
-  --border-input: #cbd5e1;
+  --border:       #e2e8f0;   /* Border color */
+  --border-input: #cbd5e1;   /* Input border color */
 
-  --primary:       #2563eb;
-  --primary-hover: #1d4ed8;
-  --error:         #dc2626;
-  --success:       #16a34a;
-  --warning:       #f59e0b;
+  --primary:       #2563eb;  /* Primary button/link color */
+  --primary-hover: #1d4ed8;  /* Primary button hover color */
+  --error:         #dc2626;  /* Error color (red) */
+  --success:       #16a34a;  /* Success color (green) */
+  --warning:       #f59e0b;  /* Warning color (amber) */
 }
 
 :root[data-theme="dark"] {
@@ -72,18 +109,54 @@ input, textarea, button, select {
   --warning:       #f59e0b;
 }
 
+
 /* ===== INDUSTRIAL DIAMOND-PLATE BACKGROUND ===== */
+/* This creates the industrial steel look using the user's diamond-plate.png
+   image. It works in two layers:
+   1. .steel-bg — a fixed full-viewport div that tiles the image (z-index: 0)
+   2. .steel-overlay — a semi-transparent overlay that keeps content readable
+      (z-index: 0, rendered above the image via DOM order)
+
+   HOW IT WORKS:
+   - The body background is set to transparent so the fixed layers show through.
+   - Each dashboard page must include TWO divs right after <body>:
+       <div class="steel-bg"></div>
+       <div class="steel-overlay"></div>
+   - All page content (header, main, cards) must have position: relative and
+     z-index: 1 or higher so they sit above the background layers.
+   - The .steel-bg and .steel-overlay divs have pointer-events: none so they
+     never block clicks.
+
+   LIGHT MODE: The overlay is white at 55% opacity — the steel texture is
+   visible but subtle, and text remains fully readable.
+   DARK MODE: The overlay is dark blue-gray at 70% opacity — the steel is
+   barely visible behind the dark cards.
+
+   IMAGE: /assets/diamond-plate.png (tiled, background-size: auto)
+   If the image is missing, the body falls back to the --bg-page color. */
+
+/* Force the body transparent so the fixed background layers show through.
+   The --bg-page variable is kept as a fallback color on .steel-bg. */
+body {
+  background: transparent !important;
+}
+
+/* --- Layer 1: Diamond-plate steel image (tiled, behind everything) --- */
 .steel-bg {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-color: var(--bg-page);
+  background-color: var(--bg-page);  /* fallback if image is missing */
   background-image: url("/assets/diamond-plate.png");
   background-repeat: repeat;
   background-size: auto;
 }
 
+/* --- Layer 2: Readability overlay (lightens/darkens the steel) --- */
+/* Sits on top of the steel image (same z-index: 0 but later in DOM order).
+   In light mode: white at 55% — subtle steel texture, readable text.
+   In dark mode: dark blue-gray at 70% — steel barely visible behind dark UI. */
 .steel-overlay {
   position: fixed;
   inset: 0;
@@ -99,108 +172,161 @@ input, textarea, button, select {
   background-color: rgba(15, 23, 42, 0.70);
 }
 
-/* ===== DASHBOARD HEADER ===== */
-#dashHeader, .dash-header {
-  position: -webkit-sticky;
-  position: sticky;
-  top: 0;
-  z-index: 100000;
-  width: 100%;
-  box-sizing: border-box;
+/* --- Content z-index: make sure all real content sits above the background --- */
+/* The header is sticky and needs a high z-index to stay above content. */
+#dashHeader { position: sticky; top: 0; z-index: 100; }
+.dash-main { position: relative; z-index: 1; }
+.dash-greeting-bar { position: relative; z-index: 1; }
+
+
+/* ===== SHARED BRAND STYLES (do not remove) ===== */
+/* These style the DRIV‑EN brand text: DRIV (gray) ‑ (green) EN (red) */
+.brand-driv { color: #8c8c8c; font-weight: bold; font-style: italic; letter-spacing: -1px; }
+.brand-dash { color: #2da94f; font-weight: bold; font-style: italic; letter-spacing: -1px; }
+.brand-en   { color: #dc2626; font-weight: bold; font-style: italic; letter-spacing: -1px; }
+
+.inline-logo { height: 3.75em; vertical-align: middle; display: inline-block; }
+
+
+/* ===== DASHBOARD HEADER (single-row layout) ===== */
+/* One row: Customer logo (left) | Page title (center) | DRIV-EN logo (right)
+   Below it: Utility bar with theme toggle, greeting, dashboard + logout */
+
+.dash-header {
   background: var(--bg-header);
   border-bottom: 1px solid var(--border);
 }
 
-.dash-main, .dash-greeting-bar { 
-  position: relative; 
-  z-index: 1; 
+/* The #dashHeader container div also needs to be sticky
+   because the header HTML is loaded inside it via fetch().
+   Sticky to the BOTTOM of the viewport so it stays visible
+   while the user scrolls through page content above it. */
+#dashHeader {
+  position: sticky;
+  bottom: 0;
+  z-index: 100;
 }
 
-/* Row 1: 3-column grid — logo (left) | title (center) | logo (right) */
+/* Single row: logo (left) | title (center) | logo (right) */
+/* CSS grid with 3 columns — adjusts for smaller screens */
 .dash-header-row1 {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr) !important;
-  align-items: center !important;
-  padding: 12px 20px 4px 20px;
-  position: relative;
-  min-height: 52px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  padding: 10px 20px;
+  gap: 12px;
 }
 
-.dash-header-row1 > #dashCustomerLogoArea {
-  grid-column: 1 !important;
-  grid-row: 1 !important;
+/* Customer logo area — left side of header row */
+.dash-header-logo-left {
+  flex: 0 0 auto;       /* Don't shrink or grow — natural size */
   min-width: 0;
 }
 
-.dash-header-row1 > #dashPageTitle {
-  grid-column: 2 !important;
-  grid-row: 1 !important;
-  text-align: center;
+/* DRIV-EN logo area — right side of header row */
+.dash-header-logo-right {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+/* Page title — center column, word-wraps and auto-adjusts on small screens */
+.dash-header-title {
+  margin: 0;
   font-size: 22px;
   font-weight: 600;
   color: var(--text);
-  margin: 0;
-  min-width: 0;
+  text-align: center;
+  padding: 0 8px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.2;
 }
 
-.dash-header-row1 > .dash-driven-logo {
-  grid-column: 3 !important;
-  grid-row: 1 !important;
-  justify-self: end !important;
-  max-width: 100%;
+/* Responsive: shrink title font on smaller screens */
+@media (max-width: 700px) {
+  .dash-header-title { font-size: 18px; }
+}
+@media (max-width: 500px) {
+  .dash-header-title { font-size: 15px; }
 }
 
+/* Customer logo — loaded from D1 database by dashboard-common.js */
 .dash-customer-logo {
-  max-height: 64px;
-  max-width: 200px;
+  max-height: 56px;
+  max-width: 180px;
   display: block;
 }
 
+/* Responsive: shrink logos on smaller screens */
+@media (max-width: 700px) {
+  .dash-customer-logo { max-height: 40px; max-width: 120px; }
+  .dash-driven-logo { max-height: 40px; }
+}
+@media (max-width: 500px) {
+  .dash-customer-logo { max-height: 32px; max-width: 90px; }
+  .dash-driven-logo { max-height: 32px; }
+}
+
+/* Placeholder shown when no logo has been uploaded yet */
 .dash-customer-logo-placeholder {
-  max-height: 48px;
+  max-height: 40px;
   display: block;
   opacity: 0.4;
   border: 2px dashed var(--border);
   border-radius: 6px;
-  padding: 8px 16px;
-  font-size: 12px;
+  padding: 6px 12px;
+  font-size: 11px;
   color: var(--text-muted);
   text-align: center;
-  line-height: 32px;
+  line-height: 28px;
+  white-space: nowrap;
 }
 
+/* DRIV-EN logo (right side of header row) */
+/* Cache buster ?v=2026 — bump when logo image changes */
 .dash-driven-logo {
-  max-height: 64px;
+  max-height: 56px;
   display: block;
 }
 
-.dash-header-row2 {
-  text-align: center;
-  padding: 4px 20px;
-}
 
-.dash-header-row2 h1 {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 600;
-  color: var(--text);
+/* ===== UTILITY BAR (below header) ===== */
+/* Thin bar: theme toggle (left) | greeting (center) | dashboard+logout (right) */
+.dash-utility-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 20px;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .dash-greeting {
   font-size: 13px;
   color: var(--text-muted);
-  margin-top: 2px;
   font-weight: 500;
+  flex: 1 1 auto;
+  text-align: center;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.dash-header-row3 {
+.dash-utility-actions {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 4px 20px 12px 20px;
+  gap: 8px;
+  flex: 0 0 auto;
 }
 
-/* ===== THEME SLIDE SWITCH ===== */
+
+/* ===== THEME SLIDE SWITCH (Light Mode / Dark Mode) ===== */
+/* A slide toggle with text labels on each side.
+   Checkbox checked = dark mode, unchecked = light mode. */
+
 .dash-theme-wrapper {
   display: flex;
   align-items: center;
@@ -213,6 +339,7 @@ input, textarea, button, select {
   transition: opacity 200ms ease;
 }
 
+/* The label for the active theme is bold and full-color */
 .dash-theme-label.active {
   color: var(--text);
   font-weight: 600;
@@ -235,7 +362,7 @@ input, textarea, button, select {
   position: absolute;
   cursor: pointer;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: var(--border);
+  background: #3b82f6;
   border-radius: 24px;
   transition: background 200ms ease;
 }
@@ -252,6 +379,7 @@ input, textarea, button, select {
   transition: transform 200ms ease;
 }
 
+/* When checked (dark mode), slider turns blue and knob moves right */
 .dash-theme-switch input:checked + .dash-theme-slider {
   background: var(--primary);
 }
@@ -260,7 +388,8 @@ input, textarea, button, select {
   transform: translateX(20px);
 }
 
-/* ===== LOGOUT & DASHBOARD BUTTONS ===== */
+
+/* ===== LOGOUT BUTTON ===== */
 .dash-logout {
   background: #b91c1c;
   border: 1px solid #dc2626;
@@ -272,6 +401,7 @@ input, textarea, button, select {
 }
 .dash-logout:hover { background: #dc2626; }
 
+/* ===== DASHBOARD BUTTON (return to main dashboard) ===== */
 .dash-home-btn {
   background: #1d4ed8;
   border: 1px solid #2563eb;
@@ -286,13 +416,23 @@ input, textarea, button, select {
 }
 .dash-home-btn:hover { background: #2563eb; }
 
+
 /* ===== CONTENT AREA ===== */
+/* Standard content container for dashboard pages.
+   Centers content with max-width and padding. */
 .dash-main {
   max-width: 1100px;
   margin: 20px auto;
   padding: 0 20px;
 }
 
+
+/* ===== GREETING BAR (optional — below header, above content) ===== */
+/* If a page wants a greeting bar, add:
+   <div class="dash-greeting-bar" id="dashGreetingBar">
+     <span id="dashGreetingText">Welcome</span>
+   </div>
+   dashboard-common.js will auto-fill it from the session. */
 .dash-greeting-bar {
   max-width: 1100px;
   margin: 0 auto;
@@ -311,7 +451,9 @@ input, textarea, button, select {
 }
 .dash-greeting-text strong { color: var(--text); }
 
+
 /* ===== COMMON CARDS ===== */
+/* Use .dash-card for any card-style container */
 .dash-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -320,11 +462,28 @@ input, textarea, button, select {
   margin-bottom: 20px;
 }
 
-.dash-card h2 { margin-top: 0; font-size: 18px; color: var(--text); }
-.dash-card h3 { margin-top: 0; font-size: 16px; color: var(--text); }
-.dash-card p { font-size: 14px; color: var(--text-muted); line-height: 1.5; margin: 6px 0 0; }
+.dash-card h2 {
+  margin-top: 0;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.dash-card h3 {
+  margin-top: 0;
+  font-size: 16px;
+  color: var(--text);
+}
+
+.dash-card p {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 6px 0 0;
+}
+
 
 /* ===== COMMON BUTTONS ===== */
+/* Primary button — blue, for main actions */
 .dash-btn {
   background: var(--primary);
   border: 1px solid var(--primary-hover);
@@ -339,6 +498,7 @@ input, textarea, button, select {
 }
 .dash-btn:hover { background: var(--primary-hover); }
 
+/* Danger button — red, for delete/remove actions */
 .dash-btn-danger {
   background: #b91c1c;
   border: 1px solid #dc2626;
@@ -351,6 +511,7 @@ input, textarea, button, select {
 }
 .dash-btn-danger:hover { background: #dc2626; }
 
+/* Secondary button — subtle, for cancel/back */
 .dash-btn-secondary {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -365,12 +526,14 @@ input, textarea, button, select {
 }
 .dash-btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
 
+/* Disabled button */
 .dash-btn:disabled,
 .dash-btn-danger:disabled,
 .dash-btn-secondary:disabled {
   opacity: 0.5;
   cursor: default;
 }
+
 
 /* ===== COMMON FORM INPUTS ===== */
 .dash-input {
@@ -395,6 +558,7 @@ input, textarea, button, select {
   margin-bottom: 6px;
   display: block;
 }
+
 
 /* ===== COMMON TABLES ===== */
 .dash-table {
@@ -422,6 +586,7 @@ input, textarea, button, select {
   background: var(--bg-hover);
 }
 
+
 /* ===== COMMON STATUS BADGES ===== */
 .dash-badge {
   font-size: 12px;
@@ -436,6 +601,7 @@ input, textarea, button, select {
 .dash-badge-warning { background: #78350f; border: 1px solid #d97706; color: #fef3c7; }
 .dash-badge-danger  { background: #7f1d1d; border: 1px solid #b91c1c; color: #fee2e2; }
 .dash-badge-muted   { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); }
+
 
 /* ===== UTILITY CLASSES ===== */
 .dash-text-center { text-align: center; }
@@ -453,102 +619,10 @@ input, textarea, button, select {
 .dash-gap-2 { gap: 16px; }
 .dash-hidden { display: none; }
 
-/* ===== FIXED RECEIPT CROP OVERLAY MODAL & HANDLES ===== */
-.crop-overlay {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  background: rgba(15, 23, 42, 0.85) !important;
-  z-index: 999999 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  box-sizing: border-box !important;
-  padding: 16px !important;
-}
-
-.crop-modal {
-  background: var(--bg-card, #1e293b);
-  border: 1px solid var(--border, #475569);
-  border-radius: 12px;
-  padding: 20px;
-  max-width: 650px;
-  width: 95%;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-  color: var(--text, #f8fafc);
-  overflow: hidden;
-}
-
-.crop-stage {
-  position: relative !important;
-  margin: 16px 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: #000;
-  border-radius: 8px;
-  overflow: hidden;
-  max-height: 60vh;
-}
-
-.crop-stage img {
-  max-width: 100%;
-  max-height: 60vh;
-  display: block;
-  object-fit: contain;
-}
-
-.crop-box {
-  position: absolute !important;
-  border: 2px dashed #22c55e !important;
-  background: rgba(34, 197, 94, 0.15) !important;
-  box-sizing: border-box !important;
-  cursor: move;
-  touch-action: none;
-}
-
-.crop-handle {
-  position: absolute !important;
-  width: 20px !important;
-  height: 20px !important;
-  background: #22c55e !important;
-  border: 2px solid #ffffff !important;
-  border-radius: 50% !important;
-  z-index: 10 !important;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.4);
-}
-
-.crop-handle.nw { top: -10px; left: -10px; cursor: nwse-resize; }
-.crop-handle.ne { top: -10px; right: -10px; cursor: nesw-resize; }
-.crop-handle.sw { bottom: -10px; left: -10px; cursor: nesw-resize; }
-.crop-handle.se { bottom: -10px; right: -10px; cursor: nwse-resize; }
-
-.crop-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  margin-top: 12px;
-}
-
-.crop-btn {
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-}
-.crop-btn-primary { background: #16a34a; color: #fff; }
-.crop-btn-secondary { background: #475569; color: #fff; }
-.crop-btn-cancel { background: transparent; color: var(--text-muted, #94a3b8); border: 1px solid var(--border, #475569); }
 
 /* ===== DASHBOARD FOOTER ===== */
+/* Shared footer loaded by dashboard-common.js into <div id="dashFooter"> */
+/* Contains copyright (auto-updating year) and legal links */
 .dash-footer {
   max-width: 1100px;
   margin: 40px auto 20px auto;
@@ -587,35 +661,42 @@ input, textarea, button, select {
   color: var(--primary);
 }
 
-/* ===== MOBILE RESPONSIVE ===== */
+/* Mobile responsive footer */
 @media (max-width: 800px) {
   .dash-footer { padding: 16px 12px; margin: 24px auto 12px auto; }
-  .dash-header-row1 { padding: 10px 12px 4px 12px; }
+}
+
+
+/* ===== MOBILE RESPONSIVE ===== */
+@media (max-width: 800px) {
+  .dash-header-row1 { padding: 8px 12px; gap: 8px; }
   .dash-customer-logo, .dash-customer-logo-placeholder {
-    max-height: 36px;
-    max-width: 100px;
+    max-height: 32px;
+    max-width: 90px;
   }
   .dash-customer-logo-placeholder {
-    font-size: 10px;
+    font-size: 9px;
     padding: 4px 8px;
-    line-height: 28px;
+    line-height: 24px;
   }
-  .dash-driven-logo { max-height: 48px; }
-  .dash-header-row2 h1 { font-size: 18px; }
-  .dash-header-row3 { padding: 4px 12px 10px 12px; }
+  .dash-driven-logo { max-height: 40px; }
+  .dash-header-title { font-size: clamp(13px, 3.5vw, 18px); }
+  .dash-utility-bar { padding: 4px 12px; }
   .dash-theme-label { font-size: 10px; }
   .dash-theme-switch { width: 38px; height: 20px; }
   .dash-theme-slider:before { height: 14px; width: 14px; left: 3px; bottom: 3px; }
   .dash-theme-switch input:checked + .dash-theme-slider:before { transform: translateX(16px); }
+  .dash-greeting { font-size: 11px; }
   .dash-logout { font-size: 12px; padding: 6px 10px; }
-  .dash-home-btn { font-size: 12px; padding: 6px 10px; margin-right: 4px; }
+  .dash-home-btn { font-size: 12px; padding: 6px 10px; }
   .dash-main { padding: 0 12px; margin: 12px auto; }
   .dash-greeting-bar { padding: 10px 12px 0 12px; }
   .dash-greeting-text { font-size: 14px; }
 
   /* ===== RESPONSIVE HEADER TITLES ===== */
-  .dash-header-row2 h1,
-  #dashPageTitle,
+  /* The shared header h1 (#dashPageTitle) auto-shrinks and wraps on mobile.
+     Page-specific title classes also shrink. */
+  .dash-header-title,
   .emp-header-title,
   .fa-header-title,
   .tf-header-title,
@@ -647,8 +728,7 @@ input, textarea, button, select {
 
 /* ===== EXTRA SMALL SCREENS (480px and below) ===== */
 @media (max-width: 480px) {
-  .dash-header-row2 h1,
-  #dashPageTitle,
+  .dash-header-title,
   .emp-header-title,
   .fa-header-title,
   .tf-header-title,
