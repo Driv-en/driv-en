@@ -468,17 +468,22 @@ function resolveTableConfig(requestedTable) {
 }
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, Cookie, x-org-id, x-customer-id, x-user-id, x-user-email, x-country',
   'Access-Control-Allow-Credentials': 'true',
   'Access-Control-Max-Age': '86400',
 };
 
-function json(data, status) {
+function getCorsHeaders(request) {
+  const origin = request.headers.get('Origin') || '*';
+  return { ...corsHeaders, 'Access-Control-Allow-Origin': origin };
+}
+
+function json(data, status, request) {
+  const corsH = request ? getCorsHeaders(request) : { ...corsHeaders, 'Access-Control-Allow-Origin': '*' };
   return new Response(JSON.stringify(data), {
     status: status || 200,
-    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    headers: { 'Content-Type': 'application/json', ...corsH },
   });
 }
 
@@ -1468,7 +1473,7 @@ export async function onRequest(context) {
   const path = url.pathname.toLowerCase().replace(/\/+$/, '') || '/';
 
   if (method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders });
+    return new Response(null, { status: 204, headers: getCorsHeaders(request) });
   }
 
   // FUEL WORKER: forward fuel endpoints to the standalone fuel worker (service binding FUEL_WORKER).
@@ -1477,6 +1482,21 @@ export async function onRequest(context) {
     const workerUrl = new URL(request.url);
     workerUrl.pathname = workerUrl.pathname.replace(/^\/api/, '');
     return env.FUEL_WORKER.fetch(new Request(workerUrl.toString(), request));
+  }
+
+    // Forward VIN decode + recall tracking to the driv-en-vin-decode worker
+  if (env.VIN_WORKER && /^\/api\/(vin-decode|recalls|assets\/[^/]+\/recalls)(\/|$)/i.test(path)) {
+    return env.VIN_WORKER.fetch(new Request(request.url, request));
+  }
+
+  // Forward predictive maintenance endpoints to the driv-en-predictive worker
+  if (env.PREDICTIVE_WORKER && /^\/api\/predictive(\/|$)/i.test(path)) {
+    return env.PREDICTIVE_WORKER.fetch(new Request(request.url, request));
+  }
+
+  // Forward TCO endpoints to the driv-en-tco worker
+  if (env.TCO_WORKER && /^\/api\/tco(\/|$)/i.test(path)) {
+    return env.TCO_WORKER.fetch(new Request(request.url, request));
   }
 
   // DIRECT DISPATCH: Send DVIR Officer Email via Resend
