@@ -10,43 +10,27 @@
   'use strict';
 
   // ===== AGGRESSIVE HEADER CLEANUP =====
-  // The service worker may serve a stale dashboard-header.html (old 3-row
-  // layout with a duplicate title in Row 2) and a stale dashboard-common.js
-  // (without the cleanup code). This function runs from test-dashboard.js
-  // (which has a unique ?v= URL the SW can't have cached) and forcibly
-  // rebuilds the header as a single row if any old layout is detected.
+  // The service worker may serve a stale dashboard-header.html with ANY
+  // old layout. Instead of detecting specific old class names, we ALWAYS
+  // rebuild the header as a single row. A MutationObserver catches content
+  // as it's injected, and timed fallbacks ensure it runs even if the
+  // observer misses.
 
-  function rebuildHeaderIfNeeded() {
+  function rebuildHeader() {
     var header = document.getElementById('dashHeader');
     if (!header) return;
 
     var title = document.body.getAttribute('data-page-title') || 'Dashboard';
 
-    // Check for old 3-row layout: .dash-header-row2, .dash-header-row3, .dash-utility-bar
-    var oldRow2 = header.querySelector('.dash-header-row2');
-    var oldRow3 = header.querySelector('.dash-header-row3');
-    var oldUtil = header.querySelector('.dash-utility-bar');
-    var allH1s = header.querySelectorAll('h1');
-
-    if (!oldRow2 && !oldRow3 && !oldUtil && allH1s.length <= 1) {
-      console.log('[TestDashboard] Header is already single-row — no rebuild needed');
-      return;
-    }
-
-    console.warn('[TestDashboard] Old header layout detected — rebuilding as single row', {
-      hasRow2: !!oldRow2,
-      hasRow3: !!oldRow3,
-      hasUtilityBar: !!oldUtil,
-      h1Count: allH1s.length
-    });
-
-    // Extract existing logo elements
+    // Grab the customer logo area if it exists (preserve loaded logo)
     var logoArea = header.querySelector('#dashCustomerLogoArea');
-    var drivenLogo = header.querySelector('.dash-driven-logo') || header.querySelector('img');
+    var drivenLogo = header.querySelector('.dash-driven-logo') || header.querySelector('img.dash-driven-logo');
 
-    // Build new single-row header
-    var dashHeader = header.querySelector('.dash-header') || header;
-    dashHeader.innerHTML = '';
+    // Nuke everything
+    header.innerHTML = '';
+
+    // Rebuild single-row header
+    var dashHeader = document.createElement('div');
     dashHeader.className = 'dash-header';
 
     var row1 = document.createElement('div');
@@ -65,7 +49,7 @@
     }
     row1.appendChild(left);
 
-    // Center: page title (only ONE h1)
+    // Center: ONE page title only
     var h1 = document.createElement('h1');
     h1.id = 'dashPageTitle';
     h1.className = 'dash-header-title';
@@ -87,23 +71,45 @@
     row1.appendChild(right);
 
     dashHeader.appendChild(row1);
-    console.log('[TestDashboard] ✓ Header rebuilt as single row with title: "' + title + '"');
+    header.appendChild(dashHeader);
+
+    console.log('[TestDashboard] ✓ Header rebuilt: single row, title="' + title + '", logo=' + (logoArea ? 'preserved' : 'placeholder') + ', drivenLogo=' + (drivenLogo ? 'preserved' : 'new'));
   }
 
-  // Run after DOM is ready, after dashboard-common.js loads the header,
-  // and again after a delay to catch any late SW-injected content.
-  function scheduleHeaderCheck() {
-    // Check after 100ms (header usually loads via fetch in init())
-    setTimeout(rebuildHeaderIfNeeded, 100);
-    // Check again after 1s (in case fetch was slow)
-    setTimeout(rebuildHeaderIfNeeded, 1000);
-    // Check again after 3s (last resort for slow SW cache)
-    setTimeout(rebuildHeaderIfNeeded, 3000);
+  // MutationObserver: rebuild whenever content is injected into #dashHeader
+  function startHeaderObserver() {
+    var header = document.getElementById('dashHeader');
+    if (!header) return;
+
+    var observer = new MutationObserver(function(mutations) {
+      // Check if the header has more than one row or more than one h1
+      var h1s = header.querySelectorAll('h1');
+      var rows = header.querySelectorAll('.dash-header-row1, .dash-header-row2, .dash-header-row3, .dash-utility-bar');
+      if (h1s.length > 1 || rows.length > 1) {
+        console.warn('[TestDashboard] MutationObserver detected old layout — h1s:' + h1s.length + ' rows:' + rows.length);
+        observer.disconnect(); // stop observing to avoid loop
+        rebuildHeader();
+        // re-observe in case SW injects again
+        setTimeout(function() { startHeaderObserver(); }, 100);
+      }
+    });
+    observer.observe(header, { childList: true, subtree: true });
+  }
+
+  // Timed fallbacks: rebuild at multiple intervals
+  function scheduleHeaderRebuilds() {
+    setTimeout(rebuildHeader, 50);
+    setTimeout(rebuildHeader, 200);
+    setTimeout(rebuildHeader, 500);
+    setTimeout(rebuildHeader, 1000);
+    setTimeout(rebuildHeader, 2000);
+    setTimeout(rebuildHeader, 3000);
   }
 
   // ===== SESSION LOADED — fill welcome card =====
   document.addEventListener('dashSessionLoaded', function(e) {
-    scheduleHeaderCheck(); // rebuild header after session loads
+    rebuildHeader(); // force rebuild after session loads
+    scheduleHeaderRebuilds();
     var user = (e && e.detail) || window.dashUser;
     if (user) {
       console.log('[TestDashboard] Session loaded:', {
@@ -146,7 +152,9 @@
 
   // Verify header elements exist after load
   window.addEventListener('load', function() {
-    scheduleHeaderCheck(); // rebuild header after everything loads
+    startHeaderObserver(); // watch for SW-injected old content
+    rebuildHeader(); // force rebuild after everything loads
+    scheduleHeaderRebuilds();
     var header = document.getElementById('dashHeader');
     var footer = document.getElementById('dashFooter');
     var title = document.getElementById('dashPageTitle');
