@@ -587,31 +587,46 @@ async function startAdminApp(user) {
   activeOrgId = user.org_id || user.customer_id || '';
   if (!activeOrgId || activeOrgId === 'default_org' || activeOrgId === 'null') { adminAppStarted = true; window.location.href = '/public/login.html'; return; }
   adminAppStarted = true;
+
+  // ===== GUARANTEE: Show dashboard even if anything below throws =====
+  // Every code path after this point must end with the dashboard visible.
+  // We use a try-finally so the dashboard is shown no matter what.
   try {
-  if (!user.id && user.user_id) user.id = user.user_id;
-  var userStr = JSON.stringify(user); var userRole = user.role || user.role_id || '';
-  localStorage.setItem('driven_org_id', activeOrgId); localStorage.setItem('driven_user', userStr);
-  if (userRole) localStorage.setItem('driven_role', userRole); if (user.id) localStorage.setItem('driven_user_id', user.id);
-  sessionStorage.setItem('driven_org_id', activeOrgId); sessionStorage.setItem('driven_user', userStr);
-  if (userRole) sessionStorage.setItem('driven_role', userRole); if (user.id) sessionStorage.setItem('driven_user_id', user.id);
-  var firstName = user.first_name || user.email; var orgName = user.org_name || localStorage.getItem('driven_org_name') || '';
-  var welcomeEl = document.getElementById('welcome-name'); if (welcomeEl) { welcomeEl.textContent = orgName ? (firstName + ' - ' + orgName) : firstName; }
-  var accountNameEl = document.getElementById('account-name'); if (accountNameEl) { accountNameEl.textContent = user.first_name ? (user.first_name + ' ' + (user.last_name || '')) : user.email; }
-  var emailEl = document.getElementById('account-email'); if (emailEl) emailEl.textContent = user.email || '';
-  var elComp = document.getElementById('welcome-company'); if (elComp) elComp.textContent = orgName;
-  var elRole = document.getElementById('welcome-role'); if (elRole) elRole.textContent = user.role || user.role_id || '';
-  var elMail = document.getElementById('welcome-email'); if (elMail) elMail.textContent = user.email || '';
-  try { injectGlobalUIStyles(); attachEventHandlers(); } catch (e) { reportError('startAdminApp-init', e); }
-  } catch (e2) { reportError('startAdminApp-outer', e2); } finally {
-  var loadingEl = document.getElementById('loading'); var dashEl = document.getElementById('dashboard');
-  if (loadingEl) loadingEl.style.display = 'none'; if (dashEl) dashEl.style.display = 'block';
-  adjustStickyOffsets();
-  loadLogo().catch(function(e) { reportError('loadLogo', e); });
-  loadSettings().catch(function(e) { reportError('loadSettings', e); });
-  loadKeyPersonnel().catch(function(e) { reportError('loadKeyPersonnel', e); });
-  updateProgress(); updateThemeSwitch(); renderFormsTab();
-  await loadDashboardStats().catch(function(e) { reportError('init-loadDashboardStats', e); });
-  setTimeout(function() { loadDashboardStats().catch(function(e) { reportError('init-loadDashboardStats-retry', e); }); }, 1000);
+    if (!user.id && user.user_id) user.id = user.user_id;
+    var userStr = JSON.stringify(user); var userRole = user.role || user.role_id || '';
+    localStorage.setItem('driven_org_id', activeOrgId); localStorage.setItem('driven_user', userStr);
+    if (userRole) localStorage.setItem('driven_role', userRole); if (user.id) localStorage.setItem('driven_user_id', user.id);
+    sessionStorage.setItem('driven_org_id', activeOrgId); sessionStorage.setItem('driven_user', userStr);
+    if (userRole) sessionStorage.setItem('driven_role', userRole); if (user.id) sessionStorage.setItem('driven_user_id', user.id);
+    var firstName = user.first_name || user.email; var orgName = user.org_name || localStorage.getItem('driven_org_name') || '';
+    var welcomeEl = document.getElementById('welcome-name'); if (welcomeEl) { welcomeEl.textContent = orgName ? (firstName + ' - ' + orgName) : firstName; }
+    var accountNameEl = document.getElementById('account-name'); if (accountNameEl) { accountNameEl.textContent = user.first_name ? (user.first_name + ' ' + (user.last_name || '')) : user.email; }
+    var emailEl = document.getElementById('account-email'); if (emailEl) emailEl.textContent = user.email || '';
+    var elComp = document.getElementById('welcome-company'); if (elComp) elComp.textContent = orgName;
+    var elRole = document.getElementById('welcome-role'); if (elRole) elRole.textContent = user.role || user.role_id || '';
+    var elMail = document.getElementById('welcome-email'); if (elMail) elMail.textContent = user.email || '';
+    try { injectGlobalUIStyles(); attachEventHandlers(); } catch (e) { reportError('startAdminApp-init', e); }
+    adjustStickyOffsets();
+    loadLogo().catch(function(e) { reportError('loadLogo', e); });
+    loadSettings().catch(function(e) { reportError('loadSettings', e); });
+    loadKeyPersonnel().catch(function(e) { reportError('loadKeyPersonnel', e); });
+    updateProgress(); updateThemeSwitch(); renderFormsTab();
+    await loadDashboardStats().catch(function(e) { reportError('init-loadDashboardStats', e); });
+    setTimeout(function() { loadDashboardStats().catch(function(e) { reportError('init-loadDashboardStats-retry', e); }); }, 1000);
+  } catch (e) {
+    reportError('startAdminApp-outer', e);
+    console.error('[AdminDashboard] Error during initialization:', e);
+  } finally {
+    // ALWAYS show the dashboard — even if everything above failed
+    var loadingEl = document.getElementById('loading'); var dashEl = document.getElementById('dashboard');
+    if (loadingEl) loadingEl.style.display = 'none';
+    if (dashEl) dashEl.style.display = 'block';
+    // Ensure the overview tab is active
+    var overviewTab = document.getElementById('tab-overview');
+    if (overviewTab && !overviewTab.classList.contains('active')) { overviewTab.classList.add('active'); }
+    var overviewBtn = document.querySelector('.admin-tab[data-tab="overview"]');
+    if (overviewBtn && !overviewBtn.classList.contains('active')) { overviewBtn.classList.add('active'); }
+    adjustStickyOffsets();
   }
 }
 
@@ -633,7 +648,23 @@ async function init() {
   var pollAttempts = 0;
   var pollTimer = setInterval(function() { pollAttempts++; var u = window.dashUser || window.drivenUser || getUserFromStorage(); if (u) { clearInterval(pollTimer); startAdminApp(u); } else if (pollAttempts >= 40) { clearInterval(pollTimer); var lastResort = getUserFromStorage(); if (lastResort) { startAdminApp(lastResort); } else { window.location.href = '/public/login.html'; } } }, 250);
   window.addEventListener('load', function() { if (!adminAppStarted) { var u = window.dashUser || window.drivenUser || getUserFromStorage(); if (u) startAdminApp(u); } });
+
+  // ===== FALLBACK: Show dashboard after 5s even if startAdminApp never ran =====
+  // This prevents the user from being stuck on "Loading admin dashboard…" forever
+  // if the session fetch fails or the dashSessionLoaded event never fires.
+  setTimeout(function() {
+    if (adminAppStarted) return;
+    var u = window.dashUser || window.drivenUser || getUserFromStorage();
+    if (u) { startAdminApp(u); }
+    else {
+      // Last resort: show the dashboard anyway with whatever we have
+      console.warn('[AdminDashboard] Fallback: showing dashboard after timeout');
+      var loadingEl = document.getElementById('loading');
+      var dashEl = document.getElementById('dashboard');
+      if (loadingEl) loadingEl.style.display = 'none';
+      if (dashEl) dashEl.style.display = 'block';
+    }
+  }, 5000);
 }
 
-setTimeout(function() { if (!adminAppStarted) { var l = document.getElementById('loading'); var d = document.getElementById('dashboard'); if (l) l.style.display = 'none'; if (d) d.style.display = 'block'; } }, 5000);
 init();
