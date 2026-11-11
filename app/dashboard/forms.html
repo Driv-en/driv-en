@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRIV‑EN | Forms</title>
+<meta name="description" content="DRIV-EN forms — fuel purchases, transfers, and field data entry.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://www.driv-en.com/app/dashboard/forms.html">
+<link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
+<link rel="stylesheet" href="/app/shared/dashboard.css?v=10">
+<link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
+<style>
+.forms-loading{display:flex;align-items:center;justify-content:center;height:60vh;font-size:16px;color:var(--text-muted);}
+.dash-header-row2 { display: none !important; }
+.dash-header-row3 { display: none !important; }
+#dashHeader .dash-theme-wrapper { display: none !important; }
+.dash-header-row1 { padding: 8px 20px !important; align-items: center; }
+.forms-header-title { flex: 1; text-align: center; font-size: 20px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.forms-tab-bar { display: flex; gap: 2px; max-width: 1100px; margin: 0 auto; padding: 0 20px; overflow-x: auto; position: relative; z-index: 1; background: #cbd5e1; border-bottom: 2px solid #94a3b8; }
+.forms-tab { background: #94a3b8; border: 1px solid #64748b; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 500; color: #1e293b; cursor: pointer; white-space: nowrap; transition: all 200ms ease; margin-top: 4px; position: relative; z-index: 1; }
+.forms-tab:hover { color: #0f172a; background: #a5b4c4; margin-top: 2px; }
+.forms-tab.active { color: #1d4ed8; background: #e2e8f0; border-color: #64748b; margin-top: 0; font-weight: 600; z-index: 2; }
+.forms-tab-content { display: none; }
+.forms-tab-content.active { display: block; }
+.forms-tab-home { background: #1d4ed8; border: 1px solid #2563eb; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; margin-left: auto; position: relative; z-index: 1; transition: all 200ms ease; text-decoration: none; display: inline-block; }
+.forms-tab-home:hover { background: #2563eb; margin-top: 2px; }
+.forms-tab-logout { background: #b91c1c; border: 1px solid #dc2626; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; position: relative; z-index: 1; transition: all 200ms ease; }
+.forms-tab-logout:hover { background: #dc2626; margin-top: 2px; }
+.forms-main { max-width: 1100px; margin: 20px auto; padding: 0 20px; position: relative; z-index: 1; }
+.section-heading { position: sticky; top: 0; z-index: 5; background: var(--bg-card); border-bottom: 2px solid var(--border); padding: 12px 0; margin: 0 0 16px 0; font-size: 16px; font-weight: 700; color: var(--text); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.section-heading-count { font-size: 13px; font-weight: 400; color: var(--text-muted); }
+.purchase-form-container { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 24px; }
+.purchase-upload-section { margin-bottom: 20px; }
+.purchase-upload-box { border: 2px dashed var(--border); border-radius: 10px; padding: 32px 20px; text-align: center; transition: border-color 200ms; }
+.purchase-upload-box:hover { border-color: var(--primary); }
+.purchase-upload-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+.purchase-upload-btn { background: var(--primary); color: #fff; border: none; border-radius: 6px; padding: 10px 24px; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 200ms; display: inline-flex; align-items: center; gap: 6px; }
+.purchase-upload-btn:hover { opacity: 0.9; }
+.purchase-upload-btn.secondary { background: #475569; }
+.receipt-preview-wrap { margin-top: 16px; text-align: center; }
+.receipt-preview-img { max-width: 300px; max-height: 400px; border-radius: 8px; border: 1px solid var(--border); }
+.receipt-pdf-icon { font-size: 48px; }
+.receipt-extract-status { margin-top: 12px; font-size: 14px; }
+.receipt-extract-status.loading { color: var(--primary); }
+.receipt-extract-status.success { color: #16a34a; font-weight: 600; }
+.receipt-extract-status.error { color: #cc0000; font-weight: 600; }
+.receipt-notice { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 12px 16px; margin-top: 12px; font-size: 13px; color: #78350f; line-height: 1.5; }
+.receipt-notice strong { color: #b45309; }
+.purchase-divider { text-align: center; margin: 24px 0; position: relative; }
+.purchase-divider::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: var(--border); }
+.purchase-divider span { position: relative; background: var(--bg-card); padding: 0 16px; font-size: 12px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.5px; }
+.purchase-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.purchase-field { display: flex; flex-direction: column; gap: 4px; }
+.purchase-field-full { grid-column: 1 / -1; }
+.purchase-label { font-size: 13px; font-weight: 600; color: var(--text); }
+.purchase-input { padding: 10px 12px; font-size: 14px; border: 1px solid var(--border-input, var(--border)); border-radius: 6px; background: var(--bg-step); color: var(--text); box-sizing: border-box; }
+.purchase-input:focus { outline: none; border-color: var(--primary); }
+.ai-confidence-banner { background: #eff6ff; border: 1px solid #93c5fd; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #1e3a5f; }
+.ai-confidence-banner.low { background: #fef3c7; border-color: #fcd34d; color: #78350f; }
+.ai-confidence-banner strong { color: #1d4ed8; }
+.ai-confidence-banner.low strong { color: #b45309; }
+.ai-confidence-banner .field-flag { display: inline-block; background: #fcd34d; color: #78350f; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin: 2px; }
+.line-items-section { margin-bottom: 20px; }
+.line-items-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.line-items-header h4 { font-size: 15px; font-weight: 700; color: var(--text); margin: 0; }
+.line-item-row { background: var(--bg-step); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; position: relative; }
+.line-item-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 12px; align-items: end; }
+.line-item-grid .purchase-field { min-width: 0; }
+.line-item-remove { background: #fee2e2; border: 1px solid #cc0000; border-radius: 6px; padding: 10px 14px; font-size: 14px; font-weight: 600; color: #cc0000; cursor: pointer; white-space: nowrap; height: fit-content; }
+.line-item-remove:hover { background: #fecaca; }
+.add-line-btn { background: #e2e8f0; border: 1px solid #64748b; border-radius: 8px; padding: 10px 20px; font-size: 14px; font-weight: 600; color: #1e293b; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.add-line-btn:hover { background: #cbd5e1; }
+.grand-total-bar { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin: 16px 0; padding: 12px 20px; background: var(--bg-step); border: 1px solid var(--border); border-radius: 8px; }
+.grand-total-bar .label { font-size: 14px; font-weight: 600; color: var(--text-muted); }
+.grand-total-bar .value { font-size: 24px; font-weight: 700; color: var(--primary); }
+.purchase-actions { display: flex; gap: 12px; margin-top: 8px; }
+.purchase-submit-btn { background: #16a34a; color: #fff; border: none; border-radius: 8px; padding: 12px 32px; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 200ms; }
+.purchase-submit-btn:hover { opacity: 0.9; }
+.purchase-submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.purchase-clear-btn { background: var(--bg-step); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 12px 24px; font-size: 15px; font-weight: 500; cursor: pointer; transition: background 200ms; }
+.purchase-clear-btn:hover { background: var(--border); }
+.purchase-result-success { background: #dcfce7; border: 1px solid #16a34a; border-radius: 8px; padding: 14px 18px; margin-top: 16px; font-size: 14px; color: #15803d; font-weight: 600; }
+.purchase-result-error { background: #fee2e2; border: 1px solid #cc0000; border-radius: 8px; padding: 14px 18px; margin-top: 16px; font-size: 14px; color: #cc0000; font-weight: 600; }
+
+.adjust-form-container { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 24px; }
+.adjust-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.adjust-info { background: #eff6ff; border: 1px solid #93c5fd; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; font-size: 13px; color: #1e3a5f; line-height: 1.6; }
+.adjust-info strong { color: #1d4ed8; }
+.adjust-info.warn { background: #fef3c7; border-color: #fcd34d; color: #78350f; }
+.adjust-info.warn strong { color: #b45309; }
+.adjust-preview { font-size: 14px; font-weight: 600; color: var(--primary); margin: 8px 0; }
+.adjust-preview .shortage { color: #cc0000; }
+.adjust-preview .overage { color: #16a34a; }
+.location-banner { border-radius: 8px; margin: 12px 20px; padding: 10px 16px; font-size: 13px; line-height: 1.5; }
+.location-banner.ok { background: #dcfce7; border: 1px solid #16a34a; color: #15803d; }
+.location-banner.warn { background: #fef3c7; border: 1px solid #fcd34d; color: #78350f; }
+.location-banner strong { color: inherit; }
+
+/* ===== STANDARDIZED MODAL DIALOG STYLES ===== */
+.modal-backdrop {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999; opacity: 0; visibility: hidden;
+  transition: opacity 200ms ease, visibility 200ms ease;
+}
+.modal-backdrop.active { opacity: 1; visibility: visible; }
+.modal-dialog {
+  background: var(--bg-card, #ffffff); border: 1px solid var(--border, #cbd5e1);
+  border-radius: 12px; max-width: 550px; width: 90%; max-height: 85vh;
+  display: flex; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+  transform: translateY(-10px); transition: transform 200ms ease;
+}
+.modal-backdrop.active .modal-dialog { transform: translateY(0); }
+.modal-header {
+  padding: 16px 20px; border-bottom: 1px solid var(--border, #e2e8f0);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modal-header h3 { margin: 0; font-size: 18px; color: var(--text, #0f172a); }
+.modal-close-btn {
+  background: transparent; border: none; font-size: 20px; cursor: pointer;
+  color: var(--text-muted, #64748b); padding: 4px; border-radius: 4px;
+}
+.modal-close-btn:hover { color: var(--text, #0f172a); }
+.modal-body { padding: 20px; overflow-y: auto; font-size: 14px; color: var(--text, #334155); line-height: 1.5; }
+.modal-footer {
+  padding: 12px 20px; border-top: 1px solid var(--border, #e2e8f0);
+  display: flex; justify-content: flex-end; gap: 8px;
+}
+.btn-modal-close {
+  background: #64748b; color: #fff; border: none; padding: 8px 16px;
+  border-radius: 6px; font-weight: 500; cursor: pointer;
+}
+.btn-modal-close:hover { background: #475569; }
+
+@media (max-width: 800px) {
+  .purchase-form-grid { grid-template-columns: 1fr; }
+  .line-item-grid { grid-template-columns: 1fr 1fr; }
+  .adjust-form-grid { grid-template-columns: 1fr; }
+  .forms-main { padding: 0 12px; margin: 12px auto; }
+  .forms-tab, .forms-tab-home, .forms-tab-logout { padding: 10px 16px; font-size: 14px; }
+}
+</style>
+</head>
+<body data-page-title="Forms" data-required-permission="forms.view">
+<div class="steel-bg"></div>
+<div class="steel-overlay"></div>
+
+<div id="dashHeader"></div>
+
+<div class="forms-tab-bar" id="formsTabBar">
+  <button type="button" class="forms-tab active" data-tab="fuel-purchase">Fuel Purchase</button>
+  <button type="button" class="forms-tab" data-tab="tank-adjust">Tank Adjust</button>
+  <button type="button" class="forms-tab" id="btnPurposeHelp" aria-label="View Purpose">Purpose</button>
+  <button type="button" class="forms-tab" id="btnInstructionsHelp" aria-label="View Instructions">Instructions</button>
+  <a class="forms-tab-home" id="dashHomeLink" href="/app/dashboard/employee-dashboard.html">Dashboard</a>
+  <button type="button" class="forms-tab-logout" id="btnLogout">Logout</button>
+</div>
+
+<div id="loading" class="forms-loading">Checking session…</div>
+
+<div id="dashboard" style="display:none;">
+
+  <div id="locationPopupOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:12px;padding:24px;max-width:500px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+      <h3 style="margin:0 0 16px;font-size:18px;color:#cc0000;">⚠️ Device Location Required</h3>
+      <div id="locationPopupMessage"></div>
+      <div style="display:flex;gap:12px;margin-top:16px;justify-content:flex-end;">
+        <button type="button" id="btnCloseLocationPopup" style="padding:10px 20px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:14px;">Close</button>
+        <button type="button" id="btnRetryLocationPopup" style="padding:10px 24px;border:none;border-radius:6px;background:#1d4ed8;color:#fff;cursor:pointer;font-size:14px;font-weight:600;">Retry Location</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="locationStatusBanner" class="location-banner warn" style="display:none;margin:0 auto;max-width:1100px;padding:10px 20px;font-size:13px;">
+    <span id="locationStatusText"></span>
+    <button type="button" id="btnRetryLocationBanner" style="margin-left:8px;padding:4px 12px;border:1px solid #b45309;border-radius:4px;background:#fef3c7;color:#78350f;cursor:pointer;font-size:12px;">Retry</button>
+  </div>
+
+  <!-- FUEL PURCHASE TAB -->
+  <div class="forms-tab-content active" id="tab-fuel-purchase">
+    <div class="forms-main">
+      <div class="purchase-form-container">
+        <div class="section-heading">Record Fuel Purchase <span class="section-heading-count">Upload a receipt for AI extraction or enter manually</span></div>
+        <div class="purchase-upload-section">
+          <div class="purchase-upload-box" id="receiptUploadBox">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.5;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <p style="font-size:14px;font-weight:600;margin:8px 0 4px;">Upload Receipt</p>
+            <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">AI will extract vendor, date, fuel types, gallons & cost automatically</p>
+            <div class="purchase-upload-buttons">
+              <input type="file" id="receiptCameraInput" accept="image/jpeg,image/png,image/webp" capture="environment" style="display:none;">
+              <input type="file" id="receiptFileInput" accept="image/jpeg,image/png,image/webp,application/pdf" style="display:none;">
+              <button type="button" class="purchase-upload-btn" id="btnCameraUpload"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Take Photo</button>
+              <button type="button" class="purchase-upload-btn secondary" id="btnFileUpload"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Upload File</button>
+            </div>
+            <p style="font-size:11px;color:var(--text-muted);margin:8px 0 0;">Accepts: JPEG, PNG, WebP, PDF</p>
+          </div>
+          <div id="receiptPreview" style="display:none;" class="receipt-preview-wrap"><div id="receiptPreviewContent"></div><div id="receiptExtractStatus" class="receipt-extract-status"></div></div>
+          <div class="receipt-notice"><strong>⚠️ Please Review:</strong> If you upload a receipt, the system will extract most data automatically. Please confirm everything is correct before clicking 'Record Purchase'.</div>
+        </div>
+
+        <div class="purchase-divider"><span>OR ENTER MANUALLY</span></div>
+
+        <div class="purchase-form-grid">
+          <div class="purchase-field"><label class="purchase-label">Date <span style="color:#cc0000;">*</span></label><input type="date" id="purchaseDate" class="purchase-input"></div>
+          <div class="purchase-field"><label class="purchase-label">Location</label><input type="text" id="purchaseLocation" class="purchase-input" placeholder="e.g., Yard A"></div>
+          <div class="purchase-field"><label class="purchase-label">User</label><input type="text" id="purchasePerson" class="purchase-input" placeholder="auto-filled from session"></div>
+          <div class="purchase-field"><label class="purchase-label">Vendor</label><input type="text" id="purchaseVendor" class="purchase-input" placeholder="e.g., Pacific Pride"></div>
+        </div>
+
+        <div id="aiConfidenceBanner" style="display:none;" class="ai-confidence-banner"></div>
+
+        <div class="line-items-section">
+          <div class="line-items-header">
+            <h4>Line Items</h4>
+            <button type="button" class="add-line-btn" id="btnAddLineItem"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Line</button>
+          </div>
+          <div id="lineItemsContainer"></div>
+        </div>
+
+        <div class="grand-total-bar"><span class="label">Grand Total:</span><span class="value" id="grandTotal">$0.00</span></div>
+
+        <div class="purchase-field purchase-field-full" style="margin-bottom:20px;">
+          <label class="purchase-label">Notes</label>
+          <input type="text" id="purchaseNotes" class="purchase-input" placeholder="Optional notes about this purchase">
+        </div>
+
+        <div class="purchase-actions">
+          <button type="button" class="purchase-submit-btn" id="btnSubmitPurchase">Record Purchase</button>
+          <button type="button" class="purchase-clear-btn" id="btnClearPurchase">Clear Form</button>
+        </div>
+        <div id="purchaseResult" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TANK ADJUSTMENT TAB -->
+  <div class="forms-tab-content" id="tab-tank-adjust">
+    <div class="forms-main">
+      <div class="adjust-form-container">
+        <div class="section-heading" id="tankAdjustHeading">Bulk Tank Adjustment <span class="section-heading-count">Manual quantity correction</span></div>
+        <div class="adjust-info warn"><strong>⚠️ Use with caution:</strong> Tank adjustments are for reconciling fuel shortages or overages. All adjustments are logged and flagged for management review. A reason is <strong>required</strong>.</div>
+        <div class="adjust-info"><strong>How it works:</strong> Enter a positive number to add fuel (overage), or a negative number to remove fuel (shortage).</div>
+        <div class="adjust-form-grid">
+          <div class="purchase-field"><label class="purchase-label">Tank <span style="color:#cc0000;">*</span></label><select id="adjustTank" class="purchase-input"><option value="">Select tank…</option></select></div>
+          <div class="purchase-field"><label class="purchase-label">Current Quantity</label><input type="text" id="adjustCurrentQty" class="purchase-input" readonly style="opacity:0.7;"></div>
+          <div class="purchase-field"><label class="purchase-label">Adjustment (gallons) <span style="color:#cc0000;">*</span></label><input type="number" id="adjustAmount" class="purchase-input" placeholder="e.g., -50 or +25" step="0.01"></div>
+          <div class="purchase-field"><label class="purchase-label">Reason <span style="color:#cc0000;">*</span></label><input type="text" id="adjustReason" class="purchase-input" placeholder="e.g., Fuel dispensed but not logged"></div>
+          <div class="purchase-field"><label class="purchase-label">User</label><input type="text" id="adjustPerson" class="purchase-input" placeholder="auto-filled from session"></div>
+          <div class="purchase-field"><label class="purchase-label">New Quantity (preview)</label><input type="text" id="adjustNewQty" class="purchase-input" readonly style="opacity:0.7;"></div>
+        </div>
+        <div id="adjustPreview" class="adjust-preview" style="display:none;"></div>
+        <div class="purchase-actions">
+          <button type="button" class="purchase-submit-btn" id="btnSubmitAdjustment">Submit Adjustment</button>
+          <button type="button" class="purchase-clear-btn" id="btnClearAdjustment">Clear</button>
+        </div>
+        <div id="adjustResult" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- STANDARDIZED PURPOSE MODAL -->
+<div class="modal-backdrop" id="purposeModal" aria-hidden="true" role="dialog" aria-labelledby="purposeModalTitle">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 id="purposeModalTitle">Purpose</h3>
+      <button type="button" class="modal-close-btn" data-dismiss="modal" aria-label="Close modal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p>The Operational Forms hub enables field personnel to record fuel purchases via manual entry or AI receipt extraction, and adjust fuel tank inventory counts with mandatory location capture.</p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-modal-close" data-dismiss="modal">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- STANDARDIZED INSTRUCTIONS MODAL -->
+<div class="modal-backdrop" id="instructionsModal" aria-hidden="true" role="dialog" aria-labelledby="instructionsModalTitle">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 id="instructionsModalTitle">Instructions</h3>
+      <button type="button" class="modal-close-btn" data-dismiss="modal" aria-label="Close modal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <ul>
+        <li>Ensure location services are enabled on your device prior to submitting forms.</li>
+        <li>Under <strong>Fuel Purchase</strong>, click <em>Take Photo</em> or <em>Upload File</em> to automatically extract receipt information with AI, or fill out line items manually.</li>
+        <li>Under <strong>Tank Adjust</strong>, select a tank and input a positive or negative quantity to reconcile shortages or overages. A reason is required.</li>
+      </ul>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-modal-close" data-dismiss="modal">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="dashFooter"></div>
+
+<!-- DEPENDENCIES & EXTERNAL JS -->
+<script src="/app/shared/dashboard-common.js?v=8"></script>
+<script src="/app/dashboard/forms.js?v=1"></script>
+<script src="/app/shared/auth-check.js?v=8"></script>
+<script src="/components/nav.js?v=5"></script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" data-cf-beacon='{"token":"aed8feab3b60404ba88ec92f026bbcd6"}' crossorigin="anonymous"></script>
+</body>
+</html>

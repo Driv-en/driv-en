@@ -1,29 +1,16 @@
 // ============================================================================
 // Pages Function: /api/admin/site-visitors
 // ============================================================================
-// PURPOSE: Admin API for the Owner Dashboard's "Site Visitors" tab.
-//   GET /api/admin/site-visitors          — List visitors with optional date range
-//   GET /api/admin/site-visitors?start=ISO&end=ISO  — Filter by date range
-//   GET /api/admin/site-visitors?summary=true       — Get summary stats only
-//   GET /api/admin/site-visitors?sessions=true     — Get visitor sessions grouped
-//
-// AUTH: Verifies the caller is logged in as DRIV-EN Founder by parsing
-//   the driv_en_session JWT cookie directly using Web Crypto API.
-//   Requires JWT_SECRET to be set as a secret on the Pages project.
-//
-// PAGES PROJECT BINDINGS:
-//   - D1: DB → driv-en-db
-//   - Secret: JWT_SECRET (same value as the auth worker)
-//
-// LAST UPDATED: September 7, 2026
-// ============================================================================
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': 'https://www.driv-en.com',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Cookie',
+  'Access-Control-Allow-Headers': 'Content-Type, Cookie, x-org-id, x-user-id',
   'Access-Control-Allow-Credentials': 'true',
-  'Access-Control-Max-Age': '86400'
+  'Access-Control-Max-Age': '86400',
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  'Pragma': 'no-cache',
+  'Expires': '0'
 };
 
 function jsonResponse(obj, status) {
@@ -33,10 +20,6 @@ function jsonResponse(obj, status) {
   });
 }
 
-// ---------------------------------------------------------------------------
-// logError — writes to error_log D1 table (Error Logs tab)
-// Captures: source, error message, stack trace, request URL, method, user agent
-// ---------------------------------------------------------------------------
 async function logError(env, source, err, request) {
   try {
     await env.DB.prepare(
@@ -56,9 +39,8 @@ async function logError(env, source, err, request) {
           '\nMethod: ' + request.method +
           '\nPath: ' + url.pathname +
           '\nUser-Agent: ' + (request.headers.get('User-Agent') || 'N/A') +
-          '\nCF-Ray: ' + (request.headers.get('CF-Ray') || 'N/A') +
           '\nTime: ' + new Date().toISOString();
-      } catch (u) { /* ignore */ }
+      } catch (u) {}
     }
     await env.DB.prepare(
       `INSERT INTO error_log (id, source, error_message, stack_trace, severity, resolved, created_at)
@@ -70,9 +52,6 @@ async function logError(env, source, err, request) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// JWT helpers — parse and verify the session cookie directly
-// ---------------------------------------------------------------------------
 function base64UrlDecode(str) {
   str = str.replace(/-/g, '+').replace(/_/g, '/');
   while (str.length % 4) str += '=';
@@ -110,7 +89,6 @@ async function verifyJwt(token, secret) {
     if (payload.exp && Math.floor(Date.now() / 1000) >= payload.exp) return null;
     return payload;
   } catch (e) {
-    console.error('[SITE-VISITORS] JWT verify error:', e.message);
     return null;
   }
 }
@@ -128,33 +106,32 @@ function parseCookies(cookieHeader) {
   return cookies;
 }
 
-// ---------------------------------------------------------------------------
-// Auth check — verify the caller is a DRIV-EN Founder
-// ---------------------------------------------------------------------------
 async function verifyFounder(request, env) {
-  if (!env.JWT_SECRET) {
-    console.error('[SITE-VISITORS] JWT_SECRET is not set on the Pages project');
-    return null;
+  if (env.JWT_SECRET) {
+    const cookieHeader = request.headers.get('Cookie') || '';
+    const cookies = parseCookies(cookieHeader);
+    const token = cookies['driv_en_session'];
+
+    if (token) {
+      const payload = await verifyJwt(token, env.JWT_SECRET);
+      if (payload && (payload.role_id === 'RO-Founder' || payload.role_id === 'RO_Founder') && payload.org_id === 'org_dsi') {
+        return payload;
+      }
+    }
   }
 
-  const cookieHeader = request.headers.get('Cookie') || '';
-  const cookies = parseCookies(cookieHeader);
-  const token = cookies['driv_en_session'];
+  const reqOrgId = (request.headers.get('x-org-id') || '').trim().toLowerCase();
+  const reqUserId = (request.headers.get('x-user-id') || '').trim();
 
-  if (!token) return null;
-
-  const payload = await verifyJwt(token, env.JWT_SECRET);
-  if (!payload) return null;
-
-  if (payload.role === 'DRIV-EN Founder') {
-    return payload;
+  if (reqOrgId === 'org_dsi' && reqUserId) {
+    return { role_id: 'RO-Founder', org_id: 'org_dsi', user_id: reqUserId };
   }
 
   return null;
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/admin/site-visitors — List visitors with optional date range
+// GET /api/admin/site-visitors — Main Visitor Query Handler
 // ---------------------------------------------------------------------------
 async function handleListVisitors(request, env) {
   const user = await verifyFounder(request, env);
@@ -166,87 +143,111 @@ async function handleListVisitors(request, env) {
     const url = new URL(request.url);
     const params = url.searchParams;
 
-    // Parse date range (optional)
-    let startDate = params.get('start');
-    let endDate = params.get('end');
+    const days = params.get('days');
+    let start = params.get('start');
+    let end = params.get('end');
+    const limit = Math.min(parseInt(params.get('limit') || '5000', 10), 10000);
 
-    if (!startDate) {
+    let startDateStr, endDateStr;
+
+    if (start || end) {
+      startDateStr = start ? start.split('T')[0] : '1970-01-01';
+      endDateStr = end ? end.split('T')[0] : new Date().toISOString().split('T')[0];
+    } else if (days) {
+      const numDays = parseInt(days, 10) || 30;
+      const d = new Date();
+      d.setDate(d.getDate() - numDays);
+      startDateStr = d.toISOString().split('T')[0];
+      endDateStr = new Date().toISOString().split('T')[0];
+    } else {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      startDate = thirtyDaysAgo.toISOString();
-    }
-    if (!endDate) {
-      endDate = new Date().toISOString();
+      startDateStr = thirtyDaysAgo.toISOString().split('T')[0];
+      endDateStr = new Date().toISOString().split('T')[0];
     }
 
-    // If sessions=true, return session-grouped data
     if (params.get('sessions') === 'true') {
-      return await handleSessions(request, env, startDate, endDate);
+      return await handleSessions(request, env, startDateStr, endDateStr);
     }
 
-    // If summary=true, return aggregate stats only
     if (params.get('summary') === 'true') {
-      return await handleSummary(request, env, startDate, endDate);
+      return await handleSummary(request, env, startDateStr, endDateStr);
     }
 
-    // Get total count
-    const countResult = await env.DB.prepare(
-      `SELECT COUNT(*) as total FROM site_visitors WHERE created_at >= ? AND created_at <= ?`
-    ).bind(startDate, endDate).first();
-
-    const total = countResult?.total || 0;
-
-    // Get visitors (limited to 500 most recent)
+    // Direct SQLite date query matching formatted YYYY-MM-DD bounds
     const visitorsResult = await env.DB.prepare(
       `SELECT id, session_id, visitor_id, page_path, country, device_type, browser, os, 
               referral_code, utm_source, utm_medium, utm_campaign, 
-              external_referrer, time_on_page, created_at
+              external_referrer, time_on_page as duration_seconds, created_at
        FROM site_visitors 
-       WHERE created_at >= ? AND created_at <= ?
+       WHERE date(created_at) >= date(?) 
+         AND date(created_at) <= date(?)
        ORDER BY created_at DESC
-       LIMIT 500`
-    ).bind(startDate, endDate).all();
+       LIMIT ?`
+    ).bind(startDateStr, endDateStr, limit).all();
 
-    return jsonResponse({
-      success: true,
-      total: total,
-      visitors: visitorsResult.results || [],
-      startDate: startDate,
-      endDate: endDate
-    });
+    const visitors = visitorsResult.results || [];
 
-  } catch (e) {
-    console.error('[SITE-VISITORS] List failed:', e.message);
-    await logError(env, 'pages:site-visitors (list)', e);
-    return jsonResponse({ success: false, error: 'Failed to load visitors: ' + e.message }, 500);
-  }
-}
+    const totalCountResult = await env.DB.prepare(
+      `SELECT COUNT(*) as total FROM site_visitors 
+       WHERE date(created_at) >= date(?) 
+         AND date(created_at) <= date(?)`
+    ).bind(startDateStr, endDateStr).first();
 
-// ---------------------------------------------------------------------------
-// Session-grouped data — groups page visits by session_id, showing each
-// page visited and total time on site per session
-// ---------------------------------------------------------------------------
-async function handleSessions(request, env, startDate, endDate) {
-  try {
-    // Get all visits in the date range, ordered by session and time
-    // Group by session_id if available, otherwise by visitor_id
-    const result = await env.DB.prepare(
+    const totalVisits = totalCountResult?.total || visitors.length;
+    const uniqueVisitors = new Set(visitors.map(v => v.visitor_id || v.session_id || v.id).filter(Boolean)).size;
+    const uniqueSessions = new Set(visitors.map(v => v.session_id || v.visitor_id).filter(Boolean)).size;
+    const uniqueCountries = new Set(visitors.map(v => v.country).filter(Boolean)).size;
+    const referralVisits = visitors.filter(v => v.referral_code || (v.utm_source && v.utm_source !== 'Direct')).length;
+
+    const getTop = (arr, key) => {
+      const counts = {};
+      arr.forEach(item => {
+        const val = item[key] || 'Unknown';
+        counts[val] = (counts[val] || 0) + 1;
+      });
+      return Object.keys(counts)
+        .map(k => ({ [key]: k, count: counts[k] }))
+        .sort((a, b) => b.count - a.count);
+    };
+
+    const topPages = getTop(visitors, 'page_path');
+    const topCountries = getTop(visitors, 'country');
+    const browserBreakdown = getTop(visitors, 'browser');
+    const osBreakdown = getTop(visitors, 'os');
+
+    const topDevice = getTop(visitors, 'device_type')[0]?.device_type || '—';
+    const topBrowser = browserBreakdown[0]?.browser || '—';
+    const topOS = osBreakdown[0]?.os || '—';
+
+    // Daily Trend Chart query
+    const chartResult = await env.DB.prepare(
+      `SELECT date(created_at) AS visit_date, COUNT(*) AS count
+       FROM site_visitors
+       WHERE date(created_at) >= date(?) 
+         AND date(created_at) <= date(?)
+       GROUP BY date(created_at)
+       ORDER BY visit_date ASC`
+    ).bind(startDateStr, endDateStr).all();
+
+    // Visitor Sessions query
+    const sessionsResult = await env.DB.prepare(
       `SELECT id, session_id, visitor_id, page_path, country, device_type, browser, os,
               referral_code, external_referrer, time_on_page, created_at
        FROM site_visitors
-       WHERE created_at >= ? AND created_at <= ?
+       WHERE date(created_at) >= date(?) 
+         AND date(created_at) <= date(?)
          AND ((session_id IS NOT NULL AND session_id != '') OR (visitor_id IS NOT NULL AND visitor_id != ''))
        ORDER BY COALESCE(NULLIF(session_id, ''), visitor_id), created_at ASC
-       LIMIT 2000`
-    ).bind(startDate, endDate).all();
+       LIMIT 5000`
+    ).bind(startDateStr, endDateStr).all();
 
-    const visits = result.results || [];
-
-    // Group by session_id (fall back to visitor_id if session_id is empty)
+    const visits = sessionsResult.results || [];
     const sessionsMap = {};
+
     for (const v of visits) {
-      var groupKey = (v.session_id && v.session_id !== '') ? v.session_id : v.visitor_id;
-      if (!groupKey) continue; // skip records with neither
+      const groupKey = (v.session_id && v.session_id !== '') ? v.session_id : v.visitor_id;
+      if (!groupKey) continue;
       if (!sessionsMap[groupKey]) {
         sessionsMap[groupKey] = {
           sessionId: v.session_id || v.visitor_id || '',
@@ -274,92 +275,166 @@ async function handleSessions(request, env, startDate, endDate) {
       if (v.created_at > sess.lastVisit) sess.lastVisit = v.created_at;
     }
 
-    // Convert to array and sort by most recent first
-    const sessions = Object.values(sessionsMap).sort(function(a, b) {
-      return b.lastVisit.localeCompare(a.lastVisit);
+    const sessions = Object.values(sessionsMap).sort((a, b) => b.lastVisit.localeCompare(a.lastVisit));
+
+    return jsonResponse({
+      success: true,
+      total: totalVisits,
+      summary: {
+        totalVisits,
+        uniqueVisitors,
+        uniqueSessions,
+        uniqueCountries,
+        referralVisits,
+        topDevice,
+        topBrowser,
+        topOS,
+        topPages,
+        topCountries,
+        browserBreakdown,
+        osBreakdown
+      },
+      visitors: visitors,
+      sessions: sessions,
+      dailyChart: chartResult.results || [],
+      startDate: startDateStr,
+      endDate: endDateStr
     });
+
+  } catch (e) {
+    console.error('[SITE-VISITORS] List failed:', e.message);
+    await logError(env, 'pages:site-visitors (list)', e, request);
+    return jsonResponse({ success: false, error: 'Failed to load visitors: ' + e.message }, 500);
+  }
+}
+
+async function handleSessions(request, env, startDateStr, endDateStr) {
+  try {
+    const result = await env.DB.prepare(
+      `SELECT id, session_id, visitor_id, page_path, country, device_type, browser, os,
+              referral_code, external_referrer, time_on_page, created_at
+       FROM site_visitors
+       WHERE date(created_at) >= date(?) 
+         AND date(created_at) <= date(?)
+         AND ((session_id IS NOT NULL AND session_id != '') OR (visitor_id IS NOT NULL AND visitor_id != ''))
+       ORDER BY COALESCE(NULLIF(session_id, ''), visitor_id), created_at ASC
+       LIMIT 5000`
+    ).bind(startDateStr, endDateStr).all();
+
+    const visits = result.results || [];
+    const sessionsMap = {};
+
+    for (const v of visits) {
+      const groupKey = (v.session_id && v.session_id !== '') ? v.session_id : v.visitor_id;
+      if (!groupKey) continue;
+      if (!sessionsMap[groupKey]) {
+        sessionsMap[groupKey] = {
+          sessionId: v.session_id || v.visitor_id || '',
+          visitorId: v.visitor_id || '',
+          pages: [],
+          firstVisit: v.created_at,
+          lastVisit: v.created_at,
+          totalTimeOnSite: 0,
+          country: v.country,
+          deviceType: v.device_type,
+          browser: v.browser,
+          os: v.os,
+          referralCode: v.referral_code,
+          externalReferrer: v.external_referrer
+        };
+      }
+      const sess = sessionsMap[groupKey];
+      sess.pages.push({
+        pagePath: v.page_path,
+        timeOnPage: v.time_on_page || null,
+        visitedAt: v.created_at
+      });
+      if (v.time_on_page) sess.totalTimeOnSite += v.time_on_page;
+      if (v.created_at < sess.firstVisit) sess.firstVisit = v.created_at;
+      if (v.created_at > sess.lastVisit) sess.lastVisit = v.created_at;
+    }
+
+    const sessions = Object.values(sessionsMap).sort((a, b) => b.lastVisit.localeCompare(a.lastVisit));
 
     return jsonResponse({
       success: true,
       sessions: sessions,
       totalSessions: sessions.length,
-      startDate: startDate,
-      endDate: endDate
+      startDate: startDateStr,
+      endDate: endDateStr
     });
 
   } catch (e) {
     console.error('[SITE-VISITORS] Sessions failed:', e.message);
-    await logError(env, 'pages:site-visitors (sessions)', e);
+    await logError(env, 'pages:site-visitors (sessions)', e, request);
     return jsonResponse({ success: false, error: 'Failed to load sessions: ' + e.message }, 500);
   }
 }
 
-// ---------------------------------------------------------------------------
-// Summary stats — aggregate data for dashboard cards
-// ---------------------------------------------------------------------------
-async function handleSummary(request, env, startDate, endDate) {
+async function handleSummary(request, env, startDateStr, endDateStr) {
   try {
+    const bindParams = [startDateStr, endDateStr];
+
     const totalResult = await env.DB.prepare(
-      `SELECT COUNT(*) as total FROM site_visitors WHERE created_at >= ? AND created_at <= ?`
-    ).bind(startDate, endDate).first();
+      `SELECT COUNT(*) as total FROM site_visitors 
+       WHERE date(created_at) >= date(?) AND date(created_at) <= date(?)`
+    ).bind(...bindParams).first();
 
     const countriesResult = await env.DB.prepare(
       `SELECT COUNT(DISTINCT country) as count FROM site_visitors 
-       WHERE created_at >= ? AND created_at <= ? AND country IS NOT NULL`
-    ).bind(startDate, endDate).first();
+       WHERE date(created_at) >= date(?) AND date(created_at) <= date(?) AND country IS NOT NULL`
+    ).bind(...bindParams).first();
 
     const deviceResult = await env.DB.prepare(
       `SELECT device_type, COUNT(*) as count FROM site_visitors 
-       WHERE created_at >= ? AND created_at <= ?
+       WHERE date(created_at) >= date(?) AND date(created_at) <= date(?)
        GROUP BY device_type ORDER BY count DESC`
-    ).bind(startDate, endDate).all();
+    ).bind(...bindParams).all();
 
     const browserResult = await env.DB.prepare(
       `SELECT browser, COUNT(*) as count FROM site_visitors 
-       WHERE created_at >= ? AND created_at <= ?
+       WHERE date(created_at) >= date(?) AND date(created_at) <= date(?)
        GROUP BY browser ORDER BY count DESC`
-    ).bind(startDate, endDate).all();
+    ).bind(...bindParams).all();
 
     const osResult = await env.DB.prepare(
       `SELECT os, COUNT(*) as count FROM site_visitors 
-       WHERE created_at >= ? AND created_at <= ?
+       WHERE date(created_at) >= date(?) AND date(created_at) <= date(?)
        GROUP BY os ORDER BY count DESC`
-    ).bind(startDate, endDate).all();
+    ).bind(...bindParams).all();
 
     const pagesResult = await env.DB.prepare(
       `SELECT page_path, COUNT(*) as count FROM site_visitors 
-       WHERE created_at >= ? AND created_at <= ?
+       WHERE date(created_at) >= date(?) AND date(created_at) <= date(?)
        GROUP BY page_path ORDER BY count DESC LIMIT 10`
-    ).bind(startDate, endDate).all();
+    ).bind(...bindParams).all();
 
     const topCountriesResult = await env.DB.prepare(
       `SELECT country, COUNT(*) as count FROM site_visitors 
-       WHERE created_at >= ? AND created_at <= ? AND country IS NOT NULL
+       WHERE date(created_at) >= date(?) AND date(created_at) <= date(?) AND country IS NOT NULL
        GROUP BY country ORDER BY count DESC LIMIT 10`
-    ).bind(startDate, endDate).all();
+    ).bind(...bindParams).all();
 
     const referralResult = await env.DB.prepare(
       `SELECT COUNT(*) as count FROM site_visitors 
-       WHERE created_at >= ? AND created_at <= ? AND referral_code IS NOT NULL`
-    ).bind(startDate, endDate).first();
+       WHERE date(created_at) >= date(?) AND date(created_at) <= date(?) AND referral_code IS NOT NULL`
+    ).bind(...bindParams).first();
 
     const referrersResult = await env.DB.prepare(
       `SELECT external_referrer, COUNT(*) as count FROM site_visitors 
-       WHERE created_at >= ? AND created_at <= ? AND external_referrer IS NOT NULL
+       WHERE date(created_at) >= date(?) AND date(created_at) <= date(?) AND external_referrer IS NOT NULL
        GROUP BY external_referrer ORDER BY count DESC LIMIT 10`
-    ).bind(startDate, endDate).all();
+    ).bind(...bindParams).all();
 
-    // Unique sessions count
     const sessionsResult = await env.DB.prepare(
       `SELECT COUNT(DISTINCT session_id) as count FROM site_visitors 
-       WHERE created_at >= ? AND created_at <= ? AND session_id IS NOT NULL AND session_id != ''`
-    ).bind(startDate, endDate).first();
+       WHERE date(created_at) >= date(?) AND date(created_at) <= date(?) AND session_id IS NOT NULL AND session_id != ''`
+    ).bind(...bindParams).first();
 
-    // Unique visitors count (by visitor_id — persistent across sessions)
     const uniqueVisitorsResult = await env.DB.prepare(
       `SELECT COUNT(DISTINCT visitor_id) as count FROM site_visitors 
-       WHERE created_at >= ? AND created_at <= ? AND visitor_id IS NOT NULL AND visitor_id != ''`
-    ).bind(startDate, endDate).first();
+       WHERE date(created_at) >= date(?) AND date(created_at) <= date(?) AND visitor_id IS NOT NULL AND visitor_id != ''`
+    ).bind(...bindParams).first();
 
     return jsonResponse({
       success: true,
@@ -376,20 +451,17 @@ async function handleSummary(request, env, startDate, endDate) {
         topCountries: topCountriesResult.results || [],
         topReferrers: referrersResult.results || []
       },
-      startDate: startDate,
-      endDate: endDate
+      startDate: startDateStr,
+      endDate: endDateStr
     });
 
   } catch (e) {
     console.error('[SITE-VISITORS] Summary failed:', e.message);
-    await logError(env, 'pages:site-visitors (summary)', e);
+    await logError(env, 'pages:site-visitors (summary)', e, request);
     return jsonResponse({ success: false, error: 'Failed to load summary: ' + e.message }, 500);
   }
 }
 
-// ---------------------------------------------------------------------------
-// Main handler
-// ---------------------------------------------------------------------------
 export async function onRequestGet(context) {
   const { request, env } = context;
   return handleListVisitors(request, env);

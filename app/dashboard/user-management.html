@@ -1,0 +1,2334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DRIV‑EN | Employee Management</title>
+  <meta name="description" content="DRIV-EN admin dashboard — full access to all modules, settings, users, and permissions.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://www.driv-en.com/app/dashboard/user-management.html">
+  <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+  <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+  <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+  <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
+  <link rel="stylesheet" href="/app/shared/dashboard.css?v=10">
+  <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
+  <script>
+    (function() {
+      var saved = localStorage.getItem("driven-theme");
+      var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      var theme = saved || system;
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
+  <style>
+    :root {
+      --header-height: 58px;
+      --card-green-border: #16a34a;
+      --blue-line: #1e3a8a;
+      --primary-blue: #2563eb;
+      --primary-blue-hover: #1d4ed8;
+    }
+
+    /* Force document level visibility so sticky calculations never fail */
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+      height: auto !important;
+      min-height: 100% !important;
+      overflow-x: hidden !important;
+      overflow-y: visible !important;
+      position: relative !important;
+    }
+
+    .admin-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      font-size: 16px;
+      color: var(--text-muted);
+    }
+
+    .dash-header-row2 { display: none !important; }
+    .dash-header-row3 { display: none !important; }
+    #dashHeader .dash-theme-wrapper { display: none !important; }
+
+    /* HARD LOCK: Main Sticky Header Bar at Absolute Top */
+    #dashHeader {
+      display: block !important;
+      position: -webkit-sticky !important;
+      position: sticky !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      width: 100% !important;
+      z-index: 9999 !important;
+      background: var(--bg-card, #ffffff) !important;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1) !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      transform: translateZ(0); /* Hardware acceleration lock */
+    }
+
+    .dash-header-row1 {
+      padding: 8px 20px !important;
+      align-items: center;
+    }
+
+    .admin-header-title {
+      flex: 1;
+      text-align: center;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .admin-header-title span {
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--text-muted);
+      display: block;
+      margin-top: 2px;
+    }
+
+    /* Secondary Sticky Tab Navigation Bar (Stacked Directly Beneath Main Header Bar) */
+    .um-tab-bar {
+      display: flex !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      gap: 2px;
+      width: 100%;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 16px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      position: -webkit-sticky !important;
+      position: sticky !important;
+      top: var(--header-height, 58px) !important;
+      z-index: 9998 !important;
+      background: #cbd5e1;
+      border-bottom: 2px solid #94a3b8;
+      box-sizing: border-box;
+      -webkit-overflow-scrolling: touch;
+      transform: translateZ(0);
+    }
+
+    @media screen and (max-width: 768px) {
+      :root { 
+        --header-height: 50px; 
+      }
+      .um-tab-bar {
+        top: var(--header-height, 50px) !important;
+        padding: 0 8px;
+      }
+      .um-tab {
+        padding: 8px 12px;
+        font-size: 13px;
+      }
+    }
+
+    .um-tab {
+      background: #94a3b8;
+      border: 1px solid #64748b;
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #1e293b;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 200ms ease, background 200ms ease, margin-top 200ms ease, border-color 200ms ease;
+      margin-top: 4px;
+      position: relative;
+      z-index: 1;
+      flex-shrink: 0;
+    }
+
+    .um-tab:hover {
+      color: #0f172a;
+      background: #a5b4c4;
+      margin-top: 2px;
+      border-color: var(--primary-blue);
+    }
+
+    .um-tab.active {
+      color: var(--primary-blue);
+      background: #e2e8f0;
+      border-color: #64748b;
+      margin-top: 0;
+      font-weight: 600;
+      z-index: 2;
+    }
+
+    .um-tab-dashboard {
+      background: var(--primary-blue);
+      border: 1px solid var(--primary-blue-hover);
+      color: #fff;
+    }
+
+    .um-tab-dashboard:hover {
+      background: var(--primary-blue-hover);
+      color: #fff;
+      margin-top: 2px;
+    }
+
+    .um-tab-logout {
+      background: #b91c1c;
+      border: 1px solid #dc2626;
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      cursor: pointer;
+      white-space: nowrap;
+      margin-top: 4px;
+      margin-left: auto;
+      position: relative;
+      z-index: 1;
+      transition: background 200ms ease, margin-top 200ms ease;
+      flex-shrink: 0;
+    }
+
+    .um-tab-logout:hover {
+      background: #dc2626;
+      margin-top: 2px;
+    }
+
+    .um-tab-content { display: none; }
+    .um-tab-content.active { display: block; }
+
+    .um-main {
+      width: 100%;
+      max-width: 1100px;
+      margin: 16px auto;
+      padding: 0 16px;
+      position: relative;
+      z-index: 1;
+      box-sizing: border-box;
+    }
+
+    .um-toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      background: #1e293b;
+      color: #fff;
+      font-size: 14px;
+      z-index: 2000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      display: none;
+    }
+    .um-toast.show { display: block; }
+    .um-toast.error { background: #dc2626; }
+    .um-toast.success { background: #16a34a; }
+
+    /* Welcome Banner */
+    .um-welcome {
+      background: var(--bg-card);
+      border: 2px solid var(--card-green-border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .um-welcome-text h2 { margin: 0 0 4px 0; font-size: 20px; color: var(--text); }
+    .um-welcome-text p { margin: 0; font-size: 14px; color: var(--text-muted); }
+
+    /* KPI Grid */
+    .um-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(140px, 1fr));
+      gap: 12px;
+      width: 100%;
+      margin-bottom: 16px;
+    }
+
+    .um-kpi-card {
+      background: var(--bg-card);
+      border: 2px solid var(--card-green-border);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+      user-select: none;
+    }
+
+    .um-kpi-card:hover {
+      border-color: var(--primary-blue);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .um-kpi-val { font-size: 24px; font-weight: 700; line-height: 1.2; color: var(--text); }
+    .um-kpi-lbl {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      margin-top: 4px;
+    }
+
+    .um-search-card {
+      background: var(--bg-card);
+      border: 2px solid var(--card-green-border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .um-search-row1 { display: flex; gap: 10px; width: 100%; }
+
+    .um-search-input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid var(--card-green-border);
+      border-radius: 6px;
+      font-size: 14px;
+      background: var(--bg-card);
+      color: var(--text);
+      box-sizing: border-box;
+      transition: all 150ms ease;
+    }
+
+    .um-search-input:focus {
+      outline: none;
+      border: 2.5px solid var(--primary-blue);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+    }
+
+    .um-btn-add {
+      background: #16a34a;
+      color: #fff;
+      padding: 0 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      border: 1.5px solid var(--card-green-border);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 150ms ease;
+    }
+
+    .um-btn-add:hover {
+      background: #15803d;
+      border-color: var(--primary-blue);
+    }
+
+    .um-filter-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .um-multiselect-dd { position: relative; }
+
+    .um-multiselect-btn {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid var(--card-green-border);
+      border-radius: 6px;
+      font-size: 13px;
+      background: var(--bg-card);
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-sizing: border-box;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: all 150ms ease;
+    }
+
+    .um-multiselect-btn:hover {
+      border: 2px solid var(--primary-blue);
+      color: var(--primary-blue);
+      background: rgba(37, 99, 235, 0.05);
+    }
+
+    .um-multiselect-btn:after {
+      content: '▼';
+      font-size: 10px;
+      margin-left: 6px;
+      opacity: 0.6;
+    }
+
+    .um-multiselect-panel {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      width: 100%;
+      min-width: 180px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 50;
+      max-height: 220px;
+      overflow-y: auto;
+      padding: 8px 10px;
+      box-sizing: border-box;
+      margin-top: 2px;
+    }
+    .um-multiselect-panel.active { display: block; }
+
+    .um-multiselect-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 0;
+      font-size: 13px;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .um-search-row3 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: 100%; }
+
+    .um-btn-action {
+      background: var(--bg-card);
+      color: var(--text);
+      padding: 8px 6px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1.5px solid var(--card-green-border);
+      cursor: pointer;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      line-height: 1.2;
+      transition: all 150ms ease;
+      box-sizing: border-box;
+    }
+
+    .um-btn-action:hover {
+      border: 2px solid var(--primary-blue);
+      color: var(--primary-blue);
+      background: rgba(37, 99, 235, 0.05);
+    }
+
+    .um-table-card {
+      background: var(--bg-card);
+      border: 2px solid var(--card-green-border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+
+    .um-table-scroll {
+      max-height: 500px;
+      overflow-x: auto;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg-card);
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .um-table {
+      table-layout: fixed !important;
+      width: max-content !important;
+      min-width: 100% !important;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 14px;
+      background: var(--bg-card);
+    }
+
+    .um-table thead tr { position: sticky; top: 0; z-index: 10; }
+
+    .um-table th, .um-table td {
+      white-space: normal !important;
+      word-break: break-word !important;
+      overflow-wrap: break-word !important;
+      box-sizing: border-box;
+    }
+
+    .um-table th {
+      position: sticky;
+      top: 0;
+      background: var(--bg-header, #f1f5f9);
+      z-index: 10;
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text);
+      border-bottom: 2px solid var(--blue-line);
+      border-left: 1px solid var(--blue-line);
+      border-right: 1px solid var(--blue-line);
+      user-select: none;
+      vertical-align: middle;
+      cursor: pointer;
+    }
+
+    .um-table th.draggable-th.drag-over-left {
+      border-left: 3px solid var(--primary-blue) !important;
+    }
+
+    .um-resizer {
+      position: absolute;
+      right: 0;
+      top: 0;
+      height: 100%;
+      width: 8px;
+      cursor: col-resize;
+      user-select: none;
+      touch-action: none;
+      z-index: 11;
+    }
+
+    .um-table td {
+      padding: 10px 14px;
+      border-top: 1px solid var(--blue-line);
+      border-bottom: 1px solid var(--blue-line);
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      color: var(--text);
+      vertical-align: middle;
+    }
+
+    .um-table tr:hover td { background: var(--bg-input); }
+
+    .um-table td.am-actions {
+      border-top: 1px solid var(--blue-line);
+      border-bottom: 1px solid var(--blue-line);
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      display: table-cell;
+      vertical-align: middle;
+      white-space: nowrap !important;
+    }
+
+    .um-actions-wrap { display: flex; gap: 6px; align-items: center; }
+
+    .um-table-btn {
+      background: var(--bg-card);
+      border: 1.5px solid var(--card-green-border);
+      color: var(--text);
+      padding: 5px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 150ms ease;
+    }
+
+    .um-table-btn:hover {
+      border: 2px solid var(--primary-blue);
+      color: var(--primary-blue);
+      background: rgba(37, 99, 235, 0.05);
+    }
+
+    .um-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+    .um-badge-active { background: rgba(34, 197, 94, 0.15); color: #16a34a; }
+    .um-badge-inactive { background: rgba(239, 68, 68, 0.15); color: #dc2626; }
+
+    .um-empty { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 15px; }
+
+    .um-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 10000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .um-modal.active { display: flex; }
+
+    .um-modal-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 650px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-sizing: border-box;
+    }
+
+    .um-form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .um-form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+    .um-form-group.full { grid-column: span 2; }
+    .um-form-group label { font-size: 13px; font-weight: 600; color: var(--text); }
+    .um-form-group input, .um-form-group select {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg-card);
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .um-col-toggle {
+      display: none;
+      position: fixed;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      z-index: 10000 !important;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+      max-height: 320px;
+      overflow-y: auto;
+      min-width: 220px;
+      box-sizing: border-box;
+    }
+    .um-col-toggle.active { display: block; }
+
+    .um-col-toggle-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      font-size: 13px;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .um-check-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 16px 0; }
+    .um-check-item { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text); cursor: pointer; }
+
+    .um-table th.um-col-frozen, .um-table td.um-col-frozen {
+      position: sticky !important;
+      z-index: 5 !important;
+      background: var(--bg-card) !important;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.06);
+    }
+    .um-table th.um-col-frozen { z-index: 15 !important; background: var(--bg-header, #f1f5f9) !important; }
+    .um-table th.um-col-frozen-last, .um-table td.um-col-frozen-last { border-right: 2.5px solid var(--primary-blue) !important; }
+
+    .um-pagination-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      font-size: 13px;
+      color: var(--text);
+      box-sizing: border-box;
+    }
+
+    .um-pagination-left { display: flex; align-items: center; gap: 8px; }
+
+    .um-pagination-select {
+      padding: 4px 8px;
+      border: 1.5px solid var(--card-green-border);
+      border-radius: 4px;
+      background: var(--bg-card);
+      color: var(--text);
+      font-size: 13px;
+      cursor: pointer;
+      transition: border-color 150ms ease;
+    }
+
+    .um-pagination-select:hover { border-color: var(--primary-blue); }
+
+    .um-pagination-right { display: flex; align-items: center; gap: 12px; }
+
+    .um-pagination-btn {
+      background: var(--bg-card);
+      border: 1.5px solid var(--card-green-border);
+      color: var(--text);
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 150ms ease;
+    }
+
+    .um-pagination-btn:hover:not(:disabled) {
+      border-color: var(--primary-blue);
+      color: var(--primary-blue);
+      background: rgba(37, 99, 235, 0.05);
+    }
+
+    .um-pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; border-color: var(--border); }
+
+    @media print {
+      .um-sort-icon, .um-resizer, .um-actions-wrap, .am-actions, .um-pagination-bar, #empTable th:last-child, #userTable th:last-child {
+        display: none !important;
+      }
+      @page { margin: 10mm; size: auto; }
+      html, body { width: 100% !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
+      body * { visibility: hidden !important; }
+      .steel-bg, .steel-overlay, #dashHeader, .um-tab-bar, .um-search-card, .um-modal, .um-toast, #dashFooter { display: none !important; }
+      .um-main { margin: 0 !important; padding: 0 !important; max-width: 100% !important; width: 100% !important; position: absolute !important; left: 0 !important; top: 0 !important; }
+      .um-tab-content.active, .um-tab-content.active .um-table-card, .um-tab-content.active .um-table-scroll, .um-tab-content.active .um-table, .um-tab-content.active .um-table * { visibility: visible !important; }
+      .um-tab-content.active { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+      .um-table-card { border: none !important; padding: 0 !important; margin: 0 !important; background: transparent !important; }
+      .um-table-scroll { max-height: none !important; overflow: visible !important; border: none !important; }
+      .um-table { width: 100% !important; min-width: 100% !important; border-collapse: collapse !important; margin: 0 !important; position: static !important; table-layout: auto !important; }
+      .um-table thead { display: table-header-group !important; }
+      .um-table tr { page-break-inside: avoid !important; display: table-row !important; }
+      .um-table th, .um-table td { border: 1px solid #000 !important; color: #000 !important; background: #fff !important; position: static !important; padding: 6px 8px !important; font-size: 11px !important; }
+      #activityTable th:last-child, #activityTable td:last-child { width: 100px !important; max-width: 100px !important; word-break: break-all !important; }
+      .print-exclude-row { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="steel-bg"></div>
+  <div class="steel-overlay"></div>
+
+  <!-- Viewport Sticky Header Bar -->
+  <div id="dashHeader"></div>
+
+  <!-- Secondary Sticky Tab Navigation Bar -->
+  <div class="um-tab-bar" id="umTabBar">
+    <div class="um-tab active" data-tab="overview" onclick="switchTab('overview')">Overview</div>
+    <div class="um-tab" data-tab="employees" onclick="switchTab('employees')">Employees</div>
+    <div class="um-tab" data-tab="roles" onclick="switchTab('roles')">Roles & Permissions</div>
+    <div class="um-tab" data-tab="users" onclick="switchTab('users')">System Users</div>
+    <div class="um-tab" data-tab="activity" onclick="switchTab('activity')">Activity Log</div>
+    <div class="um-tab um-tab-dashboard" onclick="goToMainDashboard()">&#8592; Dashboard</div>
+    <div class="um-tab-logout" onclick="dashLogout()">Logout</div>
+  </div>
+
+  <div class="um-main">
+    <div class="admin-loading" id="adminLoading">Loading employee management...</div>
+
+    <!-- Overview Tab -->
+    <div class="um-tab-content active" id="tab-overview">
+      <div class="um-welcome">
+        <div class="um-welcome-text">
+          <h2>Employee Overview</h2>
+          <p>Manage users, employees, roles, and permissions</p>
+        </div>
+      </div>
+      <div class="um-kpi-grid">
+        <div class="um-kpi-card" onclick="filterByKpi('ActiveEmployees')">
+          <div class="um-kpi-val" id="kpiActiveEmployees">0</div>
+          <div class="um-kpi-lbl">Active Employees</div>
+        </div>
+        <div class="um-kpi-card" onclick="filterByKpi('OnLeave')">
+          <div class="um-kpi-val" id="kpiOnLeave">0</div>
+          <div class="um-kpi-lbl">Employees on Leave</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Employees Tab -->
+    <div class="um-tab-content" id="tab-employees">
+      <div class="um-search-card">
+        <div class="um-search-row1">
+          <input type="text" class="um-search-input" id="empSearch" placeholder="Search employees by name, email, employee #, role, phone, or state..." oninput="onEmpSearchInput()" />
+          <button class="um-btn-add" onclick="openAddEmpModal()">+ Add Employee</button>
+        </div>
+        <div class="um-filter-grid">
+          <div class="um-multiselect-dd" id="ddEmpStatuses">
+            <button class="um-multiselect-btn" onclick="toggleFilterPanel('panelEmpStatuses', event)">Statuses (All)</button>
+            <div class="um-multiselect-panel" id="panelEmpStatuses">
+              <label class="um-multiselect-option"><input type="checkbox" value="Active" onchange="onEmpFilterChange()"> Active</label>
+              <label class="um-multiselect-option"><input type="checkbox" value="On Leave" onchange="onEmpFilterChange()"> On Leave</label>
+              <label class="um-multiselect-option"><input type="checkbox" value="Inactive" onchange="onEmpFilterChange()"> Inactive</label>
+            </div>
+          </div>
+          <div class="um-multiselect-dd" id="ddEmpRoles">
+            <button class="um-multiselect-btn" onclick="toggleFilterPanel('panelEmpRoles', event)">Roles (All)</button>
+            <div class="um-multiselect-panel" id="panelEmpRoles"></div>
+          </div>
+        </div>
+        <div class="um-search-row3">
+          <button class="um-btn-action" onclick="toggleColPanel('emp', event)">Columns (Show / Hide)</button>
+          <button class="um-btn-action" onclick="openPrintModal('emp')">Print</button>
+          <button class="um-btn-action" onclick="openExportModal('emp', 'csv')">Export CSV</button>
+          <button class="um-btn-action" onclick="openExportModal('emp', 'excel')">Export Excel</button>
+        </div>
+      </div>
+      <div class="um-col-toggle" id="empColPanel">
+        <div style="font-weight:600; margin-bottom:8px;">Show / Hide Columns</div>
+        <div id="empColToggleItems"></div>
+      </div>
+      <div class="um-table-card">
+        <h3 style="margin-top:0; margin-bottom:12px;">Employee Directory</h3>
+        <div class="um-table-scroll">
+          <table class="um-table" id="empTable">
+            <thead id="empTableHead"></thead>
+            <tbody id="empTableBody">
+              <tr><td class="um-empty">Loading employees…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="um-pagination-bar" id="empPagination">
+          <div class="um-pagination-left">
+            <span>Rows per page:</span>
+            <select class="um-pagination-select" id="empPageSize" onchange="changePageSize('emp', this.value)">
+              <option value="10" selected>10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+            </select>
+            <span id="empPageInfo" style="margin-left:10px;">Showing 0 - 0 of 0</span>
+          </div>
+          <div class="um-pagination-right">
+            <button class="um-pagination-btn" id="empPrevBtn" onclick="changePage('emp', -1)">◄ Prev</button>
+            <span id="empPageNum" style="font-weight:600;">Page 1</span>
+            <button class="um-pagination-btn" id="empNextBtn" onclick="changePage('emp', 1)">Next ►</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Roles & Permissions Tab -->
+    <div class="um-tab-content" id="tab-roles">
+      <div class="um-search-card" style="padding:12px 16px;">
+        <div class="um-search-row3" style="grid-template-columns: auto;">
+          <button class="um-btn-action" style="max-width:200px;" onclick="printRolesTable()">Print Roles & Permissions</button>
+        </div>
+      </div>
+      <div class="um-table-card">
+        <h3 style="margin-top:0;">Organization Roles & Permissions</h3>
+        <p style="color:var(--text-muted); font-size:14px;">Roles defined for your organization context.</p>
+        <div id="rolesContainer">
+          <table class="um-table" id="rolesTable" style="width:100%;">
+            <thead id="rolesTableHead">
+              <tr>
+                <th onclick="toggleSort('roles', 'name')" class="draggable-th" draggable="true" data-col-key="name">
+                  Role Name <span class="um-sort-icon" id="sort-roles-name">▲</span>
+                  <div class="um-resizer" onmousedown="initSimpleColResize(event, this)"></div>
+                </th>
+                <th onclick="toggleSort('roles', 'description')" class="draggable-th" draggable="true" data-col-key="description">
+                  Description <span class="um-sort-icon" id="sort-roles-description"></span>
+                  <div class="um-resizer" onmousedown="initSimpleColResize(event, this)"></div>
+                </th>
+                <th onclick="toggleSort('roles', 'is_system')" class="draggable-th" draggable="true" data-col-key="is_system">
+                  System Role <span class="um-sort-icon" id="sort-roles-is_system"></span>
+                  <div class="um-resizer" onmousedown="initSimpleColResize(event, this)"></div>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="rolesTableBody">
+              <tr><td colspan="3" class="um-empty">Loading organization roles…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- System Users Tab -->
+    <div class="um-tab-content" id="tab-users">
+      <div class="um-search-card">
+        <div class="um-search-row1">
+          <input type="text" class="um-search-input" id="userSearch" placeholder="Search users by name, email, or role..." oninput="onUserSearchInput()" />
+        </div>
+        <div class="um-filter-grid">
+          <div class="um-multiselect-dd" id="ddUserStatuses">
+            <button class="um-multiselect-btn" onclick="toggleFilterPanel('panelUserStatuses', event)">Statuses (All)</button>
+            <div class="um-multiselect-panel" id="panelUserStatuses">
+              <label class="um-multiselect-option"><input type="checkbox" value="Active" onchange="onUserFilterChange()"> Active</label>
+              <label class="um-multiselect-option"><input type="checkbox" value="Inactive" onchange="onUserFilterChange()"> Inactive</label>
+            </div>
+          </div>
+          <div class="um-multiselect-dd" id="ddUserRoles">
+            <button class="um-multiselect-btn" onclick="toggleFilterPanel('panelUserRoles', event)">Roles (All)</button>
+            <div class="um-multiselect-panel" id="panelUserRoles"></div>
+          </div>
+        </div>
+        <div class="um-search-row3">
+          <button class="um-btn-action" onclick="toggleColPanel('user', event)">Columns (Show / Hide)</button>
+          <button class="um-btn-action" onclick="openPrintModal('user')">Print</button>
+          <button class="um-btn-action" onclick="openExportModal('user', 'csv')">Export CSV</button>
+          <button class="um-btn-action" onclick="openExportModal('user', 'excel')">Export Excel</button>
+        </div>
+      </div>
+      <div class="um-col-toggle" id="userColPanel">
+        <div style="font-weight:600; margin-bottom:8px;">Show / Hide Columns</div>
+        <div id="userColToggleItems"></div>
+      </div>
+      <div class="um-table-card">
+        <h3 style="margin-top:0; margin-bottom:12px;">System Access Accounts</h3>
+        <div class="um-table-scroll">
+          <table class="um-table" id="userTable">
+            <thead id="userTableHead"></thead>
+            <tbody id="userTableBody">
+              <tr><td class="um-empty">Loading users…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="um-pagination-bar" id="userPagination">
+          <div class="um-pagination-left">
+            <span>Rows per page:</span>
+            <select class="um-pagination-select" id="userPageSize" onchange="changePageSize('user', this.value)">
+              <option value="10" selected>10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+            </select>
+            <span id="userPageInfo" style="margin-left:10px;">Showing 0 - 0 of 0</span>
+          </div>
+          <div class="um-pagination-right">
+            <button class="um-pagination-btn" id="userPrevBtn" onclick="changePage('user', -1)">◄ Prev</button>
+            <span id="userPageNum" style="font-weight:600;">Page 1</span>
+            <button class="um-pagination-btn" id="userNextBtn" onclick="changePage('user', 1)">Next ►</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Activity Log Tab -->
+    <div class="um-tab-content" id="tab-activity">
+      <div class="um-search-card">
+        <div class="um-search-row1">
+          <input type="text" class="um-search-input" id="activitySearch" placeholder="Search activity logs by user full name, email, module, or action..." oninput="renderActivityLogTable()" />
+        </div>
+        <div class="um-search-row3">
+          <button class="um-btn-action" onclick="openPrintModal('activity')">Print Activity Log</button>
+          <button class="um-btn-action" onclick="openExportModal('activity', 'csv')">Export CSV</button>
+          <button class="um-btn-action" onclick="openExportModal('activity', 'excel')">Export Excel</button>
+        </div>
+      </div>
+      <div class="um-table-card">
+        <h3 style="margin-top:0;">Audit Trail & System Activity</h3>
+        <div class="um-table-scroll">
+          <table class="um-table" id="activityTable">
+            <thead id="activityTableHead">
+              <tr>
+                <th onclick="toggleSort('activity', 'created_at')" class="draggable-th" draggable="true" data-col-key="created_at" style="width:180px;">
+                  Timestamp <span class="um-sort-icon" id="sort-activity-created_at">▼</span>
+                  <div class="um-resizer" onmousedown="initSimpleColResize(event, this)"></div>
+                </th>
+                <th onclick="toggleSort('activity', 'user_name')" class="draggable-th" draggable="true" data-col-key="user_name" style="width:180px;">
+                  Full Name <span class="um-sort-icon" id="sort-activity-user_name"></span>
+                  <div class="um-resizer" onmousedown="initSimpleColResize(event, this)"></div>
+                </th>
+                <th onclick="toggleSort('activity', 'module')" class="draggable-th" draggable="true" data-col-key="module" style="width:140px;">
+                  Module / Page <span class="um-sort-icon" id="sort-activity-module"></span>
+                  <div class="um-resizer" onmousedown="initSimpleColResize(event, this)"></div>
+                </th>
+                <th onclick="toggleSort('activity', 'action')" class="draggable-th" draggable="true" data-col-key="action" style="width:260px;">
+                  Action Details <span class="um-sort-icon" id="sort-activity-action"></span>
+                  <div class="um-resizer" onmousedown="initSimpleColResize(event, this)"></div>
+                </th>
+                <th onclick="toggleSort('activity', 'ip_address')" class="draggable-th" draggable="true" data-col-key="ip_address" style="width:130px;">
+                  IP Address <span class="um-sort-icon" id="sort-activity-ip_address"></span>
+                  <div class="um-resizer" onmousedown="initSimpleColResize(event, this)"></div>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="activityLogBody">
+              <tr><td colspan="5" class="um-empty">Loading activity history…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="um-pagination-bar" id="activityPagination">
+          <div class="um-pagination-left">
+            <span>Rows per page:</span>
+            <select class="um-pagination-select" id="activityPageSize" onchange="changePageSize('activity', this.value)">
+              <option value="10" selected>10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+            </select>
+            <span id="activityPageInfo" style="margin-left:10px;">Showing 0 - 0 of 0</span>
+          </div>
+          <div class="um-pagination-right">
+            <button class="um-pagination-btn" id="activityPrevBtn" onclick="changePage('activity', -1)">◄ Prev</button>
+            <span id="activityPageNum" style="font-weight:600;">Page 1</span>
+            <button class="um-pagination-btn" id="activityNextBtn" onclick="changePage('activity', 1)">Next ►</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Print Modal -->
+  <div id="umPrintModal" class="um-modal">
+    <div class="um-modal-card">
+      <h3>Print Data Options</h3>
+      <p style="color:var(--text-muted); font-size:14px;">Select specific users/records to print or print all visible rows.</p>
+      <div style="margin:12px 0;">
+        <label class="um-check-item" style="font-weight:600;">
+          <input type="checkbox" id="printSelectAllCheck" onchange="togglePrintSelectAll(this.checked)" checked> Print All Visible Records
+        </label>
+      </div>
+      <div id="umPrintRecordsList" class="um-check-grid" style="max-height:200px; overflow-y:auto; border:1px solid var(--border); padding:10px; border-radius:6px;"></div>
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button class="um-btn-action" onclick="closeModal('umPrintModal')">Cancel</button>
+        <button class="um-btn-action" style="background:var(--primary-blue); color:#fff; border:none;" onclick="doPrint()">Print Selected</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="umToast" class="um-toast"></div>
+
+  <script src="/app/shared/dashboard-common.js?v=13"></script>
+  <script>
+    var allUsers = [], allEmployees = [], allOrgRoles = [], allActivityLogs = [];
+    var currentUserOrgId = null;
+    var activeModalType = 'emp';
+
+    var paginationState = {
+      emp: { currentPage: 1, pageSize: 10 },
+      user: { currentPage: 1, pageSize: 10 },
+      activity: { currentPage: 1, pageSize: 10 }
+    };
+
+    var sortState = {
+      emp: { key: 'fullName', dir: 'asc' },
+      user: { key: 'fullName', dir: 'asc' },
+      roles: { key: 'name', dir: 'asc' },
+      activity: { key: 'created_at', dir: 'desc' }
+    };
+
+    var USER_COL_DEFS = [
+      { key: 'id', label: 'User ID', defaultWidth: '120px', frozen: true },
+      { key: 'fullName', label: 'Full Name', defaultWidth: '160px', frozen: true },
+      { key: 'email', label: 'Email', defaultWidth: '200px' },
+      { key: 'role', label: 'Role', defaultWidth: '140px' },
+      { key: 'is_active', label: 'Status', defaultWidth: '110px' },
+      { key: 'must_change_password', label: 'Must Reset Pwd', defaultWidth: '130px' },
+      { key: 'twofa_enabled', label: '2FA Enabled', defaultWidth: '110px' },
+      { key: 'last_login', label: 'Last Login', defaultWidth: '160px' }
+    ];
+
+    var EMP_COL_DEFS = [
+      { key: 'fullName', label: 'Full Name', defaultWidth: '180px', frozen: true },
+      { key: 'employeeNumber', label: 'Emp #', defaultWidth: '100px' },
+      { key: 'email', label: 'Email', defaultWidth: '190px' },
+      { key: 'role', label: 'Role', defaultWidth: '130px' },
+      { key: 'phone', label: 'Phone', defaultWidth: '130px' },
+      { key: 'status', label: 'Status', defaultWidth: '100px' },
+      { key: 'dob', label: 'DOB', defaultWidth: '110px' },
+      { key: 'address', label: 'Address', defaultWidth: '160px' },
+      { key: 'city', label: 'City', defaultWidth: '120px' },
+      { key: 'state', label: 'State', defaultWidth: '80px' },
+      { key: 'zip', label: 'Zip', defaultWidth: '90px' },
+      { key: 'driversLicense', label: 'DL Number', defaultWidth: '130px' },
+      { key: 'dlState', label: 'DL State', defaultWidth: '80px' }
+    ];
+
+    var ROLE_COL_DEFS = [
+      { key: 'name', label: 'Role Name', defaultWidth: '220px' },
+      { key: 'description', label: 'Description', defaultWidth: '400px' },
+      { key: 'is_system', label: 'System Role', defaultWidth: '150px' }
+    ];
+
+    var ACT_COL_DEFS = [
+      { key: 'created_at', label: 'Timestamp', defaultWidth: '180px' },
+      { key: 'user_name', label: 'Full Name', defaultWidth: '180px' },
+      { key: 'module', label: 'Module / Page', defaultWidth: '140px' },
+      { key: 'action', label: 'Action Details', defaultWidth: '260px' },
+      { key: 'ip_address', label: 'IP Address', defaultWidth: '130px' }
+    ];
+
+    var visibleUserCols = {}, userColWidths = {};
+    var visibleEmpCols = {}, empColWidths = {};
+
+    /* Neutralize any ancestor container preventing sticky layout */
+    function sanitizeStickyAncestors() {
+      var node = document.getElementById("dashHeader");
+      while (node && node !== document.documentElement) {
+        if (node !== document.getElementById("dashHeader")) {
+          var style = window.getComputedStyle(node);
+          if (style.overflow !== 'visible' || style.overflowX !== 'visible' || style.overflowY !== 'visible') {
+            node.style.setProperty('overflow', 'visible', 'important');
+            node.style.setProperty('overflow-x', 'visible', 'important');
+            node.style.setProperty('overflow-y', 'visible', 'important');
+          }
+        }
+        node = node.parentElement;
+      }
+    }
+
+    /* Dynamic Measurement & Stacking Handler */
+    function makeTabsSticky() {
+      sanitizeStickyAncestors();
+      var h = document.getElementById("dashHeader");
+      var tb = document.getElementById("umTabBar");
+      if (h && tb) {
+        var rect = h.getBoundingClientRect();
+        var hHeight = rect.height || (window.innerWidth <= 768 ? 50 : 58);
+        document.documentElement.style.setProperty('--header-height', hHeight + 'px');
+
+        if (h.nextElementSibling !== tb) {
+          h.parentNode.insertBefore(tb, h.nextSibling);
+        }
+      }
+    }
+
+    window.addEventListener('resize', makeTabsSticky);
+    window.addEventListener('scroll', makeTabsSticky, { passive: true });
+
+    function changePageSize(type, size) {
+      paginationState[type].pageSize = parseInt(size, 10);
+      paginationState[type].currentPage = 1;
+      if (type === 'emp') renderEmpTable();
+      else if (type === 'user') renderUserTable();
+      else if (type === 'activity') renderActivityLogTable();
+    }
+
+    function changePage(type, delta) {
+      paginationState[type].currentPage += delta;
+      if (type === 'emp') renderEmpTable();
+      else if (type === 'user') renderUserTable();
+      else if (type === 'activity') renderActivityLogTable();
+    }
+
+    function updatePaginationUI(type, totalRecords) {
+      var state = paginationState[type];
+      var totalPages = Math.ceil(totalRecords / state.pageSize) || 1;
+      if (state.currentPage > totalPages) state.currentPage = totalPages;
+      if (state.currentPage < 1) state.currentPage = 1;
+      var start = totalRecords === 0 ? 0 : ((state.currentPage - 1) * state.pageSize) + 1;
+      var end = Math.min(state.currentPage * state.pageSize, totalRecords);
+
+      var infoEl = document.getElementById(type + 'PageInfo');
+      var numEl = document.getElementById(type + 'PageNum');
+      var prevBtn = document.getElementById(type + 'PrevBtn');
+      var nextBtn = document.getElementById(type + 'NextBtn');
+
+      if (infoEl) infoEl.textContent = 'Showing ' + start + ' - ' + end + ' of ' + totalRecords;
+      if (numEl) numEl.textContent = 'Page ' + state.currentPage + ' of ' + totalPages;
+      if (prevBtn) prevBtn.disabled = (state.currentPage <= 1);
+      if (nextBtn) nextBtn.disabled = (state.currentPage >= totalPages);
+    }
+
+    function formatUserLocalTime(dateStr) {
+      if (!dateStr || dateStr === '—') return '—';
+      try {
+        var d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        return d.toLocaleString(undefined, {
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', hour12: true, timeZoneName: 'short'
+        });
+      } catch (e) { return dateStr; }
+    }
+
+    function resolveFullNameFromEmail(email) {
+      if (!email || email === '—') return 'System / Guest';
+      var targetEmail = email.toLowerCase().trim();
+      var matchEmp = allEmployees.find(function(e) { return (e.email || '').toLowerCase() === targetEmail; });
+      if (matchEmp && matchEmp.name) return matchEmp.name;
+      var matchUser = allUsers.find(function(u) { return (u.email || '').toLowerCase() === targetEmail; });
+      if (matchUser && matchUser.fullName) return matchUser.fullName;
+      return email;
+    }
+
+    function showToast(msg, type) {
+      var t = document.getElementById('umToast');
+      t.textContent = msg;
+      t.className = 'um-toast show ' + (type || 'success');
+      setTimeout(function() { t.classList.remove('show'); }, 3500);
+    }
+
+    function parseVal(val) {
+      if (val === undefined || val === null) return '—';
+      var str = String(val).trim();
+      return (str === '' || str === 'null' || str === 'undefined') ? '—' : str;
+    }
+
+    function normalizeRoleName(r) {
+      var name = parseVal(r);
+      if (name === 'Administrator') return 'Admin';
+      return name;
+    }
+
+    function normalizeUser(r) {
+      return {
+        id: parseVal(r.id),
+        fullName: parseVal(r.full_name || r.name || ([r.first_name, r.last_name].filter(Boolean).join(' '))) || parseVal(r.email),
+        email: parseVal(r.email),
+        role: normalizeRoleName(r.role || r.role_id || r.role_name),
+        is_active: (r.is_active === 1 || r.is_active === true || r.status === 'Active' || r.status === 'active') ? 'Active' : 'Inactive',
+        must_change_password: (r.must_change_password === 1 || r.must_change_password === true) ? 'Yes' : 'No',
+        twofa_enabled: (r.twofa_enabled === 1 || r.twofa_enabled === true) ? 'Yes' : 'No',
+        last_login: formatUserLocalTime(r.last_login || r.last_login_at)
+      };
+    }
+
+    function normalizeEmployee(r) {
+      var fn = parseVal(r.first_name || r.firstName);
+      var mn = parseVal(r.middle_name || r.middleName);
+      var ln = parseVal(r.last_name || r.lastName);
+      var suf = parseVal(r.suffix);
+      var computedFull = [fn, mn, ln].filter(function(x) { return x && x !== '—'; }).join(' ') + (suf && suf !== '—' ? ' ' + suf : '');
+      var fullName = parseVal(r.full_name || r.fullName || r.name || computedFull);
+
+      return {
+        id: parseVal(r.id),
+        employeeNumber: parseVal(r.employeeNumber || r.employee_number || ('EMP-' + Math.floor(100 + Math.random() * 900))),
+        firstName: fn, middleName: mn, lastName: ln, suffix: suf,
+        fullName: fullName !== '—' ? fullName : '—',
+        name: fullName,
+        email: parseVal(r.email),
+        role: normalizeRoleName(r.role),
+        status: parseVal(r.status || 'Active'),
+        phone: parseVal(r.phone),
+        dob: parseVal(r.dob),
+        address: parseVal(r.address),
+        city: parseVal(r.city),
+        state: parseVal(r.state),
+        zip: parseVal(r.zip),
+        driversLicense: parseVal(r.drivers_license || r.driversLicense),
+        dlState: parseVal(r.dl_state || r.dlState)
+      };
+    }
+
+    function sortArray(list, key, dir) {
+      return list.slice().sort(function(a, b) {
+        var valA = (a[key] !== undefined && a[key] !== null) ? a[key].toString().toLowerCase() : '';
+        var valB = (b[key] !== undefined && b[key] !== null) ? b[key].toString().toLowerCase() : '';
+        if (valA < valB) return dir === 'asc' ? -1 : 1;
+        if (valA > valB) return dir === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    function toggleSort(type, key) {
+      if (sortState[type].key === key) {
+        sortState[type].dir = sortState[type].dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortState[type].key = key;
+        sortState[type].dir = 'asc';
+      }
+      if (type === 'emp') { renderEmpTableHead(); renderEmpTable(); }
+      else if (type === 'user') { renderUserTableHead(); renderUserTable(); }
+      else if (type === 'roles') { updateSortIcons('roles'); renderRolesTable(); }
+      else if (type === 'activity') { updateSortIcons('activity'); renderActivityLogTable(); }
+    }
+
+    function updateSortIcons(type) {
+      document.querySelectorAll('#tab-' + type + ' .um-sort-icon').forEach(function(el) { el.textContent = ''; });
+      var activeEl = document.getElementById('sort-' + type + '-' + sortState[type].key);
+      if (activeEl) { activeEl.textContent = sortState[type].dir === 'asc' ? '▲' : '▼'; }
+    }
+
+    async function initializeUserManagementPage() {
+      makeTabsSticky();
+      setTimeout(makeTabsSticky, 100);
+      setTimeout(makeTabsSticky, 500);
+
+      var u = window.dashUser || window.drivenUser;
+      if (!u) {
+        try { u = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user")); } catch(e) {}
+      }
+      if (!u) { window.location.href = '/public/login.html'; return; }
+      window.dashUser = u;
+      currentUserOrgId = u.org_id || localStorage.getItem('driven_org_id') || u.customerId;
+
+      var existingTitle = document.querySelector('.dash-header-row1 .admin-header-title');
+      if (!existingTitle) {
+        var hRow = document.querySelector('.dash-header-row1');
+        if (hRow) {
+          var titleDiv = document.createElement('div');
+          titleDiv.className = 'admin-header-title';
+          titleDiv.innerHTML = 'Employee Management';
+          var rightCol = hRow.querySelector('.dash-header-right') || hRow.children[1];
+          if (rightCol) hRow.insertBefore(titleDiv, rightCol);
+          else hRow.appendChild(titleDiv);
+        }
+      }
+
+      USER_COL_DEFS.forEach(function(c) { userColWidths[c.key] = c.defaultWidth; });
+      EMP_COL_DEFS.forEach(function(c) { empColWidths[c.key] = c.defaultWidth; });
+
+      try {
+        var savedEmpWidths = localStorage.getItem('um_emp_col_widths');
+        if (savedEmpWidths) Object.assign(empColWidths, JSON.parse(savedEmpWidths));
+        var savedUserWidths = localStorage.getItem('um_user_col_widths');
+        if (savedUserWidths) Object.assign(userColWidths, JSON.parse(savedUserWidths));
+
+        var savedEmpOrder = localStorage.getItem('um_emp_col_order');
+        if (savedEmpOrder) {
+          var keys = JSON.parse(savedEmpOrder);
+          if (!keys.includes('fullName') || keys.includes('firstName')) {
+            localStorage.removeItem('um_emp_col_order');
+            localStorage.removeItem('um_visible_emp_cols');
+          } else {
+            EMP_COL_DEFS.sort(function(a, b) { return keys.indexOf(a.key) - keys.indexOf(b.key); });
+          }
+        }
+
+        var savedUserOrder = localStorage.getItem('um_user_col_order');
+        if (savedUserOrder) {
+          var ukeys = JSON.parse(savedUserOrder);
+          USER_COL_DEFS.sort(function(a, b) { return ukeys.indexOf(a.key) - ukeys.indexOf(b.key); });
+        }
+
+        var savedEmpCols = localStorage.getItem('um_visible_emp_cols');
+        if (savedEmpCols) { visibleEmpCols = JSON.parse(savedEmpCols); }
+        else { EMP_COL_DEFS.forEach(function(c) { visibleEmpCols[c.key] = true; }); }
+
+        var savedUserCols = localStorage.getItem('um_visible_user_cols');
+        if (savedUserCols) { visibleUserCols = JSON.parse(savedUserCols); }
+        else { USER_COL_DEFS.forEach(function(c) { visibleUserCols[c.key] = true; }); }
+      } catch (e) {
+        EMP_COL_DEFS.forEach(function(c) { visibleEmpCols[c.key] = true; });
+        USER_COL_DEFS.forEach(function(c) { visibleUserCols[c.key] = true; });
+      }
+
+      await Promise.all([loadUsers(), loadEmployees(), loadOrgRoles(), loadActivityLog()]);
+      var loadingEl = document.getElementById('adminLoading');
+      if (loadingEl) loadingEl.style.display = 'none';
+      document.getElementById('tab-overview').style.display = 'block';
+      updateKpi();
+
+      attachDragAndDropHeaders('roles', ROLE_COL_DEFS, renderRolesTable, renderRolesTable);
+      attachDragAndDropHeaders('activity', ACT_COL_DEFS, renderActivityLogTable, renderActivityLogTable);
+    }
+
+    document.addEventListener('dashSessionLoaded', initializeUserManagementPage);
+    if (document.readyState !== 'loading') { initializeUserManagementPage(); }
+
+    async function loadUsers() {
+      try {
+        var resp = await fetch('/api/users');
+        if (resp.ok) {
+          var data = await resp.json();
+          var raw = data.users || data.records || (Array.isArray(data) ? data : []);
+          allUsers = raw.map(normalizeUser);
+        } else throw new Error('API error');
+      } catch (e) { allUsers = []; }
+      renderUserTableHead();
+      renderUserTable();
+    }
+    
+    function renderUserTable() {
+      var tb = document.getElementById('userTableBody');
+      tb.textContent = '';
+      var search = (document.getElementById('userSearch').value || '').toLowerCase().trim();
+      var selStatuses = getSelectedCheckboxes('panelUserStatuses');
+      var selRoles = getSelectedCheckboxes('panelUserRoles');
+      var frozenCalc = calculateFrozenOffsets(USER_COL_DEFS, visibleUserCols, userColWidths);
+
+      var filtered = allUsers.filter(function(u) {
+        var matchSearch = !search || u.fullName.toLowerCase().indexOf(search) !== -1 || u.email.toLowerCase().indexOf(search) !== -1 || u.role.toLowerCase().indexOf(search) !== -1;
+        var matchStatus = selStatuses.length === 0 || selStatuses.indexOf(u.is_active.toLowerCase()) !== -1;
+        var matchRole = selRoles.length === 0 || selRoles.indexOf(u.role.toLowerCase()) !== -1;
+        return matchSearch && matchStatus && matchRole;
+      });
+
+      updatePaginationUI('user', filtered.length);
+      if (filtered.length === 0) {
+        tb.innerHTML = '<tr><td colspan="9" class="um-empty">No matching system users found.</td></tr>';
+        return;
+      }
+
+      var sorted = sortArray(filtered, sortState.user.key, sortState.user.dir);
+      var pState = paginationState.user;
+      var paged = sorted.slice((pState.currentPage - 1) * pState.pageSize, pState.currentPage * pState.pageSize);
+
+      paged.forEach(function(u) {
+        var tr = document.createElement('tr');
+        tr.setAttribute('data-record-id', u.id);
+
+        USER_COL_DEFS.forEach(function(col) {
+          if (!visibleUserCols[col.key]) return;
+          var td = document.createElement('td');
+          var isFrozen = !!col.frozen;
+          if (isFrozen) {
+            td.className = 'um-col-frozen' + (col.key === frozenCalc.lastFrozenKey ? ' um-col-frozen-last' : '');
+            td.style.left = frozenCalc.offsets[col.key];
+          }
+          td.style.width = userColWidths[col.key];
+          td.style.minWidth = userColWidths[col.key];
+
+          var v = u[col.key];
+          if (col.key === 'is_active') {
+            td.innerHTML = '<span class="um-badge ' + (v === 'Active' ? 'um-badge-active' : 'um-badge-inactive') + '">' + escapeHtml(v) + '</span>';
+          } else {
+            td.textContent = v;
+          }
+          tr.appendChild(td);
+        });
+
+        var atd = document.createElement('td');
+        atd.className = 'am-actions';
+        atd.style.width = '100px';
+        atd.style.minWidth = '100px';
+        atd.innerHTML = '<div class="um-actions-wrap"><button class="um-table-btn" onclick="viewUserDetail(\'' + escapeHtml(u.fullName) + '\', \'' + escapeHtml(u.email) + '\')">View</button></div>';
+        tr.appendChild(atd);
+        tb.appendChild(tr);
+      });
+    }
+
+    function renderEmpTable() {
+      var tb = document.getElementById('empTableBody');
+      tb.textContent = '';
+      var search = (document.getElementById('empSearch').value || '').toLowerCase().trim();
+      var selStatuses = getSelectedCheckboxes('panelEmpStatuses');
+      var selRoles = getSelectedCheckboxes('panelEmpRoles');
+      var frozenCalc = calculateFrozenOffsets(EMP_COL_DEFS, visibleEmpCols, empColWidths);
+
+      var filtered = allEmployees.filter(function(e) {
+        var matchSearch = !search || e.fullName.toLowerCase().indexOf(search) !== -1 || e.email.toLowerCase().indexOf(search) !== -1 || e.employeeNumber.toLowerCase().indexOf(search) !== -1 || e.role.toLowerCase().indexOf(search) !== -1 || e.phone.toLowerCase().indexOf(search) !== -1 || e.state.toLowerCase().indexOf(search) !== -1;
+        var matchStatus = selStatuses.length === 0 || selStatuses.indexOf(e.status.toLowerCase()) !== -1;
+        var matchRole = selRoles.length === 0 || selRoles.indexOf(e.role.toLowerCase()) !== -1;
+        return matchSearch && matchStatus && matchRole;
+      });
+
+      updatePaginationUI('emp', filtered.length);
+      if (filtered.length === 0) {
+        tb.innerHTML = '<tr><td colspan="14" class="um-empty">No matching employees found.</td></tr>';
+        return;
+      }
+
+      var sorted = sortArray(filtered, sortState.emp.key, sortState.emp.dir);
+      var pState = paginationState.emp;
+      var paged = sorted.slice((pState.currentPage - 1) * pState.pageSize, pState.currentPage * pState.pageSize);
+
+      paged.forEach(function(e) {
+        var tr = document.createElement('tr');
+        tr.setAttribute('data-record-id', e.id);
+
+        EMP_COL_DEFS.forEach(function(col) {
+          if (!visibleEmpCols[col.key]) return;
+          var td = document.createElement('td');
+          var isFrozen = !!col.frozen;
+          if (isFrozen) {
+            td.className = 'um-col-frozen' + (col.key === frozenCalc.lastFrozenKey ? ' um-col-frozen-last' : '');
+            td.style.left = frozenCalc.offsets[col.key];
+          }
+          td.style.width = empColWidths[col.key];
+          td.style.minWidth = empColWidths[col.key];
+
+          var v = e[col.key];
+          if (col.key === 'status') {
+            td.innerHTML = '<span class="um-badge ' + (v === 'Active' ? 'um-badge-active' : 'um-badge-inactive') + '">' + escapeHtml(v) + '</span>';
+          } else {
+            td.textContent = v;
+          }
+          tr.appendChild(td);
+        });
+
+        var atd = document.createElement('td');
+        atd.className = 'am-actions';
+        atd.style.width = '140px';
+        atd.style.minWidth = '140px';
+        atd.innerHTML = '<div class="um-actions-wrap"><button class="um-table-btn" onclick="openEmpViewModal(\'' + e.id + '\')">View</button><button class="um-table-btn" onclick="openEmpEditModal(\'' + e.id + '\')">Edit</button></div>';
+        tr.appendChild(atd);
+        tb.appendChild(tr);
+      });
+    }
+
+    async function loadEmployees() {
+      try {
+        var resp = await fetch('/api/onboarding/employees/list');
+        if (resp.ok) {
+          var data = await resp.json();
+          var raw = data.employees || (Array.isArray(data) ? data : []);
+          allEmployees = raw.map(normalizeEmployee);
+        } else throw new Error('API error');
+      } catch (e) {
+        var saved = localStorage.getItem('driven_saved_employees');
+        allEmployees = saved ? JSON.parse(saved).map(normalizeEmployee) : [];
+      }
+      renderEmpTableHead();
+      renderEmpTable();
+    }
+
+    async function loadOrgRoles() {
+      try {
+        var resp = await fetch('/api/roles?org_id=' + encodeURIComponent(currentUserOrgId));
+        if (resp.ok) {
+          var data = await resp.json();
+          allOrgRoles = data.roles || (Array.isArray(data) ? data : []);
+        } else throw new Error();
+      } catch (e) {
+        allOrgRoles = [
+          { id: '1', name: 'Admin', description: 'Full administrative access', is_system: 1 },
+          { id: '2', name: 'Fleet Manager', description: 'Fleet and asset assignment management', is_system: 0 },
+          { id: '3', name: 'Employee', description: 'Standard driver / employee portal view', is_system: 0 }
+        ];
+      }
+      renderRolesTable();
+      buildMultiSelectPanels();
+    }
+
+    function renderRolesTable() {
+      var container = document.getElementById('rolesTableBody');
+      if (!container) return;
+      container.innerHTML = '';
+      var sorted = sortArray(allOrgRoles, sortState.roles.key, sortState.roles.dir);
+      sorted.forEach(function(r) {
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td><strong>' + escapeHtml(r.name) + '</strong></td>' +
+                       '<td>' + escapeHtml(r.description || '—') + '</td>' +
+                       '<td>' + (r.is_system ? 'Yes' : 'No') + '</td>';
+        container.appendChild(tr);
+      });
+      updateSortIcons('roles');
+    }
+
+    async function loadActivityLog() {
+      try {
+        var resp = await fetch('/api/audit-log');
+        if (resp.ok) {
+          var data = await resp.json();
+          allActivityLogs = data.logs || data.audit_entries || (Array.isArray(data) ? data : []);
+        }
+      } catch (e) {}
+      renderActivityLogTable();
+    }
+
+    function initColumnResize(e, th, colKey, type) {
+      e.stopPropagation();
+      e.preventDefault();
+      var startX = e.pageX;
+      var startWidth = th.offsetWidth;
+      var colIndex = Array.from(th.parentNode.children).indexOf(th);
+      var tableId = type === 'user' ? 'userTable' : 'empTable';
+      var table = document.getElementById(tableId);
+
+      if (table) {
+        table.style.tableLayout = 'fixed';
+        table.style.width = 'max-content';
+      }
+
+      function onMove(me) {
+        var newWidth = Math.max(60, startWidth + (me.pageX - startX)) + 'px';
+        th.style.width = newWidth;
+        th.style.minWidth = newWidth;
+        th.style.maxWidth = newWidth;
+        if (table) {
+          table.querySelectorAll('tbody tr').forEach(function(row) {
+            if (row.children[colIndex]) {
+              row.children[colIndex].style.width = newWidth;
+              row.children[colIndex].style.minWidth = newWidth;
+              row.children[colIndex].style.maxWidth = newWidth;
+            }
+          });
+        }
+        if (type === 'user') { userColWidths[colKey] = newWidth; }
+        else { empColWidths[colKey] = newWidth; }
+      }
+
+      function onEnd() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onEnd);
+        if (type === 'user') { localStorage.setItem('um_user_col_widths', JSON.stringify(userColWidths)); }
+        else { localStorage.setItem('um_emp_col_widths', JSON.stringify(empColWidths)); }
+      }
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onEnd);
+    }
+
+    function initSimpleColResize(e, resizer) {
+      e.stopPropagation();
+      e.preventDefault();
+      var th = resizer.parentNode;
+      var table = th.closest('table');
+      var startX = e.pageX;
+      var startWidth = th.offsetWidth;
+      var colIndex = Array.from(th.parentNode.children).indexOf(th);
+
+      if (table) {
+        table.style.tableLayout = 'fixed';
+        table.style.width = 'max-content';
+      }
+
+      function onMove(me) {
+        var newWidth = Math.max(70, startWidth + (me.pageX - startX)) + 'px';
+        th.style.width = newWidth;
+        th.style.minWidth = newWidth;
+        th.style.maxWidth = newWidth;
+        if (table) {
+          table.querySelectorAll('tbody tr').forEach(function(row) {
+            if (row.children[colIndex]) {
+              row.children[colIndex].style.width = newWidth;
+              row.children[colIndex].style.minWidth = newWidth;
+              row.children[colIndex].style.maxWidth = newWidth;
+            }
+          });
+        }
+      }
+
+      function onEnd() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onEnd);
+      }
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onEnd);
+    }
+
+    function renderActivityLogTable() {
+      var tb = document.getElementById('activityLogBody');
+      if (!tb) return;
+      tb.innerHTML = '';
+      if (!allActivityLogs || allActivityLogs.length === 0) {
+        tb.innerHTML = '<tr><td colspan="5" class="um-empty">No activity log records found.</td></tr>';
+        updatePaginationUI('activity', 0);
+        return;
+      }
+
+      var search = (document.getElementById('activitySearch') ? document.getElementById('activitySearch').value : '').toLowerCase().trim();
+      var logsMapped = allActivityLogs.map(function(l) {
+        var email = l.user_email || l.email || '—';
+        return {
+          id: l.id || Math.random().toString(),
+          created_at: l.created_at || l.timestamp,
+          user_email: email,
+          user_name: resolveFullNameFromEmail(email),
+          module: l.module || l.page || 'Employee Management',
+          action: l.action || '—',
+          ip_address: l.ip_address || l.ip || '—'
+        };
+      });
+
+      var filtered = logsMapped.filter(function(l) {
+        return !search || l.user_name.toLowerCase().indexOf(search) !== -1 || l.user_email.toLowerCase().indexOf(search) !== -1 || l.module.toLowerCase().indexOf(search) !== -1 || l.action.toLowerCase().indexOf(search) !== -1;
+      });
+
+      updatePaginationUI('activity', filtered.length);
+      if (filtered.length === 0) {
+        tb.innerHTML = '<tr><td colspan="5" class="um-empty">No matching activity records found.</td></tr>';
+        return;
+      }
+
+      var sorted = sortArray(filtered, sortState.activity.key, sortState.activity.dir);
+      var pState = paginationState.activity;
+      var paged = sorted.slice((pState.currentPage - 1) * pState.pageSize, pState.currentPage * pState.pageSize);
+
+      paged.forEach(function(l) {
+        var tr = document.createElement('tr');
+        tr.setAttribute('data-record-id', l.id);
+        var timeVal = formatUserLocalTime(l.created_at);
+        tr.innerHTML = '<td>' + escapeHtml(timeVal) + '</td>' +
+                       '<td><strong>' + escapeHtml(l.user_name) + '</strong></td>' +
+                       '<td><strong style="text-transform:capitalize;">' + escapeHtml(l.module) + '</strong></td>' +
+                       '<td>' + escapeHtml(l.action) + '</td>' +
+                       '<td>' + escapeHtml(l.ip_address) + '</td>';
+        tb.appendChild(tr);
+      });
+      updateSortIcons('activity');
+    }
+
+    function updateKpi() {
+      document.getElementById('kpiActiveEmployees').textContent = allEmployees.filter(function(e){ return e.status === 'Active'; }).length;
+      document.getElementById('kpiOnLeave').textContent = allEmployees.filter(function(e){ return e.status === 'On Leave'; }).length;
+    }
+
+    function buildMultiSelectPanels() {
+      var pur = document.getElementById('panelUserRoles');
+      var per = document.getElementById('panelEmpRoles');
+      if (pur) pur.innerHTML = '';
+      if (per) per.innerHTML = '';
+
+      var roleNames = allOrgRoles.map(function(r) { return r.name; });
+      if (roleNames.length === 0) roleNames = ['Admin', 'Fleet Manager', 'Employee'];
+
+      roleNames.forEach(function(rName) {
+        if (pur) {
+          var l1 = document.createElement('label');
+          l1.className = 'um-multiselect-option';
+          l1.innerHTML = '<input type="checkbox" value="' + escapeHtml(rName) + '" onchange="onUserFilterChange()"> ' + escapeHtml(rName);
+          pur.appendChild(l1);
+        }
+        if (per) {
+          var l2 = document.createElement('label');
+          l2.className = 'um-multiselect-option';
+          l2.innerHTML = '<input type="checkbox" value="' + escapeHtml(rName) + '" onchange="onEmpFilterChange()"> ' + escapeHtml(rName);
+          per.appendChild(l2);
+        }
+      });
+    }
+
+    function getSelectedCheckboxes(panelId) {
+      var cbs = document.querySelectorAll('#' + panelId + ' input[type="checkbox"]:checked');
+      return Array.from(cbs).map(function(cb) { return cb.value.toLowerCase(); });
+    }
+
+    function attachDragAndDropHeaders(tableType, defsArray, renderHeadFn, renderTableFn) {
+      var draggedKey = null;
+      var selector = '#' + tableType + 'TableHead th.draggable-th';
+      if (tableType === 'roles') selector = '#rolesTableHead th.draggable-th';
+      else if (tableType === 'activity') selector = '#activityTableHead th.draggable-th';
+
+      var headers = document.querySelectorAll(selector);
+      headers.forEach(function(th) {
+        th.addEventListener('dragstart', function(e) {
+          draggedKey = th.getAttribute('data-col-key');
+          e.dataTransfer.effectAllowed = 'move';
+        });
+
+        th.addEventListener('dragenter', function(e) {
+          if (!draggedKey || draggedKey === th.getAttribute('data-col-key')) return;
+          th.classList.add('drag-over-left');
+        });
+
+        th.addEventListener('dragover', function(e) { e.preventDefault(); });
+
+        th.addEventListener('dragleave', function(e) {
+          th.classList.remove('drag-over-left', 'drag-over-right');
+        });
+
+        th.addEventListener('drop', function(e) {
+          e.preventDefault();
+          th.classList.remove('drag-over-left', 'drag-over-right');
+          var targetKey = th.getAttribute('data-col-key');
+          if (!draggedKey || draggedKey === targetKey) return;
+
+          var fromIdx = defsArray.findIndex(function(c) { return c.key === draggedKey; });
+          var toIdx = defsArray.findIndex(function(c) { return c.key === targetKey; });
+
+          if (fromIdx !== -1 && toIdx !== -1) {
+            var movedCol = defsArray.splice(fromIdx, 1)[0];
+            defsArray.splice(toIdx, 0, movedCol);
+            var orderKeys = defsArray.map(function(c) { return c.key; });
+            localStorage.setItem('um_' + tableType + '_col_order', JSON.stringify(orderKeys));
+            renderHeadFn();
+            renderTableFn();
+          }
+        });
+      });
+    }
+
+    function calculateFrozenOffsets(colDefs, visibleColsMap, colWidthsMap) {
+      var leftOffset = 0;
+      var offsets = {};
+      var lastFrozenKey = null;
+      colDefs.forEach(function(col) {
+        if (!visibleColsMap[col.key]) return;
+        if (col.frozen) {
+          offsets[col.key] = leftOffset + 'px';
+          var w = parseInt(colWidthsMap[col.key] || col.defaultWidth, 10) || 120;
+          leftOffset += w;
+          lastFrozenKey = col.key;
+        }
+      });
+      return { offsets: offsets, lastFrozenKey: lastFrozenKey };
+    }
+
+    function renderUserTableHead() {
+      var th = document.getElementById('userTableHead');
+      th.textContent = '';
+      var tr = document.createElement('tr');
+      var frozenCalc = calculateFrozenOffsets(USER_COL_DEFS, visibleUserCols, userColWidths);
+
+      USER_COL_DEFS.forEach(function(col) {
+        if (!visibleUserCols[col.key]) return;
+        var h = document.createElement('th');
+        var isFrozen = !!col.frozen;
+        h.className = 'draggable-th' + (isFrozen ? ' um-col-frozen' : '') + (col.key === frozenCalc.lastFrozenKey ? ' um-col-frozen-last' : '');
+        if (isFrozen) { h.style.left = frozenCalc.offsets[col.key]; }
+        h.setAttribute('draggable', 'true');
+        h.setAttribute('data-col-key', col.key);
+        h.style.width = userColWidths[col.key];
+        h.style.minWidth = userColWidths[col.key];
+
+        var arrow = sortState.user.key === col.key ? (sortState.user.dir === 'asc' ? '▲' : '▼') : '';
+        h.innerHTML = escapeHtml(col.label) + ' <span class="um-sort-icon">' + arrow + '</span>';
+        h.addEventListener('click', function(e) {
+          if (e.target.classList.contains('um-resizer')) return;
+          toggleSort('user', col.key);
+        });
+
+        var resizer = document.createElement('div');
+        resizer.className = 'um-resizer';
+        resizer.addEventListener('mousedown', function(e) { initColumnResize(e, h, col.key, 'user'); });
+        h.appendChild(resizer);
+        tr.appendChild(h);
+      });
+
+      var ha = document.createElement('th');
+      ha.textContent = 'Actions';
+      ha.style.width = '100px';
+      ha.style.minWidth = '100px';
+      tr.appendChild(ha);
+      th.appendChild(tr);
+
+      attachDragAndDropHeaders('user', USER_COL_DEFS, renderUserTableHead, renderUserTable);
+    }
+
+    function renderEmpTableHead() {
+      var th = document.getElementById('empTableHead');
+      th.textContent = '';
+      var tr = document.createElement('tr');
+      var frozenCalc = calculateFrozenOffsets(EMP_COL_DEFS, visibleEmpCols, empColWidths);
+
+      EMP_COL_DEFS.forEach(function(col) {
+        if (!visibleEmpCols[col.key]) return;
+        var h = document.createElement('th');
+        var isFrozen = !!col.frozen;
+        h.className = 'draggable-th' + (isFrozen ? ' um-col-frozen' : '') + (col.key === frozenCalc.lastFrozenKey ? ' um-col-frozen-last' : '');
+        if (isFrozen) { h.style.left = frozenCalc.offsets[col.key]; }
+        h.setAttribute('draggable', 'true');
+        h.setAttribute('data-col-key', col.key);
+        h.style.width = empColWidths[col.key];
+        h.style.minWidth = empColWidths[col.key];
+
+        var arrow = sortState.emp.key === col.key ? (sortState.emp.dir === 'asc' ? '▲' : '▼') : '';
+        h.innerHTML = escapeHtml(col.label) + ' <span class="um-sort-icon">' + arrow + '</span>';
+        h.addEventListener('click', function(e) {
+          if (e.target.classList.contains('um-resizer')) return;
+          toggleSort('emp', col.key);
+        });
+
+        var resizer = document.createElement('div');
+        resizer.className = 'um-resizer';
+        resizer.addEventListener('mousedown', function(e) { initColumnResize(e, h, col.key, 'emp'); });
+        h.appendChild(resizer);
+        tr.appendChild(h);
+      });
+
+      var ha = document.createElement('th');
+      ha.textContent = 'Actions';
+      ha.style.width = '140px';
+      ha.style.minWidth = '140px';
+      tr.appendChild(ha);
+      th.appendChild(tr);
+
+      attachDragAndDropHeaders('emp', EMP_COL_DEFS, renderEmpTableHead, renderEmpTable);
+    }
+
+    function openEmpViewModal(id) {
+      var emp = allEmployees.find(function(x) { return x.id === id; });
+      if (!emp) return;
+      document.getElementById('viewEmpName').textContent = emp.fullName;
+      document.getElementById('viewEmpFullName').textContent = emp.fullName;
+      document.getElementById('viewEmpNum').textContent = emp.employeeNumber;
+      document.getElementById('viewEmpEmail').textContent = emp.email;
+      document.getElementById('viewEmpRole').textContent = emp.role;
+      document.getElementById('viewEmpStatus').textContent = emp.status;
+      document.getElementById('viewEmpPhone').textContent = emp.phone;
+      document.getElementById('viewEmpDob').textContent = emp.dob;
+      document.getElementById('viewEmpDl').textContent = emp.driversLicense;
+      document.getElementById('viewEmpDlState').textContent = emp.dlState;
+      document.getElementById('viewEmpAddr').textContent = emp.address + ', ' + emp.city + ', ' + emp.state + ' ' + emp.zip;
+      document.getElementById('umEmpViewModal').classList.add('active');
+    }
+
+    function openAddEmpModal() {
+      document.getElementById('empModalTitle').textContent = 'Add New Employee';
+      document.getElementById('editEmpId').value = '';
+      document.getElementById('addEmpFn').value = '';
+      document.getElementById('addEmpMn').value = '';
+      document.getElementById('addEmpLn').value = '';
+      document.getElementById('addEmpSuffix').value = '';
+      document.getElementById('addEmpEmail').value = '';
+      document.getElementById('addEmpNum').value = '';
+      document.getElementById('addEmpRole').value = 'Employee';
+      document.getElementById('addEmpPhone').value = '';
+      document.getElementById('addEmpDob').value = '';
+      document.getElementById('addEmpAddress').value = '';
+      document.getElementById('addEmpCity').value = '';
+      document.getElementById('addEmpState').value = '';
+      document.getElementById('addEmpZip').value = '';
+      document.getElementById('addEmpStatus').value = 'Active';
+      document.getElementById('addEmpDl').value = '';
+      document.getElementById('addEmpDlState').value = '';
+      document.getElementById('umAddEmpModal').classList.add('active');
+    }
+
+    function openEmpEditModal(id) {
+      var emp = allEmployees.find(function(x) { return x.id === id; });
+      if (!emp) return;
+      document.getElementById('empModalTitle').textContent = 'Edit Employee';
+      document.getElementById('editEmpId').value = emp.id;
+      document.getElementById('addEmpFn').value = emp.firstName !== '—' ? emp.firstName : '';
+      document.getElementById('addEmpMn').value = emp.middleName !== '—' ? emp.middleName : '';
+      document.getElementById('addEmpLn').value = emp.lastName !== '—' ? emp.lastName : '';
+      document.getElementById('addEmpSuffix').value = emp.suffix !== '—' ? emp.suffix : '';
+      document.getElementById('addEmpEmail').value = emp.email !== '—' ? emp.email : '';
+      document.getElementById('addEmpNum').value = emp.employeeNumber !== '—' ? emp.employeeNumber : '';
+      document.getElementById('addEmpRole').value = emp.role;
+      document.getElementById('addEmpPhone').value = emp.phone !== '—' ? emp.phone : '';
+      document.getElementById('addEmpDob').value = emp.dob !== '—' ? emp.dob : '';
+      document.getElementById('addEmpAddress').value = emp.address !== '—' ? emp.address : '';
+      document.getElementById('addEmpCity').value = emp.city !== '—' ? emp.city : '';
+      document.getElementById('addEmpState').value = emp.state !== '—' ? emp.state : '';
+      document.getElementById('addEmpZip').value = emp.zip !== '—' ? emp.zip : '';
+      document.getElementById('addEmpStatus').value = emp.status;
+      document.getElementById('addEmpDl').value = emp.driversLicense !== '—' ? emp.driversLicense : '';
+      document.getElementById('addEmpDlState').value = emp.dlState !== '—' ? emp.dlState : '';
+      document.getElementById('umAddEmpModal').classList.add('active');
+    }
+
+    async function submitSaveEmployee() {
+      var id = document.getElementById('editEmpId').value;
+      var fn = document.getElementById('addEmpFn').value.trim();
+      var mn = document.getElementById('addEmpMn').value.trim();
+      var ln = document.getElementById('addEmpLn').value.trim();
+      var suffix = document.getElementById('addEmpSuffix').value.trim();
+      var em = document.getElementById('addEmpEmail').value.trim();
+      var empNum = document.getElementById('addEmpNum').value.trim();
+      var role = document.getElementById('addEmpRole').value;
+      var phone = document.getElementById('addEmpPhone').value.trim();
+      var dob = document.getElementById('addEmpDob').value;
+      var addr = document.getElementById('addEmpAddress').value.trim();
+      var city = document.getElementById('addEmpCity').value.trim();
+      var state = document.getElementById('addEmpState').value.trim();
+      var zip = document.getElementById('addEmpZip').value.trim();
+      var status = document.getElementById('addEmpStatus').value;
+      var dl = document.getElementById('addEmpDl').value.trim();
+      var dlState = document.getElementById('addEmpDlState').value.trim();
+
+      if (!fn || !ln) {
+        showToast('First and Last name are required.', 'error');
+        return;
+      }
+
+      var fullStr = [fn, mn, ln].filter(Boolean).join(' ') + (suffix ? ' ' + suffix : '');
+      var payload = {
+        id: id || undefined, org_id: currentUserOrgId,
+        first_name: fn, middle_name: mn, last_name: ln, suffix: suffix, full_name: fullStr, name: fullStr,
+        email: em, employee_number: empNum, role: role, phone: phone, dob: dob, address: addr,
+        city: city, state: state, zip: zip, status: status, drivers_license: dl, dl_state: dlState
+      };
+
+      try {
+        var endpoint = id ? '/api/onboarding/employees/' + encodeURIComponent(id) : '/api/onboarding/employees/create';
+        var method = id ? 'PUT' : 'POST';
+        var resp = await fetch(endpoint, {
+          method: method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!resp.ok) throw new Error('HTTP status ' + resp.status);
+        showToast('Employee updated successfully.', 'success');
+
+        try {
+          await fetch('/api/audit-log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: (id ? 'Updated employee ' : 'Created employee ') + fullStr + ' (' + role + ')',
+              module: 'Employees', table_name: 'employees', record_id: id || empNum
+            })
+          });
+        } catch (auditErr) { console.warn('Audit log write error:', auditErr); }
+      } catch (e) {
+        console.warn('Backend sync failed, saved locally:', e.message);
+        showToast('Saved locally (Offline mode active)', 'error');
+      }
+
+      var normalized = normalizeEmployee(payload);
+      if (id) {
+        var emp = allEmployees.find(function(x) { return x.id === id; });
+        if (emp) Object.assign(emp, normalized);
+      } else {
+        allEmployees.unshift(normalized);
+      }
+
+      localStorage.setItem('driven_saved_employees', JSON.stringify(allEmployees));
+      renderEmpTable();
+      updateKpi();
+      await loadActivityLog();
+      closeModal('umAddEmpModal');
+    }
+
+    function viewUserDetail(name, email) {
+      document.getElementById('userDetailName').textContent = name || 'System User Detail';
+      document.getElementById('userDetailEmail').textContent = email || '';
+      document.getElementById('umUserDetailModal').classList.add('active');
+    }
+
+    function openExportModal(type, fmt) {
+      activeModalType = type;
+      document.getElementById('umExportTitle').textContent = 'Export ' + (type === 'user' ? 'Users' : 'Employees') + ' to ' + fmt.toUpperCase();
+      var c = document.getElementById('umExportCols');
+      c.innerHTML = '';
+      var defs = type === 'user' ? USER_COL_DEFS : EMP_COL_DEFS;
+      var vis = type === 'user' ? visibleUserCols : visibleEmpCols;
+
+      defs.forEach(function(col) {
+        var i = document.createElement('label');
+        i.className = 'um-check-item';
+        i.innerHTML = '<input type="checkbox" data-key="' + col.key + '" ' + (vis[col.key] ? 'checked' : '') + '> ' + escapeHtml(col.label);
+        c.appendChild(i);
+      });
+      document.getElementById('umExportModal').classList.add('active');
+    }
+
+    function doExport() {
+      closeModal('umExportModal');
+      showToast('Export queued successfully.', 'success');
+    }
+
+    function toggleColPanel(type, e) {
+      if (e) e.stopPropagation();
+      var panelId = type === 'user' ? 'userColPanel' : 'empColPanel';
+      var itemsId = type === 'user' ? 'userColToggleItems' : 'empColToggleItems';
+      var defs = type === 'user' ? USER_COL_DEFS : EMP_COL_DEFS;
+      var vis = type === 'user' ? visibleUserCols : visibleEmpCols;
+
+      var p = document.getElementById(panelId);
+      var active = p.classList.contains('active');
+      document.querySelectorAll('.um-col-toggle').forEach(function(x) { x.classList.remove('active'); });
+
+      if (!active) {
+        p.classList.add('active');
+        var c = document.getElementById(itemsId);
+        c.innerHTML = '';
+
+        defs.forEach(function(col) {
+          var lbl = document.createElement('label');
+          lbl.className = 'um-col-toggle-item';
+          lbl.addEventListener('click', function(ev) { ev.stopPropagation(); });
+
+          var cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.checked = (vis[col.key] !== false);
+          cb.addEventListener('change', function(ev) {
+            ev.stopPropagation();
+            vis[col.key] = cb.checked;
+            if (type === 'user') {
+              visibleUserCols[col.key] = cb.checked;
+              localStorage.setItem('um_visible_user_cols', JSON.stringify(visibleUserCols));
+              renderUserTableHead();
+              renderUserTable();
+            } else {
+              visibleEmpCols[col.key] = cb.checked;
+              localStorage.setItem('um_visible_emp_cols', JSON.stringify(visibleEmpCols));
+              renderEmpTableHead();
+              renderEmpTable();
+            }
+          });
+
+          lbl.appendChild(cb);
+          lbl.appendChild(document.createTextNode(' ' + col.label));
+          c.appendChild(lbl);
+        });
+
+        if (e && e.target) {
+          var btn = e.target.closest('.um-btn-action');
+          if (btn) {
+            var r = btn.getBoundingClientRect();
+            var viewportHeight = window.innerHeight;
+            var spaceBelow = viewportHeight - r.bottom - 20;
+
+            p.style.position = 'fixed';
+            p.style.left = Math.max(10, r.left) + 'px';
+            if (spaceBelow < 200 && r.top > 200) {
+              p.style.top = 'auto';
+              p.style.bottom = (viewportHeight - r.top + 4) + 'px';
+              p.style.maxHeight = Math.min(280, r.top - 20) + 'px';
+            } else {
+              p.style.bottom = 'auto';
+              p.style.top = (r.bottom + 4) + 'px';
+              p.style.maxHeight = Math.min(280, Math.max(150, spaceBelow)) + 'px';
+            }
+          }
+        }
+      }
+    }
+
+    var activePrintType = 'emp';
+    function openPrintModal(type) {
+      activePrintType = type;
+      var container = document.getElementById('umPrintRecordsList');
+      container.innerHTML = '';
+      document.getElementById('printSelectAllCheck').checked = true;
+
+      var items = [];
+      if (type === 'user') {
+        items = allUsers.map(function(u) { return { id: u.id, name: u.fullName + ' (' + u.email + ')' }; });
+      } else if (type === 'emp') {
+        items = allEmployees.map(function(e) { return { id: e.id, name: e.name + ' [' + e.employeeNumber + ']' }; });
+      } else if (type === 'activity') {
+        items = allActivityLogs.map(function(l) { return { id: l.id || l.created_at, name: resolveFullNameFromEmail(l.user_email) + ' — ' + l.action }; });
+      }
+
+      items.forEach(function(item) {
+        var lbl = document.createElement('label');
+        lbl.className = 'um-check-item';
+        lbl.innerHTML = '<input type="checkbox" class="print-row-cb" data-id="' + escapeHtml(item.id) + '" checked> ' + escapeHtml(item.name);
+        container.appendChild(lbl);
+      });
+
+      document.getElementById('umPrintModal').classList.add('active');
+    }
+
+    function togglePrintSelectAll(checked) {
+      document.querySelectorAll('.print-row-cb').forEach(function(cb) { cb.checked = checked; });
+    }
+
+    function printRolesTable() {
+      var origTitle = document.title;
+      var orgName = (window.dashUser && (window.dashUser.org_name || window.dashUser.company_name)) || localStorage.getItem('driven_org_name') || 'Organization';
+      document.title = orgName + ' | Roles & Permissions';
+      window.print();
+      setTimeout(function() { document.title = origTitle; }, 500);
+    }
+
+    function doPrint() {
+      var origEmpPageSize = paginationState.emp.pageSize;
+      var origUserPageSize = paginationState.user.pageSize;
+      var origActPageSize = paginationState.activity.pageSize;
+
+      paginationState.emp.pageSize = 9999;
+      paginationState.user.pageSize = 9999;
+      paginationState.activity.pageSize = 9999;
+
+      if (activePrintType === 'emp') renderEmpTable();
+      else if (activePrintType === 'user') renderUserTable();
+      else if (activePrintType === 'activity') renderActivityLogTable();
+
+      var uncheckedIds = [];
+      document.querySelectorAll('.print-row-cb:not(:checked)').forEach(function(cb) { uncheckedIds.push(cb.getAttribute('data-id')); });
+
+      var tableId = activePrintType === 'user' ? 'userTable' : (activePrintType === 'emp' ? 'empTable' : 'activityTable');
+      var rows = document.querySelectorAll('#' + tableId + ' tbody tr');
+      rows.forEach(function(tr) {
+        var recId = tr.getAttribute('data-record-id');
+        if (recId && uncheckedIds.indexOf(recId) !== -1) {
+          tr.classList.add('print-exclude-row');
+        } else {
+          tr.classList.remove('print-exclude-row');
+        }
+      });
+
+      var origTitle = document.title;
+      var orgName = (window.dashUser && (window.dashUser.org_name || window.dashUser.company_name)) || localStorage.getItem('driven_org_name') || 'Organization';
+      var tabLabel = activePrintType === 'user' ? 'System Users' : (activePrintType === 'emp' ? 'Employee Directory' : 'Activity Audit Trail');
+      document.title = orgName + ' | ' + tabLabel;
+
+      closeModal('umPrintModal');
+      window.print();
+
+      setTimeout(function() {
+        document.title = origTitle;
+        paginationState.emp.pageSize = origEmpPageSize;
+        paginationState.user.pageSize = origUserPageSize;
+        paginationState.activity.pageSize = origActPageSize;
+        if (activePrintType === 'emp') renderEmpTable();
+        else if (activePrintType === 'user') renderUserTable();
+        else if (activePrintType === 'activity') renderActivityLogTable();
+      }, 500);
+    }
+
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+    function filterByKpi(type) { switchTab(type === 'ActiveUsers' ? 'users' : 'employees'); }
+
+    function toggleFilterPanel(panelId, e) {
+      e.stopPropagation();
+      var p = document.getElementById(panelId);
+      var active = p.classList.contains('active');
+      document.querySelectorAll('.um-multiselect-panel').forEach(function(x) { x.classList.remove('active'); });
+      if (!active) p.classList.add('active');
+    }
+
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.um-multiselect-dd')) {
+        document.querySelectorAll('.um-multiselect-panel').forEach(function(p) { p.classList.remove('active'); });
+      }
+      if (!e.target.closest('.um-col-toggle') && !e.target.closest('.um-btn-action')) {
+        document.querySelectorAll('.um-col-toggle').forEach(function(p) { p.classList.remove('active'); });
+      }
+    });
+
+    function switchTab(tab) {
+      document.querySelectorAll('.um-tab').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('.um-tab-content').forEach(function(c) { c.style.display = 'none'; c.classList.remove('active'); });
+
+      var targetTab = document.querySelector('.um-tab[data-tab="' + tab + '"]');
+      if (targetTab) targetTab.classList.add('active');
+
+      var targetContent = document.getElementById('tab-' + tab);
+      if (targetContent) {
+        targetContent.style.display = 'block';
+        targetContent.classList.add('active');
+      }
+    }
+
+    function goToMainDashboard() {
+      var user = window.dashUser || window.drivenUser;
+      if (!user) {
+        try { user = JSON.parse(localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user")); } catch(e) {}
+      }
+      if (!user) { window.location.href = '/public/login.html'; return; }
+      var r = (user.role || '').toLowerCase();
+      if (r === 'driv-en founder' || r === 'owner') window.location.href = '/app/dashboard/owner-dashboard.html';
+      else if (r === 'admin') window.location.href = '/app/dashboard/admin.html';
+      else window.location.href = '/app/dashboard/employee-dashboard.html';
+    }
+
+    function escapeHtml(s) {
+      var d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    function onUserSearchInput() { renderUserTable(); }
+    function onUserFilterChange() { renderUserTable(); }
+    function onEmpSearchInput() { renderEmpTable(); }
+    function onEmpFilterChange() { renderEmpTable(); }
+  </script>
+
+  <!-- Add / Edit Employee Modal -->
+  <div id="umAddEmpModal" class="um-modal">
+    <div class="um-modal-card">
+      <h3 id="empModalTitle" style="margin-top:0; margin-bottom:16px;">Add New Employee</h3>
+      <input type="hidden" id="editEmpId">
+      <div class="um-form-grid">
+        <div class="um-form-group">
+          <label>First Name *</label>
+          <input type="text" id="addEmpFn" placeholder="John">
+        </div>
+        <div class="um-form-group">
+          <label>Middle Name</label>
+          <input type="text" id="addEmpMn" placeholder="M.">
+        </div>
+        <div class="um-form-group">
+          <label>Last Name *</label>
+          <input type="text" id="addEmpLn" placeholder="Doe">
+        </div>
+        <div class="um-form-group">
+          <label>Suffix</label>
+          <input type="text" id="addEmpSuffix" placeholder="Jr., III">
+        </div>
+        <div class="um-form-group">
+          <label>Email Address</label>
+          <input type="email" id="addEmpEmail" placeholder="john.doe@example.com">
+        </div>
+        <div class="um-form-group">
+          <label>Employee Number</label>
+          <input type="text" id="addEmpNum" placeholder="EMP-101">
+        </div>
+        <div class="um-form-group">
+          <label>Role</label>
+          <select id="addEmpRole">
+            <option value="Employee">Employee</option>
+            <option value="Fleet Manager">Fleet Manager</option>
+            <option value="Admin">Admin</option>
+          </select>
+        </div>
+        <div class="um-form-group">
+          <label>Phone Number</label>
+          <input type="tel" id="addEmpPhone" placeholder="(555) 000-0000">
+        </div>
+        <div class="um-form-group">
+          <label>Date of Birth</label>
+          <input type="date" id="addEmpDob">
+        </div>
+        <div class="um-form-group">
+          <label>Status</label>
+          <select id="addEmpStatus">
+            <option value="Active">Active</option>
+            <option value="On Leave">On Leave</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </div>
+        <div class="um-form-group full">
+          <label>Street Address</label>
+          <input type="text" id="addEmpAddress" placeholder="123 Main St">
+        </div>
+        <div class="um-form-group">
+          <label>City</label>
+          <input type="text" id="addEmpCity" placeholder="Dallas">
+        </div>
+        <div class="um-form-group">
+          <label>State</label>
+          <input type="text" id="addEmpState" placeholder="TX">
+        </div>
+        <div class="um-form-group">
+          <label>Zip Code</label>
+          <input type="text" id="addEmpZip" placeholder="75001">
+        </div>
+        <div class="um-form-group">
+          <label>Driver's License #</label>
+          <input type="text" id="addEmpDl" placeholder="DL12345678">
+        </div>
+        <div class="um-form-group">
+          <label>DL State</label>
+          <input type="text" id="addEmpDlState" placeholder="TX">
+        </div>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+        <button class="um-btn-action" onclick="closeModal('umAddEmpModal')">Cancel</button>
+        <button class="um-btn-action" style="background:var(--primary-blue); color:#fff; border:none;" onclick="submitSaveEmployee()">Save Employee</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Employee Detail Modal -->
+  <div id="umEmpViewModal" class="um-modal">
+    <div class="um-modal-card">
+      <h3 id="viewEmpName" style="margin-top:0; margin-bottom:16px;">Employee Details</h3>
+      <div class="um-form-grid" style="font-size:14px; gap:16px;">
+        <div><strong>Full Name:</strong> <span id="viewEmpFullName">—</span></div>
+        <div><strong>Employee #:</strong> <span id="viewEmpNum">—</span></div>
+        <div><strong>Email:</strong> <span id="viewEmpEmail">—</span></div>
+        <div><strong>Role:</strong> <span id="viewEmpRole">—</span></div>
+        <div><strong>Status:</strong> <span id="viewEmpStatus">—</span></div>
+        <div><strong>Phone:</strong> <span id="viewEmpPhone">—</span></div>
+        <div><strong>DOB:</strong> <span id="viewEmpDob">—</span></div>
+        <div><strong>DL Number:</strong> <span id="viewEmpDl">—</span></div>
+        <div><strong>DL State:</strong> <span id="viewEmpDlState">—</span></div>
+        <div class="um-form-group full"><strong>Address:</strong> <span id="viewEmpAddr">—</span></div>
+      </div>
+      <div style="display:flex; justify-content:flex-end; margin-top:20px;">
+        <button class="um-btn-action" onclick="closeModal('umEmpViewModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- View System User Detail Modal -->
+  <div id="umUserDetailModal" class="um-modal">
+    <div class="um-modal-card">
+      <h3 id="userDetailName" style="margin-top:0; margin-bottom:12px;">User Account Details</h3>
+      <p style="color:var(--text-muted); font-size:14px;" id="userDetailEmail"></p>
+      <div style="display:flex; justify-content:flex-end; margin-top:20px;">
+        <button class="um-btn-action" onclick="closeModal('umUserDetailModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Data Modal -->
+  <div id="umExportModal" class="um-modal">
+    <div class="um-modal-card">
+      <h3 id="umExportTitle">Export Options</h3>
+      <p style="color:var(--text-muted); font-size:14px;">Select columns to include in export file:</p>
+      <div id="umExportCols" class="um-check-grid" style="max-height:200px; overflow-y:auto; border:1px solid var(--border); padding:10px; border-radius:6px;"></div>
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
+        <button class="um-btn-action" onclick="closeModal('umExportModal')">Cancel</button>
+        <button class="um-btn-action" style="background:var(--primary-blue); color:#fff; border:none;" onclick="doExport()">Export Now</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Standardized Footer -->
+  <footer id="dashFooter" style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px; border-top: none; margin-top: 20px;">
+    <div style="margin-bottom: 8px; display: flex; justify-content: center; gap: 16px;">
+      <a href="/public/privacy.html" target="_blank" rel="noopener noreferrer" style="color: var(--primary-blue); text-decoration: none;">Privacy Policy</a>
+      <span style="color: var(--border);">|</span>
+      <a href="/public/terms.html" target="_blank" rel="noopener noreferrer" style="color: var(--primary-blue); text-decoration: none;">Terms of Service</a>
+      <span style="color: var(--border);">|</span>
+      <a href="mailto:support@driv-en.com" style="color: var(--primary-blue); text-decoration: none;">Support</a>
+    </div>
+    <div>
+      &copy; <span id="dashFooterYear"></span> DRIV-EN Platform. All Rights Reserved.
+    </div>
+  </footer>
+
+  <script>
+    (function updateFooterYear() {
+      var yEl = document.getElementById('dashFooterYear');
+      if (yEl) { yEl.textContent = new Date().getFullYear(); }
+      else { setTimeout(updateFooterYear, 50); }
+    })();
+  </script>
+  <script src="/app/shared/auth-check.js?v=13"></script>
+</body>
+</html>

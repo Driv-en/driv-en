@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DRIV‑EN | Master Asset Profile</title>
+    <meta name="description" content="DRIV-EN — Master Asset Profile, Operational Status, Location Assignments, and Open Inspection Flags.">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="canonical" href="https://www.driv-en.com/app/asset/asset-detail.html">
+    <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+    <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+    <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+    <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
+    <link rel="stylesheet" href="/app/shared/dashboard.css?v=13">
+    <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
+    <script>
+        (function() {
+            var saved = localStorage.getItem("driven-theme");
+            var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+            var theme = saved || system;
+            document.documentElement.setAttribute("data-theme", theme);
+        })();
+    </script>
+    <style>
+        :root {
+            --header-height: 60px;
+            --card-green-border: #16a34a;
+            --blue-line: #1e3a8a;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            background-color: var(--bg-body, #0f172a);
+            color: var(--text, #f8fafc);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            transition: background-color 200ms ease, color 200ms ease;
+        }
+
+        :root[data-theme="light"] body {
+            background-color: #f1f5f9;
+            color: #0f172a;
+        }
+
+        :root[data-theme="dark"] body {
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+
+        .dash-header-row3 { display: none !important; }
+        #dashHeader .dash-theme-wrapper { display: none !important; }
+        .dash-header-row2 { display: none !important; }
+
+        #dashHeader, .dash-header {
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 101 !important;
+            background: var(--bg-card, #ffffff);
+            width: 100%;
+            box-sizing: border-box;
+            border-bottom: 2px solid var(--card-green-border);
+        }
+
+        @media (max-width: 700px) {
+            .dash-customer-logo, .dash-customer-logo-placeholder {
+                max-height: 32px;
+                max-width: 70px;
+            }
+            .dash-driven-logo { max-height: 36px; }
+            #dashHeader .dash-header-row1 {
+                padding: 6px 12px !important;
+                gap: 8px !important;
+            }
+            #dashHeader h1 {
+                font-size: 16px !important;
+            }
+        }
+
+        /* Sticky Tab Bar matching asset-management.html */
+        .am-tab-bar {
+            display: flex;
+            gap: 2px;
+            width: 100%;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 16px;
+            overflow-x: auto;
+            position: sticky !important;
+            top: var(--header-height, 60px) !important;
+            z-index: 100 !important;
+            background: #cbd5e1;
+            border-bottom: 2px solid #94a3b8;
+            box-sizing: border-box;
+            -webkit-overflow-scrolling: touch;
+        }
+        :root[data-theme="dark"] .am-tab-bar {
+            background: #334155;
+            border-bottom-color: #475569;
+        }
+
+        .am-tab {
+            background: #94a3b8;
+            border: 1px solid #64748b;
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            padding: 10px 18px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #1e293b;
+            cursor: pointer;
+            white-space: nowrap;
+            text-decoration: none;
+            transition: color 200ms ease, background 200ms ease, margin-top 200ms ease;
+            margin-top: 4px;
+            position: relative;
+            z-index: 1;
+            display: inline-flex;
+            align-items: center;
+        }
+        :root[data-theme="dark"] .am-tab {
+            background: #475569;
+            border-color: #64748b;
+            color: #f1f5f9;
+        }
+        .am-tab:hover {
+            color: #0f172a;
+            background: #a5b4c4;
+            margin-top: 2px;
+        }
+        :root[data-theme="dark"] .am-tab:hover {
+            color: #ffffff;
+            background: #64748b;
+        }
+        .am-tab.active {
+            color: #1d4ed8;
+            background: #e2e8f0;
+            border-color: #64748b;
+            margin-top: 0;
+            font-weight: 600;
+            z-index: 2;
+        }
+        :root[data-theme="dark"] .am-tab.active {
+            color: #60a5fa;
+            background: #1e293b;
+            border-color: #475569;
+        }
+        .am-tab-dashboard {
+            background: #2563eb;
+            border: 1px solid #1d4ed8;
+            color: #fff;
+        }
+        .am-tab-dashboard:hover {
+            background: #1d4ed8;
+            color: #fff;
+            margin-top: 2px;
+        }
+        .am-tab-logout {
+            background: #b91c1c;
+            border: 1px solid #dc2626;
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            padding: 10px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+            cursor: pointer;
+            white-space: nowrap;
+            margin-top: 4px;
+            margin-left: auto;
+            position: relative;
+            z-index: 1;
+            transition: background 200ms ease, margin-top 200ms ease;
+        }
+        .am-tab-logout:hover {
+            background: #dc2626;
+            margin-top: 2px;
+        }
+
+        .presence-banner { 
+            display: none; 
+            align-items: center; 
+            justify-content: center;
+            gap: 8px; 
+            background: #ea580c !important; 
+            border: 1.5px solid #f97316 !important; 
+            padding: 4px 12px; 
+            border-radius: 16px; 
+            font-size: 12px; 
+            color: #ffffff !important; 
+            font-weight: 600; 
+            margin: 4px 8px 4px 0;
+        }
+
+        /* Main Page Content Container */
+        .ad-main {
+            width: 100%;
+            max-width: 1100px;
+            margin: 16px auto 100px auto;
+            padding: 0 16px;
+            box-sizing: border-box;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Card Theme with Solid Green Border */
+        .ad-card {
+            background: var(--bg-card, #ffffff);
+            border: 2px solid var(--card-green-border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08);
+            color: var(--text, #0f172a);
+        }
+        :root[data-theme="dark"] .ad-card {
+            background: #1e293b;
+            color: #f8fafc;
+        }
+
+        .ad-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            border-bottom: 1px solid var(--border, #e2e8f0);
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+        }
+        :root[data-theme="dark"] .ad-card-header {
+            border-bottom-color: #334155;
+        }
+
+        .ad-card-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text, #0f172a);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .ad-card-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        /* Metric Grid & Dynamic Inputs */
+        .ad-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+            gap: 16px;
+        }
+        .ad-metric-box {
+            background: var(--bg-step, #f8fafc);
+            border: 1px solid var(--border, #cbd5e1);
+            border-radius: 6px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        :root[data-theme="dark"] .ad-metric-box {
+            background: #0f172a;
+            border-color: #334155;
+        }
+
+        .ad-metric-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted, #64748b);
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+        .ad-metric-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text, #0f172a);
+        }
+        .ad-input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px 10px;
+            border: 1px solid #94a3b8;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text, #0f172a);
+            background: var(--bg-card, #ffffff);
+            transition: border-color 200ms ease;
+        }
+        :root[data-theme="dark"] .ad-input {
+            background: #1e293b;
+            color: #f8fafc;
+            border-color: #475569;
+        }
+        .ad-input:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+        }
+
+        /* Inspection Issues Alert Banner */
+        .ad-issue-banner {
+            background: #fffbebfb;
+            border: 2px solid #f59e0b;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        :root[data-theme="dark"] .ad-issue-banner {
+            background: #451a03;
+            border-color: #f59e0b;
+        }
+
+        .ad-issue-header {
+            font-size: 15px;
+            font-weight: 700;
+            color: #b45309;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        :root[data-theme="dark"] .ad-issue-header {
+            color: #fde68a;
+        }
+
+        /* Tables */
+        .ad-table-scroll {
+            width: 100%;
+            overflow-x: auto;
+            border: 1px solid var(--border, #e2e8f0);
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        :root[data-theme="dark"] .ad-table-scroll {
+            border-color: #334155;
+        }
+
+        .ad-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed !important;
+            font-size: 13px;
+        }
+        .ad-table th {
+            background: var(--bg-step, #f1f5f9);
+            color: var(--text, #334155);
+            text-align: left;
+            padding: 10px 12px;
+            border-bottom: 2px solid #1e3a8a;
+            white-space: normal !important;
+            word-break: break-word !important;
+        }
+        :root[data-theme="dark"] .ad-table th {
+            background: #0f172a;
+            color: #f1f5f9;
+            border-bottom-color: #3b82f6;
+        }
+
+        .ad-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border, #e2e8f0);
+            color: var(--text, #0f172a);
+            white-space: normal !important;
+            word-break: break-word !important;
+        }
+        :root[data-theme="dark"] .ad-table td {
+            border-bottom-color: #334155;
+            color: #f8fafc;
+        }
+
+        /* Buttons & Dynamic Save Bar */
+        .ad-btn {
+            background: #16a34a;
+            border: 1px solid #15803d;
+            color: #ffffff;
+            font-weight: 600;
+            padding: 8px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: background 200ms ease;
+        }
+        .ad-btn:hover {
+            background: #2563eb;
+            border-color: #1d4ed8;
+        }
+        .ad-btn-toggle {
+            background: #2563eb;
+            border: 1px solid #1d4ed8;
+            color: #ffffff;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            gap: 6px;
+            transition: background 200ms ease;
+        }
+        .ad-btn-toggle:hover {
+            background: #1e40af;
+        }
+
+        .ac-save-bar { 
+            position: fixed; 
+            bottom: 0; 
+            left: 0;
+            right: 0;
+            z-index: 120; 
+            background: #cbd5e1 !important; 
+            border-top: 2px solid #94a3b8 !important; 
+            padding: 12px 20px; 
+            max-width: 1100px; 
+            margin: 0 auto; 
+            box-sizing: border-box; 
+            border-radius: 8px 8px 0 0;
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+        }
+        :root[data-theme="dark"] .ac-save-bar {
+            background: #334155 !important;
+            border-top-color: #475569 !important;
+        }
+
+        .ad-btn-save {
+            background: #16a34a;
+            border: 1px solid #15803d;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 700;
+            padding: 10px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 200ms ease;
+        }
+        .ad-btn-save:hover {
+            background: #2563eb;
+            border-color: #1d4ed8;
+        }
+
+        .ad-message {
+            display: none;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+        .ad-message.error {
+            background: #fef2f2;
+            border: 1px solid #ef4444;
+            color: #991b1b;
+        }
+        .ad-message.success {
+            background: #f0fdf4;
+            border: 1px solid #22c55e;
+            color: #15803d;
+        }
+
+        @media (max-width: 700px) {
+            .ad-main { padding: 0 12px; margin: 12px auto 120px auto; }
+            .am-tab { padding: 8px 12px; font-size: 13px; }
+            .am-tab-logout { padding: 8px 12px; font-size: 13px; }
+            .ad-card-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .ad-card-actions {
+                width: 100%;
+                justify-content: flex-start;
+            }
+        }
+
+        @media print {
+            .am-tab-bar, #dashHeader, #dashFooter, .ad-btn, .ad-btn-toggle, .ac-save-bar {
+                display: none !important;
+            }
+            body { background: #ffffff !important; color: #000000 !important; }
+            .ad-card { background: #ffffff !important; border: 1px solid #000 !important; box-shadow: none !important; }
+        }
+    </style>
+</head>
+<body data-page-title="Asset Detail">
+    <div class="steel-bg"></div>
+    <div class="steel-overlay"></div>
+
+    <!-- Viewport Sticky Header -->
+    <div id="dashHeader"></div>
+
+    <!-- Sticky Tab Navigation Bar matching asset-management.html -->
+    <div class="am-tab-bar" id="amTabBar">
+        <a class="am-tab am-tab-dashboard" href="/app/dashboard/asset-management.html?tab=assets">&#8592; Asset Directory</a>
+        <div class="am-tab active">Overview</div>
+        <a class="am-tab" id="lnkConfig" href="/app/dashboard/asset-config.html">⚙️ Configuration</a>
+        <a class="am-tab" id="lnkHistory" href="/app/asset/asset-history.html">📜 History</a>
+        
+        <div class="presence-banner" id="presenceBanner">
+            <span id="presenceText">Other Key Personnel active</span>
+        </div>
+
+        <div class="am-tab-logout" onclick="confirmLogout()">Logout</div>
+    </div>
+
+    <!-- Main Page Content -->
+    <div class="ad-main">
+        <div id="adMessage" class="ad-message"></div>
+
+        <!-- Dynamic Open Inspection Issue Flag Alert Banner -->
+        <div class="ad-issue-banner" id="bannerOpenIssues">
+            <div class="ad-issue-header">
+                <span>⚠️ ATTENTION: OPEN INSPECTION ISSUES DETECTED</span>
+            </div>
+            <div id="txtOpenIssuesSummary" style="font-size:13px; color:#92400e;">
+                This asset currently has unresolved flags recorded from previous operational inspections.
+            </div>
+        </div>
+
+        <form id="frmAssetProfile" onsubmit="saveAssetDetails(event)">
+            <!-- Section 1: Master Asset Profile & Operational Status -->
+            <div class="ad-card">
+                <div class="ad-card-header">
+                    <h3 class="ad-card-title">
+                        <span>📦 Primary Asset Profile:</span>
+                        <span id="txtAssetNumber" style="color:#2563eb;">Loading Asset...</span>
+                    </h3>
+                    <div class="ad-card-actions">
+                        <button type="button" class="ad-btn-toggle" id="btnToggleEdit" onclick="toggleEditMode()">✏️ Edit Profile</button>
+                        <a class="ad-btn" id="lnkQuickEditConfig" href="#">⚙️ Configuration</a>
+                    </div>
+                </div>
+                <div class="ad-grid">
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Asset Identifier / Tag</span>
+                        <span class="ad-metric-value" id="valAssetNumber">—</span>
+                        <input type="text" id="inpAssetNumber" class="ad-input" style="display:none;" required />
+                    </div>
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Category / Asset Type</span>
+                        <span class="ad-metric-value" id="valCategory">—</span>
+                        <select id="inpCategory" class="ad-input" style="display:none;">
+                            <option value="">-- Select Asset Type --</option>
+                        </select>
+                    </div>
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Operational Status</span>
+                        <span class="ad-metric-value" id="valStatus">—</span>
+                        <select id="inpStatus" class="ad-input" style="display:none;">
+                            <option value="Available">Available</option>
+                            <option value="In Use">In Use</option>
+                            <option value="Maintenance">Maintenance</option>
+                            <option value="Retired">Retired</option>
+                            <option value="Lost">Lost</option>
+                            <option value="Sold">Sold</option>
+                        </select>
+                    </div>
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Make / OEM</span>
+                        <span class="ad-metric-value" id="valMake">—</span>
+                        <input type="text" id="inpMake" class="ad-input" style="display:none;" />
+                    </div>
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Model</span>
+                        <span class="ad-metric-value" id="valModel">—</span>
+                        <input type="text" id="inpModel" class="ad-input" style="display:none;" />
+                    </div>
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Serial / VIN Number</span>
+                        <span class="ad-metric-value" id="valSerial">—</span>
+                        <input type="text" id="inpSerial" class="ad-input" style="display:none;" />
+                    </div>
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Current Meter Hours/Miles</span>
+                        <span class="ad-metric-value" id="valMeter">—</span>
+                        <input type="number" step="0.1" id="inpMeter" class="ad-input" style="display:none;" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 2: Active Assignment & Operator Details -->
+            <div class="ad-card">
+                <div class="ad-card-header">
+                    <h3 class="ad-card-title">📍 Current Location & Assigned Operator</h3>
+                </div>
+                <div class="ad-grid">
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Current Project Number</span>
+                        <span class="ad-metric-value" id="valProject">—</span>
+                        <select id="inpProject" class="ad-input" style="display:none;">
+                            <option value="">-- Unassigned / Yard --</option>
+                        </select>
+                    </div>
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Assigned Division</span>
+                        <span class="ad-metric-value" id="valDivision">—</span>
+                        <select id="inpDivision" class="ad-input" style="display:none;">
+                            <option value="">-- Select Division --</option>
+                        </select>
+                    </div>
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Physical Location / Site</span>
+                        <span class="ad-metric-value" id="valLocation">—</span>
+                        <select id="inpLocation" class="ad-input" style="display:none;">
+                            <option value="">-- Select Location / Site --</option>
+                        </select>
+                    </div>
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Assigned Primary Operator</span>
+                        <span class="ad-metric-value" id="valOperator">—</span>
+                        <select id="inpOperator" class="ad-input" style="display:none;">
+                            <option value="">-- Unassigned --</option>
+                        </select>
+                    </div>
+                    <div class="ad-metric-box">
+                        <span class="ad-metric-label">Drive / Mobility Setup</span>
+                        <span class="ad-metric-value" id="valDriveConfig">—</span>
+                        <input type="text" id="inpDriveConfig" class="ad-input" style="display:none;" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Sticky Save Bar -->
+            <div class="ac-save-bar" id="saveBar">
+                <span style="font-size:13px; font-weight:600; color:var(--text, #334155);">
+                    💡 Edit mode active. Update fields and click Save Changes.
+                </span>
+                <button type="submit" class="ad-btn-save" id="btnSaveAsset">💾 Save Changes</button>
+            </div>
+        </form>
+
+        <!-- Section 3: Open Work Orders & Inspection Flags -->
+        <div class="ad-card">
+            <div class="ad-card-header">
+                <h3 class="ad-card-title">🛠️ Active Work Orders & Inspection Flags</h3>
+            </div>
+            <div class="ad-table-scroll">
+                <table class="ad-table">
+                    <thead>
+                        <tr>
+                            <th style="width:15%;">Log Date</th>
+                            <th style="width:20%;">Type / Module</th>
+                            <th style="width:45%;">Logged Defect / Issue Description</th>
+                            <th style="width:20%;">Current Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbOpenIssues">
+                        <tr>
+                            <td colspan="4" style="text-align:center; color:var(--text-muted, #64748b);">No open work orders or unresolved inspection flags recorded.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="dashFooter"></div>
+
+    <script src="/app/shared/dashboard-common.js?v=13"></script>
+    <script src="/app/shared/auth-check.js?v=13"></script>
+
+    <script>
+        var currentAssetId = null;
+        var activeOrgId = null;
+        var canEditAssets = false;
+        var isEditMode = false;
+        var isBootstrapped = false;
+        
+        // Truth vs Working Copy Separation to prevent state mutation bugs
+        var originalAssetRecord = null;
+        var workingAssetRecord = {};
+
+        // Helper function to build Request Headers with full fallback credentials
+        function getAuthHeaders(additionalHeaders) {
+            var headers = Object.assign({
+                "Content-Type": "application/json",
+                "x-org-id": activeOrgId || ""
+            }, additionalHeaders || {});
+
+            var token = localStorage.getItem("driven_token") || localStorage.getItem("auth_token") || sessionStorage.getItem("driven_token");
+            if (token) {
+                headers["Authorization"] = "Bearer " + token;
+            }
+
+            var user = window.dashUser || window.drivenUser;
+            if (user && user.id) {
+                headers["x-user-id"] = user.id;
+            }
+
+            return headers;
+        }
+
+        // Storage Listener to sync theme toggles in real-time across tabs/headers
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'driven-theme' && e.newValue) {
+                document.documentElement.setAttribute("data-theme", e.newValue);
+            }
+        });
+
+        // Header Height Adjustment Logic matching asset-management.html
+        function updateHeaderOffset() {
+            var h = document.getElementById('dashHeader') || document.querySelector('.dash-header');
+            if (h) {
+                var hh = h.getBoundingClientRect().height || 60;
+                document.documentElement.style.setProperty('--header-height', hh + 'px');
+            }
+        }
+        window.addEventListener('resize', updateHeaderOffset);
+
+        function fixHeaderLayout() {
+            var h = document.querySelector('.dash-header');
+            if (!h) return false;
+            var r1 = h.querySelector('.dash-header-row1');
+            var r2 = h.querySelector('.dash-header-row2');
+            var r3 = h.querySelector('.dash-header-row3');
+            var h1 = r2 ? r2.querySelector('h1') : null;
+            if (!r1 || !h1) return false;
+            if (h1.parentNode === r1) return true;
+            var dl = r1.querySelector('.dash-driven-logo');
+            r1.insertBefore(h1, dl);
+            r1.style.cssText = 'display:flex !important; justify-content:space-between !important; align-items:center !important; padding:8px 20px !important; gap:16px !important; width:100% !important; box-sizing:border-box !important;';
+            h1.style.cssText = 'margin:0; font-size:20px; font-weight:600; text-align:center; flex:1;';
+            if (r2) r2.style.display = 'none';
+            if (r3) r3.style.display = 'none';
+            return true;
+        }
+
+        // URL Query Parameter Parsing
+        var urlParams = new URLSearchParams(window.location.search);
+        currentAssetId = urlParams.get('id') || urlParams.get('asset_id');
+
+        // Extract normalized array helper across all worker payload variants
+        function extractRecords(data) {
+            if (Array.isArray(data)) return data;
+            if (!data || typeof data !== "object") return [];
+            return data.employees || data.personnel || data.key_personnel || data.records || data.assetTypes || data.projects || data.divisions || data.locations || data.users || data.data || data.results || [];
+        }
+
+        // Helper to resolve org_id with comprehensive fallbacks
+        function resolveActiveOrgId(u) {
+            var urlOrg = urlParams.get('org_id') || urlParams.get('orgId') || urlParams.get('customerId');
+            if (urlOrg && urlOrg !== "default_org") return urlOrg;
+            
+            if (u && u.org_id && u.org_id !== "default_org") return u.org_id;
+            if (u && u.customer_id && u.customer_id !== "default_org") return u.customer_id;
+            
+            var lsOrg = localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id");
+            if (lsOrg && lsOrg !== "default_org") return lsOrg;
+
+            var ssOrg = sessionStorage.getItem("driven_org_id");
+            if (ssOrg && ssOrg !== "default_org") return ssOrg;
+
+            var email = (u && u.email) ? u.email.toLowerCase() : "";
+            var roleId = (u && u.role_id) ? String(u.role_id).toLowerCase() : "";
+            if (email === "jblood@digitalsafetyinspection.com" || roleId === "ro-founder") {
+                return "org_dsi";
+            }
+
+            return null;
+        }
+
+        // Strict Multi-Tenant Execution Guardrail & Boot
+        async function initAssetDetail(e) {
+            if (isBootstrapped) return;
+
+            var u = (e && e.detail) ? e.detail : (window.dashUser || window.drivenUser);
+            
+            // Multi-Tenant Isolation Verification
+            activeOrgId = resolveActiveOrgId(u);
+
+            if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "") {
+                var errMsg = "Invalid multi-tenant session context. Execution halted to prevent data leaks.";
+                if (window.DRIVENErrorHandler) {
+                    window.DRIVENErrorHandler.report(
+                        "asset-detail.html: " + errMsg,
+                        "tenant-security-guardrail",
+                        new Error().stack
+                    );
+                }
+                displayMessage(errMsg, "error");
+                document.querySelector(".ad-main").style.opacity = "0.3";
+                return;
+            }
+
+            isBootstrapped = true;
+            document.querySelector(".ad-main").style.opacity = "1";
+
+            // Role Permission Check: Admin or Authorized Asset Manager
+            var rpRoleId = u ? (u.role_id || u.role || "") : "";
+            var rpIsAdmin = (rpRoleId === "RO-admin" || rpRoleId === "RO-Founder" || (u && u.is_admin === true));
+            canEditAssets = rpIsAdmin || (u && u.permissions && u.permissions.can_edit_assets === true);
+
+            if (canEditAssets) {
+                var btnToggle = document.getElementById("btnToggleEdit");
+                if (btnToggle) btnToggle.style.display = "inline-flex";
+            }
+
+            // Fix Header Layout & Adjust Height Offset
+            var ha = 0, hi = setInterval(function() {
+                ha++;
+                if (fixHeaderLayout() || ha > 50) {
+                    clearInterval(hi);
+                    updateHeaderOffset();
+                }
+            }, 100);
+
+            // Configure sub-navigation links with asset context
+            if (currentAssetId) {
+                document.getElementById("lnkConfig").href = "/app/dashboard/asset-config.html?id=" + encodeURIComponent(currentAssetId);
+                document.getElementById("lnkHistory").href = "/app/asset/asset-history.html?id=" + encodeURIComponent(currentAssetId);
+                document.getElementById("lnkQuickEditConfig").href = "/app/dashboard/asset-config.html?id=" + encodeURIComponent(currentAssetId);
+            }
+
+            // Load relational dropdowns in parallel
+            await Promise.all([
+                loadAssetTypesDropdown(),
+                loadProjectsDropdown(),
+                loadDivisionsDropdown(),
+                loadLocationsDropdown(),
+                loadOperatorsDropdown()
+            ]);
+
+            // Initialize active co-worker presence
+            checkActivePresence();
+            setInterval(checkActivePresence, 5000);
+
+            if (currentAssetId) {
+                await loadAssetDetails(currentAssetId);
+                await loadOpenInspectionIssues(currentAssetId);
+            } else {
+                displayMessage("No Asset ID specified in navigation request.", "error");
+            }
+
+            updateHeaderOffset();
+        }
+
+        document.addEventListener("dashSessionLoaded", initAssetDetail);
+
+        // Fallback initialization check if event already fired prior to listener attachment
+        if (window.dashUser || window.drivenUser) {
+            initAssetDetail();
+        }
+
+        function displayMessage(msg, type) {
+            var el = document.getElementById("adMessage");
+            if (!el) return;
+            el.textContent = msg;
+            el.className = "ad-message " + type;
+            el.style.display = "block";
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+
+        function reportClientError(msg, context, err) {
+            if (window.DRIVENErrorHandler) {
+                window.DRIVENErrorHandler.report("asset-detail.html: " + msg, context, err ? err.stack : null);
+            }
+        }
+
+        // Dropdown Loaders
+        async function loadAssetTypesDropdown() {
+            try {
+                var resp = await fetch("/api/asset-types", { headers: getAuthHeaders() });
+                if (resp.ok) {
+                    var data = await resp.json();
+                    var list = extractRecords(data);
+                    var sel = document.getElementById("inpCategory");
+                    sel.innerHTML = '<option value="">-- Select Asset Type --</option>';
+                    list.forEach(function(item) {
+                        var name = item.asset_type_name || item.name || item.type;
+                        if (name) {
+                            var opt = document.createElement("option");
+                            opt.value = name;
+                            opt.textContent = name;
+                            sel.appendChild(opt);
+                        }
+                    });
+                }
+            } catch (e) {
+                reportClientError("Failed loading asset types", "loadAssetTypesDropdown", e);
+            }
+        }
+
+        async function loadProjectsDropdown() {
+            try {
+                var resp = await fetch("/api/projects", { headers: getAuthHeaders() });
+                if (resp.ok) {
+                    var data = await resp.json();
+                    var list = extractRecords(data);
+                    var sel = document.getElementById("inpProject");
+                    sel.innerHTML = '<option value="">-- Unassigned / Yard --</option>';
+                    list.forEach(function(item) {
+                        var prjId = item.id;
+                        var prjNum = item.project_number || item.code || "";
+                        var prjName = item.name || item.project_name || "";
+
+                        var displayText = prjNum && prjName ? (prjNum + " — " + prjName) : (prjNum || prjName);
+
+                        if (displayText && prjId) {
+                            var opt = document.createElement("option");
+                            opt.value = prjId;
+                            opt.textContent = displayText;
+                            opt.setAttribute("data-project-number", prjNum);
+                            opt.setAttribute("data-project-name", prjName);
+                            sel.appendChild(opt);
+                        }
+                    });
+                }
+            } catch (e) {
+                reportClientError("Failed loading projects", "loadProjectsDropdown", e);
+            }
+        }
+
+        async function loadDivisionsDropdown() {
+            try {
+                var resp = await fetch("/api/division", { headers: getAuthHeaders() });
+                if (resp.ok) {
+                    var data = await resp.json();
+                    var list = extractRecords(data);
+                    var sel = document.getElementById("inpDivision");
+                    sel.innerHTML = '<option value="">-- Select Division --</option>';
+                    list.forEach(function(item) {
+                        var name = item.division_name || item.name;
+                        var id = item.id || name;
+                        if (name) {
+                            var opt = document.createElement("option");
+                            opt.value = id;
+                            opt.textContent = name;
+                            sel.appendChild(opt);
+                        }
+                    });
+                }
+            } catch (e) {
+                reportClientError("Failed loading divisions", "loadDivisionsDropdown", e);
+            }
+        }
+
+        async function loadLocationsDropdown() {
+            var endpoints = ["/api/locations", "/api/location"];
+            var list = [];
+            for (var i = 0; i < endpoints.length; i++) {
+                try {
+                    var resp = await fetch(endpoints[i], { headers: getAuthHeaders() });
+                    if (resp.ok) {
+                        var data = await resp.json();
+                        list = extractRecords(data);
+                        if (list.length > 0) break;
+                    }
+                } catch (e) {}
+            }
+            var sel = document.getElementById("inpLocation");
+            sel.innerHTML = '<option value="">-- Select Location / Site --</option>';
+            list.forEach(function(item) {
+                var name = item.location_name || item.name || item.site_name || item.location;
+                var id = item.id || name;
+                if (name) {
+                    var opt = document.createElement("option");
+                    opt.value = id;
+                    opt.textContent = name;
+                    sel.appendChild(opt);
+                }
+            });
+        }
+
+        async function loadOperatorsDropdown() {
+            var endpoints = ["/api/onboarding/key-personnel/list", "/api/users"];
+            var list = [];
+
+            for (var i = 0; i < endpoints.length; i++) {
+                try {
+                    var resp = await fetch(endpoints[i], { headers: getAuthHeaders() });
+                    if (resp.ok) {
+                        var data = await resp.json();
+                        var records = extractRecords(data);
+                        if (records && records.length > 0) {
+                            list = records;
+                            break;
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            var sel = document.getElementById("inpOperator");
+            sel.innerHTML = '<option value="">-- Unassigned --</option>';
+
+            list.forEach(function(item) {
+                var st = (item.status || item.employment_status || "").toLowerCase();
+                var isActiveBool = item.is_active !== undefined ? Boolean(item.is_active) : (item.active !== undefined ? Boolean(item.active) : true);
+
+                if (st !== "inactive" && isActiveBool !== false) {
+                    var firstName = item.firstName || item.first_name || "";
+                    var lastName = item.lastName || item.last_name || "";
+                    var name = (firstName + " " + lastName).trim() || item.fullName || item.full_name || item.name || item.user_name || item.email;
+                    var id = item.id || item.user_id || item.empNumber || item.emp_number || name;
+
+                    if (name) {
+                        var opt = document.createElement("option");
+                        opt.value = id;
+                        opt.textContent = name;
+                        sel.appendChild(opt);
+                    }
+                }
+            });
+        }
+
+        // Helper: Matches raw value or human name against select options and updates UI
+        function matchDropdownValue(selectId, rawVal, fallbackName) {
+            var sel = document.getElementById(selectId);
+            if (!sel) return fallbackName || "—";
+
+            var searchTarget = (rawVal || fallbackName || "").toString().trim().toLowerCase();
+            if (!searchTarget || searchTarget === "—" || searchTarget === "unassigned") {
+                sel.value = "";
+                return fallbackName || "—";
+            }
+
+            // 1. Try direct option value match
+            for (var i = 0; i < sel.options.length; i++) {
+                if (sel.options[i].value.toString().trim().toLowerCase() === searchTarget) {
+                    sel.value = sel.options[i].value;
+                    return sel.options[i].text;
+                }
+            }
+
+            // 2. Try option text match if rawVal was a display name
+            for (var j = 0; j < sel.options.length; j++) {
+                if (sel.options[j].text.toString().trim().toLowerCase() === searchTarget) {
+                    sel.value = sel.options[j].value;
+                    return sel.options[j].text;
+                }
+            }
+
+            sel.value = "";
+            return fallbackName || rawVal || "—";
+        }
+
+        // High-Frequency Co-Worker Polling & Fast Beacon Unload
+        function sendPresenceUnload() {
+            if (!activeOrgId) return;
+            var payload = JSON.stringify({ page: "Asset Detail", action: "leave" });
+            if (navigator.sendBeacon) {
+                var blob = new Blob([payload], { type: "application/json" });
+                navigator.sendBeacon("/api/onboarding/presence", blob);
+            } else {
+                fetch("/api/onboarding/presence", {
+                    method: "POST",
+                    headers: getAuthHeaders(),
+                    body: payload,
+                    keepalive: true
+                }).catch(function() {});
+            }
+        }
+
+        async function checkActivePresence() {
+            if (!activeOrgId) return;
+            try {
+                var resp = await fetch("/api/onboarding/presence", {
+                    method: "POST",
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ page: "Asset Detail" })
+                });
+                if (resp.ok) {
+                    var data = await resp.json();
+                    var banner = document.getElementById("presenceBanner");
+                    var textEl = document.getElementById("presenceText");
+                    if (data.activeUsers && data.activeUsers.length > 0) {
+                        var fullNames = data.activeUsers.map(function(u) {
+                            if (typeof u === "object") {
+                                return ((u.firstName || u.first_name || "") + " " + (u.lastName || u.last_name || "")).trim() || u.name || u.email;
+                            }
+                            return String(u);
+                        });
+                        textEl.textContent = "🟢 " + fullNames.join(", ") + " active";
+                        banner.style.display = "inline-flex";
+                    } else {
+                        banner.style.display = "none";
+                    }
+                }
+            } catch (e) {
+                reportClientError("Presence check failed", "checkActivePresence", e);
+            }
+        }
+
+        window.addEventListener("pagehide", sendPresenceUnload);
+        window.addEventListener("beforeunload", sendPresenceUnload);
+
+        // Fetch Master Asset Record
+        async function loadAssetDetails(assetId) {
+            try {
+                var resp = await fetch("/api/equipment/" + encodeURIComponent(assetId), {
+                    headers: getAuthHeaders()
+                });
+                if (!resp.ok) throw new Error("HTTP " + resp.status);
+                
+                var data = await resp.json();
+                originalAssetRecord = JSON.parse(JSON.stringify(data.record || data.equipment || data));
+                workingAssetRecord = Object.assign({}, originalAssetRecord);
+
+                renderAssetData(workingAssetRecord);
+
+            } catch (e) {
+                reportClientError("Failed loading asset profile details", "loadAssetDetails", e);
+                displayMessage("Unable to retrieve asset profile records.", "error");
+            }
+        }
+
+        // Render Values into View Spans and Form Inputs
+        function renderAssetData(rec) {
+            if (!rec) return;
+
+            var num = rec.asset_number || rec.assetNumber || "Asset #" + currentAssetId;
+            document.getElementById("txtAssetNumber").textContent = num;
+            document.getElementById("valAssetNumber").textContent = num;
+            document.getElementById("inpAssetNumber").value = num;
+
+            // Asset Type / Category
+            var catName = matchDropdownValue("inpCategory", rec.asset_type || rec.type || rec.category, rec.asset_type || rec.category);
+            document.getElementById("valCategory").textContent = catName;
+
+            // Operational Status
+            var st = rec.status || "Available";
+            document.getElementById("valStatus").textContent = st;
+            document.getElementById("inpStatus").value = st;
+
+            // Make & Model
+            var makeVal = rec.make_oem || rec.make || "";
+            document.getElementById("valMake").textContent = makeVal || "—";
+            document.getElementById("inpMake").value = makeVal;
+
+            var modelVal = rec.model || "";
+            document.getElementById("valModel").textContent = modelVal || "—";
+            document.getElementById("inpModel").value = modelVal;
+
+            // Serial / VIN (Checking serial column variants)
+            var sn = rec.serial_number || rec.serial || rec.serialNumber || rec.serial_no || "—";
+            document.getElementById("valSerial").textContent = sn;
+            document.getElementById("inpSerial").value = sn !== "—" ? sn : "";
+
+            // Meter (Preserve null vs 0 accurately)
+            var mtrVal = (rec.current_meter_reading !== undefined && rec.current_meter_reading !== null)
+                ? rec.current_meter_reading 
+                : (rec.current_meter !== undefined && rec.current_meter !== null ? rec.current_meter : "");
+            document.getElementById("valMeter").textContent = mtrVal !== "" ? mtrVal + " hrs" : "—";
+            document.getElementById("inpMeter").value = mtrVal;
+
+            // Current Project Number (Foreign key match against ID or fallback string)
+            var prjValue = rec.project_id || rec.current_project || rec.project;
+            var prjName = matchDropdownValue("inpProject", prjValue, rec.current_project || rec.project_number || rec.project_name || rec.project);
+            
+            var prjSelect = document.getElementById("inpProject");
+            var selectedOpt = prjSelect.options[prjSelect.selectedIndex];
+            if (selectedOpt && selectedOpt.value) {
+                var pNum = selectedOpt.getAttribute("data-project-number");
+                var pName = selectedOpt.getAttribute("data-project-name");
+                document.getElementById("valProject").textContent = pNum ? (pNum + " (" + pName + ")") : prjName;
+            } else {
+                document.getElementById("valProject").textContent = prjName || "—";
+            }
+
+            // Division
+            var divName = matchDropdownValue("inpDivision", rec.assigned_division || rec.division_id || rec.division, rec.division_name || rec.division);
+            document.getElementById("valDivision").textContent = divName;
+
+            // Location
+            var locName = matchDropdownValue("inpLocation", rec.location_id || rec.current_location || rec.location, rec.location_name || rec.location);
+            document.getElementById("valLocation").textContent = locName;
+
+            // Operator
+            var opName = matchDropdownValue("inpOperator", rec.assigned_operator || rec.operator_id || rec.operator, rec.operator_name);
+            document.getElementById("valOperator").textContent = opName;
+
+            // Drive Configuration
+            var drv = rec.drive_configuration || "Standard";
+            document.getElementById("valDriveConfig").textContent = drv;
+            document.getElementById("inpDriveConfig").value = drv;
+        }
+
+        // Toggle Between View Mode and Edit Mode
+        function toggleEditMode() {
+            if (!canEditAssets) return;
+            isEditMode = !isEditMode;
+
+            // Dynamically query all metric boxes to prevent out-of-sync DOM issues
+            var metricBoxes = document.querySelectorAll(".ad-metric-box");
+            metricBoxes.forEach(function(box) {
+                var valEl = box.querySelector(".ad-metric-value");
+                var inpEl = box.querySelector(".ad-input");
+                if (valEl && inpEl) {
+                    valEl.style.display = isEditMode ? "none" : "block";
+                    inpEl.style.display = isEditMode ? "block" : "none";
+                }
+            });
+
+            var btnToggle = document.getElementById("btnToggleEdit");
+            var saveBar = document.getElementById("saveBar");
+
+            if (isEditMode) {
+                if (btnToggle) {
+                    btnToggle.textContent = "🔒 Cancel Editing";
+                    btnToggle.style.background = "#64748b";
+                }
+                if (saveBar) saveBar.style.display = "flex";
+            } else {
+                if (btnToggle) {
+                    btnToggle.textContent = "✏️ Edit Profile";
+                    btnToggle.style.background = "#2563eb";
+                }
+                if (saveBar) saveBar.style.display = "none";
+
+                // Revert to original server record on cancel
+                workingAssetRecord = JSON.parse(JSON.stringify(originalAssetRecord || {}));
+                renderAssetData(workingAssetRecord);
+            }
+        }
+
+        // Save Profile Updates to API
+        async function saveAssetDetails(e) {
+            e.preventDefault();
+            if (!currentAssetId || !activeOrgId) return;
+
+            var btn = document.getElementById("btnSaveAsset");
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = "⏳ Saving...";
+            }
+
+            var meterRaw = document.getElementById("inpMeter").value;
+            var parsedMeter = meterRaw === "" ? null : parseFloat(meterRaw);
+            var serialVal = document.getElementById("inpSerial").value.trim();
+            var locSelect = document.getElementById("inpLocation");
+            var catVal = document.getElementById("inpCategory").value;
+            var prjSelect = document.getElementById("inpProject");
+            var divSelect = document.getElementById("inpDivision");
+            var opVal = document.getElementById("inpOperator").value;
+
+            var selectedPrjOpt = prjSelect.options[prjSelect.selectedIndex];
+            var selectedLocOpt = locSelect.options[locSelect.selectedIndex];
+            var selectedDivOpt = divSelect.options[divSelect.selectedIndex];
+
+            var prjIdVal = prjSelect.value ? prjSelect.value : null;
+            var prjNameVal = (selectedPrjOpt && selectedPrjOpt.value) ? selectedPrjOpt.textContent.trim() : null;
+
+            var locIdVal = locSelect.value ? locSelect.value : null;
+            var locNameVal = (selectedLocOpt && selectedLocOpt.value) ? selectedLocOpt.textContent.trim() : null;
+
+            var divVal = divSelect.value ? divSelect.value : null;
+            var divNameVal = (selectedDivOpt && selectedDivOpt.value) ? selectedDivOpt.textContent.trim() : null;
+
+            // Strict Schema-Aligned Payload matching Cloudflare D1 `assets` table
+            var payload = {
+                id: currentAssetId,
+                asset_number: document.getElementById("inpAssetNumber").value.trim(),
+                asset_type: catVal,
+                type: catVal,
+                status: document.getElementById("inpStatus").value,
+                make_oem: document.getElementById("inpMake").value.trim(),
+                model: document.getElementById("inpModel").value.trim(),
+                serial_number: serialVal,
+                current_meter_reading: isNaN(parsedMeter) ? null : parsedMeter,
+                project_id: prjIdVal,
+                current_project: prjNameVal,
+                project_name: prjNameVal,
+                assigned_division: divVal ? divVal : null,
+                division_name: divNameVal,
+                current_location: locNameVal,
+                location_id: locIdVal,
+                location_name: locNameVal,
+                assigned_operator: opVal ? opVal : null,
+                drive_configuration: document.getElementById("inpDriveConfig").value.trim()
+            };
+
+            try {
+                // Primary PUT endpoint
+                var resp = await fetch("/api/equipment/" + encodeURIComponent(currentAssetId), {
+                    method: "PUT",
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+
+                // Fallback to POST if PUT is not allowed or fails with 405/404
+                if (!resp.ok && (resp.status === 405 || resp.status === 404)) {
+                    resp = await fetch("/api/equipment/" + encodeURIComponent(currentAssetId), {
+                        method: "POST",
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify(payload)
+                    });
+                }
+
+                if (!resp.ok) {
+                    var errData = {};
+                    try { errData = await resp.json(); } catch(e) {}
+                    var errDetails = errData.message || errData.error || ("HTTP " + resp.status);
+                    throw new Error(errDetails);
+                }
+
+                // Commit working payload to immutable server record
+                originalAssetRecord = JSON.parse(JSON.stringify(Object.assign({}, workingAssetRecord, payload)));
+                workingAssetRecord = Object.assign({}, originalAssetRecord);
+
+                renderAssetData(workingAssetRecord);
+                toggleEditMode(); // Exit edit mode
+                displayMessage("Asset profile updated successfully!", "success");
+
+            } catch (err) {
+                reportClientError("Failed updating asset profile", "saveAssetDetails", err);
+                displayMessage("Failed to save changes: " + (err.message || "Please try again."), "error");
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = "💾 Save Changes";
+                }
+            }
+        }
+
+        // Dynamic Query for Open Inspection Issues & Flags
+        async function loadOpenInspectionIssues(assetId) {
+            try {
+                var resp = await fetch("/api/equipment/" + encodeURIComponent(assetId) + "/open-issues", {
+                    headers: getAuthHeaders()
+                });
+
+                if (resp.ok) {
+                    var data = await resp.json();
+                    var issues = extractRecords(data);
+                    
+                    if (issues.length > 0) {
+                        var banner = document.getElementById("bannerOpenIssues");
+                        if (banner) banner.style.display = "block";
+                        var tb = document.getElementById("tbOpenIssues");
+                        if (tb) {
+                            tb.innerHTML = "";
+                            issues.forEach(function(iss) {
+                                var tr = document.createElement("tr");
+                                tr.innerHTML = 
+                                    '<td>' + (iss.created_at ? new Date(iss.created_at).toLocaleDateString() : '—') + '</td>' +
+                                    '<td><strong style="color:#eab308;">⚠️ Inspection Flag</strong></td>' +
+                                    '<td>' + escapeHtml(iss.description || iss.issue_details || 'Defect logged during inspection') + '</td>' +
+                                    '<td><span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:12px; font-weight:600; font-size:12px;">OPEN</span></td>';
+                                tb.appendChild(tr);
+                            });
+                        }
+                    }
+                }
+            } catch (e) {
+                reportClientError("Failed loading open inspection flags", "loadOpenInspectionIssues", e);
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function confirmLogout() {
+            if (confirm("Are you sure you want to log out?")) {
+                dashLogout();
+            }
+        }
+    </script>
+</body>
+</html>

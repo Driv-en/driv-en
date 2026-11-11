@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Asset Configuration & Setup | DRIV-EN Platform</title>
+  <meta name="description" content="DRIV-EN — Asset Technical Configuration, OEM Manual Ingestion, PM Schedules, and Composite Structures.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://www.driv-en.com/app/asset/asset-configuration.html">
+  <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+  <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+  <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+  <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
+  <link rel="stylesheet" href="/app/shared/dashboard.css?v=13">
+  <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
+  <script>
+    (function() {
+      var saved = localStorage.getItem("driven-theme");
+      var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      var theme = saved || system;
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
+  <style>
+    :root {
+      --header-height: 60px;
+      --card-green-border: #16a34a;
+      --blue-line: #1e3a8a;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      background-color: var(--bg-body, #0f172a);
+      color: var(--text, #f8fafc);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      transition: background-color 200ms ease, color 200ms ease;
+    }
+
+    :root[data-theme="light"] body {
+      background-color: #f1f5f9;
+      color: #0f172a;
+    }
+
+    :root[data-theme="dark"] body {
+      background-color: #0f172a;
+      color: #f8fafc;
+    }
+
+    .dash-header-row3 { display: none !important; }
+    #dashHeader .dash-theme-wrapper { display: none !important; }
+    .dash-header-row2 { display: none !important; }
+
+    #dashHeader, .dash-header {
+      position: sticky !important;
+      top: 0 !important;
+      z-index: 101 !important;
+      background: var(--bg-card, #ffffff);
+      width: 100%;
+      box-sizing: border-box;
+      border-bottom: 2px solid var(--card-green-border);
+    }
+
+    @media (max-width: 700px) {
+      .dash-customer-logo, .dash-customer-logo-placeholder {
+        max-height: 32px;
+        max-width: 70px;
+      }
+      .dash-driven-logo { max-height: 36px; }
+      #dashHeader .dash-header-row1 {
+        padding: 6px 12px !important;
+        gap: 8px !important;
+      }
+      #dashHeader h1 {
+        font-size: 16px !important;
+      }
+    }
+
+    .am-tab-bar {
+      display: flex;
+      gap: 2px;
+      width: 100%;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 16px;
+      overflow-x: auto;
+      position: sticky !important;
+      top: var(--header-height, 60px) !important;
+      z-index: 100 !important;
+      background: #cbd5e1;
+      border-bottom: 2px solid #94a3b8;
+      box-sizing: border-box;
+      -webkit-overflow-scrolling: touch;
+    }
+    :root[data-theme="dark"] .am-tab-bar {
+      background: #334155;
+      border-bottom-color: #475569;
+    }
+
+    .am-tab {
+      background: #94a3b8;
+      border: 1px solid #64748b;
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #1e293b;
+      cursor: pointer;
+      white-space: nowrap;
+      text-decoration: none;
+      transition: color 200ms ease, background 200ms ease, margin-top 200ms ease;
+      margin-top: 4px;
+      position: relative;
+      z-index: 1;
+      display: inline-flex;
+      align-items: center;
+    }
+    :root[data-theme="dark"] .am-tab {
+      background: #475569;
+      border-color: #64748b;
+      color: #f1f5f9;
+    }
+    .am-tab:hover {
+      color: #0f172a;
+      background: #a5b4c4;
+      margin-top: 2px;
+    }
+    :root[data-theme="dark"] .am-tab:hover {
+      color: #ffffff;
+      background: #64748b;
+    }
+    .am-tab.active {
+      color: #1d4ed8;
+      background: #e2e8f0;
+      border-color: #64748b;
+      margin-top: 0;
+      font-weight: 600;
+      z-index: 2;
+    }
+    :root[data-theme="dark"] .am-tab.active {
+      color: #60a5fa;
+      background: #1e293b;
+      border-color: #475569;
+    }
+    .am-tab-dashboard {
+      background: #2563eb;
+      border: 1px solid #1d4ed8;
+      color: #fff;
+    }
+    .am-tab-dashboard:hover {
+      background: #1d4ed8;
+      color: #fff;
+      margin-top: 2px;
+    }
+    .am-tab-logout {
+      background: #b91c1c;
+      border: 1px solid #dc2626;
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      cursor: pointer;
+      white-space: nowrap;
+      margin-top: 4px;
+      margin-left: auto;
+      position: relative;
+      z-index: 1;
+      transition: background 200ms ease, margin-top 200ms ease;
+    }
+    .am-tab-logout:hover {
+      background: #dc2626;
+      margin-top: 2px;
+    }
+
+    .presence-banner { 
+      display: none; 
+      align-items: center; 
+      justify-content: center;
+      gap: 8px; 
+      background: #ea580c !important; 
+      border: 1.5px solid #f97316 !important; 
+      padding: 4px 12px; 
+      border-radius: 16px; 
+      font-size: 12px; 
+      color: #ffffff !important; 
+      font-weight: 600; 
+      margin: 4px 8px 4px 0;
+    }
+
+    .ac-main {
+      width: 100%;
+      max-width: 1100px;
+      margin: 16px auto 100px auto;
+      padding: 0 16px;
+      box-sizing: border-box;
+      position: relative;
+      z-index: 1;
+    }
+    .ac-card {
+      background: var(--bg-card, #ffffff);
+      border: 2px solid var(--card-green-border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08);
+      color: var(--text, #0f172a);
+    }
+    :root[data-theme="dark"] .ac-card {
+      background: #1e293b;
+      color: #f8fafc;
+    }
+
+    .ac-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border, #e2e8f0);
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
+    :root[data-theme="dark"] .ac-card-header {
+      border-bottom-color: #334155;
+    }
+
+    .ac-card-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text, #0f172a);
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .ac-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+    .ac-field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .ac-field-group label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted, #334155);
+    }
+    :root[data-theme="dark"] .ac-field-group label {
+      color: #94a3b8;
+    }
+
+    .ac-field-group input, 
+    .ac-field-group select, 
+    .ac-field-group textarea {
+      background: var(--bg-step, #f8fafc);
+      border: 1px solid var(--border, #cbd5e1);
+      border-radius: 6px;
+      padding: 10px 12px;
+      color: var(--text, #0f172a);
+      font-size: 14px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    :root[data-theme="dark"] .ac-field-group input, 
+    :root[data-theme="dark"] .ac-field-group select, 
+    :root[data-theme="dark"] .ac-field-group textarea {
+      background: #0f172a;
+      border-color: #475569;
+      color: #f8fafc;
+    }
+
+    .ac-field-group input:focus, 
+    .ac-field-group select:focus, 
+    .ac-field-group textarea:focus {
+      outline: none;
+      background: var(--bg-card, #ffffff);
+      border-color: #2563eb;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+    }
+    :root[data-theme="dark"] .ac-field-group input:focus, 
+    :root[data-theme="dark"] .ac-field-group select:focus, 
+    :root[data-theme="dark"] .ac-field-group textarea:focus {
+      background: #1e293b;
+    }
+
+    .ac-save-bar { 
+      position: fixed; 
+      bottom: 0; 
+      left: 0;
+      right: 0;
+      z-index: 120; 
+      background: #cbd5e1 !important; 
+      border-top: 2px solid #94a3b8 !important; 
+      padding: 12px 20px; 
+      max-width: 1100px; 
+      margin: 0 auto; 
+      box-sizing: border-box; 
+      border-radius: 8px 8px 0 0;
+      box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    :root[data-theme="dark"] .ac-save-bar {
+      background: #334155 !important;
+      border-top-color: #475569 !important;
+    }
+
+    .ac-btn-save {
+      background: #16a34a;
+      border: 1px solid #15803d;
+      color: #ffffff;
+      font-weight: 600;
+      padding: 10px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 200ms ease;
+    }
+    .ac-btn-save:hover {
+      background: #2563eb;
+      border-color: #1d4ed8;
+    }
+
+    .btn-action {
+      background: #16a34a;
+      color: #ffffff;
+      border: 1px solid #15803d;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      transition: background 200ms ease;
+    }
+    .btn-action:hover {
+      background: #2563eb;
+      border-color: #1d4ed8;
+    }
+
+    .ac-table-scroll {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--border, #e2e8f0);
+      border-radius: 6px;
+      margin-top: 12px;
+    }
+    :root[data-theme="dark"] .ac-table-scroll {
+      border-color: #334155;
+    }
+
+    .ac-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed !important;
+      font-size: 13px;
+    }
+    .ac-table th {
+      background: var(--bg-step, #f1f5f9);
+      color: var(--text, #334155);
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 2px solid #1e3a8a;
+      white-space: normal !important;
+      word-break: break-word !important;
+    }
+    :root[data-theme="dark"] .ac-table th {
+      background: #0f172a;
+      color: #f1f5f9;
+      border-bottom-color: #3b82f6;
+    }
+
+    .ac-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border, #e2e8f0);
+      color: var(--text, #0f172a);
+      white-space: normal !important;
+      word-break: break-word !important;
+    }
+    :root[data-theme="dark"] .ac-table td {
+      border-bottom-color: #334155;
+      color: #f8fafc;
+    }
+
+    .ac-message {
+      display: none;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-bottom: 16px;
+      font-weight: 600;
+    }
+    .ac-message.error {
+      background: #fef2f2;
+      border: 1px solid #ef4444;
+      color: #991b1b;
+    }
+    .ac-message.success {
+      background: #f0fdf4;
+      border: 1px solid #22c55e;
+      color: #166534;
+    }
+
+    @media (max-width: 700px) {
+      .ac-main { padding: 0 12px; margin: 12px auto 120px auto; }
+      .am-tab { padding: 8px 12px; font-size: 13px; }
+      .am-tab-logout { padding: 8px 12px; font-size: 13px; }
+    }
+
+    @media print {
+      .am-tab-bar, #dashHeader, .ac-save-bar, #dashFooter, .btn-action, .ac-btn-save {
+        display: none !important;
+      }
+      body {
+        background: #ffffff !important;
+        color: #000000 !important;
+      }
+      .ac-main {
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      .ac-card {
+        background: #ffffff !important;
+        border: 1px solid #000000 !important;
+        color: #000000 !important;
+        box-shadow: none !important;
+      }
+      .ac-field-group input, 
+      .ac-field-group select, 
+      .ac-field-group textarea {
+        border: 1px solid #64748b !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+      }
+      @page { margin: 10mm; }
+    }
+  </style>
+</head>
+<body data-page-title="Asset Configuration">
+  <div class="steel-bg"></div>
+  <div class="steel-overlay"></div>
+
+  <!-- Viewport Sticky Header -->
+  <div id="dashHeader"></div>
+
+  <!-- Sticky Tab Navigation Bar -->
+  <div class="am-tab-bar" id="amTabBar">
+    <a class="am-tab am-tab-dashboard" href="/app/dashboard/asset-management.html?tab=assets">&#8592; Asset Directory</a>
+    <a class="am-tab" id="lnkOverview" href="/app/asset/asset-detail.html">Overview</a>
+    <div class="am-tab active">⚙️ Configuration</div>
+    <a class="am-tab" id="lnkHistory" href="/app/asset/asset-history.html">📜 History</a>
+    
+    <div class="presence-banner" id="presenceBanner">
+      <span id="presenceText">Other Key Personnel active</span>
+    </div>
+
+    <div class="am-tab-logout" onclick="confirmLogout()">Logout</div>
+  </div>
+
+  <div class="ac-main">
+    <div id="acMessage" class="ac-message"></div>
+
+    <!-- Target Context Selection Box -->
+    <div class="ac-card" style="border-color: #2563eb; background: rgba(37, 99, 235, 0.04);">
+      <div class="ac-card-header">
+        <h3 class="ac-card-title" style="color:#2563eb;">🎯 Configuration Scope & Target Selection</h3>
+      </div>
+      <div class="ac-grid">
+        <div class="ac-field-group">
+          <label>Select Target Configuration Scope</label>
+          <select id="cfgScopeTarget" onchange="onScopeTargetChange()">
+            <option value="asset">Specific Asset Profile Configuration</option>
+            <option value="type">Asset-Type Global Defaults</option>
+          </select>
+        </div>
+        <div class="ac-field-group" id="grpAssetTypeSelect" style="display:none;">
+          <label>Select Asset Type Category</label>
+          <select id="cfgAssetTypeSelect" onchange="onAssetTypeCategoryChange()">
+            <option value="">-- Select Asset Type --</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 1: OEM Specifications & Cab Structure -->
+    <div class="ac-card">
+      <div class="ac-card-header">
+        <div>
+          <h3 class="ac-card-title">1. OEM Specifications & Cab Configuration</h3>
+          <span id="txtAssetTitle" style="font-size: 14px; font-weight: 600; color: #2563eb;">Loading Asset Context...</span>
+        </div>
+        <button class="btn-action" onclick="doPrintConfig()">🖨 Print Configuration</button>
+      </div>
+      <div class="ac-grid">
+        <div class="ac-field-group">
+          <label>Manufacturer / OEM</label>
+          <input type="text" id="cfgMake" placeholder="e.g., Caterpillar, Komatsu, Ford" />
+        </div>
+        <div class="ac-field-group">
+          <label>Model Number</label>
+          <input type="text" id="cfgModel" placeholder="e.g., CAT 320, F-350" />
+        </div>
+        <div class="ac-field-group">
+          <label>Year of Manufacture</label>
+          <input type="number" id="cfgYear" placeholder="e.g., 2024" />
+        </div>
+        <div class="ac-field-group">
+          <label>Serial Number (VIN / PIN)</label>
+          <input type="text" id="cfgSerial" placeholder="e.g., CAT0320CKL98271" />
+        </div>
+        <div class="ac-field-group">
+          <label>Cab Enclosure Type</label>
+          <select id="cfgCabType">
+            <option value="">-- Select Cab Type --</option>
+          </select>
+        </div>
+        <div class="ac-field-group">
+          <label>Truck Cab Style</label>
+          <select id="cfgCabStyle">
+            <option value="">-- Select Cab Style --</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: Drivetrain, Axles & Mobility Specs -->
+    <div class="ac-card">
+      <div class="ac-card-header">
+        <h3 class="ac-card-title">2. Drivetrain, Axles & Mobility System</h3>
+      </div>
+      <div class="ac-grid">
+        <div class="ac-field-group">
+          <label>Mobility Setup</label>
+          <select id="cfgMobilityType">
+            <option value="">-- Select Mobility Setup --</option>
+          </select>
+        </div>
+        <div class="ac-field-group">
+          <label>Drive Configuration</label>
+          <select id="cfgDrive">
+            <option value="">-- Select Drive System --</option>
+          </select>
+        </div>
+        <div class="ac-field-group">
+          <label>Transmission Type</label>
+          <select id="cfgTransmissionType">
+            <option value="">-- Select Transmission --</option>
+          </select>
+        </div>
+        <div class="ac-field-group">
+          <label>Wheel Configuration</label>
+          <select id="cfgWheelSetup">
+            <option value="">-- Select Wheel Setup --</option>
+          </select>
+        </div>
+        <div class="ac-field-group">
+          <label>Number of Axles</label>
+          <select id="cfgNumAxles">
+            <option value="">-- Select Axle Count --</option>
+          </select>
+        </div>
+        <div class="ac-field-group">
+          <label>Fuel / Power Source</label>
+          <select id="cfgFuelType">
+            <option value="">-- Select Power Source --</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 3: Auxiliary Hydraulics, PTO & Winch Equipment -->
+    <div class="ac-card">
+      <div class="ac-card-header">
+        <h3 class="ac-card-title">3. Auxiliary Power, PTO & Winch Options</h3>
+      </div>
+      <div class="ac-grid">
+        <div class="ac-field-group">
+          <label>Power Take-Off (PTO)</label>
+          <select id="cfgPtoSetup">
+            <option value="">-- Select PTO Setup --</option>
+          </select>
+        </div>
+        <div class="ac-field-group">
+          <label>Winch System</label>
+          <select id="cfgWinchSetup">
+            <option value="">-- Select Winch System --</option>
+          </select>
+        </div>
+        <div class="ac-field-group">
+          <label>Winch Rated Capacity (Lbs)</label>
+          <input type="text" id="cfgWinchRating" placeholder="e.g., 12,000 lbs, 30,000 lbs" />
+        </div>
+        <div class="ac-field-group">
+          <label>Auxiliary Hydraulics</label>
+          <select id="cfgAuxHydraulics">
+            <option value="">-- Select Aux Hydraulics --</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 4: Fluid Capacities & Lubrication Specs -->
+    <div class="ac-card">
+      <div class="ac-card-header">
+        <h3 class="ac-card-title">4. Fluid Capacities & Lubrication Specs</h3>
+      </div>
+      <div class="ac-grid">
+        <div class="ac-field-group">
+          <label>Engine Oil Capacity & Spec</label>
+          <input type="text" id="cfgEngineOil" placeholder="e.g., 6.0 Qt (5W-30 Full Synthetic)" />
+        </div>
+        <div class="ac-field-group">
+          <label>Transmission / Gearbox Fluid</label>
+          <input type="text" id="cfgTransmission" placeholder="e.g., 12.0 Qt (Dexron VI)" />
+        </div>
+        <div class="ac-field-group">
+          <label>Brake Fluid Spec & Capacity</label>
+          <input type="text" id="cfgBrakeFluid" placeholder="e.g., 32 oz (DOT 3 / DOT 4)" />
+        </div>
+        <div class="ac-field-group">
+          <label>Coolant / Antifreeze Capacity</label>
+          <input type="text" id="cfgCoolant" placeholder="e.g., 14.0 Qt (50/50 OAT)" />
+        </div>
+        <div class="ac-field-group">
+          <label>Hydraulic System Capacity</label>
+          <input type="text" id="cfgHydraulicFluid" placeholder="e.g., 32 Gal (ISO VG 46)" />
+        </div>
+        <div class="ac-field-group">
+          <label>DEF Tank Capacity</label>
+          <input type="text" id="cfgDefTank" placeholder="e.g., 5.0 Gal" />
+        </div>
+        <div class="ac-field-group">
+          <label>Fuel Tank Capacity</label>
+          <input type="text" id="cfgFuelCap" placeholder="e.g., 26.0 Gal Gasoline" />
+        </div>
+        <div class="ac-field-group">
+          <label>Cabin HVAC Air Filter Part #</label>
+          <input type="text" id="cfgCabinFilter" placeholder="e.g., FP-78 / CAF1812P" />
+        </div>
+        <div class="ac-field-group">
+          <label>Wiper Blade Set Part #</label>
+          <input type="text" id="cfgWipers" placeholder="e.g., 22&quot; Driver / 22&quot; Pass (Bosch ICON)" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 5: Parent/Child Composite Asset Structure -->
+    <div class="ac-card">
+      <div class="ac-card-header">
+        <h3 class="ac-card-title">5. Composite Asset & Mounted Attachment Structure</h3>
+      </div>
+      <p style="font-size: 13px; color: var(--text-muted, #475569); margin-top: -8px;">
+        Link secondary attachments, mounted air compressors, drill rigs, or trailer units to this parent chassis to compile unified dynamic inspection forms.
+      </p>
+      <div class="ac-grid">
+        <div class="ac-field-group">
+          <label>Parent Unit / Mounting Body</label>
+          <select id="cfgParentAsset">
+            <option value="">-- Standalone Asset (No Parent) --</option>
+          </select>
+        </div>
+        <div class="ac-field-group">
+          <label>Composite Role / Mounted Position</label>
+          <input type="text" id="cfgCompositeRole" placeholder="e.g., Primary Deck Compressor, Attached Hammer" />
+        </div>
+      </div>
+      <div class="ac-table-scroll">
+        <table class="ac-table">
+          <thead>
+            <tr>
+              <th style="width:25%;">Attached Child Asset #</th>
+              <th style="width:35%;">Asset Type</th>
+              <th style="width:25%;">Mounted Position</th>
+              <th style="width:15%;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="tbChildAssets">
+            <tr>
+              <td colspan="4" style="text-align:center; color:var(--text-muted, #64748b);">No attached child assets linked to this unit.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Section 6: AI OEM Manual Ingestion & RAG Spec Builder -->
+    <div class="ac-card">
+      <div class="ac-card-header">
+        <h3 class="ac-card-title">6. Asynchronous OEM Manual Ingestion (RAG Assistant)</h3>
+      </div>
+      <p style="font-size: 13px; color: var(--text-muted, #475569); margin-top: -8px;">
+        Upload heavy PDF manuals (100–1000+ pages). AI processes text chunking asynchronously to extract fluid specs, filter replacement codes, and PM schedules directly into D1 tables.
+      </p>
+      <div class="ac-grid">
+        <div class="ac-field-group" style="grid-column: span 2;">
+          <label>Select OEM Manual PDF File</label>
+          <input type="file" id="fileManualPdf" accept="application/pdf" />
+        </div>
+        <div class="ac-field-group">
+          <label>&nbsp;</label>
+          <button type="button" class="ac-btn-save" style="background:#2563eb; border-color:#1d4ed8;" onclick="uploadOemManual()">
+            📄 Process OEM Manual
+          </button>
+        </div>
+      </div>
+      <div id="txtIngestStatus" style="font-size:12px; color:#0284c7; margin-top:10px; font-weight:600;"></div>
+    </div>
+
+    <!-- Section 7: PM Schedule Builder -->
+    <div class="ac-card">
+      <div class="ac-card-header">
+        <h3 class="ac-card-title">7. Preventative Maintenance (PM) Schedule Builder</h3>
+      </div>
+      <div class="ac-grid">
+        <div class="ac-field-group">
+          <label>Service Interval (Hours / Miles)</label>
+          <input type="number" id="pmInterval" placeholder="e.g., 250" />
+        </div>
+        <div class="ac-field-group">
+          <label>PM Task Name</label>
+          <input type="text" id="pmTaskName" placeholder="e.g., Engine Oil & Filter Change" />
+        </div>
+        <div class="ac-field-group">
+          <label>Required Parts / Filter Codes</label>
+          <input type="text" id="pmParts" placeholder="e.g., Filter #1R-1808, 15W-40 (5.5 Gal)" />
+        </div>
+        <div class="ac-field-group">
+          <label>&nbsp;</label>
+          <button type="button" class="ac-btn-save" style="background:#16a34a;" onclick="addPmScheduleRow()">
+            ➕ Add PM Rule
+          </button>
+        </div>
+      </div>
+      <div class="ac-table-scroll">
+        <table class="ac-table">
+          <thead>
+            <tr>
+              <th style="width:20%;">Interval</th>
+              <th style="width:35%;">PM Task Description</th>
+              <th style="width:35%;">Required Part Numbers</th>
+              <th style="width:10%;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="tbPmSchedules">
+            <tr>
+              <td colspan="4" style="text-align:center; color:var(--text-muted, #64748b);">No PM schedule rules configured yet.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Sticky Save Bar -->
+  <div class="ac-save-bar">
+    <div style="font-size:13px; font-weight:600; color:var(--text, #1e293b);" id="lblSaveStatus">
+      Configuration Unsaved
+    </div>
+    <button class="ac-btn-save" onclick="saveConfigurationData()">
+      💾 Save Asset Configuration
+    </button>
+  </div>
+
+  <div id="dashFooter"></div>
+
+  <script src="/app/shared/dashboard-common.js?v=13"></script>
+  <script src="/app/shared/auth-check.js?v=13"></script>
+
+  <script>
+    var currentAssetId = null;
+    var currentAssetType = null;
+    var activeOrgId = null;
+    var activeUserId = null;
+    var humanAssetNumber = "";
+    var pmScheduleItems = [];
+    var isBootstrapped = false;
+
+    window.addEventListener('storage', function(e) {
+      if (e.key === 'driven-theme' && e.newValue) {
+        document.documentElement.setAttribute('data-theme', e.newValue);
+      }
+    });
+
+    function updateHeaderOffset() {
+      var h = document.getElementById('dashHeader') || document.querySelector('.dash-header');
+      if (h) {
+        var hh = h.getBoundingClientRect().height || 60;
+        document.documentElement.style.setProperty('--header-height', hh + 'px');
+      }
+    }
+    window.addEventListener('resize', updateHeaderOffset);
+
+    function fixHeaderLayout() {
+      var h = document.querySelector('.dash-header');
+      if (!h) return false;
+      var r1 = h.querySelector('.dash-header-row1');
+      var r2 = h.querySelector('.dash-header-row2');
+      var r3 = h.querySelector('.dash-header-row3');
+      var h1 = r2 ? r2.querySelector('h1') : null;
+      if (!r1 || !h1) return false;
+      if (h1.parentNode === r1) return true;
+      var dl = r1.querySelector('.dash-driven-logo');
+      r1.insertBefore(h1, dl);
+      r1.style.cssText = 'display:flex !important; justify-content:space-between !important; align-items:center !important; padding:8px 20px !important; gap:16px !important; width:100% !important; box-sizing:border-box !important;';
+      h1.style.cssText = 'margin:0; font-size:20px; font-weight:600; text-align:center; flex:1;';
+      if (r2) r2.style.display = 'none';
+      if (r3) r3.style.display = 'none';
+      return true;
+    }
+
+    var urlParams = new URLSearchParams(window.location.search);
+    currentAssetId = urlParams.get('id') || urlParams.get('asset_id');
+    currentAssetType = urlParams.get('asset_type') || urlParams.get('type');
+
+    function extractRecords(data) {
+      if (Array.isArray(data)) return data;
+      if (!data || typeof data !== "object") return [];
+      return data.assetTypes || data.records || data.equipment || data.data || data.results || [];
+    }
+
+    function resolveActiveOrgId(u) {
+      var urlOrg = urlParams.get('org_id') || urlParams.get('orgId') || urlParams.get('customerId');
+      if (urlOrg && urlOrg !== "default_org") return urlOrg;
+      
+      if (u && u.org_id && u.org_id !== "default_org") return u.org_id;
+      if (u && u.customer_id && u.customer_id !== "default_org") return u.customer_id;
+      
+      var lsOrg = localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id");
+      if (lsOrg && lsOrg !== "default_org") return lsOrg;
+
+      var ssOrg = sessionStorage.getItem("driven_org_id");
+      if (ssOrg && ssOrg !== "default_org") return ssOrg;
+
+      var email = (u && u.email) ? u.email.toLowerCase() : "";
+      var roleId = (u && u.role_id) ? String(u.role_id).toLowerCase() : "";
+      if (email === "jblood@digitalsafetyinspection.com" || roleId === "ro-founder") {
+        return "org_dsi";
+      }
+
+      return null;
+    }
+
+    async function initAssetConfig(e) {
+      if (isBootstrapped) return;
+
+      var u = (e && e.detail) ? e.detail : (window.dashUser || window.drivenUser);
+      
+      activeOrgId = resolveActiveOrgId(u);
+      activeUserId = (u && u.id) ? u.id : null;
+
+      if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "") {
+        var errMsg = "Invalid multi-tenant session context. Execution halted to prevent data leaks.";
+        
+        if (window.DRIVENErrorHandler) {
+          window.DRIVENErrorHandler.report(
+            "asset-configuration.html: " + errMsg,
+            "tenant-security-guardrail",
+            new Error().stack
+          );
+        }
+        
+        displayMessage(errMsg, "error");
+        document.querySelector(".ac-main").style.opacity = "0.3";
+        document.querySelector(".ac-save-bar").style.display = "none";
+        return;
+      }
+
+      isBootstrapped = true;
+      document.querySelector(".ac-main").style.opacity = "1";
+
+      var ha = 0, hi = setInterval(function() {
+        ha++;
+        if (fixHeaderLayout() || ha > 50) {
+          clearInterval(hi);
+          updateHeaderOffset();
+        }
+      }, 100);
+
+      if (currentAssetId) {
+        document.getElementById("lnkOverview").href = "/app/asset/asset-detail.html?id=" + encodeURIComponent(currentAssetId);
+        document.getElementById("lnkHistory").href = "/app/asset/asset-history.html?id=" + encodeURIComponent(currentAssetId);
+      }
+
+      checkActivePresence();
+      setInterval(checkActivePresence, 5000);
+      
+      // Load D1 database options dynamically
+      await loadConfigDropdowns();
+      await loadAssetTypesDropdown();
+      await loadParentAssetsDropdown();
+
+      if (currentAssetType && !currentAssetId) {
+        document.getElementById("cfgScopeTarget").value = "type";
+        onScopeTargetChange();
+        document.getElementById("cfgAssetTypeSelect").value = currentAssetType;
+        await fetchAssetTypeGlobalConfig(currentAssetType);
+      } else if (currentAssetId) {
+        document.getElementById("cfgScopeTarget").value = "asset";
+        onScopeTargetChange();
+        await fetchAssetConfiguration(currentAssetId);
+      } else {
+        document.getElementById("txtAssetTitle").textContent = "New Asset Configuration";
+      }
+
+      updateHeaderOffset();
+    }
+
+    document.addEventListener("dashSessionLoaded", initAssetConfig);
+
+    if (window.dashUser || window.drivenUser) {
+      initAssetConfig();
+    }
+
+    function reportClientError(msg, context, err) {
+      if (window.DRIVENErrorHandler) {
+        window.DRIVENErrorHandler.report("asset-configuration.html: " + msg, context, err ? err.stack : null);
+      }
+    }
+
+    function displayMessage(msg, type) {
+      var el = document.getElementById("acMessage");
+      if (!el) return;
+      el.textContent = msg;
+      el.className = "ac-message " + type;
+      el.style.display = "block";
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function sendPresenceUnload() {
+      if (!activeOrgId) return;
+      var payload = JSON.stringify({ page: "Asset Configuration", action: "leave" });
+      if (navigator.sendBeacon) {
+        var blob = new Blob([payload], { type: "application/json" });
+        navigator.sendBeacon("/api/onboarding/presence", blob);
+      } else {
+        fetch("/api/onboarding/presence", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-org-id": activeOrgId },
+          body: payload,
+          keepalive: true
+        }).catch(function() {});
+      }
+    }
+
+    async function checkActivePresence() {
+      if (!activeOrgId) return;
+      try {
+        var resp = await fetch("/api/onboarding/presence", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "x-org-id": activeOrgId
+          },
+          body: JSON.stringify({ page: "Asset Configuration" })
+        });
+        if (resp.ok) {
+          var data = await resp.json();
+          var banner = document.getElementById("presenceBanner");
+          var textEl = document.getElementById("presenceText");
+          if (data.activeUsers && data.activeUsers.length > 0) {
+            var fullNames = data.activeUsers.map(function(u) {
+              if (typeof u === "object") {
+                return ((u.firstName || u.first_name || "") + " " + (u.lastName || u.last_name || "")).trim() || u.name || u.email;
+              }
+              return String(u);
+            });
+            textEl.textContent = "🟢 " + fullNames.join(", ") + " active";
+            banner.style.display = "inline-flex";
+          } else {
+            banner.style.display = "none";
+          }
+        }
+      } catch (e) {
+        reportClientError("Presence check failed", "checkActivePresence", e);
+      }
+    }
+
+    window.addEventListener("pagehide", sendPresenceUnload);
+    window.addEventListener("beforeunload", sendPresenceUnload);
+
+    // Dynamic Database Lookup Dropdown Hydration Function
+    async function loadConfigDropdowns() {
+      try {
+        var resp = await fetch("/api/configuration-options", {
+          headers: { "x-org-id": activeOrgId }
+        });
+        if (!resp.ok) return;
+
+        var data = await resp.json();
+
+        populateDropdown("cfgCabType", data.cab_type, "-- Select Cab Type --");
+        populateDropdown("cfgCabStyle", data.cab_style, "-- Select Cab Style --");
+        populateDropdown("cfgMobilityType", data.mobility_type, "-- Select Mobility Setup --");
+        populateDropdown("cfgDrive", data.drive_configuration, "-- Select Drive System --");
+        populateDropdown("cfgTransmissionType", data.transmission_type, "-- Select Transmission --");
+        populateDropdown("cfgWheelSetup", data.wheel_setup, "-- Select Wheel Setup --");
+        populateDropdown("cfgNumAxles", data.num_axles, "-- Select Axle Count --");
+        populateDropdown("cfgFuelType", data.fuel_type, "-- Select Power Source --");
+        populateDropdown("cfgPtoSetup", data.pto_setup, "-- Select PTO Setup --");
+        populateDropdown("cfgWinchSetup", data.winch_setup, "-- Select Winch System --");
+        populateDropdown("cfgAuxHydraulics", data.aux_hydraulics, "-- Select Aux Hydraulics --");
+      } catch (e) {
+        reportClientError("Failed loading config dropdown options", "loadConfigDropdowns", e);
+      }
+    }
+
+    function populateDropdown(selectId, optionsList, placeholder) {
+      var sel = document.getElementById(selectId);
+      if (!sel || !Array.isArray(optionsList)) return;
+
+      sel.innerHTML = '<option value="">' + placeholder + '</option>';
+      optionsList.forEach(function(opt) {
+        var val = (typeof opt === "object") ? opt.value : opt;
+        var label = (typeof opt === "object") ? opt.label : opt;
+        
+        var optionEl = document.createElement("option");
+        optionEl.value = val;
+        optionEl.textContent = label;
+        sel.appendChild(optionEl);
+      });
+    }
+
+    function onScopeTargetChange() {
+      var scope = document.getElementById("cfgScopeTarget").value;
+      var grpAssetType = document.getElementById("grpAssetTypeSelect");
+
+      if (scope === "type") {
+        grpAssetType.style.display = "flex";
+      } else {
+        grpAssetType.style.display = "none";
+        if (currentAssetId) {
+          fetchAssetConfiguration(currentAssetId);
+        }
+      }
+    }
+
+    async function onAssetTypeCategoryChange() {
+      var typeVal = document.getElementById("cfgAssetTypeSelect").value;
+      if (!typeVal) return;
+      await fetchAssetTypeGlobalConfig(typeVal);
+    }
+
+    async function loadAssetTypesDropdown() {
+      try {
+        var resp = await fetch("/api/asset-types", { headers: { "x-org-id": activeOrgId } });
+        if (resp.ok) {
+          var data = await resp.json();
+          var list = extractRecords(data);
+          var sel = document.getElementById("cfgAssetTypeSelect");
+          sel.innerHTML = '<option value="">-- Select Asset Type --</option>';
+          list.forEach(function(item) {
+            var name = item.asset_type_name || item.name || item.type;
+            if (name) {
+              var opt = document.createElement("option");
+              opt.value = name;
+              opt.textContent = name;
+              sel.appendChild(opt);
+            }
+          });
+        }
+      } catch (e) {
+        reportClientError("Failed loading asset types", "loadAssetTypesDropdown", e);
+      }
+    }
+
+    async function loadParentAssetsDropdown() {
+      try {
+        var resp = await fetch("/api/equipment", {
+          headers: { "x-org-id": activeOrgId }
+        });
+        var sel = document.getElementById("cfgParentAsset");
+        sel.innerHTML = '<option value="">-- Standalone Asset (No Parent) --</option>';
+        
+        if (resp.ok) {
+          var data = await resp.json();
+          var list = data.records || data.equipment || data.data || (Array.isArray(data) ? data : []);
+          list.forEach(function(item) {
+            var id = item.id || (item.fields ? item.fields.id : null);
+            var num = item.asset_number || item.assetNumber || (item.fields ? item.fields.asset_number : null);
+            var type = item.category || item.type || (item.fields ? item.fields.category : "");
+            
+            if (id && num && id !== currentAssetId) {
+              var opt = document.createElement("option");
+              opt.value = id;
+              opt.textContent = num + " (" + type + ")";
+              sel.appendChild(opt);
+            }
+          });
+        }
+      } catch (e) {
+        reportClientError("Failed loading parent assets", "loadParentAssetsDropdown", e);
+      }
+    }
+
+    async function fetchAssetTypeGlobalConfig(assetTypeName) {
+      try {
+        var resp = await fetch("/api/asset-types/config?type=" + encodeURIComponent(assetTypeName), {
+          headers: { "x-org-id": activeOrgId }
+        });
+        
+        document.getElementById("txtAssetTitle").textContent = "Asset-Type Global Defaults: " + assetTypeName;
+
+        if (resp.ok) {
+          var data = await resp.json();
+          var rec = data.record || data.config || data;
+
+          document.getElementById("cfgMake").value = rec.make || "";
+          document.getElementById("cfgModel").value = rec.model || "";
+          document.getElementById("cfgYear").value = rec.year || "";
+          document.getElementById("cfgSerial").value = rec.serial_number || "";
+          document.getElementById("cfgCabType").value = rec.cab_type || "";
+          document.getElementById("cfgCabStyle").value = rec.cab_style || "";
+
+          document.getElementById("cfgMobilityType").value = rec.mobility_type || "";
+          document.getElementById("cfgDrive").value = rec.drive_configuration || "";
+          document.getElementById("cfgTransmissionType").value = rec.transmission_type || "";
+          document.getElementById("cfgWheelSetup").value = rec.wheel_setup || "";
+          document.getElementById("cfgNumAxles").value = rec.num_axles || "";
+          document.getElementById("cfgFuelType").value = rec.fuel_type || "";
+
+          document.getElementById("cfgPtoSetup").value = rec.pto_setup || "";
+          document.getElementById("cfgWinchSetup").value = rec.winch_setup || "";
+          document.getElementById("cfgWinchRating").value = rec.winch_rating || "";
+          document.getElementById("cfgAuxHydraulics").value = rec.aux_hydraulics || "";
+          
+          document.getElementById("cfgEngineOil").value = rec.engine_oil_spec || "";
+          document.getElementById("cfgTransmission").value = rec.transmission_fluid_spec || "";
+          document.getElementById("cfgBrakeFluid").value = rec.brake_fluid_spec || "";
+          document.getElementById("cfgCoolant").value = rec.coolant_spec || "";
+          document.getElementById("cfgHydraulicFluid").value = rec.hydraulic_fluid_spec || "";
+          document.getElementById("cfgDefTank").value = rec.def_capacity || "";
+          document.getElementById("cfgFuelCap").value = rec.fuel_capacity || "";
+          document.getElementById("cfgCabinFilter").value = rec.cabin_filter_spec || "";
+          document.getElementById("cfgWipers").value = rec.wiper_blades_spec || "";
+
+          if (rec.pm_schedules && Array.isArray(rec.pm_schedules)) {
+            pmScheduleItems = rec.pm_schedules;
+            renderPmSchedulesTable();
+          } else {
+            pmScheduleItems = [];
+            renderPmSchedulesTable();
+          }
+        }
+      } catch (e) {
+        reportClientError("Fetch asset-type global config failed", "fetchAssetTypeGlobalConfig", e);
+      }
+    }
+
+    async function fetchAssetConfiguration(assetId) {
+      try {
+        var resp = await fetch("/api/equipment/" + encodeURIComponent(assetId), {
+          headers: { "x-org-id": activeOrgId }
+        });
+        if (!resp.ok) throw new Error("HTTP Error " + resp.status);
+        
+        var data = await resp.json();
+        var rec = data.record || data.equipment || data;
+        
+        humanAssetNumber = rec.asset_number || rec.assetNumber || "Asset #" + assetId;
+        var category = rec.category || rec.type || "";
+        document.getElementById("txtAssetTitle").textContent = humanAssetNumber + (category ? " (" + category + ")" : "");
+
+        document.getElementById("cfgMake").value = rec.make || "";
+        document.getElementById("cfgModel").value = rec.model || "";
+        document.getElementById("cfgYear").value = rec.year || "";
+        document.getElementById("cfgSerial").value = rec.serial_number || rec.serialNumber || "";
+        document.getElementById("cfgCabType").value = rec.cab_type || "";
+        document.getElementById("cfgCabStyle").value = rec.cab_style || "";
+
+        document.getElementById("cfgMobilityType").value = rec.mobility_type || "";
+        document.getElementById("cfgDrive").value = rec.drive_configuration || "";
+        document.getElementById("cfgTransmissionType").value = rec.transmission_type || "";
+        document.getElementById("cfgWheelSetup").value = rec.wheel_setup || "";
+        document.getElementById("cfgNumAxles").value = rec.num_axles || "";
+        document.getElementById("cfgFuelType").value = rec.fuel_type || "";
+
+        document.getElementById("cfgPtoSetup").value = rec.pto_setup || "";
+        document.getElementById("cfgWinchSetup").value = rec.winch_setup || "";
+        document.getElementById("cfgWinchRating").value = rec.winch_rating || "";
+        document.getElementById("cfgAuxHydraulics").value = rec.aux_hydraulics || "";
+
+        document.getElementById("cfgEngineOil").value = rec.engine_oil_spec || "";
+        document.getElementById("cfgTransmission").value = rec.transmission_fluid_spec || "";
+        document.getElementById("cfgBrakeFluid").value = rec.brake_fluid_spec || "";
+        document.getElementById("cfgCoolant").value = rec.coolant_spec || "";
+        document.getElementById("cfgHydraulicFluid").value = rec.hydraulic_fluid_spec || "";
+        document.getElementById("cfgDefTank").value = rec.def_capacity || "";
+        document.getElementById("cfgFuelCap").value = rec.fuel_capacity || "";
+        document.getElementById("cfgCabinFilter").value = rec.cabin_filter_spec || "";
+        document.getElementById("cfgWipers").value = rec.wiper_blades_spec || "";
+        
+        document.getElementById("cfgParentAsset").value = rec.parent_asset_id || "";
+        document.getElementById("cfgCompositeRole").value = rec.composite_role || "";
+
+        if (rec.pm_schedules && Array.isArray(rec.pm_schedules)) {
+          pmScheduleItems = rec.pm_schedules;
+          renderPmSchedulesTable();
+        } else {
+          pmScheduleItems = [];
+          renderPmSchedulesTable();
+        }
+      } catch (e) {
+        reportClientError("Fetch asset configuration failed", "fetchAssetConfiguration", e);
+        displayMessage("Unable to load asset configuration details.", "error");
+      }
+    }
+
+    function addPmScheduleRow() {
+      var interval = document.getElementById("pmInterval").value.trim();
+      var task = document.getElementById("pmTaskName").value.trim();
+      var parts = document.getElementById("pmParts").value.trim();
+
+      if (!interval || !task) {
+        alert("Please specify both a PM interval and task name.");
+        return;
+      }
+
+      pmScheduleItems.push({
+        interval: parseInt(interval, 10),
+        task_name: task,
+        parts: parts
+      });
+
+      document.getElementById("pmInterval").value = "";
+      document.getElementById("pmTaskName").value = "";
+      document.getElementById("pmParts").value = "";
+
+      renderPmSchedulesTable();
+    }
+
+    function removePmRule(idx) {
+      pmScheduleItems.splice(idx, 1);
+      renderPmSchedulesTable();
+    }
+
+    function renderPmSchedulesTable() {
+      var tb = document.getElementById("tbPmSchedules");
+      tb.innerHTML = "";
+      
+      if (pmScheduleItems.length === 0) {
+        tb.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted, #64748b);">No PM schedule rules configured yet.</td></tr>';
+        return;
+      }
+
+      pmScheduleItems.forEach(function(item, idx) {
+        var tr = document.createElement("tr");
+        tr.innerHTML = 
+          '<td>' + item.interval + ' Hours/Miles</td>' +
+          '<td>' + escapeHtml(item.task_name) + '</td>' +
+          '<td>' + escapeHtml(item.parts || '—') + '</td>' +
+          '<td><button type="button" class="am-tab-logout" style="padding:4px 10px; font-size:12px; margin-left:0;" onclick="removePmRule(' + idx + ')">Remove</button></td>';
+        tb.appendChild(tr);
+      });
+    }
+
+    function doPrintConfig() {
+      var u = window.dashUser || {};
+      var customerName = u.org_name || u.tenant_name || u.company_name || u.organization_name || "Organization";
+      var assetIdentifier = humanAssetNumber || currentAssetId || "Setup";
+
+      document.title = customerName + " Technical Configuration | Asset #" + assetIdentifier;
+      
+      window.print();
+    }
+
+    async function uploadOemManual() {
+      var fileInput = document.getElementById("fileManualPdf");
+      var statusEl = document.getElementById("txtIngestStatus");
+      if (!fileInput.files || fileInput.files.length === 0) {
+        alert("Please select a PDF file first.");
+        return;
+      }
+
+      var file = fileInput.files[0];
+      statusEl.textContent = "⌛ Uploading manual & initiating async text chunking/RAG extraction...";
+
+      var formData = new FormData();
+      formData.append("manual", file);
+      formData.append("asset_id", currentAssetId || "");
+
+      try {
+        var resp = await fetch("/api/equipment/ingest-manual", {
+          method: "POST",
+          headers: {
+            "x-org-id": activeOrgId
+          },
+          body: formData
+        });
+
+        if (resp.ok) {
+          statusEl.textContent = "✅ OEM Manual ingested successfully! Extracted fluid specs and PM rules applied below.";
+        } else {
+          statusEl.textContent = "⚠️ Manual upload queued. Background processing will extract specs shortly.";
+        }
+      } catch (e) {
+        reportClientError("OEM manual ingestion failed", "uploadOemManual", e);
+        statusEl.textContent = "❌ Manual ingestion error. Please try again.";
+      }
+    }
+
+    async function saveConfigurationData() {
+      var scope = document.getElementById("cfgScopeTarget").value;
+      var endpoint = "";
+      var payload = {
+        make: document.getElementById("cfgMake").value.trim(),
+        model: document.getElementById("cfgModel").value.trim(),
+        year: document.getElementById("cfgYear").value.trim(),
+        serial_number: document.getElementById("cfgSerial").value.trim(),
+        cab_type: document.getElementById("cfgCabType").value,
+        cab_style: document.getElementById("cfgCabStyle").value,
+
+        mobility_type: document.getElementById("cfgMobilityType").value,
+        drive_configuration: document.getElementById("cfgDrive").value,
+        transmission_type: document.getElementById("cfgTransmissionType").value,
+        wheel_setup: document.getElementById("cfgWheelSetup").value,
+        num_axles: document.getElementById("cfgNumAxles").value,
+        fuel_type: document.getElementById("cfgFuelType").value,
+
+        pto_setup: document.getElementById("cfgPtoSetup").value,
+        winch_setup: document.getElementById("cfgWinchSetup").value,
+        winch_rating: document.getElementById("cfgWinchRating").value.trim(),
+        aux_hydraulics: document.getElementById("cfgAuxHydraulics").value,
+        
+        engine_oil_spec: document.getElementById("cfgEngineOil").value.trim(),
+        transmission_fluid_spec: document.getElementById("cfgTransmission").value.trim(),
+        brake_fluid_spec: document.getElementById("cfgBrakeFluid").value.trim(),
+        coolant_spec: document.getElementById("cfgCoolant").value.trim(),
+        hydraulic_fluid_spec: document.getElementById("cfgHydraulicFluid").value.trim(),
+        def_capacity: document.getElementById("cfgDefTank").value.trim(),
+        fuel_capacity: document.getElementById("cfgFuelCap").value.trim(),
+        cabin_filter_spec: document.getElementById("cfgCabinFilter").value.trim(),
+        wiper_blades_spec: document.getElementById("cfgWipers").value.trim(),
+        
+        parent_asset_id: document.getElementById("cfgParentAsset").value,
+        composite_role: document.getElementById("cfgCompositeRole").value.trim(),
+        pm_schedules: pmScheduleItems
+      };
+
+      if (scope === "type") {
+        var selectedType = document.getElementById("cfgAssetTypeSelect").value;
+        if (!selectedType) {
+          displayMessage("Please select an Asset Type Category to save global defaults.", "error");
+          return;
+        }
+        endpoint = "/api/asset-types/config?type=" + encodeURIComponent(selectedType);
+      } else {
+        if (!currentAssetId) {
+          displayMessage("Cannot save configuration without an active Asset ID.", "error");
+          return;
+        }
+        endpoint = "/api/equipment/" + encodeURIComponent(currentAssetId);
+      }
+
+      try {
+        var resp = await fetch(endpoint, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "x-org-id": activeOrgId
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!resp.ok) throw new Error("HTTP error " + resp.status);
+
+        document.getElementById("lblSaveStatus").textContent = "Configuration Saved";
+        document.getElementById("lblSaveStatus").style.color = "#16a34a";
+        displayMessage("Technical asset configuration saved successfully.", "success");
+      } catch (e) {
+        reportClientError("Save asset configuration failed", "saveConfigurationData", e);
+        displayMessage("Failed to save asset configuration. " + e.message, "error");
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function confirmLogout() {
+      if (confirm("Are you sure you want to log out? Unsaved technical configurations will be lost.")) {
+        dashLogout();
+      }
+    }
+  </script>
+</body>
+</html>

@@ -3,7 +3,7 @@
  * 
  * Purpose: This script runs on EVERY page of driv-en.com (not just the home page).
  * It silently collects non-PII (non-personally identifiable) data about each
- * visitor and sends it to /referral/track-visitor for storage. This data powers
+ * visitor and sends it to /api/track-visitor for storage. This data powers
  * the "Site Visitors" tab on the Owner Dashboard.
  * 
  * What is collected:
@@ -189,9 +189,9 @@
     // Use sendBeacon for reliability (works even if page is closed quickly)
     try {
       if (navigator.sendBeacon) {
-        navigator.sendBeacon('/referral/track-visitor', new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+        navigator.sendBeacon('/api/track-visitor', new Blob([JSON.stringify(payload)], { type: 'application/json' }));
       } else {
-        fetch('/referral/track-visitor', {
+        fetch('/api/track-visitor', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -217,9 +217,9 @@
 
       try {
         if (navigator.sendBeacon) {
-          navigator.sendBeacon('/referral/track-visitor', new Blob([JSON.stringify(exitPayload)], { type: 'application/json' }));
+          navigator.sendBeacon('/api/track-visitor', new Blob([JSON.stringify(exitPayload)], { type: 'application/json' }));
         } else {
-          fetch('/referral/track-visitor', {
+          fetch('/api/track-visitor', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(exitPayload),

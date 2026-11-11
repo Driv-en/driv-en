@@ -10,7 +10,9 @@
  * What is stored:
  *   - Timestamp of the visit
  *   - Page path (what page they visited)
- *   - Country (from Cloudflare CF-IPCountry header — server-side, not client)
+ *   - Session ID & Visitor ID (for tracking sessions/duration)
+ *   - Time on page (in seconds)
+ *   - Country (from Cloudflare CF-IPCountry header — server-side)
  *   - Device type (phone, tablet, desktop)
  *   - Browser (chrome, safari, firefox, edge, opera, other)
  *   - OS (windows, macos, ios, android, linux, other)
@@ -25,11 +27,6 @@
  * 
  * Bindings used:
  * - DB (D1 → driv-en-db)
- * 
- * This function NEVER returns an error to the visitor.
- * All failures are silent — tracking is non-critical.
- * 
- * Last updated: 2026-09-04
  */
 
 const CORS_HEADERS = {
@@ -48,35 +45,22 @@ function jsonResponse(data, status = 200) {
 
 /**
  * Main handler — receives visitor data and stores it
- * 
- * Request body: {
- *   pagePath: "/some/page",
- *   referralCode: "DRV-XXXX" or null,
- *   deviceType: "phone" | "tablet" | "desktop",
- *   browser: "chrome" | "safari" | etc,
- *   os: "windows" | "ios" | etc,
- *   utmSource: "google" or null,
- *   utmMedium: "cpc" or null,
- *   utmCampaign: "summer2026" or null,
- *   externalReferrer: "google.com" or null
- * }
- * 
- * Response: { success: true } or { success: false }
- * Never throws an error to the visitor.
  */
 async function handleTrackVisitor(request, env) {
   try {
-    // Parse the request body
     let body;
     try {
       body = await request.json();
     } catch (e) {
-      // Invalid JSON — return silently
       return jsonResponse({ success: false });
     }
 
     // Extract and sanitize fields
     const pagePath = String(body.pagePath || '/').substring(0, 500);
+    const sessionId = body.sessionId ? String(body.sessionId).substring(0, 100) : null;
+    const visitorId = body.visitorId ? String(body.visitorId).substring(0, 100) : null;
+    const timeOnPage = typeof body.timeOnPage === 'number' ? Math.max(0, Math.floor(body.timeOnPage)) : null;
+    
     const referralCode = body.referralCode ? String(body.referralCode).replace(/[^A-Za-z0-9-]/g, '').substring(0, 20) : null;
     const deviceType = ['phone', 'tablet', 'desktop'].includes(body.deviceType) ? body.deviceType : 'desktop';
     const browser = String(body.browser || 'other').substring(0, 20);
@@ -86,33 +70,30 @@ async function handleTrackVisitor(request, env) {
     const utmCampaign = body.utmCampaign ? String(body.utmCampaign).substring(0, 100) : null;
     const externalReferrer = body.externalReferrer ? String(body.externalReferrer).substring(0, 200) : null;
 
-    // Get country from Cloudflare's CF-IPCountry header (server-side, not client)
-    // This is set by Cloudflare's edge network based on the visitor's IP
-    // We do NOT store the IP address — only the country code
     const country = request.cf?.country || request.headers.get('CF-IPCountry') || null;
 
-    // Generate a unique ID for this visit record
     const visitId = crypto.randomUUID();
     const now = new Date().toISOString();
 
-    // Insert the visitor record into the site_visitors table
     try {
       await env.DB.prepare(
         `INSERT INTO site_visitors 
-         (id, page_path, country, device_type, browser, os, referral_code, 
+         (id, session_id, visitor_id, time_on_page, page_path, country, device_type, browser, os, referral_code, 
           utm_source, utm_medium, utm_campaign, external_referrer, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).bind(
-        visitId, pagePath, country, deviceType, browser, os, referralCode,
+        visitId, sessionId, visitorId, timeOnPage, pagePath, country, deviceType, browser, os, referralCode,
         utmSource, utmMedium, utmCampaign, externalReferrer, now
       ).run();
     } catch (dbError) {
-      // Table might not exist yet — try to create it, then insert
-      console.error('[TRACK-VISITOR] DB error, attempting table creation:', dbError.message);
+      console.error('[TRACK-VISITOR] DB error, attempting table creation/schema migration:', dbError.message);
       try {
         await env.DB.prepare(
           `CREATE TABLE IF NOT EXISTS site_visitors (
             id TEXT PRIMARY KEY,
+            session_id TEXT,
+            visitor_id TEXT,
+            time_on_page INTEGER,
             page_path TEXT,
             country TEXT,
             device_type TEXT,
@@ -126,19 +107,23 @@ async function handleTrackVisitor(request, env) {
             created_at TEXT
           )`
         ).run();
+
+        // Ensure new columns exist on older tables
+        try { await env.DB.prepare('ALTER TABLE site_visitors ADD COLUMN session_id TEXT').run(); } catch(e) {}
+        try { await env.DB.prepare('ALTER TABLE site_visitors ADD COLUMN visitor_id TEXT').run(); } catch(e) {}
+        try { await env.DB.prepare('ALTER TABLE site_visitors ADD COLUMN time_on_page INTEGER').run(); } catch(e) {}
         
-        // Retry the insert
+        // Retry insert
         await env.DB.prepare(
           `INSERT INTO site_visitors 
-           (id, page_path, country, device_type, browser, os, referral_code, 
+           (id, session_id, visitor_id, time_on_page, page_path, country, device_type, browser, os, referral_code, 
             utm_source, utm_medium, utm_campaign, external_referrer, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).bind(
-          visitId, pagePath, country, deviceType, browser, os, referralCode,
+          visitId, sessionId, visitorId, timeOnPage, pagePath, country, deviceType, browser, os, referralCode,
           utmSource, utmMedium, utmCampaign, externalReferrer, now
         ).run();
       } catch (retryError) {
-        // Still failed — log but don't error to the visitor
         console.error('[TRACK-VISITOR] Retry failed:', retryError.message);
         return jsonResponse({ success: false });
       }
@@ -147,30 +132,20 @@ async function handleTrackVisitor(request, env) {
     return jsonResponse({ success: true });
 
   } catch (error) {
-    // Log the error but never expose it to the visitor
     console.error('[TRACK-VISITOR] Error:', error.message, error.stack);
     return jsonResponse({ success: false });
   }
 }
 
-/**
- * Handle OPTIONS preflight requests
- */
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: CORS_HEADERS });
 }
 
-/**
- * Main POST handler
- */
 export async function onRequestPost(context) {
   const { request, env } = context;
   return handleTrackVisitor(request, env);
 }
 
-/**
- * Handle GET requests — return a simple message
- */
 export async function onRequestGet(context) {
   return jsonResponse({ success: false, message: 'Use POST to track a visitor' });
 }

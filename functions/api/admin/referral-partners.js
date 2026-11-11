@@ -150,8 +150,8 @@ function parseCookies(cookieHeader) {
 }
 
 // ---------------------------------------------------------------------------
-// Auth check — verify the caller is a DRIV-EN Founder
-// Parses the driv_en_session cookie, verifies the JWT, checks the role.
+// Auth check — verify the caller is role_id RO-Founder in org org_dsi
+// Parses the driv_en_session cookie, verifies the JWT, checks role_id RO-Founder in org org_dsi.
 // Returns the JWT payload if authenticated and is Founder, null otherwise.
 // ---------------------------------------------------------------------------
 async function verifyFounder(request, env) {
@@ -169,8 +169,8 @@ async function verifyFounder(request, env) {
   const payload = await verifyJwt(token, env.JWT_SECRET);
   if (!payload) return null;
 
-  // Only DRIV-EN Founder can access the Owner Dashboard admin API.
-  if (payload.role === 'DRIV-EN Founder') {
+  // Only role_id RO-Founder in org org_dsi can access the Owner Dashboard admin API.
+  if (payload.role_id === 'RO-Founder' && payload.org_id === 'org_dsi') {
     return payload;
   }
 

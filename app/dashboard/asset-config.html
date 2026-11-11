@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DRIV-EN | Universal Asset Configuration Rules</title>
+  <meta name="description" content="DRIV-EN — Configure regulatory inspection rules, multi-meter PM thresholds, component specs, custom fields, and cross-referenced parts inventory tailored precisely per asset type.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/png" href="../../assets/icons/favicon.png?v=2026" sizes="48x48">
+  <link rel="icon" type="image/png" href="../../assets/icons/favicon-96.png?v=2026" sizes="96x96">
+  <link rel="icon" type="image/png" href="../../assets/icons/favicon-192.png?v=2026" sizes="192x192">
+  <link rel="apple-touch-icon" href="../../assets/icons/favicon-180.png?v=2026">
+  <link rel="stylesheet" href="../shared/dashboard.css?v=11">
+  <link rel="stylesheet" href="../../styles/diamond-plate.css?v=2">
+  <script src="../shared/theme-init.js"></script>
+  <style>
+    :root {
+      --header-height: 60px;
+      --card-green-border: #16a34a;
+      --bg-card: #ffffff;
+      --bg-input: #f8fafc;
+      --border: #cbd5e1;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --badge-dot: #1e3a8a;
+      --badge-osha: #9a3412;
+      --badge-msha: #b91c1c;
+      --badge-custom: #047857;
+      --badge-uom: #475569;
+    }
+
+    *, *:before, *:after {
+      box-sizing: border-box;
+    }
+
+    html, body { 
+      margin: 0; 
+      padding: 0; 
+      width: 100%; 
+      max-width: 100vw;
+      overflow-x: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+      color: var(--text); 
+    }
+
+    .dash-header-row3, .dash-header-row2, #dashHeader .dash-theme-wrapper { display: none !important; }
+    
+    #dashHeader, .dash-header {
+      position: sticky !important;
+      top: 0 !important;
+      z-index: 101 !important;
+      background: #cbd5e1 !important;
+      width: 100%;
+      box-sizing: border-box;
+      border-bottom: 2px solid #94a3b8 !important;
+    }
+
+    #dashHeader h1, .dash-header h1 {
+      text-align: center !important;
+      margin: 0 auto !important;
+      font-size: 20px !important;
+      font-weight: 600 !important;
+      color: #0f172a !important;
+      flex: 1;
+    }
+
+    .top-nav-bar {
+      position: sticky !important;
+      top: var(--header-height, 60px) !important;
+      z-index: 100 !important;
+      background: #cbd5e1;
+      border-bottom: 2px solid #94a3b8;
+      padding: 8px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto 16px auto;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .btn-secondary {
+      background: #2563eb;
+      color: #ffffff;
+      padding: 8px 16px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 13px;
+      transition: background 150ms ease;
+    }
+    .btn-secondary:hover { background: #1d4ed8; }
+
+    .btn-info {
+      background: #2563eb;
+      color: #ffffff;
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: none;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 150ms ease;
+    }
+    .btn-info:hover { background: #1d4ed8; }
+
+    .btn-instructions {
+      background: #059669;
+      color: #ffffff;
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: none;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 150ms ease;
+    }
+    .btn-instructions:hover { background: #047857; }
+
+    .btn-action {
+      background: #0d9488;
+      color: #ffffff;
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: none;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 150ms ease;
+    }
+    .btn-action:hover { background: #0f766e; }
+
+    .btn-logout {
+      background: #b91c1c;
+      color: #ffffff;
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid #dc2626;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 150ms ease;
+    }
+    .btn-logout:hover { background: #dc2626; }
+
+    .config-container { 
+      max-width: 1200px; 
+      width: 100%;
+      margin: 0 auto; 
+      padding: 0 16px 24px 16px; 
+      box-sizing: border-box; 
+      position: relative;
+      z-index: 1;
+    }
+    
+    .card {
+      background: var(--bg-card);
+      border: 2px solid var(--card-green-border);
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+    
+    .form-group { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+    
+    label { font-size: 13px; font-weight: 600; }
+    select, input[type="text"], input[type="number"] {
+      padding: 9px 11px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      background: var(--bg-card);
+      color: var(--text);
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #e2e8f0;
+      width: 100%;
+    }
+    .toggle-row:last-child { border-bottom: none; }
+    .toggle-title { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .toggle-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+    .badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #ffffff;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-dot { background-color: var(--badge-dot); }
+    .badge-osha { background-color: var(--badge-osha); }
+    .badge-msha { background-color: var(--badge-msha); }
+    .badge-custom { background-color: var(--badge-custom); }
+    .badge-uom { background-color: var(--badge-uom); font-size: 9px; padding: 1px 4px; }
+
+    .switch { position: relative; display: inline-block; width: 42px; height: 22px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #ccc; transition: .2s; border-radius: 22px;
+    }
+    .slider:before {
+      position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px;
+      background-color: white; transition: .2s; border-radius: 50%;
+    }
+    input:checked + .slider { background-color: var(--primary); }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--primary);
+      margin-top: 22px;
+      margin-bottom: 12px;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 4px;
+    }
+
+    .mode-banner {
+      background: #eff6ff;
+      border-left: 4px solid var(--primary);
+      padding: 12px 16px;
+      border-radius: 4px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+
+    .intl-banner {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-left: 4px solid #0284c7;
+      padding: 10px 14px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-size: 12px;
+      color: var(--text);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .custom-items-wrapper {
+      background: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      border-radius: 6px;
+      padding: 16px;
+      margin-top: 12px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .custom-item-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 8px;
+      width: 100%;
+    }
+    .custom-item-row input[type="text"] { flex: 1; }
+
+    .parts-table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      margin-top: 10px;
+    }
+
+    .parts-table {
+      width: 100%;
+      min-width: 600px;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .parts-table th, .parts-table td {
+      border: 1px solid #cbd5e1;
+      padding: 8px;
+      text-align: left;
+    }
+    .parts-table th { background: #f1f5f9; font-weight: 600; }
+    .parts-table input, .parts-table select { width: 100%; box-sizing: border-box; }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+
+    .btn-small-add {
+      background: #059669;
+      color: #fff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-small-remove {
+      background: #dc2626;
+      color: #fff;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
+    .am-message { padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; font-size: 14px; display: none; }
+    .am-message.success { background: rgba(34, 197, 94, 0.15); color: #15803d; border: 1px solid #86efac; }
+    .am-message.error { background: rgba(239, 68, 68, 0.15); color: #b91c1c; border: 1px solid #fca5a5; }
+
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000;
+      padding: 12px; box-sizing: border-box;
+    }
+    .modal-card {
+      background: #fff; padding: 24px; border-radius: 8px; max-width: 600px; width: 100%; max-height: 85vh; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      box-sizing: border-box;
+    }
+
+    @media (max-width: 768px) {
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+      .top-nav-bar { padding: 8px 12px; flex-wrap: wrap; gap: 8px; justify-content: center; }
+      .top-nav-bar > div { flex-wrap: wrap; justify-content: center; width: 100%; }
+      .config-container { padding: 0 12px 20px 12px; }
+      .card { padding: 16px; }
+      .actions { justify-content: center; width: 100%; }
+      .btn-primary { width: 100%; }
+      .custom-item-row { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body data-page-title="Asset Configuration" data-required-permission="any">
+
+  <div class="steel-bg"></div>
+  <div class="steel-overlay"></div>
+
+  <div id="dashHeader"></div>
+
+  <div class="top-nav-bar">
+    <a href="asset-management.html" class="btn-secondary">← Back to Asset Management</a>
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <button class="btn-info" id="btnPurpose">Purpose</button>
+      <button class="btn-instructions" id="btnInstructions">Instructions</button>
+      <button class="btn-action" id="btnOpenCopy">Copy Asset Rules</button>
+      <button class="btn-logout" id="btnLogout">Logout</button>
+    </div>
+  </div>
+
+  <div class="config-container">
+    <div id="statusMsg" class="am-message"></div>
+
+    <div class="card">
+      <div class="grid-3">
+        <div class="form-group">
+          <label for="configTarget">Select Target Level</label>
+          <select id="configTarget">
+            <option value="specific">Specific Asset Unit Overrides</option>
+            <option value="template">Asset Category Global Defaults</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="assetSelectGroup">
+          <label for="selectAsset">Select Specific Asset Number</label>
+          <select id="selectAsset">
+            <option value="">-- Choose Asset Unit --</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="typeSelectGroup" style="display: none;">
+          <label for="selectType">Select Asset Category</label>
+          <select id="selectType">
+            <option value="">-- Loading Asset Categories... --</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="attachmentGroup">
+          <label for="selectAttachment">Vocational Body / Attachment Overlay</label>
+          <div style="display: flex; gap: 6px;">
+            <select id="selectAttachment" style="flex: 1;">
+              <option value="none">None (Standard Chassis / Base Unit)</option>
+            </select>
+            <button type="button" class="btn-small-add" id="btnAddCustomAttachment" style="padding: 0 10px; font-size: 16px;" title="Add Custom Category Attachment">+</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="attachmentMetaRow" style="display: none; margin-top: 16px; padding-top: 16px; border-top: 1px dashed #cbd5e1;" class="grid-3">
+        <div class="form-group">
+          <label for="attachmentTrackingMode">Attachment Tracking Mode</label>
+          <select id="attachmentTrackingMode">
+            <option value="integrated">Integrated Chassis Body (No Separate Asset ID)</option>
+            <option value="linked">Link Standalone Attachment Asset #</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="linkedAssetPickerGroup" style="display: none;">
+          <label for="linkedAttachmentAssetId">Select Category Attachment Asset #</label>
+          <div style="display: flex; gap: 6px;">
+            <select id="linkedAttachmentAssetId" style="flex: 1;">
+              <option value="">-- Choose Attachment Asset --</option>
+            </select>
+            <button type="button" class="btn-action" id="btnOpenQuickAddAttachment" style="padding: 0 10px; font-size: 12px; white-space: nowrap;">+ Register New</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="attachmentMountState">Current Mounting Status</label>
+          <select id="attachmentMountState">
+            <option value="mounted">Mounted On Chassis Unit</option>
+            <option value="unmounted">Unmounted / Sitting In Yard</option>
+            <option value="in_shop">In Shop for Overhaul / Swap</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="configPanel" style="opacity: 0.5; pointer-events: none;">
+      <div class="mode-banner" id="modeBanner">Select an option above to configure rules.</div>
+
+      <div class="intl-banner" id="intlJurisdictionBanner">
+        <div>
+          <strong>Active Jurisdiction & Standard:</strong>
+          <span id="activeJurisdictionText">Detecting Organization Region...</span>
+        </div>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <span class="badge badge-uom" id="uomDistanceBadge">MI / KM</span>
+          <span class="badge badge-uom" id="uomPressureBadge">PSI / kPa</span>
+          <span class="badge badge-uom" id="uomVolumeBadge">GAL / L</span>
+        </div>
+      </div>
+
+      <div class="toggle-row" id="overrideRow" style="background: var(--bg-input); padding: 12px; border-radius: 6px; margin-bottom: 16px;">
+        <div>
+          <div class="toggle-title">Override Category Global Defaults</div>
+          <div class="toggle-desc">Enable to apply customized inspection thresholds, component specs, and fluid specs to this unit.</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="overrideDefaults">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div id="dynamicSchemaFields"></div>
+
+      <div class="section-title">Asset-Specific Custom Tracking Fields</div>
+      <div class="custom-items-wrapper" style="margin-bottom: 20px;">
+        <p style="font-size: 13px; color: var(--text-muted); margin-top: 0;">
+          Add specialized spec fields or tracking metrics specific to this unit or category (e.g., "GPS Receiver Model", "Blade Width", "Winched Pull Rating").
+        </p>
+        <div id="customFieldsContainer"></div>
+        <button type="button" class="btn-small-add" id="btnAddCustomField">+ Add Custom Tracking Field</button>
+      </div>
+
+      <div class="section-title">Cross-Referenced Replacement Parts Inventory</div>
+      <p style="font-size: 12px; color: var(--text-muted); margin-top: -6px;">Select a component type to auto-populate OEM specs from above, then enter aftermarket cross-references.</p>
+      
+      <div class="parts-table-wrapper">
+        <table class="parts-table" id="partsTable">
+          <thead>
+            <tr>
+              <th style="width: 25%;">Component Type</th>
+              <th style="width: 20%;">OEM Brand / Spec</th>
+              <th style="width: 18%;">OEM Part #</th>
+              <th style="width: 18%;">Cross-Ref Brand</th>
+              <th style="width: 18%;">Cross-Ref Part #</th>
+              <th style="width: 6%;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="partsTableBody"></tbody>
+        </table>
+      </div>
+      <button type="button" class="btn-small-add" id="btnAddPart" style="margin-top: 10px;">+ Add Replacement Part</button>
+
+      <div class="section-title">Company / Site Custom Inspection Items</div>
+      <div class="custom-items-wrapper">
+        <p style="font-size: 13px; color: var(--text-muted); margin-top: 0;">
+          Add company-specific or site checklist items (e.g., "Check company decal," "Inspect site VHF radio"). Regulatory checks above are enforced by law and cannot be disabled.
+        </p>
+        <div id="customItemsContainer"></div>
+        <button type="button" class="btn-small-add" id="btnAddCustomCheck">+ Add Custom Check Item</button>
+      </div>
+
+      <div class="actions">
+        <button class="btn-primary" id="btnSaveConfig">Save Complete Asset Configuration</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dedicated Purpose Modal -->
+  <div class="modal-overlay" id="purposeModal" role="dialog" aria-modal="true" aria-labelledby="modalPurposeTitle">
+    <div class="modal-card">
+      <h3 id="modalPurposeTitle" style="margin-top: 0; color: var(--primary);">Page Purpose</h3>
+      <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+        This page serves as the central specification and regulatory rules engine for your fleet. The technical rules, fluid capacities, PM thresholds, and parts cross-references configured here build the exact mobile inspection checklists (DVIR), preventative maintenance alerts, and inventory lookup tables used by drivers, operators, and mechanics in the field across all operating jurisdictions.
+      </p>
+      <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+        <button class="btn-secondary" id="btnClosePurpose">Got It, Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dedicated Instructions Modal -->
+  <div class="modal-overlay" id="instructionsModal" role="dialog" aria-modal="true" aria-labelledby="modalInstructionsTitle">
+    <div class="modal-card">
+      <h3 id="modalInstructionsTitle" style="margin-top: 0; color: var(--primary);">How to Use This Page</h3>
+      <ol style="font-size: 13px; color: var(--text); padding-left: 20px; line-height: 1.6;">
+        <li><strong>Select Target Level:</strong> Choose <em>Category Global Defaults</em> to define baseline rules for an entire equipment class (e.g., Dozers), or <em>Specific Asset Unit Overrides</em> to configure an individual unit (e.g., DZ-101).</li>
+        <li><strong>Enable Override:</strong> When configuring a specific unit, toggle <em>"Override Category Global Defaults"</em> to unlock form fields for editing.</li>
+        <li><strong>Configure Overlays & Attachments:</strong> Select vocational bodies (e.g., Hydro-Vac, Crane, Mixer) to automatically append component checks and fluid capacities.</li>
+        <li><strong>Enter Technical Specs & Parts:</strong> Input powertrain specs, fluids, and filter part numbers. Use aftermarket cross-references to simplify shop replacements.</li>
+        <li><strong>Save Configuration:</strong> Click <em>"Save Complete Asset Configuration"</em> to lock in rules across driver mobile apps and maintenance dashboards.</li>
+      </ol>
+      <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+        <button class="btn-secondary" id="btnCloseInstructions">Close Instructions</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="quickAddAttachmentModal" role="dialog" aria-modal="true" aria-labelledby="modalAttachmentTitle">
+    <div class="modal-card">
+      <h3 id="modalAttachmentTitle" style="margin-top: 0;">Quick-Register Category Attachment Asset</h3>
+      <p style="font-size: 13px; color: var(--text-muted);">Creates a standalone attachment record in the assets table linked specifically to this target asset category.</p>
+      
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label for="newAttAssetNumber">Attachment Asset Number *</label>
+        <input type="text" id="newAttAssetNumber" placeholder="e.g. VAC-102, CRANE-88, HAMMER-04">
+      </div>
+
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label for="newAttAllowedCategory">Compatible Target Asset Category</label>
+        <select id="newAttAllowedCategory">
+          <option value="highway">Highway Motor Vehicles (Classes 1–8 / Heavy Rigid)</option>
+          <option value="dozer_excavator">Earthmoving — Dozers & Heavy Tracked Equipment</option>
+          <option value="wheel_loader_grader">Earthmoving — Wheel Loaders, Graders & Backhoes</option>
+          <option value="mining">Mining, Drilling & Rigging</option>
+          <option value="stationary">Stationary & Engine Plants</option>
+          <option value="auxiliary">Auxiliary Tools, Pumps & Light Towers</option>
+          <option value="all">Universal / Compatible Across All Categories</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label for="newAttSerialNum">Serial / VIN Number</label>
+        <input type="text" id="newAttSerialNum" placeholder="Manufacturer Serial Number">
+      </div>
+
+      <div class="grid-2" style="margin-bottom: 16px;">
+        <div class="form-group">
+          <label for="newAttMake">Make / Manufacturer</label>
+          <input type="text" id="newAttMake" placeholder="e.g. Vactor, Terex, NPK">
+        </div>
+        <div class="form-group">
+          <label for="newAttModel">Model Number</label>
+          <input type="text" id="newAttModel" placeholder="e.g. 2100i, BT70, GH-6">
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn-secondary" id="btnCloseQuickAddAttachment" style="background: #64748b;">Cancel</button>
+        <button class="btn-action" id="btnSaveQuickAttachment">Save Attachment to Assets Table</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="copyModal" role="dialog" aria-modal="true" aria-labelledby="modalCopyTitle">
+    <div class="modal-card">
+      <h3 id="modalCopyTitle" style="margin-top: 0;">Copy Asset Configuration</h3>
+      <p style="font-size: 13px; color: var(--text-muted);">Select a source asset to clone its inspection checks, fluid specs, parts list, and PM settings directly to the current unit.</p>
+      
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label for="copySourceAsset">Select Source Asset</label>
+        <select id="copySourceAsset">
+          <option value="">-- Choose Source Asset --</option>
+        </select>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn-secondary" id="btnCloseCopy" style="background: #64748b;">Cancel</button>
+        <button class="btn-action" id="btnExecuteCopy">Copy & Apply Configuration</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="dashFooter"></div>
+
+  <script src="../shared/dashboard-common.js?v=13"></script>
+  <script src="asset-config.js?v=3"></script>
+  <script src="../shared/auth-check.js?v=13"></script>
+</body>
+</html>

@@ -29,7 +29,7 @@
 //   POST /auth/setup-2fa          — Generate TOTP secret for 2FA setup
 //   POST /auth/verify-2fa         — Verify TOTP code and enable 2FA
 //   POST /auth/disable-2fa        — Disable 2FA (requires password)
-//   POST /auth/login-2fa          — Login with TOTP code (after 2FA enabled)
+//   POST /auth/-2fa          —  with TOTP code (after 2FA enabled)
 //   POST /auth/email-backup-codes — Email 2FA backup codes to user
 //   POST /auth/save-logo          — Save company logo to D1 (admin uploads, all employees see it)
 //   GET  /auth/get-logo           — Get company logo from D1 (every page loads this)
@@ -143,13 +143,13 @@ async function sendEmail(env, to, subject, htmlContent, textContent) {
 }
 
 // ==========================================
-// LOGIN HANDLER
+//  HANDLER
 // Includes first_name in JWT and response
 // ==========================================
 
-async function handleLogin(request, env) {
+async function handle(request, env) {
   let body;
-  try { body = await request.json(); } catch (e) { console.error("Login JSON parse error:", e.message); return json({ success: false, error: "Invalid JSON body" }, 400); }
+  try { body = await request.json(); } catch (e) { console.error(" JSON parse error:", e.message); return json({ success: false, error: "Invalid JSON body" }, 400); }
   const { email, password, remember } = body;
   if (!email || !password) return json({ success: false, error: "Email and password are required" }, 400);
   const rememberMe = remember === true;
@@ -160,7 +160,7 @@ async function handleLogin(request, env) {
   const valid = await verifyPassword(password, result.password_hash, result.password_salt);
   if (!valid) return json({ success: false, error: "Invalid email or password" }, 401);
   if (result.twofa_enabled === 1) {
-    // 2FA temporarily disabled during development — skip and proceed with normal login
+    // 2FA temporarily disabled during development — skip and proceed with normal 
     // To re-enable: replace this block with: return json({ success: false, requires2FA: true, email: email.toLowerCase().trim(), error: "2FA verification required" });
   }
   const sessionToken = await signJWT({ sub: result.email, email: result.email, org_id: result.org_id, role: result.role_name, first_name: result.first_name || "", must_change_password: result.must_change_password === 1, twofa_enabled: result.twofa_enabled === 1 }, env.JWT_SECRET, SESSION_LIFETIME);
@@ -211,7 +211,7 @@ async function handleSession(request, env) {
   // Fetch first_name, last_name, full_name, and role from DB as fallback
   // This handles older JWTs that don't have these fields, AND handles
   // cases where the JWT role is null (e.g., user was created with a
-  // null role_id, or the roles table JOIN failed at login time).
+  // null role_id, or the roles table JOIN failed at  time).
   let firstName = payload.first_name || "";
   let lastName = payload.last_name || "";
   let fullName = payload.full_name || "";
@@ -421,12 +421,12 @@ async function handleDisable2FA(request, env) {
 }
 
 // ==========================================
-// 2FA: LOGIN (verify TOTP during login)
+// 2FA:  (verify TOTP during )
 // Includes first_name in JWT and response
 // ==========================================
 
-async function handleLogin2FA(request, env) {
-  let body; try { body = await request.json(); } catch (e) { console.error("Login2FA JSON parse error:", e.message); return json({ success: false, error: "Invalid JSON" }, 400); }
+async function handle2FA(request, env) {
+  let body; try { body = await request.json(); } catch (e) { console.error("2FA JSON parse error:", e.message); return json({ success: false, error: "Invalid JSON" }, 400); }
   const { email, code, remember } = body;
   if (!email || !code) return json({ success: false, error: "Email and verification code are required" }, 400);
   try {
@@ -439,7 +439,7 @@ async function handleLogin2FA(request, env) {
     const sessionToken = await signJWT({ sub: user.email, email: user.email, org_id: user.org_id, first_name: user.first_name || "", must_change_password: user.must_change_password === 1 }, env.JWT_SECRET, SESSION_LIFETIME);
     const setCookies = [buildCookie(COOKIE_SESSION, sessionToken, rememberMe ? SESSION_LIFETIME : undefined)];
     return json({ success: true, first_name: user.first_name || "", must_change_password: user.must_change_password === 1 }, 200, { "Set-Cookie": setCookies });
-  } catch (e) { console.error("Login2FA error:", e.message, e.stack); return json({ success: false, error: "Login failed" }, 500); }
+  } catch (e) { console.error("2FA error:", e.message, e.stack); return json({ success: false, error: " failed" }, 500); }
 }
 
 // ==========================================
@@ -520,8 +520,8 @@ export default {
     if (path === "/auth/setup-2fa" && method === "POST") return handleSetup2FA(request, env);
     if (path === "/auth/verify-2fa" && method === "POST") return handleVerify2FA(request, env);
     if (path === "/auth/disable-2fa" && method === "POST") return handleDisable2FA(request, env);
-    if (path === "/auth/login-2fa" && method === "POST") return handleLogin2FA(request, env);
-    if (path === "/auth/login" && method === "POST") return handleLogin(request, env);
+    if (path === "/auth/-2fa" && method === "POST") return handle2FA(request, env);
+    if (path === "/public/login" && method === "POST") return handleLogin(request, env);
     if (path === "/auth/change-password" && method === "POST") return handleChangePassword(request, env);
     if (path === "/auth/session" && method === "GET") return handleSession(request, env);
     if (path === "/auth/logout" && method === "POST") return handleLogout();

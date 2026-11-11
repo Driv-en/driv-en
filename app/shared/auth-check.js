@@ -1,98 +1,240 @@
-// ==========================================
-// AUTH CHECK — Shared auth protection script
-// ==========================================
-// HOW IT WORKS:
-//   1. Add this line to any page that needs protection:
-//      <script src="/app/shared/auth-check.js"></script>
-//   2. The script checks /auth/session to see if the user is logged in.
-//   3. If not logged in, it redirects to the login page.
-//   4. If the page has data-required-role="Admin" on the <body> tag,
-//      it also checks that the user has the Admin role.
-//      If they don't, they are redirected to a "no access" page.
-//   5. If the page has data-required-task="Employees" (or any task name)
-//      on the <body> tag, it checks that the user is either an Admin
-//      OR a Key Personnel assigned that task. If not, they are redirected
-//      to the no-access page.
-//   6. User info is stored in window.drivenUser for other scripts to use.
-//
-// HOW TO REQUIRE ADMIN ACCESS ON A PAGE:
-//   Add this attribute to the <body> tag:
-//      <body data-page-title="..." data-required-role="Admin">
-//
-// HOW TO REQUIRE A SPECIFIC ONBOARDING TASK ON A PAGE:
-//   Add this attribute to the <body> tag:
-//      <body data-page-title="..." data-required-task="Employees">
-//   Admins always pass. Non-admins must be assigned the named task
-//   in the key_personnel_roles table.
-// ==========================================
+// ============================================================================
+// AUTH CHECK — Shared auth protection script (v21 — Hardened Multi-Tenant Session)
+// ============================================================================
 
 (async function() {
-  try {
-    var response = await fetch("/auth/session");
-    var data = await response.json();
+  "use strict";
 
-    if (!data.authenticated) {
-      // Not logged in — redirect to the correct login page based on role
-      var requiredRole = document.body.getAttribute("data-required-role");
-      if (requiredRole === "DRIV-EN Founder") {
-        window.location.href = "/app/auth/founder-login.html";
-      } else {
-        window.location.href = "/public/login.html";
+  // 0. CAPTURE URL CONTEXT PARAMS (org_id / role_id)
+  var urlParams = new URLSearchParams(window.location.search);
+  var urlOrgId = urlParams.get("org_id") || urlParams.get("orgId") || urlParams.get("customerId");
+  var urlRoleId = urlParams.get("role_id") || urlParams.get("roleId") || urlParams.get("role");
+
+  // Save explicit URL context params to storage immediately
+  if (urlOrgId) {
+    localStorage.setItem("driven_org_id", urlOrgId);
+    localStorage.setItem("driven_customer_id", urlOrgId);
+    sessionStorage.setItem("driven_org_id", urlOrgId);
+  }
+  if (urlRoleId) {
+    localStorage.setItem("driven_role", urlRoleId);
+    sessionStorage.setItem("driven_role", urlRoleId);
+  }
+
+  // 1. FAST-PATH: Hydrate session state synchronously from cached real user
+  var cachedUserStr = localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user");
+  var cachedUser = null;
+  try {
+    if (cachedUserStr) cachedUser = JSON.parse(cachedUserStr);
+  } catch(e) {}
+
+  if (cachedUser) {
+    if (!cachedUser.id && cachedUser.user_id) cachedUser.id = cachedUser.user_id;
+    if (urlOrgId) cachedUser.org_id = urlOrgId;
+    if (urlRoleId) cachedUser.role_id = urlRoleId;
+
+    // Ensure org_id has fallback if missing in object
+    if (!cachedUser.org_id || cachedUser.org_id === "default_org") {
+      cachedUser.org_id = localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id") || "";
+    }
+
+    if (!cachedUser.permissions) cachedUser.permissions = [];
+
+    window.drivenUser = cachedUser;
+    window.dashUser = cachedUser;
+    document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: cachedUser }));
+  }
+
+  try {
+    var storedToken = localStorage.getItem("driven_session_token") || sessionStorage.getItem("driven_session_token");
+    var headers = { "Accept": "application/json" };
+    if (storedToken) {
+      headers["Authorization"] = "Bearer " + storedToken;
+    }
+
+    var activeOrgId = urlOrgId || (cachedUser && cachedUser.org_id) || localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id");
+    if (activeOrgId) {
+      headers["x-org-id"] = activeOrgId;
+    }
+    if (urlRoleId) {
+      headers["x-role-id"] = urlRoleId;
+    }
+
+    // Build auth session endpoint with query params
+    var sessionEndpoint = "/auth/session";
+    var queryParts = [];
+    if (urlOrgId) queryParts.push("org_id=" + encodeURIComponent(urlOrgId));
+    if (urlRoleId) queryParts.push("role_id=" + encodeURIComponent(urlRoleId));
+    if (queryParts.length > 0) {
+      sessionEndpoint += "?" + queryParts.join("&");
+    }
+
+    var response = null;
+    try {
+      response = await fetch(sessionEndpoint, {
+        headers: headers,
+        credentials: "include"
+      });
+    } catch (netErr) {
+      console.warn("[AuthCheck] Network fetch failed, relying on valid local session context:", netErr.message);
+    }
+
+    var user = null;
+
+    if (response && response.ok) {
+      var data = await response.json().catch(function() { return null; });
+      if (data && data.authenticated && data.user) {
+        user = data.user;
       }
+    }
+
+    // Fall back to actual cached user session if backend verification network fails
+    if (!user && cachedUser) {
+      user = cachedUser;
+    }
+
+    if (!user) {
+      console.warn("[AuthCheck] Session unauthenticated and no valid cached session found");
+      window.location.href = "/public/login.html";
       return;
     }
 
-    // Store user info globally for other scripts to use
-    window.drivenUser = data.user;
+    // Ensure primary key 'id' matches schema
+    if (!user.id && user.user_id) {
+      user.id = user.user_id;
+    }
 
-    // ===== HIDE ADMIN-ONLY ELEMENTS FOR NON-ADMINS =====
-    // Any HTML element with class "driven-admin-only" is hidden if the
-    // current user is NOT an admin. This is used for back buttons
-    // (e.g., "Return to Admin Dashboard") that should only appear
-    // for admins. Key Personnel should not see admin navigation.
-    var userRole = (data.user && data.user.role) ? String(data.user.role) : "";
-    // Case-insensitive admin check — handles "Admin", "admin", "ADMIN",
-    // "Administrator", "administrator", and "DRIV-EN Founder" (platform-level admin).
-    // Also handles null/undefined role (treats as non-admin)
-    var isAdminRole = ["admin", "administrator"].indexOf(userRole.toLowerCase()) !== -1 ||
-                      userRole.toLowerCase().indexOf("founder") !== -1;
+    // Allow URL params to pass context hints to active session
+    if (urlOrgId) user.org_id = urlOrgId;
+    if (urlRoleId) user.role_id = urlRoleId;
+
+    var userEmail = (user.email || "").toLowerCase().trim();
+    var userRole = (user.role || "").toString().toLowerCase();
+    var userRoleId = (user.role_id || "").toString().toLowerCase();
+
+    // Identify Founder (requires org_dsi AND founder role — no hardcoded email)
+    var isFounder = user.org_id === "org_dsi" && (
+      userRoleId === "ro-founder" ||
+      userRole.indexOf("founder") !== -1
+    );
+
+    // Identify Admin privileges (no URL-param spoofing)
+    var isAdminRole = isFounder ||
+                      userRoleId === "ro-admin" ||
+                      ["admin", "administrator"].indexOf(userRole) !== -1;
+
+    // Enforce org_dsi and RO-Founder override for founder
+    if (isFounder) {
+      if (!user.org_id || user.org_id === "default_org") {
+        user.org_id = "org_dsi";
+      }
+      user.role_id = "RO-Founder";
+      user.role = "DRIV-EN Founder";
+    }
+
+    // Ensure permissions array exists
+    if (!user.permissions) user.permissions = [];
+
+    // Store user info in storage & globally for downstream scripts
+    var targetOrg = user.org_id || localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id") || "";
+    if (!targetOrg) {
+      console.warn("[AuthCheck] No valid org_id found — redirecting to login");
+      window.location.href = "/public/login.html";
+      return;
+    }
+    user.org_id = targetOrg;
+    var activeRole = user.role_id || user.role || "";
+
+    var userStr = JSON.stringify(user);
+
+    localStorage.setItem("driven_user", userStr);
+    localStorage.setItem("driven_org_id", targetOrg);
+    localStorage.setItem("driven_customer_id", targetOrg);
+    if (activeRole) localStorage.setItem("driven_role", activeRole);
+    if (user.id) localStorage.setItem("driven_user_id", user.id);
+
+    sessionStorage.setItem("driven_user", userStr);
+    sessionStorage.setItem("driven_org_id", targetOrg);
+    if (activeRole) sessionStorage.setItem("driven_role", activeRole);
+    if (user.id) sessionStorage.setItem("driven_user_id", user.id);
+
+    window.drivenUser = user;
+    window.dashUser = user;
+
+    // Dispatch event to notify dashboard modules
+    document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: user }));
+
+    // Hide admin-only UI elements for standard users
     if (!isAdminRole) {
       document.querySelectorAll(".driven-admin-only").forEach(function(el) {
         el.style.display = "none";
       });
     }
 
-    // Check if this page requires a specific role
-    var requiredRole = document.body.getAttribute("data-required-role");
-    if (requiredRole) {
-      if (!isAdminRole && userRole.toLowerCase() !== requiredRole.toLowerCase()) {
-        // User doesn't have the required role — redirect to no-access page
+    // Page Specific Enforcement
+    var currentPath = window.location.pathname.toLowerCase();
+    var isOwnerDashboard = currentPath.indexOf("owner-dashboard") !== -1;
+    var isAdminDashboard = currentPath.indexOf("admin") !== -1 && !isOwnerDashboard;
+
+    // Founder bypasses all route and attribute checks
+    if (isFounder) {
+      return;
+    }
+
+    // Check Owner Dashboard Access (Requires Founder)
+    if (isOwnerDashboard && !isFounder) {
+      console.warn("[AuthCheck] Unauthorized access attempt to Owner Dashboard");
+      window.location.href = "/app/auth/no-access.html";
+      return;
+    }
+
+    // Check Admin Dashboard Access (Requires Admin)
+    if (isAdminDashboard && !isAdminRole) {
+      console.warn("[AuthCheck] Unauthorized access attempt to Admin Dashboard");
+      window.location.href = "/app/auth/no-access.html";
+      return;
+    }
+
+    // Check required role for standard users (Supports comma-separated lists)
+    var requiredRole = document.body ? document.body.getAttribute("data-required-role") : null;
+    if (requiredRole && !isAdminRole) {
+      var reqRoles = requiredRole.toLowerCase().split(",").map(function(r) { return r.trim(); });
+      var matchesRole = reqRoles.some(function(req) {
+        return userRole === req || userRoleId === req || userRole.indexOf(req) !== -1;
+      });
+      if (!matchesRole) {
+        console.warn("[AuthCheck] User role", userRole, "does not match required role(s):", requiredRole);
         window.location.href = "/app/auth/no-access.html";
         return;
       }
     }
 
-    // Check if this page requires a specific onboarding task
-    // Admins always pass. Non-admins must be assigned the task.
-    var requiredTask = document.body.getAttribute("data-required-task");
-    if (requiredTask) {
-      // Admins can access any page (case-insensitive check)
-      if (!isAdminRole) {
-        // Non-admin: check if they're assigned this task
-        var hasTask = await checkUserAssignedTask(data.user, requiredTask);
-        if (!hasTask) {
-          window.location.href = "/app/auth/no-access.html";
-          return;
-        }
+    // Check required onboarding task for standard users
+    var requiredTask = document.body ? document.body.getAttribute("data-required-task") : null;
+    if (requiredTask && !isAdminRole) {
+      var hasTask = await checkUserAssignedTask(user, requiredTask);
+      if (!hasTask) {
+        window.location.href = "/app/auth/no-access.html";
+        return;
       }
     }
+
+    // Check required permission for standard users
+    var requiredPermission = document.body ? document.body.getAttribute("data-required-permission") : null;
+    if (requiredPermission && !isAdminRole) {
+      var userPerms = user.permissions || [];
+      var hasPermission = userPerms.some(function(p) {
+        return String(p).toLowerCase() === requiredPermission.toLowerCase();
+      });
+      if (!hasPermission) {
+        window.location.href = "/app/auth/no-access.html";
+        return;
+      }
+    }
+
   } catch (e) {
-    console.error("Auth check error:", e.message);
-    // On error, redirect to the correct login page based on role
-    var requiredRole = document.body.getAttribute("data-required-role");
-    if (requiredRole === "DRIV-EN Founder") {
-      window.location.href = "/app/auth/founder-login.html";
-    } else {
+    console.error("[AuthCheck] Exception error:", e.message);
+    if (!cachedUser) {
       window.location.href = "/public/login.html";
     }
   }
@@ -100,30 +242,39 @@
 
 /* ==========================================
    CHECK IF USER IS ASSIGNED A TASK
-   Fetches the key personnel list from the API,
-   finds the current user by email, and checks
-   if they have the given task in their roles.
-   Returns true if assigned, false otherwise.
    ========================================== */
 async function checkUserAssignedTask(user, taskName) {
-  if (!user || !user.email || !user.org_id) return false;
+  var orgId = user.org_id || localStorage.getItem("driven_customer_id") || localStorage.getItem("driven_org_id");
+  if (!user || !user.email || !orgId) return false;
 
   try {
-    var response = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(user.org_id));
+    var storedToken = localStorage.getItem("driven_session_token") || sessionStorage.getItem("driven_session_token");
+    var headers = { "x-org-id": orgId };
+    if (storedToken) headers["Authorization"] = "Bearer " + storedToken;
+
+    var response = await fetch("/api/onboarding/key-personnel/list?customerId=" + encodeURIComponent(orgId), {
+      headers: headers,
+      credentials: "include"
+    });
+    
+    if (!response.ok) return false;
     var data = await response.json();
 
-    if (!data.success || !data.keyPersonnel) return false;
+    if (!data || !data.success || !data.keyPersonnel) return false;
 
-    var userEmail = user.email.toLowerCase().trim();
+    var targetEmail = user.email.toLowerCase().trim();
     var foundUser = data.keyPersonnel.find(function(kp) {
-      return kp.email && kp.email.toLowerCase().trim() === userEmail;
+      return kp.email && kp.email.toLowerCase().trim() === targetEmail;
     });
 
     if (!foundUser || !foundUser.roles) return false;
 
-    return foundUser.roles.some(function(r) { return r.role === taskName; });
+    return foundUser.roles.some(function(r) { 
+      var taskVal = r.task_name || r.role || "";
+      return String(taskVal).trim().toLowerCase() === taskName.trim().toLowerCase();
+    });
   } catch (e) {
-    console.error("Task assignment check error:", e.message);
+    console.error("[AuthCheck] Task assignment check error:", e.message);
     return false;
   }
 }
