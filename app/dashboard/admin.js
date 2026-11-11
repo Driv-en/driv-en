@@ -518,15 +518,6 @@ function openModal(modalId) { var modal = document.getElementById(modalId); if (
 function closeModal(modalId) { var modal = document.getElementById(modalId); if (modal) { modal.classList.remove('active', 'show'); modal.style.display = 'none'; } }
 function hideOnboardingTab() { var t = document.querySelector('.admin-tab[data-tab="onboarding"]'); if (t) t.style.display = 'none'; }
 
-function insertHeaderTitle() {
-  var row1 = document.querySelector('.dash-header-row1'); if (!row1) return;
-  if (document.querySelector('.page-header-title')) return;
-  if (document.querySelector('.admin-header-title')) return;
-  var title = document.createElement('div'); title.className = 'page-header-title'; title.textContent = document.body.getAttribute('data-page-title') || 'Admin Dashboard';
-  var logoArea = document.getElementById('dashCustomerLogoArea'); var drivenLogo = row1.querySelector('.dash-driven-logo');
-  if (logoArea && drivenLogo) { row1.insertBefore(title, drivenLogo); } else { row1.appendChild(title); }
-}
-
 function injectGlobalUIStyles() {
   if (document.getElementById('driven-admin-ui-styles')) return;
   var style = document.createElement('style'); style.id = 'driven-admin-ui-styles';
@@ -610,6 +601,7 @@ async function startAdminApp(user) {
   var elRole = document.getElementById('welcome-role'); if (elRole) elRole.textContent = user.role || user.role_id || '';
   var elMail = document.getElementById('welcome-email'); if (elMail) elMail.textContent = user.email || '';
   try { injectGlobalUIStyles(); attachEventHandlers(); } catch (e) { reportError('startAdminApp-init', e); }
+  // Show dashboard even if init had errors — don't leave user staring at blank page
   var loadingEl = document.getElementById('loading'); var dashEl = document.getElementById('dashboard');
   if (loadingEl) loadingEl.style.display = 'none'; if (dashEl) dashEl.style.display = 'block';
   adjustStickyOffsets();
