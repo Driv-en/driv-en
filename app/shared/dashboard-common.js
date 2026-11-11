@@ -271,7 +271,12 @@
         //        others → employee-dashboard.html
         var role = (data.user.role || '').toLowerCase();
         var dashUrl;
-        var savedOrigin = sessionStorage.getItem('driven_dashboard_origin');
+        var savedOrigin = null;
+        try {
+          savedOrigin = sessionStorage.getItem('driven_dashboard_origin');
+        } catch(e) {
+          // sessionStorage unavailable (private browsing, disabled) — fall back to role-based URL
+        }
         if (savedOrigin) {
           dashUrl = savedOrigin;
         } else if (role === 'owner') {
@@ -391,6 +396,13 @@
   }
 
   async function refreshSessionToken() {
+    // Don't refresh if the user has been idle longer than the refresh interval —
+    // this allows idle sessions to expire naturally instead of staying alive forever.
+    var idleDuration = Date.now() - lastSessionActivity;
+    if (idleDuration > SESSION_REFRESH_MS) {
+      console.log("[Session] Refresh skipped — user idle for " + Math.round(idleDuration / 1000) + "s");
+      return;
+    }
     try {
       var resp = await fetch("/auth/refresh", { method: "POST", credentials: "include" });
       if (resp.ok) {
@@ -476,11 +488,24 @@
     var banner = document.createElement('div');
     banner.id = 'driv-en-recovery-banner';
     banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999998;background:#fee2e2;border-bottom:3px solid #dc2626;padding:16px 20px;font-family:Arial,sans-serif;display:flex;align-items:center;gap:16px;justify-content:center;flex-wrap:wrap;';
-    var icon = '<span style="font-size:24px;">\u26A0\uFE0F</span>';
-    var msg = '<span style="font-size:14px;color:#7f1d1d;"><strong>A page error occurred.</strong> The DRIV-EN team has been notified.</span>';
-    var btn = '<button onclick="window.goToMainDashboard()" style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:8px 20px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;">Return to Dashboard</button>';
-    var dismiss = '<button onclick="document.getElementById(\'driv-en-recovery-banner\').remove()" style="background:none;border:none;font-size:18px;color:#999;cursor:pointer;margin-left:8px;">\u00D7</button>';
-    banner.innerHTML = icon + msg + btn + dismiss;
+    var icon = document.createElement('span');
+    icon.style.cssText = 'font-size:24px;';
+    icon.textContent = '\u26A0\uFE0F';
+    var msg = document.createElement('span');
+    msg.style.cssText = 'font-size:14px;color:#7f1d1d;';
+    msg.innerHTML = '<strong>A page error occurred.</strong> The DRIV-EN team has been notified.';
+    var btn = document.createElement('button');
+    btn.style.cssText = 'background:#2563eb;color:#fff;border:none;border-radius:6px;padding:8px 20px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;';
+    btn.textContent = 'Return to Dashboard';
+    btn.addEventListener('click', function() { window.goToMainDashboard(); });
+    var dismiss = document.createElement('button');
+    dismiss.style.cssText = 'background:none;border:none;font-size:18px;color:#999;cursor:pointer;margin-left:8px;';
+    dismiss.textContent = '\u00D7';
+    dismiss.addEventListener('click', function() { banner.remove(); });
+    banner.appendChild(icon);
+    banner.appendChild(msg);
+    banner.appendChild(btn);
+    banner.appendChild(dismiss);
     if (document.body) document.body.appendChild(banner);
     else document.documentElement.appendChild(banner);
   });
