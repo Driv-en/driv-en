@@ -36,19 +36,35 @@
     console.log('[TestDashboard] Page title element:', title ? '"' + title.textContent + '"' : 'MISSING');
     console.log('[TestDashboard] Customer logo area:', logoArea ? 'present' : 'MISSING');
 
-    // Check for leftover utility bar elements (should NOT exist)
+    // Check for leftover utility bar elements (should NOT exist in header)
     var utilityBar = document.querySelector('.dash-utility-bar');
     var dashLogout = document.getElementById('dashLogoutBtn');
     var dashHome = document.getElementById('dashHomeBtn');
-    var dashTheme = document.getElementById('dashThemeCheckbox');
 
     if (utilityBar) console.warn('[TestDashboard] WARNING: .dash-utility-bar still present in header');
     if (dashLogout) console.warn('[TestDashboard] WARNING: #dashLogoutBtn still present');
     if (dashHome) console.warn('[TestDashboard] WARNING: #dashHomeBtn still present');
-    if (dashTheme) console.warn('[TestDashboard] WARNING: #dashThemeCheckbox still present');
 
-    if (!utilityBar && !dashLogout && !dashHome && !dashTheme) {
-      console.log('[TestDashboard] ✓ Utility bar correctly removed — no leftover elements');
+    // Theme toggle SHOULD exist on the page (in the theme bar, not in the header)
+    var dashTheme = document.getElementById('dashThemeCheckbox');
+    if (dashTheme) {
+      console.log('[TestDashboard] ✓ Theme toggle (#dashThemeCheckbox) present and wired');
+    } else {
+      console.warn('[TestDashboard] WARNING: #dashThemeCheckbox not found — theme toggle missing');
+    }
+
+    // Check for duplicate page titles
+    var titleElements = document.querySelectorAll('#dashPageTitle');
+    if (titleElements.length === 1) {
+      console.log('[TestDashboard] ✓ Page title appears exactly once');
+    } else if (titleElements.length > 1) {
+      console.warn('[TestDashboard] WARNING: #dashPageTitle found ' + titleElements.length + ' times — duplicate title!');
+    } else {
+      console.warn('[TestDashboard] WARNING: #dashPageTitle not found');
+    }
+
+    if (!utilityBar && !dashLogout && !dashHome) {
+      console.log('[TestDashboard] ✓ Utility bar correctly removed — no leftover buttons');
     }
   });
 })();
