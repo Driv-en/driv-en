@@ -150,10 +150,35 @@
   // Reads the page title from <body data-page-title="...">
   // and inserts it into the header's <h1 id="dashPageTitle">
   // If no data-page-title is set, defaults to "Dashboard"
-  // Also removes any duplicate #dashPageTitle elements that may exist
-  // if an old version of dashboard-header.html is still cached on the server.
+  // Also cleans up old header layouts (Row 2 title, Row 3 utility bar)
+  // that may still exist if an old dashboard-header.html is cached on the server.
   function setPageTitle() {
     var title = document.body.getAttribute("data-page-title") || "Dashboard";
+
+    // --- Clean up old 3-row header layout if present ---
+    var header = document.getElementById('dashHeader');
+    if (header) {
+      // Remove old Row 2 (title row from 3-row layout)
+      var oldRow2 = header.querySelector('.dash-header-row2');
+      if (oldRow2) {
+        console.warn("[Header] Removing old .dash-header-row2 (3-row layout detected)");
+        oldRow2.remove();
+      }
+      // Remove old Row 3 (utility bar row from 3-row layout)
+      var oldRow3 = header.querySelector('.dash-header-row3');
+      if (oldRow3) {
+        console.warn("[Header] Removing old .dash-header-row3 (3-row layout detected)");
+        oldRow3.remove();
+      }
+      // Remove old utility bar (standalone, not in row3)
+      var oldUtil = header.querySelector('.dash-utility-bar');
+      if (oldUtil) {
+        console.warn("[Header] Removing old .dash-utility-bar");
+        oldUtil.remove();
+      }
+    }
+
+    // Remove any duplicate #dashPageTitle elements
     var allTitles = document.querySelectorAll("#dashPageTitle");
     if (allTitles.length > 1) {
       console.warn("[Header] Found " + allTitles.length + " #dashPageTitle elements — removing duplicates");
@@ -161,6 +186,7 @@
         allTitles[i].remove();
       }
     }
+
     var titleEl = document.getElementById("dashPageTitle");
     if (titleEl) titleEl.textContent = title;
   }
