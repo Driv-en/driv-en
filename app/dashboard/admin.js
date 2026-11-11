@@ -176,6 +176,100 @@ function adjustStickyOffsets() {
   }
 }
 
+/* ===== AGGRESSIVE HEADER CLEANUP =====
+   The service worker may serve a stale dashboard-header.html with the old
+   3-row layout (duplicate page title). We ALWAYS rebuild the header as a
+   single row, matching the test-dashboard.js reference implementation.
+   A MutationObserver catches stale content as it's injected, and timed
+   fallbacks ensure it runs even if the observer misses. */
+function rebuildHeader() {
+  var header = document.getElementById('dashHeader');
+  if (!header) return;
+
+  var title = document.body.getAttribute('data-page-title') || 'Dashboard';
+
+  // Grab the customer logo area if it exists (preserve loaded logo)
+  var logoArea = header.querySelector('#dashCustomerLogoArea');
+  var drivenLogo = header.querySelector('.dash-driven-logo') || header.querySelector('img.dash-driven-logo');
+
+  // Nuke everything
+  header.innerHTML = '';
+
+  // Rebuild single-row header
+  var dashHeader = document.createElement('div');
+  dashHeader.className = 'dash-header';
+
+  var row1 = document.createElement('div');
+  row1.className = 'dash-header-row1';
+
+  // Left: customer logo
+  var left = document.createElement('div');
+  left.className = 'dash-header-logo-left';
+  if (logoArea) {
+    left.appendChild(logoArea);
+  } else {
+    var ph = document.createElement('div');
+    ph.id = 'dashCustomerLogoArea';
+    ph.innerHTML = '<div class="dash-customer-logo-placeholder">No logo uploaded</div>';
+    left.appendChild(ph);
+  }
+  row1.appendChild(left);
+
+  // Center: ONE page title only
+  var h1 = document.createElement('h1');
+  h1.id = 'dashPageTitle';
+  h1.className = 'dash-header-title';
+  h1.textContent = title;
+  row1.appendChild(h1);
+
+  // Right: DRIV-EN logo
+  var right = document.createElement('div');
+  right.className = 'dash-header-logo-right';
+  if (drivenLogo) {
+    right.appendChild(drivenLogo);
+  } else {
+    var img = document.createElement('img');
+    img.src = '/assets/logo.png?v=2026';
+    img.className = 'dash-driven-logo';
+    img.alt = 'DRIV-EN Logo';
+    right.appendChild(img);
+  }
+  row1.appendChild(right);
+
+  dashHeader.appendChild(row1);
+  header.appendChild(dashHeader);
+
+  console.log('[AdminDashboard] Header rebuilt: single row, title="' + title + '"');
+}
+
+// MutationObserver: rebuild whenever old-layout content is injected into #dashHeader
+function startHeaderObserver() {
+  var header = document.getElementById('dashHeader');
+  if (!header) return;
+
+  var observer = new MutationObserver(function(mutations) {
+    var h1s = header.querySelectorAll('h1');
+    var rows = header.querySelectorAll('.dash-header-row1, .dash-header-row2, .dash-header-row3, .dash-utility-bar');
+    if (h1s.length > 1 || rows.length > 1) {
+      console.warn('[AdminDashboard] MutationObserver detected old layout — h1s:' + h1s.length + ' rows:' + rows.length);
+      observer.disconnect();
+      rebuildHeader();
+      setTimeout(function() { startHeaderObserver(); }, 100);
+    }
+  });
+  observer.observe(header, { childList: true, subtree: true });
+}
+
+// Timed fallbacks: rebuild at multiple intervals to catch SW-injected stale content
+function scheduleHeaderRebuilds() {
+  setTimeout(rebuildHeader, 50);
+  setTimeout(rebuildHeader, 200);
+  setTimeout(rebuildHeader, 500);
+  setTimeout(rebuildHeader, 1000);
+  setTimeout(rebuildHeader, 2000);
+  setTimeout(rebuildHeader, 3000);
+}
+
 async function safeFetch(url, options) {
   options = options || {}; options.headers = options.headers || {};
   options.credentials = 'include';
@@ -526,7 +620,7 @@ function hideOnboardingTab() { var t = document.querySelector('.admin-tab[data-t
 function injectGlobalUIStyles() {
   if (document.getElementById('driven-admin-ui-styles')) return;
   var style = document.createElement('style'); style.id = 'driven-admin-ui-styles';
-  style.textContent = '.emp-form-card { border: 2px solid #16a34a !important; background-color: var(--card-bg, #ffffff) !important; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: border-color 200ms ease, box-shadow 200ms ease; } .emp-form-card:hover { border-color: #2563eb !important; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2) !important; } .theme-toggle-container { display: inline-flex; align-items: center; border: 2px solid var(--border, #94a3b8); border-radius: 20px; padding: 2px 6px; background: var(--bg-secondary, #f1f5f9); } .theme-switch input:checked + .toggle-slider { background-color: #2563eb; }';
+  style.textContent = '.emp-form-card { border: 2px solid #16a34a !important; background-color: var(--card-bg, #ffffff) !important; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: border-color 200ms ease, box-shadow 200ms ease; } .emp-form-card:hover { border-color: #2563eb !important; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2) !important; } .theme-toggle-container { display: inline-flex; align-items: center; border: 2px solid var(--border, #94a3b8); border-radius: 20px; padding: 2px 6px; background: var(--bg-secondary, #f1f5f9); }';
   document.head.appendChild(style);
 }
 
@@ -613,6 +707,9 @@ async function startAdminApp(user) {
   if (!activeOrgId || activeOrgId === 'default_org' || activeOrgId === 'null') { adminAppStarted = true; window.location.href = '/public/login.html'; return; }
   adminAppStarted = true;
 
+  // Force header rebuild now that the app is starting (catches any stale SW content)
+  rebuildHeader();
+
   // ===== GUARANTEE: Show dashboard even if anything below throws =====
   // Every code path after this point must end with the dashboard visible.
   // We use a try-finally so the dashboard is shown no matter what.
@@ -643,6 +740,7 @@ async function startAdminApp(user) {
     console.error('[AdminDashboard] Error during initialization:', e);
   } finally {
     // ALWAYS show the dashboard — even if everything above failed
+    rebuildHeader(); // final header rebuild safety net
     var loadingEl = document.getElementById('loading'); var dashEl = document.getElementById('dashboard');
     if (loadingEl) loadingEl.style.display = 'none';
     if (dashEl) dashEl.style.display = 'block';
@@ -658,6 +756,12 @@ async function startAdminApp(user) {
 async function init() {
   var savedTheme = localStorage.getItem('driven-theme') || 'light';
   document.documentElement.setAttribute('data-theme', savedTheme);
+  // ===== AGGRESSIVE HEADER REBUILD =====
+  // Force rebuild the header as a single row to prevent duplicate titles
+  // from stale service worker cache (old 3-row dashboard-header.html).
+  rebuildHeader();
+  startHeaderObserver();
+  scheduleHeaderRebuilds();
   window.addEventListener('resize', adjustStickyOffsets);
   window.addEventListener('orientationchange', adjustStickyOffsets);
   window.addEventListener('scroll', adjustStickyOffsets, { passive: true });
@@ -667,12 +771,12 @@ async function init() {
   function getUserFromStorage() { var s = localStorage.getItem('driven_user') || sessionStorage.getItem('driven_user'); if (s) { try { return JSON.parse(s); } catch (e) { return null; } } return null; }
   var current = window.dashUser || window.drivenUser || getUserFromStorage();
   if (current) { startAdminApp(current); return; }
-  var onSessionLoaded = function(e) { var u = (e && e.detail) || window.dashUser || window.drivenUser || getUserFromStorage(); if (u) startAdminApp(u); };
+  var onSessionLoaded = function(e) { var u = (e && e.detail) || window.dashUser || window.drivenUser || getUserFromStorage(); rebuildHeader(); scheduleHeaderRebuilds(); if (u) startAdminApp(u); };
   document.addEventListener('dashSessionLoaded', onSessionLoaded);
   window.addEventListener('dashSessionLoaded', onSessionLoaded);
   var pollAttempts = 0;
   var pollTimer = setInterval(function() { pollAttempts++; var u = window.dashUser || window.drivenUser || getUserFromStorage(); if (u) { clearInterval(pollTimer); startAdminApp(u); } else if (pollAttempts >= 40) { clearInterval(pollTimer); var lastResort = getUserFromStorage(); if (lastResort) { startAdminApp(lastResort); } else { window.location.href = '/public/login.html'; } } }, 250);
-  window.addEventListener('load', function() { if (!adminAppStarted) { var u = window.dashUser || window.drivenUser || getUserFromStorage(); if (u) startAdminApp(u); } });
+  window.addEventListener('load', function() { if (!adminAppStarted) { rebuildHeader(); var u = window.dashUser || window.drivenUser || getUserFromStorage(); if (u) startAdminApp(u); } });
 
   // ===== FALLBACK: Show dashboard after 5s even if startAdminApp never ran =====
   // This prevents the user from being stuck on "Loading admin dashboard…" forever
