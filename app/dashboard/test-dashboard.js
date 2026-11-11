@@ -9,8 +9,101 @@
 (function() {
   'use strict';
 
-  // Wait for the session to load, then fill the welcome card
+  // ===== AGGRESSIVE HEADER CLEANUP =====
+  // The service worker may serve a stale dashboard-header.html (old 3-row
+  // layout with a duplicate title in Row 2) and a stale dashboard-common.js
+  // (without the cleanup code). This function runs from test-dashboard.js
+  // (which has a unique ?v= URL the SW can't have cached) and forcibly
+  // rebuilds the header as a single row if any old layout is detected.
+
+  function rebuildHeaderIfNeeded() {
+    var header = document.getElementById('dashHeader');
+    if (!header) return;
+
+    var title = document.body.getAttribute('data-page-title') || 'Dashboard';
+
+    // Check for old 3-row layout: .dash-header-row2, .dash-header-row3, .dash-utility-bar
+    var oldRow2 = header.querySelector('.dash-header-row2');
+    var oldRow3 = header.querySelector('.dash-header-row3');
+    var oldUtil = header.querySelector('.dash-utility-bar');
+    var allH1s = header.querySelectorAll('h1');
+
+    if (!oldRow2 && !oldRow3 && !oldUtil && allH1s.length <= 1) {
+      console.log('[TestDashboard] Header is already single-row — no rebuild needed');
+      return;
+    }
+
+    console.warn('[TestDashboard] Old header layout detected — rebuilding as single row', {
+      hasRow2: !!oldRow2,
+      hasRow3: !!oldRow3,
+      hasUtilityBar: !!oldUtil,
+      h1Count: allH1s.length
+    });
+
+    // Extract existing logo elements
+    var logoArea = header.querySelector('#dashCustomerLogoArea');
+    var drivenLogo = header.querySelector('.dash-driven-logo') || header.querySelector('img');
+
+    // Build new single-row header
+    var dashHeader = header.querySelector('.dash-header') || header;
+    dashHeader.innerHTML = '';
+    dashHeader.className = 'dash-header';
+
+    var row1 = document.createElement('div');
+    row1.className = 'dash-header-row1';
+
+    // Left: customer logo
+    var left = document.createElement('div');
+    left.className = 'dash-header-logo-left';
+    if (logoArea) {
+      left.appendChild(logoArea);
+    } else {
+      var ph = document.createElement('div');
+      ph.id = 'dashCustomerLogoArea';
+      ph.innerHTML = '<div class="dash-customer-logo-placeholder">No logo uploaded</div>';
+      left.appendChild(ph);
+    }
+    row1.appendChild(left);
+
+    // Center: page title (only ONE h1)
+    var h1 = document.createElement('h1');
+    h1.id = 'dashPageTitle';
+    h1.className = 'dash-header-title';
+    h1.textContent = title;
+    row1.appendChild(h1);
+
+    // Right: DRIV-EN logo
+    var right = document.createElement('div');
+    right.className = 'dash-header-logo-right';
+    if (drivenLogo) {
+      right.appendChild(drivenLogo);
+    } else {
+      var img = document.createElement('img');
+      img.src = '/assets/logo.png?v=2026';
+      img.className = 'dash-driven-logo';
+      img.alt = 'DRIV-EN Logo';
+      right.appendChild(img);
+    }
+    row1.appendChild(right);
+
+    dashHeader.appendChild(row1);
+    console.log('[TestDashboard] ✓ Header rebuilt as single row with title: "' + title + '"');
+  }
+
+  // Run after DOM is ready, after dashboard-common.js loads the header,
+  // and again after a delay to catch any late SW-injected content.
+  function scheduleHeaderCheck() {
+    // Check after 100ms (header usually loads via fetch in init())
+    setTimeout(rebuildHeaderIfNeeded, 100);
+    // Check again after 1s (in case fetch was slow)
+    setTimeout(rebuildHeaderIfNeeded, 1000);
+    // Check again after 3s (last resort for slow SW cache)
+    setTimeout(rebuildHeaderIfNeeded, 3000);
+  }
+
+  // ===== SESSION LOADED — fill welcome card =====
   document.addEventListener('dashSessionLoaded', function(e) {
+    scheduleHeaderCheck(); // rebuild header after session loads
     var user = (e && e.detail) || window.dashUser;
     if (user) {
       console.log('[TestDashboard] Session loaded:', {
@@ -53,6 +146,7 @@
 
   // Verify header elements exist after load
   window.addEventListener('load', function() {
+    scheduleHeaderCheck(); // rebuild header after everything loads
     var header = document.getElementById('dashHeader');
     var footer = document.getElementById('dashFooter');
     var title = document.getElementById('dashPageTitle');
