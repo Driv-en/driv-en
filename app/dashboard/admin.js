@@ -178,13 +178,14 @@ function adjustStickyOffsets() {
 
 async function safeFetch(url, options) {
   options = options || {}; options.headers = options.headers || {};
+  options.credentials = 'include';
   var storedUser = currentUserObj || window.dashUser || window.drivenUser || {};
   options.headers['x-user-id'] = storedUser.id || localStorage.getItem('driven_user_id') || sessionStorage.getItem('driven_user_id') || '';
   options.headers['x-org-id'] = activeOrgId || storedUser.org_id || '';
   var userRole = storedUser.role || storedUser.role_id || localStorage.getItem('driven_role') || sessionStorage.getItem('driven_role') || '';
   if (userRole) options.headers['x-user-role'] = userRole;
   var controller = new AbortController();
-  var timeoutId = setTimeout(function() { controller.abort(); }, 4000);
+  var timeoutId = setTimeout(function() { controller.abort(); }, 8000);
   options.signal = controller.signal;
   try { var res = await fetch(url, options); clearTimeout(timeoutId); if (res.status === 401 || res.status === 403) { console.warn('[AdminDashboard] Session warning from:', url); return null; } return res; }
   catch (err) { clearTimeout(timeoutId); reportError('safeFetch', err); return null; }
@@ -269,11 +270,12 @@ async function finalizeCompanyOnboarding() {
 async function loadDashboardStats() {
   var fetchSafe = function(urls) {
     var urlList = Array.isArray(urls) ? urls : [urls];
-    var tryFetch = async function(idx) { if (idx >= urlList.length) return {}; try { var r = await safeFetch(urlList[idx]); if (r && r.ok) return await r.json(); } catch (e) {} return tryFetch(idx + 1); };
+    var tryFetch = async function(idx) { if (idx >= urlList.length) return {}; try { var r = await safeFetch(urlList[idx]); if (r && r.ok) return await r.json(); else console.warn('[KPI] ' + urlList[idx] + ' returned ' + (r ? r.status : 'null')); } catch (e) { console.warn('[KPI] ' + urlList[idx] + ' threw', e.message); } return tryFetch(idx + 1); };
     return tryFetch(0);
   };
   try {
     var results = await Promise.all([ fetchSafe(['/api/onboarding/employees/list', '/api/users']), fetchSafe(['/api/Project', '/api/projects']), fetchSafe(['/api/Equipment', '/api/equipment']), fetchSafe(['/api/Clients?active_only=true', '/api/Clients', '/api/clients']) ]);
+    console.log('[KPI] Raw API results:', results);
     var empData = results[0] || {}; var empList = empData.employees || empData.personnel || empData.users || empData.data || empData.records || (Array.isArray(empData) ? empData : []);
     var empCount = empList.filter(function(e) { var st = e.status !== undefined ? e.status : (e.is_active !== undefined ? e.is_active : e.employment_status); if (typeof st === 'string') st = st.toLowerCase(); return st === 1 || st === '1' || st === 'active' || st === true; }).length;
     var elEmp = document.getElementById('stat-employees'); if (elEmp) elEmp.textContent = empCount; localStorage.setItem('driven_employee_count', empCount);
@@ -284,6 +286,7 @@ async function loadDashboardStats() {
     var clientData = results[3] || {}; var clientList = clientData.clients || clientData.records || clientData.data || clientData.results || (Array.isArray(clientData) ? clientData : []);
     var activeClients = clientList.filter(function(c) { var st = c.status !== undefined ? c.status : (c.is_active !== undefined ? c.is_active : c.active); if (typeof st === 'string') st = st.toLowerCase(); return st === undefined || st === null || st === 1 || st === '1' || st === 'active' || st === true; }).length;
     var elCli = document.getElementById('stat-clients'); if (elCli) elCli.textContent = activeClients; localStorage.setItem('driven_client_count', activeClients);
+    console.log('[KPI] Parsed — employees:' + empCount + ' projects:' + projList.length + ' assets:' + assetList.length + ' clients:' + activeClients);
   } catch (e) {
     console.error('loadDashboardStats error:', e);
     var elE = document.getElementById('stat-employees'); if (elE) elE.textContent = localStorage.getItem('driven_employee_count') || '0';
