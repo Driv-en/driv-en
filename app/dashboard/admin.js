@@ -617,6 +617,27 @@ function openModal(modalId) { var modal = document.getElementById(modalId); if (
 function closeModal(modalId) { var modal = document.getElementById(modalId); if (modal) { modal.classList.remove('active', 'show'); modal.style.display = 'none'; } }
 function hideOnboardingTab() { var t = document.querySelector('.admin-tab[data-tab="onboarding"]'); if (t) t.style.display = 'none'; }
 
+/* ===== WELCOME CARD SAFETY NET =====
+   Forces the welcome card to white background with green border and
+   visible dark text. Catches any runtime override (stale SW CSS, JS
+   style injection, theme glitch) that would make the card blue. */
+function fixWelcomeCard() {
+  var card = document.querySelector('#adminWelcomeBar .admin-welcome');
+  if (!card) return;
+  card.style.setProperty('background', '#ffffff', 'important');
+  card.style.setProperty('border', '2px solid #16a34a', 'important');
+  card.style.setProperty('color', '#1e293b', 'important');
+  var textEls = card.querySelectorAll('p, span, .welcome-detail-row, .welcome-detail-label');
+  textEls.forEach(function(el) {
+    if (el.classList && el.classList.contains('welcome-detail-label')) {
+      el.style.setProperty('color', '#475569', 'important');
+    } else {
+      el.style.setProperty('color', '#1e293b', 'important');
+    }
+  });
+  console.log('[AdminDashboard] Welcome card forced: white bg, green border, dark text');
+}
+
 function injectGlobalUIStyles() {
   if (document.getElementById('driven-admin-ui-styles')) return;
   var style = document.createElement('style'); style.id = 'driven-admin-ui-styles';
@@ -727,7 +748,7 @@ async function startAdminApp(user) {
     var elComp = document.getElementById('welcome-company'); if (elComp) elComp.textContent = orgName;
     var elRole = document.getElementById('welcome-role'); if (elRole) elRole.textContent = user.role || user.role_id || '';
     var elMail = document.getElementById('welcome-email'); if (elMail) elMail.textContent = user.email || '';
-    try { injectGlobalUIStyles(); attachEventHandlers(); } catch (e) { reportError('startAdminApp-init', e); }
+    try { injectGlobalUIStyles(); fixWelcomeCard(); attachEventHandlers(); } catch (e) { reportError('startAdminApp-init', e); }
     adjustStickyOffsets();
     loadLogo().catch(function(e) { reportError('loadLogo', e); });
     loadSettings().catch(function(e) { reportError('loadSettings', e); });
@@ -741,6 +762,7 @@ async function startAdminApp(user) {
   } finally {
     // ALWAYS show the dashboard — even if everything above failed
     rebuildHeader(); // final header rebuild safety net
+    fixWelcomeCard(); // final welcome card safety net
     var loadingEl = document.getElementById('loading'); var dashEl = document.getElementById('dashboard');
     if (loadingEl) loadingEl.style.display = 'none';
     if (dashEl) dashEl.style.display = 'block';
@@ -762,6 +784,10 @@ async function init() {
   rebuildHeader();
   startHeaderObserver();
   scheduleHeaderRebuilds();
+  fixWelcomeCard();
+  setTimeout(fixWelcomeCard, 500);
+  setTimeout(fixWelcomeCard, 1500);
+  setTimeout(fixWelcomeCard, 3000);
   window.addEventListener('resize', adjustStickyOffsets);
   window.addEventListener('orientationchange', adjustStickyOffsets);
   window.addEventListener('scroll', adjustStickyOffsets, { passive: true });
