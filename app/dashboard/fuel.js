@@ -50,6 +50,26 @@
   }
 
   async function loadUnitOfMeasure() {
+    // 1. Try the new /api/settings/units endpoint (org's unit_system: imperial|metric)
+    try {
+      const resp = await fetch('/api/settings/units', { credentials: 'include' });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.result && data.result.unit_system) {
+          if (data.result.unit_system === 'metric') {
+            UOM = { plural: 'Liters', singular: 'Liter', abbr: 'L', lower: 'liters' };
+          } else {
+            UOM = { plural: 'Gallons', singular: 'Gallon', abbr: 'gal', lower: 'gallons' };
+          }
+          try { localStorage.setItem('driv-en-unit-system', data.result.unit_system); } catch (e) {}
+          return;
+        }
+      }
+    } catch (e) {
+      // Fall through to legacy endpoint
+    }
+
+    // 2. Fall back to the legacy /api/units-of-measure endpoint
     try {
       const resp = await fetch('/api/units-of-measure', { headers: getAuthHeaders() });
       if (!resp.ok) return;
@@ -63,6 +83,7 @@
       console.warn('Unit of measure load failed, defaulting to gallons:', e.message);
     }
   }
+
 
   function applyUomToStaticText() {
     document.querySelectorAll('.uom-lower').forEach(el => { el.textContent = UOM.lower; });
@@ -1768,6 +1789,18 @@
     const statusFilter = document.getElementById('alertsStatusFilter');
     if (statusFilter) statusFilter.addEventListener('change', renderAlerts);
   }
+
+  // Listen for unit system changes from other tabs (e.g., admin settings page)
+  window.addEventListener('storage', function(e) {
+    if (e.key === 'driv-en-unit-system-changed') {
+      loadUnitOfMeasure().then(function() {
+        applyUomToStaticText();
+        renderOverview();
+        const activeTxSubtab = document.querySelector('#txSubtabBar .fuel-subtab.active');
+        if (activeTxSubtab) renderTxForSubtab(activeTxSubtab.getAttribute('data-subtab'));
+      });
+    }
+  });
 
   async function init() {
     async function startApp() {
