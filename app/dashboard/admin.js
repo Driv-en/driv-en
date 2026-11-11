@@ -363,10 +363,11 @@ function switchTab(tabName) {
   var activeObTab = document.getElementById('tab-onboarding'); var activeSetTab = document.getElementById('tab-settings');
   if (visibilityDirty && activeObTab && activeObTab.classList.contains('active') && tabName !== 'onboarding') { if (!confirm('You have unsaved Task Visibility changes.\n\nClick Cancel to go back and save them, or OK to discard.')) return; clearVisibilityDirty(); }
   if ((settingsDirty || togglesDirty) && activeSetTab && activeSetTab.classList.contains('active') && tabName !== 'settings') { if (!confirm('You have unsaved changes in Settings.\n\nClick Cancel to go back and save them, or OK to discard.')) return; clearSettingsDirty(); clearTogglesDirty(); }
-  document.querySelectorAll('.admin-tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.admin-tab').forEach(function(t) { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
   document.querySelectorAll('.admin-tab-content').forEach(function(c) { c.classList.remove('active'); });
   var targetTabBtn = document.querySelector('.admin-tab[data-tab="' + tabName + '"]'); var targetTabContent = document.getElementById('tab-' + tabName);
-  if (targetTabBtn) targetTabBtn.classList.add('active'); if (targetTabContent) targetTabContent.classList.add('active');
+  if (targetTabBtn) { targetTabBtn.classList.add('active'); targetTabBtn.setAttribute('aria-selected', 'true'); }
+  if (targetTabContent) targetTabContent.classList.add('active');
   var obBar = document.getElementById('onboardingSubtabBar'); if (obBar) obBar.classList.toggle('visible', tabName === 'onboarding');
   if (tabName === 'forms') renderFormsTab(); if (tabName === 'settings') renderOnboardingUomDisplays();
   adjustStickyOffsets();
@@ -375,10 +376,11 @@ function switchTab(tabName) {
 function switchOnboardingSubtab(subtabName) {
   var visTab = document.getElementById('onboarding-subtab-visibility');
   if (visibilityDirty && visTab && visTab.classList.contains('active') && subtabName !== 'visibility') { if (!confirm('You have unsaved Task Visibility changes.\n\nClick Cancel to go back and save them, or OK to discard.')) return; clearVisibilityDirty(); }
-  document.querySelectorAll('#onboardingSubtabBar .admin-subtab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('#onboardingSubtabBar .admin-subtab').forEach(function(t) { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
   document.querySelectorAll('.admin-subtab-content[id^="onboarding-subtab-"]').forEach(function(c) { c.classList.remove('active'); });
   var targetSubtabBtn = document.querySelector('#onboardingSubtabBar [data-subtab="' + subtabName + '"]'); var targetSubtabContent = document.getElementById('onboarding-subtab-' + subtabName);
-  if (targetSubtabBtn) targetSubtabBtn.classList.add('active'); if (targetSubtabContent) targetSubtabContent.classList.add('active');
+  if (targetSubtabBtn) { targetSubtabBtn.classList.add('active'); targetSubtabBtn.setAttribute('aria-selected', 'true'); }
+  if (targetSubtabContent) targetSubtabContent.classList.add('active');
   if (subtabName === 'kp' || subtabName === 'key-personnel') { renderKeyPersonnel(); }
   if (subtabName === 'dashboard') { /* Onboarding Dashboard subtab — link is in the HTML */ }
   adjustStickyOffsets();
@@ -528,11 +530,31 @@ function injectGlobalUIStyles() {
 function attachEventHandlers() {
   document.querySelectorAll('.admin-tab').forEach(function(tab) {
     tab.addEventListener('click', function() { var tabName = this.getAttribute('data-tab'); if (tabName) switchTab(tabName); });
-    tab.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); var tabName = this.getAttribute('data-tab'); if (tabName) switchTab(tabName); } });
+    tab.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); var tabName = this.getAttribute('data-tab'); if (tabName) switchTab(tabName); }
+      else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        var tabs = Array.from(document.querySelectorAll('.admin-tab'));
+        var idx = tabs.indexOf(this);
+        var dir = e.key === 'ArrowRight' ? 1 : -1;
+        var next = tabs[(idx + dir + tabs.length) % tabs.length];
+        if (next) { next.focus(); var tabName = next.getAttribute('data-tab'); if (tabName) switchTab(tabName); }
+      }
+    });
   });
   document.querySelectorAll('#onboardingSubtabBar .admin-subtab').forEach(function(subtab) {
     subtab.addEventListener('click', function() { var subtabName = this.getAttribute('data-subtab'); if (subtabName) switchOnboardingSubtab(subtabName); });
-    subtab.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); var subtabName = this.getAttribute('data-subtab'); if (subtabName) switchOnboardingSubtab(subtabName); } });
+    subtab.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); var subtabName = this.getAttribute('data-subtab'); if (subtabName) switchOnboardingSubtab(subtabName); }
+      else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        var subtabs = Array.from(document.querySelectorAll('#onboardingSubtabBar .admin-subtab'));
+        var idx = subtabs.indexOf(this);
+        var dir = e.key === 'ArrowRight' ? 1 : -1;
+        var next = subtabs[(idx + dir + subtabs.length) % subtabs.length];
+        if (next) { next.focus(); var subtabName = next.getAttribute('data-subtab'); if (subtabName) switchOnboardingSubtab(subtabName); }
+      }
+    });
   });
   var btnPurpose = document.getElementById('btnTabPurpose');
   if (btnPurpose) { btnPurpose.addEventListener('click', function(e) { if (e) e.preventDefault(); var contextKey = getActiveContext(); var title = getContextTitle(contextKey); var content = MODAL_CONTENT_MAP[contextKey] || MODAL_CONTENT_MAP.overview; var mpt = document.getElementById('modalPurposeTitle'); var mpb = document.getElementById('modalPurposeBody'); if (mpt) mpt.textContent = title + ' - Purpose'; if (mpb) mpb.innerHTML = content.purpose; openModal('modalPurpose'); }); }
