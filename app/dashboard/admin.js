@@ -566,6 +566,10 @@ function attachEventHandlers() {
   // Unit of Measure toggle buttons — no inline onclick for CSP compliance
   var impBtn = document.getElementById('uom-imperial-btn'); if (impBtn) impBtn.addEventListener('click', function() { setUnitSystem('imperial'); });
   var metBtn = document.getElementById('uom-metric-btn'); if (metBtn) metBtn.addEventListener('click', function() { setUnitSystem('metric'); });
+  // Stat card navigation — no inline onclick for CSP compliance
+  document.querySelectorAll('.stat-card[data-nav]').forEach(function(card) {
+    card.addEventListener('click', function(e) { preserveAndNavigate(e, this.getAttribute('data-nav')); });
+  });
   var btnLogout = document.getElementById('btnAdminLogout');
   if (btnLogout) { btnLogout.addEventListener('click', function(e) { if (e) { e.preventDefault(); e.stopPropagation(); } pendingKP = []; localStorage.clear(); sessionStorage.clear(); if (typeof window.dashLogout === 'function') { try { window.dashLogout(); } catch (err) {} } window.location.href = '/public/login.html'; }); }
 }
