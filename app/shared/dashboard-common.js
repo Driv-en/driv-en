@@ -150,41 +150,82 @@
   // Reads the page title from <body data-page-title="...">
   // and inserts it into the header's <h1 id="dashPageTitle">
   // If no data-page-title is set, defaults to "Dashboard"
-  // Also cleans up old header layouts (Row 2 title, Row 3 utility bar)
-  // that may still exist if an old dashboard-header.html is cached on the server.
+  // ALSO: if an old 3-row header layout is detected (Row 2 with title,
+  // Row 3 with utility bar), the entire header is rebuilt as a single row.
+  // This is a defensive measure — works even if the service worker serves
+  // a stale dashboard-header.html from cache.
   function setPageTitle() {
     var title = document.body.getAttribute("data-page-title") || "Dashboard";
-
-    // --- Clean up old 3-row header layout if present ---
     var header = document.getElementById('dashHeader');
+
     if (header) {
-      // Remove old Row 2 (title row from 3-row layout)
+      // Check for old 3-row layout (Row 2 has the title in a separate row)
       var oldRow2 = header.querySelector('.dash-header-row2');
       if (oldRow2) {
-        console.warn("[Header] Removing old .dash-header-row2 (3-row layout detected)");
-        oldRow2.remove();
+        console.warn("[Header] Old 3-row layout detected — rebuilding as single row");
+
+        // Extract existing logo elements from Row 1
+        var logoArea = header.querySelector('#dashCustomerLogoArea');
+        var drivenLogo = header.querySelector('.dash-driven-logo') || header.querySelector('img.dash-driven-logo');
+
+        // Build new single-row header
+        var newRow1 = document.createElement('div');
+        newRow1.className = 'dash-header-row1';
+
+        // Left: customer logo area
+        var leftCol = document.createElement('div');
+        leftCol.className = 'dash-header-logo-left';
+        if (logoArea) leftCol.appendChild(logoArea);
+        else {
+          var ph = document.createElement('div');
+          ph.id = 'dashCustomerLogoArea';
+          ph.innerHTML = '<div class="dash-customer-logo-placeholder">No logo uploaded</div>';
+          leftCol.appendChild(ph);
+        }
+        newRow1.appendChild(leftCol);
+
+        // Center: page title
+        var h1 = document.createElement('h1');
+        h1.id = 'dashPageTitle';
+        h1.className = 'dash-header-title';
+        h1.textContent = title;
+        newRow1.appendChild(h1);
+
+        // Right: DRIV-EN logo
+        var rightCol = document.createElement('div');
+        rightCol.className = 'dash-header-logo-right';
+        if (drivenLogo) rightCol.appendChild(drivenLogo);
+        else {
+          var img = document.createElement('img');
+          img.src = '/assets/logo.png?v=2026';
+          img.className = 'dash-driven-logo';
+          img.alt = 'DRIV-EN Logo';
+          rightCol.appendChild(img);
+        }
+        newRow1.appendChild(rightCol);
+
+        // Replace entire header content with the single row
+        var dashHeaderDiv = header.querySelector('.dash-header') || header;
+        dashHeaderDiv.innerHTML = '';
+        dashHeaderDiv.className = 'dash-header';
+        dashHeaderDiv.appendChild(newRow1);
+
+        console.log("[Header] Rebuilt as single row:", { title: title, hasLogo: !!logoArea, hasDrivenLogo: !!drivenLogo });
+        return; // Already set the title in the rebuilt h1
       }
-      // Remove old Row 3 (utility bar row from 3-row layout)
+
+      // Fallback cleanup: remove old utility bar / row3 if present
       var oldRow3 = header.querySelector('.dash-header-row3');
-      if (oldRow3) {
-        console.warn("[Header] Removing old .dash-header-row3 (3-row layout detected)");
-        oldRow3.remove();
-      }
-      // Remove old utility bar (standalone, not in row3)
+      if (oldRow3) { console.warn("[Header] Removing old .dash-header-row3"); oldRow3.remove(); }
       var oldUtil = header.querySelector('.dash-utility-bar');
-      if (oldUtil) {
-        console.warn("[Header] Removing old .dash-utility-bar");
-        oldUtil.remove();
-      }
+      if (oldUtil) { console.warn("[Header] Removing old .dash-utility-bar"); oldUtil.remove(); }
     }
 
     // Remove any duplicate #dashPageTitle elements
     var allTitles = document.querySelectorAll("#dashPageTitle");
     if (allTitles.length > 1) {
       console.warn("[Header] Found " + allTitles.length + " #dashPageTitle elements — removing duplicates");
-      for (var i = 1; i < allTitles.length; i++) {
-        allTitles[i].remove();
-      }
+      for (var i = 1; i < allTitles.length; i++) { allTitles[i].remove(); }
     }
 
     var titleEl = document.getElementById("dashPageTitle");
