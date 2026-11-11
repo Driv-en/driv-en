@@ -534,8 +534,14 @@ function injectGlobalUIStyles() {
 }
 
 function attachEventHandlers() {
-  document.querySelectorAll('.admin-tab').forEach(function(tab) { tab.addEventListener('click', function() { var tabName = this.getAttribute('data-tab'); if (tabName) switchTab(tabName); }); });
-  document.querySelectorAll('#onboardingSubtabBar .admin-subtab').forEach(function(subtab) { subtab.addEventListener('click', function() { var subtabName = this.getAttribute('data-subtab'); if (subtabName) switchOnboardingSubtab(subtabName); }); });
+  document.querySelectorAll('.admin-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() { var tabName = this.getAttribute('data-tab'); if (tabName) switchTab(tabName); });
+    tab.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); var tabName = this.getAttribute('data-tab'); if (tabName) switchTab(tabName); } });
+  });
+  document.querySelectorAll('#onboardingSubtabBar .admin-subtab').forEach(function(subtab) {
+    subtab.addEventListener('click', function() { var subtabName = this.getAttribute('data-subtab'); if (subtabName) switchOnboardingSubtab(subtabName); });
+    subtab.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); var subtabName = this.getAttribute('data-subtab'); if (subtabName) switchOnboardingSubtab(subtabName); } });
+  });
   var btnPurpose = document.getElementById('btnTabPurpose');
   if (btnPurpose) { btnPurpose.addEventListener('click', function(e) { if (e) e.preventDefault(); var contextKey = getActiveContext(); var title = getContextTitle(contextKey); var content = MODAL_CONTENT_MAP[contextKey] || MODAL_CONTENT_MAP.overview; var mpt = document.getElementById('modalPurposeTitle'); var mpb = document.getElementById('modalPurposeBody'); if (mpt) mpt.textContent = title + ' - Purpose'; if (mpb) mpb.innerHTML = content.purpose; openModal('modalPurpose'); }); }
   var btnInstructions = document.getElementById('btnTabInstructions');
@@ -569,6 +575,7 @@ function attachEventHandlers() {
   // Stat card navigation — no inline onclick for CSP compliance
   document.querySelectorAll('.stat-card[data-nav]').forEach(function(card) {
     card.addEventListener('click', function(e) { preserveAndNavigate(e, this.getAttribute('data-nav')); });
+    card.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); preserveAndNavigate(e, this.getAttribute('data-nav')); } });
   });
   var btnLogout = document.getElementById('btnAdminLogout');
   if (btnLogout) { btnLogout.addEventListener('click', function(e) { if (e) { e.preventDefault(); e.stopPropagation(); } pendingKP = []; localStorage.clear(); sessionStorage.clear(); if (typeof window.dashLogout === 'function') { try { window.dashLogout(); } catch (err) {} } window.location.href = '/public/login.html'; }); }
