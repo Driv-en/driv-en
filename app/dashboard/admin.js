@@ -578,7 +578,10 @@ function attachEventHandlers() {
     card.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); preserveAndNavigate(e, this.getAttribute('data-nav')); } });
   });
   var btnLogout = document.getElementById('btnAdminLogout');
-  if (btnLogout) { btnLogout.addEventListener('click', function(e) { if (e) { e.preventDefault(); e.stopPropagation(); } pendingKP = []; localStorage.clear(); sessionStorage.clear(); if (typeof window.dashLogout === 'function') { try { window.dashLogout(); } catch (err) {} } window.location.href = '/public/login.html'; }); }
+  if (btnLogout) {
+    btnLogout.addEventListener('click', function(e) { if (e) { e.preventDefault(); e.stopPropagation(); } pendingKP = []; localStorage.clear(); sessionStorage.clear(); if (typeof window.dashLogout === 'function') { try { window.dashLogout(); } catch (err) {} } window.location.href = '/public/login.html'; });
+    btnLogout.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); pendingKP = []; localStorage.clear(); sessionStorage.clear(); if (typeof window.dashLogout === 'function') { try { window.dashLogout(); } catch (err) {} } window.location.href = '/public/login.html'; } });
+  }
 }
 
 async function startAdminApp(user) {
