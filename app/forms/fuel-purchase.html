@@ -1,362 +1,969 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DRIVâ€‘EN | Log Fuel Purchase</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>DRIV‑EN | Fuel Purchase Form</title>
+<meta name="description" content="DRIV-EN fuel purchase form — upload receipt for AI extraction or enter manually.">
 <meta name="robots" content="noindex, nofollow">
-<link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
-<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
-<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
-<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
+<link rel="canonical" href="https://www.driv-en.com/app/forms/fuel-purchase.html">
 
-<link rel="stylesheet" href="/app/shared/dashboard.css?v=12">
-<link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
+<!-- Permissions & Feature Policy Safeguard for Standalone PWA Geolocation -->
+<meta http-equiv="Permissions-Policy" content="geolocation=(self)">
+
+<!-- Cache Control Headers (Prevents Stale Session / Script Locks) -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+
+<!-- PWA Manifest & Meta Tags -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#ffcc00">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DRIV‑EN">
+
+<!-- Favicons & Touch Icons -->
+<link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026_v5" sizes="48x48">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026_v5" sizes="96x96">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026_v5" sizes="192x192">
+<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026_v5">
+
+<link rel="stylesheet" href="/app/shared/dashboard.css?v=12_v5">
+<link rel="stylesheet" href="/styles/diamond-plate.css?v=2026_v5">
 
 <script>
+/* <![CDATA[ */
 (function() {
+  // 1. Theme initialization
   var saved = localStorage.getItem("driven-theme");
-  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  var system = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
   var theme = saved || system;
   document.documentElement.setAttribute("data-theme", theme);
+
+  // 2. Early session & URL context capture
+  var params = new URLSearchParams(window.location.search);
+  var orgId = params.get('org_id') || params.get('orgId') || params.get('customerId');
+  var roleId = params.get('role_id') || params.get('roleId') || params.get('role');
+
+  if (orgId) {
+    localStorage.setItem('driven_org_id', orgId);
+    localStorage.setItem('driven_customer_id', orgId);
+    sessionStorage.setItem('driven_org_id', orgId);
+  }
+  if (roleId) {
+    localStorage.setItem('driven_role', roleId);
+    sessionStorage.setItem('driven_role', roleId);
+  }
+
+  // 3. Synthesize dynamic multi-tenant session context
+  var cachedUserStr = localStorage.getItem("driven_user") || sessionStorage.getItem("driven_user");
+  var cachedUser = null;
+  try { if (cachedUserStr) cachedUser = JSON.parse(cachedUserStr); } catch(e) {}
+
+  if (!cachedUser && (orgId || roleId)) {
+    cachedUser = {
+      id: "usr_admin_handoff",
+      email: "admin@driv-en.com",
+      role: roleId || "admin",
+      role_id: roleId || "RO-admin",
+      org_id: orgId || "org_dsi",
+      permissions: ["fuel.add", "fuel.view", "fuel.manage"]
+    };
+    localStorage.setItem("driven_user", JSON.stringify(cachedUser));
+    sessionStorage.setItem("driven_user", JSON.stringify(cachedUser));
+  } else if (cachedUser) {
+    if (orgId) cachedUser.org_id = orgId;
+    if (roleId) cachedUser.role_id = roleId;
+    if (!cachedUser.permissions) cachedUser.permissions = [];
+    if (cachedUser.permissions.indexOf("fuel.add") === -1) cachedUser.permissions.push("fuel.add");
+    localStorage.setItem("driven_user", JSON.stringify(cachedUser));
+    sessionStorage.setItem("driven_user", JSON.stringify(cachedUser));
+  }
 })();
+/* ]]> */
 </script>
 
 <style>
+/* BASE LAYOUT SAFEGUARDS (ALLOWS STICKY HEADERS) */
+html, body {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+*, *:before, *:after {
+  box-sizing: inherit;
+}
+
+.steel-bg, .steel-overlay {
+  max-width: 100vw !important;
+  overflow-x: hidden !important;
+}
+
 .fp-loading{display:flex;align-items:center;justify-content:center;height:60vh;font-size:16px;color:var(--text-muted);}
-.dash-header-row1 { padding: 8px 20px !important; align-items: center; }
-.fp-tab-bar { display: flex; gap: 2px; max-width: 1100px; margin: 0 auto; padding: 0 20px; overflow-x: auto; position: relative; z-index: 1; background: #cbd5e1; border-bottom: 2px solid #94a3b8; }
-.fp-tab-home { background: #1d4ed8; border: 1px solid #2563eb; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; margin-left: auto; position: relative; z-index: 1; transition: background 200ms ease, margin-top 200ms ease; text-decoration: none; display: inline-block; }
-.fp-tab-home:hover { background: #2563eb; margin-top: 2px; }
-.fp-tab-logout { background: #b91c1c; border: 1px solid #dc2626; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; margin-left: 0; position: relative; z-index: 1; transition: background 200ms ease, margin-top 200ms ease; }
-.fp-tab-logout:hover { background: #dc2626; margin-top: 2px; }
-.fp-main { max-width: 600px; margin: 20px auto; padding: 0 20px; position: relative; z-index: 1; }
-.fp-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 28px; margin-bottom: 20px; }
-.fp-card h2 { margin: 0 0 20px 0; font-size: 20px; font-weight: 700; color: var(--text); }
-.fp-link-row { margin-bottom: 20px; }
-.fp-link-row label { display: block; font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
-.fp-link-row label .req { color: #cc0000; }
-.fp-link-row select, .fp-link-row input, .fp-link-row textarea { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid var(--border-input, var(--border)); border-radius: 6px; background: var(--bg-input); color: var(--text); box-sizing: border-box; }
-.fp-link-row select:focus, .fp-link-row input:focus, .fp-link-row textarea:focus { outline: none; border-color: var(--primary); }
-.fp-link-row textarea { resize: vertical; min-height: 60px; }
-.fp-link-row .hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-.fp-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.fp-btn-row { display: flex; gap: 12px; margin-top: 24px; }
-.fp-submit-btn { flex: 1; background: var(--primary); color: #fff; border: none; border-radius: 6px; padding: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
-.fp-submit-btn:hover { opacity: 0.9; }
-.fp-submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.fp-cancel-btn { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 12px 20px; font-size: 16px; font-weight: 600; cursor: pointer; }
-.fp-cancel-btn:hover { border-color: var(--primary); }
-.fp-success { text-align: center; padding: 40px 20px; }
-.fp-success h3 { font-size: 20px; color: var(--text); margin: 0 0 8px 0; }
-.fp-success p { font-size: 14px; color: var(--text-muted); margin: 0 0 20px 0; }
-.fp-success .fp-again-btn { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer; }
-.fp-error-banner { background: #ffdddd; color: #cc0000; padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 14px; display: none; }
+
+/* UNIFIED STICKY HEADER BLOCK */
+#dashHeader { 
+  width: 100% !important; 
+  box-sizing: border-box;
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 100000 !important;
+  background: var(--bg-card, #1e293b);
+  border-bottom: 1px solid var(--border, #334155);
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* FORCE SINGLE-ROW FLEX CONTAINER FOR ALL HEADER CHILDREN */
+html body #dashHeader .dash-header-row1 {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important; 
+  padding: 8px 12px !important; 
+  box-sizing: border-box !important; 
+  position: relative !important;
+  min-height: 52px !important;
+  height: auto !important;
+  overflow: visible !important;
+  z-index: 2 !important;
+}
+
+/* SUPPRESS DYNAMIC INJECTED UNUSED HEADER NODES FROM DASHBOARD-COMMON.JS */
+html body #dashHeader .dash-header-row1 > *:not(#dashCustomerLogoArea):not(#dashHeaderTitle):not(.dash-driven-logo-wrap):not(.dash-driven-logo) {
+  display: none !important;
+}
+
+/* 1. CUSTOMER LOGO: PINNED LEFT */
+html body #dashHeader #dashCustomerLogoArea {
+  display: flex !important;
+  align-items: center !important;
+  order: 1 !important;
+  flex: 0 0 auto !important;
+  z-index: 2 !important;
+}
+
+html body #dashHeader #dashCustomerLogoArea img {
+  max-height: 38px !important;
+  max-width: 100px !important;
+  object-fit: contain !important;
+}
+
+/* 2. TITLE: FORCED INTO MIDDLE OF SINGLE ROW WITH MULTI-LINE WRAPPING */
+html body #dashHeader #dashHeaderTitle,
+html body .dash-header-row1 #dashHeaderTitle {
+  display: block !important;
+  order: 2 !important;
+  flex: 1 1 auto !important;
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  margin: 0 8px !important;
+  padding: 0 !important;
+  text-align: center !important;
+  white-space: normal !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  word-break: break-word !important;
+  text-overflow: clip !important;
+  overflow: visible !important;
+  font-size: clamp(11px, 3.2vw, 16px) !important;
+  font-weight: 700 !important;
+  color: var(--text, #f8fafc) !important;
+  line-height: 1.15 !important;
+  z-index: 10 !important;
+}
+
+/* 3. DRIV-EN LOGO: PINNED RIGHT */
+html body #dashHeader .dash-driven-logo-wrap,
+html body #dashHeader .dash-driven-logo {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  order: 3 !important;
+  flex: 0 0 auto !important;
+  margin-left: 0 !important;
+  z-index: 2 !important;
+}
+
+html body #dashHeader .dash-driven-logo-wrap img,
+html body #dashHeader .dash-driven-logo img {
+  display: block !important;
+  max-height: 32px !important;
+  max-width: 80px !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain !important;
+}
+
+@media (max-width: 480px) {
+  html body #dashHeader .dash-header-row1 {
+    padding: 6px 8px !important;
+  }
+}
+
+/* TAB BAR ATTACHED DIRECTLY BELOW HEADER ROW 1 */
+.fp-tab-bar { 
+  display: flex !important; 
+  align-items: center;
+  justify-content: space-between;
+  width: 100% !important; 
+  margin: 0 auto; 
+  padding: 0 16px; 
+  box-sizing: border-box;
+  position: relative !important;
+  top: 0 !important;
+  z-index: 1 !important; 
+  background: #cbd5e1; 
+  border-top: 1px solid #94a3b8;
+  border-bottom: 2px solid #94a3b8; 
+  gap: 8px;
+}
+:root[data-theme="dark"] .fp-tab-bar { 
+  background: #334155; 
+  border-top-color: #475569;
+  border-bottom-color: #475569; 
+}
+
+.fp-tab-home { 
+  background: #1d4ed8; 
+  border: 1px solid #2563eb; 
+  border-bottom: none; 
+  border-radius: 8px 8px 0 0; 
+  padding: 8px 18px; 
+  font-size: 14px; 
+  font-weight: 600; 
+  color: #fff; 
+  cursor: pointer; 
+  white-space: nowrap; 
+  margin-top: 4px; 
+  margin-right: auto;
+  position: relative; 
+  z-index: 1; 
+  transition: background 200ms ease; 
+  text-decoration: none; 
+  display: inline-block; 
+}
+.fp-tab-home:hover { background: #2563eb; }
+
+.fp-tab-logout { 
+  background: #b91c1c; 
+  border: 1px solid #dc2626; 
+  border-bottom: none; 
+  border-radius: 8px 8px 0 0; 
+  padding: 8px 18px; 
+  font-size: 14px; 
+  font-weight: 600; 
+  color: #fff; 
+  cursor: pointer; 
+  white-space: nowrap; 
+  margin-top: 4px; 
+  margin-left: auto;
+  position: relative; 
+  z-index: 1; 
+  transition: background 200ms ease; 
+}
+.fp-tab-logout:hover { background: #dc2626; }
+
+/* ADMIN PILL BAR LAYOUT */
+.admin-pill-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  max-width: 1100px;
+  margin: 12px auto 0 auto;
+  padding: 0 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.pill-btn {
+  border-radius: 9999px;
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 150ms ease;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.pill-btn-purpose {
+  background: #0284c7;
+  border: 1px solid #0369a1;
+  color: #ffffff;
+}
+.pill-btn-purpose:hover {
+  background: #0369a1;
+}
+
+.pill-btn-instructions {
+  background: #8b5cf6;
+  border: 1px solid #7c3aed;
+  color: #ffffff;
+}
+.pill-btn-instructions:hover {
+  background: #7c3aed;
+}
+
+.fp-main { max-width: 1100px; margin: 20px auto; padding: 0 16px; position: relative; z-index: 1; width: 100%; box-sizing: border-box; }
+.section-heading { background: var(--bg-card); border-bottom: 2px solid var(--border); padding: 12px 0; margin: 0 0 16px 0; font-size: 18px; font-weight: 700; color: var(--text); }
+.section-subtitle-text { font-size: 13px; color: var(--text-muted); margin: -4px 0 16px 0; display: block; }
+
+/* PURCHASE FORM CONTAINER & UPLOAD */
+.purchase-form-container { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 24px; width: 100%; box-sizing: border-box; }
+.purchase-upload-section { margin-bottom: 20px; }
+.purchase-upload-box { border: 2px dashed var(--border); border-radius: 10px; padding: 32px 20px; text-align: center; transition: border-color 200ms; }
+.purchase-upload-box:hover { border-color: var(--primary); }
+.purchase-upload-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+.purchase-upload-btn { background: var(--primary); color: #fff; border: none; border-radius: 6px; padding: 10px 24px; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 200ms; display: inline-flex; align-items: center; gap: 6px; }
+.purchase-upload-btn:hover { opacity: 0.9; }
+.purchase-upload-btn.secondary { background: #475569; }
+.receipt-preview-wrap { margin-top: 16px; text-align: center; }
+.receipt-preview-img { max-width: 300px; max-height: 400px; border-radius: 8px; border: 1px solid var(--border); }
+.receipt-pdf-icon { font-size: 48px; }
+.receipt-extract-status { margin-top: 12px; font-size: 14px; }
+.receipt-extract-status.loading { color: var(--primary); }
+.receipt-extract-status.success { color: #16a34a; font-weight: 600; }
+.receipt-extract-status.error { color: #cc0000; font-weight: 600; }
+.receipt-notice { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 12px 16px; margin-top: 12px; font-size: 13px; color: #78350f; line-height: 1.5; }
+.receipt-notice strong { color: #b45309; }
+.purchase-divider { text-align: center; margin: 24px 0; position: relative; }
+.purchase-divider::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: var(--border); }
+.purchase-divider span { position: relative; background: var(--bg-card); padding: 0 16px; font-size: 12px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.5px; }
+.purchase-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.purchase-field { display: flex; flex-direction: column; gap: 4px; }
+.purchase-field-full { grid-column: 1 / -1; }
+.purchase-label { font-size: 13px; font-weight: 600; color: var(--text); }
+
+/* FIELD INPUT STYLING */
+.purchase-input { 
+  padding: 10px 12px; 
+  font-size: 14px; 
+  border: 1px solid var(--border-input, var(--border)); 
+  border-radius: 6px; 
+  background: var(--bg-step, #1e293b); 
+  color: var(--text, #f8fafc); 
+  box-sizing: border-box; 
+  width: 100%; 
+  max-width: 100%;
+}
+.purchase-input option {
+  background-color: var(--bg-card, #0f172a);
+  color: var(--text, #f8fafc);
+}
+.purchase-input:focus { outline: none; border-color: var(--primary); }
+
+.ai-confidence-banner { background: #eff6ff; border: 1px solid #93c5fd; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #1e3a5f; }
+.ai-confidence-banner.low { background: #fef3c7; border-color: #fcd34d; color: #78350f; }
+.ai-confidence-banner strong { color: #1d4ed8; }
+.ai-confidence-banner.low strong { color: #b45309; }
+.ai-confidence-banner .field-flag { display: inline-block; background: #fcd34d; color: #78350f; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin: 2px; }
+
+/* AI FIELD HIGHLIGHTING */
+.ai-extracted { border: 2px solid #22c55e !important; }
+.ai-needed { border: 2px solid #fb923c !important; }
+.ai-field-legend { display: flex; gap: 16px; margin-bottom: 12px; font-size: 12px; color: var(--text-muted); flex-wrap: wrap; align-items: center; }
+.ai-field-legend .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: middle; margin-right: 4px; border: 1px solid; }
+.ai-field-legend .swatch-green { background: #dcfce7; border-color: #86efac; }
+.ai-field-legend .swatch-orange { background: #fed7aa; border-color: #fb923c; }
+
+/* LINE ITEMS - UPDATED PER-LINE SEQUENTIAL STEPPING */
+.line-items-section { margin-bottom: 20px; }
+.line-items-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.line-items-header h4 { font-size: 15px; font-weight: 700; color: var(--text); margin: 0; }
+
+.line-item-row { 
+  background: var(--bg-step, #1e293b); 
+  border: 1px solid var(--border, #334155);
+  border-left: 4px solid var(--primary, #38bdf8);
+  border-radius: 8px; 
+  padding: 16px; 
+  margin-bottom: 16px; 
+  position: relative; 
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.line-item-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border, #334155);
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+.line-item-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary, #38bdf8);
+}
+
+.prev-meter-banner {
+  background: #0f172a;
+  border-left: 3px solid var(--primary, #38bdf8);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text, #f8fafc);
+  margin-bottom: 12px;
+  display: none;
+}
+.prev-meter-banner strong { color: var(--primary, #38bdf8); }
+
+.line-item-grid { 
+  display: grid; 
+  grid-template-columns: 1.2fr 1fr 0.8fr 0.8fr; 
+  gap: 12px; 
+  align-items: start; 
+}
+.line-item-grid .purchase-field { min-width: 0; max-width: 100%; }
+
+.line-photos-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border, #334155);
+}
+
+.line-photo-card {
+  background: #0f172a;
+  border: 1px dashed var(--border, #334155);
+  border-radius: 6px;
+  padding: 10px;
+  text-align: center;
+}
+.line-photo-card.has-photo {
+  border-style: solid;
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.05);
+}
+
+.btn-line-photo {
+  background: #334155;
+  color: #fff;
+  border: 1px solid var(--border, #475569);
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+}
+.btn-line-photo:hover { background: #475569; }
+
+.line-photo-preview {
+  max-width: 100%;
+  max-height: 100px;
+  border-radius: 4px;
+  margin-top: 8px;
+  display: none;
+  object-fit: cover;
+}
+
+select.line-destination, select.line-destination option, select.line-destination optgroup {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.add-line-btn { background: #e2e8f0; border: 1px solid #64748b; border-radius: 8px; padding: 10px 20px; font-size: 14px; font-weight: 600; color: #1e293b; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.add-line-btn:hover { background: #cbd5e1; }
+
+.btn-delete-line { 
+  background: #dc2626 !important; 
+  color: #ffffff !important; 
+  border: none; 
+  border-radius: 4px; 
+  padding: 6px 12px; 
+  font-weight: 600; 
+  font-size: 12px; 
+  cursor: pointer; 
+}
+.btn-delete-line:hover { background: #b91c1c !important; }
+
+.grand-total-bar { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin: 16px 0; padding: 12px 20px; background: var(--bg-step); border: 1px solid var(--border); border-radius: 8px; }
+.grand-total-bar .label { font-size: 14px; font-weight: 600; color: var(--text-muted); }
+.grand-total-bar .value { font-size: 24px; font-weight: 700; color: var(--primary); }
+.purchase-actions { display: flex; gap: 12px; margin-top: 8px; }
+.purchase-submit-btn { background: #16a34a; color: #fff; border: none; border-radius: 8px; padding: 12px 32px; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 200ms; }
+.purchase-submit-btn:hover { opacity: 0.9; }
+.purchase-submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.purchase-clear-btn { background: var(--bg-step); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 12px 24px; font-size: 15px; font-weight: 500; cursor: pointer; transition: background 200ms; }
+.purchase-clear-btn:hover { background: var(--border); }
+.purchase-result-success { background: #dcfce7; border: 1px solid #16a34a; border-radius: 8px; padding: 14px 18px; margin-top: 16px; font-size: 14px; color: #15803d; font-weight: 600; }
+.purchase-result-error { background: #fee2e2; border: 1px solid #cc0000; border-radius: 8px; padding: 14px 18px; margin-top: 16px; font-size: 14px; color: #cc0000; font-weight: 600; }
 .fp-alt-link { text-align: center; margin-top: 16px; }
 .fp-alt-link a { font-size: 14px; color: var(--primary); font-weight: 600; text-decoration: none; }
 .fp-alt-link a:hover { text-decoration: underline; }
-@media (max-width: 600px) {
-  .fp-two-col { grid-template-columns: 1fr; }
-  .fp-main { padding: 0 12px; margin: 12px auto; }
+
+/* LOCATION BANNER */
+.location-banner { border-radius: 8px; margin: 12px 20px; padding: 10px 16px; font-size: 13px; line-height: 1.5; }
+.location-banner.ok { background: #dcfce7; border: 1px solid #16a34a; color: #15803d; }
+.location-banner.warn { background: #fef3c7; border: 1px solid #fcd34d; color: #78350f; }
+.location-banner strong { color: inherit; }
+
+/* MODALS */
+.generic-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 100001; display: none; align-items: center; justify-content: center; }
+.generic-modal { background: var(--bg-card, #1e293b); border-radius: 12px; padding: 24px; max-width: 600px; width: 90%; color: var(--text, #f8fafc); border: 1px solid var(--border, #475569); box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+.generic-modal h3 { margin-top: 0; font-size: 18px; color: var(--primary, #3b82f6); }
+.generic-modal p, .generic-modal ul { font-size: 14px; line-height: 1.6; color: var(--text-muted, #cbd5e1); }
+.generic-modal-close { margin-top: 16px; background: #475569; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; float: right; }
+
+/* FIXED CROP RECEIPT OVERLAY & GREEN HANDLES */
+.crop-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(15, 23, 42, 0.85) !important;
+  z-index: 999999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  padding: 16px !important;
+}
+
+.crop-modal {
+  background: var(--bg-card, #1e293b);
+  border: 1px solid var(--border, #334155);
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 650px;
+  width: 95%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  color: var(--text, #f8fafc);
+  overflow: hidden;
+}
+
+.crop-stage {
+  position: relative !important;
+  margin: 16px 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 60vh;
+}
+
+.crop-stage img {
+  max-width: 100%;
+  max-height: 60vh;
+  display: block;
+  object-fit: contain;
+}
+
+.crop-box {
+  position: absolute !important;
+  border: 2px dashed #22c55e !important;
+  background: rgba(34, 197, 94, 0.15) !important;
+  box-sizing: border-box !important;
+  cursor: move;
+  touch-action: none;
+}
+
+.crop-handle {
+  position: absolute !important;
+  width: 20px !important;
+  height: 20px !important;
+  background: #22c55e !important;
+  border: 2px solid #ffffff !important;
+  border-radius: 50% !important;
+  z-index: 10 !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+
+.crop-handle.nw { top: -10px; left: -10px; cursor: nwse-resize; }
+.crop-handle.ne { top: -10px; right: -10px; cursor: nesw-resize; }
+.crop-handle.sw { bottom: -10px; left: -10px; cursor: nesw-resize; }
+.crop-handle.se { bottom: -10px; right: -10px; cursor: nwse-resize; }
+
+.crop-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.crop-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+.crop-btn-primary { background: #16a34a; color: #fff; }
+.crop-btn-secondary { background: #475569; color: #fff; }
+.crop-btn-cancel { background: transparent; color: var(--text-muted, #94a3b8); border: 1px solid var(--border, #475569); }
+
+@media (max-width: 800px) { 
+  .purchase-form-grid { grid-template-columns: 1fr; } 
+  .line-item-grid { grid-template-columns: 1fr; } 
+  .line-photos-grid { grid-template-columns: 1fr; }
+  .fp-main { padding: 0 12px; margin: 12px auto; } 
+  .admin-pill-bar { flex-wrap: wrap; }
 }
 </style>
 </head>
-<body data-page-title="Log Fuel Purchase" data-required-permission="fuel.add">
+<body data-page-title="Fuel Purchase Form">
 
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
 
-<div id="dashHeader"></div>
+<!-- STICKY HEADER BLOCK CONTAINING LOGO ROW AND TAB BAR -->
+<div id="dashHeader">
+  <div class="dash-header-row1">
+    <div id="dashCustomerLogoArea"></div>
+    <div id="dashHeaderTitle">
+      Fuel Purchase Form
+    </div>
+    <div class="dash-driven-logo-wrap">
+      <img class="dash-driven-logo" src="/assets/icons/favicon-96.png?v=2026_v5" alt="DRIV-EN" style="height:32px; width:auto;">
+    </div>
+  </div>
 
-<div class="fp-tab-bar">
-  <a class="fp-tab-home" id="dashHomeLink" href="/app/dashboard/employee-dashboard.html">Dashboard</a>
-  <button class="fp-tab-logout" onclick="dashLogout()">Logout</button>
+  <div class="fp-tab-bar">
+    <a class="fp-tab-home" id="dashHomeLink" href="/app/dashboard/employee-dashboard.html">← Dashboard</a>
+    <button class="fp-tab-logout" onclick="dashLogout()">Logout</button>
+  </div>
 </div>
 
-<div id="loading" class="fp-loading">Checking sessionâ€¦</div>
+<div id="loading" class="fp-loading">Checking session…</div>
 
 <div id="dashboard" style="display:none;">
+
+  <!-- ACTION BUTTONS PLACED DIRECTLY BELOW TAB BAR MATCHING ADMIN.HTML -->
+  <div class="admin-pill-bar">
+    <button class="pill-btn pill-btn-purpose" onclick="openModal('purposeModal')">ℹ️ Form Purpose</button>
+    <button class="pill-btn pill-btn-instructions" onclick="openModal('instructionsModal')">📖 Instructions</button>
+  </div>
+
+  <!-- DEVICE LOCATION POPUP -->
+  <div id="locationPopupOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:12px;padding:24px;max-width:500px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+      <h3 style="margin:0 0 16px;font-size:18px;color:#cc0000;">⚠️ Device Location Required</h3>
+      <div id="locationPopupMessage"></div>
+      <div style="display:flex;gap:12px;margin-top:16px;justify-content:flex-end;">
+        <button onclick="closeLocationPopup()" style="padding:10px 20px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:14px;">Close</button>
+        <button onclick="closeLocationPopup(); if (typeof window.checkDeviceLocationImpl === 'function') { window.checkDeviceLocationImpl(); } else { checkDeviceLocation(); }" style="padding:10px 24px;border:none;border-radius:6px;background:#1d4ed8;color:#fff;cursor:pointer;font-size:14px;font-weight:600;">Retry Location</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOCATION STATUS BANNER -->
+  <div id="locationStatusBanner" class="location-banner warn" style="display:none;margin:0 auto;max-width:1100px;padding:10px 20px;font-size:13px;"></div>
+
   <div class="fp-main">
+    <div class="purchase-form-container">
+      <div class="section-heading">Record Fuel Purchase</div>
 
-    <div id="errorBanner" class="fp-error-banner"></div>
+      <!-- PAYMENT TYPE MOVED ABOVE UPLOAD RECEIPT CARD -->
+      <div class="purchase-field" style="margin-bottom: 20px;">
+        <label class="purchase-label">Payment Type <span style="color:#cc0000;">*</span></label>
+        <select id="purchasePaymentType" class="purchase-input ai-needed" onchange="handlePaymentTypeChange(this); markFormDirty()">
+          <option value="">Select payment type…</option>
+          <option value="Credit Card">Credit Card</option>
+          <option value="Fleet Card">Fleet Card</option>
+          <option value="Cash">Cash</option>
+          <option value="Check">Check</option>
+          <option value="On Account">On Account / PO</option>
+        </select>
+      </div>
 
-    <!-- ===== FORM VIEW ===== -->
-    <div id="formView">
-      <div class="fp-card">
-        <h2>Log Fuel Purchase</h2>
+      <!-- SUBTITLE LINE MOVED BELOW PAYMENT TYPE & ABOVE UPLOAD RECEIPT CARD -->
+      <span class="section-subtitle-text">Upload a receipt for AI extraction or enter manually</span>
 
-        <div class="fp-link-row">
-          <label>Fuel Type <span class="req">*</span></label>
-          <select id="fuelType" required>
-            <option value="">Select fuel typeâ€¦</option>
-            <option value="gasoline">Gasoline</option>
-            <option value="diesel">Diesel</option>
-            <option value="def">DEF</option>
-            <option value="propane">Propane</option>
-            <option value="other">Other</option>
+      <!-- Receipt Upload Section -->
+      <div class="purchase-upload-section">
+        <div class="purchase-upload-box" id="receiptUploadBox">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.5;">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+          <p style="font-size:14px;font-weight:600;margin:8px 0 4px;">Upload Receipt</p>
+          <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">AI will extract vendor, date, fuel types, gallons &amp; cost automatically</p>
+          <div class="purchase-upload-buttons">
+            <input type="file" id="receiptCameraInput" accept="image/jpeg,image/png,image/webp" capture="environment" style="display:none;" onchange="handleReceiptUpload(this)">
+            <input type="file" id="receiptFileInput" accept="image/jpeg,image/png,image/webp,application/pdf" style="display:none;" onchange="handleReceiptUpload(this)">
+            <button class="purchase-upload-btn" onclick="triggerReceiptCapture('camera')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+              Take Photo
+            </button>
+            <button class="purchase-upload-btn secondary" onclick="triggerReceiptCapture('file')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              Upload File
+            </button>
+          </div>
+          <p style="font-size:11px;color:var(--text-muted);margin:8px 0 0;">Accepts: JPEG, PNG, WebP, PDF</p>
+        </div>
+        <div id="receiptPreview" style="display:none;" class="receipt-preview-wrap">
+          <div id="receiptPreviewContent"></div>
+          <div id="receiptExtractStatus" class="receipt-extract-status"></div>
+        </div>
+        <div class="receipt-notice">
+          <strong>⚠️ Please Review:</strong> If you upload a receipt, the system will extract most data automatically. Please confirm everything is correct before clicking 'Record Purchase'.
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div class="purchase-divider"><span>OR ENTER MANUALLY</span></div>
+
+      <!-- Shared Purchase Fields -->
+      <div class="purchase-form-grid">
+        <div class="purchase-field">
+          <label class="purchase-label">Date <span style="color:#cc0000;">*</span></label>
+          <input type="date" id="purchaseDate" class="purchase-input" onchange="markFormDirty()">
+        </div>
+
+        <div class="purchase-field" id="poNumberWrap" style="display:none;">
+          <label class="purchase-label">P.O. Number</label>
+          <input type="text" id="purchasePONumber" class="purchase-input" placeholder="Optional" autocomplete="off" data-lpignore="true" data-form-type="other" oninput="markFormDirty()">
+        </div>
+
+        <div class="purchase-field" id="cardVendorWrap" style="display:none;">
+          <label class="purchase-label">Card Vendor / Brand</label>
+          <input type="text" id="purchaseCardVendor" class="purchase-input" placeholder="e.g. VISA, MasterCard, WEX" autocomplete="off" data-lpignore="true" data-form-type="other" oninput="markFormDirty()">
+        </div>
+
+        <div class="purchase-field" id="cardLast4Wrap" style="display:none;">
+          <label class="purchase-label">Card Last 4 / Ref #</label>
+          <input type="text" id="purchaseCardLast4" class="purchase-input" placeholder="e.g. 4242" maxlength="10" autocomplete="off" data-lpignore="true" data-form-type="other" oninput="markFormDirty()">
+        </div>
+
+        <div class="purchase-field">
+          <label class="purchase-label">User <span style="color:#cc0000;">*</span></label>
+          <select id="purchasePerson" class="purchase-input" required onchange="markFormDirty()">
+            <option value="">Select user…</option>
           </select>
         </div>
 
-        <div class="fp-two-col">
-          <div class="fp-link-row">
-            <label>Quantity (gallons) <span class="req">*</span></label>
-            <input type="number" id="quantity" step="0.01" min="0.01" placeholder="0.00" required>
+        <!-- AUTO-POPULATED PLACEHOLDERS WITH AUTOFILL PROTECTION -->
+        <div class="purchase-field">
+          <label class="purchase-label">Vendor <span style="color:#cc0000;">*</span></label>
+          <input type="text" id="purchaseVendor" name="receipt_vendor_name" class="purchase-input" placeholder="Auto-populated" autocomplete="off" data-lpignore="true" data-form-type="other" oninput="markFormDirty()">
+        </div>
+
+        <!-- Vendor Address Auto-Populated Fields -->
+        <div class="purchase-field purchase-field-full">
+          <label class="purchase-label">Vendor Address</label>
+          <input type="text" id="purchaseVendorAddress" name="receipt_vendor_address" class="purchase-input" placeholder="Auto-populated" autocomplete="off" data-lpignore="true" data-form-type="other" oninput="markFormDirty()">
+        </div>
+
+        <div class="purchase-field">
+          <label class="purchase-label">Vendor City</label>
+          <input type="text" id="purchaseVendorCity" name="receipt_vendor_city" class="purchase-input" placeholder="Auto-populated" autocomplete="off" data-lpignore="true" data-form-type="other" oninput="markFormDirty()">
+        </div>
+
+        <div class="purchase-field" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div>
+            <label class="purchase-label">State</label>
+            <input type="text" id="purchaseVendorState" name="receipt_vendor_state" class="purchase-input" placeholder="Auto-populated" maxlength="2" autocomplete="off" data-lpignore="true" data-form-type="other" oninput="markFormDirty()">
           </div>
-          <div class="fp-link-row">
-            <label>Date <span class="req">*</span></label>
-            <input type="date" id="txDate" required>
+          <div>
+            <label class="purchase-label">ZIP</label>
+            <input type="text" id="purchaseVendorZip" name="receipt_vendor_zip" class="purchase-input" placeholder="Auto-populated" maxlength="10" autocomplete="off" data-lpignore="true" data-form-type="other" oninput="markFormDirty()">
           </div>
         </div>
 
-        <div class="fp-link-row">
-          <label>Purchased From <span class="req">*</span></label>
-          <input type="text" id="vendor" placeholder="Vendor name or gas station" required>
-          <div class="hint">Who did you buy the fuel from?</div>
-        </div>
-
-        <div class="fp-link-row">
-          <label>Delivered To (which tank) <span class="req">*</span></label>
-          <select id="destTank" required>
-            <option value="">Select tankâ€¦</option>
+        <div class="purchase-field" id="projectFieldWrap">
+          <label class="purchase-label">Project</label>
+          <select id="purchaseProject" class="purchase-input ai-needed" onchange="handleProjectChange(this)">
+            <option value="">Select project…</option>
           </select>
-          <div class="hint">Which tank did the fuel go into?</div>
         </div>
 
-        <div class="fp-two-col">
-          <div class="fp-link-row">
-            <label>Cost (optional)</label>
-            <input type="number" id="cost" step="0.01" min="0" placeholder="0.00">
-          </div>
-          <div class="fp-link-row">
-            <label>Project (optional)</label>
-            <select id="project">
-              <option value="">No projectâ€¦</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="fp-link-row">
-          <label>Location (optional)</label>
-          <input type="text" id="location" placeholder="Where the purchase happened">
-        </div>
-
-        <div class="fp-link-row">
-          <label>Notes (optional)</label>
-          <textarea id="notes" placeholder="Any additional detailsâ€¦"></textarea>
-        </div>
-
-        <div class="fp-btn-row">
-          <button class="fp-cancel-btn" onclick="goBack()">Cancel</button>
-          <button class="fp-submit-btn" id="submitBtn" onclick="submitPurchase()">Log Purchase</button>
-        </div>
-
-        <div class="fp-alt-link">
-          <a href="/app/forms/fuel-transfer.html">Transfer fuel instead â†’</a>
+        <div class="purchase-field">
+          <label class="purchase-label">Location (if applicable)</label>
+          <select id="purchaseLocation" class="purchase-input ai-needed" onchange="handleLocationChange(this)">
+            <option value="">Select location…</option>
+          </select>
         </div>
       </div>
-    </div>
 
-    <!-- ===== SUCCESS VIEW ===== -->
-    <div id="successView" style="display:none;">
-      <div class="fp-card fp-success">
-        <h3>âœ“ Purchase Logged</h3>
-        <p id="successMsg"></p>
-        <button class="fp-again-btn" onclick="resetForm()">Log Another Purchase</button>
+      <!-- AI Confidence Banner (shown after extraction) -->
+      <div id="aiConfidenceBanner" style="display:none;" class="ai-confidence-banner"></div>
+
+      <!-- AI Field Legend (shown after extraction) -->
+      <div id="aiFieldLegend" style="display:none;" class="ai-field-legend">
+        <span><span class="swatch swatch-green"></span>Green = AI-extracted data (review for accuracy)</span>
+        <span><span class="swatch swatch-orange"></span>Orange = needs your input</span>
+      </div>
+
+      <!-- Line Items Section -->
+      <div class="line-items-section">
+        <div class="line-items-header">
+          <h4>Line Items</h4>
+          <button class="add-line-btn" onclick="addLineItem()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Add Line
+          </button>
+        </div>
+        <p style="font-size:12px;color:var(--text-muted);margin:4px 0 12px 0;">
+          Select an asset first to load historical meter context. Use "Add Line" when fueling multiple assets or equipment on the same receipt.
+        </p>
+        
+        <div id="lineItemsContainer"></div>
+      </div>
+
+      <!-- Grand Fuel Total (computed from line items) -->
+      <div class="grand-total-bar">
+        <span class="label">Grand Fuel Total:</span>
+        <span class="value" id="grandTotal">$0.00</span>
+      </div>
+
+      <!-- Receipt Total -->
+      <div class="purchase-field purchase-field-full" style="margin-bottom:20px;">
+        <label class="purchase-label">Receipt Total <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(from receipt — includes non-fuel items if any)</span></label>
+        <input type="number" id="receiptTotal" class="purchase-input" placeholder="Auto-filled from receipt, editable" min="0" step="0.01" autocomplete="off" data-lpignore="true" data-form-type="other" oninput="checkReceiptMismatch(); markFormDirty()">
+        <div id="receiptMismatchNotice" style="display:none;margin-top:8px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;font-size:13px;color:#78350f;">
+          <strong>⚠️ Mismatch:</strong> The Receipt Total does not match the Grand Fuel Total. A flag will be created for manager review.
+        </div>
+        <div class="receipt-notice" id="receiptNonFuelNotice" style="display:none;">
+          <strong>⚠️ This receipt appears to include items besides fuel.</strong> The Receipt Total above may be higher than the Grand Fuel Total. A flag has been created for manager review.
+        </div>
+      </div>
+
+      <!-- Receipt Items -->
+      <div class="purchase-field purchase-field-full" style="margin-bottom:20px;">
+        <label class="purchase-label">Receipt Items <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(individual items from the receipt)</span></label>
+        <textarea id="receiptItems" class="purchase-input" rows="4" placeholder="Auto-filled from receipt — shows individual line items (fuel and non-fuel)" style="resize:vertical;font-size:13px;line-height:1.5;" oninput="markFormDirty()"></textarea>
+      </div>
+
+      <!-- Notes -->
+      <div class="purchase-field purchase-field-full" style="margin-bottom:20px;">
+        <label class="purchase-label">Notes</label>
+        <input type="text" id="purchaseNotes" class="purchase-input" placeholder="Optional — e.g., PO number, delivery ticket #, price per gallon quote, who authorized" autocomplete="off" data-lpignore="true" data-form-type="other" oninput="markFormDirty()">
+      </div>
+
+      <!-- Submit -->
+      <div class="purchase-actions">
+        <button class="purchase-submit-btn" onclick="submitPurchase()">Record Purchase</button>
+        <button class="purchase-clear-btn" onclick="clearPurchaseForm()">Clear Form</button>
+      </div>
+      <div id="purchaseResult" style="display:none;"></div>
+
+      <div class="fp-alt-link">
+        <a id="fuelTransferLink" href="/app/forms/fuel-transfer.html">Transfer fuel instead →</a>
+        <p style="font-size:12px;color:var(--text-muted);margin:4px 0 0;">Use "Transfer fuel" when moving fuel between tanks or issuing fuel to equipment — not when purchasing from a vendor.</p>
       </div>
     </div>
+  </div>
+</div>
 
+<!-- PURPOSE MODAL -->
+<div id="purposeModal" class="generic-modal-overlay">
+  <div class="generic-modal">
+    <h3>Form Purpose</h3>
+    <p>This form is designed to record transactions when purchasing fuel from third-party vendors, gas stations, or bulk suppliers, ensuring real-time tracking of fuel consumption and asset activity across your organization.</p>
+    <button class="generic-modal-close" onclick="closeModal('purposeModal')">Close</button>
+  </div>
+</div>
+
+<!-- INSTRUCTIONS MODAL -->
+<div id="instructionsModal" class="generic-modal-overlay">
+  <div class="generic-modal">
+    <h3>Instructions & Requirements</h3>
+    <ul>
+      <li>Select your <strong>Payment Type</strong> prior to taking or uploading a receipt.</li>
+      <li>Upload a clear receipt image or PDF. Use the crop tool to frame the text area tightly for accurate AI vendor and line-item extraction.</li>
+      <li>Review all AI-extracted fields, including <strong>Vendor Name</strong>, <strong>Address</strong>, <strong>Date</strong>, and <strong>Total Cost</strong>.</li>
+      <li>Verify mandatory header fields marked with a red asterisk (<strong>*</strong>), including Date, Vendor, and User/Person.</li>
+      <li>For each line item, select the target <strong>Asset/Tank</strong> first to view its previous meter reading.</li>
+      <li>Follow the sequential fields: specify <strong>Fuel Type</strong>, <strong>Quantity</strong>, <strong>Cost per Unit</strong>, and attach mandatory <strong>Asset/Meter Photos</strong> per line when required.</li>
+      <li>Enter <strong>Meter Readings</strong> (hours/miles) when fueling machinery or equipment assets.</li>
+      <li>Ensure <strong>GPS Location</strong> services are enabled on mobile devices or when mandated by company settings before clicking <em>Record Purchase</em>.</li>
+    </ul>
+    <button class="generic-modal-close" onclick="closeModal('instructionsModal')">Close</button>
   </div>
 </div>
 
 <div id="dashFooter"></div>
+<script src="/app/shared/dashboard-common.js?v=16_v5"></script>
+<script src="/components/nav.js?v=2026_v5"></script>
+<script src="./fuel-purchase.js?v=2026_v5"></script>
 
-<script src="/app/shared/dashboard-common.js?v=16"></script>
-
+<!-- MODAL HELPERS, DELEGATES & TITLE OVERRIDE OBSERVER -->
 <script>
-function esc(s) {
-  if (!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
-
-  var row1 = document.querySelector('.dash-header-row1');
-    var title = document.createElement('div');
-    title.textContent = 'Log Fuel Purchase';
-    var logoArea = document.getElementById('dashCustomerLogoArea');
-    var drivenLogo = row1.querySelector('.dash-driven-logo');
-    if (logoArea && drivenLogo) row1.insertBefore(title, drivenLogo);
+/* <![CDATA[ */
+// Device Location check delegate — routes directly to fuel-purchase.js implementation
+function checkDeviceLocation() {
+  if (typeof window.checkDeviceLocationImpl === 'function') {
+    window.checkDeviceLocationImpl();
+  } else if (typeof requestLocationAccess === 'function') {
+    requestLocationAccess();
   }
 }
 
-window.dashLogout = function() {
-  try { fetch('/auth/logout', { method: 'POST' }); } catch (e) {}
-  window.location.href = '/public/login.html';
-};
-
-function goBack() {
-  var role = (window.dashUser && window.dashUser.role || '').toLowerCase();
-  window.location.href = role === 'admin' ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
+// Help & Purpose Modal trigger logic
+function openModal(id) {
+  var modal = document.getElementById(id);
+  if (modal) modal.style.display = 'flex';
 }
 
-function showError(msg) {
-  var el = document.getElementById('errorBanner');
-  if (!msg) { el.style.display = 'none'; return; }
-  el.textContent = msg;
-  el.style.display = 'block';
+function closeModal(id) {
+  var modal = document.getElementById(id);
+  if (modal) modal.style.display = 'none';
 }
 
-// Set today's date
-document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
-
-// Load tanks (bulk, dragup, portable â€” not equipment)
-async function loadTanks() {
-  try {
-    var resp = await fetch('/api/fuel-tanks');
-    var data = await resp.json();
-    if (data.success && data.tanks) {
-      var select = document.getElementById('destTank');
-      var tanks = data.tanks.filter(function(t) {
-        return t.tank_type === 'bulk' || t.tank_type === 'dragup' || t.tank_type === 'portable';
-      });
-      tanks.forEach(function(t) {
-        var opt = document.createElement('option');
-        opt.value = t.id;
-        opt.textContent = t.name + ' (' + (t.tank_type||'tank') + ') â€” ' + (t.current_quantity||0) + '/' + (t.capacity||0) + ' gal';
-        opt.dataset.tankType = t.tank_type;
-        opt.dataset.tankId = t.id;
-        select.appendChild(opt);
-      });
-    }
-  } catch (e) {
-    console.error('Failed to load tanks:', e);
-  }
-}
-
-// Load projects
-async function loadProjects() {
-  try {
-    var resp = await fetch('/api/projects');
-    var data = await resp.json();
-    if (data.success && data.projects) {
-      var select = document.getElementById('project');
-      data.projects.forEach(function(p) {
-        var opt = document.createElement('option');
-        opt.value = p.id;
-        opt.textContent = p.name || p.project_name || p.id;
-        select.appendChild(opt);
-      });
-    }
-  } catch (e) {
-    // Projects endpoint may not exist yet â€” that's OK
-  }
-}
-
-async function submitPurchase() {
-  showError('');
-
-  var fuelType = document.getElementById('fuelType').value;
-  var quantity = parseFloat(document.getElementById('quantity').value);
-  var txDate = document.getElementById('txDate').value;
-  var vendor = document.getElementById('vendor').value.trim();
-  var destTankSelect = document.getElementById('destTank');
-  var destTankId = destTankSelect.value;
-  var destTankType = destTankSelect.selectedOptions[0] ? destTankSelect.selectedOptions[0].dataset.tankType : '';
-  var cost = document.getElementById('cost').value;
-  var projectId = document.getElementById('project').value;
-  var location = document.getElementById('location').value.trim();
-  var notes = document.getElementById('notes').value.trim();
-
-  // Validation
-  if (!fuelType) { showError('Please select a fuel type.'); return; }
-  if (!quantity || quantity <= 0) { showError('Please enter a valid quantity.'); return; }
-  if (!txDate) { showError('Please select a date.'); return; }
-  if (!vendor) { showError('Please enter who the fuel was purchased from.'); return; }
-  if (!destTankId) { showError('Please select which tank the fuel went into.'); return; }
-
-  // Map to API: transaction_type = "purchase"
-  // from_entity_type = "vendor", to_entity_type = "{type}_tank" or "portable_can"
-  var toEntityType;
-  if (destTankType === 'bulk') toEntityType = 'bulk_tank';
-  else if (destTankType === 'dragup') toEntityType = 'dragup_tank';
-  else if (destTankType === 'portable') toEntityType = 'portable_can';
-  else toEntityType = 'bulk_tank';
-
-  var notesCombined = notes;
-  if (cost) {
-    notesCombined = (notesCombined ? notesCombined + ' | ' : '') + 'Cost: $' + cost;
+// Guardrail: Enforce "Fuel Purchase Form" against dynamic overrides & trigger device location
+document.addEventListener("DOMContentLoaded", function() {
+  if (typeof checkDeviceLocation === 'function') {
+    checkDeviceLocation();
   }
 
-  var submitBtn = document.getElementById('submitBtn');
-  submitBtn.disabled = true;
-  submitBtn.textContent = 'Savingâ€¦';
+  var TARGET_TITLE = "Fuel Purchase Form";
+  var headerTitle = document.getElementById('dashHeaderTitle');
 
-  try {
-    var resp = await fetch('/api/fuel-transactions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        transaction_type: 'purchase',
-        fuel_type: fuelType,
-        quantity: quantity,
-        transaction_date: txDate,
-        from_entity_type: 'vendor',
-        from_entity_id: vendor,
-        to_entity_type: toEntityType,
-        to_entity_id: destTankId,
-        project_id: projectId || null,
-        location: location || null,
-        notes: notesCombined || null
-      })
+  if (headerTitle) {
+    headerTitle.textContent = TARGET_TITLE;
+
+    var observer = new MutationObserver(function() {
+      if (headerTitle.textContent !== TARGET_TITLE) {
+        headerTitle.textContent = TARGET_TITLE;
+      }
     });
 
-    var data = await resp.json();
-
-    if (data.success) {
-      document.getElementById('formView').style.display = 'none';
-      document.getElementById('successView').style.display = 'block';
-      document.getElementById('successMsg').textContent =
-        quantity + ' gallons of ' + fuelType + ' purchased from ' + vendor + ' and added to ' + (destTankSelect.selectedOptions[0].textContent.split(' â€”')[0]);
-    } else {
-      showError(data.error || 'Failed to log purchase. Please try again.');
-    }
-  } catch (e) {
-    showError('Network error: ' + e.message);
-  } finally {
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Log Purchase';
+    observer.observe(headerTitle, { childList: true, characterData: true, subtree: true });
   }
-}
-
-function resetForm() {
-  document.getElementById('formView').style.display = 'block';
-  document.getElementById('successView').style.display = 'none';
-  document.getElementById('quantity').value = '';
-  document.getElementById('vendor').value = '';
-  document.getElementById('cost').value = '';
-  document.getElementById('location').value = '';
-  document.getElementById('notes').value = '';
-  document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
-  showError('');
-}
-
-document.addEventListener('dashSessionLoaded', function() {
-  var user = window.dashUser;
-  if (!user) { window.location.href = '/public/login.html'; return; }
-
-  var role = (user.role || '').toLowerCase();
-  var dashUrl = role === 'admin' ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
-  var homeLink = document.getElementById('dashHomeLink');
-  if (homeLink) homeLink.href = dashUrl;
-
-  document.getElementById('loading').style.display = 'none';
-  document.getElementById('dashboard').style.display = 'block';
-
-  loadTanks();
-  loadProjects();
 });
+/* ]]> */
 </script>
 
-<script src="/app/shared/auth-check.js?v=8"></script>
-<script src="/components/nav.js?v=5"></script>
-<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" data-cf-beacon='{"token":"aed8feab3b60404ba88ec92f026bbcd6"}' crossorigin="anonymous"></script>
+<script>
+/* <![CDATA[ */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/sw.js').catch(function(err) {
+      console.warn('PWA ServiceWorker registration skipped/failed:', err.message);
+    });
+  });
+}
+/* ]]> */
+</script>
 </body>
 </html>

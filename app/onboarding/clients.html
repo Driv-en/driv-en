@@ -1,17 +1,18 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DRIVâ€‘EN | Onboarding â€” Clients</title>
-<meta name="description" content="Add clients to DRIVâ€‘EN during onboarding. Single entry or bulk upload via Excel.">
+<title>DRIV‑EN | Onboarding — Clients</title>
+<meta name="description" content="Add clients to DRIV‑EN during onboarding. Single entry or bulk upload via Excel.">
 <meta name="robots" content="noindex, nofollow">
 <link rel="canonical" href="https://www.driv-en.com/app/onboarding/clients.html">
-<link rel="icon" type="image/png" href="/assets/icons/favicon.png" sizes="48x48">
-<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png" sizes="96x96">
-<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png" sizes="192x192">
-<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png">
+<link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
 <link rel="stylesheet" href="/app/shared/dashboard.css?v=12">
+<link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="/app/shared/template-helpers.js?v=7"></script>
@@ -24,129 +25,350 @@
 })();
 </script>
 <style>
-    /* ===== HEADER OVERRIDE (single row â€” matches Owner/Onboarding dashboards) ===== */
-    .dash-header-row1 {
-      padding: 8px 20px !important;
-      align-items: center;
+    /* ===== VIEWPORT STICKY HEADER WRAPPER ===== */
+    #dashStickyHeader {
+      position: sticky !important;
+      top: 0 !important;
+      z-index: 100 !important;
+      background: var(--bg-header, #f8fafc) !important;
+      border-bottom: 1px solid var(--border, #cbd5e1) !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     }
-      flex: 1;
-      text-align: center;
-      font-size: 20px;
+
+    #dashHeader {
+      background: var(--bg-header, #f8fafc) !important;
+    }
+
+    .dash-header-row1 { padding: 8px 20px !important; align-items: center; background: var(--bg-header, #f8fafc); border-bottom: 1px solid var(--border, #cbd5e1); }
+
+    /* ===== SINGLE UNIFIED BLOCK CONTAINER (PRESENCE + TABS) ===== */
+    .ob-greeting-bar { 
+      max-width: 1100px; 
+      margin: 8px auto; 
+      padding: 10px 20px; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      gap: 10px; 
+      position: relative; 
+      z-index: 95; 
+      background: #cbd5e1 !important;
+      border-radius: 8px !important;
+      border: 1.5px solid #94a3b8 !important;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .presence-banner { 
+      display: none; 
+      align-items: center; 
+      justify-content: center;
+      gap: 8px; 
+      background: #ea580c !important; 
+      border: 1.5px solid #f97316 !important; 
+      padding: 6px 14px; 
+      border-radius: 20px; 
+      font-size: 13px; 
+      color: #ffffff !important; 
+      font-weight: 600; 
+      width: auto;
+    }
+
+    /* ===== TAB ROW INSIDE UNIFIED BLOCK ===== */
+    .cli-tab-bar { 
+      display: flex !important; 
+      visibility: visible !important;
+      opacity: 1 !important;
+      align-items: center !important;
+      gap: 8px !important; 
+      width: 100%; 
+      margin: 0; 
+      padding: 0; 
+      overflow-x: auto; 
+      background: transparent !important; 
+      border: none !important;
+      box-shadow: none !important;
+      position: relative;
+      z-index: 90;
+    }
+
+    .cli-tab-admin { 
+      background: #1e40af !important; 
+      border: 1px solid #2563eb !important; 
+      border-radius: 6px; 
+      padding: 8px 18px; 
+      font-size: 14px; 
+      font-weight: 600; 
+      color: #dbeafe !important; 
+      cursor: pointer; 
+      white-space: nowrap; 
+      text-decoration: none; 
+      transition: background 200ms ease; 
+      display: none; 
+    }
+    .cli-tab-admin:hover { background: #1d4ed8 !important; color: #ffffff !important; }
+
+    .cli-tab-return { 
+      background: #1e40af !important; 
+      border: 1px solid #2563eb !important; 
+      border-radius: 6px; 
+      padding: 8px 18px; 
+      font-size: 14px; 
+      font-weight: 600; 
+      color: #dbeafe !important; 
+      cursor: pointer; 
+      white-space: nowrap; 
+      text-decoration: none; 
+      transition: background 200ms ease; 
+      display: inline-flex; 
+      align-items: center; 
+    }
+    .cli-tab-return:hover { background: #1d4ed8 !important; color: #ffffff !important; }
+
+    .cli-tab-logout { 
+      background: #b91c1c !important; 
+      border: 1px solid #dc2626 !important; 
+      border-radius: 6px; 
+      padding: 8px 18px; 
+      font-size: 14px; 
+      font-weight: 600; 
+      color: #ffffff !important; 
+      cursor: pointer; 
+      white-space: nowrap; 
+      margin-left: auto; 
+      transition: background 200ms ease; 
+      display: inline-flex; 
+      align-items: center; 
+    }
+    .cli-tab-logout:hover { background: #dc2626 !important; }
+
+    /* ===== ENTRY MODE SUB-TABS (SINGLE vs BULK) ===== */
+    .cli-subtab-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .cli-subtab {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-size: 14px;
       font-weight: 600;
       color: var(--text);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      cursor: pointer;
+    }
+    .cli-subtab.active {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
     }
 
-    /* ===== GREETING BAR ===== */
-    .ob-greeting-bar { max-width: 1100px; margin: 0 auto; padding: 12px 20px 0 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; position: relative; z-index: 1; }
-    .ob-greeting-text { font-size: 16px; color: var(--text-muted); font-weight: 500; }
-    .ob-greeting-text strong { color: var(--text); }
-
+    /* ===== CARDS & FORM ===== */
     .cli-subtitle { margin: 4px 0 12px 0; color: var(--text-muted); font-size: 14px; line-height: 1.5; }
+    .dash-card {
+      border: 1.5px solid var(--card-green-border, #16a34a) !important;
+      border-radius: 8px;
+      max-width: 1100px;
+      margin: 16px auto 0 auto;
+    }
+
     .cli-form-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 16px; max-width: 500px; }
     .cli-form-field { display: flex; flex-direction: column; }
     .cli-form-field label { margin-bottom: 4px; font-size: 14px; color: var(--text); font-weight: 600; }
     .cli-required-star { color: var(--error); margin-left: 3px; }
-    .cli-btn-primary { background: var(--primary); color: white; padding: 10px 18px; border-radius: 6px; font-size: 15px; border: 1px solid var(--primary-hover); cursor: pointer; margin-top: 10px; }
-    .cli-btn-primary:hover { background: var(--primary-hover); }
+
+    /* ===== BUTTON STANDARDS ===== */
+    .cli-btn-primary { 
+      background: var(--primary); 
+      color: white; 
+      padding: 10px 18px; 
+      border-radius: 6px; 
+      font-size: 15px; 
+      border: 1.5px solid var(--card-green-border, #16a34a); 
+      cursor: pointer; 
+      margin-top: 10px; 
+      transition: all 200ms ease;
+    }
+    .cli-btn-primary:hover { 
+      border-color: var(--primary-blue, #2563eb); 
+      background: var(--primary-hover); 
+    }
     .cli-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-    .cli-btn-secondary { background: var(--bg-card); color: var(--text); padding: 10px 18px; border-radius: 6px; font-size: 15px; text-decoration: none; display: inline-flex; align-items: center; border: 1px solid var(--border); }
-    .cli-btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+    
+    .cli-btn-secondary { 
+      background: var(--bg-card); 
+      color: var(--text); 
+      padding: 10px 18px; 
+      border-radius: 6px; 
+      font-size: 15px; 
+      text-decoration: none; 
+      display: inline-flex; 
+      align-items: center; 
+      border: 1.5px solid var(--card-green-border, #16a34a); 
+      transition: all 200ms ease;
+    }
+    .cli-btn-secondary:hover { 
+      border-color: var(--primary-blue, #2563eb); 
+      color: var(--primary); 
+    }
+
+    .cli-btn-print {
+      background: #16a34a !important;
+      color: #ffffff !important;
+      border: 1.5px solid #16a34a !important;
+      padding: 6px 14px !important;
+      font-size: 13px !important;
+      font-weight: 600 !important;
+      border-radius: 6px !important;
+      cursor: pointer !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 6px !important;
+      transition: all 200ms ease !important;
+    }
+    .cli-btn-print:hover {
+      background: #2563eb !important;
+      border-color: #2563eb !important;
+      color: #ffffff !important;
+    }
+
     .cli-action-row { display: flex; justify-content: flex-end; align-items: center; gap: 12px; flex-wrap: nowrap; }
     .cli-action-row .cli-btn-primary, .cli-action-row .cli-btn-secondary { margin-top: 0; box-sizing: border-box; height: 42px; display: inline-flex; align-items: center; justify-content: center; }
     .cli-error { margin-top: 10px; color: var(--error); font-size: 14px; }
     .cli-success { margin-top: 10px; color: var(--success); font-size: 14px; }
-    .cli-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-    .cli-table th, .cli-table td { border: 1px solid var(--border); padding: 8px; font-size: 14px; vertical-align: top; }
-    .cli-table th { background: var(--bg-header); color: var(--text); font-weight: 600; text-align: left; }
+
+    /* ===== TABLES ===== */
+    .cli-table-wrap { overflow-x: auto; width: 100%; border: 1px solid var(--border); border-radius: 8px; margin-top: 12px; }
+    .cli-table { 
+      width: max-content !important; 
+      min-width: 100% !important; 
+      table-layout: fixed !important; 
+      border-collapse: collapse; 
+    }
+    .cli-table th, .cli-table td { 
+      border: 1px solid var(--border); 
+      padding: 8px 12px; 
+      font-size: 13px; 
+      vertical-align: middle; 
+      white-space: normal !important; 
+      word-break: break-word !important; 
+    }
+    .cli-table th { background: var(--bg-header); color: var(--text); font-weight: 600; text-align: left; cursor: pointer; user-select: none; }
     .cli-table td { background: var(--bg-card); color: var(--text); }
     .cli-empty { color: var(--text-muted); font-size: 14px; padding: 20px 0; }
     .cli-step-status { margin-top: 12px; font-size: 14px; color: var(--success); }
     .cli-count-badge { display: inline-block; background: var(--primary); color: #fff; font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 999px; margin-left: 8px; }
 
-    /* ===== TAB BAR (light industrial gray â€” matches Admin/Employees/Locations dashboards) ===== */
-    .cli-tab-bar {
-      display: flex; gap: 2px; max-width: 1100px; margin: 0 auto; padding: 0 20px;
-      overflow-x: auto; position: sticky; top: 0; z-index: 50;
-      background: #cbd5e1; border-bottom: 2px solid #94a3b8;
+    .cli-print-bar { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .cli-print-select {
+      width: auto !important;
+      height: 36px !important;
+      padding: 4px 10px !important;
+      font-size: 13px !important;
+      line-height: 1.4 !important;
+      border: 1.5px solid var(--card-green-border, #16a34a) !important;
+      border-radius: 6px !important;
+      background: var(--bg-card) !important;
+      color: var(--text) !important;
+      transition: border-color 200ms ease !important;
     }
-    .cli-tab {
-      background: #94a3b8; border: 1px solid #64748b; border-bottom: none; border-radius: 8px 8px 0 0;
-      padding: 10px 22px; font-size: 15px; font-weight: 500; color: #1e293b; cursor: pointer; white-space: nowrap;
-      transition: color 200ms ease, background 200ms ease, border-color 200ms ease, margin-top 200ms ease;
-      margin-top: 4px; position: relative; z-index: 1;
+    .cli-print-select:hover {
+      border-color: var(--primary-blue, #2563eb) !important;
     }
-    .cli-tab:hover { color: #0f172a; background: #a5b4c4; margin-top: 2px; }
-    .cli-tab.active { color: #1d4ed8; background: #e2e8f0; border-color: #64748b; margin-top: 0; font-weight: 600; z-index: 2; }
-    .cli-tab-admin {
-      background: #1e40af; border: 1px solid #2563eb; border-bottom: none; border-radius: 8px 8px 0 0;
-      padding: 10px 22px; font-size: 15px; font-weight: 600; color: #dbeafe; cursor: pointer; white-space: nowrap;
-      margin-top: 4px; position: relative; z-index: 1; text-decoration: none;
-      transition: background 200ms ease, margin-top 200ms ease; display: none;
-    }
-    .cli-tab-admin:hover { background: #1d4ed8; color: #fff; margin-top: 2px; }
-    .cli-tab-return {
-      background: #374151; border: 1px solid #4b5563; border-bottom: none; border-radius: 8px 8px 0 0;
-      padding: 10px 22px; font-size: 15px; font-weight: 600; color: #d1d5db; cursor: pointer; white-space: nowrap;
-      margin-top: 4px; position: relative; z-index: 1; text-decoration: none;
-      transition: background 200ms ease, margin-top 200ms ease;
-    }
-    .cli-tab-return:hover { background: #4b5563; color: #fff; margin-top: 2px; }
-    .cli-tab-logout {
-      background: #b91c1c; border: 1px solid #dc2626; border-bottom: none; border-radius: 8px 8px 0 0;
-      padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap;
-      margin-top: 4px; margin-left: auto; position: relative; z-index: 1;
-      transition: background 200ms ease, margin-top 200ms ease;
-    }
-    .cli-tab-logout:hover { background: #dc2626; margin-top: 2px; }
 
-    /* ===== STICKY SAVE BAR ===== */
-    .cli-save-bar {
-      position: sticky; bottom: 0; z-index: 40; background: var(--bg-card);
-      border-top: 2px solid var(--border); padding: 12px 20px;
-      max-width: 1100px; margin: 0 auto; box-sizing: border-box;
-    }
+    .um-pagination-bar { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--bg-card); border-top: 1px solid var(--border); font-size: 13px; color: var(--text-muted); }
+    .um-pagination-controls { display: flex; align-items: center; gap: 8px; }
+    .um-pagination-btn { padding: 4px 10px; border-radius: 4px; border: 1.5px solid var(--card-green-border, #16a34a); background: var(--bg-card); color: var(--text); cursor: pointer; font-size: 12px; transition: border-color 200ms ease; }
+    .um-pagination-btn:hover:not(:disabled) { border-color: var(--primary-blue, #2563eb); }
+    .um-pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .cli-bulk-link { color: var(--primary); font-size: 14px; text-decoration: none; display: inline-block; margin-bottom: 12px; }
     .cli-bulk-link:hover { text-decoration: underline; }
-    .cli-bulk-file-input { padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-size: 14px; width: 100%; max-width: 400px; margin-bottom: 12px; }
+    .cli-bulk-file-input { padding: 10px; border-radius: 6px; border: 1.5px solid var(--card-green-border, #16a34a); background: var(--bg-card); color: var(--text); font-size: 14px; width: 100%; max-width: 400px; margin-bottom: 12px; }
     .cli-bulk-preview { margin-top: 12px; overflow-x: auto; }
     .cli-bulk-preview table { width: 100%; border-collapse: collapse; font-size: 12px; }
     .cli-bulk-preview th, .cli-bulk-preview td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
     .cli-bulk-preview th { background: var(--bg-header); color: var(--text); font-weight: 600; }
     .cli-bulk-preview td { background: var(--bg-card); color: var(--text); }
-    @media (max-width: 600px) { .cli-action-row { flex-direction: column; gap: 8px; } .cli-action-row .cli-btn-primary, .cli-action-row .cli-btn-secondary { width: 100%; } .cli-table { font-size: 12px; } .cli-table th, .cli-table td { padding: 6px 4px; } }
+
+    /* ===== BOTTOM ACTION ROW ===== */
+    .cli-save-bar { 
+      position: sticky; 
+      bottom: 0; 
+      z-index: 40; 
+      background: #cbd5e1 !important; 
+      border-top: 1.5px solid #94a3b8 !important; 
+      padding: 12px 20px; 
+      max-width: 1100px; 
+      margin: 0 auto; 
+      box-sizing: border-box; 
+      border-radius: 8px 8px 0 0;
+      box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    @media (max-width: 768px) {
+      .dash-header-row1 { padding: 6px 8px !important; gap: 4px !important; }
+      .ob-greeting-bar { padding: 8px 12px !important; margin: 8px 12px !important; }
+      .cli-tab-bar { flex-direction: column; align-items: stretch; gap: 6px !important; width: 100% !important; margin-top: 8px !important; }
+      .cli-tab-admin, .cli-tab-return, .cli-tab-logout { width: 100%; justify-content: center; margin-left: 0 !important; box-sizing: border-box; text-align: center; }
+      .cli-subtab-bar { flex-direction: column; width: 100%; gap: 6px !important; padding: 0 12px; box-sizing: border-box; }
+      .cli-subtab { width: 100%; text-align: center; }
+      .cli-form-grid { grid-template-columns: 1fr; max-width: 100%; } 
+      .cli-action-row { flex-direction: column; gap: 8px; } 
+      .cli-action-row .cli-btn-primary, .cli-action-row .cli-btn-secondary, #btnAddCli, #btnProcessBulk { width: 100%; } 
+      .cli-table { font-size: 11px; } 
+      .cli-table th, .cli-table td { padding: 4px 3px; }
+      .cli-bulk-file-input { max-width: 100%; box-sizing: border-box; }
+    }
+
+    @media print {
+      @page { margin: 10mm; }
+      #dashStickyHeader, .cli-tab-bar, .cli-save-bar, .um-pagination-bar, .cli-print-bar, .cli-btn-primary, .cli-btn-secondary, .cli-btn-print, td.cli-actions-col, th.cli-actions-col, #formCard, .presence-banner, #dashFooter { display: none !important; }
+      .print-hide { display: none !important; }
+      body.print-session-only #existingCliCard { display: none !important; }
+      body.print-existing-only #sessionCliCard { display: none !important; }
+      body.print-both #existingCliCard { page-break-before: always !important; }
+      .cli-table thead { display: table-header-group !important; }
+      .cli-table tr { page-break-inside: avoid !important; }
+      .cli-table { width: 100% !important; table-layout: auto !important; }
+    }
 </style>
 </head>
-<body data-page-title="Onboarding â€” Clients" data-required-task="Clients">
-<!-- ===== INDUSTRIAL DIAMOND-PLATE BACKGROUND (do not remove) ===== -->
+<body data-page-title="Onboarding — Clients" data-required-task="Clients">
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
-<div id="dashHeader"></div>
-<!-- ===== GREETING BAR ===== -->
-<div class="ob-greeting-bar">
-  <div class="ob-greeting-text" id="dashGreetingText">Welcome</div>
-</div>
 
-<!-- ===== TAB BAR ===== -->
-<div class="cli-tab-bar" id="cliTabBar">
-  <button class="cli-tab active" id="tabSingle" onclick="switchTab('single')">Single Entry</button>
-  <button class="cli-tab" id="tabBulk" onclick="switchTab('bulk')">Bulk Upload</button>
-  <a class="cli-tab-admin driven-admin-only" href="/app/dashboard/admin.html" onclick="return confirmLeave()">Admin Dashboard</a>
-  <a class="cli-tab-return" href="/app/dashboard/onboarding-dashboard.html" onclick="return confirmLeave()">Onboarding Dashboard</a>
-  <button class="cli-tab-logout" onclick="confirmLogout()">Logout</button>
+<!-- UNIFIED PINNED STICKY HEADER CONTAINER -->
+<div id="dashStickyHeader">
+  <div id="dashHeader"></div>
+
+  <div class="ob-greeting-bar print-hide" id="obGreetingBar">
+    <div class="presence-banner" id="presenceBanner">
+      <span id="presenceText">Other Key Personnel active</span>
+    </div>
+
+    <div class="cli-tab-bar print-hide" id="cliTabBar">
+      <a class="cli-tab-admin driven-admin-only" href="/app/dashboard/admin.html" onclick="return confirmLeave()">Admin Dashboard</a>
+      <a class="cli-tab-return" href="/app/dashboard/onboarding-dashboard.html" onclick="return confirmLeave()">← Return to Onboarding Dashboard</a>
+      <button class="cli-tab-logout" onclick="confirmLogout()">Logout</button>
+    </div>
+  </div>
 </div>
 
 <main class="dash-main">
-  <div class="dash-card">
+  <div class="dash-card print-hide">
     <h2>Add Clients <span class="cli-count-badge" id="cliCount">0</span></h2>
     <p class="cli-subtitle">Add all clients that your organization works with. Clients will be used when creating projects in the Project Management Suite.</p>
-    <p class="cli-subtitle"><strong>Required:</strong> Client Name. That's all you need at this time â€” additional client details will be managed in the Project Management Suite.</p>
+    <p class="cli-subtitle"><strong>Required:</strong> Client Name. That's all you need at this time — additional client details will be managed in the Project Management Suite.</p>
   </div>
+
+  <div class="cli-subtab-bar print-hide" style="max-width: 1100px; margin: 16px auto 0 auto;">
+    <button class="cli-subtab active" id="tabSingle" onclick="switchTab('single')">Single Entry</button>
+    <button class="cli-subtab" id="tabBulk" onclick="switchTab('bulk')">Bulk Upload</button>
+  </div>
+
   <div id="tabContentSingle">
-    <div class="dash-card">
+    <div class="dash-card" id="formCard">
       <h3>Add Client</h3>
       <div class="cli-form-grid">
         <div class="cli-form-field">
@@ -158,22 +380,43 @@
       <div id="cliError" class="cli-error"></div>
       <div id="cliSuccess" class="cli-success"></div>
     </div>
-    <div class="dash-card">
-      <h3>Clients Added</h3>
-      <p class="cli-subtitle">These clients will be saved when you click Save &amp; Continue. You can add as many as you need before saving.</p>
-      <div id="cliTableContainer"><p class="cli-empty">No clients added yet.</p></div>
+    
+    <div class="dash-card" id="sessionCliCard">
+      <div class="cli-print-bar">
+        <select id="printTableSelectSession" class="cli-print-select">
+          <option value="session">Print Session Clients</option>
+          <option value="existing">Print Existing Clients</option>
+          <option value="both">Print Both Tables</option>
+        </select>
+        <button class="cli-btn-print" onclick="doPrintClients('session')">🖨 Print</button>
+      </div>
+      <h3>Clients Added (This Session)</h3>
+      <p class="cli-subtitle">These clients will be saved to the organization when you click Save &amp; Continue.</p>
+      <div id="cliTableContainer"><p class="cli-empty">No new clients added in this session yet.</p></div>
+    </div>
+
+    <div class="dash-card" id="existingCliCard">
+      <div class="cli-print-bar">
+        <select id="printTableSelectExisting" class="cli-print-select">
+          <option value="existing">Print Existing Clients</option>
+          <option value="session">Print Session Clients</option>
+          <option value="both">Print Both Tables</option>
+        </select>
+        <button class="cli-btn-print" onclick="doPrintClients('existing')">🖨 Print</button>
+      </div>
+      <h3>Existing Clients <span class="cli-count-badge" id="existingCliCount">0</span></h3>
+      <p class="cli-subtitle">All clients currently saved in the DRIV‑EN system for your organization.</p>
+      <div id="existingCliTableContainer"><p class="cli-empty">Loading existing clients…</p></div>
     </div>
   </div>
+
   <div id="tabContentBulk" style="display:none;">
     <div class="dash-card">
       <h3>Bulk Upload Clients</h3>
       <p class="cli-subtitle">Download the Excel template, fill in your client list, then upload it here. Client Name is required for every row. <strong>CSV files are also supported.</strong></p>
       <p class="cli-subtitle"><strong>Template instructions:</strong> Row 1 contains the column header (do NOT delete it). Start entering your data in Row 2. Only one column is needed: Client Name.</p>
-      <button onclick="downloadClientTemplate()" class="cli-bulk-link" style="cursor:pointer;border:none;font-size:14px;">â¬‡ Download Client-Mass-Upload-v1.0.xlsx</button>
-      <div class="cli-form-field" style="max-width:400px;">
-        <label>Upload Completed Template</label>
-        <input type="file" id="bulkFile" accept=".xlsx,.csv" class="cli-bulk-file-input">
-      </div>
+      <button onclick="downloadClientTemplate()" class="cli-bulk-link" style="cursor:pointer;border:none;font-size:14px;">⬇ Download Client-Mass-Upload-v1.0.xlsx</button>
+      <div class="cli-form-field" style="max-width:400px;"><label>Upload Completed Template</label><input type="file" id="bulkFile" accept=".xlsx,.csv" class="cli-bulk-file-input"></div>
       <button id="btnProcessBulk" class="cli-btn-primary">Process Upload</button>
       <div id="statusBulk" class="cli-error"></div>
       <div id="bulkPreview" class="cli-bulk-preview"></div>
@@ -186,150 +429,670 @@
   </div>
 </main>
 
-<!-- ===== STICKY SAVE BAR ===== -->
 <div class="cli-save-bar">
   <div class="cli-action-row">
     <button id="btnSaveCli" class="cli-btn-primary">Save &amp; Continue</button>
   </div>
   <div id="cliStepStatus" class="cli-step-status"></div>
 </div>
+
+<footer id="dashFooter" class="print-hide" style="text-align:center; padding:20px; font-size:13px; color:var(--text-muted); border-top:1px solid var(--border); margin-top:40px;">
+  <a href="/privacy.html" target="_blank" rel="noopener noreferrer" style="color:var(--text-muted); text-decoration:none;">Privacy Policy</a> | 
+  <a href="/terms.html" target="_blank" rel="noopener noreferrer" style="color:var(--text-muted); text-decoration:none;">Terms of Service</a> | 
+  <a href="/support.html" target="_blank" rel="noopener noreferrer" style="color:var(--text-muted); text-decoration:none;">Support</a>
+  <div style="margin-top:6px;">© <span id="dashFooterYear"></span> DRIV‑EN Platform. All rights reserved.</div>
+</footer>
+
 <script src="/app/shared/dashboard-common.js?v=16"></script>
-<script src="/app/shared/auth-check.js?v=7"></script>
+<script src="/app/shared/auth-check.js?v=13"></script>
 <script>
     var clients = [];
+    var existingClients = [];
     var cliDirty = false;
+    var activeOrgId = null;
+    var customerOrgName = "DRIV-EN Org";
+
+    var sessionPageSize = 10, sessionPage = 1, sessionSortCol = 'name', sessionSortAsc = true;
+    var existingPageSize = 10, existingPage = 1, existingSortCol = 'name', existingSortAsc = true;
+
     var cliError = document.getElementById("cliError");
     var cliSuccess = document.getElementById("cliSuccess");
     var cliTableContainer = document.getElementById("cliTableContainer");
+    var existingCliTableContainer = document.getElementById("existingCliTableContainer");
     var cliStepStatus = document.getElementById("cliStepStatus");
     var cliCountEl = document.getElementById("cliCount");
+    var existingCliCountEl = document.getElementById("existingCliCount");
     var statusBulk = document.getElementById("statusBulk");
     var bulkPreview = document.getElementById("bulkPreview");
-    function updateCount() { cliCountEl.textContent = clients.length; }
-    function renderTable() {
-      if (clients.length === 0) { cliTableContainer.innerHTML = '<p class="cli-empty">No clients added yet.</p>'; return; }
-      var rows = clients.map(function(cli, index) {
-        return '<tr><td>' + (index + 1) + '</td><td>' + cli.name + '</td><td><button class="cli-btn-secondary" style="padding:4px 10px;font-size:12px;height:auto;" onclick="removeClient(' + index + ')">Remove</button></td></tr>';
-      }).join("");
-      cliTableContainer.innerHTML = '<table class="cli-table"><thead><tr><th>#</th><th>Client Name</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table>';
+
+    function normalizeName(str) { 
+      if (typeof str === "object" && str !== null) {
+        str = str.client_name || str.name || str.clientName || "";
+      }
+      return String(str || "").trim().replace(/\s+/g, " "); 
     }
-    window.removeClient = function(index) { clients.splice(index, 1); renderTable(); updateCount(); cliSuccess.textContent = ""; cliError.textContent = ""; cliDirty = true; };
+    
+    function validateOrgContext() {
+      if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "null") {
+        if (cliError) cliError.textContent = "Security Alert: Invalid Organization Context. Action rejected.";
+        return false;
+      }
+      return true;
+    }
+
+    function checkOfflineGuard(targetErrorElement) {
+      if (!navigator.onLine) {
+        var msg = "Internet connection required. Offline data entry is disabled for onboarding master data.";
+        if (targetErrorElement) {
+          targetErrorElement.textContent = msg;
+          if (targetErrorElement.classList.contains("cli-step-status")) {
+            targetErrorElement.style.color = "var(--error)";
+          }
+        }
+        return true;
+      }
+      return false;
+    }
+
+    function sendPresenceUnload() {
+      if (!activeOrgId) return;
+      var payload = JSON.stringify({ page: "Clients", action: "leave" });
+      if (navigator.sendBeacon) {
+        var blob = new Blob([payload], { type: "application/json" });
+        navigator.sendBeacon("/api/onboarding/presence", blob);
+      } else {
+        fetch("/api/onboarding/presence", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-org-id": activeOrgId },
+          body: payload,
+          keepalive: true
+        }).catch(function() {});
+      }
+    }
+
+    async function checkActivePresence() {
+      if (!navigator.onLine) return;
+      try {
+        var resp = await fetch("/api/onboarding/presence", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "x-org-id": activeOrgId || ""
+          },
+          body: JSON.stringify({ page: "Clients" })
+        });
+        if (resp.ok) {
+          var data = await resp.json();
+          var banner = document.getElementById("presenceBanner");
+          var textEl = document.getElementById("presenceText");
+          if (data.activeUsers && data.activeUsers.length > 0) {
+            var fullNames = data.activeUsers.map(function(u) {
+              if (typeof u === "object") {
+                return ((u.firstName || u.first_name || "") + " " + (u.lastName || u.last_name || "")).trim() || u.name || u.email;
+              }
+              return String(u);
+            });
+            textEl.textContent = "🟢 " + fullNames.join(", ") + " is also active on this page";
+            banner.style.display = "inline-flex";
+          } else {
+            banner.style.display = "none";
+          }
+        }
+      } catch (e) {}
+    }
+
+    window.addEventListener("pagehide", sendPresenceUnload);
+    window.addEventListener("beforeunload", function(e) {
+      sendPresenceUnload();
+      if (cliDirty) {
+        e.preventDefault();
+        e.returnValue = "You have unsaved clients.";
+      }
+    });
+    document.addEventListener("visibilitychange", function() {
+      if (document.visibilityState === "hidden") {
+        sendPresenceUnload();
+      } else if (document.visibilityState === "visible") {
+        checkActivePresence();
+      }
+    });
+
+    function updateCount() {
+      var totalCount = existingClients.length + clients.length;
+      if (cliCountEl) cliCountEl.textContent = totalCount;
+      if (existingCliCountEl) existingCliCountEl.textContent = existingClients.length;
+      try {
+        localStorage.setItem("driven_client_count", String(totalCount));
+      } catch (e) {}
+    }
+
+    function doPrintClients(defaultSelection) {
+      var selId = defaultSelection === 'session' ? 'printTableSelectSession' : 'printTableSelectExisting';
+      var mode = document.getElementById(selId).value;
+      
+      document.body.classList.remove('print-session-only', 'print-existing-only', 'print-both');
+      
+      if (mode === 'session') {
+        document.body.classList.add('print-session-only');
+      } else if (mode === 'existing') {
+        document.body.classList.add('print-existing-only');
+      } else {
+        document.body.classList.add('print-both');
+      }
+
+      var origSessionSize = sessionPageSize;
+      var origExistingSize = existingPageSize;
+      sessionPageSize = 9999;
+      existingPageSize = 9999;
+      renderTable();
+      renderExistingTable();
+
+      var origTitle = document.title;
+      document.title = customerOrgName + " | Client Directory";
+
+      window.print();
+
+      document.title = origTitle;
+      document.body.classList.remove('print-session-only', 'print-existing-only', 'print-both');
+      sessionPageSize = origSessionSize;
+      existingPageSize = origExistingSize;
+      renderTable();
+      renderExistingTable();
+    }
+
+    async function loadExistingClients() {
+      existingCliTableContainer.textContent = "";
+      if (navigator.onLine) {
+        try {
+          var resp = await fetch("/api/clients", {
+            headers: { "x-org-id": activeOrgId || "" }
+          });
+          if (resp.ok) {
+            var data = await resp.json();
+            var rawList = data.clients || data.records || (Array.isArray(data) ? data : []);
+            existingClients = rawList.map(function(item) {
+              return {
+                name: normalizeName(item),
+                status: (typeof item === "object" && item.status) ? item.status : "Active"
+              };
+            });
+            localStorage.setItem("driven_clients", JSON.stringify(existingClients));
+            renderExistingTable();
+            updateCount();
+            return;
+          }
+        } catch (e) {
+          console.warn("API load for existing clients failed, fallback to local storage:", e.message);
+        }
+      }
+      parseCachedClients();
+      renderExistingTable();
+      updateCount();
+    }
+
+    function parseCachedClients() {
+      try {
+        var cached = JSON.parse(localStorage.getItem("driven_clients") || "[]");
+        existingClients = cached.map(function(item) {
+          return {
+            name: normalizeName(item),
+            status: (typeof item === "object" && item.status) ? item.status : "Active"
+          };
+        });
+      } catch (err) {
+        existingClients = [];
+      }
+    }
+
+    function renderExistingTable() {
+      existingCliTableContainer.textContent = "";
+      if (existingClients.length === 0) {
+        var empty = document.createElement("p");
+        empty.className = "cli-empty";
+        empty.textContent = "No existing clients in the system yet.";
+        existingCliTableContainer.appendChild(empty);
+        return;
+      }
+
+      var sorted = existingClients.slice().sort(function(a, b) {
+        var va = (a[existingSortCol] || '').toString().toLowerCase();
+        var vb = (b[existingSortCol] || '').toString().toLowerCase();
+        if (va < vb) return existingSortAsc ? -1 : 1;
+        if (va > vb) return existingSortAsc ? 1 : -1;
+        return 0;
+      });
+
+      var totalPages = Math.ceil(sorted.length / existingPageSize) || 1;
+      if (existingPage > totalPages) existingPage = totalPages;
+      var start = (existingPage - 1) * existingPageSize;
+      var paged = sorted.slice(start, start + existingPageSize);
+
+      var wrap = document.createElement("div"); wrap.className = "cli-table-wrap";
+      var table = document.createElement("table"); table.className = "cli-table";
+      var thead = document.createElement("thead"); var headRow = document.createElement("tr");
+
+      var cols = [
+        { label: "Client Name " + (existingSortCol === 'name' ? (existingSortAsc ? '▲' : '▼') : ''), key: "name" },
+        { label: "Status", key: "status" }
+      ];
+
+      cols.forEach(function(c) {
+        var th = document.createElement("th");
+        th.textContent = c.label;
+        if (c.key) {
+          th.onclick = function() {
+            if (existingSortCol === c.key) existingSortAsc = !existingSortAsc;
+            else { existingSortCol = c.key; existingSortAsc = true; }
+            renderExistingTable();
+          };
+        }
+        headRow.appendChild(th);
+      });
+      thead.appendChild(headRow); table.appendChild(thead);
+
+      var tbody = document.createElement("tbody");
+      paged.forEach(function(cli) {
+        var row = document.createElement("tr");
+        var cell = document.createElement("td");
+        cell.textContent = (cli.name && cli.name !== "undefined" && cli.name !== "null") ? cli.name : "—";
+        row.appendChild(cell);
+
+        var cellStatus = document.createElement("td");
+        cellStatus.textContent = cli.status || "Active";
+        row.appendChild(cellStatus);
+
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody); wrap.appendChild(table);
+
+      var pBar = document.createElement("div"); pBar.className = "um-pagination-bar";
+      var pInfo = document.createElement("div");
+      pInfo.textContent = "Showing " + (start + 1) + " - " + Math.min(start + existingPageSize, sorted.length) + " of " + sorted.length;
+      
+      var pCtrl = document.createElement("div"); pCtrl.className = "um-pagination-controls";
+      var pSelect = document.createElement("select");
+      [10, 25, 50].forEach(function(sz) {
+        var opt = document.createElement("option"); opt.value = sz; opt.textContent = sz + " per page";
+        if (sz === existingPageSize) opt.selected = true;
+        pSelect.appendChild(opt);
+      });
+      pSelect.onchange = function() { existingPageSize = parseInt(this.value); existingPage = 1; renderExistingTable(); };
+
+      var btnPrev = document.createElement("button"); btnPrev.className = "um-pagination-btn"; btnPrev.textContent = "◄ Prev";
+      btnPrev.disabled = existingPage === 1;
+      btnPrev.onclick = function() { existingPage--; renderExistingTable(); };
+
+      var btnNext = document.createElement("button"); btnNext.className = "um-pagination-btn"; btnNext.textContent = "Next ►";
+      btnNext.disabled = existingPage === totalPages;
+      btnNext.onclick = function() { existingPage++; renderExistingTable(); };
+
+      pCtrl.appendChild(pSelect); pCtrl.appendChild(btnPrev); pCtrl.appendChild(btnNext);
+      pBar.appendChild(pInfo); pBar.appendChild(pCtrl);
+
+      existingCliTableContainer.appendChild(wrap);
+      existingCliTableContainer.appendChild(pBar);
+
+      if (window.attachDragAndDropHeaders) window.attachDragAndDropHeaders(table);
+    }
+
+    function renderTable() {
+      cliTableContainer.textContent = "";
+      if (clients.length === 0) { 
+        var empty = document.createElement("p"); 
+        empty.className = "cli-empty"; 
+        empty.textContent = "No new clients added in this session yet."; 
+        cliTableContainer.appendChild(empty); 
+        return; 
+      }
+
+      var sorted = clients.slice().sort(function(a, b) {
+        var va = (a[sessionSortCol] || '').toString().toLowerCase();
+        var vb = (b[sessionSortCol] || '').toString().toLowerCase();
+        if (va < vb) return sessionSortAsc ? -1 : 1;
+        if (va > vb) return sessionSortAsc ? 1 : -1;
+        return 0;
+      });
+
+      var totalPages = Math.ceil(sorted.length / sessionPageSize) || 1;
+      if (sessionPage > totalPages) sessionPage = totalPages;
+      var start = (sessionPage - 1) * sessionPageSize;
+      var paged = sorted.slice(start, start + sessionPageSize);
+
+      var wrap = document.createElement("div"); wrap.className = "cli-table-wrap";
+      var table = document.createElement("table"); table.className = "cli-table";
+      var thead = document.createElement("thead"); var headRow = document.createElement("tr");
+
+      var cols = [
+        { label: "Client Name " + (sessionSortCol === 'name' ? (sessionSortAsc ? '▲' : '▼') : ''), key: "name" },
+        { label: "Status", key: "status" },
+        { label: "Action", key: "" }
+      ];
+
+      cols.forEach(function(c) {
+        var th = document.createElement("th");
+        th.textContent = c.label;
+        if (c.label === "Action") th.className = "cli-actions-col";
+        if (c.key) {
+          th.onclick = function() {
+            if (sessionSortCol === c.key) sessionSortAsc = !sessionSortAsc;
+            else { sessionSortCol = c.key; sessionSortAsc = true; }
+            renderTable();
+          };
+        }
+        headRow.appendChild(th);
+      });
+      thead.appendChild(headRow); table.appendChild(thead);
+
+      var tbody = document.createElement("tbody");
+      paged.forEach(function(cli, index) {
+        var row = document.createElement("tr");
+        var cellName = document.createElement("td"); 
+        cellName.textContent = cli.name || "—"; 
+        row.appendChild(cellName);
+
+        var cellStatus = document.createElement("td");
+        cellStatus.textContent = cli.status || "Active";
+        row.appendChild(cellStatus);
+
+        var cellAction = document.createElement("td"); 
+        cellAction.className = "cli-actions-col"; 
+        var btn = document.createElement("button");
+        btn.className = "cli-btn-secondary"; 
+        btn.style.cssText = "padding:4px 10px;font-size:12px;height:auto;"; 
+        btn.textContent = "Remove";
+        btn.addEventListener("click", function() { removeClient(start + index); }); 
+        cellAction.appendChild(btn); 
+        row.appendChild(cellAction); 
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody); wrap.appendChild(table);
+
+      var pBar = document.createElement("div"); pBar.className = "um-pagination-bar";
+      var pInfo = document.createElement("div");
+      pInfo.textContent = "Showing " + (start + 1) + " - " + Math.min(start + sessionPageSize, sorted.length) + " of " + sorted.length;
+      
+      var pCtrl = document.createElement("div"); pCtrl.className = "um-pagination-controls";
+      var pSelect = document.createElement("select");
+      [10, 25, 50].forEach(function(sz) {
+        var opt = document.createElement("option"); opt.value = sz; opt.textContent = sz + " per page";
+        if (sz === sessionPageSize) opt.selected = true;
+        pSelect.appendChild(opt);
+      });
+      pSelect.onchange = function() { sessionPageSize = parseInt(this.value); sessionPage = 1; renderTable(); };
+
+      var btnPrev = document.createElement("button"); btnPrev.className = "um-pagination-btn"; btnPrev.textContent = "◄ Prev";
+      btnPrev.disabled = sessionPage === 1;
+      btnPrev.onclick = function() { sessionPage--; renderTable(); };
+
+      var btnNext = document.createElement("button"); btnNext.className = "um-pagination-btn"; btnNext.textContent = "Next ►";
+      btnNext.disabled = sessionPage === totalPages;
+      btnNext.onclick = function() { sessionPage++; renderTable(); };
+
+      pCtrl.appendChild(pSelect); pCtrl.appendChild(btnPrev); pCtrl.appendChild(btnNext);
+      pBar.appendChild(pInfo); pBar.appendChild(pCtrl);
+
+      cliTableContainer.appendChild(wrap);
+      cliTableContainer.appendChild(pBar);
+
+      if (window.attachDragAndDropHeaders) window.attachDragAndDropHeaders(table);
+    }
+
+    function removeClient(index) { clients.splice(index, 1); renderTable(); updateCount(); cliSuccess.textContent = ""; cliError.textContent = ""; cliDirty = true; }
+
     window.switchTab = function(tab) {
       var tabSingle = document.getElementById("tabSingle"); var tabBulk = document.getElementById("tabBulk");
       var contentSingle = document.getElementById("tabContentSingle"); var contentBulk = document.getElementById("tabContentBulk");
       if (tab === "single") { tabSingle.classList.add("active"); tabBulk.classList.remove("active"); contentSingle.style.display = "block"; contentBulk.style.display = "none"; }
       else { tabBulk.classList.add("active"); tabSingle.classList.remove("active"); contentBulk.style.display = "block"; contentSingle.style.display = "none"; }
     };
-    window.confirmLeave = function() {
-      if (cliDirty) { return confirm("You have unsaved clients. Click OK to leave without saving, or Cancel to stay and save them."); }
-      return true;
-    };
-    window.confirmLogout = function() {
-      if (cliDirty) { if (!confirm("You have unsaved clients. Click OK to log out without saving, or Cancel to stay and save them.")) return; }
-      dashLogout();
-    };
-    window.addEventListener("beforeunload", function(e) {
-      if (cliDirty) { e.preventDefault(); e.returnValue = "You have unsaved clients."; }
-    });
+
+    window.confirmLeave = function() { if (cliDirty) { return confirm("You have unsaved clients. Click OK to leave without saving, or Cancel to stay and save them."); } return true; };
+    window.confirmLogout = function() { if (cliDirty) { if (!confirm("You have unsaved clients. Click OK to log out without saving, or Cancel to stay and save them.")) return; } dashLogout(); };
+
     document.getElementById("btnAddCli").addEventListener("click", function() {
+      if (!validateOrgContext()) return;
+      if (checkOfflineGuard(cliError)) return;
       cliError.textContent = ""; cliSuccess.textContent = "";
-      var name = document.getElementById("cliName").value.trim();
+      var name = normalizeName(document.getElementById("cliName").value);
+
       if (!name) { cliError.textContent = "Client Name is required."; return; }
-      if (clients.some(function(cli) { return cli.name.toLowerCase() === name.toLowerCase(); })) { cliError.textContent = "A client with this name has already been added."; return; }
-      clients.push({ name: name, customerId: localStorage.getItem("driven_customer_id") || "" });
-      renderTable(); updateCount(); document.getElementById("cliName").value = ""; document.getElementById("cliName").focus();
-      cliSuccess.textContent = "Client added. Add another or click Save & Continue.";
+
+      var checkName = name.toLowerCase().trim();
+      var nameMatch = existingClients.some(function(cli) { 
+        return (cli.name || "").toLowerCase().trim() === checkName; 
+      }) || clients.some(function(cli) { 
+        return (cli.name || "").toLowerCase().trim() === checkName; 
+      });
+
+      if (nameMatch) {
+        var confirmAdd = confirm("⚠️ A client named '" + name + "' already exists in the system or current batch.\n\nWould you like to add region or division info to differentiate it, or proceed anyway?");
+        if (!confirmAdd) return;
+      }
+
+      clients.push({ 
+        name: name, 
+        client_name: name,
+        status: "Active" 
+      });
+      renderTable(); updateCount();
+      document.getElementById("cliName").value = ""; 
+      document.getElementById("cliName").focus();
+      cliSuccess.textContent = "Client added to current batch. Click Save & Continue when finished.";
       cliDirty = true;
     });
-    document.getElementById("cliName").addEventListener("keydown", function(e) { if (e.key === "Enter") { e.preventDefault(); document.getElementById("btnAddCli").click(); } });
+
+    document.getElementById("cliName").addEventListener("keydown", function(e) { 
+      if (e.key === "Enter") { e.preventDefault(); document.getElementById("btnAddCli").click(); } 
+    });
+
     document.getElementById("btnProcessBulk").addEventListener("click", function() {
+      if (!validateOrgContext()) return;
+      if (checkOfflineGuard(statusBulk)) return;
       statusBulk.textContent = ""; statusBulk.className = "cli-error";
       var file = document.getElementById("bulkFile").files[0];
       if (!file) { statusBulk.textContent = "Please select an Excel or CSV file."; return; }
       var reader = new FileReader();
       reader.onload = function(e) {
-        var rows;
-        var isCsv = file.name.toLowerCase().endsWith(".csv");
-        if (isCsv) {
-          var text = e.target.result;
-          var lines = text.split(/\r?\n/).filter(function(l) { return l.trim() !== ""; });
-          if (lines.length < 2) { statusBulk.textContent = "The CSV file is empty or has no data rows."; return; }
-          var headers = parseCsvLine(lines[0]);
-          rows = lines.slice(1).map(function(line) { var values = parseCsvLine(line); var obj = {}; headers.forEach(function(h, i) { obj[h] = values[i] || ""; }); return obj; });
-        } else {
-          var workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
-          var sheet = workbook.Sheets[workbook.SheetNames[0]];
-          rows = XLSX.utils.sheet_to_json(sheet);
+        try {
+          var rows; var isCsv = file.name.toLowerCase().endsWith(".csv");
+          if (isCsv) {
+            var text = e.target.result; var lines = text.split(/\r?\n/).filter(function(l) { return l.trim() !== ""; });
+            if (lines.length < 2) { statusBulk.textContent = "The CSV file is empty or has no data rows."; return; }
+            var headers = parseCsvLine(lines[0]);
+            rows = lines.slice(1).map(function(line) { var values = parseCsvLine(line); var obj = {}; headers.forEach(function(h, i) { obj[h] = values[i] || ""; }); return obj; });
+          } else {
+            var workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+            var sheet = workbook.Sheets[workbook.SheetNames[0]];
+            rows = XLSX.utils.sheet_to_json(sheet);
+          }
+          if (rows.length === 0) { statusBulk.textContent = "The file is empty."; return; }
+
+          var requiredName = "Client Name";
+          var header = Object.keys(rows[0]);
+          if (header.indexOf(requiredName) === -1) { statusBulk.textContent = "Missing required column: " + requiredName; return; }
+
+          for (var r = 0; r < rows.length; r++) {
+            if (!rows[r][requiredName] || String(rows[r][requiredName]).trim() === "") { statusBulk.textContent = "Row " + (r + 2) + ": Client Name is required."; return; }
+          }
+
+          var seenNames = {};
+          for (var d = 0; d < rows.length; d++) {
+            var nm = normalizeName(rows[d][requiredName]).toLowerCase();
+            if (seenNames[nm]) { statusBulk.textContent = "Duplicate client name: " + nm + " (rows " + seenNames[nm] + " and " + (d + 2) + ")."; return; }
+            seenNames[nm] = (d + 2);
+          }
+
+          var bulkClients = rows.map(function(row) {
+            var nm = normalizeName(row[requiredName]);
+            return { 
+              name: nm, 
+              client_name: nm, 
+              status: "Active" 
+            };
+          });
+
+          bulkPreview.textContent = ""; 
+          var pTable = document.createElement("table"); 
+          var pThead = document.createElement("thead"); 
+          var pHeadRow = document.createElement("tr");
+          var pTh = document.createElement("th"); pTh.textContent = "Client Name"; pHeadRow.appendChild(pTh);
+          pThead.appendChild(pHeadRow); pTable.appendChild(pThead); 
+
+          var pTbody = document.createElement("tbody");
+          bulkClients.forEach(function(c) { 
+            var pRow = document.createElement("tr"); 
+            var pCell = document.createElement("td"); pCell.textContent = c.name; pRow.appendChild(pCell); 
+            pTbody.appendChild(pRow); 
+          });
+          pTable.appendChild(pTbody); bulkPreview.appendChild(pTable);
+
+          clients = clients.concat(bulkClients); 
+          renderTable(); updateCount();
+          statusBulk.textContent = "Uploaded " + bulkClients.length + " clients. Review above and click Save & Continue."; 
+          statusBulk.className = "cli-success"; 
+          cliDirty = true;
+        } catch(parseErr) {
+          statusBulk.textContent = "Could not parse the file. Make sure it is a valid Excel (.xlsx) or CSV file with a 'Client Name' column.";
+          statusBulk.className = "cli-error";
+          if (window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("clients.html: bulk upload parse failed — " + (parseErr.message || parseErr), "bulk-upload-parse", parseErr && parseErr.stack ? parseErr.stack : null); }
         }
-        if (rows.length === 0) { statusBulk.textContent = "The file is empty."; return; }
-        var requiredField = "Client Name";
-        var header = Object.keys(rows[0]);
-        if (header.indexOf(requiredField) === -1) { statusBulk.textContent = "Missing required column: " + requiredField; return; }
-        for (var r = 0; r < rows.length; r++) { if (!rows[r][requiredField] || String(rows[r][requiredField]).trim() === "") { statusBulk.textContent = "Row " + (r + 2) + ": Client Name is required."; return; } }
-        var seenNames = {};
-        for (var d = 0; d < rows.length; d++) { var nm = String(rows[d][requiredField]).trim().toLowerCase(); if (seenNames[nm]) { statusBulk.textContent = "Duplicate client name in the upload: " + nm + " (rows " + seenNames[nm] + " and " + (d + 2) + ")."; return; } seenNames[nm] = (d + 2); }
-        var existingNames = clients.map(function(c) { return c.name.toLowerCase(); });
-        for (var dd = 0; dd < rows.length; dd++) { var checkName = String(rows[dd][requiredField]).trim().toLowerCase(); if (existingNames.indexOf(checkName) !== -1) { statusBulk.textContent = "Row " + (dd + 2) + ': Client "' + checkName + '" has already been added in this session.'; return; } }
-        var bulkClients = rows.map(function(row) { return { name: String(row[requiredField]).trim(), customerId: localStorage.getItem("driven_customer_id") || "" }; });
-        var html = "<table><thead><tr><th>Client Name</th></tr></thead><tbody>";
-        bulkClients.forEach(function(c) { html += "<tr><td>" + c.name + "</td></tr>"; });
-        html += "</tbody></table>";
-        bulkPreview.innerHTML = html;
-        clients = clients.concat(bulkClients); renderTable(); updateCount();
-        statusBulk.textContent = "Uploaded " + bulkClients.length + " clients. Review above and click Save & Continue."; statusBulk.className = "cli-success";
-        cliDirty = true;
       };
       if (file.name.toLowerCase().endsWith(".csv")) { reader.readAsText(file); } else { reader.readAsArrayBuffer(file); }
     });
-    document.getElementById("btnSaveCli").addEventListener("click", function() {
+
+    document.getElementById("btnSaveCli").addEventListener("click", async function() {
+      if (!validateOrgContext()) return;
+      if (checkOfflineGuard(cliStepStatus)) return;
       cliStepStatus.textContent = ""; cliStepStatus.style.color = "var(--error)";
-      if (clients.length === 0) { cliStepStatus.textContent = "You must add at least one client."; return; }
-      var existing = JSON.parse(localStorage.getItem("driven_clients") || "[]");
-      var allClients = existing.concat(clients);
-      localStorage.setItem("driven_clients", JSON.stringify(allClients));
-      localStorage.setItem("driven_client_count", allClients.length);
-      localStorage.setItem("driven_step4_complete", "true");
-      cliStepStatus.style.color = "var(--success)";
-      cliStepStatus.textContent = clients.length + " client(s) saved. Total clients: " + allClients.length + ".";
-      var btnSave = document.getElementById("btnSaveCli"); btnSave.disabled = true; btnSave.textContent = "Saved âœ“";
-      clients = []; renderTable(); updateCount();
-      cliDirty = false;
+      if (clients.length === 0 && existingClients.length === 0) { 
+        cliStepStatus.textContent = "You must add at least one client."; 
+        return; 
+      }
+
+      var allClients;
+      try {
+        allClients = existingClients.concat(clients);
+        localStorage.setItem("driven_clients", JSON.stringify(allClients));
+        localStorage.setItem("driven_client_count", String(allClients.length));
+      } catch(lsErr) {
+        console.warn("localStorage save failed:", lsErr.message);
+        if (window.DRIVENErrorHandler) { window.DRIVENErrorHandler.report("clients.html: localStorage save failed — " + (lsErr.message || lsErr), "save-localStorage", lsErr && lsErr.stack ? lsErr.stack : null); }
+        allClients = clients.slice();
+      }
+
+      var btnSave = document.getElementById("btnSaveCli");
+      btnSave.disabled = true; 
+      btnSave.textContent = "Saving to Database...";
+
+      var saveErrors = [];
+      for (var i = 0; i < clients.length; i++) {
+        var cli = clients[i];
+        try {
+          var d1Res = await fetch("/api/clients", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-org-id": activeOrgId || ""
+            },
+            body: JSON.stringify({
+              client_name: cli.client_name || cli.name,
+              status: "Active"
+            })
+          });
+          if (!d1Res.ok) {
+            var errJson = await d1Res.json().catch(function() { return {}; });
+            saveErrors.push(cli.name + ": " + (errJson.error || "D1 insert failed"));
+          }
+        } catch (d1Err) {
+          saveErrors.push(cli.name + ": " + d1Err.message);
+        }
+      }
+
+      try {
+        var res = await fetch("/auth/save-settings", { 
+          method: "POST", 
+          headers: { 
+            "Content-Type": "application/json",
+            "x-org-id": activeOrgId || ""
+          }, 
+          body: JSON.stringify({ settings: { clients: allClients } }) 
+        });
+        var data = await res.json();
+        if (!res.ok) {
+          if (res.status < 500 && window.DRIVENErrorHandler) { 
+            window.DRIVENErrorHandler.report("clients.html: save-settings returned " + res.status + " — " + (data.error || "Request failed"), "save-settings-" + res.status, "URL: /auth/save-settings | Clients: " + allClients.length); 
+          }
+          throw new Error(data.error || "Save settings failed");
+        }
+
+        cliStepStatus.style.color = "var(--success)";
+        cliStepStatus.textContent = clients.length + " client(s) saved to D1. Total clients: " + allClients.length + ". Redirecting to onboarding dashboard…";
+        btnSave.textContent = "Saved ✓"; 
+        cliDirty = false;
+        clients = [];
+        await loadExistingClients();
+        renderTable(); 
+        updateCount();
+
+        setTimeout(function() { 
+          btnSave.disabled = false; 
+          btnSave.textContent = "Save & Continue"; 
+          window.location.href = "/app/dashboard/onboarding-dashboard.html"; 
+        }, 1500);
+
+      } catch(err) {
+        cliStepStatus.style.color = "var(--error)";
+        cliStepStatus.textContent = "Saved locally, but server save failed: " + (saveErrors.length ? saveErrors.join("; ") : err.message);
+        btnSave.disabled = false; 
+        btnSave.textContent = "Save & Continue";
+        if (window.DRIVENErrorHandler) { 
+          window.DRIVENErrorHandler.report("clients.html: save failed — " + (err.message || err), "save-settings-catch", err && err.stack ? err.stack : null); 
+        }
+      }
     });
+
     function downloadClientTemplate() {
-      var ws = XLSX.utils.aoa_to_sheet([[ "Client Name" ]]);
+      var ws = XLSX.utils.aoa_to_sheet([["Client Name"]]);
       ws["!cols"] = [{ wch: 60 }];
       downloadXlsxWithFrozenHeader(ws, "Clients", "Client-Mass-Upload-v1.0.xlsx");
     }
+
     function parseCsvLine(line) {
       var result = []; var current = ""; var inQuotes = false;
-      for (var i = 0; i < line.length; i++) {
-        var ch = line[i];
-        if (inQuotes) { if (ch === '"') { if (line[i + 1] === '"') { current += '"'; i++; } else { inQuotes = false; } } else { current += ch; } }
-        else { if (ch === '"') { inQuotes = true; } else if (ch === ",") { result.push(current.trim()); current = ""; } else { current += ch; } }
-      }
+      for (var i = 0; i < line.length; i++) { var ch = line[i]; if (inQuotes) { if (ch === '"') { if (line[i + 1] === '"') { current += '"'; i++; } else { inQuotes = false; } } else { current += ch; } } else { if (ch === '"') { inQuotes = true; } else if (ch === ",") { result.push(current.trim()); current = ""; } else { current += ch; } } }
       result.push(current.trim()); return result;
     }
+
     document.addEventListener("dashSessionLoaded", function(e) {
-      if (e.detail) {
-        var greetingEl = document.getElementById("dashGreetingText");
-        if (greetingEl) {
-          var firstName = e.detail.first_name || "";
-          if (!firstName) { var fullName = e.detail.full_name || ""; if (fullName) firstName = fullName.split(" ")[0]; }
-          if (firstName) { greetingEl.innerHTML = "Welcome, <strong>" + firstName + "</strong>"; } else { greetingEl.innerHTML = "Welcome"; }
-        }
-      }
+      var userObj = JSON.parse(localStorage.getItem("driven_user") || "{}");
+      activeOrgId = userObj.org_id || (e.detail && e.detail.org_id) || localStorage.getItem("driven_org_id");
+      customerOrgName = (e.detail && e.detail.org_name) || localStorage.getItem("driven_org_name") || "DRIV-EN Org";
+
       var row1 = document.querySelector(".dash-header-row1");
-        var title = document.createElement("div");
-        title.textContent = "Onboarding â€” Clients";
-        var logoArea = document.getElementById("dashCustomerLogoArea");
-        var drivenLogo = row1.querySelector(".dash-driven-logo");
-        if (logoArea && drivenLogo) { row1.insertBefore(title, drivenLogo); }
+        var title = document.createElement("div"); 
+        title.textContent = "Onboarding — Clients"; 
+        var logoArea = document.getElementById("dashCustomerLogoArea"); 
+        var drivenLogo = row1.querySelector(".dash-driven-logo"); 
+        if (logoArea && drivenLogo) { row1.insertBefore(title, drivenLogo); } 
       }
-      var header = document.getElementById("dashHeader");
-      var tabBar = document.getElementById("cliTabBar");
-      if (header && tabBar && !header.contains(tabBar)) { header.appendChild(tabBar); }
-      renderTable(); updateCount();
+
+      loadExistingClients(); 
+      renderTable(); 
+      updateCount();
+
+      checkActivePresence();
+      setInterval(checkActivePresence, 5000);
     });
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", function() {
+        var yEl = document.getElementById("dashFooterYear");
+        if (yEl) yEl.textContent = new Date().getFullYear();
+      });
+    } else {
+      var yEl = document.getElementById("dashFooterYear");
+      if (yEl) yEl.textContent = new Date().getFullYear();
+    }
 </script>
 </body>
 </html>

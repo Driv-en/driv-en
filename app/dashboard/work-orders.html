@@ -1,10 +1,10 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DRIVâ€‘EN | Work Orders</title>
-<meta name="description" content="DRIV-EN work orders â€” maintenance tickets, checklists, and completion tracking.">
+<title>DRIV‑EN | Work Orders</title>
+<meta name="description" content="DRIV-EN work orders — maintenance tickets, checklists, and completion tracking.">
 <meta name="robots" content="noindex, nofollow">
 <link rel="canonical" href="https://www.driv-en.com/app/dashboard/work-orders.html">
 <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
@@ -45,8 +45,8 @@
 .wo-table th { padding: 10px 14px; text-align: left; font-weight: 600; color: var(--text); border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; white-space: nowrap; position: relative; }
 .wo-table th:hover { color: var(--primary); }
 .wo-table th .sort-arrow { font-size: 10px; margin-left: 4px; opacity: 0.5; }
-.wo-table th.sorted-asc .sort-arrow::after { content: ' â–²'; opacity: 1; }
-.wo-table th.sorted-desc .sort-arrow::after { content: ' â–¼'; opacity: 1; }
+.wo-table th.sorted-asc .sort-arrow::after { content: ' ▲'; opacity: 1; }
+.wo-table th.sorted-desc .sort-arrow::after { content: ' ▼'; opacity: 1; }
 .wo-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text); white-space: nowrap; }
 .wo-table tbody tr { cursor: pointer; transition: background 150ms ease; }
 .wo-table tbody tr:hover { background: var(--bg-step); }
@@ -92,7 +92,7 @@
   <button class="wo-tab-logout" onclick="dashLogout()">Logout</button>
 </div>
 
-<div id="loading" class="wo-loading">Checking sessionâ€¦</div>
+<div id="loading" class="wo-loading">Checking session…</div>
 
 <div id="dashboard" style="display:none;">
   <div class="wo-main">
@@ -115,7 +115,7 @@
           <option value="low">Low</option>
         </select>
         <span class="wo-filter-label">Search:</span>
-        <input type="text" id="woSearchInput" placeholder="WO #, type, descriptionâ€¦" oninput="applyFilters()" style="flex:1;min-width:200px;">
+        <input type="text" id="woSearchInput" placeholder="WO #, type, description…" oninput="applyFilters()" style="flex:1;min-width:200px;">
       </div>
       <div class="section-heading">Work Orders <span class="section-heading-count" id="woCount">0 work orders</span></div>
       <div id="woTableContainer"></div>
@@ -212,13 +212,13 @@ function renderTable() {
     '<th onclick="onWoSort(\'created_at\')" class="sortable">Date <span class="sort-arrow"></span></th>' +
     '</tr></thead><tbody>';
   sorted.forEach(function(w) {
-    var date = w.created_at ? new Date(w.created_at).toLocaleDateString() : 'â€”';
+    var date = w.created_at ? new Date(w.created_at).toLocaleDateString() : '—';
     html += '<tr onclick="showDetail(\'' + w.id + '\')">' +
       '<td style="font-weight:600;">' + esc(w.wo_number||w.id.slice(0,8)) + '</td>' +
       '<td>' + esc((w.wo_type||'').replace(/_/g,' ')) + '</td>' +
       '<td><span class="wo-priority ' + (w.priority||'low') + '">' + esc(w.priority||'low') + '</span></td>' +
       '<td><span class="wo-status ' + (w.status||'open') + '">' + esc(w.status||'open') + '</span></td>' +
-      '<td>' + esc(w.assigned_to||'â€”') + '</td>' +
+      '<td>' + esc(w.assigned_to||'—') + '</td>' +
       '<td>' + date + '</td>' +
     '</tr>';
   });
@@ -245,7 +245,7 @@ function updateWoSortIndicators() {
 async function showDetail(id) {
   document.getElementById('woListView').style.display = 'none';
   document.getElementById('woDetailView').style.display = '';
-  document.getElementById('woDetail').innerHTML = '<div class="wo-loading">Loadingâ€¦</div>';
+  document.getElementById('woDetail').innerHTML = '<div class="wo-loading">Loading…</div>';
   try {
     const resp = await fetch('/api/work-orders/' + id);
     const data = await resp.json();
@@ -270,14 +270,14 @@ async function showDetail(id) {
         html += '<div class="wo-detail">';
         html += items.map(i => {
           const done = i.status === 'completed';
-          return '<div class="wo-checklist-item"><div class="wo-check-icon ' + (done?'completed':'') + '">' + (done?'âœ“':'') + '</div><div class="wo-check-text ' + (done?'completed':'') + '">' + esc(i.item_text||'') + '</div></div>';
+          return '<div class="wo-checklist-item"><div class="wo-check-icon ' + (done?'completed':'') + '">' + (done?'✓':'') + '</div><div class="wo-check-text ' + (done?'completed':'') + '">' + esc(i.item_text||'') + '</div></div>';
         }).join('');
         html += '</div>';
       }
       if (parts.length > 0) {
         html += '<div class="section-title">Parts</div>';
         html += '<div class="wo-detail">';
-        html += parts.map(p => '<div class="wo-parts">' + (p.quantity||1) + 'Ã— ' + esc(p.description||p.part_number||'') + (p.part_number?' ['+esc(p.part_number)+']':'') + '</div>').join('');
+        html += parts.map(p => '<div class="wo-parts">' + (p.quantity||1) + '× ' + esc(p.description||p.part_number||'') + (p.part_number?' ['+esc(p.part_number)+']':'') + '</div>').join('');
         html += '</div>';
       }
       document.getElementById('woDetail').innerHTML = html;

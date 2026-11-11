@@ -1,10 +1,17 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DRIVâ€‘EN | Log Fuel Transfer</title>
+<title>DRIV‑EN | Log Fuel Transfer</title>
 <meta name="robots" content="noindex, nofollow">
+
+<!-- PWA Web App Manifest and Theme Configuration -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1d4ed8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
 <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
 <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
 <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
@@ -13,19 +20,30 @@
 <link rel="stylesheet" href="/app/shared/dashboard.css?v=12">
 <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
 
-<script>
-(function() {
-  var saved = localStorage.getItem("driven-theme");
-  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  var theme = saved || system;
-  document.documentElement.setAttribute("data-theme", theme);
-})();
-</script>
-
 <style>
 .ft-loading{display:flex;align-items:center;justify-content:center;height:60vh;font-size:16px;color:var(--text-muted);}
 .dash-header-row1 { padding: 8px 20px !important; align-items: center; }
-.ft-tab-bar { display: flex; gap: 2px; max-width: 1100px; margin: 0 auto; padding: 0 20px; overflow-x: auto; position: relative; z-index: 1; background: #cbd5e1; border-bottom: 2px solid #94a3b8; }
+
+/* Sticky Tab Bar */
+.ft-tab-bar { 
+  display: flex !important; 
+  gap: 2px; 
+  max-width: 1100px; 
+  margin: 0 auto; 
+  padding: 0 20px; 
+  overflow-x: auto; 
+  position: -webkit-sticky !important;
+  position: sticky !important; 
+  top: 0px;
+  z-index: 99999 !important; 
+  background: #cbd5e1; 
+  border-bottom: 2px solid #94a3b8; 
+}
+:root[data-theme="dark"] .ft-tab-bar { 
+  background: #334155; 
+  border-bottom-color: #475569; 
+}
+
 .ft-tab-home { background: #1d4ed8; border: 1px solid #2563eb; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; margin-left: auto; position: relative; z-index: 1; transition: background 200ms ease, margin-top 200ms ease; text-decoration: none; display: inline-block; }
 .ft-tab-home:hover { background: #2563eb; margin-top: 2px; }
 .ft-tab-logout { background: #b91c1c; border: 1px solid #dc2626; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; margin-left: 0; position: relative; z-index: 1; transition: background 200ms ease, margin-top 200ms ease; }
@@ -61,9 +79,30 @@
   .ft-two-col { grid-template-columns: 1fr; }
   .ft-main { padding: 0 12px; margin: 12px auto; }
 }
+.location-banner { border-radius: 8px; margin: 12px 20px; padding: 10px 16px; font-size: 13px; line-height: 1.5; }
+.location-banner.ok { background: #dcfce7; border: 1px solid #16a34a; color: #15803d; }
+.location-banner.warn { background: #fef3c7; border: 1px solid #fcd34d; color: #78350f; }
+.location-banner strong { color: inherit; }
+
+.fuel-photo-section { margin-bottom: 20px; }
+.fuel-photo-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px; }
+.fuel-photo-box { border: 2px dashed var(--border); border-radius: 10px; padding: 20px; text-align: center; transition: border-color 200ms; }
+.fuel-photo-box:hover { border-color: var(--primary); }
+.fuel-photo-box.required { border-color: #f59e0b; }
+.fuel-photo-label { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.fuel-photo-label .req { color: #f59e0b; }
+.fuel-photo-hint { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+.fuel-photo-preview { margin-top: 12px; }
+.fuel-photo-preview img { max-width: 200px; max-height: 200px; border-radius: 8px; border: 1px solid var(--border); }
+.fuel-photo-btn { background: var(--primary); color: #fff; border: none; border-radius: 6px; padding: 8px 18px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.fuel-photo-btn:hover { opacity: 0.9; }
+.fuel-photo-remove { background: transparent; border: 1px solid var(--error); color: var(--error); border-radius: 6px; padding: 6px 14px; font-size: 12px; cursor: pointer; margin-top: 8px; }
+.fuel-photo-remove:hover { background: var(--error); color: #fff; }
+.fuel-photo-required-banner { background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 10px 16px; margin-bottom: 16px; font-size: 13px; color: #92400e; line-height: 1.5; }
+@media (max-width: 600px) { .fuel-photo-row { grid-template-columns: 1fr; } }
 </style>
 </head>
-<body data-page-title="Log Fuel Transfer" data-required-permission="fuel.add">
+<body>
 
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
@@ -72,117 +111,154 @@
 
 <div class="ft-tab-bar">
   <a class="ft-tab-home" id="dashHomeLink" href="/app/dashboard/employee-dashboard.html">Dashboard</a>
-  <button class="ft-tab-logout" onclick="dashLogout()">Logout</button>
+  <button type="button" class="ft-tab-logout" onclick="dashLogout()">Logout</button>
 </div>
 
-<div id="loading" class="ft-loading">Checking sessionâ€¦</div>
+<div id="loading" class="ft-loading">Checking session…</div>
 
 <div id="dashboard" style="display:none;">
+
+  <div id="locationPopupOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:var(--bg-card, #fff);border-radius:12px;padding:24px;max-width:500px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+      <h3 style="margin:0 0 16px;font-size:18px;color:#cc0000;">⚠️ Device Location Required</h3>
+      <div id="locationPopupMessage"></div>
+      <div style="display:flex;gap:12px;margin-top:16px;justify-content:flex-end;">
+        <button type="button" onclick="closeLocationPopup()" style="padding:10px 20px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:14px;">Close</button>
+        <button type="button" onclick="closeLocationPopup();checkDeviceLocation();" style="padding:10px 24px;border:none;border-radius:6px;background:#1d4ed8;color:#fff;cursor:pointer;font-size:14px;font-weight:600;">Retry Location</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="locationStatusBanner" class="location-banner warn" style="display:none;margin:0 auto;max-width:1100px;padding:10px 20px;font-size:13px;"></div>
+
   <div class="ft-main">
 
-    <div id="errorBanner" class="ft-error-banner"></div>
+    <div id="errorBanner" class="ft-error-banner" role="alert"></div>
 
-    <!-- ===== FORM VIEW ===== -->
     <div id="formView">
       <div class="ft-card">
         <h2>Log Fuel Transfer</h2>
 
         <!-- FROM -->
         <div class="ft-row">
-          <label>From (source) <span class="req">*</span></label>
-          <select id="fromSource" onchange="onFromChange()" required>
-            <option value="">Select sourceâ€¦</option>
+          <label for="fromSource">From (select the tank or can) <span class="req">*</span></label>
+          <select id="fromSource" onchange="onFromChange()" required aria-required="true">
+            <option value="">Select source…</option>
             <option value="bulk_tank">Bulk Tank</option>
             <option value="dragup_tank">Drag-Up Tank</option>
             <option value="portable_can">Portable Gas Can</option>
+            <option value="asset">Equipment / Asset</option>
           </select>
         </div>
 
         <div class="ft-row" id="fromTankRow" style="display:none;">
-          <label>Which Tank? <span class="req">*</span></label>
+          <label for="fromTank">Which Tank? <span class="req">*</span></label>
           <select id="fromTank" onchange="onFromTankChange()"></select>
           <div class="ft-tank-info" id="fromTankInfo"></div>
         </div>
 
-        <div class="ft-arrow">â†“</div>
+        <div class="ft-row" id="fromAssetRow" style="display:none;">
+          <label for="fromAsset">Which Equipment? <span class="req">*</span></label>
+          <select id="fromAsset" onchange="onFromAssetChange()"></select>
+          <div class="ft-tank-info" id="fromAssetInfo"></div>
+        </div>
+
+        <div class="ft-arrow" aria-hidden="true">↓</div>
 
         <!-- TO -->
         <div class="ft-row">
-          <label>To (destination) <span class="req">*</span></label>
-          <select id="toDest" onchange="onToChange()" required>
-            <option value="">Select destinationâ€¦</option>
+          <label for="toDest">Asset being Fueled <span class="req">*</span></label>
+          <select id="toDest" onchange="onToChange()" required aria-required="true">
+            <option value="">Select destination…</option>
           </select>
         </div>
 
-        <div class="ft-row" id="toTankRow" style="display:none;">
-          <label>Which Tank? <span class="req">*</span></label>
-          <select id="toTank"></select>
-          <div class="ft-tank-info" id="toTankInfo"></div>
-        </div>
-
-        <div class="ft-row" id="toAssetRow" style="display:none;">
-          <label>Which Equipment? <span class="req">*</span></label>
-          <select id="toAsset"></select>
+        <!-- METER READING FOR ASSET BEING FUELED -->
+        <div class="ft-row" id="meterReadingRow" style="display:none;">
+          <label for="meterReading">Meter Reading (Hours / Miles) <span class="req">*</span></label>
+          <input type="number" id="meterReading" step="0.1" min="0" placeholder="e.g. 1250.5" oninput="markFormDirty()">
+          <div class="hint">Current odometer or hour meter reading of the asset being fueled</div>
         </div>
 
         <div class="ft-two-col">
           <div class="ft-row">
-            <label>Quantity (gallons) <span class="req">*</span></label>
-            <input type="number" id="quantity" step="0.01" min="0.01" placeholder="0.00" required>
+            <label for="quantity">Quantity (gallons) <span class="req">*</span></label>
+            <input type="number" id="quantity" step="0.01" min="0.01" placeholder="0.00" required aria-required="true" oninput="markFormDirty()">
           </div>
           <div class="ft-row">
-            <label>Date <span class="req">*</span></label>
-            <input type="date" id="txDate" required>
+            <label for="txDate">Date <span class="req">*</span></label>
+            <input type="date" id="txDate" required aria-required="true" onchange="revalidateExifDates()">
           </div>
         </div>
 
         <div class="ft-row">
-          <label>Fuel Type <span class="req">*</span></label>
-          <select id="fuelType" required>
-            <option value="">Select fuel typeâ€¦</option>
-            <option value="gasoline">Gasoline</option>
-            <option value="diesel">Diesel</option>
-            <option value="def">DEF</option>
-            <option value="propane">Propane</option>
-            <option value="other">Other</option>
+          <label for="fuelType">Fuel Type <span class="req">*</span></label>
+          <select id="fuelType" required aria-required="true" onchange="markFormDirty()">
+            <option value="">Select fuel type…</option>
           </select>
         </div>
 
         <div class="ft-two-col">
+          <!-- PROJECT (OPTIONAL) -->
           <div class="ft-row">
-            <label>Project (optional)</label>
-            <select id="project">
-              <option value="">No projectâ€¦</option>
+            <label for="project">Project (optional)</label>
+            <select id="project" onchange="markFormDirty()">
+              <option value="">Select project…</option>
             </select>
           </div>
           <div class="ft-row">
-            <label>Location (optional)</label>
-            <input type="text" id="location" placeholder="Where this happened">
+            <label for="location">Location (optional)</label>
+            <select id="location" onchange="markFormDirty()">
+              <option value="">Select location…</option>
+            </select>
           </div>
         </div>
 
         <div class="ft-row">
-          <label>Notes (optional)</label>
-          <textarea id="notes" placeholder="Any additional detailsâ€¦"></textarea>
+          <label for="notes">Notes (optional)</label>
+          <textarea id="notes" placeholder="Any additional details…" oninput="markFormDirty()"></textarea>
+        </div>
+
+        <div class="fuel-photo-section" id="fuelPhotoSection" style="display:none;">
+          <div class="fuel-photo-required-banner" id="fuelPhotoBanner">
+            📸 Your organization requires photos with fuel transfers. Please take the required photos below before submitting.
+          </div>
+          <div class="fuel-photo-row">
+            <div class="fuel-photo-box" id="meterPhotoBox" style="display:none;">
+              <div class="fuel-photo-label">Meter Photo <span class="req">*</span></div>
+              <div class="fuel-photo-hint">Photo of the meter/gauge showing the quantity transferred</div>
+              <input type="file" id="meterPhotoInput" accept="image/jpeg,image/png" capture="environment" style="display:none;" onchange="handleFuelPhotoUpload(this, 'meter')">
+              <button type="button" class="fuel-photo-btn" onclick="document.getElementById('meterPhotoInput').click()">📷 Take Photo</button>
+              <div class="fuel-photo-preview" id="meterPhotoPreview"></div>
+              <button type="button" class="fuel-photo-remove" id="meterPhotoRemove" style="display:none;" onclick="removeFuelPhoto('meter')">Remove Photo</button>
+            </div>
+            <div class="fuel-photo-box" id="assetPhotoBox" style="display:none;">
+              <div class="fuel-photo-label">Asset Photo <span class="req">*</span></div>
+              <div class="fuel-photo-hint">Photo of the asset/equipment receiving fuel</div>
+              <input type="file" id="assetPhotoInput" accept="image/jpeg,image/png" capture="environment" style="display:none;" onchange="handleFuelPhotoUpload(this, 'asset')">
+              <button type="button" class="fuel-photo-btn" onclick="document.getElementById('assetPhotoInput').click()">📷 Take Photo</button>
+              <div class="fuel-photo-preview" id="assetPhotoPreview"></div>
+              <button type="button" class="fuel-photo-remove" id="assetPhotoRemove" style="display:none;" onclick="removeFuelPhoto('asset')">Remove Photo</button>
+            </div>
+          </div>
         </div>
 
         <div class="ft-btn-row">
-          <button class="ft-cancel-btn" onclick="goBack()">Cancel</button>
-          <button class="ft-submit-btn" id="submitBtn" onclick="submitTransfer()">Log Transfer</button>
+          <button type="button" class="ft-cancel-btn" onclick="goBack()">Cancel</button>
+          <button type="button" class="ft-submit-btn" id="submitBtn" onclick="submitTransfer(event)">Log Transfer</button>
         </div>
 
         <div class="ft-alt-link">
-          <a href="/app/forms/fuel-purchase.html">Log a fuel purchase instead â†’</a>
+          <a id="fuelPurchaseLink" href="/app/forms/fuel-purchase.html">Log a fuel purchase instead →</a>
         </div>
       </div>
     </div>
 
-    <!-- ===== SUCCESS VIEW ===== -->
     <div id="successView" style="display:none;">
       <div class="ft-card ft-success">
-        <h3>âœ“ Transfer Logged</h3>
+        <h3>✓ Transfer Logged</h3>
         <p id="successMsg"></p>
-        <button class="ft-again-btn" onclick="resetForm()">Log Another Transfer</button>
+        <button type="button" class="ft-again-btn" onclick="resetForm()">Log Another Transfer</button>
       </div>
     </div>
 
@@ -191,360 +267,10 @@
 
 <div id="dashFooter"></div>
 
+<!-- SCRIPT LOADING ORDER: auth-check.js loaded before fuel-transfer.js -->
 <script src="/app/shared/dashboard-common.js?v=16"></script>
-
-<script>
-var allTanks = [];
-var allAssets = [];
-
-function esc(s) {
-  if (!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
-
-  var row1 = document.querySelector('.dash-header-row1');
-    var title = document.createElement('div');
-    title.textContent = 'Log Fuel Transfer';
-    var logoArea = document.getElementById('dashCustomerLogoArea');
-    var drivenLogo = row1.querySelector('.dash-driven-logo');
-    if (logoArea && drivenLogo) row1.insertBefore(title, drivenLogo);
-  }
-}
-
-window.dashLogout = function() {
-  try { fetch('/auth/logout', { method: 'POST' }); } catch (e) {}
-  window.location.href = '/public/login.html';
-};
-
-function goBack() {
-  var role = (window.dashUser && window.dashUser.role || '').toLowerCase();
-  window.location.href = role === 'admin' ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
-}
-
-function showError(msg) {
-  var el = document.getElementById('errorBanner');
-  if (!msg) { el.style.display = 'none'; return; }
-  el.textContent = msg;
-  el.style.display = 'block';
-}
-
-// Set today's date
-document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
-
-// ===== LOAD DATA =====
-async function loadTanks() {
-  try {
-    var resp = await fetch('/api/fuel-tanks');
-    var data = await resp.json();
-    if (data.success && data.tanks) {
-      allTanks = data.tanks;
-    }
-  } catch (e) {
-    console.error('Failed to load tanks:', e);
-  }
-}
-
-async function loadAssets() {
-  try {
-    var resp = await fetch('/api/equipment');
-    var data = await resp.json();
-    if (data.success && data.equipment) {
-      allAssets = data.equipment;
-    }
-  } catch (e) {
-    console.error('Failed to load equipment:', e);
-  }
-}
-
-async function loadProjects() {
-  try {
-    var resp = await fetch('/api/projects');
-    var data = await resp.json();
-    if (data.success && data.projects) {
-      var select = document.getElementById('project');
-      data.projects.forEach(function(p) {
-        var opt = document.createElement('option');
-        opt.value = p.id;
-        opt.textContent = p.name || p.project_name || p.id;
-        select.appendChild(opt);
-      });
-    }
-  } catch (e) {}
-}
-
-// ===== FROM SOURCE LOGIC =====
-function onFromChange() {
-  var fromType = document.getElementById('fromSource').value;
-  var fromTankRow = document.getElementById('fromTankRow');
-  var fromTank = document.getElementById('fromTank');
-
-  // Reset
-  fromTank.innerHTML = '';
-  document.getElementById('fromTankInfo').textContent = '';
-
-  if (!fromType) {
-    fromTankRow.style.display = 'none';
-  } else {
-    fromTankRow.style.display = 'block';
-    // Populate tanks matching the selected type
-    var tankType = fromType.replace('_tank', '').replace('_can', '');
-    var matching = allTanks.filter(function(t) {
-      if (tankType === 'portable') return t.tank_type === 'portable';
-      if (tankType === 'bulk') return t.tank_type === 'bulk';
-      if (tankType === 'dragup') return t.tank_type === 'dragup';
-      return false;
-    });
-    if (matching.length === 0) {
-      fromTank.innerHTML = '<option value="">No tanks of this type available</option>';
-    } else {
-      fromTank.innerHTML = '<option value="">Select tankâ€¦</option>';
-      matching.forEach(function(t) {
-        var opt = document.createElement('option');
-        opt.value = t.id;
-        opt.textContent = t.name + ' â€” ' + (t.current_quantity||0) + '/' + (t.capacity||0) + ' gal (' + (t.fuel_type||'?') + ')';
-        opt.dataset.fuelType = t.fuel_type || '';
-        fromTank.appendChild(opt);
-      });
-    }
-  }
-
-  updateToOptions();
-}
-
-function onFromTankChange() {
-  var fromTank = document.getElementById('fromTank');
-  var selected = fromTank.selectedOptions[0];
-  var info = document.getElementById('fromTankInfo');
-  if (selected && selected.value) {
-    var fuelType = selected.dataset.fuelType;
-    if (fuelType) {
-      info.textContent = 'Fuel type: ' + fuelType;
-      // Auto-fill fuel type
-      var fuelSelect = document.getElementById('fuelType');
-      for (var i = 0; i < fuelSelect.options.length; i++) {
-        if (fuelSelect.options[i].value === fuelType) {
-          fuelSelect.selectedIndex = i;
-          break;
-        }
-      }
-    }
-  } else {
-    info.textContent = '';
-  }
-}
-
-// ===== TO DESTINATION LOGIC =====
-function updateToOptions() {
-  var fromType = document.getElementById('fromSource').value;
-  var toSelect = document.getElementById('toDest');
-
-  toSelect.innerHTML = '<option value="">Select destinationâ€¦</option>';
-
-  // Valid destinations based on source:
-  // bulk_tank â†’ asset, dragup_tank, portable_can
-  // dragup_tank â†’ asset, portable_can
-  // portable_can â†’ asset
-
-  if (fromType === 'bulk_tank') {
-    toSelect.innerHTML += '<option value="asset">Equipment / Asset</option>';
-    toSelect.innerHTML += '<option value="dragup_tank">Drag-Up Tank</option>';
-    toSelect.innerHTML += '<option value="portable_can">Portable Gas Can</option>';
-  } else if (fromType === 'dragup_tank') {
-    toSelect.innerHTML += '<option value="asset">Equipment / Asset</option>';
-    toSelect.innerHTML += '<option value="portable_can">Portable Gas Can</option>';
-  } else if (fromType === 'portable_can') {
-    toSelect.innerHTML += '<option value="asset">Equipment / Asset</option>';
-  }
-
-  onToChange();
-}
-
-function onToChange() {
-  var toType = document.getElementById('toDest').value;
-  var toTankRow = document.getElementById('toTankRow');
-  var toAssetRow = document.getElementById('toAssetRow');
-  var toTank = document.getElementById('toTank');
-  var toAsset = document.getElementById('toAsset');
-
-  toTank.innerHTML = '';
-  toAsset.innerHTML = '';
-  toTankRow.style.display = 'none';
-  toAssetRow.style.display = 'none';
-
-  if (toType === 'dragup_tank' || toType === 'portable_can') {
-    toTankRow.style.display = 'block';
-    var tankType = toType === 'dragup_tank' ? 'dragup' : 'portable';
-    var matching = allTanks.filter(function(t) { return t.tank_type === tankType; });
-    if (matching.length === 0) {
-      toTank.innerHTML = '<option value="">No tanks of this type available</option>';
-    } else {
-      toTank.innerHTML = '<option value="">Select tankâ€¦</option>';
-      matching.forEach(function(t) {
-        var opt = document.createElement('option');
-        opt.value = t.id;
-        opt.textContent = t.name + ' â€” ' + (t.current_quantity||0) + '/' + (t.capacity||0) + ' gal';
-        toTank.appendChild(opt);
-      });
-    }
-  } else if (toType === 'asset') {
-    toAssetRow.style.display = 'block';
-    if (allAssets.length === 0) {
-      toAsset.innerHTML = '<option value="">No equipment available</option>';
-    } else {
-      toAsset.innerHTML = '<option value="">Select equipmentâ€¦</option>';
-      allAssets.forEach(function(a) {
-        var opt = document.createElement('option');
-        opt.value = a.id;
-        opt.textContent = (a.asset_number || a.id.slice(0,8)) + ' â€” ' + (a.name || 'Unnamed');
-        toAsset.appendChild(opt);
-      });
-    }
-  }
-}
-
-// ===== MAP TO TRANSACTION TYPE =====
-function getTransactionType(fromType, toType) {
-  // bulk_tank â†’ asset = bulk_issue
-  // bulk_tank â†’ dragup_tank = dragup_fill
-  // bulk_tank â†’ portable_can = portable_fill
-  // dragup_tank â†’ asset = dragup_issue
-  // dragup_tank â†’ portable_can = portable_fill
-  // portable_can â†’ asset = portable_issue
-  if (fromType === 'bulk_tank' && toType === 'asset') return 'bulk_issue';
-  if (fromType === 'bulk_tank' && toType === 'dragup_tank') return 'dragup_fill';
-  if (fromType === 'bulk_tank' && toType === 'portable_can') return 'portable_fill';
-  if (fromType === 'dragup_tank' && toType === 'asset') return 'dragup_issue';
-  if (fromType === 'dragup_tank' && toType === 'portable_can') return 'portable_fill';
-  if (fromType === 'portable_can' && toType === 'asset') return 'portable_issue';
-  return null;
-}
-
-// ===== SUBMIT =====
-async function submitTransfer() {
-  showError('');
-
-  var fromType = document.getElementById('fromSource').value;
-  var fromTankId = document.getElementById('fromTank').value;
-  var toType = document.getElementById('toDest').value;
-  var toTankId = document.getElementById('toTank').value;
-  var toAssetId = document.getElementById('toAsset').value;
-  var quantity = parseFloat(document.getElementById('quantity').value);
-  var txDate = document.getElementById('txDate').value;
-  var fuelType = document.getElementById('fuelType').value;
-  var projectId = document.getElementById('project').value;
-  var location = document.getElementById('location').value.trim();
-  var notes = document.getElementById('notes').value.trim();
-
-  // Validation
-  if (!fromType) { showError('Please select a source.'); return; }
-  if (!fromTankId) { showError('Please select which tank the fuel is coming from.'); return; }
-  if (!toType) { showError('Please select a destination.'); return; }
-  if (!quantity || quantity <= 0) { showError('Please enter a valid quantity.'); return; }
-  if (!txDate) { showError('Please select a date.'); return; }
-  if (!fuelType) { showError('Please select a fuel type.'); return; }
-
-  if ((toType === 'dragup_tank' || toType === 'portable_can') && !toTankId) {
-    showError('Please select which tank the fuel is going into.'); return;
-  }
-  if (toType === 'asset' && !toAssetId) {
-    showError('Please select which equipment is being fueled.'); return;
-  }
-
-  var txType = getTransactionType(fromType, toType);
-  if (!txType) {
-    showError('Invalid transfer combination. Please check your selections.');
-    return;
-  }
-
-  var submitBtn = document.getElementById('submitBtn');
-  submitBtn.disabled = true;
-  submitBtn.textContent = 'Savingâ€¦';
-
-  try {
-    var body = {
-      transaction_type: txType,
-      fuel_type: fuelType,
-      quantity: quantity,
-      transaction_date: txDate,
-      from_entity_type: fromType,
-      from_entity_id: fromTankId,
-      to_entity_type: toType,
-      to_entity_id: toType === 'asset' ? toAssetId : toTankId,
-      project_id: projectId || null,
-      location: location || null,
-      notes: notes || null
-    };
-    if (toType === 'asset') body.asset_id = toAssetId;
-
-    var resp = await fetch('/api/fuel-transactions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-
-    var data = await resp.json();
-
-    if (data.success) {
-      document.getElementById('formView').style.display = 'none';
-      document.getElementById('successView').style.display = 'block';
-      var fromName = document.getElementById('fromTank').selectedOptions[0].textContent.split(' â€”')[0];
-      var toName = '';
-      if (toType === 'asset') {
-        toName = document.getElementById('toAsset').selectedOptions[0].textContent;
-      } else {
-        toName = document.getElementById('toTank').selectedOptions[0].textContent.split(' â€”')[0];
-      }
-      document.getElementById('successMsg').textContent =
-        quantity + ' gallons of ' + fuelType + ' transferred from ' + fromName + ' to ' + toName;
-    } else {
-      showError(data.error || 'Failed to log transfer. Please try again.');
-    }
-  } catch (e) {
-    showError('Network error: ' + e.message);
-  } finally {
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Log Transfer';
-  }
-}
-
-function resetForm() {
-  document.getElementById('formView').style.display = 'block';
-  document.getElementById('successView').style.display = 'none';
-  document.getElementById('fromSource').value = '';
-  document.getElementById('fromTank').innerHTML = '';
-  document.getElementById('fromTankRow').style.display = 'none';
-  document.getElementById('toDest').innerHTML = '<option value="">Select destinationâ€¦</option>';
-  document.getElementById('toTank').innerHTML = '';
-  document.getElementById('toTankRow').style.display = 'none';
-  document.getElementById('toAsset').innerHTML = '';
-  document.getElementById('toAssetRow').style.display = 'none';
-  document.getElementById('quantity').value = '';
-  document.getElementById('fuelType').value = '';
-  document.getElementById('location').value = '';
-  document.getElementById('notes').value = '';
-  document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
-  showError('');
-}
-
-document.addEventListener('dashSessionLoaded', async function() {
-  var user = window.dashUser;
-  if (!user) { window.location.href = '/public/login.html'; return; }
-
-  var role = (user.role || '').toLowerCase();
-  var dashUrl = role === 'admin' ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
-  var homeLink = document.getElementById('dashHomeLink');
-  if (homeLink) homeLink.href = dashUrl;
-
-  document.getElementById('loading').style.display = 'none';
-  document.getElementById('dashboard').style.display = 'block';
-
-  await loadTanks();
-  await loadAssets();
-  loadProjects();
-});
-</script>
-
-<script src="/app/shared/auth-check.js?v=8"></script>
+<script src="/app/shared/auth-check.js?v=13"></script>
+<script src="/app/shared/fuel-transfer.js?v=1"></script>
 <script src="/components/nav.js?v=5"></script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" data-cf-beacon='{"token":"aed8feab3b60404ba88ec92f026bbcd6"}' crossorigin="anonymous"></script>
 </body>

@@ -587,6 +587,7 @@ async function startAdminApp(user) {
   activeOrgId = user.org_id || user.customer_id || '';
   if (!activeOrgId || activeOrgId === 'default_org' || activeOrgId === 'null') { adminAppStarted = true; window.location.href = '/public/login.html'; return; }
   adminAppStarted = true;
+  try {
   if (!user.id && user.user_id) user.id = user.user_id;
   var userStr = JSON.stringify(user); var userRole = user.role || user.role_id || '';
   localStorage.setItem('driven_org_id', activeOrgId); localStorage.setItem('driven_user', userStr);
@@ -601,7 +602,7 @@ async function startAdminApp(user) {
   var elRole = document.getElementById('welcome-role'); if (elRole) elRole.textContent = user.role || user.role_id || '';
   var elMail = document.getElementById('welcome-email'); if (elMail) elMail.textContent = user.email || '';
   try { injectGlobalUIStyles(); attachEventHandlers(); } catch (e) { reportError('startAdminApp-init', e); }
-  // Show dashboard even if init had errors — don't leave user staring at blank page
+  } catch (e2) { reportError('startAdminApp-outer', e2); } finally {
   var loadingEl = document.getElementById('loading'); var dashEl = document.getElementById('dashboard');
   if (loadingEl) loadingEl.style.display = 'none'; if (dashEl) dashEl.style.display = 'block';
   adjustStickyOffsets();
@@ -611,6 +612,7 @@ async function startAdminApp(user) {
   updateProgress(); updateThemeSwitch(); renderFormsTab();
   await loadDashboardStats().catch(function(e) { reportError('init-loadDashboardStats', e); });
   setTimeout(function() { loadDashboardStats().catch(function(e) { reportError('init-loadDashboardStats-retry', e); }); }, 1000);
+  }
 }
 
 async function init() {
@@ -633,4 +635,5 @@ async function init() {
   window.addEventListener('load', function() { if (!adminAppStarted) { var u = window.dashUser || window.drivenUser || getUserFromStorage(); if (u) startAdminApp(u); } });
 }
 
+setTimeout(function() { if (!adminAppStarted) { var l = document.getElementById('loading'); var d = document.getElementById('dashboard'); if (l) l.style.display = 'none'; if (d) d.style.display = 'block'; } }, 5000);
 init();
