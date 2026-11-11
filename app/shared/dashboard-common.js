@@ -1,5 +1,5 @@
-/* ==========================================================================
-   DRIV‑EN DASHBOARD COMMON JS — Shared across all dashboard pages
+﻿/* ==========================================================================
+   DRIVâ€‘EN DASHBOARD COMMON JS â€” Shared across all dashboard pages
    ==========================================================================
    This file is loaded by every dashboard page via:
    <script src="/app/shared/dashboard-common.js?v=7"></script>
@@ -72,8 +72,8 @@
   /* ===== HELPER: Load an HTML component via fetch ===== */
   // Fetches an HTML file and injects it into a target element
   // Parameters:
-  //   elementId — the id of the DOM element to inject HTML into
-  //   file      — the URL of the HTML file to fetch
+  //   elementId â€” the id of the DOM element to inject HTML into
+  //   file      â€” the URL of the HTML file to fetch
   async function loadComponent(elementId, file) {
     try {
       var el = document.getElementById(elementId);
@@ -136,6 +136,19 @@
     var titleEl = document.getElementById("dashPageTitle");
     if (titleEl) titleEl.textContent = title;
   }
+  /* ===== WIRE HEADER EVENT LISTENERS (CSP compliant) ===== */
+  function wireHeaderEvents() {
+    var checkbox = document.getElementById("dashThemeCheckbox");
+    if (checkbox && !checkbox._drivenWired) {
+      checkbox.addEventListener("change", window.dashToggleTheme);
+      checkbox._drivenWired = true;
+    }
+    var logoutBtn = document.getElementById("dashLogoutBtn");
+    if (logoutBtn && !logoutBtn._drivenWired) {
+      logoutBtn.addEventListener("click", window.dashLogout);
+      logoutBtn._drivenWired = true;
+    }
+  }
 
   /* ===== LOAD CUSTOMER LOGO ===== */
   // Fetches the customer logo from D1 database via /auth/get-logo
@@ -152,7 +165,7 @@
       var logoRes = await fetch("/auth/get-logo");
       var logoData = await logoRes.json();
       if (logoData.success && logoData.logo) {
-        // Logo found in D1 — save to localStorage as cache
+        // Logo found in D1 â€” save to localStorage as cache
         localStorage.setItem("driven_customer_logo", logoData.logo);
         area.innerHTML = '<img src="' + logoData.logo + '" class="dash-customer-logo" alt="Company Logo">';
         return;
@@ -195,7 +208,7 @@
           var firstName = data.user.first_name || "";
           var orgName = data.user.org_name || "";
           if (firstName && orgName) {
-            greetingEl.innerHTML = "Welcome, <strong>" + firstName + "</strong> — " + escapeHtml(orgName);
+            greetingEl.innerHTML = "Welcome, <strong>" + firstName + "</strong> â€” " + escapeHtml(orgName);
           } else if (firstName) {
             greetingEl.innerHTML = "Welcome, <strong>" + firstName + "</strong>";
           } else {
@@ -215,8 +228,8 @@
         // ===== RESOLVE DASHBOARD BUTTON (return to main dashboard) =====
         // Sub-dashboards (fuel, transfers, work-orders, fuel-alerts) are accessed
         // by customer employees with permissions. The Dashboard button returns:
-        //   Admin role → admin.html
-        //   All other employees → employee-dashboard.html (permission-based)
+        //   Admin role â†’ admin.html
+        //   All other employees â†’ employee-dashboard.html (permission-based)
         var role = (data.user.role || '').toLowerCase();
         var dashUrl;
         if (role === 'admin') {
@@ -238,7 +251,7 @@
   }
 
   /* ===== INIT ===== */
-  // Main initialization — runs on DOMContentLoaded
+  // Main initialization â€” runs on DOMContentLoaded
   // 1. Load the shared dashboard header HTML
   // 2. Set the page title from body data-page-title
   // 3. Update the theme switch to match current theme
@@ -246,11 +259,11 @@
   // 5. Load the user session (greeting + org_id)
   async function init() {
     // Step 1: Load the shared header
-    await loadComponent("dashHeader", "/app/shared/dashboard-header.html");
+    await loadComponent("dashHeader", "/app/shared/dashboard-header.html?v=2026");
 
     // Step 2: Set the page title from <body data-page-title="...">
     setPageTitle();
-
+    wireHeaderEvents();
     // Step 3: Update theme switch to match current theme
     updateThemeSwitch();
 
@@ -312,10 +325,10 @@
     try {
       var resp = await fetch("/auth/refresh", { method: "POST", credentials: "include" });
       if (resp.ok) {
-        // Session cookie refreshed — schedule the next refresh
+        // Session cookie refreshed â€” schedule the next refresh
         scheduleSessionRefresh();
       } else {
-        // Refresh failed (e.g., refresh cookie also expired) — the next
+        // Refresh failed (e.g., refresh cookie also expired) â€” the next
         // /auth/session call will redirect to login.  Do nothing here.
         console.warn("Session refresh failed:", resp.status);
       }
@@ -327,7 +340,7 @@
   function onSessionActivity() {
     var now = Date.now();
     // Only reset the timer if the user has been active for a meaningful
-    // stretch — this prevents a single stray event from keeping the
+    // stretch â€” this prevents a single stray event from keeping the
     // session alive forever.
     if (now - lastSessionActivity > 60 * 1000) {
       lastSessionActivity = now;
@@ -357,3 +370,4 @@
   }
 
 })();
+
