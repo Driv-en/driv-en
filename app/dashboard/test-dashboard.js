@@ -9,7 +9,7 @@
 (function() {
   'use strict';
 
-  // Wait for the session to load, then log what we got
+  // Wait for the session to load, then fill the welcome card
   document.addEventListener('dashSessionLoaded', function(e) {
     var user = (e && e.detail) || window.dashUser;
     if (user) {
@@ -17,10 +17,37 @@
         name: user.first_name || '(no name)',
         email: user.email || '(no email)',
         role: user.role || user.role_id || '(no role)',
+        org: user.org_name || '(no org)',
         org_id: user.org_id || '(no org_id)'
       });
+
+      // Fill welcome card
+      var nameEl = document.getElementById('testWelcomeName');
+      var orgEl = document.getElementById('testWelcomeOrg');
+      var titleEl = document.getElementById('testWelcomeTitle');
+      var emailEl = document.getElementById('testWelcomeEmail');
+
+      var firstName = user.first_name || '';
+      var orgName = user.org_name || '';
+      var role = user.role || user.role_name || '';
+      var email = user.email || '';
+
+      if (nameEl) {
+        nameEl.textContent = firstName ? ('Welcome back, ' + firstName) : 'Welcome back';
+      }
+      if (orgEl) {
+        orgEl.textContent = orgName || '';
+      }
+      if (titleEl) {
+        titleEl.textContent = role || '—';
+      }
+      if (emailEl) {
+        emailEl.textContent = email || '—';
+      }
     } else {
       console.warn('[TestDashboard] No session — user may not be logged in');
+      var nameEl = document.getElementById('testWelcomeName');
+      if (nameEl) nameEl.textContent = 'Not logged in';
     }
   });
 
