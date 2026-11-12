@@ -734,10 +734,9 @@ async function startAdminApp(user) {
     sessionStorage.setItem('driven_org_id', activeOrgId); sessionStorage.setItem('driven_user', userStr);
     if (userRole) sessionStorage.setItem('driven_role', userRole); if (user.id) sessionStorage.setItem('driven_user_id', user.id);
     var firstName = user.first_name || user.email; var orgName = user.org_name || localStorage.getItem('driven_org_name') || '';
-    var welcomeEl = document.getElementById('welcome-name'); if (welcomeEl) { welcomeEl.textContent = firstName ? ('Welcome back, ' + firstName) : 'Welcome back'; }
+    var welcomeEl = document.getElementById('welcome-name'); if (welcomeEl) { welcomeEl.textContent = firstName ? ('Welcome back, ' + firstName + (orgName ? ' - ' + orgName : '')) : 'Welcome back'; }
     var accountNameEl = document.getElementById('account-name'); if (accountNameEl) { accountNameEl.textContent = user.first_name ? (user.first_name + ' ' + (user.last_name || '')) : user.email; }
     var emailEl = document.getElementById('account-email'); if (emailEl) emailEl.textContent = user.email || '';
-    var elComp = document.getElementById('welcome-company'); if (elComp) elComp.textContent = orgName;
     var elRole = document.getElementById('welcome-role'); if (elRole) elRole.textContent = user.role || user.role_id || '';
     var elMail = document.getElementById('welcome-email'); if (elMail) elMail.textContent = user.email || '';
     try { injectGlobalUIStyles(); attachEventHandlers(); } catch (e) { reportError('startAdminApp-init', e); }
