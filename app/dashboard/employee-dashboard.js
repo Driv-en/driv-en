@@ -617,19 +617,60 @@ async function dashLogout() {
 window.dashLogout = dashLogout;
 
 /* ===== STANDARDIZED MODALS ===== */
+
+// Tab-specific Purpose & Instructions content (matches admin dashboard pattern)
+var MODAL_CONTENT_MAP = {
+  overview: {
+    purpose: 'The <strong>Overview Tab</strong> provides a snapshot of your active operational metrics, authorized module access, and quick-launch gateways to field tools based on your assigned permissions.',
+    instructions: '<ol><li><strong>Monitor Your Metrics:</strong> View live counts for your assigned Projects, Equipment, Work Orders, and Transfers.</li><li><strong>Launch Modules:</strong> Click any module card in the grid to open the corresponding tool (e.g., Fuel Log, Work Orders, Inspections).</li><li><strong>Account Management:</strong> Review your logged-in credentials and use <strong>Change Password</strong> to update your account.</li><li><strong>Units of Measure:</strong> Use the <strong>Units of Measure</strong> dropdown in the welcome bar to switch between Imperial and Metric display. Choose <em>Use Org Default</em> to follow the admin\'s setting.</li></ol>'
+  },
+  forms: {
+    purpose: 'The <strong>Forms Tab</strong> centralizes quick-access to operational submission tools, compliance records, safety inspections, and field data entry workflows available to your role.',
+    instructions: '<ol><li><strong>Select a Form:</strong> Click on the targeted form card (e.g., <em>DVIR Pre-Use Inspection</em>, <em>Log Fuel Purchase</em>, <em>Create Work Order</em>) to open the form.</li><li><strong>Complete Field Requirements:</strong> Fill in mandatory equipment identifiers, readings, checklist inspections, or photo attachments as required.</li><li><strong>Submit &amp; Sync:</strong> Submit the completed document to store the record in the cloud and update asset audit trails. Submissions made offline will sync automatically when connectivity is restored.</li></ol>'
+  }
+};
+
+function getActiveContext() {
+  var activeTab = document.querySelector('.emp-tab.active[data-tab]');
+  if (activeTab) {
+    var tabKey = activeTab.getAttribute('data-tab');
+    if (MODAL_CONTENT_MAP[tabKey]) return tabKey;
+  }
+  return 'overview';
+}
+
+function getContextTitle(key) {
+  var labels = { overview: 'Overview', forms: 'Forms Module' };
+  return labels[key] || 'Dashboard';
+}
+
 function initStandardModals() {
-  var btnPurpose = document.getElementById('btnPurposeHelp');
-  var btnInstructions = document.getElementById('btnInstructionsHelp');
+  var btnPurpose = document.getElementById('btnTabPurpose');
+  var btnInstructions = document.getElementById('btnTabInstructions');
   var purposeModal = document.getElementById('purposeModal');
   var instructionsModal = document.getElementById('instructionsModal');
 
   if (btnPurpose && purposeModal) {
     btnPurpose.addEventListener('click', function () {
+      var contextKey = getActiveContext();
+      var title = getContextTitle(contextKey);
+      var content = MODAL_CONTENT_MAP[contextKey] || MODAL_CONTENT_MAP.overview;
+      var mpt = document.getElementById('purposeModalTitle');
+      var mpb = document.getElementById('purposeModalBody');
+      if (mpt) mpt.textContent = title + ' - Purpose';
+      if (mpb) mpb.innerHTML = content.purpose;
       openModal(purposeModal);
     });
     btnPurpose.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
+        var contextKey = getActiveContext();
+        var title = getContextTitle(contextKey);
+        var content = MODAL_CONTENT_MAP[contextKey] || MODAL_CONTENT_MAP.overview;
+        var mpt = document.getElementById('purposeModalTitle');
+        var mpb = document.getElementById('purposeModalBody');
+        if (mpt) mpt.textContent = title + ' - Purpose';
+        if (mpb) mpb.innerHTML = content.purpose;
         openModal(purposeModal);
       }
     });
@@ -637,11 +678,25 @@ function initStandardModals() {
 
   if (btnInstructions && instructionsModal) {
     btnInstructions.addEventListener('click', function () {
+      var contextKey = getActiveContext();
+      var title = getContextTitle(contextKey);
+      var content = MODAL_CONTENT_MAP[contextKey] || MODAL_CONTENT_MAP.overview;
+      var mit = document.getElementById('instructionsModalTitle');
+      var mib = document.getElementById('instructionsModalBody');
+      if (mit) mit.textContent = title + ' - Instructions';
+      if (mib) mib.innerHTML = content.instructions;
       openModal(instructionsModal);
     });
     btnInstructions.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
+        var contextKey = getActiveContext();
+        var title = getContextTitle(contextKey);
+        var content = MODAL_CONTENT_MAP[contextKey] || MODAL_CONTENT_MAP.overview;
+        var mit = document.getElementById('instructionsModalTitle');
+        var mib = document.getElementById('instructionsModalBody');
+        if (mit) mit.textContent = title + ' - Instructions';
+        if (mib) mib.innerHTML = content.instructions;
         openModal(instructionsModal);
       }
     });
