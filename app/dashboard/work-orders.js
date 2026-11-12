@@ -45,55 +45,108 @@
     console.error('[WorkOrders:' + source + ']', err);
   }
 
-  /* ===== HEADER CLEANUP — remove stale 3-row header rows =====
-     dashboard-common.js loads the header via fetch(). If the SW serves
-     an old 3-row template, row2 (page title) and row3 (theme/logout)
-     appear below the header. CSS display:none should hide them, but
-     we also physically remove them from the DOM as a guaranteed fix. */
-  function cleanupHeader() {
+  /* ===== HEADER REBUILD — nuke stale 3-row header, rebuild single row =====
+     Copied from admin.js — the admin dashboard uses this exact approach.
+     CSS alone doesn't work because dashboard-common.js re-injects the
+     stale template async. We must physically replace #dashHeader innerHTML. */
+  function rebuildHeader() {
     var header = document.getElementById('dashHeader');
     if (!header) return;
 
-    // Remove known stale rows
-    var stale = header.querySelectorAll('.dash-header-row2, .dash-header-row3, .dash-utility-bar');
-    for (var i = 0; i < stale.length; i++) stale[i].remove();
+    var title = document.body.getAttribute('data-page-title') || 'Dashboard';
 
-    // Remove any child of .dash-header that is NOT row1
-    var dashHeader = header.querySelector('.dash-header');
-    if (dashHeader) {
-      var children = dashHeader.children;
-      for (var j = children.length - 1; j >= 0; j--) {
-        if (!children[j].classList.contains('dash-header-row1')) {
-          children[j].remove();
-        }
-      }
+    // Grab the customer logo area if it exists (preserve loaded logo)
+    var logoArea = header.querySelector('#dashCustomerLogoArea');
+    var drivenLogo = header.querySelector('.dash-driven-logo') || header.querySelector('img.dash-driven-logo');
+
+    // Nuke everything
+    header.innerHTML = '';
+
+    // Rebuild single-row header
+    var dashHeader = document.createElement('div');
+    dashHeader.className = 'dash-header';
+
+    var row1 = document.createElement('div');
+    row1.className = 'dash-header-row1';
+
+    // Left: customer logo
+    var left = document.createElement('div');
+    left.className = 'dash-header-logo-left';
+    if (logoArea) {
+      left.appendChild(logoArea);
+    } else {
+      var ph = document.createElement('div');
+      ph.id = 'dashCustomerLogoArea';
+      ph.innerHTML = '<div class="dash-customer-logo-placeholder">No logo uploaded</div>';
+      left.appendChild(ph);
     }
+    row1.appendChild(left);
 
-    // Remove theme toggle and logout from header (they live in welcome card / tab bar)
-    var headerTheme = header.querySelector('.dash-theme-wrapper');
-    if (headerTheme) headerTheme.remove();
-    var headerLogout = header.querySelector('.dash-logout');
-    if (headerLogout) headerLogout.remove();
+    // Center: ONE page title only
+    var h1 = document.createElement('h1');
+    h1.id = 'dashPageTitle';
+    h1.className = 'dash-header-title';
+    h1.textContent = title;
+    row1.appendChild(h1);
+
+    // Right: DRIV-EN logo
+    var right = document.createElement('div');
+    right.className = 'dash-header-logo-right';
+    if (drivenLogo) {
+      right.appendChild(drivenLogo);
+    } else {
+      var img = document.createElement('img');
+      img.src = '/assets/logo.png?v=2026';
+      img.className = 'dash-driven-logo';
+      img.alt = 'DRIV-EN Logo';
+      right.appendChild(img);
+    }
+    row1.appendChild(right);
+
+    dashHeader.appendChild(row1);
+    header.appendChild(dashHeader);
   }
 
-  // Run cleanup repeatedly to catch the header after async injection
-  var cleanupAttempts = 0;
-  var cleanupTimer = setInterval(function() {
-    cleanupHeader();
-    cleanupAttempts++;
-    if (cleanupAttempts >= 10) clearInterval(cleanupTimer);
-  }, 200);
+  // MutationObserver: rebuild whenever old-layout content is injected
+  function startHeaderObserver() {
+    var header = document.getElementById('dashHeader');
+    if (!header) return;
 
-  // Also observe #dashHeader for changes (catches re-injection)
-  if (typeof MutationObserver !== 'undefined') {
-    document.addEventListener('DOMContentLoaded', function() {
-      var dashHeaderEl = document.getElementById('dashHeader');
-      if (dashHeaderEl) {
-        new MutationObserver(function() { cleanupHeader(); })
-          .observe(dashHeaderEl, { childList: true, subtree: true });
+    var observer = new MutationObserver(function() {
+      var h1s = header.querySelectorAll('h1');
+      var rows = header.querySelectorAll('.dash-header-row1, .dash-header-row2, .dash-header-row3, .dash-utility-bar');
+      if (h1s.length > 1 || rows.length > 1) {
+        observer.disconnect();
+        rebuildHeader();
+        setTimeout(function() { startHeaderObserver(); }, 100);
       }
     });
+    observer.observe(header, { childList: true, subtree: true });
   }
+
+  // Timed fallbacks: rebuild at multiple intervals to catch SW-injected stale content
+  function scheduleHeaderRebuilds() {
+    setTimeout(rebuildHeader, 50);
+    setTimeout(rebuildHeader, 200);
+    setTimeout(rebuildHeader, 500);
+    setTimeout(rebuildHeader, 1000);
+    setTimeout(rebuildHeader, 2000);
+    setTimeout(rebuildHeader, 3000);
+  }
+
+  // Kick off header rebuilds immediately
+  rebuildHeader();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+      rebuildHeader();
+      startHeaderObserver();
+      scheduleHeaderRebuilds();
+    });
+  } else {
+    startHeaderObserver();
+    scheduleHeaderRebuilds();
+  }
+  window.addEventListener('load', function() { rebuildHeader(); });
 
   /* ===== LOGOUT OVERRIDE ===== */
   window.dashLogout = function() {
@@ -306,6 +359,10 @@
   function handleSessionLoaded() {
     var user = window.dashUser;
     if (!user) return;
+
+    // Rebuild header (catches any stale content injected after our initial rebuild)
+    rebuildHeader();
+    scheduleHeaderRebuilds();
 
     // Populate welcome card
     var firstName = user.first_name || user.fullName || user.name || 'User';
