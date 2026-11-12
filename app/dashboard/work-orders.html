@@ -11,28 +11,19 @@
 <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
 <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
 <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
+<link rel="manifest" href="/manifest.json?v=2026">
+<meta name="theme-color" content="#16a34a">
 
-<!-- ===== SHARED DASHBOARD CSS ===== -->
-<link rel="stylesheet" href="/app/shared/dashboard.css?v=12">
+<!-- Theme init (CSP-safe, no inline script) -->
+<script src="/app/shared/theme-init.js"></script>
 
-<!-- ===== DIAMOND-PLATE BACKGROUND ===== -->
+<!-- Shared dashboard CSS -->
+<link rel="stylesheet" href="/app/shared/dashboard.css?v=15">
 <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
-
-<!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
-<script>
-(function() {
-  var saved = localStorage.getItem("driven-theme");
-  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  var theme = saved || system;
-  document.documentElement.setAttribute("data-theme", theme);
-})();
-</script>
 
 <style>
 /* ===== LOADING SCREEN ===== */
 .wo-loading{display:flex;align-items:center;justify-content:center;height:60vh;font-size:16px;color:var(--text-muted);}
-
-/* ===== ONE-LINE HEADER ===== */
 
 /* ===== TAB BAR ===== */
 .wo-tab-bar {
@@ -86,40 +77,78 @@
 }
 .wo-tab-logout:hover { background: #dc2626; margin-top: 2px; }
 
+/* ===== WELCOME BAR (matches admin/test-dashboard standard) ===== */
+.wo-welcome-bar {
+  max-width: 1100px;
+  margin: 16px auto 0 auto;
+  padding: 0 20px;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+}
+.wo-welcome {
+  background: var(--bg-card, #ffffff);
+  border: 2px solid var(--success, #16a34a);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 1;
+}
+.wo-welcome-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.wo-welcome-greeting h2 {
+  margin: 0 0 4px 0;
+  font-size: 20px;
+  color: var(--text, #0f172a);
+}
+.wo-welcome-details {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: center;
+}
+.wo-welcome-rows { display: flex; flex-direction: column; gap: 8px; }
+.wo-welcome-row { font-size: 14px; color: var(--text, #0f172a); display: flex; align-items: center; gap: 6px; }
+.wo-welcome-label { font-weight: 600; color: var(--text-muted, #64748b); }
+.wo-change-password {
+  background: var(--success, #16a34a); border: 1px solid #15803d; color: #fff;
+  text-decoration: none; display: inline-block; text-align: center; cursor: pointer;
+  font-weight: 600; padding: 8px 16px; border-radius: 6px; white-space: nowrap;
+}
+.wo-change-password:hover { background: #15803d; }
+@media (max-width: 600px) {
+  .wo-welcome-details { grid-template-columns: 1fr; }
+  .wo-welcome-header { flex-direction: column; }
+}
+
 /* ===== MAIN CONTAINER ===== */
 .wo-main {
   max-width: 1100px;
-  margin: 20px auto;
-  padding: 0 20px;
+  margin: 0 auto;
+  padding: 0 20px 20px 20px;
   position: relative;
   z-index: 1;
 }
 
-/* ===== STICKY SECTION HEADING ===== */
-.section-heading {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  background: var(--bg-card);
-  border-bottom: 2px solid var(--border);
-  padding: 12px 0;
-  margin: 0 0 16px 0;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.section-heading-count {
-  font-size: 13px;
-  font-weight: 400;
-  color: var(--text-muted);
+/* ===== CONTENT CARD (white bg, rounded corners, green border) ===== */
+.wo-card {
+  background: var(--bg-card, #ffffff);
+  border: 2px solid var(--success, #16a34a);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 1;
 }
 
-/* ===== FILTER BAR ===== */
+/* ===== FILTER BAR (inside card) ===== */
 .wo-filter-bar {
   display: flex;
   gap: 8px;
@@ -141,13 +170,28 @@
 .wo-filter-bar input:focus { outline: none; border-color: var(--primary); }
 .wo-filter-label { font-size: 13px; color: var(--text-muted); font-weight: 600; }
 
-/* ===== SORTABLE TABLE ===== */
+/* ===== SECTION HEADING ===== */
+.section-heading {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.section-heading-count {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+/* ===== TABLE ===== */
 .wo-table-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg-card);
 }
 .wo-table {
   width: 100%;
@@ -196,7 +240,6 @@
 .wo-priority.low { background: var(--border); color: var(--text); }
 
 /* ===== DETAIL VIEW ===== */
-.wo-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; }
 .wo-back { background: var(--bg-card); border: 1px solid var(--border); border-radius: 4px; padding: 6px 14px; font-size: 13px; cursor: pointer; color: var(--text); margin-bottom: 16px; }
 .wo-back:hover { border-color: var(--primary); }
 .wo-checklist-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
@@ -211,9 +254,9 @@
 
 /* ===== MOBILE ===== */
 @media (max-width: 800px) {
-  .wo-main { padding: 0 12px; margin: 12px auto; }
-  .wo-tab-home { padding: 10px 16px; font-size: 14px; }
-  .wo-tab-logout { padding: 10px 16px; font-size: 14px; }
+  .wo-main { padding: 0 12px 12px 12px; }
+  .wo-tab-home, .wo-tab-logout { padding: 10px 16px; font-size: 14px; }
+  .wo-card { padding: 16px; }
 }
 </style>
 </head>
@@ -223,7 +266,7 @@
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
 
-<!-- ===== SHARED HEADER ===== -->
+<!-- Shared header -->
 <div id="dashHeader"></div>
 
 <!-- ===== TAB BAR ===== -->
@@ -231,6 +274,38 @@
   <a class="wo-tab-home" id="dashHomeLink" href="/app/dashboard/employee-dashboard.html">Dashboard</a>
   <a class="wo-tab-home" href="/app/dashboard/calendar.html">Calendar</a>
   <button class="wo-tab-logout" onclick="dashLogout()">Logout</button>
+</div>
+
+<!-- ===== WELCOME BAR ===== -->
+<div class="wo-welcome-bar">
+  <div class="wo-welcome">
+    <div class="wo-welcome-header">
+      <div class="wo-welcome-greeting">
+        <h2 id="woWelcomeName">Welcome back</h2>
+      </div>
+      <div class="dash-theme-wrapper" title="Toggle light/dark mode">
+        <span class="dash-theme-label" id="dashThemeLabelLight">Light</span>
+        <label class="dash-theme-switch">
+          <input type="checkbox" id="dashThemeCheckbox" aria-label="Toggle light or dark theme">
+          <span class="dash-theme-slider"></span>
+        </label>
+        <span class="dash-theme-label" id="dashThemeLabelDark">Dark</span>
+      </div>
+    </div>
+    <div class="wo-welcome-details">
+      <div class="wo-welcome-rows">
+        <div class="wo-welcome-row">
+          <span class="wo-welcome-label">Role:</span>
+          <span id="woWelcomeRole">-</span>
+        </div>
+        <div class="wo-welcome-row">
+          <span class="wo-welcome-label">Email:</span>
+          <span id="woWelcomeEmail">-</span>
+        </div>
+      </div>
+      <a href="/app/auth/change-password.html" class="wo-change-password">Change Password</a>
+    </div>
+  </div>
 </div>
 
 <!-- ===== LOADING SCREEN ===== -->
@@ -242,35 +317,40 @@
 
     <!-- ===== LIST VIEW ===== -->
     <div id="woListView">
-      <!-- Filter bar -->
-      <div class="wo-filter-bar">
-        <span class="wo-filter-label">Status:</span>
-        <select id="woStatusFilter" onchange="applyFilters()">
-          <option value="">All Statuses</option>
-          <option value="open">Open</option>
-          <option value="assigned">Assigned</option>
-          <option value="in_progress">In Progress</option>
-          <option value="completed">Completed</option>
-          <option value="closed">Closed</option>
-        </select>
-        <span class="wo-filter-label">Priority:</span>
-        <select id="woPriorityFilter" onchange="applyFilters()">
-          <option value="">All Priorities</option>
-          <option value="high">High</option>
-          <option value="medium">Medium</option>
-          <option value="low">Low</option>
-        </select>
-        <span class="wo-filter-label">Search:</span>
-        <input type="text" id="woSearchInput" placeholder="WO #, type, description…" oninput="applyFilters()" style="flex:1;min-width:200px;">
+      <!-- Filter bar inside a card -->
+      <div class="wo-card">
+        <div class="wo-filter-bar">
+          <span class="wo-filter-label">Status:</span>
+          <select id="woStatusFilter">
+            <option value="">All Statuses</option>
+            <option value="open">Open</option>
+            <option value="assigned">Assigned</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="closed">Closed</option>
+          </select>
+          <span class="wo-filter-label">Priority:</span>
+          <select id="woPriorityFilter">
+            <option value="">All Priorities</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+          <span class="wo-filter-label">Search:</span>
+          <input type="text" id="woSearchInput" placeholder="WO #, type, description…" style="flex:1;min-width:200px;">
+        </div>
       </div>
 
-      <div class="section-heading">Work Orders <span class="section-heading-count" id="woCount">0 work orders</span></div>
-      <div id="woTableContainer"></div>
+      <!-- Work Orders table inside a card -->
+      <div class="wo-card">
+        <div class="section-heading">Work Orders <span class="section-heading-count" id="woCount">0 work orders</span></div>
+        <div id="woTableContainer"></div>
+      </div>
     </div>
 
     <!-- ===== DETAIL VIEW ===== -->
     <div id="woDetailView" style="display:none;">
-      <button class="wo-back" onclick="showList()">&larr; Back to list</button>
+      <button class="wo-back" id="woBackBtn">&larr; Back to list</button>
       <div id="woDetail"></div>
     </div>
 
@@ -280,234 +360,10 @@
 <!-- ===== FOOTER ===== -->
 <div id="dashFooter"></div>
 
-<!-- ===== SHARED DASHBOARD JS ===== -->
+<!-- Shared scripts (order matters: auth-check -> dashboard-common -> page JS) -->
 <script src="/app/shared/auth-check.js?v=21"></script>
 <script src="/app/shared/dashboard-common.js?v=20"></script>
-
-<script>
-/* ===== STATE ===== */
-var allWOs = [];
-var filteredWOs = [];
-var woSortCol = 'created_at';
-var woSortDir = 'desc';
-var woSearchText = '';
-var woStatusFilterVal = '';
-var woPriorityFilterVal = '';
-
-/* ===== HELPERS ===== */
-function esc(s) {
-  if (!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
-
-/* ===== LOGOUT OVERRIDE ===== */
-window.dashLogout = function() {
-  try { fetch('/auth/logout', { method: 'POST' }); } catch (e) {}
-  window.location.href = '/public/login.html';
-};
-
-/* ===== SORTING ===== */
-function sortWOs(wos, col, dir) {
-  var sorted = wos.slice();
-  sorted.sort(function(a, b) {
-    var av, bv;
-    if (col === 'wo_number') { av = (a.wo_number||'').toLowerCase(); bv = (b.wo_number||'').toLowerCase(); }
-    else if (col === 'wo_type') { av = (a.wo_type||'').toLowerCase(); bv = (b.wo_type||'').toLowerCase(); }
-    else if (col === 'priority') {
-      var priOrder = { high: 3, medium: 2, low: 1 };
-      av = priOrder[a.priority] || 0; bv = priOrder[b.priority] || 0;
-    }
-    else if (col === 'status') { av = (a.status||'').toLowerCase(); bv = (b.status||'').toLowerCase(); }
-    else if (col === 'assigned_to') { av = (a.assigned_to||'').toLowerCase(); bv = (b.assigned_to||'').toLowerCase(); }
-    else { av = a.created_at||''; bv = b.created_at||''; }
-    if (av < bv) return dir === 'asc' ? -1 : 1;
-    if (av > bv) return dir === 'asc' ? 1 : -1;
-    return 0;
-  });
-  return sorted;
-}
-
-/* ===== FILTERING ===== */
-function applyFilters() {
-  woStatusFilterVal = document.getElementById('woStatusFilter').value;
-  woPriorityFilterVal = document.getElementById('woPriorityFilter').value;
-  woSearchText = (document.getElementById('woSearchInput').value || '').toLowerCase();
-
-  filteredWOs = allWOs.filter(w => {
-    if (woStatusFilterVal && w.status !== woStatusFilterVal) return false;
-    if (woPriorityFilterVal && (w.priority||'low') !== woPriorityFilterVal) return false;
-    if (woSearchText) {
-      var haystack = [
-        w.wo_number, w.wo_type, w.description, w.status, w.priority, w.assigned_to
-      ].filter(Boolean).join(' ').toLowerCase();
-      if (!haystack.includes(woSearchText)) return false;
-    }
-    return true;
-  });
-
-  renderTable();
-}
-
-/* ===== RENDER TABLE ===== */
-function renderTable() {
-  var container = document.getElementById('woTableContainer');
-  var sorted = sortWOs(filteredWOs, woSortCol, woSortDir);
-
-  document.getElementById('woCount').textContent = sorted.length + ' work order' + (sorted.length !== 1 ? 's' : '');
-
-  if (sorted.length === 0) {
-    container.innerHTML = '<div class="empty-state">No work orders match your filters.</div>';
-    return;
-  }
-
-  var html = '<div class="wo-table-wrap">' +
-    '<table class="wo-table" id="woTable">' +
-      '<thead><tr>' +
-        '<th onclick="onWoSort(\'wo_number\')" class="sortable">WO # <span class="sort-arrow"></span></th>' +
-        '<th onclick="onWoSort(\'wo_type\')" class="sortable">Type <span class="sort-arrow"></span></th>' +
-        '<th onclick="onWoSort(\'priority\')" class="sortable">Priority <span class="sort-arrow"></span></th>' +
-        '<th onclick="onWoSort(\'status\')" class="sortable">Status <span class="sort-arrow"></span></th>' +
-        '<th onclick="onWoSort(\'assigned_to\')" class="sortable">Assigned <span class="sort-arrow"></span></th>' +
-        '<th onclick="onWoSort(\'created_at\')" class="sortable">Date <span class="sort-arrow"></span></th>' +
-      '</tr></thead>' +
-      '<tbody>';
-
-  sorted.forEach(function(w) {
-    var date = w.created_at ? new Date(w.created_at).toLocaleDateString() : '—';
-    var desc = w.description ? (w.description.length > 50 ? w.description.slice(0,50) + '…' : w.description) : '';
-    html += '<tr onclick="showDetail(\'' + w.id + '\')">' +
-      '<td style="font-weight:600;">' + esc(w.wo_number||w.id.slice(0,8)) + '</td>' +
-      '<td>' + esc((w.wo_type||'').replace(/_/g,' ')) + '</td>' +
-      '<td><span class="wo-priority ' + (w.priority||'low') + '">' + esc(w.priority||'low') + '</span></td>' +
-      '<td><span class="wo-status ' + (w.status||'open') + '">' + esc(w.status||'open') + '</span></td>' +
-      '<td>' + esc(w.assigned_to||'—') + '</td>' +
-      '<td>' + date + '</td>' +
-    '</tr>';
-  });
-
-  html += '</tbody></table></div>';
-  container.innerHTML = html;
-
-  updateWoSortIndicators();
-}
-
-function onWoSort(col) {
-  if (woSortCol === col) {
-    woSortDir = woSortDir === 'asc' ? 'desc' : 'asc';
-  } else {
-    woSortCol = col;
-    woSortDir = 'asc';
-  }
-  renderTable();
-}
-
-function updateWoSortIndicators() {
-  var container = document.getElementById('woTableContainer');
-  if (!container) return;
-  var ths = container.querySelectorAll('th.sortable');
-  ths.forEach(function(th) { th.classList.remove('sorted-asc', 'sorted-desc'); });
-  var th = container.querySelector('th[onclick*="' + woSortCol + '"]');
-  if (th) th.classList.add(woSortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
-}
-
-/* ===== DETAIL VIEW ===== */
-async function showDetail(id) {
-  document.getElementById('woListView').style.display = 'none';
-  document.getElementById('woDetailView').style.display = '';
-  document.getElementById('woDetail').innerHTML = '<div class="wo-loading">Loading…</div>';
-
-  try {
-    const resp = await fetch('/api/work-orders/' + id);
-    const data = await resp.json();
-    if (data.success && data.work_order) {
-      const w = data.work_order;
-      const items = data.items || [];
-      const parts = data.parts || [];
-
-      let html = '<div class="wo-detail">';
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
-      html += '<span style="font-size:15px;font-weight:700;color:var(--text);">' + esc(w.wo_number||w.id.slice(0,8)) + '</span>';
-      html += '<span class="wo-status ' + (w.status||'open') + '">' + esc(w.status||'open') + '</span>';
-      html += '</div>';
-      html += '<div style="font-size:12px;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:12px;margin-top:6px;">';
-      html += '<span>Type: ' + esc((w.wo_type||'').replace(/_/g,' ')) + '</span>';
-      html += '<span class="wo-priority ' + (w.priority||'low') + '">' + esc(w.priority||'low') + '</span>';
-      if (w.assigned_to) html += '<span>Assigned: ' + esc(w.assigned_to) + '</span>';
-      if (w.labor_hours != null) html += '<span>Labor: ' + w.labor_hours + 'h</span>';
-      html += '</div>';
-      if (w.description) html += '<p style="margin-top:10px;font-size:14px;color:var(--text);">' + esc(w.description) + '</p>';
-      html += '</div>';
-
-      if (items.length > 0) {
-        html += '<div class="section-title">Checklist (' + items.filter(i=>i.status==='completed').length + '/' + items.length + ')</div>';
-        html += '<div class="wo-detail">';
-        html += items.map(i => {
-          const done = i.status === 'completed';
-          return '<div class="wo-checklist-item">' +
-            '<div class="wo-check-icon ' + (done?'completed':'') + '">' + (done?'✓':'') + '</div>' +
-            '<div class="wo-check-text ' + (done?'completed':'') + '">' + esc(i.item_text||'') + '</div>' +
-          '</div>';
-        }).join('');
-        html += '</div>';
-      }
-
-      if (parts.length > 0) {
-        html += '<div class="section-title">Parts</div>';
-        html += '<div class="wo-detail">';
-        html += parts.map(p => '<div class="wo-parts">' + (p.quantity||1) + '× ' + esc(p.description||p.part_number||'') + (p.part_number?' ['+esc(p.part_number)+']':'') + '</div>').join('');
-        html += '</div>';
-      }
-
-      document.getElementById('woDetail').innerHTML = html;
-    } else {
-      document.getElementById('woDetail').innerHTML = '<div class="empty-state">Failed to load work order.</div>';
-    }
-  } catch (e) {
-    document.getElementById('woDetail').innerHTML = '<div class="empty-state">Error: ' + esc(e.message) + '</div>';
-  }
-}
-
-function showList() {
-  document.getElementById('woListView').style.display = '';
-  document.getElementById('woDetailView').style.display = 'none';
-}
-
-/* ===== LOAD WORK ORDERS ===== */
-async function loadWorkOrders() {
-  try {
-    const resp = await fetch('/api/work-orders');
-    const data = await resp.json();
-    if (data.success && data.work_orders) {
-      allWOs = data.work_orders;
-      applyFilters();
-    } else {
-      document.getElementById('woTableContainer').innerHTML = '<div class="empty-state">Failed to load work orders.</div>';
-    }
-  } catch (e) {
-    document.getElementById('woTableContainer').innerHTML = '<div class="empty-state">Error: ' + esc(e.message) + '</div>';
-  }
-}
-
-/* ===== INIT ===== */
-document.addEventListener('dashSessionLoaded', function() {
-  var user = window.dashUser;
-  if (!user) return;
-
-  // Dashboard tab returns to user's main dashboard
-  var role = (user.role || '').toLowerCase();
-  var dashUrl = role === 'admin' ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
-  var homeLink = document.getElementById('dashHomeLink');
-  if (homeLink) homeLink.href = dashUrl;
-
-  
-
-  document.getElementById('loading').style.display = 'none';
-  document.getElementById('dashboard').style.display = 'block';
-
-  loadWorkOrders();
-});
-</script>
-
+<script src="/app/dashboard/work-orders.js?v=1"></script>
 <script src="/components/nav.js?v=5"></script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dfa099e1781791509496" data-cf-beacon='{"token":"aed8feab3b60404ba88ec92f026bbcd6"}' crossorigin="anonymous"></script>
 </body>
