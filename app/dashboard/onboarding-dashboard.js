@@ -1,5 +1,5 @@
 /* ==========================================================================
-   DRIV-EN Platform — Onboarding Dashboard JavaScript Module
+   DRIV-EN Platform -- Onboarding Dashboard JavaScript Module
    File: /app/dashboard/onboarding-dashboard.js
    ========================================================================== */
 
@@ -79,33 +79,11 @@
   function insertHeaderTitle() {
     const row1 = document.querySelector(".dash-header-row1");
     if (!row1) return;
-    // Skip if theme-init.js already inserted the title
     if (row1.querySelector(".page-header-title")) return;
-    // Fallback: insert title if theme-init.js didn't
     const title = document.createElement("div");
     title.className = "page-header-title";
     title.textContent = document.body.getAttribute("data-page-title") || "Onboarding Dashboard";
     row1.appendChild(title);
-  }
-
-  /* ===== THEME MANAGEMENT ===== */
-
-  function toggleTheme() {
-    const current = document.documentElement.getAttribute("data-theme");
-    const newTheme = current === "dark" ? "light" : "dark";
-    document.documentElement.setAttribute("data-theme", newTheme);
-    localStorage.setItem("driven-theme", newTheme);
-    updateThemeSwitch();
-  }
-
-  function updateThemeSwitch() {
-    const current = document.documentElement.getAttribute("data-theme");
-    const checkbox = document.getElementById("theme-checkbox");
-    const labelLight = document.getElementById("theme-label-light");
-    const labelDark = document.getElementById("theme-label-dark");
-    if (checkbox) checkbox.checked = (current === "dark");
-    if (labelLight) labelLight.classList.toggle('active', current === 'light');
-    if (labelDark) labelDark.classList.toggle('active', current === 'dark');
   }
 
   /* ===== POPUPS & INFO DIALOGS ===== */
@@ -237,7 +215,7 @@
     if (isAlreadyComplete) {
       btn.style.display = "inline-block";
       btn.classList.add("done");
-      btn.textContent = "✓ You marked complete";
+      btn.textContent = "You marked complete";
       btn.disabled = true;
       return;
     }
@@ -246,7 +224,7 @@
       btn.classList.remove("done");
       btn.disabled = true;
       const prereqNames = getVisiblePrereqNames(stepNum).join(", ");
-      btn.textContent = "🔒 Mark Complete — Requires " + prereqNames;
+      btn.textContent = "Mark Complete -- Requires " + prereqNames;
       return;
     }
     btn.style.display = "inline-block";
@@ -255,9 +233,9 @@
     const assignedEmails = getAssignedEmails(taskName);
     if (assignedEmails.length > 1) {
       const doneCount = assignedEmails.filter(e => completions.indexOf(e) !== -1).length;
-      btn.textContent = "✓ Mark Complete (" + doneCount + "/" + assignedEmails.length + " done)";
+      btn.textContent = "Mark Complete (" + doneCount + "/" + assignedEmails.length + " done)";
     } else {
-      btn.textContent = "✓ Mark Complete";
+      btn.textContent = "Mark Complete";
     }
   }
 
@@ -654,17 +632,7 @@
       logoutBtn.addEventListener('click', dashLogout);
     }
 
-    // Theme Switch
-    const themeCheckbox = document.getElementById('theme-checkbox');
-    if (themeCheckbox) {
-      themeCheckbox.addEventListener('change', toggleTheme);
-    }
-
-    // Change Password
-    const changePwdBtn = document.getElementById('btnChangePassword');
-    if (changePwdBtn) {
-      changePwdBtn.addEventListener('click', () => { window.location.href = '/app/auth/change-password.html'; });
-    }
+    // Theme toggle handled by shared dashboard-common.js via #dashThemeCheckbox
 
     // Popup overlay close
     const popupOverlay = document.getElementById('popupOverlay');
@@ -737,8 +705,11 @@
       if (user.customer_id) localStorage.setItem("driven_customer_id", user.customer_id);
 
       const firstName = user.first_name || "";
+      const orgName = user.org_name || localStorage.getItem("driven_org_name") || "";
       const greeting = document.getElementById("greetingText");
-      if (greeting && firstName) { greeting.innerHTML = "Welcome, <strong>" + firstName + "</strong>"; }
+      if (greeting) {
+        greeting.textContent = firstName ? ('Welcome back, ' + firstName + (orgName ? ' - ' + orgName : '')) : 'Welcome back';
+      }
 
       const fullName = (user.first_name || "") + (user.last_name ? " " + user.last_name : "");
       const accName = document.getElementById("account-name");
@@ -750,7 +721,6 @@
 
       insertHeaderTitle();
       makeTabsSticky();
-      updateThemeSwitch();
 
       const roleLower = (user.role) ? user.role.toLowerCase() : "";
       const roleLowerId = (user.role_id) ? user.role_id.toLowerCase() : "";
