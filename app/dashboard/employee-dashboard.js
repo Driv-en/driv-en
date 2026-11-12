@@ -254,6 +254,11 @@ function initEmployeeDashboard() {
     });
   });
 
+  // Initialize roving tabindex: active tab gets 0, inactive get -1
+  document.querySelectorAll('.emp-tab[data-tab]').forEach(function (btn) {
+    btn.setAttribute('tabindex', btn.classList.contains('active') ? '0' : '-1');
+  });
+
   // Bind Logout
   var btnLogout = document.getElementById('btnLogout');
   if (btnLogout) {
@@ -519,6 +524,7 @@ function switchTab(tabName) {
   document.querySelectorAll('.emp-tab[data-tab]').forEach(function (t) {
     t.classList.remove('active');
     t.setAttribute('aria-selected', 'false');
+    t.setAttribute('tabindex', '-1');
   });
   document.querySelectorAll('.emp-tab-content').forEach(function (c) {
     c.classList.remove('active');
@@ -528,6 +534,7 @@ function switchTab(tabName) {
   if (tabBtn) {
     tabBtn.classList.add('active');
     tabBtn.setAttribute('aria-selected', 'true');
+    tabBtn.setAttribute('tabindex', '0');
   }
 
   var tabContent = document.getElementById('tab-' + tabName);
@@ -540,9 +547,12 @@ function switchTab(tabName) {
 /* ===== LOGOUT ===== */
 async function dashLogout() {
   try {
-    await fetch('/auth/logout', { method: 'POST' });
+    var controller = new AbortController();
+    var timeoutId = setTimeout(function () { controller.abort(); }, 3000);
+    await fetch('/auth/logout', { method: 'POST', signal: controller.signal });
+    clearTimeout(timeoutId);
   } catch (e) {
-    // Even if the request fails, proceed to login page
+    // Network error, timeout, or abort — proceed to login page regardless
   }
   window.location.href = '/public/login.html';
 }
