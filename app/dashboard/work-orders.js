@@ -298,16 +298,16 @@
         if (w.assigned_to) html += '<span>Assigned: ' + esc(w.assigned_to) + '</span>';
         if (w.labor_hours != null) html += '<span>Labor: ' + w.labor_hours + 'h</span>';
         html += '</div>';
-        if (w.description) html += '<p style="margin-top:10px;font-size:14px;color:var(--text);">' + esc(w.description) + '</p>';
+        if (w.description) html += '<p data-voice-read style="margin-top:10px;font-size:14px;color:var(--text);">' + esc(w.description) + '</p>';
         html += '</div>';
 
         if (items.length > 0) {
           html += '<div class="section-title">Checklist (' + items.filter(function(i) { return i.status === 'completed'; }).length + '/' + items.length + ')</div>';
-          html += '<div class="wo-card">';
+          html += '<div class="wo-card" data-voice-read>';
           html += items.map(function(i) {
             var done = i.status === 'completed';
             return '<div class="wo-checklist-item">' +
-              '<div class="wo-check-icon ' + (done ? 'completed' : '') + '">' + (done ? '✓' : '') + '</div>' +
+              '<div class="wo-check-icon ' + (done ? 'completed' : '') + '">' + (done ? '&#x2713;' : '') + '</div>' +
               '<div class="wo-check-text ' + (done ? 'completed' : '') + '">' + esc(i.item_text || '') + '</div>' +
             '</div>';
           }).join('');
@@ -316,14 +316,19 @@
 
         if (parts.length > 0) {
           html += '<div class="section-title">Parts</div>';
-          html += '<div class="wo-card">';
+          html += '<div class="wo-card" data-voice-read>';
           html += parts.map(function(p) {
-            return '<div class="wo-parts">' + (p.quantity || 1) + '× ' + esc(p.description || p.part_number || '') + (p.part_number ? ' [' + esc(p.part_number) + ']' : '') + '</div>';
+            return '<div class="wo-parts">' + (p.quantity || 1) + 'x ' + esc(p.description || p.part_number || '') + (p.part_number ? ' [' + esc(p.part_number) + ']' : '') + '</div>';
           }).join('');
           html += '</div>';
         }
 
         document.getElementById('woDetail').innerHTML = html;
+
+        // Wire up voice Read Aloud buttons on newly rendered content
+        if (window.DRIVEN_VOICE) {
+          try { DRIVEN_VOICE.init(); } catch (e) {}
+        }
       } else {
         document.getElementById('woDetail').innerHTML = '<div class="empty-state">Failed to load work order.</div>';
       }
