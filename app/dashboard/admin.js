@@ -1,4 +1,4 @@
-/* ==========================================================================
+/* ========================================================================== 
    DRIV-EN Platform -- Admin Dashboard JavaScript
    File: /app/dashboard/admin.js
    Extracted from admin.html for CSP compliance (no inline scripts).
