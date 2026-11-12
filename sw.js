@@ -6,6 +6,10 @@
  * This avoids the atomic failure problem where one missing file
  * breaks the entire cache.
  *
+ * v17 — November 12, 2026: Work Orders page rebuilt with welcome bar, JS
+ *         extracted to work-orders.js, cards styled with green border.
+ *         Calendar page: tab bar added (Dashboard/Work Orders/Logout),
+ *         calendar.js bumped to v=3.
  * v16 — November 12, 2026: Force full cache purge. SW was serving stale
  *         calendar.js (cache-first for JS) — bumped script versions to
  *         force cache miss. Work Orders page: removed permission gate,
@@ -30,7 +34,7 @@
  *      to cache only when offline). Static assets are cache-first.
  */
 
-const CACHE = 'driv-en-v16';
+const CACHE = 'driv-en-v17';
 const STATIC_ASSETS = [
   '/app/shared/dashboard.css',
   '/app/shared/dashboard-common.js',
