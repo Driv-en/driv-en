@@ -45,6 +45,56 @@
     console.error('[WorkOrders:' + source + ']', err);
   }
 
+  /* ===== HEADER CLEANUP — remove stale 3-row header rows =====
+     dashboard-common.js loads the header via fetch(). If the SW serves
+     an old 3-row template, row2 (page title) and row3 (theme/logout)
+     appear below the header. CSS display:none should hide them, but
+     we also physically remove them from the DOM as a guaranteed fix. */
+  function cleanupHeader() {
+    var header = document.getElementById('dashHeader');
+    if (!header) return;
+
+    // Remove known stale rows
+    var stale = header.querySelectorAll('.dash-header-row2, .dash-header-row3, .dash-utility-bar');
+    for (var i = 0; i < stale.length; i++) stale[i].remove();
+
+    // Remove any child of .dash-header that is NOT row1
+    var dashHeader = header.querySelector('.dash-header');
+    if (dashHeader) {
+      var children = dashHeader.children;
+      for (var j = children.length - 1; j >= 0; j--) {
+        if (!children[j].classList.contains('dash-header-row1')) {
+          children[j].remove();
+        }
+      }
+    }
+
+    // Remove theme toggle and logout from header (they live in welcome card / tab bar)
+    var headerTheme = header.querySelector('.dash-theme-wrapper');
+    if (headerTheme) headerTheme.remove();
+    var headerLogout = header.querySelector('.dash-logout');
+    if (headerLogout) headerLogout.remove();
+  }
+
+  // Run cleanup repeatedly to catch the header after async injection
+  var cleanupAttempts = 0;
+  var cleanupTimer = setInterval(function() {
+    cleanupHeader();
+    cleanupAttempts++;
+    if (cleanupAttempts >= 10) clearInterval(cleanupTimer);
+  }, 200);
+
+  // Also observe #dashHeader for changes (catches re-injection)
+  if (typeof MutationObserver !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', function() {
+      var dashHeaderEl = document.getElementById('dashHeader');
+      if (dashHeaderEl) {
+        new MutationObserver(function() { cleanupHeader(); })
+          .observe(dashHeaderEl, { childList: true, subtree: true });
+      }
+    });
+  }
+
   /* ===== LOGOUT OVERRIDE ===== */
   window.dashLogout = function() {
     try { fetch('/auth/logout', { method: 'POST' }); } catch (e) {}
