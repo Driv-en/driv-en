@@ -123,24 +123,157 @@ document.addEventListener('DOMContentLoaded', function () {
   initEmployeeDashboard();
 });
 
+/* ===== AGGRESSIVE HEADER CLEANUP =====
+   The service worker may serve a stale dashboard-header.html with the old
+   3-row layout (duplicate page title). We ALWAYS rebuild the header as a
+   single row, matching the test-dashboard.js reference implementation.
+   A MutationObserver catches stale content as it's injected, and timed
+   fallbacks ensure it runs even if the observer misses. */
+function rebuildHeader() {
+  var header = document.getElementById('dashHeader');
+  if (!header) return;
+
+  var title = document.body.getAttribute('data-page-title') || 'Dashboard';
+
+  // Grab the customer logo area if it exists (preserve loaded logo)
+  var logoArea = header.querySelector('#dashCustomerLogoArea');
+  var drivenLogo = header.querySelector('.dash-driven-logo') || header.querySelector('img.dash-driven-logo');
+
+  // Nuke everything
+  header.innerHTML = '';
+
+  // Rebuild single-row header
+  var dashHeader = document.createElement('div');
+  dashHeader.className = 'dash-header';
+
+  var row1 = document.createElement('div');
+  row1.className = 'dash-header-row1';
+
+  // Left: customer logo
+  var left = document.createElement('div');
+  left.className = 'dash-header-logo-left';
+  if (logoArea) {
+    left.appendChild(logoArea);
+  } else {
+    var ph = document.createElement('div');
+    ph.id = 'dashCustomerLogoArea';
+    ph.innerHTML = '<div class="dash-customer-logo-placeholder">No logo uploaded</div>';
+    left.appendChild(ph);
+  }
+  row1.appendChild(left);
+
+  // Center: ONE page title only
+  var h1 = document.createElement('h1');
+  h1.id = 'dashPageTitle';
+  h1.className = 'dash-header-title';
+  h1.textContent = title;
+  row1.appendChild(h1);
+
+  // Right: DRIV-EN logo
+  var right = document.createElement('div');
+  right.className = 'dash-header-logo-right';
+  if (drivenLogo) {
+    right.appendChild(drivenLogo);
+  } else {
+    var img = document.createElement('img');
+    img.src = '/assets/logo.png?v=2026';
+    img.className = 'dash-driven-logo';
+    img.alt = 'DRIV-EN Logo';
+    right.appendChild(img);
+  }
+  row1.appendChild(right);
+
+  dashHeader.appendChild(row1);
+  header.appendChild(dashHeader);
+}
+
+// MutationObserver: rebuild whenever old-layout content is injected into #dashHeader
+function startHeaderObserver() {
+  var header = document.getElementById('dashHeader');
+  if (!header) return;
+
+  var observer = new MutationObserver(function () {
+    var h1s = header.querySelectorAll('h1');
+    var rows = header.querySelectorAll('.dash-header-row1, .dash-header-row2, .dash-header-row3, .dash-utility-bar');
+    if (h1s.length > 1 || rows.length > 1) {
+      observer.disconnect();
+      rebuildHeader();
+      setTimeout(function () { startHeaderObserver(); }, 100);
+    }
+  });
+  observer.observe(header, { childList: true, subtree: true });
+}
+
+// Timed fallbacks: rebuild at multiple intervals to catch SW-injected stale content
+function scheduleHeaderRebuilds() {
+  setTimeout(rebuildHeader, 50);
+  setTimeout(rebuildHeader, 200);
+  setTimeout(rebuildHeader, 500);
+  setTimeout(rebuildHeader, 1000);
+  setTimeout(rebuildHeader, 2000);
+  setTimeout(rebuildHeader, 3000);
+}
+
+/* ===== STICKY OFFSET ADJUSTMENT ===== */
+function adjustStickyOffsets() {
+  var header = document.getElementById('dashHeader');
+  var stickyContainer = document.getElementById('empNavStickyContainer');
+  if (header && stickyContainer) {
+    var headerHeight = header.getBoundingClientRect().height || header.offsetHeight || 50;
+    stickyContainer.style.top = headerHeight + 'px';
+  }
+}
+
 function initEmployeeDashboard() {
+  // Aggressive header rebuild
+  rebuildHeader();
+  startHeaderObserver();
+  scheduleHeaderRebuilds();
+
   // Bind Tab Controls
-  const tabButtons = document.querySelectorAll('.emp-tab[data-tab]');
+  var tabButtons = document.querySelectorAll('.emp-tab[data-tab]');
   tabButtons.forEach(function (btn) {
     btn.addEventListener('click', function () {
-      const tabName = this.getAttribute('data-tab');
+      var tabName = this.getAttribute('data-tab');
       if (tabName) switchTab(tabName);
+    });
+    // Keyboard accessibility: Enter/Space activates, Arrow keys navigate
+    btn.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        var tabName = this.getAttribute('data-tab');
+        if (tabName) switchTab(tabName);
+      }
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        var tabs = Array.from(document.querySelectorAll('.emp-tab[data-tab]'));
+        var idx = tabs.indexOf(this);
+        var next = e.key === 'ArrowRight' ? (idx + 1) % tabs.length : (idx - 1 + tabs.length) % tabs.length;
+        tabs[next].focus();
+      }
     });
   });
 
   // Bind Logout
-  const btnLogout = document.getElementById('btnLogout');
+  var btnLogout = document.getElementById('btnLogout');
   if (btnLogout) {
     btnLogout.addEventListener('click', dashLogout);
+    btnLogout.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        dashLogout();
+      }
+    });
   }
 
   // Bind Standardized Modals (Purpose & Instructions)
   initStandardModals();
+
+  // Sticky offset adjustments
+  window.addEventListener('resize', adjustStickyOffsets);
+  window.addEventListener('orientationchange', adjustStickyOffsets);
+  window.addEventListener('scroll', adjustStickyOffsets, { passive: true });
+  window.addEventListener('load', adjustStickyOffsets);
 
   // Listen for Dashboard Session Ready Signal
   document.addEventListener('dashSessionLoaded', handleSessionLoaded);
@@ -174,21 +307,23 @@ async function handleSessionLoaded() {
 
   var firstName = user.first_name || user.full_name || '';
   var orgName = user.org_name || '';
+
+  // Welcome greeting — matches admin/onboarding pattern
   var welcomeEl = document.getElementById('welcome-name');
   if (welcomeEl) {
-    if (firstName && orgName) {
-      welcomeEl.innerHTML = esc(firstName) + ' <span style="font-weight:400;color:var(--text-muted);font-size:18px;">&mdash; ' + esc(orgName) + '</span>';
-    } else {
-      welcomeEl.textContent = firstName || user.email;
-    }
+    welcomeEl.textContent = firstName ? ('Welcome back, ' + firstName + (orgName ? ' - ' + orgName : '')) : 'Welcome back';
   }
 
-  var roleEl = document.getElementById('welcome-role');
-  if (roleEl) {
-    roleEl.textContent = 'Role: ' + (user.role || 'Employee') + ' \u2014 Your dashboard shows the modules and tools you have access to.';
-  }
+  // Role + Email in welcome details
+  var elRole = document.getElementById('welcome-role');
+  if (elRole) elRole.textContent = user.role || user.role_id || 'Employee';
 
-  insertHeaderTitle();
+  var elEmail = document.getElementById('welcome-email');
+  if (elEmail) elEmail.textContent = user.email || '';
+
+  // Rebuild header as single row + adjust sticky offsets
+  rebuildHeader();
+  adjustStickyOffsets();
 
   var loadingEl = document.getElementById('loading');
   var dashboardEl = document.getElementById('dashboard');
@@ -199,6 +334,9 @@ async function handleSessionLoaded() {
   renderFormLinks();
   renderFormsTab();
   loadStats();
+
+  // Final header rebuild safety net
+  setTimeout(function () { rebuildHeader(); adjustStickyOffsets(); }, 500);
 }
 
 /* ===== HELPERS ===== */
@@ -242,7 +380,7 @@ function renderModules() {
       '<div class="emp-module-body">' + esc(m.desc) + '</div>';
 
     if (m.link) {
-      return '<div class="emp-module-card" data-href="' + m.link + '">' +
+      return '<div class="emp-module-card" data-href="' + m.link + '" role="button" tabindex="0">' +
         cardContent + '<div class="emp-module-link">Open &rarr;</div></div>';
     } else {
       return '<div class="emp-module-card" style="opacity:0.7;cursor:default;" title="Dashboard coming soon">' +
@@ -255,6 +393,13 @@ function renderModules() {
     card.addEventListener('click', function () {
       var href = this.getAttribute('data-href');
       if (href) window.location.href = href;
+    });
+    card.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        var href = this.getAttribute('data-href');
+        if (href) window.location.href = href;
+      }
     });
   });
 }
@@ -371,33 +516,25 @@ async function loadStats() {
 
 /* ===== TAB SWITCHING ===== */
 function switchTab(tabName) {
-  document.querySelectorAll('.emp-tab').forEach(function (t) {
+  document.querySelectorAll('.emp-tab[data-tab]').forEach(function (t) {
     t.classList.remove('active');
+    t.setAttribute('aria-selected', 'false');
   });
   document.querySelectorAll('.emp-tab-content').forEach(function (c) {
     c.classList.remove('active');
   });
 
   var tabBtn = document.querySelector('.emp-tab[data-tab="' + tabName + '"]');
-  if (tabBtn) tabBtn.classList.add('active');
+  if (tabBtn) {
+    tabBtn.classList.add('active');
+    tabBtn.setAttribute('aria-selected', 'true');
+  }
 
   var tabContent = document.getElementById('tab-' + tabName);
   if (tabContent) tabContent.classList.add('active');
 
   if (tabName === 'forms') renderFormsTab();
-}
-
-/* ===== HEADER TITLE ===== */
-function insertHeaderTitle() {
-  var row1 = document.querySelector('.dash-header-row1');
-  if (row1 && !document.querySelector('.emp-header-title')) {
-    var title = document.createElement('div');
-    title.className = 'emp-header-title';
-    title.textContent = 'Dashboard';
-    var logoArea = document.getElementById('dashCustomerLogoArea');
-    var drivenLogo = row1.querySelector('.dash-driven-logo');
-    if (logoArea && drivenLogo) row1.insertBefore(title, drivenLogo);
-  }
+  adjustStickyOffsets();
 }
 
 /* ===== LOGOUT ===== */
@@ -420,11 +557,23 @@ function initStandardModals() {
     btnPurpose.addEventListener('click', function () {
       openModal(purposeModal);
     });
+    btnPurpose.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openModal(purposeModal);
+      }
+    });
   }
 
   if (btnInstructions && instructionsModal) {
     btnInstructions.addEventListener('click', function () {
       openModal(instructionsModal);
+    });
+    btnInstructions.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openModal(instructionsModal);
+      }
     });
   }
 
