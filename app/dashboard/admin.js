@@ -25,20 +25,20 @@ window.addEventListener('beforeunload', function(e) {
 });
 
 var BUSINESS_TYPE_DEFAULTS = {
-  'Construction': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':true,'project-types':true,'projects':true,'assets':true,'fuel-types':true,'units-of-measure':true,'asset-types':true},
-  'Manufacturing': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':true,'project-types':false,'projects':false,'assets':true,'fuel-types':true,'units-of-measure':true,'asset-types':true},
-  'Chemical': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':true,'project-types':false,'projects':false,'assets':true,'fuel-types':true,'units-of-measure':true,'asset-types':true},
-  'Oil & Gas': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':true,'project-types':true,'projects':true,'assets':true,'fuel-types':true,'units-of-measure':true,'asset-types':true},
-  'Transportation': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':false,'project-types':false,'projects':false,'assets':true,'fuel-types':true,'units-of-measure':true,'asset-types':true},
-  'Warehousing': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':false,'project-types':false,'projects':false,'assets':true,'fuel-types':true,'units-of-measure':true,'asset-types':true},
-  'Fabrication': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':true,'project-types':false,'projects':false,'assets':true,'fuel-types':true,'units-of-measure':true,'asset-types':true},
-  'Logistics / Supply Chain': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':false,'project-types':false,'projects':false,'assets':true,'fuel-types':true,'units-of-measure':true,'asset-types':true},
-  'Utilities & Energy': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':true,'project-types':true,'projects':true,'assets':true,'fuel-types':true,'units-of-measure':true,'asset-types':true},
-  'Mining & Aggregates': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':true,'project-types':true,'projects':true,'assets':true,'fuel-types':true,'units-of-measure':true,'asset-types':true},
-  'Agriculture': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':true,'project-types':false,'projects':false,'assets':true,'fuel-types':true,'units-of-measure':true,'asset-types':true},
-  'Environmental Services': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':false,'project-types':false,'projects':false,'assets':true,'fuel-types':true,'units-of-measure':true,'asset-types':true},
-  'Food & Beverage Processing': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':true,'project-types':false,'projects':false,'assets':true,'fuel-types':true,'units-of-measure':true,'asset-types':true},
-  'General Services': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':false,'project-types':false,'projects':false,'assets':true,'fuel-types':true,'units-of-measure':true,'asset-types':true}
+  'Construction': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':true,'project-types':true,'projects':true,'assets':true,'fuel-types':true,'asset-types':true},
+  'Manufacturing': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':true,'project-types':false,'projects':false,'assets':true,'fuel-types':true,'asset-types':true},
+  'Chemical': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':true,'project-types':false,'projects':false,'assets':true,'fuel-types':true,'asset-types':true},
+  'Oil & Gas': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':true,'project-types':true,'projects':true,'assets':true,'fuel-types':true,'asset-types':true},
+  'Transportation': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':false,'project-types':false,'projects':false,'assets':true,'fuel-types':true,'asset-types':true},
+  'Warehousing': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':false,'project-types':false,'projects':false,'assets':true,'fuel-types':true,'asset-types':true},
+  'Fabrication': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':true,'project-types':false,'projects':false,'assets':true,'fuel-types':true,'asset-types':true},
+  'Logistics / Supply Chain': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':false,'project-types':false,'projects':false,'assets':true,'fuel-types':true,'asset-types':true},
+  'Utilities & Energy': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':true,'project-types':true,'projects':true,'assets':true,'fuel-types':true,'asset-types':true},
+  'Mining & Aggregates': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':true,'project-types':true,'projects':true,'assets':true,'fuel-types':true,'asset-types':true},
+  'Agriculture': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':true,'project-types':false,'projects':false,'assets':true,'fuel-types':true,'asset-types':true},
+  'Environmental Services': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':false,'project-types':false,'projects':false,'assets':true,'fuel-types':true,'asset-types':true},
+  'Food & Beverage Processing': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':true,'project-types':false,'projects':false,'assets':true,'fuel-types':true,'asset-types':true},
+  'General Services': {'roles-permissions':true,'employees':true,'locations':true,'clients':true,'divisions':false,'project-types':false,'projects':false,'assets':true,'fuel-types':true,'asset-types':true}
 };
 
 var STEP_DEFS = [
@@ -50,7 +50,6 @@ var STEP_DEFS = [
   { key: 'project-types', label: 'Project Types', desc: 'Types of work your organization performs', locked: false },
   { key: 'projects', label: 'Projects', desc: 'Active, completed, or upcoming projects', locked: false },
   { key: 'fuel-types', label: 'Fuels, Fluids & Energy', desc: 'Types of fuel and fluids your organization uses', locked: true },
-  { key: 'units-of-measure', label: 'Units of Measure', desc: 'Volume, weight, distance, and metric units', locked: true },
   { key: 'asset-types', label: 'Asset Types', desc: 'Primary equipment and machine categories', locked: true },
   { key: 'assets', label: 'Assets', desc: 'Assets and equipment to maintain', locked: true }
 ];
@@ -608,7 +607,7 @@ function renderKeyPersonnel() {
 function loadTaskCompletions() { try { taskCompletions = JSON.parse(localStorage.getItem('driven_task_completions') || sessionStorage.getItem('driven_task_completions') || '{}'); } catch (e) { taskCompletions = {}; } }
 
 function adminIsTaskComplete(taskKey) {
-  var mapKeyToTask = { 'roles-permissions': 'Roles & Permissions', 'employees': 'Employees', 'locations': 'Locations', 'clients': 'Clients', 'divisions': 'Divisions', 'project-types': 'Project Types', 'projects': 'Projects', 'fuel-types': 'Fuels, Fluids & Energy', 'units-of-measure': 'Units of Measure', 'asset-types': 'Asset Types', 'assets': 'Assets' };
+  var mapKeyToTask = { 'roles-permissions': 'Roles & Permissions', 'employees': 'Employees', 'locations': 'Locations', 'clients': 'Clients', 'divisions': 'Divisions', 'project-types': 'Project Types', 'projects': 'Projects', 'fuel-types': 'Fuels, Fluids & Energy', 'asset-types': 'Asset Types', 'assets': 'Assets' };
   var taskName = mapKeyToTask[taskKey]; if (!taskName) return false;
   var completions = taskCompletions[taskName] || []; var assignedEmails = []; var all = keyPersonnel.concat(pendingKP);
   all.forEach(function(kp) { var tasks = kp.tasks || (kp.roles ? kp.roles.map(function(r) { return r.role || r.task_name; }) : (kp.task ? [kp.task] : [])); if (tasks.indexOf(taskName) !== -1 && kp.email) { assignedEmails.push(kp.email.toLowerCase()); } });
