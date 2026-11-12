@@ -76,16 +76,6 @@
     }
   }
 
-  function insertHeaderTitle() {
-    const row1 = document.querySelector(".dash-header-row1");
-    if (!row1) return;
-    if (row1.querySelector(".page-header-title")) return;
-    const title = document.createElement("div");
-    title.className = "page-header-title";
-    title.textContent = document.body.getAttribute("data-page-title") || "Onboarding Dashboard";
-    row1.appendChild(title);
-  }
-
   /* ===== POPUPS & INFO DIALOGS ===== */
 
   function togglePopup(id) {
@@ -719,7 +709,6 @@
       if (accEmail) accEmail.textContent = user.email || "";
       if (accRole) accRole.textContent = user.role || "User";
 
-      insertHeaderTitle();
       makeTabsSticky();
 
       const roleLower = (user.role) ? user.role.toLowerCase() : "";
