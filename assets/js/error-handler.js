@@ -57,11 +57,7 @@
       'style="float:right;background:none;border:none;font-size:18px;cursor:pointer;color:#999;padding:0 4px;line-height:1;">×</button>';
 
     banner.innerHTML = closeBtn + icon + title + body;
-    if (document.body) {
-      document.body.appendChild(banner);
-    } else {
-      document.documentElement.appendChild(banner);
-    }
+    document.body.appendChild(banner);
 
     // Auto-dismiss after 15 seconds (but keep the error logged)
     setTimeout(function () {
@@ -72,14 +68,12 @@
   // --- Send error to backend ---
   function reportError(errorInfo) {
     // Dedup: don't report the same error twice within 5 seconds
-    var dedupKey = (errorInfo.message || '') + '|' + (errorInfo.source || '');
+    var dedupKey = errorInfo.message + '|' + errorInfo.source;
     var now = Date.now();
     if (recentErrors[dedupKey] && (now - recentErrors[dedupKey] < DEDUP_WINDOW_MS)) {
       return; // Already reported recently
     }
     recentErrors[dedupKey] = now;
-
-    var activeOrgId = localStorage.getItem("driven_org_id") || localStorage.getItem("driven_customer_id") || "";
 
     // Build the error report
     var report = {
@@ -91,22 +85,19 @@
       colno: errorInfo.colno || null,
       url: window.location.href,
       userAgent: navigator.userAgent,
-      timestamp: new Date().toISOString(),
-      page: window.location.pathname,
-      org_id: activeOrgId
+      timestamp: new Date().toISOString,
+      page: window.location.pathname
     };
 
     // Send to backend (fire-and-forget, don't block)
     try {
-      var headers = { 'Content-Type': 'application/json' };
-      if (activeOrgId) headers['x-org-id'] = activeOrgId;
-
-      originalFetch(ERROR_REPORT_ENDPOINT, {
+      fetch(ERROR_REPORT_ENDPOINT, {
         method: 'POST',
-        headers: headers,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(report),
         credentials: 'include'
       }).catch(function () {
+        // If the error report endpoint itself fails, log to console as last resort
         console.error('[DRIV-EN] Failed to report error to backend:', report);
       });
     } catch (e) {
@@ -116,8 +107,8 @@
 
   // --- Catch synchronous errors ---
   window.addEventListener('error', function (event) {
-    // Ignore script loading errors (these are usually missing assets or 401 unauth checks)
-    if (event.message && (event.message.indexOf('Error loading script') !== -1 || event.message.indexOf('401') !== -1)) {
+    // Ignore script loading errors (these are usually missing assets, not code bugs)
+    if (event.message && event.message.indexOf('Error loading script') !== -1) {
       return;
     }
 
@@ -137,15 +128,8 @@
   // --- Catch unhandled promise rejections ---
   window.addEventListener('unhandledrejection', function (event) {
     var reason = event.reason;
-    var msg = (reason && reason.message) ? reason.message : String(reason || 'Unhandled promise rejection');
-
-    // Ignore expected 401 unauthorized rejections
-    if (msg.indexOf('401') !== -1 || msg.indexOf('Unauthorized') !== -1) {
-      return;
-    }
-
     var errorInfo = {
-      message: msg,
+      message: (reason && reason.message) ? reason.message : String(reason || 'Unhandled promise rejection'),
       stack: reason && reason.stack ? reason.stack : null,
       source: 'unhandledrejection'
     };
@@ -158,29 +142,19 @@
   var originalFetch = window.fetch;
   window.fetch = function () {
     var args = arguments;
-    var reqUrl = (args[0] && args[0].url) ? args[0].url : String(args[0] || '');
-
-    // Avoid recursing or intercepting the error-report call itself
-    if (reqUrl.indexOf(ERROR_REPORT_ENDPOINT) !== -1) {
-      return originalFetch.apply(this, args);
-    }
-
     return originalFetch.apply(this, args).then(function (response) {
-      // Ignore 401 Unauthorized status codes (these are handled gracefully by auth scripts)
-      if (response.status === 401) {
-        return response;
-      }
-
-      // If the API returns a 500 server error, show the user-friendly message
+      // If the API returns a 500, show the user-friendly message
       if (response.status >= 500) {
+        // Try to read the error body for a custom message
         var cloned = response.clone();
         cloned.json().then(function (data) {
           var msg = (data && data.error) ? data.error : null;
           showErrorBanner(msg);
+          // Also report it (the backend already logged it, but this captures the client-side context)
           reportError({
             message: 'API returned ' + response.status + ': ' + (msg || 'Server error'),
             source: 'fetch-wrapper',
-            stack: 'URL: ' + reqUrl
+            stack: 'URL: ' + (args[0] && args[0].url ? args[0].url : args[0])
           });
         }).catch(function () {
           showErrorBanner();
@@ -188,11 +162,7 @@
       }
       return response;
     }).catch(function (err) {
-      // Ignore network errors triggered by intentional page navigation or auth checks
-      if (err && err.message && (err.message.indexOf('401') !== -1 || err.message.indexOf('Failed to fetch') !== -1)) {
-        throw err;
-      }
-
+      // Network error (server unreachable, CORS, etc.)
       reportError({
         message: 'Network error: ' + (err.message || 'fetch failed'),
         source: 'fetch-network-error',
@@ -204,13 +174,14 @@
   };
 
   // --- Helper: wrap async functions with error handling ---
+  // Pages can use this to wrap their main logic:
+  //   DRIVENErrorHandler.wrap(async () => { ... main page logic ... });
   window.DRIVENErrorHandler = {
     wrap: function (fn) {
       return function () {
         try {
           return fn.apply(this, arguments);
         } catch (err) {
-          if (err && err.message && err.message.indexOf('401') !== -1) throw err;
           reportError({
             message: err.message || 'Wrapped function error',
             source: 'DRIVENErrorHandler.wrap',
@@ -224,7 +195,6 @@
 
     // Manual error reporting (for try/catch blocks in page code)
     report: function (message, source, stack) {
-      if (message && String(message).indexOf('401') !== -1) return;
       reportError({
         message: message,
         source: source || 'manual',
