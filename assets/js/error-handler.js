@@ -53,11 +53,16 @@
       'We apologize for the inconvenience. If you don\'t hear from us within 24 hours, ' +
       'please contact <a href="mailto:support@driv-en.com" style="color:#00b140;">support@driv-en.com</a>.') +
       '</span>';
-    var closeBtn = '<button onclick="this.parentElement.parentElement.remove()" ' +
-      'style="float:right;background:none;border:none;font-size:18px;cursor:pointer;color:#999;padding:0 4px;line-height:1;">×</button>';
+    var closeBtn = '<button data-error-dismiss style="float:right;background:none;border:none;font-size:18px;cursor:pointer;color:#999;padding:0 4px;line-height:1;">×</button>';
 
     banner.innerHTML = closeBtn + icon + title + body;
     document.body.appendChild(banner);
+
+    // Attach close handler via addEventListener (CSP compliant — no inline onclick)
+    var dismissBtn = banner.querySelector('[data-error-dismiss]');
+    if (dismissBtn) {
+      dismissBtn.addEventListener('click', function () { banner.remove(); });
+    }
 
     // Auto-dismiss after 15 seconds (but keep the error logged)
     setTimeout(function () {
