@@ -6,6 +6,9 @@
  * This avoids the atomic failure problem where one missing file
  * breaks the entire cache.
  *
+ * v19 — November 12, 2026: Added #dashHeader sticky + .dash-header-row1 grid
+ *         CSS to Work Orders + Calendar (was missing — admin/onboarding have it).
+ *         This forces single-row header layout with !important overrides.
  * v18 — November 12, 2026: Hide stale header row2/row3 on Work Orders +
  *         Calendar (matches admin dashboard CSS). Tab bar realigned:
  *         Dashboard (blue, left), Work Orders/Calendar (green, center),
@@ -38,7 +41,7 @@
  *      to cache only when offline). Static assets are cache-first.
  */
 
-const CACHE = 'driv-en-v18';
+const CACHE = 'driv-en-v19';
 const STATIC_ASSETS = [
   '/app/shared/dashboard.css',
   '/app/shared/dashboard-common.js',
