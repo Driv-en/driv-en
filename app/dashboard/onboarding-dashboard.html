@@ -17,12 +17,15 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="DRIV-EN">
-<link rel="stylesheet" href="/app/shared/dashboard.css?v=12">
+<link rel="stylesheet" href="/app/shared/dashboard.css?v=15">
 <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
 <script src="/app/shared/theme-init.js"></script>
 
 <style>
-    /* ===== HEADER — 3-column layout matching admin dashboard ===== */
+    /* Hide old 3-row header rows if stale SW serves them */
+    .dash-header-row2, .dash-header-row3, .dash-utility-bar { display: none !important; }
+
+    /* ===== HEADER -- 3-column layout matching admin dashboard ===== */
     #dashHeader {
       width: 100% !important;
       box-sizing: border-box;
@@ -52,6 +55,7 @@
       justify-self: end;
       max-width: 100%;
     }
+    .page-header-title {
       text-align: center;
       font-size: 20px;
       font-weight: 700;
@@ -73,6 +77,91 @@
         padding: 6px 12px !important;
       }
     }
+
+    /* ===== WELCOME CARD -- matches test-dashboard format ===== */
+    .ob-welcome-card {
+      background: var(--bg-card, #ffffff);
+      border: 2px solid var(--success, #16a34a);
+      border-radius: 8px;
+      padding: 24px;
+      margin: 16px auto 20px auto;
+      max-width: 1100px;
+      position: relative;
+      z-index: 1;
+    }
+    .ob-welcome-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .ob-welcome-greeting h2 {
+      margin: 0;
+      font-size: 20px;
+      color: var(--text, #0f172a);
+    }
+    .ob-welcome-details {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 24px;
+      align-items: center;
+    }
+    .welcome-detail-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .welcome-detail-row {
+      font-size: 14px;
+      color: var(--text, #0f172a);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .welcome-detail-label {
+      font-weight: 600;
+      color: var(--text-muted, #64748b);
+    }
+    .welcome-change-password {
+      background: var(--success, #16a34a);
+      border: 1px solid #15803d;
+      color: #ffffff;
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
+      cursor: pointer;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+    .welcome-change-password:hover { background: #15803d; }
+    @media (max-width: 600px) {
+      .ob-welcome-details { grid-template-columns: 1fr; }
+      .ob-welcome-header { flex-direction: column; }
+    }
+
+    /* Theme toggle -- matches test-dashboard */
+    .dash-theme-wrapper { display: flex; align-items: center; gap: 8px; }
+    .dash-theme-label { font-size: 13px; color: var(--text-muted, #64748b); }
+    .dash-theme-label.active { color: var(--text, #0f172a); font-weight: 600; }
+    .dash-theme-switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+    .dash-theme-switch input { opacity: 0; width: 0; height: 0; }
+    .dash-theme-switch input:focus-visible + .dash-theme-slider {
+      outline: 2px solid #2563eb; outline-offset: 2px;
+    }
+    .dash-theme-slider {
+      position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+      background: #3b82f6; border-radius: 24px; transition: 0.3s;
+    }
+    .dash-theme-slider:before {
+      content: ""; position: absolute; height: 18px; width: 18px;
+      left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.3s;
+    }
+    .dash-theme-switch input:checked + .dash-theme-slider { background: #16a34a; }
+    .dash-theme-switch input:checked + .dash-theme-slider:before { transform: translateX(20px); }
 
     /* ===== STICKY TAB BAR ===== */
     .ob-tab-bar {
@@ -107,11 +196,8 @@
     .ob-tab-logout { background: #b91c1c; border: 1px solid #dc2626; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; margin-left: auto; position: relative; z-index: 1; transition: background 200ms ease, margin-top 200ms ease; }
     .ob-tab-logout:hover { background: #dc2626; margin-top: 2px; }
     .ob-main { max-width: 1100px; margin: 20px auto; padding: 0 20px; position: relative; z-index: 1; }
-    .ob-greeting-bar { max-width: 1100px; margin: 0 auto; padding: 12px 20px 0 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; position: relative; z-index: 1; }
-    .ob-greeting-text { font-size: 16px; color: var(--text-muted); font-weight: 500; }
-    .ob-greeting-text strong { color: var(--text); }
 
-    /* ===== PILL BUTTONS — Matches Admin Dashboard ===== */
+    /* ===== PILL BUTTONS ===== */
     .ob-header-guide-actions { display: flex; align-items: center; gap: 12px; }
     .pill-btn {
       display: inline-flex;
@@ -126,23 +212,15 @@
       transition: all 150ms ease-in-out;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
-    .pill-btn-purpose {
-      background-color: #0284c7;
-      color: #ffffff;
-      border-color: #0369a1;
-    }
+    .pill-btn-purpose { background-color: #0284c7; color: #ffffff; border-color: #0369a1; }
     .pill-btn-purpose:hover { background-color: #0369a1; }
-    .pill-btn-instructions {
-      background-color: #8b5cf6;
-      color: #ffffff;
-      border-color: #7c3aed;
-    }
+    .pill-btn-instructions { background-color: #8b5cf6; color: #ffffff; border-color: #7c3aed; }
     .pill-btn-instructions:hover { background-color: #7c3aed; }
 
     /* ===== MODAL STYLING ===== */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 10000; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
     .modal-overlay.active { display: flex; }
-    .modal-card { background: var(--bg-card, #ffffff) !important; border: 2px solid var(--border); border-radius: 12px; max-width: 640px; width: 100%; max-height: 85vh; overflow-y: auto; padding: 24px; position: relative; box-shadow: 0 12px 32px rgba(0,0,0,0.3); }
+    .modal-card { background: var(--bg-card, #ffffff) !important; border: 2px solid var(--success, #16a34a); border-radius: 12px; max-width: 640px; width: 100%; max-height: 85vh; overflow-y: auto; padding: 24px; position: relative; box-shadow: 0 12px 32px rgba(0,0,0,0.3); }
     :root[data-theme="dark"] .modal-card { background: #1e293b !important; }
     .modal-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
     .modal-title { margin: 0; font-size: 18px; color: var(--text); font-weight: 700; display: flex; align-items: center; gap: 8px; }
@@ -155,7 +233,7 @@
     .modal-body strong { color: var(--text); }
     .modal-footer { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; }
 
-    /* ===== STEP CARDS — Solid background ===== */
+    /* ===== STEP CARDS ===== */
     .ob-step-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 20px; }
     .ob-step-card { background: var(--bg-card, #ffffff) !important; border: 2px solid #16a34a; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 10px; position: relative; transition: border-color 200ms ease, box-shadow 200ms ease; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
     :root[data-theme="dark"] .ob-step-card { background: #1e293b !important; }
@@ -214,25 +292,16 @@
     .ob-btn-complete:disabled { background: #64748b; border-color: #475569; color: #cbd5e1; cursor: not-allowed; opacity: 0.7; }
     .ob-btn-complete:disabled:hover { background: #64748b; }
 
-    /* ===== SETTINGS SECTIONS — Solid background ===== */
-    .settings-section { background: var(--bg-card, #ffffff) !important; border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    /* ===== SETTINGS SECTIONS ===== */
+    .settings-section { background: var(--bg-card, #ffffff) !important; border: 2px solid var(--success, #16a34a); border-radius: 8px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
     :root[data-theme="dark"] .settings-section { background: #1e293b !important; }
     .settings-section h3 { margin: 0 0 16px 0; font-size: 18px; color: var(--text); padding-bottom: 10px; border-bottom: 1px solid var(--border); }
-    .theme-switch-wrapper { display: flex; align-items: center; gap: 8px; }
-    .theme-switch-label { font-size: 12px; color: var(--text-muted); transition: opacity 200ms ease; }
-    .theme-switch-label.active { color: var(--text); font-weight: 600; }
-    .theme-switch { position: relative; display: inline-block; width: 44px; height: 24px; }
-    .theme-switch input { opacity: 0; width: 0; height: 0; }
-    .theme-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: var(--border); border-radius: 24px; transition: background 200ms ease; }
-    .theme-slider:before { content: ""; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: transform 200ms ease; }
-    .theme-switch input:checked + .theme-slider { background: var(--primary); }
-    .theme-switch input:checked + .theme-slider:before { transform: translateX(20px); }
     .account-row { font-size: 14px; color: var(--text); margin-bottom: 8px; }
     .account-row span { color: var(--text-muted); font-weight: 500; }
     .popup-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; }
     .popup-overlay.active { display: block; }
 
-    /* ===== COMPLETE NOTICE — Solid background ===== */
+    /* ===== COMPLETE NOTICE ===== */
     .ob-complete-notice { max-width: 1100px; margin: 40px auto; padding: 0 20px; text-align: center; position: relative; z-index: 1; }
     .ob-complete-notice-card { background: var(--bg-card, #ffffff) !important; border: 1px solid var(--success, #16a34a); border-radius: 12px; padding: 40px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
     :root[data-theme="dark"] .ob-complete-notice-card { background: #1e293b !important; }
@@ -257,7 +326,6 @@
       .ob-tab { padding: 10px 16px; font-size: 14px; }
       .ob-tab-logout { padding: 10px 16px; font-size: 14px; }
       .ob-tab-admin { padding: 10px 16px; font-size: 14px; }
-      .ob-greeting-bar { flex-direction: column; align-items: flex-start; }
     }
 
     @media (max-width: 480px) {
@@ -265,7 +333,6 @@
       .ob-tab { padding: 8px 12px; font-size: 13px; }
       .ob-tab-logout { padding: 8px 12px; font-size: 13px; }
       .ob-tab-admin { padding: 8px 12px; font-size: 13px; }
-      .ob-greeting-bar { padding: 8px 12px 0 12px; }
       .ob-main { padding: 0 8px; }
       .ob-step-card { padding: 12px; }
       .settings-section { padding: 16px; }
@@ -285,7 +352,7 @@
   <button class="ob-tab-logout">Logout</button>
 </div>
 
-<div id="loading" style="display:flex;align-items:center;justify-content:center;height:100vh;font-size:16px;color:var(--text-muted);">Checking session…</div>
+<div id="loading" style="display:flex;align-items:center;justify-content:center;height:100vh;font-size:16px;color:var(--text-muted);">Checking session...</div>
 
 <div id="dashboard" style="display:none;">
   <div class="ob-complete-notice" id="completeNotice" style="display:none;">
@@ -296,20 +363,44 @@
   </div>
 
   <div class="ob-tab-content active" id="tab-overview">
-    <div class="ob-greeting-bar">
-      <div class="ob-greeting-text" id="greetingText">Welcome</div>
-      <div class="ob-header-guide-actions">
-        <button class="pill-btn pill-btn-purpose" id="btnPurposeModal">ⓘ Purpose</button>
-        <button class="pill-btn pill-btn-instructions" id="btnInstructionsModal">📋 Instructions</button>
+    <div class="ob-welcome-card">
+      <div class="ob-welcome-header">
+        <div class="ob-welcome-greeting">
+          <h2 id="greetingText">Welcome back</h2>
+        </div>
+        <div class="ob-welcome-theme">
+          <div class="dash-theme-wrapper" title="Toggle light/dark mode">
+            <span class="dash-theme-label" id="dashThemeLabelLight">Light</span>
+            <label class="dash-theme-switch">
+              <input type="checkbox" id="dashThemeCheckbox" aria-label="Toggle light or dark theme">
+              <span class="dash-theme-slider"></span>
+            </label>
+            <span class="dash-theme-label" id="dashThemeLabelDark">Dark</span>
+          </div>
+        </div>
+      </div>
+      <div class="ob-welcome-details">
+        <div class="welcome-detail-rows">
+          <div class="welcome-detail-row">
+            <span class="welcome-detail-label">Role:</span>
+            <span id="account-role"></span>
+          </div>
+          <div class="welcome-detail-row">
+            <span class="welcome-detail-label">Email:</span>
+            <span id="account-email"></span>
+          </div>
+        </div>
+        <a href="/app/auth/change-password.html" class="welcome-change-password">Change Password</a>
       </div>
     </div>
+
     <div class="ob-main">
       <div class="settings-section">
         <h3>Onboarding Tasks</h3>
-        <p style="font-size:13px;color:var(--text-muted);margin:0 0 8px 0;">Complete each task below. Some tasks have prerequisites — complete those first to unlock the next task.</p>
+        <p style="font-size:13px;color:var(--text-muted);margin:0 0 8px 0;">Complete each task below. Some tasks have prerequisites -- complete those first to unlock the next task.</p>
         <div id="kpMarkCompleteBanner" style="margin:12px 0 16px 0;padding:14px 16px;background:#fef3c7;border:1px solid #fcd34d;border-left:5px solid #f59e0b;border-radius:8px;font-size:13px;color:#78350f;line-height:1.5;">
-          <strong style="font-size:14px;">⚠ Important — Click "Mark Complete" when you finish a task.</strong><br>
-          After you have finished entering your assigned data for a task, click the green <strong>"✓ Mark Complete"</strong> button. A task is only considered complete once <em>every</em> assigned Key Personnel has clicked "Mark Complete".
+          <strong style="font-size:14px;">Important -- Click "Mark Complete" when you finish a task.</strong><br>
+          After you have finished entering your assigned data for a task, click the green <strong>"Mark Complete"</strong> button. A task is only considered complete once <em>every</em> assigned Key Personnel has clicked "Mark Complete".
         </div>
         <div id="companyInfoBar" style="display:none;margin-bottom:16px;padding:12px 16px;background:var(--bg-step);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text-muted);">
           <span style="font-weight:600;color:var(--text);">Business Type:</span> <span id="obCompanyType">Not set</span>
@@ -329,7 +420,7 @@
             <div class="ob-assigned-to" id="assigned-step1"><span class="ob-assigned-to-label">Assigned:</span><span class="ob-assigned-to-name unassigned">Not assigned</span></div>
             <button id="btn-step1" class="ob-btn-primary">Open Roles &amp; Permissions</button>
             <div class="ob-card-footer-row">
-              <button id="btn-complete-step1" class="ob-btn-complete" style="display:none;">✓ Mark Complete</button>
+              <button id="btn-complete-step1" class="ob-btn-complete" style="display:none;">Mark Complete</button>
               <button class="ob-info-btn" id="btn-info-rp">Info Needed</button>
               <div class="ob-info-popup" id="popup-rp">
                 <button class="ob-info-popup-close">&times;</button>
@@ -350,7 +441,7 @@
             <div class="ob-assigned-to" id="assigned-step2"><span class="ob-assigned-to-label">Assigned:</span><span class="ob-assigned-to-name unassigned">Not assigned</span></div>
             <button id="btn-step2" class="ob-btn-primary">Open Employees</button>
             <div class="ob-card-footer-row">
-              <button id="btn-complete-step2" class="ob-btn-complete" style="display:none;">✓ Mark Complete</button>
+              <button id="btn-complete-step2" class="ob-btn-complete" style="display:none;">Mark Complete</button>
               <button class="ob-info-btn" id="btn-info-emp">Info Needed</button>
               <div class="ob-info-popup" id="popup-emp">
                 <button class="ob-info-popup-close">&times;</button>
@@ -371,7 +462,7 @@
             <div class="ob-assigned-to" id="assigned-step3"><span class="ob-assigned-to-label">Assigned:</span><span class="ob-assigned-to-name unassigned">Not assigned</span></div>
             <button id="btn-step3" class="ob-btn-primary">Open Locations</button>
             <div class="ob-card-footer-row">
-              <button id="btn-complete-step3" class="ob-btn-complete" style="display:none;">✓ Mark Complete</button>
+              <button id="btn-complete-step3" class="ob-btn-complete" style="display:none;">Mark Complete</button>
               <button class="ob-info-btn" id="btn-info-loc">Info Needed</button>
               <div class="ob-info-popup" id="popup-loc">
                 <button class="ob-info-popup-close">&times;</button>
@@ -391,7 +482,7 @@
             <div class="ob-assigned-to" id="assigned-step4"><span class="ob-assigned-to-label">Assigned:</span><span class="ob-assigned-to-name unassigned">Not assigned</span></div>
             <button id="btn-step4" class="ob-btn-primary">Open Clients</button>
             <div class="ob-card-footer-row">
-              <button id="btn-complete-step4" class="ob-btn-complete" style="display:none;">✓ Mark Complete</button>
+              <button id="btn-complete-step4" class="ob-btn-complete" style="display:none;">Mark Complete</button>
               <button class="ob-info-btn" id="btn-info-client">Info Needed</button>
               <div class="ob-info-popup" id="popup-client">
                 <button class="ob-info-popup-close">&times;</button>
@@ -411,7 +502,7 @@
             <div class="ob-assigned-to" id="assigned-step5"><span class="ob-assigned-to-label">Assigned:</span><span class="ob-assigned-to-name unassigned">Not assigned</span></div>
             <button id="btn-step5" class="ob-btn-primary">Open Divisions</button>
             <div class="ob-card-footer-row">
-              <button id="btn-complete-step5" class="ob-btn-complete" style="display:none;">✓ Mark Complete</button>
+              <button id="btn-complete-step5" class="ob-btn-complete" style="display:none;">Mark Complete</button>
               <button class="ob-info-btn" id="btn-info-div">Info Needed</button>
               <div class="ob-info-popup" id="popup-div">
                 <button class="ob-info-popup-close">&times;</button>
@@ -431,7 +522,7 @@
             <div class="ob-assigned-to" id="assigned-step6"><span class="ob-assigned-to-label">Assigned:</span><span class="ob-assigned-to-name unassigned">Not assigned</span></div>
             <button id="btn-step6" class="ob-btn-primary">Open Project Types</button>
             <div class="ob-card-footer-row">
-              <button id="btn-complete-step6" class="ob-btn-complete" style="display:none;">✓ Mark Complete</button>
+              <button id="btn-complete-step6" class="ob-btn-complete" style="display:none;">Mark Complete</button>
               <button class="ob-info-btn" id="btn-info-pt">Info Needed</button>
               <div class="ob-info-popup" id="popup-pt">
                 <button class="ob-info-popup-close">&times;</button>
@@ -452,12 +543,12 @@
             <div class="ob-assigned-to" id="assigned-step7"><span class="ob-assigned-to-label">Assigned:</span><span class="ob-assigned-to-name unassigned">Not assigned</span></div>
             <button id="btn-step7" class="ob-btn-primary" disabled>Open Projects</button>
             <div class="ob-card-footer-row">
-              <button id="btn-complete-step7" class="ob-btn-complete" style="display:none;">✓ Mark Complete</button>
+              <button id="btn-complete-step7" class="ob-btn-complete" style="display:none;">Mark Complete</button>
               <button class="ob-info-btn" id="btn-info-proj">Info Needed</button>
               <div class="ob-info-popup" id="popup-proj">
                 <button class="ob-info-popup-close">&times;</button>
                 <strong>Projects Summary</strong><br>
-                Add active and upcoming projects. <span id="popup-proj-prereq">Each project links a Client, Division, and Project Type — Clients must be completed first.</span>
+                Add active and upcoming projects. <span id="popup-proj-prereq">Each project links a Client, Division, and Project Type -- Clients must be completed first.</span>
               </div>
             </div>
           </div>
@@ -472,12 +563,12 @@
             <div class="ob-assigned-to" id="assigned-step8"><span class="ob-assigned-to-label">Assigned:</span><span class="ob-assigned-to-name unassigned">Not assigned</span></div>
             <button id="btn-step8" class="ob-btn-primary">Open Fuels, Fluids &amp; Energy</button>
             <div class="ob-card-footer-row">
-              <button id="btn-complete-step8" class="ob-btn-complete" style="display:none;">✓ Mark Complete</button>
+              <button id="btn-complete-step8" class="ob-btn-complete" style="display:none;">Mark Complete</button>
               <button class="ob-info-btn" id="btn-info-ft">Info Needed</button>
               <div class="ob-info-popup" id="popup-ft">
                 <button class="ob-info-popup-close">&times;</button>
                 <strong>Fuels, Fluids &amp; Energy Summary</strong><br>
-                Select fuel types, oils, hydraulic fluids, DEF, coolants, and energy sources (ULSD, Regular/Premium Gas, EV, Hybrid, Propane, CNG, Biodiesel, engine oils, and custom fluid grades) consumed by your equipment.
+                Select fuel types, oils, hydraulic fluids, DEF, coolants, and energy sources consumed by your equipment.
               </div>
             </div>
           </div>
@@ -492,12 +583,12 @@
             <div class="ob-assigned-to" id="assigned-step9"><span class="ob-assigned-to-label">Assigned:</span><span class="ob-assigned-to-name unassigned">Not assigned</span></div>
             <button id="btn-step9" class="ob-btn-primary">Open Units of Measure</button>
             <div class="ob-card-footer-row">
-              <button id="btn-complete-step9" class="ob-btn-complete" style="display:none;">✓ Mark Complete</button>
+              <button id="btn-complete-step9" class="ob-btn-complete" style="display:none;">Mark Complete</button>
               <button class="ob-info-btn" id="btn-info-um">Info Needed</button>
               <div class="ob-info-popup" id="popup-um">
                 <button class="ob-info-popup-close">&times;</button>
                 <strong>Units of Measure Summary</strong><br>
-                Select liquid volume units (Gallons, Liters, Barrels, Quarts), distance/usage counters (Miles, Kilometers, Hours), weight metrics (Tons, Pounds, Kilograms), pressure (PSI, Bar), and electrical units (kWh) across SAE and Metric domains.
+                Select liquid volume units (Gallons, Liters, Barrels, Quarts), distance/usage counters (Miles, Kilometers, Hours), weight metrics, pressure, and electrical units.
               </div>
             </div>
           </div>
@@ -512,12 +603,12 @@
             <div class="ob-assigned-to" id="assigned-step10"><span class="ob-assigned-to-label">Assigned:</span><span class="ob-assigned-to-name unassigned">Not assigned</span></div>
             <button id="btn-step10" class="ob-btn-primary">Open Asset Types</button>
             <div class="ob-card-footer-row">
-              <button id="btn-complete-step10" class="ob-btn-complete" style="display:none;">✓ Mark Complete</button>
+              <button id="btn-complete-step10" class="ob-btn-complete" style="display:none;">Mark Complete</button>
               <button class="ob-info-btn" id="btn-info-at">Info Needed</button>
               <div class="ob-info-popup" id="popup-at">
                 <button class="ob-info-popup-close">&times;</button>
                 <strong>Asset Types Summary</strong><br>
-                Select primary asset categories (Earthmoving, Hauling, Lifting, Power Generation, Vehicles, Attachments) to standardize fleet classification. Drive/mobility details are configured later.
+                Select primary asset categories (Earthmoving, Hauling, Lifting, Power Generation, Vehicles, Attachments) to standardize fleet classification.
               </div>
             </div>
           </div>
@@ -533,7 +624,7 @@
             <div class="ob-assigned-to" id="assigned-step11"><span class="ob-assigned-to-label">Assigned:</span><span class="ob-assigned-to-name unassigned">Not assigned</span></div>
             <button id="btn-step11" class="ob-btn-primary" disabled>Open Assets</button>
             <div class="ob-card-footer-row">
-              <button id="btn-complete-step11" class="ob-btn-complete" style="display:none;">✓ Mark Complete</button>
+              <button id="btn-complete-step11" class="ob-btn-complete" style="display:none;">Mark Complete</button>
               <button class="ob-info-btn" id="btn-info-assets">Info Needed</button>
               <div class="ob-info-popup" id="popup-assets">
                 <button class="ob-info-popup-close">&times;</button>
@@ -551,19 +642,10 @@
   <div class="ob-tab-content" id="tab-settings">
     <div class="ob-main">
       <div class="settings-section">
-        <h3>Appearance</h3>
-        <div class="theme-switch-wrapper" title="Toggle light/dark mode">
-          <span class="theme-switch-label" id="theme-label-light">Light Mode</span>
-          <label class="theme-switch"><input type="checkbox" id="theme-checkbox"><span class="theme-slider"></span></label>
-          <span class="theme-switch-label" id="theme-label-dark">Dark Mode</span>
-        </div>
-      </div>
-      <div class="settings-section">
         <h3>Account</h3>
         <div class="account-row"><span>Name:</span> <span id="account-name"></span></div>
         <div class="account-row"><span>Email:</span> <span id="account-email"></span></div>
         <div class="account-row"><span>Role:</span> <span id="account-role"></span></div>
-        <button class="ob-btn-primary" id="btnChangePassword" style="background:transparent;border:1px solid var(--primary);color:var(--primary);padding:10px 20px;">Change Password</button>
       </div>
     </div>
   </div>
@@ -573,8 +655,8 @@
 <div id="purposeModal" class="modal-overlay" aria-hidden="true" role="dialog" aria-labelledby="purposeModalTitle">
   <div class="modal-card">
     <div class="modal-header">
-      <h3 id="purposeModalTitle" class="modal-title">ⓘ Purpose: Onboarding Dashboard</h3>
-      <button class="modal-close-icon purpose-close" aria-label="Close dialog">×</button>
+      <h3 id="purposeModalTitle" class="modal-title">Purpose: Onboarding Dashboard</h3>
+      <button class="modal-close-icon purpose-close" aria-label="Close dialog">&times;</button>
     </div>
     <div class="modal-body">
       <p>The <strong>Onboarding Dashboard</strong> establishes the core operational directory and master data for your organization in the <strong>DRIV-EN Platform</strong>.</p>
@@ -596,8 +678,8 @@
 <div id="instructionsModal" class="modal-overlay" aria-hidden="true" role="dialog" aria-labelledby="instructionsModalTitle">
   <div class="modal-card">
     <div class="modal-header">
-      <h3 id="instructionsModalTitle" class="modal-title">📋 Instructions</h3>
-      <button class="modal-close-icon instructions-close" aria-label="Close dialog">×</button>
+      <h3 id="instructionsModalTitle" class="modal-title">Instructions</h3>
+      <button class="modal-close-icon instructions-close" aria-label="Close dialog">&times;</button>
     </div>
     <div class="modal-body">
       <p>Follow these steps to complete your organization's onboarding setup:</p>
@@ -605,7 +687,7 @@
         <li><strong>Review Your Task Assignments:</strong> Check the <em>Assigned:</em> line on each card. You are responsible for completing the tasks assigned to your name.</li>
         <li><strong>Check Task Dependencies:</strong> Some tasks have prerequisites (e.g., <em>Roles &amp; Permissions</em> unlocks <em>Employees</em>; <em>Asset Types</em> unlocks <em>Assets</em>). Locked tasks will automatically become <strong>Ready</strong> as soon as their required steps are completed.</li>
         <li><strong>Enter Your Data:</strong> Click the blue <strong>"Open [Task]"</strong> button on any active card to input your data (available via single entry or mass Excel upload).</li>
-        <li><strong>Mark Tasks Complete:</strong> When you finish entering data for a task, return here and click the green <strong>"✓ Mark Complete"</strong> button on that card.</li>
+        <li><strong>Mark Tasks Complete:</strong> When you finish entering data for a task, return here and click the green <strong>"Mark Complete"</strong> button on that card.</li>
         <li><strong>Multi-User Verification:</strong> If a task is assigned to multiple Key Personnel, all assigned team members must click <strong>"Mark Complete"</strong> for the card to finalize.</li>
       </ol>
     </div>
@@ -618,8 +700,8 @@
 <div class="popup-overlay" id="popupOverlay"></div>
 <div id="dashFooter"></div>
 
-<script src="/app/shared/dashboard-common.js?v=16"></script>
-<script src="/app/shared/auth-check.js?v=13"></script>
-<script src="/app/dashboard/onboarding-dashboard.js?v=2"></script>
+<script src="/app/shared/auth-check.js"></script>
+<script src="/app/shared/dashboard-common.js?v=20"></script>
+<script src="/app/dashboard/onboarding-dashboard.js?v=3"></script>
 </body>
 </html>
