@@ -18,7 +18,7 @@
  *   DRIVEN_VOICE.isTTSSupported()
  *
  * Load after dashboard-common.js, before page JS:
- *   <script src="/app/shared/voice.js?v=1"></script>
+ *   <script src="/app/shared/voice.js?v=2"></script>
  */
 
 (function() {
@@ -32,6 +32,28 @@
   var listening = false;
   var activeInput = null;
   var dictationRestart = false;
+
+  // -- Language detection --
+  // Priority: explicit setLang() > localStorage 'driven-voice-lang' > navigator.language > 'en-US'
+  var langOverride = null;
+
+  function getLang() {
+    if (langOverride) return langOverride;
+    var saved = null;
+    try { saved = localStorage.getItem('driven-voice-lang'); } catch (e) {}
+    if (saved) return saved;
+    // navigator.language returns e.g. "en-US", "es-ES", "fr-FR"
+    if (navigator.language) return navigator.language;
+    if (navigator.userLanguage) return navigator.userLanguage;
+    return 'en-US';
+  }
+
+  function setLang(lang) {
+    langOverride = lang || null;
+    if (lang) {
+      try { localStorage.setItem('driven-voice-lang', lang); } catch (e) {}
+    }
+  }
 
   // -- Style injection (scoped to voice features) --
   var styleId = 'driven-voice-styles';
@@ -116,7 +138,7 @@
     recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'en-US';
+    recognition.lang = getLang();
 
     var finalTranscript = '';
     var baseText = inputEl.value || '';
@@ -221,7 +243,7 @@
     utter.rate = (opts && opts.rate) || 1.0;
     utter.pitch = (opts && opts.pitch) || 1.0;
     utter.volume = (opts && opts.volume) || 1.0;
-    utter.lang = 'en-US';
+    utter.lang = (opts && opts.lang) || getLang();
 
     utter.onstart = function() {
       currentUtterance = utter;
@@ -356,6 +378,8 @@
     speak: speak,
     stopSpeaking: stopSpeaking,
     isSpeaking: isSpeaking,
+    getLang: getLang,
+    setLang: setLang,
     init: init,
     addMicButton: addMicButton,
     addReadAloudButton: addReadAloudButton
