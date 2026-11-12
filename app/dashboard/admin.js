@@ -480,6 +480,15 @@ function setUnitSystem(sys) {
     .then(function() {
       try { localStorage.setItem('driv-en-unit-system', sys); } catch (e) {}
       renderOnboardingUomDisplays();
+      // Update welcome card hint immediately — no refresh needed
+      var hint = document.getElementById('welcomeUomHint');
+      var select = document.getElementById('welcomeUomSelect');
+      if (hint && select && select.value === 'org_default') {
+        hint.textContent = 'Org default: ' + (sys === 'metric' ? 'Metric' : 'Imperial');
+      }
+      // Refresh any DRIVEN_APPLY_UNITS displays on this page
+      if (window.DRIVEN_APPLY_UNITS && DRIVEN_APPLY_UNITS.refresh) { try { DRIVEN_APPLY_UNITS.refresh(); } catch (e) {} }
+      if (window.DRIVEN_UNITS && DRIVEN_UNITS.refreshUnitSystem) { try { DRIVEN_UNITS.refreshUnitSystem(); } catch (e) {} }
       try { localStorage.setItem('driv-en-unit-system-changed', Date.now().toString()); } catch (e) {}
       alert('Measurement system updated to ' + (sys === 'metric' ? 'Metric' : 'Imperial') + '.\n\nOther open tabs will update automatically.');
     })
@@ -823,6 +832,19 @@ async function init() {
   var pollAttempts = 0;
   var pollTimer = setInterval(function() { pollAttempts++; var u = window.dashUser || window.drivenUser || getUserFromStorage(); if (u) { clearInterval(pollTimer); startAdminApp(u); } else if (pollAttempts >= 40) { clearInterval(pollTimer); var lastResort = getUserFromStorage(); if (lastResort) { startAdminApp(lastResort); } else { window.location.href = '/public/login.html'; } } }, 250);
   window.addEventListener('load', function() { if (!adminAppStarted) { rebuildHeader(); var u = window.dashUser || window.drivenUser || getUserFromStorage(); if (u) startAdminApp(u); } });
+
+  // Cross-tab unit system sync — update displays when another tab changes the org default
+  window.addEventListener('storage', function(e) {
+    if (e.key === 'driv-en-unit-system-changed') {
+      renderOnboardingUomDisplays();
+      var hint = document.getElementById('welcomeUomHint');
+      var select = document.getElementById('welcomeUomSelect');
+      if (hint && select && select.value === 'org_default') {
+        try { var sys = localStorage.getItem('driv-en-unit-system') || 'imperial'; hint.textContent = 'Org default: ' + (sys === 'metric' ? 'Metric' : 'Imperial'); } catch (err) {}
+      }
+      if (window.DRIVEN_APPLY_UNITS && DRIVEN_APPLY_UNITS.refresh) { try { DRIVEN_APPLY_UNITS.refresh(); } catch (err) {} }
+    }
+  });
 
   // ===== FALLBACK: After 10s, redirect to login if no session was found =====
   // (The poll at 250ms x 40 = 10s already handles starting the app when a user
