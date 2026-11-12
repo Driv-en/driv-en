@@ -192,9 +192,47 @@
       method: "POST",
       headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload)
+    }).then(function(res) {
+      if (!res.ok) {
+        console.error("[OnboardingDashboard] Server rejected completion save: HTTP " + res.status);
+      }
     }).catch(function(e) {
       console.error("[OnboardingDashboard] Failed to sync completions:", e.message);
     });
+  }
+
+  async function loadCompletionsFromServer() {
+    try {
+      const res = await fetch("/api/onboarding/task-completions", {
+        headers: getAuthHeaders()
+      });
+      if (!res.ok) {
+        console.warn("[OnboardingDashboard] Server completions fetch failed: HTTP " + res.status);
+        return;
+      }
+      const data = await res.json();
+      if (data && data.completions && typeof data.completions === "object") {
+        let merged = false;
+        for (const taskName in data.completions) {
+          if (!data.completions.hasOwnProperty(taskName)) continue;
+          if (!taskCompletions[taskName]) taskCompletions[taskName] = [];
+          const serverEmails = data.completions[taskName];
+          if (!Array.isArray(serverEmails)) continue;
+          serverEmails.forEach(function(email) {
+            if (taskCompletions[taskName].indexOf(email) === -1) {
+              taskCompletions[taskName].push(email);
+              merged = true;
+            }
+          });
+        }
+        if (merged) {
+          saveTaskCompletions();
+          updateAllSteps();
+        }
+      }
+    } catch (e) {
+      console.error("[OnboardingDashboard] Failed to load server completions:", e.message);
+    }
   }
 
   function updateCompleteButton(stepNum) {
@@ -725,6 +763,7 @@
       await loadSettings();
       loadTaskCompletions();
       await loadKeyPersonnel();
+      await loadCompletionsFromServer();
       loadOnboardingKPIs();
     } finally {
       const loadingEl = document.getElementById("loading");
