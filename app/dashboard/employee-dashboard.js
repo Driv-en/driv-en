@@ -83,6 +83,13 @@ var MODULES = [
     perms: ['users.view', 'users.add', 'users.edit', 'users.delete', 'user.manage']
   },
   {
+    key: 'company',
+    label: 'Company Management',
+    desc: 'View and manage company clients and contacts.',
+    link: '/app/dashboard/company-management.html',
+    perms: ['clients.view', 'clients.add', 'clients.edit', 'clients.delete', 'company.view', 'projects.view']
+  },
+  {
     key: 'reports',
     label: 'Reports',
     desc: 'View and export operational reports.',
