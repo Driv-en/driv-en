@@ -6,6 +6,10 @@
  * This avoids the atomic failure problem where one missing file
  * breaks the entire cache.
  *
+ * v18 — November 12, 2026: Hide stale header row2/row3 on Work Orders +
+ *         Calendar (matches admin dashboard CSS). Tab bar realigned:
+ *         Dashboard (blue, left), Work Orders/Calendar (green, center),
+ *         Logout (red, right).
  * v17 — November 12, 2026: Work Orders page rebuilt with welcome bar, JS
  *         extracted to work-orders.js, cards styled with green border.
  *         Calendar page: tab bar added (Dashboard/Work Orders/Logout),
@@ -34,7 +38,7 @@
  *      to cache only when offline). Static assets are cache-first.
  */
 
-const CACHE = 'driv-en-v17';
+const CACHE = 'driv-en-v18';
 const STATIC_ASSETS = [
   '/app/shared/dashboard.css',
   '/app/shared/dashboard-common.js',
