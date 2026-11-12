@@ -394,6 +394,40 @@ function renderFormsTab() {
   c.querySelectorAll('.emp-form-card').forEach(function(card) { card.addEventListener('click', function(e) { preserveAndNavigate(e, this.getAttribute('data-link')); }); });
 }
 
+/* ===== USER-LEVEL UOM PREFERENCE (personal, separate from org setting) ===== */
+function initUomPreference() {
+  var select = document.getElementById('welcomeUomSelect');
+  var hint = document.getElementById('welcomeUomHint');
+  if (!select) return;
+
+  if (window.DRIVEN_UNITS && DRIVEN_UNITS.getUserUnitPreference) {
+    DRIVEN_UNITS.getUserUnitPreference().then(function(info) {
+      if (!info) return;
+      select.value = info.user_preference || 'org_default';
+      if (info.org_default && info.user_preference === 'org_default') {
+        if (hint) hint.textContent = 'Org default: ' + (info.org_default === 'metric' ? 'Metric' : 'Imperial');
+      } else if (hint) {
+        hint.textContent = '';
+      }
+    });
+  }
+
+  select.addEventListener('change', function() {
+    var pref = select.value;
+    if (!window.DRIVEN_UNITS || !DRIVEN_UNITS.setUserUnitPreference) return;
+    DRIVEN_UNITS.setUserUnitPreference(pref).then(function(result) {
+      if (!result) { alert('Failed to update unit preference. Please try again.'); return; }
+      if (hint) {
+        if (pref === 'org_default' && result.unit_system) {
+          hint.textContent = 'Org default: ' + (result.unit_system === 'metric' ? 'Metric' : 'Imperial');
+        } else { hint.textContent = ''; }
+      }
+      if (window.DRIVEN_APPLY_UNITS) { DRIVEN_APPLY_UNITS.refresh(); }
+      try { localStorage.setItem('driv-en-unit-system-changed', Date.now().toString()); localStorage.setItem('driv-en-unit-system', result.unit_system); } catch (e) {}
+    });
+  });
+}
+
 /* ===== UNIT OF MEASURE -- Fetches from /api/settings/units API ===== */
 function renderOnboardingUomDisplays() {
   var distEl = document.getElementById('uom-distance-display');
@@ -738,6 +772,7 @@ async function startAdminApp(user) {
     var emailEl = document.getElementById('account-email'); if (emailEl) emailEl.textContent = user.email || '';
     var elRole = document.getElementById('welcome-role'); if (elRole) elRole.textContent = user.role || user.role_id || '';
     var elMail = document.getElementById('welcome-email'); if (elMail) elMail.textContent = user.email || '';
+    initUomPreference();
     try { injectGlobalUIStyles(); attachEventHandlers(); } catch (e) { reportError('startAdminApp-init', e); }
     adjustStickyOffsets();
     loadLogo().catch(function(e) { reportError('loadLogo', e); });
