@@ -122,7 +122,6 @@
 
       // Fill welcome card
       var nameEl = document.getElementById('testWelcomeName');
-      var orgEl = document.getElementById('testWelcomeOrg');
       var titleEl = document.getElementById('testWelcomeTitle');
       var emailEl = document.getElementById('testWelcomeEmail');
 
@@ -132,10 +131,7 @@
       var email = user.email || '';
 
       if (nameEl) {
-        nameEl.textContent = firstName ? ('Welcome back, ' + firstName) : 'Welcome back';
-      }
-      if (orgEl) {
-        orgEl.textContent = orgName || '';
+        nameEl.textContent = firstName ? ('Welcome back, ' + firstName + (orgName ? ' - ' + orgName : '')) : 'Welcome back';
       }
       if (titleEl) {
         titleEl.textContent = role || '—';
@@ -144,7 +140,7 @@
         emailEl.textContent = email || '—';
       }
     } else {
-      console.warn('[TestDashboard] No session — user may not be logged in');
+      console.warn('[TestDashboard] No session -- user may not be logged in');
       var nameEl = document.getElementById('testWelcomeName');
       if (nameEl) nameEl.textContent = 'Not logged in';
     }
