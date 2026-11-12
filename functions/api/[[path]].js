@@ -1426,9 +1426,52 @@ async function ensureTableSchema(db, d1Table) {
   }
 }
 
+async function ensureErrorLogTable(db) {
+  try {
+    await db.prepare(
+      'CREATE TABLE IF NOT EXISTS error_log (' +
+      'id TEXT PRIMARY KEY, ' +
+      'source TEXT, ' +
+      'error_message TEXT, ' +
+      'stack_trace TEXT, ' +
+      'severity TEXT DEFAULT \'error\', ' +
+      'resolved INTEGER DEFAULT 0, ' +
+      'created_at TEXT' +
+      ')'
+    ).run();
+  } catch (e) {
+    console.warn('ensureErrorLogTable:', e.message);
+  }
+}
+
+async function ensureUserUnitSystemColumn(db) {
+  try {
+    const check = await db.prepare('PRAGMA table_info(users)').all();
+    const hasColumn = check.results?.some(col => col.name === 'unit_system');
+    if (!hasColumn) {
+      await db.prepare("ALTER TABLE users ADD COLUMN unit_system TEXT NOT NULL DEFAULT 'org_default'").run();
+    }
+  } catch (e) {
+    console.warn('ensureUserUnitSystemColumn:', e.message);
+  }
+}
+
+async function ensureOrgUnitSystemColumn(db) {
+  try {
+    const check = await db.prepare('PRAGMA table_info(organizations)').all();
+    const hasColumn = check.results?.some(col => col.name === 'unit_system');
+    if (!hasColumn) {
+      await db.prepare("ALTER TABLE organizations ADD COLUMN unit_system TEXT NOT NULL DEFAULT 'imperial'").run();
+    }
+  } catch (e) {
+    console.warn('ensureOrgUnitSystemColumn:', e.message);
+  }
+}
+
 async function handleLogError(env, body) {
   try {
     const db = env.DB;
+    await ensureErrorLogTable(db);
     const id = crypto.randomUUID();
     await db.prepare(
       'INSERT INTO error_log (id, source, error_message, stack_trace, severity, created_at) VALUES (?, ?, ?, ?, ?, ?)'
@@ -1445,6 +1488,122 @@ async function handleLogError(env, body) {
     console.error('logError failed:', e.message);
     return json({ success: false, error: e.message }, 500);
   }
+}
+
+// ── Unit of Measure Settings (org-level, admin-managed) ──────────────
+async function handleGetUnitSettings(env, request) {
+  const authCtx = await getAuthContext(request, env);
+  const orgId = authCtx.orgId;
+  if (!orgId) return json({ success: false, error: 'Organization context missing' }, 401, request);
+  await ensureOrgUnitSystemColumn(env.DB);
+  let unitSystem = 'imperial';
+  try {
+    const org = await env.DB.prepare('SELECT unit_system FROM organizations WHERE id = ?').bind(orgId).first();
+    if (org && org.unit_system) unitSystem = org.unit_system;
+  } catch (e) {
+    console.warn('handleGetUnitSettings:', e.message);
+  }
+  const labels = unitSystem === 'metric'
+    ? { distance: 'km', volume: 'L', weight: 'kg', temperature: '°C', pressure: 'bar' }
+    : { distance: 'mi', volume: 'gal', weight: 'lbs', temperature: '°F', pressure: 'psi' };
+  return json({ success: true, result: { unit_system: unitSystem, labels } }, 200, request);
+}
+
+async function handlePutUnitSettings(env, request) {
+  const authCtx = await getAuthContext(request, env);
+  const orgId = authCtx.orgId;
+  if (!orgId) return json({ success: false, error: 'Organization context missing' }, 401, request);
+  let body;
+  try { body = await request.json(); } catch (e) { return json({ success: false, error: 'Invalid JSON body' }, 400, request); }
+  const unitSystem = body?.unit_system;
+  if (unitSystem !== 'imperial' && unitSystem !== 'metric') {
+    return json({ success: false, error: "unit_system must be 'imperial' or 'metric'" }, 400, request);
+  }
+  await ensureOrgUnitSystemColumn(env.DB);
+  try {
+    await env.DB.prepare('UPDATE organizations SET unit_system = ? WHERE id = ?').bind(unitSystem, orgId).run();
+  } catch (e) {
+    console.warn('handlePutUnitSettings:', e.message);
+    return json({ success: false, error: e.message }, 500, request);
+  }
+  const labels = unitSystem === 'metric'
+    ? { distance: 'km', volume: 'L', weight: 'kg', temperature: '°C', pressure: 'bar' }
+    : { distance: 'mi', volume: 'gal', weight: 'lbs', temperature: '°F', pressure: 'psi' };
+  return json({ success: true, result: { unit_system: unitSystem, labels } }, 200, request);
+}
+
+// ── User-level Unit of Measure Preferences (personal override) ───────
+async function handleGetUserUnitPrefs(env, request) {
+  const authCtx = await getAuthContext(request, env);
+  if (!authCtx.orgId || !authCtx.userId) {
+    return json({
+      success: true,
+      result: {
+        unit_system: 'imperial',
+        user_preference: 'org_default',
+        org_default: 'imperial',
+        labels: { distance: 'mi', volume: 'gal', weight: 'lbs', temperature: '°F', pressure: 'psi' },
+        canonical: { distance: 'km', volume: 'L', weight: 'kg', temperature: 'C', pressure: 'bar' }
+      }
+    }, 200, request);
+  }
+  await ensureUserUnitSystemColumn(env.DB);
+  await ensureOrgUnitSystemColumn(env.DB);
+  let userPref = 'org_default';
+  try {
+    const user = await env.DB.prepare('SELECT unit_system FROM users WHERE id = ?').bind(authCtx.userId).first();
+    if (user && user.unit_system) userPref = user.unit_system;
+  } catch (e) { console.warn('handleGetUserUnitPrefs user:', e.message); }
+  let orgDefault = 'imperial';
+  try {
+    const org = await env.DB.prepare('SELECT unit_system FROM organizations WHERE id = ?').bind(authCtx.orgId).first();
+    if (org && org.unit_system) orgDefault = org.unit_system;
+  } catch (e) { console.warn('handleGetUserUnitPrefs org:', e.message); }
+  const effectiveSystem = (userPref === 'org_default') ? orgDefault : userPref;
+  const labels = effectiveSystem === 'metric'
+    ? { distance: 'km', volume: 'L', weight: 'kg', temperature: '°C', pressure: 'bar' }
+    : { distance: 'mi', volume: 'gal', weight: 'lbs', temperature: '°F', pressure: 'psi' };
+  return json({
+    success: true,
+    result: {
+      unit_system: effectiveSystem,
+      user_preference: userPref,
+      org_default: orgDefault,
+      labels,
+      canonical: { distance: 'km', volume: 'L', weight: 'kg', temperature: 'C', pressure: 'bar' }
+    }
+  }, 200, request);
+}
+
+async function handlePutUserUnitPrefs(env, request) {
+  const authCtx = await getAuthContext(request, env);
+  if (!authCtx.orgId || !authCtx.userId) {
+    return json({ success: false, error: 'Authentication required' }, 401, request);
+  }
+  let body;
+  try { body = await request.json(); } catch (e) { return json({ success: false, error: 'Invalid JSON body' }, 400, request); }
+  const unitSystem = body?.unit_system;
+  if (unitSystem !== 'org_default' && unitSystem !== 'imperial' && unitSystem !== 'metric') {
+    return json({ success: false, error: "unit_system must be 'org_default', 'imperial', or 'metric'" }, 400, request);
+  }
+  await ensureUserUnitSystemColumn(env.DB);
+  try {
+    await env.DB.prepare('UPDATE users SET unit_system = ? WHERE id = ?').bind(unitSystem, authCtx.userId).run();
+  } catch (e) {
+    console.warn('handlePutUserUnitPrefs:', e.message);
+    return json({ success: false, error: e.message }, 500, request);
+  }
+  let effectiveSystem = unitSystem;
+  if (unitSystem === 'org_default') {
+    try {
+      const org = await env.DB.prepare('SELECT unit_system FROM organizations WHERE id = ?').bind(authCtx.orgId).first();
+      if (org && org.unit_system) effectiveSystem = org.unit_system;
+    } catch (e) {}
+  }
+  const labels = effectiveSystem === 'metric'
+    ? { distance: 'km', volume: 'L', weight: 'kg', temperature: '°C', pressure: 'bar' }
+    : { distance: 'mi', volume: 'gal', weight: 'lbs', temperature: '°F', pressure: 'psi' };
+  return json({ success: true, result: { unit_system: effectiveSystem, user_preference: unitSystem, labels } }, 200, request);
 }
 
 async function logTenantContextError(env, path, request) {
@@ -2085,6 +2244,21 @@ export async function onRequest(context) {
       return json({ success: false, error: e.message }, 500);
     }
   }
+
+    // Unit of Measure Settings (org-level, admin-managed)
+  if (path === '/api/settings/units' || path === '/api/settings/units/') {
+    if (method === 'GET') return await handleGetUnitSettings(env, request);
+    if (method === 'PUT' || method === 'PATCH') return await handlePutUnitSettings(env, request);
+    return json({ success: false, error: 'Method not allowed' }, 405, request);
+  }
+
+  // User-level Unit Preferences (personal override)
+  if (path === '/api/user/preferences/units' || path === '/api/user/preferences/units/') {
+    if (method === 'GET') return await handleGetUserUnitPrefs(env, request);
+    if (method === 'PUT' || method === 'PATCH') return await handlePutUserUnitPrefs(env, request);
+    return json({ success: false, error: 'Method not allowed' }, 405, request);
+  }
+  
   // Direct Endpoint: Asset Types Batch & Direct Table Retrieval
   if (path === '/api/asset-types' || path === '/api/asset_types' || path.startsWith('/api/asset-types/') || path.startsWith('/api/asset_types/')) {
     const authCtx = await getAuthContext(request, env);
@@ -2323,7 +2497,9 @@ export async function onRequest(context) {
     'asset-types', 
     'asset_types', 
     'fuel-types', 
-    'fuel_types'
+    'fuel_types',
+    'settings',
+    'user'
   ]);
 
   if (
