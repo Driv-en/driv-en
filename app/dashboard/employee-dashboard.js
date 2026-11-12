@@ -123,15 +123,18 @@ document.addEventListener('DOMContentLoaded', function () {
   initEmployeeDashboard();
 });
 
-/* ===== AGGRESSIVE HEADER CLEANUP =====
-   The service worker may serve a stale dashboard-header.html with the old
-   3-row layout (duplicate page title). We ALWAYS rebuild the header as a
-   single row, matching the test-dashboard.js reference implementation.
-   A MutationObserver catches stale content as it's injected, and timed
-   fallbacks ensure it runs even if the observer misses. */
+/* ===== HEADER NORMALIZATION ===== */
 function rebuildHeader() {
   var header = document.getElementById('dashHeader');
   if (!header) return;
+
+  var rows = header.querySelectorAll('.dash-header-row1, .dash-header-row2, .dash-header-row3, .dash-utility-bar');
+  if (
+    rows.length === 1 &&
+    header.querySelector('.dash-header-row1') &&
+    header.querySelectorAll('h1').length === 1 &&
+    header.querySelector('#dashPageTitle')
+  ) return;
 
   var title = document.body.getAttribute('data-page-title') || 'Dashboard';
 
@@ -204,16 +207,6 @@ function startHeaderObserver() {
   observer.observe(header, { childList: true, subtree: true });
 }
 
-// Timed fallbacks: rebuild at multiple intervals to catch SW-injected stale content
-function scheduleHeaderRebuilds() {
-  setTimeout(rebuildHeader, 50);
-  setTimeout(rebuildHeader, 200);
-  setTimeout(rebuildHeader, 500);
-  setTimeout(rebuildHeader, 1000);
-  setTimeout(rebuildHeader, 2000);
-  setTimeout(rebuildHeader, 3000);
-}
-
 /* ===== STICKY OFFSET ADJUSTMENT ===== */
 function adjustStickyOffsets() {
   var header = document.getElementById('dashHeader');
@@ -228,7 +221,6 @@ function initEmployeeDashboard() {
   // Aggressive header rebuild
   rebuildHeader();
   startHeaderObserver();
-  scheduleHeaderRebuilds();
 
   // Bind Tab Controls
   var tabButtons = document.querySelectorAll('.emp-tab[data-tab]');
@@ -237,13 +229,8 @@ function initEmployeeDashboard() {
       var tabName = this.getAttribute('data-tab');
       if (tabName) switchTab(tabName);
     });
-    // Keyboard accessibility: Enter/Space activates, Arrow keys navigate
+    // Buttons handle Enter/Space natively; Arrow keys provide tab navigation.
     btn.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        var tabName = this.getAttribute('data-tab');
-        if (tabName) switchTab(tabName);
-      }
       if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
         e.preventDefault();
         var tabs = Array.from(document.querySelectorAll('.emp-tab[data-tab]'));
@@ -263,12 +250,6 @@ function initEmployeeDashboard() {
   var btnLogout = document.getElementById('btnLogout');
   if (btnLogout) {
     btnLogout.addEventListener('click', dashLogout);
-    btnLogout.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        dashLogout();
-      }
-    });
   }
 
   // Bind Standardized Modals (Purpose & Instructions)
@@ -308,7 +289,7 @@ async function handleSessionLoaded() {
     return;
   }
 
-  userPermissions = user.permissions || [];
+  userPermissions = Array.isArray(user.permissions) ? user.permissions : [];
 
   var firstName = user.first_name || user.full_name || '';
   var orgName = user.org_name || '';
@@ -338,7 +319,7 @@ async function handleSessionLoaded() {
   renderModules();
   renderFormLinks();
   renderFormsTab();
-  loadStats();
+  loadStats(user);
 
   // Final header rebuild safety net
   setTimeout(function () { rebuildHeader(); adjustStickyOffsets(); }, 500);
@@ -457,9 +438,9 @@ function renderFormsTab() {
 }
 
 /* ===== LOAD STATS ===== */
-async function loadStats() {
+async function loadStats(sessionUser) {
   var showStats = false;
-  var user = window.dashUser || {};
+  var user = sessionUser || window.dashUser || {};
   var headers = {
     'x-org-id': user.org_id || '',
     'x-user-id': user.id || ''
@@ -569,23 +550,11 @@ function initStandardModals() {
     btnPurpose.addEventListener('click', function () {
       openModal(purposeModal);
     });
-    btnPurpose.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        openModal(purposeModal);
-      }
-    });
   }
 
   if (btnInstructions && instructionsModal) {
     btnInstructions.addEventListener('click', function () {
       openModal(instructionsModal);
-    });
-    btnInstructions.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        openModal(instructionsModal);
-      }
     });
   }
 
