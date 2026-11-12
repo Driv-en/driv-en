@@ -6,8 +6,9 @@
  * This avoids the atomic failure problem where one missing file
  * breaks the entire cache.
  *
- * v15 — November 12, 2026: Cache purge for new Calendar page + tab links added
- *         to admin, employee, and work-orders dashboards.
+ * v15 — November 12, 2026: Cache purge for Calendar page + Work Orders tab links
+ *         added to admin, employee, and work-orders dashboards. Fixed calendar
+ *         redirect race condition (removed aggressive login redirect).
  * v14 — November 11, 2026: Force cache purge — old SW was serving stale
  *         dashboard-header.html with 3-row layout (duplicate page title).
  * v13 — October 1, 2026: Force cache purge — old SW was serving stale dashboard-common.js.
