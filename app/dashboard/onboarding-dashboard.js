@@ -12,7 +12,6 @@
   let assignedTasks = [];
   let stepCompletion = {};
   let stepVisibility = {};
-  let onboardingComplete = false;
   let taskCompletions = {};
   let allKP = [];
   let activeOrgId = "";
@@ -492,7 +491,6 @@
       if (data.success && data.settings) {
         if (data.settings.step_visibility) { stepVisibility = data.settings.step_visibility; }
         if (data.settings.onboarding_complete) {
-          onboardingComplete = true;
           if (!isAdmin) {
             const completeNotice = document.getElementById("completeNotice");
             const tabOverview = document.getElementById("tab-overview");
