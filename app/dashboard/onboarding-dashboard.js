@@ -26,9 +26,8 @@
     6:  { name: "project-types",     task: "Project Types",       prereqs: [],   url: "/app/onboarding/project-types.html" },
     7:  { name: "projects",          task: "Projects",            prereqs: [4],  url: "/app/onboarding/projects.html" },
     8:  { name: "fuel-types",        task: "Fuels, Fluids & Energy", prereqs: [],url: "/app/onboarding/fuel-types.html" },
-    9:  { name: "units-of-measure",  task: "Units of Measure",    prereqs: [],   url: "/app/onboarding/units-of-measure.html" },
-    10: { name: "asset-types",       task: "Asset Types",         prereqs: [],   url: "/app/onboarding/asset-types.html" },
-    11: { name: "assets",            task: "Assets",              prereqs: [10], url: "/app/onboarding/equipment.html" }
+    9:  { name: "asset-types",       task: "Asset Types",         prereqs: [],   url: "/app/onboarding/asset-types.html" },
+    10: { name: "assets",            task: "Assets",              prereqs: [9],  url: "/app/onboarding/equipment.html" }
   };
 
   /* ===== SESSION & HEADERS ===== */
@@ -161,10 +160,6 @@
     const def = STEP_DEFS[stepNum];
     const taskName = def.task;
 
-    if (localStorage.getItem("driven_step_" + def.name + "_complete") === "true") {
-      return true;
-    }
-
     const assignedEmails = getAssignedEmails(taskName);
     if (assignedEmails.length === 0) {
       const completions = taskCompletions[taskName] || [];
@@ -185,10 +180,21 @@
     if (taskCompletions[taskName].indexOf(myEmail) === -1) {
       taskCompletions[taskName].push(myEmail);
     }
-    localStorage.setItem("driven_step_" + def.name + "_complete", "true");
     saveTaskCompletions();
+    syncCompletionsToServer(taskName);
     updateStepStatus(stepNum);
     checkAllComplete();
+  }
+
+  function syncCompletionsToServer(taskName) {
+    const payload = { taskName: taskName, completions: taskCompletions[taskName] || [] };
+    fetch("/api/onboarding/task-completions", {
+      method: "POST",
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload)
+    }).catch(function(e) {
+      console.error("[OnboardingDashboard] Failed to sync completions:", e.message);
+    });
   }
 
   function updateCompleteButton(stepNum) {
@@ -199,7 +205,7 @@
     const myEmail = (currentUser && currentUser.email) ? currentUser.email.toLowerCase() : "";
 
     const completions = taskCompletions[taskName] || [];
-    const isAlreadyComplete = completions.indexOf(myEmail) !== -1 || localStorage.getItem("driven_step_" + def.name + "_complete") === "true";
+    const isAlreadyComplete = completions.indexOf(myEmail) !== -1;
 
     if (isAlreadyComplete) {
       btn.style.display = "inline-block";
@@ -230,7 +236,7 @@
 
   function checkAllComplete() {
     let allDone = true;
-    for (let i = 1; i <= 11; i++) {
+    for (let i = 1; i <= 10; i++) {
       if (!isStepVisible(STEP_DEFS[i].name)) continue;
       if (!isTaskFullyComplete(i)) { allDone = false; break; }
     }
@@ -261,7 +267,7 @@
   }
 
   function updateAssignedLabels() {
-    for (let i = 1; i <= 11; i++) {
+    for (let i = 1; i <= 10; i++) {
       const def = STEP_DEFS[i];
       const el = document.getElementById("assigned-step" + i);
       if (!el) continue;
@@ -304,7 +310,7 @@
         setButton(stepNum, true, def.url);
       } else if (def.prereqs.length > 0 && !checkPrereqs(stepNum)) {
         setStatus(statusId, "ob-locked-prereq", "Locked");
-        setButton(stepNum, true, def.url);
+        setButton(stepNum, false);
       } else {
         setStatus(statusId, "ob-ready", "Ready");
         setButton(stepNum, true, def.url);
@@ -324,7 +330,7 @@
       setButton(stepNum, true, def.url);
     } else if (def.prereqs.length > 0 && !checkPrereqs(stepNum)) {
       setStatus(statusId, "ob-locked-prereq", "Locked");
-      setButton(stepNum, true, def.url);
+      setButton(stepNum, false);
     } else {
       setStatus(statusId, "ob-ready", "Ready");
       setButton(stepNum, true, def.url);
@@ -333,8 +339,8 @@
   }
 
   function updateAllSteps() {
-    for (let i = 1; i <= 11; i++) { stepCompletion[i] = isTaskFullyComplete(i); }
-    for (let i = 1; i <= 11; i++) { updateStepStatus(i); }
+    for (let i = 1; i <= 10; i++) { stepCompletion[i] = isTaskFullyComplete(i); }
+    for (let i = 1; i <= 10; i++) { updateStepStatus(i); }
     updateAssignedLabels();
     updatePrereqPopups();
   }
@@ -352,8 +358,8 @@
     }
     const popupAssets = document.getElementById("popup-assets-prereq");
     if (popupAssets) {
-      const names11 = getVisiblePrereqNames(11);
-      popupAssets.textContent = names11.length > 0 ? "Requires: " + names11.join(", ") + " must be completed first." : "";
+      const names10 = getVisiblePrereqNames(10);
+      popupAssets.textContent = names10.length > 0 ? "Requires: " + names10.join(", ") + " must be completed first." : "";
     }
   }
 
@@ -420,7 +426,6 @@
       fetch("/api/project-types", { headers }),
       fetch("/api/projects", { headers }),
       fetch("/api/fuel-types", { headers }),
-      fetch("/api/units-of-measure", { headers }),
       fetch("/api/asset-types", { headers }),
       fetch("/api/equipment", { headers })
     ];
@@ -474,14 +479,11 @@
     let c8 = parseListCount(responses[7], ["driven_fuel_types", "driven_fuel_count", "driven_fuel_type_count"]);
     if (c8 > 0) setCardKpi(8, c8 + " Fuel Types Selected");
 
-    let c9 = parseListCount(responses[8], ["driven_units_of_measure", "driven_units_count", "driven_uom_count", "driven_unit_count"]);
-    if (c9 > 0) setCardKpi(9, c9 + " Units Configured");
+    let c9 = parseListCount(responses[8], ["driven_asset_types", "driven_asset_type_count"]);
+    if (c9 > 0) setCardKpi(9, c9 + " Categories Configured");
 
-    let c10 = parseListCount(responses[9], ["driven_asset_types", "driven_asset_type_count"]);
-    if (c10 > 0) setCardKpi(10, c10 + " Categories Configured");
-
-    let c11 = parseListCount(responses[10], ["driven_equipment", "driven_equipment_count"]);
-    if (c11 > 0) setCardKpi(11, c11 + " Assets Registered");
+    let c10 = parseListCount(responses[9], ["driven_equipment", "driven_equipment_count"]);
+    if (c10 > 0) setCardKpi(10, c10 + " Assets Registered");
   }
 
   async function loadSettings() {
@@ -629,7 +631,7 @@
     }
 
     // Step Complete Buttons
-    for (let i = 1; i <= 11; i++) {
+    for (let i = 1; i <= 10; i++) {
       const completeBtn = document.getElementById("btn-complete-step" + i);
       if (completeBtn) {
         completeBtn.addEventListener('click', () => markTaskComplete(i));
@@ -646,7 +648,6 @@
       'btn-info-pt': 'popup-pt',
       'btn-info-proj': 'popup-proj',
       'btn-info-ft': 'popup-ft',
-      'btn-info-um': 'popup-um',
       'btn-info-at': 'popup-at',
       'btn-info-assets': 'popup-assets'
     };
