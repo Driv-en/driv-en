@@ -138,7 +138,6 @@ window.addEventListener('error', function(e) { reportError('window.onerror', e.e
 
 function preserveAndNavigate(event, targetUrl) {
   if (event) { event.preventDefault(); event.stopPropagation(); }
-  pendingKP = [];
   if (targetUrl && !targetUrl.endsWith('.html') && !targetUrl.includes('?')) { targetUrl += '.html'; }
   var userObj = currentUserObj || window.dashUser || window.drivenUser;
   if (!userObj) { try { userObj = JSON.parse(localStorage.getItem('driven_user') || sessionStorage.getItem('driven_user')); } catch (e) {} }
@@ -584,6 +583,7 @@ async function loadKeyPersonnel() {
   try { var res = await safeFetch('/api/onboarding/key-personnel/list'); if (res && res.ok) { var d = await res.json(); if (d && d.success && Array.isArray(d.keyPersonnel)) { keyPersonnel = d.keyPersonnel.map(function(kp) { return { employeeId: kp.employeeId || kp.id, name: kp.name || [kp.first_name, kp.last_name].filter(Boolean).join(' ') || 'Unknown', email: kp.email || '', role_id: kp.role_id || 'Unassigned', tasks: Array.isArray(kp.roles) ? kp.roles.map(function(r) { return r.role || r.task_name || r; }) : [] }; }); } else { keyPersonnel = []; } } else { keyPersonnel = []; } }
   catch (e) { reportError('loadKeyPersonnel', e); keyPersonnel = []; }
   renderKeyPersonnel();
+  updateProgress();
 }
 
 function renderKeyPersonnel() {
@@ -702,8 +702,8 @@ function attachEventHandlers() {
   });
   var btnLogout = document.getElementById('btnAdminLogout');
   if (btnLogout) {
-    btnLogout.addEventListener('click', function(e) { if (e) { e.preventDefault(); e.stopPropagation(); } pendingKP = []; localStorage.clear(); sessionStorage.clear(); if (typeof window.dashLogout === 'function') { try { window.dashLogout(); } catch (err) {} } window.location.href = '/public/login.html'; });
-    btnLogout.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); pendingKP = []; localStorage.clear(); sessionStorage.clear(); if (typeof window.dashLogout === 'function') { try { window.dashLogout(); } catch (err) {} } window.location.href = '/public/login.html'; } });
+    btnLogout.addEventListener('click', function(e) { if (e) { e.preventDefault(); e.stopPropagation(); } if (pendingKP.length > 0 && !confirm('You have unsaved Key Personnel assignments that will be lost. Continue logging out?')) return; localStorage.clear(); sessionStorage.clear(); if (typeof window.dashLogout === 'function') { try { window.dashLogout(); } catch (err) {} } window.location.href = '/public/login.html'; });
+    btnLogout.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); if (pendingKP.length > 0 && !confirm('You have unsaved Key Personnel assignments that will be lost. Continue logging out?')) return; localStorage.clear(); sessionStorage.clear(); if (typeof window.dashLogout === 'function') { try { window.dashLogout(); } catch (err) {} } window.location.href = '/public/login.html'; } });
   }
 }
 
@@ -741,8 +741,8 @@ async function startAdminApp(user) {
     try { injectGlobalUIStyles(); attachEventHandlers(); } catch (e) { reportError('startAdminApp-init', e); }
     adjustStickyOffsets();
     loadLogo().catch(function(e) { reportError('loadLogo', e); });
-    loadSettings().catch(function(e) { reportError('loadSettings', e); });
-    loadKeyPersonnel().catch(function(e) { reportError('loadKeyPersonnel', e); });
+    await loadSettings().catch(function(e) { reportError('loadSettings', e); });
+    await loadKeyPersonnel().catch(function(e) { reportError('loadKeyPersonnel', e); });
     updateProgress(); renderFormsTab();
     await loadDashboardStats().catch(function(e) { reportError('init-loadDashboardStats', e); });
     setTimeout(function() { loadDashboardStats().catch(function(e) { reportError('init-loadDashboardStats-retry', e); }); }, 1000);
@@ -789,22 +789,15 @@ async function init() {
   var pollTimer = setInterval(function() { pollAttempts++; var u = window.dashUser || window.drivenUser || getUserFromStorage(); if (u) { clearInterval(pollTimer); startAdminApp(u); } else if (pollAttempts >= 40) { clearInterval(pollTimer); var lastResort = getUserFromStorage(); if (lastResort) { startAdminApp(lastResort); } else { window.location.href = '/public/login.html'; } } }, 250);
   window.addEventListener('load', function() { if (!adminAppStarted) { rebuildHeader(); var u = window.dashUser || window.drivenUser || getUserFromStorage(); if (u) startAdminApp(u); } });
 
-  // ===== FALLBACK: Show dashboard after 5s even if startAdminApp never ran =====
-  // This prevents the user from being stuck on "Loading admin dashboard..." forever
-  // if the session fetch fails or the dashSessionLoaded event never fires.
+  // ===== FALLBACK: After 10s, redirect to login if no session was found =====
+  // (The poll at 250ms x 40 = 10s already handles starting the app when a user
+  // appears.  This fallback only fires the login redirect so it does NOT
+  // compete with the poll or prematurely show the dashboard with a stale user.)
   setTimeout(function() {
     if (adminAppStarted) return;
-    var u = window.dashUser || window.drivenUser || getUserFromStorage();
-    if (u) { startAdminApp(u); }
-    else {
-      // Last resort: show the dashboard anyway with whatever we have
-      console.warn('[AdminDashboard] Fallback: showing dashboard after timeout');
-      var loadingEl = document.getElementById('loading');
-      var dashEl = document.getElementById('dashboard');
-      if (loadingEl) loadingEl.style.display = 'none';
-      if (dashEl) dashEl.style.display = 'block';
-    }
-  }, 5000);
+    console.warn('[AdminDashboard] No session found after timeout -- redirecting to login');
+    window.location.href = '/public/login.html';
+  }, 10000);
 }
 
 init();
