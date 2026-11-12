@@ -1,5 +1,5 @@
 /**
- * calendar.js -- DRIV-EN Calendar View 
+ * calendar.js -- DRIV-EN Calendar View
  *
  * Shows work orders, recurring PM tasks, and inspections on a visual calendar.
  * Supports Month / Week / Day views with color-coded items and filtering.
@@ -518,7 +518,9 @@
   // ===== SESSION LOADING =====
   function handleSessionLoaded() {
     var user = window.dashUser;
-    if (!user) { window.location.href = '/public/login.html'; return; }
+    // Don't redirect — auth-check.js handles unauthenticated redirects.
+    // Just populate the welcome card if user data is available.
+    if (!user) return;
 
     // Populate welcome card
     var firstName = user.first_name || user.fullName || user.name || 'User';
