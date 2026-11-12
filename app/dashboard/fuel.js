@@ -1,6 +1,8 @@
 /* ==========================================================================
-   DRIV-EN Platform — Fuel Management Dashboard JavaScript Module
+   DRIV-EN Platform — Fuel Management Dashboard JavaScript Module (v2)
    File: /app/dashboard/fuel.js
+   Changes in v2: rebuildHeader() replaces insertHeaderTitle(), voice integration,
+                  role_id support in goToMainDashboard.
    ========================================================================== */
 
 (function () {
@@ -20,6 +22,71 @@
   let txLocationFilter = '';
   let txFromDate = '';
   let txToDate = '';
+
+  /* ===== HEADER REBUILD — handles stale 3-row SW header template ===== */
+
+  function rebuildHeader() {
+    var container = document.getElementById('dashHeader');
+    if (!container) return;
+
+    var html = '<div class="dash-header">' +
+      '<div class="dash-header-row1" style="display:flex;align-items:center;justify-content:space-between;padding:8px 20px;">';
+
+    html += '<div class="dash-header-left" style="flex:0 0 auto;">';
+    var logo = localStorage.getItem('driven_logo_url');
+    if (logo) {
+      html += '<img src="' + logo + '" alt="Logo" style="max-height:40px;max-width:120px;object-fit:contain;">';
+    } else {
+      html += '<div style="font-size:18px;font-weight:700;color:var(--primary-blue,#2563eb);">DRIV-EN</div>';
+    }
+    html += '</div>';
+
+    html += '<div class="fuel-header-title" style="flex:1;text-align:center;font-size:20px;font-weight:600;color:var(--text);">Fuel Management</div>';
+
+    html += '<div class="dash-header-right" style="flex:0 0 auto;">';
+    if (logo) {
+      html += '<img src="' + logo + '" alt="Logo" style="max-height:40px;max-width:120px;object-fit:contain;">';
+    } else {
+      html += '<div style="font-size:18px;font-weight:700;color:var(--primary-blue,#2563eb);">DRIV-EN</div>';
+    }
+    html += '</div>';
+
+    html += '</div></div>';
+    container.innerHTML = html;
+  }
+
+  function startHeaderObserver() {
+    var container = document.getElementById('dashHeader');
+    if (!container) return;
+    var observer = new MutationObserver(function(mutations) {
+      for (var i = 0; i < mutations.length; i++) {
+        var added = mutations[i].addedNodes;
+        for (var j = 0; j < added.length; j++) {
+          if (added[j].nodeType === 1) {
+            var h1s = container.querySelectorAll('h1');
+            var rows = container.querySelectorAll('.dash-header-row2, .dash-header-row3');
+            if (h1s.length > 1 || rows.length > 0) { rebuildHeader(); return; }
+          }
+        }
+      }
+    });
+    observer.observe(container, { childList: true, subtree: true });
+  }
+
+  function scheduleHeaderRebuilds() {
+    rebuildHeader();
+    setTimeout(rebuildHeader, 50);
+    setTimeout(rebuildHeader, 200);
+    setTimeout(rebuildHeader, 500);
+    setTimeout(rebuildHeader, 1000);
+    setTimeout(rebuildHeader, 2000);
+    setTimeout(rebuildHeader, 3000);
+  }
+
+  /* ===== VOICE INIT HELPER ===== */
+  function initVoice() {
+    if (window.DRIVEN_VOICE) { try { DRIVEN_VOICE.init(); } catch (e) {} }
+  }
 
   /* ===== HELPER & UTILITY FUNCTIONS ===== */
 
@@ -292,25 +359,6 @@
     }
   }
 
-  function insertHeaderTitle() {
-    const row1 = document.querySelector('.dash-header-row1');
-    if (!row1) return;
-
-    let title = row1.querySelector('.fuel-header-title');
-    if (!title) {
-      title = document.createElement('div');
-      title.className = 'fuel-header-title';
-      
-      const drivenLogo = row1.querySelector('.dash-driven-logo');
-      if (drivenLogo) {
-        row1.insertBefore(title, drivenLogo);
-      } else {
-        row1.appendChild(title);
-      }
-    }
-    title.textContent = 'Fuel Management';
-  }
-
   function goToMainDashboard() {
     const user = getUserSession();
     if (!user) {
@@ -318,8 +366,9 @@
       return;
     }
     const r = (user.role || '').toLowerCase();
-    if (r === 'driv-en founder' || r === 'owner') window.location.href = '/app/dashboard/owner-dashboard.html';
-    else if (r === 'admin') window.location.href = '/app/dashboard/admin.html';
+    const rid = (user.role_id || '').toLowerCase();
+    if (r === 'driv-en founder' || r === 'owner' || rid === 'ro-founder') window.location.href = '/app/dashboard/owner-dashboard.html';
+    else if (r === 'admin' || rid === 'ro-admin') window.location.href = '/app/dashboard/admin.html';
     else window.location.href = '/app/dashboard/employee-dashboard.html';
   }
 
@@ -523,7 +572,7 @@
       ? `<thead><tr><th>Portable Can</th><th>Project</th><th>Status</th></tr></thead>`
       : `<thead><tr><th>Tank / Asset</th><th>Fuel Type</th><th>Level</th><th>Capacity</th><th>Location</th><th>Ownership</th><th>Status</th></tr></thead>`;
 
-    container.innerHTML = `<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="${filterBarId}" placeholder="Name, project, location…" style="flex:1;min-width:180px;"></div><div class="fuel-table-wrap"><table class="fuel-table" id="${tableId}">${tableHeaders}<tbody id="${tableId}-body">${renderTankRows(tanks, subtab)}</tbody></table></div>`;
+    container.innerHTML = `<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="${filterBarId}" placeholder="Name, project, location…" data-voice-input style="flex:1;min-width:180px;"></div><div class="fuel-table-wrap"><table class="fuel-table" id="${tableId}">${tableHeaders}<tbody id="${tableId}-body">${renderTankRows(tanks, subtab)}</tbody></table></div>`;
 
     container._tankSortCol = 'name';
     container._tankSortDir = 'asc';
@@ -542,6 +591,8 @@
         showEntityHistoryModal(s, id, name);
       });
     });
+
+    initVoice();
   }
 
   function onTankFilter(containerId, searchText) {
@@ -800,6 +851,8 @@
         showAdjustModal(id, name, qty, cap);
       });
     });
+
+    initVoice();
   }
 
   async function loadTanks() {
@@ -970,7 +1023,7 @@
     const txLocs = getTxLocations();
     const locOptions = '<option value="">All Locations</option>' + txLocs.map(l => `<option value="${esc(l)}"${txLocationFilter === l ? ' selected' : ''}>${esc(l)}</option>`).join('');
 
-    container.innerHTML = `<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="${filterId}" placeholder="Type, fuel, asset, person, project…" style="flex:1;min-width:140px;" value="${esc(txSearchText)}"><span class="fuel-filter-label">Location:</span><select id="${locFilterId}">${locOptions}</select><span class="fuel-filter-label">From:</span><input type="date" id="${fromId}" value="${esc(txFromDate)}"><span class="fuel-filter-label">To:</span><input type="date" id="${toId}" value="${esc(txToDate)}"><button class="print-btn" id="${printBtnId}">🖨 Print Table</button></div><div id="${containerId}-totals"></div><div class="fuel-table-wrap"><table class="fuel-table" id="${tableId}"><thead><tr><th data-col="transaction_date">Date <span class="sort-indicator"></span></th><th data-col="transaction_type">Type <span class="sort-indicator"></span></th><th data-col="fuel_type">Fuel <span class="sort-indicator"></span></th><th data-col="quantity">Qty <span class="sort-indicator"></span></th><th data-col="transferred_from">From <span class="sort-indicator"></span></th><th data-col="asset">Asset / Target <span class="sort-indicator"></span></th><th data-col="person">Person <span class="sort-indicator"></span></th><th data-col="project">Project <span class="sort-indicator"></span></th><th data-col="location">Location <span class="sort-indicator"></span></th></tr></thead><tbody>${renderTxRows(txs, subtab)}</tbody></table></div>`;
+    container.innerHTML = `<div class="fuel-filter-bar"><span class="fuel-filter-label">Search:</span><input type="text" id="${filterId}" placeholder="Type, fuel, asset, person, project…" data-voice-input style="flex:1;min-width:140px;" value="${esc(txSearchText)}"><span class="fuel-filter-label">Location:</span><select id="${locFilterId}">${locOptions}</select><span class="fuel-filter-label">From:</span><input type="date" id="${fromId}" value="${esc(txFromDate)}"><span class="fuel-filter-label">To:</span><input type="date" id="${toId}" value="${esc(txToDate)}"><button class="print-btn" id="${printBtnId}">🖨 Print Table</button></div><div id="${containerId}-totals"></div><div class="fuel-table-wrap"><table class="fuel-table" id="${tableId}"><thead><tr><th data-col="transaction_date">Date <span class="sort-indicator"></span></th><th data-col="transaction_type">Type <span class="sort-indicator"></span></th><th data-col="fuel_type">Fuel <span class="sort-indicator"></span></th><th data-col="quantity">Qty <span class="sort-indicator"></span></th><th data-col="transferred_from">From <span class="sort-indicator"></span></th><th data-col="asset">Asset / Target <span class="sort-indicator"></span></th><th data-col="person">Person <span class="sort-indicator"></span></th><th data-col="project">Project <span class="sort-indicator"></span></th><th data-col="location">Location <span class="sort-indicator"></span></th></tr></thead><tbody>${renderTxRows(txs, subtab)}</tbody></table></div>`;
 
     container._txSortCol = 'transaction_date';
     container._txSortDir = 'desc';
@@ -992,6 +1045,7 @@
     }
 
     bindTxRowClicks(container);
+    initVoice();
   }
 
   function bindTxRowClicks(container) {
@@ -1086,6 +1140,7 @@
         }
       }
     }
+    initVoice();
   }
 
   function renderTxForSubtab(subtab) {
@@ -1252,7 +1307,7 @@
       cardHtml += '</div>';
       cardHtml += `<div style="font-size:12px;color:var(--text-muted);">${esc(new Date(f.created_at).toLocaleString())}</div>`;
       cardHtml += '</div>';
-      cardHtml += `<div style="font-size:14px;margin-bottom:8px;">${esc(f.message || 'No message')}</div>`;
+      cardHtml += `<div style="font-size:14px;margin-bottom:8px;" data-voice-read>${esc(f.message || 'No message')}</div>`;
 
       cardHtml += '<div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:4px 12px;background:var(--bg-step);padding:8px 12px;border-radius:6px;">';
       cardHtml += `<div><strong>Submitted By:</strong> ${esc(personDisplay)}</div>`;
@@ -1311,6 +1366,8 @@
         forwardFlag(e.target.getAttribute('data-id'), e.target.getAttribute('data-type'));
       });
     });
+
+    initVoice();
   }
 
   async function resolveFlag(flagId) {
@@ -1542,7 +1599,7 @@
     const overlay = document.createElement('div');
     overlay.id = 'adjustModalOverlay';
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
-    overlay.innerHTML = `<div style="background:var(--fuel-card-bg,#ffffff);opacity:1;border:2px solid #64748b;border-radius:12px;padding:24px;max-width:480px;width:90%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.3);box-sizing:border-box;"><h3 style="margin:0 0 4px;font-size:18px;font-weight:700;color:var(--text,#0f172a);">Adjust Tank: ${esc(tankName)}</h3><p style="margin:0 0 16px;font-size:13px;color:var(--text-muted,#64748b);">Current: ${currentQty} ${UOM.abbr} / Capacity: ${capacity} ${UOM.abbr}</p><div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Adjustment Amount (${UOM.abbr}) <span style="color:#cc0000;">*</span></label><input type="number" id="adjustAmount" step="0.01" placeholder="Positive for overage, negative for shortage" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;"></div><div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Reason <span style="color:#cc0000;">*</span></label><select id="adjustReason" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;"><option value="">Select reason…</option><option value="Shortage — fuel theft suspected">Shortage — fuel theft suspected</option><option value="Shortage — evaporation/spillage">Shortage — evaporation/spillage</option><option value="Shortage — meter calibration error">Shortage — meter calibration error</option><option value="Overage — delivery overfill">Overage — delivery overfill</option><option value="Overage — meter calibration error">Overage — meter calibration error</option><option value="Overage — fuel returned to tank">Overage — fuel returned to tank</option><option value="Physical inventory count adjustment">Physical inventory count adjustment</option><option value="__custom">+ Other (type manually)</option></select></div><div id="adjustCustomReason" style="display:none;margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Custom Reason <span style="color:#cc0000;">*</span></label><input type="text" id="adjustCustomReasonText" placeholder="Type reason" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;"></div><div style="margin-bottom:16px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Notes (optional)</label><textarea id="adjustNotes" rows="2" placeholder="Additional details" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;resize:vertical;"></textarea></div><div style="display:flex;gap:12px;justify-content:flex-end;"><button id="adjustCancelBtn" style="padding:10px 20px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:14px;">Cancel</button><button id="adjustSubmitBtn" style="padding:10px 24px;border:none;border-radius:6px;background:var(--primary);color:#fff;cursor:pointer;font-size:14px;font-weight:600;">Submit Adjustment</button></div></div>`;
+    overlay.innerHTML = `<div style="background:var(--fuel-card-bg,#ffffff);opacity:1;border:2px solid #64748b;border-radius:12px;padding:24px;max-width:480px;width:90%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.3);box-sizing:border-box;"><h3 style="margin:0 0 4px;font-size:18px;font-weight:700;color:var(--text,#0f172a);">Adjust Tank: ${esc(tankName)}</h3><p style="margin:0 0 16px;font-size:13px;color:var(--text-muted,#64748b);">Current: ${currentQty} ${UOM.abbr} / Capacity: ${capacity} ${UOM.abbr}</p><div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Adjustment Amount (${UOM.abbr}) <span style="color:#cc0000;">*</span></label><input type="number" id="adjustAmount" step="0.01" placeholder="Positive for overage, negative for shortage" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;"></div><div style="margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Reason <span style="color:#cc0000;">*</span></label><select id="adjustReason" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;"><option value="">Select reason…</option><option value="Shortage — fuel theft suspected">Shortage — fuel theft suspected</option><option value="Shortage — evaporation/spillage">Shortage — evaporation/spillage</option><option value="Shortage — meter calibration error">Shortage — meter calibration error</option><option value="Overage — delivery overfill">Overage — delivery overfill</option><option value="Overage — meter calibration error">Overage — meter calibration error</option><option value="Overage — fuel returned to tank">Overage — fuel returned to tank</option><option value="Physical inventory count adjustment">Physical inventory count adjustment</option><option value="__custom">+ Other (type manually)</option></select></div><div id="adjustCustomReason" style="display:none;margin-bottom:12px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Custom Reason <span style="color:#cc0000;">*</span></label><input type="text" id="adjustCustomReasonText" placeholder="Type reason" data-voice-input style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;"></div><div style="margin-bottom:16px;"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Notes (optional)</label><textarea id="adjustNotes" rows="2" placeholder="Additional details" data-voice-input style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;resize:vertical;"></textarea></div><div style="display:flex;gap:12px;justify-content:flex-end;"><button id="adjustCancelBtn" style="padding:10px 20px;border:1px solid var(--border);border-radius:6px;background:var(--bg-step);color:var(--text);cursor:pointer;font-size:14px;">Cancel</button><button id="adjustSubmitBtn" style="padding:10px 24px;border:none;border-radius:6px;background:var(--primary);color:#fff;cursor:pointer;font-size:14px;font-weight:600;">Submit Adjustment</button></div></div>`;
 
     document.body.appendChild(overlay);
 
@@ -1556,6 +1613,8 @@
 
     document.getElementById('adjustCancelBtn').addEventListener('click', closeAdjustModal);
     document.getElementById('adjustSubmitBtn').addEventListener('click', (e) => submitAdjust(e, tankId, currentQty, capacity));
+
+    initVoice();
   }
 
   function closeAdjustModal() {
@@ -1827,8 +1886,8 @@
       try {
         bindStaticEvents();
         setupHelpModals();
-        insertHeaderTitle();
-        [300, 1000, 2500].forEach(ms => setTimeout(insertHeaderTitle, ms));
+        scheduleHeaderRebuilds();
+        startHeaderObserver();
         makeTabsSticky();
         setTimeout(makeTabsSticky, 300);
 
