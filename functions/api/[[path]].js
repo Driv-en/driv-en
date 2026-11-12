@@ -2526,7 +2526,7 @@ export async function onRequest(context) {
     return json({ error: 'Multi-tenant error: Organization context missing' }, 401);
   }
 
-  await ensureTableSchema(env.DB, d1Table);
+  try { await ensureTableSchema(env.DB, d1Table); } catch (schemaErr) { console.warn('Schema check skipped for ' + d1Table + ':', schemaErr.message); }
 
   try {
     // LIST
