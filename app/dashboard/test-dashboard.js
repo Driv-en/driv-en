@@ -1,7 +1,7 @@
 /* ==========================================================================
-   DRIV-EN Platform — Test Dashboard JavaScript
+   DRIV-EN Platform -- Test Dashboard JavaScript
    File: /app/dashboard/test-dashboard.js
-   Minimal page — just verifies the shared header and footer load correctly.
+   Minimal page -- just verifies the shared header and footer load correctly.
    ========================================================================== */
 
 'use strict';
@@ -73,7 +73,7 @@
     dashHeader.appendChild(row1);
     header.appendChild(dashHeader);
 
-    console.log('[TestDashboard] ✓ Header rebuilt: single row, title="' + title + '", logo=' + (logoArea ? 'preserved' : 'placeholder') + ', drivenLogo=' + (drivenLogo ? 'preserved' : 'new'));
+    console.log('[TestDashboard] OK Header rebuilt: single row, title="' + title + '", logo=' + (logoArea ? 'preserved' : 'placeholder') + ', drivenLogo=' + (drivenLogo ? 'preserved' : 'new'));
   }
 
   // MutationObserver: rebuild whenever content is injected into #dashHeader
@@ -86,7 +86,7 @@
       var h1s = header.querySelectorAll('h1');
       var rows = header.querySelectorAll('.dash-header-row1, .dash-header-row2, .dash-header-row3, .dash-utility-bar');
       if (h1s.length > 1 || rows.length > 1) {
-        console.warn('[TestDashboard] MutationObserver detected old layout — h1s:' + h1s.length + ' rows:' + rows.length);
+        console.warn('[TestDashboard] MutationObserver detected old layout -- h1s:' + h1s.length + ' rows:' + rows.length);
         observer.disconnect(); // stop observing to avoid loop
         rebuildHeader();
         // re-observe in case SW injects again
@@ -106,7 +106,7 @@
     setTimeout(rebuildHeader, 3000);
   }
 
-  // ===== SESSION LOADED — fill welcome card =====
+  // ===== SESSION LOADED -- fill welcome card =====
   document.addEventListener('dashSessionLoaded', function(e) {
     rebuildHeader(); // force rebuild after session loads
     scheduleHeaderRebuilds();
@@ -134,10 +134,10 @@
         nameEl.textContent = firstName ? ('Welcome back, ' + firstName + (orgName ? ' - ' + orgName : '')) : 'Welcome back';
       }
       if (titleEl) {
-        titleEl.textContent = role || '—';
+        titleEl.textContent = role || '-';
       }
       if (emailEl) {
-        emailEl.textContent = email || '—';
+        emailEl.textContent = email || '-';
       }
     } else {
       console.warn('[TestDashboard] No session -- user may not be logged in');
@@ -160,13 +160,13 @@
     console.log('[TestDashboard] Footer loaded:', footer ? 'yes' : 'MISSING');
     console.log('[TestDashboard] Page title element:', title ? '"' + title.textContent + '"' : 'MISSING');
 
-    // Check sticky position — should be sticky to the TOP
+    // Check sticky position -- should be sticky to the TOP
     if (header) {
       var stickyPos = getComputedStyle(header).position;
       var stickyTop = getComputedStyle(header).top;
       console.log('[TestDashboard] Header position:', stickyPos, 'top:', stickyTop);
       if (stickyPos === 'sticky' && stickyTop === '0px') {
-        console.log('[TestDashboard] ✓ Header is sticky to the top');
+        console.log('[TestDashboard] OK Header is sticky to the top');
       } else {
         console.warn('[TestDashboard] WARNING: Header is not sticky-top (position:' + stickyPos + ' top:' + stickyTop + ')');
       }
@@ -185,23 +185,23 @@
     // Theme toggle SHOULD exist on the page (in the theme bar, not in the header)
     var dashTheme = document.getElementById('dashThemeCheckbox');
     if (dashTheme) {
-      console.log('[TestDashboard] ✓ Theme toggle (#dashThemeCheckbox) present and wired');
+      console.log('[TestDashboard] OK Theme toggle (#dashThemeCheckbox) present and wired');
     } else {
-      console.warn('[TestDashboard] WARNING: #dashThemeCheckbox not found — theme toggle missing');
+      console.warn('[TestDashboard] WARNING: #dashThemeCheckbox not found -- theme toggle missing');
     }
 
     // Check for duplicate page titles
     var titleElements = document.querySelectorAll('#dashPageTitle');
     if (titleElements.length === 1) {
-      console.log('[TestDashboard] ✓ Page title appears exactly once');
+      console.log('[TestDashboard] OK Page title appears exactly once');
     } else if (titleElements.length > 1) {
-      console.warn('[TestDashboard] WARNING: #dashPageTitle found ' + titleElements.length + ' times — duplicate title!');
+      console.warn('[TestDashboard] WARNING: #dashPageTitle found ' + titleElements.length + ' times -- duplicate title!');
     } else {
       console.warn('[TestDashboard] WARNING: #dashPageTitle not found');
     }
 
     if (!utilityBar && !dashLogout && !dashHome) {
-      console.log('[TestDashboard] ✓ Utility bar correctly removed — no leftover buttons');
+      console.log('[TestDashboard] OK Utility bar correctly removed -- no leftover buttons');
     }
   });
 })();
