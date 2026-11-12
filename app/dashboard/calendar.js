@@ -1,4 +1,4 @@
-/** 
+/**
  * calendar.js -- DRIV-EN Calendar View
  *
  * Shows work orders, recurring PM tasks, and inspections on a visual calendar.
@@ -535,9 +535,23 @@
     document.getElementById('calWelcomeRole').textContent = user.role || user.role_id || '-';
     document.getElementById('calWelcomeEmail').textContent = user.email || '-';
 
+    // Dashboard tab returns to user's main dashboard
+    var roleId = (user.role_id || user.role || '').toLowerCase();
+    var dashUrl = '/app/dashboard/employee-dashboard.html';
+    if (roleId === 'ro-founder') dashUrl = '/app/dashboard/owner-dashboard.html';
+    else if (roleId === 'ro-admin') dashUrl = '/app/dashboard/admin.html';
+    var homeLink = document.getElementById('calHomeLink');
+    if (homeLink) homeLink.href = dashUrl;
+
     // Load calendar data
     loadAllItems();
   }
+
+  // Logout
+  window.dashLogout = function() {
+    try { fetch('/auth/logout', { method: 'POST' }); } catch (e) {}
+    window.location.href = '/public/login.html';
+  };
 
   // ===== INIT =====
   if (document.readyState === 'loading') {
