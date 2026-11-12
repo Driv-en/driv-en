@@ -1,4 +1,4 @@
-/** 
+/**
  * calendar.js -- DRIV-EN Calendar View
  *
  * Shows work orders, recurring PM tasks, and inspections on a visual calendar.
