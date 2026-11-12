@@ -1,5 +1,5 @@
 /* ==========================================================================
-   DRIV-EN Platform — Admin Dashboard JavaScript
+   DRIV-EN Platform -- Admin Dashboard JavaScript
    File: /app/dashboard/admin.js
    Extracted from admin.html for CSP compliance (no inline scripts).
    ========================================================================== */
@@ -247,11 +247,11 @@ function startHeaderObserver() {
   var header = document.getElementById('dashHeader');
   if (!header) return;
 
-  var observer = new MutationObserver(function(mutations) {
+  var observer = new MutationObserver(function() {
     var h1s = header.querySelectorAll('h1');
     var rows = header.querySelectorAll('.dash-header-row1, .dash-header-row2, .dash-header-row3, .dash-utility-bar');
     if (h1s.length > 1 || rows.length > 1) {
-      console.warn('[AdminDashboard] MutationObserver detected old layout — h1s:' + h1s.length + ' rows:' + rows.length);
+      console.warn('[AdminDashboard] MutationObserver detected old layout -- h1s:' + h1s.length + ' rows:' + rows.length);
       observer.disconnect();
       rebuildHeader();
       setTimeout(function() { startHeaderObserver(); }, 100);
@@ -380,7 +380,7 @@ async function loadDashboardStats() {
     var clientData = results[3] || {}; var clientList = clientData.clients || clientData.records || clientData.data || clientData.results || (Array.isArray(clientData) ? clientData : []);
     var activeClients = clientList.filter(function(c) { var st = c.status !== undefined ? c.status : (c.is_active !== undefined ? c.is_active : c.active); if (typeof st === 'string') st = st.toLowerCase(); return st === undefined || st === null || st === 1 || st === '1' || st === 'active' || st === true; }).length;
     var elCli = document.getElementById('stat-clients'); if (elCli) elCli.textContent = activeClients; localStorage.setItem('driven_client_count', activeClients);
-    console.log('[KPI] Parsed — employees:' + empCount + ' projects:' + projList.length + ' assets:' + assetList.length + ' clients:' + activeClients);
+    console.log('[KPI] Parsed -- employees:' + empCount + ' projects:' + projList.length + ' assets:' + assetList.length + ' clients:' + activeClients);
   } catch (e) {
     console.error('loadDashboardStats error:', e);
     var elE = document.getElementById('stat-employees'); if (elE) elE.textContent = localStorage.getItem('driven_employee_count') || '0';
@@ -396,7 +396,7 @@ function renderFormsTab() {
   c.querySelectorAll('.emp-form-card').forEach(function(card) { card.addEventListener('click', function(e) { preserveAndNavigate(e, this.getAttribute('data-link')); }); });
 }
 
-/* ===== UNIT OF MEASURE — Fetches from /api/settings/units API ===== */
+/* ===== UNIT OF MEASURE -- Fetches from /api/settings/units API ===== */
 function renderOnboardingUomDisplays() {
   var distEl = document.getElementById('uom-distance-display');
   var volEl = document.getElementById('uom-volume-display');
@@ -479,12 +479,25 @@ function switchOnboardingSubtab(subtabName) {
   if (targetSubtabBtn) { targetSubtabBtn.classList.add('active'); targetSubtabBtn.setAttribute('aria-selected', 'true'); }
   if (targetSubtabContent) targetSubtabContent.classList.add('active');
   if (subtabName === 'kp' || subtabName === 'key-personnel') { renderKeyPersonnel(); }
-  if (subtabName === 'dashboard') { /* Onboarding Dashboard subtab — link is in the HTML */ }
+  if (subtabName === 'dashboard') { /* Onboarding Dashboard subtab -- link is in the HTML */ }
   adjustStickyOffsets();
 }
 
-function toggleTheme() { var current = document.documentElement.getAttribute('data-theme') || 'light'; var newTheme = current === 'dark' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', newTheme); localStorage.setItem('driven-theme', newTheme); updateThemeSwitch(); }
-function updateThemeSwitch() { var current = document.documentElement.getAttribute('data-theme') || 'light'; var cb = document.getElementById('theme-checkbox'); if (cb) cb.checked = (current === 'dark'); }
+/* Override the shared dashToggleTheme to add admin-specific behavior (broadcast + stats reload) */
+window.dashToggleTheme = function() {
+  var current = document.documentElement.getAttribute('data-theme') || 'light';
+  var newTheme = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', newTheme);
+  localStorage.setItem('driven-theme', newTheme);
+  var cb = document.getElementById('dashThemeCheckbox');
+  if (cb) cb.checked = (newTheme === 'dark');
+  var ll = document.getElementById('dashThemeLabelLight');
+  var ld = document.getElementById('dashThemeLabelDark');
+  if (ll) ll.classList.toggle('active', newTheme === 'light');
+  if (ld) ld.classList.toggle('active', newTheme === 'dark');
+  if (syncChannel) { try { syncChannel.postMessage({ type: 'theme_change', theme: newTheme }); } catch (e) {} }
+  try { loadDashboardStats().catch(function() {}); } catch (e) {}
+};
 
 function renderLogoPreview(preview, logo, removeButton) {
   if (!preview) return; preview.textContent = '';
@@ -617,27 +630,6 @@ function openModal(modalId) { var modal = document.getElementById(modalId); if (
 function closeModal(modalId) { var modal = document.getElementById(modalId); if (modal) { modal.classList.remove('active', 'show'); modal.style.display = 'none'; } }
 function hideOnboardingTab() { var t = document.querySelector('.admin-tab[data-tab="onboarding"]'); if (t) t.style.display = 'none'; }
 
-/* ===== WELCOME CARD SAFETY NET =====
-   Forces the welcome card to white background with green border and
-   visible dark text. Catches any runtime override (stale SW CSS, JS
-   style injection, theme glitch) that would make the card blue. */
-function fixWelcomeCard() {
-  var card = document.querySelector('#adminWelcomeBar .admin-welcome');
-  if (!card) return;
-  card.style.setProperty('background', '#ffffff', 'important');
-  card.style.setProperty('border', '2px solid #16a34a', 'important');
-  card.style.setProperty('color', '#1e293b', 'important');
-  var textEls = card.querySelectorAll('p, span, .welcome-detail-row, .welcome-detail-label');
-  textEls.forEach(function(el) {
-    if (el.classList && el.classList.contains('welcome-detail-label')) {
-      el.style.setProperty('color', '#475569', 'important');
-    } else {
-      el.style.setProperty('color', '#1e293b', 'important');
-    }
-  });
-  console.log('[AdminDashboard] Welcome card forced: white bg, green border, dark text');
-}
-
 function injectGlobalUIStyles() {
   if (document.getElementById('driven-admin-ui-styles')) return;
   var style = document.createElement('style'); style.id = 'driven-admin-ui-styles';
@@ -681,7 +673,7 @@ function attachEventHandlers() {
   var btnClosePurpose = document.getElementById('btnClosePurposeModal'); if (btnClosePurpose) { btnClosePurpose.addEventListener('click', function() { closeModal('modalPurpose'); }); }
   var btnCloseInstructions = document.getElementById('btnCloseInstructionsModal'); if (btnCloseInstructions) { btnCloseInstructions.addEventListener('click', function() { closeModal('modalInstructions'); }); }
   window.addEventListener('click', function(e) { if (e.target === document.getElementById('modalPurpose')) closeModal('modalPurpose'); if (e.target === document.getElementById('modalInstructions')) closeModal('modalInstructions'); });
-  var themeCb = document.getElementById('theme-checkbox'); if (themeCb) { themeCb.addEventListener('change', toggleTheme); }
+  /* Theme toggle is wired by shared dashboard-common.js via #dashThemeCheckbox -- no duplicate listener needed */
   var logoFile = document.getElementById('logoFile'); if (logoFile) { logoFile.addEventListener('change', handleLogoUpload); }
   var logoRemove = document.getElementById('logoRemoveBtn'); if (logoRemove) { logoRemove.addEventListener('click', handleLogoRemove); }
   var bSelect = document.getElementById('businessTypeSelect'); if (bSelect) { bSelect.addEventListener('change', onBusinessTypeChange); }
@@ -701,10 +693,10 @@ function attachEventHandlers() {
   var kpCompleteBtn = document.getElementById('kpCompleteBtn'); if (kpCompleteBtn) { kpCompleteBtn.addEventListener('click', saveKeyPersonnelToDB); }
   var finalizeBtn = document.getElementById('finalizeOnboardingBtn'); if (finalizeBtn) { finalizeBtn.addEventListener('click', finalizeCompanyOnboarding); }
   var btnDismissErr = document.getElementById('btnDismissError'); if (btnDismissErr) { btnDismissErr.addEventListener('click', dismissPageError); }
-  // Unit of Measure toggle buttons — no inline onclick for CSP compliance
+  // Unit of Measure toggle buttons -- no inline onclick for CSP compliance
   var impBtn = document.getElementById('uom-imperial-btn'); if (impBtn) impBtn.addEventListener('click', function() { setUnitSystem('imperial'); });
   var metBtn = document.getElementById('uom-metric-btn'); if (metBtn) metBtn.addEventListener('click', function() { setUnitSystem('metric'); });
-  // Stat card navigation — no inline onclick for CSP compliance
+  // Stat card navigation -- no inline onclick for CSP compliance
   document.querySelectorAll('.stat-card[data-nav]').forEach(function(card) {
     card.addEventListener('click', function(e) { preserveAndNavigate(e, this.getAttribute('data-nav')); });
     card.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); preserveAndNavigate(e, this.getAttribute('data-nav')); } });
@@ -742,27 +734,26 @@ async function startAdminApp(user) {
     sessionStorage.setItem('driven_org_id', activeOrgId); sessionStorage.setItem('driven_user', userStr);
     if (userRole) sessionStorage.setItem('driven_role', userRole); if (user.id) sessionStorage.setItem('driven_user_id', user.id);
     var firstName = user.first_name || user.email; var orgName = user.org_name || localStorage.getItem('driven_org_name') || '';
-    var welcomeEl = document.getElementById('welcome-name'); if (welcomeEl) { welcomeEl.textContent = orgName ? (firstName + ' - ' + orgName) : firstName; }
+    var welcomeEl = document.getElementById('welcome-name'); if (welcomeEl) { welcomeEl.textContent = firstName ? ('Welcome back, ' + firstName) : 'Welcome back'; }
     var accountNameEl = document.getElementById('account-name'); if (accountNameEl) { accountNameEl.textContent = user.first_name ? (user.first_name + ' ' + (user.last_name || '')) : user.email; }
     var emailEl = document.getElementById('account-email'); if (emailEl) emailEl.textContent = user.email || '';
     var elComp = document.getElementById('welcome-company'); if (elComp) elComp.textContent = orgName;
     var elRole = document.getElementById('welcome-role'); if (elRole) elRole.textContent = user.role || user.role_id || '';
     var elMail = document.getElementById('welcome-email'); if (elMail) elMail.textContent = user.email || '';
-    try { injectGlobalUIStyles(); fixWelcomeCard(); attachEventHandlers(); } catch (e) { reportError('startAdminApp-init', e); }
+    try { injectGlobalUIStyles(); attachEventHandlers(); } catch (e) { reportError('startAdminApp-init', e); }
     adjustStickyOffsets();
     loadLogo().catch(function(e) { reportError('loadLogo', e); });
     loadSettings().catch(function(e) { reportError('loadSettings', e); });
     loadKeyPersonnel().catch(function(e) { reportError('loadKeyPersonnel', e); });
-    updateProgress(); updateThemeSwitch(); renderFormsTab();
+    updateProgress(); renderFormsTab();
     await loadDashboardStats().catch(function(e) { reportError('init-loadDashboardStats', e); });
     setTimeout(function() { loadDashboardStats().catch(function(e) { reportError('init-loadDashboardStats-retry', e); }); }, 1000);
   } catch (e) {
     reportError('startAdminApp-outer', e);
     console.error('[AdminDashboard] Error during initialization:', e);
   } finally {
-    // ALWAYS show the dashboard — even if everything above failed
+    // ALWAYS show the dashboard -- even if everything above failed
     rebuildHeader(); // final header rebuild safety net
-    fixWelcomeCard(); // final welcome card safety net
     var loadingEl = document.getElementById('loading'); var dashEl = document.getElementById('dashboard');
     if (loadingEl) loadingEl.style.display = 'none';
     if (dashEl) dashEl.style.display = 'block';
@@ -784,10 +775,6 @@ async function init() {
   rebuildHeader();
   startHeaderObserver();
   scheduleHeaderRebuilds();
-  fixWelcomeCard();
-  setTimeout(fixWelcomeCard, 500);
-  setTimeout(fixWelcomeCard, 1500);
-  setTimeout(fixWelcomeCard, 3000);
   window.addEventListener('resize', adjustStickyOffsets);
   window.addEventListener('orientationchange', adjustStickyOffsets);
   window.addEventListener('scroll', adjustStickyOffsets, { passive: true });
@@ -805,7 +792,7 @@ async function init() {
   window.addEventListener('load', function() { if (!adminAppStarted) { rebuildHeader(); var u = window.dashUser || window.drivenUser || getUserFromStorage(); if (u) startAdminApp(u); } });
 
   // ===== FALLBACK: Show dashboard after 5s even if startAdminApp never ran =====
-  // This prevents the user from being stuck on "Loading admin dashboard…" forever
+  // This prevents the user from being stuck on "Loading admin dashboard..." forever
   // if the session fetch fails or the dashSessionLoaded event never fires.
   setTimeout(function() {
     if (adminAppStarted) return;
