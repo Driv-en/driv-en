@@ -326,6 +326,9 @@ async function handleSessionLoaded() {
   var elEmail = document.getElementById('welcome-email');
   if (elEmail) elEmail.textContent = user.email || '';
 
+  // ── Unit of Measure preference dropdown ────────────────────────────
+  initUomPreference();
+
   // Rebuild header as single row + adjust sticky offsets
   rebuildHeader();
   adjustStickyOffsets();
@@ -342,6 +345,61 @@ async function handleSessionLoaded() {
 
   // Final header rebuild safety net
   setTimeout(function () { rebuildHeader(); adjustStickyOffsets(); }, 500);
+}
+
+/* ===== UNIT OF MEASURE PREFERENCE ===== */
+function initUomPreference() {
+  var select = document.getElementById('welcomeUomSelect');
+  var hint = document.getElementById('welcomeUomHint');
+  if (!select) return;
+
+  // Load current preference from API
+  if (window.DRIVEN_UNITS && DRIVEN_UNITS.getUserUnitPreference) {
+    DRIVEN_UNITS.getUserUnitPreference().then(function(info) {
+      if (!info) return;
+      select.value = info.user_preference || 'org_default';
+
+      // Show what the org default is, so the user knows what "org default" means
+      if (info.org_default && info.user_preference === 'org_default') {
+        if (hint) hint.textContent = 'Org default: ' + (info.org_default === 'metric' ? 'Metric' : 'Imperial');
+      } else if (hint) {
+        hint.textContent = '';
+      }
+    });
+  }
+
+  // Save on change
+  select.addEventListener('change', function() {
+    var pref = select.value;
+    if (!window.DRIVEN_UNITS || !DRIVEN_UNITS.setUserUnitPreference) return;
+
+    DRIVEN_UNITS.setUserUnitPreference(pref).then(function(result) {
+      if (!result) {
+        alert('Failed to update unit preference. Please try again.');
+        return;
+      }
+
+      // Update hint
+      if (hint) {
+        if (pref === 'org_default' && result.unit_system) {
+          hint.textContent = 'Org default: ' + (result.unit_system === 'metric' ? 'Metric' : 'Imperial');
+        } else {
+          hint.textContent = '';
+        }
+      }
+
+      // Refresh all units on the page
+      if (window.DRIVEN_APPLY_UNITS) {
+        DRIVEN_APPLY_UNITS.refresh();
+      }
+
+      // Notify other tabs
+      try {
+        localStorage.setItem('driv-en-unit-system-changed', Date.now().toString());
+        localStorage.setItem('driv-en-unit-system', result.unit_system);
+      } catch (e) {}
+    });
+  });
 }
 
 /* ===== HELPERS ===== */
