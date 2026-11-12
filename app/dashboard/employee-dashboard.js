@@ -218,7 +218,7 @@ function adjustStickyOffsets() {
 }
 
 function initEmployeeDashboard() {
-  // Aggressive header rebuild
+  // Normalize the header and watch for stale content loaded afterward.
   rebuildHeader();
   startHeaderObserver();
 
