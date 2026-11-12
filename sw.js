@@ -6,6 +6,8 @@
  * This avoids the atomic failure problem where one missing file
  * breaks the entire cache.
  *
+ * v15 — November 12, 2026: Cache purge for new Calendar page + tab links added
+ *         to admin, employee, and work-orders dashboards.
  * v14 — November 11, 2026: Force cache purge — old SW was serving stale
  *         dashboard-header.html with 3-row layout (duplicate page title).
  * v13 — October 1, 2026: Force cache purge — old SW was serving stale dashboard-common.js.
@@ -22,7 +24,7 @@
  *      to cache only when offline). Static assets are cache-first.
  */
 
-const CACHE = 'driv-en-v14';
+const CACHE = 'driv-en-v15';
 const STATIC_ASSETS = [
   '/app/shared/dashboard.css',
   '/app/shared/dashboard-common.js',
