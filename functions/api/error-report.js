@@ -1,54 +1,17 @@
 /* ==========================================================================
    DRIV-EN ERROR REPORT ENDPOINT (Pages Function)
    ==========================================================================
-   PURPOSE: 
-     1. POST: Receives client-side error reports from error-handler.js,
-        writes them to D1 table error_log, and sends email notification via Resend.
-     2. GET: Retrieves the latest error logs sorted by created_at DESC.
+   PURPOSE: Receives client-side error reports from error-handler.js and:
+     1. Writes the error to the error_log D1 table (Error Logs tab)
+     2. Sends an email to support@driv-en.com via Resend API
+     3. Returns 200 so the client doesn't retry
 
    DEPLOY: Place at /functions/api/error-report.js in the Pages project
+
    D1 BINDING: DB (already configured on the Pages project)
+   ENV VARS: RESEND_API_KEY, RESEND_FROM_EMAIL, SUPPORT_CONTACT (all in production)
    ========================================================================== */
 
-/**
- * GET Handler - Returns the latest error logs ordered descending by creation date.
- */
-export async function onRequestGet({ env }) {
-  try {
-    // Ensure table exists before querying
-    await env.DB.prepare(
-      'CREATE TABLE IF NOT EXISTS error_log (' +
-      'id TEXT PRIMARY KEY, ' +
-      'source TEXT, ' +
-      'error_message TEXT, ' +
-      'stack_trace TEXT, ' +
-      'severity TEXT DEFAULT \'error\', ' +
-      'resolved INTEGER DEFAULT 0, ' +
-      'created_at TEXT' +
-      ')'
-    ).run();
-
-    // Query latest 100 records sorted descending so newest errors show up first
-    const { results } = await env.DB.prepare(
-      'SELECT * FROM error_log ORDER BY created_at DESC LIMIT 100'
-    ).all();
-
-    return new Response(JSON.stringify({ success: true, data: results || [] }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  } catch (err) {
-    console.error('Failed to fetch error logs:', err.message);
-    return new Response(JSON.stringify({ success: false, error: err.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-}
-
-/**
- * POST Handler - Log a new client-side error and notify support via Resend.
- */
 export async function onRequestPost({ request, env }) {
   try {
     const body = await request.json();
@@ -89,11 +52,11 @@ export async function onRequestPost({ request, env }) {
       new Date().toISOString()
     ).run();
 
-    // Send email to support via Resend API
+    // Send email to support via Resend
     if (env.RESEND_API_KEY) {
       try {
         const supportEmail = env.SUPPORT_CONTACT || 'support@driv-en.com';
-        const fromEmail = env.RESEND_FROM_EMAIL || 'DRIV-EN Error Monitor <noreply@driv-en.com>';
+        const fromEmail = env.RESEND_FROM_EMAIL || 'noreply@driv-en.com';
 
         await fetch('https://api.resend.com/emails', {
           method: 'POST',
@@ -102,7 +65,7 @@ export async function onRequestPost({ request, env }) {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            from: fromEmail,
+            from: 'DRIV-EN Error Monitor <' + fromEmail + '>',
             to: [supportEmail],
             subject: 'CLIENT ERROR: ' + (body.message || 'Unknown error').substring(0, 80),
             html: '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#222;">' +
@@ -120,7 +83,7 @@ export async function onRequestPost({ request, env }) {
           })
         });
       } catch (emailErr) {
-        console.error('Failed to send client error email via Resend:', emailErr.message);
+        console.error('Failed to send client error email:', emailErr.message);
       }
     }
 
