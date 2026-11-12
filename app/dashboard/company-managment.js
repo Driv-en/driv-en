@@ -1,6 +1,6 @@
 /**
  * DRIV-EN — Company Management Page Logic 
- * File: /app/dashboard/company-management.js
+ * File: /app/dashboard/company-management.js 
  */
 
 document.addEventListener('DOMContentLoaded', function () {
