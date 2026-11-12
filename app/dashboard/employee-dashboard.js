@@ -538,10 +538,12 @@ function switchTab(tabName) {
 }
 
 /* ===== LOGOUT ===== */
-function dashLogout() {
+async function dashLogout() {
   try {
-    fetch('/auth/logout', { method: 'POST' });
-  } catch (e) {}
+    await fetch('/auth/logout', { method: 'POST' });
+  } catch (e) {
+    // Even if the request fails, proceed to login page
+  }
   window.location.href = '/public/login.html';
 }
 window.dashLogout = dashLogout;
