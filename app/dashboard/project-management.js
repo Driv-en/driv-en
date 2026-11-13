@@ -39,7 +39,6 @@
     { key: 'contactName',  label: 'Contact Name', defaultVisible: true },
     { key: 'contactEmail', label: 'Email',        defaultVisible: true },
     { key: 'contactPhone', label: 'Phone',        defaultVisible: true },
-    { key: 'company',      label: 'Company',      defaultVisible: true },
     { key: 'industry',     label: 'Industry',     defaultVisible: false },
     { key: 'city',         label: 'City',          defaultVisible: false },
     { key: 'state',        label: 'State',         defaultVisible: false },
@@ -391,7 +390,6 @@
       contactName:  f['Contact Name'] || f.contact_name || '',
       contactEmail: f['Contact Email'] || f.contact_email || '',
       contactPhone: f['Contact Phone'] || f.contact_phone || '',
-      company:      f['Company'] || f.company || '',
       address:      f['Address'] || f.address || '',
       city:         f['City'] || f.city || '',
       state:        f['State'] || f.state || '',
@@ -488,8 +486,8 @@
   // ===== RENDER OVERVIEW =====
   function renderOverview() {
     document.getElementById('kpiTotalProjects').textContent = allProjects.length;
-    document.getElementById('kpiActiveProjects').textContent = allProjects.filter(function(p) { return p.status === 'Active'; }).length;
-    document.getElementById('kpiCompletedProjects').textContent = allProjects.filter(function(p) { return p.status === 'Completed'; }).length;
+    document.getElementById('kpiActiveProjects').textContent = allProjects.filter(function(p) { return String(p.status || '').toLowerCase() === 'active'; }).length;
+    document.getElementById('kpiCompletedProjects').textContent = allProjects.filter(function(p) { return String(p.status || '').toLowerCase() === 'completed'; }).length;
     document.getElementById('kpiTotalClients').textContent = allClients.length;
 
     var recentProjects = allProjects.slice().sort(function(a, b) {
@@ -506,7 +504,7 @@
         var tr = document.createElement('tr');
         tr.style.cursor = 'pointer';
         tr.addEventListener('click', function() { switchTab('projects'); });
-        tr.innerHTML = '<td style="font-weight:600;">' + escapeHtml(p.name || '') + '</td><td>' + escapeHtml(p.code || '—') + '</td><td>' + statusBadgeHtml(p.status) + '</td><td>' + escapeHtml(p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '—') + '</td>';
+        tr.innerHTML = '<td>' + escapeHtml(p.code || '—') + '</td><td style="font-weight:600;">' + escapeHtml(p.name || '') + '</td><td>' + escapeHtml(p.clientName || p.client_name || '—') + '</td><td>' + statusBadgeHtml(p.status) + '</td>';
         projBody.appendChild(tr);
       });
     }
@@ -525,7 +523,7 @@
         var tr = document.createElement('tr');
         tr.style.cursor = 'pointer';
         tr.addEventListener('click', function() { switchTab('clients'); });
-        tr.innerHTML = '<td style="font-weight:600;">' + escapeHtml(c.clientName || '') + '</td><td>' + escapeHtml(c.contactName || '—') + '</td><td>' + escapeHtml(c.company || '—') + '</td><td>' + statusBadgeHtml(c.status) + '</td>';
+        tr.innerHTML = '<td style="font-weight:600;">' + escapeHtml(c.clientName || '') + '</td><td>' + escapeHtml(c.contactName || c.contactEmail || '—') + '</td><td>' + statusBadgeHtml(c.status) + '</td>';
         cliBody.appendChild(tr);
       });
     }
@@ -735,7 +733,7 @@
         (c.clientName && c.clientName.toLowerCase().indexOf(search) !== -1) ||
         (c.contactName && c.contactName.toLowerCase().indexOf(search) !== -1) ||
         (c.contactEmail && c.contactEmail.toLowerCase().indexOf(search) !== -1) ||
-        (c.company && c.company.toLowerCase().indexOf(search) !== -1);
+        
       var matchesStatus = !filterStatus || (c.status && c.status.toLowerCase() === filterStatus.toLowerCase());
       return matchesSearch && matchesStatus;
     });
@@ -1102,7 +1100,7 @@
     var contactName = document.getElementById('pmContactName').value.trim();
     var contactEmail = document.getElementById('pmContactEmail').value.trim();
     var contactPhone = document.getElementById('pmContactPhone').value.trim();
-    var company = document.getElementById('pmCompany').value.trim();
+    
     var industry = document.getElementById('pmIndustry').value.trim();
     var address = document.getElementById('pmAddress').value.trim();
     var city = document.getElementById('pmCity').value.trim();
@@ -1122,7 +1120,6 @@
       'Status': status,
     };
     if (contactPhone) payload['Contact Phone'] = contactPhone;
-    if (company) payload['Company'] = company;
     if (industry) payload['Industry'] = industry;
     if (address) payload['Address'] = address;
     if (city) payload['City'] = city;
@@ -1145,7 +1142,7 @@
         await loadClients();
       }
 
-      ['pmClientName','pmContactName','pmContactEmail','pmContactPhone','pmCompany','pmIndustry','pmAddress','pmCity','pmState','pmZip','pmClientNotes'].forEach(function(id) {
+      ['pmClientName','pmContactName','pmContactEmail','pmContactPhone','pmIndustry','pmAddress','pmCity','pmState','pmZip','pmClientNotes'].forEach(function(id) {
         document.getElementById(id).value = '';
       });
       document.getElementById('pmClientStatus').value = 'Active';
@@ -1169,7 +1166,7 @@
     document.getElementById('pmEditContactName').value = client.contactName || '';
     document.getElementById('pmEditContactEmail').value = client.contactEmail || '';
     document.getElementById('pmEditContactPhone').value = client.contactPhone || '';
-    document.getElementById('pmEditCompany').value = client.company || '';
+    
     document.getElementById('pmEditIndustry').value = client.industry || '';
     document.getElementById('pmEditAddress').value = client.address || '';
     document.getElementById('pmEditCity').value = client.city || '';
@@ -1191,7 +1188,7 @@
     var contactName = document.getElementById('pmEditContactName').value.trim();
     var contactEmail = document.getElementById('pmEditContactEmail').value.trim();
     var contactPhone = document.getElementById('pmEditContactPhone').value.trim();
-    var company = document.getElementById('pmEditCompany').value.trim();
+    
     var industry = document.getElementById('pmEditIndustry').value.trim();
     var address = document.getElementById('pmEditAddress').value.trim();
     var city = document.getElementById('pmEditCity').value.trim();
@@ -1211,7 +1208,6 @@
       'Status': status,
     };
     if (contactPhone) payload['Contact Phone'] = contactPhone;
-    if (company) payload['Company'] = company;
     if (industry) payload['Industry'] = industry;
     if (address) payload['Address'] = address;
     if (city) payload['City'] = city;
@@ -1670,7 +1666,7 @@
         (c.clientName && c.clientName.toLowerCase().indexOf(search) !== -1) ||
         (c.contactName && c.contactName.toLowerCase().indexOf(search) !== -1) ||
         (c.contactEmail && c.contactEmail.toLowerCase().indexOf(search) !== -1) ||
-        (c.company && c.company.toLowerCase().indexOf(search) !== -1);
+        
       var matchesStatus = !filterStatus || (c.status && c.status.toLowerCase() === filterStatus.toLowerCase());
       return matchesSearch && matchesStatus;
     });
@@ -1772,5 +1768,73 @@
     }
     if (typeof dashLogout === 'function') dashLogout();
   }
+
+  // ===== PURPOSE & INSTRUCTIONS MODALS =====
+  var PM_MODAL_CONTENT = {
+    overview: {
+      title: 'Project Management — Overview',
+      purpose: 'The Overview tab provides a high-level snapshot of all projects and clients in your organization. Use it to quickly see KPIs, active projects, and active clients at a glance.',
+      instructions: '<ol><li>Review the KPI cards at the top for Total Projects, Active Projects, Completed Projects, and Total Clients.</li><li>Scroll down to the Active Projects table to see the latest projects. Click a row to jump to the Projects tab.</li><li>Scroll down to the Active Clients table to see the latest clients. Click a row to jump to the Clients tab.</li></ol>'
+    },
+    projects: {
+      title: 'Project Management — Projects',
+      purpose: 'The Projects tab lists all projects in your organization with full search, filter, sort, and pagination. Use it to find, view, and edit any project.',
+      instructions: '<ol><li>Use the search box to filter by project name, code, or location.</li><li>Use the Status dropdown to filter by project status.</li><li>Click Columns to show/hide specific columns.</li><li>Click a row to view or edit a project.</li><li>Use the pagination controls at the bottom to navigate pages.</li><li>Click Print, Export CSV, or Export Excel to export the current list.</li></ol>'
+    },
+    addproject: {
+      title: 'Project Management — Add New Project',
+      purpose: 'The Add New Project tab lets you create a new project by filling out the project details form.',
+      instructions: '<ol><li>Enter the Project Name, Project Number (code), and select a Project Type.</li><li>Choose a Client from the dropdown (clients must be added first).</li><li>Set the Project Status (Active, Planning, On Hold, Completed, or Cancelled).</li><li>Fill in optional fields like Location, Start Date, End Date, Budget, and Description.</li><li>Click Save Project to create the project.</li></ol>'
+    },
+    types: {
+      title: 'Project Management — Project Types',
+      purpose: 'The Project Types tab lets you define and manage project categories. These types are used when creating or classifying projects.',
+      instructions: '<ol><li>To add a new type, fill out the Type Name and Description fields at the top, then click Add Type.</li><li>The Project Type List below shows all existing types.</li><li>Click Edit to modify a type name or description.</li><li>Click Delete to remove a type (only if no projects are using it).</li></ol>'
+    },
+    clients: {
+      title: 'Project Management — Clients',
+      purpose: 'The Clients tab lists all clients in your organization with full search, filter, sort, and pagination. Use it to find, view, and edit any client.',
+      instructions: '<ol><li>Use the search box to filter by client name, contact, or email.</li><li>Use the Status dropdown to filter by client status.</li><li>Click Columns to show/hide specific columns.</li><li>Click a row to view or edit a client.</li><li>Use the pagination controls at the bottom to navigate pages.</li><li>Click Print, Export CSV, or Export Excel to export the current list.</li></ol>'
+    },
+    addclient: {
+      title: 'Project Management — Add New Client',
+      purpose: 'The Add New Client tab lets you create a new client by filling out the client details form.',
+      instructions: '<ol><li>Enter the Client Name (this is the company or organization name).</li><li>Fill in Contact Name, Contact Email, and Contact Phone.</li><li>Optionally add Industry, Address, City, State, Zip Code, and Notes.</li><li>Set the Client Status (Active, Inactive, Pending, or Onboarding).</li><li>Click Save Client to create the client.</li></ol>'
+    }
+  };
+
+  function getActiveContext() {
+    var activeTab = document.querySelector('.pm-tab.active');
+    if (!activeTab) return 'overview';
+    var key = activeTab.getAttribute('data-tab') || 'overview';
+    return PM_MODAL_CONTENT[key] ? key : 'overview';
+  }
+
+  function openPmModal(type) {
+    var ctx = getActiveContext();
+    var info = PM_MODAL_CONTENT[ctx] || PM_MODAL_CONTENT.overview;
+    if (type === 'purpose') {
+      document.getElementById('pmModalPurposeTitle').textContent = info.title + ' — Purpose';
+      document.getElementById('pmModalPurposeBody').innerHTML = info.purpose;
+      document.getElementById('pmModalPurpose').classList.add('active');
+    } else {
+      document.getElementById('pmModalInstructionsTitle').textContent = info.title + ' — Instructions';
+      document.getElementById('pmModalInstructionsBody').innerHTML = info.instructions;
+      document.getElementById('pmModalInstructions').classList.add('active');
+    }
+  }
+
+  // Wire pill bar buttons
+  var btnPurpose = document.getElementById('pmBtnPurpose');
+  if (btnPurpose) btnPurpose.addEventListener('click', function() { openPmModal('purpose'); });
+  var btnInstructions = document.getElementById('pmBtnInstructions');
+  if (btnInstructions) btnInstructions.addEventListener('click', function() { openPmModal('instructions'); });
+
+  // Close modal on overlay click
+  document.querySelectorAll('.pm-modal-overlay').forEach(function(overlay) {
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) overlay.classList.remove('active');
+    });
+  });
 
 })();
