@@ -141,7 +141,7 @@ function preserveAndNavigate(event, targetUrl) {
   if (!userObj.id && userObj.user_id) { userObj.id = userObj.user_id; }
   var targetOrg = activeOrgId || userObj.org_id || '';
   if (!targetOrg || targetOrg === 'default_org' || targetOrg === 'null') { window.location.href = '/public/login.html'; return; }
-  var roleVal = userObj.role_id || userObj.role || localStorage.getItem('driven_role') || sessionStorage.getItem('driven_role');
+  var roleVal = userObj.role_id || localStorage.getItem('driven_role') || sessionStorage.getItem('driven_role') || userObj.role;
   if (!roleVal) { window.location.href = '/public/login.html'; return; }
   var userStr = JSON.stringify(userObj);
   localStorage.setItem('driven_org_id', targetOrg); localStorage.setItem('driven_user', userStr); localStorage.setItem('driven_role', roleVal);
@@ -149,7 +149,7 @@ function preserveAndNavigate(event, targetUrl) {
   sessionStorage.setItem('driven_org_id', targetOrg); sessionStorage.setItem('driven_user', userStr); sessionStorage.setItem('driven_role', roleVal);
   if (userObj.id) sessionStorage.setItem('driven_user_id', userObj.id);
   var querySeparator = targetUrl.includes('?') ? '&' : '?';
-  window.location.href = targetUrl + querySeparator + 'org_id=' + encodeURIComponent(targetOrg) + '&role_id=' + encodeURIComponent(roleVal);
+  window.location.href = targetUrl + querySeparator + 'org_id=' + encodeURIComponent(targetOrg);
 }
 window.preserveAndNavigate = preserveAndNavigate;
 
