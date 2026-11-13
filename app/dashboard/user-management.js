@@ -29,6 +29,62 @@ var sortState = {
   activity: { key: 'created_at', dir: 'desc' }
 };
 
+// ============================================================
+// PURPOSE & INSTRUCTIONS MODAL CONTENT (per tab)
+// ============================================================
+var MODAL_CONTENT_MAP = {
+  overview: {
+    purpose: 'The <strong>Overview Tab</strong> provides a high-level summary of your workforce. It displays key metrics for active employees and those on leave, giving administrators a quick snapshot of staffing status.',
+    instructions: '<ol><li><strong>Monitor Workforce Metrics:</strong> View live counts for Active Employees and Employees on Leave. Click any KPI card to jump to the relevant filtered view.</li><li><strong>Navigate Tabs:</strong> Use the tab bar above to switch between Employees, Roles &amp; Permissions, System Users, and Activity Log.</li><li><strong>Account Management:</strong> Review your logged-in credentials in the welcome bar and use <strong>Change Password</strong> to update your login.</li><li><strong>Workspace Customization:</strong> Use the Light/Dark mode switch in the welcome bar to adjust visual preferences.</li></ol>'
+  },
+  employees: {
+    purpose: 'The <strong>Employees Tab</strong> is the central directory for managing all employee records. Administrators can add, edit, view, search, filter, sort, export, and print employee information.',
+    instructions: '<ol><li><strong>Search:</strong> Use the search bar to find employees by name, email, employee number, role, phone, or state.</li><li><strong>Filter:</strong> Use the Statuses and Roles dropdowns to filter by employment status or role.</li><li><strong>Add Employee:</strong> Click <strong>+ Add Employee</strong> to open the form modal. Fill in all required fields (First Name, Last Name) and optional fields, then click <strong>Save Employee</strong>.</li><li><strong>Edit Employee:</strong> Click the <strong>Edit</strong> button on any row to modify an existing employee record.</li><li><strong>View Details:</strong> Click <strong>View</strong> to see a read-only detail modal for any employee.</li><li><strong>Columns:</strong> Click <strong>Columns (Show / Hide)</strong> to toggle visibility of individual columns. Drag column headers to reorder. Drag column edges to resize.</li><li><strong>Export:</strong> Click <strong>Export CSV</strong> or <strong>Export Excel</strong> to export the current filtered view.</li><li><strong>Print:</strong> Click <strong>Print</strong> to select specific records or print all visible rows.</li></ol>'
+  },
+  roles: {
+    purpose: 'The <strong>Roles &amp; Permissions Tab</strong> displays all roles defined for your organization. This includes system roles (locked) and custom roles created during onboarding or by administrators.',
+    instructions: '<ol><li><strong>Review Roles:</strong> The table shows each role name, description, and whether it is a system-defined role.</li><li><strong>Sort:</strong> Click any column header to sort the table by that column. Click again to reverse the sort direction.</li><li><strong>Print:</strong> Click <strong>Print Roles &amp; Permissions</strong> to print the full roles table.</li><li><strong>Column Resize:</strong> Drag the edge of any column header to adjust its width.</li></ol>'
+  },
+  users: {
+    purpose: 'The <strong>System Users Tab</strong> manages all user accounts that have login access to the DRIV-EN platform. This includes their authentication status, role assignments, and security settings.',
+    instructions: '<ol><li><strong>Search:</strong> Use the search bar to find users by name, email, or role.</li><li><strong>Filter:</strong> Use the Statuses and Roles dropdowns to filter by account status or assigned role.</li><li><strong>View Details:</strong> Click <strong>View</strong> on any row to see the user account details modal.</li><li><strong>Columns:</strong> Click <strong>Columns (Show / Hide)</strong> to toggle visibility of individual columns. Drag column headers to reorder. Drag column edges to resize.</li><li><strong>Export:</strong> Click <strong>Export CSV</strong> or <strong>Export Excel</strong> to export the current filtered view.</li><li><strong>Print:</strong> Click <strong>Print</strong> to select specific records or print all visible rows.</li></ol>'
+  },
+  activity: {
+    purpose: 'The <strong>Activity Log Tab</strong> provides a complete audit trail of all actions performed within the Employee Management module. It records who did what, when, and from which IP address, supporting compliance and security investigations.',
+    instructions: '<ol><li><strong>Search:</strong> Use the search bar to filter activity logs by user full name, email, module, or action details.</li><li><strong>Sort:</strong> Click any column header to sort by that column. Click again to reverse direction. The default sort is by Timestamp (newest first).</li><li><strong>Review Entries:</strong> Each row shows the timestamp, full name, module/page, action details, and IP address.</li><li><strong>Export:</strong> Click <strong>Export CSV</strong> or <strong>Export Excel</strong> to export the current filtered view.</li><li><strong>Print:</strong> Click <strong>Print Activity Log</strong> to select specific records or print all visible rows.</li><li><strong>Column Resize:</strong> Drag the edge of any column header to adjust its width.</li></ol>'
+  }
+};
+
+function getActiveContext() {
+  var activeTab = document.querySelector('.um-tab.active');
+  if (activeTab) {
+    var tabKey = activeTab.getAttribute('data-tab');
+    if (MODAL_CONTENT_MAP[tabKey]) return tabKey;
+  }
+  return 'overview';
+}
+
+function getContextTitle(key) {
+  var labels = {
+    overview: 'Overview',
+    employees: 'Employees',
+    roles: 'Roles & Permissions',
+    users: 'System Users',
+    activity: 'Activity Log'
+  };
+  return labels[key] || 'Dashboard';
+}
+
+function openInfoModal(modalId) {
+  var modal = document.getElementById(modalId);
+  if (modal) { modal.classList.add('active'); modal.style.display = 'flex'; }
+}
+
+function closeInfoModal(modalId) {
+  var modal = document.getElementById(modalId);
+  if (modal) { modal.classList.remove('active'); modal.style.display = 'none'; }
+}
+
 var USER_COL_DEFS = [
   { key: 'id', label: 'User ID', defaultWidth: '120px', frozen: true },
   { key: 'fullName', label: 'Full Name', defaultWidth: '160px', frozen: true },
@@ -76,40 +132,64 @@ var visibleEmpCols = {}, empColWidths = {};
 // ============================================================
 // HEADER REBUILD -- handles stale 3-row SW header template
 // (dashboard-common.js async-injects stale template; CSS alone fails)
+// Matches admin.js pattern: preserve #dashCustomerLogoArea + DRIV-EN logo
 // ============================================================
 function rebuildHeader() {
-  var container = document.getElementById('dashHeader');
-  if (!container) return;
+  var header = document.getElementById('dashHeader');
+  if (!header) return;
 
-  // Build single-row header: logo | title | logo
-  var html = '<div class="dash-header">' +
-    '<div class="dash-header-row1" style="display:flex;align-items:center;justify-content:space-between;padding:8px 20px;">';
+  var title = document.body.getAttribute('data-page-title') || 'Employee Management';
 
-  // Left logo
-  html += '<div class="dash-header-left" style="flex:0 0 auto;">';
-  var logo = localStorage.getItem('driven_logo_url');
-  if (logo) {
-    html += '<img src="' + logo + '" alt="Logo" style="max-height:40px;max-width:120px;object-fit:contain;">';
+  // Grab the customer logo area if it exists (preserve loaded logo)
+  var logoArea = header.querySelector('#dashCustomerLogoArea');
+  var drivenLogo = header.querySelector('.dash-driven-logo') || header.querySelector('img.dash-driven-logo');
+
+  // Nuke everything
+  header.innerHTML = '';
+
+  // Rebuild single-row header
+  var dashHeader = document.createElement('div');
+  dashHeader.className = 'dash-header';
+
+  var row1 = document.createElement('div');
+  row1.className = 'dash-header-row1';
+
+  // Left: customer logo
+  var left = document.createElement('div');
+  left.className = 'dash-header-logo-left';
+  if (logoArea) {
+    left.appendChild(logoArea);
   } else {
-    html += '<div style="font-size:18px;font-weight:700;color:var(--primary-blue,#2563eb);">DRIV-EN</div>';
+    var ph = document.createElement('div');
+    ph.id = 'dashCustomerLogoArea';
+    ph.innerHTML = '<div class="dash-customer-logo-placeholder">No logo uploaded</div>';
+    left.appendChild(ph);
   }
-  html += '</div>';
+  row1.appendChild(left);
 
-  // Center title
-  html += '<div class="admin-header-title" style="flex:1;text-align:center;font-size:20px;font-weight:600;color:var(--text);">Employee Management</div>';
+  // Center: ONE page title only
+  var h1 = document.createElement('h1');
+  h1.id = 'dashPageTitle';
+  h1.className = 'dash-header-title';
+  h1.textContent = title;
+  row1.appendChild(h1);
 
-  // Right logo (mirror)
-  html += '<div class="dash-header-right" style="flex:0 0 auto;">';
-  if (logo) {
-    html += '<img src="' + logo + '" alt="Logo" style="max-height:40px;max-width:120px;object-fit:contain;">';
+  // Right: DRIV-EN logo
+  var right = document.createElement('div');
+  right.className = 'dash-header-logo-right';
+  if (drivenLogo) {
+    right.appendChild(drivenLogo);
   } else {
-    html += '<div style="font-size:18px;font-weight:700;color:var(--primary-blue,#2563eb);">DRIV-EN</div>';
+    var img = document.createElement('img');
+    img.src = '/assets/logo.png?v=2026';
+    img.className = 'dash-driven-logo';
+    img.alt = 'DRIV-EN Logo';
+    right.appendChild(img);
   }
-  html += '</div>';
+  row1.appendChild(right);
 
-  html += '</div></div>';
-
-  container.innerHTML = html;
+  dashHeader.appendChild(row1);
+  header.appendChild(dashHeader);
 }
 
 function startHeaderObserver() {
@@ -402,6 +482,75 @@ async function initializeUserManagementPage() {
   if (loadingEl) loadingEl.style.display = 'none';
   document.getElementById('tab-overview').style.display = 'block';
   updateKpi();
+
+  // ===== Populate welcome card =====
+  var firstName = u.first_name || u.email || '';
+  var orgName = u.org_name || localStorage.getItem('driven_org_name') || '';
+  var welcomeNameEl = document.getElementById('um-welcome-name');
+  if (welcomeNameEl) {
+    welcomeNameEl.textContent = firstName ? ('Welcome back, ' + firstName + (orgName ? ' - ' + orgName : '')) : 'Welcome back';
+  }
+  var welcomeRoleEl = document.getElementById('um-welcome-role');
+  if (welcomeRoleEl) welcomeRoleEl.textContent = u.role || u.role_id || '';
+  var welcomeEmailEl = document.getElementById('um-welcome-email');
+  if (welcomeEmailEl) welcomeEmailEl.textContent = u.email || '';
+
+  // ===== Wire Purpose / Instructions modals =====
+  var btnPurpose = document.getElementById('btnTabPurpose');
+  if (btnPurpose) {
+    btnPurpose.addEventListener('click', function(e) {
+      if (e) e.preventDefault();
+      var contextKey = getActiveContext();
+      var title = getContextTitle(contextKey);
+      var content = MODAL_CONTENT_MAP[contextKey] || MODAL_CONTENT_MAP.overview;
+      var mpt = document.getElementById('modalPurposeTitle');
+      var mpb = document.getElementById('modalPurposeBody');
+      if (mpt) mpt.textContent = title + ' - Purpose';
+      if (mpb) mpb.innerHTML = content.purpose;
+      openInfoModal('modalPurpose');
+    });
+  }
+  var btnInstructions = document.getElementById('btnTabInstructions');
+  if (btnInstructions) {
+    btnInstructions.addEventListener('click', function(e) {
+      if (e) e.preventDefault();
+      var contextKey = getActiveContext();
+      var title = getContextTitle(contextKey);
+      var content = MODAL_CONTENT_MAP[contextKey] || MODAL_CONTENT_MAP.overview;
+      var mit = document.getElementById('modalInstructionsTitle');
+      var mib = document.getElementById('modalInstructionsBody');
+      if (mit) mit.textContent = title + ' - Instructions';
+      if (mib) mib.innerHTML = content.instructions;
+      openInfoModal('modalInstructions');
+    });
+  }
+  var btnClosePurpose = document.getElementById('btnClosePurposeModal');
+  if (btnClosePurpose) btnClosePurpose.addEventListener('click', function() { closeInfoModal('modalPurpose'); });
+  var btnCloseInstructions = document.getElementById('btnCloseInstructionsModal');
+  if (btnCloseInstructions) btnCloseInstructions.addEventListener('click', function() { closeInfoModal('modalInstructions'); });
+  window.addEventListener('click', function(e) {
+    if (e.target === document.getElementById('modalPurpose')) closeInfoModal('modalPurpose');
+    if (e.target === document.getElementById('modalInstructions')) closeInfoModal('modalInstructions');
+  });
+
+  // ===== Re-trigger customer logo load after header rebuild =====
+  setTimeout(function() {
+    var logoArea = document.getElementById('dashCustomerLogoArea');
+    if (logoArea && (!logoArea.querySelector('img') || logoArea.querySelector('.dash-customer-logo-placeholder'))) {
+      fetch('/auth/get-logo').then(function(r) { return r.json(); }).then(function(d) {
+        if (d.success && d.logo) {
+          localStorage.setItem('driven_customer_logo', d.logo);
+          logoArea.innerHTML = '<img src="' + d.logo + '" class="dash-customer-logo" alt="Company Logo">';
+        } else {
+          var cached = localStorage.getItem('driven_customer_logo');
+          if (cached) logoArea.innerHTML = '<img src="' + cached + '" class="dash-customer-logo" alt="Company Logo">';
+        }
+      }).catch(function() {
+        var cached = localStorage.getItem('driven_customer_logo');
+        if (cached) logoArea.innerHTML = '<img src="' + cached + '" class="dash-customer-logo" alt="Company Logo">';
+      });
+    }
+  }, 300);
 
   attachDragAndDropHeaders('roles', ROLE_COL_DEFS, renderRolesTable, renderRolesTable);
   attachDragAndDropHeaders('activity', ACT_COL_DEFS, renderActivityLogTable, renderActivityLogTable);
