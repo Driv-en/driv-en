@@ -616,12 +616,8 @@ window.dashLogout = dashLogout;
 // Tab-specific Purpose & Instructions content (matches admin dashboard pattern)
 var MODAL_CONTENT_MAP = {
   overview: {
-    purpose: 'The <strong>Overview Tab</strong> provides a snapshot of your active operational metrics, authorized module access, and quick-launch gateways to field tools based on your assigned permissions.',
-    instructions: '<ol><li><strong>Monitor Your Metrics:</strong> View live counts for your assigned Projects, Equipment, Work Orders, and Transfers.</li><li><strong>Launch Modules:</strong> Click any module card in the grid to open the corresponding tool (e.g., Fuel Log, Work Orders, Inspections).</li><li><strong>Account Management:</strong> Review your logged-in credentials and use <strong>Change Password</strong> to update your account.</li><li><strong>Units of Measure:</strong> Use the <strong>Units of Measure</strong> dropdown in the welcome bar to switch between Imperial and Metric display. Choose <em>Use Org Default</em> to follow the admin\'s setting.</li></ol>'
-  },
-  forms: {
-    purpose: 'The <strong>Forms Tab</strong> centralizes quick-access to operational submission tools, compliance records, safety inspections, and field data entry workflows available to your role.',
-    instructions: '<ol><li><strong>Select a Form:</strong> Click on the targeted form card (e.g., <em>DVIR Pre-Use Inspection</em>, <em>Log Fuel Purchase</em>, <em>Create Work Order</em>) to open the form.</li><li><strong>Complete Field Requirements:</strong> Fill in mandatory equipment identifiers, readings, checklist inspections, or photo attachments as required.</li><li><strong>Submit &amp; Sync:</strong> Submit the completed document to store the record in the cloud and update asset audit trails. Submissions made offline will sync automatically when connectivity is restored.</li></ol>'
+    purpose: 'The <strong>Overview Tab</strong> provides a snapshot of your active operational metrics, authorized module access, quick-launch gateways to dashboard modules and operational forms, and account management tools based on your assigned permissions.',
+    instructions: '<ol><li><strong>Monitor Your Metrics:</strong> View live counts for your assigned Projects, Equipment, and Work Orders. Click any stat card to navigate to the corresponding module.</li><li><strong>Dashboard Links:</strong> Use the card buttons below the pill bar to quickly access Fuel Management, Fuel Alerts, Transfers, Work Orders, and Calendar dashboards.</li><li><strong>Launch Modules:</strong> Click any module card in the grid to open the corresponding tool (e.g., Fuel Log, Work Orders, Inspections).</li><li><strong>Operational Forms:</strong> Use the Operational Forms card to launch field forms such as DVIR, Fuel Purchase, Fuel Transfer, Create Work Order, and Add Inspection based on your permissions.</li><li><strong>Account Management:</strong> Review your logged-in credentials and use <strong>Change Password</strong> to update your account.</li><li><strong>Units of Measure:</strong> Use the <strong>Units of Measure</strong> dropdown in the welcome bar to switch between Imperial and Metric display. Choose <em>Use Org Default</em> to follow the admin\'s setting.</li></ol>'
   }
 };
 
@@ -635,7 +631,7 @@ function getActiveContext() {
 }
 
 function getContextTitle(key) {
-  var labels = { overview: 'Overview', forms: 'Forms Module' };
+  var labels = { overview: 'Overview' };
   return labels[key] || 'Dashboard';
 }
 
