@@ -115,10 +115,6 @@
       border-color:#475569;
     }
 
-    .admin-tab[data-tab="forms"] { background:#22c55e; border-color:#16a34a; color:#fff; }
-    .admin-tab[data-tab="forms"]:hover { background:#16a34a; color:#fff; }
-    .admin-tab[data-tab="forms"].active { background:#dcfce7; color:#15803d; border-color:#16a34a; }
-
     .admin-tab[data-tab="onboarding"] { background:#2563eb; border-color:#1d4ed8; color:#fff; }
     .admin-tab[data-tab="onboarding"]:hover { background:#1d4ed8; color:#fff; }
     .admin-tab[data-tab="onboarding"].active { background:#dbeafe; color:#1d4ed8; border-color:#2563eb; }
@@ -420,15 +416,16 @@
     .stat-card .stat-card-arrow { position:absolute; bottom:10px; right:12px; font-size:14px; color:var(--primary, #2563eb); opacity:0; transition:opacity 200ms ease; }
     .stat-card:hover .stat-card-arrow { opacity:1; }
 
-    /* ===== DASHBOARDS & FORMS LINKS CARD ===== */
+    /* ===== DASHBOARD LINKS CARD (matches Operational Forms card styling) ===== */
     .dash-links-card {
       max-width:1100px;
       margin:0 auto 16px auto;
       padding:16px 20px;
       background:var(--bg-card, #ffffff);
-      border:1px solid var(--border, #cbd5e1);
+      border:2px solid var(--success, #16a34a);
       border-radius:8px;
       box-sizing:border-box;
+      box-shadow:0 1px 3px rgba(0,0,0,0.05);
     }
     :root[data-theme="dark"] .dash-links-card { background:#1e293b; }
     .dash-links-card h3 {
@@ -470,6 +467,13 @@
       box-shadow:0 2px 8px rgba(37,99,235,0.12);
     }
     .dash-link-btn:active { transform:translateY(0); }
+
+    /* ===== FORM LINKS CARD (same styling as Dashboard Links) ===== */
+    .form-links-grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fit, minmax(250px, 1fr));
+      gap:12px;
+    }
 
     .settings-section {
       background:var(--bg-card, #ffffff) !important;
@@ -743,6 +747,10 @@
       .settings-section { padding:12px; }
       .form-row { flex-direction:column; }
       .stat-card .stat-value { font-size:22px; }
+      /* Form buttons: each on its own row, centered */
+      .dash-links-grid { flex-direction:column; align-items:center; }
+      .dash-link-btn { width:100%; max-width:320px; justify-content:center; }
+      .form-links-grid { grid-template-columns:1fr; }
     }
   </style>
 </head>
@@ -757,7 +765,6 @@
     <div class="admin-tab-bar" id="adminTabBar" role="tablist" aria-label="Admin dashboard sections">
       <div class="admin-tab active" id="tabbtn-overview" data-tab="overview" role="tab" aria-selected="true" aria-controls="tab-overview" tabindex="0">Overview</div>
       <div class="admin-tab" id="tabbtn-onboarding" data-tab="onboarding" role="tab" aria-selected="false" aria-controls="tab-onboarding" tabindex="0">Onboarding</div>
-      <div class="admin-tab" id="tabbtn-forms" data-tab="forms" role="tab" aria-selected="false" aria-controls="tab-forms" tabindex="0">Forms</div>
       <div class="admin-tab" id="tabbtn-settings" data-tab="settings" role="tab" aria-selected="false" aria-controls="tab-settings" tabindex="0">Settings</div>
       <div class="admin-tab-logout" id="btnAdminLogout" role="button" tabindex="0" aria-label="Logout">Logout</div>
     </div>
@@ -820,9 +827,35 @@
     <button class="pill-btn pill-btn-instructions" id="btnTabInstructions">📋 Instructions</button>
   </div>
 
-  <!-- ===== DASHBOARDS & FORMS LINKS ===== -->
+  <!-- ===== KPIs (always visible, above links cards) ===== -->
+  <div class="admin-main" style="margin-top:20px;">
+    <div class="admin-stats">
+      <div class="stat-card" id="stat-card-employees" data-nav="/app/dashboard/user-management.html" role="button" tabindex="0">
+        <h3>Employees</h3>
+        <div class="stat-value" id="stat-employees">0</div>
+        <span class="stat-card-arrow">→</span>
+      </div>
+      <div class="stat-card" id="stat-card-projects" data-nav="/app/dashboard/project-management.html" role="button" tabindex="0">
+        <h3>Projects</h3>
+        <div class="stat-value" id="stat-projects">0</div>
+        <span class="stat-card-arrow">→</span>
+      </div>
+      <div class="stat-card" id="stat-card-equipment" data-nav="/app/dashboard/asset-management.html" role="button" tabindex="0">
+        <h3>Assets</h3>
+        <div class="stat-value" id="stat-equipment">0</div>
+        <span class="stat-card-arrow">→</span>
+      </div>
+      <div class="stat-card" id="stat-card-clients" data-nav="/app/dashboard/company-management.html" role="button" tabindex="0">
+        <h3>Clients</h3>
+        <div class="stat-value" id="stat-clients">0</div>
+        <span class="stat-card-arrow">→</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== DASHBOARD LINKS CARD ===== -->
   <div class="dash-links-card">
-    <h3>Dashboards and Forms Links</h3>
+    <h3>Dashboard Links</h3>
     <div class="dash-links-grid">
       <a class="dash-link-btn" href="/app/dashboard/fuel.html">⛽ Fuel Management</a>
       <a class="dash-link-btn" href="/app/dashboard/fuel-alerts.html">⚠️ Fuel Alerts</a>
@@ -832,34 +865,48 @@
     </div>
   </div>
 
+  <!-- ===== FORM LINKS CARD ===== -->
+  <div class="dash-links-card">
+    <h3>Form Links</h3>
+    <div class="form-links-grid">
+      <a class="emp-form-card" href="/app/forms/dvir.html">
+        <div style="font-weight:600;font-size:15px;margin-bottom:6px;">Driver Vehicle Inspection (DVIR)</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.4;">Complete pre-trip or post-trip statutory road safety inspection</div>
+      </a>
+      <a class="emp-form-card" href="/app/forms/fuel-purchase.html">
+        <div style="font-weight:600;font-size:15px;margin-bottom:6px;">Log Fuel Purchase</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.4;">Record a fuel purchase with receipt AI extraction</div>
+      </a>
+      <a class="emp-form-card" href="/app/forms/fuel-transfer.html">
+        <div style="font-weight:600;font-size:15px;margin-bottom:6px;">Log Fuel Transfer</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.4;">Transfer fuel between tanks or issue to equipment</div>
+      </a>
+      <a class="emp-form-card" href="/app/forms/transfer-create.html">
+        <div style="font-weight:600;font-size:15px;margin-bottom:6px;">Create Transfer</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.4;">Start an equipment transfer ticket</div>
+      </a>
+      <a class="emp-form-card" href="/app/forms/work-order-create.html">
+        <div style="font-weight:600;font-size:15px;margin-bottom:6px;">Create Work Order</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.4;">Submit a maintenance request</div>
+      </a>
+      <a class="emp-form-card" href="/app/forms/inspection.html">
+        <div style="font-weight:600;font-size:15px;margin-bottom:6px;">Add Inspection</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.4;">Record an equipment inspection</div>
+      </a>
+      <a class="emp-form-card" href="/app/forms/pm.html">
+        <div style="font-weight:600;font-size:15px;margin-bottom:6px;">Add PM</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.4;">Create a preventive maintenance task</div>
+      </a>
+    </div>
+  </div>
+
   <div class="admin-main">
     <div id="loading" class="admin-loading">Loading admin dashboard…</div>
     <div id="dashboard" style="display:none;">
 
       <!-- ===== OVERVIEW TAB ===== -->
       <div class="admin-tab-content active" id="tab-overview" role="tabpanel" aria-labelledby="tabbtn-overview">
-        <div class="admin-stats">
-          <div class="stat-card" id="stat-card-employees" data-nav="/app/dashboard/user-management.html" role="button" tabindex="0">
-            <h3>Employees</h3>
-            <div class="stat-value" id="stat-employees">0</div>
-            <span class="stat-card-arrow">→</span>
-          </div>
-          <div class="stat-card" id="stat-card-projects" data-nav="/app/dashboard/project-management.html" role="button" tabindex="0">
-            <h3>Projects</h3>
-            <div class="stat-value" id="stat-projects">0</div>
-            <span class="stat-card-arrow">→</span>
-          </div>
-          <div class="stat-card" id="stat-card-equipment" data-nav="/app/dashboard/asset-management.html" role="button" tabindex="0">
-            <h3>Assets</h3>
-            <div class="stat-value" id="stat-equipment">0</div>
-            <span class="stat-card-arrow">→</span>
-          </div>
-          <div class="stat-card" id="stat-card-clients" data-nav="/app/dashboard/company-management.html" role="button" tabindex="0">
-            <h3>Clients</h3>
-            <div class="stat-value" id="stat-clients">0</div>
-            <span class="stat-card-arrow">→</span>
-          </div>
-        </div>
+        <!-- KPIs moved above the Dashboard Links card (always visible) -->
       </div>
 
       <!-- ===== ONBOARDING TAB ===== -->
@@ -959,14 +1006,6 @@
             <h3 style="margin:0 0 8px 0; color:#15803d;">✓ Onboarding Complete!</h3>
             <p style="margin:0; color:#16a34a;">All employee accounts have been activated and welcome emails have been sent.</p>
           </div>
-        </div>
-      </div>
-
-      <!-- ===== FORMS TAB ===== -->
-      <div class="admin-tab-content" id="tab-forms" role="tabpanel" aria-labelledby="tabbtn-forms">
-        <div class="settings-section">
-          <h3>Operational Forms</h3>
-          <div id="adminFormsTabLinks" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:12px;"></div>
         </div>
       </div>
 
