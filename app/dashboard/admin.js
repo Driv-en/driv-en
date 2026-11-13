@@ -1,4 +1,4 @@
-/* ========================================================================== 
+/* ==========================================================================
    DRIV-EN Platform -- Admin Dashboard JavaScript
    File: /app/dashboard/admin.js
    Extracted from admin.html for CSP compliance (no inline scripts).
@@ -66,8 +66,8 @@ var FORMS = [
 
 var MODAL_CONTENT_MAP = {
   overview: {
-    purpose: 'The <strong>Overview Tab</strong> serves as the central command hub for DRIV-EN administrators. It provides high-level system metrics, user profile data, display contrast controls, and quick-launch gateways to essential administrative portals.',
-    instructions: '<ol><li><strong>Monitor Dashboard Metrics:</strong> View live count summaries for active Employees, Projects, Assets, and Clients. Click any card to navigate directly to its module.</li><li><strong>Account Management:</strong> Review your logged-in administrator credentials and manage your account credentials via the <strong>Change Password</strong> option.</li><li><strong>Workspace Customization:</strong> Use the Light/Dark mode switch in the top header to adjust visual preferences for high-light or night operations.</li></ol>'
+    purpose: 'The <strong>Overview Tab</strong> serves as the central command hub for DRIV-EN administrators. It provides high-level system metrics, quick-launch gateways to dashboard modules and operational forms, user profile data, and display contrast controls.',
+    instructions: '<ol><li><strong>Monitor Dashboard Metrics:</strong> View live count summaries for active Employees, Projects, Assets, and Clients. Click any KPI card to navigate directly to its module.</li><li><strong>Dashboard Links:</strong> Use the card buttons to quickly access Fuel Management, Fuel Alerts, Transfers, Work Orders, and Calendar dashboards.</li><li><strong>Form Links:</strong> Use the card buttons to launch operational forms such as DVIR, Fuel Purchase, Fuel Transfer, Create Transfer, Create Work Order, Add Inspection, and Add PM.</li><li><strong>Account Management:</strong> Review your logged-in administrator credentials and manage your account via the <strong>Change Password</strong> option in the welcome bar.</li><li><strong>Workspace Customization:</strong> Use the Light/Dark mode switch in the welcome bar to adjust visual preferences.</li></ol>'
   },
   onboarding: {
     purpose: 'The <strong>Onboarding Hub</strong> coordinates initial platform deployment, setup step tracking, team assignments, and final company activation across all operational modules.',
@@ -80,10 +80,6 @@ var MODAL_CONTENT_MAP = {
   kp: {
     purpose: 'The <strong>Key Personnel Directory Subtab</strong> allows admins to delegate setup tasks to specific staff leaders, track completion by employee, and send setup access invitations.',
     instructions: '<ol><li><strong>Enter Staff Details:</strong> Provide the Full Name and Email Address for the delegated key team member.</li><li><strong>Delegate Tasks:</strong> Select the specific setup steps (e.g., Asset Setup, Fuel Types, Employees) that person is responsible for filling out.</li><li><strong>Stage Member:</strong> Click <strong>+ Add Personnel Member</strong> to add the staged user to your pending directory.</li><li><strong>Send Invitations:</strong> Click <strong>Send Invitations &amp; Create Accounts</strong> to dispatch onboarding credentials and activation emails.</li></ol>'
-  },
-  forms: {
-    purpose: 'The <strong>Forms Tab</strong> centralizes access to statutory compliance records, safety inspections, work request generation, and field data logging workflows.',
-    instructions: '<ol><li><strong>Select Operational Form:</strong> Click on the targeted card (e.g., <em>DVIR</em>, <em>Log Fuel Purchase</em>, <em>Create Work Order</em>) to initiate the workflow.</li><li><strong>Complete Field Requirements:</strong> Fill in mandatory equipment identifiers, readings, checklist inspections, or photo attachments.</li><li><strong>Submit &amp; Sync:</strong> Submit the completed document to store the record in central cloud storage and update asset audit trails.</li></ol>'
   },
   settings: {
     purpose: 'The <strong>Settings Tab</strong> allows administrators to configure primary business classification settings, upload corporate assets, set system units of measure, and enforce strict form verification rules.',
@@ -115,7 +111,7 @@ function getActiveContext() {
 }
 
 function getContextTitle(key) {
-  var labels = { overview: 'Overview', onboarding: 'Onboarding Hub', visibility: 'Task Visibility Matrix', kp: 'Key Personnel Directory', forms: 'Forms Module', settings: 'Company Settings', fuel: 'Fuel Management & Tank Adjustments' };
+  var labels = { overview: 'Overview', onboarding: 'Onboarding Hub', visibility: 'Task Visibility Matrix', kp: 'Key Personnel Directory', settings: 'Company Settings', fuel: 'Fuel Management & Tank Adjustments' };
   return labels[key] || 'Dashboard';
 }
 
