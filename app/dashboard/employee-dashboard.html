@@ -349,15 +349,16 @@
 :root[data-theme="dark"] .emp-stat-number { color: #f1f5f9; }
 .emp-stat-label { font-size: 13px; color: var(--text-muted, #64748b); margin-top: 4px; }
 
-/* ===== DASHBOARDS & FORMS LINKS CARD ===== */
+/* ===== DASHBOARD LINKS CARD (matches Operational Forms card styling) ===== */
 .dash-links-card {
   max-width: 1100px;
   margin: 0 auto 16px auto;
   padding: 16px 20px;
   background: var(--bg-card, #ffffff);
-  border: 1px solid var(--border, #cbd5e1);
+  border: 2px solid var(--success, #16a34a);
   border-radius: 8px;
   box-sizing: border-box;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 :root[data-theme="dark"] .dash-links-card { background: #1e293b; }
 .dash-links-card h3 {
@@ -459,6 +460,28 @@
 .emp-form-link-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
 .emp-form-link-desc { font-size: 12px; color: var(--text-muted); }
 
+/* ===== OPERATIONAL FORMS CARD (in Overview tab) ===== */
+.emp-forms-card {
+  max-width: 1100px;
+  margin: 28px auto 0 auto;
+  padding: 16px 20px;
+  background: var(--bg-card, #ffffff);
+  border: 2px solid var(--success, #16a34a);
+  border-radius: 8px;
+  box-sizing: border-box;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+:root[data-theme="dark"] .emp-forms-card { background: #1e293b; }
+.emp-forms-card h3 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+:root[data-theme="dark"] .emp-forms-card h3 { color: #f1f5f9; }
+
 /* ===== STANDARDIZED MODAL DIALOG STYLES ===== */
 .modal-backdrop {
   position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -507,6 +530,9 @@
   .emp-tab-logout { padding: 10px 16px; font-size: 14px; }
   .emp-welcome-bar { padding: 0 12px; }
   .emp-welcome { padding: 16px; }
+  /* Form buttons: each on its own row, centered */
+  .dash-links-grid { flex-direction: column; align-items: center; }
+  .dash-link-btn { width: 100%; max-width: 320px; justify-content: center; }
 }
 </style>
 </head>
@@ -523,23 +549,65 @@
 <div class="emp-nav-sticky-container" id="empNavStickyContainer">
   <div class="emp-tab-bar" id="empTabBar" role="tablist" aria-label="Dashboard sections">
     <button type="button" class="emp-tab active" data-tab="overview" role="tab" aria-selected="true" aria-controls="tab-overview" tabindex="0">Overview</button>
-    <button type="button" class="emp-tab" data-tab="forms" role="tab" aria-selected="false" aria-controls="tab-forms" tabindex="-1">Forms</button>
     <button type="button" class="emp-tab-logout" id="btnLogout" role="button" tabindex="0">Logout</button>
   </div>
 </div>
 
 <!-- ===== LOADING SCREEN ===== -->
-<div id="loading" class="emp-loading">Checking session…</div>
+<div id="loading" class="emp-loading">Checking session...</div>
 
-<!-- ===== PILL BAR (Purpose / Instructions — always visible, matches admin dashboard) ===== -->
+<!-- ===== WELCOME BAR (below tabs, above pill bar) ===== -->
+<div class="emp-welcome-bar" id="empWelcomeBar">
+  <div class="emp-welcome">
+    <div class="emp-welcome-header">
+      <div class="emp-welcome-greeting">
+        <h2 id="welcome-name">Welcome back</h2>
+      </div>
+      <div class="emp-welcome-theme">
+        <div class="dash-theme-wrapper" title="Toggle light/dark mode">
+          <span class="dash-theme-label" id="dashThemeLabelLight">Light</span>
+          <label class="dash-theme-switch">
+            <input type="checkbox" id="dashThemeCheckbox" aria-label="Toggle light or dark theme">
+            <span class="dash-theme-slider"></span>
+          </label>
+          <span class="dash-theme-label" id="dashThemeLabelDark">Dark</span>
+        </div>
+      </div>
+    </div>
+    <div class="emp-welcome-details">
+      <div class="welcome-detail-rows">
+        <div class="welcome-detail-row">
+          <span class="welcome-detail-label">Role:</span>
+          <span id="welcome-role"></span>
+        </div>
+        <div class="welcome-detail-row">
+          <span class="welcome-detail-label">Email:</span>
+          <span id="welcome-email"></span>
+        </div>
+      </div>
+      <a href="/app/auth/change-password.html" class="welcome-change-password">Change Password</a>
+      <div class="welcome-uom-row">
+        <span class="welcome-uom-label">Units of Measure:</span>
+        <select id="welcomeUomSelect" class="welcome-uom-select" aria-label="Select your unit of measure preference">
+          <option value="org_default">Use Org Default</option>
+          <option value="imperial">Imperial (US)</option>
+          <option value="metric">Metric (CA)</option>
+        </select>
+      </div>
+      <div class="welcome-uom-hint" id="welcomeUomHint"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PILL BAR (Purpose / Instructions — below welcome card) ===== -->
 <div class="emp-pill-bar">
   <button class="pill-btn pill-btn-purpose" id="btnTabPurpose">ⓘ Purpose</button>
   <button class="pill-btn pill-btn-instructions" id="btnTabInstructions">📋 Instructions</button>
 </div>
 
-<!-- ===== DASHBOARDS & FORMS LINKS ===== -->
-<div class="dash-links-card">
-  <h3>Dashboards and Forms Links</h3>
+<!-- ===== DASHBOARD LINKS CARD ===== -->
+<div class="dash-links-card" style="margin-top:20px;">
+  <h3>Dashboard Links</h3>
   <div class="dash-links-grid">
     <a class="dash-link-btn" href="/app/dashboard/fuel.html">⛽ Fuel Management</a>
     <a class="dash-link-btn" href="/app/dashboard/fuel-alerts.html">⚠️ Fuel Alerts</a>
@@ -556,49 +624,6 @@
   <div class="emp-tab-content active" id="tab-overview" role="tabpanel" aria-labelledby="tab-overview">
     <div class="emp-main">
 
-      <!-- WELCOME BAR -->
-      <div class="emp-welcome-bar" id="empWelcomeBar">
-        <div class="emp-welcome">
-          <div class="emp-welcome-header">
-            <div class="emp-welcome-greeting">
-              <h2 id="welcome-name">Welcome back</h2>
-            </div>
-            <div class="emp-welcome-theme">
-              <div class="dash-theme-wrapper" title="Toggle light/dark mode">
-                <span class="dash-theme-label" id="dashThemeLabelLight">Light</span>
-                <label class="dash-theme-switch">
-                  <input type="checkbox" id="dashThemeCheckbox" aria-label="Toggle light or dark theme">
-                  <span class="dash-theme-slider"></span>
-                </label>
-                <span class="dash-theme-label" id="dashThemeLabelDark">Dark</span>
-              </div>
-            </div>
-          </div>
-          <div class="emp-welcome-details">
-            <div class="welcome-detail-rows">
-              <div class="welcome-detail-row">
-                <span class="welcome-detail-label">Role:</span>
-                <span id="welcome-role"></span>
-              </div>
-              <div class="welcome-detail-row">
-                <span class="welcome-detail-label">Email:</span>
-                <span id="welcome-email"></span>
-              </div>
-            </div>
-            <a href="/app/auth/change-password.html" class="welcome-change-password">Change Password</a>
-            <div class="welcome-uom-row">
-              <span class="welcome-uom-label">Units of Measure:</span>
-              <select id="welcomeUomSelect" class="welcome-uom-select" aria-label="Select your unit of measure preference">
-                <option value="org_default">Use Org Default</option>
-                <option value="imperial">Imperial (US)</option>
-                <option value="metric">Metric (CA)</option>
-              </select>
-            </div>
-            <div class="welcome-uom-hint" id="welcomeUomHint"></div>
-          </div>
-        </div>
-      </div>
-
       <!-- STATS GRID -->
       <div class="emp-stats" id="empStats" style="display:none;">
         <div class="emp-stat-card"><div class="emp-stat-number" id="stat-projects">0</div><div class="emp-stat-label">My Projects</div><span class="stat-card-arrow">→</span></div>
@@ -610,9 +635,9 @@
       <div class="emp-section-title">Modules</div>
       <div class="emp-module-grid" id="empModules"></div>
 
-      <!-- FORM LINKS -->
-      <div id="empFormLinksSection" style="display:none; margin-top:28px;">
-        <div class="emp-section-title">Quick Forms</div>
+      <!-- OPERATIONAL FORMS CARD -->
+      <div class="emp-forms-card" id="empFormLinksSection" style="display:none;">
+        <h3>Operational Forms</h3>
         <div class="emp-form-links" id="empFormLinks"></div>
       </div>
 
@@ -622,27 +647,6 @@
         <p>You don't have access to any modules yet. Contact your administrator to request access.</p>
       </div>
 
-    </div>
-  </div>
-
-  <!-- ===== FORMS TAB ===== -->
-  <div class="emp-tab-content" id="tab-forms" role="tabpanel" aria-labelledby="tab-forms">
-    <div class="emp-main">
-      <div class="emp-welcome-bar">
-        <div class="emp-welcome">
-          <div class="emp-welcome-header">
-            <div class="emp-welcome-greeting">
-              <h2>Forms</h2>
-              <p>Select a form below to fill out and submit. Forms you don't have permission for are not shown.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="emp-form-links" id="empFormsTabLinks"></div>
-      <div id="empFormsEmpty" class="emp-empty" style="display:none;">
-        <h3>No Forms Available</h3>
-        <p>You don't have access to any forms yet. Contact your administrator to request access.</p>
-      </div>
     </div>
   </div>
 
