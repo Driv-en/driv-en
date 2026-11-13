@@ -58,7 +58,7 @@
     ths.forEach(function(th, i) {
       var w = saved[i] || (colWidths && colWidths[i]) || 120;
       th.style.width = w + 'px';
-      th.style.minWidth = '40px';
+      th.style.minWidth = '20px';
       var oldR = th.querySelector('.pm-col-resizer');
       if (oldR) oldR.remove();
       var resizer = document.createElement('div');
@@ -69,7 +69,7 @@
         resizer.classList.add('dragging');
         var startX = e.clientX; var startW = th.offsetWidth;
         document.body.style.cursor = 'col-resize';
-        function onMove(ev) { th.style.width = Math.max(40, startW + (ev.clientX - startX)) + 'px'; }
+        function onMove(ev) { th.style.width = Math.max(20, startW + (ev.clientX - startX)) + 'px'; }
         function onUp() {
           document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp);
           document.body.style.cursor = ''; resizer.classList.remove('dragging');
@@ -87,6 +87,7 @@
     var ths = tableEl.querySelectorAll('thead th');
     if (!ths.length) return;
     var total = ths.length;
+    var lastIdx = total - 1;
     var savedOrder = null;
     try { savedOrder = JSON.parse(localStorage.getItem(orderKey) || 'null'); } catch(e) {}
     if (savedOrder && savedOrder.length === total) {
@@ -94,6 +95,7 @@
     }
     ths = tableEl.querySelectorAll('thead th');
     ths.forEach(function(th, i) {
+      if (i === lastIdx) return;
       th.setAttribute('draggable', 'true');
       th.addEventListener('dragstart', function(e) {
         e.dataTransfer.effectAllowed = 'move';
@@ -112,6 +114,11 @@
         if (savedOrder && savedOrder.length === total) currentOrder = savedOrder.slice();
         var moved = currentOrder.splice(fromIdx, 1)[0];
         currentOrder.splice(toIdx, 0, moved);
+        var lastVal = currentOrder[currentOrder.length - 1];
+        if (lastVal !== lastIdx) {
+          currentOrder = currentOrder.filter(function(v) { return v !== lastIdx; });
+          currentOrder.push(lastIdx);
+        }
         savedOrder = currentOrder;
         try { localStorage.setItem(orderKey, JSON.stringify(currentOrder)); } catch(e) {}
         applyColumnOrder(tableEl, currentOrder);
