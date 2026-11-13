@@ -26,25 +26,59 @@
 
   // ===== PROJECT COLUMN DEFINITIONS =====
   var PROJECT_COL_DEFS = [
-    { key: 'name',       label: 'Project Name', defaultVisible: true },
-    { key: 'code',       label: 'Project Number', defaultVisible: true },
-    { key: 'status',     label: 'Status',       defaultVisible: true },
-    { key: 'location',   label: 'Location',     defaultVisible: true },
-    { key: 'createdAt',  label: 'Created Date', defaultVisible: false },
+    { key: 'code',       label: 'Project Number', defaultVisible: true,  width: 120 },
+    { key: 'name',       label: 'Project Name',   defaultVisible: true,  width: 240 },
+    { key: 'status',     label: 'Status',         defaultVisible: true,  width: 100 },
+    { key: 'location',   label: 'Location',       defaultVisible: true,  width: 180 },
+    { key: 'createdAt',  label: 'Created Date',   defaultVisible: false, width: 140 },
   ];
 
   // ===== CLIENT COLUMN DEFINITIONS =====
   var CLIENT_COL_DEFS = [
-    { key: 'clientName',   label: 'Client Name',  defaultVisible: true },
-    { key: 'contactName',  label: 'Contact Name', defaultVisible: true },
-    { key: 'contactEmail', label: 'Email',        defaultVisible: true },
-    { key: 'contactPhone', label: 'Phone',        defaultVisible: true },
-    { key: 'industry',     label: 'Industry',     defaultVisible: false },
-    { key: 'city',         label: 'City',          defaultVisible: false },
-    { key: 'state',        label: 'State',         defaultVisible: false },
-    { key: 'status',       label: 'Status',        defaultVisible: true },
-    { key: 'createdAt',    label: 'Created Date',  defaultVisible: false },
+    { key: 'clientName',   label: 'Client Name',  defaultVisible: true,  width: 200 },
+    { key: 'contactName',  label: 'Contact Name', defaultVisible: true,  width: 160 },
+    { key: 'contactEmail', label: 'Email',        defaultVisible: true,  width: 200 },
+    { key: 'contactPhone', label: 'Phone',        defaultVisible: true,  width: 140 },
+    { key: 'industry',     label: 'Industry',     defaultVisible: false, width: 140 },
+    { key: 'city',         label: 'City',          defaultVisible: false, width: 120 },
+    { key: 'state',        label: 'State',         defaultVisible: false, width: 80 },
+    { key: 'status',       label: 'Status',        defaultVisible: true,  width: 100 },
+    { key: 'createdAt',    label: 'Created Date',  defaultVisible: false, width: 140 },
   ];
+
+  // ===== COLUMN RESIZE (generic, saved to localStorage) =====
+  function makeColumnsResizable(tableEl, storageKey, colWidths) {
+    if (!tableEl) return;
+    var ths = tableEl.querySelectorAll('thead th');
+    if (!ths.length) return;
+    tableEl.style.tableLayout = 'fixed';
+    var saved = {};
+    try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch(e) {}
+    ths.forEach(function(th, i) {
+      var w = saved[i] || (colWidths && colWidths[i]) || 120;
+      th.style.width = w + 'px';
+      th.style.minWidth = '40px';
+      var oldR = th.querySelector('.pm-col-resizer');
+      if (oldR) oldR.remove();
+      var resizer = document.createElement('div');
+      resizer.className = 'pm-col-resizer';
+      th.appendChild(resizer);
+      resizer.addEventListener('mousedown', function(e) {
+        e.preventDefault(); e.stopPropagation();
+        resizer.classList.add('dragging');
+        var startX = e.clientX; var startW = th.offsetWidth;
+        document.body.style.cursor = 'col-resize';
+        function onMove(ev) { th.style.width = Math.max(40, startW + (ev.clientX - startX)) + 'px'; }
+        function onUp() {
+          document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp);
+          document.body.style.cursor = ''; resizer.classList.remove('dragging');
+          saved[i] = th.offsetWidth;
+          try { localStorage.setItem(storageKey, JSON.stringify(saved)); } catch(e) {}
+        }
+        document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+      });
+    });
+  }
 
   // ===== SORTING & PAGINATION STATE =====
   var projectSortKey = 'name';
@@ -540,6 +574,8 @@
       });
     }
 
+    makeColumnsResizable(document.getElementById('pmOverviewProjectsTable'), 'pmColW_ovProjects', [120, 240, 200, 100]);
+    makeColumnsResizable(document.getElementById('pmOverviewClientsTable'), 'pmColW_ovClients', [200, 160, 100]);
     if (typeof initVoice === 'function') initVoice();
   }
 
@@ -668,17 +704,15 @@
         btnEdit.textContent = 'Edit';
         btnEdit.addEventListener('click', function() { openEditProjectModal(p.id); });
         actionsTd.appendChild(btnEdit);
-        var btnDelete = document.createElement('button');
-        btnDelete.className = 'pm-table-btn danger';
-        btnDelete.textContent = 'Delete';
-        btnDelete.addEventListener('click', function() { deleteProject(p.id); });
-        actionsTd.appendChild(btnDelete);
         tr.appendChild(actionsTd);
       }
       tbody.appendChild(tr);
     });
 
     renderPagination('pmProjectPagination', filtered.length, totalPages, projectPage, projectPageSize, function(p) { projectPage = p; renderProjectTable(); }, function(sz) { projectPageSize = sz; projectPage = 1; renderProjectTable(); });
+    var pColW = PROJECT_COL_DEFS.filter(function(c) { return c.defaultVisible; }).map(function(c) { return c.width || 120; });
+    pColW.push(80);
+    makeColumnsResizable(document.getElementById('pmProjectTable'), 'pmColW_projects', pColW);
     if (typeof initVoice === 'function') initVoice();
   }
 
@@ -801,17 +835,15 @@
         btnEdit.textContent = 'Edit';
         btnEdit.addEventListener('click', function() { openEditClientModal(c.id); });
         actionsTd.appendChild(btnEdit);
-        var btnDelete = document.createElement('button');
-        btnDelete.className = 'pm-table-btn danger';
-        btnDelete.textContent = 'Delete';
-        btnDelete.addEventListener('click', function() { deleteClient(c.id); });
-        actionsTd.appendChild(btnDelete);
         tr.appendChild(actionsTd);
       }
       tbody.appendChild(tr);
     });
 
     renderPagination('pmClientPagination', filtered.length, totalPages, clientPage, clientPageSize, function(p) { clientPage = p; renderClientTable(); }, function(sz) { clientPageSize = sz; clientPage = 1; renderClientTable(); });
+    var cColW = CLIENT_COL_DEFS.filter(function(c) { return c.defaultVisible; }).map(function(c) { return c.width || 120; });
+    cColW.push(80);
+    makeColumnsResizable(document.getElementById('pmClientTable'), 'pmColW_clients', cColW);
     if (typeof initVoice === 'function') initVoice();
   }
 
@@ -1297,15 +1329,11 @@
         btnEdit.textContent = 'Edit';
         btnEdit.addEventListener('click', function() { openEditTypeModal(idx); });
         actionsTd.appendChild(btnEdit);
-        var btnDelete = document.createElement('button');
-        btnDelete.className = 'pm-table-btn danger';
-        btnDelete.textContent = 'Delete';
-        btnDelete.addEventListener('click', function() { deleteProjectType(idx); });
-        actionsTd.appendChild(btnDelete);
         tr.appendChild(actionsTd);
       }
       tbody.appendChild(tr);
     });
+    makeColumnsResizable(document.getElementById('pmTypeTable'), 'pmColW_types', [160, 400, 100]);
     if (typeof initVoice === 'function') initVoice();
   }
 
@@ -1799,7 +1827,7 @@
     types: {
       title: 'Project Management — Project Types',
       purpose: 'The Project Types tab lets you define and manage project categories. These types are used when creating or classifying projects.',
-      instructions: '<ol><li>To add a new type, fill out the Type Name and Description fields at the top, then click Add Type.</li><li>The Project Type List below shows all existing types.</li><li>Click Edit to modify a type name or description.</li><li>Click Delete to remove a type (only if no projects are using it).</li></ol>'
+      instructions: '<ol><li>To add a new type, fill out the Type Name and Description fields at the top, then click Add Type.</li><li>The Project Type List below shows all existing types.</li><li>Click Edit to modify a type name or description.</li></ol>'
     },
     clients: {
       title: 'Project Management — Clients',
