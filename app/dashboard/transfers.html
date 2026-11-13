@@ -3,18 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DRIV‑EN | Fuel Alerts</title>
-<meta name="description" content="DRIV-EN fuel alerts — capacity flags, consumption anomalies, employee tank fills.">
+<title>DRIV-EN | Transfers</title>
+<meta name="description" content="DRIV-EN equipment transfers -- transfer tickets, status tracking, and delivery signatures.">
 <meta name="robots" content="noindex, nofollow">
-<link rel="canonical" href="https://www.driv-en.com/app/dashboard/fuel-alerts.html">
+<link rel="canonical" href="https://www.driv-en.com/app/dashboard/transfers.html">
 <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
 <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
 <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
 <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
 
-<link rel="stylesheet" href="/app/shared/dashboard.css?v=12">
+<!-- ===== SHARED DASHBOARD CSS ===== -->
+<link rel="stylesheet" href="/app/shared/dashboard.css?v=15">
+
+<!-- ===== DIAMOND-PLATE BACKGROUND ===== -->
 <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
 
+<!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
 <script>
 (function() {
   var saved = localStorage.getItem("driven-theme");
@@ -25,256 +29,270 @@
 </script>
 
 <style>
-.fa-loading{display:flex;align-items:center;justify-content:center;height:60vh;font-size:16px;color:var(--text-muted);}
-.dash-header-row1 { padding: 8px 20px !important; align-items: center; }
-.fa-tab-bar { display: flex; gap: 2px; max-width: 1100px; margin: 0 auto; padding: 0 20px; overflow-x: auto; position: relative; z-index: 1; background: #cbd5e1; border-bottom: 2px solid #94a3b8; }
-.fa-tab-home { background: #1d4ed8; border: 1px solid #2563eb; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; margin-left: auto; position: relative; z-index: 1; transition: background 200ms ease, margin-top 200ms ease; text-decoration: none; display: inline-block; }
-.fa-tab-home:hover { background: #2563eb; margin-top: 2px; }
-.fa-tab-logout { background: #b91c1c; border: 1px solid #dc2626; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 22px; font-size: 15px; font-weight: 600; color: #fff; cursor: pointer; white-space: nowrap; margin-top: 4px; margin-left: 0; position: relative; z-index: 1; transition: background 200ms ease, margin-top 200ms ease; }
-.fa-tab-logout:hover { background: #dc2626; margin-top: 2px; }
-.fa-main { max-width: 1100px; margin: 20px auto; padding: 0 20px; position: relative; z-index: 1; }
-.settings-toggle{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:20px;}
-.settings-toggle h3{margin:0 0 12px 0;font-size:15px;color:var(--text);}
-.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);}
-.toggle-row:last-child{border-bottom:none;}
-.toggle-row label{font-size:13px;color:var(--text);}
-.toggle-switch{position:relative;width:40px;height:22px;}
-.toggle-switch input{opacity:0;width:0;height:0;}
-.toggle-slider{position:absolute;cursor:pointer;inset:0;background:var(--border);border-radius:22px;transition:.3s;}
-.toggle-slider:before{content:"";position:absolute;height:16px;width:16px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s;}
-.toggle-switch input:checked+.toggle-slider{background:var(--primary);}
-.toggle-switch input:checked+.toggle-slider:before{transform:translateX(18px);}
-.filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
-.filter-btn{background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:6px 14px;font-size:13px;cursor:pointer;color:var(--text);}
-.filter-btn.active{background:var(--primary);color:#fff;border-color:var(--primary);}
-.flag-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;transition:border-color .2s;}
-.flag-card.critical{border-left:4px solid #cc0000;}
-.flag-card.warning{border-left:4px solid #ff9900;}
-.flag-card.info{border-left:4px solid #0066cc;}
-.flag-card.resolved{opacity:.55;}
-.flag-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px;}
-.flag-type{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 8px;border-radius:4px;}
-.flag-type.capacity_exceeded{background:#cc0000;color:#fff;}
-.flag-type.consumption_anomaly{background:#ff9900;color:#fff;}
-.flag-type.employee_tank_fill{background:#0066cc;color:#fff;}
-.flag-message{font-size:14px;color:var(--text);margin:4px 0 8px 0;line-height:1.5;}
-.flag-meta{font-size:12px;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:12px;}
-.flag-actions{margin-top:10px;display:flex;gap:8px;align-items:center;}
-.flag-resolve-btn{background:var(--primary);color:#fff;border:none;border-radius:4px;padding:6px 14px;font-size:13px;cursor:pointer;}
-.flag-resolve-btn:hover{opacity:.85;}
-.flag-resolve-input{flex:1;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;padding:6px 10px;font-size:13px;color:var(--text);}
-.flag-resolved-badge{font-size:12px;color:var(--text-muted);font-style:italic;}
-.empty-state{text-align:center;padding:40px;color:var(--text-muted);font-size:14px;}
+/* ===== LOADING SCREEN ===== */
+.tf-loading{display:flex;align-items:center;justify-content:center;height:60vh;font-size:16px;color:var(--text-muted);}
+
+/* ===== HEADER OVERRIDE -- hide stale 3-row SW header rows ===== */
+.dash-header-row2, .dash-header-row3, .dash-utility-bar { display: none !important; }
+#dashHeader { position: sticky; top: 0; z-index: 100000; }
+#dashHeader .dash-theme-wrapper { display: none !important; }
+
+/* ===== TAB BAR ===== */
+.tf-tab-bar {
+  display: flex;
+  gap: 2px;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 20px;
+  overflow-x: auto;
+  position: relative;
+  z-index: 1;
+  background: #cbd5e1;
+  border-bottom: 2px solid #94a3b8;
+}
+.tf-tab-home {
+  background: #1d4ed8;
+  border: 1px solid #2563eb;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  padding: 10px 22px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-top: 4px;
+  margin-left: auto;
+  position: relative;
+  z-index: 1;
+  transition: background 200ms ease, margin-top 200ms ease;
+  text-decoration: none;
+  display: inline-block;
+}
+.tf-tab-home:hover { background: #2563eb; margin-top: 2px; }
+.tf-tab-logout {
+  background: #b91c1c;
+  border: 1px solid #dc2626;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  padding: 10px 22px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-top: 4px;
+  margin-left: 0;
+  position: relative;
+  z-index: 1;
+  transition: background 200ms ease, margin-top 200ms ease;
+}
+.tf-tab-logout:hover { background: #dc2626; margin-top: 2px; }
+
+/* ===== MAIN CONTAINER ===== */
+.tf-main {
+  max-width: 1100px;
+  margin: 20px auto;
+  padding: 0 20px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== STICKY SECTION HEADING ===== */
+.section-heading {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg-card);
+  border-bottom: 2px solid var(--border);
+  padding: 12px 0;
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.section-heading-count {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+/* ===== FILTER BAR ===== */
+.tf-filter-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.tf-filter-bar select,
+.tf-filter-bar input {
+  padding: 8px 12px;
+  font-size: 13px;
+  border: 1px solid var(--border-input, var(--border));
+  border-radius: 6px;
+  background: var(--bg-step);
+  color: var(--text);
+  box-sizing: border-box;
+}
+.tf-filter-bar select:focus,
+.tf-filter-bar input:focus { outline: none; border-color: var(--primary); }
+.tf-filter-label { font-size: 13px; color: var(--text-muted); font-weight: 600; }
+
+/* ===== SORTABLE TABLE ===== */
+.tf-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+}
+.tf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 800px;
+}
+.tf-table thead { background: var(--bg-step); }
+.tf-table th {
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  position: relative;
+}
+.tf-table th:hover { color: var(--primary); }
+.tf-table th .sort-arrow { font-size: 10px; margin-left: 4px; opacity: 0.5; }
+.tf-table th.sorted-asc .sort-arrow::after { content: ' \25B2'; opacity: 1; }
+.tf-table th.sorted-desc .sort-arrow::after { content: ' \25BC'; opacity: 1; }
+.tf-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  white-space: nowrap;
+}
+.tf-table tbody tr { cursor: pointer; transition: background 150ms ease; }
+.tf-table tbody tr:hover { background: var(--bg-step); }
+.tf-table tbody tr:last-child td { border-bottom: none; }
+
+/* ===== STATUS BADGE ===== */
+.tf-status { font-size: 11px; padding: 2px 10px; border-radius: 12px; font-weight: 600; text-transform: uppercase; }
+.tf-status.created { background: var(--border); color: var(--text); }
+.tf-status.picked_up { background: #0066cc; color: #fff; }
+.tf-status.in_transit { background: #ff9900; color: #fff; }
+.tf-status.delivered { background: #00aa44; color: #fff; }
+.tf-status.closed { background: var(--border); color: var(--text-muted); }
+
+/* ===== WARNING FLAGS ===== */
+.tf-flag { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600; margin-left: 6px; }
+.tf-flag-unclosed { background: #fef3c7; border: 1px solid #f59e0b; color: #92400e; }
+.tf-flag-duplicate { background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; }
+
+/* ===== WARNING BANNER ===== */
+.tf-warnings-banner { background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; }
+.tf-warnings-banner h4 { margin: 0 0 8px 0; font-size: 14px; color: #92400e; }
+.tf-warnings-banner ul { margin: 0; padding-left: 20px; }
+.tf-warnings-banner li { font-size: 13px; color: #92400e; margin-bottom: 4px; line-height: 1.4; }
+.tf-warnings-banner a { color: #92400e; font-weight: 600; cursor: pointer; text-decoration: underline; }
+
+/* ===== DETAIL VIEW ===== */
+.tf-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+.tf-event { display: flex; align-items: flex-start; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.tf-event:last-child { border-bottom: none; }
+.tf-event-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--primary); margin-top: 4px; flex-shrink: 0; }
+.tf-event-content { font-size: 13px; color: var(--text); }
+.tf-event-time { font-size: 11px; color: var(--text-muted); }
+.tf-back { background: var(--bg-card); border: 1px solid var(--border); border-radius: 4px; padding: 6px 14px; font-size: 13px; cursor: pointer; color: var(--text); margin-bottom: 16px; }
+.tf-back:hover { border-color: var(--primary); }
+.section-title { font-size: 16px; font-weight: 700; color: var(--text); margin: 24px 0 12px 0; padding-bottom: 8px; border-bottom: 2px solid var(--border); }
+.empty-state { text-align: center; padding: 40px; color: var(--text-muted); font-size: 14px; }
+
+/* ===== MOBILE ===== */
 @media (max-width: 800px) {
-  .fa-main { padding: 0 12px; margin: 12px auto; }
-  .fa-tab-home { padding: 10px 16px; font-size: 14px; }
-  .fa-tab-logout { padding: 10px 16px; font-size: 14px; }
+  .tf-main { padding: 0 12px; margin: 12px auto; }
+  .tf-tab-home { padding: 10px 16px; font-size: 14px; }
+  .tf-tab-logout { padding: 10px 16px; font-size: 14px; }
 }
 </style>
 </head>
-<body data-page-title="Fuel Alerts" data-required-permission="fuel.view">
+<body data-page-title="Transfers" data-required-permission="transfer.view">
 
+<!-- ===== DIAMOND-PLATE BACKGROUND ===== -->
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
 
+<!-- ===== SHARED HEADER ===== -->
 <div id="dashHeader"></div>
 
-<div class="fa-tab-bar" id="faTabBar">
-  <a class="fa-tab-home" id="dashHomeLink" href="/app/dashboard/employee-dashboard.html">Dashboard</a>
-  <button class="fa-tab-logout" onclick="dashLogout()">Logout</button>
+<!-- ===== TAB BAR ===== -->
+<div class="tf-tab-bar" id="tfTabBar">
+  <a class="tf-tab-home" id="dashHomeLink" href="/app/dashboard/employee-dashboard.html">Dashboard</a>
+  <button class="tf-tab-logout" id="tfLogoutBtn">Logout</button>
 </div>
 
-<div id="loading" class="fa-loading">Checking session…</div>
+<!-- ===== LOADING SCREEN ===== -->
+<div id="loading" class="tf-loading">Checking session...</div>
 
+<!-- ===== DASHBOARD CONTENT ===== -->
 <div id="dashboard" style="display:none;">
-  <div class="fa-main">
-    <div class="settings-toggle">
-      <h3>📧 Email Notification Settings</h3>
-      <div class="toggle-row">
-        <label>Capacity exceeded alerts</label>
-        <label class="toggle-switch"><input type="checkbox" id="toggleCapacity" onchange="saveSettings()"><span class="toggle-slider"></span></label>
-      </div>
-      <div class="toggle-row">
-        <label>Consumption anomaly alerts</label>
-        <label class="toggle-switch"><input type="checkbox" id="toggleConsumption" onchange="saveSettings()"><span class="toggle-slider"></span></label>
-      </div>
-      <div class="toggle-row">
-        <label>Employee tank fill alerts</label>
-        <label class="toggle-switch"><input type="checkbox" id="toggleEmployee" onchange="saveSettings()"><span class="toggle-slider"></span></label>
-      </div>
-      <div class="toggle-row">
-        <label>Equipment manager notifications</label>
-        <label class="toggle-switch"><input type="checkbox" id="toggleManager" onchange="saveSettings()"><span class="toggle-slider"></span></label>
-      </div>
+  <div class="tf-main">
+
+    <!-- ===== WARNING BANNER ===== -->
+    <div id="tfWarningsBanner" class="tf-warnings-banner" style="display:none;">
+      <h4>&#9888; Transfer Alerts</h4>
+      <ul id="tfWarningsList"></ul>
     </div>
-    <div class="filter-bar">
-      <button class="filter-btn active" onclick="filterFlags('open',this)">Open</button>
-      <button class="filter-btn" onclick="filterFlags('resolved',this)">Resolved</button>
-      <button class="filter-btn" onclick="filterFlags('all',this)">All</button>
-      <button class="filter-btn" onclick="filterFlags('capacity_exceeded',this)">Capacity</button>
-      <button class="filter-btn" onclick="filterFlags('consumption_anomaly',this)">Consumption</button>
-      <button class="filter-btn" onclick="filterFlags('employee_tank_fill',this)">Employee Tank</button>
+
+    <!-- ===== LIST VIEW ===== -->
+    <div id="tfListView">
+      <!-- Filter bar -->
+      <div class="tf-filter-bar">
+        <span class="tf-filter-label">Status:</span>
+        <select id="tfStatusFilter">
+          <option value="">All Statuses</option>
+          <option value="created">Created</option>
+          <option value="picked_up">Picked Up</option>
+          <option value="in_transit">In Transit</option>
+          <option value="delivered">Delivered</option>
+          <option value="closed">Closed</option>
+          <option value="open">Open (unclosed)</option>
+        </select>
+        <span class="tf-filter-label">Search:</span>
+        <input type="text" id="tfSearchInput" placeholder="Ticket #, asset, location..." data-voice-input style="flex:1;min-width:200px;">
+      </div>
+
+      <div class="section-heading">Transfer Tickets <span class="section-heading-count" id="tfCount">0 tickets</span></div>
+      <div id="tfTableContainer"></div>
     </div>
-    <div id="flagsList" class="fa-loading">Loading fuel alerts…</div>
+
+    <!-- ===== DETAIL VIEW ===== -->
+    <div id="tfDetailView" style="display:none;">
+      <button class="tf-back" id="tfBackBtn">&larr; Back to list</button>
+      <div id="tfDetail"></div>
+    </div>
+
   </div>
 </div>
 
+<!-- ===== FOOTER ===== -->
 <div id="dashFooter"></div>
 
-<script src="/app/shared/dashboard-common.js?v=16"></script>
-
-<script>
-let currentFilter = 'open';
-let allFlags = [];
-
-  var row1 = document.querySelector('.dash-header-row1');
-    var title = document.createElement('div');
-    title.textContent = 'Fuel Alerts';
-    var logoArea = document.getElementById('dashCustomerLogoArea');
-    var drivenLogo = row1.querySelector('.dash-driven-logo');
-    if (logoArea && drivenLogo) row1.insertBefore(title, drivenLogo);
-  }
-}
-
-window.dashLogout = function() {
-  try { fetch('/auth/logout', { method: 'POST' }); } catch (e) {}
-  window.location.href = '/public/login.html';
-};
-
-function esc(s) {
-  if (!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
-
-async function loadFlags() {
-  try {
-    const resp = await fetch('/api/fuel-flags');
-    const data = await resp.json();
-    if (data.success) {
-      allFlags = data.flags || [];
-      renderFlags();
-    } else {
-      document.getElementById('flagsList').innerHTML = '<div class="empty-state">Failed to load flags.</div>';
-    }
-  } catch (e) {
-    document.getElementById('flagsList').innerHTML = '<div class="empty-state">Error: ' + esc(e.message) + '</div>';
-  }
-}
-
-function renderFlags() {
-  let filtered = allFlags;
-  if (currentFilter === 'open') filtered = allFlags.filter(f => f.status === 'open');
-  else if (currentFilter === 'resolved') filtered = allFlags.filter(f => f.status === 'resolved');
-  else if (currentFilter !== 'all') filtered = allFlags.filter(f => f.flag_type === currentFilter);
-
-  if (filtered.length === 0) {
-    document.getElementById('flagsList').innerHTML = '<div class="empty-state">No fuel alerts found.</div>';
-    return;
-  }
-
-  document.getElementById('flagsList').innerHTML = filtered.map(f => {
-    const sevClass = f.severity || 'warning';
-    const resolved = f.status === 'resolved';
-    const date = new Date(f.created_at).toLocaleString();
-    let html = '<div class="flag-card ' + sevClass + (resolved ? ' resolved' : '') + '">';
-    html += '<div class="flag-header">';
-    html += '<span class="flag-type ' + f.flag_type + '">' + f.flag_type.replace(/_/g,' ') + '</span>';
-    html += resolved ? '<span class="flag-resolved-badge">Resolved by ' + esc(f.resolved_by||'—') + '</span>' : '';
-    html += '</div>';
-    html += '<div class="flag-message">' + esc(f.message||'') + '</div>';
-    html += '<div class="flag-meta">';
-    if (f.asset_name) html += '<span>Asset: ' + esc(f.asset_name) + '</span>';
-    if (f.tank_name) html += '<span>Tank: ' + esc(f.tank_name) + '</span>';
-    html += '<span>' + date + '</span>';
-    html += '</div>';
-    if (!resolved) {
-      html += '<div class="flag-actions">';
-      html += '<input type="text" class="flag-resolve-input" id="notes-' + f.id + '" placeholder="Resolution notes…">';
-      html += '<button class="flag-resolve-btn" onclick="resolveFlag(\'' + f.id + '\')">Resolve</button>';
-      html += '</div>';
-    }
-    if (resolved && f.resolution_notes) {
-      html += '<div style="margin-top:6px;font-size:12px;color:var(--text-muted);">Notes: ' + esc(f.resolution_notes) + '</div>';
-    }
-    html += '</div>';
-    return html;
-  }).join('');
-}
-
-async function resolveFlag(id) {
-  const notes = document.getElementById('notes-' + id).value || '';
-  try {
-    const resp = await fetch('/api/fuel-flags/' + id + '/resolve', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ resolution_notes: notes })
-    });
-    const data = await resp.json();
-    if (data.success) {
-      loadFlags();
-    } else {
-      alert('Failed to resolve: ' + (data.error||'Unknown error'));
-    }
-  } catch (e) {
-    alert('Error: ' + e.message);
-  }
-}
-
-function filterFlags(type, btn) {
-  currentFilter = type;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  renderFlags();
-}
-
-async function loadSettings() {
-  try {
-    const resp = await fetch('/api/org-settings');
-    const data = await resp.json();
-    if (data.success && data.settings) {
-      document.getElementById('toggleCapacity').checked = !!data.settings.notify_capacity_flags_email;
-      document.getElementById('toggleConsumption').checked = !!data.settings.notify_consumption_flags_email;
-      document.getElementById('toggleEmployee').checked = !!data.settings.notify_employee_tank_flags_email;
-      document.getElementById('toggleManager').checked = !!data.settings.notify_equipment_manager_email;
-    }
-  } catch (e) { console.error('Settings load error:', e); }
-}
-
-async function saveSettings() {
-  try {
-    await fetch('/api/org-settings', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        notify_capacity_flags_email: document.getElementById('toggleCapacity').checked,
-        notify_equipment_manager_email: document.getElementById('toggleManager').checked,
-        notify_consumption_flags_email: document.getElementById('toggleConsumption').checked,
-        notify_employee_tank_flags_email: document.getElementById('toggleEmployee').checked
-      })
-    });
-  } catch (e) { console.error('Settings save error:', e); }
-}
-
-document.addEventListener('dashSessionLoaded', function() {
-  var user = window.dashUser;
-  if (!user) { window.location.href = '/public/login.html'; return; }
-
-  var role = (user.role || '').toLowerCase();
-  var dashUrl = role === 'admin' ? '/app/dashboard/admin.html' : '/app/dashboard/employee-dashboard.html';
-  var homeLink = document.getElementById('dashHomeLink');
-  if (homeLink) homeLink.href = dashUrl;
-
-
-  document.getElementById('loading').style.display = 'none';
-  document.getElementById('dashboard').style.display = 'block';
-
-  loadSettings();
-  loadFlags();
-});
-</script>
-
-<script src="/app/shared/auth-check.js?v=8"></script>
-<script src="/components/nav.js?v=5"></script>
+<!-- ===== SHARED SCRIPTS (order: auth-check -> dashboard-common -> units -> voice -> page JS) ===== -->
+<script src="/app/shared/auth-check.js?v=21"></script>
+<script src="/app/shared/dashboard-common.js?v=20"></script>
+<script src="/app/shared/units-global.js?v=2"></script>
+<script src="/app/shared/apply-units.js?v=1"></script>
+<script src="/app/shared/voice.js?v=2"></script>
+<script src="/app/dashboard/transfers.js?v=1"></script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" data-cf-beacon='{"token":"aed8feab3b60404ba88ec92f026bbcd6"}' crossorigin="anonymous"></script>
 </body>
 </html>
