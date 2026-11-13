@@ -187,6 +187,18 @@
     }
     if (!user) { window.location.href = '/public/login.html'; return; }
 
+    // ===== Populate welcome card =====
+    var firstName = user.first_name || user.email || '';
+    var orgName = user.org_name || localStorage.getItem('driven_org_name') || '';
+    var welcomeNameEl = document.getElementById('pm-welcome-name');
+    if (welcomeNameEl) {
+      welcomeNameEl.textContent = firstName ? ('Welcome back, ' + firstName + (orgName ? ' - ' + orgName : '')) : 'Welcome back';
+    }
+    var welcomeRoleEl = document.getElementById('pm-welcome-role');
+    if (welcomeRoleEl) welcomeRoleEl.textContent = user.role || user.role_id || '';
+    var welcomeEmailEl = document.getElementById('pm-welcome-email');
+    if (welcomeEmailEl) welcomeEmailEl.textContent = user.email || '';
+
     var role = (user.role || '').toLowerCase();
     var isAdmin = role === 'admin' || role === 'administrator' || role.indexOf('founder') !== -1 || role === 'owner';
     canModify = isAdmin;
