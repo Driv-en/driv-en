@@ -11,7 +11,7 @@
   <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
   <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
   <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
-  <link rel="stylesheet" href="/app/shared/dashboard.css?v=10">
+  <link rel="stylesheet" href="/app/shared/dashboard.css?v=15">
   <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
   <script>
     (function() {
@@ -164,9 +164,178 @@
     .um-toast.error { background: #dc2626; }
     .um-toast.success { background: #16a34a; }
 
-    .um-welcome { background: var(--bg-card); border: 2px solid var(--card-green-border); border-radius: 8px; padding: 20px; margin-bottom: 16px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
-    .um-welcome-text h2 { margin: 0 0 4px 0; font-size: 20px; color: var(--text); }
-    .um-welcome-text p { margin: 0; font-size: 14px; color: var(--text-muted); }
+    /* ===== WELCOME CARD (matches admin dashboard) ===== */
+    .um-welcome-bar {
+      max-width: 1100px;
+      margin: 16px auto 0 auto;
+      padding: 0 20px;
+      position: relative;
+      z-index: 1;
+      box-sizing: border-box;
+    }
+    .um-welcome-card {
+      background: var(--bg-card, #ffffff);
+      border: 2px solid var(--success, #16a34a);
+      border-radius: 8px;
+      padding: 20px 24px;
+      box-sizing: border-box;
+      position: relative;
+      z-index: 1;
+    }
+    .um-welcome-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .um-welcome-greeting h2 {
+      margin: 0 0 4px 0;
+      font-size: 20px;
+      color: var(--text, #0f172a);
+    }
+    .um-welcome-greeting p {
+      margin: 0;
+      font-size: 14px;
+      color: var(--text-muted, #64748b);
+    }
+    .um-welcome-details {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 24px;
+      align-items: center;
+    }
+    .um-welcome-detail-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .um-welcome-detail-row {
+      font-size: 14px;
+      color: var(--text, #0f172a);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .um-welcome-detail-label {
+      font-weight: 600;
+      color: var(--text-muted, #64748b);
+    }
+    .um-welcome-change-password {
+      background: var(--success, #16a34a);
+      border: 1px solid #15803d;
+      color: #ffffff;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 150ms ease;
+    }
+    .um-welcome-change-password:hover { background: #15803d; }
+    .dash-theme-wrapper { display: flex; align-items: center; gap: 8px; }
+    .dash-theme-label { font-size: 13px; color: var(--text-muted, #64748b); }
+    .dash-theme-label.active { color: var(--text, #0f172a); font-weight: 600; }
+    .dash-theme-switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+    .dash-theme-switch input { opacity: 0; width: 0; height: 0; }
+    .dash-theme-slider {
+      position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+      background: #cbd5e1; border-radius: 24px; transition: 200ms;
+    }
+    .dash-theme-slider:before {
+      position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px;
+      background: #fff; border-radius: 50%; transition: 200ms;
+    }
+    input:checked + .dash-theme-slider { background: #3b82f6; }
+    input:checked + .dash-theme-slider:before { transform: translateX(20px); }
+    input:focus-visible + .dash-theme-slider { outline: 2px solid #3b82f6; outline-offset: 2px; }
+    :root[data-theme="dark"] .dash-theme-slider { background: #475569; }
+    @media (max-width: 600px) {
+      .um-welcome-details { grid-template-columns: 1fr; }
+      .um-welcome-header { flex-direction: column; }
+    }
+
+    /* ===== PILL BAR (Purpose / Instructions) ===== */
+    .um-pill-bar {
+      max-width: 1100px;
+      margin: 16px auto 0 auto;
+      padding: 0 20px;
+      position: relative;
+      z-index: 1;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      box-sizing: border-box;
+    }
+    .pill-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 16px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 150ms ease-in-out;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .pill-btn-purpose { background-color: #0284c7; color: #fff; border-color: #0369a1; }
+    .pill-btn-purpose:hover { background-color: #0369a1; }
+    .pill-btn-instructions { background-color: #8b5cf6; color: #fff; border-color: #7c3aed; }
+    .pill-btn-instructions:hover { background-color: #7c3aed; }
+
+    /* ===== MODAL (Purpose / Instructions) ===== */
+    .um-modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 10001;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .um-modal-overlay.active { display: flex; }
+    .um-modal-card-info {
+      background: var(--bg-card, #ffffff) !important;
+      border: 2px solid var(--success, #16a34a);
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 650px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-sizing: border-box;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.3);
+    }
+    :root[data-theme="dark"] .um-modal-card-info { background: #1e293b !important; }
+    .um-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .um-modal-title { margin: 0; font-size: 18px; color: var(--text, #0f172a); font-weight: 700; }
+    :root[data-theme="dark"] .um-modal-title { color: #f1f5f9; }
+    .um-modal-close-icon {
+      background: none; border: none; font-size: 24px; cursor: pointer;
+      color: var(--text-muted, #64748b); padding: 0; line-height: 1;
+      border-radius: 4px;
+    }
+    .um-modal-close-icon:hover { color: var(--text, #0f172a); }
+    :root[data-theme="dark"] .um-modal-close-icon:hover { color: #f1f5f9; }
+    .um-modal-body { font-size: 14px; color: var(--text-muted, #64748b); line-height: 1.6; }
+    :root[data-theme="dark"] .um-modal-body { color: #cbd5e1; }
+    .um-modal-body p { margin: 0 0 12px 0; }
+    .um-modal-body ul, .um-modal-body ol { margin: 0 0 16px 0; padding-left: 20px; }
+    .um-modal-body li { margin-bottom: 8px; }
+    .um-modal-body strong { color: var(--text, #0f172a); }
+    :root[data-theme="dark"] .um-modal-body strong { color: #f1f5f9; }
 
     .um-kpi-grid { display: grid; grid-template-columns: repeat(2, minmax(140px, 1fr)); gap: 12px; width: 100%; margin-bottom: 16px; }
     .um-kpi-card { background: var(--bg-card); border: 2px solid var(--card-green-border); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: border-color 150ms ease, transform 150ms ease, box-shadow 150ms ease; user-select: none; }
@@ -247,7 +416,7 @@
       @page { margin: 10mm; size: auto; }
       html, body { width: 100% !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
       body * { visibility: hidden !important; }
-      .steel-bg, .steel-overlay, #dashHeader, .um-tab-bar, .um-search-card, .um-modal, .um-toast, #dashFooter { display: none !important; }
+      .steel-bg, .steel-overlay, #dashHeader, .um-tab-bar, .um-welcome-bar, .um-pill-bar, .um-search-card, .um-modal, .um-modal-overlay, .um-toast, #dashFooter { display: none !important; }
       .um-main { margin: 0 !important; padding: 0 !important; max-width: 100% !important; width: 100% !important; position: absolute !important; left: 0 !important; top: 0 !important; }
       .um-tab-content.active, .um-tab-content.active .um-table-card, .um-tab-content.active .um-table-scroll, .um-tab-content.active .um-table, .um-tab-content.active .um-table * { visibility: visible !important; }
       .um-tab-content.active { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
@@ -280,17 +449,49 @@
     <div class="um-tab-logout" onclick="dashLogout()">Logout</div>
   </div>
 
+  <!-- ===== WELCOME + THEME BAR (below tab bar, above content) ===== -->
+  <div class="um-welcome-bar">
+    <div class="um-welcome-card">
+      <div class="um-welcome-header">
+        <div class="um-welcome-greeting">
+          <h2 id="um-welcome-name">Welcome back</h2>
+        </div>
+        <div class="dash-theme-wrapper" title="Toggle light/dark mode">
+          <span class="dash-theme-label" id="dashThemeLabelLight">Light</span>
+          <label class="dash-theme-switch">
+            <input type="checkbox" id="dashThemeCheckbox" aria-label="Toggle light or dark theme">
+            <span class="dash-theme-slider"></span>
+          </label>
+          <span class="dash-theme-label" id="dashThemeLabelDark">Dark</span>
+        </div>
+      </div>
+      <div class="um-welcome-details">
+        <div class="um-welcome-detail-rows">
+          <div class="um-welcome-detail-row">
+            <span class="um-welcome-detail-label">Role:</span>
+            <span id="um-welcome-role"></span>
+          </div>
+          <div class="um-welcome-detail-row">
+            <span class="um-welcome-detail-label">Email:</span>
+            <span id="um-welcome-email"></span>
+          </div>
+        </div>
+        <a href="/app/auth/change-password.html" class="um-welcome-change-password">Change Password</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PILL BAR (Purpose / Instructions) ===== -->
+  <div class="um-pill-bar">
+    <button class="pill-btn pill-btn-purpose" id="btnTabPurpose">&#9682; Purpose</button>
+    <button class="pill-btn pill-btn-instructions" id="btnTabInstructions">&#9776; Instructions</button>
+  </div>
+
   <div class="um-main">
     <div class="admin-loading" id="adminLoading">Loading employee management...</div>
 
     <!-- Overview Tab -->
     <div class="um-tab-content active" id="tab-overview">
-      <div class="um-welcome">
-        <div class="um-welcome-text">
-          <h2>Employee Overview</h2>
-          <p>Manage users, employees, roles, and permissions</p>
-        </div>
-      </div>
       <div class="um-kpi-grid">
         <div class="um-kpi-card" onclick="filterByKpi('ActiveEmployees')">
           <div class="um-kpi-val" id="kpiActiveEmployees">0</div>
@@ -676,6 +877,28 @@
     </div>
   </div>
 
+  <!-- Purpose Modal -->
+  <div class="um-modal-overlay" id="modalPurpose">
+    <div class="um-modal-card-info">
+      <div class="um-modal-header">
+        <div class="um-modal-title" id="modalPurposeTitle">Purpose</div>
+        <button class="um-modal-close-icon" id="btnClosePurposeModal">&times;</button>
+      </div>
+      <div class="um-modal-body" id="modalPurposeBody"></div>
+    </div>
+  </div>
+
+  <!-- Instructions Modal -->
+  <div class="um-modal-overlay" id="modalInstructions">
+    <div class="um-modal-card-info">
+      <div class="um-modal-header">
+        <div class="um-modal-title" id="modalInstructionsTitle">Instructions</div>
+        <button class="um-modal-close-icon" id="btnCloseInstructionsModal">&times;</button>
+      </div>
+      <div class="um-modal-body" id="modalInstructionsBody"></div>
+    </div>
+  </div>
+
   <!-- Standardized Footer -->
   <footer id="dashFooter" style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px; border-top: none; margin-top: 20px;">
     <div style="margin-bottom: 8px; display: flex; justify-content: center; gap: 16px;">
@@ -696,6 +919,6 @@
   <script src="/app/shared/units-global.js?v=2"></script>
   <script src="/app/shared/apply-units.js?v=1"></script>
   <script src="/app/shared/voice.js?v=2"></script>
-  <script src="/app/dashboard/user-management.js?v=1"></script>
+  <script src="/app/dashboard/user-management.js?v=2"></script>
 </body>
 </html>
