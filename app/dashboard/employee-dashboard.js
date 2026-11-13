@@ -566,18 +566,6 @@ async function loadStats() {
     } catch (e) {}
   }
 
-  if (hasAnyPermission(['transfer.view'])) {
-    showStats = true;
-    try {
-      var resp = await fetch('/api/transfers?status=open', { headers: headers });
-      var data = await resp.json();
-      if (data.success) {
-        var el = document.getElementById('stat-transfers');
-        if (el) el.textContent = (data.transfers || []).length;
-      }
-    } catch (e) {}
-  }
-
   if (showStats) {
     var statsGrid = document.getElementById('empStats');
     if (statsGrid) statsGrid.style.display = 'grid';
