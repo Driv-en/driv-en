@@ -27,7 +27,7 @@
   // ===== PROJECT COLUMN DEFINITIONS =====
   var PROJECT_COL_DEFS = [
     { key: 'name',       label: 'Project Name', defaultVisible: true },
-    { key: 'code',       label: 'Project Code', defaultVisible: true },
+    { key: 'code',       label: 'Project Number', defaultVisible: true },
     { key: 'status',     label: 'Status',       defaultVisible: true },
     { key: 'location',   label: 'Location',     defaultVisible: true },
     { key: 'createdAt',  label: 'Created Date', defaultVisible: false },
@@ -732,8 +732,7 @@
       var matchesSearch = !search ||
         (c.clientName && c.clientName.toLowerCase().indexOf(search) !== -1) ||
         (c.contactName && c.contactName.toLowerCase().indexOf(search) !== -1) ||
-        (c.contactEmail && c.contactEmail.toLowerCase().indexOf(search) !== -1) ||
-        
+        (c.contactEmail && c.contactEmail.toLowerCase().indexOf(search) !== -1) ;
       var matchesStatus = !filterStatus || (c.status && c.status.toLowerCase() === filterStatus.toLowerCase());
       return matchesSearch && matchesStatus;
     });
@@ -1665,8 +1664,7 @@
       var matchesSearch = !search ||
         (c.clientName && c.clientName.toLowerCase().indexOf(search) !== -1) ||
         (c.contactName && c.contactName.toLowerCase().indexOf(search) !== -1) ||
-        (c.contactEmail && c.contactEmail.toLowerCase().indexOf(search) !== -1) ||
-        
+        (c.contactEmail && c.contactEmail.toLowerCase().indexOf(search) !== -1) ;
       var matchesStatus = !filterStatus || (c.status && c.status.toLowerCase() === filterStatus.toLowerCase());
       return matchesSearch && matchesStatus;
     });
