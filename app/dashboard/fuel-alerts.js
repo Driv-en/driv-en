@@ -1,9 +1,12 @@
 /**
- * fuel-alerts.js -- DRIV-EN Fuel Alerts page logic (v1)
+ * fuel-alerts.js -- DRIV-EN Fuel Alerts page logic (v2)
  *
  * Extracted from fuel-alerts.html inline script.
  * Handles: fuel capacity flags, consumption anomalies, employee tank fills,
  * email notification settings, flag resolution.
+ *
+ * v2 changes: All inline onclick/onchange handlers removed from HTML.
+ *   Everything wired via addEventListener + event delegation.
  *
  * Includes rebuildHeader() to handle stale 3-row SW header template.
  *
@@ -142,7 +145,7 @@ function renderFlags() {
     if (!resolved) {
       html += '<div class="flag-actions">';
       html += '<input type="text" class="flag-resolve-input" id="notes-' + f.id + '" placeholder="Resolution notes..." data-voice-input>';
-      html += '<button class="flag-resolve-btn" onclick="resolveFlag(\'' + f.id + '\')">Resolve</button>';
+      html += '<button class="flag-resolve-btn" data-resolve-id="' + f.id + '">Resolve</button>';
       html += '</div>';
     }
     if (resolved && f.resolution_notes) {
@@ -162,7 +165,8 @@ function renderFlags() {
 // FLAG RESOLUTION
 // ============================================================
 async function resolveFlag(id) {
-  var notes = document.getElementById('notes-' + id).value || '';
+  var notesEl = document.getElementById('notes-' + id);
+  var notes = notesEl ? notesEl.value : '';
   try {
     var resp = await fetch('/api/fuel-flags/' + id + '/resolve', {
       method: 'PUT',
@@ -186,7 +190,7 @@ async function resolveFlag(id) {
 function filterFlags(type, btn) {
   currentFilter = type;
   document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
-  btn.classList.add('active');
+  if (btn) btn.classList.add('active');
   renderFlags();
 }
 
@@ -222,6 +226,41 @@ async function saveSettings() {
 }
 
 // ============================================================
+// STATIC EVENT WIRING (replaces inline onclick/onchange)
+// ============================================================
+function bindStaticEvents() {
+  // Logout button
+  var logoutBtn = document.getElementById('faLogoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', function() {
+      if (typeof dashLogout === 'function') dashLogout();
+    });
+  }
+
+  // Toggle switches -- save on change
+  ['toggleCapacity', 'toggleConsumption', 'toggleEmployee', 'toggleManager'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('change', saveSettings);
+  });
+
+  // Filter buttons -- use data-filter attribute
+  document.querySelectorAll('.filter-btn[data-filter]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      filterFlags(btn.getAttribute('data-filter'), btn);
+    });
+  });
+
+  // Event delegation for dynamically generated resolve buttons
+  document.getElementById('flagsList').addEventListener('click', function(e) {
+    var btn = e.target.closest('.flag-resolve-btn');
+    if (btn) {
+      var id = btn.getAttribute('data-resolve-id');
+      if (id) resolveFlag(id);
+    }
+  });
+}
+
+// ============================================================
 // INIT
 // ============================================================
 document.addEventListener('dashSessionLoaded', function() {
@@ -244,6 +283,9 @@ document.addEventListener('dashSessionLoaded', function() {
 
   document.getElementById('loading').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
+
+  // Wire static events now that dashboard is visible
+  bindStaticEvents();
 
   loadSettings();
   loadFlags();
