@@ -170,7 +170,13 @@
   }
 
   // ===== INIT =====
-  document.addEventListener('dashSessionLoaded', async function() {
+  var pmInitDone = false;
+  document.addEventListener('dashSessionLoaded', initProjectManagement);
+  if (document.readyState !== 'loading') { initProjectManagement(); }
+
+  async function initProjectManagement() {
+    if (pmInitDone) return;
+    pmInitDone = true;
     rebuildHeader();
     startHeaderObserver();
     scheduleHeaderRebuilds();
@@ -226,7 +232,7 @@
     document.getElementById('tab-overview').style.display = 'block';
 
     if (typeof initVoice === 'function') initVoice();
-  });
+  }
 
   // ===== BIND STATIC EVENTS (replaces all inline handlers) =====
   function bindStaticEvents() {
