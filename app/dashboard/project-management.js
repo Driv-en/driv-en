@@ -368,6 +368,7 @@
     await loadProjects();
     await loadClients();
     renderOverview();
+    initOverviewSearch();
 
     document.getElementById('pmLoading').style.display = 'none';
     document.getElementById('tab-overview').style.display = 'block';
@@ -616,45 +617,10 @@
     document.getElementById('kpiActiveProjects').textContent = allProjects.filter(function(p) { return String(p.status || '').toLowerCase() === 'active'; }).length;
     document.getElementById('kpiCompletedProjects').textContent = allProjects.filter(function(p) { return String(p.status || '').toLowerCase() === 'completed'; }).length;
     document.getElementById('kpiTotalClients').textContent = allClients.length;
-
-    var recentProjects = allProjects.slice().sort(function(a, b) {
-      var da = a.createdAt || ''; var db = b.createdAt || '';
-      return db < da ? -1 : db > da ? 1 : 0;
-    }).slice(0, 5);
-    document.getElementById('recentProjectsCount').textContent = recentProjects.length;
-    var projBody = document.getElementById('pmOverviewProjectsBody');
-    projBody.textContent = '';
-    if (recentProjects.length === 0) {
-      projBody.innerHTML = '<tr><td class="pm-empty">No projects yet.</td></tr>';
-    } else {
-      recentProjects.forEach(function(p) {
-        var tr = document.createElement('tr');
-        tr.style.cursor = 'pointer';
-        tr.addEventListener('click', function() { switchTab('projects'); });
-        tr.innerHTML = '<td>' + escapeHtml(p.code || '—') + '</td><td style="font-weight:600;">' + escapeHtml(p.name || '') + '</td><td>' + escapeHtml(p.clientName || p.client_name || '—') + '</td><td>' + statusBadgeHtml(p.status) + '</td>';
-        projBody.appendChild(tr);
-      });
-    }
-
-    var recentClients = allClients.slice().sort(function(a, b) {
-      var da = a.createdAt || ''; var db = b.createdAt || '';
-      return db < da ? -1 : db > da ? 1 : 0;
-    }).slice(0, 5);
-    document.getElementById('recentClientsCount').textContent = recentClients.length;
-    var cliBody = document.getElementById('pmOverviewClientsBody');
-    cliBody.textContent = '';
-    if (recentClients.length === 0) {
-      cliBody.innerHTML = '<tr><td class="pm-empty">No clients yet.</td></tr>';
-    } else {
-      recentClients.forEach(function(c) {
-        var tr = document.createElement('tr');
-        tr.style.cursor = 'pointer';
-        tr.addEventListener('click', function() { switchTab('clients'); });
-        tr.innerHTML = '<td style="font-weight:600;">' + escapeHtml(c.clientName || '') + '</td><td>' + escapeHtml(c.contactName || c.contactEmail || '—') + '</td><td>' + statusBadgeHtml(c.status) + '</td>';
-        cliBody.appendChild(tr);
-      });
-    }
-
+    renderStatusDonut();
+    renderTrendChart();
+    renderOverviewProjects();
+    renderOverviewClients();
     makeColumnsResizable(document.getElementById('pmOverviewProjectsTable'), 'pmColW_ovProjects', [120, 240, 200, 100]); makeColumnsDraggable(document.getElementById('pmOverviewProjectsTable'), 'pmColOrder_ovProjects');
     makeColumnsResizable(document.getElementById('pmOverviewClientsTable'), 'pmColW_ovClients', [200, 160, 100]); makeColumnsDraggable(document.getElementById('pmOverviewClientsTable'), 'pmColOrder_ovClients');
     if (typeof initVoice === 'function') initVoice();
@@ -1904,6 +1870,151 @@
       if (!confirm('You have unsaved changes. Click OK to log out without saving, or Cancel to stay.')) return;
     }
     if (typeof dashLogout === 'function') dashLogout();
+  }
+
+  // ===== CHARTS =====
+  var STATUS_COLORS = { 'active': '#16a34a', 'planning': '#3b82f6', 'on hold': '#f59e0b', 'completed': '#6366f1', 'cancelled': '#ef4444' };
+  var STATUS_ORDER = ['active', 'planning', 'on hold', 'completed', 'cancelled'];
+
+  function renderStatusDonut() {
+    var donut = document.getElementById('pmStatusDonut');
+    var legend = document.getElementById('pmStatusLegend');
+    if (!donut || !legend) return;
+    var counts = {};
+    STATUS_ORDER.forEach(function(s) { counts[s] = 0; });
+    allProjects.forEach(function(p) {
+      var key = String(p.status || '').toLowerCase();
+      if (counts[key] !== undefined) counts[key]++;
+    });
+    var total = allProjects.length || 1;
+    var stops = [];
+    var cum = 0;
+    STATUS_ORDER.forEach(function(s) {
+      var pct = counts[s] / total;
+      if (pct > 0) stops.push(STATUS_COLORS[s] + ' ' + (cum * 360).toFixed(1) + 'deg ' + ((cum + pct) * 360).toFixed(1) + 'deg');
+      cum += pct;
+    });
+    if (stops.length === 0) stops.push('#e2e8f0 0deg 360deg');
+    donut.style.background = 'conic-gradient(' + stops.join(', ') + ')';
+    donut.style.position = 'relative';
+    donut.innerHTML = '<div style="position:absolute;width:90px;height:90px;border-radius:50%;background:var(--bg-card,#fff);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:var(--text);top:25px;left:25px;">' + total + '</div>';
+    legend.textContent = '';
+    STATUS_ORDER.forEach(function(s) {
+      var item = document.createElement('div');
+      item.className = 'pm-donut-legend-item';
+      item.innerHTML = '<div class="pm-donut-legend-dot" style="background:' + STATUS_COLORS[s] + '"></div><span>' + escapeHtml(s.charAt(0).toUpperCase() + s.slice(1)) + ': ' + counts[s] + '</span>';
+      legend.appendChild(item);
+    });
+  }
+
+  function renderTrendChart() {
+    var container = document.getElementById('pmTrendChart');
+    if (!container) return;
+    container.textContent = '';
+    var now = new Date();
+    var months = [];
+    for (var i = 5; i >= 0; i--) {
+      var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({ label: d.toLocaleDateString('en', { month: 'short' }), year: d.getFullYear(), month: d.getMonth(), count: 0 });
+    }
+    allProjects.forEach(function(p) {
+      if (!p.createdAt) return;
+      var d = new Date(p.createdAt);
+      months.forEach(function(m) { if (m.year === d.getFullYear() && m.month === d.getMonth()) m.count++; });
+    });
+    var maxCount = Math.max(1, Math.max.apply(null, months.map(function(m) { return m.count; })));
+    months.forEach(function(m) {
+      var bar = document.createElement('div');
+      bar.className = 'pm-bar-chart-bar';
+      bar.style.height = (m.count / maxCount * 140) + 'px';
+      bar.innerHTML = '<span class="pm-bar-chart-value">' + m.count + '</span><span class="pm-bar-chart-label">' + m.label + '</span>';
+      container.appendChild(bar);
+    });
+  }
+
+  // ===== OVERVIEW SEARCH =====
+  var ovProjSearch = '', ovClientSearch = '';
+  function initOverviewSearch() {
+    var ps = document.getElementById('pmOverviewProjectSearch');
+    var cs = document.getElementById('pmOverviewClientSearch');
+    if (ps) ps.addEventListener('input', function() { ovProjSearch = ps.value.toLowerCase(); renderOverviewProjects(); });
+    if (cs) cs.addEventListener('input', function() { ovClientSearch = cs.value.toLowerCase(); renderOverviewClients(); });
+  }
+
+  function renderOverviewProjects() {
+    var recent = allProjects.slice().sort(function(a, b) {
+      var da = a.createdAt || ''; var db = b.createdAt || '';
+      return db < da ? -1 : db > da ? 1 : 0;
+    });
+    if (ovProjSearch) {
+      recent = recent.filter(function(p) {
+        return (p.name && p.name.toLowerCase().indexOf(ovProjSearch) !== -1) ||
+               (p.code && p.code.toLowerCase().indexOf(ovProjSearch) !== -1) ||
+               (p.clientName && p.clientName.toLowerCase().indexOf(ovProjSearch) !== -1);
+      });
+    }
+    recent = recent.slice(0, 5);
+    document.getElementById('recentProjectsCount').textContent = recent.length;
+    var body = document.getElementById('pmOverviewProjectsBody');
+    body.textContent = '';
+    if (recent.length === 0) {
+      body.innerHTML = '<tr><td class="pm-empty">No projects found. <a class="pm-empty-action" onclick="switchTab(\'addproject\')">Add New Project</a></td></tr>';
+    } else {
+      recent.forEach(function(p) {
+        var tr = document.createElement('tr');
+        tr.style.cursor = 'pointer';
+        tr.addEventListener('click', function() { openProjectDetail(p); });
+        tr.innerHTML = '<td>' + escapeHtml(p.code || '\u2014') + '</td><td style="font-weight:600;">' + escapeHtml(p.name || '') + '</td><td>' + escapeHtml(p.clientName || p.client_name || '\u2014') + '</td><td>' + statusBadgeHtml(p.status) + '</td>';
+        body.appendChild(tr);
+      });
+    }
+  }
+
+  function renderOverviewClients() {
+    var recent = allClients.slice().sort(function(a, b) {
+      var da = a.createdAt || ''; var db = b.createdAt || '';
+      return db < da ? -1 : db > da ? 1 : 0;
+    });
+    if (ovClientSearch) {
+      recent = recent.filter(function(c) {
+        return (c.clientName && c.clientName.toLowerCase().indexOf(ovClientSearch) !== -1) ||
+               (c.contactName && c.contactName.toLowerCase().indexOf(ovClientSearch) !== -1) ||
+               (c.contactEmail && c.contactEmail.toLowerCase().indexOf(ovClientSearch) !== -1);
+      });
+    }
+    recent = recent.slice(0, 5);
+    document.getElementById('recentClientsCount').textContent = recent.length;
+    var body = document.getElementById('pmOverviewClientsBody');
+    body.textContent = '';
+    if (recent.length === 0) {
+      body.innerHTML = '<tr><td class="pm-empty">No clients found. <a class="pm-empty-action" onclick="switchTab(\'addclient\')">Add New Client</a></td></tr>';
+    } else {
+      recent.forEach(function(c) {
+        var tr = document.createElement('tr');
+        tr.style.cursor = 'pointer';
+        tr.addEventListener('click', function() { switchTab('clients'); });
+        tr.innerHTML = '<td style="font-weight:600;">' + escapeHtml(c.clientName || '') + '</td><td>' + escapeHtml(c.contactName || c.contactEmail || '\u2014') + '</td><td>' + statusBadgeHtml(c.status) + '</td>';
+        body.appendChild(tr);
+      });
+    }
+  }
+
+  // ===== PROJECT DETAIL MODAL =====
+  function openProjectDetail(p) {
+    var grid = document.getElementById('pmDetailGrid');
+    document.getElementById('pmDetailTitle').textContent = p.name || 'Project Details';
+    var fields = [
+      ['Project Number', p.code || '\u2014'],
+      ['Project Name', p.name || '\u2014'],
+      ['Status', p.status || '\u2014'],
+      ['Location', p.location || '\u2014'],
+      ['Client', p.clientName || p.client_name || '\u2014'],
+      ['Created', p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '\u2014']
+    ];
+    grid.innerHTML = fields.map(function(f) {
+      return '<div class="pm-detail-field"><span class="pm-detail-label">' + f[0] + '</span><span class="pm-detail-value">' + escapeHtml(f[1]) + '</span></div>';
+    }).join('');
+    document.getElementById('pmDetailModal').classList.add('active');
   }
 
   // ===== PURPOSE & INSTRUCTIONS MODALS =====
