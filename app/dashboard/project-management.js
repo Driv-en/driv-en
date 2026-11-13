@@ -181,7 +181,10 @@
     startHeaderObserver();
     scheduleHeaderRebuilds();
 
-    var user = window.dashUser;
+    var user = window.dashUser || window.drivenUser;
+    if (!user) {
+      try { user = JSON.parse(localStorage.getItem('driven_user') || sessionStorage.getItem('driven_user')); } catch(e) {}
+    }
     if (!user) { window.location.href = '/public/login.html'; return; }
 
     var role = (user.role || '').toLowerCase();
