@@ -116,7 +116,7 @@
           url: window.location.href,
           timestamp: new Date().toISOString()
         })
-      });
+      }).catch(function() {});
     } catch (e) {}
     console.error('[Voice] ' + source + ':', err);
   }
@@ -166,8 +166,7 @@
     };
 
     recognition.onerror = function(event) {
-      if (event.error === 'no-speech') return; // normal, keep going
-      if (event.error === 'aborted') return;
+      if (event.error === 'no-speech' || event.error === 'aborted' || event.error === 'audio-capture' || event.error === 'network' || event.error === 'bad-grammar') return;
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
         alert('Microphone access denied. Please allow microphone access in your browser settings.');
         stopDictation();
