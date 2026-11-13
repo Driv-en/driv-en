@@ -17,6 +17,7 @@ var PROJECT_COL_DEFS = [
 { key: 'actualStartDate',    label: 'Actual Start',      defaultVisible: false, width: 140 },
 { key: 'expectedCompletionDate', label: 'Expected Completion', defaultVisible: true, width: 160 },
 { key: 'actualCompletionDate',   label: 'Actual Completion',   defaultVisible: false, width: 160 },
+{ key: 'awardDate',              label: 'Award Date',           defaultVisible: false, width: 140 },
 ];
 var CLIENT_COL_DEFS = [
 { key: 'clientName',   label: 'Client Name',  defaultVisible: true,  width: 200 },
@@ -427,6 +428,7 @@ expectedStartDate:       f['Expected Start Date'] || f.expected_start_date || ''
 actualStartDate:         f['Actual Start Date'] || f.actual_start_date || '',
 expectedCompletionDate:  f['Expected Completion Date'] || f.expected_completion_date || '',
 actualCompletionDate:    f['Actual Completion Date'] || f.actual_completion_date || '',
+awardDate:              f['Award Date'] || f.award_date || '',
 };
 }
 function normalizeClient(r) {
@@ -634,7 +636,7 @@ var td = document.createElement('td');
 var val = p[col.key];
 if (col.key === 'status' && val) {
 td.innerHTML = statusBadgeHtml(val);
-} else if (col.key === 'createdAt' || col.key === 'expectedStartDate' || col.key === 'actualStartDate' || col.key === 'expectedCompletionDate' || col.key === 'actualCompletionDate') {
+} else if (col.key === 'createdAt' || col.key === 'expectedStartDate' || col.key === 'actualStartDate' || col.key === 'expectedCompletionDate' || col.key === 'actualCompletionDate' || col.key === 'awardDate') {
 td.textContent = val ? new Date(val).toLocaleDateString() : 'u2014';
 } else {
 td.textContent = (val !== undefined && val !== null && val !== '') ? val : '—';
@@ -752,7 +754,7 @@ var td = document.createElement('td');
 var val = c[col.key];
 if (col.key === 'status' && val) {
 td.innerHTML = statusBadgeHtml(val);
-} else if (col.key === 'createdAt' || col.key === 'expectedStartDate' || col.key === 'actualStartDate' || col.key === 'expectedCompletionDate' || col.key === 'actualCompletionDate') {
+} else if (col.key === 'createdAt' || col.key === 'expectedStartDate' || col.key === 'actualStartDate' || col.key === 'expectedCompletionDate' || col.key === 'actualCompletionDate' || col.key === 'awardDate') {
 td.textContent = val ? new Date(val).toLocaleDateString() : 'u2014';
 } else {
 td.textContent = (val !== undefined && val !== null && val !== '') ? val : '—';
@@ -923,7 +925,8 @@ var payload = {
 'Status': status,
 'Location': location,
 };
-var esd = document.getElementById('pmExpectedStartDate').value;
+var awd = document.getElementById("pmAwardDate").value;
+var esd = document.getElementById("pmExpectedStartDate").value;
 var asd = document.getElementById('pmActualStartDate').value;
 var ecd = document.getElementById('pmExpectedCompletionDate').value;
 var acd = document.getElementById('pmActualCompletionDate').value;
@@ -931,6 +934,7 @@ if (esd) payload['Expected Start Date'] = esd;
 if (asd) payload['Actual Start Date'] = asd;
 if (ecd) payload['Expected Completion Date'] = ecd;
 if (acd) payload['Actual Completion Date'] = acd;
+if (awd) payload['Award Date'] = awd;
 try {
 var resp = await fetch('/api/Project', {
 method: 'POST',
@@ -966,6 +970,7 @@ document.getElementById('pmEditProjectName').value = project.name || '';
 document.getElementById('pmEditProjectCode').value = project.code || '';
 document.getElementById('pmEditProjectStatus').value = project.status || 'Active';
 document.getElementById('pmEditProjectLocation').value = project.location || '';
+document.getElementById('pmEditAwardDate').value = project.awardDate || '';
 document.getElementById('pmEditExpectedStartDate').value = project.expectedStartDate || '';
 document.getElementById('pmEditActualStartDate').value = project.actualStartDate || '';
 document.getElementById('pmEditExpectedCompletionDate').value = project.expectedCompletionDate || '';
@@ -997,6 +1002,7 @@ var payload = {
 'Status': status,
 'Location': location,
 };
+var awd = document.getElementById('pmEditAwardDate');
 var esd = document.getElementById('pmEditExpectedStartDate');
 var asd = document.getElementById('pmEditActualStartDate');
 var ecd = document.getElementById('pmEditExpectedCompletionDate');
@@ -1005,6 +1011,7 @@ if (esd && esd.value) payload['Expected Start Date'] = esd.value;
 if (asd && asd.value) payload['Actual Start Date'] = asd.value;
 if (ecd && ecd.value) payload['Expected Completion Date'] = ecd.value;
 if (acd && acd.value) payload['Actual Completion Date'] = acd.value;
+if (awd && awd.value) payload['Award Date'] = awd.value;
 try {
 var resp = await fetch('/api/Project/' + encodeURIComponent(editingProjectId), {
 method: 'PUT',
@@ -1310,6 +1317,7 @@ if (col) selectedCols.push(col);
 if (selectedCols.length === 0) { showProjectMessage('Select at least one column to print.', 'error'); return; }
 var filtered = getFilteredSortedProjects();
 var html = '<html><head><title>DRIV-EN Project List</title><style>';
+var dateKeys = ['createdAt','expectedStartDate','actualStartDate','expectedCompletionDate','actualCompletionDate','awardDate'];
 html += 'body{font-family:Arial,sans-serif;margin:20px;}h2{margin:0 0 16px 0;}table{width:100%;border-collapse:collapse;font-size:12px;}';
 html += 'th{background:#e2e8f0;padding:8px 10px;text-align:left;border:1px solid #94a3b8;}td{padding:6px 10px;border:1px solid #cbd5e1;}';
 html += '.print-date{font-size:12px;color:#64748b;margin-bottom:12px;}</style></head><body>';
@@ -1322,6 +1330,7 @@ filtered.forEach(function(p) {
 html += '<tr>';
 selectedCols.forEach(function(col) {
 var val = p[col.key];
+  if (val && dateKeys.indexOf(col.key) !== -1) { val = new Date(val).toLocaleDateString(); }
 html += '<td>' + escapeHtml((val !== undefined && val !== null && val !== '') ? String(val) : '—') + '</td>';
 });
 html += '</tr>';
@@ -1462,6 +1471,7 @@ if (col) selectedCols.push(col);
 }
 });
 if (selectedCols.length === 0) { showClientMessage('Select at least one column to print.', 'error'); return; }
+  var dateKeys = ['createdAt','expectedStartDate','actualStartDate','expectedCompletionDate','actualCompletionDate','awardDate'];
 var filtered = getFilteredSortedClients();
 var html = '<html><head><title>DRIV-EN Client List</title><style>';
 html += 'body{font-family:Arial,sans-serif;margin:20px;}h2{margin:0 0 16px 0;}table{width:100%;border-collapse:collapse;font-size:12px;}';
@@ -1476,6 +1486,7 @@ filtered.forEach(function(c) {
 html += '<tr>';
 selectedCols.forEach(function(col) {
 var val = c[col.key];
+  if (val && dateKeys.indexOf(col.key) !== -1) { val = new Date(val).toLocaleDateString(); }
 html += '<td>' + escapeHtml((val !== undefined && val !== null && val !== '') ? String(val) : '—') + '</td>';
 });
 html += '</tr>';
@@ -1723,25 +1734,89 @@ var projs = projArr || allProjects;
 var container = document.getElementById('pmTrendChart');
 if (!container) return;
 container.textContent = '';
+var year = pmYearFilter ? parseInt(pmYearFilter) : null;
+var chartStart, chartEnd;
+if (year) {
+chartStart = new Date(year, 0, 1);
+chartEnd = new Date(year + 1, 0, 1);
+} else {
 var now = new Date();
-var months = [];
-for (var i = 5; i >= 0; i--) {
-var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-months.push({ label: d.toLocaleDateString('en', { month: 'short' }), year: d.getFullYear(), month: d.getMonth(), count: 0 });
+chartStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+chartEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 }
-projs.forEach(function(p) {
-if (!p.createdAt) return;
-var d = new Date(p.createdAt);
-months.forEach(function(m) { if (m.year === d.getFullYear() && m.month === d.getMonth()) m.count++; });
+var rangeMs = chartEnd - chartStart;
+function getEarliestDate(p) {
+var dates = [p.awardDate, p.expectedStartDate, p.actualStartDate, p.expectedCompletionDate, p.actualCompletionDate].filter(function(d) { return d; });
+if (dates.length === 0) return null;
+return new Date(Math.min.apply(null, dates.map(function(d) { return new Date(d).getTime(); })));
+}
+function getLatestDate(p) {
+var dates = [p.awardDate, p.expectedStartDate, p.actualStartDate, p.expectedCompletionDate, p.actualCompletionDate].filter(function(d) { return d; });
+if (dates.length === 0) return null;
+return new Date(Math.max.apply(null, dates.map(function(d) { return new Date(d).getTime(); })));
+}
+var projects = projs.filter(function(p) {
+var e = getEarliestDate(p), l = getLatestDate(p);
+if (!e || !l) return false;
+return e <= chartEnd && l >= chartStart;
+}).sort(function(a, b) {
+return getEarliestDate(a) - getEarliestDate(b);
 });
-var maxCount = Math.max(1, Math.max.apply(null, months.map(function(m) { return m.count; })));
-months.forEach(function(m) {
-var bar = document.createElement('div');
-bar.className = 'pm-bar-chart-bar';
-bar.style.height = (m.count / maxCount * 140) + 'px';
-bar.innerHTML = '<span class="pm-bar-chart-value">' + m.count + '</span><span class="pm-bar-chart-label">' + m.label + '</span>';
-container.appendChild(bar);
+if (projects.length === 0) {
+container.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b;">No projects with dates in this period.</div>';
+return;
+}
+var rowH = 28;
+var labelW = 160;
+var months = [];
+for (var m = 0; m < 12; m++) {
+var d = new Date(chartStart.getFullYear(), chartStart.getMonth() + m, 1);
+if (d >= chartEnd) break;
+months.push({ label: d.toLocaleDateString('en', { month: 'short' }), start: d });
+}
+var html = '<div style="overflow-x:auto;"><div style="min-width:600px;position:relative;">';
+html += '<div style="display:flex;align-items:center;height:24px;margin-bottom:4px;border-bottom:1px solid #cbd5e1;">';
+html += '<div style="width:' + labelW + 'px;flex-shrink:0;font-size:12px;font-weight:600;color:#64748b;">Project</div>';
+html += '<div style="flex:1;position:relative;height:24px;">';
+months.forEach(function(mo) {
+var pct = (mo.start - chartStart) / rangeMs * 100;
+html += '<div style="position:absolute;left:' + pct + '%;font-size:11px;color:#64748b;white-space:nowrap;">' + mo.label + '</div>';
 });
+html += '</div></div>';
+projects.forEach(function(p) {
+var e = getEarliestDate(p), l = getLatestDate(p);
+var barStart = Math.max(e, chartStart);
+var barEnd = Math.min(l, chartEnd);
+var leftPct = (barStart - chartStart) / rangeMs * 100;
+var widthPct = Math.max(1, (barEnd - barStart) / rangeMs * 100);
+var color = STATUS_COLORS[String(p.status || '').toLowerCase()] || '#94a3b8';
+html += '<div style="display:flex;align-items:center;height:' + rowH + 'px;border-bottom:1px solid #f1f5f9;">';
+html += '<div style="width:' + labelW + 'px;flex-shrink:0;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px;" title="' + escapeHtml(p.name || '') + '">' + escapeHtml(p.code || '') + ' ' + escapeHtml(p.name || '') + '</div>';
+html += '<div style="flex:1;position:relative;height:' + rowH + 'px;">';
+if (p.awardDate) {
+var awardPct = (new Date(p.awardDate) - chartStart) / rangeMs * 100;
+if (awardPct >= 0 && awardPct <= 100) html += '<div style="position:absolute;left:' + awardPct + '%;top:4px;width:2px;height:' + (rowH - 8) + 'px;background:#f59e0b;z-index:2;" title="Award: ' + p.awardDate + '"></div>';
+}
+if (p.actualStartDate) {
+var startPct = (new Date(p.actualStartDate) - chartStart) / rangeMs * 100;
+if (startPct >= 0 && startPct <= 100) html += '<div style="position:absolute;left:' + startPct + '%;top:4px;width:2px;height:' + (rowH - 8) + 'px;background:#16a34a;z-index:2;" title="Start: ' + p.actualStartDate + '"></div>';
+}
+if (p.actualCompletionDate) {
+var compPct = (new Date(p.actualCompletionDate) - chartStart) / rangeMs * 100;
+if (compPct >= 0 && compPct <= 100) html += '<div style="position:absolute;left:' + compPct + '%;top:4px;width:2px;height:' + (rowH - 8) + 'px;background:#6366f1;z-index:2;" title="Completion: ' + p.actualCompletionDate + '"></div>';
+}
+html += '<div style="position:absolute;left:' + leftPct + '%;width:' + widthPct + '%;top:6px;height:' + (rowH - 12) + 'px;background:' + color + ';border-radius:4px;opacity:0.85;z-index:1;" title="' + escapeHtml(p.name || '') + ' | Status: ' + escapeHtml(p.status || '') + '"></div>';
+html += '</div></div>';
+});
+html += '<div style="display:flex;gap:12px;margin-top:8px;font-size:11px;color:#64748b;">';
+html += '<span><span style="display:inline-block;width:12px;height:12px;background:#f59e0b;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Award</span>';
+html += '<span><span style="display:inline-block;width:12px;height:12px;background:#16a34a;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Start</span>';
+html += '<span><span style="display:inline-block;width:12px;height:12px;background:#6366f1;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Completion</span>';
+html += '<span><span style="display:inline-block;width:12px;height:12px;background:#3b82f6;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Planning</span>';
+html += '<span><span style="display:inline-block;width:12px;height:12px;background:#16a34a;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Active</span>';
+html += '</div>';
+html += '</div></div>';
+container.innerHTML = html;
 }
 var ovProjSearch = '', ovClientSearch = '', pmYearFilter = '';
 function populateYearFilter() {
@@ -1847,6 +1922,7 @@ var fields = [
 ['Status', p.status || '\u2014'],
 ['Location', p.location || '\u2014'],
 ['Client', p.clientName || p.client_name || '\u2014'],
+['Award Date', p.awardDate || '\u2014'],
 ['Expected Start', p.expectedStartDate || '\u2014'],
 ['Actual Start', p.actualStartDate || '\u2014'],
 ['Expected Completion', p.expectedCompletionDate || '\u2014'],
@@ -1860,33 +1936,33 @@ document.getElementById('pmDetailModal').classList.add('active');
 var PM_MODAL_CONTENT = {
 overview: {
 title: 'Project Management \u2014 Overview',
-purpose: 'The Overview tab provides a high-level snapshot of all projects and clients in your organization. Use the Year filter to focus on a specific year, review KPIs, view visual charts, and quickly find projects or clients.',
-instructions: '<ol><li>Use the <strong>Year</strong> dropdown at the top to filter all KPIs, charts, and tables by a specific year, or select "All Years" to see everything.</li><li>Review the <strong>KPI cards</strong> for Total Projects, Active Projects, Completed Projects, and Total Clients (all filtered by the selected year).</li><li>The <strong>Status Breakdown donut chart</strong> shows how many projects are in each status (Active, Planning, On Hold, Completed, Cancelled) with color-coded legend.</li><li>The <strong>Projects Created bar chart</strong> shows project creation trends over the last 6 months.</li><li>Use the <strong>search box</strong> above the Active Projects table to filter by project name, number, or client.</li><li>Use the <strong>search box</strong> above the Active Clients table to filter by client name, contact, or email.</li><li>Click any project row to open a <strong>detail modal</strong> with full project information.</li><li>Click any client row to jump to the Clients tab.</li><li><strong>Resize columns</strong> by dragging the right edge of any column header. <strong>Reorder columns</strong> by dragging and dropping headers (except the Actions column, which stays on the far right). Your preferences are saved automatically.</li></ol>'
+purpose: 'The Overview tab provides a high-level snapshot of all projects and clients in your organization. Use the Year filter to focus on a specific year, review KPIs, view visual charts, and quickly find projects or clients. Click Read Aloud to hear the page content spoken aloud.',
+instructions: '<ol><li>Use the <strong>Year filter</strong> (green card, top right) to filter all KPIs, charts, and tables by a specific year, or select "All Years" to see everything. This filter only appears on the Overview tab.</li><li>Review the <strong>KPI cards</strong> for Total Projects, Active Projects, Completed Projects, and Total Clients (all filtered by the selected year).</li><li>The <strong>Status Breakdown donut chart</strong> shows how many projects are in each status (Active, Planning, On Hold, Completed, Cancelled) with color-coded legend.</li><li>The <strong>Projects Created bar chart</strong> shows project creation trends over the last 6 months.</li><li>Use the <strong>search box</strong> above the Active Projects table to filter by project name, number, or client.</li><li>Use the <strong>search box</strong> above the Active Clients table to filter by client name, contact, or email.</li><li>Use the <strong>pagination controls</strong> (Per page dropdown and Prev/Next buttons) below each table to navigate pages.</li><li>Click any project row to open a <strong>detail modal</strong> with full project information including Expected Start, Actual Start, Expected Completion, and Actual Completion dates.</li><li>Click any client row to jump to the Clients tab.</li><li>Click <strong>Read Aloud</strong> (blue button, top center) to hear the Overview tab content spoken aloud. Click again to stop.</li><li><strong>Resize columns</strong> by dragging the right edge of any column header. <strong>Reorder columns</strong> by dragging and dropping headers (except the Actions column, which stays on the far right). Your preferences are saved automatically.</li></ol>'
 },
 projects: {
 title: 'Project Management \u2014 Projects',
-purpose: 'The Projects tab lists all projects in your organization with full search, filter, sort, and pagination. Use it to find, view, and edit any project. Column widths and order can be customized and are saved automatically.',
-instructions: '<ol><li>Use the <strong>search box</strong> to filter by project name, project number, or location.</li><li>Use the <strong>Status dropdown</strong> to filter by project status.</li><li>Click <strong>Columns</strong> to show or hide specific columns.</li><li>Click a row to view or edit a project.</li><li>Use the <strong>pagination controls</strong> at the bottom to navigate pages.</li><li>Click <strong>Print</strong>, <strong>Export CSV</strong>, or <strong>Export Excel</strong> to export the current list.</li><li><strong>Resize columns</strong> by dragging the right edge of any column header. If columns are wider than the table, a horizontal scrollbar appears.</li><li><strong>Reorder columns</strong> by dragging and dropping headers. The Actions column always stays on the far right.</li><li>All column widths and order are saved automatically \u2014 no need to readjust each time.</li></ol>'
+purpose: 'The Projects tab lists all projects in your organization with full search, filter, sort, and pagination. Use it to find, view, and edit any project. Column widths and order can be customized and are saved automatically. Click Read Aloud to hear the page content spoken aloud.',
+instructions: '<ol><li>Use the <strong>search box</strong> to filter by project name, project number, or location.</li><li>Use the <strong>Status dropdown</strong> to filter by project status.</li><li>Click <strong>Columns</strong> to show or hide specific columns, including Expected Start, Actual Start, Expected Completion, and Actual Completion dates.</li><li>Click a row to view or edit a project.</li><li>Use the <strong>pagination controls</strong> (Per page dropdown and Prev/Next buttons) at the bottom to navigate pages.</li><li>Click <strong>Print</strong>, <strong>Export CSV</strong>, or <strong>Export Excel</strong> to export the current list.</li><li>Click <strong>Read Aloud</strong> (blue button, top center) to hear the Projects tab content spoken aloud. Click again to stop.</li><li><strong>Resize columns</strong> by dragging the right edge of any column header. If columns are wider than the table, a horizontal scrollbar appears.</li><li><strong>Reorder columns</strong> by dragging and dropping headers. The Actions column always stays on the far right.</li><li>All column widths and order are saved automatically \u2014 no need to readjust each time.</li></ol>'
 },
 addproject: {
 title: 'Project Management \u2014 Add New Project',
-purpose: 'The Add New Project tab lets you create a new project by filling out the project details form. Required fields are marked and validation prevents saving incomplete records.',
-instructions: '<ol><li>Enter the <strong>Project Name</strong> and <strong>Project Number</strong> (a unique identifier for the project).</li><li>Select a <strong>Project Type</strong> from the dropdown (types are managed in the Project Types tab).</li><li>Choose a <strong>Client</strong> from the dropdown (clients must be added first in the Add New Client tab).</li><li>Set the <strong>Project Status</strong> (Active, Planning, On Hold, Completed, or Cancelled).</li><li>Fill in optional fields like <strong>Location</strong>, <strong>Start Date</strong>, <strong>End Date</strong>, <strong>Budget</strong>, and <strong>Description</strong>.</li><li>Click <strong>Save Project</strong> to create the project. The form will validate required fields before saving.</li></ol>'
+purpose: 'The Add New Project tab lets you create a new project by filling out the project details form. Required fields are marked and validation prevents saving incomplete records. Click Read Aloud to hear the page content spoken aloud.',
+instructions: '<ol><li>Enter the <strong>Project Name</strong> and <strong>Project Number</strong> (a unique identifier for the project).</li><li>Select a <strong>Project Type</strong> from the dropdown (types are managed in the Project Types tab).</li><li>Choose a <strong>Client</strong> from the dropdown (clients must be added first in the Add New Client tab).</li><li>Set the <strong>Project Status</strong> (Active, Planning, On Hold, Completed, or Cancelled).</li><li>Fill in the <strong>Location</strong> of the project.</li><li>Set the <strong>Expected Start Date</strong> and <strong>Expected Completion Date</strong> for planned project timelines.</li><li>Set the <strong>Actual Start Date</strong> and <strong>Actual Completion Date</strong> when the project begins and ends.</li><li>Click <strong>Read Aloud</strong> (blue button, top center) to hear the form content spoken aloud. Click again to stop.</li><li>Click <strong>Add Project</strong> to create the project. The form will validate required fields before saving.</li></ol>'
 },
 types: {
 title: 'Project Management \u2014 Project Types',
-purpose: 'The Project Types tab lets you define and manage project categories. These types are used when creating or classifying projects in the Add New Project tab.',
-instructions: '<ol><li>To add a new type, fill out the <strong>Type Name</strong> and <strong>Description</strong> fields at the top, then click <strong>Add Type</strong>.</li><li>The <strong>Project Type List</strong> below shows all existing types in a table.</li><li>Click <strong>Edit</strong> to modify a type name or description.</li><li><strong>Resize columns</strong> by dragging the right edge of any column header. <strong>Reorder columns</strong> by dragging and dropping headers. The Actions column always stays on the far right.</li></ol>'
+purpose: 'The Project Types tab lets you define and manage project categories. These types are used when creating or classifying projects in the Add New Project tab. Click Read Aloud to hear the page content spoken aloud.',
+instructions: '<ol><li>To add a new type, fill out the <strong>Type Name</strong> and <strong>Description</strong> fields at the top, then click <strong>Add Type</strong>.</li><li>The <strong>Project Type List</strong> below shows all existing types in a table.</li><li>Click <strong>Edit</strong> to modify a type name or description.</li><li>Use the <strong>pagination controls</strong> (Per page dropdown and Prev/Next buttons) below the table to navigate pages.</li><li>Click <strong>Read Aloud</strong> (blue button, top center) to hear the Project Types tab content spoken aloud. Click again to stop.</li><li><strong>Resize columns</strong> by dragging the right edge of any column header. <strong>Reorder columns</strong> by dragging and dropping headers. The Actions column always stays on the far right.</li></ol>'
 },
 clients: {
 title: 'Project Management \u2014 Clients',
-purpose: 'The Clients tab lists all clients in your organization with full search, filter, sort, and pagination. Use it to find, view, and edit any client. Column widths and order can be customized and are saved automatically.',
-instructions: '<ol><li>Use the <strong>search box</strong> to filter by client name, contact, or email.</li><li>Use the <strong>Status dropdown</strong> to filter by client status (Active, Inactive, Pending, Onboarding).</li><li>Click <strong>Columns</strong> to show or hide specific columns.</li><li>Click a row to view or edit a client.</li><li>Use the <strong>pagination controls</strong> at the bottom to navigate pages.</li><li>Click <strong>Print</strong>, <strong>Export CSV</strong>, or <strong>Export Excel</strong> to export the current list.</li><li><strong>Resize columns</strong> by dragging the right edge of any column header. If columns are wider than the table, a horizontal scrollbar appears.</li><li><strong>Reorder columns</strong> by dragging and dropping headers. The Actions column always stays on the far right.</li><li>All column widths and order are saved automatically \u2014 no need to readjust each time.</li></ol>'
+purpose: 'The Clients tab lists all clients in your organization with full search, filter, sort, and pagination. Use it to find, view, and edit any client. Column widths and order can be customized and are saved automatically. Click Read Aloud to hear the page content spoken aloud.',
+instructions: '<ol><li>Use the <strong>search box</strong> to filter by client name, contact, or email.</li><li>Use the <strong>Status dropdown</strong> to filter by client status (Active, Inactive, Pending, Onboarding).</li><li>Click <strong>Columns</strong> to show or hide specific columns.</li><li>Click a row to view or edit a client.</li><li>Use the <strong>pagination controls</strong> (Per page dropdown and Prev/Next buttons) at the bottom to navigate pages.</li><li>Click <strong>Print</strong>, <strong>Export CSV</strong>, or <strong>Export Excel</strong> to export the current list.</li><li>Click <strong>Read Aloud</strong> (blue button, top center) to hear the Clients tab content spoken aloud. Click again to stop.</li><li><strong>Resize columns</strong> by dragging the right edge of any column header. If columns are wider than the table, a horizontal scrollbar appears.</li><li><strong>Reorder columns</strong> by dragging and dropping headers. The Actions column always stays on the far right.</li><li>All column widths and order are saved automatically \u2014 no need to readjust each time.</li></ol>'
 },
 addclient: {
 title: 'Project Management \u2014 Add New Client',
-purpose: 'The Add New Client tab lets you create a new client by filling out the client details form. Required fields are marked and validation prevents saving incomplete records.',
-instructions: '<ol><li>Enter the <strong>Client Name</strong> (this is the company or organization name).</li><li>Fill in <strong>Contact Name</strong>, <strong>Contact Email</strong>, and <strong>Contact Phone</strong>.</li><li>Optionally add <strong>Industry</strong>, <strong>Address</strong>, <strong>City</strong>, <strong>State</strong>, <strong>Zip Code</strong>, and <strong>Notes</strong>.</li><li>Set the <strong>Client Status</strong> (Active, Inactive, Pending, or Onboarding).</li><li>Click <strong>Save Client</strong> to create the client. The form will validate required fields before saving.</li></ol>'
+purpose: 'The Add New Client tab lets you create a new client by filling out the client details form. Required fields are marked and validation prevents saving incomplete records. Click Read Aloud to hear the page content spoken aloud.',
+instructions: '<ol><li>Enter the <strong>Client Name</strong> (this is the company or organization name).</li><li>Fill in <strong>Contact Name</strong>, <strong>Contact Email</strong>, and <strong>Contact Phone</strong>.</li><li>Optionally add <strong>Industry</strong>, <strong>Address</strong>, <strong>City</strong>, <strong>State</strong>, <strong>Zip Code</strong>, and <strong>Notes</strong>.</li><li>Set the <strong>Client Status</strong> (Active, Inactive, Pending, or Onboarding).</li><li>Click <strong>Read Aloud</strong> (blue button, top center) to hear the form content spoken aloud. Click again to stop.</li><li>Click <strong>Save Client</strong> to create the client. The form will validate required fields before saving.</li></ol>'
 }
 };
 function getActiveContext() {
