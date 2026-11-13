@@ -357,7 +357,8 @@
           var target = document.querySelector(targetEl.dataset.voiceReadTarget);
           if (target) text = target.textContent || target.innerText || '';
         }
-        text = text.trim();
+        // Strip Read Aloud / Stop Reading button text and emojis
+        text = text.replace(/[\u{1F50A}\u{23F9}]/gu, '').replace(/Read Aloud|Stop Reading/g, '').replace(/[🔊⏹]/g, '').replace(/\s+/g, ' ').trim();
         if (text) speak(text);
       }
     });
