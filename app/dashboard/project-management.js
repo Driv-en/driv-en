@@ -180,6 +180,18 @@
     startHeaderObserver();
     scheduleHeaderRebuilds();
 
+    // ===== Dynamically set header height for sticky tab bar =====
+    function updateHeaderHeight() {
+      var header = document.getElementById('dashHeader');
+      if (header) {
+        var h = header.offsetHeight;
+        if (h > 0) document.documentElement.style.setProperty('--header-height', h + 'px');
+      }
+    }
+    updateHeaderHeight();
+    setInterval(updateHeaderHeight, 500);
+    window.addEventListener('resize', updateHeaderHeight);
+
     var user = window.dashUser || window.drivenUser;
     if (!user) {
       try { user = JSON.parse(localStorage.getItem('driven_user') || sessionStorage.getItem('driven_user')); } catch(e) {}
