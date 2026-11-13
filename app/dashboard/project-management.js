@@ -73,7 +73,14 @@
         resizer.classList.add('dragging');
         var startX = e.clientX; var startW = th.offsetWidth;
         document.body.style.cursor = 'col-resize';
-        function onMove(ev) { th.style.width = Math.max(20, startW + (ev.clientX - startX)) + 'px'; syncTableWidth(); }
+        function onMove(ev) {
+          var newW = Math.max(20, startW + (ev.clientX - startX));
+          var oldW = parseInt(th.style.width, 10) || th.offsetWidth;
+          var delta = newW - oldW;
+          var currentTotal = parseInt(tableEl.style.width, 10) || tableEl.offsetWidth;
+          tableEl.style.width = (currentTotal + delta) + 'px';
+          th.style.width = newW + 'px';
+        }
         function onUp() {
           document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp);
           document.body.style.cursor = ''; resizer.classList.remove('dragging');
