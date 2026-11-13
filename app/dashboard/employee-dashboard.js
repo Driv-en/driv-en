@@ -491,9 +491,9 @@ function renderFormLinks() {
 
   section.style.display = 'block';
   container.innerHTML = visibleForms.map(function (f) {
-    return '<a class="emp-form-link" href="' + f.link + '">' +
-      '<div class="emp-form-link-title">' + esc(f.label) + '</div>' +
-      '<div class="emp-form-link-desc">' + esc(f.desc) + '</div></a>';
+    return '<a class="emp-form-card" href="' + f.link + '">' +
+      '<div style="font-weight:600;font-size:15px;margin-bottom:6px;">' + esc(f.label) + '</div>' +
+      '<div style="font-size:13px;color:var(--text-muted);line-height:1.4;">' + esc(f.desc) + '</div></a>';
   }).join('');
 }
 
@@ -515,9 +515,9 @@ function renderFormsTab() {
 
   empty.style.display = 'none';
   container.innerHTML = visibleForms.map(function (f) {
-    return '<a class="emp-form-link" href="' + f.link + '">' +
-      '<div class="emp-form-link-title">' + esc(f.label) + '</div>' +
-      '<div class="emp-form-link-desc">' + esc(f.desc) + '</div></a>';
+    return '<a class="emp-form-card" href="' + f.link + '">' +
+      '<div style="font-weight:600;font-size:15px;margin-bottom:6px;">' + esc(f.label) + '</div>' +
+      '<div style="font-size:13px;color:var(--text-muted);line-height:1.4;">' + esc(f.desc) + '</div></a>';
   }).join('');
 }
 
@@ -616,8 +616,8 @@ window.dashLogout = dashLogout;
 // Tab-specific Purpose & Instructions content (matches admin dashboard pattern)
 var MODAL_CONTENT_MAP = {
   overview: {
-    purpose: 'The <strong>Overview Tab</strong> provides a snapshot of your active operational metrics, authorized module access, quick-launch gateways to dashboard modules and operational forms, and account management tools based on your assigned permissions.',
-    instructions: '<ol><li><strong>Monitor Your Metrics:</strong> View live counts for your assigned Projects, Equipment, and Work Orders. Click any stat card to navigate to the corresponding module.</li><li><strong>Dashboard Links:</strong> Use the card buttons below the pill bar to quickly access Fuel Management, Fuel Alerts, Transfers, Work Orders, and Calendar dashboards.</li><li><strong>Launch Modules:</strong> Click any module card in the grid to open the corresponding tool (e.g., Fuel Log, Work Orders, Inspections).</li><li><strong>Operational Forms:</strong> Use the Operational Forms card to launch field forms such as DVIR, Fuel Purchase, Fuel Transfer, Create Work Order, and Add Inspection based on your permissions.</li><li><strong>Account Management:</strong> Review your logged-in credentials and use <strong>Change Password</strong> to update your account.</li><li><strong>Units of Measure:</strong> Use the <strong>Units of Measure</strong> dropdown in the welcome bar to switch between Imperial and Metric display. Choose <em>Use Org Default</em> to follow the admin\'s setting.</li></ol>'
+    purpose: 'The <strong>Overview Tab</strong> provides a snapshot of your active operational metrics, authorized module access, quick-launch gateways to dashboard modules and operational forms, and account management tools. The specific features visible to you are determined by your assigned role and permissions.',
+    instructions: '<ol><li><strong>Monitor Your Metrics:</strong> View live counts for your assigned Projects, Equipment, and Work Orders (if permitted). Click any stat card to navigate to the corresponding module.</li><li><strong>Dashboard Links:</strong> Use the card buttons below the pill bar to quickly access dashboards such as Fuel Management, Fuel Alerts, Transfers, Work Orders, and Calendar. Your available dashboards depend on your permissions.</li><li><strong>Launch Modules:</strong> Click any module card in the grid to open the corresponding tool. Only modules you have permission for are shown.</li><li><strong>Operational Forms:</strong> Use the Operational Forms card to launch field forms such as DVIR, Fuel Purchase, Fuel Transfer, Create Work Order, and Add Inspection. Only forms you have permission for are shown.</li><li><strong>Account Management:</strong> Review your logged-in credentials and use <strong>Change Password</strong> to update your account.</li><li><strong>Units of Measure:</strong> Use the <strong>Units of Measure</strong> dropdown in the welcome bar to switch between Imperial and Metric display. Choose <em>Use Org Default</em> to follow the admin\'s setting.</li></ol><p style="margin-top:8px;font-size:12px;color:var(--text-muted);"><em>Note: The features described above may vary based on your role and permissions. If you need access to additional modules or forms, contact your administrator.</em></p>'
   }
 };
 
