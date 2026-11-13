@@ -734,10 +734,24 @@ function attachEventHandlers() {
   // Unit of Measure toggle buttons -- no inline onclick for CSP compliance
   var impBtn = document.getElementById('uom-imperial-btn'); if (impBtn) impBtn.addEventListener('click', function() { setUnitSystem('imperial'); });
   var metBtn = document.getElementById('uom-metric-btn'); if (metBtn) metBtn.addEventListener('click', function() { setUnitSystem('metric'); });
-  // Stat card navigation -- no inline onclick for CSP compliance
+  // Stat card navigation -- direct navigation with org_id only (no role_id to avoid auth-check override)
   document.querySelectorAll('.stat-card[data-nav]').forEach(function(card) {
-    card.addEventListener('click', function(e) { preserveAndNavigate(e, this.getAttribute('data-nav')); });
-    card.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); preserveAndNavigate(e, this.getAttribute('data-nav')); } });
+    card.addEventListener('click', function(e) { 
+      e.preventDefault(); 
+      var url = this.getAttribute('data-nav');
+      var orgId = activeOrgId || localStorage.getItem('driven_org_id') || '';
+      if (orgId) { url += (url.includes('?') ? '&' : '?') + 'org_id=' + encodeURIComponent(orgId); }
+      window.location.href = url; 
+    });
+    card.addEventListener('keydown', function(e) { 
+      if (e.key === 'Enter' || e.key === ' ') { 
+        e.preventDefault(); 
+        var url = this.getAttribute('data-nav');
+        var orgId = activeOrgId || localStorage.getItem('driven_org_id') || '';
+        if (orgId) { url += (url.includes('?') ? '&' : '?') + 'org_id=' + encodeURIComponent(orgId); }
+        window.location.href = url; 
+      } 
+    });
   });
   var btnLogout = document.getElementById('btnAdminLogout');
   if (btnLogout) {
