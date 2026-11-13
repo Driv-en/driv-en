@@ -1,277 +1,188 @@
 /**
- * DRIV-EN — Company Management Page Logic 
- * File: /app/dashboard/company-management.js 
+ * company-management.js -- DRIV-EN Company Management page logic (v1)
+ *
+ * Extracted from company-management.html inline script.
+ * Handles: tab switching (Overview, Divisions, Locations), dashboard navigation.
+ *
+ * Includes rebuildHeader() to handle stale 3-row SW header template.
+ * Uses role_id for dashboard redirect (RO-Founder, RO-admin).
+ *
+ * Load order: auth-check.js -> dashboard-common.js -> units-global.js -> apply-units.js -> voice.js -> this file
  */
 
-document.addEventListener('DOMContentLoaded', function () {
-  initCompanyManagement();
-});
+// ============================================================
+// HEADER REBUILD -- handles stale 3-row SW header template
+// ============================================================
+function rebuildHeader() {
+  var container = document.getElementById('dashHeader');
+  if (!container) return;
 
-function initCompanyManagement() {
-  // Bind Tab Bar Navigation
-  const tabElements = document.querySelectorAll('.cm-tab[data-tab]');
-  tabElements.forEach(function (tabEl) {
-    tabEl.addEventListener('click', function () {
-      const tabName = this.getAttribute('data-tab');
-      if (tabName) {
-        switchTab(tabName);
-      }
-    });
-  });
+  var html = '<div class="dash-header">' +
+    '<div class="dash-header-row1" style="display:flex;align-items:center;justify-content:space-between;padding:8px 20px;">';
 
-  // Bind Overview Cards to Tab Navigation
-  const moduleCards = document.querySelectorAll('.cm-module-card[data-navigate-tab]');
-  moduleCards.forEach(function (card) {
-    card.addEventListener('click', function () {
-      const targetTab = this.getAttribute('data-navigate-tab');
-      if (targetTab) {
-        switchTab(targetTab);
-      }
-    });
-  });
-
-  // Bind Navigation & Session Controls
-  const btnGoDashboard = document.getElementById('btnGoDashboard');
-  if (btnGoDashboard) {
-    btnGoDashboard.addEventListener('click', goToMainDashboard);
+  // Left logo
+  html += '<div class="dash-header-left" style="flex:0 0 auto;">';
+  var logo = localStorage.getItem('driven_logo_url');
+  if (logo) {
+    html += '<img src="' + logo + '" alt="Logo" style="max-height:40px;max-width:120px;object-fit:contain;">';
+  } else {
+    html += '<div style="font-size:18px;font-weight:700;color:var(--primary-blue,#2563eb);">DRIV-EN</div>';
   }
+  html += '</div>';
 
-  const btnLogout = document.getElementById('btnLogout');
-  if (btnLogout) {
-    btnLogout.addEventListener('click', function () {
-      if (typeof window.dashLogout === 'function') {
-        window.dashLogout();
-      }
-    });
+  // Center title
+  html += '<div class="admin-header-title" style="flex:1;text-align:center;font-size:20px;font-weight:600;color:var(--text);">Company Management</div>';
+
+  // Right logo (mirror)
+  html += '<div class="dash-header-right" style="flex:0 0 auto;">';
+  if (logo) {
+    html += '<img src="' + logo + '" alt="Logo" style="max-height:40px;max-width:120px;object-fit:contain;">';
+  } else {
+    html += '<div style="font-size:18px;font-weight:700;color:var(--primary-blue,#2563eb);">DRIV-EN</div>';
   }
+  html += '</div>';
 
-  // Bind Standardized Modals (Purpose & Instructions)
-  initStandardModals();
+  html += '</div></div>';
 
-  // Listen for Dashboard Session Ready Signal
-  document.addEventListener('dashSessionLoaded', handleSessionLoaded);
+  container.innerHTML = html;
 }
 
-/**
- * Validates session context and initializes UI state
- */
-async function handleSessionLoaded() {
-  let user = window.dashUser || window.drivenUser;
-  if (!user) {
-    try {
-      user = JSON.parse(localStorage.getItem('driven_user') || sessionStorage.getItem('driven_user'));
-    } catch (e) {
-      // Ignore parse errors
+function startHeaderObserver() {
+  var container = document.getElementById('dashHeader');
+  if (!container) return;
+
+  var observer = new MutationObserver(function(mutations) {
+    for (var i = 0; i < mutations.length; i++) {
+      var added = mutations[i].addedNodes;
+      for (var j = 0; j < added.length; j++) {
+        var node = added[j];
+        if (node.nodeType === 1) {
+          var h1s = container.querySelectorAll('h1');
+          var rows = container.querySelectorAll('.dash-header-row2, .dash-header-row3');
+          if (h1s.length > 1 || rows.length > 0) {
+            rebuildHeader();
+            return;
+          }
+        }
+      }
     }
-  }
+  });
 
-  if (!user) {
-    window.location.href = '/public/login.html';
-    return;
-  }
-  window.dashUser = user;
-
-  const loadingEl = document.getElementById('cmLoading');
-  const overviewTab = document.getElementById('tab-overview');
-  if (loadingEl) loadingEl.style.display = 'none';
-  if (overviewTab) overviewTab.style.display = 'block';
-
-  let headerAttempts = 0;
-  const headerInterval = setInterval(function () {
-    headerAttempts++;
-    if (fixHeaderLayout() || headerAttempts > 50) {
-      clearInterval(headerInterval);
-    }
-  }, 100);
-
-  setTimeout(makeTabsSticky, 300);
+  observer.observe(container, { childList: true, subtree: true });
 }
 
-/**
- * Switch active view tab
- */
-function switchTab(tabName) {
-  document.querySelectorAll('.cm-tab').forEach(function (t) {
-    t.classList.remove('active');
-  });
-  document.querySelectorAll('.cm-tab-content').forEach(function (c) {
-    c.style.display = 'none';
-    c.classList.remove('active');
-  });
+function scheduleHeaderRebuilds() {
+  rebuildHeader();
+  setTimeout(rebuildHeader, 50);
+  setTimeout(rebuildHeader, 200);
+  setTimeout(rebuildHeader, 500);
+  setTimeout(rebuildHeader, 1000);
+  setTimeout(rebuildHeader, 2000);
+  setTimeout(rebuildHeader, 3000);
+}
 
-  const activeTab = document.querySelector('.cm-tab[data-tab="' + tabName + '"]');
-  const activeContent = document.getElementById('tab-' + tabName);
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function switchTab(tab) {
+  document.querySelectorAll('.cm-tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.cm-tab-content').forEach(function(c) { c.style.display = 'none'; });
+  var tabBtn = document.querySelector('.cm-tab[data-tab="' + tab + '"]');
+  if (tabBtn) tabBtn.classList.add('active');
+  var content = document.getElementById('tab-' + tab);
+  if (content) content.style.display = 'block';
 
-  if (activeTab) activeTab.classList.add('active');
-  if (activeContent) {
-    activeContent.style.display = 'block';
-    activeContent.classList.add('active');
+  // Re-init voice for newly visible content
+  if (window.DRIVEN_VOICE) {
+    try { DRIVEN_VOICE.init(); } catch (e) {}
   }
 }
 
-/**
- * Route back to role-appropriate main dashboard
- */
+// ============================================================
+// GO TO MAIN DASHBOARD
+// ============================================================
 function goToMainDashboard() {
-  const savedOrigin = sessionStorage.getItem('driven_dashboard_origin');
-  if (savedOrigin) {
-    window.location.href = savedOrigin;
-    return;
-  }
+  // Try sessionStorage origin (set by dashboard-common.js)
+  var savedOrigin = sessionStorage.getItem('driven_dashboard_origin');
+  if (savedOrigin) { window.location.href = savedOrigin; return; }
+  // Try referrer (if we came from a dashboard)
   if (document.referrer && document.referrer.indexOf('driv-en.com') !== -1) {
-    window.location.href = document.referrer;
-    return;
+    window.location.href = document.referrer; return;
   }
-
-  let user = window.dashUser || window.drivenUser;
-  if (!user) {
-    try {
-      user = JSON.parse(localStorage.getItem('driven_user') || sessionStorage.getItem('driven_user'));
-    } catch (e) {
-      // Ignore parse errors
-    }
-  }
-
+  // Try role-based redirect (role_id first, then role name)
+  var user = window.dashUser;
   if (user) {
-    const role = (user.role || '').toLowerCase();
-    if (role.indexOf('founder') !== -1 || role.indexOf('owner') !== -1) {
-      window.location.href = '/app/dashboard/owner-dashboard.html';
-      return;
-    } else if (role.indexOf('admin') !== -1) {
-      window.location.href = '/app/dashboard/admin.html';
-      return;
+    var role = (user.role || '').toLowerCase();
+    var rid = (user.role_id || '').toLowerCase();
+    if (role === 'driv-en founder' || role === 'owner' || rid === 'ro-founder') {
+      window.location.href = '/app/dashboard/owner-dashboard.html'; return;
+    } else if (role === 'admin' || rid === 'ro-admin') {
+      window.location.href = '/app/dashboard/admin.html'; return;
     } else {
-      window.location.href = '/app/dashboard/employee-dashboard.html';
-      return;
+      window.location.href = '/app/dashboard/employee-dashboard.html'; return;
     }
   }
-
+  // Fallback: go to admin dashboard (these pages are linked from admin Quick Links)
   window.location.href = '/app/dashboard/admin.html';
 }
 
-/**
- * Restructure header elements dynamically if needed
- */
-function fixHeaderLayout() {
-  const header = document.querySelector('.dash-header');
-  if (!header) return false;
-
-  const row1 = header.querySelector('.dash-header-row1');
-  const row2 = header.querySelector('.dash-header-row2');
-  const row3 = header.querySelector('.dash-header-row3');
-  const h1 = row2 ? row2.querySelector('h1') : null;
-
-  if (!row1 || !h1) return false;
-  if (h1.parentNode === row1) return true;
-
-  const drivenLogo = row1.querySelector('.dash-driven-logo');
-  row1.insertBefore(h1, drivenLogo);
-  row1.style.cssText =
-    'display:flex !important; justify-content:space-between !important; align-items:center !important; padding:8px 20px !important; gap:16px !important;';
-  h1.style.cssText = 'margin:0; font-size:20px; font-weight:600; text-align:center; flex:1;';
-
-  if (row2) row2.style.display = 'none';
-  if (row3) row3.style.display = 'none';
-  return true;
-}
-
-/**
- * Ensures tab bar remains positioned under header
- */
-function makeTabsSticky() {
-  const h = document.getElementById('dashHeader');
-  const tb = document.querySelector('.cm-tab-bar');
-  if (h && tb && h.nextElementSibling !== tb) {
-    h.parentNode.insertBefore(tb, h.nextSibling);
-  }
-}
-
-/**
- * Accessible Modal Initialization: Purpose & Instructions
- */
-function initStandardModals() {
-  const btnPurpose = document.getElementById('btnPurposeHelp');
-  const btnInstructions = document.getElementById('btnInstructionsHelp');
-  const purposeModal = document.getElementById('purposeModal');
-  const instructionsModal = document.getElementById('instructionsModal');
-
-  if (btnPurpose && purposeModal) {
-    btnPurpose.addEventListener('click', function () {
-      openModal(purposeModal);
-    });
-  }
-
-  if (btnInstructions && instructionsModal) {
-    btnInstructions.addEventListener('click', function () {
-      openModal(instructionsModal);
-    });
-  }
-
-  // Setup backdrop and close button listeners for all modals
-  document.querySelectorAll('.modal-backdrop').forEach(function (modal) {
-    modal.addEventListener('click', function (e) {
-      if (e.target === modal) {
-        closeModal(modal);
-      }
-    });
-
-    const closeBtns = modal.querySelectorAll('[data-dismiss="modal"]');
-    closeBtns.forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        closeModal(modal);
-      });
+// ============================================================
+// STATIC EVENT WIRING
+// ============================================================
+function bindStaticEvents() {
+  // Tab buttons
+  document.querySelectorAll('.cm-tab[data-tab]').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      switchTab(tab.getAttribute('data-tab'));
     });
   });
 
-  // Global Keydown Handler: Escape key dismissal & Focus Trapping
-  document.addEventListener('keydown', function (e) {
-    const activeModal = document.querySelector('.modal-backdrop.active');
-    if (!activeModal) return;
+  // Dashboard link
+  var dashLink = document.getElementById('cmDashLink');
+  if (dashLink) {
+    dashLink.addEventListener('click', goToMainDashboard);
+  }
 
-    if (e.key === 'Escape') {
-      closeModal(activeModal);
-      return;
-    }
+  // Logout button
+  var logoutBtn = document.getElementById('cmLogoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', function() {
+      if (typeof dashLogout === 'function') dashLogout();
+    });
+  }
 
-    if (e.key === 'Tab') {
-      trapFocus(activeModal, e);
-    }
+  // Module cards (data-tab-link attribute)
+  document.querySelectorAll('.cm-module-card[data-tab-link]').forEach(function(card) {
+    card.addEventListener('click', function() {
+      switchTab(card.getAttribute('data-tab-link'));
+    });
   });
 }
 
-function openModal(modal) {
-  if (!modal) return;
-  modal.classList.add('active');
-  modal.setAttribute('aria-hidden', 'false');
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('dashSessionLoaded', function() {
+  var user = window.dashUser;
+  if (!user) { window.location.href = '/public/login.html'; return; }
 
-  const focusable = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
-  if (focusable.length > 0) {
-    focusable[0].focus();
+  // Rebuild header
+  scheduleHeaderRebuilds();
+  startHeaderObserver();
+
+  document.getElementById('cmLoading').style.display = 'none';
+  document.getElementById('tab-overview').style.display = 'block';
+
+  // Wire static events
+  bindStaticEvents();
+
+  // Wire up voice
+  if (window.DRIVEN_VOICE) {
+    try { DRIVEN_VOICE.init(); } catch (e) {}
   }
-}
+});
 
-function closeModal(modal) {
-  if (!modal) return;
-  modal.classList.remove('active');
-  modal.setAttribute('aria-hidden', 'true');
-}
-
-function trapFocus(modal, event) {
-  const focusables = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
-  if (focusables.length === 0) return;
-
-  const first = focusables[0];
-  const last = focusables[focusables.length - 1];
-
-  if (event.shiftKey) {
-    if (document.activeElement === first) {
-      last.focus();
-      event.preventDefault();
-    }
-  } else {
-    if (document.activeElement === last) {
-      first.focus();
-      event.preventDefault();
-    }
-  }
-}
+window.addEventListener('load', function() {
+  rebuildHeader();
+  setTimeout(rebuildHeader, 200);
+});
