@@ -11,7 +11,7 @@
  */
 
 // ============================================================
-// HEADER REBUILD -- handles stale 3-row SW header template
+// HEADER REBUILD -- handles stale 3-row SW header template 
 // ============================================================
 function rebuildHeader() {
   var container = document.getElementById('dashHeader');
