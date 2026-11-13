@@ -28,8 +28,8 @@
   var PROJECT_COL_DEFS = [
     { key: 'code',       label: 'Project Number', defaultVisible: true,  width: 120 },
     { key: 'name',       label: 'Project Name',   defaultVisible: true,  width: 240 },
-    { key: 'status',     label: 'Status',         defaultVisible: true,  width: 100 },
     { key: 'location',   label: 'Location',       defaultVisible: true,  width: 180 },
+    { key: 'status',     label: 'Status',         defaultVisible: true,  width: 100 },
     { key: 'createdAt',  label: 'Created Date',   defaultVisible: false, width: 140 },
   ];
 
@@ -79,6 +79,63 @@
         document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
       });
     });
+  }
+
+  // ===== COLUMN DRAG-REORDER (generic, saved to localStorage) =====
+  function makeColumnsDraggable(tableEl, orderKey) {
+    if (!tableEl) return;
+    var ths = tableEl.querySelectorAll('thead th');
+    if (!ths.length) return;
+    var total = ths.length;
+    var savedOrder = null;
+    try { savedOrder = JSON.parse(localStorage.getItem(orderKey) || 'null'); } catch(e) {}
+    if (savedOrder && savedOrder.length === total) {
+      applyColumnOrder(tableEl, savedOrder);
+    }
+    ths = tableEl.querySelectorAll('thead th');
+    ths.forEach(function(th, i) {
+      th.setAttribute('draggable', 'true');
+      th.addEventListener('dragstart', function(e) {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', String(i));
+        th.style.opacity = '0.5';
+      });
+      th.addEventListener('dragend', function() { th.style.opacity = ''; });
+      th.addEventListener('dragover', function(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+      th.addEventListener('drop', function(e) {
+        e.preventDefault();
+        var fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
+        var toIdx = i;
+        if (fromIdx === toIdx || isNaN(fromIdx)) return;
+        var currentOrder = [];
+        for (var j = 0; j < total; j++) currentOrder.push(j);
+        if (savedOrder && savedOrder.length === total) currentOrder = savedOrder.slice();
+        var moved = currentOrder.splice(fromIdx, 1)[0];
+        currentOrder.splice(toIdx, 0, moved);
+        savedOrder = currentOrder;
+        try { localStorage.setItem(orderKey, JSON.stringify(currentOrder)); } catch(e) {}
+        applyColumnOrder(tableEl, currentOrder);
+      });
+    });
+  }
+
+  function applyColumnOrder(tableEl, order) {
+    var thead = tableEl.querySelector('thead');
+    var tbody = tableEl.querySelector('tbody');
+    if (!thead) return;
+    var ths = Array.from(thead.querySelectorAll('th'));
+    var orderedThs = order.map(function(idx) { return ths[idx]; });
+    thead.textContent = '';
+    orderedThs.forEach(function(th) { thead.appendChild(th); });
+    if (tbody) {
+      Array.from(tbody.querySelectorAll('tr')).forEach(function(row) {
+        var tds = Array.from(row.querySelectorAll('td'));
+        if (tds.length !== order.length) return;
+        var orderedTds = order.map(function(idx) { return tds[idx]; });
+        row.textContent = '';
+        orderedTds.forEach(function(td) { row.appendChild(td); });
+      });
+    }
   }
 
   // ===== SORTING & PAGINATION STATE =====
@@ -575,8 +632,8 @@
       });
     }
 
-    makeColumnsResizable(document.getElementById('pmOverviewProjectsTable'), 'pmColW_ovProjects', [120, 240, 200, 100]);
-    makeColumnsResizable(document.getElementById('pmOverviewClientsTable'), 'pmColW_ovClients', [200, 160, 100]);
+    makeColumnsResizable(document.getElementById('pmOverviewProjectsTable'), 'pmColW_ovProjects', [120, 240, 200, 100]); makeColumnsDraggable(document.getElementById('pmOverviewProjectsTable'), 'pmColOrder_ovProjects');
+    makeColumnsResizable(document.getElementById('pmOverviewClientsTable'), 'pmColW_ovClients', [200, 160, 100]); makeColumnsDraggable(document.getElementById('pmOverviewClientsTable'), 'pmColOrder_ovClients');
     if (typeof initVoice === 'function') initVoice();
   }
 
@@ -713,7 +770,7 @@
     renderPagination('pmProjectPagination', filtered.length, totalPages, projectPage, projectPageSize, function(p) { projectPage = p; renderProjectTable(); }, function(sz) { projectPageSize = sz; projectPage = 1; renderProjectTable(); });
     var pColW = PROJECT_COL_DEFS.filter(function(c) { return c.defaultVisible; }).map(function(c) { return c.width || 120; });
     pColW.push(80);
-    makeColumnsResizable(document.getElementById('pmProjectTable'), 'pmColW_projects', pColW);
+    makeColumnsResizable(document.getElementById('pmProjectTable'), 'pmColW_projects', pColW); makeColumnsDraggable(document.getElementById('pmProjectTable'), 'pmColOrder_projects');
     if (typeof initVoice === 'function') initVoice();
   }
 
@@ -844,7 +901,7 @@
     renderPagination('pmClientPagination', filtered.length, totalPages, clientPage, clientPageSize, function(p) { clientPage = p; renderClientTable(); }, function(sz) { clientPageSize = sz; clientPage = 1; renderClientTable(); });
     var cColW = CLIENT_COL_DEFS.filter(function(c) { return c.defaultVisible; }).map(function(c) { return c.width || 120; });
     cColW.push(80);
-    makeColumnsResizable(document.getElementById('pmClientTable'), 'pmColW_clients', cColW);
+    makeColumnsResizable(document.getElementById('pmClientTable'), 'pmColW_clients', cColW); makeColumnsDraggable(document.getElementById('pmClientTable'), 'pmColOrder_clients');
     if (typeof initVoice === 'function') initVoice();
   }
 
@@ -1334,7 +1391,7 @@
       }
       tbody.appendChild(tr);
     });
-    makeColumnsResizable(document.getElementById('pmTypeTable'), 'pmColW_types', [160, 400, 100]);
+    makeColumnsResizable(document.getElementById('pmTypeTable'), 'pmColW_types', [160, 400, 100]); makeColumnsDraggable(document.getElementById('pmTypeTable'), 'pmColOrder_types');
     if (typeof initVoice === 'function') initVoice();
   }
 
@@ -1774,21 +1831,21 @@
     if (tab === 'overview') renderOverview();
     // Re-apply saved column widths on tab switch
     if (tab === 'overview') {
-      makeColumnsResizable(document.getElementById('pmOverviewProjectsTable'), 'pmColW_ovProjects', [120, 240, 200, 100]);
-      makeColumnsResizable(document.getElementById('pmOverviewClientsTable'), 'pmColW_ovClients', [200, 160, 100]);
+      makeColumnsResizable(document.getElementById('pmOverviewProjectsTable'), 'pmColW_ovProjects', [120, 240, 200, 100]); makeColumnsDraggable(document.getElementById('pmOverviewProjectsTable'), 'pmColOrder_ovProjects');
+      makeColumnsResizable(document.getElementById('pmOverviewClientsTable'), 'pmColW_ovClients', [200, 160, 100]); makeColumnsDraggable(document.getElementById('pmOverviewClientsTable'), 'pmColOrder_ovClients');
     }
     if (tab === 'projects') {
       var pColW = PROJECT_COL_DEFS.filter(function(c) { return c.defaultVisible; }).map(function(c) { return c.width || 120; });
       pColW.push(80);
-      makeColumnsResizable(document.getElementById('pmProjectTable'), 'pmColW_projects', pColW);
+      makeColumnsResizable(document.getElementById('pmProjectTable'), 'pmColW_projects', pColW); makeColumnsDraggable(document.getElementById('pmProjectTable'), 'pmColOrder_projects');
     }
     if (tab === 'clients') {
       var cColW = CLIENT_COL_DEFS.filter(function(c) { return c.defaultVisible; }).map(function(c) { return c.width || 120; });
       cColW.push(80);
-      makeColumnsResizable(document.getElementById('pmClientTable'), 'pmColW_clients', cColW);
+      makeColumnsResizable(document.getElementById('pmClientTable'), 'pmColW_clients', cColW); makeColumnsDraggable(document.getElementById('pmClientTable'), 'pmColOrder_clients');
     }
     if (tab === 'types') {
-      makeColumnsResizable(document.getElementById('pmTypeTable'), 'pmColW_types', [160, 400, 100]);
+      makeColumnsResizable(document.getElementById('pmTypeTable'), 'pmColW_types', [160, 400, 100]); makeColumnsDraggable(document.getElementById('pmTypeTable'), 'pmColOrder_types');
     }
     if (typeof initVoice === 'function') initVoice();
   }
