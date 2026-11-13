@@ -1746,7 +1746,7 @@
     var sel = document.getElementById('pmYearFilter');
     if (!sel) return;
     var years = {};
-    projs.forEach(function(p) { if (p.createdAt) { var y = new Date(p.createdAt).getFullYear(); years[y] = true; } });
+    allProjects.forEach(function(p) { if (p.createdAt) { var y = new Date(p.createdAt).getFullYear(); years[y] = true; } });
     allClients.forEach(function(c) { if (c.createdAt) { var y = new Date(c.createdAt).getFullYear(); years[y] = true; } });
     var sorted = Object.keys(years).sort(function(a, b) { return b - a; });
     var current = sel.value;
