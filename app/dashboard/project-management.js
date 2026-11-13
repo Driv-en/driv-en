@@ -634,8 +634,8 @@
         var val = p[col.key];
         if (col.key === 'status' && val) {
           td.innerHTML = statusBadgeHtml(val);
-        } else if (col.key === 'createdAt') {
-          td.textContent = val ? new Date(val).toLocaleDateString() : '—';
+        } else if (col.key === 'createdAt' || col.key === 'expectedStartDate' || col.key === 'actualStartDate' || col.key === 'expectedCompletionDate' || col.key === 'actualCompletionDate') {
+          td.textContent = val ? new Date(val).toLocaleDateString() : 'u2014';
         } else {
           td.textContent = (val !== undefined && val !== null && val !== '') ? val : '—';
         }
@@ -752,8 +752,8 @@
         var val = c[col.key];
         if (col.key === 'status' && val) {
           td.innerHTML = statusBadgeHtml(val);
-        } else if (col.key === 'createdAt') {
-          td.textContent = val ? new Date(val).toLocaleDateString() : '—';
+        } else if (col.key === 'createdAt' || col.key === 'expectedStartDate' || col.key === 'actualStartDate' || col.key === 'expectedCompletionDate' || col.key === 'actualCompletionDate') {
+          td.textContent = val ? new Date(val).toLocaleDateString() : 'u2014';
         } else {
           td.textContent = (val !== undefined && val !== null && val !== '') ? val : '—';
         }
@@ -1689,7 +1689,7 @@
     var donut = document.getElementById('pmStatusDonut');
     var legend = document.getElementById('pmStatusLegend');
     if (!donut || !legend) return;
-    var projs = projArr || projs;
+    var projs = projArr || allProjects;
     var counts = {};
     STATUS_ORDER.forEach(function(s) { counts[s] = 0; });
     projs.forEach(function(p) {
@@ -1717,7 +1717,7 @@
     });
   }
   function renderTrendChart(projArr) {
-   var projs = projArr || projs;
+   var projs = projArr || allProjects;
     var container = document.getElementById('pmTrendChart');
     if (!container) return;
     container.textContent = '';
@@ -1755,8 +1755,8 @@
     sel.value = current;
   }
   function getYearFilteredProjects() {
-    if (!pmYearFilter) return projs;
-    return projs.filter(function(p) { return p.createdAt && String(new Date(p.createdAt).getFullYear()) === pmYearFilter; });
+    if (!pmYearFilter) return allProjects;
+    return allProjects.filter(function(p) { return p.createdAt && String(new Date(p.createdAt).getFullYear()) === pmYearFilter; });
   }
   function getYearFilteredClients() {
     if (!pmYearFilter) return allClients;
@@ -1766,8 +1766,8 @@
     var ps = document.getElementById('pmOverviewProjectSearch');
     var cs = document.getElementById('pmOverviewClientSearch');
     var yf = document.getElementById('pmYearFilter');
-    if (ps) ps.addEventListener('input', function() { ovProjSearch = ps.value.toLowerCase(); renderOverviewProjects(); });
-    if (cs) cs.addEventListener('input', function() { ovClientSearch = cs.value.toLowerCase(); renderOverviewClients(); });
+    if (ps) ps.addEventListener('input', function() { ovProjSearch = ps.value.toLowerCase(); renderOverviewProjects(getYearFilteredProjects()); });
+    if (cs) cs.addEventListener('input', function() { ovClientSearch = cs.value.toLowerCase(); renderOverviewClients(getYearFilteredClients()); });
     if (yf) yf.addEventListener('change', function() { pmYearFilter = yf.value; renderOverview(); });
   }
   function renderOverviewProjects(projArr) {
