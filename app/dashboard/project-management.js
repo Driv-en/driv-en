@@ -52,6 +52,7 @@
     var ths = tableEl.querySelectorAll('thead th');
     if (!ths.length) return;
     tableEl.style.tableLayout = 'fixed';
+    tableEl.style.width = 'auto';
     var saved = {};
     try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch(e) {}
     ths.forEach(function(th, i) {
@@ -1771,6 +1772,24 @@
     document.querySelector('.pm-tab[data-tab="' + tab + '"]').classList.add('active');
     document.getElementById('tab-' + tab).style.display = 'block';
     if (tab === 'overview') renderOverview();
+    // Re-apply saved column widths on tab switch
+    if (tab === 'overview') {
+      makeColumnsResizable(document.getElementById('pmOverviewProjectsTable'), 'pmColW_ovProjects', [120, 240, 200, 100]);
+      makeColumnsResizable(document.getElementById('pmOverviewClientsTable'), 'pmColW_ovClients', [200, 160, 100]);
+    }
+    if (tab === 'projects') {
+      var pColW = PROJECT_COL_DEFS.filter(function(c) { return c.defaultVisible; }).map(function(c) { return c.width || 120; });
+      pColW.push(80);
+      makeColumnsResizable(document.getElementById('pmProjectTable'), 'pmColW_projects', pColW);
+    }
+    if (tab === 'clients') {
+      var cColW = CLIENT_COL_DEFS.filter(function(c) { return c.defaultVisible; }).map(function(c) { return c.width || 120; });
+      cColW.push(80);
+      makeColumnsResizable(document.getElementById('pmClientTable'), 'pmColW_clients', cColW);
+    }
+    if (tab === 'types') {
+      makeColumnsResizable(document.getElementById('pmTypeTable'), 'pmColW_types', [160, 400, 100]);
+    }
     if (typeof initVoice === 'function') initVoice();
   }
 
