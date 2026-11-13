@@ -256,6 +256,37 @@ input:focus-visible + .dash-theme-slider { outline:2px solid #2563eb; outline-of
 .pm-modal-close { margin-top:20px; padding:8px 24px; background:var(--success,#16a34a); color:#fff; border:1px solid #15803d; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; }
 .pm-modal-close:hover { background:#15803d; }
 
+/* ===== CHARTS ===== */
+.pm-charts-row { display:flex; gap:20px; margin-bottom:20px; flex-wrap:wrap; }
+.pm-chart-card { flex:1; min-width:300px; }
+.pm-donut-container { display:flex; align-items:center; gap:20px; padding:10px 0; }
+.pm-donut { width:140px; height:140px; border-radius:50%; flex-shrink:0; }
+.pm-donut-legend { display:flex; flex-direction:column; gap:6px; font-size:13px; }
+.pm-donut-legend-item { display:flex; align-items:center; gap:8px; }
+.pm-donut-legend-dot { width:12px; height:12px; border-radius:3px; flex-shrink:0; }
+.pm-bar-chart { display:flex; align-items:flex-end; gap:8px; height:160px; padding:10px 0; }
+.pm-bar-chart-bar { flex:1; min-width:30px; background:var(--success,#16a34a); border-radius:4px 4px 0 0; position:relative; transition:height 300ms ease; }
+.pm-bar-chart-label { position:absolute; bottom:-20px; left:50%; transform:translateX(-50%); font-size:11px; white-space:nowrap; color:var(--text); }
+.pm-bar-chart-value { position:absolute; top:-18px; left:50%; transform:translateX(-50%); font-size:11px; font-weight:600; color:var(--text); }
+/* ===== DETAIL MODAL ===== */
+.pm-detail-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center; padding:20px; box-sizing:border-box; }
+.pm-detail-overlay.active { display:flex; }
+.pm-detail-card { background:var(--bg-card,#fff); border:2px solid var(--success,#16a34a); border-radius:12px; padding:28px; max-width:600px; width:100%; max-height:85vh; overflow-y:auto; box-sizing:border-box; }
+.pm-detail-card h2 { margin:0 0 16px 0; font-size:20px; color:var(--text,#0f172a); }
+.pm-detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px 20px; margin-bottom:16px; }
+.pm-detail-field { display:flex; flex-direction:column; gap:2px; }
+.pm-detail-label { font-size:12px; font-weight:600; color:#64748b; text-transform:uppercase; }
+.pm-detail-value { font-size:15px; color:var(--text,#0f172a); }
+.pm-detail-close { margin-top:20px; padding:8px 24px; background:var(--success,#16a34a); color:#fff; border:1px solid #15803d; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; }
+.pm-detail-close:hover { background:#15803d; }
+/* ===== BULK ACTIONS ===== */
+.pm-bulk-bar { display:none; align-items:center; gap:10px; padding:8px 12px; background:#dbeafe; border:1px solid #93c5fd; border-radius:6px; margin-bottom:10px; }
+.pm-bulk-bar.active { display:flex; }
+.pm-bulk-bar span { font-size:14px; font-weight:600; color:#1e40af; }
+/* ===== EMPTY STATE ===== */
+.pm-empty-action { display:inline-block; margin-top:8px; padding:6px 16px; background:var(--success,#16a34a); color:#fff; border:1px solid #15803d; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; }
+.pm-empty-action:hover { background:#15803d; }
+
 @media print {
   .pm-tab-bar, .pm-welcome-bar, .pm-search-row, .pm-form-card, .pm-pagination, .pm-modal, #dashHeader, #dashFooter, .pm-section-header button, .pm-table-btn { display:none !important; }
   .pm-table-scroll { max-height:none; overflow:visible; border:none; }
@@ -337,8 +368,24 @@ input:focus-visible + .dash-theme-slider { outline:2px solid #2563eb; outline-of
       <div class="pm-kpi-card"><div class="pm-kpi-number" id="kpiCompletedProjects">—</div><div class="pm-kpi-label">Completed Projects</div></div>
       <div class="pm-kpi-card"><div class="pm-kpi-number" id="kpiTotalClients">—</div><div class="pm-kpi-label">Total Clients</div></div>
     </div>
+    <!-- Charts row -->
+    <div class="pm-charts-row">
+      <div class="pm-overview-card pm-chart-card">
+        <div class="pm-overview-card-title">Project Status Breakdown</div>
+        <div class="pm-donut-container">
+          <div class="pm-donut" id="pmStatusDonut"></div>
+          <div class="pm-donut-legend" id="pmStatusLegend"></div>
+        </div>
+      </div>
+      <div class="pm-overview-card pm-chart-card">
+        <div class="pm-overview-card-title">Projects Created (Last 6 Months)</div>
+        <div class="pm-bar-chart" id="pmTrendChart"></div>
+      </div>
+    </div>
+    <!-- Active Projects with search -->
     <div class="pm-overview-card">
       <div class="pm-overview-card-title">Active Projects <span class="count" id="recentProjectsCount">0</span></div>
+      <input type="text" class="pm-search-input pm-overview-search" id="pmOverviewProjectSearch" placeholder="Search projects..." style="margin-bottom:10px;" data-voice-input />
       <div class="pm-table-scroll" style="max-height:300px;">
         <table class="pm-table" id="pmOverviewProjectsTable">
           <thead><tr><th>Project Number</th><th>Project Name</th><th>Client</th><th>Status</th></tr></thead>
@@ -346,8 +393,10 @@ input:focus-visible + .dash-theme-slider { outline:2px solid #2563eb; outline-of
         </table>
       </div>
     </div>
+    <!-- Active Clients with search -->
     <div class="pm-overview-card">
       <div class="pm-overview-card-title">Active Clients <span class="count" id="recentClientsCount">0</span></div>
+      <input type="text" class="pm-search-input pm-overview-search" id="pmOverviewClientSearch" placeholder="Search clients..." style="margin-bottom:10px;" data-voice-input />
       <div class="pm-table-scroll" style="max-height:300px;">
         <table class="pm-table" id="pmOverviewClientsTable">
           <thead><tr><th>Client Name</th><th>Contact</th><th>Status</th></tr></thead>
@@ -730,6 +779,15 @@ input:focus-visible + .dash-theme-slider { outline:2px solid #2563eb; outline-of
 <!-- ===== FOOTER ===== -->
 <div id="dashFooter"></div>
 
+<!-- ===== PROJECT DETAIL MODAL ===== -->
+<div class="pm-detail-overlay" id="pmDetailModal">
+  <div class="pm-detail-card">
+    <h2 id="pmDetailTitle">Project Details</h2>
+    <div class="pm-detail-grid" id="pmDetailGrid"></div>
+    <button class="pm-detail-close" onclick="document.getElementById('pmDetailModal').classList.remove('active')">Close</button>
+  </div>
+</div>
+
 <!-- ===== PURPOSE & INSTRUCTIONS MODALS ===== -->
 <div class="pm-modal-overlay" id="pmModalPurpose">
   <div class="pm-modal-card-info">
@@ -753,7 +811,7 @@ input:focus-visible + .dash-theme-slider { outline:2px solid #2563eb; outline-of
 <script src="/app/shared/apply-units.js?v=1"></script>
 <script src="/app/shared/voice.js?v=4"></script>
 
-<script src="/app/dashboard/project-management.js?v=12"></script>
+<script src="/app/dashboard/project-management.js?v=13"></script>
 
 <!-- Cloudflare Web Analytics -->
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="{\"token\": \"driv-en-pages\"}"></script>
