@@ -119,9 +119,9 @@ currentOrder.push(lastIdx);
 savedOrder = currentOrder;
 try { localStorage.setItem(orderKey, JSON.stringify(currentOrder)); } catch(e) {}
 applyColumnOrder(tableEl, currentOrder);
-var total = 0;
-tableEl.querySelectorAll('thead th').forEach(function(th) { total += th.offsetWidth; });
-tableEl.style.width = total + 'px';
+var totalW = 0;
+tableEl.querySelectorAll('thead th').forEach(function(th) { totalW += th.offsetWidth; });
+tableEl.style.width = totalW + 'px';
 });
 });
 }
@@ -471,16 +471,26 @@ allProjects = data.records.map(normalizeProject);
 allProjects = [];
 }
 } catch(e) {
-var res = await fetch('/auth/save-settings', {
+allProjects = [];
+}
+}
+async function loadProjectTypes() {
+try {
+var saved = localStorage.getItem('driven_project_types');
+if (saved) projectTypes = JSON.parse(saved);
+} catch(e) {
+projectTypes = [];
+}
+}
+async function saveProjectTypes() {
+try { localStorage.setItem('driven_project_types', JSON.stringify(projectTypes)); } catch(e) {}
+try {
+await fetch('/auth/save-settings', {
 method: 'POST',
 headers: { 'Content-Type': 'application/json' },
 body: JSON.stringify({ project_types: JSON.stringify(projectTypes) })
 });
-if (res.ok) {
-try { localStorage.setItem('driven_project_types', JSON.stringify(projectTypes)); } catch(e) {}
-}
-} catch(e) {
-}
+} catch(e) {}
 }
 async function loadClients() {
 try {
@@ -528,8 +538,7 @@ sel.appendChild(opt);
 }
 });
 }
-} catch(e) {
-}
+} catch(e) {}
 sel.value = current;
 }
 function renderOverview() {
@@ -543,12 +552,14 @@ renderStatusDonut(fp);
 renderTrendChart(fp);
 renderOverviewProjects(fp);
 renderOverviewClients(fc);
-makeColumnsResizable(document.getElementById('pmOverviewProjectsTable'), 'pmColW_ovProjects', [120, 240, 200, 100]); makeColumnsDraggable(document.getElementById('pmOverviewProjectsTable'), 'pmColOrder_ovProjects');
-makeColumnsResizable(document.getElementById('pmOverviewClientsTable'), 'pmColW_ovClients', [200, 160, 100]); makeColumnsDraggable(document.getElementById('pmOverviewClientsTable'), 'pmColOrder_ovClients');
+makeColumnsResizable(document.getElementById('pmOverviewProjectsTable'), 'pmColW_ovProjects', [120, 240, 200, 100]);
+makeColumnsDraggable(document.getElementById('pmOverviewProjectsTable'), 'pmColOrder_ovProjects');
+makeColumnsResizable(document.getElementById('pmOverviewClientsTable'), 'pmColW_ovClients', [200, 160, 100]);
+makeColumnsDraggable(document.getElementById('pmOverviewClientsTable'), 'pmColOrder_ovClients');
 if (typeof initVoice === 'function') initVoice();
 }
 function statusBadgeHtml(status) {
-if (!status) return '—';
+if (!status) return '\u2014';
 var cls = 'pm-badge pm-badge-' + String(status).toLowerCase().replace(/\s+/g, '-');
 return '<span class="' + cls + '">' + escapeHtml(status) + '</span>';
 }
@@ -564,10 +575,10 @@ th.textContent = col.label;
 var arrow = document.createElement('span');
 arrow.className = 'pm-sort-arrow';
 if (projectSortKey === col.key) {
-arrow.textContent = projectSortDir === 'asc' ? ' ▲' : ' ▼';
+arrow.textContent = projectSortDir === 'asc' ? ' \u25B2' : ' \u25BC';
 th.classList.add(projectSortDir === 'asc' ? 'pm-sorted-asc' : 'pm-sorted-desc');
 } else {
-arrow.textContent = ' ↕';
+arrow.textContent = ' \u2195';
 }
 th.appendChild(arrow);
 th.addEventListener('click', function() { onProjectSortClick(col.key); });
@@ -608,7 +619,8 @@ var filtered = allProjects.filter(function(p) {
 var matchesSearch = !search ||
 (p.name && p.name.toLowerCase().indexOf(search) !== -1) ||
 (p.code && p.code.toLowerCase().indexOf(search) !== -1) ||
-(p.location && p.location.toLowerCase().indexOf(search) !== -1);
+(p.street && p.street.toLowerCase().indexOf(search) !== -1) ||
+(p.city && p.city.toLowerCase().indexOf(search) !== -1);
 var matchesStatus = !filterStatus || (p.status && p.status.toLowerCase() === filterStatus.toLowerCase());
 return matchesSearch && matchesStatus;
 });
@@ -637,6 +649,7 @@ tbody.appendChild(tr);
 renderPagination('pmProjectPagination', 0, 1, projectPage, projectPageSize, function(p) { projectPage = p; renderProjectTable(); }, function(sz) { projectPageSize = sz; projectPage = 1; renderProjectTable(); });
 return;
 }
+var dateKeys = ['createdAt','expectedStartDate','actualStartDate','expectedCompletionDate','actualCompletionDate','awardDate'];
 pageItems.forEach(function(p) {
 var tr = document.createElement('tr');
 PROJECT_COL_DEFS.forEach(function(col) {
@@ -645,10 +658,10 @@ var td = document.createElement('td');
 var val = p[col.key];
 if (col.key === 'status' && val) {
 td.innerHTML = statusBadgeHtml(val);
-} else if (col.key === 'createdAt' || col.key === 'expectedStartDate' || col.key === 'actualStartDate' || col.key === 'expectedCompletionDate' || col.key === 'actualCompletionDate' || col.key === 'awardDate') {
-td.textContent = val ? new Date(val).toLocaleDateString() : 'u2014';
+} else if (val && dateKeys.indexOf(col.key) !== -1) {
+td.textContent = new Date(val).toLocaleDateString();
 } else {
-td.textContent = (val !== undefined && val !== null && val !== '') ? val : '—';
+td.textContent = (val !== undefined && val !== null && val !== '') ? val : '\u2014';
 }
 tr.appendChild(td);
 });
@@ -667,7 +680,8 @@ tbody.appendChild(tr);
 renderPagination('pmProjectPagination', filtered.length, totalPages, projectPage, projectPageSize, function(p) { projectPage = p; renderProjectTable(); }, function(sz) { projectPageSize = sz; projectPage = 1; renderProjectTable(); });
 var pColW = PROJECT_COL_DEFS.filter(function(c) { return c.defaultVisible; }).map(function(c) { return c.width || 120; });
 pColW.push(80);
-makeColumnsResizable(document.getElementById('pmProjectTable'), 'pmColW_projects', pColW); makeColumnsDraggable(document.getElementById('pmProjectTable'), 'pmColOrder_projects');
+makeColumnsResizable(document.getElementById('pmProjectTable'), 'pmColW_projects', pColW);
+makeColumnsDraggable(document.getElementById('pmProjectTable'), 'pmColOrder_projects');
 if (typeof initVoice === 'function') initVoice();
 }
 function renderClientTableHead() {
@@ -682,10 +696,10 @@ th.textContent = col.label;
 var arrow = document.createElement('span');
 arrow.className = 'pm-sort-arrow';
 if (clientSortKey === col.key) {
-arrow.textContent = clientSortDir === 'asc' ? ' ▲' : ' ▼';
+arrow.textContent = clientSortDir === 'asc' ? ' \u25B2' : ' \u25BC';
 th.classList.add(clientSortDir === 'asc' ? 'pm-sorted-asc' : 'pm-sorted-desc');
 } else {
-arrow.textContent = ' ↕';
+arrow.textContent = ' \u2195';
 }
 th.appendChild(arrow);
 th.addEventListener('click', function() { onClientSortClick(col.key); });
@@ -726,7 +740,7 @@ var filtered = allClients.filter(function(c) {
 var matchesSearch = !search ||
 (c.clientName && c.clientName.toLowerCase().indexOf(search) !== -1) ||
 (c.contactName && c.contactName.toLowerCase().indexOf(search) !== -1) ||
-(c.contactEmail && c.contactEmail.toLowerCase().indexOf(search) !== -1) ;
+(c.contactEmail && c.contactEmail.toLowerCase().indexOf(search) !== -1);
 var matchesStatus = !filterStatus || (c.status && c.status.toLowerCase() === filterStatus.toLowerCase());
 return matchesSearch && matchesStatus;
 });
@@ -755,6 +769,7 @@ tbody.appendChild(tr);
 renderPagination('pmClientPagination', 0, 1, clientPage, clientPageSize, function(p) { clientPage = p; renderClientTable(); }, function(sz) { clientPageSize = sz; clientPage = 1; renderClientTable(); });
 return;
 }
+var dateKeys = ['createdAt','expectedStartDate','actualStartDate','expectedCompletionDate','actualCompletionDate','awardDate'];
 pageItems.forEach(function(c) {
 var tr = document.createElement('tr');
 CLIENT_COL_DEFS.forEach(function(col) {
@@ -763,10 +778,10 @@ var td = document.createElement('td');
 var val = c[col.key];
 if (col.key === 'status' && val) {
 td.innerHTML = statusBadgeHtml(val);
-} else if (col.key === 'createdAt' || col.key === 'expectedStartDate' || col.key === 'actualStartDate' || col.key === 'expectedCompletionDate' || col.key === 'actualCompletionDate' || col.key === 'awardDate') {
-td.textContent = val ? new Date(val).toLocaleDateString() : 'u2014';
+} else if (val && dateKeys.indexOf(col.key) !== -1) {
+td.textContent = new Date(val).toLocaleDateString();
 } else {
-td.textContent = (val !== undefined && val !== null && val !== '') ? val : '—';
+td.textContent = (val !== undefined && val !== null && val !== '') ? val : '\u2014';
 }
 tr.appendChild(td);
 });
@@ -785,7 +800,8 @@ tbody.appendChild(tr);
 renderPagination('pmClientPagination', filtered.length, totalPages, clientPage, clientPageSize, function(p) { clientPage = p; renderClientTable(); }, function(sz) { clientPageSize = sz; clientPage = 1; renderClientTable(); });
 var cColW = CLIENT_COL_DEFS.filter(function(c) { return c.defaultVisible; }).map(function(c) { return c.width || 120; });
 cColW.push(80);
-makeColumnsResizable(document.getElementById('pmClientTable'), 'pmColW_clients', cColW); makeColumnsDraggable(document.getElementById('pmClientTable'), 'pmColOrder_clients');
+makeColumnsResizable(document.getElementById('pmClientTable'), 'pmColW_clients', cColW);
+makeColumnsDraggable(document.getElementById('pmClientTable'), 'pmColOrder_clients');
 if (typeof initVoice === 'function') initVoice();
 }
 function renderPagination(containerId, totalItems, totalPages, currentPage, pageSize, onPageChange, onPageSizeChange) {
@@ -796,7 +812,7 @@ var info = document.createElement('span');
 info.className = 'pm-page-info';
 var startIdx = (currentPage - 1) * pageSize + 1;
 var endIdx = Math.min(currentPage * pageSize, totalItems);
-info.textContent = 'Showing ' + startIdx + '–' + endIdx + ' of ' + totalItems;
+info.textContent = 'Showing ' + startIdx + '\u2013' + endIdx + ' of ' + totalItems;
 container.appendChild(info);
 var sizeDiv = document.createElement('div');
 sizeDiv.style.display = 'flex';
@@ -824,7 +840,7 @@ var btnsDiv = document.createElement('div');
 btnsDiv.className = 'pm-page-btns';
 var btnPrev = document.createElement('button');
 btnPrev.className = 'pm-page-btn';
-btnPrev.textContent = '◀ Prev';
+btnPrev.textContent = '\u25C0 Prev';
 btnPrev.disabled = currentPage <= 1;
 btnPrev.addEventListener('click', function() { onPageChange(currentPage - 1); });
 btnsDiv.appendChild(btnPrev);
@@ -844,7 +860,7 @@ btnsDiv.appendChild(btn);
 }
 var btnNext = document.createElement('button');
 btnNext.className = 'pm-page-btn';
-btnNext.textContent = 'Next ▶';
+btnNext.textContent = 'Next \u25B6';
 btnNext.disabled = currentPage >= totalPages;
 btnNext.addEventListener('click', function() { onPageChange(currentPage + 1); });
 btnsDiv.appendChild(btnNext);
@@ -940,8 +956,8 @@ var payload = {
 if (zip) payload['Zip'] = zip;
 if (clientId) payload['Client'] = clientId;
 if (projectManager) payload['Project Manager'] = projectManager;
-var awd = document.getElementById("pmAwardDate").value;
-var esd = document.getElementById("pmExpectedStartDate").value;
+var awd = document.getElementById('pmAwardDate').value;
+var esd = document.getElementById('pmExpectedStartDate').value;
 var asd = document.getElementById('pmActualStartDate').value;
 var ecd = document.getElementById('pmExpectedCompletionDate').value;
 var acd = document.getElementById('pmActualCompletionDate').value;
@@ -965,7 +981,17 @@ await loadProjects();
 }
 document.getElementById('pmProjectName').value = '';
 document.getElementById('pmProjectCode').value = '';
-document.getElementById('pmProjectLocation').value = '';
+document.getElementById('pmProjectStreet').value = '';
+document.getElementById('pmProjectCity').value = '';
+document.getElementById('pmProjectState').value = '';
+document.getElementById('pmProjectZip').value = '';
+document.getElementById('pmProjectClient').value = '';
+document.getElementById('pmProjectManager').value = '';
+document.getElementById('pmAwardDate').value = '';
+document.getElementById('pmExpectedStartDate').value = '';
+document.getElementById('pmActualStartDate').value = '';
+document.getElementById('pmExpectedCompletionDate').value = '';
+document.getElementById('pmActualCompletionDate').value = '';
 document.getElementById('pmProjectStatus').value = 'Active';
 showProjectMessage('Project "' + name + '" added.', 'success');
 renderOverview();
@@ -973,7 +999,7 @@ switchTab('projects');
 } catch(e) {
 showProjectMessage('Failed to add project: ' + e.message, 'error');
 if (window.DRIVENErrorHandler) {
-window.DRIVENErrorHandler.report('project-management.html: addProject failed — ' + (e.message || e), 'addProject', e && e.stack ? e.stack : null);
+window.DRIVENErrorHandler.report('project-management.html: addProject failed \u2014 ' + (e.message || e), 'addProject', e && e.stack ? e.stack : null);
 }
 }
 }
@@ -992,13 +1018,6 @@ var editClientSel = document.getElementById('pmEditProjectClient');
 editClientSel.innerHTML = '<option value="">None</option>';
 allClients.forEach(function(c) { var opt = document.createElement('option'); opt.value = c.id; opt.textContent = c.clientName || '(unnamed)'; editClientSel.appendChild(opt); });
 editClientSel.value = project.clientId || project.client || '';
-var editPmSel = document.getElementById('pmEditProjectManager');
-if (editPmSel.options.length <= 1) {
-populateProjectManagerDropdown();
-setTimeout(function() { editPmSel = document.getElementById('pmEditProjectManager'); editPmSel.value = project.projectManager || ''; }, 500);
-} else {
-editPmSel.value = project.projectManager || '';
-}
 document.getElementById('pmEditAwardDate').value = project.awardDate || '';
 document.getElementById('pmEditExpectedStartDate').value = project.expectedStartDate || '';
 document.getElementById('pmEditActualStartDate').value = project.actualStartDate || '';
@@ -1061,7 +1080,7 @@ var idx = allProjects.findIndex(function(p) { return p.id === editingProjectId; 
 if (idx !== -1) allProjects[idx] = updated;
 } else {
 var project = allProjects.find(function(p) { return p.id === editingProjectId; });
-if (project) { project.name = name; project.code = code; project.status = status; project.location = location; }
+if (project) { project.name = name; project.code = code; project.status = status; project.street = street; project.city = city; project.state = state; project.zip = zip; project.projectManager = projectManager; }
 }
 showProjectMessage('Project "' + name + '" updated.', 'success');
 closeEditProjectModal();
@@ -1070,7 +1089,7 @@ renderOverview();
 } catch(e) {
 showProjectMessage('Failed to update project: ' + e.message, 'error');
 if (window.DRIVENErrorHandler) {
-window.DRIVENErrorHandler.report('project-management.html: saveEditProject failed — ' + (e.message || e), 'saveEditProject', e && e.stack ? e.stack : null);
+window.DRIVENErrorHandler.report('project-management.html: saveEditProject failed \u2014 ' + (e.message || e), 'saveEditProject', e && e.stack ? e.stack : null);
 }
 }
 }
@@ -1091,7 +1110,7 @@ renderOverview();
 } catch(e) {
 showProjectMessage('Failed to delete project: ' + e.message, 'error');
 if (window.DRIVENErrorHandler) {
-window.DRIVENErrorHandler.report('project-management.html: deleteProject failed — ' + (e.message || e), 'deleteProject', e && e.stack ? e.stack : null);
+window.DRIVENErrorHandler.report('project-management.html: deleteProject failed \u2014 ' + (e.message || e), 'deleteProject', e && e.stack ? e.stack : null);
 }
 }
 }
@@ -1146,7 +1165,7 @@ switchTab('clients');
 } catch(e) {
 showClientMessage('Failed to add client: ' + e.message, 'error');
 if (window.DRIVENErrorHandler) {
-window.DRIVENErrorHandler.report('project-management.html: addClient failed — ' + (e.message || e), 'addClient', e && e.stack ? e.stack : null);
+window.DRIVENErrorHandler.report('project-management.html: addClient failed \u2014 ' + (e.message || e), 'addClient', e && e.stack ? e.stack : null);
 }
 }
 }
@@ -1220,7 +1239,7 @@ renderOverview();
 } catch(e) {
 showClientMessage('Failed to update client: ' + e.message, 'error');
 if (window.DRIVENErrorHandler) {
-window.DRIVENErrorHandler.report('project-management.html: saveEditClient failed — ' + (e.message || e), 'saveEditClient', e && e.stack ? e.stack : null);
+window.DRIVENErrorHandler.report('project-management.html: saveEditClient failed \u2014 ' + (e.message || e), 'saveEditClient', e && e.stack ? e.stack : null);
 }
 }
 }
@@ -1241,7 +1260,7 @@ renderOverview();
 } catch(e) {
 showClientMessage('Failed to delete client: ' + e.message, 'error');
 if (window.DRIVENErrorHandler) {
-window.DRIVENErrorHandler.report('project-management.html: deleteClient failed — ' + (e.message || e), 'deleteClient', e && e.stack ? e.stack : null);
+window.DRIVENErrorHandler.report('project-management.html: deleteClient failed \u2014 ' + (e.message || e), 'deleteClient', e && e.stack ? e.stack : null);
 }
 }
 }
@@ -1275,7 +1294,8 @@ tr.appendChild(actionsTd);
 tbody.appendChild(tr);
 });
 renderPagination('pmTypePagination', projectTypes.length, totalPages, typePage, typePageSize, function(p) { typePage = p; renderProjectTypes(); }, function(sz) { typePageSize = sz; typePage = 1; renderProjectTypes(); });
-makeColumnsResizable(document.getElementById('pmTypeTable'), 'pmColW_types', [160, 400, 100]); makeColumnsDraggable(document.getElementById('pmTypeTable'), 'pmColOrder_types');
+makeColumnsResizable(document.getElementById('pmTypeTable'), 'pmColW_types', [160, 400, 100]);
+makeColumnsDraggable(document.getElementById('pmTypeTable'), 'pmColOrder_types');
 if (typeof initVoice === 'function') initVoice();
 }
 async function addProjectType() {
@@ -1351,8 +1371,8 @@ if (col) selectedCols.push(col);
 });
 if (selectedCols.length === 0) { showProjectMessage('Select at least one column to print.', 'error'); return; }
 var filtered = getFilteredSortedProjects();
-var html = '<html><head><title>DRIV-EN Project List</title><style>';
 var dateKeys = ['createdAt','expectedStartDate','actualStartDate','expectedCompletionDate','actualCompletionDate','awardDate'];
+var html = '<html><head><title>DRIV-EN Project List</title><style>';
 html += 'body{font-family:Arial,sans-serif;margin:20px;}h2{margin:0 0 16px 0;}table{width:100%;border-collapse:collapse;font-size:12px;}';
 html += 'th{background:#e2e8f0;padding:8px 10px;text-align:left;border:1px solid #94a3b8;}td{padding:6px 10px;border:1px solid #cbd5e1;}';
 html += '.print-date{font-size:12px;color:#64748b;margin-bottom:12px;}</style></head><body>';
@@ -1366,7 +1386,7 @@ html += '<tr>';
 selectedCols.forEach(function(col) {
 var val = p[col.key];
 if (val && dateKeys.indexOf(col.key) !== -1) { val = new Date(val).toLocaleDateString(); }
-html += '<td>' + escapeHtml((val !== undefined && val !== null && val !== '') ? String(val) : '—') + '</td>';
+html += '<td>' + escapeHtml((val !== undefined && val !== null && val !== '') ? String(val) : '\u2014') + '</td>';
 });
 html += '</tr>';
 });
@@ -1467,7 +1487,8 @@ var filtered = allProjects.filter(function(p) {
 var matchesSearch = !search ||
 (p.name && p.name.toLowerCase().indexOf(search) !== -1) ||
 (p.code && p.code.toLowerCase().indexOf(search) !== -1) ||
-(p.location && p.location.toLowerCase().indexOf(search) !== -1);
+(p.street && p.street.toLowerCase().indexOf(search) !== -1) ||
+(p.city && p.city.toLowerCase().indexOf(search) !== -1);
 var matchesStatus = !filterStatus || (p.status && p.status.toLowerCase() === filterStatus.toLowerCase());
 return matchesSearch && matchesStatus;
 });
@@ -1522,7 +1543,7 @@ html += '<tr>';
 selectedCols.forEach(function(col) {
 var val = c[col.key];
 if (val && dateKeys.indexOf(col.key) !== -1) { val = new Date(val).toLocaleDateString(); }
-html += '<td>' + escapeHtml((val !== undefined && val !== null && val !== '') ? String(val) : '—') + '</td>';
+html += '<td>' + escapeHtml((val !== undefined && val !== null && val !== '') ? String(val) : '\u2014') + '</td>';
 });
 html += '</tr>';
 });
@@ -1623,7 +1644,7 @@ var filtered = allClients.filter(function(c) {
 var matchesSearch = !search ||
 (c.clientName && c.clientName.toLowerCase().indexOf(search) !== -1) ||
 (c.contactName && c.contactName.toLowerCase().indexOf(search) !== -1) ||
-(c.contactEmail && c.contactEmail.toLowerCase().indexOf(search) !== -1) ;
+(c.contactEmail && c.contactEmail.toLowerCase().indexOf(search) !== -1);
 var matchesStatus = !filterStatus || (c.status && c.status.toLowerCase() === filterStatus.toLowerCase());
 return matchesSearch && matchesStatus;
 });
@@ -1684,21 +1705,26 @@ var yf = document.querySelector('.pm-pill-bar .pm-year-filter-bar');
 if (yf) yf.style.display = (tab === 'overview') ? '' : 'none';
 if (tab === 'overview') renderOverview();
 if (tab === 'overview') {
-makeColumnsResizable(document.getElementById('pmOverviewProjectsTable'), 'pmColW_ovProjects', [120, 240, 200, 100]); makeColumnsDraggable(document.getElementById('pmOverviewProjectsTable'), 'pmColOrder_ovProjects');
-makeColumnsResizable(document.getElementById('pmOverviewClientsTable'), 'pmColW_ovClients', [200, 160, 100]); makeColumnsDraggable(document.getElementById('pmOverviewClientsTable'), 'pmColOrder_ovClients');
+makeColumnsResizable(document.getElementById('pmOverviewProjectsTable'), 'pmColW_ovProjects', [120, 240, 200, 100]);
+makeColumnsDraggable(document.getElementById('pmOverviewProjectsTable'), 'pmColOrder_ovProjects');
+makeColumnsResizable(document.getElementById('pmOverviewClientsTable'), 'pmColW_ovClients', [200, 160, 100]);
+makeColumnsDraggable(document.getElementById('pmOverviewClientsTable'), 'pmColOrder_ovClients');
 }
 if (tab === 'projects') {
 var pColW = PROJECT_COL_DEFS.filter(function(c) { return c.defaultVisible; }).map(function(c) { return c.width || 120; });
 pColW.push(80);
-makeColumnsResizable(document.getElementById('pmProjectTable'), 'pmColW_projects', pColW); makeColumnsDraggable(document.getElementById('pmProjectTable'), 'pmColOrder_projects');
+makeColumnsResizable(document.getElementById('pmProjectTable'), 'pmColW_projects', pColW);
+makeColumnsDraggable(document.getElementById('pmProjectTable'), 'pmColOrder_projects');
 }
 if (tab === 'clients') {
 var cColW = CLIENT_COL_DEFS.filter(function(c) { return c.defaultVisible; }).map(function(c) { return c.width || 120; });
 cColW.push(80);
-makeColumnsResizable(document.getElementById('pmClientTable'), 'pmColW_clients', cColW); makeColumnsDraggable(document.getElementById('pmClientTable'), 'pmColOrder_clients');
+makeColumnsResizable(document.getElementById('pmClientTable'), 'pmColW_clients', cColW);
+makeColumnsDraggable(document.getElementById('pmClientTable'), 'pmColOrder_clients');
 }
 if (tab === 'types') {
-makeColumnsResizable(document.getElementById('pmTypeTable'), 'pmColW_types', [160, 400, 100]); makeColumnsDraggable(document.getElementById('pmTypeTable'), 'pmColOrder_types');
+makeColumnsResizable(document.getElementById('pmTypeTable'), 'pmColW_types', [160, 400, 100]);
+makeColumnsDraggable(document.getElementById('pmTypeTable'), 'pmColOrder_types');
 }
 if (typeof initVoice === 'function') initVoice();
 }
@@ -1982,11 +2008,11 @@ function openPmModal(type) {
 var ctx = getActiveContext();
 var info = PM_MODAL_CONTENT[ctx] || PM_MODAL_CONTENT.overview;
 if (type === 'purpose') {
-document.getElementById('pmModalPurposeTitle').textContent = info.title + ' — Purpose';
+document.getElementById('pmModalPurposeTitle').textContent = info.title + ' \u2014 Purpose';
 document.getElementById('pmModalPurposeBody').innerHTML = info.purpose;
 document.getElementById('pmModalPurpose').classList.add('active');
 } else {
-document.getElementById('pmModalInstructionsTitle').textContent = info.title + ' — Instructions';
+document.getElementById('pmModalInstructionsTitle').textContent = info.title + ' \u2014 Instructions';
 document.getElementById('pmModalInstructionsBody').innerHTML = info.instructions;
 document.getElementById('pmModalInstructions').classList.add('active');
 }
