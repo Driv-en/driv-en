@@ -393,8 +393,8 @@ var date = document.getElementById('pmStatusHistoryDate').value;
 var note = document.getElementById('pmStatusHistoryNote').value.trim();
 if (!date) { showProjectMessage('Please pick a date for the status change.', 'error'); return; }
 var rows = pmStatusHistory[editingProjectId] || [];
-rows.push({ status: status, changedAt: date, note: note });
-rows.sort(function(a, b) { return (a.changedAt || '').localeCompare(b.changedAt || ''); });
+rows.push({ status: status, statusChangeDate: date, note: note });
+rows.sort(function(a, b) { return (a.statusChangeDate || '').localeCompare(b.statusChangeDate || ''); });
 pmStatusHistory[editingProjectId] = rows;
 renderStatusHistory(editingProjectId);
 document.getElementById('pmStatusHistoryDate').value = '';
@@ -462,7 +462,8 @@ notes:                f['Notes'] || f.notes || '',
 };
 }
 function normalizeClient(r) {
-var f = (r && r.fields && typeof r.fields === 'object') ? r.fields : r;
+if (!r) return { id: '', clientName: '', contactName: '', contactEmail: '', contactPhone: '', address: '', city: '', state: '', zip: '', country: '', industry: '', status: 'Active', notes: '', createdAt: '' };
+var f = (r.fields && typeof r.fields === 'object') ? r.fields : r;
 return {
 id: r.id || ('cli-' + Math.random().toString(36).substr(2, 9)),
 clientName:   f['Client Name'] || f.client_name || '',
@@ -495,10 +496,23 @@ allProjects = [];
 }
 async function loadProjectTypes() {
 try {
+var resp = await fetch('/api/ProjectTypes');
+var data = await resp.json();
+if (resp.ok && data && data.records && data.records.length > 0) {
+projectTypes = data.records.map(function(r) {
+var f = (r.fields && typeof r.fields === 'object') ? r.fields : r;
+return { name: f['Project Type Name'] || f.name || '', description: f['Description'] || f.description || '' };
+}).filter(function(t) { return t.name; });
+try { localStorage.setItem('driven_project_types', JSON.stringify(projectTypes)); } catch(e) {}
+} else {
 var saved = localStorage.getItem('driven_project_types');
 if (saved) projectTypes = JSON.parse(saved);
+}
 } catch(e) {
-projectTypes = [];
+try {
+var saved = localStorage.getItem('driven_project_types');
+if (saved) projectTypes = JSON.parse(saved);
+} catch(e2) { projectTypes = []; }
 }
 }
 async function saveProjectTypes() {
@@ -516,11 +530,12 @@ try {
 var resp = await fetch('/api/Clients');
 var data = await resp.json();
 if (resp.ok && data && data.records) {
-allClients = data.records.map(normalizeClient);
+allClients = data.records.filter(function(r) { return r; }).map(normalizeClient);
 } else {
 allClients = [];
 }
 } catch(e) {
+console.error('loadClients error:', e);
 allClients = [];
 }
 }
@@ -599,8 +614,8 @@ var f = (r.fields && typeof r.fields === 'object') ? r.fields : r;
 return String(f.project_id || f['Project ID'] || '') === String(projectId);
 }).map(function(r) {
 var f = (r.fields && typeof r.fields === 'object') ? r.fields : r;
-return { status: f.status || f.Status || '', changedAt: f.changed_at || f.changedAt || '', note: f.note || f.Note || '' };
-}).sort(function(a, b) { return (a.changedAt || '').localeCompare(b.changedAt || ''); });
+return { status: f.status || f.Status || '', statusChangeDate: f.status_change_date || f.statusChangeDate || f.changed_at || f.changedAt || '', note: f.note || f.Note || '' };
+}).sort(function(a, b) { return (a.statusChangeDate || '').localeCompare(b.statusChangeDate || ''); });
 pmStatusHistory[projectId] = rows;
 return rows;
 })
@@ -617,7 +632,7 @@ return;
 }
 rows.forEach(function(r, i) {
 var tr = document.createElement('tr');
-tr.innerHTML = '<td>' + escapeHtml(r.status || '') + '</td><td>' + escapeHtml(r.changedAt || '') + '</td><td>' + escapeHtml(r.note || '\u2014') + '</td>';
+tr.innerHTML = '<td>' + escapeHtml(r.status || '') + '</td><td>' + escapeHtml(r.statusChangeDate || '') + '</td><td>' + escapeHtml(r.note || '\u2014') + '</td>';
 if (canModify) {
 var td = document.createElement('td');
 var btn = document.createElement('button');
@@ -953,10 +968,6 @@ var panel = document.getElementById('pmProjectColPanel');
 panel.classList.toggle('active');
 if (panel.classList.contains('active')) {
 renderProjectColTogglePanel();
-var rect = e.target.getBoundingClientRect();
-panel.style.position = 'fixed';
-panel.style.top = (rect.bottom + 4) + 'px';
-panel.style.left = rect.left + 'px';
 }
 }
 function renderProjectColTogglePanel() {
@@ -985,10 +996,6 @@ var panel = document.getElementById('pmClientColPanel');
 panel.classList.toggle('active');
 if (panel.classList.contains('active')) {
 renderClientColTogglePanel();
-var rect = e.target.getBoundingClientRect();
-panel.style.position = 'fixed';
-panel.style.top = (rect.bottom + 4) + 'px';
-panel.style.left = rect.left + 'px';
 }
 }
 function renderClientColTogglePanel() {
@@ -1167,7 +1174,7 @@ headers: { 'Content-Type': 'application/json' },
 body: JSON.stringify({
 'Project ID': editingProjectId,
 'Status': sr.status,
-'Changed At': sr.changedAt,
+'Status Change Date': sr.statusChangeDate,
 'Note': sr.note || ''
 })
 });
@@ -1198,8 +1205,7 @@ renderOverview();
 showProjectMessage('Failed to update project: ' + e.message, 'error');
 if (window.DRIVENErrorHandler) {
 window.DRIVENErrorHandler.report('project-management.html: saveEditProject failed \u2014 ' + (e.message || e), 'saveEditProject', e && e.stack ? e.stack : null);
-
- }
+}
 }
 }
 async function deleteProject(projectId) {
@@ -1413,6 +1419,13 @@ var desc = document.getElementById('pmTypeDesc').value.trim();
 if (!name) { showTypeMessage('Please enter a type name.', 'error'); return; }
 var dup = projectTypes.find(function(t) { return t.name && t.name.toLowerCase() === name.toLowerCase(); });
 if (dup) { showTypeMessage('A project type with name "' + name + '" already exists.', 'error'); return; }
+try {
+await fetch('/api/ProjectTypes', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ 'Project Type Name': name, 'Description': desc || '' })
+});
+} catch(e) {}
 projectTypes.push({ name: name, description: desc });
 await saveProjectTypes();
 document.getElementById('pmTypeName').value = '';
@@ -1966,13 +1979,13 @@ function getOnHoldPeriods(projectId) {
 var rows = pmStatusHistory[projectId] || [];
 var periods = [];
 var holdStart = null;
-rows.slice().sort(function(a, b) { return (a.changedAt || '').localeCompare(b.changedAt || ''); }).forEach(function(r) {
+rows.slice().sort(function(a, b) { return (a.statusChangeDate || '').localeCompare(b.statusChangeDate || ''); }).forEach(function(r) {
 var st = String(r.status || '').toLowerCase();
 if (st === 'on hold') {
-if (!holdStart) holdStart = r.changedAt;
+if (!holdStart) holdStart = r.statusChangeDate;
 } else if (st === 'in progress' || st === 'resumed' || st === 'completed' || st === 'cancelled') {
 if (holdStart) {
-periods.push({ start: holdStart, end: r.changedAt });
+periods.push({ start: holdStart, end: r.statusChangeDate });
 holdStart = null;
 }
 }
@@ -1980,7 +1993,30 @@ holdStart = null;
 if (holdStart) periods.push({ start: holdStart, end: null });
 return periods;
 }
-function renderTrendChart(projArr) {
+function getStatusTimeline(projectId, barStart, barEnd) {
+var rows = pmStatusHistory[projectId] || [];
+if (rows.length === 0) return [{ start: barStart, end: barEnd, status: null, hold: false }];
+var sorted = rows.slice().sort(function(a, b) {
+return (a.statusChangeDate || '').localeCompare(b.statusChangeDate || '');
+});
+var periods = [];
+for (var i = 0; i < sorted.length; i++) {
+var ps = new Date(sorted[i].statusChangeDate);
+if (isNaN(ps.getTime())) continue;
+var pe = (i + 1 < sorted.length) ? new Date(sorted[i + 1].statusChangeDate) : barEnd;
+if (isNaN(pe.getTime())) pe = barEnd;
+var st = String(sorted[i].status || '').toLowerCase();
+periods.push({ start: ps, end: pe, status: sorted[i].status, hold: st === 'on hold' });
+}
+if (periods.length > 0 && periods[0].start > barStart) {
+periods.unshift({ start: barStart, end: periods[0].start, status: null, hold: false });
+}
+if (periods.length === 0) periods.push({ start: barStart, end: barEnd, status: null, hold: false });
+return periods.map(function(p) {
+return { start: new Date(Math.max(p.start.getTime(), barStart.getTime())), end: new Date(Math.min(p.end.getTime(), barEnd.getTime())), status: p.status, hold: p.hold };
+}).filter(function(p) { return p.end > p.start; });
+}
+async function renderTrendChart(projArr) {
 var projs = projArr || allProjects;
 var container = document.getElementById('pmTrendChart');
 if (!container) return;
@@ -2030,6 +2066,8 @@ var totalPages = Math.max(1, Math.ceil(projects.length / pmTrendPageSize));
 if (pmTrendPage > totalPages) pmTrendPage = totalPages;
 var pageStart = (pmTrendPage - 1) * pmTrendPageSize;
 var pageProjects = projects.slice(pageStart, pageStart + pmTrendPageSize);
+/* Pre-load status history for all visible projects */
+await Promise.all(pageProjects.map(function(p) { return loadStatusHistory(p.id); }));
 var html = '<div class="pm-gantt-wrap"><div class="pm-gantt-inner">';
 html += '<div class="pm-gantt-header">';
 html += '<div class="pm-gantt-header-label">Project</div>';
@@ -2067,32 +2105,16 @@ var barStart = Math.max(workStart, chartStart);
 var barEnd = Math.min(workEnd, chartEnd);
 var leftPct = (barStart - chartStart) / rangeMs * 100;
 var widthPct = Math.max(1, (barEnd - barStart) / rangeMs * 100);
-/* Split the bar at on-hold periods from status history */
-var holdPeriods = getOnHoldPeriods(p.id);
-var segs = [{ start: barStart, end: barEnd, hold: false }];
-holdPeriods.forEach(function(hp) {
-var hs = hp.start ? new Date(hp.start) : null;
-var he = hp.end ? new Date(hp.end) : null;
-var newSegs = [];
-segs.forEach(function(seg) {
-if (seg.hold) { newSegs.push(seg); return; }
-if (!hs) { newSegs.push(seg); return; }
-if (he && he <= seg.start) { newSegs.push(seg); return; }
-if (hs >= seg.end) { newSegs.push(seg); return; }
-if (hs > seg.start) newSegs.push({ start: seg.start, end: hs, hold: false });
-var holdEnd = he && he < seg.end ? he : seg.end;
-newSegs.push({ start: hs < seg.start ? seg.start : hs, end: holdEnd, hold: true });
-if (he && he < seg.end) newSegs.push({ start: he, end: seg.end, hold: false });
-});
-segs = newSegs;
-});
-segs.forEach(function(seg) {
+/* Build status timeline segments — each colored by the status active during that period */
+var timeline = getStatusTimeline(p.id, barStart, barEnd);
+timeline.forEach(function(seg) {
 var sLeft = (seg.start - chartStart) / rangeMs * 100;
 var sWidth = Math.max(1, (seg.end - seg.start) / rangeMs * 100);
 if (seg.hold) {
 html += '<div class="pm-gantt-hold" style="left:' + sLeft + '%;width:' + sWidth + '%;" title="' + escapeHtml(p.name || '') + ' \u2014 On Hold ' + (seg.start ? seg.start.toISOString().substring(0,10) : '') + (seg.end ? ' to ' + seg.end.toISOString().substring(0,10) : ' (ongoing)') + '"></div>';
 } else {
-html += '<div class="pm-gantt-bar" style="left:' + sLeft + '%;width:' + sWidth + '%;background:' + color + ';" title="' + escapeHtml(p.name || '') + ' | Status: ' + escapeHtml(p.status || '') + '"></div>';
+var segColor = seg.status ? (STATUS_COLORS[String(seg.status).toLowerCase()] || color) : color;
+html += '<div class="pm-gantt-bar" style="left:' + sLeft + '%;width:' + sWidth + '%;background:' + segColor + ';" title="' + escapeHtml(p.name || '') + ' | Status: ' + escapeHtml(seg.status || p.status || '') + '"></div>';
 }
 });
 /* Dashed segment from award to start (no activity period) */
@@ -2286,7 +2308,7 @@ return;
 }
 rows.forEach(function(r) {
 var tr = document.createElement('tr');
-tr.innerHTML = '<td>' + escapeHtml(r.status || '') + '</td><td>' + escapeHtml(r.changedAt || '') + '</td><td>' + escapeHtml(r.note || '\u2014') + '</td>';
+tr.innerHTML = '<td>' + escapeHtml(r.status || '') + '</td><td>' + escapeHtml(r.statusChangeDate || '') + '</td><td>' + escapeHtml(r.note || '\u2014') + '</td>';
 shBody.appendChild(tr);
 });
 });
@@ -2323,4 +2345,5 @@ if (e.target === overlay) overlay.classList.remove('active');
 });
 });
 })();
+
  
