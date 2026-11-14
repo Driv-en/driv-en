@@ -1798,6 +1798,8 @@ item.innerHTML = '<div class="pm-donut-legend-dot" style="background:' + STATUS_
 legend.appendChild(item);
 });
 }
+var pmTrendPage = 1;
+var pmTrendPageSize = 10;
 function renderTrendChart(projArr) {
 var projs = projArr || allProjects;
 var container = document.getElementById('pmTrendChart');
@@ -1831,8 +1833,12 @@ return e <= chartEnd && l >= chartStart;
 }).sort(function(a, b) {
 return getEarliestDate(a) - getEarliestDate(b);
 });
+var countEl = document.getElementById('pmTrendCount');
+if (countEl) countEl.textContent = projects.length;
 if (projects.length === 0) {
 container.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b;">No projects with dates in this period.</div>';
+var pagEl = document.getElementById('pmTrendPagination');
+if (pagEl) pagEl.textContent = '';
 return;
 }
 var rowH = 28;
@@ -1843,38 +1849,42 @@ var d = new Date(chartStart.getFullYear(), chartStart.getMonth() + m, 1);
 if (d >= chartEnd) break;
 months.push({ label: d.toLocaleDateString('en', { month: 'short' }), start: d });
 }
-var html = '<div style="overflow-x:auto;"><div style="min-width:600px;position:relative;">';
-html += '<div style="display:flex;align-items:center;height:24px;margin-bottom:4px;border-bottom:1px solid #cbd5e1;">';
-html += '<div style="width:' + labelW + 'px;flex-shrink:0;font-size:12px;font-weight:600;color:#64748b;">Project</div>';
-html += '<div style="flex:1;position:relative;height:24px;">';
+var totalPages = Math.max(1, Math.ceil(projects.length / pmTrendPageSize));
+if (pmTrendPage > totalPages) pmTrendPage = totalPages;
+var pageStart = (pmTrendPage - 1) * pmTrendPageSize;
+var pageProjects = projects.slice(pageStart, pageStart + pmTrendPageSize);
+var html = '<div class="pm-gantt-wrap"><div class="pm-gantt-inner">';
+html += '<div class="pm-gantt-header">';
+html += '<div class="pm-gantt-header-label">Project</div>';
+html += '<div class="pm-gantt-track" style="height:24px;">';
 months.forEach(function(mo) {
 var pct = (mo.start - chartStart) / rangeMs * 100;
-html += '<div style="position:absolute;left:' + pct + '%;font-size:11px;color:#64748b;white-space:nowrap;">' + mo.label + '</div>';
+html += '<div class="pm-gantt-month" style="left:' + pct + '%;">' + mo.label + '</div>';
 });
 html += '</div></div>';
-projects.forEach(function(p) {
+pageProjects.forEach(function(p) {
 var e = getEarliestDate(p), l = getLatestDate(p);
 var barStart = Math.max(e, chartStart);
 var barEnd = Math.min(l, chartEnd);
 var leftPct = (barStart - chartStart) / rangeMs * 100;
 var widthPct = Math.max(1, (barEnd - barStart) / rangeMs * 100);
 var color = STATUS_COLORS[String(p.status || '').toLowerCase()] || '#94a3b8';
-html += '<div style="display:flex;align-items:center;height:' + rowH + 'px;border-bottom:1px solid #f1f5f9;">';
-html += '<div style="width:' + labelW + 'px;flex-shrink:0;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px;" title="' + escapeHtml(p.name || '') + '">' + escapeHtml(p.code || '') + ' ' + escapeHtml(p.name || '') + '</div>';
-html += '<div style="flex:1;position:relative;height:' + rowH + 'px;">';
+html += '<div class="pm-gantt-row" style="height:' + rowH + 'px;">';
+html += '<div class="pm-gantt-label" title="' + escapeHtml(p.name || '') + '">' + escapeHtml(p.code || '') + ' ' + escapeHtml(p.name || '') + '</div>';
+html += '<div class="pm-gantt-track" style="height:' + rowH + 'px;">';
 if (p.awardDate) {
 var awardPct = (new Date(p.awardDate) - chartStart) / rangeMs * 100;
-if (awardPct >= 0 && awardPct <= 100) html += '<div style="position:absolute;left:' + awardPct + '%;top:4px;width:2px;height:' + (rowH - 8) + 'px;background:#f59e0b;z-index:2;" title="Award: ' + p.awardDate + '"></div>';
+if (awardPct >= 0 && awardPct <= 100) html += '<div class="pm-gantt-marker" style="left:' + awardPct + '%;background:#f59e0b;" title="Award: ' + p.awardDate + '"></div>';
 }
 if (p.actualStartDate) {
 var startPct = (new Date(p.actualStartDate) - chartStart) / rangeMs * 100;
-if (startPct >= 0 && startPct <= 100) html += '<div style="position:absolute;left:' + startPct + '%;top:4px;width:2px;height:' + (rowH - 8) + 'px;background:#16a34a;z-index:2;" title="Start: ' + p.actualStartDate + '"></div>';
+if (startPct >= 0 && startPct <= 100) html += '<div class="pm-gantt-marker" style="left:' + startPct + '%;background:#16a34a;" title="Start: ' + p.actualStartDate + '"></div>';
 }
 if (p.actualCompletionDate) {
 var compPct = (new Date(p.actualCompletionDate) - chartStart) / rangeMs * 100;
-if (compPct >= 0 && compPct <= 100) html += '<div style="position:absolute;left:' + compPct + '%;top:4px;width:2px;height:' + (rowH - 8) + 'px;background:#6366f1;z-index:2;" title="Completion: ' + p.actualCompletionDate + '"></div>';
+if (compPct >= 0 && compPct <= 100) html += '<div class="pm-gantt-marker" style="left:' + compPct + '%;background:#6366f1;" title="Completion: ' + p.actualCompletionDate + '"></div>';
 }
-html += '<div style="position:absolute;left:' + leftPct + '%;width:' + widthPct + '%;top:6px;height:' + (rowH - 12) + 'px;background:' + color + ';border-radius:4px;opacity:0.85;z-index:1;" title="' + escapeHtml(p.name || '') + ' | Status: ' + escapeHtml(p.status || '') + '"></div>';
+html += '<div class="pm-gantt-bar" style="left:' + leftPct + '%;width:' + widthPct + '%;background:' + color + ';" title="' + escapeHtml(p.name || '') + ' | Status: ' + escapeHtml(p.status || '') + '"></div>';
 html += '</div></div>';
 });
 html += '<div style="display:flex;gap:12px;margin-top:8px;font-size:11px;color:#64748b;">';
@@ -1886,6 +1896,7 @@ html += '<span><span style="display:inline-block;width:12px;height:12px;backgrou
 html += '</div>';
 html += '</div></div>';
 container.innerHTML = html;
+renderPagination('pmTrendPagination', projects.length, totalPages, pmTrendPage, pmTrendPageSize, function(p) { pmTrendPage = p; renderTrendChart(projArr); }, function(sz) { pmTrendPageSize = sz; pmTrendPage = 1; renderTrendChart(projArr); });
 }
 var ovProjSearch = '', ovClientSearch = '', pmYearFilter = '';
 function populateYearFilter() {
