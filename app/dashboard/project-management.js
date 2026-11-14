@@ -965,18 +965,8 @@ await loadProjects();
 }
 document.getElementById('pmProjectName').value = '';
 document.getElementById('pmProjectCode').value = '';
+document.getElementById('pmProjectLocation').value = '';
 document.getElementById('pmProjectStatus').value = 'Active';
-document.getElementById('pmProjectStreet').value = '';
-document.getElementById('pmProjectCity').value = '';
-document.getElementById('pmProjectState').value = '';
-document.getElementById('pmProjectZip').value = '';
-document.getElementById('pmProjectClient').value = '';
-document.getElementById('pmProjectManager').value = '';
-document.getElementById('pmAwardDate').value = '';
-document.getElementById('pmExpectedStartDate').value = '';
-document.getElementById('pmActualStartDate').value = '';
-document.getElementById('pmExpectedCompletionDate').value = '';
-document.getElementById('pmActualCompletionDate').value = '';
 showProjectMessage('Project "' + name + '" added.', 'success');
 renderOverview();
 switchTab('projects');
@@ -1071,7 +1061,7 @@ var idx = allProjects.findIndex(function(p) { return p.id === editingProjectId; 
 if (idx !== -1) allProjects[idx] = updated;
 } else {
 var project = allProjects.find(function(p) { return p.id === editingProjectId; });
-if (project) { project.name = name; project.code = code; project.status = status; project.street = street; project.city = city; project.state = state; project.zip = zip; }
+if (project) { project.name = name; project.code = code; project.status = status; project.location = location; }
 }
 showProjectMessage('Project "' + name + '" updated.', 'success');
 closeEditProjectModal();
