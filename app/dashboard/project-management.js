@@ -1148,7 +1148,6 @@ var awd = document.getElementById('pmEditAwardDate');
 var esd = document.getElementById('pmEditExpectedStartDate');
 var asd = document.getElementById('pmEditActualStartDate');
 var ecd = document.getElementById('pmEditExpectedCompletionDate');
-
 var acd = document.getElementById('pmEditActualCompletionDate');
 if (esd && esd.value) payload['Expected Start Date'] = esd.value;
 if (asd && asd.value) payload['Actual Start Date'] = asd.value;
@@ -1199,7 +1198,8 @@ renderOverview();
 showProjectMessage('Failed to update project: ' + e.message, 'error');
 if (window.DRIVENErrorHandler) {
 window.DRIVENErrorHandler.report('project-management.html: saveEditProject failed \u2014 ' + (e.message || e), 'saveEditProject', e && e.stack ? e.stack : null);
-}
+
+ }
 }
 }
 async function deleteProject(projectId) {
@@ -1962,6 +1962,24 @@ var padStart = new Date(minD.getFullYear(), minD.getMonth() - 1, 1);
 var padEnd = new Date(maxD.getFullYear(), maxD.getMonth() + 2, 1);
 return { start: padStart, end: padEnd };
 }
+function getOnHoldPeriods(projectId) {
+var rows = pmStatusHistory[projectId] || [];
+var periods = [];
+var holdStart = null;
+rows.slice().sort(function(a, b) { return (a.changedAt || '').localeCompare(b.changedAt || ''); }).forEach(function(r) {
+var st = String(r.status || '').toLowerCase();
+if (st === 'on hold') {
+if (!holdStart) holdStart = r.changedAt;
+} else if (st === 'in progress' || st === 'resumed' || st === 'completed' || st === 'cancelled') {
+if (holdStart) {
+periods.push({ start: holdStart, end: r.changedAt });
+holdStart = null;
+}
+}
+});
+if (holdStart) periods.push({ start: holdStart, end: null });
+return periods;
+}
 function renderTrendChart(projArr) {
 var projs = projArr || allProjects;
 var container = document.getElementById('pmTrendChart');
@@ -2049,7 +2067,34 @@ var barStart = Math.max(workStart, chartStart);
 var barEnd = Math.min(workEnd, chartEnd);
 var leftPct = (barStart - chartStart) / rangeMs * 100;
 var widthPct = Math.max(1, (barEnd - barStart) / rangeMs * 100);
-html += '<div class="pm-gantt-bar" style="left:' + leftPct + '%;width:' + widthPct + '%;background:' + color + ';" title="' + escapeHtml(p.name || '') + ' | Status: ' + escapeHtml(p.status || '') + '"></div>';
+/* Split the bar at on-hold periods from status history */
+var holdPeriods = getOnHoldPeriods(p.id);
+var segs = [{ start: barStart, end: barEnd, hold: false }];
+holdPeriods.forEach(function(hp) {
+var hs = hp.start ? new Date(hp.start) : null;
+var he = hp.end ? new Date(hp.end) : null;
+var newSegs = [];
+segs.forEach(function(seg) {
+if (seg.hold) { newSegs.push(seg); return; }
+if (!hs) { newSegs.push(seg); return; }
+if (he && he <= seg.start) { newSegs.push(seg); return; }
+if (hs >= seg.end) { newSegs.push(seg); return; }
+if (hs > seg.start) newSegs.push({ start: seg.start, end: hs, hold: false });
+var holdEnd = he && he < seg.end ? he : seg.end;
+newSegs.push({ start: hs < seg.start ? seg.start : hs, end: holdEnd, hold: true });
+if (he && he < seg.end) newSegs.push({ start: he, end: seg.end, hold: false });
+});
+segs = newSegs;
+});
+segs.forEach(function(seg) {
+var sLeft = (seg.start - chartStart) / rangeMs * 100;
+var sWidth = Math.max(1, (seg.end - seg.start) / rangeMs * 100);
+if (seg.hold) {
+html += '<div class="pm-gantt-hold" style="left:' + sLeft + '%;width:' + sWidth + '%;" title="' + escapeHtml(p.name || '') + ' \u2014 On Hold ' + (seg.start ? seg.start.toISOString().substring(0,10) : '') + (seg.end ? ' to ' + seg.end.toISOString().substring(0,10) : ' (ongoing)') + '"></div>';
+} else {
+html += '<div class="pm-gantt-bar" style="left:' + sLeft + '%;width:' + sWidth + '%;background:' + color + ';" title="' + escapeHtml(p.name || '') + ' | Status: ' + escapeHtml(p.status || '') + '"></div>';
+}
+});
 /* Dashed segment from award to start (no activity period) */
 if (p.awardDate && (p.actualStartDate || p.expectedStartDate)) {
 var awardD = new Date(p.awardDate);
@@ -2070,6 +2115,9 @@ html += '<span><span style="display:inline-block;width:12px;height:12px;backgrou
 html += '<span><span style="display:inline-block;width:12px;height:12px;background:#6366f1;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Completion</span>';
 html += '<span><span style="display:inline-block;width:12px;height:12px;background:#3b82f6;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Awarded</span>';
 html += '<span><span style="display:inline-block;width:12px;height:12px;background:#16a34a;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>In Progress</span>';
+html += '<span><span style="display:inline-block;width:12px;height:12px;background:repeating-linear-gradient(90deg,#f59e0b 0 4px,transparent 4px 8px);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>On Hold</span>';
+html += '<span><span style="display:inline-block;width:12px;height:12px;background:#6366f1;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Completed</span>';
+html += '<span><span style="display:inline-block;width:12px;height:12px;background:#ef4444;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Cancelled</span>';
 html += '</div>';
 html += '</div></div>';
 container.innerHTML = html;
@@ -2222,12 +2270,27 @@ var fields = [
 ['Expected Start', p.expectedStartDate || '\u2014'],
 ['Actual Start', p.actualStartDate || '\u2014'],
 ['Expected Completion', p.expectedCompletionDate || '\u2014'],
-['Actual Completion', p.actualCompletionDate || 'u2014'],
+['Actual Completion', p.actualCompletionDate || '\u2014'],
 ['Notes', p.notes || '\u2014']
 ];
 grid.innerHTML = fields.map(function(f) {
 return '<div class="pm-detail-field"><span class="pm-detail-label">' + f[0] + '</span><span class="pm-detail-value">' + escapeHtml(f[1]) + '</span></div>';
 }).join('');
+var shBody = document.getElementById('pmDetailStatusHistoryBody');
+if (shBody) {
+shBody.textContent = '';
+loadStatusHistory(p.id).then(function(rows) {
+if (!rows || rows.length === 0) {
+shBody.innerHTML = '<tr><td colspan="3" class="pm-empty">No status changes recorded.</td></tr>';
+return;
+}
+rows.forEach(function(r) {
+var tr = document.createElement('tr');
+tr.innerHTML = '<td>' + escapeHtml(r.status || '') + '</td><td>' + escapeHtml(r.changedAt || '') + '</td><td>' + escapeHtml(r.note || '\u2014') + '</td>';
+shBody.appendChild(tr);
+});
+});
+}
 document.getElementById('pmDetailModal').classList.add('active');
 }
 function getActiveContext() {
@@ -2260,3 +2323,4 @@ if (e.target === overlay) overlay.classList.remove('active');
 });
 });
 })();
+ 
