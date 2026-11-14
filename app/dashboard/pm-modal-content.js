@@ -1,4 +1,5 @@
-var PM_MODAL_CONTENT = {
+<!-- ===== PM-Modal-Content ===== -->
+  var PM_MODAL_CONTENT = {
 overview: {
 title: 'Project Management \u2014 Overview',
 purpose: 'The Overview tab provides a high-level snapshot of all projects and clients in your organization. Use the Year filter to focus on a specific year, review KPIs, view visual charts, and quickly find projects or clients. Click Read Aloud to hear the page content spoken aloud.',
