@@ -1816,12 +1816,12 @@ chartEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 var rangeMs = chartEnd - chartStart;
 function getEarliestDate(p) {
 var dates = [p.awardDate, p.expectedStartDate, p.actualStartDate, p.expectedCompletionDate, p.actualCompletionDate].filter(function(d) { return d; });
-if (dates.length === 0) return null;
+if (dates.length === 0) return p.createdAt ? new Date(p.createdAt) : null;
 return new Date(Math.min.apply(null, dates.map(function(d) { return new Date(d).getTime(); })));
 }
 function getLatestDate(p) {
 var dates = [p.awardDate, p.expectedStartDate, p.actualStartDate, p.expectedCompletionDate, p.actualCompletionDate].filter(function(d) { return d; });
-if (dates.length === 0) return null;
+if (dates.length === 0) return p.createdAt ? new Date(p.createdAt) : null;
 return new Date(Math.max.apply(null, dates.map(function(d) { return new Date(d).getTime(); })));
 }
 var projects = projs.filter(function(p) {
