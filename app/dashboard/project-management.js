@@ -586,6 +586,51 @@ if (sel) sel.value = status;
 switchTab('projects');
 }
 window.kpiClick = kpiClick;
+var pmStatusHistory = {};
+function loadStatusHistory(projectId) {
+if (!projectId) return Promise.resolve([]);
+if (pmStatusHistory[projectId]) return Promise.resolve(pmStatusHistory[projectId]);
+return fetch('/api/ProjectStatusHistory?project_id=' + encodeURIComponent(projectId))
+.then(function(r) { return r.json(); })
+.then(function(data) {
+var rows = (data && data.records) ? data.records.map(function(r) {
+var f = (r.fields && typeof r.fields === 'object') ? r.fields : r;
+return { status: f.status || f.Status || '', changedAt: f.changed_at || f.changedAt || '', note: f.note || f.Note || '' };
+}) : [];
+pmStatusHistory[projectId] = rows;
+return rows;
+})
+.catch(function() { return []; });
+}
+function renderStatusHistory(projectId) {
+var tbody = document.getElementById('pmStatusHistoryBody');
+if (!tbody) return;
+tbody.textContent = '';
+loadStatusHistory(projectId).then(function(rows) {
+if (!rows || rows.length === 0) {
+tbody.innerHTML = '<tr><td colspan="4" class="pm-empty">No status changes recorded. Add one below.</td></tr>';
+return;
+}
+rows.forEach(function(r, i) {
+var tr = document.createElement('tr');
+tr.innerHTML = '<td>' + escapeHtml(r.status || '') + '</td><td>' + escapeHtml(r.changedAt || '') + '</td><td>' + escapeHtml(r.note || '\u2014') + '</td>';
+if (canModify) {
+var td = document.createElement('td');
+var btn = document.createElement('button');
+btn.className = 'pm-table-btn';
+btn.textContent = 'Remove';
+btn.addEventListener('click', function() {
+rows.splice(i, 1);
+pmStatusHistory[projectId] = rows;
+renderStatusHistory(projectId);
+});
+td.appendChild(btn);
+tr.appendChild(td);
+}
+tbody.appendChild(tr);
+});
+});
+}
 function statusLabel(s) {
 var map = { 'awarded': 'Awarded', 'in progress': 'In Progress', 'on hold': 'On Hold', 'completed': 'Completed', 'cancelled': 'Cancelled' };
 return map[String(s || '').toLowerCase()] || s;
@@ -1053,6 +1098,7 @@ var editClientSel = document.getElementById('pmEditProjectClient');
 editClientSel.innerHTML = '<option value="">None</option>';
 allClients.forEach(function(c) { var opt = document.createElement('option'); opt.value = c.id; opt.textContent = c.clientName || '(unnamed)'; editClientSel.appendChild(opt); });
 editClientSel.value = project.clientId || project.client || '';
+
 document.getElementById('pmEditAwardDate').value = project.awardDate || '';
 document.getElementById('pmEditExpectedStartDate').value = project.expectedStartDate || '';
 document.getElementById('pmEditActualStartDate').value = project.actualStartDate || '';
