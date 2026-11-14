@@ -321,6 +321,7 @@ document.getElementById('addTypeForm').style.display = 'none';
 }
 initVisibleCols();
 bindStaticEvents();
+pmLoadPrefs();
 await loadProjectTypes();
 await loadProjects();
 await loadClients();
@@ -1809,6 +1810,29 @@ var pmTrendPage = 1;
 var pmTrendPageSize = 10;
 var pmGanttWindow = 'all'; /* 'all' | '12' | '24' | '36' (months) */
 var pmGanttOffset = 0; /* slider offset in months from chartStart */
+function pmSavePrefs() {
+try {
+localStorage.setItem('pm_prefs', JSON.stringify({
+year: pmYearFilter || '',
+window: pmGanttWindow || 'all',
+offset: pmGanttOffset || 0,
+pageSize: pmTrendPageSize || 10,
+page: pmTrendPage || 1
+}));
+} catch(e) {}
+}
+function pmLoadPrefs() {
+try {
+var raw = localStorage.getItem('pm_prefs');
+if (!raw) return;
+var prefs = JSON.parse(raw);
+if (prefs.year !== undefined) pmYearFilter = prefs.year;
+if (prefs.window !== undefined) pmGanttWindow = prefs.window;
+if (prefs.offset !== undefined) pmGanttOffset = prefs.offset;
+if (prefs.pageSize !== undefined) pmTrendPageSize = prefs.pageSize;
+if (prefs.page !== undefined) pmTrendPage = prefs.page;
+} catch(e) {}
+}
 function getEarliestDate(p) {
 var dates = [p.awardDate, p.expectedStartDate, p.actualStartDate, p.expectedCompletionDate, p.actualCompletionDate].filter(function(d) { return d; });
 if (dates.length === 0) return p.createdAt ? new Date(p.createdAt) : null;
@@ -1931,7 +1955,7 @@ html += '<span><span style="display:inline-block;width:12px;height:12px;backgrou
 html += '</div>';
 html += '</div></div>';
 container.innerHTML = html;
-renderPagination('pmTrendPagination', projects.length, totalPages, pmTrendPage, pmTrendPageSize, function(p) { pmTrendPage = p; renderTrendChart(projArr); }, function(sz) { pmTrendPageSize = sz; pmTrendPage = 1; renderTrendChart(projArr); });
+renderPagination('pmTrendPagination', projects.length, totalPages, pmTrendPage, pmTrendPageSize, function(p) { pmTrendPage = p; pmSavePrefs(); renderTrendChart(projArr); }, function(sz) { pmTrendPageSize = sz; pmTrendPage = 1; pmSavePrefs(); renderTrendChart(projArr); });
 updateGanttSliderLabel();
 }
 function updateGanttSliderLabel() {
@@ -1954,13 +1978,17 @@ label.textContent = chartStart.toLocaleDateString('en', { month: 'short', year: 
 function initGanttControls() {
 var zoom = document.getElementById('pmGanttZoom');
 var slider = document.getElementById('pmGanttSlider');
+if (zoom) zoom.value = pmGanttWindow;
 if (zoom) zoom.addEventListener('change', function() {
 pmGanttWindow = zoom.value;
 pmGanttOffset = 0;
+pmTrendPage = 1;
+pmSavePrefs();
 renderTrendChart();
 });
 if (slider) slider.addEventListener('input', function() {
 pmGanttOffset = parseInt(slider.value) || 0;
+pmSavePrefs();
 renderTrendChart();
 });
 }
@@ -1972,7 +2000,7 @@ var years = {};
 allProjects.forEach(function(p) { if (p.createdAt) { var y = new Date(p.createdAt).getFullYear(); years[y] = true; } });
 allClients.forEach(function(c) { if (c.createdAt) { var y = new Date(c.createdAt).getFullYear(); years[y] = true; } });
 var sorted = Object.keys(years).sort(function(a, b) { return b - a; });
-var current = sel.value;
+var current = pmYearFilter || sel.value;
 sel.innerHTML = '<option value="">All Years</option>';
 sorted.forEach(function(y) { var opt = document.createElement('option'); opt.value = y; opt.textContent = y; sel.appendChild(opt); });
 sel.value = current;
@@ -1991,7 +2019,7 @@ var cs = document.getElementById('pmOverviewClientSearch');
 var yf = document.getElementById('pmYearFilter');
 if (ps) ps.addEventListener('input', function() { ovProjSearch = ps.value.toLowerCase(); renderOverviewProjects(getYearFilteredProjects()); });
 if (cs) cs.addEventListener('input', function() { ovClientSearch = cs.value.toLowerCase(); renderOverviewClients(getYearFilteredClients()); });
-if (yf) yf.addEventListener('change', function() { pmYearFilter = yf.value; renderOverview(); });
+if (yf) yf.addEventListener('change', function() { pmYearFilter = yf.value; pmTrendPage = 1; pmSavePrefs(); renderOverview(); });
 }
 function renderOverviewProjects(projArr) {
 var projs = projArr || allProjects;
