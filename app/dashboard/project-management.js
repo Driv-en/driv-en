@@ -385,6 +385,21 @@ var btnCancelET = document.getElementById('btnCancelEditType');
 if (btnCancelET) btnCancelET.addEventListener('click', closeEditTypeModal);
 var btnSaveET = document.getElementById('btnSaveEditType');
 if (btnSaveET) btnSaveET.addEventListener('click', saveEditProjectType);
+var btnAddSH = document.getElementById('btnAddStatusHistory');
+if (btnAddSH) btnAddSH.addEventListener('click', function() {
+if (!editingProjectId) return;
+var status = document.getElementById('pmStatusHistoryStatus').value;
+var date = document.getElementById('pmStatusHistoryDate').value;
+var note = document.getElementById('pmStatusHistoryNote').value.trim();
+if (!date) { showProjectMessage('Please pick a date for the status change.', 'error'); return; }
+var rows = pmStatusHistory[editingProjectId] || [];
+rows.push({ status: status, changedAt: date, note: note });
+rows.sort(function(a, b) { return (a.changedAt || '').localeCompare(b.changedAt || ''); });
+pmStatusHistory[editingProjectId] = rows;
+renderStatusHistory(editingProjectId);
+document.getElementById('pmStatusHistoryDate').value = '';
+document.getElementById('pmStatusHistoryNote').value = '';
+});
 var btnCanPP = document.getElementById('btnCancelProjectPrint');
 if (btnCanPP) btnCanPP.addEventListener('click', function() { closeModal('pmProjectPrintModal'); });
 var btnDoPP = document.getElementById('btnDoProjectPrint');
@@ -551,7 +566,9 @@ var fc = getYearFilteredClients();
 document.getElementById('kpiTotalProjects').textContent = fp.length;
 document.getElementById('kpiAwardedProjects').textContent = fp.filter(function(p) { return String(p.status || '').toLowerCase() === 'awarded'; }).length;
 document.getElementById('kpiInProgressProjects').textContent = fp.filter(function(p) { return String(p.status || '').toLowerCase() === 'in progress'; }).length;
+document.getElementById('kpiOnHoldProjects').textContent = fp.filter(function(p) { return String(p.status || '').toLowerCase() === 'on hold'; }).length;
 document.getElementById('kpiCompletedProjects').textContent = fp.filter(function(p) { return String(p.status || '').toLowerCase() === 'completed'; }).length;
+document.getElementById('kpiCancelledProjects').textContent = fp.filter(function(p) { return String(p.status || '').toLowerCase() === 'cancelled'; }).length;
 renderStatusDonut(fp);
 renderTrendChart(fp);
 renderOverviewProjects(fp);
@@ -561,6 +578,12 @@ makeColumnsDraggable(document.getElementById('pmOverviewProjectsTable'), 'pmColO
 makeColumnsResizable(document.getElementById('pmOverviewClientsTable'), 'pmColW_ovClients', [200, 160, 100]);
 makeColumnsDraggable(document.getElementById('pmOverviewClientsTable'), 'pmColOrder_ovClients');
 if (typeof initVoice === 'function') initVoice();
+}
+function kpiClick(el) {
+var status = el.getAttribute('data-kpi-status') || '';
+var sel = document.getElementById('pmProjectFilterStatus');
+if (sel) sel.value = status;
+switchTab('projects');
 }
 function statusLabel(s) {
 var map = { 'awarded': 'Awarded', 'in progress': 'In Progress', 'on hold': 'On Hold', 'completed': 'Completed', 'cancelled': 'Cancelled' };
@@ -1037,6 +1060,7 @@ document.getElementById('pmEditActualCompletionDate').value = project.actualComp
 document.getElementById('pmEditProjectManager').value = project.projectManager || '';
 document.getElementById("pmEditProjectNotes").value = project.notes || '';
 document.getElementById('pmEditProjectModal').classList.add('active');
+renderStatusHistory(projectId);
 }
 function closeEditProjectModal() {
 document.getElementById('pmEditProjectModal').classList.remove('active');
@@ -1081,6 +1105,16 @@ if (ecd && ecd.value) payload['Expected Completion Date'] = ecd.value;
 if (acd && acd.value) payload['Actual Completion Date'] = acd.value;
 if (awd && awd.value) payload['Award Date'] = awd.value;
 try {
+var shRows = pmStatusHistory[editingProjectId] || [];
+if (shRows.length > 0) {
+try {
+await fetch('/api/ProjectStatusHistory?project_id=' + encodeURIComponent(editingProjectId), {
+method: 'PUT',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ records: shRows })
+});
+} catch(e) {}
+}
 var resp = await fetch('/api/Project/' + encodeURIComponent(editingProjectId), {
 method: 'PUT',
 headers: { 'Content-Type': 'application/json' },
@@ -1725,18 +1759,23 @@ makeColumnsResizable(document.getElementById('pmOverviewClientsTable'), 'pmColW_
 makeColumnsDraggable(document.getElementById('pmOverviewClientsTable'), 'pmColOrder_ovClients');
 }
 if (tab === 'projects') {
+renderProjectTableHead();
+renderProjectTable();
 var pColW = PROJECT_COL_DEFS.filter(function(c) { return c.defaultVisible; }).map(function(c) { return c.width || 120; });
 pColW.push(80);
 makeColumnsResizable(document.getElementById('pmProjectTable'), 'pmColW_projects', pColW);
 makeColumnsDraggable(document.getElementById('pmProjectTable'), 'pmColOrder_projects');
 }
 if (tab === 'clients') {
+renderClientTableHead();
+renderClientTable();
 var cColW = CLIENT_COL_DEFS.filter(function(c) { return c.defaultVisible; }).map(function(c) { return c.width || 120; });
 cColW.push(80);
 makeColumnsResizable(document.getElementById('pmClientTable'), 'pmColW_clients', cColW);
 makeColumnsDraggable(document.getElementById('pmClientTable'), 'pmColOrder_clients');
 }
 if (tab === 'types') {
+renderProjectTypes();
 makeColumnsResizable(document.getElementById('pmTypeTable'), 'pmColW_types', [160, 400, 100]);
 makeColumnsDraggable(document.getElementById('pmTypeTable'), 'pmColOrder_types');
 }
@@ -1923,27 +1962,45 @@ html += '<div class="pm-gantt-month" style="left:' + pct + '%;">' + mo.label + '
 html += '</div></div>';
 pageProjects.forEach(function(p) {
 var e = getEarliestDate(p), l = getLatestDate(p);
-var barStart = Math.max(e, chartStart);
-var barEnd = Math.min(l, chartEnd);
-var leftPct = (barStart - chartStart) / rangeMs * 100;
-var widthPct = Math.max(1, (barEnd - barStart) / rangeMs * 100);
 var color = STATUS_COLORS[String(p.status || '').toLowerCase()] || '#94a3b8';
 html += '<div class="pm-gantt-row" style="height:' + rowH + 'px;">';
 html += '<div class="pm-gantt-label" title="' + escapeHtml(p.name || '') + '">' + escapeHtml(p.code || '') + ' ' + escapeHtml(p.name || '') + '</div>';
 html += '<div class="pm-gantt-track" style="height:' + rowH + 'px;">';
+/* Award marker */
 if (p.awardDate) {
 var awardPct = (new Date(p.awardDate) - chartStart) / rangeMs * 100;
 if (awardPct >= 0 && awardPct <= 100) html += '<div class="pm-gantt-marker" style="left:' + awardPct + '%;background:#f59e0b;" title="Award: ' + p.awardDate + '"></div>';
 }
+/* Start marker */
 if (p.actualStartDate) {
 var startPct = (new Date(p.actualStartDate) - chartStart) / rangeMs * 100;
 if (startPct >= 0 && startPct <= 100) html += '<div class="pm-gantt-marker" style="left:' + startPct + '%;background:#16a34a;" title="Start: ' + p.actualStartDate + '"></div>';
 }
+/* Completion marker */
 if (p.actualCompletionDate) {
 var compPct = (new Date(p.actualCompletionDate) - chartStart) / rangeMs * 100;
 if (compPct >= 0 && compPct <= 100) html += '<div class="pm-gantt-marker" style="left:' + compPct + '%;background:#6366f1;" title="Completion: ' + p.actualCompletionDate + '"></div>';
 }
+/* Work window: from actual start (or expected start if no actual) to completion (or latest date) */
+var workStart = p.actualStartDate ? new Date(p.actualStartDate) : (p.expectedStartDate ? new Date(p.expectedStartDate) : e);
+var workEnd = p.actualCompletionDate ? new Date(p.actualCompletionDate) : l;
+var barStart = Math.max(workStart, chartStart);
+var barEnd = Math.min(workEnd, chartEnd);
+var leftPct = (barStart - chartStart) / rangeMs * 100;
+var widthPct = Math.max(1, (barEnd - barStart) / rangeMs * 100);
 html += '<div class="pm-gantt-bar" style="left:' + leftPct + '%;width:' + widthPct + '%;background:' + color + ';" title="' + escapeHtml(p.name || '') + ' | Status: ' + escapeHtml(p.status || '') + '"></div>';
+/* Dashed segment from award to start (no activity period) */
+if (p.awardDate && (p.actualStartDate || p.expectedStartDate)) {
+var awardD = new Date(p.awardDate);
+var startD = p.actualStartDate ? new Date(p.actualStartDate) : new Date(p.expectedStartDate);
+if (startD > awardD) {
+var dashStart = Math.max(awardD, chartStart);
+var dashEnd = Math.min(startD, chartEnd);
+var dashLeft = (dashStart - chartStart) / rangeMs * 100;
+var dashWidth = Math.max(1, (dashEnd - dashStart) / rangeMs * 100);
+html += '<div class="pm-gantt-dash" style="left:' + dashLeft + '%;width:' + dashWidth + '%;" title="Awarded ' + p.awardDate + ' \u2014 no activity until start"></div>';
+}
+}
 html += '</div></div>';
 });
 html += '<div style="display:flex;gap:12px;margin-top:8px;font-size:11px;color:#64748b;">';
@@ -2135,26 +2192,7 @@ var btnPurpose = document.getElementById('pmBtnPurpose');
 if (btnPurpose) btnPurpose.addEventListener('click', function() { openPmModal('purpose'); });
 var btnInstructions = document.getElementById('pmBtnInstructions');
 if (btnInstructions) btnInstructions.addEventListener('click', function() { openPmModal('instructions'); });
-var btnReadAloud = document.getElementById('pmBtnReadAloud');
-if (btnReadAloud) btnReadAloud.addEventListener('click', function() {
-if (typeof DRIVEN_VOICE !== 'undefined' && DRIVEN_VOICE.isSpeaking && DRIVEN_VOICE.isSpeaking()) {
-DRIVEN_VOICE.stopSpeaking();
-btnReadAloud.classList.remove('speaking');
-btnReadAloud.innerHTML = '&#x1F50A; Read Aloud';
-return;
-}
-var activeTab = document.querySelector('.pm-tab-content[style*="display: block"]') || document.querySelector('.pm-tab-content.active');
-if (!activeTab) activeTab = document.getElementById('tab-overview');
-if (activeTab) {
-var text = activeTab.textContent || activeTab.innerText || '';
-text = text.replace(/\s+/g, ' ').trim();
-if (text && typeof DRIVEN_VOICE !== 'undefined' && DRIVEN_VOICE.speak) {
-DRIVEN_VOICE.speak(text, { onend: function() { btnReadAloud.classList.remove('speaking'); btnReadAloud.innerHTML = '&#x1F50A; Read Aloud'; } });
-btnReadAloud.classList.add('speaking');
-btnReadAloud.innerHTML = '&#x23F9; Stop Reading';
-}
-}
-});
+
 document.querySelectorAll('.pm-modal-overlay').forEach(function(overlay) {
 overlay.addEventListener('click', function(e) {
 if (e.target === overlay) overlay.classList.remove('active');
