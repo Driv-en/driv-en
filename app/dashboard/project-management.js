@@ -1,4 +1,5 @@
-(function() {
+<!-- ===== Project-Management.js ===== -->
+  (function() {
 'use strict';
 var allProjects = [];
 var allClients = [];
