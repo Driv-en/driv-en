@@ -106,6 +106,7 @@ input:focus-visible + .dash-theme-slider { outline:2px solid #2563eb; outline-of
 .pm-overview-card { background:var(--bg-card); border:2px solid var(--success, #16a34a); border-radius:8px; padding:20px 24px; margin-bottom:24px; }
 .pm-overview-card-title { font-size:18px; font-weight:700; color:var(--text); margin:0 0 16px 0; padding-bottom:12px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
 .pm-overview-card-title .count { font-size:14px; font-weight:400; color:var(--text-muted); }
+.pm-title-sub { font-size:13px; font-style:italic; color:var(--text-muted); margin:-10px 0 12px 0; }
 
 /* ===== OVERVIEW KPI CARDS ===== */
 .pm-kpi-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:24px; }
@@ -292,7 +293,11 @@ input:focus-visible + .dash-theme-slider { outline:2px solid #2563eb; outline-of
 .pm-gantt-header-label { width:160px; flex-shrink:0; font-size:12px; font-weight:600; color:#64748b; position:sticky; left:0; background:var(--bg-card,#fff); z-index:2; }
 .pm-gantt-month { position:absolute; font-size:11px; color:#64748b; white-space:nowrap; }
 .pm-gantt-bar { position:absolute; top:6px; height:16px; border-radius:4px; opacity:0.85; z-index:1; }
-.pm-gantt-marker { position:absolute; top:4px; width:2px; height:20px; z-index:2; }
+.pm-gantt-marker { position:absolute; top:4px; width:5px; height:20px; z-index:2; cursor:pointer; border-radius:2px; }
+.pm-gantt-controls { display:flex; align-items:center; gap:12px; margin-bottom:8px; flex-wrap:wrap; }
+.pm-gantt-zoom { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text-muted); }
+.pm-gantt-slider { flex:1; min-width:120px; accent-color:var(--success,#16a34a); }
+.pm-gantt-slider-label { font-size:12px; color:var(--text-muted); white-space:nowrap; }
 /* ===== DETAIL MODAL ===== */
 .pm-detail-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center; padding:20px; box-sizing:border-box; }
 .pm-detail-overlay.active { display:flex; }
@@ -401,6 +406,7 @@ input:focus-visible + .dash-theme-slider { outline:2px solid #2563eb; outline-of
       </div>
       <div class="pm-overview-card pm-chart-card pm-donut-card">
         <div class="pm-overview-card-title">Project Status Breakdown</div>
+        <div class="pm-title-sub" id="pmDonutSubtitle">for filtered years</div>
         <div class="pm-donut-container">
           <div class="pm-donut" id="pmStatusDonut"></div>
           <div class="pm-donut-legend" id="pmStatusLegend"></div>
@@ -410,6 +416,19 @@ input:focus-visible + .dash-theme-slider { outline:2px solid #2563eb; outline-of
     <!-- Gantt chart (full width) -->
     <div class="pm-overview-card pm-chart-card pm-gantt-card">
       <div class="pm-overview-card-title">Projects Status (by Month) <span class="count" id="pmTrendCount">0</span></div>
+      <div class="pm-gantt-controls" id="pmGanttControls">
+        <div class="pm-gantt-zoom">
+          <label for="pmGanttZoom">Window:</label>
+          <select id="pmGanttZoom" class="pm-filter-select">
+            <option value="all">All</option>
+            <option value="12">12 months</option>
+            <option value="24">24 months</option>
+            <option value="36">36 months</option>
+          </select>
+        </div>
+        <input type="range" id="pmGanttSlider" class="pm-gantt-slider" min="0" max="0" value="0" title="Scroll through the project timeline">
+        <span class="pm-gantt-slider-label" id="pmGanttSliderLabel"></span>
+      </div>
       <div class="pm-gantt-wrap" id="pmTrendChart"></div>
       <div class="pm-pagination" id="pmTrendPagination"></div>
     </div>
@@ -940,7 +959,7 @@ input:focus-visible + .dash-theme-slider { outline:2px solid #2563eb; outline-of
 <script src="/app/shared/voice.js?v=4"></script>
 
 <script src="/app/dashboard/pm-modal-content.js?v=1"></script>
-<script src="/app/dashboard/project-management.js?v=26"></script>
+<script src="/app/dashboard/project-management.js?v=27"></script>
 
 <!-- Cloudflare Web Analytics -->
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="{\"token\": \"driv-en-pages\"}"></script>
