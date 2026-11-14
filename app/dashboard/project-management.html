@@ -1,993 +1,2202 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<!-- ===== PAGE-SPECIFIC SEO ===== -->
-<title>DRIV‑EN | Project Management</title>
-<meta name="description" content="DRIV-EN — manage projects, project types, and clients.">
-<meta name="robots" content="noindex, nofollow">
-<link rel="canonical" href="https://www.driv-en.com/app/dashboard/project-management.html">
-
-<!-- Favicon -->
-<link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
-<link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
-<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
-<link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
-
-<!-- ===== SHARED DASHBOARD CSS ===== -->
-<link rel="stylesheet" href="/app/shared/dashboard.css?v=15">
-
-<!-- ===== DIAMOND-PLATE BACKGROUND ===== -->
-<link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
-
-<!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
-<script>
 (function() {
-  var saved = localStorage.getItem("driven-theme");
-  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  var theme = saved || system;
-  document.documentElement.setAttribute("data-theme", theme);
+'use strict';
+var allProjects = [];
+var allClients = [];
+var projectTypes = [];
+var editingProjectId = null;
+var editingClientId = null;
+var editingTypeIndex = null;
+var canModify = false;
+var pmDirty = false;
+var PROJECT_COL_DEFS = [
+{ key: 'code',       label: 'Project Number', defaultVisible: true,  width: 120 },
+{ key: 'name',       label: 'Project Name',   defaultVisible: true,  width: 240 },
+{ key: 'street',      label: 'Street',         defaultVisible: true,  width: 180 },
+{ key: 'city',        label: 'City',           defaultVisible: true,  width: 120 },
+{ key: 'state',       label: 'State',          defaultVisible: true,  width: 80 },
+{ key: 'zip',         label: 'Zip',            defaultVisible: false, width: 80 },
+{ key: 'status',     label: 'Status',         defaultVisible: true,  width: 100 },
+{ key: 'expectedStartDate',  label: 'Expected Start',    defaultVisible: true,  width: 140 },
+{ key: 'actualStartDate',    label: 'Actual Start',      defaultVisible: false, width: 140 },
+{ key: 'expectedCompletionDate', label: 'Expected Completion', defaultVisible: true, width: 160 },
+{ key: 'actualCompletionDate',   label: 'Actual Completion',   defaultVisible: false, width: 160 },
+{ key: 'awardDate',              label: 'Award Date',           defaultVisible: false, width: 140 },
+{ key: 'projectManager',        label: 'Project Manager',      defaultVisible: false, width: 140 },
+{ key: 'notes',                label: 'Notes',                defaultVisible: false, width: 200 },
+];
+var CLIENT_COL_DEFS = [
+{ key: 'clientName',   label: 'Client Name',  defaultVisible: true,  width: 200 },
+{ key: 'contactName',  label: 'Contact Name', defaultVisible: true,  width: 160 },
+{ key: 'contactEmail', label: 'Email',        defaultVisible: true,  width: 200 },
+{ key: 'contactPhone', label: 'Phone',        defaultVisible: true,  width: 140 },
+{ key: 'industry',     label: 'Industry',     defaultVisible: false, width: 140 },
+{ key: 'city',         label: 'City',          defaultVisible: false, width: 120 },
+{ key: 'state',        label: 'State',         defaultVisible: false, width: 80 },
+{ key: 'status',       label: 'Status',        defaultVisible: true,  width: 100 },
+];
+function makeColumnsResizable(tableEl, storageKey, colWidths) {
+if (!tableEl) return;
+var ths = tableEl.querySelectorAll('thead th');
+if (!ths.length) return;
+tableEl.style.tableLayout = 'fixed';
+var saved = {};
+try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch(e) {}
+function syncTableWidth() {
+var total = 0;
+tableEl.querySelectorAll('thead th').forEach(function(th) { total += th.offsetWidth; });
+tableEl.style.width = total + 'px';
+}
+ths.forEach(function(th, i) {
+var w = saved[i] || (colWidths && colWidths[i]) || 120;
+th.style.width = w + 'px';
+th.style.minWidth = '20px';
+var oldR = th.querySelector('.pm-col-resizer');
+if (oldR) oldR.remove();
+var resizer = document.createElement('div');
+resizer.className = 'pm-col-resizer';
+th.appendChild(resizer);
+resizer.addEventListener('mousedown', function(e) {
+e.preventDefault(); e.stopPropagation();
+resizer.classList.add('dragging');
+var startX = e.clientX; var startW = th.offsetWidth;
+document.body.style.cursor = 'col-resize';
+function onMove(ev) {
+var newW = Math.max(20, startW + (ev.clientX - startX));
+var oldW = parseInt(th.style.width, 10) || th.offsetWidth;
+var delta = newW - oldW;
+var currentTotal = parseInt(tableEl.style.width, 10) || tableEl.offsetWidth;
+tableEl.style.width = (currentTotal + delta) + 'px';
+th.style.width = newW + 'px';
+}
+function onUp() {
+document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp);
+document.body.style.cursor = ''; resizer.classList.remove('dragging');
+saved[i] = th.offsetWidth;
+try { localStorage.setItem(storageKey, JSON.stringify(saved)); } catch(e) {}
+syncTableWidth();
+}
+document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+});
+});
+syncTableWidth();
+}
+function makeColumnsDraggable(tableEl, orderKey) {
+if (!tableEl) return;
+var ths = tableEl.querySelectorAll('thead th');
+if (!ths.length) return;
+var total = ths.length;
+var lastIdx = total - 1;
+var savedOrder = null;
+try { savedOrder = JSON.parse(localStorage.getItem(orderKey) || 'null'); } catch(e) {}
+if (savedOrder && savedOrder.length === total) {
+applyColumnOrder(tableEl, savedOrder);
+}
+ths = tableEl.querySelectorAll('thead th');
+ths.forEach(function(th, i) {
+if (i === lastIdx) return;
+th.setAttribute('draggable', 'true');
+th.addEventListener('dragstart', function(e) {
+e.dataTransfer.effectAllowed = 'move';
+e.dataTransfer.setData('text/plain', String(i));
+th.style.opacity = '0.5';
+});
+th.addEventListener('dragend', function() { th.style.opacity = ''; });
+th.addEventListener('dragover', function(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+th.addEventListener('drop', function(e) {
+e.preventDefault();
+var fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
+var toIdx = i;
+if (fromIdx === toIdx || isNaN(fromIdx)) return;
+var currentOrder = [];
+for (var j = 0; j < total; j++) currentOrder.push(j);
+if (savedOrder && savedOrder.length === total) currentOrder = savedOrder.slice();
+var moved = currentOrder.splice(fromIdx, 1)[0];
+currentOrder.splice(toIdx, 0, moved);
+var lastVal = currentOrder[currentOrder.length - 1];
+if (lastVal !== lastIdx) {
+currentOrder = currentOrder.filter(function(v) { return v !== lastIdx; });
+currentOrder.push(lastIdx);
+}
+savedOrder = currentOrder;
+try { localStorage.setItem(orderKey, JSON.stringify(currentOrder)); } catch(e) {}
+applyColumnOrder(tableEl, currentOrder);
+var totalW = 0;
+tableEl.querySelectorAll('thead th').forEach(function(th) { totalW += th.offsetWidth; });
+tableEl.style.width = totalW + 'px';
+});
+});
+}
+function applyColumnOrder(tableEl, order) {
+var thead = tableEl.querySelector('thead');
+var tbody = tableEl.querySelector('tbody');
+if (!thead) return;
+var ths = Array.from(thead.querySelectorAll('th'));
+var orderedThs = order.map(function(idx) { return ths[idx]; });
+thead.textContent = '';
+orderedThs.forEach(function(th) { thead.appendChild(th); });
+if (tbody) {
+Array.from(tbody.querySelectorAll('tr')).forEach(function(row) {
+var tds = Array.from(row.querySelectorAll('td'));
+if (tds.length !== order.length) return;
+var orderedTds = order.map(function(idx) { return tds[idx]; });
+row.textContent = '';
+orderedTds.forEach(function(td) { row.appendChild(td); });
+});
+}
+}
+var projectSortKey = 'name';
+var projectSortDir = 'asc';
+var projectPage = 1;
+var projectPageSize = 10;
+var ovProjPage = 1;
+var ovProjPageSize = 10;
+var projectVisibleCols = {};
+var clientSortKey = 'clientName';
+var clientSortDir = 'asc';
+var clientPage = 1;
+var clientPageSize = 10;
+var ovClientPage = 1;
+var ovClientPageSize = 10;
+var typePage = 1;
+var typePageSize = 10;
+var clientVisibleCols = {};
+var projectExportFormat = 'csv';
+var clientExportFormat = 'csv';
+function rebuildHeader() {
+var header = document.getElementById('dashHeader');
+if (!header) return;
+var title = document.body.getAttribute('data-page-title') || 'Dashboard';
+var logoArea = header.querySelector('#dashCustomerLogoArea');
+var drivenLogo = header.querySelector('.dash-driven-logo') || header.querySelector('img.dash-driven-logo');
+header.innerHTML = '';
+var dashHeader = document.createElement('div');
+dashHeader.className = 'dash-header';
+var row1 = document.createElement('div');
+row1.className = 'dash-header-row1';
+var left = document.createElement('div');
+left.className = 'dash-header-logo-left';
+if (logoArea) {
+left.appendChild(logoArea);
+} else {
+var ph = document.createElement('div');
+ph.id = 'dashCustomerLogoArea';
+ph.innerHTML = '<div class="dash-customer-logo-placeholder">No logo uploaded</div>';
+left.appendChild(ph);
+}
+row1.appendChild(left);
+var h1 = document.createElement('h1');
+h1.id = 'dashPageTitle';
+h1.className = 'dash-header-title';
+h1.textContent = title;
+row1.appendChild(h1);
+var right = document.createElement('div');
+right.className = 'dash-header-logo-right';
+if (drivenLogo) {
+right.appendChild(drivenLogo);
+} else {
+var img = document.createElement('img');
+img.src = '/assets/logo.png?v=2026';
+img.className = 'dash-driven-logo';
+img.alt = 'DRIV-EN Logo';
+right.appendChild(img);
+}
+row1.appendChild(right);
+dashHeader.appendChild(row1);
+header.appendChild(dashHeader);
+}
+function startHeaderObserver() {
+var header = document.getElementById('dashHeader');
+if (!header) return;
+var observer = new MutationObserver(function(mutations) {
+for (var i = 0; i < mutations.length; i++) {
+if (mutations[i].addedNodes.length > 0) {
+observer.disconnect();
+rebuildHeader();
+setTimeout(function() { startHeaderObserver(); }, 100);
+return;
+}
+}
+});
+observer.observe(header, { childList: true, subtree: true });
+}
+function scheduleHeaderRebuilds() {
+setTimeout(rebuildHeader, 50);
+setTimeout(rebuildHeader, 200);
+setTimeout(rebuildHeader, 500);
+setTimeout(rebuildHeader, 1000);
+setTimeout(rebuildHeader, 2000);
+setTimeout(rebuildHeader, 3000);
+}
+function initVisibleCols() {
+try {
+var savedP = JSON.parse(localStorage.getItem('driven_pm_proj_cols') || '{}');
+PROJECT_COL_DEFS.forEach(function(c) {
+projectVisibleCols[c.key] = (savedP[c.key] !== undefined) ? savedP[c.key] : c.defaultVisible;
+});
+} catch(e) {
+PROJECT_COL_DEFS.forEach(function(c) { projectVisibleCols[c.key] = c.defaultVisible; });
+}
+try {
+var savedC = JSON.parse(localStorage.getItem('driven_pm_cli_cols') || '{}');
+CLIENT_COL_DEFS.forEach(function(c) {
+clientVisibleCols[c.key] = (savedC[c.key] !== undefined) ? savedC[c.key] : c.defaultVisible;
+});
+} catch(e) {
+CLIENT_COL_DEFS.forEach(function(c) { clientVisibleCols[c.key] = c.defaultVisible; });
+}
+}
+function saveProjectVisibleCols() {
+try { localStorage.setItem('driven_pm_proj_cols', JSON.stringify(projectVisibleCols)); } catch(e) {}
+}
+function saveClientVisibleCols() {
+try { localStorage.setItem('driven_pm_cli_cols', JSON.stringify(clientVisibleCols)); } catch(e) {}
+}
+var pmInitDone = false;
+document.addEventListener('dashSessionLoaded', initProjectManagement);
+if (document.readyState !== 'loading') { initProjectManagement(); }
+async function initProjectManagement() {
+if (pmInitDone) return;
+pmInitDone = true;
+rebuildHeader();
+startHeaderObserver();
+scheduleHeaderRebuilds();
+function updateHeaderHeight() {
+var header = document.getElementById('dashHeader');
+if (header) {
+var h = header.offsetHeight;
+if (h > 0) document.documentElement.style.setProperty('--header-height', h + 'px');
+}
+}
+updateHeaderHeight();
+setInterval(updateHeaderHeight, 500);
+window.addEventListener('resize', updateHeaderHeight);
+var user = window.dashUser || window.drivenUser;
+if (!user) {
+try { user = JSON.parse(localStorage.getItem('driven_user') || sessionStorage.getItem('driven_user')); } catch(e) {}
+}
+if (!user) { window.location.href = '/public/login.html'; return; }
+var firstName = user.first_name || user.email || '';
+var orgName = user.org_name || localStorage.getItem('driven_org_name') || '';
+var welcomeNameEl = document.getElementById('pm-welcome-name');
+if (welcomeNameEl) {
+welcomeNameEl.textContent = firstName ? ('Welcome back, ' + firstName + (orgName ? ' - ' + orgName : '')) : 'Welcome back';
+}
+var welcomeRoleEl = document.getElementById('pm-welcome-role');
+if (welcomeRoleEl) welcomeRoleEl.textContent = user.role || user.role_id || '';
+var welcomeEmailEl = document.getElementById('pm-welcome-email');
+if (welcomeEmailEl) welcomeEmailEl.textContent = user.email || '';
+var role = (user.role || '').toLowerCase();
+var isAdmin = role === 'admin' || role === 'administrator' || role.indexOf('founder') !== -1 || role === 'owner';
+canModify = isAdmin;
+if (!isAdmin) {
+var customerId = localStorage.getItem('driven_customer_id');
+if (customerId) {
+try {
+var kpResp = await fetch('/api/onboarding/key-personnel/list?customerId=' + encodeURIComponent(customerId));
+var kpData = await kpResp.json();
+if (kpData.success && kpData.keyPersonnel) {
+var myEmail = user.email ? user.email.toLowerCase() : '';
+var myRecord = kpData.keyPersonnel.find(function(kp) {
+return kp.email && kp.email.toLowerCase() === myEmail;
+});
+if (myRecord && myRecord.roles) {
+var myTasks = myRecord.roles.map(function(r) { return r.role; });
+canModify = myTasks.indexOf('Projects') !== -1 || myTasks.indexOf('Clients') !== -1;
+}
+}
+} catch(e) {
+if (window.DRIVENErrorHandler) {
+window.DRIVENErrorHandler.report(
+'project-management.html: KP permission check failed — ' + (e.message || e),
+'kp-permission-check', e && e.stack ? e.stack : null
+);
+}
+}
+}
+}
+if (!canModify) {
+document.getElementById('addProjectForm').style.display = 'none';
+document.getElementById('addClientForm').style.display = 'none';
+document.getElementById('addTypeForm').style.display = 'none';
+}
+initVisibleCols();
+bindStaticEvents();
+pmLoadPrefs();
+await loadProjectTypes();
+await loadProjects();
+await loadClients();
+populateClientDropdown();
+populateProjectManagerDropdown();
+renderOverview();
+populateYearFilter();
+initOverviewSearch();
+initGanttControls();
+document.getElementById('pmLoading').style.display = 'none';
+document.getElementById('tab-overview').style.display = 'block';
+if (typeof initVoice === 'function') initVoice();
+}
+function bindStaticEvents() {
+document.querySelectorAll('.pm-tab[data-tab]').forEach(function(tab) {
+tab.addEventListener('click', function() { switchTab(tab.getAttribute('data-tab')); });
+});
+var dashTab = document.getElementById('pmTabDashboard');
+if (dashTab) dashTab.addEventListener('click', goToMainDashboard);
+var logoutTab = document.getElementById('pmTabLogout');
+if (logoutTab) logoutTab.addEventListener('click', confirmLogout);
+var ps = document.getElementById('pmProjectSearch');
+if (ps) ps.addEventListener('input', onProjectSearchInput);
+var pfs = document.getElementById('pmProjectFilterStatus');
+if (pfs) pfs.addEventListener('change', renderProjectTable);
+var bpCols = document.getElementById('btnProjectCols');
+if (bpCols) bpCols.addEventListener('click', toggleProjectColPanel);
+var bpPrint = document.getElementById('btnProjectPrint');
+if (bpPrint) bpPrint.addEventListener('click', openProjectPrintModal);
+var bpCsv = document.getElementById('btnProjectExportCsv');
+if (bpCsv) bpCsv.addEventListener('click', function() { openProjectExportModal('csv'); });
+var bpXls = document.getElementById('btnProjectExportExcel');
+if (bpXls) bpXls.addEventListener('click', function() { openProjectExportModal('excel'); });
+var btnAddProj = document.getElementById('btnAddProject');
+if (btnAddProj) btnAddProj.addEventListener('click', addProject);
+var btnAddType = document.getElementById('btnAddType');
+if (btnAddType) btnAddType.addEventListener('click', addProjectType);
+var cs = document.getElementById('pmClientSearch');
+if (cs) cs.addEventListener('input', onClientSearchInput);
+var cfs = document.getElementById('pmClientFilterStatus');
+if (cfs) cfs.addEventListener('change', renderClientTable);
+var bcCols = document.getElementById('btnClientCols');
+if (bcCols) bcCols.addEventListener('click', toggleClientColPanel);
+var bcPrint = document.getElementById('btnClientPrint');
+if (bcPrint) bcPrint.addEventListener('click', openClientPrintModal);
+var bcCsv = document.getElementById('btnClientExportCsv');
+if (bcCsv) bcCsv.addEventListener('click', function() { openClientExportModal('csv'); });
+var bcXls = document.getElementById('btnClientExportExcel');
+if (bcXls) bcXls.addEventListener('click', function() { openClientExportModal('excel'); });
+var btnAddCli = document.getElementById('btnAddClient');
+if (btnAddCli) btnAddCli.addEventListener('click', addClient);
+var btnCancelEP = document.getElementById('btnCancelEditProject');
+if (btnCancelEP) btnCancelEP.addEventListener('click', closeEditProjectModal);
+var btnSaveEP = document.getElementById('btnSaveEditProject');
+if (btnSaveEP) btnSaveEP.addEventListener('click', saveEditProject);
+var btnCancelEC = document.getElementById('btnCancelEditClient');
+if (btnCancelEC) btnCancelEC.addEventListener('click', closeEditClientModal);
+var btnSaveEC = document.getElementById('btnSaveEditClient');
+if (btnSaveEC) btnSaveEC.addEventListener('click', saveEditClient);
+var btnCancelET = document.getElementById('btnCancelEditType');
+if (btnCancelET) btnCancelET.addEventListener('click', closeEditTypeModal);
+var btnSaveET = document.getElementById('btnSaveEditType');
+if (btnSaveET) btnSaveET.addEventListener('click', saveEditProjectType);
+var btnAddSH = document.getElementById('btnAddStatusHistory');
+if (btnAddSH) btnAddSH.addEventListener('click', function() {
+if (!editingProjectId) return;
+var status = document.getElementById('pmStatusHistoryStatus').value;
+var date = document.getElementById('pmStatusHistoryDate').value;
+var note = document.getElementById('pmStatusHistoryNote').value.trim();
+if (!date) { showProjectMessage('Please pick a date for the status change.', 'error'); return; }
+var rows = pmStatusHistory[editingProjectId] || [];
+rows.push({ status: status, changedAt: date, note: note });
+rows.sort(function(a, b) { return (a.changedAt || '').localeCompare(b.changedAt || ''); });
+pmStatusHistory[editingProjectId] = rows;
+renderStatusHistory(editingProjectId);
+document.getElementById('pmStatusHistoryDate').value = '';
+document.getElementById('pmStatusHistoryNote').value = '';
+});
+var btnCanPP = document.getElementById('btnCancelProjectPrint');
+if (btnCanPP) btnCanPP.addEventListener('click', function() { closeModal('pmProjectPrintModal'); });
+var btnDoPP = document.getElementById('btnDoProjectPrint');
+if (btnDoPP) btnDoPP.addEventListener('click', doProjectPrint);
+var btnCanPE = document.getElementById('btnCancelProjectExport');
+if (btnCanPE) btnCanPE.addEventListener('click', function() { closeModal('pmProjectExportModal'); });
+var btnDoPE = document.getElementById('pmProjectExportBtn');
+if (btnDoPE) btnDoPE.addEventListener('click', doProjectExport);
+var btnCanCP = document.getElementById('btnCancelClientPrint');
+if (btnCanCP) btnCanCP.addEventListener('click', function() { closeModal('pmClientPrintModal'); });
+var btnDoCP = document.getElementById('btnDoClientPrint');
+if (btnDoCP) btnDoCP.addEventListener('click', doClientPrint);
+var btnCanCE = document.getElementById('btnCancelClientExport');
+if (btnCanCE) btnCanCE.addEventListener('click', function() { closeModal('pmClientExportModal'); });
+var btnDoCE = document.getElementById('pmClientExportBtn');
+if (btnDoCE) btnDoCE.addEventListener('click', doClientExport);
+var modals = ['pmEditProjectModal','pmEditClientModal','pmEditTypeModal','pmProjectPrintModal','pmProjectExportModal','pmClientPrintModal','pmClientExportModal'];
+modals.forEach(function(id) {
+var el = document.getElementById(id);
+if (el) el.addEventListener('click', function(e) { if (e.target === el) closeModal(id); });
+});
+var pn = document.getElementById('pmProjectName');
+if (pn) pn.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); addProject(); } });
+var cn = document.getElementById('pmClientName');
+if (cn) cn.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); addClient(); } });
+document.addEventListener('click', function(e) {
+var pPanel = document.getElementById('pmProjectColPanel');
+if (pPanel && pPanel.classList.contains('active') && !pPanel.contains(e.target) && e.target.textContent !== 'Columns') {
+pPanel.classList.remove('active');
+}
+var cPanel = document.getElementById('pmClientColPanel');
+if (cPanel && cPanel.classList.contains('active') && !cPanel.contains(e.target) && e.target.textContent !== 'Columns') {
+cPanel.classList.remove('active');
+}
+});
+window.addEventListener('beforeunload', function(e) {
+if (pmDirty) { e.preventDefault(); e.returnValue = 'You have unsaved changes.'; }
+});
+}
+function normalizeProject(r) {
+var f = (r && r.fields && typeof r.fields === 'object') ? r.fields : r;
+return {
+id: r.id || ('prj-' + Math.random().toString(36).substr(2, 9)),
+name:       f['Project Name'] || f.name || '',
+code:       f['Project Code'] || f.code || f['project_number'] || '',
+status:     f['Status'] || f.status || 'Awarded',
+location:   f['Location'] || f.location || '',
+createdAt:  f['Created Date'] || f.created_at || '',
+expectedStartDate:       f['Expected Start Date'] || f.expected_start_date || '',
+actualStartDate:         f['Actual Start Date'] || f.actual_start_date || '',
+expectedCompletionDate:  f['Expected Completion Date'] || f.expected_completion_date || '',
+actualCompletionDate:    f['Actual Completion Date'] || f.actual_completion_date || '',
+awardDate:              f['Award Date'] || f.award_date || '',
+street:                f['Street'] || f.street || '',
+city:                  f['City'] || f.city || '',
+state:                 f['State'] || f.state || '',
+zip:                   f['Zip'] || f.zip || f['Zip Code'] || f.zip_code || '',
+projectManager:        f['Project Manager'] || f.project_manager || '',
+notes:                f['Notes'] || f.notes || '',
+};
+}
+function normalizeClient(r) {
+var f = (r && r.fields && typeof r.fields === 'object') ? r.fields : r;
+return {
+id: r.id || ('cli-' + Math.random().toString(36).substr(2, 9)),
+clientName:   f['Client Name'] || f.client_name || '',
+contactName:  f['Contact Name'] || f.contact_name || '',
+contactEmail: f['Contact Email'] || f.contact_email || '',
+contactPhone: f['Contact Phone'] || f.contact_phone || '',
+address:      f['Address'] || f.address || '',
+city:         f['City'] || f.city || '',
+state:        f['State'] || f.state || '',
+zip:          f['Zip Code'] || f.zip_code || '',
+country:      f['Country'] || f.country || '',
+industry:     f['Industry'] || f.industry || '',
+status:       f['Status'] || f.status || 'Active',
+notes:        f['Notes'] || f.notes || '',
+createdAt:    f['Created Date'] || f.created_at || '',
+};
+}
+async function loadProjects() {
+try {
+var resp = await fetch('/api/Project');
+var data = await resp.json();
+if (resp.ok && data && data.records) {
+allProjects = data.records.map(normalizeProject);
+} else {
+allProjects = [];
+}
+} catch(e) {
+allProjects = [];
+}
+}
+async function loadProjectTypes() {
+try {
+var saved = localStorage.getItem('driven_project_types');
+if (saved) projectTypes = JSON.parse(saved);
+} catch(e) {
+projectTypes = [];
+}
+}
+async function saveProjectTypes() {
+try { localStorage.setItem('driven_project_types', JSON.stringify(projectTypes)); } catch(e) {}
+try {
+await fetch('/auth/save-settings', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ project_types: JSON.stringify(projectTypes) })
+});
+} catch(e) {}
+}
+async function loadClients() {
+try {
+var resp = await fetch('/api/Clients');
+var data = await resp.json();
+if (resp.ok && data && data.records) {
+allClients = data.records.map(normalizeClient);
+} else {
+allClients = [];
+}
+} catch(e) {
+allClients = [];
+}
+}
+function populateClientDropdown() {
+var sel = document.getElementById('pmProjectClient');
+if (!sel) return;
+var current = sel.value;
+sel.innerHTML = '<option value="">None</option>';
+allClients.forEach(function(c) {
+var opt = document.createElement('option');
+opt.value = c.id;
+opt.textContent = c.clientName || '(unnamed)';
+sel.appendChild(opt);
+});
+sel.value = current;
+}
+async function populateProjectManagerDropdown() {
+var sel = document.getElementById('pmProjectManager');
+if (!sel) return;
+var current = sel.value;
+sel.innerHTML = '<option value="">None</option>';
+try {
+var resp = await fetch('/api/Employee');
+var data = await resp.json();
+if (resp.ok && data && data.records) {
+data.records.forEach(function(r) {
+var f = (r.fields && typeof r.fields === 'object') ? r.fields : r;
+var name = f['Full Name'] || f.full_name || f['Name'] || f.name || f['Email'] || f.email || '';
+if (name) {
+var opt = document.createElement('option');
+opt.value = name;
+opt.textContent = name;
+sel.appendChild(opt);
+}
+});
+}
+} catch(e) {}
+sel.value = current;
+}
+function renderOverview() {
+var fp = getYearFilteredProjects();
+var fc = getYearFilteredClients();
+document.getElementById('kpiTotalProjects').textContent = fp.length;
+document.getElementById('kpiAwardedProjects').textContent = fp.filter(function(p) { return String(p.status || '').toLowerCase() === 'awarded'; }).length;
+document.getElementById('kpiInProgressProjects').textContent = fp.filter(function(p) { return String(p.status || '').toLowerCase() === 'in progress'; }).length;
+document.getElementById('kpiOnHoldProjects').textContent = fp.filter(function(p) { return String(p.status || '').toLowerCase() === 'on hold'; }).length;
+document.getElementById('kpiCompletedProjects').textContent = fp.filter(function(p) { return String(p.status || '').toLowerCase() === 'completed'; }).length;
+document.getElementById('kpiCancelledProjects').textContent = fp.filter(function(p) { return String(p.status || '').toLowerCase() === 'cancelled'; }).length;
+renderStatusDonut(fp);
+renderTrendChart(fp);
+renderOverviewProjects(fp);
+renderOverviewClients(fc);
+makeColumnsResizable(document.getElementById('pmOverviewProjectsTable'), 'pmColW_ovProjects', [120, 240, 200, 100]);
+makeColumnsDraggable(document.getElementById('pmOverviewProjectsTable'), 'pmColOrder_ovProjects');
+makeColumnsResizable(document.getElementById('pmOverviewClientsTable'), 'pmColW_ovClients', [200, 160, 100]);
+makeColumnsDraggable(document.getElementById('pmOverviewClientsTable'), 'pmColOrder_ovClients');
+if (typeof initVoice === 'function') initVoice();
+}
+function kpiClick(el) {
+var status = el.getAttribute('data-kpi-status') || '';
+var sel = document.getElementById('pmProjectFilterStatus');
+if (sel) sel.value = status;
+switchTab('projects');
+}
+window.kpiClick = kpiClick;
+function statusLabel(s) {
+var map = { 'awarded': 'Awarded', 'in progress': 'In Progress', 'on hold': 'On Hold', 'completed': 'Completed', 'cancelled': 'Cancelled' };
+return map[String(s || '').toLowerCase()] || s;
+}
+function statusBadgeHtml(status) {
+if (!status) return '\u2014';
+var cls = 'pm-badge pm-badge-' + String(status).toLowerCase().replace(/\s+/g, '-');
+return '<span class="' + cls + '">' + escapeHtml(status) + '</span>';
+}
+function renderProjectTableHead() {
+var thead = document.getElementById('pmProjectTableHead');
+thead.textContent = '';
+var tr = document.createElement('tr');
+PROJECT_COL_DEFS.forEach(function(col) {
+if (!projectVisibleCols[col.key]) return;
+var th = document.createElement('th');
+th.dataset.key = col.key;
+th.textContent = col.label;
+var arrow = document.createElement('span');
+arrow.className = 'pm-sort-arrow';
+if (projectSortKey === col.key) {
+arrow.textContent = projectSortDir === 'asc' ? ' \u25B2' : ' \u25BC';
+th.classList.add(projectSortDir === 'asc' ? 'pm-sorted-asc' : 'pm-sorted-desc');
+} else {
+arrow.textContent = ' \u2195';
+}
+th.appendChild(arrow);
+th.addEventListener('click', function() { onProjectSortClick(col.key); });
+tr.appendChild(th);
+});
+if (canModify) {
+var thActions = document.createElement('th');
+thActions.textContent = 'Actions';
+thActions.style.cursor = 'default';
+tr.appendChild(thActions);
+}
+thead.appendChild(tr);
+}
+function onProjectSortClick(key) {
+if (projectSortKey === key) {
+projectSortDir = (projectSortDir === 'asc') ? 'desc' : 'asc';
+} else {
+projectSortKey = key;
+projectSortDir = 'asc';
+}
+projectPage = 1;
+renderProjectTableHead();
+renderProjectTable();
+}
+var projectSearchTimer = null;
+function onProjectSearchInput() {
+clearTimeout(projectSearchTimer);
+projectSearchTimer = setTimeout(function() {
+projectPage = 1;
+renderProjectTable();
+}, 200);
+}
+function renderProjectTable() {
+var tbody = document.getElementById('pmProjectTableBody');
+var search = document.getElementById('pmProjectSearch').value.toLowerCase().trim();
+var filterStatus = document.getElementById('pmProjectFilterStatus').value;
+var filtered = allProjects.filter(function(p) {
+var matchesSearch = !search ||
+(p.name && p.name.toLowerCase().indexOf(search) !== -1) ||
+(p.code && p.code.toLowerCase().indexOf(search) !== -1) ||
+(p.street && p.street.toLowerCase().indexOf(search) !== -1) ||
+(p.city && p.city.toLowerCase().indexOf(search) !== -1);
+var matchesStatus = !filterStatus || (p.status && p.status.toLowerCase() === filterStatus.toLowerCase());
+return matchesSearch && matchesStatus;
+});
+filtered.sort(function(a, b) {
+var va = a[projectSortKey] || '';
+var vb = b[projectSortKey] || '';
+va = String(va).toLowerCase();
+vb = String(vb).toLowerCase();
+if (va < vb) return projectSortDir === 'asc' ? -1 : 1;
+if (va > vb) return projectSortDir === 'asc' ? 1 : -1;
+return 0;
+});
+document.getElementById('pmProjectCount').textContent = filtered.length + ' project' + (filtered.length === 1 ? '' : 's');
+var totalPages = Math.max(1, Math.ceil(filtered.length / projectPageSize));
+if (projectPage > totalPages) projectPage = totalPages;
+var startIdx = (projectPage - 1) * projectPageSize;
+var pageItems = filtered.slice(startIdx, startIdx + projectPageSize);
+tbody.textContent = '';
+if (filtered.length === 0) {
+var tr = document.createElement('tr');
+var td = document.createElement('td');
+td.className = 'pm-empty';
+td.textContent = allProjects.length === 0 ? 'No projects found. Add your first project above.' : 'No projects match your search.';
+tr.appendChild(td);
+tbody.appendChild(tr);
+renderPagination('pmProjectPagination', 0, 1, projectPage, projectPageSize, function(p) { projectPage = p; renderProjectTable(); }, function(sz) { projectPageSize = sz; projectPage = 1; renderProjectTable(); });
+return;
+}
+var dateKeys = ['createdAt','expectedStartDate','actualStartDate','expectedCompletionDate','actualCompletionDate','awardDate'];
+pageItems.forEach(function(p) {
+var tr = document.createElement('tr');
+PROJECT_COL_DEFS.forEach(function(col) {
+if (!projectVisibleCols[col.key]) return;
+var td = document.createElement('td');
+var val = p[col.key];
+if (col.key === 'status' && val) {
+td.innerHTML = statusBadgeHtml(val);
+} else if (val && dateKeys.indexOf(col.key) !== -1) {
+td.textContent = new Date(val).toLocaleDateString();
+} else {
+td.textContent = (val !== undefined && val !== null && val !== '') ? val : '\u2014';
+}
+tr.appendChild(td);
+});
+if (canModify) {
+var actionsTd = document.createElement('td');
+actionsTd.className = 'pm-actions';
+var btnEdit = document.createElement('button');
+btnEdit.className = 'pm-table-btn';
+btnEdit.textContent = 'Edit';
+btnEdit.addEventListener('click', function() { openEditProjectModal(p.id); });
+actionsTd.appendChild(btnEdit);
+tr.appendChild(actionsTd);
+}
+tbody.appendChild(tr);
+});
+renderPagination('pmProjectPagination', filtered.length, totalPages, projectPage, projectPageSize, function(p) { projectPage = p; renderProjectTable(); }, function(sz) { projectPageSize = sz; projectPage = 1; renderProjectTable(); });
+var pColW = PROJECT_COL_DEFS.filter(function(c) { return c.defaultVisible; }).map(function(c) { return c.width || 120; });
+pColW.push(80);
+makeColumnsResizable(document.getElementById('pmProjectTable'), 'pmColW_projects', pColW);
+makeColumnsDraggable(document.getElementById('pmProjectTable'), 'pmColOrder_projects');
+if (typeof initVoice === 'function') initVoice();
+}
+function renderClientTableHead() {
+var thead = document.getElementById('pmClientTableHead');
+thead.textContent = '';
+var tr = document.createElement('tr');
+CLIENT_COL_DEFS.forEach(function(col) {
+if (!clientVisibleCols[col.key]) return;
+var th = document.createElement('th');
+th.dataset.key = col.key;
+th.textContent = col.label;
+var arrow = document.createElement('span');
+arrow.className = 'pm-sort-arrow';
+if (clientSortKey === col.key) {
+arrow.textContent = clientSortDir === 'asc' ? ' \u25B2' : ' \u25BC';
+th.classList.add(clientSortDir === 'asc' ? 'pm-sorted-asc' : 'pm-sorted-desc');
+} else {
+arrow.textContent = ' \u2195';
+}
+th.appendChild(arrow);
+th.addEventListener('click', function() { onClientSortClick(col.key); });
+tr.appendChild(th);
+});
+if (canModify) {
+var thActions = document.createElement('th');
+thActions.textContent = 'Actions';
+thActions.style.cursor = 'default';
+tr.appendChild(thActions);
+}
+thead.appendChild(tr);
+}
+function onClientSortClick(key) {
+if (clientSortKey === key) {
+clientSortDir = (clientSortDir === 'asc') ? 'desc' : 'asc';
+} else {
+clientSortKey = key;
+clientSortDir = 'asc';
+}
+clientPage = 1;
+renderClientTableHead();
+renderClientTable();
+}
+var clientSearchTimer = null;
+function onClientSearchInput() {
+clearTimeout(clientSearchTimer);
+clientSearchTimer = setTimeout(function() {
+clientPage = 1;
+renderClientTable();
+}, 200);
+}
+function renderClientTable() {
+var tbody = document.getElementById('pmClientTableBody');
+var search = document.getElementById('pmClientSearch').value.toLowerCase().trim();
+var filterStatus = document.getElementById('pmClientFilterStatus').value;
+var filtered = allClients.filter(function(c) {
+var matchesSearch = !search ||
+(c.clientName && c.clientName.toLowerCase().indexOf(search) !== -1) ||
+(c.contactName && c.contactName.toLowerCase().indexOf(search) !== -1) ||
+(c.contactEmail && c.contactEmail.toLowerCase().indexOf(search) !== -1);
+var matchesStatus = !filterStatus || (c.status && c.status.toLowerCase() === filterStatus.toLowerCase());
+return matchesSearch && matchesStatus;
+});
+filtered.sort(function(a, b) {
+var va = a[clientSortKey] || '';
+var vb = b[clientSortKey] || '';
+va = String(va).toLowerCase();
+vb = String(vb).toLowerCase();
+if (va < vb) return clientSortDir === 'asc' ? -1 : 1;
+if (va > vb) return clientSortDir === 'asc' ? 1 : -1;
+return 0;
+});
+document.getElementById('pmClientCount').textContent = filtered.length + ' client' + (filtered.length === 1 ? '' : 's');
+var totalPages = Math.max(1, Math.ceil(filtered.length / clientPageSize));
+if (clientPage > totalPages) clientPage = totalPages;
+var startIdx = (clientPage - 1) * clientPageSize;
+var pageItems = filtered.slice(startIdx, startIdx + clientPageSize);
+tbody.textContent = '';
+if (filtered.length === 0) {
+var tr = document.createElement('tr');
+var td = document.createElement('td');
+td.className = 'pm-empty';
+td.textContent = allClients.length === 0 ? 'No clients found. Add your first client above.' : 'No clients match your search.';
+tr.appendChild(td);
+tbody.appendChild(tr);
+renderPagination('pmClientPagination', 0, 1, clientPage, clientPageSize, function(p) { clientPage = p; renderClientTable(); }, function(sz) { clientPageSize = sz; clientPage = 1; renderClientTable(); });
+return;
+}
+var dateKeys = ['createdAt','expectedStartDate','actualStartDate','expectedCompletionDate','actualCompletionDate','awardDate'];
+pageItems.forEach(function(c) {
+var tr = document.createElement('tr');
+CLIENT_COL_DEFS.forEach(function(col) {
+if (!clientVisibleCols[col.key]) return;
+var td = document.createElement('td');
+var val = c[col.key];
+if (col.key === 'status' && val) {
+td.innerHTML = statusBadgeHtml(val);
+} else if (val && dateKeys.indexOf(col.key) !== -1) {
+td.textContent = new Date(val).toLocaleDateString();
+} else {
+td.textContent = (val !== undefined && val !== null && val !== '') ? val : '\u2014';
+}
+tr.appendChild(td);
+});
+if (canModify) {
+var actionsTd = document.createElement('td');
+actionsTd.className = 'pm-actions';
+var btnEdit = document.createElement('button');
+btnEdit.className = 'pm-table-btn';
+btnEdit.textContent = 'Edit';
+btnEdit.addEventListener('click', function() { openEditClientModal(c.id); });
+actionsTd.appendChild(btnEdit);
+tr.appendChild(actionsTd);
+}
+tbody.appendChild(tr);
+});
+renderPagination('pmClientPagination', filtered.length, totalPages, clientPage, clientPageSize, function(p) { clientPage = p; renderClientTable(); }, function(sz) { clientPageSize = sz; clientPage = 1; renderClientTable(); });
+var cColW = CLIENT_COL_DEFS.filter(function(c) { return c.defaultVisible; }).map(function(c) { return c.width || 120; });
+cColW.push(80);
+makeColumnsResizable(document.getElementById('pmClientTable'), 'pmColW_clients', cColW);
+makeColumnsDraggable(document.getElementById('pmClientTable'), 'pmColOrder_clients');
+if (typeof initVoice === 'function') initVoice();
+}
+function renderPagination(containerId, totalItems, totalPages, currentPage, pageSize, onPageChange, onPageSizeChange) {
+var container = document.getElementById(containerId);
+container.textContent = '';
+if (totalItems === 0) return;
+var info = document.createElement('span');
+info.className = 'pm-page-info';
+var startIdx = (currentPage - 1) * pageSize + 1;
+var endIdx = Math.min(currentPage * pageSize, totalItems);
+info.textContent = 'Showing ' + startIdx + '\u2013' + endIdx + ' of ' + totalItems;
+container.appendChild(info);
+var sizeDiv = document.createElement('div');
+sizeDiv.style.display = 'flex';
+sizeDiv.style.alignItems = 'center';
+sizeDiv.style.gap = '6px';
+var sizeLabel = document.createElement('span');
+sizeLabel.className = 'pm-page-info';
+sizeLabel.textContent = 'Per page:';
+sizeDiv.appendChild(sizeLabel);
+var sizeSelect = document.createElement('select');
+sizeSelect.className = 'pm-filter-select';
+sizeSelect.style.padding = '4px 8px';
+sizeSelect.style.fontSize = '13px';
+[10, 25, 50].forEach(function(sz) {
+var opt = document.createElement('option');
+opt.value = sz;
+opt.textContent = sz;
+if (sz === pageSize) opt.selected = true;
+sizeSelect.appendChild(opt);
+});
+sizeSelect.addEventListener('change', function() { onPageSizeChange(parseInt(sizeSelect.value)); });
+sizeDiv.appendChild(sizeSelect);
+container.appendChild(sizeDiv);
+var btnsDiv = document.createElement('div');
+btnsDiv.className = 'pm-page-btns';
+var btnPrev = document.createElement('button');
+btnPrev.className = 'pm-page-btn';
+btnPrev.textContent = '\u25C0 Prev';
+btnPrev.disabled = currentPage <= 1;
+btnPrev.addEventListener('click', function() { onPageChange(currentPage - 1); });
+btnsDiv.appendChild(btnPrev);
+var maxVisible = 7;
+var startPage = 1, endPage = totalPages;
+if (totalPages > maxVisible) {
+if (currentPage <= 4) { startPage = 1; endPage = maxVisible; }
+else if (currentPage >= totalPages - 3) { startPage = totalPages - maxVisible + 1; endPage = totalPages; }
+else { startPage = currentPage - 3; endPage = currentPage + 3; }
+}
+for (var p = startPage; p <= endPage; p++) {
+var btn = document.createElement('button');
+btn.className = 'pm-page-btn' + (p === currentPage ? ' active' : '');
+btn.textContent = p;
+btn.addEventListener('click', function(page) { return function() { onPageChange(page); }; }(p));
+btnsDiv.appendChild(btn);
+}
+var btnNext = document.createElement('button');
+btnNext.className = 'pm-page-btn';
+btnNext.textContent = 'Next \u25B6';
+btnNext.disabled = currentPage >= totalPages;
+btnNext.addEventListener('click', function() { onPageChange(currentPage + 1); });
+btnsDiv.appendChild(btnNext);
+container.appendChild(btnsDiv);
+}
+function toggleProjectColPanel(e) {
+e.stopPropagation();
+var panel = document.getElementById('pmProjectColPanel');
+panel.classList.toggle('active');
+if (panel.classList.contains('active')) {
+renderProjectColTogglePanel();
+var rect = e.target.getBoundingClientRect();
+panel.style.position = 'fixed';
+panel.style.top = (rect.bottom + 4) + 'px';
+panel.style.left = rect.left + 'px';
+}
+}
+function renderProjectColTogglePanel() {
+var container = document.getElementById('pmProjectColToggleItems');
+container.textContent = '';
+PROJECT_COL_DEFS.forEach(function(col) {
+var item = document.createElement('label');
+item.className = 'pm-col-toggle-item';
+var cb = document.createElement('input');
+cb.type = 'checkbox';
+cb.checked = projectVisibleCols[col.key];
+cb.addEventListener('change', function() {
+projectVisibleCols[col.key] = cb.checked;
+saveProjectVisibleCols();
+renderProjectTableHead();
+renderProjectTable();
+});
+item.appendChild(cb);
+item.appendChild(document.createTextNode(col.label));
+container.appendChild(item);
+});
+}
+function toggleClientColPanel(e) {
+e.stopPropagation();
+var panel = document.getElementById('pmClientColPanel');
+panel.classList.toggle('active');
+if (panel.classList.contains('active')) {
+renderClientColTogglePanel();
+var rect = e.target.getBoundingClientRect();
+panel.style.position = 'fixed';
+panel.style.top = (rect.bottom + 4) + 'px';
+panel.style.left = rect.left + 'px';
+}
+}
+function renderClientColTogglePanel() {
+var container = document.getElementById('pmClientColToggleItems');
+container.textContent = '';
+CLIENT_COL_DEFS.forEach(function(col) {
+var item = document.createElement('label');
+item.className = 'pm-col-toggle-item';
+var cb = document.createElement('input');
+cb.type = 'checkbox';
+cb.checked = clientVisibleCols[col.key];
+cb.addEventListener('change', function() {
+clientVisibleCols[col.key] = cb.checked;
+saveClientVisibleCols();
+renderClientTableHead();
+renderClientTable();
+});
+item.appendChild(cb);
+item.appendChild(document.createTextNode(col.label));
+container.appendChild(item);
+});
+}
+async function addProject() {
+var name = document.getElementById('pmProjectName').value.trim();
+var code = document.getElementById('pmProjectCode').value.trim();
+var status = document.getElementById('pmProjectStatus').value;
+var street = document.getElementById('pmProjectStreet').value.trim();
+var city = document.getElementById('pmProjectCity').value.trim();
+var state = document.getElementById('pmProjectState').value.trim();
+var zip = document.getElementById('pmProjectZip').value.trim();
+var clientId = document.getElementById('pmProjectClient').value;
+var projectManager = document.getElementById('pmProjectManager').value;
+if (!name) { showProjectMessage('Please enter a project name.', 'error'); return; }
+if (!street) { showProjectMessage('Please enter a street address.', 'error'); return; }
+if (!city) { showProjectMessage('Please enter a city.', 'error'); return; }
+if (!state) { showProjectMessage('Please enter a state.', 'error'); return; }
+if (!status) { showProjectMessage('Please select a status.', 'error'); return; }
+var payload = {
+'Project Name': name,
+'Project Number': code,
+'Status': status,
+'Street': street,
+'City': city,
+'State': state,
+};
+if (zip) payload['Zip'] = zip;
+if (clientId) payload['Client'] = clientId;
+if (projectManager) payload['Project Manager'] = projectManager;
+var notes = document.getElementById('pmProjectNotes').value.trim();
+if (notes) payload['Notes'] = notes;
+var awd = document.getElementById('pmAwardDate').value;
+var esd = document.getElementById('pmExpectedStartDate').value;
+var asd = document.getElementById('pmActualStartDate').value;
+var ecd = document.getElementById('pmExpectedCompletionDate').value;
+var acd = document.getElementById('pmActualCompletionDate').value;
+if (esd) payload['Expected Start Date'] = esd;
+if (asd) payload['Actual Start Date'] = asd;
+if (ecd) payload['Expected Completion Date'] = ecd;
+if (acd) payload['Actual Completion Date'] = acd;
+if (awd) payload['Award Date'] = awd;
+try {
+var resp = await fetch('/api/Project', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify(payload)
+});
+var data = await resp.json();
+if (!resp.ok) throw new Error(data.error || data.message || 'Save failed (' + resp.status + ')');
+if (data.record) {
+allProjects.push(normalizeProject(data.record));
+} else {
+await loadProjects();
+}
+document.getElementById('pmProjectName').value = '';
+document.getElementById('pmProjectCode').value = '';
+document.getElementById('pmProjectStreet').value = '';
+document.getElementById('pmProjectCity').value = '';
+document.getElementById('pmProjectState').value = '';
+document.getElementById('pmProjectZip').value = '';
+document.getElementById('pmProjectClient').value = '';
+document.getElementById('pmProjectManager').value = '';
+document.getElementById('pmProjectNotes').value = '';
+document.getElementById('pmAwardDate').value = '';
+document.getElementById('pmExpectedStartDate').value = '';
+document.getElementById('pmActualStartDate').value = '';
+document.getElementById('pmExpectedCompletionDate').value = '';
+document.getElementById('pmActualCompletionDate').value = '';
+document.getElementById('pmProjectStatus').value = 'Awarded';
+showProjectMessage('Project "' + name + '" added.', 'success');
+renderOverview();
+switchTab('projects');
+} catch(e) {
+showProjectMessage('Failed to add project: ' + e.message, 'error');
+if (window.DRIVENErrorHandler) {
+window.DRIVENErrorHandler.report('project-management.html: addProject failed \u2014 ' + (e.message || e), 'addProject', e && e.stack ? e.stack : null);
+}
+}
+}
+function openEditProjectModal(projectId) {
+var project = allProjects.find(function(p) { return p.id === projectId; });
+if (!project) return;
+editingProjectId = projectId;
+document.getElementById('pmEditProjectName').value = project.name || '';
+document.getElementById('pmEditProjectCode').value = project.code || '';
+document.getElementById('pmEditProjectStatus').value = project.status || 'Awarded';
+document.getElementById('pmEditProjectStreet').value = project.street || '';
+document.getElementById('pmEditProjectCity').value = project.city || '';
+document.getElementById('pmEditProjectState').value = project.state || '';
+document.getElementById('pmEditProjectZip').value = project.zip || '';
+var editClientSel = document.getElementById('pmEditProjectClient');
+editClientSel.innerHTML = '<option value="">None</option>';
+allClients.forEach(function(c) { var opt = document.createElement('option'); opt.value = c.id; opt.textContent = c.clientName || '(unnamed)'; editClientSel.appendChild(opt); });
+editClientSel.value = project.clientId || project.client || '';
+document.getElementById('pmEditAwardDate').value = project.awardDate || '';
+document.getElementById('pmEditExpectedStartDate').value = project.expectedStartDate || '';
+document.getElementById('pmEditActualStartDate').value = project.actualStartDate || '';
+document.getElementById('pmEditExpectedCompletionDate').value = project.expectedCompletionDate || '';
+document.getElementById('pmEditActualCompletionDate').value = project.actualCompletionDate || '';
+document.getElementById('pmEditProjectManager').value = project.projectManager || '';
+document.getElementById("pmEditProjectNotes").value = project.notes || '';
+document.getElementById('pmEditProjectModal').classList.add('active');
+renderStatusHistory(projectId);
+}
+function closeEditProjectModal() {
+document.getElementById('pmEditProjectModal').classList.remove('active');
+editingProjectId = null;
+}
+async function saveEditProject() {
+if (!editingProjectId) return;
+var name = document.getElementById('pmEditProjectName').value.trim();
+var code = document.getElementById('pmEditProjectCode').value.trim();
+var status = document.getElementById('pmEditProjectStatus').value;
+var street = document.getElementById('pmEditProjectStreet').value.trim();
+var city = document.getElementById('pmEditProjectCity').value.trim();
+var state = document.getElementById('pmEditProjectState').value.trim();
+var zip = document.getElementById('pmEditProjectZip').value.trim();
+var clientId = document.getElementById('pmEditProjectClient').value;
+var projectManager = document.getElementById('pmEditProjectManager').value;
+if (!name) { showProjectMessage('Project name is required.', 'error'); return; }
+if (!street) { showProjectMessage('Street address is required.', 'error'); return; }
+if (!city) { showProjectMessage('City is required.', 'error'); return; }
+if (!state) { showProjectMessage('State is required.', 'error'); return; }
+var payload = {
+'Project Name': name,
+'Project Number': code,
+'Status': status,
+'Street': street,
+'City': city,
+'State': state,
+};
+if (zip) payload['Zip'] = zip;
+if (clientId) payload['Client'] = clientId;
+if (projectManager) payload['Project Manager'] = projectManager;
+var notes = document.getElementById('pmEditProjectNotes').value.trim();
+if (notes) payload['Notes'] = notes;
+var awd = document.getElementById('pmEditAwardDate');
+var esd = document.getElementById('pmEditExpectedStartDate');
+var asd = document.getElementById('pmEditActualStartDate');
+var ecd = document.getElementById('pmEditExpectedCompletionDate');
+var acd = document.getElementById('pmEditActualCompletionDate');
+if (esd && esd.value) payload['Expected Start Date'] = esd.value;
+if (asd && asd.value) payload['Actual Start Date'] = asd.value;
+if (ecd && ecd.value) payload['Expected Completion Date'] = ecd.value;
+if (acd && acd.value) payload['Actual Completion Date'] = acd.value;
+if (awd && awd.value) payload['Award Date'] = awd.value;
+try {
+var shRows = pmStatusHistory[editingProjectId] || [];
+if (shRows.length > 0) {
+try {
+await fetch('/api/ProjectStatusHistory?project_id=' + encodeURIComponent(editingProjectId), {
+method: 'PUT',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ records: shRows })
+});
+} catch(e) {}
+}
+var resp = await fetch('/api/Project/' + encodeURIComponent(editingProjectId), {
+method: 'PUT',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify(payload)
+});
+var data = await resp.json();
+if (!resp.ok) throw new Error(data.error || data.message || 'Update failed (' + resp.status + ')');
+if (data.record) {
+var updated = normalizeProject(data.record);
+var idx = allProjects.findIndex(function(p) { return p.id === editingProjectId; });
+if (idx !== -1) allProjects[idx] = updated;
+} else {
+var project = allProjects.find(function(p) { return p.id === editingProjectId; });
+if (project) { project.name = name; project.code = code; project.status = status; project.street = street; project.city = city; project.state = state; project.zip = zip; project.projectManager = projectManager; project.notes = notes; }
+}
+showProjectMessage('Project "' + name + '" updated.', 'success');
+closeEditProjectModal();
+renderProjectTable();
+renderOverview();
+} catch(e) {
+showProjectMessage('Failed to update project: ' + e.message, 'error');
+if (window.DRIVENErrorHandler) {
+window.DRIVENErrorHandler.report('project-management.html: saveEditProject failed \u2014 ' + (e.message || e), 'saveEditProject', e && e.stack ? e.stack : null);
+}
+}
+}
+async function deleteProject(projectId) {
+var project = allProjects.find(function(p) { return p.id === projectId; });
+if (!project) return;
+if (!confirm('Delete project "' + (project.name || project.code) + '"? This cannot be undone.')) return;
+try {
+var resp = await fetch('/api/Project/' + encodeURIComponent(projectId), { method: 'DELETE' });
+if (!resp.ok) {
+var data = await resp.json();
+throw new Error(data.error || data.message || 'Delete failed (' + resp.status + ')');
+}
+allProjects = allProjects.filter(function(p) { return p.id !== projectId; });
+showProjectMessage('Project "' + (project.name || project.code) + '" deleted.', 'success');
+renderProjectTable();
+renderOverview();
+} catch(e) {
+showProjectMessage('Failed to delete project: ' + e.message, 'error');
+if (window.DRIVENErrorHandler) {
+window.DRIVENErrorHandler.report('project-management.html: deleteProject failed \u2014 ' + (e.message || e), 'deleteProject', e && e.stack ? e.stack : null);
+}
+}
+}
+async function addClient() {
+var clientName = document.getElementById('pmClientName').value.trim();
+var contactName = document.getElementById('pmContactName').value.trim();
+var contactEmail = document.getElementById('pmContactEmail').value.trim();
+var contactPhone = document.getElementById('pmContactPhone').value.trim();
+var industry = document.getElementById('pmIndustry').value.trim();
+var address = document.getElementById('pmAddress').value.trim();
+var city = document.getElementById('pmCity').value.trim();
+var state = document.getElementById('pmState').value.trim();
+var zip = document.getElementById('pmZip').value.trim();
+var status = document.getElementById('pmClientStatus').value;
+var notes = document.getElementById('pmClientNotes').value.trim();
+if (!clientName) { showClientMessage('Please enter a client name.', 'error'); return; }
+if (!contactName) { showClientMessage('Please enter a contact name.', 'error'); return; }
+if (!contactEmail) { showClientMessage('Please enter a contact email.', 'error'); return; }
+var payload = {
+'Client Name': clientName,
+'Contact Name': contactName,
+'Contact Email': contactEmail,
+'Status': status,
+};
+if (contactPhone) payload['Contact Phone'] = contactPhone;
+if (industry) payload['Industry'] = industry;
+if (address) payload['Address'] = address;
+if (city) payload['City'] = city;
+if (state) payload['State'] = state;
+if (zip) payload['Zip Code'] = zip;
+if (notes) payload['Notes'] = notes;
+try {
+var resp = await fetch('/api/Clients', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify(payload)
+});
+var data = await resp.json();
+if (!resp.ok) throw new Error(data.error || data.message || 'Save failed (' + resp.status + ')');
+if (data.record) {
+allClients.push(normalizeClient(data.record));
+} else {
+await loadClients();
+}
+['pmClientName','pmContactName','pmContactEmail','pmContactPhone','pmIndustry','pmAddress','pmCity','pmState','pmZip','pmClientNotes'].forEach(function(id) {
+document.getElementById(id).value = '';
+});
+document.getElementById('pmClientStatus').value = 'Active';
+showClientMessage('Client "' + clientName + '" added.', 'success');
+renderOverview();
+switchTab('clients');
+} catch(e) {
+showClientMessage('Failed to add client: ' + e.message, 'error');
+if (window.DRIVENErrorHandler) {
+window.DRIVENErrorHandler.report('project-management.html: addClient failed \u2014 ' + (e.message || e), 'addClient', e && e.stack ? e.stack : null);
+}
+}
+}
+function openEditClientModal(clientId) {
+var client = allClients.find(function(c) { return c.id === clientId; });
+if (!client) return;
+editingClientId = clientId;
+document.getElementById('pmEditClientName').value = client.clientName || '';
+document.getElementById('pmEditContactName').value = client.contactName || '';
+document.getElementById('pmEditContactEmail').value = client.contactEmail || '';
+document.getElementById('pmEditContactPhone').value = client.contactPhone || '';
+document.getElementById('pmEditIndustry').value = client.industry || '';
+document.getElementById('pmEditAddress').value = client.address || '';
+document.getElementById('pmEditCity').value = client.city || '';
+document.getElementById('pmEditState').value = client.state || '';
+document.getElementById('pmEditZip').value = client.zip || '';
+document.getElementById('pmEditClientStatus').value = client.status || 'Active';
+document.getElementById('pmEditClientNotes').value = client.notes || '';
+document.getElementById('pmEditClientModal').classList.add('active');
+}
+function closeEditClientModal() {
+document.getElementById('pmEditClientModal').classList.remove('active');
+editingClientId = null;
+}
+async function saveEditClient() {
+if (!editingClientId) return;
+var clientName = document.getElementById('pmEditClientName').value.trim();
+var contactName = document.getElementById('pmEditContactName').value.trim();
+var contactEmail = document.getElementById('pmEditContactEmail').value.trim();
+var contactPhone = document.getElementById('pmEditContactPhone').value.trim();
+var industry = document.getElementById('pmEditIndustry').value.trim();
+var address = document.getElementById('pmEditAddress').value.trim();
+var city = document.getElementById('pmEditCity').value.trim();
+var state = document.getElementById('pmEditState').value.trim();
+var zip = document.getElementById('pmEditZip').value.trim();
+var status = document.getElementById('pmEditClientStatus').value;
+var notes = document.getElementById('pmEditClientNotes').value.trim();
+if (!clientName) { showClientMessage('Client name is required.', 'error'); return; }
+if (!contactName) { showClientMessage('Contact name is required.', 'error'); return; }
+if (!contactEmail) { showClientMessage('Contact email is required.', 'error'); return; }
+var payload = {
+'Client Name': clientName,
+'Contact Name': contactName,
+'Contact Email': contactEmail,
+'Status': status,
+};
+if (contactPhone) payload['Contact Phone'] = contactPhone;
+if (industry) payload['Industry'] = industry;
+if (address) payload['Address'] = address;
+if (city) payload['City'] = city;
+if (state) payload['State'] = state;
+if (zip) payload['Zip Code'] = zip;
+if (notes) payload['Notes'] = notes;
+try {
+var resp = await fetch('/api/Clients/' + encodeURIComponent(editingClientId), {
+method: 'PUT',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify(payload)
+});
+var data = await resp.json();
+if (!resp.ok) throw new Error(data.error || data.message || 'Update failed (' + resp.status + ')');
+if (data.record) {
+var updated = normalizeClient(data.record);
+var idx = allClients.findIndex(function(c) { return c.id === editingClientId; });
+if (idx !== -1) allClients[idx] = updated;
+}
+showClientMessage('Client "' + clientName + '" updated.', 'success');
+closeEditClientModal();
+renderClientTable();
+renderOverview();
+} catch(e) {
+showClientMessage('Failed to update client: ' + e.message, 'error');
+if (window.DRIVENErrorHandler) {
+window.DRIVENErrorHandler.report('project-management.html: saveEditClient failed \u2014 ' + (e.message || e), 'saveEditClient', e && e.stack ? e.stack : null);
+}
+}
+}
+async function deleteClient(clientId) {
+var client = allClients.find(function(c) { return c.id === clientId; });
+if (!client) return;
+if (!confirm('Delete client "' + (client.clientName || '') + '"? This cannot be undone.')) return;
+try {
+var resp = await fetch('/api/Clients/' + encodeURIComponent(clientId), { method: 'DELETE' });
+if (!resp.ok) {
+var data = await resp.json();
+throw new Error(data.error || data.message || 'Delete failed (' + resp.status + ')');
+}
+allClients = allClients.filter(function(c) { return c.id !== clientId; });
+showClientMessage('Client "' + (client.clientName || '') + '" deleted.', 'success');
+renderClientTable();
+renderOverview();
+} catch(e) {
+showClientMessage('Failed to delete client: ' + e.message, 'error');
+if (window.DRIVENErrorHandler) {
+window.DRIVENErrorHandler.report('project-management.html: deleteClient failed \u2014 ' + (e.message || e), 'deleteClient', e && e.stack ? e.stack : null);
+}
+}
+}
+function renderProjectTypes() {
+var tbody = document.getElementById('pmTypeTableBody');
+tbody.textContent = '';
+document.getElementById('pmTypeCount').textContent = projectTypes.length + ' type' + (projectTypes.length === 1 ? '' : 's');
+if (projectTypes.length === 0) {
+tbody.innerHTML = '<tr><td class="pm-empty">No project types defined yet. Add one above.</td></tr>';
+document.getElementById('pmTypePagination').textContent = '';
+return;
+}
+var totalPages = Math.max(1, Math.ceil(projectTypes.length / typePageSize));
+if (typePage > totalPages) typePage = 1;
+var pageStart = (typePage - 1) * typePageSize;
+var pageItems = projectTypes.slice(pageStart, pageStart + typePageSize);
+pageItems.forEach(function(t, idx) {
+var actualIdx = pageStart + idx;
+var tr = document.createElement('tr');
+tr.innerHTML = '<td style="font-weight:600;">' + escapeHtml(t.name || '') + '</td><td>' + escapeHtml(t.description || '\u2014') + '</td>';
+if (canModify) {
+var actionsTd = document.createElement('td');
+actionsTd.className = 'pm-actions';
+var btnEdit = document.createElement('button');
+btnEdit.className = 'pm-table-btn';
+btnEdit.textContent = 'Edit';
+btnEdit.addEventListener('click', function() { openEditTypeModal(actualIdx); });
+actionsTd.appendChild(btnEdit);
+tr.appendChild(actionsTd);
+}
+tbody.appendChild(tr);
+});
+renderPagination('pmTypePagination', projectTypes.length, totalPages, typePage, typePageSize, function(p) { typePage = p; renderProjectTypes(); }, function(sz) { typePageSize = sz; typePage = 1; renderProjectTypes(); });
+makeColumnsResizable(document.getElementById('pmTypeTable'), 'pmColW_types', [160, 400, 100]);
+makeColumnsDraggable(document.getElementById('pmTypeTable'), 'pmColOrder_types');
+if (typeof initVoice === 'function') initVoice();
+}
+async function addProjectType() {
+var name = document.getElementById('pmTypeName').value.trim();
+var desc = document.getElementById('pmTypeDesc').value.trim();
+if (!name) { showTypeMessage('Please enter a type name.', 'error'); return; }
+var dup = projectTypes.find(function(t) { return t.name && t.name.toLowerCase() === name.toLowerCase(); });
+if (dup) { showTypeMessage('A project type with name "' + name + '" already exists.', 'error'); return; }
+projectTypes.push({ name: name, description: desc });
+await saveProjectTypes();
+document.getElementById('pmTypeName').value = '';
+document.getElementById('pmTypeDesc').value = '';
+showTypeMessage('Project type "' + name + '" added.', 'success');
+renderProjectTypes();
+}
+function openEditTypeModal(idx) {
+editingTypeIndex = idx;
+var t = projectTypes[idx];
+document.getElementById('pmEditTypeName').value = t.name || '';
+document.getElementById('pmEditTypeDesc').value = t.description || '';
+document.getElementById('pmEditTypeModal').classList.add('active');
+}
+function closeEditTypeModal() {
+document.getElementById('pmEditTypeModal').classList.remove('active');
+editingTypeIndex = null;
+}
+async function saveEditProjectType() {
+if (editingTypeIndex === null) return;
+var name = document.getElementById('pmEditTypeName').value.trim();
+var desc = document.getElementById('pmEditTypeDesc').value.trim();
+if (!name) { showTypeMessage('Type name is required.', 'error'); return; }
+var dup = projectTypes.find(function(t, i) { return i !== editingTypeIndex && t.name && t.name.toLowerCase() === name.toLowerCase(); });
+if (dup) { showTypeMessage('A project type with name "' + name + '" already exists.', 'error'); return; }
+projectTypes[editingTypeIndex] = { name: name, description: desc };
+await saveProjectTypes();
+showTypeMessage('Project type "' + name + '" updated.', 'success');
+closeEditTypeModal();
+renderProjectTypes();
+}
+async function deleteProjectType(idx) {
+var t = projectTypes[idx];
+if (!t) return;
+if (!confirm('Delete project type "' + (t.name || '') + '"?')) return;
+projectTypes.splice(idx, 1);
+await saveProjectTypes();
+showTypeMessage('Project type "' + (t.name || '') + '" deleted.', 'success');
+renderProjectTypes();
+}
+function openProjectPrintModal() {
+var container = document.getElementById('pmProjectPrintCols');
+container.textContent = '';
+PROJECT_COL_DEFS.forEach(function(col) {
+var item = document.createElement('label');
+item.className = 'pm-check-item';
+var cb = document.createElement('input');
+cb.type = 'checkbox';
+cb.checked = projectVisibleCols[col.key];
+cb.dataset.key = col.key;
+item.appendChild(cb);
+item.appendChild(document.createTextNode(col.label));
+container.appendChild(item);
+});
+document.getElementById('pmProjectPrintModal').classList.add('active');
+}
+function doProjectPrint() {
+var checkboxes = document.querySelectorAll('#pmProjectPrintCols input[type="checkbox"]');
+var selectedCols = [];
+checkboxes.forEach(function(cb) {
+if (cb.checked) {
+var col = PROJECT_COL_DEFS.find(function(c) { return c.key === cb.dataset.key; });
+if (col) selectedCols.push(col);
+}
+});
+if (selectedCols.length === 0) { showProjectMessage('Select at least one column to print.', 'error'); return; }
+var filtered = getFilteredSortedProjects();
+var dateKeys = ['createdAt','expectedStartDate','actualStartDate','expectedCompletionDate','actualCompletionDate','awardDate'];
+var html = '<html><head><title>DRIV-EN Project List</title><style>';
+html += 'body{font-family:Arial,sans-serif;margin:20px;}h2{margin:0 0 16px 0;}table{width:100%;border-collapse:collapse;font-size:12px;}';
+html += 'th{background:#e2e8f0;padding:8px 10px;text-align:left;border:1px solid #94a3b8;}td{padding:6px 10px;border:1px solid #cbd5e1;}';
+html += '.print-date{font-size:12px;color:#64748b;margin-bottom:12px;}</style></head><body>';
+html += '<h2>DRIV-EN Project List</h2>';
+html += '<div class="print-date">Generated: ' + new Date().toLocaleString() + ' | Total: ' + filtered.length + ' projects</div>';
+html += '<table><thead><tr>';
+selectedCols.forEach(function(col) { html += '<th>' + escapeHtml(col.label) + '</th>'; });
+html += '</tr></thead><tbody>';
+filtered.forEach(function(p) {
+html += '<tr>';
+selectedCols.forEach(function(col) {
+var val = p[col.key];
+if (val && dateKeys.indexOf(col.key) !== -1) { val = new Date(val).toLocaleDateString(); }
+html += '<td>' + escapeHtml((val !== undefined && val !== null && val !== '') ? String(val) : '\u2014') + '</td>';
+});
+html += '</tr>';
+});
+html += '</tbody></table></body></html>';
+var printWin = window.open('', '_blank');
+printWin.document.write(html);
+printWin.document.close();
+printWin.focus();
+setTimeout(function() { printWin.print(); }, 300);
+closeModal('pmProjectPrintModal');
+}
+function openProjectExportModal(format) {
+projectExportFormat = format || 'csv';
+var container = document.getElementById('pmProjectExportCols');
+container.textContent = '';
+PROJECT_COL_DEFS.forEach(function(col) {
+var item = document.createElement('label');
+item.className = 'pm-check-item';
+var cb = document.createElement('input');
+cb.type = 'checkbox';
+cb.checked = projectVisibleCols[col.key];
+cb.dataset.key = col.key;
+item.appendChild(cb);
+item.appendChild(document.createTextNode(col.label));
+container.appendChild(item);
+});
+if (projectExportFormat === 'excel') {
+document.getElementById('pmProjectExportTitle').textContent = 'Export to Excel';
+document.getElementById('pmProjectExportBtn').textContent = 'Download Excel';
+} else {
+document.getElementById('pmProjectExportTitle').textContent = 'Export to CSV';
+document.getElementById('pmProjectExportBtn').textContent = 'Download CSV';
+}
+document.getElementById('pmProjectExportModal').classList.add('active');
+}
+function doProjectExport() {
+var checkboxes = document.querySelectorAll('#pmProjectExportCols input[type="checkbox"]');
+var selectedCols = [];
+checkboxes.forEach(function(cb) {
+if (cb.checked) {
+var col = PROJECT_COL_DEFS.find(function(c) { return c.key === cb.dataset.key; });
+if (col) selectedCols.push(col);
+}
+});
+if (selectedCols.length === 0) { showProjectMessage('Select at least one column to export.', 'error'); return; }
+var filtered = getFilteredSortedProjects();
+var dateStr = new Date().toISOString().slice(0, 10);
+var label = projectExportFormat === 'excel' ? 'Excel' : 'CSV';
+if (projectExportFormat === 'excel') {
+var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+html += '<head><meta charset="UTF-8"></head><body><table border="1"><thead><tr>';
+selectedCols.forEach(function(col) { html += '<th style="background:#e2e8f0;font-weight:bold;">' + escapeHtml(col.label) + '</th>'; });
+html += '</tr></thead><tbody>';
+filtered.forEach(function(p) {
+html += '<tr>';
+selectedCols.forEach(function(col) {
+var val = p[col.key];
+html += '<td>' + escapeHtml((val !== undefined && val !== null && val !== '') ? String(val) : '') + '</td>';
+});
+html += '</tr>';
+});
+html += '</tbody></table></body></html>';
+var blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+var url = URL.createObjectURL(blob);
+var link = document.createElement('a');
+link.href = url;
+link.download = 'driv-en-projects-' + dateStr + '.xls';
+document.body.appendChild(link);
+link.click();
+document.body.removeChild(link);
+URL.revokeObjectURL(url);
+} else {
+var csv = selectedCols.map(function(c) { return csvEscape(c.label); }).join(',') + '\n';
+filtered.forEach(function(p) {
+var row = selectedCols.map(function(col) {
+var val = p[col.key];
+return csvEscape((val !== undefined && val !== null && val !== '') ? String(val) : '');
+});
+csv += row.join(',') + '\n';
+});
+var blob2 = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+var url2 = URL.createObjectURL(blob2);
+var link2 = document.createElement('a');
+link2.href = url2;
+link2.download = 'driv-en-projects-' + dateStr + '.csv';
+document.body.appendChild(link2);
+link2.click();
+document.body.removeChild(link2);
+URL.revokeObjectURL(url2);
+}
+closeModal('pmProjectExportModal');
+showProjectMessage('Exported ' + filtered.length + ' projects to ' + label + '.', 'success');
+}
+function getFilteredSortedProjects() {
+var search = document.getElementById('pmProjectSearch').value.toLowerCase().trim();
+var filterStatus = document.getElementById('pmProjectFilterStatus').value;
+var filtered = allProjects.filter(function(p) {
+var matchesSearch = !search ||
+(p.name && p.name.toLowerCase().indexOf(search) !== -1) ||
+(p.code && p.code.toLowerCase().indexOf(search) !== -1) ||
+(p.street && p.street.toLowerCase().indexOf(search) !== -1) ||
+(p.city && p.city.toLowerCase().indexOf(search) !== -1);
+var matchesStatus = !filterStatus || (p.status && p.status.toLowerCase() === filterStatus.toLowerCase());
+return matchesSearch && matchesStatus;
+});
+filtered.sort(function(a, b) {
+var va = String(a[projectSortKey] || '').toLowerCase();
+var vb = String(b[projectSortKey] || '').toLowerCase();
+if (va < vb) return projectSortDir === 'asc' ? -1 : 1;
+if (va > vb) return projectSortDir === 'asc' ? 1 : -1;
+return 0;
+});
+return filtered;
+}
+function openClientPrintModal() {
+var container = document.getElementById('pmClientPrintCols');
+container.textContent = '';
+CLIENT_COL_DEFS.forEach(function(col) {
+var item = document.createElement('label');
+item.className = 'pm-check-item';
+var cb = document.createElement('input');
+cb.type = 'checkbox';
+cb.checked = clientVisibleCols[col.key];
+cb.dataset.key = col.key;
+item.appendChild(cb);
+item.appendChild(document.createTextNode(col.label));
+container.appendChild(item);
+});
+document.getElementById('pmClientPrintModal').classList.add('active');
+}
+function doClientPrint() {
+var checkboxes = document.querySelectorAll('#pmClientPrintCols input[type="checkbox"]');
+var selectedCols = [];
+checkboxes.forEach(function(cb) {
+if (cb.checked) {
+var col = CLIENT_COL_DEFS.find(function(c) { return c.key === cb.dataset.key; });
+if (col) selectedCols.push(col);
+}
+});
+if (selectedCols.length === 0) { showClientMessage('Select at least one column to print.', 'error'); return; }
+var dateKeys = ['createdAt','expectedStartDate','actualStartDate','expectedCompletionDate','actualCompletionDate','awardDate'];
+var filtered = getFilteredSortedClients();
+var html = '<html><head><title>DRIV-EN Client List</title><style>';
+html += 'body{font-family:Arial,sans-serif;margin:20px;}h2{margin:0 0 16px 0;}table{width:100%;border-collapse:collapse;font-size:12px;}';
+html += 'th{background:#e2e8f0;padding:8px 10px;text-align:left;border:1px solid #94a3b8;}td{padding:6px 10px;border:1px solid #cbd5e1;}';
+html += '.print-date{font-size:12px;color:#64748b;margin-bottom:12px;}</style></head><body>';
+html += '<h2>DRIV-EN Client List</h2>';
+html += '<div class="print-date">Generated: ' + new Date().toLocaleString() + ' | Total: ' + filtered.length + ' clients</div>';
+html += '<table><thead><tr>';
+selectedCols.forEach(function(col) { html += '<th>' + escapeHtml(col.label) + '</th>'; });
+html += '</tr></thead><tbody>';
+filtered.forEach(function(c) {
+html += '<tr>';
+selectedCols.forEach(function(col) {
+var val = c[col.key];
+if (val && dateKeys.indexOf(col.key) !== -1) { val = new Date(val).toLocaleDateString(); }
+html += '<td>' + escapeHtml((val !== undefined && val !== null && val !== '') ? String(val) : '\u2014') + '</td>';
+});
+html += '</tr>';
+});
+html += '</tbody></table></body></html>';
+var printWin = window.open('', '_blank');
+printWin.document.write(html);
+printWin.document.close();
+printWin.focus();
+setTimeout(function() { printWin.print(); }, 300);
+closeModal('pmClientPrintModal');
+}
+function openClientExportModal(format) {
+clientExportFormat = format || 'csv';
+var container = document.getElementById('pmClientExportCols');
+container.textContent = '';
+CLIENT_COL_DEFS.forEach(function(col) {
+var item = document.createElement('label');
+item.className = 'pm-check-item';
+var cb = document.createElement('input');
+cb.type = 'checkbox';
+cb.checked = clientVisibleCols[col.key];
+cb.dataset.key = col.key;
+item.appendChild(cb);
+item.appendChild(document.createTextNode(col.label));
+container.appendChild(item);
+});
+if (clientExportFormat === 'excel') {
+document.getElementById('pmClientExportTitle').textContent = 'Export to Excel';
+document.getElementById('pmClientExportBtn').textContent = 'Download Excel';
+} else {
+document.getElementById('pmClientExportTitle').textContent = 'Export to CSV';
+document.getElementById('pmClientExportBtn').textContent = 'Download CSV';
+}
+document.getElementById('pmClientExportModal').classList.add('active');
+}
+function doClientExport() {
+var checkboxes = document.querySelectorAll('#pmClientExportCols input[type="checkbox"]');
+var selectedCols = [];
+checkboxes.forEach(function(cb) {
+if (cb.checked) {
+var col = CLIENT_COL_DEFS.find(function(c) { return c.key === cb.dataset.key; });
+if (col) selectedCols.push(col);
+}
+});
+if (selectedCols.length === 0) { showClientMessage('Select at least one column to export.', 'error'); return; }
+var filtered = getFilteredSortedClients();
+var dateStr = new Date().toISOString().slice(0, 10);
+var label = clientExportFormat === 'excel' ? 'Excel' : 'CSV';
+if (clientExportFormat === 'excel') {
+var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+html += '<head><meta charset="UTF-8"></head><body><table border="1"><thead><tr>';
+selectedCols.forEach(function(col) { html += '<th style="background:#e2e8f0;font-weight:bold;">' + escapeHtml(col.label) + '</th>'; });
+html += '</tr></thead><tbody>';
+filtered.forEach(function(c) {
+html += '<tr>';
+selectedCols.forEach(function(col) {
+var val = c[col.key];
+html += '<td>' + escapeHtml((val !== undefined && val !== null && val !== '') ? String(val) : '') + '</td>';
+});
+html += '</tr>';
+});
+html += '</tbody></table></body></html>';
+var blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+var url = URL.createObjectURL(blob);
+var link = document.createElement('a');
+link.href = url;
+link.download = 'driv-en-clients-' + dateStr + '.xls';
+document.body.appendChild(link);
+link.click();
+document.body.removeChild(link);
+URL.revokeObjectURL(url);
+} else {
+var csv = selectedCols.map(function(c) { return csvEscape(c.label); }).join(',') + '\n';
+filtered.forEach(function(c) {
+var row = selectedCols.map(function(col) {
+var val = c[col.key];
+return csvEscape((val !== undefined && val !== null && val !== '') ? String(val) : '');
+});
+csv += row.join(',') + '\n';
+});
+var blob2 = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+var url2 = URL.createObjectURL(blob2);
+var link2 = document.createElement('a');
+link2.href = url2;
+link2.download = 'driv-en-clients-' + dateStr + '.csv';
+document.body.appendChild(link2);
+link2.click();
+document.body.removeChild(link2);
+URL.revokeObjectURL(url2);
+}
+closeModal('pmClientExportModal');
+showClientMessage('Exported ' + filtered.length + ' clients to ' + label + '.', 'success');
+}
+function getFilteredSortedClients() {
+var search = document.getElementById('pmClientSearch').value.toLowerCase().trim();
+var filterStatus = document.getElementById('pmClientFilterStatus').value;
+var filtered = allClients.filter(function(c) {
+var matchesSearch = !search ||
+(c.clientName && c.clientName.toLowerCase().indexOf(search) !== -1) ||
+(c.contactName && c.contactName.toLowerCase().indexOf(search) !== -1) ||
+(c.contactEmail && c.contactEmail.toLowerCase().indexOf(search) !== -1);
+var matchesStatus = !filterStatus || (c.status && c.status.toLowerCase() === filterStatus.toLowerCase());
+return matchesSearch && matchesStatus;
+});
+filtered.sort(function(a, b) {
+var va = String(a[clientSortKey] || '').toLowerCase();
+var vb = String(b[clientSortKey] || '').toLowerCase();
+if (va < vb) return clientSortDir === 'asc' ? -1 : 1;
+if (va > vb) return clientSortDir === 'asc' ? 1 : -1;
+return 0;
+});
+return filtered;
+}
+function escapeHtml(str) {
+var div = document.createElement('div');
+div.textContent = str;
+return div.innerHTML;
+}
+function csvEscape(val) {
+if (val === null || val === undefined) return '';
+var s = String(val);
+if (s.indexOf(',') !== -1 || s.indexOf('"') !== -1 || s.indexOf('\n') !== -1) {
+return '"' + s.replace(/"/g, '""') + '"';
+}
+return s;
+}
+function closeModal(modalId) {
+document.getElementById(modalId).classList.remove('active');
+}
+function showProjectMessage(msg, type) {
+var el = document.getElementById('pmProjectsMessage');
+if (!el) el = document.getElementById('pmAddProjectMessage');
+el.textContent = msg;
+el.className = 'pm-message ' + type;
+el.style.display = 'block';
+setTimeout(function() { el.style.display = 'none'; }, 5000);
+}
+function showClientMessage(msg, type) {
+var el = document.getElementById('pmClientsMessage');
+if (!el) el = document.getElementById('pmAddClientMessage');
+el.textContent = msg;
+el.className = 'pm-message ' + type;
+el.style.display = 'block';
+setTimeout(function() { el.style.display = 'none'; }, 5000);
+}
+function showTypeMessage(msg, type) {
+var el = document.getElementById('pmTypesMessage');
+el.textContent = msg;
+el.className = 'pm-message ' + type;
+el.style.display = 'block';
+setTimeout(function() { el.style.display = 'none'; }, 5000);
+}
+function switchTab(tab) {
+document.querySelectorAll('.pm-tab').forEach(function(t) { t.classList.remove('active'); });
+document.querySelectorAll('.pm-tab-content').forEach(function(c) { c.style.display = 'none'; });
+document.querySelector('.pm-tab[data-tab="' + tab + '"]').classList.add('active');
+document.getElementById('tab-' + tab).style.display = 'block';
+var yf = document.querySelector('.pm-pill-bar .pm-year-filter-bar');
+if (yf) yf.style.display = (tab === 'overview') ? '' : 'none';
+if (tab === 'overview') renderOverview();
+if (tab === 'overview') {
+makeColumnsResizable(document.getElementById('pmOverviewProjectsTable'), 'pmColW_ovProjects', [120, 240, 200, 100]);
+makeColumnsDraggable(document.getElementById('pmOverviewProjectsTable'), 'pmColOrder_ovProjects');
+makeColumnsResizable(document.getElementById('pmOverviewClientsTable'), 'pmColW_ovClients', [200, 160, 100]);
+makeColumnsDraggable(document.getElementById('pmOverviewClientsTable'), 'pmColOrder_ovClients');
+}
+if (tab === 'projects') {
+renderProjectTableHead();
+renderProjectTable();
+var pColW = PROJECT_COL_DEFS.filter(function(c) { return c.defaultVisible; }).map(function(c) { return c.width || 120; });
+pColW.push(80);
+makeColumnsResizable(document.getElementById('pmProjectTable'), 'pmColW_projects', pColW);
+makeColumnsDraggable(document.getElementById('pmProjectTable'), 'pmColOrder_projects');
+}
+if (tab === 'clients') {
+renderClientTableHead();
+renderClientTable();
+var cColW = CLIENT_COL_DEFS.filter(function(c) { return c.defaultVisible; }).map(function(c) { return c.width || 120; });
+cColW.push(80);
+makeColumnsResizable(document.getElementById('pmClientTable'), 'pmColW_clients', cColW);
+makeColumnsDraggable(document.getElementById('pmClientTable'), 'pmColOrder_clients');
+}
+if (tab === 'types') {
+renderProjectTypes();
+makeColumnsResizable(document.getElementById('pmTypeTable'), 'pmColW_types', [160, 400, 100]);
+makeColumnsDraggable(document.getElementById('pmTypeTable'), 'pmColOrder_types');
+}
+if (typeof initVoice === 'function') initVoice();
+}
+function goToMainDashboard() {
+if (pmDirty) {
+if (!confirm('You have unsaved changes. Click OK to leave without saving, or Cancel to stay.')) return;
+}
+var savedOrigin = sessionStorage.getItem('driven_dashboard_origin');
+if (savedOrigin) { window.location.href = savedOrigin; return; }
+if (document.referrer && document.referrer.indexOf('driv-en.com') !== -1) {
+window.location.href = document.referrer; return;
+}
+var user = window.dashUser;
+if (user) {
+var role = (user.role || '').toLowerCase();
+var rid = (user.role_id || '').toLowerCase();
+if (role === 'driv-en founder' || role === 'owner' || rid === 'ro-founder') {
+window.location.href = '/app/dashboard/owner-dashboard.html'; return;
+} else if (role === 'admin' || rid === 'ro-admin') {
+window.location.href = '/app/dashboard/admin.html'; return;
+} else {
+window.location.href = '/app/dashboard/employee-dashboard.html'; return;
+}
+}
+window.location.href = '/app/dashboard/admin.html';
+}
+function confirmLogout() {
+if (pmDirty) {
+if (!confirm('You have unsaved changes. Click OK to log out without saving, or Cancel to stay.')) return;
+}
+if (typeof dashLogout === 'function') dashLogout();
+}
+var STATUS_COLORS = { 'awarded': '#3b82f6', 'in progress': '#16a34a', 'on hold': '#f59e0b', 'completed': '#6366f1', 'cancelled': '#ef4444' };
+var STATUS_ORDER = ['awarded', 'in progress', 'on hold', 'completed', 'cancelled'];
+function renderStatusDonut(projArr) {
+var donut = document.getElementById('pmStatusDonut');
+var legend = document.getElementById('pmStatusLegend');
+if (!donut || !legend) return;
+var sub = document.getElementById('pmDonutSubtitle');
+if (sub) sub.textContent = pmYearFilter ? 'for ' + pmYearFilter : 'for all years';
+var projs = projArr || allProjects;
+var counts = {};
+STATUS_ORDER.forEach(function(s) { counts[s] = 0; });
+projs.forEach(function(p) {
+var key = String(p.status || '').toLowerCase();
+if (counts[key] !== undefined) counts[key]++;
+});
+var total = projs.length || 1;
+var stops = [];
+var cum = 0;
+STATUS_ORDER.forEach(function(s) {
+var pct = counts[s] / total;
+if (pct > 0) stops.push(STATUS_COLORS[s] + ' ' + (cum * 360).toFixed(1) + 'deg ' + ((cum + pct) * 360).toFixed(1) + 'deg');
+cum += pct;
+});
+if (stops.length === 0) stops.push('#e2e8f0 0deg 360deg');
+donut.style.background = 'conic-gradient(' + stops.join(', ') + ')';
+donut.style.position = 'relative';
+donut.innerHTML = '<div style="position:absolute;width:90px;height:90px;border-radius:50%;background:var(--bg-card,#fff);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:var(--text);top:25px;left:25px;">' + total + '</div>';
+legend.textContent = '';
+STATUS_ORDER.forEach(function(s) {
+var item = document.createElement('div');
+item.className = 'pm-donut-legend-item';
+item.innerHTML = '<div class="pm-donut-legend-dot" style="background:' + STATUS_COLORS[s] + '"></div><span>' + escapeHtml(statusLabel(s)) + ': ' + counts[s] + '</span>';
+legend.appendChild(item);
+});
+}
+var pmTrendPage = 1;
+var pmTrendPageSize = 10;
+var pmGanttWindow = 'all'; /* 'all' | '12' | '24' | '36' (months) */
+var pmGanttOffset = 0; /* slider offset in months from chartStart */
+function pmSavePrefs() {
+try {
+localStorage.setItem('pm_prefs', JSON.stringify({
+year: pmYearFilter || '',
+window: pmGanttWindow || 'all',
+offset: pmGanttOffset || 0,
+pageSize: pmTrendPageSize || 10,
+page: pmTrendPage || 1
+}));
+} catch(e) {}
+}
+function pmLoadPrefs() {
+try {
+var raw = localStorage.getItem('pm_prefs');
+if (!raw) return;
+var prefs = JSON.parse(raw);
+if (prefs.year !== undefined) pmYearFilter = prefs.year;
+if (prefs.window !== undefined) pmGanttWindow = prefs.window;
+if (prefs.offset !== undefined) pmGanttOffset = prefs.offset;
+if (prefs.pageSize !== undefined) pmTrendPageSize = prefs.pageSize;
+if (prefs.page !== undefined) pmTrendPage = prefs.page;
+} catch(e) {}
+}
+function getEarliestDate(p) {
+var dates = [p.awardDate, p.expectedStartDate, p.actualStartDate, p.expectedCompletionDate, p.actualCompletionDate].filter(function(d) { return d; });
+if (dates.length === 0) return p.createdAt ? new Date(p.createdAt) : null;
+return new Date(Math.min.apply(null, dates.map(function(d) { return new Date(d).getTime(); })));
+}
+function getLatestDate(p) {
+var dates = [p.awardDate, p.expectedStartDate, p.actualStartDate, p.expectedCompletionDate, p.actualCompletionDate].filter(function(d) { return d; });
+if (dates.length === 0) return p.createdAt ? new Date(p.createdAt) : null;
+return new Date(Math.max.apply(null, dates.map(function(d) { return new Date(d).getTime(); })));
+}
+function getChartRange(projs) {
+var year = pmYearFilter ? parseInt(pmYearFilter) : null;
+var minD = null, maxD = null;
+projs.forEach(function(p) {
+var e = getEarliestDate(p), l = getLatestDate(p);
+if (e && (!minD || e < minD)) minD = e;
+if (l && (!maxD || l > maxD)) maxD = l;
+});
+if (year) {
+return { start: new Date(year, 0, 1), end: new Date(year + 1, 0, 1) };
+}
+if (!minD || !maxD) {
+var now = new Date();
+return { start: new Date(now.getFullYear(), now.getMonth() - 11, 1), end: new Date(now.getFullYear(), now.getMonth() + 1, 1) };
+}
+var padStart = new Date(minD.getFullYear(), minD.getMonth() - 1, 1);
+var padEnd = new Date(maxD.getFullYear(), maxD.getMonth() + 2, 1);
+return { start: padStart, end: padEnd };
+}
+function renderTrendChart(projArr) {
+var projs = projArr || allProjects;
+var container = document.getElementById('pmTrendChart');
+if (!container) return;
+container.textContent = '';
+var year = pmYearFilter ? parseInt(pmYearFilter) : null;
+var fullRange = getChartRange(projs);
+var chartStart = fullRange.start, chartEnd = fullRange.end;
+if (!year && pmGanttWindow !== 'all') {
+var winMonths = parseInt(pmGanttWindow) || 12;
+var totalMonths = Math.round((chartEnd - chartStart) / (30.44 * 24 * 3600 * 1000));
+var maxOffset = Math.max(0, totalMonths - winMonths);
+var slider = document.getElementById('pmGanttSlider');
+if (slider) {
+slider.max = maxOffset;
+slider.value = Math.min(pmGanttOffset, maxOffset);
+pmGanttOffset = parseInt(slider.value) || 0;
+}
+chartStart = new Date(chartStart.getFullYear(), chartStart.getMonth() + pmGanttOffset, 1);
+chartEnd = new Date(chartStart.getFullYear(), chartStart.getMonth() + winMonths, 1);
+}
+var rangeMs = chartEnd - chartStart;
+var projects = projs.filter(function(p) {
+var e = getEarliestDate(p), l = getLatestDate(p);
+if (!e || !l) return false;
+return e <= chartEnd && l >= chartStart;
+}).sort(function(a, b) {
+return getEarliestDate(a) - getEarliestDate(b);
+});
+var countEl = document.getElementById('pmTrendCount');
+if (countEl) countEl.textContent = projects.length;
+if (projects.length === 0) {
+container.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b;">No projects with dates in this period.</div>';
+var pagEl = document.getElementById('pmTrendPagination');
+if (pagEl) pagEl.textContent = '';
+return;
+}
+var rowH = 28;
+var labelW = 160;
+var months = [];
+var totalMonthsRange = Math.round((chartEnd - chartStart) / (30.44 * 24 * 3600 * 1000)) + 1;
+for (var m = 0; m < totalMonthsRange; m++) {
+var d = new Date(chartStart.getFullYear(), chartStart.getMonth() + m, 1);
+if (d >= chartEnd) break;
+months.push({ label: d.toLocaleDateString('en', { month: 'short' }), start: d });
+}
+var totalPages = Math.max(1, Math.ceil(projects.length / pmTrendPageSize));
+if (pmTrendPage > totalPages) pmTrendPage = totalPages;
+var pageStart = (pmTrendPage - 1) * pmTrendPageSize;
+var pageProjects = projects.slice(pageStart, pageStart + pmTrendPageSize);
+var html = '<div class="pm-gantt-wrap"><div class="pm-gantt-inner">';
+html += '<div class="pm-gantt-header">';
+html += '<div class="pm-gantt-header-label">Project</div>';
+html += '<div class="pm-gantt-track" style="height:24px;">';
+months.forEach(function(mo) {
+var pct = (mo.start - chartStart) / rangeMs * 100;
+html += '<div class="pm-gantt-month" style="left:' + pct + '%;">' + mo.label + '</div>';
+});
+html += '</div></div>';
+pageProjects.forEach(function(p) {
+var e = getEarliestDate(p), l = getLatestDate(p);
+var color = STATUS_COLORS[String(p.status || '').toLowerCase()] || '#94a3b8';
+html += '<div class="pm-gantt-row" style="height:' + rowH + 'px;">';
+html += '<div class="pm-gantt-label" title="' + escapeHtml(p.name || '') + '">' + escapeHtml(p.code || '') + ' ' + escapeHtml(p.name || '') + '</div>';
+html += '<div class="pm-gantt-track" style="height:' + rowH + 'px;">';
+/* Award marker */
+if (p.awardDate) {
+var awardPct = (new Date(p.awardDate) - chartStart) / rangeMs * 100;
+if (awardPct >= 0 && awardPct <= 100) html += '<div class="pm-gantt-marker" style="left:' + awardPct + '%;background:#f59e0b;" title="Award: ' + p.awardDate + '"></div>';
+}
+/* Start marker */
+if (p.actualStartDate) {
+var startPct = (new Date(p.actualStartDate) - chartStart) / rangeMs * 100;
+if (startPct >= 0 && startPct <= 100) html += '<div class="pm-gantt-marker" style="left:' + startPct + '%;background:#16a34a;" title="Start: ' + p.actualStartDate + '"></div>';
+}
+/* Completion marker */
+if (p.actualCompletionDate) {
+var compPct = (new Date(p.actualCompletionDate) - chartStart) / rangeMs * 100;
+if (compPct >= 0 && compPct <= 100) html += '<div class="pm-gantt-marker" style="left:' + compPct + '%;background:#6366f1;" title="Completion: ' + p.actualCompletionDate + '"></div>';
+}
+/* Work window: from actual start (or expected start if no actual) to completion (or latest date) */
+var workStart = p.actualStartDate ? new Date(p.actualStartDate) : (p.expectedStartDate ? new Date(p.expectedStartDate) : e);
+var workEnd = p.actualCompletionDate ? new Date(p.actualCompletionDate) : l;
+var barStart = Math.max(workStart, chartStart);
+var barEnd = Math.min(workEnd, chartEnd);
+var leftPct = (barStart - chartStart) / rangeMs * 100;
+var widthPct = Math.max(1, (barEnd - barStart) / rangeMs * 100);
+html += '<div class="pm-gantt-bar" style="left:' + leftPct + '%;width:' + widthPct + '%;background:' + color + ';" title="' + escapeHtml(p.name || '') + ' | Status: ' + escapeHtml(p.status || '') + '"></div>';
+/* Dashed segment from award to start (no activity period) */
+if (p.awardDate && (p.actualStartDate || p.expectedStartDate)) {
+var awardD = new Date(p.awardDate);
+var startD = p.actualStartDate ? new Date(p.actualStartDate) : new Date(p.expectedStartDate);
+if (startD > awardD) {
+var dashStart = Math.max(awardD, chartStart);
+var dashEnd = Math.min(startD, chartEnd);
+var dashLeft = (dashStart - chartStart) / rangeMs * 100;
+var dashWidth = Math.max(1, (dashEnd - dashStart) / rangeMs * 100);
+html += '<div class="pm-gantt-dash" style="left:' + dashLeft + '%;width:' + dashWidth + '%;" title="Awarded ' + p.awardDate + ' \u2014 no activity until start"></div>';
+}
+}
+html += '</div></div>';
+});
+html += '<div style="display:flex;gap:12px;margin-top:8px;font-size:11px;color:#64748b;">';
+html += '<span><span style="display:inline-block;width:12px;height:12px;background:#f59e0b;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Award</span>';
+html += '<span><span style="display:inline-block;width:12px;height:12px;background:#16a34a;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Start</span>';
+html += '<span><span style="display:inline-block;width:12px;height:12px;background:#6366f1;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Completion</span>';
+html += '<span><span style="display:inline-block;width:12px;height:12px;background:#3b82f6;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Awarded</span>';
+html += '<span><span style="display:inline-block;width:12px;height:12px;background:#16a34a;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>In Progress</span>';
+html += '</div>';
+html += '</div></div>';
+container.innerHTML = html;
+renderPagination('pmTrendPagination', projects.length, totalPages, pmTrendPage, pmTrendPageSize, function(p) { pmTrendPage = p; pmSavePrefs(); renderTrendChart(projArr); }, function(sz) { pmTrendPageSize = sz; pmTrendPage = 1; pmSavePrefs(); renderTrendChart(projArr); });
+updateGanttSliderLabel();
+}
+function updateGanttSliderLabel() {
+var slider = document.getElementById('pmGanttSlider');
+var label = document.getElementById('pmGanttSliderLabel');
+if (!slider || !label) return;
+var year = pmYearFilter ? parseInt(pmYearFilter) : null;
+if (year || pmGanttWindow === 'all') {
+slider.style.display = 'none';
+label.textContent = '';
+return;
+}
+slider.style.display = 'inline-block';
+var winMonths = parseInt(pmGanttWindow) || 12;
+var start = new Date();
+var fullRange = getChartRange(allProjects);
+var chartStart = new Date(fullRange.start.getFullYear(), fullRange.start.getMonth() + pmGanttOffset, 1);
+label.textContent = chartStart.toLocaleDateString('en', { month: 'short', year: 'numeric' }) + ' \u2013 ' + new Date(chartStart.getFullYear(), chartStart.getMonth() + winMonths - 1, 1).toLocaleDateString('en', { month: 'short', year: 'numeric' });
+}
+function initGanttControls() {
+var zoom = document.getElementById('pmGanttZoom');
+var slider = document.getElementById('pmGanttSlider');
+if (zoom) zoom.value = pmGanttWindow;
+if (zoom) zoom.addEventListener('change', function() {
+pmGanttWindow = zoom.value;
+pmGanttOffset = 0;
+pmTrendPage = 1;
+pmSavePrefs();
+renderTrendChart();
+});
+if (slider) slider.addEventListener('input', function() {
+pmGanttOffset = parseInt(slider.value) || 0;
+pmSavePrefs();
+renderTrendChart();
+});
+}
+var ovProjSearch = '', ovClientSearch = '', pmYearFilter = '';
+function populateYearFilter() {
+var sel = document.getElementById('pmYearFilter');
+if (!sel) return;
+var years = {};
+allProjects.forEach(function(p) { if (p.createdAt) { var y = new Date(p.createdAt).getFullYear(); years[y] = true; } });
+allClients.forEach(function(c) { if (c.createdAt) { var y = new Date(c.createdAt).getFullYear(); years[y] = true; } });
+var sorted = Object.keys(years).sort(function(a, b) { return b - a; });
+var current = pmYearFilter || sel.value;
+sel.innerHTML = '<option value="">All Years</option>';
+sorted.forEach(function(y) { var opt = document.createElement('option'); opt.value = y; opt.textContent = y; sel.appendChild(opt); });
+sel.value = current;
+}
+function getYearFilteredProjects() {
+if (!pmYearFilter) return allProjects;
+return allProjects.filter(function(p) { return p.createdAt && String(new Date(p.createdAt).getFullYear()) === pmYearFilter; });
+}
+function getYearFilteredClients() {
+if (!pmYearFilter) return allClients;
+return allClients.filter(function(c) { return c.createdAt && String(new Date(c.createdAt).getFullYear()) === pmYearFilter; });
+}
+function initOverviewSearch() {
+var ps = document.getElementById('pmOverviewProjectSearch');
+var cs = document.getElementById('pmOverviewClientSearch');
+var yf = document.getElementById('pmYearFilter');
+if (ps) ps.addEventListener('input', function() { ovProjSearch = ps.value.toLowerCase(); renderOverviewProjects(getYearFilteredProjects()); });
+if (cs) cs.addEventListener('input', function() { ovClientSearch = cs.value.toLowerCase(); renderOverviewClients(getYearFilteredClients()); });
+if (yf) yf.addEventListener('change', function() { pmYearFilter = yf.value; pmTrendPage = 1; pmSavePrefs(); renderOverview(); });
+}
+function renderOverviewProjects(projArr) {
+var projs = projArr || allProjects;
+var recent = projs.slice().sort(function(a, b) {
+var da = a.createdAt || ''; var db = b.createdAt || '';
+return db < da ? -1 : db > da ? 1 : 0;
+});
+if (ovProjSearch) {
+recent = recent.filter(function(p) {
+return (p.name && p.name.toLowerCase().indexOf(ovProjSearch) !== -1) ||
+(p.code && p.code.toLowerCase().indexOf(ovProjSearch) !== -1) ||
+(p.clientName && p.clientName.toLowerCase().indexOf(ovProjSearch) !== -1);
+});
+}
+document.getElementById('recentProjectsCount').textContent = recent.length;
+var totalPages = Math.max(1, Math.ceil(recent.length / ovProjPageSize));
+if (ovProjPage > totalPages) ovProjPage = 1;
+var pageStart = (ovProjPage - 1) * ovProjPageSize;
+var pageItems = recent.slice(pageStart, pageStart + ovProjPageSize);
+var body = document.getElementById('pmOverviewProjectsBody');
+body.textContent = '';
+if (recent.length === 0) {
+body.innerHTML = '<tr><td class="pm-empty">No projects found. <a class="pm-empty-action" onclick="switchTab(\'addproject\')">Add New Project</a></td></tr>';
+} else {
+pageItems.forEach(function(p) {
+var tr = document.createElement('tr');
+tr.style.cursor = 'pointer';
+tr.addEventListener('click', function() { openProjectDetail(p); });
+tr.innerHTML = '<td>' + escapeHtml(p.code || '\u2014') + '</td><td style="font-weight:600;">' + escapeHtml(p.name || '') + '</td><td>' + escapeHtml(p.clientName || p.client_name || '\u2014') + '</td><td>' + statusBadgeHtml(p.status) + '</td>';
+body.appendChild(tr);
+});
+}
+renderPagination('pmOverviewProjectsPagination', recent.length, totalPages, ovProjPage, ovProjPageSize, function(p) { ovProjPage = p; renderOverviewProjects(getYearFilteredProjects()); }, function(sz) { ovProjPageSize = sz; ovProjPage = 1; renderOverviewProjects(getYearFilteredProjects()); });
+}
+function renderOverviewClients(clientArr) {
+var clients = clientArr || allClients;
+var recent = clients.slice().sort(function(a, b) {
+var da = a.createdAt || ''; var db = b.createdAt || '';
+return db < da ? -1 : db > da ? 1 : 0;
+});
+if (ovClientSearch) {
+recent = recent.filter(function(c) {
+return (c.clientName && c.clientName.toLowerCase().indexOf(ovClientSearch) !== -1) ||
+(c.contactName && c.contactName.toLowerCase().indexOf(ovClientSearch) !== -1) ||
+(c.contactEmail && c.contactEmail.toLowerCase().indexOf(ovClientSearch) !== -1);
+});
+}
+document.getElementById('recentClientsCount').textContent = recent.length;
+var totalPages = Math.max(1, Math.ceil(recent.length / ovClientPageSize));
+if (ovClientPage > totalPages) ovClientPage = 1;
+var pageStart = (ovClientPage - 1) * ovClientPageSize;
+var pageItems = recent.slice(pageStart, pageStart + ovClientPageSize);
+var body = document.getElementById('pmOverviewClientsBody');
+body.textContent = '';
+if (recent.length === 0) {
+body.innerHTML = '<tr><td class="pm-empty">No clients found. <a class="pm-empty-action" onclick="switchTab(\'addclient\')">Add New Client</a></td></tr>';
+} else {
+pageItems.forEach(function(c) {
+var tr = document.createElement('tr');
+tr.style.cursor = 'pointer';
+tr.addEventListener('click', function() { switchTab('clients'); });
+tr.innerHTML = '<td style="font-weight:600;">' + escapeHtml(c.clientName || '') + '</td><td>' + escapeHtml(c.contactName || c.contactEmail || '\u2014') + '</td><td>' + statusBadgeHtml(c.status) + '</td>';
+body.appendChild(tr);
+});
+}
+renderPagination('pmOverviewClientsPagination', recent.length, totalPages, ovClientPage, ovClientPageSize, function(p) { ovClientPage = p; renderOverviewClients(getYearFilteredClients()); }, function(sz) { ovClientPageSize = sz; ovClientPage = 1; renderOverviewClients(getYearFilteredClients()); });
+}
+function openProjectDetail(p) {
+var grid = document.getElementById('pmDetailGrid');
+document.getElementById('pmDetailTitle').textContent = p.name || 'Project Details';
+var fields = [
+['Project Number', p.code || '\u2014'],
+['Project Name', p.name || '\u2014'],
+['Status', p.status || '\u2014'],
+['Client', p.clientName || p.client_name || '\u2014'],
+['Street', p.street || '\u2014'],
+['City', p.city || '\u2014'],
+['State', p.state || '\u2014'],
+['Zip', p.zip || '\u2014'],
+['Project Manager', p.projectManager || '\u2014'],
+['Award Date', p.awardDate || '\u2014'],
+['Expected Start', p.expectedStartDate || '\u2014'],
+['Actual Start', p.actualStartDate || '\u2014'],
+['Expected Completion', p.expectedCompletionDate || '\u2014'],
+['Actual Completion', p.actualCompletionDate || 'u2014'],
+['Notes', p.notes || '\u2014']
+];
+grid.innerHTML = fields.map(function(f) {
+return '<div class="pm-detail-field"><span class="pm-detail-label">' + f[0] + '</span><span class="pm-detail-value">' + escapeHtml(f[1]) + '</span></div>';
+}).join('');
+document.getElementById('pmDetailModal').classList.add('active');
+}
+function getActiveContext() {
+var activeTab = document.querySelector('.pm-tab.active');
+if (!activeTab) return 'overview';
+var key = activeTab.getAttribute('data-tab') || 'overview';
+return PM_MODAL_CONTENT[key] ? key : 'overview';
+}
+function openPmModal(type) {
+var ctx = getActiveContext();
+var info = PM_MODAL_CONTENT[ctx] || PM_MODAL_CONTENT.overview;
+if (type === 'purpose') {
+document.getElementById('pmModalPurposeTitle').textContent = info.title + ' \u2014 Purpose';
+document.getElementById('pmModalPurposeBody').innerHTML = info.purpose;
+document.getElementById('pmModalPurpose').classList.add('active');
+} else {
+document.getElementById('pmModalInstructionsTitle').textContent = info.title + ' \u2014 Instructions';
+document.getElementById('pmModalInstructionsBody').innerHTML = info.instructions;
+document.getElementById('pmModalInstructions').classList.add('active');
+}
+}
+var btnPurpose = document.getElementById('pmBtnPurpose');
+if (btnPurpose) btnPurpose.addEventListener('click', function() { openPmModal('purpose'); });
+var btnInstructions = document.getElementById('pmBtnInstructions');
+if (btnInstructions) btnInstructions.addEventListener('click', function() { openPmModal('instructions'); });
+
+document.querySelectorAll('.pm-modal-overlay').forEach(function(overlay) {
+overlay.addEventListener('click', function(e) {
+if (e.target === overlay) overlay.classList.remove('active');
+});
+});
 })();
-</script>
-
-<style>
-:root { --header-height: 58px; }
-
-/* ===== LOADING SCREEN ===== */
-.pm-loading { display:flex; align-items:center; justify-content:center; height:100vh; font-size:16px; color:var(--text-muted); }
-
-/* ===== HEADER OVERRIDE (single-row, matches admin.html) ===== */
-#dashHeader {
-  width: 100% !important;
-  box-sizing: border-box;
-  position: -webkit-sticky !important;
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 100000 !important;
-  background: #ffffff !important;
-  border-bottom: 1px solid var(--border, #cbd5e1);
-}
-:root[data-theme="dark"] #dashHeader {
-  background: #1e293b !important;
-  border-bottom-color: var(--border, #475569);
-}
-
-/* Hide stale 3-row SW header rows so they never flash, even before rebuildHeader() runs */
-.dash-header-row2, .dash-header-row3, .dash-utility-bar { display: none !important; }
-
-@media (max-width:700px) {
-  .dash-customer-logo, .dash-customer-logo-placeholder { max-height:36px; max-width:80px; }
-  .dash-driven-logo { max-height:40px; }
-}
-
-/* ===== TAB BAR ===== */
-.pm-tab-bar { display:flex; gap:2px; max-width:1100px; margin:0 auto; padding:0 20px; overflow-x:auto; overflow-y:hidden; position:-webkit-sticky !important; position:sticky !important; top:var(--header-height,58px) !important; z-index:9998 !important; background:#cbd5e1; border-bottom:2px solid #94a3b8; box-sizing:border-box; -webkit-overflow-scrolling:touch; transform:translateZ(0); }
-.pm-tab { background:#94a3b8; border:1px solid #64748b; border-bottom:none; border-radius:8px 8px 0 0; padding:10px 22px; font-size:15px; font-weight:500; color:#1e293b; cursor:pointer; white-space:nowrap; transition:color 200ms ease, background 200ms ease, margin-top 200ms ease; margin-top:4px; position:relative; z-index:1; }
-.pm-tab:hover { color:#0f172a; background:#a5b4c4; margin-top:2px; }
-.pm-tab.active { color:#1d4ed8; background:#e2e8f0; border-color:#64748b; margin-top:0; font-weight:600; z-index:2; }
-.pm-tab-dashboard { background:#2563eb; border:1px solid #1d4ed8; color:#fff; }
-.pm-tab-dashboard:hover { background:#1d4ed8; color:#fff; margin-top:2px; }
-.pm-tab-logout { background:#b91c1c; border:1px solid #dc2626; border-bottom:none; border-radius:8px 8px 0 0; padding:10px 22px; font-size:15px; font-weight:600; color:#fff; cursor:pointer; white-space:nowrap; margin-top:4px; margin-left:auto; position:relative; z-index:1; transition:background 200ms ease, margin-top 200ms ease; }
-.pm-tab-logout:hover { background:#dc2626; margin-top:2px; }
-.pm-tab-content { display:none; }
-.pm-tab-content.active { display:block; }
-
-/* ===== MAIN CONTAINER ===== */
-.pm-main { max-width:1100px; margin:20px auto; padding:0 20px; position:relative; z-index:1; }
-
-/* ===== WELCOME CARD (matches admin dashboard) ===== */
-.pm-welcome-bar { max-width:1100px; margin:16px auto 0 auto; padding:0 20px; position:relative; z-index:1; box-sizing:border-box; }
-.pm-welcome-card { background:var(--bg-card, #ffffff); border:2px solid var(--success, #16a34a); border-radius:8px; padding:20px 24px; box-sizing:border-box; position:relative; z-index:1; }
-.pm-welcome-header { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:16px; }
-.pm-welcome-greeting h2 { margin:0 0 4px 0; font-size:20px; color:var(--text, #0f172a); }
-.pm-welcome-greeting p { margin:0; font-size:14px; color:var(--text-muted, #64748b); }
-.pm-welcome-details { margin-top:16px; display:grid; grid-template-columns:1fr auto; gap:24px; align-items:center; }
-.pm-welcome-detail-rows { display:flex; flex-direction:column; gap:8px; }
-.pm-welcome-detail-row { font-size:14px; color:var(--text, #0f172a); display:flex; align-items:center; gap:6px; }
-.pm-welcome-detail-label { font-weight:600; color:var(--text-muted, #64748b); }
-.pm-welcome-change-password { background:var(--success, #16a34a); border:1px solid #15803d; color:#ffffff; padding:8px 18px; border-radius:6px; font-size:14px; font-weight:600; text-decoration:none; cursor:pointer; white-space:nowrap; transition:background 150ms ease; }
-.pm-welcome-change-password:hover { background:#15803d; }
-.dash-theme-wrapper { display:flex; align-items:center; gap:8px; }
-.dash-theme-label { font-size:13px; color:var(--text-muted, #64748b); }
-.dash-theme-label.active { color:var(--text, #0f172a); font-weight:600; }
-.dash-theme-switch { position:relative; display:inline-block; width:44px; height:24px; }
-.dash-theme-switch input { opacity:0; width:0; height:0; }
-.dash-theme-slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#3b82f6; border-radius:24px; transition:0.3s; }
-.dash-theme-slider:before { position:absolute; content:""; height:18px; width:18px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:0.3s; }
-input:checked + .dash-theme-slider { background:#16a34a; }
-input:checked + .dash-theme-slider:before { transform:translateX(20px); }
-input:focus-visible + .dash-theme-slider { outline:2px solid #2563eb; outline-offset:2px; }
-:root[data-theme="dark"] .dash-theme-slider { background:#475569; }
-@media (max-width:600px) { .pm-welcome-details { grid-template-columns:1fr; } .pm-welcome-header { flex-direction:column; } }
-
-/* ===== OVERVIEW TABLE CARDS ===== */
-.pm-overview-card { background:var(--bg-card); border:2px solid var(--success, #16a34a); border-radius:8px; padding:20px 24px; margin-bottom:24px; }
-.pm-overview-card-title { font-size:18px; font-weight:700; color:var(--text); margin:0 0 16px 0; padding-bottom:12px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
-.pm-overview-card-title .count { font-size:14px; font-weight:400; color:var(--text-muted); }
-.pm-title-sub { font-size:13px; font-style:italic; color:var(--text-muted); margin:-10px 0 12px 0; }
-
-/* ===== OVERVIEW KPI CARDS ===== */
-.pm-kpi-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; margin-bottom:24px; }
-.pm-kpi-link { cursor:pointer; transition:transform 150ms ease, box-shadow 150ms ease; }
-.pm-kpi-link:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.12); }
-.pm-kpi-card { background:var(--bg-card); border:2px solid var(--success, #16a34a); border-radius:8px; padding:20px; text-align:center; }
-.pm-kpi-number { font-size:32px; font-weight:700; color:var(--text); }
-.pm-kpi-label { font-size:13px; color:var(--text-muted); margin-top:4px; }
-
-/* ===== TABLE COLUMN RESIZE ===== */
-.pm-table { table-layout:auto; }
-.pm-table th, .pm-table td { word-wrap:break-word; overflow-wrap:break-word; vertical-align:top; }
-.pm-table th { position:relative; user-select:none; white-space:normal; }
-.pm-table th[draggable="true"] { cursor:grab; }
-.pm-table th[draggable="true"]:active { cursor:grabbing; }
-.pm-col-resizer { position:absolute; right:0; top:0; height:100%; width:6px; cursor:col-resize; background:transparent; z-index:5; }
-.pm-col-resizer:hover, .pm-col-resizer.dragging { background:var(--success,#16a34a); opacity:0.5; }
-
-/* ===== SECTION HEADER ===== */
-.pm-section-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px; border:2px solid var(--success, #16a34a); border-radius:8px; padding:12px 16px; background:var(--bg-card); }
-.pm-section-header h3 { margin:0; font-size:16px; color:var(--text); }
-.pm-record-count { font-size:14px; color:var(--text-muted); }
-
-/* ===== TABLE ===== */
-.pm-table-scroll { max-height:500px; overflow:auto; border:2px solid var(--success, #16a34a); border-radius:8px; background:var(--bg-card); }
-.pm-table { width:100%; border-collapse:collapse; font-size:14px; background:var(--bg-card); }
-.pm-table thead { position:sticky; top:0; background:var(--bg-header); z-index:2; }
-.pm-table th { padding:10px 16px; text-align:left; font-weight:600; color:var(--text); border-bottom:2px solid var(--border); cursor:pointer; user-select:none; }
-.pm-table th:hover { background:var(--bg-input); }
-.pm-table th .pm-sort-arrow { font-size:11px; margin-left:4px; opacity:0.5; }
-.pm-table th.pm-sorted-asc .pm-sort-arrow, .pm-table th.pm-sorted-desc .pm-sort-arrow { opacity:1; color:var(--primary); }
-.pm-table td { padding:10px 16px; border-bottom:1px solid var(--border); color:var(--text); }
-.pm-table tr:hover td { background:var(--bg-input); }
-.pm-table .pm-actions { display:flex; gap:8px; white-space:nowrap; }
-.pm-table-btn { background:var(--bg-card); border:1px solid var(--border); color:var(--text); padding:6px 12px; border-radius:4px; font-size:13px; cursor:pointer; }
-.pm-table-btn:hover { border-color:var(--primary); color:var(--primary); }
-.pm-table-btn.danger { color:var(--error); }
-.pm-table-btn.danger:hover { border-color:var(--error); }
-
-/* ===== STATUS BADGE ===== */
-.pm-badge { display:inline-block; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600; }
-.pm-badge-awarded { background:rgba(59,130,246,0.15); color:#2563eb; }
-.pm-badge-in-progress { background:rgba(34,197,94,0.15); color:#16a34a; }
-.pm-badge-on-hold { background:rgba(249,115,22,0.15); color:#ea580c; }
-.pm-badge-completed { background:rgba(139,92,246,0.15); color:#7c3aed; }
-.pm-badge-cancelled { background:rgba(239,68,68,0.15); color:#dc2626; }
-.pm-badge-inactive { background:rgba(107,114,128,0.15); color:#6b7280; }
-
-/* ===== FORM ===== */
-.pm-form-card { background:var(--bg-card); border:2px solid var(--success, #16a34a); border-radius:8px; padding:24px; margin-bottom:20px; }
-.pm-form-card h3 { margin:0 0 16px 0; font-size:16px; color:var(--text); }
-.pm-form-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:16px; }
-.pm-form-row { display:flex; flex-direction:column; border:1px solid #16a34a; border-radius:6px; padding:10px 12px; }
-.pm-form-row label { margin-bottom:4px; font-size:14px; color:var(--text); font-weight:600; }
-.pm-form-row label .pm-required { color:var(--error); }
-.pm-form-row input, .pm-form-row select, .pm-form-row textarea { padding:10px 12px; border:1px solid var(--border-input); border-radius:6px; font-size:14px; background:var(--bg-card); color:var(--text); box-sizing:border-box; font-family:inherit; }
-.pm-form-row input:focus, .pm-form-row select:focus, .pm-form-row textarea:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 2px rgba(37,99,235,0.2); }
-.pm-hint { color:var(--text-muted); font-size:12px; margin-bottom:6px; }
-
-/* ===== BUTTONS ===== */
-.pm-btn-primary { background:var(--primary); color:#fff; padding:10px 18px; border-radius:6px; font-size:15px; border:1px solid var(--primary-hover); cursor:pointer; }
-.pm-btn-primary:hover { background:var(--primary-hover); }
-.pm-btn-primary:disabled { opacity:0.6; cursor:not-allowed; }
-.pm-btn-secondary { background:var(--bg-card); color:var(--text); padding:10px 18px; border-radius:6px; font-size:15px; border:1px solid var(--border); cursor:pointer; }
-.pm-btn-secondary:hover { border-color:var(--primary); color:var(--primary); }
-.pm-btn-small { background:var(--bg-card); color:var(--text); padding:6px 12px; border-radius:4px; font-size:13px; border:1px solid var(--border); cursor:pointer; }
-.pm-btn-small:hover { border-color:var(--primary); color:var(--primary); }
-
-/* ===== SEARCH & FILTER ROW ===== */
-.pm-search-row { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center; border:2px solid var(--success, #16a34a); border-radius:8px; padding:12px; background:var(--bg-card); }
-.pm-search-input { flex:1; min-width:200px; padding:10px 12px; border:1px solid var(--border-input); border-radius:6px; font-size:14px; background:var(--bg-card); color:var(--text); box-sizing:border-box; }
-.pm-search-input:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 2px rgba(37,99,235,0.2); }
-.pm-filter-select { padding:10px 12px; border:1px solid var(--border-input); border-radius:6px; font-size:14px; background:var(--bg-card); color:var(--text); box-sizing:border-box; }
-
-/* ===== MESSAGES ===== */
-.pm-message { margin-bottom:16px; padding:12px 16px; border-radius:6px; font-size:14px; display:none; }
-.pm-message.error { background:rgba(239,68,68,0.1); color:#fca5a5; border:1px solid rgba(239,68,68,0.3); }
-.pm-message.success { background:rgba(34,197,94,0.1); color:#86efac; border:1px solid rgba(34,197,94,0.3); }
-
-/* ===== EMPTY STATE ===== */
-.pm-empty { text-align:center; padding:40px 20px; color:var(--text-muted); font-size:15px; }
-
-/* ===== PAGINATION ===== */
-.pm-pagination { display:flex; justify-content:space-between; align-items:center; margin-top:12px; flex-wrap:wrap; gap:8px; }
-.pm-page-info { font-size:13px; color:var(--text-muted); }
-.pm-page-btns { display:flex; gap:6px; }
-.pm-page-btn { background:var(--bg-card); border:1px solid var(--border); color:var(--text); padding:6px 12px; border-radius:4px; font-size:13px; cursor:pointer; }
-.pm-page-btn:hover:not(:disabled) { border-color:var(--primary); color:var(--primary); }
-.pm-page-btn:disabled { opacity:0.4; cursor:not-allowed; }
-.pm-page-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
-
-/* ===== MODAL ===== */
-.pm-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px; box-sizing:border-box; }
-.pm-modal.active { display:flex; }
-.pm-modal-card { background:var(--bg-card); border:2px solid var(--success, #16a34a); border-radius:12px; padding:28px; max-width:600px; width:100%; max-height:85vh; overflow-y:auto; box-sizing:border-box; }
-.pm-modal-card h3 { margin:0 0 4px 0; font-size:20px; color:var(--text); }
-.pm-modal-card .pm-modal-subtitle { margin:0 0 20px 0; font-size:14px; color:var(--text-muted); }
-.pm-modal-actions { display:flex; gap:10px; margin-top:20px; flex-wrap:wrap; }
-
-/* ===== COLUMN TOGGLE PANEL ===== */
-.pm-col-toggle { display:none; position:absolute; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:16px; z-index:100; box-shadow:0 4px 12px rgba(0,0,0,0.15); max-height:400px; overflow-y:auto; min-width:220px; }
-.pm-col-toggle.active { display:block; }
-.pm-col-toggle-item { display:flex; align-items:center; gap:8px; padding:6px 0; font-size:14px; color:var(--text); cursor:pointer; }
-.pm-col-toggle-item input { cursor:pointer; }
-.pm-col-toggle-title { font-size:13px; font-weight:600; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px; }
-
-/* ===== CHECKBOX GRID (print/export) ===== */
-.pm-check-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px; margin:16px 0; }
-.pm-check-item { display:flex; align-items:center; gap:8px; font-size:14px; color:var(--text); cursor:pointer; }
-.pm-check-item input { cursor:pointer; }
-
-/* ===== RESPONSIVE ===== */
-@media (max-width:700px) {
-  :root { --header-height: 50px; }
-  .pm-main { padding:0 12px; margin:12px auto; }
-  .pm-tab { padding:10px 16px; font-size:14px; }
-  .pm-tab-logout { padding:10px 16px; font-size:14px; }
-  .pm-form-grid { grid-template-columns:1fr; }
-  .pm-table { font-size:13px; }
-  .pm-table th, .pm-table td { padding:8px 10px; }
-  .pm-kpi-grid { grid-template-columns:repeat(2, 1fr); }
-  .pm-overview-top { flex-direction:column; }
-  .pm-overview-top .pm-kpi-grid { flex:1 1 auto; }
-  .pm-overview-top .pm-donut-card { flex:1 1 auto; }
-  .pm-check-grid { grid-template-columns:1fr; }
-  .pm-welcome-bar, .pm-pill-bar { padding:0 12px; }
-  .pm-welcome-header { flex-direction:column; }
-  .pm-welcome-details { grid-template-columns:1fr; }
-  .pm-search-row { flex-direction:column; align-items:stretch; }
-  .pm-search-row > * { width:100%; }
-  .pm-overview-card { padding:16px; }
-  .pm-overview-card-title { font-size:16px; }
-  .pm-pill-bar { flex-wrap:wrap; }
-}
-
-/* ===== PRINT STYLES ===== */
-/* ===== PILL BAR (Purpose & Instructions) ===== */
-.pm-pill-bar { max-width:1100px; margin:16px auto 0 auto; padding:0 20px; display:flex; gap:12px; align-items:center; position:relative; z-index:1; box-sizing:border-box; }
-.pm-pill { display:inline-flex; align-items:center; gap:6px; padding:6px 16px; border-radius:9999px; font-size:13px; font-weight:600; cursor:pointer; border:1px solid transparent; transition:all 150ms ease-in-out; box-shadow:0 1px 3px rgba(0,0,0,0.1); white-space:nowrap; }
-.pm-pill-purpose { background-color:#0284c7; color:#ffffff; border-color:#0369a1; }
-.pm-pill-purpose:hover { background-color:#0369a1; }
-.pm-pill-instructions { background-color:#8b5cf6; color:#ffffff; border-color:#7c3aed; }
-.pm-pill-instructions:hover { background-color:#7c3aed; }
-.pm-pill-readaloud { background-color:#eff6ff; color:#1e40af; border:2px solid #3b82f6; margin:0 auto; }
-.pm-pill-readaloud:hover { background-color:#3b82f6; color:#fff; }
-.pm-pill-readaloud.speaking { background-color:#3b82f6; color:#fff; }
-
-/* ===== INFO MODALS ===== */
-.pm-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center; padding:20px; box-sizing:border-box; }
-.pm-modal-overlay.active { display:flex; }
-.pm-modal-card-info { background:var(--bg-card,#fff); border:2px solid var(--success,#16a34a); border-radius:12px; padding:28px; max-width:600px; width:100%; max-height:85vh; overflow-y:auto; box-sizing:border-box; }
-.pm-modal-card-info h2 { margin:0 0 16px 0; font-size:20px; color:var(--text,#0f172a); }
-.pm-modal-card-info .pm-modal-body { font-size:15px; line-height:1.6; color:var(--text,#0f172a); }
-.pm-modal-card-info .pm-modal-body ol { margin:8px 0 8px 20px; padding:0; }
-.pm-modal-card-info .pm-modal-body li { margin-bottom:6px; }
-.pm-modal-close { margin-top:20px; padding:8px 24px; background:var(--success,#16a34a); color:#fff; border:1px solid #15803d; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; }
-.pm-modal-close:hover { background:#15803d; }
-
-/* ===== YEAR FILTER ===== */
-.pm-year-filter-bar { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
-.pm-year-filter-bar label { font-size:14px; font-weight:600; color:var(--text); }
-.pm-pill-bar .pm-year-filter-bar { margin-bottom:0; padding:6px 12px; background:#f0fdf4; border:2px solid var(--success,#16a34a); border-radius:6px; }
-
-/* ===== CHARTS ===== */
-.pm-overview-top { display:flex; gap:20px; margin-bottom:20px; align-items:stretch; }
-.pm-overview-top .pm-kpi-grid { flex:1 1 60%; margin-bottom:0; grid-template-columns:repeat(2, 1fr); }
-.pm-overview-top .pm-donut-card { flex:0 0 40%; margin-bottom:0; display:flex; flex-direction:column; justify-content:center; }
-.pm-gantt-card { margin-bottom:24px; }
-.pm-chart-card { flex:1; min-width:300px; }
-.pm-donut-container { display:flex; align-items:center; gap:20px; padding:10px 0; }
-.pm-donut { width:140px; height:140px; border-radius:50%; flex-shrink:0; }
-.pm-donut-legend { display:flex; flex-direction:column; gap:6px; font-size:13px; }
-.pm-donut-legend-item { display:flex; align-items:center; gap:8px; }
-.pm-donut-legend-dot { width:12px; height:12px; border-radius:3px; flex-shrink:0; }
-.pm-bar-chart { display:flex; align-items:flex-end; gap:8px; height:160px; padding:10px 0; }
-.pm-bar-chart-bar { flex:1; min-width:30px; background:var(--success,#16a34a); border-radius:4px 4px 0 0; position:relative; transition:height 300ms ease; }
-.pm-bar-chart-label { position:absolute; bottom:-20px; left:50%; transform:translateX(-50%); font-size:11px; white-space:nowrap; color:var(--text); }
-.pm-bar-chart-value { position:absolute; top:-18px; left:50%; transform:translateX(-50%); font-size:11px; font-weight:600; color:var(--text); }
-/* Gantt chart frozen label column */
-.pm-gantt-wrap { overflow-x:auto; }
-.pm-gantt-inner { min-width:600px; position:relative; }
-.pm-gantt-row { display:flex; align-items:center; border-bottom:1px solid #f1f5f9; }
-.pm-gantt-label { width:160px; flex-shrink:0; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-right:8px; position:sticky; left:0; background:var(--bg-card,#fff); z-index:2; }
-.pm-gantt-track { flex:1; position:relative; }
-.pm-gantt-header { display:flex; align-items:center; height:24px; margin-bottom:4px; border-bottom:1px solid #cbd5e1; }
-.pm-gantt-header-label { width:160px; flex-shrink:0; font-size:12px; font-weight:600; color:#64748b; position:sticky; left:0; background:var(--bg-card,#fff); z-index:2; }
-.pm-gantt-month { position:absolute; font-size:11px; color:#64748b; white-space:nowrap; }
-.pm-gantt-bar { position:absolute; top:6px; height:16px; border-radius:4px; opacity:0.85; z-index:1; }
-.pm-gantt-dash { position:absolute; top:12px; height:3px; border-top:2px dashed #94a3b8; z-index:1; }
-.pm-gantt-marker { position:absolute; top:4px; width:5px; height:20px; z-index:2; cursor:pointer; border-radius:2px; }
-.pm-status-history { margin-top:16px; border-top:1px solid #e2e8f0; padding-top:12px; }
-.pm-status-history h4 { margin:0 0 4px 0; font-size:15px; }
-.pm-status-history-add { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; align-items:center; }
-.pm-status-history-add select, .pm-status-history-add input { padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; }
-.pm-status-history-add input[type="text"] { flex:1; min-width:140px; }
-.pm-gantt-controls { display:flex; align-items:center; gap:12px; margin-bottom:8px; flex-wrap:wrap; }
-.pm-gantt-zoom { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text-muted); }
-.pm-gantt-slider { flex:1; min-width:120px; accent-color:var(--success,#16a34a); }
-.pm-gantt-slider-label { font-size:12px; color:var(--text-muted); white-space:nowrap; }
-/* ===== DETAIL MODAL ===== */
-.pm-detail-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center; padding:20px; box-sizing:border-box; }
-.pm-detail-overlay.active { display:flex; }
-.pm-detail-card { background:var(--bg-card,#fff); border:2px solid var(--success,#16a34a); border-radius:12px; padding:28px; max-width:600px; width:100%; max-height:85vh; overflow-y:auto; box-sizing:border-box; }
-.pm-detail-card h2 { margin:0 0 16px 0; font-size:20px; color:var(--text,#0f172a); }
-.pm-detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px 20px; margin-bottom:16px; }
-.pm-detail-field { display:flex; flex-direction:column; gap:2px; }
-.pm-detail-label { font-size:12px; font-weight:600; color:#64748b; text-transform:uppercase; }
-.pm-detail-value { font-size:15px; color:var(--text,#0f172a); }
-.pm-detail-close { margin-top:20px; padding:8px 24px; background:var(--success,#16a34a); color:#fff; border:1px solid #15803d; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; }
-.pm-detail-close:hover { background:#15803d; }
-/* ===== BULK ACTIONS ===== */
-.pm-bulk-bar { display:none; align-items:center; gap:10px; padding:8px 12px; background:#dbeafe; border:1px solid #93c5fd; border-radius:6px; margin-bottom:10px; }
-.pm-bulk-bar.active { display:flex; }
-.pm-bulk-bar span { font-size:14px; font-weight:600; color:#1e40af; }
-/* ===== EMPTY STATE ===== */
-.pm-empty-action { display:inline-block; margin-top:8px; padding:6px 16px; background:var(--success,#16a34a); color:#fff; border:1px solid #15803d; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; }
-.pm-empty-action:hover { background:#15803d; }
-
-@media print {
-  .pm-tab-bar, .pm-welcome-bar, .pm-search-row, .pm-form-card, .pm-pagination, .pm-modal, #dashHeader, #dashFooter, .pm-section-header button, .pm-table-btn { display:none !important; }
-  .pm-table-scroll { max-height:none; overflow:visible; border:none; }
-  .pm-table { font-size:12px; }
-  .pm-table th { cursor:default; }
-  body { background:#fff; }
-  .pm-main { max-width:100%; }
-}
-</style>
-</head>
-<body data-page-title="Project Management">
-
-<!-- ===== DIAMOND-PLATE BACKGROUND ===== -->
-<div class="steel-bg"></div>
-<div class="steel-overlay"></div>
-
-<!-- ===== HEADER ===== -->
-<div id="dashHeader"></div>
-
-<!-- ===== TAB BAR ===== -->
-<div class="pm-tab-bar">
-  <div class="pm-tab active" data-tab="overview">Overview</div>
-  <div class="pm-tab" data-tab="projects">Projects</div>
-  <div class="pm-tab" data-tab="addproject">Add New Project</div>
-  <div class="pm-tab" data-tab="types">Project Types</div>
-  <div class="pm-tab" data-tab="clients">Clients</div>
-  <div class="pm-tab" data-tab="addclient">Add New Client</div>
-  <div class="pm-tab pm-tab-dashboard" id="pmTabDashboard">&#8592; Dashboard</div>
-  <div class="pm-tab-logout" id="pmTabLogout">Logout</div>
-</div>
-
-<!-- ===== WELCOME + THEME BAR ===== -->
-<div class="pm-welcome-bar">
-  <div class="pm-welcome-card">
-    <div class="pm-welcome-header">
-      <div class="pm-welcome-greeting">
-        <h2 id="pm-welcome-name">Welcome back</h2>
-      </div>
-      <div class="dash-theme-wrapper" title="Toggle light/dark mode">
-        <span class="dash-theme-label" id="dashThemeLabelLight">Light</span>
-        <label class="dash-theme-switch">
-          <input type="checkbox" id="dashThemeCheckbox" aria-label="Toggle light or dark theme">
-          <span class="dash-theme-slider"></span>
-        </label>
-        <span class="dash-theme-label" id="dashThemeLabelDark">Dark</span>
-      </div>
-    </div>
-    <div class="pm-welcome-details">
-      <div class="pm-welcome-detail-rows">
-        <div class="pm-welcome-detail-row">
-          <span class="pm-welcome-detail-label">Role:</span>
-          <span id="pm-welcome-role"></span>
-        </div>
-        <div class="pm-welcome-detail-row">
-          <span class="pm-welcome-detail-label">Email:</span>
-          <span id="pm-welcome-email"></span>
-        </div>
-      </div>
-      <a href="/app/auth/change-password.html" class="pm-welcome-change-password">Change Password</a>
-    </div>
-  </div>
-</div>
-
-<!-- ===== PURPOSE & INSTRUCTIONS PILL BAR ===== -->
-<div class="pm-pill-bar">
-  <button class="pm-pill pm-pill-purpose" id="pmBtnPurpose">ⓘ Purpose</button>
-  <button class="pm-pill pm-pill-instructions" id="pmBtnInstructions">📋 Instructions</button>
-  
-  <div class="pm-year-filter-bar" style="margin-left:auto; margin-bottom:0;">
-    <label for="pmYearFilter">Year:</label>
-    <select id="pmYearFilter" class="pm-filter-select"><option value="">All Years</option></select>
-  </div>
-</div>
-
-<!-- ===== MAIN CONTENT ===== -->
-<div class="pm-main">
-  <div class="pm-loading" id="pmLoading">Loading project management...</div>
-
-  <!-- ===== OVERVIEW TAB ===== -->
-  <div class="pm-tab-content active" id="tab-overview" style="display:none;">
-    <div class="pm-overview-top">
-      <div class="pm-kpi-grid" id="pmKpiGrid">
-        <div class="pm-kpi-card pm-kpi-link" data-kpi-status="" onclick="kpiClick(this)"><div class="pm-kpi-number" id="kpiTotalProjects">—</div><div class="pm-kpi-label">Total Projects</div></div>
-        <div class="pm-kpi-card pm-kpi-link" data-kpi-status="Awarded" onclick="kpiClick(this)"><div class="pm-kpi-number" id="kpiAwardedProjects">—</div><div class="pm-kpi-label">Awarded</div></div>
-        <div class="pm-kpi-card pm-kpi-link" data-kpi-status="In Progress" onclick="kpiClick(this)"><div class="pm-kpi-number" id="kpiInProgressProjects">—</div><div class="pm-kpi-label">In Progress</div></div>
-        <div class="pm-kpi-card pm-kpi-link" data-kpi-status="On Hold" onclick="kpiClick(this)"><div class="pm-kpi-number" id="kpiOnHoldProjects">—</div><div class="pm-kpi-label">On Hold</div></div>
-        <div class="pm-kpi-card pm-kpi-link" data-kpi-status="Completed" onclick="kpiClick(this)"><div class="pm-kpi-number" id="kpiCompletedProjects">—</div><div class="pm-kpi-label">Completed</div></div>
-        <div class="pm-kpi-card pm-kpi-link" data-kpi-status="Cancelled" onclick="kpiClick(this)"><div class="pm-kpi-number" id="kpiCancelledProjects">—</div><div class="pm-kpi-label">Cancelled</div></div>
-      </div>
-      <div class="pm-overview-card pm-chart-card pm-donut-card">
-        <div class="pm-overview-card-title">Project Status Breakdown</div>
-        <div class="pm-title-sub" id="pmDonutSubtitle">for filtered years</div>
-        <div class="pm-donut-container">
-          <div class="pm-donut" id="pmStatusDonut"></div>
-          <div class="pm-donut-legend" id="pmStatusLegend"></div>
-        </div>
-      </div>
-    </div>
-    <!-- Gantt chart (full width) -->
-    <div class="pm-overview-card pm-chart-card pm-gantt-card">
-      <div class="pm-overview-card-title">Projects Status (by Month) <span class="count" id="pmTrendCount">0</span></div>
-      <div class="pm-gantt-controls" id="pmGanttControls">
-        <div class="pm-gantt-zoom">
-          <label for="pmGanttZoom">Window:</label>
-          <select id="pmGanttZoom" class="pm-filter-select">
-            <option value="all">All</option>
-            <option value="12">12 months</option>
-            <option value="24">24 months</option>
-            <option value="36">36 months</option>
-          </select>
-        </div>
-        <input type="range" id="pmGanttSlider" class="pm-gantt-slider" min="0" max="0" value="0" title="Scroll through the project timeline">
-        <span class="pm-gantt-slider-label" id="pmGanttSliderLabel"></span>
-      </div>
-      <div class="pm-gantt-wrap" id="pmTrendChart"></div>
-      <div class="pm-pagination" id="pmTrendPagination"></div>
-    </div>
-    <!-- Active Projects with search -->
-    <div class="pm-overview-card">
-      <div class="pm-overview-card-title">Active Projects <span class="count" id="recentProjectsCount">0</span></div>
-      <input type="text" class="pm-search-input pm-overview-search" id="pmOverviewProjectSearch" placeholder="Search projects..." style="margin-bottom:10px;" data-voice-input />
-      <div class="pm-table-scroll" style="max-height:300px;">
-        <table class="pm-table" id="pmOverviewProjectsTable">
-          <thead><tr><th>Project Number</th><th>Project Name</th><th>Client</th><th>Status</th></tr></thead>
-          <tbody id="pmOverviewProjectsBody"><tr><td class="pm-empty">Loading…</td></tr></tbody>
-        </table>
-      </div>
-      <div class="pm-pagination" id="pmOverviewProjectsPagination"></div>
-    </div>
-    <!-- Active Clients with search -->
-    <div class="pm-overview-card">
-      <div class="pm-overview-card-title">Active Clients <span class="count" id="recentClientsCount">0</span></div>
-      <input type="text" class="pm-search-input pm-overview-search" id="pmOverviewClientSearch" placeholder="Search clients..." style="margin-bottom:10px;" data-voice-input />
-      <div class="pm-table-scroll" style="max-height:300px;">
-        <table class="pm-table" id="pmOverviewClientsTable">
-          <thead><tr><th>Client Name</th><th>Contact</th><th>Status</th></tr></thead>
-          <tbody id="pmOverviewClientsBody"><tr><td class="pm-empty">Loading…</td></tr></tbody>
-        </table>
-      </div>
-      <div class="pm-pagination" id="pmOverviewClientsPagination"></div>
-    </div>
-  </div>
-
-  <!-- ===== PROJECTS TAB ===== -->
-  <div class="pm-tab-content" id="tab-projects" style="display:none;">
-    <div id="pmProjectsMessage" class="pm-message"></div>
-    <div class="pm-overview-card">
-      <div class="pm-overview-card-title">Project List <span class="count" id="pmProjectCount">0 projects</span></div>
-    <div class="pm-search-row">
-      <input type="text" class="pm-search-input" id="pmProjectSearch" placeholder="Search by project name, code, or location..." data-voice-input />
-      <select class="pm-filter-select" id="pmProjectFilterStatus">
-        <option value="">All Statuses</option>
-        <option value="Awarded">Awarded</option>
-        <option value="In Progress">In Progress</option>
-        <option value="On Hold">On Hold</option>
-        <option value="Completed">Completed</option>
-        <option value="Cancelled">Cancelled</option>
-      </select>
-      <button class="pm-btn-small" id="btnProjectCols">Columns</button>
-      <button class="pm-btn-small" id="btnProjectPrint">Print</button>
-      <button class="pm-btn-small" id="btnProjectExportCsv">Export CSV</button>
-      <button class="pm-btn-small" id="btnProjectExportExcel">Export Excel</button>
-    </div>
-    <div class="pm-col-toggle" id="pmProjectColPanel">
-      <div class="pm-col-toggle-title">Show / Hide Columns</div>
-      <div id="pmProjectColToggleItems"></div>
-    </div>
-    <div class="pm-table-scroll">
-      <table class="pm-table" id="pmProjectTable">
-        <thead id="pmProjectTableHead"></thead>
-        <tbody id="pmProjectTableBody">
-          <tr><td class="pm-empty">Loading projects…</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="pm-pagination" id="pmProjectPagination"></div>
-    </div>
-  </div>
-
-  <!-- ===== ADD NEW PROJECT TAB ===== -->
-  <div class="pm-tab-content" id="tab-addproject" style="display:none;">
-    <div id="pmAddProjectMessage" class="pm-message"></div>
-    <div class="pm-form-card" id="addProjectForm">
-      <h3>New Project Details</h3>
-      <div class="pm-form-grid">
-        <!-- Row 1: Project Number, Project Name, Client, Status -->
-        <div class="pm-form-row">
-          <label>Project Number</label>
-          <input type="text" id="pmProjectCode" data-voice-input placeholder="e.g., PRJ-001" maxlength="20" />
-          <div class="pm-hint">Optional unique identifier</div>
-        </div>
-        <div class="pm-form-row">
-          <label>Project Name <span class="pm-required">*</span></label>
-          <input type="text" id="pmProjectName" data-voice-input placeholder="e.g., Site A Excavation" maxlength="200" />
-          <div class="pm-hint">Descriptive name for this project</div>
-        </div>
-        <div class="pm-form-row">
-          <label>Client</label>
-          <select id="pmProjectClient"><option value="">None</option></select>
-          <div class="pm-hint">Select a client or leave as None</div>
-        </div>
-        <div class="pm-form-row">
-          <label>Status <span class="pm-required">*</span></label>
-          <select id="pmProjectStatus">
-            <option value="Awarded">Awarded</option>
-            <option value="In Progress">In Progress</option>
-            <option value="On Hold">On Hold</option>
-            <option value="Completed">Completed</option>
-            <option value="Cancelled">Cancelled</option>
-          </select>
-        </div>
-        <!-- Row 2: Address fields -->
-        <div class="pm-form-row">
-          <label>Street Address <span class="pm-required">*</span></label>
-          <input type="text" id="pmProjectStreet" data-voice-input placeholder="e.g., 123 Main St" maxlength="200" />
-        </div>
-        <div class="pm-form-row">
-          <label>City <span class="pm-required">*</span></label>
-          <input type="text" id="pmProjectCity" data-voice-input placeholder="e.g., Dallas" maxlength="100" />
-        </div>
-        <div class="pm-form-row">
-          <label>State <span class="pm-required">*</span></label>
-          <input type="text" id="pmProjectState" data-voice-input placeholder="e.g., TX" maxlength="50" />
-        </div>
-        <div class="pm-form-row">
-          <label>Zip Code</label>
-          <input type="text" id="pmProjectZip" data-voice-input placeholder="e.g., 75201" maxlength="20" />
-        </div>
-        <!-- Row 3: Dates and Project Manager -->
-        <div class="pm-form-row">
-          <label>Award Date</label>
-          <input type="date" id="pmAwardDate" />
-        </div>
-        <div class="pm-form-row">
-          <label>Expected Start Date</label>
-          <input type="date" id="pmExpectedStartDate" />
-        </div>
-        <div class="pm-form-row">
-          <label>Actual Start Date</label>
-          <input type="date" id="pmActualStartDate" />
-        </div>
-        <div class="pm-form-row">
-          <label>Expected Completion Date</label>
-          <input type="date" id="pmExpectedCompletionDate" />
-        </div>
-        <div class="pm-form-row">
-          <label>Actual Completion Date</label>
-          <input type="date" id="pmActualCompletionDate" />
-        </div>
-        <div class="pm-form-row">
-          <label>Project Manager</label>
-          <select id="pmProjectManager"><option value="">None</option></select>
-          <div class="pm-hint">Assign a project manager</div>
-        </div>
-        <div class="pm-form-row">
-          <label>Notes</label>
-          <textarea id="pmProjectNotes" data-voice-input rows="3" style="width:100%;resize:vertical;font-family:inherit;font-size:14px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;" placeholder="Additional notes about this project"></textarea>
-        </div>
-      </div>
-      <button class="pm-btn-primary" id="btnAddProject">Add Project</button>
-  </div>
-
-  <!-- ===== PROJECT TYPES TAB ===== -->
-  <div class="pm-tab-content" id="tab-types" style="display:none;">
-    <div id="pmTypesMessage" class="pm-message"></div>
-    <div class="pm-form-card" id="addTypeForm">
-      <h3>Add Project Type</h3>
-      <div class="pm-form-grid">
-        <div class="pm-form-row">
-          <label>Type Name <span class="pm-required">*</span></label>
-          <input type="text" id="pmTypeName" data-voice-input placeholder="e.g., Commercial Construction" maxlength="100" />
-        </div>
-        <div class="pm-form-row">
-          <label>Description</label>
-          <input type="text" id="pmTypeDesc" data-voice-input placeholder="Brief description" maxlength="500" />
-        </div>
-      </div>
-      <button class="pm-btn-primary" id="btnAddType">Add Type</button>
-    </div>
-    <div class="pm-overview-card">
-      <div class="pm-overview-card-title">Project Type List <span class="count" id="pmTypeCount">0 types</span></div>
-      <div class="pm-table-scroll">
-        <table class="pm-table" id="pmTypeTable">
-          <thead><tr><th>Type Name</th><th>Description</th><th>Actions</th></tr></thead>
-          <tbody id="pmTypeTableBody"><tr><td class="pm-empty">Loading…</td></tr></tbody>
-        </table>
-      </div>
-      <div class="pm-pagination" id="pmTypePagination"></div>
-    </div>
-  </div>
-
-  <!-- ===== CLIENTS TAB ===== -->
-  <div class="pm-tab-content" id="tab-clients" style="display:none;">
-    <div id="pmClientsMessage" class="pm-message"></div>
-    <div class="pm-overview-card">
-      <div class="pm-overview-card-title">Client List <span class="count" id="pmClientCount">0 clients</span></div>
-      <div class="pm-search-row">
-        <input type="text" class="pm-search-input" id="pmClientSearch" placeholder="Search by client name, contact, or email..." data-voice-input />
-        <select class="pm-filter-select" id="pmClientFilterStatus">
-          <option value="">All Statuses</option>
-          <option value="Active">Active</option>
-          <option value="Inactive">Inactive</option>
-          <option value="Pending">Pending</option>
-          <option value="Onboarding">Onboarding</option>
-        </select>
-        <button class="pm-btn-small" id="btnClientCols">Columns</button>
-        <button class="pm-btn-small" id="btnClientPrint">Print</button>
-        <button class="pm-btn-small" id="btnClientExportCsv">Export CSV</button>
-        <button class="pm-btn-small" id="btnClientExportExcel">Export Excel</button>
-      </div>
-      <div class="pm-col-toggle" id="pmClientColPanel">
-        <div class="pm-col-toggle-title">Show / Hide Columns</div>
-        <div id="pmClientColToggleItems"></div>
-      </div>
-      <div class="pm-table-scroll">
-        <table class="pm-table" id="pmClientTable">
-          <thead id="pmClientTableHead"></thead>
-          <tbody id="pmClientTableBody">
-            <tr><td class="pm-empty">Loading clients…</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="pm-pagination" id="pmClientPagination"></div>
-    </div>
-  </div>
-
-  <!-- ===== ADD NEW CLIENT TAB ===== -->
-  <div class="pm-tab-content" id="tab-addclient" style="display:none;">
-    <div id="pmAddClientMessage" class="pm-message"></div>
-    <div class="pm-form-card" id="addClientForm">
-      <h3>New Client Details</h3>
-      <div class="pm-form-grid">
-        <div class="pm-form-row">
-          <label>Client Name <span class="pm-required">*</span></label>
-          <input type="text" id="pmClientName" data-voice-input placeholder="e.g., Acme Construction" maxlength="200" />
-        </div>
-        <div class="pm-form-row">
-          <label>Contact Name <span class="pm-required">*</span></label>
-          <input type="text" id="pmContactName" data-voice-input placeholder="e.g., John Smith" maxlength="100" />
-        </div>
-        <div class="pm-form-row">
-          <label>Contact Email <span class="pm-required">*</span></label>
-          <input type="email" id="pmContactEmail" data-voice-input placeholder="e.g., john@acme.com" maxlength="200" />
-        </div>
-        <div class="pm-form-row">
-          <label>Contact Phone</label>
-          <input type="text" id="pmContactPhone" data-voice-input placeholder="e.g., 555-123-4567" maxlength="20" />
-        </div>
-        <div class="pm-form-row">
-          <label>Industry</label>
-          <input type="text" id="pmIndustry" placeholder="e.g., Construction" maxlength="100" />
-        </div>
-        <div class="pm-form-row">
-          <label>Address</label>
-          <input type="text" id="pmAddress" placeholder="Street address" maxlength="500" />
-        </div>
-        <div class="pm-form-row">
-          <label>City</label>
-          <input type="text" id="pmCity" placeholder="City" maxlength="100" />
-        </div>
-        <div class="pm-form-row">
-          <label>State</label>
-          <input type="text" id="pmState" placeholder="State" maxlength="50" />
-        </div>
-        <div class="pm-form-row">
-          <label>Zip Code</label>
-          <input type="text" id="pmZip" placeholder="Zip code" maxlength="20" />
-        </div>
-        <div class="pm-form-row">
-          <label>Status</label>
-          <select id="pmClientStatus">
-            <option value="Active">Active</option>
-            <option value="Pending">Pending</option>
-            <option value="Onboarding">Onboarding</option>
-            <option value="Inactive">Inactive</option>
-          </select>
-        </div>
-        <div class="pm-form-row">
-          <label>Notes</label>
-          <textarea id="pmClientNotes" rows="2" placeholder="Additional notes" maxlength="2000"></textarea>
-        </div>
-      </div>
-      <button class="pm-btn-primary" id="btnAddClient">Add Client</button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== EDIT PROJECT MODAL ===== -->
-<div id="pmEditProjectModal" class="pm-modal">
-  <div class="pm-modal-card">
-    <h3 id="pmEditProjectTitle">Edit Project</h3>
-    <p class="pm-modal-subtitle">Update the project details below.</p>
-    <div class="pm-form-grid">
-      <div class="pm-form-row">
-        <label>Project Name <span class="pm-required">*</span></label>
-        <input type="text" id="pmEditProjectName" data-voice-input maxlength="200" />
-      </div>
-      <div class="pm-form-row">
-        <label>Project Code <span class="pm-required">*</span></label>
-        <input type="text" id="pmEditProjectCode" data-voice-input maxlength="20" />
-      </div>
-      <div class="pm-form-row">
-        <label>Status</label>
-        <select id="pmEditProjectStatus">
-          <option value="Awarded">Awarded</option>
-          <option value="In Progress">In Progress</option>
-          <option value="On Hold">On Hold</option>
-          <option value="Completed">Completed</option>
-          <option value="Cancelled">Cancelled</option>
-        </select>
-      </div>
-      <div class="pm-form-row">
-        <label>Client</label>
-        <select id="pmEditProjectClient"><option value="">None</option></select>
-      </div>
-      <div class="pm-form-row">
-        <label>Street Address <span class="pm-required">*</span></label>
-        <input type="text" id="pmEditProjectStreet" data-voice-input maxlength="200" />
-      </div>
-      <div class="pm-form-row">
-        <label>City <span class="pm-required">*</span></label>
-        <input type="text" id="pmEditProjectCity" data-voice-input maxlength="100" />
-      </div>
-      <div class="pm-form-row">
-        <label>State <span class="pm-required">*</span></label>
-        <input type="text" id="pmEditProjectState" data-voice-input maxlength="50" />
-      </div>
-      <div class="pm-form-row">
-        <label>Zip Code</label>
-        <input type="text" id="pmEditProjectZip" data-voice-input maxlength="20" />
-      </div>
-      <div class="pm-form-row">
-        <label>Award Date</label>
-        <input type="date" id="pmEditAwardDate" />
-      </div>
-      <div class="pm-form-row">
-        <label>Expected Start Date</label>
-        <input type="date" id="pmEditExpectedStartDate" />
-      </div>
-      <div class="pm-form-row">
-        <label>Actual Start Date</label>
-        <input type="date" id="pmEditActualStartDate" />
-      </div>
-      <div class="pm-form-row">
-        <label>Expected Completion Date</label>
-        <input type="date" id="pmEditExpectedCompletionDate" />
-      </div>
-      <div class="pm-form-row">
-        <label>Actual Completion Date</label>
-        <input type="date" id="pmEditActualCompletionDate" />
-      </div>
-     <div class="pm-form-row">
-        <label>Project Manager</label>
-        <select id="pmEditProjectManager"><option value="">None</option></select>
-      </div>
-      <div class="pm-form-row">
-        <label>Notes</label>
-        <textarea id="pmEditProjectNotes" data-voice-input rows="3" style="width:100%;resize:vertical;font-family:inherit;font-size:14px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;"></textarea>
-      </div>
-    </div>
-    <div class="pm-status-history" id="pmStatusHistorySection">
-      <h4>Status History</h4>
-      <p class="pm-modal-subtitle">Track when a project goes on hold and resumes, so the Gantt chart reflects real-world pauses.</p>
-      <table class="pm-table" id="pmStatusHistoryTable">
-        <thead><tr><th>Status</th><th>Date</th><th>Note</th><th></th></tr></thead>
-        <tbody id="pmStatusHistoryBody"></tbody>
-      </table>
-      <div class="pm-status-history-add">
-        <select id="pmStatusHistoryStatus">
-          <option value="On Hold">On Hold</option>
-          <option value="In Progress">Resumed (In Progress)</option>
-          <option value="Completed">Completed</option>
-          <option value="Cancelled">Cancelled</option>
-        </select>
-        <input type="date" id="pmStatusHistoryDate" />
-        <input type="text" id="pmStatusHistoryNote" placeholder="Reason (optional)" maxlength="200" />
-        <button class="pm-btn-secondary" id="btnAddStatusHistory">Add</button>
-      </div>
-    </div>
-    <div class="pm-modal-actions">
-      <button class="pm-btn-secondary" id="btnCancelEditProject">Cancel</button>
-      <button class="pm-btn-primary" id="btnSaveEditProject">Save Changes</button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== EDIT CLIENT MODAL ===== -->
-<div id="pmEditClientModal" class="pm-modal">
-  <div class="pm-modal-card">
-    <h3 id="pmEditClientTitle">Edit Client</h3>
-    <p class="pm-modal-subtitle">Update the client details below.</p>
-    <div class="pm-form-grid">
-      <div class="pm-form-row">
-        <label>Client Name <span class="pm-required">*</span></label>
-        <input type="text" id="pmEditClientName" data-voice-input maxlength="200" />
-      </div>
-      <div class="pm-form-row">
-        <label>Contact Name <span class="pm-required">*</span></label>
-        <input type="text" id="pmEditContactName" data-voice-input maxlength="100" />
-      </div>
-      <div class="pm-form-row">
-        <label>Contact Email <span class="pm-required">*</span></label>
-        <input type="email" id="pmEditContactEmail" data-voice-input maxlength="200" />
-      </div>
-      <div class="pm-form-row">
-        <label>Contact Phone</label>
-        <input type="text" id="pmEditContactPhone" data-voice-input maxlength="20" />
-      </div>
-      <div class="pm-form-row">
-        <label>Industry</label>
-        <input type="text" id="pmEditIndustry" maxlength="100" />
-      </div>
-      <div class="pm-form-row">
-        <label>Address</label>
-        <input type="text" id="pmEditAddress" maxlength="500" />
-      </div>
-      <div class="pm-form-row">
-        <label>City</label>
-        <input type="text" id="pmEditCity" maxlength="100" />
-      </div>
-      <div class="pm-form-row">
-        <label>State</label>
-        <input type="text" id="pmEditState" maxlength="50" />
-      </div>
-      <div class="pm-form-row">
-        <label>Zip Code</label>
-        <input type="text" id="pmEditZip" maxlength="20" />
-      </div>
-      <div class="pm-form-row">
-        <label>Status</label>
-        <select id="pmEditClientStatus">
-          <option value="Active">Active</option>
-          <option value="Pending">Pending</option>
-          <option value="Onboarding">Onboarding</option>
-          <option value="Inactive">Inactive</option>
-        </select>
-      </div>
-      <div class="pm-form-row">
-        <label>Notes</label>
-        <textarea id="pmEditClientNotes" rows="2" maxlength="2000"></textarea>
-      </div>
-    </div>
-    <div class="pm-modal-actions">
-      <button class="pm-btn-secondary" id="btnCancelEditClient">Cancel</button>
-      <button class="pm-btn-primary" id="btnSaveEditClient">Save Changes</button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== EDIT PROJECT TYPE MODAL ===== -->
-<div id="pmEditTypeModal" class="pm-modal">
-  <div class="pm-modal-card">
-    <h3>Edit Project Type</h3>
-    <p class="pm-modal-subtitle">Update the project type details below.</p>
-    <div class="pm-form-grid">
-      <div class="pm-form-row">
-        <label>Type Name <span class="pm-required">*</span></label>
-        <input type="text" id="pmEditTypeName" data-voice-input maxlength="100" />
-      </div>
-      <div class="pm-form-row">
-        <label>Description</label>
-        <input type="text" id="pmEditTypeDesc" data-voice-input maxlength="500" />
-      </div>
-    </div>
-    <div class="pm-modal-actions">
-      <button class="pm-btn-secondary" id="btnCancelEditType">Cancel</button>
-      <button class="pm-btn-primary" id="btnSaveEditType">Save Changes</button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== PROJECT PRINT MODAL ===== -->
-<div id="pmProjectPrintModal" class="pm-modal">
-  <div class="pm-modal-card">
-    <h3>Print Project List</h3>
-    <p class="pm-modal-subtitle">Select which columns to include in the printout.</p>
-    <div class="pm-check-grid" id="pmProjectPrintCols"></div>
-    <div class="pm-modal-actions">
-      <button class="pm-btn-secondary" id="btnCancelProjectPrint">Cancel</button>
-      <button class="pm-btn-primary" id="btnDoProjectPrint">Print</button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== PROJECT EXPORT MODAL ===== -->
-<div id="pmProjectExportModal" class="pm-modal">
-  <div class="pm-modal-card">
-    <h3 id="pmProjectExportTitle">Export to CSV</h3>
-    <p class="pm-modal-subtitle">Select which columns to include in the export.</p>
-    <div class="pm-check-grid" id="pmProjectExportCols"></div>
-    <div class="pm-modal-actions">
-      <button class="pm-btn-secondary" id="btnCancelProjectExport">Cancel</button>
-      <button class="pm-btn-primary" id="pmProjectExportBtn">Download CSV</button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== CLIENT PRINT MODAL ===== -->
-<div id="pmClientPrintModal" class="pm-modal">
-  <div class="pm-modal-card">
-    <h3>Print Client List</h3>
-    <p class="pm-modal-subtitle">Select which columns to include in the printout.</p>
-    <div class="pm-check-grid" id="pmClientPrintCols"></div>
-    <div class="pm-modal-actions">
-      <button class="pm-btn-secondary" id="btnCancelClientPrint">Cancel</button>
-      <button class="pm-btn-primary" id="btnDoClientPrint">Print</button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== CLIENT EXPORT MODAL ===== -->
-<div id="pmClientExportModal" class="pm-modal">
-  <div class="pm-modal-card">
-    <h3 id="pmClientExportTitle">Export to CSV</h3>
-    <p class="pm-modal-subtitle">Select which columns to include in the export.</p>
-    <div class="pm-check-grid" id="pmClientExportCols"></div>
-    <div class="pm-modal-actions">
-      <button class="pm-btn-secondary" id="btnCancelClientExport">Cancel</button>
-      <button class="pm-btn-primary" id="pmClientExportBtn">Download CSV</button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== FOOTER ===== -->
-<div id="dashFooter"></div>
-
-<!-- ===== PROJECT DETAIL MODAL ===== -->
-<div class="pm-detail-overlay" id="pmDetailModal">
-  <div class="pm-detail-card">
-    <h2 id="pmDetailTitle">Project Details</h2>
-    <div class="pm-detail-grid" id="pmDetailGrid"></div>
-    <button class="pm-detail-close" onclick="document.getElementById('pmDetailModal').classList.remove('active')">Close</button>
-  </div>
-</div>
-
-<!-- ===== PURPOSE & INSTRUCTIONS MODALS ===== -->
-<div class="pm-modal-overlay" id="pmModalPurpose">
-  <div class="pm-modal-card-info">
-    <h2 id="pmModalPurposeTitle">Purpose</h2>
-    <div class="pm-modal-body" id="pmModalPurposeBody"></div>
-    <button class="pm-modal-close" onclick="document.getElementById('pmModalPurpose').classList.remove('active')">Close</button>
-  </div>
-</div>
-<div class="pm-modal-overlay" id="pmModalInstructions">
-  <div class="pm-modal-card-info">
-    <h2 id="pmModalInstructionsTitle">Instructions</h2>
-    <div class="pm-modal-body" id="pmModalInstructionsBody"></div>
-    <button class="pm-modal-close" onclick="document.getElementById('pmModalInstructions').classList.remove('active')">Close</button>
-  </div>
-</div>
-
-<!-- ===== SHARED SCRIPTS (order: auth-check -> dashboard-common -> units -> voice -> page JS) ===== -->
-<script src="/app/shared/auth-check.js?v=21"></script>
-<script src="/app/shared/dashboard-common.js?v=20"></script>
-<script src="/app/shared/units-global.js?v=2"></script>
-<script src="/app/shared/apply-units.js?v=1"></script>
-<script src="/app/shared/voice.js?v=4"></script>
-
-<script src="/app/dashboard/pm-modal-content.js?v=2"></script>
-<script src="/app/dashboard/project-management.js?v=29"></script>
-
-<!-- Cloudflare Web Analytics -->
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="{\"token\": \"driv-en-pages\"}"></script>
-
-</body>
-</html>
