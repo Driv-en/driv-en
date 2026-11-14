@@ -22,6 +22,7 @@ var PROJECT_COL_DEFS = [
 { key: 'actualCompletionDate',   label: 'Actual Completion',   defaultVisible: false, width: 160 },
 { key: 'awardDate',              label: 'Award Date',           defaultVisible: false, width: 140 },
 { key: 'projectManager',        label: 'Project Manager',      defaultVisible: false, width: 140 },
+{ key: 'notes',                label: 'Notes',                defaultVisible: false, width: 200 },
 ];
 var CLIENT_COL_DEFS = [
 { key: 'clientName',   label: 'Client Name',  defaultVisible: true,  width: 200 },
@@ -440,6 +441,7 @@ city:                  f['City'] || f.city || '',
 state:                 f['State'] || f.state || '',
 zip:                   f['Zip'] || f.zip || f['Zip Code'] || f.zip_code || '',
 projectManager:        f['Project Manager'] || f.project_manager || '',
+notes:                f['Notes'] || f.notes || '',
 };
 }
 function normalizeClient(r) {
@@ -956,6 +958,8 @@ var payload = {
 if (zip) payload['Zip'] = zip;
 if (clientId) payload['Client'] = clientId;
 if (projectManager) payload['Project Manager'] = projectManager;
+var notes = document.getElementById('pmProjectNotes').value.trim();
+if (notes) payload['Notes'] = notes;
 var awd = document.getElementById('pmAwardDate').value;
 var esd = document.getElementById('pmExpectedStartDate').value;
 var asd = document.getElementById('pmActualStartDate').value;
@@ -987,6 +991,7 @@ document.getElementById('pmProjectState').value = '';
 document.getElementById('pmProjectZip').value = '';
 document.getElementById('pmProjectClient').value = '';
 document.getElementById('pmProjectManager').value = '';
+document.getElementById('pmProjectNotes').value = '';
 document.getElementById('pmAwardDate').value = '';
 document.getElementById('pmExpectedStartDate').value = '';
 document.getElementById('pmActualStartDate').value = '';
@@ -1024,6 +1029,7 @@ document.getElementById('pmEditActualStartDate').value = project.actualStartDate
 document.getElementById('pmEditExpectedCompletionDate').value = project.expectedCompletionDate || '';
 document.getElementById('pmEditActualCompletionDate').value = project.actualCompletionDate || '';
 document.getElementById('pmEditProjectManager').value = project.projectManager || '';
+document.getElementById("pmEditProjectNotes").value = project.notes || '';
 document.getElementById('pmEditProjectModal').classList.add('active');
 }
 function closeEditProjectModal() {
@@ -1056,6 +1062,8 @@ var payload = {
 if (zip) payload['Zip'] = zip;
 if (clientId) payload['Client'] = clientId;
 if (projectManager) payload['Project Manager'] = projectManager;
+var notes = document.getElementById('pmEditProjectNotes').value.trim();
+if (notes) payload['Notes'] = notes;
 var awd = document.getElementById('pmEditAwardDate');
 var esd = document.getElementById('pmEditExpectedStartDate');
 var asd = document.getElementById('pmEditActualStartDate');
@@ -1080,7 +1088,7 @@ var idx = allProjects.findIndex(function(p) { return p.id === editingProjectId; 
 if (idx !== -1) allProjects[idx] = updated;
 } else {
 var project = allProjects.find(function(p) { return p.id === editingProjectId; });
-if (project) { project.name = name; project.code = code; project.status = status; project.street = street; project.city = city; project.state = state; project.zip = zip; project.projectManager = projectManager; }
+if (project) { project.name = name; project.code = code; project.status = status; project.street = street; project.city = city; project.state = state; project.zip = zip; project.projectManager = projectManager; project.notes = notes; }
 }
 showProjectMessage('Project "' + name + '" updated.', 'success');
 closeEditProjectModal();
@@ -1991,7 +1999,8 @@ var fields = [
 ['Expected Start', p.expectedStartDate || '\u2014'],
 ['Actual Start', p.actualStartDate || '\u2014'],
 ['Expected Completion', p.expectedCompletionDate || '\u2014'],
-['Actual Completion', p.actualCompletionDate || '\u2014']
+['Actual Completion', p.actualCompletionDate || 'u2014'],
+['Notes', p.notes || '\u2014']
 ];
 grid.innerHTML = fields.map(function(f) {
 return '<div class="pm-detail-field"><span class="pm-detail-label">' + f[0] + '</span><span class="pm-detail-value">' + escapeHtml(f[1]) + '</span></div>';
