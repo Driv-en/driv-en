@@ -1,4 +1,4 @@
-<!-- ===== PM-Modal-Content ===== -->
+// =========================================================================
   var PM_MODAL_CONTENT = {
 overview: {
 title: 'Project Management \u2014 Overview',
