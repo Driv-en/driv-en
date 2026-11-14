@@ -329,6 +329,7 @@ populateProjectManagerDropdown();
 renderOverview();
 populateYearFilter();
 initOverviewSearch();
+initGanttControls();
 document.getElementById('pmLoading').style.display = 'none';
 document.getElementById('tab-overview').style.display = 'block';
 if (typeof initVoice === 'function') initVoice();
@@ -1775,6 +1776,8 @@ function renderStatusDonut(projArr) {
 var donut = document.getElementById('pmStatusDonut');
 var legend = document.getElementById('pmStatusLegend');
 if (!donut || !legend) return;
+var sub = document.getElementById('pmDonutSubtitle');
+if (sub) sub.textContent = pmYearFilter ? 'for ' + pmYearFilter : 'for all years';
 var projs = projArr || allProjects;
 var counts = {};
 STATUS_ORDER.forEach(function(s) { counts[s] = 0; });
@@ -1804,22 +1807,8 @@ legend.appendChild(item);
 }
 var pmTrendPage = 1;
 var pmTrendPageSize = 10;
-function renderTrendChart(projArr) {
-var projs = projArr || allProjects;
-var container = document.getElementById('pmTrendChart');
-if (!container) return;
-container.textContent = '';
-var year = pmYearFilter ? parseInt(pmYearFilter) : null;
-var chartStart, chartEnd;
-if (year) {
-chartStart = new Date(year, 0, 1);
-chartEnd = new Date(year + 1, 0, 1);
-} else {
-var now = new Date();
-chartStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-chartEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-}
-var rangeMs = chartEnd - chartStart;
+var pmGanttWindow = 'all'; /* 'all' | '12' | '24' | '36' (months) */
+var pmGanttOffset = 0; /* slider offset in months from chartStart */
 function getEarliestDate(p) {
 var dates = [p.awardDate, p.expectedStartDate, p.actualStartDate, p.expectedCompletionDate, p.actualCompletionDate].filter(function(d) { return d; });
 if (dates.length === 0) return p.createdAt ? new Date(p.createdAt) : null;
@@ -1830,6 +1819,47 @@ var dates = [p.awardDate, p.expectedStartDate, p.actualStartDate, p.expectedComp
 if (dates.length === 0) return p.createdAt ? new Date(p.createdAt) : null;
 return new Date(Math.max.apply(null, dates.map(function(d) { return new Date(d).getTime(); })));
 }
+function getChartRange(projs) {
+var year = pmYearFilter ? parseInt(pmYearFilter) : null;
+var minD = null, maxD = null;
+projs.forEach(function(p) {
+var e = getEarliestDate(p), l = getLatestDate(p);
+if (e && (!minD || e < minD)) minD = e;
+if (l && (!maxD || l > maxD)) maxD = l;
+});
+if (year) {
+return { start: new Date(year, 0, 1), end: new Date(year + 1, 0, 1) };
+}
+if (!minD || !maxD) {
+var now = new Date();
+return { start: new Date(now.getFullYear(), now.getMonth() - 11, 1), end: new Date(now.getFullYear(), now.getMonth() + 1, 1) };
+}
+var padStart = new Date(minD.getFullYear(), minD.getMonth() - 1, 1);
+var padEnd = new Date(maxD.getFullYear(), maxD.getMonth() + 2, 1);
+return { start: padStart, end: padEnd };
+}
+function renderTrendChart(projArr) {
+var projs = projArr || allProjects;
+var container = document.getElementById('pmTrendChart');
+if (!container) return;
+container.textContent = '';
+var year = pmYearFilter ? parseInt(pmYearFilter) : null;
+var fullRange = getChartRange(projs);
+var chartStart = fullRange.start, chartEnd = fullRange.end;
+if (!year && pmGanttWindow !== 'all') {
+var winMonths = parseInt(pmGanttWindow) || 12;
+var totalMonths = Math.round((chartEnd - chartStart) / (30.44 * 24 * 3600 * 1000));
+var maxOffset = Math.max(0, totalMonths - winMonths);
+var slider = document.getElementById('pmGanttSlider');
+if (slider) {
+slider.max = maxOffset;
+slider.value = Math.min(pmGanttOffset, maxOffset);
+pmGanttOffset = parseInt(slider.value) || 0;
+}
+chartStart = new Date(chartStart.getFullYear(), chartStart.getMonth() + pmGanttOffset, 1);
+chartEnd = new Date(chartStart.getFullYear(), chartStart.getMonth() + winMonths, 1);
+}
+var rangeMs = chartEnd - chartStart;
 var projects = projs.filter(function(p) {
 var e = getEarliestDate(p), l = getLatestDate(p);
 if (!e || !l) return false;
@@ -1848,7 +1878,8 @@ return;
 var rowH = 28;
 var labelW = 160;
 var months = [];
-for (var m = 0; m < 12; m++) {
+var totalMonthsRange = Math.round((chartEnd - chartStart) / (30.44 * 24 * 3600 * 1000)) + 1;
+for (var m = 0; m < totalMonthsRange; m++) {
 var d = new Date(chartStart.getFullYear(), chartStart.getMonth() + m, 1);
 if (d >= chartEnd) break;
 months.push({ label: d.toLocaleDateString('en', { month: 'short' }), start: d });
@@ -1901,6 +1932,37 @@ html += '</div>';
 html += '</div></div>';
 container.innerHTML = html;
 renderPagination('pmTrendPagination', projects.length, totalPages, pmTrendPage, pmTrendPageSize, function(p) { pmTrendPage = p; renderTrendChart(projArr); }, function(sz) { pmTrendPageSize = sz; pmTrendPage = 1; renderTrendChart(projArr); });
+updateGanttSliderLabel();
+}
+function updateGanttSliderLabel() {
+var slider = document.getElementById('pmGanttSlider');
+var label = document.getElementById('pmGanttSliderLabel');
+if (!slider || !label) return;
+var year = pmYearFilter ? parseInt(pmYearFilter) : null;
+if (year || pmGanttWindow === 'all') {
+slider.style.display = 'none';
+label.textContent = '';
+return;
+}
+slider.style.display = 'inline-block';
+var winMonths = parseInt(pmGanttWindow) || 12;
+var start = new Date();
+var fullRange = getChartRange(allProjects);
+var chartStart = new Date(fullRange.start.getFullYear(), fullRange.start.getMonth() + pmGanttOffset, 1);
+label.textContent = chartStart.toLocaleDateString('en', { month: 'short', year: 'numeric' }) + ' \u2013 ' + new Date(chartStart.getFullYear(), chartStart.getMonth() + winMonths - 1, 1).toLocaleDateString('en', { month: 'short', year: 'numeric' });
+}
+function initGanttControls() {
+var zoom = document.getElementById('pmGanttZoom');
+var slider = document.getElementById('pmGanttSlider');
+if (zoom) zoom.addEventListener('change', function() {
+pmGanttWindow = zoom.value;
+pmGanttOffset = 0;
+renderTrendChart();
+});
+if (slider) slider.addEventListener('input', function() {
+pmGanttOffset = parseInt(slider.value) || 0;
+renderTrendChart();
+});
 }
 var ovProjSearch = '', ovClientSearch = '', pmYearFilter = '';
 function populateYearFilter() {
