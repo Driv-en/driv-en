@@ -2101,8 +2101,15 @@ if (compPct >= 0 && compPct <= 100) html += '<div class="pm-gantt-marker" style=
 /* Work window: from actual start (or expected start if no actual) to completion (or latest date) */
 var workStart = p.actualStartDate ? new Date(p.actualStartDate) : (p.expectedStartDate ? new Date(p.expectedStartDate) : e);
 var workEnd = p.actualCompletionDate ? new Date(p.actualCompletionDate) : l;
-var barStart = Math.max(workStart, chartStart);
-var barEnd = Math.min(workEnd, chartEnd);
+/* If cancelled, stop bar at cancellation date from status history */
+var sRows = pmStatusHistory[p.id] || [];
+var cancelRow = sRows.find(function(r) { return String(r.status || '').toLowerCase() === 'cancelled'; });
+if (cancelRow && cancelRow.statusChangeDate) {
+var cancelDate = new Date(cancelRow.statusChangeDate);
+if (!isNaN(cancelDate.getTime()) && cancelDate < workEnd) workEnd = cancelDate;
+}
+var barStart = new Date(Math.max(workStart.getTime(), chartStart.getTime()));
+var barEnd = new Date(Math.min(workEnd.getTime(), chartEnd.getTime()));
 var leftPct = (barStart - chartStart) / rangeMs * 100;
 var widthPct = Math.max(1, (barEnd - barStart) / rangeMs * 100);
 /* Build status timeline segments — each colored by the status active during that period */
