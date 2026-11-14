@@ -428,7 +428,7 @@ return {
 id: r.id || ('prj-' + Math.random().toString(36).substr(2, 9)),
 name:       f['Project Name'] || f.name || '',
 code:       f['Project Code'] || f.code || f['project_number'] || '',
-status:     f['Status'] || f.status || 'Active',
+status:     f['Status'] || f.status || 'Awarded',
 location:   f['Location'] || f.location || '',
 createdAt:  f['Created Date'] || f.created_at || '',
 expectedStartDate:       f['Expected Start Date'] || f.expected_start_date || '',
@@ -547,7 +547,8 @@ function renderOverview() {
 var fp = getYearFilteredProjects();
 var fc = getYearFilteredClients();
 document.getElementById('kpiTotalProjects').textContent = fp.length;
-document.getElementById('kpiActiveProjects').textContent = fp.filter(function(p) { return String(p.status || '').toLowerCase() === 'active'; }).length;
+document.getElementById('kpiAwardedProjects').textContent = fp.filter(function(p) { return String(p.status || '').toLowerCase() === 'awarded'; }).length;
+document.getElementById('kpiInProgressProjects').textContent = fp.filter(function(p) { return String(p.status || '').toLowerCase() === 'in progress'; }).length;
 document.getElementById('kpiCompletedProjects').textContent = fp.filter(function(p) { return String(p.status || '').toLowerCase() === 'completed'; }).length;
 document.getElementById('kpiTotalClients').textContent = fc.length;
 renderStatusDonut(fp);
@@ -559,6 +560,10 @@ makeColumnsDraggable(document.getElementById('pmOverviewProjectsTable'), 'pmColO
 makeColumnsResizable(document.getElementById('pmOverviewClientsTable'), 'pmColW_ovClients', [200, 160, 100]);
 makeColumnsDraggable(document.getElementById('pmOverviewClientsTable'), 'pmColOrder_ovClients');
 if (typeof initVoice === 'function') initVoice();
+}
+function statusLabel(s) {
+var map = { 'awarded': 'Awarded', 'in progress': 'In Progress', 'on hold': 'On Hold', 'completed': 'Completed', 'cancelled': 'Cancelled' };
+return map[String(s || '').toLowerCase()] || s;
 }
 function statusBadgeHtml(status) {
 if (!status) return '\u2014';
@@ -949,7 +954,7 @@ if (!state) { showProjectMessage('Please enter a state.', 'error'); return; }
 if (!status) { showProjectMessage('Please select a status.', 'error'); return; }
 var payload = {
 'Project Name': name,
-'Project Code': code,
+'Project Number': code,
 'Status': status,
 'Street': street,
 'City': city,
@@ -997,7 +1002,7 @@ document.getElementById('pmExpectedStartDate').value = '';
 document.getElementById('pmActualStartDate').value = '';
 document.getElementById('pmExpectedCompletionDate').value = '';
 document.getElementById('pmActualCompletionDate').value = '';
-document.getElementById('pmProjectStatus').value = 'Active';
+document.getElementById('pmProjectStatus').value = 'Awarded';
 showProjectMessage('Project "' + name + '" added.', 'success');
 renderOverview();
 switchTab('projects');
@@ -1014,7 +1019,7 @@ if (!project) return;
 editingProjectId = projectId;
 document.getElementById('pmEditProjectName').value = project.name || '';
 document.getElementById('pmEditProjectCode').value = project.code || '';
-document.getElementById('pmEditProjectStatus').value = project.status || 'Active';
+document.getElementById('pmEditProjectStatus').value = project.status || 'Awarded';
 document.getElementById('pmEditProjectStreet').value = project.street || '';
 document.getElementById('pmEditProjectCity').value = project.city || '';
 document.getElementById('pmEditProjectState').value = project.state || '';
@@ -1053,7 +1058,7 @@ if (!city) { showProjectMessage('City is required.', 'error'); return; }
 if (!state) { showProjectMessage('State is required.', 'error'); return; }
 var payload = {
 'Project Name': name,
-'Project Code': code,
+'Project Number': code,
 'Status': status,
 'Street': street,
 'City': city,
@@ -1765,8 +1770,8 @@ if (!confirm('You have unsaved changes. Click OK to log out without saving, or C
 }
 if (typeof dashLogout === 'function') dashLogout();
 }
-var STATUS_COLORS = { 'active': '#16a34a', 'planning': '#3b82f6', 'on hold': '#f59e0b', 'completed': '#6366f1', 'cancelled': '#ef4444' };
-var STATUS_ORDER = ['active', 'planning', 'on hold', 'completed', 'cancelled'];
+var STATUS_COLORS = { 'awarded': '#3b82f6', 'in progress': '#16a34a', 'on hold': '#f59e0b', 'completed': '#6366f1', 'cancelled': '#ef4444' };
+var STATUS_ORDER = ['awarded', 'in progress', 'on hold', 'completed', 'cancelled'];
 function renderStatusDonut(projArr) {
 var donut = document.getElementById('pmStatusDonut');
 var legend = document.getElementById('pmStatusLegend');
@@ -1794,7 +1799,7 @@ legend.textContent = '';
 STATUS_ORDER.forEach(function(s) {
 var item = document.createElement('div');
 item.className = 'pm-donut-legend-item';
-item.innerHTML = '<div class="pm-donut-legend-dot" style="background:' + STATUS_COLORS[s] + '"></div><span>' + escapeHtml(s.charAt(0).toUpperCase() + s.slice(1)) + ': ' + counts[s] + '</span>';
+item.innerHTML = '<div class="pm-donut-legend-dot" style="background:' + STATUS_COLORS[s] + '"></div><span>' + escapeHtml(statusLabel(s)) + ': ' + counts[s] + '</span>';
 legend.appendChild(item);
 });
 }
@@ -1891,8 +1896,8 @@ html += '<div style="display:flex;gap:12px;margin-top:8px;font-size:11px;color:#
 html += '<span><span style="display:inline-block;width:12px;height:12px;background:#f59e0b;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Award</span>';
 html += '<span><span style="display:inline-block;width:12px;height:12px;background:#16a34a;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Start</span>';
 html += '<span><span style="display:inline-block;width:12px;height:12px;background:#6366f1;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Completion</span>';
-html += '<span><span style="display:inline-block;width:12px;height:12px;background:#3b82f6;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Planning</span>';
-html += '<span><span style="display:inline-block;width:12px;height:12px;background:#16a34a;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Active</span>';
+html += '<span><span style="display:inline-block;width:12px;height:12px;background:#3b82f6;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Awarded</span>';
+html += '<span><span style="display:inline-block;width:12px;height:12px;background:#16a34a;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>In Progress</span>';
 html += '</div>';
 html += '</div></div>';
 container.innerHTML = html;
