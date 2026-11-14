@@ -784,6 +784,7 @@ function renderClientTableHead() {
 var thead = document.getElementById('pmClientTableHead');
 thead.textContent = '';
 var tr = document.createElement('tr');
+
 CLIENT_COL_DEFS.forEach(function(col) {
 if (!clientVisibleCols[col.key]) return;
 var th = document.createElement('th');
@@ -2117,6 +2118,18 @@ var segColor = seg.status ? (STATUS_COLORS[String(seg.status).toLowerCase()] || 
 html += '<div class="pm-gantt-bar" style="left:' + sLeft + '%;width:' + sWidth + '%;background:' + segColor + ';" title="' + escapeHtml(p.name || '') + ' | Status: ' + escapeHtml(seg.status || p.status || '') + '"></div>';
 }
 });
+/* Status change date ticks */
+var sRows = pmStatusHistory[p.id] || [];
+sRows.forEach(function(sr) {
+if (!sr.statusChangeDate) return;
+var tickDate = new Date(sr.statusChangeDate);
+if (isNaN(tickDate.getTime())) return;
+if (tickDate < chartStart || tickDate > chartEnd) return;
+var tickPct = (tickDate - chartStart) / rangeMs * 100;
+if (tickPct >= 0 && tickPct <= 100) {
+html += '<div class="pm-gantt-tick" style="left:' + tickPct + '%;" title="' + escapeHtml(sr.status || '') + ': ' + escapeHtml(sr.statusChangeDate || '') + (sr.note ? ' \\u2014 ' + escapeHtml(sr.note) : '') + '"></div>';
+}
+});
 /* Dashed segment from award to start (no activity period) */
 if (p.awardDate && (p.actualStartDate || p.expectedStartDate)) {
 var awardD = new Date(p.awardDate);
@@ -2140,6 +2153,7 @@ html += '<span><span style="display:inline-block;width:12px;height:12px;backgrou
 html += '<span><span style="display:inline-block;width:12px;height:12px;background:repeating-linear-gradient(90deg,#f59e0b 0 4px,transparent 4px 8px);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>On Hold</span>';
 html += '<span><span style="display:inline-block;width:12px;height:12px;background:#6366f1;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Completed</span>';
 html += '<span><span style="display:inline-block;width:12px;height:12px;background:#ef4444;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Cancelled</span>';
+html += '<span><span style="display:inline-block;width:2px;height:14px;background:#334155;vertical-align:middle;margin-right:4px;"></span>Status Change</span>';
 html += '</div>';
 html += '</div></div>';
 container.innerHTML = html;
@@ -2345,5 +2359,3 @@ if (e.target === overlay) overlay.classList.remove('active');
 });
 });
 })();
-
- 
