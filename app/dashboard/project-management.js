@@ -11,13 +11,17 @@ var pmDirty = false;
 var PROJECT_COL_DEFS = [
 { key: 'code',       label: 'Project Number', defaultVisible: true,  width: 120 },
 { key: 'name',       label: 'Project Name',   defaultVisible: true,  width: 240 },
-{ key: 'location',   label: 'Location',       defaultVisible: true,  width: 180 },
+{ key: 'street',      label: 'Street',         defaultVisible: true,  width: 180 },
+{ key: 'city',        label: 'City',           defaultVisible: true,  width: 120 },
+{ key: 'state',       label: 'State',          defaultVisible: true,  width: 80 },
+{ key: 'zip',         label: 'Zip',            defaultVisible: false, width: 80 },
 { key: 'status',     label: 'Status',         defaultVisible: true,  width: 100 },
 { key: 'expectedStartDate',  label: 'Expected Start',    defaultVisible: true,  width: 140 },
 { key: 'actualStartDate',    label: 'Actual Start',      defaultVisible: false, width: 140 },
 { key: 'expectedCompletionDate', label: 'Expected Completion', defaultVisible: true, width: 160 },
 { key: 'actualCompletionDate',   label: 'Actual Completion',   defaultVisible: false, width: 160 },
 { key: 'awardDate',              label: 'Award Date',           defaultVisible: false, width: 140 },
+{ key: 'projectManager',        label: 'Project Manager',      defaultVisible: false, width: 140 },
 ];
 var CLIENT_COL_DEFS = [
 { key: 'clientName',   label: 'Client Name',  defaultVisible: true,  width: 200 },
@@ -319,6 +323,8 @@ bindStaticEvents();
 await loadProjectTypes();
 await loadProjects();
 await loadClients();
+populateClientDropdown();
+populateProjectManagerDropdown();
 renderOverview();
 populateYearFilter();
 initOverviewSearch();
@@ -429,6 +435,11 @@ actualStartDate:         f['Actual Start Date'] || f.actual_start_date || '',
 expectedCompletionDate:  f['Expected Completion Date'] || f.expected_completion_date || '',
 actualCompletionDate:    f['Actual Completion Date'] || f.actual_completion_date || '',
 awardDate:              f['Award Date'] || f.award_date || '',
+street:                f['Street'] || f.street || '',
+city:                  f['City'] || f.city || '',
+state:                 f['State'] || f.state || '',
+zip:                   f['Zip'] || f.zip || f['Zip Code'] || f.zip_code || '',
+projectManager:        f['Project Manager'] || f.project_manager || '',
 };
 }
 function normalizeClient(r) {
@@ -460,15 +471,16 @@ allProjects = data.records.map(normalizeProject);
 allProjects = [];
 }
 } catch(e) {
-console.error('loadProjects error:', e);
-allProjects = [];
-if (window.DRIVENErrorHandler) {
-window.DRIVENErrorHandler.report('project-management.html: loadProjects failed — ' + (e.message || e), 'loadProjects', e && e.stack ? e.stack : null);
+var res = await fetch('/auth/save-settings', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ project_types: JSON.stringify(projectTypes) })
+});
+if (res.ok) {
+try { localStorage.setItem('driven_project_types', JSON.stringify(projectTypes)); } catch(e) {}
 }
+} catch(e) {
 }
-renderProjectTableHead();
-renderProjectTable();
-renderProjectColTogglePanel();
 }
 async function loadClients() {
 try {
@@ -480,48 +492,45 @@ allClients = data.records.map(normalizeClient);
 allClients = [];
 }
 } catch(e) {
-console.error('loadClients error:', e);
 allClients = [];
-if (window.DRIVENErrorHandler) {
-window.DRIVENErrorHandler.report('project-management.html: loadClients failed — ' + (e.message || e), 'loadClients', e && e.stack ? e.stack : null);
 }
 }
-renderClientTableHead();
-renderClientTable();
-renderClientColTogglePanel();
-}
-async function loadProjectTypes() {
-try {
-var res = await fetch('/auth/get-settings');
-if (!res.ok) throw new Error('Settings fetch failed: ' + res.status);
-var data = await res.json();
-var settings = (data && data.settings) ? data.settings : {};
-var raw = settings.project_types;
-if (typeof raw === 'string') {
-try { projectTypes = JSON.parse(raw); } catch(e) { projectTypes = []; }
-} else if (Array.isArray(raw)) {
-projectTypes = raw;
-} else {
-try { projectTypes = JSON.parse(localStorage.getItem('driven_project_types') || '[]'); } catch(e) { projectTypes = []; }
-}
-} catch(e) {
-try { projectTypes = JSON.parse(localStorage.getItem('driven_project_types') || '[]'); } catch(e2) { projectTypes = []; }
-}
-renderProjectTypes();
-}
-async function saveProjectTypes() {
-try {
-var res = await fetch('/auth/save-settings', {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ project_types: JSON.stringify(projectTypes) })
+function populateClientDropdown() {
+var sel = document.getElementById('pmProjectClient');
+if (!sel) return;
+var current = sel.value;
+sel.innerHTML = '<option value="">None</option>';
+allClients.forEach(function(c) {
+var opt = document.createElement('option');
+opt.value = c.id;
+opt.textContent = c.clientName || '(unnamed)';
+sel.appendChild(opt);
 });
-if (res.ok) {
-try { localStorage.setItem('driven_project_types', JSON.stringify(projectTypes)); } catch(e) {}
+sel.value = current;
+}
+async function populateProjectManagerDropdown() {
+var sel = document.getElementById('pmProjectManager');
+if (!sel) return;
+var current = sel.value;
+sel.innerHTML = '<option value="">None</option>';
+try {
+var resp = await fetch('/api/Employee');
+var data = await resp.json();
+if (resp.ok && data && data.records) {
+data.records.forEach(function(r) {
+var f = (r.fields && typeof r.fields === 'object') ? r.fields : r;
+var name = f['Full Name'] || f.full_name || f['Name'] || f.name || f['Email'] || f.email || '';
+if (name) {
+var opt = document.createElement('option');
+opt.value = name;
+opt.textContent = name;
+sel.appendChild(opt);
+}
+});
 }
 } catch(e) {
-console.error('saveProjectTypes error:', e);
 }
+sel.value = current;
 }
 function renderOverview() {
 var fp = getYearFilteredProjects();
@@ -909,22 +918,28 @@ async function addProject() {
 var name = document.getElementById('pmProjectName').value.trim();
 var code = document.getElementById('pmProjectCode').value.trim();
 var status = document.getElementById('pmProjectStatus').value;
-var location = document.getElementById('pmProjectLocation').value.trim();
+var street = document.getElementById('pmProjectStreet').value.trim();
+var city = document.getElementById('pmProjectCity').value.trim();
+var state = document.getElementById('pmProjectState').value.trim();
+var zip = document.getElementById('pmProjectZip').value.trim();
+var clientId = document.getElementById('pmProjectClient').value;
+var projectManager = document.getElementById('pmProjectManager').value;
 if (!name) { showProjectMessage('Please enter a project name.', 'error'); return; }
-if (!code) { showProjectMessage('Please enter a project code.', 'error'); return; }
-var dup = allProjects.find(function(p) {
-return p.code && p.code.toLowerCase() === code.toLowerCase();
-});
-if (dup) {
-showProjectMessage('A project with code "' + code + '" already exists. Project codes must be unique.', 'error');
-return;
-}
+if (!street) { showProjectMessage('Please enter a street address.', 'error'); return; }
+if (!city) { showProjectMessage('Please enter a city.', 'error'); return; }
+if (!state) { showProjectMessage('Please enter a state.', 'error'); return; }
+if (!status) { showProjectMessage('Please select a status.', 'error'); return; }
 var payload = {
 'Project Name': name,
 'Project Code': code,
 'Status': status,
-'Location': location,
+'Street': street,
+'City': city,
+'State': state,
 };
+if (zip) payload['Zip'] = zip;
+if (clientId) payload['Client'] = clientId;
+if (projectManager) payload['Project Manager'] = projectManager;
 var awd = document.getElementById("pmAwardDate").value;
 var esd = document.getElementById("pmExpectedStartDate").value;
 var asd = document.getElementById('pmActualStartDate').value;
@@ -969,12 +984,27 @@ editingProjectId = projectId;
 document.getElementById('pmEditProjectName').value = project.name || '';
 document.getElementById('pmEditProjectCode').value = project.code || '';
 document.getElementById('pmEditProjectStatus').value = project.status || 'Active';
-document.getElementById('pmEditProjectLocation').value = project.location || '';
+document.getElementById('pmEditProjectStreet').value = project.street || '';
+document.getElementById('pmEditProjectCity').value = project.city || '';
+document.getElementById('pmEditProjectState').value = project.state || '';
+document.getElementById('pmEditProjectZip').value = project.zip || '';
+var editClientSel = document.getElementById('pmEditProjectClient');
+editClientSel.innerHTML = '<option value="">None</option>';
+allClients.forEach(function(c) { var opt = document.createElement('option'); opt.value = c.id; opt.textContent = c.clientName || '(unnamed)'; editClientSel.appendChild(opt); });
+editClientSel.value = project.clientId || project.client || '';
+var editPmSel = document.getElementById('pmEditProjectManager');
+if (editPmSel.options.length <= 1) {
+populateProjectManagerDropdown();
+setTimeout(function() { editPmSel = document.getElementById('pmEditProjectManager'); editPmSel.value = project.projectManager || ''; }, 500);
+} else {
+editPmSel.value = project.projectManager || '';
+}
 document.getElementById('pmEditAwardDate').value = project.awardDate || '';
 document.getElementById('pmEditExpectedStartDate').value = project.expectedStartDate || '';
 document.getElementById('pmEditActualStartDate').value = project.actualStartDate || '';
 document.getElementById('pmEditExpectedCompletionDate').value = project.expectedCompletionDate || '';
 document.getElementById('pmEditActualCompletionDate').value = project.actualCompletionDate || '';
+document.getElementById('pmEditProjectManager').value = project.projectManager || '';
 document.getElementById('pmEditProjectModal').classList.add('active');
 }
 function closeEditProjectModal() {
@@ -986,22 +1016,27 @@ if (!editingProjectId) return;
 var name = document.getElementById('pmEditProjectName').value.trim();
 var code = document.getElementById('pmEditProjectCode').value.trim();
 var status = document.getElementById('pmEditProjectStatus').value;
-var location = document.getElementById('pmEditProjectLocation').value.trim();
+var street = document.getElementById('pmEditProjectStreet').value.trim();
+var city = document.getElementById('pmEditProjectCity').value.trim();
+var state = document.getElementById('pmEditProjectState').value.trim();
+var zip = document.getElementById('pmEditProjectZip').value.trim();
+var clientId = document.getElementById('pmEditProjectClient').value;
+var projectManager = document.getElementById('pmEditProjectManager').value;
 if (!name) { showProjectMessage('Project name is required.', 'error'); return; }
-if (!code) { showProjectMessage('Project code is required.', 'error'); return; }
-var dup = allProjects.find(function(p) {
-return p.id !== editingProjectId && p.code && p.code.toLowerCase() === code.toLowerCase();
-});
-if (dup) {
-showProjectMessage('A project with code "' + code + '" already exists.', 'error');
-return;
-}
+if (!street) { showProjectMessage('Street address is required.', 'error'); return; }
+if (!city) { showProjectMessage('City is required.', 'error'); return; }
+if (!state) { showProjectMessage('State is required.', 'error'); return; }
 var payload = {
 'Project Name': name,
 'Project Code': code,
 'Status': status,
-'Location': location,
+'Street': street,
+'City': city,
+'State': state,
 };
+if (zip) payload['Zip'] = zip;
+if (clientId) payload['Client'] = clientId;
+if (projectManager) payload['Project Manager'] = projectManager;
 var awd = document.getElementById('pmEditAwardDate');
 var esd = document.getElementById('pmEditExpectedStartDate');
 var asd = document.getElementById('pmEditActualStartDate');
@@ -1330,7 +1365,7 @@ filtered.forEach(function(p) {
 html += '<tr>';
 selectedCols.forEach(function(col) {
 var val = p[col.key];
-  if (val && dateKeys.indexOf(col.key) !== -1) { val = new Date(val).toLocaleDateString(); }
+if (val && dateKeys.indexOf(col.key) !== -1) { val = new Date(val).toLocaleDateString(); }
 html += '<td>' + escapeHtml((val !== undefined && val !== null && val !== '') ? String(val) : '—') + '</td>';
 });
 html += '</tr>';
@@ -1471,7 +1506,7 @@ if (col) selectedCols.push(col);
 }
 });
 if (selectedCols.length === 0) { showClientMessage('Select at least one column to print.', 'error'); return; }
-  var dateKeys = ['createdAt','expectedStartDate','actualStartDate','expectedCompletionDate','actualCompletionDate','awardDate'];
+var dateKeys = ['createdAt','expectedStartDate','actualStartDate','expectedCompletionDate','actualCompletionDate','awardDate'];
 var filtered = getFilteredSortedClients();
 var html = '<html><head><title>DRIV-EN Client List</title><style>';
 html += 'body{font-family:Arial,sans-serif;margin:20px;}h2{margin:0 0 16px 0;}table{width:100%;border-collapse:collapse;font-size:12px;}';
@@ -1486,7 +1521,7 @@ filtered.forEach(function(c) {
 html += '<tr>';
 selectedCols.forEach(function(col) {
 var val = c[col.key];
-  if (val && dateKeys.indexOf(col.key) !== -1) { val = new Date(val).toLocaleDateString(); }
+if (val && dateKeys.indexOf(col.key) !== -1) { val = new Date(val).toLocaleDateString(); }
 html += '<td>' + escapeHtml((val !== undefined && val !== null && val !== '') ? String(val) : '—') + '</td>';
 });
 html += '</tr>';
@@ -1920,8 +1955,12 @@ var fields = [
 ['Project Number', p.code || '\u2014'],
 ['Project Name', p.name || '\u2014'],
 ['Status', p.status || '\u2014'],
-['Location', p.location || '\u2014'],
 ['Client', p.clientName || p.client_name || '\u2014'],
+['Street', p.street || '\u2014'],
+['City', p.city || '\u2014'],
+['State', p.state || '\u2014'],
+['Zip', p.zip || '\u2014'],
+['Project Manager', p.projectManager || '\u2014'],
 ['Award Date', p.awardDate || '\u2014'],
 ['Expected Start', p.expectedStartDate || '\u2014'],
 ['Actual Start', p.actualStartDate || '\u2014'],
@@ -1933,38 +1972,6 @@ return '<div class="pm-detail-field"><span class="pm-detail-label">' + f[0] + '<
 }).join('');
 document.getElementById('pmDetailModal').classList.add('active');
 }
-var PM_MODAL_CONTENT = {
-overview: {
-title: 'Project Management \u2014 Overview',
-purpose: 'The Overview tab provides a high-level snapshot of all projects and clients in your organization. Use the Year filter to focus on a specific year, review KPIs, view visual charts, and quickly find projects or clients. Click Read Aloud to hear the page content spoken aloud.',
-instructions: '<ol><li>Use the <strong>Year filter</strong> (green card, top right) to filter all KPIs, charts, and tables by a specific year, or select "All Years" to see everything. This filter only appears on the Overview tab.</li><li>Review the <strong>KPI cards</strong> for Total Projects, Active Projects, Completed Projects, and Total Clients (all filtered by the selected year).</li><li>The <strong>Status Breakdown donut chart</strong> shows how many projects are in each status (Active, Planning, On Hold, Completed, Cancelled) with color-coded legend.</li><li>The <strong>Projects Created bar chart</strong> shows project creation trends over the last 6 months.</li><li>Use the <strong>search box</strong> above the Active Projects table to filter by project name, number, or client.</li><li>Use the <strong>search box</strong> above the Active Clients table to filter by client name, contact, or email.</li><li>Use the <strong>pagination controls</strong> (Per page dropdown and Prev/Next buttons) below each table to navigate pages.</li><li>Click any project row to open a <strong>detail modal</strong> with full project information including Expected Start, Actual Start, Expected Completion, and Actual Completion dates.</li><li>Click any client row to jump to the Clients tab.</li><li>Click <strong>Read Aloud</strong> (blue button, top center) to hear the Overview tab content spoken aloud. Click again to stop.</li><li><strong>Resize columns</strong> by dragging the right edge of any column header. <strong>Reorder columns</strong> by dragging and dropping headers (except the Actions column, which stays on the far right). Your preferences are saved automatically.</li></ol>'
-},
-projects: {
-title: 'Project Management \u2014 Projects',
-purpose: 'The Projects tab lists all projects in your organization with full search, filter, sort, and pagination. Use it to find, view, and edit any project. Column widths and order can be customized and are saved automatically. Click Read Aloud to hear the page content spoken aloud.',
-instructions: '<ol><li>Use the <strong>search box</strong> to filter by project name, project number, or location.</li><li>Use the <strong>Status dropdown</strong> to filter by project status.</li><li>Click <strong>Columns</strong> to show or hide specific columns, including Expected Start, Actual Start, Expected Completion, and Actual Completion dates.</li><li>Click a row to view or edit a project.</li><li>Use the <strong>pagination controls</strong> (Per page dropdown and Prev/Next buttons) at the bottom to navigate pages.</li><li>Click <strong>Print</strong>, <strong>Export CSV</strong>, or <strong>Export Excel</strong> to export the current list.</li><li>Click <strong>Read Aloud</strong> (blue button, top center) to hear the Projects tab content spoken aloud. Click again to stop.</li><li><strong>Resize columns</strong> by dragging the right edge of any column header. If columns are wider than the table, a horizontal scrollbar appears.</li><li><strong>Reorder columns</strong> by dragging and dropping headers. The Actions column always stays on the far right.</li><li>All column widths and order are saved automatically \u2014 no need to readjust each time.</li></ol>'
-},
-addproject: {
-title: 'Project Management \u2014 Add New Project',
-purpose: 'The Add New Project tab lets you create a new project by filling out the project details form. Required fields are marked and validation prevents saving incomplete records. Click Read Aloud to hear the page content spoken aloud.',
-instructions: '<ol><li>Enter the <strong>Project Name</strong> and <strong>Project Number</strong> (a unique identifier for the project).</li><li>Select a <strong>Project Type</strong> from the dropdown (types are managed in the Project Types tab).</li><li>Choose a <strong>Client</strong> from the dropdown (clients must be added first in the Add New Client tab).</li><li>Set the <strong>Project Status</strong> (Active, Planning, On Hold, Completed, or Cancelled).</li><li>Fill in the <strong>Location</strong> of the project.</li><li>Set the <strong>Expected Start Date</strong> and <strong>Expected Completion Date</strong> for planned project timelines.</li><li>Set the <strong>Actual Start Date</strong> and <strong>Actual Completion Date</strong> when the project begins and ends.</li><li>Click <strong>Read Aloud</strong> (blue button, top center) to hear the form content spoken aloud. Click again to stop.</li><li>Click <strong>Add Project</strong> to create the project. The form will validate required fields before saving.</li></ol>'
-},
-types: {
-title: 'Project Management \u2014 Project Types',
-purpose: 'The Project Types tab lets you define and manage project categories. These types are used when creating or classifying projects in the Add New Project tab. Click Read Aloud to hear the page content spoken aloud.',
-instructions: '<ol><li>To add a new type, fill out the <strong>Type Name</strong> and <strong>Description</strong> fields at the top, then click <strong>Add Type</strong>.</li><li>The <strong>Project Type List</strong> below shows all existing types in a table.</li><li>Click <strong>Edit</strong> to modify a type name or description.</li><li>Use the <strong>pagination controls</strong> (Per page dropdown and Prev/Next buttons) below the table to navigate pages.</li><li>Click <strong>Read Aloud</strong> (blue button, top center) to hear the Project Types tab content spoken aloud. Click again to stop.</li><li><strong>Resize columns</strong> by dragging the right edge of any column header. <strong>Reorder columns</strong> by dragging and dropping headers. The Actions column always stays on the far right.</li></ol>'
-},
-clients: {
-title: 'Project Management \u2014 Clients',
-purpose: 'The Clients tab lists all clients in your organization with full search, filter, sort, and pagination. Use it to find, view, and edit any client. Column widths and order can be customized and are saved automatically. Click Read Aloud to hear the page content spoken aloud.',
-instructions: '<ol><li>Use the <strong>search box</strong> to filter by client name, contact, or email.</li><li>Use the <strong>Status dropdown</strong> to filter by client status (Active, Inactive, Pending, Onboarding).</li><li>Click <strong>Columns</strong> to show or hide specific columns.</li><li>Click a row to view or edit a client.</li><li>Use the <strong>pagination controls</strong> (Per page dropdown and Prev/Next buttons) at the bottom to navigate pages.</li><li>Click <strong>Print</strong>, <strong>Export CSV</strong>, or <strong>Export Excel</strong> to export the current list.</li><li>Click <strong>Read Aloud</strong> (blue button, top center) to hear the Clients tab content spoken aloud. Click again to stop.</li><li><strong>Resize columns</strong> by dragging the right edge of any column header. If columns are wider than the table, a horizontal scrollbar appears.</li><li><strong>Reorder columns</strong> by dragging and dropping headers. The Actions column always stays on the far right.</li><li>All column widths and order are saved automatically \u2014 no need to readjust each time.</li></ol>'
-},
-addclient: {
-title: 'Project Management \u2014 Add New Client',
-purpose: 'The Add New Client tab lets you create a new client by filling out the client details form. Required fields are marked and validation prevents saving incomplete records. Click Read Aloud to hear the page content spoken aloud.',
-instructions: '<ol><li>Enter the <strong>Client Name</strong> (this is the company or organization name).</li><li>Fill in <strong>Contact Name</strong>, <strong>Contact Email</strong>, and <strong>Contact Phone</strong>.</li><li>Optionally add <strong>Industry</strong>, <strong>Address</strong>, <strong>City</strong>, <strong>State</strong>, <strong>Zip Code</strong>, and <strong>Notes</strong>.</li><li>Set the <strong>Client Status</strong> (Active, Inactive, Pending, or Onboarding).</li><li>Click <strong>Read Aloud</strong> (blue button, top center) to hear the form content spoken aloud. Click again to stop.</li><li>Click <strong>Save Client</strong> to create the client. The form will validate required fields before saving.</li></ol>'
-}
-};
 function getActiveContext() {
 var activeTab = document.querySelector('.pm-tab.active');
 if (!activeTab) return 'overview';
