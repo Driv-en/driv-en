@@ -585,6 +585,7 @@ var sel = document.getElementById('pmProjectFilterStatus');
 if (sel) sel.value = status;
 switchTab('projects');
 }
+window.kpiClick = kpiClick;
 function statusLabel(s) {
 var map = { 'awarded': 'Awarded', 'in progress': 'In Progress', 'on hold': 'On Hold', 'completed': 'Completed', 'cancelled': 'Cancelled' };
 return map[String(s || '').toLowerCase()] || s;
