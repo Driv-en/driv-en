@@ -784,7 +784,6 @@ function renderClientTableHead() {
 var thead = document.getElementById('pmClientTableHead');
 thead.textContent = '';
 var tr = document.createElement('tr');
-
 CLIENT_COL_DEFS.forEach(function(col) {
 if (!clientVisibleCols[col.key]) return;
 var th = document.createElement('th');
@@ -2150,7 +2149,7 @@ html += '<span><span style="display:inline-block;width:12px;height:12px;backgrou
 html += '<span><span style="display:inline-block;width:12px;height:12px;background:#6366f1;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Completion</span>';
 html += '<span><span style="display:inline-block;width:12px;height:12px;background:#3b82f6;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Awarded</span>';
 html += '<span><span style="display:inline-block;width:12px;height:12px;background:#16a34a;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>In Progress</span>';
-html += '<span><span style="display:inline-block;width:12px;height:12px;background:repeating-linear-gradient(90deg,#f59e0b 0 4px,transparent 4px 8px);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>On Hold</span>';
+html += '<span><span style="display:inline-block;width:12px;height:0;border-top:2px dashed #f59e0b;vertical-align:middle;margin-right:4px;"></span>On Hold</span>';
 html += '<span><span style="display:inline-block;width:12px;height:12px;background:#6366f1;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Completed</span>';
 html += '<span><span style="display:inline-block;width:12px;height:12px;background:#ef4444;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Cancelled</span>';
 html += '<span><span style="display:inline-block;width:2px;height:14px;background:#334155;vertical-align:middle;margin-right:4px;"></span>Status Change</span>';
