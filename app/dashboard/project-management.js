@@ -590,13 +590,17 @@ var pmStatusHistory = {};
 function loadStatusHistory(projectId) {
 if (!projectId) return Promise.resolve([]);
 if (pmStatusHistory[projectId]) return Promise.resolve(pmStatusHistory[projectId]);
-return fetch('/api/ProjectStatusHistory?project_id=' + encodeURIComponent(projectId))
+return fetch('/api/ProjectStatusHistory')
 .then(function(r) { return r.json(); })
 .then(function(data) {
-var rows = (data && data.records) ? data.records.map(function(r) {
+var all = (data && data.records) ? data.records : [];
+var rows = all.filter(function(r) {
+var f = (r.fields && typeof r.fields === 'object') ? r.fields : r;
+return String(f.project_id || f['Project ID'] || '') === String(projectId);
+}).map(function(r) {
 var f = (r.fields && typeof r.fields === 'object') ? r.fields : r;
 return { status: f.status || f.Status || '', changedAt: f.changed_at || f.changedAt || '', note: f.note || f.Note || '' };
-}) : [];
+}).sort(function(a, b) { return (a.changedAt || '').localeCompare(b.changedAt || ''); });
 pmStatusHistory[projectId] = rows;
 return rows;
 })
@@ -1098,7 +1102,6 @@ var editClientSel = document.getElementById('pmEditProjectClient');
 editClientSel.innerHTML = '<option value="">None</option>';
 allClients.forEach(function(c) { var opt = document.createElement('option'); opt.value = c.id; opt.textContent = c.clientName || '(unnamed)'; editClientSel.appendChild(opt); });
 editClientSel.value = project.clientId || project.client || '';
-
 document.getElementById('pmEditAwardDate').value = project.awardDate || '';
 document.getElementById('pmEditExpectedStartDate').value = project.expectedStartDate || '';
 document.getElementById('pmEditActualStartDate').value = project.actualStartDate || '';
@@ -1145,6 +1148,7 @@ var awd = document.getElementById('pmEditAwardDate');
 var esd = document.getElementById('pmEditExpectedStartDate');
 var asd = document.getElementById('pmEditActualStartDate');
 var ecd = document.getElementById('pmEditExpectedCompletionDate');
+
 var acd = document.getElementById('pmEditActualCompletionDate');
 if (esd && esd.value) payload['Expected Start Date'] = esd.value;
 if (asd && asd.value) payload['Actual Start Date'] = asd.value;
@@ -1155,11 +1159,21 @@ try {
 var shRows = pmStatusHistory[editingProjectId] || [];
 if (shRows.length > 0) {
 try {
-await fetch('/api/ProjectStatusHistory?project_id=' + encodeURIComponent(editingProjectId), {
-method: 'PUT',
+for (var si = 0; si < shRows.length; si++) {
+var sr = shRows[si];
+if (sr._saved) continue;
+await fetch('/api/ProjectStatusHistory', {
+method: 'POST',
 headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ records: shRows })
+body: JSON.stringify({
+'Project ID': editingProjectId,
+'Status': sr.status,
+'Changed At': sr.changedAt,
+'Note': sr.note || ''
+})
 });
+sr._saved = true;
+}
 } catch(e) {}
 }
 var resp = await fetch('/api/Project/' + encodeURIComponent(editingProjectId), {
