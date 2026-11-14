@@ -550,7 +550,6 @@ document.getElementById('kpiTotalProjects').textContent = fp.length;
 document.getElementById('kpiAwardedProjects').textContent = fp.filter(function(p) { return String(p.status || '').toLowerCase() === 'awarded'; }).length;
 document.getElementById('kpiInProgressProjects').textContent = fp.filter(function(p) { return String(p.status || '').toLowerCase() === 'in progress'; }).length;
 document.getElementById('kpiCompletedProjects').textContent = fp.filter(function(p) { return String(p.status || '').toLowerCase() === 'completed'; }).length;
-document.getElementById('kpiTotalClients').textContent = fc.length;
 renderStatusDonut(fp);
 renderTrendChart(fp);
 renderOverviewProjects(fp);
