@@ -310,8 +310,8 @@
           // Business Type
           if (data.settings.business_type) {
             document.getElementById("businessTypeSelect").value = data.settings.business_type;
-            document.getElementById("overviewBusinessType").textContent = data.settings.business_type;
-            document.getElementById("onboardingBtLabel").textContent = data.settings.business_type;
+            var _obt = document.getElementById("overviewBusinessType"); if (_obt) _obt.textContent = data.settings.business_type;
+            var _obtl = document.getElementById("onboardingBtLabel"); if (_obtl) _obtl.textContent = data.settings.business_type;
           }
           // NAICS
           if (data.settings.naics_code) {
@@ -396,8 +396,8 @@
           orgSettings.business_type = bt;
           orgSettings.naics_code = naics;
           orgSettings.currency = currency;
-          document.getElementById("overviewBusinessType").textContent = bt || "Not set";
-          document.getElementById("onboardingBtLabel").textContent = bt || "not set";
+          var _obt2 = document.getElementById("overviewBusinessType"); if (_obt2) _obt2.textContent = bt || "Not set";
+          var _obtl2 = document.getElementById("onboardingBtLabel"); if (_obtl2) _obtl2.textContent = bt || "not set";
           if (status) { status.textContent = "Settings saved."; status.style.color = "var(--success, #16a34a)"; }
           if (naicsStatus) { naicsStatus.textContent = "Settings saved."; naicsStatus.style.color = "var(--success, #16a34a)"; }
           if (currencyStatus) { currencyStatus.textContent = "Settings saved."; currencyStatus.style.color = "var(--success, #16a34a)"; }
@@ -1040,7 +1040,7 @@
         if (welcomeEl) {
           welcomeEl.textContent = orgName ? (firstName + " — " + orgName) : firstName;
 }
-document.getElementById("account-name").textContent = user.first_name ? (user.first_name + " " + (user.last_name || "")) : user.email;
+var acn = document.getElementById("account-name"); if (acn) acn.textContent = user.first_name ? (user.first_name + " " + (user.last_name || "")) : user.email;
         var emailEl = document.getElementById("account-email");
         if (emailEl) emailEl.textContent = user.email || "";
 
