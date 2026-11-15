@@ -995,15 +995,25 @@ function renderBarChart(containerId, data, colorMap) {
 
 async function exportCSV(type) {
   try {
-    var url, filename, columns;
+    var url, filename, columns, transforms;
     if (type === 'assets') {
       url = '/api/assets';
       filename = 'driv-en-assets.csv';
       columns = ['asset_number', 'name', 'asset_type', 'make', 'model', 'year', 'status', 'current_location', 'assigned_operator_id'];
+      transforms = {};
     } else if (type === 'fuel') {
       url = '/api/fuel_transactions?limit=1000';
-      filename = 'driv-en-fuel.csv';
-      columns = ['transaction_date', 'transaction_type', 'fuel_type', 'quantity', 'cost_per_gallon', 'receipt_total', 'vendor', 'asset_id', 'project_id', 'location'];
+      var sys = (window.DRIVEN_UNITS && DRIVEN_UNITS.getUnitSystemSync) ? DRIVEN_UNITS.getUnitSystemSync() : (localStorage.getItem('driv-en-unit-system') || 'imperial');
+      var L_PER_GAL = 3.785411784;
+      if (sys === 'metric') {
+        filename = 'driv-en-fuel.csv';
+        columns = ['transaction_date', 'transaction_type', 'fuel_type', 'liters', 'cost_per_liter', 'receipt_total', 'vendor', 'asset_id', 'project_id', 'location'];
+        transforms = { quantity: 'liters', cost_per_gallon: 'cost_per_liter' };
+      } else {
+        filename = 'driv-en-fuel.csv';
+        columns = ['transaction_date', 'transaction_type', 'fuel_type', 'gallons', 'cost_per_gallon', 'receipt_total', 'vendor', 'asset_id', 'project_id', 'location'];
+        transforms = { quantity: 'gallons', cost_per_gallon: 'cost_per_gallon' };
+      }
     } else {
       return;
     }
@@ -1013,11 +1023,29 @@ async function exportCSV(type) {
     var rows = data.records || data.data || [];
     if (!Array.isArray(rows)) rows = [];
 
-    var header = columns.join(',');
-    var lines = [header];
+    // Build transformed rows with correct column names and converted values
+    var lines = [columns.join(',')];
     rows.forEach(function(row) {
       var vals = columns.map(function(col) {
-        var v = row[col];
+        var v;
+        // Check if this column is a transformed column
+        if (type === 'fuel') {
+          if (col === 'gallons') {
+            v = parseFloat(row.quantity);
+            if (!isNaN(v)) v = (v / L_PER_GAL).toFixed(3); else v = row.quantity;
+          } else if (col === 'liters') {
+            v = row.quantity;
+          } else if (col === 'cost_per_gallon' && sys !== 'metric') {
+            v = parseFloat(row.cost_per_gallon);
+            if (!isNaN(v)) v = (v * L_PER_GAL).toFixed(3); else v = row.cost_per_gallon;
+          } else if (col === 'cost_per_liter') {
+            v = row.cost_per_gallon;
+          } else {
+            v = row[col];
+          }
+        } else {
+          v = row[col];
+        }
         if (v == null) v = '';
         v = String(v).replace(/"/g, '""');
         if (v.indexOf(',') !== -1 || v.indexOf('"') !== -1 || v.indexOf('\n') !== -1) v = '"' + v + '"';
@@ -1026,7 +1054,7 @@ async function exportCSV(type) {
       lines.push(vals.join(','));
     });
 
-    var csv = lines.join('\n');
+    var csv = '\uFEFF' + lines.join('\n');
     var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     var link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
