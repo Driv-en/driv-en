@@ -3,22 +3,17 @@
  *
  * Pure browser APIs -- no worker changes, no backend needed.
  *   - Dictation: Web Speech API (SpeechRecognition)
- *   - Read Aloud: SpeechSynthesis API
  *
  * Exposes global DRIVEN_VOICE object. Auto-scans DOM for:
  *   [data-voice-input]  -- adds a mic button next to the text field for dictation
- *   [data-voice-read]   -- adds a "Read Aloud" button that speaks the element's text
  *
  * Manual API:
  *   DRIVEN_VOICE.startDictation(inputElement)
  *   DRIVEN_VOICE.stopDictation()
- *   DRIVEN_VOICE.speak(text)
- *   DRIVEN_VOICE.stopSpeaking()
  *   DRIVEN_VOICE.isDictationSupported()
- *   DRIVEN_VOICE.isTTSSupported()
  *
  * Load after dashboard-common.js, before page JS:
- *   <script src="/app/shared/voice.js?v=2"></script>
+ *   <script src="/app/shared/voice.js?v=3"></script>
  */
 
 (function() {
@@ -77,18 +72,6 @@
       '}',
       '.driven-voice-mic-btn:disabled { opacity: 0.4; cursor: not-allowed; }',
       '.driven-voice-mic-btn unsupported { display: none; }',
-      '',
-      '.driven-voice-read-btn {',
-      '  display: inline-flex; align-items: center; gap: 4px;',
-      '  padding: 4px 12px; margin: 4px 0;',
-      '  border: 2px solid var(--success, #16a34a); border-radius: 6px;',
-      '  background: var(--bg-card, #fff); color: var(--success, #16a34a);',
-      '  cursor: pointer; font-size: 13px;',
-      '  transition: background 150ms ease, color 150ms ease;',
-      '}',
-      '.driven-voice-read-btn:hover { background: var(--success, #16a34a); color: #fff; }',
-      '.driven-voice-read-btn.speaking { background: var(--success, #16a34a); color: #fff; }',
-      '.driven-voice-read-btn:disabled { opacity: 0.4; cursor: not-allowed; }',
       '',
       '.driven-voice-status {',
       '  font-size: 11px; color: var(--text-muted, #6b7280);',
@@ -223,84 +206,13 @@
     }
   }
 
-  // -- Text-to-Speech (SpeechSynthesis) --
-
-  function isTTSSupported() {
-    return 'speechSynthesis' in window;
-  }
-
-  var currentUtterance = null;
-
-  function speak(text, opts) {
-    if (!isTTSSupported()) {
-      alert('Text-to-speech is not supported in this browser.');
-      return;
-    }
-    stopSpeaking();
-
-    var utter = new SpeechSynthesisUtterance(text);
-    utter.rate = (opts && opts.rate) || 1.0;
-    utter.pitch = (opts && opts.pitch) || 1.0;
-    utter.volume = (opts && opts.volume) || 1.0;
-    utter.lang = (opts && opts.lang) || getLang();
-
-    utter.onstart = function() {
-      currentUtterance = utter;
-      updateReadButtons(true);
-    };
-    utter.onend = function() {
-      currentUtterance = null;
-      updateReadButtons(false);
-    };
-    utter.onerror = function(e) {
-      currentUtterance = null;
-      updateReadButtons(false);
-      if (e.error !== 'interrupted' && e.error !== 'canceled') {
-        reportError('speak', new Error(e.error || 'TTS error'));
-      }
-    };
-
-    window.speechSynthesis.speak(utter);
-  }
-
-  function stopSpeaking() {
-    if (isTTSSupported()) {
-      window.speechSynthesis.cancel();
-    }
-    currentUtterance = null;
-    updateReadButtons(false);
-  }
-
-  function isSpeaking() {
-    return isTTSSupported() && window.speechSynthesis.speaking;
-  }
-
-  function updateReadButtons(speaking) {
-    var btns = document.querySelectorAll('.driven-voice-read-btn');
-    for (var i = 0; i < btns.length; i++) {
-      if (speaking) {
-        btns[i].classList.add('speaking');
-        btns[i].innerHTML = '&#x23F9; Stop Reading';
-      } else {
-        btns[i].classList.remove('speaking');
-        btns[i].innerHTML = '&#x1F50A; Read Aloud';
-      }
-    }
-  }
-
-  // -- DOM Auto-Init: scan for data-voice-input and data-voice-read --
+  // -- DOM Auto-Init: scan for data-voice-input --
 
   function init() {
     // Add mic buttons to [data-voice-input] elements
     var inputs = document.querySelectorAll('[data-voice-input]');
     for (var i = 0; i < inputs.length; i++) {
       addMicButton(inputs[i]);
-    }
-
-    // Add Read Aloud buttons to [data-voice-read] elements
-    var readers = document.querySelectorAll('[data-voice-read]');
-    for (var j = 0; j < readers.length; j++) {
-      addReadAloudButton(readers[j]);
     }
   }
 
@@ -333,56 +245,16 @@
     }
   }
 
-  function addReadAloudButton(targetEl) {
-    if (targetEl.dataset.voiceReadAdded) return;
-    targetEl.dataset.voiceReadAdded = '1';
-
-    if (!isTTSSupported()) return;
-
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'driven-voice-read-btn';
-    btn.innerHTML = '&#x1F50A; Read Aloud';
-    btn.setAttribute('aria-label', 'Read aloud');
-
-    btn.addEventListener('click', function(e) {
-      e.preventDefault();
-      if (isSpeaking()) {
-        stopSpeaking();
-      } else {
-        var text = targetEl.textContent || targetEl.innerText || '';
-        // Get text from child elements if target is a container
-        if (targetEl.dataset.voiceReadTarget) {
-          var target = document.querySelector(targetEl.dataset.voiceReadTarget);
-          if (target) text = target.textContent || target.innerText || '';
-        }
-        // Strip Read Aloud / Stop Reading button text and emojis
-        text = text.replace(/[\u{1F50A}\u{23F9}]/gu, '').replace(/Read Aloud|Stop Reading/g, '').replace(/[🔊⏹]/g, '').replace(/\s+/g, ' ').trim();
-        if (text) speak(text);
-      }
-    });
-
-    // Insert before the target element
-    if (targetEl.parentNode) {
-      targetEl.parentNode.insertBefore(btn, targetEl);
-    }
-  }
-
   // -- Expose global --
   window.DRIVEN_VOICE = {
     isDictationSupported: isDictationSupported,
-    isTTSSupported: isTTSSupported,
     startDictation: startDictation,
     stopDictation: stopDictation,
     isListening: isListening,
-    speak: speak,
-    stopSpeaking: stopSpeaking,
-    isSpeaking: isSpeaking,
     getLang: getLang,
     setLang: setLang,
     init: init,
-    addMicButton: addMicButton,
-    addReadAloudButton: addReadAloudButton
+    addMicButton: addMicButton
   };
 
   // -- Auto-init on DOMContentLoaded and after dynamic content loads --
@@ -398,10 +270,9 @@
     setTimeout(init, 1000);
   });
 
-  // Stop everything when page unloads
+  // Stop dictation when page unloads
   window.addEventListener('beforeunload', function() {
     stopDictation();
-    stopSpeaking();
   });
 
 })();
