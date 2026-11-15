@@ -2,106 +2,143 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Work Order Detail | DRIV‑EN</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="/app/shared/dashboard.css?v=10">
-</head>
-<body>
-
-  <header class="app-header">
-    <div class="app-header-inner">
-      <a href="/website/index.html" class="app-logo">
-        <span class="logo-driv">DRIV</span><span class="logo-en">-EN</span>
-      </a>
-      <nav class="app-nav-desktop">
-        <a href="/app/equipment/equipment.html">Equipment</a>
-        <a href="/app/pm/pm.html">PM</a>
-        <a href="/app/inspections/inspections.html">Inspections</a>
-        <a href="/app/work-orders/workorders.html">Work Orders</a>
-        <a href="/app/dashboard/admin.html">Admin</a>
-      </nav>
-      <button class="app-mobile-menu-btn" id="appMobileMenuBtn">☰</button>
-    </div>
-  </header>
-
-  <nav class="app-nav-mobile" id="appNavMobile">
-    <a href="/app/equipment/equipment.html">Equipment</a>
-    <a href="/app/pm/pm.html">PM</a>
-    <a href="/app/inspections/inspections.html">Inspections</a>
-    <a href="/app/work-orders/workorders.html">Work Orders</a>
-    <a href="/app/dashboard/admin.html">Admin</a>
-  </nav>
-
-  <div class="app-sticky-wrapper">
-    <main class="app-main">
-
-      <section class="app-page-header">
-        <h1>Work Order Detail</h1>
-        <p>Single work order, completion, and review.</p>
-      </section>
-
-      <section class="app-section">
-        <h2 class="app-section-title">Work Order Info</h2>
-        <div id="workorderInfo">
-          <!-- Equipment, issue, severity, created from (PM/Inspection/Status) -->
-        </div>
-      </section>
-
-      <section class="app-section">
-        <h2 class="app-section-title">Completion</h2>
-        <form class="app-form" id="workorderCompletionForm">
-          <div class="form-group">
-            <label for="woCompletedDate">Completed Date</label>
-            <input type="date" id="woCompletedDate" name="woCompletedDate" required>
-          </div>
-          <div class="form-group">
-            <label for="woCompletionNotes">Completion Notes</label>
-            <textarea id="woCompletionNotes" name="woCompletionNotes"></textarea>
-          </div>
-          <button type="submit" class="app-btn-primary">Complete Work Order</button>
-        </form>
-      </section>
-
-      <section class="app-section">
-        <h2 class="app-section-title">Foreman Review</h2>
-        <form class="app-form" id="workorderReviewForm">
-          <div class="form-group">
-            <label for="woReviewStatus">Review Status</label>
-            <select id="woReviewStatus" name="woReviewStatus">
-              <option value="">Select...</option>
-              <option value="approved">Approved</option>
-              <option value="reopen">Reopen</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="woReviewNotes">Review Notes</label>
-            <textarea id="woReviewNotes" name="woReviewNotes"></textarea>
-          </div>
-          <button type="submit" class="app-btn-primary">Submit Review</button>
-        </form>
-      </section>
-
-    </main>
-
-    <footer class="app-footer">
-      <p>© 2026 DRIV‑EN — Built for the Field.</p>
-    </footer>
-  </div>
-
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
+  <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
+  <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
+  <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
+  <link rel="stylesheet" href="/app/shared/dashboard.css?v=13">
+  <link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
   <script>
-    const mobileBtn = document.getElementById('appMobileMenuBtn');
-    const mobileNav = document.getElementById('appNavMobile');
-    mobileBtn.addEventListener('click', () => {
-      mobileNav.classList.toggle('open');
-    });
-
-    const header = document.querySelector('.app-header');
-    window.addEventListener('scroll', () => {
-      if (window.scrollY > 10) header.classList.add('sticky');
-      else header.classList.remove('sticky');
-    });
-
-    // TODO: integrate with Worker: load WO info, submit completion and review
+    (function() {
+      var saved = localStorage.getItem("driven-theme");
+      var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", saved || system);
+    })();
   </script>
+  <style>
+    :root { --header-height: 60px; --card-green-border: #16a34a; }
+    html, body { margin:0; padding:0; width:100%; background:var(--bg-body,#0f172a); color:var(--text,#f8fafc); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; transition:background-color 200ms ease,color 200ms ease; }
+    :root[data-theme="light"] body { background:#f1f5f9; color:#0f172a; }
+    :root[data-theme="dark"] body { background:#0f172a; color:#f8fafc; }
+    .dash-header-row3{display:none!important;} #dashHeader .dash-theme-wrapper{display:none!important;} .dash-header-row2{display:none!important;}
+    #dashHeader,.dash-header{position:sticky!important;top:0!important;z-index:101!important;background:var(--bg-card,#fff);width:100%;box-sizing:border-box;border-bottom:2px solid var(--card-green-border);}
+    .wod-tab-bar{display:flex!important;gap:2px;max-width:1100px;margin:0 auto;padding:0 16px;overflow-x:auto;position:sticky!important;top:var(--header-height,60px)!important;z-index:100!important;background:#cbd5e1;border-bottom:2px solid #94a3b8;box-sizing:border-box;-webkit-overflow-scrolling:touch;}
+    :root[data-theme="dark"] .wod-tab-bar{background:#334155;border-bottom-color:#475569;}
+    .wod-tab{background:#94a3b8;border:1px solid #64748b;border-bottom:none;border-radius:8px 8px 0 0;padding:10px 18px;font-size:14px;font-weight:500;color:#1e293b;cursor:pointer;white-space:nowrap;text-decoration:none;transition:color 200ms,background 200ms,margin-top 200ms;margin-top:4px;position:relative;z-index:1;display:inline-flex;align-items:center;}
+    :root[data-theme="dark"] .wod-tab{background:#475569;border-color:#64748b;color:#f1f5f9;}
+    .wod-tab:hover{color:#0f172a;background:#a5b4c4;margin-top:2px;}
+    :root[data-theme="dark"] .wod-tab:hover{color:#fff;background:#64748b;}
+    .wod-tab.active{color:#1d4ed8;background:#e2e8f0;border-color:#64748b;margin-top:0;font-weight:600;z-index:2;}
+    :root[data-theme="dark"] .wod-tab.active{color:#60a5fa;background:#1e293b;border-color:#475569;}
+    .wod-tab-dashboard{background:#2563eb;border:1px solid #1d4ed8;color:#fff;}
+    .wod-tab-dashboard:hover{background:#1d4ed8;color:#fff;margin-top:2px;}
+    .wod-tab-logout{background:#b91c1c;border:1px solid #dc2626;border-bottom:none;border-radius:8px 8px 0 0;padding:10px 18px;font-size:14px;font-weight:600;color:#fff;cursor:pointer;white-space:nowrap;margin-top:4px;margin-left:auto;position:relative;z-index:1;transition:background 200ms,margin-top 200ms;}
+    .wod-tab-logout:hover{background:#dc2626;margin-top:2px;}
+    .wod-main{width:100%;max-width:600px;margin:16px auto 80px auto;padding:0 16px;box-sizing:border-box;position:relative;z-index:1;}
+    .wod-card{background:var(--bg-card,#fff);border:2px solid var(--card-green-border);border-radius:8px;padding:20px;margin-bottom:20px;box-shadow:0 4px 6px rgba(0,0,0,0.08);color:var(--text,#0f172a);}
+    :root[data-theme="dark"] .wod-card{background:#1e293b;color:#f8fafc;}
+    .wod-card h2{margin:0 0 16px 0;font-size:18px;font-weight:700;color:var(--text,#0f172a);padding-bottom:12px;border-bottom:1px solid var(--border,#e2e8f0);}
+    :root[data-theme="dark"] .wod-card h2{border-bottom-color:#334155;}
+    .wod-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+    .wod-info-item{display:flex;flex-direction:column;gap:4px;}
+    .wod-info-label{font-size:12px;font-weight:600;color:var(--text-muted,#64748b);text-transform:uppercase;letter-spacing:0.02em;}
+    .wod-info-value{font-size:15px;font-weight:600;color:var(--text,#0f172a);}
+    .wod-form-group{margin-bottom:16px;}
+    .wod-form-group label{display:block;font-size:14px;font-weight:600;color:var(--text,#0f172a);margin-bottom:6px;}
+    .wod-form-group label .req{color:#cc0000;}
+    .wod-form-group input,.wod-form-group select,.wod-form-group textarea{width:100%;padding:10px 12px;font-size:14px;border:1px solid var(--border,#cbd5e1);border-radius:6px;background:var(--bg-step,#f8fafc);color:var(--text,#0f172a);box-sizing:border-box;}
+    :root[data-theme="dark"] .wod-form-group input,:root[data-theme="dark"] .wod-form-group select,:root[data-theme="dark"] .wod-form-group textarea{background:#0f172a;border-color:#475569;color:#f8fafc;}
+    .wod-form-group input:focus,.wod-form-group select:focus,.wod-form-group textarea:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,0.2);}
+    .wod-form-group textarea{resize:vertical;min-height:60px;}
+    .wod-btn{background:#16a34a;color:#fff;border:1px solid #15803d;padding:10px 24px;border-radius:6px;font-size:15px;font-weight:600;cursor:pointer;transition:background 200ms;}
+    .wod-btn:hover{background:#2563eb;border-color:#1d4ed8;}
+    .wod-btn:disabled{opacity:0.5;cursor:not-allowed;}
+    .wod-message{display:none;padding:12px 16px;border-radius:6px;font-size:14px;margin-bottom:16px;font-weight:600;}
+    .wod-message.error{background:#fef2f2;border:1px solid #ef4444;color:#991b1b;}
+    .wod-message.success{background:#f0fdf4;border:1px solid #22c55e;color:#15803d;}
+    .wod-status-badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+    .wod-status-open{background:#fef3c7;color:#92400e;}
+    .wod-status-urgent{background:#fef2f2;color:#991b1b;}
+    .wod-status-completed{background:#f0fdf4;color:#166534;}
+    @media(max-width:600px){.wod-info-grid{grid-template-columns:1fr;}.wod-main{padding:0 12px;margin:12px auto;}}
+    @media print{.wod-tab-bar,#dashHeader,#dashFooter,.wod-btn{display:none!important;}body{background:#fff!important;color:#000!important;}.wod-card{background:#fff!important;border:1px solid #000!important;box-shadow:none!important;}}
+  </style>
+</head>
+<body data-page-title="Work Order Detail">
+  <div class="steel-bg"></div>
+  <div class="steel-overlay"></div>
+  <div id="dashHeader"></div>
+  <div class="wod-tab-bar">
+    <a class="wod-tab wod-tab-dashboard" id="dashHomeLink" href="/app/dashboard/employee-dashboard.html" data-i18n>&#8592; Dashboard</a>
+    <a class="wod-tab" id="lnkWOList" href="/app/work-orders/workorders.html" data-i18n>🛠️ Work Orders</a>
+    <div class="wod-tab active" data-i18n>Work Order Detail</div>
+    <div class="wod-tab-logout" onclick="confirmLogout()" data-i18n>Logout</div>
+  </div>
+  <div class="wod-main">
+    <div id="wodMessage" class="wod-message"></div>
+
+    <!-- WO Info -->
+    <div class="wod-card">
+      <h2 data-i18n>Work Order Info</h2>
+      <div class="wod-info-grid" id="woInfo">
+        <div class="wod-info-item"><span class="wod-info-label" data-i18n>WO Number</span><span class="wod-info-value" id="valWoNumber">—</span></div>
+        <div class="wod-info-item"><span class="wod-info-label" data-i18n>Equipment</span><span class="wod-info-value" id="valEquipment">—</span></div>
+        <div class="wod-info-item"><span class="wod-info-label" data-i18n>Issue / Title</span><span class="wod-info-value" id="valTitle">—</span></div>
+        <div class="wod-info-item"><span class="wod-info-label" data-i18n>Priority</span><span class="wod-info-value" id="valPriority">—</span></div>
+        <div class="wod-info-item"><span class="wod-info-label" data-i18n>Category</span><span class="wod-info-value" id="valCategory">—</span></div>
+        <div class="wod-info-item"><span class="wod-info-label" data-i18n>Assigned To</span><span class="wod-info-value" id="valAssigned">—</span></div>
+        <div class="wod-info-item"><span class="wod-info-label" data-i18n>Created Date</span><span class="wod-info-value" id="valCreated">—</span></div>
+        <div class="wod-info-item"><span class="wod-info-label" data-i18n>Status</span><span class="wod-info-value" id="valStatus">—</span></div>
+      </div>
+      <div class="wod-info-item" style="margin-top:12px;">
+        <span class="wod-info-label" data-i18n>Description</span>
+        <span class="wod-info-value" id="valDescription" style="font-weight:400;font-size:14px;">—</span>
+      </div>
+    </div>
+
+    <!-- Completion Form -->
+    <div class="wod-card" id="completionCard">
+      <h2 data-i18n>Completion</h2>
+      <form id="woCompletionForm" onsubmit="submitCompletion(event)">
+        <div class="wod-form-group">
+          <label for="woCompletedDate" data-i18n>Completed Date <span class="req">*</span></label>
+          <input type="date" id="woCompletedDate" name="woCompletedDate" required>
+        </div>
+        <div class="wod-form-group">
+          <label for="woCompletionNotes" data-i18n>Completion Notes</label>
+          <textarea id="woCompletionNotes" name="woCompletionNotes"></textarea>
+        </div>
+        <button type="submit" class="wod-btn" id="btnComplete" data-i18n>Complete Work Order</button>
+      </form>
+    </div>
+
+    <!-- Foreman Review Form -->
+    <div class="wod-card" id="reviewCard">
+      <h2 data-i18n>Foreman Review</h2>
+      <form id="woReviewForm" onsubmit="submitReview(event)">
+        <div class="wod-form-group">
+          <label for="woReviewStatus" data-i18n>Review Status <span class="req">*</span></label>
+          <select id="woReviewStatus" name="woReviewStatus" required>
+            <option value="" data-i18n>Select…</option>
+            <option value="approved" data-i18n>Approved</option>
+            <option value="reopen" data-i18n>Reopen</option>
+          </select>
+        </div>
+        <div class="wod-form-group">
+          <label for="woReviewNotes" data-i18n>Review Notes</label>
+          <textarea id="woReviewNotes" name="woReviewNotes"></textarea>
+        </div>
+        <button type="submit" class="wod-btn" id="btnReview" data-i18n>Submit Review</button>
+      </form>
+    </div>
+  </div>
+  <div id="dashFooter"></div>
+  <script src="/app/shared/dashboard-common.js?v=13"></script>
+  <script src="/app/shared/auth-check.js?v=13"></script>
+  <script src="/app/shared/translate.js?v=2"></script>
+  <script src="/app/work-orders/workorder-detail.js?v=1"></script>
 </body>
 </html>
