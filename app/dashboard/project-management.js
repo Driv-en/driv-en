@@ -498,8 +498,10 @@ async function loadProjectTypes() {
 try {
 var resp = await fetch('/api/ProjectTypes');
 var data = await resp.json();
-if (resp.ok && data && data.records && data.records.length > 0) {
-projectTypes = data.records.map(function(r) {
+console.log('[loadProjectTypes] response:', resp.status, data);
+var records = data.records || data.projectTypes || data.data || data.results || [];
+if (resp.ok && records.length > 0) {
+projectTypes = records.map(function(r) {
 var f = (r.fields && typeof r.fields === 'object') ? r.fields : r;
 return { name: f['Project Type Name'] || f.name || '', description: f['Description'] || f.description || '' };
 }).filter(function(t) { return t.name; });
@@ -509,6 +511,7 @@ var saved = localStorage.getItem('driven_project_types');
 if (saved) projectTypes = JSON.parse(saved);
 }
 } catch(e) {
+console.error('[loadProjectTypes] error:', e);
 try {
 var saved = localStorage.getItem('driven_project_types');
 if (saved) projectTypes = JSON.parse(saved);
@@ -529,8 +532,10 @@ async function loadClients() {
 try {
 var resp = await fetch('/api/Clients');
 var data = await resp.json();
-if (resp.ok && data && data.records) {
-allClients = data.records.filter(function(r) { return r; }).map(normalizeClient);
+console.log('[loadClients] response:', resp.status, data);
+var records = data.records || data.clients || data.data || data.results || [];
+if (resp.ok && records.length > 0) {
+allClients = records.filter(function(r) { return r; }).map(normalizeClient);
 } else {
 allClients = [];
 }
