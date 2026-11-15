@@ -1,6 +1,11 @@
 /**
- * DRIV-EN Platform: Onboarding Asset Types Controller
+ * DRIV-EN Platform: Onboarding Asset Types Controller (v7)
  * File: /app/onboarding/asset-types.js
+ *
+ * v7 changes:
+ *   - Removed duplicate generateAssetTypeCode() definition (was dead code).
+ *   - Category group now read from data-category-key attribute on section headings
+ *     so it stays English even when the visible heading is translated to Spanish.
  */
 
 var atDirty = false;
@@ -71,19 +76,6 @@ function isStandardMatch(savedStr, standardValue, standardLabel) {
   }
 
   return false;
-}
-
-/**
- * Generates a clean, unique code string to satisfy D1 NOT NULL constraints on `asset_type_code`.
- */
-function generateAssetTypeCode(name, elementId) {
-  if (elementId && elementId.startsWith("at_")) {
-    return elementId.toUpperCase();
-  }
-  return String(name || "")
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "") || "CUSTOM_ASSET_TYPE";
 }
 
 /**
@@ -455,7 +447,10 @@ async function saveAssetTypes(e) {
       var prev = parentGrid.previousElementSibling;
       while (prev) {
         if (prev.classList && prev.classList.contains('at-section-heading')) {
-          categoryGroup = prev.textContent.replace(/^[^\w\s]+/, '').trim();
+          // v7: prefer data-category-key (English canonical) over textContent
+          // (textContent may be translated to Spanish at runtime)
+          categoryGroup = prev.getAttribute('data-category-key') ||
+            prev.textContent.replace(/^[^\w\s]+/, '').trim();
           break;
         }
         prev = prev.previousElementSibling;
