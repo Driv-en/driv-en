@@ -1,20 +1,26 @@
 /**
- * translate.js — DRIV-EN Content Translation (v1)
+ * translate.js — DRIV-EN Content Translation (v2)
  *
- * Uses Workers AI m2m100-1.2b via /api/translate endpoint.
- * Adds "Translate" buttons to elements with [data-translate] attribute.
- * Original text is always preserved; translation shows in a toggle overlay.
+ * Two translation modes:
+ *
+ * 1. UI Auto-Translation (data-i18n attribute)
+ *    - For static UI text (labels, buttons, headings, nav items)
+ *    - Auto-translates on page load if UI language ≠ English
+ *    - Text is replaced in-place; original stored in data-original-text
+ *    - Uses POST /api/translate/batch for efficiency (one API call for all UI strings)
+ *    - Client-side localStorage cache for instant subsequent loads
+ *
+ * 2. Content Translation (data-translate attribute) — unchanged from v1
+ *    - For user-generated content (notes, descriptions)
+ *    - Adds "🌐 Translate" button, shows translation in overlay below
+ *    - On-demand, per-element
  *
  * Usage in HTML:
- *   <p data-translate data-entity-type="work_order" data-entity-id="123" data-field-name="description">
- *     Some text to translate
- *   </p>
- *
- * Or call manually:
- *   DRIVEN_TRANSLATE.translate(textEl, { entity_type, entity_id, field_name, target_lang })
+ *   UI text:     <span data-i18n>Overview</span>
+ *   Content:     <p data-translate data-entity-type="work_order" data-entity-id="123">Note text</p>
  *
  * Load after dashboard-common.js:
- *   <script src="/app/shared/translate.js?v=1"></script>
+ *   <script src="/app/shared/translate.js?v=2"></script>
  */
 
 (function() {
@@ -58,24 +64,286 @@
       '  background: var(--bg-card, #fff); color: var(--text, #0f172a); font-size: 12px;',
       '  margin-left: 6px;',
       '}',
+      '',
+      '/* Language toggle for login page */',
+      '.driven-lang-toggle {',
+      '  display: flex; align-items: center; justify-content: center; gap: 8px;',
+      '  margin: 0 auto 20px auto; max-width: 200px;',
+      '}',
+      '.driven-lang-toggle select {',
+      '  padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px;',
+      '  font-size: 14px; font-weight: 600; cursor: pointer; background: #fff; color: #1e293b;',
+      '  outline: none;',
+      '}',
+      '.driven-lang-toggle select:focus { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,0.15); }',
+      '.driven-lang-toggle-label { font-size: 13px; color: #64748b; font-weight: 600; }',
     ].join('\n');
     document.head.appendChild(style);
   }
 
-  // -- Default target language (stored per user) --
-  function getTargetLang() {
+  // ===== UI Language (for auto-translating interface text) =====
+
+  function getUILang() {
     try {
-      var saved = localStorage.getItem('driven-translate-lang');
+      var saved = localStorage.getItem('driven-ui-lang');
       if (saved) return saved;
     } catch (e) {}
-    return 'es'; // default to Spanish
+    return 'en';
   }
 
-  function setTargetLang(lang) {
-    try { localStorage.setItem('driven-translate-lang', lang); } catch (e) {}
+  function setUILang(lang) {
+    try { localStorage.setItem('driven-ui-lang', lang); } catch (e) {}
   }
 
-  // -- Translate function --
+  // ===== Content Translation Language =====
+  // Now unified with UI language — the translate button translates content
+  // INTO the viewer's UI language. If content is already in that language,
+  // no button is shown.
+
+  function getTargetLang() {
+    return getUILang();
+  }
+
+  // ===== localStorage cache for UI translations =====
+
+  function getUICacheKey(lang) {
+    return 'driven-ui-translations-' + lang;
+  }
+
+  function getCachedUITranslations(lang) {
+    try {
+      var raw = localStorage.getItem(getUICacheKey(lang));
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return {};
+  }
+
+  function saveCachedUITranslations(lang, map) {
+    try {
+      localStorage.setItem(getUICacheKey(lang), JSON.stringify(map));
+    } catch (e) {}
+  }
+
+  function addCachedUITranslation(lang, source, translated) {
+    var cache = getCachedUITranslations(lang);
+    cache[source] = translated;
+    saveCachedUITranslations(lang, cache);
+  }
+
+  // ===== Auto-Translate UI =====
+
+  // Selector for elements that are always UI text (auto-scanned on every page).
+  // data-i18n = explicit manual tag; the rest are common HTML/DRIV-EN UI element
+  // types that are safe to auto-translate. Use data-no-translate to exclude.
+  var UI_TEXT_SELECTOR = [
+    '[data-i18n]:not([data-no-translate])',
+    'th:not([data-no-translate])',
+    'label:not([data-no-translate])',
+    'legend:not([data-no-translate])',
+    'option:not([data-no-translate])',
+    // DRIV-EN dashboard UI classes
+    '.admin-tab:not([data-no-translate])',
+    '.admin-subtab:not([data-no-translate])',
+    '.admin-tab-logout:not([data-no-translate])',
+    '.modal-title:not([data-no-translate])',
+    '.stat-card h3:not([data-no-translate])',
+    '.dash-links-card h3:not([data-no-translate])',
+    '.settings-section h3:not([data-no-translate])',
+    '.step-toggle-name:not([data-no-translate])',
+    '.step-toggle-desc:not([data-no-translate])',
+    '.welcome-detail-label:not([data-no-translate])',
+    '.dash-theme-label:not([data-no-translate])',
+    '.welcome-uom-label:not([data-no-translate])',
+    '.btn-save:not([data-no-translate])',
+    '.login-button:not([data-no-translate])',
+    '.no-account-line:not([data-no-translate])',
+    '.no-account-line-2:not([data-no-translate])',
+    '.action-col-2:not([data-no-translate])',
+    '.progress-text:not([data-no-translate])',
+    '.pill-btn:not([data-no-translate])',
+    '#welcome-name:not([data-no-translate])',
+    '.driven-lang-toggle-label:not([data-no-translate])',
+    '.emp-form-card > div:not([data-no-translate])',
+    '.welcome-uom-hint:not([data-no-translate])',
+    '.um-subtitle:not([data-no-translate])',
+    '.form-links-grid .emp-form-card > div:not([data-no-translate])',
+  ].join(', ');
+
+  var uiTranslateInProgress = false;
+  var uiTranslatePending = false;
+
+  async function autoTranslateUI(optLang) {
+    var lang = optLang || getUILang();
+
+    // If English, restore originals (if previously translated)
+    if (lang === 'en') {
+      restoreUIOriginals();
+      return;
+    }
+
+    // If a translation is already in progress, mark pending and return
+    if (uiTranslateInProgress) {
+      uiTranslatePending = true;
+      return;
+    }
+
+    uiTranslateInProgress = true;
+
+    try {
+      var elements = document.querySelectorAll(UI_TEXT_SELECTOR);
+      if (elements.length === 0) return;
+
+      // Collect unique text strings, track which elements need which text
+      var textToElements = {}; // "original text" -> [element, element, ...]
+      var allTexts = [];
+
+      for (var i = 0; i < elements.length; i++) {
+        var el = elements[i];
+        // Skip elements inside translate button containers
+        if (el.classList && el.classList.contains('driven-translate-btn')) continue;
+        // Skip elements already handled by content translation (data-translate)
+        if (el.hasAttribute('data-translate')) continue;
+
+        // Get original text (from data-original-text if already translated, else current text)
+        var text = el.getAttribute('data-original-text');
+        if (!text) {
+          text = (el.textContent || '').trim();
+          if (!text || text.length < 1) continue;
+          // Skip pure numbers, dates, currency, or very short codes
+          if (/^[\d\s$,.\/\-+%°]+$/.test(text)) continue;
+          el.setAttribute('data-original-text', text);
+        }
+
+        if (!textToElements[text]) {
+          textToElements[text] = [];
+          allTexts.push(text);
+        }
+        textToElements[text].push(el);
+      }
+
+      if (allTexts.length === 0) return;
+
+      // Check localStorage cache first
+      var localCache = getCachedUITranslations(lang);
+      var cached = {};
+      var uncached = [];
+
+      allTexts.forEach(function(text) {
+        if (localCache[text]) {
+          cached[text] = localCache[text];
+        } else {
+          uncached.push(text);
+        }
+      });
+
+      // Apply cached translations immediately
+      Object.keys(cached).forEach(function(text) {
+        var els = textToElements[text];
+        for (var j = 0; j < els.length; j++) {
+          els[j].textContent = cached[text];
+        }
+      });
+
+      // Fetch uncached from API
+      if (uncached.length > 0) {
+        try {
+          var resp = await fetch('/api/translate/batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              items: uncached,
+              source_lang: 'en',
+              target_lang: lang,
+            }),
+          });
+
+          if (resp && resp.ok) {
+            var data = await resp.json();
+            if (data.success && data.results) {
+              data.results.forEach(function(r) {
+                if (r.translated && r.translated !== r.source) {
+                  cached[r.source] = r.translated;
+                  addCachedUITranslation(lang, r.source, r.translated);
+                  var els = textToElements[r.source];
+                  if (els) {
+                    for (var k = 0; k < els.length; k++) {
+                      els[k].textContent = r.translated;
+                    }
+                  }
+                }
+              });
+            }
+          }
+        } catch (apiErr) {
+          console.warn('[Translate] Batch API error:', apiErr.message);
+          // Fall back to individual translations if batch fails
+          await translateUIIndividually(uncached, textToElements, lang, cached);
+        }
+      }
+    } catch (e) {
+      console.error('[Translate] autoTranslateUI error:', e.message);
+    } finally {
+      uiTranslateInProgress = false;
+      // If another translate was requested while we were busy, run again
+      if (uiTranslatePending) {
+        uiTranslatePending = false;
+        setTimeout(function() { autoTranslateUI(lang); }, 100);
+      }
+    }
+  }
+
+  // Fallback: translate texts one by one if batch endpoint unavailable
+  async function translateUIIndividually(texts, textToElements, lang, cached) {
+    for (var i = 0; i < texts.length; i++) {
+      var text = texts[i];
+      try {
+        var resp = await fetch('/api/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            text: text,
+            source_lang: 'en',
+            target_lang: lang,
+            entity_type: 'ui',
+            entity_id: 'ui',
+            field_name: 'ui',
+          }),
+        });
+        if (resp && resp.ok) {
+          var data = await resp.json();
+          if (data.success && data.translated_text) {
+            cached[text] = data.translated_text;
+            addCachedUITranslation(lang, text, data.translated_text);
+            var els = textToElements[text];
+            if (els) {
+              for (var j = 0; j < els.length; j++) {
+                els[j].textContent = data.translated_text;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[Translate] Individual UI translation failed for "' + text.substring(0, 30) + '":', e.message);
+      }
+    }
+  }
+
+  // Restore original UI text (when switching back to English)
+  function restoreUIOriginals() {
+    var elements = document.querySelectorAll(UI_TEXT_SELECTOR + ', [data-original-text]');
+    var seen = {};
+    for (var i = 0; i < elements.length; i++) {
+      if (seen[i]) continue;
+      seen[i] = true;
+      var original = elements[i].getAttribute('data-original-text');
+      if (original) elements[i].textContent = original;
+    }
+  }
+
+  // ===== Content Translation (on-demand, per-element) — from v1 =====
+
   async function translate(targetEl, opts) {
     if (!targetEl) return;
 
@@ -84,6 +352,7 @@
     targetEl.setAttribute('data-original-text', originalText.trim());
 
     var targetTypeLang = (opts && opts.target_lang) || getTargetLang();
+    var sourceLang = (opts && opts.source_lang) || targetEl.getAttribute('data-content-lang') || 'en';
     var entityType = (opts && opts.entity_type) || targetEl.getAttribute('data-entity-type') || '';
     var entityId = (opts && opts.entity_id) || targetEl.getAttribute('data-entity-id') || '';
     var fieldName = (opts && opts.field_name) || targetEl.getAttribute('data-field-name') || '';
@@ -106,14 +375,14 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          text: originalText.trim(),
-          source_lang: 'en',
-          target_lang: targetTypeLang,
-          entity_type: entityType,
-          entity_id: entityId,
-          field_name: fieldName,
-        }),
+      body: JSON.stringify({
+        text: originalText.trim(),
+        source_lang: sourceLang,
+        target_lang: targetTypeLang,
+        entity_type: entityType,
+        entity_id: entityId,
+        field_name: fieldName,
+      }),
       });
 
       var data = await resp.json();
@@ -160,13 +429,18 @@
     return div.innerHTML;
   }
 
-  // -- Add translate button to an element --
+  // -- Add translate button to a content element --
   function addTranslateButton(targetEl) {
     if (targetEl.dataset.translateAdded) return;
     targetEl.dataset.translateAdded = '1';
 
     var text = (targetEl.textContent || '').trim();
     if (!text || text.length < 2) return; // skip empty or very short text
+
+    // Check if content is already in the viewer's language — if so, no button needed
+    var contentLang = targetEl.getAttribute('data-content-lang') || 'en'; // default to en for legacy content
+    var viewerLang = getUILang();
+    if (contentLang === viewerLang) return; // same language, no translation needed
 
     var btn = document.createElement('button');
     btn.type = 'button';
@@ -185,11 +459,17 @@
     }
   }
 
-  // -- DOM Auto-Init: scan for [data-translate] elements --
+  // -- DOM Auto-Init: scan for [data-translate] elements (content translation buttons) --
   function init() {
     var elements = document.querySelectorAll('[data-translate]');
     for (var i = 0; i < elements.length; i++) {
       addTranslateButton(elements[i]);
+    }
+
+    // Auto-translate UI if language is not English
+    var uiLang = getUILang();
+    if (uiLang !== 'en') {
+      autoTranslateUI(uiLang);
     }
   }
 
@@ -199,7 +479,10 @@
     addTranslateButton: addTranslateButton,
     init: init,
     getTargetLang: getTargetLang,
-    setTargetLang: setTargetLang,
+    getUILang: getUILang,
+    setUILang: setUILang,
+    autoTranslateUI: autoTranslateUI,
+    restoreUIOriginals: restoreUIOriginals,
   };
 
   // -- Auto-init --
@@ -212,7 +495,10 @@
   // Re-init after dashSessionLoaded
   document.addEventListener('dashSessionLoaded', function() {
     setTimeout(init, 200);
-    setTimeout(init, 1000);
+    setTimeout(function() {
+      var uiLang = getUILang();
+      if (uiLang !== 'en') autoTranslateUI(uiLang);
+    }, 500);
   });
 
 })();
