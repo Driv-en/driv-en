@@ -888,14 +888,13 @@ function initAnalytics() {
 
 async function loadAnalytics() {
   try {
-    var assetsRes, fuelRes, projectsRes, employeesRes;
     var results = await Promise.all([
       fetch('/api/assets', { credentials: 'include' }).then(function(r) { return r.json(); }).catch(function() { return { records: [] }; }),
       fetch('/api/fuel_transactions', { credentials: 'include' }).then(function(r) { return r.json(); }).catch(function() { return { records: [] }; }),
       fetch('/api/projects', { credentials: 'include' }).then(function(r) { return r.json(); }).catch(function() { return { records: [] }; }),
       fetch('/api/employees', { credentials: 'include' }).then(function(r) { return r.json(); }).catch(function() { return { records: [] }; }),
     ]);
-    assetsRes = results[0]; fuelRes = results[1]; projectsRes = results[2]; employeesRes = results[3];
+    var assetsRes = results[0], fuelRes = results[1], projectsRes = results[2], employeesRes = results[3];
 
     var assets = assetsRes.records || assetsRes.data || [];
     var fuel = fuelRes.records || fuelRes.data || [];
@@ -909,18 +908,21 @@ async function loadAnalytics() {
     document.getElementById('kpiInspections').textContent = recentInspections;
     var fuelCost30d = fuel.filter(function(f) { return f.transaction_date && f.transaction_date >= thirtyDaysAgo; }).reduce(function(sum, f) { return sum + (parseFloat(f.total_cost) || 0); }, 0);
     document.getElementById('kpiFuelCost').textContent = '$' + fuelCost30d.toLocaleString(undefined, { maximumFractionDigits: 0 });
-    var activeProjects = projects.filter(function(p) { return p.status === 'in_progress' || p.status === 'awarded'; }).length;
+    var activeProjects = projects.filter(function(p) {
+      var s = String(p.status || '').toLowerCase();
+      return s === 'in progress' || s === 'awarded';
+    }).length;
     document.getElementById('kpiProjects').textContent = activeProjects;
     document.getElementById('kpiEmployees').textContent = employees.length;
 
     var assetStatuses = {};
     assets.forEach(function(a) {
-      var s = a.status || 'unknown';
+      var s = String(a.status || 'unknown').toLowerCase();
       assetStatuses[s] = (assetStatuses[s] || 0) + 1;
     });
     renderBarChart('chartWOStatus', assetStatuses, {
       'active': '#16a34a', 'inactive': '#64748b', 'in_repair': '#f59e0b',
-      'retired': '#ef4444', 'unknown': '#94a3b8'
+      'in repair': '#f59e0b', 'retired': '#ef4444', 'unknown': '#94a3b8'
     });
 
     var assetTypes = {};
@@ -936,7 +938,7 @@ async function loadAnalytics() {
       tbody.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);">No assets found</td></tr>';
     } else {
       tbody.innerHTML = recentAssets.map(function(a) {
-        return '<tr style="border-bottom:1px solid var(--border);">' +
+        return '<tr style="border-bottom:1px solid var(--border);cursor:pointer;" onclick="window.location.href=\'/app/dashboard/asset-management.html?asset=' + encodeURIComponent(a.id || '') + '\'">' +
           '<td style="padding:6px 10px;">' + esc(a.asset_number || a.id || '') + '</td>' +
           '<td style="padding:6px 10px;">' + esc(a.name || '') + '</td>' +
           '<td style="padding:6px 10px;"><span style="padding:2px 8px;border-radius:4px;font-size:11px;background:' + statusColor(a.status) + ';color:#fff;">' + esc(a.status || '') + '</span></td>' +
@@ -952,8 +954,9 @@ async function loadAnalytics() {
 }
 
 function statusColor(status) {
-  var colors = { 'active': '#16a34a', 'inactive': '#64748b', 'in_repair': '#f59e0b', 'retired': '#ef4444', 'open': '#3b82f6', 'assigned': '#8b5cf6', 'in_progress': '#f59e0b', 'completed': '#16a34a', 'cancelled': '#ef4444', 'on_hold': '#64748b' };
-  return colors[status] || '#94a3b8';
+  var s = String(status || '').toLowerCase();
+  var colors = { 'active': '#16a34a', 'inactive': '#64748b', 'in_repair': '#f59e0b', 'in repair': '#f59e0b', 'retired': '#ef4444', 'open': '#3b82f6', 'assigned': '#8b5cf6', 'in_progress': '#f59e0b', 'completed': '#16a34a', 'cancelled': '#ef4444', 'on_hold': '#64748b' };
+  return colors[s] || '#94a3b8';
 }
 
 function renderBarChart(containerId, data, colorMap) {
@@ -971,7 +974,7 @@ function renderBarChart(containerId, data, colorMap) {
     var pct = maxVal > 0 ? Math.round((value / maxVal) * 100) : 0;
     var color = colorMap[label] || '#0284c7';
     return '<div style="display:flex;align-items:center;gap:8px;">' +
-      '<div style="width:100px;font-size:12px;text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(label) + '</div>' +
+      '<div style="width:140px;font-size:12px;text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + esc(label) + '">' + esc(label) + '</div>' +
       '<div style="flex:1;background:var(--bg-step,#f1f5f9);border-radius:4px;height:22px;position:relative;overflow:hidden;">' +
         '<div style="width:' + pct + '%;height:100%;background:' + color + ';border-radius:4px;transition:width 300ms ease;"></div>' +
         '<span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:600;color:var(--text);">' + value + '</span>' +
