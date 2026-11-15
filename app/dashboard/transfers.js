@@ -1,4 +1,4 @@
-/** 
+/**
  * transfers.js -- DRIV-EN Transfers page logic (v1)
  *
  * Extracted from transfers.html inline script.
@@ -343,7 +343,7 @@ async function showDetail(id) {
       if (t.carrier_name) html += '<span>' + esc(t.carrier_name) + '</span>';
       if (t.asset_name) html += '<span>\uD83D\uDCE6 ' + esc(t.asset_name) + '</span>';
       html += '</div>';
-      if (t.notes) html += '<p style="margin-top:10px;font-size:13px;color:var(--text-muted);" data-voice-read>Notes: ' + esc(t.notes) + '</p>';
+      if (t.notes) html += '<p style="margin-top:10px;font-size:13px;color:var(--text-muted);">Notes: ' + esc(t.notes) + '</p>';
       html += '</div>';
 
       html += '<div class="section-title">Event Trail</div>';
