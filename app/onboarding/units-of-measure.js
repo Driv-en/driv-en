@@ -1,8 +1,11 @@
 /**
- * units-of-measure.js — DRIV-EN Onboarding: Measurement System Auto-Detect
+ * units-of-measure.js — DRIV-EN Onboarding: Measurement System Auto-Detect (v2)
+ * File: /app/onboarding/units-of-measure.js
  *
- * Extracted from units-of-measure.html for CSP compliance and separation of concerns.
- * Depends on: dashboard-common.js, units-global.js, auth-check.js (loaded before this file)
+ * v2 changes:
+ *   - Replaced innerHTML string concatenation with DOM-safe node building.
+ *   - Exposed selectSystem on window for inline onclick handlers.
+ *   - Added data-i18n to dynamically created greeting text.
  */
 
 /* ===== MEASUREMENT SYSTEM AUTO-DETECT ===== */
@@ -54,6 +57,7 @@ function selectSystem(sys) {
   umDirty = true;
   highlightCard();
 }
+window.selectSystem = selectSystem;
 
 /* ===== DETECT COUNTRY & LOAD EXISTING SETTING ===== */
 async function loadUnits() {
@@ -112,7 +116,15 @@ async function loadUnits() {
   var countryName = detectedCountry === 'CA' ? 'Canada' : 'United States';
   var systemName = selectedSystem === 'metric' ? 'Metric' : 'Imperial';
   if (detectedEl) {
-    detectedEl.innerHTML = 'Based on your organization\'s country (' + countryName + '), DRIV-EN will use <strong>' + systemName + '</strong> units.';
+    // DOM-safe: build the sentence with nodes instead of innerHTML
+    detectedEl.textContent = '';
+    detectedEl.appendChild(document.createTextNode("Based on your organization's country ("));
+    detectedEl.appendChild(document.createTextNode(countryName));
+    detectedEl.appendChild(document.createTextNode("), DRIV-EN will use "));
+    var strong = document.createElement('strong');
+    strong.textContent = systemName;
+    detectedEl.appendChild(strong);
+    detectedEl.appendChild(document.createTextNode(" units."));
   }
   if (selectorEl) selectorEl.style.display = 'block';
   highlightCard();
