@@ -274,21 +274,30 @@
         <span class="login-icon-mask"></span>
         <img src="/assets/icons/driven-login-icon.png" class="login-icon-fallback" alt="DRIV‑EN login icon">
     </div>
-    <h2>Login to <span class="brand-driv">DRIV</span><span class="brand-dash">‑</span><span class="brand-en">EN</span></h2>
+    <h2><span data-i18n>Login to</span> <span class="brand-driv">DRIV</span><span class="brand-dash">‑</span><span class="brand-en">EN</span></h2>
 
-    <div id="error-banner" class="error-banner">
+    <!-- Language Toggle -->
+    <div class="driven-lang-toggle">
+        <span class="driven-lang-toggle-label" data-i18n>Language:</span>
+        <select id="uiLangSelect" aria-label="Select interface language">
+            <option value="en">English</option>
+            <option value="es">Español</option>
+        </select>
+    </div>
+
+    <div id="error-banner" class="error-banner" data-i18n>
         Invalid credentials.
     </div>
 
     <form id="login-form">
-        <label>Email Address<span class="required-star">*</span></label>
+        <label data-i18n>Email Address<span class="required-star">*</span></label>
         <input type="email" id="email" required />
 
-        <label>Password<span class="required-star">*</span></label>
+        <label data-i18n>Password<span class="required-star">*</span></label>
         <div class="password-wrapper">
             <input type="password" id="password" required />
             <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility()" title="Show/Hide password">
-                <span id="password-toggle-icon" style="color:#2563eb;font-size:12px;font-weight:600;">SHOW</span>
+                <span id="password-toggle-icon" style="color:#2563eb;font-size:12px;font-weight:600;" data-i18n>SHOW</span>
             </button>
         </div>
 
@@ -298,21 +307,21 @@
                 <input type="checkbox" id="remember" />
             </div>
 
-            <div class="action-col-2">
+            <div class="action-col-2" data-i18n>
                 Remember me
             </div>
 
             <div class="action-col-3">
-                <a id="forgot-link">Forgot Password?</a>
+                <a id="forgot-link" data-i18n>Forgot Password?</a>
             </div>
         </div>
 
-        <button type="submit" class="login-button">Login</button>
+        <button type="submit" class="login-button" data-i18n>Login</button>
     </form>
 
     <div class="no-account">
-        <div class="no-account-line">Don't have an account?</div>
-        <div class="no-account-line-2">Contact your Human Resources Department.</div>
+        <div class="no-account-line" data-i18n>Don't have an account?</div>
+        <div class="no-account-line-2" data-i18n>Contact your Human Resources Department.</div>
     </div>
 </div>
 <!-- ===== END PAGE CONTENT ===== -->
@@ -342,26 +351,130 @@ document.addEventListener("DOMContentLoaded", async () => {
 </script>
 <script src="/components/nav.js?v=2"></script>
 
+<!-- ===== TRANSLATION (UI auto-translate) ===== -->
+<script src="/app/shared/translate.js?v=2"></script>
+
 <!-- ===== LOGIN SCRIPT ===== -->
 <script>
+    // Pre-translated Spanish strings for the login page (no auth session yet,
+    // so we use a local dictionary instead of the API)
+    var LOGIN_ES = {
+        'Login to': 'Iniciar sesión en',
+        'Language:': 'Idioma:',
+        'Invalid credentials.': 'Credenciales inválidas.',
+        'Email Address*': 'Correo electrónico*',
+        'Password*': 'Contraseña*',
+        'SHOW': 'MOSTRAR',
+        'HIDE': 'OCULTAR',
+        'Remember me': 'Recuérdame',
+        'Forgot Password?': '¿Olvidó su contraseña?',
+        'Login': 'Iniciar sesión',
+        "Don't have an account?": "¿No tiene una cuenta?",
+        'Contact your Human Resources Department.': 'Contacte a su departamento de recursos humanos.',
+        'Please enter your email address first, then click Forgot Password.': 'Por favor ingrese su correo electrónico primero, luego haga clic en ¿Olvidó su contraseña?',
+        'If an account exists for ': 'Si existe una cuenta para ',
+        ', a password reset link has been sent to that email.': ', se ha enviado un enlace de restablecimiento de contraseña a ese correo.',
+        'Could not process request: ': 'No se pudo procesar la solicitud: ',
+        'Unknown error': 'Error desconocido',
+        'Could not process request. Please try again.': 'No se pudo procesar la solicitud. Por favor intente de nuevo.'
+    };
+
+    // Pre-populate localStorage UI translation cache for Spanish so the login
+    // page translates instantly without needing an authenticated API call
+    function prePopulateLoginTranslations() {
+        try {
+            var key = 'driven-ui-translations-es';
+            var existing = {};
+            try { existing = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) {}
+            var merged = Object.assign({}, existing, LOGIN_ES);
+            localStorage.setItem(key, JSON.stringify(merged));
+        } catch(e) {}
+    }
+
+    // Apply language on page load
+    function applyLoginLanguage() {
+        var lang = 'en';
+        try { lang = localStorage.getItem('driven-ui-lang') || 'en'; } catch(e) {}
+        var select = document.getElementById('uiLangSelect');
+        if (select) select.value = lang;
+
+        if (lang !== 'en') {
+            prePopulateLoginTranslations();
+            if (window.DRIVEN_TRANSLATE && DRIVEN_TRANSLATE.autoTranslateUI) {
+                DRIVEN_TRANSLATE.autoTranslateUI(lang);
+            }
+        }
+    }
+
+    // Language toggle handler
+    document.addEventListener('DOMContentLoaded', function() {
+        var select = document.getElementById('uiLangSelect');
+        if (select) {
+            select.addEventListener('change', function() {
+                var lang = this.value;
+                if (window.DRIVEN_TRANSLATE) {
+                    DRIVEN_TRANSLATE.setUILang(lang);
+                } else {
+                    try { localStorage.setItem('driven-ui-lang', lang); } catch(e) {}
+                }
+
+                if (lang === 'en') {
+                    // Restore English originals
+                    if (window.DRIVEN_TRANSLATE && DRIVEN_TRANSLATE.restoreUIOriginals) {
+                        DRIVEN_TRANSLATE.restoreUIOriginals();
+                    }
+                    // Restore password toggle text
+                    var toggleIcon = document.getElementById('password-toggle-icon');
+                    var pwInput = document.getElementById('password');
+                    if (toggleIcon) toggleIcon.textContent = pwInput && pwInput.type === 'text' ? 'HIDE' : 'SHOW';
+                } else {
+                    prePopulateLoginTranslations();
+                    if (window.DRIVEN_TRANSLATE && DRIVEN_TRANSLATE.autoTranslateUI) {
+                        DRIVEN_TRANSLATE.autoTranslateUI(lang);
+                    }
+                    // Fix password toggle text after translation
+                    setTimeout(function() {
+                        var toggleIcon = document.getElementById('password-toggle-icon');
+                        var pwInput = document.getElementById('password');
+                        if (toggleIcon) {
+                            var isText = pwInput && pwInput.type === 'text';
+                            var translatedShow = (lang === 'es') ? 'MOSTRAR' : 'SHOW';
+                            var translatedHide = (lang === 'es') ? 'OCULTAR' : 'HIDE';
+                            toggleIcon.textContent = isText ? translatedHide : translatedShow;
+                        }
+                    }, 300);
+                }
+            });
+        }
+        applyLoginLanguage();
+    });
+
     // Show/Hide password toggle
     function togglePasswordVisibility() {
         var passwordInput = document.getElementById("password");
         var toggleLabel = document.getElementById("password-toggle-icon");
         if (passwordInput.type === "password") {
             passwordInput.type = "text";
-            toggleLabel.textContent = "HIDE";
+            var lang = 'en';
+            try { lang = localStorage.getItem('driven-ui-lang') || 'en'; } catch(e) {}
+            toggleLabel.textContent = lang === 'es' ? 'OCULTAR' : 'HIDE';
         } else {
             passwordInput.type = "password";
-            toggleLabel.textContent = "SHOW";
+            var lang2 = 'en';
+            try { lang2 = localStorage.getItem('driven-ui-lang') || 'en'; } catch(e) {}
+            toggleLabel.textContent = lang2 === 'es' ? 'MOSTRAR' : 'SHOW';
         }
     }
 
     // Forgot Password — uses the real /auth/forgot-password flow
     document.getElementById("forgot-link").addEventListener("click", async () => {
         const email = document.getElementById("email").value.trim();
+        var lang = 'en';
+        try { lang = localStorage.getItem('driven-ui-lang') || 'en'; } catch(e) {}
+        var t = LOGIN_ES;
+        var msgEnterEmail = lang === 'es' ? t['Please enter your email address first, then click Forgot Password.'] : 'Please enter your email address first, then click Forgot Password.';
         if (!email) {
-            alert("Please enter your email address first, then click Forgot Password.");
+            alert(msgEnterEmail);
             return;
         }
         try {
@@ -372,12 +485,17 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
             const data = await resp.json();
             if (data.success) {
-                alert("If an account exists for " + email + ", a password reset link has been sent to that email.");
+                var msgSuccess = lang === 'es'
+                    ? t['If an account exists for '] + email + t[', a password reset link has been sent to that email.']
+                    : "If an account exists for " + email + ", a password reset link has been sent to that email.";
+                alert(msgSuccess);
             } else {
-                alert("Could not process request: " + (data.error || "Unknown error"));
+                var msgFail = lang === 'es' ? (t['Could not process request: '] + (t[data.error] || data.error || t['Unknown error'])) : ("Could not process request: " + (data.error || "Unknown error"));
+                alert(msgFail);
             }
         } catch (e) {
-            alert("Could not process request. Please try again.");
+            var msgError = lang === 'es' ? t['Could not process request. Please try again.'] : 'Could not process request. Please try again.';
+            alert(msgError);
         }
     });
 
@@ -406,7 +524,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         const result = await response.json();
 
         if (!result.success) {
-            errorBanner.textContent = result.error || "Invalid credentials.";
+            var lang = 'en';
+            try { lang = localStorage.getItem('driven-ui-lang') || 'en'; } catch(e) {}
+            errorBanner.textContent = lang === 'es' ? (LOGIN_ES[result.error] || LOGIN_ES['Invalid credentials.']) : (result.error || "Invalid credentials.");
             errorBanner.style.display = "block";
             email.classList.add("error");
             password.classList.add("error");
@@ -415,7 +535,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         // Force password change on first login
         if (result.must_change_password) {
-            window.location.href = "/app/auth/change-password.html";
+            window.location.href = "/public/change-password.html";
             return;
         }
 
