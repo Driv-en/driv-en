@@ -335,6 +335,7 @@ async function handleSessionLoaded() {
 
   // ── Unit of Measure preference dropdown ────────────────────────────
   initUomPreference();
+  initLangSelect();
 
   // Rebuild header as single row + adjust sticky offsets
   rebuildHeader();
@@ -406,6 +407,25 @@ function initUomPreference() {
         localStorage.setItem('driv-en-unit-system', result.unit_system);
       } catch (e) {}
     });
+  });
+}
+
+/* ===== LANGUAGE SELECT ===== */
+function initLangSelect() {
+  var langSelect = document.getElementById('adminLangSelect');
+  if (!langSelect) return;
+
+  // Restore saved language
+  var savedLang = 'en';
+  try { savedLang = localStorage.getItem('driven-ui-lang') || 'en'; } catch (e) {}
+  langSelect.value = savedLang;
+
+  langSelect.addEventListener('change', function() {
+    var lang = langSelect.value;
+    if (window.DRIVEN_TRANSLATE) {
+      DRIVEN_TRANSLATE.setUILang(lang);
+      DRIVEN_TRANSLATE.autoTranslateUI(lang);
+    }
   });
 }
 
