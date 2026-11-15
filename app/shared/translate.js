@@ -205,12 +205,15 @@
   // Wrap bare text nodes in <span data-i18n> so they can be selected and translated
   function wrapBareTextNodes(root) {
     if (!root || !root.querySelector) return;
-    // Only process containers that may have bare text nodes (modals, dynamic content)
-    var containers = root.querySelectorAll('.modal-body, .modal-content');
-    if (root.classList && (root.classList.contains('modal-body') || root.classList.contains('modal-content'))) {
-      containers = [root];
+    // Process the entire document — catches all modal types, dynamic content,
+    // AJAX-injected panels, etc. The TreeWalker only visits text nodes (fast),
+    // and we skip any text node whose ancestor matches the selector (already translated).
+    var containers = [root];
+    // Also check for modal containers that may have been added dynamically
+    var modalContainers = root.querySelectorAll('[class*="modal-body"], [class*="modal-content"], [class*="modal-card"], [class*="modal-dialog"]');
+    for (var m = 0; m < modalContainers.length; m++) {
+      containers.push(modalContainers[m]);
     }
-    if (!containers || containers.length === 0) return;
 
     for (var c = 0; c < containers.length; c++) {
       var container = containers[c];
@@ -232,11 +235,20 @@
         // Skip if parent is <script> or <style>
         var tag = parent.tagName.toLowerCase();
         if (tag === 'script' || tag === 'style') continue;
-        // Skip if parent or any ancestor up to container matches the selector
+        // Skip if parent or ancestor matches the selector AND has no matching descendants
+        // (if the ancestor has matching descendants, it will be skipped by autoTranslateUI,
+        // so we must wrap the bare text node to translate it)
         var ancestor = parent;
         var skip = false;
         while (ancestor && ancestor !== container) {
-          if (ancestor.matches && ancestor.matches(UI_TEXT_SELECTOR)) { skip = true; break; }
+          if (ancestor.matches && ancestor.matches(UI_TEXT_SELECTOR)) {
+            if (!ancestor.querySelector(UI_TEXT_SELECTOR)) {
+              // No matching descendants — this ancestor will be translated as a whole
+              skip = true;
+              break;
+            }
+            // Has matching descendants — ancestor will be skipped, continue checking up
+          }
           ancestor = ancestor.parentElement;
         }
         if (skip) continue;
