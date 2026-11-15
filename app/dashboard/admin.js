@@ -880,8 +880,6 @@ function initAnalytics() {
 
   var btnAssets = document.getElementById('btnAnalyticsExportAssets');
   if (btnAssets) btnAssets.addEventListener('click', function() { exportCSV('assets'); });
-  var btnWO = document.getElementById('btnAnalyticsExportWO');
-  if (btnWO) btnWO.addEventListener('click', function() { exportCSV('workorders'); });
   var btnFuel = document.getElementById('btnAnalyticsExportFuel');
   if (btnFuel) btnFuel.addEventListener('click', function() { exportCSV('fuel'); });
 
@@ -890,40 +888,127 @@ function initAnalytics() {
 
 async function loadAnalytics() {
   try {
-    var [assetsRes, woRes, fuelRes, projectsRes, employeesRes] = await Promise.all([
-      fetch('/api/Equipment', { credentials: 'include' }).then(function(r) { return r.json(); }).catch(function() { return { results: [] }; }),
-      fetch('/api/work_orders?limit=200', { credentials: 'include' }).then(function(r) { return r.json(); }).catch(function() { return { results: [] }; }),
-      fetch('/api/fuel_transactions?limit=200', { credentials: 'include' }).then(function(r) { return r.json(); }).catch(function() { return { results: [] }; }),
-      fetch('/api/projects', { credentials: 'include' }).then(function(r) { return r.json(); }).catch(function() { return { results: [] }; }),
-      fetch('/api/employees', { credentials: 'include' }).then(function(r) { return r.json(); }).catch(function() { return { results: [] }; }),
+    var [assetsRes, fuelRes, projectsRes, employeesRes] = await Promise.all([
+      fetch('/api/assets', { credentials: 'include' }).then(function(r) { return r.json(); }).catch(function() { return { records: [] }; }),
+      fetch('/api/fuel_transactions', { credentials: 'include' }).then(function(r) { return r.json(); }).catch(function() { return { records: [] }; }),
+      fetch('/api/projects', { credentials: 'include' }).then(function(r) { return r.json(); }).catch(function() { return { records: [] }; }),
+      fetch('/api/employees', { credentials: 'include' }).then(function(r) { return r.json(); }).catch(function() { return { records: [] }; }),
     ]);
 
-    var assets = assetsRes.results || assetsRes || [];
-    var workOrders = woRes.results || woRes || [];
-    var fuel = fuelRes.results || fuelRes || [];
-    var projects = projectsRes.results || projectsRes || [];
-    var employees = employeesRes.results || employeesRes || [];
+    var assets = assetsRes.records || assetsRes.data || [];
+    var fuel = fuelRes.records || fuelRes.data || [];
+    var projects = projectsRes.records || projectsRes.data || [];
+    var employees = employeesRes.records || employeesRes.data || [];
 
     document.getElementById('kpiTotalAssets').textContent = assets.length;
-    var activeWO = workOrders.filter(function(w) { return w.status === 'open' || w.status === 'in_progress' || w.status === 'assigned'; }).length;
-    document.getElementById('kpiActiveWO').textContent = activeWO;
+    document.getElementById('kpiActiveWO').textContent = 'N/A';
     var thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
     var recentInspections = assets.filter(function(a) { return a.last_inspection_date && a.last_inspection_date >= thirtyDaysAgo; }).length;
     document.getElementById('kpiInspections').textContent = recentInspections;
     var fuelCost30d = fuel.filter(function(f) { return f.transaction_date && f.transaction_date >= thirtyDaysAgo; }).reduce(function(sum, f) { return sum + (parseFloat(f.total_cost) || 0); }, 0);
-    document.getElementById('kpiFuelCost').textContent = '$' + fuelCost30d.toLocaleString(undefined, { maximumFractionDigits: 0 });
+    document.getElementById('kpiFuelCost').textContent = '
+
+function statusColor(status) {
+  var colors = { 'open': '#3b82f6', 'assigned': '#8b5cf6', 'in_progress': '#f59e0b', 'completed': '#16a34a', 'cancelled': '#ef4444', 'on_hold': '#64748b' };
+  return colors[status] || '#94a3b8';
+}
+
+function renderBarChart(containerId, data, colorMap) {
+  var container = document.getElementById(containerId);
+  if (!container) return;
+  var entries = Object.entries(data).sort(function(a, b) { return b[1] - a[1]; });
+  if (entries.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:20px;">No data</div>';
+    return;
+  }
+  var maxVal = Math.max.apply(null, entries.map(function(e) { return e[1]; }));
+  container.innerHTML = entries.map(function(entry) {
+    var label = entry[0];
+    var value = entry[1];
+    var pct = maxVal > 0 ? Math.round((value / maxVal) * 100) : 0;
+    var color = colorMap[label] || '#0284c7';
+    return '<div style="display:flex;align-items:center;gap:8px;">' +
+      '<div style="width:100px;font-size:12px;text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(label) + '</div>' +
+      '<div style="flex:1;background:var(--bg-step,#f1f5f9);border-radius:4px;height:22px;position:relative;overflow:hidden;">' +
+        '<div style="width:' + pct + '%;height:100%;background:' + color + ';border-radius:4px;transition:width 300ms ease;"></div>' +
+        '<span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:600;color:var(--text);">' + value + '</span>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function esc(text) {
+  if (text == null) return '';
+  var div = document.createElement('div');
+  div.textContent = String(text);
+  return div.innerHTML;
+}
+
+async function exportCSV(type) {
+  try {
+    var url, filename, columns;
+    if (type === 'assets') {
+      url = '/api/Equipment';
+      filename = 'driv-en-assets.csv';
+      columns = ['asset_number', 'name', 'asset_type', 'make', 'model', 'year', 'status', 'location', 'assigned_to'];
+    } else if (type === 'workorders') {
+      url = '/api/work_orders?limit=1000';
+      filename = 'driv-en-work-orders.csv';
+      columns = ['wo_number', 'asset_name', 'status', 'priority', 'assigned_to', 'description', 'created_at', 'completed_at'];
+    } else if (type === 'fuel') {
+      url = '/api/fuel_transactions?limit=1000';
+      filename = 'driv-en-fuel.csv';
+      columns = ['transaction_date', 'asset_name', 'fuel_type', 'gallons', 'total_cost', 'vendor', 'odometer'];
+    } else {
+      return;
+    }
+
+    var resp = await fetch(url, { credentials: 'include' });
+    var data = await resp.json();
+    var rows = data.results || data || [];
+    if (!Array.isArray(rows)) rows = [];
+
+    var header = columns.join(',');
+    var lines = [header];
+    rows.forEach(function(row) {
+      var vals = columns.map(function(col) {
+        var v = row[col];
+        if (v == null) v = '';
+        v = String(v).replace(/"/g, '""');
+        if (v.indexOf(',') !== -1 || v.indexOf('"') !== -1 || v.indexOf('\n') !== -1) v = '"' + v + '"';
+        return v;
+      });
+      lines.push(vals.join(','));
+    });
+
+    var csv = lines.join('\n');
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    var link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+  } catch (e) {
+    console.error('[Analytics Export] Error:', e.message);
+    alert('Export failed: ' + e.message);
+  }
+}
+ + fuelCost30d.toLocaleString(undefined, { maximumFractionDigits: 0 });
     var activeProjects = projects.filter(function(p) { return p.status === 'in_progress' || p.status === 'awarded'; }).length;
     document.getElementById('kpiProjects').textContent = activeProjects;
     document.getElementById('kpiEmployees').textContent = employees.length;
 
-    var woStatuses = {};
-    workOrders.forEach(function(w) {
-      var s = w.status || 'unknown';
-      woStatuses[s] = (woStatuses[s] || 0) + 1;
+    // Assets by Status chart (replaces WO by Status since WO API not built yet)
+    var assetStatuses = {};
+    assets.forEach(function(a) {
+      var s = a.status || 'unknown';
+      assetStatuses[s] = (assetStatuses[s] || 0) + 1;
     });
-    renderBarChart('chartWOStatus', woStatuses, {
-      'open': '#3b82f6', 'assigned': '#8b5cf6', 'in_progress': '#f59e0b',
-      'completed': '#16a34a', 'cancelled': '#ef4444', 'on_hold': '#64748b', 'unknown': '#94a3b8'
+    renderBarChart('chartWOStatus', assetStatuses, {
+      'active': '#16a34a', 'inactive': '#64748b', 'in_repair': '#f59e0b',
+      'retired': '#ef4444', 'unknown': '#94a3b8'
     });
 
     var assetTypes = {};
@@ -933,19 +1018,20 @@ async function loadAnalytics() {
     });
     renderBarChart('chartAssetTypes', assetTypes, {});
 
-    var recentWO = workOrders.slice().sort(function(a, b) { return (b.created_at || '').localeCompare(a.created_at || ''); }).slice(0, 10);
+    // Recent assets table (replaces WO table since WO API not built yet)
+    var recentAssets = assets.slice(0, 10);
     var tbody = document.getElementById('analyticsRecentWOBody');
-    if (recentWO.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);">No work orders found</td></tr>';
+    if (recentAssets.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);">No assets found</td></tr>';
     } else {
-      tbody.innerHTML = recentWO.map(function(w) {
+      tbody.innerHTML = recentAssets.map(function(a) {
         return '<tr style="border-bottom:1px solid var(--border);">' +
-          '<td style="padding:6px 10px;">' + esc(w.wo_number || w.id || '') + '</td>' +
-          '<td style="padding:6px 10px;">' + esc(w.asset_name || w.asset_number || '') + '</td>' +
-          '<td style="padding:6px 10px;"><span style="padding:2px 8px;border-radius:4px;font-size:11px;background:' + statusColor(w.status) + ';color:#fff;">' + esc(w.status || '') + '</span></td>' +
-          '<td style="padding:6px 10px;">' + esc(w.priority || '') + '</td>' +
-          '<td style="padding:6px 10px;">' + esc(w.assigned_to || '') + '</td>' +
-          '<td style="padding:6px 10px;">' + esc((w.created_at || '').substring(0, 10)) + '</td>' +
+          '<td style="padding:6px 10px;">' + esc(a.asset_number || a.id || '') + '</td>' +
+          '<td style="padding:6px 10px;">' + esc(a.name || '') + '</td>' +
+          '<td style="padding:6px 10px;"><span style="padding:2px 8px;border-radius:4px;font-size:11px;background:' + statusColor(a.status) + ';color:#fff;">' + esc(a.status || '') + '</span></td>' +
+          '<td style="padding:6px 10px;">' + esc(a.asset_type || '') + '</td>' +
+          '<td style="padding:6px 10px;">' + esc(a.current_location || a.location_name_resolved || '') + '</td>' +
+          '<td style="padding:6px 10px;">' + esc((a.created_at || '').substring(0, 10)) + '</td>' +
           '</tr>';
       }).join('');
     }
