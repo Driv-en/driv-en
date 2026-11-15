@@ -2108,6 +2108,12 @@ if (cancelRow && cancelRow.statusChangeDate) {
 var cancelDate = new Date(cancelRow.statusChangeDate);
 if (!isNaN(cancelDate.getTime()) && cancelDate < workEnd) workEnd = cancelDate;
 }
+/* For active projects (not completed/cancelled), extend bar to today */
+var pStatus = String(p.status || '').toLowerCase();
+if (pStatus !== 'completed' && pStatus !== 'cancelled' && !p.actualCompletionDate) {
+var today = new Date();
+if (workEnd < today) workEnd = today;
+}
 var barStart = new Date(Math.max(workStart.getTime(), chartStart.getTime()));
 var barEnd = new Date(Math.min(workEnd.getTime(), chartEnd.getTime()));
 var leftPct = (barStart - chartStart) / rangeMs * 100;
@@ -2133,7 +2139,7 @@ if (isNaN(tickDate.getTime())) return;
 if (tickDate < chartStart || tickDate > chartEnd) return;
 var tickPct = (tickDate - chartStart) / rangeMs * 100;
 if (tickPct >= 0 && tickPct <= 100) {
-html += '<div class="pm-gantt-tick" style="left:' + tickPct + '%;" title="' + escapeHtml(sr.status || '') + ': ' + escapeHtml(sr.statusChangeDate || '') + (sr.note ? ' \\u2014 ' + escapeHtml(sr.note) : '') + '"></div>';
+html += '<div class="pm-gantt-tick" style="left:' + tickPct + '%;" title="' + escapeHtml(sr.status || '') + ': ' + escapeHtml(sr.statusChangeDate || '') + (sr.note ? ' — ' + escapeHtml(sr.note) : '') + '"></div>';
 }
 });
 /* Dashed segment from award to start (no activity period) */
