@@ -874,16 +874,40 @@ init();
 // ANALYTICS TAB — Cross-module metrics, charts, CSV export
 // ============================================================
 
+var analyticsDateRange = 'all';
+
 function initAnalytics() {
   var refreshBtn = document.getElementById('btnAnalyticsRefresh');
   if (refreshBtn) refreshBtn.addEventListener('click', loadAnalytics);
-
+  var dateSelect = document.getElementById('analyticsDateRange');
+  if (dateSelect) {
+    dateSelect.addEventListener('change', function() {
+      analyticsDateRange = this.value;
+      loadAnalytics();
+    });
+  }
   var btnAssets = document.getElementById('btnAnalyticsExportAssets');
   if (btnAssets) btnAssets.addEventListener('click', function() { exportCSV('assets'); });
   var btnFuel = document.getElementById('btnAnalyticsExportFuel');
   if (btnFuel) btnFuel.addEventListener('click', function() { exportCSV('fuel'); });
-
   loadAnalytics();
+}
+
+function getAnalyticsCutoff() {
+  if (analyticsDateRange === 'all') return null;
+  var days = parseInt(analyticsDateRange, 10);
+  return new Date(Date.now() - days * 86400000).toISOString();
+}
+
+function getRangeLabel() {
+  var sel = document.getElementById('analyticsDateRange');
+  if (!sel) return 'all';
+  var txt = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : 'all';
+  if (txt === 'All time') return 'all';
+  if (txt === 'Last 30 days') return '30d';
+  if (txt === 'Last 90 days') return '90d';
+  if (txt === 'Last 12 months') return '12mo';
+  return 'all';
 }
 
 async function loadAnalytics() {
@@ -901,13 +925,49 @@ async function loadAnalytics() {
     var projects = projectsRes.records || projectsRes.data || [];
     var employees = employeesRes.records || employeesRes.data || [];
 
+    var cutoff = getAnalyticsCutoff();
+    var rLabel = getRangeLabel();
+
+    // Update dynamic labels
+    var inspLabel = document.getElementById('kpiInspectionsLabel');
+    if (inspLabel) inspLabel.textContent = 'Inspections (' + rLabel + ')';
+    var fuelLabel = document.getElementById('kpiFuelCostLabel');
+    if (fuelLabel) fuelLabel.textContent = 'Fuel Cost (' + rLabel + ')';
+
+    // KPIs
     document.getElementById('kpiTotalAssets').textContent = assets.length;
     document.getElementById('kpiActiveWO').textContent = 'N/A';
-    var thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
-    var recentInspections = assets.filter(function(a) { return a.last_inspection_date && a.last_inspection_date >= thirtyDaysAgo; }).length;
+
+    // Inspections within date range
+    var recentInspections = assets.filter(function(a) {
+      if (!a.last_inspection_date) return false;
+      if (!cutoff) return true;
+      return a.last_inspection_date >= cutoff;
+    }).length;
     document.getElementById('kpiInspections').textContent = recentInspections;
-    var fuelCost30d = fuel.filter(function(f) { return f.transaction_date && f.transaction_date >= thirtyDaysAgo; }).reduce(function(sum, f) { return sum + (parseFloat(f.total_cost) || 0); }, 0);
-    document.getElementById('kpiFuelCost').textContent = '$' + fuelCost30d.toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+    // Fuel cost within date range
+    var fuelCost = 0;
+    var fuelGal = 0;
+    fuel.forEach(function(f) {
+      if (cutoff && f.transaction_date && f.transaction_date < cutoff) return;
+      var qty = parseFloat(f.quantity) || 0;
+      fuelGal += qty;
+      var rt = parseFloat(f.receipt_total);
+      var cpg = parseFloat(f.cost_per_gallon);
+      if (!isNaN(rt) && rt > 0) {
+        fuelCost += rt;
+      } else if (!isNaN(cpg) && cpg > 0) {
+        fuelCost += (qty * cpg);
+      }
+    });
+    if (fuelCost > 0) {
+      document.getElementById('kpiFuelCost').textContent = '$' + fuelCost.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    } else {
+      document.getElementById('kpiFuelCost').textContent = fuelGal.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' gal';
+    }
+
+    // Projects and employees are not date-filtered (they are current state)
     var activeProjects = projects.filter(function(p) {
       var s = String(p.status || '').toLowerCase();
       return s === 'in progress' || s === 'awarded';
@@ -915,6 +975,7 @@ async function loadAnalytics() {
     document.getElementById('kpiProjects').textContent = activeProjects;
     document.getElementById('kpiEmployees').textContent = employees.length;
 
+    // Charts
     var assetStatuses = {};
     assets.forEach(function(a) {
       var s = String(a.status || 'unknown').toLowerCase();
@@ -932,13 +993,14 @@ async function loadAnalytics() {
     });
     renderBarChart('chartAssetTypes', assetTypes, {});
 
+    // Recent assets table
     var recentAssets = assets.slice(0, 10);
     var tbody = document.getElementById('analyticsRecentWOBody');
     if (recentAssets.length === 0) {
       tbody.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);">No assets found</td></tr>';
     } else {
       tbody.innerHTML = recentAssets.map(function(a) {
-        return '<tr style="border-bottom:1px solid var(--border);cursor:pointer;" onclick="window.location.href=\'/app/dashboard/asset-management.html?asset=' + encodeURIComponent(a.id || '') + '\'">' +
+        return '<tr style="border-bottom:1px solid var(--border);cursor:pointer;" onclick="analyticsViewAsset(\'' + String(a.id || '').replace(/'/g, "\\'") + '\')">' +
           '<td style="padding:6px 10px;">' + esc(a.asset_number || a.id || '') + '</td>' +
           '<td style="padding:6px 10px;">' + esc(a.name || '') + '</td>' +
           '<td style="padding:6px 10px;"><span style="padding:2px 8px;border-radius:4px;font-size:11px;background:' + statusColor(a.status) + ';color:#fff;">' + esc(a.status || '') + '</span></td>' +
@@ -951,6 +1013,61 @@ async function loadAnalytics() {
   } catch (e) {
     console.error('[Analytics] Error:', e.message);
   }
+}
+
+function analyticsViewAsset(assetId) {
+  fetch('/api/assets?id=' + encodeURIComponent(assetId), { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var records = data.records || data.data || [];
+      var a = records.find(function(r) { return r.id === assetId; }) || records[0];
+      if (!a) { alert('Asset not found'); return; }
+
+      var modal = document.getElementById('analyticsAssetModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'analyticsAssetModal';
+        modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+        modal.addEventListener('click', function(e) { if (e.target === modal) modal.style.display = 'none'; });
+        document.body.appendChild(modal);
+      }
+
+      var fields = [
+        ['Asset Number', a.asset_number || '\u2014'],
+        ['Name', a.name || '\u2014'],
+        ['Type', a.asset_type || '\u2014'],
+        ['Make', a.make || '\u2014'],
+        ['Model', a.model || '\u2014'],
+        ['Year', a.year || '\u2014'],
+        ['Status', a.status || '\u2014'],
+        ['Serial Number', a.serial_number || '\u2014'],
+        ['Location', a.current_location || a.location_name_resolved || '\u2014'],
+        ['Assigned To', a.assigned_operator_name || '\u2014'],
+        ['Created', (a.created_at || '').substring(0, 10) || '\u2014'],
+      ];
+
+      var html = '<div style="background:var(--bg-card,#fff);border:2px solid #16a34a;border-radius:12px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
+          '<h3 style="margin:0;font-size:18px;">Asset Details</h3>' +
+          '<button onclick="document.getElementById(\'analyticsAssetModal\').style.display=\'none\'" style="border:none;background:none;font-size:24px;cursor:pointer;color:var(--text-muted);">&times;</button>' +
+        '</div>' +
+        '<table style="width:100%;border-collapse:collapse;font-size:14px;">' +
+        fields.map(function(f) {
+          return '<tr style="border-bottom:1px solid var(--border,#e2e8f0);">' +
+            '<td style="padding:8px 12px;font-weight:600;color:var(--text-muted);width:140px;">' + f[0] + '</td>' +
+            '<td style="padding:8px 12px;">' + esc(f[1]) + '</td>' +
+          '</tr>';
+        }).join('') +
+        '</table>' +
+        '<div style="margin-top:16px;text-align:right;">' +
+          '<a href="/app/dashboard/asset-management.html" style="display:inline-block;padding:8px 16px;background:#0284c7;color:#fff;border-radius:6px;text-decoration:none;font-size:13px;">Go to Asset Management &rarr;</a>' +
+        '</div>' +
+      '</div>';
+
+      modal.innerHTML = html;
+      modal.style.display = 'flex';
+    })
+    .catch(function(e) { alert('Error loading asset: ' + e.message); });
 }
 
 function statusColor(status) {
@@ -974,7 +1091,7 @@ function renderBarChart(containerId, data, colorMap) {
     var pct = maxVal > 0 ? Math.round((value / maxVal) * 100) : 0;
     var color = colorMap[label] || '#0284c7';
     return '<div style="display:flex;align-items:center;gap:8px;">' +
-      '<div style="width:140px;font-size:12px;text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + esc(label) + '">' + esc(label) + '</div>' +
+      '<div style="width:200px;font-size:12px;text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + esc(label) + '">' + esc(label) + '</div>' +
       '<div style="flex:1;background:var(--bg-step,#f1f5f9);border-radius:4px;height:22px;position:relative;overflow:hidden;">' +
         '<div style="width:' + pct + '%;height:100%;background:' + color + ';border-radius:4px;transition:width 300ms ease;"></div>' +
         '<span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:600;color:var(--text);">' + value + '</span>' +
@@ -993,7 +1110,7 @@ async function exportCSV(type) {
     } else if (type === 'fuel') {
       url = '/api/fuel_transactions?limit=1000';
       filename = 'driv-en-fuel.csv';
-      columns = ['transaction_date', 'asset_name', 'fuel_type', 'gallons', 'total_cost', 'vendor', 'odometer'];
+      columns = ['transaction_date', 'transaction_type', 'fuel_type', 'quantity', 'cost_per_gallon', 'receipt_total', 'vendor', 'asset_id', 'project_id', 'location'];
     } else {
       return;
     }
