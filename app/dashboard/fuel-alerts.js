@@ -136,7 +136,7 @@ function renderFlags() {
     html += '<span class="flag-type ' + f.flag_type + '">' + f.flag_type.replace(/_/g, ' ') + '</span>';
     html += resolved ? '<span class="flag-resolved-badge">Resolved by ' + esc(f.resolved_by || '\u2014') + '</span>' : '';
     html += '</div>';
-    html += '<div class="flag-message" data-voice-read>' + esc(f.message || '') + '</div>';
+    html += '<div class="flag-message">' + esc(f.message || '') + '</div>';
     html += '<div class="flag-meta">';
     if (f.asset_name) html += '<span>Asset: ' + esc(f.asset_name) + '</span>';
     if (f.tank_name) html += '<span>Tank: ' + esc(f.tank_name) + '</span>';
