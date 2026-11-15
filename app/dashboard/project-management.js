@@ -1853,17 +1853,39 @@ makeColumnsResizable(document.getElementById('pmProjectTable'), 'pmColW_projects
 makeColumnsDraggable(document.getElementById('pmProjectTable'), 'pmColOrder_projects');
 }
 if (tab === 'clients') {
+fetch('/api/clients').then(function(r) { return r.json(); }).then(function(data) {
+var records = data.records || data.clients || data.data || data.results || [];
+if (records.length > 0) {
+allClients = records.filter(function(r) { return r; }).map(normalizeClient);
+}
 renderClientTableHead();
 renderClientTable();
+}).catch(function(e) {
+console.error('Clients tab fetch error:', e);
+renderClientTableHead();
+renderClientTable();
+});
 var cColW = CLIENT_COL_DEFS.filter(function(c) { return c.defaultVisible; }).map(function(c) { return c.width || 120; });
 cColW.push(80);
 makeColumnsResizable(document.getElementById('pmClientTable'), 'pmColW_clients', cColW);
 makeColumnsDraggable(document.getElementById('pmClientTable'), 'pmColOrder_clients');
 }
 if (tab === 'types') {
+fetch('/api/project-types').then(function(r) { return r.json(); }).then(function(data) {
+var records = data.records || data.projectTypes || data.data || data.results || [];
+if (records.length > 0) {
+projectTypes = records.map(function(r) {
+var f = (r.fields && typeof r.fields === 'object') ? r.fields : r;
+return { name: f['Project Type Name'] || f.name || '', description: f['Description'] || f.description || '' };
+}).filter(function(t) { return t.name; });
+}
 renderProjectTypes();
 makeColumnsResizable(document.getElementById('pmTypeTable'), 'pmColW_types', [160, 400, 100]);
 makeColumnsDraggable(document.getElementById('pmTypeTable'), 'pmColOrder_types');
+}).catch(function(e) {
+console.error('Types tab fetch error:', e);
+renderProjectTypes();
+});
 }
 if (typeof initVoice === 'function') initVoice();
 }
