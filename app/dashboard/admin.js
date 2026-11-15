@@ -1,7 +1,9 @@
 /* ==========================================================================
-   DRIV-EN Platform -- Admin Dashboard JavaScript
+   DRIV-EN Platform -- Admin Dashboard JavaScript  (v40)
    File: /app/dashboard/admin.js
    Extracted from admin.html for CSP compliance (no inline scripts).
+   v40: Added language toggle in Settings, autoTranslateUI calls after renders,
+        data-i18n attributes on dynamically generated content for Spanish UI.
    ========================================================================== */
 
 'use strict';
@@ -13,6 +15,13 @@ var pendingKP = [];
 var onboardingComplete = false;
 var settingsDirty = false;
 var togglesDirty = false;
+
+// Helper: re-translate UI elements after dynamic content is rendered
+function retranslateUI() {
+  if (window.DRIVEN_TRANSLATE && DRIVEN_TRANSLATE.getUILang && DRIVEN_TRANSLATE.getUILang() !== 'en') {
+    DRIVEN_TRANSLATE.autoTranslateUI();
+  }
+}
 var visibilityDirty = false;
 var activeOrgId = null;
 var currentUserObj = null;
@@ -432,6 +441,7 @@ function switchTab(tabName) {
   if (tabName === 'forms') renderFormsTab(); if (tabName === 'settings') renderOnboardingUomDisplays();
   if (tabName === 'analytics') initAnalytics();
   adjustStickyOffsets();
+  retranslateUI();
 }
 
 function switchOnboardingSubtab(subtabName) {
@@ -444,6 +454,7 @@ function switchOnboardingSubtab(subtabName) {
   if (targetSubtabContent) targetSubtabContent.classList.add('active');
   if (subtabName === 'kp' || subtabName === 'key-personnel') { renderKeyPersonnel(); }
   adjustStickyOffsets();
+  retranslateUI();
 }
 
 window.dashToggleTheme = function() {
@@ -530,6 +541,7 @@ function renderStepToggles() {
   var c = document.getElementById('stepToggleList'); if (!c) return;
   c.innerHTML = STEP_DEFS.map(function(s) { var v = stepVisibility[s.key] !== false; var ck = v ? 'checked' : ''; var dis = s.locked ? 'disabled' : ''; var ll = s.locked ? '<span class="step-toggle-locked">(always on)</span>' : ''; return '<div class="step-toggle-row"><div><div class="step-toggle-name">' + s.label + ' ' + ll + '</div><div class="step-toggle-desc">' + s.desc + '</div></div><label class="toggle-switch"><input type="checkbox" ' + ck + ' ' + dis + ' data-stepkey="' + s.key + '"><span class="toggle-slider"></span></label></div>'; }).join('');
   c.querySelectorAll('input[type="checkbox"]').forEach(function(inp) { inp.addEventListener('change', function() { var key = this.getAttribute('data-stepkey'); onToggleChange(key, this.checked); }); });
+  retranslateUI();
 }
 
 function onToggleChange(k, v) { if (!stepVisibility || typeof stepVisibility !== 'object') stepVisibility = {}; stepVisibility[k] = v; if (!stepVisibility._manualOverrides) stepVisibility._manualOverrides = {}; stepVisibility._manualOverrides[k] = true; markVisibilityDirty(); }
@@ -563,6 +575,7 @@ function renderKeyPersonnel() {
   }).join('');
   container.querySelectorAll('.btn-remove-kptask').forEach(function(btn) { btn.addEventListener('click', function() { removeKpTask(parseInt(this.getAttribute('data-person'), 10), parseInt(this.getAttribute('data-task'), 10)); }); });
   container.querySelectorAll('.kp-person-remove').forEach(function(btn) { btn.addEventListener('click', function() { removeKpPerson(parseInt(this.getAttribute('data-person'), 10)); }); });
+  retranslateUI();
 }
 
 function loadTaskCompletions() { try { taskCompletions = JSON.parse(localStorage.getItem('driven_task_completions') || sessionStorage.getItem('driven_task_completions') || '{}'); } catch (e) { taskCompletions = {}; } }
@@ -653,6 +666,26 @@ function attachEventHandlers() {
   var btnDismissErr = document.getElementById('btnDismissError'); if (btnDismissErr) { btnDismissErr.addEventListener('click', dismissPageError); }
   var impBtn = document.getElementById('uom-imperial-btn'); if (impBtn) impBtn.addEventListener('click', function() { setUnitSystem('imperial'); });
   var metBtn = document.getElementById('uom-metric-btn'); if (metBtn) metBtn.addEventListener('click', function() { setUnitSystem('metric'); });
+  var langSelect = document.getElementById('adminLangSelect');
+  if (langSelect) {
+    // Set initial value from localStorage
+    try { var savedLang = localStorage.getItem('driven-ui-lang') || 'en'; langSelect.value = savedLang; } catch(e) {}
+    langSelect.addEventListener('change', function() {
+      var lang = this.value;
+      if (window.DRIVEN_TRANSLATE) {
+        DRIVEN_TRANSLATE.setUILang(lang);
+        if (lang === 'en') {
+          DRIVEN_TRANSLATE.restoreUIOriginals();
+        } else {
+          DRIVEN_TRANSLATE.autoTranslateUI(lang);
+        }
+      } else {
+        try { localStorage.setItem('driven-ui-lang', lang); } catch(e) {}
+        if (lang !== 'en') setTimeout(function() { location.reload(); }, 100);
+        else location.reload();
+      }
+    });
+  }
   document.querySelectorAll('.stat-card[data-nav]').forEach(function(card) {
     card.addEventListener('click', function(e) {
       e.preventDefault();
@@ -725,6 +758,7 @@ async function startAdminApp(user) {
     var overviewBtn = document.querySelector('.admin-tab[data-tab="overview"]');
     if (overviewBtn && !overviewBtn.classList.contains('active')) { overviewBtn.classList.add('active'); }
     adjustStickyOffsets();
+    retranslateUI();
   }
 }
 
@@ -922,6 +956,7 @@ async function loadAnalytics() {
   } catch (e) {
     console.error('[Analytics] Error:', e.message);
   }
+  retranslateUI();
 }
 
 function analyticsViewAsset(assetId) {
@@ -957,24 +992,25 @@ function analyticsViewAsset(assetId) {
 
       var html = '<div style="background:var(--bg-card,#fff);border:2px solid #16a34a;border-radius:12px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
-          '<h3 style="margin:0;font-size:18px;">Asset Details</h3>' +
+          '<h3 style="margin:0;font-size:18px;" data-i18n>Asset Details</h3>' +
           '<button onclick="document.getElementById(\'analyticsAssetModal\').style.display=\'none\'" style="border:none;background:none;font-size:24px;cursor:pointer;color:var(--text-muted);">&times;</button>' +
         '</div>' +
         '<table style="width:100%;border-collapse:collapse;font-size:14px;">' +
         fields.map(function(f) {
           return '<tr style="border-bottom:1px solid var(--border,#e2e8f0);">' +
-            '<td style="padding:8px 12px;font-weight:600;color:var(--text-muted);width:140px;">' + f[0] + '</td>' +
+            '<td style="padding:8px 12px;font-weight:600;color:var(--text-muted);width:140px;" data-i18n>' + f[0] + '</td>' +
             '<td style="padding:8px 12px;">' + esc(f[1]) + '</td>' +
           '</tr>';
         }).join('') +
         '</table>' +
         '<div style="margin-top:16px;text-align:right;">' +
-          '<a href="/app/dashboard/asset-management.html" style="display:inline-block;padding:8px 16px;background:#0284c7;color:#fff;border-radius:6px;text-decoration:none;font-size:13px;">Go to Asset Management &rarr;</a>' +
+          '<a href="/app/dashboard/asset-management.html" style="display:inline-block;padding:8px 16px;background:#0284c7;color:#fff;border-radius:6px;text-decoration:none;font-size:13px;" data-i18n>Go to Asset Management &rarr;</a>' +
         '</div>' +
       '</div>';
 
       modal.innerHTML = html;
       modal.style.display = 'flex';
+      retranslateUI();
     })
     .catch(function(e) { alert('Error loading asset: ' + e.message); });
 }
