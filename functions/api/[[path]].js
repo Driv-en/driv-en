@@ -63,6 +63,25 @@ const TABLE_MAP = {
     },
     defaults: { status: 'Active' },
   },
+    'project-status-history': {
+    d1Table: 'project_status_history',
+    aliases: ['project_status_history', 'ProjectStatusHistory', 'project-status-history', 'projectstatushistory'],
+    fieldMap: {
+      'Project ID':          'project_id',
+      'project_id':          'project_id',
+      'Status':              'status',
+      'status':              'status',
+      'Status Change Date':  'status_change_date',
+      'status_change_date':  'status_change_date',
+      'Changed At':          'status_change_date',
+      'changed_at':          'status_change_date',
+      'changedAt':           'status_change_date',
+      'Note':                'note',
+      'note':                'note',
+    },
+    defaults: {},
+  },
+
   'clients': {
     d1Table: 'clients',
     aliases: ['client', 'Clients', 'Client'],
@@ -1265,6 +1284,35 @@ async function ensureTableSchema(db, d1Table) {
           updated_by TEXT
         )
       `).run().catch(e => console.warn('projects schema warning:', e.message));
+          } else if (d1Table === 'project_status_history') {
+      await db.prepare(`
+        CREATE TABLE IF NOT EXISTS project_status_history (
+          id TEXT PRIMARY KEY,
+          org_id TEXT NOT NULL,
+          project_id TEXT NOT NULL,
+          status TEXT NOT NULL,
+          status_change_date TEXT NOT NULL,
+          note TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `).run().catch(e => console.warn('project_status_history schema warning:', e.message));
+    } else if (d1Table === 'project_types') {
+      await db.prepare(`
+        CREATE TABLE IF NOT EXISTS project_types (
+          id TEXT PRIMARY KEY,
+          org_id TEXT NOT NULL,
+          user_id TEXT,
+          name TEXT NOT NULL,
+          code TEXT,
+          description TEXT,
+          status TEXT DEFAULT 'Active',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          created_by TEXT,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_by TEXT
+        )
+      `).run().catch(e => console.warn('project_types schema warning:', e.message));
+
     } else if (d1Table === 'assets') {
       await db.prepare(`
         CREATE TABLE IF NOT EXISTS assets (
