@@ -359,16 +359,16 @@
 
   <!-- Sticky Tab Navigation Bar matching asset-detail.html & asset-configuration.html -->
   <div class="am-tab-bar" id="amTabBar">
-    <a class="am-tab am-tab-dashboard" href="/app/dashboard/asset-management.html?tab=assets">&#8592; Asset Directory</a>
-    <a class="am-tab" id="lnkOverview" href="/app/asset/asset-detail.html">Overview</a>
-    <a class="am-tab" id="lnkConfig" href="/app/dashboard/asset-config.html">⚙️ Configuration</a>
-    <div class="am-tab active">📜 History</div>
+    <a class="am-tab am-tab-dashboard" href="/app/dashboard/asset-management.html?tab=assets" data-i18n>&#8592; Asset Directory</a>
+    <a class="am-tab" id="lnkOverview" href="/app/asset/asset-detail.html" data-i18n>Overview</a>
+    <a class="am-tab" id="lnkConfig" href="/app/dashboard/asset-config.html" data-i18n>⚙️ Configuration</a>
+    <div class="am-tab active" data-i18n>📜 History</div>
     
     <div class="presence-banner" id="presenceBanner">
-      <span id="presenceText">Other Key Personnel active</span>
+      <span id="presenceText" data-i18n>Other Key Personnel active</span>
     </div>
 
-    <div class="am-tab-logout" onclick="confirmLogout()">Logout</div>
+    <div class="am-tab-logout" onclick="confirmLogout()" data-i18n>Logout</div>
   </div>
 
   <main class="history-container">
@@ -376,9 +376,9 @@
 
     <div class="card-panel">
       <div class="card-title">
-        <button class="btn-action" onclick="doPrintHistory()">🖨 Print Audit History</button>
+        <button class="btn-action" onclick="doPrintHistory()" data-i18n>🖨 Print Audit History</button>
         <div class="card-title-text">
-          <span>📜 Complete Life-Cycle Audit Log: </span>
+          <span data-i18n>📜 Complete Life-Cycle Audit Log: </span>
           <span id="txtAssetTitle" style="color: #2563eb;">Loading Asset Context...</span>
         </div>
         <div class="record-count-badge">
@@ -390,16 +390,16 @@
         <table class="um-table" id="historyTable">
           <thead>
             <tr>
-              <th style="width: 18%; min-width: 140px;">Timestamp</th>
-              <th style="width: 14%; min-width: 110px;">Module / Type</th>
-              <th style="width: 18%; min-width: 140px;">Logged By</th>
-              <th style="width: 15%; min-width: 120px;">Action / Event</th>
-              <th style="width: 35%; min-width: 250px;">Event Details & Audit Notes</th>
+              <th style="width: 18%; min-width: 140px;" data-i18n>Timestamp</th>
+              <th style="width: 14%; min-width: 110px;" data-i18n>Module / Type</th>
+              <th style="width: 18%; min-width: 140px;" data-i18n>Logged By</th>
+              <th style="width: 15%; min-width: 120px;" data-i18n>Action / Event</th>
+              <th style="width: 35%; min-width: 250px;" data-i18n>Event Details &amp; Audit Notes</th>
             </tr>
           </thead>
           <tbody id="historyTableBody">
             <tr>
-              <td colspan="5" style="text-align: center; color: var(--text-muted, #64748b); padding: 20px;">Loading historical audit log...</td>
+              <td colspan="5" style="text-align: center; color: var(--text-muted, #64748b); padding: 20px;" data-i18n>Loading historical audit log...</td>
             </tr>
           </tbody>
         </table>
@@ -411,346 +411,7 @@
 
   <script src="/app/shared/dashboard-common.js?v=13"></script>
   <script src="/app/shared/auth-check.js?v=13"></script>
-
-  <script>
-    var activeOrgId = "";
-    var currentAssetId = "";
-    var humanAssetNumber = "";
-
-    // Storage Listener to sync theme toggles in real-time across tabs/headers
-    window.addEventListener('storage', function(e) {
-      if (e.key === 'driven-theme' && e.newValue) {
-        document.documentElement.setAttribute('data-theme', e.newValue);
-      }
-    });
-
-    // Header Height Adjustment Logic matching asset-detail.html
-    function updateHeaderOffset() {
-      var h = document.getElementById('dashHeader') || document.querySelector('.dash-header');
-      if (h) {
-        var hh = h.getBoundingClientRect().height || 60;
-        document.documentElement.style.setProperty('--header-height', hh + 'px');
-      }
-    }
-    window.addEventListener('resize', updateHeaderOffset);
-
-    function fixHeaderLayout() {
-      var h = document.querySelector('.dash-header');
-      if (!h) return false;
-      var r1 = h.querySelector('.dash-header-row1');
-      var r2 = h.querySelector('.dash-header-row2');
-      var r3 = h.querySelector('.dash-header-row3');
-      var h1 = r2 ? r2.querySelector('h1') : null;
-      if (!r1 || !h1) return false;
-      if (h1.parentNode === r1) return true;
-      var dl = r1.querySelector('.dash-driven-logo');
-      r1.insertBefore(h1, dl);
-      r1.style.cssText = 'display:flex !important; justify-content:space-between !important; align-items:center !important; padding:8px 20px !important; gap:16px !important; width:100% !important; box-sizing:border-box !important;';
-      h1.style.cssText = 'margin:0; font-size:20px; font-weight:600; text-align:center; flex:1;';
-      if (r2) r2.style.display = 'none';
-      if (r3) r3.style.display = 'none';
-      return true;
-    }
-
-    function displayMessage(msg, type) {
-      var el = document.getElementById("ahMessage");
-      if (!el) return;
-      el.textContent = msg;
-      el.className = "ah-message " + type;
-      el.style.display = "block";
-    }
-
-    function reportClientError(msg, context, err) {
-      if (window.DRIVENErrorHandler) {
-        window.DRIVENErrorHandler.report("asset-history.html: " + msg, context, err ? err.stack : null);
-      }
-    }
-
-    // High-Frequency Co-Worker Polling & Fast Beacon Unload
-    function sendPresenceUnload() {
-      if (!activeOrgId) return;
-      var payload = JSON.stringify({ page: "Asset History", action: "leave" });
-      if (navigator.sendBeacon) {
-        var blob = new Blob([payload], { type: "application/json" });
-        navigator.sendBeacon("/api/onboarding/presence", blob);
-      } else {
-        fetch("/api/onboarding/presence", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-org-id": activeOrgId },
-          body: payload,
-          keepalive: true
-        }).catch(function() {});
-      }
-    }
-
-    async function checkActivePresence() {
-      if (!activeOrgId || activeOrgId === "default_org") return;
-      try {
-        var resp = await fetch("/api/onboarding/presence", {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            "x-org-id": activeOrgId
-          },
-          body: JSON.stringify({ page: "Asset History" })
-        });
-        if (resp.ok) {
-          var data = await resp.json();
-          var banner = document.getElementById("presenceBanner");
-          var textEl = document.getElementById("presenceText");
-          if (data.activeUsers && data.activeUsers.length > 0) {
-            var fullNames = data.activeUsers.map(function(u) {
-              if (typeof u === "object") {
-                return ((u.firstName || u.first_name || "") + " " + (u.lastName || u.last_name || "")).trim() || u.name || u.email;
-              }
-              return String(u);
-            });
-            textEl.textContent = "🟢 " + fullNames.join(", ") + " active";
-            banner.style.display = "inline-flex";
-          } else {
-            banner.style.display = "none";
-          }
-        }
-      } catch (e) {
-        reportClientError("Presence check failed", "checkActivePresence", e);
-      }
-    }
-
-    window.addEventListener("pagehide", sendPresenceUnload);
-    window.addEventListener("beforeunload", sendPresenceUnload);
-
-    // URL Query Parameter Parsing
-    var urlParams = new URLSearchParams(window.location.search);
-    currentAssetId = urlParams.get('id') || urlParams.get('asset_id');
-
-    // Strict Multi-Tenant Execution Guardrail & Boot via Platform Session Event
-    document.addEventListener("dashSessionLoaded", async function(e) {
-      var u = window.dashUser;
-      
-      // Multi-Tenant Isolation Verification
-      activeOrgId = (u && u.org_id && u.org_id !== "default_org") ? u.org_id : null;
-
-      if (!activeOrgId || activeOrgId === "default_org" || activeOrgId === "") {
-        var errMsg = "Invalid multi-tenant session context. Execution halted to prevent data leaks.";
-        if (window.DRIVENErrorHandler) {
-          window.DRIVENErrorHandler.report(
-            "asset-history.html: " + errMsg,
-            "tenant-security-guardrail",
-            new Error().stack
-          );
-        }
-        displayMessage(errMsg, "error");
-        document.querySelector(".history-container").style.opacity = "0.3";
-        return;
-      }
-
-      // Fix Header Layout & Adjust Height Offset
-      var ha = 0, hi = setInterval(function() {
-        ha++;
-        if (fixHeaderLayout() || ha > 50) {
-          clearInterval(hi);
-          updateHeaderOffset();
-        }
-      }, 100);
-
-      // Configure sub-navigation links with asset context
-      if (currentAssetId) {
-        document.getElementById("lnkOverview").href = "/app/asset/asset-detail.html?id=" + encodeURIComponent(currentAssetId);
-        document.getElementById("lnkConfig").href = "/app/dashboard/asset-config.html?id=" + encodeURIComponent(currentAssetId);
-      }
-
-      // Initialize presence tracking
-      checkActivePresence();
-      setInterval(checkActivePresence, 5000);
-
-      if (currentAssetId) {
-        await loadAssetInfo(currentAssetId);
-        await loadAssetHistory(currentAssetId);
-      } else {
-        displayMessage("No Asset ID specified in navigation request.", "error");
-      }
-
-      updateHeaderOffset();
-    });
-
-    async function loadAssetInfo(assetId) {
-      try {
-        var resp = await fetch("/api/equipment/" + encodeURIComponent(assetId), {
-          headers: { "x-org-id": activeOrgId }
-        });
-        if (resp.ok) {
-          var data = await resp.json();
-          var rec = data.record || data.equipment || data.data || data;
-          humanAssetNumber = rec.asset_number || rec.assetNumber || "Asset #" + assetId;
-          document.getElementById("txtAssetTitle").textContent = humanAssetNumber;
-        }
-      } catch (e) {
-        reportClientError("Failed loading asset header info", "loadAssetInfo", e);
-      }
-    }
-
-    // Normalized extraction helper across all worker payload standards
-    function extractRecords(resData) {
-      if (Array.isArray(resData)) return resData;
-      if (!resData || typeof resData !== "object") return [];
-      if (Array.isArray(resData.records)) return resData.records;
-      if (Array.isArray(resData.history)) return resData.history;
-      if (Array.isArray(resData.audit_log)) return resData.audit_log;
-      if (Array.isArray(resData.logs)) return resData.logs;
-      if (Array.isArray(resData.data)) return resData.data;
-      if (resData.results && Array.isArray(resData.results)) return resData.results;
-      return [];
-    }
-
-    // Formatter for timestamp values (ISO, SQL string, or epoch)
-    function formatTimestamp(rawTime) {
-      if (!rawTime) return "N/A";
-      try {
-        var dt;
-        if (typeof rawTime === "number") {
-          dt = new Date(rawTime);
-        } else if (typeof rawTime === "string") {
-          dt = new Date(rawTime.replace(' ', 'T'));
-        }
-        if (dt && !isNaN(dt.getTime())) {
-          return dt.toLocaleString();
-        }
-      } catch(e) {}
-      return String(rawTime);
-    }
-
-    // Formatter for audit event details & notes
-    function formatAuditDetails(item) {
-      if (item.details && typeof item.details === "string" && item.details.trim().length > 0) {
-        return item.details;
-      }
-      if (item.description && typeof item.description === "string" && item.description.trim().length > 0) {
-        return item.description;
-      }
-
-      var beforeObj = parseJsonIfNeeded(item.before_data);
-      var afterObj = parseJsonIfNeeded(item.after_data);
-
-      if (beforeObj || afterObj) {
-        if (beforeObj && afterObj && typeof beforeObj === "object" && typeof afterObj === "object") {
-          var changes = [];
-          var allKeys = Object.keys(Object.assign({}, beforeObj, afterObj));
-          allKeys.forEach(function(k) {
-            if (k === "updated_at" || k === "created_at" || k === "id" || k === "org_id" || k === "user_id") return;
-            var valBefore = beforeObj[k];
-            var valAfter = afterObj[k];
-            if (JSON.stringify(valBefore) !== JSON.stringify(valAfter)) {
-              changes.push('<strong>' + k + ':</strong> ' + (valBefore !== undefined ? valBefore : '<em>null</em>') + ' &#8594; ' + (valAfter !== undefined ? valAfter : '<em>null</em>'));
-            }
-          });
-          if (changes.length > 0) {
-            return changes.join('<br>');
-          }
-        }
-        if (afterObj) {
-          try { return '<pre style="margin:0; font-size:11px; white-space:pre-wrap;">' + JSON.stringify(afterObj, null, 2) + '</pre>'; } catch(e) {}
-        }
-      }
-
-      if (item.action) {
-        return item.action + ' event recorded for ' + (item.table_name || item.module || 'equipment');
-      }
-
-      return 'Audit event logged';
-    }
-
-    function parseJsonIfNeeded(val) {
-      if (!val) return null;
-      if (typeof val === "object") return val;
-      if (typeof val === "string") {
-        try { return JSON.parse(val); } catch(e) { return null; }
-      }
-      return null;
-    }
-
-    async function loadAssetHistory(assetId) {
-      if (!assetId) return;
-      
-      // Endpoints to try sequentially for audit log fetching
-      var endpoints = [
-        "/api/audit-log?record_id=" + encodeURIComponent(assetId) + "&module=equipment",
-        "/api/equipment/history?id=" + encodeURIComponent(assetId),
-        "/api/equipment/" + encodeURIComponent(assetId) + "/history"
-      ];
-
-      var records = null;
-      var lastError = null;
-
-      for (var i = 0; i < endpoints.length; i++) {
-        try {
-          var resp = await fetch(endpoints[i], {
-            headers: { "x-org-id": activeOrgId }
-          });
-
-          if (resp.ok) {
-            var resData = await resp.json();
-            records = extractRecords(resData);
-            break; // Successfully loaded and parsed
-          }
-        } catch (e) {
-          lastError = e;
-        }
-      }
-
-      var tbody = document.getElementById("historyTableBody");
-
-      if (records !== null) {
-        document.getElementById("recordCountBadge").textContent = records.length + " Events";
-
-        if (records.length > 0) {
-          tbody.innerHTML = records.map(function(item) {
-            var rawTime = item.created_at || item.timestamp || item.created || item.date;
-            var localTime = formatTimestamp(rawTime);
-            var mod = item.module || item.table_name || 'Equipment';
-            var usr = item.user_email || item.user_name || item.user_id || item.user || 'System';
-            var act = item.action || item.event_type || item.event || 'Log';
-            var dtls = formatAuditDetails(item);
-
-            return '<tr>' +
-              '<td>' + escapeHtml(localTime) + '</td>' +
-              '<td><strong>' + escapeHtml(mod) + '</strong></td>' +
-              '<td>' + escapeHtml(usr) + '</td>' +
-              '<td>' + escapeHtml(act) + '</td>' +
-              '<td>' + dtls + '</td>' +
-            '</tr>';
-          }).join("");
-        } else {
-          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted, #64748b); padding: 20px;">No historical audit events recorded for this asset.</td></tr>';
-        }
-      } else {
-        reportClientError("Failed loading asset audit log across endpoints", "loadAssetHistory", lastError || new Error("All endpoints failed"));
-        displayMessage("Unable to retrieve historical audit log. Please check connection and try again.", "error");
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #ef4444; padding: 20px;">⚠️ Error loading audit logs. Please refresh the page.</td></tr>';
-      }
-    }
-
-    // Dynamic Customer Title Print Handler
-    function doPrintHistory() {
-      var u = window.dashUser || {};
-      var customerName = u.org_name || u.tenant_name || u.company_name || u.organization_name || "Organization";
-      var assetIdentifier = humanAssetNumber || currentAssetId || "Log";
-
-      // Set print document title dynamically excluding DRIV-EN branding
-      document.title = customerName + " Audit History | Asset #" + assetIdentifier;
-      
-      window.print();
-    }
-
-    function escapeHtml(str) {
-      if (!str) return '';
-      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
-    function confirmLogout() {
-      if (confirm("Are you sure you want to log out?")) {
-        dashLogout();
-      }
-    }
-  </script>
+  <script src="/app/shared/translate.js?v=2"></script>
+  <script src="/app/asset/asset-history.js?v=1"></script>
 </body>
 </html>
