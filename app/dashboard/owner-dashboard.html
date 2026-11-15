@@ -3,678 +3,297 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DRIV-EN Dashboard | DRIV‑EN</title>
+<title>DRIV-EN | Transfers</title>
+<meta name="description" content="DRIV-EN equipment transfers -- transfer tickets, status tracking, and delivery signatures.">
 <meta name="robots" content="noindex, nofollow">
-
+<link rel="canonical" href="https://www.driv-en.com/app/dashboard/transfers.html">
 <link rel="icon" type="image/png" href="/assets/icons/favicon.png?v=2026" sizes="48x48">
 <link rel="icon" type="image/png" href="/assets/icons/favicon-96.png?v=2026" sizes="96x96">
 <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png?v=2026" sizes="192x192">
 <link rel="apple-touch-icon" href="/assets/icons/favicon-180.png?v=2026">
-<link rel="stylesheet" href="/app/shared/dashboard.css?v=10">
+
+<!-- ===== SHARED DASHBOARD CSS ===== -->
+<link rel="stylesheet" href="/app/shared/dashboard.css?v=15">
+
+<!-- ===== DIAMOND-PLATE BACKGROUND ===== -->
+<link rel="stylesheet" href="/styles/diamond-plate.css?v=2">
+
+<!-- ===== THEME TOGGLE (applies before render to prevent flash) ===== -->
+<script>
+(function() {
+  var saved = localStorage.getItem("driven-theme");
+  var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  var theme = saved || system;
+  document.documentElement.setAttribute("data-theme", theme);
+})();
+</script>
 
 <style>
-    :root {
-      --header-height: 57px;
-      --card-bg: #ffffff;
-      --card-border: #10b981;
-      --text-main: #0f172a;
-      --text-muted: #475569;
-      --input-bg: #ffffff;
-      --input-border: #cbd5e1;
-      --table-header-bg: #f8fafc;
-      --table-border: #e2e8f0;
-    }
+/* ===== LOADING SCREEN ===== */
+.tf-loading{display:flex;align-items:center;justify-content:center;height:60vh;font-size:16px;color:var(--text-muted);}
 
-    [data-theme="dark"] {
-      --card-bg: #1e293b;
-      --card-border: #059669;
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
-      --input-bg: #0f172a;
-      --input-border: #334155;
-      --table-header-bg: #0f172a;
-      --table-border: #334155;
-    }
+/* ===== HEADER OVERRIDE -- hide stale 3-row SW header rows ===== */
+.dash-header-row2, .dash-header-row3, .dash-utility-bar { display: none !important; }
+#dashHeader { position: sticky; top: 0; z-index: 100000; }
+#dashHeader .dash-theme-wrapper { display: none !important; }
 
-    .owner-loading {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      font-size: 16px;
-      color: var(--text-muted);
-      position: relative;
-      z-index: 1;
-    }
-    
-    /* Sticky Header - Gray Background */
-    .dash-header {
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      height: var(--header-height);
-      box-sizing: border-box;
-      background: #e2e8f0;
-      border-bottom: 1px solid #cbd5e1;
-    }
-    .dash-header-row2, .dash-header-row3 { display: none !important; }
-    .dash-header-row1 {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 20px;
-      height: 100%;
-      box-sizing: border-box;
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-    .owner-header-title {
-      flex: 1;
-      text-align: center;
-      font-size: 20px;
-      font-weight: 600;
-      color: #0f172a;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
+/* ===== TAB BAR ===== */
+.tf-tab-bar {
+  display: flex;
+  gap: 2px;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 20px;
+  overflow-x: auto;
+  position: relative;
+  z-index: 1;
+  background: #cbd5e1;
+  border-bottom: 2px solid #94a3b8;
+}
+.tf-tab-home {
+  background: #1d4ed8;
+  border: 1px solid #2563eb;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  padding: 10px 22px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-top: 4px;
+  margin-left: auto;
+  position: relative;
+  z-index: 1;
+  transition: background 200ms ease, margin-top 200ms ease;
+  text-decoration: none;
+  display: inline-block;
+}
+.tf-tab-home:hover { background: #2563eb; margin-top: 2px; }
+.tf-tab-logout {
+  background: #b91c1c;
+  border: 1px solid #dc2626;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  padding: 10px 22px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-top: 4px;
+  margin-left: 0;
+  position: relative;
+  z-index: 1;
+  transition: background 200ms ease, margin-top 200ms ease;
+}
+.tf-tab-logout:hover { background: #dc2626; margin-top: 2px; }
 
-    /* Sticky Tab Bar - Outer Container */
-    .owner-tab-bar-wrap {
-      position: sticky;
-      top: var(--header-height);
-      z-index: 99;
-      background: #cbd5e1;
-      border-bottom: 2px solid #94a3b8;
-      width: 100%;
-    }
+/* ===== MAIN CONTAINER ===== */
+.tf-main {
+  max-width: 1100px;
+  margin: 20px auto;
+  padding: 0 20px;
+  position: relative;
+  z-index: 1;
+}
 
-    /* Inner Tab Bar */
-    .owner-tab-bar {
-      display: flex;
-      gap: 4px;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 0 20px;
-      box-sizing: border-box;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-    .owner-tab-bar::-webkit-scrollbar {
-      height: 4px;
-    }
-    .owner-tab-bar::-webkit-scrollbar-thumb {
-      background: #94a3b8;
-      border-radius: 4px;
-    }
-    .owner-tab {
-      background: #94a3b8;
-      border: 1px solid #64748b;
-      border-bottom: none;
-      border-radius: 8px 8px 0 0;
-      padding: 10px 20px;
-      font-size: 15px;
-      font-weight: 500;
-      color: #1e293b;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: color 200ms ease, background 200ms ease, border-color 200ms ease, margin-top 200ms ease;
-      margin-top: 4px;
-      position: relative;
-      z-index: 1;
-    }
-    .owner-tab:hover { color: #0f172a; background: #a5b4c4; margin-top: 2px; }
-    .owner-tab.active { color: #1d4ed8; background: #ffffff; border-color: #64748b; margin-top: 0; font-weight: 600; z-index: 2; }
-    [data-theme="dark"] .owner-tab.active { background: #1e293b; color: #60a5fa; }
-    
-    .owner-tab-content { display: none; }
-    .owner-tab-content.active { display: block; }
-    .owner-tab-logout {
-      background: #b91c1c;
-      border: 1px solid #dc2626;
-      border-bottom: none;
-      border-radius: 8px 8px 0 0;
-      padding: 10px 20px;
-      font-size: 15px;
-      font-weight: 600;
-      color: #fff;
-      cursor: pointer;
-      white-space: nowrap;
-      margin-top: 4px;
-      margin-left: auto;
-      position: relative;
-      z-index: 1;
-      transition: background 200ms ease, margin-top 200ms ease;
-    }
-    .owner-tab-logout:hover { background: #dc2626; margin-top: 2px; }
-    
-    .dash-main {
-      max-width: 1200px;
-      margin: 0 auto;
-      box-sizing: border-box;
-      padding: 20px;
-    }
+/* ===== STICKY SECTION HEADING ===== */
+.section-heading {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg-card);
+  border-bottom: 2px solid var(--border);
+  padding: 12px 0;
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.section-heading-count {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
 
-    /* Purpose and Instruction action buttons */
-    .owner-btn-purpose {
-      background-color: #2563eb;
-      color: #ffffff;
-      border: 1px solid #1d4ed8;
-      padding: 8px 14px;
-      border-radius: 6px;
-      font-weight: 600;
-      font-size: 13px;
-      cursor: pointer;
-      transition: background-color 0.2s ease, transform 0.1s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .owner-btn-purpose:hover {
-      background-color: #1d4ed8;
-    }
-    
-    .owner-btn-instruction {
-      background-color: #7c3aed;
-      color: #ffffff;
-      border: 1px solid #6d28d9;
-      padding: 8px 14px;
-      border-radius: 6px;
-      font-weight: 600;
-      font-size: 13px;
-      cursor: pointer;
-      transition: background-color 0.2s ease, transform 0.1s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .owner-btn-instruction:hover {
-      background-color: #6d28d9;
-    }
+/* ===== FILTER BAR ===== */
+.tf-filter-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.tf-filter-bar select,
+.tf-filter-bar input {
+  padding: 8px 12px;
+  font-size: 13px;
+  border: 1px solid var(--border-input, var(--border));
+  border-radius: 6px;
+  background: var(--bg-step);
+  color: var(--text);
+  box-sizing: border-box;
+}
+.tf-filter-bar select:focus,
+.tf-filter-bar input:focus { outline: none; border-color: var(--primary); }
+.tf-filter-label { font-size: 13px; color: var(--text-muted); font-weight: 600; }
 
-    /* Cards and Containers */
-    .dash-card, 
-    .owner-stat-card, 
-    .settings-section, 
-    .sys-status-card,
-    .owner-table-wrap,
-    .owner-issues-card,
-    .owner-coming-soon { 
-      background: var(--card-bg); 
-      border: 1px solid var(--card-border);
-      border-radius: 8px; 
-      padding: 20px; 
-      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.06);
-      color: var(--text-main);
-      box-sizing: border-box;
-    }
+/* ===== SORTABLE TABLE ===== */
+.tf-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+}
+.tf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 800px;
+}
+.tf-table thead { background: var(--bg-step); }
+.tf-table th {
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  position: relative;
+}
+.tf-table th:hover { color: var(--primary); }
+.tf-table th .sort-arrow { font-size: 10px; margin-left: 4px; opacity: 0.5; }
+.tf-table th.sorted-asc .sort-arrow::after { content: ' \25B2'; opacity: 1; }
+.tf-table th.sorted-desc .sort-arrow::after { content: ' \25BC'; opacity: 1; }
+.tf-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  white-space: nowrap;
+}
+.tf-table tbody tr { cursor: pointer; transition: background 150ms ease; }
+.tf-table tbody tr:hover { background: var(--bg-step); }
+.tf-table tbody tr:last-child td { border-bottom: none; }
 
-    .dash-card *, .owner-stat-card *, .settings-section *, .sys-status-card *, .owner-table-wrap *, .owner-issues-card * {
-      color: var(--text-main);
-    }
-    .owner-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-    .owner-stat-card { text-align: center; }
-    .owner-stat-number { font-size: 32px; font-weight: 700; color: var(--text-main); }
-    .owner-stat-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; font-weight: 600; }
-    
-    .owner-search-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
-    .owner-search-bar input,
-    .owner-tab-content input[type="text"],
-    .owner-tab-content input[type="date"],
-    .owner-tab-content select { 
-      padding: 10px 14px; 
-      border: 1px solid var(--input-border); 
-      border-radius: 6px; 
-      font-size: 14px; 
-      background: var(--input-bg); 
-      color: var(--text-main); 
-      box-sizing: border-box;
-    }
-    .owner-refresh-btn { 
-      background: var(--card-bg); 
-      border: 1px solid var(--card-border); 
-      color: var(--text-main); 
-      padding: 10px 16px; 
-      border-radius: 6px; 
-      font-size: 14px; 
-      cursor: pointer; 
-      white-space: nowrap; 
-      font-weight: 500; 
-    }
-    .owner-refresh-btn:hover { background: #f0fdf4; border-color: #059669; color: #059669; }
-    [data-theme="dark"] .owner-refresh-btn:hover { background: #064e3b; color: #6ee7b7; }
+/* ===== STATUS BADGE ===== */
+.tf-status { font-size: 11px; padding: 2px 10px; border-radius: 12px; font-weight: 600; text-transform: uppercase; }
+.tf-status.created { background: var(--border); color: var(--text); }
+.tf-status.picked_up { background: #0066cc; color: #fff; }
+.tf-status.in_transit { background: #ff9900; color: #fff; }
+.tf-status.delivered { background: #00aa44; color: #fff; }
+.tf-status.closed { background: var(--border); color: var(--text-muted); }
 
-    .owner-table-wrap {
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      width: 100%;
-      max-width: 100%;
-      display: block;
-      box-sizing: border-box;
-      border-radius: 8px;
-    }
-    .dash-table { width: 100%; border-collapse: collapse; background: var(--card-bg); white-space: nowrap; }
-    .dash-table th { background: var(--table-header-bg); color: var(--text-main); border-bottom: 2px solid var(--table-border); padding: 12px 14px; text-align: left; }
-    .dash-table td { border-bottom: 1px solid var(--table-border); color: var(--text-main); padding: 12px 14px; }
+/* ===== WARNING FLAGS ===== */
+.tf-flag { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600; margin-left: 6px; }
+.tf-flag-unclosed { background: #fef3c7; border: 1px solid #f59e0b; color: #92400e; }
+.tf-flag-duplicate { background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; }
 
-    .issues-table {
-      width: 100%;
-      table-layout: fixed;
-      border-collapse: collapse;
-      background: var(--card-bg);
-      word-wrap: break-word;
-    }
-    .issues-table th, .issues-table td {
-      padding: 10px 8px;
-      border-bottom: 1px solid var(--table-border);
-      vertical-align: middle;
-      font-size: 13px;
-    }
-    .issues-table th {
-      background: var(--table-header-bg);
-      color: var(--text-main);
-      border-bottom: 2px solid var(--table-border);
-      font-weight: 600;
-      text-align: left;
-    }
-    .issues-table td.col-msg {
-      word-break: break-word;
-      white-space: normal;
-    }
+/* ===== WARNING BANNER ===== */
+.tf-warnings-banner { background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; }
+.tf-warnings-banner h4 { margin: 0 0 8px 0; font-size: 14px; color: #92400e; }
+.tf-warnings-banner ul { margin: 0; padding-left: 20px; }
+.tf-warnings-banner li { font-size: 13px; color: #92400e; margin-bottom: 4px; line-height: 1.4; }
+.tf-warnings-banner a { color: #92400e; font-weight: 600; cursor: pointer; text-decoration: underline; }
 
-    .dash-badge { display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; text-align: center; }
-    .dash-badge-success, .badge-approved, .badge-current { 
-      background: #d1fae5; 
-      color: #065f46; 
-      border: 1px solid #a7f3d0; 
-    }
-    .dash-badge-warning { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
-    .dash-badge-danger { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
-    .dash-badge-muted { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+/* ===== DETAIL VIEW ===== */
+.tf-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+.tf-event { display: flex; align-items: flex-start; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.tf-event:last-child { border-bottom: none; }
+.tf-event-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--primary); margin-top: 4px; flex-shrink: 0; }
+.tf-event-content { font-size: 13px; color: var(--text); }
+.tf-event-time { font-size: 11px; color: var(--text-muted); }
+.tf-back { background: var(--bg-card); border: 1px solid var(--border); border-radius: 4px; padding: 6px 14px; font-size: 13px; cursor: pointer; color: var(--text); margin-bottom: 16px; }
+.tf-back:hover { border-color: var(--primary); }
+.section-title { font-size: 16px; font-weight: 700; color: var(--text); margin: 24px 0 12px 0; padding-bottom: 8px; border-bottom: 2px solid var(--border); }
+.empty-state { text-align: center; padding: 40px; color: var(--text-muted); font-size: 14px; }
 
-    .owner-action-btn { display: inline-block; padding: 6px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid; margin-right: 4px; text-decoration: none; }
-    .owner-btn-approve { background: #d1fae5; color: #065f46; border-color: #10b981; }
-    .owner-btn-approve:hover { background: #a7f3d0; }
-    .owner-btn-reject { background: #fee2e2; color: #991b1b; border-color: #ef4444; }
-    .owner-btn-reject:hover { background: #fca5a5; }
-    .owner-btn-w9 { background: var(--card-bg); color: #2563eb; border-color: #2563eb; }
-    .owner-btn-w9:hover { background: #2563eb; color: #fff; }
-    
-    .sys-status-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--table-border);
-      font-size: 14px;
-    }
-    .sys-status-row:last-child { border-bottom: none; }
-    .sys-status-value { font-weight: 600; color: var(--text-main); text-align: right; }
-
-    .theme-switch-container { display: flex; align-items: center; gap: 12px; }
-    .theme-switch-label { font-weight: 600; font-size: 14px; color: var(--text-muted); }
-    .theme-switch-label.active { color: #10b981; font-weight: 700; }
-
-    .switch {
-      position: relative;
-      display: inline-block;
-      width: 48px;
-      height: 26px;
-    }
-    .switch input { opacity: 0; width: 0; height: 0; }
-    .slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background-color: #cbd5e1;
-      transition: .3s;
-      border-radius: 26px;
-    }
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 20px; width: 20px;
-      left: 3px; bottom: 3px;
-      background-color: white;
-      transition: .3s;
-      border-radius: 50%;
-    }
-    input:checked + .slider { background-color: #10b981; }
-    input:checked + .slider:before { transform: translateX(22px); }
-
-    /* Responsive adjustments */
-    @media (max-width: 800px) { 
-      .owner-stats { grid-template-columns: repeat(2, 1fr); gap: 10px; } 
-      .dash-main { padding: 12px; }
-      .owner-header-title { font-size: 16px; }
-      .owner-search-bar input { width: 100%; }
-      .owner-tab { padding: 8px 12px; font-size: 13px; }
-      .owner-tab-bar { padding: 0 10px; }
-      .issues-table { font-size: 12px; }
-      .issues-table th, .issues-table td { padding: 8px 4px; }
-      .owner-search-bar { flex-direction: column; align-items: stretch; }
-      .owner-refresh-btn, .owner-btn-purpose, .owner-btn-instruction { width: 100%; justify-content: center; }
-    }
-    @media (max-width: 480px) {
-      .owner-stats { grid-template-columns: 1fr; }
-      .dash-header-row1 { padding: 8px 10px; }
-    }
+/* ===== MOBILE ===== */
+@media (max-width: 800px) {
+  .tf-main { padding: 0 12px; margin: 12px auto; }
+  .tf-tab-home { padding: 10px 16px; font-size: 14px; }
+  .tf-tab-logout { padding: 10px 16px; font-size: 14px; }
+}
 </style>
 </head>
+<body data-page-title="Transfers" data-required-permission="transfer.view">
 
-<body data-page-title="Owner Dashboard">
-
+<!-- ===== DIAMOND-PLATE BACKGROUND ===== -->
 <div class="steel-bg"></div>
 <div class="steel-overlay"></div>
 
-<div id="loadingScreen" class="owner-loading">Verifying access…</div>
+<!-- ===== SHARED HEADER ===== -->
+<div id="dashHeader"></div>
 
+<!-- ===== TAB BAR ===== -->
+<div class="tf-tab-bar" id="tfTabBar">
+  <a class="tf-tab-home" id="dashHomeLink" href="/app/dashboard/employee-dashboard.html">Dashboard</a>
+  <button class="tf-tab-logout" id="tfLogoutBtn">Logout</button>
+</div>
+
+<!-- ===== LOADING SCREEN ===== -->
+<div id="loading" class="tf-loading">Checking session...</div>
+
+<!-- ===== DASHBOARD CONTENT ===== -->
 <div id="dashboard" style="display:none;">
+  <div class="tf-main">
 
-  <div class="dash-header">
-    <div class="dash-header-row1">
-      <div id="ownerLogoContainer">
-        <div class="dash-customer-logo-placeholder" id="ownerLogoPlaceholder">DSI Logo</div>
-      </div>
-      <div class="owner-header-title">Owner Dashboard</div>
-      <img src="/assets/logo.png?v=2026" class="dash-driven-logo" alt="DRIV‑EN Logo">
-    </div>
-  </div>
-
-  <div class="owner-tab-bar-wrap">
-    <div class="owner-tab-bar">
-      <button class="owner-tab active" data-tab="referrers">Referrers</button>
-      <button class="owner-tab" data-tab="customers">Customers</button>
-      <button class="owner-tab" data-tab="system">System Status</button>
-      <button class="owner-tab" data-tab="issues">Error Logs</button>
-      <button class="owner-tab" data-tab="marketing">Marketing</button>
-      <button class="owner-tab" data-tab="visitors">Site Visitors</button>
-      <button class="owner-tab" data-tab="settings">Settings</button>
-      <button class="owner-tab-logout">Logout</button>
-    </div>
-  </div>
-
-  <main class="dash-main">
-
-    <div id="errorBanner" class="owner-error-banner"></div>
-
-    <!-- REFERRERS TAB -->
-    <div id="tab-referrers" class="owner-tab-content active">
-      <div class="owner-stats">
-        <div class="owner-stat-card"><div class="owner-stat-number" id="statTotal">0</div><div class="owner-stat-label">Total Partners</div></div>
-        <div class="owner-stat-card"><div class="owner-stat-number" id="statPending">0</div><div class="owner-stat-label">Pending</div></div>
-        <div class="owner-stat-card"><div class="owner-stat-number" id="statApproved">0</div><div class="owner-stat-label">Approved</div></div>
-        <div class="owner-stat-card"><div class="owner-stat-number" id="statRejected">0</div><div class="owner-stat-label">Rejected</div></div>
-      </div>
-
-      <div class="owner-search-bar">
-        <input type="text" id="searchInput" placeholder="Search by name or email…">
-        <button class="owner-refresh-btn" id="btnRefreshPartners">↻ Refresh</button>
-        <button class="owner-btn-purpose" id="btnPurpose">💡 Purpose</button>
-        <button class="owner-btn-instruction" id="btnInstruction">📖 Instructions</button>
-      </div>
-
-      <div class="dash-card">
-        <div class="owner-table-wrap">
-          <table class="dash-table">
-            <thead>
-              <tr>
-                <th class="sortable" data-sort="partner_name">Name <span class="sort-arrow"></span></th>
-                <th class="sortable" data-sort="partner_email">Email <span class="sort-arrow"></span></th>
-                <th class="sortable" data-sort="partner_phone">Phone <span class="sort-arrow"></span></th>
-                <th class="sortable" data-sort="status">Status <span class="sort-arrow"></span></th>
-                <th class="sortable" data-sort="referral_code">Referral Code <span class="sort-arrow"></span></th>
-                <th>W-9</th>
-                <th class="sortable" data-sort="w9_status">W-9 Status <span class="sort-arrow"></span></th>
-                <th>ACH</th>
-                <th class="sortable" data-sort="last_referred">Last Referred <span class="sort-arrow"></span></th>
-                <th class="sortable" data-sort="created_at">Submitted <span class="sort-arrow"></span></th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="partnersTableBody">
-              <tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px 0;">Loading…</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+    <!-- ===== WARNING BANNER ===== -->
+    <div id="tfWarningsBanner" class="tf-warnings-banner" style="display:none;">
+      <h4>&#9888; Transfer Alerts</h4>
+      <ul id="tfWarningsList"></ul>
     </div>
 
-    <!-- CUSTOMERS TAB -->
-    <div id="tab-customers" class="owner-tab-content">
-      <div class="owner-stats">
-        <div class="owner-stat-card"><div class="owner-stat-number" id="custStatTotal">0</div><div class="owner-stat-label">Total Customers</div></div>
-        <div class="owner-stat-card"><div class="owner-stat-number" id="custStatActive">0</div><div class="owner-stat-label">Active</div></div>
-        <div class="owner-stat-card"><div class="owner-stat-number" id="custStatTrial">0</div><div class="owner-stat-label">Trial</div></div>
-        <div class="owner-stat-card"><div class="owner-stat-number" id="custStatPending">0</div><div class="owner-stat-label">Pending Activation</div></div>
-      </div>
-
-      <div class="owner-search-bar">
-        <input type="text" id="customerSearchInput" placeholder="Search by company name or email…">
-        <button class="owner-refresh-btn" id="btnRefreshCust">↻ Refresh</button>
-      </div>
-
-      <div id="customerList"></div>
-    </div>
-    <div id="customerDetailModal" style="display:none;"></div>
-
-    <!-- SYSTEM STATUS TAB -->
-    <div id="tab-system" class="owner-tab-content">
-      <div class="sys-status-card" style="margin-bottom:16px;">
-        <h3 style="margin-bottom:12px;">Workers</h3>
-        <div class="sys-status-row"><div><span class="sys-status-dot sys-dot-ok"></span> Auth Activation</div><div class="sys-status-value" id="sysWorkerAuth">—</div></div>
-        <div class="sys-status-row"><div><span class="sys-status-dot sys-dot-ok"></span> Referral API</div><div class="sys-status-value" id="sysWorkerReferral">—</div></div>
-        <div class="sys-status-row"><div><span class="sys-status-dot sys-dot-ok"></span> Checkout Worker</div><div class="sys-status-value" id="sysWorkerCheckout">—</div></div>
-        <div class="sys-status-row"><div><span class="sys-status-dot sys-dot-ok"></span> Pages Functions</div><div class="sys-status-value" id="sysPagesFunctions">—</div></div>
-      </div>
-
-      <div class="sys-status-card" style="margin-bottom:16px;">
-        <h3 style="margin-bottom:12px;">D1 Database</h3>
-        <div class="sys-status-row"><div>referral_partners</div><div class="sys-status-value" id="sysD1Partners">— rows</div></div>
-        <div class="sys-status-row"><div>site_visitors</div><div class="sys-status-value" id="sysD1Visitors">— rows</div></div>
-      </div>
-
-      <div class="sys-status-card" style="margin-bottom:16px;">
-        <h3 style="margin-bottom:12px;">AI Usage &amp; Extractions</h3>
-        <div class="owner-stats" style="margin-bottom:12px;">
-          <div class="owner-stat-card"><div class="owner-stat-number" id="ai-stat-extractions">—</div><div class="owner-stat-label">Total AI Uploads</div></div>
-          <div class="owner-stat-card"><div class="owner-stat-number" id="ai-stat-success">—</div><div class="owner-stat-label">Receipts (AI)</div></div>
-          <div class="owner-stat-card"><div class="owner-stat-number" id="ai-stat-failed">—</div><div class="owner-stat-label">Manuals (AI)</div></div>
-        </div>
-        <div id="ai-usage-detail" style="font-size:13px;color:var(--text-muted);">Loading AI usage data…</div>
-      </div>
-
-      <div class="sys-status-card">
-        <h3 style="margin-bottom:12px;">Platform Status</h3>
-        <div class="sys-status-row"><div>Domain</div><div class="sys-status-value">www.driv-en.com</div></div>
-        <div class="sys-status-row"><div>Last Status Check</div><div class="sys-status-value" id="sysLastCheck">—</div></div>
-      </div>
-    </div>
-
-    <!-- ERROR LOGS TAB -->
-    <div id="tab-issues" class="owner-tab-content">
-      <div class="owner-stats">
-        <div class="owner-stat-card"><div class="owner-stat-number" id="issueStatTotal">0</div><div class="owner-stat-label">Total Errors</div></div>
-        <div class="owner-stat-card"><div class="owner-stat-number" id="issueStatToday">0</div><div class="owner-stat-label">Today</div></div>
-        <div class="owner-stat-card"><div class="owner-stat-number" id="issueStatWeek">0</div><div class="owner-stat-label">This Week</div></div>
-        <div class="owner-stat-card"><div class="owner-stat-number" id="issueStatResolved">0</div><div class="owner-stat-label">Resolved</div></div>
-      </div>
-
-      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
-        <select id="issueStatusFilter">
-          <option value="all">All Statuses</option>
-          <option value="open">Open</option>
-          <option value="resolved">Resolved</option>
+    <!-- ===== LIST VIEW ===== -->
+    <div id="tfListView">
+      <!-- Filter bar -->
+      <div class="tf-filter-bar">
+        <span class="tf-filter-label">Status:</span>
+        <select id="tfStatusFilter">
+          <option value="">All Statuses</option>
+          <option value="created">Created</option>
+          <option value="picked_up">Picked Up</option>
+          <option value="in_transit">In Transit</option>
+          <option value="delivered">Delivered</option>
+          <option value="closed">Closed</option>
+          <option value="open">Open (unclosed)</option>
         </select>
-        <select id="issueSourceFilter">
-          <option value="all">All Sources</option>
-        </select>
-        <input type="text" id="issueMsgFilter" placeholder="Filter by message..." style="flex:1;min-width:180px;">
-        <input type="date" id="issueDateFrom">
-        <input type="date" id="issueDateTo">
-        <button class="owner-refresh-btn" id="btnResolveSelectedIssues" style="background:#10b981;color:#ffffff;border-color:#059669;">✓ Resolve Selected</button>
-        <button class="owner-refresh-btn" id="btnClearIssues">Clear</button>
-        <button class="owner-refresh-btn" id="btnRefreshIssues">↻ Refresh</button>
+        <span class="tf-filter-label">Search:</span>
+        <input type="text" id="tfSearchInput" placeholder="Ticket #, asset, location..." data-voice-input style="flex:1;min-width:200px;">
       </div>
 
-      <div class="owner-issues-card">
-        <div id="issueList"></div>
-      </div>
+      <div class="section-heading">Transfer Tickets <span class="section-heading-count" id="tfCount">0 tickets</span></div>
+      <div id="tfTableContainer"></div>
     </div>
 
-    <!-- MARKETING TAB -->
-    <div id="tab-marketing" class="owner-tab-content">
-      <div class="owner-coming-soon" style="padding:60px 20px;">
-        <h3>Marketing — Coming Soon</h3>
-        <p>Create and share HTML advertisements with your referral partners.</p>
-      </div>
+    <!-- ===== DETAIL VIEW ===== -->
+    <div id="tfDetailView" style="display:none;">
+      <button class="tf-back" id="tfBackBtn">&larr; Back to list</button>
+      <div id="tfDetail"></div>
     </div>
 
-    <!-- SITE VISITORS TAB -->
-    <div id="tab-visitors" class="owner-tab-content">
-      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
-        <input type="date" id="visitorDateStart">
-        <input type="date" id="visitorDateEnd">
-        <button type="button" class="owner-refresh-btn" id="btnFilterVisitors">Filter Date</button>
-        <button type="button" class="owner-refresh-btn" data-visitor-filter="today">Today</button>
-        <button type="button" class="owner-refresh-btn" data-visitor-filter="yesterday">Yesterday</button>
-        <button type="button" class="owner-refresh-btn" data-visitor-filter="week">7 Days</button>
-        <button type="button" class="owner-refresh-btn" data-visitor-filter="30">30 Days</button>
-      </div>
-
-      <!-- DAILY VISITOR TREND CHART -->
-      <div class="dash-card" style="margin-bottom: 24px; padding: 20px;">
-        <h3 style="margin-top: 0; font-size: 16px; color: var(--text-main);">Daily Visitor Trend</h3>
-        <div id="visitorChartContainer" style="height: 220px; width: 100%; position: relative;">
-          <canvas id="visitorChartCanvas"></canvas>
-        </div>
-      </div>
-
-      <div class="owner-stats">
-        <div class="owner-stat-card"><div class="owner-stat-label">Total Visits</div><div class="owner-stat-number" id="visitorTotalVisits">—</div></div>
-        <div class="owner-stat-card"><div class="owner-stat-label">Unique Visitors</div><div class="owner-stat-number" id="visitorUniqueVisitors">—</div></div>
-        <div class="owner-stat-card"><div class="owner-stat-label">Unique Sessions</div><div class="owner-stat-number" id="visitorUniqueSessions">—</div></div>
-        <div class="owner-stat-card"><div class="owner-stat-label">Countries</div><div class="owner-stat-number" id="visitorUniqueCountries">—</div></div>
-      </div>
-      <div class="owner-stats">
-        <div class="owner-stat-card"><div class="owner-stat-label">Referral Visits</div><div class="owner-stat-number" id="visitorReferralVisits">—</div></div>
-        <div class="owner-stat-card"><div class="owner-stat-label">Top Device</div><div class="owner-stat-number" id="visitorTopDevice">—</div></div>
-        <div class="owner-stat-card"><div class="owner-stat-label">Top Browser</div><div class="owner-stat-number" id="visitorTopBrowser">—</div></div>
-        <div class="owner-stat-card"><div class="owner-stat-label">Top OS</div><div class="owner-stat-number" id="visitorTopOS">—</div></div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px;">
-        <div class="owner-stat-card"><div class="owner-stat-label">Top Pages</div><div id="visitorTopPages"></div></div>
-        <div class="owner-stat-card"><div class="owner-stat-label">Top Countries</div><div id="visitorTopCountries"></div></div>
-        <div class="owner-stat-card"><div class="owner-stat-label">Browsers</div><div id="visitorBrowsers"></div></div>
-        <div class="owner-stat-card"><div class="owner-stat-label">Operating Systems</div><div id="visitorOS"></div></div>
-      </div>
-
-      <h3>Recent Visitors</h3>
-      <div class="owner-table-wrap">
-        <table class="dash-table">
-          <thead>
-            <tr>
-              <th>Date</th><th>Page</th><th>Country</th><th>Device</th><th>Browser</th><th>OS</th><th>Code</th><th>Source</th><th>Time</th>
-            </tr>
-          </thead>
-          <tbody id="visitorsTableBody"></tbody>
-        </table>
-      </div>
-
-      <h3 style="margin-top:24px;">Visitor Sessions</h3>
-      <div class="owner-table-wrap">
-        <table class="dash-table">
-          <thead>
-            <tr>
-              <th>First Visit</th><th>Pages</th><th>Visited</th><th>Time</th><th>Country</th><th>Device</th><th>Browser</th><th>OS</th><th>Code</th>
-            </tr>
-          </thead>
-          <tbody id="sessionsTableBody"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- SETTINGS TAB -->
-    <div id="tab-settings" class="owner-tab-content">
-      <div class="settings-section" style="margin-bottom:16px;">
-        <h3 style="margin-bottom:12px;">Appearance</h3>
-        <div class="settings-row" style="display:flex;justify-content:space-between;align-items:center;">
-          <div>Switch between Light and Dark themes.</div>
-          <div class="theme-switch-container">
-            <span class="theme-switch-label" id="dashThemeLabelLight">Light</span>
-            <label class="switch">
-              <input type="checkbox" id="dashThemeCheckbox">
-              <span class="slider"></span>
-            </label>
-            <span class="theme-switch-label" id="dashThemeLabelDark">Dark</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="settings-section" style="margin-bottom:16px;">
-        <h3 style="margin-bottom:12px;">Organization Logo</h3>
-        <div class="settings-row" style="display:flex;justify-content:space-between;align-items:center;">
-          <div><div id="settingsLogoPreview"></div></div>
-          <div>
-            <input type="file" id="logoFileInput" accept="image/*" style="display:none;">
-            <button class="owner-refresh-btn" onclick="document.getElementById('logoFileInput').click()">Upload Logo</button>
-            <button class="owner-action-btn owner-btn-reject" id="logoRemoveBtn" style="display:none;">Remove</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <h3 style="margin-bottom:12px;">Account Information</h3>
-        <div class="settings-row" style="display:flex;justify-content:space-between;align-items:center;">
-          <div>Logged-in Email:</div>
-          <div id="settingsAccountEmail" style="font-weight:600;">—</div>
-        </div>
-      </div>
-    </div>
-
-  </main>
-
-  <div class="dash-footer">
-    <p>&copy; <span id="dashFooterYear">2026</span> DRIV-EN. All rights reserved.</p>
   </div>
 </div>
 
-<!-- MODALS -->
-<div id="approveModal" class="owner-modal">
-  <div class="owner-modal-card">
-    <h3>Approve Referral Partner</h3>
-    <p id="approvePartnerName">—</p>
-    <label for="approveReferralCode">Referral Code</label>
-    <div class="owner-code-row">
-      <input type="text" id="approveReferralCode">
-      <button class="owner-regen-btn" id="btnRegenCode">New Code</button>
-    </div>
-    <label for="approveW9Expiration">W-9 Expiration Date</label>
-    <input type="date" id="approveW9Expiration">
-    <div class="owner-modal-actions">
-      <button class="owner-modal-cancel" id="btnCancelApprove">Cancel</button>
-      <button class="owner-modal-confirm" id="btnConfirmApprove">Approve</button>
-    </div>
-  </div>
-</div>
+<!-- ===== FOOTER ===== -->
+<div id="dashFooter"></div>
 
-<div id="rejectModal" class="owner-modal">
-  <div class="owner-modal-card">
-    <h3>Reject Referral Partner</h3>
-    <p id="rejectPartnerName">—</p>
-    <label for="rejectReason">Reason (optional)</label>
-    <textarea id="rejectReason"></textarea>
-    <div class="owner-modal-actions">
-      <button class="owner-modal-cancel" id="btnCancelReject">Cancel</button>
-      <button class="owner-modal-confirm danger" id="btnConfirmReject">Reject</button>
-    </div>
-  </div>
-</div>
-
-<!-- CORRECTED SCRIPT ORDER: auth-check runs BEFORE owner-dashboard initialization -->
-<script src="/components/auth-check.js"></script>
-<script src="/app/shared/dashboard-common.js?v=15"></script>
-<script src="/app/dashboard/owner-dashboard.js?v=18"></script>
+<!-- ===== SHARED SCRIPTS (order: auth-check -> dashboard-common -> units -> voice -> page JS) ===== -->
+<script src="/app/shared/auth-check.js?v=21"></script>
+<script src="/app/shared/dashboard-common.js?v=20"></script>
+<script src="/app/shared/units-global.js?v=2"></script>
+<script src="/app/shared/apply-units.js?v=1"></script>
+<script src="/app/shared/voice.js?v=3"></script>
+<script src="/app/dashboard/transfers.js?v=1"></script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" data-cf-beacon='{"token":"aed8feab3b60404ba88ec92f026bbcd6"}' crossorigin="anonymous"></script>
+  <script src="/app/shared/translate.js?v=2"></script>
 </body>
 </html>
