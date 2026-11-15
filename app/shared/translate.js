@@ -20,7 +20,7 @@
  *   Content:     <p data-translate data-entity-type="work_order" data-entity-id="123">Note text</p>
  *
  * Load after dashboard-common.js:
- *   <script src="/app/shared/translate.js?v=2"></script>
+ *   <script src="/app/shared/translate.js?v=3"></script>
  */
 
 (function() {
@@ -137,10 +137,25 @@
   // types that are safe to auto-translate. Use data-no-translate to exclude.
   var UI_TEXT_SELECTOR = [
     '[data-i18n]:not([data-no-translate])',
+    // Generic HTML elements that are almost always UI text
+    'h1:not([data-no-translate])',
+    'h2:not([data-no-translate])',
+    'h3:not([data-no-translate])',
+    'h4:not([data-no-translate])',
+    'h5:not([data-no-translate])',
+    'h6:not([data-no-translate])',
     'th:not([data-no-translate])',
     'label:not([data-no-translate])',
     'legend:not([data-no-translate])',
     'option:not([data-no-translate])',
+    'button:not([data-no-translate])',
+    // Modal content — paragraphs, list items, strong/em inside modals
+    '.modal-body p:not([data-no-translate])',
+    '.modal-body li:not([data-no-translate])',
+    '.modal-body strong:not([data-no-translate])',
+    '.modal-body em:not([data-no-translate])',
+    '.modal-content p:not([data-no-translate])',
+    '.modal-content li:not([data-no-translate])',
     // DRIV-EN dashboard UI classes
     '.admin-tab:not([data-no-translate])',
     '.admin-subtab:not([data-no-translate])',
@@ -167,6 +182,21 @@
     '.welcome-uom-hint:not([data-no-translate])',
     '.um-subtitle:not([data-no-translate])',
     '.form-links-grid .emp-form-card > div:not([data-no-translate])',
+    // Common form/page UI classes
+    '.form-label:not([data-no-translate])',
+    '.form-section-title:not([data-no-translate])',
+    '.section-title:not([data-no-translate])',
+    '.page-title:not([data-no-translate])',
+    '.card-title:not([data-no-translate])',
+    '.nav-item:not([data-no-translate])',
+    '.tab-label:not([data-no-translate])',
+    '.info-label:not([data-no-translate])',
+    '.field-label:not([data-no-translate])',
+    '.btn:not([data-no-translate])',
+    '.toast-message:not([data-no-translate])',
+    '.alert:not([data-no-translate])',
+    '.banner-text:not([data-no-translate])',
+    '.empty-state:not([data-no-translate])',
   ].join(', ');
 
   var uiTranslateInProgress = false;
@@ -500,5 +530,45 @@
       if (uiLang !== 'en') autoTranslateUI(uiLang);
     }, 500);
   });
+
+  // -- MutationObserver: auto-translate dynamically added content (modals, AJAX, etc.) --
+  var retranslateTimer = null;
+  var observer = new MutationObserver(function(mutations) {
+    var uiLang = getUILang();
+    if (uiLang === 'en') return; // no translation needed
+
+    var hasNewElements = false;
+    for (var i = 0; i < mutations.length; i++) {
+      var added = mutations[i].addedNodes;
+      for (var j = 0; j < added.length; j++) {
+        var node = added[j];
+        if (node.nodeType === 1 && !node.dataset && !node.getAttribute) continue;
+        if (node.nodeType === 1) {
+          // Skip translate buttons and overlays
+          if (node.classList && (node.classList.contains('driven-translate-btn') || node.classList.contains('driven-translate-overlay'))) continue;
+          hasNewElements = true;
+          break;
+        }
+      }
+      if (hasNewElements) break;
+    }
+
+    if (hasNewElements) {
+      clearTimeout(retranslateTimer);
+      retranslateTimer = setTimeout(function() { autoTranslateUI(uiLang); }, 300);
+    }
+  });
+
+  function startObserver() {
+    if (document.body) {
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startObserver);
+  } else {
+    startObserver();
+  }
 
 })();
