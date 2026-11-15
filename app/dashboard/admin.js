@@ -776,13 +776,29 @@ init();
 
 var analyticsDateRange = 'all';
 
+function getSavedDateRange() {
+  try {
+    var saved = localStorage.getItem('driven_analytics_date_range');
+    if (saved) return saved;
+  } catch (e) {}
+  return 'all';
+}
+
+function saveDateRange(val) {
+  try { localStorage.setItem('driven_analytics_date_range', val); } catch (e) {}
+}
+
 function initAnalytics() {
   var refreshBtn = document.getElementById('btnAnalyticsRefresh');
   if (refreshBtn) refreshBtn.addEventListener('click', loadAnalytics);
   var dateSelect = document.getElementById('analyticsDateRange');
   if (dateSelect) {
+    // Restore saved preference
+    analyticsDateRange = getSavedDateRange();
+    dateSelect.value = analyticsDateRange;
     dateSelect.addEventListener('change', function() {
       analyticsDateRange = this.value;
+      saveDateRange(this.value);
       loadAnalytics();
     });
   }
