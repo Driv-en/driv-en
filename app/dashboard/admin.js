@@ -984,7 +984,7 @@ function renderBarChart(containerId, data, colorMap) {
     var pct = maxVal > 0 ? Math.round((value / maxVal) * 100) : 0;
     var color = colorMap[label] || '#0284c7';
     return '<div style="display:flex;align-items:center;gap:8px;">' +
-      '<div style="width:200px;font-size:12px;text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + esc(label) + '">' + esc(label) + '</div>' +
+      '<div style="width:280px;font-size:12px;text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + esc(label) + '">' + esc(label) + '</div>' +
       '<div style="flex:1;background:var(--bg-step,#f1f5f9);border-radius:4px;height:22px;position:relative;overflow:hidden;">' +
         '<div style="width:' + pct + '%;height:100%;background:' + color + ';border-radius:4px;transition:width 300ms ease;"></div>' +
         '<span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:600;color:var(--text);">' + value + '</span>' +
