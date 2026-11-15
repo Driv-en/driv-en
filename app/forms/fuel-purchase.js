@@ -1,17 +1,20 @@
 /**
- * File: fuel-purchase.js
- * Date Revised: March 7, 2026
+ * File: fuel-purchase.js (v2)
+ * Date Revised: 2026-11-15
  *
- * Purpose:
- * Client-side logic for logging fuel purchases across mobile and desktop devices.
- * Architectural updates incorporated:
- * 1. Asset-First Line Flow (Asset/Tank positioned as field #1 with async background
- *    meter reading fetching and DOM banner updates).
- * 2. Per-Line Photo Attestation (Asset & Meter photos managed per line item in linePhotosMap).
- * 3. No Automated Line Subtotal / Cost-Per-Gallon Math forcing (preserves raw manual receipts).
- * 4. Strict Sequential Line Stepping: Asset -> Fuel Type -> Qty -> Cost/Gal -> Meter -> Photos.
- * 5. Full code completeness retaining crop overlay, AI OCR, GPS, settings enforcement,
- *    and multi-tenant auth context.
+ * Fixes applied in v2:
+ *   - All innerHTML replaced with DOM-safe createElement/textContent.
+ *   - addLineItem: massive innerHTML template → DOM-safe node building.
+ *   - buildAssetOptionsHtml → populateAssetOptions (DOM-safe select population).
+ *   - loadUsers, loadLocations, loadProjects: innerHTML → DOM-safe.
+ *   - showLocationPopup, updateLocationStatus, showConfidenceBanner: innerHTML → DOM-safe.
+ *   - handleAssetChange banner updates: innerHTML → DOM-safe.
+ *   - _doExtraction previewContent: innerHTML → DOM-safe.
+ *   - handleReceiptUpload previewContent: innerHTML → DOM-safe.
+ *   - _buildCropUI desc: innerHTML → DOM-safe.
+ *   - clearPurchaseForm: innerHTML='' → clearChildren().
+ *   - Inline scripts from HTML moved here: openModal, closeModal, DOMContentLoaded title guard, service worker.
+ *   - All inline onclick/onchange/oninput handlers exposed on window.
  */
 
 var allTanks = [];
@@ -35,6 +38,22 @@ var systemSettings = {
 };
 
 var _extractedVendorLocation = {};
+
+/* ===== DOM-SAFE HELPERS ===== */
+function clearChildren(el) { while (el && el.firstChild) el.removeChild(el.firstChild); }
+function addOption(select, value, text) {
+  var opt = document.createElement("option");
+  opt.value = value;
+  opt.textContent = text;
+  select.appendChild(opt);
+  return opt;
+}
+function addOptgroup(select, label) {
+  var og = document.createElement("optgroup");
+  og.label = label;
+  select.appendChild(og);
+  return og;
+}
 
 /* ===== DEVICE DETECTION ===== */
 function isMobileDevice() {
@@ -70,7 +89,6 @@ async function loadTenantSettings() {
 }
 
 function applySettingUIConstraints() {
-  // Update all existing line items with photo requirement badges/labels
   document.querySelectorAll('.line-item-row').forEach(function(row) {
     var lineId = row.id;
     updateLinePhotoRequirementsUI(lineId);
@@ -168,7 +186,7 @@ function parseToIsoDate(str) {
 
   var months = {
     JAN: '01', FEB: '02', MAR: '03', APR: '04', MAY: '05', JUN: '06',
-    JUL: '07', AUG: '08', SEP: '09', OCT: '10', NOV: '11', DEC: '12',
+    JULY: '07', AUG: '08', SEP: '09', OCT: '10', NOV: '11', DEC: '12',
     JANUARY: '01', FEBRUARY: '02', MARCH: '03', APRIL: '04', JUNE: '06',
     JULY: '07', AUGUST: '08', SEPTEMBER: '09', OCTOBER: '10', NOVEMBER: '11', DECEMBER: '12'
   };
@@ -414,7 +432,10 @@ function checkDeviceLocation() {
   if (banner) {
     banner.style.display = 'block';
     banner.className = 'location-banner warn';
-    banner.innerHTML = '<strong>⌛ Acquiring GPS location...</strong>';
+    clearChildren(banner);
+    var strong = document.createElement('strong');
+    strong.textContent = '⌛ Acquiring GPS location...';
+    banner.appendChild(strong);
   }
 
   var locationResolved = false;
@@ -500,12 +521,26 @@ function updateLocationStatus(hasLocation) {
     return;
   }
   banner.style.display = 'block';
+  clearChildren(banner);
   if (hasLocation && deviceLocation) {
     banner.className = 'location-banner ok';
-    banner.innerHTML = '<strong>📍 Location:</strong> ' + deviceLocation.latitude.toFixed(6) + ', ' + deviceLocation.longitude.toFixed(6) + ' (±' + Math.round(deviceLocation.accuracy) + 'm)';
+    var strong = document.createElement('strong');
+    strong.textContent = '📍 Location: ';
+    banner.appendChild(strong);
+    banner.appendChild(document.createTextNode(
+      deviceLocation.latitude.toFixed(6) + ', ' + deviceLocation.longitude.toFixed(6) + ' (±' + Math.round(deviceLocation.accuracy) + 'm)'
+    ));
   } else {
     banner.className = 'location-banner warn';
-    banner.innerHTML = '<strong>⚠️ Location is OFF</strong> — Click to retry <button onclick="checkDeviceLocation()" style="margin-left:8px;padding:4px 12px;border:1px solid #b45309;border-radius:4px;background:#fef3c7;color:#78350f;cursor:pointer;font-size:12px;">Retry</button>';
+    var warnStrong = document.createElement('strong');
+    warnStrong.textContent = '⚠️ Location is OFF';
+    banner.appendChild(warnStrong);
+    banner.appendChild(document.createTextNode(' — Click to retry '));
+    var retryBtn = document.createElement('button');
+    retryBtn.style.cssText = 'margin-left:8px;padding:4px 12px;border:1px solid #b45309;border-radius:4px;background:#fef3c7;color:#78350f;cursor:pointer;font-size:12px;';
+    retryBtn.textContent = 'Retry';
+    retryBtn.onclick = function() { checkDeviceLocation(); };
+    banner.appendChild(retryBtn);
   }
 }
 
@@ -516,17 +551,43 @@ function showLocationPopup(message) {
   var msgEl = document.getElementById('locationPopupMessage');
   if (!overlay || !msgEl) return;
 
-  var instructionsHtml = 
-    '<p style="margin:0 0 6px;"><strong>iPhone/iPad (iOS):</strong> Settings → Privacy & Security → Location Services → ON → Safari Websites (or App Name) → "While Using"</p>' +
-    '<p style="margin:0 0 6px;"><strong>Android / Desktop:</strong> Browser Settings → Site Settings → Location → Allow Access</p>';
+  clearChildren(msgEl);
 
-  msgEl.innerHTML = 
-    '<p style="font-size:15px;margin:0 0 16px;color:var(--text, #ffffff);">' + esc(message) + '</p>' +
-    '<div style="background:var(--bg-card, #1e293b);border:1px solid var(--border, #334155);border-radius:8px;padding:14px;margin-bottom:12px;color:var(--text, #f8fafc);">' +
-      '<p style="font-weight:600;margin:0 0 8px;color:var(--primary, #38bdf8);">How to enable location:</p>' +
-      instructionsHtml +
-    '</div>' +
-    '<p style="font-size:13px;color:var(--text-muted, #94a3b8);margin:0;">After enabling, click "Retry Location" to capture your coordinates.</p>';
+  var msgP = document.createElement('p');
+  msgP.style.cssText = 'font-size:15px;margin:0 0 16px;color:var(--text, #ffffff);';
+  msgP.textContent = message;
+  msgEl.appendChild(msgP);
+
+  var instructionsDiv = document.createElement('div');
+  instructionsDiv.style.cssText = 'background:var(--bg-card, #1e293b);border:1px solid var(--border, #334155);border-radius:8px;padding:14px;margin-bottom:12px;color:var(--text, #f8fafc);';
+
+  var instrTitle = document.createElement('p');
+  instrTitle.style.cssText = 'font-weight:600;margin:0 0 8px;color:var(--primary, #38bdf8);';
+  instrTitle.textContent = 'How to enable location:';
+  instructionsDiv.appendChild(instrTitle);
+
+  var p1 = document.createElement('p');
+  p1.style.cssText = 'margin:0 0 6px;';
+  var p1s = document.createElement('strong');
+  p1s.textContent = 'iPhone/iPad (iOS):';
+  p1.appendChild(p1s);
+  p1.appendChild(document.createTextNode(' Settings → Privacy & Security → Location Services → ON → Safari Websites (or App Name) → "While Using"'));
+  instructionsDiv.appendChild(p1);
+
+  var p2 = document.createElement('p');
+  p2.style.cssText = 'margin:0 0 6px;';
+  var p2s = document.createElement('strong');
+  p2s.textContent = 'Android / Desktop:';
+  p2.appendChild(p2s);
+  p2.appendChild(document.createTextNode(' Browser Settings → Site Settings → Location → Allow Access'));
+  instructionsDiv.appendChild(p2);
+
+  msgEl.appendChild(instructionsDiv);
+
+  var noteP = document.createElement('p');
+  noteP.style.cssText = 'font-size:13px;color:var(--text-muted, #94a3b8);margin:0;';
+  noteP.textContent = 'After enabling, click "Retry Location" to capture your coordinates.';
+  msgEl.appendChild(noteP);
 
   overlay.style.display = 'flex';
 }
@@ -555,12 +616,10 @@ function esc(s) {
 /* ===== HEADER STYLING & TITLE SAFETY ===== */
 function fitHeaderTitle(el) {
   if (!el) return;
-
   el.style.setProperty('position', 'relative', 'important');
   el.style.setProperty('left', 'auto', 'important');
   el.style.setProperty('transform', 'none', 'important');
   el.style.setProperty('margin', '0 auto', 'important');
-  
   el.style.setProperty('white-space', 'normal', 'important');
   el.style.setProperty('word-break', 'break-word', 'important');
   el.style.setProperty('overflow-wrap', 'break-word', 'important');
@@ -634,7 +693,7 @@ function localDate() {
   return y + '-' + m + '-' + day;
 }
 
-/* ===== USERS DROPDOWN ===== */
+/* ===== USERS DROPDOWN (DOM-SAFE) ===== */
 async function loadUsers() {
   var personSelect = document.getElementById('purchasePerson');
   if (!personSelect || personSelect.tagName !== 'SELECT') return;
@@ -644,11 +703,13 @@ async function loadUsers() {
   var activeUserId = activeUser.id || activeUser.user_id;
   var activeUserName = getUserDisplayName().trim();
 
-  var html = '<option value="">Select user…</option>';
+  clearChildren(personSelect);
+  addOption(personSelect, '', 'Select user…');
 
   if (activeUserId && activeUserName) {
     seenUserIds.add(String(activeUserId));
-    html += '<option value="' + esc(activeUserName) + '" selected>' + esc(activeUserName) + ' (You)</option>';
+    var youOpt = addOption(personSelect, activeUserName, activeUserName + ' (You)');
+    youOpt.selected = true;
   }
 
   try {
@@ -684,66 +745,60 @@ async function loadUsers() {
       }
 
       if (name) {
-        html += '<option value="' + esc(name) + '">' + esc(name) + '</option>';
+        addOption(personSelect, name, name);
       }
     });
   } catch(e) {
     console.warn('Failed to load users:', e);
   }
-
-  personSelect.innerHTML = html;
 }
 
-/* ===== BUILD ASSET SELECT OPTIONS ===== */
-function buildAssetOptionsHtml() {
+/* ===== BUILD ASSET SELECT OPTIONS (DOM-SAFE) ===== */
+function populateAssetOptions(selectEl) {
+  clearChildren(selectEl);
+  addOption(selectEl, '', 'Select asset/tank…');
+
   var bulkTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'bulk' && (t.status === 'active' || !t.status); }));
   var dragupTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'dragup' && (t.status === 'active' || !t.status); }));
   var portableTanks = dedupTanks(allTanks.filter(function(t) { return t.tank_type === 'portable' && (t.status === 'active' || !t.status); }));
   var equipmentAssets = allAssets;
 
-  var html = '<option value="">Select asset/tank…</option>';
-
   if (bulkTanks.length > 0) {
-    html += '<optgroup label="Bulk Tanks">';
+    var og = addOptgroup(selectEl, 'Bulk Tanks');
     bulkTanks.forEach(function(t) {
       var label = t.name + (t.fuel_type ? ' (' + t.fuel_type + ')' : '') + (t.location ? ' — ' + t.location : '');
-      html += '<option value="bulk_tank|' + esc(t.id) + '">' + esc(label) + '</option>';
+      addOption(og, 'bulk_tank|' + t.id, label);
     });
-    html += '</optgroup>';
   }
 
   if (dragupTanks.length > 0) {
-    html += '<optgroup label="Drag-Up Tanks">';
+    var og2 = addOptgroup(selectEl, 'Drag-Up Tanks');
     dragupTanks.forEach(function(t) {
       var label = t.name + (t.fuel_type ? ' (' + t.fuel_type + ')' : '') + (t.location ? ' — ' + t.location : '');
-      html += '<option value="dragup_tank|' + esc(t.id) + '">' + esc(label) + '</option>';
+      addOption(og2, 'dragup_tank|' + t.id, label);
     });
-    html += '</optgroup>';
   }
 
   if (portableTanks.length > 0) {
-    html += '<optgroup label="Portable Cans">';
+    var og3 = addOptgroup(selectEl, 'Portable Cans');
     portableTanks.forEach(function(t) {
       var label = t.name + (t.fuel_type ? ' (' + t.fuel_type + ')' : '') + (t.location ? ' — ' + t.location : '');
-      html += '<option value="portable_can|' + esc(t.id) + '">' + esc(label) + '</option>';
+      addOption(og3, 'portable_can|' + t.id, label);
     });
-    html += '</optgroup>';
   }
 
   if (equipmentAssets.length > 0) {
-    html += '<optgroup label="Equipment / Machinery">';
+    var og4 = addOptgroup(selectEl, 'Equipment / Machinery');
     equipmentAssets.forEach(function(a) {
       var assetNum = a.asset_number || a.asset_num || a.asset_id || a.unit_number || a.code || (a.id ? String(a.id).slice(0,8) : '');
       var assetName = a.name || a.asset_name || a.title || a.description || [a.year, a.make, a.model].filter(Boolean).join(' ') || 'Unnamed Asset';
       var assetId = a.id || a.asset_id || a.uuid || assetNum;
       var label = (assetNum ? assetNum + ' — ' : '') + assetName + (a.fuel_type ? ' (' + a.fuel_type + ')' : '');
-      html += '<option value="asset|' + esc(assetId) + '|' + esc(assetNum) + '">' + esc(label) + '</option>';
+      addOption(og4, 'asset|' + assetId + '|' + assetNum, label);
     });
-    html += '</optgroup>';
   }
 
-  html += '<option value="__custom">+ Other (type manually)</option>';
-  return html;
+  addOption(selectEl, '__custom', '+ Other (type manually)');
 }
 
 /* ===== ASSET SELECTION & ASYNC METER CONTEXT FETCH ===== */
@@ -761,10 +816,17 @@ async function handleAssetChange(selectEl, lineId) {
     input.className = 'purchase-input line-destination ai-needed';
     input.placeholder = 'Type asset/vehicle name';
     input.setAttribute('data-custom', 'true');
-    input.oninput = function() { markFormDirty(); };
+    input.addEventListener('input', function() { markFormDirty(); });
     selectEl.parentNode.replaceChild(input, selectEl);
     if (banner) banner.style.display = 'none';
-    if (meterLabel) meterLabel.innerHTML = 'Meter Reading <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(hrs/mi)</span>';
+    if (meterLabel) {
+      clearChildren(meterLabel);
+      meterLabel.appendChild(document.createTextNode('Meter Reading '));
+      var sub = document.createElement('span');
+      sub.style.cssText = 'font-size:11px;font-weight:400;color:var(--text-muted);';
+      sub.textContent = '(hrs/mi)';
+      meterLabel.appendChild(sub);
+    }
     input.focus();
     return;
   }
@@ -778,7 +840,8 @@ async function handleAssetChange(selectEl, lineId) {
   if (entityType === 'asset' && entityId) {
     if (banner) {
       banner.style.display = 'block';
-      banner.innerHTML = 'Fetching historical meter context…';
+      clearChildren(banner);
+      banner.textContent = 'Fetching historical meter context…';
     }
 
     try {
@@ -789,17 +852,26 @@ async function handleAssetChange(selectEl, lineId) {
         var unit = (data.unit || data.uom || data.meter_unit || 'hrs').toLowerCase();
 
         if (meterLabel) {
-          meterLabel.innerHTML = 'Meter Reading (' + esc(unit) + ') <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(if machinery)</span>';
+          clearChildren(meterLabel);
+          meterLabel.appendChild(document.createTextNode('Meter Reading (' + unit + ') '));
+          var sub2 = document.createElement('span');
+          sub2.style.cssText = 'font-size:11px;font-weight:400;color:var(--text-muted);';
+          sub2.textContent = '(if machinery)';
+          meterLabel.appendChild(sub2);
         }
         if (meterInput) {
           meterInput.placeholder = unit;
         }
 
         if (banner) {
+          clearChildren(banner);
+          var bStrong = document.createElement('strong');
+          bStrong.textContent = 'Previous Meter Reading:';
+          banner.appendChild(bStrong);
           if (reading !== null && reading !== undefined) {
-            banner.innerHTML = '<strong>Previous Meter Reading:</strong> ' + esc(String(reading)) + ' ' + esc(unit) + ' (Recorded: ' + esc(data.date || 'Recent') + ')';
+            banner.appendChild(document.createTextNode(' ' + reading + ' ' + unit + ' (Recorded: ' + (data.date || 'Recent') + ')'));
           } else {
-            banner.innerHTML = '<strong>Previous Meter Reading:</strong> No previous reading recorded for this asset.';
+            banner.appendChild(document.createTextNode(' No previous reading recorded for this asset.'));
           }
         }
       } else {
@@ -811,11 +883,18 @@ async function handleAssetChange(selectEl, lineId) {
     }
   } else {
     if (banner) banner.style.display = 'none';
-    if (meterLabel) meterLabel.innerHTML = 'Meter Reading <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(if machinery)</span>';
+    if (meterLabel) {
+      clearChildren(meterLabel);
+      meterLabel.appendChild(document.createTextNode('Meter Reading '));
+      var sub3 = document.createElement('span');
+      sub3.style.cssText = 'font-size:11px;font-weight:400;color:var(--text-muted);';
+      sub3.textContent = '(if machinery)';
+      meterLabel.appendChild(sub3);
+    }
   }
 }
 
-/* ===== SEQUENTIAL STEPPING LINE ITEMS WITH PER-LINE PHOTOS ===== */
+/* ===== SEQUENTIAL STEPPING LINE ITEMS WITH PER-LINE PHOTOS (DOM-SAFE) ===== */
 function addLineItem(data) {
   lineItemCount++;
   var lineId = 'line-' + lineItemCount;
@@ -832,80 +911,252 @@ function addLineItem(data) {
   var qty = (data && data.gallons) || '';
   var unitPrice = (data && data.unit_price) || '';
   var meterReading = (data && data.meter_reading) || '';
-  var qtyEsc = esc(qty);
-  var unitPriceEsc = esc(unitPrice);
-  var meterReadingEsc = esc(meterReading);
 
-  div.innerHTML =
-    '<div class="line-item-header-bar">' +
-      '<span class="line-item-title">Line Item #' + lineItemCount + '</span>' +
-      '<button class="btn-delete-line" onclick="removeLineItem(\'' + lineId + '\')">Delete Line</button>' +
-    '</div>' +
+  // --- Header bar ---
+  var headerBar = document.createElement('div');
+  headerBar.className = 'line-item-header-bar';
 
-    '<div class="prev-meter-banner" id="prevMeterBanner_' + lineId + '"></div>' +
+  var titleSpan = document.createElement('span');
+  titleSpan.className = 'line-item-title';
+  titleSpan.textContent = 'Line Item #' + lineItemCount;
+  headerBar.appendChild(titleSpan);
 
-    '<div class="line-item-grid">' +
-      '<!-- STEP 1: ASSET / TANK -->' +
-      '<div class="purchase-field"><label class="purchase-label">1. Asset / Tank <span style="color:#cc0000;">*</span></label>' +
-        '<select class="purchase-input line-destination ai-needed" onchange="handleAssetChange(this, \'' + lineId + '\')">' +
-          buildAssetOptionsHtml() +
-        '</select>' +
-      '</div>' +
+  var delBtn = document.createElement('button');
+  delBtn.className = 'btn-delete-line';
+  delBtn.textContent = 'Delete Line';
+  (function(lid) { delBtn.addEventListener('click', function() { removeLineItem(lid); }); })(lineId);
+  headerBar.appendChild(delBtn);
 
-      '<!-- STEP 2: FUEL TYPE -->' +
-      '<div class="purchase-field"><label class="purchase-label">2. Fuel Type <span style="color:#cc0000;">*</span></label>' +
-        '<select class="purchase-input line-fuel-type" onchange="recalcLine(\'' + lineId + '\'); markFormDirty()">' +
-          '<option value="diesel_onroad"' + (fuelType === 'diesel_onroad' || fuelType === 'diesel' ? ' selected' : '') + '>Diesel (On-Road)</option>' +
-          '<option value="diesel_offroad"' + (fuelType === 'diesel_offroad' ? ' selected' : '') + '>Diesel (Off-Road)</option>' +
-          '<option value="gasoline"' + (fuelType === 'gasoline' ? ' selected' : '') + '>Gasoline</option>' +
-          '<option value="DEF"' + (fuelType === 'DEF' ? ' selected' : '') + '>DEF</option>' +
-          '<option value="propane"' + (fuelType === 'propane' ? ' selected' : '') + '>Propane</option>' +
-          '<option value="other"' + (fuelType === 'other' ? ' selected' : '') + '>Other</option>' +
-          '<option value="__custom_fuel"' + (fuelType === '__custom_fuel' ? ' selected' : '') + '>+ Other (type manually)</option>' +
-        '</select>' +
-      '</div>' +
+  div.appendChild(headerBar);
 
-      '<!-- STEP 3: QUANTITY -->' +
-      '<div class="purchase-field"><label class="purchase-label">3. Qty (gal) <span style="color:#cc0000;">*</span></label>' +
-        '<input type="number" class="purchase-input line-qty" placeholder="0" min="0" step="0.01" value="' + qtyEsc + '" oninput="recalcLine(\'' + lineId + '\'); markFormDirty()">' +
-      '</div>' +
+  // --- Prev meter banner ---
+  var prevBanner = document.createElement('div');
+  prevBanner.className = 'prev-meter-banner';
+  prevBanner.id = 'prevMeterBanner_' + lineId;
+  div.appendChild(prevBanner);
 
-      '<!-- STEP 4: COST PER GALLON -->' +
-      '<div class="purchase-field"><label class="purchase-label">4. Cost/Gal <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(optional)</span></label>' +
-        '<input type="number" class="purchase-input line-cpg" placeholder="$0.00" min="0" step="0.001" value="' + unitPriceEsc + '" oninput="recalcLine(\'' + lineId + '\'); markFormDirty()">' +
-      '</div>' +
+  // --- Grid ---
+  var grid = document.createElement('div');
+  grid.className = 'line-item-grid';
 
-      '<!-- STEP 5: METER READING -->' +
-      '<div class="purchase-field" style="grid-column: 1 / -1;"><label class="purchase-label line-meter-label">5. Meter Reading <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(if machinery)</span></label>' +
-        '<input type="number" class="purchase-input line-meter ai-needed" placeholder="hrs/mi" min="0" step="0.1" value="' + meterReadingEsc + '" oninput="markFormDirty()">' +
-      '</div>' +
-    '</div>' +
+  // STEP 1: Asset/Tank
+  var f1 = document.createElement('div');
+  f1.className = 'purchase-field';
+  var l1 = document.createElement('label');
+  l1.className = 'purchase-label';
+  l1.textContent = '1. Asset / Tank ';
+  var req1 = document.createElement('span');
+  req1.style.color = '#cc0000';
+  req1.textContent = '*';
+  l1.appendChild(req1);
+  f1.appendChild(l1);
 
-    '<!-- PER-LINE PHOTO ATTESTATION CARDS -->' +
-    '<div class="line-photos-grid">' +
-      '<div class="line-photo-card" id="linePhotoCard_asset_' + lineId + '">' +
-        '<label class="purchase-label" style="display:block;margin-bottom:6px;">Asset Photo <span class="req-asset-photo-star" style="color:#cc0000;display:' + (systemSettings.requireAssetPhoto ? 'inline' : 'none') + ';">*</span></label>' +
-        '<input type="file" id="linePhotoInput_asset_' + lineId + '" accept="image/*" capture="environment" style="display:none;" onchange="handleLinePhotoUpload(\'' + lineId + '\', \'asset\', this)">' +
-        '<button type="button" class="btn-line-photo" id="linePhotoBtn_asset_' + lineId + '" onclick="triggerLinePhotoCapture(\'' + lineId + '\', \'asset\')">📷 Take Asset Photo</button>' +
-        '<img id="linePhotoPreview_asset_' + lineId + '" class="line-photo-preview" alt="Asset Preview">' +
-      '</div>' +
+  var sel1 = document.createElement('select');
+  sel1.className = 'purchase-input line-destination ai-needed';
+  populateAssetOptions(sel1);
+  (function(lid) { sel1.addEventListener('change', function() { handleAssetChange(this, lid); }); })(lineId);
+  f1.appendChild(sel1);
+  grid.appendChild(f1);
 
-      '<div class="line-photo-card" id="linePhotoCard_meter_' + lineId + '">' +
-        '<label class="purchase-label" style="display:block;margin-bottom:6px;">Meter Photo <span class="req-meter-photo-star" style="color:#cc0000;display:' + (systemSettings.requireMeterPhoto ? 'inline' : 'none') + ';">*</span></label>' +
-        '<input type="file" id="linePhotoInput_meter_' + lineId + '" accept="image/*" capture="environment" style="display:none;" onchange="handleLinePhotoUpload(\'' + lineId + '\', \'meter\', this)">' +
-        '<button type="button" class="btn-line-photo" id="linePhotoBtn_meter_' + lineId + '" onclick="triggerLinePhotoCapture(\'' + lineId + '\', \'meter\')">📷 Take Meter Photo</button>' +
-        '<img id="linePhotoPreview_meter_' + lineId + '" class="line-photo-preview" alt="Meter Preview">' +
-      '</div>' +
-    '</div>';
+  // STEP 2: Fuel Type
+  var f2 = document.createElement('div');
+  f2.className = 'purchase-field';
+  var l2 = document.createElement('label');
+  l2.className = 'purchase-label';
+  l2.textContent = '2. Fuel Type ';
+  var req2 = document.createElement('span');
+  req2.style.color = '#cc0000';
+  req2.textContent = '*';
+  l2.appendChild(req2);
+  f2.appendChild(l2);
+
+  var sel2 = document.createElement('select');
+  sel2.className = 'purchase-input line-fuel-type';
+  var fuelOpts = [
+    { v: 'diesel_onroad', t: 'Diesel (On-Road)' },
+    { v: 'diesel_offroad', t: 'Diesel (Off-Road)' },
+    { v: 'gasoline', t: 'Gasoline' },
+    { v: 'DEF', t: 'DEF' },
+    { v: 'propane', t: 'Propane' },
+    { v: 'other', t: 'Other' },
+    { v: '__custom_fuel', t: '+ Other (type manually)' }
+  ];
+  fuelOpts.forEach(function(fo) {
+    var opt = addOption(sel2, fo.v, fo.t);
+    if (fuelType === fo.v || (fuelType === 'diesel' && fo.v === 'diesel_onroad')) opt.selected = true;
+  });
+  (function(lid) { sel2.addEventListener('change', function() { recalcLine(lid); markFormDirty(); }); })(lineId);
+  f2.appendChild(sel2);
+  grid.appendChild(f2);
+
+  // STEP 3: Quantity
+  var f3 = document.createElement('div');
+  f3.className = 'purchase-field';
+  var l3 = document.createElement('label');
+  l3.className = 'purchase-label';
+  l3.textContent = '3. Qty (gal) ';
+  var req3 = document.createElement('span');
+  req3.style.color = '#cc0000';
+  req3.textContent = '*';
+  l3.appendChild(req3);
+  f3.appendChild(l3);
+
+  var inp3 = document.createElement('input');
+  inp3.type = 'number';
+  inp3.className = 'purchase-input line-qty';
+  inp3.placeholder = '0';
+  inp3.min = '0';
+  inp3.step = '0.01';
+  inp3.value = qty;
+  (function(lid) { inp3.addEventListener('input', function() { recalcLine(lid); markFormDirty(); }); })(lineId);
+  f3.appendChild(inp3);
+  grid.appendChild(f3);
+
+  // STEP 4: Cost/Gal
+  var f4 = document.createElement('div');
+  f4.className = 'purchase-field';
+  var l4 = document.createElement('label');
+  l4.className = 'purchase-label';
+  l4.appendChild(document.createTextNode('4. Cost/Gal '));
+  var sub4 = document.createElement('span');
+  sub4.style.cssText = 'font-size:11px;font-weight:400;color:var(--text-muted);';
+  sub4.textContent = '(optional)';
+  l4.appendChild(sub4);
+  f4.appendChild(l4);
+
+  var inp4 = document.createElement('input');
+  inp4.type = 'number';
+  inp4.className = 'purchase-input line-cpg';
+  inp4.placeholder = '$0.00';
+  inp4.min = '0';
+  inp4.step = '0.001';
+  inp4.value = unitPrice;
+  (function(lid) { inp4.addEventListener('input', function() { recalcLine(lid); markFormDirty(); }); })(lineId);
+  f4.appendChild(inp4);
+  grid.appendChild(f4);
+
+  // STEP 5: Meter Reading
+  var f5 = document.createElement('div');
+  f5.className = 'purchase-field';
+  f5.style.gridColumn = '1 / -1';
+  var l5 = document.createElement('label');
+  l5.className = 'purchase-label line-meter-label';
+  l5.appendChild(document.createTextNode('5. Meter Reading '));
+  var sub5 = document.createElement('span');
+  sub5.style.cssText = 'font-size:11px;font-weight:400;color:var(--text-muted);';
+  sub5.textContent = '(if machinery)';
+  l5.appendChild(sub5);
+  f5.appendChild(l5);
+
+  var inp5 = document.createElement('input');
+  inp5.type = 'number';
+  inp5.className = 'purchase-input line-meter ai-needed';
+  inp5.placeholder = 'hrs/mi';
+  inp5.min = '0';
+  inp5.step = '0.1';
+  inp5.value = meterReading;
+  inp5.addEventListener('input', function() { markFormDirty(); });
+  f5.appendChild(inp5);
+  grid.appendChild(f5);
+
+  div.appendChild(grid);
+
+  // --- Per-line photo attestation cards ---
+  var photosGrid = document.createElement('div');
+  photosGrid.className = 'line-photos-grid';
+
+  // Asset photo card
+  var assetCard = document.createElement('div');
+  assetCard.className = 'line-photo-card';
+  assetCard.id = 'linePhotoCard_asset_' + lineId;
+
+  var assetLabel = document.createElement('label');
+  assetLabel.className = 'purchase-label';
+  assetLabel.style.cssText = 'display:block;margin-bottom:6px;';
+  assetLabel.appendChild(document.createTextNode('Asset Photo '));
+  var assetStar = document.createElement('span');
+  assetStar.className = 'req-asset-photo-star';
+  assetStar.style.cssText = 'color:#cc0000;display:' + (systemSettings.requireAssetPhoto ? 'inline' : 'none') + ';';
+  assetStar.textContent = '*';
+  assetLabel.appendChild(assetStar);
+  assetCard.appendChild(assetLabel);
+
+  var assetInput = document.createElement('input');
+  assetInput.type = 'file';
+  assetInput.id = 'linePhotoInput_asset_' + lineId;
+  assetInput.accept = 'image/*';
+  assetInput.setAttribute('capture', 'environment');
+  assetInput.style.display = 'none';
+  (function(lid) { assetInput.addEventListener('change', function() { handleLinePhotoUpload(lid, 'asset', this); }); })(lineId);
+  assetCard.appendChild(assetInput);
+
+  var assetBtn = document.createElement('button');
+  assetBtn.type = 'button';
+  assetBtn.className = 'btn-line-photo';
+  assetBtn.id = 'linePhotoBtn_asset_' + lineId;
+  assetBtn.textContent = '📷 Take Asset Photo';
+  (function(lid) { assetBtn.addEventListener('click', function() { triggerLinePhotoCapture(lid, 'asset'); }); })(lineId);
+  assetCard.appendChild(assetBtn);
+
+  var assetPreview = document.createElement('img');
+  assetPreview.id = 'linePhotoPreview_asset_' + lineId;
+  assetPreview.className = 'line-photo-preview';
+  assetPreview.alt = 'Asset Preview';
+  assetCard.appendChild(assetPreview);
+
+  photosGrid.appendChild(assetCard);
+
+  // Meter photo card
+  var meterCard = document.createElement('div');
+  meterCard.className = 'line-photo-card';
+  meterCard.id = 'linePhotoCard_meter_' + lineId;
+
+  var meterLabel = document.createElement('label');
+  meterLabel.className = 'purchase-label';
+  meterLabel.style.cssText = 'display:block;margin-bottom:6px;';
+  meterLabel.appendChild(document.createTextNode('Meter Photo '));
+  var meterStar = document.createElement('span');
+  meterStar.className = 'req-meter-photo-star';
+  meterStar.style.cssText = 'color:#cc0000;display:' + (systemSettings.requireMeterPhoto ? 'inline' : 'none') + ';';
+  meterStar.textContent = '*';
+  meterLabel.appendChild(meterStar);
+  meterCard.appendChild(meterLabel);
+
+  var meterInput = document.createElement('input');
+  meterInput.type = 'file';
+  meterInput.id = 'linePhotoInput_meter_' + lineId;
+  meterInput.accept = 'image/*';
+  meterInput.setAttribute('capture', 'environment');
+  meterInput.style.display = 'none';
+  (function(lid) { meterInput.addEventListener('change', function() { handleLinePhotoUpload(lid, 'meter', this); }); })(lineId);
+  meterCard.appendChild(meterInput);
+
+  var meterBtn = document.createElement('button');
+  meterBtn.type = 'button';
+  meterBtn.className = 'btn-line-photo';
+  meterBtn.id = 'linePhotoBtn_meter_' + lineId;
+  meterBtn.textContent = '📷 Take Meter Photo';
+  (function(lid) { meterBtn.addEventListener('click', function() { triggerLinePhotoCapture(lid, 'meter'); }); })(lineId);
+  meterCard.appendChild(meterBtn);
+
+  var meterPreview = document.createElement('img');
+  meterPreview.id = 'linePhotoPreview_meter_' + lineId;
+  meterPreview.className = 'line-photo-preview';
+  meterPreview.alt = 'Meter Preview';
+  meterCard.appendChild(meterPreview);
+
+  photosGrid.appendChild(meterCard);
+
+  div.appendChild(photosGrid);
 
   container.appendChild(div);
 
   if (data && data.classes) {
-    if (data.classes.fuelType) div.querySelector('.line-fuel-type').className = data.classes.fuelType;
-    if (data.classes.dest) div.querySelector('.line-destination').className = data.classes.dest;
-    if (data.classes.qty) div.querySelector('.line-qty').className = data.classes.qty;
-    if (data.classes.cpg) div.querySelector('.line-cpg').className = data.classes.cpg;
-    if (data.classes.meter) div.querySelector('.line-meter').className = data.classes.meter;
+    if (data.classes.fuelType) sel2.className = data.classes.fuelType;
+    if (data.classes.dest) sel1.className = data.classes.dest;
+    if (data.classes.qty) inp3.className = data.classes.qty;
+    if (data.classes.cpg) inp4.className = data.classes.cpg;
+    if (data.classes.meter) inp5.className = data.classes.meter;
   }
 
   updateLinePhotoRequirementsUI(lineId);
@@ -924,7 +1175,7 @@ function recalcLine(lineId) {
   var row = document.getElementById(lineId);
   if (!row) { recalcGrandTotal(); return; }
   var fuelSelect = row.querySelector('.line-fuel-type');
-  if (fuelSelect && fuelSelect.value === '__custom_fuel') {
+  if (fuelSelect && fuelSelect.tagName === 'SELECT' && fuelSelect.value === '__custom_fuel') {
     var input = document.createElement('input');
     input.type = 'text';
     input.className = 'purchase-input line-fuel-type';
@@ -932,7 +1183,7 @@ function recalcLine(lineId) {
     input.style.color = 'var(--text, #ffffff)';
     input.style.backgroundColor = 'var(--bg-step, #0f172a)';
     input.setAttribute('data-custom', 'true');
-    input.oninput = function() { markFormDirty(); };
+    input.addEventListener('input', function() { markFormDirty(); });
     fuelSelect.parentNode.replaceChild(input, fuelSelect);
     input.focus();
   }
@@ -990,7 +1241,11 @@ function _buildCropUI(file, img, imgUrl, callback) {
 
   var desc = document.createElement('p');
   desc.style.cssText = 'font-size:12px;color:var(--text-muted,#94a3b8);margin:0 0 12px 0;';
-  desc.innerHTML = 'Drag the <strong>green corners</strong> to highlight receipt text. Drag inside to move.';
+  desc.appendChild(document.createTextNode('Drag the '));
+  var descStrong = document.createElement('strong');
+  descStrong.textContent = 'green corners';
+  desc.appendChild(descStrong);
+  desc.appendChild(document.createTextNode(' to highlight receipt text. Drag inside to move.'));
   modal.appendChild(desc);
 
   var stage = document.createElement('div');
@@ -1244,7 +1499,21 @@ async function handleReceiptUpload(input) {
   if (preview) preview.style.display = 'block';
   var isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
   if (isPdf) {
-    if (previewContent) previewContent.innerHTML = '<div class="receipt-pdf-icon">📄</div><p style="font-size:14px;font-weight:600;margin:8px 0 0;">' + esc(file.name) + '</p><p style="font-size:12px;color:var(--text-muted);">PDF document</p>';
+    if (previewContent) {
+      clearChildren(previewContent);
+      var pdfIcon = document.createElement('div');
+      pdfIcon.className = 'receipt-pdf-icon';
+      pdfIcon.textContent = '📄';
+      previewContent.appendChild(pdfIcon);
+      var pdfName = document.createElement('p');
+      pdfName.style.cssText = 'font-size:14px;font-weight:600;margin:8px 0 0;';
+      pdfName.textContent = file.name;
+      previewContent.appendChild(pdfName);
+      var pdfLabel = document.createElement('p');
+      pdfLabel.style.cssText = 'font-size:12px;color:var(--text-muted);';
+      pdfLabel.textContent = 'PDF document';
+      previewContent.appendChild(pdfLabel);
+    }
   } else {
     if (status) {
       status.className = 'receipt-extract-status loading';
@@ -1271,7 +1540,13 @@ async function _doExtraction(file, previewContent, status, preview) {
   if (!isPdf) {
     if (_objectUrl) { URL.revokeObjectURL(_objectUrl); _objectUrl = null; }
     _objectUrl = URL.createObjectURL(file);
-    if (previewContent) previewContent.innerHTML = '<img class="receipt-preview-img" src="' + _objectUrl + '">';
+    if (previewContent) {
+      clearChildren(previewContent);
+      var prevImg = document.createElement('img');
+      prevImg.className = 'receipt-preview-img';
+      prevImg.src = _objectUrl;
+      previewContent.appendChild(prevImg);
+    }
   }
   if (status) {
     status.className = 'receipt-extract-status loading';
@@ -1306,7 +1581,7 @@ async function _doExtraction(file, previewContent, status, preview) {
       if (status) {
         if (errCode === 'IMAGE_TOO_LARGE' || errMsg.toLowerCase().indexOf('too large') !== -1 || errMsg.toLowerCase().indexOf('max size') !== -1) {
           status.className = 'receipt-extract-status error';
-          status.innerHTML = '⚠ Image is too large for AI processing. Please crop the receipt to show only the text area, then try again.';
+          status.textContent = '⚠ Image is too large for AI processing. Please crop the receipt to show only the text area, then try again.';
           return;
         }
         if (resp.status === 401 || resp.status === 403) {
@@ -1456,7 +1731,7 @@ async function _doExtraction(file, previewContent, status, preview) {
       }
       if (data.extracted.line_items && data.extracted.line_items.length > 0) {
         var lineContainer = document.getElementById('lineItemsContainer');
-        if (lineContainer) lineContainer.innerHTML = '';
+        if (lineContainer) clearChildren(lineContainer);
         lineItemCount = 0;
         linePhotosMap = {};
         data.extracted.line_items.forEach(function(li) {
@@ -1499,16 +1774,34 @@ function showConfidenceBanner(extracted) {
   var conf = extracted.confidence || 0;
   var confPct = Math.round(conf * 100);
   var lowFields = extracted.low_confidence_fields || [];
-  var html = '<strong>AI Extraction: ' + esc(String(confPct)) + '% confidence</strong>';
+  
+  clearChildren(banner);
+  
+  var strong = document.createElement('strong');
+  strong.textContent = 'AI Extraction: ' + confPct + '% confidence';
+  banner.appendChild(strong);
+  
   if (lowFields.length > 0) {
     banner.className = 'ai-confidence-banner low';
-    html += '<br><span style="font-size:12px;">Low confidence fields:</span> ';
-    html += lowFields.map(function(f) { return '<span class="field-flag">' + esc(String(f)) + '</span>'; }).join('');
+    banner.appendChild(document.createElement('br'));
+    var subSpan = document.createElement('span');
+    subSpan.style.fontSize = '12px';
+    subSpan.textContent = 'Low confidence fields: ';
+    banner.appendChild(subSpan);
+    lowFields.forEach(function(f) {
+      var flag = document.createElement('span');
+      flag.className = 'field-flag';
+      flag.textContent = String(f);
+      banner.appendChild(flag);
+    });
   } else {
     banner.className = 'ai-confidence-banner';
-    html += '<br><span style="font-size:12px;">All fields extracted with good confidence. Please review before submitting.</span>';
+    banner.appendChild(document.createElement('br'));
+    var okSpan = document.createElement('span');
+    okSpan.style.fontSize = '12px';
+    okSpan.textContent = 'All fields extracted with good confidence. Please review before submitting.';
+    banner.appendChild(okSpan);
   }
-  banner.innerHTML = html;
   banner.style.display = 'block';
 }
 
@@ -1846,7 +2139,7 @@ function clearPurchaseForm() {
     var select = document.createElement('select');
     select.id = 'purchaseLocation';
     select.className = 'purchase-input ai-needed';
-    select.setAttribute('onchange', 'handleLocationChange(this)');
+    select.addEventListener('change', function() { handleLocationChange(this); });
     locEl.parentNode.replaceChild(select, locEl);
   }
 
@@ -1855,7 +2148,7 @@ function clearPurchaseForm() {
     var projSelect = document.createElement('select');
     projSelect.id = 'purchaseProject';
     projSelect.className = 'purchase-input ai-needed';
-    projSelect.setAttribute('onchange', 'handleProjectChange(this)');
+    projSelect.addEventListener('change', function() { handleProjectChange(this); });
     projEl.parentNode.replaceChild(projSelect, projEl);
   }
 
@@ -1889,7 +2182,7 @@ function clearPurchaseForm() {
   var rPreview = document.getElementById('receiptPreview');
   if (rPreview) rPreview.style.display = 'none';
   var rContent = document.getElementById('receiptPreviewContent');
-  if (rContent) rContent.innerHTML = '';
+  if (rContent) clearChildren(rContent);
 
   var status = document.getElementById('receiptExtractStatus');
   if (status) {
@@ -1903,7 +2196,7 @@ function clearPurchaseForm() {
   var confBanner = document.getElementById('aiConfidenceBanner');
   if (confBanner) {
     confBanner.style.display = 'none';
-    confBanner.innerHTML = '';
+    clearChildren(confBanner);
   }
 
   var legend = document.getElementById('aiFieldLegend');
@@ -1923,7 +2216,7 @@ function clearPurchaseForm() {
   managerReviewFlags = [];
 
   var lineContainer = document.getElementById('lineItemsContainer');
-  if (lineContainer) lineContainer.innerHTML = '';
+  if (lineContainer) clearChildren(lineContainer);
   lineItemCount = 0;
   addLineItem();
   recalcGrandTotal();
@@ -2001,7 +2294,7 @@ async function loadAssets() {
         });
       });
       var lineContainer = document.getElementById('lineItemsContainer');
-      if (lineContainer) lineContainer.innerHTML = '';
+      if (lineContainer) clearChildren(lineContainer);
       lineItemCount = 0;
       existingRows.forEach(function(r) {
         addLineItem(r);
@@ -2031,17 +2324,17 @@ async function loadLocations() {
 
     var locationsList = data.locations || data.data || [];
     var currentVal = locSelect.value;
-    var html = '<option value="">Select location…</option>';
+    clearChildren(locSelect);
+    addOption(locSelect, '', 'Select location…');
 
     locationsList.forEach(function(loc) {
       var name = loc.name || loc.location_name || loc.address || '';
       if (name) {
-        html += '<option value="' + esc(name) + '">' + esc(name) + '</option>';
+        addOption(locSelect, name, name);
       }
     });
 
-    html += '<option value="__custom">+ Other (type manually)</option>';
-    locSelect.innerHTML = html;
+    addOption(locSelect, '__custom', '+ Other (type manually)');
     if (currentVal) locSelect.value = currentVal;
   } catch (e) {
     console.warn('Error loading locations:', e.message);
@@ -2085,12 +2378,12 @@ async function loadProjects() {
     if (data.success && data.projects) {
       var sel = document.getElementById('purchaseProject');
       if (sel) {
-        var html = '<option value="">Select project…</option>';
+        clearChildren(sel);
+        addOption(sel, '', 'Select project…');
         data.projects.forEach(function(p) {
-          html += '<option value="' + esc(p.id) + '">' + esc(p.name || p.project_name || p.id) + '</option>';
+          addOption(sel, p.id, p.name || p.project_name || p.id);
         });
-        html += '<option value="__custom">+ Other (type manually)</option>';
-        sel.innerHTML = html;
+        addOption(sel, '__custom', '+ Other (type manually)');
       }
       var wrap = document.getElementById('projectFieldWrap');
       if (wrap) {
@@ -2106,6 +2399,48 @@ async function loadProjects() {
   }
 }
 
+/* ===== MODAL HELPERS (moved from inline HTML scripts) ===== */
+function openModal(id) {
+  var modal = document.getElementById(id);
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeModal(id) {
+  var modal = document.getElementById(id);
+  if (modal) modal.style.display = 'none';
+}
+
+/* ===== DOMContentLoaded title guard (moved from inline HTML script) ===== */
+document.addEventListener("DOMContentLoaded", function() {
+  if (typeof checkDeviceLocation === 'function') {
+    checkDeviceLocation();
+  }
+
+  var TARGET_TITLE = "Fuel Purchase Form";
+  var headerTitle = document.getElementById('dashHeaderTitle');
+
+  if (headerTitle) {
+    headerTitle.textContent = TARGET_TITLE;
+
+    var observer = new MutationObserver(function() {
+      if (headerTitle.textContent !== TARGET_TITLE) {
+        headerTitle.textContent = TARGET_TITLE;
+      }
+    });
+
+    observer.observe(headerTitle, { childList: true, characterData: true, subtree: true });
+  }
+});
+
+/* ===== Service Worker registration (moved from inline HTML script) ===== */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/sw.js').catch(function(err) {
+      console.warn('PWA ServiceWorker registration skipped/failed:', err.message);
+    });
+  });
+}
+
 /* ===== INIT ===== */
 function initPurchaseForm() {
   var today = localDate();
@@ -2115,7 +2450,7 @@ function initPurchaseForm() {
   loadUsers();
 
   var lineContainer = document.getElementById('lineItemsContainer');
-  if (lineContainer) lineContainer.innerHTML = '';
+  if (lineContainer) clearChildren(lineContainer);
   lineItemCount = 0;
   linePhotosMap = {};
   addLineItem();
@@ -2217,7 +2552,7 @@ window.addEventListener('orientationchange', function() {
   insertHeaderTitle();
 });
 
-/* ===== EXPOSE HANDLERS ===== */
+/* ===== EXPOSE ALL HANDLERS FOR INLINE ONCLICK/ONCHANGE/ONINPUT ===== */
 window.recalcLine = recalcLine;
 window.markFormDirty = markFormDirty;
 window.removeLineItem = removeLineItem;
@@ -2234,3 +2569,6 @@ window.handleAssetChange = handleAssetChange;
 window.closeLocationPopup = closeLocationPopup;
 window.checkDeviceLocation = checkDeviceLocation;
 window.addLineItem = addLineItem;
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.dashLogout = window.dashLogout;
