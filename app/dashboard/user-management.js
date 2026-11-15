@@ -1110,7 +1110,7 @@ function openEmpViewModal(id) {
   document.getElementById('viewEmpAddr').textContent = emp.address + ', ' + emp.city + ', ' + emp.state + ' ' + emp.zip;
   document.getElementById('umEmpViewModal').classList.add('active');
 
-  // Wire up voice Read Aloud on the modal content
+  // Re-scan for voice dictation buttons on newly rendered content
   if (window.DRIVEN_VOICE) {
     try { DRIVEN_VOICE.init(); } catch (e) {}
   }
