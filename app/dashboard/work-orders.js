@@ -298,12 +298,12 @@
         if (w.assigned_to) html += '<span>Assigned: ' + esc(w.assigned_to) + '</span>';
         if (w.labor_hours != null) html += '<span>Labor: ' + w.labor_hours + 'h</span>';
         html += '</div>';
-        if (w.description) html += '<p data-voice-read style="margin-top:10px;font-size:14px;color:var(--text);">' + esc(w.description) + '</p>';
+        if (w.description) html += '<p data-translate data-entity-type="work_order" data-entity-id="' + esc(w.id) + '" data-field-name="description" style="margin-top:10px;font-size:14px;color:var(--text);">' + esc(w.description) + '</p>';
         html += '</div>';
 
         if (items.length > 0) {
           html += '<div class="section-title">Checklist (' + items.filter(function(i) { return i.status === 'completed'; }).length + '/' + items.length + ')</div>';
-          html += '<div class="wo-card" data-voice-read>';
+          html += '<div class="wo-card">';
           html += items.map(function(i) {
             var done = i.status === 'completed';
             return '<div class="wo-checklist-item">' +
@@ -316,7 +316,7 @@
 
         if (parts.length > 0) {
           html += '<div class="section-title">Parts</div>';
-          html += '<div class="wo-card" data-voice-read>';
+          html += '<div class="wo-card">';
           html += parts.map(function(p) {
             return '<div class="wo-parts">' + (p.quantity || 1) + 'x ' + esc(p.description || p.part_number || '') + (p.part_number ? ' [' + esc(p.part_number) + ']' : '') + '</div>';
           }).join('');
@@ -325,9 +325,13 @@
 
         document.getElementById('woDetail').innerHTML = html;
 
-        // Wire up voice Read Aloud buttons on newly rendered content
+        // Re-scan for voice dictation buttons on newly rendered content
         if (window.DRIVEN_VOICE) {
           try { DRIVEN_VOICE.init(); } catch (e) {}
+        }
+        // Re-scan for translate buttons on newly rendered content
+        if (window.DRIVEN_TRANSLATE) {
+          try { DRIVEN_TRANSLATE.init(); } catch (e) {}
         }
       } else {
         document.getElementById('woDetail').innerHTML = '<div class="empty-state">Failed to load work order.</div>';
