@@ -1,6 +1,12 @@
 /**
- * DRIV-EN | Log Fuel Transfer Engine
- * Full multi-tenant, PWA-enabled, theme-aware form controller with automated photo compression.
+ * DRIV-EN | Log Fuel Transfer Engine (v2)
+ * File: /app/shared/fuel-transfer.js
+ *
+ * v2 changes:
+ *   - Replaced all innerHTML with DOM-safe node building.
+ *   - Exposed all onclick-referenced functions on window explicitly.
+ *   - select.innerHTML replaced with createElement('option') + appendChild.
+ *   - Location banner, popup, and photo preview now use DOM-safe methods.
  */
 
 // Core State Management
@@ -133,6 +139,18 @@ function reportError(source, err) {
   console.error('[' + source + ']', msg, stack);
 }
 
+// ===== DOM-SAFE HELPERS =====
+function clearChildren(el) { while (el && el.firstChild) el.removeChild(el.firstChild); }
+
+function addOption(select, value, text, i18n) {
+  var opt = document.createElement('option');
+  opt.value = value;
+  opt.textContent = text;
+  if (i18n) opt.setAttribute('data-i18n', '');
+  select.appendChild(opt);
+  return opt;
+}
+
 // ===== LOCATION SERVICES =====
 function checkDeviceLocation() {
   if (!isMobileDevice()) {
@@ -180,12 +198,28 @@ function updateLocationStatus(hasLocation) {
   }
 
   banner.style.display = 'block';
+  clearChildren(banner);
+
   if (hasLocation) {
     banner.className = 'location-banner ok';
-    banner.innerHTML = '<strong>📍 Location:</strong> ' + deviceLocation.latitude.toFixed(6) + ', ' + deviceLocation.longitude.toFixed(6) + ' (±' + Math.round(deviceLocation.accuracy) + 'm)';
+    var strong = document.createElement('strong');
+    strong.textContent = '📍 Location: ';
+    banner.appendChild(strong);
+    banner.appendChild(document.createTextNode(
+      deviceLocation.latitude.toFixed(6) + ', ' + deviceLocation.longitude.toFixed(6) +
+      ' (±' + Math.round(deviceLocation.accuracy) + 'm)'
+    ));
   } else {
     banner.className = 'location-banner warn';
-    banner.innerHTML = '<strong>⚠️ Location is OFF</strong> — Click to retry <button onclick="checkDeviceLocation()" style="margin-left:8px;padding:4px 12px;border:1px solid #b45309;border-radius:4px;background:#fef3c7;color:#78350f;cursor:pointer;font-size:12px;">Retry</button>';
+    var strong2 = document.createElement('strong');
+    strong2.textContent = '⚠️ Location is OFF';
+    banner.appendChild(strong2);
+    banner.appendChild(document.createTextNode(' — Click to retry '));
+    var retryBtn = document.createElement('button');
+    retryBtn.style.cssText = 'margin-left:8px;padding:4px 12px;border:1px solid #b45309;border-radius:4px;background:#fef3c7;color:#78350f;cursor:pointer;font-size:12px;';
+    retryBtn.textContent = 'Retry';
+    retryBtn.addEventListener('click', function() { checkDeviceLocation(); });
+    banner.appendChild(retryBtn);
   }
 }
 
@@ -193,7 +227,11 @@ function showLocationPopup(message) {
   var overlay = document.getElementById('locationPopupOverlay');
   var msgEl = document.getElementById('locationPopupMessage');
   if (!overlay || !msgEl) return;
-  msgEl.innerHTML = '<p style="font-size:15px;margin:0 0 16px;">' + esc(message) + '</p>';
+  clearChildren(msgEl);
+  var p = document.createElement('p');
+  p.style.cssText = 'font-size:15px;margin:0 0 16px;';
+  p.textContent = message;
+  msgEl.appendChild(p);
   overlay.style.display = 'flex';
 }
 
@@ -323,7 +361,8 @@ async function loadAssets() {
 
 async function loadFuelTypes() {
   var select = document.getElementById('fuelType');
-  select.innerHTML = '<option value="">Select fuel type…</option>';
+  clearChildren(select);
+  addOption(select, '', 'Select fuel type…', true);
   try {
     var resp = await fetch(buildApiUrl('/api/fuel-types'), { headers: getFetchHeaders() });
     if (!resp.ok) throw new Error('API returned HTTP status ' + resp.status);
@@ -336,18 +375,16 @@ async function loadFuelTypes() {
         var f = item.fields || item;
         var val = f.fuel_code || f.code || f.id || f['Fuel Code'] || f['Fuel Name'] || f.fuel_name;
         var label = f.fuel_name || f['Fuel Name'] || f.name || val;
-        
-        var opt = document.createElement('option');
-        opt.value = val;
-        opt.textContent = label;
-        select.appendChild(opt);
+        addOption(select, val, label);
       });
     } else {
-      select.innerHTML = '<option value="">No fuel types configured in system</option>';
+      clearChildren(select);
+      addOption(select, '', 'No fuel types configured in system', true);
     }
   } catch (e) {
     console.error('Failed to load fuel types:', e);
-    select.innerHTML = '<option value="">Error loading fuel types</option>';
+    clearChildren(select);
+    addOption(select, '', 'Error loading fuel types', true);
     reportError('loadFuelTypes', e);
   }
 }
@@ -359,7 +396,8 @@ async function loadProjects() {
     var data = await resp.json();
     var projectsList = Array.isArray(data) ? data : (data && (data.records || data.projects || data.data) ? (data.records || data.projects || data.data) : []);
     var select = document.getElementById('project');
-    select.innerHTML = '<option value="">Select project (optional)…</option>';
+    clearChildren(select);
+    addOption(select, '', 'Select project (optional)…', true);
     var seenProjects = new Set();
     
     projectsList.forEach(function(p) {
@@ -368,10 +406,7 @@ async function loadProjects() {
       var name = f['Project Name'] || f.name || f.project_name || id;
       if (id && !seenProjects.has(id)) {
         seenProjects.add(id);
-        var opt = document.createElement('option');
-        opt.value = id;
-        opt.textContent = name;
-        select.appendChild(opt);
+        addOption(select, id, name);
       }
     });
   } catch (e) {
@@ -385,7 +420,8 @@ async function loadLocations() {
     if (!resp.ok) return;
     var data = await resp.json();
     var select = document.getElementById('location');
-    select.innerHTML = '<option value="">Select location…</option>';
+    clearChildren(select);
+    addOption(select, '', 'Select location…', true);
     var locList = Array.isArray(data) ? data : (data && (data.records || data.locations || data.data) ? (data.records || data.locations || data.data) : []);
     var seenLocations = new Set();
 
@@ -394,10 +430,7 @@ async function loadLocations() {
       var val = typeof loc === 'string' ? loc : (f['Location Name'] || f.name || f.id);
       if (val && !seenLocations.has(val)) {
         seenLocations.add(val);
-        var opt = document.createElement('option');
-        opt.value = val;
-        opt.textContent = val;
-        select.appendChild(opt);
+        addOption(select, val, val);
       }
     });
   } catch (e) {
@@ -414,8 +447,8 @@ function onFromChange() {
   var fromTank = document.getElementById('fromTank');
   var fromAsset = document.getElementById('fromAsset');
 
-  fromTank.innerHTML = '';
-  fromAsset.innerHTML = '';
+  clearChildren(fromTank);
+  clearChildren(fromAsset);
   document.getElementById('fromTankInfo').textContent = '';
   var fromAssetInfo = document.getElementById('fromAssetInfo');
   if (fromAssetInfo) fromAssetInfo.textContent = '';
@@ -426,19 +459,16 @@ function onFromChange() {
   if (fromType === 'asset') {
     fromAssetRow.style.display = 'block';
     if (!allAssets || allAssets.length === 0) {
-      fromAsset.innerHTML = '<option value="">No equipment available in assets table</option>';
+      addOption(fromAsset, '', 'No equipment available in assets table', true);
     } else {
-      fromAsset.innerHTML = '<option value="">Select equipment…</option>';
+      addOption(fromAsset, '', 'Select equipment…', true);
       allAssets.forEach(function(a) {
-        var opt = document.createElement('option');
         var assetId = a.id || a.asset_number;
-        opt.value = assetId;
         var nameStr = a.name || 'Unnamed Asset';
         var numStr = a.asset_number || (a.id ? String(a.id).slice(0,8) : '');
-        opt.textContent = (numStr && numStr !== nameStr ? numStr + ' — ' : '') + nameStr + (a.category ? ' [' + a.category + ']' : '');
+        var opt = addOption(fromAsset, assetId, (numStr && numStr !== nameStr ? numStr + ' — ' : '') + nameStr + (a.category ? ' [' + a.category + ']' : ''));
         opt.dataset.fuelType = a.fuel_type || '';
         opt.dataset.assetNumber = numStr || assetId;
-        fromAsset.appendChild(opt);
       });
     }
   } else if (fromType) {
@@ -451,15 +481,12 @@ function onFromChange() {
       return false;
     });
     if (!matching || matching.length === 0) {
-      fromTank.innerHTML = '<option value="">No tanks of this type available</option>';
+      addOption(fromTank, '', 'No tanks of this type available', true);
     } else {
-      fromTank.innerHTML = '<option value="">Select tank…</option>';
+      addOption(fromTank, '', 'Select tank…', true);
       matching.forEach(function(t) {
-        var opt = document.createElement('option');
-        opt.value = t.id;
-        opt.textContent = (t.name || 'Tank') + ' — ' + (t.current_quantity||0) + '/' + (t.capacity||0) + ' gal (' + (t.fuel_type||'?') + ')';
+        var opt = addOption(fromTank, t.id, (t.name || 'Tank') + ' — ' + (t.current_quantity||0) + '/' + (t.capacity||0) + ' gal (' + (t.fuel_type||'?') + ')');
         opt.dataset.fuelType = t.fuel_type || '';
-        fromTank.appendChild(opt);
       });
     }
   }
@@ -515,7 +542,8 @@ function updateToOptions() {
   var fromAssetId = document.getElementById('fromAsset').value;
   var toSelect = document.getElementById('toDest');
 
-  toSelect.innerHTML = '<option value="">Select destination…</option>';
+  clearChildren(toSelect);
+  addOption(toSelect, '', 'Select destination…', true);
 
   if (allAssets && allAssets.length > 0) {
     var assetGroup = document.createElement('optgroup');
@@ -527,15 +555,12 @@ function updateToOptions() {
       if (fromType === 'asset' && fromAssetId && String(assetId) === String(fromAssetId)) {
         return;
       }
-      var opt = document.createElement('option');
-      opt.value = 'asset|' + assetId;
       var nameStr = a.name || 'Unnamed Asset';
       var numStr = a.asset_number || (a.id ? String(a.id).slice(0,8) : '');
-      opt.textContent = (numStr && numStr !== nameStr ? numStr + ' — ' : '') + nameStr + (a.category ? ' [' + a.category + ']' : '');
+      var opt = addOption(assetGroup, 'asset|' + assetId, (numStr && numStr !== nameStr ? numStr + ' — ' : '') + nameStr + (a.category ? ' [' + a.category + ']' : ''));
       opt.dataset.destType = 'asset';
       opt.dataset.destId = assetId;
       opt.dataset.assetNumber = numStr || assetId;
-      assetGroup.appendChild(opt);
       addedAssets++;
     });
 
@@ -556,13 +581,9 @@ function updateToOptions() {
       var tankType = destType === 'bulk_tank' ? 'bulk' : (destType === 'dragup_tank' ? 'dragup' : 'portable');
       var matching = allTanks.filter(function(t) { return t.tank_type === tankType; });
       matching.forEach(function(t) {
-        var opt = document.createElement('option');
-        var tankId = t.id;
-        opt.value = destType + '|' + tankId;
-        opt.textContent = (t.name || 'Tank') + ' — ' + (t.current_quantity||0) + '/' + (t.capacity||0) + ' gal (' + (t.fuel_type||'?') + ')';
+        var opt = addOption(tankGroup, destType + '|' + t.id, (t.name || 'Tank') + ' — ' + (t.current_quantity||0) + '/' + (t.capacity||0) + ' gal (' + (t.fuel_type||'?') + ')');
         opt.dataset.destType = destType;
-        opt.dataset.destId = tankId;
-        tankGroup.appendChild(opt);
+        opt.dataset.destId = t.id;
       });
     });
     if (tankGroup.children.length > 0) {
@@ -731,7 +752,13 @@ async function handleFuelPhotoUpload(input, type) {
     compressImage(rawDataUrl, 1200, 1200, 0.85).then(function(compressedDataUrl) {
       fuelPhotoData[type] = compressedDataUrl;
       var preview = document.getElementById(type + 'PhotoPreview');
-      if (preview) preview.innerHTML = '<img src="' + compressedDataUrl + '" alt="' + type + ' photo">';
+      if (preview) {
+        clearChildren(preview);
+        var img = document.createElement('img');
+        img.src = compressedDataUrl;
+        img.alt = type + ' photo';
+        preview.appendChild(img);
+      }
       var removeBtn = document.getElementById(type + 'PhotoRemove');
       if (removeBtn) removeBtn.style.display = 'inline-block';
       markFormDirty();
@@ -758,7 +785,7 @@ function removeFuelPhoto(type) {
   fuelPhotoData[type] = null;
   fuelPhotos[type] = null;
   var preview = document.getElementById(type + 'PhotoPreview');
-  if (preview) preview.innerHTML = '';
+  if (preview) clearChildren(preview);
   var removeBtn = document.getElementById(type + 'PhotoRemove');
   if (removeBtn) removeBtn.style.display = 'none';
   var input = document.getElementById(type + 'PhotoInput');
@@ -909,11 +936,13 @@ function resetForm() {
   document.getElementById('formView').style.display = 'block';
   document.getElementById('successView').style.display = 'none';
   document.getElementById('fromSource').value = '';
-  document.getElementById('fromTank').innerHTML = '';
+  clearChildren(document.getElementById('fromTank'));
   document.getElementById('fromTankRow').style.display = 'none';
-  document.getElementById('fromAsset').innerHTML = '';
+  clearChildren(document.getElementById('fromAsset'));
   document.getElementById('fromAssetRow').style.display = 'none';
-  document.getElementById('toDest').innerHTML = '<option value="">Select destination…</option>';
+  var toDest = document.getElementById('toDest');
+  clearChildren(toDest);
+  addOption(toDest, '', 'Select destination…', true);
   document.getElementById('meterReadingRow').style.display = 'none';
   document.getElementById('meterReading').value = '';
   document.getElementById('quantity').value = '';
@@ -926,6 +955,21 @@ function resetForm() {
   removeFuelPhoto('asset');
   showError('');
 }
+
+// ===== EXPOSE FUNCTIONS FOR INLINE ONCLICK HANDLERS =====
+window.checkDeviceLocation = checkDeviceLocation;
+window.closeLocationPopup = closeLocationPopup;
+window.onFromChange = onFromChange;
+window.onFromTankChange = onFromTankChange;
+window.onFromAssetChange = onFromAssetChange;
+window.onToChange = onToChange;
+window.markFormDirty = markFormDirty;
+window.revalidateExifDates = revalidateExifDates;
+window.handleFuelPhotoUpload = handleFuelPhotoUpload;
+window.removeFuelPhoto = removeFuelPhoto;
+window.goBack = goBack;
+window.submitTransfer = submitTransfer;
+window.resetForm = resetForm;
 
 // ===== LIFECYCLE & INITIALIZATION =====
 async function initPage() {
