@@ -202,6 +202,59 @@
   var uiTranslateInProgress = false;
   var uiTranslatePending = false;
 
+  // Wrap bare text nodes in <span data-i18n> so they can be selected and translated
+  function wrapBareTextNodes(root) {
+    if (!root || !root.querySelector) return;
+    // Only process containers that may have bare text nodes (modals, dynamic content)
+    var containers = root.querySelectorAll('.modal-body, .modal-content');
+    if (root.classList && (root.classList.contains('modal-body') || root.classList.contains('modal-content'))) {
+      containers = [root];
+    }
+    if (!containers || containers.length === 0) return;
+
+    for (var c = 0; c < containers.length; c++) {
+      var container = containers[c];
+      var walker = document.createTreeWalker(
+        container,
+        NodeFilter.SHOW_TEXT,
+        null,
+        false
+      );
+
+      var textNodes = [];
+      while (walker.nextNode()) {
+        var node = walker.currentNode;
+        var text = node.textContent.trim();
+        if (!text) continue;
+        // Skip if parent already matches the selector (will be translated as part of parent)
+        var parent = node.parentElement;
+        if (!parent) continue;
+        // Skip if parent is <script> or <style>
+        var tag = parent.tagName.toLowerCase();
+        if (tag === 'script' || tag === 'style') continue;
+        // Skip if parent or any ancestor up to container matches the selector
+        var ancestor = parent;
+        var skip = false;
+        while (ancestor && ancestor !== container) {
+          if (ancestor.matches && ancestor.matches(UI_TEXT_SELECTOR)) { skip = true; break; }
+          ancestor = ancestor.parentElement;
+        }
+        if (skip) continue;
+        // Skip if already wrapped
+        if (parent.tagName === 'SPAN' && parent.hasAttribute('data-i18n')) continue;
+        textNodes.push(node);
+      }
+
+      for (var t = 0; t < textNodes.length; t++) {
+        var textNode = textNodes[t];
+        var span = document.createElement('span');
+        span.setAttribute('data-i18n', '');
+        textNode.parentNode.insertBefore(span, textNode);
+        span.appendChild(textNode);
+      }
+    }
+  }
+
   async function autoTranslateUI(optLang) {
     var lang = optLang || getUILang();
 
@@ -220,6 +273,9 @@
     uiTranslateInProgress = true;
 
     try {
+      // Wrap bare text nodes in <span data-i18n> so they can be selected and translated
+      wrapBareTextNodes(document.body);
+
       var elements = document.querySelectorAll(UI_TEXT_SELECTOR);
       if (elements.length === 0) return;
 
@@ -233,6 +289,9 @@
         if (el.classList && el.classList.contains('driven-translate-btn')) continue;
         // Skip elements already handled by content translation (data-translate)
         if (el.hasAttribute('data-translate')) continue;
+        // Skip elements that have descendants matching the selector
+        // (e.g. <li> containing <strong> — translate children individually, not the parent)
+        if (el.querySelector(UI_TEXT_SELECTOR)) continue;
 
         // Get original text (from data-original-text if already translated, else current text)
         var text = el.getAttribute('data-original-text');
