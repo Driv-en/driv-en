@@ -325,6 +325,13 @@ pmLoadPrefs();
 await loadProjectTypes();
 await loadProjects();
 await loadClients();
+/* DEBUG: show loaded counts */
+var dbg = document.createElement('div');
+dbg.id = 'pm-debug-banner';
+dbg.style.cssText = 'position:fixed;top:0;right:0;background:#dc2626;color:#fff;padding:6px 10px;z-index:99999;font-size:12px;font-family:monospace;border-radius:0 0 0 6px;cursor:pointer';
+dbg.textContent = 'Types:' + projectTypes.length + ' Clients:' + allClients.length + ' Projects:' + allProjects.length;
+dbg.onclick = function() { console.log('projectTypes:', projectTypes); console.log('allClients:', allClients); console.log('allProjects:', allProjects); };
+document.body.appendChild(dbg);
 populateClientDropdown();
 populateProjectManagerDropdown();
 renderOverview();
