@@ -2116,6 +2116,10 @@ if (workEnd < today) workEnd = today;
 }
 var barStart = new Date(Math.max(workStart.getTime(), chartStart.getTime()));
 var barEnd = new Date(Math.min(workEnd.getTime(), chartEnd.getTime()));
+/* If project hasn't actually started, don't render a bar — only markers and dashed line */
+if (!p.actualStartDate) {
+barEnd = barStart;
+}
 var leftPct = (barStart - chartStart) / rangeMs * 100;
 var widthPct = Math.max(1, (barEnd - barStart) / rangeMs * 100);
 /* Build status timeline segments — each colored by the status active during that period */
@@ -2160,12 +2164,10 @@ html += '<div style="display:flex;gap:12px;margin-top:8px;font-size:11px;color:#
 html += '<span><span style="display:inline-block;width:12px;height:12px;background:#f59e0b;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Award</span>';
 html += '<span><span style="display:inline-block;width:12px;height:12px;background:#16a34a;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Start</span>';
 html += '<span><span style="display:inline-block;width:12px;height:12px;background:#6366f1;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Completion</span>';
-html += '<span><span style="display:inline-block;width:12px;height:12px;background:#3b82f6;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Awarded</span>';
 html += '<span><span style="display:inline-block;width:12px;height:12px;background:#16a34a;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>In Progress</span>';
 html += '<span><span style="display:inline-block;width:12px;height:0;border-top:2px dashed #f59e0b;vertical-align:middle;margin-right:4px;"></span>On Hold</span>';
 html += '<span><span style="display:inline-block;width:12px;height:12px;background:#6366f1;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Completed</span>';
 html += '<span><span style="display:inline-block;width:12px;height:12px;background:#ef4444;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Cancelled</span>';
-html += '<span><span style="display:inline-block;width:2px;height:14px;background:#334155;vertical-align:middle;margin-right:4px;"></span>Status Change</span>';
 html += '</div>';
 html += '</div></div>';
 container.innerHTML = html;
