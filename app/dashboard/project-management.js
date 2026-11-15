@@ -496,7 +496,7 @@ allProjects = [];
 }
 async function loadProjectTypes() {
 try {
-var resp = await fetch('/api/ProjectTypes');
+var resp = await fetch('/api/project-types');
 var data = await resp.json();
 console.log('[loadProjectTypes] response:', resp.status, data);
 var records = data.records || data.projectTypes || data.data || data.results || [];
@@ -530,7 +530,7 @@ body: JSON.stringify({ project_types: JSON.stringify(projectTypes) })
 }
 async function loadClients() {
 try {
-var resp = await fetch('/api/Clients');
+var resp = await fetch('/api/clients');
 var data = await resp.json();
 console.log('[loadClients] response:', resp.status, data);
 var records = data.records || data.clients || data.data || data.results || [];
@@ -1263,7 +1263,7 @@ if (state) payload['State'] = state;
 if (zip) payload['Zip Code'] = zip;
 if (notes) payload['Notes'] = notes;
 try {
-var resp = await fetch('/api/Clients', {
+var resp = await fetch('/api/clients', {
 method: 'POST',
 headers: { 'Content-Type': 'application/json' },
 body: JSON.stringify(payload)
@@ -1340,7 +1340,7 @@ if (state) payload['State'] = state;
 if (zip) payload['Zip Code'] = zip;
 if (notes) payload['Notes'] = notes;
 try {
-var resp = await fetch('/api/Clients/' + encodeURIComponent(editingClientId), {
+var resp = await fetch('/api/clients/' + encodeURIComponent(editingClientId), {
 method: 'PUT',
 headers: { 'Content-Type': 'application/json' },
 body: JSON.stringify(payload)
@@ -1368,7 +1368,7 @@ var client = allClients.find(function(c) { return c.id === clientId; });
 if (!client) return;
 if (!confirm('Delete client "' + (client.clientName || '') + '"? This cannot be undone.')) return;
 try {
-var resp = await fetch('/api/Clients/' + encodeURIComponent(clientId), { method: 'DELETE' });
+var resp = await fetch('/api/clients/' + encodeURIComponent(clientId), { method: 'DELETE' });
 if (!resp.ok) {
 var data = await resp.json();
 throw new Error(data.error || data.message || 'Delete failed (' + resp.status + ')');
@@ -1425,7 +1425,7 @@ if (!name) { showTypeMessage('Please enter a type name.', 'error'); return; }
 var dup = projectTypes.find(function(t) { return t.name && t.name.toLowerCase() === name.toLowerCase(); });
 if (dup) { showTypeMessage('A project type with name "' + name + '" already exists.', 'error'); return; }
 try {
-await fetch('/api/ProjectTypes', {
+await fetch('/api/project-types', {
 method: 'POST',
 headers: { 'Content-Type': 'application/json' },
 body: JSON.stringify({ 'Project Type Name': name, 'Description': desc || '' })
