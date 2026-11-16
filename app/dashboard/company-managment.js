@@ -1,34 +1,8 @@
 /**
- * company-management.js — DRIV-EN Company Profile (v7)
+ * company-management.js — DRIV-EN Company Profile (v8)
  * Divisions + Locations CRUD with search, filter, pagination.
  * Overrides inline fallbacks for switchTab / goToMainDashboard.
  */
-
-// ============================================================
-// HEADER
-// ============================================================
-function rebuildHeader() {
-  var container = document.getElementById('dashHeader');
-  if (!container) return;
-  var html = '<div class="dash-header"><div class="dash-header-row1" style="display:flex;align-items:center;justify-content:space-between;padding:8px 20px;">';
-  html += '<div style="flex:0 0 auto;">';
-  var logo = localStorage.getItem('driven_logo_url');
-  if (logo) { html += '<img src="' + logo + '" alt="Logo" style="max-height:40px;max-width:120px;object-fit:contain;">'; }
-  else { html += '<div style="font-size:18px;font-weight:700;color:#2563eb;">DRIV-EN</div>'; }
-  html += '</div><div style="flex:1;text-align:center;font-size:20px;font-weight:600;color:var(--text);">Company Profile</div>';
-  html += '<div style="flex:0 0 auto;">';
-  if (logo) { html += '<img src="' + logo + '" alt="Logo" style="max-height:40px;max-width:120px;object-fit:contain;">'; }
-  else { html += '<div style="font-size:18px;font-weight:700;color:#2563eb;">DRIV-EN</div>'; }
-  html += '</div></div></div>';
-  container.innerHTML = html;
-}
-
-function scheduleHeaderRebuilds() {
-  rebuildHeader();
-  setTimeout(rebuildHeader, 50);  setTimeout(rebuildHeader, 200);
-  setTimeout(rebuildHeader, 500); setTimeout(rebuildHeader, 1000);
-  setTimeout(rebuildHeader, 2000); setTimeout(rebuildHeader, 3000);
-}
 
 // ============================================================
 // TAB SWITCHING (overrides inline fallback)
@@ -47,13 +21,11 @@ function switchTab(tab) {
 // NAVIGATION (overrides inline fallback)
 // ============================================================
 function goToMainDashboard() {
-  var savedOrigin = sessionStorage.getItem('driven_dashboard_origin');
-  if (savedOrigin) { window.location.href = savedOrigin; return; }
-  if (document.referrer && document.referrer.indexOf('driv-en.com') !== -1) { window.location.href = document.referrer; return; }
+  var origin = window._cmSavedOrigin;
+  if (origin) { window.location.href = origin; return; }
   var user = window.dashUser;
   if (user) {
-    var role = (user.role || '').toLowerCase();
-    var rid  = (user.role_id || '').toLowerCase();
+    var role = (user.role || '').toLowerCase(); var rid = (user.role_id || '').toLowerCase();
     if (role === 'driv-en founder' || role === 'owner' || rid === 'ro-founder') { window.location.href = '/app/dashboard/owner-dashboard.html'; return; }
     if (role === 'admin' || rid === 'ro-admin') { window.location.href = '/app/dashboard/admin.html'; return; }
     window.location.href = '/app/dashboard/employee-dashboard.html'; return;
@@ -62,7 +34,7 @@ function goToMainDashboard() {
 }
 
 // ============================================================
-// INIT
+// INIT — let dashboard-common.js handle header + logos
 // ============================================================
 var cmPageInitialized = false;
 function initPage() {
@@ -70,7 +42,6 @@ function initPage() {
   var user = window.dashUser;
   if (!user) return false;
   cmPageInitialized = true;
-  scheduleHeaderRebuilds();
   loadDivisions();
   loadLocations();
   if (window.DRIVEN_VOICE) { try { DRIVEN_VOICE.init(); } catch (e) {} }
@@ -87,7 +58,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 250);
   }
 });
-window.addEventListener('load', function() { initPage(); rebuildHeader(); setTimeout(rebuildHeader, 200); });
+window.addEventListener('load', function() { initPage(); });
 
 // ============================================================
 // DIVISION MANAGEMENT
