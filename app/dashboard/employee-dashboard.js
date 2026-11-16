@@ -281,6 +281,9 @@ function initEmployeeDashboard() {
   // Bind Standardized Modals (Purpose & Instructions)
   initStandardModals();
 
+  // Restore language dropdown from localStorage immediately (don't wait for dashSessionLoaded)
+  initLangSelect();
+
   // Sticky offset adjustments
   window.addEventListener('resize', adjustStickyOffsets);
   window.addEventListener('orientationchange', adjustStickyOffsets);
