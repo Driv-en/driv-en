@@ -86,11 +86,25 @@ async function loadDivisions() {
   try {
     var resp = await fetch('/api/Divisions');
     var data = await resp.json();
-    if (resp.ok && data && data.records) { allDivisions = data.records.map(normalizeDiv); }
-    else { allDivisions = []; }
-  } catch (e) { allDivisions = []; }
+    if (resp.ok && data && data.records) {
+      allDivisions = data.records.map(normalizeDiv);
+    } else {
+      allDivisions = [];
+      var errMsg = (data && data.error) ? data.error : 'No records returned (HTTP ' + resp.status + ')';
+      showDivError('Could not load divisions: ' + errMsg);
+    }
+  } catch (e) {
+    allDivisions = [];
+    showDivError('Network error loading divisions: ' + e.message);
+  }
   renderDivTable();
   populateDivisionDropdowns();
+}
+
+function showDivError(msg) {
+  var el = document.getElementById('cmDivMessage');
+  if (!el) return;
+  el.textContent = msg; el.className = 'cm-message error'; el.style.display = 'block';
 }
 
 function populateDivisionDropdowns() {
@@ -285,10 +299,24 @@ async function loadLocations() {
   try {
     var resp = await fetch('/api/Locations');
     var data = await resp.json();
-    if (resp.ok && data && data.records) { allLocations = data.records.map(normalizeLoc); }
-    else { allLocations = []; }
-  } catch (e) { allLocations = []; }
+    if (resp.ok && data && data.records) {
+      allLocations = data.records.map(normalizeLoc);
+    } else {
+      allLocations = [];
+      var errMsg = (data && data.error) ? data.error : 'No records returned (HTTP ' + resp.status + ')';
+      showLocError('Could not load locations: ' + errMsg);
+    }
+  } catch (e) {
+    allLocations = [];
+    showLocError('Network error loading locations: ' + e.message);
+  }
   renderLocTable();
+}
+
+function showLocError(msg) {
+  var el = document.getElementById('cmLocMessage');
+  if (!el) return;
+  el.textContent = msg; el.className = 'cm-message error'; el.style.display = 'block';
 }
 
 function onLocSearchInput() {
