@@ -1,36 +1,8 @@
 /**
- * client-management.js -- DRIV-EN Client Management page logic (v1)
- *
- * Handles: tab switching, header rebuild, client CRUD (load, add, edit, delete).
- * Load order: auth-check -> dashboard-common -> units -> voice -> translate -> this file
+ * client-management.js — DRIV-EN Client Management (v3)
+ * Client CRUD with search, filter, pagination.
+ * Overrides inline fallbacks for switchTab / goToMainDashboard.
  */
-
-// ============================================================
-// HEADER REBUILD
-// ============================================================
-function rebuildHeader() {
-  var container = document.getElementById('dashHeader');
-  if (!container) return;
-  var html = '<div class="dash-header"><div class="dash-header-row1" style="display:flex;align-items:center;justify-content:space-between;padding:8px 20px;">';
-  html += '<div style="flex:0 0 auto;">';
-  var logo = localStorage.getItem('driven_logo_url');
-  if (logo) { html += '<img src="' + logo + '" alt="Logo" style="max-height:40px;max-width:120px;object-fit:contain;">'; }
-  else { html += '<div style="font-size:18px;font-weight:700;color:#2563eb;">DRIV-EN</div>'; }
-  html += '</div>';
-  html += '<div style="flex:1;text-align:center;font-size:20px;font-weight:600;color:var(--text);">Client Management</div>';
-  html += '<div style="flex:0 0 auto;">';
-  if (logo) { html += '<img src="' + logo + '" alt="Logo" style="max-height:40px;max-width:120px;object-fit:contain;">'; }
-  else { html += '<div style="font-size:18px;font-weight:700;color:#2563eb;">DRIV-EN</div>'; }
-  html += '</div></div></div>';
-  container.innerHTML = html;
-}
-
-function scheduleHeaderRebuilds() {
-  rebuildHeader();
-  setTimeout(rebuildHeader, 50); setTimeout(rebuildHeader, 200);
-  setTimeout(rebuildHeader, 500); setTimeout(rebuildHeader, 1000);
-  setTimeout(rebuildHeader, 2000); setTimeout(rebuildHeader, 3000);
-}
 
 // ============================================================
 // TAB SWITCHING (overrides inline fallback)
@@ -54,8 +26,7 @@ function goToMainDashboard() {
   if (document.referrer && document.referrer.indexOf('driv-en.com') !== -1) { window.location.href = document.referrer; return; }
   var user = window.dashUser;
   if (user) {
-    var role = (user.role || '').toLowerCase();
-    var rid = (user.role_id || '').toLowerCase();
+    var role = (user.role || '').toLowerCase(); var rid = (user.role_id || '').toLowerCase();
     if (role === 'driv-en founder' || role === 'owner' || rid === 'ro-founder') { window.location.href = '/app/dashboard/owner-dashboard.html'; return; }
     if (role === 'admin' || rid === 'ro-admin') { window.location.href = '/app/dashboard/admin.html'; return; }
     window.location.href = '/app/dashboard/employee-dashboard.html'; return;
@@ -64,20 +35,17 @@ function goToMainDashboard() {
 }
 
 // ============================================================
-// INIT
+// INIT — let dashboard-common.js handle header + logos
 // ============================================================
 var cmPageInitialized = false;
 function initPage() {
   if (cmPageInitialized) return true;
-  var user = window.dashUser;
-  if (!user) return false;
+  var user = window.dashUser; if (!user) return false;
   cmPageInitialized = true;
-  scheduleHeaderRebuilds();
   loadClients();
   if (window.DRIVEN_VOICE) { try { DRIVEN_VOICE.init(); } catch (e) {} }
   return true;
 }
-
 document.addEventListener('dashSessionLoaded', initPage);
 if (window.dashUser) { initPage(); }
 document.addEventListener('DOMContentLoaded', function() {
@@ -89,15 +57,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 250);
   }
 });
-window.addEventListener('load', function() { initPage(); rebuildHeader(); setTimeout(rebuildHeader, 200); });
+window.addEventListener('load', function() { initPage(); });
 
 // ============================================================
 // CLIENT MANAGEMENT
 // ============================================================
-var allClients = [];
-var editingClientId = null;
-var clientPage = 1;
-var clientPageSize = 10;
+var allClients = []; var editingClientId = null; var clientPage = 1; var clientPageSize = 10;
 
 function normalizeClient(r) {
   var f = (r && r.fields && typeof r.fields === 'object') ? r.fields : r;
@@ -108,22 +73,17 @@ function normalizeClient(r) {
     contactEmail: f['Contact Email'] || f.contact_email || '',
     contactPhone: f['Contact Phone'] || f.contact_phone || '',
     company: f['Company'] || f.company || '',
-    address: f['Address'] || f.address || '',
-    city: f['City'] || f.city || '',
-    state: f['State'] || f.state || '',
-    zipCode: f['Zip Code'] || f.zip_code || '',
+    address: f['Address'] || f.address || '', city: f['City'] || f.city || '',
+    state: f['State'] || f.state || '', zipCode: f['Zip Code'] || f.zip_code || '',
     industry: f['Industry'] || f.industry || '',
-    status: f['Status'] || f.status || 'Active',
-    notes: f['Notes'] || f.notes || '',
+    status: f['Status'] || f.status || 'Active', notes: f['Notes'] || f.notes || '',
   };
 }
 
 async function loadClients() {
-  var tbody = document.getElementById('cmClientTableBody');
-  if (!tbody) return;
+  var tbody = document.getElementById('cmClientTableBody'); if (!tbody) return;
   try {
-    var resp = await fetch('/api/Clients');
-    var data = await resp.json();
+    var resp = await fetch('/api/Clients'); var data = await resp.json();
     if (resp.ok && data && data.records) { allClients = data.records.map(normalizeClient); }
     else if (resp.status === 401) { allClients = []; showClientError('Your session has expired. Please log in again.'); return; }
     else if (resp.status === 403) { allClients = []; showClientError('You do not have permission to view clients.'); return; }
@@ -133,8 +93,7 @@ async function loadClients() {
 }
 
 function showClientError(msg) {
-  var tbody = document.getElementById('cmClientTableBody');
-  if (!tbody) return; tbody.textContent = '';
+  var tbody = document.getElementById('cmClientTableBody'); if (!tbody) return; tbody.textContent = '';
   var row = document.createElement('tr'); var cell = document.createElement('td');
   cell.className = 'cm-empty'; cell.style.color = 'var(--error)'; cell.textContent = msg;
   row.appendChild(cell); tbody.appendChild(row);
@@ -146,39 +105,30 @@ function onClientSearchInput() {
 }
 
 function renderClientTable() {
-  var tbody = document.getElementById('cmClientTableBody');
-  if (!tbody) return;
+  var tbody = document.getElementById('cmClientTableBody'); if (!tbody) return;
   var search = (document.getElementById('cmClientSearch').value || '').toLowerCase().trim();
   var filterStatus = document.getElementById('cmClientFilterStatus').value;
   var filtered = allClients.filter(function(c) {
-    var matchesSearch = !search ||
-      (c.clientName && c.clientName.toLowerCase().indexOf(search) !== -1) ||
-      (c.contactName && c.contactName.toLowerCase().indexOf(search) !== -1) ||
-      (c.company && c.company.toLowerCase().indexOf(search) !== -1) ||
-      (c.contactEmail && c.contactEmail.toLowerCase().indexOf(search) !== -1);
+    var matchesSearch = !search || (c.clientName && c.clientName.toLowerCase().indexOf(search) !== -1) || (c.contactName && c.contactName.toLowerCase().indexOf(search) !== -1) || (c.company && c.company.toLowerCase().indexOf(search) !== -1) || (c.contactEmail && c.contactEmail.toLowerCase().indexOf(search) !== -1);
     var matchesStatus = !filterStatus || (c.status && c.status.toLowerCase() === filterStatus.toLowerCase());
     return matchesSearch && matchesStatus;
   });
   document.getElementById('cmClientCount').textContent = filtered.length + ' client' + (filtered.length === 1 ? '' : 's');
   var totalPages = Math.max(1, Math.ceil(filtered.length / clientPageSize));
   if (clientPage > totalPages) clientPage = totalPages;
-  var startIdx = (clientPage - 1) * clientPageSize;
-  var pageItems = filtered.slice(startIdx, startIdx + clientPageSize);
+  var startIdx = (clientPage - 1) * clientPageSize; var pageItems = filtered.slice(startIdx, startIdx + clientPageSize);
   tbody.textContent = '';
   if (filtered.length === 0) {
     var tr = document.createElement('tr'); var td = document.createElement('td');
-    td.className = 'cm-empty';
-    td.textContent = allClients.length === 0 ? 'No clients found. Add your first client above.' : 'No clients match your search.';
+    td.className = 'cm-empty'; td.textContent = allClients.length === 0 ? 'No clients found. Add your first client above.' : 'No clients match your search.';
     tr.appendChild(td); tbody.appendChild(tr); renderClientPagination(0, 1); return;
   }
   pageItems.forEach(function(c) {
     var tr = document.createElement('tr');
     function addCell(text) { var td = document.createElement('td'); td.textContent = (text !== undefined && text !== null && text !== '') ? text : '\u2014'; tr.appendChild(td); }
-    addCell(c.clientName); addCell(c.contactName); addCell(c.contactEmail);
-    addCell(c.contactPhone); addCell(c.company);
+    addCell(c.clientName); addCell(c.contactName); addCell(c.contactEmail); addCell(c.contactPhone); addCell(c.company);
     var statusTd = document.createElement('td');
-    if (c.status) { var badge = document.createElement('span'); badge.className = 'cm-badge cm-badge-' + c.status.toLowerCase(); badge.textContent = c.status; statusTd.appendChild(badge); }
-    else { statusTd.textContent = '\u2014'; }
+    if (c.status) { var badge = document.createElement('span'); badge.className = 'cm-badge cm-badge-' + c.status.toLowerCase(); badge.textContent = c.status; statusTd.appendChild(badge); } else { statusTd.textContent = '\u2014'; }
     tr.appendChild(statusTd);
     var actionsTd = document.createElement('td'); actionsTd.className = 'cm-actions';
     var btnEdit = document.createElement('button'); btnEdit.className = 'cm-table-btn'; btnEdit.textContent = 'Edit';
@@ -191,21 +141,17 @@ function renderClientTable() {
 }
 
 function renderClientPagination(totalItems, totalPages) {
-  var container = document.getElementById('cmClientPagination');
-  if (!container) return; container.textContent = '';
+  var container = document.getElementById('cmClientPagination'); if (!container) return; container.textContent = '';
   if (totalItems === 0) return;
   var info = document.createElement('span'); info.className = 'cm-page-info';
-  var startIdx = (clientPage - 1) * clientPageSize + 1;
-  var endIdx = Math.min(clientPage * clientPageSize, totalItems);
-  info.textContent = 'Showing ' + startIdx + '\u2013' + endIdx + ' of ' + totalItems;
-  container.appendChild(info);
+  var startIdx = (clientPage - 1) * clientPageSize + 1; var endIdx = Math.min(clientPage * clientPageSize, totalItems);
+  info.textContent = 'Showing ' + startIdx + '\u2013' + endIdx + ' of ' + totalItems; container.appendChild(info);
   var btnsDiv = document.createElement('div'); btnsDiv.className = 'cm-page-btns';
   var btnPrev = document.createElement('button'); btnPrev.className = 'cm-page-btn'; btnPrev.textContent = '\u25C0 Prev'; btnPrev.disabled = clientPage <= 1;
   btnPrev.addEventListener('click', function() { clientPage--; renderClientTable(); }); btnsDiv.appendChild(btnPrev);
   for (var p = 1; p <= totalPages && p <= 7; p++) {
     var btn = document.createElement('button'); btn.className = 'cm-page-btn' + (p === clientPage ? ' active' : ''); btn.textContent = p;
-    btn.addEventListener('click', function(page) { return function() { clientPage = page; renderClientTable(); }; }(p));
-    btnsDiv.appendChild(btn);
+    btn.addEventListener('click', function(page) { return function() { clientPage = page; renderClientTable(); }; }(p)); btnsDiv.appendChild(btn);
   }
   var btnNext = document.createElement('button'); btnNext.className = 'cm-page-btn'; btnNext.textContent = 'Next \u25B6'; btnNext.disabled = clientPage >= totalPages;
   btnNext.addEventListener('click', function() { clientPage++; renderClientTable(); }); btnsDiv.appendChild(btnNext);
@@ -216,18 +162,12 @@ async function addClient() {
   var clientName = document.getElementById('cmClientName').value.trim();
   if (!clientName) { showClientMessage('Please enter a client name.', 'error'); return; }
   var payload = {
-    'Client Name': clientName,
-    'Contact Name': document.getElementById('cmContactName').value.trim(),
-    'Contact Email': document.getElementById('cmContactEmail').value.trim(),
-    'Contact Phone': document.getElementById('cmContactPhone').value.trim(),
-    'Company': document.getElementById('cmCompany').value.trim(),
-    'Industry': document.getElementById('cmIndustry').value.trim(),
-    'Address': document.getElementById('cmAddress').value.trim(),
-    'City': document.getElementById('cmCity').value.trim(),
-    'State': document.getElementById('cmState').value.trim(),
-    'Zip Code': document.getElementById('cmZipCode').value.trim(),
-    'Status': document.getElementById('cmStatus').value,
-    'Notes': document.getElementById('cmNotes').value.trim(),
+    'Client Name': clientName, 'Contact Name': document.getElementById('cmContactName').value.trim(),
+    'Contact Email': document.getElementById('cmContactEmail').value.trim(), 'Contact Phone': document.getElementById('cmContactPhone').value.trim(),
+    'Company': document.getElementById('cmCompany').value.trim(), 'Industry': document.getElementById('cmIndustry').value.trim(),
+    'Address': document.getElementById('cmAddress').value.trim(), 'City': document.getElementById('cmCity').value.trim(),
+    'State': document.getElementById('cmState').value.trim(), 'Zip Code': document.getElementById('cmZipCode').value.trim(),
+    'Status': document.getElementById('cmStatus').value, 'Notes': document.getElementById('cmNotes').value.trim(),
   };
   try {
     var resp = await fetch('/api/Clients', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -242,8 +182,7 @@ async function addClient() {
 }
 
 function openEditClientModal(clientId) {
-  var client = allClients.find(function(c) { return c.id === clientId; });
-  if (!client) return;
+  var client = allClients.find(function(c) { return c.id === clientId; }); if (!client) return;
   editingClientId = clientId;
   document.getElementById('cmEditClientName').value = client.clientName || '';
   document.getElementById('cmEditContactName').value = client.contactName || '';
@@ -266,18 +205,12 @@ async function saveEditClient() {
   var clientName = document.getElementById('cmEditClientName').value.trim();
   if (!clientName) { showClientMessage('Client name is required.', 'error'); return; }
   var payload = {
-    'Client Name': clientName,
-    'Contact Name': document.getElementById('cmEditContactName').value.trim(),
-    'Contact Email': document.getElementById('cmEditContactEmail').value.trim(),
-    'Contact Phone': document.getElementById('cmEditContactPhone').value.trim(),
-    'Company': document.getElementById('cmEditCompany').value.trim(),
-    'Industry': document.getElementById('cmEditIndustry').value.trim(),
-    'Address': document.getElementById('cmEditAddress').value.trim(),
-    'City': document.getElementById('cmEditCity').value.trim(),
-    'State': document.getElementById('cmEditState').value.trim(),
-    'Zip Code': document.getElementById('cmEditZipCode').value.trim(),
-    'Status': document.getElementById('cmEditStatus').value,
-    'Notes': document.getElementById('cmEditNotes').value.trim(),
+    'Client Name': clientName, 'Contact Name': document.getElementById('cmEditContactName').value.trim(),
+    'Contact Email': document.getElementById('cmEditContactEmail').value.trim(), 'Contact Phone': document.getElementById('cmEditContactPhone').value.trim(),
+    'Company': document.getElementById('cmEditCompany').value.trim(), 'Industry': document.getElementById('cmEditIndustry').value.trim(),
+    'Address': document.getElementById('cmEditAddress').value.trim(), 'City': document.getElementById('cmEditCity').value.trim(),
+    'State': document.getElementById('cmEditState').value.trim(), 'Zip Code': document.getElementById('cmEditZipCode').value.trim(),
+    'Status': document.getElementById('cmEditStatus').value, 'Notes': document.getElementById('cmEditNotes').value.trim(),
   };
   try {
     var resp = await fetch('/api/Clients/' + encodeURIComponent(editingClientId), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -290,21 +223,19 @@ async function saveEditClient() {
 }
 
 async function deleteClient(clientId) {
-  var client = allClients.find(function(c) { return c.id === clientId; });
-  if (!client) return;
+  var client = allClients.find(function(c) { return c.id === clientId; }); if (!client) return;
   if (!confirm('Delete client "' + (client.clientName || 'Unknown') + '"? This cannot be undone.')) return;
   try {
     var resp = await fetch('/api/Clients/' + encodeURIComponent(clientId), { method: 'DELETE' });
     if (!resp.ok) { var data = await resp.json(); throw new Error(data.error || data.message || 'Delete failed (' + resp.status + ')'); }
     allClients = allClients.filter(function(c) { return c.id !== clientId; });
-    showClientMessage('Client "' + (client.clientName || 'Unknown') + '" deleted.', 'success');
-    renderClientTable();
+    showClientMessage('Client "' + (client.clientName || 'Unknown') + '" deleted.', 'success'); renderClientTable();
   } catch(e) { showClientMessage('Failed to delete client: ' + e.message, 'error'); }
 }
 
 function showClientMessage(msg, type) {
-  var el = document.getElementById('cmClientMessage');
-  if (!el) return; el.textContent = msg; el.className = 'cm-message ' + type; el.style.display = 'block';
+  var el = document.getElementById('cmClientMessage'); if (!el) return;
+  el.textContent = msg; el.className = 'cm-message ' + type; el.style.display = 'block';
   setTimeout(function() { el.style.display = 'none'; }, 5000);
 }
 
