@@ -241,7 +241,15 @@
 
 <!-- ===== INLINE FALLBACK (works before external JS loads) ===== -->
 <script>
-(function() { var l = document.getElementById('cmLoading'); if (l) l.style.display = 'none'; })();
+(function() {
+  var l = document.getElementById('cmLoading'); if (l) l.style.display = 'none';
+  // Capture the dashboard origin BEFORE dashboard-common.js overwrites it
+  // (dashboard-common.js saves the current page as origin on non-excluded pages)
+  var origin = sessionStorage.getItem('driven_dashboard_origin');
+  if (origin && origin.indexOf('client-management') === -1) {
+    window._cmSavedOrigin = origin;
+  }
+})();
 function switchTab(tab) {
   document.querySelectorAll('.cm-tab').forEach(function(t) { t.classList.remove('active'); });
   document.querySelectorAll('.cm-tab-content').forEach(function(c) { c.style.display = 'none'; });
@@ -251,8 +259,14 @@ function switchTab(tab) {
   if (content) content.style.display = 'block';
 }
 function goToMainDashboard() {
-  var savedOrigin = sessionStorage.getItem('driven_dashboard_origin');
-  if (savedOrigin) { window.location.href = savedOrigin; return; }
+  var origin = window._cmSavedOrigin;
+  if (origin) { window.location.href = origin; return; }
+  var user = window.dashUser;
+  if (user) {
+    var role = (user.role || '').toLowerCase();
+    if (role === 'admin') { window.location.href = '/app/dashboard/admin.html'; return; }
+    window.location.href = '/app/dashboard/employee-dashboard.html'; return;
+  }
   window.location.href = '/app/dashboard/admin.html';
 }
 </script>
@@ -266,6 +280,6 @@ function goToMainDashboard() {
 <script src="/app/shared/translate.js?v=3"></script>
 
 <!-- ===== PAGE LOGIC (external) ===== -->
-<script src="/app/dashboard/client-management.js?v=3"></script>
+<script src="/app/dashboard/client-management.js?v=4"></script>
 </body>
 </html>
