@@ -1,5 +1,5 @@
 // /functions/api/divisions.js
-// Dedicated handler for /api/divisions — bypasses the [[path]].js router 
+// Dedicated handler for /api/divisions — bypasses the [[path]].js router
 
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -16,16 +16,16 @@ export async function onRequestGet(context) {
 
   try {
     const result = await env.DB.prepare(
-      'SELECT id, org_id, name, code, description, manager, status, created_at, created_by, updated_at, updated_by FROM divisions WHERE org_id = ? ORDER BY created_at DESC'
+      'SELECT * FROM divisions WHERE org_id = ? ORDER BY rowid DESC'
     ).bind(orgId).all();
 
     const records = (result.results || []).map(function(row) {
-      const fields = {};
-      if (row.name !== undefined) { fields['Division Name'] = row.name; fields.name = row.name; }
-      if (row.code !== undefined) { fields['Division Code'] = row.code; fields.code = row.code; }
-      if (row.description !== undefined) { fields['Description'] = row.description; fields.description = row.description; }
-      if (row.manager !== undefined) { fields['Manager'] = row.manager; fields.manager = row.manager; }
-      if (row.status !== undefined) { fields['Status'] = row.status; fields.status = row.status; }
+      const fields = { ...row };  // raw D1 column names
+      if (row.name !== undefined) { fields['Division Name'] = row.name; }
+      if (row.code !== undefined) { fields['Division Code'] = row.code; }
+      if (row.description !== undefined) { fields['Description'] = row.description; }
+      if (row.manager !== undefined) { fields['Manager'] = row.manager; }
+      if (row.status !== undefined) { fields['Status'] = row.status; }
       return { id: row.id, ...row, fields: fields };
     });
 
