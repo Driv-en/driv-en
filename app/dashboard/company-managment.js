@@ -1,8 +1,12 @@
 /**
- * company-management.js — DRIV-EN Company Profile (v8)
+ * company-management.js — DRIV-EN Company Profile (v9)
  * Divisions + Locations CRUD with search, filter, pagination.
  * Overrides inline fallbacks for switchTab / goToMainDashboard.
  */
+
+// DIAGNOSTIC FLAG — set at the very top so we know the file executed
+window.__cmJsLoaded = true;
+console.log('company-management.js v9 loaded successfully');
 
 // ============================================================
 // TAB SWITCHING (overrides inline fallback)
