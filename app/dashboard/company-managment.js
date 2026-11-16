@@ -162,9 +162,9 @@ function bindStaticEvents() {
 // ============================================================
 // INIT
 // ============================================================
-document.addEventListener('dashSessionLoaded', function() {
+function initPage() {
   var user = window.dashUser;
-  if (!user) { window.location.href = '/public/login.html'; return; }
+  if (!user) { return false; }
 
   // Rebuild header
   scheduleHeaderRebuilds();
@@ -182,6 +182,27 @@ document.addEventListener('dashSessionLoaded', function() {
   // Wire up voice
   if (window.DRIVEN_VOICE) {
     try { DRIVEN_VOICE.init(); } catch (e) {}
+  }
+
+  return true;
+}
+
+document.addEventListener('dashSessionLoaded', initPage);
+
+// Fallback: try on DOMContentLoaded (in case dashSessionLoaded already fired)
+document.addEventListener('DOMContentLoaded', function() {
+  if (!initPage()) {
+    // User not ready yet — poll for it (auth-check.js may still be fetching)
+    var tries = 0;
+    var poll = setInterval(function() {
+      tries++;
+      if (initPage() || tries > 20) {
+        clearInterval(poll);
+        if (tries > 20 && !window.dashUser) {
+          window.location.href = '/public/login.html';
+        }
+      }
+    }, 250);
   }
 });
 
