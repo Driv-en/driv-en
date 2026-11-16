@@ -202,6 +202,7 @@
   <div class="am-tab" data-tab="inspections" onclick="switchTab('inspections')">Asset Inspections</div>
   <div class="am-tab" data-tab="workorders" onclick="switchTab('workorders')">Asset Work Orders</div>
   <div class="am-tab" data-tab="transfers" onclick="switchTab('transfers')">Asset Transfers</div>
+  <div class="am-tab" data-tab="manuals" onclick="switchTab('manuals')">Manuals</div>
   <div class="am-tab am-tab-dashboard" onclick="goToMainDashboard()">&#8592; Dashboard</div>
   <div class="am-tab-logout" onclick="confirmLogout()">Logout</div>
 </div>
@@ -266,11 +267,32 @@
   <div class="am-tab-content" id="tab-addasset" style="display:none;">
     <div class="am-welcome">
       <h2>Add New Asset</h2>
-      <p>Enter the details for a new asset below.</p>
+      <p>Decode a VIN to auto-fill highway vehicle details, or enter equipment manually. Upload a manual after saving to auto-populate fluids, PM schedules, and parts.</p>
     </div>
     <div id="amAddMessage" class="am-message"></div>
+
+    <!-- ===== VIN DECODE SECTION ===== -->
+    <div class="am-form-card" id="vinDecodeCard" style="border-color:var(--primary);">
+      <h3>🔑 VIN Decode <span style="font-size:13px;font-weight:400;color:var(--text-muted);">— for highway vehicles (cars, trucks, trailers)</span></h3>
+      <p style="font-size:13px;color:var(--text-muted);margin:0 0 14px 0;">Enter a 17-character VIN to auto-fill make, model, year, fuel type, engine, and more from the NHTSA database. Open recalls are checked automatically.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+        <div class="am-form-row" style="flex:1;min-width:250px;border-color:var(--primary);">
+          <label>VIN Number</label>
+          <input type="text" id="amVinInput" placeholder="e.g., 1FTBF2A60KEB12345" maxlength="17" style="text-transform:uppercase;font-family:monospace;letter-spacing:1px;" />
+          <div class="am-hint">17 characters — letters I, O, Q are not used in VINs</div>
+        </div>
+        <button class="am-btn-primary" id="btnDecodeVin" onclick="decodeVin()" style="white-space:nowrap;">Decode VIN</button>
+      </div>
+      <div id="vinDecodeResult" style="display:none;margin-top:16px;"></div>
+      <div id="vinRecallsResult" style="display:none;margin-top:12px;"></div>
+    </div>
+
+    <!-- ===== MANUAL ENTRY / EXPANDED FORM ===== -->
     <div class="am-form-card" id="addAssetForm">
       <h3>New Asset Details</h3>
+
+      <!-- Identification -->
+      <div style="font-size:13px;font-weight:600;color:var(--primary);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Identification</div>
       <div class="am-form-grid">
         <div class="am-form-row">
           <label>Asset Number <span class="am-required">*</span></label>
@@ -283,10 +305,78 @@
           <div class="am-hint">From the Asset Types configured in onboarding</div>
         </div>
         <div class="am-form-row">
+          <label>Serial Number / VIN</label>
+          <input type="text" id="amSerialNumber" placeholder="e.g., CAT-966H-12345 or full VIN" maxlength="100" />
+          <div class="am-hint">Manufacturer serial number or VIN</div>
+        </div>
+        <div class="am-form-row">
           <label>Current Meter Reading</label>
           <input type="number" id="amMeter" placeholder="e.g., 12500" min="0" />
-          <div class="am-hint">Hours or <span data-uom-label="distance">miles</span> on the meter. Recommended for preventative maintenance scheduling, but not required.</div>
+          <div class="am-hint">Hours or <span data-uom-label="distance">miles</span> on the meter</div>
         </div>
+      </div>
+
+      <!-- Vehicle / Equipment Specs (auto-filled by VIN decode or manual entry) -->
+      <div style="font-size:13px;font-weight:600;color:var(--primary);margin:16px 0 8px 0;text-transform:uppercase;letter-spacing:0.5px;">Vehicle / Equipment Specs <span style="font-weight:400;color:var(--text-muted);text-transform:none;">— auto-filled by VIN decode or enter manually</span></div>
+      <div class="am-form-grid">
+        <div class="am-form-row">
+          <label>Make / OEM</label>
+          <input type="text" id="amMakeOem" placeholder="e.g., Caterpillar, Ford, John Deere" />
+        </div>
+        <div class="am-form-row">
+          <label>Model</label>
+          <input type="text" id="amModel" placeholder="e.g., 966H, F-250, 310G" />
+        </div>
+        <div class="am-form-row">
+          <label>Year</label>
+          <input type="number" id="amYear" placeholder="e.g., 2021" min="1900" max="2099" />
+        </div>
+        <div class="am-form-row">
+          <label>Fuel Type</label>
+          <select id="amFuelType">
+            <option value="">— Select —</option>
+            <option value="Diesel">Diesel</option>
+            <option value="Gasoline">Gasoline</option>
+            <option value="Propane">Propane</option>
+            <option value="Electric">Electric</option>
+            <option value="Hybrid">Hybrid</option>
+            <option value="Natural Gas">Natural Gas</option>
+          </select>
+        </div>
+        <div class="am-form-row">
+          <label>Engine Make / Model</label>
+          <input type="text" id="amEngineMakeModel" placeholder="e.g., Cummins 6.7L, Power Stroke 6.7L" />
+        </div>
+        <div class="am-form-row">
+          <label>Transmission Type</label>
+          <select id="amTransType">
+            <option value="">— Select —</option>
+            <option value="Manual">Manual</option>
+            <option value="Automatic">Automatic</option>
+            <option value="CVT">CVT</option>
+            <option value="Powershift">Powershift</option>
+            <option value="Hydrostatic">Hydrostatic</option>
+          </select>
+        </div>
+        <div class="am-form-row">
+          <label>Drive Configuration</label>
+          <select id="amDriveConfig">
+            <option value="">— Select —</option>
+            <option value="2WD">2WD</option>
+            <option value="4WD">4WD</option>
+            <option value="AWD">AWD</option>
+            <option value="Tracked">Tracked</option>
+          </select>
+        </div>
+        <div class="am-form-row">
+          <label>Fuel Tank Capacity (gal)</label>
+          <input type="number" id="amFuelTankCap" placeholder="e.g., 50" min="0" step="0.1" />
+        </div>
+      </div>
+
+      <!-- Assignment -->
+      <div style="font-size:13px;font-weight:600;color:var(--primary);margin:16px 0 8px 0;text-transform:uppercase;letter-spacing:0.5px;">Assignment & Status</div>
+      <div class="am-form-grid">
         <div class="am-form-row">
           <label>Status</label>
           <select id="amStatus">
@@ -297,20 +387,27 @@
             <option value="Lost">Lost</option>
             <option value="Sold">Sold</option>
           </select>
-          <div class="am-hint">Current operational status of the asset</div>
         </div>
         <div class="am-form-row">
           <label>Current Project</label>
           <select id="amProject"><option value="">— None —</option></select>
-          <div class="am-hint">Where this asset is currently assigned</div>
         </div>
         <div class="am-form-row">
           <label>Current Location</label>
           <select id="amLocation"><option value="">— None —</option></select>
-          <div class="am-hint">Physical location of this asset</div>
+        </div>
+        <div class="am-form-row">
+          <label>DOT Regulated?</label>
+          <select id="amDotRegulated">
+            <option value="0">No</option>
+            <option value="1">Yes</option>
+          </select>
+          <div class="am-hint">Highway vehicles requiring DOT compliance</div>
         </div>
       </div>
+
       <button class="am-btn-primary" id="btnAddAsset" onclick="addAsset()">Add Asset</button>
+      <button class="am-btn-secondary" onclick="resetAddForm()" style="margin-left:8px;">Clear Form</button>
     </div>
   </div>
 
@@ -335,6 +432,52 @@
     <div class="am-placeholder">
       <h3>Asset Transfers</h3>
       <p>This module will be available in a future update. Equipment transfer tickets and delivery event trails will be managed here.</p>
+    </div>
+  </div>
+
+  <!-- ===== MANUALS TAB ===== -->
+  <div class="am-tab-content" id="tab-manuals" style="display:none;">
+    <div class="am-welcome">
+      <h2>Manual Library</h2>
+      <p>Upload equipment manuals to auto-extract PM schedules, fluid specs, parts, and inspection templates using AI. Mechanics can browse full manuals anytime.</p>
+    </div>
+    <div id="amManualMessage" class="am-message"></div>
+
+    <!-- Upload card -->
+    <div class="am-form-card" style="border-color:var(--primary);">
+      <h3>📤 Upload Manual</h3>
+      <p style="font-size:13px;color:var(--text-muted);margin:0 0 14px 0;">Upload a PDF equipment manual. The system auto-detects the best upload method based on file size. After upload, AI extracts maintenance data in chunks — you review and approve before anything is saved.</p>
+      <div id="manualUploadArea" style="border:2px dashed var(--border);border-radius:8px;padding:32px;text-align:center;cursor:pointer;transition:border-color 200ms;" onclick="document.getElementById('manualFileInput').click()" ondragover="event.preventDefault();this.style.borderColor='var(--primary)';" ondragleave="this.style.borderColor='var(--border)';" ondrop="handleManualDrop(event)">
+        <div style="font-size:36px;margin-bottom:8px;">📄</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;">Click to browse or drag & drop a PDF</div>
+        <div style="font-size:13px;color:var(--text-muted);">Any size — the system handles large manuals with chunked extraction</div>
+        <input type="file" id="manualFileInput" accept="application/pdf" style="display:none;" onchange="handleManualSelect(event)" />
+      </div>
+      <div id="manualUploadProgress" style="display:none;margin-top:16px;"></div>
+      <div id="manualExtractionProgress" style="display:none;margin-top:16px;"></div>
+    </div>
+
+    <!-- Manual list -->
+    <div class="am-section-header" style="margin-top:20px;">
+      <h3>Uploaded Manuals</h3>
+      <span class="am-asset-count" id="manualCount">0 manuals</span>
+    </div>
+    <div class="am-table-scroll" style="max-height:400px;">
+      <table class="am-table" id="manualTable">
+        <thead>
+          <tr>
+            <th>File Name</th>
+            <th>Asset Type</th>
+            <th>Status</th>
+            <th>Extracted Data</th>
+            <th>Uploaded</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="manualTableBody">
+          <tr><td class="am-empty">No manuals uploaded yet.</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -406,6 +549,19 @@
     <div class="am-modal-actions">
       <button class="am-btn-secondary" onclick="closeModal('amExportModal')">Cancel</button>
       <button class="am-btn-primary" id="amExportBtn" onclick="doExport()">Download CSV</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PDF VIEWER MODAL ===== -->
+<div id="amPdfModal" class="am-modal" style="z-index:2000;">
+  <div class="am-modal-card" style="max-width:95vw;max-height:95vh;width:900px;padding:0;overflow:hidden;display:flex;flex-direction:column;">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-bottom:1px solid var(--border);flex-shrink:0;">
+      <h3 id="amPdfTitle" style="margin:0;font-size:18px;color:var(--text);">Manual Viewer</h3>
+      <button class="am-btn-secondary" onclick="closePdfViewer()" style="padding:6px 16px;">✕ Close</button>
+    </div>
+    <div style="flex:1;overflow:hidden;position:relative;">
+      <iframe id="amPdfFrame" style="width:100%;height:100%;border:none;" src="about:blank"></iframe>
     </div>
   </div>
 </div>
@@ -1093,6 +1249,29 @@ async function addAsset() {
   };
   if (meterVal !== null) payload['Meter Reading'] = meterVal;
 
+  // VIN-decoded and manually entered spec fields
+  var serialNum = document.getElementById('amSerialNumber').value.trim();
+  var makeOem = document.getElementById('amMakeOem').value.trim();
+  var model = document.getElementById('amModel').value.trim();
+  var yearVal = document.getElementById('amYear').value.trim();
+  var fuelType = document.getElementById('amFuelType').value;
+  var engineMakeModel = document.getElementById('amEngineMakeModel').value.trim();
+  var transType = document.getElementById('amTransType').value;
+  var driveConfig = document.getElementById('amDriveConfig').value;
+  var fuelTankCap = document.getElementById('amFuelTankCap').value.trim();
+  var dotRegulated = document.getElementById('amDotRegulated').value;
+
+  if (serialNum) payload['Serial Number'] = serialNum;
+  if (makeOem) payload['Make/OEM'] = makeOem;
+  if (model) payload['Model'] = model;
+  if (yearVal) payload['Year'] = parseInt(yearVal);
+  if (fuelType) payload['Fuel Type'] = fuelType;
+  if (engineMakeModel) payload['Engine Make/Model'] = engineMakeModel;
+  if (transType) payload['Transmission Type'] = transType;
+  if (driveConfig) payload['Drive Configuration'] = driveConfig;
+  if (fuelTankCap) payload['Fuel Tank Capacity'] = parseFloat(fuelTankCap);
+  if (dotRegulated === '1') payload['DOT Regulated'] = true;
+
   try {
     var resp = await fetch('/api/Equipment', {
       method: 'POST',
@@ -1121,6 +1300,21 @@ async function addAsset() {
     document.getElementById('amStatus').value = 'Available';
     document.getElementById('amProject').value = '';
     document.getElementById('amLocation').value = '';
+    document.getElementById('amSerialNumber').value = '';
+    document.getElementById('amMakeOem').value = '';
+    document.getElementById('amModel').value = '';
+    document.getElementById('amYear').value = '';
+    document.getElementById('amFuelType').value = '';
+    document.getElementById('amEngineMakeModel').value = '';
+    document.getElementById('amTransType').value = '';
+    document.getElementById('amDriveConfig').value = '';
+    document.getElementById('amFuelTankCap').value = '';
+    document.getElementById('amDotRegulated').value = '0';
+    document.getElementById('amVinInput').value = '';
+    document.getElementById('vinDecodeResult').style.display = 'none';
+    document.getElementById('vinRecallsResult').style.display = 'none';
+    decodedVinData = null;
+    decodedRecalls = [];
     showMessage('Asset "' + assetNumber + '" added.', 'success');
     currentPage = 1;
     renderAssetTable();
@@ -1134,6 +1328,171 @@ async function addAsset() {
       );
     }
   }
+}
+
+// ===== VIN DECODE =====
+var decodedVinData = null;
+var decodedRecalls = [];
+
+async function decodeVin() {
+  var vin = document.getElementById('amVinInput').value.trim().toUpperCase();
+  var btn = document.getElementById('btnDecodeVin');
+  var resultDiv = document.getElementById('vinDecodeResult');
+  var recallsDiv = document.getElementById('vinRecallsResult');
+
+  if (!vin) { showAddMessage('Please enter a VIN number.', 'error'); return; }
+  if (vin.length !== 17) { showAddMessage('VIN must be exactly 17 characters.', 'error'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Decoding...';
+  resultDiv.style.display = 'block';
+  resultDiv.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);"> contacting NHTSA vPIC database...</div>';
+  recallsDiv.style.display = 'none';
+
+  try {
+    var resp = await fetch('/api/vin-decode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ vin: vin })
+    });
+    var data = await resp.json();
+
+    if (!resp.ok || !data.success) {
+      resultDiv.innerHTML = '<div style="padding:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;color:#fca5a5;font-size:14px;">' +
+        (data.error || 'Could not decode VIN. The NHTSA vPIC API may be unavailable or the VIN is not in their database.') + '</div>';
+      btn.disabled = false;
+      btn.textContent = 'Decode VIN';
+      return;
+    }
+
+    decodedVinData = data.vehicle;
+    decodedRecalls = data.recalls || [];
+
+    // Auto-fill form fields
+    if (data.vehicle.make) document.getElementById('amMakeOem').value = data.vehicle.make;
+    if (data.vehicle.model) document.getElementById('amModel').value = data.vehicle.model;
+    if (data.vehicle.modelYear) document.getElementById('amYear').value = data.vehicle.modelYear;
+    if (data.vehicle.fuelTypePrimary) {
+      var fuelMap = { 'Diesel': 'Diesel', 'Gasoline': 'Gasoline', 'Propane': 'Propane', 'Electric': 'Electric', 'Hybrid': 'Hybrid' };
+      var fuelVal = data.vehicle.fuelTypePrimary;
+      for (var key in fuelMap) { if (fuelVal.toLowerCase().indexOf(key.toLowerCase()) !== -1) { fuelVal = fuelMap[key]; break; } }
+      document.getElementById('amFuelType').value = fuelVal;
+    }
+    if (data.vehicle.engineManufacturer || data.vehicle.engineModel) {
+      var engStr = [data.vehicle.engineManufacturer, data.vehicle.engineModel].filter(Boolean).join(' ');
+      if (data.vehicle.engineDisplacementL) engStr += ' ' + data.vehicle.engineDisplacementL + 'L';
+      document.getElementById('amEngineMakeModel').value = engStr;
+    }
+    if (data.vehicle.transmissionStyle) {
+      var transVal = data.vehicle.transmissionStyle.toLowerCase();
+      if (transVal.indexOf('cvt') !== -1) document.getElementById('amTransType').value = 'CVT';
+      else if (transVal.indexOf('automatic') !== -1 || transVal.indexOf('auto') !== -1) document.getElementById('amTransType').value = 'Automatic';
+      else if (transVal.indexOf('manual') !== -1) document.getElementById('amTransType').value = 'Manual';
+    }
+    if (data.vehicle.driveType) {
+      var driveVal = data.vehicle.driveType.toLowerCase();
+      if (driveVal.indexOf('4wd') !== -1 || driveVal.indexOf('four') !== -1 || driveVal.indexOf('awd') !== -1 || driveVal.indexOf('all') !== -1) document.getElementById('amDriveConfig').value = '4WD';
+      else if (driveVal.indexOf('2wd') !== -1 || driveVal.indexOf('two') !== -1 || driveVal.indexOf('rear') !== -1 || driveVal.indexOf('front') !== -1) document.getElementById('amDriveConfig').value = '2WD';
+    }
+    // Auto-fill serial number with VIN
+    document.getElementById('amSerialNumber').value = vin;
+    // Auto-fill DOT regulated for highway vehicles
+    if (data.vehicle.vehicleType && data.vehicle.vehicleType.toLowerCase().indexOf('truck') !== -1) {
+      document.getElementById('amDotRegulated').value = '1';
+    }
+
+    // Build decoded info display
+    var v = data.vehicle;
+    var html = '<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:16px;">';
+    html += '<div style="font-weight:600;color:#16a34a;margin-bottom:12px;font-size:15px;">✓ VIN Decoded Successfully</div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;font-size:14px;">';
+    html += buildDecodeRow('Make', v.make);
+    html += buildDecodeRow('Model', v.model);
+    html += buildDecodeRow('Year', v.modelYear);
+    html += buildDecodeRow('Vehicle Type', v.vehicleType);
+    html += buildDecodeRow('Body Class', v.bodyClass);
+    html += buildDecodeRow('Fuel Type', v.fuelTypePrimary);
+    html += buildDecodeRow('Engine', [v.engineManufacturer, v.engineModel, v.engineDisplacementL ? v.engineDisplacementL + 'L' : ''].filter(Boolean).join(' '));
+    html += buildDecodeRow('Engine Cylinders', v.engineCylinders);
+    html += buildDecodeRow('Transmission', [v.transmissionStyle, v.transmissionSpeeds ? v.transmissionSpeeds + '-speed' : ''].filter(Boolean).join(' '));
+    html += buildDecodeRow('Drive Type', v.driveType);
+    html += buildDecodeRow('GVWR', v.gvwr);
+    html += buildDecodeRow('Manufacturer', v.manufacturer);
+    html += buildDecodeRow('Series', v.series);
+    html += buildDecodeRow('Trim', v.trim);
+    html += buildDecodeRow('Plant', [v.plantCity, v.plantCountry].filter(Boolean).join(', '));
+    html += buildDecodeRow('Electrification', v.electrificationLevel);
+    html += '</div>';
+    html += '<div style="margin-top:10px;font-size:12px;color:var(--text-muted);">Form fields auto-filled. Review and complete the remaining fields below.</div>';
+    html += '</div>';
+    resultDiv.innerHTML = html;
+
+    // Show recalls if any
+    if (data.hasOpenRecalls && decodedRecalls.length > 0) {
+      var rHtml = '<div style="background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.3);border-radius:8px;padding:16px;">';
+      rHtml += '<div style="font-weight:600;color:#ea580c;margin-bottom:10px;font-size:15px;">⚠ ' + decodedRecalls.length + ' Open Recall' + (decodedRecalls.length === 1 ? '' : 's') + ' Found</div>';
+      decodedRecalls.forEach(function(r) {
+        rHtml += '<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(249,115,22,0.2);">';
+        rHtml += '<div style="font-weight:600;font-size:14px;">' + escapeHtml(r.component || 'Unknown Component') + '</div>';
+        rHtml += '<div style="font-size:13px;color:var(--text-muted);">NHTSA #' + escapeHtml(r.nhtsaRecallNumber || 'N/A') + '</div>';
+        if (r.recallDescription) rHtml += '<div style="font-size:13px;margin-top:4px;">' + escapeHtml(r.recallDescription.substring(0, 200)) + (r.recallDescription.length > 200 ? '...' : '') + '</div>';
+        if (r.remedyDescription) rHtml += '<div style="font-size:12px;color:#16a34a;margin-top:4px;"><strong>Remedy:</strong> ' + escapeHtml(r.remedyDescription.substring(0, 150)) + (r.remedyDescription.length > 150 ? '...' : '') + '</div>';
+        rHtml += '</div>';
+      });
+      rHtml += '<div style="font-size:12px;color:var(--text-muted);">Recalls are saved and tracked on the asset record. You can mark them as addressed later.</div>';
+      rHtml += '</div>';
+      recallsDiv.innerHTML = rHtml;
+      recallsDiv.style.display = 'block';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Decode VIN';
+    showAddMessage('VIN decoded — form auto-filled with vehicle data.', 'success');
+  } catch(e) {
+    resultDiv.innerHTML = '<div style="padding:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;color:#fca5a5;font-size:14px;">Network error — could not reach VIN decode service. ' + escapeHtml(e.message) + '</div>';
+    btn.disabled = false;
+    btn.textContent = 'Decode VIN';
+    if (window.DRIVENErrorHandler) {
+      window.DRIVENErrorHandler.report('asset-management: VIN decode failed — ' + e.message, 'decodeVin', e.stack);
+    }
+  }
+}
+
+function buildDecodeRow(label, value) {
+  if (!value) return '';
+  return '<div><span style="color:var(--text-muted);font-size:12px;">' + label + '</span><br><span style="font-weight:500;">' + escapeHtml(String(value)) + '</span></div>';
+}
+
+function showAddMessage(msg, type) {
+  var el = document.getElementById('amAddMessage');
+  el.textContent = msg;
+  el.className = 'am-message ' + type;
+  el.style.display = 'block';
+  setTimeout(function() { el.style.display = 'none'; }, 5000);
+}
+
+function resetAddForm() {
+  document.getElementById('amAssetNumber').value = '';
+  document.getElementById('amAssetType').value = '';
+  document.getElementById('amSerialNumber').value = '';
+  document.getElementById('amMeter').value = '';
+  document.getElementById('amMakeOem').value = '';
+  document.getElementById('amModel').value = '';
+  document.getElementById('amYear').value = '';
+  document.getElementById('amFuelType').value = '';
+  document.getElementById('amEngineMakeModel').value = '';
+  document.getElementById('amTransType').value = '';
+  document.getElementById('amDriveConfig').value = '';
+  document.getElementById('amFuelTankCap').value = '';
+  document.getElementById('amStatus').value = 'Available';
+  document.getElementById('amProject').value = '';
+  document.getElementById('amLocation').value = '';
+  document.getElementById('amDotRegulated').value = '0';
+  document.getElementById('amVinInput').value = '';
+  document.getElementById('vinDecodeResult').style.display = 'none';
+  document.getElementById('vinRecallsResult').style.display = 'none';
+  decodedVinData = null;
+  decodedRecalls = [];
 }
 
 // ===== EDIT ASSET =====
@@ -1508,6 +1867,9 @@ document.getElementById('amPrintModal').addEventListener('click', function(e) {
 document.getElementById('amExportModal').addEventListener('click', function(e) {
   if (e.target === this) closeModal('amExportModal');
 });
+document.getElementById('amPdfModal').addEventListener('click', function(e) {
+  if (e.target === this) closePdfViewer();
+});
 
 // ===== TAB SWITCHING =====
 function switchTab(tab) {
@@ -1515,6 +1877,7 @@ function switchTab(tab) {
   document.querySelectorAll('.am-tab-content').forEach(function(c) { c.style.display = 'none'; });
   document.querySelector('.am-tab[data-tab="' + tab + '"]').classList.add('active');
   document.getElementById('tab-' + tab).style.display = 'block';
+  if (tab === 'manuals') loadManualJobs();
 }
 
 // ===== GO TO MAIN DASHBOARD =====
@@ -1567,6 +1930,416 @@ function showMessage(msg, type) {
 document.getElementById('amAssetNumber').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') { e.preventDefault(); addAsset(); }
 });
+document.getElementById('amVinInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); decodeVin(); }
+});
+
+// ===== MANUAL LIBRARY =====
+var manualUploadXhr = null;
+
+function handleManualDrop(e) {
+  e.preventDefault();
+  e.currentTarget.style.borderColor = 'var(--border)';
+  var files = e.dataTransfer.files;
+  if (files.length > 0 && files[0].type === 'application/pdf') {
+    document.getElementById('manualFileInput').files = files;
+    handleManualSelect({ target: { files: files } });
+  } else {
+    showManualMessage('Please drop a PDF file.', 'error');
+  }
+}
+
+function handleManualSelect(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  if (file.type !== 'application/pdf') {
+    showManualMessage('Please select a PDF file.', 'error');
+    return;
+  }
+  uploadManual(file);
+}
+
+async function uploadManual(file) {
+  var sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+  var progressDiv = document.getElementById('manualUploadProgress');
+  var extractDiv = document.getElementById('manualExtractionProgress');
+  progressDiv.style.display = 'block';
+  extractDiv.style.display = 'none';
+
+  // Determine upload method based on size
+  var usePresigned = file.size > 80 * 1024 * 1024; // 80MB threshold
+
+  progressDiv.innerHTML = '<div style="background:rgba(37,99,235,0.08);border:1px solid rgba(37,99,235,0.3);border-radius:8px;padding:16px;">' +
+    '<div style="font-weight:600;color:var(--primary);margin-bottom:8px;">Uploading "' + escapeHtml(file.name) + '" (' + sizeMB + ' MB)</div>' +
+    '<div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">' + (usePresigned ? 'Large file — using direct-to-storage upload.' : 'Uploading to extraction worker...') + '</div>' +
+    '<div style="background:var(--bg-input);border-radius:4px;height:20px;overflow:hidden;"><div id="manualUploadBar" style="background:var(--primary);height:100%;width:0%;transition:width 300ms;"></div></div>' +
+    '<div id="manualUploadPct" style="font-size:12px;color:var(--text-muted);margin-top:4px;">0%</div>' +
+    '</div>';
+
+  try {
+    var formData = new FormData();
+    formData.append('file', file);
+
+    manualUploadXhr = new XMLHttpRequest();
+    manualUploadXhr.open('POST', '/api/extract/manual');
+
+    manualUploadXhr.upload.onprogress = function(e) {
+      if (e.lengthComputable) {
+        var pct = Math.round((e.loaded / e.total) * 100);
+        document.getElementById('manualUploadBar').style.width = pct + '%';
+        document.getElementById('manualUploadPct').textContent = pct + '%';
+      }
+    };
+
+    manualUploadXhr.onload = function() {
+      if (manualUploadXhr.status === 200) {
+        var data = JSON.parse(manualUploadXhr.responseText);
+        if (data.success) {
+          if (data.needs_continue) {
+            // Large manual — start chunked extraction polling
+            progressDiv.innerHTML = '<div style="background:rgba(37,99,235,0.08);border:1px solid rgba(37,99,235,0.3);border-radius:8px;padding:16px;">' +
+              '<div style="font-weight:600;color:var(--primary);margin-bottom:8px;">✓ Upload complete — extracting data in chunks...</div>' +
+              '<div id="chunkProgressBar" style="background:var(--bg-input);border-radius:4px;height:20px;overflow:hidden;margin:8px 0;"><div id="chunkBar" style="background:var(--primary);height:100%;width:0%;transition:width 300ms;"></div></div>' +
+              '<div id="chunkProgressText" style="font-size:13px;color:var(--text-muted);">Chunk ' + data.chunks_processed + ' of ' + data.total_chunks + '...</div>' +
+              '</div>';
+            var pct = Math.round((data.chunks_processed / data.total_chunks) * 100);
+            document.getElementById('chunkBar').style.width = pct + '%';
+            continueExtraction(data.job.id, data.total_chunks, data.chunks_processed);
+          } else {
+            progressDiv.innerHTML = '<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:16px;">' +
+              '<div style="font-weight:600;color:#16a34a;">✓ Upload complete — extraction finished</div>' +
+              '<div style="font-size:13px;color:var(--text-muted);margin-top:4px;">Job ID: ' + data.job.id + '</div></div>';
+            showManualMessage('Manual uploaded and extracted. Review the results below.', 'success');
+            loadManualJobs();
+            if (data.extracted) {
+              showExtractionReview(data.job.id, data.extracted, data.suggestions || []);
+            }
+          }
+        } else {
+          progressDiv.innerHTML = '<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:16px;color:#fca5a5;">' +
+            'Upload failed: ' + escapeHtml(data.error || 'Unknown error') + '</div>';
+        }
+      } else {
+        var errData = {};
+        try { errData = JSON.parse(manualUploadXhr.responseText); } catch(e2) {}
+        var errMsg = errData.error || 'HTTP ' + manualUploadXhr.status;
+        if (errMsg.indexOf('No extractable text') !== -1) {
+          errMsg = 'This PDF appears to be scanned images with no extractable text. OCR support for scanned manuals is coming in a future update.';
+        }
+        progressDiv.innerHTML = '<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:16px;color:#fca5a5;">' +
+          'Upload failed: ' + escapeHtml(errMsg) + '</div>';
+      }
+    };
+
+    manualUploadXhr.onerror = function() {
+      progressDiv.innerHTML = '<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:16px;color:#fca5a5;">Network error — could not reach the server.</div>';
+    };
+
+    manualUploadXhr.send(formData);
+  } catch(e) {
+    progressDiv.innerHTML = '<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:16px;color:#fca5a5;">Error: ' + escapeHtml(e.message) + '</div>';
+    if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report('manual upload failed — ' + e.message, 'uploadManual', e.stack);
+  }
+}
+
+async function continueExtraction(jobId, totalChunks, processedChunks) {
+  try {
+    var resp = await fetch('/api/extract/manual/' + jobId + '/continue', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    var data = await resp.json();
+
+    if (!data.success) {
+      document.getElementById('chunkProgressText').textContent = 'Error: ' + (data.error || 'Unknown');
+      return;
+    }
+
+    var pct = Math.round((data.chunks_processed / data.total_chunks) * 100);
+    var bar = document.getElementById('chunkBar');
+    var txt = document.getElementById('chunkProgressText');
+    if (bar) bar.style.width = pct + '%';
+    if (txt) txt.textContent = 'Chunk ' + data.chunks_processed + ' of ' + data.total_chunks + ' (' + pct + '%)';
+
+    if (data.needs_continue) {
+      // More chunks to process — continue polling
+      setTimeout(function() { continueExtraction(jobId, data.total_chunks, data.chunks_processed); }, 1000);
+    } else {
+      // All chunks processed
+      var progressDiv = document.getElementById('manualUploadProgress');
+      progressDiv.innerHTML = '<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:16px;">' +
+        '<div style="font-weight:600;color:#16a34a;">✓ Extraction complete — ' + data.total_chunks + ' chunks processed</div>' +
+        '<div style="font-size:13px;color:var(--text-muted);margin-top:4px;">Job ID: ' + jobId + '</div></div>';
+      showManualMessage('Manual extracted. Review the results below.', 'success');
+      loadManualJobs();
+      if (data.extracted) {
+        showExtractionReview(jobId, data.extracted, data.suggestions || []);
+      }
+    }
+  } catch(e) {
+    var txt = document.getElementById('chunkProgressText');
+    if (txt) txt.textContent = 'Error: ' + e.message + ' — retrying in 3s...';
+    setTimeout(function() { continueExtraction(jobId, totalChunks, processedChunks); }, 3000);
+  }
+}
+
+async function loadManualJobs() {
+  try {
+    var resp = await fetch('/api/extract/jobs?job_type=manual');
+    var data = await resp.json();
+    if (!data.success) return;
+    var jobs = data.jobs || [];
+    document.getElementById('manualCount').textContent = jobs.length + ' manual' + (jobs.length === 1 ? '' : 's');
+    var tbody = document.getElementById('manualTableBody');
+    tbody.textContent = '';
+    if (jobs.length === 0) {
+      tbody.innerHTML = '<tr><td class="am-empty">No manuals uploaded yet.</td></tr>';
+      return;
+    }
+    jobs.forEach(function(job) {
+      var tr = document.createElement('tr');
+      var fileName = job.r2_key ? job.r2_key.split('/').pop() : 'Unknown';
+      var statusBadge = '<span class="am-badge am-badge-' + (job.status === 'extracted' ? 'available' : job.status === 'processing' ? 'in-use' : job.status === 'failed' ? 'lost' : 'maintenance') + '">' + job.status + '</span>';
+      var extractedCount = '';
+      if (job.extracted_data) {
+        try {
+          var ed = JSON.parse(job.extracted_data);
+          var counts = [];
+          if (ed.fluids && ed.fluids.length) counts.push(ed.fluids.length + ' fluids');
+          if (ed.filters && ed.filters.length) counts.push(ed.filters.length + ' filters');
+          if (ed.service_intervals && ed.service_intervals.length) counts.push(ed.service_intervals.length + ' services');
+          if (ed.parts && ed.parts.length) counts.push(ed.parts.length + ' parts');
+          extractedCount = counts.join(', ') || '—';
+        } catch(e) {}
+      }
+      var dateStr = job.requested_at ? new Date(job.requested_at).toLocaleDateString() : '—';
+      tr.innerHTML = '<td>' + escapeHtml(fileName) + '</td><td>' + escapeHtml(job.source_id || '—') + '</td><td>' + statusBadge + '</td><td style="font-size:13px;">' + extractedCount + '</td><td>' + dateStr + '</td>';
+      var actionsTd = document.createElement('td');
+      actionsTd.className = 'am-actions';
+      // View PDF button (always available if file exists)
+      var btnView = document.createElement('button');
+      btnView.className = 'am-table-btn';
+      btnView.textContent = 'View PDF';
+      btnView.addEventListener('click', function() { viewManualPdf(job.id, fileName); });
+      actionsTd.appendChild(btnView);
+      if (job.status === 'extracted' || job.status === 'approved') {
+        var btnReview = document.createElement('button');
+        btnReview.className = 'am-table-btn';
+        btnReview.textContent = 'Review';
+        btnReview.addEventListener('click', function() { reviewManualJob(job.id); });
+        actionsTd.appendChild(btnReview);
+      }
+      tr.appendChild(actionsTd);
+      tbody.appendChild(tr);
+    });
+  } catch(e) {
+    if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report('loadManualJobs failed — ' + e.message, 'loadManualJobs', e.stack);
+  }
+}
+
+async function reviewManualJob(jobId) {
+  try {
+    var resp = await fetch('/api/extract/jobs/' + jobId);
+    var data = await resp.json();
+    if (!data.success) { showManualMessage('Could not load job details.', 'error'); return; }
+    var extracted = data.job.extracted_data || {};
+    showExtractionReview(jobId, extracted, []);
+  } catch(e) {
+    showManualMessage('Error loading job: ' + e.message, 'error');
+  }
+}
+
+function showExtractionReview(jobId, extracted, suggestions) {
+  var extractDiv = document.getElementById('manualExtractionProgress');
+  extractDiv.style.display = 'block';
+
+  // Check user's language for bilingual display
+  var uiLang = (localStorage.getItem('driven_ui_lang') || 'en');
+  var hasSpanish = (uiLang === 'es' && extracted.translations && extracted.translations.es);
+  var d = hasSpanish ? extracted.translations.es : extracted;
+  var langNote = hasSpanish ? ' <span style="font-size:12px;color:#16a34a;font-weight:400;">(Mostrando en español)</span>' : '';
+
+  var html = '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:24px;margin-top:16px;">';
+  html += '<h3 style="margin:0 0 4px 0;color:var(--text);">📋 Extraction Results — Review & Approve' + langNote + '</h3>';
+  html += '<p style="font-size:13px;color:var(--text-muted);margin:0 0 20px 0;">AI extracted the following data from the manual. Review each section and click "Approve & Save" to write to the database.</p>';
+
+  // Basic info
+  if (d.make || d.model || d.year_range || d.equipment_category) {
+    html += '<div style="font-size:13px;font-weight:600;color:var(--primary);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Equipment</div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-bottom:20px;font-size:14px;">';
+    if (d.make) html += buildExtractRow('Make', d.make);
+    if (d.model) html += buildExtractRow('Model', d.model);
+    if (d.year_range) html += buildExtractRow('Year', d.year_range);
+    if (d.equipment_category) html += buildExtractRow('Category', d.equipment_category);
+    if (d.fuel_type) html += buildExtractRow('Fuel Type', d.fuel_type);
+    if (d.fuel_tank_capacity) html += buildExtractRow('Fuel Tank', d.fuel_tank_capacity + ' gal');
+    if (d.engine) html += buildExtractRow('Engine', [d.engine.make, d.engine.model, d.engine.horsepower ? d.engine.horsepower + ' HP' : ''].filter(Boolean).join(' '));
+    html += '</div>';
+  }
+
+  // Fluids
+  if (d.fluids && d.fluids.length > 0) {
+    html += '<div style="font-size:13px;font-weight:600;color:var(--primary);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Fluids</div>';
+    html += '<table class="am-table" style="margin-bottom:20px;"><thead><tr><th>Fluid</th><th>Type</th><th>Capacity</th><th>Unit</th></tr></thead><tbody>';
+    d.fluids.forEach(function(f) {
+      html += '<tr><td>' + escapeHtml(f.name || '—') + '</td><td>' + escapeHtml(f.type || '—') + '</td><td>' + (f.capacity || '—') + '</td><td>' + escapeHtml(f.unit || '—') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  // Filters
+  if (d.filters && d.filters.length > 0) {
+    html += '<div style="font-size:13px;font-weight:600;color:var(--primary);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Filters</div>';
+    html += '<table class="am-table" style="margin-bottom:20px;"><thead><tr><th>Filter</th><th>Part Numbers</th><th>Qty</th><th>Location</th></tr></thead><tbody>';
+    d.filters.forEach(function(f) {
+      var pn = Array.isArray(f.part_numbers) ? f.part_numbers.join(', ') : (f.part_numbers || '—');
+      html += '<tr><td>' + escapeHtml(f.name || '—') + '</td><td style="font-family:monospace;font-size:13px;">' + escapeHtml(pn) + '</td><td>' + (f.count || 1) + '</td><td>' + escapeHtml(f.location || '—') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  // Service intervals
+  if (d.service_intervals && d.service_intervals.length > 0) {
+    html += '<div style="font-size:13px;font-weight:600;color:var(--primary);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">PM Service Schedule</div>';
+    html += '<table class="am-table" style="margin-bottom:20px;"><thead><tr><th>Task</th><th>Interval (Hours)</th><th>Interval (Days)</th></tr></thead><tbody>';
+    d.service_intervals.forEach(function(s) {
+      html += '<tr><td>' + escapeHtml(s.task || '—') + '</td><td>' + (s.interval_hours || '—') + '</td><td>' + (s.interval_days || '—') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  // Parts
+  if (d.parts && d.parts.length > 0) {
+    html += '<div style="font-size:13px;font-weight:600;color:var(--primary);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Parts</div>';
+    html += '<table class="am-table" style="margin-bottom:20px;"><thead><tr><th>Part</th><th>Part Numbers</th><th>Qty</th></tr></thead><tbody>';
+    d.parts.forEach(function(p) {
+      var pn = Array.isArray(p.part_numbers) ? p.part_numbers.join(', ') : (p.part_numbers || '—');
+      html += '<tr><td>' + escapeHtml(p.name || '—') + '</td><td style="font-family:monospace;font-size:13px;">' + escapeHtml(pn) + '</td><td>' + (p.quantity || 1) + '</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  // Grease points
+  if (d.grease_points && d.grease_points.length > 0) {
+    html += '<div style="font-size:13px;font-weight:600;color:var(--primary);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Grease Points</div>';
+    html += '<table class="am-table" style="margin-bottom:20px;"><thead><tr><th>Location</th><th>Grease Type</th><th>Interval (Hours)</th></tr></thead><tbody>';
+    d.grease_points.forEach(function(g) {
+      html += '<tr><td>' + escapeHtml(g.location || '—') + '</td><td>' + escapeHtml(g.grease_type || '—') + '</td><td>' + (g.interval_hours || '—') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  // PM Template
+  if (d.pm_template && d.pm_template.items && d.pm_template.items.length > 0) {
+    html += '<div style="font-size:13px;font-weight:600;color:var(--primary);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">PM Template: ' + escapeHtml(d.pm_template.name || 'Suggested PM') + '</div>';
+    html += '<table class="am-table" style="margin-bottom:20px;"><thead><tr><th>Task</th><th>Description</th><th>Interval (Hrs)</th><th>Interval (Days)</th></tr></thead><tbody>';
+    d.pm_template.items.forEach(function(item) {
+      html += '<tr><td>' + escapeHtml(item.task_name || '—') + '</td><td style="font-size:13px;">' + escapeHtml(item.description || '—') + '</td><td>' + (item.interval_hours || '—') + '</td><td>' + (item.interval_days || '—') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  // Inspection Template
+  if (d.inspection_template && d.inspection_template.items && d.inspection_template.items.length > 0) {
+    html += '<div style="font-size:13px;font-weight:600;color:var(--primary);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Inspection Template: ' + escapeHtml(d.inspection_template.name || 'Suggested Inspection') + '</div>';
+    html += '<table class="am-table" style="margin-bottom:20px;"><thead><tr><th>Item</th><th>Type</th><th>Required</th></tr></thead><tbody>';
+    d.inspection_template.items.forEach(function(item) {
+      html += '<tr><td>' + escapeHtml(item.item_text || '—') + '</td><td>' + escapeHtml(item.item_type || 'pass_fail') + '</td><td>' + (item.required ? 'Yes' : 'No') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  // Confidence
+  if (extracted.confidence !== undefined) {
+    var confPct = Math.round((extracted.confidence || 0) * 100);
+    var confColor = confPct >= 80 ? '#16a34a' : confPct >= 60 ? '#ea580c' : '#dc2626';
+    html += '<div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">AI Confidence: <span style="font-weight:600;color:' + confColor + ';">' + confPct + '%</span>';
+    if (extracted.low_confidence_fields && extracted.low_confidence_fields.length > 0) {
+      html += ' — low confidence on: ' + extracted.low_confidence_fields.join(', ');
+    }
+    html += '</div>';
+  }
+
+  // Approve button
+  html += '<div style="display:flex;gap:10px;flex-wrap:wrap;">';
+  html += '<button class="am-btn-primary" onclick="approveExtraction(\'' + jobId + '\')">✓ Approve & Save to Database</button>';
+  if (suggestions && suggestions.length > 0) {
+    suggestions.forEach(function(s) {
+      html += '<button class="am-btn-secondary" onclick="acceptSuggestion(\'' + s.id + '\')">Accept ' + escapeHtml(s.template_type) + ' template</button>';
+    });
+  }
+  html += '<button class="am-btn-secondary" onclick="document.getElementById(\'manualExtractionProgress\').style.display=\'none\'">Dismiss</button>';
+  html += '</div>';
+  html += '</div>';
+
+  extractDiv.innerHTML = html;
+  extractDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+async function approveExtraction(jobId) {
+  showManualMessage('Approving extraction — writing data to database...', 'success');
+  try {
+    var resp = await fetch('/api/extract/jobs/' + jobId + '/approve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    var data = await resp.json();
+    if (data.success) {
+      showManualMessage('Extraction approved. Fluid specs, PM schedules, and parts written to the asset record. Templates created for review.', 'success');
+      document.getElementById('manualExtractionProgress').style.display = 'none';
+      loadManualJobs();
+    } else {
+      showManualMessage('Approval failed: ' + (data.error || 'Unknown error'), 'error');
+    }
+  } catch(e) {
+    showManualMessage('Error: ' + e.message, 'error');
+  }
+}
+
+async function acceptSuggestion(suggestionId) {
+  try {
+    var resp = await fetch('/api/extract/suggestions/' + suggestionId + '/accept', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    var data = await resp.json();
+    if (data.success) {
+      showManualMessage('Template accepted and created.', 'success');
+    } else {
+      showManualMessage('Failed to accept: ' + (data.error || 'Unknown error'), 'error');
+    }
+  } catch(e) {
+    showManualMessage('Error: ' + e.message, 'error');
+  }
+}
+
+function showManualMessage(msg, type) {
+  var el = document.getElementById('amManualMessage');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'am-message ' + type;
+  el.style.display = 'block';
+  setTimeout(function() { el.style.display = 'none'; }, 5000);
+}
+
+function buildExtractRow(label, value) {
+  if (!value) return '';
+  return '<div><span style="color:var(--text-muted);font-size:12px;">' + label + '</span><br><span style="font-weight:500;">' + escapeHtml(String(value)) + '</span></div>';
+}
+
+function viewManualPdf(jobId, fileName) {
+  document.getElementById('amPdfTitle').textContent = fileName || 'Manual Viewer';
+  document.getElementById('amPdfFrame').src = '/api/extract/manuals/' + jobId + '/pdf';
+  document.getElementById('amPdfModal').classList.add('active');
+}
+
+function closePdfViewer() {
+  document.getElementById('amPdfModal').classList.remove('active');
+  document.getElementById('amPdfFrame').src = 'about:blank';
+}
 </script>
 
 </body>
