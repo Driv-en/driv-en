@@ -1706,6 +1706,32 @@ export async function onRequest(context) {
     return env.TCO_WORKER.fetch(new Request(request.url, request));
   }
 
+  // Forward extraction endpoints to the driven-extraction worker
+  if (/^\/api\/extract(\/|$)/i.test(path)) {
+    if (env.EXTRACTION_WORKER) {
+      const wUrl = new URL(request.url);
+      wUrl.pathname = wUrl.pathname.replace(/^\/api\/extract/, '/extract');
+      return env.EXTRACTION_WORKER.fetch(new Request(wUrl.toString(), request));
+    }
+    try {
+      const extractUrl = new URL(request.url);
+      extractUrl.hostname = 'driven-extraction.driv-en.workers.dev';
+      extractUrl.pathname = extractUrl.pathname.replace(/^\/api\/extract/, '/extract');
+      const reqHeaders = new Headers(request.headers);
+      reqHeaders.set('Host', extractUrl.hostname);
+      const proxyReq = new Request(extractUrl.toString(), {
+        method: request.method,
+        headers: reqHeaders,
+        body: (request.method !== 'GET' && request.method !== 'HEAD') ? request.body : null,
+        redirect: 'manual',
+      });
+      const resp = await fetch(proxyReq);
+      return resp;
+    } catch(e) {
+      return new Response(JSON.stringify({ success: false, error: 'Extraction worker unreachable: ' + e.message }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+    }
+  }
+
   // ── Translate endpoints: proxy to driv-en-api worker (which has the AI binding) ──
   if (/^\/api\/translate(\/|$)/i.test(path)) {
     try {
