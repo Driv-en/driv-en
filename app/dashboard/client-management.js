@@ -21,9 +21,8 @@ function switchTab(tab) {
 // NAVIGATION (overrides inline fallback)
 // ============================================================
 function goToMainDashboard() {
-  var savedOrigin = sessionStorage.getItem('driven_dashboard_origin');
-  if (savedOrigin) { window.location.href = savedOrigin; return; }
-  if (document.referrer && document.referrer.indexOf('driv-en.com') !== -1) { window.location.href = document.referrer; return; }
+  var origin = window._cmSavedOrigin;
+  if (origin) { window.location.href = origin; return; }
   var user = window.dashUser;
   if (user) {
     var role = (user.role || '').toLowerCase(); var rid = (user.role_id || '').toLowerCase();
