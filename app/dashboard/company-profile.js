@@ -67,22 +67,22 @@ window.addEventListener('load', function() { initPage(); });
 // COLUMN SETTINGS (persisted to localStorage)
 // ============================================================
 var DIV_COLUMNS = [
+  { key: 'code', label: 'Division Code', visible: true, width: 130 },
   { key: 'name', label: 'Name', visible: true, width: 200 },
   { key: 'manager', label: 'Manager', visible: true, width: 180 },
   { key: 'status', label: 'Status', visible: true, width: 100 },
-  { key: 'actions', label: 'Actions', visible: true, width: 140 },
-  { key: 'code', label: 'Division Code', visible: true, width: 130 }
+  { key: 'actions', label: 'Actions', visible: true, width: 140 }
 ];
 
 var LOC_COLUMNS = [
+  { key: 'code', label: 'Location Code', visible: true, width: 130 },
   { key: 'name', label: 'Name', visible: true, width: 200 },
   { key: 'type', label: 'Type', visible: true, width: 120 },
   { key: 'city', label: 'City', visible: true, width: 140 },
   { key: 'state', label: 'State', visible: true, width: 100 },
   { key: 'division', label: 'Division', visible: true, width: 160 },
   { key: 'status', label: 'Status', visible: true, width: 100 },
-  { key: 'actions', label: 'Actions', visible: true, width: 140 },
-  { key: 'code', label: 'Location Code', visible: true, width: 130 }
+  { key: 'actions', label: 'Actions', visible: true, width: 140 }
 ];
 
 var divSort = { key: 'name', dir: 'asc' };
@@ -296,7 +296,7 @@ function initColResize(e, col, type) {
   document.body.style.cursor = 'col-resize';
   document.body.style.userSelect = 'none';
   function onMouseMove(ev) {
-    var newWidth = Math.max(60, startWidth + (ev.clientX - startX));
+    var newWidth = Math.max(20, startWidth + (ev.clientX - startX));
     col.width = newWidth;
     th.style.width = newWidth + 'px';
     th.style.minWidth = newWidth + 'px';
