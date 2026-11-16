@@ -37,6 +37,29 @@
 .cm-welcome { background:var(--bg-card); border:2px solid var(--success, #16a34a); border-radius:8px; padding:24px; margin-bottom:24px; }
 .cm-welcome h2 { margin:0 0 6px 0; font-size:20px; color:var(--text); }
 .cm-welcome p { margin:0; font-size:14px; color:var(--text-muted); }
+.cm-welcome-header { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:16px; }
+.cm-welcome-details { margin-top:16px; display:flex; flex-direction:column; gap:8px; }
+.cm-welcome-detail-row { font-size:14px; color:var(--text); display:flex; align-items:center; gap:6px; }
+.cm-welcome-detail-label { font-weight:600; color:var(--text-muted); }
+.cm-pill-bar { max-width:1100px; margin:16px auto 0 auto; padding:0 20px; position:relative; z-index:1; display:flex; gap:12px; align-items:center; box-sizing:border-box; }
+.pill-btn { display:inline-flex; align-items:center; gap:6px; padding:6px 16px; border-radius:9999px; font-size:13px; font-weight:600; cursor:pointer; border:1px solid transparent; transition:all 150ms ease-in-out; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
+.pill-btn-purpose { background-color:#0284c7; color:#fff; border-color:#0369a1; }
+.pill-btn-purpose:hover { background-color:#0369a1; }
+.pill-btn-instructions { background-color:#8b5cf6; color:#fff; border-color:#7c3aed; }
+.pill-btn-instructions:hover { background-color:#7c3aed; }
+.info-modal-backdrop { position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.6); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; z-index:9999; opacity:0; visibility:hidden; transition:opacity 200ms ease,visibility 200ms ease; }
+.info-modal-backdrop.active { opacity:1; visibility:visible; }
+.info-modal-dialog { background:var(--bg-card,#fff); border:2px solid var(--success,#16a34a); border-radius:12px; max-width:550px; width:90%; max-height:85vh; display:flex; flex-direction:column; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2); transform:translateY(-10px); transition:transform 200ms ease; }
+:root[data-theme="dark"] .info-modal-dialog { background:#1e293b; }
+.info-modal-backdrop.active .info-modal-dialog { transform:translateY(0); }
+.info-modal-header { padding:16px 20px; border-bottom:1px solid var(--border,#e2e8f0); display:flex; align-items:center; justify-content:space-between; }
+.info-modal-header h3 { margin:0; font-size:18px; color:var(--text,#0f172a); }
+.info-modal-close-btn { background:transparent; border:none; font-size:20px; cursor:pointer; color:var(--text-muted,#64748b); padding:4px; border-radius:4px; }
+.info-modal-close-btn:hover { color:var(--text,#0f172a); }
+.info-modal-body { padding:20px; overflow-y:auto; font-size:14px; color:var(--text,#334155); line-height:1.5; }
+.info-modal-footer { padding:12px 20px; border-top:1px solid var(--border,#e2e8f0); display:flex; justify-content:flex-end; gap:8px; }
+.btn-info-modal-close { background:#64748b; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:500; cursor:pointer; }
+.btn-info-modal-close:hover { background:#475569; }
 .cm-module-card { background:var(--bg-card); border:2px solid var(--success, #16a34a); border-radius:8px; padding:20px; cursor:pointer; transition:border-color 200ms ease; }
 .cm-module-card:hover { border-color:var(--primary); }
 .cm-module-card h3 { margin:0 0 6px 0; font-size:16px; color:var(--text); }
@@ -96,7 +119,7 @@
 .cm-modal-card .cm-modal-subtitle { margin:0 0 20px 0; font-size:14px; color:var(--text-muted); }
 .cm-modal-actions { display:flex; gap:10px; margin-top:20px; flex-wrap:wrap; }
 @media (max-width:700px) { .cm-main { padding:0 12px; margin:12px auto; } .cm-tab { padding:10px 16px; font-size:14px; } .cm-tab-logout { padding:10px 16px; font-size:14px; } .cm-form-grid { grid-template-columns:1fr; } .cm-table { font-size:13px; } .cm-table th, .cm-table td { padding:8px 10px; } }
-@media print { .cm-tab-bar, .cm-search-row, .cm-form-card, .cm-pagination, .cm-modal, #dashHeader, #dashFooter, .cm-section-header button, .cm-table-btn { display:none !important; } .cm-table-scroll { max-height:none; overflow:visible; border:none; } body { background:#fff; } .cm-main { max-width:100%; } }
+@media print { .cm-tab-bar, .cm-search-row, .cm-form-card, .cm-pagination, .cm-modal, .info-modal-backdrop, .cm-pill-bar, .cm-welcome, #dashHeader, #dashFooter, .cm-section-header button, .cm-table-btn { display:none !important; } .cm-table-scroll { max-height:none; overflow:visible; border:none; } body { background:#fff; } .cm-main { max-width:100%; } }
 </style>
 </head>
 <body data-page-title="Company Profile" data-required-role="RO-admin">
@@ -111,6 +134,28 @@
   <div class="cm-tab" data-tab="locations" onclick="switchTab('locations')">Locations</div>
   <div class="cm-tab cm-tab-dashboard" onclick="goToMainDashboard()">&#8592; Dashboard</div>
   <div class="cm-tab-logout" onclick="if(typeof dashLogout==='function')dashLogout()">Logout</div>
+</div>
+
+<!-- ===== WELCOME CARD ===== -->
+<div class="cm-main" style="margin-top:16px; margin-bottom:0;">
+  <div class="cm-welcome">
+    <div class="cm-welcome-header">
+      <div>
+        <h2 id="cmWelcomeName">Welcome back</h2>
+        <p>Manage your organization's divisions and locations.</p>
+      </div>
+    </div>
+    <div class="cm-welcome-details">
+      <div class="cm-welcome-detail-row"><span class="cm-welcome-detail-label">Role:</span><span id="cmWelcomeRole"></span></div>
+      <div class="cm-welcome-detail-row"><span class="cm-welcome-detail-label">Email:</span><span id="cmWelcomeEmail"></span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PILL BAR (Purpose / Instructions) ===== -->
+<div class="cm-pill-bar">
+  <button class="pill-btn pill-btn-purpose" id="btnTabPurpose" type="button">&#9432; Purpose</button>
+  <button class="pill-btn pill-btn-instructions" id="btnTabInstructions" type="button">&#128203; Instructions</button>
 </div>
 
 <!-- ===== MAIN CONTENT ===== -->
@@ -145,6 +190,7 @@
     <div class="cm-section-header">
       <h3>Division List</h3>
       <span class="cm-item-count" id="cmDivCount">0 divisions</span>
+      <button class="cm-btn-secondary" onclick="printDivisions()">Print List</button>
     </div>
     <div class="cm-search-row">
       <input type="text" class="cm-search-input" id="cmDivSearch" placeholder="Search by name, code, or manager..." oninput="onDivSearchInput()" />
@@ -215,6 +261,7 @@
     <div class="cm-section-header">
       <h3>Location List</h3>
       <span class="cm-item-count" id="cmLocCount">0 locations</span>
+      <button class="cm-btn-secondary" onclick="printLocations()">Print List</button>
     </div>
     <div class="cm-search-row">
       <input type="text" class="cm-search-input" id="cmLocSearch" placeholder="Search by name, code, city, or address..." oninput="onLocSearchInput()" />
@@ -338,6 +385,34 @@
     <div class="cm-modal-actions">
       <button class="cm-btn-secondary" onclick="closeEditLocModal()">Cancel</button>
       <button class="cm-btn-primary" onclick="saveEditLocation()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PURPOSE MODAL ===== -->
+<div class="info-modal-backdrop" id="purposeModal" aria-hidden="true" role="dialog" aria-labelledby="purposeModalTitle">
+  <div class="info-modal-dialog">
+    <div class="info-modal-header">
+      <h3 id="purposeModalTitle">Purpose</h3>
+      <button type="button" class="info-modal-close-btn" data-dismiss="info-modal" aria-label="Close modal">&times;</button>
+    </div>
+    <div class="info-modal-body" id="purposeModalBody"></div>
+    <div class="info-modal-footer">
+      <button type="button" class="btn-info-modal-close" data-dismiss="info-modal">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== INSTRUCTIONS MODAL ===== -->
+<div class="info-modal-backdrop" id="instructionsModal" aria-hidden="true" role="dialog" aria-labelledby="instructionsModalTitle">
+  <div class="info-modal-dialog">
+    <div class="info-modal-header">
+      <h3 id="instructionsModalTitle">Instructions</h3>
+      <button type="button" class="info-modal-close-btn" data-dismiss="info-modal" aria-label="Close modal">&times;</button>
+    </div>
+    <div class="info-modal-body" id="instructionsModalBody"></div>
+    <div class="info-modal-footer">
+      <button type="button" class="btn-info-modal-close" data-dismiss="info-modal">Close</button>
     </div>
   </div>
 </div>
