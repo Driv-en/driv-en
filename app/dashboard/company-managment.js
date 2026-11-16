@@ -171,9 +171,9 @@ function initPage() {
   scheduleHeaderRebuilds();
   startHeaderObserver();
 
+  // Loading screen and overview are already handled by inline script in HTML
   var loading = document.getElementById('cmLoading');
   if (loading) loading.style.display = 'none';
-
   var overview = document.getElementById('tab-overview');
   if (overview) overview.style.display = 'block';
 
