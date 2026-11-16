@@ -6,6 +6,10 @@
  * This avoids the atomic failure problem where one missing file
  * breaks the entire cache.
  *
+ * v20 — November 16, 2026: Fixed cache poisoning bug. Background fetches now use
+ *         redirect:'manual' so 308 redirect responses are never cached as static
+ *         assets. Also verify content-type before caching. Bumped cache version
+ *         to force full purge of stale auth-check.js (3.5 kB old vs 10.5 kB new).
  * v19 — November 12, 2026: Added #dashHeader sticky + .dash-header-row1 grid
  *         CSS to Work Orders + Calendar (was missing — admin/onboarding have it).
  *         This forces single-row header layout with !important overrides.
@@ -41,7 +45,7 @@
  *      to cache only when offline). Static assets are cache-first.
  */
 
-const CACHE = 'driv-en-v19';
+const CACHE = 'driv-en-v20';
 const STATIC_ASSETS = [
   '/app/shared/dashboard.css',
   '/app/shared/dashboard-common.js',
@@ -91,6 +95,19 @@ self.addEventListener('activate', e => {
   );
   self.clients.claim();
 });
+
+// Verify the response content-type matches what we expect for the asset
+// Prevents caching HTML (e.g. login page) as JS/CSS due to redirect chains
+function isCorrectContentType(response, url) {
+  var ct = (response.headers.get('content-type') || '').toLowerCase();
+  var ext = url.pathname.split('.').pop().toLowerCase();
+  if (ext === 'js') return ct.includes('javascript') || ct.includes('text/plain');
+  if (ext === 'css') return ct.includes('css') || ct.includes('text/plain');
+  if (ext === 'html') return ct.includes('html');
+  if (['png','jpg','jpeg','gif','svg','ico'].includes(ext)) return ct.includes('image');
+  if (['woff','woff2','ttf'].includes(ext)) return ct.includes('font') || ct.includes('octet-stream');
+  return true; // unknown extension — allow
+}
 
 // Fetch — different strategies for different request types
 self.addEventListener('fetch', e => {
@@ -146,8 +163,9 @@ self.addEventListener('fetch', e => {
       caches.match(request).then(cached => {
         if (cached) {
           // Serve from cache, update in background
-          fetch(request).then(response => {
-            if (response && response.status === 200) {
+          // Use redirect:'manual' so 308 redirects are never followed and cached
+          fetch(request, { redirect: 'manual' }).then(response => {
+            if (response && response.status === 200 && isCorrectContentType(response, url)) {
               const clone = response.clone();
               caches.open(CACHE).then(c => c.put(request, clone));
             }
@@ -156,7 +174,7 @@ self.addEventListener('fetch', e => {
         }
         // Not in cache — fetch from network
         return fetch(request).then(response => {
-          if (response && response.status === 200) {
+          if (response && response.status === 200 && isCorrectContentType(response, url)) {
             const clone = response.clone();
             caches.open(CACHE).then(c => c.put(request, clone));
           }
