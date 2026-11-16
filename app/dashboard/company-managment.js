@@ -1,17 +1,14 @@
 /**
- * company-management.js -- DRIV-EN Company Management page logic (v1)
+ * company-management.js -- DRIV-EN Client Management page logic (v4)
  *
- * Extracted from company-management.html inline script.
- * Handles: tab switching (Overview, Divisions, Locations), dashboard navigation.
+ * Handles: tab switching (Overview, Clients, Divisions, Locations), 
+ * client CRUD (load, add, edit, delete), dashboard navigation.
  *
- * Includes rebuildHeader() to handle stale 3-row SW header template.
- * Uses role_id for dashboard redirect (RO-Founder, RO-admin).
- *
- * Load order: auth-check.js -> dashboard-common.js -> units-global.js -> apply-units.js -> voice.js -> this file
+ * Load order: auth-check.js -> dashboard-common.js -> units-global.js -> apply-units.js -> voice.js -> translate.js -> this file
  */
 
 // ============================================================
-// HEADER REBUILD -- handles stale 3-row SW header template
+// HEADER REBUILD
 // ============================================================
 function rebuildHeader() {
   var container = document.getElementById('dashHeader');
@@ -20,7 +17,6 @@ function rebuildHeader() {
   var html = '<div class="dash-header">' +
     '<div class="dash-header-row1" style="display:flex;align-items:center;justify-content:space-between;padding:8px 20px;">';
 
-  // Left logo
   html += '<div class="dash-header-left" style="flex:0 0 auto;">';
   var logo = localStorage.getItem('driven_logo_url');
   if (logo) {
@@ -30,10 +26,8 @@ function rebuildHeader() {
   }
   html += '</div>';
 
-  // Center title
-  html += '<div class="admin-header-title" style="flex:1;text-align:center;font-size:20px;font-weight:600;color:var(--text);">Company Management</div>';
+  html += '<div class="admin-header-title" style="flex:1;text-align:center;font-size:20px;font-weight:600;color:var(--text);">Client Management</div>';
 
-  // Right logo (mirror)
   html += '<div class="dash-header-right" style="flex:0 0 auto;">';
   if (logo) {
     html += '<img src="' + logo + '" alt="Logo" style="max-height:40px;max-width:120px;object-fit:contain;">';
@@ -92,7 +86,6 @@ function switchTab(tab) {
   var content = document.getElementById('tab-' + tab);
   if (content) content.style.display = 'block';
 
-  // Re-init voice for newly visible content
   if (window.DRIVEN_VOICE) {
     try { DRIVEN_VOICE.init(); } catch (e) {}
   }
@@ -102,14 +95,11 @@ function switchTab(tab) {
 // GO TO MAIN DASHBOARD
 // ============================================================
 function goToMainDashboard() {
-  // Try sessionStorage origin (set by dashboard-common.js)
   var savedOrigin = sessionStorage.getItem('driven_dashboard_origin');
   if (savedOrigin) { window.location.href = savedOrigin; return; }
-  // Try referrer (if we came from a dashboard)
   if (document.referrer && document.referrer.indexOf('driv-en.com') !== -1) {
     window.location.href = document.referrer; return;
   }
-  // Try role-based redirect (role_id first, then role name)
   var user = window.dashUser;
   if (user) {
     var role = (user.role || '').toLowerCase();
@@ -122,28 +112,28 @@ function goToMainDashboard() {
       window.location.href = '/app/dashboard/employee-dashboard.html'; return;
     }
   }
-  // Fallback: go to admin dashboard (these pages are linked from admin Quick Links)
   window.location.href = '/app/dashboard/admin.html';
 }
 
 // ============================================================
 // STATIC EVENT WIRING
 // ============================================================
+var cmEventsBound = false;
 function bindStaticEvents() {
-  // Tab buttons
+  if (cmEventsBound) return;
+  cmEventsBound = true;
+
   document.querySelectorAll('.cm-tab[data-tab]').forEach(function(tab) {
     tab.addEventListener('click', function() {
       switchTab(tab.getAttribute('data-tab'));
     });
   });
 
-  // Dashboard link
   var dashLink = document.getElementById('cmDashLink');
   if (dashLink) {
     dashLink.addEventListener('click', goToMainDashboard);
   }
 
-  // Logout button
   var logoutBtn = document.getElementById('cmLogoutBtn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', function() {
@@ -151,35 +141,45 @@ function bindStaticEvents() {
     });
   }
 
-  // Module cards (data-tab-link attribute)
   document.querySelectorAll('.cm-module-card[data-tab-link]').forEach(function(card) {
     card.addEventListener('click', function() {
       switchTab(card.getAttribute('data-tab-link'));
     });
   });
+
+  // Edit modal overlay click
+  var modal = document.getElementById('cmEditModal');
+  if (modal) {
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) closeEditClientModal();
+    });
+  }
 }
 
 // ============================================================
 // INIT
 // ============================================================
-function initPage() {
-  var user = window.dashUser;
-  if (!user) { return false; }
+var cmPageInitialized = false;
 
-  // Rebuild header
+function initPage() {
+  if (cmPageInitialized) return true;
+  var user = window.dashUser;
+  if (!user) return false;
+
+  cmPageInitialized = true;
+
   scheduleHeaderRebuilds();
   startHeaderObserver();
 
-  document.getElementById('cmLoading').style.display = 'none';
-  document.getElementById('tab-overview').style.display = 'block';
+  var loading = document.getElementById('cmLoading');
+  if (loading) loading.style.display = 'none';
 
-  // Wire static events
+  var overview = document.getElementById('tab-overview');
+  if (overview) overview.style.display = 'block';
+
   bindStaticEvents();
-
-  // Load clients
   loadClients();
 
-  // Wire up voice
   if (window.DRIVEN_VOICE) {
     try { DRIVEN_VOICE.init(); } catch (e) {}
   }
@@ -187,12 +187,18 @@ function initPage() {
   return true;
 }
 
+// Listen for dashSessionLoaded (fires from auth-check.js after API call)
 document.addEventListener('dashSessionLoaded', initPage);
 
-// Fallback: try on DOMContentLoaded (in case dashSessionLoaded already fired)
+// Fallback: try immediately (in case dashSessionLoaded already fired from cached user)
+if (window.dashUser) {
+  initPage();
+}
+
+// Fallback: try on DOMContentLoaded
 document.addEventListener('DOMContentLoaded', function() {
   if (!initPage()) {
-    // User not ready yet — poll for it (auth-check.js may still be fetching)
+    // User not ready yet — poll for it
     var tries = 0;
     var poll = setInterval(function() {
       tries++;
@@ -206,6 +212,13 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
+// Fallback: window load
+window.addEventListener('load', function() {
+  initPage();
+  rebuildHeader();
+  setTimeout(rebuildHeader, 200);
+});
+
 // ============================================================
 // CLIENT MANAGEMENT
 // ============================================================
@@ -214,7 +227,6 @@ var editingClientId = null;
 var clientPage = 1;
 var clientPageSize = 10;
 
-// Normalize API response to flat object
 function normalizeClient(r) {
   var f = (r && r.fields && typeof r.fields === 'object') ? r.fields : r;
   return {
@@ -345,7 +357,6 @@ function renderClientTable() {
     addCell(c.contactPhone);
     addCell(c.company);
 
-    // Status badge
     var statusTd = document.createElement('td');
     if (c.status) {
       var badge = document.createElement('span');
@@ -357,7 +368,6 @@ function renderClientTable() {
     }
     tr.appendChild(statusTd);
 
-    // Actions
     var actionsTd = document.createElement('td');
     actionsTd.className = 'cm-actions';
     var btnEdit = document.createElement('button');
@@ -458,7 +468,6 @@ async function addClient() {
       return;
     }
 
-    // Clear form
     ['cmClientName','cmContactName','cmContactEmail','cmContactPhone','cmCompany','cmIndustry','cmAddress','cmCity','cmState','cmZipCode','cmNotes'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.value = '';
@@ -579,18 +588,3 @@ function showClientMessage(msg, type) {
   el.style.display = 'block';
   setTimeout(function() { el.style.display = 'none'; }, 5000);
 }
-
-// Close edit modal on overlay click
-document.addEventListener('DOMContentLoaded', function() {
-  var modal = document.getElementById('cmEditModal');
-  if (modal) {
-    modal.addEventListener('click', function(e) {
-      if (e.target === modal) closeEditClientModal();
-    });
-  }
-});
-
-window.addEventListener('load', function() {
-  rebuildHeader();
-  setTimeout(rebuildHeader, 200);
-});
