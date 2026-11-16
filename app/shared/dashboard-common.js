@@ -440,7 +440,7 @@
   // Note: dashUser is null until loadSession() completes.
   // Page scripts that need it should wait for the "dashSessionLoaded" event.
   document.addEventListener("dashSessionLoaded", function() {
-    window.dashUser = dashUser;
+    if (dashUser) window.dashUser = dashUser;
   });
 
   // Dispatch a custom event after session loads so page scripts know
@@ -449,7 +449,9 @@
   var originalLoadSession = loadSession;
   loadSession = async function() {
     var result = await originalLoadSession();
-    document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: dashUser }));
+    if (dashUser) {
+      document.dispatchEvent(new CustomEvent("dashSessionLoaded", { detail: dashUser }));
+    }
     return result;
   };
 
