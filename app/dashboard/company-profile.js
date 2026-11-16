@@ -1,12 +1,8 @@
 /**
- * company-management.js — DRIV-EN Company Profile (v9)
- * Divisions + Locations CRUD with search, filter, pagination.
+ * company-profile.js — DRIV-EN Company Profile (v2)
+ * Divisions + Locations CRUD with search, filter, pagination, print, modals.
  * Overrides inline fallbacks for switchTab / goToMainDashboard.
  */
-
-// DIAGNOSTIC FLAG — set at the very top so we know the file executed
-window.__cmJsLoaded = true;
-console.log('company-management.js v9 loaded successfully');
 
 // ============================================================
 // TAB SWITCHING (overrides inline fallback)
@@ -46,6 +42,8 @@ function initPage() {
   var user = window.dashUser;
   if (!user) return false;
   cmPageInitialized = true;
+  populateWelcomeCard();
+  setupInfoModals();
   loadDivisions();
   loadLocations();
   if (window.DRIVEN_VOICE) { try { DRIVEN_VOICE.init(); } catch (e) {} }
@@ -493,3 +491,148 @@ document.addEventListener('DOMContentLoaded', function () {
   var lm = document.getElementById('cmEditLocModal');
   if (lm) lm.addEventListener('click', function (e) { if (e.target === lm) closeEditLocModal(); });
 });
+
+// ============================================================
+// PRINT FUNCTIONS
+// ============================================================
+function printDivisions() {
+  var div = document.getElementById('tab-divisions');
+  if (!div) return;
+  var win = window.open('', '_blank');
+  win.document.write('<html><head><title>Divisions List</title><style>body{font-family:Arial,sans-serif;padding:20px;} h2{margin-bottom:4px;} table{width:100%;border-collapse:collapse;margin-top:12px;} th,td{border:1px solid #ccc;padding:8px 10px;text-align:left;font-size:13px;} th{background:#f1f5f9;font-weight:600;} .meta{font-size:12px;color:#64748b;margin-bottom:12px;}</style></head><body>');
+  win.document.write('<h2>Divisions</h2>');
+  win.document.write('<div class="meta">Printed: ' + new Date().toLocaleString() + '</div>');
+  var table = div.querySelector('.cm-table');
+  if (table) win.document.write(table.outerHTML);
+  win.document.write('</body></html>');
+  win.document.close();
+  win.focus();
+  setTimeout(function() { win.print(); }, 300);
+}
+
+function printLocations() {
+  var div = document.getElementById('tab-locations');
+  if (!div) return;
+  var win = window.open('', '_blank');
+  win.document.write('<html><head><title>Locations List</title><style>body{font-family:Arial,sans-serif;padding:20px;} h2{margin-bottom:4px;} table{width:100%;border-collapse:collapse;margin-top:12px;} th,td{border:1px solid #ccc;padding:8px 10px;text-align:left;font-size:13px;} th{background:#f1f5f9;font-weight:600;} .meta{font-size:12px;color:#64748b;margin-bottom:12px;}</style></head><body>');
+  win.document.write('<h2>Locations</h2>');
+  win.document.write('<div class="meta">Printed: ' + new Date().toLocaleString() + '</div>');
+  var table = div.querySelector('.cm-table');
+  if (table) win.document.write(table.outerHTML);
+  win.document.write('</body></html>');
+  win.document.close();
+  win.focus();
+  setTimeout(function() { win.print(); }, 300);
+}
+
+// ============================================================
+// PURPOSE & INSTRUCTIONS MODALS
+// ============================================================
+var CM_MODAL_CONTENT = {
+  overview: {
+    purpose: 'The <strong>Company Profile</strong> page is the central hub for managing your organization\'s structural hierarchy. From here, administrators can create, edit, and manage <strong>Divisions</strong> and <strong>Locations</strong> that define how the organization is segmented for reporting, asset assignment, and operational oversight.',
+    instructions: '<ol><li><strong>Overview Tab:</strong> View a summary of your organization\'s divisions and locations at a glance.</li><li><strong>Divisions Tab:</strong> Create new divisions, search and filter existing ones, edit or delete divisions. Each division can have a name, code, manager, description, and status.</li><li><strong>Locations Tab:</strong> Create new locations, search and filter existing ones, edit or delete locations. Each location can have a name, code, type, address, city, state, zip code, assigned division, and status.</li><li><strong>Add Division/Location:</strong> Use the respective "Add" tabs to create new entries with a simple form.</li><li><strong>Print:</strong> Use the "Print List" button on either the Divisions or Locations tab to print the current list.</li></ol>'
+  },
+  divisions: {
+    purpose: 'The <strong>Divisions Tab</strong> allows administrators to define and manage the organizational divisions within the company. Divisions represent high-level segments of the organization (e.g., Operations, Maintenance, Administration) and can be assigned to locations for hierarchical grouping.',
+    instructions: '<ol><li><strong>View Divisions:</strong> All divisions for your organization are listed in the table.</li><li><strong>Search:</strong> Use the search box to filter divisions by name, code, or manager.</li><li><strong>Add Division:</strong> Click the "Add Division" tab, fill in the form (name is required), and click "Add Division".</li><li><strong>Edit Division:</strong> Click the edit (pencil) icon next to any division to update its details.</li><li><strong>Delete Division:</strong> Click the delete (trash) icon to remove a division.</li><li><strong>Print List:</strong> Click "Print List" to print the current division table.</li></ol>'
+  },
+  locations: {
+    purpose: 'The <strong>Locations Tab</strong> allows administrators to define and manage physical or logical locations within the organization. Locations can be assigned to a division and include address information for operational planning and asset tracking.',
+    instructions: '<ol><li><strong>View Locations:</strong> All locations for your organization are listed in the table.</li><li><strong>Search:</strong> Use the search box to filter locations by name, code, city, or type.</li><li><strong>Add Location:</strong> Click the "Add Location" tab, fill in the form (name is required), and click "Add Location".</li><li><strong>Edit Location:</strong> Click the edit (pencil) icon next to any location to update its details.</li><li><strong>Delete Location:</strong> Click the delete (trash) icon to remove a location.</li><li><strong>Print List:</strong> Click "Print List" to print the current location table.</li></ol>'
+  }
+};
+
+function getActiveContext() {
+  var activeTab = document.querySelector('.cm-tab.active');
+  if (activeTab) {
+    var tab = activeTab.getAttribute('data-tab');
+    if (tab === 'divisions' || tab === 'adddivision') return 'divisions';
+    if (tab === 'locations' || tab === 'addlocation') return 'locations';
+  }
+  return 'overview';
+}
+
+function getContextTitle(key) {
+  if (key === 'divisions') return 'Divisions';
+  if (key === 'locations') return 'Locations';
+  return 'Company Profile';
+}
+
+function openInfoModal(modal) {
+  if (!modal) return;
+  modal.classList.add('active');
+  modal.setAttribute('aria-hidden', 'false');
+  var focusable = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+  if (focusable.length > 0) focusable[0].focus();
+}
+
+function closeInfoModal(modal) {
+  if (!modal) return;
+  modal.classList.remove('active');
+  modal.setAttribute('aria-hidden', 'true');
+}
+
+function setupInfoModals() {
+  var btnPurpose = document.getElementById('btnTabPurpose');
+  var btnInstructions = document.getElementById('btnTabInstructions');
+  var purposeModal = document.getElementById('purposeModal');
+  var instructionsModal = document.getElementById('instructionsModal');
+
+  if (btnPurpose && purposeModal) {
+    btnPurpose.addEventListener('click', function () {
+      var key = getActiveContext();
+      var title = getContextTitle(key);
+      var content = CM_MODAL_CONTENT[key] || CM_MODAL_CONTENT.overview;
+      var mpt = document.getElementById('purposeModalTitle');
+      var mpb = document.getElementById('purposeModalBody');
+      if (mpt) mpt.textContent = title + ' - Purpose';
+      if (mpb) mpb.innerHTML = content.purpose;
+      openInfoModal(purposeModal);
+    });
+  }
+
+  if (btnInstructions && instructionsModal) {
+    btnInstructions.addEventListener('click', function () {
+      var key = getActiveContext();
+      var title = getContextTitle(key);
+      var content = CM_MODAL_CONTENT[key] || CM_MODAL_CONTENT.overview;
+      var mit = document.getElementById('instructionsModalTitle');
+      var mib = document.getElementById('instructionsModalBody');
+      if (mit) mit.textContent = title + ' - Instructions';
+      if (mib) mib.innerHTML = content.instructions;
+      openInfoModal(instructionsModal);
+    });
+  }
+
+  document.querySelectorAll('.info-modal-backdrop').forEach(function (modal) {
+    modal.addEventListener('click', function (e) { if (e.target === modal) closeInfoModal(modal); });
+    var closeBtns = modal.querySelectorAll('[data-dismiss="info-modal"]');
+    closeBtns.forEach(function (btn) { btn.addEventListener('click', function () { closeInfoModal(modal); }); });
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      var active = document.querySelector('.info-modal-backdrop.active');
+      if (active) closeInfoModal(active);
+    }
+  });
+}
+
+// ============================================================
+// WELCOME CARD POPULATION
+// ============================================================
+function populateWelcomeCard() {
+  var user = window.dashUser;
+  if (!user) return;
+  var nameEl = document.getElementById('cmWelcomeName');
+  var roleEl = document.getElementById('cmWelcomeRole');
+  var emailEl = document.getElementById('cmWelcomeEmail');
+  if (nameEl) {
+    var firstName = user.first_name || user.firstName || user.name || '';
+    var orgName = user.org_name || user.orgName || '';
+    nameEl.textContent = firstName ? ('Welcome back, ' + firstName + (orgName ? ' - ' + orgName : '')) : 'Welcome back';
+  }
+  if (roleEl) roleEl.textContent = user.role || user.role_name || 'Administrator';
+  if (emailEl) emailEl.textContent = user.email || '';
+}
