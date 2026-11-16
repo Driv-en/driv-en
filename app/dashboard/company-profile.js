@@ -42,6 +42,7 @@ function initPage() {
   var user = window.dashUser;
   if (!user) return false;
   cmPageInitialized = true;
+  loadColSettings();
   populateWelcomeCard();
   setupInfoModals();
   loadDivisions();
@@ -61,6 +62,157 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 window.addEventListener('load', function() { initPage(); });
+
+// ============================================================
+// COLUMN SETTINGS (persisted to localStorage)
+// ============================================================
+var DIV_COLUMNS = [
+  { key: 'name', label: 'Name', visible: true, width: 200 },
+  { key: 'code', label: 'Code', visible: true, width: 120 },
+  { key: 'manager', label: 'Manager', visible: true, width: 180 },
+  { key: 'status', label: 'Status', visible: true, width: 100 },
+  { key: 'actions', label: 'Actions', visible: true, width: 140 }
+];
+
+var LOC_COLUMNS = [
+  { key: 'name', label: 'Name', visible: true, width: 200 },
+  { key: 'code', label: 'Code', visible: true, width: 120 },
+  { key: 'type', label: 'Type', visible: true, width: 120 },
+  { key: 'city', label: 'City', visible: true, width: 140 },
+  { key: 'state', label: 'State', visible: true, width: 100 },
+  { key: 'division', label: 'Division', visible: true, width: 160 },
+  { key: 'status', label: 'Status', visible: true, width: 100 },
+  { key: 'actions', label: 'Actions', visible: true, width: 140 }
+];
+
+var divSort = { key: 'name', dir: 'asc' };
+var locSort = { key: 'name', dir: 'asc' };
+
+function loadColSettings() {
+  try {
+    var divSaved = JSON.parse(localStorage.getItem('cm_div_columns') || 'null');
+    if (divSaved) DIV_COLUMNS = divSaved;
+    var locSaved = JSON.parse(localStorage.getItem('cm_loc_columns') || 'null');
+    if (locSaved) LOC_COLUMNS = locSaved;
+  } catch (e) {}
+}
+
+function saveColSettings() {
+  try {
+    localStorage.setItem('cm_div_columns', JSON.stringify(DIV_COLUMNS));
+    localStorage.setItem('cm_loc_columns', JSON.stringify(LOC_COLUMNS));
+  } catch (e) {}
+}
+
+function toggleDivColSettings(e) {
+  e.stopPropagation();
+  var dd = document.getElementById('cmDivColSettings');
+  var open = dd.classList.contains('open');
+  document.querySelectorAll('.cm-col-dropdown').forEach(function(x) { x.classList.remove('open'); });
+  if (!open) { renderColSettings('div'); dd.classList.add('open'); }
+}
+
+function toggleLocColSettings(e) {
+  e.stopPropagation();
+  var dd = document.getElementById('cmLocColSettings');
+  var open = dd.classList.contains('open');
+  document.querySelectorAll('.cm-col-dropdown').forEach(function(x) { x.classList.remove('open'); });
+  if (!open) { renderColSettings('loc'); dd.classList.add('open'); }
+}
+
+function renderColSettings(type) {
+  var cols = type === 'div' ? DIV_COLUMNS : LOC_COLUMNS;
+  var container = document.getElementById(type === 'div' ? 'cmDivColSettings' : 'cmLocColSettings');
+  container.textContent = '';
+  var header = document.createElement('div');
+  header.className = 'cm-col-dropdown-header';
+  header.textContent = 'Show / Hide / Reorder Columns';
+  container.appendChild(header);
+  cols.forEach(function(col, idx) {
+    var item = document.createElement('div');
+    item.className = 'cm-col-item';
+    var cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.checked = col.visible;
+    cb.addEventListener('change', function() { col.visible = cb.checked; saveColSettings(); renderTableForType(type); });
+    item.appendChild(cb);
+    var label = document.createElement('label');
+    label.textContent = col.label;
+    item.appendChild(label);
+    var widthInput = document.createElement('input');
+    widthInput.type = 'number'; widthInput.value = col.width; widthInput.min = 60; widthInput.max = 400; widthInput.style.width = '60px';
+    widthInput.addEventListener('change', function() { col.width = parseInt(widthInput.value) || 120; saveColSettings(); renderTableForType(type); });
+    item.appendChild(widthInput);
+    var reorder = document.createElement('div');
+    reorder.className = 'cm-col-reorder';
+    var upBtn = document.createElement('button'); upBtn.textContent = '▲';
+    upBtn.addEventListener('click', function() { if (idx > 0) { var t = cols[idx-1]; cols[idx-1] = cols[idx]; cols[idx] = t; saveColSettings(); renderColSettings(type); renderTableForType(type); } });
+    var downBtn = document.createElement('button'); downBtn.textContent = '▼';
+    downBtn.addEventListener('click', function() { if (idx < cols.length-1) { var t = cols[idx+1]; cols[idx+1] = cols[idx]; cols[idx] = t; saveColSettings(); renderColSettings(type); renderTableForType(type); } });
+    reorder.appendChild(upBtn); reorder.appendChild(downBtn);
+    item.appendChild(reorder);
+    container.appendChild(item);
+  });
+}
+
+function renderTableForType(type) {
+  if (type === 'div') renderDivTable(); else renderLocTable();
+}
+
+function renderDivTableHead() {
+  var thead = document.getElementById('cmDivTableHead');
+  if (!thead) return;
+  thead.textContent = '';
+  var tr = document.createElement('tr');
+  DIV_COLUMNS.forEach(function(col) {
+    if (!col.visible) return;
+    var th = document.createElement('th');
+    th.style.width = col.width + 'px';
+    th.style.minWidth = col.width + 'px';
+    th.className = 'cm-th-sortable';
+    th.dataset.key = col.key;
+    th.textContent = col.label;
+    var indicator = document.createElement('span');
+    indicator.className = 'cm-sort-indicator';
+    if (divSort.key === col.key) indicator.textContent = divSort.dir === 'asc' ? '▲' : '▼';
+    else indicator.textContent = '↕';
+    th.appendChild(indicator);
+    th.addEventListener('click', function() {
+      if (divSort.key === col.key) divSort.dir = divSort.dir === 'asc' ? 'desc' : 'asc';
+      else { divSort.key = col.key; divSort.dir = 'asc'; }
+      renderDivTable();
+    });
+    tr.appendChild(th);
+  });
+  thead.appendChild(tr);
+}
+
+function renderLocTableHead() {
+  var thead = document.getElementById('cmLocTableHead');
+  if (!thead) return;
+  thead.textContent = '';
+  var tr = document.createElement('tr');
+  LOC_COLUMNS.forEach(function(col) {
+    if (!col.visible) return;
+    var th = document.createElement('th');
+    th.style.width = col.width + 'px';
+    th.style.minWidth = col.width + 'px';
+    th.className = 'cm-th-sortable';
+    th.dataset.key = col.key;
+    th.textContent = col.label;
+    var indicator = document.createElement('span');
+    indicator.className = 'cm-sort-indicator';
+    if (locSort.key === col.key) indicator.textContent = locSort.dir === 'asc' ? '▲' : '▼';
+    else indicator.textContent = '↕';
+    th.appendChild(indicator);
+    th.addEventListener('click', function() {
+      if (locSort.key === col.key) locSort.dir = locSort.dir === 'asc' ? 'desc' : 'asc';
+      else { locSort.key = col.key; locSort.dir = 'asc'; }
+      renderLocTable();
+    });
+    tr.appendChild(th);
+  });
+  thead.appendChild(tr);
+}
 
 // ============================================================
 // DIVISION MANAGEMENT
@@ -97,7 +249,8 @@ async function loadDivisions() {
     }
   } catch (e) {
     allDivisions = [];
-    showDivError('Network error loading divisions: ' + e.message);
+     showDivError('Network error loading divisions: ' + e.message);
+    if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report(e.message, 'loadDivisions', e.stack);
   }
   renderDivTable();
   populateDivisionDropdowns();
@@ -132,6 +285,7 @@ function onDivSearchInput() {
 function renderDivTable() {
   var tbody = document.getElementById('cmDivTableBody');
   if (!tbody) return;
+  renderDivTableHead();
   var search       = (document.getElementById('cmDivSearch').value || '').toLowerCase().trim();
   var filterStatus = document.getElementById('cmDivFilterStatus').value;
   var filtered = allDivisions.filter(function (d) {
@@ -141,6 +295,14 @@ function renderDivTable() {
       (d.manager && d.manager.toLowerCase().indexOf(search) !== -1);
     var matchesStatus = !filterStatus || (d.status && d.status.toLowerCase() === filterStatus.toLowerCase());
     return matchesSearch && matchesStatus;
+  });
+  // Sort
+  filtered.sort(function(a, b) {
+    var av = (a[divSort.key] || '').toString().toLowerCase();
+    var bv = (b[divSort.key] || '').toString().toLowerCase();
+    if (av < bv) return divSort.dir === 'asc' ? -1 : 1;
+    if (av > bv) return divSort.dir === 'asc' ? 1 : -1;
+    return 0;
   });
   document.getElementById('cmDivCount').textContent = filtered.length + ' division' + (filtered.length === 1 ? '' : 's');
   var totalPages = Math.max(1, Math.ceil(filtered.length / divPageSize));
@@ -158,18 +320,25 @@ function renderDivTable() {
   }
   pageItems.forEach(function (d) {
     var tr = document.createElement('tr');
-    function addCell(text) { var td = document.createElement('td'); td.textContent = (text !== undefined && text !== null && text !== '') ? text : '\u2014'; tr.appendChild(td); }
-    addCell(d.name); addCell(d.code); addCell(d.manager);
-    var statusTd = document.createElement('td');
-    if (d.status) { var badge = document.createElement('span'); badge.className = 'cm-badge cm-badge-' + d.status.toLowerCase(); badge.textContent = d.status; statusTd.appendChild(badge); }
-    else { statusTd.textContent = '\u2014'; }
-    tr.appendChild(statusTd);
-    var actionsTd = document.createElement('td'); actionsTd.className = 'cm-actions';
-    var btnEdit = document.createElement('button'); btnEdit.className = 'cm-table-btn'; btnEdit.textContent = 'Edit';
-    btnEdit.addEventListener('click', function () { openEditDivModal(d.id); }); actionsTd.appendChild(btnEdit);
-    var btnDelete = document.createElement('button'); btnDelete.className = 'cm-table-btn danger'; btnDelete.textContent = 'Delete';
-    btnDelete.addEventListener('click', function () { deleteDivision(d.id); }); actionsTd.appendChild(btnDelete);
-    tr.appendChild(actionsTd); tbody.appendChild(tr);
+    DIV_COLUMNS.forEach(function(col) {
+      if (!col.visible) return;
+      var td = document.createElement('td');
+      td.style.width = col.width + 'px';
+      if (col.key === 'actions') {
+        td.className = 'cm-actions';
+        var btnEdit = document.createElement('button'); btnEdit.className = 'cm-table-btn'; btnEdit.textContent = 'Edit';
+        btnEdit.addEventListener('click', function () { openEditDivModal(d.id); }); td.appendChild(btnEdit);
+        var btnDelete = document.createElement('button'); btnDelete.className = 'cm-table-btn danger'; btnDelete.textContent = 'Delete';
+        btnDelete.addEventListener('click', function () { deleteDivision(d.id); }); td.appendChild(btnDelete);
+      } else if (col.key === 'status') {
+        if (d.status) { var badge = document.createElement('span'); badge.className = 'cm-badge cm-badge-' + d.status.toLowerCase(); badge.textContent = d.status; td.appendChild(badge); }
+        else { td.textContent = '\u2014'; }
+      } else {
+        td.textContent = (d[col.key] !== undefined && d[col.key] !== null && d[col.key] !== '') ? d[col.key] : '\u2014';
+      }
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
   });
   renderDivPagination(filtered.length, totalPages);
 }
@@ -215,7 +384,7 @@ async function addDivision() {
     document.getElementById('cmDivStatus').value = 'Active';
     showDivMessage('Division "' + name + '" added.', 'success');
     divPage = 1; renderDivTable(); populateDivisionDropdowns(); switchTab('divisions');
-  } catch (e) { showDivMessage('Failed to add division: ' + e.message, 'error'); }
+  } catch (e) { showDivMessage('Failed to add division: ' + e.message, 'error'); if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report(e.message, 'addDivision', e.stack); }
 }
 
 function openEditDivModal(id) {
@@ -249,7 +418,7 @@ async function saveEditDivision() {
     if (data.record) { var updated = normalizeDiv(data.record); var idx = allDivisions.findIndex(function (x) { return x.id === editingDivId; }); if (idx !== -1) allDivisions[idx] = updated; }
     showDivMessage('Division "' + name + '" updated.', 'success');
     closeEditDivModal(); renderDivTable(); populateDivisionDropdowns();
-  } catch (e) { showDivMessage('Failed to update division: ' + e.message, 'error'); }
+  } catch (e) { showDivMessage('Failed to update division: ' + e.message, 'error'); if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report(e.message, 'saveEditDivision', e.stack); }
 }
 
 async function deleteDivision(id) {
@@ -262,7 +431,7 @@ async function deleteDivision(id) {
     allDivisions = allDivisions.filter(function (x) { return x.id !== id; });
     showDivMessage('Division "' + (d.name || 'Unknown') + '" deleted.', 'success');
     renderDivTable(); populateDivisionDropdowns();
-  } catch (e) { showDivMessage('Failed to delete division: ' + e.message, 'error'); }
+  } catch (e) { showDivMessage('Failed to delete division: ' + e.message, 'error'); if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report(e.message, 'deleteDivision', e.stack); }
 }
 
 function showDivMessage(msg, type) {
@@ -311,6 +480,7 @@ async function loadLocations() {
   } catch (e) {
     allLocations = [];
     showLocError('Network error loading locations: ' + e.message);
+    if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report(e.message, 'loadLocations', e.stack);
   }
   renderLocTable();
 }
@@ -329,6 +499,7 @@ function onLocSearchInput() {
 function renderLocTable() {
   var tbody = document.getElementById('cmLocTableBody');
   if (!tbody) return;
+  renderLocTableHead();
   var search       = (document.getElementById('cmLocSearch').value || '').toLowerCase().trim();
   var filterStatus = document.getElementById('cmLocFilterStatus').value;
   var filtered = allLocations.filter(function (l) {
@@ -339,6 +510,14 @@ function renderLocTable() {
       (l.address && l.address.toLowerCase().indexOf(search) !== -1);
     var matchesStatus = !filterStatus || (l.status && l.status.toLowerCase() === filterStatus.toLowerCase());
     return matchesSearch && matchesStatus;
+  });
+  // Sort
+  filtered.sort(function(a, b) {
+    var av = (a[locSort.key] || '').toString().toLowerCase();
+    var bv = (b[locSort.key] || '').toString().toLowerCase();
+    if (av < bv) return locSort.dir === 'asc' ? -1 : 1;
+    if (av > bv) return locSort.dir === 'asc' ? 1 : -1;
+    return 0;
   });
   document.getElementById('cmLocCount').textContent = filtered.length + ' location' + (filtered.length === 1 ? '' : 's');
   var totalPages = Math.max(1, Math.ceil(filtered.length / locPageSize));
@@ -356,18 +535,25 @@ function renderLocTable() {
   }
   pageItems.forEach(function (l) {
     var tr = document.createElement('tr');
-    function addCell(text) { var td = document.createElement('td'); td.textContent = (text !== undefined && text !== null && text !== '') ? text : '\u2014'; tr.appendChild(td); }
-    addCell(l.name); addCell(l.code); addCell(l.type); addCell(l.city); addCell(l.state); addCell(l.division);
-    var statusTd = document.createElement('td');
-    if (l.status) { var badge = document.createElement('span'); badge.className = 'cm-badge cm-badge-' + l.status.toLowerCase(); badge.textContent = l.status; statusTd.appendChild(badge); }
-    else { statusTd.textContent = '\u2014'; }
-    tr.appendChild(statusTd);
-    var actionsTd = document.createElement('td'); actionsTd.className = 'cm-actions';
-    var btnEdit = document.createElement('button'); btnEdit.className = 'cm-table-btn'; btnEdit.textContent = 'Edit';
-    btnEdit.addEventListener('click', function () { openEditLocModal(l.id); }); actionsTd.appendChild(btnEdit);
-    var btnDelete = document.createElement('button'); btnDelete.className = 'cm-table-btn danger'; btnDelete.textContent = 'Delete';
-    btnDelete.addEventListener('click', function () { deleteLocation(l.id); }); actionsTd.appendChild(btnDelete);
-    tr.appendChild(actionsTd); tbody.appendChild(tr);
+    LOC_COLUMNS.forEach(function(col) {
+      if (!col.visible) return;
+      var td = document.createElement('td');
+      td.style.width = col.width + 'px';
+      if (col.key === 'actions') {
+        td.className = 'cm-actions';
+        var btnEdit = document.createElement('button'); btnEdit.className = 'cm-table-btn'; btnEdit.textContent = 'Edit';
+        btnEdit.addEventListener('click', function () { openEditLocModal(l.id); }); td.appendChild(btnEdit);
+        var btnDelete = document.createElement('button'); btnDelete.className = 'cm-table-btn danger'; btnDelete.textContent = 'Delete';
+        btnDelete.addEventListener('click', function () { deleteLocation(l.id); }); td.appendChild(btnDelete);
+      } else if (col.key === 'status') {
+        if (l.status) { var badge = document.createElement('span'); badge.className = 'cm-badge cm-badge-' + l.status.toLowerCase(); badge.textContent = l.status; td.appendChild(badge); }
+        else { td.textContent = '\u2014'; }
+      } else {
+        td.textContent = (l[col.key] !== undefined && l[col.key] !== null && l[col.key] !== '') ? l[col.key] : '\u2014';
+      }
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
   });
   renderLocPagination(filtered.length, totalPages);
 }
@@ -417,7 +603,7 @@ async function addLocation() {
     document.getElementById('cmLocType').value = ''; document.getElementById('cmLocDivision').value = ''; document.getElementById('cmLocStatus').value = 'Active';
     showLocMessage('Location "' + name + '" added.', 'success');
     locPage = 1; renderLocTable(); switchTab('locations');
-  } catch (e) { showLocMessage('Failed to add location: ' + e.message, 'error'); }
+  } catch (e) { showLocMessage('Failed to add location: ' + e.message, 'error'); if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report(e.message, 'addLocation', e.stack); }
 }
 
 function openEditLocModal(id) {
@@ -460,7 +646,7 @@ async function saveEditLocation() {
     if (data.record) { var updated = normalizeLoc(data.record); var idx = allLocations.findIndex(function (x) { return x.id === editingLocId; }); if (idx !== -1) allLocations[idx] = updated; }
     showLocMessage('Location "' + name + '" updated.', 'success');
     closeEditLocModal(); renderLocTable();
-  } catch (e) { showLocMessage('Failed to update location: ' + e.message, 'error'); }
+  } catch (e) { showLocMessage('Failed to update location: ' + e.message, 'error'); if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report(e.message, 'saveEditLocation', e.stack); }
 }
 
 async function deleteLocation(id) {
@@ -473,7 +659,7 @@ async function deleteLocation(id) {
     allLocations = allLocations.filter(function (x) { return x.id !== id; });
     showLocMessage('Location "' + (l.name || 'Unknown') + '" deleted.', 'success');
     renderLocTable();
-  } catch (e) { showLocMessage('Failed to delete location: ' + e.message, 'error'); }
+  } catch (e) { showLocMessage('Failed to delete location: ' + e.message, 'error'); if (window.DRIVENErrorHandler) window.DRIVENErrorHandler.report(e.message, 'deleteLocation', e.stack); }
 }
 
 function showLocMessage(msg, type) {
@@ -490,6 +676,12 @@ document.addEventListener('DOMContentLoaded', function () {
   if (dm) dm.addEventListener('click', function (e) { if (e.target === dm) closeEditDivModal(); });
   var lm = document.getElementById('cmEditLocModal');
   if (lm) lm.addEventListener('click', function (e) { if (e.target === lm) closeEditLocModal(); });
+  // Close column settings when clicking outside
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.cm-col-dropdown') && !e.target.closest('.cm-col-btn')) {
+      document.querySelectorAll('.cm-col-dropdown').forEach(function (x) { x.classList.remove('open'); });
+    }
+  });
 });
 
 // ============================================================
@@ -498,12 +690,35 @@ document.addEventListener('DOMContentLoaded', function () {
 function printDivisions() {
   var div = document.getElementById('tab-divisions');
   if (!div) return;
+  var table = div.querySelector('.cm-table');
+  if (!table) return;
+  var visibleCols = DIV_COLUMNS.filter(function(c) { return c.visible; });
   var win = window.open('', '_blank');
   win.document.write('<html><head><title>Divisions List</title><style>body{font-family:Arial,sans-serif;padding:20px;} h2{margin-bottom:4px;} table{width:100%;border-collapse:collapse;margin-top:12px;} th,td{border:1px solid #ccc;padding:8px 10px;text-align:left;font-size:13px;} th{background:#f1f5f9;font-weight:600;} .meta{font-size:12px;color:#64748b;margin-bottom:12px;}</style></head><body>');
   win.document.write('<h2>Divisions</h2>');
-  win.document.write('<div class="meta">Printed: ' + new Date().toLocaleString() + '</div>');
-  var table = div.querySelector('.cm-table');
-  if (table) win.document.write(table.outerHTML);
+  win.document.write('<div class="meta">Printed: ' + new Date().toLocaleString() + ' | ' + allDivisions.length + ' divisions</div>');
+  // Build print table from all filtered data (not just current page)
+  var search = (document.getElementById('cmDivSearch').value || '').toLowerCase().trim();
+  var filterStatus = document.getElementById('cmDivFilterStatus').value;
+  var filtered = allDivisions.filter(function(d) {
+    var ms = !search || (d.name||'').toLowerCase().indexOf(search)!==-1 || (d.code||'').toLowerCase().indexOf(search)!==-1 || (d.manager||'').toLowerCase().indexOf(search)!==-1;
+    var mf = !filterStatus || (d.status||'').toLowerCase() === filterStatus.toLowerCase();
+    return ms && mf;
+  });
+  filtered.sort(function(a,b) { var av=(a[divSort.key]||'').toString().toLowerCase(), bv=(b[divSort.key]||'').toString().toLowerCase(); return av<bv?-1:av>bv?1:0; });
+  var html = '<table><thead><tr>';
+  visibleCols.forEach(function(c) { if (c.key !== 'actions') html += '<th>' + c.label + '</th>'; });
+  html += '</tr></thead><tbody>';
+  filtered.forEach(function(d) {
+    html += '<tr>';
+    visibleCols.forEach(function(c) {
+      if (c.key === 'actions') return;
+      html += '<td>' + (d[c.key] !== undefined && d[c.key] !== null && d[c.key] !== '' ? d[c.key] : '\u2014') + '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  win.document.write(html);
   win.document.write('</body></html>');
   win.document.close();
   win.focus();
@@ -513,12 +728,32 @@ function printDivisions() {
 function printLocations() {
   var div = document.getElementById('tab-locations');
   if (!div) return;
+  var visibleCols = LOC_COLUMNS.filter(function(c) { return c.visible; });
   var win = window.open('', '_blank');
   win.document.write('<html><head><title>Locations List</title><style>body{font-family:Arial,sans-serif;padding:20px;} h2{margin-bottom:4px;} table{width:100%;border-collapse:collapse;margin-top:12px;} th,td{border:1px solid #ccc;padding:8px 10px;text-align:left;font-size:13px;} th{background:#f1f5f9;font-weight:600;} .meta{font-size:12px;color:#64748b;margin-bottom:12px;}</style></head><body>');
   win.document.write('<h2>Locations</h2>');
-  win.document.write('<div class="meta">Printed: ' + new Date().toLocaleString() + '</div>');
-  var table = div.querySelector('.cm-table');
-  if (table) win.document.write(table.outerHTML);
+  win.document.write('<div class="meta">Printed: ' + new Date().toLocaleString() + ' | ' + allLocations.length + ' locations</div>');
+  var search = (document.getElementById('cmLocSearch').value || '').toLowerCase().trim();
+  var filterStatus = document.getElementById('cmLocFilterStatus').value;
+  var filtered = allLocations.filter(function(l) {
+    var ms = !search || (l.name||'').toLowerCase().indexOf(search)!==-1 || (l.code||'').toLowerCase().indexOf(search)!==-1 || (l.city||'').toLowerCase().indexOf(search)!==-1 || (l.address||'').toLowerCase().indexOf(search)!==-1;
+    var mf = !filterStatus || (l.status||'').toLowerCase() === filterStatus.toLowerCase();
+    return ms && mf;
+  });
+  filtered.sort(function(a,b) { var av=(a[locSort.key]||'').toString().toLowerCase(), bv=(b[locSort.key]||'').toString().toLowerCase(); return av<bv?-1:av>bv?1:0; });
+  var html = '<table><thead><tr>';
+  visibleCols.forEach(function(c) { if (c.key !== 'actions') html += '<th>' + c.label + '</th>'; });
+  html += '</tr></thead><tbody>';
+  filtered.forEach(function(l) {
+    html += '<tr>';
+    visibleCols.forEach(function(c) {
+      if (c.key === 'actions') return;
+      html += '<td>' + (l[c.key] !== undefined && l[c.key] !== null && l[c.key] !== '' ? l[c.key] : '\u2014') + '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  win.document.write(html);
   win.document.write('</body></html>');
   win.document.close();
   win.focus();
