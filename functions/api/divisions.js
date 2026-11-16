@@ -1,5 +1,5 @@
 // /functions/api/divisions.js
-// Dedicated handler for /api/divisions — bypasses the [[path]].js router
+// Dedicated handler for /api/divisions — bypasses the [[path]].js router 
 
 export async function onRequestGet(context) {
   const { request, env } = context;
