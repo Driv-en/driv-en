@@ -765,6 +765,13 @@ async function startAdminApp(user) {
 async function init() {
   var savedTheme = localStorage.getItem('driven-theme') || 'light';
   document.documentElement.setAttribute('data-theme', savedTheme);
+
+  // Restore language dropdown from localStorage immediately (don't wait for startAdminApp)
+  var savedLang = 'en';
+  try { savedLang = localStorage.getItem('driven-ui-lang') || 'en'; } catch(e) {}
+  var langSelect = document.getElementById('adminLangSelect');
+  if (langSelect) langSelect.value = savedLang;
+
   rebuildHeader();
   startHeaderObserver();
   scheduleHeaderRebuilds();
