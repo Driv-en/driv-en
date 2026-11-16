@@ -68,21 +68,21 @@ window.addEventListener('load', function() { initPage(); });
 // ============================================================
 var DIV_COLUMNS = [
   { key: 'name', label: 'Name', visible: true, width: 200 },
-  { key: 'code', label: 'Code', visible: true, width: 120 },
   { key: 'manager', label: 'Manager', visible: true, width: 180 },
   { key: 'status', label: 'Status', visible: true, width: 100 },
-  { key: 'actions', label: 'Actions', visible: true, width: 140 }
+  { key: 'actions', label: 'Actions', visible: true, width: 140 },
+  { key: 'code', label: 'Division Code', visible: true, width: 130 }
 ];
 
 var LOC_COLUMNS = [
   { key: 'name', label: 'Name', visible: true, width: 200 },
-  { key: 'code', label: 'Code', visible: true, width: 120 },
   { key: 'type', label: 'Type', visible: true, width: 120 },
   { key: 'city', label: 'City', visible: true, width: 140 },
   { key: 'state', label: 'State', visible: true, width: 100 },
   { key: 'division', label: 'Division', visible: true, width: 160 },
   { key: 'status', label: 'Status', visible: true, width: 100 },
-  { key: 'actions', label: 'Actions', visible: true, width: 140 }
+  { key: 'actions', label: 'Actions', visible: true, width: 140 },
+  { key: 'code', label: 'Location Code', visible: true, width: 130 }
 ];
 
 var divSort = { key: 'name', dir: 'asc' };
@@ -126,30 +126,44 @@ function renderColSettings(type) {
   container.textContent = '';
   var header = document.createElement('div');
   header.className = 'cm-col-dropdown-header';
-  header.textContent = 'Show / Hide / Reorder Columns';
+  header.textContent = 'Show / Hide Columns (drag to reorder)';
   container.appendChild(header);
   cols.forEach(function(col, idx) {
     var item = document.createElement('div');
     item.className = 'cm-col-item';
+    item.draggable = true;
+    item.dataset.idx = idx;
+    item.dataset.type = type;
     var cb = document.createElement('input');
     cb.type = 'checkbox'; cb.checked = col.visible;
     cb.addEventListener('change', function() { col.visible = cb.checked; saveColSettings(); renderTableForType(type); });
     item.appendChild(cb);
     var label = document.createElement('label');
     label.textContent = col.label;
+    label.style.cursor = 'grab';
     item.appendChild(label);
-    var widthInput = document.createElement('input');
-    widthInput.type = 'number'; widthInput.value = col.width; widthInput.min = 60; widthInput.max = 400; widthInput.style.width = '60px';
-    widthInput.addEventListener('change', function() { col.width = parseInt(widthInput.value) || 120; saveColSettings(); renderTableForType(type); });
-    item.appendChild(widthInput);
-    var reorder = document.createElement('div');
-    reorder.className = 'cm-col-reorder';
-    var upBtn = document.createElement('button'); upBtn.textContent = '▲';
-    upBtn.addEventListener('click', function() { if (idx > 0) { var t = cols[idx-1]; cols[idx-1] = cols[idx]; cols[idx] = t; saveColSettings(); renderColSettings(type); renderTableForType(type); } });
-    var downBtn = document.createElement('button'); downBtn.textContent = '▼';
-    downBtn.addEventListener('click', function() { if (idx < cols.length-1) { var t = cols[idx+1]; cols[idx+1] = cols[idx]; cols[idx] = t; saveColSettings(); renderColSettings(type); renderTableForType(type); } });
-    reorder.appendChild(upBtn); reorder.appendChild(downBtn);
-    item.appendChild(reorder);
+    // Drag-and-drop reorder
+    item.addEventListener('dragstart', function(e) {
+      e.dataTransfer.setData('text/plain', JSON.stringify({ idx: idx, type: type }));
+      item.classList.add('dragging');
+    });
+    item.addEventListener('dragend', function() { item.classList.remove('dragging'); });
+    item.addEventListener('dragover', function(e) { e.preventDefault(); item.classList.add('drag-over'); });
+    item.addEventListener('dragleave', function() { item.classList.remove('drag-over'); });
+    item.addEventListener('drop', function(e) {
+      e.preventDefault();
+      item.classList.remove('drag-over');
+      var data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      if (data.type !== type) return;
+      var fromIdx = data.idx;
+      var toIdx = idx;
+      if (fromIdx === toIdx) return;
+      var moved = cols.splice(fromIdx, 1)[0];
+      cols.splice(toIdx, 0, moved);
+      saveColSettings();
+      renderColSettings(type);
+      renderTableForType(type);
+    });
     container.appendChild(item);
   });
 }
@@ -176,7 +190,36 @@ function renderDivTableHead() {
     if (divSort.key === col.key) indicator.textContent = divSort.dir === 'asc' ? '▲' : '▼';
     else indicator.textContent = '↕';
     th.appendChild(indicator);
-    th.addEventListener('click', function() {
+    // Excel-style resize handle
+    var resize = document.createElement('div');
+    resize.className = 'cm-th-resize';
+    resize.addEventListener('mousedown', function(e) { initColResize(e, col, 'div'); });
+    th.appendChild(resize);
+    // Drag-and-drop column reorder on header
+    th.draggable = true;
+    th.addEventListener('dragstart', function(e) {
+      e.dataTransfer.setData('text/plain', JSON.stringify({ key: col.key, type: 'div' }));
+      th.classList.add('dragging');
+    });
+    th.addEventListener('dragend', function() { th.classList.remove('dragging'); });
+    th.addEventListener('dragover', function(e) { e.preventDefault(); th.classList.add('drag-over'); });
+    th.addEventListener('dragleave', function() { th.classList.remove('drag-over'); });
+    th.addEventListener('drop', function(e) {
+      e.preventDefault();
+      th.classList.remove('drag-over');
+      var data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      if (data.type !== 'div') return;
+      var fromIdx = DIV_COLUMNS.findIndex(function(c) { return c.key === data.key; });
+      var toIdx = DIV_COLUMNS.indexOf(col);
+      if (fromIdx === -1 || fromIdx === toIdx) return;
+      var moved = DIV_COLUMNS.splice(fromIdx, 1)[0];
+      DIV_COLUMNS.splice(toIdx, 0, moved);
+      saveColSettings();
+      renderDivTable();
+    });
+    // Sort on click (but not on resize handle)
+    th.addEventListener('click', function(e) {
+      if (e.target.classList.contains('cm-th-resize')) return;
       if (divSort.key === col.key) divSort.dir = divSort.dir === 'asc' ? 'desc' : 'asc';
       else { divSort.key = col.key; divSort.dir = 'asc'; }
       renderDivTable();
@@ -204,7 +247,36 @@ function renderLocTableHead() {
     if (locSort.key === col.key) indicator.textContent = locSort.dir === 'asc' ? '▲' : '▼';
     else indicator.textContent = '↕';
     th.appendChild(indicator);
-    th.addEventListener('click', function() {
+    // Excel-style resize handle
+    var resize = document.createElement('div');
+    resize.className = 'cm-th-resize';
+    resize.addEventListener('mousedown', function(e) { initColResize(e, col, 'loc'); });
+    th.appendChild(resize);
+    // Drag-and-drop column reorder on header
+    th.draggable = true;
+    th.addEventListener('dragstart', function(e) {
+      e.dataTransfer.setData('text/plain', JSON.stringify({ key: col.key, type: 'loc' }));
+      th.classList.add('dragging');
+    });
+    th.addEventListener('dragend', function() { th.classList.remove('dragging'); });
+    th.addEventListener('dragover', function(e) { e.preventDefault(); th.classList.add('drag-over'); });
+    th.addEventListener('dragleave', function() { th.classList.remove('drag-over'); });
+    th.addEventListener('drop', function(e) {
+      e.preventDefault();
+      th.classList.remove('drag-over');
+      var data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      if (data.type !== 'loc') return;
+      var fromIdx = LOC_COLUMNS.findIndex(function(c) { return c.key === data.key; });
+      var toIdx = LOC_COLUMNS.indexOf(col);
+      if (fromIdx === -1 || fromIdx === toIdx) return;
+      var moved = LOC_COLUMNS.splice(fromIdx, 1)[0];
+      LOC_COLUMNS.splice(toIdx, 0, moved);
+      saveColSettings();
+      renderLocTable();
+    });
+    // Sort on click (but not on resize handle)
+    th.addEventListener('click', function(e) {
+      if (e.target.classList.contains('cm-th-resize')) return;
       if (locSort.key === col.key) locSort.dir = locSort.dir === 'asc' ? 'desc' : 'asc';
       else { locSort.key = col.key; locSort.dir = 'asc'; }
       renderLocTable();
@@ -212,6 +284,32 @@ function renderLocTableHead() {
     tr.appendChild(th);
   });
   thead.appendChild(tr);
+}
+
+// Excel-style column resize
+function initColResize(e, col, type) {
+  e.stopPropagation();
+  e.preventDefault();
+  var startX = e.clientX;
+  var startWidth = col.width;
+  var th = e.target.parentElement;
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+  function onMouseMove(ev) {
+    var newWidth = Math.max(60, startWidth + (ev.clientX - startX));
+    col.width = newWidth;
+    th.style.width = newWidth + 'px';
+    th.style.minWidth = newWidth + 'px';
+  }
+  function onMouseUp() {
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    saveColSettings();
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+  }
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
 }
 
 // ============================================================
@@ -766,15 +864,15 @@ function printLocations() {
 var CM_MODAL_CONTENT = {
   overview: {
     purpose: 'The <strong>Company Profile</strong> page is the central hub for managing your organization\'s structural hierarchy. From here, administrators can create, edit, and manage <strong>Divisions</strong> and <strong>Locations</strong> that define how the organization is segmented for reporting, asset assignment, and operational oversight.',
-    instructions: '<ol><li><strong>Overview Tab:</strong> View a summary of your organization\'s divisions and locations at a glance.</li><li><strong>Divisions Tab:</strong> Create new divisions, search and filter existing ones, edit or delete divisions. Each division can have a name, code, manager, description, and status.</li><li><strong>Locations Tab:</strong> Create new locations, search and filter existing ones, edit or delete locations. Each location can have a name, code, type, address, city, state, zip code, assigned division, and status.</li><li><strong>Add Division/Location:</strong> Use the respective "Add" tabs to create new entries with a simple form.</li><li><strong>Print:</strong> Use the "Print List" button on either the Divisions or Locations tab to print the current list.</li></ol>'
+    instructions: '<ol><li><strong>Overview Tab:</strong> View a summary of your organization\'s divisions and locations at a glance.</li><li><strong>Divisions Tab:</strong> Create new divisions, search and filter existing ones, edit or delete divisions. Each division can have a name, division code, manager, description, and status.</li><li><strong>Locations Tab:</strong> Create new locations, search and filter existing ones, edit or delete locations. Each location can have a name, location code, type, address, city, state, zip code, assigned division, and status.</li><li><strong>Add Division/Location:</strong> Use the respective "Add" tabs to create new entries with a simple form.</li><li><strong>Print:</strong> Use the "Print" button on either the Divisions or Locations tab to print the current list.</li><li><strong>Columns:</strong> Use the "Columns" button on either tab to show/hide columns or drag them to reorder. Drag column headers left/right to rearrange. Drag the right edge of a column header to resize it, just like a spreadsheet.</li><li><strong>Sort:</strong> Click any column header to sort the table by that column. Click again to reverse the sort order.</li></ol>'
   },
   divisions: {
     purpose: 'The <strong>Divisions Tab</strong> allows administrators to define and manage the organizational divisions within the company. Divisions represent high-level segments of the organization (e.g., Operations, Maintenance, Administration) and can be assigned to locations for hierarchical grouping.',
-    instructions: '<ol><li><strong>View Divisions:</strong> All divisions for your organization are listed in the table.</li><li><strong>Search:</strong> Use the search box to filter divisions by name, code, or manager.</li><li><strong>Add Division:</strong> Click the "Add Division" tab, fill in the form (name is required), and click "Add Division".</li><li><strong>Edit Division:</strong> Click the edit (pencil) icon next to any division to update its details.</li><li><strong>Delete Division:</strong> Click the delete (trash) icon to remove a division.</li><li><strong>Print List:</strong> Click "Print List" to print the current division table.</li></ol>'
+    instructions: '<ol><li><strong>View Divisions:</strong> All divisions for your organization are listed in the table.</li><li><strong>Search:</strong> Use the search box to filter divisions by name, division code, or manager.</li><li><strong>Filter by Status:</strong> Use the status dropdown to show only Active or Inactive divisions.</li><li><strong>Add Division:</strong> Click the "Add New Division" tab, fill in the form (name is required), and click "Add Division".</li><li><strong>Edit Division:</strong> Click the "Edit" button next to any division to update its details in a modal.</li><li><strong>Delete Division:</strong> Click the "Delete" button to remove a division (with confirmation).</li><li><strong>Sort Columns:</strong> Click any column header (Name, Division Code, Manager, Status) to sort ascending or descending.</li><li><strong>Resize Columns:</strong> Drag the right edge of any column header to adjust its width, just like Excel.</li><li><strong>Reorder Columns:</strong> Drag any column header left or right to change column order. Your layout is saved on this device.</li><li><strong>Show/Hide Columns:</strong> Click the "Columns" button to check/uncheck which columns are visible. Your selection is saved on this device.</li><li><strong>Print:</strong> Click the "Print" button to print the current division list (all filtered records, using only visible columns).</li></ol>'
   },
   locations: {
     purpose: 'The <strong>Locations Tab</strong> allows administrators to define and manage physical or logical locations within the organization. Locations can be assigned to a division and include address information for operational planning and asset tracking.',
-    instructions: '<ol><li><strong>View Locations:</strong> All locations for your organization are listed in the table.</li><li><strong>Search:</strong> Use the search box to filter locations by name, code, city, or type.</li><li><strong>Add Location:</strong> Click the "Add Location" tab, fill in the form (name is required), and click "Add Location".</li><li><strong>Edit Location:</strong> Click the edit (pencil) icon next to any location to update its details.</li><li><strong>Delete Location:</strong> Click the delete (trash) icon to remove a location.</li><li><strong>Print List:</strong> Click "Print List" to print the current location table.</li></ol>'
+    instructions: '<ol><li><strong>View Locations:</strong> All locations for your organization are listed in the table.</li><li><strong>Search:</strong> Use the search box to filter locations by name, location code, city, or address.</li><li><strong>Filter by Status:</strong> Use the status dropdown to show only Active or Inactive locations.</li><li><strong>Add Location:</strong> Click the "Add New Location" tab, fill in the form (name is required), and click "Add Location".</li><li><strong>Edit Location:</strong> Click the "Edit" button next to any location to update its details in a modal.</li><li><strong>Delete Location:</strong> Click the "Delete" button to remove a location (with confirmation).</li><li><strong>Sort Columns:</strong> Click any column header (Name, Location Code, Type, City, State, Division, Status) to sort ascending or descending.</li><li><strong>Resize Columns:</strong> Drag the right edge of any column header to adjust its width, just like Excel.</li><li><strong>Reorder Columns:</strong> Drag any column header left or right to change column order. Your layout is saved on this device.</li><li><strong>Show/Hide Columns:</strong> Click the "Columns" button to check/uncheck which columns are visible. Your selection is saved on this device.</li><li><strong>Print:</strong> Click the "Print" button to print the current location list (all filtered records, using only visible columns).</li></ol>'
   }
 };
 
