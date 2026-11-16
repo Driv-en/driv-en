@@ -16,21 +16,21 @@ export async function onRequestGet(context) {
 
   try {
     const result = await env.DB.prepare(
-      'SELECT id, org_id, name, code, type, address, city, state, zip_code, division, status, notes, created_at, created_by, updated_at, updated_by FROM locations WHERE org_id = ? ORDER BY created_at DESC'
+      'SELECT * FROM locations WHERE org_id = ? ORDER BY rowid DESC'
     ).bind(orgId).all();
 
     const records = (result.results || []).map(function(row) {
-      const fields = {};
-      if (row.name !== undefined) { fields['Location Name'] = row.name; fields.name = row.name; }
-      if (row.code !== undefined) { fields['Location Code'] = row.code; fields.code = row.code; }
-      if (row.type !== undefined) { fields['Type'] = row.type; fields.type = row.type; }
-      if (row.address !== undefined) { fields['Address'] = row.address; fields.address = row.address; }
-      if (row.city !== undefined) { fields['City'] = row.city; fields.city = row.city; }
-      if (row.state !== undefined) { fields['State'] = row.state; fields.state = row.state; }
-      if (row.zip_code !== undefined) { fields['Zip Code'] = row.zip_code; fields.zip_code = row.zip_code; }
-      if (row.division !== undefined) { fields['Division'] = row.division; fields.division = row.division; }
-      if (row.status !== undefined) { fields['Status'] = row.status; fields.status = row.status; }
-      if (row.notes !== undefined) { fields['Notes'] = row.notes; fields.notes = row.notes; }
+      const fields = { ...row };  // raw D1 column names
+      if (row.name !== undefined) { fields['Location Name'] = row.name; }
+      if (row.code !== undefined) { fields['Location Code'] = row.code; }
+      if (row.type !== undefined) { fields['Type'] = row.type; }
+      if (row.address !== undefined) { fields['Address'] = row.address; }
+      if (row.city !== undefined) { fields['City'] = row.city; }
+      if (row.state !== undefined) { fields['State'] = row.state; }
+      if (row.zip_code !== undefined) { fields['Zip Code'] = row.zip_code; }
+      if (row.division !== undefined) { fields['Division'] = row.division; }
+      if (row.status !== undefined) { fields['Status'] = row.status; }
+      if (row.notes !== undefined) { fields['Notes'] = row.notes; }
       return { id: row.id, ...row, fields: fields };
     });
 
@@ -84,9 +84,9 @@ export async function onRequestPost(context) {
     const id = 'loc_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
 
     await env.DB.prepare(
-      `INSERT INTO locations (id, org_id, name, code, type, address, city, state, zip_code, division, status, notes, created_at, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)`
-    ).bind(id, orgId, name, code, type, address, city, state, zipCode, division, status, notes, userId).run();
+      `INSERT INTO locations (id, org_id, name, code, type, address, city, state, zip_code, division, status, created_at, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)`
+    ).bind(id, orgId, name, code, type, address, city, state, zipCode, division, status, userId).run();
 
     return Response.json({ success: true, id: id, record: { id, org_id: orgId, name, code, type, address, city, state, zip_code: zipCode, division, status, notes, fields: { 'Location Name': name, 'Location Code': code, 'Type': type, 'Address': address, 'City': city, 'State': state, 'Zip Code': zipCode, 'Division': division, 'Status': status, 'Notes': notes } } }, { headers: { 'Content-Type': 'application/json' } });
   } catch (e) {
@@ -128,8 +128,8 @@ export async function onRequestPut(context) {
     const notes = body['Notes'] || body.notes || '';
 
     await env.DB.prepare(
-      `UPDATE locations SET name = ?, code = ?, type = ?, address = ?, city = ?, state = ?, zip_code = ?, division = ?, status = ?, notes = ?, updated_at = datetime('now'), updated_by = ? WHERE id = ? AND org_id = ?`
-    ).bind(name, code, type, address, city, state, zipCode, division, status, notes, userId, locId, orgId).run();
+      `UPDATE locations SET name = ?, code = ?, type = ?, address = ?, city = ?, state = ?, zip_code = ?, division = ?, status = ?, updated_at = datetime('now'), updated_by = ? WHERE id = ? AND org_id = ?`
+    ).bind(name, code, type, address, city, state, zipCode, division, status, userId, locId, orgId).run();
 
     return Response.json({ success: true }, { headers: { 'Content-Type': 'application/json' } });
   } catch (e) {
