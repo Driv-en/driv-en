@@ -606,6 +606,7 @@ window.setMapMode = function(mode) {
       renderProjectsView();
     } else if (mode === 'breadcrumb' && bcBtn) {
       bcBtn.classList.add('active');
+      var bcYear = document.getElementById('amBreadcrumbYear');
       if (bcSelect) {
         bcSelect.style.display = 'inline-block';
         bcSelect.innerHTML = '<option value="">— Select Asset —</option>';
@@ -617,10 +618,27 @@ window.setMapMode = function(mode) {
         });
         bcSelect.onchange = function() { renderBreadcrumbTrail(); };
       }
+      if (bcYear) {
+        bcYear.style.display = 'inline-block';
+        // Populate years dynamically from current year back to 2020
+        var currentYear = new Date().getFullYear();
+        bcYear.innerHTML = '';
+        for (var y = currentYear; y >= 2020; y--) {
+          var opt = document.createElement('option');
+          opt.value = String(y);
+          opt.textContent = String(y);
+          bcYear.appendChild(opt);
+        }
+        bcYear.value = String(currentYear);
+        bcYear.onchange = function() {
+          updateDaysFilterVisibility();
+          renderBreadcrumbTrail();
+        };
+      }
       if (bcRange) {
-        bcRange.style.display = 'inline-block';
         bcRange.onchange = function() { renderBreadcrumbTrail(); };
       }
+      updateDaysFilterVisibility();
       if (bcSelect.value) renderBreadcrumbTrail();
     }
   };
@@ -708,6 +726,19 @@ function renderProjectsView() {
     .catch(function(e) { console.error('[AM-Additions] Projects fetch error:', e); });
 }
 
+// Show/hide the days filter based on selected year (only current year shows days)
+function updateDaysFilterVisibility() {
+  var bcYear = document.getElementById('amBreadcrumbYear');
+  var bcRange = document.getElementById('amBreadcrumbDateRange');
+  if (!bcYear || !bcRange) return;
+  var currentYear = new Date().getFullYear();
+  if (parseInt(bcYear.value) === currentYear) {
+    bcRange.style.display = 'inline-block';
+  } else {
+    bcRange.style.display = 'none';
+  }
+}
+
 // ── Breadcrumb Trail: fetch ALL activity for asset, show color-coded pins ──
 // Pin types: fuel (green), form entry (blue), inspection (orange), work order (red), PM (purple)
 var PIN_COLORS = {
@@ -760,15 +791,23 @@ function renderBreadcrumbTrail() {
 
   var bcSelect = document.getElementById('amBreadcrumbAssetSelect');
   var bcRange = document.getElementById('amBreadcrumbDateRange');
+  var bcYear = document.getElementById('amBreadcrumbYear');
   var assetId = bcSelect ? bcSelect.value : '';
   if (!assetId) { amMapInstance.setView([39.5, -98.35], 4); return; }
 
   addMapLegend();
 
-  var dateFilter = '';
-  if (bcRange && bcRange.value === 'today') dateFilter = '&days=1';
-  else if (bcRange && bcRange.value === '7days') dateFilter = '&days=7';
-  else if (bcRange && bcRange.value === '30days') dateFilter = '&days=30';
+  // Build date filter: year always, days only if current year
+  var selectedYear = bcYear ? parseInt(bcYear.value) : new Date().getFullYear();
+  var currentYear = new Date().getFullYear();
+  var dateFilter = '&year=' + selectedYear;
+  if (selectedYear === currentYear && bcRange) {
+    if (bcRange.value === 'today') dateFilter += '&days=1';
+    else if (bcRange.value === '7days') dateFilter += '&days=7';
+    else if (bcRange.value === '30days') dateFilter += '&days=30';
+    else if (bcRange.value === '90days') dateFilter += '&days=90';
+    // 'ytd' = Year to Date — just pass year, no days filter
+  }
 
   // Collect ALL activity points from multiple sources
   var allPoints = [];
