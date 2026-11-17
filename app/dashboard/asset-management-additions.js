@@ -415,6 +415,9 @@ function ensureLeaflet(callback) {
 if (typeof switchTab === 'function') {
 var _originalSwitchTab = switchTab;
 switchTab = function(tab) {
+  // Close any open modals when switching tabs
+  var modals = document.querySelectorAll('.info-modal-backdrop.active, .am-modal-backdrop.active');
+  modals.forEach(function(m) { m.classList.remove('active'); });
   _originalSwitchTab.apply(this, arguments);
   if (tab === 'location' || tab === 'overview') {
     ensureLeaflet(function() {
@@ -537,22 +540,26 @@ function clearAddForm() {
 function cleanDuplicateHeader() {
   var header = document.getElementById('dashHeader');
   if (!header) return;
+  // Log the header structure for debugging
+  var children = header.children;
+  console.log('[AM-Additions] Header has', children.length, 'children');
+  for (var i = 0; i < children.length; i++) {
+    console.log('[AM-Additions] Header child', i, ':', children[i].tagName, children[i].className || '(no class)', '"' + children[i].textContent.substring(0, 60).trim() + '"');
+  }
   // Remove known duplicate row classes
   var toRemove = header.querySelectorAll('.dash-header-row2, .dash-header-row3, .dash-utility-bar');
   toRemove.forEach(function(el) { el.remove(); });
-  // Also remove any child divs after the first one (the first is the main header row)
-  var children = header.children;
+  // Also remove any child divs after the first one that contain a heading
+  children = header.children;
   if (children.length > 1) {
     for (var i = 1; i < children.length; i++) {
       var child = children[i];
-      // Don't remove if it looks like part of the main header (has logo or nav)
       if (child.className && (child.className.indexOf('logo') !== -1 || child.className.indexOf('nav') !== -1)) continue;
-      // Remove if it contains a title/heading element
-      var heading = child.querySelector('h1, h2, h3, .dash-title, .page-title, .dash-header-title');
-      if (heading || child.className === '' || (child.className && child.className.indexOf('row') !== -1)) {
-        console.log('[AM-Additions] Removing duplicate header child:', child.className || '(no class)', child.textContent.substring(0, 50));
+      var heading = child.querySelector('h1, h2, h3, .dash-title, .page-title, .dash-header-title, .dash-page-title');
+      if (heading || (child.className && child.className.indexOf('row') !== -1)) {
+        console.log('[AM-Additions] Removing duplicate header child:', child.className || '(no class)');
         child.remove();
-        i--; // adjust index after removal
+        i--;
       }
     }
   }
@@ -620,6 +627,7 @@ window.setMapMode = function(mode) {
   console.log('[AM-Additions] setMapMode override installed');
 
 // ── Geocode helper using Nominatim (free OpenStreetMap geocoder) ──
+// No country restriction — customers may operate in US, Canada, Mexico, and US territories
 var geocodeCache = {};
 function geocodeAddress(address) {
   return new Promise(function(resolve) {
@@ -700,74 +708,161 @@ function renderProjectsView() {
     .catch(function(e) { console.error('[AM-Additions] Projects fetch error:', e); });
 }
 
-// ── Breadcrumb Trail: fetch fuel transactions for asset, geocode, draw trail ──
+// ── Breadcrumb Trail: fetch ALL activity for asset, show color-coded pins ──
+// Pin types: fuel (green), form entry (blue), inspection (orange), work order (red), PM (purple)
+var PIN_COLORS = {
+  fuel: '#16a34a',
+  form: '#2563eb',
+  inspection: '#ea580c',
+  workorder: '#dc2626',
+  pm: '#7c3aed'
+};
+
+function createPinIcon(color) {
+  return L.divIcon({
+    className: 'am-bc-pin',
+    html: '<div style="width:16px;height:16px;background:' + color + ';border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.5);"></div>',
+    iconSize: [16, 16],
+    iconAnchor: [8, 8]
+  });
+}
+
+function addMapLegend() {
+  if (!amMapInstance) return;
+  if (window._bcLegend) { amMapInstance.removeControl(window._bcLegend); }
+  var legend = L.control({ position: 'bottomright' });
+  legend.onAdd = function() {
+    var div = L.DomUtil.create('div', 'am-map-legend');
+    div.style.cssText = 'background:rgba(255,255,255,0.95);padding:10px 14px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.2);font-size:12px;line-height:1.8;';
+    var types = [
+      ['fuel', 'Fuel Purchase'],
+      ['form', 'Form Entry'],
+      ['inspection', 'Inspection'],
+      ['workorder', 'Work Order'],
+      ['pm', 'PM / Maintenance']
+    ];
+    var html = '<div style="font-weight:700;margin-bottom:4px;font-size:13px;">Activity Types</div>';
+    types.forEach(function(t) {
+      html += '<div style="display:flex;align-items:center;gap:6px;"><span style="width:12px;height:12px;background:' + PIN_COLORS[t[0]] + ';border:1px solid #fff;border-radius:50%;display:inline-block;box-shadow:0 1px 2px rgba(0,0,0,0.3);"></span>' + t[1] + '</div>';
+    });
+    div.innerHTML = html;
+    return div;
+  };
+  legend.addTo(amMapInstance);
+  window._bcLegend = legend;
+}
+
 function renderBreadcrumbTrail() {
   if (!amMapInstance) return;
   if (amClusterGroup) amClusterGroup.clearLayers();
+  if (window._breadcrumbLine) { amMapInstance.removeLayer(window._breadcrumbLine); window._breadcrumbLine = null; }
+  if (window._bcLegend) { amMapInstance.removeControl(window._bcLegend); window._bcLegend = null; }
+
   var bcSelect = document.getElementById('amBreadcrumbAssetSelect');
   var bcRange = document.getElementById('amBreadcrumbDateRange');
   var assetId = bcSelect ? bcSelect.value : '';
   if (!assetId) { amMapInstance.setView([39.5, -98.35], 4); return; }
+
+  addMapLegend();
 
   var dateFilter = '';
   if (bcRange && bcRange.value === 'today') dateFilter = '&days=1';
   else if (bcRange && bcRange.value === '7days') dateFilter = '&days=7';
   else if (bcRange && bcRange.value === '30days') dateFilter = '&days=30';
 
-  // Try fuel transactions endpoint
-  fetch('/api/fuel-transactions?asset_id=' + encodeURIComponent(assetId) + dateFilter)
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      var txns = data.transactions || data.records || data || [];
-      if (!Array.isArray(txns)) txns = [];
-      console.log('[AM-Additions] Fuel transactions fetched:', txns.length);
-      if (txns.length === 0) {
-        // Try fuel purchases as fallback
-        return fetch('/api/fuel-purchases?asset_id=' + encodeURIComponent(assetId) + dateFilter)
-          .then(function(r) { return r.json(); })
-          .then(function(d) {
-            var purchases = d.purchases || d.records || d || [];
-            if (!Array.isArray(purchases)) purchases = [];
-            processBreadcrumbData(purchases, 'vendor_address');
-          });
-      }
-      processBreadcrumbData(txns, 'location');
-    })
-    .catch(function(e) { console.error('[AM-Additions] Breadcrumb fetch error:', e); });
+  // Collect ALL activity points from multiple sources
+  var allPoints = [];
+  var sourcesFetched = 0;
+  var sourcesTotal = 0;
+
+  // Helper: try an endpoint, extract items, add as pin type
+  function fetchActivity(url, pinType, label, addrField) {
+    sourcesTotal++;
+    fetch(url)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var items = data.records || data.results || data.data || data;
+        if (!Array.isArray(items)) items = [];
+        console.log('[AM-Additions] ' + label + ' fetched:', items.length);
+        items.forEach(function(item) {
+          var lat = parseFloat(item.latitude || item.lat || item.gps_lat || item.formLat);
+          var lng = parseFloat(item.longitude || item.lng || item.gps_lng || item.lon || item.formLng);
+          var date = item.transaction_date || item.purchase_date || item.created_at || item.submitted_at || item.date || '';
+          var addr = item[addrField] || item.location || item.vendor_address || item.address || '';
+          if (item.vendor_city) addr += (addr ? ', ' : '') + item.vendor_city;
+          if (item.vendor_state) addr += ', ' + item.vendor_state;
+
+          if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+            allPoints.push({ lat: lat, lng: lng, type: pinType, label: label, date: date, addr: addr, hasGPS: true });
+          } else if (addr && addr.trim().length >= 5) {
+            // Needs geocoding
+            geocodeAddress(addr).then(function(coords) {
+              if (coords) {
+                allPoints.push({ lat: coords.lat, lng: coords.lng, type: pinType, label: label, date: date, addr: addr, hasGPS: false });
+                checkAllDone();
+              }
+            });
+          }
+        });
+        sourcesFetched++;
+        checkAllDone();
+      })
+      .catch(function(e) {
+        console.log('[AM-Additions] ' + label + ' endpoint not available:', url);
+        sourcesFetched++;
+        checkAllDone();
+      });
+  }
+
+  function checkAllDone() {
+    if (sourcesFetched >= sourcesTotal) {
+      // Sort chronologically
+      allPoints.sort(function(a, b) {
+        return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
+      });
+      drawActivityPins(allPoints);
+    }
+  }
+
+  // Fetch from all known endpoints (gracefully skips any that don't exist)
+  fetchActivity('/api/fuel-purchases?asset_id=' + encodeURIComponent(assetId) + dateFilter, 'fuel', 'Fuel Purchase', 'vendor_address');
+  fetchActivity('/api/fuel-transactions?asset_id=' + encodeURIComponent(assetId) + dateFilter, 'fuel', 'Fuel Transaction', 'location');
+  fetchActivity('/api/forms?asset_id=' + encodeURIComponent(assetId) + dateFilter, 'form', 'Form Entry', 'location');
+  fetchActivity('/api/inspections?asset_id=' + encodeURIComponent(assetId) + dateFilter, 'inspection', 'Inspection', 'location');
+  fetchActivity('/api/work-orders?asset_id=' + encodeURIComponent(assetId) + dateFilter, 'workorder', 'Work Order', 'location');
+  fetchActivity('/api/maintenance?asset_id=' + encodeURIComponent(assetId) + dateFilter, 'pm', 'PM', 'location');
 }
 
-function processBreadcrumbData(items, addressField) {
+function drawActivityPins(points) {
   if (!amMapInstance || !amClusterGroup) return;
   if (amClusterGroup) amClusterGroup.clearLayers();
-  // Remove any existing polyline
   if (window._breadcrumbLine) { amMapInstance.removeLayer(window._breadcrumbLine); window._breadcrumbLine = null; }
 
-  var points = [];
-  var pending = 0;
-  items.forEach(function(item) {
-    var addr = item[addressField] || item.location || item.vendor_address || '';
-    if (!addr && item.vendor_city) addr = (item.vendor_address || '') + ' ' + item.vendor_city + ' ' + (item.vendor_state || '');
-    if (!addr || addr.trim().length < 5) return;
-    pending++;
-    geocodeAddress(addr).then(function(coords) {
-      pending--;
-      if (coords) {
-        var marker = L.marker([coords.lat, coords.lng]);
-        var label = item.transaction_date || item.purchase_date || item.created_at || '';
-        marker.bindPopup('<div class="am-map-popup"><h4>Fuel Stop</h4><p>' + escapeHtml(addr) + '</p><p class="popup-meta">' + escapeHtml(label) + '</p></div>');
-        amClusterGroup.addLayer(marker);
-        points.push([coords.lat, coords.lng]);
-      }
-      if (pending === 0 && points.length > 1) {
-        window._breadcrumbLine = L.polyline(points, { color: '#16a34a', weight: 3, opacity: 0.7 }).addTo(amMapInstance);
-        amMapInstance.fitBounds(window._breadcrumbLine.getBounds(), { padding: [50, 50] });
-      } else if (pending === 0 && points.length === 1) {
-        amMapInstance.setView(points[0], 13);
-      } else if (pending === 0) {
-        amMapInstance.setView([39.5, -98.35], 4);
-      }
-    });
+  var trailCoords = [];
+  points.forEach(function(p) {
+    var icon = createPinIcon(PIN_COLORS[p.type] || '#666');
+    var marker = L.marker([p.lat, p.lng], { icon: icon });
+    var popupHtml = '<div class="am-map-popup"><h4>' + escapeHtml(p.label) + '</h4>';
+    if (p.addr) popupHtml += '<p>' + escapeHtml(p.addr) + '</p>';
+    if (!p.hasGPS) popupHtml += '<p class="popup-meta">(geocoded from address)</p>';
+    if (p.date) popupHtml += '<p class="popup-meta">' + escapeHtml(p.date) + '</p>';
+    popupHtml += '</div>';
+    marker.bindPopup(popupHtml);
+    amClusterGroup.addLayer(marker);
+    trailCoords.push([p.lat, p.lng]);
   });
+
+  // Draw dashed trail line connecting all points chronologically
+  if (trailCoords.length > 1) {
+    window._breadcrumbLine = L.polyline(trailCoords, { color: '#475569', weight: 2, opacity: 0.6, dashArray: '6,8' }).addTo(amMapInstance);
+    amMapInstance.fitBounds(window._breadcrumbLine.getBounds(), { padding: [50, 50] });
+  } else if (trailCoords.length === 1) {
+    amMapInstance.setView(trailCoords[0], 13);
+  } else {
+    amMapInstance.setView([39.5, -98.35], 4);
+    console.log('[AM-Additions] No activity points found for this asset');
+  }
+  console.log('[AM-Additions] Drew', points.length, 'activity pins');
 }
 
 // Patch the dashSessionLoaded handler to call loadAmColOrder + setupInfoModals + KPI fix + header cleanup
