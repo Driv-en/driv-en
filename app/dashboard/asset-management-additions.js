@@ -670,17 +670,61 @@ window.setMapMode = function(mode) {
 var geocodeCache = {};
 function geocodeAddress(address, hintState) {
   return new Promise(function(resolve) {
+    // ── Structured address object: use Nominatim structured params for precision ──
+    // This sends street/city/state/zip as separate params instead of a free-text query
+    // which produces much more accurate results (no confusion from vendor names)
+    if (typeof address === 'object' && address !== null) {
+      var cacheKey = JSON.stringify(address);
+      if (geocodeCache[cacheKey]) { resolve(geocodeCache[cacheKey]); return; }
+
+      var params = 'format=json&limit=1&addressdetails=1';
+      if (address.street) params += '&street=' + encodeURIComponent(address.street);
+      if (address.city) params += '&city=' + encodeURIComponent(address.city);
+      if (address.state) params += '&state=' + encodeURIComponent(address.state);
+      if (address.zip) params += '&postalcode=' + encodeURIComponent(address.zip);
+      if (address.country) params += '&country=' + encodeURIComponent(address.country);
+
+      fetch('https://nominatim.openstreetmap.org/search?' + params, {
+        headers: { 'Accept': 'application/json' }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data && data.length > 0) {
+          var coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+          geocodeCache[cacheKey] = coords;
+          resolve(coords);
+        } else {
+          // Fallback: try free-text query with combined address (no vendor name)
+          var fallback = [address.street, address.city, address.state, address.zip].filter(Boolean).join(', ');
+          if (fallback.trim().length < 5) { resolve(null); return; }
+          fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(fallback) + '&limit=1&addressdetails=1', {
+            headers: { 'Accept': 'application/json' }
+          })
+          .then(function(r2) { return r2.json(); })
+          .then(function(data2) {
+            if (data2 && data2.length > 0) {
+              var coords2 = { lat: parseFloat(data2[0].lat), lng: parseFloat(data2[0].lon) };
+              geocodeCache[cacheKey] = coords2;
+              resolve(coords2);
+            } else { resolve(null); }
+          })
+          .catch(function() { resolve(null); });
+        }
+      })
+      .catch(function() { resolve(null); });
+      return;
+    }
+
+    // ── String address: free-text query (existing behavior for projects etc.) ──
     if (!address || address.trim().length < 5) { resolve(null); return; }
     if (geocodeCache[address]) { resolve(geocodeCache[address]); return; }
 
-    // Check if address already contains a US state abbreviation or full name
     var hasState = /\b(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC|PR)\b/i.test(address);
     if (!hasState && hintState) {
-      // Append state hint to disambiguate (e.g. "Houston" → "Houston, TX")
       address = address + ', ' + hintState;
     }
 
-    fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(address) + '&limit=1', {
+    fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(address) + '&limit=1&addressdetails=1', {
       headers: { 'Accept': 'application/json' }
     })
     .then(function(r) { return r.json(); })
@@ -689,9 +733,7 @@ function geocodeAddress(address, hintState) {
         var coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
         geocodeCache[address] = coords;
         resolve(coords);
-      } else {
-        resolve(null);
-      }
+      } else { resolve(null); }
     })
     .catch(function() { resolve(null); });
   });
@@ -701,6 +743,7 @@ function geocodeAddress(address, hintState) {
 function renderFormsView() {
   if (!amMapInstance) return;
   if (amClusterGroup) amClusterGroup.clearLayers();
+  if (window._bcMarkerGroup) { amMapInstance.removeLayer(window._bcMarkerGroup); window._bcMarkerGroup = null; }
   if (window._breadcrumbLine) { amMapInstance.removeLayer(window._breadcrumbLine); window._breadcrumbLine = null; }
   if (window._bcLegend) { amMapInstance.removeControl(window._bcLegend); window._bcLegend = null; }
   amMapInstance.setView([39.5, -98.35], 4);
@@ -770,6 +813,8 @@ function renderFormsView() {
 function renderProjectsView() {
   if (!amMapInstance) return;
   if (amClusterGroup) amClusterGroup.clearLayers();
+  if (window._bcMarkerGroup) { amMapInstance.removeLayer(window._bcMarkerGroup); window._bcMarkerGroup = null; }
+  if (window._breadcrumbLine) { amMapInstance.removeLayer(window._breadcrumbLine); window._breadcrumbLine = null; }
   amMapInstance.setView([39.5, -98.35], 4);
 
   fetch('/api/projects')
@@ -872,6 +917,7 @@ function addMapLegend() {
 function renderBreadcrumbTrail() {
   if (!amMapInstance) return;
   if (amClusterGroup) amClusterGroup.clearLayers();
+  if (window._bcMarkerGroup) { amMapInstance.removeLayer(window._bcMarkerGroup); window._bcMarkerGroup = null; }
   if (window._breadcrumbLine) { amMapInstance.removeLayer(window._breadcrumbLine); window._breadcrumbLine = null; }
   if (window._bcLegend) { amMapInstance.removeControl(window._bcLegend); window._bcLegend = null; }
 
@@ -914,9 +960,10 @@ function renderBreadcrumbTrail() {
   var allPoints = [];
   var sourcesFetched = 0;
   var sourcesTotal = 0;
+  var pendingGeocodes = 0;
 
   function checkAllDone() {
-    if (sourcesFetched >= sourcesTotal) {
+    if (sourcesFetched >= sourcesTotal && pendingGeocodes === 0) {
       allPoints.sort(function(a, b) {
         return (a.date || '') < (b.date || '') ? -1 : (a.date || '') > (b.date || '') ? 1 : 0;
       });
@@ -945,48 +992,64 @@ function renderBreadcrumbTrail() {
           // User's GPS location (where they were when they submitted the form)
           var userLat = parseFloat(item.latitude || item.lat || item.gps_lat || item.formLat);
           var userLng = parseFloat(item.longitude || item.lng || item.gps_lng || item.lon || item.formLng);
-          var date = item.transaction_date || item.purchase_date || item.created_at || item.submitted_at || item.date || '';
 
-          // Build vendor/store address from the receipt
-          var vendorAddr = '';
-          if (item.vendor) vendorAddr = item.vendor;
-          if (item.address) vendorAddr += (vendorAddr ? ' — ' : '') + item.address;
-          if (item.city) vendorAddr += (vendorAddr ? ', ' : '') + item.city;
-          else if (item.vendor_city) vendorAddr += (vendorAddr ? ', ' : '') + item.vendor_city;
-          if (item.state) vendorAddr += ', ' + item.state;
-          else if (item.vendor_state) vendorAddr += ', ' + item.vendor_state;
-          if (item.zip) vendorAddr += ' ' + item.zip;
-          else if (item.vendor_zip) vendorAddr += ' ' + item.vendor_zip;
+          // Fuel purchase date (when the purchase was made at the store)
+          var fuelDate = item.transaction_date || item.purchase_date || item.created_at || '';
+          // Form entry date (when the form was actually submitted — may differ from purchase date)
+          var formDate = item.created_at || item.submitted_at || item.form_submitted_at || item.date || fuelDate || '';
+
+          // ── Build structured geocoding address (street only, NO vendor name) ──
+          // Nominatim structured params give much more precise results than free-text
+          var streetAddr = item.address || item.vendor_address || '';
+          var cityAddr = item.city || item.vendor_city || '';
+          var stateAddr = item.state || item.vendor_state || '';
+          var zipAddr = item.zip || item.vendor_zip || '';
+          var geocodeAddr = { street: streetAddr, city: cityAddr, state: stateAddr, zip: zipAddr };
+
+          // ── Build display address (includes vendor name for popup display) ──
+          var displayAddr = '';
+          if (item.vendor) displayAddr = item.vendor;
+          if (streetAddr) displayAddr += (displayAddr ? ' — ' : '') + streetAddr;
+          if (cityAddr) displayAddr += (displayAddr ? ', ' : '') + cityAddr;
+          if (stateAddr) displayAddr += ', ' + stateAddr;
+          if (zipAddr) displayAddr += ' ' + zipAddr;
 
           var assetLabel = item.asset_number || item.asset_name || item.assetNumber || '';
-          var stateHint = item.state || item.vendor_state || '';
+          var stateHint = stateAddr;
 
-          // ── GREEN PIN: at the store/vendor location (from receipt) ──
-          // This is the actual fuel purchase location
-          if (vendorAddr && vendorAddr.trim().length >= 5) {
-            // Try to geocode the vendor address
-            geocodeAddress(vendorAddr, stateHint).then(function(coords) {
+          // ── GREEN PIN: at the store/vendor street address (geocoded precisely) ──
+          if (streetAddr && streetAddr.trim().length >= 3) {
+            pendingGeocodes++;
+            geocodeAddress(geocodeAddr, stateHint).then(function(coords) {
+              pendingGeocodes--;
               if (coords) {
                 allPoints.push({
                   lat: coords.lat, lng: coords.lng,
                   type: 'fuel', label: 'Fuel Purchase',
-                  date: date, addr: vendorAddr, asset: assetLabel,
+                  date: fuelDate, addr: displayAddr, asset: assetLabel,
                   hasGPS: false
                 });
-                checkAllDone();
               }
+              checkAllDone();
             });
           }
 
           // ── BLUE PIN: at the user's GPS location (where they submitted the form) ──
-          // Only for fuel purchases, and only if the checkbox is checked
-          // (users often enter fuel data at night from home, so this is optional)
+          // Uses form submission date, NOT purchase date
+          // Popup includes fuel purchase location and purchase date for context
           if (pinType === 'fuel' && showFormEntry && !isNaN(userLat) && !isNaN(userLng) && userLat !== 0 && userLng !== 0) {
+            var fuelLocDesc = '';
+            if (item.vendor) fuelLocDesc = item.vendor;
+            if (cityAddr) fuelLocDesc += (fuelLocDesc ? ', ' : '') + cityAddr;
+            if (stateAddr) fuelLocDesc += ', ' + stateAddr;
             allPoints.push({
               lat: userLat, lng: userLng,
-              type: 'form', label: 'Form Entry Location',
-              date: date, addr: 'User location: ' + userLat.toFixed(4) + ', ' + userLng.toFixed(4),
-              asset: assetLabel, hasGPS: true
+              type: 'form', label: 'Fuel Purchase — Form Entry',
+              date: formDate,
+              addr: 'Form submitted at: ' + userLat.toFixed(4) + ', ' + userLng.toFixed(4),
+              asset: assetLabel, hasGPS: true,
+              fuelDate: fuelDate,
+              fuelLocation: fuelLocDesc
             });
           }
 
@@ -995,21 +1058,23 @@ function renderBreadcrumbTrail() {
             allPoints.push({
               lat: userLat, lng: userLng,
               type: pinType, label: label,
-              date: date, addr: vendorAddr || '',
+              date: formDate, addr: displayAddr || '',
               asset: assetLabel, hasGPS: true
             });
-          } else if (pinType !== 'fuel' && vendorAddr && vendorAddr.trim().length >= 5) {
+          } else if (pinType !== 'fuel' && streetAddr && streetAddr.trim().length >= 3) {
             // Non-fuel with no GPS but has address — geocode it
-            geocodeAddress(vendorAddr, stateHint).then(function(coords) {
+            pendingGeocodes++;
+            geocodeAddress(geocodeAddr, stateHint).then(function(coords) {
+              pendingGeocodes--;
               if (coords) {
                 allPoints.push({
                   lat: coords.lat, lng: coords.lng,
                   type: pinType, label: label,
-                  date: date, addr: vendorAddr, asset: assetLabel,
+                  date: formDate, addr: displayAddr, asset: assetLabel,
                   hasGPS: false
                 });
-                checkAllDone();
               }
+              checkAllDone();
             });
           }
         });
@@ -1044,11 +1109,13 @@ function renderBreadcrumbTrail() {
       if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
         allPoints.push({ lat: lat, lng: lng, type: 'form', label: 'Last Form Entry', date: date, addr: addr, asset: asset.assetNumber || '', hasGPS: true });
       } else if (addr && addr.trim().length >= 5) {
+        pendingGeocodes++;
         geocodeAddress(addr).then(function(coords) {
+          pendingGeocodes--;
           if (coords) {
             allPoints.push({ lat: coords.lat, lng: coords.lng, type: 'form', label: 'Last Form Entry', date: date, addr: addr, asset: asset.assetNumber || '', hasGPS: false });
-            checkAllDone();
           }
+          checkAllDone();
         });
       }
     }
@@ -1061,8 +1128,13 @@ function renderBreadcrumbTrail() {
 }
 
 function drawActivityPins(points) {
-  if (!amMapInstance || !amClusterGroup) return;
-  if (amClusterGroup) amClusterGroup.clearLayers();
+  if (!amMapInstance) return;
+
+  // Use a PLAIN layer group (NOT marker cluster) so each pin shows its actual color
+  // MarkerCluster wraps pins in green/yellow/red cluster icons that hide the pin's true color
+  if (window._bcMarkerGroup) { amMapInstance.removeLayer(window._bcMarkerGroup); }
+  window._bcMarkerGroup = L.layerGroup();
+  amMapInstance.addLayer(window._bcMarkerGroup);
   if (window._breadcrumbLine) { amMapInstance.removeLayer(window._breadcrumbLine); window._breadcrumbLine = null; }
 
   var trailCoords = [];
@@ -1072,11 +1144,14 @@ function drawActivityPins(points) {
     var popupHtml = '<div class="am-map-popup"><h4>' + escapeHtml(p.label) + '</h4>';
     if (p.asset) popupHtml += '<p><strong>' + escapeHtml(p.asset) + '</strong></p>';
     if (p.addr) popupHtml += '<p>' + escapeHtml(p.addr) + '</p>';
+    // For form entry pins, show where the fuel purchase actually happened
+    if (p.fuelLocation) popupHtml += '<p class="popup-meta">Fuel purchase at: ' + escapeHtml(p.fuelLocation) + '</p>';
+    if (p.fuelDate && p.fuelDate !== p.date) popupHtml += '<p class="popup-meta">Purchase date: ' + escapeHtml(formatDateTime(p.fuelDate)) + '</p>';
     if (!p.hasGPS) popupHtml += '<p class="popup-meta">(geocoded from address)</p>';
     if (p.date) popupHtml += '<p class="popup-meta">' + escapeHtml(formatDateTime(p.date)) + '</p>';
     popupHtml += '</div>';
     marker.bindPopup(popupHtml);
-    amClusterGroup.addLayer(marker);
+    window._bcMarkerGroup.addLayer(marker);
     trailCoords.push([p.lat, p.lng]);
   });
 
